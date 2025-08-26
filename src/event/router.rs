@@ -58,6 +58,12 @@ pub struct EventNode {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct NodeId(usize);
 
+impl Default for NodeId {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl NodeId {
     pub fn new() -> Self {
         static COUNTER: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
@@ -80,11 +86,11 @@ impl EventRouter {
             focus_node: None,
         }
     }
-    
+
     /// Create a new event node
     pub fn create_node(&mut self, parent: Option<NodeId>) -> NodeId {
         let id = NodeId::new();
-        
+
         let node = EventNode {
             id,
             parent,
@@ -92,7 +98,7 @@ impl EventRouter {
             handlers: HashMap::new(),
             capture_handlers: HashMap::new(),
         };
-        
+
         // Add to parent's children
         if let Some(parent_id) = parent {
             if let Some(parent_node) = self.nodes.get_mut(&parent_id) {
@@ -102,11 +108,11 @@ impl EventRouter {
             // No parent means this is the root
             self.root = Some(id);
         }
-        
+
         self.nodes.insert(id, node);
         id
     }
-    
+
     /// Remove an event node and all its descendants
     pub fn remove_node(&mut self, id: NodeId) {
         // Remove from parent's children
@@ -117,7 +123,7 @@ impl EventRouter {
                 }
             }
         }
-        
+
         // Remove node and all descendants
         let mut to_remove = vec![id];
         while let Some(node_id) = to_remove.pop() {
@@ -125,18 +131,18 @@ impl EventRouter {
                 to_remove.extend(&node.children);
             }
         }
-        
+
         // Clear root if removed
         if self.root == Some(id) {
             self.root = None;
         }
-        
+
         // Clear focus if removed
         if self.focus_node == Some(id) {
             self.focus_node = None;
         }
     }
-    
+
     /// Add an event handler to a node
     pub fn add_handler(
         &mut self,
@@ -147,7 +153,7 @@ impl EventRouter {
     ) -> HandlerId {
         let handler_id = HandlerId::new();
         let event_type = event_type.into();
-        
+
         let handler = EventHandler {
             id: handler_id,
             event_type: event_type.clone(),
@@ -155,7 +161,7 @@ impl EventRouter {
             handler,
             priority: 0,
         };
-        
+
         if let Some(node) = self.nodes.get_mut(&node_id) {
             match phase {
                 EventPhase::Capture => {
@@ -172,10 +178,10 @@ impl EventRouter {
                 }
             }
         }
-        
+
         handler_id
     }
-    
+
     /// Remove an event handler
     pub fn remove_handler(&mut self, node_id: NodeId, handler_id: HandlerId) {
         if let Some(node) = self.nodes.get_mut(&node_id) {
@@ -183,14 +189,14 @@ impl EventRouter {
             for handlers in node.handlers.values_mut() {
                 handlers.retain(|h| h.id != handler_id);
             }
-            
+
             // Remove from capture handlers
             for handlers in node.capture_handlers.values_mut() {
                 handlers.retain(|h| h.id != handler_id);
             }
         }
     }
-    
+
     /// Route an event through the tree
     pub fn route_event(&self, event: &Event, target_id: NodeId) -> EventResult {
         let event_type = match event {
@@ -201,11 +207,11 @@ impl EventRouter {
             Event::Paste(_) => "paste",
             Event::Custom(_) => "custom",
         };
-        
+
         // Build path from root to target
         let mut path = Vec::new();
         let mut current = Some(target_id);
-        
+
         while let Some(node_id) = current {
             path.push(node_id);
             if let Some(node) = self.nodes.get(&node_id) {
@@ -214,9 +220,9 @@ impl EventRouter {
                 break;
             }
         }
-        
+
         path.reverse(); // Now path goes from root to target
-        
+
         // Capture phase - root to target (excluding target)
         for &node_id in &path[..path.len().saturating_sub(1)] {
             if let Some(node) = self.nodes.get(&node_id) {
@@ -224,33 +230,30 @@ impl EventRouter {
                     for handler in handlers {
                         match (handler.handler)(event) {
                             EventResult::Consumed => return EventResult::Consumed,
-                            EventResult::Handled => {},
-                            EventResult::Ignored => {},
+                            EventResult::Handled => {}
+                            EventResult::Ignored => {}
                         }
                     }
                 }
             }
         }
-        
+
         // Target phase
         if let Some(node) = self.nodes.get(&target_id) {
             if let Some(handlers) = node.handlers.get(event_type) {
                 for handler in handlers {
                     match (handler.handler)(event) {
                         EventResult::Consumed => return EventResult::Consumed,
-                        EventResult::Handled => {},
-                        EventResult::Ignored => {},
+                        EventResult::Handled => {}
+                        EventResult::Ignored => {}
                     }
                 }
             }
         }
-        
+
         // Bubble phase - target to root (if event bubbles)
-        let bubbles = match event {
-            Event::Resize(_) | Event::Focus(_) => false,
-            _ => true,
-        };
-        
+        let bubbles = !matches!(event, Event::Resize(_) | Event::Focus(_));
+
         if bubbles {
             for &node_id in path.iter().rev().skip(1) {
                 if let Some(node) = self.nodes.get(&node_id) {
@@ -259,8 +262,8 @@ impl EventRouter {
                             if handler.phase == EventPhase::Bubble {
                                 match (handler.handler)(event) {
                                     EventResult::Consumed => return EventResult::Consumed,
-                                    EventResult::Handled => {},
-                                    EventResult::Ignored => {},
+                                    EventResult::Handled => {}
+                                    EventResult::Ignored => {}
                                 }
                             }
                         }
@@ -268,10 +271,10 @@ impl EventRouter {
                 }
             }
         }
-        
+
         EventResult::Ignored
     }
-    
+
     /// Dispatch an event to the focused node
     pub fn dispatch_to_focus(&self, event: &Event) -> EventResult {
         if let Some(focus_id) = self.focus_node {
@@ -282,12 +285,12 @@ impl EventRouter {
             EventResult::Ignored
         }
     }
-    
+
     /// Set the focused node
     pub fn set_focus(&mut self, node_id: Option<NodeId>) {
         self.focus_node = node_id;
     }
-    
+
     /// Get the currently focused node
     pub fn get_focus(&self) -> Option<NodeId> {
         self.focus_node
@@ -303,22 +306,22 @@ impl Default for EventRouter {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::event::types::{KeyEvent, KeyCode};
+    use crate::event::types::{KeyCode, KeyEvent};
     use std::sync::Mutex;
 
     #[test]
     fn test_event_routing() {
         let mut router = EventRouter::new();
-        
+
         // Create a simple tree: root -> child -> grandchild
         let root = router.create_node(None);
         let child = router.create_node(Some(root));
         let grandchild = router.create_node(Some(child));
-        
+
         // Track events through phases
         let captured = Arc::new(Mutex::new(Vec::new()));
         let bubbled = Arc::new(Mutex::new(Vec::new()));
-        
+
         // Add capture handler to root
         let captured_clone = captured.clone();
         router.add_handler(
@@ -330,7 +333,7 @@ mod tests {
                 EventResult::Handled
             }),
         );
-        
+
         // Add bubble handler to child
         let bubbled_clone = bubbled.clone();
         router.add_handler(
@@ -342,23 +345,23 @@ mod tests {
                 EventResult::Handled
             }),
         );
-        
+
         // Route an event from grandchild
         let event = Event::Key(KeyEvent::new(KeyCode::Enter));
         router.route_event(&event, grandchild);
-        
+
         // Check that capture phase happened before bubble phase
         assert_eq!(*captured.lock().unwrap(), vec!["root_capture"]);
         assert_eq!(*bubbled.lock().unwrap(), vec!["child_bubble"]);
     }
-    
+
     #[test]
     fn test_event_consumption() {
         let mut router = EventRouter::new();
-        
+
         let root = router.create_node(None);
         let child = router.create_node(Some(root));
-        
+
         // Add handler that consumes the event
         router.add_handler(
             root,
@@ -366,7 +369,7 @@ mod tests {
             EventPhase::Capture,
             Arc::new(|_| EventResult::Consumed),
         );
-        
+
         // Add handler that should not be called
         let called = Arc::new(Mutex::new(false));
         let called_clone = called.clone();
@@ -379,11 +382,11 @@ mod tests {
                 EventResult::Handled
             }),
         );
-        
+
         // Route event
         let event = Event::Key(KeyEvent::new(KeyCode::Space));
         let result = router.route_event(&event, child);
-        
+
         assert_eq!(result, EventResult::Consumed);
         assert!(!*called.lock().unwrap());
     }

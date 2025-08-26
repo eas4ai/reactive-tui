@@ -14,3 +14,8 @@ unicode-width = "0.2.1"
 name = "reactive_tui"
 path = "src/lib.rs"
 crate-type = ["rlib"]
+
+
+[features]
+# Enable debug logging in reconcile apply_patches
+debug_patches = []

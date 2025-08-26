@@ -4,10 +4,13 @@ use std::any::Any;
 /// Props must be cloneable and comparable for efficient diffing.
 pub trait Props: Clone + PartialEq + Send + Sync + 'static {
     /// Create default props
-    fn default_props() -> Self where Self: Sized + Default {
+    fn default_props() -> Self
+    where
+        Self: Sized + Default,
+    {
         Self::default()
     }
-    
+
     /// Convert to Any for type erasure
     fn as_any(&self) -> &dyn Any;
 }

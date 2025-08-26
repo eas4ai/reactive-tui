@@ -1,9 +1,9 @@
-pub mod tree;
+pub mod optimize;
 pub mod reconcile;
 pub mod scheduler;
-pub mod optimize;
+pub mod tree;
 
-pub use tree::{RenderNode, RenderTree, NodeKey};
-pub use reconcile::{Reconciler, DiffResult, PatchOp};
-pub use scheduler::{RenderScheduler, Priority, ScheduleHandle};
 pub use optimize::{DirtyRegion, RenderCache};
+pub use reconcile::{DiffResult, PatchOp, Reconciler};
+pub use scheduler::{Priority, RenderScheduler, ScheduleHandle};
+pub use tree::{NodeKey, RenderNode, RenderTree};

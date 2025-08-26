@@ -1,9 +1,9 @@
+use crate::component::{Component, Element, Props};
+use crate::event::router::EventResult;
+use crate::event::types::{KeyCode, KeyEvent, MouseEventKind};
+use crate::event::{Event, MouseEvent};
 use std::any::Any;
 use std::sync::Arc;
-use crate::component::{Component, Element, Props};
-use crate::event::{Event, MouseEvent};
-use crate::event::types::{KeyEvent, KeyCode, MouseEventKind};
-use crate::event::router::EventResult;
 
 /// A single option in the select dropdown
 #[derive(Clone, Debug, PartialEq)]
@@ -21,7 +21,7 @@ impl<T: Clone + PartialEq + Send + Sync + 'static> SelectOption<T> {
             disabled: false,
         }
     }
-    
+
     pub fn disabled(mut self, disabled: bool) -> Self {
         self.disabled = disabled;
         self
@@ -82,19 +82,19 @@ impl<T: Clone + PartialEq + Send + Sync + 'static> Select<T> {
         self.on_change = Some(Arc::new(f));
         self
     }
-    
+
     /// Set the onOpen callback
     pub fn with_on_open(mut self, f: impl Fn() + Send + Sync + 'static) -> Self {
         self.on_open = Some(Arc::new(f));
         self
     }
-    
+
     /// Set the onClose callback
     pub fn with_on_close(mut self, f: impl Fn() + Send + Sync + 'static) -> Self {
         self.on_close = Some(Arc::new(f));
         self
     }
-    
+
     /// Update scroll offset to keep highlighted item visible
     fn update_scroll(&mut self, state: &mut SelectState, max_visible: usize) {
         if state.highlighted_index < state.scroll_offset {
@@ -103,14 +103,19 @@ impl<T: Clone + PartialEq + Send + Sync + 'static> Select<T> {
             state.scroll_offset = state.highlighted_index - max_visible + 1;
         }
     }
-    
+
     /// Find next selectable (non-disabled) option
-    fn find_next_selectable<'a>(&self, options: &'a [SelectOption<T>], start: usize, direction: i32) -> Option<usize> {
+    fn find_next_selectable(
+        &self,
+        options: &[SelectOption<T>],
+        start: usize,
+        direction: i32,
+    ) -> Option<usize> {
         let len = options.len();
         if len == 0 {
             return None;
         }
-        
+
         let mut index = start as i32;
         for _ in 0..len {
             index = (index + direction).rem_euclid(len as i32);
@@ -125,7 +130,7 @@ impl<T: Clone + PartialEq + Send + Sync + 'static> Select<T> {
 impl<T: Clone + PartialEq + Send + Sync + 'static> Component for Select<T> {
     type Props = SelectProps<T>;
     type State = SelectState;
-    
+
     fn new(_props: Self::Props) -> Self {
         Self {
             _phantom: std::marker::PhantomData,
@@ -135,18 +140,19 @@ impl<T: Clone + PartialEq + Send + Sync + 'static> Component for Select<T> {
             on_close: None,
         }
     }
-    
+
     fn update(&mut self, _props: &Self::Props, state: &mut Self::State) -> bool {
         self.state = state.clone();
         true
     }
-    
+
     fn render(&self, props: &Self::Props, state: &Self::State) -> Element {
         let width = props.width.unwrap_or(30) as usize;
-        
+
         // Get display text for selected value
         let display_text = if let Some(ref selected) = props.selected {
-            props.options
+            props
+                .options
                 .iter()
                 .find(|opt| opt.value == *selected)
                 .map(|opt| opt.label.clone())
@@ -156,9 +162,9 @@ impl<T: Clone + PartialEq + Send + Sync + 'static> Component for Select<T> {
         } else {
             String::new()
         };
-        
+
         let mut result = String::new();
-        
+
         // Add state indicator
         if props.disabled {
             result.push_str("🔒 ");
@@ -169,38 +175,39 @@ impl<T: Clone + PartialEq + Send + Sync + 'static> Component for Select<T> {
         } else {
             result.push_str("  ");
         }
-        
+
         // Truncate display text if needed
         let display = if display_text.len() > width - 2 {
             format!("{}...", &display_text[..width - 5])
         } else {
             display_text
         };
-        
+
         result.push('[');
         result.push_str(&display);
         result.push(']');
-        
+
         // Show dropdown if open
         if state.is_open && !props.options.is_empty() {
             result.push('\n');
-            
+
             // Calculate visible range
-            let visible_end = (state.scroll_offset + props.max_visible_items).min(props.options.len());
-            
+            let visible_end =
+                (state.scroll_offset + props.max_visible_items).min(props.options.len());
+
             // Add scroll indicator if needed
             if state.scroll_offset > 0 {
                 result.push_str("  ▲ ..more..\n");
             }
-            
+
             // Render visible options
             for i in state.scroll_offset..visible_end {
                 let option = &props.options[i];
-                let is_selected = props.selected.as_ref().map_or(false, |s| *s == option.value);
+                let is_selected = props.selected.as_ref().is_some_and(|s| *s == option.value);
                 let is_highlighted = i == state.highlighted_index;
-                
+
                 result.push_str("  ");
-                
+
                 // Add selection/highlight markers
                 if is_highlighted && is_selected {
                     result.push_str("▶●");
@@ -211,42 +218,45 @@ impl<T: Clone + PartialEq + Send + Sync + 'static> Component for Select<T> {
                 } else {
                     result.push_str("  ");
                 }
-                
+
                 // Add option label
                 if option.disabled {
                     result.push_str(&format!("({})", option.label));
                 } else {
                     result.push_str(&option.label);
                 }
-                
+
                 result.push('\n');
             }
-            
+
             // Add scroll indicator if needed
             if visible_end < props.options.len() {
                 result.push_str("  ▼ ..more..\n");
             }
         }
-        
+
         Element::text(result)
     }
-    
-    fn handle_event(&mut self, event: &Event, props: &mut Self::Props, state: &mut Self::State) -> EventResult {
+
+    fn handle_event(
+        &mut self,
+        event: &Event,
+        props: &mut Self::Props,
+        state: &mut Self::State,
+    ) -> EventResult {
         if props.disabled {
             return EventResult::Ignored;
         }
-        
+
         match event {
             Event::Key(key_event) => {
                 if !state.is_focused {
                     return EventResult::Ignored;
                 }
-                
+
                 self.handle_key_event(key_event, props, state)
             }
-            Event::Mouse(mouse_event) => {
-                self.handle_mouse_event(mouse_event, props, state)
-            }
+            Event::Mouse(mouse_event) => self.handle_mouse_event(mouse_event, props, state),
             Event::Focus(_) => {
                 state.is_focused = true;
                 EventResult::Consumed
@@ -257,7 +267,12 @@ impl<T: Clone + PartialEq + Send + Sync + 'static> Component for Select<T> {
 }
 
 impl<T: Clone + PartialEq + Send + Sync + 'static> Select<T> {
-    fn handle_key_event(&mut self, event: &KeyEvent, props: &mut SelectProps<T>, state: &mut SelectState) -> EventResult {
+    fn handle_key_event(
+        &mut self,
+        event: &KeyEvent,
+        props: &mut SelectProps<T>,
+        state: &mut SelectState,
+    ) -> EventResult {
         match event.code {
             KeyCode::Enter | KeyCode::Char(' ') => {
                 if state.is_open {
@@ -278,16 +293,18 @@ impl<T: Clone + PartialEq + Send + Sync + 'static> Select<T> {
                 } else {
                     // Open dropdown
                     state.is_open = true;
-                    
+
                     // Set initial highlighted index to selected item or first selectable
                     if let Some(ref selected) = props.selected {
-                        if let Some(index) = props.options.iter().position(|opt| opt.value == *selected) {
+                        if let Some(index) =
+                            props.options.iter().position(|opt| opt.value == *selected)
+                        {
                             state.highlighted_index = index;
                         }
                     } else if let Some(index) = self.find_next_selectable(&props.options, 0, 0) {
                         state.highlighted_index = index;
                     }
-                    
+
                     if let Some(on_open) = &self.on_open {
                         on_open();
                     }
@@ -308,7 +325,9 @@ impl<T: Clone + PartialEq + Send + Sync + 'static> Select<T> {
             KeyCode::Up => {
                 if state.is_open {
                     // Move to previous selectable option
-                    if let Some(index) = self.find_next_selectable(&props.options, state.highlighted_index, -1) {
+                    if let Some(index) =
+                        self.find_next_selectable(&props.options, state.highlighted_index, -1)
+                    {
                         state.highlighted_index = index;
                         self.update_scroll(state, props.max_visible_items);
                     }
@@ -316,8 +335,12 @@ impl<T: Clone + PartialEq + Send + Sync + 'static> Select<T> {
                     // Open dropdown and select previous option
                     state.is_open = true;
                     if let Some(ref selected) = props.selected {
-                        if let Some(current_index) = props.options.iter().position(|opt| opt.value == *selected) {
-                            if let Some(index) = self.find_next_selectable(&props.options, current_index, -1) {
+                        if let Some(current_index) =
+                            props.options.iter().position(|opt| opt.value == *selected)
+                        {
+                            if let Some(index) =
+                                self.find_next_selectable(&props.options, current_index, -1)
+                            {
                                 state.highlighted_index = index;
                             }
                         }
@@ -331,7 +354,9 @@ impl<T: Clone + PartialEq + Send + Sync + 'static> Select<T> {
             KeyCode::Down => {
                 if state.is_open {
                     // Move to next selectable option
-                    if let Some(index) = self.find_next_selectable(&props.options, state.highlighted_index, 1) {
+                    if let Some(index) =
+                        self.find_next_selectable(&props.options, state.highlighted_index, 1)
+                    {
                         state.highlighted_index = index;
                         self.update_scroll(state, props.max_visible_items);
                     }
@@ -339,8 +364,12 @@ impl<T: Clone + PartialEq + Send + Sync + 'static> Select<T> {
                     // Open dropdown and select next option
                     state.is_open = true;
                     if let Some(ref selected) = props.selected {
-                        if let Some(current_index) = props.options.iter().position(|opt| opt.value == *selected) {
-                            if let Some(index) = self.find_next_selectable(&props.options, current_index, 1) {
+                        if let Some(current_index) =
+                            props.options.iter().position(|opt| opt.value == *selected)
+                        {
+                            if let Some(index) =
+                                self.find_next_selectable(&props.options, current_index, 1)
+                            {
                                 state.highlighted_index = index;
                             }
                         }
@@ -368,7 +397,9 @@ impl<T: Clone + PartialEq + Send + Sync + 'static> Select<T> {
             KeyCode::End => {
                 if state.is_open {
                     // Go to last selectable option
-                    if let Some(index) = self.find_next_selectable(&props.options, props.options.len() - 1, 0) {
+                    if let Some(index) =
+                        self.find_next_selectable(&props.options, props.options.len() - 1, 0)
+                    {
                         state.highlighted_index = index;
                         self.update_scroll(state, props.max_visible_items);
                     }
@@ -380,7 +411,9 @@ impl<T: Clone + PartialEq + Send + Sync + 'static> Select<T> {
             KeyCode::PageUp => {
                 if state.is_open {
                     // Move up by page
-                    let new_index = state.highlighted_index.saturating_sub(props.max_visible_items);
+                    let new_index = state
+                        .highlighted_index
+                        .saturating_sub(props.max_visible_items);
                     if let Some(index) = self.find_next_selectable(&props.options, new_index, 0) {
                         state.highlighted_index = index;
                         self.update_scroll(state, props.max_visible_items);
@@ -393,7 +426,8 @@ impl<T: Clone + PartialEq + Send + Sync + 'static> Select<T> {
             KeyCode::PageDown => {
                 if state.is_open {
                     // Move down by page
-                    let new_index = (state.highlighted_index + props.max_visible_items).min(props.options.len() - 1);
+                    let new_index = (state.highlighted_index + props.max_visible_items)
+                        .min(props.options.len() - 1);
                     if let Some(index) = self.find_next_selectable(&props.options, new_index, 0) {
                         state.highlighted_index = index;
                         self.update_scroll(state, props.max_visible_items);
@@ -406,12 +440,17 @@ impl<T: Clone + PartialEq + Send + Sync + 'static> Select<T> {
             _ => EventResult::Ignored,
         }
     }
-    
-    fn handle_mouse_event(&mut self, event: &MouseEvent, props: &mut SelectProps<T>, state: &mut SelectState) -> EventResult {
+
+    fn handle_mouse_event(
+        &mut self,
+        event: &MouseEvent,
+        props: &mut SelectProps<T>,
+        state: &mut SelectState,
+    ) -> EventResult {
         match event.kind {
             MouseEventKind::Click => {
                 let click_y = event.position.y() as usize;
-                
+
                 if click_y == 0 {
                     // Clicked on the select box itself
                     if state.is_open {
@@ -429,7 +468,7 @@ impl<T: Clone + PartialEq + Send + Sync + 'static> Select<T> {
                 } else if state.is_open && click_y > 0 {
                     // Clicked on an option
                     let option_index = state.scroll_offset + click_y - 1;
-                    
+
                     if option_index < props.options.len() {
                         let option = &props.options[option_index];
                         if !option.disabled {
@@ -444,7 +483,7 @@ impl<T: Clone + PartialEq + Send + Sync + 'static> Select<T> {
                         }
                     }
                 }
-                
+
                 EventResult::Consumed
             }
             MouseEventKind::Wheel => {
@@ -463,7 +502,8 @@ impl<T: Clone + PartialEq + Send + Sync + 'static> Select<T> {
                         }
                         crate::event::types::MouseButton::Forward => {
                             // Button 5 - Wheel down
-                            let max_scroll = props.options.len().saturating_sub(props.max_visible_items);
+                            let max_scroll =
+                                props.options.len().saturating_sub(props.max_visible_items);
                             if state.scroll_offset < max_scroll {
                                 state.scroll_offset += 1;
                                 EventResult::Consumed
@@ -474,7 +514,8 @@ impl<T: Clone + PartialEq + Send + Sync + 'static> Select<T> {
                         _ => {
                             // Unknown wheel direction, try to be smart about it
                             // If we're at top, assume down; if at bottom, assume up
-                            let max_scroll = props.options.len().saturating_sub(props.max_visible_items);
+                            let max_scroll =
+                                props.options.len().saturating_sub(props.max_visible_items);
                             if state.scroll_offset == 0 && max_scroll > 0 {
                                 state.scroll_offset += 1;
                                 EventResult::Consumed
@@ -496,7 +537,9 @@ impl<T: Clone + PartialEq + Send + Sync + 'static> Select<T> {
                     let hover_y = event.position.y() as usize;
                     if hover_y > 0 {
                         let option_index = state.scroll_offset + hover_y - 1;
-                        if option_index < props.options.len() && !props.options[option_index].disabled {
+                        if option_index < props.options.len()
+                            && !props.options[option_index].disabled
+                        {
                             state.highlighted_index = option_index;
                             EventResult::Consumed
                         } else {

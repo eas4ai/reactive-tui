@@ -1,7 +1,7 @@
-pub mod parser;
 pub mod csi;
-pub mod osc;
 pub mod esc;
+pub mod osc;
+pub mod parser;
 
 use std::fmt;
 
@@ -10,28 +10,28 @@ use std::fmt;
 pub enum Action {
     /// Print a single character
     Print(char),
-    
+
     /// Execute a C0 control character
     Execute(u8),
-    
+
     /// Control Sequence Introducer (CSI) sequences
     CSI(csi::CSIAction),
-    
+
     /// Operating System Command (OSC) sequences
     OSC(osc::OSCAction),
-    
+
     /// ESC sequences (non-CSI)
     ESC(esc::ESCAction),
-    
+
     /// Device Control String (DCS) sequences
     DCS(Vec<u8>),
-    
+
     /// Application Program Command (APC)
     APC(Vec<u8>),
-    
+
     /// Privacy Message (PM)
     PM(Vec<u8>),
-    
+
     /// Start of String (SOS)
     SOS(Vec<u8>),
 }
@@ -39,11 +39,11 @@ pub enum Action {
 impl fmt::Display for Action {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Action::Print(c) => write!(f, "Print('{}')", c),
-            Action::Execute(b) => write!(f, "Execute(0x{:02x})", b),
-            Action::CSI(csi) => write!(f, "CSI({:?})", csi),
-            Action::OSC(osc) => write!(f, "OSC({:?})", osc),
-            Action::ESC(esc) => write!(f, "ESC({:?})", esc),
+            Action::Print(c) => write!(f, "Print('{c}')"),
+            Action::Execute(b) => write!(f, "Execute(0x{b:02x})"),
+            Action::CSI(csi) => write!(f, "CSI({csi:?})"),
+            Action::OSC(osc) => write!(f, "OSC({osc:?})"),
+            Action::ESC(esc) => write!(f, "ESC({esc:?})"),
             Action::DCS(data) => write!(f, "DCS({} bytes)", data.len()),
             Action::APC(data) => write!(f, "APC({} bytes)", data.len()),
             Action::PM(data) => write!(f, "PM({} bytes)", data.len()),

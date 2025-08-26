@@ -1,4 +1,4 @@
-use super::tree::{RenderNode, RenderTree, NodeKey};
+use super::tree::{NodeKey, RenderNode, RenderTree};
 use std::collections::HashMap;
 
 /// Result of diffing two render trees
@@ -19,30 +19,23 @@ pub enum PatchOp {
         index: usize,
         node_key: NodeKey,
     },
-    
+
     /// Remove a node
-    Remove {
-        node_key: NodeKey,
-    },
-    
+    Remove { node_key: NodeKey },
+
     /// Replace a node with another
-    Replace {
-        old_key: NodeKey,
-        new_key: NodeKey,
-    },
-    
+    Replace { old_key: NodeKey, new_key: NodeKey },
+
     /// Move a node to a different position
     Move {
         node_key: NodeKey,
         parent_key: Option<NodeKey>,
         index: usize,
     },
-    
+
     /// Update node properties
-    Update {
-        node_key: NodeKey,
-    },
-    
+    Update { node_key: NodeKey },
+
     /// Reorder children
     ReorderChildren {
         parent_key: NodeKey,
@@ -72,16 +65,16 @@ impl Reconciler {
             stats: ReconcilerStats::default(),
         }
     }
-    
+
     /// Diff two render trees and produce patch operations
     pub fn diff(&mut self, old_tree: &RenderTree, new_tree: &RenderTree) -> DiffResult {
         self.stats.total_diffs += 1;
-        
+
         let mut patches = Vec::new();
         let mut reused_nodes = 0;
         let mut new_nodes = 0;
         let mut removed_nodes = 0;
-        
+
         match (old_tree.root(), new_tree.root()) {
             (Some(old_root), Some(new_root)) => {
                 self.diff_nodes(
@@ -115,7 +108,7 @@ impl Reconciler {
                 // Both empty, nothing to do
             }
         }
-        
+
         DiffResult {
             patches,
             reused_nodes,
@@ -123,14 +116,15 @@ impl Reconciler {
             removed_nodes,
         }
     }
-    
+
     /// Diff two nodes recursively
+    #[allow(clippy::too_many_arguments)]
     fn diff_nodes(
         &mut self,
         old_node: &dyn RenderNode,
         new_node: &dyn RenderNode,
-        parent_key: Option<NodeKey>,
-        index: usize,
+        _parent_key: Option<NodeKey>,
+        _index: usize,
         patches: &mut Vec<PatchOp>,
         reused: &mut usize,
         added: &mut usize,
@@ -144,9 +138,9 @@ impl Reconciler {
                     node_key: new_node.key().clone(),
                 });
             }
-            
+
             *reused += 1;
-            
+
             // Diff children
             self.diff_children(
                 old_node.children(),
@@ -163,13 +157,14 @@ impl Reconciler {
                 old_key: old_node.key().clone(),
                 new_key: new_node.key().clone(),
             });
-            
+
             *removed += self.count_nodes(old_node);
             *added += self.count_nodes(new_node);
         }
     }
-    
+
     /// Diff children using a key-based algorithm
+    #[allow(clippy::too_many_arguments)]
     fn diff_children(
         &mut self,
         old_children: &[Box<dyn RenderNode>],
@@ -186,30 +181,30 @@ impl Reconciler {
             .enumerate()
             .map(|(i, child)| (child.key().clone(), i))
             .collect();
-            
-        let new_keys: HashMap<_, _> = new_children
+
+        let _new_keys: HashMap<_, _> = new_children
             .iter()
             .enumerate()
             .map(|(i, child)| (child.key().clone(), i))
             .collect();
-        
+
         // Track which old nodes have been matched
         let mut matched_old = vec![false; old_children.len()];
         let mut moves = Vec::new();
-        
+
         // Process new children
         for (new_idx, new_child) in new_children.iter().enumerate() {
             let new_key = new_child.key();
-            
+
             if let Some(&old_idx) = old_keys.get(new_key) {
                 // Node exists in old tree
                 matched_old[old_idx] = true;
-                
+
                 // Check if it needs to move
                 if old_idx != new_idx {
                     moves.push((new_key.clone(), new_idx));
                 }
-                
+
                 // Recursively diff the node
                 self.diff_nodes(
                     old_children[old_idx].as_ref(),
@@ -231,7 +226,7 @@ impl Reconciler {
                 *added += self.count_nodes(new_child.as_ref());
             }
         }
-        
+
         // Remove unmatched old nodes
         for (old_idx, old_child) in old_children.iter().enumerate() {
             if !matched_old[old_idx] {
@@ -241,38 +236,41 @@ impl Reconciler {
                 *removed += self.count_nodes(old_child.as_ref());
             }
         }
-        
+
         // Apply moves if necessary
         if !moves.is_empty() {
             let new_order: Vec<_> = new_children
                 .iter()
                 .map(|child| child.key().clone())
                 .collect();
-                
+
             patches.push(PatchOp::ReorderChildren {
                 parent_key,
                 new_order,
             });
         }
     }
-    
+
     /// Count total nodes in a subtree
+    #[allow(clippy::only_used_in_recursion)]
     fn count_nodes(&self, node: &dyn RenderNode) -> usize {
-        1 + node.children().iter().map(|child| self.count_nodes(child.as_ref())).sum::<usize>()
+        1 + node
+            .children()
+            .iter()
+            .map(|child| self.count_nodes(child.as_ref()))
+            .sum::<usize>()
     }
-    
+
     /// Clear the node cache
     pub fn clear_cache(&mut self) {
         self.node_cache.clear();
     }
-    
+
     /// Get reconciler statistics
     pub fn stats(&self) -> String {
         format!(
             "Reconciler Stats: {} diffs, {} cache hits, {} cache misses",
-            self.stats.total_diffs,
-            self.stats.cache_hits,
-            self.stats.cache_misses
+            self.stats.total_diffs, self.stats.cache_hits, self.stats.cache_misses
         )
     }
 }
@@ -284,27 +282,46 @@ impl Default for Reconciler {
 }
 
 /// Apply patches to update the actual UI
-pub fn apply_patches(patches: &[PatchOp], tree: &mut RenderTree) {
+pub fn apply_patches(patches: &[PatchOp], _tree: &mut RenderTree) {
     for patch in patches {
         match patch {
-            PatchOp::Insert { parent_key, index, node_key } => {
-                // In a real implementation, this would insert the node
-                println!("INSERT: {:?} at index {} under {:?}", node_key, index, parent_key);
+            PatchOp::Insert {
+                parent_key: _,
+                index: _,
+                node_key: _,
+            } => {
+                #[cfg(feature = "debug_patches")]
+                eprintln!("INSERT: {patch:?}");
             }
-            PatchOp::Remove { node_key } => {
-                println!("REMOVE: {:?}", node_key);
+            PatchOp::Remove { node_key: _ } => {
+                #[cfg(feature = "debug_patches")]
+                eprintln!("REMOVE: {patch:?}");
             }
-            PatchOp::Replace { old_key, new_key } => {
-                println!("REPLACE: {:?} with {:?}", old_key, new_key);
+            PatchOp::Replace {
+                old_key: _,
+                new_key: _,
+            } => {
+                #[cfg(feature = "debug_patches")]
+                eprintln!("REPLACE: {patch:?}");
             }
-            PatchOp::Move { node_key, parent_key, index } => {
-                println!("MOVE: {:?} to index {} under {:?}", node_key, index, parent_key);
+            PatchOp::Move {
+                node_key: _,
+                parent_key: _,
+                index: _,
+            } => {
+                #[cfg(feature = "debug_patches")]
+                eprintln!("MOVE: {patch:?}");
             }
-            PatchOp::Update { node_key } => {
-                println!("UPDATE: {:?}", node_key);
+            PatchOp::Update { node_key: _ } => {
+                #[cfg(feature = "debug_patches")]
+                eprintln!("UPDATE: {patch:?}");
             }
-            PatchOp::ReorderChildren { parent_key, new_order } => {
-                println!("REORDER children of {:?}: {:?}", parent_key, new_order);
+            PatchOp::ReorderChildren {
+                parent_key: _,
+                new_order: _,
+            } => {
+                #[cfg(feature = "debug_patches")]
+                eprintln!("REORDER: {patch:?}");
             }
         }
     }
@@ -314,58 +331,58 @@ pub fn apply_patches(patches: &[PatchOp], tree: &mut RenderTree) {
 mod tests {
     use super::*;
     use crate::component::{Element, LayoutType};
-    use crate::render::tree::{ElementNode, element_to_render_node};
-    
+    use crate::render::tree::element_to_render_node;
+
     #[test]
     fn test_diff_identical_trees() {
         let mut reconciler = Reconciler::new();
-        
+
         let element = Element::layout(LayoutType::Flex).with_key("root");
         let root1 = element_to_render_node(element.clone());
         let root2 = element_to_render_node(element);
-        
+
         let mut tree1 = RenderTree::new();
         tree1.set_root(root1);
-        
+
         let mut tree2 = RenderTree::new();
         tree2.set_root(root2);
-        
+
         let result = reconciler.diff(&tree1, &tree2);
-        
+
         assert_eq!(result.patches.len(), 0);
         assert_eq!(result.reused_nodes, 1);
         assert_eq!(result.new_nodes, 0);
         assert_eq!(result.removed_nodes, 0);
     }
-    
+
     #[test]
     fn test_diff_different_trees() {
         let mut reconciler = Reconciler::new();
-        
+
         let element1 = Element::text("Hello").with_key("text1");
         let element2 = Element::text("World").with_key("text2");
-        
+
         let root1 = element_to_render_node(element1);
         let root2 = element_to_render_node(element2);
-        
+
         let mut tree1 = RenderTree::new();
         tree1.set_root(root1);
-        
+
         let mut tree2 = RenderTree::new();
         tree2.set_root(root2);
-        
+
         let result = reconciler.diff(&tree1, &tree2);
-        
+
         assert!(result.patches.len() > 0);
         assert_eq!(result.reused_nodes, 0);
         assert_eq!(result.new_nodes, 1);
         assert_eq!(result.removed_nodes, 1);
     }
-    
+
     #[test]
     fn test_diff_with_children() {
         let mut reconciler = Reconciler::new();
-        
+
         // Tree 1: Root with 2 children
         let tree1_root = Element::layout(LayoutType::Flex)
             .with_key("root")
@@ -373,7 +390,7 @@ mod tests {
                 Element::text("A").with_key("a"),
                 Element::text("B").with_key("b"),
             ]);
-        
+
         // Tree 2: Root with 3 children (B moved, C added)
         let tree2_root = Element::layout(LayoutType::Flex)
             .with_key("root")
@@ -382,17 +399,27 @@ mod tests {
                 Element::text("A").with_key("a"),
                 Element::text("C").with_key("c"),
             ]);
-        
+
         let mut tree1 = RenderTree::new();
         tree1.set_root(element_to_render_node(tree1_root));
-        
+
         let mut tree2 = RenderTree::new();
         tree2.set_root(element_to_render_node(tree2_root));
-        
+
         let result = reconciler.diff(&tree1, &tree2);
-        
+
         // Should detect reordering and insertion
-        assert!(result.patches.iter().any(|p| matches!(p, PatchOp::ReorderChildren { .. })));
-        assert!(result.patches.iter().any(|p| matches!(p, PatchOp::Insert { .. })));
+        assert!(
+            result
+                .patches
+                .iter()
+                .any(|p| matches!(p, PatchOp::ReorderChildren { .. }))
+        );
+        assert!(
+            result
+                .patches
+                .iter()
+                .any(|p| matches!(p, PatchOp::Insert { .. }))
+        );
     }
 }

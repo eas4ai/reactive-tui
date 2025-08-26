@@ -1,4 +1,4 @@
-use super::{Action, csi::CSIAction, osc::OSCAction, esc::ESCAction};
+use super::{Action, csi::CSIAction, esc::ESCAction, osc::OSCAction};
 use std::mem;
 
 /// VT parser state machine for ANSI escape sequences
@@ -43,18 +43,18 @@ impl Parser {
             actions: Vec::with_capacity(16),
         }
     }
-    
+
     /// Feed bytes to the parser and get back actions
     pub fn feed(&mut self, bytes: &[u8]) -> Vec<Action> {
         self.actions.clear();
-        
+
         for &byte in bytes {
             self.process_byte(byte);
         }
-        
+
         mem::take(&mut self.actions)
     }
-    
+
     /// Process a single byte through the state machine
     fn process_byte(&mut self, byte: u8) {
         // C0 control characters are handled specially in most states
@@ -70,7 +70,7 @@ impl Parser {
                     }
                     return;
                 }
-                0x08..=0x0D | 0x0E | 0x0F => {
+                0x08..=0x0F => {
                     // Backspace, Tab, LF, VT, FF, CR, SO, SI
                     self.actions.push(Action::Execute(byte));
                     return;
@@ -88,9 +88,9 @@ impl Parser {
                 _ => {} // Other C0 controls - ignore in most states
             }
         }
-        
+
         // C1 control characters (0x80-0x9F) in 8-bit mode
-        if byte >= 0x80 && byte <= 0x9F {
+        if (0x80..=0x9F).contains(&byte) {
             match byte {
                 0x90 => {
                     // DCS
@@ -115,7 +115,7 @@ impl Parser {
                 _ => {} // Other C1 controls
             }
         }
-        
+
         // State-specific processing
         match self.state {
             State::Ground => self.ground(byte),
@@ -134,7 +134,7 @@ impl Parser {
             State::SOSPMAPCString => self.sos_pm_apc_string(byte),
         }
     }
-    
+
     fn transition_to(&mut self, new_state: State) {
         // Clear intermediate state when entering new sequence
         match new_state {
@@ -159,16 +159,16 @@ impl Parser {
         }
         self.state = new_state;
     }
-    
+
     fn ground(&mut self, byte: u8) {
-        if byte >= 0x20 && byte < 0x7F {
+        if (0x20..0x7F).contains(&byte) {
             self.actions.push(Action::Print(byte as char));
         } else if byte >= 0xA0 {
             // UTF-8 or extended ASCII
             self.actions.push(Action::Print(byte as char));
         }
     }
-    
+
     fn escape(&mut self, byte: u8) {
         match byte {
             0x20..=0x2F => {
@@ -203,7 +203,7 @@ impl Parser {
             }
         }
     }
-    
+
     fn escape_intermediate(&mut self, byte: u8) {
         match byte {
             0x20..=0x2F => {
@@ -223,7 +223,7 @@ impl Parser {
             }
         }
     }
-    
+
     fn csi_entry(&mut self, byte: u8) {
         match byte {
             0x20..=0x2F => {
@@ -261,7 +261,7 @@ impl Parser {
             }
         }
     }
-    
+
     fn csi_param(&mut self, byte: u8) {
         match byte {
             0x20..=0x2F => {
@@ -296,7 +296,7 @@ impl Parser {
             }
         }
     }
-    
+
     fn csi_intermediate(&mut self, byte: u8) {
         match byte {
             0x20..=0x2F => {
@@ -320,14 +320,14 @@ impl Parser {
             }
         }
     }
-    
+
     fn csi_ignore(&mut self, byte: u8) {
         // Ignore everything until final byte
         if (0x40..=0x7E).contains(&byte) {
             self.transition_to(State::Ground);
         }
     }
-    
+
     fn dcs_entry(&mut self, byte: u8) {
         match byte {
             0x20..=0x2F => {
@@ -364,7 +364,7 @@ impl Parser {
             }
         }
     }
-    
+
     fn dcs_param(&mut self, byte: u8) {
         match byte {
             0x20..=0x2F => {
@@ -394,7 +394,7 @@ impl Parser {
             }
         }
     }
-    
+
     fn dcs_intermediate(&mut self, byte: u8) {
         match byte {
             0x20..=0x2F => {
@@ -417,7 +417,7 @@ impl Parser {
             }
         }
     }
-    
+
     fn dcs_passthrough(&mut self, byte: u8) {
         // Collect DCS data until ST (String Terminator)
         if byte == 0x9C || (self.dcs_string.last() == Some(&0x1B) && byte == b'\\') {
@@ -431,7 +431,7 @@ impl Parser {
             self.dcs_string.push(byte);
         }
     }
-    
+
     fn dcs_ignore(&mut self, byte: u8) {
         // Ignore until ST
         if byte == 0x9C || (byte == b'\\' && self.dcs_string.last() == Some(&0x1B)) {
@@ -442,10 +442,11 @@ impl Parser {
             self.dcs_string.push(byte);
         }
     }
-    
+
     fn osc_string(&mut self, byte: u8) {
         // Collect OSC data until ST or BEL
-        if byte == 0x07 || byte == 0x9C || (self.osc_string.last() == Some(&0x1B) && byte == b'\\') {
+        if byte == 0x07 || byte == 0x9C || (self.osc_string.last() == Some(&0x1B) && byte == b'\\')
+        {
             // End of OSC
             if self.osc_string.last() == Some(&0x1B) {
                 self.osc_string.pop(); // Remove ESC
@@ -456,16 +457,16 @@ impl Parser {
             self.osc_string.push(byte);
         }
     }
-    
+
     fn sos_pm_apc_string(&mut self, byte: u8) {
         // For now, just collect and ignore until ST
         if byte == 0x9C || (byte == b'\\' && self.osc_string.last() == Some(&0x1B)) {
             self.transition_to(State::Ground);
         }
     }
-    
+
     // Helper methods
-    
+
     fn param_digit(&mut self, digit: u8) {
         let digit = digit as u16;
         match self.current_param {
@@ -480,14 +481,14 @@ impl Parser {
             }
         }
     }
-    
+
     fn param_separator(&mut self) {
         // Push current parameter and prepare for next
         let param = self.current_param.unwrap_or(0);
         self.params.push(param);
         self.current_param = None;
     }
-    
+
     fn finalize_params(&mut self) {
         // Push any pending parameter
         if let Some(p) = self.current_param.take() {
@@ -497,27 +498,27 @@ impl Parser {
             self.params.push(0);
         }
     }
-    
+
     fn csi_dispatch(&mut self, final_byte: u8) {
         self.finalize_params();
-        
+
         if let Some(action) = CSIAction::parse(&self.params, &self.intermediate_bytes, final_byte) {
             self.actions.push(Action::CSI(action));
         }
     }
-    
+
     fn esc_dispatch(&mut self, final_byte: u8) {
         if let Some(action) = ESCAction::parse(&self.intermediate_bytes, final_byte) {
             self.actions.push(Action::ESC(action));
         }
     }
-    
+
     fn osc_end(&mut self) {
         if let Some(action) = OSCAction::parse(&self.osc_string) {
             self.actions.push(Action::OSC(action));
         }
     }
-    
+
     fn dcs_dispatch(&mut self) {
         // For now, just store raw DCS data
         if !self.dcs_string.is_empty() {
@@ -535,7 +536,7 @@ impl Default for Parser {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_basic_text() {
         let mut parser = Parser::new();
@@ -543,24 +544,27 @@ mod tests {
         assert_eq!(actions.len(), 11);
         assert_eq!(actions[0], Action::Print('H'));
     }
-    
+
     #[test]
     fn test_csi_cursor_move() {
         let mut parser = Parser::new();
-        
+
         // Move cursor up 5 lines
         let actions = parser.feed(b"\x1b[5A");
         assert_eq!(actions, vec![Action::CSI(CSIAction::CursorUp(5))]);
-        
+
         // Move cursor to position 10,20
         let actions = parser.feed(b"\x1b[10;20H");
-        assert_eq!(actions, vec![Action::CSI(CSIAction::CursorPosition { row: 10, col: 20 })]);
+        assert_eq!(
+            actions,
+            vec![Action::CSI(CSIAction::CursorPosition { row: 10, col: 20 })]
+        );
     }
-    
+
     #[test]
     fn test_sgr_colors() {
         let mut parser = Parser::new();
-        
+
         // Red foreground
         let actions = parser.feed(b"\x1b[31m");
         match &actions[0] {
@@ -569,7 +573,7 @@ mod tests {
             }
             _ => panic!("Expected SGR action"),
         }
-        
+
         // Reset
         let actions = parser.feed(b"\x1b[0m");
         match &actions[0] {
@@ -579,23 +583,26 @@ mod tests {
             _ => panic!("Expected SGR action"),
         }
     }
-    
+
     #[test]
     fn test_osc_title() {
         let mut parser = Parser::new();
-        
+
         // Set window title
         let actions = parser.feed(b"\x1b]2;My Title\x07");
-        assert_eq!(actions, vec![Action::OSC(OSCAction::SetTitle("My Title".to_string()))]);
+        assert_eq!(
+            actions,
+            vec![Action::OSC(OSCAction::SetTitle("My Title".to_string()))]
+        );
     }
-    
+
     #[test]
     fn test_mixed_content() {
         let mut parser = Parser::new();
-        
+
         let input = b"Normal \x1b[1mBold\x1b[0m text";
         let actions = parser.feed(input);
-        
+
         // Should have: "Normal ", SGR bold, "Bold", SGR reset, " text"
         assert!(actions.len() >= 5);
     }

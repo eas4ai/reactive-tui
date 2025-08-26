@@ -3,76 +3,76 @@
 pub enum ESCAction {
     /// Index - Move cursor down one line, scroll if at bottom
     Index,
-    
+
     /// Next Line - Move cursor to beginning of next line, scroll if at bottom
     NextLine,
-    
+
     /// Tab Set - Set a tab stop at current cursor position
     TabSet,
-    
+
     /// Reverse Index - Move cursor up one line, scroll if at top
     ReverseIndex,
-    
+
     /// Single Shift G2 - Use G2 character set for next character only
     SingleShiftG2,
-    
+
     /// Single Shift G3 - Use G3 character set for next character only
     SingleShiftG3,
-    
+
     /// Start of Protected Area
     StartProtectedArea,
-    
+
     /// End of Protected Area
     EndProtectedArea,
-    
+
     /// Reset to Initial State
     Reset,
-    
+
     /// Save Cursor (DECSC)
     SaveCursor,
-    
+
     /// Restore Cursor (DECRC)
     RestoreCursor,
-    
+
     /// Application Keypad Mode
     ApplicationKeypad,
-    
+
     /// Normal Keypad Mode
     NormalKeypad,
-    
+
     /// Set charset G0
     SetCharsetG0(Charset),
-    
+
     /// Set charset G1
     SetCharsetG1(Charset),
-    
+
     /// Set charset G2
     SetCharsetG2(Charset),
-    
+
     /// Set charset G3
     SetCharsetG3(Charset),
-    
+
     /// Invoke charset G0
     InvokeCharsetG0,
-    
+
     /// Invoke charset G1
     InvokeCharsetG1,
-    
+
     /// Invoke charset G2
     InvokeCharsetG2,
-    
+
     /// Invoke charset G3
     InvokeCharsetG3,
-    
+
     /// DEC Screen Alignment Test - Fill screen with 'E'
     ScreenAlignmentTest,
-    
+
     /// Set terminal title (old style)
     SetTitle(String),
-    
+
     /// Bell alternative
     VisualBell,
-    
+
     /// Unknown ESC sequence
     Unknown(Vec<u8>),
 }
@@ -130,22 +130,22 @@ impl ESCAction {
                 _ => None,
             };
         }
-        
+
         // Handle sequences with intermediates
-        match (intermediates.get(0), final_byte) {
+        match (intermediates.first(), final_byte) {
             // Charset selection
             (Some(b'('), b) => parse_charset(b).map(ESCAction::SetCharsetG0),
             (Some(b')'), b) => parse_charset(b).map(ESCAction::SetCharsetG1),
             (Some(b'*'), b) => parse_charset(b).map(ESCAction::SetCharsetG2),
             (Some(b'+'), b) => parse_charset(b).map(ESCAction::SetCharsetG3),
-            
+
             // DEC private sequences
             (Some(b'#'), b'3') => Some(ESCAction::ScreenAlignmentTest),
             (Some(b'#'), b'8') => Some(ESCAction::ScreenAlignmentTest),
-            
+
             // Title setting (old xterm style)
             (Some(b']'), b'0') => Some(ESCAction::SetTitle(String::new())),
-            
+
             _ => None,
         }
     }

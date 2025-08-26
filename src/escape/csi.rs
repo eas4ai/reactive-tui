@@ -10,11 +10,11 @@ pub enum CSIAction {
     CursorPreviousLine(u16),
     CursorPosition { row: u16, col: u16 },
     CursorHorizontalAbsolute(u16),
-    
+
     // Cursor Visibility
     ShowCursor,
     HideCursor,
-    
+
     // Screen/Line Operations
     EraseDisplay(EraseMode),
     EraseLine(EraseMode),
@@ -24,21 +24,21 @@ pub enum CSIAction {
     DeleteChars(u16),
     ScrollUp(u16),
     ScrollDown(u16),
-    
+
     // Text Attributes (SGR - Select Graphic Rendition)
     SetGraphicsMode(Vec<SGRAttribute>),
-    
+
     // Mouse Events
     MouseEvent(MouseEvent),
-    
+
     // Device Status
     DeviceStatusReport,
     ReportCursorPosition,
-    
+
     // Modes
     SetMode(Vec<Mode>),
     ResetMode(Vec<Mode>),
-    
+
     // Other
     SetScrollRegion { top: u16, bottom: u16 },
     SaveCursor,
@@ -47,10 +47,10 @@ pub enum CSIAction {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum EraseMode {
-    ToEnd,      // From cursor to end
+    ToEnd,       // From cursor to end
     ToBeginning, // From beginning to cursor
-    All,        // Entire display/line
-    Scrollback, // Including scrollback buffer (for EraseDisplay)
+    All,         // Entire display/line
+    Scrollback,  // Including scrollback buffer (for EraseDisplay)
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -64,26 +64,26 @@ pub enum SGRAttribute {
     Reverse,
     Hidden,
     Strikethrough,
-    
+
     // Foreground colors
     ForegroundColor(Color),
     ForegroundDefault,
-    
+
     // Background colors
     BackgroundColor(Color),
     BackgroundDefault,
-    
+
     // Underline colors
     UnderlineColor(Color),
     UnderlineDefault,
-    
+
     // Extended attributes
     DoubleUnderline,
     CurlyUnderline,
     DottedUnderline,
     DashedUnderline,
     NoUnderline,
-    
+
     // Reset individual attributes
     NoBold,
     NoItalic,
@@ -111,9 +111,9 @@ pub enum Color {
     BrightMagenta,
     BrightCyan,
     BrightWhite,
-    
+
     // Extended colors
-    Indexed(u8),        // 256-color palette
+    Indexed(u8),                 // 256-color palette
     RGB { r: u8, g: u8, b: u8 }, // True color
 }
 
@@ -147,11 +147,11 @@ pub struct MouseModifiers {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum MouseMode {
-    Normal,     // X10 compatibility mode
+    Normal,      // X10 compatibility mode
     ButtonEvent, // Button press/release events
-    AnyEvent,   // Any mouse event
-    SGR,        // SGR extended mode (supports coordinates > 223)
-    Pixel,      // Pixel-level precision
+    AnyEvent,    // Any mouse event
+    SGR,         // SGR extended mode (supports coordinates > 223)
+    Pixel,       // Pixel-level precision
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -161,7 +161,7 @@ pub enum Mode {
     Insert,
     SendReceive,
     AutomaticNewline,
-    
+
     // DEC Private modes
     ApplicationCursorKeys,
     DECCOLM, // 132 column mode
@@ -171,7 +171,7 @@ pub enum Mode {
     AutoWrap,
     AutoRepeat,
     Interlace,
-    
+
     // Mouse modes
     MouseX10,
     MouseVT200,
@@ -181,12 +181,12 @@ pub enum Mode {
     MouseFocusEvent,
     MouseSGR,
     MousePixel,
-    
+
     // Other modes
     AlternateScreen,
     BracketedPaste,
     ShowCursor,
-    
+
     // Unknown mode (for forward compatibility)
     Unknown(u16),
 }
@@ -196,25 +196,33 @@ impl CSIAction {
     pub fn parse(params: &[u16], intermediates: &[u8], final_byte: u8) -> Option<Self> {
         // Handle private sequences (starting with '?')
         let is_private = intermediates.contains(&b'?');
-        
+
         match final_byte {
             // Cursor movement
-            b'A' => Some(CSIAction::CursorUp(params.get(0).copied().unwrap_or(1))),
-            b'B' => Some(CSIAction::CursorDown(params.get(0).copied().unwrap_or(1))),
-            b'C' => Some(CSIAction::CursorForward(params.get(0).copied().unwrap_or(1))),
-            b'D' => Some(CSIAction::CursorBack(params.get(0).copied().unwrap_or(1))),
-            b'E' => Some(CSIAction::CursorNextLine(params.get(0).copied().unwrap_or(1))),
-            b'F' => Some(CSIAction::CursorPreviousLine(params.get(0).copied().unwrap_or(1))),
-            b'G' => Some(CSIAction::CursorHorizontalAbsolute(params.get(0).copied().unwrap_or(1))),
+            b'A' => Some(CSIAction::CursorUp(params.first().copied().unwrap_or(1))),
+            b'B' => Some(CSIAction::CursorDown(params.first().copied().unwrap_or(1))),
+            b'C' => Some(CSIAction::CursorForward(
+                params.first().copied().unwrap_or(1),
+            )),
+            b'D' => Some(CSIAction::CursorBack(params.first().copied().unwrap_or(1))),
+            b'E' => Some(CSIAction::CursorNextLine(
+                params.first().copied().unwrap_or(1),
+            )),
+            b'F' => Some(CSIAction::CursorPreviousLine(
+                params.first().copied().unwrap_or(1),
+            )),
+            b'G' => Some(CSIAction::CursorHorizontalAbsolute(
+                params.first().copied().unwrap_or(1),
+            )),
             b'H' | b'f' => {
-                let row = params.get(0).copied().unwrap_or(1);
+                let row = params.first().copied().unwrap_or(1);
                 let col = params.get(1).copied().unwrap_or(1);
                 Some(CSIAction::CursorPosition { row, col })
             }
-            
+
             // Erase operations
             b'J' => {
-                let mode = match params.get(0).copied().unwrap_or(0) {
+                let mode = match params.first().copied().unwrap_or(0) {
                     0 => EraseMode::ToEnd,
                     1 => EraseMode::ToBeginning,
                     2 => EraseMode::All,
@@ -224,7 +232,7 @@ impl CSIAction {
                 Some(CSIAction::EraseDisplay(mode))
             }
             b'K' => {
-                let mode = match params.get(0).copied().unwrap_or(0) {
+                let mode = match params.first().copied().unwrap_or(0) {
                     0 => EraseMode::ToEnd,
                     1 => EraseMode::ToBeginning,
                     2 => EraseMode::All,
@@ -232,50 +240,56 @@ impl CSIAction {
                 };
                 Some(CSIAction::EraseLine(mode))
             }
-            
+
             // SGR - Select Graphic Rendition
             b'm' => {
                 let attrs = parse_sgr_sequence(params);
                 Some(CSIAction::SetGraphicsMode(attrs))
             }
-            
+
             // Scrolling
-            b'S' => Some(CSIAction::ScrollUp(params.get(0).copied().unwrap_or(1))),
-            b'T' => Some(CSIAction::ScrollDown(params.get(0).copied().unwrap_or(1))),
-            
+            b'S' => Some(CSIAction::ScrollUp(params.first().copied().unwrap_or(1))),
+            b'T' => Some(CSIAction::ScrollDown(params.first().copied().unwrap_or(1))),
+
             // Line operations
-            b'L' => Some(CSIAction::InsertLines(params.get(0).copied().unwrap_or(1))),
-            b'M' => Some(CSIAction::DeleteLines(params.get(0).copied().unwrap_or(1))),
-            
+            b'L' => Some(CSIAction::InsertLines(params.first().copied().unwrap_or(1))),
+            b'M' => Some(CSIAction::DeleteLines(params.first().copied().unwrap_or(1))),
+
             // Character operations
-            b'@' => Some(CSIAction::InsertChars(params.get(0).copied().unwrap_or(1))),
-            b'P' => Some(CSIAction::DeleteChars(params.get(0).copied().unwrap_or(1))),
-            
+            b'@' => Some(CSIAction::InsertChars(params.first().copied().unwrap_or(1))),
+            b'P' => Some(CSIAction::DeleteChars(params.first().copied().unwrap_or(1))),
+
             // Mode settings
             b'h' if is_private => {
-                let modes = params.iter().filter_map(|&p| parse_private_mode(p)).collect();
+                let modes = params
+                    .iter()
+                    .filter_map(|&p| parse_private_mode(p))
+                    .collect();
                 Some(CSIAction::SetMode(modes))
             }
             b'l' if is_private => {
-                let modes = params.iter().filter_map(|&p| parse_private_mode(p)).collect();
+                let modes = params
+                    .iter()
+                    .filter_map(|&p| parse_private_mode(p))
+                    .collect();
                 Some(CSIAction::ResetMode(modes))
             }
-            
+
             // Scroll region
             b'r' => {
-                let top = params.get(0).copied().unwrap_or(1);
+                let top = params.first().copied().unwrap_or(1);
                 let bottom = params.get(1).copied().unwrap_or(0); // 0 means default
                 Some(CSIAction::SetScrollRegion { top, bottom })
             }
-            
+
             // Save/Restore cursor
             b's' => Some(CSIAction::SaveCursor),
             b'u' => Some(CSIAction::RestoreCursor),
-            
+
             // Device status
-            b'n' if params.get(0) == Some(&6) => Some(CSIAction::ReportCursorPosition),
-            b'n' if params.get(0) == Some(&5) => Some(CSIAction::DeviceStatusReport),
-            
+            b'n' if params.first() == Some(&6) => Some(CSIAction::ReportCursorPosition),
+            b'n' if params.first() == Some(&5) => Some(CSIAction::DeviceStatusReport),
+
             _ => None,
         }
     }
@@ -284,7 +298,7 @@ impl CSIAction {
 fn parse_sgr_sequence(params: &[u16]) -> Vec<SGRAttribute> {
     let mut attrs = Vec::new();
     let mut i = 0;
-    
+
     while i < params.len() {
         match params[i] {
             0 => attrs.push(SGRAttribute::Reset),
@@ -296,33 +310,33 @@ fn parse_sgr_sequence(params: &[u16]) -> Vec<SGRAttribute> {
             7 => attrs.push(SGRAttribute::Reverse),
             8 => attrs.push(SGRAttribute::Hidden),
             9 => attrs.push(SGRAttribute::Strikethrough),
-            
+
             // Foreground colors
             30..=37 => attrs.push(SGRAttribute::ForegroundColor(basic_color(params[i] - 30))),
             38 => {
-                if let Some(color) = parse_extended_color(&params[i+1..]) {
+                if let Some(color) = parse_extended_color(&params[i + 1..]) {
                     attrs.push(SGRAttribute::ForegroundColor(color.0));
                     i += color.1;
                 }
             }
             39 => attrs.push(SGRAttribute::ForegroundDefault),
-            
+
             // Background colors
             40..=47 => attrs.push(SGRAttribute::BackgroundColor(basic_color(params[i] - 40))),
             48 => {
-                if let Some(color) = parse_extended_color(&params[i+1..]) {
+                if let Some(color) = parse_extended_color(&params[i + 1..]) {
                     attrs.push(SGRAttribute::BackgroundColor(color.0));
                     i += color.1;
                 }
             }
             49 => attrs.push(SGRAttribute::BackgroundDefault),
-            
+
             // Bright foreground colors
             90..=97 => attrs.push(SGRAttribute::ForegroundColor(bright_color(params[i] - 90))),
-            
+
             // Bright background colors
             100..=107 => attrs.push(SGRAttribute::BackgroundColor(bright_color(params[i] - 100))),
-            
+
             // Reset attributes
             21 => attrs.push(SGRAttribute::NoBold),
             22 => attrs.push(SGRAttribute::NoBold), // Also resets dim
@@ -331,24 +345,24 @@ fn parse_sgr_sequence(params: &[u16]) -> Vec<SGRAttribute> {
             25 => attrs.push(SGRAttribute::NoBlink),
             27 => attrs.push(SGRAttribute::NoReverse),
             29 => attrs.push(SGRAttribute::NoStrikethrough),
-            
+
             // Underline variants
             53 => attrs.push(SGRAttribute::DoubleUnderline),
-            
+
             // Underline color
             58 => {
-                if let Some(color) = parse_extended_color(&params[i+1..]) {
+                if let Some(color) = parse_extended_color(&params[i + 1..]) {
                     attrs.push(SGRAttribute::UnderlineColor(color.0));
                     i += color.1;
                 }
             }
             59 => attrs.push(SGRAttribute::UnderlineDefault),
-            
+
             _ => {} // Ignore unknown
         }
         i += 1;
     }
-    
+
     attrs
 }
 
@@ -384,7 +398,7 @@ fn parse_extended_color(params: &[u16]) -> Option<(Color, usize)> {
     if params.is_empty() {
         return None;
     }
-    
+
     match params[0] {
         5 if params.len() > 1 => {
             // 256 color
@@ -392,11 +406,14 @@ fn parse_extended_color(params: &[u16]) -> Option<(Color, usize)> {
         }
         2 if params.len() > 3 => {
             // RGB color
-            Some((Color::RGB {
-                r: params[1] as u8,
-                g: params[2] as u8,
-                b: params[3] as u8,
-            }, 4))
+            Some((
+                Color::RGB {
+                    r: params[1] as u8,
+                    g: params[2] as u8,
+                    b: params[3] as u8,
+                },
+                4,
+            ))
         }
         _ => None,
     }

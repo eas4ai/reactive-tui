@@ -1,4 +1,3 @@
-pub mod terminal;
-pub mod surface;
 pub mod renderer;
-
+pub mod surface;
+pub mod terminal;

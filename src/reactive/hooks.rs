@@ -8,13 +8,13 @@ use std::sync::{Arc, Mutex};
 pub struct Hooks {
     /// Current hook index for ordering
     index: Arc<Mutex<usize>>,
-    
+
     /// Storage for hook state
     storage: Arc<Mutex<Vec<Box<dyn Any + Send + Sync>>>>,
-    
+
     /// Active effects for this component
     effects: Arc<Mutex<Vec<EffectId>>>,
-    
+
     /// Context values by type
     contexts: Arc<Mutex<HashMap<TypeId, Box<dyn Any + Send + Sync>>>>,
 }
@@ -29,17 +29,20 @@ impl Hooks {
             contexts: Arc::new(Mutex::new(HashMap::new())),
         }
     }
-    
+
     /// Reset hook index for new render
     pub fn reset(&self) {
         *self.index.lock().unwrap() = 0;
     }
-    
+
     /// Get or create storage at current index
-    fn get_or_create_storage<T: Send + Sync + 'static>(&self, init: impl FnOnce() -> T) -> Arc<Mutex<T>> {
+    fn get_or_create_storage<T: Send + Sync + 'static>(
+        &self,
+        init: impl FnOnce() -> T,
+    ) -> Arc<Mutex<T>> {
         let mut index = self.index.lock().unwrap();
         let mut storage = self.storage.lock().unwrap();
-        
+
         if *index >= storage.len() {
             let value = Arc::new(Mutex::new(init()));
             storage.push(Box::new(value.clone()));
@@ -48,14 +51,14 @@ impl Hooks {
         } else {
             let stored = &storage[*index];
             *index += 1;
-            
+
             stored
                 .downcast_ref::<Arc<Mutex<T>>>()
                 .expect("Hook type mismatch")
                 .clone()
         }
     }
-    
+
     /// Cleanup all effects
     pub fn cleanup(&self) {
         // Effects will be cleaned up by the runtime
@@ -82,20 +85,26 @@ impl<T: Clone> ThreadSafeSignal<T> {
             version: Arc::new(Mutex::new(0)),
         }
     }
-    
+
     pub fn get(&self) -> T {
         self.inner.lock().unwrap().clone()
     }
-    
-    pub fn set(&self, value: T) where T: PartialEq {
+
+    pub fn set(&self, value: T)
+    where
+        T: PartialEq,
+    {
         let mut inner = self.inner.lock().unwrap();
         if *inner != value {
             *inner = value;
             *self.version.lock().unwrap() += 1;
         }
     }
-    
-    pub fn update(&self, f: impl FnOnce(&mut T)) where T: PartialEq {
+
+    pub fn update(&self, f: impl FnOnce(&mut T))
+    where
+        T: PartialEq,
+    {
         let mut inner = self.inner.lock().unwrap();
         let old = inner.clone();
         f(&mut *inner);
@@ -115,7 +124,10 @@ impl<T> Clone for ThreadSafeSignal<T> {
 }
 
 /// Create a reactive signal (thread-safe version)
-pub fn use_signal<T: Send + Sync + Clone + 'static>(hooks: &Hooks, initial: T) -> ThreadSafeSignal<T> {
+pub fn use_signal<T: Send + Sync + Clone + 'static>(
+    hooks: &Hooks,
+    initial: T,
+) -> ThreadSafeSignal<T> {
     let signal = hooks.get_or_create_storage(|| ThreadSafeSignal::new(initial));
     signal.lock().unwrap().clone()
 }
@@ -131,15 +143,12 @@ where
     if let Some(id) = crate::reactive::runtime::with_runtime(|ctx| {
         // Take ownership of the effect for the scheduled closure
         let effect_inner = effect_opt.take().expect("effect already taken");
-        ctx.runtime().register_effect(super::effect::Effect::new(move || {
-            // Adapt Send+Sync cleanup to non-threaded cleanup expected by Effect
-            let cleanup = effect_inner();
-            cleanup.map(|boxed| {
-                Box::new(move || {
-                    boxed()
-                }) as Box<dyn FnOnce()>
-            })
-        }))
+        ctx.runtime()
+            .register_effect(super::effect::Effect::new(move || {
+                // Adapt Send+Sync cleanup to non-threaded cleanup expected by Effect
+                let cleanup = effect_inner();
+                cleanup.map(|boxed| Box::new(boxed) as Box<dyn FnOnce()>)
+            }))
     }) {
         hooks.effects.lock().unwrap().push(id);
         return id;
@@ -185,13 +194,13 @@ where
     let state_clone = state.clone();
     let reducer = Arc::new(reducer);
     let reducer_clone = Arc::clone(&reducer);
-    
+
     let dispatch = Arc::new(move |action: A| {
         state_clone.update(|s| {
             *s = reducer_clone(s, action);
         });
     });
-    
+
     (state, dispatch as Arc<dyn Fn(A) + Send + Sync>)
 }
 
@@ -205,53 +214,58 @@ pub fn use_previous<T: Clone + Send + Sync + 'static>(hooks: &Hooks, value: T) -
 }
 
 /// Create a memoized computed value
-pub fn use_memo<T>(hooks: &Hooks, compute: impl Fn() -> T + Send + Sync + 'static) -> ThreadSafeSignal<T>
+pub fn use_memo<T>(
+    hooks: &Hooks,
+    compute: impl Fn() -> T + Send + Sync + 'static,
+) -> ThreadSafeSignal<T>
 where
-    T: Clone + PartialEq + Send + Sync + 'static
+    T: Clone + PartialEq + Send + Sync + 'static,
 {
-    let memo = use_signal(hooks, compute());
-    // In a real implementation, this would track dependencies
-    // For now, just return a signal
-    memo
+    // Compute and return a reactive signal
+    use_signal(hooks, compute())
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_thread_safe_signal() {
         let hooks = Hooks::new();
-        
+
         let count = use_signal(&hooks, 0);
         assert_eq!(count.get(), 0);
-        
+
         count.set(5);
         assert_eq!(count.get(), 5);
-        
+
         // Test that it can be sent across threads
         let count_clone = count.clone();
         std::thread::spawn(move || {
             count_clone.set(10);
-        }).join().unwrap();
-        
+        })
+        .join()
+        .unwrap();
+
         assert_eq!(count.get(), 10);
     }
-    
+
     #[test]
     fn test_thread_safe_context() {
         let hooks = Hooks::new();
-        
+
         provide_context(&hooks, "Hello".to_string());
-        
+
         let ctx: Option<String> = use_context(&hooks);
         assert_eq!(ctx, Some("Hello".to_string()));
-        
+
         // Test thread safety
         let hooks_clone = hooks.clone();
         std::thread::spawn(move || {
             let ctx: Option<String> = use_context(&hooks_clone);
             assert_eq!(ctx, Some("Hello".to_string()));
-        }).join().unwrap();
+        })
+        .join()
+        .unwrap();
     }
 }

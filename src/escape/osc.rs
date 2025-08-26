@@ -3,47 +3,44 @@
 pub enum OSCAction {
     /// Set window title
     SetTitle(String),
-    
+
     /// Set icon name
     SetIconName(String),
-    
+
     /// Set window title and icon name
     SetTitleAndIcon(String),
-    
+
     /// Set color palette entry
     SetColor {
         index: u16,
         color: String, // RGB hex string like "#RRGGBB"
     },
-    
+
     /// Reset color palette entry
     ResetColor(u16),
-    
+
     /// Hyperlink
     Hyperlink {
         params: Option<String>, // Optional parameters like id=xxx
         uri: String,
     },
-    
+
     /// Clipboard operations
     Clipboard {
         clipboard: ClipboardType,
         operation: ClipboardOperation,
         data: Option<String>,
     },
-    
+
     /// Notification
-    Notification {
-        title: Option<String>,
-        body: String,
-    },
-    
+    Notification { title: Option<String>, body: String },
+
     /// Set current working directory
     CurrentDirectory(String),
-    
+
     /// Set current file
     CurrentFile(String),
-    
+
     /// iTerm2 inline images protocol
     InlineImage {
         name: Option<String>,
@@ -52,7 +49,7 @@ pub enum OSCAction {
         inline: bool,
         data: Vec<u8>, // Base64 decoded image data
     },
-    
+
     /// Kitty graphics protocol
     KittyGraphics {
         action: KittyGraphicsAction,
@@ -62,15 +59,12 @@ pub enum OSCAction {
         placement_id: Option<u32>,
         data: Option<Vec<u8>>,
     },
-    
+
     /// Query terminal capabilities
     QueryCapability(String),
-    
+
     /// Unknown or unhandled OSC
-    Unknown {
-        number: u16,
-        data: String,
-    },
+    Unknown { number: u16, data: String },
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -117,23 +111,21 @@ impl OSCAction {
     pub fn parse(params: &[u8]) -> Option<Self> {
         // Find the first semicolon to split number from data
         let semicolon = params.iter().position(|&b| b == b';');
-        
+
         if let Some(pos) = semicolon {
             let number_bytes = &params[..pos];
             let data_bytes = &params[pos + 1..];
-            
+
             // Parse the OSC number
-            let number = String::from_utf8_lossy(number_bytes)
-                .parse::<u16>()
-                .ok()?;
-            
+            let number = String::from_utf8_lossy(number_bytes).parse::<u16>().ok()?;
+
             let data = String::from_utf8_lossy(data_bytes).to_string();
-            
+
             match number {
                 0 => Some(OSCAction::SetTitleAndIcon(data)),
                 1 => Some(OSCAction::SetIconName(data)),
                 2 => Some(OSCAction::SetTitle(data)),
-                
+
                 4 => {
                     // Color palette change
                     if let Some(semi) = data.find(';') {
@@ -144,23 +136,23 @@ impl OSCAction {
                         None
                     }
                 }
-                
+
                 104 => {
                     // Reset color palette
                     let index = data.parse().ok()?;
                     Some(OSCAction::ResetColor(index))
                 }
-                
+
                 7 => {
                     // Current working directory
                     Some(OSCAction::CurrentDirectory(data))
                 }
-                
+
                 8 => {
                     // Hyperlink
                     parse_hyperlink(&data)
                 }
-                
+
                 9 => {
                     // Notification (ConEmu/iTerm2 style)
                     if let Some(semi) = data.find(';') {
@@ -177,27 +169,24 @@ impl OSCAction {
                         })
                     }
                 }
-                
+
                 52 => {
                     // Clipboard operations
                     parse_clipboard(&data)
                 }
-                
+
                 1337 => {
                     // iTerm2 extensions
                     parse_iterm2(&data)
                 }
-                
+
                 _ => Some(OSCAction::Unknown { number, data }),
             }
         } else {
             // No semicolon, might be a query or simple command
             let data = String::from_utf8_lossy(params).to_string();
-            if data.starts_with('?') {
-                Some(OSCAction::QueryCapability(data[1..].to_string()))
-            } else {
-                None
-            }
+            data.strip_prefix('?')
+                .map(|stripped| OSCAction::QueryCapability(stripped.to_string()))
         }
     }
 }
@@ -208,9 +197,13 @@ fn parse_hyperlink(data: &str) -> Option<OSCAction> {
     if let Some(semi) = data.find(';') {
         let params = &data[..semi];
         let uri = data[semi + 1..].to_string();
-        
+
         Some(OSCAction::Hyperlink {
-            params: if params.is_empty() { None } else { Some(params.to_string()) },
+            params: if params.is_empty() {
+                None
+            } else {
+                Some(params.to_string())
+            },
             uri,
         })
     } else if data.is_empty() {
@@ -227,18 +220,18 @@ fn parse_hyperlink(data: &str) -> Option<OSCAction> {
 fn parse_clipboard(data: &str) -> Option<OSCAction> {
     // Format: clipboard;operation;data
     let parts: Vec<&str> = data.splitn(3, ';').collect();
-    
+
     if parts.len() < 2 {
         return None;
     }
-    
+
     let clipboard = match parts[0] {
         "p" => ClipboardType::Primary,
         "c" | "s" => ClipboardType::Clipboard,
         "q" => ClipboardType::Selection,
         _ => return None,
     };
-    
+
     let (operation, data) = if parts[1] == "?" {
         // Query/paste operation
         (ClipboardOperation::Paste, None)
@@ -252,7 +245,7 @@ fn parse_clipboard(data: &str) -> Option<OSCAction> {
         // Copy operation with data in second position
         (ClipboardOperation::Copy, Some(parts[1].to_string()))
     };
-    
+
     Some(OSCAction::Clipboard {
         clipboard,
         operation,
@@ -262,13 +255,12 @@ fn parse_clipboard(data: &str) -> Option<OSCAction> {
 
 fn parse_iterm2(data: &str) -> Option<OSCAction> {
     // iTerm2 uses various subcommands after 1337
-    if data.starts_with("File=") {
+    if let Some(stripped) = data.strip_prefix("File=") {
         // Inline image protocol
-        parse_iterm2_image(&data[5..])
-    } else if data.starts_with("CurrentDir=") {
-        Some(OSCAction::CurrentDirectory(data[11..].to_string()))
+        parse_iterm2_image(stripped)
     } else {
-        None
+        data.strip_prefix("CurrentDir=")
+            .map(|stripped| OSCAction::CurrentDirectory(stripped.to_string()))
     }
 }
 
@@ -277,25 +269,24 @@ fn parse_iterm2_image(data: &str) -> Option<OSCAction> {
     let colon = data.find(':')?;
     let params = &data[..colon];
     let image_data = &data[colon + 1..];
-    
+
     let mut name = None;
     let mut size = None;
     let mut inline = true;
     let mut preserve_aspect = true;
-    
+
     for param in params.split(';') {
         if let Some(eq) = param.find('=') {
             let key = &param[..eq];
             let value = &param[eq + 1..];
-            
+
             match key {
                 "name" => name = Some(value.to_string()),
                 "size" => {
                     if let Some(x) = value.find('x') {
-                        if let (Ok(w), Ok(h)) = (
-                            value[..x].parse::<u32>(),
-                            value[x + 1..].parse::<u32>()
-                        ) {
+                        if let (Ok(w), Ok(h)) =
+                            (value[..x].parse::<u32>(), value[x + 1..].parse::<u32>())
+                        {
                             size = Some((w, h));
                         }
                     }
@@ -306,10 +297,10 @@ fn parse_iterm2_image(data: &str) -> Option<OSCAction> {
             }
         }
     }
-    
+
     // Decode base64 image data
     let data = base64_decode(image_data)?;
-    
+
     Some(OSCAction::InlineImage {
         name,
         size,
@@ -322,26 +313,26 @@ fn parse_iterm2_image(data: &str) -> Option<OSCAction> {
 fn base64_decode(input: &str) -> Option<Vec<u8>> {
     // Simple base64 decoder (in production, use a proper base64 crate)
     const TABLE: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-    
+
     let mut output = Vec::new();
     let mut bits = 0u32;
     let mut bit_count = 0;
-    
+
     for byte in input.bytes() {
         if byte == b'=' {
             break;
         }
-        
+
         let value = TABLE.iter().position(|&b| b == byte)? as u32;
         bits = (bits << 6) | value;
         bit_count += 6;
-        
+
         if bit_count >= 8 {
             bit_count -= 8;
             output.push((bits >> bit_count) as u8);
             bits &= (1 << bit_count) - 1;
         }
     }
-    
+
     Some(output)
 }

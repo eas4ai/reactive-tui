@@ -7,16 +7,16 @@ use std::sync::Arc;
 pub enum ElementType {
     /// A component instance
     Component(String),
-    
+
     /// A text node
     Text(String),
-    
+
     /// A layout container (flex, grid, etc.)
     Layout(LayoutType),
-    
+
     /// A fragment (invisible container)
     Fragment,
-    
+
     /// Empty/null element
     Empty,
 }
@@ -43,14 +43,17 @@ pub struct Element {
 impl PartialEq for Element {
     fn eq(&self, other: &Self) -> bool {
         // For text and other simple elements, just compare type, key and children
-        // For components, also check props pointer equality
+        // For components, we currently treat props equality as pointer equality via Arc::ptr_eq.
+        // This is a performance tradeoff: equal-but-reallocated props will be considered different,
+        // triggering re-renders. If this becomes an issue, consider adding an optional content hash
+        // or a Props::eq_dyn fast-path for component props.
         let props_equal = match (&self.element_type, &other.element_type) {
             (ElementType::Component(_), ElementType::Component(_)) => {
                 Arc::ptr_eq(&self.props, &other.props)
             }
-            _ => true // For text, layout, fragment, empty - props don't matter
+            _ => true, // For text, layout, fragment, empty - props don't matter
         };
-        
+
         self.element_type == other.element_type
             && self.key == other.key
             && self.class == other.class

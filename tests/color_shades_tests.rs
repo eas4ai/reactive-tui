@@ -1,5 +1,5 @@
-use reactive_tui::layout::utility_css::apply_utility_classes;
 use reactive_tui::layout::style::StyleBuilder;
+use reactive_tui::layout::utility_css::apply_utility_classes;
 use reactive_tui::ui::paint::extract_paint_style;
 
 #[test]
@@ -34,4 +34,3 @@ fn gray_shades_monotonicity() {
     assert!(pg4.fg.g > pg6.fg.g);
     assert!(pg4.fg.b > pg6.fg.b);
 }
-

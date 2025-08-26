@@ -1,5 +1,5 @@
-use super::{Component, ComponentInstance};
 use super::instance::AnyComponentInstance;
+use super::{Component, ComponentInstance};
 use std::any::TypeId;
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
@@ -76,12 +76,15 @@ impl ComponentRegistry {
     }
 
     /// Create a component instance by TypeId (dynamic typed creation via stored factory)
-    pub fn create_by_type_id(&self, type_id: TypeId, props: &dyn std::any::Any) -> Option<AnyComponentInstance> {
+    pub fn create_by_type_id(
+        &self,
+        type_id: TypeId,
+        props: &dyn std::any::Any,
+    ) -> Option<AnyComponentInstance> {
         let factories = self.factories.read().unwrap();
         let factory = factories.get(&type_id)?;
         Some(factory(props))
     }
-
 
     /// Check if a component type is registered
     pub fn is_registered<C: Component>(&self) -> bool {

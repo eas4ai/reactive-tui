@@ -1,13 +1,17 @@
+use crossterm::event::{
+    DisableBracketedPaste, DisableMouseCapture, EnableBracketedPaste, EnableMouseCapture, Event,
+};
 use crossterm::{event, execute, terminal};
-use crossterm::event::{Event, EnableBracketedPaste, DisableBracketedPaste, EnableMouseCapture, DisableMouseCapture};
 use std::env;
-use std::io::{stdout, Write};
 use std::io::{Error, Result};
+use std::io::{Write, stdout};
 
 pub struct Terminal {}
 
 impl Terminal {
-    pub fn new() -> Result<Self> { Ok(Self {}) }
+    pub fn new() -> Result<Self> {
+        Ok(Self {})
+    }
 
     pub fn enter_modern_mode(&mut self) -> Result<()> {
         terminal::enable_raw_mode()?;
@@ -43,10 +47,18 @@ impl Terminal {
     /// Gate startup on modern terminal assumptions.
     /// We accept terminals that advertise truecolor via COLORTERM or well-known TERM values.
     pub fn capability_gate(&mut self) -> Result<()> {
-        let colorterm = env::var("COLORTERM").unwrap_or_default().to_ascii_lowercase();
+        let colorterm = env::var("COLORTERM")
+            .unwrap_or_default()
+            .to_ascii_lowercase();
         let term = env::var("TERM").unwrap_or_default().to_ascii_lowercase();
-        let modern_term = term.contains("wezterm") || term.contains("kitty") || term.contains("alacritty") || term.contains("iterm");
-        let truecolor = colorterm.contains("truecolor") || colorterm.contains("24bit") || term.contains("direct") || term.contains("24bit");
+        let modern_term = term.contains("wezterm")
+            || term.contains("kitty")
+            || term.contains("alacritty")
+            || term.contains("iterm");
+        let truecolor = colorterm.contains("truecolor")
+            || colorterm.contains("24bit")
+            || term.contains("direct")
+            || term.contains("24bit");
         if !(modern_term || truecolor) {
             return Err(Error::other(
                 "Requires a modern terminal with 24-bit color (wezterm, kitty, alacritty, iTerm2)",
@@ -56,12 +68,11 @@ impl Terminal {
     }
 
     pub fn poll_event(timeout_ms: Option<u64>) -> Result<Option<Event>> {
-        if let Some(ms) = timeout_ms {
-            if !event::poll(std::time::Duration::from_millis(ms))? { return Ok(None); }
+        let dur = std::time::Duration::from_millis(timeout_ms.unwrap_or(0));
+        if !event::poll(dur)? {
+            return Ok(None);
         }
-        if event::poll(std::time::Duration::from_millis(0))? {
-            Ok(Some(event::read()?))
-        } else { Ok(None) }
+        Ok(Some(event::read()?))
     }
 
     pub fn write_all(buf: &[u8]) -> Result<()> {
@@ -69,4 +80,3 @@ impl Terminal {
         Ok(())
     }
 }
-

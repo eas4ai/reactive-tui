@@ -1,5 +1,5 @@
-use std::collections::BTreeMap;
 use super::router::NodeId;
+use std::collections::BTreeMap;
 
 /// A 2D point
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -12,7 +12,7 @@ impl Point {
     pub fn new(x: f32, y: f32) -> Self {
         Self { x, y }
     }
-    
+
     pub fn zero() -> Self {
         Self { x: 0.0, y: 0.0 }
     }
@@ -29,9 +29,14 @@ pub struct Bounds {
 
 impl Bounds {
     pub fn new(x: f32, y: f32, width: f32, height: f32) -> Self {
-        Self { x, y, width, height }
+        Self {
+            x,
+            y,
+            width,
+            height,
+        }
     }
-    
+
     pub fn from_points(top_left: Point, bottom_right: Point) -> Self {
         Self {
             x: top_left.x,
@@ -40,15 +45,15 @@ impl Bounds {
             height: bottom_right.y - top_left.y,
         }
     }
-    
+
     /// Check if a point is within these bounds
     pub fn contains(&self, point: Point) -> bool {
-        point.x >= self.x 
+        point.x >= self.x
             && point.x < self.x + self.width
-            && point.y >= self.y 
+            && point.y >= self.y
             && point.y < self.y + self.height
     }
-    
+
     /// Check if two bounds intersect
     pub fn intersects(&self, other: &Bounds) -> bool {
         self.x < other.x + other.width
@@ -56,21 +61,21 @@ impl Bounds {
             && self.y < other.y + other.height
             && self.y + self.height > other.y
     }
-    
+
     /// Get the intersection of two bounds
     pub fn intersection(&self, other: &Bounds) -> Option<Bounds> {
         if !self.intersects(other) {
             return None;
         }
-        
+
         let x = self.x.max(other.x);
         let y = self.y.max(other.y);
         let right = (self.x + self.width).min(other.x + other.width);
         let bottom = (self.y + self.height).min(other.y + other.height);
-        
+
         Some(Bounds::new(x, y, right - x, bottom - y))
     }
-    
+
     /// Expand bounds by a margin
     pub fn expand(&self, margin: f32) -> Bounds {
         Bounds::new(
@@ -80,20 +85,17 @@ impl Bounds {
             self.height + margin * 2.0,
         )
     }
-    
+
     pub fn top_left(&self) -> Point {
         Point::new(self.x, self.y)
     }
-    
+
     pub fn bottom_right(&self) -> Point {
         Point::new(self.x + self.width, self.y + self.height)
     }
-    
+
     pub fn center(&self) -> Point {
-        Point::new(
-            self.x + self.width / 2.0,
-            self.y + self.height / 2.0,
-        )
+        Point::new(self.x + self.width / 2.0, self.y + self.height / 2.0)
     }
 }
 
@@ -121,7 +123,7 @@ impl QuadNode {
             max_nodes,
         }
     }
-    
+
     fn insert(&mut self, node_id: NodeId, bounds: Bounds, z_index: i32, depth: usize) {
         // If we have children, try to insert into them
         if self.children.is_some() {
@@ -132,25 +134,22 @@ impl QuadNode {
                 }
             }
         }
-        
+
         // Add to this node
         self.nodes.push((node_id, bounds, z_index));
-        
+
         // Split if we exceed capacity and haven't reached max depth
-        if self.children.is_none() 
-            && self.nodes.len() > self.max_nodes 
-            && depth < self.max_depth 
-        {
+        if self.children.is_none() && self.nodes.len() > self.max_nodes && depth < self.max_depth {
             self.split(depth);
         }
     }
-    
+
     fn split(&mut self, depth: usize) {
         let half_width = self.bounds.width / 2.0;
         let half_height = self.bounds.height / 2.0;
         let x = self.bounds.x;
         let y = self.bounds.y;
-        
+
         // Create four children (NW, NE, SW, SE)
         self.children = Some(Box::new([
             QuadNode::new(
@@ -174,32 +173,32 @@ impl QuadNode {
                 self.max_nodes,
             ),
         ]));
-        
+
         // Move existing nodes to children
         let nodes = std::mem::take(&mut self.nodes);
         for (node_id, bounds, z_index) in nodes {
             self.insert(node_id, bounds, z_index, depth);
         }
     }
-    
+
     fn get_child_index(&self, bounds: &Bounds) -> Option<usize> {
         let mid_x = self.bounds.x + self.bounds.width / 2.0;
         let mid_y = self.bounds.y + self.bounds.height / 2.0;
-        
+
         let fits_left = bounds.x + bounds.width <= mid_x;
         let fits_right = bounds.x >= mid_x;
         let fits_top = bounds.y + bounds.height <= mid_y;
         let fits_bottom = bounds.y >= mid_y;
-        
+
         match (fits_left, fits_right, fits_top, fits_bottom) {
-            (true, false, true, false) => Some(0),  // NW
-            (false, true, true, false) => Some(1),  // NE
-            (true, false, false, true) => Some(2),  // SW
-            (false, true, false, true) => Some(3),  // SE
-            _ => None, // Doesn't fit entirely in one quadrant
+            (true, false, true, false) => Some(0), // NW
+            (false, true, true, false) => Some(1), // NE
+            (true, false, false, true) => Some(2), // SW
+            (false, true, false, true) => Some(3), // SE
+            _ => None,                             // Doesn't fit entirely in one quadrant
         }
     }
-    
+
     fn query(&self, point: Point, results: &mut Vec<(NodeId, i32)>) {
         // Check nodes at this level
         for (node_id, bounds, z_index) in &self.nodes {
@@ -207,7 +206,7 @@ impl QuadNode {
                 results.push((*node_id, *z_index));
             }
         }
-        
+
         // Recursively check children
         if let Some(children) = &self.children {
             for child in children.iter() {
@@ -217,7 +216,7 @@ impl QuadNode {
             }
         }
     }
-    
+
     fn query_bounds(&self, query_bounds: &Bounds, results: &mut Vec<(NodeId, i32)>) {
         // Check nodes at this level
         for (node_id, bounds, z_index) in &self.nodes {
@@ -225,7 +224,7 @@ impl QuadNode {
                 results.push((*node_id, *z_index));
             }
         }
-        
+
         // Recursively check children
         if let Some(children) = &self.children {
             for child in children.iter() {
@@ -248,73 +247,69 @@ impl HitTest {
             node_bounds: BTreeMap::new(),
         }
     }
-    
+
     /// Update bounds for a node
     pub fn update_bounds(&mut self, node_id: NodeId, bounds: Bounds, z_index: i32) {
         // Remove old bounds if exists
         self.node_bounds.remove(&node_id);
-        
+
         // Store new bounds
         self.node_bounds.insert(node_id, (bounds, z_index));
-        
+
         // Rebuild the tree (simple approach - could be optimized)
         self.rebuild();
     }
-    
+
     /// Remove a node from hit testing
     pub fn remove_node(&mut self, node_id: NodeId) {
         self.node_bounds.remove(&node_id);
         self.rebuild();
     }
-    
+
     /// Find the topmost node at a point
     pub fn hit_test(&self, point: Point) -> Option<NodeId> {
         let mut results = Vec::new();
         self.root.query(point, &mut results);
-        
+
         // Sort by z-index (highest first) and return the top one
         results.sort_by(|a, b| b.1.cmp(&a.1));
         results.first().map(|(node_id, _)| *node_id)
     }
-    
+
     /// Find all nodes at a point, sorted by z-index
     pub fn hit_test_all(&self, point: Point) -> Vec<NodeId> {
         let mut results = Vec::new();
         self.root.query(point, &mut results);
-        
+
         // Sort by z-index (highest first)
         results.sort_by(|a, b| b.1.cmp(&a.1));
         results.into_iter().map(|(node_id, _)| node_id).collect()
     }
-    
+
     /// Find all nodes intersecting with bounds
     pub fn query_bounds(&self, bounds: Bounds) -> Vec<NodeId> {
         let mut results = Vec::new();
         self.root.query_bounds(&bounds, &mut results);
-        
+
         // Sort by z-index (highest first)
         results.sort_by(|a, b| b.1.cmp(&a.1));
         results.into_iter().map(|(node_id, _)| node_id).collect()
     }
-    
+
     fn rebuild(&mut self) {
         // Create new root
         let bounds = self.root.bounds;
         self.root = QuadNode::new(bounds, 8, 10);
-        
+
         // Re-insert all nodes
         for (node_id, (bounds, z_index)) in &self.node_bounds {
             self.root.insert(*node_id, *bounds, *z_index, 0);
         }
     }
-    
+
     /// Resize the hit test area
     pub fn resize(&mut self, width: f32, height: f32) {
-        self.root = QuadNode::new(
-            Bounds::new(0.0, 0.0, width, height),
-            8,
-            10,
-        );
+        self.root = QuadNode::new(Bounds::new(0.0, 0.0, width, height), 8, 10);
         self.rebuild();
     }
 }
@@ -322,66 +317,66 @@ impl HitTest {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_bounds_contains() {
         let bounds = Bounds::new(10.0, 10.0, 20.0, 20.0);
-        
+
         assert!(bounds.contains(Point::new(15.0, 15.0)));
         assert!(bounds.contains(Point::new(10.0, 10.0)));
         assert!(!bounds.contains(Point::new(5.0, 15.0)));
         assert!(!bounds.contains(Point::new(30.0, 15.0)));
     }
-    
+
     #[test]
     fn test_bounds_intersection() {
         let a = Bounds::new(10.0, 10.0, 20.0, 20.0);
         let b = Bounds::new(20.0, 20.0, 20.0, 20.0);
-        
+
         assert!(a.intersects(&b));
-        
+
         let intersection = a.intersection(&b).unwrap();
         assert_eq!(intersection, Bounds::new(20.0, 20.0, 10.0, 10.0));
     }
-    
+
     #[test]
     fn test_hit_test() {
         let mut hit_test = HitTest::new(100.0, 100.0);
-        
+
         let node1 = NodeId::new();
         let node2 = NodeId::new();
         let node3 = NodeId::new();
-        
+
         // Add overlapping nodes with different z-indices
         hit_test.update_bounds(node1, Bounds::new(10.0, 10.0, 30.0, 30.0), 1);
         hit_test.update_bounds(node2, Bounds::new(20.0, 20.0, 30.0, 30.0), 2);
         hit_test.update_bounds(node3, Bounds::new(30.0, 30.0, 30.0, 30.0), 3);
-        
+
         // Test hit at overlapping point
         let hit = hit_test.hit_test(Point::new(35.0, 35.0));
         assert_eq!(hit, Some(node3)); // Highest z-index
-        
+
         // Test hit at non-overlapping point
         let hit = hit_test.hit_test(Point::new(15.0, 15.0));
         assert_eq!(hit, Some(node1));
-        
+
         // Test miss
         let hit = hit_test.hit_test(Point::new(5.0, 5.0));
         assert_eq!(hit, None);
     }
-    
+
     #[test]
     fn test_query_bounds() {
         let mut hit_test = HitTest::new(100.0, 100.0);
-        
+
         let node1 = NodeId::new();
         let node2 = NodeId::new();
         let node3 = NodeId::new();
-        
+
         hit_test.update_bounds(node1, Bounds::new(10.0, 10.0, 20.0, 20.0), 1);
         hit_test.update_bounds(node2, Bounds::new(30.0, 30.0, 20.0, 20.0), 2);
         hit_test.update_bounds(node3, Bounds::new(50.0, 50.0, 20.0, 20.0), 3);
-        
+
         // Query a region that intersects node1 and node2
         let results = hit_test.query_bounds(Bounds::new(15.0, 15.0, 30.0, 30.0));
         assert_eq!(results.len(), 2);

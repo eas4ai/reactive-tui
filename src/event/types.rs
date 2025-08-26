@@ -4,13 +4,17 @@ use std::time::Instant;
 pub trait EventTrait: Clone + Send + Sync {
     /// Get the event type name
     fn event_type(&self) -> &'static str;
-    
+
     /// Whether this event bubbles up the component tree
-    fn bubbles(&self) -> bool { true }
-    
+    fn bubbles(&self) -> bool {
+        true
+    }
+
     /// Whether this event can be cancelled
-    fn cancelable(&self) -> bool { true }
-    
+    fn cancelable(&self) -> bool {
+        true
+    }
+
     /// Get the timestamp when the event was created
     fn timestamp(&self) -> Instant;
 }
@@ -30,18 +34,18 @@ impl Event {
     pub fn is_key(&self) -> bool {
         matches!(self, Event::Key(_))
     }
-    
+
     pub fn is_mouse(&self) -> bool {
         matches!(self, Event::Mouse(_))
     }
-    
+
     pub fn as_key(&self) -> Option<&KeyEvent> {
         match self {
             Event::Key(e) => Some(e),
             _ => None,
         }
     }
-    
+
     pub fn as_mouse(&self) -> Option<&MouseEvent> {
         match self {
             Event::Mouse(e) => Some(e),
@@ -70,12 +74,12 @@ impl KeyEvent {
             timestamp: Instant::now(),
         }
     }
-    
+
     pub fn with_modifiers(mut self, modifiers: KeyModifiers) -> Self {
         self.modifiers = modifiers;
         self
     }
-    
+
     pub fn with_kind(mut self, kind: KeyEventKind) -> Self {
         self.kind = kind;
         self
@@ -93,10 +97,10 @@ pub enum KeyEventKind {
 pub enum KeyCode {
     // Letters
     Char(char),
-    
+
     // Function keys
     F(u8), // F1-F24
-    
+
     // Navigation
     Up,
     Down,
@@ -106,7 +110,7 @@ pub enum KeyCode {
     End,
     PageUp,
     PageDown,
-    
+
     // Editing
     Backspace,
     Delete,
@@ -114,16 +118,16 @@ pub enum KeyCode {
     Enter,
     Tab,
     BackTab, // Shift+Tab
-    
+
     // Control
     Escape,
     Space,
-    
+
     // Modifiers (when pressed alone)
     CapsLock,
     NumLock,
     ScrollLock,
-    
+
     // Media keys
     MediaPlay,
     MediaPause,
@@ -131,7 +135,7 @@ pub enum KeyCode {
     MediaStop,
     MediaNext,
     MediaPrevious,
-    
+
     // Special
     Null,
     Unknown,
@@ -155,19 +159,28 @@ impl KeyModifiers {
             meta: false,
         }
     }
-    
+
     pub fn shift() -> Self {
-        Self { shift: true, ..Self::empty() }
+        Self {
+            shift: true,
+            ..Self::empty()
+        }
     }
-    
+
     pub fn ctrl() -> Self {
-        Self { ctrl: true, ..Self::empty() }
+        Self {
+            ctrl: true,
+            ..Self::empty()
+        }
     }
-    
+
     pub fn alt() -> Self {
-        Self { alt: true, ..Self::empty() }
+        Self {
+            alt: true,
+            ..Self::empty()
+        }
     }
-    
+
     pub fn is_empty(&self) -> bool {
         !self.shift && !self.ctrl && !self.alt && !self.meta
     }
@@ -193,12 +206,12 @@ impl MouseEvent {
             timestamp: Instant::now(),
         }
     }
-    
+
     pub fn with_button(mut self, button: MouseButton) -> Self {
         self.button = button;
         self
     }
-    
+
     pub fn with_modifiers(mut self, modifiers: KeyModifiers) -> Self {
         self.modifiers = modifiers;
         self
@@ -225,8 +238,8 @@ pub enum MouseButton {
     Left,
     Right,
     Middle,
-    Back,     // Button 4
-    Forward,  // Button 5
+    Back,    // Button 4
+    Forward, // Button 5
     Other(u8),
 }
 
@@ -243,18 +256,18 @@ impl Position {
     pub fn cell(x: u16, y: u16) -> Self {
         Position::Cell { x, y }
     }
-    
+
     pub fn pixel(x: u32, y: u32) -> Self {
         Position::Pixel { x, y }
     }
-    
+
     pub fn x(&self) -> u32 {
         match self {
             Position::Cell { x, .. } => *x as u32,
             Position::Pixel { x, .. } => *x,
         }
     }
-    
+
     pub fn y(&self) -> u32 {
         match self {
             Position::Cell { y, .. } => *y as u32,
@@ -303,7 +316,7 @@ impl ResizeEvent {
             timestamp: Instant::now(),
         }
     }
-    
+
     pub fn with_pixels(mut self, pixel_width: u32, pixel_height: u32) -> Self {
         self.pixel_width = Some(pixel_width);
         self.pixel_height = Some(pixel_height);
@@ -364,33 +377,61 @@ impl CustomEvent {
 
 // Implement EventTrait for all event types
 impl EventTrait for KeyEvent {
-    fn event_type(&self) -> &'static str { "key" }
-    fn timestamp(&self) -> Instant { self.timestamp }
+    fn event_type(&self) -> &'static str {
+        "key"
+    }
+    fn timestamp(&self) -> Instant {
+        self.timestamp
+    }
 }
 
 impl EventTrait for MouseEvent {
-    fn event_type(&self) -> &'static str { "mouse" }
-    fn timestamp(&self) -> Instant { self.timestamp }
+    fn event_type(&self) -> &'static str {
+        "mouse"
+    }
+    fn timestamp(&self) -> Instant {
+        self.timestamp
+    }
 }
 
 impl EventTrait for ResizeEvent {
-    fn event_type(&self) -> &'static str { "resize" }
-    fn timestamp(&self) -> Instant { self.timestamp }
-    fn bubbles(&self) -> bool { false }
+    fn event_type(&self) -> &'static str {
+        "resize"
+    }
+    fn timestamp(&self) -> Instant {
+        self.timestamp
+    }
+    fn bubbles(&self) -> bool {
+        false
+    }
 }
 
 impl EventTrait for FocusEvent {
-    fn event_type(&self) -> &'static str { "focus" }
-    fn timestamp(&self) -> Instant { self.timestamp }
-    fn bubbles(&self) -> bool { false }
+    fn event_type(&self) -> &'static str {
+        "focus"
+    }
+    fn timestamp(&self) -> Instant {
+        self.timestamp
+    }
+    fn bubbles(&self) -> bool {
+        false
+    }
 }
 
 impl EventTrait for PasteEvent {
-    fn event_type(&self) -> &'static str { "paste" }
-    fn timestamp(&self) -> Instant { self.timestamp }
+    fn event_type(&self) -> &'static str {
+        "paste"
+    }
+    fn timestamp(&self) -> Instant {
+        self.timestamp
+    }
 }
 
 impl EventTrait for CustomEvent {
-    fn event_type(&self) -> &'static str { "custom" }
-    fn timestamp(&self) -> Instant { self.timestamp }
+    fn event_type(&self) -> &'static str {
+        "custom"
+    }
+    fn timestamp(&self) -> Instant {
+        self.timestamp
+    }
 }

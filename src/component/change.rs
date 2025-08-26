@@ -6,22 +6,27 @@ use std::fmt;
 pub enum Change {
     /// Clear the entire screen
     ClearScreen,
-    
+
     /// Clear from cursor to end of screen
     ClearToEndOfScreen,
-    
+
     /// Clear from cursor to end of line
     ClearToEndOfLine,
-    
+
     /// Clear a specific region
-    ClearRegion { x: u16, y: u16, width: u16, height: u16 },
-    
+    ClearRegion {
+        x: u16,
+        y: u16,
+        width: u16,
+        height: u16,
+    },
+
     /// Move cursor to position
     MoveTo { x: u16, y: u16 },
-    
+
     /// Write text at current cursor position
     WriteText(String),
-    
+
     /// Write styled text
     WriteStyledText {
         text: String,
@@ -33,55 +38,55 @@ pub enum Change {
         strike: bool,
         reverse: bool,
     },
-    
+
     /// Set foreground color
     SetForegroundColor(Rgba),
-    
+
     /// Set background color
     SetBackgroundColor(Rgba),
-    
+
     /// Reset all attributes
     ResetAttributes,
-    
+
     /// Enable text attribute
     EnableAttribute(TextAttribute),
-    
+
     /// Disable text attribute
     DisableAttribute(TextAttribute),
-    
+
     /// Push a scroll region
     PushScrollRegion { top: u16, bottom: u16 },
-    
+
     /// Pop the scroll region
     PopScrollRegion,
-    
+
     /// Scroll up by n lines in the current region
     ScrollUp(u16),
-    
+
     /// Scroll down by n lines in the current region
     ScrollDown(u16),
-    
+
     /// Save cursor position
     SaveCursor,
-    
+
     /// Restore cursor position
     RestoreCursor,
-    
+
     /// Hide cursor
     HideCursor,
-    
+
     /// Show cursor
     ShowCursor,
-    
+
     /// Begin atomic operation (buffer updates)
     BeginAtomic,
-    
+
     /// End atomic operation (flush buffer)
     EndAtomic,
-    
+
     /// Set terminal title
     SetTitle(String),
-    
+
     /// Ring terminal bell
     Bell,
 }
@@ -114,7 +119,7 @@ impl ChangeBatch {
             optimize: true,
         }
     }
-    
+
     /// Create a batch with a specific capacity
     pub fn with_capacity(capacity: usize) -> Self {
         Self {
@@ -122,49 +127,49 @@ impl ChangeBatch {
             optimize: true,
         }
     }
-    
+
     /// Add a change to the batch
     pub fn push(&mut self, change: Change) {
         self.changes.push(change);
     }
-    
+
     /// Add multiple changes
     pub fn extend(&mut self, changes: impl IntoIterator<Item = Change>) {
         self.changes.extend(changes);
     }
-    
+
     /// Clear all changes
     pub fn clear(&mut self) {
         self.changes.clear();
     }
-    
+
     /// Get the number of changes
     pub fn len(&self) -> usize {
         self.changes.len()
     }
-    
+
     /// Check if the batch is empty
     pub fn is_empty(&self) -> bool {
         self.changes.is_empty()
     }
-    
+
     /// Set whether to optimize the batch
     pub fn set_optimize(&mut self, optimize: bool) {
         self.optimize = optimize;
     }
-    
+
     /// Optimize the batch by removing redundant operations
     pub fn optimize_changes(&mut self) {
         if !self.optimize || self.changes.len() < 2 {
             return;
         }
-        
+
         let mut optimized = Vec::with_capacity(self.changes.len());
         let mut i = 0;
-        
+
         while i < self.changes.len() {
             let change = &self.changes[i];
-            
+
             match change {
                 // Consecutive MoveTo commands - keep only the last one
                 Change::MoveTo { .. } => {
@@ -188,12 +193,21 @@ impl ChangeBatch {
                     // Scan forward across consecutive clear operations
                     let mut j = i;
                     let mut saw_clear_screen = matches!(change, Change::ClearScreen);
-                    let mut saw_clear_to_end_of_screen = matches!(change, Change::ClearToEndOfScreen);
+                    let mut saw_clear_to_end_of_screen =
+                        matches!(change, Change::ClearToEndOfScreen);
                     while j + 1 < self.changes.len() {
                         match &self.changes[j + 1] {
-                            Change::ClearScreen => { saw_clear_screen = true; j += 1; }
-                            Change::ClearToEndOfScreen => { saw_clear_to_end_of_screen = true; j += 1; }
-                            Change::ClearToEndOfLine | Change::ClearRegion { .. } => { j += 1; }
+                            Change::ClearScreen => {
+                                saw_clear_screen = true;
+                                j += 1;
+                            }
+                            Change::ClearToEndOfScreen => {
+                                saw_clear_to_end_of_screen = true;
+                                j += 1;
+                            }
+                            Change::ClearToEndOfLine | Change::ClearRegion { .. } => {
+                                j += 1;
+                            }
                             _ => break,
                         }
                     }
@@ -221,7 +235,7 @@ impl ChangeBatch {
                     }
                     optimized.push(Change::WriteText(combined));
                 }
-                
+
                 // Redundant attribute changes
                 Change::ResetAttributes => {
                     optimized.push(change.clone());
@@ -253,18 +267,18 @@ impl ChangeBatch {
                         }
                     }
                 }
-                
+
                 _ => {
                     optimized.push(change.clone());
                 }
             }
-            
+
             i += 1;
         }
-        
+
         self.changes = optimized;
     }
-    
+
     /// Apply the batch of changes to a writer
     pub fn apply<W: fmt::Write>(&self, writer: &mut W) -> fmt::Result {
         for change in &self.changes {
@@ -272,7 +286,7 @@ impl ChangeBatch {
         }
         Ok(())
     }
-    
+
     /// Get an iterator over the changes
     pub fn iter(&self) -> impl Iterator<Item = &Change> {
         self.changes.iter()
@@ -286,7 +300,12 @@ impl Change {
             Change::ClearScreen => write!(writer, "\x1b[2J\x1b[H"),
             Change::ClearToEndOfScreen => write!(writer, "\x1b[J"),
             Change::ClearToEndOfLine => write!(writer, "\x1b[K"),
-            Change::ClearRegion { x, y, width, height } => {
+            Change::ClearRegion {
+                x,
+                y,
+                width,
+                height,
+            } => {
                 // Save cursor, clear region line by line, restore cursor
                 write!(writer, "\x1b7")?;
                 for row in 0..*height {
@@ -298,36 +317,57 @@ impl Change {
                 write!(writer, "\x1b8")
             }
             Change::MoveTo { x, y } => write!(writer, "\x1b[{};{}H", y + 1, x + 1),
-            Change::WriteText(text) => write!(writer, "{}", text),
-            Change::WriteStyledText { text, fg, bg, bold, italic, underline, strike, reverse } => {
+            Change::WriteText(text) => write!(writer, "{text}"),
+            Change::WriteStyledText {
+                text,
+                fg,
+                bg,
+                bold,
+                italic,
+                underline,
+                strike,
+                reverse,
+            } => {
                 // Build SGR sequence
                 let mut sgr = String::from("\x1b[");
                 let mut params = Vec::new();
-                
-                if *bold { params.push("1".to_string()); }
-                if *italic { params.push("3".to_string()); }
-                if *underline { params.push("4".to_string()); }
-                if *reverse { params.push("7".to_string()); }
-                if *strike { params.push("9".to_string()); }
-                
+
+                if *bold {
+                    params.push("1".to_string());
+                }
+                if *italic {
+                    params.push("3".to_string());
+                }
+                if *underline {
+                    params.push("4".to_string());
+                }
+                if *reverse {
+                    params.push("7".to_string());
+                }
+                if *strike {
+                    params.push("9".to_string());
+                }
+
                 if let Some(fg) = fg {
-                    params.push(format!("38;2;{};{};{}", 
+                    params.push(format!(
+                        "38;2;{};{};{}",
                         (fg.r * 255.0) as u8,
                         (fg.g * 255.0) as u8,
                         (fg.b * 255.0) as u8
                     ));
                 }
-                
+
                 if let Some(bg) = bg {
-                    params.push(format!("48;2;{};{};{}",
+                    params.push(format!(
+                        "48;2;{};{};{}",
                         (bg.r * 255.0) as u8,
                         (bg.g * 255.0) as u8,
                         (bg.b * 255.0) as u8
                     ));
                 }
-                
+
                 if params.is_empty() {
-                    write!(writer, "{}", text)
+                    write!(writer, "{text}")
                 } else {
                     for (i, param) in params.iter().enumerate() {
                         if i > 0 {
@@ -336,18 +376,22 @@ impl Change {
                         sgr.push_str(param);
                     }
                     sgr.push('m');
-                    write!(writer, "{}{}\x1b[0m", sgr, text)
+                    write!(writer, "{sgr}{text}\x1b[0m")
                 }
             }
             Change::SetForegroundColor(color) => {
-                write!(writer, "\x1b[38;2;{};{};{}m",
+                write!(
+                    writer,
+                    "\x1b[38;2;{};{};{}m",
                     (color.r * 255.0) as u8,
                     (color.g * 255.0) as u8,
                     (color.b * 255.0) as u8
                 )
             }
             Change::SetBackgroundColor(color) => {
-                write!(writer, "\x1b[48;2;{};{};{}m",
+                write!(
+                    writer,
+                    "\x1b[48;2;{};{};{}m",
                     (color.r * 255.0) as u8,
                     (color.g * 255.0) as u8,
                     (color.b * 255.0) as u8
@@ -364,7 +408,7 @@ impl Change {
                     TextAttribute::Dim => "2",
                     TextAttribute::Blink => "5",
                 };
-                write!(writer, "\x1b[{}m", code)
+                write!(writer, "\x1b[{code}m")
             }
             Change::DisableAttribute(attr) => {
                 let code = match attr {
@@ -376,21 +420,21 @@ impl Change {
                     TextAttribute::Dim => "22",
                     TextAttribute::Blink => "25",
                 };
-                write!(writer, "\x1b[{}m", code)
+                write!(writer, "\x1b[{code}m")
             }
             Change::PushScrollRegion { top, bottom } => {
                 write!(writer, "\x1b[{};{}r", top + 1, bottom + 1)
             }
             Change::PopScrollRegion => write!(writer, "\x1b[r"),
-            Change::ScrollUp(n) => write!(writer, "\x1b[{}S", n),
-            Change::ScrollDown(n) => write!(writer, "\x1b[{}T", n),
+            Change::ScrollUp(n) => write!(writer, "\x1b[{n}S"),
+            Change::ScrollDown(n) => write!(writer, "\x1b[{n}T"),
             Change::SaveCursor => write!(writer, "\x1b7"),
             Change::RestoreCursor => write!(writer, "\x1b8"),
             Change::HideCursor => write!(writer, "\x1b[?25l"),
             Change::ShowCursor => write!(writer, "\x1b[?25h"),
             Change::BeginAtomic => Ok(()), // No-op for now, could use synchronized updates
-            Change::EndAtomic => Ok(()), // No-op for now
-            Change::SetTitle(title) => write!(writer, "\x1b]0;{}\x07", title),
+            Change::EndAtomic => Ok(()),   // No-op for now
+            Change::SetTitle(title) => write!(writer, "\x1b]0;{title}\x07"),
             Change::Bell => write!(writer, "\x07"),
         }
     }
@@ -399,54 +443,59 @@ impl Change {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_change_batch_optimization() {
         let mut batch = ChangeBatch::new();
-        
+
         // Add redundant moves
         batch.push(Change::MoveTo { x: 0, y: 0 });
         batch.push(Change::MoveTo { x: 10, y: 10 });
         batch.push(Change::WriteText("Hello".to_string()));
-        
+
         batch.optimize_changes();
         assert_eq!(batch.len(), 2); // Only last move and text
-        
+
         // Test text combining
         let mut batch2 = ChangeBatch::new();
         batch2.push(Change::WriteText("Hello".to_string()));
         batch2.push(Change::WriteText(" ".to_string()));
         batch2.push(Change::WriteText("World".to_string()));
-        
+
         batch2.optimize_changes();
         assert_eq!(batch2.len(), 1);
         if let Change::WriteText(text) = &batch2.changes[0] {
             assert_eq!(text, "Hello World");
         }
     }
-    
+
     #[test]
     fn test_clear_optimization() {
         let mut batch = ChangeBatch::new();
-        
+
         batch.push(Change::ClearToEndOfLine);
-        batch.push(Change::ClearRegion { x: 0, y: 0, width: 10, height: 10 });
+        batch.push(Change::ClearRegion {
+            x: 0,
+            y: 0,
+            width: 10,
+            height: 10,
+        });
         batch.push(Change::ClearScreen);
         batch.push(Change::ClearToEndOfScreen);
-        
+
         batch.optimize_changes();
         assert_eq!(batch.len(), 1);
         assert_eq!(batch.changes[0], Change::ClearScreen);
     }
-    
+
     #[test]
     fn test_change_apply() {
         let mut output = String::new();
-        
+
         let change = Change::WriteText("Hello".to_string());
         change.apply(&mut output).unwrap();
         assert_eq!(output, "Hello");
-        
+
         output.clear();
         let change = Change::MoveTo { x: 5, y: 10 };
         change.apply(&mut output).unwrap();

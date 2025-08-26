@@ -1,5 +1,5 @@
-use reactive_tui::layout::utility_css::apply_utility_classes;
 use reactive_tui::layout::style::StyleBuilder;
+use reactive_tui::layout::utility_css::apply_utility_classes;
 use reactive_tui::ui::paint::extract_paint_style;
 
 #[test]
@@ -18,4 +18,3 @@ fn bg_color_named() {
     let p = extract_paint_style(&mut sb).expect("p");
     assert!(p.bg.b > p.bg.r && p.bg.b > p.bg.g);
 }
-

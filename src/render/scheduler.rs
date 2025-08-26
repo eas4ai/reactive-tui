@@ -1,7 +1,7 @@
+use std::cmp::Ordering;
 use std::collections::{BinaryHeap, HashMap};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
-use std::cmp::Ordering;
 
 /// Priority levels for render operations
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -66,7 +66,7 @@ impl Ord for RenderTask {
 
 /// Frame budget management
 struct FrameBudget {
-    target_fps: u32,
+    _target_fps: u32,
     frame_duration: Duration,
     last_frame_start: Option<Instant>,
     current_frame_start: Option<Instant>,
@@ -75,13 +75,13 @@ struct FrameBudget {
 impl FrameBudget {
     fn new(target_fps: u32) -> Self {
         Self {
-            target_fps,
+            _target_fps: target_fps,
             frame_duration: Duration::from_millis(1000 / target_fps as u64),
             last_frame_start: None,
             current_frame_start: None,
         }
     }
-    
+
     /// Start a new frame
     fn start_frame(&mut self) -> Duration {
         let now = Instant::now();
@@ -89,8 +89,9 @@ impl FrameBudget {
         self.current_frame_start = Some(now);
         self.frame_duration
     }
-    
+
     /// Check remaining time in current frame
+    #[allow(dead_code)]
     fn remaining_budget(&self) -> Duration {
         if let Some(start) = self.current_frame_start {
             let elapsed = start.elapsed();
@@ -103,8 +104,9 @@ impl FrameBudget {
             self.frame_duration
         }
     }
-    
+
     /// Check if we have time for another task
+    #[allow(dead_code)]
     fn has_budget(&self, estimated_duration: Duration) -> bool {
         self.remaining_budget() >= estimated_duration
     }
@@ -137,7 +139,7 @@ impl RenderScheduler {
             stats: Arc::new(Mutex::new(SchedulerStats::default())),
         }
     }
-    
+
     /// Schedule a render task
     pub fn schedule<F>(&self, priority: Priority, callback: F) -> ScheduleHandle
     where
@@ -145,7 +147,7 @@ impl RenderScheduler {
     {
         self.schedule_with_deadline(priority, callback, None)
     }
-    
+
     /// Schedule a render task with a deadline
     pub fn schedule_with_deadline<F>(
         &self,
@@ -164,25 +166,25 @@ impl RenderScheduler {
             scheduled_at: Instant::now(),
             deadline: deadline.map(|d| Instant::now() + d),
         };
-        
+
         let mut tasks = self.tasks.lock().unwrap();
         let mut pending = self.pending_handles.lock().unwrap();
-        
+
         tasks.push(task);
         pending.insert(handle, priority);
-        
+
         let mut stats = self.stats.lock().unwrap();
         stats.total_tasks += 1;
-        
+
         handle
     }
-    
+
     /// Cancel a scheduled task
     pub fn cancel(&self, handle: ScheduleHandle) -> bool {
         let mut pending = self.pending_handles.lock().unwrap();
         pending.remove(&handle).is_some()
     }
-    
+
     /// Execute tasks for one frame
     pub fn execute_frame(&self) -> usize {
         let mut completed = 0;
@@ -190,10 +192,10 @@ impl RenderScheduler {
             let mut budget = self.frame_budget.lock().unwrap();
             budget.start_frame()
         };
-        
+
         let frame_start = Instant::now();
         let frame_deadline = frame_start + frame_budget;
-        
+
         // Set running flag
         {
             let mut running = self.is_running.lock().unwrap();
@@ -202,13 +204,13 @@ impl RenderScheduler {
             }
             *running = true;
         }
-        
+
         // Process tasks until frame budget exhausted
         loop {
             let task = {
                 let mut tasks = self.tasks.lock().unwrap();
                 let mut pending = self.pending_handles.lock().unwrap();
-                
+
                 // Find next valid task
                 let mut found_task = None;
                 while let Some(task) = tasks.pop() {
@@ -220,11 +222,11 @@ impl RenderScheduler {
                 }
                 found_task
             };
-            
-            let Some(task) = task else { 
+
+            let Some(task) = task else {
                 break; // No more tasks
             };
-            
+
             // Check deadline
             if let Some(deadline) = task.deadline {
                 if Instant::now() > deadline {
@@ -232,7 +234,7 @@ impl RenderScheduler {
                     continue;
                 }
             }
-            
+
             // Check frame budget
             if Instant::now() >= frame_deadline {
                 // Out of time, reschedule task
@@ -240,25 +242,25 @@ impl RenderScheduler {
                 let mut pending = self.pending_handles.lock().unwrap();
                 tasks.push(task.clone());
                 pending.insert(task.handle, task.priority);
-                
+
                 let mut stats = self.stats.lock().unwrap();
                 stats.dropped_frames += 1;
                 break;
             }
-            
+
             // Execute task
             (task.callback)();
             completed += 1;
-            
+
             let mut stats = self.stats.lock().unwrap();
             stats.completed_tasks += 1;
         }
-        
+
         // Update stats
         {
             let mut stats = self.stats.lock().unwrap();
             let frame_time = frame_start.elapsed();
-            
+
             // Simple moving average
             if stats.average_frame_time == Duration::ZERO {
                 stats.average_frame_time = frame_time;
@@ -266,29 +268,29 @@ impl RenderScheduler {
                 stats.average_frame_time = (stats.average_frame_time + frame_time) / 2;
             }
         }
-        
+
         // Clear running flag
         *self.is_running.lock().unwrap() = false;
-        
+
         completed
     }
-    
+
     /// Check if there are pending tasks
     pub fn has_pending_tasks(&self) -> bool {
         !self.tasks.lock().unwrap().is_empty()
     }
-    
+
     /// Get the number of pending tasks
     pub fn pending_count(&self) -> usize {
         self.tasks.lock().unwrap().len()
     }
-    
+
     /// Clear all pending tasks
     pub fn clear(&self) {
         self.tasks.lock().unwrap().clear();
         self.pending_handles.lock().unwrap().clear();
     }
-    
+
     /// Get scheduler statistics
     pub fn stats(&self) -> String {
         let stats = self.stats.lock().unwrap();
@@ -312,60 +314,60 @@ impl Default for RenderScheduler {
 mod tests {
     use super::*;
     use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
-    
+
     #[test]
     fn test_priority_ordering() {
         let scheduler = RenderScheduler::new(60);
         let counter = Arc::new(AtomicUsize::new(0));
-        
+
         // Schedule tasks in reverse priority order
         let counter1 = counter.clone();
         scheduler.schedule(Priority::Low, move || {
             counter1.store(3, AtomicOrdering::SeqCst);
         });
-        
+
         let counter2 = counter.clone();
         scheduler.schedule(Priority::Normal, move || {
             counter2.store(2, AtomicOrdering::SeqCst);
         });
-        
+
         let counter3 = counter.clone();
         scheduler.schedule(Priority::Immediate, move || {
             counter3.store(1, AtomicOrdering::SeqCst);
         });
-        
+
         // Execute one task
         scheduler.execute_frame();
-        
+
         // Immediate priority should run first
         assert_eq!(counter.load(AtomicOrdering::SeqCst), 1);
     }
-    
+
     #[test]
     fn test_cancel_task() {
         let scheduler = RenderScheduler::new(60);
         let executed = Arc::new(AtomicUsize::new(0));
-        
+
         let executed_clone = executed.clone();
         let handle = scheduler.schedule(Priority::Normal, move || {
             executed_clone.fetch_add(1, AtomicOrdering::SeqCst);
         });
-        
+
         // Cancel the task
         assert!(scheduler.cancel(handle));
-        
+
         // Execute frame
         scheduler.execute_frame();
-        
+
         // Task should not have executed
         assert_eq!(executed.load(AtomicOrdering::SeqCst), 0);
     }
-    
+
     #[test]
     fn test_frame_budget() {
         let mut budget = FrameBudget::new(60);
         let frame_duration = budget.start_frame();
-        
+
         assert_eq!(frame_duration, Duration::from_millis(16)); // ~60 FPS
         assert!(budget.has_budget(Duration::from_millis(10)));
         assert!(!budget.has_budget(Duration::from_millis(20)));

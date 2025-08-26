@@ -2,18 +2,18 @@ use std::any::{Any, TypeId};
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
-pub mod instance;
-pub mod props;
-pub mod lifecycle;
-pub mod registry;
-pub mod element;
 pub mod change;
+pub mod element;
+pub mod instance;
+pub mod lifecycle;
+pub mod props;
+pub mod registry;
 
-pub use instance::ComponentInstance;
-pub use props::Props;
-pub use lifecycle::{Lifecycle, LifecycleEvent};
-pub use registry::ComponentRegistry;
 pub use element::{Element, ElementType, LayoutType};
+pub use instance::ComponentInstance;
+pub use lifecycle::{Lifecycle, LifecycleEvent};
+pub use props::Props;
+pub use registry::ComponentRegistry;
 pub mod bridge;
 pub use bridge::element_to_nodespec;
 
@@ -49,7 +49,12 @@ pub trait Component: Any + Send + Sync + 'static {
     }
 
     /// Handle events
-    fn handle_event(&mut self, _event: &crate::event::Event, _props: &mut Self::Props, _state: &mut Self::State) -> crate::event::router::EventResult {
+    fn handle_event(
+        &mut self,
+        _event: &crate::event::Event,
+        _props: &mut Self::Props,
+        _state: &mut Self::State,
+    ) -> crate::event::router::EventResult {
         // Default implementation ignores events
         crate::event::router::EventResult::Ignored
     }

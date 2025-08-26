@@ -1,5 +1,5 @@
-use crate::layout::paint_tree::NodeSpec;
 use super::{Element, ElementType, LayoutType};
+use crate::layout::paint_tree::NodeSpec;
 use std::borrow::Cow;
 
 /// Convert an Element tree to a NodeSpec tree that our painter/layout understands.
@@ -25,6 +25,9 @@ pub fn element_to_nodespec(elem: &Element) -> NodeSpec<'static> {
         children_specs.push(element_to_nodespec(child));
     }
 
-    NodeSpec { class: class_cow, text: text_cow, children: children_specs }
+    NodeSpec {
+        class: class_cow,
+        text: text_cow,
+        children: children_specs,
+    }
 }
-

@@ -1,9 +1,9 @@
-pub mod types;
-pub mod router;
-pub mod hit;
 pub mod focus;
+pub mod hit;
+pub mod router;
+pub mod types;
 
-pub use types::{Event, KeyEvent, MouseEvent, ResizeEvent, FocusEvent, PasteEvent, CustomEvent};
-pub use router::{EventRouter, EventPhase, EventHandler};
-pub use hit::{HitTest, Bounds, Point};
-pub use focus::{FocusManager, FocusDirection};
+pub use focus::{FocusDirection, FocusManager};
+pub use hit::{Bounds, HitTest, Point};
+pub use router::{EventHandler, EventPhase, EventRouter};
+pub use types::{CustomEvent, Event, FocusEvent, KeyEvent, MouseEvent, PasteEvent, ResizeEvent};
