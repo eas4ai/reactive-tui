@@ -1,0 +1,338 @@
+use std::any::Any;
+use std::collections::HashMap;
+use std::fmt::Debug;
+use crate::component::Element;
+
+/// Key for stable component identity across renders
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum NodeKey {
+    /// Indexed key for list items
+    Index(usize),
+    /// String key for named components
+    Named(String),
+    /// Composite key for nested structures
+    Composite(Box<NodeKey>, Box<NodeKey>),
+    /// Auto-generated key
+    Auto(u64),
+}
+
+impl NodeKey {
+    pub fn index(i: usize) -> Self {
+        NodeKey::Index(i)
+    }
+    
+    pub fn named(name: impl Into<String>) -> Self {
+        NodeKey::Named(name.into())
+    }
+    
+    pub fn auto() -> Self {
+        static COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+        NodeKey::Auto(COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed))
+    }
+}
+
+/// Trait for nodes in the render tree
+pub trait RenderNode: Debug + Send + Sync {
+    /// Get the node's unique key
+    fn key(&self) -> &NodeKey;
+    
+    /// Get the node's type identifier
+    fn node_type(&self) -> &str;
+    
+    /// Get children of this node
+    fn children(&self) -> &[Box<dyn RenderNode>];
+    
+    /// Check if this node needs re-rendering
+    fn is_dirty(&self) -> bool;
+    
+    /// Mark this node as clean after rendering
+    fn mark_clean(&mut self);
+    
+    /// Get the underlying element if this is an element node
+    fn as_element(&self) -> Option<&Element> {
+        None
+    }
+    
+    /// Get any associated data
+    fn data(&self) -> Option<&dyn Any> {
+        None
+    }
+    
+    /// Compare with another node for equality
+    fn equals(&self, other: &dyn RenderNode) -> bool;
+}
+
+/// Concrete implementation of RenderNode for Elements
+#[derive(Debug)]
+pub struct ElementNode {
+    key: NodeKey,
+    element: Element,
+    children: Vec<Box<dyn RenderNode>>,
+    dirty: bool,
+}
+
+impl ElementNode {
+    pub fn new(element: Element) -> Self {
+        let key = element.key.as_ref()
+            .map(|k| NodeKey::named(k.clone()))
+            .unwrap_or_else(NodeKey::auto);
+            
+        Self {
+            key,
+            element,
+            children: Vec::new(),
+            dirty: true,
+        }
+    }
+    
+    pub fn with_children(mut self, children: Vec<Box<dyn RenderNode>>) -> Self {
+        self.children = children;
+        self
+    }
+    
+    pub fn with_key(mut self, key: NodeKey) -> Self {
+        self.key = key;
+        self
+    }
+}
+
+impl RenderNode for ElementNode {
+    fn key(&self) -> &NodeKey {
+        &self.key
+    }
+    
+    fn node_type(&self) -> &str {
+        match &self.element.element_type {
+            crate::component::ElementType::Component(name) => name,
+            crate::component::ElementType::Text(_) => "Text",
+            crate::component::ElementType::Layout(layout) => {
+                match layout {
+                    crate::component::LayoutType::Flex => "Flex",
+                    crate::component::LayoutType::Grid => "Grid",
+                    crate::component::LayoutType::Stack => "Stack",
+                    crate::component::LayoutType::Absolute => "Absolute",
+                }
+            }
+            crate::component::ElementType::Fragment => "Fragment",
+            crate::component::ElementType::Empty => "Empty",
+        }
+    }
+    
+    fn children(&self) -> &[Box<dyn RenderNode>] {
+        &self.children
+    }
+    
+    fn is_dirty(&self) -> bool {
+        self.dirty
+    }
+    
+    fn mark_clean(&mut self) {
+        self.dirty = false;
+    }
+    
+    fn as_element(&self) -> Option<&Element> {
+        Some(&self.element)
+    }
+    
+    fn equals(&self, other: &dyn RenderNode) -> bool {
+        if let Some(other_element) = other.as_element() {
+            self.element == *other_element
+        } else {
+            false
+        }
+    }
+}
+
+/// Fragment node for grouping multiple children without a wrapper
+#[derive(Debug)]
+pub struct FragmentNode {
+    key: NodeKey,
+    children: Vec<Box<dyn RenderNode>>,
+    dirty: bool,
+}
+
+impl FragmentNode {
+    pub fn new(children: Vec<Box<dyn RenderNode>>) -> Self {
+        Self {
+            key: NodeKey::auto(),
+            children,
+            dirty: true,
+        }
+    }
+    
+    pub fn with_key(mut self, key: NodeKey) -> Self {
+        self.key = key;
+        self
+    }
+}
+
+impl RenderNode for FragmentNode {
+    fn key(&self) -> &NodeKey {
+        &self.key
+    }
+    
+    fn node_type(&self) -> &str {
+        "Fragment"
+    }
+    
+    fn children(&self) -> &[Box<dyn RenderNode>] {
+        &self.children
+    }
+    
+    fn is_dirty(&self) -> bool {
+        self.dirty
+    }
+    
+    fn mark_clean(&mut self) {
+        self.dirty = false;
+    }
+    
+    fn equals(&self, other: &dyn RenderNode) -> bool {
+        other.node_type() == "Fragment" && other.key() == self.key()
+    }
+}
+
+/// The render tree structure
+pub struct RenderTree {
+    root: Option<Box<dyn RenderNode>>,
+    node_map: HashMap<NodeKey, Box<dyn RenderNode>>,
+    dirty_nodes: Vec<NodeKey>,
+}
+
+impl RenderTree {
+    pub fn new() -> Self {
+        Self {
+            root: None,
+            node_map: HashMap::new(),
+            dirty_nodes: Vec::new(),
+        }
+    }
+    
+    /// Set the root node of the tree
+    pub fn set_root(&mut self, root: Box<dyn RenderNode>) {
+        self.build_node_map(&root);
+        self.root = Some(root);
+    }
+    
+    /// Get the root node
+    pub fn root(&self) -> Option<&dyn RenderNode> {
+        self.root.as_ref().map(|r| r.as_ref())
+    }
+    
+    /// Get a mutable reference to the root  
+    pub fn root_mut(&mut self) -> Option<&mut Box<dyn RenderNode>> {
+        self.root.as_mut()
+    }
+    
+    /// Find a node by its key
+    pub fn find_node(&self, key: &NodeKey) -> Option<&dyn RenderNode> {
+        self.node_map.get(key).map(|n| n.as_ref())
+    }
+    
+    /// Mark a node as dirty
+    pub fn mark_dirty(&mut self, key: NodeKey) {
+        if !self.dirty_nodes.contains(&key) {
+            self.dirty_nodes.push(key);
+        }
+    }
+    
+    /// Get all dirty nodes
+    pub fn dirty_nodes(&self) -> &[NodeKey] {
+        &self.dirty_nodes
+    }
+    
+    /// Clear the dirty nodes list
+    pub fn clear_dirty(&mut self) {
+        self.dirty_nodes.clear();
+    }
+    
+    /// Build the node map for fast lookups
+    fn build_node_map(&mut self, node: &Box<dyn RenderNode>) {
+        self.node_map.clear();
+        self.add_to_map(node);
+    }
+    
+    fn add_to_map(&mut self, node: &Box<dyn RenderNode>) {
+        // Note: We can't store the node itself in the map due to ownership
+        // This is a simplified version - in production we'd use indices or Rc
+        for child in node.children() {
+            self.add_to_map(child);
+        }
+    }
+}
+
+impl Default for RenderTree {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/// Helper to convert Element tree to RenderNode tree
+pub fn element_to_render_node(element: Element) -> Box<dyn RenderNode> {
+    let children: Vec<Box<dyn RenderNode>> = element.children.clone()
+        .into_iter()
+        .map(element_to_render_node)
+        .collect();
+    
+    match element.element_type {
+        crate::component::ElementType::Fragment => {
+            Box::new(FragmentNode::new(children).with_key(
+                element.key.map(NodeKey::named).unwrap_or_else(NodeKey::auto)
+            ))
+        }
+        _ => {
+            Box::new(ElementNode::new(element).with_children(children))
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::component::{Element, ElementType, LayoutType};
+    
+    #[test]
+    fn test_node_key() {
+        let key1 = NodeKey::index(0);
+        let key2 = NodeKey::named("button");
+        let key3 = NodeKey::auto();
+        let key4 = NodeKey::auto();
+        
+        assert_eq!(key1, NodeKey::index(0));
+        assert_eq!(key2, NodeKey::named("button"));
+        assert_ne!(key3, key4); // Auto keys should be unique
+    }
+    
+    #[test]
+    fn test_element_node() {
+        let element = Element::text("Hello");
+        let node = ElementNode::new(element);
+        
+        assert_eq!(node.node_type(), "Text");
+        assert!(node.is_dirty());
+        assert_eq!(node.children().len(), 0);
+    }
+    
+    #[test]
+    fn test_fragment_node() {
+        let children = vec![
+            Box::new(ElementNode::new(Element::text("A"))) as Box<dyn RenderNode>,
+            Box::new(ElementNode::new(Element::text("B"))) as Box<dyn RenderNode>,
+        ];
+        
+        let fragment = FragmentNode::new(children);
+        assert_eq!(fragment.node_type(), "Fragment");
+        assert_eq!(fragment.children().len(), 2);
+    }
+    
+    #[test]
+    fn test_render_tree() {
+        let mut tree = RenderTree::new();
+        
+        let root = Box::new(ElementNode::new(Element::layout(LayoutType::Flex)));
+        tree.set_root(root);
+        
+        assert!(tree.root().is_some());
+        assert_eq!(tree.root().unwrap().node_type(), "Flex");
+    }
+}

@@ -1,0 +1,16 @@
+[package]
+name = "reactive-tui"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+bitflags = "2.9.3"
+crossterm = "0.29.0"
+taffy = "0.9.1"
+unicode-width = "0.2.1"
+
+
+[lib]
+name = "reactive_tui"
+path = "src/lib.rs"
+crate-type = ["rlib"]
