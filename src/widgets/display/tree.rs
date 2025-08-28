@@ -1174,8 +1174,8 @@ mod tests {
         }];
 
         tree.scroll_to_node(&mut state, "node20");
-        // Should scroll to make node visible
-        assert!(state.scroll_state.offset_y >= 0);
+        // Should scroll to make node visible (node20 is at index 20, so offset should be > 0)
+        assert!(state.scroll_state.offset_y > 0);
     }
 
     #[test]

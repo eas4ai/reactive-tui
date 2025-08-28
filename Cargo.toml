@@ -6,16 +6,32 @@ edition = "2024"
 [dependencies]
 bitflags = "2.9.3"
 crossterm = "0.29.0"
+serde = { version = "1.0", features = ["derive"] }
 taffy = "0.9.1"
+tokio = { version = "1.45", features = ["sync", "time", "rt"] }
 unicode-width = "0.2.1"
+unicode-segmentation = "1.12"
+lazy_static = "1.4"
 
 
 [lib]
 name = "reactive_tui"
 path = "src/lib.rs"
-crate-type = ["rlib"]
+crate-type = ["rlib", "cdylib"]
 
 
 [features]
 # Enable debug logging in reconcile apply_patches
 debug_patches = []
+# Animation and general debug logging toggle used by src/animation/debug.rs
+# Keeping empty feature to satisfy cfg checks without changing behavior
+debug = []
+# Enable FFI bindings (C ABI)
+ffi = []
+
+[dev-dependencies]
+criterion = "0.5"
+
+[[bench]]
+name = "diff_benchmark"
+harness = false

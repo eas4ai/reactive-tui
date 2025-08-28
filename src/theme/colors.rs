@@ -1,5 +1,4 @@
 /// CSS color palette
-
 pub struct Colors;
 
 impl Colors {
@@ -305,7 +304,7 @@ pub fn get_color(color: &str, shade: &str) -> Option<(u8, u8, u8)> {
         ("slate", "800") => Some(Colors::SLATE_800),
         ("slate", "900") => Some(Colors::SLATE_900),
         ("slate", "950") => Some(Colors::SLATE_950),
-        
+
         // Gray
         ("gray", "50") => Some(Colors::GRAY_50),
         ("gray", "100") => Some(Colors::GRAY_100),
@@ -318,8 +317,8 @@ pub fn get_color(color: &str, shade: &str) -> Option<(u8, u8, u8)> {
         ("gray", "800") => Some(Colors::GRAY_800),
         ("gray", "900") => Some(Colors::GRAY_900),
         ("gray", "950") => Some(Colors::GRAY_950),
-        
-        // Zinc  
+
+        // Zinc
         ("zinc", "50") => Some(Colors::ZINC_50),
         ("zinc", "100") => Some(Colors::ZINC_100),
         ("zinc", "200") => Some(Colors::ZINC_200),
@@ -331,7 +330,7 @@ pub fn get_color(color: &str, shade: &str) -> Option<(u8, u8, u8)> {
         ("zinc", "800") => Some(Colors::ZINC_800),
         ("zinc", "900") => Some(Colors::ZINC_900),
         ("zinc", "950") => Some(Colors::ZINC_950),
-        
+
         // Neutral
         ("neutral", "50") => Some(Colors::NEUTRAL_50),
         ("neutral", "100") => Some(Colors::NEUTRAL_100),
@@ -344,7 +343,7 @@ pub fn get_color(color: &str, shade: &str) -> Option<(u8, u8, u8)> {
         ("neutral", "800") => Some(Colors::NEUTRAL_800),
         ("neutral", "900") => Some(Colors::NEUTRAL_900),
         ("neutral", "950") => Some(Colors::NEUTRAL_950),
-        
+
         // Stone
         ("stone", "50") => Some(Colors::STONE_50),
         ("stone", "100") => Some(Colors::STONE_100),
@@ -357,7 +356,7 @@ pub fn get_color(color: &str, shade: &str) -> Option<(u8, u8, u8)> {
         ("stone", "800") => Some(Colors::STONE_800),
         ("stone", "900") => Some(Colors::STONE_900),
         ("stone", "950") => Some(Colors::STONE_950),
-        
+
         // Red
         ("red", "50") => Some(Colors::RED_50),
         ("red", "100") => Some(Colors::RED_100),
@@ -370,7 +369,7 @@ pub fn get_color(color: &str, shade: &str) -> Option<(u8, u8, u8)> {
         ("red", "800") => Some(Colors::RED_800),
         ("red", "900") => Some(Colors::RED_900),
         ("red", "950") => Some(Colors::RED_950),
-        
+
         // Orange
         ("orange", "50") => Some(Colors::ORANGE_50),
         ("orange", "100") => Some(Colors::ORANGE_100),
@@ -383,7 +382,7 @@ pub fn get_color(color: &str, shade: &str) -> Option<(u8, u8, u8)> {
         ("orange", "800") => Some(Colors::ORANGE_800),
         ("orange", "900") => Some(Colors::ORANGE_900),
         ("orange", "950") => Some(Colors::ORANGE_950),
-        
+
         // Amber
         ("amber", "50") => Some(Colors::AMBER_50),
         ("amber", "100") => Some(Colors::AMBER_100),
@@ -396,7 +395,7 @@ pub fn get_color(color: &str, shade: &str) -> Option<(u8, u8, u8)> {
         ("amber", "800") => Some(Colors::AMBER_800),
         ("amber", "900") => Some(Colors::AMBER_900),
         ("amber", "950") => Some(Colors::AMBER_950),
-        
+
         // Yellow
         ("yellow", "50") => Some(Colors::YELLOW_50),
         ("yellow", "100") => Some(Colors::YELLOW_100),
@@ -409,7 +408,7 @@ pub fn get_color(color: &str, shade: &str) -> Option<(u8, u8, u8)> {
         ("yellow", "800") => Some(Colors::YELLOW_800),
         ("yellow", "900") => Some(Colors::YELLOW_900),
         ("yellow", "950") => Some(Colors::YELLOW_950),
-        
+
         // Lime
         ("lime", "50") => Some(Colors::LIME_50),
         ("lime", "100") => Some(Colors::LIME_100),
@@ -422,7 +421,7 @@ pub fn get_color(color: &str, shade: &str) -> Option<(u8, u8, u8)> {
         ("lime", "800") => Some(Colors::LIME_800),
         ("lime", "900") => Some(Colors::LIME_900),
         ("lime", "950") => Some(Colors::LIME_950),
-        
+
         // Green
         ("green", "50") => Some(Colors::GREEN_50),
         ("green", "100") => Some(Colors::GREEN_100),
@@ -435,7 +434,7 @@ pub fn get_color(color: &str, shade: &str) -> Option<(u8, u8, u8)> {
         ("green", "800") => Some(Colors::GREEN_800),
         ("green", "900") => Some(Colors::GREEN_900),
         ("green", "950") => Some(Colors::GREEN_950),
-        
+
         // Emerald
         ("emerald", "50") => Some(Colors::EMERALD_50),
         ("emerald", "100") => Some(Colors::EMERALD_100),
@@ -448,7 +447,7 @@ pub fn get_color(color: &str, shade: &str) -> Option<(u8, u8, u8)> {
         ("emerald", "800") => Some(Colors::EMERALD_800),
         ("emerald", "900") => Some(Colors::EMERALD_900),
         ("emerald", "950") => Some(Colors::EMERALD_950),
-        
+
         // Teal
         ("teal", "50") => Some(Colors::TEAL_50),
         ("teal", "100") => Some(Colors::TEAL_100),
@@ -461,7 +460,7 @@ pub fn get_color(color: &str, shade: &str) -> Option<(u8, u8, u8)> {
         ("teal", "800") => Some(Colors::TEAL_800),
         ("teal", "900") => Some(Colors::TEAL_900),
         ("teal", "950") => Some(Colors::TEAL_950),
-        
+
         // Cyan
         ("cyan", "50") => Some(Colors::CYAN_50),
         ("cyan", "100") => Some(Colors::CYAN_100),
@@ -474,7 +473,7 @@ pub fn get_color(color: &str, shade: &str) -> Option<(u8, u8, u8)> {
         ("cyan", "800") => Some(Colors::CYAN_800),
         ("cyan", "900") => Some(Colors::CYAN_900),
         ("cyan", "950") => Some(Colors::CYAN_950),
-        
+
         // Sky
         ("sky", "50") => Some(Colors::SKY_50),
         ("sky", "100") => Some(Colors::SKY_100),
@@ -487,7 +486,7 @@ pub fn get_color(color: &str, shade: &str) -> Option<(u8, u8, u8)> {
         ("sky", "800") => Some(Colors::SKY_800),
         ("sky", "900") => Some(Colors::SKY_900),
         ("sky", "950") => Some(Colors::SKY_950),
-        
+
         // Blue
         ("blue", "50") => Some(Colors::BLUE_50),
         ("blue", "100") => Some(Colors::BLUE_100),
@@ -500,7 +499,7 @@ pub fn get_color(color: &str, shade: &str) -> Option<(u8, u8, u8)> {
         ("blue", "800") => Some(Colors::BLUE_800),
         ("blue", "900") => Some(Colors::BLUE_900),
         ("blue", "950") => Some(Colors::BLUE_950),
-        
+
         // Indigo
         ("indigo", "50") => Some(Colors::INDIGO_50),
         ("indigo", "100") => Some(Colors::INDIGO_100),
@@ -513,7 +512,7 @@ pub fn get_color(color: &str, shade: &str) -> Option<(u8, u8, u8)> {
         ("indigo", "800") => Some(Colors::INDIGO_800),
         ("indigo", "900") => Some(Colors::INDIGO_900),
         ("indigo", "950") => Some(Colors::INDIGO_950),
-        
+
         // Violet
         ("violet", "50") => Some(Colors::VIOLET_50),
         ("violet", "100") => Some(Colors::VIOLET_100),
@@ -526,7 +525,7 @@ pub fn get_color(color: &str, shade: &str) -> Option<(u8, u8, u8)> {
         ("violet", "800") => Some(Colors::VIOLET_800),
         ("violet", "900") => Some(Colors::VIOLET_900),
         ("violet", "950") => Some(Colors::VIOLET_950),
-        
+
         // Purple
         ("purple", "50") => Some(Colors::PURPLE_50),
         ("purple", "100") => Some(Colors::PURPLE_100),
@@ -539,7 +538,7 @@ pub fn get_color(color: &str, shade: &str) -> Option<(u8, u8, u8)> {
         ("purple", "800") => Some(Colors::PURPLE_800),
         ("purple", "900") => Some(Colors::PURPLE_900),
         ("purple", "950") => Some(Colors::PURPLE_950),
-        
+
         // Fuchsia
         ("fuchsia", "50") => Some(Colors::FUCHSIA_50),
         ("fuchsia", "100") => Some(Colors::FUCHSIA_100),
@@ -552,7 +551,7 @@ pub fn get_color(color: &str, shade: &str) -> Option<(u8, u8, u8)> {
         ("fuchsia", "800") => Some(Colors::FUCHSIA_800),
         ("fuchsia", "900") => Some(Colors::FUCHSIA_900),
         ("fuchsia", "950") => Some(Colors::FUCHSIA_950),
-        
+
         // Pink
         ("pink", "50") => Some(Colors::PINK_50),
         ("pink", "100") => Some(Colors::PINK_100),
@@ -565,7 +564,7 @@ pub fn get_color(color: &str, shade: &str) -> Option<(u8, u8, u8)> {
         ("pink", "800") => Some(Colors::PINK_800),
         ("pink", "900") => Some(Colors::PINK_900),
         ("pink", "950") => Some(Colors::PINK_950),
-        
+
         // Rose
         ("rose", "50") => Some(Colors::ROSE_50),
         ("rose", "100") => Some(Colors::ROSE_100),
@@ -578,7 +577,7 @@ pub fn get_color(color: &str, shade: &str) -> Option<(u8, u8, u8)> {
         ("rose", "800") => Some(Colors::ROSE_800),
         ("rose", "900") => Some(Colors::ROSE_900),
         ("rose", "950") => Some(Colors::ROSE_950),
-        
+
         _ => None,
     }
 }

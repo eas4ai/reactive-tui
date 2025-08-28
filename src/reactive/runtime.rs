@@ -1,8 +1,10 @@
 use super::effect::{Effect, EffectId};
+use super::scheduler::Scheduler;
 use super::signal::{Signal, SignalId};
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::rc::{Rc, Weak};
+use std::sync::Arc;
 
 /// The reactive runtime that manages signals and effects
 pub struct ReactiveRuntime {
@@ -182,6 +184,7 @@ impl Default for ReactiveRuntime {
 /// Runtime context for components
 pub struct RuntimeContext {
     runtime: Rc<ReactiveRuntime>,
+    scheduler: Arc<Scheduler>,
 }
 
 impl RuntimeContext {
@@ -189,7 +192,13 @@ impl RuntimeContext {
     pub fn new() -> Self {
         Self {
             runtime: Rc::new(ReactiveRuntime::new()),
+            scheduler: Arc::new(Scheduler::new()),
         }
+    }
+
+    /// Get the scheduler
+    pub fn scheduler(&self) -> Arc<Scheduler> {
+        self.scheduler.clone()
     }
 
     /// Get the runtime

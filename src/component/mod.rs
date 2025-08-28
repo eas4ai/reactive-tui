@@ -15,9 +15,11 @@ pub use lifecycle::{Lifecycle, LifecycleEvent};
 pub use props::Props;
 pub use registry::ComponentRegistry;
 pub mod bridge;
-pub use bridge::element_to_nodespec;
+pub mod state_flags;
 
+pub use bridge::element_to_nodespec;
 pub use change::{Change, ChangeBatch, TextAttribute};
+pub use state_flags::{ComponentState, StateFlagged, StateFlags};
 
 /// Core trait that all components must implement.
 /// Components are the building blocks of the reactive TUI framework.

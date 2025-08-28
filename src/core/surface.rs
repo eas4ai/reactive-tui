@@ -8,7 +8,7 @@ pub struct Rgba {
 
 use bitflags::bitflags;
 bitflags! {
-    #[derive(Default, Clone, Copy, PartialEq, Eq)]
+    #[derive(Default, Clone, Copy, Debug, PartialEq, Eq)]
     pub struct Attr: u8 { const BOLD=1<<0; const ITALIC=1<<1; const UNDERLINE=1<<2; const REVERSE=1<<3; const STRIKE=1<<4; }
 }
 

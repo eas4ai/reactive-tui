@@ -1,0 +1,593 @@
+use crate::component::Element;
+use crate::reactive::runtime::RuntimeContext;
+use crate::render::reconcile::{PatchOp, Reconciler};
+use crate::render::tree::{RenderTree, element_to_render_node};
+use std::time::{Duration, Instant};
+
+pub mod manager;
+pub mod transitions;
+
+pub use manager::*;
+pub use transitions::*;
+
+/// Unique identifier for a screen
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct ScreenId(String);
+
+impl ScreenId {
+    pub fn new(id: impl Into<String>) -> Self {
+        Self(id.into())
+    }
+
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl From<&str> for ScreenId {
+    fn from(s: &str) -> Self {
+        Self(s.to_string())
+    }
+}
+
+impl From<String> for ScreenId {
+    fn from(s: String) -> Self {
+        Self(s)
+    }
+}
+
+/// Type alias for patch update callback
+type PatchUpdateCallback = Box<dyn Fn(&[PatchOp]) + Send + Sync>;
+/// Type alias for lifecycle callback
+type LifecycleCallback = Box<dyn Fn() + Send + Sync>;
+
+/// Lifecycle hooks for screen events
+#[derive(Default)]
+pub struct ScreenHooks {
+    pub on_activate: Option<LifecycleCallback>,
+    pub on_deactivate: Option<LifecycleCallback>,
+    pub on_update: Option<PatchUpdateCallback>,
+    pub on_create: Option<LifecycleCallback>,
+    pub on_destroy: Option<LifecycleCallback>,
+}
+
+/// A single screen with its own render tree and reactive context
+pub struct Screen {
+    pub id: ScreenId,
+    pub name: String,
+    pub render_tree: RenderTree,
+    pub reactive_context: RuntimeContext,
+    pub is_active: bool,
+    pub last_rendered: Option<Instant>,
+    pub hooks: ScreenHooks,
+    reconciler: Reconciler,
+    root_element: Option<Element>,
+}
+
+impl Screen {
+    pub fn new(id: ScreenId, name: String) -> Self {
+        Self {
+            id,
+            name,
+            render_tree: RenderTree::new(),
+            reactive_context: RuntimeContext::new(),
+            is_active: false,
+            last_rendered: None,
+            hooks: ScreenHooks::default(),
+            reconciler: Reconciler::new(),
+            root_element: None,
+        }
+    }
+
+    pub fn with_hooks(mut self, hooks: ScreenHooks) -> Self {
+        self.hooks = hooks;
+        self
+    }
+
+    pub fn set_content(&mut self, element: Element) {
+        self.root_element = Some(element.clone());
+
+        // Convert element to render tree
+        let root_node = element_to_render_node(element);
+        let mut new_tree = RenderTree::new();
+        new_tree.set_root(root_node);
+
+        // Generate patches
+        let diff_result = self.reconciler.diff(&self.render_tree, &new_tree);
+
+        // Call update hook
+        if let Some(ref on_update) = self.hooks.on_update {
+            on_update(&diff_result.patches);
+        }
+
+        // Update tree
+        self.render_tree = new_tree;
+        self.last_rendered = Some(Instant::now());
+    }
+
+    pub fn activate(&mut self) {
+        if !self.is_active {
+            self.is_active = true;
+            if let Some(ref on_activate) = self.hooks.on_activate {
+                on_activate();
+            }
+        }
+    }
+
+    pub fn deactivate(&mut self) {
+        if self.is_active {
+            self.is_active = false;
+            if let Some(ref on_deactivate) = self.hooks.on_deactivate {
+                on_deactivate();
+            }
+        }
+    }
+
+    pub fn update_content(&mut self, element: Element) {
+        self.set_content(element);
+    }
+
+    pub fn get_patches_since_last_render(&mut self) -> Vec<PatchOp> {
+        if let Some(ref element) = self.root_element.clone() {
+            let root_node = element_to_render_node(element.clone());
+            let mut new_tree = RenderTree::new();
+            new_tree.set_root(root_node);
+
+            let diff_result = self.reconciler.diff(&self.render_tree, &new_tree);
+            self.render_tree = new_tree;
+
+            diff_result.patches
+        } else {
+            Vec::new()
+        }
+    }
+}
+
+impl Drop for Screen {
+    fn drop(&mut self) {
+        if let Some(ref on_destroy) = self.hooks.on_destroy {
+            on_destroy();
+        }
+    }
+}
+
+/// Screen switching transition types
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TransitionType {
+    None,
+    Fade,
+    SlideLeft,
+    SlideRight,
+    SlideUp,
+    SlideDown,
+    Scale,
+    Flip,
+    Cube,
+    Push,
+}
+
+/// Configuration for screen transitions
+#[derive(Debug, Clone)]
+pub struct TransitionConfig {
+    pub transition_type: TransitionType,
+    pub duration: Duration,
+    pub easing: EasingFunction,
+    /// Optional animation ID for integration with animation system hooks
+    pub animation_id: Option<String>,
+    /// Whether to use hardware acceleration if available
+    pub use_hardware_acceleration: bool,
+    /// Custom properties for animation system integration
+    pub custom_properties: std::collections::HashMap<String, f32>,
+}
+
+impl Default for TransitionConfig {
+    fn default() -> Self {
+        Self {
+            transition_type: TransitionType::Fade,
+            duration: Duration::from_millis(300),
+            easing: EasingFunction::EaseOutCubic,
+            animation_id: None,
+            use_hardware_acceleration: false,
+            custom_properties: std::collections::HashMap::new(),
+        }
+    }
+}
+
+impl TransitionConfig {
+    /// Create a new transition config with animation system integration
+    pub fn with_animation_id(mut self, id: impl Into<String>) -> Self {
+        self.animation_id = Some(id.into());
+        self
+    }
+
+    /// Enable hardware acceleration if available
+    pub fn with_hardware_acceleration(mut self) -> Self {
+        self.use_hardware_acceleration = true;
+        self
+    }
+
+    /// Add custom properties for animation system hooks
+    pub fn with_custom_property(mut self, key: impl Into<String>, value: f32) -> Self {
+        self.custom_properties.insert(key.into(), value);
+        self
+    }
+
+    /// Create preset configurations optimized for different scenarios
+    pub fn preset_smooth_fade() -> Self {
+        Self {
+            transition_type: TransitionType::Fade,
+            duration: Duration::from_millis(300),
+            easing: EasingFunction::SpringGentle,
+            ..Default::default()
+        }
+    }
+
+    pub fn preset_quick_slide() -> Self {
+        Self {
+            transition_type: TransitionType::SlideLeft,
+            duration: Duration::from_millis(200),
+            easing: EasingFunction::SlideSmooth,
+            ..Default::default()
+        }
+    }
+
+    pub fn preset_bouncy_scale() -> Self {
+        Self {
+            transition_type: TransitionType::Scale,
+            duration: Duration::from_millis(400),
+            easing: EasingFunction::SnapBounce,
+            ..Default::default()
+        }
+    }
+
+    pub fn preset_dramatic_flip() -> Self {
+        Self {
+            transition_type: TransitionType::Flip,
+            duration: Duration::from_millis(600),
+            easing: EasingFunction::SpringDramatic,
+            ..Default::default()
+        }
+    }
+
+    /// Get the animation description for debugging
+    pub fn description(&self) -> String {
+        format!(
+            "{:?} transition with {} easing over {}ms",
+            self.transition_type,
+            self.easing.description(),
+            self.duration.as_millis()
+        )
+    }
+}
+
+/// Easing functions for smooth animations
+/// Enhanced with screen transition-specific easing functions
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EasingFunction {
+    // Basic easing
+    Linear,
+    EaseInQuad,
+    EaseOutQuad,
+    EaseInOutQuad,
+    EaseInCubic,
+    EaseOutCubic,
+    EaseInOutCubic,
+
+    // Advanced easing
+    EaseInBack,
+    EaseOutBack,
+    EaseInOutBack,
+    EaseOutBounce,
+    EaseInElastic,
+    EaseOutElastic,
+    EaseInOutElastic,
+
+    // Screen transition optimized easing
+    /// Smooth slide with slight overshoot - perfect for screen slides
+    SlideSmooth,
+    /// Quick snap with bounce - good for scale transitions
+    SnapBounce,
+    /// Gentle spring - perfect for fade transitions
+    SpringGentle,
+    /// Dramatic spring - good for attention-grabbing transitions
+    SpringDramatic,
+}
+
+impl EasingFunction {
+    /// Apply the easing function to a normalized time value (0.0 to 1.0)
+    pub fn apply(self, t: f32) -> f32 {
+        match self {
+            EasingFunction::Linear => t,
+            EasingFunction::EaseInQuad => t * t,
+            EasingFunction::EaseOutQuad => 1.0 - (1.0 - t) * (1.0 - t),
+            EasingFunction::EaseInOutQuad => {
+                if t < 0.5 {
+                    2.0 * t * t
+                } else {
+                    1.0 - 2.0 * (1.0 - t) * (1.0 - t)
+                }
+            }
+            EasingFunction::EaseInCubic => t * t * t,
+            EasingFunction::EaseOutCubic => 1.0 - (1.0 - t).powi(3),
+            EasingFunction::EaseInOutCubic => {
+                if t < 0.5 {
+                    4.0 * t * t * t
+                } else {
+                    1.0 - (-2.0 * t + 2.0).powi(3) / 2.0
+                }
+            }
+            EasingFunction::EaseInBack => {
+                let c1 = 1.70158;
+                let c3 = c1 + 1.0;
+                c3 * t * t * t - c1 * t * t
+            }
+            EasingFunction::EaseOutBack => {
+                let c1 = 1.70158;
+                let c3 = c1 + 1.0;
+                1.0 + c3 * (t - 1.0).powi(3) + c1 * (t - 1.0).powi(2)
+            }
+            EasingFunction::EaseInOutBack => {
+                let c1 = 1.70158;
+                let c2 = c1 * 1.525;
+                if t < 0.5 {
+                    (2.0 * t).powi(2) * ((c2 + 1.0) * 2.0 * t - c2) / 2.0
+                } else {
+                    ((2.0 * t - 2.0).powi(2) * ((c2 + 1.0) * (t * 2.0 - 2.0) + c2) + 2.0) / 2.0
+                }
+            }
+            EasingFunction::EaseOutBounce => {
+                let n1 = 7.5625;
+                let d1 = 2.75;
+
+                if t < 1.0 / d1 {
+                    n1 * t * t
+                } else if t < 2.0 / d1 {
+                    let t = t - 1.5 / d1;
+                    n1 * t * t + 0.75
+                } else if t < 2.5 / d1 {
+                    let t = t - 2.25 / d1;
+                    n1 * t * t + 0.9375
+                } else {
+                    let t = t - 2.625 / d1;
+                    n1 * t * t + 0.984375
+                }
+            }
+
+            // Elastic easing functions
+            EasingFunction::EaseInElastic => {
+                let c4 = (2.0 * std::f32::consts::PI) / 3.0;
+                if t == 0.0 {
+                    0.0
+                } else if t == 1.0 {
+                    1.0
+                } else {
+                    -(2.0_f32.powf(10.0 * (t - 1.0))) * ((t - 1.1) * c4).sin()
+                }
+            }
+
+            EasingFunction::EaseOutElastic => {
+                let c4 = (2.0 * std::f32::consts::PI) / 3.0;
+                if t == 0.0 {
+                    0.0
+                } else if t == 1.0 {
+                    1.0
+                } else {
+                    2.0_f32.powf(-10.0 * t) * ((t - 0.1) * c4).sin() + 1.0
+                }
+            }
+
+            EasingFunction::EaseInOutElastic => {
+                let c5 = (2.0 * std::f32::consts::PI) / 4.5;
+                if t == 0.0 {
+                    0.0
+                } else if t == 1.0 {
+                    1.0
+                } else if t < 0.5 {
+                    -(2.0_f32.powf(20.0 * t - 10.0) * ((20.0 * t - 11.125) * c5).sin()) / 2.0
+                } else {
+                    (2.0_f32.powf(-20.0 * t + 10.0) * ((20.0 * t - 11.125) * c5).sin()) / 2.0 + 1.0
+                }
+            }
+
+            // Screen transition optimized easing
+            EasingFunction::SlideSmooth => {
+                // Cubic with slight overshoot - perfect for slides
+                let t_adj = if t < 0.8 {
+                    t / 0.8
+                } else {
+                    1.0 + (t - 0.8) * 0.5
+                };
+                let cubic = t_adj * t_adj * t_adj;
+                cubic.min(1.0)
+            }
+
+            EasingFunction::SnapBounce => {
+                // Quick acceleration with bounce - good for scale
+                if t < 0.7 {
+                    let t_norm = t / 0.7;
+                    t_norm * t_norm
+                } else {
+                    let bounce_t = (t - 0.7) / 0.3;
+                    1.0 + 0.3 * (bounce_t * std::f32::consts::PI * 2.0).sin() * (1.0 - bounce_t)
+                }
+            }
+
+            EasingFunction::SpringGentle => {
+                // Gentle spring motion - perfect for fades
+                let spring_factor = 0.8;
+                let damping = 0.7;
+                let freq = 1.5;
+
+                if t >= 1.0 {
+                    1.0
+                } else {
+                    1.0 - (spring_factor * (-damping * t).exp() * (freq * t).cos())
+                }
+            }
+
+            EasingFunction::SpringDramatic => {
+                // More dramatic spring - attention-grabbing
+                let spring_factor = 1.2;
+                let damping = 0.5;
+                let freq = 2.0;
+
+                if t >= 1.0 {
+                    1.0
+                } else {
+                    1.0 - (spring_factor * (-damping * t).exp() * (freq * t).cos())
+                }
+            }
+        }
+    }
+
+    /// Get a description of the easing function for debugging
+    pub fn description(self) -> &'static str {
+        match self {
+            EasingFunction::Linear => "Linear",
+            EasingFunction::EaseInQuad => "Ease In Quadratic",
+            EasingFunction::EaseOutQuad => "Ease Out Quadratic",
+            EasingFunction::EaseInOutQuad => "Ease In-Out Quadratic",
+            EasingFunction::EaseInCubic => "Ease In Cubic",
+            EasingFunction::EaseOutCubic => "Ease Out Cubic",
+            EasingFunction::EaseInOutCubic => "Ease In-Out Cubic",
+            EasingFunction::EaseInBack => "Ease In Back",
+            EasingFunction::EaseOutBack => "Ease Out Back",
+            EasingFunction::EaseInOutBack => "Ease In-Out Back",
+            EasingFunction::EaseOutBounce => "Ease Out Bounce",
+            EasingFunction::EaseInElastic => "Ease In Elastic",
+            EasingFunction::EaseOutElastic => "Ease Out Elastic",
+            EasingFunction::EaseInOutElastic => "Ease In-Out Elastic",
+            EasingFunction::SlideSmooth => "Slide Smooth (Screen Optimized)",
+            EasingFunction::SnapBounce => "Snap Bounce (Screen Optimized)",
+            EasingFunction::SpringGentle => "Spring Gentle (Screen Optimized)",
+            EasingFunction::SpringDramatic => "Spring Dramatic (Screen Optimized)",
+        }
+    }
+
+    /// Get recommended easing functions for different transition types
+    pub fn recommended_for_transition(transition_type: TransitionType) -> Vec<EasingFunction> {
+        match transition_type {
+            TransitionType::None => vec![EasingFunction::Linear],
+            TransitionType::Fade => vec![
+                EasingFunction::SpringGentle,
+                EasingFunction::EaseOutCubic,
+                EasingFunction::EaseInOutQuad,
+            ],
+            TransitionType::SlideLeft
+            | TransitionType::SlideRight
+            | TransitionType::SlideUp
+            | TransitionType::SlideDown => vec![
+                EasingFunction::SlideSmooth,
+                EasingFunction::EaseOutBack,
+                EasingFunction::EaseInOutCubic,
+            ],
+            TransitionType::Scale => vec![
+                EasingFunction::SnapBounce,
+                EasingFunction::EaseOutBack,
+                EasingFunction::SpringDramatic,
+            ],
+            TransitionType::Flip => vec![
+                EasingFunction::EaseInOutCubic,
+                EasingFunction::EaseOutElastic,
+                EasingFunction::SpringGentle,
+            ],
+            TransitionType::Cube => vec![
+                EasingFunction::EaseInOutBack,
+                EasingFunction::SlideSmooth,
+                EasingFunction::EaseOutCubic,
+            ],
+            TransitionType::Push => vec![
+                EasingFunction::SlideSmooth,
+                EasingFunction::EaseOutQuad,
+                EasingFunction::EaseInOutCubic,
+            ],
+        }
+    }
+
+    /// Create preset configurations for common screen transition scenarios
+    pub fn preset_smooth() -> EasingFunction {
+        EasingFunction::EaseOutCubic
+    }
+
+    pub fn preset_bouncy() -> EasingFunction {
+        EasingFunction::EaseOutBounce
+    }
+
+    pub fn preset_elastic() -> EasingFunction {
+        EasingFunction::EaseOutElastic
+    }
+
+    pub fn preset_spring() -> EasingFunction {
+        EasingFunction::SpringGentle
+    }
+
+    pub fn preset_dramatic() -> EasingFunction {
+        EasingFunction::SpringDramatic
+    }
+}
+
+/// Current state of a screen transition
+#[derive(Debug, Clone)]
+pub struct TransitionState {
+    pub is_transitioning: bool,
+    pub from_screen: Option<ScreenId>,
+    pub to_screen: Option<ScreenId>,
+    pub progress: f32,
+    pub start_time: Option<Instant>,
+    pub config: TransitionConfig,
+}
+
+impl Default for TransitionState {
+    fn default() -> Self {
+        Self {
+            is_transitioning: false,
+            from_screen: None,
+            to_screen: None,
+            progress: 0.0,
+            start_time: None,
+            config: TransitionConfig::default(),
+        }
+    }
+}
+
+impl TransitionState {
+    pub fn start_transition(
+        &mut self,
+        from: Option<ScreenId>,
+        to: ScreenId,
+        config: TransitionConfig,
+    ) {
+        self.is_transitioning = true;
+        self.from_screen = from;
+        self.to_screen = Some(to);
+        self.progress = 0.0;
+        self.start_time = Some(Instant::now());
+        self.config = config;
+    }
+
+    pub fn update(&mut self) -> bool {
+        if !self.is_transitioning {
+            return false;
+        }
+
+        let Some(start_time) = self.start_time else {
+            return false;
+        };
+
+        let elapsed = start_time.elapsed();
+        if elapsed >= self.config.duration {
+            self.is_transitioning = false;
+            self.progress = 1.0;
+            self.start_time = None;
+            true // Transition completed
+        } else {
+            let t = elapsed.as_millis() as f32 / self.config.duration.as_millis() as f32;
+            self.progress = self.config.easing.apply(t);
+            false // Still transitioning
+        }
+    }
+
+    pub fn is_complete(&self) -> bool {
+        !self.is_transitioning && self.progress >= 1.0
+    }
+}

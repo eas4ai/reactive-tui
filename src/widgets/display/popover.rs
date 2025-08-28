@@ -1130,7 +1130,7 @@ mod tests {
 
     #[test]
     fn test_popover_builder() {
-        let (popover, props) = Popover::builder()
+        let (_popover, props) = Popover::builder()
             .visible(true)
             .position(PopoverPosition::Top)
             .trigger(PopoverTrigger::Hover)
@@ -1449,7 +1449,7 @@ mod tests {
 
     #[test]
     fn test_comprehensive_builder_pattern() {
-        let (popover, props) = Popover::builder()
+        let (_popover, props) = Popover::builder()
             .visible(true)
             .position(PopoverPosition::TopStart)
             .trigger(PopoverTrigger::Hover)

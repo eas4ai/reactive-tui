@@ -1,4 +1,4 @@
-use super::types::Event;
+use super::types::{Event, EventTrait};
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -14,6 +14,8 @@ pub enum EventResult {
     Handled,
     /// Event was handled, stop propagation
     Consumed,
+    /// Event was handled but allow bubbling (capture phase only)
+    Captured,
 }
 
 /// Phase of event propagation
@@ -230,6 +232,7 @@ impl EventRouter {
                     for handler in handlers {
                         match (handler.handler)(event) {
                             EventResult::Consumed => return EventResult::Consumed,
+                            EventResult::Captured => {} // Continue to bubble phase
                             EventResult::Handled => {}
                             EventResult::Ignored => {}
                         }
@@ -244,6 +247,7 @@ impl EventRouter {
                 for handler in handlers {
                     match (handler.handler)(event) {
                         EventResult::Consumed => return EventResult::Consumed,
+                        EventResult::Captured => {} // Captured only meaningful in capture phase
                         EventResult::Handled => {}
                         EventResult::Ignored => {}
                     }
@@ -252,7 +256,14 @@ impl EventRouter {
         }
 
         // Bubble phase - target to root (if event bubbles)
-        let bubbles = !matches!(event, Event::Resize(_) | Event::Focus(_));
+        let bubbles = match event {
+            Event::Key(e) => e.bubbles(),
+            Event::Mouse(e) => e.bubbles(),
+            Event::Resize(e) => e.bubbles(),
+            Event::Focus(e) => e.bubbles(),
+            Event::Paste(e) => e.bubbles(),
+            Event::Custom(e) => e.bubbles(),
+        };
 
         if bubbles {
             for &node_id in path.iter().rev().skip(1) {
@@ -262,6 +273,7 @@ impl EventRouter {
                             if handler.phase == EventPhase::Bubble {
                                 match (handler.handler)(event) {
                                     EventResult::Consumed => return EventResult::Consumed,
+                                    EventResult::Captured => {} // Captured only meaningful in capture phase
                                     EventResult::Handled => {}
                                     EventResult::Ignored => {}
                                 }

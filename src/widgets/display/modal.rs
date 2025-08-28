@@ -768,7 +768,7 @@ mod tests {
 
     #[test]
     fn test_modal_creation() {
-        let modal = Modal::default();
+        let modal = Modal;
         let props = create_test_props();
         let state = ModalState::default();
 
@@ -781,7 +781,7 @@ mod tests {
 
     #[test]
     fn test_modal_visibility() {
-        let modal = Modal::default();
+        let modal = Modal;
         let mut props = create_test_props();
         let state = ModalState::default();
 
@@ -797,7 +797,7 @@ mod tests {
 
     #[test]
     fn test_dimension_calculation() {
-        let modal = Modal::default();
+        let modal = Modal;
         let props = ModalProps {
             width: ModalSize::Percent(50.0),
             height: ModalSize::Fixed(200),
@@ -811,7 +811,7 @@ mod tests {
 
     #[test]
     fn test_position_calculation() {
-        let modal = Modal::default();
+        let modal = Modal;
         let props = ModalProps {
             position: ModalPosition::Center,
             ..Default::default()
@@ -833,7 +833,7 @@ mod tests {
 
     #[test]
     fn test_button_handling() {
-        let modal = Modal::default();
+        let modal = Modal;
         let button = ModalButton::new("test", "Test", ModalButtonAction::Close);
         let props = ModalProps {
             buttons: vec![button.clone()],
@@ -847,7 +847,7 @@ mod tests {
 
     #[test]
     fn test_animation_update() {
-        let modal = Modal::default();
+        let modal = Modal;
         let props = ModalProps {
             visible: true,
             animation: ModalAnimation::Fade,

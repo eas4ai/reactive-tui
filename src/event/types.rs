@@ -84,6 +84,17 @@ impl KeyEvent {
         self.kind = kind;
         self
     }
+
+    /// Convenience: does this key match (code, modifiers)?
+    pub fn matches(&self, code: KeyCode, modifiers: KeyModifiers) -> bool {
+        self.code == code && self.modifiers == modifiers
+    }
+
+    /// Convenience: does this key match any of the provided patterns?
+    pub fn matches_any(&self, patterns: &[(KeyCode, KeyModifiers)]) -> bool {
+        patterns.iter().any(|(c, m)| self.code == *c && self.modifiers == *m)
+    }
+
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -93,7 +104,7 @@ pub enum KeyEventKind {
     Repeat,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum KeyCode {
     // Letters
     Char(char),

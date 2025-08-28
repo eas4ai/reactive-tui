@@ -142,6 +142,21 @@ impl Element {
         self.children.push(child);
         self
     }
+
+    /// Convenience alias for with_child
+    pub fn child(self, child: Element) -> Self {
+        self.with_child(child)
+    }
+
+    /// Convenience alias for with_key
+    pub fn key(self, key: impl Into<String>) -> Self {
+        self.with_key(key)
+    }
+
+    /// Convenience alias for with_class
+    pub fn class(self, class: impl Into<String>) -> Self {
+        self.with_class(class)
+    }
 }
 
 impl Debug for Element {

@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 /// CSS variable definitions for theming
-/// 
+///
 /// Maps CSS custom properties to their values, following standard naming conventions:
 /// - Colors: --color-{name} (e.g., --color-primary, --color-background)
 /// - Spacing: --spacing-{size} (e.g., --spacing-sm, --spacing-lg)
@@ -64,15 +64,18 @@ impl ColorBuilder {
     pub fn primary(mut self, r: u8, g: u8, b: u8) -> Self {
         self.theme.set("--color-primary", rgb_to_hex(r, g, b));
         self.theme.set("--color-primary-dark", darken_rgb(r, g, b));
-        self.theme.set("--color-primary-light", lighten_rgb(r, g, b));
+        self.theme
+            .set("--color-primary-light", lighten_rgb(r, g, b));
         self
     }
 
     /// Secondary accent color
     pub fn secondary(mut self, r: u8, g: u8, b: u8) -> Self {
         self.theme.set("--color-secondary", rgb_to_hex(r, g, b));
-        self.theme.set("--color-secondary-dark", darken_rgb(r, g, b));
-        self.theme.set("--color-secondary-light", lighten_rgb(r, g, b));
+        self.theme
+            .set("--color-secondary-dark", darken_rgb(r, g, b));
+        self.theme
+            .set("--color-secondary-light", lighten_rgb(r, g, b));
         self
     }
 
@@ -83,12 +86,14 @@ impl ColorBuilder {
     }
 
     pub fn background_secondary(mut self, r: u8, g: u8, b: u8) -> Self {
-        self.theme.set("--color-background-secondary", rgb_to_hex(r, g, b));
+        self.theme
+            .set("--color-background-secondary", rgb_to_hex(r, g, b));
         self
     }
 
     pub fn background_tertiary(mut self, r: u8, g: u8, b: u8) -> Self {
-        self.theme.set("--color-background-tertiary", rgb_to_hex(r, g, b));
+        self.theme
+            .set("--color-background-tertiary", rgb_to_hex(r, g, b));
         self
     }
 
@@ -99,7 +104,8 @@ impl ColorBuilder {
     }
 
     pub fn text_secondary(mut self, r: u8, g: u8, b: u8) -> Self {
-        self.theme.set("--color-text-secondary", rgb_to_hex(r, g, b));
+        self.theme
+            .set("--color-text-secondary", rgb_to_hex(r, g, b));
         self
     }
 
@@ -301,7 +307,7 @@ impl ShadowBuilder {
 }
 
 fn rgb_to_hex(r: u8, g: u8, b: u8) -> String {
-    format!("#{:02x}{:02x}{:02x}", r, g, b)
+    format!("#{r:02x}{g:02x}{b:02x}")
 }
 
 fn darken_rgb(r: u8, g: u8, b: u8) -> String {

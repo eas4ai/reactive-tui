@@ -1,6 +1,7 @@
 pub mod effect;
 pub mod hooks;
 pub mod runtime;
+pub mod scheduler;
 pub mod signal;
 
 pub use effect::{Cleanup, Effect, EffectId};
@@ -9,4 +10,5 @@ pub use hooks::{
     use_reducer, use_signal,
 };
 pub use runtime::{ReactiveRuntime, RuntimeContext};
+pub use scheduler::{Scheduler, TimerId};
 pub use signal::{ReadSignal, Signal, SignalId, WriteSignal};

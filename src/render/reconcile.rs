@@ -45,8 +45,6 @@ pub enum PatchOp {
 
 /// Reconciler for efficient tree diffing
 pub struct Reconciler {
-    /// Cache of previously seen nodes for reuse
-    node_cache: HashMap<NodeKey, Box<dyn RenderNode>>,
     /// Statistics
     stats: ReconcilerStats,
 }
@@ -61,7 +59,6 @@ struct ReconcilerStats {
 impl Reconciler {
     pub fn new() -> Self {
         Self {
-            node_cache: HashMap::new(),
             stats: ReconcilerStats::default(),
         }
     }
@@ -261,11 +258,6 @@ impl Reconciler {
             .sum::<usize>()
     }
 
-    /// Clear the node cache
-    pub fn clear_cache(&mut self) {
-        self.node_cache.clear();
-    }
-
     /// Get reconciler statistics
     pub fn stats(&self) -> String {
         format!(
@@ -373,7 +365,7 @@ mod tests {
 
         let result = reconciler.diff(&tree1, &tree2);
 
-        assert!(result.patches.len() > 0);
+        assert!(!result.patches.is_empty());
         assert_eq!(result.reused_nodes, 0);
         assert_eq!(result.new_nodes, 1);
         assert_eq!(result.removed_nodes, 1);

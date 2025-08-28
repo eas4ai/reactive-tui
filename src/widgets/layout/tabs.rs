@@ -384,18 +384,24 @@ impl Tabs {
             let badge_width = tab.badge.as_ref().map(|b| b.text.len() + 2).unwrap_or(0);
             let close_width = if tab.closable || props.closable { 2 } else { 0 };
             let focus_indicator = 1; // Space for focus/hover indicator
-            
-            let total_width = focus_indicator + icon_width + label_width + badge_width + close_width + 2; // +2 for padding
-            
+
+            let total_width =
+                focus_indicator + icon_width + label_width + badge_width + close_width + 2; // +2 for padding
+
             match props.orientation {
                 TabOrientation::Horizontal => {
-                    tab_positions.push((current_x, current_y, current_x + total_width, current_y + 1));
+                    tab_positions.push((
+                        current_x,
+                        current_y,
+                        current_x + total_width,
+                        current_y + 1,
+                    ));
                     current_x += total_width + 2; // Add spacing between tabs
                 }
                 TabOrientation::Vertical => {
                     let line_height = match props.variant {
                         TabVariant::Line | TabVariant::Enclosed => 3, // Multi-line variants
-                        _ => 1, // Single line variants
+                        _ => 1,                                       // Single line variants
                     };
                     tab_positions.push((0, current_y, total_width, current_y + line_height));
                     current_y += line_height;
@@ -409,7 +415,7 @@ impl Tabs {
                 return Some(index);
             }
         }
-        
+
         None
     }
 
@@ -423,7 +429,7 @@ impl Tabs {
         if tab_index >= props.tabs.len() {
             return false;
         }
-        
+
         let tab = &props.tabs[tab_index];
         if !tab.closable && !props.closable {
             return false;
@@ -435,20 +441,29 @@ impl Tabs {
         tab_end_x += tab.label.len();
         tab_end_x += tab.badge.as_ref().map(|b| b.text.len() + 2).unwrap_or(0);
         tab_end_x += 1; // Space before close button
-        
+
         // For horizontal tabs, accumulate x position
         if props.orientation == TabOrientation::Horizontal && tab_index > 0 {
             for i in 0..tab_index {
                 let prev_tab = &props.tabs[i];
-                let prev_width = 1 + 
-                    prev_tab.icon.as_ref().map(|i| i.len() + 1).unwrap_or(0) +
-                    prev_tab.label.len() +
-                    prev_tab.badge.as_ref().map(|b| b.text.len() + 2).unwrap_or(0) +
-                    (if prev_tab.closable || props.closable { 2 } else { 0 }) + 2;
+                let prev_width = 1
+                    + prev_tab.icon.as_ref().map(|i| i.len() + 1).unwrap_or(0)
+                    + prev_tab.label.len()
+                    + prev_tab
+                        .badge
+                        .as_ref()
+                        .map(|b| b.text.len() + 2)
+                        .unwrap_or(0)
+                    + (if prev_tab.closable || props.closable {
+                        2
+                    } else {
+                        0
+                    })
+                    + 2;
                 tab_end_x += prev_width + 2; // +2 for spacing
             }
         }
-        
+
         // Check if click is on the close button (✕ is 1 char wide)
         match props.orientation {
             TabOrientation::Horizontal => x >= tab_end_x && x <= tab_end_x + 1,
