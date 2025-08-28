@@ -135,33 +135,30 @@ impl Scheduler {
     pub fn process_timers(&self) {
         let now = Instant::now();
         let mut timers = self.timers.lock().unwrap();
-        let mut ready_timers = Vec::new();
+        let mut indices_to_run = Vec::new();
         let mut completed_ids = Vec::new();
 
         // Find timers that are ready to run
-        for timer in timers.iter_mut() {
+        for (index, timer) in timers.iter().enumerate() {
             if timer.next_run <= now {
-                ready_timers.push((timer.id, timer.repeat));
-                if timer.repeat {
-                    timer.next_run = now + timer.interval;
-                } else {
+                indices_to_run.push(index);
+                if !timer.repeat {
                     completed_ids.push(timer.id);
                 }
             }
         }
 
-        // Remove one-time timers that have completed
-        timers.retain(|timer| !completed_ids.contains(&timer.id));
-
-        // Execute ready timers (need to re-lock for each callback)
-        drop(timers);
-
-        for (id, _repeat) in ready_timers {
-            let mut timers = self.timers.lock().unwrap();
-            if let Some(timer) = timers.iter_mut().find(|t| t.id == id) {
-                (timer.callback)();
+        // Execute callbacks and update repeat timers
+        for index in indices_to_run {
+            let timer = &mut timers[index];
+            (timer.callback)();
+            if timer.repeat {
+                timer.next_run = now + timer.interval;
             }
         }
+
+        // Remove one-time timers that have completed
+        timers.retain(|timer| !completed_ids.contains(&timer.id));
     }
 
     /// Clear all scheduled updates and timers

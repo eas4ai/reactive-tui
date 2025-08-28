@@ -6,6 +6,38 @@ pub struct Rgba {
     pub a: f32,
 }
 
+impl Rgba {
+    /// Create a transparent color
+    pub fn transparent() -> Self {
+        Self {
+            r: 0.0,
+            g: 0.0,
+            b: 0.0,
+            a: 0.0,
+        }
+    }
+
+    /// Create white color
+    pub fn white() -> Self {
+        Self {
+            r: 1.0,
+            g: 1.0,
+            b: 1.0,
+            a: 1.0,
+        }
+    }
+
+    /// Create black color
+    pub fn black() -> Self {
+        Self {
+            r: 0.0,
+            g: 0.0,
+            b: 0.0,
+            a: 1.0,
+        }
+    }
+}
+
 use bitflags::bitflags;
 bitflags! {
     #[derive(Default, Clone, Copy, Debug, PartialEq, Eq)]
@@ -69,6 +101,17 @@ impl Surface {
     }
     pub fn dims(&self) -> (usize, usize) {
         (self.w, self.h)
+    }
+    /// Reinitialize the surface to the given dimensions, reusing allocation when possible.
+    pub fn reinit(&mut self, w: usize, h: usize) {
+        self.w = w;
+        self.h = h;
+        let needed = w * h;
+        if self.buf.capacity() >= needed {
+            self.buf.resize(needed, Cell::default());
+        } else {
+            self.buf = vec![Cell::default(); needed];
+        }
     }
     pub fn clear(&mut self, bg: Rgba) {
         for c in &mut self.buf {
@@ -142,6 +185,10 @@ impl Surface {
         s.buf.copy_from_slice(&self.buf);
         s
     }
+    pub fn copy_from(&mut self, other: &Surface) {
+        assert_eq!(self.dims(), other.dims());
+        self.buf.copy_from_slice(&other.buf);
+    }
 }
 
 pub struct DiffWriter {
@@ -149,6 +196,8 @@ pub struct DiffWriter {
     cur_fg: Option<Rgba>,
     cur_bg: Option<Rgba>,
     cur_attr: Attr,
+    last_rows_changed: usize,
+    last_spans_written: usize,
 }
 
 impl Default for DiffWriter {
@@ -164,6 +213,8 @@ impl DiffWriter {
             cur_fg: None,
             cur_bg: None,
             cur_attr: Attr::empty(),
+            last_rows_changed: 0,
+            last_spans_written: 0,
         }
     }
     #[inline]
@@ -224,9 +275,12 @@ impl DiffWriter {
         self.cur_fg = None;
         self.cur_bg = None;
         self.cur_attr = Attr::empty();
+        self.last_rows_changed = 0;
+        self.last_spans_written = 0;
         for y in 0..h {
             let mut run_buf = String::with_capacity(w);
             let mut run_start_col: Option<usize> = None;
+            let mut wrote_row = false;
             for x in 0..w {
                 let a = cur.get(x, y);
                 let b = next.get(x, y);
@@ -234,6 +288,8 @@ impl DiffWriter {
                     if let Some(start) = run_start_col {
                         self.push(&format!("\x1b[{y1};{x1}H", y1 = y + 1, x1 = start + 1));
                         self.push(&run_buf);
+                        self.last_spans_written += 1;
+                        wrote_row = true;
                         run_buf.clear();
                         run_start_col = None;
                     }
@@ -273,6 +329,11 @@ impl DiffWriter {
             if let Some(start) = run_start_col {
                 self.push(&format!("\x1b[{y1};{x1}H", y1 = y + 1, x1 = start + 1));
                 self.push(&run_buf);
+                self.last_spans_written += 1;
+                wrote_row = true;
+            }
+            if wrote_row {
+                self.last_rows_changed += 1;
             }
         }
         self.push("\x1b[?25h");
@@ -280,5 +341,58 @@ impl DiffWriter {
 
     pub fn output(&self) -> &[u8] {
         &self.out
+    }
+}
+
+impl DiffWriter {
+    pub fn last_rows_changed(&self) -> usize {
+        self.last_rows_changed
+    }
+    pub fn last_spans_written(&self) -> usize {
+        self.last_spans_written
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn diffwriter_counts_increase_on_changes() {
+        let a = Surface::new(10, 3);
+        let mut b = Surface::new(10, 3);
+        let fg = Rgba::white();
+        let bg = Rgba::black();
+        b.write_str(0, 0, "hello", fg, bg, Attr::empty());
+        b.write_str(0, 1, "世界", fg, bg, Attr::empty());
+
+        let mut diff = DiffWriter::new();
+        diff.diff(&a, &b, false);
+        assert!(diff.last_rows_changed() > 0);
+        assert!(diff.last_spans_written() > 0);
+        assert!(!diff.output().is_empty());
+    }
+
+    #[test]
+    fn surface_reinit_reuses_capacity() {
+        let mut s = Surface::new(40, 10);
+        let cap_initial = s.buf.capacity();
+        s.reinit(40, 10);
+        let cap_same = s.buf.capacity();
+        assert_eq!(
+            cap_same, cap_initial,
+            "capacity should not change on same-size reinit"
+        );
+        // shrink
+        s.reinit(10, 5);
+        let cap_shrink = s.buf.capacity();
+        assert_eq!(
+            cap_shrink, cap_initial,
+            "capacity should be reused on shrink when sufficient"
+        );
+        // grow beyond
+        s.reinit(100, 50);
+        let cap_grow = s.buf.capacity();
+        assert!(cap_grow >= 100 * 50);
     }
 }

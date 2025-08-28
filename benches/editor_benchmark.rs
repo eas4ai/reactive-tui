@@ -1,4 +1,4 @@
-use criterion::{black_box, criterion_group, criterion_main, Criterion, BenchmarkId};
+use criterion::{BenchmarkId, Criterion, black_box, criterion_group, criterion_main};
 use reactive_tui::editor::gap_buffer::GapBuffer;
 
 /// Alternative: Vec<String> based buffer for comparison
@@ -9,20 +9,22 @@ struct VecBuffer {
 
 impl VecBuffer {
     fn new() -> Self {
-        Self { lines: vec![String::new()] }
+        Self {
+            lines: vec![String::new()],
+        }
     }
-    
+
     fn from_str(s: &str) -> Self {
         Self {
             lines: s.lines().map(String::from).collect(),
         }
     }
-    
+
     fn insert_at(&mut self, line: usize, col: usize, text: &str) {
         if line >= self.lines.len() {
             self.lines.resize(line + 1, String::new());
         }
-        
+
         let line_text = &mut self.lines[line];
         if col <= line_text.len() {
             line_text.insert_str(col, text);
@@ -30,7 +32,7 @@ impl VecBuffer {
             line_text.push_str(text);
         }
     }
-    
+
     fn delete_at(&mut self, line: usize, col: usize) -> Option<char> {
         if line < self.lines.len() {
             let line_text = &mut self.lines[line];
@@ -42,7 +44,7 @@ impl VecBuffer {
         }
         None
     }
-    
+
     fn to_string(&self) -> String {
         self.lines.join("\n")
     }
@@ -51,9 +53,9 @@ impl VecBuffer {
 /// Benchmark small insertions (typical typing)
 fn bench_small_insertions(c: &mut Criterion) {
     let mut group = c.benchmark_group("small_insertions");
-    
+
     let text = "Hello World\nThis is a test\nOf the editor";
-    
+
     group.bench_function("gap_buffer", |b| {
         b.iter(|| {
             let mut buffer = GapBuffer::from_str(text);
@@ -63,7 +65,7 @@ fn bench_small_insertions(c: &mut Criterion) {
             black_box(buffer.to_string());
         });
     });
-    
+
     group.bench_function("vec_string", |b| {
         b.iter(|| {
             let mut buffer = VecBuffer::from_str(text);
@@ -73,16 +75,16 @@ fn bench_small_insertions(c: &mut Criterion) {
             black_box(buffer.to_string());
         });
     });
-    
+
     group.finish();
 }
 
 /// Benchmark cursor movement and editing (typical editing pattern)
 fn bench_cursor_editing(c: &mut Criterion) {
     let mut group = c.benchmark_group("cursor_editing");
-    
+
     let text = include_str!("../Cargo.toml"); // Use a real file
-    
+
     group.bench_function("gap_buffer", |b| {
         b.iter(|| {
             let mut buffer = GapBuffer::from_str(text);
@@ -94,7 +96,7 @@ fn bench_cursor_editing(c: &mut Criterion) {
             black_box(buffer.to_string());
         });
     });
-    
+
     group.bench_function("vec_string", |b| {
         b.iter(|| {
             let mut buffer = VecBuffer::from_str(text);
@@ -108,17 +110,17 @@ fn bench_cursor_editing(c: &mut Criterion) {
             black_box(buffer.to_string());
         });
     });
-    
+
     group.finish();
 }
 
 /// Benchmark large file operations
 fn bench_large_file(c: &mut Criterion) {
     let mut group = c.benchmark_group("large_file");
-    
+
     // Generate a large file (1MB)
     let large_text = "Lorem ipsum dolor sit amet, consectetur adipiscing elit.\n".repeat(20_000);
-    
+
     group.bench_function("gap_buffer_insert", |b| {
         let buffer = GapBuffer::from_str(&large_text);
         b.iter(|| {
@@ -127,7 +129,7 @@ fn bench_large_file(c: &mut Criterion) {
             black_box(buf.len());
         });
     });
-    
+
     group.bench_function("vec_string_insert", |b| {
         let buffer = VecBuffer::from_str(&large_text);
         b.iter(|| {
@@ -136,53 +138,45 @@ fn bench_large_file(c: &mut Criterion) {
             black_box(buf.to_string().len());
         });
     });
-    
+
     group.finish();
 }
 
 /// Benchmark sequential insertions (building a document)
 fn bench_sequential_build(c: &mut Criterion) {
     let mut group = c.benchmark_group("sequential_build");
-    
+
     for size in [100, 1000, 10000].iter() {
-        group.bench_with_input(
-            BenchmarkId::new("gap_buffer", size),
-            size,
-            |b, &size| {
-                b.iter(|| {
-                    let mut buffer = GapBuffer::new();
-                    for i in 0..size {
-                        buffer.insert_char(i, black_box('a'));
-                    }
-                    black_box(buffer.len());
-                });
-            },
-        );
-        
-        group.bench_with_input(
-            BenchmarkId::new("vec_string", size),
-            size,
-            |b, &size| {
-                b.iter(|| {
-                    let mut buffer = VecBuffer::new();
-                    for i in 0..size {
-                        buffer.insert_at(0, i, black_box("a"));
-                    }
-                    black_box(buffer.to_string().len());
-                });
-            },
-        );
+        group.bench_with_input(BenchmarkId::new("gap_buffer", size), size, |b, &size| {
+            b.iter(|| {
+                let mut buffer = GapBuffer::new();
+                for i in 0..size {
+                    buffer.insert_char(i, black_box('a'));
+                }
+                black_box(buffer.len());
+            });
+        });
+
+        group.bench_with_input(BenchmarkId::new("vec_string", size), size, |b, &size| {
+            b.iter(|| {
+                let mut buffer = VecBuffer::new();
+                for i in 0..size {
+                    buffer.insert_at(0, i, black_box("a"));
+                }
+                black_box(buffer.to_string().len());
+            });
+        });
     }
-    
+
     group.finish();
 }
 
 /// Benchmark random access patterns
 fn bench_random_access(c: &mut Criterion) {
     let mut group = c.benchmark_group("random_access");
-    
+
     let text = "a".repeat(10000);
-    
+
     group.bench_function("gap_buffer", |b| {
         let buffer = GapBuffer::from_str(&text);
         b.iter(|| {
@@ -195,7 +189,7 @@ fn bench_random_access(c: &mut Criterion) {
             black_box(total);
         });
     });
-    
+
     group.bench_function("vec_string", |b| {
         let buffer = VecBuffer::from_str(&text);
         b.iter(|| {
@@ -209,19 +203,19 @@ fn bench_random_access(c: &mut Criterion) {
             black_box(total);
         });
     });
-    
+
     group.finish();
 }
 
 /// Benchmark line operations
 fn bench_line_operations(c: &mut Criterion) {
     let mut group = c.benchmark_group("line_operations");
-    
+
     let text = (0..1000)
         .map(|i| format!("Line {}: Some content here", i))
         .collect::<Vec<_>>()
         .join("\n");
-    
+
     group.bench_function("gap_buffer_line_access", |b| {
         let buffer = GapBuffer::from_str(&text);
         b.iter(|| {
@@ -232,7 +226,7 @@ fn bench_line_operations(c: &mut Criterion) {
             black_box(result);
         });
     });
-    
+
     group.bench_function("vec_string_line_access", |b| {
         let buffer = VecBuffer::from_str(&text);
         b.iter(|| {
@@ -245,7 +239,7 @@ fn bench_line_operations(c: &mut Criterion) {
             black_box(result);
         });
     });
-    
+
     group.finish();
 }
 

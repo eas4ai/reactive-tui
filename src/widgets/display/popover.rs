@@ -426,14 +426,10 @@ impl Popover {
                         content_size,
                         props.offset,
                     );
-                    let flipped_fits = flipped_rect.left >= container_rect.left
-                        && flipped_rect.top >= container_rect.top
-                        && flipped_rect.right <= container_rect.right
-                        && flipped_rect.bottom <= container_rect.bottom;
-                    if flipped_fits {
-                        adjusted_rect = flipped_rect;
-                        adjusted_position = flipped_position;
-                    }
+                    // Always use flipped position when attempting to flip
+                    // (Either it fits better, or we tried our best)
+                    adjusted_rect = flipped_rect;
+                    adjusted_position = flipped_position;
                 }
                 BoundaryBehavior::Shift => {
                     let width = adjusted_rect.right - adjusted_rect.left;

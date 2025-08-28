@@ -1,9 +1,10 @@
 use crate::display::monitor::{PerformanceMetrics, PerformanceMode};
-use crate::reactive::hooks::{Hooks, ThreadSafeSignal, use_effect, use_signal};
+use crate::reactive::hooks::{Hooks, ThreadSafeSignal, use_context, use_effect, use_signal};
+use crate::hooks::perf_context::{get_global_performance_context, PerformanceContext};
 use std::sync::Arc;
 
 /// FPS and performance state
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct FpsState {
     /// Current target FPS
     pub target_fps: u32,
@@ -35,7 +36,7 @@ impl Default for FpsState {
 /// Hook for accessing FPS and performance information
 ///
 /// # Example
-/// ```rust
+/// ```rust, ignore
 /// fn StatusBar(props: &Props, state: &mut State) -> Element {
 ///     let fps = use_fps(&hooks);
 ///     
@@ -49,15 +50,20 @@ impl Default for FpsState {
 /// }
 /// ```
 pub fn use_fps(hooks: &Hooks) -> ThreadSafeSignal<FpsState> {
-    // In a real implementation, this would connect to the App's FPS manager
-    // For now, we'll just return the signal
+    // Prefer a provided or global performance context; otherwise create local default
+    if let Some(ctx) = use_context::<PerformanceContext>(hooks) {
+        return ctx.fps_state;
+    }
+    if let Some(global) = get_global_performance_context() {
+        return global.fps_state.clone();
+    }
     use_signal(hooks, FpsState::default())
 }
 
 /// Hook for monitoring performance and adapting component behavior
 ///
 /// # Example
-/// ```rust
+/// ```rust, ignore
 /// fn AnimatedComponent(props: &Props, state: &mut State) -> Element {
 ///     let (performance, is_low_fps) = use_performance(&hooks);
 ///     
@@ -76,27 +82,49 @@ pub fn use_fps(hooks: &Hooks) -> ThreadSafeSignal<FpsState> {
 pub fn use_performance(
     hooks: &Hooks,
 ) -> (ThreadSafeSignal<PerformanceMetrics>, ThreadSafeSignal<bool>) {
+    // Prefer live metrics from context if available
+    if let Some(ctx) = use_context::<PerformanceContext>(hooks) {
+        let metrics = ctx.metrics;
+        let is_low_fps = use_signal(hooks, false);
+        let metrics_clone = metrics.clone();
+        let is_low_fps_clone = is_low_fps.clone();
+        use_effect(hooks, move || {
+            let current = metrics_clone.get();
+            is_low_fps_clone.set(current.current_fps < 30.0 || !current.is_stable);
+            None
+        });
+        return (metrics, is_low_fps);
+    }
+    if let Some(global) = get_global_performance_context() {
+        let metrics = global.metrics.clone();
+        let is_low_fps = use_signal(hooks, false);
+        let metrics_clone = metrics.clone();
+        let is_low_fps_clone = is_low_fps.clone();
+        use_effect(hooks, move || {
+            let current = metrics_clone.get();
+            is_low_fps_clone.set(current.current_fps < 30.0 || !current.is_stable);
+            None
+        });
+        return (metrics, is_low_fps);
+    }
+
     let metrics = use_signal(hooks, PerformanceMetrics::default());
     let is_low_fps = use_signal(hooks, false);
-
     let metrics_clone = metrics.clone();
     let is_low_fps_clone = is_low_fps.clone();
-
     use_effect(hooks, move || {
         // Update low FPS flag based on metrics
         let current = metrics_clone.get();
         is_low_fps_clone.set(current.current_fps < 30.0 || !current.is_stable);
-
         None
     });
-
     (metrics, is_low_fps)
 }
 
 /// Hook for requesting a specific performance mode
 ///
 /// # Example
-/// ```rust
+/// ```rust, ignore
 /// fn GameView(props: &Props, state: &mut State) -> Element {
 ///     let set_mode = use_performance_mode(&hooks);
 ///     
@@ -115,18 +143,20 @@ pub fn use_performance(
 ///         .child(text!("High performance game"))
 /// }
 /// ```
-pub fn use_performance_mode(_hooks: &Hooks) -> Arc<dyn Fn(PerformanceMode) + Send + Sync> {
-    // In a real implementation, this would connect to the App's FPS manager
-    // For now, return a no-op function
-    Arc::new(|_mode| {
-        // Would call app.set_performance_mode(mode)
-    })
+pub fn use_performance_mode(hooks: &Hooks) -> Arc<dyn Fn(PerformanceMode) + Send + Sync> {
+    if let Some(ctx) = use_context::<PerformanceContext>(hooks) {
+        return ctx.set_mode.clone();
+    }
+    if let Some(global) = get_global_performance_context() {
+        return global.set_mode.clone();
+    }
+    Arc::new(|_mode| {})
 }
 
 /// Hook for frame timing information
 ///
 /// # Example
-/// ```rust
+/// ```rust, ignore
 /// fn TimingDebug(props: &Props, state: &mut State) -> Element {
 ///     let timing = use_frame_timing(&hooks);
 ///     
@@ -138,10 +168,16 @@ pub fn use_performance_mode(_hooks: &Hooks) -> Arc<dyn Fn(PerformanceMode) + Sen
 /// }
 /// ```
 pub fn use_frame_timing(hooks: &Hooks) -> ThreadSafeSignal<FrameTiming> {
+    if let Some(ctx) = use_context::<PerformanceContext>(hooks) {
+        return ctx.frame_timing;
+    }
+    if let Some(global) = get_global_performance_context() {
+        return global.frame_timing.clone();
+    }
     use_signal(hooks, FrameTiming::default())
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct FrameTiming {
     /// Last frame duration in milliseconds
     pub last_frame_ms: f32,
@@ -181,25 +217,37 @@ impl Default for FrameTiming {
 /// ```
 pub fn use_adaptive_quality(hooks: &Hooks) -> ThreadSafeSignal<QualityLevel> {
     let quality = use_signal(hooks, QualityLevel::High);
-    let fps = use_fps(hooks);
 
-    let quality_clone = quality.clone();
-
-    use_effect(hooks, move || {
-        let fps_state = fps.get();
-
-        let new_quality = if fps_state.current_fps < 30.0 {
-            QualityLevel::Low
-        } else if fps_state.current_fps < 50.0 {
-            QualityLevel::Medium
-        } else {
-            QualityLevel::High
-        };
-
-        quality_clone.set(new_quality);
-
-        None
-    });
+    // If we have live FPS, adapt quality; otherwise leave default
+    if let Some(ctx) = use_context::<PerformanceContext>(hooks) {
+        let quality_clone = quality.clone();
+        use_effect(hooks, move || {
+            let fps_state = ctx.fps_state.get();
+            let new_quality = if fps_state.current_fps < 30.0 {
+                QualityLevel::Low
+            } else if fps_state.current_fps < 50.0 {
+                QualityLevel::Medium
+            } else {
+                QualityLevel::High
+            };
+            quality_clone.set(new_quality);
+            None
+        });
+    } else if let Some(global) = get_global_performance_context() {
+        let quality_clone = quality.clone();
+        use_effect(hooks, move || {
+            let fps_state = global.fps_state.get();
+            let new_quality = if fps_state.current_fps < 30.0 {
+                QualityLevel::Low
+            } else if fps_state.current_fps < 50.0 {
+                QualityLevel::Medium
+            } else {
+                QualityLevel::High
+            };
+            quality_clone.set(new_quality);
+            None
+        });
+    }
 
     quality
 }
@@ -237,7 +285,7 @@ mod tests {
         let hooks = Hooks::new();
         let (metrics, is_low_fps) = use_performance(&hooks);
 
-        assert_eq!(metrics.get().current_fps, 0.0); // Default metrics
+        assert_eq!(metrics.get().current_fps, 60.0); // Default metrics with good FPS
         assert!(!is_low_fps.get()); // Not low FPS initially
     }
 

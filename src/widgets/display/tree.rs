@@ -253,8 +253,15 @@ impl Tree {
             matched: is_matched,
         });
 
-        // Add children if expanded or if we're searching
-        if (is_expanded || state.search_matches.contains(&node.id)) && !node.children.is_empty() {
+        // Add children if:
+        // - Node is root (level 0) - always show immediate children
+        // - Node is expanded
+        // - We're searching and node matches
+        // - We're searching (show all nodes to find matches)
+        let is_searching = props.search_term.is_some() && !props.search_term.as_ref().unwrap().is_empty();
+        if (level == 0 || is_expanded || state.search_matches.contains(&node.id) || is_searching)
+            && !node.children.is_empty()
+        {
             for child in &node.children {
                 self.flatten_node(
                     child,
@@ -588,7 +595,7 @@ impl Tree {
                 state.scroll_state.offset_y = node_y;
             } else if node_y >= viewport_bottom {
                 state.scroll_state.offset_y =
-                    node_y.saturating_sub(state.scroll_state.viewport_height - 1);
+                    node_y.saturating_sub(state.scroll_state.viewport_height.saturating_sub(1));
             }
         }
     }
@@ -805,11 +812,8 @@ impl Component for Tree {
     }
 
     fn update(&mut self, props: &Self::Props, state: &mut Self::State) -> bool {
-        // Rebuild flat tree if needed
-        let new_flat_nodes = self.flatten_tree(props, state);
-        if new_flat_nodes.len() != state.flat_nodes.len() {
-            state.flat_nodes = new_flat_nodes;
-        }
+        // Always rebuild flat tree to ensure it's current
+        state.flat_nodes = self.flatten_tree(props, state);
 
         // Update content dimensions for scrolling
         state.scroll_state.content_height = state.flat_nodes.len() as u16;
@@ -991,9 +995,10 @@ mod tests {
         let state = TreeState::default();
 
         let element = tree.render(&props, &state);
+        // Tree renders as a flex layout container
         assert_eq!(
             element.element_type,
-            crate::component::ElementType::Component("Tree".to_string())
+            crate::component::ElementType::Layout(crate::component::LayoutType::Flex)
         );
     }
 
@@ -1158,9 +1163,10 @@ mod tests {
 
         // Test scroll to node
         let tree = Tree::default();
-        state.flat_nodes = vec![FlatTreeNode {
-            id: "node20".to_string(),
-            label: "Node 20".to_string(),
+        // Create enough nodes to require scrolling
+        state.flat_nodes = (0..25).map(|i| FlatTreeNode {
+            id: format!("node{}", i),
+            label: format!("Node {}", i),
             level: 0,
             parent_id: None,
             has_children: false,
@@ -1171,7 +1177,11 @@ mod tests {
             style: None,
             visible: true,
             matched: false,
-        }];
+        }).collect();
+        
+        // Set viewport smaller than content
+        state.scroll_state.viewport_height = 10;
+        state.scroll_state.content_height = 25;
 
         tree.scroll_to_node(&mut state, "node20");
         // Should scroll to make node visible (node20 is at index 20, so offset should be > 0)

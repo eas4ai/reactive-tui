@@ -15,7 +15,7 @@ pub extern "C" fn rtui_surface_create(
     if out_surface.is_null() {
         return RTuiError::NullPointer;
     }
-    
+
     if width == 0 || height == 0 {
         return RTuiError::InvalidParameter;
     }
@@ -28,7 +28,6 @@ pub extern "C" fn rtui_surface_create(
         }
         Ok(())
     }))
-    
 }
 
 /// Destroy a surface
@@ -51,46 +50,35 @@ pub extern "C" fn rtui_surface_get_dimensions(
         return RTuiError::NullPointer;
     }
 
-    catch_panic(AssertUnwindSafe(|| {
-        unsafe {
-            let surf = &*(surface as *const Surface);
-            let (width, height) = surf.dims();
-            *out_dimensions = RTuiDimensions { 
-                width: width as u16, 
-                height: height as u16 
-            };
-            Ok(())
-        }
+    catch_panic(AssertUnwindSafe(|| unsafe {
+        let surf = &*(surface as *const Surface);
+        let (width, height) = surf.dims();
+        *out_dimensions = RTuiDimensions {
+            width: width as u16,
+            height: height as u16,
+        };
+        Ok(())
     }))
-    
 }
 
 /// Clear the surface
 #[unsafe(no_mangle)]
-pub extern "C" fn rtui_surface_clear(
-    surface: *mut RTuiSurface,
-    r: u8,
-    g: u8,
-    b: u8,
-) -> RTuiError {
+pub extern "C" fn rtui_surface_clear(surface: *mut RTuiSurface, r: u8, g: u8, b: u8) -> RTuiError {
     if surface.is_null() {
         return RTuiError::NullPointer;
     }
 
-    catch_panic(AssertUnwindSafe(|| {
-        unsafe {
-            let surf = &mut *(surface as *mut Surface);
-            let bg = crate::core::surface::Rgba {
-                r: r as f32 / 255.0,
-                g: g as f32 / 255.0,
-                b: b as f32 / 255.0,
-                a: 1.0,
-            };
-            surf.clear(bg);
-            Ok(())
-        }
+    catch_panic(AssertUnwindSafe(|| unsafe {
+        let surf = &mut *(surface as *mut Surface);
+        let bg = crate::core::surface::Rgba {
+            r: r as f32 / 255.0,
+            g: g as f32 / 255.0,
+            b: b as f32 / 255.0,
+            a: 1.0,
+        };
+        surf.clear(bg);
+        Ok(())
     }))
-    
 }
 
 /// Set a cell on the surface
@@ -109,14 +97,14 @@ pub extern "C" fn rtui_surface_set_cell(
         unsafe {
             let surf = &mut *(surface as *mut Surface);
             let c = &*cell;
-            
+
             // Convert FFI cell to internal cell
             let ch = if c.ch == 0 {
                 ' '
             } else {
                 std::char::from_u32(c.ch).unwrap_or('?')
             };
-            
+
             let internal_cell = crate::core::surface::Cell {
                 ch,
                 fg: crate::core::surface::Rgba {
@@ -139,12 +127,11 @@ pub extern "C" fn rtui_surface_set_cell(
                     c.attrs.strikethrough,
                 ),
             };
-            
+
             surf.set(x as usize, y as usize, internal_cell);
             Ok(())
         }
     }))
-    
 }
 
 /// Get a cell from the surface
@@ -159,37 +146,34 @@ pub extern "C" fn rtui_surface_get_cell(
         return RTuiError::NullPointer;
     }
 
-    catch_panic(AssertUnwindSafe(|| {
-        unsafe {
-            let surf = &*(surface as *const Surface);
-            let cell = surf.get(x as usize, y as usize);
-            
-            *out_cell = RTuiCell {
-                ch: cell.ch as u32,
-                fg: RTuiColor {
-                    r: (cell.fg.r * 255.0) as u8,
-                    g: (cell.fg.g * 255.0) as u8,
-                    b: (cell.fg.b * 255.0) as u8,
-                },
-                bg: RTuiColor {
-                    r: (cell.bg.r * 255.0) as u8,
-                    g: (cell.bg.g * 255.0) as u8,
-                    b: (cell.bg.b * 255.0) as u8,
-                },
-                attrs: RTuiTextAttributes {
-                    bold: cell.attr.contains(crate::core::surface::Attr::BOLD),
-                    italic: cell.attr.contains(crate::core::surface::Attr::ITALIC),
-                    underline: cell.attr.contains(crate::core::surface::Attr::UNDERLINE),
-                    strikethrough: cell.attr.contains(crate::core::surface::Attr::STRIKE),
-                    reverse: cell.attr.contains(crate::core::surface::Attr::REVERSE),
-                    blink: false,
-                    hidden: false,
-                },
-            };
-            Ok(())
-        }
+    catch_panic(AssertUnwindSafe(|| unsafe {
+        let surf = &*(surface as *const Surface);
+        let cell = surf.get(x as usize, y as usize);
+
+        *out_cell = RTuiCell {
+            ch: cell.ch as u32,
+            fg: RTuiColor {
+                r: (cell.fg.r * 255.0) as u8,
+                g: (cell.fg.g * 255.0) as u8,
+                b: (cell.fg.b * 255.0) as u8,
+            },
+            bg: RTuiColor {
+                r: (cell.bg.r * 255.0) as u8,
+                g: (cell.bg.g * 255.0) as u8,
+                b: (cell.bg.b * 255.0) as u8,
+            },
+            attrs: RTuiTextAttributes {
+                bold: cell.attr.contains(crate::core::surface::Attr::BOLD),
+                italic: cell.attr.contains(crate::core::surface::Attr::ITALIC),
+                underline: cell.attr.contains(crate::core::surface::Attr::UNDERLINE),
+                strikethrough: cell.attr.contains(crate::core::surface::Attr::STRIKE),
+                reverse: cell.attr.contains(crate::core::surface::Attr::REVERSE),
+                blink: false,
+                hidden: false,
+            },
+        };
+        Ok(())
     }))
-    
 }
 
 /// Draw text on the surface
@@ -206,48 +190,55 @@ pub extern "C" fn rtui_surface_draw_text(
         return RTuiError::NullPointer;
     }
 
-    catch_panic(AssertUnwindSafe(|| {
-        unsafe {
-            let surf = &mut *(surface as *mut Surface);
-            let text_str = c_str_to_string(text)?;
-            
-            let fg_rgba = if fg.is_null() {
-                crate::core::surface::Rgba { r: 1.0, g: 1.0, b: 1.0, a: 1.0 }
-            } else {
-                let color = &*fg;
-                crate::core::surface::Rgba {
-                    r: color.r as f32 / 255.0,
-                    g: color.g as f32 / 255.0,
-                    b: color.b as f32 / 255.0,
-                    a: 1.0,
-                }
-            };
-            
-            let bg_rgba = if bg.is_null() {
-                crate::core::surface::Rgba { r: 0.0, g: 0.0, b: 0.0, a: 1.0 }
-            } else {
-                let color = &*bg;
-                crate::core::surface::Rgba {
-                    r: color.r as f32 / 255.0,
-                    g: color.g as f32 / 255.0,
-                    b: color.b as f32 / 255.0,
-                    a: 1.0,
-                }
-            };
-            
-            surf.write_str(
-                x as usize,
-                y as usize,
-                &text_str,
-                fg_rgba,
-                bg_rgba,
-                crate::core::surface::Attr::empty(),
-            );
-            
-            Ok(())
-        }
+    catch_panic(AssertUnwindSafe(|| unsafe {
+        let surf = &mut *(surface as *mut Surface);
+        let text_str = c_str_to_string(text)?;
+
+        let fg_rgba = if fg.is_null() {
+            crate::core::surface::Rgba {
+                r: 1.0,
+                g: 1.0,
+                b: 1.0,
+                a: 1.0,
+            }
+        } else {
+            let color = &*fg;
+            crate::core::surface::Rgba {
+                r: color.r as f32 / 255.0,
+                g: color.g as f32 / 255.0,
+                b: color.b as f32 / 255.0,
+                a: 1.0,
+            }
+        };
+
+        let bg_rgba = if bg.is_null() {
+            crate::core::surface::Rgba {
+                r: 0.0,
+                g: 0.0,
+                b: 0.0,
+                a: 1.0,
+            }
+        } else {
+            let color = &*bg;
+            crate::core::surface::Rgba {
+                r: color.r as f32 / 255.0,
+                g: color.g as f32 / 255.0,
+                b: color.b as f32 / 255.0,
+                a: 1.0,
+            }
+        };
+
+        surf.write_str(
+            x as usize,
+            y as usize,
+            &text_str,
+            fg_rgba,
+            bg_rgba,
+            crate::core::surface::Attr::empty(),
+        );
+
+        Ok(())
     }))
-    
 }
 
 /// Fill a rectangle on the surface
@@ -263,52 +254,59 @@ pub extern "C" fn rtui_surface_fill_rect(
         return RTuiError::NullPointer;
     }
 
-    catch_panic(AssertUnwindSafe(|| {
-        unsafe {
-            let surf = &mut *(surface as *mut Surface);
-            let r = &*rect;
-            let fill_char = std::char::from_u32(ch).unwrap_or(' ');
-            let (width, height) = surf.dims();
-            
-            let fg_rgba = if fg.is_null() {
-                crate::core::surface::Rgba { r: 1.0, g: 1.0, b: 1.0, a: 1.0 }
-            } else {
-                let color = &*fg;
-                crate::core::surface::Rgba {
-                    r: color.r as f32 / 255.0,
-                    g: color.g as f32 / 255.0,
-                    b: color.b as f32 / 255.0,
-                    a: 1.0,
-                }
-            };
-            
-            let bg_rgba = if bg.is_null() {
-                crate::core::surface::Rgba { r: 0.0, g: 0.0, b: 0.0, a: 1.0 }
-            } else {
-                let color = &*bg;
-                crate::core::surface::Rgba {
-                    r: color.r as f32 / 255.0,
-                    g: color.g as f32 / 255.0,
-                    b: color.b as f32 / 255.0,
-                    a: 1.0,
-                }
-            };
-            
-            let cell = crate::core::surface::Cell {
-                ch: fill_char,
-                fg: fg_rgba,
-                bg: bg_rgba,
-                attr: crate::core::surface::Attr::empty(),
-            };
-            
-            for y in r.y..(r.y + r.height).min(height as u16) {
-                for x in r.x..(r.x + r.width).min(width as u16) {
-                    surf.set(x as usize, y as usize, cell);
-                }
+    catch_panic(AssertUnwindSafe(|| unsafe {
+        let surf = &mut *(surface as *mut Surface);
+        let r = &*rect;
+        let fill_char = std::char::from_u32(ch).unwrap_or(' ');
+        let (width, height) = surf.dims();
+
+        let fg_rgba = if fg.is_null() {
+            crate::core::surface::Rgba {
+                r: 1.0,
+                g: 1.0,
+                b: 1.0,
+                a: 1.0,
             }
-            
-            Ok(())
+        } else {
+            let color = &*fg;
+            crate::core::surface::Rgba {
+                r: color.r as f32 / 255.0,
+                g: color.g as f32 / 255.0,
+                b: color.b as f32 / 255.0,
+                a: 1.0,
+            }
+        };
+
+        let bg_rgba = if bg.is_null() {
+            crate::core::surface::Rgba {
+                r: 0.0,
+                g: 0.0,
+                b: 0.0,
+                a: 1.0,
+            }
+        } else {
+            let color = &*bg;
+            crate::core::surface::Rgba {
+                r: color.r as f32 / 255.0,
+                g: color.g as f32 / 255.0,
+                b: color.b as f32 / 255.0,
+                a: 1.0,
+            }
+        };
+
+        let cell = crate::core::surface::Cell {
+            ch: fill_char,
+            fg: fg_rgba,
+            bg: bg_rgba,
+            attr: crate::core::surface::Attr::empty(),
+        };
+
+        for y in r.y..(r.y + r.height).min(height as u16) {
+            for x in r.x..(r.x + r.width).min(width as u16) {
+                surf.set(x as usize, y as usize, cell);
+            }
         }
+
+        Ok(())
     }))
-    
 }

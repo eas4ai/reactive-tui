@@ -1,5 +1,5 @@
 //! Foreign Function Interface for reactive-tui
-//! 
+//!
 //! Provides a stable C ABI for using reactive-tui from other languages.
 //! Zero overhead for Rust users - this module is only for FFI bindings.
 
@@ -7,17 +7,17 @@ use std::ffi::CStr;
 use std::os::raw::c_char;
 use std::panic::{self, AssertUnwindSafe};
 
-mod types;
 mod error;
-mod terminal;
-mod surface;
 mod render;
+mod surface;
+mod terminal;
+mod types;
 
-pub use types::*;
 pub use error::*;
-pub use terminal::*;
-pub use surface::*;
 pub use render::*;
+pub use surface::*;
+pub use terminal::*;
+pub use types::*;
 
 /// Version information for ABI compatibility
 #[repr(C)]
@@ -57,7 +57,7 @@ unsafe fn c_str_to_string(s: *const c_char) -> Result<String, RTuiError> {
     if s.is_null() {
         return Err(RTuiError::NullPointer);
     }
-    
+
     unsafe {
         CStr::from_ptr(s)
             .to_str()
@@ -78,4 +78,3 @@ where
         Err(_) => RTuiError::Panic,
     }
 }
-

@@ -6,26 +6,21 @@ use std::boxed::Box;
 
 /// Create a new terminal instance
 #[unsafe(no_mangle)]
-pub extern "C" fn rtui_terminal_create(
-    out_terminal: *mut *mut RTuiTerminal,
-) -> RTuiError {
+pub extern "C" fn rtui_terminal_create(out_terminal: *mut *mut RTuiTerminal) -> RTuiError {
     if out_terminal.is_null() {
         return RTuiError::NullPointer;
     }
 
-    catch_panic(AssertUnwindSafe(|| {
-        match Terminal::new() {
-            Ok(terminal) => {
-                let boxed = Box::new(terminal);
-                unsafe {
-                    *out_terminal = Box::into_raw(boxed) as *mut RTuiTerminal;
-                }
-                Ok(())
+    catch_panic(AssertUnwindSafe(|| match Terminal::new() {
+        Ok(terminal) => {
+            let boxed = Box::new(terminal);
+            unsafe {
+                *out_terminal = Box::into_raw(boxed) as *mut RTuiTerminal;
             }
-            Err(e) => Err(e.into()),
+            Ok(())
         }
+        Err(e) => Err(e.into()),
     }))
-    
 }
 
 /// Destroy a terminal instance
@@ -48,19 +43,16 @@ pub extern "C" fn rtui_terminal_get_dimensions(
         return RTuiError::NullPointer;
     }
 
-    catch_panic(AssertUnwindSafe(|| {
-        unsafe {
-            let term = &*(terminal as *const Terminal);
-            match term.size() {
-                Ok((width, height)) => {
-                    *out_dimensions = RTuiDimensions { width, height };
-                    Ok(())
-                }
-                Err(e) => Err(e.into()),
+    catch_panic(AssertUnwindSafe(|| unsafe {
+        let term = &*(terminal as *const Terminal);
+        match term.size() {
+            Ok((width, height)) => {
+                *out_dimensions = RTuiDimensions { width, height };
+                Ok(())
             }
+            Err(e) => Err(e.into()),
         }
     }))
-    
 }
 
 /// Enter modern mode (raw mode + alternate screen + mouse)
@@ -70,16 +62,13 @@ pub extern "C" fn rtui_terminal_enter_raw_mode(terminal: *mut RTuiTerminal) -> R
         return RTuiError::NullPointer;
     }
 
-    catch_panic(AssertUnwindSafe(|| {
-        unsafe {
-            let term = &mut *(terminal as *mut Terminal);
-            match term.enter_modern_mode() {
-                Ok(()) => Ok(()),
-                Err(e) => Err(e.into()),
-            }
+    catch_panic(AssertUnwindSafe(|| unsafe {
+        let term = &mut *(terminal as *mut Terminal);
+        match term.enter_modern_mode() {
+            Ok(()) => Ok(()),
+            Err(e) => Err(e.into()),
         }
     }))
-    
 }
 
 /// Exit modern mode
@@ -89,16 +78,13 @@ pub extern "C" fn rtui_terminal_exit_raw_mode(terminal: *mut RTuiTerminal) -> RT
         return RTuiError::NullPointer;
     }
 
-    catch_panic(AssertUnwindSafe(|| {
-        unsafe {
-            let term = &mut *(terminal as *mut Terminal);
-            match term.exit_modern_mode() {
-                Ok(()) => Ok(()),
-                Err(e) => Err(e.into()),
-            }
+    catch_panic(AssertUnwindSafe(|| unsafe {
+        let term = &mut *(terminal as *mut Terminal);
+        match term.exit_modern_mode() {
+            Ok(()) => Ok(()),
+            Err(e) => Err(e.into()),
         }
     }))
-    
 }
 
 /// Control synchronized updates
@@ -109,19 +95,17 @@ pub extern "C" fn rtui_terminal_sync(terminal: *mut RTuiTerminal, begin: bool) -
         return RTuiError::NullPointer;
     }
 
-    catch_panic(AssertUnwindSafe(|| {
-        unsafe {
-            let term = &mut *(terminal as *mut Terminal);
-            if begin {
-                match term.begin_sync() {
-                    Ok(()) => Ok(()),
-                    Err(e) => Err(e.into()),
-                }
-            } else {
-                match term.end_sync() {
-                    Ok(()) => Ok(()),
-                    Err(e) => Err(e.into()),
-                }
+    catch_panic(AssertUnwindSafe(|| unsafe {
+        let term = &mut *(terminal as *mut Terminal);
+        if begin {
+            match term.begin_sync() {
+                Ok(()) => Ok(()),
+                Err(e) => Err(e.into()),
+            }
+        } else {
+            match term.end_sync() {
+                Ok(()) => Ok(()),
+                Err(e) => Err(e.into()),
             }
         }
     }))
@@ -155,13 +139,12 @@ pub extern "C" fn rtui_terminal_poll_event(
             Err(e) => Err(e.into()),
         }
     }))
-    
 }
 
 // Helper to convert crossterm events to FFI events
 fn convert_event_to_ffi(event: crossterm::event::Event) -> RTuiEvent {
     use crossterm::event::{Event, KeyCode, KeyModifiers};
-    
+
     match event {
         Event::Key(key_event) => {
             let key_code = match key_event.code {
@@ -176,16 +159,25 @@ fn convert_event_to_ffi(event: crossterm::event::Event) -> RTuiEvent {
                 KeyCode::Down => 0x28,
                 _ => 0,
             };
-            
+
             let mut modifiers = 0u8;
-            if key_event.modifiers.contains(KeyModifiers::SHIFT) { modifiers |= 1; }
-            if key_event.modifiers.contains(KeyModifiers::CONTROL) { modifiers |= 2; }
-            if key_event.modifiers.contains(KeyModifiers::ALT) { modifiers |= 4; }
-            
+            if key_event.modifiers.contains(KeyModifiers::SHIFT) {
+                modifiers |= 1;
+            }
+            if key_event.modifiers.contains(KeyModifiers::CONTROL) {
+                modifiers |= 2;
+            }
+            if key_event.modifiers.contains(KeyModifiers::ALT) {
+                modifiers |= 4;
+            }
+
             RTuiEvent {
                 event_type: RTuiEventType::Key,
                 data: RTuiEventData {
-                    key: RTuiKeyEvent { key_code, modifiers },
+                    key: RTuiKeyEvent {
+                        key_code,
+                        modifiers,
+                    },
                 },
             }
         }
@@ -198,7 +190,10 @@ fn convert_event_to_ffi(event: crossterm::event::Event) -> RTuiEvent {
         _ => RTuiEvent {
             event_type: RTuiEventType::Key,
             data: RTuiEventData {
-                key: RTuiKeyEvent { key_code: 0, modifiers: 0 },
+                key: RTuiKeyEvent {
+                    key_code: 0,
+                    modifiers: 0,
+                },
             },
         },
     }

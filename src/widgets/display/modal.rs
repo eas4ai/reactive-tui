@@ -773,9 +773,10 @@ mod tests {
         let state = ModalState::default();
 
         let element = modal.render(&props, &state);
+        // Modal renders as a layout with absolute positioning for the backdrop
         assert_eq!(
             element.element_type,
-            crate::component::ElementType::Component("Modal".to_string())
+            crate::component::ElementType::Layout(crate::component::LayoutType::Absolute)
         );
     }
 

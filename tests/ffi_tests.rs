@@ -60,7 +60,10 @@ mod terminal_tests {
         let mut terminal: *mut RTuiTerminal = ptr::null_mut();
         assert_success!(rtui_terminal_create(&mut terminal));
 
-        let mut dims = RTuiDimensions { width: 0, height: 0 };
+        let mut dims = RTuiDimensions {
+            width: 0,
+            height: 0,
+        };
         assert_success!(rtui_terminal_get_dimensions(terminal, &mut dims));
         assert!(dims.width > 0);
         assert!(dims.height > 0);
@@ -78,7 +81,13 @@ mod terminal_tests {
             RTuiError::NullPointer
         );
         assert_error!(
-            rtui_terminal_get_dimensions(ptr::null(), &mut RTuiDimensions { width: 0, height: 0 }),
+            rtui_terminal_get_dimensions(
+                ptr::null(),
+                &mut RTuiDimensions {
+                    width: 0,
+                    height: 0
+                }
+            ),
             RTuiError::NullPointer
         );
 
@@ -90,12 +99,11 @@ mod terminal_tests {
         let mut terminal: *mut RTuiTerminal = ptr::null_mut();
         assert_success!(rtui_terminal_create(&mut terminal));
 
-        assert_success!(rtui_terminal_sync(terminal, true));  // begin
+        assert_success!(rtui_terminal_sync(terminal, true)); // begin
         assert_success!(rtui_terminal_sync(terminal, false)); // end
 
         rtui_terminal_destroy(terminal);
     }
-
 
     #[test]
     fn test_terminal_poll_event_timeout() {
@@ -149,7 +157,10 @@ mod surface_tests {
         let mut surface: *mut RTuiSurface = ptr::null_mut();
         assert_success!(rtui_surface_create(100, 50, &mut surface));
 
-        let mut dims = RTuiDimensions { width: 0, height: 0 };
+        let mut dims = RTuiDimensions {
+            width: 0,
+            height: 0,
+        };
         assert_success!(rtui_surface_get_dimensions(surface, &mut dims));
         assert_eq!(dims.width, 100);
         assert_eq!(dims.height, 50);
@@ -174,7 +185,11 @@ mod surface_tests {
 
         let cell = RTuiCell {
             ch: 'A' as u32,
-            fg: RTuiColor { r: 255, g: 128, b: 0 },
+            fg: RTuiColor {
+                r: 255,
+                g: 128,
+                b: 0,
+            },
             bg: RTuiColor { r: 0, g: 0, b: 128 },
             attrs: RTuiTextAttributes {
                 bold: true,
@@ -222,7 +237,11 @@ mod surface_tests {
         assert_success!(rtui_surface_create(80, 24, &mut surface));
 
         let text = CString::new("Hello, FFI!").unwrap();
-        let fg = RTuiColor { r: 255, g: 255, b: 255 };
+        let fg = RTuiColor {
+            r: 255,
+            g: 255,
+            b: 255,
+        };
         let bg = RTuiColor { r: 0, g: 0, b: 0 };
 
         assert_success!(rtui_surface_draw_text(
@@ -269,16 +288,18 @@ mod surface_tests {
             height: 10,
         };
 
-        let fg = RTuiColor { r: 128, g: 128, b: 128 };
-        let bg = RTuiColor { r: 32, g: 32, b: 32 };
+        let fg = RTuiColor {
+            r: 128,
+            g: 128,
+            b: 128,
+        };
+        let bg = RTuiColor {
+            r: 32,
+            g: 32,
+            b: 32,
+        };
 
-        assert_success!(rtui_surface_fill_rect(
-            surface,
-            &rect,
-            '#' as u32,
-            &fg,
-            &bg
-        ));
+        assert_success!(rtui_surface_fill_rect(surface, &rect, '#' as u32, &fg, &bg));
 
         // Verify a cell in the filled area
         let mut cell = RTuiCell {
@@ -327,7 +348,7 @@ mod renderer_tests {
             rtui_renderer_create(80, 24, ptr::null_mut()),
             RTuiError::NullPointer
         );
-        
+
         let mut renderer: *mut RTuiRenderer = ptr::null_mut();
         assert_error!(
             rtui_renderer_create(0, 0, &mut renderer),
@@ -366,7 +387,11 @@ mod renderer_tests {
 
         // Should be able to draw to the surface
         let text = CString::new("Renderer Test").unwrap();
-        let fg = RTuiColor { r: 255, g: 255, b: 255 };
+        let fg = RTuiColor {
+            r: 255,
+            g: 255,
+            b: 255,
+        };
         assert_success!(rtui_surface_draw_text(
             surface,
             0,
@@ -474,7 +499,7 @@ mod memory_safety_tests {
     fn test_double_destroy_safety() {
         let mut terminal: *mut RTuiTerminal = ptr::null_mut();
         assert_success!(rtui_terminal_create(&mut terminal));
-        
+
         rtui_terminal_destroy(terminal);
         // Second destroy should be safe (no crash)
         rtui_terminal_destroy(terminal);
@@ -484,9 +509,9 @@ mod memory_safety_tests {
     fn test_use_after_free_protection() {
         let mut surface: *mut RTuiSurface = ptr::null_mut();
         assert_success!(rtui_surface_create(80, 24, &mut surface));
-        
+
         rtui_surface_destroy(surface);
-        
+
         // These should not crash (undefined behavior protection)
         // They should either safely fail or be no-ops
         let result = rtui_surface_clear(surface, 0, 0, 0);
@@ -542,7 +567,11 @@ mod memory_safety_tests {
         // These should not crash even if out of bounds
         let cell = RTuiCell {
             ch: 'X' as u32,
-            fg: RTuiColor { r: 255, g: 255, b: 255 },
+            fg: RTuiColor {
+                r: 255,
+                g: 255,
+                b: 255,
+            },
             bg: RTuiColor { r: 0, g: 0, b: 0 },
             attrs: RTuiTextAttributes {
                 bold: false,

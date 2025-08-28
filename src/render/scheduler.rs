@@ -318,29 +318,32 @@ mod tests {
     #[test]
     fn test_priority_ordering() {
         let scheduler = RenderScheduler::new(60);
-        let counter = Arc::new(AtomicUsize::new(0));
+        let execution_order = Arc::new(Mutex::new(Vec::new()));
 
         // Schedule tasks in reverse priority order
-        let counter1 = counter.clone();
+        let order1 = execution_order.clone();
         scheduler.schedule(Priority::Low, move || {
-            counter1.store(3, AtomicOrdering::SeqCst);
+            order1.lock().unwrap().push("low");
         });
 
-        let counter2 = counter.clone();
+        let order2 = execution_order.clone();
         scheduler.schedule(Priority::Normal, move || {
-            counter2.store(2, AtomicOrdering::SeqCst);
+            order2.lock().unwrap().push("normal");
         });
 
-        let counter3 = counter.clone();
+        let order3 = execution_order.clone();
         scheduler.schedule(Priority::Immediate, move || {
-            counter3.store(1, AtomicOrdering::SeqCst);
+            order3.lock().unwrap().push("immediate");
         });
 
-        // Execute one task
+        // Execute all tasks in frame
         scheduler.execute_frame();
 
-        // Immediate priority should run first
-        assert_eq!(counter.load(AtomicOrdering::SeqCst), 1);
+        // Check execution order: immediate should run first, then normal, then low
+        let order = execution_order.lock().unwrap();
+        assert_eq!(order[0], "immediate");
+        assert_eq!(order[1], "normal");
+        assert_eq!(order[2], "low");
     }
 
     #[test]

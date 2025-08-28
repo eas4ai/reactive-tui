@@ -5,6 +5,8 @@ pub mod mouse;
 pub mod processor;
 pub mod refs;
 pub mod timer;
+pub mod perf_context;
+
 
 pub use clipboard::{ClipboardState, use_clipboard, use_simple_clipboard};
 

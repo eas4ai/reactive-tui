@@ -2,8 +2,8 @@ use crate::backend::Backend;
 use crate::component::Element;
 use crate::display::adaptive::{AdaptiveConfig, AdaptiveFpsManager};
 use crate::display::monitor::PerformanceMode;
-use crate::event::{FocusDirection, FocusManager};
 use crate::event::router::{EventResult, EventRouter};
+use crate::event::{FocusDirection, FocusManager};
 use crate::reactive::scheduler::Scheduler;
 use crate::render::reconcile::Reconciler;
 use crate::render::tree::{RenderTree, element_to_render_node};
@@ -45,6 +45,9 @@ impl App {
         self.render()?;
         self.fps_manager.benchmark_if_needed(&self.tree);
 
+        // If debug mode is on, enable backend's debug overlay (no-op if unsupported)
+        if self.debug { self.backend.set_debug_overlay(true); }
+
         // Show display capabilities
         if self.debug {
             eprintln!("{}", self.fps_manager.get_recommendation_summary());
@@ -53,6 +56,45 @@ impl App {
         while self.running {
             let frame_start = Instant::now();
             let frame_duration = self.fps_manager.get_frame_duration();
+
+            // Update global performance context at start of frame
+            {
+                use crate::hooks::perf_context::{get_global_performance_context, set_global_performance_context, PerformanceContext};
+                use crate::reactive::hooks::ThreadSafeSignal;
+                use std::sync::Arc;
+
+                let last_ms = self.last_frame_time.elapsed().as_secs_f32() * 1000.0;
+                let metrics = self.fps_manager.get_performance_metrics();
+                let fps_state = crate::hooks::fps::FpsState {
+                    target_fps: self.fps_manager.get_target_fps(),
+                    current_fps: metrics.current_fps,
+                    avg_render_time_ms: metrics.avg_render_time_ms,
+                    drop_rate_percent: metrics.drop_rate_percent,
+                    is_stable: metrics.is_stable,
+                    mode: crate::display::monitor::PerformanceMode::Auto,
+                };
+                let frame_timing = crate::hooks::fps::FrameTiming {
+                    last_frame_ms: last_ms,
+                    target_frame_ms: frame_duration.as_secs_f32() * 1000.0,
+                    budget_remaining_ms: 0.0,
+                };
+
+                if let Some(ctx) = get_global_performance_context() {
+                    ctx.fps_state.set(fps_state);
+                    ctx.metrics.set(metrics.clone());
+                    ctx.frame_timing.set(frame_timing);
+                } else {
+                    let ctx = PerformanceContext {
+                        fps_state: ThreadSafeSignal::new(fps_state),
+                        metrics: ThreadSafeSignal::new(metrics.clone()),
+                        frame_timing: ThreadSafeSignal::new(frame_timing),
+                        set_mode: Arc::new(|mode| {
+                            crate::hooks::perf_context::request_performance_mode(mode)
+                        }),
+                    };
+                    set_global_performance_context(Arc::new(ctx));
+                }
+            }
 
             // 1) Poll input with timeout based on target FPS
             let poll_timeout = frame_duration.as_millis() as u64;
@@ -167,7 +209,11 @@ impl App {
     }
 
     /// Register a focusable node with optional tab index
-    pub fn register_focusable(&mut self, node_id: crate::event::router::NodeId, tab_index: Option<i32>) {
+    pub fn register_focusable(
+        &mut self,
+        node_id: crate::event::router::NodeId,
+        tab_index: Option<i32>,
+    ) {
         self.focus.register_focusable(node_id, tab_index, true);
     }
 
@@ -177,30 +223,44 @@ impl App {
     }
 
     /// Set spatial info used for arrow-key navigation
-    pub fn set_focus_spatial(&mut self, node_id: crate::event::router::NodeId, x: f32, y: f32, w: f32, h: f32) {
+    pub fn set_focus_spatial(
+        &mut self,
+        node_id: crate::event::router::NodeId,
+        x: f32,
+        y: f32,
+        w: f32,
+        h: f32,
+    ) {
         self.focus.update_spatial(node_id, x, y, w, h);
     }
 
     /// Set initial focus and update router
     pub fn set_initial_focus(&mut self, node_id: crate::event::router::NodeId) {
-        if self.focus.set_focus(Some(node_id)) { self.router.set_focus(Some(node_id)); }
+        if self.focus.set_focus(Some(node_id)) {
+            self.router.set_focus(Some(node_id));
+        }
     }
 
     /// Move focus to next and update router
     pub fn focus_next(&mut self) {
-        if let Some(id) = self.focus.focus_next() { self.router.set_focus(Some(id)); }
+        if let Some(id) = self.focus.focus_next() {
+            self.router.set_focus(Some(id));
+        }
     }
 
     /// Move focus to previous and update router
     pub fn focus_previous(&mut self) {
-        if let Some(id) = self.focus.focus_previous() { self.router.set_focus(Some(id)); }
+        if let Some(id) = self.focus.focus_previous() {
+            self.router.set_focus(Some(id));
+        }
     }
 
     /// Move focus in a direction and update router
     pub fn focus_move(&mut self, dir: crate::event::FocusDirection) {
-        if let Some(id) = self.focus.move_focus(dir) { self.router.set_focus(Some(id)); }
+        if let Some(id) = self.focus.move_focus(dir) {
+            self.router.set_focus(Some(id));
+        }
     }
-
 
     /// Stop the application
     pub fn quit(&mut self) {
@@ -248,6 +308,11 @@ impl App {
 
         // Present frame
         self.backend.present()?;
+
+        // After present, update global performance context (if set)
+        if let Some(req) = crate::hooks::perf_context::take_requested_performance_mode() {
+            self.fps_manager.set_performance_mode(req);
+        }
 
         Ok(())
     }
@@ -427,8 +492,8 @@ mod tests {
             .build()
             .unwrap();
 
-        use crate::event::router::NodeId;
         use crate::event::FocusDirection;
+        use crate::event::router::NodeId;
         let top = NodeId::new();
         let middle = NodeId::new();
         let bottom = NodeId::new();
@@ -450,6 +515,4 @@ mod tests {
         app.focus_move(FocusDirection::Down);
         assert_eq!(app.router.get_focus(), Some(bottom));
     }
-
 }
-

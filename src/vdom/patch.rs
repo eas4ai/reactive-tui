@@ -115,11 +115,67 @@ impl PatchList {
 
     /// Optimize the patch list by combining adjacent operations
     pub fn optimize(&mut self) {
-        // TODO: Implement patch optimization
-        // - Combine adjacent text updates
-        // - Combine attribute updates on same node
-        // - Remove redundant moves
-        // - Batch insertions/removals
+        let mut optimized = Vec::new();
+        let mut pending_attributes: std::collections::HashMap<usize, std::collections::HashMap<String, String>> = std::collections::HashMap::new();
+        
+        for patch in &self.patches {
+            match patch {
+                Patch::SetAttribute { index, name, value } => {
+                    // Collect attribute updates for same node
+                    pending_attributes.entry(*index)
+                        .or_insert_with(std::collections::HashMap::new)
+                        .insert(name.clone(), value.clone());
+                }
+                _ => {
+                    // Flush pending attributes before adding other patches
+                    for (index, attrs) in pending_attributes.drain() {
+                        for (name, value) in attrs {
+                            optimized.push(Patch::SetAttribute { index, name, value });
+                        }
+                    }
+                    optimized.push(patch.clone());
+                }
+            }
+        }
+        
+        // Flush any remaining attributes
+        for (index, attrs) in pending_attributes.drain() {
+            for (name, value) in attrs {
+                optimized.push(Patch::SetAttribute { index, name, value });
+            }
+        }
+        
+        // Additional optimizations: remove redundant operations
+        self.patches = optimized;
+        self.remove_redundant_moves();
+        self.combine_adjacent_text_updates();
+    }
+    
+    fn remove_redundant_moves(&mut self) {
+        let mut seen_moves: std::collections::HashSet<usize> = std::collections::HashSet::new();
+        self.patches.retain(|patch| {
+            if let Patch::Move { from, .. } = patch {
+                seen_moves.insert(*from)
+            } else {
+                true
+            }
+        });
+    }
+    
+    fn combine_adjacent_text_updates(&mut self) {
+        let mut i = 0;
+        while i + 1 < self.patches.len() {
+            if let (Patch::SetText { index: id1, text: _text1 }, Patch::SetText { index: id2, text: text2 }) = 
+                (&self.patches[i], &self.patches[i + 1]) {
+                if id1 == id2 {
+                    // Combine texts - later update wins
+                    self.patches[i] = Patch::SetText { index: *id1, text: text2.clone() };
+                    self.patches.remove(i + 1);
+                    continue;
+                }
+            }
+            i += 1;
+        }
     }
 }
 

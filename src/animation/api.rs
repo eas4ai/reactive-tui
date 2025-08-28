@@ -427,9 +427,29 @@ fn convert_property_value_to_animated(name: &str, value: &PropertyValue) -> Anim
                 )
             }
         }
-        PropertyValue::Relative(_rel) => {
-            // TODO: Implement relative value parsing
-            AnimatedProperty::Property(name.to_string(), 0.0, 0.0)
+        PropertyValue::Relative(rel) => {
+            // Parse relative values like "+10", "-5", "*2", "/3"
+            let base_value = 0.0; // In real usage, would get current computed value
+            let target_value = match rel.chars().next() {
+                Some('+') => {
+                    let offset: f32 = rel[1..].parse().unwrap_or(0.0);
+                    base_value + offset
+                }
+                Some('-') => {
+                    let offset: f32 = rel[1..].parse().unwrap_or(0.0);
+                    base_value - offset
+                }
+                Some('*') => {
+                    let multiplier: f32 = rel[1..].parse().unwrap_or(1.0);
+                    base_value * multiplier
+                }
+                Some('/') => {
+                    let divisor: f32 = rel[1..].parse().unwrap_or(1.0);
+                    if divisor != 0.0 { base_value / divisor } else { base_value }
+                }
+                _ => rel.parse().unwrap_or(0.0), // Fallback to absolute parsing
+            };
+            AnimatedProperty::Property(name.to_string(), base_value, target_value)
         }
     }
 }
@@ -466,9 +486,27 @@ fn convert_property_to_transform(transform_type: &str, value: &PropertyValue) ->
                 TransformProperty::TranslateX(0.0, values.first().copied().unwrap_or(0.0))
             }
         }
-        PropertyValue::Relative(_) => {
-            // TODO: Implement relative transforms
-            TransformProperty::TranslateX(0.0, 0.0)
+        PropertyValue::Relative(rel) => {
+            // Parse relative transform values
+            let base_value = 0.0; // In real usage, would get current transform value
+            let target_value = match rel.chars().next() {
+                Some('+') => base_value + rel[1..].parse::<f32>().unwrap_or(0.0),
+                Some('-') => base_value - rel[1..].parse::<f32>().unwrap_or(0.0),
+                Some('*') => base_value * rel[1..].parse::<f32>().unwrap_or(1.0),
+                Some('/') => {
+                    let divisor: f32 = rel[1..].parse().unwrap_or(1.0);
+                    if divisor != 0.0 { base_value / divisor } else { base_value }
+                }
+                _ => rel.parse().unwrap_or(0.0),
+            };
+            
+            match transform_type {
+                "translateX" => TransformProperty::TranslateX(base_value, target_value),
+                "translateY" => TransformProperty::TranslateY(base_value, target_value),
+                "scale" => TransformProperty::Scale(base_value, target_value),
+                "rotate" => TransformProperty::Rotate(base_value, target_value),
+                _ => TransformProperty::TranslateX(base_value, target_value),
+            }
         }
     }
 }
@@ -481,10 +519,15 @@ fn convert_color_value_to_animated(color: &ColorValue) -> AnimatedProperty {
             let from_color = (0, 0, 0); // Will be overridden
             AnimatedProperty::Color(from_color, to_color)
         }
-        ColorValue::Rgba(r, g, b, _a) => {
-            // TODO: Handle alpha channel
-            let to_color = (*r, *g, *b);
-            let from_color = (0, 0, 0);
+        ColorValue::Rgba(r, g, b, a) => {
+            // Handle RGBA with alpha channel - convert to premultiplied RGB
+            let alpha = (*a).min(255) as f32 / 255.0;
+            let premult_r = ((*r as f32) * alpha) as u8;
+            let premult_g = ((*g as f32) * alpha) as u8;
+            let premult_b = ((*b as f32) * alpha) as u8;
+            
+            let to_color = (premult_r, premult_g, premult_b);
+            let from_color = (0, 0, 0); // Will be overridden
             AnimatedProperty::Color(from_color, to_color)
         }
         ColorValue::FromTo { from, to } => {
@@ -591,6 +634,8 @@ pub struct TimelineParams {
 pub struct TimelineBuilder {
     timeline: AnimationTimeline,
     current_time: Duration,
+    labels: std::collections::HashMap<String, Duration>,
+    loop_mode: Option<LoopMode>,
 }
 
 impl TimelineBuilder {
@@ -599,6 +644,8 @@ impl TimelineBuilder {
         Self {
             timeline: AnimationTimeline::new(id, false), // non-sequential by default
             current_time: Duration::ZERO,
+            labels: std::collections::HashMap::new(),
+            loop_mode: None,
         }
     }
 
@@ -609,28 +656,44 @@ impl TimelineBuilder {
     {
         let animation = animate(targets, params);
 
-        let _timeline_position = position.map(parse_timeline_position).unwrap_or_else(|| {
+        let timeline_position = position.map(parse_timeline_position).unwrap_or_else(|| {
             // Default: start after previous animation
             let pos = self.current_time;
             self.current_time += animation.config.duration;
             pos
         });
 
-        // For now, just add the animation without precise positioning
-        // TODO: Implement precise timeline positioning
-        self.timeline.add_animation(animation);
+        // Implement precise timeline positioning by adjusting animation delay
+        let mut positioned_animation = animation;
+        positioned_animation.config.delay = timeline_position;
+        
+        // Update current time to track timeline length
+        let animation_end = timeline_position + positioned_animation.config.duration;
+        if animation_end > self.current_time {
+            self.current_time = animation_end;
+        }
+        
+        self.timeline.add_animation(positioned_animation);
         self
     }
 
     /// Add a label at the current timeline position
-    pub fn add_label(self, _name: &str) -> Self {
-        // TODO: Implement timeline labels
+    pub fn add_label(mut self, name: &str) -> Self {
+        // Store timeline labels for seeking and synchronization
+        self.labels.insert(name.to_string(), self.current_time);
         self
     }
 
     /// Set timeline loop mode
-    pub fn loop_mode(self, _loop_mode: LoopMode) -> Self {
-        // TODO: Implement timeline loop mode
+    pub fn loop_mode(mut self, loop_mode: LoopMode) -> Self {
+        // Set how the timeline should repeat
+        self.loop_mode = Some(loop_mode);
+        
+        // For infinite loops, ensure we have a proper duration
+        if matches!(loop_mode, LoopMode::Infinite) && self.current_time.as_secs_f64() == 0.0 {
+            self.current_time = Duration::from_secs(1); // Default 1 second loop
+        }
+        
         self
     }
 

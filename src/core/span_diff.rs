@@ -1,5 +1,5 @@
 //! Efficient row-based diffing for minimal terminal updates
-//! 
+//!
 //! Instead of comparing cells one by one, this module compares
 //! surfaces row by row using styled spans, reducing ANSI escape sequences.
 
@@ -29,12 +29,12 @@ impl SpanDiffWriter {
             cursor_y: 0,
         }
     }
-    
+
     /// Get the output buffer
     pub fn output(&self) -> &[u8] {
         &self.output
     }
-    
+
     /// Clear the output buffer for reuse
     pub fn clear(&mut self) {
         self.output.clear();
@@ -45,19 +45,19 @@ impl SpanDiffWriter {
         self.cursor_x = usize::MAX;
         self.cursor_y = usize::MAX;
     }
-    
+
     /// Write raw bytes
     #[inline]
     fn write_raw(&mut self, bytes: &[u8]) {
         self.output.extend_from_slice(bytes);
     }
-    
+
     /// Write a string
     #[inline]
     fn write_str(&mut self, s: &str) {
         self.write_raw(s.as_bytes());
     }
-    
+
     /// Move cursor to position
     fn move_to(&mut self, x: usize, y: usize) {
         if self.cursor_x != x || self.cursor_y != y {
@@ -67,7 +67,7 @@ impl SpanDiffWriter {
             self.cursor_y = y;
         }
     }
-    
+
     /// Set foreground color
     fn set_fg(&mut self, color: Rgba) {
         if self.current_fg != Some(color) {
@@ -78,7 +78,7 @@ impl SpanDiffWriter {
             self.current_fg = Some(color);
         }
     }
-    
+
     /// Set background color
     fn set_bg(&mut self, color: Rgba) {
         if self.current_bg != Some(color) {
@@ -89,11 +89,11 @@ impl SpanDiffWriter {
             self.current_bg = Some(color);
         }
     }
-    
+
     /// Apply text attributes
     fn set_attr(&mut self, attr: Attr) {
         let old = self.current_attr;
-        
+
         // Reset attributes that are no longer needed
         if old.contains(Attr::BOLD) && !attr.contains(Attr::BOLD) {
             self.write_str("\x1b[22m");
@@ -110,7 +110,7 @@ impl SpanDiffWriter {
         if old.contains(Attr::STRIKE) && !attr.contains(Attr::STRIKE) {
             self.write_str("\x1b[29m");
         }
-        
+
         // Set attributes that are newly needed
         if !old.contains(Attr::BOLD) && attr.contains(Attr::BOLD) {
             self.write_str("\x1b[1m");
@@ -127,40 +127,40 @@ impl SpanDiffWriter {
         if !old.contains(Attr::STRIKE) && attr.contains(Attr::STRIKE) {
             self.write_str("\x1b[9m");
         }
-        
+
         self.current_attr = attr;
     }
-    
+
     /// Write a styled span
     fn write_span(&mut self, span: &Span, row: usize) {
         // Move to the span's starting position
         self.move_to(span.start_col, row);
-        
+
         // Apply style
         self.set_fg(span.fg);
         self.set_bg(span.bg);
         self.set_attr(span.attr);
-        
+
         // Write the text
         self.write_str(&span.text);
-        
+
         // Update cursor position
         self.cursor_x = span.end_col;
     }
-    
+
     /// Diff two surfaces and generate optimal update sequences
     pub fn diff(&mut self, old: &GraphemeSurface, new: &GraphemeSurface) {
         self.clear();
-        
+
         let (width, height) = new.dims();
         let (old_width, old_height) = old.dims();
-        
+
         // Handle size changes
         if width != old_width || height != old_height {
             // Clear and redraw everything on resize
             self.write_str("\x1b[2J"); // Clear screen
             self.move_to(0, 0);
-            
+
             for row in 0..height {
                 let spans = new.to_row_spans(row);
                 for span in &spans {
@@ -169,12 +169,12 @@ impl SpanDiffWriter {
             }
             return;
         }
-        
+
         // Row-by-row diff
         for row in 0..height {
             let old_spans = old.to_row_spans(row);
             let new_spans = new.to_row_spans(row);
-            
+
             if old_spans != new_spans {
                 // Row changed, output new spans
                 for span in &new_spans {
@@ -195,37 +195,33 @@ pub struct DiffStats {
 
 impl SpanDiffWriter {
     /// Generate diff with statistics
-    pub fn diff_with_stats(
-        &mut self,
-        old: &GraphemeSurface,
-        new: &GraphemeSurface,
-    ) -> DiffStats {
+    pub fn diff_with_stats(&mut self, old: &GraphemeSurface, new: &GraphemeSurface) -> DiffStats {
         self.clear();
-        
+
         let mut stats = DiffStats {
             bytes_written: 0,
             spans_written: 0,
             rows_changed: 0,
             style_changes: 0,
         };
-        
+
         let (_width, height) = new.dims();
-        
+
         for row in 0..height {
             let old_spans = old.to_row_spans(row);
             let new_spans = new.to_row_spans(row);
-            
+
             if old_spans != new_spans {
                 stats.rows_changed += 1;
-                
+
                 for span in &new_spans {
                     let prev_fg = self.current_fg;
                     let prev_bg = self.current_bg;
                     let prev_attr = self.current_attr;
-                    
+
                     self.write_span(span, row);
                     stats.spans_written += 1;
-                    
+
                     // Count style changes
                     if prev_fg != self.current_fg {
                         stats.style_changes += 1;
@@ -239,7 +235,7 @@ impl SpanDiffWriter {
                 }
             }
         }
-        
+
         stats.bytes_written = self.output.len();
         stats
     }
@@ -248,81 +244,131 @@ impl SpanDiffWriter {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_span_diff_no_change() {
         let mut writer = SpanDiffWriter::new();
         let surface = GraphemeSurface::new(10, 5);
-        
+
         writer.diff(&surface, &surface);
         assert_eq!(writer.output().len(), 0, "No output for identical surfaces");
     }
-    
+
     #[test]
     fn test_span_diff_single_change() {
         let mut writer = SpanDiffWriter::new();
         let mut old = GraphemeSurface::new(10, 1);
         let mut new = GraphemeSurface::new(10, 1);
-        
-        let fg = Rgba { r: 1.0, g: 1.0, b: 1.0, a: 1.0 };
-        let bg = Rgba { r: 0.0, g: 0.0, b: 0.0, a: 1.0 };
-        
+
+        let fg = Rgba {
+            r: 1.0,
+            g: 1.0,
+            b: 1.0,
+            a: 1.0,
+        };
+        let bg = Rgba {
+            r: 0.0,
+            g: 0.0,
+            b: 0.0,
+            a: 1.0,
+        };
+
         old.write_str(0, 0, "AAAA", fg, bg, Attr::empty());
         new.write_str(0, 0, "BBBB", fg, bg, Attr::empty());
-        
+
         writer.diff(&old, &new);
-        
+
         let output = String::from_utf8_lossy(writer.output());
-        assert!(output.contains("BBBB"), "Output should contain new text: {}", output);
+        assert!(
+            output.contains("BBBB"),
+            "Output should contain new text: {}",
+            output
+        );
         // The cursor positioning format is row;col with 1-based indexing
-        assert!(output.contains("\x1b["), "Should contain escape sequence: {}", output);
-        assert!(output.contains("H"), "Should contain H cursor command: {}", output);
+        assert!(
+            output.contains("\x1b["),
+            "Should contain escape sequence: {}",
+            output
+        );
+        assert!(
+            output.contains("H"),
+            "Should contain H cursor command: {}",
+            output
+        );
     }
-    
+
     #[test]
     fn test_span_diff_with_stats() {
         let mut writer = SpanDiffWriter::new();
         let old = GraphemeSurface::new(10, 2);
         let mut new = GraphemeSurface::new(10, 2);
-        
-        let fg = Rgba { r: 1.0, g: 0.0, b: 0.0, a: 1.0 };
-        let bg = Rgba { r: 0.0, g: 0.0, b: 0.0, a: 1.0 };
-        
+
+        let fg = Rgba {
+            r: 1.0,
+            g: 0.0,
+            b: 0.0,
+            a: 1.0,
+        };
+        let bg = Rgba {
+            r: 0.0,
+            g: 0.0,
+            b: 0.0,
+            a: 1.0,
+        };
+
         new.write_str(0, 0, "Hello", fg, bg, Attr::empty());
         new.write_str(0, 1, "World", fg, bg, Attr::BOLD);
-        
+
         let stats = writer.diff_with_stats(&old, &new);
-        
+
         assert_eq!(stats.rows_changed, 2);
         // Each row will have at least one span for the text, plus possibly spacer spans
         assert!(stats.spans_written >= 2);
         assert!(stats.bytes_written > 0);
     }
-    
+
     #[test]
     fn test_style_coalescing() {
         let mut surface = GraphemeSurface::new(20, 1);
-        let fg = Rgba { r: 1.0, g: 0.0, b: 0.0, a: 1.0 };
-        let bg = Rgba { r: 0.0, g: 0.0, b: 0.0, a: 1.0 };
-        
+        let fg = Rgba {
+            r: 1.0,
+            g: 0.0,
+            b: 0.0,
+            a: 1.0,
+        };
+        let bg = Rgba {
+            r: 0.0,
+            g: 0.0,
+            b: 0.0,
+            a: 1.0,
+        };
+
         // Write text with same style - adjacent characters should coalesce
         // Note: write_str already writes characters adjacently
         surface.write_str(0, 0, "HelloWorld", fg, bg, Attr::empty());
-        
+
         let spans = surface.to_row_spans(0);
-        
+
         // Debug output to understand what spans are being generated
         for (i, span) in spans.iter().enumerate() {
-            eprintln!("Span {}: start={}, end={}, text='{}', len={}", 
-                i, span.start_col, span.end_col, span.text, span.text.len());
+            eprintln!(
+                "Span {}: start={}, end={}, text='{}', len={}",
+                i,
+                span.start_col,
+                span.end_col,
+                span.text,
+                span.text.len()
+            );
         }
-        
+
         // The surface will have one text span and potentially a spacer span for the rest of the row
-        let text_spans: Vec<_> = spans.iter()
-            .filter(|s| s.text.trim().len() > 0)
-            .collect();
-        
-        assert_eq!(text_spans.len(), 1, "Should have exactly one non-empty span");
+        let text_spans: Vec<_> = spans.iter().filter(|s| s.text.trim().len() > 0).collect();
+
+        assert_eq!(
+            text_spans.len(),
+            1,
+            "Should have exactly one non-empty span"
+        );
         assert_eq!(text_spans[0].text, "HelloWorld");
     }
 }

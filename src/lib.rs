@@ -14,6 +14,7 @@ pub mod layout;
 pub mod reactive;
 pub mod render;
 pub mod screen;
+pub mod syntax;
 pub mod theme;
 pub mod ui;
 pub mod vdom;

@@ -298,7 +298,6 @@ impl EventRouter {
         }
     }
 
-
     /// Advance focus to next node id (if FocusManager used externally, this remains a convenience).
     pub fn focus_next(&mut self) {
         if let Some(cur) = self.focus_node {
@@ -309,7 +308,9 @@ impl EventRouter {
 
     /// Move focus to previous node id (placeholder to maintain API symmetry).
     pub fn focus_prev(&mut self) {
-        if let Some(cur) = self.focus_node { let _ = cur; }
+        if let Some(cur) = self.focus_node {
+            let _ = cur;
+        }
     }
 
     /// Set the focused node

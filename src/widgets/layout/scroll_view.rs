@@ -328,16 +328,18 @@ mod tests {
         let props = ScrollViewProps {
             content: Element::text("Line 1\nLine 2\nLine 3\nLine 4\nLine 5"),
             viewport_height: 3,
+            show_scrollbars: false,  // Disable scrollbars for simple test
             ..Default::default()
         };
         let state = ScrollViewState::default();
 
         let element = scroll_view.render(&props, &state);
         if let ElementType::Text(content) = &element.element_type {
-            assert!(content.contains("Line 1"));
-            assert!(content.contains("Line 2"));
-            assert!(content.contains("Line 3"));
-            assert!(!content.contains("Line 4"));
+            // With viewport_height=3, should show 3 lines
+            assert!(content.contains("Line 1"), "Content: {:?}", content);
+            assert!(content.contains("Line 2"), "Content: {:?}", content);
+            assert!(content.contains("Line 3"), "Content: {:?}", content);
+            assert!(!content.contains("Line 4"), "Content: {:?}", content);
         }
     }
 
@@ -347,6 +349,7 @@ mod tests {
         let props = ScrollViewProps {
             content: Element::text("Line 1\nLine 2\nLine 3\nLine 4\nLine 5"),
             viewport_height: 3,
+            show_scrollbars: false,  // Disable scrollbars for simple test
             ..Default::default()
         };
         let state = ScrollViewState {

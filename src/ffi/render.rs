@@ -15,7 +15,7 @@ pub extern "C" fn rtui_renderer_create(
     if out_renderer.is_null() {
         return RTuiError::NullPointer;
     }
-    
+
     if width == 0 || height == 0 {
         return RTuiError::InvalidParameter;
     }
@@ -32,7 +32,6 @@ pub extern "C" fn rtui_renderer_create(
             Err(e) => Err(e.into()),
         }
     }))
-    
 }
 
 /// Destroy a renderer
@@ -57,19 +56,16 @@ pub extern "C" fn rtui_renderer_resize(
     if renderer.is_null() {
         return RTuiError::NullPointer;
     }
-    
+
     if width == 0 || height == 0 {
         return RTuiError::InvalidParameter;
     }
 
-    catch_panic(AssertUnwindSafe(|| {
-        unsafe {
-            let r = &mut *(renderer as *mut Renderer);
-            r.resize(width as usize, height as usize);
-            Ok(())
-        }
+    catch_panic(AssertUnwindSafe(|| unsafe {
+        let r = &mut *(renderer as *mut Renderer);
+        r.resize(width as usize, height as usize);
+        Ok(())
     }))
-    
 }
 
 /// Clear the renderer with a color
@@ -84,20 +80,17 @@ pub extern "C" fn rtui_renderer_clear(
         return RTuiError::NullPointer;
     }
 
-    catch_panic(AssertUnwindSafe(|| {
-        unsafe {
-            let ren = &mut *(renderer as *mut Renderer);
-            let color = Rgba {
-                r: r as f32 / 255.0,
-                g: g as f32 / 255.0,
-                b: b as f32 / 255.0,
-                a: 1.0,
-            };
-            ren.clear(color);
-            Ok(())
-        }
+    catch_panic(AssertUnwindSafe(|| unsafe {
+        let ren = &mut *(renderer as *mut Renderer);
+        let color = Rgba {
+            r: r as f32 / 255.0,
+            g: g as f32 / 255.0,
+            b: b as f32 / 255.0,
+            a: 1.0,
+        };
+        ren.clear(color);
+        Ok(())
     }))
-    
 }
 
 /// Control frame rendering
@@ -108,19 +101,17 @@ pub extern "C" fn rtui_renderer_frame(renderer: *mut RTuiRenderer, begin: bool) 
         return RTuiError::NullPointer;
     }
 
-    catch_panic(AssertUnwindSafe(|| {
-        unsafe {
-            let r = &mut *(renderer as *mut Renderer);
-            if begin {
-                match r.begin_frame() {
-                    Ok(()) => Ok(()),
-                    Err(e) => Err(e.into()),
-                }
-            } else {
-                match r.end_frame() {
-                    Ok(()) => Ok(()),
-                    Err(e) => Err(e.into()),
-                }
+    catch_panic(AssertUnwindSafe(|| unsafe {
+        let r = &mut *(renderer as *mut Renderer);
+        if begin {
+            match r.begin_frame() {
+                Ok(()) => Ok(()),
+                Err(e) => Err(e.into()),
+            }
+        } else {
+            match r.end_frame() {
+                Ok(()) => Ok(()),
+                Err(e) => Err(e.into()),
             }
         }
     }))
@@ -136,15 +127,12 @@ pub extern "C" fn rtui_renderer_get_surface(
         return RTuiError::NullPointer;
     }
 
-    catch_panic(AssertUnwindSafe(|| {
-        unsafe {
-            let r = &mut *(renderer as *mut Renderer);
-            let surface_ptr = r.surface_mut() as *mut Surface;
-            *out_surface = surface_ptr as *mut RTuiSurface;
-            Ok(())
-        }
+    catch_panic(AssertUnwindSafe(|| unsafe {
+        let r = &mut *(renderer as *mut Renderer);
+        let surface_ptr = r.surface_mut() as *mut Surface;
+        *out_surface = surface_ptr as *mut RTuiSurface;
+        Ok(())
     }))
-    
 }
 
 /// Shutdown the renderer and exit raw mode
@@ -154,14 +142,11 @@ pub extern "C" fn rtui_renderer_shutdown(renderer: *mut RTuiRenderer) -> RTuiErr
         return RTuiError::NullPointer;
     }
 
-    catch_panic(AssertUnwindSafe(|| {
-        unsafe {
-            let r = Box::from_raw(renderer as *mut Renderer);
-            match r.shutdown() {
-                Ok(()) => Ok(()),
-                Err(e) => Err(e.into()),
-            }
+    catch_panic(AssertUnwindSafe(|| unsafe {
+        let r = Box::from_raw(renderer as *mut Renderer);
+        match r.shutdown() {
+            Ok(()) => Ok(()),
+            Err(e) => Err(e.into()),
         }
     }))
-    
 }

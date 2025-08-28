@@ -196,7 +196,12 @@ impl AnimationBatch {
 
     /// Check if an update affects visible elements
     fn is_update_visible(&self, _update: &BatchedUpdate) -> bool {
-        // Placeholder - in real implementation, would check element visibility
+        // For now, all batched updates are considered visible since we don't have
+        // element bounds tracking in the current architecture.
+        // In a full implementation, this would:
+        // 1. Track element bounds per animation ID
+        // 2. Compare with current viewport bounds
+        // 3. Use spatial partitioning for large scenes
         true
     }
 

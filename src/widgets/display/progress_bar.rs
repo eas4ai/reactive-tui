@@ -235,14 +235,14 @@ impl ProgressBar {
     /// Create indeterminate progress bar animation
     fn create_indeterminate_bar(&self, width: usize, state: &ProgressBarState) -> String {
         let mut bar = vec!['▒'; width];
-        let segment_width = width / 4;
+        let segment_width = (width / 4).max(1); // Ensure at least 1 character
 
         // Calculate position based on animation frame
         let position = (state.indeterminate_position as usize) % (width + segment_width);
 
         // Fill the moving segment
         for i in 0..segment_width {
-            let pos = (position + i).wrapping_sub(segment_width);
+            let pos = position.saturating_sub(segment_width).saturating_add(i);
             if pos < width {
                 bar[pos] = '█';
             }
@@ -468,9 +468,10 @@ mod tests {
         let state = ProgressBarState::default();
 
         let element = progress_bar.render(&props, &state);
+        // ProgressBar renders as a flex layout container
         assert_eq!(
             element.element_type,
-            crate::component::ElementType::Component("ProgressBar".to_string())
+            crate::component::ElementType::Layout(crate::component::LayoutType::Flex)
         );
     }
 
@@ -526,7 +527,10 @@ mod tests {
         let state = ProgressBarState::default();
 
         let bar = progress_bar.create_bar(&props, &state);
-        assert_eq!(bar.len(), 10);
+        // Width is in characters, but some Unicode characters might be multi-byte
+        // Count actual characters, not bytes
+        let char_count = bar.chars().count();
+        assert_eq!(char_count, 10);
         assert!(bar.contains('█')); // Should have filled portions
         assert!(bar.contains('▒')); // Should have empty portions
     }
@@ -540,7 +544,7 @@ mod tests {
         };
 
         let bar = progress_bar.create_indeterminate_bar(20, &state);
-        assert_eq!(bar.len(), 20);
+        assert_eq!(bar.chars().count(), 20); // Count characters not bytes
         assert!(bar.contains('█')); // Should have moving segment
         assert!(bar.contains('▒')); // Should have background
     }

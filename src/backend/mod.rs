@@ -22,6 +22,8 @@ pub trait Backend: Send + Sync {
     fn size(&self) -> (u16, u16);
     /// Poll next high-level Event (converted from crossterm), with optional timeout in ms
     fn poll_event(&mut self, timeout_ms: Option<u64>) -> Result<Option<rt_event::Event>>;
+    /// Enable/disable debug overlay if supported (default: no-op)
+    fn set_debug_overlay(&mut self, _enabled: bool) {}
     /// Optional full render path (fallback)
     fn render_full(&mut self, _element: &Element) -> Result<()> {
         Ok(())
@@ -82,40 +84,45 @@ impl CrosstermBackend {
         // Map cells to pixel-like surface width/height; for now treat as cells
         let renderer = Renderer::new(cols as usize, rows as usize)?;
         let grapheme_surface = GraphemeSurface::new(cols as usize, rows as usize);
-        Ok(Self { 
+        Ok(Self {
             renderer,
             grapheme_surface,
             prev_surface: None,
             use_render_ops: true, // Enable by default
         })
     }
-    
+
     /// Enable or disable RenderOps pipeline
     pub fn set_use_render_ops(&mut self, enabled: bool) {
         self.use_render_ops = enabled;
     }
-    
+
     /// Present using the RenderOps pipeline with grapheme-aware diffing
     fn present_with_render_ops(&mut self) -> Result<()> {
         use std::io::Write;
-        
+
         // Copy from old Surface to GraphemeSurface
         let (width, height) = self.renderer.dims();
         let surface = self.renderer.surface_mut();
-        
+
         // Transfer content to grapheme surface
-        self.grapheme_surface.clear(Rgba { r: 0.0, g: 0.0, b: 0.0, a: 1.0 });
+        self.grapheme_surface.clear(Rgba {
+            r: 0.0,
+            g: 0.0,
+            b: 0.0,
+            a: 1.0,
+        });
         for y in 0..height {
             for x in 0..width {
                 let cell = surface.get(x, y);
                 use crate::core::grapheme_cell::CellType;
                 use crate::core::grapheme_cell::GraphemeCluster;
-                
+
                 // Convert char to grapheme cluster
                 let mut buf = [0u8; 4];
                 let s = cell.ch.encode_utf8(&mut buf);
                 let cluster = GraphemeCluster::new(s);
-                
+
                 self.grapheme_surface.set_cell(
                     x,
                     y,
@@ -128,7 +135,7 @@ impl CrosstermBackend {
                 );
             }
         }
-        
+
         // Generate diff if we have a previous frame
         let mut diff_writer = SpanDiffWriter::new();
         if let Some(ref prev) = self.prev_surface {
@@ -138,26 +145,26 @@ impl CrosstermBackend {
             let empty = GraphemeSurface::new(width, height);
             diff_writer.diff(&empty, &self.grapheme_surface);
         }
-        
+
         // Output to terminal with synchronized updates
         let stdout = std::io::stdout();
         let mut stdout = stdout.lock();
-        
+
         // Begin synchronized update
         stdout.write_all(b"\x1b[?2026h")?;
         stdout.write_all(b"\x1b[?25l")?; // Hide cursor
-        
+
         // Write the diff
         stdout.write_all(diff_writer.output())?;
-        
+
         // Show cursor and end synchronized update
         stdout.write_all(b"\x1b[?25h")?;
         stdout.write_all(b"\x1b[?2026l")?;
         stdout.flush()?;
-        
+
         // Save current surface for next frame
         self.prev_surface = Some(self.grapheme_surface.clone());
-        
+
         Ok(())
     }
 
@@ -442,6 +449,10 @@ impl Backend for CrosstermBackend {
         }
     }
 
+    fn set_debug_overlay(&mut self, enabled: bool) {
+        self.renderer.set_debug_overlay(enabled);
+    }
+
     fn size(&self) -> (u16, u16) {
         crossterm::terminal::size().unwrap_or((80, 24))
     }
@@ -618,81 +629,98 @@ impl Backend for DebugBackend {
         });
 
         if let Some(root) = tree.root() {
+            #[cfg(test)]
+            #[allow(dead_code)]
+            mod tests {
+                use super::*;
+                use crossterm::event::Event as CtEvent;
 
-#[cfg(test)]
-#[allow(dead_code)]
-mod tests {
-    use super::*;
-    use crossterm::event::Event as CtEvent;
+                #[test]
+                fn map_paste_event() {
+                    let ct = CtEvent::Paste("hello".to_string());
+                    let mapped = CrosstermBackend::map_ct_event(ct).expect("mapped");
+                    match mapped {
+                        rt_event::Event::Paste(pe) => assert_eq!(pe.content, "hello"),
+                        _ => panic!("expected Paste event"),
+                    }
+                }
 
-    #[test]
-    fn map_paste_event() {
-        let ct = CtEvent::Paste("hello".to_string());
-        let mapped = CrosstermBackend::map_ct_event(ct).expect("mapped");
-        match mapped {
-            rt_event::Event::Paste(pe) => assert_eq!(pe.content, "hello"),
-            _ => panic!("expected Paste event"),
-        }
-    }
+                #[test]
+                fn map_focus_gained_lost() {
+                    let gained =
+                        CrosstermBackend::map_ct_event(CtEvent::FocusGained).expect("mapped");
+                    match gained {
+                        rt_event::Event::Focus(f) => {
+                            assert!(matches!(f.kind, rt_event::FocusEventKind::Gained))
+                        }
+                        _ => panic!("expected Focus(Gained)"),
+                    }
+                    let lost = CrosstermBackend::map_ct_event(CtEvent::FocusLost).expect("mapped");
+                    match lost {
+                        rt_event::Event::Focus(f) => {
+                            assert!(matches!(f.kind, rt_event::FocusEventKind::Lost))
+                        }
+                        _ => panic!("expected Focus(Lost)"),
+                    }
+                }
 
-    #[test]
-    fn map_focus_gained_lost() {
-        let gained = CrosstermBackend::map_ct_event(CtEvent::FocusGained).expect("mapped");
-        match gained {
-            rt_event::Event::Focus(f) => assert!(matches!(f.kind, rt_event::FocusEventKind::Gained)),
-            _ => panic!("expected Focus(Gained)"),
-        }
-        let lost = CrosstermBackend::map_ct_event(CtEvent::FocusLost).expect("mapped");
-        match lost {
-            rt_event::Event::Focus(f) => assert!(matches!(f.kind, rt_event::FocusEventKind::Lost)),
-            _ => panic!("expected Focus(Lost)"),
-        }
-    }
+                #[test]
+                fn map_resize_event() {
+                    let mapped =
+                        CrosstermBackend::map_ct_event(CtEvent::Resize(100, 40)).expect("mapped");
+                    match mapped {
+                        rt_event::Event::Resize(r) => {
+                            assert_eq!(r.width, 100);
+                            assert_eq!(r.height, 40);
+                        }
+                        _ => panic!("expected Resize"),
+                    }
+                }
 
-    #[test]
-    fn map_resize_event() {
-        let mapped = CrosstermBackend::map_ct_event(CtEvent::Resize(100, 40)).expect("mapped");
-        match mapped {
-            rt_event::Event::Resize(r) => {
-                assert_eq!(r.width, 100);
-                assert_eq!(r.height, 40);
+                #[test]
+                fn map_key_event_basic() {
+                    use crossterm::event::KeyEventState as Kes;
+                    use crossterm::event::{
+                        KeyCode as Kc, KeyEvent, KeyEventKind, KeyModifiers as Km,
+                    };
+                    let ct = CtEvent::Key(KeyEvent {
+                        code: Kc::Char('a'),
+                        modifiers: Km::CONTROL,
+                        kind: KeyEventKind::Press,
+                        state: Kes::NONE,
+                    });
+                    let mapped = CrosstermBackend::map_ct_event(ct).expect("mapped");
+                    match mapped {
+                        rt_event::Event::Key(k) => {
+                            assert!(matches!(k.code, rt_event::KeyCode::Char('a')));
+                            assert!(k.modifiers.ctrl);
+                            assert!(matches!(k.kind, rt_event::KeyEventKind::Press));
+                        }
+                        _ => panic!("expected Key"),
+                    }
+                }
+
+                #[test]
+                fn map_mouse_event_basic() {
+                    use crossterm::event::KeyModifiers as Km;
+                    use crossterm::event::{MouseButton as Mb, MouseEvent, MouseEventKind as Mk};
+                    let ct = CtEvent::Mouse(MouseEvent {
+                        kind: Mk::Down(Mb::Left),
+                        column: 10,
+                        row: 5,
+                        modifiers: Km::empty(),
+                    });
+                    let mapped = CrosstermBackend::map_ct_event(ct).expect("mapped");
+                    match mapped {
+                        rt_event::Event::Mouse(m) => {
+                            assert!(matches!(m.kind, rt_event::MouseEventKind::Down));
+                            assert_eq!(m.position, rt_event::Position::cell(10, 5));
+                            assert!(matches!(m.button, rt_event::MouseButton::Left));
+                        }
+                        _ => panic!("expected Mouse"),
+                    }
+                }
             }
-            _ => panic!("expected Resize"),
-        }
-    }
-
-    #[test]
-    fn map_key_event_basic() {
-        use crossterm::event::{KeyCode as Kc, KeyEvent, KeyEventKind, KeyModifiers as Km};
-        use crossterm::event::KeyEventState as Kes;
-        let ct = CtEvent::Key(KeyEvent { code: Kc::Char('a'), modifiers: Km::CONTROL, kind: KeyEventKind::Press, state: Kes::NONE });
-        let mapped = CrosstermBackend::map_ct_event(ct).expect("mapped");
-        match mapped {
-            rt_event::Event::Key(k) => {
-                assert!(matches!(k.code, rt_event::KeyCode::Char('a')));
-                assert!(k.modifiers.ctrl);
-                assert!(matches!(k.kind, rt_event::KeyEventKind::Press));
-            }
-            _ => panic!("expected Key"),
-        }
-    }
-
-    #[test]
-    fn map_mouse_event_basic() {
-        use crossterm::event::{MouseButton as Mb, MouseEvent, MouseEventKind as Mk};
-        use crossterm::event::KeyModifiers as Km;
-        let ct = CtEvent::Mouse(MouseEvent { kind: Mk::Down(Mb::Left), column: 10, row: 5, modifiers: Km::empty() });
-        let mapped = CrosstermBackend::map_ct_event(ct).expect("mapped");
-        match mapped {
-            rt_event::Event::Mouse(m) => {
-                assert!(matches!(m.kind, rt_event::MouseEventKind::Down));
-                assert_eq!(m.position, rt_event::Position::cell(10, 5));
-                assert!(matches!(m.button, rt_event::MouseButton::Left));
-            }
-            _ => panic!("expected Mouse"),
-        }
-    }
-}
 
             let _end_y = paint_render_node_linear(&mut self.virtual_screen, root, 0, 0);
         }

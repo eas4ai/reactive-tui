@@ -1,6 +1,6 @@
 use crate::reactive::hooks::{Hooks, ThreadSafeSignal, use_effect, use_signal};
 use crate::reactive::scheduler::{Scheduler, TimerId};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, OnceLock};
 use std::time::Duration;
 
 /// Hook for creating an interval timer that calls a callback repeatedly
@@ -278,9 +278,26 @@ impl<T: Send + 'static> ThrottledFunction<T> {
 
 /// Get the global scheduler instance
 fn get_scheduler() -> Option<Arc<Scheduler>> {
-    // This would typically get the scheduler from the runtime context
-    // For now, we'll use a thread-local or global instance
-    crate::reactive::runtime::with_runtime(|ctx| ctx.scheduler().clone())
+    // Prefer the runtime scheduler when available
+    if let Some(s) = crate::reactive::runtime::with_runtime(|ctx| ctx.scheduler().clone()) {
+        return Some(s);
+    }
+    // Fallback: a lightweight global scheduler with a background tick thread for timers
+    Some(get_fallback_scheduler())
+}
+
+fn get_fallback_scheduler() -> Arc<Scheduler> {
+    static SCHED: OnceLock<Arc<Scheduler>> = OnceLock::new();
+    static START: OnceLock<()> = OnceLock::new();
+    let sched = SCHED.get_or_init(|| Arc::new(Scheduler::new())).clone();
+    START.get_or_init(|| {
+        let s2 = sched.clone();
+        std::thread::spawn(move || loop {
+            std::thread::sleep(Duration::from_millis(1));
+            s2.process_timers();
+        });
+    });
+    sched
 }
 
 #[cfg(test)]

@@ -17,8 +17,10 @@ pub fn rgb_to_ansi256(r: u8, g: u8, b: u8) -> u8 {
         }
 
         // Map to 24 grayscale colors (232-255)
-        let gray = ((r - 8) as f32 / 247.0 * 24.0) as u8;
-        return 232 + gray;
+        // Grayscale values: 8, 18, 28, ..., 238 (increments of 10)
+        // So for a given gray value, find nearest: round((value - 8) / 10)
+        let gray = ((r.saturating_sub(8)) as f32 / 10.0).round() as u8;
+        return 232 + gray.min(23); // Ensure we don't exceed 255
     }
 
     // Use 6x6x6 color cube (colors 16-231)
@@ -49,12 +51,9 @@ pub fn hex_to_ansi256(hex: &str) -> Option<u8> {
 
 /// Convert RGB to basic ANSI 16 color
 pub fn rgb_to_ansi16(r: u8, g: u8, b: u8) -> u8 {
-    // Calculate brightness
-    let brightness = (r as u16 + g as u16 + b as u16) / 3;
-    let is_bright = brightness > 127;
-
-    // Find dominant color channel
+    // Find dominant color channel and brightness
     let max = cmp::max(r, cmp::max(g, b));
+    let is_bright = max > 192;  // Only consider truly bright colors
     let threshold = 64;
 
     // Black/Gray/White detection

@@ -92,9 +92,10 @@ impl KeyEvent {
 
     /// Convenience: does this key match any of the provided patterns?
     pub fn matches_any(&self, patterns: &[(KeyCode, KeyModifiers)]) -> bool {
-        patterns.iter().any(|(c, m)| self.code == *c && self.modifiers == *m)
+        patterns
+            .iter()
+            .any(|(c, m)| self.code == *c && self.modifiers == *m)
     }
-
 }
 
 #[derive(Clone, Debug, PartialEq)]

@@ -82,12 +82,23 @@ impl Default for PerformanceMonitor {
     }
 }
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct PerformanceMetrics {
     pub current_fps: f32,
     pub avg_render_time_ms: f32,
     pub drop_rate_percent: f32,
     pub is_stable: bool,
+}
+
+impl Default for PerformanceMetrics {
+    fn default() -> Self {
+        Self {
+            current_fps: 60.0, // Assume good FPS initially
+            avg_render_time_ms: 0.0,
+            drop_rate_percent: 0.0,
+            is_stable: true, // Assume stable initially
+        }
+    }
 }
 
 impl PerformanceMetrics {

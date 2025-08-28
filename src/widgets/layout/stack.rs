@@ -392,17 +392,69 @@ impl Stack {
         width: usize,
         height: usize,
     ) -> String {
-        // Simplified rendering - in a real implementation, this would properly position and clip children
+        // Properly position and clip children within bounds
         let child_content = match &child.element_type {
-            crate::component::ElementType::Text(text) => text.clone(),
+            crate::component::ElementType::Text(text) => {
+                // Wrap text to fit within width, clip lines to height
+                let wrapped_lines: Vec<String> = text.lines()
+                    .flat_map(|line| {
+                        if line.len() <= width {
+                            vec![line.to_string()]
+                        } else {
+                            // Simple word wrapping
+                            let mut wrapped = Vec::new();
+                            let mut current_line = String::new();
+                            
+                            for word in line.split_whitespace() {
+                                if current_line.len() + word.len() + 1 <= width {
+                                    if !current_line.is_empty() {
+                                        current_line.push(' ');
+                                    }
+                                    current_line.push_str(word);
+                                } else {
+                                    if !current_line.is_empty() {
+                                        wrapped.push(current_line);
+                                        current_line = word.to_string();
+                                    } else {
+                                        // Word is longer than width, truncate
+                                        wrapped.push(word.chars().take(width).collect());
+                                    }
+                                }
+                            }
+                            if !current_line.is_empty() {
+                                wrapped.push(current_line);
+                            }
+                            wrapped
+                        }
+                    })
+                    .take(height) // Clip vertically
+                    .collect();
+                
+                wrapped_lines.join("\n")
+            },
             _ => {
-                // Render container children recursively
-                child
-                    .children
-                    .iter()
-                    .map(|c| self.render_child_at_position(c, 0, 0, width, height))
-                    .collect::<Vec<_>>()
-                    .join("")
+                // Render container children recursively with proper bounds
+                let mut result = Vec::new();
+                let mut used_height = 0;
+                
+                for child_elem in &child.children {
+                    if used_height >= height {
+                        break; // Vertical clipping
+                    }
+                    
+                    let remaining_height = height.saturating_sub(used_height);
+                    let child_rendered = self.render_child_at_position(
+                        child_elem, x, y + used_height, width, remaining_height
+                    );
+                    
+                    if !child_rendered.is_empty() {
+                        let child_lines = child_rendered.lines().count();
+                        result.push(child_rendered);
+                        used_height += child_lines;
+                    }
+                }
+                
+                result.join("")
             }
         };
 
@@ -476,30 +528,38 @@ impl Component for Stack {
         // Combine all positioned children into final layout
         let result = match props.direction {
             StackDirection::Horizontal => {
-                // For horizontal layout, merge lines at the same y position
-                let mut final_lines = vec![String::new(); available_height];
-
-                for part in rendered_parts {
-                    for (line_idx, line) in part.lines().enumerate() {
-                        if line_idx < final_lines.len() {
-                            if final_lines[line_idx].len() < line.len() {
-                                final_lines[line_idx] = line.to_string();
-                            } else if !line.trim().is_empty() {
-                                // Merge non-empty lines
-                                for (char_idx, ch) in line.chars().enumerate() {
-                                    if char_idx < final_lines[line_idx].len() && ch != ' ' {
-                                        final_lines[line_idx]
-                                            .replace_range(char_idx..char_idx + 1, &ch.to_string());
-                                    } else if char_idx >= final_lines[line_idx].len() {
-                                        final_lines[line_idx].push(ch);
-                                    }
-                                }
-                            }
+                // For horizontal layout, simply concatenate parts with spacing
+                let spacing_str = " ".repeat(props.spacing);
+                let mut result_lines = Vec::new();
+                
+                // Get max height
+                let max_lines = rendered_parts.iter()
+                    .map(|p| p.lines().count())
+                    .max()
+                    .unwrap_or(0);
+                
+                // Build each line by concatenating corresponding lines from each part
+                for line_idx in 0..max_lines {
+                    let mut line_parts = Vec::new();
+                    for part in &rendered_parts {
+                        let lines: Vec<&str> = part.lines().collect();
+                        if let Some(line) = lines.get(line_idx) {
+                            // Remove the x-positioning spaces since we'll handle spacing differently
+                            line_parts.push(line.trim_start());
+                        } else {
+                            line_parts.push("");
                         }
                     }
+                    // Filter out empty parts and join with spacing
+                    let non_empty: Vec<&str> = line_parts.into_iter()
+                        .filter(|s| !s.is_empty())
+                        .collect();
+                    if !non_empty.is_empty() {
+                        result_lines.push(non_empty.join(&spacing_str));
+                    }
                 }
-
-                final_lines.join("\n")
+                
+                result_lines.join("\n")
             }
             StackDirection::Vertical => {
                 // For vertical layout, simply join with spacing
@@ -585,11 +645,11 @@ mod tests {
 
         let element = stack.render(&props, &state);
         if let ElementType::Text(content) = &element.element_type {
-            assert!(content.contains("A"));
-            assert!(content.contains("B"));
-            assert!(content.contains("C"));
+            assert!(content.contains("A"), "Content: {:?}", content);
+            assert!(content.contains("B"), "Content: {:?}", content);
+            assert!(content.contains("C"), "Content: {:?}", content);
         } else {
-            panic!("Expected text element");
+            panic!("Expected text element, got: {:?}", element.element_type);
         }
     }
 

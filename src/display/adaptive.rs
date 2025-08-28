@@ -183,21 +183,21 @@ impl AdaptiveFpsManager {
 
     /// Simulate rendering for benchmarking
     fn simulate_render(&self, tree: &RenderTree) {
-        // Walk the tree to simulate rendering work
-        fn walk_tree(tree: &RenderTree, depth: usize) {
-            if depth > 10 {
-                return;
-            } // Limit recursion
-
-            // Simulate some work by checking tree properties
-            // In a real implementation, we would traverse the tree
-            let _ = tree.root();
-
-            // This would normally traverse children
-            // but we don't have access to the internal structure
+        fn walk_node(node: &dyn crate::render::tree::RenderNode, depth: usize, budget: &mut u64) {
+            if depth > 64 { return; } // safety cap
+            // Simulate some layout/paint work proportional to children
+            *budget += 1;
+            for child in node.children() {
+                walk_node(child.as_ref(), depth + 1, budget);
+            }
         }
-
-        walk_tree(tree, 0);
+        if let Some(root) = tree.root() {
+            let mut budget: u64 = 0;
+            walk_node(root, 0, &mut budget);
+            // Prevent optimizer from removing the loop work
+            std::sync::atomic::compiler_fence(std::sync::atomic::Ordering::SeqCst);
+            let _ = budget;
+        }
     }
 
     /// Get current target FPS

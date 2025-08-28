@@ -5,7 +5,7 @@
 
 use super::render_ops::{RenderOp, RenderOps};
 use super::surface::Attr;
-use std::io::{self, Write, BufWriter};
+use std::io::{self, BufWriter, Write};
 
 /// Writer that converts RenderOps to terminal output
 pub struct TerminalWriter<W: Write> {
@@ -63,7 +63,13 @@ impl<W: Write> TerminalWriter<W> {
                 self.writer.write_all(text.as_bytes())?;
             }
 
-            RenderOp::ClearArea { x, y, width, height, bg } => {
+            RenderOp::ClearArea {
+                x,
+                y,
+                width,
+                height,
+                bg,
+            } => {
                 // Save cursor position
                 write!(self.writer, "\x1b7")?;
 
@@ -173,7 +179,6 @@ mod tests {
     use crate::core::render_ops::RenderOpsBuilder;
     use crate::core::surface::Rgba;
 
-
     #[test]
     fn test_move_to() {
         let mut builder = RenderOpsBuilder::new();
@@ -189,8 +194,18 @@ mod tests {
     #[test]
     fn test_color_output() {
         let mut builder = RenderOpsBuilder::new();
-        let fg = Rgba { r: 1.0, g: 0.0, b: 0.0, a: 1.0 };
-        let bg = Rgba { r: 0.0, g: 1.0, b: 0.0, a: 1.0 };
+        let fg = Rgba {
+            r: 1.0,
+            g: 0.0,
+            b: 0.0,
+            a: 1.0,
+        };
+        let bg = Rgba {
+            r: 0.0,
+            g: 1.0,
+            b: 0.0,
+            a: 1.0,
+        };
 
         builder.set_fg(fg).set_bg(bg);
 

@@ -1,18 +1,22 @@
-use crossterm::event::{
-    DisableBracketedPaste, DisableMouseCapture, EnableBracketedPaste, EnableMouseCapture, Event,
-};
-use crossterm::{event, execute, terminal};
+use crossterm::{event, terminal};
+use crossterm::event::Event;
+use std::io::Result;
+
+#[cfg(not(test))]
+use crossterm::event::{DisableBracketedPaste, DisableMouseCapture, EnableBracketedPaste, EnableMouseCapture};
+#[cfg(not(test))]
+use crossterm::execute;
+#[cfg(not(test))]
 use std::env;
-use std::io::{Error, Result};
-use std::io::{Write, stdout};
+#[cfg(not(test))]
+use std::io::{Error, Write, stdout};
 
 pub struct Terminal {}
 
 impl Terminal {
-    pub fn new() -> Result<Self> {
-        Ok(Self {})
-    }
+    pub fn new() -> Result<Self> { Ok(Self {}) }
 
+    #[cfg(not(test))]
     pub fn enter_modern_mode(&mut self) -> Result<()> {
         terminal::enable_raw_mode()?;
         execute!(stdout(), terminal::EnterAlternateScreen)?;
@@ -20,7 +24,10 @@ impl Terminal {
         execute!(stdout(), EnableMouseCapture)?;
         Ok(())
     }
+    #[cfg(test)]
+    pub fn enter_modern_mode(&mut self) -> Result<()> { Ok(()) }
 
+    #[cfg(not(test))]
     pub fn exit_modern_mode(&mut self) -> Result<()> {
         execute!(stdout(), DisableMouseCapture)?;
         execute!(stdout(), DisableBracketedPaste)?;
@@ -28,16 +35,24 @@ impl Terminal {
         terminal::disable_raw_mode()?;
         Ok(())
     }
+    #[cfg(test)]
+    pub fn exit_modern_mode(&mut self) -> Result<()> { Ok(()) }
 
+    #[cfg(not(test))]
     pub fn begin_sync(&mut self) -> Result<()> {
         execute!(stdout(), terminal::BeginSynchronizedUpdate)?;
         Ok(())
     }
+    #[cfg(test)]
+    pub fn begin_sync(&mut self) -> Result<()> { Ok(()) }
 
+    #[cfg(not(test))]
     pub fn end_sync(&mut self) -> Result<()> {
         execute!(stdout(), terminal::EndSynchronizedUpdate)?;
         Ok(())
     }
+    #[cfg(test)]
+    pub fn end_sync(&mut self) -> Result<()> { Ok(()) }
 
     pub fn size(&self) -> Result<(u16, u16)> {
         let (cols, rows) = terminal::size()?;
@@ -46,10 +61,9 @@ impl Terminal {
 
     /// Gate startup on modern terminal assumptions.
     /// We accept terminals that advertise truecolor via COLORTERM or well-known TERM values.
+    #[cfg(not(test))]
     pub fn capability_gate(&mut self) -> Result<()> {
-        let colorterm = env::var("COLORTERM")
-            .unwrap_or_default()
-            .to_ascii_lowercase();
+        let colorterm = env::var("COLORTERM").unwrap_or_default().to_ascii_lowercase();
         let term = env::var("TERM").unwrap_or_default().to_ascii_lowercase();
         let modern_term = term.contains("wezterm")
             || term.contains("kitty")
@@ -66,17 +80,39 @@ impl Terminal {
         }
         Ok(())
     }
+    #[cfg(test)]
+    pub fn capability_gate(&mut self) -> Result<()> { Ok(()) }
 
     pub fn poll_event(timeout_ms: Option<u64>) -> Result<Option<Event>> {
         let dur = std::time::Duration::from_millis(timeout_ms.unwrap_or(0));
-        if !event::poll(dur)? {
-            return Ok(None);
-        }
+        if !event::poll(dur)? { return Ok(None); }
         Ok(Some(event::read()?))
     }
 
+    #[cfg(not(test))]
     pub fn write_all(buf: &[u8]) -> Result<()> {
         stdout().write_all(buf)?;
         Ok(())
+    }
+}
+
+#[cfg(test)]
+pub mod test_io_capture {
+    use super::*;
+    use std::sync::{Mutex, OnceLock};
+
+    static TEST_OUT: OnceLock<Mutex<Vec<u8>>> = OnceLock::new();
+    fn out() -> &'static Mutex<Vec<u8>> { TEST_OUT.get_or_init(|| Mutex::new(Vec::new())) }
+
+    impl Terminal {
+        pub fn write_all(buf: &[u8]) -> Result<()> {
+            out().lock().unwrap().extend_from_slice(buf);
+            Ok(())
+        }
+    }
+
+    pub fn take_output() -> Vec<u8> {
+        let mut guard = out().lock().unwrap();
+        std::mem::take(&mut *guard)
     }
 }

@@ -39,7 +39,7 @@ impl RTuiError {
     pub fn to_c_int(self) -> c_int {
         self as c_int
     }
-    
+
     /// Check if error is success
     pub fn is_success(self) -> bool {
         self == RTuiError::Success
