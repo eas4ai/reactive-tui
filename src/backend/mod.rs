@@ -3,6 +3,9 @@ use std::io::Result;
 use crate::component::Element;
 use crate::core::renderer::Renderer;
 use crate::core::surface::Rgba;
+// use crate::core::render_ops::{RenderOps, RenderOpsBuilder};
+use crate::core::grapheme_cell::GraphemeSurface;
+use crate::core::span_diff::SpanDiffWriter;
 use crate::event::types as rt_event;
 use crate::render::reconcile::PatchOp;
 use crate::render::tree::{RenderNode, RenderTree};
@@ -64,6 +67,12 @@ pub fn paint_render_node_linear(
 /// Crossterm-backed implementation using our double-buffered Renderer
 pub struct CrosstermBackend {
     renderer: Renderer,
+    /// Use grapheme-aware surface for proper Unicode support
+    grapheme_surface: GraphemeSurface,
+    /// Previous frame for diffing
+    prev_surface: Option<GraphemeSurface>,
+    /// Use RenderOps pipeline when enabled
+    use_render_ops: bool,
 }
 
 impl CrosstermBackend {
@@ -72,7 +81,84 @@ impl CrosstermBackend {
         let (cols, rows) = crossterm::terminal::size().unwrap_or((80, 24));
         // Map cells to pixel-like surface width/height; for now treat as cells
         let renderer = Renderer::new(cols as usize, rows as usize)?;
-        Ok(Self { renderer })
+        let grapheme_surface = GraphemeSurface::new(cols as usize, rows as usize);
+        Ok(Self { 
+            renderer,
+            grapheme_surface,
+            prev_surface: None,
+            use_render_ops: true, // Enable by default
+        })
+    }
+    
+    /// Enable or disable RenderOps pipeline
+    pub fn set_use_render_ops(&mut self, enabled: bool) {
+        self.use_render_ops = enabled;
+    }
+    
+    /// Present using the RenderOps pipeline with grapheme-aware diffing
+    fn present_with_render_ops(&mut self) -> Result<()> {
+        use std::io::Write;
+        
+        // Copy from old Surface to GraphemeSurface
+        let (width, height) = self.renderer.dims();
+        let surface = self.renderer.surface_mut();
+        
+        // Transfer content to grapheme surface
+        self.grapheme_surface.clear(Rgba { r: 0.0, g: 0.0, b: 0.0, a: 1.0 });
+        for y in 0..height {
+            for x in 0..width {
+                let cell = surface.get(x, y);
+                use crate::core::grapheme_cell::CellType;
+                use crate::core::grapheme_cell::GraphemeCluster;
+                
+                // Convert char to grapheme cluster
+                let mut buf = [0u8; 4];
+                let s = cell.ch.encode_utf8(&mut buf);
+                let cluster = GraphemeCluster::new(s);
+                
+                self.grapheme_surface.set_cell(
+                    x,
+                    y,
+                    CellType::Glyph {
+                        grapheme: cluster,
+                        fg: cell.fg,
+                        bg: cell.bg,
+                        attr: cell.attr,
+                    },
+                );
+            }
+        }
+        
+        // Generate diff if we have a previous frame
+        let mut diff_writer = SpanDiffWriter::new();
+        if let Some(ref prev) = self.prev_surface {
+            diff_writer.diff(prev, &self.grapheme_surface);
+        } else {
+            // First frame - render everything
+            let empty = GraphemeSurface::new(width, height);
+            diff_writer.diff(&empty, &self.grapheme_surface);
+        }
+        
+        // Output to terminal with synchronized updates
+        let stdout = std::io::stdout();
+        let mut stdout = stdout.lock();
+        
+        // Begin synchronized update
+        stdout.write_all(b"\x1b[?2026h")?;
+        stdout.write_all(b"\x1b[?25l")?; // Hide cursor
+        
+        // Write the diff
+        stdout.write_all(diff_writer.output())?;
+        
+        // Show cursor and end synchronized update
+        stdout.write_all(b"\x1b[?25h")?;
+        stdout.write_all(b"\x1b[?2026l")?;
+        stdout.flush()?;
+        
+        // Save current surface for next frame
+        self.prev_surface = Some(self.grapheme_surface.clone());
+        
+        Ok(())
     }
 
     /// Apply patches selectively to minimize repainting
@@ -346,9 +432,14 @@ impl Backend for CrosstermBackend {
     }
 
     fn present(&mut self) -> Result<()> {
-        // Bracket each presented frame with synchronized updates to avoid partial flush/hangs
-        self.renderer.begin_frame()?;
-        self.renderer.end_frame()
+        if self.use_render_ops {
+            // Use the new RenderOps pipeline
+            self.present_with_render_ops()
+        } else {
+            // Use the original renderer
+            self.renderer.begin_frame()?;
+            self.renderer.end_frame()
+        }
     }
 
     fn size(&self) -> (u16, u16) {

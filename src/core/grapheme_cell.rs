@@ -91,6 +91,7 @@ impl GraphemeCluster {
 }
 
 /// Enhanced surface that handles graphemes correctly
+#[derive(Clone)]
 pub struct GraphemeSurface {
     width: usize,
     height: usize,

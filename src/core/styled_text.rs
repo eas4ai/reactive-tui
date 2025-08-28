@@ -4,7 +4,7 @@
 //! used across syntax highlighting, markdown rendering, and editor components.
 
 use super::surface::{Rgba, Attr};
-use super::render_ops::{RenderOp, RenderOps, RenderOpsBuilder};
+use super::render_ops::{RenderOps, RenderOpsBuilder};
 
 /// A run of text with consistent styling
 #[derive(Debug, Clone, PartialEq)]
@@ -96,7 +96,7 @@ impl StyledLine {
 /// Convert a styled line to render operations
 pub fn styled_line_to_render_ops(line: &StyledLine, x: u16, y: u16) -> RenderOps {
     let mut builder = RenderOpsBuilder::new();
-    let mut current_x = x;
+    let mut _current_x = x;
     
     builder.move_to(x, y);
     
@@ -107,7 +107,7 @@ pub fn styled_line_to_render_ops(line: &StyledLine, x: u16, y: u16) -> RenderOps
             .set_attr(run.attr)
             .print(&run.text);
         
-        current_x += run.width() as u16;
+        _current_x += run.width() as u16;
     }
     
     builder.build()
@@ -202,7 +202,8 @@ impl Default for StyledLineBuilder {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+    use crate::core::render_ops::RenderOp;
+
     #[test]
     fn test_styled_run_width() {
         let run = StyledRun::plain("Hello");

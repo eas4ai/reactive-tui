@@ -4,6 +4,7 @@ pub mod backend;
 pub mod component;
 pub mod core;
 pub mod display;
+pub mod editor;
 pub mod escape;
 pub mod event;
 #[cfg(feature = "ffi")]

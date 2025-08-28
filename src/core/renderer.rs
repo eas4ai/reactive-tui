@@ -53,4 +53,8 @@ impl Renderer {
     pub fn surface(&self) -> &Surface {
         &self.back
     }
+    
+    pub fn dims(&self) -> (usize, usize) {
+        self.back.dims()
+    }
 }

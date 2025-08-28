@@ -2,6 +2,7 @@ use crate::backend::Backend;
 use crate::component::Element;
 use crate::display::adaptive::{AdaptiveConfig, AdaptiveFpsManager};
 use crate::display::monitor::PerformanceMode;
+use crate::event::{FocusDirection, FocusManager};
 use crate::event::router::{EventResult, EventRouter};
 use crate::reactive::scheduler::Scheduler;
 use crate::render::reconcile::Reconciler;
@@ -21,6 +22,7 @@ pub struct App {
     root: Box<dyn RootComponent>,
     scheduler: Scheduler,
     router: EventRouter,
+    focus: FocusManager,
     tree: RenderTree,
     reconciler: Reconciler,
     fps_manager: AdaptiveFpsManager,
@@ -55,7 +57,57 @@ impl App {
             // 1) Poll input with timeout based on target FPS
             let poll_timeout = frame_duration.as_millis() as u64;
             if let Some(event) = self.backend.poll_event(Some(poll_timeout.min(16)))? {
-                // Route event through component tree
+                // First handle focus traversal keys (do not route these to components)
+                if let crate::event::types::Event::Key(ref key_event) = event {
+                    use crate::event::types::KeyCode;
+                    let mut focus_changed = false;
+                    match key_event.code {
+                        KeyCode::Tab => {
+                            if let Some(id) = self.focus.focus_next() {
+                                self.router.set_focus(Some(id));
+                                focus_changed = true;
+                            }
+                        }
+                        KeyCode::BackTab => {
+                            if let Some(id) = self.focus.focus_previous() {
+                                self.router.set_focus(Some(id));
+                                focus_changed = true;
+                            }
+                        }
+                        KeyCode::Up => {
+                            if let Some(id) = self.focus.move_focus(FocusDirection::Up) {
+                                self.router.set_focus(Some(id));
+                                focus_changed = true;
+                            }
+                        }
+                        KeyCode::Down => {
+                            if let Some(id) = self.focus.move_focus(FocusDirection::Down) {
+                                self.router.set_focus(Some(id));
+                                focus_changed = true;
+                            }
+                        }
+                        KeyCode::Left => {
+                            if let Some(id) = self.focus.move_focus(FocusDirection::Left) {
+                                self.router.set_focus(Some(id));
+                                focus_changed = true;
+                            }
+                        }
+                        KeyCode::Right => {
+                            if let Some(id) = self.focus.move_focus(FocusDirection::Right) {
+                                self.router.set_focus(Some(id));
+                                focus_changed = true;
+                            }
+                        }
+                        _ => {}
+                    }
+                    if focus_changed {
+                        // Re-render due to focus change and continue
+                        self.render()?;
+                        continue;
+                    }
+                }
+
+                // Route remaining events through component tree
                 let result = self.router.dispatch_to_focus(&event);
 
                 // Handle special events
@@ -113,6 +165,42 @@ impl App {
 
         Ok(())
     }
+
+    /// Register a focusable node with optional tab index
+    pub fn register_focusable(&mut self, node_id: crate::event::router::NodeId, tab_index: Option<i32>) {
+        self.focus.register_focusable(node_id, tab_index, true);
+    }
+
+    /// Unregister a focusable node
+    pub fn unregister_focusable(&mut self, node_id: crate::event::router::NodeId) {
+        self.focus.unregister_focusable(node_id);
+    }
+
+    /// Set spatial info used for arrow-key navigation
+    pub fn set_focus_spatial(&mut self, node_id: crate::event::router::NodeId, x: f32, y: f32, w: f32, h: f32) {
+        self.focus.update_spatial(node_id, x, y, w, h);
+    }
+
+    /// Set initial focus and update router
+    pub fn set_initial_focus(&mut self, node_id: crate::event::router::NodeId) {
+        if self.focus.set_focus(Some(node_id)) { self.router.set_focus(Some(node_id)); }
+    }
+
+    /// Move focus to next and update router
+    pub fn focus_next(&mut self) {
+        if let Some(id) = self.focus.focus_next() { self.router.set_focus(Some(id)); }
+    }
+
+    /// Move focus to previous and update router
+    pub fn focus_previous(&mut self) {
+        if let Some(id) = self.focus.focus_previous() { self.router.set_focus(Some(id)); }
+    }
+
+    /// Move focus in a direction and update router
+    pub fn focus_move(&mut self, dir: crate::event::FocusDirection) {
+        if let Some(id) = self.focus.move_focus(dir) { self.router.set_focus(Some(id)); }
+    }
+
 
     /// Stop the application
     pub fn quit(&mut self) {
@@ -245,6 +333,7 @@ impl AppBuilder {
             root,
             scheduler: Scheduler::new(),
             router: EventRouter::new(),
+            focus: FocusManager::default(),
             tree: RenderTree::new(),
             reconciler: Reconciler::new(),
             fps_manager,
@@ -297,4 +386,70 @@ mod tests {
 
         assert_eq!(app.size(), (80, 24));
     }
+
+    #[test]
+    fn test_focus_tab_traversal_updates_router() {
+        let backend = DebugBackend::new(80, 24);
+        let component = TestComponent { counter: 0 };
+
+        let mut app = App::builder()
+            .backend(backend)
+            .root(component)
+            .build()
+            .unwrap();
+
+        use crate::event::router::NodeId;
+        let id1 = NodeId::new();
+        let id2 = NodeId::new();
+        let id3 = NodeId::new();
+
+        // Register focusable nodes in order and set initial focus
+        app.register_focusable(id1, Some(0));
+        app.register_focusable(id2, Some(1));
+        app.register_focusable(id3, Some(2));
+        app.set_initial_focus(id1);
+
+        assert_eq!(app.router.get_focus(), Some(id1));
+        app.focus_next();
+        assert_eq!(app.router.get_focus(), Some(id2));
+        app.focus_previous();
+        assert_eq!(app.router.get_focus(), Some(id1));
+    }
+
+    #[test]
+    fn test_focus_spatial_movement_updates_router() {
+        let backend = DebugBackend::new(80, 24);
+        let component = TestComponent { counter: 0 };
+
+        let mut app = App::builder()
+            .backend(backend)
+            .root(component)
+            .build()
+            .unwrap();
+
+        use crate::event::router::NodeId;
+        use crate::event::FocusDirection;
+        let top = NodeId::new();
+        let middle = NodeId::new();
+        let bottom = NodeId::new();
+
+        app.register_focusable(top, Some(0));
+        app.register_focusable(middle, Some(1));
+        app.register_focusable(bottom, Some(2));
+        app.set_focus_spatial(top, 10.0, 10.0, 10.0, 3.0);
+        app.set_focus_spatial(middle, 10.0, 20.0, 10.0, 3.0);
+        app.set_focus_spatial(bottom, 10.0, 30.0, 10.0, 3.0);
+
+        app.set_initial_focus(middle);
+        assert_eq!(app.router.get_focus(), Some(middle));
+
+        app.focus_move(FocusDirection::Up);
+        assert_eq!(app.router.get_focus(), Some(top));
+
+        app.set_initial_focus(middle);
+        app.focus_move(FocusDirection::Down);
+        assert_eq!(app.router.get_focus(), Some(bottom));
+    }
+
 }
+

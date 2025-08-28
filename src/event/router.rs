@@ -25,7 +25,7 @@ pub enum EventPhase {
     Capture,
     /// Target phase - at the target element
     Target,
-    /// Bubbling phase - bottom-up from target to root  
+    /// Bubbling phase - bottom-up from target to root
     Bubble,
 }
 
@@ -296,6 +296,20 @@ impl EventRouter {
         } else {
             EventResult::Ignored
         }
+    }
+
+
+    /// Advance focus to next node id (if FocusManager used externally, this remains a convenience).
+    pub fn focus_next(&mut self) {
+        if let Some(cur) = self.focus_node {
+            // If we had a focus order, we'd cycle; for now, unset to signal handoff to FocusManager
+            let _ = cur; // placeholder, focus order handled by external FocusManager in App
+        }
+    }
+
+    /// Move focus to previous node id (placeholder to maintain API symmetry).
+    pub fn focus_prev(&mut self) {
+        if let Some(cur) = self.focus_node { let _ = cur; }
     }
 
     /// Set the focused node
