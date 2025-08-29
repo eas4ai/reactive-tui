@@ -113,12 +113,12 @@ impl ProgressBar {
     /// Create a new ProgressBar with default props
     #[allow(clippy::new_ret_no_self)]
     pub fn new() -> Element {
-        Element::component("ProgressBar", ProgressBarProps::default())
+        Element::component_with_props("ProgressBar", ProgressBarProps::default())
     }
 
     /// Create a ProgressBar with custom props
     pub fn with_props(props: ProgressBarProps) -> Element {
-        Element::component("ProgressBar", props)
+        Element::component_with_props("ProgressBar", props)
     }
 
     /// Builder method for value
@@ -318,10 +318,11 @@ impl ProgressBar {
             && props.max_value > props.min_value;
 
         // Trigger completion callback
-        if state.completed && !was_completed {
-            if let Some(callback) = &props.on_complete {
-                callback();
-            }
+        if state.completed
+            && !was_completed
+            && let Some(callback) = &props.on_complete
+        {
+            callback();
         }
 
         state.last_value = props.value;

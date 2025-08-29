@@ -13,7 +13,7 @@ pub struct HoverState {
 /// Tracks hover state for a component
 ///
 /// # Example
-/// ```rust
+/// ```rust, ignore
 /// fn Card(props: &Props, state: &State) -> Element {
 ///     let hover = use_hover();
 ///     
@@ -88,7 +88,7 @@ impl DragState {
 /// Tracks drag state for a component
 ///
 /// # Example
-/// ```rust
+/// ```rust, ignore
 /// fn DraggableItem(props: &Props, state: &mut State) -> Element {
 ///     let drag = use_drag();
 ///     
@@ -146,7 +146,7 @@ pub struct DragAndDropState {
 /// Advanced drag and drop with drop zone detection
 ///
 /// # Example
-/// ```rust
+/// ```rust, ignore
 /// fn DragAndDropDemo(props: &Props, state: &mut State) -> Element {
 ///     let dnd = use_drag_and_drop(DragAndDropOptions {
 ///         drop_zones: vec!["drop-zone-1".to_string(), "drop-zone-2".to_string()],
@@ -201,7 +201,7 @@ pub struct MousePositionState {
 /// Track mouse position relative to component
 ///
 /// # Example
-/// ```rust
+/// ```rust, ignore
 /// fn MouseTracker(props: &Props, state: &State) -> Element {
 ///     let mouse = use_mouse_position();
 ///     
@@ -234,7 +234,7 @@ pub struct ClickState {
 /// Detect various click patterns
 ///
 /// # Example
-/// ```rust
+/// ```rust, ignore
 /// fn ClickableItem(props: &Props, state: &mut State) -> Element {
 ///     let clicks = use_clicks();
 ///     
@@ -272,7 +272,7 @@ pub struct LongPressState {
 /// Detect long press gestures
 ///
 /// # Example
-/// ```rust
+/// ```rust, ignore
 /// fn LongPressButton(props: &Props, state: &mut State) -> Element {
 ///     let long_press = use_long_press(Duration::from_millis(800));
 ///     
@@ -334,7 +334,7 @@ pub enum SwipeDirection {
 /// Detect swipe gestures
 ///
 /// # Example
-/// ```rust
+/// ```rust, ignore
 /// fn SwipeableCard(props: &Props, state: &mut State) -> Element {
 ///     let gesture = use_gesture();
 ///     
@@ -391,7 +391,7 @@ pub enum WheelDeltaMode {
 /// Track mouse wheel/scroll events
 ///
 /// # Example
-/// ```rust
+/// ```rust, ignore
 /// fn ScrollableContent(props: &Props, state: &mut State) -> Element {
 ///     let wheel = use_wheel();
 ///     

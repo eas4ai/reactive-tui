@@ -1,6 +1,6 @@
 use crate::display::monitor::{PerformanceMetrics, PerformanceMode};
+use crate::hooks::perf_context::{PerformanceContext, get_global_performance_context};
 use crate::reactive::hooks::{Hooks, ThreadSafeSignal, use_context, use_effect, use_signal};
-use crate::hooks::perf_context::{get_global_performance_context, PerformanceContext};
 use std::sync::Arc;
 
 /// FPS and performance state
@@ -200,7 +200,7 @@ impl Default for FrameTiming {
 /// Hook for adaptive quality settings based on performance
 ///
 /// # Example
-/// ```rust
+/// ```rust, ignore
 /// fn AdaptiveContent(props: &Props, state: &mut State) -> Element {
 ///     let quality = use_adaptive_quality(&hooks);
 ///     

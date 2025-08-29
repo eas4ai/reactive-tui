@@ -228,11 +228,11 @@ impl RenderScheduler {
             };
 
             // Check deadline
-            if let Some(deadline) = task.deadline {
-                if Instant::now() > deadline {
-                    // Task missed deadline, skip it
-                    continue;
-                }
+            if let Some(deadline) = task.deadline
+                && Instant::now() > deadline
+            {
+                // Task missed deadline, skip it
+                continue;
             }
 
             // Check frame budget

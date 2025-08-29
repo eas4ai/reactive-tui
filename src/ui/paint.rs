@@ -30,20 +30,16 @@ impl Default for PaintStyle {
 }
 
 pub fn extract_paint_style(sb: &mut StyleBuilder) -> Option<PaintStyle> {
-    if let Some((fg, bg, flags)) = sb.take_visuals() {
-        let fg = Rgba {
-            r: fg.0,
-            g: fg.1,
-            b: fg.2,
-            a: fg.3,
-        };
-        let bg = Rgba {
-            r: bg.0,
-            g: bg.1,
-            b: bg.2,
-            a: bg.3,
-        };
-        let attr = Attr::from_flags(flags.0, flags.1, flags.2, flags.3, false);
+    if let Some(visual_style) = sb.take_visuals() {
+        let fg = visual_style.fg;
+        let bg = visual_style.bg;
+        let attr = Attr::from_flags(
+            visual_style.decorations.bold,
+            visual_style.decorations.italic,
+            visual_style.decorations.underline,
+            visual_style.decorations.reverse,
+            false,
+        );
         Some(PaintStyle {
             fg,
             bg,
@@ -55,6 +51,16 @@ pub fn extract_paint_style(sb: &mut StyleBuilder) -> Option<PaintStyle> {
     }
 }
 
+use crate::core::geometry::Point;
+
+/// Convenience function for painting text (deprecated - use Surface::write_text_styled instead)
+#[deprecated(note = "Use Surface::write_text_styled instead")]
 pub fn paint_text(surface: &mut Surface, x: usize, y: usize, text: &str, style: &PaintStyle) {
-    surface.write_str(x, y, text, style.fg, style.bg, style.attr)
+    surface.write_text_styled(x, y, text, style)
+}
+
+/// Convenience function for painting text at a point (deprecated - use Surface::write_text_styled_at instead)
+#[deprecated(note = "Use Surface::write_text_styled_at instead")]
+pub fn paint_text_at(surface: &mut Surface, point: Point, text: &str, style: &PaintStyle) {
+    surface.write_text_styled(point.x, point.y, text, style)
 }

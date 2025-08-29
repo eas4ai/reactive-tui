@@ -129,10 +129,10 @@ impl ScreenManager {
         }
 
         // Deactivate current screen
-        if let Some(ref current_id) = self.active_screen {
-            if let Some(screen) = self.screens.get_mut(current_id) {
-                screen.deactivate();
-            }
+        if let Some(ref current_id) = self.active_screen
+            && let Some(screen) = self.screens.get_mut(current_id)
+        {
+            screen.deactivate();
         }
 
         // Activate new screen
@@ -219,11 +219,11 @@ impl ScreenManager {
     /// Process an event (handles global hotkeys and routes to active screen)
     pub fn process_event(&mut self, event: &rt_event::Event) -> Result<bool, String> {
         // Handle global hotkeys
-        if let rt_event::Event::Key(key_event) = event {
-            if let Some(screen_id) = self.global_hotkeys.get(&key_event.code).cloned() {
-                self.switch_to(screen_id)?;
-                return Ok(true); // Event consumed
-            }
+        if let rt_event::Event::Key(key_event) = event
+            && let Some(screen_id) = self.global_hotkeys.get(&key_event.code).cloned()
+        {
+            self.switch_to(screen_id)?;
+            return Ok(true); // Event consumed
         }
 
         // Route event to active screen's reactive context
@@ -252,10 +252,10 @@ impl ScreenManager {
     fn complete_transition(&mut self) -> Result<(), String> {
         if let Some(to_screen) = self.transition_state.to_screen.clone() {
             // Deactivate old screen
-            if let Some(ref from_screen) = self.transition_state.from_screen {
-                if let Some(screen) = self.screens.get_mut(from_screen) {
-                    screen.deactivate();
-                }
+            if let Some(ref from_screen) = self.transition_state.from_screen
+                && let Some(screen) = self.screens.get_mut(from_screen)
+            {
+                screen.deactivate();
             }
 
             // Activate new screen
@@ -277,16 +277,16 @@ impl ScreenManager {
 
     /// Render the active screen
     fn render_active_screen(&mut self) -> Result<(), String> {
-        if let Some(ref active_id) = self.active_screen.clone() {
-            if let Some(screen) = self.screens.get_mut(active_id) {
-                let patches = screen.get_patches_since_last_render();
-                self.backend
-                    .apply_patches(&patches, &screen.render_tree)
-                    .map_err(|e| format!("Failed to apply patches: {e}"))?;
-                self.backend
-                    .present()
-                    .map_err(|e| format!("Failed to present: {e}"))?;
-            }
+        if let Some(ref active_id) = self.active_screen.clone()
+            && let Some(screen) = self.screens.get_mut(active_id)
+        {
+            let patches = screen.get_patches_since_last_render();
+            self.backend
+                .apply_patches(&patches, &screen.render_tree)
+                .map_err(|e| format!("Failed to apply patches: {e}"))?;
+            self.backend
+                .present()
+                .map_err(|e| format!("Failed to present: {e}"))?;
         }
         Ok(())
     }
@@ -304,31 +304,31 @@ impl ScreenManager {
             }
             TransitionType::Fade => {
                 // Simple fade: just render the target screen with increasing opacity
-                if let Some(ref to_screen) = self.transition_state.to_screen.clone() {
-                    if let Some(screen) = self.screens.get_mut(to_screen) {
-                        let patches = screen.get_patches_since_last_render();
-                        self.backend
-                            .apply_patches(&patches, &screen.render_tree)
-                            .map_err(|e| format!("Failed to apply patches: {e}"))?;
-                        self.backend
-                            .present()
-                            .map_err(|e| format!("Failed to present: {e}"))?;
-                    }
+                if let Some(ref to_screen) = self.transition_state.to_screen.clone()
+                    && let Some(screen) = self.screens.get_mut(to_screen)
+                {
+                    let patches = screen.get_patches_since_last_render();
+                    self.backend
+                        .apply_patches(&patches, &screen.render_tree)
+                        .map_err(|e| format!("Failed to apply patches: {e}"))?;
+                    self.backend
+                        .present()
+                        .map_err(|e| format!("Failed to present: {e}"))?;
                 }
             }
             _ => {
                 // For other transition types, fall back to immediate switch for now
                 // Full implementation would require more sophisticated rendering
-                if let Some(ref to_screen) = self.transition_state.to_screen.clone() {
-                    if let Some(screen) = self.screens.get_mut(to_screen) {
-                        let patches = screen.get_patches_since_last_render();
-                        self.backend
-                            .apply_patches(&patches, &screen.render_tree)
-                            .map_err(|e| format!("Failed to apply patches: {e}"))?;
-                        self.backend
-                            .present()
-                            .map_err(|e| format!("Failed to present: {e}"))?;
-                    }
+                if let Some(ref to_screen) = self.transition_state.to_screen.clone()
+                    && let Some(screen) = self.screens.get_mut(to_screen)
+                {
+                    let patches = screen.get_patches_since_last_render();
+                    self.backend
+                        .apply_patches(&patches, &screen.render_tree)
+                        .map_err(|e| format!("Failed to apply patches: {e}"))?;
+                    self.backend
+                        .present()
+                        .map_err(|e| format!("Failed to present: {e}"))?;
                 }
             }
         }

@@ -328,7 +328,7 @@ mod tests {
         let props = ScrollViewProps {
             content: Element::text("Line 1\nLine 2\nLine 3\nLine 4\nLine 5"),
             viewport_height: 3,
-            show_scrollbars: false,  // Disable scrollbars for simple test
+            show_scrollbars: false, // Disable scrollbars for simple test
             ..Default::default()
         };
         let state = ScrollViewState::default();
@@ -349,7 +349,7 @@ mod tests {
         let props = ScrollViewProps {
             content: Element::text("Line 1\nLine 2\nLine 3\nLine 4\nLine 5"),
             viewport_height: 3,
-            show_scrollbars: false,  // Disable scrollbars for simple test
+            show_scrollbars: false, // Disable scrollbars for simple test
             ..Default::default()
         };
         let state = ScrollViewState {

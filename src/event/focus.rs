@@ -113,10 +113,10 @@ impl FocusManager {
             }
 
             // Add previous focus to history
-            if let Some(prev) = self.current {
-                if prev != id {
-                    self.add_to_history(prev);
-                }
+            if let Some(prev) = self.current
+                && prev != id
+            {
+                self.add_to_history(prev);
             }
         }
 

@@ -6,7 +6,7 @@ use std::time::Duration;
 /// Hook for creating an interval timer that calls a callback repeatedly
 ///
 /// # Example
-/// ```rust
+/// ```rust, ignore
 /// fn Counter(props: &Props, state: &mut State) -> Element {
 ///     let count = use_signal(&hooks, 0);
 ///     
@@ -42,10 +42,10 @@ where
 
         // Cleanup function to cancel the timer
         Some(Box::new(move || {
-            if let Some(id) = timer_id.get() {
-                if let Some(scheduler) = get_scheduler() {
-                    scheduler.cancel_timer(id);
-                }
+            if let Some(id) = timer_id.get()
+                && let Some(scheduler) = get_scheduler()
+            {
+                scheduler.cancel_timer(id);
             }
         }) as Box<dyn FnOnce() + Send + Sync>)
     });
@@ -56,7 +56,7 @@ where
 /// Hook for creating a one-time timeout that calls a callback after a delay
 ///
 /// # Example
-/// ```rust
+/// ```rust, ignore
 /// fn DelayedMessage(props: &Props, state: &mut State) -> Element {
 ///     let show_message = use_signal(&hooks, false);
 ///     
@@ -98,10 +98,10 @@ where
 
         // Cleanup function to cancel the timer if component unmounts before it fires
         Some(Box::new(move || {
-            if let Some(id) = timer_id.get() {
-                if let Some(scheduler) = get_scheduler() {
-                    scheduler.cancel_timer(id);
-                }
+            if let Some(id) = timer_id.get()
+                && let Some(scheduler) = get_scheduler()
+            {
+                scheduler.cancel_timer(id);
             }
         }) as Box<dyn FnOnce() + Send + Sync>)
     });
@@ -112,7 +112,7 @@ where
 /// Hook for creating a debounced callback that only fires after a delay of inactivity
 ///
 /// # Example
-/// ```rust
+/// ```rust, ignore
 /// fn SearchBox(props: &Props, state: &mut State) -> Element {
 ///     let search_term = use_signal(&hooks, String::new());
 ///     let search_results = use_signal(&hooks, Vec::<String>::new());
@@ -149,7 +149,7 @@ where
 /// Hook for creating a throttled callback that fires at most once per interval
 ///
 /// # Example
-/// ```rust
+/// ```rust, ignore
 /// fn ScrollTracker(props: &Props, state: &mut State) -> Element {
 ///     let scroll_position = use_signal(&hooks, 0);
 ///     
@@ -215,10 +215,10 @@ impl<T: Send + 'static> DebouncedFunction<T> {
     /// Call the debounced function
     pub fn call(&self, value: T) {
         // Cancel any existing timer
-        if let Some(id) = self.timer_id.get() {
-            if let Some(scheduler) = get_scheduler() {
-                scheduler.cancel_timer(id);
-            }
+        if let Some(id) = self.timer_id.get()
+            && let Some(scheduler) = get_scheduler()
+        {
+            scheduler.cancel_timer(id);
         }
 
         // Schedule a new timer
@@ -292,9 +292,11 @@ fn get_fallback_scheduler() -> Arc<Scheduler> {
     let sched = SCHED.get_or_init(|| Arc::new(Scheduler::new())).clone();
     START.get_or_init(|| {
         let s2 = sched.clone();
-        std::thread::spawn(move || loop {
-            std::thread::sleep(Duration::from_millis(1));
-            s2.process_timers();
+        std::thread::spawn(move || {
+            loop {
+                std::thread::sleep(Duration::from_millis(1));
+                s2.process_timers();
+            }
         });
     });
     sched

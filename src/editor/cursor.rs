@@ -36,7 +36,7 @@ impl Cursor {
         if self.position > 0 {
             // Move by grapheme cluster for proper Unicode support
             let text = buffer.get_range(0..self.position);
-            if let Some((last_idx, _)) = text.grapheme_indices(true).last() {
+            if let Some((last_idx, _)) = text.grapheme_indices(true).next_back() {
                 self.position = last_idx;
             } else {
                 self.position = 0;
@@ -271,7 +271,7 @@ mod tests {
 
     #[test]
     fn test_cursor_basic_movement() {
-        let buffer = GapBuffer::from_str("Hello\nWorld");
+        let buffer = GapBuffer::from_string("Hello\nWorld");
         let mut cursor = Cursor::new();
 
         assert_eq!(cursor.position, 0);
@@ -293,7 +293,7 @@ mod tests {
 
     #[test]
     fn test_cursor_vertical_movement() {
-        let buffer = GapBuffer::from_str("12345\n123\n12345");
+        let buffer = GapBuffer::from_string("12345\n123\n12345");
         let mut cursor = Cursor::new();
 
         cursor.move_to(3, &buffer); // Position at '4' in first line
@@ -306,7 +306,7 @@ mod tests {
 
     #[test]
     fn test_cursor_word_movement() {
-        let buffer = GapBuffer::from_str("hello world foo_bar");
+        let buffer = GapBuffer::from_string("hello world foo_bar");
         let mut cursor = Cursor::new();
 
         cursor.move_word_forward(&buffer);
@@ -321,7 +321,7 @@ mod tests {
 
     #[test]
     fn test_cursor_selection() {
-        let buffer = GapBuffer::from_str("Hello World");
+        let buffer = GapBuffer::from_string("Hello World");
         let mut cursor = Cursor::new();
 
         cursor.move_to(6, &buffer);

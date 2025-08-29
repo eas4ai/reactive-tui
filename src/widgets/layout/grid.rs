@@ -400,18 +400,18 @@ impl Grid {
 
         // Second pass: auto-place remaining items
         for (item_index, child) in props.children.iter().enumerate() {
-            if child.area.is_none() {
-                if let Some(placement) = self.find_auto_placement(
+            if child.area.is_none()
+                && let Some(placement) = self.find_auto_placement(
                     &grid_matrix,
                     item_index,
                     &child.span,
                     &props.auto_flow,
                     columns.len(),
                     rows.len(),
-                ) {
-                    self.mark_cells_occupied(&mut grid_matrix, &placement);
-                    placements.push(placement);
-                }
+                )
+            {
+                self.mark_cells_occupied(&mut grid_matrix, &placement);
+                placements.push(placement);
             }
         }
 

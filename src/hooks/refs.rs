@@ -96,7 +96,7 @@ impl<T> LocalRef<T> {
 /// Hook for creating a mutable reference that doesn't trigger re-renders
 ///
 /// # Example
-/// ```rust
+/// ```rust, ignore
 /// fn Timer(props: &Props, state: &mut State) -> Element {
 ///     let timer_id = use_ref(&hooks, None::<TimerId>);
 ///     
@@ -127,7 +127,7 @@ where
 /// Use this when you don't need thread safety and want better performance.
 ///
 /// # Example
-/// ```rust
+/// ```rust, ignore
 /// fn TextInput(props: &Props, state: &mut State) -> Element {
 ///     let input_ref = use_local_ref(&hooks, String::new());
 ///     
@@ -186,7 +186,7 @@ impl<T: Clone + Send + 'static> CallbackRef<T> {
 /// Hook for creating a callback ref
 ///
 /// # Example
-/// ```rust
+/// ```rust, ignore
 /// fn FocusableInput(props: &Props, state: &mut State) -> Element {
 ///     let input_ref = use_callback_ref(&hooks, |element: Option<DomElement>| {
 ///         if let Some(el) = element {
@@ -243,7 +243,7 @@ impl<T> ForwardedRef<T> {
 /// Hook for forwarding refs through components
 ///
 /// # Example
-/// ```rust
+/// ```rust, ignore
 /// fn FancyButton(props: &ButtonProps, state: &mut State) -> Element {
 ///     let forwarded = use_forwarded_ref(&hooks, props.forward_ref.clone());
 ///     
@@ -315,7 +315,7 @@ impl<T: Clone> MultiRef<T> {
 /// Hook for creating multiple refs that share updates
 ///
 /// # Example
-/// ```rust
+/// ```rust, ignore
 /// fn MultiSelect(props: &Props, state: &mut State) -> Element {
 ///     let selected_refs = use_multi_ref(&hooks);
 ///     

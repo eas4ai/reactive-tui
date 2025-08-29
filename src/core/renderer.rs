@@ -1,6 +1,7 @@
+use crate::core::geometry::Size;
 use crate::core::surface::{DiffWriter, Rgba, Surface};
 use crate::core::terminal::Terminal;
-use std::io::Result;
+use crate::error::{RTuiError, Result};
 use std::time::Instant;
 
 #[derive(Debug, Default, Clone, Copy)]
@@ -23,7 +24,12 @@ pub struct Renderer {
 
 impl Renderer {
     pub fn new(width: usize, height: usize) -> Result<Self> {
-        let mut term = Terminal::new()?;
+        if width == 0 || height == 0 {
+            return Err(RTuiError::invalid_parameter(
+                "Renderer dimensions must be greater than 0",
+            ));
+        }
+        let mut term = Terminal::new().map_err(RTuiError::Io)?;
         term.capability_gate()?;
         term.enter_modern_mode()?;
         Ok(Self {
@@ -37,9 +43,19 @@ impl Renderer {
         })
     }
 
+    /// Create a new renderer with Size
+    pub fn with_size(size: Size) -> Result<Self> {
+        Self::new(size.width, size.height)
+    }
+
     pub fn resize(&mut self, width: usize, height: usize) {
         self.front.reinit(width, height);
         self.back.reinit(width, height);
+    }
+
+    /// Resize using Size
+    pub fn resize_to(&mut self, size: Size) {
+        self.resize(size.width, size.height);
     }
 
     pub fn clear(&mut self, color: Rgba) {
@@ -52,14 +68,14 @@ impl Renderer {
 
     pub fn begin_frame(&mut self) -> Result<()> {
         self.frame_start = Some(Instant::now());
-        self.term.begin_sync()
+        self.term.begin_sync().map_err(RTuiError::Io)
     }
 
     pub fn end_frame(&mut self) -> Result<()> {
         // Diff and write
         self.diff.diff(&self.front, &self.back, false);
         let out = self.diff.output();
-        Terminal::write_all(out)?;
+        Terminal::write_all(out).map_err(RTuiError::Io)?;
         // Stats
         self.last_stats.bytes_written = out.len();
         self.last_stats.spans_written = self.diff.last_spans_written();
@@ -78,7 +94,7 @@ impl Renderer {
                 s = self.last_stats.spans_written,
                 r = self.last_stats.rows_changed
             );
-            Terminal::write_all(overlay.as_bytes())?;
+            Terminal::write_all(overlay.as_bytes()).map_err(RTuiError::Io)?;
         }
         // Make front reflect the just-rendered back buffer for next diff
         let (fw, fh) = self.front.dims();
@@ -88,14 +104,16 @@ impl Renderer {
         } else {
             self.front = self.back.clone_into_new();
         }
-        self.term.end_sync()
+        self.term.end_sync().map_err(RTuiError::Io)
     }
 
     pub fn shutdown(mut self) -> Result<()> {
-        self.term.exit_modern_mode()
+        self.term.exit_modern_mode().map_err(RTuiError::Io)
     }
 
-    pub fn frame_stats(&self) -> FrameStats { self.last_stats }
+    pub fn frame_stats(&self) -> FrameStats {
+        self.last_stats
+    }
 
     pub fn surface_mut(&mut self) -> &mut Surface {
         &mut self.back

@@ -215,12 +215,12 @@ pub struct Modal;
 impl Modal {
     /// Create a Modal element with default props
     pub fn element() -> Element {
-        Element::component("Modal", ModalProps::default())
+        Element::component_with_props("Modal", ModalProps::default())
     }
 
     /// Create a Modal element with custom props
     pub fn with_props(props: ModalProps) -> Element {
-        Element::component("Modal", props)
+        Element::component_with_props("Modal", props)
     }
 
     /// Builder method for visibility
@@ -617,11 +617,11 @@ impl Component for Modal {
                     }
                     KeyCode::Enter => {
                         // Activate focused button
-                        if let Some(button_index) = state.focused_button {
-                            if let Some(button) = props.buttons.get(button_index) {
-                                self.handle_button_click(props, button);
-                                return EventResult::Consumed;
-                            }
+                        if let Some(button_index) = state.focused_button
+                            && let Some(button) = props.buttons.get(button_index)
+                        {
+                            self.handle_button_click(props, button);
+                            return EventResult::Consumed;
                         }
                     }
                     _ => {}

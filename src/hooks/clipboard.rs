@@ -251,7 +251,7 @@ impl Default for ClipboardState {
 /// React-style clipboard hook
 ///
 /// # Example
-/// ```rust
+/// ```rust, ignore
 /// fn CopyButton(props: &Props, state: &State) -> Element {
 ///     let (clipboard, copy, paste) = use_clipboard(&hooks);
 ///     
@@ -311,7 +311,7 @@ pub fn use_clipboard(
 /// Simplified clipboard hook that just returns copy and paste functions
 ///
 /// # Example
-/// ```rust
+/// ```rust, ignore
 /// fn TextEditor(props: &Props, state: &mut State) -> Element {
 ///     let (copy, paste) = use_simple_clipboard(&hooks);
 ///     

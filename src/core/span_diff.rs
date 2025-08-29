@@ -17,6 +17,12 @@ pub struct SpanDiffWriter {
     cursor_y: usize,
 }
 
+impl Default for SpanDiffWriter {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl SpanDiffWriter {
     /// Create a new diff writer
     pub fn new() -> Self {

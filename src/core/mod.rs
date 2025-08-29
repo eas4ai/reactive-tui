@@ -1,3 +1,4 @@
+pub mod geometry;
 pub mod grapheme_cell;
 pub mod render_ops;
 pub mod renderer;

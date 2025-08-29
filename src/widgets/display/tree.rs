@@ -171,12 +171,12 @@ impl Tree {
     /// Create a new Tree with default props
     #[allow(clippy::new_ret_no_self)]
     pub fn new() -> Element {
-        Element::component("Tree", TreeProps::default())
+        Element::component_with_props("Tree", TreeProps::default())
     }
 
     /// Create a Tree with custom props
     pub fn with_props(props: TreeProps) -> Element {
-        Element::component("Tree", props)
+        Element::component_with_props("Tree", props)
     }
 
     /// Builder method for root node
@@ -258,7 +258,8 @@ impl Tree {
         // - Node is expanded
         // - We're searching and node matches
         // - We're searching (show all nodes to find matches)
-        let is_searching = props.search_term.is_some() && !props.search_term.as_ref().unwrap().is_empty();
+        let is_searching =
+            props.search_term.is_some() && !props.search_term.as_ref().unwrap().is_empty();
         if (level == 0 || is_expanded || state.search_matches.contains(&node.id) || is_searching)
             && !node.children.is_empty()
         {
@@ -539,11 +540,11 @@ impl Tree {
                 state.expanded_nodes.push(node_id.to_string());
 
                 // Handle lazy loading
-                if props.lazy_loading {
-                    if let Some(callback) = &props.on_load_children {
-                        state.loading_nodes.push(node_id.to_string());
-                        callback(node_id.to_string());
-                    }
+                if props.lazy_loading
+                    && let Some(callback) = &props.on_load_children
+                {
+                    state.loading_nodes.push(node_id.to_string());
+                    callback(node_id.to_string());
                 }
             }
         } else {
@@ -1164,21 +1165,23 @@ mod tests {
         // Test scroll to node
         let tree = Tree::default();
         // Create enough nodes to require scrolling
-        state.flat_nodes = (0..25).map(|i| FlatTreeNode {
-            id: format!("node{}", i),
-            label: format!("Node {}", i),
-            level: 0,
-            parent_id: None,
-            has_children: false,
-            expanded: false,
-            selected: false,
-            checked: None,
-            icon: None,
-            style: None,
-            visible: true,
-            matched: false,
-        }).collect();
-        
+        state.flat_nodes = (0..25)
+            .map(|i| FlatTreeNode {
+                id: format!("node{}", i),
+                label: format!("Node {}", i),
+                level: 0,
+                parent_id: None,
+                has_children: false,
+                expanded: false,
+                selected: false,
+                checked: None,
+                icon: None,
+                style: None,
+                visible: true,
+                matched: false,
+            })
+            .collect();
+
         // Set viewport smaller than content
         state.scroll_state.viewport_height = 10;
         state.scroll_state.content_height = 25;

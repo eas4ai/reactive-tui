@@ -8,6 +8,23 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
+/// A 2D velocity vector
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct Velocity {
+    pub dx: f64,
+    pub dy: f64,
+}
+
+impl Velocity {
+    pub fn new(dx: f64, dy: f64) -> Self {
+        Self { dx, dy }
+    }
+
+    pub fn magnitude(&self) -> f64 {
+        (self.dx * self.dx + self.dy * self.dy).sqrt()
+    }
+}
+
 /// Processes raw mouse events and updates hook states
 pub struct MouseEventProcessor {
     /// Track which component the mouse is over
@@ -182,14 +199,14 @@ impl MouseEventProcessor {
 
     fn handle_mouse_move(&self, event: &MouseEvent, component_id: Option<&str>) {
         // Update position states for components
-        if let Some(id) = component_id {
-            if let Some(signal) = self.position_states.lock().unwrap().get(id) {
-                signal.set(MousePositionState {
-                    position: Some(event.position),
-                    client_position: Some(self.position_to_client(event.position)),
-                    is_inside: true,
-                });
-            }
+        if let Some(id) = component_id
+            && let Some(signal) = self.position_states.lock().unwrap().get(id)
+        {
+            signal.set(MousePositionState {
+                position: Some(event.position),
+                client_position: Some(self.position_to_client(event.position)),
+                is_inside: true,
+            });
         }
 
         // Handle hover detection
@@ -198,14 +215,14 @@ impl MouseEventProcessor {
             let id_string = id.to_string();
             if *hovered != Some(id_string.clone()) {
                 // Leave previous component
-                if let Some(prev_id) = hovered.take() {
-                    if let Some(signal) = self.hover_states.lock().unwrap().get(&prev_id) {
-                        signal.set(HoverState {
-                            is_hovered: false,
-                            entered_at: None,
-                            position: None,
-                        });
-                    }
+                if let Some(prev_id) = hovered.take()
+                    && let Some(signal) = self.hover_states.lock().unwrap().get(&prev_id)
+                {
+                    signal.set(HoverState {
+                        is_hovered: false,
+                        entered_at: None,
+                        position: None,
+                    });
                 }
 
                 // Enter new component
@@ -229,44 +246,43 @@ impl MouseEventProcessor {
         *self.press_start.lock().unwrap() = Some((event.position, now));
 
         // Update press states
-        if let Some(id) = component_id {
-            if let Some(signal) = self.press_states.lock().unwrap().get(id) {
-                signal.set(LongPressState {
-                    is_pressing: true,
-                    is_long_press: false,
-                    press_start: Some(now),
-                    duration: Duration::ZERO,
-                });
-            }
+        if let Some(id) = component_id
+            && let Some(signal) = self.press_states.lock().unwrap().get(id)
+        {
+            signal.set(LongPressState {
+                is_pressing: true,
+                is_long_press: false,
+                press_start: Some(now),
+                duration: Duration::ZERO,
+            });
         }
     }
 
     fn handle_mouse_up(&self, event: &MouseEvent, component_id: Option<&str>, now: Instant) {
         // End drag
-        if let Some((_start_pos, _)) = self.drag_start.lock().unwrap().take() {
-            if let Some(id) = component_id {
-                if let Some(signal) = self.drag_states.lock().unwrap().get(id) {
-                    signal.update(|state| {
-                        state.is_dragging = false;
-                        state.drag_start = None;
-                        state.current_position = Some(event.position);
-                    });
-                }
-            }
+        if let Some((_start_pos, _)) = self.drag_start.lock().unwrap().take()
+            && let Some(id) = component_id
+            && let Some(signal) = self.drag_states.lock().unwrap().get(id)
+        {
+            signal.update(|state| {
+                state.is_dragging = false;
+                state.drag_start = None;
+                state.current_position = Some(event.position);
+            });
         }
 
         // End press
         if let Some((_, start_time)) = self.press_start.lock().unwrap().take() {
             let duration = now - start_time;
-            if let Some(id) = component_id {
-                if let Some(signal) = self.press_states.lock().unwrap().get(id) {
-                    signal.update(|state| {
-                        state.is_pressing = false;
-                        state.duration = duration;
-                        // Long press threshold is typically 800ms
-                        state.is_long_press = duration >= Duration::from_millis(800);
-                    });
-                }
+            if let Some(id) = component_id
+                && let Some(signal) = self.press_states.lock().unwrap().get(id)
+            {
+                signal.update(|state| {
+                    state.is_pressing = false;
+                    state.duration = duration;
+                    // Long press threshold is typically 800ms
+                    state.is_long_press = duration >= Duration::from_millis(800);
+                });
             }
         }
     }
@@ -290,40 +306,40 @@ impl MouseEventProcessor {
         *last_click = Some((event.position, now, click_count));
 
         // Update click states
-        if let Some(id) = component_id {
-            if let Some(signal) = self.click_states.lock().unwrap().get(id) {
-                signal.set(ClickState {
-                    click_count,
-                    last_click: Some(now),
-                    position: Some(event.position),
-                    is_double_click: click_count == 2,
-                    is_triple_click: click_count == 3,
-                });
-            }
+        if let Some(id) = component_id
+            && let Some(signal) = self.click_states.lock().unwrap().get(id)
+        {
+            signal.set(ClickState {
+                click_count,
+                last_click: Some(now),
+                position: Some(event.position),
+                is_double_click: click_count == 2,
+                is_triple_click: click_count == 3,
+            });
         }
     }
 
     fn handle_double_click(&self, event: &MouseEvent, component_id: Option<&str>) {
-        if let Some(id) = component_id {
-            if let Some(signal) = self.click_states.lock().unwrap().get(id) {
-                signal.update(|state| {
-                    state.click_count = 2;
-                    state.is_double_click = true;
-                    state.position = Some(event.position);
-                });
-            }
+        if let Some(id) = component_id
+            && let Some(signal) = self.click_states.lock().unwrap().get(id)
+        {
+            signal.update(|state| {
+                state.click_count = 2;
+                state.is_double_click = true;
+                state.position = Some(event.position);
+            });
         }
     }
 
     fn handle_triple_click(&self, event: &MouseEvent, component_id: Option<&str>) {
-        if let Some(id) = component_id {
-            if let Some(signal) = self.click_states.lock().unwrap().get(id) {
-                signal.update(|state| {
-                    state.click_count = 3;
-                    state.is_triple_click = true;
-                    state.position = Some(event.position);
-                });
-            }
+        if let Some(id) = component_id
+            && let Some(signal) = self.click_states.lock().unwrap().get(id)
+        {
+            signal.update(|state| {
+                state.click_count = 3;
+                state.is_triple_click = true;
+                state.position = Some(event.position);
+            });
         }
     }
 
@@ -331,17 +347,17 @@ impl MouseEventProcessor {
         if let Some((start_pos, _)) = *self.drag_start.lock().unwrap() {
             let delta = self.calculate_delta(start_pos, event.position);
 
-            if let Some(id) = component_id {
-                if let Some(signal) = self.drag_states.lock().unwrap().get(id) {
-                    signal.set(DragState {
-                        is_dragging: true,
-                        is_over_drop_zone: false,
-                        drag_start: Some(start_pos),
-                        current_position: Some(event.position),
-                        drag_delta: delta,
-                        button: event.button,
-                    });
-                }
+            if let Some(id) = component_id
+                && let Some(signal) = self.drag_states.lock().unwrap().get(id)
+            {
+                signal.set(DragState {
+                    is_dragging: true,
+                    is_over_drop_zone: false,
+                    drag_start: Some(start_pos),
+                    current_position: Some(event.position),
+                    drag_delta: delta,
+                    button: event.button,
+                });
             }
         }
     }
@@ -395,33 +411,33 @@ impl MouseEventProcessor {
     }
 
     fn handle_wheel(&self, event: &MouseEvent, component_id: Option<&str>) {
-        if let Some(id) = component_id {
-            if let Some(signal) = self.wheel_states.lock().unwrap().get(id) {
-                // Extract wheel delta values from event
-                let (delta_x, delta_y) = match event.kind {
-                    MouseEventKind::Wheel => {
-                        // For wheel events, derive direction from context
-                        // This is a simplified implementation - real wheel events
-                        // would need additional data to determine scroll direction
-                        match event.button {
-                            MouseButton::Middle => (0.0, 3.0), // Middle button scroll
-                            MouseButton::Other(4) => (0.0, -1.0), // Wheel up
-                            MouseButton::Other(5) => (0.0, 1.0),  // Wheel down
-                            MouseButton::Other(6) => (-1.0, 0.0), // Wheel left  
-                            MouseButton::Other(7) => (1.0, 0.0),  // Wheel right
-                            _ => (0.0, 3.0), // Default scroll amount (matches test expectation)
-                        }
-                    },
-                    _ => (0.0, 0.0),
-                };
+        if let Some(id) = component_id
+            && let Some(signal) = self.wheel_states.lock().unwrap().get(id)
+        {
+            // Extract wheel delta values from event
+            let (delta_x, delta_y) = match event.kind {
+                MouseEventKind::Wheel => {
+                    // For wheel events, derive direction from context
+                    // This is a simplified implementation - real wheel events
+                    // would need additional data to determine scroll direction
+                    match event.button {
+                        MouseButton::Middle => (0.0, 3.0),    // Middle button scroll
+                        MouseButton::Other(4) => (0.0, -1.0), // Wheel up
+                        MouseButton::Other(5) => (0.0, 1.0),  // Wheel down
+                        MouseButton::Other(6) => (-1.0, 0.0), // Wheel left
+                        MouseButton::Other(7) => (1.0, 0.0),  // Wheel right
+                        _ => (0.0, 3.0), // Default scroll amount (matches test expectation)
+                    }
+                }
+                _ => (0.0, 0.0),
+            };
 
-                signal.set(WheelState {
-                    delta_x,
-                    delta_y,
-                    delta_mode: WheelDeltaMode::Line,
-                    is_scrolling: true,
-                });
-            }
+            signal.set(WheelState {
+                delta_x,
+                delta_y,
+                delta_mode: WheelDeltaMode::Line,
+                is_scrolling: true,
+            });
         }
     }
 
@@ -450,18 +466,18 @@ impl MouseEventProcessor {
         points.retain(|(_, time)| now - *time < Duration::from_millis(500));
 
         // Detect gestures if we have enough points
-        if points.len() >= 3 {
-            if let Some(gesture) = self.detect_gesture(&points) {
-                // Update gesture states
-                for signal in self.gesture_states.lock().unwrap().values() {
-                    signal.set(GestureState {
-                        gesture_type: gesture,
-                        is_active: true,
-                        start_position: points.first().map(|(p, _)| *p),
-                        end_position: points.last().map(|(p, _)| *p),
-                        velocity: self.calculate_velocity(&points),
-                    });
-                }
+        if points.len() >= 3
+            && let Some(gesture) = self.detect_gesture(&points)
+        {
+            // Update gesture states
+            for signal in self.gesture_states.lock().unwrap().values() {
+                signal.set(GestureState {
+                    gesture_type: gesture,
+                    is_active: true,
+                    start_position: points.first().map(|(p, _)| *p),
+                    end_position: points.last().map(|(p, _)| *p),
+                    velocity: self.calculate_velocity(&points),
+                });
             }
         }
     }
@@ -501,8 +517,13 @@ impl MouseEventProcessor {
     }
 
     fn calculate_velocity(&self, points: &[(Position, Instant)]) -> (f64, f64) {
+        let vel = self.calculate_velocity_vec(points);
+        (vel.dx, vel.dy)
+    }
+
+    fn calculate_velocity_vec(&self, points: &[(Position, Instant)]) -> Velocity {
         if points.len() < 2 {
-            return (0.0, 0.0);
+            return Velocity::default();
         }
 
         let (p1, t1) = points[points.len() - 2];
@@ -510,13 +531,13 @@ impl MouseEventProcessor {
 
         let dt = (t2 - t1).as_secs_f64();
         if dt == 0.0 {
-            return (0.0, 0.0);
+            return Velocity::default();
         }
 
         let dx = (p2.x() as f64 - p1.x() as f64) / dt;
         let dy = (p2.y() as f64 - p1.y() as f64) / dt;
 
-        (dx, dy)
+        Velocity::new(dx, dy)
     }
 
     fn position_to_client(&self, pos: Position) -> (f64, f64) {

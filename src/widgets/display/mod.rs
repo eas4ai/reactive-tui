@@ -1,9 +1,13 @@
+pub mod image;
 pub mod modal;
 pub mod popover;
 pub mod progress_bar;
 pub mod table;
 pub mod tree;
 
+pub use image::{
+    Image, ImageCapabilities, ImageDisplayMode, ImageFormat, ImageQuality, ImageSource,
+};
 pub use modal::Modal;
 pub use popover::Popover;
 pub use progress_bar::ProgressBar;

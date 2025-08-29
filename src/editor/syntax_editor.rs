@@ -57,7 +57,7 @@ impl SyntaxEditor {
         let highlighter = SyntaxHighlighter::new(language);
 
         let mut editor = Self {
-            buffer: GapBuffer::from_str(content),
+            buffer: GapBuffer::from_string(content),
             cursor: Cursor::new(),
             highlighter,
             cache: LineCache::default(),
@@ -84,7 +84,7 @@ impl SyntaxEditor {
 
     /// Set content from file extension (auto-detect language)
     pub fn set_content_from_file(&mut self, content: &str, filename: &str) {
-        self.buffer = GapBuffer::from_str(content);
+        self.buffer = GapBuffer::from_string(content);
         self.cursor = Cursor::new();
         self.scroll_offset = 0;
 

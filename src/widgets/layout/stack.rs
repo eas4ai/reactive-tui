@@ -396,7 +396,8 @@ impl Stack {
         let child_content = match &child.element_type {
             crate::component::ElementType::Text(text) => {
                 // Wrap text to fit within width, clip lines to height
-                let wrapped_lines: Vec<String> = text.lines()
+                let wrapped_lines: Vec<String> = text
+                    .lines()
                     .flat_map(|line| {
                         if line.len() <= width {
                             vec![line.to_string()]
@@ -404,21 +405,19 @@ impl Stack {
                             // Simple word wrapping
                             let mut wrapped = Vec::new();
                             let mut current_line = String::new();
-                            
+
                             for word in line.split_whitespace() {
-                                if current_line.len() + word.len() + 1 <= width {
+                                if current_line.len() + word.len() < width {
                                     if !current_line.is_empty() {
                                         current_line.push(' ');
                                     }
                                     current_line.push_str(word);
+                                } else if !current_line.is_empty() {
+                                    wrapped.push(current_line);
+                                    current_line = word.to_string();
                                 } else {
-                                    if !current_line.is_empty() {
-                                        wrapped.push(current_line);
-                                        current_line = word.to_string();
-                                    } else {
-                                        // Word is longer than width, truncate
-                                        wrapped.push(word.chars().take(width).collect());
-                                    }
+                                    // Word is longer than width, truncate
+                                    wrapped.push(word.chars().take(width).collect());
                                 }
                             }
                             if !current_line.is_empty() {
@@ -429,31 +428,35 @@ impl Stack {
                     })
                     .take(height) // Clip vertically
                     .collect();
-                
+
                 wrapped_lines.join("\n")
-            },
+            }
             _ => {
                 // Render container children recursively with proper bounds
                 let mut result = Vec::new();
                 let mut used_height = 0;
-                
+
                 for child_elem in &child.children {
                     if used_height >= height {
                         break; // Vertical clipping
                     }
-                    
+
                     let remaining_height = height.saturating_sub(used_height);
                     let child_rendered = self.render_child_at_position(
-                        child_elem, x, y + used_height, width, remaining_height
+                        child_elem,
+                        x,
+                        y + used_height,
+                        width,
+                        remaining_height,
                     );
-                    
+
                     if !child_rendered.is_empty() {
                         let child_lines = child_rendered.lines().count();
                         result.push(child_rendered);
                         used_height += child_lines;
                     }
                 }
-                
+
                 result.join("")
             }
         };
@@ -531,13 +534,14 @@ impl Component for Stack {
                 // For horizontal layout, simply concatenate parts with spacing
                 let spacing_str = " ".repeat(props.spacing);
                 let mut result_lines = Vec::new();
-                
+
                 // Get max height
-                let max_lines = rendered_parts.iter()
+                let max_lines = rendered_parts
+                    .iter()
                     .map(|p| p.lines().count())
                     .max()
                     .unwrap_or(0);
-                
+
                 // Build each line by concatenating corresponding lines from each part
                 for line_idx in 0..max_lines {
                     let mut line_parts = Vec::new();
@@ -551,14 +555,13 @@ impl Component for Stack {
                         }
                     }
                     // Filter out empty parts and join with spacing
-                    let non_empty: Vec<&str> = line_parts.into_iter()
-                        .filter(|s| !s.is_empty())
-                        .collect();
+                    let non_empty: Vec<&str> =
+                        line_parts.into_iter().filter(|s| !s.is_empty()).collect();
                     if !non_empty.is_empty() {
                         result_lines.push(non_empty.join(&spacing_str));
                     }
                 }
-                
+
                 result_lines.join("\n")
             }
             StackDirection::Vertical => {

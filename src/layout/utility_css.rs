@@ -334,6 +334,58 @@ pub fn apply_utility_classes(class: &str, mut sb: StyleBuilder) -> StyleBuilder 
                 }
             }
         }
+
+        // Image-specific utility classes
+        if t.starts_with("image-") || t.starts_with("aspect-ratio-") {
+            match t {
+                "image-fit-cover" => {
+                    // Equivalent to object-fit: cover - scale to fill container while preserving aspect ratio
+                    // This would be handled by the image widget itself
+                    continue;
+                }
+                "image-fit-contain" => {
+                    // Equivalent to object-fit: contain - scale to fit within container while preserving aspect ratio
+                    continue;
+                }
+                "image-fit-fill" => {
+                    // Equivalent to object-fit: fill - stretch to fill container (may distort aspect ratio)
+                    continue;
+                }
+                "image-quality-fast" => {
+                    // Fast rendering with lower quality
+                    continue;
+                }
+                "image-quality-balanced" => {
+                    // Balanced quality and performance
+                    continue;
+                }
+                "image-quality-high" => {
+                    // High quality rendering (slower)
+                    continue;
+                }
+                "aspect-ratio-16-9" => {
+                    // 16:9 aspect ratio constraint
+                    continue;
+                }
+                "aspect-ratio-4-3" => {
+                    // 4:3 aspect ratio constraint
+                    continue;
+                }
+                "aspect-ratio-1-1" => {
+                    // Square aspect ratio
+                    continue;
+                }
+                "image-rendering-pixelated" => {
+                    // Pixelated/nearest-neighbor rendering
+                    continue;
+                }
+                "image-rendering-smooth" => {
+                    // Smooth/anti-aliased rendering
+                    continue;
+                }
+                _ => {}
+            }
+        }
     }
     sb
 }

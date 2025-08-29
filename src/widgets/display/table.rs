@@ -164,12 +164,12 @@ impl Table {
     /// Create a new Table with default props
     #[allow(clippy::new_ret_no_self)]
     pub fn new() -> Element {
-        Element::component("Table", TableProps::default())
+        Element::component_with_props("Table", TableProps::default())
     }
 
     /// Create a Table with custom props
     pub fn with_props(props: TableProps) -> Element {
-        Element::component("Table", props)
+        Element::component_with_props("Table", props)
     }
 
     /// Builder method for columns
@@ -257,24 +257,24 @@ impl Table {
     fn sort_rows(&self, props: &TableProps, state: &TableState) -> Vec<usize> {
         let mut indices: Vec<usize> = (0..props.rows.len()).collect();
 
-        if let Some(sort_col) = state.sort_column {
-            if sort_col < props.columns.len() {
-                let column = &props.columns[sort_col];
-                indices.sort_by(|&a, &b| {
-                    let cell_a = props.rows[a].cells.get(&column.key);
-                    let cell_b = props.rows[b].cells.get(&column.key);
+        if let Some(sort_col) = state.sort_column
+            && sort_col < props.columns.len()
+        {
+            let column = &props.columns[sort_col];
+            indices.sort_by(|&a, &b| {
+                let cell_a = props.rows[a].cells.get(&column.key);
+                let cell_b = props.rows[b].cells.get(&column.key);
 
-                    let content_a = cell_a.map(|c| c.content.as_str()).unwrap_or("");
-                    let content_b = cell_b.map(|c| c.content.as_str()).unwrap_or("");
+                let content_a = cell_a.map(|c| c.content.as_str()).unwrap_or("");
+                let content_b = cell_b.map(|c| c.content.as_str()).unwrap_or("");
 
-                    let cmp = content_a.cmp(content_b);
-                    if state.sort_ascending {
-                        cmp
-                    } else {
-                        cmp.reverse()
-                    }
-                });
-            }
+                let cmp = content_a.cmp(content_b);
+                if state.sort_ascending {
+                    cmp
+                } else {
+                    cmp.reverse()
+                }
+            });
         }
 
         indices
@@ -437,10 +437,10 @@ impl Component for Table {
                 let mut header_text = column.title.clone();
 
                 // Add sort indicators
-                if let Some(sort_col) = state.sort_column {
-                    if sort_col == column_index {
-                        header_text.push_str(if state.sort_ascending { " ↑" } else { " ↓" });
-                    }
+                if let Some(sort_col) = state.sort_column
+                    && sort_col == column_index
+                {
+                    header_text.push_str(if state.sort_ascending { " ↑" } else { " ↓" });
                 }
 
                 let cell_class = props
@@ -498,10 +498,10 @@ impl Component for Table {
                     let content = cell.map(|c| c.content.as_str()).unwrap_or("").to_string();
 
                     let mut cell_class = String::new();
-                    if let Some(cell) = cell {
-                        if let Some(style) = &cell.style {
-                            cell_class.push_str(style);
-                        }
+                    if let Some(cell) = cell
+                        && let Some(style) = &cell.style
+                    {
+                        cell_class.push_str(style);
                     }
 
                     row_cells.push(

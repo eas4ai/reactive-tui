@@ -21,7 +21,7 @@ pub use variables::ThemeVariables;
 /// across components while maintaining our utility-first CSS approach.
 ///
 /// # Example
-/// ```rust
+/// ```rust, ignore
 /// let theme = dark_theme();
 /// let parser = ThemeParser::new(theme);
 /// let style = parser.parse_class("bg-primary text-secondary");

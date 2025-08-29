@@ -128,6 +128,7 @@ impl SyntaxHighlighter {
 
         let mut result = Vec::new();
 
+        #[allow(clippy::needless_range_loop)]
         for line_num in start_line..end_line.min(lines.len()) {
             // Check cache first
             if let Some(cached) = &self.cached_lines[line_num] {

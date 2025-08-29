@@ -126,13 +126,12 @@ impl QuadNode {
 
     fn insert(&mut self, node_id: NodeId, bounds: Bounds, z_index: i32, depth: usize) {
         // If we have children, try to insert into them
-        if self.children.is_some() {
-            if let Some(index) = self.get_child_index(&bounds) {
-                if let Some(children) = &mut self.children {
-                    children[index].insert(node_id, bounds, z_index, depth + 1);
-                    return;
-                }
-            }
+        if self.children.is_some()
+            && let Some(index) = self.get_child_index(&bounds)
+            && let Some(children) = &mut self.children
+        {
+            children[index].insert(node_id, bounds, z_index, depth + 1);
+            return;
         }
 
         // Add to this node

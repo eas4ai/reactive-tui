@@ -7,14 +7,71 @@ use taffy::style::{
     TrackSizingFunction,
 };
 
-/// RGBA color tuple (r, g, b, a)
-pub type RgbaColor = (f32, f32, f32, f32);
+/// RGBA color using the standard Surface Rgba type
+pub type RgbaColor = crate::core::surface::Rgba;
 
-/// Text decoration flags (bold, italic, underline, reverse)
-pub type TextDecorations = (bool, bool, bool, bool);
+/// Text decoration flags
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct TextDecorations {
+    pub bold: bool,
+    pub italic: bool,
+    pub underline: bool,
+    pub reverse: bool,
+}
 
 /// Visual style data containing foreground color, background color, and text decorations
-pub type VisualStyle = (RgbaColor, RgbaColor, TextDecorations);
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct VisualStyle {
+    pub fg: RgbaColor,
+    pub bg: RgbaColor,
+    pub decorations: TextDecorations,
+}
+
+/// Box model spacing (left, right, top, bottom)
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct BoxSpacing {
+    pub left: f32,
+    pub right: f32,
+    pub top: f32,
+    pub bottom: f32,
+}
+
+impl BoxSpacing {
+    pub fn new(left: f32, right: f32, top: f32, bottom: f32) -> Self {
+        Self {
+            left,
+            right,
+            top,
+            bottom,
+        }
+    }
+
+    pub fn uniform(value: f32) -> Self {
+        Self {
+            left: value,
+            right: value,
+            top: value,
+            bottom: value,
+        }
+    }
+
+    pub fn symmetric(horizontal: f32, vertical: f32) -> Self {
+        Self {
+            left: horizontal,
+            right: horizontal,
+            top: vertical,
+            bottom: vertical,
+        }
+    }
+
+    pub fn horizontal(&self) -> f32 {
+        self.left + self.right
+    }
+
+    pub fn vertical(&self) -> f32 {
+        self.top + self.bottom
+    }
+}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Direction {
@@ -333,25 +390,46 @@ impl StyleBuilder {
         let fg = self.fg_rgba.take().unwrap_or((1.0, 1.0, 1.0, 1.0));
         let bg = self.bg_rgba.take().unwrap_or((0.0, 0.0, 0.0, 1.0));
 
-        let attrs = (self.bold, self.italic, self.underline, self.reverse);
-        Some((fg, bg, attrs))
+        let decorations = TextDecorations {
+            bold: self.bold,
+            italic: self.italic,
+            underline: self.underline,
+            reverse: self.reverse,
+        };
+
+        Some(VisualStyle {
+            fg: crate::core::surface::Rgba {
+                r: fg.0,
+                g: fg.1,
+                b: fg.2,
+                a: fg.3,
+            },
+            bg: crate::core::surface::Rgba {
+                r: bg.0,
+                g: bg.1,
+                b: bg.2,
+                a: bg.3,
+            },
+            decorations,
+        })
     }
 
-    pub fn pad_cache(&self) -> (f32, f32, f32, f32) {
-        (
-            self.pad_l.unwrap_or(0.0),
-            self.pad_r.unwrap_or(0.0),
-            self.pad_t.unwrap_or(0.0),
-            self.pad_b.unwrap_or(0.0),
-        )
+    pub fn pad_cache(&self) -> BoxSpacing {
+        BoxSpacing {
+            left: self.pad_l.unwrap_or(0.0),
+            right: self.pad_r.unwrap_or(0.0),
+            top: self.pad_t.unwrap_or(0.0),
+            bottom: self.pad_b.unwrap_or(0.0),
+        }
     }
-    pub fn mar_cache(&self) -> (f32, f32, f32, f32) {
-        (
-            self.mar_l.unwrap_or(0.0),
-            self.mar_r.unwrap_or(0.0),
-            self.mar_t.unwrap_or(0.0),
-            self.mar_b.unwrap_or(0.0),
-        )
+
+    pub fn mar_cache(&self) -> BoxSpacing {
+        BoxSpacing {
+            left: self.mar_l.unwrap_or(0.0),
+            right: self.mar_r.unwrap_or(0.0),
+            top: self.mar_t.unwrap_or(0.0),
+            bottom: self.mar_b.unwrap_or(0.0),
+        }
     }
 
     pub fn grid_cols(mut self, n: u16) -> Self {

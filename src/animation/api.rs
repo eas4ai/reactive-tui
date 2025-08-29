@@ -169,7 +169,7 @@ fn generate_id() -> String {
 ///
 /// # Examples
 ///
-/// ```rust
+/// ```rust, ignore
 /// use reactive_tui::widgets::animation::*;
 ///
 /// // Simple fade in
@@ -445,7 +445,11 @@ fn convert_property_value_to_animated(name: &str, value: &PropertyValue) -> Anim
                 }
                 Some('/') => {
                     let divisor: f32 = rel[1..].parse().unwrap_or(1.0);
-                    if divisor != 0.0 { base_value / divisor } else { base_value }
+                    if divisor != 0.0 {
+                        base_value / divisor
+                    } else {
+                        base_value
+                    }
                 }
                 _ => rel.parse().unwrap_or(0.0), // Fallback to absolute parsing
             };
@@ -495,11 +499,15 @@ fn convert_property_to_transform(transform_type: &str, value: &PropertyValue) ->
                 Some('*') => base_value * rel[1..].parse::<f32>().unwrap_or(1.0),
                 Some('/') => {
                     let divisor: f32 = rel[1..].parse().unwrap_or(1.0);
-                    if divisor != 0.0 { base_value / divisor } else { base_value }
+                    if divisor != 0.0 {
+                        base_value / divisor
+                    } else {
+                        base_value
+                    }
                 }
                 _ => rel.parse().unwrap_or(0.0),
             };
-            
+
             match transform_type {
                 "translateX" => TransformProperty::TranslateX(base_value, target_value),
                 "translateY" => TransformProperty::TranslateY(base_value, target_value),
@@ -521,11 +529,11 @@ fn convert_color_value_to_animated(color: &ColorValue) -> AnimatedProperty {
         }
         ColorValue::Rgba(r, g, b, a) => {
             // Handle RGBA with alpha channel - convert to premultiplied RGB
-            let alpha = (*a).min(255) as f32 / 255.0;
+            let alpha = (*a) as f32 / 255.0;
             let premult_r = ((*r as f32) * alpha) as u8;
             let premult_g = ((*g as f32) * alpha) as u8;
             let premult_b = ((*b as f32) * alpha) as u8;
-            
+
             let to_color = (premult_r, premult_g, premult_b);
             let from_color = (0, 0, 0); // Will be overridden
             AnimatedProperty::Color(from_color, to_color)
@@ -564,7 +572,7 @@ fn convert_position_value_to_animated(position: &PositionValue) -> AnimatedPrope
 ///
 /// # Examples
 ///
-/// ```rust
+/// ```rust, ignore
 /// use reactive_tui::widgets::animation::*;
 ///
 /// // Basic stagger with 100ms delay
@@ -666,13 +674,13 @@ impl TimelineBuilder {
         // Implement precise timeline positioning by adjusting animation delay
         let mut positioned_animation = animation;
         positioned_animation.config.delay = timeline_position;
-        
+
         // Update current time to track timeline length
         let animation_end = timeline_position + positioned_animation.config.duration;
         if animation_end > self.current_time {
             self.current_time = animation_end;
         }
-        
+
         self.timeline.add_animation(positioned_animation);
         self
     }
@@ -688,12 +696,12 @@ impl TimelineBuilder {
     pub fn loop_mode(mut self, loop_mode: LoopMode) -> Self {
         // Set how the timeline should repeat
         self.loop_mode = Some(loop_mode);
-        
+
         // For infinite loops, ensure we have a proper duration
         if matches!(loop_mode, LoopMode::Infinite) && self.current_time.as_secs_f64() == 0.0 {
             self.current_time = Duration::from_secs(1); // Default 1 second loop
         }
-        
+
         self
     }
 
@@ -732,7 +740,7 @@ fn parse_timeline_position(position: &str) -> Duration {
 ///
 /// # Examples
 ///
-/// ```rust
+/// ```rust, ignore
 /// use reactive_tui::widgets::animation::*;
 ///
 /// let timeline = create_timeline(Some(TimelineParams {

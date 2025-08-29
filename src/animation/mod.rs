@@ -1109,10 +1109,10 @@ impl Animation {
         }
 
         // Handle delay
-        if let Some(start_time) = self.start_time {
-            if start_time.elapsed() < self.config.delay {
-                return false;
-            }
+        if let Some(start_time) = self.start_time
+            && start_time.elapsed() < self.config.delay
+        {
+            return false;
         }
 
         // Update time
@@ -1142,10 +1142,10 @@ impl Animation {
         state.current_values = Some(self.property.interpolate(eased_progress));
 
         // Trigger update callback
-        if let Some(callback) = &self.callbacks.on_update {
-            if let Some(ref values) = state.current_values {
-                callback(self, values);
-            }
+        if let Some(callback) = &self.callbacks.on_update
+            && let Some(ref values) = state.current_values
+        {
+            callback(self, values);
         }
 
         // Check for completion
@@ -1183,14 +1183,11 @@ impl Animation {
         // Call callbacks if needed after releasing the lock
         if raw_progress >= 1.0
             && matches!(self.config.loop_mode, LoopMode::None | LoopMode::Count(_))
+            && let Ok(state) = self.state.read()
+            && state.state == AnimationState::Completed
+            && let Some(callback) = &self.callbacks.on_complete
         {
-            if let Ok(state) = self.state.read() {
-                if state.state == AnimationState::Completed {
-                    if let Some(callback) = &self.callbacks.on_complete {
-                        callback(self);
-                    }
-                }
-            }
+            callback(self);
         }
 
         true

@@ -88,7 +88,7 @@ fn test_component_lifecycle() {
 #[test]
 fn test_element_creation() {
     // Test component element
-    let comp = Element::component("MyComponent", TestProps { value: 42 });
+    let comp = Element::component("MyComponent").with_props(TestProps { value: 42 });
     assert!(matches!(comp.element_type, ElementType::Component(name) if name == "MyComponent"));
 
     // Test text element
@@ -113,7 +113,7 @@ fn test_element_creation() {
 
 #[test]
 fn test_element_builder_pattern() {
-    let element = Element::component("Container", ())
+    let element = Element::component("Container")
         .with_key("container-1")
         .with_child(Element::text("Child 1"))
         .with_children(vec![Element::text("Child 2"), Element::text("Child 3")]);
@@ -136,7 +136,8 @@ fn test_element_equality() {
 
 #[test]
 fn test_element_clone() {
-    let original = Element::component("Test", TestProps { value: 123 })
+    let original = Element::component("Test")
+        .with_props(TestProps { value: 123 })
         .with_key("test-key")
         .with_children(vec![Element::text("Child 1"), Element::text("Child 2")]);
 

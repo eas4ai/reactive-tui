@@ -26,7 +26,8 @@ fn main() -> Result<()> {
     let (width, height) = crossterm::terminal::size()?;
 
     // Create renderer
-    let mut renderer = Renderer::new(width as usize, height as usize)?;
+    let mut renderer = Renderer::new(width as usize, height as usize)
+        .map_err(|e| std::io::Error::other(e.to_string()))?;
 
     // Create syntax highlighter
     let mut highlighter =
@@ -39,7 +40,9 @@ fn main() -> Result<()> {
 
     while running {
         // Begin frame
-        renderer.begin_frame()?;
+        renderer
+            .begin_frame()
+            .map_err(|e| std::io::Error::other(e.to_string()))?;
 
         // Get surface
         let surface = renderer.surface_mut();
@@ -102,7 +105,9 @@ fn main() -> Result<()> {
         }
 
         // End frame
-        renderer.end_frame()?;
+        renderer
+            .end_frame()
+            .map_err(|e| std::io::Error::other(e.to_string()))?;
 
         // Handle input
         if event::poll(Duration::from_millis(100))? {
@@ -115,7 +120,9 @@ fn main() -> Result<()> {
     }
 
     // Cleanup
-    renderer.shutdown()?;
+    renderer
+        .shutdown()
+        .map_err(|e| std::io::Error::other(e.to_string()))?;
 
     Ok(())
 }

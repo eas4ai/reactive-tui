@@ -1,15 +1,17 @@
 use super::instance::AnyComponentInstance;
 use super::{Component, ComponentInstance};
+use crate::error::{RTuiError, Result};
 use std::any::TypeId;
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
+use string_cache::DefaultAtom;
 
 type ComponentFactory = Box<dyn Fn(&dyn std::any::Any) -> AnyComponentInstance + Send + Sync>;
 
 /// Registry for component types, allowing dynamic component creation
 pub struct ComponentRegistry {
     factories: Arc<RwLock<HashMap<TypeId, ComponentFactory>>>,
-    names: Arc<RwLock<HashMap<String, TypeId>>>,
+    names: Arc<RwLock<HashMap<DefaultAtom, TypeId>>>,
 }
 
 impl ComponentRegistry {
@@ -22,13 +24,13 @@ impl ComponentRegistry {
     }
 
     /// Register a component type
-    pub fn register<C>(&self, name: impl Into<String>)
+    pub fn register<C>(&self, name: impl Into<String>) -> Result<()>
     where
         C: Component,
         C::Props: Default,
     {
         let type_id = TypeId::of::<C>();
-        let name = name.into();
+        let name = DefaultAtom::from(name.into());
 
         let factory: ComponentFactory = Box::new(move |props_any| {
             let props = if let Some(props) = props_any.downcast_ref::<C::Props>() {
@@ -41,22 +43,32 @@ impl ComponentRegistry {
             AnyComponentInstance::new(instance)
         });
 
-        self.factories.write().unwrap().insert(type_id, factory);
-        self.names.write().unwrap().insert(name, type_id);
+        self.factories
+            .write()
+            .map_err(|_| RTuiError::internal("Component registry lock poisoned"))?
+            .insert(type_id, factory);
+        self.names
+            .write()
+            .map_err(|_| RTuiError::internal("Component registry lock poisoned"))?
+            .insert(name, type_id);
+        Ok(())
     }
 
     /// Create a component instance by type
-    pub fn create_by_type<C>(&self, props: C::Props) -> Option<ComponentInstance<C>>
+    pub fn create_by_type<C>(&self, props: C::Props) -> Result<Option<ComponentInstance<C>>>
     where
         C: Component,
     {
         let type_id = TypeId::of::<C>();
-        let factories = self.factories.read().unwrap();
+        let factories = self
+            .factories
+            .read()
+            .map_err(|_| RTuiError::internal("Component registry lock poisoned"))?;
 
         if factories.contains_key(&type_id) {
-            Some(ComponentInstance::new(props))
+            Ok(Some(ComponentInstance::new(props)))
         } else {
-            None
+            Ok(None)
         }
     }
 
@@ -65,14 +77,27 @@ impl ComponentRegistry {
         &self,
         name: &str,
         props: &dyn std::any::Any,
-    ) -> Option<AnyComponentInstance> {
-        let names = self.names.read().unwrap();
-        let type_id = names.get(name)?;
+    ) -> Result<Option<AnyComponentInstance>> {
+        let names = self
+            .names
+            .read()
+            .map_err(|_| RTuiError::internal("Component registry lock poisoned"))?;
+        let name_atom = DefaultAtom::from(name);
+        let type_id = match names.get(&name_atom) {
+            Some(id) => id,
+            None => return Ok(None),
+        };
 
-        let factories = self.factories.read().unwrap();
-        let factory = factories.get(type_id)?;
+        let factories = self
+            .factories
+            .read()
+            .map_err(|_| RTuiError::internal("Component registry lock poisoned"))?;
+        let factory = match factories.get(type_id) {
+            Some(f) => f,
+            None => return Ok(None),
+        };
 
-        Some(factory(props))
+        Ok(Some(factory(props)))
     }
 
     /// Create a component instance by TypeId (dynamic typed creation via stored factory)
@@ -80,32 +105,58 @@ impl ComponentRegistry {
         &self,
         type_id: TypeId,
         props: &dyn std::any::Any,
-    ) -> Option<AnyComponentInstance> {
-        let factories = self.factories.read().unwrap();
-        let factory = factories.get(&type_id)?;
-        Some(factory(props))
+    ) -> Result<Option<AnyComponentInstance>> {
+        let factories = self
+            .factories
+            .read()
+            .map_err(|_| RTuiError::internal("Component registry lock poisoned"))?;
+        let factory = match factories.get(&type_id) {
+            Some(f) => f,
+            None => return Ok(None),
+        };
+        Ok(Some(factory(props)))
     }
 
     /// Check if a component type is registered
-    pub fn is_registered<C: Component>(&self) -> bool {
+    pub fn is_registered<C: Component>(&self) -> Result<bool> {
         let type_id = TypeId::of::<C>();
-        self.factories.read().unwrap().contains_key(&type_id)
+        let factories = self
+            .factories
+            .read()
+            .map_err(|_| RTuiError::internal("Component registry lock poisoned"))?;
+        Ok(factories.contains_key(&type_id))
     }
 
     /// Check if a component name is registered
-    pub fn is_name_registered(&self, name: &str) -> bool {
-        self.names.read().unwrap().contains_key(name)
+    pub fn is_name_registered(&self, name: &str) -> Result<bool> {
+        let names = self
+            .names
+            .read()
+            .map_err(|_| RTuiError::internal("Component registry lock poisoned"))?;
+        let name_atom = DefaultAtom::from(name);
+        Ok(names.contains_key(&name_atom))
     }
 
     /// Get all registered component names
-    pub fn registered_names(&self) -> Vec<String> {
-        self.names.read().unwrap().keys().cloned().collect()
+    pub fn registered_names(&self) -> Result<Vec<String>> {
+        let names = self
+            .names
+            .read()
+            .map_err(|_| RTuiError::internal("Component registry lock poisoned"))?;
+        Ok(names.keys().map(|atom| atom.to_string()).collect())
     }
 
     /// Clear all registrations
-    pub fn clear(&self) {
-        self.factories.write().unwrap().clear();
-        self.names.write().unwrap().clear();
+    pub fn clear(&self) -> Result<()> {
+        self.factories
+            .write()
+            .map_err(|_| RTuiError::internal("Component registry lock poisoned"))?
+            .clear();
+        self.names
+            .write()
+            .map_err(|_| RTuiError::internal("Component registry lock poisoned"))?
+            .clear();
+        Ok(())
     }
 }
 
@@ -152,18 +203,22 @@ mod tests {
     fn test_registry() {
         let registry = ComponentRegistry::new();
 
-        registry.register::<TestComponent>("TestComponent");
+        registry.register::<TestComponent>("TestComponent").unwrap();
 
-        assert!(registry.is_registered::<TestComponent>());
-        assert!(registry.is_name_registered("TestComponent"));
+        assert!(registry.is_registered::<TestComponent>().unwrap());
+        assert!(registry.is_name_registered("TestComponent").unwrap());
 
-        let instance = registry.create_by_type::<TestComponent>(EmptyProps);
+        let instance = registry
+            .create_by_type::<TestComponent>(EmptyProps)
+            .unwrap();
         assert!(instance.is_some());
 
-        let any_instance = registry.create_by_name("TestComponent", &EmptyProps);
+        let any_instance = registry
+            .create_by_name("TestComponent", &EmptyProps)
+            .unwrap();
         assert!(any_instance.is_some());
 
-        let names = registry.registered_names();
+        let names = registry.registered_names().unwrap();
         assert_eq!(names.len(), 1);
         assert!(names.contains(&"TestComponent".to_string()));
     }

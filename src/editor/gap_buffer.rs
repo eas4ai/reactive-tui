@@ -5,7 +5,21 @@
 //!
 //! Inspired by r3bl's implementation but adapted for reactive-tui's needs.
 
+use std::fmt;
 use std::ops::Range;
+
+/// Text position as line and column
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct TextPosition {
+    pub line: usize,
+    pub column: usize,
+}
+
+impl TextPosition {
+    pub fn new(line: usize, column: usize) -> Self {
+        Self { line, column }
+    }
+}
 
 /// A gap buffer for efficient text editing
 #[derive(Debug, Clone)]
@@ -40,7 +54,7 @@ impl GapBuffer {
     }
 
     /// Create a gap buffer from a string
-    pub fn from_str(s: &str) -> Self {
+    pub fn from_string(s: &str) -> Self {
         let chars: Vec<char> = s.chars().collect();
         let len = chars.len();
         let capacity = len.max(1024);
@@ -277,11 +291,6 @@ impl GapBuffer {
         result
     }
 
-    /// Get the entire content as a string
-    pub fn to_string(&self) -> String {
-        self.get_range(0..self.len())
-    }
-
     /// Get the number of lines
     pub fn line_count(&self) -> usize {
         self.line_breaks.len() + 1
@@ -321,11 +330,23 @@ impl GapBuffer {
         (line, pos - line_start)
     }
 
+    /// Get text position from a position
+    pub fn pos_to_text_position(&self, pos: usize) -> TextPosition {
+        let (line, col) = self.pos_to_line_col(pos);
+        TextPosition::new(line, col)
+    }
+
     /// Get position from line and column
     pub fn line_col_to_pos(&self, line: usize, col: usize) -> usize {
         let line_start = self.line_start(line);
         let line_end = self.line_end(line);
         (line_start + col).min(line_end)
+    }
+}
+
+impl fmt::Display for GapBuffer {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.get_range(0..self.len()))
     }
 }
 
@@ -383,28 +404,28 @@ mod tests {
 
     #[test]
     fn test_from_string() {
-        let buffer = GapBuffer::from_str("Hello, World!");
+        let buffer = GapBuffer::from_string("Hello, World!");
         assert_eq!(buffer.len(), 13);
         assert_eq!(buffer.to_string(), "Hello, World!");
     }
 
     #[test]
     fn test_insert_char() {
-        let mut buffer = GapBuffer::from_str("Hello World");
+        let mut buffer = GapBuffer::from_string("Hello World");
         buffer.insert_char(5, ',');
         assert_eq!(buffer.to_string(), "Hello, World");
     }
 
     #[test]
     fn test_insert_string() {
-        let mut buffer = GapBuffer::from_str("Hello!");
+        let mut buffer = GapBuffer::from_string("Hello!");
         buffer.insert_str(5, " World");
         assert_eq!(buffer.to_string(), "Hello World!");
     }
 
     #[test]
     fn test_delete_char() {
-        let mut buffer = GapBuffer::from_str("Hello, World!");
+        let mut buffer = GapBuffer::from_string("Hello, World!");
         let ch = buffer.delete_char(5);
         assert_eq!(ch, Some(','));
         assert_eq!(buffer.to_string(), "Hello World!");
@@ -412,14 +433,14 @@ mod tests {
 
     #[test]
     fn test_delete_range() {
-        let mut buffer = GapBuffer::from_str("Hello, World!");
+        let mut buffer = GapBuffer::from_string("Hello, World!");
         buffer.delete_range(5..7);
         assert_eq!(buffer.to_string(), "HelloWorld!");
     }
 
     #[test]
     fn test_line_operations() {
-        let buffer = GapBuffer::from_str("Line 1\nLine 2\nLine 3");
+        let buffer = GapBuffer::from_string("Line 1\nLine 2\nLine 3");
         assert_eq!(buffer.line_count(), 3);
         assert_eq!(buffer.get_line(0), "Line 1");
         assert_eq!(buffer.get_line(1), "Line 2");
@@ -428,7 +449,7 @@ mod tests {
 
     #[test]
     fn test_line_col_conversion() {
-        let buffer = GapBuffer::from_str("Hello\nWorld\n!");
+        let buffer = GapBuffer::from_string("Hello\nWorld\n!");
 
         assert_eq!(buffer.pos_to_line_col(0), (0, 0));
         assert_eq!(buffer.pos_to_line_col(5), (0, 5));
@@ -451,7 +472,7 @@ mod tests {
 
     #[test]
     fn test_cursor_movement_efficiency() {
-        let mut buffer = GapBuffer::from_str("Hello World");
+        let mut buffer = GapBuffer::from_string("Hello World");
 
         // Simulate typical editing pattern
         buffer.insert_char(5, ','); // O(1) after gap move

@@ -63,11 +63,25 @@ impl PartialEq for Element {
 }
 
 impl Element {
-    /// Create a new component element
-    pub fn component(name: impl Into<String>, props: impl Any + Send + Sync + 'static) -> Self {
+    /// Create a new component element with props
+    pub fn component_with_props(
+        name: impl Into<String>,
+        props: impl Any + Send + Sync + 'static,
+    ) -> Self {
         Self {
             element_type: ElementType::Component(name.into()),
             props: Arc::new(props),
+            children: Vec::new(),
+            key: None,
+            class: None,
+        }
+    }
+
+    /// Create a new component element without props (uses unit type)
+    pub fn component(name: impl Into<String>) -> Self {
+        Self {
+            element_type: ElementType::Component(name.into()),
+            props: Arc::new(()),
             children: Vec::new(),
             key: None,
             class: None,
@@ -156,6 +170,45 @@ impl Element {
     /// Convenience alias for with_class
     pub fn class(self, class: impl Into<String>) -> Self {
         self.with_class(class)
+    }
+
+    /// Set props for this element (builder pattern)
+    pub fn with_props<T: Any + Send + Sync + 'static>(mut self, props: T) -> Self {
+        self.props = Arc::new(props);
+        self
+    }
+
+    /// Convenience alias for with_props
+    pub fn props<T: Any + Send + Sync + 'static>(self, props: T) -> Self {
+        self.with_props(props)
+    }
+
+    /// Builder method to set children (replaces existing)
+    pub fn children(self, children: Vec<Element>) -> Self {
+        self.with_children(children)
+    }
+
+    /// Check if this is a component element
+    pub fn is_component(&self) -> bool {
+        matches!(self.element_type, ElementType::Component(_))
+    }
+
+    /// Get the component name if this is a component element
+    pub fn component_name(&self) -> Option<&str> {
+        match &self.element_type {
+            ElementType::Component(name) => Some(name),
+            _ => None,
+        }
+    }
+
+    /// Get props as Any for downcasting
+    pub fn props_any(&self) -> &Arc<dyn Any + Send + Sync> {
+        &self.props
+    }
+
+    /// Try to downcast props to a specific type
+    pub fn props_as<T: Any>(&self) -> Option<&T> {
+        self.props.downcast_ref::<T>()
     }
 }
 

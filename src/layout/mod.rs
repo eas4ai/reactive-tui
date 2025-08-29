@@ -1,3 +1,4 @@
+use crate::error::{RTuiError, Result};
 use taffy::{AvailableSpace, TaffyTree, geometry::Size, prelude::NodeId, style::Style};
 pub mod colors;
 
@@ -28,22 +29,30 @@ impl LayoutEngine {
     pub fn root(&self) -> NodeId {
         self.root
     }
-    pub fn set_style(&mut self, node: NodeId, style: Style) {
-        self.tree.set_style(node, style).unwrap();
+    pub fn set_style(&mut self, node: NodeId, style: Style) -> Result<()> {
+        self.tree
+            .set_style(node, style)
+            .map_err(|e| RTuiError::layout(format!("Failed to set style: {}", e)))
     }
-    pub fn set_children(&mut self, parent: NodeId, children: &[NodeId]) {
-        self.tree.set_children(parent, children).unwrap();
+    pub fn set_children(&mut self, parent: NodeId, children: &[NodeId]) -> Result<()> {
+        self.tree
+            .set_children(parent, children)
+            .map_err(|e| RTuiError::layout(format!("Failed to set children: {}", e)))
     }
-    pub fn new_leaf(&mut self, style: Style) -> NodeId {
-        self.tree.new_leaf(style).unwrap()
+    pub fn new_leaf(&mut self, style: Style) -> Result<NodeId> {
+        self.tree
+            .new_leaf(style)
+            .map_err(|e| RTuiError::layout(format!("Failed to create leaf: {}", e)))
     }
-    pub fn compute(&mut self, width: Option<f32>) {
+    pub fn compute(&mut self, width: Option<f32>) -> Result<()> {
         let size = Size {
             width: width
                 .map(AvailableSpace::Definite)
                 .unwrap_or(AvailableSpace::MaxContent),
             height: AvailableSpace::MaxContent,
         };
-        self.tree.compute_layout(self.root, size).unwrap();
+        self.tree
+            .compute_layout(self.root, size)
+            .map_err(|e| RTuiError::layout(format!("Failed to compute layout: {}", e)))
     }
 }

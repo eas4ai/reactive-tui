@@ -1,2 +1,30 @@
+# Build artifacts
 /target
+
+# For libraries, Cargo.lock should be committed for reproducible builds
+# Cargo.lock
+
+# Reference materials (keep local only)
 reference/
+
+# Test artifacts
+test_image.png
+*.tmp
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Temporary files
+*.bak
+*.orig

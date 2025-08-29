@@ -1,3 +1,5 @@
+use super::geometry::{Point, Rect, Size};
+
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
 pub struct Rgba {
     pub r: f32,
@@ -38,6 +40,7 @@ impl Rgba {
     }
 }
 
+use crate::error::{RTuiError, Result};
 use bitflags::bitflags;
 bitflags! {
     #[derive(Default, Clone, Copy, Debug, PartialEq, Eq)]
@@ -94,6 +97,21 @@ impl Surface {
             h,
             buf: vec![Cell::default(); w * h],
         }
+    }
+
+    /// Create a new surface with validation
+    pub fn new_validated(w: usize, h: usize) -> Result<Self> {
+        if w == 0 || h == 0 {
+            return Err(RTuiError::invalid_parameter(
+                "Surface dimensions must be greater than 0",
+            ));
+        }
+        if w > 10000 || h > 10000 {
+            return Err(RTuiError::invalid_parameter(
+                "Surface dimensions too large (max 10000x10000)",
+            ));
+        }
+        Ok(Self::new(w, h))
     }
     #[inline]
     fn idx(&self, x: usize, y: usize) -> usize {
@@ -163,6 +181,124 @@ impl Surface {
                 x += 1;
             }
         }
+    }
+
+    /// Write a string at the given point
+    pub fn write_str_at(&mut self, point: Point, s: &str, fg: Rgba, bg: Rgba, attr: Attr) {
+        self.write_str(point.x, point.y, s, fg, bg, attr)
+    }
+
+    /// Set a cell at the given point
+    pub fn set_at(&mut self, point: Point, cell: Cell) {
+        if point.x < self.w && point.y < self.h {
+            self.set(point.x, point.y, cell);
+        }
+    }
+
+    /// Get a cell at the given point
+    pub fn get_at(&self, point: Point) -> Cell {
+        self.get(point.x, point.y)
+    }
+
+    /// Fill a rectangle with a character
+    pub fn fill_rect(&mut self, rect: Rect, ch: char, fg: Rgba, bg: Rgba, attr: Attr) {
+        let bounds = Rect::from_coords(0, 0, self.w, self.h);
+        let rect = rect.clamp(&bounds);
+
+        for y in rect.top()..rect.bottom() {
+            for x in rect.left()..rect.right() {
+                self.set(x, y, Cell { ch, fg, bg, attr });
+            }
+        }
+    }
+
+    /// Clear a rectangular area
+    pub fn clear_rect(&mut self, rect: Rect) {
+        self.fill_rect(rect, ' ', Rgba::white(), Rgba::black(), Attr::empty());
+    }
+
+    /// Get the size of this surface
+    pub fn size(&self) -> Size {
+        Size::new(self.w, self.h)
+    }
+
+    /// Get the bounds of this surface as a Rect
+    pub fn bounds(&self) -> Rect {
+        Rect::from_coords(0, 0, self.w, self.h)
+    }
+
+    /// Write a string with width clipping
+    #[allow(clippy::too_many_arguments)]
+    pub fn write_str_clipped(
+        &mut self,
+        x: usize,
+        y: usize,
+        s: &str,
+        max_width: usize,
+        fg: Rgba,
+        bg: Rgba,
+        attr: Attr,
+    ) {
+        if y >= self.h {
+            return;
+        }
+
+        // If max_width is 0, use surface width as limit
+        let limit = if max_width == 0 {
+            self.w.saturating_sub(x)
+        } else {
+            max_width
+        };
+        let mut used = 0usize;
+
+        for ch in s.chars() {
+            let char_width = unicode_width::UnicodeWidthChar::width(ch).unwrap_or(1);
+            if used + char_width > limit || x + used >= self.w {
+                break;
+            }
+
+            let cell = Cell { ch, fg, bg, attr };
+            self.set(x + used, y, cell);
+            used += char_width;
+
+            // For wide characters, add continuation cell
+            if char_width == 2 && x + used < self.w {
+                self.set(
+                    x + used,
+                    y,
+                    Cell {
+                        ch: ' ',
+                        fg,
+                        bg,
+                        attr,
+                    },
+                );
+                used += 1;
+            }
+        }
+    }
+
+    /// Write text with a PaintStyle
+    pub fn write_text_styled(
+        &mut self,
+        x: usize,
+        y: usize,
+        text: &str,
+        style: &crate::ui::paint::PaintStyle,
+    ) {
+        self.write_str(x, y, text, style.fg, style.bg, style.attr);
+    }
+
+    /// Write clipped text with a PaintStyle
+    pub fn write_text_styled_clipped(
+        &mut self,
+        x: usize,
+        y: usize,
+        text: &str,
+        max_width: usize,
+        style: &crate::ui::paint::PaintStyle,
+    ) {
+        self.write_str_clipped(x, y, text, max_width, style.fg, style.bg, style.attr);
     }
 
     pub fn draw_box(&mut self, x: usize, y: usize, w: usize, h: usize, bg: Option<Rgba>) {

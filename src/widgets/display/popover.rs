@@ -603,20 +603,19 @@ impl Popover {
     ) -> bool {
         match props.trigger {
             PopoverTrigger::Click => {
-                if let Event::Mouse(mouse_event) = event {
-                    if mouse_event.button == MouseButton::Left
-                        && mouse_event.kind == MouseEventKind::Down
+                if let Event::Mouse(mouse_event) = event
+                    && mouse_event.button == MouseButton::Left
+                    && mouse_event.kind == MouseEventKind::Down
+                {
+                    if self.is_point_in_rect(mouse_event.position, state.trigger_rect) {
+                        self.toggle_visibility(props, state);
+                        return true;
+                    } else if props.close_on_outside_click
+                        && state.visible
+                        && !self.is_point_in_rect(mouse_event.position, state.calculated_rect)
                     {
-                        if self.is_point_in_rect(mouse_event.position, state.trigger_rect) {
-                            self.toggle_visibility(props, state);
-                            return true;
-                        } else if props.close_on_outside_click
-                            && state.visible
-                            && !self.is_point_in_rect(mouse_event.position, state.calculated_rect)
-                        {
-                            self.hide_popover(props, state);
-                            return true;
-                        }
+                        self.hide_popover(props, state);
+                        return true;
                     }
                 }
             }

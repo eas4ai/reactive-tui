@@ -1,3 +1,5 @@
+use super::focus::FocusManager;
+use super::hit::HitTest;
 use super::types::{Event, EventTrait};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -78,6 +80,8 @@ pub struct EventRouter {
     nodes: HashMap<NodeId, EventNode>,
     root: Option<NodeId>,
     focus_node: Option<NodeId>,
+    focus_manager: FocusManager,
+    hit_test: HitTest,
 }
 
 impl EventRouter {
@@ -86,6 +90,18 @@ impl EventRouter {
             nodes: HashMap::new(),
             root: None,
             focus_node: None,
+            focus_manager: FocusManager::new(),
+            hit_test: HitTest::new(80.0, 24.0), // Default terminal size
+        }
+    }
+
+    pub fn new_with_size(width: u16, height: u16) -> Self {
+        Self {
+            nodes: HashMap::new(),
+            root: None,
+            focus_node: None,
+            focus_manager: FocusManager::new(),
+            hit_test: HitTest::new(width as f32, height as f32),
         }
     }
 
@@ -118,12 +134,11 @@ impl EventRouter {
     /// Remove an event node and all its descendants
     pub fn remove_node(&mut self, id: NodeId) {
         // Remove from parent's children
-        if let Some(node) = self.nodes.get(&id) {
-            if let Some(parent_id) = node.parent {
-                if let Some(parent) = self.nodes.get_mut(&parent_id) {
-                    parent.children.retain(|&child| child != id);
-                }
-            }
+        if let Some(node) = self.nodes.get(&id)
+            && let Some(parent_id) = node.parent
+            && let Some(parent) = self.nodes.get_mut(&parent_id)
+        {
+            parent.children.retain(|&child| child != id);
         }
 
         // Remove node and all descendants
@@ -227,30 +242,30 @@ impl EventRouter {
 
         // Capture phase - root to target (excluding target)
         for &node_id in &path[..path.len().saturating_sub(1)] {
-            if let Some(node) = self.nodes.get(&node_id) {
-                if let Some(handlers) = node.capture_handlers.get(event_type) {
-                    for handler in handlers {
-                        match (handler.handler)(event) {
-                            EventResult::Consumed => return EventResult::Consumed,
-                            EventResult::Captured => {} // Continue to bubble phase
-                            EventResult::Handled => {}
-                            EventResult::Ignored => {}
-                        }
+            if let Some(node) = self.nodes.get(&node_id)
+                && let Some(handlers) = node.capture_handlers.get(event_type)
+            {
+                for handler in handlers {
+                    match (handler.handler)(event) {
+                        EventResult::Consumed => return EventResult::Consumed,
+                        EventResult::Captured => {} // Continue to bubble phase
+                        EventResult::Handled => {}
+                        EventResult::Ignored => {}
                     }
                 }
             }
         }
 
         // Target phase
-        if let Some(node) = self.nodes.get(&target_id) {
-            if let Some(handlers) = node.handlers.get(event_type) {
-                for handler in handlers {
-                    match (handler.handler)(event) {
-                        EventResult::Consumed => return EventResult::Consumed,
-                        EventResult::Captured => {} // Captured only meaningful in capture phase
-                        EventResult::Handled => {}
-                        EventResult::Ignored => {}
-                    }
+        if let Some(node) = self.nodes.get(&target_id)
+            && let Some(handlers) = node.handlers.get(event_type)
+        {
+            for handler in handlers {
+                match (handler.handler)(event) {
+                    EventResult::Consumed => return EventResult::Consumed,
+                    EventResult::Captured => {} // Captured only meaningful in capture phase
+                    EventResult::Handled => {}
+                    EventResult::Ignored => {}
                 }
             }
         }
@@ -267,16 +282,16 @@ impl EventRouter {
 
         if bubbles {
             for &node_id in path.iter().rev().skip(1) {
-                if let Some(node) = self.nodes.get(&node_id) {
-                    if let Some(handlers) = node.handlers.get(event_type) {
-                        for handler in handlers {
-                            if handler.phase == EventPhase::Bubble {
-                                match (handler.handler)(event) {
-                                    EventResult::Consumed => return EventResult::Consumed,
-                                    EventResult::Captured => {} // Captured only meaningful in capture phase
-                                    EventResult::Handled => {}
-                                    EventResult::Ignored => {}
-                                }
+                if let Some(node) = self.nodes.get(&node_id)
+                    && let Some(handlers) = node.handlers.get(event_type)
+                {
+                    for handler in handlers {
+                        if handler.phase == EventPhase::Bubble {
+                            match (handler.handler)(event) {
+                                EventResult::Consumed => return EventResult::Consumed,
+                                EventResult::Captured => {} // Captured only meaningful in capture phase
+                                EventResult::Handled => {}
+                                EventResult::Ignored => {}
                             }
                         }
                     }
@@ -321,6 +336,101 @@ impl EventRouter {
     /// Get the currently focused node
     pub fn get_focus(&self) -> Option<NodeId> {
         self.focus_node
+    }
+
+    /// Process an event - THE central event processing method
+    pub fn process_event(&mut self, event: &Event) -> EventResult {
+        // 1. Handle system events first (focus traversal, etc.)
+        if let Some(result) = self.handle_system_event(event) {
+            return result;
+        }
+
+        // 2. Determine target node
+        let target = self.determine_target(event);
+
+        // 3. Route the event
+        self.route_event(event, target)
+    }
+
+    /// Handle system-level events (focus traversal, global shortcuts)
+    fn handle_system_event(&mut self, event: &Event) -> Option<EventResult> {
+        match event {
+            Event::Key(key_event) => {
+                use super::types::KeyCode;
+                if key_event.code == KeyCode::Tab {
+                    if key_event.modifiers.shift {
+                        if let Some(id) = self.focus_manager.focus_previous() {
+                            self.set_focus(Some(id));
+                            return Some(EventResult::Handled);
+                        }
+                    } else if let Some(id) = self.focus_manager.focus_next() {
+                        self.set_focus(Some(id));
+                        return Some(EventResult::Handled);
+                    }
+                }
+            }
+            Event::Resize(resize_event) => {
+                self.hit_test
+                    .resize(resize_event.width as f32, resize_event.height as f32);
+                return Some(EventResult::Handled);
+            }
+            _ => {}
+        }
+        None
+    }
+
+    /// Determine the target node for an event
+    fn determine_target(&self, event: &Event) -> NodeId {
+        match event {
+            Event::Mouse(mouse_event) => {
+                // Use hit testing for mouse events
+                let point = super::hit::Point::new(
+                    mouse_event.position.x() as f32,
+                    mouse_event.position.y() as f32,
+                );
+
+                if let Some(node_id) = self.hit_test.hit_test(point) {
+                    node_id
+                } else {
+                    // Default to root or focused node
+                    self.focus_node.or(self.root).unwrap_or_default()
+                }
+            }
+            _ => {
+                // For keyboard and other events, use focused node or root
+                self.focus_node.or(self.root).unwrap_or_default()
+            }
+        }
+    }
+
+    /// Add a node to hit testing (for mouse events)
+    pub fn add_hit_target(&mut self, node_id: NodeId, bounds: super::hit::Bounds, z_index: i32) {
+        self.hit_test.update_bounds(node_id, bounds, z_index);
+    }
+
+    /// Remove a node from hit testing
+    pub fn remove_hit_target(&mut self, node_id: NodeId) {
+        self.hit_test.remove_node(node_id);
+    }
+
+    /// Add a focusable node
+    pub fn add_focusable(&mut self, node_id: NodeId) {
+        self.focus_manager.register_focusable(node_id, None, true);
+    }
+
+    /// Remove a focusable node
+    pub fn remove_focusable(&mut self, node_id: NodeId) {
+        self.focus_manager.unregister_focusable(node_id);
+    }
+
+    /// Get the root node
+    pub fn root(&self) -> Option<NodeId> {
+        self.root
+    }
+
+    /// Set the root node
+    pub fn set_root(&mut self, node_id: NodeId) {
+        self.root = Some(node_id);
     }
 }
 

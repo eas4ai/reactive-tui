@@ -4,6 +4,7 @@
 
 use super::cursor::{Cursor, Movement};
 use super::gap_buffer::GapBuffer;
+use crate::core::geometry::{Point, Size};
 use crate::core::styled_text::{StyledLine, StyledRun};
 use crate::core::surface::{Attr, Cell, Rgba, Surface};
 use std::ops::Range;
@@ -47,7 +48,7 @@ impl TextEditor {
     /// Create a text editor with initial content
     pub fn with_content(content: &str) -> Self {
         Self {
-            buffer: GapBuffer::from_str(content),
+            buffer: GapBuffer::from_string(content),
             cursor: Cursor::new(),
             scroll_offset: 0,
             width: 80,
@@ -62,6 +63,12 @@ impl TextEditor {
     pub fn set_size(&mut self, width: usize, height: usize) {
         self.width = width;
         self.height = height;
+    }
+
+    /// Set editor viewport using Size
+    pub fn set_viewport(&mut self, size: Size) {
+        self.width = size.width;
+        self.height = size.height;
     }
 
     /// Enable or disable line numbers
@@ -81,7 +88,7 @@ impl TextEditor {
 
     /// Set the content
     pub fn set_content(&mut self, content: &str) {
-        self.buffer = GapBuffer::from_str(content);
+        self.buffer = GapBuffer::from_string(content);
         self.cursor = Cursor::new();
         self.scroll_offset = 0;
     }
@@ -169,6 +176,11 @@ impl TextEditor {
         start..end
     }
 
+    /// Render to a surface at a point
+    pub fn render_at(&self, surface: &mut Surface, origin: Point) {
+        self.render(surface, origin.x, origin.y)
+    }
+
     /// Render to a surface
     pub fn render(&self, surface: &mut Surface, x: usize, y: usize) {
         let text_fg = Rgba {
@@ -242,10 +254,11 @@ impl TextEditor {
                 let attr = Attr::empty();
 
                 // Check if character is in selection
-                if let Some((sel_start, sel_end)) = selection_range {
-                    if pos >= sel_start && pos < sel_end {
-                        bg = selection_bg;
-                    }
+                if let Some((sel_start, sel_end)) = selection_range
+                    && pos >= sel_start
+                    && pos < sel_end
+                {
+                    bg = selection_bg;
                 }
 
                 // Check if this is cursor position
@@ -266,24 +279,25 @@ impl TextEditor {
             }
 
             // Show cursor at end of line if needed
-            if cursor_pos == line_end && line_idx == self.buffer.pos_to_line_col(cursor_pos).0 {
-                if current_x < x + self.width {
-                    surface.set(
-                        current_x,
-                        current_y,
-                        Cell {
-                            ch: ' ',
-                            fg: Rgba {
-                                r: 0.0,
-                                g: 0.0,
-                                b: 0.0,
-                                a: 1.0,
-                            },
-                            bg: cursor_bg,
-                            attr: Attr::empty(),
+            if cursor_pos == line_end
+                && line_idx == self.buffer.pos_to_line_col(cursor_pos).0
+                && current_x < x + self.width
+            {
+                surface.set(
+                    current_x,
+                    current_y,
+                    Cell {
+                        ch: ' ',
+                        fg: Rgba {
+                            r: 0.0,
+                            g: 0.0,
+                            b: 0.0,
+                            a: 1.0,
                         },
-                    );
-                }
+                        bg: cursor_bg,
+                        attr: Attr::empty(),
+                    },
+                );
             }
 
             current_y += 1;

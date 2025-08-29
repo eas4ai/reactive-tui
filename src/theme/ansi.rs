@@ -53,7 +53,7 @@ pub fn hex_to_ansi256(hex: &str) -> Option<u8> {
 pub fn rgb_to_ansi16(r: u8, g: u8, b: u8) -> u8 {
     // Find dominant color channel and brightness
     let max = cmp::max(r, cmp::max(g, b));
-    let is_bright = max > 192;  // Only consider truly bright colors
+    let is_bright = max > 192; // Only consider truly bright colors
     let threshold = 64;
 
     // Black/Gray/White detection

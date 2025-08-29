@@ -140,10 +140,10 @@ impl AdaptiveFpsManager {
     /// Benchmark rendering performance (lazy, cached)
     pub fn benchmark_if_needed(&mut self, tree: &RenderTree) {
         // Check if we have recent benchmark results
-        if let Some(ref cache) = self.benchmark_cache {
-            if cache.timestamp.elapsed() < Duration::from_secs(60) {
-                return; // Use cached results
-            }
+        if let Some(ref cache) = self.benchmark_cache
+            && cache.timestamp.elapsed() < Duration::from_secs(60)
+        {
+            return; // Use cached results
         }
 
         // Simple benchmark: measure tree traversal time
@@ -184,7 +184,9 @@ impl AdaptiveFpsManager {
     /// Simulate rendering for benchmarking
     fn simulate_render(&self, tree: &RenderTree) {
         fn walk_node(node: &dyn crate::render::tree::RenderNode, depth: usize, budget: &mut u64) {
-            if depth > 64 { return; } // safety cap
+            if depth > 64 {
+                return;
+            } // safety cap
             // Simulate some layout/paint work proportional to children
             *budget += 1;
             for child in node.children() {

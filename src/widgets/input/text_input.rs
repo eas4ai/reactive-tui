@@ -266,10 +266,11 @@ impl TextInput {
         match event.code {
             KeyCode::Char(c) => {
                 // Check max length
-                if let Some(max_len) = props.max_length {
-                    if props.value.len() >= max_len && state.selection_start.is_none() {
-                        return EventResult::Consumed;
-                    }
+                if let Some(max_len) = props.max_length
+                    && props.value.len() >= max_len
+                    && state.selection_start.is_none()
+                {
+                    return EventResult::Consumed;
                 }
 
                 // Delete selection if exists

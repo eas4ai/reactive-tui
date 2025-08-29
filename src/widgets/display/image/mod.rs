@@ -1,0 +1,283 @@
+//! Image widget with multi-backend rendering support
+//!
+//! Provides comprehensive image display capabilities for terminal applications,
+//! supporting multiple rendering backends including sixel, external tools, and
+//! terminal-specific protocols.
+
+mod external_renderer;
+mod image_processor;
+mod protocol_renderer;
+mod sixel_renderer;
+
+pub use external_renderer::ExternalRenderer;
+pub use image_processor::ImageProcessor;
+pub use protocol_renderer::ProtocolRenderer;
+pub use sixel_renderer::SixelRenderer;
+
+use crate::core::surface::Rgba;
+use crate::error::Result;
+use std::path::PathBuf;
+
+/// Image widget for displaying images in terminal applications
+#[derive(Debug, Clone)]
+pub struct Image {
+    pub source: ImageSource,
+    pub display_mode: ImageDisplayMode,
+    pub size_constraints: Option<(u32, u32)>,
+    pub preserve_aspect: bool,
+    pub fallback_text: Option<String>,
+    pub background_color: Option<Rgba>,
+    pub quality: ImageQuality,
+}
+
+/// Source of image data
+#[derive(Debug, Clone)]
+pub enum ImageSource {
+    /// Load image from file path
+    FilePath(PathBuf),
+    /// Image data as base64 encoded string
+    Base64Data(String),
+    /// Raw image bytes with format information
+    RawBytes {
+        data: Vec<u8>,
+        width: u32,
+        height: u32,
+        format: ImageFormat,
+    },
+    /// URL for future HTTP support
+    Url(String),
+}
+
+/// Supported image formats
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ImageFormat {
+    RGB888,
+    RGBA8888,
+    PNG,
+    JPEG,
+    GIF,
+    BMP,
+    TIFF,
+}
+
+/// Image display rendering mode
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ImageDisplayMode {
+    /// Automatically select the best available method
+    Auto,
+    /// Use sixel graphics protocol (native terminal graphics)
+    Sixel,
+    /// Use external chafa renderer
+    Chafa,
+    /// Use external viu renderer
+    Viu,
+    /// Use Kitty graphics protocol
+    KittyGraphics,
+    /// Use iTerm2 inline images protocol
+    ITerm2Inline,
+    /// Convert to ASCII art
+    AsciiArt,
+    /// Show fallback text only
+    Fallback,
+}
+
+/// Image rendering quality settings
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ImageQuality {
+    /// Fast rendering with lower quality
+    Fast,
+    /// Balanced quality and performance
+    Balanced,
+    /// High quality rendering (slower)
+    High,
+}
+
+/// Terminal image rendering capabilities
+#[derive(Debug, Clone)]
+pub struct ImageCapabilities {
+    pub sixel: bool,
+    pub kitty_graphics: bool,
+    pub iterm2_inline: bool,
+    pub chafa_available: bool,
+    pub viu_available: bool,
+}
+
+impl Default for Image {
+    fn default() -> Self {
+        Self {
+            source: ImageSource::FilePath(PathBuf::new()),
+            display_mode: ImageDisplayMode::Auto,
+            size_constraints: None,
+            preserve_aspect: true,
+            fallback_text: Some("📷 [Image]".to_string()),
+            background_color: None,
+            quality: ImageQuality::Balanced,
+        }
+    }
+}
+
+impl Image {
+    /// Create a new image widget from a file path
+    pub fn from_file<P: Into<PathBuf>>(path: P) -> Self {
+        Self {
+            source: ImageSource::FilePath(path.into()),
+            ..Default::default()
+        }
+    }
+
+    /// Create a new image widget from base64 data
+    pub fn from_base64<S: Into<String>>(data: S) -> Self {
+        Self {
+            source: ImageSource::Base64Data(data.into()),
+            ..Default::default()
+        }
+    }
+
+    /// Create a new image widget from raw bytes
+    pub fn from_raw_bytes(data: Vec<u8>, width: u32, height: u32, format: ImageFormat) -> Self {
+        Self {
+            source: ImageSource::RawBytes {
+                data,
+                width,
+                height,
+                format,
+            },
+            ..Default::default()
+        }
+    }
+
+    /// Set the display mode
+    pub fn with_display_mode(mut self, mode: ImageDisplayMode) -> Self {
+        self.display_mode = mode;
+        self
+    }
+
+    /// Set size constraints (max width, max height)
+    pub fn with_max_size(mut self, width: u32, height: u32) -> Self {
+        self.size_constraints = Some((width, height));
+        self
+    }
+
+    /// Set whether to preserve aspect ratio
+    pub fn with_preserve_aspect(mut self, preserve: bool) -> Self {
+        self.preserve_aspect = preserve;
+        self
+    }
+
+    /// Set fallback text when image cannot be displayed
+    pub fn with_fallback_text<S: Into<String>>(mut self, text: S) -> Self {
+        self.fallback_text = Some(text.into());
+        self
+    }
+
+    /// Set background color
+    pub fn with_background_color(mut self, color: Rgba) -> Self {
+        self.background_color = Some(color);
+        self
+    }
+
+    /// Set rendering quality
+    pub fn with_quality(mut self, quality: ImageQuality) -> Self {
+        self.quality = quality;
+        self
+    }
+
+    /// Render the image using the best available method
+    pub fn render(&self, capabilities: &ImageCapabilities) -> Result<String> {
+        let mode = match self.display_mode {
+            ImageDisplayMode::Auto => self.select_best_mode(capabilities),
+            mode => mode,
+        };
+
+        match mode {
+            ImageDisplayMode::Sixel if capabilities.sixel => self.render_sixel(),
+            ImageDisplayMode::Chafa if capabilities.chafa_available => self.render_chafa(),
+            ImageDisplayMode::Viu if capabilities.viu_available => self.render_viu(),
+            ImageDisplayMode::KittyGraphics if capabilities.kitty_graphics => self.render_kitty(),
+            ImageDisplayMode::ITerm2Inline if capabilities.iterm2_inline => self.render_iterm2(),
+            ImageDisplayMode::AsciiArt => self.render_ascii(),
+            _ => self.render_fallback(),
+        }
+    }
+
+    fn select_best_mode(&self, capabilities: &ImageCapabilities) -> ImageDisplayMode {
+        // Priority order based on quality and compatibility
+        if capabilities.sixel {
+            ImageDisplayMode::Sixel
+        } else if capabilities.kitty_graphics {
+            ImageDisplayMode::KittyGraphics
+        } else if capabilities.iterm2_inline {
+            ImageDisplayMode::ITerm2Inline
+        } else if capabilities.chafa_available {
+            ImageDisplayMode::Chafa
+        } else if capabilities.viu_available {
+            ImageDisplayMode::Viu
+        } else {
+            ImageDisplayMode::AsciiArt
+        }
+    }
+
+    pub fn render_fallback(&self) -> Result<String> {
+        Ok(self
+            .fallback_text
+            .as_deref()
+            .unwrap_or("📷 [Image not supported]")
+            .to_string())
+    }
+
+    fn render_sixel(&self) -> Result<String> {
+        let renderer = SixelRenderer::new();
+        renderer.render_image(self)
+    }
+
+    fn render_chafa(&self) -> Result<String> {
+        let renderer = ExternalRenderer::new();
+        renderer.render_with_chafa(self)
+    }
+
+    fn render_viu(&self) -> Result<String> {
+        let renderer = ExternalRenderer::new();
+        renderer.render_with_viu(self)
+    }
+
+    fn render_kitty(&self) -> Result<String> {
+        let renderer = ProtocolRenderer::new();
+        renderer.render_kitty_graphics(self)
+    }
+
+    fn render_iterm2(&self) -> Result<String> {
+        let renderer = ProtocolRenderer::new();
+        renderer.render_iterm2_inline(self)
+    }
+
+    fn render_ascii(&self) -> Result<String> {
+        let processor = ImageProcessor::new();
+        processor.to_ascii_art(self)
+    }
+}
+
+impl ImageFormat {
+    /// Get the number of bytes per pixel for this format
+    pub fn bytes_per_pixel(&self) -> usize {
+        match self {
+            ImageFormat::RGB888 => 3,
+            ImageFormat::RGBA8888 => 4,
+            ImageFormat::PNG
+            | ImageFormat::JPEG
+            | ImageFormat::GIF
+            | ImageFormat::BMP
+            | ImageFormat::TIFF => {
+                // These are compressed formats, actual bytes per pixel varies
+                4 // Assume RGBA when decompressed
+            }
+        }
+    }
+
+    /// Check if this format supports transparency
+    pub fn has_alpha(&self) -> bool {
+        matches!(
+            self,
+            ImageFormat::RGBA8888 | ImageFormat::PNG | ImageFormat::GIF
+        )
+    }
+}

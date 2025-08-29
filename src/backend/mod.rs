@@ -1,4 +1,4 @@
-use std::io::Result;
+use crate::error::Result;
 
 use crate::component::Element;
 use crate::core::renderer::Renderer;
@@ -40,25 +40,25 @@ pub fn paint_render_node_linear(
     use crate::component::ElementType;
     use crate::core::surface::{Attr, Rgba};
     let mut cur_y = y;
-    if let Some(el) = node.as_element() {
-        if let ElementType::Text(s) = &el.element_type {
-            let fg = Rgba {
-                r: 1.0,
-                g: 1.0,
-                b: 1.0,
-                a: 1.0,
-            };
-            let bg = Rgba {
-                r: 0.0,
-                g: 0.0,
-                b: 0.0,
-                a: 1.0,
-            };
-            for (i, line) in s.lines().enumerate() {
-                surface.write_str(x, cur_y + i, line, fg, bg, Attr::empty());
-            }
-            cur_y += s.lines().count().max(1);
+    if let Some(el) = node.as_element()
+        && let ElementType::Text(s) = &el.element_type
+    {
+        let fg = Rgba {
+            r: 1.0,
+            g: 1.0,
+            b: 1.0,
+            a: 1.0,
+        };
+        let bg = Rgba {
+            r: 0.0,
+            g: 0.0,
+            b: 0.0,
+            a: 1.0,
+        };
+        for (i, line) in s.lines().enumerate() {
+            surface.write_str(x, cur_y + i, line, fg, bg, Attr::empty());
         }
+        cur_y += s.lines().count().max(1);
     }
     for child in node.children() {
         cur_y = paint_render_node_linear(surface, child.as_ref(), x, cur_y);
@@ -82,7 +82,8 @@ impl CrosstermBackend {
         // Determine terminal size and initialize renderer buffers
         let (cols, rows) = crossterm::terminal::size().unwrap_or((80, 24));
         // Map cells to pixel-like surface width/height; for now treat as cells
-        let renderer = Renderer::new(cols as usize, rows as usize)?;
+        let renderer = Renderer::new(cols as usize, rows as usize)
+            .map_err(|e| std::io::Error::other(e.to_string()))?;
         let grapheme_surface = GraphemeSurface::new(cols as usize, rows as usize);
         Ok(Self {
             renderer,
@@ -444,8 +445,13 @@ impl Backend for CrosstermBackend {
             self.present_with_render_ops()
         } else {
             // Use the original renderer
-            self.renderer.begin_frame()?;
-            self.renderer.end_frame()
+            self.renderer
+                .begin_frame()
+                .map_err(|e| std::io::Error::other(e.to_string()))?;
+            Ok(self
+                .renderer
+                .end_frame()
+                .map_err(|e| std::io::Error::other(e.to_string()))?)
         }
     }
 
@@ -521,12 +527,12 @@ impl DebugBackend {
     }
 
     /// Find the position of a character on the screen
-    pub fn find_char(&self, ch: char) -> Option<(usize, usize)> {
+    pub fn find_char(&self, ch: char) -> Option<crate::core::geometry::Point> {
         let (w, h) = self.virtual_screen.dims();
         for y in 0..h {
             for x in 0..w {
                 if self.virtual_screen.get(x, y).ch == ch {
-                    return Some((x, y));
+                    return Some(crate::core::geometry::Point::new(x, y));
                 }
             }
         }

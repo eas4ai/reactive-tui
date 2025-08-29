@@ -1,5 +1,5 @@
 use crate::display::monitor::{PerformanceMetrics, PerformanceMode};
-use crate::hooks::fps::{FrameTiming, FpsState};
+use crate::hooks::fps::{FpsState, FrameTiming};
 use crate::reactive::hooks::ThreadSafeSignal;
 use std::sync::{Arc, Mutex, RwLock};
 
@@ -40,4 +40,3 @@ pub fn take_requested_performance_mode() -> Option<PerformanceMode> {
     let mut guard = REQUESTED_MODE.lock().unwrap();
     guard.take()
 }
-
