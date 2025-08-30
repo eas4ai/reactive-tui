@@ -11,13 +11,13 @@ pub extern "C" fn rtui_surface_create(
     width: u16,
     height: u16,
     out_surface: *mut *mut RTuiSurface,
-) -> RTuiError {
+) -> ReactiveError {
     if out_surface.is_null() {
-        return RTuiError::NullPointer;
+        return ReactiveError::NullPointer;
     }
 
     if width == 0 || height == 0 {
-        return RTuiError::InvalidParameter;
+        return ReactiveError::InvalidParameter;
     }
 
     catch_panic(AssertUnwindSafe(|| {
@@ -45,9 +45,9 @@ pub extern "C" fn rtui_surface_destroy(surface: *mut RTuiSurface) {
 pub extern "C" fn rtui_surface_get_dimensions(
     surface: *const RTuiSurface,
     out_dimensions: *mut RTuiDimensions,
-) -> RTuiError {
+) -> ReactiveError {
     if surface.is_null() || out_dimensions.is_null() {
-        return RTuiError::NullPointer;
+        return ReactiveError::NullPointer;
     }
 
     catch_panic(AssertUnwindSafe(|| unsafe {
@@ -63,9 +63,14 @@ pub extern "C" fn rtui_surface_get_dimensions(
 
 /// Clear the surface
 #[unsafe(no_mangle)]
-pub extern "C" fn rtui_surface_clear(surface: *mut RTuiSurface, r: u8, g: u8, b: u8) -> RTuiError {
+pub extern "C" fn rtui_surface_clear(
+    surface: *mut RTuiSurface,
+    r: u8,
+    g: u8,
+    b: u8,
+) -> ReactiveError {
     if surface.is_null() {
-        return RTuiError::NullPointer;
+        return ReactiveError::NullPointer;
     }
 
     catch_panic(AssertUnwindSafe(|| unsafe {
@@ -88,9 +93,9 @@ pub extern "C" fn rtui_surface_set_cell(
     x: u16,
     y: u16,
     cell: *const RTuiCell,
-) -> RTuiError {
+) -> ReactiveError {
     if surface.is_null() || cell.is_null() {
-        return RTuiError::NullPointer;
+        return ReactiveError::NullPointer;
     }
 
     catch_panic(AssertUnwindSafe(|| {
@@ -141,9 +146,9 @@ pub extern "C" fn rtui_surface_get_cell(
     x: u16,
     y: u16,
     out_cell: *mut RTuiCell,
-) -> RTuiError {
+) -> ReactiveError {
     if surface.is_null() || out_cell.is_null() {
-        return RTuiError::NullPointer;
+        return ReactiveError::NullPointer;
     }
 
     catch_panic(AssertUnwindSafe(|| unsafe {
@@ -185,9 +190,9 @@ pub extern "C" fn rtui_surface_draw_text(
     text: *const c_char,
     fg: *const RTuiColor,
     bg: *const RTuiColor,
-) -> RTuiError {
+) -> ReactiveError {
     if surface.is_null() || text.is_null() {
-        return RTuiError::NullPointer;
+        return ReactiveError::NullPointer;
     }
 
     catch_panic(AssertUnwindSafe(|| unsafe {
@@ -249,9 +254,9 @@ pub extern "C" fn rtui_surface_fill_rect(
     ch: u32,
     fg: *const RTuiColor,
     bg: *const RTuiColor,
-) -> RTuiError {
+) -> ReactiveError {
     if surface.is_null() || rect.is_null() {
-        return RTuiError::NullPointer;
+        return ReactiveError::NullPointer;
     }
 
     catch_panic(AssertUnwindSafe(|| unsafe {

@@ -41,9 +41,9 @@ pub extern "C" fn rtui_version() -> RTuiVersion {
 
 /// Initialize the library (must be called before any other functions)
 #[unsafe(no_mangle)]
-pub extern "C" fn rtui_init() -> RTuiError {
+pub extern "C" fn rtui_init() -> ReactiveError {
     // Initialize any global state if needed
-    RTuiError::Success
+    ReactiveError::Success
 }
 
 /// Cleanup the library
@@ -53,28 +53,28 @@ pub extern "C" fn rtui_cleanup() {
 }
 
 /// Helper to convert C string to Rust string
-unsafe fn c_str_to_string(s: *const c_char) -> Result<String, RTuiError> {
+unsafe fn c_str_to_string(s: *const c_char) -> Result<String, ReactiveError> {
     if s.is_null() {
-        return Err(RTuiError::NullPointer);
+        return Err(ReactiveError::NullPointer);
     }
 
     unsafe {
         CStr::from_ptr(s)
             .to_str()
             .map(|s| s.to_string())
-            .map_err(|_| RTuiError::InvalidUtf8)
+            .map_err(|_| ReactiveError::InvalidUtf8)
     }
 }
 
 /// Helper to catch panics and convert to error codes
-fn catch_panic<F, T>(f: F) -> RTuiError
+fn catch_panic<F, T>(f: F) -> ReactiveError
 where
-    F: FnOnce() -> Result<T, RTuiError> + panic::UnwindSafe,
+    F: FnOnce() -> Result<T, ReactiveError> + panic::UnwindSafe,
     T: Default,
 {
     match panic::catch_unwind(f) {
-        Ok(Ok(_)) => RTuiError::Success,
+        Ok(Ok(_)) => ReactiveError::Success,
         Ok(Err(e)) => e,
-        Err(_) => RTuiError::Panic,
+        Err(_) => ReactiveError::Panic,
     }
 }

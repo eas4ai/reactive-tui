@@ -23,6 +23,9 @@ pub fn apply_utility_classes(class: &str, mut sb: StyleBuilder) -> StyleBuilder 
             "flex" => {
                 sb = sb.display_flex();
             }
+            "flex-1" => {
+                sb = sb.display_flex().flex_grow(1.0);
+            }
             "grid" => {
                 sb = sb.display_grid();
             }

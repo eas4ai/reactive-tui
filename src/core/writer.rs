@@ -6,28 +6,64 @@
 use super::render_ops::{RenderOp, RenderOps};
 use super::surface::Attr;
 use std::io::{self, BufWriter, Write};
+use std::time::{Duration, Instant};
+
+/// Statistics for terminal write operations
+#[derive(Debug, Default, Clone)]
+pub struct WriteStats {
+    pub bytes_written: u64,
+    pub flush_count: u32,
+    pub write_time: Duration,
+    pub buffer_size: usize,
+    pub buffer_utilization: f32,
+}
 
 /// Writer that converts RenderOps to terminal output
 pub struct TerminalWriter<W: Write> {
     writer: BufWriter<W>,
     synchronized_output: bool,
+    stats: WriteStats,
+    buffer_size: usize,
 }
 
 impl<W: Write> TerminalWriter<W> {
-    /// Create a new terminal writer
+    /// Default buffer size - 2MB like OpenTUI for optimal performance
+    pub const DEFAULT_BUFFER_SIZE: usize = 2 * 1024 * 1024;
+
+    /// Create a new terminal writer with default buffer size
     pub fn new(writer: W) -> Self {
+        Self::with_buffer_size(writer, Self::DEFAULT_BUFFER_SIZE)
+    }
+
+    /// Create a new terminal writer with custom buffer size
+    pub fn with_buffer_size(writer: W, buffer_size: usize) -> Self {
+        let stats = WriteStats {
+            buffer_size,
+            ..Default::default()
+        };
+
         Self {
-            writer: BufWriter::with_capacity(64 * 1024, writer),
+            writer: BufWriter::with_capacity(buffer_size, writer),
             synchronized_output: false,
+            stats,
+            buffer_size,
         }
     }
 
     /// Execute a collection of render operations
     pub fn execute(&mut self, ops: &RenderOps) -> io::Result<()> {
+        let start = Instant::now();
+
         for op in ops.ops() {
             self.execute_op(op)?;
         }
-        self.writer.flush()
+
+        let result = self.flush();
+
+        // Update statistics
+        self.stats.write_time += start.elapsed();
+
+        result
     }
 
     /// Execute a single render operation
@@ -60,7 +96,9 @@ impl<W: Write> TerminalWriter<W> {
             }
 
             RenderOp::PrintRun(text) => {
-                self.writer.write_all(text.as_bytes())?;
+                let bytes = text.as_bytes();
+                self.writer.write_all(bytes)?;
+                self.stats.bytes_written += bytes.len() as u64;
             }
 
             RenderOp::ClearArea {
@@ -159,7 +197,40 @@ impl<W: Write> TerminalWriter<W> {
 
     /// Flush any buffered output
     pub fn flush(&mut self) -> io::Result<()> {
-        self.writer.flush()
+        let result = self.writer.flush();
+        if result.is_ok() {
+            self.stats.flush_count += 1;
+            self.update_buffer_utilization();
+        }
+        result
+    }
+
+    /// Flush if buffer utilization is high (>75%)
+    pub fn flush_if_needed(&mut self) -> io::Result<()> {
+        self.update_buffer_utilization();
+        if self.stats.buffer_utilization > 0.75 {
+            self.flush()?;
+        }
+        Ok(())
+    }
+
+    /// Get current write statistics
+    pub fn stats(&self) -> &WriteStats {
+        &self.stats
+    }
+
+    /// Reset statistics
+    pub fn reset_stats(&mut self) {
+        self.stats = WriteStats {
+            buffer_size: self.buffer_size,
+            ..WriteStats::default()
+        };
+    }
+
+    /// Update buffer utilization percentage
+    fn update_buffer_utilization(&mut self) {
+        let used = self.writer.buffer().len();
+        self.stats.buffer_utilization = used as f32 / self.buffer_size as f32;
     }
 }
 

@@ -6,6 +6,10 @@
 
 # Reference materials (keep local only)
 reference/
+docs/
+.nova/
+.zencoder/
+CLAUDE.md
 
 # Test artifacts
 test_image.png
@@ -28,3 +32,4 @@ Thumbs.db
 # Temporary files
 *.bak
 *.orig
+*.tmp

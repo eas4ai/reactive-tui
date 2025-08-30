@@ -3,7 +3,7 @@
 //! Provides high-quality image rendering using the sixel graphics protocol,
 //! which is supported by many modern terminals including xterm, wezterm, and mlterm.
 
-use crate::error::{RTuiError, Result};
+use crate::error::{ReactiveError, Result};
 use crate::widgets::display::image::{Image, ImageFormat, ImageQuality, ImageSource};
 use sixel_rs::{optflags::DiffusionMethod, pixelformat::PixelFormat, sixel_string};
 use std::path::Path;
@@ -56,7 +56,7 @@ impl SixelRenderer {
             PixelFormat::RGB888,
             diffusion_method,
         )
-        .map_err(|e| RTuiError::ImageProcessing(format!("Sixel encoding failed: {:?}", e)))?;
+        .map_err(|e| ReactiveError::ImageProcessing(format!("Sixel encoding failed: {:?}", e)))?;
 
         Ok(sixel_output)
     }
@@ -72,7 +72,7 @@ impl SixelRenderer {
                 height,
                 format,
             } => self.load_from_raw_bytes(data, *width, *height, *format),
-            ImageSource::Url(_) => Err(RTuiError::ImageProcessing(
+            ImageSource::Url(_) => Err(ReactiveError::ImageProcessing(
                 "URL loading not yet implemented".to_string(),
             )),
         }
@@ -81,7 +81,7 @@ impl SixelRenderer {
     /// Load image from file path
     fn load_from_file(&self, path: &Path) -> Result<(Vec<u8>, u32, u32)> {
         let img = image::open(path)
-            .map_err(|e| RTuiError::ImageProcessing(format!("Failed to load image: {}", e)))?;
+            .map_err(|e| ReactiveError::ImageProcessing(format!("Failed to load image: {}", e)))?;
 
         let rgb_img = img.to_rgb8();
         let (width, height) = rgb_img.dimensions();
@@ -95,10 +95,11 @@ impl SixelRenderer {
         use base64::Engine;
         let decoded = base64::engine::general_purpose::STANDARD
             .decode(base64_data)
-            .map_err(|e| RTuiError::ImageProcessing(format!("Invalid base64 data: {}", e)))?;
+            .map_err(|e| ReactiveError::ImageProcessing(format!("Invalid base64 data: {}", e)))?;
 
-        let img = image::load_from_memory(&decoded)
-            .map_err(|e| RTuiError::ImageProcessing(format!("Failed to decode image: {}", e)))?;
+        let img = image::load_from_memory(&decoded).map_err(|e| {
+            ReactiveError::ImageProcessing(format!("Failed to decode image: {}", e))
+        })?;
 
         let rgb_img = img.to_rgb8();
         let (width, height) = rgb_img.dimensions();
@@ -128,7 +129,7 @@ impl SixelRenderer {
             _ => {
                 // For compressed formats, decode using image crate
                 let img = image::load_from_memory(data).map_err(|e| {
-                    RTuiError::ImageProcessing(format!("Failed to decode image: {}", e))
+                    ReactiveError::ImageProcessing(format!("Failed to decode image: {}", e))
                 })?;
 
                 let rgb_img = img.to_rgb8();
@@ -186,7 +187,7 @@ impl SixelRenderer {
         use image::{ImageBuffer, Rgb};
 
         let img_buffer = ImageBuffer::<Rgb<u8>, _>::from_raw(width, height, data)
-            .ok_or_else(|| RTuiError::ImageProcessing("Invalid image buffer".to_string()))?;
+            .ok_or_else(|| ReactiveError::ImageProcessing("Invalid image buffer".to_string()))?;
 
         let resized = image::imageops::resize(
             &img_buffer,
@@ -203,7 +204,7 @@ impl SixelRenderer {
         // Validate data size
         let expected_size = (width * height * 3) as usize;
         if data.len() != expected_size {
-            return Err(RTuiError::ImageProcessing(format!(
+            return Err(ReactiveError::ImageProcessing(format!(
                 "Invalid data size: expected {}, got {}",
                 expected_size,
                 data.len()

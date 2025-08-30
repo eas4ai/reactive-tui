@@ -1,7 +1,7 @@
 use reactive_tui::core::render_ops::{RenderOp, RenderOps, RenderOpsBuilder};
 use reactive_tui::core::styled_text::{StyledLineBuilder, styled_line_to_render_ops};
 use reactive_tui::core::surface::{Attr, Rgba};
-use reactive_tui::core::terminal_writer::render_ops_to_ansi;
+use reactive_tui::core::writer::render_ops_to_ansi;
 
 /// Helper to create a snapshot test
 fn assert_snapshot(name: &str, ops: &RenderOps) {

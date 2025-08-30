@@ -6,16 +6,16 @@ use std::boxed::Box;
 
 /// Create a new terminal instance
 #[unsafe(no_mangle)]
-pub extern "C" fn rtui_terminal_create(out_terminal: *mut *mut RTuiTerminal) -> RTuiError {
+pub extern "C" fn rtui_terminal_create(out_terminal: *mut *mut ReactiveTerminal) -> ReactiveError {
     if out_terminal.is_null() {
-        return RTuiError::NullPointer;
+        return ReactiveError::NullPointer;
     }
 
     catch_panic(AssertUnwindSafe(|| match Terminal::new() {
         Ok(terminal) => {
             let boxed = Box::new(terminal);
             unsafe {
-                *out_terminal = Box::into_raw(boxed) as *mut RTuiTerminal;
+                *out_terminal = Box::into_raw(boxed) as *mut ReactiveTerminal;
             }
             Ok(())
         }
@@ -25,7 +25,7 @@ pub extern "C" fn rtui_terminal_create(out_terminal: *mut *mut RTuiTerminal) -> 
 
 /// Destroy a terminal instance
 #[unsafe(no_mangle)]
-pub extern "C" fn rtui_terminal_destroy(terminal: *mut RTuiTerminal) {
+pub extern "C" fn rtui_terminal_destroy(terminal: *mut ReactiveTerminal) {
     if !terminal.is_null() {
         unsafe {
             let _ = Box::from_raw(terminal as *mut Terminal);
@@ -36,11 +36,11 @@ pub extern "C" fn rtui_terminal_destroy(terminal: *mut RTuiTerminal) {
 /// Get terminal dimensions
 #[unsafe(no_mangle)]
 pub extern "C" fn rtui_terminal_get_dimensions(
-    terminal: *const RTuiTerminal,
+    terminal: *const ReactiveTerminal,
     out_dimensions: *mut RTuiDimensions,
-) -> RTuiError {
+) -> ReactiveError {
     if terminal.is_null() || out_dimensions.is_null() {
-        return RTuiError::NullPointer;
+        return ReactiveError::NullPointer;
     }
 
     catch_panic(AssertUnwindSafe(|| unsafe {
@@ -57,9 +57,9 @@ pub extern "C" fn rtui_terminal_get_dimensions(
 
 /// Enter modern mode (raw mode + alternate screen + mouse)
 #[unsafe(no_mangle)]
-pub extern "C" fn rtui_terminal_enter_raw_mode(terminal: *mut RTuiTerminal) -> RTuiError {
+pub extern "C" fn rtui_terminal_enter_raw_mode(terminal: *mut ReactiveTerminal) -> ReactiveError {
     if terminal.is_null() {
-        return RTuiError::NullPointer;
+        return ReactiveError::NullPointer;
     }
 
     catch_panic(AssertUnwindSafe(|| unsafe {
@@ -73,9 +73,9 @@ pub extern "C" fn rtui_terminal_enter_raw_mode(terminal: *mut RTuiTerminal) -> R
 
 /// Exit modern mode
 #[unsafe(no_mangle)]
-pub extern "C" fn rtui_terminal_exit_raw_mode(terminal: *mut RTuiTerminal) -> RTuiError {
+pub extern "C" fn rtui_terminal_exit_raw_mode(terminal: *mut ReactiveTerminal) -> ReactiveError {
     if terminal.is_null() {
-        return RTuiError::NullPointer;
+        return ReactiveError::NullPointer;
     }
 
     catch_panic(AssertUnwindSafe(|| unsafe {
@@ -90,9 +90,12 @@ pub extern "C" fn rtui_terminal_exit_raw_mode(terminal: *mut RTuiTerminal) -> RT
 /// Control synchronized updates
 /// @param begin: true to begin sync, false to end sync
 #[unsafe(no_mangle)]
-pub extern "C" fn rtui_terminal_sync(terminal: *mut RTuiTerminal, begin: bool) -> RTuiError {
+pub extern "C" fn rtui_terminal_sync(
+    terminal: *mut ReactiveTerminal,
+    begin: bool,
+) -> ReactiveError {
     if terminal.is_null() {
-        return RTuiError::NullPointer;
+        return ReactiveError::NullPointer;
     }
 
     catch_panic(AssertUnwindSafe(|| unsafe {
@@ -116,9 +119,9 @@ pub extern "C" fn rtui_terminal_sync(terminal: *mut RTuiTerminal, begin: bool) -
 pub extern "C" fn rtui_terminal_poll_event(
     timeout_ms: u32,
     out_event: *mut RTuiEvent,
-) -> RTuiError {
+) -> ReactiveError {
     if out_event.is_null() {
-        return RTuiError::NullPointer;
+        return ReactiveError::NullPointer;
     }
 
     catch_panic(AssertUnwindSafe(|| {
@@ -135,7 +138,7 @@ pub extern "C" fn rtui_terminal_poll_event(
                 }
                 Ok(())
             }
-            Ok(None) => Err(RTuiError::NotFound),
+            Ok(None) => Err(ReactiveError::NotFound),
             Err(e) => Err(e.into()),
         }
     }))

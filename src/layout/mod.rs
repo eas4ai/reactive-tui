@@ -1,10 +1,12 @@
-use crate::error::{RTuiError, Result};
+use crate::error::{ReactiveError, Result};
 use taffy::{AvailableSpace, TaffyTree, geometry::Size, prelude::NodeId, style::Style};
 pub mod colors;
-
+pub mod grid;
+pub mod renderer;
 pub mod paint_tree;
 pub mod style;
 pub mod utility_css;
+pub mod direct_grid;
 
 pub struct LayoutEngine {
     tree: TaffyTree<()>,
@@ -32,17 +34,17 @@ impl LayoutEngine {
     pub fn set_style(&mut self, node: NodeId, style: Style) -> Result<()> {
         self.tree
             .set_style(node, style)
-            .map_err(|e| RTuiError::layout(format!("Failed to set style: {}", e)))
+            .map_err(|e| ReactiveError::layout(format!("Failed to set style: {}", e)))
     }
     pub fn set_children(&mut self, parent: NodeId, children: &[NodeId]) -> Result<()> {
         self.tree
             .set_children(parent, children)
-            .map_err(|e| RTuiError::layout(format!("Failed to set children: {}", e)))
+            .map_err(|e| ReactiveError::layout(format!("Failed to set children: {}", e)))
     }
     pub fn new_leaf(&mut self, style: Style) -> Result<NodeId> {
         self.tree
             .new_leaf(style)
-            .map_err(|e| RTuiError::layout(format!("Failed to create leaf: {}", e)))
+            .map_err(|e| ReactiveError::layout(format!("Failed to create leaf: {}", e)))
     }
     pub fn compute(&mut self, width: Option<f32>) -> Result<()> {
         let size = Size {
@@ -53,6 +55,6 @@ impl LayoutEngine {
         };
         self.tree
             .compute_layout(self.root, size)
-            .map_err(|e| RTuiError::layout(format!("Failed to compute layout: {}", e)))
+            .map_err(|e| ReactiveError::layout(format!("Failed to compute layout: {}", e)))
     }
 }

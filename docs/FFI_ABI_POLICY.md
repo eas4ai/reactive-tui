@@ -35,8 +35,8 @@ The reactive-tui FFI layer provides a stable C ABI for using the library from ot
 
 ### Example
 ```c
-RTuiTerminal* terminal = NULL;
-RTuiError err = rtui_terminal_create(&terminal);
+ReactiveTerminal* terminal = NULL;
+ReactiveError err = rtui_terminal_create(&terminal);
 if (err == RTUI_SUCCESS) {
     // Use terminal
     rtui_terminal_destroy(terminal);
@@ -58,7 +58,7 @@ if (err == RTUI_SUCCESS) {
 ## Error Handling
 
 ### Error Codes
-All functions returning `RTuiError` follow these conventions:
+All functions returning `ReactiveError` follow these conventions:
 - `RTUI_SUCCESS (0)`: Operation succeeded
 - Negative values: Errors (check specific code)
 - `RTUI_ERROR_PANIC (-99)`: Internal panic caught (bug in library)
@@ -120,8 +120,8 @@ pkg-config --cflags --libs reactive-tui
 #include <stdio.h>
 
 int main() {
-    RTuiError err;
-    RTuiTerminal* terminal = NULL;
+    ReactiveError err;
+    ReactiveTerminal* terminal = NULL;
     RTuiRenderer* renderer = NULL;
     RTuiSurface* surface = NULL;
     

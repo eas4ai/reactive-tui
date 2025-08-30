@@ -24,4 +24,4 @@ pub mod vdom;
 pub mod widgets;
 
 // Re-export commonly used types
-pub use error::{RTuiError, Result};
+pub use error::{ReactiveError, Result};

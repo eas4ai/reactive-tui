@@ -9,6 +9,14 @@ pub struct Rgba {
 }
 
 impl Rgba {
+    /// Default epsilon for color comparisons (1/255 for 8-bit precision)
+    pub const DEFAULT_EPSILON: f32 = 1.0 / 255.0;
+
+    /// Create a new RGBA color
+    pub fn new(r: f32, g: f32, b: f32, a: f32) -> Self {
+        Self { r, g, b, a }
+    }
+
     /// Create a transparent color
     pub fn transparent() -> Self {
         Self {
@@ -38,9 +46,203 @@ impl Rgba {
             a: 1.0,
         }
     }
+
+    /// Compare colors with epsilon tolerance for floating-point precision
+    pub fn equals_epsilon(self, other: Self, epsilon: f32) -> bool {
+        (self.r - other.r).abs() < epsilon
+            && (self.g - other.g).abs() < epsilon
+            && (self.b - other.b).abs() < epsilon
+            && (self.a - other.a).abs() < epsilon
+    }
+
+    /// Compare colors with default epsilon
+    pub fn approx_eq(self, other: Self) -> bool {
+        self.equals_epsilon(other, Self::DEFAULT_EPSILON)
+    }
+
+    /// Blend two colors using alpha blending
+    pub fn blend(self, other: Self, alpha: f32) -> Self {
+        let alpha = alpha.clamp(0.0, 1.0);
+        Self {
+            r: self.r + (other.r - self.r) * alpha,
+            g: self.g + (other.g - self.g) * alpha,
+            b: self.b + (other.b - self.b) * alpha,
+            a: self.a + (other.a - self.a) * alpha,
+        }
+    }
+
+    /// Multiply color by alpha (for transparency effects)
+    pub fn with_alpha(self, alpha: f32) -> Self {
+        Self {
+            r: self.r,
+            g: self.g,
+            b: self.b,
+            a: self.a * alpha.clamp(0.0, 1.0),
+        }
+    }
+
+    /// Premultiply alpha (for efficient blending)
+    pub fn premultiply_alpha(self) -> Self {
+        Self {
+            r: self.r * self.a,
+            g: self.g * self.a,
+            b: self.b * self.a,
+            a: self.a,
+        }
+    }
+
+    /// Convert to linear color space (gamma correction)
+    pub fn to_linear(self) -> Self {
+        fn srgb_to_linear(c: f32) -> f32 {
+            if c <= 0.04045 {
+                c / 12.92
+            } else {
+                ((c + 0.055) / 1.055).powf(2.4)
+            }
+        }
+
+        Self {
+            r: srgb_to_linear(self.r),
+            g: srgb_to_linear(self.g),
+            b: srgb_to_linear(self.b),
+            a: self.a,
+        }
+    }
+
+    /// Convert from linear to sRGB color space
+    pub fn to_srgb(self) -> Self {
+        fn linear_to_srgb(c: f32) -> f32 {
+            if c <= 0.0031308 {
+                c * 12.92
+            } else {
+                1.055 * c.powf(1.0 / 2.4) - 0.055
+            }
+        }
+
+        Self {
+            r: linear_to_srgb(self.r),
+            g: linear_to_srgb(self.g),
+            b: linear_to_srgb(self.b),
+            a: self.a,
+        }
+    }
+
+    /// Get luminance (perceived brightness) using Rec. 709 coefficients
+    pub fn luminance(self) -> f32 {
+        0.2126 * self.r + 0.7152 * self.g + 0.0722 * self.b
+    }
+
+    /// Calculate contrast ratio between two colors (WCAG standard)
+    pub fn contrast_ratio(self, other: Self) -> f32 {
+        let l1 = self.luminance();
+        let l2 = other.luminance();
+        let lighter = l1.max(l2);
+        let darker = l1.min(l2);
+        (lighter + 0.05) / (darker + 0.05)
+    }
 }
 
-use crate::error::{RTuiError, Result};
+// SIMD-optimized color operations (when portable_simd is available)
+#[cfg(feature = "simd")]
+impl Rgba {
+    /// SIMD-optimized epsilon comparison
+    pub fn equals_epsilon_simd(self, other: Self, epsilon: f32) -> bool {
+        use std::simd::{SimdFloat, SimdPartialOrd, f32x4};
+
+        let a = f32x4::from_array([self.r, self.g, self.b, self.a]);
+        let b = f32x4::from_array([other.r, other.g, other.b, other.a]);
+        let diff = (a - b).abs();
+        let eps = f32x4::splat(epsilon);
+
+        diff.simd_lt(eps).all()
+    }
+
+    /// SIMD-optimized color blending
+    pub fn blend_simd(self, other: Self, alpha: f32) -> Self {
+        use std::simd::f32x4;
+
+        let alpha = alpha.clamp(0.0, 1.0);
+        let a = f32x4::from_array([self.r, self.g, self.b, self.a]);
+        let b = f32x4::from_array([other.r, other.g, other.b, other.a]);
+        let alpha_vec = f32x4::splat(alpha);
+
+        // result = a + (b - a) * alpha
+        let result = a + (b - a) * alpha_vec;
+        let arr = result.to_array();
+
+        Self::new(arr[0], arr[1], arr[2], arr[3])
+    }
+
+    /// SIMD-optimized alpha multiplication
+    pub fn with_alpha_simd(self, alpha: f32) -> Self {
+        use std::simd::f32x4;
+
+        let alpha = alpha.clamp(0.0, 1.0);
+        let color = f32x4::from_array([self.r, self.g, self.b, self.a]);
+        let alpha_vec = f32x4::from_array([1.0, 1.0, 1.0, alpha]);
+        let result = color * alpha_vec;
+        let arr = result.to_array();
+
+        Self::new(arr[0], arr[1], arr[2], arr[3])
+    }
+
+    /// SIMD-optimized premultiply alpha
+    pub fn premultiply_alpha_simd(self) -> Self {
+        use std::simd::f32x4;
+
+        let color = f32x4::from_array([self.r, self.g, self.b, self.a]);
+        let alpha_vec = f32x4::splat(self.a);
+        let alpha_mask = f32x4::from_array([1.0, 1.0, 1.0, 0.0]); // Don't multiply alpha by itself
+        let result = color * (alpha_vec * alpha_mask + f32x4::from_array([0.0, 0.0, 0.0, 1.0]));
+        let arr = result.to_array();
+
+        Self::new(arr[0], arr[1], arr[2], self.a)
+    }
+}
+
+// Fallback implementations that use SIMD when available
+impl Rgba {
+    /// Optimized epsilon comparison (uses SIMD when available)
+    #[inline]
+    pub fn equals_epsilon_fast(self, other: Self, epsilon: f32) -> bool {
+        #[cfg(feature = "simd")]
+        {
+            self.equals_epsilon_simd(other, epsilon)
+        }
+        #[cfg(not(feature = "simd"))]
+        {
+            self.equals_epsilon(other, epsilon)
+        }
+    }
+
+    /// Optimized color blending (uses SIMD when available)
+    #[inline]
+    pub fn blend_fast(self, other: Self, alpha: f32) -> Self {
+        #[cfg(feature = "simd")]
+        {
+            self.blend_simd(other, alpha)
+        }
+        #[cfg(not(feature = "simd"))]
+        {
+            self.blend(other, alpha)
+        }
+    }
+
+    /// Optimized alpha multiplication (uses SIMD when available)
+    #[inline]
+    pub fn with_alpha_fast(self, alpha: f32) -> Self {
+        #[cfg(feature = "simd")]
+        {
+            self.with_alpha_simd(alpha)
+        }
+        #[cfg(not(feature = "simd"))]
+        {
+            self.with_alpha(alpha)
+        }
+    }
+}
+
+use crate::error::{ReactiveError, Result};
 use bitflags::bitflags;
 bitflags! {
     #[derive(Default, Clone, Copy, Debug, PartialEq, Eq)]
@@ -102,12 +304,12 @@ impl Surface {
     /// Create a new surface with validation
     pub fn new_validated(w: usize, h: usize) -> Result<Self> {
         if w == 0 || h == 0 {
-            return Err(RTuiError::invalid_parameter(
+            return Err(ReactiveError::invalid_parameter(
                 "Surface dimensions must be greater than 0",
             ));
         }
         if w > 10000 || h > 10000 {
-            return Err(RTuiError::invalid_parameter(
+            return Err(ReactiveError::invalid_parameter(
                 "Surface dimensions too large (max 10000x10000)",
             ));
         }
@@ -327,6 +529,20 @@ impl Surface {
     }
 }
 
+/// Enhanced diff statistics for performance monitoring
+#[derive(Debug, Clone, Default)]
+pub struct DiffStats {
+    pub rows_changed: usize,
+    pub spans_written: usize,
+    pub cells_changed: usize,
+    pub cells_total: usize,
+    pub bytes_written: usize,
+    pub color_changes: usize,
+    pub attr_changes: usize,
+    pub cursor_moves: usize,
+    pub efficiency_ratio: f32,
+}
+
 pub struct DiffWriter {
     out: Vec<u8>,
     cur_fg: Option<Rgba>,
@@ -334,6 +550,11 @@ pub struct DiffWriter {
     cur_attr: Attr,
     last_rows_changed: usize,
     last_spans_written: usize,
+    // Enhanced statistics
+    stats: DiffStats,
+    // Optimization settings
+    use_epsilon_comparison: bool,
+    skip_identical_colors: bool,
 }
 
 impl Default for DiffWriter {
@@ -351,7 +572,35 @@ impl DiffWriter {
             cur_attr: Attr::empty(),
             last_rows_changed: 0,
             last_spans_written: 0,
+            stats: DiffStats::default(),
+            use_epsilon_comparison: true,
+            skip_identical_colors: true,
         }
+    }
+
+    /// Create a new DiffWriter with optimization settings
+    pub fn with_options(use_epsilon_comparison: bool, skip_identical_colors: bool) -> Self {
+        Self {
+            out: Vec::with_capacity(1 << 20),
+            cur_fg: None,
+            cur_bg: None,
+            cur_attr: Attr::empty(),
+            last_rows_changed: 0,
+            last_spans_written: 0,
+            stats: DiffStats::default(),
+            use_epsilon_comparison,
+            skip_identical_colors,
+        }
+    }
+
+    /// Get the latest diff statistics
+    pub fn stats(&self) -> &DiffStats {
+        &self.stats
+    }
+
+    /// Reset statistics
+    pub fn reset_stats(&mut self) {
+        self.stats = DiffStats::default();
     }
     #[inline]
     fn push(&mut self, s: &str) {
@@ -413,6 +662,10 @@ impl DiffWriter {
         self.cur_attr = Attr::empty();
         self.last_rows_changed = 0;
         self.last_spans_written = 0;
+
+        // Reset statistics
+        self.stats = DiffStats::default();
+        self.stats.cells_total = w * h;
         for y in 0..h {
             let mut run_buf = String::with_capacity(w);
             let mut run_start_col: Option<usize> = None;
@@ -420,11 +673,27 @@ impl DiffWriter {
             for x in 0..w {
                 let a = cur.get(x, y);
                 let b = next.get(x, y);
-                if !force && a == b {
+
+                // Enhanced cell comparison with epsilon-based color comparison
+                let cells_equal = if !force {
+                    if self.use_epsilon_comparison {
+                        a.ch == b.ch
+                            && a.fg.approx_eq(b.fg)
+                            && a.bg.approx_eq(b.bg)
+                            && a.attr == b.attr
+                    } else {
+                        a == b
+                    }
+                } else {
+                    false
+                };
+
+                if cells_equal {
                     if let Some(start) = run_start_col {
                         self.push(&format!("\x1b[{y1};{x1}H", y1 = y + 1, x1 = start + 1));
                         self.push(&run_buf);
                         self.last_spans_written += 1;
+                        self.stats.cursor_moves += 1;
                         wrote_row = true;
                         run_buf.clear();
                         run_start_col = None;
@@ -434,8 +703,40 @@ impl DiffWriter {
                 if run_start_col.is_none() {
                     run_start_col = Some(x);
                 }
-                if run_buf.is_empty() {
-                    if self.cur_fg != Some(b.fg) {
+                // Track that this cell changed
+                self.stats.cells_changed += 1;
+
+                // Check for color/attribute changes regardless of run buffer state
+                let fg_changed = if self.use_epsilon_comparison {
+                    self.cur_fg.is_none_or(|cur| !cur.approx_eq(b.fg))
+                } else {
+                    self.cur_fg != Some(b.fg)
+                };
+
+                let bg_changed = if self.use_epsilon_comparison {
+                    self.cur_bg.is_none_or(|cur| !cur.approx_eq(b.bg))
+                } else {
+                    self.cur_bg != Some(b.bg)
+                };
+
+                let attr_changed = self.cur_attr != b.attr;
+
+                // If any style changed, flush the current run and start a new one
+                if fg_changed || bg_changed || attr_changed {
+                    // Flush current run if it has content
+                    if !run_buf.is_empty() {
+                        if let Some(start) = run_start_col {
+                            self.push(&format!("\x1b[{y1};{x1}H", y1 = y + 1, x1 = start + 1));
+                            self.push(&run_buf);
+                            self.last_spans_written += 1;
+                            self.stats.cursor_moves += 1;
+                        }
+                        run_buf.clear();
+                        run_start_col = None;
+                    }
+
+                    // Apply new colors/attributes
+                    if fg_changed {
                         let (r, g, bv) = (
                             (b.fg.r * 255.0) as u8,
                             (b.fg.g * 255.0) as u8,
@@ -443,8 +744,10 @@ impl DiffWriter {
                         );
                         self.sgr_color(r, g, bv, true);
                         self.cur_fg = Some(b.fg);
+                        self.stats.color_changes += 1;
                     }
-                    if self.cur_bg != Some(b.bg) {
+
+                    if bg_changed {
                         let (r, g, bv) = (
                             (b.bg.r * 255.0) as u8,
                             (b.bg.g * 255.0) as u8,
@@ -452,20 +755,35 @@ impl DiffWriter {
                         );
                         self.sgr_color(r, g, bv, false);
                         self.cur_bg = Some(b.bg);
+                        self.stats.color_changes += 1;
                     }
-                    if self.cur_attr != b.attr {
+
+                    if attr_changed {
                         self.apply_attr_delta(b.attr);
+                        self.stats.attr_changes += 1;
                     }
                 }
+
+                // Start new run if needed
+                if run_start_col.is_none() {
+                    run_start_col = Some(x);
+                }
+
+                // Add character to current run
                 run_buf.push(b.ch);
                 if unicode_width::UnicodeWidthChar::width(b.ch).unwrap_or(1) == 2 {
                     run_buf.push(' ');
                 }
             }
-            if let Some(start) = run_start_col {
+
+            // Flush any remaining run at end of line
+            if !run_buf.is_empty()
+                && let Some(start) = run_start_col
+            {
                 self.push(&format!("\x1b[{y1};{x1}H", y1 = y + 1, x1 = start + 1));
                 self.push(&run_buf);
                 self.last_spans_written += 1;
+                self.stats.cursor_moves += 1;
                 wrote_row = true;
             }
             if wrote_row {
@@ -473,6 +791,16 @@ impl DiffWriter {
             }
         }
         self.push("\x1b[?25h");
+
+        // Finalize statistics
+        self.stats.rows_changed = self.last_rows_changed;
+        self.stats.spans_written = self.last_spans_written;
+        self.stats.bytes_written = self.out.len();
+        self.stats.efficiency_ratio = if self.stats.cells_total > 0 {
+            self.stats.cells_changed as f32 / self.stats.cells_total as f32
+        } else {
+            0.0
+        };
     }
 
     pub fn output(&self) -> &[u8] {
@@ -486,6 +814,36 @@ impl DiffWriter {
     }
     pub fn last_spans_written(&self) -> usize {
         self.last_spans_written
+    }
+
+    /// Enable or disable epsilon-based color comparison
+    pub fn set_epsilon_comparison(&mut self, enabled: bool) {
+        self.use_epsilon_comparison = enabled;
+    }
+
+    /// Enable or disable skipping identical colors
+    pub fn set_skip_identical_colors(&mut self, enabled: bool) {
+        self.skip_identical_colors = enabled;
+    }
+
+    /// Get detailed diff statistics
+    pub fn detailed_stats(&self) -> DiffStats {
+        self.stats.clone()
+    }
+
+    /// Check if the last diff was efficient (low change ratio)
+    pub fn is_efficient(&self) -> bool {
+        self.stats.efficiency_ratio < 0.3 // Less than 30% of cells changed
+    }
+
+    /// Get a performance assessment of the last diff
+    pub fn performance_assessment(&self) -> &'static str {
+        match self.stats.efficiency_ratio {
+            r if r < 0.1 => "Excellent - Very few changes",
+            r if r < 0.3 => "Good - Moderate changes",
+            r if r < 0.6 => "Fair - Many changes",
+            _ => "Poor - Most cells changed",
+        }
     }
 }
 

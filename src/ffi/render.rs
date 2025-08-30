@@ -11,13 +11,13 @@ pub extern "C" fn rtui_renderer_create(
     width: u16,
     height: u16,
     out_renderer: *mut *mut RTuiRenderer,
-) -> RTuiError {
+) -> ReactiveError {
     if out_renderer.is_null() {
-        return RTuiError::NullPointer;
+        return ReactiveError::NullPointer;
     }
 
     if width == 0 || height == 0 {
-        return RTuiError::InvalidParameter;
+        return ReactiveError::InvalidParameter;
     }
 
     catch_panic(AssertUnwindSafe(|| {
@@ -52,13 +52,13 @@ pub extern "C" fn rtui_renderer_resize(
     renderer: *mut RTuiRenderer,
     width: u16,
     height: u16,
-) -> RTuiError {
+) -> ReactiveError {
     if renderer.is_null() {
-        return RTuiError::NullPointer;
+        return ReactiveError::NullPointer;
     }
 
     if width == 0 || height == 0 {
-        return RTuiError::InvalidParameter;
+        return ReactiveError::InvalidParameter;
     }
 
     catch_panic(AssertUnwindSafe(|| unsafe {
@@ -75,9 +75,9 @@ pub extern "C" fn rtui_renderer_clear(
     r: u8,
     g: u8,
     b: u8,
-) -> RTuiError {
+) -> ReactiveError {
     if renderer.is_null() {
-        return RTuiError::NullPointer;
+        return ReactiveError::NullPointer;
     }
 
     catch_panic(AssertUnwindSafe(|| unsafe {
@@ -96,9 +96,9 @@ pub extern "C" fn rtui_renderer_clear(
 /// Control frame rendering
 /// @param begin: true to begin frame, false to end frame
 #[unsafe(no_mangle)]
-pub extern "C" fn rtui_renderer_frame(renderer: *mut RTuiRenderer, begin: bool) -> RTuiError {
+pub extern "C" fn rtui_renderer_frame(renderer: *mut RTuiRenderer, begin: bool) -> ReactiveError {
     if renderer.is_null() {
-        return RTuiError::NullPointer;
+        return ReactiveError::NullPointer;
     }
 
     catch_panic(AssertUnwindSafe(|| unsafe {
@@ -122,9 +122,9 @@ pub extern "C" fn rtui_renderer_frame(renderer: *mut RTuiRenderer, begin: bool) 
 pub extern "C" fn rtui_renderer_get_surface(
     renderer: *mut RTuiRenderer,
     out_surface: *mut *mut RTuiSurface,
-) -> RTuiError {
+) -> ReactiveError {
     if renderer.is_null() || out_surface.is_null() {
-        return RTuiError::NullPointer;
+        return ReactiveError::NullPointer;
     }
 
     catch_panic(AssertUnwindSafe(|| unsafe {
@@ -137,9 +137,9 @@ pub extern "C" fn rtui_renderer_get_surface(
 
 /// Shutdown the renderer and exit raw mode
 #[unsafe(no_mangle)]
-pub extern "C" fn rtui_renderer_shutdown(renderer: *mut RTuiRenderer) -> RTuiError {
+pub extern "C" fn rtui_renderer_shutdown(renderer: *mut RTuiRenderer) -> ReactiveError {
     if renderer.is_null() {
-        return RTuiError::NullPointer;
+        return ReactiveError::NullPointer;
     }
 
     catch_panic(AssertUnwindSafe(|| unsafe {

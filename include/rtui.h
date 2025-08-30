@@ -7,7 +7,7 @@
  * ABI Version: 1
  * 
  * Threading: Most functions are NOT thread-safe unless explicitly documented.
- * Error Handling: All functions returning RTuiError should check for RTUI_SUCCESS.
+ * Error Handling: All functions returning ReactiveError should check for RTUI_SUCCESS.
  * Memory: Destroy functions must be called to free resources.
  */
 
@@ -47,11 +47,11 @@ typedef enum {
     RTUI_ERROR_INVALID_STATE = -10,
     RTUI_ERROR_PANIC = -99,
     RTUI_ERROR_UNKNOWN = -100
-} RTuiError;
+} ReactiveError;
 
 /* ========== Opaque Handles ========== */
 
-typedef struct RTuiTerminal RTuiTerminal;
+typedef struct ReactiveTerminal ReactiveTerminal;
 typedef struct RTuiSurface RTuiSurface;
 typedef struct RTuiRenderer RTuiRenderer;
 
@@ -158,41 +158,41 @@ typedef void (*RTuiRenderCallback)(RTuiSurface* surface, void* user_data);
 
 /* Version and initialization */
 RTuiVersion rtui_version(void);
-RTuiError rtui_init(void);
+ReactiveError rtui_init(void);
 void rtui_cleanup(void);
 
 /* ========== Terminal Functions ========== */
 
-RTuiError rtui_terminal_create(RTuiTerminal** out_terminal);
-void rtui_terminal_destroy(RTuiTerminal* terminal);
-RTuiError rtui_terminal_get_dimensions(const RTuiTerminal* terminal, RTuiDimensions* out_dimensions);
-RTuiError rtui_terminal_enter_raw_mode(RTuiTerminal* terminal);
-RTuiError rtui_terminal_exit_raw_mode(RTuiTerminal* terminal);
-RTuiError rtui_terminal_sync(RTuiTerminal* terminal, bool begin);  /* true=begin, false=end */
-RTuiError rtui_terminal_poll_event(uint32_t timeout_ms, RTuiEvent* out_event);
+ReactiveError rtui_terminal_create(ReactiveTerminal** out_terminal);
+void rtui_terminal_destroy(ReactiveTerminal* terminal);
+ReactiveError rtui_terminal_get_dimensions(const ReactiveTerminal* terminal, RTuiDimensions* out_dimensions);
+ReactiveError rtui_terminal_enter_raw_mode(ReactiveTerminal* terminal);
+ReactiveError rtui_terminal_exit_raw_mode(ReactiveTerminal* terminal);
+ReactiveError rtui_terminal_sync(ReactiveTerminal* terminal, bool begin);  /* true=begin, false=end */
+ReactiveError rtui_terminal_poll_event(uint32_t timeout_ms, RTuiEvent* out_event);
 
 /* ========== Surface Functions ========== */
 
-RTuiError rtui_surface_create(uint16_t width, uint16_t height, RTuiSurface** out_surface);
+ReactiveError rtui_surface_create(uint16_t width, uint16_t height, RTuiSurface** out_surface);
 void rtui_surface_destroy(RTuiSurface* surface);
-RTuiError rtui_surface_get_dimensions(const RTuiSurface* surface, RTuiDimensions* out_dimensions);
-RTuiError rtui_surface_clear(RTuiSurface* surface, uint8_t r, uint8_t g, uint8_t b);
-RTuiError rtui_surface_set_cell(RTuiSurface* surface, uint16_t x, uint16_t y, const RTuiCell* cell);
-RTuiError rtui_surface_get_cell(const RTuiSurface* surface, uint16_t x, uint16_t y, RTuiCell* out_cell);
-RTuiError rtui_surface_draw_text(RTuiSurface* surface, uint16_t x, uint16_t y, const char* text, 
+ReactiveError rtui_surface_get_dimensions(const RTuiSurface* surface, RTuiDimensions* out_dimensions);
+ReactiveError rtui_surface_clear(RTuiSurface* surface, uint8_t r, uint8_t g, uint8_t b);
+ReactiveError rtui_surface_set_cell(RTuiSurface* surface, uint16_t x, uint16_t y, const RTuiCell* cell);
+ReactiveError rtui_surface_get_cell(const RTuiSurface* surface, uint16_t x, uint16_t y, RTuiCell* out_cell);
+ReactiveError rtui_surface_draw_text(RTuiSurface* surface, uint16_t x, uint16_t y, const char* text, 
                                   const RTuiColor* fg, const RTuiColor* bg);
-RTuiError rtui_surface_fill_rect(RTuiSurface* surface, const RTuiRect* rect, uint32_t ch,
+ReactiveError rtui_surface_fill_rect(RTuiSurface* surface, const RTuiRect* rect, uint32_t ch,
                                   const RTuiColor* fg, const RTuiColor* bg);
 
 /* ========== Renderer Functions ========== */
 
-RTuiError rtui_renderer_create(uint16_t width, uint16_t height, RTuiRenderer** out_renderer);
+ReactiveError rtui_renderer_create(uint16_t width, uint16_t height, RTuiRenderer** out_renderer);
 void rtui_renderer_destroy(RTuiRenderer* renderer);
-RTuiError rtui_renderer_frame(RTuiRenderer* renderer, bool begin);  /* true=begin, false=end */
-RTuiError rtui_renderer_get_surface(RTuiRenderer* renderer, RTuiSurface** out_surface);
-RTuiError rtui_renderer_resize(RTuiRenderer* renderer, uint16_t width, uint16_t height);
-RTuiError rtui_renderer_clear(RTuiRenderer* renderer, uint8_t r, uint8_t g, uint8_t b);
-RTuiError rtui_renderer_shutdown(RTuiRenderer* renderer);
+ReactiveError rtui_renderer_frame(RTuiRenderer* renderer, bool begin);  /* true=begin, false=end */
+ReactiveError rtui_renderer_get_surface(RTuiRenderer* renderer, RTuiSurface** out_surface);
+ReactiveError rtui_renderer_resize(RTuiRenderer* renderer, uint16_t width, uint16_t height);
+ReactiveError rtui_renderer_clear(RTuiRenderer* renderer, uint8_t r, uint8_t g, uint8_t b);
+ReactiveError rtui_renderer_shutdown(RTuiRenderer* renderer);
 
 #ifdef __cplusplus
 }

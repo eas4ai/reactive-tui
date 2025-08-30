@@ -5,7 +5,7 @@
 use crossterm::event::{self, Event, KeyCode};
 use reactive_tui::core::renderer::Renderer;
 use reactive_tui::core::surface::{Attr, Cell, Rgba};
-use reactive_tui::syntax::{SyntaxHighlighter, create_syntax_theme};
+use reactive_tui::syntax::{SYNTAX_RESOURCES, SyntaxHighlighter, create_syntax_theme};
 use reactive_tui::theme::presets::dark_theme;
 use std::io::Result;
 use std::time::Duration;
@@ -38,8 +38,38 @@ impl Point {
 }"#;
 
 fn main() -> Result<()> {
-    // Create a theme with syntax highlighting support
-    let theme = create_syntax_theme(dark_theme(), "base16-ocean.dark");
+    // Initialize terminal
+    crossterm::terminal::enable_raw_mode()?;
+    crossterm::execute!(
+        std::io::stdout(),
+        crossterm::terminal::EnterAlternateScreen,
+        crossterm::cursor::Hide
+    )?;
+
+    let result = run_themed_syntax_demo();
+
+    // Cleanup
+    crossterm::execute!(
+        std::io::stdout(),
+        crossterm::cursor::Show,
+        crossterm::terminal::LeaveAlternateScreen
+    )?;
+    crossterm::terminal::disable_raw_mode()?;
+
+    result
+}
+
+fn run_themed_syntax_demo() -> Result<()> {
+    // Create a theme with syntax highlighting support using the active syntax theme
+    let active_theme_name = {
+        let resources = SYNTAX_RESOURCES.read().unwrap();
+        resources
+            .active_theme()
+            .name
+            .clone()
+            .unwrap_or_else(|| "base16-ocean.dark".to_string())
+    };
+    let theme = create_syntax_theme(dark_theme(), &active_theme_name);
 
     // Get terminal size
     let (width, height) = crossterm::terminal::size()?;
@@ -49,8 +79,15 @@ fn main() -> Result<()> {
         .map_err(|e| std::io::Error::other(e.to_string()))?;
 
     // Create syntax highlighter
-    let mut highlighter =
-        SyntaxHighlighter::new("Rust").expect("Failed to create Rust highlighter");
+    let mut highlighter = match SyntaxHighlighter::new("Rust") {
+        Some(h) => h,
+        None => {
+            // Try alternative names
+            SyntaxHighlighter::new("rust")
+                .or_else(|| SyntaxHighlighter::from_extension("rs"))
+                .ok_or_else(|| std::io::Error::other("Failed to create Rust syntax highlighter"))?
+        }
+    };
 
     // Highlight the code
     let highlighted = highlighter.highlight_text(RUST_CODE);
@@ -84,8 +121,8 @@ fn main() -> Result<()> {
         // Get surface
         let surface = renderer.surface_mut();
 
-        // Clear with theme background
-        let bg = if let Some(bg_color) = theme.get_variable("--color-background") {
+        // Clear with syntax theme background
+        let bg = if let Some(bg_color) = theme.get_variable("--syntax-background") {
             // Parse hex color from theme
             let hex = bg_color.trim_start_matches('#');
             let r = u8::from_str_radix(&hex[0..2], 16).unwrap_or(0) as f32 / 255.0;

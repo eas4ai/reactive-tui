@@ -1,6 +1,6 @@
 use super::instance::AnyComponentInstance;
 use super::{Component, ComponentInstance};
-use crate::error::{RTuiError, Result};
+use crate::error::{ReactiveError, Result};
 use std::any::TypeId;
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
@@ -45,11 +45,11 @@ impl ComponentRegistry {
 
         self.factories
             .write()
-            .map_err(|_| RTuiError::internal("Component registry lock poisoned"))?
+            .map_err(|_| ReactiveError::internal("Component registry lock poisoned"))?
             .insert(type_id, factory);
         self.names
             .write()
-            .map_err(|_| RTuiError::internal("Component registry lock poisoned"))?
+            .map_err(|_| ReactiveError::internal("Component registry lock poisoned"))?
             .insert(name, type_id);
         Ok(())
     }
@@ -63,7 +63,7 @@ impl ComponentRegistry {
         let factories = self
             .factories
             .read()
-            .map_err(|_| RTuiError::internal("Component registry lock poisoned"))?;
+            .map_err(|_| ReactiveError::internal("Component registry lock poisoned"))?;
 
         if factories.contains_key(&type_id) {
             Ok(Some(ComponentInstance::new(props)))
@@ -81,7 +81,7 @@ impl ComponentRegistry {
         let names = self
             .names
             .read()
-            .map_err(|_| RTuiError::internal("Component registry lock poisoned"))?;
+            .map_err(|_| ReactiveError::internal("Component registry lock poisoned"))?;
         let name_atom = DefaultAtom::from(name);
         let type_id = match names.get(&name_atom) {
             Some(id) => id,
@@ -91,7 +91,7 @@ impl ComponentRegistry {
         let factories = self
             .factories
             .read()
-            .map_err(|_| RTuiError::internal("Component registry lock poisoned"))?;
+            .map_err(|_| ReactiveError::internal("Component registry lock poisoned"))?;
         let factory = match factories.get(type_id) {
             Some(f) => f,
             None => return Ok(None),
@@ -109,7 +109,7 @@ impl ComponentRegistry {
         let factories = self
             .factories
             .read()
-            .map_err(|_| RTuiError::internal("Component registry lock poisoned"))?;
+            .map_err(|_| ReactiveError::internal("Component registry lock poisoned"))?;
         let factory = match factories.get(&type_id) {
             Some(f) => f,
             None => return Ok(None),
@@ -123,7 +123,7 @@ impl ComponentRegistry {
         let factories = self
             .factories
             .read()
-            .map_err(|_| RTuiError::internal("Component registry lock poisoned"))?;
+            .map_err(|_| ReactiveError::internal("Component registry lock poisoned"))?;
         Ok(factories.contains_key(&type_id))
     }
 
@@ -132,7 +132,7 @@ impl ComponentRegistry {
         let names = self
             .names
             .read()
-            .map_err(|_| RTuiError::internal("Component registry lock poisoned"))?;
+            .map_err(|_| ReactiveError::internal("Component registry lock poisoned"))?;
         let name_atom = DefaultAtom::from(name);
         Ok(names.contains_key(&name_atom))
     }
@@ -142,7 +142,7 @@ impl ComponentRegistry {
         let names = self
             .names
             .read()
-            .map_err(|_| RTuiError::internal("Component registry lock poisoned"))?;
+            .map_err(|_| ReactiveError::internal("Component registry lock poisoned"))?;
         Ok(names.keys().map(|atom| atom.to_string()).collect())
     }
 
@@ -150,11 +150,11 @@ impl ComponentRegistry {
     pub fn clear(&self) -> Result<()> {
         self.factories
             .write()
-            .map_err(|_| RTuiError::internal("Component registry lock poisoned"))?
+            .map_err(|_| ReactiveError::internal("Component registry lock poisoned"))?
             .clear();
         self.names
             .write()
-            .map_err(|_| RTuiError::internal("Component registry lock poisoned"))?
+            .map_err(|_| ReactiveError::internal("Component registry lock poisoned"))?
             .clear();
         Ok(())
     }

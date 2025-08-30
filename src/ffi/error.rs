@@ -5,7 +5,7 @@ use std::os::raw::c_int;
 /// Error codes for FFI functions
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum RTuiError {
+pub enum ReactiveError {
     /// Operation succeeded
     Success = 0,
     /// Invalid parameter passed
@@ -34,7 +34,7 @@ pub enum RTuiError {
     Unknown = -100,
 }
 
-impl RTuiError {
+impl ReactiveError {
     /// Convert to C integer
     pub fn to_c_int(self) -> c_int {
         self as c_int
@@ -42,21 +42,21 @@ impl RTuiError {
 
     /// Check if error is success
     pub fn is_success(self) -> bool {
-        self == RTuiError::Success
+        self == ReactiveError::Success
     }
 }
 
-impl From<std::io::Error> for RTuiError {
+impl From<std::io::Error> for ReactiveError {
     fn from(e: std::io::Error) -> Self {
         use std::io::ErrorKind;
         match e.kind() {
-            ErrorKind::NotFound => RTuiError::NotFound,
-            ErrorKind::PermissionDenied => RTuiError::NotSupported,
-            ErrorKind::AlreadyExists => RTuiError::AlreadyExists,
-            ErrorKind::InvalidInput => RTuiError::InvalidParameter,
-            ErrorKind::InvalidData => RTuiError::InvalidUtf8,
-            ErrorKind::OutOfMemory => RTuiError::OutOfMemory,
-            _ => RTuiError::Unknown,
+            ErrorKind::NotFound => ReactiveError::NotFound,
+            ErrorKind::PermissionDenied => ReactiveError::NotSupported,
+            ErrorKind::AlreadyExists => ReactiveError::AlreadyExists,
+            ErrorKind::InvalidInput => ReactiveError::InvalidParameter,
+            ErrorKind::InvalidData => ReactiveError::InvalidUtf8,
+            ErrorKind::OutOfMemory => ReactiveError::OutOfMemory,
+            _ => ReactiveError::Unknown,
         }
     }
 }

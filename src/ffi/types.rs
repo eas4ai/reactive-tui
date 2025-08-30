@@ -4,7 +4,7 @@ use std::os::raw::c_void;
 
 /// Opaque handle to a terminal
 #[repr(C)]
-pub struct RTuiTerminal {
+pub struct ReactiveTerminal {
     _private: [u8; 0],
 }
 

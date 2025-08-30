@@ -23,11 +23,11 @@ bitflags = "2.9.3"
 crossterm = "0.29.0"
 serde = { version = "^1.0", features = ["derive"] }
 taffy = "0.9.1"
-tokio = { version = "1.45", features = ["sync", "time", "rt"] }
+tokio = { version = "1.45", features = ["sync", "time", "rt"], optional = true }
 unicode-width = "0.2.1"
 unicode-segmentation = "1.12"
 lazy_static = "1.4"
-syntect = { version = "5.2", default-features = false, features = ["default-fancy"] }
+syntect = { version = "5.2", default-features = false, features = ["default-fancy", "yaml-load", "plist-load"] }
 once_cell = "1.19"
 comrak = "0.41"
 thiserror = "1.0"
@@ -36,6 +36,8 @@ string_cache = "0.8"
 image = "0.25.6"
 base64 = "0.22.1"
 sixel-rs = "0.5.0"
+termwiz = "0.23.3"
+terminfo = "0.9.0"
 
 
 [lib]
@@ -45,12 +47,16 @@ crate-type = ["rlib", "cdylib"]
 
 
 [features]
-default = []
+default = ["tokio"]
 # Enable debug logging in reconcile apply_patches
 debug_patches = []
 # Animation and general debug logging toggle used by src/animation/debug.rs
 # Keeping empty feature to satisfy cfg checks without changing behavior
 debug = []
+# Enable SIMD optimizations for color operations (requires nightly Rust)
+simd = []
+# Enable async capability detection
+async-capabilities = ["tokio"]
 # Enable FFI bindings (C ABI)
 ffi = []
 

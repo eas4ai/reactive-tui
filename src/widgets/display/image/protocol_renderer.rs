@@ -3,7 +3,7 @@
 //! Provides image rendering using terminal-specific protocols that support
 //! high-quality image display directly in the terminal.
 
-use crate::error::{RTuiError, Result};
+use crate::error::{ReactiveError, Result};
 use crate::widgets::display::image::{Image, ImageFormat, ImageSource};
 use std::path::Path;
 
@@ -105,7 +105,7 @@ impl ProtocolRenderer {
                 height,
                 format,
             } => self.process_raw_bytes(data, *width, *height, *format),
-            ImageSource::Url(_) => Err(RTuiError::ImageProcessing(
+            ImageSource::Url(_) => Err(ReactiveError::ImageProcessing(
                 "URL loading not yet implemented".to_string(),
             )),
         }
@@ -114,7 +114,7 @@ impl ProtocolRenderer {
     /// Load image from file path
     fn load_from_file(&self, path: &Path) -> Result<(Vec<u8>, u32, u32)> {
         let img = image::open(path)
-            .map_err(|e| RTuiError::ImageProcessing(format!("Failed to load image: {}", e)))?;
+            .map_err(|e| ReactiveError::ImageProcessing(format!("Failed to load image: {}", e)))?;
 
         // Convert to RGBA for protocol compatibility
         let rgba_img = img.to_rgba8();
@@ -129,10 +129,11 @@ impl ProtocolRenderer {
         use base64::Engine;
         let decoded = base64::engine::general_purpose::STANDARD
             .decode(base64_data)
-            .map_err(|e| RTuiError::ImageProcessing(format!("Invalid base64 data: {}", e)))?;
+            .map_err(|e| ReactiveError::ImageProcessing(format!("Invalid base64 data: {}", e)))?;
 
-        let img = image::load_from_memory(&decoded)
-            .map_err(|e| RTuiError::ImageProcessing(format!("Failed to decode image: {}", e)))?;
+        let img = image::load_from_memory(&decoded).map_err(|e| {
+            ReactiveError::ImageProcessing(format!("Failed to decode image: {}", e))
+        })?;
 
         let rgba_img = img.to_rgba8();
         let (width, height) = rgba_img.dimensions();
@@ -162,7 +163,7 @@ impl ProtocolRenderer {
             _ => {
                 // For compressed formats, decode using image crate
                 let img = image::load_from_memory(data).map_err(|e| {
-                    RTuiError::ImageProcessing(format!("Failed to decode image: {}", e))
+                    ReactiveError::ImageProcessing(format!("Failed to decode image: {}", e))
                 })?;
 
                 let rgba_img = img.to_rgba8();
@@ -219,7 +220,7 @@ impl ProtocolRenderer {
         use image::{ImageBuffer, Rgba};
 
         let img_buffer = ImageBuffer::<Rgba<u8>, _>::from_raw(width, height, data)
-            .ok_or_else(|| RTuiError::ImageProcessing("Invalid image buffer".to_string()))?;
+            .ok_or_else(|| ReactiveError::ImageProcessing("Invalid image buffer".to_string()))?;
 
         let resized = image::imageops::resize(
             &img_buffer,

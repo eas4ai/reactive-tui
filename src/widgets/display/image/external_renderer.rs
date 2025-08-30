@@ -3,7 +3,7 @@
 //! Provides image rendering using external command-line tools like chafa and viu.
 //! Based on moggu's approach with enhanced error handling and configuration.
 
-use crate::error::{RTuiError, Result};
+use crate::error::{ReactiveError, Result};
 use crate::widgets::display::image::{Image, ImageQuality, ImageSource};
 use std::fs;
 use std::io::Write;
@@ -49,7 +49,7 @@ impl ExternalRenderer {
                 if path.exists() {
                     Ok(path.clone())
                 } else {
-                    Err(RTuiError::ImageProcessing(format!(
+                    Err(ReactiveError::ImageProcessing(format!(
                         "Image file not found: {}",
                         path.display()
                     )))
@@ -61,7 +61,7 @@ impl ExternalRenderer {
                 let decoded = base64::engine::general_purpose::STANDARD
                     .decode(data)
                     .map_err(|e| {
-                        RTuiError::ImageProcessing(format!("Invalid base64 data: {}", e))
+                        ReactiveError::ImageProcessing(format!("Invalid base64 data: {}", e))
                     })?;
 
                 self.write_temp_file(&decoded, "png")
@@ -78,7 +78,7 @@ impl ExternalRenderer {
 
                 self.write_temp_file(data, extension)
             }
-            ImageSource::Url(_) => Err(RTuiError::ImageProcessing(
+            ImageSource::Url(_) => Err(ReactiveError::ImageProcessing(
                 "URL loading not yet implemented".to_string(),
             )),
         }
@@ -94,11 +94,12 @@ impl ExternalRenderer {
         ));
 
         let mut file = fs::File::create(&temp_file).map_err(|e| {
-            RTuiError::ImageProcessing(format!("Failed to create temp file: {}", e))
+            ReactiveError::ImageProcessing(format!("Failed to create temp file: {}", e))
         })?;
 
-        file.write_all(data)
-            .map_err(|e| RTuiError::ImageProcessing(format!("Failed to write temp file: {}", e)))?;
+        file.write_all(data).map_err(|e| {
+            ReactiveError::ImageProcessing(format!("Failed to write temp file: {}", e))
+        })?;
 
         Ok(temp_file)
     }
@@ -149,13 +150,13 @@ impl ExternalRenderer {
 
         let output = cmd
             .output()
-            .map_err(|e| RTuiError::ExternalTool(format!("Failed to execute chafa: {}", e)))?;
+            .map_err(|e| ReactiveError::ExternalTool(format!("Failed to execute chafa: {}", e)))?;
 
         if output.status.success() {
             Ok(String::from_utf8_lossy(&output.stdout).to_string())
         } else {
             let error_msg = String::from_utf8_lossy(&output.stderr);
-            Err(RTuiError::ExternalTool(format!(
+            Err(ReactiveError::ExternalTool(format!(
                 "Chafa failed: {}",
                 error_msg
             )))
@@ -190,13 +191,13 @@ impl ExternalRenderer {
 
         let output = cmd
             .output()
-            .map_err(|e| RTuiError::ExternalTool(format!("Failed to execute viu: {}", e)))?;
+            .map_err(|e| ReactiveError::ExternalTool(format!("Failed to execute viu: {}", e)))?;
 
         if output.status.success() {
             Ok(String::from_utf8_lossy(&output.stdout).to_string())
         } else {
             let error_msg = String::from_utf8_lossy(&output.stderr);
-            Err(RTuiError::ExternalTool(format!(
+            Err(ReactiveError::ExternalTool(format!(
                 "Viu failed: {}",
                 error_msg
             )))

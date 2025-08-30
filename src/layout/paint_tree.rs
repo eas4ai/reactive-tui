@@ -1,5 +1,5 @@
 use crate::core::surface::Surface;
-use crate::error::{RTuiError, Result};
+use crate::error::{ReactiveError, Result};
 #[derive(Default)]
 pub struct PaintOptions {
     pub debug_overlay: bool,
@@ -61,7 +61,7 @@ pub fn layout_and_paint_with<'a>(
     };
     taffy
         .compute_layout(root_id, available)
-        .map_err(|e| RTuiError::layout(format!("Failed to compute layout: {}", e)))?;
+        .map_err(|e| ReactiveError::layout(format!("Failed to compute layout: {}", e)))?;
     paint_recursive_dbg(&taffy, root_id, surface, &map, opts.debug_overlay);
     Ok(())
 }
@@ -81,11 +81,11 @@ fn build_nodes<'a>(
     let id = if spec.children.is_empty() {
         taffy
             .new_leaf(style)
-            .map_err(|e| RTuiError::layout(format!("Failed to create leaf node: {}", e)))?
+            .map_err(|e| ReactiveError::layout(format!("Failed to create leaf node: {}", e)))?
     } else {
         let id = taffy
             .new_with_children(style, &[])
-            .map_err(|e| RTuiError::layout(format!("Failed to create parent node: {}", e)))?;
+            .map_err(|e| ReactiveError::layout(format!("Failed to create parent node: {}", e)))?;
         let mut child_ids: Vec<NodeId> = Vec::with_capacity(spec.children.len());
         for child in &spec.children {
             let cid = build_nodes(taffy, child, map)?;
@@ -93,7 +93,7 @@ fn build_nodes<'a>(
         }
         taffy
             .set_children(id, &child_ids)
-            .map_err(|e| RTuiError::layout(format!("Failed to set children: {}", e)))?;
+            .map_err(|e| ReactiveError::layout(format!("Failed to set children: {}", e)))?;
         id
     };
     // Extract visuals + padding/margin cache (px only)

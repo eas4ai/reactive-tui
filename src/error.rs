@@ -8,7 +8,7 @@ use thiserror::Error;
 
 /// The main error type for reactive-tui operations
 #[derive(Debug, Error)]
-pub enum RTuiError {
+pub enum ReactiveError {
     /// I/O operation failed
     #[error("I/O error: {0}")]
     Io(#[from] std::io::Error),
@@ -59,9 +59,9 @@ pub enum RTuiError {
 }
 
 /// Convenient Result type alias
-pub type Result<T> = std::result::Result<T, RTuiError>;
+pub type Result<T> = std::result::Result<T, ReactiveError>;
 
-impl RTuiError {
+impl ReactiveError {
     /// Create an invalid parameter error
     pub fn invalid_parameter(message: impl Into<String>) -> Self {
         Self::InvalidParameter {
@@ -135,28 +135,28 @@ impl RTuiError {
 
 // Conversion to FFI error codes (only when FFI feature is enabled)
 #[cfg(feature = "ffi")]
-impl From<RTuiError> for crate::ffi::RTuiError {
-    fn from(err: RTuiError) -> Self {
+impl From<ReactiveError> for crate::ffi::ReactiveError {
+    fn from(err: ReactiveError) -> Self {
         match err {
-            RTuiError::Io(io_err) => io_err.into(),
-            RTuiError::InvalidParameter { .. } => crate::ffi::RTuiError::InvalidParameter,
-            RTuiError::InvalidState { .. } => crate::ffi::RTuiError::InvalidState,
-            RTuiError::Resource { .. } => crate::ffi::RTuiError::OutOfMemory,
-            RTuiError::Terminal { .. } => crate::ffi::RTuiError::TerminalNotAvailable,
-            RTuiError::Config { .. } => crate::ffi::RTuiError::InvalidParameter,
-            RTuiError::Component { .. } => crate::ffi::RTuiError::NotFound,
-            RTuiError::Layout { .. } => crate::ffi::RTuiError::InvalidParameter,
-            RTuiError::Animation { .. } => crate::ffi::RTuiError::InvalidState,
-            RTuiError::Internal { .. } => crate::ffi::RTuiError::Unknown,
+            ReactiveError::Io(io_err) => io_err.into(),
+            ReactiveError::InvalidParameter { .. } => crate::ffi::ReactiveError::InvalidParameter,
+            ReactiveError::InvalidState { .. } => crate::ffi::ReactiveError::InvalidState,
+            ReactiveError::Resource { .. } => crate::ffi::ReactiveError::OutOfMemory,
+            ReactiveError::Terminal { .. } => crate::ffi::ReactiveError::TerminalNotAvailable,
+            ReactiveError::Config { .. } => crate::ffi::ReactiveError::InvalidParameter,
+            ReactiveError::Component { .. } => crate::ffi::ReactiveError::NotFound,
+            ReactiveError::Layout { .. } => crate::ffi::ReactiveError::InvalidParameter,
+            ReactiveError::Animation { .. } => crate::ffi::ReactiveError::InvalidState,
+            ReactiveError::Internal { .. } => crate::ffi::ReactiveError::Unknown,
         }
     }
 }
 
 // Helper function to convert crossterm results
-impl RTuiError {
-    /// Convert a crossterm Result to RTuiError
+impl ReactiveError {
+    /// Convert a crossterm Result to ReactiveError
     pub fn from_crossterm<T>(result: std::result::Result<T, std::io::Error>) -> Result<T> {
-        result.map_err(RTuiError::Io)
+        result.map_err(ReactiveError::Io)
     }
 }
 
@@ -164,20 +164,20 @@ impl RTuiError {
 #[macro_export]
 macro_rules! invalid_parameter {
     ($msg:expr) => {
-        return Err($crate::error::RTuiError::invalid_parameter($msg))
+        return Err($crate::error::ReactiveError::invalid_parameter($msg))
     };
     ($fmt:expr, $($arg:tt)*) => {
-        return Err($crate::error::RTuiError::invalid_parameter(format!($fmt, $($arg)*)))
+        return Err($crate::error::ReactiveError::invalid_parameter(format!($fmt, $($arg)*)))
     };
 }
 
 #[macro_export]
 macro_rules! invalid_state {
     ($msg:expr) => {
-        return Err($crate::error::RTuiError::invalid_state($msg))
+        return Err($crate::error::ReactiveError::invalid_state($msg))
     };
     ($fmt:expr, $($arg:tt)*) => {
-        return Err($crate::error::RTuiError::invalid_state(format!($fmt, $($arg)*)))
+        return Err($crate::error::ReactiveError::invalid_state(format!($fmt, $($arg)*)))
     };
 }
 
@@ -196,24 +196,24 @@ mod tests {
 
     #[test]
     fn test_error_creation() {
-        let err = RTuiError::invalid_parameter("test message");
-        assert!(matches!(err, RTuiError::InvalidParameter { .. }));
+        let err = ReactiveError::invalid_parameter("test message");
+        assert!(matches!(err, ReactiveError::InvalidParameter { .. }));
         assert_eq!(err.to_string(), "Invalid parameter: test message");
     }
 
     #[test]
     fn test_io_error_conversion() {
         let io_err = std::io::Error::new(std::io::ErrorKind::NotFound, "file not found");
-        let rtui_err: RTuiError = io_err.into();
-        assert!(matches!(rtui_err, RTuiError::Io(_)));
+        let rtui_err: ReactiveError = io_err.into();
+        assert!(matches!(rtui_err, ReactiveError::Io(_)));
     }
 
     #[test]
     #[cfg(feature = "ffi")]
     fn test_ffi_error_conversion() {
-        let rtui_err = RTuiError::invalid_parameter("test");
-        let ffi_err: crate::ffi::RTuiError = rtui_err.into();
-        assert_eq!(ffi_err, crate::ffi::RTuiError::InvalidParameter);
+        let rtui_err = ReactiveError::invalid_parameter("test");
+        let ffi_err: crate::ffi::ReactiveError = rtui_err.into();
+        assert_eq!(ffi_err, crate::ffi::ReactiveError::InvalidParameter);
     }
 
     #[test]
@@ -226,7 +226,7 @@ mod tests {
         assert!(result.is_err());
         assert!(matches!(
             result.unwrap_err(),
-            RTuiError::InvalidParameter { .. }
+            ReactiveError::InvalidParameter { .. }
         ));
     }
 }

@@ -5,8 +5,29 @@
 
 use reactive_tui::core::terminal::Terminal;
 use reactive_tui::widgets::{Image, ImageDisplayMode, ImageQuality};
+use std::io::{self, Write};
+
+/// Guard to ensure cursor is restored even if demo crashes
+struct CursorGuard;
+
+impl CursorGuard {
+    fn new() -> Self {
+        Self
+    }
+}
+
+impl Drop for CursorGuard {
+    fn drop(&mut self) {
+        // Always restore cursor visibility on exit
+        let _ = io::stdout().write_all(b"\x1b[?25h");
+        let _ = io::stdout().flush();
+    }
+}
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Ensure cursor is restored even if demo fails
+    let _cursor_guard = CursorGuard::new();
+
     println!("=== Reactive-TUI Image Widget Demo ===");
     // Detect available image capabilities
     let capabilities = Terminal::detect_image_capabilities();

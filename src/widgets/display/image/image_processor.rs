@@ -3,7 +3,7 @@
 //! Provides various image processing capabilities including ASCII art conversion,
 //! format conversion, and image manipulation utilities.
 
-use crate::error::{RTuiError, Result};
+use crate::error::{ReactiveError, Result};
 use crate::widgets::display::image::{Image, ImageFormat, ImageQuality, ImageSource};
 use std::path::Path;
 
@@ -57,7 +57,7 @@ impl ImageProcessor {
                 height,
                 format,
             } => self.load_from_raw_bytes(data, *width, *height, *format),
-            ImageSource::Url(_) => Err(RTuiError::ImageProcessing(
+            ImageSource::Url(_) => Err(ReactiveError::ImageProcessing(
                 "URL loading not yet implemented".to_string(),
             )),
         }
@@ -66,7 +66,7 @@ impl ImageProcessor {
     /// Load image from file path
     fn load_from_file(&self, path: &Path) -> Result<(Vec<u8>, u32, u32)> {
         let img = image::open(path)
-            .map_err(|e| RTuiError::ImageProcessing(format!("Failed to load image: {}", e)))?;
+            .map_err(|e| ReactiveError::ImageProcessing(format!("Failed to load image: {}", e)))?;
 
         let gray_img = img.to_luma8();
         let (width, height) = gray_img.dimensions();
@@ -80,10 +80,11 @@ impl ImageProcessor {
         use base64::Engine;
         let decoded = base64::engine::general_purpose::STANDARD
             .decode(base64_data)
-            .map_err(|e| RTuiError::ImageProcessing(format!("Invalid base64 data: {}", e)))?;
+            .map_err(|e| ReactiveError::ImageProcessing(format!("Invalid base64 data: {}", e)))?;
 
-        let img = image::load_from_memory(&decoded)
-            .map_err(|e| RTuiError::ImageProcessing(format!("Failed to decode image: {}", e)))?;
+        let img = image::load_from_memory(&decoded).map_err(|e| {
+            ReactiveError::ImageProcessing(format!("Failed to decode image: {}", e))
+        })?;
 
         let gray_img = img.to_luma8();
         let (width, height) = gray_img.dimensions();
@@ -127,7 +128,7 @@ impl ImageProcessor {
             _ => {
                 // For compressed formats, decode using image crate
                 let img = image::load_from_memory(data).map_err(|e| {
-                    RTuiError::ImageProcessing(format!("Failed to decode image: {}", e))
+                    ReactiveError::ImageProcessing(format!("Failed to decode image: {}", e))
                 })?;
 
                 let gray_img = img.to_luma8();
@@ -232,7 +233,7 @@ impl ImageProcessor {
 
         let img_buffer =
             ImageBuffer::<Luma<u8>, _>::from_raw(width, height, data).ok_or_else(|| {
-                RTuiError::ImageProcessing("Invalid grayscale image buffer".to_string())
+                ReactiveError::ImageProcessing("Invalid grayscale image buffer".to_string())
             })?;
 
         let resized = image::imageops::resize(

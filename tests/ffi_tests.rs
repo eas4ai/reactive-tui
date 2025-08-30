@@ -10,7 +10,7 @@ use std::ptr;
 /// Helper macro to assert FFI success
 macro_rules! assert_success {
     ($expr:expr) => {
-        assert_eq!($expr, RTuiError::Success, "FFI call failed");
+        assert_eq!($expr, ReactiveError::Success, "FFI call failed");
     };
 }
 
@@ -41,7 +41,7 @@ mod terminal_tests {
 
     #[test]
     fn test_terminal_create_destroy() {
-        let mut terminal: *mut RTuiTerminal = ptr::null_mut();
+        let mut terminal: *mut ReactiveTerminal = ptr::null_mut();
         assert_success!(rtui_terminal_create(&mut terminal));
         assert!(!terminal.is_null());
         rtui_terminal_destroy(terminal);
@@ -51,13 +51,13 @@ mod terminal_tests {
     fn test_terminal_null_pointer() {
         assert_error!(
             rtui_terminal_create(ptr::null_mut()),
-            RTuiError::NullPointer
+            ReactiveError::NullPointer
         );
     }
 
     #[test]
     fn test_terminal_dimensions() {
-        let mut terminal: *mut RTuiTerminal = ptr::null_mut();
+        let mut terminal: *mut ReactiveTerminal = ptr::null_mut();
         assert_success!(rtui_terminal_create(&mut terminal));
 
         let mut dims = RTuiDimensions {
@@ -73,12 +73,12 @@ mod terminal_tests {
 
     #[test]
     fn test_terminal_dimensions_null() {
-        let mut terminal: *mut RTuiTerminal = ptr::null_mut();
+        let mut terminal: *mut ReactiveTerminal = ptr::null_mut();
         assert_success!(rtui_terminal_create(&mut terminal));
 
         assert_error!(
             rtui_terminal_get_dimensions(terminal, ptr::null_mut()),
-            RTuiError::NullPointer
+            ReactiveError::NullPointer
         );
         assert_error!(
             rtui_terminal_get_dimensions(
@@ -88,7 +88,7 @@ mod terminal_tests {
                     height: 0
                 }
             ),
-            RTuiError::NullPointer
+            ReactiveError::NullPointer
         );
 
         rtui_terminal_destroy(terminal);
@@ -96,7 +96,7 @@ mod terminal_tests {
 
     #[test]
     fn test_terminal_sync_operations() {
-        let mut terminal: *mut RTuiTerminal = ptr::null_mut();
+        let mut terminal: *mut ReactiveTerminal = ptr::null_mut();
         assert_success!(rtui_terminal_create(&mut terminal));
 
         assert_success!(rtui_terminal_sync(terminal, true)); // begin
@@ -107,7 +107,7 @@ mod terminal_tests {
 
     #[test]
     fn test_terminal_poll_event_timeout() {
-        let mut terminal: *mut RTuiTerminal = ptr::null_mut();
+        let mut terminal: *mut ReactiveTerminal = ptr::null_mut();
         assert_success!(rtui_terminal_create(&mut terminal));
 
         let mut event = RTuiEvent {
@@ -122,7 +122,7 @@ mod terminal_tests {
 
         // Non-blocking poll should return NotFound if no event
         let result = rtui_terminal_poll_event(0, &mut event);
-        assert!(result == RTuiError::NotFound || result == RTuiError::Success);
+        assert!(result == ReactiveError::NotFound || result == ReactiveError::Success);
 
         rtui_terminal_destroy(terminal);
     }
@@ -144,11 +144,11 @@ mod surface_tests {
         let mut surface: *mut RTuiSurface = ptr::null_mut();
         assert_error!(
             rtui_surface_create(0, 24, &mut surface),
-            RTuiError::InvalidParameter
+            ReactiveError::InvalidParameter
         );
         assert_error!(
             rtui_surface_create(80, 0, &mut surface),
-            RTuiError::InvalidParameter
+            ReactiveError::InvalidParameter
         );
     }
 
@@ -331,7 +331,7 @@ mod renderer_tests {
 
     #[test]
     fn test_renderer_create_destroy() {
-        let mut terminal: *mut RTuiTerminal = ptr::null_mut();
+        let mut terminal: *mut ReactiveTerminal = ptr::null_mut();
         assert_success!(rtui_terminal_create(&mut terminal));
 
         let mut renderer: *mut RTuiRenderer = ptr::null_mut();
@@ -346,19 +346,19 @@ mod renderer_tests {
     fn test_renderer_null_output() {
         assert_error!(
             rtui_renderer_create(80, 24, ptr::null_mut()),
-            RTuiError::NullPointer
+            ReactiveError::NullPointer
         );
 
         let mut renderer: *mut RTuiRenderer = ptr::null_mut();
         assert_error!(
             rtui_renderer_create(0, 0, &mut renderer),
-            RTuiError::InvalidParameter
+            ReactiveError::InvalidParameter
         );
     }
 
     #[test]
     fn test_renderer_frame_operations() {
-        let mut terminal: *mut RTuiTerminal = ptr::null_mut();
+        let mut terminal: *mut ReactiveTerminal = ptr::null_mut();
         assert_success!(rtui_terminal_create(&mut terminal));
 
         let mut renderer: *mut RTuiRenderer = ptr::null_mut();
@@ -373,7 +373,7 @@ mod renderer_tests {
 
     #[test]
     fn test_renderer_get_surface() {
-        let mut terminal: *mut RTuiTerminal = ptr::null_mut();
+        let mut terminal: *mut ReactiveTerminal = ptr::null_mut();
         assert_success!(rtui_terminal_create(&mut terminal));
 
         let mut renderer: *mut RTuiRenderer = ptr::null_mut();
@@ -409,7 +409,7 @@ mod renderer_tests {
 
     #[test]
     fn test_renderer_resize() {
-        let mut terminal: *mut RTuiTerminal = ptr::null_mut();
+        let mut terminal: *mut ReactiveTerminal = ptr::null_mut();
         assert_success!(rtui_terminal_create(&mut terminal));
 
         let mut renderer: *mut RTuiRenderer = ptr::null_mut();
@@ -423,7 +423,7 @@ mod renderer_tests {
 
     #[test]
     fn test_renderer_force_redraw() {
-        let mut terminal: *mut RTuiTerminal = ptr::null_mut();
+        let mut terminal: *mut ReactiveTerminal = ptr::null_mut();
         assert_success!(rtui_terminal_create(&mut terminal));
 
         let mut renderer: *mut RTuiRenderer = ptr::null_mut();
@@ -437,7 +437,7 @@ mod renderer_tests {
 
     #[test]
     fn test_renderer_shutdown() {
-        let mut terminal: *mut RTuiTerminal = ptr::null_mut();
+        let mut terminal: *mut ReactiveTerminal = ptr::null_mut();
         assert_success!(rtui_terminal_create(&mut terminal));
 
         let mut renderer: *mut RTuiRenderer = ptr::null_mut();
@@ -455,18 +455,18 @@ mod error_handling_tests {
 
     #[test]
     fn test_error_codes() {
-        assert_eq!(RTuiError::Success as i32, 0);
-        assert!((RTuiError::InvalidParameter as i32) < 0);
-        assert!((RTuiError::NullPointer as i32) < 0);
-        assert!(RTuiError::Panic as i32 == -99);
-        assert!(RTuiError::Unknown as i32 == -100);
+        assert_eq!(ReactiveError::Success as i32, 0);
+        assert!((ReactiveError::InvalidParameter as i32) < 0);
+        assert!((ReactiveError::NullPointer as i32) < 0);
+        assert!(ReactiveError::Panic as i32 == -99);
+        assert!(ReactiveError::Unknown as i32 == -100);
     }
 
     #[test]
     fn test_error_is_success() {
-        assert!(RTuiError::Success.is_success());
-        assert!(!RTuiError::InvalidParameter.is_success());
-        assert!(!RTuiError::NullPointer.is_success());
+        assert!(ReactiveError::Success.is_success());
+        assert!(!ReactiveError::InvalidParameter.is_success());
+        assert!(!ReactiveError::NullPointer.is_success());
     }
 
     #[test]
@@ -477,17 +477,17 @@ mod error_handling_tests {
 
         assert_error!(
             rtui_terminal_sync(ptr::null_mut(), true),
-            RTuiError::NullPointer
+            ReactiveError::NullPointer
         );
 
         assert_error!(
             rtui_surface_clear(ptr::null_mut(), 0, 0, 0),
-            RTuiError::NullPointer
+            ReactiveError::NullPointer
         );
 
         assert_error!(
             rtui_renderer_frame(ptr::null_mut(), true),
-            RTuiError::NullPointer
+            ReactiveError::NullPointer
         );
     }
 }
@@ -497,7 +497,7 @@ mod memory_safety_tests {
 
     #[test]
     fn test_double_destroy_safety() {
-        let mut terminal: *mut RTuiTerminal = ptr::null_mut();
+        let mut terminal: *mut ReactiveTerminal = ptr::null_mut();
         assert_success!(rtui_terminal_create(&mut terminal));
 
         rtui_terminal_destroy(terminal);
@@ -515,7 +515,7 @@ mod memory_safety_tests {
         // These should not crash (undefined behavior protection)
         // They should either safely fail or be no-ops
         let result = rtui_surface_clear(surface, 0, 0, 0);
-        assert!(result != RTuiError::Success);
+        assert!(result != ReactiveError::Success);
     }
 
     #[test]
@@ -598,7 +598,7 @@ fn test_full_integration() {
     // Complete integration test simulating real usage
     assert_success!(rtui_init());
 
-    let mut terminal: *mut RTuiTerminal = ptr::null_mut();
+    let mut terminal: *mut ReactiveTerminal = ptr::null_mut();
     assert_success!(rtui_terminal_create(&mut terminal));
 
     let mut renderer: *mut RTuiRenderer = ptr::null_mut();

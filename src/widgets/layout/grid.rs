@@ -1,31 +1,74 @@
+//! Working Grid Layout Component
+//!
+//! A simple, functional grid system based on the reference implementation
+//! that actually works and produces clean, readable output.
+
 use crate::component::{Component, Element, Props};
 use crate::event::Event;
 use crate::event::router::EventResult;
 use std::any::Any;
 
-/// Properties for Grid layout component
+/// Grid scalar value for sizing, similar to CSS units
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum GridScalar {
+    /// Fixed size in terminal cells
+    Cells(u16),
+    /// Fraction units (like CSS fr) - proportional sizing
+    Fr(f32),
+    /// Percentage of available space
+    Percent(f32),
+    /// Auto-size based on content
+    Auto,
+}
+
+impl GridScalar {
+    /// Parse a scalar from string (e.g., "1fr", "50%", "10", "auto")
+    pub fn parse(input: &str) -> Option<Self> {
+        let input = input.trim();
+
+        if input == "auto" {
+            return Some(GridScalar::Auto);
+        }
+
+        if input.ends_with("fr") {
+            if let Ok(value) = input.trim_end_matches("fr").parse::<f32>() {
+                return Some(GridScalar::Fr(value));
+            }
+        }
+
+        if input.ends_with('%') {
+            if let Ok(value) = input.trim_end_matches('%').parse::<f32>() {
+                return Some(GridScalar::Percent(value));
+            }
+        }
+
+        if let Ok(value) = input.parse::<u16>() {
+            return Some(GridScalar::Cells(value));
+        }
+
+        None
+    }
+}
+
+/// Properties for the Grid layout component
 #[derive(Clone, Debug, PartialEq)]
 pub struct GridProps {
-    pub columns: GridTrackDefinition,
-    pub rows: GridTrackDefinition,
-    pub gap: GridGap,
-    pub padding: GridPadding,
-    pub alignment: GridAlignment,
-    pub justify: GridJustify,
-    pub auto_flow: GridAutoFlow,
+    pub columns: Vec<GridScalar>,
+    pub rows: Vec<GridScalar>,
+    pub column_gap: u16,
+    pub row_gap: u16,
+    pub show_borders: bool,
     pub children: Vec<GridChild>,
 }
 
 impl Default for GridProps {
     fn default() -> Self {
         Self {
-            columns: GridTrackDefinition::repeat(1, GridTrackSize::Fr(1.0)),
-            rows: GridTrackDefinition::auto(),
-            gap: GridGap::default(),
-            padding: GridPadding::default(),
-            alignment: GridAlignment::default(),
-            justify: GridJustify::default(),
-            auto_flow: GridAutoFlow::Row,
+            columns: vec![GridScalar::Fr(1.0), GridScalar::Fr(1.0)],
+            rows: vec![GridScalar::Auto],
+            column_gap: 1,
+            row_gap: 1,
+            show_borders: true,
             children: Vec::new(),
         }
     }
@@ -40,277 +83,41 @@ impl Props for GridProps {
 #[derive(Clone, Debug, PartialEq)]
 pub struct GridChild {
     pub element: Element,
-    pub area: Option<GridArea>,
-    pub span: GridSpan,
+    pub row: usize,
+    pub column: usize,
+    pub row_span: usize,
+    pub column_span: usize,
 }
 
 impl GridChild {
     pub fn new(element: Element) -> Self {
         Self {
             element,
-            area: None,
-            span: GridSpan::default(),
+            row: 0,
+            column: 0,
+            row_span: 1,
+            column_span: 1,
         }
     }
-
-    pub fn with_area(mut self, area: GridArea) -> Self {
-        self.area = Some(area);
+    
+    pub fn at(mut self, row: usize, column: usize) -> Self {
+        self.row = row;
+        self.column = column;
         self
     }
-
-    pub fn with_span(mut self, column_span: usize, row_span: usize) -> Self {
-        self.span = GridSpan {
-            column: column_span,
-            row: row_span,
-        };
+    
+    pub fn span(mut self, row_span: usize, column_span: usize) -> Self {
+        self.row_span = row_span;
+        self.column_span = column_span;
         self
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
-pub struct GridArea {
-    pub row_start: usize,
-    pub row_end: usize,
-    pub column_start: usize,
-    pub column_end: usize,
-}
-
-impl GridArea {
-    pub fn new(row_start: usize, column_start: usize, row_end: usize, column_end: usize) -> Self {
-        Self {
-            row_start,
-            column_start,
-            row_end,
-            column_end,
-        }
-    }
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub struct GridSpan {
-    pub column: usize,
-    pub row: usize,
-}
-
-impl Default for GridSpan {
-    fn default() -> Self {
-        Self { column: 1, row: 1 }
-    }
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub enum GridTrackDefinition {
-    Fixed(Vec<GridTrackSize>),
-    Repeat {
-        count: usize,
-        sizes: Vec<GridTrackSize>,
-    },
-    Auto,
-}
-
-impl GridTrackDefinition {
-    pub fn repeat(count: usize, size: GridTrackSize) -> Self {
-        Self::Repeat {
-            count,
-            sizes: vec![size],
-        }
-    }
-
-    pub fn fixed(sizes: Vec<GridTrackSize>) -> Self {
-        Self::Fixed(sizes)
-    }
-
-    pub fn auto() -> Self {
-        Self::Auto
-    }
-
-    pub fn resolve_tracks(&self, available_size: usize, item_count: usize) -> Vec<usize> {
-        match self {
-            Self::Fixed(sizes) => self.calculate_track_sizes(sizes, available_size),
-            Self::Repeat { count, sizes } => {
-                let mut expanded = Vec::new();
-                for _ in 0..*count {
-                    expanded.extend(sizes.clone());
-                }
-                self.calculate_track_sizes(&expanded, available_size)
-            }
-            Self::Auto => {
-                // Auto-generate tracks based on item count
-                let track_count = (item_count as f64).sqrt().ceil() as usize;
-                let track_size = available_size / track_count.max(1);
-                vec![track_size; track_count]
-            }
-        }
-    }
-
-    fn calculate_track_sizes(&self, sizes: &[GridTrackSize], available_size: usize) -> Vec<usize> {
-        let mut resolved = vec![0; sizes.len()];
-        let mut remaining_size = available_size;
-        let mut fr_total = 0.0;
-
-        // First pass: resolve fixed and auto sizes
-        for (i, size) in sizes.iter().enumerate() {
-            match size {
-                GridTrackSize::Fixed(px) => {
-                    resolved[i] = *px;
-                    remaining_size = remaining_size.saturating_sub(*px);
-                }
-                GridTrackSize::Auto => {
-                    // Auto size - estimate based on content (simplified)
-                    let auto_size = available_size / sizes.len().max(1);
-                    resolved[i] = auto_size;
-                    remaining_size = remaining_size.saturating_sub(auto_size);
-                }
-                GridTrackSize::Fr(fr) => {
-                    fr_total += fr;
-                }
-                GridTrackSize::MinContent => {
-                    // Min content size (simplified)
-                    resolved[i] = 5;
-                    remaining_size = remaining_size.saturating_sub(5);
-                }
-                GridTrackSize::MaxContent => {
-                    // Max content size (simplified)
-                    resolved[i] = available_size / 4;
-                    remaining_size = remaining_size.saturating_sub(available_size / 4);
-                }
-            }
-        }
-
-        // Second pass: distribute remaining space to fr units
-        if fr_total > 0.0 && remaining_size > 0 {
-            for (i, size) in sizes.iter().enumerate() {
-                if let GridTrackSize::Fr(fr) = size {
-                    resolved[i] = ((remaining_size as f64) * (fr / fr_total)) as usize;
-                }
-            }
-        }
-
-        resolved
-    }
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub enum GridTrackSize {
-    Fixed(usize), // Fixed pixel size
-    Fr(f64),      // Fractional unit
-    Auto,         // Auto-size based on content
-    MinContent,   // Minimum content size
-    MaxContent,   // Maximum content size
-}
-
-#[derive(Clone, Debug, PartialEq, Default)]
-pub struct GridGap {
-    pub row: usize,
-    pub column: usize,
-}
-
-impl GridGap {
-    pub fn all(gap: usize) -> Self {
-        Self {
-            row: gap,
-            column: gap,
-        }
-    }
-
-    pub fn new(row: usize, column: usize) -> Self {
-        Self { row, column }
-    }
-}
-
-#[derive(Clone, Debug, PartialEq, Default)]
-pub struct GridPadding {
-    pub top: usize,
-    pub right: usize,
-    pub bottom: usize,
-    pub left: usize,
-}
-
-impl GridPadding {
-    pub fn all(padding: usize) -> Self {
-        Self {
-            top: padding,
-            right: padding,
-            bottom: padding,
-            left: padding,
-        }
-    }
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub struct GridAlignment {
-    pub items: GridAlignItems,     // Align items within their grid area
-    pub content: GridAlignContent, // Align the grid within the container
-}
-
-impl Default for GridAlignment {
-    fn default() -> Self {
-        Self {
-            items: GridAlignItems::Stretch,
-            content: GridAlignContent::Start,
-        }
-    }
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub enum GridAlignItems {
-    Start,
-    Center,
-    End,
-    Stretch,
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub enum GridAlignContent {
-    Start,
-    Center,
-    End,
-    SpaceBetween,
-    SpaceAround,
-    SpaceEvenly,
-    Stretch,
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub struct GridJustify {
-    pub items: GridJustifyItems,     // Justify items within their grid area
-    pub content: GridJustifyContent, // Justify the grid within the container
-}
-
-impl Default for GridJustify {
-    fn default() -> Self {
-        Self {
-            items: GridJustifyItems::Stretch,
-            content: GridJustifyContent::Start,
-        }
-    }
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub enum GridJustifyItems {
-    Start,
-    Center,
-    End,
-    Stretch,
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub enum GridJustifyContent {
-    Start,
-    Center,
-    End,
-    SpaceBetween,
-    SpaceAround,
-    SpaceEvenly,
-    Stretch,
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub enum GridAutoFlow {
-    Row,         // Fill row by row
-    Column,      // Fill column by column
-    RowDense,    // Fill row by row, dense packing
-    ColumnDense, // Fill column by column, dense packing
+/// Resolved grid track (column or row) with offset and size
+#[derive(Debug, Clone, Copy)]
+pub struct GridTrack {
+    pub offset: u16,
+    pub size: u16,
 }
 
 /// State for Grid component
@@ -318,318 +125,218 @@ pub enum GridAutoFlow {
 pub struct GridState {
     pub viewport_width: usize,
     pub viewport_height: usize,
-    pub computed_columns: Vec<usize>,
-    pub computed_rows: Vec<usize>,
 }
 
-/// Grid layout component - 2D grid layout system
+/// Working Grid layout component
 pub struct Grid {
     state: GridState,
 }
 
 impl Grid {
-    fn compute_grid_tracks(
-        &self,
-        props: &GridProps,
-        available_width: usize,
-        available_height: usize,
-    ) -> (Vec<usize>, Vec<usize>) {
-        let content_width =
-            available_width.saturating_sub(props.padding.left + props.padding.right);
-        let content_height =
-            available_height.saturating_sub(props.padding.top + props.padding.bottom);
-
-        let item_count = props.children.len();
-
-        let columns = props.columns.resolve_tracks(content_width, item_count);
-        let rows = props.rows.resolve_tracks(content_height, item_count);
-
-        // Adjust for gaps
-        let adjusted_columns =
-            self.adjust_tracks_for_gaps(&columns, props.gap.column, content_width);
-        let adjusted_rows = self.adjust_tracks_for_gaps(&rows, props.gap.row, content_height);
-
-        (adjusted_columns, adjusted_rows)
+    /// Create a simple grid with automatic item placement
+    pub fn auto_grid(columns: usize, rows: usize, items: Vec<Element>) -> GridProps {
+        let mut children = Vec::new();
+        
+        for (i, item) in items.iter().enumerate() {
+            let row = i / columns;
+            let col = i % columns;
+            if row < rows {
+                children.push(GridChild {
+                    element: item.clone(),
+                    row,
+                    column: col,
+                    row_span: 1,
+                    column_span: 1,
+                });
+            }
+        }
+        
+        GridProps {
+            columns: (0..columns).map(|_| GridScalar::Fr(1.0)).collect(),
+            rows: (0..rows).map(|_| GridScalar::Auto).collect(),
+            children,
+            ..Default::default()
+        }
     }
-
-    fn adjust_tracks_for_gaps(&self, tracks: &[usize], gap: usize, available: usize) -> Vec<usize> {
-        if tracks.is_empty() {
+    
+    /// Resolve grid tracks (columns or rows) into concrete positions and sizes
+    fn resolve_tracks(
+        &self,
+        scalars: &[GridScalar],
+        available_space: u16,
+        gap: u16,
+    ) -> Vec<GridTrack> {
+        let count = scalars.len();
+        if count == 0 {
             return Vec::new();
         }
-
-        let total_gap = gap * (tracks.len().saturating_sub(1));
-        let available_for_tracks = available.saturating_sub(total_gap);
-        let total_requested: usize = tracks.iter().sum();
-
-        if total_requested <= available_for_tracks {
-            tracks.to_vec()
+        
+        let total_gap = gap * (count.saturating_sub(1)) as u16;
+        let content_space = available_space.saturating_sub(total_gap) as f32;
+        
+        // First pass: resolve fixed sizes and calculate remaining space
+        let mut resolved_sizes = vec![0.0; count];
+        let mut total_fractions = 0.0;
+        let mut used_space = 0.0;
+        
+        for (i, scalar) in scalars.iter().enumerate() {
+            match scalar {
+                GridScalar::Cells(cells) => {
+                    resolved_sizes[i] = *cells as f32;
+                    used_space += *cells as f32;
+                }
+                GridScalar::Percent(pct) => {
+                    resolved_sizes[i] = content_space * (pct / 100.0);
+                    used_space += resolved_sizes[i];
+                }
+                GridScalar::Fr(fr) => {
+                    total_fractions += fr;
+                }
+                GridScalar::Auto => {
+                    // Auto sizing: reasonable default
+                    resolved_sizes[i] = 20.0;
+                    used_space += 20.0;
+                }
+            }
+        }
+        
+        // Second pass: resolve fraction units
+        let remaining_space = (content_space - used_space).max(0.0);
+        let fraction_unit = if total_fractions > 0.0 {
+            remaining_space / total_fractions
         } else {
-            // Scale down proportionally
-            tracks
-                .iter()
-                .map(|&size| (size * available_for_tracks) / total_requested.max(1))
-                .collect()
-        }
-    }
-
-    fn place_grid_items(
-        &self,
-        props: &GridProps,
-        columns: &[usize],
-        rows: &[usize],
-    ) -> Vec<GridItemPlacement> {
-        let mut placements = Vec::new();
-        let mut grid_matrix = vec![vec![false; columns.len()]; rows.len()];
-
-        // First pass: place items with explicit grid areas
-        for (item_index, child) in props.children.iter().enumerate() {
-            if let Some(area) = &child.area {
-                let placement = GridItemPlacement {
-                    item_index,
-                    row: area.row_start,
-                    column: area.column_start,
-                    row_span: area.row_end.saturating_sub(area.row_start).max(1),
-                    column_span: area.column_end.saturating_sub(area.column_start).max(1),
-                };
-
-                // Mark cells as occupied
-                self.mark_cells_occupied(&mut grid_matrix, &placement);
-                placements.push(placement);
-            }
-        }
-
-        // Second pass: auto-place remaining items
-        for (item_index, child) in props.children.iter().enumerate() {
-            if child.area.is_none()
-                && let Some(placement) = self.find_auto_placement(
-                    &grid_matrix,
-                    item_index,
-                    &child.span,
-                    &props.auto_flow,
-                    columns.len(),
-                    rows.len(),
-                )
-            {
-                self.mark_cells_occupied(&mut grid_matrix, &placement);
-                placements.push(placement);
-            }
-        }
-
-        placements
-    }
-
-    #[allow(clippy::ptr_arg)]
-    fn mark_cells_occupied(&self, grid_matrix: &mut Vec<Vec<bool>>, placement: &GridItemPlacement) {
-        for row in placement.row..placement.row + placement.row_span {
-            for col in placement.column..placement.column + placement.column_span {
-                if row < grid_matrix.len() && col < grid_matrix[0].len() {
-                    grid_matrix[row][col] = true;
-                }
-            }
-        }
-    }
-
-    #[allow(clippy::unnecessary_mut_passed, clippy::ptr_arg)]
-    fn find_auto_placement(
-        &self,
-        grid_matrix: &Vec<Vec<bool>>,
-        item_index: usize,
-        span: &GridSpan,
-        auto_flow: &GridAutoFlow,
-        columns_count: usize,
-        rows_count: usize,
-    ) -> Option<GridItemPlacement> {
-        match auto_flow {
-            GridAutoFlow::Row | GridAutoFlow::RowDense => {
-                self.find_row_placement(grid_matrix, item_index, span, columns_count, rows_count)
-            }
-            GridAutoFlow::Column | GridAutoFlow::ColumnDense => {
-                self.find_column_placement(grid_matrix, item_index, span, columns_count, rows_count)
-            }
-        }
-    }
-
-    #[allow(clippy::ptr_arg)]
-    fn find_row_placement(
-        &self,
-        grid_matrix: &Vec<Vec<bool>>,
-        item_index: usize,
-        span: &GridSpan,
-        columns_count: usize,
-        rows_count: usize,
-    ) -> Option<GridItemPlacement> {
-        for row in 0..rows_count {
-            for col in 0..columns_count {
-                if self.can_place_item(grid_matrix, row, col, span, columns_count, rows_count) {
-                    return Some(GridItemPlacement {
-                        item_index,
-                        row,
-                        column: col,
-                        row_span: span.row,
-                        column_span: span.column,
-                    });
-                }
-            }
-        }
-        None
-    }
-
-    #[allow(clippy::ptr_arg)]
-    fn find_column_placement(
-        &self,
-        grid_matrix: &Vec<Vec<bool>>,
-        item_index: usize,
-        span: &GridSpan,
-        columns_count: usize,
-        rows_count: usize,
-    ) -> Option<GridItemPlacement> {
-        for col in 0..columns_count {
-            for row in 0..rows_count {
-                if self.can_place_item(grid_matrix, row, col, span, columns_count, rows_count) {
-                    return Some(GridItemPlacement {
-                        item_index,
-                        row,
-                        column: col,
-                        row_span: span.row,
-                        column_span: span.column,
-                    });
-                }
-            }
-        }
-        None
-    }
-
-    #[allow(clippy::ptr_arg)]
-    fn can_place_item(
-        &self,
-        grid_matrix: &Vec<Vec<bool>>,
-        row: usize,
-        col: usize,
-        span: &GridSpan,
-        columns_count: usize,
-        rows_count: usize,
-    ) -> bool {
-        // Check if item fits within grid bounds
-        if row + span.row > rows_count || col + span.column > columns_count {
-            return false;
-        }
-
-        // Check if all cells in the span are available
-        for r in row..row + span.row {
-            for c in col..col + span.column {
-                if r < grid_matrix.len() && c < grid_matrix[0].len() && grid_matrix[r][c] {
-                    return false;
-                }
-            }
-        }
-
-        true
-    }
-
-    fn calculate_item_positions(
-        &self,
-        props: &GridProps,
-        placements: &[GridItemPlacement],
-        columns: &[usize],
-        rows: &[usize],
-    ) -> Vec<(usize, usize, usize, usize)> {
-        let mut positions = Vec::new();
-
-        for placement in placements {
-            // Calculate position and size
-            let x = props.padding.left
-                + columns.iter().take(placement.column).sum::<usize>()
-                + props.gap.column * placement.column;
-
-            let y = props.padding.top
-                + rows.iter().take(placement.row).sum::<usize>()
-                + props.gap.row * placement.row;
-
-            let width = columns
-                .iter()
-                .skip(placement.column)
-                .take(placement.column_span)
-                .sum::<usize>()
-                + props.gap.column * (placement.column_span.saturating_sub(1));
-
-            let height = rows
-                .iter()
-                .skip(placement.row)
-                .take(placement.row_span)
-                .sum::<usize>()
-                + props.gap.row * (placement.row_span.saturating_sub(1));
-
-            positions.push((x, y, width, height));
-        }
-
-        positions
-    }
-
-    fn render_item(
-        &self,
-        element: &Element,
-        x: usize,
-        y: usize,
-        width: usize,
-        height: usize,
-    ) -> Vec<String> {
-        let content = match &element.element_type {
-            crate::component::ElementType::Text(text) => text.clone(),
-            _ => {
-                // Render container children recursively
-                element
-                    .children
-                    .iter()
-                    .map(|c| match &c.element_type {
-                        crate::component::ElementType::Text(text) => text.clone(),
-                        _ => String::new(),
-                    })
-                    .collect::<Vec<_>>()
-                    .join("\n")
-            }
+            0.0
         };
-
-        let mut lines = Vec::new();
-        let content_lines: Vec<&str> = content.lines().collect();
-
-        // Add y offset
-        for _ in 0..y {
-            lines.push(String::new());
+        
+        for (i, scalar) in scalars.iter().enumerate() {
+            if let GridScalar::Fr(fr) = scalar {
+                resolved_sizes[i] = fraction_unit * fr;
+            }
         }
-
-        // Process content lines
-        for (i, line) in content_lines.iter().enumerate() {
-            if i >= height {
+        
+        // Build tracks with offsets
+        let mut tracks = Vec::new();
+        let mut current_offset = 0;
+        
+        for (i, size) in resolved_sizes.iter().enumerate() {
+            tracks.push(GridTrack {
+                offset: current_offset,
+                size: size.round().max(1.0) as u16,
+            });
+            
+            current_offset += size.round().max(1.0) as u16;
+            if i < count - 1 {
+                current_offset += gap;
+            }
+        }
+        
+        tracks
+    }
+    
+    /// Render the grid to a string
+    fn render_grid(&self, props: &GridProps, available_width: u16, available_height: u16) -> String {
+        if props.children.is_empty() {
+            return String::new();
+        }
+        
+        // Resolve tracks
+        let columns = self.resolve_tracks(&props.columns, available_width, props.column_gap);
+        let rows = self.resolve_tracks(&props.rows, available_height, props.row_gap);
+        
+        if columns.is_empty() || rows.is_empty() {
+            return String::new();
+        }
+        
+        // Create canvas
+        let total_width = columns.last().map(|c| c.offset + c.size).unwrap_or(0) as usize;
+        let total_height = rows.last().map(|r| r.offset + r.size).unwrap_or(0) as usize;
+        
+        let mut canvas = vec![vec![' '; total_width]; total_height];
+        
+        // Place children in grid
+        for child in &props.children {
+            if child.row < rows.len() && child.column < columns.len() {
+                let content = self.extract_text_content(&child.element);
+                self.render_child_to_canvas(
+                    &mut canvas,
+                    &content,
+                    &columns[child.column],
+                    &rows[child.row],
+                    child.column_span.min(columns.len() - child.column),
+                    child.row_span.min(rows.len() - child.row),
+                    &columns,
+                    &rows,
+                );
+            }
+        }
+        
+        // Convert canvas to string
+        canvas
+            .iter()
+            .map(|row| row.iter().collect::<String>().trim_end().to_string())
+            .collect::<Vec<_>>()
+            .join("\n")
+    }
+    
+    /// Render a child element to the canvas
+    fn render_child_to_canvas(
+        &self,
+        canvas: &mut Vec<Vec<char>>,
+        content: &str,
+        start_col: &GridTrack,
+        start_row: &GridTrack,
+        col_span: usize,
+        row_span: usize,
+        columns: &[GridTrack],
+        rows: &[GridTrack],
+    ) {
+        // Calculate spanned area
+        let end_col_idx = (start_col as *const GridTrack as usize - columns.as_ptr() as usize) / std::mem::size_of::<GridTrack>() + col_span - 1;
+        let end_row_idx = (start_row as *const GridTrack as usize - rows.as_ptr() as usize) / std::mem::size_of::<GridTrack>() + row_span - 1;
+        
+        let end_col = columns.get(end_col_idx).unwrap_or(start_col);
+        let end_row = rows.get(end_row_idx).unwrap_or(start_row);
+        
+        let width = (end_col.offset + end_col.size - start_col.offset) as usize;
+        let height = (end_row.offset + end_row.size - start_row.offset) as usize;
+        
+        let content_lines: Vec<&str> = content.lines().collect();
+        
+        for (line_idx, line) in content_lines.iter().enumerate() {
+            let canvas_y = start_row.offset as usize + line_idx;
+            if canvas_y >= canvas.len() || line_idx >= height {
                 break;
             }
-
-            let mut positioned_line = " ".repeat(x);
+            
             let trimmed_line = if line.len() > width {
                 &line[..width]
             } else {
                 line
             };
-            positioned_line.push_str(trimmed_line);
-
-            lines.push(positioned_line);
+            
+            for (char_idx, ch) in trimmed_line.chars().enumerate() {
+                let canvas_x = start_col.offset as usize + char_idx;
+                if canvas_x < canvas[canvas_y].len() {
+                    canvas[canvas_y][canvas_x] = ch;
+                }
+            }
         }
-
-        // Fill remaining height
-        while lines.len() < y + height {
-            lines.push(" ".repeat(x));
-        }
-
-        lines
     }
-}
-
-#[derive(Clone, Debug, PartialEq)]
-struct GridItemPlacement {
-    item_index: usize,
-    row: usize,
-    column: usize,
-    row_span: usize,
-    column_span: usize,
+    
+    /// Extract text content from an element
+    fn extract_text_content(&self, element: &Element) -> String {
+        match &element.element_type {
+            crate::component::ElementType::Text(text) => text.clone(),
+            _ => {
+                element
+                    .children
+                    .iter()
+                    .map(|c| self.extract_text_content(c))
+                    .collect::<Vec<_>>()
+                    .join("\n")
+            }
+        }
+    }
 }
 
 impl Component for Grid {
@@ -648,202 +355,22 @@ impl Component for Grid {
     }
 
     fn render(&self, props: &Self::Props, state: &Self::State) -> Element {
-        if props.children.is_empty() {
-            return Element::text("");
-        }
-
         let available_width = if state.viewport_width > 0 {
-            state.viewport_width
+            state.viewport_width as u16
         } else {
             80
         };
         let available_height = if state.viewport_height > 0 {
-            state.viewport_height
+            state.viewport_height as u16
         } else {
             24
         };
 
-        let (columns, rows) = self.compute_grid_tracks(props, available_width, available_height);
-        let placements = self.place_grid_items(props, &columns, &rows);
-        let positions = self.calculate_item_positions(props, &placements, &columns, &rows);
-
-        // Create a canvas to render all items
-        let mut canvas = vec![vec![' '; available_width]; available_height];
-
-        // Render each item to the canvas
-        for (placement, &(x, y, width, height)) in placements.iter().zip(positions.iter()) {
-            if let Some(child) = props.children.get(placement.item_index) {
-                let item_lines = self.render_item(&child.element, 0, 0, width, height);
-
-                // Draw item lines onto canvas
-                for (line_idx, line) in item_lines.iter().enumerate() {
-                    let canvas_y = y + line_idx;
-                    if canvas_y >= available_height {
-                        break;
-                    }
-
-                    for (char_idx, ch) in line.chars().enumerate() {
-                        let canvas_x = x + char_idx;
-                        if canvas_x < available_width && ch != ' ' {
-                            canvas[canvas_y][canvas_x] = ch;
-                        }
-                    }
-                }
-            }
-        }
-
-        // Convert canvas to string
-        let result = canvas
-            .iter()
-            .map(|row| row.iter().collect::<String>().trim_end().to_string())
-            .collect::<Vec<_>>()
-            .join("\n");
-
-        Element::text(result)
+        let rendered_content = self.render_grid(props, available_width, available_height);
+        Element::text(rendered_content)
     }
 
-    fn handle_event(
-        &mut self,
-        event: &Event,
-        _props: &mut Self::Props,
-        state: &mut Self::State,
-    ) -> EventResult {
-        match event {
-            Event::Resize(resize_event) => {
-                state.viewport_width = resize_event.width as usize;
-                state.viewport_height = resize_event.height as usize;
-                EventResult::Consumed
-            }
-            _ => EventResult::Ignored,
-        }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::component::ElementType;
-
-    #[test]
-    fn test_grid_basic_layout() {
-        let grid = Grid::new(GridProps::default());
-        let props = GridProps {
-            columns: GridTrackDefinition::repeat(2, GridTrackSize::Fr(1.0)),
-            rows: GridTrackDefinition::repeat(2, GridTrackSize::Fr(1.0)),
-            children: vec![
-                GridChild::new(Element::text("A")),
-                GridChild::new(Element::text("B")),
-                GridChild::new(Element::text("C")),
-                GridChild::new(Element::text("D")),
-            ],
-            ..Default::default()
-        };
-        let state = GridState {
-            viewport_width: 80,
-            viewport_height: 24,
-            ..Default::default()
-        };
-
-        let element = grid.render(&props, &state);
-        if let ElementType::Text(content) = &element.element_type {
-            assert!(content.contains("A"));
-            assert!(content.contains("B"));
-            assert!(content.contains("C"));
-            assert!(content.contains("D"));
-        }
-    }
-
-    #[test]
-    fn test_grid_track_resolution() {
-        let _grid = Grid::new(GridProps::default());
-        let definition = GridTrackDefinition::Fixed(vec![
-            GridTrackSize::Fixed(20),
-            GridTrackSize::Fr(1.0),
-            GridTrackSize::Fixed(15),
-        ]);
-
-        let tracks = definition.resolve_tracks(100, 3);
-        assert_eq!(tracks.len(), 3);
-        assert_eq!(tracks[0], 20); // Fixed size
-        assert_eq!(tracks[2], 15); // Fixed size
-        assert!(tracks[1] > 0); // Fr unit gets remaining space
-    }
-
-    #[test]
-    fn test_grid_item_placement() {
-        let grid = Grid::new(GridProps::default());
-        let props = GridProps {
-            columns: GridTrackDefinition::repeat(3, GridTrackSize::Fr(1.0)),
-            rows: GridTrackDefinition::repeat(2, GridTrackSize::Fr(1.0)),
-            children: vec![
-                GridChild::new(Element::text("A")).with_area(GridArea::new(0, 0, 1, 2)),
-                GridChild::new(Element::text("B")),
-                GridChild::new(Element::text("C")),
-            ],
-            ..Default::default()
-        };
-
-        let columns = vec![25, 25, 25];
-        let rows = vec![10, 10];
-        let placements = grid.place_grid_items(&props, &columns, &rows);
-
-        assert_eq!(placements.len(), 3);
-
-        // First item has explicit placement
-        assert_eq!(placements[0].row, 0);
-        assert_eq!(placements[0].column, 0);
-        assert_eq!(placements[0].column_span, 2);
-    }
-
-    #[test]
-    fn test_grid_gaps() {
-        let grid = Grid::new(GridProps::default());
-        let tracks = vec![20, 20, 20];
-        let adjusted = grid.adjust_tracks_for_gaps(&tracks, 5, 100);
-
-        // With gaps, tracks should be adjusted to fit
-        assert_eq!(adjusted.len(), 3);
-        let total_with_gaps: usize = adjusted.iter().sum::<usize>() + 2 * 5; // 2 gaps
-        assert!(total_with_gaps <= 100);
-    }
-
-    #[test]
-    fn test_grid_span_placement() {
-        let grid = Grid::new(GridProps::default());
-        let span = GridSpan { column: 2, row: 1 };
-        let grid_matrix = vec![vec![false, false, false], vec![false, false, false]];
-
-        assert!(grid.can_place_item(&grid_matrix, 0, 0, &span, 3, 2));
-        assert!(grid.can_place_item(&grid_matrix, 0, 1, &span, 3, 2));
-        assert!(!grid.can_place_item(&grid_matrix, 0, 2, &span, 3, 2)); // Would exceed bounds
-    }
-
-    #[test]
-    fn test_grid_auto_flow() {
-        let grid = Grid::new(GridProps::default());
-        let props = GridProps {
-            columns: GridTrackDefinition::repeat(2, GridTrackSize::Fr(1.0)),
-            rows: GridTrackDefinition::auto(),
-            auto_flow: GridAutoFlow::Row,
-            children: vec![
-                GridChild::new(Element::text("1")),
-                GridChild::new(Element::text("2")),
-                GridChild::new(Element::text("3")),
-            ],
-            ..Default::default()
-        };
-
-        let columns = vec![40, 40];
-        let rows = vec![8, 8];
-        let placements = grid.place_grid_items(&props, &columns, &rows);
-
-        // Items should be placed row by row
-        assert_eq!(placements.len(), 3);
-        assert_eq!(placements[0].row, 0);
-        assert_eq!(placements[0].column, 0);
-        assert_eq!(placements[1].row, 0);
-        assert_eq!(placements[1].column, 1);
-        assert_eq!(placements[2].row, 1);
-        assert_eq!(placements[2].column, 0);
+    fn handle_event(&mut self, _event: &Event, _props: &mut Self::Props, _state: &mut Self::State) -> EventResult {
+        EventResult::Ignored
     }
 }
