@@ -179,15 +179,16 @@ impl PatchList {
                     text: text2,
                 },
             ) = (&self.patches[i], &self.patches[i + 1])
-                && id1 == id2
             {
-                // Combine texts - later update wins
-                self.patches[i] = Patch::SetText {
-                    index: *id1,
-                    text: text2.clone(),
-                };
-                self.patches.remove(i + 1);
-                continue;
+                if id1 == id2 {
+                    // Combine texts - later update wins
+                    self.patches[i] = Patch::SetText {
+                        index: *id1,
+                        text: text2.clone(),
+                    };
+                    self.patches.remove(i + 1);
+                    continue;
+                }
             }
             i += 1;
         }

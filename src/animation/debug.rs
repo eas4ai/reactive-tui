@@ -502,10 +502,10 @@ impl AnimationDebugger {
             .push(snapshot);
 
         // Limit snapshot history
-        if let Some(snapshots) = self.snapshots.get_mut(&animation.id)
-            && snapshots.len() > self.config.max_debug_entries / 10
-        {
-            snapshots.remove(0);
+        if let Some(snapshots) = self.snapshots.get_mut(&animation.id) {
+            if snapshots.len() > self.config.max_debug_entries / 10 {
+                snapshots.remove(0);
+            }
         }
     }
 
@@ -554,10 +554,10 @@ impl AnimationDebugger {
             .push(snapshot);
 
         // Limit snapshot history
-        if let Some(snapshots) = self.timeline_snapshots.get_mut(&timeline.id)
-            && snapshots.len() > self.config.max_debug_entries / 10
-        {
-            snapshots.remove(0);
+        if let Some(snapshots) = self.timeline_snapshots.get_mut(&timeline.id) {
+            if snapshots.len() > self.config.max_debug_entries / 10 {
+                snapshots.remove(0);
+            }
         }
     }
 

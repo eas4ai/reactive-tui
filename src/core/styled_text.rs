@@ -83,13 +83,13 @@ impl StyledLine {
     /// Add a run to the line
     pub fn push(&mut self, run: StyledRun) {
         // Merge with previous run if styles match
-        if let Some(last) = self.runs.last_mut()
-            && last.fg == run.fg
-            && last.bg == run.bg
-            && last.attr == run.attr
-        {
-            last.text.push_str(&run.text);
-            return;
+        if let Some(last) = self.runs.last_mut() {
+            if last.fg == run.fg {
+                if last.bg == run.bg && last.attr == run.attr {
+                    last.text.push_str(&run.text);
+                    return;
+                }
+            }
         }
         self.runs.push(run);
     }
@@ -351,30 +351,25 @@ mod tests {
         let line = StyledLine::from_run(StyledRun::new("Test", fg, bg, Attr::BOLD));
         let ops = styled_line_to_render_ops(&line, 10, 5);
 
-        assert!(
-            ops.ops()
-                .iter()
-                .any(|op| matches!(op, RenderOp::MoveTo { x: 10, y: 5 }))
-        );
-        assert!(
-            ops.ops()
-                .iter()
-                .any(|op| matches!(op, RenderOp::SetFgColor(_)))
-        );
-        assert!(
-            ops.ops()
-                .iter()
-                .any(|op| matches!(op, RenderOp::SetBgColor(_)))
-        );
-        assert!(
-            ops.ops()
-                .iter()
-                .any(|op| matches!(op, RenderOp::SetAttributes(_)))
-        );
-        assert!(
-            ops.ops()
-                .iter()
-                .any(|op| matches!(op, RenderOp::PrintRun(s) if s == "Test"))
-        );
+        assert!(ops
+            .ops()
+            .iter()
+            .any(|op| matches!(op, RenderOp::MoveTo { x: 10, y: 5 })));
+        assert!(ops
+            .ops()
+            .iter()
+            .any(|op| matches!(op, RenderOp::SetFgColor(_))));
+        assert!(ops
+            .ops()
+            .iter()
+            .any(|op| matches!(op, RenderOp::SetBgColor(_))));
+        assert!(ops
+            .ops()
+            .iter()
+            .any(|op| matches!(op, RenderOp::SetAttributes(_))));
+        assert!(ops
+            .ops()
+            .iter()
+            .any(|op| matches!(op, RenderOp::PrintRun(s) if s == "Test")));
     }
 }

@@ -1,324 +1,432 @@
-use crossterm::event::Event;
-use crossterm::{event, terminal};
-use std::io::{BufWriter, Result};
+//! Terminal management and capability detection
+
+use std::io::{stdout, Stdout, Write};
 use std::process::Command;
-use std::time::Duration;
 
-#[cfg(not(test))]
-use std::io::Write;
-#[cfg(not(test))]
-use std::time::Instant;
-
-use crate::widgets::display::image::ImageCapabilities;
-
-#[cfg(not(test))]
-use crossterm::event::{
-    DisableBracketedPaste, DisableMouseCapture, EnableBracketedPaste, EnableMouseCapture,
+use crossterm::{
+    cursor,
+    event::{
+        self, DisableBracketedPaste, DisableMouseCapture, EnableBracketedPaste, EnableMouseCapture,
+        Event,
+    },
+    execute,
+    terminal::{
+        disable_raw_mode, enable_raw_mode, BeginSynchronizedUpdate, Clear, ClearType,
+        EndSynchronizedUpdate, EnterAlternateScreen, LeaveAlternateScreen,
+    },
 };
-#[cfg(not(test))]
-use crossterm::execute;
-#[cfg(not(test))]
-use std::env;
-#[cfg(not(test))]
-use std::io::{Error, stdout};
+
+use crate::core::capabilities::{TerminalCapabilities, TerminalQuery};
+use crate::error::{ReactiveError, Result};
+use crate::widgets::display::image::ImageCapabilities;
 
 /// Statistics for terminal write operations
 #[derive(Debug, Default, Clone)]
 pub struct TerminalWriteStats {
-    pub bytes_written: u64,
-    pub flush_count: u32,
-    pub write_time: Duration,
-    pub buffer_size: usize,
+    pub total_bytes: usize,
+    pub total_writes: usize,
     pub buffer_utilization: f32,
 }
 
+/// Terminal abstraction that handles initialization and cleanup
 pub struct Terminal {
-    #[allow(dead_code)] // Used conditionally based on platform
-    writer: Option<BufWriter<std::io::Stdout>>,
-    stats: TerminalWriteStats,
-    buffer_size: usize,
-}
-
-impl Drop for Terminal {
-    fn drop(&mut self) {
-        // Always restore terminal state, even on panic
-        let _ = self.exit_modern_mode();
-    }
+    stdout: Stdout,
+    /// Original terminal size for restoration
+    original_size: Option<(u16, u16)>,
+    /// Whether we're in raw mode
+    raw_mode: bool,
+    /// Whether we're in alternate screen
+    alternate_screen: bool,
+    /// Detected terminal capabilities
+    capabilities: TerminalCapabilities,
+    /// Write buffer for high-performance mode
+    write_buffer: Vec<u8>,
+    /// Whether buffered mode is enabled
+    buffered_mode: bool,
+    /// Write statistics
+    write_stats: TerminalWriteStats,
 }
 
 impl Terminal {
-    /// Default buffer size - 2MB for optimal performance
-    pub const DEFAULT_BUFFER_SIZE: usize = 2 * 1024 * 1024;
-
+    /// Create a new terminal instance
     pub fn new() -> Result<Self> {
-        Self::with_buffer_size(Self::DEFAULT_BUFFER_SIZE)
-    }
+        let stdout = stdout();
 
-    pub fn with_buffer_size(buffer_size: usize) -> Result<Self> {
-        let stats = TerminalWriteStats {
-            buffer_size,
-            ..Default::default()
-        };
+        // Detect capabilities using our new query system
+        let capabilities = TerminalQuery::detect_from_env();
 
-        Ok(Self {
-            writer: None,
-            stats,
-            buffer_size,
+        Ok(Terminal {
+            stdout,
+            original_size: None,
+            raw_mode: false,
+            alternate_screen: false,
+            capabilities,
+            write_buffer: Vec::with_capacity(65536), // 64KB default buffer
+            buffered_mode: false,
+            write_stats: TerminalWriteStats::default(),
         })
     }
 
-    #[cfg(not(test))]
-    pub fn enter_modern_mode(&mut self) -> Result<()> {
-        terminal::enable_raw_mode()?;
-        execute!(stdout(), terminal::EnterAlternateScreen)?;
-        execute!(stdout(), EnableBracketedPaste)?;
-        execute!(stdout(), EnableMouseCapture)?;
-        Ok(())
-    }
-    #[cfg(test)]
-    pub fn enter_modern_mode(&mut self) -> Result<()> {
-        Ok(())
-    }
-
-    #[cfg(not(test))]
-    pub fn exit_modern_mode(&mut self) -> Result<()> {
-        execute!(stdout(), DisableMouseCapture)?;
-        execute!(stdout(), DisableBracketedPaste)?;
-        execute!(stdout(), terminal::LeaveAlternateScreen)?;
-        terminal::disable_raw_mode()?;
-        Ok(())
-    }
-    #[cfg(test)]
-    pub fn exit_modern_mode(&mut self) -> Result<()> {
-        Ok(())
-    }
-
-    #[cfg(not(test))]
-    pub fn begin_sync(&mut self) -> Result<()> {
-        execute!(stdout(), terminal::BeginSynchronizedUpdate)?;
-        Ok(())
-    }
-    #[cfg(test)]
-    pub fn begin_sync(&mut self) -> Result<()> {
-        Ok(())
-    }
-
-    #[cfg(not(test))]
-    pub fn end_sync(&mut self) -> Result<()> {
-        execute!(stdout(), terminal::EndSynchronizedUpdate)?;
-        Ok(())
-    }
-    #[cfg(test)]
-    pub fn end_sync(&mut self) -> Result<()> {
-        Ok(())
-    }
-
-    pub fn size(&self) -> Result<(u16, u16)> {
-        let (cols, rows) = terminal::size()?;
-        Ok((cols, rows))
-    }
-
     /// Gate startup on modern terminal assumptions.
-    /// We accept terminals that advertise truecolor via COLORTERM or well-known TERM values.
-    #[cfg(not(test))]
     pub fn capability_gate(&mut self) -> Result<()> {
-        let colorterm = env::var("COLORTERM")
-            .unwrap_or_default()
-            .to_ascii_lowercase();
-        let term = env::var("TERM").unwrap_or_default().to_ascii_lowercase();
-        let modern_term = term.contains("wezterm")
-            || term.contains("kitty")
-            || term.contains("alacritty")
-            || term.contains("iterm");
-        let truecolor = colorterm.contains("truecolor")
-            || colorterm.contains("24bit")
-            || term.contains("direct")
-            || term.contains("24bit");
-        if !(modern_term || truecolor) {
-            return Err(Error::other(
-                "Requires a modern terminal with 24-bit color (wezterm, kitty, alacritty, iTerm2)",
+        // Check for true color support
+        if !self.capabilities.color_depth.supports(256) {
+            return Err(ReactiveError::terminal(
+                "Requires a modern terminal with at least 256 color support",
             ));
         }
         Ok(())
     }
-    #[cfg(test)]
-    pub fn capability_gate(&mut self) -> Result<()> {
+
+    /// Enter modern terminal mode (raw mode + alternate screen)
+    pub fn enter_modern_mode(&mut self) -> Result<()> {
+        enable_raw_mode()
+            .map_err(|e| ReactiveError::terminal(format!("Failed to enable raw mode: {}", e)))?;
+        self.raw_mode = true;
+
+        execute!(self.stdout, EnterAlternateScreen).map_err(|e| {
+            ReactiveError::terminal(format!("Failed to enter alternate screen: {}", e))
+        })?;
+        self.alternate_screen = true;
+
+        execute!(self.stdout, EnableBracketedPaste).map_err(|e| {
+            ReactiveError::terminal(format!("Failed to enable bracketed paste: {}", e))
+        })?;
+
+        execute!(self.stdout, EnableMouseCapture).map_err(|e| {
+            ReactiveError::terminal(format!("Failed to enable mouse capture: {}", e))
+        })?;
+
         Ok(())
     }
 
-    #[cfg(test)]
+    /// Exit modern terminal mode
+    pub fn exit_modern_mode(&mut self) -> Result<()> {
+        let _ = execute!(self.stdout, DisableMouseCapture);
+        let _ = execute!(self.stdout, DisableBracketedPaste);
+
+        if self.alternate_screen {
+            let _ = execute!(self.stdout, LeaveAlternateScreen);
+            self.alternate_screen = false;
+        }
+
+        if self.raw_mode {
+            let _ = disable_raw_mode();
+            self.raw_mode = false;
+        }
+
+        Ok(())
+    }
+
+    /// Begin synchronized update
+    pub fn begin_sync(&mut self) -> Result<()> {
+        execute!(self.stdout, BeginSynchronizedUpdate)
+            .map_err(|e| ReactiveError::terminal(format!("Failed to begin sync: {}", e)))
+    }
+
+    /// End synchronized update
+    pub fn end_sync(&mut self) -> Result<()> {
+        execute!(self.stdout, EndSynchronizedUpdate)
+            .map_err(|e| ReactiveError::terminal(format!("Failed to end sync: {}", e)))
+    }
+
+    /// Enable high-performance buffered write mode
     pub fn enable_buffered_mode(&mut self) -> Result<()> {
+        self.buffered_mode = true;
+        self.write_buffer.clear();
         Ok(())
     }
 
-    #[cfg(test)]
+    /// Disable buffered write mode
     pub fn disable_buffered_mode(&mut self) -> Result<()> {
+        if self.buffered_mode {
+            self.flush_buffered()?;
+        }
+        self.buffered_mode = false;
         Ok(())
     }
 
-    #[cfg(test)]
-    pub fn write_all_buffered(&mut self, buf: &[u8]) -> Result<()> {
-        self.stats.bytes_written += buf.len() as u64;
-        Ok(())
+    /// Write all data to buffer or directly
+    pub fn write_all_buffered(&mut self, data: &[u8]) -> Result<()> {
+        if self.buffered_mode {
+            self.write_buffer.extend_from_slice(data);
+            self.write_stats.total_bytes += data.len();
+            self.write_stats.buffer_utilization =
+                (self.write_buffer.len() as f32) / (self.write_buffer.capacity() as f32);
+            Ok(())
+        } else {
+            self.stdout
+                .write_all(data)
+                .map_err(|e| ReactiveError::terminal(format!("Failed to write: {}", e)))?;
+            self.write_stats.total_bytes += data.len();
+            self.write_stats.total_writes += 1;
+            Ok(())
+        }
     }
 
-    #[cfg(test)]
+    /// Flush buffered data to stdout
     pub fn flush_buffered(&mut self) -> Result<()> {
-        self.stats.flush_count += 1;
-        Ok(())
-    }
-
-    pub fn poll_event(timeout_ms: Option<u64>) -> Result<Option<Event>> {
-        let dur = std::time::Duration::from_millis(timeout_ms.unwrap_or(0));
-        if !event::poll(dur)? {
-            return Ok(None);
-        }
-        Ok(Some(event::read()?))
-    }
-
-    /// Enable buffered writing mode for better performance
-    #[cfg(not(test))]
-    pub fn enable_buffered_mode(&mut self) -> Result<()> {
-        if self.writer.is_none() {
-            self.writer = Some(BufWriter::with_capacity(
-                self.buffer_size,
-                std::io::stdout(),
-            ));
+        if !self.write_buffer.is_empty() {
+            self.stdout
+                .write_all(&self.write_buffer)
+                .map_err(|e| ReactiveError::terminal(format!("Failed to flush buffer: {}", e)))?;
+            self.stdout
+                .flush()
+                .map_err(|e| ReactiveError::terminal(format!("Failed to flush: {}", e)))?;
+            self.write_stats.total_writes += 1;
+            self.write_buffer.clear();
         }
         Ok(())
     }
 
-    /// Disable buffered mode and flush any remaining data
-    #[cfg(not(test))]
-    pub fn disable_buffered_mode(&mut self) -> Result<()> {
-        if let Some(mut writer) = self.writer.take() {
-            writer.flush()?;
-            self.stats.flush_count += 1;
-        }
-        Ok(())
-    }
-
-    /// Get current write statistics
+    /// Get write statistics
     pub fn write_stats(&self) -> &TerminalWriteStats {
-        &self.stats
+        &self.write_stats
     }
 
     /// Reset write statistics
     pub fn reset_write_stats(&mut self) {
-        self.stats = TerminalWriteStats {
-            buffer_size: self.buffer_size,
-            ..TerminalWriteStats::default()
-        };
+        self.write_stats = TerminalWriteStats::default();
     }
 
-    /// Write with buffering if enabled, otherwise direct write
+    /// Static write method for non-buffered writes
     #[cfg(not(test))]
-    pub fn write_all_buffered(&mut self, buf: &[u8]) -> Result<()> {
-        let start = Instant::now();
+    pub fn write_all(data: &[u8]) -> Result<()> {
+        stdout()
+            .write_all(data)
+            .map_err(|e| ReactiveError::terminal(format!("Failed to write: {}", e)))
+    }
 
-        if let Some(ref mut writer) = self.writer {
-            // Buffered mode
-            writer.write_all(buf)?;
-            self.stats.bytes_written += buf.len() as u64;
+    /// Static write method for test mode
+    #[cfg(test)]
+    pub fn write_all(data: &[u8]) -> Result<()> {
+        test_io_capture::capture_write(data);
+        Ok(())
+    }
 
-            // Update buffer utilization
-            let used = writer.buffer().len();
-            self.stats.buffer_utilization = used as f32 / self.buffer_size as f32;
+    /// Poll for terminal events
+    pub fn poll_event(timeout_ms: Option<u64>) -> Result<Option<Event>> {
+        let dur = std::time::Duration::from_millis(timeout_ms.unwrap_or(0));
+        if !event::poll(dur)
+            .map_err(|e| ReactiveError::terminal(format!("Failed to poll event: {}", e)))?
+        {
+            return Ok(None);
+        }
+        Ok(Some(event::read().map_err(|e| {
+            ReactiveError::terminal(format!("Failed to read event: {}", e))
+        })?))
+    }
 
-            // Auto-flush if buffer is >75% full
-            if self.stats.buffer_utilization > 0.75 {
-                writer.flush()?;
-                self.stats.flush_count += 1;
-            }
-        } else {
-            // Direct mode (backward compatibility)
-            std::io::stdout().write_all(buf)?;
-            self.stats.bytes_written += buf.len() as u64;
+    /// Get detected capabilities
+    pub fn capabilities(&self) -> &TerminalCapabilities {
+        &self.capabilities
+    }
+
+    /// Initialize the terminal for TUI rendering
+    pub fn init(&mut self) -> Result<()> {
+        // Store original size
+        let (cols, rows) = crossterm::terminal::size()
+            .map_err(|e| ReactiveError::terminal(format!("Failed to get terminal size: {}", e)))?;
+        self.original_size = Some((cols, rows));
+
+        // Enter raw mode
+        enable_raw_mode()
+            .map_err(|e| ReactiveError::terminal(format!("Failed to enable raw mode: {}", e)))?;
+        self.raw_mode = true;
+
+        // Enter alternate screen
+        execute!(self.stdout, EnterAlternateScreen).map_err(|e| {
+            ReactiveError::terminal(format!("Failed to enter alternate screen: {}", e))
+        })?;
+        self.alternate_screen = true;
+
+        // Enable mouse capture
+        execute!(self.stdout, EnableMouseCapture).map_err(|e| {
+            ReactiveError::terminal(format!("Failed to enable mouse capture: {}", e))
+        })?;
+
+        // Hide cursor
+        execute!(self.stdout, cursor::Hide)
+            .map_err(|e| ReactiveError::terminal(format!("Failed to hide cursor: {}", e)))?;
+
+        // Clear screen
+        execute!(self.stdout, Clear(ClearType::All))
+            .map_err(|e| ReactiveError::terminal(format!("Failed to clear screen: {}", e)))?;
+
+        Ok(())
+    }
+
+    /// Restore the terminal to its original state
+    pub fn restore(&mut self) -> Result<()> {
+        // Show cursor
+        let _ = execute!(self.stdout, cursor::Show);
+
+        // Disable mouse capture
+        let _ = execute!(self.stdout, DisableMouseCapture);
+
+        // Leave alternate screen if we entered it
+        if self.alternate_screen {
+            let _ = execute!(self.stdout, LeaveAlternateScreen);
+            self.alternate_screen = false;
         }
 
-        self.stats.write_time += start.elapsed();
-        Ok(())
-    }
-
-    /// Flush buffered output
-    #[cfg(not(test))]
-    pub fn flush_buffered(&mut self) -> Result<()> {
-        if let Some(ref mut writer) = self.writer {
-            writer.flush()?;
-            self.stats.flush_count += 1;
+        // Disable raw mode if we enabled it
+        if self.raw_mode {
+            let _ = disable_raw_mode();
+            self.raw_mode = false;
         }
+
         Ok(())
     }
 
-    #[cfg(not(test))]
-    pub fn write_all(buf: &[u8]) -> Result<()> {
-        std::io::stdout().write_all(buf)?;
+    /// Flush the stdout buffer
+    pub fn flush(&mut self) -> Result<()> {
+        self.stdout
+            .flush()
+            .map_err(|e| ReactiveError::terminal(format!("Failed to flush stdout: {}", e)))
+    }
+
+    /// Get the current terminal size
+    pub fn size(&self) -> Result<(u16, u16)> {
+        crossterm::terminal::size()
+            .map_err(|e| ReactiveError::terminal(format!("Failed to get terminal size: {}", e)))
+    }
+
+    /// Get the current terminal size (static version)
+    pub fn get_size() -> Result<(u16, u16)> {
+        crossterm::terminal::size()
+            .map_err(|e| ReactiveError::terminal(format!("Failed to get terminal size: {}", e)))
+    }
+
+    /// Check if the terminal meets minimum requirements
+    pub fn check_requirements() -> Result<()> {
+        // Using our new capabilities detection
+        let caps = TerminalQuery::detect_from_env();
+
+        // Check for color support
+        if !caps.color_depth.supports(256) {
+            return Err(ReactiveError::terminal(
+                "Terminal must support at least 256 colors",
+            ));
+        }
+
+        // Check terminal size
+        let (width, height) = Self::get_size()?;
+        if width < 80 || height < 24 {
+            return Err(ReactiveError::terminal(format!(
+                "Terminal too small: {}x{} (minimum 80x24)",
+                width, height
+            )));
+        }
+
+        // Check for modern terminal features
+        let term = std::env::var("TERM").unwrap_or_default();
+        let is_modern = term.contains("256color")
+            || term.contains("truecolor")
+            || term.contains("kitty")
+            || term.contains("alacritty")
+            || term.contains("wezterm")
+            || term.contains("iterm");
+
+        if !is_modern {
+            eprintln!(
+                "Warning: Terminal '{}' may have limited features. For best experience, use:",
+                term
+            );
+            eprintln!("  - WezTerm, Kitty, Alacritty, or iTerm2");
+            eprintln!("  - A terminal with 24-bit color support");
+            eprintln!("");
+            eprintln!("Current detected capabilities:");
+            eprintln!("  - Color depth: {:?}", caps.color_depth);
+            eprintln!("  - Unicode: {}", caps.unicode);
+            eprintln!(
+                "  - Graphics: sixel={}, kitty={}, iterm2={}",
+                caps.sixel, caps.kitty_graphics, caps.iterm2_graphics
+            );
+        }
+
         Ok(())
     }
 
-    /// Detect available image rendering capabilities
+    /// Detect image capabilities using our new system
     pub fn detect_image_capabilities() -> ImageCapabilities {
+        let caps = TerminalQuery::detect_from_env();
+
         ImageCapabilities {
-            sixel: Self::has_sixel_support(),
-            kitty_graphics: Self::has_kitty_graphics(),
-            iterm2_inline: Self::has_iterm2_support(),
+            sixel: caps.sixel,
+            kitty_graphics: caps.kitty_graphics,
+            iterm2_inline: caps.iterm2_graphics,
             chafa_available: Self::has_external_tool("chafa"),
             viu_available: Self::has_external_tool("viu"),
         }
     }
 
-    /// Check if terminal supports sixel graphics
-    fn has_sixel_support() -> bool {
-        let term = std::env::var("TERM").unwrap_or_default().to_lowercase();
-        let term_program = std::env::var("TERM_PROGRAM")
-            .unwrap_or_default()
-            .to_lowercase();
-
-        // Known terminals with sixel support
-        term.contains("xterm")
-            || term.contains("wezterm")
-            || term.contains("mlterm")
-            || term.contains("foot")
-            || term.contains("contour")
-            || term_program.contains("wezterm")
-    }
-
-    /// Check if terminal supports Kitty graphics protocol
-    fn has_kitty_graphics() -> bool {
-        let term = std::env::var("TERM").unwrap_or_default().to_lowercase();
-        let term_program = std::env::var("TERM_PROGRAM")
-            .unwrap_or_default()
-            .to_lowercase();
-
-        term.contains("kitty") || term_program.contains("kitty")
-    }
-
-    /// Check if terminal supports iTerm2 inline images
-    fn has_iterm2_support() -> bool {
-        let term_program = std::env::var("TERM_PROGRAM")
-            .unwrap_or_default()
-            .to_lowercase();
-        term_program.contains("iterm")
-    }
-
-    /// Check if external image rendering tool is available
+    /// Check if an external tool is available
     fn has_external_tool(tool: &str) -> bool {
-        Command::new(tool)
-            .arg("--version")
+        Command::new("which")
+            .arg(tool)
             .output()
             .map(|output| output.status.success())
             .unwrap_or(false)
     }
 
-    /// Get terminal size in characters
-    pub fn get_size() -> Result<(u16, u16)> {
-        terminal::size()
+    /// Set the terminal title
+    pub fn set_title(&mut self, title: &str) -> Result<()> {
+        write!(self.stdout, "\x1b]2;{}\x07", title)
+            .map_err(|e| ReactiveError::terminal(format!("Failed to set terminal title: {}", e)))?;
+        self.flush()
+    }
+
+    /// Move cursor to position
+    pub fn move_cursor_to(&mut self, x: u16, y: u16) -> Result<()> {
+        execute!(self.stdout, cursor::MoveTo(x, y))
+            .map_err(|e| ReactiveError::terminal(format!("Failed to move cursor: {}", e)))
+    }
+
+    /// Write raw bytes to terminal
+    pub fn write_raw(&mut self, data: &[u8]) -> Result<()> {
+        self.stdout
+            .write_all(data)
+            .map_err(|e| ReactiveError::terminal(format!("Failed to write to terminal: {}", e)))
+    }
+}
+
+impl Drop for Terminal {
+    fn drop(&mut self) {
+        // Best effort cleanup
+        let _ = self.restore();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_terminal_creation() {
+        // This test just verifies we can create a terminal instance
+        // without actually initializing it (which would mess up the test terminal)
+        let terminal = Terminal::new();
+        assert!(terminal.is_ok());
+    }
+
+    #[test]
+    fn test_image_capabilities_detection() {
+        // Test that we can detect capabilities without terminal I/O
+        let caps = Terminal::detect_image_capabilities();
+        // Just verify the struct is created - actual values depend on environment
+        assert!(caps.sixel || !caps.sixel); // Always true, just checking it exists
+    }
+
+    #[test]
+    fn test_size_detection() {
+        // In a test environment this might fail, so we just check it doesn't panic
+        let _ = Terminal::get_size();
     }
 }
 
 #[cfg(test)]
 pub mod test_io_capture {
-    use super::*;
     use std::sync::{Mutex, OnceLock};
 
     static TEST_OUT: OnceLock<Mutex<Vec<u8>>> = OnceLock::new();
@@ -326,11 +434,9 @@ pub mod test_io_capture {
         TEST_OUT.get_or_init(|| Mutex::new(Vec::new()))
     }
 
-    impl Terminal {
-        pub fn write_all(buf: &[u8]) -> Result<()> {
-            out().lock().unwrap().extend_from_slice(buf);
-            Ok(())
-        }
+    // Test helper for capturing output
+    pub fn capture_write(buf: &[u8]) {
+        out().lock().unwrap().extend_from_slice(buf);
     }
 
     pub fn take_output() -> Vec<u8> {

@@ -178,7 +178,7 @@ impl Clone for ComponentRegistry {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::component::{Element, props::EmptyProps};
+    use crate::component::{props::EmptyProps, Element};
 
     struct TestComponent {
         value: String,

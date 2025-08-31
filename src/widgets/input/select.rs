@@ -334,13 +334,16 @@ impl<T: Clone + PartialEq + Send + Sync + 'static> Select<T> {
                 } else {
                     // Open dropdown and select previous option
                     state.is_open = true;
-                    if let Some(ref selected) = props.selected
-                        && let Some(current_index) =
+                    if let Some(ref selected) = props.selected {
+                        if let Some(current_index) =
                             props.options.iter().position(|opt| opt.value == *selected)
-                        && let Some(index) =
-                            self.find_next_selectable(&props.options, current_index, -1)
-                    {
-                        state.highlighted_index = index;
+                        {
+                            if let Some(index) =
+                                self.find_next_selectable(&props.options, current_index, -1)
+                            {
+                                state.highlighted_index = index;
+                            }
+                        }
                     }
                     if let Some(on_open) = &self.on_open {
                         on_open();
@@ -363,10 +366,12 @@ impl<T: Clone + PartialEq + Send + Sync + 'static> Select<T> {
                     if let Some(ref selected) = props.selected {
                         if let Some(current_index) =
                             props.options.iter().position(|opt| opt.value == *selected)
-                            && let Some(index) =
-                                self.find_next_selectable(&props.options, current_index, 1)
                         {
-                            state.highlighted_index = index;
+                            if let Some(index) =
+                                self.find_next_selectable(&props.options, current_index, 1)
+                            {
+                                state.highlighted_index = index;
+                            }
                         }
                     } else if let Some(index) = self.find_next_selectable(&props.options, 0, 0) {
                         state.highlighted_index = index;

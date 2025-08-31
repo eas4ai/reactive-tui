@@ -801,7 +801,11 @@ impl AnimatedProperty {
                     AnimationValue::Unit(f_val + (t_val - f_val) * t, f_unit.clone())
                 } else {
                     // Different units - just switch at midpoint
-                    if t < 0.5 { from.clone() } else { to.clone() }
+                    if t < 0.5 {
+                        from.clone()
+                    } else {
+                        to.clone()
+                    }
                 }
             }
             (AnimationValue::Array(f_arr), AnimationValue::Array(t_arr)) => {
@@ -824,7 +828,11 @@ impl AnimatedProperty {
             }
             _ => {
                 // For mismatched or unsupported types, switch at midpoint
-                if t < 0.5 { from.clone() } else { to.clone() }
+                if t < 0.5 {
+                    from.clone()
+                } else {
+                    to.clone()
+                }
             }
         }
     }
@@ -1109,10 +1117,10 @@ impl Animation {
         }
 
         // Handle delay
-        if let Some(start_time) = self.start_time
-            && start_time.elapsed() < self.config.delay
-        {
-            return false;
+        if let Some(start_time) = self.start_time {
+            if start_time.elapsed() < self.config.delay {
+                return false;
+            }
         }
 
         // Update time
@@ -1142,10 +1150,10 @@ impl Animation {
         state.current_values = Some(self.property.interpolate(eased_progress));
 
         // Trigger update callback
-        if let Some(callback) = &self.callbacks.on_update
-            && let Some(ref values) = state.current_values
-        {
-            callback(self, values);
+        if let Some(callback) = &self.callbacks.on_update {
+            if let Some(ref values) = state.current_values {
+                callback(self, values);
+            }
         }
 
         // Check for completion
@@ -1183,11 +1191,14 @@ impl Animation {
         // Call callbacks if needed after releasing the lock
         if raw_progress >= 1.0
             && matches!(self.config.loop_mode, LoopMode::None | LoopMode::Count(_))
-            && let Ok(state) = self.state.read()
-            && state.state == AnimationState::Completed
-            && let Some(callback) = &self.callbacks.on_complete
         {
-            callback(self);
+            if let Ok(state) = self.state.read() {
+                if state.state == AnimationState::Completed {
+                    if let Some(callback) = &self.callbacks.on_complete {
+                        callback(self);
+                    }
+                }
+            }
         }
 
         true
@@ -1813,17 +1824,17 @@ impl AnimationValue {
 
 // Additional re-exports from submodules
 pub use stagger::{
-    StaggerBuilder, StaggerDirection, StaggerOrigin, stagger, stagger_builder, stagger_from_center,
-    stagger_from_index, stagger_from_last, stagger_from_position, stagger_grid,
-    stagger_grid_center, stagger_random,
+    stagger, stagger_builder, stagger_from_center, stagger_from_index, stagger_from_last,
+    stagger_from_position, stagger_grid, stagger_grid_center, stagger_random, StaggerBuilder,
+    StaggerDirection, StaggerOrigin,
 };
 
 pub use spring::{spring, spring_with_velocity};
 
 pub use api::{
-    AnimateParams, AnimationTargets, ColorValue, DelayValue, PositionValue, PropertyValue,
-    SizeValue, StaggerOptions, TimelineBuilder, TimelineParams, animate, create_timeline,
-    fade_in as api_fade_in, fade_out as api_fade_out, scale, slide, spring_animate, stagger_delay,
+    animate, create_timeline, fade_in as api_fade_in, fade_out as api_fade_out, scale, slide,
+    spring_animate, stagger_delay, AnimateParams, AnimationTargets, ColorValue, DelayValue,
+    PositionValue, PropertyValue, SizeValue, StaggerOptions, TimelineBuilder, TimelineParams,
 };
 
 pub use performance::{
@@ -1832,15 +1843,15 @@ pub use performance::{
 };
 // Re-export debug types and functions for direct use
 pub use debug::{
+    create_debug_manager, create_performance_debug_manager, create_verbose_debug_manager,
     AnimationDebugInfo, AnimationDebugger, AnimationErrorType, AnimationSnapshot,
     DebugAnimationManager, DebugConfig, DebugEvent, DebugOverlay, DebugPerformanceMetrics,
     DebugReport, DebugVerbosity, PerformanceThresholds, PerformanceWarningType, StopReason,
-    TimelineEventType, TimelineSnapshot, create_debug_manager, create_performance_debug_manager,
-    create_verbose_debug_manager,
+    TimelineEventType, TimelineSnapshot,
 };
 
 // Re-export keyframe types and functions for direct use (rename to avoid conflicts)
-pub use keyframes::{KeyframeBuilder, KeyframeSequence, KeyframeValue, keyframes};
+pub use keyframes::{keyframes, KeyframeBuilder, KeyframeSequence, KeyframeValue};
 
 // Convenience functions for keyframe animations
 

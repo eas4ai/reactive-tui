@@ -7,7 +7,7 @@ use super::cursor::{Cursor, Movement};
 use super::gap_buffer::GapBuffer;
 use crate::core::styled_text::{StyledLine, StyledRun};
 use crate::core::surface::{Attr, Cell, Rgba, Surface};
-use crate::syntax::cache::{LineCache, hash_line_content};
+use crate::syntax::cache::{hash_line_content, LineCache};
 use crate::syntax::highlighter::SyntaxHighlighter;
 use std::ops::Range;
 

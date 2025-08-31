@@ -6,9 +6,9 @@ use once_cell::sync::Lazy;
 use std::collections::HashMap;
 use std::path::Path;
 use std::sync::RwLock;
-use syntect::LoadingError;
 use syntect::highlighting::{Theme, ThemeSet as SyntectThemeSet};
 use syntect::parsing::{SyntaxReference, SyntaxSet};
+use syntect::LoadingError;
 
 /// Global syntax resources instance
 pub static SYNTAX_RESOURCES: Lazy<RwLock<SyntaxResources>> =

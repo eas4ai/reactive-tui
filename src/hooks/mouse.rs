@@ -1,5 +1,5 @@
 use crate::event::types::{MouseButton, Position};
-use crate::reactive::hooks::{Hooks, ThreadSafeSignal, use_effect, use_signal};
+use crate::reactive::hooks::{use_effect, use_signal, Hooks, ThreadSafeSignal};
 use std::time::{Duration, Instant};
 
 /// Hover state for use_hover hook

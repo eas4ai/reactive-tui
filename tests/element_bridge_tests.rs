@@ -1,4 +1,4 @@
-use reactive_tui::component::{Element, LayoutType, element_to_nodespec};
+use reactive_tui::component::{element_to_nodespec, Element, LayoutType};
 use std::borrow::Cow;
 
 #[test]

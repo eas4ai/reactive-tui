@@ -44,7 +44,7 @@ impl Renderer {
                 "Renderer dimensions must be greater than 0",
             ));
         }
-        let mut term = Terminal::new().map_err(ReactiveError::Io)?;
+        let mut term = Terminal::new()?;
         term.capability_gate()?;
         term.enter_modern_mode()?;
         Ok(Self {
@@ -75,12 +75,12 @@ impl Renderer {
 
     /// Enable high-performance mode with large output buffers
     pub fn enable_high_performance_mode(&mut self) -> Result<()> {
-        self.term.enable_buffered_mode().map_err(ReactiveError::Io)
+        self.term.enable_buffered_mode()
     }
 
     /// Disable high-performance mode and return to direct writes
     pub fn disable_high_performance_mode(&mut self) -> Result<()> {
-        self.term.disable_buffered_mode().map_err(ReactiveError::Io)
+        self.term.disable_buffered_mode()
     }
 
     /// Get terminal write statistics
@@ -144,7 +144,7 @@ impl Renderer {
     pub fn begin_frame(&mut self) -> Result<()> {
         self.frame_start = Some(Instant::now());
         self.surface_start = Some(Instant::now());
-        self.term.begin_sync().map_err(ReactiveError::Io)
+        self.term.begin_sync()
     }
 
     pub fn end_frame(&mut self) -> Result<()> {
@@ -172,7 +172,7 @@ impl Renderer {
 
         // Try buffered write first, fall back to direct write
         if self.term.write_all_buffered(out).is_err() {
-            Terminal::write_all(out).map_err(ReactiveError::Io)?;
+            Terminal::write_all(out)?;
         }
 
         let write_time = self
@@ -246,7 +246,7 @@ impl Renderer {
 
             // Try buffered write first, fall back to direct write
             if self.term.write_all_buffered(overlay.as_bytes()).is_err() {
-                Terminal::write_all(overlay.as_bytes()).map_err(ReactiveError::Io)?;
+                Terminal::write_all(overlay.as_bytes())?;
             }
         }
         // Make front reflect the just-rendered back buffer for next diff
@@ -261,13 +261,13 @@ impl Renderer {
         // Flush buffered output before ending sync
         let _ = self.term.flush_buffered();
 
-        self.term.end_sync().map_err(ReactiveError::Io)
+        self.term.end_sync()
     }
 
     pub fn shutdown(mut self) -> Result<()> {
         // Ensure all buffered data is flushed before shutdown
         let _ = self.term.disable_buffered_mode();
-        self.term.exit_modern_mode().map_err(ReactiveError::Io)
+        self.term.exit_modern_mode()
     }
 
     pub fn frame_stats(&self) -> FrameStats {

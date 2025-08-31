@@ -1,7 +1,7 @@
 use crate::component::Element;
 use crate::reactive::runtime::RuntimeContext;
 use crate::render::reconcile::{PatchOp, Reconciler};
-use crate::render::tree::{RenderTree, element_to_render_node};
+use crate::render::tree::{element_to_render_node, RenderTree};
 use std::time::{Duration, Instant};
 
 pub mod manager;

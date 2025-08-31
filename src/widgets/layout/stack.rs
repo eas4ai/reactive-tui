@@ -1,6 +1,6 @@
 use crate::component::{Component, Element, Props};
-use crate::event::Event;
 use crate::event::router::EventResult;
+use crate::event::Event;
 use std::any::Any;
 
 /// Properties for Stack layout component

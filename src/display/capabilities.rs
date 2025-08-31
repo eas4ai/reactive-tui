@@ -140,10 +140,10 @@ impl TerminalInfo {
     }
 
     fn detect_color_depth() -> ColorDepth {
-        if let Ok(colorterm) = std::env::var("COLORTERM")
-            && (colorterm.contains("truecolor") || colorterm.contains("24bit"))
-        {
-            return ColorDepth::TrueColor;
+        if let Ok(colorterm) = std::env::var("COLORTERM") {
+            if colorterm.contains("truecolor") || colorterm.contains("24bit") {
+                return ColorDepth::TrueColor;
+            }
         }
 
         if let Ok(term) = std::env::var("TERM") {

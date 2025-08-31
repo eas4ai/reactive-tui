@@ -2,8 +2,8 @@
 mod tests {
     use reactive_tui::event::types::{MouseButton, MouseEvent, MouseEventKind, Position};
     use reactive_tui::hooks::{
-        DragState, GestureType, MouseEventProcessor, SwipeDirection, WheelDeltaMode, use_clicks,
-        use_drag, use_gesture, use_hover, use_long_press, use_mouse_position, use_wheel,
+        use_clicks, use_drag, use_gesture, use_hover, use_long_press, use_mouse_position,
+        use_wheel, DragState, GestureType, MouseEventProcessor, SwipeDirection, WheelDeltaMode,
     };
     use reactive_tui::reactive::hooks::Hooks;
     use std::time::Duration;

@@ -1,4 +1,4 @@
-use crate::reactive::hooks::{Hooks, ThreadSafeSignal, use_effect, use_signal};
+use crate::reactive::hooks::{use_effect, use_signal, Hooks, ThreadSafeSignal};
 use crate::reactive::scheduler::{Scheduler, TimerId};
 use std::sync::{Arc, Mutex, OnceLock};
 use std::time::Duration;
@@ -42,10 +42,10 @@ where
 
         // Cleanup function to cancel the timer
         Some(Box::new(move || {
-            if let Some(id) = timer_id.get()
-                && let Some(scheduler) = get_scheduler()
-            {
-                scheduler.cancel_timer(id);
+            if let Some(id) = timer_id.get() {
+                if let Some(scheduler) = get_scheduler() {
+                    scheduler.cancel_timer(id);
+                }
             }
         }) as Box<dyn FnOnce() + Send + Sync>)
     });
@@ -98,10 +98,10 @@ where
 
         // Cleanup function to cancel the timer if component unmounts before it fires
         Some(Box::new(move || {
-            if let Some(id) = timer_id.get()
-                && let Some(scheduler) = get_scheduler()
-            {
-                scheduler.cancel_timer(id);
+            if let Some(id) = timer_id.get() {
+                if let Some(scheduler) = get_scheduler() {
+                    scheduler.cancel_timer(id);
+                }
             }
         }) as Box<dyn FnOnce() + Send + Sync>)
     });
@@ -215,10 +215,10 @@ impl<T: Send + 'static> DebouncedFunction<T> {
     /// Call the debounced function
     pub fn call(&self, value: T) {
         // Cancel any existing timer
-        if let Some(id) = self.timer_id.get()
-            && let Some(scheduler) = get_scheduler()
-        {
-            scheduler.cancel_timer(id);
+        if let Some(id) = self.timer_id.get() {
+            if let Some(scheduler) = get_scheduler() {
+                scheduler.cancel_timer(id);
+            }
         }
 
         // Schedule a new timer
@@ -292,11 +292,9 @@ fn get_fallback_scheduler() -> Arc<Scheduler> {
     let sched = SCHED.get_or_init(|| Arc::new(Scheduler::new())).clone();
     START.get_or_init(|| {
         let s2 = sched.clone();
-        std::thread::spawn(move || {
-            loop {
-                std::thread::sleep(Duration::from_millis(1));
-                s2.process_timers();
-            }
+        std::thread::spawn(move || loop {
+            std::thread::sleep(Duration::from_millis(1));
+            s2.process_timers();
         });
     });
     sched

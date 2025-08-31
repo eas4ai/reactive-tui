@@ -140,8 +140,12 @@ impl Component for TextInput {
         // Apply mask if needed
         let display_value = if let Some(mask_char) = props.mask {
             mask_char.to_string().repeat(props.value.len())
-        } else if props.value.is_empty() && props.placeholder.is_some() {
-            props.placeholder.clone().unwrap()
+        } else if props.value.is_empty() {
+            if let Some(placeholder) = &props.placeholder {
+                placeholder.clone()
+            } else {
+                props.value.clone()
+            }
         } else {
             props.value.clone()
         };
@@ -266,11 +270,10 @@ impl TextInput {
         match event.code {
             KeyCode::Char(c) => {
                 // Check max length
-                if let Some(max_len) = props.max_length
-                    && props.value.len() >= max_len
-                    && state.selection_start.is_none()
-                {
-                    return EventResult::Consumed;
+                if let Some(max_len) = props.max_length {
+                    if props.value.len() >= max_len && state.selection_start.is_none() {
+                        return EventResult::Consumed;
+                    }
                 }
 
                 // Delete selection if exists

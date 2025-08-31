@@ -401,17 +401,13 @@ mod tests {
         let result = reconciler.diff(&tree1, &tree2);
 
         // Should detect reordering and insertion
-        assert!(
-            result
-                .patches
-                .iter()
-                .any(|p| matches!(p, PatchOp::ReorderChildren { .. }))
-        );
-        assert!(
-            result
-                .patches
-                .iter()
-                .any(|p| matches!(p, PatchOp::Insert { .. }))
-        );
+        assert!(result
+            .patches
+            .iter()
+            .any(|p| matches!(p, PatchOp::ReorderChildren { .. })));
+        assert!(result
+            .patches
+            .iter()
+            .any(|p| matches!(p, PatchOp::Insert { .. })));
     }
 }

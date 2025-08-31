@@ -1,4 +1,4 @@
-use crate::reactive::hooks::{Hooks, ThreadSafeSignal, use_signal};
+use crate::reactive::hooks::{use_signal, Hooks, ThreadSafeSignal};
 use std::process::Command;
 use std::sync::Arc;
 

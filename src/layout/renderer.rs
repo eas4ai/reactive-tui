@@ -2,11 +2,11 @@
 //!
 //! Bridges the declarative grid system with the existing visual renderer
 
-use crate::layout::grid::{DeclarativeGrid, GridArea};
-use crate::layout::paint_tree::{NodeSpec, layout_and_paint_with, PaintOptions};
-use crate::layout::direct_grid::render_grid_direct;
 use crate::core::surface::Surface;
 use crate::error::Result;
+use crate::layout::direct_grid::render_grid_direct;
+use crate::layout::grid::{DeclarativeGrid, GridArea};
+use crate::layout::paint_tree::{layout_and_paint_with, NodeSpec, PaintOptions};
 use std::borrow::Cow;
 
 /// Convert a DeclarativeGrid into a visual NodeSpec tree for rendering
@@ -23,25 +23,25 @@ pub fn grid_to_node_spec(grid: &DeclarativeGrid) -> NodeSpec<'static> {
     }
 
     // Make grid container fill available space and be responsive
-    grid_classes.push("w-100%".to_string());  // Fill available width
-    grid_classes.push("h-100%".to_string());  // Fill available height
+    grid_classes.push("w-100%".to_string()); // Fill available width
+    grid_classes.push("h-100%".to_string()); // Fill available height
     grid_classes.push("min-w-400".to_string()); // Minimum width for visibility
     grid_classes.push("min-h-200".to_string()); // Minimum height for visibility
-    
+
     // Add custom CSS class if specified
     if let Some(ref css_class) = grid.css_class {
         grid_classes.push(css_class.clone());
     }
-    
+
     let grid_class = grid_classes.join(" ");
-    
+
     // Convert areas to child nodes, sorted by z-index
     let mut children = Vec::new();
     for area in grid.areas_by_z_index() {
         let child_node = area_to_node_spec(area);
         children.push(child_node);
     }
-    
+
     NodeSpec {
         class: Cow::Owned(grid_class),
         text: None,
@@ -52,39 +52,39 @@ pub fn grid_to_node_spec(grid: &DeclarativeGrid) -> NodeSpec<'static> {
 /// Convert a GridArea into a NodeSpec
 fn area_to_node_spec(area: &GridArea) -> NodeSpec<'static> {
     let mut classes = Vec::new();
-    
+
     // Add grid positioning classes
     classes.push(format!("col-start-{}", area.col + 1));
     classes.push(format!("row-start-{}", area.row + 1));
-    
+
     if area.col_span > 1 {
         classes.push(format!("col-span-{}", area.col_span));
     }
     if area.row_span > 1 {
         classes.push(format!("row-span-{}", area.row_span));
     }
-    
+
     // Add z-index if not default
     if area.z_index != 0 {
         classes.push(format!("z-{}", area.z_index));
     }
-    
+
     // Add custom CSS classes
     if let Some(ref css_class) = area.css_class {
         classes.push(css_class.clone());
     }
-    
+
     // Default styling for visual appearance - make cells responsive
-    classes.push("min-w-80".to_string());  // Minimum width for visibility
-    classes.push("min-h-40".to_string());  // Minimum height for visibility
-    classes.push("flex-1".to_string());    // Grow to fill available space
-    classes.push("p-4".to_string());       // Padding for better appearance
-    classes.push("flex".to_string());      // Flexbox for centering
+    classes.push("min-w-80".to_string()); // Minimum width for visibility
+    classes.push("min-h-40".to_string()); // Minimum height for visibility
+    classes.push("flex-1".to_string()); // Grow to fill available space
+    classes.push("p-4".to_string()); // Padding for better appearance
+    classes.push("flex".to_string()); // Flexbox for centering
     classes.push("items-center".to_string()); // Center items vertically
     classes.push("justify-center".to_string()); // Center content horizontally
-    
+
     let class_string = classes.join(" ");
-    
+
     NodeSpec {
         class: Cow::Owned(class_string),
         text: Some(Cow::Owned(area.name.clone())),
@@ -146,7 +146,7 @@ pub fn create_dashboard_demo() -> DeclarativeGrid {
             "Main Content" at (1, 1) span (2, 2) class "bg-white" z 1,
             "Notifications" at (1, 3) class "bg-yellow-100" z 1,
             "Footer" at (3, 0) span (1, 4) class "bg-gray-800 text-white" z 1,
-            
+
             // Modal overlay
             "Modal Backdrop" at (0, 0) span (4, 4) class "bg-black bg-opacity-50" z 100,
             "Modal Dialog" at (1, 1) span (2, 2) class "bg-white rounded shadow-xl border-2" z 101,
@@ -158,27 +158,27 @@ pub fn create_dashboard_demo() -> DeclarativeGrid {
 mod tests {
     use super::*;
     use crate::core::surface::Surface;
-    
+
     #[test]
     fn test_grid_to_node_spec() {
         let grid = create_demo_grid();
         let node_spec = grid_to_node_spec(&grid);
-        
+
         // Should have grid classes
         assert!(node_spec.class.contains("grid"));
         assert!(node_spec.class.contains("grid-cols-3"));
         assert!(node_spec.class.contains("grid-rows-2"));
-        
+
         // Should have 6 children
         assert_eq!(node_spec.children.len(), 6);
-        
+
         // First child should have proper positioning
         let first_child = &node_spec.children[0];
         assert!(first_child.class.contains("col-start-1"));
         assert!(first_child.class.contains("row-start-1"));
         assert_eq!(first_child.text.as_ref().unwrap(), "First column");
     }
-    
+
     #[test]
     fn test_area_to_node_spec() {
         let area = crate::layout::grid::GridArea::new("Test")
@@ -186,7 +186,7 @@ mod tests {
             .span(2, 3)
             .class("custom-class")
             .z(10);
-        
+
         let node_spec = area_to_node_spec(&area);
         let class_str = &node_spec.class;
 
@@ -199,21 +199,21 @@ mod tests {
         assert!(class_str.contains("border"));
         assert_eq!(node_spec.text.as_ref().unwrap(), "Test");
     }
-    
+
     #[test]
     fn test_render_grid() {
         let grid = create_demo_grid();
         let mut surface = Surface::new(80, 24);
-        
+
         // Should not panic
         let result = render_grid(&grid, &mut surface, 80);
         assert!(result.is_ok());
     }
-    
+
     #[test]
     fn test_layered_demo() {
         let grid = create_layered_demo();
-        
+
         // Should have areas with different z-indices
         let areas = grid.areas_by_z_index();
         assert_eq!(areas[0].z_index, 0); // Background first

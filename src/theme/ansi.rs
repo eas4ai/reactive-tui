@@ -71,7 +71,7 @@ pub fn rgb_to_ansi16(r: u8, g: u8, b: u8) -> u8 {
     let base = if r == max && g < threshold && b < threshold {
         1 // Red
     } else if g == max && r < threshold && b < threshold {
-        2 // Green  
+        2 // Green
     } else if b == max && r < threshold && g < threshold {
         4 // Blue
     } else if r == max && g == max && b < threshold {

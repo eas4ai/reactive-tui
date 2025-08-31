@@ -62,6 +62,71 @@ pub fn apply_utility_classes(class: &str, mut sb: StyleBuilder) -> StyleBuilder 
             "items-end" => {
                 sb = sb.align(AlignItems::End);
             }
+
+            // Screen dimensions
+            "h-screen" => {
+                sb = sb.height_pct(100.0);
+            }
+            "w-screen" => {
+                sb = sb.width_pct(100.0);
+            }
+
+            // Full dimensions
+            "h-full" => {
+                sb = sb.height_pct(100.0);
+            }
+            "w-full" => {
+                sb = sb.width_pct(100.0);
+            }
+
+            // Container utilities
+            "container" => {
+                sb = sb.width_pct(100.0);
+            }
+
+            // Display utilities
+            "block" => {
+                sb = sb.display_flex().direction(Direction::Column);
+            }
+            "inline" => {
+                sb = sb.display_flex().direction(Direction::Row);
+            }
+
+            // Overflow utilities (placeholders for now)
+            "overflow-hidden" | "overflow-auto" => {
+                // These would need special handling in the layout system
+                continue;
+            }
+
+            // Spacing utilities (space-x, space-y)
+            // These create gaps between child elements
+            "space-x-1" => {
+                sb = sb.gap_px(4.0, 0.0);
+            }
+            "space-x-2" => {
+                sb = sb.gap_px(8.0, 0.0);
+            }
+            "space-x-3" => {
+                sb = sb.gap_px(12.0, 0.0);
+            }
+            "space-x-4" => {
+                sb = sb.gap_px(16.0, 0.0);
+            }
+            "space-y-1" => {
+                sb = sb.gap_px(0.0, 4.0);
+            }
+            "space-y-2" => {
+                sb = sb.gap_px(0.0, 8.0);
+            }
+            "space-y-3" => {
+                sb = sb.gap_px(0.0, 12.0);
+            }
+            "space-y-4" => {
+                sb = sb.gap_px(0.0, 16.0);
+            }
+            "space-y-6" => {
+                sb = sb.gap_px(0.0, 24.0);
+            }
             "items-stretch" => {
                 sb = sb.align(AlignItems::Stretch);
             }
@@ -81,66 +146,111 @@ pub fn apply_utility_classes(class: &str, mut sb: StyleBuilder) -> StyleBuilder 
                 sb = sb.strike(true);
             }
             _ => {
-                if let Some(px) = parse_px(t, "w-") {
-                    sb = sb.size_px(Some(px), None);
-                    continue;
+                match parse_px(t, "w-") {
+                    Some(px) => {
+                        sb = sb.size_px(Some(px), None);
+                        continue;
+                    }
+                    None => {}
                 }
-                if let Some(px) = parse_px(t, "h-") {
-                    sb = sb.size_px(None, Some(px));
-                    continue;
+                match parse_px(t, "h-") {
+                    Some(px) => {
+                        sb = sb.size_px(None, Some(px));
+                        continue;
+                    }
+                    None => {}
                 }
-                if let Some(p) = parse_pct(t, "w-") {
-                    sb = sb.width_pct(p);
-                    continue;
+                match parse_pct(t, "w-") {
+                    Some(p) => {
+                        sb = sb.width_pct(p);
+                        continue;
+                    }
+                    None => {}
                 }
-                if let Some(p) = parse_pct(t, "h-") {
-                    sb = sb.height_pct(p);
-                    continue;
+                match parse_pct(t, "h-") {
+                    Some(p) => {
+                        sb = sb.height_pct(p);
+                        continue;
+                    }
+                    None => {}
                 }
-                if let Some(px) = parse_px(t, "min-w-") {
-                    sb = sb.min_size_px(Some(px), None);
-                    continue;
+                match parse_px(t, "min-w-") {
+                    Some(px) => {
+                        sb = sb.min_size_px(Some(px), None);
+                        continue;
+                    }
+                    None => {}
                 }
-                if let Some(px) = parse_px(t, "min-h-") {
-                    sb = sb.min_size_px(None, Some(px));
-                    continue;
+                match parse_px(t, "min-h-") {
+                    Some(px) => {
+                        sb = sb.min_size_px(None, Some(px));
+                        continue;
+                    }
+                    None => {}
                 }
-                if let Some(px) = parse_px(t, "max-w-") {
-                    sb = sb.max_size_px(Some(px), None);
-                    continue;
+                match parse_px(t, "max-w-") {
+                    Some(px) => {
+                        sb = sb.max_size_px(Some(px), None);
+                        continue;
+                    }
+                    None => {}
                 }
-                if let Some(px) = parse_px(t, "max-h-") {
-                    sb = sb.max_size_px(None, Some(px));
-                    continue;
+                match parse_px(t, "max-h-") {
+                    Some(px) => {
+                        sb = sb.max_size_px(None, Some(px));
+                        continue;
+                    }
+                    None => {}
                 }
                 // Padding/Margin shorthands
-                if let Some(px) = parse_px(t, "p-") {
-                    sb = sb.padding_all_px(px);
-                    continue;
+                match parse_px(t, "p-") {
+                    Some(px) => {
+                        sb = sb.padding_all_px(px);
+                        continue;
+                    }
+                    None => {}
                 }
-                if let Some(px) = parse_px(t, "px-") {
-                    sb = sb.padding_x_px(px);
-                    continue;
+                match parse_px(t, "px-") {
+                    Some(px) => {
+                        sb = sb.padding_x_px(px);
+                        continue;
+                    }
+                    None => {}
                 }
-                if let Some(px) = parse_px(t, "py-") {
-                    sb = sb.padding_y_px(px);
-                    continue;
+                match parse_px(t, "py-") {
+                    Some(px) => {
+                        sb = sb.padding_y_px(px);
+                        continue;
+                    }
+                    None => {}
                 }
-                if let Some(px) = parse_px(t, "pl-") {
-                    sb = sb.padding_l_px(px);
-                    continue;
+                match parse_px(t, "pl-") {
+                    Some(px) => {
+                        sb = sb.padding_l_px(px);
+                        continue;
+                    }
+                    None => {}
                 }
-                if let Some(px) = parse_px(t, "pr-") {
-                    sb = sb.padding_r_px(px);
-                    continue;
+                match parse_px(t, "pr-") {
+                    Some(px) => {
+                        sb = sb.padding_r_px(px);
+                        continue;
+                    }
+                    None => {}
                 }
-                if let Some(px) = parse_px(t, "pt-") {
-                    sb = sb.padding_t_px(px);
-                    continue;
+                match parse_px(t, "pt-") {
+                    Some(px) => {
+                        sb = sb.padding_t_px(px);
+                        continue;
+                    }
+                    None => {}
                 }
-                if let Some(px) = parse_px(t, "pb-") {
-                    sb = sb.padding_b_px(px);
-                    continue;
+                match parse_px(t, "pb-") {
+                    Some(px) => {
+                        sb = sb.padding_b_px(px);
+                        continue;
+                    }
+                    None => {}
                 }
 
                 if let Some(px) = parse_px(t, "m-") {

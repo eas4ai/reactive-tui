@@ -7,9 +7,9 @@ pub struct PaintOptions {
 
 use crate::layout::style::StyleBuilder;
 use crate::layout::utility_css::apply_utility_classes;
-use crate::ui::paint::{PaintStyle, extract_paint_style};
+use crate::ui::paint::{extract_paint_style, PaintStyle};
 use std::collections::HashMap;
-use taffy::{AvailableSpace, TaffyTree, geometry::Size, prelude::NodeId, style::Style};
+use taffy::{geometry::Size, prelude::NodeId, style::Style, AvailableSpace, TaffyTree};
 
 use std::borrow::Cow;
 

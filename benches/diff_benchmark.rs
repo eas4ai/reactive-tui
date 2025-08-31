@@ -1,4 +1,4 @@
-use criterion::{BenchmarkId, Criterion, black_box, criterion_group, criterion_main};
+use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
 use reactive_tui::core::grapheme_cell::GraphemeSurface;
 use reactive_tui::core::span_diff::SpanDiffWriter;
 use reactive_tui::core::surface::{Attr, DiffWriter, Rgba, Surface};

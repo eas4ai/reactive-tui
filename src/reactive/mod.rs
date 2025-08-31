@@ -6,8 +6,8 @@ pub mod signal;
 
 pub use effect::{Cleanup, Effect, EffectId};
 pub use hooks::{
-    Hooks, ThreadSafeSignal, provide_context, use_context, use_effect, use_memo, use_previous,
-    use_reducer, use_signal,
+    provide_context, use_context, use_effect, use_memo, use_previous, use_reducer, use_signal,
+    Hooks, ThreadSafeSignal,
 };
 pub use runtime::{ReactiveRuntime, RuntimeContext};
 pub use scheduler::{Scheduler, TimerId};

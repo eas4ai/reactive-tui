@@ -1,6 +1,6 @@
 use crate::display::monitor::{PerformanceMetrics, PerformanceMode};
-use crate::hooks::perf_context::{PerformanceContext, get_global_performance_context};
-use crate::reactive::hooks::{Hooks, ThreadSafeSignal, use_context, use_effect, use_signal};
+use crate::hooks::perf_context::{get_global_performance_context, PerformanceContext};
+use crate::reactive::hooks::{use_context, use_effect, use_signal, Hooks, ThreadSafeSignal};
 use std::sync::Arc;
 
 /// FPS and performance state

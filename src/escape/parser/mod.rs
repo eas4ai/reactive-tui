@@ -1,4 +1,4 @@
-use super::{Action, csi::CSIAction, esc::ESCAction, osc::OSCAction};
+use super::{csi::CSIAction, esc::ESCAction, osc::OSCAction, Action};
 use std::mem;
 
 /// VT parser state machine for ANSI escape sequences

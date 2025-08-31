@@ -283,11 +283,12 @@ fn parse_iterm2_image(data: &str) -> Option<OSCAction> {
             match key {
                 "name" => name = Some(value.to_string()),
                 "size" => {
-                    if let Some(x) = value.find('x')
-                        && let (Ok(w), Ok(h)) =
+                    if let Some(x) = value.find('x') {
+                        if let (Ok(w), Ok(h)) =
                             (value[..x].parse::<u32>(), value[x + 1..].parse::<u32>())
-                    {
-                        size = Some((w, h));
+                        {
+                            size = Some((w, h));
+                        }
                     }
                 }
                 "inline" => inline = value == "1",

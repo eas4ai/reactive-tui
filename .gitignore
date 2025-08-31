@@ -9,6 +9,7 @@ reference/
 docs/
 .nova/
 .zencoder/
+.agent-os/
 CLAUDE.md
 
 # Test artifacts

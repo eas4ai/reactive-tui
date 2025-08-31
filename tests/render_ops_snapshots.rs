@@ -1,5 +1,5 @@
 use reactive_tui::core::render_ops::{RenderOp, RenderOps, RenderOpsBuilder};
-use reactive_tui::core::styled_text::{StyledLineBuilder, styled_line_to_render_ops};
+use reactive_tui::core::styled_text::{styled_line_to_render_ops, StyledLineBuilder};
 use reactive_tui::core::surface::{Attr, Rgba};
 use reactive_tui::core::writer::render_ops_to_ansi;
 
@@ -62,21 +62,18 @@ fn snapshot_list_widget() {
     assert_snapshot("list_widget", &ops);
 
     // Verify specific operations exist
-    assert!(
-        ops.ops()
-            .iter()
-            .any(|op| matches!(op, RenderOp::MoveTo { x: 0, y: 0 }))
-    );
-    assert!(
-        ops.ops()
-            .iter()
-            .any(|op| matches!(op, RenderOp::SetAttributes(Attr::BOLD)))
-    );
-    assert!(
-        ops.ops()
-            .iter()
-            .any(|op| matches!(op, RenderOp::PrintRun(s) if s.contains("Item 2")))
-    );
+    assert!(ops
+        .ops()
+        .iter()
+        .any(|op| matches!(op, RenderOp::MoveTo { x: 0, y: 0 })));
+    assert!(ops
+        .ops()
+        .iter()
+        .any(|op| matches!(op, RenderOp::SetAttributes(Attr::BOLD))));
+    assert!(ops
+        .ops()
+        .iter()
+        .any(|op| matches!(op, RenderOp::PrintRun(s) if s.contains("Item 2"))));
 }
 
 #[test]
@@ -184,16 +181,14 @@ fn snapshot_table_widget() {
     assert_snapshot("table_widget", &ops);
 
     // Verify table structure
-    assert!(
-        ops.ops()
-            .iter()
-            .any(|op| matches!(op, RenderOp::SetAttributes(Attr::BOLD)))
-    );
-    assert!(
-        ops.ops()
-            .iter()
-            .any(|op| matches!(op, RenderOp::PrintRun(s) if s.contains("Name")))
-    );
+    assert!(ops
+        .ops()
+        .iter()
+        .any(|op| matches!(op, RenderOp::SetAttributes(Attr::BOLD))));
+    assert!(ops
+        .ops()
+        .iter()
+        .any(|op| matches!(op, RenderOp::PrintRun(s) if s.contains("Name"))));
 }
 
 #[test]
@@ -233,21 +228,18 @@ fn snapshot_styled_text() {
     assert_snapshot("styled_code_line", &ops);
 
     // Verify styled text operations
-    assert!(
-        ops.ops()
-            .iter()
-            .any(|op| matches!(op, RenderOp::MoveTo { x: 4, y: 10 }))
-    );
-    assert!(
-        ops.ops()
-            .iter()
-            .any(|op| matches!(op, RenderOp::SetAttributes(Attr::BOLD)))
-    );
-    assert!(
-        ops.ops()
-            .iter()
-            .any(|op| matches!(op, RenderOp::PrintRun(s) if s == "fn"))
-    );
+    assert!(ops
+        .ops()
+        .iter()
+        .any(|op| matches!(op, RenderOp::MoveTo { x: 4, y: 10 })));
+    assert!(ops
+        .ops()
+        .iter()
+        .any(|op| matches!(op, RenderOp::SetAttributes(Attr::BOLD))));
+    assert!(ops
+        .ops()
+        .iter()
+        .any(|op| matches!(op, RenderOp::PrintRun(s) if s == "fn")));
 }
 
 #[test]
@@ -268,11 +260,10 @@ fn snapshot_clear_operations() {
     let ops = builder.build();
     assert_snapshot("clear_operations", &ops);
 
-    assert!(
-        ops.ops()
-            .iter()
-            .any(|op| matches!(op, RenderOp::ClearScreen))
-    );
+    assert!(ops
+        .ops()
+        .iter()
+        .any(|op| matches!(op, RenderOp::ClearScreen)));
     assert!(ops.ops().iter().any(|op| matches!(
         op,
         RenderOp::ClearArea {
@@ -298,21 +289,18 @@ fn snapshot_cursor_operations() {
 
     assert_snapshot("cursor_operations", &ops);
 
-    assert!(
-        ops.ops()
-            .iter()
-            .any(|op| matches!(op, RenderOp::SetCursorVisible(false)))
-    );
-    assert!(
-        ops.ops()
-            .iter()
-            .any(|op| matches!(op, RenderOp::SaveCursorPosition))
-    );
-    assert!(
-        ops.ops()
-            .iter()
-            .any(|op| matches!(op, RenderOp::RestoreCursorPosition))
-    );
+    assert!(ops
+        .ops()
+        .iter()
+        .any(|op| matches!(op, RenderOp::SetCursorVisible(false))));
+    assert!(ops
+        .ops()
+        .iter()
+        .any(|op| matches!(op, RenderOp::SaveCursorPosition)));
+    assert!(ops
+        .ops()
+        .iter()
+        .any(|op| matches!(op, RenderOp::RestoreCursorPosition)));
 }
 
 #[test]

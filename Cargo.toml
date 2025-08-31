@@ -1,7 +1,7 @@
 [package]
 name = "reactive-tui"
 version = "0.0.7"
-edition = "2024"
+edition = "2021"
 authors = ["Reactive-TUI Contributors"]
 description = "A modern, reactive terminal user interface library with CSS-like styling and comprehensive image support"
 documentation = "https://docs.rs/reactive-tui"
@@ -36,8 +36,14 @@ string_cache = "0.8"
 image = "0.25.6"
 base64 = "0.22.1"
 sixel-rs = "0.5.0"
-termwiz = "0.23.3"
-terminfo = "0.9.0"
+
+# Platform-specific dependencies
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
+[target.'cfg(windows)'.dependencies]
+winapi = { version = "0.3", features = ["consoleapi", "commapi", "fileapi", "handleapi", "processenv", "winbase"] }
+windows-sys = { version = "0.59", features = ["Win32_Foundation", "Win32_System_Console", "Win32_Storage_FileSystem"] }
 
 
 [lib]

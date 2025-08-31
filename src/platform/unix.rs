@@ -1,0 +1,417 @@
+//! Unix/POSIX TTY implementation for direct terminal access
+//!
+//! Based on libvaxis posix/Tty.zig implementation
+
+use super::PlatformTty;
+use crate::error::Result;
+use std::os::unix::io::{AsRawFd, RawFd};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Mutex;
+use std::time::Duration;
+
+static SIGNAL_HANDLERS: Mutex<Vec<SignalHandler>> = Mutex::new(Vec::new());
+static HANDLER_INSTALLED: AtomicBool = AtomicBool::new(false);
+static mut GLOBAL_TTY: Option<UnixTty> = None;
+
+pub struct SignalHandler {
+    pub context: *mut std::ffi::c_void,
+    pub callback: extern "C" fn(*mut std::ffi::c_void),
+}
+
+unsafe impl Send for SignalHandler {}
+unsafe impl Sync for SignalHandler {}
+
+/// Unix TTY implementation using direct POSIX calls
+pub struct UnixTty {
+    /// File descriptor for /dev/tty
+    fd: RawFd,
+    /// Original terminal settings to restore on exit
+    original_termios: libc::termios,
+}
+
+impl PlatformTty for UnixTty {
+    fn write(&self, data: &[u8]) -> Result<usize> {
+        let result =
+            unsafe { libc::write(self.fd, data.as_ptr() as *const libc::c_void, data.len()) };
+
+        if result < 0 {
+            Err(std::io::Error::last_os_error().into())
+        } else {
+            Ok(result as usize)
+        }
+    }
+
+    fn size(&self) -> Result<(u16, u16)> {
+        let mut winsize = std::mem::MaybeUninit::<libc::winsize>::uninit();
+        let result = unsafe { libc::ioctl(self.fd, libc::TIOCGWINSZ, winsize.as_mut_ptr()) };
+
+        if result != 0 {
+            return Err(std::io::Error::last_os_error().into());
+        }
+
+        let winsize = unsafe { winsize.assume_init() };
+        Ok((winsize.ws_col, winsize.ws_row))
+    }
+
+    fn restore(&self) -> Result<()> {
+        let result = unsafe { libc::tcsetattr(self.fd, libc::TCSAFLUSH, &self.original_termios) };
+
+        if result != 0 {
+            Err(std::io::Error::last_os_error().into())
+        } else {
+            Ok(())
+        }
+    }
+}
+
+impl UnixTty {
+    /// Initialize TTY by opening /dev/tty and setting raw mode
+    pub fn init() -> Result<Self> {
+        // Open /dev/tty for direct terminal access
+        let fd = unsafe { libc::open(b"/dev/tty\0".as_ptr() as *const libc::c_char, libc::O_RDWR) };
+
+        if fd < 0 {
+            return Err(std::io::Error::last_os_error().into());
+        }
+
+        // Get current terminal settings
+        let mut termios = std::mem::MaybeUninit::<libc::termios>::uninit();
+        let result = unsafe { libc::tcgetattr(fd, termios.as_mut_ptr()) };
+        if result != 0 {
+            unsafe { libc::close(fd) };
+            return Err(std::io::Error::last_os_error().into());
+        }
+
+        let original_termios = unsafe { termios.assume_init() };
+
+        // Set raw mode
+        let mut raw_termios = original_termios;
+        unsafe { libc::cfmakeraw(&mut raw_termios) };
+
+        let result = unsafe { libc::tcsetattr(fd, libc::TCSAFLUSH, &raw_termios) };
+        if result != 0 {
+            unsafe { libc::close(fd) };
+            return Err(std::io::Error::last_os_error().into());
+        }
+
+        // Install signal handlers
+        install_signal_handlers()?;
+
+        let tty = UnixTty {
+            fd,
+            original_termios,
+        };
+
+        // Store global reference for panic recovery
+        unsafe { GLOBAL_TTY = Some(tty.clone()) };
+
+        Ok(tty)
+    }
+
+    /// Write raw bytes to terminal (duplicate method for compatibility)
+    pub fn write_raw(&self, data: &[u8]) -> Result<usize> {
+        self.write(data)
+    }
+
+    /// Set non-blocking mode
+    pub fn set_nonblocking(&self, nonblocking: bool) -> Result<()> {
+        let flags = unsafe { libc::fcntl(self.fd, libc::F_GETFL) };
+        if flags < 0 {
+            return Err(std::io::Error::last_os_error().into());
+        }
+
+        let new_flags = if nonblocking {
+            flags | libc::O_NONBLOCK
+        } else {
+            flags & !libc::O_NONBLOCK
+        };
+
+        let result = unsafe { libc::fcntl(self.fd, libc::F_SETFL, new_flags) };
+        if result < 0 {
+            Err(std::io::Error::last_os_error().into())
+        } else {
+            Ok(())
+        }
+    }
+
+    /// Read raw bytes from terminal with timeout
+    pub fn read(&self, buf: &mut [u8], timeout: Option<Duration>) -> Result<usize> {
+        if let Some(timeout) = timeout {
+            // Use select() for timeout
+            let mut fd_set = std::mem::MaybeUninit::<libc::fd_set>::uninit();
+            unsafe {
+                libc::FD_ZERO(fd_set.as_mut_ptr());
+                libc::FD_SET(self.fd, fd_set.as_mut_ptr());
+            }
+
+            let mut timeval = libc::timeval {
+                tv_sec: timeout.as_secs() as libc::time_t,
+                tv_usec: timeout.subsec_micros() as libc::suseconds_t,
+            };
+
+            let result = unsafe {
+                libc::select(
+                    self.fd + 1,
+                    fd_set.as_mut_ptr(),
+                    std::ptr::null_mut(),
+                    std::ptr::null_mut(),
+                    &mut timeval,
+                )
+            };
+
+            if result < 0 {
+                return Err(std::io::Error::last_os_error().into());
+            } else if result == 0 {
+                // Timeout
+                return Ok(0);
+            }
+        }
+
+        // Read data
+        let result =
+            unsafe { libc::read(self.fd, buf.as_mut_ptr() as *mut libc::c_void, buf.len()) };
+
+        if result < 0 {
+            Err(std::io::Error::last_os_error().into())
+        } else {
+            Ok(result as usize)
+        }
+    }
+
+    /// Register a signal handler for window resize events
+    pub fn register_winch_handler(
+        context: *mut std::ffi::c_void,
+        callback: extern "C" fn(*mut std::ffi::c_void),
+    ) -> Result<()> {
+        let handler = SignalHandler { context, callback };
+
+        let mut handlers = SIGNAL_HANDLERS.lock().unwrap();
+        handlers.push(handler);
+
+        Ok(())
+    }
+
+    /// Spawn a background thread for reading input
+    pub fn spawn_input_thread(&self) -> Result<std::sync::mpsc::Receiver<Vec<u8>>> {
+        use std::sync::mpsc;
+        use std::thread;
+
+        let (tx, rx) = mpsc::channel();
+        let fd = self.fd;
+
+        thread::spawn(move || {
+            let mut buffer = [0u8; 4096];
+
+            // Set non-blocking mode for the thread
+            let flags = unsafe { libc::fcntl(fd, libc::F_GETFL) };
+            if flags >= 0 {
+                unsafe { libc::fcntl(fd, libc::F_SETFL, flags | libc::O_NONBLOCK) };
+            }
+
+            loop {
+                // Use select to wait for input with timeout
+                let mut fd_set = std::mem::MaybeUninit::<libc::fd_set>::uninit();
+                unsafe {
+                    libc::FD_ZERO(fd_set.as_mut_ptr());
+                    libc::FD_SET(fd, fd_set.as_mut_ptr());
+                }
+
+                let mut timeout = libc::timeval {
+                    tv_sec: 0,
+                    tv_usec: 100_000, // 100ms timeout
+                };
+
+                let select_result = unsafe {
+                    libc::select(
+                        fd + 1,
+                        fd_set.as_mut_ptr(),
+                        std::ptr::null_mut(),
+                        std::ptr::null_mut(),
+                        &mut timeout,
+                    )
+                };
+
+                match select_result {
+                    1 => {
+                        // Data available
+                        match unsafe {
+                            libc::read(fd, buffer.as_mut_ptr() as *mut libc::c_void, buffer.len())
+                        } {
+                            n if n > 0 => {
+                                let data = buffer[..n as usize].to_vec();
+                                if tx.send(data).is_err() {
+                                    break; // Receiver dropped
+                                }
+                            }
+                            n if n == 0 => break, // EOF
+                            _ => {
+                                // Error reading
+                                let errno = unsafe { *libc::__errno_location() };
+                                if errno != libc::EAGAIN && errno != libc::EWOULDBLOCK {
+                                    break; // Real error
+                                }
+                            }
+                        }
+                    }
+                    0 => {
+                        // Timeout - continue loop
+                        continue;
+                    }
+                    _ => {
+                        // Error in select
+                        break;
+                    }
+                }
+            }
+
+            // Restore blocking mode
+            if flags >= 0 {
+                unsafe { libc::fcntl(fd, libc::F_SETFL, flags) };
+            }
+        });
+
+        Ok(rx)
+    }
+}
+
+impl Clone for UnixTty {
+    fn clone(&self) -> Self {
+        Self {
+            fd: self.fd,
+            original_termios: self.original_termios,
+        }
+    }
+}
+
+impl Drop for UnixTty {
+    fn drop(&mut self) {
+        // Restore terminal settings
+        let _ = self.restore();
+
+        // Close file descriptor (but not on macOS as it may block)
+        #[cfg(not(target_os = "macos"))]
+        unsafe {
+            libc::close(self.fd);
+        }
+    }
+}
+
+impl AsRawFd for UnixTty {
+    fn as_raw_fd(&self) -> RawFd {
+        self.fd
+    }
+}
+
+/// Install SIGWINCH handler for window resize detection
+fn install_signal_handlers() -> Result<()> {
+    if HANDLER_INSTALLED.load(Ordering::Relaxed) {
+        return Ok(());
+    }
+
+    let mut action = std::mem::MaybeUninit::<libc::sigaction>::uninit();
+    unsafe {
+        let action_ptr = action.as_mut_ptr();
+        (*action_ptr).sa_sigaction = handle_winch as usize;
+
+        #[cfg(target_os = "macos")]
+        {
+            (*action_ptr).sa_mask = 0;
+        }
+        #[cfg(not(target_os = "macos"))]
+        {
+            libc::sigemptyset(&mut (*action_ptr).sa_mask);
+        }
+
+        (*action_ptr).sa_flags = libc::SA_SIGINFO;
+
+        let result = libc::sigaction(libc::SIGWINCH, action_ptr, std::ptr::null_mut());
+        if result != 0 {
+            return Err(std::io::Error::last_os_error().into());
+        }
+    }
+
+    HANDLER_INSTALLED.store(true, Ordering::Relaxed);
+    Ok(())
+}
+
+/// Reset signal handlers to default
+pub fn reset_signal_handlers() {
+    if !HANDLER_INSTALLED.load(Ordering::Relaxed) {
+        return;
+    }
+
+    let mut action = std::mem::MaybeUninit::<libc::sigaction>::uninit();
+    unsafe {
+        let action_ptr = action.as_mut_ptr();
+        (*action_ptr).sa_sigaction = libc::SIG_DFL;
+
+        #[cfg(target_os = "macos")]
+        {
+            (*action_ptr).sa_mask = 0;
+        }
+        #[cfg(not(target_os = "macos"))]
+        {
+            libc::sigemptyset(&mut (*action_ptr).sa_mask);
+        }
+
+        (*action_ptr).sa_flags = 0;
+
+        let _ = libc::sigaction(libc::SIGWINCH, action_ptr, std::ptr::null_mut());
+    }
+
+    HANDLER_INSTALLED.store(false, Ordering::Relaxed);
+}
+
+/// SIGWINCH signal handler
+extern "C" fn handle_winch(
+    _sig: libc::c_int,
+    _info: *mut libc::siginfo_t,
+    _context: *mut libc::c_void,
+) {
+    // Call all registered handlers
+    if let Ok(handlers) = SIGNAL_HANDLERS.lock() {
+        for handler in handlers.iter() {
+            (handler.callback)(handler.context);
+        }
+    }
+}
+
+/// Panic handler to restore terminal state
+pub fn install_panic_handler() {
+    std::panic::set_hook(Box::new(|_| {
+        unsafe {
+            if let Some(ref tty) = GLOBAL_TTY {
+                let _ = tty.restore();
+            }
+        }
+        reset_signal_handlers();
+    }));
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_tty_init() {
+        let tty = UnixTty::init().expect("Failed to initialize TTY");
+        let (width, height) = tty.size().expect("Failed to get terminal size");
+        assert!(width > 0);
+        assert!(height > 0);
+    }
+
+    #[test]
+    fn test_write_read() {
+        let tty = UnixTty::init().expect("Failed to initialize TTY");
+
+        // Write a simple escape sequence
+        let written = tty.write(b"\x1b[6n").expect("Failed to write");
+        assert_eq!(written, 4);
+
+        // Try to read response (cursor position report)
+        let mut buf = [0u8; 32];
+        let timeout = Duration::from_millis(100);
+        let _read = tty.read(&mut buf, Some(timeout)).expect("Failed to read");
+        // Note: This might timeout if terminal doesn't support cursor position report
+    }
+}

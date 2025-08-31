@@ -5,7 +5,7 @@ use crate::animation::stagger::StaggerConfig;
 use crate::animation::{
     Animation, AnimationController, AnimationState, EasingFunction, LoopMode, SpringConfig,
 };
-use crate::reactive::{Hooks, Scheduler, ThreadSafeSignal, use_effect, use_signal};
+use crate::reactive::{use_effect, use_signal, Hooks, Scheduler, ThreadSafeSignal};
 use std::fmt::Debug;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, RwLock};
@@ -373,12 +373,13 @@ impl<T: AnimatableValue> SpringHandle<T> {
             value_signal.set(T::from_f32(position));
 
             // Stop when settled and remove from runtime
-            if (position - target).abs() < 0.001f32
-                && new_velocity.abs() < 0.001f32
-                && let Some(id) = *animation_id_ref.lock().unwrap()
-            {
-                RUNTIME.remove_animation(id);
-                *animation_id_ref.lock().unwrap() = None;
+            if (position - target).abs() < 0.001f32 {
+                if new_velocity.abs() < 0.001f32 {
+                    if let Some(id) = *animation_id_ref.lock().unwrap() {
+                        RUNTIME.remove_animation(id);
+                        *animation_id_ref.lock().unwrap() = None;
+                    }
+                }
             }
         });
 

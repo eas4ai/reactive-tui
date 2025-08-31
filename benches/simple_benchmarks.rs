@@ -1,4 +1,4 @@
-use criterion::{Criterion, black_box, criterion_group, criterion_main};
+use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use reactive_tui::app::{App, RootComponent};
 use reactive_tui::backend::DebugBackend;
 use reactive_tui::component::Element;

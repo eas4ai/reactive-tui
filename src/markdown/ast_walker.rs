@@ -183,11 +183,11 @@ impl AstWalker {
                     }
                     if !self.table_alignment.is_empty() {
                         // Remove last ┼ and add ┤
-                        if let Some(last_run) = self.current_line.last_mut()
-                            && last_run.text.ends_with('┼')
-                        {
-                            last_run.text.pop();
-                            last_run.text.push('┤');
+                        if let Some(last_run) = self.current_line.last_mut() {
+                            if last_run.text.ends_with('┼') {
+                                last_run.text.pop();
+                                last_run.text.push('┤');
+                            }
                         }
                     }
                     self.add_line_break();

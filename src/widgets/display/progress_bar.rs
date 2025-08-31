@@ -318,11 +318,10 @@ impl ProgressBar {
             && props.max_value > props.min_value;
 
         // Trigger completion callback
-        if state.completed
-            && !was_completed
-            && let Some(callback) = &props.on_complete
-        {
-            callback();
+        if state.completed && !was_completed {
+            if let Some(callback) = &props.on_complete {
+                callback();
+            }
         }
 
         state.last_value = props.value;
@@ -382,11 +381,9 @@ impl Component for ProgressBar {
                 bar_style.push_str(style);
             }
 
-            vec![
-                Element::text(&bar_text)
-                    .with_class(&bar_style)
-                    .with_key("progress-bar"),
-            ]
+            vec![Element::text(&bar_text)
+                .with_class(&bar_style)
+                .with_key("progress-bar")]
         };
 
         let progress_bar = Element::layout(LayoutType::Flex)

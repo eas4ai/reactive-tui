@@ -4,8 +4,8 @@
 //! that actually works and produces clean, readable output.
 
 use crate::component::{Component, Element, Props};
-use crate::event::Event;
 use crate::event::router::EventResult;
+use crate::event::Event;
 use std::any::Any;
 
 /// Grid scalar value for sizing, similar to CSS units
@@ -99,13 +99,13 @@ impl GridChild {
             column_span: 1,
         }
     }
-    
+
     pub fn at(mut self, row: usize, column: usize) -> Self {
         self.row = row;
         self.column = column;
         self
     }
-    
+
     pub fn span(mut self, row_span: usize, column_span: usize) -> Self {
         self.row_span = row_span;
         self.column_span = column_span;
@@ -136,7 +136,7 @@ impl Grid {
     /// Create a simple grid with automatic item placement
     pub fn auto_grid(columns: usize, rows: usize, items: Vec<Element>) -> GridProps {
         let mut children = Vec::new();
-        
+
         for (i, item) in items.iter().enumerate() {
             let row = i / columns;
             let col = i % columns;
@@ -150,7 +150,7 @@ impl Grid {
                 });
             }
         }
-        
+
         GridProps {
             columns: (0..columns).map(|_| GridScalar::Fr(1.0)).collect(),
             rows: (0..rows).map(|_| GridScalar::Auto).collect(),
@@ -158,7 +158,7 @@ impl Grid {
             ..Default::default()
         }
     }
-    
+
     /// Resolve grid tracks (columns or rows) into concrete positions and sizes
     fn resolve_tracks(
         &self,
@@ -170,15 +170,15 @@ impl Grid {
         if count == 0 {
             return Vec::new();
         }
-        
+
         let total_gap = gap * (count.saturating_sub(1)) as u16;
         let content_space = available_space.saturating_sub(total_gap) as f32;
-        
+
         // First pass: resolve fixed sizes and calculate remaining space
         let mut resolved_sizes = vec![0.0; count];
         let mut total_fractions = 0.0;
         let mut used_space = 0.0;
-        
+
         for (i, scalar) in scalars.iter().enumerate() {
             match scalar {
                 GridScalar::Cells(cells) => {
@@ -199,7 +199,7 @@ impl Grid {
                 }
             }
         }
-        
+
         // Second pass: resolve fraction units
         let remaining_space = (content_space - used_space).max(0.0);
         let fraction_unit = if total_fractions > 0.0 {
@@ -207,52 +207,57 @@ impl Grid {
         } else {
             0.0
         };
-        
+
         for (i, scalar) in scalars.iter().enumerate() {
             if let GridScalar::Fr(fr) = scalar {
                 resolved_sizes[i] = fraction_unit * fr;
             }
         }
-        
+
         // Build tracks with offsets
         let mut tracks = Vec::new();
         let mut current_offset = 0;
-        
+
         for (i, size) in resolved_sizes.iter().enumerate() {
             tracks.push(GridTrack {
                 offset: current_offset,
                 size: size.round().max(1.0) as u16,
             });
-            
+
             current_offset += size.round().max(1.0) as u16;
             if i < count - 1 {
                 current_offset += gap;
             }
         }
-        
+
         tracks
     }
-    
+
     /// Render the grid to a string
-    fn render_grid(&self, props: &GridProps, available_width: u16, available_height: u16) -> String {
+    fn render_grid(
+        &self,
+        props: &GridProps,
+        available_width: u16,
+        available_height: u16,
+    ) -> String {
         if props.children.is_empty() {
             return String::new();
         }
-        
+
         // Resolve tracks
         let columns = self.resolve_tracks(&props.columns, available_width, props.column_gap);
         let rows = self.resolve_tracks(&props.rows, available_height, props.row_gap);
-        
+
         if columns.is_empty() || rows.is_empty() {
             return String::new();
         }
-        
+
         // Create canvas
         let total_width = columns.last().map(|c| c.offset + c.size).unwrap_or(0) as usize;
         let total_height = rows.last().map(|r| r.offset + r.size).unwrap_or(0) as usize;
-        
+
         let mut canvas = vec![vec![' '; total_width]; total_height];
-        
+
         // Place children in grid
         for child in &props.children {
             if child.row < rows.len() && child.column < columns.len() {
@@ -269,7 +274,7 @@ impl Grid {
                 );
             }
         }
-        
+
         // Convert canvas to string
         canvas
             .iter()
@@ -277,7 +282,7 @@ impl Grid {
             .collect::<Vec<_>>()
             .join("\n")
     }
-    
+
     /// Render a child element to the canvas
     fn render_child_to_canvas(
         &self,
@@ -291,29 +296,35 @@ impl Grid {
         rows: &[GridTrack],
     ) {
         // Calculate spanned area
-        let end_col_idx = (start_col as *const GridTrack as usize - columns.as_ptr() as usize) / std::mem::size_of::<GridTrack>() + col_span - 1;
-        let end_row_idx = (start_row as *const GridTrack as usize - rows.as_ptr() as usize) / std::mem::size_of::<GridTrack>() + row_span - 1;
-        
+        let end_col_idx = (start_col as *const GridTrack as usize - columns.as_ptr() as usize)
+            / std::mem::size_of::<GridTrack>()
+            + col_span
+            - 1;
+        let end_row_idx = (start_row as *const GridTrack as usize - rows.as_ptr() as usize)
+            / std::mem::size_of::<GridTrack>()
+            + row_span
+            - 1;
+
         let end_col = columns.get(end_col_idx).unwrap_or(start_col);
         let end_row = rows.get(end_row_idx).unwrap_or(start_row);
-        
+
         let width = (end_col.offset + end_col.size - start_col.offset) as usize;
         let height = (end_row.offset + end_row.size - start_row.offset) as usize;
-        
+
         let content_lines: Vec<&str> = content.lines().collect();
-        
+
         for (line_idx, line) in content_lines.iter().enumerate() {
             let canvas_y = start_row.offset as usize + line_idx;
             if canvas_y >= canvas.len() || line_idx >= height {
                 break;
             }
-            
+
             let trimmed_line = if line.len() > width {
                 &line[..width]
             } else {
                 line
             };
-            
+
             for (char_idx, ch) in trimmed_line.chars().enumerate() {
                 let canvas_x = start_col.offset as usize + char_idx;
                 if canvas_x < canvas[canvas_y].len() {
@@ -322,19 +333,17 @@ impl Grid {
             }
         }
     }
-    
+
     /// Extract text content from an element
     fn extract_text_content(&self, element: &Element) -> String {
         match &element.element_type {
             crate::component::ElementType::Text(text) => text.clone(),
-            _ => {
-                element
-                    .children
-                    .iter()
-                    .map(|c| self.extract_text_content(c))
-                    .collect::<Vec<_>>()
-                    .join("\n")
-            }
+            _ => element
+                .children
+                .iter()
+                .map(|c| self.extract_text_content(c))
+                .collect::<Vec<_>>()
+                .join("\n"),
         }
     }
 }
@@ -370,7 +379,12 @@ impl Component for Grid {
         Element::text(rendered_content)
     }
 
-    fn handle_event(&mut self, _event: &Event, _props: &mut Self::Props, _state: &mut Self::State) -> EventResult {
+    fn handle_event(
+        &mut self,
+        _event: &Event,
+        _props: &mut Self::Props,
+        _state: &mut Self::State,
+    ) -> EventResult {
         EventResult::Ignored
     }
 }

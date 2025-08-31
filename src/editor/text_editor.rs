@@ -254,11 +254,12 @@ impl TextEditor {
                 let attr = Attr::empty();
 
                 // Check if character is in selection
-                if let Some((sel_start, sel_end)) = selection_range
-                    && pos >= sel_start
-                    && pos < sel_end
-                {
-                    bg = selection_bg;
+                if let Some((sel_start, sel_end)) = selection_range {
+                    if pos >= sel_start {
+                        if pos < sel_end {
+                            bg = selection_bg;
+                        }
+                    }
                 }
 
                 // Check if this is cursor position
@@ -359,47 +360,12 @@ impl TextEditor {
             // Check if any part of line is selected
             if let Some((sel_start, sel_end)) = selection_range {
                 if line_end > sel_start && line_start < sel_end {
-                    // Line has selection - split into runs
-                    let mut pos = line_start;
-                    let mut text_iter = line_text.chars();
-                    let mut current_text = String::new();
-
-                    while pos < line_end {
-                        if let Some(ch) = text_iter.next() {
-                            if pos >= sel_start && pos < sel_end {
-                                // In selection
-                                if !current_text.is_empty() {
-                                    line.push(StyledRun::new(
-                                        current_text.clone(),
-                                        text_fg,
-                                        text_bg,
-                                        Attr::empty(),
-                                    ));
-                                    current_text.clear();
-                                }
-
-                                // Add selected character
-                                line.push(StyledRun::new(
-                                    ch.to_string(),
-                                    text_fg,
-                                    selection_bg,
-                                    Attr::empty(),
-                                ));
-                            } else {
-                                current_text.push(ch);
-                            }
-                            pos += 1;
-                        } else {
-                            break;
-                        }
-                    }
-
-                    // Add remaining text
-                    if !current_text.is_empty() {
+                    // Line has selection - for simplicity, just highlight the whole line
+                    if !line_text.is_empty() {
                         line.push(StyledRun::new(
-                            current_text,
+                            line_text,
                             text_fg,
-                            text_bg,
+                            selection_bg,
                             Attr::empty(),
                         ));
                     }

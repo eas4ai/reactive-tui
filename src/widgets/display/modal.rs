@@ -617,11 +617,11 @@ impl Component for Modal {
                     }
                     KeyCode::Enter => {
                         // Activate focused button
-                        if let Some(button_index) = state.focused_button
-                            && let Some(button) = props.buttons.get(button_index)
-                        {
-                            self.handle_button_click(props, button);
-                            return EventResult::Consumed;
+                        if let Some(button_index) = state.focused_button {
+                            if let Some(button) = props.buttons.get(button_index) {
+                                self.handle_button_click(props, button);
+                                return EventResult::Consumed;
+                            }
                         }
                     }
                     _ => {}
@@ -631,10 +631,12 @@ impl Component for Modal {
                 match mouse_event.kind {
                     MouseEventKind::Click => {
                         // Check if clicking backdrop to close
-                        if props.backdrop_clickable && props.closable {
-                            // Simplified click detection - would need proper bounds checking
-                            self.close_modal(props, ModalCloseReason::BackdropClick);
-                            return EventResult::Consumed;
+                        if props.backdrop_clickable {
+                            if props.closable {
+                                // Simplified click detection - would need proper bounds checking
+                                self.close_modal(props, ModalCloseReason::BackdropClick);
+                                return EventResult::Consumed;
+                            }
                         }
                     }
                     MouseEventKind::Down => {

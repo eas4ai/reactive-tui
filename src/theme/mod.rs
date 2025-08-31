@@ -5,9 +5,9 @@ pub mod presets;
 pub mod variables;
 
 pub use ansi::{
-    AnsiColor, ColorDepth, hex_to_ansi256, hex_to_rgb, rgb_to_ansi, rgb_to_ansi16, rgb_to_ansi256,
+    hex_to_ansi256, hex_to_rgb, rgb_to_ansi, rgb_to_ansi16, rgb_to_ansi256, AnsiColor, ColorDepth,
 };
-pub use colors::{Colors, get_color};
+pub use colors::{get_color, Colors};
 pub use parser::{ParsedStyle, ThemeParser};
 pub use presets::{
     dark_theme, gruvbox_dark_theme, high_contrast_theme, light_theme, solarized_dark_theme,

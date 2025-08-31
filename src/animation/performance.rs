@@ -83,10 +83,10 @@ impl AnimationBatch {
             OptimizationLevel::None => {
                 // Process each animation individually
                 for animation in &mut self.animations {
-                    if animation.update(delta_time)
-                        && let Some(value) = animation.get_current_values()
-                    {
-                        updates.push(BatchedUpdate::Single(animation.id.clone(), value));
+                    if animation.update(delta_time) {
+                        if let Some(value) = animation.get_current_values() {
+                            updates.push(BatchedUpdate::Single(animation.id.clone(), value));
+                        }
                     }
                 }
             }
@@ -591,10 +591,10 @@ impl OptimizedAnimationManager {
 
         // Update individual animations
         for animation in self.individual_animations.values_mut() {
-            if animation.update(delta_time)
-                && let Some(value) = animation.get_current_values()
-            {
-                all_updates.push(BatchedUpdate::Single(animation.id.clone(), value));
+            if animation.update(delta_time) {
+                if let Some(value) = animation.get_current_values() {
+                    all_updates.push(BatchedUpdate::Single(animation.id.clone(), value));
+                }
             }
         }
 

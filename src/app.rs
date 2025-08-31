@@ -7,7 +7,7 @@ use crate::event::router::{EventResult, EventRouter};
 use crate::error::Result;
 use crate::reactive::scheduler::Scheduler;
 use crate::render::reconcile::Reconciler;
-use crate::render::tree::{RenderTree, element_to_render_node};
+use crate::render::tree::{element_to_render_node, RenderTree};
 use std::time::{Duration, Instant};
 
 /// Trait for root components that can render to an Element
@@ -61,8 +61,8 @@ impl App {
             // Update global performance context at start of frame
             {
                 use crate::hooks::perf_context::{
-                    PerformanceContext, get_global_performance_context,
-                    set_global_performance_context,
+                    get_global_performance_context, set_global_performance_context,
+                    PerformanceContext,
                 };
                 use crate::reactive::hooks::ThreadSafeSignal;
                 use std::sync::Arc;

@@ -540,11 +540,11 @@ impl Tree {
                 state.expanded_nodes.push(node_id.to_string());
 
                 // Handle lazy loading
-                if props.lazy_loading
-                    && let Some(callback) = &props.on_load_children
-                {
-                    state.loading_nodes.push(node_id.to_string());
-                    callback(node_id.to_string());
+                if props.lazy_loading {
+                    if let Some(callback) = &props.on_load_children {
+                        state.loading_nodes.push(node_id.to_string());
+                        callback(node_id.to_string());
+                    }
                 }
             }
         } else {

@@ -1,5 +1,5 @@
 use reactive_tui::core::surface::Surface;
-use reactive_tui::layout::paint_tree::{NodeSpec, layout_and_paint};
+use reactive_tui::layout::paint_tree::{layout_and_paint, NodeSpec};
 use std::borrow::Cow;
 
 fn find_char(surface: &Surface, ch: char) -> Option<(usize, usize)> {

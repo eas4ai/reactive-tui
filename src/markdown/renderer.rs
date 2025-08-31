@@ -1,5 +1,5 @@
 use crate::core::styled_text::StyledLine;
-use comrak::{Arena, ExtensionOptions, Options, parse_document};
+use comrak::{parse_document, Arena, ExtensionOptions, Options};
 use std::collections::HashMap;
 
 /// Main markdown renderer that converts markdown text to StyledLine output

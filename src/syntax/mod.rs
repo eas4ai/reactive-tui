@@ -10,7 +10,7 @@ pub mod theme;
 
 pub use cache::LineCache;
 pub use highlighter::{HighlightedLine, SyntaxHighlighter};
-pub use resources::{SYNTAX_RESOURCES, SyntaxResources, ThemeSet};
+pub use resources::{SyntaxResources, ThemeSet, SYNTAX_RESOURCES};
 pub use theme::{
-    SyntaxElement, SyntaxThemeVariables, ThemedSyntaxStyle, create_syntax_theme, hex_to_rgba,
+    create_syntax_theme, hex_to_rgba, SyntaxElement, SyntaxThemeVariables, ThemedSyntaxStyle,
 };

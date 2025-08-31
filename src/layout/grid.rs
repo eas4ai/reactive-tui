@@ -3,8 +3,8 @@
 //! A clean, intuitive API for creating grid layouts with CSS integration
 //! and dynamic manipulation capabilities.
 
-use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 /// Grid area definition with name and positioning
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -30,19 +30,19 @@ impl GridArea {
             z_index: 0,
         }
     }
-    
+
     pub fn at(mut self, row: usize, col: usize) -> Self {
         self.row = row;
         self.col = col;
         self
     }
-    
+
     pub fn span(mut self, row_span: usize, col_span: usize) -> Self {
         self.row_span = row_span;
         self.col_span = col_span;
         self
     }
-    
+
     pub fn class(mut self, css_class: impl Into<String>) -> Self {
         self.css_class = Some(css_class.into());
         self
@@ -76,24 +76,24 @@ impl DeclarativeGrid {
             css_class: None,
         }
     }
-    
+
     pub fn gap(mut self, gap: usize) -> Self {
         self.gap = gap;
         self
     }
-    
+
     pub fn class(mut self, css_class: impl Into<String>) -> Self {
         self.css_class = Some(css_class.into());
         self
     }
-    
+
     pub fn area(mut self, area: GridArea) -> Self {
         let index = self.areas.len();
         self.area_map.insert(area.name.clone(), index);
         self.areas.push(area);
         self
     }
-    
+
     /// Add multiple areas at once
     pub fn areas(mut self, areas: Vec<GridArea>) -> Self {
         for area in areas {
@@ -101,66 +101,73 @@ impl DeclarativeGrid {
         }
         self
     }
-    
+
     /// Insert a new row before the specified area
     pub fn insert_row_before(&mut self, target_area: &str) -> Result<(), String> {
-        let target_index = self.area_map.get(target_area)
+        let target_index = self
+            .area_map
+            .get(target_area)
             .ok_or_else(|| format!("Area '{}' not found", target_area))?;
-        
+
         let target_row = self.areas[*target_index].row;
-        
+
         // Shift all areas at or after target row down by 1
         for area in &mut self.areas {
             if area.row >= target_row {
                 area.row += 1;
             }
         }
-        
+
         self.rows += 1;
         Ok(())
     }
-    
+
     /// Insert a new column before the specified area
     pub fn insert_col_before(&mut self, target_area: &str) -> Result<(), String> {
-        let target_index = self.area_map.get(target_area)
+        let target_index = self
+            .area_map
+            .get(target_area)
             .ok_or_else(|| format!("Area '{}' not found", target_area))?;
-        
+
         let target_col = self.areas[*target_index].col;
-        
+
         // Shift all areas at or after target column right by 1
         for area in &mut self.areas {
             if area.col >= target_col {
                 area.col += 1;
             }
         }
-        
+
         self.cols += 1;
         Ok(())
     }
-    
+
     /// Remove an area by name
     pub fn remove_area(&mut self, area_name: &str) -> Result<GridArea, String> {
-        let index = self.area_map.remove(area_name)
+        let index = self
+            .area_map
+            .remove(area_name)
             .ok_or_else(|| format!("Area '{}' not found", area_name))?;
-        
+
         let removed_area = self.areas.remove(index);
-        
+
         // Update indices in area_map
         for (_, area_index) in self.area_map.iter_mut() {
             if *area_index > index {
                 *area_index -= 1;
             }
         }
-        
+
         Ok(removed_area)
     }
-    
+
     /// Get area by name
     pub fn get_area(&self, name: &str) -> Option<&GridArea> {
-        self.area_map.get(name)
+        self.area_map
+            .get(name)
             .and_then(|&index| self.areas.get(index))
     }
-    
+
     /// Get mutable area by name
     pub fn get_area_mut(&mut self, name: &str) -> Option<&mut GridArea> {
         if let Some(&index) = self.area_map.get(name) {
@@ -169,27 +176,34 @@ impl DeclarativeGrid {
             None
         }
     }
-    
+
     /// Update area position
     pub fn move_area(&mut self, name: &str, row: usize, col: usize) -> Result<(), String> {
-        let area = self.get_area_mut(name)
+        let area = self
+            .get_area_mut(name)
             .ok_or_else(|| format!("Area '{}' not found", name))?;
-        
+
         area.row = row;
         area.col = col;
         Ok(())
     }
-    
+
     /// Update area span
-    pub fn resize_area(&mut self, name: &str, row_span: usize, col_span: usize) -> Result<(), String> {
-        let area = self.get_area_mut(name)
+    pub fn resize_area(
+        &mut self,
+        name: &str,
+        row_span: usize,
+        col_span: usize,
+    ) -> Result<(), String> {
+        let area = self
+            .get_area_mut(name)
             .ok_or_else(|| format!("Area '{}' not found", name))?;
-        
+
         area.row_span = row_span;
         area.col_span = col_span;
         Ok(())
     }
-    
+
     /// Get areas sorted by z-index for proper rendering order
     pub fn areas_by_z_index(&self) -> Vec<&GridArea> {
         let mut sorted_areas: Vec<&GridArea> = self.areas.iter().collect();
@@ -218,19 +232,19 @@ impl DeclarativeGrid {
             .collect::<Vec<_>>()
             .join(" ")
     }
-    
+
     /// Generate CSS grid template columns/rows
     pub fn to_css_grid_template(&self) -> (String, String) {
         let cols = format!("repeat({}, 1fr)", self.cols);
         let rows = format!("repeat({}, 1fr)", self.rows);
         (cols, rows)
     }
-    
+
     /// Validate grid layout (check for overlaps, out-of-bounds, etc.)
     pub fn validate(&self) -> Result<(), Vec<String>> {
         let mut errors = Vec::new();
         let mut grid = vec![vec![None::<&str>; self.cols]; self.rows];
-        
+
         for area in &self.areas {
             // Check bounds
             if area.row + area.row_span > self.rows {
@@ -239,14 +253,16 @@ impl DeclarativeGrid {
             if area.col + area.col_span > self.cols {
                 errors.push(format!("Area '{}' extends beyond grid columns", area.name));
             }
-            
+
             // Check overlaps
             for r in area.row..(area.row + area.row_span) {
                 for c in area.col..(area.col + area.col_span) {
                     if r < self.rows && c < self.cols {
                         if let Some(existing) = grid[r][c] {
-                            errors.push(format!("Areas '{}' and '{}' overlap at ({}, {})", 
-                                area.name, existing, r, c));
+                            errors.push(format!(
+                                "Areas '{}' and '{}' overlap at ({}, {})",
+                                area.name, existing, r, c
+                            ));
                         } else {
                             grid[r][c] = Some(&area.name);
                         }
@@ -254,7 +270,7 @@ impl DeclarativeGrid {
                 }
             }
         }
-        
+
         if errors.is_empty() {
             Ok(())
         } else {
@@ -271,6 +287,7 @@ macro_rules! layout {
     }) => {{
         let mut grid = $crate::layout::grid::DeclarativeGrid::new($cols, $rows).gap($gap);
         $(
+            #[allow(unused_mut)]
             let mut area = $crate::layout::grid::GridArea::new($name).at($row, $col);
             $(area = area.span($row_span, $col_span);)?
             $(area = area.class($css_class);)?
@@ -283,8 +300,7 @@ macro_rules! layout {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    
+
     #[test]
     fn test_declarative_grid_creation() {
         let grid = layout! {
@@ -296,12 +312,12 @@ mod tests {
                 "Footer" at (2, 0) span (1, 3) class "footer",
             }
         };
-        
+
         assert_eq!(grid.cols, 3);
         assert_eq!(grid.rows, 3);
         assert_eq!(grid.gap, 1);
         assert_eq!(grid.areas.len(), 5);
-        
+
         let header = grid.get_area("Header").unwrap();
         assert_eq!(header.row, 0);
         assert_eq!(header.col, 0);
@@ -309,7 +325,7 @@ mod tests {
         assert_eq!(header.col_span, 3);
         assert_eq!(header.css_class, Some("header".to_string()));
     }
-    
+
     #[test]
     fn test_grid_manipulation() {
         let mut grid = layout! {
@@ -318,14 +334,14 @@ mod tests {
                 "Footer" at (1, 0) span (1, 2),
             }
         };
-        
+
         // Insert row before Footer
         grid.insert_row_before("Footer").unwrap();
-        
+
         assert_eq!(grid.rows, 3);
         assert_eq!(grid.get_area("Footer").unwrap().row, 2);
     }
-    
+
     #[test]
     fn test_css_generation() {
         let grid = layout! {
@@ -335,10 +351,10 @@ mod tests {
                 "C" at (1, 0) span (1, 2),
             }
         };
-        
+
         let css_areas = grid.to_css_grid_areas();
         assert_eq!(css_areas, "\"A B\" \"C C\"");
-        
+
         let (cols, rows) = grid.to_css_grid_template();
         assert_eq!(cols, "repeat(2, 1fr)");
         assert_eq!(rows, "repeat(2, 1fr)");

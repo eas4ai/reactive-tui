@@ -1,8 +1,8 @@
 use reactive_tui::component::{
     Component, ComponentInstance, Element, ElementType, LifecycleEvent, Props,
 };
-use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::Arc;
 
 #[derive(Clone, PartialEq, Debug, Default)]
 struct TestProps {

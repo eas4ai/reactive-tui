@@ -3,14 +3,12 @@
 //! Interactive demo showing different grid layouts with background colors
 //! Navigate with Space/Arrow keys, similar to the reference layout showcase
 
-use crossterm::{
-    event::{read, Event, KeyCode, KeyModifiers},
-};
+use crossterm::event::{read, Event, KeyCode, KeyModifiers};
+use reactive_tui::core::renderer::Renderer;
+use reactive_tui::core::surface::{Rgba, Surface};
 use reactive_tui::layout;
 use reactive_tui::layout::renderer::render_grid;
-use reactive_tui::core::surface::{Surface, Rgba};
-use reactive_tui::core::renderer::Renderer;
-use std::io::{stdout, Result};
+use std::io::Result;
 
 struct GridShowcase {
     current_demo: usize,
@@ -95,16 +93,23 @@ impl GridShowcase {
 
         // Render description
         let gray = Rgba::new(0.7, 0.7, 0.7, 1.0);
-        self.draw_centered_text(surface, &self.current_demo().description, 3, width, gray, Rgba::black());
+        self.draw_centered_text(
+            surface,
+            &self.current_demo().description,
+            3,
+            width,
+            gray,
+            Rgba::black(),
+        );
 
         // Create and render the grid
         let grid = (self.current_demo().grid_fn)();
-        
+
         // Render grid starting from line 6
         let grid_surface_height = height.saturating_sub(10);
         let mut grid_surface = Surface::new(width, grid_surface_height);
         grid_surface.clear(Rgba::black());
-        
+
         if let Err(e) = render_grid(&grid, &mut grid_surface, width) {
             // If grid rendering fails, show error
             let error_msg = format!("Grid render error: {}", e);
@@ -124,8 +129,11 @@ impl GridShowcase {
 
         // Render navigation help
         let nav_y = height.saturating_sub(3);
-        let nav_text = format!("Demo {}/{} | Space/→: next | ←: prev | Q: quit", 
-            self.current_demo + 1, self.total_demos());
+        let nav_text = format!(
+            "Demo {}/{} | Space/→: next | ←: prev | Q: quit",
+            self.current_demo + 1,
+            self.total_demos()
+        );
         let yellow = Rgba::new(1.0, 1.0, 0.0, 1.0);
         self.draw_centered_text(surface, &nav_text, nav_y, width, yellow, Rgba::black());
 
@@ -133,7 +141,15 @@ impl GridShowcase {
         Ok(())
     }
 
-    fn draw_centered_text(&self, surface: &mut Surface, text: &str, y: usize, width: usize, fg: Rgba, bg: Rgba) {
+    fn draw_centered_text(
+        &self,
+        surface: &mut Surface,
+        text: &str,
+        y: usize,
+        width: usize,
+        fg: Rgba,
+        bg: Rgba,
+    ) {
         let (surface_width, surface_height) = surface.dims();
         if y >= surface_height {
             return;
@@ -235,10 +251,11 @@ fn create_ide_grid() -> reactive_tui::layout::grid::DeclarativeGrid {
 }
 
 fn main() -> Result<()> {
-    // Framework handles terminal cleanup automatically via Drop traits
+    // Get actual terminal size
+    let (width, height) = crossterm::terminal::size()?;
 
     let mut showcase = GridShowcase::new();
-    let mut renderer = Renderer::new(100, 30).map_err(|e| {
+    let mut renderer = Renderer::new(width as usize, height as usize).map_err(|e| {
         std::io::Error::new(std::io::ErrorKind::Other, format!("Renderer error: {}", e))
     })?;
 
@@ -249,15 +266,17 @@ fn main() -> Result<()> {
         }
 
         match read()? {
-            Event::Key(key_event) => {
-                match key_event.code {
-                    KeyCode::Char('q') | KeyCode::Char('Q') => break,
-                    KeyCode::Char('c') if key_event.modifiers.contains(KeyModifiers::CONTROL) => break,
-                    KeyCode::Char(' ') | KeyCode::Right | KeyCode::Enter => showcase.next_demo(),
-                    KeyCode::Left | KeyCode::Backspace => showcase.prev_demo(),
-                    KeyCode::Esc => break,
-                    _ => {}
-                }
+            Event::Key(key_event) => match key_event.code {
+                KeyCode::Char('q') | KeyCode::Char('Q') => break,
+                KeyCode::Char('c') if key_event.modifiers.contains(KeyModifiers::CONTROL) => break,
+                KeyCode::Char(' ') | KeyCode::Right | KeyCode::Enter => showcase.next_demo(),
+                KeyCode::Left | KeyCode::Backspace => showcase.prev_demo(),
+                KeyCode::Esc => break,
+                _ => {}
+            },
+            Event::Resize(new_width, new_height) => {
+                // Handle terminal resize
+                renderer.resize(new_width as usize, new_height as usize);
             }
             _ => {}
         }

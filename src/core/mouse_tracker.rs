@@ -4,10 +4,26 @@
 //! different levels of mouse interaction, from basic clicks to pixel-perfect
 //! motion tracking, with automatic capability detection and fallback.
 
-use crate::core::terminal_capabilities::MouseCapabilities;
 use crossterm::event::{DisableMouseCapture, EnableMouseCapture};
 use crossterm::execute;
 use std::io::{self, Write};
+
+/// Mouse capabilities that can be detected
+#[derive(Debug, Clone, Default)]
+pub struct MouseCapabilities {
+    /// Basic mouse support (clicks)
+    pub basic: bool,
+    /// Drag tracking support
+    pub drag: bool,
+    /// Motion tracking support
+    pub motion: bool,
+    /// Pixel-level mouse coordinates
+    pub pixels: bool,
+    /// SGR mouse mode support
+    pub sgr_mode: bool,
+    /// Mouse wheel support
+    pub wheel: bool,
+}
 
 /// Mouse tracking levels from basic to advanced
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]

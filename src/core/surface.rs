@@ -147,7 +147,7 @@ impl Rgba {
 impl Rgba {
     /// SIMD-optimized epsilon comparison
     pub fn equals_epsilon_simd(self, other: Self, epsilon: f32) -> bool {
-        use std::simd::{SimdFloat, SimdPartialOrd, f32x4};
+        use std::simd::{f32x4, SimdFloat, SimdPartialOrd};
 
         let a = f32x4::from_array([self.r, self.g, self.b, self.a]);
         let b = f32x4::from_array([other.r, other.g, other.b, other.a]);
@@ -777,14 +777,14 @@ impl DiffWriter {
             }
 
             // Flush any remaining run at end of line
-            if !run_buf.is_empty()
-                && let Some(start) = run_start_col
-            {
-                self.push(&format!("\x1b[{y1};{x1}H", y1 = y + 1, x1 = start + 1));
-                self.push(&run_buf);
-                self.last_spans_written += 1;
-                self.stats.cursor_moves += 1;
-                wrote_row = true;
+            if !run_buf.is_empty() {
+                if let Some(start) = run_start_col {
+                    self.push(&format!("\x1b[{y1};{x1}H", y1 = y + 1, x1 = start + 1));
+                    self.push(&run_buf);
+                    self.last_spans_written += 1;
+                    self.stats.cursor_moves += 1;
+                    wrote_row = true;
+                }
             }
             if wrote_row {
                 self.last_rows_changed += 1;

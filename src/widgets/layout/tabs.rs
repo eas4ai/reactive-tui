@@ -652,12 +652,12 @@ impl Tabs {
             }
             KeyCode::Enter | KeyCode::Char(' ') => {
                 // Activate focused tab (for manual activation mode)
-                if let Some(focused) = state.focused_tab
-                    && !props.tabs[focused].disabled
-                {
-                    props.active_tab = focused;
-                    if let Some(on_change) = &self.on_change {
-                        on_change(focused);
+                if let Some(focused) = state.focused_tab {
+                    if !props.tabs[focused].disabled {
+                        props.active_tab = focused;
+                        if let Some(on_change) = &self.on_change {
+                            on_change(focused);
+                        }
                     }
                 }
                 EventResult::Consumed
@@ -666,11 +666,10 @@ impl Tabs {
                 // Close focused tab if closable
                 if let Some(focused) = state.focused_tab {
                     let tab = &props.tabs[focused];
-                    if (tab.closable || props.closable)
-                        && !tab.disabled
-                        && let Some(on_close) = &self.on_close
-                    {
-                        on_close(focused);
+                    if (tab.closable || props.closable) && !tab.disabled {
+                        if let Some(on_close) = &self.on_close {
+                            on_close(focused);
+                        }
                     }
                     // Note: actual tab removal should be handled by parent component
                 }

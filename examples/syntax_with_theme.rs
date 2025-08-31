@@ -5,7 +5,7 @@
 use crossterm::event::{self, Event, KeyCode};
 use reactive_tui::core::renderer::Renderer;
 use reactive_tui::core::surface::{Attr, Cell, Rgba};
-use reactive_tui::syntax::{SYNTAX_RESOURCES, SyntaxHighlighter, create_syntax_theme};
+use reactive_tui::syntax::{create_syntax_theme, SyntaxHighlighter, SYNTAX_RESOURCES};
 use reactive_tui::theme::presets::dark_theme;
 use std::io::Result;
 use std::time::Duration;

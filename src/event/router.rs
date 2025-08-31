@@ -134,11 +134,12 @@ impl EventRouter {
     /// Remove an event node and all its descendants
     pub fn remove_node(&mut self, id: NodeId) {
         // Remove from parent's children
-        if let Some(node) = self.nodes.get(&id)
-            && let Some(parent_id) = node.parent
-            && let Some(parent) = self.nodes.get_mut(&parent_id)
-        {
-            parent.children.retain(|&child| child != id);
+        if let Some(node) = self.nodes.get(&id) {
+            if let Some(parent_id) = node.parent {
+                if let Some(parent) = self.nodes.get_mut(&parent_id) {
+                    parent.children.retain(|&child| child != id);
+                }
+            }
         }
 
         // Remove node and all descendants
@@ -242,30 +243,30 @@ impl EventRouter {
 
         // Capture phase - root to target (excluding target)
         for &node_id in &path[..path.len().saturating_sub(1)] {
-            if let Some(node) = self.nodes.get(&node_id)
-                && let Some(handlers) = node.capture_handlers.get(event_type)
-            {
-                for handler in handlers {
-                    match (handler.handler)(event) {
-                        EventResult::Consumed => return EventResult::Consumed,
-                        EventResult::Captured => {} // Continue to bubble phase
-                        EventResult::Handled => {}
-                        EventResult::Ignored => {}
+            if let Some(node) = self.nodes.get(&node_id) {
+                if let Some(handlers) = node.capture_handlers.get(event_type) {
+                    for handler in handlers {
+                        match (handler.handler)(event) {
+                            EventResult::Consumed => return EventResult::Consumed,
+                            EventResult::Captured => {} // Continue to bubble phase
+                            EventResult::Handled => {}
+                            EventResult::Ignored => {}
+                        }
                     }
                 }
             }
         }
 
         // Target phase
-        if let Some(node) = self.nodes.get(&target_id)
-            && let Some(handlers) = node.handlers.get(event_type)
-        {
-            for handler in handlers {
-                match (handler.handler)(event) {
-                    EventResult::Consumed => return EventResult::Consumed,
-                    EventResult::Captured => {} // Captured only meaningful in capture phase
-                    EventResult::Handled => {}
-                    EventResult::Ignored => {}
+        if let Some(node) = self.nodes.get(&target_id) {
+            if let Some(handlers) = node.handlers.get(event_type) {
+                for handler in handlers {
+                    match (handler.handler)(event) {
+                        EventResult::Consumed => return EventResult::Consumed,
+                        EventResult::Captured => {} // Captured only meaningful in capture phase
+                        EventResult::Handled => {}
+                        EventResult::Ignored => {}
+                    }
                 }
             }
         }
@@ -282,16 +283,16 @@ impl EventRouter {
 
         if bubbles {
             for &node_id in path.iter().rev().skip(1) {
-                if let Some(node) = self.nodes.get(&node_id)
-                    && let Some(handlers) = node.handlers.get(event_type)
-                {
-                    for handler in handlers {
-                        if handler.phase == EventPhase::Bubble {
-                            match (handler.handler)(event) {
-                                EventResult::Consumed => return EventResult::Consumed,
-                                EventResult::Captured => {} // Captured only meaningful in capture phase
-                                EventResult::Handled => {}
-                                EventResult::Ignored => {}
+                if let Some(node) = self.nodes.get(&node_id) {
+                    if let Some(handlers) = node.handlers.get(event_type) {
+                        for handler in handlers {
+                            if handler.phase == EventPhase::Bubble {
+                                match (handler.handler)(event) {
+                                    EventResult::Consumed => return EventResult::Consumed,
+                                    EventResult::Captured => {} // Captured only meaningful in capture phase
+                                    EventResult::Handled => {}
+                                    EventResult::Ignored => {}
+                                }
                             }
                         }
                     }

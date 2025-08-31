@@ -129,7 +129,8 @@ pub fn use_signal<T: Send + Sync + Clone + 'static>(
     initial: T,
 ) -> ThreadSafeSignal<T> {
     let signal = hooks.get_or_create_storage(|| ThreadSafeSignal::new(initial));
-    signal.lock().unwrap().clone()
+    let result = signal.lock().unwrap().clone();
+    result
 }
 
 /// Run a side effect (thread-safe version)
