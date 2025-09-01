@@ -76,11 +76,13 @@ impl Terminal {
 
                         // Send raw data as terminal output
                         if !data.is_empty()
-                            && pty_output_tx.send(TerminalEvent::Output(data.to_vec())).is_err()
-                            {
-                                // Channel closed - exit thread
-                                return;
-                            }
+                            && pty_output_tx
+                                .send(TerminalEvent::Output(data.to_vec()))
+                                .is_err()
+                        {
+                            // Channel closed - exit thread
+                            return;
+                        }
                     }
                     Err(_) => {
                         // Read error - short sleep before retry

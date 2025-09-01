@@ -7,7 +7,7 @@ use crate::core::surface::Surface;
 use std::collections::HashMap;
 
 /// Dialog rendering buffer that manages glass layer effects
-
+///
 pub struct DialogBuffer {
     /// Main surface for dialog content
     surface: Surface,
@@ -51,14 +51,14 @@ impl DialogBuffer {
     }
 
     /// Add a dialog to the buffer
-    pub fn add_dialog(&mut self, id: super::DialogId, bounds: Rect, z_index: u16) {
+    pub fn add_dialog(&mut self, id: super::DialogId, bounds: Rect, _z_index: u16) {
         self.dialog_bounds.insert(id, bounds);
 
         // Insert in z-order
         let insert_pos = self
             .z_order
             .iter()
-            .position(|&existing_id| {
+            .position(|&_existing_id| {
                 // Get z-index of existing dialog (would need to be stored)
                 false // Placeholder logic
             })
@@ -115,6 +115,7 @@ impl DialogBuffer {
     }
 
     /// Apply blur effect to surface
+    #[allow(dead_code)]
     fn apply_blur_effect(&self, surface: &mut Surface) {
         // Simplified blur implementation
         // In a real implementation, this would use proper blur algorithms
@@ -163,6 +164,7 @@ impl DialogBuffer {
     }
 
     /// Apply backdrop darkening effect
+    #[allow(dead_code)]
     fn apply_backdrop_darkening(&self, surface: &mut Surface) {
         let size = surface.size();
         for y in 0..size.height {

@@ -251,6 +251,10 @@ impl TestPatchApplier {
         Self::default()
     }
 
+    /// Get the list of patch operations
+    ///
+    /// # Returns
+    /// A slice of operation strings describing the patches applied
     pub fn operations(&self) -> &[String] {
         &self.operations
     }

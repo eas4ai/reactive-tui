@@ -1073,77 +1073,180 @@ pub struct PopoverBuilder {
 }
 
 impl PopoverBuilder {
+    /// Create a new popover builder
+    ///
+    /// # Returns
+    /// A new `PopoverBuilder` with default properties
     pub fn new() -> Self {
         Self {
             props: PopoverProps::default(),
         }
     }
 
+    /// Set the visibility of the popover
+    ///
+    /// # Arguments
+    /// * `visible` - Whether the popover should be visible
+    ///
+    /// # Returns
+    /// Self for method chaining
     pub fn visible(mut self, visible: bool) -> Self {
         self.props.visible = visible;
         self
     }
 
+    /// Set the position of the popover relative to its trigger
+    ///
+    /// # Arguments
+    /// * `position` - The position (top, bottom, left, right, etc.)
+    ///
+    /// # Returns
+    /// Self for method chaining
     pub fn position(mut self, position: PopoverPosition) -> Self {
         self.props.position = position;
         self
     }
 
+    /// Set the trigger behavior for the popover
+    ///
+    /// # Arguments
+    /// * `trigger` - How the popover should be triggered (click, hover, etc.)
+    ///
+    /// # Returns
+    /// Self for method chaining
     pub fn trigger(mut self, trigger: PopoverTrigger) -> Self {
         self.props.trigger = trigger;
         self
     }
 
+    /// Set the animation for the popover
+    ///
+    /// # Arguments
+    /// * `animation` - The animation type for show/hide transitions
+    ///
+    /// # Returns
+    /// Self for method chaining
     pub fn animation(mut self, animation: PopoverAnimation) -> Self {
         self.props.animation = animation;
         self
     }
 
+    /// Set the animation duration for the popover
+    ///
+    /// # Arguments
+    /// * `duration` - How long the show/hide animation should take
+    ///
+    /// # Returns
+    /// Self for method chaining
     pub fn animation_duration(mut self, duration: Duration) -> Self {
         self.props.animation_duration = duration;
         self
     }
 
+    /// Set the content element for the popover
+    ///
+    /// # Arguments
+    /// * `content` - The element to display inside the popover
+    ///
+    /// # Returns
+    /// Self for method chaining
     pub fn content(mut self, content: Element) -> Self {
         self.props.content = content;
         self
     }
 
+    /// Set the trigger element for the popover
+    ///
+    /// # Arguments
+    /// * `element` - The element that triggers the popover
+    ///
+    /// # Returns
+    /// Self for method chaining
     pub fn trigger_element(mut self, element: Element) -> Self {
         self.props.trigger_element = element;
         self
     }
 
+    /// Set the arrow configuration for the popover
+    ///
+    /// # Arguments
+    /// * `arrow` - Arrow configuration (visible, hidden, or custom)
+    ///
+    /// # Returns
+    /// Self for method chaining
     pub fn arrow(mut self, arrow: PopoverArrow) -> Self {
         self.props.arrow = arrow;
         self
     }
 
+    /// Set the offset from the trigger element
+    ///
+    /// # Arguments
+    /// * `x` - Horizontal offset in pixels
+    /// * `y` - Vertical offset in pixels
+    ///
+    /// # Returns
+    /// Self for method chaining
     pub fn offset(mut self, x: i16, y: i16) -> Self {
         self.props.offset = (x, y);
         self
     }
 
+    /// Set the boundary behavior when the popover would overflow
+    ///
+    /// # Arguments
+    /// * `behavior` - How to handle boundary collisions (flip, shift, etc.)
+    ///
+    /// # Returns
+    /// Self for method chaining
     pub fn boundary_behavior(mut self, behavior: BoundaryBehavior) -> Self {
         self.props.boundary_behavior = behavior;
         self
     }
 
+    /// Enable or disable closing on escape key
+    ///
+    /// # Arguments
+    /// * `close` - Whether the popover should close when escape is pressed
+    ///
+    /// # Returns
+    /// Self for method chaining
     pub fn close_on_escape(mut self, close: bool) -> Self {
         self.props.close_on_escape = close;
         self
     }
 
+    /// Enable or disable closing on outside click
+    ///
+    /// # Arguments
+    /// * `close` - Whether the popover should close when clicking outside
+    ///
+    /// # Returns
+    /// Self for method chaining
     pub fn close_on_outside_click(mut self, close: bool) -> Self {
         self.props.close_on_outside_click = close;
         self
     }
 
+    /// Set the delay before showing on hover
+    ///
+    /// # Arguments
+    /// * `delay` - Time to wait before showing the popover on hover
+    ///
+    /// # Returns
+    /// Self for method chaining
     pub fn hover_delay(mut self, delay: Duration) -> Self {
         self.props.hover_delay = delay;
         self
     }
 
+    /// Set the delay before hiding when leaving hover
+    ///
+    /// # Arguments
+    /// * `delay` - Time to wait before hiding the popover when leaving hover
+    ///
+    /// # Returns
+    /// Self for method chaining
     pub fn hover_leave_delay(mut self, delay: Duration) -> Self {
         self.props.hover_leave_delay = delay;
         self

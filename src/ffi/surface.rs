@@ -131,6 +131,8 @@ pub extern "C" fn rtui_surface_set_cell(
                     c.attrs.reverse,
                     c.attrs.strikethrough,
                 ),
+                image_id: None,
+                image_placement: None,
             };
 
             surf.set(x as usize, y as usize, internal_cell);
@@ -304,6 +306,8 @@ pub extern "C" fn rtui_surface_fill_rect(
             fg: fg_rgba,
             bg: bg_rgba,
             attr: crate::core::surface::Attr::empty(),
+            image_id: None,
+            image_placement: None,
         };
 
         for y in r.y..(r.y + r.height).min(height as u16) {

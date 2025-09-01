@@ -14,6 +14,14 @@ pub struct SelectOption<T: Clone + PartialEq + Send + Sync + 'static> {
 }
 
 impl<T: Clone + PartialEq + Send + Sync + 'static> SelectOption<T> {
+    /// Create a new select option
+    ///
+    /// # Arguments
+    /// * `value` - The value associated with this option
+    /// * `label` - Display label for the option
+    ///
+    /// # Returns
+    /// A new `SelectOption` with the option enabled by default
     pub fn new(value: T, label: impl Into<String>) -> Self {
         Self {
             value,
@@ -22,6 +30,13 @@ impl<T: Clone + PartialEq + Send + Sync + 'static> SelectOption<T> {
         }
     }
 
+    /// Set whether this option is disabled
+    ///
+    /// # Arguments
+    /// * `disabled` - Whether the option should be disabled
+    ///
+    /// # Returns
+    /// Self for method chaining
     pub fn disabled(mut self, disabled: bool) -> Self {
         self.disabled = disabled;
         self
@@ -77,19 +92,37 @@ pub struct Select<T: Clone + PartialEq + Send + Sync + 'static> {
 }
 
 impl<T: Clone + PartialEq + Send + Sync + 'static> Select<T> {
-    /// Set the onChange callback
+    /// Set the onChange callback for when the selection changes
+    ///
+    /// # Arguments
+    /// * `f` - Callback function that receives the newly selected value
+    ///
+    /// # Returns
+    /// Self for method chaining
     pub fn with_on_change(mut self, f: impl Fn(T) + Send + Sync + 'static) -> Self {
         self.on_change = Some(Arc::new(f));
         self
     }
 
-    /// Set the onOpen callback
+    /// Set the onOpen callback for when the dropdown opens
+    ///
+    /// # Arguments
+    /// * `f` - Callback function called when the dropdown opens
+    ///
+    /// # Returns
+    /// Self for method chaining
     pub fn with_on_open(mut self, f: impl Fn() + Send + Sync + 'static) -> Self {
         self.on_open = Some(Arc::new(f));
         self
     }
 
-    /// Set the onClose callback
+    /// Set the onClose callback for when the dropdown closes
+    ///
+    /// # Arguments
+    /// * `f` - Callback function called when the dropdown closes
+    ///
+    /// # Returns
+    /// Self for method chaining
     pub fn with_on_close(mut self, f: impl Fn() + Send + Sync + 'static) -> Self {
         self.on_close = Some(Arc::new(f));
         self

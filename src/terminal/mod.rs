@@ -8,7 +8,7 @@ pub mod cursor;
 pub mod parser;
 pub mod pty;
 pub mod screen;
-pub mod terminal;
+pub mod terminal_impl;
 
 pub use ansi::colors;
 pub use ansi::sequences;
@@ -18,7 +18,7 @@ pub use cursor::TerminalCursor;
 pub use parser::AnsiParser;
 pub use pty::PseudoTerminal;
 pub use screen::VirtualScreen;
-pub use terminal::Terminal;
+pub use terminal_impl::Terminal;
 
 /// Terminal configuration
 #[derive(Debug, Clone, PartialEq)]

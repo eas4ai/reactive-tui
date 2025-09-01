@@ -118,6 +118,9 @@ impl ScrollState {
         self.offset_y = 0;
     }
 
+    /// Scroll to the bottom of the content
+    ///
+    /// Sets the vertical offset to show the bottom of the content area.
     pub fn scroll_to_bottom(&mut self) {
         self.offset_y = self.content_height.saturating_sub(self.viewport_height);
     }

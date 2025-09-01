@@ -7,12 +7,18 @@ use std::ffi::CStr;
 use std::os::raw::c_char;
 use std::panic::{self, AssertUnwindSafe};
 
+mod animation;
+mod component;
+mod dialog;
 mod error;
 mod render;
 mod surface;
 mod terminal;
 mod types;
 
+pub use animation::*;
+pub use component::*;
+pub use dialog::*;
 pub use error::*;
 pub use render::*;
 pub use surface::*;
@@ -29,13 +35,25 @@ pub struct RTuiVersion {
 }
 
 /// Get the library version
-#[unsafe(no_mangle)]
+#[no_mangle]
 pub extern "C" fn rtui_version() -> RTuiVersion {
     RTuiVersion {
         major: 0,
         minor: 1,
         patch: 0,
         abi_version: 1,
+    }
+}
+
+/// Helper function to catch panics and convert them to error codes
+pub(crate) fn catch_panic<F, T>(f: F) -> ReactiveError
+where
+    F: FnOnce() -> Result<T, ReactiveError> + std::panic::UnwindSafe,
+{
+    match panic::catch_unwind(f) {
+        Ok(Ok(_)) => ReactiveError::Success,
+        Ok(Err(e)) => e,
+        Err(_) => ReactiveError::Panic,
     }
 }
 
@@ -66,15 +84,4 @@ unsafe fn c_str_to_string(s: *const c_char) -> Result<String, ReactiveError> {
     }
 }
 
-/// Helper to catch panics and convert to error codes
-fn catch_panic<F, T>(f: F) -> ReactiveError
-where
-    F: FnOnce() -> Result<T, ReactiveError> + panic::UnwindSafe,
-    T: Default,
-{
-    match panic::catch_unwind(f) {
-        Ok(Ok(_)) => ReactiveError::Success,
-        Ok(Err(e)) => e,
-        Err(_) => ReactiveError::Panic,
-    }
-}
+

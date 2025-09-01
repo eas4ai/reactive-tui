@@ -527,7 +527,7 @@ impl Table {
 
         // Add some padding and enforce reasonable bounds
         let padded_width = max_width + 2; // 1 char padding on each side
-        padded_width.max(8).min(50) // Min 8, max 50 characters
+        padded_width.clamp(8, 50) // Min 8, max 50 characters
     }
 
     /// Calculate actual table bounds based on content and layout
@@ -855,7 +855,6 @@ impl Component for Table {
         }
 
         // Intelligent re-render detection based on state changes
-        
 
         state.visible_rows != (start_row..end_row).collect::<Vec<_>>() ||
             // Column widths changed
@@ -878,6 +877,14 @@ impl Default for Table {
 
 // Helper implementations
 impl TableColumn {
+    /// Create a new table column
+    ///
+    /// # Arguments
+    /// * `title` - Display title for the column header
+    /// * `key` - Data key to access values in table rows
+    ///
+    /// # Returns
+    /// A new `TableColumn` with default settings
     pub fn new(title: &str, key: &str) -> Self {
         Self {
             title: title.to_string(),
@@ -891,21 +898,49 @@ impl TableColumn {
         }
     }
 
+    /// Set the column width
+    ///
+    /// # Arguments
+    /// * `width` - The display size for this column
+    ///
+    /// # Returns
+    /// Self for method chaining
     pub fn with_width(mut self, width: DisplaySize) -> Self {
         self.width = width;
         self
     }
 
+    /// Set the column text alignment
+    ///
+    /// # Arguments
+    /// * `alignment` - Text alignment (left, center, right)
+    ///
+    /// # Returns
+    /// Self for method chaining
     pub fn with_alignment(mut self, alignment: Alignment) -> Self {
         self.alignment = alignment;
         self
     }
 
+    /// Enable or disable column sorting
+    ///
+    /// # Arguments
+    /// * `sortable` - Whether this column can be sorted
+    ///
+    /// # Returns
+    /// Self for method chaining
     pub fn sortable(mut self, sortable: bool) -> Self {
         self.sortable = sortable;
         self
     }
 
+    /// Enable or disable column resizing
+    ///
+    /// # Arguments
+    /// * `resizable` - Whether this column can be resized by the user
+    ///
+    /// # Returns
+    /// Self for method chaining
     pub fn resizable(mut self, resizable: bool) -> Self {
         self.resizable = resizable;
         self
@@ -913,6 +948,13 @@ impl TableColumn {
 }
 
 impl TableRow {
+    /// Create a new table row
+    ///
+    /// # Arguments
+    /// * `id` - Unique identifier for this row
+    ///
+    /// # Returns
+    /// A new `TableRow` with empty cells and data
     pub fn new(id: &str) -> Self {
         Self {
             id: id.to_string(),
@@ -923,27 +965,66 @@ impl TableRow {
         }
     }
 
+    /// Add a cell with content to the row
+    ///
+    /// # Arguments
+    /// * `key` - Column key for this cell
+    /// * `content` - Text content for the cell
+    ///
+    /// # Returns
+    /// Self for method chaining
     pub fn with_cell(mut self, key: &str, content: &str) -> Self {
         self.cells.insert(key.to_string(), TableCell::new(content));
         self
     }
 
+    /// Add a styled cell to the row
+    ///
+    /// # Arguments
+    /// * `key` - Column key for this cell
+    /// * `content` - Text content for the cell
+    /// * `style` - CSS-like style string for the cell
+    ///
+    /// # Returns
+    /// Self for method chaining
     pub fn with_styled_cell(mut self, key: &str, content: &str, style: &str) -> Self {
         self.cells
             .insert(key.to_string(), TableCell::new(content).with_style(style));
         self
     }
 
+    /// Add metadata to the row
+    ///
+    /// # Arguments
+    /// * `key` - Data key
+    /// * `value` - Data value
+    ///
+    /// # Returns
+    /// Self for method chaining
     pub fn with_data(mut self, key: &str, value: &str) -> Self {
         self.data.insert(key.to_string(), value.to_string());
         self
     }
 
+    /// Set the row style
+    ///
+    /// # Arguments
+    /// * `style` - CSS-like style string for the entire row
+    ///
+    /// # Returns
+    /// Self for method chaining
     pub fn with_style(mut self, style: &str) -> Self {
         self.style = Some(style.to_string());
         self
     }
 
+    /// Enable or disable row selection
+    ///
+    /// # Arguments
+    /// * `selectable` - Whether this row can be selected by the user
+    ///
+    /// # Returns
+    /// Self for method chaining
     pub fn selectable(mut self, selectable: bool) -> Self {
         self.selectable = selectable;
         self
@@ -951,6 +1032,13 @@ impl TableRow {
 }
 
 impl TableCell {
+    /// Create a new table cell
+    ///
+    /// # Arguments
+    /// * `content` - Text content for the cell
+    ///
+    /// # Returns
+    /// A new `TableCell` with default settings
     pub fn new(content: &str) -> Self {
         Self {
             content: content.to_string(),
@@ -961,16 +1049,37 @@ impl TableCell {
         }
     }
 
+    /// Set the cell style
+    ///
+    /// # Arguments
+    /// * `style` - CSS-like style string for the cell
+    ///
+    /// # Returns
+    /// Self for method chaining
     pub fn with_style(mut self, style: &str) -> Self {
         self.style = Some(style.to_string());
         self
     }
 
+    /// Set the cell text alignment
+    ///
+    /// # Arguments
+    /// * `alignment` - Text alignment (left, center, right)
+    ///
+    /// # Returns
+    /// Self for method chaining
     pub fn with_alignment(mut self, alignment: Alignment) -> Self {
         self.alignment = Some(alignment);
         self
     }
 
+    /// Make the cell clickable with an action
+    ///
+    /// # Arguments
+    /// * `action` - Action identifier to trigger when clicked
+    ///
+    /// # Returns
+    /// Self for method chaining
     pub fn clickable(mut self, action: &str) -> Self {
         self.clickable = true;
         self.action = Some(action.to_string());

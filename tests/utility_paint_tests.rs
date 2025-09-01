@@ -1,6 +1,6 @@
 use reactive_tui::core::surface::{Attr, Rgba, Surface};
+use reactive_tui::layout::css::apply_utility_classes;
 use reactive_tui::layout::style::StyleBuilder;
-use reactive_tui::layout::utility_css::apply_utility_classes;
 
 #[test]
 fn parse_px_accepts_px_suffix_and_raw() {

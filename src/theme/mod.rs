@@ -72,7 +72,7 @@ impl Theme {
         });
 
         // Cache the result (even if None, we cache that too)
-        if let Some(ref val) = value {
+        if let Some(ref _val) = value {
             // Note: We can't mutate self here due to borrowing rules
             // In a real implementation, we'd use RefCell or similar for the cache
         }

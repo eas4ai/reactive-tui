@@ -214,6 +214,14 @@ impl TerminalWidget {
         self.state.is_running
     }
 
+    /// Set focus state
+    pub fn set_focus(&mut self, focused: bool) {
+        if self.state.has_focus != focused {
+            self.state.has_focus = focused;
+            self.state.needs_redraw = true;
+        }
+    }
+
     /// Setup event monitoring thread
     fn setup_event_monitoring(&mut self) {
         let terminal = Arc::clone(&self.state.terminal);
@@ -501,5 +509,388 @@ impl TerminalWidget {
         }
 
         bytes
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::event::types::{KeyCode, KeyModifiers};
+
+    // Helper function to check if we're in a TTY environment
+    #[allow(dead_code)]
+    fn is_tty_available() -> bool {
+        // Skip TTY-dependent tests in CI/CD environments
+        std::env::var("CI").is_err() &&
+        std::env::var("GITHUB_ACTIONS").is_err() &&
+        std::env::var("TERM").is_ok() // Basic check for terminal environment
+    }
+
+    #[test]
+    fn test_terminal_props_default() {
+        let props = TerminalProps::default();
+        assert_eq!(props.title, "Terminal");
+        assert!(props.auto_focus);
+        assert!(props.show_scrollbar);
+        assert!(props.shell_command.is_none());
+        assert!(props.working_directory.is_none());
+        assert!(props.env_vars.is_empty());
+    }
+
+    #[test]
+    fn test_terminal_props_creation() {
+        let props = TerminalProps {
+            config: TerminalConfig::default(),
+            auto_focus: false,
+            show_scrollbar: false,
+            shell_command: Some("/bin/bash".to_string()),
+            env_vars: vec![("TEST".to_string(), "value".to_string())],
+            working_directory: Some("/tmp".to_string()),
+            title: "Custom Terminal".to_string(),
+        };
+
+        assert_eq!(props.title, "Custom Terminal");
+        assert!(!props.auto_focus);
+        assert!(!props.show_scrollbar);
+        assert_eq!(props.shell_command, Some("/bin/bash".to_string()));
+        assert_eq!(props.working_directory, Some("/tmp".to_string()));
+        assert_eq!(props.env_vars.len(), 1);
+        assert_eq!(props.env_vars[0], ("TEST".to_string(), "value".to_string()));
+    }
+
+    #[test]
+    fn test_terminal_state_default() {
+        let state = TerminalState::default();
+        assert!(!state.is_running);
+        assert!(!state.has_focus);
+        assert_eq!(state.scroll_position, 0);
+        assert_eq!(state.cached_size, (80, 24));
+        assert!(state.needs_redraw);
+        assert!(state.event_receiver.is_none());
+    }
+
+    #[test]
+    fn test_terminal_widget_creation() {
+        let props = TerminalProps::default();
+        let widget = TerminalWidget::new(props.clone());
+
+        assert_eq!(widget.props.title, props.title);
+        assert!(!widget.state.is_running);
+        assert!(widget.state.needs_redraw);
+    }
+
+    #[test]
+    fn test_terminal_widget_with_custom_props() {
+        let props = TerminalProps {
+            shell_command: Some("/bin/zsh".to_string()),
+            working_directory: Some("/home/user".to_string()),
+            title: "ZSH Terminal".to_string(),
+            env_vars: vec![
+                ("SHELL".to_string(), "/bin/zsh".to_string()),
+                ("HOME".to_string(), "/home/user".to_string()),
+            ],
+            ..Default::default()
+        };
+
+        let widget = TerminalWidget::new(props);
+        assert_eq!(widget.props.title, "ZSH Terminal");
+        assert_eq!(widget.props.shell_command, Some("/bin/zsh".to_string()));
+        assert_eq!(widget.props.working_directory, Some("/home/user".to_string()));
+        assert_eq!(widget.props.env_vars.len(), 2);
+    }
+
+    #[test]
+    fn test_key_event_to_bytes_characters() {
+        let widget = TerminalWidget::new(TerminalProps::default());
+
+        // Test regular characters
+        let event = KeyEvent::new(KeyCode::Char('a'));
+        let bytes = widget.key_event_to_bytes(&event);
+        assert_eq!(bytes, b"a");
+
+        let event = KeyEvent::new(KeyCode::Char('Z'));
+        let bytes = widget.key_event_to_bytes(&event);
+        assert_eq!(bytes, b"Z");
+
+        let event = KeyEvent::new(KeyCode::Char('1'));
+        let bytes = widget.key_event_to_bytes(&event);
+        assert_eq!(bytes, b"1");
+    }
+
+    #[test]
+    fn test_key_event_to_bytes_special_keys() {
+        let widget = TerminalWidget::new(TerminalProps::default());
+
+        // Test special keys
+        let event = KeyEvent::new(KeyCode::Enter);
+        let bytes = widget.key_event_to_bytes(&event);
+        assert_eq!(bytes, b"\r");
+
+        let event = KeyEvent::new(KeyCode::Tab);
+        let bytes = widget.key_event_to_bytes(&event);
+        assert_eq!(bytes, b"\t");
+
+        let event = KeyEvent::new(KeyCode::Backspace);
+        let bytes = widget.key_event_to_bytes(&event);
+        assert_eq!(bytes, b"\x7F");
+
+        let event = KeyEvent::new(KeyCode::Escape);
+        let bytes = widget.key_event_to_bytes(&event);
+        assert_eq!(bytes, b"\x1B");
+
+        let event = KeyEvent::new(KeyCode::Space);
+        let bytes = widget.key_event_to_bytes(&event);
+        assert_eq!(bytes, b" ");
+    }
+
+    #[test]
+    fn test_key_event_to_bytes_arrow_keys() {
+        let widget = TerminalWidget::new(TerminalProps::default());
+
+        let event = KeyEvent::new(KeyCode::Up);
+        let bytes = widget.key_event_to_bytes(&event);
+        assert_eq!(bytes, b"\x1b[A");
+
+        let event = KeyEvent::new(KeyCode::Down);
+        let bytes = widget.key_event_to_bytes(&event);
+        assert_eq!(bytes, b"\x1b[B");
+
+        let event = KeyEvent::new(KeyCode::Right);
+        let bytes = widget.key_event_to_bytes(&event);
+        assert_eq!(bytes, b"\x1b[C");
+
+        let event = KeyEvent::new(KeyCode::Left);
+        let bytes = widget.key_event_to_bytes(&event);
+        assert_eq!(bytes, b"\x1b[D");
+    }
+
+    #[test]
+    fn test_key_event_to_bytes_function_keys() {
+        let widget = TerminalWidget::new(TerminalProps::default());
+
+        let event = KeyEvent::new(KeyCode::F(1));
+        let bytes = widget.key_event_to_bytes(&event);
+        assert_eq!(bytes, b"\x1bOP");
+
+        let event = KeyEvent::new(KeyCode::F(2));
+        let bytes = widget.key_event_to_bytes(&event);
+        assert_eq!(bytes, b"\x1bOQ");
+
+        let event = KeyEvent::new(KeyCode::F(5));
+        let bytes = widget.key_event_to_bytes(&event);
+        assert_eq!(bytes, b"\x1b[15~");
+
+        let event = KeyEvent::new(KeyCode::F(12));
+        let bytes = widget.key_event_to_bytes(&event);
+        assert_eq!(bytes, b"\x1b[24~");
+    }
+
+    #[test]
+    fn test_key_event_to_bytes_ctrl_combinations() {
+        let widget = TerminalWidget::new(TerminalProps::default());
+
+        // Test Ctrl+A (should be 0x01)
+        let event = KeyEvent::new(KeyCode::Char('a'))
+            .with_modifiers(KeyModifiers::ctrl());
+        let bytes = widget.key_event_to_bytes(&event);
+        assert_eq!(bytes, vec![0x01]);
+
+        // Test Ctrl+C (should be 0x03)
+        let event = KeyEvent::new(KeyCode::Char('c'))
+            .with_modifiers(KeyModifiers::ctrl());
+        let bytes = widget.key_event_to_bytes(&event);
+        assert_eq!(bytes, vec![0x03]);
+
+        // Test Ctrl+Z (should be 0x1A)
+        let event = KeyEvent::new(KeyCode::Char('z'))
+            .with_modifiers(KeyModifiers::ctrl());
+        let bytes = widget.key_event_to_bytes(&event);
+        assert_eq!(bytes, vec![0x1A]);
+    }
+
+    #[test]
+    fn test_terminal_widget_scroll() {
+        let mut widget = TerminalWidget::new(TerminalProps::default());
+
+        // Initial scroll position should be 0
+        assert_eq!(widget.state.scroll_position, 0);
+
+        // Scroll down
+        widget.scroll(5);
+        assert_eq!(widget.state.scroll_position, 5);
+        assert!(widget.state.needs_redraw);
+
+        // Scroll up
+        widget.state.needs_redraw = false;
+        widget.scroll(-2);
+        assert_eq!(widget.state.scroll_position, 3);
+        assert!(widget.state.needs_redraw);
+
+        // Scroll up beyond 0 (should saturate at 0)
+        widget.scroll(-10);
+        assert_eq!(widget.state.scroll_position, 0);
+    }
+
+    #[test]
+    fn test_terminal_widget_resize() {
+        let mut widget = TerminalWidget::new(TerminalProps::default());
+
+        // Initial size should be default
+        assert_eq!(widget.state.cached_size, (80, 24));
+
+        // Resize should update cached size and mark for redraw
+        widget.state.needs_redraw = false;
+        let result = widget.resize(100, 30);
+
+        // Should succeed even without TTY (just updates state)
+        assert!(result.is_ok());
+        assert_eq!(widget.state.cached_size, (100, 30));
+        assert!(widget.state.needs_redraw);
+
+        // Resize to same size should be no-op
+        widget.state.needs_redraw = false;
+        let result = widget.resize(100, 30);
+        assert!(result.is_ok());
+        assert!(!widget.state.needs_redraw); // Should not mark for redraw
+    }
+
+    #[test]
+    fn test_terminal_widget_focus() {
+        let mut widget = TerminalWidget::new(TerminalProps::default());
+
+        // Initially should not have focus
+        assert!(!widget.state.has_focus);
+
+        // Set focus
+        widget.set_focus(true);
+        assert!(widget.state.has_focus);
+        assert!(widget.state.needs_redraw);
+
+        // Remove focus
+        widget.state.needs_redraw = false;
+        widget.set_focus(false);
+        assert!(!widget.state.has_focus);
+        assert!(widget.state.needs_redraw);
+    }
+
+    #[test]
+    fn test_terminal_widget_running_state() {
+        let widget = TerminalWidget::new(TerminalProps::default());
+
+        // Initially should not be running
+        assert!(!widget.state.is_running);
+        assert!(!widget.is_running());
+
+        // Note: We don't test start() and stop() here because they require TTY access
+        // Those would be tested in integration tests with proper TTY setup
+    }
+
+    #[test]
+    fn test_terminal_widget_send_string() {
+        let mut widget = TerminalWidget::new(TerminalProps::default());
+
+        // Test that send_string doesn't panic (even if terminal isn't running)
+        // In a real TTY environment, this would send data to the terminal
+        let result = widget.send_string("echo hello\n");
+
+        // The result depends on the terminal implementation - just ensure it doesn't panic
+        let _ = result; // Consume the result without asserting specific behavior
+    }
+
+    #[test]
+    fn test_terminal_widget_send_input() {
+        let mut widget = TerminalWidget::new(TerminalProps::default());
+
+        // Test that send_input doesn't panic
+        let result = widget.send_input(b"test data");
+
+        // The result depends on the terminal implementation - just ensure it doesn't panic
+        let _ = result; // Consume the result without asserting specific behavior
+    }
+
+    #[test]
+    fn test_key_event_to_bytes_navigation_keys() {
+        let widget = TerminalWidget::new(TerminalProps::default());
+
+        let event = KeyEvent::new(KeyCode::Home);
+        let bytes = widget.key_event_to_bytes(&event);
+        assert_eq!(bytes, b"\x1b[H");
+
+        let event = KeyEvent::new(KeyCode::End);
+        let bytes = widget.key_event_to_bytes(&event);
+        assert_eq!(bytes, b"\x1b[F");
+
+        let event = KeyEvent::new(KeyCode::PageUp);
+        let bytes = widget.key_event_to_bytes(&event);
+        assert_eq!(bytes, b"\x1b[5~");
+
+        let event = KeyEvent::new(KeyCode::PageDown);
+        let bytes = widget.key_event_to_bytes(&event);
+        assert_eq!(bytes, b"\x1b[6~");
+
+        let event = KeyEvent::new(KeyCode::Delete);
+        let bytes = widget.key_event_to_bytes(&event);
+        assert_eq!(bytes, b"\x1b[3~");
+    }
+
+    #[test]
+    fn test_key_event_to_bytes_unsupported_keys() {
+        let widget = TerminalWidget::new(TerminalProps::default());
+
+        // Test unsupported function key
+        let event = KeyEvent::new(KeyCode::F(25));
+        let bytes = widget.key_event_to_bytes(&event);
+        assert_eq!(bytes, Vec::<u8>::new()); // Should return empty vec
+
+        // Test other unsupported keys would go here
+        // The current implementation ignores them (returns empty)
+    }
+
+    #[test]
+    fn test_terminal_config_integration() {
+        let config = TerminalConfig::default();
+
+        let props = TerminalProps {
+            config,
+            title: "Override Title".to_string(),
+            shell_command: Some("/bin/sh".to_string()),
+            working_directory: Some("/tmp".to_string()),
+            env_vars: vec![("TEST_VAR".to_string(), "test_value".to_string())],
+            ..Default::default()
+        };
+
+        let widget = TerminalWidget::new(props);
+
+        // Verify that props override config values
+        assert_eq!(widget.props.title, "Override Title");
+        assert_eq!(widget.props.shell_command, Some("/bin/sh".to_string()));
+        assert_eq!(widget.props.working_directory, Some("/tmp".to_string()));
+        assert_eq!(widget.props.env_vars.len(), 1);
+    }
+
+    // TTY-dependent tests would be conditionally compiled or skipped
+    #[test]
+    #[ignore] // Use #[ignore] for tests that require special setup
+    fn test_terminal_start_stop_integration() {
+        if !is_tty_available() {
+            eprintln!("Skipping TTY-dependent test in non-TTY environment");
+            return;
+        }
+
+        // This test would only run in a proper TTY environment
+        // Implementation would test actual terminal start/stop functionality
+        let widget = TerminalWidget::new(TerminalProps::default());
+
+        // In a real TTY environment, these would work
+        // let result = widget.start();
+        // assert!(result.is_ok());
+        // assert!(widget.is_running());
+
+        // let result = widget.stop();
+        // assert!(result.is_ok());
+        // assert!(!widget.is_running());
+
+        // For now, just verify the test framework works
+        assert!(!widget.is_running());
     }
 }

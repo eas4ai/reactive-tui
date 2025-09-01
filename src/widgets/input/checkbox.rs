@@ -34,7 +34,13 @@ pub struct Checkbox {
 }
 
 impl Checkbox {
-    /// Set the onChange callback
+    /// Set the onChange callback for when the checkbox state changes
+    ///
+    /// # Arguments
+    /// * `f` - Callback function that receives the new checked state
+    ///
+    /// # Returns
+    /// Self for method chaining
     pub fn with_on_change(mut self, f: impl Fn(bool) + Send + Sync + 'static) -> Self {
         self.on_change = Some(Arc::new(f));
         self

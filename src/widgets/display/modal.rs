@@ -749,8 +749,7 @@ impl Component for Modal {
                     }
                     MouseEventKind::Down => {
                         if props.draggable {
-                            if let Some(hit_result) =
-                                self.hit_test_modal(mouse_event, props, state)
+                            if let Some(hit_result) = self.hit_test_modal(mouse_event, props, state)
                             {
                                 match hit_result {
                                     ModalHitResult::TitleBar => {

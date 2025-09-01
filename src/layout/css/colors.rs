@@ -272,9 +272,11 @@ mod tests {
     fn test_apply_text_color() {
         let sb = StyleBuilder::new();
 
-        // Test basic color
+        // Test basic color - should apply red-500 color
         let result = apply_text_color("text-red-500", sb).unwrap();
         let _style = result.build();
+        // Verify that foreground color was set (we can't easily test exact RGBA values due to internal representation)
+        // But we can verify the function succeeded and returned a modified StyleBuilder
 
         // Test white/black
         let sb = StyleBuilder::new();
@@ -288,6 +290,11 @@ mod tests {
         // Test invalid
         let sb = StyleBuilder::new();
         let result = apply_text_color("invalid", sb);
+        assert!(result.is_none());
+
+        // Test that non-text prefixes are ignored
+        let sb = StyleBuilder::new();
+        let result = apply_text_color("bg-red-500", sb);
         assert!(result.is_none());
     }
 
@@ -308,6 +315,16 @@ mod tests {
         let sb = StyleBuilder::new();
         let result = apply_bg_color("invalid", sb);
         assert!(result.is_none());
+
+        // Test that non-bg prefixes are ignored
+        let sb = StyleBuilder::new();
+        let result = apply_bg_color("text-blue-600", sb);
+        assert!(result.is_none());
+
+        // Test transparent
+        let sb = StyleBuilder::new();
+        let result = apply_bg_color("bg-transparent", sb).unwrap();
+        let _style = result.build();
     }
 
     #[test]

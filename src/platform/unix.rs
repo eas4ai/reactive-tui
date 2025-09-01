@@ -68,7 +68,7 @@ impl UnixTty {
     /// Initialize TTY by opening /dev/tty and setting raw mode
     pub fn init() -> Result<Self> {
         // Open /dev/tty for direct terminal access
-        let fd = unsafe { libc::open(b"/dev/tty\0".as_ptr() as *const libc::c_char, libc::O_RDWR) };
+        let fd = unsafe { libc::open(c"/dev/tty".as_ptr(), libc::O_RDWR) };
 
         if fd < 0 {
             return Err(std::io::Error::last_os_error().into());
@@ -243,7 +243,7 @@ impl UnixTty {
                                     break; // Receiver dropped
                                 }
                             }
-                            n if n == 0 => break, // EOF
+                            0 => break, // EOF
                             _ => {
                                 // Error reading
                                 let errno = unsafe { *libc::__errno_location() };

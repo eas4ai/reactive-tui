@@ -1,12 +1,12 @@
 //! Sizing utilities: width, height, min/max sizes
 
-use super::parsers::{parse_fraction, parse_percentage, parse_px, parse_spacing};
+use super::parsers::{parse_fraction, parse_percentage, parse_px, parse_spacing_terminal};
 use crate::layout::style::StyleBuilder;
 
 /// Apply width utilities
 pub fn apply_width(token: &str, sb: StyleBuilder) -> Option<StyleBuilder> {
-    // Try spacing scale first (w-4, w-8, etc.)
-    if let Some(px) = parse_spacing(token, "w-") {
+    // For width, use terminal spacing (direct character cells)
+    if let Some(px) = parse_spacing_terminal(token, "w-") {
         return Some(sb.width_px(px));
     }
 
@@ -38,8 +38,8 @@ pub fn apply_width(token: &str, sb: StyleBuilder) -> Option<StyleBuilder> {
 
 /// Apply height utilities
 pub fn apply_height(token: &str, sb: StyleBuilder) -> Option<StyleBuilder> {
-    // Try spacing scale first (h-4, h-8, etc.)
-    if let Some(px) = parse_spacing(token, "h-") {
+    // For height, use terminal spacing (direct character cells)
+    if let Some(px) = parse_spacing_terminal(token, "h-") {
         return Some(sb.height_px(px));
     }
 
@@ -71,8 +71,8 @@ pub fn apply_height(token: &str, sb: StyleBuilder) -> Option<StyleBuilder> {
 
 /// Apply min-width utilities
 pub fn apply_min_width(token: &str, sb: StyleBuilder) -> Option<StyleBuilder> {
-    // Try spacing scale
-    if let Some(px) = parse_spacing(token, "min-w-") {
+    // Use terminal spacing for min-width
+    if let Some(px) = parse_spacing_terminal(token, "min-w-") {
         return Some(sb.min_width_px(px));
     }
 
@@ -99,8 +99,8 @@ pub fn apply_min_width(token: &str, sb: StyleBuilder) -> Option<StyleBuilder> {
 
 /// Apply max-width utilities
 pub fn apply_max_width(token: &str, sb: StyleBuilder) -> Option<StyleBuilder> {
-    // Try spacing scale
-    if let Some(px) = parse_spacing(token, "max-w-") {
+    // Use terminal spacing for max-width
+    if let Some(px) = parse_spacing_terminal(token, "max-w-") {
         return Some(sb.max_width_px(px));
     }
 
@@ -128,8 +128,8 @@ pub fn apply_max_width(token: &str, sb: StyleBuilder) -> Option<StyleBuilder> {
 
 /// Apply min-height utilities
 pub fn apply_min_height(token: &str, sb: StyleBuilder) -> Option<StyleBuilder> {
-    // Try spacing scale
-    if let Some(px) = parse_spacing(token, "min-h-") {
+    // Use terminal spacing for min-height
+    if let Some(px) = parse_spacing_terminal(token, "min-h-") {
         return Some(sb.min_height_px(px));
     }
 
@@ -157,8 +157,8 @@ pub fn apply_min_height(token: &str, sb: StyleBuilder) -> Option<StyleBuilder> {
 
 /// Apply max-height utilities
 pub fn apply_max_height(token: &str, sb: StyleBuilder) -> Option<StyleBuilder> {
-    // Try spacing scale
-    if let Some(px) = parse_spacing(token, "max-h-") {
+    // Use terminal spacing for max-height
+    if let Some(px) = parse_spacing_terminal(token, "max-h-") {
         return Some(sb.max_height_px(px));
     }
 

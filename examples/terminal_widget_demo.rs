@@ -19,7 +19,7 @@ impl reactive_tui::app::RootComponent for TerminalDemoApp {
                     .children(vec![
                         Element::text("🖥️ Embedded Terminal Demo")
                             .class("text-xl font-bold"),
-                        
+
                         Element::layout(LayoutType::Flex)
                             .class("ml-auto items-center space-x-4")
                             .children(vec![
@@ -27,7 +27,7 @@ impl reactive_tui::app::RootComponent for TerminalDemoApp {
                                     .class("text-sm text-blue-200"),
                             ])
                     ]),
-                
+
                 // Main content area with terminal
                 Element::layout(LayoutType::Flex)
                     .class("flex-1 p-4")
@@ -55,7 +55,7 @@ impl reactive_tui::app::RootComponent for TerminalDemoApp {
                                                             .class("text-green-400 text-xs")
                                                     ])
                                             ]),
-                                        
+
                                         // Terminal content area
                                         Element::layout(LayoutType::Flex)
                                             .class("flex-1 p-2 font-mono text-sm text-green-400")
@@ -65,76 +65,76 @@ impl reactive_tui::app::RootComponent for TerminalDemoApp {
                                                     .children(vec![
                                                         Element::text("🎉 Terminal Widget Successfully Created!")
                                                             .class("text-yellow-400 font-bold"),
-                                                        
+
                                                         Element::text("")
                                                             .class(""),
-                                                        
+
                                                         Element::text("✅ Complete terminal emulator implementation found:")
                                                             .class("text-green-400"),
-                                                        
+
                                                         Element::text("   • src/terminal/terminal.rs - Main terminal emulator")
                                                             .class("text-white ml-4"),
-                                                        
+
                                                         Element::text("   • src/terminal/screen.rs - Virtual screen buffer")
                                                             .class("text-white ml-4"),
-                                                        
+
                                                         Element::text("   • src/terminal/parser.rs - ANSI escape sequence parser")
                                                             .class("text-white ml-4"),
-                                                        
+
                                                         Element::text("   • src/terminal/pty.rs - Pseudo-terminal implementation")
                                                             .class("text-white ml-4"),
-                                                        
+
                                                         Element::text("")
                                                             .class(""),
-                                                        
+
                                                         Element::text("✅ Terminal widget wrapper created:")
                                                             .class("text-green-400"),
-                                                        
+
                                                         Element::text("   • src/widgets/terminal.rs - Component integration")
                                                             .class("text-white ml-4"),
-                                                        
+
                                                         Element::text("   • Full Component trait implementation")
                                                             .class("text-white ml-4"),
-                                                        
+
                                                         Element::text("   • Event handling (keyboard, mouse, resize)")
                                                             .class("text-white ml-4"),
-                                                        
+
                                                         Element::text("   • Terminal lifecycle management")
                                                             .class("text-white ml-4"),
-                                                        
+
                                                         Element::text("")
                                                             .class(""),
-                                                        
+
                                                         Element::text("🚀 Features implemented:")
                                                             .class("text-cyan-400 font-bold"),
-                                                        
+
                                                         Element::text("   • Complete ANSI escape sequence parsing")
                                                             .class("text-white ml-4"),
-                                                        
+
                                                         Element::text("   • Virtual screen with main/alt buffers")
                                                             .class("text-white ml-4"),
-                                                        
+
                                                         Element::text("   • Scrollback buffer support")
                                                             .class("text-white ml-4"),
-                                                        
+
                                                         Element::text("   • Cross-platform PTY spawning")
                                                             .class("text-white ml-4"),
-                                                        
+
                                                         Element::text("   • Terminal modes and cursor management")
                                                             .class("text-white ml-4"),
-                                                        
+
                                                         Element::text("   • Event-driven architecture")
                                                             .class("text-white ml-4"),
-                                                        
+
                                                         Element::text("")
                                                             .class(""),
-                                                        
+
                                                         Element::text("🎯 This is libvaxis's 'killer feature' - IMPLEMENTED!")
                                                             .class("text-yellow-400 font-bold"),
-                                                        
+
                                                         Element::text("")
                                                             .class(""),
-                                                        
+
                                                         Element::text("user@reactive-tui:~$ █")
                                                             .class("text-green-400"),
                                                     ])
@@ -142,14 +142,14 @@ impl reactive_tui::app::RootComponent for TerminalDemoApp {
                                     ])
                             ])
                     ]),
-                
+
                 // Footer
                 Element::layout(LayoutType::Flex)
                     .class("h-8 bg-gray-800 text-gray-400 px-4 items-center text-sm")
                     .children(vec![
                         Element::text("Terminal Widget Demo")
                             .class(""),
-                        
+
                         Element::layout(LayoutType::Flex)
                             .class("ml-auto")
                             .children(vec![

@@ -113,12 +113,8 @@ fn apply_role_utility(token: &str, sb: StyleBuilder) -> Option<StyleBuilder> {
 fn apply_tabindex_utility(token: &str, sb: StyleBuilder) -> Option<StyleBuilder> {
     let index_str = token.strip_prefix("tabindex-")?;
 
-    // Handle negative tabindex
-    let index = if index_str.starts_with('-') {
-        index_str.parse::<i32>().ok()?
-    } else {
-        index_str.parse::<i32>().ok()?
-    };
+    // Parse tabindex (both positive and negative values)
+    let index = index_str.parse::<i32>().ok()?;
 
     Some(apply_tabindex(sb, index))
 }

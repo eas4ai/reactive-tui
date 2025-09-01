@@ -109,11 +109,9 @@ pub fn apply_aspect_ratio(token: &str, sb: StyleBuilder) -> Option<StyleBuilder>
         }
         _ => {
             // Try to parse custom aspect ratio like aspect-[2/1]
-            parse_custom_aspect_ratio(token).map(|custom_ratio| apply_aspect_ratio_constraint(
-                    sb,
-                    custom_ratio.0,
-                    custom_ratio.1,
-                ))
+            parse_custom_aspect_ratio(token).map(|custom_ratio| {
+                apply_aspect_ratio_constraint(sb, custom_ratio.0, custom_ratio.1)
+            })
         }
     }
 }

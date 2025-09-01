@@ -16,12 +16,22 @@ pub struct KeyframeAnimation<T: Clone> {
 
 /// Keyframe with typed value
 pub struct TypedKeyframe<T: Clone> {
+    /// Time offset in animation (0.0 to 1.0)
     pub offset: f32,
+    /// Value at this keyframe
     pub value: T,
+    /// Optional easing function for transition to this keyframe
     pub easing: Option<EasingFunction>,
 }
 
 impl<T: Clone> KeyframeAnimation<T> {
+    /// Create a new keyframe animation from untyped keyframes
+    ///
+    /// # Arguments
+    /// * `keyframes` - Vector of untyped keyframes to convert
+    ///
+    /// # Returns
+    /// A new `KeyframeAnimation` with default values and 1-second duration
     pub fn new(keyframes: Vec<Keyframe>) -> Self
     where
         T: Default,
@@ -42,6 +52,14 @@ impl<T: Clone> KeyframeAnimation<T> {
         }
     }
 
+    /// Create a keyframe animation from typed keyframes
+    ///
+    /// # Arguments
+    /// * `keyframes` - Vector of typed keyframes
+    /// * `duration` - Total duration of the animation
+    ///
+    /// # Returns
+    /// A new `KeyframeAnimation` with the specified keyframes and duration
     pub fn from_typed(keyframes: Vec<TypedKeyframe<T>>, duration: Duration) -> Self {
         Self {
             keyframes,
@@ -49,10 +67,21 @@ impl<T: Clone> KeyframeAnimation<T> {
         }
     }
 
+    /// Get the total duration of the animation
+    ///
+    /// # Returns
+    /// The duration of the animation
     pub fn duration(&self) -> Duration {
         self.duration
     }
 
+    /// Get the interpolated value at a specific time progress
+    ///
+    /// # Arguments
+    /// * `progress` - Animation progress from 0.0 to 1.0
+    ///
+    /// # Returns
+    /// `Some(T)` with the interpolated value, or `None` if no keyframes exist
     pub fn get_value_at_time(&self, progress: f32) -> Option<T> {
         if self.keyframes.is_empty() {
             return None;

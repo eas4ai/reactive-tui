@@ -1,12 +1,23 @@
+//! Component system for building reactive terminal user interfaces
+//! 
+//! This module provides a React-like component architecture for terminal applications,
+//! including elements, lifecycle management, props, and component registry.
+
 use std::any::{Any, TypeId};
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
+/// Component change detection and tracking
 pub mod change;
+/// Element types and builders for the component tree
 pub mod element;
+/// Component instance management and rendering
 pub mod instance;
+/// Component lifecycle events and hooks
 pub mod lifecycle;
+/// Component properties system with derive macros
 pub mod props;
+/// Global component registry for dynamic component creation
 pub mod registry;
 
 pub use element::{Element, ElementType, LayoutType};
@@ -14,7 +25,9 @@ pub use instance::ComponentInstance;
 pub use lifecycle::{Lifecycle, LifecycleEvent};
 pub use props::Props;
 pub use registry::ComponentRegistry;
+/// Bridge between component elements and layout system
 pub mod bridge;
+/// State management flags for component lifecycle
 pub mod state_flags;
 
 pub use bridge::element_to_nodespec;

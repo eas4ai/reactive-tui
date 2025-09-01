@@ -3,12 +3,19 @@
 //! A comprehensive animation system providing smooth transitions, easing functions,
 //! and property animations for TUI widgets with frame-based timing and interpolation.
 
+/// Animation API for creating and managing animations
 pub mod api;
+/// Debug utilities for animation system
 pub mod debug;
+/// Easing functions for smooth animation transitions
 pub mod easing;
+/// Keyframe-based animation system
 pub mod keyframes;
+/// Performance monitoring and optimization for animations
 pub mod performance;
+/// Spring physics-based animations
 pub mod spring;
+/// Staggered animation utilities for coordinated effects
 pub mod stagger;
 
 // Re-export commonly used types
@@ -43,6 +50,13 @@ pub struct AnimationController {
 }
 
 impl AnimationController {
+    /// Create a new animation controller with the given animation
+    ///
+    /// # Arguments
+    /// * `animation` - The animation to control
+    ///
+    /// # Returns
+    /// A new `AnimationController` instance
     pub fn new(animation: Animation) -> Self {
         Self {
             animation,
@@ -50,21 +64,36 @@ impl AnimationController {
         }
     }
 
+    /// Start playing the animation
+    ///
+    /// Sets the controller state to running and begins animation playback.
     pub fn start(&mut self) {
         self.is_running = true;
         self.animation.play();
     }
 
+    /// Pause the animation
+    ///
+    /// Temporarily stops animation playback while preserving current position.
+    /// Use `resume()` to continue from the current position.
     pub fn pause(&mut self) {
         self.is_running = false;
         self.animation.pause();
     }
 
+    /// Stop the animation completely
+    ///
+    /// Stops animation playback and resets to the beginning.
+    /// Use `start()` to begin playback from the start.
     pub fn stop(&mut self) {
         self.is_running = false;
         self.animation.stop();
     }
 
+    /// Resume a paused animation
+    ///
+    /// Continues animation playback from the current position if the animation
+    /// was previously paused. Has no effect if already playing.
     pub fn resume(&mut self) {
         if !self.is_running {
             self.is_running = true;
@@ -72,11 +101,18 @@ impl AnimationController {
         }
     }
 
+    /// Reset the animation to its initial state
+    ///
+    /// Stops the animation and seeks back to the beginning (progress 0.0).
     pub fn reset(&mut self) {
         self.stop();
         self.animation.seek(0.0);
     }
 
+    /// Check if the animation is currently playing
+    ///
+    /// # Returns
+    /// `true` if the animation is actively playing, `false` otherwise
     pub fn is_playing(&self) -> bool {
         self.is_running
     }
@@ -401,36 +437,69 @@ impl EasingFunction {
         Self::InPower(power)
     }
 
+    /// Create power-out easing with custom exponent
+    ///
+    /// # Arguments
+    /// * `power` - The power/exponent to use for the easing curve
     pub fn power_out(power: f32) -> Self {
         Self::OutPower(power)
     }
 
+    /// Create power-in-out easing with custom exponent
+    ///
+    /// # Arguments
+    /// * `power` - The power/exponent to use for the easing curve
     pub fn power_in_out(power: f32) -> Self {
         Self::InOutPower(power)
     }
 
-    /// Create back easing variants
+    /// Create back-in easing with custom overshoot
+    ///
+    /// # Arguments
+    /// * `overshoot` - Amount of overshoot beyond the target value
     pub fn back_in(overshoot: f32) -> Self {
         Self::InBack(overshoot)
     }
 
+    /// Create back-out easing with custom overshoot
+    ///
+    /// # Arguments
+    /// * `overshoot` - Amount of overshoot beyond the target value
     pub fn back_out(overshoot: f32) -> Self {
         Self::OutBack(overshoot)
     }
 
+    /// Create back-in-out easing with custom overshoot
+    ///
+    /// # Arguments
+    /// * `overshoot` - Amount of overshoot beyond the target value
     pub fn back_in_out(overshoot: f32) -> Self {
         Self::InOutBack(overshoot)
     }
 
-    /// Create elastic easing variants
+    /// Create elastic-in easing with custom amplitude and period
+    ///
+    /// # Arguments
+    /// * `amplitude` - The amplitude of the elastic oscillation
+    /// * `period` - The period of the elastic oscillation
     pub fn elastic_in(amplitude: f32, period: f32) -> Self {
         Self::InElastic(amplitude, period)
     }
 
+    /// Create elastic-out easing with custom amplitude and period
+    ///
+    /// # Arguments
+    /// * `amplitude` - The amplitude of the elastic oscillation
+    /// * `period` - The period of the elastic oscillation
     pub fn elastic_out(amplitude: f32, period: f32) -> Self {
         Self::OutElastic(amplitude, period)
     }
 
+    /// Create elastic-in-out easing with custom amplitude and period
+    ///
+    /// # Arguments
+    /// * `amplitude` - The amplitude of the elastic oscillation
+    /// * `period` - The period of the elastic oscillation
     pub fn elastic_in_out(amplitude: f32, period: f32) -> Self {
         Self::InOutElastic(amplitude, period)
     }
@@ -472,26 +541,42 @@ pub enum AnimatedProperty {
 /// Transform properties for CSS-like animations
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum TransformProperty {
+    /// Translate along X-axis from first value to second value
     TranslateX(f32, f32),
+    /// Translate along Y-axis from first value to second value
     TranslateY(f32, f32),
-    Translate(f32, f32, f32, f32), // x1, y1, x2, y2
+    /// Translate in both X and Y directions (x1, y1, x2, y2)
+    Translate(f32, f32, f32, f32),
+    /// Scale along X-axis from first value to second value
     ScaleX(f32, f32),
+    /// Scale along Y-axis from first value to second value
     ScaleY(f32, f32),
+    /// Scale uniformly from first value to second value
     Scale(f32, f32),
+    /// Rotate from first angle to second angle (in radians)
     Rotate(f32, f32),
+    /// Skew along X-axis from first value to second value
     SkewX(f32, f32),
+    /// Skew along Y-axis from first value to second value
     SkewY(f32, f32),
+    /// Transform using transformation matrices (from, to)
     Matrix(TransformMatrix, TransformMatrix),
 }
 
 /// 2D transformation matrix
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct TransformMatrix {
+    /// Horizontal scaling factor
     pub a: f32,
+    /// Horizontal skewing factor
     pub b: f32,
+    /// Vertical skewing factor
     pub c: f32,
+    /// Vertical scaling factor
     pub d: f32,
+    /// Horizontal translation offset
     pub e: f32,
+    /// Vertical translation offset
     pub f: f32,
 }
 
@@ -512,39 +597,76 @@ impl Default for TransformMatrix {
 /// CSS-like values with units
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum CssValue {
+    /// Plain numeric value without units
     Number(f32),
+    /// Percentage value (0.0 to 100.0)
     Percentage(f32),
+    /// Pixel value
     Pixels(f32),
+    /// Em unit (relative to font size)
     Em(f32),
+    /// Rem unit (relative to root font size)
     Rem(f32),
+    /// Viewport width percentage
     ViewportWidth(f32),
+    /// Viewport height percentage
     ViewportHeight(f32),
-    Color { r: u8, g: u8, b: u8 },
+    /// RGB color value
+    Color {
+        /// Red component (0-255)
+        r: u8,
+        /// Green component (0-255)
+        g: u8,
+        /// Blue component (0-255)
+        b: u8
+    },
+    /// String value
     String(String),
 }
 
 /// Individual property animation with timing
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PropertyAnimation {
+    /// Name of the property being animated
     pub name: String,
+    /// Starting value for the animation
     pub from: AnimationValue,
+    /// Ending value for the animation
     pub to: AnimationValue,
-    pub duration_offset: f32, // 0.0 to 1.0
+    /// Timing offset within the animation duration (0.0 to 1.0)
+    pub duration_offset: f32,
+    /// Optional easing function override for this property
     pub easing_override: Option<EasingFunction>,
 }
 
 /// Enhanced animation values
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum AnimationValue {
+    /// Numeric value for mathematical interpolation
     Number(f32),
-    Color { r: u8, g: u8, b: u8 },
+    /// RGB color value for color transitions
+    Color {
+        /// Red component (0-255)
+        r: u8,
+        /// Green component (0-255)
+        g: u8,
+        /// Blue component (0-255)
+        b: u8
+    },
+    /// String value for text-based animations
     String(String),
+    /// Boolean value for toggle animations
     Boolean(bool),
+    /// Array of numeric values for complex animations
     Array(Vec<f32>),
-    Unit(f32, String), // value + unit (px, %, em, etc.)
+    /// Value with unit (px, %, em, etc.)
+    Unit(f32, String),
+    /// Transformation matrix for geometric animations
     Transform(TransformMatrix),
+    /// Multiple animation values for compound animations
     Multiple(Vec<AnimationValue>),
-    Map(std::collections::HashMap<String, AnimationValue>), // property name -> value mapping
+    /// Property name to value mapping for complex animations
+    Map(std::collections::HashMap<String, AnimationValue>),
 }
 
 impl AnimatedProperty {
@@ -848,7 +970,14 @@ pub enum AnimatedValue {
     /// Current size (width, height)
     Size(u16, u16),
     /// Current color
-    Color { r: u8, g: u8, b: u8 },
+    Color {
+        /// Red component (0-255)
+        r: u8,
+        /// Green component (0-255)
+        g: u8,
+        /// Blue component (0-255)
+        b: u8
+    },
     /// Current scale factor
     Scale(f32),
     /// Current rotation in degrees
@@ -1035,7 +1164,14 @@ impl Animation {
         }
     }
 
-    /// Create a spring animation
+    /// Create a spring animation with physics-based easing
+    ///
+    /// # Arguments
+    /// * `duration` - The duration of the animation
+    /// * `config` - Spring configuration parameters (mass, stiffness, damping)
+    ///
+    /// # Returns
+    /// A new `Animation` instance with spring easing
     pub fn spring(duration: Duration, config: SpringConfig) -> Self {
         Self::new(
             duration,
@@ -1045,12 +1181,21 @@ impl Animation {
         )
     }
 
-    /// Create a new animation builder
+    /// Create a new animation builder for fluent configuration
+    ///
+    /// # Arguments
+    /// * `id` - Unique identifier for the animation
+    ///
+    /// # Returns
+    /// An `AnimationBuilder` instance for fluent configuration
     pub fn builder<S: Into<String>>(id: S) -> AnimationBuilder {
         AnimationBuilder::new(id)
     }
 
-    /// Play the animation
+    /// Start playing the animation
+    ///
+    /// Sets the animation state to playing and triggers the start callback.
+    /// Records the start time for delay calculations.
     pub fn play(&mut self) {
         if let Ok(mut state) = self.state.write() {
             state.state = AnimationState::Playing;
@@ -1064,7 +1209,10 @@ impl Animation {
         }
     }
 
-    /// Pause the animation
+    /// Pause the animation at its current position
+    ///
+    /// Sets the animation state to paused and triggers the pause callback.
+    /// The animation can be resumed from this position using `play()`.
     pub fn pause(&mut self) {
         if let Ok(mut state) = self.state.write() {
             state.state = AnimationState::Paused;
@@ -1075,7 +1223,10 @@ impl Animation {
         }
     }
 
-    /// Stop the animation and reset to beginning
+    /// Stop the animation and reset to the beginning
+    ///
+    /// Resets all animation state including time, progress, and loop count.
+    /// Triggers the stop callback and clears timing information.
     pub fn stop(&mut self) {
         if let Ok(mut state) = self.state.write() {
             state.state = AnimationState::Stopped;
@@ -1095,6 +1246,9 @@ impl Animation {
     }
 
     /// Reverse the animation direction
+    ///
+    /// Toggles the animation direction. If currently playing forward,
+    /// it will play backward and vice versa.
     pub fn reverse(&mut self) {
         if let Ok(mut state) = self.state.write() {
             state.is_reversed = !state.is_reversed;
@@ -1104,7 +1258,16 @@ impl Animation {
         }
     }
 
-    /// Update animation frame (call this in main loop)
+    /// Update the animation for one frame
+    ///
+    /// This should be called every frame in your main loop to advance the animation.
+    /// Handles timing, easing, looping, and triggers appropriate callbacks.
+    ///
+    /// # Arguments
+    /// * `delta_time` - Time elapsed since the last frame
+    ///
+    /// # Returns
+    /// `true` if the animation is still active, `false` if completed or stopped
     pub fn update(&mut self, delta_time: Duration) -> bool {
         let mut state_guard = match self.state.write() {
             Ok(guard) => guard,
@@ -1256,22 +1419,34 @@ impl Animation {
         }
     }
 
-    /// Get current animation state
+    /// Get the current animation state
+    ///
+    /// # Returns
+    /// The current `AnimationState` (Playing, Paused, Stopped, etc.)
     pub fn get_state(&self) -> AnimationState {
         self.state.read().unwrap().state
     }
 
-    /// Get current progress (0.0 to 1.0)
+    /// Get the current animation progress
+    ///
+    /// # Returns
+    /// Progress value between 0.0 (start) and 1.0 (complete)
     pub fn get_progress(&self) -> f32 {
         self.state.read().unwrap().progress
     }
 
-    /// Get current animated values
+    /// Get the current interpolated animated values
+    ///
+    /// # Returns
+    /// `Some(AnimatedValue)` if animation is active, `None` if stopped
     pub fn get_current_values(&self) -> Option<AnimatedValue> {
         self.state.read().unwrap().current_values.clone()
     }
 
-    /// Check if animation is playing
+    /// Check if the animation is currently playing
+    ///
+    /// # Returns
+    /// `true` if animation is playing (forward or reverse), `false` otherwise
     pub fn is_playing(&self) -> bool {
         matches!(
             self.get_state(),
@@ -1279,17 +1454,27 @@ impl Animation {
         )
     }
 
-    /// Check if animation is completed
+    /// Check if the animation has completed
+    ///
+    /// # Returns
+    /// `true` if animation has finished all loops, `false` otherwise
     pub fn is_completed(&self) -> bool {
         self.get_state() == AnimationState::Completed
     }
 
-    /// Set animation speed multiplier
+    /// Set the animation speed multiplier
+    ///
+    /// # Arguments
+    /// * `speed` - Speed multiplier (1.0 = normal, 2.0 = double speed, 0.5 = half speed)
+    ///             Values less than 0.0 are clamped to 0.0
     pub fn set_speed(&mut self, speed: f32) {
         self.config.speed = speed.max(0.0);
     }
 
-    /// Seek to specific progress (0.0 to 1.0)
+    /// Seek to a specific progress position in the animation
+    ///
+    /// # Arguments
+    /// * `progress` - Target progress (0.0 to 1.0, values outside range are clamped)
     pub fn seek(&mut self, progress: f32) {
         let progress = progress.clamp(0.0, 1.0);
         let target_time = Duration::from_secs_f32(self.config.duration.as_secs_f32() * progress);
@@ -1313,7 +1498,13 @@ pub struct AnimationBuilder {
 }
 
 impl AnimationBuilder {
-    /// Create a new animation builder
+    /// Create a new animation builder with the specified ID
+    ///
+    /// # Arguments
+    /// * `id` - Unique identifier for the animation
+    ///
+    /// # Returns
+    /// A new `AnimationBuilder` instance with default configuration
     pub fn new<S: Into<String>>(id: S) -> Self {
         Self {
             id: id.into(),
@@ -1324,54 +1515,108 @@ impl AnimationBuilder {
     }
 
     /// Set the property to animate
+    ///
+    /// # Arguments
+    /// * `property` - The animated property (opacity, position, color, etc.)
+    ///
+    /// # Returns
+    /// Self for method chaining
     pub fn animate_property(mut self, property: AnimatedProperty) -> Self {
         self.property = Some(property);
         self
     }
 
-    /// Set animation duration
+    /// Set the animation duration
+    ///
+    /// # Arguments
+    /// * `duration` - How long the animation should take to complete
+    ///
+    /// # Returns
+    /// Self for method chaining
     pub fn duration(mut self, duration: Duration) -> Self {
         self.config.duration = duration;
         self
     }
 
-    /// Set easing function
+    /// Set the easing function for the animation
+    ///
+    /// # Arguments
+    /// * `easing` - The easing function to use (linear, ease-in, bounce, etc.)
+    ///
+    /// # Returns
+    /// Self for method chaining
     pub fn easing(mut self, easing: EasingFunction) -> Self {
         self.config.easing = easing;
         self
     }
 
-    /// Set delay before starting
+    /// Set a delay before the animation starts
+    ///
+    /// # Arguments
+    /// * `delay` - Time to wait before starting the animation
+    ///
+    /// # Returns
+    /// Self for method chaining
     pub fn delay(mut self, delay: Duration) -> Self {
         self.config.delay = delay;
         self
     }
 
-    /// Set loop mode
+    /// Set the loop behavior for the animation
+    ///
+    /// # Arguments
+    /// * `loop_mode` - How the animation should loop (none, infinite, count, ping-pong)
+    ///
+    /// # Returns
+    /// Self for method chaining
     pub fn loop_mode(mut self, loop_mode: LoopMode) -> Self {
         self.config.loop_mode = loop_mode;
         self
     }
 
-    /// Set animation speed
+    /// Set the animation speed multiplier
+    ///
+    /// # Arguments
+    /// * `speed` - Speed multiplier (1.0 = normal, 2.0 = double speed, 0.5 = half speed)
+    ///
+    /// # Returns
+    /// Self for method chaining
     pub fn speed(mut self, speed: f32) -> Self {
         self.config.speed = speed;
         self
     }
 
-    /// Enable auto-play
+    /// Enable or disable auto-play
+    ///
+    /// # Arguments
+    /// * `auto_play` - Whether the animation should start playing immediately when built
+    ///
+    /// # Returns
+    /// Self for method chaining
     pub fn auto_play(mut self, auto_play: bool) -> Self {
         self.config.auto_play = auto_play;
         self
     }
 
-    /// Enable auto-reverse
+    /// Enable or disable auto-reverse
+    ///
+    /// # Arguments
+    /// * `auto_reverse` - Whether the animation should automatically reverse direction on completion
+    ///
+    /// # Returns
+    /// Self for method chaining
     pub fn auto_reverse(mut self, auto_reverse: bool) -> Self {
         self.config.auto_reverse = auto_reverse;
         self
     }
 
-    /// Set start callback
+    /// Set a callback to be called when the animation starts
+    ///
+    /// # Arguments
+    /// * `callback` - Function to call when animation begins playing
+    ///
+    /// # Returns
+    /// Self for method chaining
     pub fn on_start<F>(mut self, callback: F) -> Self
     where
         F: Fn(&Animation) + Send + Sync + 'static,
@@ -1380,7 +1625,13 @@ impl AnimationBuilder {
         self
     }
 
-    /// Set update callback
+    /// Set a callback to be called on each animation frame update
+    ///
+    /// # Arguments
+    /// * `callback` - Function to call with animation and current values on each frame
+    ///
+    /// # Returns
+    /// Self for method chaining
     pub fn on_update<F>(mut self, callback: F) -> Self
     where
         F: Fn(&Animation, &AnimatedValue) + Send + Sync + 'static,
@@ -1389,7 +1640,13 @@ impl AnimationBuilder {
         self
     }
 
-    /// Set complete callback
+    /// Set a callback to be called when the animation completes
+    ///
+    /// # Arguments
+    /// * `callback` - Function to call when animation finishes (after all loops)
+    ///
+    /// # Returns
+    /// Self for method chaining
     pub fn on_complete<F>(mut self, callback: F) -> Self
     where
         F: Fn(&Animation) + Send + Sync + 'static,
@@ -1398,7 +1655,13 @@ impl AnimationBuilder {
         self
     }
 
-    /// Set loop callback
+    /// Set a callback to be called when the animation loops
+    ///
+    /// # Arguments
+    /// * `callback` - Function to call with animation and loop count when looping
+    ///
+    /// # Returns
+    /// Self for method chaining
     pub fn on_loop<F>(mut self, callback: F) -> Self
     where
         F: Fn(&Animation, u32) + Send + Sync + 'static,
@@ -1407,7 +1670,14 @@ impl AnimationBuilder {
         self
     }
 
-    /// Build the animation
+    /// Build the final animation from the configured builder
+    ///
+    /// Creates an `Animation` instance with all the configured properties,
+    /// callbacks, and settings. If auto-play is enabled, the animation
+    /// will start playing immediately.
+    ///
+    /// # Returns
+    /// A fully configured `Animation` instance ready for use
     pub fn build(self) -> Animation {
         let property = self.property.unwrap_or(AnimatedProperty::Opacity(0.0, 1.0));
 
@@ -1444,7 +1714,14 @@ pub struct AnimationTimeline {
 }
 
 impl AnimationTimeline {
-    /// Create a new timeline
+    /// Create a new animation timeline
+    ///
+    /// # Arguments
+    /// * `id` - Unique identifier for the timeline
+    /// * `sequential` - If true, animations play one after another; if false, they play in parallel
+    ///
+    /// # Returns
+    /// A new `AnimationTimeline` instance
     pub fn new<S: Into<String>>(id: S, sequential: bool) -> Self {
         Self {
             id: id.into(),
@@ -1456,11 +1733,17 @@ impl AnimationTimeline {
     }
 
     /// Add an animation to the timeline
+    ///
+    /// # Arguments
+    /// * `animation` - The animation to add to this timeline
     pub fn add_animation(&mut self, animation: Animation) {
         self.animations.push(animation);
     }
 
-    /// Play the timeline
+    /// Start playing the timeline
+    ///
+    /// For sequential timelines, starts the first animation.
+    /// For parallel timelines, starts all animations simultaneously.
     pub fn play(&mut self) {
         *self.state.write().unwrap() = AnimationState::Playing;
 
@@ -1476,7 +1759,16 @@ impl AnimationTimeline {
         }
     }
 
-    /// Update timeline (call in main loop)
+    /// Update the timeline for one frame
+    ///
+    /// This should be called every frame in your main loop to advance all animations
+    /// in the timeline. Handles sequential playback and completion detection.
+    ///
+    /// # Arguments
+    /// * `delta_time` - Time elapsed since the last frame
+    ///
+    /// # Returns
+    /// `true` if the timeline is still active, `false` if completed
     pub fn update(&mut self, delta_time: Duration) -> bool {
         let state = *self.state.read().unwrap();
         if state != AnimationState::Playing {
@@ -1515,7 +1807,10 @@ impl AnimationTimeline {
         true
     }
 
-    /// Stop the timeline
+    /// Stop the timeline and all its animations
+    ///
+    /// Stops all animations in the timeline and resets the timeline state.
+    /// For sequential timelines, resets the current animation index to 0.
     pub fn stop(&mut self) {
         *self.state.write().unwrap() = AnimationState::Stopped;
         self.current_index = 0;
@@ -1895,4 +2190,211 @@ pub fn keyframe_bounce_in(duration_ms: u64) -> AnimatedProperty {
 /// Create a pulse animation using keyframes
 pub fn keyframe_pulse(duration_ms: u64) -> AnimatedProperty {
     AnimatedProperty::Keyframes(keyframes::pulse(duration_ms))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::time::Duration;
+
+    #[test]
+    fn test_easing_function_linear() {
+        let linear = EasingFunction::Linear;
+
+        assert_eq!(linear.apply(0.0), 0.0);
+        assert_eq!(linear.apply(0.5), 0.5);
+        assert_eq!(linear.apply(1.0), 1.0);
+    }
+
+    #[test]
+    fn test_easing_function_ease_in() {
+        let ease_in = EasingFunction::EaseIn;
+
+        assert_eq!(ease_in.apply(0.0), 0.0);
+        assert_eq!(ease_in.apply(1.0), 1.0);
+
+        // Ease-in should start slow
+        let quarter = ease_in.apply(0.25);
+        assert!(quarter < 0.25);
+    }
+
+    #[test]
+    fn test_easing_function_ease_out() {
+        let ease_out = EasingFunction::EaseOut;
+
+        assert_eq!(ease_out.apply(0.0), 0.0);
+        assert_eq!(ease_out.apply(1.0), 1.0);
+
+        // Ease-out should start fast
+        let quarter = ease_out.apply(0.25);
+        assert!(quarter > 0.25);
+    }
+
+    #[test]
+    fn test_easing_function_ease_in_out() {
+        let ease_in_out = EasingFunction::EaseInOut;
+
+        assert_eq!(ease_in_out.apply(0.0), 0.0);
+        assert_eq!(ease_in_out.apply(0.5), 0.5);
+        assert_eq!(ease_in_out.apply(1.0), 1.0);
+    }
+
+    #[test]
+    fn test_easing_function_steps() {
+        let steps = EasingFunction::Steps(4, false);
+
+        assert_eq!(steps.apply(0.0), 0.0);
+        assert_eq!(steps.apply(0.1), 0.0);
+        assert_eq!(steps.apply(0.3), 0.25);
+        assert_eq!(steps.apply(0.6), 0.5);
+        assert_eq!(steps.apply(1.0), 1.0);
+    }
+
+    #[test]
+    fn test_easing_function_steps_jump_start() {
+        let steps = EasingFunction::Steps(4, true);
+
+        // With jump_start=true, we should get the next step value immediately
+        assert_eq!(steps.apply(0.0), 0.0); // Actually starts at 0, then jumps
+        assert_eq!(steps.apply(0.1), 0.25); // First step
+        assert_eq!(steps.apply(0.3), 0.5);  // Second step
+        assert_eq!(steps.apply(1.0), 1.0);
+    }
+
+    #[test]
+    fn test_easing_function_linear_points() {
+        let points = vec![0.0, 0.5, 1.0];
+        let linear_points = EasingFunction::LinearPoints(points);
+
+        assert_eq!(linear_points.apply(0.0), 0.0);
+        assert_eq!(linear_points.apply(0.5), 0.5);
+        assert_eq!(linear_points.apply(1.0), 1.0);
+    }
+
+    #[test]
+    fn test_spring_config() {
+        let spring = SpringConfig::new(1.0, 100.0, 10.0); // mass, stiffness, damping
+
+        assert_eq!(spring.mass, 1.0);
+        assert_eq!(spring.stiffness, 100.0);
+        assert_eq!(spring.damping, 10.0);
+        assert_eq!(spring.velocity, 0.0);
+
+        // Test position calculation
+        let pos = spring.calculate_position(0.1, 0.0, 1.0);
+        assert!(pos >= 0.0 && pos <= 1.0);
+    }
+
+    #[test]
+    fn test_spring_presets() {
+        let gentle = SpringConfig::gentle();
+        assert!(gentle.damping > 0.5);
+
+        let wobbly = SpringConfig::wobbly();
+        assert!(wobbly.stiffness > gentle.stiffness);
+
+        let stiff = SpringConfig::stiff();
+        assert!(stiff.stiffness > wobbly.stiffness);
+    }
+
+    #[test]
+    fn test_animated_property_opacity() {
+        let opacity = AnimatedProperty::Opacity(0.0, 1.0);
+
+        let values = opacity.interpolate(0.5);
+        if let AnimatedValue::Opacity(value) = values {
+            assert_eq!(value, 0.5);
+        } else {
+            panic!("Expected opacity value");
+        }
+    }
+
+    #[test]
+    fn test_animated_property_size() {
+        let size = AnimatedProperty::Size(10, 20, 100, 80); // from_width, from_height, to_width, to_height
+
+        let values = size.interpolate(0.5);
+        if let AnimatedValue::Size(width, height) = values {
+            assert_eq!(width, 55);
+            assert_eq!(height, 50);
+        } else {
+            panic!("Expected size value");
+        }
+    }
+
+    #[test]
+    fn test_animated_property_position() {
+        let position = AnimatedProperty::Position(0, 0, 100, 50); // from_x, from_y, to_x, to_y
+
+        let values = position.interpolate(0.5);
+        if let AnimatedValue::Position(x, y) = values {
+            assert_eq!(x, 50);
+            assert_eq!(y, 25);
+        } else {
+            panic!("Expected position value");
+        }
+    }
+
+    #[test]
+    fn test_animated_property_scale() {
+        let scale = AnimatedProperty::Scale(1.0, 2.0);
+
+        let values = scale.interpolate(0.5);
+        if let AnimatedValue::Scale(value) = values {
+            assert_eq!(value, 1.5);
+        } else {
+            panic!("Expected scale value");
+        }
+    }
+
+    #[test]
+    fn test_animated_property_rotation() {
+        let rotation = AnimatedProperty::Rotation(0.0, 360.0);
+
+        let values = rotation.interpolate(0.5);
+        if let AnimatedValue::Rotation(value) = values {
+            assert_eq!(value, 180.0);
+        } else {
+            panic!("Expected rotation value");
+        }
+    }
+
+    #[test]
+    fn test_animated_property_color() {
+        let color = AnimatedProperty::Color((255, 0, 0), (0, 255, 0)); // red to green
+
+        let values = color.interpolate(0.5);
+        if let AnimatedValue::Color { r, g, b } = values {
+            assert_eq!(r, 127);
+            assert_eq!(g, 127);
+            assert_eq!(b, 0);
+        } else {
+            panic!("Expected color value");
+        }
+    }
+
+    #[test]
+    fn test_animation_creation() {
+        let duration = Duration::from_millis(1000);
+        let animation = Animation::new(
+            duration,
+            EasingFunction::Linear,
+            Some(1),
+            LoopMode::None,
+        );
+
+        assert_eq!(animation.config.duration, duration);
+        assert!(matches!(animation.config.easing, EasingFunction::Linear));
+        assert!(matches!(animation.config.loop_mode, LoopMode::Count(1)));
+    }
+
+    #[test]
+    fn test_animation_spring_creation() {
+        let duration = Duration::from_millis(500);
+        let spring_config = SpringConfig::gentle();
+        let animation = Animation::spring(duration, spring_config);
+
+        assert_eq!(animation.config.duration, duration);
+        assert!(matches!(animation.config.easing, EasingFunction::Spring(_)));
+    }
 }

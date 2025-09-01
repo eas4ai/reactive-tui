@@ -17,7 +17,9 @@ use std::time::Duration;
 /// Animation targets - can be a single ID or multiple IDs
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum AnimationTargets {
+    /// Single target element ID
     Single(String),
+    /// Multiple target element IDs
     Multiple(Vec<String>),
 }
 
@@ -98,7 +100,12 @@ pub enum PropertyValue {
     /// Single target value (animates from current to this value)
     Single(f32),
     /// Explicit from-to range
-    FromTo { from: f32, to: f32 },
+    FromTo {
+        /// Starting value
+        from: f32,
+        /// Ending value
+        to: f32
+    },
     /// Array of values for keyframe-like progression
     Array(Vec<f32>),
     /// Relative change (e.g., "+50" means add 50 to current value)
@@ -114,7 +121,9 @@ pub enum ColorValue {
     Rgba(u8, u8, u8, u8),
     /// From-to color animation
     FromTo {
+        /// Starting RGB color (r, g, b)
         from: (u8, u8, u8),
+        /// Ending RGB color (r, g, b)
         to: (u8, u8, u8),
     },
 }
@@ -125,7 +134,12 @@ pub enum SizeValue {
     /// Both width and height
     Both(u16, u16),
     /// From-to size animation
-    FromTo { from: (u16, u16), to: (u16, u16) },
+    FromTo {
+        /// Starting size (width, height)
+        from: (u16, u16),
+        /// Ending size (width, height)
+        to: (u16, u16)
+    },
 }
 
 /// Value for position animations
@@ -134,7 +148,12 @@ pub enum PositionValue {
     /// Both x and y
     Both(i16, i16),
     /// From-to position animation
-    FromTo { from: (i16, i16), to: (i16, i16) },
+    FromTo {
+        /// Starting position (x, y)
+        from: (i16, i16),
+        /// Ending position (x, y)
+        to: (i16, i16)
+    },
 }
 
 /// Delay configuration
@@ -149,9 +168,13 @@ pub enum DelayValue {
 /// Animation direction
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum AnimationDirection {
+    /// Play animation forward (default)
     Normal,
+    /// Play animation in reverse
     Reverse,
+    /// Alternate between forward and reverse on each iteration
     Alternate,
+    /// Alternate starting with reverse
     AlternateReverse,
 }
 

@@ -358,3 +358,178 @@ impl DialogAnimations {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::widgets::dialog::{ConfirmationButtons, ConfirmationIcon, InputType};
+
+    #[test]
+    fn test_dialog_builder_confirm() {
+        let dialog = DialogBuilder::confirm("Confirm Action", "Are you sure?");
+        assert_eq!(dialog.title, "Confirm Action");
+        assert_eq!(dialog.message, "Are you sure?");
+        assert!(matches!(dialog.buttons, ConfirmationButtons::YesNo));
+    }
+
+    #[test]
+    fn test_dialog_builder_ok_cancel() {
+        let dialog = DialogBuilder::ok_cancel("Save Changes", "Do you want to save?");
+        assert_eq!(dialog.title, "Save Changes");
+        assert_eq!(dialog.message, "Do you want to save?");
+        assert!(matches!(dialog.buttons, ConfirmationButtons::OkCancel));
+    }
+
+    #[test]
+    fn test_dialog_builder_input() {
+        let dialog = DialogBuilder::input("Enter Name", "Please enter your name:");
+        assert_eq!(dialog.title, "Enter Name");
+        assert_eq!(dialog.prompt, "Please enter your name:");
+    }
+
+    #[test]
+    fn test_dialog_builder_password() {
+        let dialog = DialogBuilder::password("Login", "Enter password:");
+        assert_eq!(dialog.title, "Login");
+        assert_eq!(dialog.prompt, "Enter password:");
+        assert!(matches!(dialog.input.input_type, InputType::Password));
+        assert!(dialog.input.required);
+    }
+
+    #[test]
+    fn test_dialog_builder_autocomplete() {
+        let suggestions = vec!["Option 1".to_string(), "Option 2".to_string()];
+        let dialog = DialogBuilder::autocomplete("Select Option", "Choose:", suggestions.clone());
+        assert_eq!(dialog.title, "Select Option");
+        assert_eq!(dialog.prompt, "Choose:");
+        assert_eq!(dialog.autocomplete.static_suggestions, suggestions);
+    }
+
+    #[test]
+    fn test_dialog_builder_error() {
+        let dialog = DialogBuilder::error("Error", "Something went wrong!");
+        assert_eq!(dialog.title, "Error");
+        assert_eq!(dialog.message, "Something went wrong!");
+        assert!(matches!(dialog.icon, Some(ConfirmationIcon::Error)));
+        assert!(matches!(dialog.buttons, ConfirmationButtons::Ok));
+    }
+
+    #[test]
+    fn test_dialog_builder_warning() {
+        let dialog = DialogBuilder::warning("Warning", "This action is dangerous!");
+        assert_eq!(dialog.title, "Warning");
+        assert_eq!(dialog.message, "This action is dangerous!");
+        assert!(matches!(dialog.icon, Some(ConfirmationIcon::Warning)));
+        assert!(matches!(dialog.buttons, ConfirmationButtons::OkCancel));
+    }
+
+    #[test]
+    fn test_dialog_builder_info() {
+        let dialog = DialogBuilder::info("Information", "Process completed successfully.");
+        assert_eq!(dialog.title, "Information");
+        assert_eq!(dialog.message, "Process completed successfully.");
+        assert!(matches!(dialog.icon, Some(ConfirmationIcon::Info)));
+        assert!(matches!(dialog.buttons, ConfirmationButtons::Ok));
+    }
+
+    #[test]
+    fn test_dialog_utils_calculate_size() {
+        // Test small content
+        let (width, height) = DialogUtils::calculate_size(30, 20, 100);
+        assert!(width >= 20 && width <= 100);
+        assert!(height >= 8);
+
+        // Test large content
+        let (width, height) = DialogUtils::calculate_size(500, 40, 120);
+        assert!(width >= 40 && width <= 120);
+        assert!(height <= 40);
+
+        // Test minimum constraints
+        let (width, height) = DialogUtils::calculate_size(5, 50, 100);
+        assert_eq!(width, 50); // Should use minimum width
+        assert!(height >= 8);
+    }
+
+    #[test]
+    fn test_dialog_utils_build_css_classes() {
+        let base_classes = ["dialog-base", "rounded"];
+        let mut custom_classes = HashMap::new();
+        custom_classes.insert("dialog".to_string(), "custom-dialog".to_string());
+        custom_classes.insert("content".to_string(), "custom-content".to_string());
+        custom_classes.insert("button".to_string(), "custom-button".to_string());
+        custom_classes.insert("ignored".to_string(), "should-be-ignored".to_string());
+
+        let result = DialogUtils::build_css_classes(&base_classes, &custom_classes);
+
+        assert!(result.contains("dialog-base"));
+        assert!(result.contains("rounded"));
+        assert!(result.contains("custom-dialog"));
+        assert!(result.contains("custom-content"));
+        assert!(result.contains("custom-button"));
+        assert!(!result.contains("should-be-ignored"));
+    }
+
+    #[test]
+    fn test_dialog_utils_validate_config_valid() {
+        let result = DialogUtils::validate_config("Valid Title", "Valid message");
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_dialog_utils_validate_config_empty_title() {
+        let result = DialogUtils::validate_config("", "Valid message");
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("title cannot be empty"));
+    }
+
+    #[test]
+    fn test_dialog_utils_validate_config_empty_message() {
+        let result = DialogUtils::validate_config("Valid Title", "");
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("message cannot be empty"));
+    }
+
+    #[test]
+    fn test_dialog_utils_validate_config_title_too_long() {
+        let long_title = "a".repeat(101);
+        let result = DialogUtils::validate_config(&long_title, "Valid message");
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("title is too long"));
+    }
+
+    #[test]
+    fn test_dialog_utils_validate_config_message_too_long() {
+        let long_message = "a".repeat(1001);
+        let result = DialogUtils::validate_config("Valid Title", &long_message);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("message is too long"));
+    }
+
+    #[test]
+    fn test_dialog_utils_generate_id() {
+        let id1 = DialogUtils::generate_id();
+        std::thread::sleep(std::time::Duration::from_millis(1)); // Ensure different timestamps
+        let id2 = DialogUtils::generate_id();
+
+        assert!(id1.starts_with("dialog_"));
+        assert!(id2.starts_with("dialog_"));
+        assert_ne!(id1, id2); // Should be unique
+    }
+
+    #[test]
+    fn test_dialog_utils_parse_shortcut() {
+        assert_eq!(DialogUtils::parse_shortcut("enter"), Some(crate::event::types::KeyCode::Enter));
+        assert_eq!(DialogUtils::parse_shortcut("ENTER"), Some(crate::event::types::KeyCode::Enter));
+        assert_eq!(DialogUtils::parse_shortcut("return"), Some(crate::event::types::KeyCode::Enter));
+        assert_eq!(DialogUtils::parse_shortcut("esc"), Some(crate::event::types::KeyCode::Escape));
+        assert_eq!(DialogUtils::parse_shortcut("escape"), Some(crate::event::types::KeyCode::Escape));
+        assert_eq!(DialogUtils::parse_shortcut("tab"), Some(crate::event::types::KeyCode::Tab));
+        assert_eq!(DialogUtils::parse_shortcut("space"), Some(crate::event::types::KeyCode::Char(' ')));
+        assert_eq!(DialogUtils::parse_shortcut("backspace"), Some(crate::event::types::KeyCode::Backspace));
+        assert_eq!(DialogUtils::parse_shortcut("delete"), Some(crate::event::types::KeyCode::Delete));
+        assert_eq!(DialogUtils::parse_shortcut("a"), Some(crate::event::types::KeyCode::Char('a')));
+        assert_eq!(DialogUtils::parse_shortcut("Z"), Some(crate::event::types::KeyCode::Char('z')));
+        assert_eq!(DialogUtils::parse_shortcut("invalid"), None);
+        assert_eq!(DialogUtils::parse_shortcut("toolong"), None);
+    }
+}

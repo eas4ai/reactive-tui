@@ -242,6 +242,13 @@ impl DeclarativeGrid {
         grid
     }
 
+    /// Add a named area to the grid layout
+    ///
+    /// # Arguments
+    /// * `area` - The grid area to add with its name and position
+    ///
+    /// # Returns
+    /// Self for method chaining
     pub fn area(mut self, area: GridArea) -> Self {
         let index = self.areas.len();
         self.area_map.insert(area.name.clone(), index);
@@ -375,7 +382,11 @@ impl DeclarativeGrid {
             for r in area.row..(area.row + area.row_span) {
                 for c in area.col..(area.col + area.col_span) {
                     if r < self.rows && c < self.cols {
-                        grid[r][c] = &area.name;
+                        if let Some(row) = grid.get_mut(r) {
+                            if let Some(cell) = row.get_mut(c) {
+                                *cell = &area.name;
+                            }
+                        }
                     }
                 }
             }
@@ -431,13 +442,17 @@ impl DeclarativeGrid {
             for r in area.row..(area.row + area.row_span) {
                 for c in area.col..(area.col + area.col_span) {
                     if r < self.rows && c < self.cols {
-                        if let Some(existing) = grid[r][c] {
-                            errors.push(format!(
-                                "Areas '{}' and '{}' overlap at ({}, {})",
-                                area.name, existing, r, c
-                            ));
-                        } else {
-                            grid[r][c] = Some(&area.name);
+                        if let Some(row) = grid.get(r) {
+                            if let Some(existing) = row.get(c).and_then(|&x| x) {
+                                errors.push(format!(
+                                    "Areas '{}' and '{}' overlap at ({}, {})",
+                                    area.name, existing, r, c
+                                ));
+                            } else if let Some(row) = grid.get_mut(r) {
+                                if let Some(cell) = row.get_mut(c) {
+                                    *cell = Some(&area.name);
+                                }
+                            }
                         }
                     }
                 }

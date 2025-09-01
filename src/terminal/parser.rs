@@ -473,7 +473,7 @@ impl AnsiParser {
     }
 
     /// Parse DCS passthrough state - collect DCS data
-    fn parse_dcs_passthrough(&mut self, byte: u8, _events: &mut Vec<AnsiEvent>) {
+    fn parse_dcs_passthrough(&mut self, byte: u8, _events: &mut [AnsiEvent]) {
         match byte {
             0x00..=0x17 | 0x19 | 0x1C..=0x1F => {
                 // Control characters in passthrough - ignore for now
@@ -490,7 +490,7 @@ impl AnsiParser {
     }
 
     /// Parse other string states (SOS, PM, APC)
-    fn parse_string_state(&mut self, byte: u8, _events: &mut Vec<AnsiEvent>) {
+    fn parse_string_state(&mut self, byte: u8, _events: &mut [AnsiEvent]) {
         match byte {
             0x1B => {
                 // Escape - end of string
@@ -539,15 +539,10 @@ impl Utf8Decoder {
                 Some(ch)
             }
             Err(e) => {
-                if e.valid_up_to() > 0 {
+                if e.valid_up_to() > 0 || self.len >= 4 {
                     self.len = 0;
-                    None
-                } else if self.len >= 4 {
-                    self.len = 0;
-                    None
-                } else {
-                    None
                 }
+                None
             }
         }
     }

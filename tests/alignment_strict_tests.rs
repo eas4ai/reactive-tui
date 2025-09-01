@@ -1,5 +1,5 @@
 use reactive_tui::core::surface::Surface;
-use reactive_tui::layout::paint_tree::{layout_and_paint, NodeSpec};
+use reactive_tui::layout::paint_tree::{layout_and_paint_constrained, NodeSpec};
 
 fn find_char(surface: &Surface, ch: char) -> Option<(usize, usize)> {
     let (w, h) = surface.dims();
@@ -39,7 +39,19 @@ fn self_align_in_column_exact_positions() {
         ],
     };
     let mut surf = Surface::new(20, 10);
-    layout_and_paint(&root, &mut surf, 20);
+    layout_and_paint_constrained(&root, &mut surf, 20, 10);
+    
+    // Debug: print the surface
+    eprintln!("Surface for self_align_in_column_exact_positions:");
+    for y in 0..10 {
+        let mut line = String::new();
+        for x in 0..20 {
+            let ch = surf.get(x, y).ch;
+            line.push(if ch == ' ' { '.' } else { ch });
+        }
+        eprintln!("Row {}: {}", y, line);
+    }
+    
     let a = find_char(&surf, 'A').expect("A").0;
     let b = find_char(&surf, 'B').expect("B").0;
     let c = find_char(&surf, 'C').expect("C").0;
@@ -65,7 +77,19 @@ fn place_items_center_in_row_exact_y() {
         }],
     };
     let mut surf = Surface::new(40, 10);
-    layout_and_paint(&root, &mut surf, 40);
+    layout_and_paint_constrained(&root, &mut surf, 40, 10);
+    
+    // Debug: print the surface
+    eprintln!("\nSurface for place_items_center_in_row_exact_y:");
+    for y in 0..10 {
+        let mut line = String::new();
+        for x in 0..40 {
+            let ch = surf.get(x, y).ch;
+            line.push(if ch == ' ' { '.' } else { ch });
+        }
+        eprintln!("Row {}: {}", y, line);
+    }
+    
     let y = find_char(&surf, 'X').expect("X").1;
     assert_eq!(y, 2);
 }

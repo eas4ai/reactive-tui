@@ -162,6 +162,13 @@ static mut GLOBAL_ANIMATION_MANAGER: Option<*mut crate::animation::AnimationMana
 
 /// Set the global animation manager for coordination
 /// SAFETY: This should only be called once during app initialization
+/// # Safety
+///
+/// This function is unsafe because it sets a global mutable pointer.
+/// The caller must ensure that:
+/// - The pointer is valid for the lifetime of the program
+/// - No other code is concurrently accessing the global animation manager
+/// - The pointer points to a properly initialized AnimationManager
 pub unsafe fn set_global_animation_manager(manager: *mut crate::animation::AnimationManager) {
     GLOBAL_ANIMATION_MANAGER = Some(manager);
 }
@@ -596,6 +603,10 @@ impl<T: AnimatableValue> KeyframeHandle<T> {
         *self.animation_id.lock().unwrap() = Some(id);
     }
 
+    /// Seek to a specific time in the keyframe animation
+    ///
+    /// # Arguments
+    /// * `time` - The time position to seek to (0.0 to 1.0)
     pub fn seek(&self, time: f32) {
         let animation = self.animation.read().unwrap();
         if let Some(value) = animation.get_value_at_time(time) {
@@ -653,6 +664,10 @@ mod tests {
 
         // Wait a bit for animation to progress
         thread::sleep(Duration::from_millis(50));
+
+        // In tests, we need to manually update animations since there's no render loop
+        RUNTIME.update_animations();
+
         let value = handle.value();
         assert!(value > 0.0 && value <= 1.0);
     }
@@ -664,6 +679,9 @@ mod tests {
 
         spring.set_target(10.0);
         thread::sleep(Duration::from_millis(100));
+
+        // In tests, we need to manually update animations since there's no render loop
+        RUNTIME.update_animations();
 
         let value = spring.value();
         assert!(value > 0.0); // Should have moved toward target

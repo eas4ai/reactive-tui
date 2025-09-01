@@ -5,11 +5,13 @@ use crate::event::{Event, MouseEvent};
 use std::any::Any;
 use std::collections::VecDeque;
 use std::sync::Arc;
+
+// Type alias for complex function pointer type
+type SuggestionRequestCallback = Arc<dyn Fn(String, usize) -> Vec<Suggestion> + Send + Sync>;
 use unicode_segmentation::UnicodeSegmentation;
 
 /// Input mode for different text input behaviors
-#[derive(Clone, Debug, PartialEq)]
-#[derive(Default)]
+#[derive(Clone, Debug, PartialEq, Default)]
 pub enum InputMode {
     /// Single line input (default)
     #[default]
@@ -21,7 +23,6 @@ pub enum InputMode {
     /// Numeric input only
     Numeric,
 }
-
 
 /// Auto-completion suggestion
 #[derive(Clone, Debug, PartialEq)]
@@ -76,14 +77,12 @@ impl Props for TextInputProps {
 }
 
 /// Cursor position in a multi-line text input
-#[derive(Clone, Debug, PartialEq)]
-#[derive(Default)]
+#[derive(Clone, Debug, PartialEq, Default)]
 pub struct CursorPosition {
     pub line: usize,
     pub column: usize,
     pub byte_offset: usize,
 }
-
 
 /// Text selection range
 #[derive(Clone, Debug, PartialEq)]
@@ -171,10 +170,9 @@ impl Default for TextInputState {
 
 /// Text input component with advanced editing capabilities
 pub struct TextInput {
-    state: TextInputState,
     on_change: Option<Arc<dyn Fn(String) + Send + Sync>>,
     on_submit: Option<Arc<dyn Fn(String) + Send + Sync>>,
-    on_suggestion_request: Option<Arc<dyn Fn(String, usize) -> Vec<Suggestion> + Send + Sync>>,
+    on_suggestion_request: Option<SuggestionRequestCallback>,
     clipboard_content: Option<String>,
 }
 
@@ -201,8 +199,8 @@ impl TextInput {
     }
 
     /// Get the current text value from state
-    fn get_text_value(&self) -> String {
-        self.state.lines.join("\n")
+    fn get_text_value(&self, state: &TextInputState) -> String {
+        state.lines.join("\n")
     }
 
     /// Set text value and update state
@@ -245,8 +243,11 @@ impl TextInput {
         // Add bytes from current line up to cursor column
         if let Some(line) = state.lines.get(state.cursor.line) {
             let graphemes: Vec<&str> = line.graphemes(true).collect();
-            for i in 0..state.cursor.column.min(graphemes.len()) {
-                byte_offset += graphemes[i].len();
+            for grapheme in graphemes
+                .iter()
+                .take(state.cursor.column.min(graphemes.len()))
+            {
+                byte_offset += grapheme.len();
             }
         }
 
@@ -293,7 +294,7 @@ impl TextInput {
     fn apply_command(&mut self, command: &EditCommand, state: &mut TextInputState) {
         match command {
             EditCommand::Insert { position, text } => {
-                let current_text = self.get_text_value();
+                let current_text = self.get_text_value(state);
                 let mut chars: Vec<char> = current_text.chars().collect();
                 let insert_chars: Vec<char> = text.chars().collect();
 
@@ -305,7 +306,7 @@ impl TextInput {
                 self.set_text_value(&new_text, state);
             }
             EditCommand::Delete { position, text } => {
-                let current_text = self.get_text_value();
+                let current_text = self.get_text_value(state);
                 let mut chars: Vec<char> = current_text.chars().collect();
 
                 for _ in 0..text.chars().count() {
@@ -322,7 +323,7 @@ impl TextInput {
                 old_text: _,
                 new_text,
             } => {
-                let current_text = self.get_text_value();
+                let current_text = self.get_text_value(state);
                 let mut chars: Vec<char> = current_text.chars().collect();
 
                 // Remove old text
@@ -411,7 +412,7 @@ impl TextInput {
     /// Delete the current selection
     fn delete_selection(&mut self, state: &mut TextInputState) -> Option<String> {
         if let Some(selection) = &state.selection {
-            let text = self.get_text_value();
+            let text = self.get_text_value(state);
             let start_offset = selection.start.byte_offset;
             let end_offset = selection.end.byte_offset;
 
@@ -493,7 +494,7 @@ impl TextInput {
     /// Copy selected text to clipboard
     fn copy_selection(&mut self, state: &TextInputState) {
         if let Some(selection) = &state.selection {
-            let text = self.get_text_value();
+            let text = self.get_text_value(state);
             let start_offset = selection.start.byte_offset;
             let end_offset = selection.end.byte_offset;
 
@@ -670,7 +671,7 @@ impl TextInput {
         match event.code {
             KeyCode::Char('a') => {
                 // Select all
-                let text = self.get_text_value();
+                let text = self.get_text_value(state);
                 if !text.is_empty() {
                     state.selection = Some(Selection {
                         start: CursorPosition {
@@ -699,7 +700,7 @@ impl TextInput {
             KeyCode::Char('x') => {
                 // Cut
                 self.cut_selection(state);
-                let current_text = self.get_text_value();
+                let current_text = self.get_text_value(state);
                 props.value = current_text.clone();
                 if let Some(on_change) = &self.on_change {
                     on_change(current_text);
@@ -709,7 +710,7 @@ impl TextInput {
             KeyCode::Char('v') => {
                 // Paste
                 self.paste_from_clipboard(state);
-                let current_text = self.get_text_value();
+                let current_text = self.get_text_value(state);
                 props.value = current_text.clone();
                 if let Some(on_change) = &self.on_change {
                     on_change(current_text);
@@ -719,7 +720,7 @@ impl TextInput {
             KeyCode::Char('z') => {
                 // Undo
                 self.undo(state);
-                let current_text = self.get_text_value();
+                let current_text = self.get_text_value(state);
                 props.value = current_text.clone();
                 if let Some(on_change) = &self.on_change {
                     on_change(current_text);
@@ -729,7 +730,7 @@ impl TextInput {
             KeyCode::Char('y') => {
                 // Redo
                 self.redo(state);
-                let current_text = self.get_text_value();
+                let current_text = self.get_text_value(state);
                 props.value = current_text.clone();
                 if let Some(on_change) = &self.on_change {
                     on_change(current_text);
@@ -738,21 +739,21 @@ impl TextInput {
             }
             KeyCode::Left => {
                 // Word left
-                let text = self.get_text_value();
+                let text = self.get_text_value(state);
                 let word_start = self.find_word_start(&text, state.cursor.byte_offset);
                 self.move_cursor_to_byte_offset(word_start, state);
                 EventResult::Consumed
             }
             KeyCode::Right => {
                 // Word right
-                let text = self.get_text_value();
+                let text = self.get_text_value(state);
                 let word_end = self.find_word_end(&text, state.cursor.byte_offset);
                 self.move_cursor_to_byte_offset(word_end, state);
                 EventResult::Consumed
             }
             KeyCode::Backspace => {
                 // Delete word left
-                let text = self.get_text_value();
+                let text = self.get_text_value(state);
                 let word_start = self.find_word_start(&text, state.cursor.byte_offset);
                 if word_start < state.cursor.byte_offset {
                     let deleted_text = text[word_start..state.cursor.byte_offset].to_string();
@@ -763,7 +764,7 @@ impl TextInput {
                     self.execute_command(command, state);
                     self.move_cursor_to_byte_offset(word_start, state);
 
-                    let current_text = self.get_text_value();
+                    let current_text = self.get_text_value(state);
                     props.value = current_text.clone();
                     if let Some(on_change) = &self.on_change {
                         on_change(current_text);
@@ -793,7 +794,6 @@ impl Component for TextInput {
 
     fn new(_props: Self::Props) -> Self {
         Self {
-            state: TextInputState::default(),
             on_change: None,
             on_submit: None,
             on_suggestion_request: None,
@@ -803,16 +803,13 @@ impl Component for TextInput {
 
     fn update(&mut self, props: &Self::Props, state: &mut Self::State) -> bool {
         // Update text value if it changed
-        let current_text = self.get_text_value();
+        let current_text = self.get_text_value(state);
         if current_text != props.value {
             self.set_text_value(&props.value, state);
         }
 
         // Validate on prop changes
         state.is_valid = self.validate(&props.value, &props.validator_pattern);
-
-        // Update internal state
-        self.state = state.clone();
 
         // Always re-render on update
         true
@@ -1006,7 +1003,7 @@ impl TextInput {
 
                 // Check max length
                 if let Some(max_len) = props.max_length {
-                    let current_text = self.get_text_value();
+                    let current_text = self.get_text_value(state);
                     if current_text.len() >= max_len && state.selection.is_none() {
                         return EventResult::Consumed;
                     }
@@ -1032,7 +1029,7 @@ impl TextInput {
                 self.update_scroll(state, width, height);
 
                 // Validate
-                let current_text = self.get_text_value();
+                let current_text = self.get_text_value(state);
                 state.is_valid = self.validate(&current_text, &props.validator_pattern);
 
                 // Update props value
@@ -1067,7 +1064,7 @@ impl TextInput {
                         self.execute_command(command, state);
                     }
                 } else if state.cursor.byte_offset > 0 {
-                    let current_text = self.get_text_value();
+                    let current_text = self.get_text_value(state);
                     let chars: Vec<char> = current_text.chars().collect();
                     if let Some(ch) = chars.get(state.cursor.byte_offset.saturating_sub(1)) {
                         let command = EditCommand::Delete {
@@ -1082,7 +1079,7 @@ impl TextInput {
                 }
 
                 self.update_scroll(state, width, height);
-                let current_text = self.get_text_value();
+                let current_text = self.get_text_value(state);
                 state.is_valid = self.validate(&current_text, &props.validator_pattern);
                 props.value = current_text.clone();
 
@@ -1102,7 +1099,7 @@ impl TextInput {
                         self.execute_command(command, state);
                     }
                 } else {
-                    let current_text = self.get_text_value();
+                    let current_text = self.get_text_value(state);
                     let chars: Vec<char> = current_text.chars().collect();
                     if let Some(ch) = chars.get(state.cursor.byte_offset) {
                         let command = EditCommand::Delete {
@@ -1114,7 +1111,7 @@ impl TextInput {
                 }
 
                 self.update_scroll(state, width, height);
-                let current_text = self.get_text_value();
+                let current_text = self.get_text_value(state);
                 state.is_valid = self.validate(&current_text, &props.validator_pattern);
                 props.value = current_text.clone();
 
@@ -1161,7 +1158,7 @@ impl TextInput {
                         }
                     }
 
-                    let current_text = self.get_text_value();
+                    let current_text = self.get_text_value(state);
                     props.value = current_text.clone();
                     if let Some(on_change) = &self.on_change {
                         on_change(current_text);
@@ -1169,7 +1166,7 @@ impl TextInput {
                 } else {
                     // Submit in single-line mode
                     if let Some(on_submit) = &self.on_submit {
-                        on_submit(self.get_text_value());
+                        on_submit(self.get_text_value(state));
                     }
                 }
                 EventResult::Consumed
@@ -1194,7 +1191,7 @@ impl TextInput {
                             state.suggestion_index = None;
                             props.suggestions.clear();
 
-                            let current_text = self.get_text_value();
+                            let current_text = self.get_text_value(state);
                             props.value = current_text.clone();
                             if let Some(on_change) = &self.on_change {
                                 on_change(current_text);
@@ -1222,7 +1219,7 @@ impl TextInput {
                     let new_offset = state.cursor.byte_offset + tab_text.len();
                     self.move_cursor_to_byte_offset(new_offset, state);
 
-                    let current_text = self.get_text_value();
+                    let current_text = self.get_text_value(state);
                     props.value = current_text.clone();
                     if let Some(on_change) = &self.on_change {
                         on_change(current_text);
@@ -1297,13 +1294,12 @@ impl TextInput {
                 EventResult::Consumed
             }
             KeyCode::Home => {
-                if event.modifiers.shift
-                    && state.selection.is_none() {
-                        state.selection = Some(Selection {
-                            start: state.cursor.clone(),
-                            end: state.cursor.clone(),
-                        });
-                    }
+                if event.modifiers.shift && state.selection.is_none() {
+                    state.selection = Some(Selection {
+                        start: state.cursor.clone(),
+                        end: state.cursor.clone(),
+                    });
+                }
 
                 // Move to start of current line
                 state.cursor.column = 0;
@@ -1321,13 +1317,12 @@ impl TextInput {
                 EventResult::Consumed
             }
             KeyCode::End => {
-                if event.modifiers.shift
-                    && state.selection.is_none() {
-                        state.selection = Some(Selection {
-                            start: state.cursor.clone(),
-                            end: state.cursor.clone(),
-                        });
-                    }
+                if event.modifiers.shift && state.selection.is_none() {
+                    state.selection = Some(Selection {
+                        start: state.cursor.clone(),
+                        end: state.cursor.clone(),
+                    });
+                }
 
                 // Move to end of current line
                 if let Some(line) = state.lines.get(state.cursor.line) {
@@ -1495,6 +1490,9 @@ mod tests {
             ..Default::default()
         };
 
+        // Initialize state from props
+        input.update(&props, &mut state);
+
         // Try to type when at max length
         let event = Event::Key(KeyEvent {
             code: KeyCode::Char('X'),
@@ -1537,6 +1535,9 @@ mod tests {
             }),
             ..Default::default()
         };
+
+        // Initialize state from props
+        input.update(&props, &mut state);
 
         // Type to replace selection
         let event = Event::Key(KeyEvent {
@@ -1602,11 +1603,15 @@ mod tests {
         let state = TextInputState::default();
 
         let rendered = input.render(&props, &state);
-        let text = match rendered.element_type {
-            crate::component::ElementType::Text(ref t) => t,
-            _ => panic!("Expected text element"),
-        };
-
-        assert!(text.contains("******")); // Should show masked value
+        // The render returns a div with text as a child
+        if let Some(child) = rendered.children.first() {
+            if let crate::component::ElementType::Text(ref t) = child.element_type {
+                assert!(t.contains("******")); // Should show masked value
+            } else {
+                panic!("Expected text child element");
+            }
+        } else {
+            panic!("Expected child element");
+        }
     }
 }

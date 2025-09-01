@@ -728,6 +728,8 @@ impl Tree {
     }
 
     /// Recursively test hit on tree nodes
+    #[allow(clippy::too_many_arguments)]
+    #[allow(clippy::only_used_in_recursion)]
     fn hit_test_node(
         &self,
         node: &TreeNode,
@@ -952,7 +954,6 @@ impl Component for Tree {
             .collect();
 
         // Intelligent re-render detection for optimal tree performance
-        
 
         !state.selected_nodes.is_empty() ||
             // Expanded state changed (check if expansion differs from props)
@@ -970,6 +971,14 @@ impl Default for Tree {
 
 // Helper implementations
 impl TreeNode {
+    /// Create a new tree node
+    ///
+    /// # Arguments
+    /// * `id` - Unique identifier for this node
+    /// * `label` - Display label for the node
+    ///
+    /// # Returns
+    /// A new `TreeNode` with default settings
     pub fn new(id: &str, label: &str) -> Self {
         Self {
             id: id.to_string(),
@@ -991,55 +1000,130 @@ impl TreeNode {
         }
     }
 
+    /// Set the child nodes for this tree node
+    ///
+    /// # Arguments
+    /// * `children` - Vector of child tree nodes
+    ///
+    /// # Returns
+    /// Self for method chaining
     pub fn with_children(mut self, children: Vec<TreeNode>) -> Self {
         self.children = children;
         self
     }
 
+    /// Set an icon for this tree node
+    ///
+    /// # Arguments
+    /// * `icon` - Icon string or character to display
+    ///
+    /// # Returns
+    /// Self for method chaining
     pub fn with_icon(mut self, icon: &str) -> Self {
         self.icon = Some(icon.to_string());
         self
     }
 
+    /// Set the style for this tree node
+    ///
+    /// # Arguments
+    /// * `style` - CSS-like style string for the node
+    ///
+    /// # Returns
+    /// Self for method chaining
     pub fn with_style(mut self, style: &str) -> Self {
         self.style = Some(style.to_string());
         self
     }
 
+    /// Add metadata to this tree node
+    ///
+    /// # Arguments
+    /// * `key` - Data key
+    /// * `value` - Data value
+    ///
+    /// # Returns
+    /// Self for method chaining
     pub fn with_data(mut self, key: &str, value: &str) -> Self {
         self.data.insert(key.to_string(), value.to_string());
         self
     }
 
+    /// Set the expanded state of this tree node
+    ///
+    /// # Arguments
+    /// * `expanded` - Whether the node should be expanded to show children
+    ///
+    /// # Returns
+    /// Self for method chaining
     pub fn expanded(mut self, expanded: bool) -> Self {
         self.expanded = expanded;
         self
     }
 
+    /// Set the selected state of this tree node
+    ///
+    /// # Arguments
+    /// * `selected` - Whether the node should be selected
+    ///
+    /// # Returns
+    /// Self for method chaining
     pub fn selected(mut self, selected: bool) -> Self {
         self.selected = selected;
         self
     }
 
+    /// Set the checked state of this tree node
+    ///
+    /// # Arguments
+    /// * `checked` - Whether the node should be checked (for checkable trees)
+    ///
+    /// # Returns
+    /// Self for method chaining
     pub fn checked(mut self, checked: bool) -> Self {
         self.checked = Some(checked);
         self
     }
 
+    /// Enable or disable selection for this tree node
+    ///
+    /// # Arguments
+    /// * `selectable` - Whether this node can be selected by the user
+    ///
+    /// # Returns
+    /// Self for method chaining
     pub fn selectable(mut self, selectable: bool) -> Self {
         self.selectable = selectable;
         self
     }
 
+    /// Enable or disable lazy loading for this tree node
+    ///
+    /// # Arguments
+    /// * `lazy` - Whether children should be loaded on demand
+    ///
+    /// # Returns
+    /// Self for method chaining
     pub fn lazy(mut self, lazy: bool) -> Self {
         self.lazy = lazy;
         self
     }
 
+    /// Add a child node to this tree node
+    ///
+    /// # Arguments
+    /// * `child` - The child tree node to add
     pub fn add_child(&mut self, child: TreeNode) {
         self.children.push(child);
     }
 
+    /// Find a node by ID in this tree (recursive search)
+    ///
+    /// # Arguments
+    /// * `id` - The ID of the node to find
+    ///
+    /// # Returns
+    /// `Some(&TreeNode)` if found, `None` otherwise
     pub fn find_node(&self, id: &str) -> Option<&TreeNode> {
         if self.id == id {
             return Some(self);
@@ -1054,6 +1138,13 @@ impl TreeNode {
         None
     }
 
+    /// Find a mutable node by ID in this tree (recursive search)
+    ///
+    /// # Arguments
+    /// * `id` - The ID of the node to find
+    ///
+    /// # Returns
+    /// `Some(&mut TreeNode)` if found, `None` otherwise
     pub fn find_node_mut(&mut self, id: &str) -> Option<&mut TreeNode> {
         if self.id == id {
             return Some(self);

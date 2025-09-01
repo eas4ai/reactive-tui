@@ -15,6 +15,9 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 
+// Type alias for complex function pointer type
+type ButtonClickCallback = Arc<dyn Fn(&str) -> bool + Send + Sync>;
+
 /// Configuration options for confirmation dialogs
 #[derive(Clone)]
 pub struct ConfirmationDialogOptions {
@@ -43,7 +46,7 @@ pub struct ConfirmationDialogOptions {
     /// Custom CSS classes
     pub css_classes: HashMap<String, String>,
     /// Callback for button clicks
-    pub on_button_click: Option<Arc<dyn Fn(&str) -> bool + Send + Sync>>,
+    pub on_button_click: Option<ButtonClickCallback>,
     /// Callback for dialog close
     pub on_close: Option<Arc<dyn Fn(DialogResult) + Send + Sync>>,
 }
@@ -142,6 +145,7 @@ pub struct ConfirmationDialog {
     /// Current button states
     button_states: HashMap<String, ButtonState>,
     /// Currently hovered button
+    #[allow(dead_code)]
     hovered_button: Option<String>,
     /// Dialog bounds
     bounds: DialogBounds,
@@ -153,6 +157,7 @@ struct ButtonState {
     /// Whether button is focused
     focused: bool,
     /// Whether button is pressed
+    #[allow(dead_code)]
     pressed: bool,
     /// Whether button is hovered
     hovered: bool,
@@ -573,7 +578,7 @@ impl DialogComponent for ConfirmationDialog {
         }
     }
 
-    fn update(&mut self, delta_time: Duration) -> bool {
+    fn update(&mut self, _delta_time: Duration) -> bool {
         // Handle animations
         if self.state.is_animating() {
             if let Some(start_time) = self.state.animation_start {
@@ -715,19 +720,20 @@ impl ConfirmationDialog {
     }
 }
 
-impl ToString for ButtonVariant {
-    fn to_string(&self) -> String {
-        match self {
-            ButtonVariant::Primary => "primary".to_string(),
-            ButtonVariant::Secondary => "secondary".to_string(),
-            ButtonVariant::Success => "success".to_string(),
-            ButtonVariant::Warning => "warning".to_string(),
-            ButtonVariant::Danger => "danger".to_string(),
-            ButtonVariant::Info => "info".to_string(),
-            ButtonVariant::Light => "light".to_string(),
-            ButtonVariant::Dark => "dark".to_string(),
-            ButtonVariant::Custom(name) => name.clone(),
-        }
+impl std::fmt::Display for ButtonVariant {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let s = match self {
+            ButtonVariant::Primary => "primary",
+            ButtonVariant::Secondary => "secondary",
+            ButtonVariant::Success => "success",
+            ButtonVariant::Warning => "warning",
+            ButtonVariant::Danger => "danger",
+            ButtonVariant::Info => "info",
+            ButtonVariant::Light => "light",
+            ButtonVariant::Dark => "dark",
+            ButtonVariant::Custom(name) => name,
+        };
+        write!(f, "{}", s)
     }
 }
 

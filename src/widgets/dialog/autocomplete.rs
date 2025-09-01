@@ -15,6 +15,12 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
+// Type aliases for complex function pointer types
+type OnSelectCallback = Arc<dyn Fn(&str) -> bool + Send + Sync>;
+type OnChangeCallback = Arc<dyn Fn(&str) + Send + Sync>;
+type SuggestionRenderer = Arc<dyn Fn(&AutocompleteSuggestion) -> Element + Send + Sync>;
+type FilterFunction = Arc<dyn Fn(&str, &[String]) -> Vec<String> + Send + Sync>;
+
 /// Configuration options for autocomplete dialogs
 #[derive(Clone)]
 pub struct AutocompleteDialogOptions {
@@ -37,9 +43,9 @@ pub struct AutocompleteDialogOptions {
     /// Custom CSS classes
     pub css_classes: HashMap<String, String>,
     /// Callback for suggestion selection
-    pub on_select: Option<Arc<dyn Fn(&str) -> bool + Send + Sync>>,
+    pub on_select: Option<OnSelectCallback>,
     /// Callback for input change
-    pub on_change: Option<Arc<dyn Fn(&str) + Send + Sync>>,
+    pub on_change: Option<OnChangeCallback>,
     /// Callback for dialog close
     pub on_close: Option<Arc<dyn Fn(DialogResult) + Send + Sync>>,
 }
@@ -81,13 +87,13 @@ pub struct AutocompleteConfig {
     /// Static suggestions (used if no URL provided)
     pub static_suggestions: Vec<String>,
     /// Custom suggestion renderer
-    pub suggestion_renderer: Option<Arc<dyn Fn(&AutocompleteSuggestion) -> Element + Send + Sync>>,
+    pub suggestion_renderer: Option<SuggestionRenderer>,
     /// Whether to show suggestion descriptions
     pub show_descriptions: bool,
     /// Whether to highlight matching text
     pub highlight_matches: bool,
     /// Custom filter function for static suggestions
-    pub filter_function: Option<Arc<dyn Fn(&str, &[String]) -> Vec<String> + Send + Sync>>,
+    pub filter_function: Option<FilterFunction>,
 }
 
 impl std::fmt::Debug for AutocompleteConfig {
@@ -317,7 +323,7 @@ impl AutocompleteDialog {
 
     /// Trigger autocomplete suggestions
     fn trigger_autocomplete(&mut self) {
-        if let Some(url) = &self.options.autocomplete.suggestions_url {
+        if let Some(_url) = &self.options.autocomplete.suggestions_url {
             // Trigger HTTP request
             self.pending_request = true;
             self.loading = true;
@@ -590,7 +596,7 @@ impl DialogComponent for AutocompleteDialog {
         }
     }
 
-    fn update(&mut self, delta_time: Duration) -> bool {
+    fn update(&mut self, _delta_time: Duration) -> bool {
         // Handle debounced autocomplete
         if let Some(last_input) = self.last_input_time {
             if last_input.elapsed() >= self.options.autocomplete.debounce_delay
@@ -729,7 +735,10 @@ impl DialogComponent for AutocompleteDialog {
     fn get_focused_element(&self) -> Option<String> {
         if self.input_focused {
             Some("input".to_string())
-        } else { self.selected_suggestion.map(|index| format!("suggestion-{}", index)) }
+        } else {
+            self.selected_suggestion
+                .map(|index| format!("suggestion-{}", index))
+        }
     }
 
     fn validate(&self) -> super::dialog_component::ValidationResult {

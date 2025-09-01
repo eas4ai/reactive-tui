@@ -1,6 +1,15 @@
+//! Terminal escape sequence parsing and handling
+//! 
+//! This module provides parsers for various terminal escape sequences including
+//! CSI (Control Sequence Introducer), ESC codes, and OSC (Operating System Command).
+
+/// CSI (Control Sequence Introducer) sequence parsing
 pub mod csi;
+/// ESC escape code parsing and handling
 pub mod esc;
+/// OSC (Operating System Command) sequence parsing
 pub mod osc;
+/// Main escape sequence parser and state machine
 pub mod parser;
 
 use std::fmt;

@@ -14,6 +14,12 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 
+// Type aliases for complex function pointer types
+type ValidationCallback = Arc<dyn Fn(&str) -> ValidationResult + Send + Sync>;
+type OnChangeCallback = Arc<dyn Fn(&str) + Send + Sync>;
+type OnSubmitCallback = Arc<dyn Fn(&str) -> bool + Send + Sync>;
+type CustomValidatorCallback = Arc<dyn Fn(&str) -> ValidationResult + Send + Sync>;
+
 /// Configuration options for input dialogs
 #[derive(Clone)]
 pub struct InputDialogOptions {
@@ -38,11 +44,11 @@ pub struct InputDialogOptions {
     /// Custom CSS classes
     pub css_classes: HashMap<String, String>,
     /// Callback for input validation
-    pub on_validate: Option<Arc<dyn Fn(&str) -> ValidationResult + Send + Sync>>,
+    pub on_validate: Option<ValidationCallback>,
     /// Callback for input change
-    pub on_change: Option<Arc<dyn Fn(&str) + Send + Sync>>,
+    pub on_change: Option<OnChangeCallback>,
     /// Callback for dialog submit
-    pub on_submit: Option<Arc<dyn Fn(&str) -> bool + Send + Sync>>,
+    pub on_submit: Option<OnSubmitCallback>,
     /// Callback for dialog close
     pub on_close: Option<Arc<dyn Fn(DialogResult) + Send + Sync>>,
 }
@@ -119,7 +125,7 @@ pub struct ValidationConfig {
     /// URL for async validation
     pub async_validation_url: Option<String>,
     /// Custom validation function
-    pub custom_validator: Option<Arc<dyn Fn(&str) -> ValidationResult + Send + Sync>>,
+    pub custom_validator: Option<CustomValidatorCallback>,
 }
 
 impl std::fmt::Debug for ValidationConfig {
@@ -632,7 +638,7 @@ impl DialogComponent for InputDialog {
         }
     }
 
-    fn update(&mut self, delta_time: Duration) -> bool {
+    fn update(&mut self, _delta_time: Duration) -> bool {
         // Handle debounced validation
         if let Some(last_validation) = self.last_validation {
             if let Some(validation) = &self.options.validation {

@@ -136,7 +136,7 @@ impl ElementBuilder {
     }
 
     /// Add click handler - integrates with reactive-tui's event system
-    pub fn on_click<F>(self, _handler: Box<F>) -> Self
+    pub fn on_click<F>(self, _handler: F) -> Self
     where
         F: Fn() + 'static,
     {
@@ -182,7 +182,7 @@ impl From<ElementBuilder> for Element {
 }
 
 /// Convenience functions for common layout patterns
-
+///
 /// Create a full-screen container that fills the terminal
 pub fn screen() -> ElementBuilder {
     div().class("h-screen w-screen flex flex-col")
@@ -224,7 +224,7 @@ pub fn responsive_grid(cols: u8) -> ElementBuilder {
 }
 
 /// Text utility functions
-
+///
 /// Create a heading element
 pub fn h1() -> ElementBuilder {
     div().class("text-4xl font-bold")
@@ -261,7 +261,7 @@ pub fn label(content: &str) -> Element {
 }
 
 /// Integration helpers for VDOM interop
-
+///
 /// Convert a VNode to Element (re-export for convenience)
 pub fn from_vdom(vnode: crate::vdom::VNode) -> Element {
     crate::vdom::bridge::vdom_to_element(vnode)
@@ -331,7 +331,9 @@ impl MixedElementBuilder {
 
 /// Enum for mixed children types
 pub enum MixedChild {
+    /// A built Element from the builder API
     Element(Element),
+    /// A virtual DOM node from the VDOM system
     VNode(crate::vdom::VNode),
 }
 
@@ -351,12 +353,16 @@ impl From<crate::vdom::VNode> for MixedChild {
 ///
 /// Usage:
 /// ```
-/// el![
+/// use reactive_tui::el;
+/// use reactive_tui::builder::{div, span};
+/// use reactive_tui::vdom::VNode;
+///
+/// let elements = el![
 ///     div().text("Web API").build(),
 ///     VNode::text("VDOM text"),
 ///     "Just text",
 ///     span().text("More web API").build(),
-/// ]
+/// ];
 /// ```
 #[macro_export]
 macro_rules! el {
@@ -427,14 +433,18 @@ impl IntoElement for ElementBuilder {
 }
 
 /// Improved composition macros
-
+///
 /// Create a div with optional class and children
 ///
 /// Usage:
 /// ```
-/// div!["Hello"]                           // Simple text child
-/// div![class: "flex", "Hello", "World"]   // With class and multiple children
-/// div![span!["Name:"], input![]]          // Nested elements
+/// use reactive_tui::{div, span, input};
+///
+/// fn example() {
+///     let simple = div!["Hello"];                           // Simple text child
+///     let with_class = div![class: "flex", "Hello", "World"];   // With class and multiple children
+///     let nested = div![span!["Name:"], input![]];          // Nested elements
+/// }
 /// ```
 #[macro_export]
 macro_rules! div {
@@ -545,7 +555,7 @@ macro_rules! input {
 }
 
 /// Component shortcuts using existing utility CSS system
-
+///
 pub fn card(children: Vec<Element>) -> Element {
     div()
         .class("bg-white rounded-lg shadow-md border border-gray-200 p-6")

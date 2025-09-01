@@ -14,6 +14,10 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 
+// Type aliases for complex function pointer types
+type StepValidator = Arc<dyn Fn(&HashMap<String, String>) -> ValidationResult + Send + Sync>;
+type OnCompleteCallback = Arc<dyn Fn(&HashMap<String, String>) -> bool + Send + Sync>;
+
 /// Wizard step configuration
 #[derive(Clone)]
 pub struct WizardStep {
@@ -21,7 +25,7 @@ pub struct WizardStep {
     pub title: String,
     pub content: Element,
     pub can_skip: bool,
-    pub validator: Option<Arc<dyn Fn(&HashMap<String, String>) -> ValidationResult + Send + Sync>>,
+    pub validator: Option<StepValidator>,
 }
 
 /// Configuration options for wizard dialogs
@@ -31,7 +35,7 @@ pub struct WizardDialogOptions {
     pub steps: Vec<WizardStep>,
     pub show_progress: bool,
     pub allow_back: bool,
-    pub on_complete: Option<Arc<dyn Fn(&HashMap<String, String>) -> bool + Send + Sync>>,
+    pub on_complete: Option<OnCompleteCallback>,
     pub on_cancel: Option<Arc<dyn Fn() + Send + Sync>>,
 }
 
@@ -54,6 +58,7 @@ pub struct WizardDialog {
     state: BaseDialogState,
     options: WizardDialogOptions,
     current_step: usize,
+    #[allow(dead_code)]
     step_data: HashMap<String, String>,
     bounds: DialogBounds,
 }

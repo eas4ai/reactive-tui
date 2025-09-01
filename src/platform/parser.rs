@@ -949,3 +949,231 @@ impl Default for EscapeSequenceParser {
         Self::new()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parser_creation() {
+        let parser = EscapeSequenceParser::new();
+        assert_eq!(parser.buf.len(), 128);
+
+        let default_parser = EscapeSequenceParser::default();
+        assert_eq!(default_parser.buf.len(), 128);
+    }
+
+    #[test]
+    fn test_parse_result() {
+        let result = ParseResult {
+            event: None,
+            n: 0,
+        };
+        assert!(result.event.is_none());
+        assert_eq!(result.n, 0);
+    }
+
+    #[test]
+    fn test_parser_state_enum() {
+        let states = [
+            ParserState::Ground,
+            ParserState::Escape,
+            ParserState::Csi,
+            ParserState::Osc,
+            ParserState::Dcs,
+            ParserState::Sos,
+            ParserState::Pm,
+            ParserState::Apc,
+            ParserState::Ss2,
+            ParserState::Ss3,
+        ];
+
+        // Should be able to compare states
+        assert_eq!(states[0], ParserState::Ground);
+        assert_ne!(states[0], ParserState::Escape);
+    }
+
+    #[test]
+    fn test_parse_empty_input() {
+        let mut parser = EscapeSequenceParser::new();
+        let events = parser.parse(&[]);
+        assert_eq!(events.len(), 0);
+    }
+
+    #[test]
+    fn test_parse_single_character() {
+        let mut parser = EscapeSequenceParser::new();
+        let events = parser.parse(b"a");
+        assert_eq!(events.len(), 1);
+
+        if let TerminalEvent::Key { code, modifiers, kind } = &events[0] {
+            assert_eq!(*code, KeyCode::Char('a'));
+            assert_eq!(*modifiers, KeyModifiers::empty());
+            assert_eq!(*kind, KeyEventKind::Press);
+        } else {
+            panic!("Expected key event");
+        }
+    }
+
+    #[test]
+    fn test_parse_multiple_characters() {
+        let mut parser = EscapeSequenceParser::new();
+        let events = parser.parse(b"abc");
+        assert_eq!(events.len(), 3);
+
+        let expected_chars = ['a', 'b', 'c'];
+        for (i, event) in events.iter().enumerate() {
+            if let TerminalEvent::Key { code, .. } = event {
+                assert_eq!(*code, KeyCode::Char(expected_chars[i]));
+            } else {
+                panic!("Expected key event");
+            }
+        }
+    }
+
+    #[test]
+    fn test_parse_special_keys() {
+        let mut parser = EscapeSequenceParser::new();
+
+        // Test backspace
+        let events = parser.parse(&[0x08]);
+        assert_eq!(events.len(), 1);
+        if let TerminalEvent::Key { code, .. } = &events[0] {
+            assert_eq!(*code, KeyCode::Backspace);
+        }
+
+        // Test tab
+        let events = parser.parse(&[0x09]);
+        assert_eq!(events.len(), 1);
+        if let TerminalEvent::Key { code, .. } = &events[0] {
+            assert_eq!(*code, KeyCode::Tab);
+        }
+
+        // Test enter (LF)
+        let events = parser.parse(&[0x0A]);
+        assert_eq!(events.len(), 1);
+        if let TerminalEvent::Key { code, .. } = &events[0] {
+            assert_eq!(*code, KeyCode::Enter);
+        }
+
+        // Test enter (CR)
+        let events = parser.parse(&[0x0D]);
+        assert_eq!(events.len(), 1);
+        if let TerminalEvent::Key { code, .. } = &events[0] {
+            assert_eq!(*code, KeyCode::Enter);
+        }
+
+        // Test escape
+        let events = parser.parse(&[0x1B]);
+        assert_eq!(events.len(), 1);
+        if let TerminalEvent::Key { code, .. } = &events[0] {
+            assert_eq!(*code, KeyCode::Escape);
+        }
+
+        // Test DEL
+        let events = parser.parse(&[0x7F]);
+        assert_eq!(events.len(), 1);
+        if let TerminalEvent::Key { code, .. } = &events[0] {
+            assert_eq!(*code, KeyCode::Backspace);
+        }
+    }
+
+    #[test]
+    fn test_parse_ctrl_combinations() {
+        let mut parser = EscapeSequenceParser::new();
+
+        // Test Ctrl+A (0x01)
+        let events = parser.parse(&[0x01]);
+        assert_eq!(events.len(), 1);
+        if let TerminalEvent::Key { code, modifiers, .. } = &events[0] {
+            assert_eq!(*code, KeyCode::Char('a'));
+            assert!(modifiers.ctrl);
+        }
+
+        // Test Ctrl+Z (0x1A)
+        let events = parser.parse(&[0x1A]);
+        assert_eq!(events.len(), 1);
+        if let TerminalEvent::Key { code, modifiers, .. } = &events[0] {
+            assert_eq!(*code, KeyCode::Char('z'));
+            assert!(modifiers.ctrl);
+        }
+
+        // Test Ctrl+@ (0x00)
+        let events = parser.parse(&[0x00]);
+        assert_eq!(events.len(), 1);
+        if let TerminalEvent::Key { code, modifiers, .. } = &events[0] {
+            assert_eq!(*code, KeyCode::Char('@'));
+            assert!(modifiers.ctrl);
+        }
+    }
+
+    #[test]
+    fn test_parse_alt_combinations() {
+        let mut parser = EscapeSequenceParser::new();
+
+        // Test Alt+A (ESC + A)
+        let events = parser.parse(&[0x1B, b'a']);
+        assert_eq!(events.len(), 1);
+        if let TerminalEvent::Key { code, modifiers, .. } = &events[0] {
+            assert_eq!(*code, KeyCode::Char('a'));
+            assert!(modifiers.alt);
+            assert!(!modifiers.ctrl);
+        }
+
+        // Test Alt+1 (ESC + 1)
+        let events = parser.parse(&[0x1B, b'1']);
+        assert_eq!(events.len(), 1);
+        if let TerminalEvent::Key { code, modifiers, .. } = &events[0] {
+            assert_eq!(*code, KeyCode::Char('1'));
+            assert!(modifiers.alt);
+        }
+    }
+
+    #[test]
+    fn test_parse_utf8_characters() {
+        let mut parser = EscapeSequenceParser::new();
+
+        // Test UTF-8 character (é)
+        let utf8_bytes = "é".as_bytes();
+        let events = parser.parse(utf8_bytes);
+        assert_eq!(events.len(), 1);
+        if let TerminalEvent::Key { code, .. } = &events[0] {
+            assert_eq!(*code, KeyCode::Char('é'));
+        }
+
+        // Test emoji (🚀)
+        let emoji_bytes = "🚀".as_bytes();
+        let events = parser.parse(emoji_bytes);
+        assert_eq!(events.len(), 1);
+        if let TerminalEvent::Key { code, .. } = &events[0] {
+            assert_eq!(*code, KeyCode::Char('🚀'));
+        }
+    }
+
+    #[test]
+    fn test_parse_mixed_input() {
+        let mut parser = EscapeSequenceParser::new();
+
+        // Mix of regular chars, special keys, and escape sequences
+        let input = b"a\x08b\x09c";
+        let events = parser.parse(input);
+        assert_eq!(events.len(), 5);
+
+        // Should be: 'a', Backspace, 'b', Tab, 'c'
+        if let TerminalEvent::Key { code, .. } = &events[0] {
+            assert_eq!(*code, KeyCode::Char('a'));
+        }
+        if let TerminalEvent::Key { code, .. } = &events[1] {
+            assert_eq!(*code, KeyCode::Backspace);
+        }
+        if let TerminalEvent::Key { code, .. } = &events[2] {
+            assert_eq!(*code, KeyCode::Char('b'));
+        }
+        if let TerminalEvent::Key { code, .. } = &events[3] {
+            assert_eq!(*code, KeyCode::Tab);
+        }
+        if let TerminalEvent::Key { code, .. } = &events[4] {
+            assert_eq!(*code, KeyCode::Char('c'));
+        }
+    }
+}

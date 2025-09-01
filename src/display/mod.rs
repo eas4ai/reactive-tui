@@ -1,5 +1,13 @@
+//! Display utilities and performance monitoring
+//! 
+//! This module provides tools for adaptive rendering, terminal capability detection,
+//! and performance monitoring to optimize the display output.
+
+/// Adaptive frame rate management for optimal performance
 pub mod adaptive;
+/// Terminal display capabilities detection
 pub mod capabilities;
+/// Performance monitoring and metrics collection
 pub mod monitor;
 
 pub use adaptive::{AdaptiveConfig, AdaptiveFpsManager};

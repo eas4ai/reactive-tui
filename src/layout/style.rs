@@ -1018,3 +1018,358 @@ impl StyleBuilder {
         self.style
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use taffy::style::Display;
+
+    #[test]
+    fn test_text_decorations_default() {
+        let decorations = TextDecorations::default();
+        assert!(!decorations.bold);
+        assert!(!decorations.italic);
+        assert!(!decorations.underline);
+        assert!(!decorations.reverse);
+    }
+
+    #[test]
+    fn test_text_decorations_creation() {
+        let decorations = TextDecorations {
+            bold: true,
+            italic: false,
+            underline: true,
+            reverse: false,
+        };
+        assert!(decorations.bold);
+        assert!(!decorations.italic);
+        assert!(decorations.underline);
+        assert!(!decorations.reverse);
+    }
+
+    #[test]
+    fn test_visual_style_default() {
+        let style = VisualStyle::default();
+        assert_eq!(style.fg, RgbaColor::default());
+        assert_eq!(style.bg, RgbaColor::default());
+        assert_eq!(style.decorations, TextDecorations::default());
+    }
+
+    #[test]
+    fn test_visual_style_creation() {
+        let fg = RgbaColor { r: 1.0, g: 0.0, b: 0.0, a: 1.0 };
+        let bg = RgbaColor { r: 0.0, g: 1.0, b: 0.0, a: 1.0 };
+        let decorations = TextDecorations { bold: true, italic: true, underline: false, reverse: false };
+
+        let style = VisualStyle { fg, bg, decorations };
+        assert_eq!(style.fg, fg);
+        assert_eq!(style.bg, bg);
+        assert_eq!(style.decorations, decorations);
+    }
+
+    #[test]
+    fn test_box_spacing_new() {
+        let spacing = BoxSpacing::new(1.0, 2.0, 3.0, 4.0);
+        assert_eq!(spacing.left, 1.0);
+        assert_eq!(spacing.right, 2.0);
+        assert_eq!(spacing.top, 3.0);
+        assert_eq!(spacing.bottom, 4.0);
+    }
+
+    #[test]
+    fn test_box_spacing_uniform() {
+        let spacing = BoxSpacing::uniform(5.0);
+        assert_eq!(spacing.left, 5.0);
+        assert_eq!(spacing.right, 5.0);
+        assert_eq!(spacing.top, 5.0);
+        assert_eq!(spacing.bottom, 5.0);
+    }
+
+    #[test]
+    fn test_box_spacing_symmetric() {
+        let spacing = BoxSpacing::symmetric(10.0, 20.0);
+        assert_eq!(spacing.left, 10.0);
+        assert_eq!(spacing.right, 10.0);
+        assert_eq!(spacing.top, 20.0);
+        assert_eq!(spacing.bottom, 20.0);
+    }
+
+    #[test]
+    fn test_box_spacing_calculations() {
+        let spacing = BoxSpacing::new(1.0, 2.0, 3.0, 4.0);
+        assert_eq!(spacing.horizontal(), 3.0); // left + right
+        assert_eq!(spacing.vertical(), 7.0);   // top + bottom
+    }
+
+    #[test]
+    fn test_direction_enum() {
+        // Test that all direction variants exist and are different
+        assert_ne!(Direction::Row, Direction::Column);
+        assert_ne!(Direction::Row, Direction::RowReverse);
+        assert_ne!(Direction::Column, Direction::ColumnReverse);
+    }
+
+    #[test]
+    fn test_justify_content_enum() {
+        // Test that all justify content variants exist
+        let variants = [
+            JustifyContent::Start,
+            JustifyContent::Center,
+            JustifyContent::End,
+            JustifyContent::SpaceBetween,
+            JustifyContent::SpaceAround,
+            JustifyContent::SpaceEvenly,
+        ];
+
+        // All should be different
+        for (i, variant1) in variants.iter().enumerate() {
+            for (j, variant2) in variants.iter().enumerate() {
+                if i != j {
+                    assert_ne!(variant1, variant2);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_align_items_enum() {
+        let variants = [
+            AlignItems::Start,
+            AlignItems::Center,
+            AlignItems::End,
+            AlignItems::Stretch,
+            AlignItems::Baseline,
+        ];
+
+        // All should be different
+        for (i, variant1) in variants.iter().enumerate() {
+            for (j, variant2) in variants.iter().enumerate() {
+                if i != j {
+                    assert_ne!(variant1, variant2);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_grid_auto_flow_to_taffy() {
+        assert_eq!(GridAutoFlow::Row.to_taffy(), TGridAutoFlow::Row);
+        assert_eq!(GridAutoFlow::Column.to_taffy(), TGridAutoFlow::Column);
+        assert_eq!(GridAutoFlow::RowDense.to_taffy(), TGridAutoFlow::RowDense);
+        assert_eq!(GridAutoFlow::ColumnDense.to_taffy(), TGridAutoFlow::ColumnDense);
+    }
+
+    #[test]
+    fn test_style_builder_new() {
+        let builder = StyleBuilder::new();
+        assert_eq!(builder.style.display, Display::Flex); // Default display
+        assert!(!builder.bold);
+        assert!(!builder.italic);
+        assert!(!builder.underline);
+        assert!(!builder.reverse);
+        assert!(!builder.strike);
+    }
+
+    #[test]
+    fn test_style_builder_display() {
+        let style = StyleBuilder::new().display_flex().build();
+        assert_eq!(style.display, Display::Flex);
+
+        let style = StyleBuilder::new().display_grid().build();
+        assert_eq!(style.display, Display::Grid);
+    }
+
+    #[test]
+    fn test_style_builder_direction() {
+        let style = StyleBuilder::new().direction(Direction::Row).build();
+        assert_eq!(style.flex_direction, FlexDirection::Row);
+
+        let style = StyleBuilder::new().direction(Direction::Column).build();
+        assert_eq!(style.flex_direction, FlexDirection::Column);
+
+        let style = StyleBuilder::new().direction(Direction::RowReverse).build();
+        assert_eq!(style.flex_direction, FlexDirection::RowReverse);
+
+        let style = StyleBuilder::new().direction(Direction::ColumnReverse).build();
+        assert_eq!(style.flex_direction, FlexDirection::ColumnReverse);
+    }
+
+    #[test]
+    fn test_style_builder_size_px() {
+        let style = StyleBuilder::new().size_px(Some(100.0), Some(200.0)).build();
+        assert_eq!(style.size.width, Dimension::length(100.0));
+        assert_eq!(style.size.height, Dimension::length(200.0));
+
+        // Test partial sizing
+        let style = StyleBuilder::new().size_px(Some(50.0), None).build();
+        assert_eq!(style.size.width, Dimension::length(50.0));
+        assert_eq!(style.size.height, Dimension::auto()); // Should remain default
+    }
+
+    #[test]
+    fn test_style_builder_grid_setup() {
+        let style = StyleBuilder::new()
+            .grid_cols(3)
+            .grid_rows(2)
+            .build();
+
+        assert_eq!(style.display, Display::Grid);
+        assert_eq!(style.grid_template_columns.len(), 3);
+        assert_eq!(style.grid_template_rows.len(), 2);
+    }
+
+    #[test]
+    fn test_style_builder_grid_placement() {
+        let style = StyleBuilder::new()
+            .col_span(2)
+            .row_span(3)
+            .build();
+
+        // Grid placement should be set
+        assert!(matches!(style.grid_column.start, GridPlacement::Span(_)));
+        assert!(matches!(style.grid_row.start, GridPlacement::Span(_)));
+    }
+
+    #[test]
+    fn test_style_builder_grid_positioning() {
+        let style = StyleBuilder::new()
+            .col_start(1)
+            .col_end(3)
+            .row_start(2)
+            .row_end(4)
+            .build();
+
+        // Grid positioning should be set
+        assert!(matches!(style.grid_column.start, GridPlacement::Line(_)));
+        assert!(matches!(style.grid_column.end, GridPlacement::Line(_)));
+        assert!(matches!(style.grid_row.start, GridPlacement::Line(_)));
+        assert!(matches!(style.grid_row.end, GridPlacement::Line(_)));
+    }
+
+    #[test]
+    fn test_style_builder_chaining() {
+        let style = StyleBuilder::new()
+            .display_flex()
+            .direction(Direction::Column)
+            .size_px(Some(100.0), Some(200.0))
+            .build();
+
+        assert_eq!(style.display, Display::Flex);
+        assert_eq!(style.flex_direction, FlexDirection::Column);
+        assert_eq!(style.size.width, Dimension::length(100.0));
+        assert_eq!(style.size.height, Dimension::length(200.0));
+    }
+
+    #[test]
+    fn test_style_builder_grid_auto_flow() {
+        let mut builder = StyleBuilder::new();
+        builder.grid_auto_flow = Some(GridAutoFlow::Column);
+        let style = builder.build();
+
+        assert_eq!(style.grid_auto_flow, TGridAutoFlow::Column);
+    }
+
+    #[test]
+    fn test_place_items_enum() {
+        let variants = [
+            PlaceItems::Start,
+            PlaceItems::Center,
+            PlaceItems::End,
+            PlaceItems::Stretch,
+        ];
+
+        // All should be different
+        for (i, variant1) in variants.iter().enumerate() {
+            for (j, variant2) in variants.iter().enumerate() {
+                if i != j {
+                    assert_ne!(variant1, variant2);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_align_self_enum() {
+        let variants = [
+            AlignSelf::Auto,
+            AlignSelf::Start,
+            AlignSelf::Center,
+            AlignSelf::End,
+            AlignSelf::Stretch,
+        ];
+
+        // All should be different
+        for (i, variant1) in variants.iter().enumerate() {
+            for (j, variant2) in variants.iter().enumerate() {
+                if i != j {
+                    assert_ne!(variant1, variant2);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_style_builder_default_values() {
+        let builder = StyleBuilder::new();
+
+        // Test that optional fields start as None
+        assert!(builder.grid_cols.is_none());
+        assert!(builder.grid_rows.is_none());
+        assert!(builder.grid_auto_flow.is_none());
+        assert!(builder.col_span.is_none());
+        assert!(builder.row_span.is_none());
+        assert!(builder.fg_rgba.is_none());
+        assert!(builder.bg_rgba.is_none());
+        assert!(builder.opacity.is_none());
+        assert!(builder.z_index.is_none());
+
+        // Test boolean flags
+        assert!(!builder.bold);
+        assert!(!builder.italic);
+        assert!(!builder.underline);
+        assert!(!builder.reverse);
+        assert!(!builder.strike);
+    }
+
+    #[test]
+    fn test_box_spacing_edge_cases() {
+        // Test with zero values
+        let spacing = BoxSpacing::uniform(0.0);
+        assert_eq!(spacing.horizontal(), 0.0);
+        assert_eq!(spacing.vertical(), 0.0);
+
+        // Test with negative values (should be allowed)
+        let spacing = BoxSpacing::new(-1.0, -2.0, -3.0, -4.0);
+        assert_eq!(spacing.horizontal(), -3.0);
+        assert_eq!(spacing.vertical(), -7.0);
+
+        // Test with large values
+        let spacing = BoxSpacing::uniform(1000.0);
+        assert_eq!(spacing.horizontal(), 2000.0);
+        assert_eq!(spacing.vertical(), 2000.0);
+    }
+
+    #[test]
+    fn test_visual_style_equality() {
+        let style1 = VisualStyle {
+            fg: RgbaColor { r: 1.0, g: 0.0, b: 0.0, a: 1.0 },
+            bg: RgbaColor { r: 0.0, g: 1.0, b: 0.0, a: 1.0 },
+            decorations: TextDecorations { bold: true, italic: false, underline: true, reverse: false },
+        };
+
+        let style2 = VisualStyle {
+            fg: RgbaColor { r: 1.0, g: 0.0, b: 0.0, a: 1.0 },
+            bg: RgbaColor { r: 0.0, g: 1.0, b: 0.0, a: 1.0 },
+            decorations: TextDecorations { bold: true, italic: false, underline: true, reverse: false },
+        };
+
+        let style3 = VisualStyle {
+            fg: RgbaColor { r: 0.0, g: 0.0, b: 1.0, a: 1.0 }, // Different color
+            bg: RgbaColor { r: 0.0, g: 1.0, b: 0.0, a: 1.0 },
+            decorations: TextDecorations { bold: true, italic: false, underline: true, reverse: false },
+        };
+
+        assert_eq!(style1, style2);
+        assert_ne!(style1, style3);
+    }
+}

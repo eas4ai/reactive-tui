@@ -94,12 +94,19 @@ pub enum Change {
 /// Text attributes that can be enabled/disabled
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TextAttribute {
+    /// Bold text weight
     Bold,
+    /// Italic text style
     Italic,
+    /// Underlined text
     Underline,
+    /// Strikethrough text
     Strike,
+    /// Reversed foreground/background colors
     Reverse,
+    /// Dimmed text intensity
     Dim,
+    /// Blinking text (if supported by terminal)
     Blink,
 }
 

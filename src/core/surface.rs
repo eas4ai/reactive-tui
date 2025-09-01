@@ -1385,6 +1385,7 @@ impl Surface {
     }
 
     /// Place an image across multiple cells
+    #[allow(clippy::too_many_arguments)]
     pub fn place_image_region(
         &mut self,
         start_x: usize,

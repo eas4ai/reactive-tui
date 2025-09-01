@@ -20,28 +20,28 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 text: Some("🔒 Overflow Demo".into()),
                 children: vec![],
             },
-            
+
             // Container with overflow:hidden
             NodeSpec {
                 class: "w-20 h-3 overflow-hidden bg-gray-800 p-1".into(),
                 text: Some("This is a very long text that should be clipped by overflow:hidden because it exceeds the container width".into()),
                 children: vec![],
             },
-            
+
             // Container with overflow:visible (default)
             NodeSpec {
                 class: "w-20 h-3 overflow-visible bg-gray-700 p-1".into(),
                 text: Some("This text should overflow normally without clipping".into()),
                 children: vec![],
             },
-            
+
             // Container with overflow-x:hidden
             NodeSpec {
                 class: "w-15 h-4 overflow-x-hidden bg-gray-600 p-1".into(),
                 text: Some("Horizontal overflow should be clipped but vertical should be normal".into()),
                 children: vec![],
             },
-            
+
             // Container with overflow-y:hidden
             NodeSpec {
                 class: "w-30 h-2 overflow-y-hidden bg-gray-500 p-1".into(),

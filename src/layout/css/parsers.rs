@@ -47,6 +47,60 @@ pub fn parse_spacing(token: &str, prefix: &str) -> Option<f32> {
             "72" => Some(288.0),
             "80" => Some(320.0),
             "96" => Some(384.0),
+            _ => None  // No fallback for standard spacing - must match Tailwind scale
+        }
+    })
+}
+
+/// Parse spacing values for terminal dimensions (width/height)
+/// In terminal context, we want direct character cell mapping
+pub fn parse_spacing_terminal(token: &str, prefix: &str) -> Option<f32> {
+    token.strip_prefix(prefix).and_then(|n| {
+        // Always treat as character cells for terminal dimensions
+        n.parse::<f32>().ok()
+    })
+}
+
+/// Parse Tailwind spacing scale values with standard pixel mapping
+/// Maps Tailwind spacing to pixel values: 0, 0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 16, 20, 24, 28, 32, 36, 40, 44, 48, 52, 56, 60, 64, 72, 80, 96
+#[allow(dead_code)]
+pub fn parse_spacing_pixels(token: &str, prefix: &str) -> Option<f32> {
+    token.strip_prefix(prefix).and_then(|n| {
+        match n {
+            "0" => Some(0.0),
+            "0.5" => Some(2.0),
+            "1" => Some(4.0),
+            "1.5" => Some(6.0),
+            "2" => Some(8.0),
+            "2.5" => Some(10.0),
+            "3" => Some(12.0),
+            "3.5" => Some(14.0),
+            "4" => Some(16.0),
+            "5" => Some(20.0),
+            "6" => Some(24.0),
+            "7" => Some(28.0),
+            "8" => Some(32.0),
+            "9" => Some(36.0),
+            "10" => Some(40.0),
+            "11" => Some(44.0),
+            "12" => Some(48.0),
+            "14" => Some(56.0),
+            "16" => Some(64.0),
+            "20" => Some(80.0),
+            "24" => Some(96.0),
+            "28" => Some(112.0),
+            "32" => Some(128.0),
+            "36" => Some(144.0),
+            "40" => Some(160.0),
+            "44" => Some(176.0),
+            "48" => Some(192.0),
+            "52" => Some(208.0),
+            "56" => Some(224.0),
+            "60" => Some(240.0),
+            "64" => Some(256.0),
+            "72" => Some(288.0),
+            "80" => Some(320.0),
+            "96" => Some(384.0),
             _ => n.parse::<f32>().ok().map(|v| v * 4.0), // Fallback: treat as rem * 16px
         }
     })
@@ -153,11 +207,32 @@ mod tests {
 
     #[test]
     fn test_parse_spacing() {
+        // Standard Tailwind scale for padding/margin
         assert_eq!(parse_spacing("p-0", "p-"), Some(0.0));
         assert_eq!(parse_spacing("p-4", "p-"), Some(16.0));
         assert_eq!(parse_spacing("m-8", "m-"), Some(32.0));
         assert_eq!(parse_spacing("gap-12", "gap-"), Some(48.0));
         assert_eq!(parse_spacing("p-invalid", "p-"), None);
+    }
+    
+    #[test]
+    fn test_parse_spacing_terminal() {
+        // Terminal spacing for width/height (direct character cells)
+        assert_eq!(parse_spacing_terminal("w-0", "w-"), Some(0.0));
+        assert_eq!(parse_spacing_terminal("w-5", "w-"), Some(5.0));
+        assert_eq!(parse_spacing_terminal("h-10", "h-"), Some(10.0));
+        assert_eq!(parse_spacing_terminal("w-20", "w-"), Some(20.0));
+        assert_eq!(parse_spacing_terminal("w-invalid", "w-"), None);
+    }
+    
+    #[test]
+    fn test_parse_spacing_pixels() {
+        // The pixel version uses standard Tailwind scale
+        assert_eq!(parse_spacing_pixels("p-0", "p-"), Some(0.0));
+        assert_eq!(parse_spacing_pixels("p-4", "p-"), Some(16.0));
+        assert_eq!(parse_spacing_pixels("m-8", "m-"), Some(32.0));
+        assert_eq!(parse_spacing_pixels("gap-12", "gap-"), Some(48.0));
+        assert_eq!(parse_spacing_pixels("p-invalid", "p-"), None);
     }
 
     #[test]

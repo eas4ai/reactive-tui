@@ -70,6 +70,31 @@ pub fn apply_align_items(token: &str, sb: StyleBuilder) -> Option<StyleBuilder> 
     }
 }
 
+/// Apply align-self utilities (for individual item alignment override)
+pub fn apply_align_self(token: &str, sb: StyleBuilder) -> Option<StyleBuilder> {
+    use crate::layout::style::AlignSelf;
+    match token {
+        "self-auto" => Some(sb.align_self(AlignSelf::Auto)),
+        "self-start" => Some(sb.align_self(AlignSelf::Start)),
+        "self-end" => Some(sb.align_self(AlignSelf::End)),
+        "self-center" => Some(sb.align_self(AlignSelf::Center)),
+        "self-stretch" => Some(sb.align_self(AlignSelf::Stretch)),
+        _ => None,
+    }
+}
+
+/// Apply place-items utilities (shorthand for align-items + justify-items)
+/// In flexbox context, this sets both align-items and justify-content
+pub fn apply_place_items(token: &str, sb: StyleBuilder) -> Option<StyleBuilder> {
+    match token {
+        "place-items-start" => Some(sb.align_items(AlignItems::Start).justify_content(JustifyContent::Start)),
+        "place-items-end" => Some(sb.align_items(AlignItems::End).justify_content(JustifyContent::End)),
+        "place-items-center" => Some(sb.align_items(AlignItems::Center).justify_content(JustifyContent::Center)),
+        "place-items-stretch" => Some(sb.align_items(AlignItems::Stretch).justify_content(JustifyContent::Start)),
+        _ => None,
+    }
+}
+
 /// Apply grid utilities
 pub fn apply_grid(token: &str, sb: StyleBuilder) -> Option<StyleBuilder> {
     // Grid template columns
@@ -394,6 +419,16 @@ pub fn apply_layout_utilities(token: &str, sb: StyleBuilder) -> Option<StyleBuil
 
     // Try align-items
     if let Some(result) = apply_align_items(token, sb.clone()) {
+        return Some(result);
+    }
+
+    // Try align-self utilities
+    if let Some(result) = apply_align_self(token, sb.clone()) {
+        return Some(result);
+    }
+
+    // Try place-items utilities
+    if let Some(result) = apply_place_items(token, sb.clone()) {
         return Some(result);
     }
 

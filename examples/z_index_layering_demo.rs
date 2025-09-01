@@ -2,7 +2,7 @@
 //!
 //! Demonstrates proper z-index layering for:
 //! - Modals and overlays
-//! - Popovers and dropdowns  
+//! - Popovers and dropdowns
 //! - Tooltips and notifications
 //! - Sticky headers and sidebars
 
@@ -76,7 +76,7 @@ impl LayeringDemoApp {
                         p().class("text-gray-600").text("Proper layering for modals, popovers, and overlays").build(),
                     ])
                     .build(),
-                
+
                 // Main content
                 div()
                     .class("relative z-0 space-y-4")
@@ -89,7 +89,7 @@ impl LayeringDemoApp {
                                     .class("px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700")
                                     .text("Show Modal (z-50)")
                                     .build(),
-                                
+
                                 div()
                                     .class("relative")
                                     .children(vec![
@@ -99,17 +99,17 @@ impl LayeringDemoApp {
                                             .build(),
                                     ])
                                     .build(),
-                                
+
                                 button()
                                     .class("px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700")
                                     .text("Show Popover (z-20)")
                                     .build(),
                             ])
                             .build(),
-                        
+
                         // Content cards
                         self.render_content_cards(),
-                        
+
                         // Sidebar (z-10)
                         div()
                             .class("absolute z-10 right-0 top-20 w-64 bg-white shadow-lg p-4")
@@ -223,9 +223,9 @@ impl LayeringDemoApp {
                                 button().class("text-gray-400 hover:text-gray-600 text-xl").text("×").build(),
                             ])
                             .build(),
-                        
+
                         p().class("text-gray-600 mb-6").text("This modal appears above everything else, including the backdrop at z-40.").build(),
-                        
+
                         div()
                             .class("flex gap-3 justify-end")
                             .children(vec![

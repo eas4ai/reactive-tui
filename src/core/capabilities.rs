@@ -31,13 +31,22 @@ pub struct TerminalCapabilities {
     pub synchronized_output: bool,
 }
 
+/// Terminal color depth capabilities
+/// 
+/// Represents the color support level of the terminal, from monochrome
+/// to full 24-bit true color support.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum ColorDepth {
+    /// Color depth is unknown - defaults to 16 colors as safe fallback
     #[default]
     Unknown,
+    /// Monochrome terminal - supports only 2 colors (black and white)
     Monochrome,
+    /// Basic 16-color support (8 colors + bright variants)
     Colors16,
+    /// Extended 256-color palette support
     Colors256,
+    /// Full 24-bit RGB true color support (16.7 million colors)
     TrueColor,
 }
 
@@ -81,6 +90,10 @@ impl Default for TerminalQuery {
 }
 
 impl TerminalQuery {
+    /// Create a new terminal query with default timeout
+    ///
+    /// # Returns
+    /// A new `TerminalQuery` with 100ms timeout
     pub fn new() -> Self {
         Self {
             timeout: Duration::from_millis(100),

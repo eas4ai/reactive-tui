@@ -509,18 +509,34 @@ impl EasingFunction {
         EasingFunction::EaseOutCubic
     }
 
+    /// Create a bouncy easing preset
+    ///
+    /// # Returns
+    /// An ease-out bounce easing function
     pub fn preset_bouncy() -> EasingFunction {
         EasingFunction::EaseOutBounce
     }
 
+    /// Create an elastic easing preset
+    ///
+    /// # Returns
+    /// An ease-out elastic easing function
     pub fn preset_elastic() -> EasingFunction {
         EasingFunction::EaseOutElastic
     }
 
+    /// Create a spring easing preset
+    ///
+    /// # Returns
+    /// A gentle spring easing function
     pub fn preset_spring() -> EasingFunction {
         EasingFunction::SpringGentle
     }
 
+    /// Create a dramatic easing preset
+    ///
+    /// # Returns
+    /// A dramatic spring easing function
     pub fn preset_dramatic() -> EasingFunction {
         EasingFunction::SpringDramatic
     }

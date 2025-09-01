@@ -47,8 +47,7 @@ pub enum TransmitMedium {
 }
 
 /// Image scaling modes
-#[derive(Debug, Clone, Copy, PartialEq)]
-#[derive(Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub enum ScaleMode {
     /// No scaling applied
     #[default]
@@ -60,7 +59,6 @@ pub enum ScaleMode {
     /// Scale to fit window, only if needed
     Contain,
 }
-
 
 /// Image placement options
 #[derive(Debug, Clone, Default)]
@@ -512,11 +510,12 @@ fn detect_jpeg_dimensions(data: &[u8]) -> Result<(u32, u32)> {
 
             // SOF markers (Start of Frame) contain image dimensions
             if matches!(marker, 0xC0..=0xC3 | 0xC5..=0xC7 | 0xC9..=0xCB | 0xCD..=0xCF)
-                && i + 7 < data.len() {
-                    let height = ((data[i + 5] as u32) << 8) | (data[i + 6] as u32);
-                    let width = ((data[i + 7] as u32) << 8) | (data[i + 8] as u32);
-                    return Ok((width, height));
-                }
+                && i + 7 < data.len()
+            {
+                let height = ((data[i + 5] as u32) << 8) | (data[i + 6] as u32);
+                let width = ((data[i + 7] as u32) << 8) | (data[i + 8] as u32);
+                return Ok((width, height));
+            }
 
             i += length as usize + 2;
         } else {

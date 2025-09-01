@@ -169,6 +169,10 @@ impl BorderGlyphs {
     const SINGLE_ROUNDED: [&'static str; 6] = ["╭", "─", "╮", "│", "╯", "╰"];
     const SINGLE_SQUARE: [&'static str; 6] = ["┌", "─", "┐", "│", "┘", "└"];
 
+    /// Get the glyph characters for this border style
+    ///
+    /// # Returns
+    /// Array of 6 glyph strings: [top_left, horizontal, top_right, vertical, bottom_right, bottom_left]
     pub fn glyphs(&self) -> [&'static str; 6] {
         match self {
             BorderGlyphs::SingleRounded => Self::SINGLE_ROUNDED,
@@ -768,7 +772,7 @@ impl Window {
 
     /// Print a single segment (convenience method)
     pub fn print_segment(&self, segment: &Segment, opts: PrintOptions) -> PrintResult {
-        self.print(&[segment.clone()], opts)
+        self.print(std::slice::from_ref(segment), opts)
     }
 
     /// Scroll the window down n rows (shifts content up)

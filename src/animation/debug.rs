@@ -70,55 +70,84 @@ pub enum DebugVerbosity {
 pub enum DebugEvent {
     /// Animation started
     AnimationStarted {
+        /// Unique identifier for the animation
         id: AnimationId,
+        /// Time when the animation started
         timestamp: Duration,
+        /// Debug configuration information
         config: AnimationDebugInfo,
     },
     /// Animation updated
     AnimationUpdated {
+        /// Unique identifier for the animation
         id: AnimationId,
+        /// Time when the update occurred
         timestamp: Duration,
+        /// Current animation progress (0.0 to 1.0)
         progress: f32,
+        /// Current interpolated values
         current_values: Option<AnimatedValue>,
+        /// Time taken for this frame
         frame_time: Duration,
     },
     /// Animation completed
     AnimationCompleted {
+        /// Unique identifier for the animation
         id: AnimationId,
+        /// Time when the animation completed
         timestamp: Duration,
+        /// Total time the animation ran
         total_duration: Duration,
+        /// Number of loops completed
         loops_completed: u32,
     },
     /// Animation paused
     AnimationPaused {
+        /// Unique identifier for the animation
         id: AnimationId,
+        /// Time when the animation was paused
         timestamp: Duration,
+        /// Progress when paused (0.0 to 1.0)
         progress: f32,
     },
     /// Animation stopped
     AnimationStopped {
+        /// Unique identifier for the animation
         id: AnimationId,
+        /// Time when the animation was stopped
         timestamp: Duration,
+        /// Reason for stopping
         reason: StopReason,
     },
     /// Timeline event
     TimelineEvent {
+        /// Unique identifier for the timeline
         timeline_id: TimelineId,
+        /// Type of timeline event
         event_type: TimelineEventType,
+        /// Time when the event occurred
         timestamp: Duration,
+        /// Number of animations in the timeline
         animation_count: usize,
     },
     /// Performance warning
     PerformanceWarning {
+        /// Time when the warning occurred
         timestamp: Duration,
+        /// Type of performance warning
         warning_type: PerformanceWarningType,
+        /// Additional details about the warning
         details: String,
     },
     /// Error occurred
     Error {
+        /// Time when the error occurred
         timestamp: Duration,
+        /// Type of animation error
         error_type: AnimationErrorType,
+        /// Error message
         message: String,
+        /// Optional animation ID associated with the error
         animation_id: Option<AnimationId>,
     },
 }
@@ -126,10 +155,15 @@ pub enum DebugEvent {
 /// Simplified animation configuration for debugging
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct AnimationDebugInfo {
+    /// Animation duration
     pub duration: Duration,
+    /// Easing function used
     pub easing: EasingFunction,
+    /// Delay before animation starts
     pub delay: Duration,
+    /// Whether animation starts automatically
     pub auto_play: bool,
+    /// Animation playback speed multiplier
     pub speed: f32,
 }
 
@@ -149,11 +183,17 @@ pub enum StopReason {
 /// Timeline event types
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum TimelineEventType {
+    /// Timeline was started
     Started,
+    /// Timeline was paused
     Paused,
+    /// Timeline was stopped
     Stopped,
+    /// Animation was added to timeline
     AnimationAdded,
+    /// Animation was removed from timeline
     AnimationRemoved,
+    /// Timeline sequence advanced to next step
     SequenceAdvanced,
 }
 
@@ -226,24 +266,38 @@ impl Default for DebugPerformanceMetrics {
 /// Animation state snapshot for debugging
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct AnimationSnapshot {
+    /// Unique identifier for the animation
     pub id: AnimationId,
+    /// Current animation state
     pub state: AnimationState,
+    /// Current progress (0.0 to 1.0)
     pub progress: f32,
+    /// Current elapsed time
     pub current_time: Duration,
+    /// Number of loops completed
     pub loops_completed: u32,
+    /// Whether animation is currently reversed
     pub is_reversed: bool,
+    /// Current interpolated values
     pub current_values: Option<AnimatedValue>,
+    /// Animation configuration
     pub config: AnimationDebugInfo,
 }
 
 /// Timeline state snapshot for debugging
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct TimelineSnapshot {
+    /// Unique identifier for the timeline
     pub id: TimelineId,
+    /// Current timeline state
     pub state: AnimationState,
+    /// Whether animations run sequentially
     pub sequential: bool,
+    /// Current animation index in sequence
     pub current_index: usize,
+    /// Total number of animations
     pub animation_count: usize,
+    /// Snapshots of all animations in timeline
     pub animations: Vec<AnimationSnapshot>,
 }
 
@@ -731,12 +785,19 @@ impl AnimationDebugger {
 /// Debug report containing all debugging information
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct DebugReport {
+    /// Debug configuration settings
     pub config: DebugConfig,
+    /// Performance metrics and statistics
     pub performance: DebugPerformanceMetrics,
+    /// Total number of debug events recorded
     pub event_count: usize,
+    /// Total number of animations tracked
     pub animation_count: usize,
+    /// Total number of timelines tracked
     pub timeline_count: usize,
+    /// Total uptime of the debug session
     pub uptime: Duration,
+    /// All recorded debug events
     pub events: Vec<DebugEvent>,
 }
 

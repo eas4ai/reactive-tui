@@ -21,11 +21,18 @@ pub enum ElementType {
     Empty,
 }
 
+/// Layout type for container elements
+/// 
+/// Determines how child elements are arranged within a container.
 #[derive(Debug, Clone, PartialEq)]
 pub enum LayoutType {
+    /// Flexbox layout - arranges children in a flexible row or column
     Flex,
+    /// CSS Grid layout - arranges children in a two-dimensional grid
     Grid,
+    /// Stack layout - layers children on top of each other (z-axis)
     Stack,
+    /// Absolute positioning - positions children at specific coordinates
     Absolute,
 }
 
@@ -184,8 +191,9 @@ impl Element {
     }
 
     /// Builder method to set children (replaces existing)
-    pub fn children(self, children: Vec<Element>) -> Self {
-        self.with_children(children)
+    pub fn children(mut self, children: Vec<Element>) -> Self {
+        self.children = children;
+        self
     }
 
     /// Check if this is a component element
@@ -219,5 +227,212 @@ impl Debug for Element {
             .field("key", &self.key)
             .field("children", &self.children.len())
             .finish()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_element_creation() {
+        // Test component creation
+        let component = Element::component("Button");
+        assert!(component.is_component());
+        assert_eq!(component.component_name(), Some("Button"));
+        assert_eq!(component.children.len(), 0);
+        assert!(component.key.is_none());
+        assert!(component.class.is_none());
+
+        // Test text creation
+        let text = Element::text("Hello World");
+        assert!(!text.is_component());
+        assert_eq!(text.component_name(), None);
+        if let ElementType::Text(content) = &text.element_type {
+            assert_eq!(content, "Hello World");
+        } else {
+            panic!("Expected text element");
+        }
+
+        // Test layout creation
+        let layout = Element::layout(LayoutType::Flex);
+        assert!(!layout.is_component());
+        if let ElementType::Layout(layout_type) = &layout.element_type {
+            assert_eq!(*layout_type, LayoutType::Flex);
+        } else {
+            panic!("Expected layout element");
+        }
+
+        // Test fragment creation
+        let fragment = Element::fragment();
+        assert!(matches!(fragment.element_type, ElementType::Fragment));
+
+        // Test empty creation
+        let empty = Element::empty();
+        assert!(matches!(empty.element_type, ElementType::Empty));
+    }
+
+    #[test]
+    fn test_element_with_props() {
+        #[derive(Debug, PartialEq)]
+        struct ButtonProps {
+            label: String,
+            disabled: bool,
+        }
+
+        let props = ButtonProps {
+            label: "Click me".to_string(),
+            disabled: false,
+        };
+
+        let element = Element::component_with_props("Button", props);
+        assert!(element.is_component());
+
+        // Test props downcasting
+        let retrieved_props = element.props_as::<ButtonProps>().unwrap();
+        assert_eq!(retrieved_props.label, "Click me");
+        assert!(!retrieved_props.disabled);
+
+        // Test failed downcast
+        assert!(element.props_as::<String>().is_none());
+    }
+
+    #[test]
+    fn test_element_builder_pattern() {
+        let element = Element::component("Container")
+            .with_key("main-container")
+            .with_class("flex flex-col p-4")
+            .with_child(Element::text("Title"))
+            .with_child(Element::text("Content"));
+
+        assert_eq!(element.key, Some("main-container".to_string()));
+        assert_eq!(element.class, Some("flex flex-col p-4".to_string()));
+        assert_eq!(element.children.len(), 2);
+    }
+
+    #[test]
+    fn test_element_convenience_methods() {
+        let element = Element::layout(LayoutType::Grid)
+            .key("grid-layout")
+            .class("grid-cols-2 gap-4")
+            .child(Element::text("Cell 1"))
+            .child(Element::text("Cell 2"));
+
+        assert_eq!(element.key, Some("grid-layout".to_string()));
+        assert_eq!(element.class, Some("grid-cols-2 gap-4".to_string()));
+        assert_eq!(element.children.len(), 2);
+    }
+
+    #[test]
+    fn test_element_with_children() {
+        let children = vec![
+            Element::text("First"),
+            Element::text("Second"),
+            Element::text("Third"),
+        ];
+
+        let element = Element::fragment().with_children(children);
+        assert_eq!(element.children.len(), 3);
+
+        // Test children() method (replaces existing)
+        let new_children = vec![Element::text("New child")];
+        let element = element.children(new_children);
+        assert_eq!(element.children.len(), 1);
+    }
+
+    #[test]
+    fn test_element_equality() {
+        // Test identical elements
+        let elem1 = Element::text("Hello").with_key("text1");
+        let elem2 = Element::text("Hello").with_key("text1");
+        assert_eq!(elem1, elem2);
+
+        // Test different text content
+        let elem3 = Element::text("World").with_key("text1");
+        assert_ne!(elem1, elem3);
+
+        // Test different keys
+        let elem4 = Element::text("Hello").with_key("text2");
+        assert_ne!(elem1, elem4);
+
+        // Test different classes
+        let elem5 = Element::text("Hello").with_key("text1").with_class("bold");
+        assert_ne!(elem1, elem5);
+    }
+
+    #[test]
+    fn test_component_props_equality() {
+        #[derive(Debug)]
+        struct Props {
+            value: i32,
+        }
+
+        let props1 = Arc::new(Props { value: 42 });
+
+        let elem1 = Element::component_with_props("Test", Props { value: 42 });
+        let elem2 = Element::component_with_props("Test", Props { value: 42 });
+
+        // Different Arc instances with same content should not be equal
+        assert_ne!(elem1, elem2);
+
+        // Same Arc instance should be equal
+        let elem3 = Element {
+            element_type: ElementType::Component("Test".to_string()),
+            props: props1.clone(),
+            children: Vec::new(),
+            key: None,
+            class: None,
+        };
+        let elem4 = Element {
+            element_type: ElementType::Component("Test".to_string()),
+            props: props1.clone(),
+            children: Vec::new(),
+            key: None,
+            class: None,
+        };
+        assert_eq!(elem3, elem4);
+    }
+
+    #[test]
+    fn test_layout_types() {
+        let flex = Element::layout(LayoutType::Flex);
+        let grid = Element::layout(LayoutType::Grid);
+        let stack = Element::layout(LayoutType::Stack);
+        let absolute = Element::layout(LayoutType::Absolute);
+
+        assert_ne!(flex, grid);
+        assert_ne!(grid, stack);
+        assert_ne!(stack, absolute);
+    }
+
+    #[test]
+    fn test_element_debug() {
+        let element = Element::component("Button")
+            .with_key("btn1")
+            .with_child(Element::text("Click me"));
+
+        let debug_str = format!("{:?}", element);
+        assert!(debug_str.contains("Button"));
+        assert!(debug_str.contains("btn1"));
+        assert!(debug_str.contains("children: 1"));
+    }
+
+    #[test]
+    fn test_props_with_builder() {
+        #[derive(Debug, PartialEq)]
+        struct TestProps {
+            name: String,
+            count: usize,
+        }
+
+        let element = Element::component("Test")
+            .props(TestProps {
+                name: "test".to_string(),
+                count: 5,
+            });
+
+        let props = element.props_as::<TestProps>().unwrap();
+        assert_eq!(props.name, "test");
+        assert_eq!(props.count, 5);
     }
 }

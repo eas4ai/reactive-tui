@@ -410,4 +410,237 @@ mod tests {
             .iter()
             .any(|p| matches!(p, PatchOp::Insert { .. })));
     }
+
+    #[test]
+    fn test_diff_empty_to_non_empty() {
+        let mut reconciler = Reconciler::new();
+
+        let empty_tree = RenderTree::new();
+
+        let element = Element::text("Hello").with_key("text");
+        let mut non_empty_tree = RenderTree::new();
+        non_empty_tree.set_root(element_to_render_node(element));
+
+        let result = reconciler.diff(&empty_tree, &non_empty_tree);
+
+        assert_eq!(result.patches.len(), 1);
+        assert!(matches!(result.patches[0], PatchOp::Insert { .. }));
+        assert_eq!(result.new_nodes, 1);
+        assert_eq!(result.removed_nodes, 0);
+        assert_eq!(result.reused_nodes, 0);
+    }
+
+    #[test]
+    fn test_diff_non_empty_to_empty() {
+        let mut reconciler = Reconciler::new();
+
+        let element = Element::text("Hello").with_key("text");
+        let mut non_empty_tree = RenderTree::new();
+        non_empty_tree.set_root(element_to_render_node(element));
+
+        let empty_tree = RenderTree::new();
+
+        let result = reconciler.diff(&non_empty_tree, &empty_tree);
+
+        assert_eq!(result.patches.len(), 1);
+        assert!(matches!(result.patches[0], PatchOp::Remove { .. }));
+        assert_eq!(result.new_nodes, 0);
+        assert_eq!(result.removed_nodes, 1);
+        assert_eq!(result.reused_nodes, 0);
+    }
+
+    #[test]
+    fn test_diff_both_empty() {
+        let mut reconciler = Reconciler::new();
+
+        let empty_tree1 = RenderTree::new();
+        let empty_tree2 = RenderTree::new();
+
+        let result = reconciler.diff(&empty_tree1, &empty_tree2);
+
+        assert_eq!(result.patches.len(), 0);
+        assert_eq!(result.new_nodes, 0);
+        assert_eq!(result.removed_nodes, 0);
+        assert_eq!(result.reused_nodes, 0);
+    }
+
+    #[test]
+    fn test_diff_node_replacement() {
+        let mut reconciler = Reconciler::new();
+
+        let element1 = Element::text("Hello").with_key("text");
+        let element2 = Element::layout(LayoutType::Flex).with_key("layout");
+
+        let mut tree1 = RenderTree::new();
+        tree1.set_root(element_to_render_node(element1));
+
+        let mut tree2 = RenderTree::new();
+        tree2.set_root(element_to_render_node(element2));
+
+        let result = reconciler.diff(&tree1, &tree2);
+
+        assert_eq!(result.patches.len(), 1);
+        assert!(matches!(result.patches[0], PatchOp::Replace { .. }));
+        assert_eq!(result.new_nodes, 1);
+        assert_eq!(result.removed_nodes, 1);
+        assert_eq!(result.reused_nodes, 0);
+    }
+
+    #[test]
+    fn test_diff_node_update() {
+        let mut reconciler = Reconciler::new();
+
+        // Same key and type, but different content
+        let element1 = Element::text("Hello").with_key("text");
+        let element2 = Element::text("World").with_key("text");
+
+        let mut tree1 = RenderTree::new();
+        tree1.set_root(element_to_render_node(element1));
+
+        let mut tree2 = RenderTree::new();
+        tree2.set_root(element_to_render_node(element2));
+
+        let result = reconciler.diff(&tree1, &tree2);
+
+        // Should detect an update since content changed but key/type same
+        assert!(result.patches.iter().any(|p| matches!(p, PatchOp::Update { .. })));
+        assert_eq!(result.reused_nodes, 1);
+    }
+
+    #[test]
+    fn test_diff_children_removal() {
+        let mut reconciler = Reconciler::new();
+
+        // Tree 1: Root with 3 children
+        let tree1_root = Element::layout(LayoutType::Flex)
+            .with_key("root")
+            .with_children(vec![
+                Element::text("A").with_key("a"),
+                Element::text("B").with_key("b"),
+                Element::text("C").with_key("c"),
+            ]);
+
+        // Tree 2: Root with 1 child (B and C removed)
+        let tree2_root = Element::layout(LayoutType::Flex)
+            .with_key("root")
+            .with_children(vec![
+                Element::text("A").with_key("a"),
+            ]);
+
+        let mut tree1 = RenderTree::new();
+        tree1.set_root(element_to_render_node(tree1_root));
+
+        let mut tree2 = RenderTree::new();
+        tree2.set_root(element_to_render_node(tree2_root));
+
+        let result = reconciler.diff(&tree1, &tree2);
+
+        // Should detect removals
+        let remove_count = result.patches.iter()
+            .filter(|p| matches!(p, PatchOp::Remove { .. }))
+            .count();
+        assert_eq!(remove_count, 2); // B and C removed
+        assert_eq!(result.removed_nodes, 2);
+        assert_eq!(result.reused_nodes, 2); // root and A
+    }
+
+    #[test]
+    fn test_diff_children_addition() {
+        let mut reconciler = Reconciler::new();
+
+        // Tree 1: Root with 1 child
+        let tree1_root = Element::layout(LayoutType::Flex)
+            .with_key("root")
+            .with_children(vec![
+                Element::text("A").with_key("a"),
+            ]);
+
+        // Tree 2: Root with 3 children (B and C added)
+        let tree2_root = Element::layout(LayoutType::Flex)
+            .with_key("root")
+            .with_children(vec![
+                Element::text("A").with_key("a"),
+                Element::text("B").with_key("b"),
+                Element::text("C").with_key("c"),
+            ]);
+
+        let mut tree1 = RenderTree::new();
+        tree1.set_root(element_to_render_node(tree1_root));
+
+        let mut tree2 = RenderTree::new();
+        tree2.set_root(element_to_render_node(tree2_root));
+
+        let result = reconciler.diff(&tree1, &tree2);
+
+        // Should detect insertions
+        let insert_count = result.patches.iter()
+            .filter(|p| matches!(p, PatchOp::Insert { .. }))
+            .count();
+        assert_eq!(insert_count, 2); // B and C inserted
+        assert_eq!(result.new_nodes, 2);
+        assert_eq!(result.reused_nodes, 2); // root and A
+    }
+
+    #[test]
+    fn test_reconciler_stats() {
+        let mut reconciler = Reconciler::new();
+
+        let element = Element::text("Hello").with_key("text");
+        let mut tree = RenderTree::new();
+        tree.set_root(element_to_render_node(element));
+
+        // Perform multiple diffs
+        reconciler.diff(&tree, &tree);
+        reconciler.diff(&tree, &tree);
+        reconciler.diff(&tree, &tree);
+
+        let stats = reconciler.stats();
+        assert!(stats.contains("3 diffs"));
+    }
+
+    #[test]
+    fn test_count_nodes() {
+        let reconciler = Reconciler::new();
+
+        // Create a tree with nested children
+        let element = Element::layout(LayoutType::Flex)
+            .with_key("root")
+            .with_children(vec![
+                Element::text("A").with_key("a"),
+                Element::layout(LayoutType::Flex)
+                    .with_key("nested")
+                    .with_children(vec![
+                        Element::text("B").with_key("b"),
+                        Element::text("C").with_key("c"),
+                    ]),
+            ]);
+
+        let node = element_to_render_node(element);
+        let count = reconciler.count_nodes(node.as_ref());
+
+        // Should count: root + A + nested + B + C = 5 nodes
+        assert_eq!(count, 5);
+    }
+
+    #[test]
+    fn test_apply_patches() {
+        let mut tree = RenderTree::new();
+
+        let patches = vec![
+            PatchOp::Insert {
+                parent_key: None,
+                index: 0,
+                node_key: NodeKey::named("test"),
+            },
+            PatchOp::Remove {
+                node_key: NodeKey::named("old"),
+            },
+            PatchOp::Update {
+                node_key: NodeKey::named("update"),
+            },
+        ];
+
+        // Should not panic when applying patches
+        apply_patches(&patches, &mut tree);
+    }
 }

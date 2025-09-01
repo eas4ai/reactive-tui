@@ -116,3 +116,205 @@ impl Lifecycle {
         self.update_count
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_lifecycle_creation() {
+        let lifecycle = Lifecycle::new();
+        assert_eq!(lifecycle.phase(), LifecyclePhase::Unmounted);
+        assert!(!lifecycle.is_mounted());
+        assert_eq!(lifecycle.mount_count(), 0);
+        assert_eq!(lifecycle.update_count(), 0);
+    }
+
+    #[test]
+    fn test_lifecycle_default() {
+        let lifecycle = Lifecycle::default();
+        assert_eq!(lifecycle.phase(), LifecyclePhase::Unmounted);
+        assert!(!lifecycle.is_mounted());
+        assert_eq!(lifecycle.mount_count(), 0);
+        assert_eq!(lifecycle.update_count(), 0);
+    }
+
+    #[test]
+    fn test_mount_lifecycle() {
+        let mut lifecycle = Lifecycle::new();
+
+        // Start mounting
+        lifecycle.mount();
+        assert_eq!(lifecycle.phase(), LifecyclePhase::Mounting);
+        assert!(!lifecycle.is_mounted()); // Not yet fully mounted
+        assert_eq!(lifecycle.mount_count(), 1);
+
+        // Complete mounting
+        lifecycle.complete_mount();
+        assert_eq!(lifecycle.phase(), LifecyclePhase::Mounted);
+        assert!(lifecycle.is_mounted());
+    }
+
+    #[test]
+    fn test_update_lifecycle() {
+        let mut lifecycle = Lifecycle::new();
+
+        // Can't update when not mounted
+        lifecycle.begin_update();
+        assert_eq!(lifecycle.phase(), LifecyclePhase::Unmounted);
+        assert_eq!(lifecycle.update_count(), 0);
+
+        // Mount first
+        lifecycle.mount();
+        lifecycle.complete_mount();
+        assert!(lifecycle.is_mounted());
+
+        // Now can update
+        lifecycle.begin_update();
+        assert_eq!(lifecycle.phase(), LifecyclePhase::Updating);
+        assert!(lifecycle.is_mounted()); // Still considered mounted during update
+        assert_eq!(lifecycle.update_count(), 1);
+
+        // Complete update
+        lifecycle.complete_update();
+        assert_eq!(lifecycle.phase(), LifecyclePhase::Mounted);
+        assert!(lifecycle.is_mounted());
+    }
+
+    #[test]
+    fn test_unmount_lifecycle() {
+        let mut lifecycle = Lifecycle::new();
+
+        // Mount first
+        lifecycle.mount();
+        lifecycle.complete_mount();
+        assert!(lifecycle.is_mounted());
+
+        // Start unmounting
+        lifecycle.unmount();
+        assert_eq!(lifecycle.phase(), LifecyclePhase::Unmounting);
+        assert!(!lifecycle.is_mounted());
+
+        // Complete unmounting
+        lifecycle.complete_unmount();
+        assert_eq!(lifecycle.phase(), LifecyclePhase::Unmounted);
+        assert!(!lifecycle.is_mounted());
+    }
+
+    #[test]
+    fn test_multiple_mount_cycles() {
+        let mut lifecycle = Lifecycle::new();
+
+        // First mount cycle
+        lifecycle.mount();
+        lifecycle.complete_mount();
+        assert_eq!(lifecycle.mount_count(), 1);
+
+        // Unmount
+        lifecycle.unmount();
+        lifecycle.complete_unmount();
+
+        // Second mount cycle
+        lifecycle.mount();
+        lifecycle.complete_mount();
+        assert_eq!(lifecycle.mount_count(), 2);
+    }
+
+    #[test]
+    fn test_multiple_updates() {
+        let mut lifecycle = Lifecycle::new();
+
+        // Mount first
+        lifecycle.mount();
+        lifecycle.complete_mount();
+
+        // Multiple update cycles
+        for i in 1..=5 {
+            lifecycle.begin_update();
+            lifecycle.complete_update();
+            assert_eq!(lifecycle.update_count(), i);
+            assert_eq!(lifecycle.phase(), LifecyclePhase::Mounted);
+        }
+    }
+
+    #[test]
+    fn test_update_during_mounting() {
+        let mut lifecycle = Lifecycle::new();
+
+        // Start mounting but don't complete
+        lifecycle.mount();
+        assert_eq!(lifecycle.phase(), LifecyclePhase::Mounting);
+
+        // Try to update during mounting - should not work
+        lifecycle.begin_update();
+        assert_eq!(lifecycle.phase(), LifecyclePhase::Mounting); // Should remain mounting
+        assert_eq!(lifecycle.update_count(), 0);
+    }
+
+    #[test]
+    fn test_lifecycle_events() {
+        // Test that all lifecycle events are defined
+        let events = [
+            LifecycleEvent::Mount,
+            LifecycleEvent::Unmount,
+            LifecycleEvent::PropsChanged,
+            LifecycleEvent::ParentChanged,
+            LifecycleEvent::Focus,
+            LifecycleEvent::Blur,
+            LifecycleEvent::Show,
+            LifecycleEvent::Hide,
+        ];
+
+        // Should be able to compare events
+        assert_eq!(events[0], LifecycleEvent::Mount);
+        assert_ne!(events[0], LifecycleEvent::Unmount);
+    }
+
+    #[test]
+    fn test_lifecycle_phases() {
+        // Test that all lifecycle phases are defined
+        let phases = [
+            LifecyclePhase::Unmounted,
+            LifecyclePhase::Mounting,
+            LifecyclePhase::Mounted,
+            LifecyclePhase::Updating,
+            LifecyclePhase::Unmounting,
+        ];
+
+        // Should be able to compare phases
+        assert_eq!(phases[0], LifecyclePhase::Unmounted);
+        assert_ne!(phases[0], LifecyclePhase::Mounted);
+    }
+
+    #[test]
+    fn test_is_mounted_states() {
+        let mut lifecycle = Lifecycle::new();
+
+        // Unmounted - not mounted
+        assert!(!lifecycle.is_mounted());
+
+        // Mounting - not yet mounted
+        lifecycle.mount();
+        assert!(!lifecycle.is_mounted());
+
+        // Mounted - is mounted
+        lifecycle.complete_mount();
+        assert!(lifecycle.is_mounted());
+
+        // Updating - still mounted
+        lifecycle.begin_update();
+        assert!(lifecycle.is_mounted());
+
+        // Back to mounted - still mounted
+        lifecycle.complete_update();
+        assert!(lifecycle.is_mounted());
+
+        // Unmounting - no longer mounted
+        lifecycle.unmount();
+        assert!(!lifecycle.is_mounted());
+
+        // Unmounted - not mounted
+        lifecycle.complete_unmount();
+        assert!(!lifecycle.is_mounted());
+    }
+}

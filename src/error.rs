@@ -148,6 +148,8 @@ impl From<ReactiveError> for crate::ffi::ReactiveError {
             ReactiveError::Layout { .. } => crate::ffi::ReactiveError::InvalidParameter,
             ReactiveError::Animation { .. } => crate::ffi::ReactiveError::InvalidState,
             ReactiveError::Internal { .. } => crate::ffi::ReactiveError::Unknown,
+            ReactiveError::ImageProcessing(_) => crate::ffi::ReactiveError::Unknown,
+            ReactiveError::ExternalTool(_) => crate::ffi::ReactiveError::Unknown,
         }
     }
 }

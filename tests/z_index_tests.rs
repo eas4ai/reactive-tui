@@ -1,5 +1,5 @@
+use reactive_tui::layout::css::apply_utility_classes;
 use reactive_tui::layout::style::StyleBuilder;
-use reactive_tui::layout::utility_css::apply_utility_classes;
 
 #[test]
 fn test_z_index_utilities() {

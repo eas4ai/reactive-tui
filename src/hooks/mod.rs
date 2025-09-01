@@ -1,10 +1,23 @@
+//! React-style hooks for state and lifecycle management
+//! 
+//! This module provides React-like hooks for managing state, effects, and component
+//! lifecycle in terminal applications.
+
+/// Animation hooks for managing animated properties
 pub mod animation;
+/// Clipboard hooks for copy/paste operations
 pub mod clipboard;
+/// Frame rate monitoring hooks
 pub mod fps;
+/// Mouse interaction hooks
 pub mod mouse;
+/// Performance context and monitoring hooks
 pub mod perf_context;
+/// Message processor hooks for event handling
 pub mod processor;
+/// Reference hooks for accessing DOM elements
 pub mod refs;
+/// Timer and interval hooks
 pub mod timer;
 
 pub use clipboard::{use_clipboard, use_simple_clipboard, ClipboardState};

@@ -54,12 +54,25 @@ pub struct DialogEngine {
     /// Focus management
     focus_manager: DialogFocusManager,
     /// Animation system integration
+    #[allow(dead_code)]
     animation_enabled: bool,
 }
 
 /// Unique identifier for dialogs
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct DialogId(u32);
+
+impl DialogId {
+    /// Get the inner value for FFI
+    pub fn as_u32(&self) -> u32 {
+        self.0
+    }
+
+    /// Create from u32 for FFI
+    pub fn from_u32(id: u32) -> Self {
+        DialogId(id)
+    }
+}
 
 /// Global configuration for the dialog engine
 #[derive(Debug, Clone)]
@@ -126,8 +139,10 @@ pub struct DialogFocusManager {
     /// Focus history for restoration
     focus_stack: Vec<DialogId>,
     /// Focusable elements in current dialog
+    #[allow(dead_code)]
     focusable_elements: Vec<FocusableElement>,
     /// Current focus index
+    #[allow(dead_code)]
     current_focus_index: usize,
 }
 
@@ -334,8 +349,8 @@ impl DialogEngine {
     }
 
     /// Close a dialog
-    pub fn close_dialog(&mut self, id: DialogId, result: DialogResult) {
-        if let Some(dialog) = self.active_dialogs.remove(&id) {
+    pub fn close_dialog(&mut self, id: DialogId, _result: DialogResult) {
+        if let Some(_dialog) = self.active_dialogs.remove(&id) {
             // Remove from stack
             self.dialog_stack.retain(|&dialog_id| dialog_id != id);
 

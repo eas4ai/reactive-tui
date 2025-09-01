@@ -10,6 +10,10 @@ use crate::layout::css::apply_utility_classes;
 use crate::layout::style::StyleBuilder;
 use crate::ui::paint::{extract_paint_style, PaintStyle};
 use std::collections::{BTreeMap, HashMap};
+
+// Type aliases for complex types
+type NodeLayoutInfo = (NodeId, usize, usize, usize, usize);
+type LayerMap = BTreeMap<i32, Vec<NodeLayoutInfo>>;
 use taffy::{geometry::Size, prelude::NodeId, style::Style, AvailableSpace, TaffyTree};
 
 use std::borrow::Cow;
@@ -75,12 +79,44 @@ pub fn layout_and_paint<'a>(root: &NodeSpec<'a>, surface: &mut Surface, width: u
     let _ = layout_and_paint_with(root, surface, width, &opts);
 }
 
+/// Layout and paint with explicit height constraint
+pub fn layout_and_paint_constrained<'a>(
+    root: &NodeSpec<'a>,
+    surface: &mut Surface,
+    width: usize,
+    height: usize,
+) {
+    let mut taffy = TaffyTree::new();
+    let mut map: HashMap<NodeId, NodePaint> = HashMap::new();
+    let root_id = build_nodes(&mut taffy, root, &mut map).unwrap_or_else(|_| panic!("Failed to build nodes"));
+    let available = Size {
+        width: AvailableSpace::Definite(width as f32),
+        height: AvailableSpace::Definite(height as f32),
+    };
+    taffy
+        .compute_layout(root_id, available)
+        .unwrap_or_else(|_| panic!("Failed to compute layout"));
+    paint_with_z_index(&taffy, root_id, surface, &map, false);
+}
+
 fn build_nodes<'a>(
     taffy: &mut TaffyTree<()>,
     spec: &NodeSpec<'a>,
     map: &mut HashMap<NodeId, NodePaint>,
 ) -> Result<NodeId> {
     let mut sb = apply_utility_classes(spec.class.as_ref(), StyleBuilder::new());
+    
+    // For text nodes, ensure minimum height of 1 cell
+    // This ensures text is visible in flexbox column layouts
+    if spec.text.is_some() && spec.children.is_empty() {
+        // Only set min-height if not already set by the user
+        // This is a simple heuristic: if the class doesn't contain 'h-'
+        // then we add a minimum height
+        if !spec.class.contains("h-") {
+            sb = sb.min_height_px(1.0);
+        }
+    }
+    
     let style: Style = sb.clone().build();
     let id = if spec.children.is_empty() {
         taffy
@@ -207,7 +243,7 @@ fn paint_with_z_index(
     debug_overlay: bool,
 ) {
     // Collect all nodes with their z-index and layout info
-    let mut layers: BTreeMap<i32, Vec<(NodeId, usize, usize, usize, usize)>> = BTreeMap::new();
+    let mut layers: LayerMap = BTreeMap::new();
     collect_nodes_by_z_index(taffy, root_id, map, &mut layers);
 
     // Paint in z-index order (lowest to highest)
@@ -227,21 +263,267 @@ fn collect_nodes_by_z_index(
     taffy: &TaffyTree<()>,
     node: NodeId,
     map: &HashMap<NodeId, NodePaint>,
-    layers: &mut BTreeMap<i32, Vec<(NodeId, usize, usize, usize, usize)>>,
+    layers: &mut LayerMap,
+) {
+    collect_nodes_by_z_index_recursive(taffy, node, map, layers, 0, 0);
+}
+
+/// Recursively collect nodes with absolute positioning
+fn collect_nodes_by_z_index_recursive(
+    taffy: &TaffyTree<()>,
+    node: NodeId,
+    map: &HashMap<NodeId, NodePaint>,
+    layers: &mut LayerMap,
+    parent_x: usize,
+    parent_y: usize,
 ) {
     if let Ok(layout) = taffy.layout(node) {
-        let x = layout.location.x.max(0.0) as usize;
-        let y = layout.location.y.max(0.0) as usize;
+        // Calculate absolute position by adding parent offset
+        let x = parent_x + layout.location.x.max(0.0) as usize;
+        let y = parent_y + layout.location.y.max(0.0) as usize;
         let w = layout.size.width.max(0.0) as usize;
         let h = layout.size.height.max(0.0) as usize;
 
-        let z_index = map.get(&node).map(|np| np.z_index).unwrap_or(0);
-        layers.entry(z_index).or_default().push((node, x, y, w, h));
+        // Debug output for tests (disabled in production)
+        #[cfg(test)]
+        if std::env::var("PAINT_TREE_DEBUG").is_ok() {
+            eprintln!("Node layout: pos=({},{}) size=({},{}) parent=({},{})",
+                     x, y, w, h, parent_x, parent_y);
+        }
+
+        // Skip nodes with zero size
+        if w > 0 && h > 0 {
+            let z_index = map.get(&node).map(|np| np.z_index).unwrap_or(0);
+            layers.entry(z_index).or_default().push((node, x, y, w, h));
+        }
+
+        // Recurse to children with updated absolute position
+        if let Ok(children) = taffy.children(node) {
+            for child in children {
+                collect_nodes_by_z_index_recursive(taffy, child, map, layers, x, y);
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::core::surface::Surface;
+    use std::borrow::Cow;
+
+    #[test]
+    fn test_padding_creation() {
+        let padding = Padding::new(1, 2, 3, 4);
+        assert_eq!(padding.left, 1);
+        assert_eq!(padding.right, 2);
+        assert_eq!(padding.top, 3);
+        assert_eq!(padding._bottom, 4);
     }
 
-    if let Ok(children) = taffy.children(node) {
-        for child in children {
-            collect_nodes_by_z_index(taffy, child, map, layers);
-        }
+    #[test]
+    fn test_padding_default() {
+        let padding = Padding::default();
+        assert_eq!(padding.left, 0);
+        assert_eq!(padding.right, 0);
+        assert_eq!(padding.top, 0);
+        assert_eq!(padding._bottom, 0);
+    }
+
+    #[test]
+    fn test_paint_options_default() {
+        let opts = PaintOptions::default();
+        assert!(!opts.debug_overlay);
+    }
+
+    #[test]
+    fn test_paint_options_debug() {
+        let opts = PaintOptions {
+            debug_overlay: true,
+        };
+        assert!(opts.debug_overlay);
+    }
+
+    #[test]
+    fn test_node_spec_creation() {
+        let spec = NodeSpec {
+            class: Cow::Borrowed("flex p-4"),
+            text: Some(Cow::Borrowed("Hello")),
+            children: vec![],
+        };
+
+        assert_eq!(spec.class, "flex p-4");
+        assert_eq!(spec.text, Some(Cow::Borrowed("Hello")));
+        assert_eq!(spec.children.len(), 0);
+    }
+
+    #[test]
+    fn test_node_spec_with_children() {
+        let child1 = NodeSpec {
+            class: Cow::Borrowed("text-red"),
+            text: Some(Cow::Borrowed("Child 1")),
+            children: vec![],
+        };
+
+        let child2 = NodeSpec {
+            class: Cow::Borrowed("text-blue"),
+            text: Some(Cow::Borrowed("Child 2")),
+            children: vec![],
+        };
+
+        let parent = NodeSpec {
+            class: Cow::Borrowed("flex flex-col"),
+            text: None,
+            children: vec![child1, child2],
+        };
+
+        assert_eq!(parent.children.len(), 2);
+        assert_eq!(parent.children[0].text, Some(Cow::Borrowed("Child 1")));
+        assert_eq!(parent.children[1].text, Some(Cow::Borrowed("Child 2")));
+    }
+
+    #[test]
+    fn test_layout_and_paint_simple() {
+        let mut surface = Surface::new(80, 24);
+
+        let spec = NodeSpec {
+            class: Cow::Borrowed("p-2"),
+            text: Some(Cow::Borrowed("Test")),
+            children: vec![],
+        };
+
+        // Should not panic
+        layout_and_paint(&spec, &mut surface, 80);
+
+        // Surface should have been modified (basic check)
+        assert_eq!(surface.dims(), (80, 24));
+    }
+
+    #[test]
+    fn test_layout_and_paint_with_options() {
+        let mut surface = Surface::new(80, 24);
+
+        let spec = NodeSpec {
+            class: Cow::Borrowed("flex"),
+            text: Some(Cow::Borrowed("Test")),
+            children: vec![],
+        };
+
+        let opts = PaintOptions {
+            debug_overlay: true,
+        };
+
+        // Should not panic with debug overlay
+        let result = layout_and_paint_with(&spec, &mut surface, 80, &opts);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_layout_and_paint_constrained() {
+        let mut surface = Surface::new(80, 24);
+
+        let spec = NodeSpec {
+            class: Cow::Borrowed("w-full h-full"),
+            text: Some(Cow::Borrowed("Constrained")),
+            children: vec![],
+        };
+
+        // Should not panic with explicit dimensions
+        layout_and_paint_constrained(&spec, &mut surface, 40, 12);
+
+        assert_eq!(surface.dims(), (80, 24));
+    }
+
+    #[test]
+    fn test_layout_with_nested_children() {
+        let mut surface = Surface::new(100, 50);
+
+        let spec = NodeSpec {
+            class: Cow::Borrowed("flex flex-col p-4"),
+            text: None,
+            children: vec![
+                NodeSpec {
+                    class: Cow::Borrowed("text-lg"),
+                    text: Some(Cow::Borrowed("Header")),
+                    children: vec![],
+                },
+                NodeSpec {
+                    class: Cow::Borrowed("flex flex-row gap-2"),
+                    text: None,
+                    children: vec![
+                        NodeSpec {
+                            class: Cow::Borrowed("flex-1"),
+                            text: Some(Cow::Borrowed("Left")),
+                            children: vec![],
+                        },
+                        NodeSpec {
+                            class: Cow::Borrowed("flex-1"),
+                            text: Some(Cow::Borrowed("Right")),
+                            children: vec![],
+                        },
+                    ],
+                },
+            ],
+        };
+
+        // Should handle complex nested layout
+        let result = layout_and_paint_with(&spec, &mut surface, 100, &PaintOptions::default());
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_layout_with_z_index() {
+        let mut surface = Surface::new(80, 24);
+
+        let spec = NodeSpec {
+            class: Cow::Borrowed("relative"),
+            text: None,
+            children: vec![
+                NodeSpec {
+                    class: Cow::Borrowed("z-10"),
+                    text: Some(Cow::Borrowed("Top layer")),
+                    children: vec![],
+                },
+                NodeSpec {
+                    class: Cow::Borrowed("z-1"),
+                    text: Some(Cow::Borrowed("Bottom layer")),
+                    children: vec![],
+                },
+            ],
+        };
+
+        // Should handle z-index layering
+        let result = layout_and_paint_with(&spec, &mut surface, 80, &PaintOptions::default());
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_layout_with_overflow_hidden() {
+        let mut surface = Surface::new(80, 24);
+
+        let spec = NodeSpec {
+            class: Cow::Borrowed("overflow-hidden w-10 h-5"),
+            text: Some(Cow::Borrowed("This is a very long text that should be clipped")),
+            children: vec![],
+        };
+
+        // Should handle overflow clipping
+        let result = layout_and_paint_with(&spec, &mut surface, 80, &PaintOptions::default());
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_empty_node_spec() {
+        let mut surface = Surface::new(80, 24);
+
+        let spec = NodeSpec {
+            class: Cow::Borrowed(""),
+            text: None,
+            children: vec![],
+        };
+
+        // Should handle empty spec
+        let result = layout_and_paint_with(&spec, &mut surface, 80, &PaintOptions::default());
+        assert!(result.is_ok());
     }
 }
