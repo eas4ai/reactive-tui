@@ -844,7 +844,16 @@ impl Component for Tree {
             .map(|n| n.id.clone())
             .collect();
 
-        true // Always re-render for now
+        // Intelligent re-render detection for optimal tree performance
+        let needs_rerender =
+            // Selection changed
+            !state.selected_nodes.is_empty() ||
+            // Expanded state changed (check if expansion differs from props)
+            state.expanded_nodes != props.expanded_nodes ||
+            // Visible nodes list changed (indicates tree structure or expansion changes)
+            state.visible_nodes.is_empty();
+
+        needs_rerender
     }
 }
 

@@ -314,18 +314,45 @@ impl EventRouter {
         }
     }
 
-    /// Advance focus to next node id (if FocusManager used externally, this remains a convenience).
+    /// Advance focus to next node id
+    /// This integrates with reactive-tui's hierarchical focus management system
     pub fn focus_next(&mut self) {
-        if let Some(cur) = self.focus_node {
-            // If we had a focus order, we'd cycle; for now, unset to signal handoff to FocusManager
-            let _ = cur; // placeholder, focus order handled by external FocusManager in App
+        if let Some(current_id) = self.focus_node {
+            // Find the next focusable node in the focus tree
+            if let Some(next_id) = self.find_next_focusable_node(current_id) {
+                self.set_focus(Some(next_id));
+            } else {
+                // Wrap around to first focusable node
+                if let Some(first_id) = self.find_first_focusable_node() {
+                    self.set_focus(Some(first_id));
+                }
+            }
+        } else {
+            // No current focus - set to first focusable node
+            if let Some(first_id) = self.find_first_focusable_node() {
+                self.set_focus(Some(first_id));
+            }
         }
     }
 
-    /// Move focus to previous node id (placeholder to maintain API symmetry).
+    /// Move focus to previous node id
+    /// This integrates with reactive-tui's hierarchical focus management system
     pub fn focus_prev(&mut self) {
-        if let Some(cur) = self.focus_node {
-            let _ = cur;
+        if let Some(current_id) = self.focus_node {
+            // Find the previous focusable node in the focus tree
+            if let Some(prev_id) = self.find_previous_focusable_node(current_id) {
+                self.set_focus(Some(prev_id));
+            } else {
+                // Wrap around to last focusable node
+                if let Some(last_id) = self.find_last_focusable_node() {
+                    self.set_focus(Some(last_id));
+                }
+            }
+        } else {
+            // No current focus - set to last focusable node
+            if let Some(last_id) = self.find_last_focusable_node() {
+                self.set_focus(Some(last_id));
+            }
         }
     }
 
@@ -417,6 +444,50 @@ impl EventRouter {
     /// Add a focusable node
     pub fn add_focusable(&mut self, node_id: NodeId) {
         self.focus_manager.register_focusable(node_id, None, true);
+    }
+
+    /// Find the next focusable node after the given node
+    fn find_next_focusable_node(&self, current_id: NodeId) -> Option<NodeId> {
+        // Get all focusable nodes in order
+        let focusable_nodes = self.focus_manager.get_focusable_nodes();
+
+        // Find current position
+        if let Some(current_pos) = focusable_nodes.iter().position(|&id| id == current_id) {
+            // Return next node, or None if at end
+            focusable_nodes.get(current_pos + 1).copied()
+        } else {
+            // Current node not found - return first focusable
+            focusable_nodes.first().copied()
+        }
+    }
+
+    /// Find the first focusable node
+    fn find_first_focusable_node(&self) -> Option<NodeId> {
+        self.focus_manager.get_focusable_nodes().first().copied()
+    }
+
+    /// Find the last focusable node
+    fn find_last_focusable_node(&self) -> Option<NodeId> {
+        self.focus_manager.get_focusable_nodes().last().copied()
+    }
+
+    /// Find the previous focusable node before the given node
+    fn find_previous_focusable_node(&self, current_id: NodeId) -> Option<NodeId> {
+        // Get all focusable nodes in order
+        let focusable_nodes = self.focus_manager.get_focusable_nodes();
+
+        // Find current position
+        if let Some(current_pos) = focusable_nodes.iter().position(|&id| id == current_id) {
+            // Return previous node, or None if at beginning
+            if current_pos > 0 {
+                focusable_nodes.get(current_pos - 1).copied()
+            } else {
+                None
+            }
+        } else {
+            // Current node not found - return last focusable
+            focusable_nodes.last().copied()
+        }
     }
 
     /// Remove a focusable node

@@ -88,12 +88,13 @@ impl VNode {
     }
 
     /// Get mutable children of this node
-    pub fn children_mut(&mut self) -> &mut Vec<VNode> {
+    /// Returns None for Text and Empty nodes which cannot have children
+    pub fn children_mut(&mut self) -> Option<&mut Vec<VNode>> {
         match self {
-            VNode::Element(e) => &mut e.children,
-            VNode::Component(c) => &mut c.children,
-            VNode::Fragment(f) => &mut f.children,
-            VNode::Text(_) | VNode::Empty => panic!("Text and Empty nodes have no children"),
+            VNode::Element(e) => Some(&mut e.children),
+            VNode::Component(c) => Some(&mut c.children),
+            VNode::Fragment(f) => Some(&mut f.children),
+            VNode::Text(_) | VNode::Empty => None, // Text and Empty nodes have no children
         }
     }
 

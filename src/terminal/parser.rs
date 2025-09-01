@@ -47,6 +47,7 @@ pub enum AnsiEvent {
     CarriageReturn,
 }
 
+#[derive(Debug)]
 pub struct AnsiParser {
     state: ParserState,
     params: Vec<u16>,
@@ -380,6 +381,7 @@ impl Default for AnsiParser {
     }
 }
 
+#[derive(Debug)]
 struct Utf8Decoder {
     buffer: [u8; 4],
     len: usize,

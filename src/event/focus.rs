@@ -350,6 +350,11 @@ impl FocusManager {
 
         self.tab_order = entries.into_iter().map(|(id, _)| id).collect();
     }
+
+    /// Get all focusable nodes in tab order
+    pub fn get_focusable_nodes(&self) -> Vec<NodeId> {
+        self.tab_order.clone()
+    }
 }
 
 impl Default for FocusManager {

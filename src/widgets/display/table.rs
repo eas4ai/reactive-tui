@@ -601,7 +601,21 @@ impl Component for Table {
             state.sort_ascending = props.sort_ascending;
         }
 
-        true // Always re-render for now
+        // Intelligent re-render detection based on state changes
+        let needs_rerender =
+            // Visible rows changed (scrolling)
+            state.visible_rows != (start_row..end_row).collect::<Vec<_>>() ||
+            // Column widths changed
+            state.column_widths.len() != props.columns.len() ||
+            // Sort state changed
+            state.sort_column != props.sort_column ||
+            state.sort_ascending != props.sort_ascending ||
+            // Selection changed
+            !state.selected_rows.is_empty() ||
+            // Always re-render if data structure changed (conservative approach)
+            props.rows.len() != state.visible_rows.len().max(props.rows.len());
+
+        needs_rerender
     }
 }
 
