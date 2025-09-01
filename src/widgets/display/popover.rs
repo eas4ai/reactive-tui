@@ -628,10 +628,8 @@ impl Popover {
                         self.is_point_in_rect(mouse_event.position, state.calculated_rect);
 
                     if in_trigger || in_popover {
-                        if !state.is_hovered {
-                            if !state.visible {
-                                state.hover_timer = Some(Instant::now());
-                            }
+                        if !state.is_hovered && !state.visible {
+                            state.hover_timer = Some(Instant::now());
                         }
                         state.is_hovered = true;
                         state.last_mouse_pos = Some(mouse_event.position);
@@ -661,11 +659,9 @@ impl Popover {
 
         if let Some(timer) = state.hover_timer {
             if state.is_hovered {
-                if !state.visible {
-                    if timer.elapsed() >= props.hover_delay {
-                        self.show_popover(props, state);
-                        state.hover_timer = None;
-                    }
+                if !state.visible && timer.elapsed() >= props.hover_delay {
+                    self.show_popover(props, state);
+                    state.hover_timer = None;
                 }
             } else if !state.is_hovered && state.visible {
                 if let Some(timer) = &state.hover_timer {

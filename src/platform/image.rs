@@ -1,6 +1,6 @@
 //! Image rendering support for terminal graphics
 //!
-//! Based on libvaxis Image.zig with support for multiple protocols
+//! Comprehensive image support with multiple terminal protocols
 
 use super::ImageFormat;
 use crate::error::Result;
@@ -47,9 +47,10 @@ pub enum TransmitMedium {
 }
 
 /// Image scaling modes
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub enum ScaleMode {
     /// No scaling applied
+    #[default]
     None,
     /// Stretch/shrink to fill the window
     Fill,
@@ -57,12 +58,6 @@ pub enum ScaleMode {
     Fit,
     /// Scale to fit window, only if needed
     Contain,
-}
-
-impl Default for ScaleMode {
-    fn default() -> Self {
-        ScaleMode::None
-    }
 }
 
 /// Image placement options
@@ -258,7 +253,7 @@ impl Image {
             sequence.push_str(&format!(";size={}x{}", cols, rows));
         }
 
-        sequence.push_str(":"); // End parameters
+        sequence.push(':'); // End parameters
 
         // Add base64-encoded image data
         match &self.source {

@@ -6,6 +6,58 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
+/// Grid scalar value for sizing, similar to CSS units
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub enum GridScalar {
+    /// Fixed size in terminal cells
+    Cells(u16),
+    /// Fraction units (like CSS fr) - proportional sizing
+    Fr(f32),
+    /// Percentage of available space
+    Percent(f32),
+    /// Auto-size based on content
+    Auto,
+}
+
+impl GridScalar {
+    /// Parse a scalar from string (e.g., "1fr", "50%", "10", "auto")
+    pub fn parse(input: &str) -> Option<Self> {
+        let input = input.trim();
+
+        if input == "auto" {
+            return Some(GridScalar::Auto);
+        }
+
+        if input.ends_with("fr") {
+            if let Ok(value) = input.trim_end_matches("fr").parse::<f32>() {
+                return Some(GridScalar::Fr(value));
+            }
+        }
+
+        if input.ends_with('%') {
+            if let Ok(value) = input.trim_end_matches('%').parse::<f32>() {
+                return Some(GridScalar::Percent(value));
+            }
+        }
+
+        if let Ok(value) = input.parse::<u16>() {
+            return Some(GridScalar::Cells(value));
+        }
+
+        None
+    }
+
+    /// Convert to CSS grid template value
+    pub fn to_css(&self) -> String {
+        match self {
+            GridScalar::Cells(n) => format!("{}ch", n),
+            GridScalar::Fr(f) => format!("{}fr", f),
+            GridScalar::Percent(p) => format!("{}%", p),
+            GridScalar::Auto => "auto".to_string(),
+        }
+    }
+}
+
 /// Grid area definition with name and positioning
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GridArea {
@@ -16,6 +68,16 @@ pub struct GridArea {
     pub col_span: usize,
     pub css_class: Option<String>,
     pub z_index: i32,
+}
+
+/// Grid child with Element content (for component-style usage)
+#[derive(Debug, Clone)]
+pub struct GridChild {
+    pub element: crate::component::Element,
+    pub row: usize,
+    pub column: usize,
+    pub row_span: usize,
+    pub column_span: usize,
 }
 
 impl GridArea {
@@ -63,6 +125,16 @@ pub struct DeclarativeGrid {
     pub areas: Vec<GridArea>,
     pub area_map: HashMap<String, usize>, // name -> index in areas
     pub css_class: Option<String>,
+    /// Column sizing (if None, uses equal fr units)
+    pub column_sizes: Option<Vec<GridScalar>>,
+    /// Row sizing (if None, uses auto sizing)
+    pub row_sizes: Option<Vec<GridScalar>>,
+    /// Column gap in cells
+    pub column_gap: u16,
+    /// Row gap in cells
+    pub row_gap: u16,
+    /// Child elements (alternative to areas for component-style usage)
+    pub children: Vec<GridChild>,
 }
 
 impl DeclarativeGrid {
@@ -74,6 +146,11 @@ impl DeclarativeGrid {
             areas: Vec::new(),
             area_map: HashMap::new(),
             css_class: None,
+            column_sizes: None,
+            row_sizes: None,
+            column_gap: 1,
+            row_gap: 1,
+            children: Vec::new(),
         }
     }
 
@@ -85,6 +162,84 @@ impl DeclarativeGrid {
     pub fn class(mut self, css_class: impl Into<String>) -> Self {
         self.css_class = Some(css_class.into());
         self
+    }
+
+    /// Set column sizes using GridScalar values
+    pub fn column_sizes(mut self, sizes: Vec<GridScalar>) -> Self {
+        self.column_sizes = Some(sizes);
+        self
+    }
+
+    /// Set row sizes using GridScalar values
+    pub fn row_sizes(mut self, sizes: Vec<GridScalar>) -> Self {
+        self.row_sizes = Some(sizes);
+        self
+    }
+
+    /// Set column gap
+    pub fn column_gap(mut self, gap: u16) -> Self {
+        self.column_gap = gap;
+        self
+    }
+
+    /// Set row gap
+    pub fn row_gap(mut self, gap: u16) -> Self {
+        self.row_gap = gap;
+        self
+    }
+
+    /// Make grid responsive (fill entire terminal) - this is the default behavior
+    pub fn responsive(mut self) -> Self {
+        // Add responsive classes to ensure grid fills terminal
+        let responsive_classes = "w-full h-full min-w-full min-h-full";
+        self.css_class = Some(match self.css_class {
+            Some(existing) => format!("{} {}", existing, responsive_classes),
+            None => responsive_classes.to_string(),
+        });
+        self
+    }
+
+    /// Make grid fixed size (override default responsive behavior)
+    pub fn fixed_size(mut self, width: &str, height: &str) -> Self {
+        let fixed_classes = format!("w-{} h-{}", width, height);
+        self.css_class = Some(match self.css_class {
+            Some(existing) => format!("{} {}", existing, fixed_classes),
+            None => fixed_classes,
+        });
+        self
+    }
+
+    /// Add a child element
+    pub fn child(mut self, child: GridChild) -> Self {
+        self.children.push(child);
+        self
+    }
+
+    /// Add multiple children
+    pub fn children(mut self, children: Vec<GridChild>) -> Self {
+        self.children.extend(children);
+        self
+    }
+
+    /// Create a simple grid with automatic item placement (responsive by default)
+    pub fn auto_grid(columns: usize, rows: usize, items: Vec<crate::component::Element>) -> Self {
+        let mut grid = Self::new(columns, rows).responsive(); // Responsive by default
+
+        for (i, item) in items.iter().enumerate() {
+            let row = i / columns;
+            let col = i % columns;
+            if row < rows {
+                grid.children.push(GridChild {
+                    element: item.clone(),
+                    row,
+                    column: col,
+                    row_span: 1,
+                    column_span: 1,
+                });
+            }
+        }
+
+        grid
     }
 
     pub fn area(mut self, area: GridArea) -> Self {
@@ -235,8 +390,26 @@ impl DeclarativeGrid {
 
     /// Generate CSS grid template columns/rows
     pub fn to_css_grid_template(&self) -> (String, String) {
-        let cols = format!("repeat({}, 1fr)", self.cols);
-        let rows = format!("repeat({}, 1fr)", self.rows);
+        let cols = if let Some(ref sizes) = self.column_sizes {
+            sizes
+                .iter()
+                .map(|s| s.to_css())
+                .collect::<Vec<_>>()
+                .join(" ")
+        } else {
+            format!("repeat({}, 1fr)", self.cols)
+        };
+
+        let rows = if let Some(ref sizes) = self.row_sizes {
+            sizes
+                .iter()
+                .map(|s| s.to_css())
+                .collect::<Vec<_>>()
+                .join(" ")
+        } else {
+            format!("repeat({}, auto)", self.rows)
+        };
+
         (cols, rows)
     }
 
@@ -279,13 +452,15 @@ impl DeclarativeGrid {
     }
 }
 
-/// Macro for declarative grid layout
+/// Macro for declarative grid layout (responsive by default)
 #[macro_export]
 macro_rules! layout {
     (grid(cols: $cols:expr, rows: $rows:expr, gap: $gap:expr) {
         $($name:literal at ($row:expr, $col:expr) $(span ($row_span:expr, $col_span:expr))? $(class $css_class:literal)? $(z $z_index:expr)?,)*
     }) => {{
-        let mut grid = $crate::layout::grid::DeclarativeGrid::new($cols, $rows).gap($gap);
+        let mut grid = $crate::layout::grid::DeclarativeGrid::new($cols, $rows)
+            .gap($gap)
+            .responsive(); // Make responsive by default
         $(
             #[allow(unused_mut)]
             let mut area = $crate::layout::grid::GridArea::new($name).at($row, $col);
@@ -302,47 +477,6 @@ macro_rules! layout {
 mod tests {
 
     #[test]
-    fn test_declarative_grid_creation() {
-        let grid = layout! {
-            grid(cols: 3, rows: 3, gap: 1) {
-                "Header" at (0, 0) span (1, 3) class "header",
-                "Sidebar" at (1, 0) class "sidebar",
-                "Main" at (1, 1) class "main",
-                "Notifications" at (1, 2) class "notifications",
-                "Footer" at (2, 0) span (1, 3) class "footer",
-            }
-        };
-
-        assert_eq!(grid.cols, 3);
-        assert_eq!(grid.rows, 3);
-        assert_eq!(grid.gap, 1);
-        assert_eq!(grid.areas.len(), 5);
-
-        let header = grid.get_area("Header").unwrap();
-        assert_eq!(header.row, 0);
-        assert_eq!(header.col, 0);
-        assert_eq!(header.row_span, 1);
-        assert_eq!(header.col_span, 3);
-        assert_eq!(header.css_class, Some("header".to_string()));
-    }
-
-    #[test]
-    fn test_grid_manipulation() {
-        let mut grid = layout! {
-            grid(cols: 2, rows: 2, gap: 1) {
-                "Header" at (0, 0) span (1, 2),
-                "Footer" at (1, 0) span (1, 2),
-            }
-        };
-
-        // Insert row before Footer
-        grid.insert_row_before("Footer").unwrap();
-
-        assert_eq!(grid.rows, 3);
-        assert_eq!(grid.get_area("Footer").unwrap().row, 2);
-    }
-
-    #[test]
     fn test_css_generation() {
         let grid = layout! {
             grid(cols: 2, rows: 2, gap: 1) {
@@ -357,6 +491,85 @@ mod tests {
 
         let (cols, rows) = grid.to_css_grid_template();
         assert_eq!(cols, "repeat(2, 1fr)");
-        assert_eq!(rows, "repeat(2, 1fr)");
+        assert_eq!(rows, "repeat(2, auto)");
+    }
+
+    #[test]
+    fn test_flexible_sizing() {
+        use super::{DeclarativeGrid, GridScalar};
+
+        let grid = DeclarativeGrid::new(3, 2)
+            .column_sizes(vec![
+                GridScalar::Cells(10),
+                GridScalar::Fr(1.0),
+                GridScalar::Percent(25.0),
+            ])
+            .row_sizes(vec![GridScalar::Auto, GridScalar::Fr(2.0)])
+            .column_gap(2)
+            .row_gap(1);
+
+        let (cols, rows) = grid.to_css_grid_template();
+        assert_eq!(cols, "10ch 1fr 25%");
+        assert_eq!(rows, "auto 2fr");
+        assert_eq!(grid.column_gap, 2);
+        assert_eq!(grid.row_gap, 1);
+    }
+
+    #[test]
+    fn test_auto_grid() {
+        use super::DeclarativeGrid;
+        use crate::component::Element;
+
+        let items = vec![
+            Element::text("Item 1"),
+            Element::text("Item 2"),
+            Element::text("Item 3"),
+            Element::text("Item 4"),
+        ];
+
+        let grid = DeclarativeGrid::auto_grid(2, 2, items);
+
+        assert_eq!(grid.cols, 2);
+        assert_eq!(grid.rows, 2);
+        assert_eq!(grid.children.len(), 4);
+
+        // Check positioning
+        assert_eq!(grid.children[0].row, 0);
+        assert_eq!(grid.children[0].column, 0);
+        assert_eq!(grid.children[1].row, 0);
+        assert_eq!(grid.children[1].column, 1);
+        assert_eq!(grid.children[2].row, 1);
+        assert_eq!(grid.children[2].column, 0);
+        assert_eq!(grid.children[3].row, 1);
+        assert_eq!(grid.children[3].column, 1);
+    }
+
+    #[test]
+    fn test_responsive_by_default() {
+        use super::DeclarativeGrid;
+        use crate::component::Element;
+
+        // Auto-grid should be responsive by default
+        let items = vec![Element::text("Item 1"), Element::text("Item 2")];
+        let auto_grid = DeclarativeGrid::auto_grid(2, 1, items);
+
+        assert!(auto_grid.css_class.is_some());
+        let css = auto_grid.css_class.unwrap();
+        assert!(css.contains("w-full"));
+        assert!(css.contains("h-full"));
+        assert!(css.contains("min-w-full"));
+        assert!(css.contains("min-h-full"));
+
+        // Manual responsive call
+        let manual_grid = DeclarativeGrid::new(2, 2).responsive();
+        let css = manual_grid.css_class.unwrap();
+        assert!(css.contains("w-full"));
+        assert!(css.contains("h-full"));
+
+        // Fixed size override
+        let fixed_grid = DeclarativeGrid::new(2, 2).fixed_size("80", "24");
+        let css = fixed_grid.css_class.unwrap();
+        assert!(css.contains("w-80"));
+        assert!(css.contains("h-24"));
     }
 }

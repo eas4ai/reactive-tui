@@ -1,6 +1,6 @@
 //! Windows Console API implementation for direct terminal access
 //!
-//! Based on libvaxis windows/Tty.zig implementation
+//! Native Windows Console API integration for terminal control
 
 use super::PlatformTty;
 use crate::error::Result;

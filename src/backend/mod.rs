@@ -26,6 +26,8 @@ pub trait Backend: Send + Sync {
     fn poll_event(&mut self, timeout_ms: Option<u64>) -> Result<Option<rt_event::Event>>;
     /// Enable/disable debug overlay if supported (default: no-op)
     fn set_debug_overlay(&mut self, _enabled: bool) {}
+    /// Handle terminal resize (default: no-op)
+    fn resize(&mut self, _width: usize, _height: usize) {}
     /// Optional full render path (fallback)
     fn render_full(&mut self, _element: &Element) -> Result<()> {
         Ok(())
@@ -461,6 +463,17 @@ impl Backend for CrosstermBackend {
         self.renderer.set_debug_overlay(enabled);
     }
 
+    fn resize(&mut self, width: usize, height: usize) {
+        // Resize the renderer surfaces
+        self.renderer.resize(width, height);
+
+        // Resize the grapheme surface
+        self.grapheme_surface = crate::core::grapheme_cell::GraphemeSurface::new(width, height);
+
+        // Clear previous surface to force full redraw
+        self.prev_surface = None;
+    }
+
     fn size(&self) -> (u16, u16) {
         crossterm::terminal::size().unwrap_or((80, 24))
     }
@@ -619,6 +632,12 @@ impl Backend for DebugBackend {
 
     fn poll_event(&mut self, _timeout_ms: Option<u64>) -> Result<Option<rt_event::Event>> {
         Ok(self.event_queue.pop_front())
+    }
+
+    fn resize(&mut self, width: usize, height: usize) {
+        // Update virtual screen size
+        self.virtual_screen = crate::core::surface::Surface::new(width, height);
+        self.size = (width as u16, height as u16);
     }
 
     fn render_full(&mut self, element: &Element) -> Result<()> {

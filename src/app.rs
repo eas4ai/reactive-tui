@@ -4,6 +4,7 @@ use crate::display::adaptive::{AdaptiveConfig, AdaptiveFpsManager};
 use crate::display::monitor::PerformanceMode;
 use crate::event::router::{EventResult, EventRouter};
 
+use crate::animation::AnimationManager;
 use crate::error::Result;
 use crate::reactive::scheduler::Scheduler;
 use crate::render::reconcile::Reconciler;
@@ -25,9 +26,11 @@ pub struct App {
     tree: RenderTree,
     reconciler: Reconciler,
     fps_manager: AdaptiveFpsManager,
+    animation_manager: AnimationManager,
     running: bool,
     debug: bool,
     last_frame_time: Instant,
+    resize_count: usize,
 }
 
 impl App {
@@ -103,21 +106,32 @@ impl App {
             // 1) Poll input with timeout based on target FPS
             let poll_timeout = frame_duration.as_millis() as u64;
             if let Some(event) = self.backend.poll_event(Some(poll_timeout.min(16)))? {
-                // Process event through THE event system
-                let result = self.router.process_event(&event);
-                // Handle application-level events (quit)
-                if let crate::event::types::Event::Key(key_event) = event {
-                    // Check for quit key (Ctrl+C or Esc)
-                    if (key_event.code == crate::event::types::KeyCode::Char('c')
-                        && key_event.modifiers.ctrl)
-                        || key_event.code == crate::event::types::KeyCode::Escape
-                    {
-                        self.running = false;
+                // Handle application-level events first
+                let mut should_render = false;
+
+                match &event {
+                    crate::event::types::Event::Key(key_event) => {
+                        // Check for quit key (Ctrl+C or Esc)
+                        if (key_event.code == crate::event::types::KeyCode::Char('c')
+                            && key_event.modifiers.ctrl)
+                            || key_event.code == crate::event::types::KeyCode::Escape
+                        {
+                            self.running = false;
+                        }
                     }
+                    crate::event::types::Event::Resize(resize_event) => {
+                        // Handle terminal resize - update backend and force re-render
+                        self.handle_resize(resize_event.width, resize_event.height)?;
+                        should_render = true; // Always re-render on resize
+                    }
+                    _ => {}
                 }
 
-                // If event was handled, trigger re-render
-                if result != EventResult::Ignored {
+                // Process event through the event system
+                let result = self.router.process_event(&event);
+
+                // Trigger re-render if event was handled or if we need to render for other reasons
+                if result != EventResult::Ignored || should_render {
                     self.render()?;
                 }
             }
@@ -128,10 +142,22 @@ impl App {
                 self.render()?;
             }
 
-            // 3) Process any timer callbacks
+            // 3) Update animations and check if render is needed
+            // Update hook-based animations
+            crate::hooks::animation::update_hook_animations();
+
+            // Update declarative animations
+            self.animation_manager.update();
+
+            // Render if we have active animations
+            if self.animation_manager.active_count() > 0 {
+                self.render()?;
+            }
+
+            // 4) Process any timer callbacks
             self.scheduler.process_timers();
 
-            // 4) Frame timing and adaptive FPS
+            // 5) Frame timing and adaptive FPS
             let frame_elapsed = frame_start.elapsed();
             let render_time = frame_elapsed.saturating_sub(Duration::from_millis(1)); // Estimate
 
@@ -264,6 +290,42 @@ impl App {
         let (w, h) = self.backend.size();
         crate::core::geometry::Size::new(w as usize, h as usize)
     }
+
+    /// Handle terminal resize events
+    fn handle_resize(&mut self, width: u16, height: u16) -> Result<()> {
+        // Increment resize counter for debugging/testing
+        self.resize_count += 1;
+
+        if self.debug {
+            eprintln!(
+                "🔄 Terminal resize #{}: {}x{}",
+                self.resize_count, width, height
+            );
+        }
+
+        // Update backend renderer dimensions
+        self.backend.resize(width as usize, height as usize);
+
+        // Clear any cached layout since dimensions changed - force full re-layout
+        self.tree = crate::render::tree::RenderTree::new();
+
+        Ok(())
+    }
+
+    /// Get the number of resize events processed
+    pub fn resize_count(&self) -> usize {
+        self.resize_count
+    }
+
+    /// Get access to the animation manager
+    pub fn animation_manager(&mut self) -> &mut AnimationManager {
+        &mut self.animation_manager
+    }
+
+    /// Get read-only access to the animation manager
+    pub fn animation_manager_ref(&self) -> &AnimationManager {
+        &self.animation_manager
+    }
 }
 
 /// Builder for creating an App instance
@@ -344,9 +406,11 @@ impl AppBuilder {
             tree: RenderTree::new(),
             reconciler: Reconciler::new(),
             fps_manager,
+            animation_manager: AnimationManager::new(),
             running: false,
             debug: self.debug,
             last_frame_time: Instant::now(),
+            resize_count: 0,
         })
     }
 }
@@ -420,5 +484,28 @@ mod tests {
 
         // Event processing should work (even if not handled by any component)
         assert!(matches!(result, crate::event::router::EventResult::Ignored));
+    }
+
+    #[test]
+    fn test_animation_integration() {
+        let backend = DebugBackend::new(80, 24);
+        let component = TestComponent { counter: 0 };
+
+        let mut app = App::builder()
+            .backend(backend)
+            .root(component)
+            .build()
+            .unwrap();
+
+        // Test that animation manager is accessible
+        assert_eq!(app.animation_manager_ref().active_count(), 0);
+
+        // Add a test animation
+        use crate::animation::fade_in;
+        use std::time::Duration;
+        let animation = fade_in("test", Duration::from_millis(500));
+        let _id = app.animation_manager().add_animation(animation);
+
+        assert_eq!(app.animation_manager_ref().active_count(), 1);
     }
 }

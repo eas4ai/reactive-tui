@@ -7,6 +7,7 @@ use std::sync::mpsc;
 use std::thread;
 use std::time::Duration;
 
+#[derive(Debug)]
 pub struct PseudoTerminal {
     child: Option<Child>,
     input_sender: Option<mpsc::Sender<Vec<u8>>>,
@@ -15,6 +16,12 @@ pub struct PseudoTerminal {
     size: (u16, u16),
     working_directory: Option<String>,
     environment: Vec<(String, String)>,
+}
+
+impl Default for PseudoTerminal {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl PseudoTerminal {

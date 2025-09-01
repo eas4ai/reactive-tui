@@ -1,227 +1,144 @@
-# Reactive-TUI Examples & Tests
+# Reactive-TUI Visual Demos
 
-This directory contains both **visual examples** and **framework tests** for the Reactive-TUI library.
+This directory contains **actual visual demonstrations** of reactive-tui features. These are interactive applications that showcase the framework's capabilities.
 
-## Running Examples & Tests
+**🎯 Important**: Tests have been moved to `tests/integration/`. Only visual demos remain here.
 
-To run any example or test:
+## Running Visual Demos
+
+To run any visual demo:
 
 ```bash
-cargo run --example <name>
+cargo run --example <demo_name>
 ```
 
-## 🧪 Framework Tests
+## 🎨 Available Visual Demos
 
-These validate that the framework works correctly. They focus on **functionality verification** rather than visual demonstration.
+These are interactive applications that showcase reactive-tui's capabilities:
 
-### Terminal Capability Detection Test
-**File**: `real_capability_detection.rs`
-**Command**: `cargo run --example real_capability_detection`
+### 🪟 Hierarchical Windows Demo
+**File**: `hierarchical_windows_demo.rs`
+**Command**: `cargo run --example hierarchical_windows_demo`
 
-Validates the terminal capability detection framework:
-- API functionality testing (5 test categories)
-- Data integrity validation
-- Performance benchmarking
-- Error handling verification
-- Cross-terminal compatibility
+Demonstrates the advanced window system with libvaxis feature parity:
+- Parent-child window relationships
+- Automatic constraint handling
+- Advanced text printing with segments
+- Cursor management and scrolling
+- Mouse event handling
+- Border rendering with different styles
 
-**Purpose**: Ensures the capability detection system works correctly across different terminals.
+**Visual Features**: Interactive window hierarchy with nested panels, borders, and real-time updates.
 
-### Image Widget Test
-**File**: `image_widget_demo.rs`
-**Command**: `cargo run --example image_widget_demo`
+### 🖥️ Terminal Widget Demo
+**File**: `terminal_widget_demo.rs`
+**Command**: `cargo run --example terminal_widget_demo`
 
-Tests image rendering capabilities:
-- Multiple rendering backend validation
-- Error handling and fallback testing
-- Format support verification
+Showcases the embedded terminal widget - reactive-tui's "killer feature":
+- Complete terminal emulator integration
+- ANSI escape sequence parsing
+- Virtual screen with scrollback
+- Cross-platform PTY spawning
+- Component system integration
+
+**Visual Features**: Full terminal emulator running inside a TUI application with status display.
+
+### 🎨 Grid Showcase Demo
+**File**: `grid_showcase.rs`
+**Command**: `cargo run --example grid_showcase`
+
+Interactive demonstration of the unified grid system:
+- CSS Grid and Flexbox layouts
+- Responsive design patterns
+- Dynamic grid manipulation
+- Real-time layout updates
+
+**Visual Features**: Interactive grid layouts with live editing and responsive behavior.
+
+### 🎬 Integrated Animations Demo
+**File**: `integrated_animations.rs`
+**Command**: `cargo run --example integrated_animations`
+
+Showcases the coordinated animation system:
+- Smooth transitions and effects
+- Timeline-based animations
+- Easing functions
+- Performance optimization
+
+**Visual Features**: Smooth animated UI elements with coordinated timing.
+
+### 🖼️ Image Placement Demo
+**File**: `image_placement_demo.rs`
+**Command**: `cargo run --example image_placement_demo`
+
+Demonstrates image rendering capabilities:
+- Multiple image formats
+- Placement and scaling
 - Terminal capability detection
-- Resource cleanup validation
+- Fallback handling
 
-**Purpose**: Validates that image rendering works correctly and safely.
+**Visual Features**: Images displayed in terminal with proper scaling and positioning.
 
-### Mouse Tracking Test
-**File**: `mouse_tracking_demo.rs`
-**Command**: `cargo run --example mouse_tracking_demo`
+### 📱 Responsive Grid Demo
+**File**: `responsive_grid_demo.rs`
+**Command**: `cargo run --example responsive_grid_demo`
 
-Tests mouse input capabilities:
-- Mouse level detection
-- Coordinate system validation
-- Event handling verification
-- Capability probing
+Interactive responsive layout demonstration:
+- Breakpoint-based layouts
+- Dynamic grid reconfiguration
+- Mobile-first design patterns
+- Real-time responsiveness
 
-**Purpose**: Ensures mouse tracking works across different terminals.
+**Visual Features**: Grid layouts that adapt to terminal size changes in real-time.
 
-### Performance Test
-**File**: `enhanced_performance_demo.rs`
-**Command**: `cargo run --example enhanced_performance_demo`
+### 🎨 Syntax Highlighting Demos
+**File**: `simple_syntax_highlight.rs` / `syntax_with_theme.rs`
+**Commands**:
+- `cargo run --example simple_syntax_highlight`
+- `cargo run --example syntax_with_theme`
 
-Validates rendering performance:
-- Render operation benchmarking
-- Memory usage monitoring
-- Frame rate testing
-- Optimization verification
-
-**Purpose**: Ensures the framework meets performance requirements.
-
-### Screen Management Test
-**File**: `multi_screen_demo.rs`
-**Command**: `cargo run --example multi_screen_demo`
-
-Tests screen management functionality:
-- Screen creation and navigation
-- Transition system validation
-- Event handling verification
-- State management testing
-
-**Purpose**: Validates that screen management and transitions work correctly.
-
-### Animation System Test
-**File**: `animation_integration_demo.rs`
-**Command**: `cargo run --example animation_integration_demo`
-
-Tests animation system functionality:
-- Animation pipeline validation
-- Easing function testing
-- Performance measurement
-- Integration verification
-
-**Purpose**: Ensures animation system works correctly and performs well.
-
-## 🎨 Visual Examples
-
-These demonstrate features visually so users can **see** what the library can do.
-
-### Multi-Screen Navigation
-**File**: `multi_screen_demo.rs`
-**Command**: `cargo run --example multi_screen_demo`
-
-**What you'll see**: Interactive screen transitions and navigation
-- Multiple application screens with smooth transitions
-- Hotkey-based navigation between screens
-- State management demonstration
-- Visual transition effects
-
-### Animation Showcase
-**File**: `animation_integration_demo.rs`
-**Command**: `cargo run --example animation_integration_demo`
-
-**What you'll see**: Various animation effects and transitions
-- Spring physics animations in action
-- Different easing functions demonstrated
-- Staggered animation sequences
-- Performance optimization examples
-
-### Syntax Highlighting Display
-**File**: `syntax_highlight.rs`
-**Command**: `cargo run --example syntax_highlight`
-
-**What you'll see**: Live syntax highlighting of code
-- Real-time code syntax highlighting
+Code syntax highlighting demonstrations:
 - Multiple language support
-- Theme application
-- Interactive editing (press ESC to exit)
+- Theme system integration
+- Color scheme variations
+- Performance optimization
 
-### Advanced Syntax with Themes
-**File**: `syntax_with_theme.rs`
-**Command**: `cargo run --example syntax_with_theme`
+**Visual Features**: Beautifully highlighted code with multiple themes and languages.
 
-**What you'll see**: Themed syntax highlighting
-- Multiple color themes in action
-- Theme switching demonstration
-- Custom syntax definitions
-- Optimized rendering display
+## 🧪 Tests
 
-### Efficient Rendering Demo
-**File**: `patch_aware_rendering.rs`
-**Command**: `cargo run --example patch_aware_rendering`
+**Framework tests have been moved to `tests/integration/`**
 
-**What you'll see**: Optimized rendering in action
-- Diff-based updates visualization
-- Performance metrics display
-- Render optimization techniques
-- Real-time performance monitoring
+To run tests:
+```bash
+cargo test
+# or for integration tests specifically:
+cargo test --test integration
+```
 
-### Statistics Dashboard
-**File**: `stats_demo.rs`
-**Command**: `cargo run --example stats_demo`
+Tests include:
+- Backend comparison and validation
+- Grid system functionality
+- Terminal emulation testing
+- Performance benchmarking
+- Mouse and keyboard input validation
+- Animation system verification
+- And much more...
 
-**What you'll see**: Live performance statistics
-- Real-time performance metrics
-- Memory usage visualization
-- Render statistics display
-- System resource monitoring
+## 🎯 Demo vs Test Guidelines
 
+**Visual Demos** (in `examples/`):
+- ✅ Interactive applications you can see and use
+- ✅ Showcase framework capabilities visually
+- ✅ Demonstrate real-world usage patterns
+- ✅ User-facing feature demonstrations
 
+**Tests** (in `tests/integration/`):
+- ✅ Validate functionality works correctly
+- ✅ Performance and benchmark testing
+- ✅ Error handling verification
+- ✅ Framework internal testing
 
-## Terminal Requirements
+---
 
-### Minimum Requirements
-- 24-bit color support
-- Unicode support
-- Modern terminal emulator
-
-### Recommended Terminals
-- **WezTerm**: Full feature support including sixel graphics
-- **Kitty**: Excellent performance with graphics protocol
-- **Alacritty**: Fast rendering with good color support
-- **iTerm2**: macOS with inline image support
-
-### Feature Support by Terminal
-| Terminal | Sixel | Kitty Graphics | iTerm2 Inline | External Tools | Mouse | Animations |
-|----------|-------|----------------|---------------|----------------|-------|------------|
-| WezTerm  | ✅     | ❌              | ❌             | ✅              | ✅     | ✅          |
-| Kitty    | ❌     | ✅              | ❌             | ✅              | ✅     | ✅          |
-| iTerm2   | ❌     | ❌              | ✅             | ✅              | ✅     | ✅          |
-| Alacritty| ❌     | ❌              | ❌             | ✅              | ✅     | ✅          |
-
-## Troubleshooting
-
-### Tests Failing?
-1. **Framework tests**: Should pass on any modern terminal
-2. **Capability detection**: May show different results per terminal (this is expected)
-3. **Performance tests**: Results vary by system performance
-4. **Mouse tests**: Require interactive terminal (not CI/automated environments)
-
-### Visual Examples Not Working?
-1. **Check terminal compatibility**: Ensure your terminal supports required features
-2. **Install external tools**: `brew install chafa` or `cargo install viu` for image examples
-3. **Verify terminal settings**: Some features require specific configuration
-4. **Terminal size**: Ensure terminal is large enough for visual examples
-
-### Performance Issues?
-1. **Use recommended terminals**: WezTerm and Kitty offer best performance
-2. **Reduce complexity**: Lower animation frame rates for slower systems
-3. **Check system resources**: Monitor CPU and memory usage during tests
-
-## Development Guidelines
-
-### Creating New Tests
-1. **Focus on validation**: Tests should verify functionality works correctly
-2. **Include error cases**: Test both success and failure scenarios
-3. **Make them deterministic**: Tests should produce consistent results
-4. **Add comprehensive assertions**: Validate all important aspects
-
-### Creating New Visual Examples
-1. **Focus on demonstration**: Examples should show features visually
-2. **Include user interaction**: Let users see features in action
-3. **Add clear instructions**: Tell users what they should see/do
-4. **Handle graceful exit**: Provide clear exit mechanisms (ESC key, etc.)
-
-### General Guidelines
-1. **Test across terminals**: Verify compatibility with major terminals
-2. **Keep dependencies minimal**: Only add necessary dependencies
-3. **Add documentation**: Comment complex sections thoroughly
-4. **Follow code style**: Use `cargo fmt` and follow project conventions
-
-## Contributing
-
-We welcome new examples and tests! Please:
-
-1. **Choose the right category**: Tests for validation, Examples for demonstration
-2. **Follow existing patterns**: Look at similar files for structure
-3. **Update this README**: Add your new test/example to the appropriate section
-4. **Test thoroughly**: Verify on multiple terminals and systems
-5. **Include requirements**: Document any special dependencies or setup
-
-See [CONTRIBUTING.md](../CONTRIBUTING.md) for detailed guidelines.
+**🎯 Remember**: This directory is for **visual demonstrations only**. All tests have been moved to `tests/integration/` where they belong!

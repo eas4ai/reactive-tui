@@ -1,8 +1,12 @@
 //! Escape sequence parser for terminal input
 //!
-//! Based on libvaxis Parser.zig implementation
+//! High-performance stateless parser for terminal escape sequences
 
-use super::{KeyCode, KeyEventKind, KeyModifiers, MouseEventKind, TerminalEvent};
+use super::{ColorScheme, KeyCode, KeyEventKind, KeyModifiers, MouseEventKind, TerminalEvent};
+
+/// Key state for compatibility
+#[derive(Debug, Clone, Default)]
+pub struct KeyState;
 
 /// Parser result containing an event and number of bytes consumed
 #[derive(Debug)]
@@ -22,7 +26,7 @@ mod mouse_bits {
 
 /// Parser state for escape sequence processing
 #[derive(Debug, Clone, Copy, PartialEq)]
-enum ParserState {
+pub enum ParserState {
     Ground,
     Escape,
     Csi,
@@ -35,9 +39,10 @@ enum ParserState {
     Ss3,
 }
 
-/// Escape sequence parser with libvaxis feature parity
+/// Escape sequence parser with comprehensive terminal support
 pub struct EscapeSequenceParser {
     /// Buffer for temporary text storage
+    #[allow(dead_code)]
     buf: [u8; 128],
 }
 
@@ -86,7 +91,14 @@ impl EscapeSequenceParser {
                 0x4F => self.parse_ss3(input),
                 0x50 => self.skip_until_st(input), // DCS
                 0x58 => self.skip_until_st(input), // SOS
-                0x5B => self.parse_csi(input),     // CSI
+                0x5B => {
+                    // Check for legacy mouse format first
+                    if input.len() >= 5 && input[2] == b'M' {
+                        self.parse_mouse_legacy(input)
+                    } else {
+                        self.parse_csi(input)
+                    }
+                }
                 0x5D => self.parse_osc(input),     // OSC
                 0x5E => self.skip_until_st(input), // PM
                 0x5F => self.parse_apc(input),     // APC
@@ -340,7 +352,7 @@ impl EscapeSequenceParser {
 
         // Parse parameter
         let ps_str = std::str::from_utf8(&input[2..semicolon_idx]).ok();
-        let ps: u8 = if let Some(s) = ps_str {
+        let ps: u16 = if let Some(s) = ps_str {
             s.parse().ok().unwrap_or(0)
         } else {
             return null_result;
@@ -353,7 +365,7 @@ impl EscapeSequenceParser {
                     &input[semicolon_idx + 1..end - if bel_terminated { 1 } else { 2 }],
                 )
             }
-            10 | 11 | 12 => {
+            10..=12 => {
                 // Foreground/background/cursor color query response
                 self.parse_color_query_response(
                     ps,
@@ -363,6 +375,12 @@ impl EscapeSequenceParser {
             52 => {
                 // Clipboard response
                 self.parse_clipboard_osc(
+                    &input[semicolon_idx + 1..end - if bel_terminated { 1 } else { 2 }],
+                )
+            }
+            996 => {
+                // Color scheme response
+                self.parse_color_scheme_response(
                     &input[semicolon_idx + 1..end - if bel_terminated { 1 } else { 2 }],
                 )
             }
@@ -390,7 +408,7 @@ impl EscapeSequenceParser {
     }
 
     /// Parse color query response (OSC 10/11/12)
-    fn parse_color_query_response(&mut self, ps: u8, data: &[u8]) -> Option<TerminalEvent> {
+    fn parse_color_query_response(&mut self, ps: u16, data: &[u8]) -> Option<TerminalEvent> {
         let content = std::str::from_utf8(data).ok()?;
         let color_type = match ps {
             10 => "fg",
@@ -423,6 +441,18 @@ impl EscapeSequenceParser {
         None
     }
 
+    /// Parse color scheme response (OSC 996)
+    fn parse_color_scheme_response(&mut self, data: &[u8]) -> Option<TerminalEvent> {
+        let content = std::str::from_utf8(data).ok()?;
+        let scheme = match content.trim() {
+            "dark" => ColorScheme::Dark,
+            "light" => ColorScheme::Light,
+            _ => return None,
+        };
+
+        Some(TerminalEvent::ColorScheme(scheme))
+    }
+
     /// Parse CSI sequences (ESC [)
     fn parse_csi(&mut self, input: &[u8]) -> ParseResult {
         if input.len() < 3 {
@@ -451,6 +481,7 @@ impl EscapeSequenceParser {
             b'I' => Some(TerminalEvent::FocusGained),
             b'O' => Some(TerminalEvent::FocusLost),
             b'M' | b'm' => self.parse_mouse_sgr(sequence),
+
             b'c' => self.parse_device_attributes(sequence),
             b'n' => self.parse_device_status_report(sequence),
             b't' => self.parse_window_manipulation(sequence),
@@ -462,6 +493,53 @@ impl EscapeSequenceParser {
         ParseResult {
             event,
             n: sequence.len(),
+        }
+    }
+
+    /// Parse legacy mouse events (CSI M ...)
+    fn parse_mouse_legacy(&mut self, input: &[u8]) -> ParseResult {
+        // Legacy mouse format: ESC [ M <button> <x> <y>
+        // Need at least 5 bytes: ESC [ M + 2 data bytes (minimum)
+        if input.len() < 5 {
+            return ParseResult { event: None, n: 0 };
+        }
+
+        let button = input[3];
+        let x = input[4];
+        let y = if input.len() > 5 { input[5] } else { 33 }; // Default to row 0
+
+        // Decode button (subtract 32 to get actual values)
+        let button_data = button.wrapping_sub(32);
+        let x_pos = (x.wrapping_sub(33)) as u16; // 1-based to 0-based
+        let y_pos = (y.wrapping_sub(33)) as u16; // 1-based to 0-based
+
+        let kind = match button_data & 0x03 {
+            0 => MouseEventKind::Down, // Left button
+            1 => MouseEventKind::Down, // Middle button
+            2 => MouseEventKind::Down, // Right button
+            3 => MouseEventKind::Up,   // Button release
+            _ => MouseEventKind::Move,
+        };
+
+        let modifiers = KeyModifiers {
+            shift: (button_data & 0x04) != 0,
+            alt: (button_data & 0x08) != 0,
+            ctrl: (button_data & 0x10) != 0,
+            meta: false,
+        };
+
+        let event = Some(TerminalEvent::Mouse {
+            kind,
+            column: x_pos,
+            row: y_pos,
+            pixel_x: None,
+            pixel_y: None,
+            modifiers,
+        });
+
+        ParseResult {
+            event,
+            n: input.len().min(6),
         }
     }
 

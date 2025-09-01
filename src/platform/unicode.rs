@@ -1,6 +1,6 @@
 //! Unicode handling and grapheme clustering
 //!
-//! Based on libvaxis Unicode.zig and gwidth.zig
+//! Advanced Unicode support with grapheme clustering and width calculation
 
 use std::collections::HashMap;
 
@@ -81,12 +81,10 @@ impl GraphemeCache {
 
     /// Look up grapheme in cache
     pub fn get(&mut self, text: &str) -> Option<&Grapheme> {
-        for item in &self.cache {
-            if let Some(ref grapheme) = item {
-                if grapheme.cluster == text {
-                    self.hits += 1;
-                    return Some(grapheme);
-                }
+        for ref grapheme in self.cache.iter().flatten() {
+            if grapheme.cluster == text {
+                self.hits += 1;
+                return Some(grapheme);
             }
         }
         self.misses += 1;
@@ -231,7 +229,7 @@ pub fn char_width(ch: char) -> usize {
     let code = ch as u32;
 
     // Control characters
-    if code < 32 || (code >= 0x7F && code < 0xA0) {
+    if code < 32 || (0x7F..0xA0).contains(&code) {
         return 0;
     }
 

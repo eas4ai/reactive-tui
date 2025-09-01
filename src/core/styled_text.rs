@@ -84,11 +84,9 @@ impl StyledLine {
     pub fn push(&mut self, run: StyledRun) {
         // Merge with previous run if styles match
         if let Some(last) = self.runs.last_mut() {
-            if last.fg == run.fg {
-                if last.bg == run.bg && last.attr == run.attr {
-                    last.text.push_str(&run.text);
-                    return;
-                }
+            if last.fg == run.fg && last.bg == run.bg && last.attr == run.attr {
+                last.text.push_str(&run.text);
+                return;
             }
         }
         self.runs.push(run);

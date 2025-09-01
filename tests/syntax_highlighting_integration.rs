@@ -17,7 +17,12 @@ fn main() {
     }
 }"#;
 
-fn main() -> io::Result<()> {
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_syntax_highlighting_integration() -> io::Result<()> {
     // Create syntax highlighter
     let mut highlighter = match SyntaxHighlighter::new("Rust") {
         Some(h) => h,
@@ -76,7 +81,8 @@ fn main() -> io::Result<()> {
 
     println!("{}", "=".repeat(60));
     println!("✅ If you see colors above, syntax highlighting is working!");
-    println!("❌ If all text is the same color, there's a renderer bug.");
+        println!("❌ If all text is the same color, there's a renderer bug.");
 
-    Ok(())
+        Ok(())
+    }
 }

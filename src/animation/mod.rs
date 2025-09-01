@@ -1547,13 +1547,25 @@ impl AnimationManager {
     }
 
     /// Add an animation
-    pub fn add_animation(&mut self, animation: Animation) {
-        self.animations.insert(animation.id.clone(), animation);
+    pub fn add_animation(&mut self, animation: Animation) -> AnimationId {
+        let id = animation.id.clone();
+        self.animations.insert(id.clone(), animation);
+        id
     }
 
     /// Add a timeline
     pub fn add_timeline(&mut self, timeline: AnimationTimeline) {
         self.timelines.insert(timeline.id.clone(), timeline);
+    }
+
+    /// Remove an animation by ID
+    pub fn remove_animation(&mut self, id: &AnimationId) {
+        self.animations.remove(id);
+    }
+
+    /// Remove a timeline by ID
+    pub fn remove_timeline(&mut self, id: &TimelineId) {
+        self.timelines.remove(id);
     }
 
     /// Update all animations (call in main loop)

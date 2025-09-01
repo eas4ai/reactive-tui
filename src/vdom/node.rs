@@ -121,6 +121,82 @@ impl VNode {
     pub fn fragment() -> VFragment {
         VFragment::new()
     }
+
+    /// Convert this VNode to an Element (for web_api interop)
+    pub fn to_element(self) -> crate::component::Element {
+        crate::vdom::bridge::vdom_to_element(self)
+    }
+
+    /// Create a VNode from a web_api Element (for reverse interop)
+    pub fn from_element(element: crate::component::Element) -> Self {
+        use crate::component::{ElementType, LayoutType};
+
+        match element.element_type {
+            ElementType::Text(content) => {
+                let mut text_node = VText::new(content);
+                if let Some(key) = element.key {
+                    text_node.key = VNodeKey::String(key);
+                }
+                VNode::Text(text_node)
+            }
+            ElementType::Layout(layout_type) => {
+                let tag = match layout_type {
+                    LayoutType::Flex => "flex",
+                    LayoutType::Grid => "grid",
+                    LayoutType::Stack => "stack",
+                    LayoutType::Absolute => "div",
+                };
+
+                let mut element_builder = VNode::element(tag);
+                if let Some(class) = element.class {
+                    element_builder = element_builder.class(&class);
+                }
+                if let Some(key) = element.key {
+                    element_builder = element_builder.key(key);
+                }
+
+                let children: Vec<VNode> = element
+                    .children
+                    .into_iter()
+                    .map(VNode::from_element)
+                    .collect();
+
+                element_builder.children(children).build()
+            }
+            ElementType::Component(name) => {
+                let mut element_builder = VNode::element(&name);
+                if let Some(class) = element.class {
+                    element_builder = element_builder.class(&class);
+                }
+                if let Some(key) = element.key {
+                    element_builder = element_builder.key(key);
+                }
+
+                let children: Vec<VNode> = element
+                    .children
+                    .into_iter()
+                    .map(VNode::from_element)
+                    .collect();
+
+                element_builder.children(children).build()
+            }
+            ElementType::Fragment => {
+                let mut fragment_builder = VNode::fragment();
+                if let Some(key) = element.key {
+                    fragment_builder = fragment_builder.key(key);
+                }
+
+                let children: Vec<VNode> = element
+                    .children
+                    .into_iter()
+                    .map(VNode::from_element)
+                    .collect();
+
+                fragment_builder.children(children).build()
+            }
+            ElementType::Empty => VNode::Empty,
+        }
+    }
 }
 
 impl Debug for VNode {

@@ -1,6 +1,6 @@
 //! Terminal control sequences
 //!
-//! Based on libvaxis ctlseqs.zig - comprehensive escape sequence library
+//! Comprehensive escape sequence library for terminal control
 
 /// Device capability queries
 pub mod queries {

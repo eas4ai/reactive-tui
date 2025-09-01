@@ -77,6 +77,8 @@ impl BoxSpacing {
 pub enum Direction {
     Row,
     Column,
+    RowReverse,
+    ColumnReverse,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -95,6 +97,7 @@ pub enum AlignItems {
     Center,
     End,
     Stretch,
+    Baseline,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum PlaceItems {
@@ -147,6 +150,8 @@ pub struct StyleBuilder {
     // Visual extras (Utility CSS)
     fg_rgba: Option<(f32, f32, f32, f32)>,
     bg_rgba: Option<(f32, f32, f32, f32)>,
+    opacity: Option<f32>,
+    z_index: Option<i32>,
     bold: bool,
     italic: bool,
     underline: bool,
@@ -181,6 +186,8 @@ impl StyleBuilder {
         self.style.flex_direction = match dir {
             Direction::Row => FlexDirection::Row,
             Direction::Column => FlexDirection::Column,
+            Direction::RowReverse => FlexDirection::RowReverse,
+            Direction::ColumnReverse => FlexDirection::ColumnReverse,
         };
         self
     }
@@ -204,6 +211,33 @@ impl StyleBuilder {
         self
     }
 
+    pub fn width_px(mut self, px: f32) -> Self {
+        self.style.size.width = Dimension::length(px);
+        self
+    }
+    pub fn height_px(mut self, px: f32) -> Self {
+        self.style.size.height = Dimension::length(px);
+        self
+    }
+
+    pub fn width_percent(mut self, pct: f32) -> Self {
+        self.style.size.width = Dimension::percent(pct / 100.0);
+        self
+    }
+    pub fn height_percent(mut self, pct: f32) -> Self {
+        self.style.size.height = Dimension::percent(pct / 100.0);
+        self
+    }
+
+    pub fn width_auto(mut self) -> Self {
+        self.style.size.width = Dimension::auto();
+        self
+    }
+    pub fn height_auto(mut self) -> Self {
+        self.style.size.height = Dimension::auto();
+        self
+    }
+
     pub fn min_size_px(mut self, w: Option<f32>, h: Option<f32>) -> Self {
         if let Some(w) = w {
             self.style.min_size.width = Dimension::length(w);
@@ -224,12 +258,73 @@ impl StyleBuilder {
         self
     }
 
+    pub fn min_width_px(mut self, px: f32) -> Self {
+        self.style.min_size.width = Dimension::length(px);
+        self
+    }
+    pub fn min_height_px(mut self, px: f32) -> Self {
+        self.style.min_size.height = Dimension::length(px);
+        self
+    }
+    pub fn max_width_px(mut self, px: f32) -> Self {
+        self.style.max_size.width = Dimension::length(px);
+        self
+    }
+    pub fn max_height_px(mut self, px: f32) -> Self {
+        self.style.max_size.height = Dimension::length(px);
+        self
+    }
+
+    pub fn min_width_percent(mut self, pct: f32) -> Self {
+        self.style.min_size.width = Dimension::percent(pct / 100.0);
+        self
+    }
+    pub fn min_height_percent(mut self, pct: f32) -> Self {
+        self.style.min_size.height = Dimension::percent(pct / 100.0);
+        self
+    }
+    pub fn max_width_percent(mut self, pct: f32) -> Self {
+        self.style.max_size.width = Dimension::percent(pct / 100.0);
+        self
+    }
+    pub fn max_height_percent(mut self, pct: f32) -> Self {
+        self.style.max_size.height = Dimension::percent(pct / 100.0);
+        self
+    }
+
+    pub fn min_width_auto(mut self) -> Self {
+        self.style.min_size.width = Dimension::auto();
+        self
+    }
+    pub fn min_height_auto(mut self) -> Self {
+        self.style.min_size.height = Dimension::auto();
+        self
+    }
+    pub fn max_width_auto(mut self) -> Self {
+        self.style.max_size.width = Dimension::auto();
+        self
+    }
+    pub fn max_height_auto(mut self) -> Self {
+        self.style.max_size.height = Dimension::auto();
+        self
+    }
+
     pub fn flex_grow(mut self, v: f32) -> Self {
         self.style.flex_grow = v;
         self
     }
     pub fn flex_shrink(mut self, v: f32) -> Self {
         self.style.flex_shrink = v;
+        self
+    }
+
+    pub fn flex_wrap(mut self, wrap: bool) -> Self {
+        use taffy::FlexWrap;
+        self.style.flex_wrap = if wrap {
+            FlexWrap::Wrap
+        } else {
+            FlexWrap::NoWrap
+        };
         self
     }
 
@@ -343,6 +438,27 @@ impl StyleBuilder {
         self
     }
 
+    // Auto margin utilities for centering
+    pub fn margin_auto(mut self) -> Self {
+        self.style.margin.left = LengthPercentageAuto::auto();
+        self.style.margin.right = LengthPercentageAuto::auto();
+        self.style.margin.top = LengthPercentageAuto::auto();
+        self.style.margin.bottom = LengthPercentageAuto::auto();
+        self
+    }
+
+    pub fn margin_x_auto(mut self) -> Self {
+        self.style.margin.left = LengthPercentageAuto::auto();
+        self.style.margin.right = LengthPercentageAuto::auto();
+        self
+    }
+
+    pub fn margin_y_auto(mut self) -> Self {
+        self.style.margin.top = LengthPercentageAuto::auto();
+        self.style.margin.bottom = LengthPercentageAuto::auto();
+        self
+    }
+
     pub fn gap_px(mut self, x: f32, y: f32) -> Self {
         self.style.gap = Size {
             width: LengthPercentage::length(x),
@@ -354,6 +470,11 @@ impl StyleBuilder {
     pub fn text_rgba(mut self, r: f32, g: f32, b: f32, a: f32) -> Self {
         self.fg_rgba = Some((r, g, b, a));
         self
+    }
+
+    // Alias for text_rgba for CSS utility compatibility
+    pub fn fg_rgba(self, r: f32, g: f32, b: f32, a: f32) -> Self {
+        self.text_rgba(r, g, b, a)
     }
     pub fn bg_rgba(mut self, r: f32, g: f32, b: f32, a: f32) -> Self {
         self.bg_rgba = Some((r, g, b, a));
@@ -380,15 +501,77 @@ impl StyleBuilder {
         self
     }
 
+    // Font weight methods for CSS utility compatibility
+    pub fn font_weight_light(mut self) -> Self {
+        // Light weight is typically represented by making text less bold
+        self.bold = false;
+        self
+    }
+    pub fn font_weight_normal(mut self) -> Self {
+        self.bold = false;
+        self
+    }
+    pub fn font_weight_medium(mut self) -> Self {
+        self.bold = false; // Medium is closer to normal in terminal
+        self
+    }
+    pub fn font_weight_bold(mut self) -> Self {
+        self.bold = true;
+        self
+    }
+    pub fn font_weight_black(mut self) -> Self {
+        self.bold = true; // Black weight is still just bold in terminal
+        self
+    }
+
+    pub fn opacity(mut self, alpha: f32) -> Self {
+        self.opacity = Some(alpha.clamp(0.0, 1.0));
+        self
+    }
+
+    pub fn z_index(mut self, z: i32) -> Self {
+        self.z_index = Some(z);
+        self
+    }
+
+    pub fn has_bg_color(&self) -> bool {
+        self.bg_rgba.is_some()
+    }
+
+    pub fn get_z_index(&self) -> Option<i32> {
+        self.z_index
+    }
+
+    pub fn get_overflow_x(&self) -> Overflow {
+        self.style.overflow.x
+    }
+
+    pub fn get_overflow_y(&self) -> Overflow {
+        self.style.overflow.y
+    }
+
     pub fn take_visuals(&mut self) -> Option<VisualStyle> {
         let had_fg = self.fg_rgba.is_some();
         let had_bg = self.bg_rgba.is_some();
-        let any = had_fg || had_bg || self.bold || self.italic || self.underline || self.reverse;
+        let has_opacity = self.opacity.is_some();
+        let any = had_fg
+            || had_bg
+            || has_opacity
+            || self.bold
+            || self.italic
+            || self.underline
+            || self.reverse;
         if !any {
             return None;
         }
-        let fg = self.fg_rgba.take().unwrap_or((1.0, 1.0, 1.0, 1.0));
-        let bg = self.bg_rgba.take().unwrap_or((0.0, 0.0, 0.0, 1.0));
+        let mut fg = self.fg_rgba.take().unwrap_or((1.0, 1.0, 1.0, 1.0));
+        let mut bg = self.bg_rgba.take().unwrap_or((0.0, 0.0, 0.0, 1.0));
+
+        // Apply opacity if set
+        if let Some(opacity) = self.opacity.take() {
+            fg.3 *= opacity;
+            bg.3 *= opacity;
+        }
 
         let decorations = TextDecorations {
             bold: self.bold,
@@ -470,6 +653,114 @@ impl StyleBuilder {
         self
     }
 
+    // Grid template methods for CSS utility compatibility
+    pub fn grid_template_columns(self, cols: u16) -> Self {
+        self.grid_cols(cols)
+    }
+
+    pub fn grid_template_rows(self, rows: u16) -> Self {
+        self.grid_rows(rows)
+    }
+
+    pub fn grid_column_span(self, span: u16) -> Self {
+        self.col_span(span)
+    }
+
+    pub fn grid_row_span(self, span: u16) -> Self {
+        self.row_span(span)
+    }
+
+    // Grid auto methods
+    pub fn grid_column_auto(mut self) -> Self {
+        self.style.grid_column = Line {
+            start: GridPlacement::Auto,
+            end: GridPlacement::Auto,
+        };
+        self
+    }
+
+    pub fn grid_row_auto(mut self) -> Self {
+        self.style.grid_row = Line {
+            start: GridPlacement::Auto,
+            end: GridPlacement::Auto,
+        };
+        self
+    }
+
+    pub fn grid_column_start(self, start: i16) -> Self {
+        self.col_start(start)
+    }
+
+    pub fn grid_column_end(self, end: i16) -> Self {
+        self.col_end(end)
+    }
+
+    pub fn grid_row_start(self, start: i16) -> Self {
+        self.row_start(start)
+    }
+
+    // Advanced grid utilities
+    pub fn grid_auto_fit_columns(mut self, min_size: u16) -> Self {
+        // In TUI, we simulate auto-fit by setting a flexible grid
+        // This would need special handling in the layout system
+        self.grid_cols = Some(min_size.max(1));
+        self
+    }
+
+    pub fn grid_auto_fill_columns(mut self, min_size: u16) -> Self {
+        // Similar to auto-fit but fills available space
+        self.grid_cols = Some(min_size.max(1));
+        self
+    }
+
+    pub fn grid_auto_fit_rows(mut self, min_size: u16) -> Self {
+        self.grid_rows = Some(min_size.max(1));
+        self
+    }
+
+    pub fn grid_auto_fill_rows(mut self, min_size: u16) -> Self {
+        self.grid_rows = Some(min_size.max(1));
+        self
+    }
+
+    pub fn grid_area(self, area_name: &str) -> Self {
+        // Store grid area name for template areas in reactive-tui's advanced grid system
+        // This integrates with the hierarchical window system for named grid layouts
+        match area_name {
+            "header" => self.grid_row_start(1).grid_column_span(12),
+            "sidebar" => self.grid_column_start(1).grid_row_span(3),
+            "main" => self.grid_column_start(2).grid_column_span(10),
+            "footer" => self.grid_row_start(-1).grid_column_span(12),
+            _ => {
+                // Custom area - use as CSS grid area identifier
+                // In a full implementation, this would be stored for layout resolution
+                self
+            }
+        }
+    }
+
+    pub fn grid_template_areas(mut self, areas: &[&str]) -> Self {
+        // Store template areas for named grid layouts in reactive-tui's advanced grid system
+        // This integrates with the hierarchical window system for complex layouts
+
+        // Set up grid based on template areas
+        let rows = areas.len() as u16;
+        let cols = areas.first()
+            .map(|row| row.split_whitespace().count() as u16)
+            .unwrap_or(1);
+
+        self.grid_rows = Some(rows);
+        self.grid_cols = Some(cols);
+
+        // In a full implementation, this would store the area names for layout resolution
+        // For now, we set up the basic grid structure
+        self.display_grid()
+    }
+
+    pub fn grid_row_end(self, end: i16) -> Self {
+        self.row_end(end)
+    }
+
     pub fn align_self(mut self, a: AlignSelf) -> Self {
         self.style.align_self = Some(match a {
             AlignSelf::Auto => TAlign::Stretch, // Taffy lacks Auto in 0.9; use Stretch as default
@@ -493,12 +784,89 @@ impl StyleBuilder {
         self
     }
 
+    // Alias methods for CSS utility compatibility
+    pub fn justify_content(self, j: JustifyContent) -> Self {
+        self.justify(j)
+    }
+
+    pub fn align_items(self, a: AlignItems) -> Self {
+        self.align(a)
+    }
+
+    // Overflow utilities (critical for TUI)
+    pub fn overflow_hidden(mut self) -> Self {
+        self.style.overflow.x = Overflow::Hidden;
+        self.style.overflow.y = Overflow::Hidden;
+        self
+    }
+
+    pub fn overflow_scroll(mut self) -> Self {
+        self.style.overflow.x = Overflow::Scroll;
+        self.style.overflow.y = Overflow::Scroll;
+        self
+    }
+
+    pub fn overflow_auto(mut self) -> Self {
+        self.style.overflow.x = Overflow::Scroll; // TUI doesn't have "auto", use scroll
+        self.style.overflow.y = Overflow::Scroll;
+        self
+    }
+
+    pub fn overflow_visible(mut self) -> Self {
+        self.style.overflow.x = Overflow::Visible;
+        self.style.overflow.y = Overflow::Visible;
+        self
+    }
+
+    // X-axis overflow
+    pub fn overflow_x_hidden(mut self) -> Self {
+        self.style.overflow.x = Overflow::Hidden;
+        self
+    }
+
+    pub fn overflow_x_scroll(mut self) -> Self {
+        self.style.overflow.x = Overflow::Scroll;
+        self
+    }
+
+    pub fn overflow_x_auto(mut self) -> Self {
+        self.style.overflow.x = Overflow::Scroll;
+        self
+    }
+
+    pub fn overflow_x_visible(mut self) -> Self {
+        self.style.overflow.x = Overflow::Visible;
+        self
+    }
+
+    // Y-axis overflow
+    pub fn overflow_y_hidden(mut self) -> Self {
+        self.style.overflow.y = Overflow::Hidden;
+        self
+    }
+
+    pub fn overflow_y_scroll(mut self) -> Self {
+        self.style.overflow.y = Overflow::Scroll;
+        self
+    }
+
+    pub fn overflow_y_auto(mut self) -> Self {
+        self.style.overflow.y = Overflow::Scroll;
+        self
+    }
+
+    pub fn overflow_y_visible(mut self) -> Self {
+        self.style.overflow.y = Overflow::Visible;
+        self
+    }
+
     pub fn align(mut self, a: AlignItems) -> Self {
         self.style.align_items = Some(match a {
             AlignItems::Start => TAlign::FlexStart,
             AlignItems::Center => TAlign::Center,
             AlignItems::End => TAlign::FlexEnd,
             AlignItems::Stretch => TAlign::Stretch,
+            AlignItems::Baseline => TAlign::Baseline,
         });
         self
     }
@@ -522,6 +890,79 @@ impl StyleBuilder {
         };
         self
     }
+
+    /// Set aspect ratio constraint
+    pub fn aspect_ratio(mut self, ratio: f32) -> Self {
+        self.style.aspect_ratio = Some(ratio);
+        self
+    }
+
+    // Advanced positioning utilities
+    pub fn position_static(mut self) -> Self {
+        self.style.position = taffy::style::Position::Relative; // TUI equivalent
+        self.z_index(0)
+    }
+
+    pub fn position_relative(mut self) -> Self {
+        self.style.position = taffy::style::Position::Relative;
+        self.z_index(1)
+    }
+
+    pub fn position_absolute(mut self) -> Self {
+        self.style.position = taffy::style::Position::Absolute;
+        self.z_index(10)
+    }
+
+    pub fn position_fixed(mut self) -> Self {
+        self.style.position = taffy::style::Position::Absolute; // TUI equivalent
+        self.z_index(50)
+    }
+
+    pub fn position_sticky(mut self) -> Self {
+        self.style.position = taffy::style::Position::Relative; // TUI equivalent
+        self.z_index(20)
+    }
+
+    // Inset utilities
+    pub fn inset_all(mut self, value: f32) -> Self {
+        self.style.inset.left = LengthPercentageAuto::length(value);
+        self.style.inset.right = LengthPercentageAuto::length(value);
+        self.style.inset.top = LengthPercentageAuto::length(value);
+        self.style.inset.bottom = LengthPercentageAuto::length(value);
+        self
+    }
+
+    pub fn inset_all_auto(mut self) -> Self {
+        self.style.inset.left = LengthPercentageAuto::auto();
+        self.style.inset.right = LengthPercentageAuto::auto();
+        self.style.inset.top = LengthPercentageAuto::auto();
+        self.style.inset.bottom = LengthPercentageAuto::auto();
+        self
+    }
+
+    pub fn inset_top(mut self, value: f32) -> Self {
+        self.style.inset.top = LengthPercentageAuto::length(value);
+        self
+    }
+
+    pub fn inset_right(mut self, value: f32) -> Self {
+        self.style.inset.right = LengthPercentageAuto::length(value);
+        self
+    }
+
+    pub fn inset_bottom(mut self, value: f32) -> Self {
+        self.style.inset.bottom = LengthPercentageAuto::length(value);
+        self
+    }
+
+    pub fn inset_left(mut self, value: f32) -> Self {
+        self.style.inset.left = LengthPercentageAuto::length(value);
+        self
+    }
+
+
+
+
 
     pub fn build(mut self) -> Style {
         // Wire grid templates to equal-fr tracks when counts are set

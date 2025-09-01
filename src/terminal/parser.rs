@@ -158,7 +158,11 @@ impl AnsiParser {
                     0x58 => ParserState::SosString,
                     0x5E => ParserState::PmString,
                     0x5F => ParserState::ApcString,
-                    _ => unreachable!(),
+                    _ => {
+                        // Invalid escape sequence - reset to ground state
+                        self.reset_state();
+                        return;
+                    }
                 };
             }
             _ => {

@@ -335,7 +335,7 @@ impl Terminal {
             );
             eprintln!("  - WezTerm, Kitty, Alacritty, or iTerm2");
             eprintln!("  - A terminal with 24-bit color support");
-            eprintln!("");
+            eprintln!();
             eprintln!("Current detected capabilities:");
             eprintln!("  - Color depth: {:?}", caps.color_depth);
             eprintln!("  - Unicode: {}", caps.unicode);

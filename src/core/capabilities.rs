@@ -74,6 +74,12 @@ pub struct TerminalQuery {
     timeout: Duration,
 }
 
+impl Default for TerminalQuery {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TerminalQuery {
     pub fn new() -> Self {
         Self {
@@ -394,10 +400,8 @@ impl TerminalQuery {
 
         // Most modern terminals support at least 256 colors
         // Check for ANSI color support (parameter 22)
-        if response.windows(2).any(|w| w == b"22") {
-            if caps.color_depth == ColorDepth::Unknown {
-                caps.color_depth = ColorDepth::Colors256;
-            }
+        if response.windows(2).any(|w| w == b"22") && caps.color_depth == ColorDepth::Unknown {
+            caps.color_depth = ColorDepth::Colors256;
         }
     }
 

@@ -16,8 +16,8 @@ pub mod windows;
 
 pub mod capabilities;
 pub mod ctlseqs;
-pub mod event_loop;
 pub mod image;
+pub mod r#loop;
 pub mod parser;
 pub mod unicode;
 
@@ -169,6 +169,9 @@ pub enum TerminalEvent {
 
     /// Color scheme change (dark/light)
     ColorScheme(ColorScheme),
+
+    /// Error event for async event loops
+    Error(String),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]

@@ -2,12 +2,28 @@
 //!
 //! Bridges the declarative grid system with the existing visual renderer
 
+use crate::component::{Element, ElementType};
 use crate::core::surface::Surface;
 use crate::error::Result;
-use crate::layout::direct_grid::render_grid_direct;
-use crate::layout::grid::{DeclarativeGrid, GridArea};
+use crate::layout::grid::{DeclarativeGrid, GridArea, GridChild};
 use crate::layout::paint_tree::{layout_and_paint_with, NodeSpec, PaintOptions};
 use std::borrow::Cow;
+
+/// Extract text content from an Element (simplified)
+fn extract_element_text(element: &Element) -> Option<String> {
+    match &element.element_type {
+        ElementType::Text(text) => Some(text.clone()),
+        _ => {
+            // For non-text elements, try to extract from children or return a placeholder
+            if element.children.is_empty() {
+                Some("Element".to_string())
+            } else {
+                // Try to extract text from first child
+                extract_element_text(&element.children[0])
+            }
+        }
+    }
+}
 
 /// Convert a DeclarativeGrid into a visual NodeSpec tree for rendering
 pub fn grid_to_node_spec(grid: &DeclarativeGrid) -> NodeSpec<'static> {
@@ -20,13 +36,21 @@ pub fn grid_to_node_spec(grid: &DeclarativeGrid) -> NodeSpec<'static> {
 
     if grid.gap > 0 {
         grid_classes.push(format!("gap-{}", grid.gap));
+    } else {
+        // Use individual gap settings if no general gap is set
+        if grid.column_gap > 0 {
+            grid_classes.push(format!("gap-x-{}", grid.column_gap));
+        }
+        if grid.row_gap > 0 {
+            grid_classes.push(format!("gap-y-{}", grid.row_gap));
+        }
     }
 
-    // Make grid container fill available space and be responsive
-    grid_classes.push("w-100%".to_string()); // Fill available width
-    grid_classes.push("h-100%".to_string()); // Fill available height
-    grid_classes.push("min-w-400".to_string()); // Minimum width for visibility
-    grid_classes.push("min-h-200".to_string()); // Minimum height for visibility
+    // Make grid container responsive by default - fill entire terminal
+    grid_classes.push("w-full".to_string()); // Fill available width (100vw equivalent)
+    grid_classes.push("h-full".to_string()); // Fill available height (100vh equivalent)
+    grid_classes.push("min-w-full".to_string()); // Ensure full width
+    grid_classes.push("min-h-full".to_string()); // Ensure full height
 
     // Add custom CSS class if specified
     if let Some(ref css_class) = grid.css_class {
@@ -42,10 +66,53 @@ pub fn grid_to_node_spec(grid: &DeclarativeGrid) -> NodeSpec<'static> {
         children.push(child_node);
     }
 
+    // Also convert grid children if any
+    for child in &grid.children {
+        let child_node = grid_child_to_node_spec(child);
+        children.push(child_node);
+    }
+
     NodeSpec {
         class: Cow::Owned(grid_class),
         text: None,
         children,
+    }
+}
+
+/// Convert a GridChild into a NodeSpec
+fn grid_child_to_node_spec(child: &GridChild) -> NodeSpec<'static> {
+    let mut classes = Vec::new();
+
+    // Add grid positioning classes
+    classes.push(format!("col-start-{}", child.column + 1));
+    classes.push(format!("row-start-{}", child.row + 1));
+
+    if child.column_span > 1 {
+        classes.push(format!("col-span-{}", child.column_span));
+    }
+    if child.row_span > 1 {
+        classes.push(format!("row-span-{}", child.row_span));
+    }
+
+    // Default styling for visual appearance
+    classes.push("min-w-80".to_string());
+    classes.push("min-h-40".to_string());
+    classes.push("flex-1".to_string());
+    classes.push("p-4".to_string());
+    classes.push("flex".to_string());
+    classes.push("items-center".to_string());
+    classes.push("justify-center".to_string());
+    classes.push("border".to_string());
+
+    let class_string = classes.join(" ");
+
+    // Extract text content from the element
+    let text_content = extract_element_text(&child.element);
+
+    NodeSpec {
+        class: Cow::Owned(class_string),
+        text: text_content.map(Cow::Owned),
+        children: vec![],
     }
 }
 
@@ -82,6 +149,7 @@ fn area_to_node_spec(area: &GridArea) -> NodeSpec<'static> {
     classes.push("flex".to_string()); // Flexbox for centering
     classes.push("items-center".to_string()); // Center items vertically
     classes.push("justify-center".to_string()); // Center content horizontally
+    classes.push("border".to_string()); // Add border for visual separation
 
     let class_string = classes.join(" ");
 
@@ -106,8 +174,10 @@ pub fn render_grid_to_surface(
 
 /// Render a DeclarativeGrid to a Surface with default options
 pub fn render_grid(grid: &DeclarativeGrid, surface: &mut Surface, width: usize) -> Result<()> {
-    // Use direct grid rendering instead of CSS-based approach
-    render_grid_direct(grid, surface, width)
+    // Convert grid to NodeSpec and render using the paint tree
+    let node_spec = grid_to_node_spec(grid);
+    let options = PaintOptions::default();
+    layout_and_paint_with(&node_spec, surface, width, &options)
 }
 
 /// Create a visual demo of the grid system

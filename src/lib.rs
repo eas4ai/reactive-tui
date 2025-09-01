@@ -1,6 +1,7 @@
 pub mod animation;
 pub mod app;
 pub mod backend;
+pub mod builder;
 pub mod component;
 pub mod core;
 pub mod display;
@@ -23,18 +24,22 @@ pub mod terminal;
 pub mod theme;
 pub mod ui;
 pub mod vdom;
-pub mod web_api;
+
 pub mod widgets;
 
 // Re-export commonly used types
 pub use error::{ReactiveError, Result};
 
+// Re-export the macros
+pub use reactive_tui_macros::{component, Props};
+
 /// Prelude module for convenient imports
 pub mod prelude {
     pub use crate::app::App;
+    pub use crate::builder::*;
     pub use crate::component::{Component, Element, ElementType, LayoutType};
     pub use crate::error::{ReactiveError, Result};
     pub use crate::hooks::*;
     pub use crate::reactive::*;
-    pub use crate::web_api::*;
+    pub use crate::{component, Props};
 }

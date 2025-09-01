@@ -255,10 +255,8 @@ impl TextEditor {
 
                 // Check if character is in selection
                 if let Some((sel_start, sel_end)) = selection_range {
-                    if pos >= sel_start {
-                        if pos < sel_end {
-                            bg = selection_bg;
-                        }
+                    if pos >= sel_start && pos < sel_end {
+                        bg = selection_bg;
                     }
                 }
 
@@ -274,7 +272,18 @@ impl TextEditor {
                 }
 
                 if current_x < x + self.width {
-                    surface.set(current_x, current_y, Cell { ch, fg, bg, attr });
+                    surface.set(
+                        current_x,
+                        current_y,
+                        Cell {
+                            ch,
+                            fg,
+                            bg,
+                            attr,
+                            image_id: None,
+                            image_placement: None,
+                        },
+                    );
                     current_x += 1;
                 }
             }
@@ -297,6 +306,8 @@ impl TextEditor {
                         },
                         bg: cursor_bg,
                         attr: Attr::empty(),
+                        image_id: None,
+                        image_placement: None,
                     },
                 );
             }

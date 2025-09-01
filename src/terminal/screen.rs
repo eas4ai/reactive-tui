@@ -5,6 +5,7 @@ use super::{
 };
 use std::collections::VecDeque;
 
+#[derive(Debug)]
 pub struct VirtualScreen {
     width: u16,
     height: u16,
@@ -13,10 +14,12 @@ pub struct VirtualScreen {
     scrollback: VecDeque<Vec<TerminalCell>>,
     max_scrollback: usize,
     cursor: TerminalCursor,
+    #[allow(dead_code)]
     saved_cursor: Option<TerminalCursor>,
     modes: TerminalModes,
     scrolling_region: ScrollingRegion,
     tab_stops: Vec<bool>,
+    #[allow(dead_code)]
     tab_width: u16,
     using_alt_screen: bool,
     title: String,
@@ -154,7 +157,7 @@ impl VirtualScreen {
                 }
             }
 
-            drop(buffer);
+            let _ = buffer;
             self.cursor.advance(char_width, width, auto_wrap);
         }
     }
@@ -258,17 +261,17 @@ impl VirtualScreen {
         _private: bool,
     ) {
         match final_byte {
-            'A' => self.cursor_up(params.get(0).copied().unwrap_or(1)),
-            'B' => self.cursor_down(params.get(0).copied().unwrap_or(1)),
-            'C' => self.cursor_right(params.get(0).copied().unwrap_or(1)),
-            'D' => self.cursor_left(params.get(0).copied().unwrap_or(1)),
+            'A' => self.cursor_up(params.first().copied().unwrap_or(1)),
+            'B' => self.cursor_down(params.first().copied().unwrap_or(1)),
+            'C' => self.cursor_right(params.first().copied().unwrap_or(1)),
+            'D' => self.cursor_left(params.first().copied().unwrap_or(1)),
             'H' | 'f' => {
-                let row = params.get(0).copied().unwrap_or(1).saturating_sub(1);
+                let row = params.first().copied().unwrap_or(1).saturating_sub(1);
                 let col = params.get(1).copied().unwrap_or(1).saturating_sub(1);
                 self.set_cursor_position(col, row);
             }
-            'J' => self.erase_display(params.get(0).copied().unwrap_or(0)),
-            'K' => self.erase_line(params.get(0).copied().unwrap_or(0)),
+            'J' => self.erase_display(params.first().copied().unwrap_or(0)),
+            'K' => self.erase_line(params.first().copied().unwrap_or(0)),
             'm' => self.set_graphics_rendition(params),
             's' => self.save_cursor(),
             'u' => self.restore_cursor(),

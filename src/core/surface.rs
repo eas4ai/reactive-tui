@@ -1,4 +1,305 @@
 use super::geometry::{Point, Rect, Size};
+use std::env;
+use std::sync::Once;
+use unicode_segmentation::UnicodeSegmentation;
+use unicode_width::UnicodeWidthStr;
+
+// === Unicode Handling Utilities ===
+
+/// Terminal emoji handling detection
+static mut HANDLES_VS16_INCORRECTLY: bool = false;
+static INIT_HANDLES_VS16_INCORRECTLY: Once = Once::new();
+
+/// Some terminals incorrectly only advance the cursor one space for emoji with VS16
+/// This detects those terminals and compensates with additional whitespace
+///
+/// Based on: https://www.jeffquast.com/post/ucs-detect-test-results/
+/// and: https://darrenburns.net/posts/emoji-in-the-terminal/
+pub(crate) fn handles_vs16_incorrectly() -> bool {
+    unsafe {
+        INIT_HANDLES_VS16_INCORRECTLY.call_once(|| {
+            HANDLES_VS16_INCORRECTLY = env::var("TERM_PROGRAM")
+                .map(|s| s == "Apple_Terminal")
+                .unwrap_or(false)
+                || env::var("GNOME_TERMINAL_SCREEN").is_ok_and(|v| !v.is_empty())
+        });
+        HANDLES_VS16_INCORRECTLY
+    }
+}
+
+/// Calculate the required padding for emoji with VS16 in problematic terminals
+pub(crate) fn emoji_padding_required(text: &str) -> usize {
+    if text.contains('\u{fe0f}') && handles_vs16_incorrectly() {
+        text.width().saturating_sub(1)
+    } else {
+        0
+    }
+}
+
+/// Calculate the display width of text, accounting for grapheme clusters
+pub fn text_display_width(text: &str) -> usize {
+    text.graphemes(true).map(UnicodeWidthStr::width).sum()
+}
+
+/// Split text into grapheme clusters for proper Unicode handling
+pub fn text_to_graphemes(text: &str) -> Vec<&str> {
+    text.graphemes(true).collect()
+}
+
+// === Border Characters ===
+
+/// Characters used for drawing borders
+#[derive(Clone, Copy, Debug)]
+pub struct BorderChars {
+    pub top_left: char,
+    pub top_right: char,
+    pub bottom_left: char,
+    pub bottom_right: char,
+    pub horizontal: char,
+    pub vertical: char,
+}
+
+impl Default for BorderChars {
+    fn default() -> Self {
+        Self {
+            top_left: '┌',
+            top_right: '┐',
+            bottom_left: '└',
+            bottom_right: '┘',
+            horizontal: '─',
+            vertical: '│',
+        }
+    }
+}
+
+impl BorderChars {
+    /// ASCII border characters for compatibility
+    pub fn ascii() -> Self {
+        Self {
+            top_left: '+',
+            top_right: '+',
+            bottom_left: '+',
+            bottom_right: '+',
+            horizontal: '-',
+            vertical: '|',
+        }
+    }
+
+    /// Rounded border characters
+    pub fn rounded() -> Self {
+        Self {
+            top_left: '╭',
+            top_right: '╮',
+            bottom_left: '╰',
+            bottom_right: '╯',
+            horizontal: '─',
+            vertical: '│',
+        }
+    }
+
+    /// Double-line border characters
+    pub fn double() -> Self {
+        Self {
+            top_left: '╔',
+            top_right: '╗',
+            bottom_left: '╚',
+            bottom_right: '╝',
+            horizontal: '═',
+            vertical: '║',
+        }
+    }
+
+    /// Thick border characters
+    pub fn thick() -> Self {
+        Self {
+            top_left: '┏',
+            top_right: '┓',
+            bottom_left: '┗',
+            bottom_right: '┛',
+            horizontal: '━',
+            vertical: '┃',
+        }
+    }
+}
+
+// === Enhanced Text Style ===
+
+/// Enhanced text style for Canvas-like functionality
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct TextStyle {
+    /// Foreground color
+    pub fg: Rgba,
+    /// Background color
+    pub bg: Rgba,
+    /// Text attributes (bold, italic, etc.)
+    pub attr: Attr,
+    /// Whether to use emoji-aware rendering
+    pub emoji_aware: bool,
+}
+
+impl TextStyle {
+    /// Create a new text style
+    pub fn new(fg: Rgba, bg: Rgba, attr: Attr) -> Self {
+        Self {
+            fg,
+            bg,
+            attr,
+            emoji_aware: true,
+        }
+    }
+
+    /// Create a simple text style with just foreground color
+    pub fn fg(fg: Rgba) -> Self {
+        Self {
+            fg,
+            bg: Rgba::transparent(),
+            attr: Attr::empty(),
+            emoji_aware: true,
+        }
+    }
+
+    /// Create a text style with foreground and background
+    pub fn fg_bg(fg: Rgba, bg: Rgba) -> Self {
+        Self {
+            fg,
+            bg,
+            attr: Attr::empty(),
+            emoji_aware: true,
+        }
+    }
+
+    /// Add bold attribute
+    pub fn bold(mut self) -> Self {
+        self.attr |= Attr::BOLD;
+        self
+    }
+
+    /// Add italic attribute
+    pub fn italic(mut self) -> Self {
+        self.attr |= Attr::ITALIC;
+        self
+    }
+
+    /// Add underline attribute
+    pub fn underline(mut self) -> Self {
+        self.attr |= Attr::UNDERLINE;
+        self
+    }
+
+    /// Disable emoji-aware rendering
+    pub fn no_emoji_handling(mut self) -> Self {
+        self.emoji_aware = false;
+        self
+    }
+}
+
+// === Surface Subview for Clipped Drawing ===
+
+/// A clipped view into a surface for Canvas-like drawing operations
+pub struct SurfaceSubview<'a> {
+    surface: &'a mut Surface,
+    /// Offset from surface origin
+    offset_x: isize,
+    offset_y: isize,
+    /// Clipping rectangle in surface coordinates
+    clip_rect: Rect,
+}
+
+impl<'a> SurfaceSubview<'a> {
+    /// Create a new subview with clipping
+    pub(crate) fn new(
+        surface: &'a mut Surface,
+        offset_x: isize,
+        offset_y: isize,
+        clip_rect: Rect,
+    ) -> Self {
+        Self {
+            surface,
+            offset_x,
+            offset_y,
+            clip_rect,
+        }
+    }
+
+    /// Get the clipped bounds of this subview
+    pub fn bounds(&self) -> Rect {
+        self.clip_rect
+    }
+
+    /// Write text with style and clipping
+    pub fn write_text(&mut self, x: isize, y: isize, text: &str, style: TextStyle) {
+        let abs_x = self.offset_x + x;
+        let abs_y = self.offset_y + y;
+
+        // Check if position is within clipping bounds
+        if abs_x < self.clip_rect.left() as isize
+            || abs_y < self.clip_rect.top() as isize
+            || abs_y >= self.clip_rect.bottom() as isize
+        {
+            return;
+        }
+
+        // Calculate how much text fits within the clipping bounds
+        let max_width = (self.clip_rect.right() as isize - abs_x).max(0) as usize;
+
+        if max_width == 0 {
+            return;
+        }
+
+        // Use the enhanced text writing method
+        self.surface
+            .write_text_enhanced(abs_x as usize, abs_y as usize, text, max_width, style);
+    }
+
+    /// Fill a rectangle with background color
+    pub fn fill_background(
+        &mut self,
+        x: isize,
+        y: isize,
+        width: usize,
+        height: usize,
+        color: Rgba,
+    ) {
+        let abs_x = self.offset_x + x;
+        let abs_y = self.offset_y + y;
+
+        // Calculate intersection with clipping bounds
+        let left = abs_x.max(self.clip_rect.left() as isize) as usize;
+        let top = abs_y.max(self.clip_rect.top() as isize) as usize;
+        let right = (abs_x + width as isize).min(self.clip_rect.right() as isize) as usize;
+        let bottom = (abs_y + height as isize).min(self.clip_rect.bottom() as isize) as usize;
+
+        if left >= right || top >= bottom {
+            return;
+        }
+
+        let fill_rect = Rect::from_coords(left, top, right - left, bottom - top);
+        self.surface.fill_background_rect(fill_rect, color);
+    }
+
+    /// Clear text in a rectangular area
+    pub fn clear_text(&mut self, x: isize, y: isize, width: usize, height: usize) {
+        self.fill_background(x, y, width, height, Rgba::transparent());
+
+        // Also clear the character content
+        let abs_x = self.offset_x + x;
+        let abs_y = self.offset_y + y;
+
+        let left = abs_x.max(self.clip_rect.left() as isize) as usize;
+        let top = abs_y.max(self.clip_rect.top() as isize) as usize;
+        let right = (abs_x + width as isize).min(self.clip_rect.right() as isize) as usize;
+        let bottom = (abs_y + height as isize).min(self.clip_rect.bottom() as isize) as usize;
+
+        for y in top..bottom {
+            for x in left..right {
+                if x < self.surface.w && y < self.surface.h {
+                    let idx = self.surface.idx(x, y);
+                    self.surface.buf[idx].ch = ' ';
+                }
+            }
+        }
+    }
+}
 
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
 pub struct Rgba {
@@ -244,6 +545,7 @@ impl Rgba {
 
 use crate::error::{ReactiveError, Result};
 use bitflags::bitflags;
+use std::collections::HashMap;
 bitflags! {
     #[derive(Default, Clone, Copy, Debug, PartialEq, Eq)]
     pub struct Attr: u8 { const BOLD=1<<0; const ITALIC=1<<1; const UNDERLINE=1<<2; const REVERSE=1<<3; const STRIKE=1<<4; }
@@ -278,18 +580,159 @@ impl Attr {
     }
 }
 
+/// Image placement information for a cell
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct ImageCellPlacement {
+    /// Source pixel coordinates in the image
+    pub source_x: u16,
+    pub source_y: u16,
+    /// Size of the image region to display in this cell (in pixels)
+    pub source_width: u16,
+    pub source_height: u16,
+    /// Z-index for layering (negative = behind text, positive = in front)
+    pub z_index: i8,
+    /// Opacity (0.0 = transparent, 1.0 = opaque)
+    pub opacity: f32,
+}
+
+impl Default for ImageCellPlacement {
+    fn default() -> Self {
+        Self {
+            source_x: 0,
+            source_y: 0,
+            source_width: 0,
+            source_height: 0,
+            z_index: -1, // Behind text by default
+            opacity: 1.0,
+        }
+    }
+}
+
 #[derive(Clone, Copy, Default, PartialEq)]
 pub struct Cell {
     pub ch: char,
     pub fg: Rgba,
     pub bg: Rgba,
     pub attr: Attr,
+    /// Optional reference to an image in the image registry
+    pub image_id: Option<u32>,
+    /// Image placement information if image_id is Some
+    pub image_placement: Option<ImageCellPlacement>,
+}
+
+impl Cell {
+    /// Create a new cell with image placement
+    pub fn with_image(image_id: u32, placement: ImageCellPlacement) -> Self {
+        Self {
+            image_id: Some(image_id),
+            image_placement: Some(placement),
+            ..Default::default()
+        }
+    }
+
+    /// Set image placement for this cell
+    pub fn set_image(&mut self, image_id: u32, placement: ImageCellPlacement) {
+        self.image_id = Some(image_id);
+        self.image_placement = Some(placement);
+    }
+
+    /// Clear image placement from this cell
+    pub fn clear_image(&mut self) {
+        self.image_id = None;
+        self.image_placement = None;
+    }
+
+    /// Check if this cell has an image
+    pub fn has_image(&self) -> bool {
+        self.image_id.is_some()
+    }
+}
+
+/// Image data stored in the registry
+#[derive(Debug, Clone)]
+pub struct ImageData {
+    /// Image dimensions in pixels
+    pub width: u32,
+    pub height: u32,
+    /// Raw RGBA pixel data
+    pub pixels: Vec<u8>,
+    /// Optional metadata
+    pub metadata: ImageMetadata,
+}
+
+/// Image metadata
+#[derive(Debug, Clone, Default)]
+pub struct ImageMetadata {
+    /// Original file path or source
+    pub source: Option<String>,
+    /// Image format
+    pub format: Option<String>,
+    /// Creation timestamp
+    pub created_at: Option<std::time::SystemTime>,
+}
+
+/// Registry for managing images referenced by cells
+#[derive(Debug, Default)]
+pub struct ImageRegistry {
+    images: HashMap<u32, ImageData>,
+    next_id: u32,
+}
+
+impl ImageRegistry {
+    /// Create a new image registry
+    pub fn new() -> Self {
+        Self {
+            images: HashMap::new(),
+            next_id: 1,
+        }
+    }
+
+    /// Register a new image and return its ID
+    pub fn register_image(&mut self, image: ImageData) -> u32 {
+        let id = self.next_id;
+        self.next_id += 1;
+        self.images.insert(id, image);
+        id
+    }
+
+    /// Get image data by ID
+    pub fn get_image(&self, id: u32) -> Option<&ImageData> {
+        self.images.get(&id)
+    }
+
+    /// Remove an image from the registry
+    pub fn remove_image(&mut self, id: u32) -> Option<ImageData> {
+        self.images.remove(&id)
+    }
+
+    /// Get all registered image IDs
+    pub fn image_ids(&self) -> Vec<u32> {
+        self.images.keys().copied().collect()
+    }
+
+    /// Clear all images
+    pub fn clear(&mut self) {
+        self.images.clear();
+        self.next_id = 1;
+    }
+
+    /// Get the number of registered images
+    pub fn len(&self) -> usize {
+        self.images.len()
+    }
+
+    /// Check if the registry is empty
+    pub fn is_empty(&self) -> bool {
+        self.images.is_empty()
+    }
 }
 
 pub struct Surface {
     w: usize,
     h: usize,
     buf: Vec<Cell>,
+    /// Image registry for managing cell-referenced images
+    image_registry: ImageRegistry,
 }
 
 impl Surface {
@@ -298,6 +741,7 @@ impl Surface {
             w,
             h,
             buf: vec![Cell::default(); w * h],
+            image_registry: ImageRegistry::new(),
         }
     }
 
@@ -332,6 +776,7 @@ impl Surface {
         } else {
             self.buf = vec![Cell::default(); needed];
         }
+        // Note: Image registry is preserved across reinit
     }
     pub fn clear(&mut self, bg: Rgba) {
         for c in &mut self.buf {
@@ -345,6 +790,8 @@ impl Surface {
                 },
                 bg,
                 attr: Attr::empty(),
+                image_id: None,
+                image_placement: None,
             };
         }
     }
@@ -366,7 +813,14 @@ impl Surface {
             if x >= self.w {
                 break;
             }
-            let cell = Cell { ch, fg, bg, attr };
+            let cell = Cell {
+                ch,
+                fg,
+                bg,
+                attr,
+                image_id: None,
+                image_placement: None,
+            };
             self.set(x, y, cell);
             x += 1;
             if unicode_width::UnicodeWidthChar::width(ch).unwrap_or(1) == 2 && x < self.w {
@@ -378,6 +832,8 @@ impl Surface {
                         fg,
                         bg,
                         attr,
+                        image_id: None,
+                        image_placement: None,
                     },
                 );
                 x += 1;
@@ -409,14 +865,20 @@ impl Surface {
 
         for y in rect.top()..rect.bottom() {
             for x in rect.left()..rect.right() {
-                self.set(x, y, Cell { ch, fg, bg, attr });
+                self.set(
+                    x,
+                    y,
+                    Cell {
+                        ch,
+                        fg,
+                        bg,
+                        attr,
+                        image_id: None,
+                        image_placement: None,
+                    },
+                );
             }
         }
-    }
-
-    /// Clear a rectangular area
-    pub fn clear_rect(&mut self, rect: Rect) {
-        self.fill_rect(rect, ' ', Rgba::white(), Rgba::black(), Attr::empty());
     }
 
     /// Get the size of this surface
@@ -459,7 +921,14 @@ impl Surface {
                 break;
             }
 
-            let cell = Cell { ch, fg, bg, attr };
+            let cell = Cell {
+                ch,
+                fg,
+                bg,
+                attr,
+                image_id: None,
+                image_placement: None,
+            };
             self.set(x + used, y, cell);
             used += char_width;
 
@@ -473,6 +942,8 @@ impl Surface {
                         fg,
                         bg,
                         attr,
+                        image_id: None,
+                        image_placement: None,
                     },
                 );
                 used += 1;
@@ -503,6 +974,354 @@ impl Surface {
         self.write_str_clipped(x, y, text, max_width, style.fg, style.bg, style.attr);
     }
 
+    // === Enhanced Canvas-like Methods ===
+
+    /// Enhanced text writing with Unicode awareness and emoji handling
+    pub fn write_text_enhanced(
+        &mut self,
+        x: usize,
+        y: usize,
+        text: &str,
+        max_width: usize,
+        style: TextStyle,
+    ) {
+        if y >= self.h {
+            return;
+        }
+
+        let limit = if max_width == 0 {
+            self.w.saturating_sub(x)
+        } else {
+            max_width
+        };
+
+        let mut used_width = 0;
+        let mut current_x = x;
+
+        // Handle emoji padding if needed
+        let emoji_padding = if style.emoji_aware {
+            emoji_padding_required(text)
+        } else {
+            0
+        };
+
+        // Process text as grapheme clusters for proper Unicode handling
+        for grapheme in text.graphemes(true) {
+            let grapheme_width = UnicodeWidthStr::width(grapheme);
+
+            // Check if we have space for this grapheme
+            if used_width + grapheme_width > limit || current_x >= self.w {
+                break;
+            }
+
+            // Write the grapheme
+            if let Some(ch) = grapheme.chars().next() {
+                let cell = Cell {
+                    ch,
+                    fg: style.fg,
+                    bg: style.bg,
+                    attr: style.attr,
+                    image_id: None,
+                    image_placement: None,
+                };
+                self.set(current_x, y, cell);
+            }
+
+            current_x += grapheme_width;
+            used_width += grapheme_width;
+
+            // Add emoji padding if needed
+            if emoji_padding > 0 && grapheme.contains('\u{fe0f}') {
+                for _ in 0..emoji_padding {
+                    if current_x < self.w && used_width < limit {
+                        let padding_cell = Cell {
+                            ch: ' ',
+                            fg: style.fg,
+                            bg: style.bg,
+                            attr: style.attr,
+                            image_id: None,
+                            image_placement: None,
+                        };
+                        self.set(current_x, y, padding_cell);
+                        current_x += 1;
+                        used_width += 1;
+                    }
+                }
+            }
+        }
+    }
+
+    /// Fill a rectangle with background color only
+    pub fn fill_background_rect(&mut self, rect: Rect, color: Rgba) {
+        let bounds = Rect::from_coords(0, 0, self.w, self.h);
+        let rect = rect.clamp(&bounds);
+
+        for y in rect.top()..rect.bottom() {
+            for x in rect.left()..rect.right() {
+                if x < self.w && y < self.h {
+                    let idx = self.idx(x, y);
+                    self.buf[idx].bg = color;
+                }
+            }
+        }
+    }
+
+    /// Create a clipped subview for Canvas-like drawing
+    pub fn subview_mut(
+        &mut self,
+        offset_x: isize,
+        offset_y: isize,
+        clip_x: isize,
+        clip_y: isize,
+        clip_width: usize,
+        clip_height: usize,
+    ) -> SurfaceSubview<'_> {
+        let clip_rect = Rect::from_coords(
+            clip_x.max(0) as usize,
+            clip_y.max(0) as usize,
+            clip_width,
+            clip_height,
+        );
+
+        SurfaceSubview::new(self, offset_x, offset_y, clip_rect)
+    }
+
+    /// Calculate the display width of text using Unicode-aware methods
+    pub fn text_width(&self, text: &str) -> usize {
+        text_display_width(text)
+    }
+
+    /// Write text with automatic line wrapping
+    pub fn write_text_wrapped(
+        &mut self,
+        x: usize,
+        y: usize,
+        text: &str,
+        max_width: usize,
+        style: TextStyle,
+    ) -> usize {
+        let mut current_y = y;
+        let mut lines_written = 0;
+
+        for line in text.lines() {
+            if current_y >= self.h {
+                break;
+            }
+
+            // Simple word wrapping
+            let mut remaining = line;
+            let mut line_x = x;
+
+            while !remaining.is_empty() && current_y < self.h {
+                let available_width = max_width.min(self.w.saturating_sub(line_x));
+
+                if available_width == 0 {
+                    current_y += 1;
+                    line_x = x;
+                    lines_written += 1;
+                    continue;
+                }
+
+                // Find how much text fits
+                let mut fit_width = 0;
+                let mut fit_chars = 0;
+
+                for (i, grapheme) in remaining.graphemes(true).enumerate() {
+                    let grapheme_width = UnicodeWidthStr::width(grapheme);
+                    if fit_width + grapheme_width > available_width {
+                        break;
+                    }
+                    fit_width += grapheme_width;
+                    fit_chars = i + 1;
+                }
+
+                if fit_chars == 0 {
+                    // Can't fit even one character, move to next line
+                    current_y += 1;
+                    line_x = x;
+                    lines_written += 1;
+                    continue;
+                }
+
+                // Extract the text that fits
+                let fit_text: String = remaining.graphemes(true).take(fit_chars).collect();
+
+                // Write the text
+                self.write_text_enhanced(line_x, current_y, &fit_text, available_width, style);
+
+                // Update remaining text
+                remaining = &remaining[fit_text.len()..];
+
+                if remaining.is_empty() {
+                    current_y += 1;
+                    lines_written += 1;
+                } else {
+                    // Continue on same line if there's space, otherwise wrap
+                    line_x += fit_width;
+                    if line_x >= self.w {
+                        current_y += 1;
+                        line_x = x;
+                        lines_written += 1;
+                    }
+                }
+            }
+        }
+
+        lines_written
+    }
+
+    /// Write styled text with automatic color and attribute application
+    pub fn write_styled_text(&mut self, x: usize, y: usize, text: &str, style: TextStyle) {
+        self.write_text_enhanced(x, y, text, 0, style);
+    }
+
+    /// Fill a rectangular area with a character and style
+    pub fn fill_char_rect(&mut self, rect: Rect, ch: char, style: TextStyle) {
+        let bounds = Rect::from_coords(0, 0, self.w, self.h);
+        let rect = rect.clamp(&bounds);
+
+        let cell = Cell {
+            ch,
+            fg: style.fg,
+            bg: style.bg,
+            attr: style.attr,
+            image_id: None,
+            image_placement: None,
+        };
+
+        for y in rect.top()..rect.bottom() {
+            for x in rect.left()..rect.right() {
+                if x < self.w && y < self.h {
+                    self.set(x, y, cell);
+                }
+            }
+        }
+    }
+
+    /// Draw a border around a rectangle
+    pub fn draw_border(&mut self, rect: Rect, style: TextStyle, border_chars: Option<BorderChars>) {
+        let bounds = Rect::from_coords(0, 0, self.w, self.h);
+        let rect = rect.clamp(&bounds);
+
+        if rect.width() < 2 || rect.height() < 2 {
+            return;
+        }
+
+        let chars = border_chars.unwrap_or_default();
+
+        // Top and bottom borders
+        for x in rect.left()..rect.right() {
+            if x < self.w {
+                // Top border
+                if rect.top() < self.h {
+                    let ch = if x == rect.left() {
+                        chars.top_left
+                    } else if x == rect.right() - 1 {
+                        chars.top_right
+                    } else {
+                        chars.horizontal
+                    };
+                    self.set(
+                        x,
+                        rect.top(),
+                        Cell {
+                            ch,
+                            fg: style.fg,
+                            bg: style.bg,
+                            attr: style.attr,
+                            image_id: None,
+                            image_placement: None,
+                        },
+                    );
+                }
+
+                // Bottom border
+                if rect.bottom() > 0 && rect.bottom() - 1 < self.h {
+                    let ch = if x == rect.left() {
+                        chars.bottom_left
+                    } else if x == rect.right() - 1 {
+                        chars.bottom_right
+                    } else {
+                        chars.horizontal
+                    };
+                    self.set(
+                        x,
+                        rect.bottom() - 1,
+                        Cell {
+                            ch,
+                            fg: style.fg,
+                            bg: style.bg,
+                            attr: style.attr,
+                            image_id: None,
+                            image_placement: None,
+                        },
+                    );
+                }
+            }
+        }
+
+        // Left and right borders
+        for y in (rect.top() + 1)..(rect.bottom() - 1) {
+            if y < self.h {
+                // Left border
+                if rect.left() < self.w {
+                    self.set(
+                        rect.left(),
+                        y,
+                        Cell {
+                            ch: chars.vertical,
+                            fg: style.fg,
+                            bg: style.bg,
+                            attr: style.attr,
+                            image_id: None,
+                            image_placement: None,
+                        },
+                    );
+                }
+
+                // Right border
+                if rect.right() > 0 && rect.right() - 1 < self.w {
+                    self.set(
+                        rect.right() - 1,
+                        y,
+                        Cell {
+                            ch: chars.vertical,
+                            fg: style.fg,
+                            bg: style.bg,
+                            attr: style.attr,
+                            image_id: None,
+                            image_placement: None,
+                        },
+                    );
+                }
+            }
+        }
+    }
+
+    /// Clear a rectangular area (set to spaces with transparent background)
+    pub fn clear_rect(&mut self, rect: Rect) {
+        let bounds = Rect::from_coords(0, 0, self.w, self.h);
+        let rect = rect.clamp(&bounds);
+
+        let clear_cell = Cell {
+            ch: ' ',
+            fg: Rgba::transparent(),
+            bg: Rgba::transparent(),
+            attr: Attr::empty(),
+            image_id: None,
+            image_placement: None,
+        };
+
+        for y in rect.top()..rect.bottom() {
+            for x in rect.left()..rect.right() {
+                if x < self.w && y < self.h {
+                    self.set(x, y, clear_cell);
+                }
+            }
+        }
+    }
+
+    /// Draw a box with optional background color
     pub fn draw_box(&mut self, x: usize, y: usize, w: usize, h: usize, bg: Option<Rgba>) {
         let (ww, hh) = self.dims();
         for yy in y..y.saturating_add(h).min(hh) {
@@ -515,17 +1334,187 @@ impl Surface {
             }
         }
     }
-}
 
-impl Surface {
+    // === Image Management Methods ===
+
+    /// Register a new image and return its ID
+    pub fn register_image(&mut self, image: ImageData) -> u32 {
+        self.image_registry.register_image(image)
+    }
+
+    /// Get image data by ID
+    pub fn get_image(&self, id: u32) -> Option<&ImageData> {
+        self.image_registry.get_image(id)
+    }
+
+    /// Remove an image from the registry
+    pub fn remove_image(&mut self, id: u32) -> Option<ImageData> {
+        self.image_registry.remove_image(id)
+    }
+
+    /// Clear all images from the registry
+    pub fn clear_images(&mut self) {
+        self.image_registry.clear();
+    }
+
+    /// Get the number of registered images
+    pub fn image_count(&self) -> usize {
+        self.image_registry.len()
+    }
+
+    /// Set image placement for a cell
+    pub fn set_cell_image(
+        &mut self,
+        x: usize,
+        y: usize,
+        image_id: u32,
+        placement: ImageCellPlacement,
+    ) {
+        if x < self.w && y < self.h {
+            let idx = self.idx(x, y);
+            self.buf[idx].set_image(image_id, placement);
+        }
+    }
+
+    /// Clear image placement from a cell
+    pub fn clear_cell_image(&mut self, x: usize, y: usize) {
+        if x < self.w && y < self.h {
+            let idx = self.idx(x, y);
+            self.buf[idx].clear_image();
+        }
+    }
+
+    /// Place an image across multiple cells
+    pub fn place_image_region(
+        &mut self,
+        start_x: usize,
+        start_y: usize,
+        cell_width: usize,
+        cell_height: usize,
+        image_id: u32,
+        image_width: u32,
+        image_height: u32,
+        z_index: i8,
+        opacity: f32,
+    ) {
+        let pixels_per_cell_x = image_width / cell_width.max(1) as u32;
+        let pixels_per_cell_y = image_height / cell_height.max(1) as u32;
+
+        for cell_y in 0..cell_height {
+            for cell_x in 0..cell_width {
+                let x = start_x + cell_x;
+                let y = start_y + cell_y;
+
+                if x < self.w && y < self.h {
+                    let source_x = (cell_x as u32 * pixels_per_cell_x) as u16;
+                    let source_y = (cell_y as u32 * pixels_per_cell_y) as u16;
+
+                    let placement = ImageCellPlacement {
+                        source_x,
+                        source_y,
+                        source_width: pixels_per_cell_x as u16,
+                        source_height: pixels_per_cell_y as u16,
+                        z_index,
+                        opacity,
+                    };
+
+                    self.set_cell_image(x, y, image_id, placement);
+                }
+            }
+        }
+    }
+
+    /// Get all cells that have image placements
+    pub fn get_image_cells(&self) -> Vec<(usize, usize, u32, ImageCellPlacement)> {
+        let mut result = Vec::new();
+        for y in 0..self.h {
+            for x in 0..self.w {
+                let cell = self.get(x, y);
+                if let (Some(image_id), Some(placement)) = (cell.image_id, cell.image_placement) {
+                    result.push((x, y, image_id, placement));
+                }
+            }
+        }
+        result
+    }
+
+    /// Create an image from raw RGBA pixel data
+    pub fn create_image_from_rgba(&mut self, width: u32, height: u32, pixels: Vec<u8>) -> u32 {
+        let image_data = ImageData {
+            width,
+            height,
+            pixels,
+            metadata: ImageMetadata {
+                source: Some("raw_rgba".to_string()),
+                format: Some("RGBA".to_string()),
+                created_at: Some(std::time::SystemTime::now()),
+            },
+        };
+        self.register_image(image_data)
+    }
+
+    /// Create a simple colored image for testing
+    pub fn create_test_image(&mut self, width: u32, height: u32, r: u8, g: u8, b: u8) -> u32 {
+        let mut pixels = Vec::with_capacity((width * height * 4) as usize);
+        for _ in 0..(width * height) {
+            pixels.extend_from_slice(&[r, g, b, 255]); // RGBA
+        }
+        self.create_image_from_rgba(width, height, pixels)
+    }
+
+    /// Place an image as a simple overlay (fills entire cell)
+    pub fn place_image_simple(&mut self, x: usize, y: usize, image_id: u32, z_index: i8) {
+        let placement = ImageCellPlacement {
+            source_x: 0,
+            source_y: 0,
+            source_width: 16, // Assume 16x16 pixel cells
+            source_height: 16,
+            z_index,
+            opacity: 1.0,
+        };
+        self.set_cell_image(x, y, image_id, placement);
+    }
+
+    /// Place an image as a background (behind text)
+    pub fn place_image_background(&mut self, x: usize, y: usize, image_id: u32) {
+        self.place_image_simple(x, y, image_id, -1);
+    }
+
+    /// Place an image as a foreground overlay (in front of text)
+    pub fn place_image_foreground(&mut self, x: usize, y: usize, image_id: u32) {
+        self.place_image_simple(x, y, image_id, 1);
+    }
+
+    /// Clear all image placements from the surface
+    pub fn clear_all_image_placements(&mut self) {
+        for y in 0..self.h {
+            for x in 0..self.w {
+                self.clear_cell_image(x, y);
+            }
+        }
+    }
+
+    /// Clone this surface into a new surface
     pub fn clone_into_new(&self) -> Surface {
         let mut s = Surface::new(self.w, self.h);
         s.buf.copy_from_slice(&self.buf);
+        // Clone the image registry
+        s.image_registry = ImageRegistry {
+            images: self.image_registry.images.clone(),
+            next_id: self.image_registry.next_id,
+        };
         s
     }
+
+    /// Copy data from another surface
     pub fn copy_from(&mut self, other: &Surface) {
         assert_eq!(self.dims(), other.dims());
         self.buf.copy_from_slice(&other.buf);
+        // Copy the image registry
+        self.image_registry = ImageRegistry {
+            images: other.image_registry.images.clone(),
+            next_id: other.image_registry.next_id,
+        };
     }
 }
 
@@ -674,13 +1663,15 @@ impl DiffWriter {
                 let a = cur.get(x, y);
                 let b = next.get(x, y);
 
-                // Enhanced cell comparison with epsilon-based color comparison
+                // Enhanced cell comparison with epsilon-based color comparison and image support
                 let cells_equal = if !force {
                     if self.use_epsilon_comparison {
                         a.ch == b.ch
                             && a.fg.approx_eq(b.fg)
                             && a.bg.approx_eq(b.bg)
                             && a.attr == b.attr
+                            && a.image_id == b.image_id
+                            && a.image_placement == b.image_placement
                     } else {
                         a == b
                     }
@@ -792,6 +1783,9 @@ impl DiffWriter {
         }
         self.push("\x1b[?25h");
 
+        // Render images after text content
+        self.render_images(next);
+
         // Finalize statistics
         self.stats.rows_changed = self.last_rows_changed;
         self.stats.spans_written = self.last_spans_written;
@@ -801,6 +1795,84 @@ impl DiffWriter {
         } else {
             0.0
         };
+    }
+
+    /// Render images placed in cells
+    fn render_images(&mut self, surface: &Surface) {
+        // Collect all image placements, grouped by image ID and z-index
+        let mut image_placements: std::collections::BTreeMap<
+            i8,
+            Vec<(usize, usize, u32, ImageCellPlacement)>,
+        > = std::collections::BTreeMap::new();
+
+        for y in 0..surface.h {
+            for x in 0..surface.w {
+                let cell = surface.get(x, y);
+                if let (Some(image_id), Some(placement)) = (cell.image_id, cell.image_placement) {
+                    image_placements
+                        .entry(placement.z_index)
+                        .or_default()
+                        .push((x, y, image_id, placement));
+                }
+            }
+        }
+
+        // Render images in z-index order (negative z-index first, then positive)
+        for (_z_index, placements) in image_placements {
+            for (x, y, image_id, placement) in placements {
+                self.render_image_at_cell(surface, x, y, image_id, &placement);
+            }
+        }
+    }
+
+    /// Render a single image placement at a specific cell
+    fn render_image_at_cell(
+        &mut self,
+        surface: &Surface,
+        x: usize,
+        y: usize,
+        image_id: u32,
+        placement: &ImageCellPlacement,
+    ) {
+        // Get the image data from the surface's registry
+        if let Some(image_data) = surface.get_image(image_id) {
+            // For now, we'll use a simple approach: render as background color
+            // In a full implementation, this would use terminal graphics protocols
+
+            // Move cursor to the cell position
+            self.push(&format!("\x1b[{};{}H", y + 1, x + 1));
+
+            // For demonstration, we'll set a background color based on the image
+            // In practice, this would use sixel, kitty graphics, or other protocols
+            if placement.opacity > 0.0 {
+                // Sample a pixel from the image at the placement coordinates
+                let pixel_offset = (placement.source_y as usize * image_data.width as usize
+                    + placement.source_x as usize)
+                    * 4;
+
+                if pixel_offset + 3 < image_data.pixels.len() {
+                    let r = image_data.pixels[pixel_offset];
+                    let g = image_data.pixels[pixel_offset + 1];
+                    let b = image_data.pixels[pixel_offset + 2];
+                    let a = image_data.pixels[pixel_offset + 3];
+
+                    // Apply opacity
+                    let alpha = (a as f32 / 255.0) * placement.opacity;
+
+                    if alpha > 0.1 {
+                        // Set background color to represent the image pixel
+                        self.push(&format!("\x1b[48;2;{};{};{}m", r, g, b));
+
+                        // If z-index is negative (behind text), we don't need to do anything special
+                        // If z-index is positive (in front of text), we might want to modify the character
+                        if placement.z_index >= 0 {
+                            // For images in front of text, we could use a special character or modify the existing one
+                            self.push("▓"); // Use a block character to represent image overlay
+                        }
+                    }
+                }
+            }
+        }
     }
 
     pub fn output(&self) -> &[u8] {
@@ -888,5 +1960,298 @@ mod tests {
         s.reinit(100, 50);
         let cap_grow = s.buf.capacity();
         assert!(cap_grow >= 100 * 50);
+    }
+
+    #[test]
+    fn test_image_registry_basic_operations() {
+        let mut registry = ImageRegistry::new();
+
+        // Test empty registry
+        assert_eq!(registry.len(), 0);
+        assert!(registry.is_empty());
+        assert!(registry.image_ids().is_empty());
+
+        // Create test image data
+        let mut pixels = Vec::new();
+        for _ in 0..(16 * 16) {
+            pixels.extend_from_slice(&[255, 0, 0, 255]); // Red pixels (RGBA)
+        }
+        let image_data = ImageData {
+            width: 16,
+            height: 16,
+            pixels,
+            metadata: ImageMetadata::default(),
+        };
+
+        // Register image
+        let id = registry.register_image(image_data.clone());
+        assert_eq!(id, 1);
+        assert_eq!(registry.len(), 1);
+        assert!(!registry.is_empty());
+        assert_eq!(registry.image_ids(), vec![1]);
+
+        // Get image
+        let retrieved = registry.get_image(id).unwrap();
+        assert_eq!(retrieved.width, 16);
+        assert_eq!(retrieved.height, 16);
+        assert_eq!(retrieved.pixels.len(), 16 * 16 * 4);
+
+        // Remove image
+        let removed = registry.remove_image(id).unwrap();
+        assert_eq!(removed.width, 16);
+        assert!(registry.is_empty());
+        assert!(registry.get_image(id).is_none());
+    }
+
+    #[test]
+    fn test_cell_image_placement() {
+        let mut cell = Cell::default();
+
+        // Test initial state
+        assert!(!cell.has_image());
+        assert_eq!(cell.image_id, None);
+        assert_eq!(cell.image_placement, None);
+
+        // Set image
+        let placement = ImageCellPlacement {
+            source_x: 10,
+            source_y: 20,
+            source_width: 16,
+            source_height: 16,
+            z_index: 1,
+            opacity: 0.8,
+        };
+
+        cell.set_image(42, placement);
+        assert!(cell.has_image());
+        assert_eq!(cell.image_id, Some(42));
+        assert_eq!(cell.image_placement, Some(placement));
+
+        // Clear image
+        cell.clear_image();
+        assert!(!cell.has_image());
+        assert_eq!(cell.image_id, None);
+        assert_eq!(cell.image_placement, None);
+    }
+
+    #[test]
+    fn test_surface_image_operations() {
+        let mut surface = Surface::new(10, 10);
+
+        // Create test image
+        let image_id = surface.create_test_image(32, 32, 255, 0, 0); // Red image
+        assert_eq!(surface.image_count(), 1);
+
+        // Test image data
+        let image_data = surface.get_image(image_id).unwrap();
+        assert_eq!(image_data.width, 32);
+        assert_eq!(image_data.height, 32);
+        assert_eq!(image_data.pixels[0], 255); // Red channel
+        assert_eq!(image_data.pixels[1], 0); // Green channel
+        assert_eq!(image_data.pixels[2], 0); // Blue channel
+        assert_eq!(image_data.pixels[3], 255); // Alpha channel
+
+        // Place image in cell
+        surface.place_image_background(5, 5, image_id);
+
+        // Check cell has image
+        let cell = surface.get(5, 5);
+        assert!(cell.has_image());
+        assert_eq!(cell.image_id, Some(image_id));
+        assert!(cell.image_placement.is_some());
+
+        // Check placement details
+        let placement = cell.image_placement.unwrap();
+        assert_eq!(placement.z_index, -1); // Background
+        assert_eq!(placement.opacity, 1.0);
+
+        // Get all image cells
+        let image_cells = surface.get_image_cells();
+        assert_eq!(image_cells.len(), 1);
+        assert_eq!(image_cells[0], (5, 5, image_id, placement));
+
+        // Clear image placement
+        surface.clear_cell_image(5, 5);
+        let cell = surface.get(5, 5);
+        assert!(!cell.has_image());
+        assert!(surface.get_image_cells().is_empty());
+    }
+
+    #[test]
+    fn test_image_region_placement() {
+        let mut surface = Surface::new(20, 20);
+
+        // Create test image
+        let image_id = surface.create_test_image(64, 64, 0, 255, 0); // Green image
+
+        // Place image across a 4x3 region
+        surface.place_image_region(5, 5, 4, 3, image_id, 64, 64, 0, 1.0);
+
+        // Check that all cells in the region have the image
+        let image_cells = surface.get_image_cells();
+        assert_eq!(image_cells.len(), 4 * 3);
+
+        // Verify each cell has correct placement
+        for y in 5..8 {
+            for x in 5..9 {
+                let cell = surface.get(x, y);
+                assert!(cell.has_image());
+                assert_eq!(cell.image_id, Some(image_id));
+
+                let placement = cell.image_placement.unwrap();
+                assert_eq!(placement.z_index, 0);
+                assert_eq!(placement.opacity, 1.0);
+
+                // Check source coordinates are distributed across the image
+                let expected_source_x = ((x - 5) as u32 * 16) as u16; // 64/4 = 16 pixels per cell
+                let expected_source_y = ((y - 5) as u32 * 21) as u16; // 64/3 ≈ 21 pixels per cell
+                assert_eq!(placement.source_x, expected_source_x);
+                assert_eq!(placement.source_y, expected_source_y);
+            }
+        }
+    }
+
+    #[test]
+    fn test_surface_copy_preserves_images() {
+        let mut surface1 = Surface::new(5, 5);
+
+        // Create and place image
+        let image_id = surface1.create_test_image(16, 16, 0, 0, 255); // Blue image
+        surface1.place_image_foreground(2, 2, image_id);
+
+        // Test clone_into_new
+        let surface2 = surface1.clone_into_new();
+        assert_eq!(surface2.image_count(), 1);
+        assert!(surface2.get(2, 2).has_image());
+
+        // Test copy_from
+        let mut surface3 = Surface::new(5, 5);
+        surface3.copy_from(&surface1);
+        assert_eq!(surface3.image_count(), 1);
+        assert!(surface3.get(2, 2).has_image());
+
+        // Verify image data is preserved
+        let original_image = surface1.get_image(image_id).unwrap();
+        let copied_image = surface3.get_image(image_id).unwrap();
+        assert_eq!(original_image.width, copied_image.width);
+        assert_eq!(original_image.height, copied_image.height);
+        assert_eq!(original_image.pixels, copied_image.pixels);
+    }
+
+    #[test]
+    fn test_clear_all_image_placements() {
+        let mut surface = Surface::new(10, 10);
+
+        // Create multiple images and place them
+        let image1 = surface.create_test_image(16, 16, 255, 0, 0);
+        let image2 = surface.create_test_image(16, 16, 0, 255, 0);
+
+        surface.place_image_background(1, 1, image1);
+        surface.place_image_foreground(5, 5, image2);
+        surface.place_image_simple(8, 8, image1, 2);
+
+        // Verify placements exist
+        assert_eq!(surface.get_image_cells().len(), 3);
+
+        // Clear all placements
+        surface.clear_all_image_placements();
+
+        // Verify all placements are gone
+        assert!(surface.get_image_cells().is_empty());
+        assert!(!surface.get(1, 1).has_image());
+        assert!(!surface.get(5, 5).has_image());
+        assert!(!surface.get(8, 8).has_image());
+
+        // But images should still be in registry
+        assert_eq!(surface.image_count(), 2);
+    }
+
+    #[test]
+    fn test_enhanced_surface_features() {
+        let mut surface = Surface::new(80, 24);
+
+        // Test Unicode text width calculation
+        assert_eq!(text_display_width("Hello"), 5);
+        assert_eq!(text_display_width("世界"), 4); // 2 wide chars
+        assert_eq!(text_display_width("🌍"), 2); // emoji
+
+        // Test enhanced text writing
+        let style = TextStyle::new(
+            Rgba::new(1.0, 1.0, 1.0, 1.0),
+            Rgba::new(0.0, 0.0, 0.0, 1.0),
+            Attr::BOLD,
+        );
+
+        surface.write_text_enhanced(5, 2, "Hello, 世界!", 20, style);
+
+        // Test subview clipping
+        {
+            let mut subview = surface.subview_mut(10, 5, 10, 5, 20, 10);
+            subview.write_text(0, 0, "Clipped text", style);
+        }
+
+        // Test border drawing
+        let border_rect = Rect::from_coords(30, 8, 20, 8);
+        surface.draw_border(border_rect, style, Some(BorderChars::rounded()));
+
+        // Test background filling
+        let fill_rect = Rect::from_coords(55, 10, 15, 5);
+        surface.fill_background_rect(fill_rect, Rgba::new(0.8, 0.4, 0.4, 1.0));
+
+        // Test character filling
+        let char_rect = Rect::from_coords(60, 2, 10, 3);
+        surface.fill_char_rect(char_rect, '█', TextStyle::fg(Rgba::new(0.0, 1.0, 0.0, 1.0)));
+
+        // Test clearing
+        let clear_rect = Rect::from_coords(2, 20, 20, 3);
+        surface.clear_rect(clear_rect);
+
+        // Verify surface dimensions
+        assert_eq!(surface.w, 80);
+        assert_eq!(surface.h, 24);
+    }
+
+    #[test]
+    fn test_border_chars() {
+        let default_chars = BorderChars::default();
+        assert_eq!(default_chars.top_left, '┌');
+        assert_eq!(default_chars.horizontal, '─');
+
+        let ascii_chars = BorderChars::ascii();
+        assert_eq!(ascii_chars.top_left, '+');
+        assert_eq!(ascii_chars.horizontal, '-');
+
+        let rounded_chars = BorderChars::rounded();
+        assert_eq!(rounded_chars.top_left, '╭');
+
+        let double_chars = BorderChars::double();
+        assert_eq!(double_chars.horizontal, '═');
+    }
+
+    #[test]
+    fn test_text_style() {
+        let style = TextStyle::new(
+            Rgba::new(1.0, 0.0, 0.0, 1.0),
+            Rgba::new(0.0, 1.0, 0.0, 1.0),
+            Attr::BOLD,
+        );
+
+        assert_eq!(style.fg, Rgba::new(1.0, 0.0, 0.0, 1.0));
+        assert_eq!(style.bg, Rgba::new(0.0, 1.0, 0.0, 1.0));
+        assert_eq!(style.attr, Attr::BOLD);
+        assert!(style.emoji_aware);
+
+        let fg_style = TextStyle::fg(Rgba::new(0.4, 0.4, 0.4, 1.0));
+        assert_eq!(fg_style.fg, Rgba::new(0.4, 0.4, 0.4, 1.0));
+        assert_eq!(fg_style.bg, Rgba::transparent());
+
+        let bold_style = TextStyle::fg(Rgba::white()).bold();
+        assert!(bold_style.attr.contains(Attr::BOLD));
+
+        let italic_style = TextStyle::fg(Rgba::white()).italic();
+        assert!(italic_style.attr.contains(Attr::ITALIC));
+
+        let underline_style = TextStyle::fg(Rgba::white()).underline();
+        assert!(underline_style.attr.contains(Attr::UNDERLINE));
     }
 }

@@ -377,6 +377,8 @@ impl SyntaxEditor {
                                 fg: run.fg,
                                 bg: run.bg,
                                 attr: run.attr,
+                                image_id: None,
+                                image_placement: None,
                             },
                         );
                         current_x += 1;

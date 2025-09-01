@@ -1,7 +1,6 @@
 //! Full terminal emulator implementation for reactive-tui
 //!
-//! Based on libvaxis architecture with complete ANSI support, PTY management,
-//! and virtual screen buffer.
+//! Complete ANSI support, PTY management, and virtual screen buffer.
 
 pub mod ansi;
 pub mod cell;
@@ -22,7 +21,7 @@ pub use screen::VirtualScreen;
 pub use terminal::Terminal;
 
 /// Terminal configuration
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct TerminalConfig {
     pub size: (u16, u16),
     pub scrollback_size: usize,

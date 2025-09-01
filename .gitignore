@@ -11,6 +11,7 @@ docs/
 .zencoder/
 .agent-os/
 CLAUDE.md
+.claude/
 
 # Test artifacts
 test_image.png

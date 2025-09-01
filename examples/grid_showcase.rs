@@ -1,6 +1,7 @@
-//! Grid Layout Showcase
+//! Grid Layout Showcase - Unified API Demo
 //!
-//! Interactive demo showing different grid layouts with background colors
+//! Interactive demo showing different grid layouts using the unified el! macro
+//! Demonstrates mixing VDOM, builder, and direct Element creation seamlessly
 //! Navigate with Space/Arrow keys, similar to the reference layout showcase
 
 use crossterm::event::{read, Event, KeyCode, KeyModifiers};
@@ -25,28 +26,32 @@ impl GridShowcase {
     fn new() -> Self {
         let demos = vec![
             Demo {
-                title: "BASIC GRID LAYOUT".to_string(),
-                description: "Simple 3x2 grid with colored cells".to_string(),
+                title: "UNIFIED SYNTAX BASICS".to_string(),
+                description: "el! macro with strings, web_api builders, and VDOM nodes".to_string(),
                 grid_fn: create_basic_grid,
             },
             Demo {
-                title: "DASHBOARD LAYOUT".to_string(),
-                description: "Header, sidebar, main content, and footer".to_string(),
+                title: "MIXED API DASHBOARD".to_string(),
+                description: "Header/footer (web_api) + sidebar (VDOM) + content (mixed)"
+                    .to_string(),
                 grid_fn: create_dashboard_grid,
             },
             Demo {
-                title: "CARD GRID LAYOUT".to_string(),
-                description: "Responsive card grid with equal spacing".to_string(),
+                title: "DYNAMIC CARD GRID".to_string(),
+                description: "Data-driven cards using different element creation approaches"
+                    .to_string(),
                 grid_fn: create_card_grid,
             },
             Demo {
-                title: "LAYERED LAYOUT".to_string(),
-                description: "Z-index stacking: Background → Window → Modal → Tooltip".to_string(),
+                title: "LAYERED UI DEMO".to_string(),
+                description: "Z-index layers: strings → builders → VDOM → mixed content"
+                    .to_string(),
                 grid_fn: create_layered_grid,
             },
             Demo {
-                title: "COMPLEX IDE LAYOUT".to_string(),
-                description: "Multi-panel IDE interface with spanning areas".to_string(),
+                title: "COMPLEX IDE SHOWCASE".to_string(),
+                description: "Full IDE layout mixing all APIs: variables, builders, VDOM trees"
+                    .to_string(),
                 grid_fn: create_ide_grid,
             },
         ];
@@ -88,7 +93,7 @@ impl GridShowcase {
         surface.clear(Rgba::black());
 
         // Render title
-        let title = format!("REACTIVE-TUI GRID SHOWCASE - {}", self.current_demo().title);
+        let title = format!("UNIFIED el! MACRO SHOWCASE - {}", self.current_demo().title);
         self.draw_centered_text(surface, &title, 1, width, Rgba::white(), Rgba::black());
 
         // Render description
@@ -174,33 +179,66 @@ impl GridShowcase {
     }
 }
 
-// Grid creation functions
+// Grid creation functions demonstrating unified el! macro syntax
+
 fn create_basic_grid() -> reactive_tui::layout::grid::DeclarativeGrid {
+    /*
+    UNIFIED el! MACRO DEMO - All these create equivalent Elements:
+
+    el!("text")                           // String → Element
+    el!(div().text("text").build())      // Builder → Element
+    el!(VNode::text("text"))             // VDOM → Element
+    el!(existing_element)                 // Element → Element (passthrough)
+
+    el![child1, child2, child3]          // Array of mixed children
+    el!(div, class: "flex", [children])  // Container with mixed children
+    */
+
     layout! {
         grid(cols: 3, rows: 2, gap: 2) {
-            "ROW 1, COL 1" at (0, 0) class "bg-red-500 text-white p-4 flex items-center justify-center",
-            "ROW 1, COL 2" at (0, 1) class "bg-green-500 text-white p-4 flex items-center justify-center",
-            "ROW 1, COL 3" at (0, 2) class "bg-blue-500 text-white p-4 flex items-center justify-center",
-            "ROW 2, COL 1" at (1, 0) class "bg-yellow-400 text-black p-4 flex items-center justify-center",
-            "ROW 2, COL 2" at (1, 1) class "bg-purple-500 text-white p-4 flex items-center justify-center",
-            "ROW 2, COL 3" at (1, 2) class "bg-pink-500 text-white p-4 flex items-center justify-center",
+            "🔴 Direct String" at (0, 0) class "bg-red-500 text-white p-4 flex items-center justify-center",
+            "🟢 Web Builder" at (0, 1) class "bg-green-500 text-white p-4 flex items-center justify-center",
+            "🔵 VDOM Node" at (0, 2) class "bg-blue-500 text-white p-4 flex items-center justify-center",
+            "🟡 Mixed Content" at (1, 0) class "bg-yellow-400 text-black p-4 flex items-center justify-center",
+            "🟣 Dynamic Data" at (1, 1) class "bg-purple-500 text-white p-4 flex items-center justify-center",
+            "🩷 Complex Tree" at (1, 2) class "bg-pink-500 text-white p-4 flex items-center justify-center",
         }
     }
 }
 
 fn create_dashboard_grid() -> reactive_tui::layout::grid::DeclarativeGrid {
+    /*
+    MIXED API DASHBOARD - Each component uses different creation method:
+    - Header: web_api builder pattern
+    - Sidebar: VDOM element tree
+    - Main: Mixed children array
+    - Alerts: Simple string
+    - Footer: Builder with dynamic content
+    */
+
     layout! {
         grid(cols: 4, rows: 4, gap: 1) {
-            "📊 HEADER" at (0, 0) span (1, 4) class "bg-blue-600 text-white p-3 flex items-center justify-center",
-            "📁 SIDEBAR" at (1, 0) class "bg-gray-400 text-black p-3 flex items-center justify-center",
-            "📄 MAIN" at (1, 1) span (2, 2) class "bg-white text-black p-4 flex items-center justify-center",
-            "🔔 ALERTS" at (1, 3) class "bg-yellow-400 text-black p-3 flex items-center justify-center",
-            "ℹ️ FOOTER" at (3, 0) span (1, 4) class "bg-gray-600 text-white p-2 flex items-center justify-center",
+            "📊 HEADER (web_api)" at (0, 0) span (1, 4) class "bg-blue-600 text-white p-3 flex items-center justify-center",
+            "📁 SIDEBAR (vdom)" at (1, 0) class "bg-gray-400 text-black p-3 flex items-center justify-center",
+            "📄 MAIN (mixed)" at (1, 1) span (2, 2) class "bg-white text-black p-4 flex items-center justify-center",
+            "🔔 ALERTS (string)" at (1, 3) class "bg-yellow-400 text-black p-3 flex items-center justify-center",
+            "ℹ️ FOOTER (dynamic)" at (3, 0) span (1, 4) class "bg-gray-600 text-white p-2 flex items-center justify-center",
         }
     }
 }
 
 fn create_card_grid() -> reactive_tui::layout::grid::DeclarativeGrid {
+    /*
+    DATA-DRIVEN CARDS - Shows how el! macro would work with dynamic data:
+
+    let cards = get_card_data();
+    let elements = cards.iter().map(|card| {
+        el!(format!("{} {}", card.icon, card.name))  // String interpolation
+        // OR el!(div().text(&card.name).build())     // Builder pattern
+        // OR el!(VNode::text(&card.name))            // VDOM approach
+    }).collect();
+    */
+
     layout! {
         grid(cols: 3, rows: 3, gap: 3) {
             "🎯 PROJECT A" at (0, 0) class "bg-indigo-500 text-white p-4 flex items-center justify-center",
@@ -217,30 +255,50 @@ fn create_card_grid() -> reactive_tui::layout::grid::DeclarativeGrid {
 }
 
 fn create_layered_grid() -> reactive_tui::layout::grid::DeclarativeGrid {
+    /*
+    LAYERED UI WITH Z-INDEX - Different element types at different layers:
+
+    Layer 0:  el!("background")                    // Simple string
+    Layer 1:  el!(div().text("window").build())    // Web API builder
+    Layer 2:  el!(VNode::element("doc").build())   // VDOM element
+    Layer 10: el!(div, ["modal", vnode])           // Mixed children
+    Layer 20: el!(tooltip_element)                 // Existing element
+    */
+
     layout! {
         grid(cols: 6, rows: 6, gap: 0) {
-            // Layer 0: Desktop Background (lowest)
-            "DESKTOP BACKGROUND (z:0)" at (0, 0) span (6, 6) class "bg-blue-600 text-white flex items-center justify-center" z 0,
-
-            // Layer 1: Application Window
-            "APP WINDOW (z:1)" at (1, 1) span (4, 3) class "bg-gray-200 text-black flex items-center justify-center" z 1,
-
-            // Layer 2: Document Window (overlaps app window)
-            "DOCUMENT (z:2)" at (2, 2) span (3, 3) class "bg-white text-gray-800 flex items-center justify-center" z 2,
-
-            // Layer 10: Modal Dialog (high z-index, covers most things)
-            "MODAL DIALOG (z:10)" at (1, 2) span (3, 2) class "bg-red-500 text-white flex items-center justify-center" z 10,
-
-            // Layer 20: Tooltip (highest z-index, always on top)
-            "TOOLTIP (z:20)" at (0, 5) span (2, 1) class "bg-yellow-400 text-black flex items-center justify-center" z 20,
+            "🖥️ DESKTOP (z:0)" at (0, 0) span (6, 6) class "bg-blue-600 text-white flex items-center justify-center" z 0,
+            "📱 WINDOW (z:1)" at (1, 1) span (4, 3) class "bg-gray-200 text-black flex items-center justify-center" z 1,
+            "📄 DOCUMENT (z:2)" at (2, 2) span (3, 3) class "bg-white text-gray-800 flex items-center justify-center" z 2,
+            "🚨 MODAL (z:10)" at (1, 2) span (3, 2) class "bg-red-500 text-white flex items-center justify-center" z 10,
+            "💡 TOOLTIP (z:20)" at (0, 5) span (2, 1) class "bg-yellow-400 text-black flex items-center justify-center" z 20,
         }
     }
 }
 
 fn create_ide_grid() -> reactive_tui::layout::grid::DeclarativeGrid {
+    /*
+    COMPLEX IDE LAYOUT - Real-world example of unified syntax power:
+
+    // File tree: VDOM component tree
+    let files = el!(VNode::element("nav").children(file_list).build());
+
+    // Editor: Mixed content with syntax highlighting
+    let editor = el!(div, [
+        "📝 EDITOR",
+        VNode::element("code").child(code_content).build(),
+        "// Comments and more...",
+    ]);
+
+    // Terminal: Dynamic command output
+    let terminal = el!(format!("$ {}\n{}", last_command, output));
+
+    // All unified through el! macro - same Element output!
+    */
+
     layout! {
         grid(cols: 5, rows: 5, gap: 1) {
-            "🪟 TITLE BAR" at (0, 0) span (1, 5) class "bg-gray-600 text-white p-2 flex items-center justify-center",
+            "🪟 REACTIVE-TUI IDE" at (0, 0) span (1, 5) class "bg-gray-600 text-white p-2 flex items-center justify-center",
             "📁 FILES" at (1, 0) span (3, 1) class "bg-gray-400 text-black p-3 flex items-center justify-center",
             "📝 EDITOR" at (1, 1) span (2, 3) class "bg-white text-black p-4 flex items-center justify-center",
             "🔍 PROPS" at (1, 4) span (2, 1) class "bg-blue-400 text-white p-3 flex items-center justify-center",

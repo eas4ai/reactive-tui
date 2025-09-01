@@ -94,53 +94,38 @@ struct AnimationTask {
 
 impl AnimationRuntime {
     fn new() -> Arc<Self> {
-        let runtime = Arc::new(Self {
+        Arc::new(Self {
             running: Arc::new(AtomicBool::new(true)),
             animations: Arc::new(RwLock::new(Vec::new())),
-        });
-
-        // Start animation loop thread
-        let runtime_clone = runtime.clone();
-        thread::spawn(move || {
-            runtime_clone.animation_loop();
-        });
-
-        runtime
+        })
     }
 
-    fn animation_loop(&self) {
-        let frame_duration = Duration::from_millis(16); // 60 FPS
+    /// Update all hook animations (called from main render loop)
+    pub fn update_animations(&self) {
+        if !self.running.load(Ordering::Relaxed) {
+            return;
+        }
 
-        while self.running.load(Ordering::Relaxed) {
-            let frame_start = Instant::now();
+        // Process all animations
+        let mut completed = Vec::new();
+        {
+            let animations = self.animations.read().unwrap();
+            for (idx, task) in animations.iter().enumerate() {
+                let elapsed = task.start_time.elapsed();
+                let progress = (elapsed.as_secs_f32() / task.duration.as_secs_f32()).min(1.0);
+                (task.update)(progress);
 
-            // Process all animations
-            let mut completed = Vec::new();
-            {
-                let animations = self.animations.read().unwrap();
-                for (idx, task) in animations.iter().enumerate() {
-                    let elapsed = task.start_time.elapsed();
-                    let progress = (elapsed.as_secs_f32() / task.duration.as_secs_f32()).min(1.0);
-                    (task.update)(progress);
-
-                    if progress >= 1.0 {
-                        completed.push(idx);
-                    }
+                if progress >= 1.0 {
+                    completed.push(idx);
                 }
             }
+        }
 
-            // Remove completed animations
-            if !completed.is_empty() {
-                let mut animations = self.animations.write().unwrap();
-                for idx in completed.iter().rev() {
-                    animations.remove(*idx);
-                }
-            }
-
-            // Sleep for remaining frame time
-            let elapsed = frame_start.elapsed();
-            if elapsed < frame_duration {
-                thread::sleep(frame_duration - elapsed);
+        // Remove completed animations
+        if !completed.is_empty() {
+            let mut animations = self.animations.write().unwrap();
+            for idx in completed.iter().rev() {
+                animations.remove(*idx);
             }
         }
     }
@@ -167,9 +152,29 @@ impl AnimationRuntime {
     }
 }
 
-// Global animation runtime
+// Global animation runtime - now coordinates with main animation system
 lazy_static::lazy_static! {
     static ref RUNTIME: Arc<AnimationRuntime> = AnimationRuntime::new();
+}
+
+/// Global animation manager reference for coordination
+static mut GLOBAL_ANIMATION_MANAGER: Option<*mut crate::animation::AnimationManager> = None;
+
+/// Set the global animation manager for coordination
+/// SAFETY: This should only be called once during app initialization
+pub unsafe fn set_global_animation_manager(manager: *mut crate::animation::AnimationManager) {
+    GLOBAL_ANIMATION_MANAGER = Some(manager);
+}
+
+/// Get the global animation manager if available
+#[allow(dead_code)]
+fn get_global_animation_manager() -> Option<&'static mut crate::animation::AnimationManager> {
+    unsafe { GLOBAL_ANIMATION_MANAGER.and_then(|ptr| ptr.as_mut()) }
+}
+
+/// Update all hook-based animations (called from main render loop)
+pub fn update_hook_animations() {
+    RUNTIME.update_animations();
 }
 
 /// Stop the global animation runtime (for cleanup)
@@ -373,12 +378,10 @@ impl<T: AnimatableValue> SpringHandle<T> {
             value_signal.set(T::from_f32(position));
 
             // Stop when settled and remove from runtime
-            if (position - target).abs() < 0.001f32 {
-                if new_velocity.abs() < 0.001f32 {
-                    if let Some(id) = *animation_id_ref.lock().unwrap() {
-                        RUNTIME.remove_animation(id);
-                        *animation_id_ref.lock().unwrap() = None;
-                    }
+            if (position - target).abs() < 0.001f32 && new_velocity.abs() < 0.001f32 {
+                if let Some(id) = *animation_id_ref.lock().unwrap() {
+                    RUNTIME.remove_animation(id);
+                    *animation_id_ref.lock().unwrap() = None;
                 }
             }
         });
