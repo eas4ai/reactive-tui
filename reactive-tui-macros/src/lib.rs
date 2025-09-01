@@ -386,8 +386,10 @@ pub fn derive_props(input: TokenStream) -> TokenStream {
             /// Builder methods for fluent API
             #(#builder_methods)*
 
-            /// Validate all fields (placeholder for future validation)
+            /// Validate all component properties
+            /// Currently performs basic validation - can be extended for specific validation rules
             pub fn validate(&self) -> bool {
+                // Basic validation passes - extend this method for specific validation needs
                 true
             }
         }

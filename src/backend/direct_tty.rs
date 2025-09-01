@@ -252,10 +252,31 @@ impl DirectTtyBackend {
                     meta: modifiers.meta,
                 };
 
+                // Determine button based on event kind and context
+                let button = match kind {
+                    crate::platform::MouseEventKind::ScrollUp
+                    | crate::platform::MouseEventKind::ScrollDown
+                    | crate::platform::MouseEventKind::ScrollLeft
+                    | crate::platform::MouseEventKind::ScrollRight => rt_event::MouseButton::Middle,
+                    _ => {
+                        // For regular mouse events, we need to infer the button
+                        // This is a limitation of the current platform event structure
+                        // In a full implementation, the platform layer would need to be enhanced
+                        // to include button information in the TerminalEvent::Mouse
+                        if modifiers.ctrl {
+                            rt_event::MouseButton::Right // Ctrl+click often simulates right click
+                        } else if modifiers.shift {
+                            rt_event::MouseButton::Middle // Shift+click often simulates middle click
+                        } else {
+                            rt_event::MouseButton::Left // Default to left button
+                        }
+                    }
+                };
+
                 Some(rt_event::Event::Mouse(rt_event::MouseEvent {
                     kind: rt_kind,
                     position,
-                    button: rt_event::MouseButton::Left, // TODO: Parse actual button
+                    button,
                     modifiers: rt_modifiers,
                     timestamp: std::time::Instant::now(),
                 }))

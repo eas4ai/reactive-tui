@@ -523,25 +523,123 @@ impl Popover {
         }
     }
 
-    fn estimate_content_size(&self, _content: &Element, props: &PopoverProps) -> (u16, u16) {
-        // Simplified content size estimation
-        let base_width = 200u16;
-        let base_height = 100u16;
+    fn estimate_content_size(&self, content: &Element, props: &PopoverProps) -> (u16, u16) {
+        // Comprehensive content size estimation based on element structure
+        let (estimated_width, estimated_height) = self.calculate_element_size(content);
 
-        let width = props.min_width.unwrap_or(base_width).max(
+        // Apply padding considerations
+        let padding = 2; // Default padding for popover content
+        let border_width = 1; // Default border width
+        let total_padding = (padding + border_width) * 2;
+
+        let content_width = estimated_width + total_padding;
+        let content_height = estimated_height + total_padding;
+
+        // Apply min/max width constraints
+        let width = props.min_width.unwrap_or(content_width).max(
             props
                 .max_width
-                .map(|max| base_width.min(max))
-                .unwrap_or(base_width),
+                .map(|max| content_width.min(max))
+                .unwrap_or(content_width),
         );
-        let height = props.min_height.unwrap_or(base_height).max(
+
+        // Apply min/max height constraints
+        let height = props.min_height.unwrap_or(content_height).max(
             props
                 .max_height
-                .map(|max| base_height.min(max))
-                .unwrap_or(base_height),
+                .map(|max| content_height.min(max))
+                .unwrap_or(content_height),
         );
 
         (width, height)
+    }
+
+    /// Calculate the estimated size of an element and its children
+    fn calculate_element_size(&self, element: &Element) -> (u16, u16) {
+        use crate::component::ElementType;
+
+        match &element.element_type {
+            ElementType::Text(text) => {
+                // Calculate text dimensions
+                let lines: Vec<&str> = text.lines().collect();
+                let height = lines.len() as u16;
+                let width = lines.iter()
+                    .map(|line| line.chars().count() as u16)
+                    .max()
+                    .unwrap_or(0);
+                (width, height)
+            }
+            ElementType::Component(component_name) => {
+                // Estimate size based on component type
+                match component_name.as_str() {
+                    "Button" => (10, 1), // Typical button size
+                    "Input" | "TextInput" => (20, 1), // Typical input size
+                    "Table" => (40, 10), // Typical table size
+                    "Tree" => (30, 15), // Typical tree size
+                    "List" => (25, 8), // Typical list size
+                    _ => {
+                        // For unknown components, calculate based on children
+                        self.calculate_children_size(element)
+                    }
+                }
+            }
+            ElementType::Layout(layout_type) => {
+                // Calculate size based on layout type and children
+                let (child_width, child_height) = self.calculate_children_size(element);
+
+                match layout_type {
+                    crate::component::LayoutType::Flex => {
+                        // For flex layouts, assume vertical stacking by default
+                        (child_width, child_height)
+                    }
+                    crate::component::LayoutType::Grid => {
+                        // For grid layouts, estimate based on grid structure
+                        // This is simplified - real implementation would parse grid properties
+                        let cols = (element.children.len() as f32).sqrt().ceil() as u16;
+                        let rows = (element.children.len() as u16 + cols - 1) / cols;
+                        (child_width * cols, child_height * rows)
+                    }
+                    crate::component::LayoutType::Stack => {
+                        // Stack layouts overlay children, so use max dimensions
+                        (child_width, child_height)
+                    }
+                    crate::component::LayoutType::Absolute => {
+                        // Absolute layouts can have any size, use children as guide
+                        (child_width, child_height)
+                    }
+                }
+            }
+            ElementType::Fragment => {
+                // Fragments are invisible, just calculate children
+                self.calculate_children_size(element)
+            }
+            ElementType::Empty => {
+                // Empty elements have no size
+                (0, 0)
+            }
+        }
+    }
+
+    /// Calculate the combined size of all children
+    fn calculate_children_size(&self, element: &Element) -> (u16, u16) {
+        if element.children.is_empty() {
+            return (0, 0);
+        }
+
+        let _total_width = 0;
+        let mut total_height = 0;
+        let mut max_width = 0;
+
+        for child in &element.children {
+            let (child_width, child_height) = self.calculate_element_size(child);
+
+            // Assume vertical stacking by default
+            total_height += child_height;
+            max_width = max_width.max(child_width);
+        }
+
+        // Use the maximum width and total height
+        (max_width, total_height)
     }
 
     fn update_animation(&self, state: &mut PopoverState, props: &PopoverProps) {

@@ -93,8 +93,21 @@ impl AnsiParser {
             ParserState::OscString => {
                 self.parse_osc_string(byte, &mut events);
             }
+            ParserState::DcsEntry => {
+                self.parse_dcs_entry(byte, &mut events);
+            }
+            ParserState::DcsParam => {
+                self.parse_dcs_param(byte, &mut events);
+            }
+            ParserState::DcsIntermediate => {
+                self.parse_dcs_intermediate(byte, &mut events);
+            }
+            ParserState::DcsPassthrough => {
+                self.parse_dcs_passthrough(byte, &mut events);
+            }
             _ => {
-                self.reset_state();
+                // Handle other string states (SOS, PM, APC)
+                self.parse_string_state(byte, &mut events);
             }
         }
 
@@ -159,11 +172,7 @@ impl AnsiParser {
                     0x58 => ParserState::SosString,
                     0x5E => ParserState::PmString,
                     0x5F => ParserState::ApcString,
-                    _ => {
-                        // Invalid escape sequence - reset to ground state
-                        self.reset_state();
-                        return;
-                    }
+                    _ => unreachable!(),
                 };
             }
             _ => {
@@ -372,6 +381,128 @@ impl AnsiParser {
         self.intermediates.clear();
         self.string_buffer.clear();
         self.private = false;
+    }
+
+    /// Parse DCS entry state - Device Control String entry
+    fn parse_dcs_entry(&mut self, byte: u8, events: &mut Vec<AnsiEvent>) {
+        match byte {
+            0x00..=0x17 | 0x19 | 0x1C..=0x1F => {
+                self.execute_control(byte, events);
+            }
+            0x20..=0x2F => {
+                self.intermediates.push(byte);
+                self.state = ParserState::DcsIntermediate;
+            }
+            0x30..=0x39 | 0x3B => {
+                self.params.push(0);
+                self.current_param = Some(0);
+                self.state = ParserState::DcsParam;
+                self.parse_dcs_param(byte, events);
+            }
+            0x3A => {
+                self.state = ParserState::DcsParam;
+            }
+            0x3C..=0x3F => {
+                self.private = true;
+                self.state = ParserState::DcsParam;
+            }
+            0x40..=0x7E => {
+                self.state = ParserState::DcsPassthrough;
+            }
+            _ => {
+                self.reset_state();
+            }
+        }
+    }
+
+    /// Parse DCS parameter state
+    fn parse_dcs_param(&mut self, byte: u8, events: &mut Vec<AnsiEvent>) {
+        match byte {
+            0x00..=0x17 | 0x19 | 0x1C..=0x1F => {
+                self.execute_control(byte, events);
+            }
+            0x20..=0x2F => {
+                self.intermediates.push(byte);
+                self.state = ParserState::DcsIntermediate;
+            }
+            0x30..=0x39 => {
+                if let Some(ref mut param) = self.current_param {
+                    *param = param.saturating_mul(10).saturating_add((byte - b'0') as u16);
+                }
+            }
+            0x3A => {
+                // Sub-parameter separator - not commonly used
+            }
+            0x3B => {
+                self.params.push(self.current_param.unwrap_or(0));
+                self.current_param = Some(0);
+            }
+            0x3C..=0x3F => {
+                self.private = true;
+            }
+            0x40..=0x7E => {
+                if let Some(param) = self.current_param {
+                    self.params.push(param);
+                }
+                self.state = ParserState::DcsPassthrough;
+            }
+            _ => {
+                self.reset_state();
+            }
+        }
+    }
+
+    /// Parse DCS intermediate state
+    fn parse_dcs_intermediate(&mut self, byte: u8, events: &mut Vec<AnsiEvent>) {
+        match byte {
+            0x00..=0x17 | 0x19 | 0x1C..=0x1F => {
+                self.execute_control(byte, events);
+            }
+            0x20..=0x2F => {
+                self.intermediates.push(byte);
+            }
+            0x40..=0x7E => {
+                self.state = ParserState::DcsPassthrough;
+            }
+            _ => {
+                self.reset_state();
+            }
+        }
+    }
+
+    /// Parse DCS passthrough state - collect DCS data
+    fn parse_dcs_passthrough(&mut self, byte: u8, _events: &mut Vec<AnsiEvent>) {
+        match byte {
+            0x00..=0x17 | 0x19 | 0x1C..=0x1F => {
+                // Control characters in passthrough - ignore for now
+            }
+            0x1B => {
+                // Escape - might be end of DCS
+                self.state = ParserState::Escape;
+            }
+            _ => {
+                // Collect DCS data
+                self.string_buffer.push(byte);
+            }
+        }
+    }
+
+    /// Parse other string states (SOS, PM, APC)
+    fn parse_string_state(&mut self, byte: u8, _events: &mut Vec<AnsiEvent>) {
+        match byte {
+            0x1B => {
+                // Escape - end of string
+                self.state = ParserState::Escape;
+            }
+            0x07 => {
+                // Bell - end of string (alternative terminator)
+                self.reset_state();
+            }
+            _ => {
+                // Collect string data
+                self.string_buffer.push(byte);
+            }
+        }
     }
 }
 

@@ -892,12 +892,12 @@ mod tests {
 
         match single {
             AnimationTargets::Single(id) => assert_eq!(id, "element"),
-            _ => panic!("Expected single target"),
+            AnimationTargets::Multiple(_) => panic!("Expected single target, got multiple"),
         }
 
         match multiple {
             AnimationTargets::Multiple(ids) => assert_eq!(ids.len(), 3),
-            _ => panic!("Expected multiple targets"),
+            AnimationTargets::Single(_) => panic!("Expected multiple targets, got single"),
         }
     }
 
@@ -913,7 +913,7 @@ mod tests {
                 assert_eq!(from, 0.0);
                 assert_eq!(to, 1.0);
             }
-            _ => panic!("Expected opacity property"),
+            other => panic!("Expected opacity property, got: {:?}", other),
         }
     }
 

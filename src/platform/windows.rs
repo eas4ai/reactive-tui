@@ -10,6 +10,15 @@ use std::time::Duration;
 #[cfg(windows)]
 use windows_sys::Win32::{Foundation::*, Storage::FileSystem::*, System::Console::*};
 
+#[cfg(windows)]
+const FROM_LEFT_1ST_BUTTON_PRESSED: DWORD = 0x0001;
+#[cfg(windows)]
+const RIGHTMOST_BUTTON_PRESSED: DWORD = 0x0002;
+#[cfg(windows)]
+const MOUSE_MOVED: DWORD = 0x0001;
+#[cfg(windows)]
+const MOUSE_WHEELED: DWORD = 0x0004;
+
 /// Windows TTY implementation using Console API
 #[cfg(windows)]
 pub struct WindowsTty {
@@ -427,8 +436,56 @@ impl WindowsTty {
 
                 MOUSE_EVENT => {
                     let mouse_event = record.Event.MouseEvent;
-                    // TODO: Implement mouse event parsing
-                    None
+
+                    // Parse mouse event based on button state and event flags
+                    let x = mouse_event.dwMousePosition.X as u16;
+                    let y = mouse_event.dwMousePosition.Y as u16;
+
+                    // Check for button events
+                    if mouse_event.dwEventFlags == 0 {
+                        // Button press/release event
+                        if mouse_event.dwButtonState & FROM_LEFT_1ST_BUTTON_PRESSED != 0 {
+                            Some(crate::event::Event::Mouse(crate::event::MouseEvent::Press {
+                                button: crate::event::MouseButton::Left,
+                                position: (x, y),
+                                modifiers: parse_control_key_state(mouse_event.dwControlKeyState),
+                            }))
+                        } else if mouse_event.dwButtonState & RIGHTMOST_BUTTON_PRESSED != 0 {
+                            Some(crate::event::Event::Mouse(crate::event::MouseEvent::Press {
+                                button: crate::event::MouseButton::Right,
+                                position: (x, y),
+                                modifiers: parse_control_key_state(mouse_event.dwControlKeyState),
+                            }))
+                        } else {
+                            // Button release
+                            Some(crate::event::Event::Mouse(crate::event::MouseEvent::Release {
+                                button: crate::event::MouseButton::Left, // Default to left
+                                position: (x, y),
+                                modifiers: parse_control_key_state(mouse_event.dwControlKeyState),
+                            }))
+                        }
+                    } else if mouse_event.dwEventFlags & MOUSE_MOVED != 0 {
+                        // Mouse move event
+                        Some(crate::event::Event::Mouse(crate::event::MouseEvent::Move {
+                            position: (x, y),
+                            modifiers: parse_control_key_state(mouse_event.dwControlKeyState),
+                        }))
+                    } else if mouse_event.dwEventFlags & MOUSE_WHEELED != 0 {
+                        // Mouse wheel event
+                        let delta = ((mouse_event.dwButtonState >> 16) as i16) as i32;
+                        let direction = if delta > 0 {
+                            crate::event::ScrollDirection::Up
+                        } else {
+                            crate::event::ScrollDirection::Down
+                        };
+                        Some(crate::event::Event::Mouse(crate::event::MouseEvent::Scroll {
+                            direction,
+                            position: (x, y),
+                            modifiers: parse_control_key_state(mouse_event.dwControlKeyState),
+                        }))
+                    } else {
+                        None
+                    }
                 }
 
                 WINDOW_BUFFER_SIZE_EVENT => {
@@ -537,4 +594,21 @@ impl WindowsTty {
     pub fn restore(&self) -> Result<()> {
         Ok(())
     }
+}
+
+#[cfg(windows)]
+fn parse_control_key_state(state: DWORD) -> crate::event::KeyModifiers {
+    let mut modifiers = crate::event::KeyModifiers::empty();
+
+    if state & LEFT_CTRL_PRESSED != 0 || state & RIGHT_CTRL_PRESSED != 0 {
+        modifiers |= crate::event::KeyModifiers::CONTROL;
+    }
+    if state & LEFT_ALT_PRESSED != 0 || state & RIGHT_ALT_PRESSED != 0 {
+        modifiers |= crate::event::KeyModifiers::ALT;
+    }
+    if state & SHIFT_PRESSED != 0 {
+        modifiers |= crate::event::KeyModifiers::SHIFT;
+    }
+
+    modifiers
 }

@@ -331,23 +331,23 @@ mod tests {
         // Check cells
         match surface.get_cell(0, 0) {
             CellType::Glyph { grapheme, .. } => assert_eq!(grapheme.as_str(), "A"),
-            _ => panic!("Expected glyph at (0,0)"),
+            other => panic!("Expected glyph 'A' at (0,0), got: {:?}", other),
         }
 
         match surface.get_cell(1, 0) {
             CellType::Glyph { grapheme, .. } => assert_eq!(grapheme.as_str(), "中"),
-            _ => panic!("Expected glyph at (1,0)"),
+            other => panic!("Expected glyph '中' at (1,0), got: {:?}", other),
         }
 
         // Wide character continuation
         match surface.get_cell(2, 0) {
             CellType::Void => {}
-            _ => panic!("Expected void at (2,0)"),
+            other => panic!("Expected void at (2,0) for wide character continuation, got: {:?}", other),
         }
 
         match surface.get_cell(3, 0) {
             CellType::Glyph { grapheme, .. } => assert_eq!(grapheme.as_str(), "B"),
-            _ => panic!("Expected glyph at (3,0)"),
+            other => panic!("Expected glyph 'B' at (3,0), got: {:?}", other),
         }
     }
 

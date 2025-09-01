@@ -195,10 +195,54 @@ pub fn apply_utility_classes(class: &str, mut sb: StyleBuilder) -> StyleBuilder 
                 sb = sb.z_index(20);
             }
 
-            // Overflow utilities (placeholders for now)
-            "overflow-hidden" | "overflow-auto" => {
-                // These would need special handling in the layout system
-                continue;
+            // Overflow utilities - TUI-appropriate implementations
+            "overflow-hidden" => {
+                // Hide content that exceeds container bounds
+                sb = sb.overflow_hidden();
+            }
+            "overflow-auto" => {
+                // Show scrollbars when content exceeds bounds
+                sb = sb.overflow_auto();
+            }
+            "overflow-scroll" => {
+                // Always show scrollbars
+                sb = sb.overflow_scroll();
+            }
+            "overflow-visible" => {
+                // Allow content to extend beyond bounds (default)
+                sb = sb.overflow_visible();
+            }
+            "overflow-x-hidden" => {
+                // Hide horizontal overflow only
+                sb = sb.overflow_x_hidden();
+            }
+            "overflow-y-hidden" => {
+                // Hide vertical overflow only
+                sb = sb.overflow_y_hidden();
+            }
+            "overflow-x-auto" => {
+                // Auto horizontal scrolling
+                sb = sb.overflow_x_auto();
+            }
+            "overflow-y-auto" => {
+                // Auto vertical scrolling
+                sb = sb.overflow_y_auto();
+            }
+            "overflow-x-scroll" => {
+                // Horizontal scrolling
+                sb = sb.overflow_x_scroll();
+            }
+            "overflow-y-scroll" => {
+                // Vertical scrolling
+                sb = sb.overflow_y_scroll();
+            }
+            "overflow-x-visible" => {
+                // Visible horizontal overflow
+                sb = sb.overflow_x_visible();
+            }
+            "overflow-y-visible" => {
+                // Visible vertical overflow
+                sb = sb.overflow_y_visible();
             }
 
             // Spacing utilities (space-x, space-y)

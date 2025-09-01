@@ -4,6 +4,19 @@ use crate::event::router::EventResult;
 use crate::event::types::{Event, KeyCode, MouseEventKind};
 use std::sync::Arc;
 
+/// Result of hit testing on modal elements
+#[derive(Debug, Clone, PartialEq)]
+enum ModalHitResult {
+    /// Hit the backdrop area
+    Backdrop,
+    /// Hit the modal content area
+    Content,
+    /// Hit the title bar
+    TitleBar,
+    /// Hit the close button
+    CloseButton,
+}
+
 /// Props for the Modal component
 #[derive(Clone)]
 pub struct ModalProps {
@@ -515,6 +528,73 @@ impl Modal {
             }
         }
     }
+
+    /// Perform hit testing to determine what part of the modal was clicked
+    fn hit_test_modal(
+        &self,
+        mouse_event: &crate::event::types::MouseEvent,
+        props: &ModalProps,
+        state: &ModalState,
+    ) -> Option<ModalHitResult> {
+        // Get click position
+        let (click_x, click_y) = match mouse_event.position {
+            crate::event::types::Position::Cell { x, y } => (x as u16, y as u16),
+            crate::event::types::Position::Pixel { x, y } => {
+                // Convert pixel to cell coordinates (approximate)
+                (x as u16 / 8, y as u16 / 16)
+            }
+        };
+
+        // Calculate modal bounds based on position and size
+        let modal_x = state.position.0;
+        let modal_y = state.position.1;
+        let modal_width = state.size.0;
+        let modal_height = state.size.1;
+
+        // Check if click is within modal content area
+        if click_x >= modal_x && click_x < modal_x + modal_width
+            && click_y >= modal_y && click_y < modal_y + modal_height
+        {
+            // Check specific areas within the modal
+            if props.title.is_some() && click_y == modal_y {
+                // Click on title bar
+                if props.closable && click_x >= modal_x + modal_width - 3 {
+                    // Click on close button (last 3 characters of title bar)
+                    return Some(ModalHitResult::CloseButton);
+                } else {
+                    // Click on title bar
+                    return Some(ModalHitResult::TitleBar);
+                }
+            } else {
+                // Click on modal content
+                return Some(ModalHitResult::Content);
+            }
+        } else {
+            // Click outside modal content - on backdrop
+            return Some(ModalHitResult::Backdrop);
+        }
+    }
+
+    /// Calculate drag offset for modal dragging
+    fn calculate_drag_offset(
+        &self,
+        mouse_event: &crate::event::types::MouseEvent,
+        _props: &ModalProps,
+        state: &ModalState,
+    ) -> (u16, u16) {
+        let (click_x, click_y) = match mouse_event.position {
+            crate::event::types::Position::Cell { x, y } => (x as u16, y as u16),
+            crate::event::types::Position::Pixel { x, y } => {
+                (x as u16 / 8, y as u16 / 16)
+            }
+        };
+
+        // Calculate offset from modal's top-left corner
+        let offset_x = click_x.saturating_sub(state.position.0);
+        let offset_y = click_y.saturating_sub(state.position.1);
+
+        (offset_x, offset_y)
+    }
 }
 
 impl Component for Modal {
@@ -630,18 +710,53 @@ impl Component for Modal {
             Event::Mouse(mouse_event) => {
                 match mouse_event.kind {
                     MouseEventKind::Click => {
-                        // Check if clicking backdrop to close
+                        // Check if clicking backdrop to close with proper bounds checking
                         if props.backdrop_clickable && props.closable {
-                            // Simplified click detection - would need proper bounds checking
-                            self.close_modal(props, ModalCloseReason::BackdropClick);
-                            return EventResult::Consumed;
+                            if let Some(click_result) = self.hit_test_modal(&mouse_event, props, state) {
+                                match click_result {
+                                    ModalHitResult::Backdrop => {
+                                        self.close_modal(props, ModalCloseReason::BackdropClick);
+                                        return EventResult::Consumed;
+                                    }
+                                    ModalHitResult::Content => {
+                                        // Click on modal content - don't close
+                                        return EventResult::Ignored;
+                                    }
+                                    ModalHitResult::TitleBar => {
+                                        // Click on title bar - could start dragging if draggable
+                                        if props.draggable {
+                                            state.dragging = true;
+                                            state.drag_offset = self.calculate_drag_offset(&mouse_event, props, state);
+                                        }
+                                        return EventResult::Consumed;
+                                    }
+                                    ModalHitResult::CloseButton => {
+                                        // Click on close button
+                                        if props.closable {
+                                            self.close_modal(props, ModalCloseReason::CloseButton);
+                                        }
+                                        return EventResult::Consumed;
+                                    }
+                                }
+                            }
                         }
                     }
                     MouseEventKind::Down => {
                         if props.draggable {
-                            state.dragging = true;
-                            // Set drag offset based on click position
-                            return EventResult::Consumed;
+                            if let Some(hit_result) = self.hit_test_modal(&mouse_event, props, state) {
+                                match hit_result {
+                                    ModalHitResult::TitleBar => {
+                                        // Start dragging from title bar
+                                        state.dragging = true;
+                                        state.drag_offset = self.calculate_drag_offset(&mouse_event, props, state);
+                                        return EventResult::Consumed;
+                                    }
+                                    _ => {
+                                        // Don't start dragging from other areas
+                                        return EventResult::Ignored;
+                                    }
+                                }
+                            }
                         }
                     }
                     MouseEventKind::Up => {

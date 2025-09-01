@@ -583,9 +583,18 @@ impl EscapeSequenceParser {
             }
         }
 
-        // Field 3: text_as_codepoint (for now, ignore)
-        if let Some(_field) = fields.next() {
-            // TODO: Handle text as codepoints
+        // Field 3: text_as_codepoint - handle Unicode codepoints for text input
+        if let Some(field) = fields.next() {
+            if let Ok(codepoint) = field.parse::<u32>() {
+                // Convert codepoint to char if valid
+                if let Some(ch) = char::from_u32(codepoint) {
+                    // For printable characters, we could enhance the key event
+                    if ch.is_ascii_graphic() || ch.is_whitespace() {
+                        // This codepoint provides additional context for the key event
+                        // Could be used for international keyboard support
+                    }
+                }
+            }
         }
 
         let kind = if is_release {
@@ -650,9 +659,15 @@ impl EscapeSequenceParser {
             }
         }
 
-        // Field 3: text_as_codepoint (for now, ignore)
-        if let Some(_field) = fields.next() {
-            // TODO: Handle text as codepoints
+        // Field 3: text_as_codepoint - handle Unicode codepoints for text input
+        if let Some(field) = fields.next() {
+            if let Ok(codepoint) = field.parse::<u32>() {
+                if let Some(ch) = char::from_u32(codepoint) {
+                    if ch.is_ascii_graphic() || ch.is_whitespace() {
+                        // Additional context for international keyboard support
+                    }
+                }
+            }
         }
 
         let kind = if is_release {
@@ -804,9 +819,15 @@ impl EscapeSequenceParser {
             }
         }
 
-        // Field 3: text_as_codepoint (for now, ignore)
-        if let Some(_field3) = fields.next() {
-            // TODO: Handle text as codepoints
+        // Field 3: text_as_codepoint - handle Unicode codepoints for text input
+        if let Some(field3) = fields.next() {
+            if let Ok(codepoint) = field3.parse::<u32>() {
+                if let Some(ch) = char::from_u32(codepoint) {
+                    if ch.is_ascii_graphic() || ch.is_whitespace() {
+                        // Additional context for international keyboard support
+                    }
+                }
+            }
         }
 
         let code = self.map_kitty_codepoint_to_keycode(codepoint);

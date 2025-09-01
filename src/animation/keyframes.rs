@@ -670,11 +670,13 @@ mod tests {
             .finish();
 
         let sample = sequence.sample(0.25);
-        if let Some(KeyframeValue::Number(opacity)) = sample.get("opacity") {
-            assert!((opacity - 0.25).abs() < 0.01);
-        } else {
-            panic!("Expected opacity value");
-        }
+        let opacity = sample.get("opacity")
+            .and_then(|v| match v {
+                KeyframeValue::Number(n) => Some(*n),
+                _ => None,
+            })
+            .expect("Expected opacity value to be a number");
+        assert!((opacity - 0.25).abs() < 0.01);
     }
 
     #[test]

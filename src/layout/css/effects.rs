@@ -93,15 +93,28 @@ pub fn apply_border(token: &str, sb: StyleBuilder) -> Option<StyleBuilder> {
     }
 }
 
-/// Apply rounded corner utilities (TUI placeholders)
+/// Apply rounded corner utilities (TUI-appropriate implementations)
 pub fn apply_rounded(token: &str, sb: StyleBuilder) -> Option<StyleBuilder> {
     match token {
-        "rounded" | "rounded-md" | "rounded-lg" | "rounded-xl" | "rounded-2xl" | "rounded-3xl" => {
-            // Border radius not applicable in TUI, but we acknowledge it
-            Some(sb)
+        "rounded" | "rounded-md" => {
+            // For TUI, we can't actually round corners, but we can add subtle styling
+            // Add a subtle background to indicate rounded styling
+            if !sb.has_bg_color() {
+                Some(sb.bg_rgba(0.95, 0.95, 0.95, 1.0))
+            } else {
+                Some(sb)
+            }
+        }
+        "rounded-lg" | "rounded-xl" | "rounded-2xl" | "rounded-3xl" => {
+            // More pronounced rounded effect with slightly darker background
+            if !sb.has_bg_color() {
+                Some(sb.bg_rgba(0.9, 0.9, 0.9, 1.0))
+            } else {
+                Some(sb)
+            }
         }
         "rounded-none" => {
-            // No border radius
+            // Sharp corners - no special styling needed
             Some(sb)
         }
         "rounded-full" => {

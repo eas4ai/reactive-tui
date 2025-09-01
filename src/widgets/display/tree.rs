@@ -7,6 +7,18 @@ use std::sync::Arc;
 
 type NodeActionCallback = dyn Fn(String, &str) + Send + Sync;
 
+/// Result of hit testing on tree elements
+#[derive(Debug, Clone, PartialEq)]
+enum TreeHitResult {
+    /// Hit a tree node
+    Node(String),
+    /// Hit an expander/collapse button
+    Expander(String),
+    /// Hit outside the tree
+    #[allow(dead_code)]
+    Outside,
+}
+
 /// Props for the Tree component
 #[derive(Clone)]
 pub struct TreeProps {
@@ -690,6 +702,72 @@ impl Tree {
             .with_class(&node_class)
             .with_key(format!("node-{}", node.id))
     }
+
+    /// Perform hit testing to determine what tree element was clicked
+    fn hit_test_tree(
+        &self,
+        position: crate::event::types::Position,
+        props: &TreeProps,
+        state: &TreeState,
+    ) -> Option<TreeHitResult> {
+        // Convert position to coordinates
+        let (x, y) = match position {
+            crate::event::types::Position::Cell { x, y } => (x as usize, y as usize),
+            crate::event::types::Position::Pixel { x, y } => {
+                // Convert pixel to cell coordinates (approximate)
+                (x as usize / 8, y as usize / 16)
+            }
+        };
+
+        // Get the root node
+        let root = props.root.as_ref()?;
+
+        // Traverse the visible tree structure to find what was clicked
+        let mut current_row = 0;
+        self.hit_test_node(root, x, y, &mut current_row, 0, props, state)
+    }
+
+    /// Recursively test hit on tree nodes
+    fn hit_test_node(
+        &self,
+        node: &TreeNode,
+        click_x: usize,
+        click_y: usize,
+        current_row: &mut usize,
+        level: usize,
+        props: &TreeProps,
+        state: &TreeState,
+    ) -> Option<TreeHitResult> {
+        // Check if this row matches the click
+        if *current_row == click_y {
+            let indent = level * props.indent_size as usize;
+
+            // Check if click is on the expander (first few characters)
+            if !node.children.is_empty() && click_x >= indent && click_x < indent + 2 {
+                return Some(TreeHitResult::Expander(node.id.clone()));
+            }
+
+            // Check if click is on the node content
+            if click_x >= indent + 2 {
+                return Some(TreeHitResult::Node(node.id.clone()));
+            }
+        }
+
+        *current_row += 1;
+
+        // If node is expanded, check children
+        if state.expanded_nodes.iter().any(|id| id == &node.id) {
+            for child in &node.children {
+                if let Some(result) = self.hit_test_node(
+                    child, click_x, click_y, current_row, level + 1, props, state
+                ) {
+                    return Some(result);
+                }
+            }
+        }
+
+        None
+    }
 }
 
 impl Component for Tree {
@@ -772,11 +850,32 @@ impl Component for Tree {
                 match mouse_event {
                     MouseEvent {
                         kind: MouseEventKind::Click,
+                        position,
                         ..
                     } => {
-                        // Handle node selection and expansion
-                        // Simplified - would need proper hit testing
-                        EventResult::Consumed
+                        // Handle node selection and expansion with proper hit testing
+                        if let Some(hit_result) = self.hit_test_tree(*position, props, state) {
+                            match hit_result {
+                                TreeHitResult::Node(node_id) => {
+                                    // Select the node (clear previous selection and add this one)
+                                    state.selected_nodes.clear();
+                                    state.selected_nodes.push(node_id.clone());
+                                    EventResult::Consumed
+                                }
+                                TreeHitResult::Expander(node_id) => {
+                                    // Toggle expansion
+                                    if let Some(pos) = state.expanded_nodes.iter().position(|x| x == &node_id) {
+                                        state.expanded_nodes.remove(pos);
+                                    } else {
+                                        state.expanded_nodes.push(node_id);
+                                    }
+                                    EventResult::Consumed
+                                }
+                                TreeHitResult::Outside => EventResult::Ignored,
+                            }
+                        } else {
+                            EventResult::Ignored
+                        }
                     }
                     MouseEvent {
                         kind: MouseEventKind::DoubleClick,

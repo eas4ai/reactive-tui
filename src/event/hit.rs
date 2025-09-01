@@ -234,6 +234,20 @@ impl QuadNode {
             }
         }
     }
+
+    fn remove(&mut self, node_id: NodeId, bounds: Bounds) {
+        // Remove from nodes at this level
+        self.nodes.retain(|(id, _, _)| *id != node_id);
+
+        // Recursively remove from children
+        if let Some(children) = &mut self.children {
+            for child in children.iter_mut() {
+                if child.bounds.intersects(&bounds) {
+                    child.remove(node_id, bounds);
+                }
+            }
+        }
+    }
 }
 
 impl HitTest {
@@ -248,22 +262,32 @@ impl HitTest {
         }
     }
 
-    /// Update bounds for a node
+    /// Update bounds for a node with optimized tree updates
     pub fn update_bounds(&mut self, node_id: NodeId, bounds: Bounds, z_index: i32) {
-        // Remove old bounds if exists
-        self.node_bounds.remove(&node_id);
+        // Check if node already exists
+        if let Some((old_bounds, old_z_index)) = self.node_bounds.get(&node_id) {
+            // If bounds and z-index haven't changed, no update needed
+            if *old_bounds == bounds && *old_z_index == z_index {
+                return;
+            }
+
+            // Remove old node from tree efficiently
+            self.root.remove(node_id, *old_bounds);
+        }
 
         // Store new bounds
         self.node_bounds.insert(node_id, (bounds, z_index));
 
-        // Rebuild the tree (simple approach - could be optimized)
-        self.rebuild();
+        // Insert new node into tree efficiently
+        self.root.insert(node_id, bounds, z_index, 0);
     }
 
-    /// Remove a node from hit testing
+    /// Remove a node from hit testing with optimized tree updates
     pub fn remove_node(&mut self, node_id: NodeId) {
-        self.node_bounds.remove(&node_id);
-        self.rebuild();
+        if let Some((bounds, _)) = self.node_bounds.remove(&node_id) {
+            // Remove from tree efficiently
+            self.root.remove(node_id, bounds);
+        }
     }
 
     /// Find the topmost node at a point
@@ -312,6 +336,8 @@ impl HitTest {
         self.root = QuadNode::new(Bounds::new(0.0, 0.0, width, height), 8, 10);
         self.rebuild();
     }
+
+
 }
 
 #[cfg(test)]

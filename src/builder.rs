@@ -149,13 +149,13 @@ impl ElementBuilder {
     }
 
     /// Set placeholder for input elements
+    /// Stores placeholder text as a data attribute for input element styling
     pub fn placeholder(mut self, placeholder: &str) -> Self {
-        // Add placeholder as a data attribute for now
         let current_class = self.element.class.unwrap_or_default();
         self.element.class = Some(format!(
             "{} data-placeholder-{}",
             current_class,
-            placeholder.replace(" ", "-")
+            placeholder.replace(" ", "-").replace("'", "").replace("\"", "")
         ));
         self
     }

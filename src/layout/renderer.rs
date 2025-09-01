@@ -9,21 +9,72 @@ use crate::layout::grid::{DeclarativeGrid, GridArea, GridChild};
 use crate::layout::paint_tree::{layout_and_paint_with, NodeSpec, PaintOptions};
 use std::borrow::Cow;
 
-/// Extract text content from an Element (simplified)
+/// Extract text content from an Element and its children
 fn extract_element_text(element: &Element) -> Option<String> {
     match &element.element_type {
         ElementType::Text(text) => Some(text.clone()),
-        _ => {
-            // For non-text elements, try to extract from children or return a placeholder
-            if element.children.is_empty() {
-                Some("Element".to_string())
+        ElementType::Component(component_name) => {
+            // For components, try to extract from children or use component name
+            let child_text = extract_children_text(element);
+            if child_text.is_some() {
+                child_text
             } else {
-                // Try to extract text from first child
-                extract_element_text(&element.children[0])
+                // Check if it's a known interactive component
+                match component_name.as_str() {
+                    "Input" | "TextInput" => {
+                        // For input components, we can't easily access props due to type erasure
+                        // In a full implementation, we'd need a trait for extracting display text
+                        // For now, provide a reasonable default
+                        Some("[Input]".to_string())
+                    }
+                    "Button" => {
+                        Some("[Button]".to_string())
+                    }
+                    _ => Some(format!("[{}]", component_name))
+                }
             }
+        }
+        ElementType::Layout(layout_type) => {
+            // For layout containers, extract all child text
+            let child_text = extract_children_text(element);
+            if child_text.is_some() {
+                child_text
+            } else {
+                Some(format!("[{:?}]", layout_type))
+            }
+        }
+        ElementType::Fragment => {
+            // For fragments, just extract child text
+            extract_children_text(element)
+        }
+        ElementType::Empty => {
+            // Empty elements have no text
+            None
         }
     }
 }
+
+/// Extract text from all children of an element
+fn extract_children_text(element: &Element) -> Option<String> {
+    if element.children.is_empty() {
+        return None;
+    }
+
+    let mut texts = Vec::new();
+    for child in &element.children {
+        if let Some(text) = extract_element_text(child) {
+            texts.push(text);
+        }
+    }
+
+    if texts.is_empty() {
+        None
+    } else {
+        Some(texts.join(" "))
+    }
+}
+
+
 
 /// Convert a DeclarativeGrid into a visual NodeSpec tree for rendering
 pub fn grid_to_node_spec(grid: &DeclarativeGrid) -> NodeSpec<'static> {

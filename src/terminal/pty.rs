@@ -16,6 +16,9 @@ pub struct PseudoTerminal {
     size: (u16, u16),
     working_directory: Option<String>,
     environment: Vec<(String, String)>,
+    child_pid: Option<u32>,
+    #[cfg(windows)]
+    process_handle: Option<std::process::Child>,
 }
 
 impl Default for PseudoTerminal {
@@ -34,6 +37,9 @@ impl PseudoTerminal {
             size: (80, 24),
             working_directory: None,
             environment: Vec::new(),
+            child_pid: None,
+            #[cfg(windows)]
+            process_handle: None,
         }
     }
 
@@ -78,6 +84,9 @@ impl PseudoTerminal {
             .spawn()
             .map_err(|e| TerminalError::Process(format!("Failed to spawn process: {}", e)))?;
 
+        // Capture the child process ID for resize signals
+        self.child_pid = Some(child.id());
+
         self.setup_io_channels(&mut child)?;
         self.child = Some(child);
 
@@ -107,6 +116,14 @@ impl PseudoTerminal {
         let mut child = command
             .spawn()
             .map_err(|e| TerminalError::Process(format!("Failed to spawn process: {}", e)))?;
+
+        // Capture the child process ID and handle for Windows
+        self.child_pid = Some(child.id());
+        #[cfg(windows)]
+        {
+            // Store a reference to the child for Windows console operations
+            // Note: This is a simplified approach - full Windows PTY would use ConPTY API
+        }
 
         self.setup_io_channels(&mut child)?;
         self.child = Some(child);
@@ -221,7 +238,30 @@ impl PseudoTerminal {
 
     pub fn resize(&mut self, width: u16, height: u16) -> TerminalResult<()> {
         self.size = (width, height);
-        // TODO: Send resize signal to process
+
+        // Send SIGWINCH signal to the child process to notify of resize
+        #[cfg(unix)]
+        {
+            use std::process::Command;
+            if let Some(child_pid) = self.child_pid {
+                // Send SIGWINCH (window change) signal to child process
+                let _ = Command::new("kill")
+                    .args(&["-WINCH", &child_pid.to_string()])
+                    .output();
+            }
+        }
+
+        #[cfg(windows)]
+        {
+            // On Windows, we need to use SetConsoleScreenBufferSize
+            // This is a simplified implementation - full Windows PTY support
+            // would require more complex console API calls
+            if let Some(_handle) = &self.process_handle {
+                // Windows console resize would go here
+                // For now, we just update our internal size
+            }
+        }
+
         Ok(())
     }
 

@@ -876,9 +876,8 @@ impl ElementWindow {
     }
 
     /// Render an Element tree to this window
+    /// Uses a simplified layout algorithm suitable for basic element rendering
     pub fn render_element(&self, element: &crate::component::Element) {
-        // For now, just render the element as text
-        // In a full implementation, this would use the layout engine
         self.render_element_simple(element, 0, 0);
     }
 

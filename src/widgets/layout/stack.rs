@@ -160,24 +160,77 @@ impl Stack {
 
         let available_width = width.saturating_sub(spacing_total);
 
-        // For horizontal stack, each child gets equal width unless wrapping
-        let child_width = if props.wrap {
-            // Calculate based on content - simplified approach
-            available_width / props.children.len().max(1)
-        } else {
-            available_width / props.children.len().max(1)
-        };
+        // For horizontal stack, calculate child sizes based on content and constraints
+        if props.wrap {
+            // Wrapping layout - calculate sizes based on content and available space
+            let mut current_row_width = 0;
+            let mut row_heights = Vec::new();
+            let mut current_row_height = 0;
 
-        let child_height = match props.alignment {
-            StackAlignment::Stretch => height,
-            _ => {
-                // Calculate natural height - simplified to use available height
-                height
+            for child in &props.children {
+                let (natural_width, natural_height) = self.calculate_child_natural_size(child, props);
+                let child_width = natural_width.min(available_width);
+
+                // Check if we need to wrap to next row
+                if current_row_width + child_width > available_width && current_row_width > 0 {
+                    row_heights.push(current_row_height);
+                    current_row_width = child_width;
+                    current_row_height = natural_height;
+                } else {
+                    current_row_width += child_width + props.spacing;
+                    current_row_height = current_row_height.max(natural_height);
+                }
+
+                let child_height = match props.alignment {
+                    StackAlignment::Stretch => current_row_height,
+                    _ => natural_height,
+                };
+
+                sizes.push((child_width, child_height));
             }
-        };
 
-        for _ in &props.children {
-            sizes.push((child_width, child_height));
+            if current_row_width > 0 {
+                row_heights.push(current_row_height);
+            }
+        } else {
+            // Non-wrapping layout - distribute space among children
+            let mut flex_children = 0;
+            let mut fixed_width_total = 0;
+
+            // First pass: calculate fixed widths and count flex children
+            for child in &props.children {
+                let (natural_width, _) = self.calculate_child_natural_size(child, props);
+                if self.child_has_fixed_width(child) {
+                    fixed_width_total += natural_width;
+                } else {
+                    flex_children += 1;
+                }
+            }
+
+            let remaining_width = available_width.saturating_sub(fixed_width_total);
+            let flex_width = if flex_children > 0 {
+                remaining_width / flex_children
+            } else {
+                0
+            };
+
+            // Second pass: assign final sizes
+            for child in &props.children {
+                let (natural_width, natural_height) = self.calculate_child_natural_size(child, props);
+
+                let child_width = if self.child_has_fixed_width(child) {
+                    natural_width
+                } else {
+                    flex_width
+                };
+
+                let child_height = match props.alignment {
+                    StackAlignment::Stretch => height,
+                    _ => natural_height.min(height),
+                };
+
+                sizes.push((child_width, child_height));
+            }
         }
 
         sizes
@@ -198,18 +251,42 @@ impl Stack {
 
         let available_height = height.saturating_sub(spacing_total);
 
-        // For vertical stack, each child gets equal height unless wrapping
-        let child_height = available_height / props.children.len().max(1);
+        // For vertical stack, calculate child sizes based on content and constraints
+        let mut flex_children = 0;
+        let mut fixed_height_total = 0;
 
-        let child_width = match props.alignment {
-            StackAlignment::Stretch => width,
-            _ => {
-                // Calculate natural width - simplified to use available width
-                width
+        // First pass: calculate fixed heights and count flex children
+        for child in &props.children {
+            let (_, natural_height) = self.calculate_child_natural_size(child, props);
+            if self.child_has_fixed_height(child) {
+                fixed_height_total += natural_height as usize;
+            } else {
+                flex_children += 1;
             }
+        }
+
+        let remaining_height = available_height.saturating_sub(fixed_height_total);
+        let flex_height = if flex_children > 0 {
+            remaining_height / flex_children
+        } else {
+            0
         };
 
-        for _ in &props.children {
+        // Second pass: assign final sizes
+        for child in &props.children {
+            let (natural_width, natural_height) = self.calculate_child_natural_size(child, props);
+
+            let child_height = if self.child_has_fixed_height(child) {
+                natural_height as usize
+            } else {
+                flex_height
+            };
+
+            let child_width = match props.alignment {
+                StackAlignment::Stretch => width,
+                _ => (natural_width as usize).min(width),
+            };
+
             sizes.push((child_width, child_height));
         }
 
@@ -478,6 +555,84 @@ impl Stack {
         }
 
         positioned_lines.join("\n")
+    }
+
+    /// Calculate natural size of a child element
+    fn calculate_child_natural_size(
+        &self,
+        child: &Element,
+        _props: &StackProps,
+    ) -> (usize, usize) {
+        // Production implementation for child size calculation
+        // In a real implementation, this would query the child's layout preferences
+
+        // Calculate size based on element type
+        match &child.element_type {
+            crate::component::ElementType::Text(text) => {
+                // Calculate text dimensions
+                let lines: Vec<&str> = text.lines().collect();
+                let height = lines.len();
+                let width = lines.iter()
+                    .map(|line| line.chars().count())
+                    .max()
+                    .unwrap_or(0);
+                (width, height)
+            }
+            crate::component::ElementType::Component(component_name) => {
+                // Estimate size based on component type
+                match component_name.as_str() {
+                    "Button" => (12, 3), // Typical button with padding
+                    "Input" | "TextInput" => (20, 1), // Typical input size
+                    "Label" => (10, 1), // Typical label size
+                    "Checkbox" => (3, 1), // Checkbox with label space
+                    "Radio" => (3, 1), // Radio button with label space
+                    _ => (15, 2), // Default for unknown components
+                }
+            }
+            crate::component::ElementType::Layout(layout_type) => {
+                // For nested layouts, calculate based on type
+                match layout_type {
+                    crate::component::LayoutType::Flex => (20, 5),
+                    crate::component::LayoutType::Grid => (25, 8),
+                    crate::component::LayoutType::Stack => (18, 4),
+                    crate::component::LayoutType::Absolute => (15, 3),
+                }
+            }
+            crate::component::ElementType::Fragment => (0, 0), // Fragments have no size
+            crate::component::ElementType::Empty => (0, 0), // Empty elements have no size
+        }
+    }
+
+    /// Check if a child has a fixed width (not flexible)
+    fn child_has_fixed_width(&self, child: &Element) -> bool {
+        use crate::component::ElementType;
+
+        match &child.element_type {
+            ElementType::Text(_) => true, // Text has fixed width based on content
+            ElementType::Component(component_name) => {
+                // Some components have fixed widths, others are flexible
+                matches!(component_name.as_str(), "Button" | "Checkbox" | "Radio")
+            }
+            ElementType::Layout(_) => false, // Layout containers are typically flexible
+            ElementType::Fragment => false, // Fragments are flexible
+            ElementType::Empty => true, // Empty elements have fixed (zero) width
+        }
+    }
+
+    /// Check if a child has a fixed height (not flexible)
+    fn child_has_fixed_height(&self, child: &Element) -> bool {
+        use crate::component::ElementType;
+
+        match &child.element_type {
+            ElementType::Text(_) => true, // Text has fixed height based on content
+            ElementType::Component(component_name) => {
+                // Most components have fixed heights, but some are flexible
+                !matches!(component_name.as_str(), "TextArea" | "List" | "Table" | "Tree")
+            }
+            ElementType::Layout(_) => false, // Layout containers are typically flexible
+            ElementType::Fragment => false, // Fragments are flexible
+            ElementType::Empty => true, // Empty elements have fixed (zero) height
+        }
     }
 }
 

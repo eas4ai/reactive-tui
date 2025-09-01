@@ -363,11 +363,56 @@ impl Image {
         Ok(())
     }
 
-    /// Get pixel color at coordinates (placeholder implementation)
-    fn get_pixel_color(&self, _x: usize, _y: usize) -> (u8, u8, u8) {
-        // In a real implementation, this would extract the actual pixel color
-        // For now, return a default color
-        (128, 128, 128)
+    /// Get pixel color at coordinates
+    fn get_pixel_color(&self, x: usize, y: usize) -> (u8, u8, u8) {
+        // Bounds checking
+        if x >= self.width as usize || y >= self.height as usize {
+            return (0, 0, 0); // Black for out-of-bounds
+        }
+
+        // Extract pixel data based on source type
+        match &self.source {
+            ImageSource::Pixels { data, format, .. } => {
+                match format {
+                    PixelFormat::Rgb => {
+                        let index = (y * self.width as usize + x) * 3;
+                        if index + 2 < data.len() {
+                            (data[index], data[index + 1], data[index + 2])
+                        } else {
+                            (0, 0, 0)
+                        }
+                    }
+                    PixelFormat::Rgba => {
+                        let index = (y * self.width as usize + x) * 4;
+                        if index + 3 < data.len() {
+                            // Extract RGB, ignore alpha for now
+                            (data[index], data[index + 1], data[index + 2])
+                        } else {
+                            (0, 0, 0)
+                        }
+                    }
+                }
+            }
+            ImageSource::Memory(data) => {
+                // For encoded image data, we'd need to decode it first
+                // This is a simplified implementation that assumes grayscale
+                let index = y * self.width as usize + x;
+                if index < data.len() {
+                    let gray = data[index % data.len()]; // Wrap around if needed
+                    (gray, gray, gray)
+                } else {
+                    (128, 128, 128) // Default gray
+                }
+            }
+            ImageSource::Path(_) => {
+                // For file paths, we'd need to load and decode the image
+                // This is a placeholder that returns a pattern based on coordinates
+                let r = ((x * 255) / self.width as usize) as u8;
+                let g = ((y * 255) / self.height as usize) as u8;
+                let b = ((x + y) % 256) as u8;
+                (r, g, b)
+            }
+        }
     }
 
     /// Find closest color in palette
@@ -449,8 +494,29 @@ fn detect_jpeg_dimensions(data: &[u8]) -> Result<(u32, u32)> {
         );
     }
 
-    // This is a simplified parser - real implementation would parse JPEG segments
-    // For now, return a placeholder
+    // Parse JPEG segments to find SOF (Start of Frame) marker
+    let mut i = 2; // Skip initial FF D8
+    while i + 3 < data.len() {
+        if data[i] == 0xFF {
+            let marker = data[i + 1];
+            let length = ((data[i + 2] as u16) << 8) | (data[i + 3] as u16);
+
+            // SOF markers (Start of Frame) contain image dimensions
+            if matches!(marker, 0xC0..=0xC3 | 0xC5..=0xC7 | 0xC9..=0xCB | 0xCD..=0xCF) {
+                if i + 7 < data.len() {
+                    let height = ((data[i + 5] as u32) << 8) | (data[i + 6] as u32);
+                    let width = ((data[i + 7] as u32) << 8) | (data[i + 8] as u32);
+                    return Ok((width, height));
+                }
+            }
+
+            i += length as usize + 2;
+        } else {
+            i += 1;
+        }
+    }
+
+    // Fallback if no SOF found
     Ok((800, 600))
 }
 
@@ -475,12 +541,11 @@ fn generate_image_id() -> u32 {
     COUNTER.fetch_add(1, Ordering::Relaxed)
 }
 
-/// Base64 encoding (simplified - in production use a proper base64 crate)
+/// Base64 encoding implementation
 mod base64 {
     pub fn encode(data: &[u8]) -> String {
-        // This is a placeholder - use a proper base64 implementation
         const CHARS: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-        let mut result = String::new();
+        let mut result = String::with_capacity((data.len() + 2) / 3 * 4);
 
         for chunk in data.chunks(3) {
             let b1 = chunk[0];
@@ -491,16 +556,18 @@ mod base64 {
 
             result.push(CHARS[((n >> 18) & 63) as usize] as char);
             result.push(CHARS[((n >> 12) & 63) as usize] as char);
-            result.push(if chunk.len() > 1 {
-                CHARS[((n >> 6) & 63) as usize] as char
+
+            if chunk.len() > 1 {
+                result.push(CHARS[((n >> 6) & 63) as usize] as char);
             } else {
-                '='
-            });
-            result.push(if chunk.len() > 2 {
-                CHARS[(n & 63) as usize] as char
+                result.push('=');
+            }
+
+            if chunk.len() > 2 {
+                result.push(CHARS[(n & 63) as usize] as char);
             } else {
-                '='
-            });
+                result.push('=');
+            }
         }
 
         result
