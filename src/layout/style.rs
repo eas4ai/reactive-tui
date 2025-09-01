@@ -745,7 +745,8 @@ impl StyleBuilder {
 
         // Set up grid based on template areas
         let rows = areas.len() as u16;
-        let cols = areas.first()
+        let cols = areas
+            .first()
             .map(|row| row.split_whitespace().count() as u16)
             .unwrap_or(1);
 
@@ -959,10 +960,6 @@ impl StyleBuilder {
         self.style.inset.left = LengthPercentageAuto::length(value);
         self
     }
-
-
-
-
 
     pub fn build(mut self) -> Style {
         // Wire grid templates to equal-fr tracks when counts are set

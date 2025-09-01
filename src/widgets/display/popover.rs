@@ -563,7 +563,8 @@ impl Popover {
                 // Calculate text dimensions
                 let lines: Vec<&str> = text.lines().collect();
                 let height = lines.len() as u16;
-                let width = lines.iter()
+                let width = lines
+                    .iter()
                     .map(|line| line.chars().count() as u16)
                     .max()
                     .unwrap_or(0);
@@ -572,11 +573,11 @@ impl Popover {
             ElementType::Component(component_name) => {
                 // Estimate size based on component type
                 match component_name.as_str() {
-                    "Button" => (10, 1), // Typical button size
+                    "Button" => (10, 1),              // Typical button size
                     "Input" | "TextInput" => (20, 1), // Typical input size
-                    "Table" => (40, 10), // Typical table size
-                    "Tree" => (30, 15), // Typical tree size
-                    "List" => (25, 8), // Typical list size
+                    "Table" => (40, 10),              // Typical table size
+                    "Tree" => (30, 15),               // Typical tree size
+                    "List" => (25, 8),                // Typical list size
                     _ => {
                         // For unknown components, calculate based on children
                         self.calculate_children_size(element)
@@ -596,7 +597,7 @@ impl Popover {
                         // For grid layouts, estimate based on grid structure
                         // This is simplified - real implementation would parse grid properties
                         let cols = (element.children.len() as f32).sqrt().ceil() as u16;
-                        let rows = (element.children.len() as u16 + cols - 1) / cols;
+                        let rows = (element.children.len() as u16).div_ceil(cols);
                         (child_width * cols, child_height * rows)
                     }
                     crate::component::LayoutType::Stack => {

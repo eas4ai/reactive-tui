@@ -58,7 +58,8 @@ impl Terminal {
                 // Production-ready PTY reading with proper error handling
                 // Note: In a real implementation, this would read from actual PTY
                 // For now, we simulate the reading loop structure
-                match std::io::Result::Ok(0usize) { // Placeholder read result
+                match std::io::Result::Ok(0usize) {
+                    // Placeholder read result
                     Ok(0) => {
                         // No data available - short sleep to prevent busy waiting
                         thread::sleep(Duration::from_millis(1));
@@ -74,12 +75,12 @@ impl Terminal {
                         }
 
                         // Send raw data as terminal output
-                        if !data.is_empty() {
-                            if let Err(_) = pty_output_tx.send(TerminalEvent::Output(data.to_vec())) {
+                        if !data.is_empty()
+                            && pty_output_tx.send(TerminalEvent::Output(data.to_vec())).is_err()
+                            {
                                 // Channel closed - exit thread
                                 return;
                             }
-                        }
                     }
                     Err(_) => {
                         // Read error - short sleep before retry

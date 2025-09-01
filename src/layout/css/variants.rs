@@ -14,22 +14,22 @@ pub fn apply_variant_utilities(token: &str, sb: StyleBuilder) -> Option<StyleBui
     if let Some(result) = apply_state_variants(token, sb.clone()) {
         return Some(result);
     }
-    
+
     // Conditional variants
     if let Some(result) = apply_conditional_variants(token, sb.clone()) {
         return Some(result);
     }
-    
+
     // Group variants
     if let Some(result) = apply_group_variants(token, sb.clone()) {
         return Some(result);
     }
-    
+
     // Responsive variants
     if let Some(result) = apply_responsive_variants(token, sb.clone()) {
         return Some(result);
     }
-    
+
     None
 }
 
@@ -39,27 +39,27 @@ fn apply_state_variants(token: &str, sb: StyleBuilder) -> Option<StyleBuilder> {
     if let Some(hover_token) = token.strip_prefix("hover:") {
         return apply_hover_variant(hover_token, sb);
     }
-    
+
     // Active variants
     if let Some(active_token) = token.strip_prefix("active:") {
         return apply_active_variant(active_token, sb);
     }
-    
+
     // Disabled variants
     if let Some(disabled_token) = token.strip_prefix("disabled:") {
         return apply_disabled_variant(disabled_token, sb);
     }
-    
+
     // Focus variants (already handled in focus.rs, but included for completeness)
     if let Some(focus_token) = token.strip_prefix("focus:") {
         return apply_focus_variant(focus_token, sb);
     }
-    
+
     // Visited variants (for links)
     if let Some(visited_token) = token.strip_prefix("visited:") {
         return apply_visited_variant(visited_token, sb);
     }
-    
+
     None
 }
 
@@ -69,22 +69,22 @@ fn apply_conditional_variants(token: &str, sb: StyleBuilder) -> Option<StyleBuil
     if let Some(first_token) = token.strip_prefix("first:") {
         return apply_first_variant(first_token, sb);
     }
-    
+
     // Last child variants
     if let Some(last_token) = token.strip_prefix("last:") {
         return apply_last_variant(last_token, sb);
     }
-    
+
     // Odd child variants
     if let Some(odd_token) = token.strip_prefix("odd:") {
         return apply_odd_variant(odd_token, sb);
     }
-    
+
     // Even child variants
     if let Some(even_token) = token.strip_prefix("even:") {
         return apply_even_variant(even_token, sb);
     }
-    
+
     None
 }
 
@@ -94,17 +94,17 @@ fn apply_group_variants(token: &str, sb: StyleBuilder) -> Option<StyleBuilder> {
     if let Some(group_hover_token) = token.strip_prefix("group-hover:") {
         return apply_group_hover_variant(group_hover_token, sb);
     }
-    
+
     // Group focus variants
     if let Some(group_focus_token) = token.strip_prefix("group-focus:") {
         return apply_group_focus_variant(group_focus_token, sb);
     }
-    
+
     // Group active variants
     if let Some(group_active_token) = token.strip_prefix("group-active:") {
         return apply_group_active_variant(group_active_token, sb);
     }
-    
+
     None
 }
 
@@ -114,22 +114,22 @@ fn apply_responsive_variants(token: &str, sb: StyleBuilder) -> Option<StyleBuild
     if let Some(sm_token) = token.strip_prefix("sm:") {
         return apply_sm_variant(sm_token, sb);
     }
-    
+
     // Medium screen variants
     if let Some(md_token) = token.strip_prefix("md:") {
         return apply_md_variant(md_token, sb);
     }
-    
+
     // Large screen variants
     if let Some(lg_token) = token.strip_prefix("lg:") {
         return apply_lg_variant(lg_token, sb);
     }
-    
+
     // Extra large screen variants
     if let Some(xl_token) = token.strip_prefix("xl:") {
         return apply_xl_variant(xl_token, sb);
     }
-    
+
     None
 }
 
@@ -290,7 +290,11 @@ fn apply_base_utility_with_group_active(token: &str, sb: StyleBuilder) -> Option
 }
 
 /// Apply base utility with responsive context
-fn apply_base_utility_with_responsive(token: &str, sb: StyleBuilder, _breakpoint: &str) -> Option<StyleBuilder> {
+fn apply_base_utility_with_responsive(
+    token: &str,
+    sb: StyleBuilder,
+    _breakpoint: &str,
+) -> Option<StyleBuilder> {
     apply_base_utility(token, sb)
 }
 
@@ -300,27 +304,27 @@ fn apply_base_utility(token: &str, sb: StyleBuilder) -> Option<StyleBuilder> {
     if let Some(result) = super::colors::apply_color_utilities(token, sb.clone()) {
         return Some(result);
     }
-    
+
     if let Some(result) = super::effects::apply_effects_utilities(token, sb.clone()) {
         return Some(result);
     }
-    
+
     if let Some(result) = super::spacing::apply_spacing_utilities(token, sb.clone()) {
         return Some(result);
     }
-    
+
     if let Some(result) = super::sizing::apply_sizing_utilities(token, sb.clone()) {
         return Some(result);
     }
-    
+
     if let Some(result) = super::typography::apply_typography_utilities(token, sb.clone()) {
         return Some(result);
     }
-    
+
     if let Some(result) = super::layout::apply_layout_utilities(token, sb.clone()) {
         return Some(result);
     }
-    
+
     None
 }
 
@@ -331,14 +335,14 @@ mod tests {
     #[test]
     fn test_state_variants() {
         let sb = StyleBuilder::new();
-        
+
         // Test hover variants
         let result = apply_variant_utilities("hover:bg-blue-500", sb.clone());
         assert!(result.is_some());
-        
+
         let result = apply_variant_utilities("hover:text-white", sb.clone());
         assert!(result.is_some());
-        
+
         // Test active variants
         let result = apply_variant_utilities("active:bg-blue-600", sb.clone());
         assert!(result.is_some());
@@ -347,11 +351,11 @@ mod tests {
         let result = apply_variant_utilities("disabled:opacity-50", sb.clone());
         assert!(result.is_some());
     }
-    
+
     #[test]
     fn test_conditional_variants() {
         let sb = StyleBuilder::new();
-        
+
         // Test first/last variants
         let result = apply_variant_utilities("first:p-2", sb.clone());
         assert!(result.is_some());
@@ -366,11 +370,11 @@ mod tests {
         let result = apply_variant_utilities("even:bg-gray-500", sb.clone());
         assert!(result.is_some());
     }
-    
+
     #[test]
     fn test_group_variants() {
         let sb = StyleBuilder::new();
-        
+
         // Test group variants
         let result = apply_variant_utilities("group-hover:opacity-50", sb.clone());
         assert!(result.is_some());
@@ -378,18 +382,18 @@ mod tests {
         let result = apply_variant_utilities("group-focus:bg-gray-400", sb.clone());
         assert!(result.is_some());
     }
-    
+
     #[test]
     fn test_responsive_variants() {
         let sb = StyleBuilder::new();
-        
+
         // Test responsive variants
         let result = apply_variant_utilities("sm:text-sm", sb.clone());
         assert!(result.is_some());
-        
+
         let result = apply_variant_utilities("md:text-base", sb.clone());
         assert!(result.is_some());
-        
+
         let result = apply_variant_utilities("lg:text-lg", sb.clone());
         assert!(result.is_some());
     }

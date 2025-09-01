@@ -27,10 +27,8 @@ fn extract_element_text(element: &Element) -> Option<String> {
                         // For now, provide a reasonable default
                         Some("[Input]".to_string())
                     }
-                    "Button" => {
-                        Some("[Button]".to_string())
-                    }
-                    _ => Some(format!("[{}]", component_name))
+                    "Button" => Some("[Button]".to_string()),
+                    _ => Some(format!("[{}]", component_name)),
                 }
             }
         }
@@ -73,8 +71,6 @@ fn extract_children_text(element: &Element) -> Option<String> {
         Some(texts.join(" "))
     }
 }
-
-
 
 /// Convert a DeclarativeGrid into a visual NodeSpec tree for rendering
 pub fn grid_to_node_spec(grid: &DeclarativeGrid) -> NodeSpec<'static> {

@@ -247,7 +247,10 @@ pub fn apply_scale_transform(token: &str, sb: StyleBuilder) -> Option<StyleBuild
 /// Apply translate transform utilities
 pub fn apply_translate_transform(token: &str, sb: StyleBuilder) -> Option<StyleBuilder> {
     // For TUI, translate effects can be represented through positioning hints
-    if token.starts_with("translate-x-") || token.starts_with("translate-y-") || token.starts_with("translate-") {
+    if token.starts_with("translate-x-")
+        || token.starts_with("translate-y-")
+        || token.starts_with("translate-")
+    {
         Some(sb) // Positioning handled by layout system
     } else {
         None

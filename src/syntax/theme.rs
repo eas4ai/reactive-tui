@@ -71,7 +71,7 @@ impl SyntaxThemeVariables {
     /// Apply syntax theme variables to a theme
     pub fn apply_to_theme(&self, theme: &mut Theme) {
         for (key, value) in &self.scope_map {
-            theme.variables.set(key.clone(), value.clone());
+            theme.variables = theme.variables.clone().set(key.clone(), value.clone());
         }
 
         // Also set derived colors for common syntax elements
@@ -82,43 +82,43 @@ impl SyntaxThemeVariables {
     fn set_syntax_colors(&self, variables: &mut ThemeVariables) {
         // Keywords (control flow, declarations)
         if let Some(keyword_color) = self.scope_map.get("--syntax-keyword-fg") {
-            variables.set("--syntax-keyword", keyword_color);
+            *variables = variables.clone().set("--syntax-keyword", keyword_color);
         }
 
         // Types and classes
         if let Some(type_color) = self.scope_map.get("--syntax-entity-name-type-fg") {
-            variables.set("--syntax-type", type_color);
+            *variables = variables.clone().set("--syntax-type", type_color);
         }
 
         // Functions and methods
         if let Some(func_color) = self.scope_map.get("--syntax-entity-name-function-fg") {
-            variables.set("--syntax-function", func_color);
+            *variables = variables.clone().set("--syntax-function", func_color);
         }
 
         // Variables and parameters
         if let Some(var_color) = self.scope_map.get("--syntax-variable-fg") {
-            variables.set("--syntax-variable", var_color);
+            *variables = variables.clone().set("--syntax-variable", var_color);
         }
 
         // Strings
         if let Some(string_color) = self.scope_map.get("--syntax-string-fg") {
-            variables.set("--syntax-string", string_color);
+            *variables = variables.clone().set("--syntax-string", string_color);
         }
 
         // Comments
         if let Some(comment_color) = self.scope_map.get("--syntax-comment-fg") {
-            variables.set("--syntax-comment", comment_color);
+            *variables = variables.clone().set("--syntax-comment", comment_color);
         }
 
         // Numbers and constants
         if let Some(constant_color) = self.scope_map.get("--syntax-constant-numeric-fg") {
-            variables.set("--syntax-number", constant_color);
-            variables.set("--syntax-constant", constant_color);
+            *variables = variables.clone().set("--syntax-number", constant_color);
+            *variables = variables.clone().set("--syntax-constant", constant_color);
         }
 
         // Operators
         if let Some(operator_color) = self.scope_map.get("--syntax-keyword-operator-fg") {
-            variables.set("--syntax-operator", operator_color);
+            *variables = variables.clone().set("--syntax-operator", operator_color);
         }
     }
 }

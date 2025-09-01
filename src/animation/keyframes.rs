@@ -670,7 +670,8 @@ mod tests {
             .finish();
 
         let sample = sequence.sample(0.25);
-        let opacity = sample.get("opacity")
+        let opacity = sample
+            .get("opacity")
             .and_then(|v| match v {
                 KeyframeValue::Number(n) => Some(*n),
                 _ => None,

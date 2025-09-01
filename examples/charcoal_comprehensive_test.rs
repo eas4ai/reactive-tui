@@ -1,5 +1,5 @@
 //! Comprehensive test of charcoal color in all CSS contexts
-//! 
+//!
 //! This example tests charcoal in every possible CSS utility context
 
 use reactive_tui::core::surface::Surface;
@@ -8,7 +8,7 @@ use reactive_tui::layout::paint_tree::{layout_and_paint_with, NodeSpec, PaintOpt
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Create a surface for testing
     let mut surface = Surface::new(100, 25);
-    
+
     // Test charcoal in every CSS context
     let root = NodeSpec {
         class: "flex flex-col gap-1 p-2".into(),
@@ -20,7 +20,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 text: Some("🎨 Comprehensive Charcoal Color Test".into()),
                 children: vec![],
             },
-            
             // Text colors
             NodeSpec {
                 class: "flex flex-row gap-2".into(),
@@ -43,7 +42,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     },
                 ],
             },
-            
             // Background colors
             NodeSpec {
                 class: "flex flex-row gap-2".into(),
@@ -66,7 +64,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     },
                 ],
             },
-            
             // Border colors
             NodeSpec {
                 class: "flex flex-row gap-2".into(),
@@ -89,7 +86,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     },
                 ],
             },
-            
             // Ring colors
             NodeSpec {
                 class: "flex flex-row gap-2".into(),
@@ -112,7 +108,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     },
                 ],
             },
-            
             // Accent colors
             NodeSpec {
                 class: "flex flex-row gap-2".into(),
@@ -135,7 +130,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     },
                 ],
             },
-            
             // Placeholder colors
             NodeSpec {
                 class: "flex flex-row gap-2".into(),
@@ -158,7 +152,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     },
                 ],
             },
-            
             // Focus variants with charcoal
             NodeSpec {
                 class: "flex flex-row gap-2".into(),
@@ -181,7 +174,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     },
                 ],
             },
-            
             // Hover variants with charcoal
             NodeSpec {
                 class: "flex flex-row gap-2".into(),
@@ -204,7 +196,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     },
                 ],
             },
-            
             // Summary
             NodeSpec {
                 class: "text-center bg-charcoal text-white p-2 font-bold".into(),
@@ -218,13 +209,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let options = PaintOptions {
         debug_overlay: false,
     };
-    
+
     layout_and_paint_with(&root, &mut surface, 100, &options)?;
-    
+
     // Print the result to console for inspection
     println!("🎨 Comprehensive Charcoal Color Test Results:");
     println!("==============================================");
-    
+
     for y in 0..25 {
         for x in 0..100 {
             let cell = surface.get(x, y);
@@ -236,7 +227,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
         println!();
     }
-    
+
     println!("\n🎉 SUCCESS: Charcoal color works in ALL CSS contexts!");
     println!("🎨 Charcoal Color Support:");
     println!("  ✅ text-charcoal - Text color");
@@ -250,6 +241,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("  ✅ active:*-charcoal - Active variants");
     println!("  ✅ disabled:*-charcoal - Disabled variants");
     println!("\n🎯 Charcoal RGB: (54, 54, 54) - Perfect dark gray!");
-    
+
     Ok(())
 }

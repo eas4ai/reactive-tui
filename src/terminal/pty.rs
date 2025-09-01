@@ -246,7 +246,7 @@ impl PseudoTerminal {
             if let Some(child_pid) = self.child_pid {
                 // Send SIGWINCH (window change) signal to child process
                 let _ = Command::new("kill")
-                    .args(&["-WINCH", &child_pid.to_string()])
+                    .args(["-WINCH", &child_pid.to_string()])
                     .output();
             }
         }

@@ -198,8 +198,6 @@ fn paint_node_with_overflow(
     }
 }
 
-
-
 /// Paint nodes in z-index order for proper layering (modals, popovers, etc.)
 fn paint_with_z_index(
     taffy: &TaffyTree<()>,

@@ -1,287 +1,162 @@
-use super::variables::ThemeVariables;
-use super::Theme;
+use super::{Theme, ThemeVariables};
 
 /// Dark theme preset - optimized for low-light environments
+/// Uses CSS custom properties that integrate with utility classes
 pub fn dark_theme() -> Theme {
-    Theme::new("dark").with_variables(
-        ThemeVariables::new()
-            .colors()
-            // Brand colors
-            .primary(59, 130, 246) // Blue-500
-            .secondary(168, 85, 247) // Purple-500
-            // Background hierarchy
-            .background(17, 24, 39) // Gray-900
-            .background_secondary(31, 41, 55) // Gray-800
-            .background_tertiary(55, 65, 81) // Gray-700
-            // Text hierarchy
-            .text(243, 244, 246) // Gray-100
-            .text_secondary(209, 213, 219) // Gray-300
-            .text_muted(156, 163, 175) // Gray-400
-            // Borders
-            .border(75, 85, 99) // Gray-600
-            .border_focus(59, 130, 246) // Blue-500
-            // Semantic colors
-            .success(34, 197, 94) // Green-500
-            .warning(245, 158, 11) // Amber-500
-            .error(239, 68, 68) // Red-500
-            .info(59, 130, 246) // Blue-500
-            .build()
-            .spacing()
-            .xs(1)
-            .sm(2)
-            .md(4)
-            .lg(6)
-            .xl(8)
-            .xxl(12)
-            .build()
-            .typography()
-            .size_xs(10)
-            .size_sm(12)
-            .size_md(14)
-            .size_lg(18)
-            .size_xl(24)
-            .weight_normal()
-            .weight_bold()
-            .build()
-            .borders()
-            .width(1)
-            .radius_sm(2)
-            .radius_md(4)
-            .radius_lg(8)
-            .style("solid")
-            .build()
-            .shadows()
-            .none()
-            .sm()
-            .md()
-            .lg()
-            .xl()
-            .build(),
-    )
+    let variables = ThemeVariables::new()
+        // Core brand colors
+        .set("--color-primary", "#3b82f6") // Blue-500
+        .set("--color-secondary", "#8b5cf6") // Violet-500
+        .set("--color-accent", "#06b6d4") // Cyan-500
+        // Background colors
+        .set("--color-background", "#111827") // Gray-900
+        .set("--color-surface", "#1f2937") // Gray-800
+        .set("--color-foreground", "#f9fafb") // Gray-50
+        // Text colors
+        .set("--color-text-muted", "#9ca3af") // Gray-400
+        // Border colors
+        .set("--color-border", "#4b5563") // Gray-600
+        // Semantic colors
+        .set("--color-success", "#22c55e") // Green-500
+        .set("--color-warning", "#f59e0b") // Amber-500
+        .set("--color-error", "#ef4444") // Red-500
+        .set("--color-info", "#3b82f6") // Blue-500
+        // Spacing scale (in terminal cells)
+        .set("--spacing-xs", "1")
+        .set("--spacing-sm", "2")
+        .set("--spacing-md", "4")
+        .set("--spacing-lg", "6")
+        .set("--spacing-xl", "8")
+        .set("--spacing-2xl", "12")
+        .clone();
+
+    Theme::new("dark").with_variables(variables)
 }
 
 /// Light theme preset - optimized for bright environments
 pub fn light_theme() -> Theme {
-    Theme::new("light").with_variables(
-        ThemeVariables::new()
-            .colors()
-            // Brand colors
-            .primary(37, 99, 235) // Blue-600
-            .secondary(147, 51, 234) // Purple-600
-            // Background hierarchy
-            .background(255, 255, 255) // White
-            .background_secondary(249, 250, 251) // Gray-50
-            .background_tertiary(243, 244, 246) // Gray-100
-            // Text hierarchy
-            .text(17, 24, 39) // Gray-900
-            .text_secondary(55, 65, 81) // Gray-700
-            .text_muted(107, 114, 128) // Gray-500
-            // Borders
-            .border(229, 231, 235) // Gray-200
-            .border_focus(37, 99, 235) // Blue-600
-            // Semantic colors
-            .success(22, 163, 74) // Green-600
-            .warning(217, 119, 6) // Amber-600
-            .error(220, 38, 38) // Red-600
-            .info(37, 99, 235) // Blue-600
-            .build()
-            .spacing()
-            .xs(1)
-            .sm(2)
-            .md(4)
-            .lg(6)
-            .xl(8)
-            .xxl(12)
-            .build()
-            .typography()
-            .size_xs(10)
-            .size_sm(12)
-            .size_md(14)
-            .size_lg(18)
-            .size_xl(24)
-            .weight_normal()
-            .weight_bold()
-            .build()
-            .borders()
-            .width(1)
-            .radius_sm(2)
-            .radius_md(4)
-            .radius_lg(8)
-            .style("solid")
-            .build()
-            .shadows()
-            .none()
-            .sm()
-            .md()
-            .lg()
-            .xl()
-            .build(),
-    )
+    let variables = ThemeVariables::new()
+        // Core brand colors
+        .set("--color-primary", "#2563eb") // Blue-600
+        .set("--color-secondary", "#9333ea") // Purple-600
+        .set("--color-accent", "#0891b2") // Cyan-600
+        // Background colors
+        .set("--color-background", "#ffffff") // White
+        .set("--color-surface", "#f9fafb") // Gray-50
+        .set("--color-foreground", "#111827") // Gray-900
+        // Text colors
+        .set("--color-text-muted", "#6b7280") // Gray-500
+        // Border colors
+        .set("--color-border", "#e5e7eb") // Gray-200
+        // Semantic colors
+        .set("--color-success", "#16a34a") // Green-600
+        .set("--color-warning", "#d97706") // Amber-600
+        .set("--color-error", "#dc2626") // Red-600
+        .set("--color-info", "#2563eb") // Blue-600
+        // Spacing scale (in terminal cells)
+        .set("--spacing-xs", "1")
+        .set("--spacing-sm", "2")
+        .set("--spacing-md", "4")
+        .set("--spacing-lg", "6")
+        .set("--spacing-xl", "8")
+        .set("--spacing-2xl", "12")
+        .clone();
+
+    Theme::new("light").with_variables(variables)
 }
 
 /// High contrast theme - optimized for accessibility
 pub fn high_contrast_theme() -> Theme {
-    Theme::new("high_contrast").with_variables(
-        ThemeVariables::new()
-            .colors()
-            // High contrast brand colors
-            .primary(0, 127, 255) // Bright blue
-            .secondary(255, 0, 255) // Bright magenta
-            // Maximum contrast backgrounds
-            .background(0, 0, 0) // Pure black
-            .background_secondary(20, 20, 20) // Near black
-            .background_tertiary(40, 40, 40) // Dark gray
-            // Maximum contrast text
-            .text(255, 255, 255) // Pure white
-            .text_secondary(230, 230, 230) // Near white
-            .text_muted(200, 200, 200) // Light gray
-            // High visibility borders
-            .border(255, 255, 255) // White borders
-            .border_focus(255, 255, 0) // Yellow focus
-            // High contrast semantic colors
-            .success(0, 255, 0) // Bright green
-            .warning(255, 255, 0) // Bright yellow
-            .error(255, 0, 0) // Bright red
-            .info(0, 255, 255) // Bright cyan
-            .build()
-            .spacing()
-            .xs(1)
-            .sm(2)
-            .md(4)
-            .lg(6)
-            .xl(8)
-            .xxl(12)
-            .build()
-            .typography()
-            .size_xs(12) // Larger minimum size
-            .size_sm(14)
-            .size_md(16)
-            .size_lg(20)
-            .size_xl(26)
-            .weight_normal()
-            .weight_bold()
-            .build()
-            .borders()
-            .width(2) // Thicker borders for visibility
-            .radius_sm(0) // Less rounding for clarity
-            .radius_md(2)
-            .radius_lg(4)
-            .style("solid")
-            .build()
-            .shadows()
-            .none()
-            .sm()
-            .md()
-            .lg()
-            .xl()
-            .build(),
-    )
+    let variables = ThemeVariables::new()
+        // High contrast brand colors
+        .set("--color-primary", "#007fff") // Bright blue
+        .set("--color-secondary", "#ff00ff") // Bright magenta
+        .set("--color-accent", "#00ffff") // Bright cyan
+        // Maximum contrast backgrounds
+        .set("--color-background", "#000000") // Pure black
+        .set("--color-surface", "#141414") // Near black
+        .set("--color-foreground", "#ffffff") // Pure white
+        // High contrast text
+        .set("--color-text-muted", "#c8c8c8") // Light gray
+        // High visibility borders
+        .set("--color-border", "#ffffff") // White borders
+        // High contrast semantic colors
+        .set("--color-success", "#00ff00") // Bright green
+        .set("--color-warning", "#ffff00") // Bright yellow
+        .set("--color-error", "#ff0000") // Bright red
+        .set("--color-info", "#00ffff") // Bright cyan
+        // Spacing scale (same as other themes)
+        .set("--spacing-xs", "1")
+        .set("--spacing-sm", "2")
+        .set("--spacing-md", "4")
+        .set("--spacing-lg", "6")
+        .set("--spacing-xl", "8")
+        .set("--spacing-2xl", "12")
+        .clone();
+
+    Theme::new("high_contrast").with_variables(variables)
 }
 
-/// Solarized Dark theme
+/// Solarized Dark theme - classic developer theme
 pub fn solarized_dark_theme() -> Theme {
-    Theme::new("solarized_dark").with_variables(
-        ThemeVariables::new()
-            .colors()
-            .primary(38, 139, 210) // Solarized blue
-            .secondary(108, 113, 196) // Solarized violet
-            .background(0, 43, 54) // Base03
-            .background_secondary(7, 54, 66) // Base02
-            .background_tertiary(88, 110, 117) // Base01
-            .text(253, 246, 227) // Base3
-            .text_secondary(238, 232, 213) // Base2
-            .text_muted(147, 161, 161) // Base1
-            .border(101, 123, 131) // Base00
-            .border_focus(38, 139, 210) // Blue
-            .success(133, 153, 0) // Green
-            .warning(181, 137, 0) // Yellow
-            .error(211, 1, 2) // Red
-            .info(42, 161, 152) // Cyan
-            .build()
-            .spacing()
-            .xs(1)
-            .sm(2)
-            .md(4)
-            .lg(6)
-            .xl(8)
-            .xxl(12)
-            .build()
-            .typography()
-            .size_xs(10)
-            .size_sm(12)
-            .size_md(14)
-            .size_lg(18)
-            .size_xl(24)
-            .weight_normal()
-            .weight_bold()
-            .build()
-            .borders()
-            .width(1)
-            .radius_sm(2)
-            .radius_md(4)
-            .radius_lg(8)
-            .style("solid")
-            .build()
-            .shadows()
-            .none()
-            .sm()
-            .md()
-            .lg()
-            .xl()
-            .build(),
-    )
+    let variables = ThemeVariables::new()
+        // Solarized brand colors
+        .set("--color-primary", "#268bd2") // Solarized blue
+        .set("--color-secondary", "#6c71c4") // Solarized violet
+        .set("--color-accent", "#2aa198") // Solarized cyan
+        // Solarized backgrounds
+        .set("--color-background", "#002b36") // Base03
+        .set("--color-surface", "#073642") // Base02
+        .set("--color-foreground", "#fdf6e3") // Base3
+        // Solarized text
+        .set("--color-text-muted", "#93a1a1") // Base1
+        // Solarized borders
+        .set("--color-border", "#657b83") // Base00
+        // Solarized semantic colors
+        .set("--color-success", "#859900") // Green
+        .set("--color-warning", "#b58900") // Yellow
+        .set("--color-error", "#d30102") // Red
+        .set("--color-info", "#2aa198") // Cyan
+        // Spacing scale
+        .set("--spacing-xs", "1")
+        .set("--spacing-sm", "2")
+        .set("--spacing-md", "4")
+        .set("--spacing-lg", "6")
+        .set("--spacing-xl", "8")
+        .set("--spacing-2xl", "12")
+        .clone();
+
+    Theme::new("solarized_dark").with_variables(variables)
 }
 
-/// Gruvbox Dark theme
+/// Gruvbox Dark theme - warm retro developer theme
 pub fn gruvbox_dark_theme() -> Theme {
-    Theme::new("gruvbox_dark").with_variables(
-        ThemeVariables::new()
-            .colors()
-            .primary(131, 165, 152) // Gruvbox blue
-            .secondary(211, 134, 155) // Gruvbox purple
-            .background(40, 40, 40) // bg0
-            .background_secondary(60, 56, 54) // bg1
-            .background_tertiary(80, 73, 69) // bg2
-            .text(251, 241, 199) // fg0
-            .text_secondary(235, 219, 178) // fg1
-            .text_muted(189, 174, 147) // fg3
-            .border(124, 111, 100) // bg4
-            .border_focus(131, 165, 152) // Blue
-            .success(184, 187, 38) // Green
-            .warning(250, 189, 47) // Yellow
-            .error(251, 73, 52) // Red
-            .info(131, 165, 152) // Aqua
-            .build()
-            .spacing()
-            .xs(1)
-            .sm(2)
-            .md(4)
-            .lg(6)
-            .xl(8)
-            .xxl(12)
-            .build()
-            .typography()
-            .size_xs(10)
-            .size_sm(12)
-            .size_md(14)
-            .size_lg(18)
-            .size_xl(24)
-            .weight_normal()
-            .weight_bold()
-            .build()
-            .borders()
-            .width(1)
-            .radius_sm(2)
-            .radius_md(4)
-            .radius_lg(8)
-            .style("solid")
-            .build()
-            .shadows()
-            .none()
-            .sm()
-            .md()
-            .lg()
-            .xl()
-            .build(),
-    )
+    let variables = ThemeVariables::new()
+        // Gruvbox brand colors
+        .set("--color-primary", "#83a598") // Gruvbox blue
+        .set("--color-secondary", "#d3869b") // Gruvbox purple
+        .set("--color-accent", "#8ec07c") // Gruvbox aqua
+        // Gruvbox backgrounds
+        .set("--color-background", "#282828") // bg0
+        .set("--color-surface", "#3c3836") // bg1
+        .set("--color-foreground", "#fbf1c7") // fg0
+        // Gruvbox text
+        .set("--color-text-muted", "#bdae93") // fg3
+        // Gruvbox borders
+        .set("--color-border", "#7c6f64") // bg4
+        // Gruvbox semantic colors
+        .set("--color-success", "#b8bb26") // Green
+        .set("--color-warning", "#fabd2f") // Yellow
+        .set("--color-error", "#fb4934") // Red
+        .set("--color-info", "#83a598") // Blue
+        // Spacing scale
+        .set("--spacing-xs", "1")
+        .set("--spacing-sm", "2")
+        .set("--spacing-md", "4")
+        .set("--spacing-lg", "6")
+        .set("--spacing-xl", "8")
+        .set("--spacing-2xl", "12")
+        .clone();
+
+    Theme::new("gruvbox_dark").with_variables(variables)
 }

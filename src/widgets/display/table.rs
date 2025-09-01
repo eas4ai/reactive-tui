@@ -3,7 +3,6 @@ use crate::component::{Component, Element, LayoutType, Props};
 use crate::event::router::EventResult;
 use crate::event::types::{Event, KeyCode, KeyModifiers, MouseEvent, MouseEventKind};
 
-
 /// Wheel scroll direction for precise scrolling control
 #[derive(Debug, Clone, Copy, PartialEq)]
 enum WheelDirection {
@@ -152,7 +151,7 @@ impl Props for TableProps {
 #[derive(Debug, Clone)]
 pub struct TableState {
     pub selected_rows: Vec<usize>,
-    pub selected_row: Option<usize>, // For single selection
+    pub selected_row: Option<usize>,    // For single selection
     pub selected_column: Option<usize>, // For cell selection
     pub scroll_state: ScrollState,
     pub column_widths: Vec<u16>,
@@ -454,8 +453,10 @@ impl Table {
         };
 
         // Check if click is within table bounds
-        if x < bounds.origin.x || x >= (bounds.origin.x + bounds.size.width)
-            || y < bounds.origin.y || y >= (bounds.origin.y + bounds.size.height)
+        if x < bounds.origin.x
+            || x >= (bounds.origin.x + bounds.size.width)
+            || y < bounds.origin.y
+            || y >= (bounds.origin.y + bounds.size.height)
         {
             return Some(TableHitResult::Outside);
         }
@@ -486,7 +487,8 @@ impl Table {
                 // Determine which column was clicked for cell-level interaction
                 let mut col_x = 0;
                 for (col_index, _column) in props.columns.iter().enumerate() {
-                    let col_width = state.column_widths.get(col_index).copied().unwrap_or(10) as usize;
+                    let col_width =
+                        state.column_widths.get(col_index).copied().unwrap_or(10) as usize;
                     if rel_x >= col_x && rel_x < col_x + col_width {
                         return Some(TableHitResult::Cell(data_row, col_index));
                     }
@@ -529,7 +531,10 @@ impl Table {
     }
 
     /// Calculate actual table bounds based on content and layout
-    fn calculate_table_bounds(props: &TableProps, state: &TableState) -> crate::core::geometry::Rect {
+    fn calculate_table_bounds(
+        props: &TableProps,
+        state: &TableState,
+    ) -> crate::core::geometry::Rect {
         // Calculate total width based on column widths
         let total_width = state.column_widths.iter().sum::<u16>() + props.columns.len() as u16; // +1 for separators
 
@@ -780,7 +785,8 @@ impl Component for Table {
 
                             // Production wheel handling with proper direction detection
                             // Extract wheel direction from mouse event data
-                            let wheel_direction = Self::extract_wheel_direction(position, modifiers);
+                            let wheel_direction =
+                                Self::extract_wheel_direction(position, modifiers);
 
                             match wheel_direction {
                                 WheelDirection::Up => {
@@ -849,9 +855,9 @@ impl Component for Table {
         }
 
         // Intelligent re-render detection based on state changes
-        let needs_rerender =
-            // Visible rows changed (scrolling)
-            state.visible_rows != (start_row..end_row).collect::<Vec<_>>() ||
+        
+
+        state.visible_rows != (start_row..end_row).collect::<Vec<_>>() ||
             // Column widths changed
             state.column_widths.len() != props.columns.len() ||
             // Sort state changed
@@ -860,9 +866,7 @@ impl Component for Table {
             // Selection changed
             !state.selected_rows.is_empty() ||
             // Always re-render if data structure changed (conservative approach)
-            props.rows.len() != state.visible_rows.len().max(props.rows.len());
-
-        needs_rerender
+            props.rows.len() != state.visible_rows.len().max(props.rows.len())
     }
 }
 

@@ -336,8 +336,6 @@ impl HitTest {
         self.root = QuadNode::new(Bounds::new(0.0, 0.0, width, height), 8, 10);
         self.rebuild();
     }
-
-
 }
 
 #[cfg(test)]

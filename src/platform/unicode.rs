@@ -81,7 +81,7 @@ impl GraphemeCache {
 
     /// Look up grapheme in cache
     pub fn get(&mut self, text: &str) -> Option<&Grapheme> {
-        for ref grapheme in self.cache.iter().flatten() {
+        for grapheme in self.cache.iter().flatten() {
             if grapheme.cluster == text {
                 self.hits += 1;
                 return Some(grapheme);

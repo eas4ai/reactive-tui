@@ -427,7 +427,9 @@ impl AnsiParser {
             }
             0x30..=0x39 => {
                 if let Some(ref mut param) = self.current_param {
-                    *param = param.saturating_mul(10).saturating_add((byte - b'0') as u16);
+                    *param = param
+                        .saturating_mul(10)
+                        .saturating_add((byte - b'0') as u16);
                 }
             }
             0x3A => {

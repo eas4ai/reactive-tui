@@ -29,7 +29,20 @@ use crate::layout::style::StyleBuilder;
 ///
 /// This is the main entry point for applying Tailwind CSS utilities.
 /// It routes tokens to the appropriate specialized modules.
-pub fn apply_utility_classes(class_str: &str, mut sb: StyleBuilder) -> StyleBuilder {
+pub fn apply_utility_classes(class_str: &str, sb: StyleBuilder) -> StyleBuilder {
+    apply_utility_classes_with_theme(class_str, sb, None)
+}
+
+/// Apply utility CSS classes with optional theme context
+///
+/// This is the theme-aware version that can resolve CSS custom properties
+/// from theme variables. When a theme is provided, utilities like "bg-primary"
+/// will resolve to theme variables like "--color-primary".
+pub fn apply_utility_classes_with_theme(
+    class_str: &str,
+    mut sb: StyleBuilder,
+    theme: Option<&crate::theme::Theme>,
+) -> StyleBuilder {
     if class_str.is_empty() {
         return sb;
     }
@@ -52,8 +65,8 @@ pub fn apply_utility_classes(class_str: &str, mut sb: StyleBuilder) -> StyleBuil
             continue;
         }
 
-        // 3. Color utilities (very common)
-        if let Some(result) = colors::apply_color_utilities(token, sb.clone()) {
+        // 3. Color utilities (very common) - with theme support
+        if let Some(result) = colors::apply_color_utilities_with_theme(token, sb.clone(), theme) {
             sb = result;
             continue;
         }
@@ -81,8 +94,6 @@ pub fn apply_utility_classes(class_str: &str, mut sb: StyleBuilder) -> StyleBuil
             sb = result;
             continue;
         }
-
-
 
         // 9. Interaction & Scroll utilities (user interaction)
         if let Some(result) = interactions::apply_interaction_utilities(token, sb.clone()) {

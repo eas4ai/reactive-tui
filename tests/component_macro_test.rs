@@ -1,9 +1,9 @@
 //! Tests for the #[component] macro
-//! 
+//!
 //! This tests the component macro functionality without requiring a visual demo.
 
-use reactive_tui::prelude::*;
 use reactive_tui::component::{Element, ElementType};
+use reactive_tui::prelude::*;
 
 /// Simple component without props
 #[component]
@@ -51,11 +51,11 @@ mod tests {
     fn test_no_props_component() {
         // Test that the macro generates the correct component structure
         let element = HelloWorld::element();
-        
+
         // Should be a component element
         assert!(element.is_component());
         assert_eq!(element.component_name(), Some("HelloWorld"));
-        
+
         // Should use EmptyProps
         assert!(element.props_as::<EmptyProps>().is_some());
     }
@@ -63,7 +63,7 @@ mod tests {
     #[test]
     fn test_component_with_state() {
         let element = Counter::element();
-        
+
         assert!(element.is_component());
         assert_eq!(element.component_name(), Some("Counter"));
         assert!(element.props_as::<EmptyProps>().is_some());
@@ -72,10 +72,10 @@ mod tests {
     #[test]
     fn test_component_with_props() {
         let element = Greeting::element("Alice".to_string(), Some(25));
-        
+
         assert!(element.is_component());
         assert_eq!(element.component_name(), Some("Greeting"));
-        
+
         // Should have the correct props
         let props = element.props_as::<GreetingProps>().unwrap();
         assert_eq!(props.name, "Alice");
@@ -88,12 +88,12 @@ mod tests {
             1,
             "John Doe".to_string(),
             "john@example.com".to_string(),
-            true
+            true,
         );
-        
+
         assert!(element.is_component());
         assert_eq!(element.component_name(), Some("UserCard"));
-        
+
         let props = element.props_as::<UserCardProps>().unwrap();
         assert_eq!(props.id, 1);
         assert_eq!(props.name, "John Doe");
@@ -108,11 +108,11 @@ mod tests {
             name: "Bob".to_string(),
             age: None,
         };
-        
+
         // Should implement Props trait
         use reactive_tui::component::Props;
         let _any: &dyn std::any::Any = props.as_any();
-        
+
         // Should be cloneable and comparable
         let props2 = props.clone();
         assert_eq!(props, props2);
@@ -122,11 +122,11 @@ mod tests {
     fn test_component_instantiation() {
         // Test that components can be instantiated
         use reactive_tui::component::Component;
-        
+
         // No props component
         let hello = HelloWorld::new(EmptyProps);
         let _element = hello.render(&EmptyProps, &());
-        
+
         // Props component
         let greeting_props = GreetingProps {
             name: "Charlie".to_string(),
@@ -140,51 +140,61 @@ mod tests {
     fn test_macro_integration_with_existing_system() {
         // Test that macro-generated components work with the existing component system
         use reactive_tui::component::ComponentInstance;
-        
+
         // Create component instance
         let props = GreetingProps {
             name: "Dave".to_string(),
             age: Some(35),
         };
-        
+
         let mut instance = ComponentInstance::<Greeting>::new(props.clone());
-        
+
         // Test rendering
         let element = instance.render();
         assert!(matches!(element.element_type, ElementType::Text(_)));
-        
+
         // Test props update
         let new_props = GreetingProps {
             name: "David".to_string(),
             age: Some(36),
         };
-        
+
         let needs_update = instance.update_props(new_props);
         assert!(needs_update); // Should need update due to prop change
     }
 }
 
 /// Integration test function (not a unit test)
-pub fn run_component_macro_integration_test() -> std::result::Result<(), Box<dyn std::error::Error>> {
+pub fn run_component_macro_integration_test() -> std::result::Result<(), Box<dyn std::error::Error>>
+{
     println!("🎨 Testing Component Macro Integration");
-    
+
     // Test no-props component
     let hello_element = HelloWorld::element();
-    println!("✅ No-props component: {:?}", hello_element.component_name());
-    
+    println!(
+        "✅ No-props component: {:?}",
+        hello_element.component_name()
+    );
+
     // Test component with props
     let greeting_element = Greeting::element("Test User".to_string(), Some(42));
-    println!("✅ Props component: {:?}", greeting_element.component_name());
-    
+    println!(
+        "✅ Props component: {:?}",
+        greeting_element.component_name()
+    );
+
     // Test complex props
     let user_element = UserCard::element(
         123,
         "Jane Smith".to_string(),
         "jane@test.com".to_string(),
-        true
+        true,
     );
-    println!("✅ Complex props component: {:?}", user_element.component_name());
-    
+    println!(
+        "✅ Complex props component: {:?}",
+        user_element.component_name()
+    );
+
     println!("🎉 All component macro tests passed!");
     println!();
     println!("📊 Component Macro Benefits:");
@@ -193,6 +203,6 @@ pub fn run_component_macro_integration_test() -> std::result::Result<(), Box<dyn
     println!("  ⚡ Zero runtime overhead - pure compile-time transformation");
     println!("  🎯 Full type safety with automatic Props generation");
     println!("  🌟 iocraft-style ergonomics with reactive-tui's advanced features");
-    
+
     Ok(())
 }

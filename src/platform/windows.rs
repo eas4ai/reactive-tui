@@ -445,24 +445,36 @@ impl WindowsTty {
                     if mouse_event.dwEventFlags == 0 {
                         // Button press/release event
                         if mouse_event.dwButtonState & FROM_LEFT_1ST_BUTTON_PRESSED != 0 {
-                            Some(crate::event::Event::Mouse(crate::event::MouseEvent::Press {
-                                button: crate::event::MouseButton::Left,
-                                position: (x, y),
-                                modifiers: parse_control_key_state(mouse_event.dwControlKeyState),
-                            }))
+                            Some(crate::event::Event::Mouse(
+                                crate::event::MouseEvent::Press {
+                                    button: crate::event::MouseButton::Left,
+                                    position: (x, y),
+                                    modifiers: parse_control_key_state(
+                                        mouse_event.dwControlKeyState,
+                                    ),
+                                },
+                            ))
                         } else if mouse_event.dwButtonState & RIGHTMOST_BUTTON_PRESSED != 0 {
-                            Some(crate::event::Event::Mouse(crate::event::MouseEvent::Press {
-                                button: crate::event::MouseButton::Right,
-                                position: (x, y),
-                                modifiers: parse_control_key_state(mouse_event.dwControlKeyState),
-                            }))
+                            Some(crate::event::Event::Mouse(
+                                crate::event::MouseEvent::Press {
+                                    button: crate::event::MouseButton::Right,
+                                    position: (x, y),
+                                    modifiers: parse_control_key_state(
+                                        mouse_event.dwControlKeyState,
+                                    ),
+                                },
+                            ))
                         } else {
                             // Button release
-                            Some(crate::event::Event::Mouse(crate::event::MouseEvent::Release {
-                                button: crate::event::MouseButton::Left, // Default to left
-                                position: (x, y),
-                                modifiers: parse_control_key_state(mouse_event.dwControlKeyState),
-                            }))
+                            Some(crate::event::Event::Mouse(
+                                crate::event::MouseEvent::Release {
+                                    button: crate::event::MouseButton::Left, // Default to left
+                                    position: (x, y),
+                                    modifiers: parse_control_key_state(
+                                        mouse_event.dwControlKeyState,
+                                    ),
+                                },
+                            ))
                         }
                     } else if mouse_event.dwEventFlags & MOUSE_MOVED != 0 {
                         // Mouse move event
@@ -478,11 +490,13 @@ impl WindowsTty {
                         } else {
                             crate::event::ScrollDirection::Down
                         };
-                        Some(crate::event::Event::Mouse(crate::event::MouseEvent::Scroll {
-                            direction,
-                            position: (x, y),
-                            modifiers: parse_control_key_state(mouse_event.dwControlKeyState),
-                        }))
+                        Some(crate::event::Event::Mouse(
+                            crate::event::MouseEvent::Scroll {
+                                direction,
+                                position: (x, y),
+                                modifiers: parse_control_key_state(mouse_event.dwControlKeyState),
+                            },
+                        ))
                     } else {
                         None
                     }

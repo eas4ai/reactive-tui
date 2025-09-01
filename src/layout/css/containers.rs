@@ -14,17 +14,17 @@ pub fn apply_container_utilities(token: &str, sb: StyleBuilder) -> Option<StyleB
     if let Some(result) = apply_container(token, sb.clone()) {
         return Some(result);
     }
-    
+
     // Centering utilities
     if let Some(result) = apply_centering(token, sb.clone()) {
         return Some(result);
     }
-    
+
     // Aspect ratio utilities
     if let Some(result) = apply_aspect_ratio(token, sb.clone()) {
         return Some(result);
     }
-    
+
     None
 }
 
@@ -109,22 +109,26 @@ pub fn apply_aspect_ratio(token: &str, sb: StyleBuilder) -> Option<StyleBuilder>
         }
         _ => {
             // Try to parse custom aspect ratio like aspect-[2/1]
-            if let Some(custom_ratio) = parse_custom_aspect_ratio(token) {
-                Some(apply_aspect_ratio_constraint(sb, custom_ratio.0, custom_ratio.1))
-            } else {
-                None
-            }
+            parse_custom_aspect_ratio(token).map(|custom_ratio| apply_aspect_ratio_constraint(
+                    sb,
+                    custom_ratio.0,
+                    custom_ratio.1,
+                ))
         }
     }
 }
 
 /// Apply aspect ratio constraint to StyleBuilder
-fn apply_aspect_ratio_constraint(sb: StyleBuilder, width_ratio: f32, height_ratio: f32) -> StyleBuilder {
+fn apply_aspect_ratio_constraint(
+    sb: StyleBuilder,
+    width_ratio: f32,
+    height_ratio: f32,
+) -> StyleBuilder {
     // In TUI, we can approximate aspect ratios using character dimensions
     // Since characters are typically taller than wide (~2:1 ratio), we adjust
     let char_aspect_ratio = 0.5; // Characters are about half as wide as tall
     let adjusted_width = width_ratio * char_aspect_ratio;
-    
+
     // Set aspect ratio constraint using reactive-tui's advanced layout system
     // reactive-tui provides sophisticated aspect ratio handling for TUI applications
     sb.aspect_ratio(adjusted_width / height_ratio)
@@ -135,21 +139,21 @@ fn parse_custom_aspect_ratio(token: &str) -> Option<(f32, f32)> {
     if !token.starts_with("aspect-[") || !token.ends_with(']') {
         return None;
     }
-    
-    let ratio_str = &token[8..token.len()-1]; // Remove "aspect-[" and "]"
+
+    let ratio_str = &token[8..token.len() - 1]; // Remove "aspect-[" and "]"
     let parts: Vec<&str> = ratio_str.split('/').collect();
-    
+
     if parts.len() != 2 {
         return None;
     }
-    
+
     let width = parts[0].parse::<f32>().ok()?;
     let height = parts[1].parse::<f32>().ok()?;
-    
+
     if height == 0.0 {
         return None;
     }
-    
+
     Some((width, height))
 }
 
@@ -161,7 +165,7 @@ pub fn apply_responsive_container(token: &str, sb: StyleBuilder) -> Option<Style
         // This implementation provides consistent responsive behavior
         return Some(sb.width_pct(100.0));
     }
-    
+
     None
 }
 
@@ -172,15 +176,15 @@ mod tests {
     #[test]
     fn test_container_utilities() {
         let sb = StyleBuilder::new();
-        
+
         // Test basic container
         let result = apply_container("container", sb.clone()).unwrap();
         let _style = result.build();
-        
+
         // Test sized containers
         let result = apply_container("container-sm", sb.clone()).unwrap();
         let _style = result.build();
-        
+
         let result = apply_container("container-lg", sb.clone()).unwrap();
         let _style = result.build();
     }
@@ -188,15 +192,15 @@ mod tests {
     #[test]
     fn test_centering_utilities() {
         let sb = StyleBuilder::new();
-        
+
         // Test horizontal centering
         let result = apply_centering("mx-auto", sb.clone()).unwrap();
         let _style = result.build();
-        
+
         // Test vertical centering
         let result = apply_centering("my-auto", sb.clone()).unwrap();
         let _style = result.build();
-        
+
         // Test full centering
         let result = apply_centering("m-auto", sb.clone()).unwrap();
         let _style = result.build();
@@ -205,15 +209,15 @@ mod tests {
     #[test]
     fn test_aspect_ratio_utilities() {
         let sb = StyleBuilder::new();
-        
+
         // Test square aspect ratio
         let result = apply_aspect_ratio("aspect-square", sb.clone()).unwrap();
         let _style = result.build();
-        
+
         // Test video aspect ratio
         let result = apply_aspect_ratio("aspect-video", sb.clone()).unwrap();
         let _style = result.build();
-        
+
         // Test custom aspect ratio
         let result = apply_aspect_ratio("aspect-[4/3]", sb.clone()).unwrap();
         let _style = result.build();
@@ -222,9 +226,12 @@ mod tests {
     #[test]
     fn test_custom_aspect_ratio_parsing() {
         assert_eq!(parse_custom_aspect_ratio("aspect-[2/1]"), Some((2.0, 1.0)));
-        assert_eq!(parse_custom_aspect_ratio("aspect-[16/9]"), Some((16.0, 9.0)));
+        assert_eq!(
+            parse_custom_aspect_ratio("aspect-[16/9]"),
+            Some((16.0, 9.0))
+        );
         assert_eq!(parse_custom_aspect_ratio("aspect-[3/4]"), Some((3.0, 4.0)));
-        
+
         // Invalid cases
         assert_eq!(parse_custom_aspect_ratio("aspect-2/1"), None);
         assert_eq!(parse_custom_aspect_ratio("aspect-[2]"), None);
@@ -234,12 +241,12 @@ mod tests {
     #[test]
     fn test_container_utilities_integration() {
         let sb = StyleBuilder::new();
-        
+
         // Test that all container utilities return Some
         assert!(apply_container_utilities("container", sb.clone()).is_some());
         assert!(apply_container_utilities("mx-auto", sb.clone()).is_some());
         assert!(apply_container_utilities("aspect-square", sb.clone()).is_some());
-        
+
         // Test that invalid utilities return None
         assert!(apply_container_utilities("invalid-utility", sb.clone()).is_none());
     }

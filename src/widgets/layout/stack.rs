@@ -168,7 +168,8 @@ impl Stack {
             let mut current_row_height = 0;
 
             for child in &props.children {
-                let (natural_width, natural_height) = self.calculate_child_natural_size(child, props);
+                let (natural_width, natural_height) =
+                    self.calculate_child_natural_size(child, props);
                 let child_width = natural_width.min(available_width);
 
                 // Check if we need to wrap to next row
@@ -216,7 +217,8 @@ impl Stack {
 
             // Second pass: assign final sizes
             for child in &props.children {
-                let (natural_width, natural_height) = self.calculate_child_natural_size(child, props);
+                let (natural_width, natural_height) =
+                    self.calculate_child_natural_size(child, props);
 
                 let child_width = if self.child_has_fixed_width(child) {
                     natural_width
@@ -259,7 +261,7 @@ impl Stack {
         for child in &props.children {
             let (_, natural_height) = self.calculate_child_natural_size(child, props);
             if self.child_has_fixed_height(child) {
-                fixed_height_total += natural_height as usize;
+                fixed_height_total += natural_height;
             } else {
                 flex_children += 1;
             }
@@ -277,14 +279,14 @@ impl Stack {
             let (natural_width, natural_height) = self.calculate_child_natural_size(child, props);
 
             let child_height = if self.child_has_fixed_height(child) {
-                natural_height as usize
+                natural_height
             } else {
                 flex_height
             };
 
             let child_width = match props.alignment {
                 StackAlignment::Stretch => width,
-                _ => (natural_width as usize).min(width),
+                _ => natural_width.min(width),
             };
 
             sizes.push((child_width, child_height));
@@ -558,11 +560,7 @@ impl Stack {
     }
 
     /// Calculate natural size of a child element
-    fn calculate_child_natural_size(
-        &self,
-        child: &Element,
-        _props: &StackProps,
-    ) -> (usize, usize) {
+    fn calculate_child_natural_size(&self, child: &Element, _props: &StackProps) -> (usize, usize) {
         // Production implementation for child size calculation
         // In a real implementation, this would query the child's layout preferences
 
@@ -572,7 +570,8 @@ impl Stack {
                 // Calculate text dimensions
                 let lines: Vec<&str> = text.lines().collect();
                 let height = lines.len();
-                let width = lines.iter()
+                let width = lines
+                    .iter()
                     .map(|line| line.chars().count())
                     .max()
                     .unwrap_or(0);
@@ -581,12 +580,12 @@ impl Stack {
             crate::component::ElementType::Component(component_name) => {
                 // Estimate size based on component type
                 match component_name.as_str() {
-                    "Button" => (12, 3), // Typical button with padding
+                    "Button" => (12, 3),              // Typical button with padding
                     "Input" | "TextInput" => (20, 1), // Typical input size
-                    "Label" => (10, 1), // Typical label size
-                    "Checkbox" => (3, 1), // Checkbox with label space
-                    "Radio" => (3, 1), // Radio button with label space
-                    _ => (15, 2), // Default for unknown components
+                    "Label" => (10, 1),               // Typical label size
+                    "Checkbox" => (3, 1),             // Checkbox with label space
+                    "Radio" => (3, 1),                // Radio button with label space
+                    _ => (15, 2),                     // Default for unknown components
                 }
             }
             crate::component::ElementType::Layout(layout_type) => {
@@ -599,7 +598,7 @@ impl Stack {
                 }
             }
             crate::component::ElementType::Fragment => (0, 0), // Fragments have no size
-            crate::component::ElementType::Empty => (0, 0), // Empty elements have no size
+            crate::component::ElementType::Empty => (0, 0),    // Empty elements have no size
         }
     }
 
@@ -614,8 +613,8 @@ impl Stack {
                 matches!(component_name.as_str(), "Button" | "Checkbox" | "Radio")
             }
             ElementType::Layout(_) => false, // Layout containers are typically flexible
-            ElementType::Fragment => false, // Fragments are flexible
-            ElementType::Empty => true, // Empty elements have fixed (zero) width
+            ElementType::Fragment => false,  // Fragments are flexible
+            ElementType::Empty => true,      // Empty elements have fixed (zero) width
         }
     }
 
@@ -627,11 +626,14 @@ impl Stack {
             ElementType::Text(_) => true, // Text has fixed height based on content
             ElementType::Component(component_name) => {
                 // Most components have fixed heights, but some are flexible
-                !matches!(component_name.as_str(), "TextArea" | "List" | "Table" | "Tree")
+                !matches!(
+                    component_name.as_str(),
+                    "TextArea" | "List" | "Table" | "Tree"
+                )
             }
             ElementType::Layout(_) => false, // Layout containers are typically flexible
-            ElementType::Fragment => false, // Fragments are flexible
-            ElementType::Empty => true, // Empty elements have fixed (zero) height
+            ElementType::Fragment => false,  // Fragments are flexible
+            ElementType::Empty => true,      // Empty elements have fixed (zero) height
         }
     }
 }

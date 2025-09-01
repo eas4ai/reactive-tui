@@ -1,0 +1,443 @@
+//! Dialog Component Trait and Base Implementation
+//!
+//! Defines the core trait that all dialog types must implement and provides
+//! common functionality for dialog rendering, event handling, and lifecycle management.
+
+use super::{DialogId, DialogResult, DialogTheme};
+use crate::component::Element;
+use crate::core::geometry::{Point, Rect, Size};
+use crate::event::types::Event;
+use std::any::Any;
+use std::sync::Arc;
+use std::time::{Duration, Instant};
+
+/// Core trait that all dialog components must implement
+pub trait DialogComponent: std::fmt::Debug + Send + Sync {
+    /// Get the dialog ID
+    fn id(&self) -> DialogId;
+
+    /// Get the dialog type name
+    fn dialog_type(&self) -> &'static str;
+
+    /// Render the dialog content
+    fn render(&self, bounds: Rect, theme: &DialogTheme) -> Element;
+
+    /// Handle input events
+    fn handle_event(&mut self, event: &Event) -> DialogEventResult;
+
+    /// Update dialog state (called each frame)
+    fn update(&mut self, delta_time: Duration) -> bool;
+
+    /// Get dialog bounds and positioning
+    fn get_bounds(&self) -> DialogBounds;
+
+    /// Check if dialog should be modal (blocks interaction with background)
+    fn is_modal(&self) -> bool;
+
+    /// Check if dialog can be closed by clicking backdrop
+    fn backdrop_closable(&self) -> bool;
+
+    /// Check if dialog can be closed with escape key
+    fn escape_closable(&self) -> bool;
+
+    /// Get dialog z-index for layering
+    fn z_index(&self) -> u16;
+
+    /// Get animation configuration
+    fn animation(&self) -> Option<DialogAnimationConfig>;
+
+    /// Called when dialog is shown
+    fn on_show(&mut self) {}
+
+    /// Called when dialog is hidden
+    fn on_hide(&mut self) {}
+
+    /// Called when dialog gains focus
+    fn on_focus(&mut self) {}
+
+    /// Called when dialog loses focus
+    fn on_blur(&mut self) {}
+
+    /// Get focusable elements in this dialog
+    fn get_focusable_elements(&self) -> Vec<FocusableElementInfo>;
+
+    /// Set focus to specific element
+    fn set_focus(&mut self, element_id: &str) -> bool;
+
+    /// Get currently focused element
+    fn get_focused_element(&self) -> Option<String>;
+
+    /// Validate dialog state (for input dialogs)
+    fn validate(&self) -> ValidationResult;
+
+    /// Get dialog as Any for downcasting
+    fn as_any(&self) -> &dyn Any;
+
+    /// Get dialog as mutable Any for downcasting
+    fn as_any_mut(&mut self) -> &mut dyn Any;
+}
+
+/// Result from dialog event handling
+#[derive(Debug, Clone)]
+pub enum DialogEventResult {
+    /// Event was handled, no further action needed
+    Handled,
+    /// Event was handled and dialog should close with result
+    Close(DialogResult),
+    /// Event was handled and should trigger callback
+    Callback(String, Option<String>),
+    /// Event was handled and should send async request
+    AsyncRequest(AsyncRequestType),
+    /// Event was not handled, pass to next handler
+    NotHandled,
+    /// Event was handled and dialog state changed
+    StateChanged,
+    /// Event was handled and focus should change
+    FocusChange(String),
+}
+
+/// Types of async requests that dialogs can make
+#[derive(Debug, Clone)]
+pub enum AsyncRequestType {
+    /// HTTP request for autocomplete suggestions
+    AutocompleteSuggestions {
+        query: String,
+        url: String,
+        headers: Option<std::collections::HashMap<String, String>>,
+    },
+    /// Validation request
+    Validation {
+        field: String,
+        value: String,
+        validator_url: Option<String>,
+    },
+    /// Custom async request
+    Custom { request_type: String, data: String },
+}
+
+/// Dialog bounds and positioning information
+#[derive(Debug, Clone)]
+pub struct DialogBounds {
+    /// Preferred size (None for auto-sizing)
+    pub size: Option<Size>,
+    /// Minimum size
+    pub min_size: Option<Size>,
+    /// Maximum size
+    pub max_size: Option<Size>,
+    /// Position preference
+    pub position: DialogPosition,
+    /// Whether dialog can be resized
+    pub resizable: bool,
+    /// Whether dialog can be dragged
+    pub draggable: bool,
+    /// Margin from screen edges
+    pub margin: DialogMargin,
+}
+
+/// Dialog positioning options
+#[derive(Clone)]
+pub enum DialogPosition {
+    /// Center of screen
+    Center,
+    /// Top center
+    TopCenter,
+    /// Bottom center
+    BottomCenter,
+    /// Left center
+    LeftCenter,
+    /// Right center
+    RightCenter,
+    /// Specific coordinates
+    Fixed(Point),
+    /// Relative to another element
+    RelativeTo {
+        element_id: String,
+        offset: Point,
+        anchor: DialogAnchor,
+    },
+    /// Custom positioning function
+    Custom(Arc<dyn Fn(Size) -> Point + Send + Sync>),
+}
+
+impl std::fmt::Debug for DialogPosition {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            DialogPosition::Center => write!(f, "Center"),
+            DialogPosition::TopCenter => write!(f, "TopCenter"),
+            DialogPosition::BottomCenter => write!(f, "BottomCenter"),
+            DialogPosition::LeftCenter => write!(f, "LeftCenter"),
+            DialogPosition::RightCenter => write!(f, "RightCenter"),
+            DialogPosition::Fixed(point) => write!(f, "Fixed({:?})", point),
+            DialogPosition::RelativeTo {
+                element_id,
+                offset,
+                anchor,
+            } => {
+                write!(
+                    f,
+                    "RelativeTo {{ element_id: {:?}, offset: {:?}, anchor: {:?} }}",
+                    element_id, offset, anchor
+                )
+            }
+            DialogPosition::Custom(_) => write!(f, "Custom(<function>)"),
+        }
+    }
+}
+
+impl PartialEq for DialogPosition {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (DialogPosition::Center, DialogPosition::Center) => true,
+            (DialogPosition::TopCenter, DialogPosition::TopCenter) => true,
+            (DialogPosition::BottomCenter, DialogPosition::BottomCenter) => true,
+            (DialogPosition::LeftCenter, DialogPosition::LeftCenter) => true,
+            (DialogPosition::RightCenter, DialogPosition::RightCenter) => true,
+            (DialogPosition::Fixed(a), DialogPosition::Fixed(b)) => a == b,
+            (
+                DialogPosition::RelativeTo {
+                    element_id: id1,
+                    offset: off1,
+                    anchor: anc1,
+                },
+                DialogPosition::RelativeTo {
+                    element_id: id2,
+                    offset: off2,
+                    anchor: anc2,
+                },
+            ) => id1 == id2 && off1 == off2 && anc1 == anc2,
+            (DialogPosition::Custom(_), DialogPosition::Custom(_)) => false, // Can't compare functions
+            _ => false,
+        }
+    }
+}
+
+/// Anchor points for relative positioning
+#[derive(Debug, Clone, PartialEq)]
+pub enum DialogAnchor {
+    TopLeft,
+    TopCenter,
+    TopRight,
+    CenterLeft,
+    Center,
+    CenterRight,
+    BottomLeft,
+    BottomCenter,
+    BottomRight,
+}
+
+/// Dialog margin configuration
+#[derive(Debug, Clone)]
+pub struct DialogMargin {
+    pub top: u16,
+    pub right: u16,
+    pub bottom: u16,
+    pub left: u16,
+}
+
+/// Animation configuration for dialogs
+#[derive(Debug, Clone)]
+pub struct DialogAnimationConfig {
+    /// Animation type
+    pub animation_type: DialogAnimationType,
+    /// Animation duration
+    pub duration: Duration,
+    /// Animation easing function
+    pub easing: DialogEasing,
+    /// Whether to animate on show
+    pub animate_in: bool,
+    /// Whether to animate on hide
+    pub animate_out: bool,
+}
+
+/// Types of dialog animations
+#[derive(Debug, Clone, PartialEq)]
+pub enum DialogAnimationType {
+    None,
+    Fade,
+    SlideUp,
+    SlideDown,
+    SlideLeft,
+    SlideRight,
+    Scale,
+    Bounce,
+    Flip,
+    Custom(String),
+}
+
+/// Animation easing functions
+#[derive(Debug, Clone, PartialEq)]
+pub enum DialogEasing {
+    Linear,
+    EaseIn,
+    EaseOut,
+    EaseInOut,
+    Bounce,
+    Elastic,
+    Custom(String),
+}
+
+/// Information about focusable elements
+#[derive(Debug, Clone)]
+pub struct FocusableElementInfo {
+    /// Element ID
+    pub id: String,
+    /// Element type
+    pub element_type: FocusableElementType,
+    /// Tab index for ordering
+    pub tab_index: i32,
+    /// Whether element is currently enabled
+    pub enabled: bool,
+    /// Element bounds
+    pub bounds: Rect,
+    /// Custom properties
+    pub properties: std::collections::HashMap<String, String>,
+}
+
+/// Types of focusable elements in dialogs
+#[derive(Debug, Clone, PartialEq)]
+pub enum FocusableElementType {
+    Button,
+    Input,
+    Textarea,
+    Checkbox,
+    Radio,
+    Select,
+    Link,
+    Tab,
+    MenuItem,
+    Custom(String),
+}
+
+/// Validation result for dialog inputs
+#[derive(Debug, Clone)]
+pub struct ValidationResult {
+    /// Whether validation passed
+    pub valid: bool,
+    /// Error messages by field
+    pub errors: std::collections::HashMap<String, String>,
+    /// Warning messages by field
+    pub warnings: std::collections::HashMap<String, String>,
+    /// Custom validation data
+    pub data: Option<String>,
+}
+
+/// Base dialog state that all dialogs can extend
+#[derive(Debug, Clone)]
+pub struct BaseDialogState {
+    /// Dialog ID
+    pub id: DialogId,
+    /// Whether dialog is visible
+    pub visible: bool,
+    /// Whether dialog is focused
+    pub focused: bool,
+    /// Current animation state
+    pub animation_state: DialogAnimationState,
+    /// Animation start time
+    pub animation_start: Option<Instant>,
+    /// Currently focused element ID
+    pub focused_element: Option<String>,
+    /// Dialog bounds
+    pub bounds: Rect,
+    /// Whether dialog is being dragged
+    pub dragging: bool,
+    /// Drag offset
+    pub drag_offset: Point,
+    /// Whether dialog is being resized
+    pub resizing: bool,
+    /// Resize handle being used
+    pub resize_handle: Option<ResizeHandle>,
+}
+
+/// Dialog animation states
+#[derive(Debug, Clone, PartialEq)]
+pub enum DialogAnimationState {
+    Hidden,
+    ShowingIn,
+    Visible,
+    HidingOut,
+}
+
+/// Resize handles for resizable dialogs
+#[derive(Debug, Clone, PartialEq)]
+pub enum ResizeHandle {
+    TopLeft,
+    Top,
+    TopRight,
+    Right,
+    BottomRight,
+    Bottom,
+    BottomLeft,
+    Left,
+}
+
+impl Default for DialogBounds {
+    fn default() -> Self {
+        Self {
+            size: None,
+            min_size: Some(Size::new(200, 100)),
+            max_size: None,
+            position: DialogPosition::Center,
+            resizable: false,
+            draggable: false,
+            margin: DialogMargin::default(),
+        }
+    }
+}
+
+impl Default for DialogMargin {
+    fn default() -> Self {
+        Self {
+            top: 20,
+            right: 20,
+            bottom: 20,
+            left: 20,
+        }
+    }
+}
+
+impl Default for ValidationResult {
+    fn default() -> Self {
+        Self {
+            valid: true,
+            errors: std::collections::HashMap::new(),
+            warnings: std::collections::HashMap::new(),
+            data: None,
+        }
+    }
+}
+
+impl BaseDialogState {
+    pub fn new(id: DialogId) -> Self {
+        Self {
+            id,
+            visible: false,
+            focused: false,
+            animation_state: DialogAnimationState::Hidden,
+            animation_start: None,
+            focused_element: None,
+            bounds: Rect::default(),
+            dragging: false,
+            drag_offset: Point::default(),
+            resizing: false,
+            resize_handle: None,
+        }
+    }
+
+    pub fn show(&mut self) {
+        self.visible = true;
+        self.animation_state = DialogAnimationState::ShowingIn;
+        self.animation_start = Some(Instant::now());
+    }
+
+    pub fn hide(&mut self) {
+        self.animation_state = DialogAnimationState::HidingOut;
+        self.animation_start = Some(Instant::now());
+    }
+
+    pub fn is_animating(&self) -> bool {
+        matches!(
+            self.animation_state,
+            DialogAnimationState::ShowingIn | DialogAnimationState::HidingOut
+        )
+    }
+}

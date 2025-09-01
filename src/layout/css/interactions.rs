@@ -13,28 +13,28 @@ pub fn apply_interaction_utilities(token: &str, sb: StyleBuilder) -> Option<Styl
         "select-text" => Some(sb.italic(true)),
         "select-all" => Some(sb.bold(true)),
         "select-auto" => Some(sb),
-        
+
         // Resize (represented through styling)
         "resize-none" => Some(sb),
         "resize" => Some(sb.underline(true)),
         "resize-y" => Some(sb.italic(true)),
         "resize-x" => Some(sb.bold(true)),
-        
+
         // Pointer events (represented through opacity)
         "pointer-events-none" => Some(sb.opacity(0.3)),
         "pointer-events-auto" => Some(sb.opacity(1.0)),
-        
+
         // Scroll behavior (visual hints)
         "scroll-smooth" => Some(sb),
         "scroll-auto" => Some(sb),
         "scroll-instant" => Some(sb),
-        
+
         // Snap alignment (visual hints)
         "snap-start" => Some(sb),
         "snap-center" => Some(sb),
         "snap-end" => Some(sb),
         "snap-none" => Some(sb),
-        
+
         // Basic cursor styles using existing methods
         "cursor-pointer" => Some(sb.underline(true)),
         "cursor-not-allowed" => Some(sb.opacity(0.5).strike(true)),
@@ -42,7 +42,7 @@ pub fn apply_interaction_utilities(token: &str, sb: StyleBuilder) -> Option<Styl
         "cursor-default" => Some(sb),
         "cursor-wait" => Some(sb.opacity(0.7)),
         "cursor-help" => Some(sb.underline(true)),
-        
+
         _ => None,
     }
 }
@@ -54,10 +54,10 @@ mod tests {
     #[test]
     fn test_user_select() {
         let sb = StyleBuilder::new();
-        
+
         let result = apply_interaction_utilities("select-none", sb.clone()).unwrap();
         let _style = result.build();
-        
+
         let result = apply_interaction_utilities("select-all", sb.clone()).unwrap();
         let _style = result.build();
     }
@@ -65,10 +65,10 @@ mod tests {
     #[test]
     fn test_cursor() {
         let sb = StyleBuilder::new();
-        
+
         let result = apply_interaction_utilities("cursor-pointer", sb.clone()).unwrap();
         let _style = result.build();
-        
+
         let result = apply_interaction_utilities("cursor-not-allowed", sb.clone()).unwrap();
         let _style = result.build();
     }
@@ -76,10 +76,10 @@ mod tests {
     #[test]
     fn test_pointer_events() {
         let sb = StyleBuilder::new();
-        
+
         let result = apply_interaction_utilities("pointer-events-none", sb.clone()).unwrap();
         let _style = result.build();
-        
+
         let result = apply_interaction_utilities("pointer-events-auto", sb.clone()).unwrap();
         let _style = result.build();
     }

@@ -759,7 +759,13 @@ impl Tree {
         if state.expanded_nodes.iter().any(|id| id == &node.id) {
             for child in &node.children {
                 if let Some(result) = self.hit_test_node(
-                    child, click_x, click_y, current_row, level + 1, props, state
+                    child,
+                    click_x,
+                    click_y,
+                    current_row,
+                    level + 1,
+                    props,
+                    state,
                 ) {
                     return Some(result);
                 }
@@ -864,7 +870,9 @@ impl Component for Tree {
                                 }
                                 TreeHitResult::Expander(node_id) => {
                                     // Toggle expansion
-                                    if let Some(pos) = state.expanded_nodes.iter().position(|x| x == &node_id) {
+                                    if let Some(pos) =
+                                        state.expanded_nodes.iter().position(|x| x == &node_id)
+                                    {
                                         state.expanded_nodes.remove(pos);
                                     } else {
                                         state.expanded_nodes.push(node_id);
@@ -944,15 +952,13 @@ impl Component for Tree {
             .collect();
 
         // Intelligent re-render detection for optimal tree performance
-        let needs_rerender =
-            // Selection changed
-            !state.selected_nodes.is_empty() ||
+        
+
+        !state.selected_nodes.is_empty() ||
             // Expanded state changed (check if expansion differs from props)
             state.expanded_nodes != props.expanded_nodes ||
             // Visible nodes list changed (indicates tree structure or expansion changes)
-            state.visible_nodes.is_empty();
-
-        needs_rerender
+            state.visible_nodes.is_empty()
     }
 }
 

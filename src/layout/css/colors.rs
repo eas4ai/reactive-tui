@@ -3,10 +3,26 @@
 use crate::layout::colors::parse_color_token;
 use crate::layout::style::StyleBuilder;
 
-/// Apply text color utilities
+/// Apply text color utilities (legacy version without theme support)
 pub fn apply_text_color(token: &str, sb: StyleBuilder) -> Option<StyleBuilder> {
+    apply_text_color_with_theme(token, sb, None)
+}
+
+/// Apply text color utilities with optional theme support
+pub fn apply_text_color_with_theme(
+    token: &str,
+    sb: StyleBuilder,
+    theme: Option<&crate::theme::Theme>,
+) -> Option<StyleBuilder> {
     if let Some(color_part) = token.strip_prefix("text-") {
-        // Remove "text-" prefix
+        // Try theme variables first
+        if let Some(theme) = theme {
+            if let Some((r, g, b, a)) = resolve_theme_color(color_part, theme) {
+                return Some(sb.fg_rgba(r, g, b, a));
+            }
+        }
+
+        // Fallback to standard color parsing
         if let Some((r, g, b, a)) = parse_color_token(color_part) {
             Some(sb.fg_rgba(r, g, b, a))
         } else {
@@ -17,10 +33,26 @@ pub fn apply_text_color(token: &str, sb: StyleBuilder) -> Option<StyleBuilder> {
     }
 }
 
-/// Apply background color utilities
+/// Apply background color utilities (legacy version without theme support)
 pub fn apply_bg_color(token: &str, sb: StyleBuilder) -> Option<StyleBuilder> {
+    apply_bg_color_with_theme(token, sb, None)
+}
+
+/// Apply background color utilities with optional theme support
+pub fn apply_bg_color_with_theme(
+    token: &str,
+    sb: StyleBuilder,
+    theme: Option<&crate::theme::Theme>,
+) -> Option<StyleBuilder> {
     if let Some(color_part) = token.strip_prefix("bg-") {
-        // Remove "bg-" prefix
+        // Try theme variables first
+        if let Some(theme) = theme {
+            if let Some((r, g, b, a)) = resolve_theme_color(color_part, theme) {
+                return Some(sb.bg_rgba(r, g, b, a));
+            }
+        }
+
+        // Fallback to standard color parsing
         if let Some((r, g, b, a)) = parse_color_token(color_part) {
             Some(sb.bg_rgba(r, g, b, a))
         } else {
@@ -123,15 +155,24 @@ pub fn apply_selection_color(token: &str, sb: StyleBuilder) -> Option<StyleBuild
     }
 }
 
-/// Apply all color utilities
+/// Apply all color utilities (legacy version without theme support)
 pub fn apply_color_utilities(token: &str, sb: StyleBuilder) -> Option<StyleBuilder> {
-    // Try text color
-    if let Some(result) = apply_text_color(token, sb.clone()) {
+    apply_color_utilities_with_theme(token, sb, None)
+}
+
+/// Apply all color utilities with optional theme support
+pub fn apply_color_utilities_with_theme(
+    token: &str,
+    sb: StyleBuilder,
+    theme: Option<&crate::theme::Theme>,
+) -> Option<StyleBuilder> {
+    // Try text color with theme support
+    if let Some(result) = apply_text_color_with_theme(token, sb.clone(), theme) {
         return Some(result);
     }
 
-    // Try background color
-    if let Some(result) = apply_bg_color(token, sb.clone()) {
+    // Try background color with theme support
+    if let Some(result) = apply_bg_color_with_theme(token, sb.clone(), theme) {
         return Some(result);
     }
 
@@ -166,6 +207,61 @@ pub fn apply_color_utilities(token: &str, sb: StyleBuilder) -> Option<StyleBuild
     }
 
     None
+}
+
+/// Resolve a color token to theme variable if possible
+fn resolve_theme_color(token: &str, theme: &crate::theme::Theme) -> Option<(f32, f32, f32, f32)> {
+    let var_name = match token {
+        "primary" => "--color-primary",
+        "secondary" => "--color-secondary",
+        "accent" => "--color-accent",
+        "muted" => "--color-text-muted",
+        "success" => "--color-success",
+        "warning" => "--color-warning",
+        "error" => "--color-error",
+        "info" => "--color-info",
+        "background" => "--color-background",
+        "foreground" => "--color-foreground",
+        "border" => "--color-border",
+        _ => return None,
+    };
+
+    theme
+        .get_variable(var_name)
+        .and_then(|hex| parse_hex_to_rgba(&hex))
+}
+
+/// Parse hex color string to RGBA floats
+fn parse_hex_to_rgba(hex: &str) -> Option<(f32, f32, f32, f32)> {
+    let hex = hex.trim_start_matches('#');
+    let (r, g, b, a) = match hex.len() {
+        3 => (
+            u8::from_str_radix(&hex[0..1], 16).ok()? * 17,
+            u8::from_str_radix(&hex[1..2], 16).ok()? * 17,
+            u8::from_str_radix(&hex[2..3], 16).ok()? * 17,
+            255,
+        ),
+        6 => (
+            u8::from_str_radix(&hex[0..2], 16).ok()?,
+            u8::from_str_radix(&hex[2..4], 16).ok()?,
+            u8::from_str_radix(&hex[4..6], 16).ok()?,
+            255,
+        ),
+        8 => (
+            u8::from_str_radix(&hex[0..2], 16).ok()?,
+            u8::from_str_radix(&hex[2..4], 16).ok()?,
+            u8::from_str_radix(&hex[4..6], 16).ok()?,
+            u8::from_str_radix(&hex[6..8], 16).ok()?,
+        ),
+        _ => return None,
+    };
+
+    Some((
+        r as f32 / 255.0,
+        g as f32 / 255.0,
+        b as f32 / 255.0,
+        a as f32 / 255.0,
+    ))
 }
 
 #[cfg(test)]

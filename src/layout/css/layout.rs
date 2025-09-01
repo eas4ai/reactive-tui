@@ -132,7 +132,10 @@ pub fn apply_grid(token: &str, sb: StyleBuilder) -> Option<StyleBuilder> {
             if token.starts_with("grid-cols-") {
                 if token.contains("auto-fit") {
                     // Extract minimum size from token like "grid-cols-auto-fit-20"
-                    if let Some(min_size) = token.strip_prefix("grid-cols-auto-fit-").and_then(|s| s.parse::<u16>().ok()) {
+                    if let Some(min_size) = token
+                        .strip_prefix("grid-cols-auto-fit-")
+                        .and_then(|s| s.parse::<u16>().ok())
+                    {
                         return Some(sb.display_grid().grid_auto_fit_columns(min_size));
                     }
                     // Default auto-fit
@@ -140,7 +143,10 @@ pub fn apply_grid(token: &str, sb: StyleBuilder) -> Option<StyleBuilder> {
                 }
                 if token.contains("auto-fill") {
                     // Extract minimum size from token like "grid-cols-auto-fill-15"
-                    if let Some(min_size) = token.strip_prefix("grid-cols-auto-fill-").and_then(|s| s.parse::<u16>().ok()) {
+                    if let Some(min_size) = token
+                        .strip_prefix("grid-cols-auto-fill-")
+                        .and_then(|s| s.parse::<u16>().ok())
+                    {
                         return Some(sb.display_grid().grid_auto_fill_columns(min_size));
                     }
                     // Default auto-fill
@@ -151,13 +157,19 @@ pub fn apply_grid(token: &str, sb: StyleBuilder) -> Option<StyleBuilder> {
             // Grid rows auto-fit and auto-fill
             if token.starts_with("grid-rows-") {
                 if token.contains("auto-fit") {
-                    if let Some(min_size) = token.strip_prefix("grid-rows-auto-fit-").and_then(|s| s.parse::<u16>().ok()) {
+                    if let Some(min_size) = token
+                        .strip_prefix("grid-rows-auto-fit-")
+                        .and_then(|s| s.parse::<u16>().ok())
+                    {
                         return Some(sb.display_grid().grid_auto_fit_rows(min_size));
                     }
                     return Some(sb.display_grid().grid_auto_fit_rows(3)); // 3 rows default
                 }
                 if token.contains("auto-fill") {
-                    if let Some(min_size) = token.strip_prefix("grid-rows-auto-fill-").and_then(|s| s.parse::<u16>().ok()) {
+                    if let Some(min_size) = token
+                        .strip_prefix("grid-rows-auto-fill-")
+                        .and_then(|s| s.parse::<u16>().ok())
+                    {
                         return Some(sb.display_grid().grid_auto_fill_rows(min_size));
                     }
                     return Some(sb.display_grid().grid_auto_fill_rows(2)); // 2 rows default
@@ -185,26 +197,24 @@ pub fn apply_grid(token: &str, sb: StyleBuilder) -> Option<StyleBuilder> {
             match token {
                 "grid-template-areas-sidebar" => {
                     // Common sidebar layout
-                    Some(sb.display_grid().grid_template_areas(&[
-                        "sidebar main",
-                        "sidebar main"
-                    ]))
+                    Some(
+                        sb.display_grid()
+                            .grid_template_areas(&["sidebar main", "sidebar main"]),
+                    )
                 }
                 "grid-template-areas-header" => {
                     // Common header layout
                     Some(sb.display_grid().grid_template_areas(&[
                         "header header",
                         "main main",
-                        "footer footer"
+                        "footer footer",
                     ]))
                 }
-                _ => None
+                _ => None,
             }
         }
     }
 }
-
-
 
 /// Apply position utilities
 pub fn apply_position(token: &str, sb: StyleBuilder) -> Option<StyleBuilder> {

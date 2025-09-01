@@ -1,5 +1,5 @@
 //! Test the new charcoal color
-//! 
+//!
 //! This example tests the charcoal color in various contexts
 
 use reactive_tui::core::surface::Surface;
@@ -8,7 +8,7 @@ use reactive_tui::layout::paint_tree::{layout_and_paint_with, NodeSpec, PaintOpt
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Create a surface for testing
     let mut surface = Surface::new(80, 20);
-    
+
     // Test charcoal color in different contexts
     let root = NodeSpec {
         class: "flex flex-col gap-2 p-2".into(),
@@ -20,14 +20,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 text: Some("🎨 Charcoal Color Test".into()),
                 children: vec![],
             },
-            
             // Background examples
             NodeSpec {
                 class: "text-bold".into(),
                 text: Some("Background Examples:".into()),
                 children: vec![],
             },
-            
             NodeSpec {
                 class: "flex flex-row gap-4".into(),
                 text: None,
@@ -49,14 +47,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     },
                 ],
             },
-            
             // Text examples
             NodeSpec {
                 class: "text-bold".into(),
                 text: Some("Text Examples:".into()),
                 children: vec![],
             },
-            
             NodeSpec {
                 class: "flex flex-row gap-4".into(),
                 text: None,
@@ -78,14 +74,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     },
                 ],
             },
-            
             // Border examples
             NodeSpec {
                 class: "text-bold".into(),
                 text: Some("Border Examples:".into()),
                 children: vec![],
             },
-            
             NodeSpec {
                 class: "flex flex-row gap-4".into(),
                 text: None,
@@ -107,14 +101,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     },
                 ],
             },
-            
             // Ring examples
             NodeSpec {
                 class: "text-bold".into(),
                 text: Some("Ring Examples:".into()),
                 children: vec![],
             },
-            
             NodeSpec {
                 class: "flex flex-row gap-4".into(),
                 text: None,
@@ -136,7 +128,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     },
                 ],
             },
-            
             // Summary
             NodeSpec {
                 class: "text-center bg-charcoal text-white p-2 font-bold".into(),
@@ -150,13 +141,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let options = PaintOptions {
         debug_overlay: false,
     };
-    
+
     layout_and_paint_with(&root, &mut surface, 80, &options)?;
-    
+
     // Print the result to console for inspection
     println!("🎨 Charcoal Color Test Results:");
     println!("==============================");
-    
+
     for y in 0..20 {
         for x in 0..80 {
             let cell = surface.get(x, y);
@@ -168,13 +159,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
         println!();
     }
-    
+
     println!("\n🎉 SUCCESS: Charcoal color is working!");
     println!("🎨 Charcoal Color Details:");
     println!("  • RGB: (54, 54, 54)");
     println!("  • Description: Very dark gray, almost black but softer");
     println!("  • Usage: bg-charcoal, text-charcoal, border-charcoal, ring-charcoal");
     println!("  • Perfect for: Dark themes, elegant backgrounds, subtle text");
-    
+
     Ok(())
 }

@@ -155,7 +155,10 @@ impl ElementBuilder {
         self.element.class = Some(format!(
             "{} data-placeholder-{}",
             current_class,
-            placeholder.replace(" ", "-").replace("'", "").replace("\"", "")
+            placeholder
+                .replace(" ", "-")
+                .replace("'", "")
+                .replace("\"", "")
         ));
         self
     }

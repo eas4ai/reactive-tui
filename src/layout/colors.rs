@@ -334,14 +334,14 @@ fn named(token: &str) -> Option<Rgba> {
         "rose-950" => (76, 5, 25),
 
         // Legacy aliases for compatibility
-        "red" => (239, 68, 68),    // red-500
-        "green" => (34, 197, 94),  // green-500
-        "blue" => (59, 130, 246),  // blue-500
-        "yellow" => (234, 179, 8), // yellow-500
-        "cyan" => (6, 182, 212),   // cyan-500
-        "magenta" => (217, 70, 239), // fuchsia-500
+        "red" => (239, 68, 68),             // red-500
+        "green" => (34, 197, 94),           // green-500
+        "blue" => (59, 130, 246),           // blue-500
+        "yellow" => (234, 179, 8),          // yellow-500
+        "cyan" => (6, 182, 212),            // cyan-500
+        "magenta" => (217, 70, 239),        // fuchsia-500
         "gray" | "grey" => (107, 114, 128), // gray-500
-        "charcoal" => (54, 54, 54), // Very dark gray, almost black
+        "charcoal" => (54, 54, 54),         // Very dark gray, almost black
 
         _ => return None,
     };

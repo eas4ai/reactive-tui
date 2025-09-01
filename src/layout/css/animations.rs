@@ -16,27 +16,27 @@ pub fn apply_animation_utilities(token: &str, sb: StyleBuilder) -> Option<StyleB
     if let Some(result) = apply_transition_utilities(token, sb.clone()) {
         return Some(result);
     }
-    
+
     // Duration utilities
     if let Some(result) = apply_duration_utilities(token, sb.clone()) {
         return Some(result);
     }
-    
+
     // Easing utilities
     if let Some(result) = apply_easing_utilities(token, sb.clone()) {
         return Some(result);
     }
-    
+
     // Transform utilities
     if let Some(result) = apply_transform_utilities(token, sb.clone()) {
         return Some(result);
     }
-    
+
     // Animation presets
     if let Some(result) = apply_animation_presets(token, sb.clone()) {
         return Some(result);
     }
-    
+
     None
 }
 
@@ -50,7 +50,7 @@ fn apply_transition_utilities(token: &str, sb: StyleBuilder) -> Option<StyleBuil
         "transition-opacity" => Some(apply_transition_opacity(sb)),
         "transition-shadow" => Some(apply_transition_shadow(sb)),
         "transition-transform" => Some(apply_transition_transform(sb)),
-        
+
         _ => None,
     }
 }
@@ -75,12 +75,8 @@ fn apply_duration_utilities(token: &str, sb: StyleBuilder) -> Option<StyleBuilde
             }
         }
     };
-    
-    if let Some(ms) = duration_ms {
-        Some(apply_duration(sb, Duration::from_millis(ms)))
-    } else {
-        None
-    }
+
+    duration_ms.map(|ms| apply_duration(sb, Duration::from_millis(ms)))
 }
 
 /// Apply easing utilities
@@ -103,27 +99,27 @@ fn apply_transform_utilities(token: &str, sb: StyleBuilder) -> Option<StyleBuild
             return Some(apply_scale(sb, scale_factor));
         }
     }
-    
+
     // Translate utilities
     if let Some(translate_str) = token.strip_prefix("translate-x-") {
         if let Ok(pixels) = translate_str.parse::<i16>() {
             return Some(apply_translate_x(sb, pixels as f32));
         }
     }
-    
+
     if let Some(translate_str) = token.strip_prefix("translate-y-") {
         if let Ok(pixels) = translate_str.parse::<i16>() {
             return Some(apply_translate_y(sb, pixels as f32));
         }
     }
-    
+
     // Rotate utilities (limited for TUI)
     if let Some(rotate_str) = token.strip_prefix("rotate-") {
         if let Ok(degrees) = rotate_str.parse::<i16>() {
             return Some(apply_rotate(sb, degrees as f32));
         }
     }
-    
+
     match token {
         // Common scale values
         "scale-0" => Some(apply_scale(sb, 0.0)),
@@ -136,10 +132,10 @@ fn apply_transform_utilities(token: &str, sb: StyleBuilder) -> Option<StyleBuild
         "scale-110" => Some(apply_scale(sb, 1.1)),
         "scale-125" => Some(apply_scale(sb, 1.25)),
         "scale-150" => Some(apply_scale(sb, 1.5)),
-        
+
         // Transform reset
         "transform-none" => Some(apply_transform_none(sb)),
-        
+
         _ => None,
     }
 }
@@ -153,7 +149,7 @@ fn apply_animation_presets(token: &str, sb: StyleBuilder) -> Option<StyleBuilder
         "animate-ping" => Some(apply_animate_ping(sb)),
         "animate-pulse" => Some(apply_animate_pulse(sb)),
         "animate-bounce" => Some(apply_animate_bounce(sb)),
-        
+
         _ => None,
     }
 }
@@ -289,79 +285,79 @@ mod tests {
     #[test]
     fn test_transition_utilities() {
         let sb = StyleBuilder::new();
-        
+
         // Test transition utilities
         let result = apply_animation_utilities("transition-all", sb.clone());
         assert!(result.is_some());
-        
+
         let result = apply_animation_utilities("transition-colors", sb.clone());
         assert!(result.is_some());
-        
+
         let result = apply_animation_utilities("transition-none", sb.clone());
         assert!(result.is_some());
     }
-    
+
     #[test]
     fn test_duration_utilities() {
         let sb = StyleBuilder::new();
-        
+
         // Test duration utilities
         let result = apply_animation_utilities("duration-150", sb.clone());
         assert!(result.is_some());
-        
+
         let result = apply_animation_utilities("duration-300", sb.clone());
         assert!(result.is_some());
-        
+
         let result = apply_animation_utilities("duration-1000", sb.clone());
         assert!(result.is_some());
-        
+
         // Test custom duration
         let result = apply_animation_utilities("duration-250", sb.clone());
         assert!(result.is_some());
     }
-    
+
     #[test]
     fn test_easing_utilities() {
         let sb = StyleBuilder::new();
-        
+
         // Test easing utilities
         let result = apply_animation_utilities("ease-linear", sb.clone());
         assert!(result.is_some());
-        
+
         let result = apply_animation_utilities("ease-in-out", sb.clone());
         assert!(result.is_some());
     }
-    
+
     #[test]
     fn test_transform_utilities() {
         let sb = StyleBuilder::new();
-        
+
         // Test scale utilities
         let result = apply_animation_utilities("scale-95", sb.clone());
         assert!(result.is_some());
-        
+
         let result = apply_animation_utilities("scale-105", sb.clone());
         assert!(result.is_some());
-        
+
         // Test translate utilities
         let result = apply_animation_utilities("translate-x-4", sb.clone());
         assert!(result.is_some());
-        
+
         let result = apply_animation_utilities("translate-y-2", sb.clone());
         assert!(result.is_some());
     }
-    
+
     #[test]
     fn test_animation_presets() {
         let sb = StyleBuilder::new();
-        
+
         // Test animation presets
         let result = apply_animation_utilities("animate-pulse", sb.clone());
         assert!(result.is_some());
-        
+
         let result = apply_animation_utilities("animate-bounce", sb.clone());
         assert!(result.is_some());
-        
+
         let result = apply_animation_utilities("animate-spin", sb.clone());
         assert!(result.is_some());
     }

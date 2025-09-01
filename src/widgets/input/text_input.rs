@@ -9,8 +9,10 @@ use unicode_segmentation::UnicodeSegmentation;
 
 /// Input mode for different text input behaviors
 #[derive(Clone, Debug, PartialEq)]
+#[derive(Default)]
 pub enum InputMode {
     /// Single line input (default)
+    #[default]
     SingleLine,
     /// Multi-line input with specified height
     MultiLine { height: u16 },
@@ -20,11 +22,6 @@ pub enum InputMode {
     Numeric,
 }
 
-impl Default for InputMode {
-    fn default() -> Self {
-        InputMode::SingleLine
-    }
-}
 
 /// Auto-completion suggestion
 #[derive(Clone, Debug, PartialEq)]
@@ -80,21 +77,13 @@ impl Props for TextInputProps {
 
 /// Cursor position in a multi-line text input
 #[derive(Clone, Debug, PartialEq)]
+#[derive(Default)]
 pub struct CursorPosition {
     pub line: usize,
     pub column: usize,
     pub byte_offset: usize,
 }
 
-impl Default for CursorPosition {
-    fn default() -> Self {
-        Self {
-            line: 0,
-            column: 0,
-            byte_offset: 0,
-        }
-    }
-}
 
 /// Text selection range
 #[derive(Clone, Debug, PartialEq)]
@@ -1308,14 +1297,13 @@ impl TextInput {
                 EventResult::Consumed
             }
             KeyCode::Home => {
-                if event.modifiers.shift {
-                    if state.selection.is_none() {
+                if event.modifiers.shift
+                    && state.selection.is_none() {
                         state.selection = Some(Selection {
                             start: state.cursor.clone(),
                             end: state.cursor.clone(),
                         });
                     }
-                }
 
                 // Move to start of current line
                 state.cursor.column = 0;
@@ -1333,14 +1321,13 @@ impl TextInput {
                 EventResult::Consumed
             }
             KeyCode::End => {
-                if event.modifiers.shift {
-                    if state.selection.is_none() {
+                if event.modifiers.shift
+                    && state.selection.is_none() {
                         state.selection = Some(Selection {
                             start: state.cursor.clone(),
                             end: state.cursor.clone(),
                         });
                     }
-                }
 
                 // Move to end of current line
                 if let Some(line) = state.lines.get(state.cursor.line) {
@@ -1441,12 +1428,10 @@ impl TextInput {
                         state.cursor.line = line;
                         state.cursor.column = column;
                         self.update_cursor_byte_offset(state);
-                    } else {
-                        if drag_x >= text_start {
-                            let text_pos = drag_x - text_start + state.scroll_offset_x;
-                            let byte_offset = text_pos.min(props.value.len());
-                            self.move_cursor_to_byte_offset(byte_offset, state);
-                        }
+                    } else if drag_x >= text_start {
+                        let text_pos = drag_x - text_start + state.scroll_offset_x;
+                        let byte_offset = text_pos.min(props.value.len());
+                        self.move_cursor_to_byte_offset(byte_offset, state);
                     }
 
                     // Update selection end

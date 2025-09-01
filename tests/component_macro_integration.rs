@@ -1,5 +1,5 @@
 //! Simple test of the #[component] macro
-//! 
+//!
 //! This demonstrates the component macro functionality.
 
 use reactive_tui::prelude::*;

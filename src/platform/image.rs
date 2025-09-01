@@ -48,8 +48,10 @@ pub enum TransmitMedium {
 
 /// Image scaling modes
 #[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Default)]
 pub enum ScaleMode {
     /// No scaling applied
+    #[default]
     None,
     /// Stretch/shrink to fill the window
     Fill,
@@ -59,11 +61,6 @@ pub enum ScaleMode {
     Contain,
 }
 
-impl Default for ScaleMode {
-    fn default() -> Self {
-        ScaleMode::None
-    }
-}
 
 /// Image placement options
 #[derive(Debug, Clone, Default)]
@@ -240,7 +237,7 @@ impl Image {
         // Production sixel implementation:
         // 1. Convert image to 6-pixel high bands
         let band_height = 6u32;
-        let bands = (self.height + band_height - 1) / band_height;
+        let bands = self.height.div_ceil(band_height);
 
         // 2. Quantize colors to sixel palette (256 colors max)
         let palette = self.build_sixel_palette();
@@ -268,7 +265,7 @@ impl Image {
             sequence.push_str(&format!(";size={}x{}", cols, rows));
         }
 
-        sequence.push_str(":"); // End parameters
+        sequence.push(':'); // End parameters
 
         // Add base64-encoded image data
         match &self.source {
@@ -298,10 +295,22 @@ impl Image {
 
         // Add standard 16 colors
         let standard_colors = [
-            (0, 0, 0), (128, 0, 0), (0, 128, 0), (128, 128, 0),
-            (0, 0, 128), (128, 0, 128), (0, 128, 128), (192, 192, 192),
-            (128, 128, 128), (255, 0, 0), (0, 255, 0), (255, 255, 0),
-            (0, 0, 255), (255, 0, 255), (0, 255, 255), (255, 255, 255),
+            (0, 0, 0),
+            (128, 0, 0),
+            (0, 128, 0),
+            (128, 128, 0),
+            (0, 0, 128),
+            (128, 0, 128),
+            (0, 128, 128),
+            (192, 192, 192),
+            (128, 128, 128),
+            (255, 0, 0),
+            (0, 255, 0),
+            (255, 255, 0),
+            (0, 0, 255),
+            (255, 0, 255),
+            (0, 255, 255),
+            (255, 255, 255),
         ];
         palette.extend_from_slice(&standard_colors);
 
@@ -422,9 +431,9 @@ impl Image {
         let mut best_distance = u32::MAX;
 
         for (i, &(pr, pg, pb)) in palette.iter().enumerate() {
-            let dr = (r as i32 - pr as i32).abs() as u32;
-            let dg = (g as i32 - pg as i32).abs() as u32;
-            let db = (b as i32 - pb as i32).abs() as u32;
+            let dr = (r as i32 - pr as i32).unsigned_abs();
+            let dg = (g as i32 - pg as i32).unsigned_abs();
+            let db = (b as i32 - pb as i32).unsigned_abs();
             let distance = dr * dr + dg * dg + db * db;
 
             if distance < best_distance {
@@ -502,13 +511,12 @@ fn detect_jpeg_dimensions(data: &[u8]) -> Result<(u32, u32)> {
             let length = ((data[i + 2] as u16) << 8) | (data[i + 3] as u16);
 
             // SOF markers (Start of Frame) contain image dimensions
-            if matches!(marker, 0xC0..=0xC3 | 0xC5..=0xC7 | 0xC9..=0xCB | 0xCD..=0xCF) {
-                if i + 7 < data.len() {
+            if matches!(marker, 0xC0..=0xC3 | 0xC5..=0xC7 | 0xC9..=0xCB | 0xCD..=0xCF)
+                && i + 7 < data.len() {
                     let height = ((data[i + 5] as u32) << 8) | (data[i + 6] as u32);
                     let width = ((data[i + 7] as u32) << 8) | (data[i + 8] as u32);
                     return Ok((width, height));
                 }
-            }
 
             i += length as usize + 2;
         } else {
@@ -545,7 +553,7 @@ fn generate_image_id() -> u32 {
 mod base64 {
     pub fn encode(data: &[u8]) -> String {
         const CHARS: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-        let mut result = String::with_capacity((data.len() + 2) / 3 * 4);
+        let mut result = String::with_capacity(data.len().div_ceil(3) * 4);
 
         for chunk in data.chunks(3) {
             let b1 = chunk[0];

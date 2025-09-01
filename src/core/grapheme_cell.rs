@@ -342,7 +342,10 @@ mod tests {
         // Wide character continuation
         match surface.get_cell(2, 0) {
             CellType::Void => {}
-            other => panic!("Expected void at (2,0) for wide character continuation, got: {:?}", other),
+            other => panic!(
+                "Expected void at (2,0) for wide character continuation, got: {:?}",
+                other
+            ),
         }
 
         match surface.get_cell(3, 0) {

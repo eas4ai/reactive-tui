@@ -1,5 +1,5 @@
 //! Demo of Focus & Accessibility utilities
-//! 
+//!
 //! This example demonstrates the new focus and accessibility CSS utilities
 
 use reactive_tui::core::surface::Surface;
@@ -8,7 +8,7 @@ use reactive_tui::layout::paint_tree::{layout_and_paint_with, NodeSpec, PaintOpt
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Create a surface for testing
     let mut surface = Surface::new(80, 30);
-    
+
     // Test Focus & Accessibility utilities
     let root = NodeSpec {
         class: "flex flex-col gap-2 p-2".into(),
@@ -20,14 +20,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 text: Some("🎯 Focus & Accessibility Demo".into()),
                 children: vec![],
             },
-            
             // Focus Ring Examples
             NodeSpec {
                 class: "text-bold".into(),
                 text: Some("📍 Focus Ring Examples:".into()),
                 children: vec![],
             },
-            
             NodeSpec {
                 class: "flex flex-row gap-4".into(),
                 text: None,
@@ -49,14 +47,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     },
                 ],
             },
-            
             // Focus Variants Examples
             NodeSpec {
                 class: "text-bold".into(),
                 text: Some("🎨 Focus Variants:".into()),
                 children: vec![],
             },
-            
             NodeSpec {
                 class: "flex flex-row gap-4".into(),
                 text: None,
@@ -73,14 +69,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     },
                 ],
             },
-            
             // Accessibility Examples
             NodeSpec {
                 class: "text-bold".into(),
                 text: Some("♿ Accessibility Examples:".into()),
                 children: vec![],
             },
-            
             NodeSpec {
                 class: "flex flex-col gap-1".into(),
                 text: None,
@@ -107,14 +101,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     },
                 ],
             },
-            
             // Screen Reader Examples
             NodeSpec {
                 class: "text-bold".into(),
                 text: Some("👁️ Screen Reader Utilities:".into()),
                 children: vec![],
             },
-            
             NodeSpec {
                 class: "flex flex-row gap-4".into(),
                 text: None,
@@ -131,14 +123,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     },
                 ],
             },
-            
             // ARIA States Examples
             NodeSpec {
                 class: "text-bold".into(),
                 text: Some("🏷️ ARIA States:".into()),
                 children: vec![],
             },
-            
             NodeSpec {
                 class: "flex flex-col gap-1".into(),
                 text: None,
@@ -165,27 +155,23 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     },
                 ],
             },
-            
             // High Contrast Example
             NodeSpec {
                 class: "text-bold".into(),
                 text: Some("🔆 High Contrast Mode:".into()),
                 children: vec![],
             },
-            
             NodeSpec {
                 class: "high-contrast p-2".into(),
                 text: Some("High contrast text for better accessibility".into()),
                 children: vec![],
             },
-            
             // Tab Navigation Example
             NodeSpec {
                 class: "text-bold".into(),
                 text: Some("⌨️ Tab Navigation:".into()),
                 children: vec![],
             },
-            
             NodeSpec {
                 class: "flex flex-row gap-2".into(),
                 text: None,
@@ -214,13 +200,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let options = PaintOptions {
         debug_overlay: false,
     };
-    
+
     layout_and_paint_with(&root, &mut surface, 80, &options)?;
-    
+
     // Print the result to console for inspection
     println!("🎯 Focus & Accessibility Demo Results:");
     println!("======================================");
-    
+
     for y in 0..30 {
         for x in 0..80 {
             let cell = surface.get(x, y);
@@ -232,7 +218,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
         println!();
     }
-    
+
     println!("\n✅ Focus & Accessibility utilities are working!");
     println!("🎯 Focus Features:");
     println!("  - focus:* variants for conditional styling");
@@ -245,6 +231,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("  - tabindex-* for keyboard navigation");
     println!("  - sr-only/not-sr-only for screen reader control");
     println!("  - high-contrast mode support");
-    
+
     Ok(())
 }
