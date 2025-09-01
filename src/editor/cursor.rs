@@ -217,19 +217,32 @@ impl Default for Cursor {
 }
 
 /// Cursor movement commands
+/// Cursor movement directions and types
 #[derive(Debug, Clone, Copy)]
 pub enum Movement {
+    /// Move cursor one position left
     Left,
+    /// Move cursor one position right
     Right,
+    /// Move cursor one line up
     Up,
+    /// Move cursor one line down
     Down,
+    /// Move cursor to start of current line
     LineStart,
+    /// Move cursor to end of current line
     LineEnd,
+    /// Move cursor to start of document
     DocumentStart,
+    /// Move cursor to end of document
     DocumentEnd,
+    /// Move cursor forward by one word
     WordForward,
+    /// Move cursor backward by one word
     WordBackward,
+    /// Move cursor up by one page
     PageUp,
+    /// Move cursor down by one page
     PageDown,
 }
 

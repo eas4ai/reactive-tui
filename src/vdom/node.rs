@@ -215,13 +215,21 @@ impl Debug for VNode {
 /// Virtual element node (like HTML elements)
 #[derive(Clone)]
 pub struct VElement {
+    /// Element tag name (e.g., "div", "span")
     pub tag: String,
+    /// Unique key for efficient diffing and reconciliation
     pub key: VNodeKey,
+    /// HTML-like attributes (id, data-*, etc.)
     pub attrs: HashMap<String, String>,
+    /// Typed properties for component communication
     pub props: Arc<HashMap<String, Arc<dyn Any + Send + Sync>>>,
+    /// Child virtual nodes
     pub children: Vec<VNode>,
+    /// CSS class names
     pub class: Option<String>,
+    /// Inline style declarations
     pub style: Option<String>,
+    /// Event handler mappings
     pub event_handlers: EventHandlerMap,
 }
 
@@ -321,7 +329,9 @@ impl VElement {
 /// Virtual text node
 #[derive(Clone, Debug, PartialEq)]
 pub struct VText {
+    /// Text content to display
     pub content: String,
+    /// Unique key for this node
     pub key: VNodeKey,
 }
 
@@ -344,9 +354,13 @@ impl VText {
 /// Virtual component node
 #[derive(Clone)]
 pub struct VComponent {
+    /// Component type name
     pub name: String,
+    /// Unique key for this component instance
     pub key: VNodeKey,
+    /// Component properties (type-erased)
     pub props: Arc<dyn Any + Send + Sync>,
+    /// Child nodes of this component
     pub children: Vec<VNode>,
 }
 
@@ -404,7 +418,9 @@ impl Debug for VComponent {
 /// Virtual fragment node (invisible container)
 #[derive(Clone, Debug)]
 pub struct VFragment {
+    /// Unique key for this fragment
     pub key: VNodeKey,
+    /// Child nodes contained in this fragment
     pub children: Vec<VNode>,
 }
 

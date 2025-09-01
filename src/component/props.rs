@@ -28,9 +28,13 @@ impl Props for EmptyProps {
 /// Common props that many components might use
 #[derive(Clone, PartialEq, Debug)]
 pub struct CommonProps {
+    /// Unique identifier for the component
     pub id: Option<String>,
+    /// CSS class names for styling
     pub class: Option<String>,
+    /// Whether the component is visible
     pub visible: bool,
+    /// Whether the component can receive focus
     pub focusable: bool,
 }
 
@@ -54,7 +58,9 @@ impl Props for CommonProps {
 /// Props with children support
 #[derive(Clone, PartialEq, Debug)]
 pub struct PropsWithChildren<P: Props> {
+    /// The component's properties
     pub props: P,
+    /// Child elements to render inside this component
     pub children: Vec<crate::component::Element>,
 }
 

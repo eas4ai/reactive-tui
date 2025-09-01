@@ -16,12 +16,18 @@ pub enum CellType {
     Glyph {
         /// The grapheme cluster (may be multiple codepoints)
         grapheme: GraphemeCluster,
+        /// Foreground color
         fg: Rgba,
+        /// Background color
         bg: Rgba,
+        /// Text attributes (bold, italic, etc.)
         attr: Attr,
     },
     /// Empty cell that can be painted over
-    Spacer { bg: Rgba },
+    Spacer {
+        /// Background color for the empty cell
+        bg: Rgba
+    },
     /// Continuation cell for wide characters (cannot be painted)
     Void,
 }
@@ -257,11 +263,17 @@ impl GraphemeSurface {
 /// Represents a contiguous span of text with the same style
 #[derive(Clone, Debug, PartialEq)]
 pub struct Span {
+    /// Starting column position of the span
     pub start_col: usize,
+    /// Ending column position of the span (exclusive)
     pub end_col: usize,
+    /// Text content of the span
     pub text: String,
+    /// Foreground color for the text
     pub fg: Rgba,
+    /// Background color for the text
     pub bg: Rgba,
+    /// Text attributes (bold, italic, etc.)
     pub attr: Attr,
 }
 

@@ -1,8 +1,10 @@
 use crate::core::surface::Surface;
 use crate::error::{ReactiveError, Result};
 use taffy::style::Overflow;
+/// Options for controlling paint behavior
 #[derive(Default)]
 pub struct PaintOptions {
+    /// Whether to show debug overlay information
     pub debug_overlay: bool,
 }
 
@@ -21,9 +23,13 @@ use std::borrow::Cow;
 /// Padding values for a box (left, right, top, bottom)
 #[derive(Clone, Copy, Debug, Default)]
 struct Padding {
+    /// Left padding in pixels
     left: usize,
+    /// Right padding in pixels
     right: usize,
+    /// Top padding in pixels
     top: usize,
+    /// Bottom padding in pixels (currently unused)
     _bottom: usize,
 }
 
@@ -40,8 +46,11 @@ impl Padding {
 
 /// Minimal example: build a grid or flex tree from utility classes and paint text children.
 pub struct NodeSpec<'a> {
+    /// CSS utility classes for styling and layout
     pub class: Cow<'a, str>,
+    /// Optional text content for this node
     pub text: Option<Cow<'a, str>>,
+    /// Child node specifications
     pub children: Vec<NodeSpec<'a>>,
 }
 

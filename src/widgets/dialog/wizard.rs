@@ -21,21 +21,32 @@ type OnCompleteCallback = Arc<dyn Fn(&HashMap<String, String>) -> bool + Send + 
 /// Wizard step configuration
 #[derive(Clone)]
 pub struct WizardStep {
+    /// Unique identifier for this step
     pub id: String,
+    /// Display title for this step
     pub title: String,
+    /// UI content for this step
     pub content: Element,
+    /// Whether this step can be skipped
     pub can_skip: bool,
+    /// Optional validation function for this step
     pub validator: Option<StepValidator>,
 }
 
 /// Configuration options for wizard dialogs
 #[derive(Clone)]
 pub struct WizardDialogOptions {
+    /// Title displayed at the top of the wizard
     pub title: String,
+    /// Sequence of steps in the wizard
     pub steps: Vec<WizardStep>,
+    /// Whether to show progress indicator
     pub show_progress: bool,
+    /// Whether to allow going back to previous steps
     pub allow_back: bool,
+    /// Callback when wizard is completed
     pub on_complete: Option<OnCompleteCallback>,
+    /// Callback when wizard is cancelled
     pub on_cancel: Option<Arc<dyn Fn() + Send + Sync>>,
 }
 

@@ -5,8 +5,11 @@ use std::time::{Duration, Instant};
 /// Hover state for use_hover hook
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct HoverState {
+    /// Whether the element is currently being hovered
     pub is_hovered: bool,
+    /// When the hover state was entered
     pub entered_at: Option<Instant>,
+    /// Current mouse position over the element
     pub position: Option<Position>,
 }
 
@@ -41,11 +44,17 @@ pub fn use_hover(hooks: &Hooks) -> ThreadSafeSignal<HoverState> {
 /// Drag state for use_drag hook
 #[derive(Clone, Debug, PartialEq)]
 pub struct DragState {
+    /// Whether a drag operation is currently active
     pub is_dragging: bool,
+    /// Whether the dragged item is over a valid drop zone
     pub is_over_drop_zone: bool,
+    /// Position where the drag started
     pub drag_start: Option<Position>,
+    /// Current position during drag
     pub current_position: Option<Position>,
+    /// Delta from start position (x, y)
     pub drag_delta: (i32, i32),
+    /// Mouse button used for dragging
     pub button: MouseButton,
 }
 
@@ -117,9 +126,13 @@ pub fn use_drag(hooks: &Hooks) -> ThreadSafeSignal<DragState> {
 /// Options for use_drag_and_drop hook
 #[derive(Clone, Debug, PartialEq)]
 pub struct DragAndDropOptions {
+    /// Minimum distance to move before starting drag (in pixels)
     pub drag_threshold: f64,
+    /// Optional CSS selector for drag handle element
     pub drag_handle_selector: Option<String>,
+    /// List of valid drop zone identifiers
     pub drop_zones: Vec<String>,
+    /// Whether dragging outside drop zones is allowed
     pub allow_drag_outside: bool,
 }
 
@@ -315,19 +328,35 @@ pub struct GestureState {
     pub velocity: (f64, f64),
 }
 
+/// Type of mouse gesture detected
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum GestureType {
+    /// No gesture detected
     None,
+    /// Swipe gesture in a specific direction
     Swipe(SwipeDirection),
-    Pinch { scale: f64 },
-    Rotate { angle: f64 },
+    /// Pinch gesture with scale factor
+    Pinch {
+        /// Scale factor of the pinch
+        scale: f64
+    },
+    /// Rotation gesture with angle
+    Rotate {
+        /// Rotation angle in radians
+        angle: f64
+    },
 }
 
+/// Direction of a swipe gesture
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum SwipeDirection {
+    /// Swipe upward
     Up,
+    /// Swipe downward
     Down,
+    /// Swipe to the left
     Left,
+    /// Swipe to the right
     Right,
 }
 

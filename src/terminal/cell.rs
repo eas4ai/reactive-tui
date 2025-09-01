@@ -75,20 +75,34 @@ impl TerminalCell {
         self.character.trim().is_empty()
     }
 
+    /// Check if this cell contains a wide character
+    ///
+    /// # Returns
+    /// `true` if the character is wider than one terminal column
     pub fn is_wide(&self) -> bool {
         self.width > 1
     }
 
+    /// Check if this cell is a continuation of a wide character
+    ///
+    /// # Returns
+    /// `true` if this cell is part of a multi-column character but not the first column
     pub fn is_wide_continuation(&self) -> bool {
         self.width == 0 && !self.character.is_empty()
     }
 
+    /// Set a hyperlink for this cell
+    ///
+    /// # Arguments
+    /// * `url` - The URL to link to
+    /// * `id` - Optional hyperlink identifier
     pub fn set_hyperlink(&mut self, url: String, id: Option<String>) {
         self.hyperlink = Some(url);
         self.hyperlink_id = id;
         self.dirty = true;
     }
 
+    /// Clear any hyperlink from this cell
     pub fn clear_hyperlink(&mut self) {
         if self.hyperlink.is_some() || self.hyperlink_id.is_some() {
             self.hyperlink = None;
@@ -97,14 +111,20 @@ impl TerminalCell {
         }
     }
 
+    /// Mark this cell as clean (no longer needing redraw)
     pub fn mark_clean(&mut self) {
         self.dirty = false;
     }
 
+    /// Mark this cell as dirty (needing redraw)
     pub fn mark_dirty(&mut self) {
         self.dirty = true;
     }
 
+    /// Copy all properties from another terminal cell
+    ///
+    /// # Arguments
+    /// * `other` - The cell to copy properties from
     pub fn copy_from(&mut self, other: &TerminalCell) {
         self.character = other.character.clone();
         self.width = other.width;

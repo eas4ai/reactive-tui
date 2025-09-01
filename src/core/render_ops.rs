@@ -9,7 +9,12 @@ use super::surface::{Attr, Rgba};
 #[derive(Debug, Clone, PartialEq)]
 pub enum RenderOp {
     /// Move cursor to absolute position (0-based)
-    MoveTo { x: u16, y: u16 },
+    MoveTo {
+        /// X coordinate (column)
+        x: u16,
+        /// Y coordinate (row)
+        y: u16
+    },
 
     /// Set foreground color
     SetFgColor(Rgba),
@@ -28,10 +33,15 @@ pub enum RenderOp {
 
     /// Clear a rectangular area with optional background color
     ClearArea {
+        /// X coordinate of top-left corner
         x: u16,
+        /// Y coordinate of top-left corner
         y: u16,
+        /// Width of the area to clear
         width: u16,
+        /// Height of the area to clear
         height: u16,
+        /// Optional background color to fill with
         bg: Option<Rgba>,
     },
 

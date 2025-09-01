@@ -193,9 +193,13 @@ impl SpanDiffWriter {
 
 /// Compute statistics about a diff for debugging/optimization
 pub struct DiffStats {
+    /// Total bytes written to output
     pub bytes_written: usize,
+    /// Number of text spans written
     pub spans_written: usize,
+    /// Number of rows that changed
     pub rows_changed: usize,
+    /// Number of style change operations
     pub style_changes: usize,
 }
 

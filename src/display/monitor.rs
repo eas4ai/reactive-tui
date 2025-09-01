@@ -82,11 +82,16 @@ impl Default for PerformanceMonitor {
     }
 }
 
+/// Performance metrics for display monitoring
 #[derive(Debug, Clone, PartialEq)]
 pub struct PerformanceMetrics {
+    /// Current frames per second
     pub current_fps: f32,
+    /// Average render time in milliseconds
     pub avg_render_time_ms: f32,
+    /// Frame drop rate as percentage
     pub drop_rate_percent: f32,
+    /// Whether performance is stable
     pub is_stable: bool,
 }
 

@@ -22,11 +22,17 @@ pub trait EventTrait: Clone + Send + Sync {
 /// Main event enum containing all possible events
 #[derive(Clone, Debug)]
 pub enum Event {
+    /// Keyboard input event
     Key(KeyEvent),
+    /// Mouse input event
     Mouse(MouseEvent),
+    /// Terminal resize event
     Resize(ResizeEvent),
+    /// Focus change event
     Focus(FocusEvent),
+    /// Text paste event
     Paste(PasteEvent),
+    /// Custom application-defined event
     Custom(CustomEvent),
 }
 
@@ -57,10 +63,15 @@ impl Event {
 /// Keyboard event
 #[derive(Clone, Debug, PartialEq)]
 pub struct KeyEvent {
+    /// The key that was pressed
     pub code: KeyCode,
+    /// Modifier keys held during the event
     pub modifiers: KeyModifiers,
+    /// Type of key event (press, release, repeat)
     pub kind: KeyEventKind,
+    /// Whether this is a repeated key press
     pub repeat: bool,
+    /// When the event occurred
     pub timestamp: Instant,
 }
 
@@ -194,10 +205,14 @@ pub enum KeyCode {
 /// Keyboard modifiers
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct KeyModifiers {
+    /// Whether Shift key is pressed
     pub shift: bool,
+    /// Whether Ctrl key is pressed
     pub ctrl: bool,
+    /// Whether Alt key is pressed
     pub alt: bool,
-    pub meta: bool, // Super/Windows/Command key
+    /// Whether Meta key is pressed (Super/Windows/Command key)
+    pub meta: bool,
 }
 
 impl KeyModifiers {
@@ -315,28 +330,55 @@ impl MouseEvent {
     }
 }
 
+/// Type of mouse event
+///
+/// Represents different kinds of mouse interactions that can occur
+/// in the terminal. These events capture button presses, movement,
+/// and wheel scrolling.
 #[derive(Clone, Debug, PartialEq)]
 pub enum MouseEventKind {
+    /// Mouse button was pressed down
     Down,
+    /// Mouse button was released
     Up,
+    /// Single click (press and release)
     Click,
+    /// Double click detected
     DoubleClick,
+    /// Triple click detected
     TripleClick,
+    /// Mouse cursor moved without buttons pressed
     Move,
+    /// Mouse moved while button held (dragging)
     Drag,
+    /// Mouse cursor entered the terminal window
     Enter,
+    /// Mouse cursor left the terminal window
     Leave,
+    /// Mouse wheel was scrolled
     Wheel,
 }
 
+/// Mouse button identifier
+///
+/// Represents which mouse button is involved in an event.
+/// Supports standard buttons plus extended buttons for
+/// mice with additional controls.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum MouseButton {
+    /// No button or button released
     None,
+    /// Primary (left) mouse button
     Left,
+    /// Secondary (right) mouse button  
     Right,
+    /// Middle mouse button (wheel click)
     Middle,
-    Back,    // Button 4
-    Forward, // Button 5
+    /// Back/previous button (button 4)
+    Back,
+    /// Forward/next button (button 5)
+    Forward,
+    /// Other numbered button
     Other(u8),
 }
 
@@ -344,20 +386,50 @@ pub enum MouseButton {
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Position {
     /// Position in terminal cells (column, row)
-    Cell { x: u16, y: u16 },
+    Cell {
+        /// Column position (0-based)
+        x: u16,
+        /// Row position (0-based)
+        y: u16
+    },
     /// Position in pixels (for terminals that support pixel-level mouse)
-    Pixel { x: u32, y: u32 },
+    Pixel {
+        /// X coordinate in pixels
+        x: u32,
+        /// Y coordinate in pixels
+        y: u32
+    },
 }
 
 impl Position {
+    /// Create a cell-based position
+    ///
+    /// # Arguments
+    /// * `x` - Column position
+    /// * `y` - Row position
+    ///
+    /// # Returns
+    /// A `Position::Cell` variant
     pub fn cell(x: u16, y: u16) -> Self {
         Position::Cell { x, y }
     }
 
+    /// Create a pixel-based position
+    ///
+    /// # Arguments
+    /// * `x` - Horizontal pixel position
+    /// * `y` - Vertical pixel position
+    ///
+    /// # Returns
+    /// A `Position::Pixel` variant
     pub fn pixel(x: u32, y: u32) -> Self {
         Position::Pixel { x, y }
     }
 
+    /// Get the x coordinate as a u32
+    ///
+    /// # Returns
+    /// The x coordinate, converted to u32 if needed
     pub fn x(&self) -> u32 {
         match self {
             Position::Cell { x, .. } => *x as u32,
@@ -365,6 +437,10 @@ impl Position {
         }
     }
 
+    /// Get the y coordinate as a u32
+    ///
+    /// # Returns
+    /// The y coordinate, converted to u32 if needed
     pub fn y(&self) -> u32 {
         match self {
             Position::Cell { y, .. } => *y as u32,
@@ -374,36 +450,81 @@ impl Position {
 }
 
 /// Mouse wheel event information
+///
+/// Contains details about a mouse wheel scrolling event,
+/// including the scroll amount and the phase of the gesture.
 #[derive(Clone, Debug, PartialEq)]
 pub struct WheelEvent {
+    /// Amount and direction of scrolling
     pub delta: WheelDelta,
+    /// Current phase of the scroll gesture
     pub phase: WheelPhase,
 }
 
+/// Mouse wheel scrolling delta
+///
+/// Represents the amount and type of scrolling that occurred.
+/// Different terminals and platforms may report wheel events
+/// in lines or pixels.
 #[derive(Clone, Debug, PartialEq)]
 pub enum WheelDelta {
-    Lines { x: f32, y: f32 },
-    Pixels { x: f32, y: f32 },
+    /// Scrolling measured in text lines
+    Lines { 
+        /// Horizontal scroll amount (negative = left, positive = right)
+        x: f32, 
+        /// Vertical scroll amount (negative = up, positive = down)
+        y: f32 
+    },
+    /// Scrolling measured in pixels
+    Pixels { 
+        /// Horizontal scroll amount in pixels
+        x: f32, 
+        /// Vertical scroll amount in pixels
+        y: f32 
+    },
 }
 
+/// Mouse wheel scrolling phase
+///
+/// Tracks the lifecycle of a scrolling gesture, particularly
+/// useful for trackpad scrolling which has distinct phases.
 #[derive(Clone, Debug, PartialEq)]
 pub enum WheelPhase {
+    /// Scrolling gesture has started
     Started,
+    /// Scrolling is ongoing
     Changed,
+    /// Scrolling gesture has ended
     Ended,
 }
 
 /// Terminal resize event
+///
+/// Fired when the terminal window is resized. Contains both
+/// character cell dimensions and optional pixel dimensions.
 #[derive(Clone, Debug, PartialEq)]
 pub struct ResizeEvent {
+    /// New width in character cells
     pub width: u16,
+    /// New height in character cells
     pub height: u16,
+    /// New width in pixels (if supported)
     pub pixel_width: Option<u32>,
+    /// New height in pixels (if supported)
     pub pixel_height: Option<u32>,
+    /// When the resize occurred
     pub timestamp: Instant,
 }
 
 impl ResizeEvent {
+    /// Create a new resize event with character cell dimensions
+    ///
+    /// # Arguments
+    /// * `width` - New width in character cells
+    /// * `height` - New height in character cells
+    ///
+    /// # Returns
+    /// A new `ResizeEvent` with the current timestamp
     pub fn new(width: u16, height: u16) -> Self {
         Self {
             width,
@@ -414,6 +535,14 @@ impl ResizeEvent {
         }
     }
 
+    /// Add pixel dimensions to the resize event
+    ///
+    /// # Arguments
+    /// * `pixel_width` - Width in pixels
+    /// * `pixel_height` - Height in pixels
+    ///
+    /// # Returns
+    /// Self for method chaining
     pub fn with_pixels(mut self, pixel_width: u32, pixel_height: u32) -> Self {
         self.pixel_width = Some(pixel_width);
         self.pixel_height = Some(pixel_height);
@@ -422,30 +551,54 @@ impl ResizeEvent {
 }
 
 /// Focus event
+///
+/// Represents changes in focus state for the terminal window
+/// or UI elements within the application.
 #[derive(Clone, Debug, PartialEq)]
 pub struct FocusEvent {
+    /// Type of focus change
     pub kind: FocusEventKind,
+    /// When the focus change occurred
     pub timestamp: Instant,
 }
 
+/// Type of focus change
+///
+/// Distinguishes between different kinds of focus events,
+/// including gaining/losing focus and navigation between elements.
 #[derive(Clone, Debug, PartialEq)]
 pub enum FocusEventKind {
+    /// Terminal window or element gained focus
     Gained,
+    /// Terminal window or element lost focus
     Lost,
-    /// Focus moved to next element
+    /// Focus moved to next element (Tab navigation)
     Next,
-    /// Focus moved to previous element
+    /// Focus moved to previous element (Shift+Tab navigation)
     Previous,
 }
 
 /// Paste event for bracketed paste mode
+///
+/// Fired when text is pasted into the terminal while
+/// bracketed paste mode is enabled. This allows proper
+/// handling of multi-line pastes.
 #[derive(Clone, Debug, PartialEq)]
 pub struct PasteEvent {
+    /// The pasted text content
     pub content: String,
+    /// When the paste occurred
     pub timestamp: Instant,
 }
 
 impl PasteEvent {
+    /// Create a new paste event
+    ///
+    /// # Arguments
+    /// * `content` - The pasted text
+    ///
+    /// # Returns
+    /// A new `PasteEvent` with the current timestamp
     pub fn new(content: String) -> Self {
         Self {
             content,

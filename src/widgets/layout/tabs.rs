@@ -137,32 +137,47 @@ pub enum TabVariant {
     Unstyled, // No decoration
 }
 
+/// Tab size variants
 #[derive(Clone, Debug, PartialEq)]
 pub enum TabSize {
+    /// Small tab size
     Small,
+    /// Medium tab size (default)
     Medium,
+    /// Large tab size
     Large,
 }
 
+/// Position of tabs relative to content
 #[derive(Clone, Debug, PartialEq)]
 pub enum TabPosition {
+    /// Tabs positioned at the top
     Top,
+    /// Tabs positioned at the bottom
     Bottom,
+    /// Tabs positioned on the left side
     Left,
+    /// Tabs positioned on the right side
     Right,
 }
 
+/// How tabs are activated via keyboard
 #[derive(Clone, Debug, PartialEq)]
 pub enum TabKeyboardActivation {
-    Automatic, // Activate on focus
-    Manual,    // Activate on Enter/Space
+    /// Activate tab immediately when focused
+    Automatic,
+    /// Activate tab only on Enter/Space key press
+    Manual,
 }
 
 /// State for Tabs component
 #[derive(Clone, Debug, Default)]
 pub struct TabsState {
+    /// Index of the currently focused tab
     pub focused_tab: Option<usize>,
+    /// Index of the tab currently being hovered over
     pub hover_tab: Option<usize>,
+    /// Whether the tabs component has focus
     pub is_focused: bool,
 }
 

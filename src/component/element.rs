@@ -37,11 +37,16 @@ pub enum LayoutType {
 }
 
 /// Represents an element in the render tree
+/// Core element structure for the component system
 #[derive(Clone)]
 pub struct Element {
+    /// Type of element (text, component, etc.)
     pub element_type: ElementType,
+    /// Type-erased properties for the element
     pub props: Arc<dyn Any + Send + Sync>,
+    /// Child elements
     pub children: Vec<Element>,
+    /// Optional unique key for efficient diffing
     pub key: Option<String>,
     /// Optional utility-css style class (e.g., "flex flex-row p-2")
     pub class: Option<String>,

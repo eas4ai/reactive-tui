@@ -1,10 +1,15 @@
 use crate::core::surface::{Attr, Rgba, Surface};
 use crate::layout::style::StyleBuilder;
 
+/// Style configuration for painting text and elements
 pub struct PaintStyle {
+    /// Foreground color for text
     pub fg: Rgba,
+    /// Background color for elements
     pub bg: Rgba,
+    /// Text attributes (bold, italic, underline, etc.)
     pub attr: Attr,
+    /// Whether text should have strikethrough
     pub strike: bool,
 }
 
@@ -29,6 +34,7 @@ impl Default for PaintStyle {
     }
 }
 
+/// Extract paint style information from a style builder
 pub fn extract_paint_style(sb: &mut StyleBuilder) -> Option<PaintStyle> {
     if let Some(visual_style) = sb.take_visuals() {
         let fg = visual_style.fg;

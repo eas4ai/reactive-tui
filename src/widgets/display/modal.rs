@@ -863,14 +863,26 @@ impl ModalButton {
         Self::new("cancel", "Cancel", ModalButtonAction::Cancel)
     }
 
+    /// Create a "Close" button for dialogs
+    ///
+    /// # Returns
+    /// A `ModalButton` configured as a close button
     pub fn close() -> Self {
         Self::new("close", "Close", ModalButtonAction::Close)
     }
 
+    /// Create a "Yes" button for confirmation dialogs
+    ///
+    /// # Returns
+    /// A `ModalButton` configured as a confirmation button
     pub fn yes() -> Self {
         Self::new("yes", "Yes", ModalButtonAction::Confirm)
     }
 
+    /// Create a "No" button for confirmation dialogs
+    ///
+    /// # Returns
+    /// A `ModalButton` configured as a cancel button
     pub fn no() -> Self {
         Self::new("no", "No", ModalButtonAction::Cancel)
     }

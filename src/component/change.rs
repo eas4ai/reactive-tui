@@ -15,27 +15,44 @@ pub enum Change {
 
     /// Clear a specific region
     ClearRegion {
+        /// X coordinate of the region
         x: u16,
+        /// Y coordinate of the region
         y: u16,
+        /// Width of the region to clear
         width: u16,
+        /// Height of the region to clear
         height: u16,
     },
 
     /// Move cursor to position
-    MoveTo { x: u16, y: u16 },
+    MoveTo {
+        /// X coordinate to move to
+        x: u16,
+        /// Y coordinate to move to
+        y: u16
+    },
 
     /// Write text at current cursor position
     WriteText(String),
 
     /// Write styled text
     WriteStyledText {
+        /// Text content to write
         text: String,
+        /// Optional foreground color
         fg: Option<Rgba>,
+        /// Optional background color
         bg: Option<Rgba>,
+        /// Whether text should be bold
         bold: bool,
+        /// Whether text should be italic
         italic: bool,
+        /// Whether text should be underlined
         underline: bool,
+        /// Whether text should have strikethrough
         strike: bool,
+        /// Whether colors should be reversed
         reverse: bool,
     },
 
@@ -55,7 +72,12 @@ pub enum Change {
     DisableAttribute(TextAttribute),
 
     /// Push a scroll region
-    PushScrollRegion { top: u16, bottom: u16 },
+    PushScrollRegion {
+        /// Top row of the scroll region
+        top: u16,
+        /// Bottom row of the scroll region
+        bottom: u16
+    },
 
     /// Pop the scroll region
     PopScrollRegion,

@@ -15,35 +15,59 @@ pub enum ReactiveError {
 
     /// Invalid parameter provided to function
     #[error("Invalid parameter: {message}")]
-    InvalidParameter { message: String },
+    InvalidParameter {
+        /// Description of the invalid parameter
+        message: String
+    },
 
     /// Invalid state for the requested operation
     #[error("Invalid state: {message}")]
-    InvalidState { message: String },
+    InvalidState {
+        /// Description of the invalid state
+        message: String
+    },
 
     /// Resource allocation or management error
     #[error("Resource error: {message}")]
-    Resource { message: String },
+    Resource {
+        /// Description of the resource error
+        message: String
+    },
 
     /// Terminal-related error
     #[error("Terminal error: {message}")]
-    Terminal { message: String },
+    Terminal {
+        /// Description of the terminal error
+        message: String
+    },
 
     /// Configuration or parsing error
     #[error("Configuration error: {message}")]
-    Config { message: String },
+    Config {
+        /// Description of the configuration error
+        message: String
+    },
 
     /// Component-related error
     #[error("Component error: {message}")]
-    Component { message: String },
+    Component {
+        /// Description of the component error
+        message: String
+    },
 
     /// Layout or rendering error
     #[error("Layout error: {message}")]
-    Layout { message: String },
+    Layout {
+        /// Description of the layout error
+        message: String
+    },
 
     /// Animation system error
     #[error("Animation error: {message}")]
-    Animation { message: String },
+    Animation {
+        /// Description of the animation error
+        message: String
+    },
 
     /// Image processing or rendering error
     #[error("Image processing error: {0}")]
@@ -55,7 +79,10 @@ pub enum ReactiveError {
 
     /// Internal library error (should not happen in normal usage)
     #[error("Internal error: {message}")]
-    Internal { message: String },
+    Internal {
+        /// Description of the internal error
+        message: String
+    },
 }
 
 /// Convenient Result type alias

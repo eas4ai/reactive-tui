@@ -5,7 +5,9 @@ use std::ops::{Add, Sub};
 /// A point in 2D space with usize coordinates
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub struct Point {
+    /// X coordinate (horizontal position)
     pub x: usize,
+    /// Y coordinate (vertical position)
     pub y: usize,
 }
 
@@ -69,7 +71,9 @@ impl Add<Size> for Point {
 /// Size in 2D space
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub struct Size {
+    /// Width in units
     pub width: usize,
+    /// Height in units
     pub height: usize,
 }
 
@@ -166,7 +170,9 @@ impl Sub for Size {
 /// A rectangle defined by position and size
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub struct Rect {
+    /// Top-left corner position of the rectangle
     pub origin: Point,
+    /// Width and height of the rectangle
     pub size: Size,
 }
 

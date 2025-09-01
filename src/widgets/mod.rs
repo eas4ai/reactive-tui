@@ -1,7 +1,23 @@
+//! Widget library for reactive-tui
+//!
+//! This module provides a comprehensive collection of pre-built UI components
+//! for building terminal applications. The widgets are organized into categories:
+//!
+//! - **dialog**: Modal dialogs, toasts, and interactive prompts
+//! - **display**: Data visualization and content display widgets
+//! - **input**: Form controls and user input widgets
+//! - **layout**: Container and layout management widgets
+//! - **terminal**: Terminal emulator widget with PTY support
+
+/// Dialog system for modal interactions and notifications
 pub mod dialog;
+/// Display widgets for data visualization and content
 pub mod display;
+/// Input widgets for forms and user interaction
 pub mod input;
+/// Layout widgets for organizing UI components
 pub mod layout;
+/// Terminal emulator widget with PTY support
 pub mod terminal;
 
 // Re-export all dialog components and their types

@@ -8,43 +8,75 @@ use std::sync::Arc;
 pub enum Patch {
     /// Replace a node entirely
     Replace {
+        /// Index of the node to replace
         index: usize,
+        /// The old node being replaced
         old: VNode,
+        /// The new node to replace with
         new: VNode,
     },
 
     /// Insert a new node
     Insert {
+        /// Index where to insert the node
         index: usize,
+        /// Index of the parent node
         parent: usize,
+        /// The node to insert
         node: VNode,
     },
 
     /// Remove a node
-    Remove { index: usize, parent: usize },
+    Remove {
+        /// Index of the node to remove
+        index: usize,
+        /// Index of the parent node
+        parent: usize
+    },
 
     /// Move a node to a different position
     Move {
+        /// Current index of the node
         from: usize,
+        /// Target index for the node
         to: usize,
+        /// Index of the parent node
         parent: usize,
     },
 
     /// Update text content
-    SetText { index: usize, text: String },
+    SetText {
+        /// Index of the node to update
+        index: usize,
+        /// New text content
+        text: String
+    },
 
     /// Set an attribute
     SetAttribute {
+        /// Index of the node to update
         index: usize,
+        /// Attribute name
         name: String,
+        /// Attribute value
         value: String,
     },
 
     /// Remove an attribute
-    RemoveAttribute { index: usize, name: String },
+    RemoveAttribute {
+        /// Index of the node to update
+        index: usize,
+        /// Attribute name to remove
+        name: String
+    },
 
     /// Set the class
-    SetClass { index: usize, class: Option<String> },
+    SetClass {
+        /// Index of the node to update
+        index: usize,
+        /// New class name (None to remove)
+        class: Option<String>
+    },
 
     /// Set the style
     SetStyle { index: usize, style: Option<String> },

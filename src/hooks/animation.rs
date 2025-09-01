@@ -284,9 +284,13 @@ impl<T: AnimatableValue> AnimationHandle<T> {
 /// Configuration for animations
 #[derive(Clone, Debug)]
 pub struct AnimationConfig {
+    /// Duration of the animation
     pub duration: Duration,
+    /// Easing function to use for interpolation
     pub easing: EasingFunction,
+    /// Number of times to loop (None for infinite)
     pub loop_count: Option<u32>,
+    /// Behavior when looping
     pub loop_behavior: LoopMode,
 }
 
@@ -555,8 +559,11 @@ pub fn use_transition<T: AnimatableValue>(hooks: &Hooks, state: T, config: Trans
 /// Configuration for transitions
 #[derive(Clone, Debug)]
 pub struct TransitionConfig {
+    /// Duration of the transition
     pub duration: Duration,
+    /// Easing function for the transition
     pub easing: EasingFunction,
+    /// Delay before starting the transition
     pub delay: Duration,
 }
 

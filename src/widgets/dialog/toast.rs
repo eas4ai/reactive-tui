@@ -26,11 +26,17 @@ pub enum ToastType {
 /// Configuration options for toast notifications
 #[derive(Clone)]
 pub struct ToastOptions {
+    /// Text message to display in the toast
     pub message: String,
+    /// Type of toast (info, warning, error, success)
     pub toast_type: ToastType,
+    /// How long to show the toast (None for persistent)
     pub duration: Option<Duration>,
+    /// Where to position the toast on screen
     pub position: ToastPosition,
+    /// Whether user can manually close the toast
     pub closable: bool,
+    /// Optional callback when toast is closed
     pub on_close: Option<Arc<dyn Fn() + Send + Sync>>,
 }
 
@@ -50,11 +56,17 @@ impl std::fmt::Debug for ToastOptions {
 /// Toast positioning options
 #[derive(Debug, Clone, PartialEq)]
 pub enum ToastPosition {
+    /// Position toast at top-left corner
     TopLeft,
+    /// Position toast at top-center
     TopCenter,
+    /// Position toast at top-right corner
     TopRight,
+    /// Position toast at bottom-left corner
     BottomLeft,
+    /// Position toast at bottom-center
     BottomCenter,
+    /// Position toast at bottom-right corner
     BottomRight,
 }
 

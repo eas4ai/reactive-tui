@@ -137,16 +137,27 @@ impl EditCommand {
 /// State for TextInput component
 #[derive(Clone, Debug)]
 pub struct TextInputState {
+    /// Current cursor position in the text
     pub cursor: CursorPosition,
+    /// Current text selection, if any
     pub selection: Option<Selection>,
+    /// Whether the input currently has focus
     pub is_focused: bool,
+    /// Whether the current input value is valid
     pub is_valid: bool,
+    /// Horizontal scroll offset for long text
     pub scroll_offset_x: usize,
+    /// Vertical scroll offset for multi-line text
     pub scroll_offset_y: usize,
+    /// Stack of edit commands for undo functionality
     pub undo_stack: VecDeque<EditCommand>,
+    /// Stack of edit commands for redo functionality
     pub redo_stack: VecDeque<EditCommand>,
+    /// Currently highlighted suggestion index
     pub suggestion_index: Option<usize>,
+    /// Whether to show the suggestions dropdown
     pub show_suggestions: bool,
+    /// Text content split into lines (for multi-line mode)
     pub lines: Vec<String>,
 }
 

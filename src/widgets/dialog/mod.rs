@@ -113,21 +113,32 @@ pub struct DialogTheme {
 /// Animation types for dialogs
 #[derive(Debug, Clone, PartialEq)]
 pub enum DialogAnimation {
+    /// No animation
     None,
+    /// Fade in/out animation
     Fade,
+    /// Slide animation with direction
     Slide(SlideDirection),
+    /// Scale animation from center
     Scale,
+    /// Bounce animation effect
     Bounce,
+    /// Custom animation name
     Custom(String),
 }
 
 /// Slide animation directions
 #[derive(Debug, Clone, PartialEq)]
 pub enum SlideDirection {
+    /// Slide from/to top
     Up,
+    /// Slide from/to bottom
     Down,
+    /// Slide from/to left
     Left,
+    /// Slide from/to right
     Right,
+    /// Expand from/to center
     Center,
 }
 
@@ -164,12 +175,19 @@ pub struct FocusableElement {
 /// Types of focusable elements
 #[derive(Debug, Clone, PartialEq)]
 pub enum FocusableElementType {
+    /// Button element
     Button,
+    /// Text input field
     Input,
+    /// Checkbox control
     Checkbox,
+    /// Radio button
     Radio,
+    /// Select dropdown
     Select,
+    /// Clickable link
     Link,
+    /// Custom element type
     Custom(String),
 }
 

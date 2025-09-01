@@ -61,26 +61,45 @@ impl GridScalar {
 /// Grid area definition with name and positioning
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GridArea {
+    /// Name identifier for the grid area
     pub name: String,
+    /// Starting row position (0-based)
     pub row: usize,
+    /// Starting column position (0-based)
     pub col: usize,
+    /// Number of rows this area spans
     pub row_span: usize,
+    /// Number of columns this area spans
     pub col_span: usize,
+    /// Optional CSS class for styling
     pub css_class: Option<String>,
+    /// Z-index for layering (higher values appear on top)
     pub z_index: i32,
 }
 
 /// Grid child with Element content (for component-style usage)
 #[derive(Debug, Clone)]
 pub struct GridChild {
+    /// The element to render in this grid cell
     pub element: crate::component::Element,
+    /// Starting row position (0-based)
     pub row: usize,
+    /// Starting column position (0-based)
     pub column: usize,
+    /// Number of rows this child spans
     pub row_span: usize,
+    /// Number of columns this child spans
     pub column_span: usize,
 }
 
 impl GridArea {
+    /// Create a new grid area with the specified name
+    ///
+    /// # Arguments
+    /// * `name` - Name identifier for this grid area
+    ///
+    /// # Returns
+    /// A new `GridArea` positioned at (0,0) with 1x1 span
     pub fn new(name: impl Into<String>) -> Self {
         Self {
             name: name.into(),
@@ -93,23 +112,53 @@ impl GridArea {
         }
     }
 
+    /// Set the position of this grid area
+    ///
+    /// # Arguments
+    /// * `row` - Starting row position (0-based)
+    /// * `col` - Starting column position (0-based)
+    ///
+    /// # Returns
+    /// Self for method chaining
     pub fn at(mut self, row: usize, col: usize) -> Self {
         self.row = row;
         self.col = col;
         self
     }
 
+    /// Set the span (size) of this grid area
+    ///
+    /// # Arguments
+    /// * `row_span` - Number of rows to span
+    /// * `col_span` - Number of columns to span
+    ///
+    /// # Returns
+    /// Self for method chaining
     pub fn span(mut self, row_span: usize, col_span: usize) -> Self {
         self.row_span = row_span;
         self.col_span = col_span;
         self
     }
 
+    /// Set the CSS class for styling this grid area
+    ///
+    /// # Arguments
+    /// * `css_class` - CSS class name to apply
+    ///
+    /// # Returns
+    /// Self for method chaining
     pub fn class(mut self, css_class: impl Into<String>) -> Self {
         self.css_class = Some(css_class.into());
         self
     }
 
+    /// Set the z-index for layering
+    ///
+    /// # Arguments
+    /// * `z_index` - Z-index value (higher values appear on top)
+    ///
+    /// # Returns
+    /// Self for method chaining
     pub fn z(mut self, z_index: i32) -> Self {
         self.z_index = z_index;
         self
@@ -119,11 +168,17 @@ impl GridArea {
 /// Declarative grid layout builder
 #[derive(Debug, Clone)]
 pub struct DeclarativeGrid {
+    /// Number of columns in the grid
     pub cols: usize,
+    /// Number of rows in the grid
     pub rows: usize,
+    /// Gap between grid cells
     pub gap: usize,
+    /// Named grid areas for positioning
     pub areas: Vec<GridArea>,
-    pub area_map: HashMap<String, usize>, // name -> index in areas
+    /// Mapping from area names to indices in areas vector
+    pub area_map: HashMap<String, usize>,
+    /// Optional CSS class for styling
     pub css_class: Option<String>,
     /// Column sizing (if None, uses equal fr units)
     pub column_sizes: Option<Vec<GridScalar>>,

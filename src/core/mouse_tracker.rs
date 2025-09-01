@@ -84,14 +84,20 @@ pub struct MouseStats {
     /// Total events processed
     pub events_processed: u64,
     /// Events by type
+    /// Number of click events processed
     pub click_events: u64,
+    /// Number of mouse move events processed
     pub move_events: u64,
+    /// Number of drag events processed
     pub drag_events: u64,
+    /// Number of wheel scroll events processed
     pub wheel_events: u64,
     /// Performance metrics
     pub avg_processing_time_us: f32,
     /// Error counts
+    /// Number of event parsing errors
     pub parse_errors: u64,
+    /// Number of capability detection errors
     pub capability_errors: u64,
 }
 

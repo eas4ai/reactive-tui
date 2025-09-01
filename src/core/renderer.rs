@@ -5,14 +5,20 @@ use crate::core::terminal::Terminal;
 use crate::error::{ReactiveError, Result};
 use std::time::Instant;
 
+/// Statistics for a single frame render
 #[derive(Debug, Default, Clone, Copy)]
 pub struct FrameStats {
+    /// Total bytes written to terminal
     pub bytes_written: usize,
+    /// Number of text spans written
     pub spans_written: usize,
+    /// Number of rows that changed
     pub rows_changed: usize,
+    /// Frame render time in milliseconds
     pub frame_ms: f32,
 }
 
+/// Double-buffered terminal renderer with diff-based updates
 pub struct Renderer {
     term: Terminal,
     front: Surface,
@@ -38,6 +44,7 @@ impl Drop for Renderer {
 }
 
 impl Renderer {
+    /// Create a new renderer with specified dimensions
     pub fn new(width: usize, height: usize) -> Result<Self> {
         if width == 0 || height == 0 {
             return Err(ReactiveError::invalid_parameter(
@@ -68,6 +75,7 @@ impl Renderer {
         Self::new(size.width, size.height)
     }
 
+    /// Resize the renderer to new dimensions
     pub fn resize(&mut self, width: usize, height: usize) {
         self.front.reinit(width, height);
         self.back.reinit(width, height);
@@ -133,20 +141,24 @@ impl Renderer {
         self.resize(size.width, size.height);
     }
 
+    /// Clear the back buffer with a solid color
     pub fn clear(&mut self, color: Rgba) {
         self.back.clear(color);
     }
 
+    /// Enable or disable debug overlay
     pub fn set_debug_overlay(&mut self, enabled: bool) {
         self.debug_overlay = enabled;
     }
 
+    /// Begin a new rendering frame
     pub fn begin_frame(&mut self) -> Result<()> {
         self.frame_start = Some(Instant::now());
         self.surface_start = Some(Instant::now());
         self.term.begin_sync()
     }
 
+    /// End the current frame and send updates to terminal
     pub fn end_frame(&mut self) -> Result<()> {
         let surface_time = self
             .surface_start
@@ -264,19 +276,23 @@ impl Renderer {
         self.term.end_sync()
     }
 
+    /// Shutdown the renderer and restore terminal state
     pub fn shutdown(mut self) -> Result<()> {
         // Ensure all buffered data is flushed before shutdown
         let _ = self.term.disable_buffered_mode();
         self.term.exit_modern_mode()
     }
 
+    /// Get statistics from the last rendered frame
     pub fn frame_stats(&self) -> FrameStats {
         self.last_stats
     }
 
+    /// Get a mutable reference to the back buffer surface
     pub fn surface_mut(&mut self) -> &mut Surface {
         &mut self.back
     }
+    /// Get a reference to the back buffer surface
     pub fn surface(&self) -> &Surface {
         &self.back
     }
@@ -292,6 +308,7 @@ impl Renderer {
         surface_size + diff_buffer_size + stats_size + 1024 // Base overhead
     }
 
+    /// Get the dimensions of the renderer
     pub fn dims(&self) -> (usize, usize) {
         self.back.dims()
     }

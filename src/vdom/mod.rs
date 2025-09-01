@@ -1,6 +1,15 @@
+//! Virtual DOM implementation for efficient UI updates
+//!
+//! This module provides a virtual DOM system for efficient diffing and patching
+//! of UI trees, enabling React-like declarative rendering with minimal updates.
+
+/// Bridge between virtual DOM and component system
 pub mod bridge;
+/// Virtual DOM diffing algorithm
 pub mod diff;
+/// Virtual DOM node types and structures
 pub mod node;
+/// Patch operations for updating the DOM
 pub mod patch;
 
 pub use diff::{diff_vnodes, DiffContext};

@@ -399,6 +399,10 @@ pub fn to_element<T: IntoElement>(item: T) -> Element {
 
 /// Trait for anything that can become an Element
 pub trait IntoElement {
+    /// Convert this item into an Element
+    ///
+    /// # Returns
+    /// An `Element` representation of this item
     fn into_element(self) -> Element;
 }
 
@@ -563,6 +567,14 @@ pub fn card(children: Vec<Element>) -> Element {
         .build()
 }
 
+/// Create a primary button with default styling
+///
+/// # Arguments
+/// * `text` - Button text to display
+/// * `onclick` - Click handler function
+///
+/// # Returns
+/// A styled primary button element
 pub fn primary_button<F>(text: &str, onclick: F) -> Element
 where
     F: Fn() + 'static,
@@ -574,6 +586,14 @@ where
         .build()
 }
 
+/// Create a horizontal flex container with specified gap
+///
+/// # Arguments
+/// * `gap` - Gap size between children (e.g., "2", "4", "8")
+/// * `children` - Child elements to arrange horizontally
+///
+/// # Returns
+/// A flex row container element
 pub fn flex_row(gap: &str, children: Vec<Element>) -> Element {
     div()
         .class(&format!("flex flex-row gap-{}", gap))
@@ -581,6 +601,14 @@ pub fn flex_row(gap: &str, children: Vec<Element>) -> Element {
         .build()
 }
 
+/// Create a vertical flex container with specified gap
+///
+/// # Arguments
+/// * `gap` - Gap size between children (e.g., "2", "4", "8")
+/// * `children` - Child elements to arrange vertically
+///
+/// # Returns
+/// A flex column container element
 pub fn flex_col(gap: &str, children: Vec<Element>) -> Element {
     div()
         .class(&format!("flex flex-col gap-{}", gap))
@@ -588,6 +616,15 @@ pub fn flex_col(gap: &str, children: Vec<Element>) -> Element {
         .build()
 }
 
+/// Create a CSS grid layout with specified columns and gap
+///
+/// # Arguments
+/// * `cols` - Number of columns in the grid
+/// * `gap` - Gap size between grid items (e.g., "2", "4", "8")
+/// * `children` - Child elements to arrange in the grid
+///
+/// # Returns
+/// A CSS grid container element
 pub fn grid_layout(cols: u8, gap: &str, children: Vec<Element>) -> Element {
     div()
         .class(&format!("grid grid-cols-{} gap-{}", cols, gap))
@@ -595,12 +632,26 @@ pub fn grid_layout(cols: u8, gap: &str, children: Vec<Element>) -> Element {
         .build()
 }
 
+/// Create a styled text input with placeholder
+///
+/// # Arguments
+/// * `placeholder` - Placeholder text to display
+///
+/// # Returns
+/// An `ElementBuilder` for a styled text input
 pub fn text_input(placeholder: &str) -> ElementBuilder {
     input()
         .class("px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500")
         .placeholder(placeholder)
 }
 
+/// Create a search input with search icon
+///
+/// # Arguments
+/// * `placeholder` - Placeholder text to display
+///
+/// # Returns
+/// A styled search input element with search icon
 pub fn search_input(placeholder: &str) -> Element {
     div()
         .class("relative")

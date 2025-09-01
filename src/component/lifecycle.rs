@@ -63,14 +63,17 @@ impl Default for Lifecycle {
 }
 
 impl Lifecycle {
+    /// Create a new lifecycle tracker
     pub fn new() -> Self {
         Self::default()
     }
 
+    /// Get the current lifecycle phase
     pub fn phase(&self) -> LifecyclePhase {
         self.phase
     }
 
+    /// Check if the component is currently mounted
     pub fn is_mounted(&self) -> bool {
         matches!(
             self.phase,
@@ -78,15 +81,18 @@ impl Lifecycle {
         )
     }
 
+    /// Begin the mounting phase
     pub fn mount(&mut self) {
         self.phase = LifecyclePhase::Mounting;
         self.mount_count += 1;
     }
 
+    /// Complete the mounting phase
     pub fn complete_mount(&mut self) {
         self.phase = LifecyclePhase::Mounted;
     }
 
+    /// Begin an update cycle
     pub fn begin_update(&mut self) {
         if self.is_mounted() {
             self.phase = LifecyclePhase::Updating;
@@ -94,24 +100,29 @@ impl Lifecycle {
         }
     }
 
+    /// Complete an update cycle
     pub fn complete_update(&mut self) {
         if self.phase == LifecyclePhase::Updating {
             self.phase = LifecyclePhase::Mounted;
         }
     }
 
+    /// Begin the unmounting phase
     pub fn unmount(&mut self) {
         self.phase = LifecyclePhase::Unmounting;
     }
 
+    /// Complete the unmounting phase
     pub fn complete_unmount(&mut self) {
         self.phase = LifecyclePhase::Unmounted;
     }
 
+    /// Get the number of times this component has been mounted
     pub fn mount_count(&self) -> usize {
         self.mount_count
     }
 
+    /// Get the number of times this component has been updated
     pub fn update_count(&self) -> usize {
         self.update_count
     }

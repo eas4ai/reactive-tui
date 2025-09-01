@@ -15,19 +15,27 @@ use std::os::windows::io::AsRawHandle;
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct TerminalCapabilities {
     // Core rendering
+    /// Color depth support level
     pub color_depth: ColorDepth,
+    /// Unicode character support
     pub unicode: bool,
 
     // Graphics protocols
+    /// Sixel graphics protocol support
     pub sixel: bool,
+    /// Kitty graphics protocol support
     pub kitty_graphics: bool,
+    /// iTerm2 graphics protocol support
     pub iterm2_graphics: bool,
 
     // Input enhancements
+    /// Enhanced keyboard protocol support
     pub enhanced_keyboard: bool,
+    /// Pixel-level mouse tracking support
     pub pixel_mouse: bool,
 
     // Performance features
+    /// Synchronized output support for flicker-free updates
     pub synchronized_output: bool,
 }
 

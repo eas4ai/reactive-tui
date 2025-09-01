@@ -33,13 +33,19 @@ pub enum EventPhase {
 
 /// Event handler registration
 pub struct EventHandler {
+    /// Unique identifier for this handler
     pub id: HandlerId,
+    /// Type of event this handler responds to
     pub event_type: String,
+    /// Phase of event propagation to handle
     pub phase: EventPhase,
+    /// The actual handler function
     pub handler: EventHandlerFn,
+    /// Priority for handler execution order (higher = earlier)
     pub priority: i32,
 }
 
+/// Unique identifier for event handlers
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct HandlerId(usize);
 
@@ -52,13 +58,19 @@ impl HandlerId {
 
 /// Node in the event routing tree
 pub struct EventNode {
+    /// Unique identifier for this node
     pub id: NodeId,
+    /// Parent node ID, if any
     pub parent: Option<NodeId>,
+    /// Child node IDs
     pub children: Vec<NodeId>,
+    /// Event handlers for bubble phase
     pub handlers: HashMap<String, Vec<EventHandler>>,
+    /// Event handlers for capture phase
     pub capture_handlers: HashMap<String, Vec<EventHandler>>,
 }
 
+/// Unique identifier for nodes in the event routing tree
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct NodeId(usize);
 

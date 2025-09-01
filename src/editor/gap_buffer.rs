@@ -11,7 +11,9 @@ use std::ops::Range;
 /// Text position as line and column
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct TextPosition {
+    /// Line number (0-based)
     pub line: usize,
+    /// Column number (0-based)
     pub column: usize,
 }
 

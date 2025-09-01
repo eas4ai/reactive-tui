@@ -16,11 +16,17 @@ use std::time::Duration;
 /// Configuration options for progress dialogs
 #[derive(Clone)]
 pub struct ProgressDialogOptions {
+    /// Title text displayed at the top of the dialog
     pub title: String,
+    /// Main message or description of the operation
     pub message: String,
+    /// Whether the user can cancel the operation
     pub cancellable: bool,
+    /// Whether to show percentage completion
     pub show_percentage: bool,
+    /// Whether to show estimated time remaining
     pub show_time_remaining: bool,
+    /// Optional callback function when user cancels
     pub on_cancel: Option<Arc<dyn Fn() + Send + Sync>>,
 }
 

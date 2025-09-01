@@ -1,3 +1,4 @@
+/// RGBA color representation with floating point components
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Rgba(pub f32, pub f32, pub f32, pub f32);
 
@@ -353,6 +354,7 @@ fn named(token: &str) -> Option<Rgba> {
     ))
 }
 
+/// Parse a color token from hex or named color to RGBA components
 pub fn parse_color_token(token: &str) -> Option<(f32, f32, f32, f32)> {
     if let Some(c) = hex_to_rgba(token) {
         return Some((c.0, c.1, c.2, c.3));

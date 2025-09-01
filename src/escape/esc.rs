@@ -77,29 +77,52 @@ pub enum ESCAction {
     Unknown(Vec<u8>),
 }
 
+/// Character set selection for terminal escape sequences
 #[derive(Debug, Clone, PartialEq)]
 pub enum Charset {
+    /// Standard ASCII character set
     ASCII,
+    /// DEC special graphics character set
     DecSpecialGraphics,
+    /// United Kingdom character set
     UnitedKingdom,
+    /// US alternate character set
     USAlternate,
+    /// DEC supplemental character set
     DecSupplemental,
+    /// DEC technical character set
     DecTechnical,
+    /// French character set
     French,
+    /// French Canadian character set
     FrenchCanadian,
+    /// German character set
     German,
+    /// Italian character set
     Italian,
+    /// Norwegian/Danish character set
     NorwegianDanish,
+    /// Portuguese character set
     Portuguese,
+    /// Spanish character set
     Spanish,
+    /// Swedish character set
     Swedish,
+    /// Swiss character set
     Swiss,
+    /// DEC Greek character set
     DecGreek,
+    /// DEC Hebrew character set
     DecHebrew,
+    /// DEC Turkish character set
     DecTurkish,
+    /// DEC Cyrillic character set
     DecCyrillic,
+    /// SCS DEC supplemental character set
     SCSDecSupplemental,
+    /// Dutch character set
     Dutch,
+    /// Finnish character set
     Finnish,
 }
 

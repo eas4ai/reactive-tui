@@ -101,18 +101,29 @@ pub enum DialogEventResult {
 pub enum AsyncRequestType {
     /// HTTP request for autocomplete suggestions
     AutocompleteSuggestions {
+        /// Search query string
         query: String,
+        /// URL endpoint for autocomplete API
         url: String,
+        /// Optional HTTP headers for the request
         headers: Option<std::collections::HashMap<String, String>>,
     },
     /// Validation request
     Validation {
+        /// Field name being validated
         field: String,
+        /// Value to validate
         value: String,
+        /// Optional URL for remote validation
         validator_url: Option<String>,
     },
     /// Custom async request
-    Custom { request_type: String, data: String },
+    Custom {
+        /// Type identifier for the custom request
+        request_type: String,
+        /// Request data payload
+        data: String
+    },
 }
 
 /// Dialog bounds and positioning information
@@ -151,8 +162,11 @@ pub enum DialogPosition {
     Fixed(Point),
     /// Relative to another element
     RelativeTo {
+        /// ID of the element to position relative to
         element_id: String,
+        /// Offset from the anchor point
         offset: Point,
+        /// Anchor point on the target element
         anchor: DialogAnchor,
     },
     /// Custom positioning function
@@ -214,23 +228,36 @@ impl PartialEq for DialogPosition {
 /// Anchor points for relative positioning
 #[derive(Debug, Clone, PartialEq)]
 pub enum DialogAnchor {
+    /// Anchor to the top-left corner
     TopLeft,
+    /// Anchor to the top center
     TopCenter,
+    /// Anchor to the top-right corner
     TopRight,
+    /// Anchor to the center-left edge
     CenterLeft,
+    /// Anchor to the center point
     Center,
+    /// Anchor to the center-right edge
     CenterRight,
+    /// Anchor to the bottom-left corner
     BottomLeft,
+    /// Anchor to the bottom center
     BottomCenter,
+    /// Anchor to the bottom-right corner
     BottomRight,
 }
 
 /// Dialog margin configuration
 #[derive(Debug, Clone)]
 pub struct DialogMargin {
+    /// Top margin in terminal cells
     pub top: u16,
+    /// Right margin in terminal cells
     pub right: u16,
+    /// Bottom margin in terminal cells
     pub bottom: u16,
+    /// Left margin in terminal cells
     pub left: u16,
 }
 
@@ -252,27 +279,44 @@ pub struct DialogAnimationConfig {
 /// Types of dialog animations
 #[derive(Debug, Clone, PartialEq)]
 pub enum DialogAnimationType {
+    /// No animation
     None,
+    /// Fade in/out animation
     Fade,
+    /// Slide up from bottom
     SlideUp,
+    /// Slide down from top
     SlideDown,
+    /// Slide in from left
     SlideLeft,
+    /// Slide in from right
     SlideRight,
+    /// Scale up/down animation
     Scale,
+    /// Bounce animation effect
     Bounce,
+    /// Flip animation effect
     Flip,
+    /// Custom animation by name
     Custom(String),
 }
 
 /// Animation easing functions
 #[derive(Debug, Clone, PartialEq)]
 pub enum DialogEasing {
+    /// Linear interpolation (constant speed)
     Linear,
+    /// Ease in (slow start, fast end)
     EaseIn,
+    /// Ease out (fast start, slow end)
     EaseOut,
+    /// Ease in-out (slow start and end, fast middle)
     EaseInOut,
+    /// Bounce easing effect
     Bounce,
+    /// Elastic easing effect
     Elastic,
+    /// Custom easing function by name
     Custom(String),
 }
 

@@ -11,10 +11,15 @@ use std::time::{Duration, Instant};
 /// Statistics for terminal write operations
 #[derive(Debug, Default, Clone)]
 pub struct WriteStats {
+    /// Total bytes written to terminal
     pub bytes_written: u64,
+    /// Number of flush operations performed
     pub flush_count: u32,
+    /// Total time spent writing
     pub write_time: Duration,
+    /// Current buffer size
     pub buffer_size: usize,
+    /// Buffer utilization percentage (0.0 to 1.0)
     pub buffer_utilization: f32,
 }
 

@@ -23,8 +23,11 @@ use crate::widgets::display::image::ImageCapabilities;
 /// Statistics for terminal write operations
 #[derive(Debug, Default, Clone)]
 pub struct TerminalWriteStats {
+    /// Total bytes written to terminal
     pub total_bytes: usize,
+    /// Total number of write operations
     pub total_writes: usize,
+    /// Buffer utilization percentage (0.0 to 1.0)
     pub buffer_utilization: f32,
 }
 

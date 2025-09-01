@@ -1,10 +1,12 @@
 use super::router::NodeId;
 use std::collections::BTreeMap;
 
-/// A 2D point
+/// A 2D point for event hit testing
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Point {
+    /// X coordinate (horizontal position)
     pub x: f32,
+    /// Y coordinate (vertical position)
     pub y: f32,
 }
 
@@ -21,9 +23,13 @@ impl Point {
 /// Bounding rectangle for hit testing
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Bounds {
+    /// X coordinate of the left edge
     pub x: f32,
+    /// Y coordinate of the top edge
     pub y: f32,
+    /// Width of the rectangle
     pub width: f32,
+    /// Height of the rectangle
     pub height: f32,
 }
 

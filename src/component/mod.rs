@@ -103,6 +103,8 @@ pub trait AnyComponent: Any + Send + Sync {
     fn type_id(&self) -> TypeId;
 
     /// Downcast to a concrete type
+    /// Get a reference to the component as Any for downcasting
     fn as_any(&self) -> &dyn Any;
+    /// Get a mutable reference to the component as Any for downcasting
     fn as_any_mut(&mut self) -> &mut dyn Any;
 }

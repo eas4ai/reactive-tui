@@ -12,8 +12,10 @@ pub enum OSCAction {
 
     /// Set color palette entry
     SetColor {
+        /// Color palette index (0-255 typically)
         index: u16,
-        color: String, // RGB hex string like "#RRGGBB"
+        /// RGB hex string like "#RRGGBB"
+        color: String,
     },
 
     /// Reset color palette entry
@@ -21,19 +23,29 @@ pub enum OSCAction {
 
     /// Hyperlink
     Hyperlink {
-        params: Option<String>, // Optional parameters like id=xxx
+        /// Optional parameters like id=xxx
+        params: Option<String>,
+        /// The URI to link to
         uri: String,
     },
 
     /// Clipboard operations
     Clipboard {
+        /// Which clipboard to use
         clipboard: ClipboardType,
+        /// Operation to perform
         operation: ClipboardOperation,
+        /// Data for set operations
         data: Option<String>,
     },
 
     /// Notification
-    Notification { title: Option<String>, body: String },
+    Notification {
+        /// Optional notification title
+        title: Option<String>,
+        /// Notification body text
+        body: String
+    },
 
     /// Set current working directory
     CurrentDirectory(String),
@@ -43,20 +55,31 @@ pub enum OSCAction {
 
     /// iTerm2 inline images protocol
     InlineImage {
+        /// Optional image name
         name: Option<String>,
+        /// Optional size (width, height)
         size: Option<(u32, u32)>,
+        /// Whether to preserve aspect ratio
         preserve_aspect: bool,
+        /// Whether to display inline
         inline: bool,
-        data: Vec<u8>, // Base64 decoded image data
+        /// Base64 decoded image data
+        data: Vec<u8>,
     },
 
     /// Kitty graphics protocol
     KittyGraphics {
+        /// Graphics action to perform
         action: KittyGraphicsAction,
+        /// Image format
         format: Option<KittyImageFormat>,
+        /// Transmission method
         transmission: Option<KittyTransmission>,
+        /// Image ID
         id: Option<u32>,
+        /// Placement ID
         placement_id: Option<u32>,
+        /// Image data
         data: Option<Vec<u8>>,
     },
 
@@ -64,45 +87,74 @@ pub enum OSCAction {
     QueryCapability(String),
 
     /// Unknown or unhandled OSC
-    Unknown { number: u16, data: String },
+    Unknown {
+        /// OSC number
+        number: u16,
+        /// OSC data
+        data: String
+    },
 }
 
+/// Type of clipboard to use
 #[derive(Debug, Clone, PartialEq)]
 pub enum ClipboardType {
+    /// Primary selection (X11)
     Primary,
+    /// System clipboard
     Clipboard,
+    /// Text selection
     Selection,
 }
 
+/// Clipboard operation to perform
 #[derive(Debug, Clone, PartialEq)]
 pub enum ClipboardOperation {
+    /// Copy to clipboard
     Copy,
+    /// Paste from clipboard
     Paste,
+    /// Clear clipboard
     Clear,
 }
 
+/// Kitty graphics protocol action
 #[derive(Debug, Clone, PartialEq)]
 pub enum KittyGraphicsAction {
+    /// Transmit image data
     Transmit,
+    /// Transmit and display image
     TransmitAndDisplay,
+    /// Query image
     Query,
+    /// Place image at cursor
     PlaceCursor,
+    /// Delete image
     Delete,
+    /// Delete all images
     DeleteAll,
 }
 
+/// Kitty image format
 #[derive(Debug, Clone, PartialEq)]
 pub enum KittyImageFormat {
+    /// RGB format
     RGB,
+    /// RGBA format with alpha
     RGBA,
+    /// PNG format
     PNG,
 }
 
+/// Kitty image transmission method
 #[derive(Debug, Clone, PartialEq)]
 pub enum KittyTransmission {
+    /// Direct transmission
     Direct,
+    /// File path
     File,
+    /// Temporary file
     TempFile,
+    /// Shared memory
     SharedMemory,
 }
 

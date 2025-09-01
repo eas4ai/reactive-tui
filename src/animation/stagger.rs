@@ -296,6 +296,7 @@ pub struct StaggerBuilder {
 }
 
 impl StaggerBuilder {
+    /// Create a new stagger builder with delay in milliseconds
     pub fn new(delay_ms: u64) -> Self {
         Self {
             config: StaggerConfig {
@@ -305,31 +306,37 @@ impl StaggerBuilder {
         }
     }
 
+    /// Set the origin point for the stagger animation
     pub fn from(mut self, origin: StaggerOrigin) -> Self {
         self.config.from = origin;
         self
     }
 
+    /// Set the direction of the stagger animation
     pub fn direction(mut self, direction: StaggerDirection) -> Self {
         self.config.direction = direction;
         self
     }
 
+    /// Set the easing function for the stagger animation
     pub fn ease(mut self, easing: EasingFunction) -> Self {
         self.config.ease = Some(easing);
         self
     }
 
+    /// Set grid dimensions for grid-based stagger animations
     pub fn grid(mut self, width: usize, height: usize) -> Self {
         self.config.grid = Some((width, height));
         self
     }
 
+    /// Set the range of values for the stagger animation
     pub fn range(mut self, min: f32, max: f32) -> Self {
         self.config.range = Some((min, max));
         self
     }
 
+    /// Build the final stagger configuration
     pub fn build(self) -> StaggerConfig {
         self.config
     }

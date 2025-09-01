@@ -20,13 +20,24 @@ pub enum WindowSize {
 /// Text segment with styling for advanced printing
 #[derive(Debug, Clone, PartialEq)]
 pub struct Segment {
+    /// The text content to display
     pub text: String,
+    /// Foreground color
     pub fg: Rgba,
+    /// Background color
     pub bg: Rgba,
+    /// Text attributes (bold, italic, etc.)
     pub attr: Attr,
 }
 
 impl Segment {
+    /// Create a new segment with default styling
+    ///
+    /// # Arguments
+    /// * `text` - The text content for the segment
+    ///
+    /// # Returns
+    /// A new `Segment` with white on black text and no attributes
     pub fn new(text: impl Into<String>) -> Self {
         Self {
             text: text.into(),
@@ -36,6 +47,16 @@ impl Segment {
         }
     }
 
+    /// Create a new segment with custom styling
+    ///
+    /// # Arguments
+    /// * `text` - The text content for the segment
+    /// * `fg` - Foreground color
+    /// * `bg` - Background color
+    /// * `attr` - Text attributes
+    ///
+    /// # Returns
+    /// A new `Segment` with the specified styling
     pub fn with_style(text: impl Into<String>, fg: Rgba, bg: Rgba, attr: Attr) -> Self {
         Self {
             text: text.into(),
@@ -84,26 +105,37 @@ pub enum WrapMode {
 /// Result of a print operation
 #[derive(Debug, Clone, PartialEq)]
 pub struct PrintResult {
+    /// Final column position after printing
     pub col: usize,
+    /// Final row position after printing
     pub row: usize,
+    /// Whether the text overflowed the available space
     pub overflow: bool,
 }
 
 /// Cursor shape options
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum CursorShape {
+    /// Default cursor shape (terminal-dependent)
     Default,
+    /// Block cursor (fills entire character cell)
     Block,
+    /// Underline cursor (horizontal line at bottom)
     Underline,
+    /// Bar cursor (vertical line at left edge)
     Bar,
 }
 
 /// Border style options
 #[derive(Debug, Clone, PartialEq)]
 pub struct BorderOptions {
+    /// Visual style for the border
     pub style: BorderStyle,
+    /// Which sides of the border to draw
     pub where_: BorderLocation,
+    /// Character glyphs to use for border drawing
     pub glyphs: BorderGlyphs,
+    /// Optional color override for the border
     pub color: Option<Rgba>,
 }
 
@@ -121,29 +153,43 @@ impl Default for BorderOptions {
 /// Border location specification
 #[derive(Debug, Clone, PartialEq)]
 pub enum BorderLocation {
+    /// No borders
     None,
+    /// All four borders
     All,
+    /// Top border only
     Top,
+    /// Right border only
     Right,
+    /// Bottom border only
     Bottom,
+    /// Left border only
     Left,
+    /// Custom combination of borders
     Custom(BorderSides),
 }
 
 /// Custom border sides
 #[derive(Debug, Clone, PartialEq)]
 pub struct BorderSides {
+    /// Whether to show top border
     pub top: bool,
+    /// Whether to show right border
     pub right: bool,
+    /// Whether to show bottom border
     pub bottom: bool,
+    /// Whether to show left border
     pub left: bool,
 }
 
 /// Border style (colors, attributes)
 #[derive(Debug, Clone, PartialEq)]
 pub struct BorderStyle {
+    /// Foreground color for border characters
     pub fg: Rgba,
+    /// Background color for border area
     pub bg: Rgba,
+    /// Text attributes (bold, italic, etc.)
     pub attr: Attr,
 }
 
@@ -160,9 +206,12 @@ impl Default for BorderStyle {
 /// Border glyph sets
 #[derive(Debug, Clone, PartialEq)]
 pub enum BorderGlyphs {
+    /// Single-line rounded corner border glyphs
     SingleRounded,
+    /// Single-line square corner border glyphs
     SingleSquare,
-    Custom([&'static str; 6]), // [top_left, horizontal, top_right, vertical, bottom_right, bottom_left]
+    /// Custom border glyphs: [top_left, horizontal, top_right, vertical, bottom_right, bottom_left]
+    Custom([&'static str; 6]),
 }
 
 impl BorderGlyphs {
@@ -185,10 +234,15 @@ impl BorderGlyphs {
 /// Child window creation options
 #[derive(Debug, Clone)]
 pub struct ChildOptions {
+    /// Horizontal offset from parent window
     pub x_off: usize,
+    /// Vertical offset from parent window
     pub y_off: usize,
+    /// Width specification for the child window
     pub width: WindowSize,
+    /// Height specification for the child window
     pub height: WindowSize,
+    /// Border configuration for the child window
     pub border: BorderOptions,
 }
 

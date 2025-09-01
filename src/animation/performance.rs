@@ -432,10 +432,15 @@ impl InterpolationCache {
 /// Cache statistics
 #[derive(Debug, Clone)]
 pub struct CacheStats {
+    /// Number of cache hits
     pub hits: u64,
+    /// Number of cache misses
     pub misses: u64,
+    /// Cache hit rate (0.0 to 1.0)
     pub hit_rate: f64,
+    /// Current cache size
     pub cache_size: usize,
+    /// Maximum cache size
     pub max_size: usize,
 }
 
@@ -515,10 +520,15 @@ impl PerformanceMetrics {
 /// Performance report
 #[derive(Debug, Clone)]
 pub struct PerformanceReport {
+    /// Total number of animations processed
     pub total_animations: u64,
+    /// Total time spent updating animations
     pub total_update_time: Duration,
+    /// Average time per animation update
     pub avg_time_per_animation: Duration,
+    /// Peak batch size processed
     pub peak_batch_size: usize,
+    /// Recent average performance (if available)
     pub recent_avg_performance: Option<Duration>,
 }
 

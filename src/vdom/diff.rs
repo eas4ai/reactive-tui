@@ -10,11 +10,16 @@ pub struct DiffContext {
     pub stats: DiffStats,
 }
 
+/// Statistics about the diffing process
 #[derive(Debug, Default)]
 pub struct DiffStats {
+    /// Total number of nodes compared during diffing
     pub nodes_compared: usize,
+    /// Number of patches generated from the diff
     pub patches_generated: usize,
+    /// Number of nodes that were reused (no changes)
     pub nodes_reused: usize,
+    /// Number of nodes that were completely replaced
     pub nodes_replaced: usize,
 }
 

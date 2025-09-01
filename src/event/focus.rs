@@ -4,11 +4,17 @@ use std::collections::{HashMap, VecDeque};
 /// Direction to move focus
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum FocusDirection {
+    /// Move to next focusable element in tab order
     Next,
+    /// Move to previous focusable element in tab order
     Previous,
+    /// Move focus upward
     Up,
+    /// Move focus downward
     Down,
+    /// Move focus to the left
     Left,
+    /// Move focus to the right
     Right,
 }
 

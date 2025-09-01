@@ -2072,30 +2072,39 @@ pub fn matrix_animation(
 
 // Helper functions for creating CssValues
 impl CssValue {
+    /// Create a pixel value
     pub fn pixels(value: f32) -> Self {
         Self::Pixels(value)
     }
+    /// Create a percentage value
     pub fn percentage(value: f32) -> Self {
         Self::Percentage(value)
     }
+    /// Create an em unit value
     pub fn em(value: f32) -> Self {
         Self::Em(value)
     }
+    /// Create a rem unit value
     pub fn rem(value: f32) -> Self {
         Self::Rem(value)
     }
+    /// Create a viewport width value
     pub fn vw(value: f32) -> Self {
         Self::ViewportWidth(value)
     }
+    /// Create a viewport height value
     pub fn vh(value: f32) -> Self {
         Self::ViewportHeight(value)
     }
+    /// Create a unitless number value
     pub fn number(value: f32) -> Self {
         Self::Number(value)
     }
+    /// Create a color value from RGB components
     pub fn color(r: u8, g: u8, b: u8) -> Self {
         Self::Color { r, g, b }
     }
+    /// Create a string value
     pub fn string(value: &str) -> Self {
         Self::String(value.to_string())
     }
@@ -2103,27 +2112,35 @@ impl CssValue {
 
 // Helper functions for creating AnimationValues
 impl AnimationValue {
+    /// Create a pixel animation value
     pub fn pixels(value: f32) -> Self {
         Self::Unit(value, "px".to_string())
     }
+    /// Create a percentage animation value
     pub fn percentage(value: f32) -> Self {
         Self::Unit(value, "%".to_string())
     }
+    /// Create an em unit animation value
     pub fn em(value: f32) -> Self {
         Self::Unit(value, "em".to_string())
     }
+    /// Create a rem unit animation value
     pub fn rem(value: f32) -> Self {
         Self::Unit(value, "rem".to_string())
     }
+    /// Create a unitless number animation value
     pub fn number(value: f32) -> Self {
         Self::Number(value)
     }
+    /// Create a color animation value from RGB components
     pub fn color(r: u8, g: u8, b: u8) -> Self {
         Self::Color { r, g, b }
     }
+    /// Create a string animation value
     pub fn string(value: &str) -> Self {
         Self::String(value.to_string())
     }
+    /// Create an array animation value from a vector of floats
     pub fn array(values: Vec<f32>) -> Self {
         Self::Array(values)
     }

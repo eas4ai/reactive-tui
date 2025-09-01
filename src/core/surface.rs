@@ -1,3 +1,8 @@
+//! Terminal surface buffer for rendering
+//!
+//! This module provides the core surface abstraction for terminal rendering,
+//! including cell-based buffers, text attributes, colors, and Unicode handling.
+
 use super::geometry::{Point, Rect, Size};
 use std::env;
 use std::sync::Once;
@@ -49,13 +54,21 @@ pub fn text_to_graphemes(text: &str) -> Vec<&str> {
 // === Border Characters ===
 
 /// Characters used for drawing borders
+///
+/// Provides different border styles including ASCII, rounded, and double-line borders.
 #[derive(Clone, Copy, Debug)]
 pub struct BorderChars {
+    /// Top-left corner character
     pub top_left: char,
+    /// Top-right corner character
     pub top_right: char,
+    /// Bottom-left corner character
     pub bottom_left: char,
+    /// Bottom-right corner character
     pub bottom_right: char,
+    /// Horizontal line character
     pub horizontal: char,
+    /// Vertical line character
     pub vertical: char,
 }
 
@@ -301,11 +314,16 @@ impl<'a> SurfaceSubview<'a> {
     }
 }
 
+/// RGBA color representation with floating-point components
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
 pub struct Rgba {
+    /// Red component (0.0 to 1.0)
     pub r: f32,
+    /// Green component (0.0 to 1.0)
     pub g: f32,
+    /// Blue component (0.0 to 1.0)
     pub b: f32,
+    /// Alpha (transparency) component (0.0 to 1.0)
     pub a: f32,
 }
 
@@ -547,11 +565,37 @@ use crate::error::{ReactiveError, Result};
 use bitflags::bitflags;
 use std::collections::HashMap;
 bitflags! {
+    /// Text attributes for terminal cells
+    ///
+    /// Bitflags representing various text formatting options that can be
+    /// combined together for rich text display in the terminal.
     #[derive(Default, Clone, Copy, Debug, PartialEq, Eq)]
-    pub struct Attr: u8 { const BOLD=1<<0; const ITALIC=1<<1; const UNDERLINE=1<<2; const REVERSE=1<<3; const STRIKE=1<<4; }
+    pub struct Attr: u8 { 
+        /// Bold text formatting
+        const BOLD=1<<0; 
+        /// Italic text formatting
+        const ITALIC=1<<1; 
+        /// Underlined text
+        const UNDERLINE=1<<2; 
+        /// Reverse video (swap foreground/background colors)
+        const REVERSE=1<<3; 
+        /// Strikethrough text
+        const STRIKE=1<<4; 
+    }
 }
 
 impl Attr {
+    /// Create text attributes from individual boolean flags
+    ///
+    /// # Arguments
+    /// * `bold` - Enable bold text
+    /// * `italic` - Enable italic text
+    /// * `underline` - Enable underlined text
+    /// * `reverse` - Enable reverse video
+    /// * `strike` - Enable strikethrough
+    ///
+    /// # Returns
+    /// Combined `Attr` flags
     #[inline]
     pub fn from_flags(
         bold: bool,
@@ -581,13 +625,18 @@ impl Attr {
 }
 
 /// Image placement information for a cell
+///
+/// Defines how an image should be displayed within a terminal cell,
+/// including the source region and display properties.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ImageCellPlacement {
-    /// Source pixel coordinates in the image
+    /// Source X coordinate in the image (pixels)
     pub source_x: u16,
+    /// Source Y coordinate in the image (pixels)
     pub source_y: u16,
-    /// Size of the image region to display in this cell (in pixels)
+    /// Width of the image region to display (pixels)
     pub source_width: u16,
+    /// Height of the image region to display (pixels)
     pub source_height: u16,
     /// Z-index for layering (negative = behind text, positive = in front)
     pub z_index: i8,
@@ -608,11 +657,19 @@ impl Default for ImageCellPlacement {
     }
 }
 
+/// A single cell in the terminal surface
+///
+/// Represents one character position in the terminal with its
+/// associated styling, colors, and optional image content.
 #[derive(Clone, Copy, Default, PartialEq)]
 pub struct Cell {
+    /// The character to display
     pub ch: char,
+    /// Foreground color
     pub fg: Rgba,
+    /// Background color
     pub bg: Rgba,
+    /// Text attributes (bold, italic, etc.)
     pub attr: Attr,
     /// Optional reference to an image in the image registry
     pub image_id: Option<u32>,
@@ -650,9 +707,11 @@ impl Cell {
 
 /// Image data stored in the registry
 #[derive(Debug, Clone)]
+/// Image data for rendering in the terminal
 pub struct ImageData {
     /// Image dimensions in pixels
     pub width: u32,
+    /// Image height in pixels
     pub height: u32,
     /// Raw RGBA pixel data
     pub pixels: Vec<u8>,
@@ -727,15 +786,30 @@ impl ImageRegistry {
     }
 }
 
+/// Terminal rendering surface
+///
+/// A 2D grid of cells that represents the terminal display buffer.
+/// Each cell contains a character, colors, attributes, and optional image data.
 pub struct Surface {
+    /// Width in terminal cells
     w: usize,
+    /// Height in terminal cells
     h: usize,
+    /// Buffer of cells (row-major order)
     buf: Vec<Cell>,
     /// Image registry for managing cell-referenced images
     image_registry: ImageRegistry,
 }
 
 impl Surface {
+    /// Create a new surface with the given dimensions
+    ///
+    /// # Arguments
+    /// * `w` - Width in terminal cells
+    /// * `h` - Height in terminal cells
+    ///
+    /// # Returns
+    /// A new `Surface` initialized with default cells
     pub fn new(w: usize, h: usize) -> Self {
         Self {
             w,
@@ -759,10 +833,15 @@ impl Surface {
         }
         Ok(Self::new(w, h))
     }
+    /// Calculate buffer index from coordinates
     #[inline]
     fn idx(&self, x: usize, y: usize) -> usize {
         y * self.w + x
     }
+    /// Get the dimensions of the surface
+    ///
+    /// # Returns
+    /// Tuple of (width, height) in terminal cells
     pub fn dims(&self) -> (usize, usize) {
         (self.w, self.h)
     }
@@ -778,6 +857,10 @@ impl Surface {
         }
         // Note: Image registry is preserved across reinit
     }
+    /// Clear the surface with the given background color
+    ///
+    /// # Arguments
+    /// * `bg` - Background color to fill the surface with
     pub fn clear(&mut self, bg: Rgba) {
         for c in &mut self.buf {
             *c = Cell {
@@ -795,16 +878,19 @@ impl Surface {
             };
         }
     }
+    /// Set a cell at the specified coordinates
     pub fn set(&mut self, x: usize, y: usize, cell: Cell) {
         if x < self.w && y < self.h {
             let i = self.idx(x, y);
             self.buf[i] = cell;
         }
     }
+    /// Get a cell at the specified coordinates
     pub fn get(&self, x: usize, y: usize) -> Cell {
         self.buf[self.idx(x, y)]
     }
 
+    /// Write a string at the specified position with styling
     pub fn write_str(&mut self, mut x: usize, y: usize, s: &str, fg: Rgba, bg: Rgba, attr: Attr) {
         if y >= self.h {
             return;
@@ -1522,28 +1608,45 @@ impl Surface {
 /// Enhanced diff statistics for performance monitoring
 #[derive(Debug, Clone, Default)]
 pub struct DiffStats {
+    /// Number of rows that changed between frames
     pub rows_changed: usize,
+    /// Number of text spans written to terminal
     pub spans_written: usize,
+    /// Number of individual cells that changed
     pub cells_changed: usize,
+    /// Total number of cells in the surface
     pub cells_total: usize,
+    /// Total bytes written to terminal output
     pub bytes_written: usize,
+    /// Number of color change operations
     pub color_changes: usize,
+    /// Number of text attribute changes
     pub attr_changes: usize,
+    /// Number of cursor movement operations
     pub cursor_moves: usize,
+    /// Efficiency ratio (changed cells / total cells)
     pub efficiency_ratio: f32,
 }
 
+/// Writer for generating terminal escape sequences from surface diffs
 pub struct DiffWriter {
+    /// Output buffer for escape sequences
     out: Vec<u8>,
+    /// Current foreground color state
     cur_fg: Option<Rgba>,
+    /// Current background color state
     cur_bg: Option<Rgba>,
+    /// Current text attributes state
     cur_attr: Attr,
+    /// Number of rows changed in last diff operation
     last_rows_changed: usize,
+    /// Number of text spans written in last diff operation
     last_spans_written: usize,
-    // Enhanced statistics
+    /// Enhanced statistics for performance tracking
     stats: DiffStats,
-    // Optimization settings
+    /// Whether to use epsilon comparison for colors
     use_epsilon_comparison: bool,
+    /// Whether to skip identical color changes
     skip_identical_colors: bool,
 }
 
@@ -1554,6 +1657,7 @@ impl Default for DiffWriter {
 }
 
 impl DiffWriter {
+    /// Create a new diff writer for computing terminal updates
     pub fn new() -> Self {
         Self {
             out: Vec::with_capacity(1 << 20),
@@ -1642,6 +1746,7 @@ impl DiffWriter {
         self.cur_attr = want;
     }
 
+    /// Compute the diff between two surfaces and generate terminal output
     pub fn diff(&mut self, cur: &Surface, next: &Surface, force: bool) {
         self.out.clear();
         self.push("\x1b[?25l");
@@ -1876,15 +1981,18 @@ impl DiffWriter {
         }
     }
 
+    /// Get the generated terminal output
     pub fn output(&self) -> &[u8] {
         &self.out
     }
 }
 
 impl DiffWriter {
+    /// Get the number of rows changed in the last diff
     pub fn last_rows_changed(&self) -> usize {
         self.last_rows_changed
     }
+    /// Get the number of spans written in the last diff
     pub fn last_spans_written(&self) -> usize {
         self.last_spans_written
     }

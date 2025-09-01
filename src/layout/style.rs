@@ -13,30 +13,51 @@ pub type RgbaColor = crate::core::surface::Rgba;
 /// Text decoration flags
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct TextDecorations {
+    /// Whether text should be bold
     pub bold: bool,
+    /// Whether text should be italic
     pub italic: bool,
+    /// Whether text should be underlined
     pub underline: bool,
+    /// Whether foreground/background colors should be reversed
     pub reverse: bool,
 }
 
 /// Visual style data containing foreground color, background color, and text decorations
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct VisualStyle {
+    /// Foreground (text) color
     pub fg: RgbaColor,
+    /// Background color
     pub bg: RgbaColor,
+    /// Text decoration flags (bold, italic, etc.)
     pub decorations: TextDecorations,
 }
 
 /// Box model spacing (left, right, top, bottom)
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct BoxSpacing {
+    /// Left spacing/padding
     pub left: f32,
+    /// Right spacing/padding
     pub right: f32,
+    /// Top spacing/padding
     pub top: f32,
+    /// Bottom spacing/padding
     pub bottom: f32,
 }
 
 impl BoxSpacing {
+    /// Create a new box spacing with individual values
+    ///
+    /// # Arguments
+    /// * `left` - Left spacing value
+    /// * `right` - Right spacing value
+    /// * `top` - Top spacing value
+    /// * `bottom` - Bottom spacing value
+    ///
+    /// # Returns
+    /// A new `BoxSpacing` instance
     pub fn new(left: f32, right: f32, top: f32, bottom: f32) -> Self {
         Self {
             left,
@@ -46,6 +67,13 @@ impl BoxSpacing {
         }
     }
 
+    /// Create uniform spacing on all sides
+    ///
+    /// # Arguments
+    /// * `value` - The spacing value to apply to all sides
+    ///
+    /// # Returns
+    /// A new `BoxSpacing` with equal spacing on all sides
     pub fn uniform(value: f32) -> Self {
         Self {
             left: value,
@@ -55,6 +83,14 @@ impl BoxSpacing {
         }
     }
 
+    /// Create symmetric spacing (horizontal and vertical)
+    ///
+    /// # Arguments
+    /// * `horizontal` - Spacing for left and right sides
+    /// * `vertical` - Spacing for top and bottom sides
+    ///
+    /// # Returns
+    /// A new `BoxSpacing` with symmetric spacing
     pub fn symmetric(horizontal: f32, vertical: f32) -> Self {
         Self {
             left: horizontal,
@@ -64,63 +100,105 @@ impl BoxSpacing {
         }
     }
 
+    /// Get the total horizontal spacing (left + right)
+    ///
+    /// # Returns
+    /// The sum of left and right spacing values
     pub fn horizontal(&self) -> f32 {
         self.left + self.right
     }
 
+    /// Get the total vertical spacing (top + bottom)
+    ///
+    /// # Returns
+    /// The sum of top and bottom spacing values
     pub fn vertical(&self) -> f32 {
         self.top + self.bottom
     }
 }
 
+/// Flex direction for layout
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Direction {
+    /// Horizontal layout, left to right
     Row,
+    /// Vertical layout, top to bottom
     Column,
+    /// Horizontal layout, right to left
     RowReverse,
+    /// Vertical layout, bottom to top
     ColumnReverse,
 }
 
+/// Content justification along the main axis
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum JustifyContent {
+    /// Align items to the start of the container
     Start,
+    /// Center items in the container
     Center,
+    /// Align items to the end of the container
     End,
+    /// Distribute items with space between them
     SpaceBetween,
+    /// Distribute items with space around them
     SpaceAround,
+    /// Distribute items with equal space around them
     SpaceEvenly,
 }
 
+/// Cross-axis alignment for flex items
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum AlignItems {
+    /// Align items to the start of the cross axis
     Start,
+    /// Center items on the cross axis
     Center,
+    /// Align items to the end of the cross axis
     End,
+    /// Stretch items to fill the cross axis
     Stretch,
+    /// Align items to their baseline
     Baseline,
 }
+/// Grid item placement alignment
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum PlaceItems {
+    /// Place items at the start of their grid area
     Start,
+    /// Center items in their grid area
     Center,
+    /// Place items at the end of their grid area
     End,
+    /// Stretch items to fill their grid area
     Stretch,
 }
 
+/// Individual item alignment override
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum AlignSelf {
+    /// Use the parent's align-items value
     Auto,
+    /// Align this item to the start
     Start,
+    /// Center this item
     Center,
+    /// Align this item to the end
     End,
+    /// Stretch this item
     Stretch,
 }
 
+/// CSS Grid auto flow direction
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum GridAutoFlow {
+    /// Fill rows first
     Row,
+    /// Fill columns first
     Column,
+    /// Fill rows densely
     RowDense,
+    /// Fill columns densely
     ColumnDense,
 }
 
@@ -134,6 +212,7 @@ impl GridAutoFlow {
         }
     }
 }
+/// Builder for creating and configuring styles
 #[derive(Clone, Debug, Default)]
 pub struct StyleBuilder {
     style: Style,
@@ -169,19 +248,23 @@ pub struct StyleBuilder {
 }
 
 impl StyleBuilder {
+    /// Create a new style builder
     pub fn new() -> Self {
         Self::default()
     }
 
+    /// Set display to flex
     pub fn display_flex(mut self) -> Self {
         self.style.display = Display::Flex;
         self
     }
+    /// Set display to grid
     pub fn display_grid(mut self) -> Self {
         self.style.display = Display::Grid;
         self
     }
 
+    /// Set the flex direction
     pub fn direction(mut self, dir: Direction) -> Self {
         self.style.flex_direction = match dir {
             Direction::Row => FlexDirection::Row,
@@ -192,6 +275,7 @@ impl StyleBuilder {
         self
     }
 
+    /// Set size in pixels
     pub fn size_px(mut self, w: Option<f32>, h: Option<f32>) -> Self {
         if let Some(w) = w {
             self.style.size.width = Dimension::length(w);
@@ -202,42 +286,51 @@ impl StyleBuilder {
         self
     }
 
+    /// Set width as percentage
     pub fn width_pct(mut self, pct: f32) -> Self {
         self.style.size.width = Dimension::percent(pct / 100.0);
         self
     }
+    /// Set height as percentage
     pub fn height_pct(mut self, pct: f32) -> Self {
         self.style.size.height = Dimension::percent(pct / 100.0);
         self
     }
 
+    /// Set width in pixels
     pub fn width_px(mut self, px: f32) -> Self {
         self.style.size.width = Dimension::length(px);
         self
     }
+    /// Set height in pixels
     pub fn height_px(mut self, px: f32) -> Self {
         self.style.size.height = Dimension::length(px);
         self
     }
 
+    /// Set width as percentage
     pub fn width_percent(mut self, pct: f32) -> Self {
         self.style.size.width = Dimension::percent(pct / 100.0);
         self
     }
+    /// Set height as percentage
     pub fn height_percent(mut self, pct: f32) -> Self {
         self.style.size.height = Dimension::percent(pct / 100.0);
         self
     }
 
+    /// Set width to auto
     pub fn width_auto(mut self) -> Self {
         self.style.size.width = Dimension::auto();
         self
     }
+    /// Set height to auto
     pub fn height_auto(mut self) -> Self {
         self.style.size.height = Dimension::auto();
         self
     }
 
+    /// Set minimum size in pixels
     pub fn min_size_px(mut self, w: Option<f32>, h: Option<f32>) -> Self {
         if let Some(w) = w {
             self.style.min_size.width = Dimension::length(w);
@@ -248,6 +341,7 @@ impl StyleBuilder {
         self
     }
 
+    /// Set maximum size in pixels
     pub fn max_size_px(mut self, w: Option<f32>, h: Option<f32>) -> Self {
         if let Some(w) = w {
             self.style.max_size.width = Dimension::length(w);
@@ -258,18 +352,22 @@ impl StyleBuilder {
         self
     }
 
+    /// Set minimum width in pixels
     pub fn min_width_px(mut self, px: f32) -> Self {
         self.style.min_size.width = Dimension::length(px);
         self
     }
+    /// Set minimum height in pixels
     pub fn min_height_px(mut self, px: f32) -> Self {
         self.style.min_size.height = Dimension::length(px);
         self
     }
+    /// Set maximum width in pixels
     pub fn max_width_px(mut self, px: f32) -> Self {
         self.style.max_size.width = Dimension::length(px);
         self
     }
+    /// Set maximum height in pixels
     pub fn max_height_px(mut self, px: f32) -> Self {
         self.style.max_size.height = Dimension::length(px);
         self

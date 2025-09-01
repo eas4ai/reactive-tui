@@ -29,21 +29,33 @@ pub struct TerminalInfo {
     pub color_depth: ColorDepth,
 }
 
+/// Type of terminal connection
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ConnectionType {
+    /// Direct local terminal connection
     Local,
+    /// SSH remote connection
     SSH,
+    /// Running inside tmux session
     Tmux,
+    /// Running inside GNU Screen session
     Screen,
+    /// Web-based terminal (browser)
     Web,
+    /// Unknown or undetected connection type
     Unknown,
 }
 
+/// Terminal color support capabilities
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ColorDepth {
+    /// No color support (black and white only)
     Monochrome,
+    /// 16 color support (basic ANSI colors)
     Color16,
+    /// 256 color support (extended palette)
     Color256,
+    /// 24-bit true color support (RGB)
     TrueColor,
 }
 
