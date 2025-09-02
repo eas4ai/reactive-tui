@@ -583,6 +583,14 @@ pub enum FocusEventKind {
     Next,
     /// Focus moved to previous element (Shift+Tab navigation)
     Previous,
+    /// Focus moved up (Arrow key navigation)
+    Up,
+    /// Focus moved down (Arrow key navigation)
+    Down,
+    /// Focus moved left (Arrow key navigation)
+    Left,
+    /// Focus moved right (Arrow key navigation)
+    Right,
 }
 
 /// Paste event for bracketed paste mode

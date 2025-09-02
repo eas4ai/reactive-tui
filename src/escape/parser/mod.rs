@@ -2,7 +2,7 @@ use super::{csi::CSIAction, esc::ESCAction, osc::OSCAction, Action};
 use std::mem;
 
 /// VT parser state machine for ANSI escape sequences
-/// Based on Paul Williams' state machine design: https://vt100.net/emu/dec_ansi_parser
+/// Based on Paul Williams' state machine design: <https://vt100.net/emu/dec_ansi_parser>
 pub struct Parser {
     state: State,
     intermediate_bytes: Vec<u8>,

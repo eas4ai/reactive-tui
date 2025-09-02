@@ -12,6 +12,8 @@ pub mod colors;
 pub mod css;
 /// Grid layout utilities and helpers
 pub mod grid;
+/// Layout manager for persistent Taffy tree and incremental updates
+pub mod manager;
 /// Paint tree for rendering layout results to terminal
 pub mod paint_tree;
 /// Layout renderer for painting to surfaces

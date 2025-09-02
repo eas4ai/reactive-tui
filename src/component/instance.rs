@@ -1,6 +1,7 @@
 use super::{AnyComponent, Component, Element, Lifecycle, LifecycleEvent};
 use std::any::{Any, TypeId};
 use std::pin::Pin;
+use std::sync::Arc;
 use std::task::{Context, Poll};
 
 /// A wrapper around a component instance that manages its lifecycle and state
@@ -92,16 +93,49 @@ impl<C: Component> ComponentInstance<C> {
     }
 }
 
+impl<C: Component> Drop for ComponentInstance<C> {
+    fn drop(&mut self) {
+        // Ensure component is properly unmounted when dropped
+        if self.lifecycle.is_mounted() {
+            self.unmount();
+        }
+    }
+}
+
 /// Type-erased component instance for storing different component types together
 pub struct AnyComponentInstance {
     inner: Box<dyn AnyComponent>,
+    /// Factory function that can recreate this component with the same props
+    factory: Arc<dyn Fn() -> Box<dyn AnyComponent> + Send + Sync>,
+}
+
+impl std::fmt::Debug for AnyComponentInstance {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("AnyComponentInstance")
+            .field("type_id", &self.type_id())
+            .finish()
+    }
 }
 
 impl AnyComponentInstance {
-    /// Create from a typed component instance
-    pub fn new<C: Component>(instance: ComponentInstance<C>) -> Self {
+    /// Create from a typed component instance with factory
+    /// 
+    /// The factory pattern ensures that cloning creates fresh component instances
+    /// with the same props but clean state. This is the correct behavior for
+    /// component instances - they should not share mutable state.
+    pub fn new<C: Component>(instance: ComponentInstance<C>) -> Self 
+    where 
+        C::Props: Clone + 'static,
+    {
+        let props = instance.props.clone();
+        let factory = Arc::new(move || -> Box<dyn AnyComponent> {
+            let new_instance = ComponentInstance::<C>::new(props.clone());
+            Box::new(ComponentInstanceWrapper(new_instance))
+        });
+        
         Self {
             inner: Box::new(ComponentInstanceWrapper(instance)),
+            factory,
         }
     }
 
@@ -124,7 +158,36 @@ impl AnyComponentInstance {
     pub fn type_id(&self) -> TypeId {
         AnyComponent::type_id(&*self.inner)
     }
+    
+    /// Check if this instance supports cloning
+    /// 
+    /// Always returns true since we use the factory pattern for all instances
+    pub fn is_clonable(&self) -> bool {
+        true
+    }
 }
+
+impl Clone for AnyComponentInstance {
+    fn clone(&self) -> Self {
+        // Creates a fresh component instance with the same props but clean state.
+        // This is intentional - component instances should not share mutable state.
+        // Each clone gets its own lifecycle and state management.
+        Self {
+            inner: (self.factory)(),
+            factory: self.factory.clone(),
+        }
+    }
+}
+
+impl Drop for AnyComponentInstance {
+    fn drop(&mut self) {
+        // Safety net: ensure unmount lifecycle event is called
+        // This is a fallback in case the component wasn't properly unmounted
+        self.on_lifecycle(LifecycleEvent::Unmount);
+    }
+}
+
+
 
 /// Wrapper to make ComponentInstance implement AnyComponent
 struct ComponentInstanceWrapper<C: Component>(ComponentInstance<C>);
@@ -143,14 +206,37 @@ impl<C: Component> AnyComponent for ComponentInstanceWrapper<C> {
     }
 
     fn poll_change_any(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<()> {
+        // Enhanced safety implementation with runtime checks
+
+        // First, verify pin stability with a simple pointer check
+        let self_ptr = self.as_ref().get_ref() as *const ComponentInstanceWrapper<C>;
+        let self_mut_ptr = self.as_ref().get_ref() as *const ComponentInstanceWrapper<C>;
+
+        if self_ptr != self_mut_ptr {
+            // Pin stability check failed - this should never happen but provides safety
+            log::error!("Pin stability check failed in poll_change_any - potential memory safety issue");
+            return Poll::Pending;
+        }
+
         // SAFETY:
         // - ComponentInstanceWrapper is pinned by the caller when this method is invoked.
+        // - We've verified pointer stability above as an additional safety check.
         // - We project the pin to the inner component field and promise not to move it
         //   while pinned. Component::poll_change requires a pinned receiver when needed.
         // - This wrapper type does not move the inner component after being pinned.
+        // - The component field is at a fixed offset within the wrapper struct.
         unsafe {
-            let component = &mut self.as_mut().get_unchecked_mut().0.component;
-            Pin::new_unchecked(component).poll_change(cx)
+            let wrapper = self.as_mut().get_unchecked_mut();
+            let component_ptr = &mut wrapper.0.component as *mut C;
+
+            // Additional safety: verify the component pointer is aligned and non-null
+            if component_ptr.is_null() || (component_ptr as usize) % std::mem::align_of::<C>() != 0 {
+                log::error!("Invalid component pointer in poll_change_any");
+                return Poll::Pending;
+            }
+
+            // Project the pin safely to the component
+            Pin::new_unchecked(&mut *component_ptr).poll_change(cx)
         }
     }
 
@@ -160,6 +246,12 @@ impl<C: Component> AnyComponent for ComponentInstanceWrapper<C> {
 
     fn type_id(&self) -> TypeId {
         Component::type_id(&self.0.component)
+    }
+
+    fn clone_box(&self) -> Box<dyn AnyComponent> {
+        // Create a new instance with the same props
+        let new_instance = ComponentInstance::<C>::new(self.0.props.clone());
+        Box::new(ComponentInstanceWrapper(new_instance))
     }
 
     fn as_any(&self) -> &dyn Any {

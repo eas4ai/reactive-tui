@@ -19,9 +19,11 @@ pub mod lifecycle;
 pub mod props;
 /// Global component registry for dynamic component creation
 pub mod registry;
+/// Performance optimizations for component operations
+pub mod cache;
 
 pub use element::{Element, ElementType, LayoutType};
-pub use instance::ComponentInstance;
+pub use instance::{AnyComponentInstance, ComponentInstance};
 pub use lifecycle::{Lifecycle, LifecycleEvent};
 pub use props::Props;
 pub use registry::ComponentRegistry;
@@ -101,6 +103,9 @@ pub trait AnyComponent: Any + Send + Sync {
 
     /// Get the type ID
     fn type_id(&self) -> TypeId;
+
+    /// Clone this component into a boxed trait object
+    fn clone_box(&self) -> Box<dyn AnyComponent>;
 
     /// Downcast to a concrete type
     /// Get a reference to the component as Any for downcasting

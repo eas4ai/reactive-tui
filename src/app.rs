@@ -7,9 +7,8 @@ use crate::event::router::{EventResult, EventRouter};
 use crate::animation::AnimationManager;
 use crate::error::Result;
 use crate::reactive::scheduler::Scheduler;
-use crate::render::reconcile::Reconciler;
-use crate::render::tree::{element_to_render_node, RenderTree};
 use std::time::{Duration, Instant};
+use crate::render::{Reconciler, RenderTree};
 
 /// Trait for root components that can render to an Element
 pub trait RootComponent: Send + Sync {
@@ -24,6 +23,7 @@ pub struct App {
     scheduler: Scheduler,
     router: EventRouter,
     tree: RenderTree,
+    previous_tree: RenderTree,
     reconciler: Reconciler,
     fps_manager: AdaptiveFpsManager,
     animation_manager: AnimationManager,
@@ -180,12 +180,13 @@ impl App {
     }
 
     /// Register a focusable node with optional tab index
+    /// Returns true if successful
     pub fn register_focusable(
         &mut self,
         node_id: crate::event::router::NodeId,
-        _tab_index: Option<i32>,
-    ) {
-        self.router.add_focusable(node_id);
+        tab_index: Option<i32>,
+    ) -> bool {
+        self.router.add_focusable(node_id, tab_index)
     }
 
     /// Unregister a focusable node
@@ -194,35 +195,63 @@ impl App {
     }
 
     /// Set spatial info used for arrow-key navigation
+    /// Returns true if successful
     pub fn set_focus_spatial(
         &mut self,
-        _node_id: crate::event::router::NodeId,
-        _x: f32,
-        _y: f32,
-        _w: f32,
-        _h: f32,
-    ) {
-        // Spatial navigation is now handled by the integrated focus manager
+        node_id: crate::event::router::NodeId,
+        x: f32,
+        y: f32,
+        w: f32,
+        h: f32,
+    ) -> bool {
+        self.router.update_spatial(node_id, x, y, w, h)
     }
 
     /// Set initial focus and update router
-    pub fn set_initial_focus(&mut self, node_id: crate::event::router::NodeId) {
+    /// Returns true if successful
+    pub fn set_initial_focus(&mut self, node_id: crate::event::router::NodeId) -> bool {
         self.router.set_focus(Some(node_id));
+        // Check if focus was actually set
+        self.router.get_focus() == Some(node_id)
     }
 
     /// Move focus to next and update router
-    pub fn focus_next(&mut self) {
-        // Focus navigation is now handled by the router's process_event method
+    /// Returns the newly focused node if successful
+    pub fn focus_next(&mut self) -> Option<crate::event::router::NodeId> {
+        self.router.focus_next()
     }
 
     /// Move focus to previous and update router
-    pub fn focus_previous(&mut self) {
-        // Focus navigation is now handled by the router's process_event method
+    /// Returns the newly focused node if successful
+    pub fn focus_previous(&mut self) -> Option<crate::event::router::NodeId> {
+        self.router.focus_prev()
     }
 
     /// Move focus in a direction and update router
-    pub fn focus_move(&mut self, _dir: crate::event::FocusDirection) {
-        // Focus navigation is now handled by the router's process_event method
+    /// Returns the newly focused node if successful
+    pub fn focus_move(&mut self, dir: crate::event::FocusDirection) -> Option<crate::event::router::NodeId> {
+        self.router.focus_move(dir)
+    }
+
+    /// Create a focus trap for a container (e.g., modal dialog)
+    /// This restricts focus navigation to only nodes within the container
+    pub fn create_focus_trap(&mut self, container: crate::event::router::NodeId, trapped_nodes: Vec<crate::event::router::NodeId>) -> bool {
+        self.router.create_focus_trap(container, trapped_nodes)
+    }
+
+    /// Remove a focus trap and restore previous focus behavior
+    pub fn remove_focus_trap(&mut self, container: crate::event::router::NodeId) -> bool {
+        self.router.remove_focus_trap(container)
+    }
+
+    /// Check if focus is currently trapped
+    pub fn is_focus_trapped(&self) -> bool {
+        self.router.is_focus_trapped()
+    }
+
+    /// Get the active focus trap container, if any
+    pub fn get_active_focus_trap(&self) -> Option<crate::event::router::NodeId> {
+        self.router.get_active_focus_trap()
     }
 
     /// Stop the application
@@ -247,27 +276,36 @@ impl App {
 
     /// Render the current state
     fn render(&mut self) -> Result<()> {
+        use crate::render::tree::element_to_render_node;
+        
         // Build element tree from root component
         let element = self.root.render();
-
-        // Convert to render tree
+        
+        // Convert to RenderTree
+        let root_node = element_to_render_node(element.clone());
         let mut new_tree = RenderTree::new();
-        let root_node = element_to_render_node(element);
         new_tree.set_root(root_node);
+        
+        // Diff against previous tree
+        let diff_result = self.reconciler.diff(&self.previous_tree, &new_tree);
+        
+        // Apply patches if there are changes
+        if !diff_result.patches.is_empty() {
+            // Apply patches (automatic component cleanup will be handled)
+            crate::render::reconcile::apply_patches(
+                &diff_result.patches,
+                &mut self.tree,
+            );
 
-        // Reconcile to get patches
-        let diff_result = self.reconciler.diff(&self.tree, &new_tree);
-        let patches = diff_result.patches;
-
-        if self.debug {
-            eprintln!("App: Applying {} patches", patches.len());
+            // For now, still do full render, but we have the patches for future optimization
+            self.backend.render_full(&element)?;
+        } else if self.previous_tree.root().is_none() {
+            // First render
+            self.backend.render_full(&element)?;
         }
-
-        // Apply patches to backend
-        self.backend.apply_patches(&patches, &new_tree)?;
-
-        // Update stored tree
-        self.tree = new_tree;
+        
+        // Store current tree for next frame
+        self.previous_tree = std::mem::replace(&mut self.tree, new_tree);
 
         // Present frame
         self.backend.present()?;
@@ -325,6 +363,26 @@ impl App {
     /// Get read-only access to the animation manager
     pub fn animation_manager_ref(&self) -> &AnimationManager {
         &self.animation_manager
+    }
+
+    /// Stop the application gracefully
+    pub fn stop(&mut self) {
+        self.running = false;
+    }
+
+    /// Cleanup all component instances (called automatically on drop)
+    pub fn cleanup(&mut self) -> crate::error::Result<usize> {
+        crate::component::registry::global_cleanup_all()
+    }
+}
+
+impl Drop for App {
+    fn drop(&mut self) {
+        // Ensure all components are cleaned up when app is dropped
+        if let Err(e) = self.cleanup() {
+            #[cfg(debug_assertions)]
+            eprintln!("Warning: Failed to cleanup components during App drop: {}", e);
+        }
     }
 }
 
@@ -404,6 +462,7 @@ impl AppBuilder {
             scheduler: Scheduler::new(),
             router: EventRouter::new(),
             tree: RenderTree::new(),
+            previous_tree: RenderTree::new(),
             reconciler: Reconciler::new(),
             fps_manager,
             animation_manager: AnimationManager::new(),
@@ -414,6 +473,8 @@ impl AppBuilder {
         })
     }
 }
+
+
 
 #[cfg(test)]
 mod tests {

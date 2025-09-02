@@ -429,6 +429,7 @@ mod tests {
 }
 
 #[cfg(test)]
+/// Test utilities for capturing terminal output
 pub mod test_io_capture {
     use std::sync::{Mutex, OnceLock};
 
@@ -437,11 +438,12 @@ pub mod test_io_capture {
         TEST_OUT.get_or_init(|| Mutex::new(Vec::new()))
     }
 
-    // Test helper for capturing output
+    /// Capture output written to the terminal for testing
     pub fn capture_write(buf: &[u8]) {
         out().lock().unwrap().extend_from_slice(buf);
     }
 
+    /// Take all captured output and clear the buffer
     pub fn take_output() -> Vec<u8> {
         let mut guard = out().lock().unwrap();
         std::mem::take(&mut *guard)

@@ -98,24 +98,20 @@ fn main() -> Result<()> {
                 class: None,
             };
 
-            let mut tree = RenderTree::new();
-            let root = element_to_render_node(test_element.clone());
-            tree.set_root(root);
-
-            // Time crossterm backend
+            // Time crossterm backend (layout-based full render)
             let start = std::time::Instant::now();
             for _ in 0..10 {
                 crossterm_backend.clear()?;
-                crossterm_backend.apply_patches(&[], &tree)?;
+                crossterm_backend.render_full(&test_element)?;
                 crossterm_backend.present()?;
             }
             let crossterm_time = start.elapsed();
 
-            // Time direct TTY backend
+            // Time direct TTY backend (layout-based full render)
             let start = std::time::Instant::now();
             for _ in 0..10 {
                 direct_backend.clear()?;
-                direct_backend.apply_patches(&[], &tree)?;
+                direct_backend.render_full(&test_element)?;
                 direct_backend.present()?;
             }
             let direct_time = start.elapsed();

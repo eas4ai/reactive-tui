@@ -483,6 +483,17 @@ impl Backend for CrosstermBackend {
         let ev = crate::core::terminal::Terminal::poll_event(timeout_ms)?;
         Ok(ev.and_then(Self::map_ct_event))
     }
+
+    fn render_full(&mut self, element: &Element) -> Result<()> {
+        // Convert Element tree to NodeSpec and paint using Taffy-based layout
+        let nodespec = crate::component::bridge::element_to_nodespec(element);
+        // Clear the back buffer surface before painting to avoid stale cells
+        self.renderer.clear(Rgba { r: 0.0, g: 0.0, b: 0.0, a: 1.0 });
+        let (width, _height) = self.renderer.dims();
+        let surface = self.renderer.surface_mut();
+        let opts = crate::layout::paint_tree::PaintOptions::default();
+        crate::layout::paint_tree::layout_and_paint_with(&nodespec, surface, width, &opts)
+    }
 }
 
 /// Debug backend for testing reactive components with virtual screen buffer

@@ -9,6 +9,8 @@ pub mod focus;
 pub mod hit;
 /// Event routing and dispatching to handlers
 pub mod router;
+/// Performance enhancements for event routing
+pub mod cache;
 /// Core event types (keyboard, mouse, resize, etc.)
 pub mod types;
 

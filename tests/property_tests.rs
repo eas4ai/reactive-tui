@@ -150,7 +150,7 @@ proptest! {
         router.set_root(root);
 
         // Adding focusable should work
-        router.add_focusable(root);
+        router.add_focusable(root, None);
 
         // Focus operations should not panic
         router.focus_next();

@@ -145,6 +145,11 @@ cargo run --example syntax_highlight
 - 24-bit color terminal
 - For images: chafa, viu, or compatible terminal
 
+## Contributors
+
+- **Shawn McAllister** ([@entrepeneur4lyf](https://github.com/entrepeneur4lyf)) - Creator and Lead Developer
+- **Auggie** (Claude Sonnet 4) - Systems Architecture and Memory Management Engineering
+
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.

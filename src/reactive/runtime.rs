@@ -173,6 +173,92 @@ impl ReactiveRuntime {
             !effects.is_empty()
         });
     }
+
+    /// Comprehensive cleanup of dead effects and references
+    pub fn cleanup_dead_effects(&self) {
+        let initial_effects_count;
+        let initial_signal_effects_count;
+
+        // Clean up main effects map - remove effects with only one strong reference (ours)
+        {
+            let mut effects = self.effects.borrow_mut();
+            initial_effects_count = effects.len();
+
+            effects.retain(|_, effect| {
+                let strong_count = Rc::strong_count(effect);
+                if strong_count <= 1 {
+                    // Effect is only held by us, dispose it
+                    effect.borrow().dispose();
+                    false
+                } else {
+                    true
+                }
+            });
+        }
+
+        // Clean up signal_effects weak references
+        {
+            let mut signal_effects = self.signal_effects.borrow_mut();
+            initial_signal_effects_count = signal_effects.len();
+
+            signal_effects.retain(|_, effects| {
+                effects.retain(|weak| weak.upgrade().is_some());
+                !effects.is_empty()
+            });
+        }
+
+        // Clean up effect queue - remove effects that no longer exist
+        {
+            let mut queue = self.effect_queue.borrow_mut();
+            let effects = self.effects.borrow();
+            queue.retain(|effect_id| effects.contains_key(effect_id));
+        }
+
+        // Clean up pending effects
+        {
+            let mut pending = self.pending_effects.borrow_mut();
+            let effects = self.effects.borrow();
+            pending.retain(|effect_id| effects.contains_key(effect_id));
+        }
+
+        // Clean up processing set
+        {
+            let mut processing = self.processing.borrow_mut();
+            let effects = self.effects.borrow();
+            processing.retain(|effect_id| effects.contains_key(effect_id));
+        }
+
+        let final_effects_count = self.effects.borrow().len();
+        let final_signal_effects_count = self.signal_effects.borrow().len();
+
+        let cleaned_effects = initial_effects_count - final_effects_count;
+        let cleaned_signal_effects = initial_signal_effects_count - final_signal_effects_count;
+
+        if cleaned_effects > 0 || cleaned_signal_effects > 0 {
+            // log::debug!(
+            //     "Cleaned up {} dead effects and {} signal effect mappings",
+            //     cleaned_effects,
+            //     cleaned_signal_effects
+            // );
+        }
+    }
+
+    /// Periodic cleanup - call this regularly in long-running applications
+    pub fn periodic_cleanup(&self) {
+        self.cleanup_dead_effects();
+
+        // Additional periodic maintenance
+        let effects_count = self.effects.borrow().len();
+        let queue_size = self.effect_queue.borrow().len();
+        let pending_size = self.pending_effects.borrow().len();
+
+        if effects_count > 1000 || queue_size > 100 || pending_size > 100 {
+            // log::warn!(
+            //     "High reactive system usage: {} effects, {} queued, {} pending",
+            //     effects_count, queue_size, pending_size
+            // );
+        }
+    }
 }
 
 impl Default for ReactiveRuntime {
@@ -229,6 +315,16 @@ impl RuntimeContext {
     /// Clean up the runtime
     pub fn cleanup(&self) {
         self.runtime.cleanup();
+    }
+
+    /// Comprehensive cleanup of dead effects
+    pub fn cleanup_dead_effects(&self) {
+        self.runtime.cleanup_dead_effects();
+    }
+
+    /// Periodic cleanup for long-running applications
+    pub fn periodic_cleanup(&self) {
+        self.runtime.periodic_cleanup();
     }
 }
 

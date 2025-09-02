@@ -369,6 +369,7 @@ mod tests {
     fn test_component_props_equality() {
         #[derive(Debug)]
         struct Props {
+            #[allow(dead_code)]
             value: i32,
         }
 

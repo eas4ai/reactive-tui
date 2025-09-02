@@ -59,7 +59,7 @@ impl Props for TerminalProps {
 pub struct TerminalState {
     /// The underlying terminal emulator
     terminal: Arc<Mutex<Terminal>>,
-    /// Event receiver for terminal events (wrapped in Arc<Mutex> for Sync)
+    /// Event receiver for terminal events (wrapped in `Arc<Mutex>` for Sync)
     event_receiver: Option<Arc<Mutex<mpsc::Receiver<TerminalEvent>>>>,
     /// Whether the terminal is running
     is_running: bool,

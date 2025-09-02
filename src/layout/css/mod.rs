@@ -8,15 +8,18 @@
 //! - `colors`: Text, background, border color utilities
 //! - `typography`: Font, text styling utilities
 //! - `effects`: Opacity, z-index, borders, shadows
+//! - `optimizer`: High-performance CSS utility parsing with caching
 
 pub mod accessibility;
 pub mod animations;
+pub mod color_cache;
 pub mod colors;
 pub mod containers;
 pub mod effects;
 pub mod focus;
 pub mod interactions;
 pub mod layout;
+pub mod optimizer;
 pub mod parsers;
 pub mod sizing;
 pub mod spacing;
@@ -28,7 +31,8 @@ use crate::layout::style::StyleBuilder;
 /// Apply utility CSS classes to a StyleBuilder
 ///
 /// This is the main entry point for applying Tailwind CSS utilities.
-/// It routes tokens to the appropriate specialized modules.
+/// It automatically uses the optimized parser if available, falling back
+/// to the sequential parser for compatibility.
 pub fn apply_utility_classes(class_str: &str, sb: StyleBuilder) -> StyleBuilder {
     apply_utility_classes_with_theme(class_str, sb, None)
 }
@@ -38,7 +42,25 @@ pub fn apply_utility_classes(class_str: &str, sb: StyleBuilder) -> StyleBuilder 
 /// This is the theme-aware version that can resolve CSS custom properties
 /// from theme variables. When a theme is provided, utilities like "bg-primary"
 /// will resolve to theme variables like "--color-primary".
+/// 
+/// Performance note: For best performance with complex class strings (10+ utilities),
+/// consider using `apply_utility_classes_optimized` directly.
 pub fn apply_utility_classes_with_theme(
+    class_str: &str,
+    sb: StyleBuilder,
+    theme: Option<&crate::theme::Theme>,
+) -> StyleBuilder {
+    // Use parser with lookup tables and caching
+    optimizer::apply_utility_classes(class_str, sb, theme)
+}
+
+/// Legacy sequential CSS utility application
+/// 
+/// This is the original implementation that processes utilities sequentially.
+/// Kept for compatibility and testing purposes. The optimized version should
+/// be preferred for production use.
+#[allow(dead_code)]
+pub fn apply_utility_classes_sequential(
     class_str: &str,
     mut sb: StyleBuilder,
     theme: Option<&crate::theme::Theme>,

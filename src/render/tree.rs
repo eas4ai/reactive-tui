@@ -1,7 +1,8 @@
-use crate::component::Element;
+use crate::component::{AnyComponentInstance, Element};
 use std::any::Any;
 use std::collections::HashMap;
 use std::fmt::Debug;
+
 
 /// Key for stable component identity across renders
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
@@ -72,6 +73,8 @@ pub struct ElementNode {
     element: Element,
     children: Vec<Box<dyn RenderNode>>,
     dirty: bool,
+    /// Component instance for component elements (automatic memory management)
+    component_instance: Option<AnyComponentInstance>,
 }
 
 impl ElementNode {
@@ -88,6 +91,7 @@ impl ElementNode {
             element,
             children: Vec::new(),
             dirty: true,
+            component_instance: None,
         }
     }
 
@@ -101,6 +105,27 @@ impl ElementNode {
     pub fn with_key(mut self, key: NodeKey) -> Self {
         self.key = key;
         self
+    }
+
+    /// Set the component instance for this node (for component elements)
+    pub fn with_component_instance(mut self, instance: AnyComponentInstance) -> Self {
+        self.component_instance = Some(instance);
+        self
+    }
+
+    /// Get the component instance if this is a component element
+    pub fn component_instance(&self) -> Option<&AnyComponentInstance> {
+        self.component_instance.as_ref()
+    }
+
+    /// Take the component instance (for cleanup)
+    pub fn take_component_instance(&mut self) -> Option<AnyComponentInstance> {
+        self.component_instance.take()
+    }
+
+    /// Check if this node represents a component
+    pub fn is_component(&self) -> bool {
+        matches!(self.element.element_type, crate::component::ElementType::Component(_))
     }
 }
 
@@ -145,6 +170,21 @@ impl RenderNode for ElementNode {
             self.element == *other_element
         } else {
             false
+        }
+    }
+}
+
+impl Drop for ElementNode {
+    fn drop(&mut self) {
+        // Automatic cleanup: unregister component instance if present
+        if self.component_instance.is_some() {
+            if let Err(_) = crate::component::registry::get_global_registry()
+                .unregister_instance(&self.key)
+            {
+                // Log error in debug mode, but don't panic during drop
+                #[cfg(debug_assertions)]
+                eprintln!("Warning: Failed to unregister component instance during ElementNode drop");
+            }
         }
     }
 }
@@ -284,6 +324,20 @@ impl RenderTree {
             path.pop();
         }
     }
+
+    /// Remove a node from the tree by its key
+    pub fn remove_node(&mut self, key: &NodeKey) {
+        // Remove from node map
+        self.node_map.remove(key);
+
+        // Remove from dirty nodes
+        self.dirty_nodes.retain(|k| k != key);
+
+        // Note: The actual node removal from the tree structure
+        // is handled by the reconciliation process during tree rebuilding
+    }
+
+
 }
 
 impl Default for RenderTree {
@@ -292,7 +346,7 @@ impl Default for RenderTree {
     }
 }
 
-/// Helper to convert Element tree to RenderNode tree
+/// Helper to convert Element tree to RenderNode tree with automatic component instantiation
 pub fn element_to_render_node(element: Element) -> Box<dyn RenderNode> {
     let children: Vec<Box<dyn RenderNode>> = element
         .children
@@ -310,6 +364,32 @@ pub fn element_to_render_node(element: Element) -> Box<dyn RenderNode> {
                     .unwrap_or_else(NodeKey::auto),
             ),
         ),
+        crate::component::ElementType::Component(ref component_name) => {
+            let mut node = ElementNode::new(element.clone()).with_children(children);
+
+            // Automatic component instantiation - the core fix!
+            if let Ok(Some(instance)) = crate::component::registry::get_global_registry()
+                .create_by_name(component_name, element.props.as_ref())
+            {
+                // Register instance for automatic cleanup tracking
+                if let Err(e) = crate::component::registry::get_global_registry()
+                    .register_instance(node.key().clone(), instance.clone())
+                {
+                    #[cfg(debug_assertions)]
+                    eprintln!("Warning: Failed to register component instance: {}", e);
+                } else {
+                    // Successfully created and registered component instance
+                    node = node.with_component_instance(instance);
+                }
+            } else {
+                // Component not registered - this is not an error, just means
+                // the component will be treated as a regular element
+                #[cfg(debug_assertions)]
+                eprintln!("Info: Component '{}' not registered, treating as regular element", component_name);
+            }
+
+            Box::new(node)
+        },
         _ => Box::new(ElementNode::new(element).with_children(children)),
     }
 }

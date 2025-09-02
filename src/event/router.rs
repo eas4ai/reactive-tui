@@ -72,7 +72,7 @@ pub struct EventNode {
 
 /// Unique identifier for nodes in the event routing tree
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct NodeId(usize);
+pub struct NodeId(pub(super) usize);
 
 impl Default for NodeId {
     fn default() -> Self {
@@ -92,9 +92,10 @@ impl NodeId {
 pub struct EventRouter {
     nodes: HashMap<NodeId, EventNode>,
     root: Option<NodeId>,
-    focus_node: Option<NodeId>,
     focus_manager: FocusManager,
     hit_test: HitTest,
+    /// Path cache for event routing optimization
+    path_cache: Option<super::cache::PathCache>,
 }
 
 impl EventRouter {
@@ -103,9 +104,9 @@ impl EventRouter {
         Self {
             nodes: HashMap::new(),
             root: None,
-            focus_node: None,
             focus_manager: FocusManager::new(),
             hit_test: HitTest::new(80.0, 24.0), // Default terminal size
+            path_cache: None,
         }
     }
 
@@ -114,10 +115,15 @@ impl EventRouter {
         Self {
             nodes: HashMap::new(),
             root: None,
-            focus_node: None,
             focus_manager: FocusManager::new(),
             hit_test: HitTest::new(width as f32, height as f32),
+            path_cache: None,
         }
+    }
+    
+    /// Enable path caching for improved performance
+    pub fn enable_caching(&mut self) {
+        self.path_cache = Some(super::cache::PathCache::new());
     }
 
     /// Create a new event node
@@ -171,8 +177,8 @@ impl EventRouter {
         }
 
         // Clear focus if removed
-        if self.focus_node == Some(id) {
-            self.focus_node = None;
+        if self.focus_manager.get_focus() == Some(id) {
+            self.focus_manager.set_focus(None);
         }
     }
 
@@ -232,6 +238,7 @@ impl EventRouter {
 
     /// Route an event through the tree
     pub fn route_event(&self, event: &Event, target_id: NodeId) -> EventResult {
+        // Use discriminant for zero-cost type identification
         let event_type = match event {
             Event::Key(_) => "key",
             Event::Mouse(_) => "mouse",
@@ -241,8 +248,8 @@ impl EventRouter {
             Event::Custom(_) => "custom",
         };
 
-        // Build path from root to target
-        let mut path = Vec::new();
+        // Build path with pre-allocated capacity
+        let mut path = Vec::with_capacity(16); // Most UI trees are < 16 levels deep
         let mut current = Some(target_id);
 
         while let Some(node_id) = current {
@@ -320,7 +327,7 @@ impl EventRouter {
 
     /// Dispatch an event to the focused node
     pub fn dispatch_to_focus(&self, event: &Event) -> EventResult {
-        if let Some(focus_id) = self.focus_node {
+        if let Some(focus_id) = self.focus_manager.get_focus() {
             self.route_event(event, focus_id)
         } else if let Some(root_id) = self.root {
             self.route_event(event, root_id)
@@ -330,55 +337,50 @@ impl EventRouter {
     }
 
     /// Advance focus to next node id
-    /// This integrates with reactive-tui's hierarchical focus management system
-    pub fn focus_next(&mut self) {
-        if let Some(current_id) = self.focus_node {
-            // Find the next focusable node in the focus tree
-            if let Some(next_id) = self.find_next_focusable_node(current_id) {
-                self.set_focus(Some(next_id));
-            } else {
-                // Wrap around to first focusable node
-                if let Some(first_id) = self.find_first_focusable_node() {
-                    self.set_focus(Some(first_id));
-                }
-            }
-        } else {
-            // No current focus - set to first focusable node
-            if let Some(first_id) = self.find_first_focusable_node() {
-                self.set_focus(Some(first_id));
-            }
-        }
+    /// Returns the focused node and collects events for later emission
+    pub fn focus_next(&mut self) -> Option<NodeId> {
+        let (node_id, focus_event) = self.focus_manager.focus_next();
+        self.emit_focus_operation_events(node_id, focus_event);
+        node_id
     }
 
     /// Move focus to previous node id
-    /// This integrates with reactive-tui's hierarchical focus management system
-    pub fn focus_prev(&mut self) {
-        if let Some(current_id) = self.focus_node {
-            // Find the previous focusable node in the focus tree
-            if let Some(prev_id) = self.find_previous_focusable_node(current_id) {
-                self.set_focus(Some(prev_id));
-            } else {
-                // Wrap around to last focusable node
-                if let Some(last_id) = self.find_last_focusable_node() {
-                    self.set_focus(Some(last_id));
-                }
-            }
-        } else {
-            // No current focus - set to last focusable node
-            if let Some(last_id) = self.find_last_focusable_node() {
-                self.set_focus(Some(last_id));
-            }
-        }
+    /// Returns the focused node and emits focus event if focus changed
+    pub fn focus_prev(&mut self) -> Option<NodeId> {
+        let (node_id, focus_event) = self.focus_manager.focus_previous();
+        self.emit_focus_operation_events(node_id, focus_event);
+        node_id
     }
 
     /// Set the focused node
+    /// Emits focus events if focus changed
     pub fn set_focus(&mut self, node_id: Option<NodeId>) {
-        self.focus_node = node_id;
+        let focus_events = self.focus_manager.set_focus(node_id);
+
+        // Emit all focus events (Lost for old element, Gained for new element)
+        for (target_id, focus_event) in focus_events {
+            self.emit_focus_event(target_id, focus_event);
+        }
+    }
+
+    /// Helper method to emit focus events safely
+    fn emit_focus_event(&self, target_id: NodeId, focus_event: super::types::FocusEvent) {
+        let event = super::types::Event::Focus(focus_event);
+        self.route_event(&event, target_id);
+    }
+
+    /// Helper method to emit focus events from a focus operation result
+    fn emit_focus_operation_events(&self, node_id: Option<NodeId>, focus_event: Option<super::types::FocusEvent>) {
+        if let Some(event) = focus_event {
+            if let Some(target_id) = node_id {
+                self.emit_focus_event(target_id, event);
+            }
+        }
     }
 
     /// Get the currently focused node
     pub fn get_focus(&self) -> Option<NodeId> {
-        self.focus_node
+        self.focus_manager.get_focus()
     }
 
     /// Process an event - THE central event processing method
@@ -402,12 +404,10 @@ impl EventRouter {
                 use super::types::KeyCode;
                 if key_event.code == KeyCode::Tab {
                     if key_event.modifiers.shift {
-                        if let Some(id) = self.focus_manager.focus_previous() {
-                            self.set_focus(Some(id));
+                        if self.focus_prev().is_some() {
                             return Some(EventResult::Handled);
                         }
-                    } else if let Some(id) = self.focus_manager.focus_next() {
-                        self.set_focus(Some(id));
+                    } else if self.focus_next().is_some() {
                         return Some(EventResult::Handled);
                     }
                 }
@@ -436,12 +436,12 @@ impl EventRouter {
                     node_id
                 } else {
                     // Default to root or focused node
-                    self.focus_node.or(self.root).unwrap_or_default()
+                    self.focus_manager.get_focus().or(self.root).unwrap_or_default()
                 }
             }
             _ => {
                 // For keyboard and other events, use focused node or root
-                self.focus_node.or(self.root).unwrap_or_default()
+                self.focus_manager.get_focus().or(self.root).unwrap_or_default()
             }
         }
     }
@@ -456,58 +456,52 @@ impl EventRouter {
         self.hit_test.remove_node(node_id);
     }
 
-    /// Add a focusable node
-    pub fn add_focusable(&mut self, node_id: NodeId) {
-        self.focus_manager.register_focusable(node_id, None, true);
+    /// Add a focusable node with optional tab index
+    /// Returns true if successful
+    pub fn add_focusable(&mut self, node_id: NodeId, tab_index: Option<i32>) -> bool {
+        self.focus_manager.register_focusable(node_id, tab_index, true)
     }
 
-    /// Find the next focusable node after the given node
-    fn find_next_focusable_node(&self, current_id: NodeId) -> Option<NodeId> {
-        // Get all focusable nodes in order
-        let focusable_nodes = self.focus_manager.get_focusable_nodes();
 
-        // Find current position
-        if let Some(current_pos) = focusable_nodes.iter().position(|&id| id == current_id) {
-            // Return next node, or None if at end
-            focusable_nodes.get(current_pos + 1).copied()
-        } else {
-            // Current node not found - return first focusable
-            focusable_nodes.first().copied()
-        }
-    }
-
-    /// Find the first focusable node
-    fn find_first_focusable_node(&self) -> Option<NodeId> {
-        self.focus_manager.get_focusable_nodes().first().copied()
-    }
-
-    /// Find the last focusable node
-    fn find_last_focusable_node(&self) -> Option<NodeId> {
-        self.focus_manager.get_focusable_nodes().last().copied()
-    }
-
-    /// Find the previous focusable node before the given node
-    fn find_previous_focusable_node(&self, current_id: NodeId) -> Option<NodeId> {
-        // Get all focusable nodes in order
-        let focusable_nodes = self.focus_manager.get_focusable_nodes();
-
-        // Find current position
-        if let Some(current_pos) = focusable_nodes.iter().position(|&id| id == current_id) {
-            // Return previous node, or None if at beginning
-            if current_pos > 0 {
-                focusable_nodes.get(current_pos - 1).copied()
-            } else {
-                None
-            }
-        } else {
-            // Current node not found - return last focusable
-            focusable_nodes.last().copied()
-        }
-    }
 
     /// Remove a focusable node
     pub fn remove_focusable(&mut self, node_id: NodeId) {
         self.focus_manager.unregister_focusable(node_id);
+    }
+
+    /// Update spatial information for a node (for arrow-key navigation)
+    /// Returns true if successful
+    pub fn update_spatial(&mut self, node_id: NodeId, x: f32, y: f32, width: f32, height: f32) -> bool {
+        self.focus_manager.update_spatial(node_id, x, y, width, height)
+    }
+
+    /// Move focus in a specific direction
+    /// Returns the focused node and emits focus event if focus changed
+    pub fn focus_move(&mut self, direction: super::focus::FocusDirection) -> Option<NodeId> {
+        let (node_id, focus_event) = self.focus_manager.move_focus(direction);
+        self.emit_focus_operation_events(node_id, focus_event);
+        node_id
+    }
+
+    /// Create a focus trap for a container (e.g., modal dialog)
+    /// This restricts focus navigation to only nodes within the container
+    pub fn create_focus_trap(&mut self, container: NodeId, trapped_nodes: Vec<NodeId>) -> bool {
+        self.focus_manager.create_focus_trap(container, trapped_nodes)
+    }
+
+    /// Remove a focus trap and restore previous focus behavior
+    pub fn remove_focus_trap(&mut self, container: NodeId) -> bool {
+        self.focus_manager.remove_focus_trap(container)
+    }
+
+    /// Check if focus is currently trapped
+    pub fn is_focus_trapped(&self) -> bool {
+        self.focus_manager.is_focus_trapped()
+    }
+
+    /// Get the active focus trap container, if any
+    pub fn get_active_focus_trap(&self) -> Option<NodeId> {
+        self.focus_manager.get_active_focus_trap()
     }
 
     /// Get the root node

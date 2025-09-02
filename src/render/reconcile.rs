@@ -6,9 +6,9 @@ use std::collections::HashMap;
 pub struct DiffResult {
     /// List of patch operations to apply
     pub patches: Vec<PatchOp>,
-    /// Number of nodes reused from previous tree
+    /// Number of nodes that were reused from the old tree
     pub reused_nodes: usize,
-    /// Number of new nodes created
+    /// Number of new nodes added
     pub new_nodes: usize,
     /// Number of nodes removed
     pub removed_nodes: usize,
@@ -19,9 +19,9 @@ pub struct DiffResult {
 pub enum PatchOp {
     /// Insert a new node
     Insert {
-        /// Parent node to insert into (None for root)
+        /// Parent node key (None for root)
         parent_key: Option<NodeKey>,
-        /// Index position to insert at
+        /// Position in parent's children list
         index: usize,
         /// Key of the node to insert
         node_key: NodeKey,
@@ -35,9 +35,9 @@ pub enum PatchOp {
 
     /// Replace a node with another
     Replace {
-        /// Key of the old node to replace
+        /// Key of the node to replace
         old_key: NodeKey,
-        /// Key of the new node to replace with
+        /// Key of the replacement node
         new_key: NodeKey,
     },
 
@@ -45,9 +45,9 @@ pub enum PatchOp {
     Move {
         /// Key of the node to move
         node_key: NodeKey,
-        /// New parent node (None for root)
+        /// New parent node key (None for root)
         parent_key: Option<NodeKey>,
-        /// New index position
+        /// New position in parent's children list
         index: usize,
     },
 
@@ -59,7 +59,7 @@ pub enum PatchOp {
 
     /// Reorder children
     ReorderChildren {
-        /// Parent node whose children to reorder
+        /// Parent node whose children are being reordered
         parent_key: NodeKey,
         /// New order of child node keys
         new_order: Vec<NodeKey>,
@@ -297,8 +297,11 @@ impl Default for Reconciler {
     }
 }
 
-/// Apply patches to update the actual UI
-pub fn apply_patches(patches: &[PatchOp], _tree: &mut RenderTree) {
+/// Apply patches to update the actual UI and manage component lifecycle
+pub fn apply_patches(
+    patches: &[PatchOp],
+    tree: &mut RenderTree,
+) {
     for patch in patches {
         match patch {
             PatchOp::Insert {
@@ -308,17 +311,39 @@ pub fn apply_patches(patches: &[PatchOp], _tree: &mut RenderTree) {
             } => {
                 #[cfg(feature = "debug_patches")]
                 eprintln!("INSERT: {patch:?}");
+                // Component instances will be created by the render system
             }
-            PatchOp::Remove { node_key: _ } => {
+            PatchOp::Remove { node_key } => {
                 #[cfg(feature = "debug_patches")]
                 eprintln!("REMOVE: {patch:?}");
+
+                // Automatic component cleanup - unregister from global registry
+                if let Err(e) = crate::component::registry::get_global_registry()
+                    .unregister_instance(node_key)
+                {
+                    #[cfg(debug_assertions)]
+                    eprintln!("Warning: Failed to unregister component during removal: {}", e);
+                }
+
+                tree.remove_node(node_key);
             }
             PatchOp::Replace {
-                old_key: _,
+                old_key,
                 new_key: _,
             } => {
                 #[cfg(feature = "debug_patches")]
                 eprintln!("REPLACE: {patch:?}");
+
+                // Automatic component cleanup for replaced node
+                if let Err(e) = crate::component::registry::get_global_registry()
+                    .unregister_instance(old_key)
+                {
+                    #[cfg(debug_assertions)]
+                    eprintln!("Warning: Failed to unregister replaced component: {}", e);
+                }
+
+                tree.remove_node(old_key);
+                // Note: New component instance will be created automatically during rendering
             }
             PatchOp::Move {
                 node_key: _,
@@ -327,10 +352,12 @@ pub fn apply_patches(patches: &[PatchOp], _tree: &mut RenderTree) {
             } => {
                 #[cfg(feature = "debug_patches")]
                 eprintln!("MOVE: {patch:?}");
+                // Component instances stay the same, just moved in tree
             }
             PatchOp::Update { node_key: _ } => {
                 #[cfg(feature = "debug_patches")]
                 eprintln!("UPDATE: {patch:?}");
+                // Component instances will be updated by the render system
             }
             PatchOp::ReorderChildren {
                 parent_key: _,
@@ -338,6 +365,7 @@ pub fn apply_patches(patches: &[PatchOp], _tree: &mut RenderTree) {
             } => {
                 #[cfg(feature = "debug_patches")]
                 eprintln!("REORDER: {patch:?}");
+                // Component instances stay the same, just reordered
             }
         }
     }
@@ -527,10 +555,7 @@ mod tests {
         let result = reconciler.diff(&tree1, &tree2);
 
         // Should detect an update since content changed but key/type same
-        assert!(result
-            .patches
-            .iter()
-            .any(|p| matches!(p, PatchOp::Update { .. })));
+        assert!(result.patches.iter().any(|p| matches!(p, PatchOp::Update { .. })));
         assert_eq!(result.reused_nodes, 1);
     }
 
@@ -550,7 +575,9 @@ mod tests {
         // Tree 2: Root with 1 child (B and C removed)
         let tree2_root = Element::layout(LayoutType::Flex)
             .with_key("root")
-            .with_children(vec![Element::text("A").with_key("a")]);
+            .with_children(vec![
+                Element::text("A").with_key("a"),
+            ]);
 
         let mut tree1 = RenderTree::new();
         tree1.set_root(element_to_render_node(tree1_root));
@@ -561,9 +588,7 @@ mod tests {
         let result = reconciler.diff(&tree1, &tree2);
 
         // Should detect removals
-        let remove_count = result
-            .patches
-            .iter()
+        let remove_count = result.patches.iter()
             .filter(|p| matches!(p, PatchOp::Remove { .. }))
             .count();
         assert_eq!(remove_count, 2); // B and C removed
@@ -578,7 +603,9 @@ mod tests {
         // Tree 1: Root with 1 child
         let tree1_root = Element::layout(LayoutType::Flex)
             .with_key("root")
-            .with_children(vec![Element::text("A").with_key("a")]);
+            .with_children(vec![
+                Element::text("A").with_key("a"),
+            ]);
 
         // Tree 2: Root with 3 children (B and C added)
         let tree2_root = Element::layout(LayoutType::Flex)
@@ -598,9 +625,7 @@ mod tests {
         let result = reconciler.diff(&tree1, &tree2);
 
         // Should detect insertions
-        let insert_count = result
-            .patches
-            .iter()
+        let insert_count = result.patches.iter()
             .filter(|p| matches!(p, PatchOp::Insert { .. }))
             .count();
         assert_eq!(insert_count, 2); // B and C inserted

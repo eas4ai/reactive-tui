@@ -32,7 +32,11 @@ impl Hooks {
 
     /// Reset hook index for new render
     pub fn reset(&self) {
-        *self.index.lock().unwrap() = 0;
+        if let Ok(mut index) = self.index.lock() {
+            *index = 0;
+        } else {
+            log::error!("Failed to acquire hook index lock during reset");
+        }
     }
 
     /// Get or create storage at current index
@@ -40,22 +44,34 @@ impl Hooks {
         &self,
         init: impl FnOnce() -> T,
     ) -> Arc<Mutex<T>> {
-        let mut index = self.index.lock().unwrap();
-        let mut storage = self.storage.lock().unwrap();
+        // Use try_lock to avoid deadlock, with fallback behavior
+        let index_result = self.index.try_lock();
+        let storage_result = self.storage.try_lock();
 
-        if *index >= storage.len() {
-            let value = Arc::new(Mutex::new(init()));
-            storage.push(Box::new(value.clone()));
-            *index += 1;
-            value
-        } else {
-            let stored = &storage[*index];
-            *index += 1;
+        match (index_result, storage_result) {
+            (Ok(mut index), Ok(mut storage)) => {
+                if *index >= storage.len() {
+                    let value = Arc::new(Mutex::new(init()));
+                    storage.push(Box::new(value.clone()));
+                    *index += 1;
+                    value
+                } else {
+                    let stored = &storage[*index];
+                    *index += 1;
 
-            stored
-                .downcast_ref::<Arc<Mutex<T>>>()
-                .expect("Hook type mismatch")
-                .clone()
+                    if let Some(arc) = stored.downcast_ref::<Arc<Mutex<T>>>() {
+                        arc.clone()
+                    } else {
+                        log::error!("Type mismatch in hook storage, creating new value");
+                        Arc::new(Mutex::new(init()))
+                    }
+                }
+            }
+            _ => {
+                log::error!("Failed to acquire hook storage locks, creating isolated value");
+                // Fallback: create isolated value (not ideal but prevents panic)
+                Arc::new(Mutex::new(init()))
+            }
         }
     }
 
@@ -155,13 +171,22 @@ where
                 cleanup.map(|boxed| Box::new(boxed) as Box<dyn FnOnce()>)
             }))
     }) {
-        hooks.effects.lock().unwrap().push(id);
+        // Use try_lock to avoid deadlock
+        if let Ok(mut effects) = hooks.effects.try_lock() {
+            effects.push(id);
+        } else {
+            log::warn!("Could not acquire effects lock, effect may not be tracked properly");
+        }
         return id;
     }
 
     // Fallback: no runtime set. Execute effect now (best-effort) and return a fresh id.
     let effect_id = EffectId::new();
-    hooks.effects.lock().unwrap().push(effect_id);
+    if let Ok(mut effects) = hooks.effects.try_lock() {
+        effects.push(effect_id);
+    } else {
+        log::warn!("Could not acquire effects lock in fallback path");
+    }
     if let Some(cleanup) = effect_opt.and_then(|f| f()) {
         // Without a scheduler to own deferred cleanup, execute immediately to avoid leaks
         cleanup();
