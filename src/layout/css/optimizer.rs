@@ -148,6 +148,11 @@ fn delegate_to_existing_modules(
         return result;
     }
     
+    // Spacing utilities (for gap, space-between utilities not in SPACING_PREFIXES)
+    if let Some(result) = super::spacing::apply_spacing_utilities(token, sb.clone()) {
+        return result;
+    }
+    
     // Sizing utilities (for dynamic values like w-[100px])
     if let Some(result) = super::sizing::apply_sizing_utilities(token, sb.clone()) {
         return result;

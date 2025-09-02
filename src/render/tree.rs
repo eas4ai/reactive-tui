@@ -51,6 +51,14 @@ pub trait RenderNode: Debug + Send + Sync {
 
     /// Mark this node as clean after rendering
     fn mark_clean(&mut self);
+    
+    /// Mark this node as dirty (needs re-rendering)
+    fn mark_dirty(&mut self);
+    
+    /// Check if any child is dirty (for optimization)
+    fn has_dirty_children(&self) -> bool {
+        self.children().iter().any(|child| child.is_dirty())
+    }
 
     /// Get the underlying element if this is an element node
     fn as_element(&self) -> Option<&Element> {
@@ -160,6 +168,10 @@ impl RenderNode for ElementNode {
     fn mark_clean(&mut self) {
         self.dirty = false;
     }
+    
+    fn mark_dirty(&mut self) {
+        self.dirty = true;
+    }
 
     fn as_element(&self) -> Option<&Element> {
         Some(&self.element)
@@ -233,6 +245,10 @@ impl RenderNode for FragmentNode {
 
     fn mark_clean(&mut self) {
         self.dirty = false;
+    }
+    
+    fn mark_dirty(&mut self) {
+        self.dirty = true;
     }
 
     fn equals(&self, other: &dyn RenderNode) -> bool {
@@ -371,9 +387,9 @@ pub fn element_to_render_node(element: Element) -> Box<dyn RenderNode> {
             if let Ok(Some(instance)) = crate::component::registry::get_global_registry()
                 .create_by_name(component_name, element.props.as_ref())
             {
-                // Register instance for automatic cleanup tracking
+                // Register instance for automatic cleanup tracking with CSS animation support
                 if let Err(e) = crate::component::registry::get_global_registry()
-                    .register_instance(node.key().clone(), instance.clone())
+                    .register_instance_with_element(node.key().clone(), instance.clone(), &element)
                 {
                     #[cfg(debug_assertions)]
                     eprintln!("Warning: Failed to register component instance: {}", e);

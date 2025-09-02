@@ -245,6 +245,8 @@ pub struct StyleBuilder {
     mar_r: Option<f32>,
     mar_t: Option<f32>,
     mar_b: Option<f32>,
+    // CSS Animation integration
+    css_animation: Option<String>,
 }
 
 impl StyleBuilder {
@@ -1450,6 +1452,31 @@ impl StyleBuilder {
             };
         }
         self.style
+    }
+
+    /// Set CSS animation for this element
+    ///
+    /// This marks the element as having a CSS animation that should be
+    /// applied when the element is rendered.
+    ///
+    /// # Arguments
+    /// * `animation_name` - Name of the CSS animation (e.g., "pulse", "bounce")
+    ///
+    /// # Returns
+    /// Self for method chaining
+    pub fn with_css_animation(mut self, animation_name: &str) -> Self {
+        self.css_animation = Some(animation_name.to_string());
+        self
+    }
+
+    /// Get the CSS animation name if set
+    pub fn get_css_animation(&self) -> Option<&String> {
+        self.css_animation.as_ref()
+    }
+
+    /// Take the CSS animation name, leaving None
+    pub fn take_css_animation(&mut self) -> Option<String> {
+        self.css_animation.take()
     }
 }
 

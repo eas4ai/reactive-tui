@@ -357,7 +357,7 @@ fn named(token: &str) -> Option<Rgba> {
 /// Parse a color token from hex or named color to RGBA components
 pub fn parse_color_token(token: &str) -> Option<(f32, f32, f32, f32)> {
     // First check the color cache for O(1) lookup
-    if let Some((r, g, b, a)) = crate::layout::css::color_cache::get_cached_color(token) {
+    if let Some((r, g, b, a)) = crate::layout::css::cache::get_cached_color(token) {
         return Some((r as f32 / 255.0, g as f32 / 255.0, b as f32 / 255.0, a));
     }
     
@@ -365,7 +365,7 @@ pub fn parse_color_token(token: &str) -> Option<(f32, f32, f32, f32)> {
     if let Some(c) = hex_to_rgba(token) {
         // Cache the result for future lookups
         let color = ((c.0 * 255.0) as u8, (c.1 * 255.0) as u8, (c.2 * 255.0) as u8, c.3);
-        crate::layout::css::color_cache::cache_color(token.to_string(), color);
+        crate::layout::css::cache::cache_color(token.to_string(), color);
         return Some((c.0, c.1, c.2, c.3));
     }
     
@@ -373,7 +373,7 @@ pub fn parse_color_token(token: &str) -> Option<(f32, f32, f32, f32)> {
     if let Some(c) = named(token) {
         // Cache the result for future lookups
         let color = ((c.0 * 255.0) as u8, (c.1 * 255.0) as u8, (c.2 * 255.0) as u8, c.3);
-        crate::layout::css::color_cache::cache_color(token.to_string(), color);
+        crate::layout::css::cache::cache_color(token.to_string(), color);
         return Some((c.0, c.1, c.2, c.3));
     }
     

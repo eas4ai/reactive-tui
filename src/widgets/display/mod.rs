@@ -1,3 +1,7 @@
+/// Chart widgets for data visualization
+pub mod charts;
+/// Data table with filtering, pagination, and virtual scrolling
+pub mod data_table;
 /// Image display widgets for terminal graphics
 pub mod image;
 /// Modal dialog components
@@ -11,6 +15,14 @@ pub mod table;
 /// Tree view components
 pub mod tree;
 
+pub use charts::{
+    Chart, ChartProps, ChartState, ChartType, ChartAxis, ChartLegend,
+    DataPoint, DataSeries, LineStyle, FillStyle, LegendPosition
+};
+pub use data_table::{
+    DataTable, DataTableProps, DataTableState,
+    ColumnFilter, FilterType, PaginationConfig, VirtualScrollConfig
+};
 pub use image::{
     Image, ImageCapabilities, ImageDisplayMode, ImageFormat, ImageQuality, ImageSource,
 };

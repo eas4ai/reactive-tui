@@ -11,10 +11,12 @@
 //! - `optimizer`: High-performance CSS utility parsing with caching
 
 pub mod accessibility;
+pub mod animation_manager;
 pub mod animations;
-pub mod color_cache;
+pub mod cache;
 pub mod colors;
 pub mod containers;
+pub mod css_in_rust;
 pub mod effects;
 pub mod focus;
 pub mod interactions;

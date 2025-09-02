@@ -154,6 +154,11 @@ impl AnyComponentInstance {
         self.inner.on_lifecycle_any(event)
     }
 
+    /// Check if mounted
+    pub fn is_mounted(&self) -> bool {
+        self.inner.is_mounted_any()
+    }
+
     /// Get type ID
     pub fn type_id(&self) -> TypeId {
         AnyComponent::type_id(&*self.inner)
@@ -182,8 +187,10 @@ impl Clone for AnyComponentInstance {
 impl Drop for AnyComponentInstance {
     fn drop(&mut self) {
         // Safety net: ensure unmount lifecycle event is called
-        // This is a fallback in case the component wasn't properly unmounted
-        self.on_lifecycle(LifecycleEvent::Unmount);
+        // Only unmount if still mounted to prevent double unmount
+        if self.is_mounted() {
+            self.on_lifecycle(LifecycleEvent::Unmount);
+        }
     }
 }
 
@@ -241,7 +248,20 @@ impl<C: Component> AnyComponent for ComponentInstanceWrapper<C> {
     }
 
     fn on_lifecycle_any(&mut self, event: LifecycleEvent) {
-        self.0.component.on_lifecycle(event, &mut self.0.state)
+        match event {
+            LifecycleEvent::Mount => self.0.mount(),
+            LifecycleEvent::Unmount => {
+                // Only unmount if mounted to prevent double unmount
+                if self.0.lifecycle.is_mounted() {
+                    self.0.unmount();
+                }
+            },
+            _ => self.0.component.on_lifecycle(event, &mut self.0.state),
+        }
+    }
+
+    fn is_mounted_any(&self) -> bool {
+        self.0.lifecycle.is_mounted()
     }
 
     fn type_id(&self) -> TypeId {

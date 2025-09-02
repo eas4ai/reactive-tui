@@ -8,7 +8,178 @@
 //! - Animation utilities (animate-pulse, animate-bounce, etc.)
 
 use crate::layout::style::StyleBuilder;
+use crate::animation::{Animation, AnimationBuilder, AnimatedProperty, EasingFunction, LoopMode};
+use std::collections::HashMap;
+use std::sync::{Arc, RwLock, OnceLock};
 use std::time::Duration;
+
+/// CSS Animation metadata that can be converted to component animations
+#[derive(Debug, Clone)]
+pub struct CssAnimationSpec {
+    /// Animation name (e.g., "pulse", "bounce", "spin")
+    pub name: String,
+    /// Duration of the animation
+    pub duration: Duration,
+    /// Easing function
+    pub easing: EasingFunction,
+    /// Loop behavior
+    pub loop_mode: LoopMode,
+    /// Animation properties to animate
+    pub properties: Vec<AnimatedProperty>,
+}
+
+/// Global registry of CSS animations that can be applied to components
+static CSS_ANIMATION_REGISTRY: OnceLock<Arc<RwLock<HashMap<String, CssAnimationSpec>>>> = OnceLock::new();
+
+/// Get the global CSS animation registry
+fn get_css_animation_registry() -> &'static Arc<RwLock<HashMap<String, CssAnimationSpec>>> {
+    CSS_ANIMATION_REGISTRY.get_or_init(|| {
+        let mut registry = HashMap::new();
+
+        // Register built-in CSS animations
+        register_builtin_animations(&mut registry);
+
+        Arc::new(RwLock::new(registry))
+    })
+}
+
+/// Register built-in CSS animations
+fn register_builtin_animations(registry: &mut HashMap<String, CssAnimationSpec>) {
+    // Pulse animation (opacity fade in/out)
+    registry.insert("pulse".to_string(), CssAnimationSpec {
+        name: "pulse".to_string(),
+        duration: Duration::from_millis(2000),
+        easing: EasingFunction::EaseInOut,
+        loop_mode: LoopMode::Infinite,
+        properties: vec![
+            AnimatedProperty::Opacity(1.0, 0.5),
+        ],
+    });
+
+    // Bounce animation (vertical movement simulation)
+    registry.insert("bounce".to_string(), CssAnimationSpec {
+        name: "bounce".to_string(),
+        duration: Duration::from_millis(1000),
+        easing: EasingFunction::EaseOut,
+        loop_mode: LoopMode::Infinite,
+        properties: vec![
+            AnimatedProperty::Transform(crate::animation::TransformProperty::TranslateY(-25.0, 0.0)),
+        ],
+    });
+
+    // Spin animation (rotation)
+    registry.insert("spin".to_string(), CssAnimationSpec {
+        name: "spin".to_string(),
+        duration: Duration::from_millis(1000),
+        easing: EasingFunction::Linear,
+        loop_mode: LoopMode::Infinite,
+        properties: vec![
+            AnimatedProperty::Transform(crate::animation::TransformProperty::Rotate(0.0, 360.0)),
+        ],
+    });
+
+    // Ping animation (scale + opacity)
+    registry.insert("ping".to_string(), CssAnimationSpec {
+        name: "ping".to_string(),
+        duration: Duration::from_millis(1000),
+        easing: EasingFunction::EaseOut,
+        loop_mode: LoopMode::Infinite,
+        properties: vec![
+            AnimatedProperty::Transform(crate::animation::TransformProperty::Scale(1.0, 2.0)),
+            AnimatedProperty::Opacity(1.0, 0.0),
+        ],
+    });
+}
+
+/// Apply a CSS animation to a component by ID
+pub fn apply_css_animation_to_component(
+    component_id: &str,
+    animation_name: &str,
+) -> Result<Animation, String> {
+    let registry = get_css_animation_registry();
+    let registry_guard = registry.read().map_err(|_| "Failed to read CSS animation registry")?;
+
+    let spec = registry_guard.get(animation_name)
+        .ok_or_else(|| format!("CSS animation '{}' not found", animation_name))?;
+
+    // Create component animation from CSS spec
+    let mut builder = AnimationBuilder::new(format!("css-{}-{}", animation_name, component_id))
+        .duration(spec.duration)
+        .easing(spec.easing.clone())
+        .loop_mode(spec.loop_mode.clone());
+
+    // Add all properties from the spec
+    for property in &spec.properties {
+        builder = builder.animate_property(property.clone());
+    }
+
+    Ok(builder.build())
+}
+
+/// Register a custom CSS animation
+pub fn register_css_animation(name: String, spec: CssAnimationSpec) -> Result<(), String> {
+    let registry = get_css_animation_registry();
+    let mut registry_guard = registry.write().map_err(|_| "Failed to write to CSS animation registry")?;
+
+    registry_guard.insert(name, spec);
+    Ok(())
+}
+
+/// Get all available CSS animation names
+pub fn get_available_css_animations() -> Vec<String> {
+    let registry = get_css_animation_registry();
+    if let Ok(registry_guard) = registry.read() {
+        registry_guard.keys().cloned().collect()
+    } else {
+        vec![]
+    }
+}
+
+/// Create a CSS animation spec from parameters
+pub fn create_css_animation_spec(
+    name: &str,
+    duration_ms: u64,
+    easing: EasingFunction,
+    loop_mode: LoopMode,
+    properties: Vec<AnimatedProperty>,
+) -> CssAnimationSpec {
+    CssAnimationSpec {
+        name: name.to_string(),
+        duration: Duration::from_millis(duration_ms),
+        easing,
+        loop_mode,
+        properties,
+    }
+}
+
+/// Extract CSS animation names from a class string
+///
+/// Parses CSS classes like "animate-pulse", "animate-bounce", etc.
+/// and returns the animation names (e.g., "pulse", "bounce")
+///
+/// Returns an empty vector if "animate-none" is present, as it disables all animations
+pub fn extract_css_animations_from_classes(class_str: &str) -> Vec<String> {
+    let mut animations = Vec::new();
+    let mut has_animate_none = false;
+
+    for class in class_str.split_whitespace() {
+        if let Some(animation_name) = class.strip_prefix("animate-") {
+            if animation_name == "none" {
+                has_animate_none = true;
+                break; // animate-none disables all animations
+            } else {
+                animations.push(animation_name.to_string());
+            }
+        }
+    }
+
+    // If animate-none is present, return empty vector (no animations)
+    if has_animate_none {
+        Vec::new()
+    } else {
+        animations
+    }
+}
 
 /// Apply animation and transition utilities
 pub fn apply_animation_utilities(token: &str, sb: StyleBuilder) -> Option<StyleBuilder> {
@@ -256,26 +427,26 @@ fn apply_animate_none(sb: StyleBuilder) -> StyleBuilder {
 
 /// Apply spin animation
 fn apply_animate_spin(sb: StyleBuilder) -> StyleBuilder {
-    // Spinning animation - could cycle through characters like /-\|
-    sb
+    // Mark this element as having a CSS animation
+    sb.with_css_animation("spin")
 }
 
 /// Apply ping animation (scale + opacity)
 fn apply_animate_ping(sb: StyleBuilder) -> StyleBuilder {
-    // Ping animation - scale up and fade out
-    sb
+    // Mark this element as having a CSS animation
+    sb.with_css_animation("ping")
 }
 
 /// Apply pulse animation (opacity)
 fn apply_animate_pulse(sb: StyleBuilder) -> StyleBuilder {
-    // Pulse animation - fade in and out
-    sb.opacity(0.8) // Start with slightly reduced opacity
+    // Mark this element as having a CSS animation
+    sb.with_css_animation("pulse")
 }
 
 /// Apply bounce animation
 fn apply_animate_bounce(sb: StyleBuilder) -> StyleBuilder {
-    // Bounce animation - vertical movement simulation
-    sb
+    // Mark this element as having a CSS animation
+    sb.with_css_animation("bounce")
 }
 
 #[cfg(test)]

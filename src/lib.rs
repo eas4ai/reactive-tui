@@ -99,6 +99,9 @@ pub use error::{ReactiveError, Result};
 // Re-export the macros
 pub use reactive_tui_macros::{component, Props};
 
+// Re-export CSS-in-Rust functionality
+pub use crate::layout::css::css_in_rust::{apply_css_property, IntoCssValue};
+
 /// Prelude module for convenient imports
 pub mod prelude {
     pub use crate::app::App;
@@ -108,4 +111,8 @@ pub mod prelude {
     pub use crate::hooks::*;
     pub use crate::reactive::*;
     pub use crate::{component, Props};
+
+    // CSS-in-Rust support
+    pub use crate::layout::css::css_in_rust::{apply_css_property, IntoCssValue};
+    pub use taffy::style::{Display, FlexDirection, AlignItems, JustifyContent, Position};
 }

@@ -47,8 +47,8 @@ pub fn common_components() -> &'static CommonComponents {
     &COMMON_COMPONENTS
 }
 
-/// Thread-local LRU cache for component instances
 thread_local! {
+    /// Thread-local LRU cache for component instances
     static INSTANCE_CACHE: RefCell<LruCache<(TypeId, u64), Arc<AnyComponentInstance>>> = 
         RefCell::new(LruCache::new(NonZeroUsize::new(64).unwrap()));
 }
@@ -91,8 +91,11 @@ pub fn clear_instance_cache() {
 /// Statistics for cache performance monitoring
 #[derive(Debug, Default, Clone)]
 pub struct CacheStats {
+    /// Number of cache hits
     pub hits: u64,
+    /// Number of cache misses
     pub misses: u64,
+    /// Number of cache evictions
     pub evictions: u64,
 }
 

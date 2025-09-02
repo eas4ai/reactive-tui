@@ -3,7 +3,7 @@ use crate::core::render_stats::{DetailedFrameStats, PerformanceMetrics, RenderSt
 use crate::core::surface::{DiffWriter, Rgba, Surface};
 use crate::core::terminal::Terminal;
 use crate::error::{ReactiveError, Result};
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 /// Statistics for a single frame render
 #[derive(Debug, Default, Clone, Copy)]
@@ -222,6 +222,12 @@ impl Renderer {
                 rows_changed: self.diff.last_rows_changed() as u32,
                 timestamp: Instant::now(),
                 memory_usage: self.estimate_memory_usage(),
+                // Component metrics - will be tracked in future
+                components_created: 0,
+                components_destroyed: 0,
+                active_components: 0,
+                component_creation_time: Duration::ZERO,
+                component_cleanup_time: Duration::ZERO,
             };
 
             self.stats_collector.record_frame(detailed_stats);

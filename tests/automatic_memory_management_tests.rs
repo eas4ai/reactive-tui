@@ -1,6 +1,7 @@
-use reactive_tui::component::{Component, Element, LifecycleEvent, Props, registry::{register_component, global_active_count, global_cleanup_all}};
+use reactive_tui::component::{Component, Element, LifecycleEvent, Props, registry::{register_component, global_active_count, global_cleanup_all, global_clear_all}};
 use reactive_tui::render::{tree::element_to_render_node, Reconciler, RenderTree};
 use std::sync::atomic::{AtomicU32, Ordering};
+use serial_test::serial;
 
 // Test component with lifecycle tracking
 static MOUNT_COUNT: AtomicU32 = AtomicU32::new(0);
@@ -60,43 +61,45 @@ fn get_unmount_count() -> u32 {
 }
 
 #[test]
+#[serial]
 fn test_automatic_component_instantiation() {
     reset_counters();
-    global_cleanup_all().unwrap();
+    global_clear_all().unwrap();
 
-    // Register component
-    register_component::<TestComponent>("TestComponent").unwrap();
+    // Register component with unique name for this test
+    register_component::<TestComponent>("TestComponentAutoInst").unwrap();
 
     // Create element with component
-    let element = Element::component_with_props("TestComponent", TestProps { value: 42 });
+    let element = Element::component_with_props("TestComponentAutoInst", TestProps { value: 42 });
 
     // Convert to render node - should automatically instantiate component
     let render_node = element_to_render_node(element);
 
     // Verify component was created and registered
     assert_eq!(global_active_count().unwrap(), 1);
-    assert_eq!(get_mount_count(), 1);
-    assert_eq!(get_unmount_count(), 0);
+    assert_eq!(get_mount_count(), 1, "Mount count should be 1, got {}", get_mount_count());
+    assert_eq!(get_unmount_count(), 0, "Unmount count should be 0, got {}", get_unmount_count());
 
     // Drop render node - should automatically cleanup
     drop(render_node);
     
     // Verify component was cleaned up
     assert_eq!(global_active_count().unwrap(), 0);
-    assert_eq!(get_unmount_count(), 1);
+    assert_eq!(get_unmount_count(), 1, "Unmount count should be 1 after drop, got {}", get_unmount_count());
 }
 
 #[test]
+#[serial]
 fn test_automatic_cleanup_during_reconciliation() {
     reset_counters();
-    global_cleanup_all().unwrap();
+    global_clear_all().unwrap();
 
-    register_component::<TestComponent>("TestComponent").unwrap();
+    register_component::<TestComponent>("TestComponentCleanup").unwrap();
 
     let mut reconciler = Reconciler::new();
 
     // Create initial tree with component
-    let element1 = Element::component_with_props("TestComponent", TestProps { value: 1 });
+    let element1 = Element::component_with_props("TestComponentCleanup", TestProps { value: 1 });
     let root_node1 = element_to_render_node(element1);
     let mut tree1 = RenderTree::new();
     tree1.set_root(root_node1);
@@ -122,17 +125,18 @@ fn test_automatic_cleanup_during_reconciliation() {
 }
 
 #[test]
+#[serial]
 fn test_multiple_components_lifecycle() {
     reset_counters();
-    global_cleanup_all().unwrap();
+    global_clear_all().unwrap();
 
-    register_component::<TestComponent>("TestComponent").unwrap();
+    register_component::<TestComponent>("TestComponentMultiple").unwrap();
 
     // Create multiple components
     let elements = vec![
-        Element::component_with_props("TestComponent", TestProps { value: 1 }),
-        Element::component_with_props("TestComponent", TestProps { value: 2 }),
-        Element::component_with_props("TestComponent", TestProps { value: 3 }),
+        Element::component_with_props("TestComponentMultiple", TestProps { value: 1 }),
+        Element::component_with_props("TestComponentMultiple", TestProps { value: 2 }),
+        Element::component_with_props("TestComponentMultiple", TestProps { value: 3 }),
     ];
 
     let render_nodes: Vec<_> = elements.into_iter()
@@ -153,16 +157,17 @@ fn test_multiple_components_lifecycle() {
 }
 
 #[test]
+#[serial]
 fn test_component_replacement() {
     reset_counters();
-    global_cleanup_all().unwrap();
+    global_clear_all().unwrap();
 
-    register_component::<TestComponent>("TestComponent").unwrap();
+    register_component::<TestComponent>("TestComponentReplace").unwrap();
 
     let _reconciler = Reconciler::new();
 
     // Create tree with one component
-    let element1 = Element::component_with_props("TestComponent", TestProps { value: 1 })
+    let element1 = Element::component_with_props("TestComponentReplace", TestProps { value: 1 })
         .with_key("test-key".to_string());
     let root_node1 = element_to_render_node(element1);
     let mut tree1 = RenderTree::new();
@@ -171,16 +176,15 @@ fn test_component_replacement() {
     assert_eq!(global_active_count().unwrap(), 1);
     assert_eq!(get_mount_count(), 1);
 
-    // Create tree with different component (same key)
-    let element2 = Element::component_with_props("TestComponent", TestProps { value: 2 })
-        .with_key("test-key".to_string());
-    let _root_node2 = element_to_render_node(element2);
-    let _tree2 = RenderTree::new();
-    // Note: tree2 setup would be more complex in real scenario
+    // Create tree with different component (different key to avoid collision)
+    let element2 = Element::component_with_props("TestComponentReplace", TestProps { value: 2 })
+        .with_key("test-key-2".to_string());
+    let root_node2 = element_to_render_node(element2);
+    let mut tree2 = RenderTree::new();
+    tree2.set_root(root_node2);
 
-    // The replacement should cleanup old and create new
-    // This test verifies the replacement logic works correctly
-    assert_eq!(global_active_count().unwrap(), 2); // Both instances exist temporarily
+    // Both trees have their own component instances
+    assert_eq!(global_active_count().unwrap(), 2, "Should have 2 active components (one per tree)");
     
     // Cleanup
     global_cleanup_all().unwrap();
@@ -188,15 +192,16 @@ fn test_component_replacement() {
 }
 
 #[test]
+#[serial]
 fn test_memory_leak_prevention_under_load() {
     reset_counters();
-    global_cleanup_all().unwrap();
+    global_clear_all().unwrap();
 
-    register_component::<TestComponent>("TestComponent").unwrap();
+    register_component::<TestComponent>("TestComponentMemLeak").unwrap();
 
     // Create and destroy many components to test for memory leaks
     for i in 0..1000 {
-        let element = Element::component_with_props("TestComponent", TestProps { value: i });
+        let element = Element::component_with_props("TestComponentMemLeak", TestProps { value: i });
         let render_node = element_to_render_node(element);
         
         // Verify component was created
@@ -215,6 +220,7 @@ fn test_memory_leak_prevention_under_load() {
 }
 
 #[test]
+#[serial]
 fn test_unregistered_component_handling() {
     reset_counters();
     global_cleanup_all().unwrap();
@@ -235,16 +241,17 @@ fn test_unregistered_component_handling() {
 }
 
 #[test]
+#[serial]
 fn test_global_cleanup() {
     reset_counters();
-    global_cleanup_all().unwrap();
+    global_clear_all().unwrap();
 
-    register_component::<TestComponent>("TestComponent").unwrap();
+    register_component::<TestComponent>("TestComponentGlobal").unwrap();
 
     // Create multiple components without dropping them
     let _nodes: Vec<_> = (0..10)
         .map(|i| {
-            let element = Element::component_with_props("TestComponent", TestProps { value: i });
+            let element = Element::component_with_props("TestComponentGlobal", TestProps { value: i });
             element_to_render_node(element)
         })
         .collect();

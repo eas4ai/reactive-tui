@@ -127,8 +127,8 @@ static TAILWIND_COLORS: Lazy<HashMap<&'static str, ColorTuple>> = Lazy::new(|| {
     m
 });
 
-/// Thread-local LRU cache for dynamically parsed colors (hex codes, rgb(), etc.)
 thread_local! {
+    /// Thread-local LRU cache for dynamically parsed colors (hex codes, rgb(), etc.)
     static DYNAMIC_COLOR_CACHE: RefCell<LruCache<String, ColorTuple>> = 
         RefCell::new(LruCache::new(NonZeroUsize::new(128).unwrap()));
 }
@@ -251,10 +251,13 @@ pub fn clear_color_cache() {
 /// Get cache statistics
 #[derive(Debug, Default, Clone)]
 pub struct ColorCacheStats {
+    /// Current number of cached colors
     pub size: usize,
+    /// Maximum capacity of the cache
     pub capacity: usize,
 }
 
+/// Get current cache statistics
 pub fn get_cache_stats() -> ColorCacheStats {
     DYNAMIC_COLOR_CACHE.with(|cache| {
         let cache = cache.borrow();

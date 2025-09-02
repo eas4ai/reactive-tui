@@ -1,11 +1,13 @@
 use super::instance::AnyComponentInstance;
 use super::{Component, ComponentInstance, LifecycleEvent};
 use crate::error::{ReactiveError, Result};
+use crate::layout::css::animation_manager::{apply_css_animation_global, remove_css_animations_global};
 use crate::render::tree::NodeKey;
 use std::any::TypeId;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock, OnceLock, atomic::{AtomicU64, Ordering}};
+use std::time::{Duration, Instant};
 use string_cache::DefaultAtom;
 
 type ComponentFactory = Box<dyn Fn(&dyn std::any::Any) -> AnyComponentInstance + Send + Sync>;
@@ -25,6 +27,65 @@ pub struct ComponentRegistry {
     active_instances: Arc<RwLock<HashMap<NodeKey, AnyComponentInstance>>>,
     /// Version counter for cache invalidation
     cache_version: AtomicU64,
+    /// Performance tracking
+    performance_stats: Arc<RwLock<ComponentPerformanceStats>>,
+}
+
+/// Component performance statistics
+#[derive(Debug, Default)]
+struct ComponentPerformanceStats {
+    total_created: u64,
+    total_destroyed: u64,
+    total_creation_time: Duration,
+    total_cleanup_time: Duration,
+    creation_times: Vec<Duration>,
+    cleanup_times: Vec<Duration>,
+    max_history: usize,
+}
+
+impl ComponentPerformanceStats {
+    fn new() -> Self {
+        Self {
+            max_history: 1000, // Keep last 1000 operations for averaging
+            ..Default::default()
+        }
+    }
+
+    fn record_creation(&mut self, duration: Duration) {
+        self.total_created += 1;
+        self.total_creation_time += duration;
+
+        self.creation_times.push(duration);
+        if self.creation_times.len() > self.max_history {
+            self.creation_times.remove(0);
+        }
+    }
+
+    fn record_cleanup(&mut self, duration: Duration) {
+        self.total_destroyed += 1;
+        self.total_cleanup_time += duration;
+
+        self.cleanup_times.push(duration);
+        if self.cleanup_times.len() > self.max_history {
+            self.cleanup_times.remove(0);
+        }
+    }
+
+    fn avg_creation_time(&self) -> Duration {
+        if self.creation_times.is_empty() {
+            Duration::ZERO
+        } else {
+            self.creation_times.iter().sum::<Duration>() / self.creation_times.len() as u32
+        }
+    }
+
+    fn avg_cleanup_time(&self) -> Duration {
+        if self.cleanup_times.is_empty() {
+            Duration::ZERO
+        } else {
+            self.cleanup_times.iter().sum::<Duration>() / self.cleanup_times.len() as u32
+        }
+    }
 }
 
 impl ComponentRegistry {
@@ -35,6 +96,7 @@ impl ComponentRegistry {
             names: Arc::new(RwLock::new(HashMap::new())),
             active_instances: Arc::new(RwLock::new(HashMap::new())),
             cache_version: AtomicU64::new(0),
+            performance_stats: Arc::new(RwLock::new(ComponentPerformanceStats::new())),
         }
     }
 
@@ -238,23 +300,88 @@ impl ComponentRegistry {
 
     /// Register a component instance for automatic cleanup tracking
     pub fn register_instance(&self, node_key: NodeKey, mut instance: AnyComponentInstance) -> Result<()> {
+        let start = Instant::now();
+
+        let mut instances = self.active_instances.write()
+            .map_err(|_| ReactiveError::internal("Component registry lock poisoned"))?;
+
+        // Call mount lifecycle event
+        instance.on_lifecycle(LifecycleEvent::Mount);
+        instances.insert(node_key.clone(), instance);
+
+        // Record performance metrics
+        let creation_time = start.elapsed();
+        if let Ok(mut stats) = self.performance_stats.write() {
+            stats.record_creation(creation_time);
+        }
+
+        Ok(())
+    }
+
+    /// Register a component instance with CSS animation support
+    pub fn register_instance_with_element(
+        &self,
+        node_key: NodeKey,
+        mut instance: AnyComponentInstance,
+        element: &crate::component::Element,
+    ) -> Result<()> {
+        let start = Instant::now();
+
+        // Extract CSS animations from the element's class string
+        if let Some(class_str) = &element.class {
+            let animations = crate::layout::css::animations::extract_css_animations_from_classes(class_str);
+            let component_id = format!("{:?}", node_key); // Use NodeKey as component ID
+
+            // Apply each CSS animation found
+            for animation_name in animations {
+                if let Err(e) = apply_css_animation_global(&component_id, &animation_name) {
+                    // Log error but don't fail the registration
+                    eprintln!("Warning: Failed to apply CSS animation '{}' to component '{}': {}",
+                             animation_name, component_id, e);
+                }
+            }
+        }
+
         let mut instances = self.active_instances.write()
             .map_err(|_| ReactiveError::internal("Component registry lock poisoned"))?;
 
         // Call mount lifecycle event
         instance.on_lifecycle(LifecycleEvent::Mount);
         instances.insert(node_key, instance);
+
+        // Record performance metrics
+        let creation_time = start.elapsed();
+        if let Ok(mut stats) = self.performance_stats.write() {
+            stats.record_creation(creation_time);
+        }
+
         Ok(())
     }
 
     /// Unregister and cleanup a component instance
     pub fn unregister_instance(&self, node_key: &NodeKey) -> Result<()> {
+        let start = Instant::now();
+
+        // Clean up CSS animations for this component
+        let component_id = format!("{:?}", node_key);
+        if let Err(e) = remove_css_animations_global(&component_id) {
+            // Log error but don't fail the unregistration
+            eprintln!("Warning: Failed to remove CSS animations for component '{}': {}",
+                     component_id, e);
+        }
+
         let mut instances = self.active_instances.write()
             .map_err(|_| ReactiveError::internal("Component registry lock poisoned"))?;
 
         if let Some(mut instance) = instances.remove(node_key) {
             // Call unmount lifecycle event
             instance.on_lifecycle(LifecycleEvent::Unmount);
+
+            // Record performance metrics
+            let cleanup_time = start.elapsed();
+            if let Ok(mut stats) = self.performance_stats.write() {
+                stats.record_cleanup(cleanup_time);
+            }
         }
         Ok(())
     }
@@ -266,7 +393,32 @@ impl ComponentRegistry {
         Ok(instances.len())
     }
 
-    /// Get a component instance by node key (cloned for safety)
+    /// Get component performance metrics
+    pub fn performance_metrics(&self) -> Result<ComponentRegistryMetrics> {
+        let stats = self.performance_stats.read()
+            .map_err(|_| ReactiveError::internal("Component registry lock poisoned"))?;
+        let active_count = self.active_count()?;
+
+        Ok(ComponentRegistryMetrics {
+            total_created: stats.total_created,
+            total_destroyed: stats.total_destroyed,
+            active_components: active_count as u32,
+            avg_creation_time: stats.avg_creation_time(),
+            avg_cleanup_time: stats.avg_cleanup_time(),
+            total_creation_time: stats.total_creation_time,
+            total_cleanup_time: stats.total_cleanup_time,
+        })
+    }
+
+    /// Reset performance statistics
+    pub fn reset_performance_stats(&self) -> Result<()> {
+        let mut stats = self.performance_stats.write()
+            .map_err(|_| ReactiveError::internal("Component registry lock poisoned"))?;
+        *stats = ComponentPerformanceStats::new();
+        Ok(())
+    }
+
+    /// Get a component instance by node key (for debugging)
     pub fn get_instance(&self, node_key: &NodeKey) -> Result<Option<AnyComponentInstance>> {
         let instances = self.active_instances.read()
             .map_err(|_| ReactiveError::internal("Component registry lock poisoned"))?;
@@ -287,6 +439,43 @@ impl ComponentRegistry {
 
         Ok(count)
     }
+
+    /// Clear all registered components (for testing only)
+    /// WARNING: This is a testing utility and should not be used in production
+    pub fn clear_all(&self) -> Result<()> {
+        let mut factories = self.factories.write()
+            .map_err(|_| ReactiveError::internal("Component registry lock poisoned"))?;
+        let mut names = self.names.write()
+            .map_err(|_| ReactiveError::internal("Component registry lock poisoned"))?;
+        let mut instances = self.active_instances.write()
+            .map_err(|_| ReactiveError::internal("Component registry lock poisoned"))?;
+        
+        // Clear everything
+        factories.clear();
+        names.clear();
+        instances.clear();
+        
+        Ok(())
+    }
+}
+
+/// Component registry performance metrics
+#[derive(Debug, Clone)]
+pub struct ComponentRegistryMetrics {
+    /// Total components created
+    pub total_created: u64,
+    /// Total components destroyed
+    pub total_destroyed: u64,
+    /// Current active components
+    pub active_components: u32,
+    /// Average component creation time
+    pub avg_creation_time: Duration,
+    /// Average component cleanup time
+    pub avg_cleanup_time: Duration,
+    /// Total time spent creating components
+    pub total_creation_time: Duration,
+    /// Total time spent cleaning up components
+    pub total_cleanup_time: Duration,
 }
 
 impl Default for ComponentRegistry {
@@ -359,6 +548,22 @@ pub fn global_cleanup_all() -> Result<usize> {
     get_global_registry().cleanup_all()
 }
 
+/// Get global component performance metrics
+pub fn global_component_performance() -> Result<ComponentRegistryMetrics> {
+    get_global_registry().performance_metrics()
+}
+
+/// Reset global component performance statistics
+pub fn reset_global_component_performance() -> Result<()> {
+    get_global_registry().reset_performance_stats()
+}
+
+/// Clear all registered components and instances (for testing only)
+/// WARNING: This is a testing utility and should not be used in production
+pub fn global_clear_all() -> Result<()> {
+    get_global_registry().clear_all()
+}
+
 impl Clone for ComponentRegistry {
     fn clone(&self) -> Self {
         Self {
@@ -366,6 +571,7 @@ impl Clone for ComponentRegistry {
             names: Arc::clone(&self.names),
             active_instances: Arc::clone(&self.active_instances),
             cache_version: AtomicU64::new(self.cache_version.load(Ordering::Relaxed)),
+            performance_stats: Arc::clone(&self.performance_stats),
         }
     }
 }

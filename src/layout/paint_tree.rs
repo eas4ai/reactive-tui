@@ -130,6 +130,7 @@ fn build_nodes<'a>(
     }
 
     let style: Style = sb.clone().build();
+    
     let id = if spec.children.is_empty() {
         taffy
             .new_leaf(style)

@@ -112,4 +112,7 @@ pub trait AnyComponent: Any + Send + Sync {
     fn as_any(&self) -> &dyn Any;
     /// Get a mutable reference to the component as Any for downcasting
     fn as_any_mut(&mut self) -> &mut dyn Any;
+    
+    /// Check if the component is mounted
+    fn is_mounted_any(&self) -> bool;
 }
