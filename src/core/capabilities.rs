@@ -40,7 +40,7 @@ pub struct TerminalCapabilities {
 }
 
 /// Terminal color depth capabilities
-/// 
+///
 /// Represents the color support level of the terminal, from monochrome
 /// to full 24-bit true color support.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]

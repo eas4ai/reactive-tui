@@ -11,8 +11,11 @@ type EventHandlerMap = Arc<HashMap<String, EventHandler>>;
 /// Key for identifying nodes across renders
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum VNodeKey {
+    /// String-based key
     String(String),
+    /// Numeric key
     Number(i64),
+    /// No key specified
     None,
 }
 
@@ -37,20 +40,30 @@ impl From<i64> for VNodeKey {
 /// Type of virtual node
 #[derive(Clone, Debug, PartialEq)]
 pub enum VNodeType {
+    /// HTML-like element node
     Element,
+    /// Text content node
     Text,
+    /// Component node
     Component,
+    /// Fragment for grouping nodes
     Fragment,
+    /// Empty placeholder node
     Empty,
 }
 
 /// Virtual DOM node
 #[derive(Clone)]
 pub enum VNode {
+    /// Element node with tag and attributes
     Element(VElement),
+    /// Text content node
     Text(VText),
+    /// Component node
     Component(VComponent),
+    /// Fragment for grouping nodes without wrapper
     Fragment(VFragment),
+    /// Empty placeholder node
     Empty,
 }
 

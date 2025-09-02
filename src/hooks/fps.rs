@@ -177,6 +177,7 @@ pub fn use_frame_timing(hooks: &Hooks) -> ThreadSafeSignal<FrameTiming> {
     use_signal(hooks, FrameTiming::default())
 }
 
+/// Frame timing information for performance monitoring
 #[derive(Clone, Debug, PartialEq)]
 pub struct FrameTiming {
     /// Last frame duration in milliseconds

@@ -26,7 +26,7 @@ pub enum CellType {
     /// Empty cell that can be painted over
     Spacer {
         /// Background color for the empty cell
-        bg: Rgba
+        bg: Rgba,
     },
     /// Continuation cell for wide characters (cannot be painted)
     Void,

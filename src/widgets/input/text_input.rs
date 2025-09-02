@@ -27,26 +27,42 @@ pub enum InputMode {
 /// Auto-completion suggestion
 #[derive(Clone, Debug, PartialEq)]
 pub struct Suggestion {
+    /// Display text for the suggestion
     pub text: String,
+    /// Optional description or help text
     pub description: Option<String>,
+    /// Text to insert when suggestion is selected
     pub insert_text: String,
 }
 
 /// Properties for TextInput component
 #[derive(Clone, Debug, PartialEq)]
 pub struct TextInputProps {
+    /// Current text value
     pub value: String,
+    /// Placeholder text when empty
     pub placeholder: Option<String>,
+    /// Maximum allowed text length
     pub max_length: Option<usize>,
+    /// Whether the input is disabled
     pub disabled: bool,
+    /// Fixed width in characters
     pub width: Option<u16>,
+    /// Input mode (single line, multi-line, password, etc.)
     pub mode: InputMode,
-    pub validator_pattern: Option<String>, // Regex pattern for validation
+    /// Regex pattern for validation
+    pub validator_pattern: Option<String>,
+    /// Error message to display
     pub error_message: Option<String>,
+    /// Auto-completion suggestions
     pub suggestions: Vec<Suggestion>,
+    /// Whether to show line numbers (multi-line mode)
     pub show_line_numbers: bool,
+    /// Whether to wrap text at boundaries
     pub wrap_text: bool,
+    /// Tab size in spaces
     pub tab_size: usize,
+    /// Whether to auto-indent new lines
     pub auto_indent: bool,
 }
 

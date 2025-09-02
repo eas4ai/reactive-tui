@@ -101,13 +101,21 @@ pub struct InputFieldConfig {
 /// Types of input fields
 #[derive(Debug, Clone, PartialEq)]
 pub enum InputType {
+    /// Plain text input
     Text,
+    /// Password input (masked)
     Password,
+    /// Email address input
     Email,
+    /// Numeric input
     Number,
+    /// Phone number input
     Phone,
+    /// URL input
     Url,
+    /// Search input
     Search,
+    /// Custom input type
     Custom(String),
 }
 
@@ -151,14 +159,23 @@ pub struct ValidationRule {
 /// Types of validation rules
 #[derive(Debug, Clone, PartialEq)]
 pub enum ValidationRuleType {
+    /// Field is required and cannot be empty
     Required,
+    /// Minimum length validation
     MinLength(usize),
+    /// Maximum length validation
     MaxLength(usize),
+    /// Regular expression pattern validation
     Pattern(String),
+    /// Email format validation
     Email,
+    /// URL format validation
     Url,
+    /// Number format validation
     Number,
+    /// Phone number format validation
     Phone,
+    /// Custom validation with identifier
     Custom(String),
 }
 

@@ -8,8 +8,11 @@ use std::sync::Arc;
 /// A single option in the select dropdown
 #[derive(Clone, Debug, PartialEq)]
 pub struct SelectOption<T: Clone + PartialEq + Send + Sync + 'static> {
+    /// The value associated with this option
     pub value: T,
+    /// Display label for the option
     pub label: String,
+    /// Whether this option is disabled
     pub disabled: bool,
 }
 
@@ -46,11 +49,17 @@ impl<T: Clone + PartialEq + Send + Sync + 'static> SelectOption<T> {
 /// Properties for Select component
 #[derive(Clone, Debug, PartialEq)]
 pub struct SelectProps<T: Clone + PartialEq + Send + Sync + 'static> {
+    /// Available options in the dropdown
     pub options: Vec<SelectOption<T>>,
+    /// Currently selected value
     pub selected: Option<T>,
+    /// Placeholder text when no option is selected
     pub placeholder: Option<String>,
+    /// Whether the select is disabled
     pub disabled: bool,
+    /// Maximum number of visible items in dropdown
     pub max_visible_items: usize,
+    /// Fixed width of the select component
     pub width: Option<u16>,
 }
 
@@ -76,9 +85,13 @@ impl<T: Clone + PartialEq + Send + Sync + 'static> Props for SelectProps<T> {
 /// State for Select component
 #[derive(Clone, Debug, Default)]
 pub struct SelectState {
+    /// Whether the dropdown is open
     pub is_open: bool,
+    /// Index of the highlighted option
     pub highlighted_index: usize,
+    /// Scroll offset for the dropdown
     pub scroll_offset: usize,
+    /// Whether the select is focused
     pub is_focused: bool,
 }
 

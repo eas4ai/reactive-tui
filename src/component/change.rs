@@ -30,7 +30,7 @@ pub enum Change {
         /// X coordinate to move to
         x: u16,
         /// Y coordinate to move to
-        y: u16
+        y: u16,
     },
 
     /// Write text at current cursor position
@@ -76,7 +76,7 @@ pub enum Change {
         /// Top row of the scroll region
         top: u16,
         /// Bottom row of the scroll region
-        bottom: u16
+        bottom: u16,
     },
 
     /// Pop the scroll region

@@ -4,13 +4,18 @@ use std::hash::{Hash, Hasher};
 /// Region that needs re-rendering
 #[derive(Debug, Clone, PartialEq)]
 pub struct DirtyRegion {
+    /// X coordinate of the dirty region
     pub x: u16,
+    /// Y coordinate of the dirty region
     pub y: u16,
+    /// Width of the dirty region
     pub width: u16,
+    /// Height of the dirty region
     pub height: u16,
 }
 
 impl DirtyRegion {
+    /// Create a new dirty region
     pub fn new(x: u16, y: u16, width: u16, height: u16) -> Self {
         Self {
             x,
@@ -57,6 +62,7 @@ pub struct DirtyRegionManager {
 }
 
 impl DirtyRegionManager {
+    /// Create a new dirty region manager
     pub fn new(screen_width: u16, screen_height: u16) -> Self {
         Self {
             regions: Vec::new(),
@@ -180,9 +186,13 @@ impl Eq for CacheKey {}
 /// Cached render output
 #[derive(Clone)]
 pub struct CachedRender {
+    /// Rendered content as bytes
     pub content: Vec<u8>,
+    /// Width of the rendered content
     pub width: u16,
+    /// Height of the rendered content
     pub height: u16,
+    /// When this render was cached
     pub timestamp: std::time::Instant,
 }
 
@@ -196,6 +206,7 @@ pub struct RenderCache {
 }
 
 impl RenderCache {
+    /// Create a new render cache
     pub fn new(max_entries: usize) -> Self {
         Self {
             cache: HashMap::new(),
@@ -316,6 +327,7 @@ pub struct IncrementalRenderer {
 }
 
 impl IncrementalRenderer {
+    /// Create a new incremental renderer
     pub fn new(width: usize, height: usize) -> Self {
         Self {
             last_frame: vec![vec![' '; width]; height],

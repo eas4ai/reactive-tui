@@ -1,5 +1,5 @@
 //! React-style hooks for state and lifecycle management
-//! 
+//!
 //! This module provides React-like hooks for managing state, effects, and component
 //! lifecycle in terminal applications.
 

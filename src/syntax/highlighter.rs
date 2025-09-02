@@ -11,7 +11,9 @@ use syntect::parsing::{ParseState, SyntaxReference};
 /// A highlighted line with style information
 #[derive(Debug, Clone)]
 pub struct HighlightedLine {
+    /// Styled text runs that make up the line
     pub runs: Vec<StyledRun>,
+    /// Line number in the source file
     pub line_number: usize,
 }
 

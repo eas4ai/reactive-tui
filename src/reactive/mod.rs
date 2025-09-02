@@ -1,7 +1,12 @@
+/// Effect system for side effects and cleanup
 pub mod effect;
+/// React-like hooks for state management
 pub mod hooks;
+/// Reactive runtime and context management
 pub mod runtime;
+/// Reactive scheduler for batching updates
 pub mod scheduler;
+/// Signal system for reactive state
 pub mod signal;
 
 pub use effect::{Cleanup, Effect, EffectId};

@@ -1,6 +1,10 @@
+/// ANSI color support and conversion utilities
 pub mod ansi;
+/// Color definitions and palettes
 pub mod colors;
+/// Pre-built theme presets
 pub mod presets;
+/// Theme variable system
 pub mod variables;
 
 pub use ansi::{
@@ -28,14 +32,18 @@ use std::collections::HashMap;
 /// let style = theme.apply_classes("bg-primary text-secondary p-4");
 /// ```
 pub struct Theme {
+    /// Name of the theme
     pub name: String,
+    /// Theme variables and their values
     pub variables: ThemeVariables,
+    /// Parent theme to inherit from
     pub extends: Option<Box<Theme>>,
     /// Cache for resolved variables to improve performance
     variable_cache: HashMap<String, String>,
 }
 
 impl Theme {
+    /// Create a new theme with the given name
     pub fn new(name: impl Into<String>) -> Self {
         Self {
             name: name.into(),
@@ -45,12 +53,14 @@ impl Theme {
         }
     }
 
+    /// Set the theme variables
     pub fn with_variables(mut self, variables: ThemeVariables) -> Self {
         self.variables = variables;
         self.variable_cache.clear(); // Clear cache when variables change
         self
     }
 
+    /// Extend this theme from a base theme
     pub fn extend(mut self, base: Theme) -> Self {
         self.extends = Some(Box::new(base));
         self.variable_cache.clear(); // Clear cache when inheritance changes

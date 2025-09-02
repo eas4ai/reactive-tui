@@ -11,15 +11,19 @@ use std::time::{Duration, Instant};
 /// A 2D velocity vector
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct Velocity {
+    /// Velocity in the X direction (horizontal)
     pub dx: f64,
+    /// Velocity in the Y direction (vertical)
     pub dy: f64,
 }
 
 impl Velocity {
+    /// Create a new velocity with given x and y components
     pub fn new(dx: f64, dy: f64) -> Self {
         Self { dx, dy }
     }
 
+    /// Calculate the magnitude (speed) of the velocity vector
     pub fn magnitude(&self) -> f64 {
         (self.dx * self.dx + self.dy * self.dy).sqrt()
     }
@@ -71,6 +75,7 @@ impl Default for MouseEventProcessor {
 }
 
 impl MouseEventProcessor {
+    /// Create a new mouse event processor
     pub fn new() -> Self {
         Self {
             hovered_component: Arc::new(Mutex::new(None)),

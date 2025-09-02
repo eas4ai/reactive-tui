@@ -5,6 +5,7 @@ use super::{
 };
 use std::collections::VecDeque;
 
+/// Virtual screen buffer for terminal emulation
 #[derive(Debug)]
 pub struct VirtualScreen {
     width: u16,
@@ -27,6 +28,7 @@ pub struct VirtualScreen {
 }
 
 impl VirtualScreen {
+    /// Create a new virtual screen with specified dimensions
     pub fn new(width: u16, height: u16, max_scrollback: usize) -> Self {
         let mut screen = Self {
             width,
@@ -78,6 +80,7 @@ impl VirtualScreen {
         }
     }
 
+    /// Process an ANSI event and update the screen
     pub fn process_event(&mut self, event: AnsiEvent) {
         match event {
             AnsiEvent::Print(ch) => self.print_char(ch),
@@ -439,31 +442,38 @@ impl VirtualScreen {
         }
     }
 
+    /// Get the screen dimensions (width, height)
     pub fn size(&self) -> (u16, u16) {
         (self.width, self.height)
     }
 
+    /// Get the current cursor position (column, row)
     pub fn cursor_position(&self) -> (u16, u16) {
         (self.cursor.col, self.cursor.row)
     }
 
+    /// Get the screen title
     pub fn title(&self) -> &str {
         &self.title
     }
 
+    /// Get the current working directory
     pub fn working_directory(&self) -> Option<&str> {
         self.working_directory.as_deref()
     }
 
+    /// Get the cell at the specified position
     pub fn cell_at(&self, col: u16, row: u16) -> Option<&TerminalCell> {
         let buffer = self.current_buffer_ref();
         buffer.get(row as usize)?.get(col as usize)
     }
 
+    /// Check if the cursor is visible
     pub fn cursor_visible(&self) -> bool {
         self.modes.cursor_visible && self.cursor.visible
     }
 
+    /// Get the current cursor shape
     pub fn cursor_shape(&self) -> super::cursor::CursorShape {
         self.cursor.shape
     }

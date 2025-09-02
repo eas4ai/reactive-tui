@@ -8,15 +8,25 @@ use std::sync::Arc;
 /// Properties for Tabs component
 #[derive(Clone, Debug, PartialEq)]
 pub struct TabsProps {
+    /// List of tab definitions
     pub tabs: Vec<Tab>,
+    /// Index of currently active tab
     pub active_tab: usize,
+    /// Orientation of the tab bar
     pub orientation: TabOrientation,
+    /// Visual variant of the tabs
     pub variant: TabVariant,
+    /// Size of the tabs
     pub size: TabSize,
+    /// Position of the tab bar
     pub position: TabPosition,
+    /// Whether tabs can be closed
     pub closable: bool,
+    /// Whether tabs are disabled
     pub disabled: bool,
-    pub lazy_loading: bool, // Only render active tab content
+    /// Whether to only render active tab content
+    pub lazy_loading: bool,
+    /// Keyboard activation behavior
     pub keyboard_activation: TabKeyboardActivation,
 }
 
@@ -43,18 +53,27 @@ impl Props for TabsProps {
     }
 }
 
+/// Individual tab definition
 #[derive(Clone, Debug, PartialEq)]
 pub struct Tab {
+    /// Display label for the tab
     pub label: String,
+    /// Content element to display when active
     pub content: Element,
+    /// Whether the tab is disabled
     pub disabled: bool,
+    /// Whether the tab can be closed
     pub closable: bool,
+    /// Optional icon identifier
     pub icon: Option<String>,
+    /// Optional badge for notifications
     pub badge: Option<TabBadge>,
+    /// Optional tooltip text
     pub tooltip: Option<String>,
 }
 
 impl Tab {
+    /// Create a new tab with label and content
     pub fn new(label: impl Into<String>, content: Element) -> Self {
         Self {
             label: label.into(),
@@ -67,39 +86,48 @@ impl Tab {
         }
     }
 
+    /// Set whether the tab is disabled
     pub fn disabled(mut self, disabled: bool) -> Self {
         self.disabled = disabled;
         self
     }
 
+    /// Set whether the tab can be closed
     pub fn closable(mut self, closable: bool) -> Self {
         self.closable = closable;
         self
     }
 
+    /// Add an icon to the tab
     pub fn with_icon(mut self, icon: impl Into<String>) -> Self {
         self.icon = Some(icon.into());
         self
     }
 
+    /// Add a badge to the tab
     pub fn with_badge(mut self, badge: TabBadge) -> Self {
         self.badge = Some(badge);
         self
     }
 
+    /// Add a tooltip to the tab
     pub fn with_tooltip(mut self, tooltip: impl Into<String>) -> Self {
         self.tooltip = Some(tooltip.into());
         self
     }
 }
 
+/// Badge displayed on tabs for notifications or status
 #[derive(Clone, Debug, PartialEq)]
 pub struct TabBadge {
+    /// Text content of the badge
     pub text: String,
+    /// Visual style variant of the badge
     pub variant: TabBadgeVariant,
 }
 
 impl TabBadge {
+    /// Create a new tab badge
     pub fn new(text: impl Into<String>) -> Self {
         Self {
             text: text.into(),
@@ -107,34 +135,50 @@ impl TabBadge {
         }
     }
 
+    /// Set the badge variant
     pub fn with_variant(mut self, variant: TabBadgeVariant) -> Self {
         self.variant = variant;
         self
     }
 }
 
+/// Tab badge visual variants
 #[derive(Clone, Debug, PartialEq)]
 pub enum TabBadgeVariant {
+    /// Default badge style
     Default,
+    /// Success badge style (green)
     Success,
+    /// Warning badge style (yellow)
     Warning,
+    /// Error badge style (red)
     Error,
+    /// Info badge style (blue)
     Info,
 }
 
+/// Tab orientation options
 #[derive(Clone, Debug, PartialEq)]
 pub enum TabOrientation {
+    /// Tabs arranged horizontally
     Horizontal,
+    /// Tabs arranged vertically
     Vertical,
 }
 
+/// Tab visual style variants
 #[derive(Clone, Debug, PartialEq)]
 pub enum TabVariant {
-    Line,     // Underline/border style
-    Enclosed, // Box/card style
-    Soft,     // Subtle background style
-    Solid,    // Filled background style
-    Unstyled, // No decoration
+    /// Underline/border style
+    Line,
+    /// Box/card style with borders
+    Enclosed,
+    /// Subtle background style
+    Soft,
+    /// Filled background style
+    Solid,
+    /// No decoration
+    Unstyled,
 }
 
 /// Tab size variants

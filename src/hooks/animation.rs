@@ -14,8 +14,11 @@ use std::time::{Duration, Instant};
 
 /// Animation value that can be animated
 pub trait AnimatableValue: Clone + Debug + Send + Sync + PartialEq + 'static {
+    /// Interpolate between this value and another at time t (0.0 to 1.0)
     fn interpolate(&self, to: &Self, t: f32) -> Self;
+    /// Convert this value to an f32 for calculations
     fn to_f32(&self) -> f32;
+    /// Create a value from an f32
     fn from_f32(value: f32) -> Self;
 }
 
@@ -201,10 +204,12 @@ pub struct AnimationHandle<T: AnimatableValue> {
 }
 
 impl<T: AnimatableValue> AnimationHandle<T> {
+    /// Get the current animation value
     pub fn value(&self) -> T {
         self.value.get()
     }
 
+    /// Animate to a target value
     pub fn animate_to(&self, target: T) {
         // Cancel current animation if running
         if let Some(id) = *self.current_animation_id.lock().unwrap() {
@@ -252,16 +257,19 @@ impl<T: AnimatableValue> AnimationHandle<T> {
         *self.current_animation_id.lock().unwrap() = Some(id);
     }
 
+    /// Pause the current animation
     pub fn pause(&self) {
         self.controller.lock().unwrap().pause();
         self.state.set(AnimationState::Paused);
     }
 
+    /// Resume a paused animation
     pub fn resume(&self) {
         self.controller.lock().unwrap().resume();
         self.state.set(AnimationState::Playing);
     }
 
+    /// Stop the current animation
     pub fn stop(&self) {
         if let Some(id) = *self.current_animation_id.lock().unwrap() {
             RUNTIME.remove_animation(id);
@@ -270,12 +278,14 @@ impl<T: AnimatableValue> AnimationHandle<T> {
         self.state.set(AnimationState::Stopped);
     }
 
+    /// Reset the animation to its initial value
     pub fn reset(&self) {
         self.stop();
         let from = self.from_value.read().unwrap().clone();
         self.value.set(from);
     }
 
+    /// Get the current animation state
     pub fn state(&self) -> AnimationState {
         self.state.get()
     }
@@ -345,20 +355,24 @@ pub struct SpringHandle<T: AnimatableValue> {
 }
 
 impl<T: AnimatableValue> SpringHandle<T> {
+    /// Get the current spring value
     pub fn value(&self) -> T {
         self.value.get()
     }
 
+    /// Get the current spring velocity
     pub fn velocity(&self) -> f32 {
         *self.velocity.read().unwrap()
     }
 
+    /// Apply an impulse force to the spring
     pub fn apply_impulse(&self, force: f32) {
         let mut vel = self.velocity.write().unwrap();
         *vel += force;
         self.start_spring_animation();
     }
 
+    /// Set a new target value for the spring to animate to
     pub fn set_target(&self, target: T) {
         *self.target.write().unwrap() = target;
         self.start_spring_animation();
@@ -432,14 +446,17 @@ pub struct StaggerHandle<T: AnimatableValue> {
 }
 
 impl<T: AnimatableValue> StaggerHandle<T> {
+    /// Get current values of all items
     pub fn items(&self) -> Vec<T> {
         self.items.iter().map(|s| s.get()).collect()
     }
 
+    /// Get current value of item at index
     pub fn item(&self, index: usize) -> Option<T> {
         self.items.get(index).map(|s| s.get())
     }
 
+    /// Get delay for item at index
     pub fn delay(&self, index: usize) -> Option<Duration> {
         self.delays.get(index).copied()
     }
@@ -449,6 +466,7 @@ impl<T: AnimatableValue> StaggerHandle<T> {
         self.scheduler.process_timers();
     }
 
+    /// Animate all items to target values
     pub fn animate_all_to(&self, targets: Vec<T>) {
         let mut ids = self.animation_ids.lock().unwrap();
 
@@ -585,10 +603,12 @@ pub struct KeyframeHandle<T: AnimatableValue> {
 }
 
 impl<T: AnimatableValue> KeyframeHandle<T> {
+    /// Get the current animation value
     pub fn value(&self) -> T {
         self.value.get()
     }
 
+    /// Play the keyframe animation
     pub fn play(&self) {
         // Cancel current animation
         if let Some(id) = *self.animation_id.lock().unwrap() {

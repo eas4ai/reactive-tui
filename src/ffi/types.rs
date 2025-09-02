@@ -24,8 +24,11 @@ pub struct RTuiRenderer {
 #[repr(C)]
 #[derive(Debug, Clone, Copy)]
 pub struct RTuiColor {
+    /// Red component (0-255)
     pub r: u8,
+    /// Green component (0-255)
     pub g: u8,
+    /// Blue component (0-255)
     pub b: u8,
 }
 
@@ -33,7 +36,9 @@ pub struct RTuiColor {
 #[repr(C)]
 #[derive(Debug, Clone, Copy)]
 pub struct RTuiDimensions {
+    /// Width in characters
     pub width: u16,
+    /// Height in characters
     pub height: u16,
 }
 
@@ -41,7 +46,9 @@ pub struct RTuiDimensions {
 #[repr(C)]
 #[derive(Debug, Clone, Copy)]
 pub struct RTuiPosition {
+    /// X coordinate (column)
     pub x: u16,
+    /// Y coordinate (row)
     pub y: u16,
 }
 
@@ -49,9 +56,13 @@ pub struct RTuiPosition {
 #[repr(C)]
 #[derive(Debug, Clone, Copy)]
 pub struct RTuiRect {
+    /// X coordinate of top-left corner
     pub x: u16,
+    /// Y coordinate of top-left corner
     pub y: u16,
+    /// Width of the rectangle
     pub width: u16,
+    /// Height of the rectangle
     pub height: u16,
 }
 
@@ -59,12 +70,19 @@ pub struct RTuiRect {
 #[repr(C)]
 #[derive(Debug, Clone, Copy)]
 pub struct RTuiTextAttributes {
+    /// Bold text
     pub bold: bool,
+    /// Italic text
     pub italic: bool,
+    /// Underlined text
     pub underline: bool,
+    /// Strikethrough text
     pub strikethrough: bool,
+    /// Reverse video
     pub reverse: bool,
+    /// Blinking text
     pub blink: bool,
+    /// Hidden text
     pub hidden: bool,
 }
 

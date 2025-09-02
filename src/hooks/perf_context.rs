@@ -6,9 +6,13 @@ use std::sync::{Arc, Mutex, RwLock};
 /// Shared performance context exposed to hooks and updated by the App
 #[derive(Clone)]
 pub struct PerformanceContext {
+    /// Current FPS state and statistics
     pub fps_state: ThreadSafeSignal<FpsState>,
+    /// Performance metrics for monitoring
     pub metrics: ThreadSafeSignal<PerformanceMetrics>,
+    /// Frame timing information
     pub frame_timing: ThreadSafeSignal<FrameTiming>,
+    /// Function to set performance mode
     pub set_mode: Arc<dyn Fn(PerformanceMode) + Send + Sync>,
 }
 

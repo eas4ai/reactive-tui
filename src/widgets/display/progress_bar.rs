@@ -3,37 +3,63 @@ use crate::event::router::EventResult;
 use crate::event::types::Event;
 use std::sync::Arc;
 
+/// Function type for formatting progress bar text
+/// Function type for formatting progress bar text
 pub type FormatterFn = dyn Fn(f64, f64, f64) -> String + Send + Sync;
 
 /// Props for the ProgressBar component
 #[derive(Clone)]
 pub struct ProgressBarProps {
+    /// Current progress value
     pub value: f64,
+    /// Maximum progress value
     pub max_value: f64,
+    /// Minimum progress value
     pub min_value: f64,
+    /// Whether to show percentage text
     pub show_percentage: bool,
+    /// Whether to show current value
     pub show_value: bool,
+    /// Whether progress is indeterminate
     pub indeterminate: bool,
+    /// Whether to animate progress changes
     pub animated: bool,
+    /// Optional label text
     pub label: Option<String>,
+    /// Progress bar color
     pub color: Option<String>,
+    /// Background color
     pub background_color: Option<String>,
+    /// Height of the progress bar
     pub height: u16,
+    /// Optional width constraint
     pub width: Option<u16>,
+    /// CSS style for container
     pub style: Option<String>,
+    /// CSS style for progress bar
     pub bar_style: Option<String>,
+    /// CSS style for text
     pub text_style: Option<String>,
+    /// Orientation of the progress bar
     pub orientation: ProgressBarOrientation,
+    /// Number of segments for segmented display
     pub segments: Option<u16>,
+    /// Whether to show striped pattern
     pub striped: bool,
+    /// Whether to show pulsing animation
     pub pulse: bool,
+    /// Custom formatter function
     pub custom_formatter: Option<Arc<FormatterFn>>,
+    /// Callback when progress completes
     pub on_complete: Option<Arc<dyn Fn() + Send + Sync>>,
 }
 
+/// Progress bar orientation
 #[derive(Debug, Clone, PartialEq)]
 pub enum ProgressBarOrientation {
+    /// Horizontal progress bar
     Horizontal,
+    /// Vertical progress bar
     Vertical,
 }
 
@@ -98,11 +124,17 @@ impl Props for ProgressBarProps {
 
 /// State for the ProgressBar component
 #[derive(Debug, Clone, Default)]
+/// State for the ProgressBar component
 pub struct ProgressBarState {
+    /// Current animation frame counter
     pub animation_frame: u64,
+    /// Whether progress has completed
     pub completed: bool,
+    /// Last recorded progress value
     pub last_value: f64,
+    /// Position for indeterminate animation
     pub indeterminate_position: f64,
+    /// Direction of pulse animation (true = forward, false = backward)
     pub pulse_direction: bool,
 }
 

@@ -150,9 +150,13 @@ impl Default for DragAndDropOptions {
 /// Combined drag and drop state
 #[derive(Clone, Debug, PartialEq)]
 pub struct DragAndDropState {
+    /// Current drag state
     pub drag: DragState,
+    /// Whether the dragged item is over a valid drop zone
     pub is_over_valid_drop: bool,
+    /// Identifier of the current drop target
     pub drop_target: Option<String>,
+    /// Whether dropping is allowed at current position
     pub can_drop: bool,
 }
 
@@ -206,8 +210,11 @@ pub fn use_drag_and_drop(hooks: &Hooks, _options: DragAndDropOptions) -> DragAnd
 /// Mouse position tracking state
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct MousePositionState {
+    /// Current mouse position in terminal coordinates
     pub position: Option<Position>,
+    /// Client-relative position (x, y) in floating point
     pub client_position: Option<(f64, f64)>,
+    /// Whether the mouse is inside the component bounds
     pub is_inside: bool,
 }
 
@@ -237,10 +244,15 @@ pub fn use_mouse_position(hooks: &Hooks) -> ThreadSafeSignal<MousePositionState>
 /// Click detection with double/triple click support
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct ClickState {
+    /// Number of consecutive clicks (1=single, 2=double, 3=triple)
     pub click_count: usize,
+    /// Timestamp of the last click for timing detection
     pub last_click: Option<Instant>,
+    /// Position of the last click
     pub position: Option<Position>,
+    /// Whether the current click is a double-click
     pub is_double_click: bool,
+    /// Whether the current click is a triple-click
     pub is_triple_click: bool,
 }
 
@@ -276,9 +288,13 @@ pub fn use_clicks(hooks: &Hooks) -> ThreadSafeSignal<ClickState> {
 /// Long press detection
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct LongPressState {
+    /// Whether the mouse button is currently pressed
     pub is_pressing: bool,
+    /// Whether a long press has been detected
     pub is_long_press: bool,
+    /// When the press started
     pub press_start: Option<Instant>,
+    /// Duration of the current press
     pub duration: Duration,
 }
 
@@ -321,10 +337,15 @@ pub fn use_long_press(hooks: &Hooks, _threshold: Duration) -> ThreadSafeSignal<L
 /// Gesture recognition state
 #[derive(Clone, Debug, PartialEq)]
 pub struct GestureState {
+    /// Type of gesture currently detected
     pub gesture_type: GestureType,
+    /// Whether a gesture is currently active
     pub is_active: bool,
+    /// Starting position of the gesture
     pub start_position: Option<Position>,
+    /// Ending position of the gesture
     pub end_position: Option<Position>,
+    /// Velocity of the gesture (x, y) in pixels per second
     pub velocity: (f64, f64),
 }
 
@@ -338,12 +359,12 @@ pub enum GestureType {
     /// Pinch gesture with scale factor
     Pinch {
         /// Scale factor of the pinch
-        scale: f64
+        scale: f64,
     },
     /// Rotation gesture with angle
     Rotate {
         /// Rotation angle in radians
-        angle: f64
+        angle: f64,
     },
 }
 
@@ -401,19 +422,28 @@ pub fn use_gesture(hooks: &Hooks) -> ThreadSafeSignal<GestureState> {
 // Timer handles would be implemented with a proper timer system in the future
 
 /// Mouse wheel/scroll state
+/// Mouse wheel state for scroll tracking
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct WheelState {
+    /// Horizontal scroll delta
     pub delta_x: f64,
+    /// Vertical scroll delta
     pub delta_y: f64,
+    /// Mode for interpreting delta values
     pub delta_mode: WheelDeltaMode,
+    /// Whether scrolling is currently active
     pub is_scrolling: bool,
 }
 
+/// Mode for interpreting mouse wheel delta values
 #[derive(Clone, Debug, Default, PartialEq)]
 pub enum WheelDeltaMode {
+    /// Delta values represent pixels
     #[default]
     Pixel,
+    /// Delta values represent lines of text
     Line,
+    /// Delta values represent pages
     Page,
 }
 

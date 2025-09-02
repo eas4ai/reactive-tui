@@ -37,14 +37,17 @@ pub enum Event {
 }
 
 impl Event {
+    /// Check if this is a keyboard event
     pub fn is_key(&self) -> bool {
         matches!(self, Event::Key(_))
     }
 
+    /// Check if this is a mouse event
     pub fn is_mouse(&self) -> bool {
         matches!(self, Event::Mouse(_))
     }
 
+    /// Get the event as a keyboard event if it is one
     pub fn as_key(&self) -> Option<&KeyEvent> {
         match self {
             Event::Key(e) => Some(e),
@@ -52,6 +55,7 @@ impl Event {
         }
     }
 
+    /// Get the event as a mouse event if it is one
     pub fn as_mouse(&self) -> Option<&MouseEvent> {
         match self {
             Event::Mouse(e) => Some(e),
@@ -76,6 +80,7 @@ pub struct KeyEvent {
 }
 
 impl KeyEvent {
+    /// Create a new key event with the given key code
     pub fn new(code: KeyCode) -> Self {
         Self {
             code,
@@ -86,11 +91,13 @@ impl KeyEvent {
         }
     }
 
+    /// Set the modifier keys for this event
     pub fn with_modifiers(mut self, modifiers: KeyModifiers) -> Self {
         self.modifiers = modifiers;
         self
     }
 
+    /// Set the event kind (press, release, repeat)
     pub fn with_kind(mut self, kind: KeyEventKind) -> Self {
         self.kind = kind;
         self
@@ -110,7 +117,7 @@ impl KeyEvent {
 }
 
 /// Type of keyboard event
-/// 
+///
 /// Distinguishes between key press, release, and repeat events.
 #[derive(Clone, Debug, PartialEq)]
 pub enum KeyEventKind {
@@ -123,7 +130,7 @@ pub enum KeyEventKind {
 }
 
 /// Keyboard key codes
-/// 
+///
 /// Represents all possible keyboard keys that can be detected.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum KeyCode {
@@ -390,14 +397,14 @@ pub enum Position {
         /// Column position (0-based)
         x: u16,
         /// Row position (0-based)
-        y: u16
+        y: u16,
     },
     /// Position in pixels (for terminals that support pixel-level mouse)
     Pixel {
         /// X coordinate in pixels
         x: u32,
         /// Y coordinate in pixels
-        y: u32
+        y: u32,
     },
 }
 
@@ -469,18 +476,18 @@ pub struct WheelEvent {
 #[derive(Clone, Debug, PartialEq)]
 pub enum WheelDelta {
     /// Scrolling measured in text lines
-    Lines { 
+    Lines {
         /// Horizontal scroll amount (negative = left, positive = right)
-        x: f32, 
+        x: f32,
         /// Vertical scroll amount (negative = up, positive = down)
-        y: f32 
+        y: f32,
     },
     /// Scrolling measured in pixels
-    Pixels { 
+    Pixels {
         /// Horizontal scroll amount in pixels
-        x: f32, 
+        x: f32,
         /// Vertical scroll amount in pixels
-        y: f32 
+        y: f32,
     },
 }
 
@@ -723,8 +730,7 @@ mod tests {
 
     #[test]
     fn test_key_event_matches() {
-        let event = KeyEvent::new(KeyCode::Char('s'))
-            .with_modifiers(KeyModifiers::ctrl());
+        let event = KeyEvent::new(KeyCode::Char('s')).with_modifiers(KeyModifiers::ctrl());
 
         assert!(event.matches(KeyCode::Char('s'), KeyModifiers::ctrl()));
         assert!(!event.matches(KeyCode::Char('s'), KeyModifiers::empty()));
@@ -733,8 +739,7 @@ mod tests {
 
     #[test]
     fn test_key_event_matches_any() {
-        let event = KeyEvent::new(KeyCode::Char('c'))
-            .with_modifiers(KeyModifiers::ctrl());
+        let event = KeyEvent::new(KeyCode::Char('c')).with_modifiers(KeyModifiers::ctrl());
 
         let patterns = [
             (KeyCode::Char('a'), KeyModifiers::ctrl()),
@@ -1008,8 +1013,7 @@ mod tests {
 
         assert!(!complex_modifiers.is_empty());
 
-        let event = KeyEvent::new(KeyCode::F(12))
-            .with_modifiers(complex_modifiers);
+        let event = KeyEvent::new(KeyCode::F(12)).with_modifiers(complex_modifiers);
 
         assert!(event.matches(KeyCode::F(12), complex_modifiers));
         assert!(!event.matches(KeyCode::F(12), KeyModifiers::ctrl()));

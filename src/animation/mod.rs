@@ -618,7 +618,7 @@ pub enum CssValue {
         /// Green component (0-255)
         g: u8,
         /// Blue component (0-255)
-        b: u8
+        b: u8,
     },
     /// String value
     String(String),
@@ -651,7 +651,7 @@ pub enum AnimationValue {
         /// Green component (0-255)
         g: u8,
         /// Blue component (0-255)
-        b: u8
+        b: u8,
     },
     /// String value for text-based animations
     String(String),
@@ -976,7 +976,7 @@ pub enum AnimatedValue {
         /// Green component (0-255)
         g: u8,
         /// Blue component (0-255)
-        b: u8
+        b: u8,
     },
     /// Current scale factor
     Scale(f32),
@@ -1466,7 +1466,7 @@ impl Animation {
     ///
     /// # Arguments
     /// * `speed` - Speed multiplier (1.0 = normal, 2.0 = double speed, 0.5 = half speed)
-    ///             Values less than 0.0 are clamped to 0.0
+    ///   Values less than 0.0 are clamped to 0.0
     pub fn set_speed(&mut self, speed: f32) {
         self.config.speed = speed.max(0.0);
     }
@@ -2274,7 +2274,7 @@ mod tests {
         // With jump_start=true, we should get the next step value immediately
         assert_eq!(steps.apply(0.0), 0.0); // Actually starts at 0, then jumps
         assert_eq!(steps.apply(0.1), 0.25); // First step
-        assert_eq!(steps.apply(0.3), 0.5);  // Second step
+        assert_eq!(steps.apply(0.3), 0.5); // Second step
         assert_eq!(steps.apply(1.0), 1.0);
     }
 
@@ -2393,12 +2393,7 @@ mod tests {
     #[test]
     fn test_animation_creation() {
         let duration = Duration::from_millis(1000);
-        let animation = Animation::new(
-            duration,
-            EasingFunction::Linear,
-            Some(1),
-            LoopMode::None,
-        );
+        let animation = Animation::new(duration, EasingFunction::Linear, Some(1), LoopMode::None);
 
         assert_eq!(animation.config.duration, duration);
         assert!(matches!(animation.config.easing, EasingFunction::Linear));

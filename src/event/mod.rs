@@ -1,5 +1,5 @@
 //! Event system for terminal input and user interactions
-//! 
+//!
 //! This module provides a complete event handling system including keyboard,
 //! mouse, and custom event types with routing and focus management.
 

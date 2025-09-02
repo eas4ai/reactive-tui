@@ -2,8 +2,8 @@
 
 use super::*;
 use crate::animation::{
-    Animation, AnimationManager, EasingFunction, LoopMode, SpringConfig,
-    AnimationBuilder, AnimatedProperty, TransformProperty,
+    AnimatedProperty, Animation, AnimationBuilder, AnimationManager, EasingFunction, LoopMode,
+    SpringConfig, TransformProperty,
 };
 use std::boxed::Box;
 use std::ffi::{CStr, CString};
@@ -68,17 +68,12 @@ pub enum RTuiAnimatedProperty {
 }
 
 /// Animation callback function type
-pub type RTuiAnimationCallback = extern "C" fn(
-    animation_id: *const c_char,
-    progress: f32,
-    user_data: *mut std::ffi::c_void,
-);
+pub type RTuiAnimationCallback =
+    extern "C" fn(animation_id: *const c_char, progress: f32, user_data: *mut std::ffi::c_void);
 
 /// Animation completion callback function type
-pub type RTuiAnimationCompleteCallback = extern "C" fn(
-    animation_id: *const c_char,
-    user_data: *mut std::ffi::c_void,
-);
+pub type RTuiAnimationCompleteCallback =
+    extern "C" fn(animation_id: *const c_char, user_data: *mut std::ffi::c_void);
 
 /// Create a new animation manager
 #[no_mangle]
@@ -140,10 +135,11 @@ pub extern "C" fn rtui_animation_create(
     }
 
     catch_panic(AssertUnwindSafe(|| unsafe {
-        let id_str = CStr::from_ptr(id).to_str()
+        let id_str = CStr::from_ptr(id)
+            .to_str()
             .map_err(|_| ReactiveError::InvalidUtf8)?;
         let duration = Duration::from_millis(duration_ms as u64);
-        
+
         let easing_fn = match easing {
             RTuiEasingType::Linear => EasingFunction::Linear,
             RTuiEasingType::EaseIn => EasingFunction::EaseIn,
@@ -174,7 +170,7 @@ pub extern "C" fn rtui_animation_create(
             .easing(easing_fn)
             .loop_mode(loop_mode_enum)
             .build();
-        
+
         let boxed = Box::new(animation);
         *out_animation = Box::into_raw(boxed) as *mut RTuiAnimation;
         Ok(())
@@ -205,18 +201,30 @@ pub extern "C" fn rtui_animation_set_property(
 
     catch_panic(AssertUnwindSafe(|| unsafe {
         let animation_ref = &mut *(animation as *mut Animation);
-        
+
         let animated_property = match property {
             RTuiAnimatedProperty::Opacity => AnimatedProperty::Opacity(from_value, to_value),
-            RTuiAnimatedProperty::TranslateX => AnimatedProperty::Transform(TransformProperty::TranslateX(from_value, to_value)),
-            RTuiAnimatedProperty::TranslateY => AnimatedProperty::Transform(TransformProperty::TranslateY(from_value, to_value)),
-            RTuiAnimatedProperty::ScaleX => AnimatedProperty::Transform(TransformProperty::ScaleX(from_value, to_value)),
-            RTuiAnimatedProperty::ScaleY => AnimatedProperty::Transform(TransformProperty::ScaleY(from_value, to_value)),
+            RTuiAnimatedProperty::TranslateX => {
+                AnimatedProperty::Transform(TransformProperty::TranslateX(from_value, to_value))
+            }
+            RTuiAnimatedProperty::TranslateY => {
+                AnimatedProperty::Transform(TransformProperty::TranslateY(from_value, to_value))
+            }
+            RTuiAnimatedProperty::ScaleX => {
+                AnimatedProperty::Transform(TransformProperty::ScaleX(from_value, to_value))
+            }
+            RTuiAnimatedProperty::ScaleY => {
+                AnimatedProperty::Transform(TransformProperty::ScaleY(from_value, to_value))
+            }
             RTuiAnimatedProperty::Rotation => AnimatedProperty::Rotation(from_value, to_value),
-            RTuiAnimatedProperty::Width => AnimatedProperty::Size(from_value as u16, 0, to_value as u16, 0),
-            RTuiAnimatedProperty::Height => AnimatedProperty::Size(0, from_value as u16, 0, to_value as u16),
+            RTuiAnimatedProperty::Width => {
+                AnimatedProperty::Size(from_value as u16, 0, to_value as u16, 0)
+            }
+            RTuiAnimatedProperty::Height => {
+                AnimatedProperty::Size(0, from_value as u16, 0, to_value as u16)
+            }
         };
-        
+
         animation_ref.property = animated_property;
         Ok(())
     }))
@@ -236,10 +244,9 @@ pub extern "C" fn rtui_animation_manager_add(
     catch_panic(AssertUnwindSafe(|| unsafe {
         let manager_ref = &mut *(manager as *mut AnimationManager);
         let animation_obj = Box::from_raw(animation as *mut Animation);
-        
+
         let id = manager_ref.add_animation(*animation_obj);
-        let c_string = CString::new(id)
-            .map_err(|_| ReactiveError::InvalidUtf8)?;
+        let c_string = CString::new(id).map_err(|_| ReactiveError::InvalidUtf8)?;
         *out_id = c_string.into_raw();
         Ok(())
     }))
@@ -257,9 +264,10 @@ pub extern "C" fn rtui_animation_manager_remove(
 
     catch_panic(AssertUnwindSafe(|| unsafe {
         let manager_ref = &mut *(manager as *mut AnimationManager);
-        let id_str = CStr::from_ptr(animation_id).to_str()
+        let id_str = CStr::from_ptr(animation_id)
+            .to_str()
             .map_err(|_| ReactiveError::InvalidUtf8)?;
-        
+
         manager_ref.remove_animation(&id_str.to_string());
         Ok(())
     }))
@@ -359,9 +367,10 @@ pub extern "C" fn rtui_animation_create_spring(
     }
 
     catch_panic(AssertUnwindSafe(|| unsafe {
-        let id_str = CStr::from_ptr(id).to_str()
+        let id_str = CStr::from_ptr(id)
+            .to_str()
             .map_err(|_| ReactiveError::InvalidUtf8)?;
-        
+
         let spring_config = SpringConfig {
             stiffness,
             damping,
@@ -369,12 +378,12 @@ pub extern "C" fn rtui_animation_create_spring(
             velocity: 0.0,
             precision: 0.01,
         };
-        
+
         let animation = AnimationBuilder::new(id_str)
             .duration(Duration::from_millis(1000)) // Default duration for spring
             .easing(EasingFunction::Spring(spring_config))
             .build();
-        
+
         let boxed = Box::new(animation);
         *out_animation = Box::into_raw(boxed) as *mut RTuiAnimation;
         Ok(())

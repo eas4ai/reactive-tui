@@ -570,17 +570,17 @@ bitflags! {
     /// Bitflags representing various text formatting options that can be
     /// combined together for rich text display in the terminal.
     #[derive(Default, Clone, Copy, Debug, PartialEq, Eq)]
-    pub struct Attr: u8 { 
+    pub struct Attr: u8 {
         /// Bold text formatting
-        const BOLD=1<<0; 
+        const BOLD=1<<0;
         /// Italic text formatting
-        const ITALIC=1<<1; 
+        const ITALIC=1<<1;
         /// Underlined text
-        const UNDERLINE=1<<2; 
+        const UNDERLINE=1<<2;
         /// Reverse video (swap foreground/background colors)
-        const REVERSE=1<<3; 
+        const REVERSE=1<<3;
         /// Strikethrough text
-        const STRIKE=1<<4; 
+        const STRIKE=1<<4;
     }
 }
 

@@ -87,10 +87,22 @@ pub fn apply_align_self(token: &str, sb: StyleBuilder) -> Option<StyleBuilder> {
 /// In flexbox context, this sets both align-items and justify-content
 pub fn apply_place_items(token: &str, sb: StyleBuilder) -> Option<StyleBuilder> {
     match token {
-        "place-items-start" => Some(sb.align_items(AlignItems::Start).justify_content(JustifyContent::Start)),
-        "place-items-end" => Some(sb.align_items(AlignItems::End).justify_content(JustifyContent::End)),
-        "place-items-center" => Some(sb.align_items(AlignItems::Center).justify_content(JustifyContent::Center)),
-        "place-items-stretch" => Some(sb.align_items(AlignItems::Stretch).justify_content(JustifyContent::Start)),
+        "place-items-start" => Some(
+            sb.align_items(AlignItems::Start)
+                .justify_content(JustifyContent::Start),
+        ),
+        "place-items-end" => Some(
+            sb.align_items(AlignItems::End)
+                .justify_content(JustifyContent::End),
+        ),
+        "place-items-center" => Some(
+            sb.align_items(AlignItems::Center)
+                .justify_content(JustifyContent::Center),
+        ),
+        "place-items-stretch" => Some(
+            sb.align_items(AlignItems::Stretch)
+                .justify_content(JustifyContent::Start),
+        ),
         _ => None,
     }
 }

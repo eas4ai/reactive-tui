@@ -22,7 +22,7 @@ pub enum ElementType {
 }
 
 /// Layout type for container elements
-/// 
+///
 /// Determines how child elements are arranged within a container.
 #[derive(Debug, Clone, PartialEq)]
 pub enum LayoutType {
@@ -430,11 +430,10 @@ mod tests {
             count: usize,
         }
 
-        let element = Element::component("Test")
-            .props(TestProps {
-                name: "test".to_string(),
-                count: 5,
-            });
+        let element = Element::component("Test").props(TestProps {
+            name: "test".to_string(),
+            count: 5,
+        });
 
         let props = element.props_as::<TestProps>().unwrap();
         assert_eq!(props.name, "test");

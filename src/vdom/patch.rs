@@ -31,7 +31,7 @@ pub enum Patch {
         /// Index of the node to remove
         index: usize,
         /// Index of the parent node
-        parent: usize
+        parent: usize,
     },
 
     /// Move a node to a different position
@@ -49,7 +49,7 @@ pub enum Patch {
         /// Index of the node to update
         index: usize,
         /// New text content
-        text: String
+        text: String,
     },
 
     /// Set an attribute
@@ -67,7 +67,7 @@ pub enum Patch {
         /// Index of the node to update
         index: usize,
         /// Attribute name to remove
-        name: String
+        name: String,
     },
 
     /// Set the class
@@ -75,23 +75,40 @@ pub enum Patch {
         /// Index of the node to update
         index: usize,
         /// New class name (None to remove)
-        class: Option<String>
+        class: Option<String>,
     },
 
     /// Set the style
-    SetStyle { index: usize, style: Option<String> },
+    SetStyle {
+        /// Index of the node to update
+        index: usize,
+        /// New style string (None to remove)
+        style: Option<String>,
+    },
 
     /// Update component props
     UpdateProps {
+        /// Index of the component to update
         index: usize,
+        /// New props for the component
         props: Arc<dyn Any + Send + Sync>,
     },
 
     /// Add an event listener
-    AddEventListener { index: usize, event: String },
+    AddEventListener {
+        /// Index of the node to add listener to
+        index: usize,
+        /// Event type to listen for
+        event: String,
+    },
 
     /// Remove an event listener
-    RemoveEventListener { index: usize, event: String },
+    RemoveEventListener {
+        /// Index of the node to remove listener from
+        index: usize,
+        /// Event type to stop listening for
+        event: String,
+    },
 }
 
 /// A list of patches with statistics
@@ -279,6 +296,7 @@ impl Default for TestPatchApplier {
 
 #[cfg(test)]
 impl TestPatchApplier {
+    /// Create a new test patch applier
     pub fn new() -> Self {
         Self::default()
     }

@@ -4,7 +4,9 @@ use crate::render::reconcile::{PatchOp, Reconciler};
 use crate::render::tree::{element_to_render_node, RenderTree};
 use std::time::{Duration, Instant};
 
+/// Screen management functionality
 pub mod manager;
+/// Screen transition effects and animations
 pub mod transitions;
 
 pub use manager::*;
@@ -15,10 +17,12 @@ pub use transitions::*;
 pub struct ScreenId(String);
 
 impl ScreenId {
+    /// Create a new screen ID
     pub fn new(id: impl Into<String>) -> Self {
         Self(id.into())
     }
 
+    /// Get the ID as a string slice
     pub fn as_str(&self) -> &str {
         &self.0
     }
@@ -44,27 +48,42 @@ type LifecycleCallback = Box<dyn Fn() + Send + Sync>;
 /// Lifecycle hooks for screen events
 #[derive(Default)]
 pub struct ScreenHooks {
+    /// Called when screen becomes active
     pub on_activate: Option<LifecycleCallback>,
+    /// Called when screen becomes inactive
     pub on_deactivate: Option<LifecycleCallback>,
+    /// Called when screen updates with patch operations
     pub on_update: Option<PatchUpdateCallback>,
+    /// Called when screen is created
     pub on_create: Option<LifecycleCallback>,
+    /// Called when screen is destroyed
     pub on_destroy: Option<LifecycleCallback>,
 }
 
 /// A single screen with its own render tree and reactive context
 pub struct Screen {
+    /// Unique identifier for this screen
     pub id: ScreenId,
+    /// Human-readable name for this screen
     pub name: String,
+    /// Render tree for this screen
     pub render_tree: RenderTree,
+    /// Reactive context for state management
     pub reactive_context: RuntimeContext,
+    /// Whether this screen is currently active
     pub is_active: bool,
+    /// When this screen was last rendered
     pub last_rendered: Option<Instant>,
+    /// Screen lifecycle hooks
     pub hooks: ScreenHooks,
+    /// VDOM reconciler for efficient updates
     reconciler: Reconciler,
+    /// Root element of the screen
     root_element: Option<Element>,
 }
 
 impl Screen {
+    /// Create a new screen with the given ID and name
     pub fn new(id: ScreenId, name: String) -> Self {
         Self {
             id,
@@ -79,11 +98,13 @@ impl Screen {
         }
     }
 
+    /// Set lifecycle hooks for this screen
     pub fn with_hooks(mut self, hooks: ScreenHooks) -> Self {
         self.hooks = hooks;
         self
     }
 
+    /// Set the content of this screen
     pub fn set_content(&mut self, element: Element) {
         self.root_element = Some(element.clone());
 
@@ -105,6 +126,7 @@ impl Screen {
         self.last_rendered = Some(Instant::now());
     }
 
+    /// Activate this screen
     pub fn activate(&mut self) {
         if !self.is_active {
             self.is_active = true;
@@ -114,6 +136,7 @@ impl Screen {
         }
     }
 
+    /// Deactivate this screen
     pub fn deactivate(&mut self) {
         if self.is_active {
             self.is_active = false;
@@ -123,10 +146,12 @@ impl Screen {
         }
     }
 
+    /// Update the content of this screen
     pub fn update_content(&mut self, element: Element) {
         self.set_content(element);
     }
 
+    /// Get patches generated since the last render
     pub fn get_patches_since_last_render(&mut self) -> Vec<PatchOp> {
         if let Some(ref element) = self.root_element.clone() {
             let root_node = element_to_render_node(element.clone());
@@ -154,23 +179,36 @@ impl Drop for Screen {
 /// Screen switching transition types
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TransitionType {
+    /// No transition effect
     None,
+    /// Fade in/out transition
     Fade,
+    /// Slide from right to left
     SlideLeft,
+    /// Slide from left to right
     SlideRight,
+    /// Slide from bottom to top
     SlideUp,
+    /// Slide from top to bottom
     SlideDown,
+    /// Scale transition effect
     Scale,
+    /// Flip transition effect
     Flip,
+    /// 3D cube rotation effect
     Cube,
+    /// Push transition effect
     Push,
 }
 
 /// Configuration for screen transitions
 #[derive(Debug, Clone)]
 pub struct TransitionConfig {
+    /// Type of transition animation to use
     pub transition_type: TransitionType,
+    /// Duration of the transition animation
     pub duration: Duration,
+    /// Easing function for the transition
     pub easing: EasingFunction,
     /// Optional animation ID for integration with animation system hooks
     pub animation_id: Option<String>,
@@ -222,6 +260,10 @@ impl TransitionConfig {
         }
     }
 
+    /// Create a quick slide transition preset
+    ///
+    /// # Returns
+    /// A `TransitionConfig` with fast slide-left animation
     pub fn preset_quick_slide() -> Self {
         Self {
             transition_type: TransitionType::SlideLeft,
@@ -231,6 +273,10 @@ impl TransitionConfig {
         }
     }
 
+    /// Create a bouncy scale transition preset
+    ///
+    /// # Returns
+    /// A `TransitionConfig` with bouncy scale animation
     pub fn preset_bouncy_scale() -> Self {
         Self {
             transition_type: TransitionType::Scale,
@@ -240,6 +286,10 @@ impl TransitionConfig {
         }
     }
 
+    /// Create a dramatic flip transition preset
+    ///
+    /// # Returns
+    /// A `TransitionConfig` with dramatic flip animation
     pub fn preset_dramatic_flip() -> Self {
         Self {
             transition_type: TransitionType::Flip,
@@ -262,24 +312,39 @@ impl TransitionConfig {
 
 /// Easing functions for smooth animations
 /// Enhanced with screen transition-specific easing functions
+/// Easing functions for screen transitions
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum EasingFunction {
     // Basic easing
+    /// Linear interpolation (constant speed)
     Linear,
+    /// Quadratic ease-in (slow start)
     EaseInQuad,
+    /// Quadratic ease-out (slow end)
     EaseOutQuad,
+    /// Quadratic ease-in-out (slow start and end)
     EaseInOutQuad,
+    /// Cubic ease-in (slower start)
     EaseInCubic,
+    /// Cubic ease-out (slower end)
     EaseOutCubic,
+    /// Cubic ease-in-out (slower start and end)
     EaseInOutCubic,
 
     // Advanced easing
+    /// Back ease-in (overshoot at start)
     EaseInBack,
+    /// Back ease-out (overshoot at end)
     EaseOutBack,
+    /// Back ease-in-out (overshoot at both ends)
     EaseInOutBack,
+    /// Bounce ease-out (bouncing effect at end)
     EaseOutBounce,
+    /// Elastic ease-in (elastic effect at start)
     EaseInElastic,
+    /// Elastic ease-out (elastic effect at end)
     EaseOutElastic,
+    /// Elastic ease-in-out (elastic effect at both ends)
     EaseInOutElastic,
 
     // Screen transition optimized easing
@@ -545,11 +610,17 @@ impl EasingFunction {
 /// Current state of a screen transition
 #[derive(Debug, Clone)]
 pub struct TransitionState {
+    /// Whether a transition is currently in progress
     pub is_transitioning: bool,
+    /// ID of the screen being transitioned from
     pub from_screen: Option<ScreenId>,
+    /// ID of the screen being transitioned to
     pub to_screen: Option<ScreenId>,
+    /// Current progress of the transition (0.0 to 1.0)
     pub progress: f32,
+    /// When the transition started
     pub start_time: Option<Instant>,
+    /// Configuration for the current transition
     pub config: TransitionConfig,
 }
 
@@ -567,6 +638,12 @@ impl Default for TransitionState {
 }
 
 impl TransitionState {
+    /// Start a new transition
+    ///
+    /// # Arguments
+    /// * `from` - Screen transitioning from (None for initial)
+    /// * `to` - Screen transitioning to
+    /// * `config` - Transition configuration
     pub fn start_transition(
         &mut self,
         from: Option<ScreenId>,
@@ -581,6 +658,10 @@ impl TransitionState {
         self.config = config;
     }
 
+    /// Update transition progress
+    ///
+    /// # Returns
+    /// true if transition is still active
     pub fn update(&mut self) -> bool {
         if !self.is_transitioning {
             return false;
@@ -603,6 +684,10 @@ impl TransitionState {
         }
     }
 
+    /// Check if transition is complete
+    ///
+    /// # Returns
+    /// true if transition has finished
     pub fn is_complete(&self) -> bool {
         !self.is_transitioning && self.progress >= 1.0
     }

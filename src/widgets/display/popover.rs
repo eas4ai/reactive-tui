@@ -8,21 +8,34 @@ use taffy::geometry::Rect;
 /// Position relative to trigger element
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PopoverPosition {
+    /// Above trigger, centered
     Top,
+    /// Above trigger, left-aligned
     TopStart,
+    /// Above trigger, right-aligned
     TopEnd,
+    /// Below trigger, centered
     Bottom,
+    /// Below trigger, left-aligned
     BottomStart,
+    /// Below trigger, right-aligned
     BottomEnd,
+    /// Left of trigger, centered
     Left,
+    /// Left of trigger, top-aligned
     LeftStart,
+    /// Left of trigger, bottom-aligned
     LeftEnd,
+    /// Right of trigger, centered
     Right,
+    /// Right of trigger, top-aligned
     RightStart,
+    /// Right of trigger, bottom-aligned
     RightEnd,
 }
 
 impl PopoverPosition {
+    /// Get the opposite position for fallback positioning
     pub fn opposite(&self) -> Self {
         match self {
             PopoverPosition::Top => PopoverPosition::Bottom,
@@ -44,35 +57,52 @@ impl PopoverPosition {
 /// Animation type for popover appearance
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PopoverAnimation {
+    /// No animation
     None,
+    /// Fade in/out animation
     Fade,
+    /// Scale up/down animation
     Scale,
+    /// Slide animation
     Slide,
+    /// Bounce animation
     Bounce,
 }
 
 /// Trigger behavior
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PopoverTrigger {
+    /// Show on click
     Click,
+    /// Show on hover
     Hover,
+    /// Show on focus
     Focus,
+    /// Manual control only
     Manual,
 }
 
 /// Arrow configuration
 #[derive(Debug, Clone, PartialEq)]
 pub struct PopoverArrow {
+    /// Whether arrow is enabled
     pub enabled: bool,
+    /// Size of the arrow
     pub size: u16,
+    /// Offset from default position
     pub offset: i16,
+    /// Visual style of the arrow
     pub style: ArrowStyle,
 }
 
+/// Visual style of popover arrows
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ArrowStyle {
+    /// Solid filled arrow
     Solid,
+    /// Outline arrow with border
     Outline,
+    /// Double-line arrow
     Double,
 }
 
@@ -90,40 +120,70 @@ impl Default for PopoverArrow {
 /// Boundary detection behavior
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BoundaryBehavior {
+    /// Flip to opposite side when hitting boundary
     Flip,
+    /// Shift position to stay within bounds
     Shift,
+    /// Hide when would go out of bounds
     Hide,
+    /// Ignore boundaries and allow overflow
     Ignore,
 }
 
 /// Popover properties
 #[derive(Clone)]
 pub struct PopoverProps {
+    /// Whether popover is visible
     pub visible: bool,
+    /// Position relative to trigger
     pub position: PopoverPosition,
+    /// What triggers the popover
     pub trigger: PopoverTrigger,
+    /// Animation type
     pub animation: PopoverAnimation,
+    /// Duration of animations
     pub animation_duration: Duration,
+    /// Content to display in popover
     pub content: Element,
+    /// Element that triggers the popover
     pub trigger_element: Element,
+    /// Arrow configuration
     pub arrow: PopoverArrow,
+    /// Offset from default position
     pub offset: (i16, i16),
+    /// Behavior when hitting boundaries
     pub boundary_behavior: BoundaryBehavior,
+    /// Whether to close on Escape key
     pub close_on_escape: bool,
+    /// Whether to close on outside click
     pub close_on_outside_click: bool,
+    /// Whether to close on trigger click
     pub close_on_trigger_click: bool,
+    /// Delay before showing on hover
     pub hover_delay: Duration,
+    /// Delay before hiding on hover leave
     pub hover_leave_delay: Duration,
+    /// Whether to trap focus within popover
     pub focus_trap: bool,
+    /// Whether to auto-focus first element
     pub auto_focus: bool,
+    /// Z-index for layering
     pub z_index: u16,
+    /// Whether to apply backdrop filter
     pub backdrop_filter: bool,
+    /// Minimum width constraint
     pub min_width: Option<u16>,
+    /// Maximum width constraint
     pub max_width: Option<u16>,
+    /// Minimum height constraint
     pub min_height: Option<u16>,
+    /// Maximum height constraint
     pub max_height: Option<u16>,
+    /// Callback when popover opens
     pub on_open: Option<Arc<dyn Fn() + Send + Sync>>,
+    /// Callback when popover closes
     pub on_close: Option<Arc<dyn Fn() + Send + Sync>>,
+    /// Callback when position changes
     pub on_position_change: Option<Arc<dyn Fn(PopoverPosition) + Send + Sync>>,
 }
 
@@ -198,20 +258,35 @@ impl Default for PopoverProps {
 /// Internal popover state
 #[derive(Debug, Clone)]
 pub struct PopoverState {
+    /// Whether the popover is visible
     pub visible: bool,
+    /// Current position of the popover
     pub position: PopoverPosition,
+    /// Calculated rectangle for popover placement
     pub calculated_rect: Rect<f32>,
+    /// Rectangle of the trigger element
     pub trigger_rect: Rect<f32>,
+    /// Position of the arrow pointer
     pub arrow_position: Option<Position>,
+    /// When the animation started
     pub animation_start: Option<Instant>,
+    /// Current animation progress (0.0 to 1.0)
     pub animation_progress: f32,
+    /// Timer for hover delay
     pub hover_timer: Option<Instant>,
+    /// Whether the popover is currently animating
     pub is_animating: bool,
+    /// Whether the mouse is hovering over the popover
     pub is_hovered: bool,
+    /// Whether the popover has focus
     pub is_focused: bool,
+    /// Index of currently focused element
     pub focused_element_index: usize,
+    /// List of focusable element indices
     pub focusable_elements: Vec<usize>,
+    /// Whether position was adjusted for boundaries
     pub boundary_adjusted: bool,
+    /// Last recorded mouse position
     pub last_mouse_pos: Option<Position>,
 }
 
@@ -251,10 +326,12 @@ impl Default for Popover {
 }
 
 impl Popover {
+    /// Create a new popover with default settings
     pub fn new() -> Self {
         Self::default()
     }
 
+    /// Create a popover builder for customization
     pub fn builder() -> PopoverBuilder {
         PopoverBuilder::new()
     }
@@ -857,16 +934,19 @@ impl Popover {
         }
     }
 
+    /// Set the trigger rectangle for positioning
     pub fn set_trigger_rect(&self, rect: Rect<f32>) {
         if let Ok(mut state) = self.state.lock() {
             state.trigger_rect = rect;
         }
     }
 
+    /// Check if the popover is currently visible
     pub fn is_visible(&self) -> bool {
         self.state.lock().map(|s| s.visible).unwrap_or(false)
     }
 
+    /// Show the popover with animation
     pub fn show(&self) {
         if let Ok(mut state) = self.state.lock() {
             state.visible = true;
@@ -874,6 +954,7 @@ impl Popover {
         }
     }
 
+    /// Hide the popover with animation
     pub fn hide(&self) {
         if let Ok(mut state) = self.state.lock() {
             state.visible = false;
@@ -1252,21 +1333,25 @@ impl PopoverBuilder {
         self
     }
 
+    /// Enable or disable focus trapping
     pub fn focus_trap(mut self, trap: bool) -> Self {
         self.props.focus_trap = trap;
         self
     }
 
+    /// Enable or disable auto focus
     pub fn auto_focus(mut self, focus: bool) -> Self {
         self.props.auto_focus = focus;
         self
     }
 
+    /// Set the z-index for layering
     pub fn z_index(mut self, index: u16) -> Self {
         self.props.z_index = index;
         self
     }
 
+    /// Set size constraints for the popover
     pub fn size_constraints(
         mut self,
         min_width: Option<u16>,
@@ -1281,6 +1366,7 @@ impl PopoverBuilder {
         self
     }
 
+    /// Set callback for when popover opens
     pub fn on_open<F>(mut self, callback: F) -> Self
     where
         F: Fn() + Send + Sync + 'static,
@@ -1289,6 +1375,7 @@ impl PopoverBuilder {
         self
     }
 
+    /// Set callback for when popover closes
     pub fn on_close<F>(mut self, callback: F) -> Self
     where
         F: Fn() + Send + Sync + 'static,
@@ -1297,6 +1384,7 @@ impl PopoverBuilder {
         self
     }
 
+    /// Set callback for when popover position changes
     pub fn on_position_change<F>(mut self, callback: F) -> Self
     where
         F: Fn(PopoverPosition) + Send + Sync + 'static,
@@ -1305,6 +1393,7 @@ impl PopoverBuilder {
         self
     }
 
+    /// Build the popover with configured properties
     pub fn build(self) -> (Popover, PopoverProps) {
         (Popover::new(), self.props)
     }

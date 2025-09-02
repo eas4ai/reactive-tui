@@ -63,6 +63,7 @@ struct NodePaint {
     overflow_y: Overflow,
 }
 
+/// Layout and paint nodes with options
 pub fn layout_and_paint_with<'a>(
     root: &NodeSpec<'a>,
     surface: &mut Surface,
@@ -83,6 +84,7 @@ pub fn layout_and_paint_with<'a>(
     Ok(())
 }
 
+/// Layout and paint nodes to a surface
 pub fn layout_and_paint<'a>(root: &NodeSpec<'a>, surface: &mut Surface, width: usize) {
     let opts = PaintOptions::default();
     let _ = layout_and_paint_with(root, surface, width, &opts);
@@ -97,7 +99,8 @@ pub fn layout_and_paint_constrained<'a>(
 ) {
     let mut taffy = TaffyTree::new();
     let mut map: HashMap<NodeId, NodePaint> = HashMap::new();
-    let root_id = build_nodes(&mut taffy, root, &mut map).unwrap_or_else(|_| panic!("Failed to build nodes"));
+    let root_id =
+        build_nodes(&mut taffy, root, &mut map).unwrap_or_else(|_| panic!("Failed to build nodes"));
     let available = Size {
         width: AvailableSpace::Definite(width as f32),
         height: AvailableSpace::Definite(height as f32),
@@ -114,7 +117,7 @@ fn build_nodes<'a>(
     map: &mut HashMap<NodeId, NodePaint>,
 ) -> Result<NodeId> {
     let mut sb = apply_utility_classes(spec.class.as_ref(), StyleBuilder::new());
-    
+
     // For text nodes, ensure minimum height of 1 cell
     // This ensures text is visible in flexbox column layouts
     if spec.text.is_some() && spec.children.is_empty() {
@@ -125,7 +128,7 @@ fn build_nodes<'a>(
             sb = sb.min_height_px(1.0);
         }
     }
-    
+
     let style: Style = sb.clone().build();
     let id = if spec.children.is_empty() {
         taffy
@@ -296,8 +299,10 @@ fn collect_nodes_by_z_index_recursive(
         // Debug output for tests (disabled in production)
         #[cfg(test)]
         if std::env::var("PAINT_TREE_DEBUG").is_ok() {
-            eprintln!("Node layout: pos=({},{}) size=({},{}) parent=({},{})",
-                     x, y, w, h, parent_x, parent_y);
+            eprintln!(
+                "Node layout: pos=({},{}) size=({},{}) parent=({},{})",
+                x, y, w, h, parent_x, parent_y
+            );
         }
 
         // Skip nodes with zero size
@@ -512,7 +517,9 @@ mod tests {
 
         let spec = NodeSpec {
             class: Cow::Borrowed("overflow-hidden w-10 h-5"),
-            text: Some(Cow::Borrowed("This is a very long text that should be clipped")),
+            text: Some(Cow::Borrowed(
+                "This is a very long text that should be clipped",
+            )),
             children: vec![],
         };
 

@@ -7,15 +7,21 @@ use std::time::{Duration, Instant};
 /// Cache entry with timestamp
 #[derive(Debug, Clone)]
 struct CacheEntry {
+    /// The highlighted line data
     line: HighlightedLine,
+    /// When this entry was created
     timestamp: Instant,
+    /// Hash of the original content
     hash: u64,
 }
 
 /// Line cache for highlighted code
 pub struct LineCache {
+    /// Cache entries indexed by line number
     entries: HashMap<usize, CacheEntry>,
+    /// Maximum age for cache entries
     max_age: Duration,
+    /// Maximum number of entries to keep
     max_entries: usize,
 }
 
@@ -113,9 +119,13 @@ impl LineCache {
 /// Cache statistics
 #[derive(Debug)]
 pub struct CacheStats {
+    /// Number of entries currently in cache
     pub entry_count: usize,
+    /// Number of expired entries removed
     pub expired_count: usize,
+    /// Average age of cache entries
     pub average_age: Duration,
+    /// Maximum cache capacity
     pub capacity: usize,
 }
 

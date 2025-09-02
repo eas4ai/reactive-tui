@@ -6,16 +6,24 @@ use std::fmt;
 /// A single cell in the terminal grid
 #[derive(Debug, Clone, PartialEq)]
 pub struct TerminalCell {
+    /// Character or grapheme cluster in this cell
     pub character: String,
+    /// Display width of the character (1 or 2 for wide chars)
     pub width: u8,
+    /// Text style and colors for this cell
     pub style: TerminalStyle,
+    /// Whether this cell needs to be redrawn
     pub dirty: bool,
+    /// Whether this cell is part of a wrapped line
     pub wrapped: bool,
+    /// Hyperlink URL if this cell is part of a link
     pub hyperlink: Option<String>,
+    /// Hyperlink identifier for grouping
     pub hyperlink_id: Option<String>,
 }
 
 impl TerminalCell {
+    /// Create a new empty terminal cell
     pub fn new() -> Self {
         Self {
             character: " ".to_string(),
@@ -28,24 +36,28 @@ impl TerminalCell {
         }
     }
 
+    /// Create a new terminal cell with a character
     pub fn with_char(ch: char) -> Self {
         let mut cell = Self::new();
         cell.set_char(ch);
         cell
     }
 
+    /// Set the character for this cell
     pub fn set_char(&mut self, ch: char) {
         self.character = ch.to_string();
         self.width = char_width(ch);
         self.dirty = true;
     }
 
+    /// Set the string content for this cell
     pub fn set_string(&mut self, s: String) {
         self.width = string_width(&s);
         self.character = s;
         self.dirty = true;
     }
 
+    /// Set the style for this cell
     pub fn set_style(&mut self, style: TerminalStyle) {
         if self.style != style {
             self.style = style;
@@ -53,6 +65,7 @@ impl TerminalCell {
         }
     }
 
+    /// Clear the cell with a background color
     pub fn clear(&mut self, bg_color: TerminalColor) {
         self.character = " ".to_string();
         self.width = 1;
@@ -66,11 +79,13 @@ impl TerminalCell {
         self.dirty = true;
     }
 
+    /// Erase the cell content
     pub fn erase(&mut self) {
         let bg = self.style.background;
         self.clear(bg);
     }
 
+    /// Check if the cell is empty
     pub fn is_empty(&self) -> bool {
         self.character.trim().is_empty()
     }

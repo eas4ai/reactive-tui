@@ -21,12 +21,19 @@ use std::path::PathBuf;
 /// Image widget for displaying images in terminal applications
 #[derive(Debug, Clone)]
 pub struct Image {
+    /// Source of the image data
     pub source: ImageSource,
+    /// How the image should be displayed
     pub display_mode: ImageDisplayMode,
+    /// Optional size constraints (width, height)
     pub size_constraints: Option<(u32, u32)>,
+    /// Whether to preserve aspect ratio
     pub preserve_aspect: bool,
+    /// Fallback text if image cannot be displayed
     pub fallback_text: Option<String>,
+    /// Background color for transparent images
     pub background_color: Option<Rgba>,
+    /// Image quality settings
     pub quality: ImageQuality,
 }
 
@@ -39,9 +46,13 @@ pub enum ImageSource {
     Base64Data(String),
     /// Raw image bytes with format information
     RawBytes {
+        /// Raw image data bytes
         data: Vec<u8>,
+        /// Image width in pixels
         width: u32,
+        /// Image height in pixels
         height: u32,
+        /// Image format specification
         format: ImageFormat,
     },
     /// URL for future HTTP support
@@ -51,12 +62,19 @@ pub enum ImageSource {
 /// Supported image formats
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ImageFormat {
+    /// RGB format with 8 bits per channel
     RGB888,
+    /// RGBA format with 8 bits per channel
     RGBA8888,
+    /// PNG compressed format
     PNG,
+    /// JPEG compressed format
     JPEG,
+    /// GIF animated format
     GIF,
+    /// BMP bitmap format
     BMP,
+    /// TIFF format
     TIFF,
 }
 
@@ -95,10 +113,15 @@ pub enum ImageQuality {
 /// Terminal image rendering capabilities
 #[derive(Debug, Clone)]
 pub struct ImageCapabilities {
+    /// Whether Sixel graphics are supported
     pub sixel: bool,
+    /// Whether Kitty graphics protocol is supported
     pub kitty_graphics: bool,
+    /// Whether iTerm2 inline images are supported
     pub iterm2_inline: bool,
+    /// Whether chafa tool is available for ASCII art
     pub chafa_available: bool,
+    /// Whether viu tool is available for image display
     pub viu_available: bool,
 }
 
@@ -217,6 +240,7 @@ impl Image {
         }
     }
 
+    /// Render fallback text when image cannot be displayed
     pub fn render_fallback(&self) -> Result<String> {
         Ok(self
             .fallback_text

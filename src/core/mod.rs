@@ -1,5 +1,5 @@
 //! Core rendering primitives and terminal abstractions
-//! 
+//!
 //! This module contains the fundamental building blocks for terminal rendering,
 //! including geometry types, surface buffers, and the rendering pipeline.
 

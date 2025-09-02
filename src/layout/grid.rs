@@ -193,6 +193,7 @@ pub struct DeclarativeGrid {
 }
 
 impl DeclarativeGrid {
+    /// Create a new declarative grid with specified columns and rows
     pub fn new(cols: usize, rows: usize) -> Self {
         Self {
             cols,
@@ -209,11 +210,13 @@ impl DeclarativeGrid {
         }
     }
 
+    /// Set gap between grid cells
     pub fn gap(mut self, gap: usize) -> Self {
         self.gap = gap;
         self
     }
 
+    /// Set CSS class for the grid
     pub fn class(mut self, css_class: impl Into<String>) -> Self {
         self.css_class = Some(css_class.into());
         self

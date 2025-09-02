@@ -14,12 +14,14 @@ pub struct ThemeVariables {
 }
 
 impl ThemeVariables {
+    /// Create a new theme variables collection
     pub fn new() -> Self {
         Self {
             variables: HashMap::new(),
         }
     }
 
+    /// Get a theme variable value by key
     pub fn get(&self, key: &str) -> Option<String> {
         self.variables.get(key).cloned()
     }

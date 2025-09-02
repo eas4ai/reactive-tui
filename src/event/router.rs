@@ -81,6 +81,7 @@ impl Default for NodeId {
 }
 
 impl NodeId {
+    /// Create a new unique node ID
     pub fn new() -> Self {
         static COUNTER: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
         Self(COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed))
@@ -97,6 +98,7 @@ pub struct EventRouter {
 }
 
 impl EventRouter {
+    /// Create a new event router with default size
     pub fn new() -> Self {
         Self {
             nodes: HashMap::new(),
@@ -107,6 +109,7 @@ impl EventRouter {
         }
     }
 
+    /// Create a new event router with specified size
     pub fn new_with_size(width: u16, height: u16) -> Self {
         Self {
             nodes: HashMap::new(),

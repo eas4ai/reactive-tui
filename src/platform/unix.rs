@@ -13,8 +13,11 @@ static SIGNAL_HANDLERS: Mutex<Vec<SignalHandler>> = Mutex::new(Vec::new());
 static HANDLER_INSTALLED: AtomicBool = AtomicBool::new(false);
 static mut GLOBAL_TTY: Option<UnixTty> = None;
 
+/// Signal handler for Unix systems
 pub struct SignalHandler {
+    /// Context pointer passed to the callback
     pub context: *mut std::ffi::c_void,
+    /// Callback function to handle the signal
     pub callback: extern "C" fn(*mut std::ffi::c_void),
 }
 

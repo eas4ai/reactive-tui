@@ -10,8 +10,10 @@ use std::collections::HashMap;
 pub struct AstWalker {
     #[allow(dead_code)]
     enable_syntax_highlighting: bool,
+    /// Styled lines for rendering
     pub lines: Vec<StyledLine>,
     current_line: Vec<StyledRun>,
+    /// Source position mapping for debugging
     pub sourcepos_map: HashMap<usize, (usize, usize)>,
     list_depth: usize,
     in_table: bool,
@@ -20,6 +22,7 @@ pub struct AstWalker {
 }
 
 impl AstWalker {
+    /// Create a new AST walker with syntax highlighting option
     pub fn new(enable_syntax_highlighting: bool) -> Self {
         Self {
             enable_syntax_highlighting,
@@ -33,21 +36,25 @@ impl AstWalker {
         }
     }
 
+    /// Walk the document AST and return styled lines
     pub fn walk_document<'a>(mut self, root: &'a AstNode<'a>) -> Vec<StyledLine> {
         self.walk_node(root);
         self.flush_current_line();
         optimize_styled_lines(self.lines)
     }
 
+    /// Walk the AST and finish processing
     pub fn walk_and_finish<'a>(&mut self, root: &'a AstNode<'a>) {
         self.walk_node(root);
         self.flush_current_line();
     }
 
+    /// Finish processing and return optimized styled lines
     pub fn finish(self) -> Vec<StyledLine> {
         optimize_styled_lines(self.lines)
     }
 
+    /// Take ownership of the source position map
     pub fn take_sourcepos_map(self) -> HashMap<usize, (usize, usize)> {
         self.sourcepos_map
     }

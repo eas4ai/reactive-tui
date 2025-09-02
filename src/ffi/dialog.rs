@@ -2,10 +2,9 @@
 
 use super::*;
 use crate::widgets::dialog::{
-    ConfirmationDialogOptions, ConfirmationButtons, ConfirmationIcon,
-    InputDialogOptions, InputFieldConfig, InputType,
-    ToastOptions, ToastType, ToastPosition,
-    DialogEngine, DialogId, DialogResult, DialogPosition,
+    ConfirmationButtons, ConfirmationDialogOptions, ConfirmationIcon, DialogEngine, DialogId,
+    DialogPosition, DialogResult, InputDialogOptions, InputFieldConfig, InputType, ToastOptions,
+    ToastPosition, ToastType,
 };
 use std::boxed::Box;
 use std::ffi::CStr;
@@ -161,17 +160,23 @@ pub extern "C" fn rtui_dialog_show_confirmation(
 
     catch_panic(AssertUnwindSafe(|| unsafe {
         let engine_ref = &mut *(engine as *mut DialogEngine);
-        
-        let title_str = CStr::from_ptr(title).to_str()
+
+        let title_str = CStr::from_ptr(title)
+            .to_str()
             .map_err(|_| ReactiveError::InvalidUtf8)?;
-        let message_str = CStr::from_ptr(message).to_str()
+        let message_str = CStr::from_ptr(message)
+            .to_str()
             .map_err(|_| ReactiveError::InvalidUtf8)?;
-        
+
         let description_opt = if description.is_null() {
             None
         } else {
-            Some(CStr::from_ptr(description).to_str()
-                .map_err(|_| ReactiveError::InvalidUtf8)?.to_string())
+            Some(
+                CStr::from_ptr(description)
+                    .to_str()
+                    .map_err(|_| ReactiveError::InvalidUtf8)?
+                    .to_string(),
+            )
         };
 
         let button_type = match buttons {
@@ -198,7 +203,7 @@ pub extern "C" fn rtui_dialog_show_confirmation(
             RTuiDialogPosition::TopRight => DialogPosition::TopCenter, // Map to closest available
             RTuiDialogPosition::BottomLeft => DialogPosition::BottomCenter, // Map to closest available
             RTuiDialogPosition::BottomRight => DialogPosition::BottomCenter, // Map to closest available
-            RTuiDialogPosition::Custom => DialogPosition::Center, // Default for custom
+            RTuiDialogPosition::Custom => DialogPosition::Center,            // Default for custom
         };
 
         let options = ConfirmationDialogOptions {
@@ -212,11 +217,11 @@ pub extern "C" fn rtui_dialog_show_confirmation(
         };
 
         let dialog_id = engine_ref.show_confirmation(options);
-        
+
         // Store callback for later use
         // Note: In a real implementation, we'd need to store the callback
         // and user_data to call when the dialog completes
-        
+
         *out_dialog_id = dialog_id.as_u32() as u64;
         Ok(())
     }))
@@ -242,24 +247,34 @@ pub extern "C" fn rtui_dialog_show_input(
 
     catch_panic(AssertUnwindSafe(|| unsafe {
         let engine_ref = &mut *(engine as *mut DialogEngine);
-        
-        let title_str = CStr::from_ptr(title).to_str()
+
+        let title_str = CStr::from_ptr(title)
+            .to_str()
             .map_err(|_| ReactiveError::InvalidUtf8)?;
-        let prompt_str = CStr::from_ptr(prompt).to_str()
+        let prompt_str = CStr::from_ptr(prompt)
+            .to_str()
             .map_err(|_| ReactiveError::InvalidUtf8)?;
-        
+
         let placeholder_str = if placeholder.is_null() {
             None
         } else {
-            Some(CStr::from_ptr(placeholder).to_str()
-                .map_err(|_| ReactiveError::InvalidUtf8)?.to_string())
+            Some(
+                CStr::from_ptr(placeholder)
+                    .to_str()
+                    .map_err(|_| ReactiveError::InvalidUtf8)?
+                    .to_string(),
+            )
         };
-        
+
         let default_str = if default_value.is_null() {
             None
         } else {
-            Some(CStr::from_ptr(default_value).to_str()
-                .map_err(|_| ReactiveError::InvalidUtf8)?.to_string())
+            Some(
+                CStr::from_ptr(default_value)
+                    .to_str()
+                    .map_err(|_| ReactiveError::InvalidUtf8)?
+                    .to_string(),
+            )
         };
 
         let input_type_enum = match input_type {
@@ -297,7 +312,7 @@ pub extern "C" fn rtui_dialog_show_input(
         };
 
         let dialog_id = engine_ref.show_input(options);
-        
+
         *out_dialog_id = dialog_id.as_u32() as u64;
         Ok(())
     }))
@@ -319,8 +334,9 @@ pub extern "C" fn rtui_dialog_show_toast(
 
     catch_panic(AssertUnwindSafe(|| unsafe {
         let engine_ref = &mut *(engine as *mut DialogEngine);
-        
-        let message_str = CStr::from_ptr(message).to_str()
+
+        let message_str = CStr::from_ptr(message)
+            .to_str()
             .map_err(|_| ReactiveError::InvalidUtf8)?;
 
         let toast_type_enum = match toast_type {
@@ -348,7 +364,7 @@ pub extern "C" fn rtui_dialog_show_toast(
         };
 
         let dialog_id = engine_ref.show_toast(options);
-        
+
         *out_dialog_id = dialog_id.as_u32() as u64;
         Ok(())
     }))
@@ -367,7 +383,7 @@ pub extern "C" fn rtui_dialog_close(
 
     catch_panic(AssertUnwindSafe(|| unsafe {
         let engine_ref = &mut *(engine as *mut DialogEngine);
-        
+
         let dialog_result = match result {
             RTuiDialogResult::Confirmed => DialogResult::Confirmed(None),
             RTuiDialogResult::Cancelled => DialogResult::Cancelled,

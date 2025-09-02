@@ -8,6 +8,7 @@ use std::sync::mpsc;
 use std::thread;
 use std::time::{Duration, Instant};
 
+/// Terminal emulator instance managing PTY, screen buffer, and event processing
 #[derive(Debug)]
 pub struct Terminal {
     config: TerminalConfig,
@@ -20,6 +21,7 @@ pub struct Terminal {
 }
 
 impl Terminal {
+    /// Create a new terminal emulator with the given configuration
     pub fn new(config: TerminalConfig) -> Self {
         let screen = VirtualScreen::new(config.size.0, config.size.1, config.scrollback_size);
 
@@ -34,6 +36,7 @@ impl Terminal {
         }
     }
 
+    /// Start the terminal emulator, spawning the shell process
     pub fn start(&mut self) -> TerminalResult<()> {
         self.pty.spawn(&self.config)?;
         self.setup_event_loop()?;
@@ -100,16 +103,19 @@ impl Terminal {
         Ok(())
     }
 
+    /// Write raw input bytes to the terminal process
     pub fn write_input(&mut self, data: &[u8]) -> TerminalResult<()> {
         self.pty.write_input(data)?;
         self.last_activity = Instant::now();
         Ok(())
     }
 
+    /// Write a string to the terminal process
     pub fn write_string(&mut self, s: &str) -> TerminalResult<()> {
         self.write_input(s.as_bytes())
     }
 
+    /// Send a keyboard key event to the terminal
     pub fn send_key(&mut self, key: &str) -> TerminalResult<()> {
         match key {
             "Enter" => self.write_input(b"\r"),
@@ -136,6 +142,7 @@ impl Terminal {
         }
     }
 
+    /// Poll for terminal events (output, resize, process exit)
     pub fn poll_events(&mut self) -> Vec<TerminalEvent> {
         let mut events = Vec::new();
 
@@ -154,6 +161,7 @@ impl Terminal {
         events
     }
 
+    /// Process output data from the terminal process
     pub fn process_output(&mut self, data: &[u8]) {
         let events = self.parser.parse_bytes(data);
         for event in events {
@@ -162,6 +170,7 @@ impl Terminal {
         self.last_activity = Instant::now();
     }
 
+    /// Resize the terminal to the specified dimensions
     pub fn resize(&mut self, width: u16, height: u16) -> TerminalResult<()> {
         if width == 0 || height == 0 {
             return Err(TerminalError::InvalidSize { width, height });
@@ -176,87 +185,107 @@ impl Terminal {
         Ok(())
     }
 
+    /// Get the current terminal size (width, height)
     pub fn size(&self) -> (u16, u16) {
         self.config.size
     }
 
+    /// Get the current cursor position (column, row)
     pub fn cursor_position(&self) -> (u16, u16) {
         self.screen.cursor_position()
     }
 
+    /// Check if the cursor is visible
     pub fn cursor_visible(&self) -> bool {
         self.screen.cursor_visible()
     }
 
+    /// Get the current cursor shape
     pub fn cursor_shape(&self) -> super::cursor::CursorShape {
         self.screen.cursor_shape()
     }
 
+    /// Get the terminal window title
     pub fn title(&self) -> &str {
         self.screen.title()
     }
 
+    /// Get the current working directory if available
     pub fn working_directory(&self) -> Option<&str> {
         self.screen.working_directory()
     }
 
+    /// Get the cell at the specified position
     pub fn cell_at(&self, col: u16, row: u16) -> Option<&super::TerminalCell> {
         self.screen.cell_at(col, row)
     }
 
+    /// Check if the terminal is currently running
     pub fn is_running(&self) -> bool {
         self.running
     }
 
+    /// Get the timestamp of the last terminal activity
     pub fn last_activity(&self) -> Instant {
         self.last_activity
     }
 
+    /// Stop the terminal emulator and kill the shell process
     pub fn stop(&mut self) -> TerminalResult<()> {
         self.running = false;
         self.pty.kill()?;
         Ok(())
     }
 
+    /// Get a reference to the virtual screen buffer
     pub fn screen(&self) -> &VirtualScreen {
         &self.screen
     }
 
+    /// Get a mutable reference to the virtual screen buffer
     pub fn screen_mut(&mut self) -> &mut VirtualScreen {
         &mut self.screen
     }
 
     // Convenience methods for common operations
+    /// Clear the entire terminal screen
     pub fn clear_screen(&mut self) -> TerminalResult<()> {
         self.write_input(b"\x1b[2J\x1b[H")
     }
 
+    /// Clear the current line
     pub fn clear_line(&mut self) -> TerminalResult<()> {
         self.write_input(b"\x1b[2K")
     }
 
+    /// Move the cursor to the specified position
     pub fn move_cursor(&mut self, col: u16, row: u16) -> TerminalResult<()> {
         let command = format!("\x1b[{};{}H", row + 1, col + 1);
         self.write_string(&command)
     }
 
+    /// Save the current cursor position
     pub fn save_cursor(&mut self) -> TerminalResult<()> {
         self.write_input(b"\x1b[s")
     }
 
+    /// Restore the previously saved cursor position
     pub fn restore_cursor(&mut self) -> TerminalResult<()> {
         self.write_input(b"\x1b[u")
     }
 
+    /// Set the terminal window title
     pub fn set_title(&mut self, title: &str) -> TerminalResult<()> {
         let command = format!("\x1b]0;{}\x07", title);
         self.write_string(&command)
     }
 
+    /// Ring the terminal bell
     pub fn bell(&mut self) -> TerminalResult<()> {
         self.write_input(b"\x07")
     }
 
+    /// Reset the terminal to its initial state
     pub fn reset(&mut self) -> TerminalResult<()> {
         self.write_input(b"\x1bc")
     }

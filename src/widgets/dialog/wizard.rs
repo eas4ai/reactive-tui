@@ -75,6 +75,7 @@ pub struct WizardDialog {
 }
 
 impl WizardDialog {
+    /// Create a new wizard dialog
     pub fn new(id: DialogId, options: WizardDialogOptions) -> Self {
         Self {
             state: BaseDialogState::new(id),
@@ -85,6 +86,7 @@ impl WizardDialog {
         }
     }
 
+    /// Move to the next step in the wizard
     pub fn next_step(&mut self) -> bool {
         if self.current_step < self.options.steps.len() - 1 {
             self.current_step += 1;
@@ -94,6 +96,7 @@ impl WizardDialog {
         }
     }
 
+    /// Move to the previous step in the wizard
     pub fn previous_step(&mut self) -> bool {
         if self.current_step > 0 && self.options.allow_back {
             self.current_step -= 1;

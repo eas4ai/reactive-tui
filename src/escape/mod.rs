@@ -1,5 +1,5 @@
 //! Terminal escape sequence parsing and handling
-//! 
+//!
 //! This module provides parsers for various terminal escape sequences including
 //! CSI (Control Sequence Introducer), ESC codes, and OSC (Operating System Command).
 

@@ -42,7 +42,7 @@ bitflags! {
         /// Component is loading
         const LOADING = 0b1000000000000000;
 
-        // Default state for new components
+        /// Default state for new components (visible and enabled)
         const DEFAULT = Self::VISIBLE.bits() | Self::ENABLED.bits();
     }
 }

@@ -7,6 +7,7 @@ use std::sync::mpsc;
 use std::thread;
 use std::time::Duration;
 
+/// Pseudo-terminal implementation for running shell processes
 #[derive(Debug)]
 pub struct PseudoTerminal {
     child: Option<Child>,
@@ -28,6 +29,7 @@ impl Default for PseudoTerminal {
 }
 
 impl PseudoTerminal {
+    /// Create a new pseudo-terminal
     pub fn new() -> Self {
         Self {
             child: None,
@@ -43,6 +45,7 @@ impl PseudoTerminal {
         }
     }
 
+    /// Spawn a shell process in the pseudo-terminal
     pub fn spawn(&mut self, config: &TerminalConfig) -> TerminalResult<()> {
         self.size = config.size;
         self.working_directory = config.working_directory.clone();
@@ -193,6 +196,7 @@ impl PseudoTerminal {
         Ok(())
     }
 
+    /// Write input data to the pseudo-terminal
     pub fn write_input(&self, data: &[u8]) -> TerminalResult<()> {
         if let Some(ref sender) = self.input_sender {
             sender
@@ -202,6 +206,7 @@ impl PseudoTerminal {
         Ok(())
     }
 
+    /// Read output from the pseudo-terminal with optional timeout
     pub fn read_output(&self, timeout: Option<Duration>) -> TerminalResult<Option<Vec<u8>>> {
         if let Some(ref receiver) = self.output_receiver {
             match timeout {
@@ -224,6 +229,7 @@ impl PseudoTerminal {
         }
     }
 
+    /// Try to get the exit status of the child process without blocking
     pub fn try_wait(&self) -> TerminalResult<Option<i32>> {
         if let Some(ref receiver) = self.exit_receiver {
             match receiver.try_recv() {
@@ -236,6 +242,7 @@ impl PseudoTerminal {
         }
     }
 
+    /// Resize the pseudo-terminal
     pub fn resize(&mut self, width: u16, height: u16) -> TerminalResult<()> {
         self.size = (width, height);
 
@@ -265,10 +272,12 @@ impl PseudoTerminal {
         Ok(())
     }
 
+    /// Get the current size of the pseudo-terminal
     pub fn size(&self) -> (u16, u16) {
         self.size
     }
 
+    /// Kill the child process
     pub fn kill(&mut self) -> TerminalResult<()> {
         if let Some(ref mut child) = self.child {
             child

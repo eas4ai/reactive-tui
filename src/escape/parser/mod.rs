@@ -32,6 +32,7 @@ enum State {
 }
 
 impl Parser {
+    /// Create a new ANSI escape sequence parser
     pub fn new() -> Self {
         Self {
             state: State::Ground,

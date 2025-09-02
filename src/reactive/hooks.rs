@@ -79,6 +79,7 @@ pub struct ThreadSafeSignal<T> {
 }
 
 impl<T: Clone> ThreadSafeSignal<T> {
+    /// Create a new thread-safe signal with initial value
     pub fn new(initial: T) -> Self {
         Self {
             inner: Arc::new(Mutex::new(initial)),
@@ -86,10 +87,12 @@ impl<T: Clone> ThreadSafeSignal<T> {
         }
     }
 
+    /// Get the current value of the signal
     pub fn get(&self) -> T {
         self.inner.lock().unwrap().clone()
     }
 
+    /// Set a new value for the signal
     pub fn set(&self, value: T)
     where
         T: PartialEq,
@@ -101,6 +104,7 @@ impl<T: Clone> ThreadSafeSignal<T> {
         }
     }
 
+    /// Update the signal value using a function
     pub fn update(&self, f: impl FnOnce(&mut T))
     where
         T: PartialEq,

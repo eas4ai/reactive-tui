@@ -252,14 +252,23 @@ impl ThemedSyntaxStyle {
 /// Common syntax element types
 #[derive(Debug, Clone, Copy)]
 pub enum SyntaxElement {
+    /// Language keywords (if, for, while, etc.)
     Keyword,
+    /// Type names and type annotations
     Type,
+    /// Function and method names
     Function,
+    /// Variable and parameter names
     Variable,
+    /// String literals
     String,
+    /// Comments and documentation
     Comment,
+    /// Numeric literals
     Number,
+    /// Operators (+, -, *, etc.)
     Operator,
+    /// Constants and literals
     Constant,
 }
 

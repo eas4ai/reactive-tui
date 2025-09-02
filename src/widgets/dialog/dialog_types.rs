@@ -518,17 +518,50 @@ mod tests {
 
     #[test]
     fn test_dialog_utils_parse_shortcut() {
-        assert_eq!(DialogUtils::parse_shortcut("enter"), Some(crate::event::types::KeyCode::Enter));
-        assert_eq!(DialogUtils::parse_shortcut("ENTER"), Some(crate::event::types::KeyCode::Enter));
-        assert_eq!(DialogUtils::parse_shortcut("return"), Some(crate::event::types::KeyCode::Enter));
-        assert_eq!(DialogUtils::parse_shortcut("esc"), Some(crate::event::types::KeyCode::Escape));
-        assert_eq!(DialogUtils::parse_shortcut("escape"), Some(crate::event::types::KeyCode::Escape));
-        assert_eq!(DialogUtils::parse_shortcut("tab"), Some(crate::event::types::KeyCode::Tab));
-        assert_eq!(DialogUtils::parse_shortcut("space"), Some(crate::event::types::KeyCode::Char(' ')));
-        assert_eq!(DialogUtils::parse_shortcut("backspace"), Some(crate::event::types::KeyCode::Backspace));
-        assert_eq!(DialogUtils::parse_shortcut("delete"), Some(crate::event::types::KeyCode::Delete));
-        assert_eq!(DialogUtils::parse_shortcut("a"), Some(crate::event::types::KeyCode::Char('a')));
-        assert_eq!(DialogUtils::parse_shortcut("Z"), Some(crate::event::types::KeyCode::Char('z')));
+        assert_eq!(
+            DialogUtils::parse_shortcut("enter"),
+            Some(crate::event::types::KeyCode::Enter)
+        );
+        assert_eq!(
+            DialogUtils::parse_shortcut("ENTER"),
+            Some(crate::event::types::KeyCode::Enter)
+        );
+        assert_eq!(
+            DialogUtils::parse_shortcut("return"),
+            Some(crate::event::types::KeyCode::Enter)
+        );
+        assert_eq!(
+            DialogUtils::parse_shortcut("esc"),
+            Some(crate::event::types::KeyCode::Escape)
+        );
+        assert_eq!(
+            DialogUtils::parse_shortcut("escape"),
+            Some(crate::event::types::KeyCode::Escape)
+        );
+        assert_eq!(
+            DialogUtils::parse_shortcut("tab"),
+            Some(crate::event::types::KeyCode::Tab)
+        );
+        assert_eq!(
+            DialogUtils::parse_shortcut("space"),
+            Some(crate::event::types::KeyCode::Char(' '))
+        );
+        assert_eq!(
+            DialogUtils::parse_shortcut("backspace"),
+            Some(crate::event::types::KeyCode::Backspace)
+        );
+        assert_eq!(
+            DialogUtils::parse_shortcut("delete"),
+            Some(crate::event::types::KeyCode::Delete)
+        );
+        assert_eq!(
+            DialogUtils::parse_shortcut("a"),
+            Some(crate::event::types::KeyCode::Char('a'))
+        );
+        assert_eq!(
+            DialogUtils::parse_shortcut("Z"),
+            Some(crate::event::types::KeyCode::Char('z'))
+        );
         assert_eq!(DialogUtils::parse_shortcut("invalid"), None);
         assert_eq!(DialogUtils::parse_shortcut("toolong"), None);
     }

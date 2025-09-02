@@ -10,6 +10,7 @@ use std::task::Waker;
 pub struct SignalId(usize);
 
 impl SignalId {
+    /// Create a new unique signal ID
     pub(crate) fn new() -> Self {
         use std::sync::atomic::{AtomicUsize, Ordering};
         static NEXT_ID: AtomicUsize = AtomicUsize::new(0);
@@ -19,19 +20,27 @@ impl SignalId {
 
 /// A reactive signal that notifies subscribers when its value changes
 pub struct Signal<T> {
+    /// Unique identifier for this signal
     id: SignalId,
+    /// Shared inner state
     inner: Rc<RefCell<SignalInner<T>>>,
 }
 
+/// Internal signal state
 struct SignalInner<T> {
+    /// Current value of the signal
     value: T,
+    /// Version counter for change tracking
     version: usize,
+    /// Weak references to subscribers
     subscribers: Vec<Weak<RefCell<dyn Subscriber>>>,
+    /// Async wakers for futures
     wakers: Vec<Waker>,
 }
 
 /// Trait for objects that can subscribe to signal changes
 pub trait Subscriber {
+    /// Notify the subscriber that a signal has changed
     fn notify(&mut self, signal_id: SignalId);
 }
 

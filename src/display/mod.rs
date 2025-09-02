@@ -1,5 +1,5 @@
 //! Display utilities and performance monitoring
-//! 
+//!
 //! This module provides tools for adaptive rendering, terminal capability detection,
 //! and performance monitoring to optimize the display output.
 

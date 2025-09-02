@@ -53,6 +53,7 @@ pub struct ProgressDialog {
 }
 
 impl ProgressDialog {
+    /// Create a new progress dialog
     pub fn new(id: DialogId, options: ProgressDialogOptions) -> Self {
         Self {
             state: BaseDialogState::new(id),
@@ -62,6 +63,7 @@ impl ProgressDialog {
         }
     }
 
+    /// Set the progress value (0.0 to 1.0)
     pub fn set_progress(&mut self, progress: f32) {
         self.progress = progress.clamp(0.0, 1.0);
     }

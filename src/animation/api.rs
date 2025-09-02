@@ -104,7 +104,7 @@ pub enum PropertyValue {
         /// Starting value
         from: f32,
         /// Ending value
-        to: f32
+        to: f32,
     },
     /// Array of values for keyframe-like progression
     Array(Vec<f32>),
@@ -138,7 +138,7 @@ pub enum SizeValue {
         /// Starting size (width, height)
         from: (u16, u16),
         /// Ending size (width, height)
-        to: (u16, u16)
+        to: (u16, u16),
     },
 }
 
@@ -152,7 +152,7 @@ pub enum PositionValue {
         /// Starting position (x, y)
         from: (i16, i16),
         /// Ending position (x, y)
-        to: (i16, i16)
+        to: (i16, i16),
     },
 }
 

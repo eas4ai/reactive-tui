@@ -848,9 +848,17 @@ mod tests {
     fn test_color_progression() {
         // Test that colors get darker as the number increases
         let slate_colors = [
-            Colors::SLATE_50, Colors::SLATE_100, Colors::SLATE_200, Colors::SLATE_300,
-            Colors::SLATE_400, Colors::SLATE_500, Colors::SLATE_600, Colors::SLATE_700,
-            Colors::SLATE_800, Colors::SLATE_900, Colors::SLATE_950,
+            Colors::SLATE_50,
+            Colors::SLATE_100,
+            Colors::SLATE_200,
+            Colors::SLATE_300,
+            Colors::SLATE_400,
+            Colors::SLATE_500,
+            Colors::SLATE_600,
+            Colors::SLATE_700,
+            Colors::SLATE_800,
+            Colors::SLATE_900,
+            Colors::SLATE_950,
         ];
 
         // Each color should be darker than the previous (lower RGB values)
@@ -860,9 +868,24 @@ mod tests {
 
             // Generally, RGB values should decrease (get darker)
             // Allow some tolerance for color theory adjustments
-            assert!(r2 as i32 <= r1 as i32 + 10, "Red should generally decrease: {} -> {}", r1, r2);
-            assert!(g2 as i32 <= g1 as i32 + 10, "Green should generally decrease: {} -> {}", g1, g2);
-            assert!(b2 as i32 <= b1 as i32 + 10, "Blue should generally decrease: {} -> {}", b1, b2);
+            assert!(
+                r2 as i32 <= r1 as i32 + 10,
+                "Red should generally decrease: {} -> {}",
+                r1,
+                r2
+            );
+            assert!(
+                g2 as i32 <= g1 as i32 + 10,
+                "Green should generally decrease: {} -> {}",
+                g1,
+                g2
+            );
+            assert!(
+                b2 as i32 <= b1 as i32 + 10,
+                "Blue should generally decrease: {} -> {}",
+                b1,
+                b2
+            );
         }
     }
 
@@ -908,13 +931,14 @@ mod tests {
     #[test]
     fn test_all_color_families() {
         let color_families = [
-            "slate", "gray", "zinc", "neutral", "stone",
-            "red", "orange", "amber", "yellow", "lime", "green",
-            "emerald", "teal", "cyan", "sky", "blue", "indigo",
-            "violet", "purple", "fuchsia", "pink", "rose"
+            "slate", "gray", "zinc", "neutral", "stone", "red", "orange", "amber", "yellow",
+            "lime", "green", "emerald", "teal", "cyan", "sky", "blue", "indigo", "violet",
+            "purple", "fuchsia", "pink", "rose",
         ];
 
-        let shades = ["50", "100", "200", "300", "400", "500", "600", "700", "800", "900", "950"];
+        let shades = [
+            "50", "100", "200", "300", "400", "500", "600", "700", "800", "900", "950",
+        ];
 
         // Test that all combinations exist
         for family in &color_families {
@@ -946,25 +970,46 @@ mod tests {
     fn test_extreme_shades() {
         // Test lightest shades (50) - should be very light
         let light_colors = [
-            Colors::RED_50, Colors::BLUE_50, Colors::GREEN_50,
-            Colors::YELLOW_50, Colors::PURPLE_50, Colors::PINK_50
+            Colors::RED_50,
+            Colors::BLUE_50,
+            Colors::GREEN_50,
+            Colors::YELLOW_50,
+            Colors::PURPLE_50,
+            Colors::PINK_50,
         ];
 
         for (r, g, b) in &light_colors {
             // Light colors should have high RGB values
-            assert!(*r > 200 || *g > 200 || *b > 200, "Light color should have high RGB: ({}, {}, {})", r, g, b);
+            assert!(
+                *r > 200 || *g > 200 || *b > 200,
+                "Light color should have high RGB: ({}, {}, {})",
+                r,
+                g,
+                b
+            );
         }
 
         // Test darkest shades (950) - should be very dark
         let dark_colors = [
-            Colors::RED_950, Colors::BLUE_950, Colors::GREEN_950,
-            Colors::YELLOW_950, Colors::PURPLE_950, Colors::PINK_950
+            Colors::RED_950,
+            Colors::BLUE_950,
+            Colors::GREEN_950,
+            Colors::YELLOW_950,
+            Colors::PURPLE_950,
+            Colors::PINK_950,
         ];
 
         for (r, g, b) in &dark_colors {
             // Dark colors should have at least one low RGB value, and overall low brightness
             let brightness = (*r as u32 + *g as u32 + *b as u32) / 3;
-            assert!(brightness < 150, "Dark color should have low overall brightness: ({}, {}, {}) avg={}", r, g, b, brightness);
+            assert!(
+                brightness < 150,
+                "Dark color should have low overall brightness: ({}, {}, {}) avg={}",
+                r,
+                g,
+                b,
+                brightness
+            );
         }
     }
 
@@ -981,12 +1026,26 @@ mod tests {
     #[test]
     fn test_standard_shades() {
         // Test that all standard Tailwind shades exist for red
-        let standard_shades = ["50", "100", "200", "300", "400", "500", "600", "700", "800", "900", "950"];
+        let standard_shades = [
+            "50", "100", "200", "300", "400", "500", "600", "700", "800", "900", "950",
+        ];
 
         for shade in &standard_shades {
-            assert!(get_color("red", shade).is_some(), "Red-{} should exist", shade);
-            assert!(get_color("blue", shade).is_some(), "Blue-{} should exist", shade);
-            assert!(get_color("green", shade).is_some(), "Green-{} should exist", shade);
+            assert!(
+                get_color("red", shade).is_some(),
+                "Red-{} should exist",
+                shade
+            );
+            assert!(
+                get_color("blue", shade).is_some(),
+                "Blue-{} should exist",
+                shade
+            );
+            assert!(
+                get_color("green", shade).is_some(),
+                "Green-{} should exist",
+                shade
+            );
         }
     }
 
@@ -994,12 +1053,28 @@ mod tests {
     fn test_color_rgb_ranges() {
         // Test that all colors have valid RGB values (0-255)
         let all_colors = [
-            Colors::SLATE_50, Colors::GRAY_100, Colors::ZINC_200, Colors::NEUTRAL_300,
-            Colors::STONE_400, Colors::RED_500, Colors::ORANGE_600, Colors::AMBER_700,
-            Colors::YELLOW_800, Colors::LIME_900, Colors::GREEN_950, Colors::EMERALD_50,
-            Colors::TEAL_100, Colors::CYAN_200, Colors::SKY_300, Colors::BLUE_400,
-            Colors::INDIGO_500, Colors::VIOLET_600, Colors::PURPLE_700, Colors::FUCHSIA_800,
-            Colors::PINK_900, Colors::ROSE_950,
+            Colors::SLATE_50,
+            Colors::GRAY_100,
+            Colors::ZINC_200,
+            Colors::NEUTRAL_300,
+            Colors::STONE_400,
+            Colors::RED_500,
+            Colors::ORANGE_600,
+            Colors::AMBER_700,
+            Colors::YELLOW_800,
+            Colors::LIME_900,
+            Colors::GREEN_950,
+            Colors::EMERALD_50,
+            Colors::TEAL_100,
+            Colors::CYAN_200,
+            Colors::SKY_300,
+            Colors::BLUE_400,
+            Colors::INDIGO_500,
+            Colors::VIOLET_600,
+            Colors::PURPLE_700,
+            Colors::FUCHSIA_800,
+            Colors::PINK_900,
+            Colors::ROSE_950,
         ];
 
         for (r, g, b) in &all_colors {

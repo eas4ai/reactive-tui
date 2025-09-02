@@ -1,52 +1,91 @@
 //! ANSI escape sequence parser
 
+/// Internal parser state for ANSI escape sequence parsing
 #[derive(Debug, Clone, Copy, PartialEq)]
 enum ParserState {
+    /// Normal character processing
     Ground,
+    /// Escape sequence started
     Escape,
+    /// CSI sequence entry
     CsiEntry,
+    /// CSI parameter processing
     CsiParam,
+    /// CSI intermediate bytes
     CsiIntermediate,
+    /// OSC string processing
     OscString,
+    /// DCS sequence entry
     DcsEntry,
+    /// DCS parameter processing
     DcsParam,
+    /// DCS intermediate bytes
     DcsIntermediate,
+    /// DCS passthrough mode
     DcsPassthrough,
+    /// SOS string processing
     SosString,
+    /// PM string processing
     PmString,
+    /// APC string processing
     ApcString,
 }
 
+/// ANSI escape sequence events
 #[derive(Debug, Clone, PartialEq)]
 pub enum AnsiEvent {
+    /// Print a single character
     Print(char),
+    /// Print a string of characters
     PrintString(String),
+    /// Execute a control character
     Execute(u8),
+    /// Control Sequence Introducer command
     Csi {
+        /// Final byte of the CSI sequence
         final_byte: char,
+        /// Numeric parameters
         params: Vec<u16>,
+        /// Intermediate bytes
         intermediates: Vec<u8>,
+        /// Whether this is a private sequence
         private: bool,
     },
+    /// Operating System Command
     Osc {
+        /// OSC command string
         command: String,
+        /// String parameters
         params: Vec<String>,
     },
+    /// Device Control String
     Dcs {
+        /// Final byte of the DCS sequence
         final_byte: char,
+        /// Numeric parameters
         params: Vec<u16>,
+        /// Intermediate bytes
         intermediates: Vec<u8>,
+        /// Data payload
         data: Vec<u8>,
     },
+    /// Bell character (0x07)
     Bell,
+    /// Backspace character (0x08)
     Backspace,
+    /// Tab character (0x09)
     Tab,
+    /// Line feed character (0x0A)
     LineFeed,
+    /// Vertical tab character (0x0B)
     VerticalTab,
+    /// Form feed character (0x0C)
     FormFeed,
+    /// Carriage return character (0x0D)
     CarriageReturn,
 }
 
+/// ANSI escape sequence parser
 #[derive(Debug)]
 pub struct AnsiParser {
     state: ParserState,
@@ -59,6 +98,7 @@ pub struct AnsiParser {
 }
 
 impl AnsiParser {
+    /// Create a new ANSI parser
     pub fn new() -> Self {
         Self {
             state: ParserState::Ground,
@@ -71,6 +111,7 @@ impl AnsiParser {
         }
     }
 
+    /// Parse a single byte and return any resulting events
     pub fn parse(&mut self, byte: u8) -> Vec<AnsiEvent> {
         let mut events = Vec::new();
 
@@ -114,6 +155,7 @@ impl AnsiParser {
         events
     }
 
+    /// Parse multiple bytes and return all resulting events
     pub fn parse_bytes(&mut self, bytes: &[u8]) -> Vec<AnsiEvent> {
         let mut events = Vec::new();
         for &byte in bytes {

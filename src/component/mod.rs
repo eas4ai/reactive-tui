@@ -1,5 +1,5 @@
 //! Component system for building reactive terminal user interfaces
-//! 
+//!
 //! This module provides a React-like component architecture for terminal applications,
 //! including elements, lifecycle management, props, and component registry.
 

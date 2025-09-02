@@ -4,9 +4,13 @@ use std::collections::HashMap;
 /// Result of diffing two render trees
 #[derive(Debug, Clone)]
 pub struct DiffResult {
+    /// List of patch operations to apply
     pub patches: Vec<PatchOp>,
+    /// Number of nodes reused from previous tree
     pub reused_nodes: usize,
+    /// Number of new nodes created
     pub new_nodes: usize,
+    /// Number of nodes removed
     pub removed_nodes: usize,
 }
 
@@ -15,30 +19,49 @@ pub struct DiffResult {
 pub enum PatchOp {
     /// Insert a new node
     Insert {
+        /// Parent node to insert into (None for root)
         parent_key: Option<NodeKey>,
+        /// Index position to insert at
         index: usize,
+        /// Key of the node to insert
         node_key: NodeKey,
     },
 
     /// Remove a node
-    Remove { node_key: NodeKey },
+    Remove {
+        /// Key of the node to remove
+        node_key: NodeKey,
+    },
 
     /// Replace a node with another
-    Replace { old_key: NodeKey, new_key: NodeKey },
+    Replace {
+        /// Key of the old node to replace
+        old_key: NodeKey,
+        /// Key of the new node to replace with
+        new_key: NodeKey,
+    },
 
     /// Move a node to a different position
     Move {
+        /// Key of the node to move
         node_key: NodeKey,
+        /// New parent node (None for root)
         parent_key: Option<NodeKey>,
+        /// New index position
         index: usize,
     },
 
     /// Update node properties
-    Update { node_key: NodeKey },
+    Update {
+        /// Key of the node to update
+        node_key: NodeKey,
+    },
 
     /// Reorder children
     ReorderChildren {
+        /// Parent node whose children to reorder
         parent_key: NodeKey,
+        /// New order of child node keys
         new_order: Vec<NodeKey>,
     },
 }
@@ -57,6 +80,7 @@ struct ReconcilerStats {
 }
 
 impl Reconciler {
+    /// Create a new reconciler
     pub fn new() -> Self {
         Self {
             stats: ReconcilerStats::default(),
@@ -503,7 +527,10 @@ mod tests {
         let result = reconciler.diff(&tree1, &tree2);
 
         // Should detect an update since content changed but key/type same
-        assert!(result.patches.iter().any(|p| matches!(p, PatchOp::Update { .. })));
+        assert!(result
+            .patches
+            .iter()
+            .any(|p| matches!(p, PatchOp::Update { .. })));
         assert_eq!(result.reused_nodes, 1);
     }
 
@@ -523,9 +550,7 @@ mod tests {
         // Tree 2: Root with 1 child (B and C removed)
         let tree2_root = Element::layout(LayoutType::Flex)
             .with_key("root")
-            .with_children(vec![
-                Element::text("A").with_key("a"),
-            ]);
+            .with_children(vec![Element::text("A").with_key("a")]);
 
         let mut tree1 = RenderTree::new();
         tree1.set_root(element_to_render_node(tree1_root));
@@ -536,7 +561,9 @@ mod tests {
         let result = reconciler.diff(&tree1, &tree2);
 
         // Should detect removals
-        let remove_count = result.patches.iter()
+        let remove_count = result
+            .patches
+            .iter()
             .filter(|p| matches!(p, PatchOp::Remove { .. }))
             .count();
         assert_eq!(remove_count, 2); // B and C removed
@@ -551,9 +578,7 @@ mod tests {
         // Tree 1: Root with 1 child
         let tree1_root = Element::layout(LayoutType::Flex)
             .with_key("root")
-            .with_children(vec![
-                Element::text("A").with_key("a"),
-            ]);
+            .with_children(vec![Element::text("A").with_key("a")]);
 
         // Tree 2: Root with 3 children (B and C added)
         let tree2_root = Element::layout(LayoutType::Flex)
@@ -573,7 +598,9 @@ mod tests {
         let result = reconciler.diff(&tree1, &tree2);
 
         // Should detect insertions
-        let insert_count = result.patches.iter()
+        let insert_count = result
+            .patches
+            .iter()
             .filter(|p| matches!(p, PatchOp::Insert { .. }))
             .count();
         assert_eq!(insert_count, 2); // B and C inserted

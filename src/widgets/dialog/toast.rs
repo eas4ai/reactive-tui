@@ -16,10 +16,15 @@ use std::time::Duration;
 /// Toast notification types
 #[derive(Debug, Clone, PartialEq)]
 pub enum ToastType {
+    /// Information toast
     Info,
+    /// Success toast
     Success,
+    /// Warning toast
     Warning,
+    /// Error toast
     Error,
+    /// Custom toast type
     Custom(String),
 }
 
@@ -80,6 +85,7 @@ pub struct Toast {
 }
 
 impl Toast {
+    /// Create a new toast notification
     pub fn new(id: DialogId, options: ToastOptions) -> Self {
         let auto_dismiss_time = options.duration.map(|_| std::time::Instant::now());
 

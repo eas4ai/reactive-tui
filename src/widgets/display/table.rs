@@ -34,57 +34,100 @@ enum TableHitResult {
 /// Props for the Table component
 #[derive(Clone)]
 pub struct TableProps {
+    /// Table column definitions
     pub columns: Vec<TableColumn>,
+    /// Table row data
     pub rows: Vec<TableRow>,
+    /// Currently selected row index
     pub selected_row: Option<usize>,
+    /// Whether columns are sortable
     pub sortable: bool,
+    /// Currently sorted column index
     pub sort_column: Option<usize>,
+    /// Whether sort is ascending
     pub sort_ascending: bool,
+    /// Whether rows are selectable
     pub selectable: bool,
+    /// Whether multiple rows can be selected
     pub multi_select: bool,
+    /// Border configuration
     pub border: Border,
+    /// CSS style for header
     pub header_style: Option<String>,
+    /// CSS style for rows
     pub row_style: Option<String>,
+    /// CSS style for selected rows
     pub selected_style: Option<String>,
+    /// CSS style for alternate rows
     pub alternate_row_style: Option<String>,
+    /// Whether table is scrollable
     pub scrollable: bool,
+    /// Maximum height constraint
     pub max_height: Option<u16>,
+    /// Whether columns can be resized
     pub resizable_columns: bool,
+    /// Whether to show header row
     pub show_header: bool,
+    /// Whether to use zebra striping
     pub zebra_striping: bool,
+    /// Callback for row selection
     pub on_select: Option<Arc<dyn Fn(Option<usize>) + Send + Sync>>,
+    /// Callback for multi-selection
     pub on_multi_select: Option<Arc<dyn Fn(Vec<usize>) + Send + Sync>>,
+    /// Callback for column sorting
     pub on_sort: Option<Arc<dyn Fn(usize, bool) + Send + Sync>>,
+    /// Callback for row actions
     pub on_row_action: Option<Arc<RowActionCallback>>,
 }
 
+/// Table column definition
 #[derive(Debug, Clone, PartialEq)]
 pub struct TableColumn {
+    /// Column header title
     pub title: String,
+    /// Unique key for the column
     pub key: String,
+    /// Column width specification
     pub width: DisplaySize,
+    /// Text alignment for the column
     pub alignment: Alignment,
+    /// Whether column is sortable
     pub sortable: bool,
+    /// Whether column can be resized
     pub resizable: bool,
+    /// Minimum column width
     pub min_width: u16,
+    /// Maximum column width
     pub max_width: Option<u16>,
 }
 
+/// Table row data
 #[derive(Debug, Clone, PartialEq)]
 pub struct TableRow {
+    /// Unique row identifier
     pub id: String,
+    /// Cell data mapped by column key
     pub cells: HashMap<String, TableCell>,
+    /// Whether row is selectable
     pub selectable: bool,
+    /// CSS style for the row
     pub style: Option<String>,
+    /// Additional row metadata
     pub data: HashMap<String, String>,
 }
 
+/// Individual table cell
 #[derive(Debug, Clone, PartialEq)]
 pub struct TableCell {
+    /// Cell content text
     pub content: String,
+    /// CSS style for the cell
     pub style: Option<String>,
+    /// Text alignment override
     pub alignment: Option<Alignment>,
+    /// Whether cell is clickable
     pub clickable: bool,
+    /// Action identifier for clicks
     pub action: Option<String>,
 }
 
@@ -150,17 +193,29 @@ impl Props for TableProps {
 /// State for the Table component
 #[derive(Debug, Clone)]
 pub struct TableState {
+    /// Selected row indices for multi-selection
     pub selected_rows: Vec<usize>,
-    pub selected_row: Option<usize>,    // For single selection
-    pub selected_column: Option<usize>, // For cell selection
+    /// Selected row index for single selection
+    pub selected_row: Option<usize>,
+    /// Selected column index for cell selection
+    pub selected_column: Option<usize>,
+    /// Scroll state for the table
     pub scroll_state: ScrollState,
+    /// Width of each column in characters
     pub column_widths: Vec<u16>,
+    /// Index of column being resized
     pub resizing_column: Option<usize>,
+    /// X position where resize started
     pub resize_start_x: u16,
+    /// Whether the table has focus
     pub focused: bool,
+    /// Row index under mouse cursor
     pub hover_row: Option<usize>,
+    /// List of currently visible row indices
     pub visible_rows: Vec<usize>,
+    /// Column index for sorting (None if no sorting)
     pub sort_column: Option<usize>,
+    /// Whether sorting is in ascending order
     pub sort_ascending: bool,
 }
 

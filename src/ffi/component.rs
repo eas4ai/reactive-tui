@@ -44,9 +44,10 @@ pub extern "C" fn rtui_element_create_component(
     }
 
     catch_panic(AssertUnwindSafe(|| unsafe {
-        let name_str = CStr::from_ptr(name).to_str()
+        let name_str = CStr::from_ptr(name)
+            .to_str()
             .map_err(|_| ReactiveError::InvalidUtf8)?;
-        
+
         let element = Element::component(name_str);
         let boxed = Box::new(element);
         *out_element = Box::into_raw(boxed) as *mut RTuiElement;
@@ -65,9 +66,10 @@ pub extern "C" fn rtui_element_create_text(
     }
 
     catch_panic(AssertUnwindSafe(|| unsafe {
-        let text_str = CStr::from_ptr(text).to_str()
+        let text_str = CStr::from_ptr(text)
+            .to_str()
             .map_err(|_| ReactiveError::InvalidUtf8)?;
-        
+
         let element = Element::text(text_str);
         let boxed = Box::new(element);
         *out_element = Box::into_raw(boxed) as *mut RTuiElement;
@@ -92,7 +94,7 @@ pub extern "C" fn rtui_element_create_layout(
             RTuiLayoutType::Stack => LayoutType::Stack,
             RTuiLayoutType::Absolute => LayoutType::Absolute,
         };
-        
+
         let element = Element::layout(layout);
         let boxed = Box::new(element);
         unsafe {
@@ -123,9 +125,7 @@ pub extern "C" fn rtui_element_create_fragment(
 
 /// Create an empty element
 #[no_mangle]
-pub extern "C" fn rtui_element_create_empty(
-    out_element: *mut *mut RTuiElement,
-) -> ReactiveError {
+pub extern "C" fn rtui_element_create_empty(out_element: *mut *mut RTuiElement) -> ReactiveError {
     if out_element.is_null() {
         return ReactiveError::NullPointer;
     }
@@ -162,9 +162,10 @@ pub extern "C" fn rtui_element_set_key(
 
     catch_panic(AssertUnwindSafe(|| unsafe {
         let element_ref = &mut *(element as *mut Element);
-        let key_str = CStr::from_ptr(key).to_str()
+        let key_str = CStr::from_ptr(key)
+            .to_str()
             .map_err(|_| ReactiveError::InvalidUtf8)?;
-        
+
         *element_ref = element_ref.clone().with_key(key_str);
         Ok(())
     }))
@@ -182,9 +183,10 @@ pub extern "C" fn rtui_element_set_class(
 
     catch_panic(AssertUnwindSafe(|| unsafe {
         let element_ref = &mut *(element as *mut Element);
-        let class_str = CStr::from_ptr(class).to_str()
+        let class_str = CStr::from_ptr(class)
+            .to_str()
             .map_err(|_| ReactiveError::InvalidUtf8)?;
-        
+
         *element_ref = element_ref.clone().with_class(class_str);
         Ok(())
     }))
@@ -203,7 +205,7 @@ pub extern "C" fn rtui_element_add_child(
     catch_panic(AssertUnwindSafe(|| unsafe {
         let parent_ref = &mut *(parent as *mut Element);
         let child_element = Box::from_raw(child as *mut Element);
-        
+
         *parent_ref = parent_ref.clone().with_child(*child_element);
         Ok(())
     }))
@@ -221,7 +223,7 @@ pub extern "C" fn rtui_element_get_type(
 
     catch_panic(AssertUnwindSafe(|| unsafe {
         let element_ref = &*(element as *const Element);
-        
+
         *out_type = match &element_ref.element_type {
             ElementType::Component(_) => RTuiElementType::Component,
             ElementType::Text(_) => RTuiElementType::Text,
@@ -245,10 +247,9 @@ pub extern "C" fn rtui_element_get_key(
 
     catch_panic(AssertUnwindSafe(|| unsafe {
         let element_ref = &*(element as *const Element);
-        
+
         if let Some(ref key) = element_ref.key {
-            let c_string = CString::new(key.clone())
-                .map_err(|_| ReactiveError::InvalidUtf8)?;
+            let c_string = CString::new(key.clone()).map_err(|_| ReactiveError::InvalidUtf8)?;
             *out_key = c_string.into_raw();
         } else {
             *out_key = std::ptr::null_mut();
@@ -269,10 +270,9 @@ pub extern "C" fn rtui_element_get_class(
 
     catch_panic(AssertUnwindSafe(|| unsafe {
         let element_ref = &*(element as *const Element);
-        
+
         if let Some(ref class) = element_ref.class {
-            let c_string = CString::new(class.clone())
-                .map_err(|_| ReactiveError::InvalidUtf8)?;
+            let c_string = CString::new(class.clone()).map_err(|_| ReactiveError::InvalidUtf8)?;
             *out_class = c_string.into_raw();
         } else {
             *out_class = std::ptr::null_mut();
@@ -311,11 +311,11 @@ pub extern "C" fn rtui_element_get_child(
 
     catch_panic(AssertUnwindSafe(|| unsafe {
         let element_ref = &*(element as *const Element);
-        
+
         if index >= element_ref.children.len() {
             return Err(ReactiveError::InvalidParameter);
         }
-        
+
         let child = element_ref.children[index].clone();
         let boxed = Box::new(child);
         *out_child = Box::into_raw(boxed) as *mut RTuiElement;
@@ -335,10 +335,9 @@ pub extern "C" fn rtui_element_get_component_name(
 
     catch_panic(AssertUnwindSafe(|| unsafe {
         let element_ref = &*(element as *const Element);
-        
+
         if let ElementType::Component(name) = &element_ref.element_type {
-            let c_string = CString::new(name.clone())
-                .map_err(|_| ReactiveError::InvalidUtf8)?;
+            let c_string = CString::new(name.clone()).map_err(|_| ReactiveError::InvalidUtf8)?;
             *out_name = c_string.into_raw();
         } else {
             *out_name = std::ptr::null_mut();
@@ -359,10 +358,9 @@ pub extern "C" fn rtui_element_get_text_content(
 
     catch_panic(AssertUnwindSafe(|| unsafe {
         let element_ref = &*(element as *const Element);
-        
+
         if let ElementType::Text(text) = &element_ref.element_type {
-            let c_string = CString::new(text.clone())
-                .map_err(|_| ReactiveError::InvalidUtf8)?;
+            let c_string = CString::new(text.clone()).map_err(|_| ReactiveError::InvalidUtf8)?;
             *out_text = c_string.into_raw();
         } else {
             *out_text = std::ptr::null_mut();

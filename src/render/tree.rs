@@ -17,14 +17,17 @@ pub enum NodeKey {
 }
 
 impl NodeKey {
+    /// Create an indexed key for list items
     pub fn index(i: usize) -> Self {
         NodeKey::Index(i)
     }
 
+    /// Create a named key for stable component identity
     pub fn named(name: impl Into<String>) -> Self {
         NodeKey::Named(name.into())
     }
 
+    /// Create an auto-generated unique key
     pub fn auto() -> Self {
         static COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
         NodeKey::Auto(COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed))
@@ -72,6 +75,7 @@ pub struct ElementNode {
 }
 
 impl ElementNode {
+    /// Create a new element node from an Element
     pub fn new(element: Element) -> Self {
         let key = element
             .key
@@ -87,11 +91,13 @@ impl ElementNode {
         }
     }
 
+    /// Set the children of this node
     pub fn with_children(mut self, children: Vec<Box<dyn RenderNode>>) -> Self {
         self.children = children;
         self
     }
 
+    /// Set a specific key for this node
     pub fn with_key(mut self, key: NodeKey) -> Self {
         self.key = key;
         self
@@ -152,6 +158,7 @@ pub struct FragmentNode {
 }
 
 impl FragmentNode {
+    /// Create a new fragment node with children
     pub fn new(children: Vec<Box<dyn RenderNode>>) -> Self {
         Self {
             key: NodeKey::auto(),
@@ -160,6 +167,7 @@ impl FragmentNode {
         }
     }
 
+    /// Set a specific key for this fragment
     pub fn with_key(mut self, key: NodeKey) -> Self {
         self.key = key;
         self
@@ -201,6 +209,7 @@ pub struct RenderTree {
 }
 
 impl RenderTree {
+    /// Create a new empty render tree
     pub fn new() -> Self {
         Self {
             root: None,

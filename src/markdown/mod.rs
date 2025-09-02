@@ -22,8 +22,11 @@
 //! let styled_lines = renderer.render_to_styled_lines(markdown);
 //! ```
 
+/// AST walker for traversing markdown syntax trees
 pub mod ast_walker;
+/// Markdown to TUI component converter
 pub mod converter;
+/// Markdown renderer for terminal output
 pub mod renderer;
 
 #[cfg(test)]

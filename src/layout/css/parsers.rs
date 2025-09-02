@@ -47,7 +47,7 @@ pub fn parse_spacing(token: &str, prefix: &str) -> Option<f32> {
             "72" => Some(288.0),
             "80" => Some(320.0),
             "96" => Some(384.0),
-            _ => None  // No fallback for standard spacing - must match Tailwind scale
+            _ => None, // No fallback for standard spacing - must match Tailwind scale
         }
     })
 }
@@ -214,7 +214,7 @@ mod tests {
         assert_eq!(parse_spacing("gap-12", "gap-"), Some(48.0));
         assert_eq!(parse_spacing("p-invalid", "p-"), None);
     }
-    
+
     #[test]
     fn test_parse_spacing_terminal() {
         // Terminal spacing for width/height (direct character cells)
@@ -224,7 +224,7 @@ mod tests {
         assert_eq!(parse_spacing_terminal("w-20", "w-"), Some(20.0));
         assert_eq!(parse_spacing_terminal("w-invalid", "w-"), None);
     }
-    
+
     #[test]
     fn test_parse_spacing_pixels() {
         // The pixel version uses standard Tailwind scale

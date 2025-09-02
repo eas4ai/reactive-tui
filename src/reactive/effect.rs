@@ -14,6 +14,7 @@ impl Default for EffectId {
 }
 
 impl EffectId {
+    /// Create a new unique effect ID
     pub fn new() -> Self {
         use std::sync::atomic::{AtomicUsize, Ordering};
         static NEXT_ID: AtomicUsize = AtomicUsize::new(0);
@@ -26,7 +27,9 @@ pub type Cleanup = Box<dyn FnOnce()>;
 
 /// Represents a side effect that runs in response to signal changes
 pub struct Effect {
+    /// Unique identifier for this effect
     id: EffectId,
+    /// Shared inner state
     inner: Rc<RefCell<EffectInner>>,
 }
 
@@ -68,6 +71,7 @@ impl Effect {
     }
 
     /// Run the effect
+    /// Execute the effect
     pub fn run(&self) {
         let mut inner = self.inner.borrow_mut();
 

@@ -122,7 +122,7 @@ pub enum AsyncRequestType {
         /// Type identifier for the custom request
         request_type: String,
         /// Request data payload
-        data: String
+        data: String,
     },
 }
 
@@ -340,15 +340,25 @@ pub struct FocusableElementInfo {
 /// Types of focusable elements in dialogs
 #[derive(Debug, Clone, PartialEq)]
 pub enum FocusableElementType {
+    /// Button element
     Button,
+    /// Text input field
     Input,
+    /// Multi-line text area
     Textarea,
+    /// Checkbox input
     Checkbox,
+    /// Radio button input
     Radio,
+    /// Select dropdown
     Select,
+    /// Clickable link
     Link,
+    /// Tab navigation element
     Tab,
+    /// Menu item element
     MenuItem,
+    /// Custom focusable element
     Custom(String),
 }
 
@@ -395,22 +405,34 @@ pub struct BaseDialogState {
 /// Dialog animation states
 #[derive(Debug, Clone, PartialEq)]
 pub enum DialogAnimationState {
+    /// Dialog is hidden
     Hidden,
+    /// Dialog is animating in
     ShowingIn,
+    /// Dialog is fully visible
     Visible,
+    /// Dialog is animating out
     HidingOut,
 }
 
 /// Resize handles for resizable dialogs
 #[derive(Debug, Clone, PartialEq)]
 pub enum ResizeHandle {
+    /// Top-left corner handle
     TopLeft,
+    /// Top edge handle
     Top,
+    /// Top-right corner handle
     TopRight,
+    /// Right edge handle
     Right,
+    /// Bottom-right corner handle
     BottomRight,
+    /// Bottom edge handle
     Bottom,
+    /// Bottom-left corner handle
     BottomLeft,
+    /// Left edge handle
     Left,
 }
 
@@ -451,6 +473,7 @@ impl Default for ValidationResult {
 }
 
 impl BaseDialogState {
+    /// Create a new dialog state
     pub fn new(id: DialogId) -> Self {
         Self {
             id,
@@ -467,17 +490,20 @@ impl BaseDialogState {
         }
     }
 
+    /// Show the dialog with animation
     pub fn show(&mut self) {
         self.visible = true;
         self.animation_state = DialogAnimationState::ShowingIn;
         self.animation_start = Some(Instant::now());
     }
 
+    /// Hide the dialog with animation
     pub fn hide(&mut self) {
         self.animation_state = DialogAnimationState::HidingOut;
         self.animation_start = Some(Instant::now());
     }
 
+    /// Check if the dialog is currently animating
     pub fn is_animating(&self) -> bool {
         matches!(
             self.animation_state,

@@ -17,56 +17,56 @@ pub enum ReactiveError {
     #[error("Invalid parameter: {message}")]
     InvalidParameter {
         /// Description of the invalid parameter
-        message: String
+        message: String,
     },
 
     /// Invalid state for the requested operation
     #[error("Invalid state: {message}")]
     InvalidState {
         /// Description of the invalid state
-        message: String
+        message: String,
     },
 
     /// Resource allocation or management error
     #[error("Resource error: {message}")]
     Resource {
         /// Description of the resource error
-        message: String
+        message: String,
     },
 
     /// Terminal-related error
     #[error("Terminal error: {message}")]
     Terminal {
         /// Description of the terminal error
-        message: String
+        message: String,
     },
 
     /// Configuration or parsing error
     #[error("Configuration error: {message}")]
     Config {
         /// Description of the configuration error
-        message: String
+        message: String,
     },
 
     /// Component-related error
     #[error("Component error: {message}")]
     Component {
         /// Description of the component error
-        message: String
+        message: String,
     },
 
     /// Layout or rendering error
     #[error("Layout error: {message}")]
     Layout {
         /// Description of the layout error
-        message: String
+        message: String,
     },
 
     /// Animation system error
     #[error("Animation error: {message}")]
     Animation {
         /// Description of the animation error
-        message: String
+        message: String,
     },
 
     /// Image processing or rendering error
@@ -81,7 +81,7 @@ pub enum ReactiveError {
     #[error("Internal error: {message}")]
     Internal {
         /// Description of the internal error
-        message: String
+        message: String,
     },
 }
 
@@ -190,6 +190,7 @@ impl ReactiveError {
 }
 
 // Helper macros for common error patterns
+/// Macro for returning invalid parameter errors
 #[macro_export]
 macro_rules! invalid_parameter {
     ($msg:expr) => {
@@ -200,6 +201,7 @@ macro_rules! invalid_parameter {
     };
 }
 
+/// Macro for returning invalid state errors
 #[macro_export]
 macro_rules! invalid_state {
     ($msg:expr) => {
@@ -210,6 +212,7 @@ macro_rules! invalid_state {
     };
 }
 
+/// Macro for ensuring conditions are met
 #[macro_export]
 macro_rules! ensure {
     ($cond:expr, $err:expr) => {

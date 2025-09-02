@@ -13,6 +13,7 @@ pub type TimerCallback = Box<dyn FnMut() + Send>;
 pub struct TimerId(usize);
 
 impl TimerId {
+    /// Create a new unique timer ID
     fn new() -> Self {
         static COUNTER: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
         Self(COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed))
@@ -21,10 +22,15 @@ impl TimerId {
 
 /// Timer entry in the scheduler
 struct TimerEntry {
+    /// Unique identifier for this timer
     id: TimerId,
+    /// Callback function to execute
     callback: TimerCallback,
+    /// Interval between executions
     interval: Duration,
+    /// When this timer should next run
     next_run: Instant,
+    /// Whether this timer repeats
     repeat: bool,
 }
 

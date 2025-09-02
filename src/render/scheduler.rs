@@ -130,6 +130,7 @@ struct SchedulerStats {
 }
 
 impl RenderScheduler {
+    /// Create a new render scheduler with target FPS
     pub fn new(target_fps: u32) -> Self {
         Self {
             tasks: Arc::new(Mutex::new(BinaryHeap::new())),

@@ -22,53 +22,98 @@ enum TreeHitResult {
 /// Props for the Tree component
 #[derive(Clone)]
 pub struct TreeProps {
+    /// Root node of the tree
     pub root: Option<TreeNode>,
+    /// ID of the currently selected node
     pub selected_node: Option<String>,
+    /// List of expanded node IDs
     pub expanded_nodes: Vec<String>,
+    /// Whether nodes can be selected
     pub selectable: bool,
+    /// Whether multiple nodes can be selected
     pub multi_select: bool,
+    /// Whether to show icons for nodes
     pub show_icons: bool,
+    /// Whether to show tree lines
     pub show_lines: bool,
+    /// Indentation size for nested nodes
     pub indent_size: u16,
+    /// Whether to enable lazy loading of children
     pub lazy_loading: bool,
+    /// Whether nodes can be checked
     pub checkable: bool,
+    /// Whether drag and drop is enabled
     pub drag_drop: bool,
+    /// Current search term for filtering
     pub search_term: Option<String>,
+    /// Whether to filter visible nodes based on search
     pub filter_visible: bool,
+    /// Border style for the tree
     pub border: Border,
+    /// Style for regular nodes
     pub node_style: Option<String>,
+    /// Style for selected nodes
     pub selected_style: Option<String>,
+    /// Style for expanded nodes
     pub expanded_style: Option<String>,
+    /// Style for leaf nodes
     pub leaf_style: Option<String>,
+    /// Style for tree lines
     pub line_style: Option<String>,
+    /// Whether the tree is scrollable
     pub scrollable: bool,
+    /// Maximum height of the tree
     pub max_height: Option<u16>,
+    /// Whether to use virtual scrolling for performance
     pub virtual_scrolling: bool,
+    /// Callback for node selection
     pub on_select: Option<Arc<dyn Fn(Option<String>) + Send + Sync>>,
+    /// Callback for multi-selection changes
     pub on_multi_select: Option<Arc<dyn Fn(Vec<String>) + Send + Sync>>,
+    /// Callback for node expand/collapse
     pub on_expand: Option<Arc<dyn Fn(String, bool) + Send + Sync>>,
+    /// Callback for node check/uncheck
     pub on_check: Option<Arc<dyn Fn(String, bool) + Send + Sync>>,
+    /// Callback for custom node actions
     pub on_node_action: Option<Arc<NodeActionCallback>>,
+    /// Callback for lazy loading children
     pub on_load_children: Option<Arc<dyn Fn(String) -> Vec<TreeNode> + Send + Sync>>,
 }
 
+/// Tree node representing an item in the tree structure
 #[derive(Debug, Clone, PartialEq)]
 pub struct TreeNode {
+    /// Unique identifier for this node
     pub id: String,
+    /// Display label for this node
     pub label: String,
+    /// Child nodes of this node
     pub children: Vec<TreeNode>,
+    /// Whether this node is expanded to show children
     pub expanded: bool,
+    /// Whether this node is currently selected
     pub selected: bool,
+    /// Checkbox state (None=no checkbox, Some(bool)=checked state)
     pub checked: Option<bool>,
+    /// Optional icon identifier for this node
     pub icon: Option<String>,
+    /// Optional CSS class or style for this node
     pub style: Option<String>,
+    /// Additional data associated with this node
     pub data: HashMap<String, String>,
+    /// Whether this node can be selected
     pub selectable: bool,
+    /// Whether this node can be checked
     pub checkable: bool,
+    /// Whether this node can be expanded
     pub expandable: bool,
+    /// Whether this node loads children lazily
     pub lazy: bool,
+    /// Whether this node is currently loading children
     pub loading: bool,
+    /// Nesting level of this node (0=root)
     pub level: usize,
+    /// ID of the parent node (None for root nodes)
     pub parent_id: Option<String>,
 }
 
@@ -144,33 +189,58 @@ impl Props for TreeProps {
 /// State for the Tree component
 #[derive(Debug, Clone, Default)]
 pub struct TreeState {
+    /// List of selected node IDs
     pub selected_nodes: Vec<String>,
+    /// List of expanded node IDs
     pub expanded_nodes: Vec<String>,
+    /// List of checked node IDs
     pub checked_nodes: Vec<String>,
+    /// Scroll state for the tree
     pub scroll_state: ScrollState,
+    /// Whether the tree has focus
     pub focused: bool,
+    /// Node ID under mouse cursor
     pub hover_node: Option<String>,
+    /// Flattened tree structure for rendering
     pub flat_nodes: Vec<FlatTreeNode>,
+    /// List of currently visible node IDs
     pub visible_nodes: Vec<String>,
+    /// List of nodes matching current search
     pub search_matches: Vec<String>,
+    /// List of nodes currently loading children
     pub loading_nodes: Vec<String>,
+    /// Node being dragged (if any)
     pub drag_source: Option<String>,
+    /// Node being targeted for drop (if any)
     pub drop_target: Option<String>,
 }
 
+/// Flattened tree node for efficient rendering
 #[derive(Debug, Clone)]
 pub struct FlatTreeNode {
+    /// Unique identifier for this node
     pub id: String,
+    /// Display label for this node
     pub label: String,
+    /// Nesting level of this node (0=root)
     pub level: usize,
+    /// ID of the parent node (None for root nodes)
     pub parent_id: Option<String>,
+    /// Whether this node has child nodes
     pub has_children: bool,
+    /// Whether this node is expanded to show children
     pub expanded: bool,
+    /// Whether this node is currently selected
     pub selected: bool,
+    /// Checkbox state (None=no checkbox, Some(bool)=checked state)
     pub checked: Option<bool>,
+    /// Optional icon identifier for this node
     pub icon: Option<String>,
+    /// Optional CSS class or style for this node
     pub style: Option<String>,
+    /// Whether this node is visible (not filtered out)
     pub visible: bool,
+    /// Whether this node matches the current search
     pub matched: bool,
 }
 

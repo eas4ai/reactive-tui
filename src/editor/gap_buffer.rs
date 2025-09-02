@@ -18,6 +18,7 @@ pub struct TextPosition {
 }
 
 impl TextPosition {
+    /// Create a new text position
     pub fn new(line: usize, column: usize) -> Self {
         Self { line, column }
     }
@@ -366,6 +367,7 @@ pub struct GraphemeIterator<'a> {
 }
 
 impl<'a> GraphemeIterator<'a> {
+    /// Create a new grapheme iterator for the given range
     pub fn new(buffer: &'a GapBuffer, range: Range<usize>) -> Self {
         let text = buffer.get_range(range);
 
@@ -376,6 +378,7 @@ impl<'a> GraphemeIterator<'a> {
         }
     }
 
+    /// Get the next grapheme cluster from the text
     pub fn next_grapheme(&mut self) -> Option<&str> {
         use unicode_segmentation::UnicodeSegmentation;
 

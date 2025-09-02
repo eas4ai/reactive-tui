@@ -29,11 +29,17 @@ use crate::error::Result;
 /// General image formats
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum ImageFormat {
+    /// Portable Network Graphics format
     Png,
+    /// JPEG image format
     Jpeg,
+    /// Graphics Interchange Format
     Gif,
+    /// WebP image format
     WebP,
+    /// Sixel graphics format for terminals
     Sixel,
+    /// Raw pixel data
     Raw,
 }
 
@@ -131,23 +137,37 @@ pub struct TerminalCapabilities {
 pub enum TerminalEvent {
     /// Key press with enhanced information
     Key {
+        /// The key that was pressed
         code: KeyCode,
+        /// Modifier keys held during the press (Ctrl, Alt, Shift, etc.)
         modifiers: KeyModifiers,
+        /// Type of key event (press, release, repeat)
         kind: KeyEventKind,
     },
 
     /// Mouse event with pixel coordinates if available
     Mouse {
+        /// Type of mouse event (click, move, scroll, etc.)
         kind: MouseEventKind,
+        /// Column position in terminal cells
         column: u16,
+        /// Row position in terminal cells
         row: u16,
+        /// Pixel-level X coordinate (if supported by terminal)
         pixel_x: Option<u16>,
+        /// Pixel-level Y coordinate (if supported by terminal)
         pixel_y: Option<u16>,
+        /// Modifier keys held during the mouse event
         modifiers: KeyModifiers,
     },
 
     /// Terminal resize
-    Resize { width: u16, height: u16 },
+    Resize {
+        /// New terminal width in columns
+        width: u16,
+        /// New terminal height in rows
+        height: u16,
+    },
 
     /// Focus gained
     FocusGained,
@@ -174,65 +194,113 @@ pub enum TerminalEvent {
     Error(String),
 }
 
+/// Key codes for keyboard input
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum KeyCode {
+    /// Backspace key
     Backspace,
+    /// Enter/Return key
     Enter,
+    /// Left arrow key
     Left,
+    /// Right arrow key
     Right,
+    /// Up arrow key
     Up,
+    /// Down arrow key
     Down,
+    /// Home key
     Home,
+    /// End key
     End,
+    /// Page Up key
     PageUp,
+    /// Page Down key
     PageDown,
+    /// Tab key
     Tab,
+    /// Shift+Tab (reverse tab)
     BackTab,
+    /// Delete key
     Delete,
+    /// Insert key
     Insert,
+    /// Escape key
     Escape,
+    /// Character key
     Char(char),
+    /// Function key (F1-F12)
     F(u8),
 
     // Media keys
+    /// Media play key
     MediaPlay,
+    /// Media pause key
     MediaPause,
+    /// Media play/pause toggle key
     MediaPlayPause,
+    /// Media reverse key
     MediaReverse,
+    /// Media stop key
     MediaStop,
+    /// Media fast forward key
     MediaFastForward,
+    /// Media rewind key
     MediaRewind,
+    /// Next track key
     MediaTrackNext,
+    /// Previous track key
     MediaTrackPrevious,
+    /// Media record key
     MediaRecord,
+    /// Lower volume key
     LowerVolume,
+    /// Raise volume key
     RaiseVolume,
+    /// Mute volume key
     MuteVolume,
 
     // Modifier keys
+    /// Left Shift key
     LeftShift,
+    /// Left Ctrl key
     LeftCtrl,
+    /// Left Alt key
     LeftAlt,
+    /// Left Super/Windows/Command key
     LeftSuper,
+    /// Right Shift key
     RightShift,
+    /// Right Ctrl key
     RightCtrl,
+    /// Right Alt key
     RightAlt,
+    /// Right Super/Windows/Command key
     RightSuper,
+    /// ISO Level 3 Shift key
     IsoLevel3Shift,
+    /// ISO Level 5 Shift key
     IsoLevel5Shift,
 
+    /// Unknown or unmapped key
     Unknown,
 }
 
+/// Keyboard modifier keys state
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub struct KeyModifiers {
+    /// Whether Shift key is pressed
     pub shift: bool,
+    /// Whether Ctrl key is pressed
     pub ctrl: bool,
+    /// Whether Alt key is pressed
     pub alt: bool,
+    /// Whether Meta key is pressed (Super/Windows/Command)
     pub meta: bool,
 }
 
 impl KeyModifiers {
+    /// Create empty key modifiers (no modifiers pressed)
     pub fn empty() -> Self {
         Self {
             shift: false,
@@ -243,82 +311,142 @@ impl KeyModifiers {
     }
 }
 
+/// Type of key event
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum KeyEventKind {
+    /// Key was pressed down
     Press,
+    /// Key was released
     Release,
+    /// Key is being held down (repeat event)
     Repeat,
 }
 
+/// Type of mouse event
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum MouseEventKind {
+    /// Mouse button pressed down
     Down,
+    /// Mouse button released
     Up,
+    /// Mouse dragged while button is held
     Drag,
+    /// Mouse moved without button pressed
     Move,
+    /// Mouse wheel scrolled up
     ScrollUp,
+    /// Mouse wheel scrolled down
     ScrollDown,
+    /// Mouse wheel scrolled left
     ScrollLeft,
+    /// Mouse wheel scrolled right
     ScrollRight,
 }
 
+/// Color scheme preference for the application
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum ColorScheme {
+    /// Dark color scheme
     Dark,
+    /// Light color scheme
     Light,
 }
 
 /// Control sequences for terminal features
 pub mod sequences {
     // Device capability queries
+    /// Query primary device attributes
     pub const PRIMARY_DEVICE_ATTRS: &[u8] = b"\x1b[c";
+    /// Query secondary device attributes
     pub const SECONDARY_DEVICE_ATTRS: &[u8] = b"\x1b[>c";
+    /// Query tertiary device attributes
     pub const TERTIARY_DEVICE_ATTRS: &[u8] = b"\x1b[=c";
 
     // Feature queries
+    /// Query Kitty graphics protocol support
     pub const KITTY_GRAPHICS_QUERY: &[u8] = b"\x1b_Gi=1,a=q\x1b\\";
+    /// Query Sixel graphics support
     pub const SIXEL_QUERY: &[u8] = b"\x1b[?2;1;0S";
+    /// Query synchronized output support
     pub const SYNC_QUERY: &[u8] = b"\x1b[?2026$p";
+    /// Query Unicode support
     pub const UNICODE_QUERY: &[u8] = b"\x1b[?2027$p";
+    /// Query pixel-level mouse support
     pub const PIXEL_MOUSE_QUERY: &[u8] = b"\x1b[?1016$p";
+    /// Query enhanced keyboard protocol support
     pub const ENHANCED_KEYBOARD_QUERY: &[u8] = b"\x1b[?u";
 
     // Feature enable/disable
+    /// Enable mouse tracking
     pub const ENABLE_MOUSE: &[u8] = b"\x1b[?1002;1003;1004;1006h";
+    /// Enable pixel-level mouse tracking
     pub const ENABLE_PIXEL_MOUSE: &[u8] = b"\x1b[?1002;1003;1004;1016h";
+    /// Disable mouse tracking
     pub const DISABLE_MOUSE: &[u8] = b"\x1b[?1002;1003;1004;1006;1016l";
 
+    /// Enable bracketed paste mode
     pub const ENABLE_BRACKETED_PASTE: &[u8] = b"\x1b[?2004h";
+    /// Disable bracketed paste mode
     pub const DISABLE_BRACKETED_PASTE: &[u8] = b"\x1b[?2004l";
 
+    /// Enable focus events
     pub const ENABLE_FOCUS_EVENTS: &[u8] = b"\x1b[?1004h";
+    /// Disable focus events
     pub const DISABLE_FOCUS_EVENTS: &[u8] = b"\x1b[?1004l";
 
+    /// Enable synchronized output for flicker-free updates
     pub const ENABLE_SYNC_OUTPUT: &[u8] = b"\x1b[?2026h";
+    /// Disable synchronized output
     pub const DISABLE_SYNC_OUTPUT: &[u8] = b"\x1b[?2026l";
 
+    /// Enable alternate screen buffer
     pub const ENABLE_ALT_SCREEN: &[u8] = b"\x1b[?1049h";
+    /// Disable alternate screen buffer
     pub const DISABLE_ALT_SCREEN: &[u8] = b"\x1b[?1049l";
 
     // Cursor control
+    /// Hide the cursor
     pub const HIDE_CURSOR: &[u8] = b"\x1b[?25l";
+    /// Show the cursor
     pub const SHOW_CURSOR: &[u8] = b"\x1b[?25h";
+    /// Save cursor position
     pub const SAVE_CURSOR: &[u8] = b"\x1b7";
+    /// Restore cursor position
     pub const RESTORE_CURSOR: &[u8] = b"\x1b8";
 
     // Clear operations
+    /// Clear entire screen
     pub const CLEAR_SCREEN: &[u8] = b"\x1b[2J";
+    /// Clear current line
     pub const CLEAR_LINE: &[u8] = b"\x1b[2K";
+    /// Clear from cursor to end of screen
     pub const CLEAR_TO_END: &[u8] = b"\x1b[J";
 
     // Hyperlink support (OSC 8)
+    /// Generate hyperlink start sequence
+    ///
+    /// # Arguments
+    /// * `uri` - The URI to link to
+    ///
+    /// # Returns
+    /// Terminal escape sequence to start a hyperlink
     pub fn hyperlink_start(uri: &str) -> String {
         format!("\x1b]8;;{}\x1b\\", uri)
     }
 
+    /// End hyperlink sequence
     pub const HYPERLINK_END: &[u8] = b"\x1b]8;;\x1b\\";
 
-    // Image support
+    /// Generate Kitty graphics protocol image transmission sequence
+    ///
+    /// # Arguments
+    /// * `id` - Unique image identifier
+    /// * `width` - Image width in pixels
+    /// * `height` - Image height in pixels
+    /// * `data` - Raw image data
+    ///
+    /// # Returns
+    /// Complete terminal escape sequence for image transmission
     pub fn kitty_image_transmit(id: u32, width: u32, height: u32, data: &[u8]) -> Vec<u8> {
         let mut result = Vec::new();
         result.extend_from_slice(
@@ -331,9 +459,11 @@ pub mod sequences {
 }
 
 // Platform-specific implementation selection
+/// Default TTY implementation for Unix platforms
 #[cfg(unix)]
 pub type DefaultTty = unix::UnixTty;
 
+/// Default TTY implementation for Windows platforms
 #[cfg(windows)]
 pub type DefaultTty = windows::WindowsTty;
 

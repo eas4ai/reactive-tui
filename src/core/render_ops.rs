@@ -13,7 +13,7 @@ pub enum RenderOp {
         /// X coordinate (column)
         x: u16,
         /// Y coordinate (row)
-        y: u16
+        y: u16,
     },
 
     /// Set foreground color

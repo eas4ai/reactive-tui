@@ -21,6 +21,7 @@ pub struct AdaptiveFpsManager {
     benchmark_cache: Option<BenchmarkResults>,
 }
 
+/// Configuration for adaptive FPS and performance management
 #[derive(Debug, Clone)]
 pub struct AdaptiveConfig {
     /// Allow automatic FPS adjustment
@@ -340,26 +341,31 @@ impl Default for AsyncAdaptiveFpsManager {
 }
 
 impl AsyncAdaptiveFpsManager {
+    /// Create a new async adaptive FPS manager
     pub fn new() -> Self {
         Self {
             inner: Arc::new(RwLock::new(AdaptiveFpsManager::new())),
         }
     }
 
+    /// Create with custom configuration
     pub fn with_config(config: AdaptiveConfig) -> Self {
         Self {
             inner: Arc::new(RwLock::new(AdaptiveFpsManager::with_config(config))),
         }
     }
 
+    /// Get current target FPS
     pub async fn get_target_fps(&self) -> u32 {
         self.inner.read().await.get_target_fps()
     }
 
+    /// Get target frame duration
     pub async fn get_frame_duration(&self) -> Duration {
         self.inner.read().await.get_frame_duration()
     }
 
+    /// Record frame performance and potentially adjust FPS
     pub async fn record_frame_performance(
         &self,
         frame_time: Duration,
@@ -372,14 +378,17 @@ impl AsyncAdaptiveFpsManager {
             .record_frame_performance(frame_time, render_time, dropped);
     }
 
+    /// Set performance mode
     pub async fn set_performance_mode(&self, mode: PerformanceMode) {
         self.inner.write().await.set_performance_mode(mode);
     }
 
+    /// Get current performance metrics
     pub async fn get_performance_metrics(&self) -> PerformanceMetrics {
         self.inner.read().await.get_performance_metrics()
     }
 
+    /// Get recommendation summary for user
     pub async fn get_recommendation_summary(&self) -> String {
         self.inner.read().await.get_recommendation_summary()
     }

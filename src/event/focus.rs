@@ -53,6 +53,7 @@ struct FocusableInfo {
 }
 
 impl FocusManager {
+    /// Create a new focus manager
     pub fn new() -> Self {
         Self {
             current: None,

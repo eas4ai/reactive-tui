@@ -168,10 +168,7 @@ mod tests {
             }
         }
 
-        let children = vec![
-            Element::text("Child 1"),
-            Element::text("Child 2"),
-        ];
+        let children = vec![Element::text("Child 1"), Element::text("Child 2")];
 
         let props_with_children = PropsWithChildren {
             props: TestProps { value: 42 },
@@ -184,7 +181,9 @@ mod tests {
 
         // Should convert to Any
         let any_ref = props_with_children.as_any();
-        assert!(any_ref.downcast_ref::<PropsWithChildren<TestProps>>().is_some());
+        assert!(any_ref
+            .downcast_ref::<PropsWithChildren<TestProps>>()
+            .is_some());
 
         // Test equality
         let props_with_children2 = PropsWithChildren {
@@ -247,21 +246,31 @@ mod tests {
     #[test]
     fn test_props_type_erasure() {
         #[derive(Clone, PartialEq, Debug)]
-        struct Props1 { value: i32 }
+        struct Props1 {
+            value: i32,
+        }
 
         #[derive(Clone, PartialEq, Debug)]
-        struct Props2 { text: String }
+        struct Props2 {
+            text: String,
+        }
 
         impl Props for Props1 {
-            fn as_any(&self) -> &dyn Any { self }
+            fn as_any(&self) -> &dyn Any {
+                self
+            }
         }
 
         impl Props for Props2 {
-            fn as_any(&self) -> &dyn Any { self }
+            fn as_any(&self) -> &dyn Any {
+                self
+            }
         }
 
         let props1 = Props1 { value: 42 };
-        let props2 = Props2 { text: "hello".to_string() };
+        let props2 = Props2 {
+            text: "hello".to_string(),
+        };
 
         // Should be able to downcast correctly
         let any1 = props1.as_any();
@@ -287,9 +296,13 @@ mod tests {
         assert_sync::<CommonProps>();
 
         #[derive(Clone, PartialEq)]
-        struct TestProps { value: i32 }
+        struct TestProps {
+            value: i32,
+        }
         impl Props for TestProps {
-            fn as_any(&self) -> &dyn Any { self }
+            fn as_any(&self) -> &dyn Any {
+                self
+            }
         }
 
         assert_send::<TestProps>();

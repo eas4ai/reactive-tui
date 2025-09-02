@@ -44,7 +44,7 @@ pub enum OSCAction {
         /// Optional notification title
         title: Option<String>,
         /// Notification body text
-        body: String
+        body: String,
     },
 
     /// Set current working directory
@@ -91,7 +91,7 @@ pub enum OSCAction {
         /// OSC number
         number: u16,
         /// OSC data
-        data: String
+        data: String,
     },
 }
 

@@ -19,11 +19,11 @@ pub enum CSIAction {
     /// Move cursor to beginning of line n lines up
     CursorPreviousLine(u16),
     /// Move cursor to specific position (1-based)
-    CursorPosition { 
+    CursorPosition {
         /// Row position (1-based)
-        row: u16, 
+        row: u16,
         /// Column position (1-based)
-        col: u16 
+        col: u16,
     },
     /// Move cursor to column n
     CursorHorizontalAbsolute(u16),
@@ -74,11 +74,11 @@ pub enum CSIAction {
 
     // Other
     /// Set scrolling region
-    SetScrollRegion { 
+    SetScrollRegion {
         /// Top line of scroll region (1-based)
-        top: u16, 
+        top: u16,
         /// Bottom line of scroll region (1-based)
-        bottom: u16 
+        bottom: u16,
     },
     /// Save current cursor position
     SaveCursor,
@@ -212,13 +212,13 @@ pub enum Color {
     /// 256-color palette index
     Indexed(u8),
     /// True 24-bit RGB color
-    RGB { 
+    RGB {
         /// Red component (0-255)
-        r: u8, 
+        r: u8,
         /// Green component (0-255)
-        g: u8, 
+        g: u8,
         /// Blue component (0-255)
-        b: u8 
+        b: u8,
     },
 }
 

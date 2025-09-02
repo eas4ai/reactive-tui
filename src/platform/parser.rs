@@ -11,7 +11,9 @@ pub struct KeyState;
 /// Parser result containing an event and number of bytes consumed
 #[derive(Debug)]
 pub struct ParseResult {
+    /// Parsed terminal event (None if incomplete)
     pub event: Option<TerminalEvent>,
+    /// Number of bytes consumed from input
     pub n: usize,
 }
 
@@ -27,15 +29,25 @@ mod mouse_bits {
 /// Parser state for escape sequence processing
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum ParserState {
+    /// Normal character processing state
     Ground,
+    /// Escape sequence started (ESC received)
     Escape,
+    /// Control Sequence Introducer (CSI) state
     Csi,
+    /// Operating System Command (OSC) state
     Osc,
+    /// Device Control String (DCS) state
     Dcs,
+    /// Start of String (SOS) state
     Sos,
+    /// Privacy Message (PM) state
     Pm,
+    /// Application Program Command (APC) state
     Apc,
+    /// Single Shift 2 (SS2) state
     Ss2,
+    /// Single Shift 3 (SS3) state
     Ss3,
 }
 
@@ -965,10 +977,7 @@ mod tests {
 
     #[test]
     fn test_parse_result() {
-        let result = ParseResult {
-            event: None,
-            n: 0,
-        };
+        let result = ParseResult { event: None, n: 0 };
         assert!(result.event.is_none());
         assert_eq!(result.n, 0);
     }
@@ -1006,7 +1015,12 @@ mod tests {
         let events = parser.parse(b"a");
         assert_eq!(events.len(), 1);
 
-        if let TerminalEvent::Key { code, modifiers, kind } = &events[0] {
+        if let TerminalEvent::Key {
+            code,
+            modifiers,
+            kind,
+        } = &events[0]
+        {
             assert_eq!(*code, KeyCode::Char('a'));
             assert_eq!(*modifiers, KeyModifiers::empty());
             assert_eq!(*kind, KeyEventKind::Press);
@@ -1085,7 +1099,10 @@ mod tests {
         // Test Ctrl+A (0x01)
         let events = parser.parse(&[0x01]);
         assert_eq!(events.len(), 1);
-        if let TerminalEvent::Key { code, modifiers, .. } = &events[0] {
+        if let TerminalEvent::Key {
+            code, modifiers, ..
+        } = &events[0]
+        {
             assert_eq!(*code, KeyCode::Char('a'));
             assert!(modifiers.ctrl);
         }
@@ -1093,7 +1110,10 @@ mod tests {
         // Test Ctrl+Z (0x1A)
         let events = parser.parse(&[0x1A]);
         assert_eq!(events.len(), 1);
-        if let TerminalEvent::Key { code, modifiers, .. } = &events[0] {
+        if let TerminalEvent::Key {
+            code, modifiers, ..
+        } = &events[0]
+        {
             assert_eq!(*code, KeyCode::Char('z'));
             assert!(modifiers.ctrl);
         }
@@ -1101,7 +1121,10 @@ mod tests {
         // Test Ctrl+@ (0x00)
         let events = parser.parse(&[0x00]);
         assert_eq!(events.len(), 1);
-        if let TerminalEvent::Key { code, modifiers, .. } = &events[0] {
+        if let TerminalEvent::Key {
+            code, modifiers, ..
+        } = &events[0]
+        {
             assert_eq!(*code, KeyCode::Char('@'));
             assert!(modifiers.ctrl);
         }
@@ -1114,7 +1137,10 @@ mod tests {
         // Test Alt+A (ESC + A)
         let events = parser.parse(&[0x1B, b'a']);
         assert_eq!(events.len(), 1);
-        if let TerminalEvent::Key { code, modifiers, .. } = &events[0] {
+        if let TerminalEvent::Key {
+            code, modifiers, ..
+        } = &events[0]
+        {
             assert_eq!(*code, KeyCode::Char('a'));
             assert!(modifiers.alt);
             assert!(!modifiers.ctrl);
@@ -1123,7 +1149,10 @@ mod tests {
         // Test Alt+1 (ESC + 1)
         let events = parser.parse(&[0x1B, b'1']);
         assert_eq!(events.len(), 1);
-        if let TerminalEvent::Key { code, modifiers, .. } = &events[0] {
+        if let TerminalEvent::Key {
+            code, modifiers, ..
+        } = &events[0]
+        {
             assert_eq!(*code, KeyCode::Char('1'));
             assert!(modifiers.alt);
         }

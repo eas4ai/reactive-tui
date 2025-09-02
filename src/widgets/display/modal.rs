@@ -20,91 +20,164 @@ enum ModalHitResult {
 /// Props for the Modal component
 #[derive(Clone)]
 pub struct ModalProps {
+    /// Whether the modal is visible
     pub visible: bool,
+    /// Optional title for the modal
     pub title: Option<String>,
+    /// Content element to display
     pub content: Option<Element>,
+    /// Width of the modal
     pub width: ModalSize,
+    /// Height of the modal
     pub height: ModalSize,
+    /// Position of the modal
     pub position: ModalPosition,
+    /// Whether modal can be closed
     pub closable: bool,
+    /// Whether clicking backdrop closes modal
     pub backdrop_clickable: bool,
+    /// Whether keyboard navigation is enabled
     pub keyboard_navigation: bool,
+    /// Border configuration
     pub border: Border,
+    /// CSS style for backdrop
     pub backdrop_style: Option<String>,
+    /// CSS style for modal container
     pub modal_style: Option<String>,
+    /// CSS style for header
     pub header_style: Option<String>,
+    /// CSS style for content area
     pub content_style: Option<String>,
+    /// CSS style for footer
     pub footer_style: Option<String>,
+    /// CSS style for close button
     pub close_button_style: Option<String>,
+    /// Animation configuration
     pub animation: ModalAnimation,
+    /// Z-index for layering
     pub z_index: u16,
+    /// Whether content is scrollable
     pub scrollable: bool,
+    /// Whether modal can be resized
     pub resizable: bool,
+    /// Whether modal can be dragged
     pub draggable: bool,
+    /// Optional footer element
     pub footer: Option<Element>,
+    /// Action buttons for the modal
     pub buttons: Vec<ModalButton>,
+    /// Whether to trap focus within modal
     pub focus_trap: bool,
+    /// Whether to auto-focus first element
     pub auto_focus: bool,
+    /// Callback when modal is closed
     pub on_close: Option<Arc<dyn Fn(ModalCloseReason) + Send + Sync>>,
+    /// Callback when confirmed
     pub on_confirm: Option<Arc<dyn Fn() + Send + Sync>>,
+    /// Callback when cancelled
     pub on_cancel: Option<Arc<dyn Fn() + Send + Sync>>,
+    /// Callback when button is clicked
     pub on_button_click: Option<Arc<dyn Fn(String) + Send + Sync>>,
 }
 
+/// Size specification for modal dialogs
 #[derive(Debug, Clone, PartialEq)]
 pub enum ModalSize {
+    /// Automatic sizing based on content
     Auto,
+    /// Fixed size in pixels
     Fixed(u16),
+    /// Percentage of parent container
     Percent(f32),
-    Viewport(f32), // Fraction of viewport
+    /// Fraction of viewport size
+    Viewport(f32),
 }
 
+/// Position specification for modal dialogs
 #[derive(Debug, Clone, PartialEq)]
 pub enum ModalPosition {
+    /// Center of the screen
     Center,
+    /// Top center
     Top,
+    /// Bottom center
     Bottom,
+    /// Left center
     Left,
+    /// Right center
     Right,
+    /// Top-left corner
     TopLeft,
+    /// Top-right corner
     TopRight,
+    /// Bottom-left corner
     BottomLeft,
+    /// Bottom-right corner
     BottomRight,
-    Custom { x: u16, y: u16 },
+    /// Custom position with x, y coordinates
+    Custom {
+        /// X coordinate in pixels
+        x: u16,
+        /// Y coordinate in pixels
+        y: u16,
+    },
 }
 
+/// Animation types for modal transitions
 #[derive(Debug, Clone, PartialEq)]
 pub enum ModalAnimation {
+    /// No animation
     None,
+    /// Fade in/out animation
     Fade,
+    /// Slide animation
     Slide,
+    /// Scale animation
     Scale,
+    /// Bounce animation
     Bounce,
 }
 
+/// Reason why a modal was closed
 #[derive(Debug, Clone, PartialEq)]
 pub enum ModalCloseReason {
+    /// Modal closed via close button
     CloseButton,
+    /// Modal closed via escape key
     EscapeKey,
+    /// Modal closed by clicking backdrop
     BackdropClick,
+    /// Modal closed by clicking a button
     ButtonClick(String),
 }
 
+/// Button configuration for modal dialogs
 #[derive(Debug, Clone, PartialEq)]
 pub struct ModalButton {
+    /// Unique identifier for the button
     pub id: String,
+    /// Display text for the button
     pub label: String,
+    /// Action to perform when clicked
     pub action: ModalButtonAction,
+    /// Optional CSS class or style
     pub style: Option<String>,
+    /// Whether the button is disabled
     pub disabled: bool,
+    /// Whether the button should have autofocus
     pub autofocus: bool,
 }
 
+/// Action to perform when a modal button is clicked
 #[derive(Debug, Clone, PartialEq)]
 pub enum ModalButtonAction {
+    /// Close the modal without action
     Close,
+    /// Confirm the modal action
     Confirm,
+    /// Cancel the modal action
     Cancel,
+    /// Custom action with identifier
     Custom(String),
 }
 
@@ -182,25 +255,42 @@ impl Props for ModalProps {
 /// State for the Modal component
 #[derive(Debug, Clone, Default)]
 pub struct ModalState {
+    /// Whether the modal has focus
     pub focused: bool,
+    /// Scroll state for modal content
     pub scroll_state: ScrollState,
+    /// Current animation state
     pub animation_state: ModalAnimationState,
+    /// Current position (x, y) of the modal
     pub position: (u16, u16),
+    /// Current size (width, height) of the modal
     pub size: (u16, u16),
+    /// Whether the modal is being dragged
     pub dragging: bool,
+    /// Drag offset from mouse position
     pub drag_offset: (u16, u16),
+    /// Whether the modal is being resized
     pub resizing: bool,
+    /// Current resize handle being used
     pub resize_handle: Option<ResizeHandle>,
+    /// Index of the currently focused button
     pub focused_button: Option<usize>,
+    /// Whether to show entrance/exit animations
     pub show_animation: bool,
+    /// Current animation frame counter
     pub animation_frame: u64,
 }
 
+/// Animation state for modal transitions
 #[derive(Debug, Clone, PartialEq)]
 pub enum ModalAnimationState {
+    /// Modal is completely hidden
     Hidden,
+    /// Modal is animating in (showing)
     Showing,
+    /// Modal is fully visible
     Visible,
+    /// Modal is animating out (hiding)
     Hiding,
 }
 
@@ -210,15 +300,24 @@ impl Default for ModalAnimationState {
     }
 }
 
+/// Resize handle positions for modal dialogs
 #[derive(Debug, Clone, PartialEq)]
 pub enum ResizeHandle {
+    /// Top-left corner handle
     TopLeft,
+    /// Top edge handle
     Top,
+    /// Top-right corner handle
     TopRight,
+    /// Right edge handle
     Right,
+    /// Bottom-right corner handle
     BottomRight,
+    /// Bottom center position
     Bottom,
+    /// Bottom left corner position
     BottomLeft,
+    /// Left center position
     Left,
 }
 
@@ -828,6 +927,15 @@ impl Default for Modal {
 
 // Helper implementations
 impl ModalButton {
+    /// Create a new modal button
+    ///
+    /// # Arguments
+    /// * `id` - Unique identifier for the button
+    /// * `label` - Display text for the button
+    /// * `action` - Action to perform when clicked
+    ///
+    /// # Returns
+    /// A new `ModalButton` instance
     pub fn new(id: &str, label: &str, action: ModalButtonAction) -> Self {
         Self {
             id: id.to_string(),
@@ -839,26 +947,30 @@ impl ModalButton {
         }
     }
 
+    /// Set the button style
     pub fn with_style(mut self, style: &str) -> Self {
         self.style = Some(style.to_string());
         self
     }
 
+    /// Set whether the button is disabled
     pub fn disabled(mut self, disabled: bool) -> Self {
         self.disabled = disabled;
         self
     }
 
+    /// Set whether the button has autofocus
     pub fn autofocus(mut self, autofocus: bool) -> Self {
         self.autofocus = autofocus;
         self
     }
 
-    // Common button constructors
+    /// Create an OK button
     pub fn ok() -> Self {
         Self::new("ok", "OK", ModalButtonAction::Confirm)
     }
 
+    /// Create a Cancel button
     pub fn cancel() -> Self {
         Self::new("cancel", "Cancel", ModalButtonAction::Cancel)
     }

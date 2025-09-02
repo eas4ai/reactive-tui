@@ -4,15 +4,24 @@ use crate::event::types::{KeyCode, KeyEvent, MouseEventKind};
 use crate::event::{Event, MouseEvent};
 use std::any::Any;
 
+/// Props for the ScrollView component
 #[derive(Clone, PartialEq)]
 pub struct ScrollViewProps {
+    /// Content element to scroll
     pub content: Element,
+    /// Whether horizontal scrolling is enabled
     pub scroll_x: bool,
+    /// Whether vertical scrolling is enabled
     pub scroll_y: bool,
+    /// Width of the viewport
     pub viewport_width: usize,
+    /// Height of the viewport
     pub viewport_height: usize,
+    /// Whether to show scrollbars
     pub show_scrollbars: bool,
+    /// Whether to use smooth scrolling
     pub smooth_scroll: bool,
+    /// Scroll speed multiplier
     pub scroll_speed: usize,
 }
 
@@ -37,15 +46,22 @@ impl Props for ScrollViewProps {
     }
 }
 
+/// State for the ScrollView component
 #[derive(Clone, Debug, Default)]
 pub struct ScrollViewState {
+    /// Horizontal scroll position
     pub scroll_x: usize,
+    /// Vertical scroll position
     pub scroll_y: usize,
+    /// Width of the content
     pub content_width: usize,
+    /// Height of the content
     pub content_height: usize,
+    /// Whether the scroll view has focus
     pub is_focused: bool,
 }
 
+/// Scroll view component for scrollable content
 pub struct ScrollView {
     state: ScrollViewState,
 }

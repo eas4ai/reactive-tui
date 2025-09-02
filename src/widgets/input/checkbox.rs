@@ -8,10 +8,14 @@ use std::sync::Arc;
 /// Properties for Checkbox component
 #[derive(Clone, Debug, PartialEq, Default)]
 pub struct CheckboxProps {
+    /// Whether the checkbox is checked
     pub checked: bool,
+    /// Optional label text for the checkbox
     pub label: Option<String>,
+    /// Whether the checkbox is disabled
     pub disabled: bool,
-    pub indeterminate: bool, // Three-state checkbox support
+    /// Whether the checkbox is in indeterminate state (three-state support)
+    pub indeterminate: bool,
 }
 
 impl Props for CheckboxProps {
@@ -23,7 +27,9 @@ impl Props for CheckboxProps {
 /// State for Checkbox component
 #[derive(Clone, Debug, Default)]
 pub struct CheckboxState {
+    /// Whether the checkbox has keyboard focus
     pub is_focused: bool,
+    /// Whether the mouse is hovering over the checkbox
     pub is_hover: bool,
 }
 

@@ -74,12 +74,19 @@ impl std::fmt::Debug for ConfirmationDialogOptions {
 /// Icon types for confirmation dialogs
 #[derive(Debug, Clone, PartialEq)]
 pub enum ConfirmationIcon {
+    /// No icon displayed
     None,
+    /// Question mark icon
     Question,
+    /// Warning/caution icon
     Warning,
+    /// Error/danger icon
     Error,
+    /// Information icon
     Info,
+    /// Success/checkmark icon
     Success,
+    /// Custom icon with specified text
     Custom(String),
 }
 
@@ -124,14 +131,23 @@ pub struct ConfirmationButton {
 /// Button style variants
 #[derive(Debug, Clone, PartialEq)]
 pub enum ButtonVariant {
+    /// Primary action button (emphasized)
     Primary,
+    /// Secondary action button (normal)
     Secondary,
+    /// Success/positive action button
     Success,
+    /// Warning/caution action button
     Warning,
+    /// Danger/destructive action button
     Danger,
+    /// Information action button
     Info,
+    /// Light colored button
     Light,
+    /// Dark colored button
     Dark,
+    /// Custom styled button
     Custom(String),
 }
 

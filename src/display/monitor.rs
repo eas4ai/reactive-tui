@@ -12,6 +12,7 @@ pub struct PerformanceMonitor {
 }
 
 impl PerformanceMonitor {
+    /// Create a new performance monitor
     pub fn new() -> Self {
         Self {
             frame_times: VecDeque::with_capacity(120), // 2 seconds at 60fps
@@ -23,6 +24,7 @@ impl PerformanceMonitor {
         }
     }
 
+    /// Record frame performance metrics
     pub fn record_frame(&mut self, frame_time: Duration, render_time: Duration, dropped: bool) {
         // Keep sliding window of recent performance
         if self.frame_times.len() >= 120 {
@@ -39,6 +41,7 @@ impl PerformanceMonitor {
         }
     }
 
+    /// Get current performance metrics
     pub fn get_current_performance(&self) -> PerformanceMetrics {
         if self.frame_times.is_empty() {
             return PerformanceMetrics::default();
@@ -60,14 +63,17 @@ impl PerformanceMonitor {
         }
     }
 
+    /// Check if enough time has passed to allow FPS adjustment
     pub fn can_adjust(&self) -> bool {
         self.last_adjustment.elapsed() > self.adjustment_cooldown
     }
 
+    /// Mark that an FPS adjustment was made
     pub fn mark_adjustment(&mut self) {
         self.last_adjustment = Instant::now();
     }
 
+    /// Reset all performance monitoring data
     pub fn reset(&mut self) {
         self.frame_times.clear();
         self.render_times.clear();
@@ -144,6 +150,7 @@ pub enum PerformanceMode {
 }
 
 impl PerformanceMode {
+    /// Get the target FPS for this performance mode
     pub fn target_fps(&self) -> Option<u32> {
         match self {
             Self::PowerSave => Some(30),
@@ -154,6 +161,7 @@ impl PerformanceMode {
         }
     }
 
+    /// Get the quality preference value (0.0 = performance, 1.0 = quality)
     pub fn quality_preference(&self) -> f32 {
         match self {
             Self::PowerSave => 0.2,   // Prefer performance

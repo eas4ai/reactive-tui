@@ -1,10 +1,10 @@
 //! # Reactive TUI
-//! 
-//! A modern, reactive terminal user interface library for Rust that brings React-like 
+//!
+//! A modern, reactive terminal user interface library for Rust that brings React-like
 //! component architecture and CSS-style layouts to terminal applications.
-//! 
+//!
 //! ## Features
-//! 
+//!
 //! - **React-like Components**: Declarative component system with hooks and lifecycle methods
 //! - **CSS Utility Classes**: Tailwind-style classes for layout and styling
 //! - **Flexbox/Grid Layouts**: Modern layout system powered by the Taffy engine
@@ -12,7 +12,7 @@
 //! - **24-bit Color Support**: Full RGB color support for modern terminals
 //! - **Image Rendering**: Multiple backends for displaying images in terminals
 //! - **FFI Support**: Multi-language bindings via stable C ABI
-//! 
+//!
 //! ## Quick Start
 //!
 //! ```rust,no_run

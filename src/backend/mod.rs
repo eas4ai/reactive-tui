@@ -82,6 +82,7 @@ pub struct CrosstermBackend {
 }
 
 impl CrosstermBackend {
+    /// Create a new Crossterm backend
     pub fn new() -> Result<Self> {
         // Determine terminal size and initialize renderer buffers
         let (cols, rows) = crossterm::terminal::size().unwrap_or((80, 24));

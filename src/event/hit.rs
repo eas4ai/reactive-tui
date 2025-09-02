@@ -11,10 +11,12 @@ pub struct Point {
 }
 
 impl Point {
+    /// Create a new point with the given coordinates
     pub fn new(x: f32, y: f32) -> Self {
         Self { x, y }
     }
 
+    /// Create a point at the origin (0, 0)
     pub fn zero() -> Self {
         Self { x: 0.0, y: 0.0 }
     }
@@ -34,6 +36,7 @@ pub struct Bounds {
 }
 
 impl Bounds {
+    /// Create a new bounding rectangle
     pub fn new(x: f32, y: f32, width: f32, height: f32) -> Self {
         Self {
             x,
@@ -43,6 +46,7 @@ impl Bounds {
         }
     }
 
+    /// Create bounds from two corner points
     pub fn from_points(top_left: Point, bottom_right: Point) -> Self {
         Self {
             x: top_left.x,
@@ -92,14 +96,17 @@ impl Bounds {
         )
     }
 
+    /// Get the top-left corner point
     pub fn top_left(&self) -> Point {
         Point::new(self.x, self.y)
     }
 
+    /// Get the bottom-right corner point
     pub fn bottom_right(&self) -> Point {
         Point::new(self.x + self.width, self.y + self.height)
     }
 
+    /// Get the center point of the bounds
     pub fn center(&self) -> Point {
         Point::new(self.x + self.width / 2.0, self.y + self.height / 2.0)
     }
@@ -257,6 +264,14 @@ impl QuadNode {
 }
 
 impl HitTest {
+    /// Create a new hit test system
+    ///
+    /// # Arguments
+    /// * `width` - Width of the hit test area
+    /// * `height` - Height of the hit test area
+    ///
+    /// # Returns
+    /// A new `HitTest` instance
     pub fn new(width: f32, height: f32) -> Self {
         Self {
             root: QuadNode::new(

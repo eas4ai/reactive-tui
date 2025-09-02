@@ -83,5 +83,3 @@ unsafe fn c_str_to_string(s: *const c_char) -> Result<String, ReactiveError> {
             .map_err(|_| ReactiveError::InvalidUtf8)
     }
 }
-
-

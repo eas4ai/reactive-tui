@@ -6,13 +6,21 @@ use std::any::Any;
 /// Properties for Stack layout component
 #[derive(Clone, Debug, PartialEq)]
 pub struct StackProps {
+    /// Direction of the stack layout
     pub direction: StackDirection,
+    /// Spacing between child elements
     pub spacing: usize,
+    /// Alignment of child elements
     pub alignment: StackAlignment,
-    pub wrap: bool,            // Allow wrapping to next line/column
-    pub justify: StackJustify, // How to distribute space
+    /// Whether to allow wrapping to next line/column
+    pub wrap: bool,
+    /// How to distribute space between elements
+    pub justify: StackJustify,
+    /// Padding around the stack
     pub padding: StackPadding,
-    pub reverse: bool, // Reverse the order of children
+    /// Whether to reverse the order of children
+    pub reverse: bool,
+    /// Child elements to layout
     pub children: Vec<Element>,
 }
 
@@ -37,39 +45,60 @@ impl Props for StackProps {
     }
 }
 
+/// Stack layout direction
 #[derive(Clone, Debug, PartialEq)]
 pub enum StackDirection {
+    /// Horizontal stack (left to right)
     Horizontal,
+    /// Vertical stack (top to bottom)
     Vertical,
 }
 
+/// Stack alignment options
 #[derive(Clone, Debug, PartialEq)]
 pub enum StackAlignment {
-    Start,   // Top for horizontal, Left for vertical
-    Center,  // Center alignment
-    End,     // Bottom for horizontal, Right for vertical
-    Stretch, // Fill available space
+    /// Align to start (top for horizontal, left for vertical)
+    Start,
+    /// Center alignment
+    Center,
+    /// Align to end (bottom for horizontal, right for vertical)
+    End,
+    /// Stretch to fill available space
+    Stretch,
 }
 
+/// Stack justification options
 #[derive(Clone, Debug, PartialEq)]
 pub enum StackJustify {
-    Start,        // Pack to start
-    Center,       // Center with equal space on sides
-    End,          // Pack to end
-    SpaceBetween, // Equal space between items, no space on ends
-    SpaceAround,  // Equal space around items
-    SpaceEvenly,  // Equal space between and around items
+    /// Pack items to start
+    Start,
+    /// Center items with equal space on sides
+    Center,
+    /// Pack items to end
+    End,
+    /// Equal space between items, no space on ends
+    SpaceBetween,
+    /// Equal space around items
+    SpaceAround,
+    /// Equal space between and around items
+    SpaceEvenly,
 }
 
+/// Padding configuration for Stack component
 #[derive(Clone, Debug, PartialEq, Default)]
 pub struct StackPadding {
+    /// Top padding in pixels
     pub top: usize,
+    /// Right padding in pixels
     pub right: usize,
+    /// Bottom padding in pixels
     pub bottom: usize,
+    /// Left padding in pixels
     pub left: usize,
 }
 
 impl StackPadding {
+    /// Create padding with the same value on all sides
     pub fn all(padding: usize) -> Self {
         Self {
             top: padding,
@@ -79,6 +108,7 @@ impl StackPadding {
         }
     }
 
+    /// Create symmetric padding (vertical and horizontal)
     pub fn symmetric(vertical: usize, horizontal: usize) -> Self {
         Self {
             top: vertical,
@@ -88,6 +118,7 @@ impl StackPadding {
         }
     }
 
+    /// Create horizontal padding only
     pub fn horizontal(padding: usize) -> Self {
         Self {
             left: padding,
@@ -96,6 +127,7 @@ impl StackPadding {
         }
     }
 
+    /// Create vertical padding only
     pub fn vertical(padding: usize) -> Self {
         Self {
             top: padding,
@@ -108,9 +140,13 @@ impl StackPadding {
 /// State for Stack component
 #[derive(Clone, Debug, Default)]
 pub struct StackState {
+    /// Width of the viewport in pixels
     pub viewport_width: usize,
+    /// Height of the viewport in pixels
     pub viewport_height: usize,
+    /// Horizontal scroll offset
     pub scroll_x: usize,
+    /// Vertical scroll offset
     pub scroll_y: usize,
 }
 

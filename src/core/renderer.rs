@@ -326,7 +326,7 @@ mod tests {
             eprintln!("Skipping test_renderer_creation: No TTY available");
             return;
         }
-        
+
         // Test valid dimensions
         let renderer = Renderer::new(80, 24).unwrap();
         assert_eq!(renderer.dims(), (80, 24));
@@ -351,7 +351,7 @@ mod tests {
     fn test_renderer_with_size() {
         let size = Size::new(100, 30);
         let renderer = Renderer::with_size(size);
-        
+
         // Skip if no TTY available (CI/test environment)
         if renderer.is_err() {
             eprintln!("Skipping test_renderer_with_size: No TTY available");

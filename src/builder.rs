@@ -230,22 +230,27 @@ pub fn h1() -> ElementBuilder {
     div().class("text-4xl font-bold")
 }
 
+/// Create a level 2 heading element
 pub fn h2() -> ElementBuilder {
     div().class("text-3xl font-bold")
 }
 
+/// Create a level 3 heading element
 pub fn h3() -> ElementBuilder {
     div().class("text-2xl font-bold")
 }
 
+/// Create a level 4 heading element
 pub fn h4() -> ElementBuilder {
     div().class("text-xl font-bold")
 }
 
+/// Create a level 5 heading element
 pub fn h5() -> ElementBuilder {
     div().class("text-lg font-bold")
 }
 
+/// Create a level 6 heading element
 pub fn h6() -> ElementBuilder {
     div().class("text-base font-bold")
 }

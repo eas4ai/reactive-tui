@@ -64,7 +64,7 @@ fn child_margin_affects_position() {
         class: Cow::from("flex flex-row"),
         text: None,
         children: vec![NodeSpec {
-            class: Cow::from("ml-4 w-1 h-1"),  // Add explicit size for text node
+            class: Cow::from("ml-4 w-1 h-1"), // Add explicit size for text node
             text: Some(Cow::from("M")),
             children: vec![],
         }],

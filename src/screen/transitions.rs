@@ -10,6 +10,7 @@ pub struct TransitionRenderer {
 }
 
 impl TransitionRenderer {
+    /// Create a new transition renderer with specified dimensions
     pub fn new(width: usize, height: usize) -> Self {
         Self { width, height }
     }

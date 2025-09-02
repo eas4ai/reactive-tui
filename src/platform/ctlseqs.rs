@@ -18,9 +18,13 @@ pub mod queries {
 
     /// DECRQM queries for mode reporting
     pub const DECRQM_FOCUS: &str = "\x1b[?1004$p";
+    /// Query SGR pixel mode support
     pub const DECRQM_SGR_PIXELS: &str = "\x1b[?1016$p";
+    /// Query synchronized output support
     pub const DECRQM_SYNC: &str = "\x1b[?2026$p";
+    /// Query Unicode support
     pub const DECRQM_UNICODE: &str = "\x1b[?2027$p";
+    /// Query color scheme support
     pub const DECRQM_COLOR_SCHEME: &str = "\x1b[?2031$p";
 
     /// Kitty keyboard protocol query
@@ -173,21 +177,26 @@ pub mod sgr {
         format!("\x1b[3{color}m")
     }
 
+    /// Set bright foreground color (90-97)
     pub fn fg_bright(color: u8) -> String {
         format!("\x1b[9{color}m")
     }
 
+    /// Set basic background color (40-47)
     pub fn bg_base(color: u8) -> String {
         format!("\x1b[4{color}m")
     }
 
+    /// Set bright background color (90-97)
     pub fn bg_bright(color: u8) -> String {
         format!("\x1b[10{color}m")
     }
 
     /// Reset colors
     pub const FG_RESET: &str = "\x1b[39m";
+    /// Reset background color
     pub const BG_RESET: &str = "\x1b[49m";
+    /// Reset underline color
     pub const UL_RESET: &str = "\x1b[59m";
 
     /// Indexed colors (256-color palette)
@@ -195,10 +204,12 @@ pub mod sgr {
         format!("\x1b[38:5:{index}m")
     }
 
+    /// Set background color using 256-color index
     pub fn bg_indexed(index: u8) -> String {
         format!("\x1b[48:5:{index}m")
     }
 
+    /// Set underline color using 256-color index
     pub fn ul_indexed(index: u8) -> String {
         format!("\x1b[58:5:{index}m")
     }
@@ -208,10 +219,12 @@ pub mod sgr {
         format!("\x1b[38:2:{r}:{g}:{b}m")
     }
 
+    /// Set background color using RGB values
     pub fn bg_rgb(r: u8, g: u8, b: u8) -> String {
         format!("\x1b[48:2:{r}:{g}:{b}m")
     }
 
+    /// Set underline color using RGB values
     pub fn ul_rgb(r: u8, g: u8, b: u8) -> String {
         format!("\x1b[58:2:{r}:{g}:{b}m")
     }
@@ -221,14 +234,17 @@ pub mod sgr {
         format!("\x1b[38;5;{index}m")
     }
 
+    /// Set background color using 256-color index (legacy format)
     pub fn bg_indexed_legacy(index: u8) -> String {
         format!("\x1b[48;5;{index}m")
     }
 
+    /// Set foreground color using RGB values (legacy format)
     pub fn fg_rgb_legacy(r: u8, g: u8, b: u8) -> String {
         format!("\x1b[38;2;{r};{g};{b}m")
     }
 
+    /// Set background color using RGB values (legacy format)
     pub fn bg_rgb_legacy(r: u8, g: u8, b: u8) -> String {
         format!("\x1b[48;2;{r};{g};{b}m")
     }
@@ -259,6 +275,7 @@ pub mod underline {
 pub mod attributes {
     /// Bold/bright
     pub const BOLD_SET: &str = "\x1b[1m";
+    /// Reset bold/bright
     pub const BOLD_RESET: &str = "\x1b[22m";
 
     /// Dim
@@ -266,22 +283,27 @@ pub mod attributes {
 
     /// Italic
     pub const ITALIC_SET: &str = "\x1b[3m";
+    /// Reset italic
     pub const ITALIC_RESET: &str = "\x1b[23m";
 
     /// Blink
     pub const BLINK_SET: &str = "\x1b[5m";
+    /// Reset blink
     pub const BLINK_RESET: &str = "\x1b[25m";
 
     /// Reverse video
     pub const REVERSE_SET: &str = "\x1b[7m";
+    /// Reset reverse video
     pub const REVERSE_RESET: &str = "\x1b[27m";
 
     /// Invisible/hidden
     pub const INVISIBLE_SET: &str = "\x1b[8m";
+    /// Reset invisible/hidden
     pub const INVISIBLE_RESET: &str = "\x1b[28m";
 
     /// Strikethrough
     pub const STRIKETHROUGH_SET: &str = "\x1b[9m";
+    /// Reset strikethrough
     pub const STRIKETHROUGH_RESET: &str = "\x1b[29m";
 }
 

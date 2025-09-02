@@ -15,9 +15,13 @@ pub enum ImageSource {
     Memory(Vec<u8>),
     /// Raw RGB/RGBA pixel data
     Pixels {
+        /// Raw pixel data bytes
         data: Vec<u8>,
+        /// Image width in pixels
         width: u32,
+        /// Image height in pixels
         height: u32,
+        /// Pixel format specification
         format: PixelFormat,
     },
 }
@@ -25,24 +29,33 @@ pub enum ImageSource {
 /// Pixel data format
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum PixelFormat {
+    /// RGB format (3 bytes per pixel: red, green, blue)
     Rgb,
+    /// RGBA format (4 bytes per pixel: red, green, blue, alpha)
     Rgba,
 }
 
 /// Image transmission format for Kitty protocol
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum TransmitFormat {
+    /// Raw RGB data transmission
     Rgb,
+    /// Raw RGBA data transmission
     Rgba,
+    /// PNG compressed image transmission
     Png,
 }
 
 /// Image transmission medium
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum TransmitMedium {
+    /// Transmit via file path
     File,
+    /// Transmit via temporary file
     TempFile,
+    /// Transmit via shared memory
     SharedMem,
+    /// Transmit data directly in escape sequence
     Direct,
 }
 
@@ -84,16 +97,22 @@ pub struct DrawOptions {
 /// Image clipping region
 #[derive(Debug, Clone)]
 pub struct ClipRegion {
+    /// X coordinate of the clipping region (None = no clipping)
     pub x: Option<u32>,
+    /// Y coordinate of the clipping region (None = no clipping)
     pub y: Option<u32>,
+    /// Width of the clipping region (None = no clipping)
     pub width: Option<u32>,
+    /// Height of the clipping region (None = no clipping)
     pub height: Option<u32>,
 }
 
 /// Image placement in terminal
 #[derive(Debug, Clone)]
 pub struct ImagePlacement {
+    /// Unique identifier for the image
     pub img_id: u32,
+    /// Drawing options for the image placement
     pub options: DrawOptions,
 }
 
@@ -105,6 +124,7 @@ pub struct Image {
 
     /// Image dimensions in pixels
     pub width: u32,
+    /// Image height in pixels
     pub height: u32,
 
     /// Image source data

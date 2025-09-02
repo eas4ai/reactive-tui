@@ -161,13 +161,26 @@ pub fn ansi256_to_rgb(color: u8) -> (u8, u8, u8) {
     }
 }
 
-/// Get the best ANSI color for a given RGB value with specified color depth
+/// Color depth support levels for ANSI terminals
 pub enum ColorDepth {
-    Ansi16,    // Basic 16 colors
-    Ansi256,   // Extended 256 colors
-    TrueColor, // Full RGB support
+    /// Basic 16 colors (0-15)
+    Ansi16,
+    /// Extended 256 colors (0-255)
+    Ansi256,
+    /// Full RGB support (24-bit color)
+    TrueColor,
 }
 
+/// Convert RGB values to ANSI color based on color depth
+///
+/// # Arguments
+/// * `r` - Red component (0-255)
+/// * `g` - Green component (0-255)
+/// * `b` - Blue component (0-255)
+/// * `depth` - Target color depth
+///
+/// # Returns
+/// Appropriate ANSI color for the given depth
 pub fn rgb_to_ansi(r: u8, g: u8, b: u8, depth: ColorDepth) -> AnsiColor {
     match depth {
         ColorDepth::Ansi16 => AnsiColor::Basic(rgb_to_ansi16(r, g, b)),
@@ -176,10 +189,14 @@ pub fn rgb_to_ansi(r: u8, g: u8, b: u8, depth: ColorDepth) -> AnsiColor {
     }
 }
 
+/// ANSI color representation
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum AnsiColor {
-    Basic(u8),    // 0-15
-    Extended(u8), // 0-255
+    /// Basic ANSI color (0-15)
+    Basic(u8),
+    /// Extended ANSI color (0-255)
+    Extended(u8),
+    /// True color RGB values
     Rgb(u8, u8, u8),
 }
 
@@ -194,6 +211,10 @@ impl AnsiColor {
         }
     }
 
+    /// Convert to background color escape sequence
+    ///
+    /// # Returns
+    /// ANSI escape sequence for setting background color
     pub fn to_bg_escape(&self) -> String {
         match self {
             AnsiColor::Basic(n) if *n < 8 => format!("\x1b[4{n}m"),

@@ -15,6 +15,7 @@ pub struct DisplayCapabilities {
     pub sync_capabilities: SyncCapabilities,
 }
 
+/// Information about the terminal and its capabilities
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TerminalInfo {
     /// Terminal program name (if detectable)
@@ -59,6 +60,7 @@ pub enum ColorDepth {
     TrueColor,
 }
 
+/// System performance characteristics
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PerformanceProfile {
     /// Average render time in microseconds
@@ -71,6 +73,7 @@ pub struct PerformanceProfile {
     pub memory_efficiency: f32,
 }
 
+/// Terminal synchronization and responsiveness capabilities
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SyncCapabilities {
     /// Terminal can handle rapid updates smoothly

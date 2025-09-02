@@ -521,9 +521,9 @@ mod tests {
     #[allow(dead_code)]
     fn is_tty_available() -> bool {
         // Skip TTY-dependent tests in CI/CD environments
-        std::env::var("CI").is_err() &&
-        std::env::var("GITHUB_ACTIONS").is_err() &&
-        std::env::var("TERM").is_ok() // Basic check for terminal environment
+        std::env::var("CI").is_err()
+            && std::env::var("GITHUB_ACTIONS").is_err()
+            && std::env::var("TERM").is_ok() // Basic check for terminal environment
     }
 
     #[test]
@@ -595,7 +595,10 @@ mod tests {
         let widget = TerminalWidget::new(props);
         assert_eq!(widget.props.title, "ZSH Terminal");
         assert_eq!(widget.props.shell_command, Some("/bin/zsh".to_string()));
-        assert_eq!(widget.props.working_directory, Some("/home/user".to_string()));
+        assert_eq!(
+            widget.props.working_directory,
+            Some("/home/user".to_string())
+        );
         assert_eq!(widget.props.env_vars.len(), 2);
     }
 
@@ -690,20 +693,17 @@ mod tests {
         let widget = TerminalWidget::new(TerminalProps::default());
 
         // Test Ctrl+A (should be 0x01)
-        let event = KeyEvent::new(KeyCode::Char('a'))
-            .with_modifiers(KeyModifiers::ctrl());
+        let event = KeyEvent::new(KeyCode::Char('a')).with_modifiers(KeyModifiers::ctrl());
         let bytes = widget.key_event_to_bytes(&event);
         assert_eq!(bytes, vec![0x01]);
 
         // Test Ctrl+C (should be 0x03)
-        let event = KeyEvent::new(KeyCode::Char('c'))
-            .with_modifiers(KeyModifiers::ctrl());
+        let event = KeyEvent::new(KeyCode::Char('c')).with_modifiers(KeyModifiers::ctrl());
         let bytes = widget.key_event_to_bytes(&event);
         assert_eq!(bytes, vec![0x03]);
 
         // Test Ctrl+Z (should be 0x1A)
-        let event = KeyEvent::new(KeyCode::Char('z'))
-            .with_modifiers(KeyModifiers::ctrl());
+        let event = KeyEvent::new(KeyCode::Char('z')).with_modifiers(KeyModifiers::ctrl());
         let bytes = widget.key_event_to_bytes(&event);
         assert_eq!(bytes, vec![0x1A]);
     }
