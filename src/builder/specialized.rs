@@ -1,7 +1,7 @@
-//! Widget builders for components with full implementations
+//! Specialized widget builders for advanced components
 //!
-//! This module contains builders for widgets that have complete implementations
-//! in the widgets module, providing a fluent API for creating these components.
+//! This module contains builders for specialized widgets like Tree and Image
+//! that have complete implementations in the widgets module.
 
 use crate::component::Element;
 use crate::widgets::{

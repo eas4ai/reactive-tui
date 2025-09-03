@@ -475,12 +475,12 @@ mod tests {
     fn test_display_utilities() {
         let sb = StyleBuilder::new();
 
-        let result = apply_display("flex", sb).unwrap();
+        let result = apply_display("flex", sb).expect("Should apply flex display");
         let style = result.build();
         assert_eq!(style.display, taffy::style::Display::Flex);
 
         let sb = StyleBuilder::new();
-        let result = apply_display("grid", sb).unwrap();
+        let result = apply_display("grid", sb).expect("Should apply grid display");
         let style = result.build();
         assert_eq!(style.display, taffy::style::Display::Grid);
     }
@@ -489,12 +489,12 @@ mod tests {
     fn test_flexbox_utilities() {
         let sb = StyleBuilder::new();
 
-        let result = apply_flexbox("flex-col", sb).unwrap();
+        let result = apply_flexbox("flex-col", sb).expect("Should apply flex-col");
         let style = result.build();
         assert_eq!(style.flex_direction, taffy::style::FlexDirection::Column);
 
         let sb = StyleBuilder::new();
-        let result = apply_flexbox("flex-1", sb).unwrap();
+        let result = apply_flexbox("flex-1", sb).expect("Should apply flex-1");
         let style = result.build();
         assert_eq!(style.flex_grow, 1.0);
     }
@@ -503,7 +503,7 @@ mod tests {
     fn test_justify_content_utilities() {
         let sb = StyleBuilder::new();
 
-        let result = apply_justify_content("justify-center", sb).unwrap();
+        let result = apply_justify_content("justify-center", sb).expect("Should apply justify-center");
         let style = result.build();
         assert_eq!(
             style.justify_content,
@@ -515,7 +515,7 @@ mod tests {
     fn test_align_items_utilities() {
         let sb = StyleBuilder::new();
 
-        let result = apply_align_items("items-center", sb).unwrap();
+        let result = apply_align_items("items-center", sb).expect("Should apply items-center");
         let style = result.build();
         assert_eq!(style.align_items, Some(taffy::style::AlignItems::Center));
     }
@@ -524,11 +524,11 @@ mod tests {
     fn test_position_utilities() {
         let sb = StyleBuilder::new();
 
-        let result = apply_position("absolute", sb).unwrap();
+        let result = apply_position("absolute", sb).expect("Should apply absolute position");
         assert_eq!(result.get_z_index(), Some(10));
 
         let sb = StyleBuilder::new();
-        let result = apply_position("z-50", sb).unwrap();
+        let result = apply_position("z-50", sb).expect("Should apply z-index 50");
         assert_eq!(result.get_z_index(), Some(50));
     }
 }

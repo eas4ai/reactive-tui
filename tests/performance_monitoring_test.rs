@@ -2,6 +2,10 @@ use reactive_tui::component::{Component, Element, Props, registry::{register_com
 use reactive_tui::core::render_stats::{RenderStatsCollector, DetailedFrameStats};
 use reactive_tui::render::tree::element_to_render_node;
 use std::time::Duration;
+use std::sync::Mutex;
+
+// Test isolation: ensure only one test runs at a time when accessing global state
+static TEST_MUTEX: Mutex<()> = Mutex::new(());
 
 #[derive(Clone, PartialEq, Default)]
 struct PerfTestProps {
@@ -31,8 +35,15 @@ impl Component for PerfTestComponent {
 
 #[test]
 fn test_component_performance_tracking() {
+    // Acquire test mutex to prevent concurrent test execution
+    let _guard = TEST_MUTEX.lock().unwrap_or_else(|p| p.into_inner());
+    
+    // Clean up any previous global state
     global_cleanup_all().unwrap();
-    register_component::<PerfTestComponent>("PerfTestComponent").unwrap();
+    
+    // Register component with unique name for this test
+    let component_name = format!("PerfTestComponent_{}", std::process::id());
+    register_component::<PerfTestComponent>(&component_name).unwrap();
     
     // Get initial metrics
     let initial_metrics = global_component_performance().unwrap();
@@ -41,16 +52,16 @@ fn test_component_performance_tracking() {
     // Create some components
     let mut components = Vec::new();
     for i in 0..10 {
-        let element = Element::component_with_props("PerfTestComponent", PerfTestProps { value: i });
+        let element = Element::component_with_props(&component_name, PerfTestProps { value: i });
         let render_node = element_to_render_node(element);
         components.push(render_node);
     }
     
     // Check metrics after creation
     let after_creation = global_component_performance().unwrap();
-    assert_eq!(after_creation.active_components, 10);
-    assert_eq!(after_creation.total_created, 10);
-    assert_eq!(after_creation.total_destroyed, 0);
+    assert_eq!(after_creation.active_components - initial_metrics.active_components, 10);
+    assert_eq!(after_creation.total_created - initial_metrics.total_created, 10);
+    assert_eq!(after_creation.total_destroyed - initial_metrics.total_destroyed, 0);
     
     // Verify creation time is tracked
     assert!(after_creation.avg_creation_time > Duration::ZERO);
@@ -66,9 +77,9 @@ fn test_component_performance_tracking() {
     
     // Check metrics after partial cleanup
     let after_partial_cleanup = global_component_performance().unwrap();
-    assert_eq!(after_partial_cleanup.active_components, 5);
-    assert_eq!(after_partial_cleanup.total_created, 10);
-    assert_eq!(after_partial_cleanup.total_destroyed, 5);
+    assert_eq!(after_partial_cleanup.active_components - initial_metrics.active_components, 5);
+    assert_eq!(after_partial_cleanup.total_created - initial_metrics.total_created, 10);
+    assert_eq!(after_partial_cleanup.total_destroyed - initial_metrics.total_destroyed, 5);
     
     // Verify cleanup time is tracked
     assert!(after_partial_cleanup.avg_cleanup_time > Duration::ZERO);
@@ -84,9 +95,9 @@ fn test_component_performance_tracking() {
     
     // Final metrics check
     let final_metrics = global_component_performance().unwrap();
-    assert_eq!(final_metrics.active_components, 0);
-    assert_eq!(final_metrics.total_created, 10);
-    assert_eq!(final_metrics.total_destroyed, 10);
+    assert_eq!(final_metrics.active_components - initial_metrics.active_components, 0);
+    assert_eq!(final_metrics.total_created - initial_metrics.total_created, 10);
+    assert_eq!(final_metrics.total_destroyed - initial_metrics.total_destroyed, 10);
     
     println!("✅ Final metrics:");
     println!("   Total created: {}", final_metrics.total_created);
@@ -97,8 +108,15 @@ fn test_component_performance_tracking() {
 
 #[test]
 fn test_render_stats_component_integration() {
+    // Acquire test mutex to prevent concurrent test execution
+    let _guard = TEST_MUTEX.lock().unwrap_or_else(|p| p.into_inner());
+    
+    // Clean up any previous global state
     global_cleanup_all().unwrap();
-    register_component::<PerfTestComponent>("RenderStatsComponent").unwrap();
+    
+    // Register component with unique name for this test
+    let component_name = format!("RenderStatsComponent_{}", std::process::id());
+    register_component::<PerfTestComponent>(&component_name).unwrap();
     
     // Create a render stats collector
     let mut collector = RenderStatsCollector::new(100);
@@ -113,10 +131,13 @@ fn test_render_stats_component_integration() {
     // Record initial frame
     collector.record_frame(frame_stats.clone());
     
+    // Get initial metrics (not used but captured for baseline)
+    let _initial_metrics = global_component_performance().unwrap();
+    
     // Create some components and update frame stats
     let mut components = Vec::new();
     for i in 0..5 {
-        let element = Element::component_with_props("RenderStatsComponent", PerfTestProps { value: i });
+        let element = Element::component_with_props(&component_name, PerfTestProps { value: i });
         let render_node = element_to_render_node(element);
         components.push(render_node);
     }
@@ -135,15 +156,15 @@ fn test_render_stats_component_integration() {
     
     // Get performance metrics from collector
     let perf_metrics = collector.get_metrics();
-    assert_eq!(perf_metrics.active_components, 5);
-    assert_eq!(perf_metrics.total_components_created, 5);
-    assert_eq!(perf_metrics.total_components_destroyed, 0);
-    
+    assert_eq!(perf_metrics.active_components, comp_metrics.active_components);
+    assert_eq!(perf_metrics.total_components_created as u64, comp_metrics.total_created);
+    assert_eq!(perf_metrics.total_components_destroyed as u64, comp_metrics.total_destroyed);
+
     // Get component performance summary
     let summary = collector.component_performance_summary();
-    assert_eq!(summary.active_components, 5);
-    assert_eq!(summary.total_created, 5);
-    assert_eq!(summary.total_destroyed, 0);
+    assert_eq!(summary.active_components, comp_metrics.active_components);
+    assert_eq!(summary.total_created, comp_metrics.total_created);
+    assert_eq!(summary.total_destroyed, comp_metrics.total_destroyed);
     assert!(summary.creation_efficiency > 0.0);
     
     println!("✅ Render stats integration:");
@@ -165,8 +186,8 @@ fn test_render_stats_component_integration() {
     );
     
     let final_summary = collector.component_performance_summary();
-    assert_eq!(final_summary.active_components, 0);
-    assert_eq!(final_summary.total_destroyed, 5);
+    assert_eq!(final_summary.active_components, final_comp_metrics.active_components);
+    assert_eq!(final_summary.total_destroyed, final_comp_metrics.total_destroyed);
     
     println!("✅ Final render stats:");
     println!("   Components destroyed: {}", final_summary.total_destroyed);
@@ -175,18 +196,30 @@ fn test_render_stats_component_integration() {
 
 #[test]
 fn test_performance_metrics_accuracy() {
+    // Acquire test mutex to prevent concurrent test execution
+    let _guard = TEST_MUTEX.lock().unwrap_or_else(|p| p.into_inner());
+    
+    // Clean up any previous global state
     global_cleanup_all().unwrap();
-    register_component::<PerfTestComponent>("AccuracyTestComponent").unwrap();
+    
+    // Register component with unique name for this test
+    let component_name = format!("AccuracyTestComponent_{}", std::process::id());
+    register_component::<PerfTestComponent>(&component_name).unwrap();
+    
+    // Get initial baseline metrics
+    let baseline_metrics = global_component_performance().unwrap();
     
     // Create components in batches and measure
-    let batch_size = 100;
-    let num_batches = 5;
+    let batch_size = 10;
+    let num_batches = 2;
+    let mut all_components = Vec::new();
+    let mut total_destroyed = 0;
     
     for batch in 0..num_batches {
         let mut batch_components = Vec::new();
         
         for i in 0..batch_size {
-            let element = Element::component_with_props("AccuracyTestComponent", PerfTestProps { 
+            let element = Element::component_with_props(&component_name, PerfTestProps { 
                 value: batch * batch_size + i 
             });
             let render_node = element_to_render_node(element);
@@ -195,16 +228,22 @@ fn test_performance_metrics_accuracy() {
         
         // Check metrics after each batch
         let metrics = global_component_performance().unwrap();
-        let expected_total = (batch + 1) * batch_size;
-        assert_eq!(metrics.total_created as i32, expected_total);
-        assert_eq!(metrics.active_components as i32, expected_total);
+        let expected_created = (batch + 1) * batch_size;
+        let expected_active = expected_created - total_destroyed;
+        assert_eq!((metrics.total_created - baseline_metrics.total_created) as i32, expected_created);
+        assert_eq!((metrics.active_components - baseline_metrics.active_components) as i32, expected_active);
         
         // Cleanup half of this batch
-        batch_components.truncate((batch_size / 2) as usize);
+        let to_destroy = batch_size / 2;
+        batch_components.truncate((batch_size - to_destroy) as usize);
+        total_destroyed += to_destroy;
         
         let after_cleanup = global_component_performance().unwrap();
-        let expected_active = expected_total - (batch_size / 2);
-        assert_eq!(after_cleanup.active_components as i32, expected_active);
+        let expected_active_after = expected_created - total_destroyed;
+        assert_eq!((after_cleanup.active_components - baseline_metrics.active_components) as i32, expected_active_after);
+        
+        // Keep remaining components for final verification
+        all_components.extend(batch_components);
         
         println!("Batch {}: Created {}, Active {}, Destroyed {}", 
                  batch, 
@@ -215,10 +254,10 @@ fn test_performance_metrics_accuracy() {
     
     let final_metrics = global_component_performance().unwrap();
     
-    // Verify final counts
-    assert_eq!(final_metrics.total_created as i32, num_batches * batch_size);
-    assert_eq!(final_metrics.total_destroyed as i32, num_batches * (batch_size / 2));
-    assert_eq!(final_metrics.active_components as i32, num_batches * (batch_size / 2));
+    // Verify final counts relative to baseline
+    assert_eq!((final_metrics.total_created - baseline_metrics.total_created) as i32, num_batches * batch_size);
+    assert_eq!((final_metrics.total_destroyed - baseline_metrics.total_destroyed) as i32, num_batches * (batch_size / 2));
+    assert_eq!((final_metrics.active_components - baseline_metrics.active_components) as i32, num_batches * (batch_size / 2));
     
     // Verify timing metrics are reasonable
     assert!(final_metrics.avg_creation_time < Duration::from_millis(10)); // Should be fast

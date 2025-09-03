@@ -12,6 +12,7 @@ use std::sync::Arc;
 pub struct TrackedComponentInstance {
     instance: Option<AnyComponentInstance>,
     node_key: NodeKey,
+    #[allow(dead_code)] // Used for future cleanup coordination
     registry: Arc<super::registry::ComponentRegistry>,
 }
 

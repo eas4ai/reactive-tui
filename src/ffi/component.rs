@@ -161,6 +161,10 @@ pub extern "C" fn rtui_element_set_key(
     }
 
     catch_panic(AssertUnwindSafe(|| unsafe {
+        // Validate pointer alignment and basic sanity
+        if (element as usize) % std::mem::align_of::<Element>() != 0 {
+            return Err(ReactiveError::InvalidPointer);
+        }
         let element_ref = &mut *(element as *mut Element);
         let key_str = CStr::from_ptr(key)
             .to_str()
@@ -182,6 +186,10 @@ pub extern "C" fn rtui_element_set_class(
     }
 
     catch_panic(AssertUnwindSafe(|| unsafe {
+        // Validate pointer alignment and basic sanity
+        if (element as usize) % std::mem::align_of::<Element>() != 0 {
+            return Err(ReactiveError::InvalidPointer);
+        }
         let element_ref = &mut *(element as *mut Element);
         let class_str = CStr::from_ptr(class)
             .to_str()
@@ -203,6 +211,13 @@ pub extern "C" fn rtui_element_add_child(
     }
 
     catch_panic(AssertUnwindSafe(|| unsafe {
+        // Validate pointer alignment and basic sanity
+        if (parent as usize) % std::mem::align_of::<Element>() != 0 {
+            return Err(ReactiveError::InvalidPointer);
+        }
+        if (child as usize) % std::mem::align_of::<Element>() != 0 {
+            return Err(ReactiveError::InvalidPointer);
+        }
         let parent_ref = &mut *(parent as *mut Element);
         let child_element = Box::from_raw(child as *mut Element);
 
@@ -222,6 +237,10 @@ pub extern "C" fn rtui_element_get_type(
     }
 
     catch_panic(AssertUnwindSafe(|| unsafe {
+        // Validate pointer alignment and basic sanity
+        if (element as usize) % std::mem::align_of::<Element>() != 0 {
+            return Err(ReactiveError::InvalidPointer);
+        }
         let element_ref = &*(element as *const Element);
 
         *out_type = match &element_ref.element_type {
@@ -246,6 +265,10 @@ pub extern "C" fn rtui_element_get_key(
     }
 
     catch_panic(AssertUnwindSafe(|| unsafe {
+        // Validate pointer alignment and basic sanity
+        if (element as usize) % std::mem::align_of::<Element>() != 0 {
+            return Err(ReactiveError::InvalidPointer);
+        }
         let element_ref = &*(element as *const Element);
 
         if let Some(ref key) = element_ref.key {
@@ -269,6 +292,10 @@ pub extern "C" fn rtui_element_get_class(
     }
 
     catch_panic(AssertUnwindSafe(|| unsafe {
+        // Validate pointer alignment and basic sanity
+        if (element as usize) % std::mem::align_of::<Element>() != 0 {
+            return Err(ReactiveError::InvalidPointer);
+        }
         let element_ref = &*(element as *const Element);
 
         if let Some(ref class) = element_ref.class {
@@ -292,6 +319,10 @@ pub extern "C" fn rtui_element_get_child_count(
     }
 
     catch_panic(AssertUnwindSafe(|| unsafe {
+        // Validate pointer alignment and basic sanity
+        if (element as usize) % std::mem::align_of::<Element>() != 0 {
+            return Err(ReactiveError::InvalidPointer);
+        }
         let element_ref = &*(element as *const Element);
         *out_count = element_ref.children.len();
         Ok(())
@@ -310,6 +341,10 @@ pub extern "C" fn rtui_element_get_child(
     }
 
     catch_panic(AssertUnwindSafe(|| unsafe {
+        // Validate pointer alignment and basic sanity
+        if (element as usize) % std::mem::align_of::<Element>() != 0 {
+            return Err(ReactiveError::InvalidPointer);
+        }
         let element_ref = &*(element as *const Element);
 
         if index >= element_ref.children.len() {
@@ -334,6 +369,10 @@ pub extern "C" fn rtui_element_get_component_name(
     }
 
     catch_panic(AssertUnwindSafe(|| unsafe {
+        // Validate pointer alignment and basic sanity
+        if (element as usize) % std::mem::align_of::<Element>() != 0 {
+            return Err(ReactiveError::InvalidPointer);
+        }
         let element_ref = &*(element as *const Element);
 
         if let ElementType::Component(name) = &element_ref.element_type {
@@ -357,6 +396,10 @@ pub extern "C" fn rtui_element_get_text_content(
     }
 
     catch_panic(AssertUnwindSafe(|| unsafe {
+        // Validate pointer alignment and basic sanity
+        if (element as usize) % std::mem::align_of::<Element>() != 0 {
+            return Err(ReactiveError::InvalidPointer);
+        }
         let element_ref = &*(element as *const Element);
 
         if let ElementType::Text(text) = &element_ref.element_type {

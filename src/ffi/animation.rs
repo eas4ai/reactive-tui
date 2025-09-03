@@ -114,6 +114,10 @@ pub extern "C" fn rtui_animation_manager_update(
     }
 
     catch_panic(AssertUnwindSafe(|| unsafe {
+        // Validate pointer alignment and basic sanity
+        if (manager as usize) % std::mem::align_of::<AnimationManager>() != 0 {
+            return Err(ReactiveError::InvalidPointer);
+        }
         let manager_ref = &mut *(manager as *mut AnimationManager);
         manager_ref.update();
         Ok(())
@@ -200,6 +204,10 @@ pub extern "C" fn rtui_animation_set_property(
     }
 
     catch_panic(AssertUnwindSafe(|| unsafe {
+        // Validate pointer alignment and basic sanity
+        if (animation as usize) % std::mem::align_of::<Animation>() != 0 {
+            return Err(ReactiveError::InvalidPointer);
+        }
         let animation_ref = &mut *(animation as *mut Animation);
 
         let animated_property = match property {
@@ -242,6 +250,13 @@ pub extern "C" fn rtui_animation_manager_add(
     }
 
     catch_panic(AssertUnwindSafe(|| unsafe {
+        // Validate pointer alignment and basic sanity
+        if (manager as usize) % std::mem::align_of::<AnimationManager>() != 0 {
+            return Err(ReactiveError::InvalidPointer);
+        }
+        if (animation as usize) % std::mem::align_of::<Animation>() != 0 {
+            return Err(ReactiveError::InvalidPointer);
+        }
         let manager_ref = &mut *(manager as *mut AnimationManager);
         let animation_obj = Box::from_raw(animation as *mut Animation);
 
@@ -263,6 +278,10 @@ pub extern "C" fn rtui_animation_manager_remove(
     }
 
     catch_panic(AssertUnwindSafe(|| unsafe {
+        // Validate pointer alignment and basic sanity
+        if (manager as usize) % std::mem::align_of::<AnimationManager>() != 0 {
+            return Err(ReactiveError::InvalidPointer);
+        }
         let manager_ref = &mut *(manager as *mut AnimationManager);
         let id_str = CStr::from_ptr(animation_id)
             .to_str()
@@ -281,6 +300,10 @@ pub extern "C" fn rtui_animation_play(animation: *mut RTuiAnimation) -> Reactive
     }
 
     catch_panic(AssertUnwindSafe(|| unsafe {
+        // Validate pointer alignment and basic sanity
+        if (animation as usize) % std::mem::align_of::<Animation>() != 0 {
+            return Err(ReactiveError::InvalidPointer);
+        }
         let animation_ref = &mut *(animation as *mut Animation);
         animation_ref.play();
         Ok(())
@@ -295,6 +318,10 @@ pub extern "C" fn rtui_animation_pause(animation: *mut RTuiAnimation) -> Reactiv
     }
 
     catch_panic(AssertUnwindSafe(|| unsafe {
+        // Validate pointer alignment and basic sanity
+        if (animation as usize) % std::mem::align_of::<Animation>() != 0 {
+            return Err(ReactiveError::InvalidPointer);
+        }
         let animation_ref = &mut *(animation as *mut Animation);
         animation_ref.pause();
         Ok(())
@@ -309,6 +336,10 @@ pub extern "C" fn rtui_animation_stop(animation: *mut RTuiAnimation) -> Reactive
     }
 
     catch_panic(AssertUnwindSafe(|| unsafe {
+        // Validate pointer alignment and basic sanity
+        if (animation as usize) % std::mem::align_of::<Animation>() != 0 {
+            return Err(ReactiveError::InvalidPointer);
+        }
         let animation_ref = &mut *(animation as *mut Animation);
         animation_ref.stop();
         Ok(())
@@ -326,6 +357,10 @@ pub extern "C" fn rtui_animation_is_playing(
     }
 
     catch_panic(AssertUnwindSafe(|| unsafe {
+        // Validate pointer alignment and basic sanity
+        if (animation as usize) % std::mem::align_of::<Animation>() != 0 {
+            return Err(ReactiveError::InvalidPointer);
+        }
         let animation_ref = &*(animation as *const Animation);
         *out_playing = animation_ref.is_playing();
         Ok(())
@@ -343,6 +378,10 @@ pub extern "C" fn rtui_animation_get_progress(
     }
 
     catch_panic(AssertUnwindSafe(|| unsafe {
+        // Validate pointer alignment and basic sanity
+        if (animation as usize) % std::mem::align_of::<Animation>() != 0 {
+            return Err(ReactiveError::InvalidPointer);
+        }
         let animation_ref = &*(animation as *const Animation);
         if let Ok(state) = animation_ref.state.read() {
             *out_progress = state.progress;

@@ -228,19 +228,19 @@ mod tests {
         let sb = StyleBuilder::new();
 
         // Test spacing scale
-        let result = apply_width("w-4", sb.clone()).unwrap();
+        let result = apply_width("w-4", sb.clone()).expect("CSS sizing test should succeed");
         let _style = result.build();
 
         // Test percentage
-        let result = apply_width("w-full", sb.clone()).unwrap();
+        let result = apply_width("w-full", sb.clone()).expect("CSS sizing test should succeed");
         let _style = result.build();
 
         // Test fraction
-        let result = apply_width("w-1/2", sb.clone()).unwrap();
+        let result = apply_width("w-1/2", sb.clone()).expect("CSS sizing test should succeed");
         let _style = result.build();
 
         // Test special values
-        let result = apply_width("w-auto", sb.clone()).unwrap();
+        let result = apply_width("w-auto", sb.clone()).expect("CSS sizing test should succeed");
         let _style = result.build();
 
         // Test invalid
@@ -252,15 +252,15 @@ mod tests {
         let sb = StyleBuilder::new();
 
         // Test spacing scale
-        let result = apply_height("h-8", sb.clone()).unwrap();
+        let result = apply_height("h-8", sb.clone()).expect("CSS sizing test should succeed");
         let _style = result.build();
 
         // Test percentage
-        let result = apply_height("h-full", sb.clone()).unwrap();
+        let result = apply_height("h-full", sb.clone()).expect("CSS sizing test should succeed");
         let _style = result.build();
 
         // Test special values
-        let result = apply_height("h-screen", sb.clone()).unwrap();
+        let result = apply_height("h-screen", sb.clone()).expect("CSS sizing test should succeed");
         let _style = result.build();
 
         // Test invalid
@@ -272,19 +272,19 @@ mod tests {
         let sb = StyleBuilder::new();
 
         // Test min-width
-        let result = apply_min_width("min-w-0", sb.clone()).unwrap();
+        let result = apply_min_width("min-w-0", sb.clone()).expect("CSS sizing test should succeed");
         let _style = result.build();
 
         // Test max-width
-        let result = apply_max_width("max-w-full", sb.clone()).unwrap();
+        let result = apply_max_width("max-w-full", sb.clone()).expect("CSS sizing test should succeed");
         let _style = result.build();
 
         // Test min-height
-        let result = apply_min_height("min-h-screen", sb.clone()).unwrap();
+        let result = apply_min_height("min-h-screen", sb.clone()).expect("CSS sizing test should succeed");
         let _style = result.build();
 
         // Test max-height
-        let result = apply_max_height("max-h-none", sb.clone()).unwrap();
+        let result = apply_max_height("max-h-none", sb.clone()).expect("CSS sizing test should succeed");
         let _style = result.build();
     }
 

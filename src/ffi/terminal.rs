@@ -44,6 +44,10 @@ pub extern "C" fn rtui_terminal_get_dimensions(
     }
 
     catch_panic(AssertUnwindSafe(|| unsafe {
+        // Validate pointer alignment and basic sanity
+        if (terminal as usize) % std::mem::align_of::<Terminal>() != 0 {
+            return Err(ReactiveError::InvalidPointer);
+        }
         let term = &*(terminal as *const Terminal);
         match term.size() {
             Ok((width, height)) => {
@@ -63,6 +67,10 @@ pub extern "C" fn rtui_terminal_enter_raw_mode(terminal: *mut ReactiveTerminal) 
     }
 
     catch_panic(AssertUnwindSafe(|| unsafe {
+        // Validate pointer alignment and basic sanity
+        if (terminal as usize) % std::mem::align_of::<Terminal>() != 0 {
+            return Err(ReactiveError::InvalidPointer);
+        }
         let term = &mut *(terminal as *mut Terminal);
         match term.enter_modern_mode() {
             Ok(()) => Ok(()),
@@ -79,6 +87,10 @@ pub extern "C" fn rtui_terminal_exit_raw_mode(terminal: *mut ReactiveTerminal) -
     }
 
     catch_panic(AssertUnwindSafe(|| unsafe {
+        // Validate pointer alignment and basic sanity
+        if (terminal as usize) % std::mem::align_of::<Terminal>() != 0 {
+            return Err(ReactiveError::InvalidPointer);
+        }
         let term = &mut *(terminal as *mut Terminal);
         match term.exit_modern_mode() {
             Ok(()) => Ok(()),
@@ -99,6 +111,10 @@ pub extern "C" fn rtui_terminal_sync(
     }
 
     catch_panic(AssertUnwindSafe(|| unsafe {
+        // Validate pointer alignment and basic sanity
+        if (terminal as usize) % std::mem::align_of::<Terminal>() != 0 {
+            return Err(ReactiveError::InvalidPointer);
+        }
         let term = &mut *(terminal as *mut Terminal);
         if begin {
             match term.begin_sync() {

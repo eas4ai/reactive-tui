@@ -396,6 +396,16 @@ impl MouseTracker {
 
 impl Drop for MouseTracker {
     fn drop(&mut self) {
-        let _ = self.shutdown();
+        // Attempt graceful shutdown with error logging
+        if let Err(e) = self.shutdown() {
+            // Log error but don't panic during drop
+            eprintln!("Warning: MouseTracker shutdown failed: {}", e);
+            
+            // Attempt emergency cleanup of critical terminal state
+            let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                use crossterm::{execute, event::DisableMouseCapture};
+                let _ = execute!(std::io::stdout(), DisableMouseCapture);
+            }));
+        }
     }
 }

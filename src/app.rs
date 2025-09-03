@@ -292,7 +292,7 @@ impl App {
         // Apply patches if there are changes
         if !diff_result.patches.is_empty() {
             // Apply patches (automatic component cleanup will be handled)
-            crate::render::reconcile::apply_patches(
+            let _ = crate::render::reconcile::apply_patches(
                 &diff_result.patches,
                 &mut self.tree,
             );

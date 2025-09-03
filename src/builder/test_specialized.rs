@@ -1,11 +1,11 @@
-//! Tests for placeholder builders to ensure they work correctly
+//! Tests for specialized widget builders
 //!
-//! These tests verify that all the placeholder builders can be created,
-//! configured, and built into elements successfully.
+//! These tests verify that all the specialized widget builders (Tree, Image, etc.)
+//! can be created, configured, and built into elements successfully.
 
 #[cfg(test)]
 mod tests {
-    use super::super::placeholders::*;
+    use super::super::specialized::*;
     use crate::widgets::{ImageDisplayMode, ImageFormat, ImageQuality};
     use crate::widgets::layout::stack::{StackDirection, StackAlignment};
     use crate::component::{Element, ElementType};

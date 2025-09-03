@@ -522,12 +522,12 @@ mod tests {
         let mut output = String::new();
 
         let change = Change::WriteText("Hello".to_string());
-        change.apply(&mut output).unwrap();
+        change.apply(&mut output).expect("Should be able to apply WriteText change");
         assert_eq!(output, "Hello");
 
         output.clear();
         let change = Change::MoveTo { x: 5, y: 10 };
-        change.apply(&mut output).unwrap();
+        change.apply(&mut output).expect("Should be able to apply MoveTo change");
         assert_eq!(output, "\x1b[11;6H");
     }
 }

@@ -68,9 +68,11 @@ impl SpanDiffWriter {
     fn move_to(&mut self, x: usize, y: usize) {
         if self.cursor_x != x || self.cursor_y != y {
             // Use 1-based indexing for terminals
-            write!(&mut self.output, "\x1b[{};{}H", y + 1, x + 1).unwrap();
-            self.cursor_x = x;
-            self.cursor_y = y;
+            if write!(&mut self.output, "\x1b[{};{}H", y + 1, x + 1).is_ok() {
+                self.cursor_x = x;
+                self.cursor_y = y;
+            }
+            // If write fails, cursor position becomes unknown but we continue
         }
     }
 
@@ -80,8 +82,10 @@ impl SpanDiffWriter {
             let r = (color.r * 255.0) as u8;
             let g = (color.g * 255.0) as u8;
             let b = (color.b * 255.0) as u8;
-            write!(&mut self.output, "\x1b[38;2;{};{};{}m", r, g, b).unwrap();
-            self.current_fg = Some(color);
+            if write!(&mut self.output, "\x1b[38;2;{};{};{}m", r, g, b).is_ok() {
+                self.current_fg = Some(color);
+            }
+            // If write fails, color state becomes inconsistent but we continue
         }
     }
 
@@ -91,8 +95,10 @@ impl SpanDiffWriter {
             let r = (color.r * 255.0) as u8;
             let g = (color.g * 255.0) as u8;
             let b = (color.b * 255.0) as u8;
-            write!(&mut self.output, "\x1b[48;2;{};{};{}m", r, g, b).unwrap();
-            self.current_bg = Some(color);
+            if write!(&mut self.output, "\x1b[48;2;{};{};{}m", r, g, b).is_ok() {
+                self.current_bg = Some(color);
+            }
+            // If write fails, color state becomes inconsistent but we continue
         }
     }
 

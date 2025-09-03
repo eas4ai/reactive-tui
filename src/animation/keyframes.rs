@@ -682,7 +682,7 @@ mod tests {
         let to = KeyframeValue::Number(100.0);
 
         let result = from.interpolate(&to, 0.5)
-            .expect("Should be able to interpolate between numbers");
+            .expect("Keyframe interpolation between numbers should succeed");
         assert_eq!(result, KeyframeValue::Number(50.0));
     }
 
@@ -706,7 +706,7 @@ mod tests {
                 KeyframeValue::Number(n) => Some(*n),
                 _ => None,
             })
-            .expect("Expected opacity value to be a number");
+            .expect("Sampled keyframe opacity should be a numeric value");
         assert!((opacity - 0.25).abs() < 0.01);
     }
 

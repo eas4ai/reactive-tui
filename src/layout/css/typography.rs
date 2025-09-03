@@ -182,13 +182,13 @@ mod tests {
     fn test_font_weight_utilities() {
         let sb = StyleBuilder::new();
 
-        let result = apply_font_weight("font-normal", sb.clone()).unwrap();
+        let result = apply_font_weight("font-normal", sb.clone()).expect("Should apply normal font weight");
         let _style = result.build();
 
-        let result = apply_font_weight("font-bold", sb.clone()).unwrap();
+        let result = apply_font_weight("font-bold", sb.clone()).expect("Should apply bold font weight");
         let _style = result.build();
 
-        let result = apply_font_weight("font-light", sb.clone()).unwrap();
+        let result = apply_font_weight("font-light", sb.clone()).expect("Should apply light font weight");
         let _style = result.build();
 
         assert!(apply_font_weight("font-invalid", sb).is_none());
@@ -198,16 +198,16 @@ mod tests {
     fn test_text_style_utilities() {
         let sb = StyleBuilder::new();
 
-        let result = apply_text_style("italic", sb.clone()).unwrap();
+        let result = apply_text_style("italic", sb.clone()).expect("Should apply italic text style");
         let _style = result.build();
 
-        let result = apply_text_style("underline", sb.clone()).unwrap();
+        let result = apply_text_style("underline", sb.clone()).expect("Should apply underline text style");
         let _style = result.build();
 
-        let result = apply_text_style("line-through", sb.clone()).unwrap();
+        let result = apply_text_style("line-through", sb.clone()).expect("Should apply line-through text style");
         let _style = result.build();
 
-        let result = apply_text_style("text-center", sb.clone()).unwrap();
+        let result = apply_text_style("text-center", sb.clone()).expect("Should apply text-center alignment");
         let _style = result.build();
 
         assert!(apply_text_style("invalid", sb).is_none());
@@ -217,13 +217,13 @@ mod tests {
     fn test_font_size_utilities() {
         let sb = StyleBuilder::new();
 
-        let result = apply_font_size("text-base", sb.clone()).unwrap();
+        let result = apply_font_size("text-base", sb.clone()).expect("Should apply base font size");
         let _style = result.build();
 
-        let result = apply_font_size("text-xl", sb.clone()).unwrap();
+        let result = apply_font_size("text-xl", sb.clone()).expect("Should apply xl font size");
         let _style = result.build();
 
-        let result = apply_font_size("text-xs", sb.clone()).unwrap();
+        let result = apply_font_size("text-xs", sb.clone()).expect("Should apply xs font size");
         let _style = result.build();
 
         assert!(apply_font_size("text-invalid", sb).is_none());
@@ -233,13 +233,13 @@ mod tests {
     fn test_line_height_utilities() {
         let sb = StyleBuilder::new();
 
-        let result = apply_line_height("leading-normal", sb.clone()).unwrap();
+        let result = apply_line_height("leading-normal", sb.clone()).expect("Should apply normal line height");
         let _style = result.build();
 
-        let result = apply_line_height("leading-tight", sb.clone()).unwrap();
+        let result = apply_line_height("leading-tight", sb.clone()).expect("Should apply tight line height");
         let _style = result.build();
 
-        let result = apply_line_height("leading-4", sb.clone()).unwrap();
+        let result = apply_line_height("leading-4", sb.clone()).expect("Should apply line height 4");
         let _style = result.build();
 
         assert!(apply_line_height("leading-invalid", sb).is_none());

@@ -4,7 +4,7 @@
 //! toasts, confirmation dialogs, and other overlay components.
 
 use crate::component::{Element, LayoutType};
-use super::super::placeholders::{DialogBuilder, ConfirmationDialogBuilder, ProgressDialogBuilder, WizardBuilder};
+use super::super::specialized::{DialogBuilder, ConfirmationDialogBuilder, ProgressDialogBuilder, WizardBuilder};
 
 /// Create a Modal dialog builder
 ///
@@ -78,8 +78,9 @@ pub fn wizard() -> WizardBuilder {
 /// content, sizing, and behavior options.
 ///
 /// # Example
-/// ```rust
+/// ```rust,ignore
 /// use reactive_tui::builder::modal;
+/// use reactive_tui::component::Element;
 ///
 /// let modal = modal()
 ///     .title("Settings")

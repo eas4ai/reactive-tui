@@ -696,6 +696,6 @@ mod tests {
         ];
 
         // Should not panic when applying patches
-        apply_patches(&patches, &mut tree);
+        let _result = apply_patches(&patches, &mut tree);
     }
 }

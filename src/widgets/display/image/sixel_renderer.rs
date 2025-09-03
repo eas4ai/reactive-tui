@@ -201,8 +201,18 @@ impl SixelRenderer {
 
     /// Ensure image data is in RGB888 format
     fn ensure_rgb888(&self, data: &[u8], width: u32, height: u32) -> Result<Vec<u8>> {
-        // Validate data size
-        let expected_size = (width * height * 3) as usize;
+        // Validate data size with overflow protection
+        let expected_size = width
+            .checked_mul(height)
+            .and_then(|pixels| pixels.checked_mul(3))
+            .and_then(|bytes| usize::try_from(bytes).ok())
+            .ok_or_else(|| {
+                ReactiveError::ImageProcessing(format!(
+                    "Image dimensions too large: {}x{} would overflow",
+                    width, height
+                ))
+            })?;
+
         if data.len() != expected_size {
             return Err(ReactiveError::ImageProcessing(format!(
                 "Invalid data size: expected {}, got {}",

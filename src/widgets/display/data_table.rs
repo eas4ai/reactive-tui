@@ -355,11 +355,14 @@ impl DataTable {
                 cell.content >= *start && cell.content <= *end
             }
             FilterType::Boolean(expected) => {
-                match cell.content.to_lowercase().as_str() {
-                    "true" | "yes" | "1" => *expected,
-                    "false" | "no" | "0" => !*expected,
-                    _ => false,
-                }
+                // Parse the cell content to a boolean value
+                let cell_value = match cell.content.to_lowercase().as_str() {
+                    "true" | "yes" | "1" => true,
+                    "false" | "no" | "0" => false,
+                    _ => return false, // Invalid boolean format, exclude from results
+                };
+                // Return whether the parsed value matches the expected value
+                cell_value == *expected
             }
 
         }

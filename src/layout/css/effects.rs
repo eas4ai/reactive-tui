@@ -325,12 +325,12 @@ mod tests {
     fn test_apply_opacity() {
         let sb = StyleBuilder::new();
 
-        let result = apply_opacity("opacity-50", sb).unwrap();
+        let result = apply_opacity("opacity-50", sb).expect("CSS effects test should succeed");
         // Can't easily test the exact opacity value, but verify it doesn't panic
         let _style = result.build();
 
         let sb = StyleBuilder::new();
-        let result = apply_opacity("opacity-0", sb).unwrap();
+        let result = apply_opacity("opacity-0", sb).expect("CSS effects test should succeed");
         let _style = result.build();
 
         let sb = StyleBuilder::new();
@@ -342,11 +342,11 @@ mod tests {
     fn test_apply_z_index() {
         let sb = StyleBuilder::new();
 
-        let result = apply_z_index("z-10", sb).unwrap();
+        let result = apply_z_index("z-10", sb).expect("CSS effects test should succeed");
         assert_eq!(result.get_z_index(), Some(10));
 
         let sb = StyleBuilder::new();
-        let result = apply_z_index("z-50", sb).unwrap();
+        let result = apply_z_index("z-50", sb).expect("CSS effects test should succeed");
         assert_eq!(result.get_z_index(), Some(50));
 
         let sb = StyleBuilder::new();
@@ -358,12 +358,12 @@ mod tests {
     fn test_apply_border() {
         let sb = StyleBuilder::new();
 
-        let result = apply_border("border", sb).unwrap();
+        let result = apply_border("border", sb).expect("CSS effects test should succeed");
         // Should add background color for border effect
         let _style = result.build();
 
         let sb = StyleBuilder::new();
-        let result = apply_border("border-2", sb).unwrap();
+        let result = apply_border("border-2", sb).expect("CSS effects test should succeed");
         let _style = result.build();
 
         let sb = StyleBuilder::new();
@@ -375,11 +375,11 @@ mod tests {
     fn test_apply_rounded() {
         let sb = StyleBuilder::new();
 
-        let result = apply_rounded("rounded", sb).unwrap();
+        let result = apply_rounded("rounded", sb).expect("CSS effects test should succeed");
         let _style = result.build();
 
         let sb = StyleBuilder::new();
-        let result = apply_rounded("rounded-full", sb).unwrap();
+        let result = apply_rounded("rounded-full", sb).expect("CSS effects test should succeed");
         let _style = result.build();
 
         let sb = StyleBuilder::new();
@@ -391,11 +391,11 @@ mod tests {
     fn test_apply_shadow() {
         let sb = StyleBuilder::new();
 
-        let result = apply_shadow("shadow", sb).unwrap();
+        let result = apply_shadow("shadow", sb).expect("CSS effects test should succeed");
         let _style = result.build();
 
         let sb = StyleBuilder::new();
-        let result = apply_shadow("shadow-lg", sb).unwrap();
+        let result = apply_shadow("shadow-lg", sb).expect("CSS effects test should succeed");
         let _style = result.build();
 
         let sb = StyleBuilder::new();
@@ -407,11 +407,11 @@ mod tests {
     fn test_apply_backdrop() {
         let sb = StyleBuilder::new();
 
-        let result = apply_backdrop("backdrop-blur", sb).unwrap();
+        let result = apply_backdrop("backdrop-blur", sb).expect("CSS effects test should succeed");
         let _style = result.build();
 
         let sb = StyleBuilder::new();
-        let result = apply_backdrop("backdrop-brightness-50", sb).unwrap();
+        let result = apply_backdrop("backdrop-brightness-50", sb).expect("CSS effects test should succeed");
         let _style = result.build();
 
         let sb = StyleBuilder::new();

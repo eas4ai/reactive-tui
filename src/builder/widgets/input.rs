@@ -4,7 +4,7 @@
 //! checkboxes, radio buttons, select dropdowns, and sliders.
 
 use crate::component::Element;
-use super::super::placeholders::{RadioButtonBuilder, SliderBuilder};
+use super::super::specialized::{RadioButtonBuilder, SliderBuilder};
 
 /// Create a Text Input builder
 ///

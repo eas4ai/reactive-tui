@@ -139,13 +139,21 @@ impl Component for ScrollView {
         }
 
         if props.show_scrollbars {
-            if props.scroll_y && content_height > visible_height {
+            if props.scroll_y && content_height > visible_height && content_height > 0 {
                 let scrollbar_height = visible_height;
-                let thumb_size = ((visible_height as f64 / content_height as f64)
-                    * scrollbar_height as f64)
-                    .ceil() as usize;
-                let thumb_pos = ((state.scroll_y as f64 / content_height as f64)
-                    * scrollbar_height as f64) as usize;
+                let thumb_size = if content_height > 0 {
+                    ((visible_height as f64 / content_height as f64)
+                        * scrollbar_height as f64)
+                        .ceil() as usize
+                } else {
+                    scrollbar_height
+                };
+                let thumb_pos = if content_height > 0 {
+                    ((state.scroll_y as f64 / content_height as f64)
+                        * scrollbar_height as f64) as usize
+                } else {
+                    0
+                };
 
                 for (i, line) in visible_lines.iter_mut().enumerate() {
                     let scrollbar_char = if i >= thumb_pos && i < thumb_pos + thumb_size {
@@ -157,13 +165,21 @@ impl Component for ScrollView {
                 }
             }
 
-            if props.scroll_x && content_width > visible_width {
+            if props.scroll_x && content_width > visible_width && content_width > 0 {
                 let scrollbar_width = visible_width;
-                let thumb_size = ((visible_width as f64 / content_width as f64)
-                    * scrollbar_width as f64)
-                    .ceil() as usize;
-                let thumb_pos = ((state.scroll_x as f64 / content_width as f64)
-                    * scrollbar_width as f64) as usize;
+                let thumb_size = if content_width > 0 {
+                    ((visible_width as f64 / content_width as f64)
+                        * scrollbar_width as f64)
+                        .ceil() as usize
+                } else {
+                    scrollbar_width
+                };
+                let thumb_pos = if content_width > 0 {
+                    ((state.scroll_x as f64 / content_width as f64)
+                        * scrollbar_width as f64) as usize
+                } else {
+                    0
+                };
 
                 let mut scrollbar_line = String::new();
                 for i in 0..scrollbar_width {

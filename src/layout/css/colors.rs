@@ -273,18 +273,18 @@ mod tests {
         let sb = StyleBuilder::new();
 
         // Test basic color - should apply red-500 color
-        let result = apply_text_color("text-red-500", sb).unwrap();
+        let result = apply_text_color("text-red-500", sb).expect("CSS colors test should succeed");
         let _style = result.build();
         // Verify that foreground color was set (we can't easily test exact RGBA values due to internal representation)
         // But we can verify the function succeeded and returned a modified StyleBuilder
 
         // Test white/black
         let sb = StyleBuilder::new();
-        let result = apply_text_color("text-white", sb).unwrap();
+        let result = apply_text_color("text-white", sb).expect("CSS colors test should succeed");
         let _style = result.build();
 
         let sb = StyleBuilder::new();
-        let result = apply_text_color("text-black", sb).unwrap();
+        let result = apply_text_color("text-black", sb).expect("CSS colors test should succeed");
         let _style = result.build();
 
         // Test invalid
@@ -303,12 +303,12 @@ mod tests {
         let sb = StyleBuilder::new();
 
         // Test basic color
-        let result = apply_bg_color("bg-blue-600", sb).unwrap();
+        let result = apply_bg_color("bg-blue-600", sb).expect("CSS colors test should succeed");
         let _style = result.build();
 
         // Test gray scale
         let sb = StyleBuilder::new();
-        let result = apply_bg_color("bg-gray-100", sb).unwrap();
+        let result = apply_bg_color("bg-gray-100", sb).expect("CSS colors test should succeed");
         let _style = result.build();
 
         // Test invalid
@@ -323,7 +323,7 @@ mod tests {
 
         // Test transparent
         let sb = StyleBuilder::new();
-        let result = apply_bg_color("bg-transparent", sb).unwrap();
+        let result = apply_bg_color("bg-transparent", sb).expect("CSS colors test should succeed");
         let _style = result.build();
     }
 
@@ -331,7 +331,7 @@ mod tests {
     fn test_apply_border_color() {
         let sb = StyleBuilder::new();
 
-        let result = apply_border_color("border-gray-300", sb).unwrap();
+        let result = apply_border_color("border-gray-300", sb).expect("CSS colors test should succeed");
         let _style = result.build();
 
         let sb = StyleBuilder::new();
@@ -343,7 +343,7 @@ mod tests {
     fn test_apply_ring_color() {
         let sb = StyleBuilder::new();
 
-        let result = apply_ring_color("ring-blue-500", sb).unwrap();
+        let result = apply_ring_color("ring-blue-500", sb).expect("CSS colors test should succeed");
         let _style = result.build();
 
         let sb = StyleBuilder::new();
@@ -355,7 +355,7 @@ mod tests {
     fn test_apply_accent_color() {
         let sb = StyleBuilder::new();
 
-        let result = apply_accent_color("accent-purple-500", sb).unwrap();
+        let result = apply_accent_color("accent-purple-500", sb).expect("CSS colors test should succeed");
         let _style = result.build();
 
         let sb = StyleBuilder::new();
@@ -367,7 +367,7 @@ mod tests {
     fn test_apply_placeholder_color() {
         let sb = StyleBuilder::new();
 
-        let result = apply_placeholder_color("placeholder-gray-400", sb).unwrap();
+        let result = apply_placeholder_color("placeholder-gray-400", sb).expect("CSS colors test should succeed");
         let _style = result.build();
 
         let sb = StyleBuilder::new();

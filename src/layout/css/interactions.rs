@@ -55,10 +55,10 @@ mod tests {
     fn test_user_select() {
         let sb = StyleBuilder::new();
 
-        let result = apply_interaction_utilities("select-none", sb.clone()).unwrap();
+        let result = apply_interaction_utilities("select-none", sb.clone()).expect("CSS interactions test should succeed");
         let _style = result.build();
 
-        let result = apply_interaction_utilities("select-all", sb.clone()).unwrap();
+        let result = apply_interaction_utilities("select-all", sb.clone()).expect("CSS interactions test should succeed");
         let _style = result.build();
     }
 
@@ -66,10 +66,10 @@ mod tests {
     fn test_cursor() {
         let sb = StyleBuilder::new();
 
-        let result = apply_interaction_utilities("cursor-pointer", sb.clone()).unwrap();
+        let result = apply_interaction_utilities("cursor-pointer", sb.clone()).expect("CSS interactions test should succeed");
         let _style = result.build();
 
-        let result = apply_interaction_utilities("cursor-not-allowed", sb.clone()).unwrap();
+        let result = apply_interaction_utilities("cursor-not-allowed", sb.clone()).expect("CSS interactions test should succeed");
         let _style = result.build();
     }
 
@@ -77,10 +77,10 @@ mod tests {
     fn test_pointer_events() {
         let sb = StyleBuilder::new();
 
-        let result = apply_interaction_utilities("pointer-events-none", sb.clone()).unwrap();
+        let result = apply_interaction_utilities("pointer-events-none", sb.clone()).expect("CSS interactions test should succeed");
         let _style = result.build();
 
-        let result = apply_interaction_utilities("pointer-events-auto", sb.clone()).unwrap();
+        let result = apply_interaction_utilities("pointer-events-auto", sb.clone()).expect("CSS interactions test should succeed");
         let _style = result.build();
     }
 }

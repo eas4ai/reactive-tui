@@ -159,6 +159,10 @@ pub extern "C" fn rtui_dialog_show_confirmation(
     }
 
     catch_panic(AssertUnwindSafe(|| unsafe {
+        // Validate pointer alignment and basic sanity
+        if (engine as usize) % std::mem::align_of::<DialogEngine>() != 0 {
+            return Err(ReactiveError::InvalidPointer);
+        }
         let engine_ref = &mut *(engine as *mut DialogEngine);
 
         let title_str = CStr::from_ptr(title)
@@ -246,6 +250,10 @@ pub extern "C" fn rtui_dialog_show_input(
     }
 
     catch_panic(AssertUnwindSafe(|| unsafe {
+        // Validate pointer alignment and basic sanity
+        if (engine as usize) % std::mem::align_of::<DialogEngine>() != 0 {
+            return Err(ReactiveError::InvalidPointer);
+        }
         let engine_ref = &mut *(engine as *mut DialogEngine);
 
         let title_str = CStr::from_ptr(title)
@@ -333,6 +341,10 @@ pub extern "C" fn rtui_dialog_show_toast(
     }
 
     catch_panic(AssertUnwindSafe(|| unsafe {
+        // Validate pointer alignment and basic sanity
+        if (engine as usize) % std::mem::align_of::<DialogEngine>() != 0 {
+            return Err(ReactiveError::InvalidPointer);
+        }
         let engine_ref = &mut *(engine as *mut DialogEngine);
 
         let message_str = CStr::from_ptr(message)
@@ -382,6 +394,10 @@ pub extern "C" fn rtui_dialog_close(
     }
 
     catch_panic(AssertUnwindSafe(|| unsafe {
+        // Validate pointer alignment and basic sanity
+        if (engine as usize) % std::mem::align_of::<DialogEngine>() != 0 {
+            return Err(ReactiveError::InvalidPointer);
+        }
         let engine_ref = &mut *(engine as *mut DialogEngine);
 
         let dialog_result = match result {

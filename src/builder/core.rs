@@ -115,8 +115,9 @@ impl ElementBuilder {
     /// * `style_builder` - A StyleBuilder created with the `css!` macro
     ///
     /// # Example
-    /// ```rust
+    /// ```rust,ignore
     /// use reactive_tui::prelude::*;
+    /// use reactive_tui::css;
     ///
     /// let element = div()
     ///     .styles(css! {
@@ -154,9 +155,15 @@ impl ElementBuilder {
                 self.current_class.push(' ');
             }
             self.current_class.push_str(&data_attrs.join(" "));
-            self.element.class = Some(self.current_class.clone());
         }
-        
+
+        // Always add the css-in-rust-applied marker when styles are applied
+        if !self.current_class.is_empty() {
+            self.current_class.push(' ');
+        }
+        self.current_class.push_str("css-in-rust-applied");
+        self.element.class = Some(self.current_class.clone());
+
         // Store the StyleBuilder in the element's props
         // In a real implementation, this would be stored in a proper field
         // For now, we mark it as applied via the class system

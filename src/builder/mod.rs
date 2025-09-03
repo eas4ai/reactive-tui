@@ -33,11 +33,11 @@ pub mod layout;
 pub mod mixed;
 pub mod macros;
 pub mod widgets;
-pub mod placeholders;
+pub mod specialized;
 pub mod dialog_builders;
 
 #[cfg(test)]
-mod test_placeholders;
+mod test_specialized;
 
 // Re-export everything from core for backward compatibility
 pub use core::*;
@@ -55,31 +55,11 @@ pub use widgets::*;
 pub use crate::{el, div, span, button, input, data_table, chart, text_input, checkbox, select, progress_bar, toast, tabs};
 
 // Additional convenience re-exports for common patterns
-
-/// Create a button element (alias for core button function)
-pub use core::button;
-
-/// Create an input element (alias for core input function)  
-pub use core::input;
+// Note: button and input are already re-exported via `pub use core::*;`
 
 // Ensure all builder functions are available at the module root
 // This maintains the existing API where users can call `builder::div()`, etc.
 
-// Core HTML-like elements (from core module)
-// pub use core::{div, span, p, section, article, header, footer, nav, main, aside, grid_builder, flex};
-
-// Layout and convenience functions (from layout module)
-// pub use layout::{screen, container, card_builder, sidebar, content, responsive_grid};
-// pub use layout::{h1, h2, h3, h4, h5, h6, text, label, card};
-// pub use layout::{primary_button, flex_row, flex_col, grid_layout, styled_input, search_input};
-
-// VDOM integration (from mixed module)
-// pub use mixed::{from_vdom, mixed_container};
-
-// Widget builders (from widgets module)
-// pub use widgets::{data_table, chart, modal, toast, popover, progress_bar, tree, image};
-// pub use widgets::{text_input, checkbox, radio_button, select, slider};
-// pub use widgets::{scroll_view, stack, tabs, dialog, confirmation_dialog, progress_dialog, wizard};
 
 // Core traits and utilities
 pub use core::{IntoElement, to_element};

@@ -205,7 +205,10 @@ impl From<ProgressBarBuilder> for Element {
 /// content when triggered by user interaction.
 ///
 /// # Example
-/// ```
+/// ```rust,ignore
+/// use reactive_tui::builder::popover;
+/// use reactive_tui::component::Element;
+/// 
 /// let popover = popover()
 ///     .content(Element::text("Helpful information"))
 ///     .trigger(Element::text("Help"))

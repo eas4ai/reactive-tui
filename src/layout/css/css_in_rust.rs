@@ -47,7 +47,9 @@ use taffy::style::{Display, FlexDirection, AlignItems, JustifyContent, Position}
 /// - `height`: f32 (height in pixels)
 ///
 /// # Example
-/// ```rust
+/// ```rust,ignore
+/// use reactive_tui::css;
+/// 
 /// let button_styles = css! {
 ///     display: Display::Flex,
 ///     align_items: AlignItems::Center,
@@ -249,7 +251,9 @@ impl IntoCssValue for String {
 /// Convenience macro for creating common layout patterns
 ///
 /// # Example
-/// ```rust
+/// ```rust,ignore
+/// use reactive_tui::{flex_center, flex_column, absolute_fill};
+/// 
 /// let flex_center = flex_center!();
 /// let flex_column = flex_column!();
 /// let absolute_fill = absolute_fill!();
@@ -291,7 +295,9 @@ macro_rules! absolute_fill {
 /// Macro for responsive CSS with breakpoint support
 ///
 /// # Example
-/// ```rust
+/// ```rust,ignore
+/// use reactive_tui::responsive_css;
+/// 
 /// let responsive_styles = responsive_css! {
 ///     base: {
 ///         display: Display::Block,

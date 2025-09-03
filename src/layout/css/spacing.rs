@@ -142,17 +142,17 @@ mod tests {
         let sb = StyleBuilder::new();
 
         // Test all-sides padding
-        let result = apply_padding("p-4", sb).unwrap();
+        let result = apply_padding("p-4", sb).expect("CSS spacing test should succeed");
         let _style = result.build();
         // Can't easily test exact values due to Taffy internals, but verify it doesn't panic
 
         // Test directional padding
         let sb = StyleBuilder::new();
-        let result = apply_padding("px-2", sb).unwrap();
+        let result = apply_padding("px-2", sb).expect("CSS spacing test should succeed");
         let _style = result.build();
 
         let sb = StyleBuilder::new();
-        let result = apply_padding("py-8", sb).unwrap();
+        let result = apply_padding("py-8", sb).expect("CSS spacing test should succeed");
         let _style = result.build();
     }
 
@@ -161,7 +161,7 @@ mod tests {
         let sb = StyleBuilder::new();
 
         // Test all-sides margin
-        let result = apply_margin("m-4", sb).unwrap();
+        let result = apply_margin("m-4", sb).expect("CSS spacing test should succeed");
         let _style = result.build();
 
         // Test directional margin
@@ -170,7 +170,7 @@ mod tests {
         assert!(result.is_none()); // mx-auto needs special handling
 
         let sb = StyleBuilder::new();
-        let result = apply_margin("ml-2", sb).unwrap();
+        let result = apply_margin("ml-2", sb).expect("CSS spacing test should succeed");
         let _style = result.build();
     }
 
@@ -179,16 +179,16 @@ mod tests {
         let sb = StyleBuilder::new();
 
         // Test gap
-        let result = apply_gap("gap-4", sb).unwrap();
+        let result = apply_gap("gap-4", sb).expect("CSS spacing test should succeed");
         let _style = result.build();
 
         // Test directional gap
         let sb = StyleBuilder::new();
-        let result = apply_gap("gap-x-2", sb).unwrap();
+        let result = apply_gap("gap-x-2", sb).expect("CSS spacing test should succeed");
         let _style = result.build();
 
         let sb = StyleBuilder::new();
-        let result = apply_gap("gap-y-8", sb).unwrap();
+        let result = apply_gap("gap-y-8", sb).expect("CSS spacing test should succeed");
         let _style = result.build();
     }
 

@@ -714,15 +714,13 @@ impl DialogComponent for AutocompleteDialog {
             self.input_focused = true;
             true
         } else if element_id.starts_with("suggestion-") {
-            if let Ok(index) = element_id
-                .strip_prefix("suggestion-")
-                .unwrap()
-                .parse::<usize>()
-            {
-                if index < self.suggestions.len() {
-                    self.selected_suggestion = Some(index);
-                    self.input_focused = false;
-                    return true;
+            if let Some(index_str) = element_id.strip_prefix("suggestion-") {
+                if let Ok(index) = index_str.parse::<usize>() {
+                    if index < self.suggestions.len() {
+                        self.selected_suggestion = Some(index);
+                        self.input_focused = false;
+                        return true;
+                    }
                 }
             }
             false

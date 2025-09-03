@@ -440,12 +440,21 @@ pub mod test_io_capture {
 
     /// Capture output written to the terminal for testing
     pub fn capture_write(buf: &[u8]) {
-        out().lock().unwrap().extend_from_slice(buf);
+        if let Ok(mut guard) = out().lock() {
+            guard.extend_from_slice(buf);
+        } else {
+            log::warn!("Terminal output lock poisoned during capture_write");
+        }
     }
 
     /// Take all captured output and clear the buffer
     pub fn take_output() -> Vec<u8> {
-        let mut guard = out().lock().unwrap();
-        std::mem::take(&mut *guard)
+        match out().lock() {
+            Ok(mut guard) => std::mem::take(&mut *guard),
+            Err(_) => {
+                log::warn!("Terminal output lock poisoned during take_output");
+                Vec::new()
+            }
+        }
     }
 }

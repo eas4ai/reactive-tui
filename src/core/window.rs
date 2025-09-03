@@ -525,8 +525,20 @@ impl Window {
         let abs_col = col + self.x_off;
         let abs_row = row + self.y_off;
 
+        // Safe surface access with null pointer check
+        if self.surface.is_null() {
+            #[cfg(debug_assertions)]
+            eprintln!("Warning: Attempted to write to null surface");
+            return;
+        }
+
         unsafe {
-            (*self.surface).set(abs_col, abs_row, cell);
+            // Additional bounds check on the surface itself
+            let surface_ref = &*self.surface;
+            let (surface_width, surface_height) = surface_ref.dims();
+            if abs_col < surface_width && abs_row < surface_height {
+                (*self.surface).set(abs_col, abs_row, cell);
+            }
         }
     }
 
@@ -543,7 +555,23 @@ impl Window {
         let abs_col = col + self.x_off;
         let abs_row = row + self.y_off;
 
-        unsafe { Some((*self.surface).get(abs_col, abs_row)) }
+        // Safe surface access with null pointer check
+        if self.surface.is_null() {
+            #[cfg(debug_assertions)]
+            eprintln!("Warning: Attempted to read from null surface");
+            return None;
+        }
+
+        unsafe {
+            // Additional bounds check on the surface itself
+            let surface_ref = &*self.surface;
+            let (surface_width, surface_height) = surface_ref.dims();
+            if abs_col < surface_width && abs_row < surface_height {
+                Some((*self.surface).get(abs_col, abs_row))
+            } else {
+                None
+            }
+        }
     }
 
     /// Clear this window
@@ -553,6 +581,13 @@ impl Window {
 
     /// Fill this window with a cell (optimized like libvaxis)
     pub fn fill(&self, cell: Cell) {
+        // Safe surface access with null pointer check
+        if self.surface.is_null() {
+            #[cfg(debug_assertions)]
+            eprintln!("Warning: Attempted to fill null surface");
+            return;
+        }
+
         unsafe {
             let surface = &mut *self.surface;
             let (surface_width, surface_height) = surface.dims();

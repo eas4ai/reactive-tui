@@ -4,7 +4,7 @@
 //! stack layouts, tabs, and other container widgets.
 
 use crate::component::{Element, LayoutType};
-use super::super::placeholders::{ScrollViewBuilder, StackBuilder};
+use super::super::specialized::{ScrollViewBuilder, StackBuilder};
 
 /// Create a Scroll View builder
 ///

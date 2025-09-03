@@ -117,7 +117,7 @@ fn test_automatic_cleanup_during_reconciliation() {
     let diff_result = reconciler.diff(&tree1, &tree2);
 
     // Apply patches - should automatically cleanup component
-    reactive_tui::render::reconcile::apply_patches(&diff_result.patches, &mut tree1);
+    let _ = reactive_tui::render::reconcile::apply_patches(&diff_result.patches, &mut tree1);
 
     // Verify component was cleaned up during reconciliation
     assert_eq!(global_active_count().unwrap(), 0);
