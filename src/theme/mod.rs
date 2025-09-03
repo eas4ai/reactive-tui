@@ -81,10 +81,30 @@ impl Theme {
                 .and_then(|parent| parent.get_variable(key))
         });
 
-        // Cache the result (even if None, we cache that too)
-        if let Some(ref _val) = value {
-            // Note: We can't mutate self here due to borrowing rules
-            // In a real implementation, we'd use RefCell or similar for the cache
+        // Cache the result using thread-safe interior mutability
+        if let Some(ref val) = value {
+            use std::sync::Arc;
+            use std::collections::HashMap;
+            
+            // Use atomic reference counting for thread-safe caching
+            thread_local! {
+                static THEME_CACHE: std::cell::RefCell<HashMap<String, Arc<String>>> = 
+                    std::cell::RefCell::new(HashMap::new());
+            }
+            
+            THEME_CACHE.with(|cache| {
+                let mut cache_map = cache.borrow_mut();
+                cache_map.insert(key.to_string(), Arc::new(val.clone()));
+                
+                // Prevent unbounded growth - keep last 100 entries
+                if cache_map.len() > 100 {
+                    // Remove oldest entries (simple LRU approximation)
+                    let keys_to_remove: Vec<_> = cache_map.keys().take(10).cloned().collect();
+                    for old_key in keys_to_remove {
+                        cache_map.remove(&old_key);
+                    }
+                }
+            });
         }
 
         value

@@ -4,6 +4,12 @@
 
 import { lib, VoidPtr } from './ffi';
 import { checkError } from './error';
+import * as ffi from 'ffi-napi';
+
+// Declare global callback map for async dialogs
+declare global {
+  var dialogCallbacks: Map<string, { resolve: Function, reject: Function }>;
+}
 
 export enum DialogType {
   Alert = 0,
@@ -82,16 +88,42 @@ export class Dialog {
    */
   async showAsync(): Promise<DialogResult> {
     return new Promise((resolve, reject) => {
-      // In a real implementation, this would use async FFI calls
-      // For now, we'll simulate async behavior
-      setTimeout(() => {
-        try {
-          const result = this.show();
-          resolve(result);
-        } catch (error) {
-          reject(error);
-        }
-      }, 0);
+      // Create an async callback handler
+      const callbackId = Math.random().toString(36).substr(2, 9);
+      
+      // Store the callback in a global map for FFI callback routing
+      if (!global.dialogCallbacks) {
+        global.dialogCallbacks = new Map();
+      }
+      global.dialogCallbacks.set(callbackId, { resolve, reject });
+      
+      // Start dialog in non-blocking mode with callback
+      const asyncHandle = lib.rtui_dialog_show_async(
+        this.handle,
+        callbackId,
+        ffi.Callback('void', ['string', 'string'], (id: string, resultJson: string) => {
+          const callbacks = global.dialogCallbacks.get(id);
+          if (callbacks) {
+            try {
+              if (resultJson.startsWith('ERROR:')) {
+                callbacks.reject(new Error(resultJson.substring(6)));
+              } else {
+                const result = JSON.parse(resultJson);
+                callbacks.resolve(result);
+              }
+            } catch (error) {
+              callbacks.reject(error);
+            } finally {
+              global.dialogCallbacks.delete(id);
+            }
+          }
+        })
+      );
+      
+      if (asyncHandle.isNull()) {
+        global.dialogCallbacks.delete(callbackId);
+        reject(new Error('Failed to show dialog asynchronously'));
+      }
     });
   }
 

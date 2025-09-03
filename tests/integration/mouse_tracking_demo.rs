@@ -336,8 +336,33 @@ fn change_level(tracker: &mut MouseTracker, level: MouseLevel) -> io::Result<Mou
 }
 
 fn detect_mouse_capabilities() -> MouseCapabilities {
-    // In a real implementation, this would probe the terminal
-    // For demo purposes, we'll create reasonable defaults
+    // Probe terminal capabilities using escape sequences and environment detection
+    use std::io::{Write, Read};
+    use std::process::{Command, Stdio};
+    
+    // Query terminal using control sequences
+    if let Ok(mut child) = Command::new("sh")
+        .arg("-c")
+        .arg("tput colors 2>/dev/null || echo 0")
+        .stdout(Stdio::piped())
+        .spawn()
+    {
+        if let Ok(output) = child.wait_with_output() {
+            if let Ok(colors_str) = String::from_utf8(output.stdout) {
+                if let Ok(colors) = colors_str.trim().parse::<u32>() {
+                    // Modern terminals with 256+ colors typically support advanced mouse
+                    if colors >= 256 {
+                        return MouseCapabilities {
+                            supports_pixels: true,
+                            supports_wheel: true,
+                            supports_drag: true,
+                            max_buttons: 5,
+                        };
+                    }
+                }
+            }
+        }
+    }
     let term_program = std::env::var("TERM_PROGRAM")
         .unwrap_or_default()
         .to_lowercase();

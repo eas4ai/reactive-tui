@@ -30,12 +30,19 @@ pub use dialog::{
 
 // Re-export all display components and their types
 pub use display::{
-    Image, ImageCapabilities, ImageDisplayMode, ImageFormat, ImageQuality, ImageSource, Modal,
-    Popover, ProgressBar, Table, Tree,
+    Chart, ChartProps, ChartState, ChartType, ChartAxis, ChartLegend, DataPoint, DataSeries, LineStyle, FillStyle, LegendPosition,
+    DataTable, DataTableProps, DataTableState, ColumnFilter, FilterType, PaginationConfig, VirtualScrollConfig,
+    FileExplorer, FileExplorerProps, FileExplorerState, FileExplorerBuilder, FileEntry, FileType, SortCriteria, SortOrder, ViewMode, SelectionMode,
+    Image, ImageCapabilities, ImageDisplayMode, ImageFormat, ImageQuality, ImageSource,
+    Modal, Popover, ProgressBar, Table, Tree,
 };
 pub use input::{
     Checkbox, CheckboxProps, CheckboxState, RadioButton, Select, SelectOption, SelectProps,
     SelectState, Slider, TextInput, TextInputProps, TextInputState,
 };
-pub use layout::{ScrollView, Stack, Tabs};
+pub use layout::{
+    Accordion, AccordionBuilder, AccordionMode, AccordionProps, AccordionSection, AccordionState,
+    Breadcrumb, BreadcrumbBuilder, BreadcrumbProps, BreadcrumbSegment, BreadcrumbState, OverflowStrategy,
+    ScrollView, Stack, Tabs
+};
 pub use terminal::{TerminalProps, TerminalState, TerminalWidget};

@@ -127,6 +127,7 @@ export const lib = ffi.Library(libPath, {
   'rtui_dialog_create': [VoidPtr, ['int', 'string']],
   'rtui_dialog_free': ['void', [VoidPtr]],
   'rtui_dialog_show': [VoidPtr, [VoidPtr]],
+  'rtui_dialog_show_async': [VoidPtr, [VoidPtr, 'string', 'pointer']], // async with callback
   'rtui_dialog_close': ['int', [VoidPtr]],
   'rtui_dialog_update': ['int', [VoidPtr, 'string']],
   'rtui_dialog_is_visible': ['bool', [VoidPtr]],

@@ -67,29 +67,19 @@ pub use core::{IntoElement, to_element};
 /// Builder module version for compatibility tracking
 pub const BUILDER_VERSION: &str = "2.0.0";
 
-/// Module documentation and examples
-///
-/// # Architecture
-///
-/// The builder module is organized into several sub-modules:
-///
-/// - `core`: Core ElementBuilder and basic HTML elements
-/// - `layout`: Layout helpers and convenience functions  
-/// - `mixed`: VDOM integration for hybrid applications
-/// - `macros`: Declarative macros for rapid development
-/// - `widgets`: Specialized builders for complex components
-///
-/// # Migration Guide
-///
-/// This refactored module maintains 100% backward compatibility.
-/// All existing code using the builder API will continue to work unchanged.
-///
-/// # Performance
-///
-/// The modular structure improves compile times by allowing selective imports
-/// and reduces binary size through better dead code elimination.
 pub mod docs {
-    //! Documentation and examples for the builder API
+    //! Module documentation and examples
+    //!
+    //! # Architecture
+    //!
+    //! The builder module is organized into several sub-modules:
+    //!
+    //! - `core`: Core ElementBuilder and basic HTML elements
+    //! - `layout`: Layout helpers and convenience functions  
+    //! - `mixed`: VDOM integration for hybrid applications
+    //! - `macros`: Declarative macros for rapid development
+    //! - `widgets`: Specialized builders for complex components
+    //!
     
     /// Example of creating a complex layout
     pub fn example_layout() -> crate::component::Element {

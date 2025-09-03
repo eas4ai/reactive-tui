@@ -2,6 +2,8 @@
 pub mod charts;
 /// Data table with filtering, pagination, and virtual scrolling
 pub mod data_table;
+/// File explorer widget for file system navigation
+pub mod file_explorer;
 /// Image display widgets for terminal graphics
 pub mod image;
 /// Modal dialog components
@@ -22,6 +24,10 @@ pub use charts::{
 pub use data_table::{
     DataTable, DataTableProps, DataTableState,
     ColumnFilter, FilterType, PaginationConfig, VirtualScrollConfig
+};
+pub use file_explorer::{
+    FileExplorer, FileExplorerProps, FileExplorerState, FileExplorerBuilder,
+    FileEntry, FileType, SortCriteria, SortOrder, ViewMode, SelectionMode
 };
 pub use image::{
     Image, ImageCapabilities, ImageDisplayMode, ImageFormat, ImageQuality, ImageSource,

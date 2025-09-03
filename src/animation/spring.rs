@@ -238,6 +238,11 @@ impl SpringConfig {
         Self::new(1.0, 400.0, 26.0)
     }
 
+    /// Smooth spring with balanced response
+    pub fn smooth() -> Self {
+        Self::new(1.0, 200.0, 20.0)
+    }
+
     /// Slow spring with gradual movement
     pub fn slow() -> Self {
         Self::new(1.0, 60.0, 15.0)

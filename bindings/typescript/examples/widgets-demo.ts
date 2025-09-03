@@ -243,16 +243,74 @@ class DashboardComponent extends Component {
     }
     
     render(): void {
-        // In a real implementation, this would render the table
-        // For now, we'll just log the current state
+        // Render the actual table using the DataTable widget
         const config = this.dataTable.getConfig();
+        const page = config.pagination?.currentPage || 0;
+        const pageSize = config.pagination?.pageSize || 20;
+        const startIdx = page * pageSize;
+        const endIdx = Math.min(startIdx + pageSize, this.data.length);
+        
         console.log('\n=== Employee DataTable ===');
-        console.log(`Showing page ${(config.pagination?.currentPage || 0) + 1} of ${
-            Math.ceil((config.pagination?.totalRows || 0) / (config.pagination?.pageSize || 20))
-        }`);
-        console.log(`Sorted by: ${config.sortColumn} (${config.sortDirection})`);
-        console.log(`Active filters: ${config.filters?.filter(f => f.active).length || 0}`);
-        console.log(`Selected rows: ${this.dataTable.getSelectedRows().length}`);
+        
+        // Create the table header
+        const headers = ['ID', 'Name', 'Department', 'Email'];
+        const columnWidths = [10, 25, 20, 35];
+        
+        // Render headers
+        console.log('─'.repeat(90));
+        let headerRow = '';
+        headers.forEach((header, i) => {
+            headerRow += header.padEnd(columnWidths[i]);
+        });
+        console.log('\x1b[1m' + headerRow + '\x1b[0m'); // Bold headers
+        console.log('─'.repeat(90));
+        
+        // Sort data if needed
+        let sortedData = [...this.data];
+        if (config.sortColumn) {
+            sortedData.sort((a, b) => {
+                const aVal = a[config.sortColumn!];
+                const bVal = b[config.sortColumn!];
+                const result = aVal < bVal ? -1 : aVal > bVal ? 1 : 0;
+                return config.sortDirection === 'desc' ? -result : result;
+            });
+        }
+        
+        // Apply filters
+        if (config.filters) {
+            sortedData = sortedData.filter(row => {
+                return config.filters!.every(filter => {
+                    if (!filter.active) return true;
+                    const value = row[filter.column];
+                    return String(value).toLowerCase().includes(filter.value.toLowerCase());
+                });
+            });
+        }
+        
+        // Render visible rows
+        for (let i = startIdx; i < Math.min(endIdx, sortedData.length); i++) {
+            const employee = sortedData[i];
+            const row = [
+                String(employee.id).padEnd(columnWidths[0]),
+                employee.name.padEnd(columnWidths[1]),
+                employee.department.padEnd(columnWidths[2]),
+                employee.email.padEnd(columnWidths[3])
+            ].join('');
+            
+            // Apply selection highlighting
+            const originalIdx = this.data.indexOf(employee);
+            if (config.rowSelection?.selectedRows?.includes(originalIdx)) {
+                console.log('\x1b[7m' + row + '\x1b[0m'); // Inverse video for selected rows
+            } else {
+                console.log(row);
+            }
+        }
+        console.log('─'.repeat(90));
+        console.log(`Page ${page + 1}/${Math.ceil(sortedData.length / pageSize)} | Showing ${startIdx + 1}-${Math.min(endIdx, sortedData.length)} of ${sortedData.length} rows`);
+        if (config.filters?.some(f => f.active)) {
+            console.log(`Filters active (${this.data.length} total rows before filtering)`);
+        }
+        console.log(`Selected: ${this.dataTable.getSelectedRows().length} rows`);
     }
 }
 

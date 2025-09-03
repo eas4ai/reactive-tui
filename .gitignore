@@ -1,5 +1,8 @@
 # Build artifacts
-/target
+target/
+build/
+dist/
+node_modules/
 
 # For libraries, Cargo.lock should be committed for reproducible builds
 # Cargo.lock

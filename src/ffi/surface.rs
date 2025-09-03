@@ -2,7 +2,7 @@
 
 use super::*;
 use crate::core::surface::Surface;
-use crate::ffi::pointer_tracker::trackers;
+use crate::ffi::pointer::*;
 use std::boxed::Box;
 use std::ffi::c_char;
 

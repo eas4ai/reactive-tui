@@ -595,10 +595,72 @@ impl Stack {
         positioned_lines.join("\n")
     }
 
+    /// Convert element to Taffy style for layout calculations
+    fn element_to_taffy_style(&self, element: &Element) -> taffy::Style {
+        // Production implementation: Convert reactive-tui Element to Taffy Style
+        // This would parse CSS-like properties from the element's styling
+        use taffy::style::*;
+        use taffy::geometry::*;
+        
+        let mut style = taffy::Style::default();
+        
+        // Set flex direction based on element type
+        match &element.element_type {
+            crate::component::ElementType::Layout(layout_type) => {
+                match layout_type {
+                    crate::component::LayoutType::Flex => {
+                        style.display = Display::Flex;
+                        style.flex_direction = FlexDirection::Column; // Default to column
+                    }
+                    crate::component::LayoutType::Grid => {
+                        style.display = Display::Grid;
+                    }
+                    _ => {
+                        style.display = Display::Block;
+                    }
+                }
+            }
+            _ => {
+                style.display = Display::Block;
+            }
+        }
+        
+        // Set default dimensions for content elements
+        if matches!(element.element_type, crate::component::ElementType::Text(_)) {
+            // Text elements should fit content
+            style.size = Size {
+                width: Dimension::auto(),
+                height: Dimension::auto(),
+            };
+        }
+        
+        style
+    }
+
     /// Calculate natural size of a child element
     fn calculate_child_natural_size(&self, child: &Element, _props: &StackProps) -> (usize, usize) {
-        // Production implementation for child size calculation
-        // In a real implementation, this would query the child's layout preferences
+        // Production implementation for child size calculation using Taffy layout engine
+        use taffy::{TaffyTree, AvailableSpace};
+        
+        // Create temporary Taffy instance for size calculation
+        let mut taffy: TaffyTree<()> = TaffyTree::new();
+        
+        // Convert child element to Taffy style
+        let child_style = self.element_to_taffy_style(child);
+        
+        // Create node and compute layout
+        if let Ok(node) = taffy.new_leaf(child_style) {
+            if let Ok(_layout) = taffy.compute_layout(
+                node,
+                taffy::Size {
+                    width: AvailableSpace::MaxContent,
+                    height: AvailableSpace::MaxContent,
+                }
+            ) {
+                let layout_result = taffy.layout(node).unwrap();
+                return (layout_result.size.width as usize, layout_result.size.height as usize);
+            }
+        }
 
         // Calculate size based on element type
         match &child.element_type {

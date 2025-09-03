@@ -181,6 +181,8 @@ fn test_css_animation_integration_end_to_end() {
         })
         .with_class(animation_class);
         
+        // The element_to_render_node function automatically processes CSS animations
+        // via register_instance_with_element which calls extract_css_animations_from_classes
         let render_node = element_to_render_node(element);
         render_nodes.push(render_node);
     }

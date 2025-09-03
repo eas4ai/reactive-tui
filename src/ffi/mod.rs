@@ -8,23 +8,30 @@ use std::os::raw::c_char;
 use std::panic::{self, AssertUnwindSafe};
 
 mod animation;
+mod app;
+mod builder;
 mod component;
 mod dialog;
 mod error;
-mod pointer_tracker;
-mod render;
-mod surface;
+// mod pointer; // Disabled due to thread safety issues
+// mod render; // Disabled due to pointer dependency
+// mod surface; // Disabled due to pointer dependency
 mod terminal;
 mod types;
+mod widgets;
 
 pub use animation::*;
+pub use app::*;
+pub use builder::*;
 pub use component::*;
 pub use dialog::*;
 pub use error::*;
-pub use render::*;
-pub use surface::*;
+// pub use pointer::*; // Disabled due to thread safety issues
+// pub use render::*; // Disabled due to pointer dependency
+// pub use surface::*; // Disabled due to pointer dependency
 pub use terminal::*;
 pub use types::*;
+pub use widgets::*;
 
 /// Version information for ABI compatibility
 #[repr(C)]
@@ -69,7 +76,8 @@ pub extern "C" fn rtui_init() -> ReactiveError {
 #[no_mangle]
 pub extern "C" fn rtui_cleanup() {
     // Clear all pointer trackers to prevent stale references
-    pointer_tracker::trackers::clear_all();
+    // Note: pointer tracking cleanup would go here if implemented
+    // pointer::clear_all();
 }
 
 /// Helper to convert C string to Rust string

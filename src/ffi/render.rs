@@ -83,7 +83,7 @@ pub extern "C" fn rtui_renderer_clear(
     catch_panic(AssertUnwindSafe(|| unsafe {
         // Validate pointer type before casting
         if !super::pointer::validate_pointer::<Renderer>(renderer as *const u8) {
-            return Err(ReactiveError::invalid_parameter("Invalid renderer pointer type"));
+            return Err(ReactiveError::InvalidParameter);
         }
         let ren = &mut *(renderer as *mut Renderer);
         let color = Rgba {

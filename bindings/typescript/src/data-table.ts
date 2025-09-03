@@ -146,10 +146,23 @@ export class DataTable extends Component {
      * Update table columns
      */
     updateColumns(columns: TableColumn[]): void {
-        // Convert columns to FFI format
+        // Convert columns to FFI format and update via FFI
         const columnData = JSON.stringify(columns);
-        // In a real implementation, this would call an FFI function
-        // For now, we store it in the component state
+        
+        // Call FFI function to update component state
+        const result = FFI.lib.rtui_component_set_state(
+            this.handle, 
+            JSON.stringify({ columns })
+        );
+        
+        if (result !== 0) {
+            throw new ReactiveError(
+                `Failed to update table columns: error code ${result}`,
+                'DataTableError'
+            );
+        }
+        
+        // Update local state cache
         this.setState({ columns });
     }
 

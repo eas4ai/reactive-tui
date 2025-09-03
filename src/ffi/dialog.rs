@@ -9,6 +9,34 @@ use crate::widgets::dialog::{
 use std::boxed::Box;
 use std::ffi::CStr;
 use std::os::raw::c_char;
+use std::collections::HashMap;
+use std::cell::RefCell;
+
+/// Callback function type for dialog completion
+pub type DialogCallbackFn = unsafe extern "C" fn(dialog_id: u64, result: i32, user_data: *mut std::ffi::c_void);
+
+/// Dialog callback storage
+struct DialogCallback {
+    callback: DialogCallbackFn,
+    user_data: *mut std::ffi::c_void,
+}
+
+// Global callback registry using thread_local for safety
+thread_local! {
+    static GLOBAL_CALLBACK_REGISTRY: RefCell<HashMap<u64, DialogCallback>> = RefCell::new(HashMap::new());
+}
+
+/// Invoke a stored callback and remove it from registry
+pub fn invoke_dialog_callback(dialog_id: u64, result: i32) {
+    GLOBAL_CALLBACK_REGISTRY.with(|registry| {
+        let mut callbacks = registry.borrow_mut();
+        if let Some(callback_info) = callbacks.remove(&dialog_id) {
+            unsafe {
+                (callback_info.callback)(dialog_id, result, callback_info.user_data);
+            }
+        }
+    });
+}
 
 /// Opaque handle to a dialog engine
 #[repr(C)]
@@ -150,8 +178,8 @@ pub extern "C" fn rtui_dialog_show_confirmation(
     buttons: RTuiConfirmationButtons,
     icon: RTuiConfirmationIcon,
     position: RTuiDialogPosition,
-    _callback: RTuiDialogCallback,
-    _user_data: *mut std::ffi::c_void,
+    callback: RTuiDialogCallback,
+    user_data: *mut std::ffi::c_void,
     out_dialog_id: *mut u64,
 ) -> ReactiveError {
     if engine.is_null() || title.is_null() || message.is_null() || out_dialog_id.is_null() {
@@ -222,9 +250,20 @@ pub extern "C" fn rtui_dialog_show_confirmation(
 
         let dialog_id = engine_ref.show_confirmation(options);
 
-        // Store callback for later use
-        // Note: In a real implementation, we'd need to store the callback
-        // and user_data to call when the dialog completes
+        // Store callback for async completion
+        if callback as *const () != std::ptr::null() {
+            let callback_ptr = callback;
+            let user_data_ptr = if user_data.is_null() { std::ptr::null_mut() } else { user_data };
+            
+            // Store in global callback registry for later invocation
+            GLOBAL_CALLBACK_REGISTRY.with(|registry| {
+                let mut callbacks = registry.borrow_mut();
+                callbacks.insert(dialog_id.as_u32() as u64, DialogCallback {
+                    callback: callback_ptr,
+                    user_data: user_data_ptr,
+                });
+            });
+        }
 
         *out_dialog_id = dialog_id.as_u32() as u64;
         Ok(())

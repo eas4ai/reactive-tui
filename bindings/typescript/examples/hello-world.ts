@@ -76,8 +76,16 @@ async function main() {
     
     // Render the frame
     renderer.frame(() => {
-      // In a real implementation, we would blit the surface to the renderer here
-      console.log('Frame rendered!');
+      // Blit the surface to the renderer
+      for (let y = 0; y < size.height; y++) {
+        for (let x = 0; x < size.width; x++) {
+          const cell = surface.getCell(x, y);
+          if (cell) {
+            renderer.setCell(x, y, cell.char, cell.fg, cell.bg);
+          }
+        }
+      }
+      renderer.flush();
     });
     
     // Add instructions

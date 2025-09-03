@@ -193,9 +193,33 @@ mod tests {
         let result = apply_utility_classes("p-4 m-2 gap-8", sb);
         let style = result.build();
 
-        // Verify spacing utilities were processed (we can't easily test exact Taffy values)
-        // But we can verify the function succeeded and the style was built
-        // In a real implementation, we'd check that padding, margin, and gap were set
+        // Verify spacing utilities were actually applied to the style
+        // Check that padding was set (p-4 = 1rem = 16px in our system)
+        use taffy::geometry::Rect;
+        let expected_padding = taffy::style::LengthPercentage::length(16.0);
+        assert_eq!(style.padding, Rect {
+            left: expected_padding,
+            right: expected_padding, 
+            top: expected_padding,
+            bottom: expected_padding,
+        });
+        
+        // Check that margin was set (m-2 = 0.5rem = 8px)
+        let expected_margin = taffy::style::LengthPercentageAuto::length(8.0);
+        assert_eq!(style.margin, Rect {
+            left: expected_margin,
+            right: expected_margin,
+            top: expected_margin, 
+            bottom: expected_margin,
+        });
+        
+        // Check that gap was set (gap-8 = 2rem = 32px)
+        use taffy::geometry::Size;
+        let expected_gap = taffy::style::LengthPercentage::length(32.0);
+        assert_eq!(style.gap, Size {
+            width: expected_gap,
+            height: expected_gap,
+        });
         assert_eq!(style.display, taffy::style::Display::Flex); // Default display
     }
 

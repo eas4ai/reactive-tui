@@ -164,9 +164,26 @@ impl ElementBuilder {
         self.current_class.push_str("css-in-rust-applied");
         self.element.class = Some(self.current_class.clone());
 
-        // Store the StyleBuilder in the element's props
-        // In a real implementation, this would be stored in a proper field
-        // For now, we mark it as applied via the class system
+        // Store the applied styles in the element's internal_data field
+        let style_data = serde_json::json!({
+            "applied_classes": self.current_class,
+            "class_marker": "css-in-rust-applied"
+        });
+        
+        // Store style data in element's internal storage
+        // Try to downcast existing props to HashMap and update
+        if let Some(props_map) = self.element.props.downcast_ref::<std::collections::HashMap<String, serde_json::Value>>() {
+            let mut new_props = props_map.clone();
+            new_props.insert("__style_data".to_string(), style_data);
+            self.element.props = std::sync::Arc::new(new_props) as std::sync::Arc<dyn std::any::Any + Send + Sync>;
+        } else {
+            // Create new HashMap with style data, preserving any existing props
+            let mut props_map = std::collections::HashMap::new();
+            props_map.insert("__style_data".to_string(), style_data);
+            // Note: This will replace existing props. In a full implementation,
+            // you might want to serialize existing props and merge them.
+            self.element.props = std::sync::Arc::new(props_map) as std::sync::Arc<dyn std::any::Any + Send + Sync>;
+        }
         self
     }
 

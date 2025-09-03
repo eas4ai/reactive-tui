@@ -18,6 +18,7 @@ pub struct Terminal {
     event_receiver: Option<mpsc::Receiver<TerminalEvent>>,
     running: bool,
     last_activity: Instant,
+    running_flag: Option<std::sync::Arc<std::sync::atomic::AtomicBool>>,
 }
 
 impl Terminal {
@@ -33,6 +34,7 @@ impl Terminal {
             event_receiver: None,
             running: false,
             last_activity: Instant::now(),
+            running_flag: None,
         }
     }
 
@@ -48,55 +50,30 @@ impl Terminal {
         let (event_tx, event_rx) = mpsc::channel();
         self.event_receiver = Some(event_rx);
 
-        // Clone necessary components for the background thread
-        let pty_output_tx = event_tx.clone();
+        // Create shared running flag for thread coordination
         let running_flag = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(true));
         let running_clone = running_flag.clone();
+        self.running_flag = Some(running_flag);
+
+        // Clone event sender for background thread
+        let _output_tx = event_tx.clone();
 
         thread::spawn(move || {
-            let mut parser = crate::terminal::parser::AnsiParser::new();
-            let buffer = [0u8; 4096];
-
+            // Background thread for additional event processing
+            // This can handle periodic tasks, monitoring, etc.
             loop {
-                // Production-ready PTY reading with proper error handling
-                // Note: In a real implementation, this would read from actual PTY
-                // For now, we simulate the reading loop structure
-                match std::io::Result::Ok(0usize) {
-                    // Placeholder read result
-                    Ok(0) => {
-                        // No data available - short sleep to prevent busy waiting
-                        thread::sleep(Duration::from_millis(1));
-                    }
-                    Ok(bytes_read) => {
-                        // Parse incoming data through ANSI parser byte by byte
-                        let data = &buffer[..bytes_read];
-                        let mut all_events = Vec::new();
-
-                        for &byte in data {
-                            let events = parser.parse(byte);
-                            all_events.extend(events);
-                        }
-
-                        // Send raw data as terminal output
-                        if !data.is_empty()
-                            && pty_output_tx
-                                .send(TerminalEvent::Output(data.to_vec()))
-                                .is_err()
-                        {
-                            // Channel closed - exit thread
-                            return;
-                        }
-                    }
-                    Err(_) => {
-                        // Read error - short sleep before retry
-                        thread::sleep(Duration::from_millis(10));
-                    }
-                }
-
-                // Check if terminal should stop
                 if !running_clone.load(std::sync::atomic::Ordering::Relaxed) {
                     break;
                 }
+
+                // Production implementation could include:
+                // - Periodic health checks
+                // - Background data processing
+                // - Event aggregation and filtering
+                // - Performance monitoring
+
+                // For now, just maintain the event loop with minimal overhead
+                thread::sleep(Duration::from_millis(50));
             }
         });
 
@@ -146,6 +123,33 @@ impl Terminal {
     pub fn poll_events(&mut self) -> Vec<TerminalEvent> {
         let mut events = Vec::new();
 
+        // Read output from PTY and process it
+        if self.running {
+            // Use a short timeout to avoid blocking
+            match self.pty.read_output(Some(Duration::from_millis(1))) {
+                Ok(Some(data)) => {
+                    if !data.is_empty() {
+                        // Process the output data through the ANSI parser
+                        let mut processed_events = self.process_output(&data);
+                        events.append(&mut processed_events);
+
+                        // Send the raw output as an event
+                        events.push(TerminalEvent::Output(data));
+                        self.last_activity = Instant::now();
+                    }
+                }
+                Ok(None) => {
+                    // No data available, continue
+                }
+                Err(e) => {
+                    // PTY error, likely disconnected
+                    eprintln!("PTY read error: {}", e);
+                    self.running = false;
+                }
+            }
+        }
+
+        // Check for events from the background thread
         if let Some(ref receiver) = self.event_receiver {
             while let Ok(event) = receiver.try_recv() {
                 events.push(event);
@@ -162,12 +166,45 @@ impl Terminal {
     }
 
     /// Process output data from the terminal process
-    pub fn process_output(&mut self, data: &[u8]) {
-        let events = self.parser.parse_bytes(data);
-        for event in events {
-            self.screen.process_event(event);
+    pub fn process_output(&mut self, data: &[u8]) -> Vec<TerminalEvent> {
+        let mut terminal_events = Vec::new();
+        let ansi_events = self.parser.parse_bytes(data);
+
+        for event in ansi_events {
+            // Process the event through the screen buffer
+            self.screen.process_event(event.clone());
+
+            // Generate terminal events based on ANSI events
+            match event {
+                super::parser::AnsiEvent::Osc { command, params } => {
+                    match command.as_str() {
+                        "0" | "2" => {
+                            // Window title change
+                            if let Some(title) = params.first() {
+                                terminal_events.push(TerminalEvent::TitleChanged(title.clone()));
+                            }
+                        }
+                        "7" => {
+                            // Working directory change
+                            if let Some(path) = params.first() {
+                                terminal_events.push(TerminalEvent::WorkingDirectoryChanged(path.clone()));
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+                super::parser::AnsiEvent::Execute(0x07) => {
+                    // Bell character
+                    terminal_events.push(TerminalEvent::Bell);
+                }
+                _ => {
+                    // Other events are handled by the screen buffer
+                }
+            }
         }
+
         self.last_activity = Instant::now();
+        terminal_events
     }
 
     /// Resize the terminal to the specified dimensions
@@ -233,6 +270,12 @@ impl Terminal {
     /// Stop the terminal emulator and kill the shell process
     pub fn stop(&mut self) -> TerminalResult<()> {
         self.running = false;
+
+        // Signal background thread to stop
+        if let Some(ref flag) = self.running_flag {
+            flag.store(false, std::sync::atomic::Ordering::Relaxed);
+        }
+
         self.pty.kill()?;
         Ok(())
     }
