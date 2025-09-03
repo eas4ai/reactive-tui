@@ -289,10 +289,17 @@ pub fn create_syntax_theme(base_theme: Theme, syntect_theme_name: &str) -> Theme
     let mut theme = base_theme;
 
     // Load syntect theme and convert to CSS variables
-    let resources = SYNTAX_RESOURCES.read().unwrap();
-    if let Some(syntect_theme) = resources.theme_set.get(syntect_theme_name) {
-        let syntax_vars = SyntaxThemeVariables::from_syntect_theme(syntect_theme);
-        syntax_vars.apply_to_theme(&mut theme);
+    match SYNTAX_RESOURCES.read() {
+        Ok(resources) => {
+            if let Some(syntect_theme) = resources.theme_set.get(syntect_theme_name) {
+                let syntax_vars = SyntaxThemeVariables::from_syntect_theme(syntect_theme);
+                syntax_vars.apply_to_theme(&mut theme);
+            }
+        }
+        Err(_) => {
+            // Lock poisoned, use default theme
+            log::warn!("Syntax resources lock poisoned, using default theme");
+        }
     }
 
     theme

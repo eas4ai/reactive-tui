@@ -28,6 +28,10 @@ pub enum ReactiveError {
     NotFound = -9,
     /// Invalid state for operation
     InvalidState = -10,
+    /// Invalid pointer (use-after-free or corrupted)
+    InvalidPointer = -11,
+    /// Internal error occurred
+    InternalError = -12,
     /// Panic occurred (bug in library)
     Panic = -99,
     /// Unknown error

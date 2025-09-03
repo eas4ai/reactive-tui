@@ -86,10 +86,17 @@ impl CrosstermBackend {
     pub fn new() -> Result<Self> {
         // Determine terminal size and initialize renderer buffers
         let (cols, rows) = crossterm::terminal::size().unwrap_or((80, 24));
+        
+        // Safe conversion with overflow protection
+        let width = usize::try_from(cols)
+            .map_err(|_| std::io::Error::other(format!("Terminal width {} too large", cols)))?;
+        let height = usize::try_from(rows)
+            .map_err(|_| std::io::Error::other(format!("Terminal height {} too large", rows)))?;
+        
         // Map cells to pixel-like surface width/height; for now treat as cells
-        let renderer = Renderer::new(cols as usize, rows as usize)
+        let renderer = Renderer::new(width, height)
             .map_err(|e| std::io::Error::other(e.to_string()))?;
-        let grapheme_surface = GraphemeSurface::new(cols as usize, rows as usize);
+        let grapheme_surface = GraphemeSurface::new(width, height);
         Ok(Self {
             renderer,
             grapheme_surface,

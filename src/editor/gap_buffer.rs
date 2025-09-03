@@ -116,21 +116,46 @@ impl GapBuffer {
         if pos < self.gap_start {
             // Move gap left
             let distance = self.gap_start - pos;
-            unsafe {
-                let src = self.buffer.as_ptr().add(pos);
-                let dst = self.buffer.as_mut_ptr().add(self.gap_end - distance);
-                std::ptr::copy(src, dst, distance);
+            
+            // Safe bounds checking before copy
+            debug_assert!(pos < self.buffer.len());
+            debug_assert!(self.gap_end >= distance);
+            debug_assert!(self.gap_end - distance + distance <= self.buffer.len());
+            
+            // Use safe slice operations instead of unsafe pointer arithmetic
+            let src_range = pos..pos + distance;
+            let dst_start = self.gap_end - distance;
+            
+            if src_range.end <= self.buffer.len() && dst_start + distance <= self.buffer.len() {
+                // Create temporary copy to avoid aliasing issues
+                let temp: Vec<char> = self.buffer[src_range].to_vec();
+                self.buffer[dst_start..dst_start + distance].copy_from_slice(&temp);
+            } else {
+                panic!("Gap buffer move_gap_to: invalid bounds for left move");
             }
+            
             self.gap_start = pos;
             self.gap_end -= distance;
         } else {
             // Move gap right
             let distance = pos - self.gap_start;
-            unsafe {
-                let src = self.buffer.as_ptr().add(self.gap_end);
-                let dst = self.buffer.as_mut_ptr().add(self.gap_start);
-                std::ptr::copy(src, dst, distance);
+            
+            // Safe bounds checking before copy
+            debug_assert!(self.gap_end + distance <= self.buffer.len());
+            debug_assert!(self.gap_start + distance <= self.buffer.len());
+            
+            // Use safe slice operations instead of unsafe pointer arithmetic
+            let src_range = self.gap_end..self.gap_end + distance;
+            let dst_start = self.gap_start;
+            
+            if src_range.end <= self.buffer.len() && dst_start + distance <= self.buffer.len() {
+                // Create temporary copy to avoid aliasing issues
+                let temp: Vec<char> = self.buffer[src_range].to_vec();
+                self.buffer[dst_start..dst_start + distance].copy_from_slice(&temp);
+            } else {
+                panic!("Gap buffer move_gap_to: invalid bounds for right move");
             }
+            
             self.gap_start = pos;
             self.gap_end += distance;
         }
@@ -141,17 +166,32 @@ impl GapBuffer {
         if self.gap_size() < needed {
             let additional = needed - self.gap_size() + 1024; // Add some extra
             let old_len = self.buffer.len();
-            let new_len = old_len + additional;
+            let new_len = old_len.saturating_add(additional); // Prevent overflow
+
+            // Check for reasonable buffer size to prevent DoS
+            const MAX_BUFFER_SIZE: usize = 100_000_000; // 100MB limit for chars
+            if new_len > MAX_BUFFER_SIZE {
+                panic!("Gap buffer size exceeds maximum allowed size");
+            }
 
             // Resize buffer
             self.buffer.resize(new_len, '\0');
 
-            // Move everything after gap_end to the new end
-            unsafe {
-                let src = self.buffer.as_ptr().add(self.gap_end);
-                let dst = self.buffer.as_mut_ptr().add(self.gap_end + additional);
-                let count = old_len - self.gap_end;
-                std::ptr::copy(src, dst, count);
+            // Move everything after gap_end to the new end using safe operations
+            let count = old_len - self.gap_end;
+            if count > 0 {
+                // Validate bounds before operation
+                debug_assert!(self.gap_end + count == old_len);
+                debug_assert!(self.gap_end + additional + count == new_len);
+                
+                if self.gap_end < old_len && self.gap_end + additional < new_len {
+                    // Create temporary copy to avoid aliasing issues
+                    let temp: Vec<char> = self.buffer[self.gap_end..old_len].to_vec();
+                    let dst_start = self.gap_end + additional;
+                    self.buffer[dst_start..dst_start + count].copy_from_slice(&temp);
+                } else {
+                    panic!("Gap buffer ensure_gap_capacity: invalid bounds for resize");
+                }
             }
 
             self.gap_end += additional;

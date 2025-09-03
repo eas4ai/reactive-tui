@@ -61,12 +61,31 @@ impl GraphemeCluster {
     /// Create a new grapheme cluster from a string slice
     pub fn new(s: &str) -> Self {
         let bytes_slice = s.as_bytes();
-        let len = bytes_slice.len().min(16);
+        let mut len = bytes_slice.len();
+        
+        // Ensure we don't break UTF-8 character boundaries
+        if len > 16 {
+            len = 16;
+            // Find the last valid UTF-8 boundary within our buffer
+            while len > 0 && !s.is_char_boundary(len) {
+                len -= 1;
+            }
+            // If we couldn't find a valid boundary, use empty string
+            if len == 0 {
+                return Self {
+                    bytes: [0u8; 16],
+                    len: 0,
+                    width: 0,
+                };
+            }
+        }
+        
         let mut bytes = [0u8; 16];
         bytes[..len].copy_from_slice(&bytes_slice[..len]);
 
-        // Calculate display width
-        let width = UnicodeWidthStr::width(s).min(2) as u8;
+        // Calculate display width based on the valid truncated string
+        let truncated_str = &s[..len];
+        let width = UnicodeWidthStr::width(truncated_str).min(2) as u8;
 
         Self {
             bytes,
@@ -77,8 +96,15 @@ impl GraphemeCluster {
 
     /// Get the string representation
     pub fn as_str(&self) -> &str {
-        // Safety: We only store valid UTF-8
-        unsafe { std::str::from_utf8_unchecked(&self.bytes[..self.len as usize]) }
+        // Safe version with validation instead of unsafe assumption
+        match std::str::from_utf8(&self.bytes[..self.len as usize]) {
+            Ok(s) => s,
+            Err(_) => {
+                // This should never happen with our improved constructor,
+                // but provide a safe fallback if it somehow does
+                ""
+            }
+        }
     }
 
     /// Get the display width

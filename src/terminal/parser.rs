@@ -98,6 +98,11 @@ pub struct AnsiParser {
 }
 
 impl AnsiParser {
+    /// Maximum buffer sizes to prevent DoS attacks
+    const MAX_PARAMS: usize = 32;        // CSI sequences rarely need more than 16
+    const MAX_INTERMEDIATES: usize = 8;  // Intermediates are single bytes, rarely more than 2
+    const MAX_STRING_BUFFER: usize = 8192; // OSC/DCS strings should be reasonable
+    
     /// Create a new ANSI parser
     pub fn new() -> Self {
         Self {
@@ -194,7 +199,10 @@ impl AnsiParser {
                 self.execute_control(byte, events);
             }
             0x20..=0x2F => {
-                self.intermediates.push(byte);
+                if self.intermediates.len() < Self::MAX_INTERMEDIATES {
+                    self.intermediates.push(byte);
+                }
+                // Silently drop if buffer is full
             }
             0x30..=0x4F | 0x51..=0x57 | 0x59 | 0x5A | 0x5C | 0x60..=0x7E => {
                 self.execute_escape(byte, events);
@@ -229,7 +237,10 @@ impl AnsiParser {
                 self.execute_control(byte, events);
             }
             0x20..=0x2F => {
-                self.intermediates.push(byte);
+                if self.intermediates.len() < Self::MAX_INTERMEDIATES {
+                    self.intermediates.push(byte);
+                }
+                // Silently drop if buffer is full
                 self.state = ParserState::CsiIntermediate;
             }
             0x30..=0x39 | 0x3B => {
@@ -265,7 +276,10 @@ impl AnsiParser {
             }
             0x20..=0x2F => {
                 self.finalize_param();
-                self.intermediates.push(byte);
+                if self.intermediates.len() < Self::MAX_INTERMEDIATES {
+                    self.intermediates.push(byte);
+                }
+                // Silently drop if buffer is full
                 self.state = ParserState::CsiIntermediate;
             }
             0x30..=0x39 => {
@@ -308,7 +322,10 @@ impl AnsiParser {
                 self.execute_control(byte, events);
             }
             0x20..=0x2F => {
-                self.intermediates.push(byte);
+                if self.intermediates.len() < Self::MAX_INTERMEDIATES {
+                    self.intermediates.push(byte);
+                }
+                // Silently drop if buffer is full
             }
             0x40..=0x7E => {
                 events.push(AnsiEvent::Csi {
@@ -335,14 +352,18 @@ impl AnsiParser {
                 self.reset_state();
             }
             0x1B => {
-                self.string_buffer.push(byte);
+                if self.string_buffer.len() < Self::MAX_STRING_BUFFER {
+                    self.string_buffer.push(byte);
+                }
+                // Silently drop if buffer is full
             }
             _ => {
                 if self.string_buffer.ends_with(&[0x1B]) && byte == 0x5C {
                     self.string_buffer.pop();
                     self.finalize_osc(events);
                     self.reset_state();
-                } else {
+                } else if self.string_buffer.len() < Self::MAX_STRING_BUFFER
+                        && self.string_buffer.len() < Self::MAX_STRING_BUFFER {
                     self.string_buffer.push(byte);
                 }
             }
@@ -387,6 +408,11 @@ impl AnsiParser {
     }
 
     fn finalize_param(&mut self) {
+        // Limit params to prevent DoS
+        if self.params.len() >= Self::MAX_PARAMS {
+            return;
+        }
+        
         if let Some(param) = self.current_param.take() {
             self.params.push(param);
         } else if !self.params.is_empty() || self.current_param.is_some() {
@@ -432,11 +458,16 @@ impl AnsiParser {
                 self.execute_control(byte, events);
             }
             0x20..=0x2F => {
-                self.intermediates.push(byte);
+                if self.intermediates.len() < Self::MAX_INTERMEDIATES {
+                    self.intermediates.push(byte);
+                }
+                // Silently drop if buffer is full
                 self.state = ParserState::DcsIntermediate;
             }
             0x30..=0x39 | 0x3B => {
-                self.params.push(0);
+                if self.params.len() < Self::MAX_PARAMS {
+                    self.params.push(0);
+                }
                 self.current_param = Some(0);
                 self.state = ParserState::DcsParam;
                 self.parse_dcs_param(byte, events);
@@ -464,7 +495,10 @@ impl AnsiParser {
                 self.execute_control(byte, events);
             }
             0x20..=0x2F => {
-                self.intermediates.push(byte);
+                if self.intermediates.len() < Self::MAX_INTERMEDIATES {
+                    self.intermediates.push(byte);
+                }
+                // Silently drop if buffer is full
                 self.state = ParserState::DcsIntermediate;
             }
             0x30..=0x39 => {
@@ -478,7 +512,9 @@ impl AnsiParser {
                 // Sub-parameter separator - not commonly used
             }
             0x3B => {
-                self.params.push(self.current_param.unwrap_or(0));
+                if self.params.len() < Self::MAX_PARAMS {
+                    self.params.push(self.current_param.unwrap_or(0));
+                }
                 self.current_param = Some(0);
             }
             0x3C..=0x3F => {
@@ -486,7 +522,9 @@ impl AnsiParser {
             }
             0x40..=0x7E => {
                 if let Some(param) = self.current_param {
-                    self.params.push(param);
+                    if self.params.len() < Self::MAX_PARAMS {
+                        self.params.push(param);
+                    }
                 }
                 self.state = ParserState::DcsPassthrough;
             }
@@ -503,7 +541,10 @@ impl AnsiParser {
                 self.execute_control(byte, events);
             }
             0x20..=0x2F => {
-                self.intermediates.push(byte);
+                if self.intermediates.len() < Self::MAX_INTERMEDIATES {
+                    self.intermediates.push(byte);
+                }
+                // Silently drop if buffer is full
             }
             0x40..=0x7E => {
                 self.state = ParserState::DcsPassthrough;
@@ -526,7 +567,10 @@ impl AnsiParser {
             }
             _ => {
                 // Collect DCS data
-                self.string_buffer.push(byte);
+                if self.string_buffer.len() < Self::MAX_STRING_BUFFER {
+                    self.string_buffer.push(byte);
+                }
+                // Silently drop if buffer is full
             }
         }
     }
@@ -544,7 +588,10 @@ impl AnsiParser {
             }
             _ => {
                 // Collect string data
-                self.string_buffer.push(byte);
+                if self.string_buffer.len() < Self::MAX_STRING_BUFFER {
+                    self.string_buffer.push(byte);
+                }
+                // Silently drop if buffer is full
             }
         }
     }
@@ -570,21 +617,88 @@ impl Utf8Decoder {
         }
     }
 
+
+
     fn decode(&mut self, byte: u8) -> Option<char> {
+        // Simple approach: if buffer is full, reset and start fresh
+        if self.len >= 4 {
+            self.len = 0;
+        }
+
         self.buffer[self.len] = byte;
         self.len += 1;
 
+        // Try to decode what we have so far
         match std::str::from_utf8(&self.buffer[..self.len]) {
             Ok(s) => {
-                let ch = s.chars().next()?;
-                self.len = 0;
-                Some(ch)
+                // Successfully decoded - return the character and reset
+                if let Some(ch) = s.chars().next() {
+                    self.len = 0;
+                    Some(ch)
+                } else {
+                    // Empty string somehow - reset and continue
+                    self.len = 0;
+                    None
+                }
             }
             Err(e) => {
-                if e.valid_up_to() > 0 || self.len >= 4 {
-                    self.len = 0;
+                // Check if we have a valid prefix that we can decode
+                if e.valid_up_to() > 0 {
+                    if let Ok(valid_str) = std::str::from_utf8(&self.buffer[..e.valid_up_to()]) {
+                        if let Some(ch) = valid_str.chars().next() {
+                            // We found a valid character, shift remaining bytes
+                            let remaining = self.len - e.valid_up_to();
+                            if remaining > 0 {
+                                self.buffer.copy_within(e.valid_up_to()..self.len, 0);
+                                self.len = remaining;
+                            } else {
+                                self.len = 0;
+                            }
+                            return Some(ch);
+                        }
+                    }
                 }
-                None
+
+                // Check if this could be the start of a valid sequence
+                if self.len == 1 {
+                    // Single byte - check if it could be start of multi-byte sequence
+                    match byte {
+                        0x00..=0x7F => {
+                            // ASCII - should have been decoded above, so it's invalid
+                            self.len = 0;
+                            None
+                        }
+                        0x80..=0xBF => {
+                            // Continuation byte without start - invalid
+                            self.len = 0;
+                            None
+                        }
+                        0xC0..=0xDF => {
+                            // Start of 2-byte sequence - wait for more
+                            None
+                        }
+                        0xE0..=0xEF => {
+                            // Start of 3-byte sequence - wait for more
+                            None
+                        }
+                        0xF0..=0xF7 => {
+                            // Start of 4-byte sequence - wait for more
+                            None
+                        }
+                        0xF8..=0xFF => {
+                            // Invalid UTF-8 start byte
+                            self.len = 0;
+                            None
+                        }
+                    }
+                } else {
+                    // Multi-byte sequence in progress
+                    // If we're at max length and still invalid, reset
+                    if self.len >= 4 {
+                        self.len = 0;
+                    }
+                    None
+                }
             }
         }
     }
@@ -655,5 +769,55 @@ mod tests {
             }
             _ => panic!("Expected OSC event"),
         }
+    }
+    
+    #[test]
+    fn test_utf8_decoder_buffer_overflow_protection() {
+        let mut decoder = Utf8Decoder::new();
+
+        // Test that we don't overflow when buffer is full
+        // Try to decode 5 invalid bytes (more than buffer size of 4)
+        // This should not panic or cause buffer overflow
+        for _ in 0..5 {
+            decoder.decode(0xFF); // Invalid UTF-8 byte
+        }
+
+        // Decoder should still be functional after overflow attempt
+        // The fact that this works proves the buffer was reset
+        // Test with valid UTF-8 sequence
+        assert_eq!(decoder.decode(0x41), Some('A')); // ASCII 'A'
+        
+        // Test with multi-byte UTF-8 sequence
+        assert_eq!(decoder.decode(0xC3), None); // First byte of 2-byte sequence
+        assert_eq!(decoder.decode(0xA9), Some('é')); // Second byte completes 'é'
+        
+        // Test continuous invalid bytes don't cause overflow
+        // Send many continuation bytes without start byte
+        for i in 0..10 {
+            let result = decoder.decode(0x80); // Continuation byte without start byte
+            assert_eq!(result, None, "Iteration {}: should return None for invalid continuation byte", i);
+            // We can't check len directly as it's private, but no panic means no overflow
+        }
+        
+        // Verify decoder still works after all the invalid input
+        assert_eq!(decoder.decode(0x42), Some('B')); // ASCII 'B'
+    }
+    
+    #[test]
+    fn test_utf8_decoder_valid_sequence_recovery() {
+        let mut decoder = Utf8Decoder::new();
+        
+        // Test that valid UTF-8 is extracted even from mixed invalid data
+        decoder.decode(0xC3); // Start of 2-byte sequence
+        decoder.decode(0xA9); // Valid completion: 'é'
+        
+        // Add invalid bytes that would previously cause issues
+        decoder.decode(0xFF);
+        decoder.decode(0xFF);
+        decoder.decode(0xFF);
+        decoder.decode(0xFF);
+        
+        // Should still be able to decode valid sequences
+        assert_eq!(decoder.decode(0x43), Some('C')); // ASCII 'C'
     }
 }

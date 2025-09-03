@@ -13,6 +13,9 @@ export * from './data-table';
 export * from './builder';
 export * from './hooks';
 export * from './events';
+export * from './theme';
+export * from './layout';
+export * from './input-widgets';
 export * from './types';
 export * from './error';
 

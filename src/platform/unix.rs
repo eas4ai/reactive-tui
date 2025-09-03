@@ -8,10 +8,12 @@ use std::os::unix::io::{AsRawFd, RawFd};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
 use std::time::Duration;
+use std::sync::OnceLock;
 
 static SIGNAL_HANDLERS: Mutex<Vec<SignalHandler>> = Mutex::new(Vec::new());
 static HANDLER_INSTALLED: AtomicBool = AtomicBool::new(false);
-static mut GLOBAL_TTY: Option<UnixTty> = None;
+// FIX: Use OnceLock for thread-safe initialization instead of unsafe global
+static GLOBAL_TTY: OnceLock<Mutex<Option<UnixTty>>> = OnceLock::new();
 
 /// Signal handler for Unix systems
 pub struct SignalHandler {
@@ -105,8 +107,11 @@ impl UnixTty {
             original_termios,
         };
 
-        // Store global reference for panic recovery
-        unsafe { GLOBAL_TTY = Some(tty.clone()) };
+        // Store global reference for panic recovery (thread-safe)
+        let global_tty = GLOBAL_TTY.get_or_init(|| Mutex::new(None));
+        if let Ok(mut guard) = global_tty.lock() {
+            *guard = Some(tty.clone());
+        }
 
         Ok(tty)
     }
@@ -382,9 +387,12 @@ extern "C" fn handle_winch(
 /// Panic handler to restore terminal state
 pub fn install_panic_handler() {
     std::panic::set_hook(Box::new(|_| {
-        unsafe {
-            if let Some(ref tty) = GLOBAL_TTY {
-                let _ = tty.restore();
+        // Thread-safe access to global TTY
+        if let Some(global_tty) = GLOBAL_TTY.get() {
+            if let Ok(guard) = global_tty.lock() {
+                if let Some(ref tty) = *guard {
+                    let _ = tty.restore();
+                }
             }
         }
         reset_signal_handlers();

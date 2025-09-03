@@ -40,7 +40,7 @@ pub struct SyntaxHighlighter {
 impl SyntaxHighlighter {
     /// Create a new highlighter for a language
     pub fn new(language: &str) -> Option<Self> {
-        let resources = SYNTAX_RESOURCES.read().unwrap();
+        let resources = SYNTAX_RESOURCES.read().ok()?;
         let syntax = resources.find_syntax_by_name(language)?;
 
         // Clone the syntax reference
@@ -58,7 +58,7 @@ impl SyntaxHighlighter {
 
     /// Create a highlighter from file extension
     pub fn from_extension(extension: &str) -> Option<Self> {
-        let resources = SYNTAX_RESOURCES.read().unwrap();
+        let resources = SYNTAX_RESOURCES.read().ok()?;
         let syntax = resources.find_syntax(extension)?;
 
         let syntax = Arc::new(syntax.clone());
@@ -75,7 +75,23 @@ impl SyntaxHighlighter {
 
     /// Highlight a complete text
     pub fn highlight_text(&mut self, text: &str) -> Vec<HighlightedLine> {
-        let resources = SYNTAX_RESOURCES.read().unwrap();
+        let resources = match SYNTAX_RESOURCES.read() {
+            Ok(r) => r,
+            Err(_) => {
+                // Lock poisoned, return unhighlighted text
+                return text.lines().enumerate().map(|(line_num, line)| {
+                    HighlightedLine {
+                        runs: vec![StyledRun::new(
+                            line.to_string(),
+                            Rgba::black(),
+                            Rgba::transparent(),
+                            Attr::empty(),
+                        )],
+                        line_number: line_num,
+                    }
+                }).collect();
+            }
+        };
         let theme = resources.active_theme();
 
         let mut highlighter = HighlightLines::new(self.syntax.as_ref(), theme);
@@ -124,7 +140,23 @@ impl SyntaxHighlighter {
             self.cached_lines.resize(lines.len(), None);
         }
 
-        let resources = SYNTAX_RESOURCES.read().unwrap();
+        let resources = match SYNTAX_RESOURCES.read() {
+            Ok(r) => r,
+            Err(_) => {
+                // Lock poisoned, return fallback for visible range
+                return (start_line..end_line.min(lines.len())).map(|line_num| {
+                    HighlightedLine {
+                        runs: vec![StyledRun::new(
+                            lines.get(line_num).unwrap_or(&"").to_string(),
+                            Rgba::black(),
+                            Rgba::transparent(),
+                            Attr::empty(),
+                        )],
+                        line_number: line_num,
+                    }
+                }).collect();
+            }
+        };
         let theme = resources.active_theme();
         let mut highlighter = HighlightLines::new(self.syntax.as_ref(), theme);
 
@@ -188,7 +220,21 @@ impl SyntaxHighlighter {
 
     /// Re-highlight a single line after edit
     pub fn rehighlight_line(&mut self, line_text: &str, line_num: usize) -> HighlightedLine {
-        let resources = SYNTAX_RESOURCES.read().unwrap();
+        let resources = match SYNTAX_RESOURCES.read() {
+            Ok(r) => r,
+            Err(_) => {
+                // Lock poisoned, return unhighlighted line
+                return HighlightedLine {
+                    runs: vec![StyledRun::new(
+                        line_text.to_string(),
+                        Rgba::black(),
+                        Rgba::transparent(),
+                        Attr::empty(),
+                    )],
+                    line_number: line_num,
+                };
+            }
+        };
         let theme = resources.active_theme();
 
         // Need to maintain state for proper context

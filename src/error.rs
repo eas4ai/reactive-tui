@@ -257,7 +257,7 @@ mod tests {
         let result = test_function();
         assert!(result.is_err());
         assert!(matches!(
-            result.unwrap_err(),
+            result.expect_err("Result should be an error"),
             ReactiveError::InvalidParameter { .. }
         ));
     }

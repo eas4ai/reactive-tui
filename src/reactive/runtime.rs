@@ -69,8 +69,9 @@ impl ReactiveRuntime {
             let batch_depth = *self.batch_depth.borrow();
 
             for weak_effect in effects {
-                if let Some(_effect) = weak_effect.upgrade() {
-                    let effect_id = EffectId::new(); // Would need to store ID in Effect
+                if let Some(effect) = weak_effect.upgrade() {
+                    // FIX: Use the actual effect's ID instead of creating a new one
+                    let effect_id = effect.borrow().id();
 
                     if batch_depth > 0 {
                         // We're in a batch, queue the effect

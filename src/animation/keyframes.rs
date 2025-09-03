@@ -681,7 +681,8 @@ mod tests {
         let from = KeyframeValue::Number(0.0);
         let to = KeyframeValue::Number(100.0);
 
-        let result = from.interpolate(&to, 0.5).unwrap();
+        let result = from.interpolate(&to, 0.5)
+            .expect("Should be able to interpolate between numbers");
         assert_eq!(result, KeyframeValue::Number(50.0));
     }
 

@@ -61,8 +61,10 @@ static SPACING_PREFIXES: Lazy<Vec<(&'static str, UtilityFn)>> = Lazy::new(|| {
 
 // Thread-local cache for complete class strings using proper LRU
 thread_local! {
-    static CLASS_CACHE: std::cell::RefCell<lru::LruCache<String, StyleBuilder>> = 
-        std::cell::RefCell::new(lru::LruCache::new(std::num::NonZeroUsize::new(128).unwrap()));
+    static CLASS_CACHE: std::cell::RefCell<lru::LruCache<String, StyleBuilder>> =
+        std::cell::RefCell::new(lru::LruCache::new(
+            std::num::NonZeroUsize::new(128).expect("Cache size must be non-zero")
+        ));
 }
 
 /// CSS utility class application with performance improvements

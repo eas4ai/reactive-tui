@@ -8,6 +8,10 @@ pub struct DiffContext {
     path: Vec<String>,
     /// Statistics
     pub stats: DiffStats,
+    /// Current recursion depth for stack overflow prevention
+    depth: usize,
+    /// Maximum allowed recursion depth
+    max_depth: usize,
 }
 
 /// Statistics about the diffing process
@@ -35,6 +39,8 @@ impl DiffContext {
         Self {
             path: Vec::new(),
             stats: DiffStats::default(),
+            depth: 0,
+            max_depth: 1000, // Reasonable limit for UI trees
         }
     }
 
@@ -74,10 +80,30 @@ fn diff_node(
     index: usize,
 ) {
     ctx.stats.nodes_compared += 1;
+    
+    // Stack overflow prevention: check depth limit
+    if ctx.depth >= ctx.max_depth {
+        #[cfg(debug_assertions)]
+        eprintln!("Warning: Maximum VDOM diff depth ({}) reached. Tree may be too deep or contain cycles.", ctx.max_depth);
+        
+        // Replace entire subtree to avoid stack overflow
+        patches.push(Patch::Replace {
+            index,
+            old: old.clone(),
+            new: new.clone(),
+        });
+        ctx.stats.nodes_replaced += 1;
+        ctx.stats.patches_generated += 1;
+        return;
+    }
+    
+    // Increment depth for this recursion level
+    ctx.depth += 1;
 
     // Fast path: identical nodes
     if nodes_equal(old, new) {
         ctx.stats.nodes_reused += 1;
+        ctx.depth -= 1;
         return;
     }
 
@@ -91,6 +117,7 @@ fn diff_node(
         });
         ctx.stats.nodes_replaced += 1;
         ctx.stats.patches_generated += 1;
+        ctx.depth -= 1;
         return;
     }
 
@@ -171,6 +198,9 @@ fn diff_node(
             ctx.stats.patches_generated += 1;
         }
     }
+    
+    // Decrement depth after processing
+    ctx.depth -= 1;
 }
 
 /// Check if two nodes are equal (no patching needed)

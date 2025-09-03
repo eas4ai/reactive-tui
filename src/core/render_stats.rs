@@ -175,14 +175,13 @@ impl RenderStatsCollector {
 
         // Calculate FPS based on recent samples
         let fps = if self.samples.len() >= 2 {
-            let time_span = self
-                .samples
-                .back()
-                .unwrap()
-                .timestamp
-                .duration_since(self.samples.front().unwrap().timestamp);
-            if time_span.as_secs_f32() > 0.0 {
-                (self.samples.len() - 1) as f32 / time_span.as_secs_f32()
+            if let (Some(back), Some(front)) = (self.samples.back(), self.samples.front()) {
+                let time_span = back.timestamp.duration_since(front.timestamp);
+                if time_span.as_secs_f32() > 0.0 {
+                    (self.samples.len() - 1) as f32 / time_span.as_secs_f32()
+                } else {
+                    0.0
+                }
             } else {
                 0.0
             }
@@ -274,12 +273,11 @@ impl RenderStatsCollector {
 
         // Component creation/cleanup rates (per second)
         let time_span_secs = if self.samples.len() > 1 {
-            self.samples
-                .back()
-                .unwrap()
-                .timestamp
-                .duration_since(self.samples.front().unwrap().timestamp)
-                .as_secs_f32()
+            if let (Some(back), Some(front)) = (self.samples.back(), self.samples.front()) {
+                back.timestamp.duration_since(front.timestamp).as_secs_f32()
+            } else {
+                1.0 // Fallback if samples are somehow missing
+            }
         } else {
             1.0 // Avoid division by zero
         };

@@ -5,15 +5,15 @@
 
 use super::geometry::{Point, Rect, Size};
 use std::env;
-use std::sync::Once;
 use unicode_segmentation::UnicodeSegmentation;
 use unicode_width::UnicodeWidthStr;
 
 // === Unicode Handling Utilities ===
 
 /// Terminal emoji handling detection
-static mut HANDLES_VS16_INCORRECTLY: bool = false;
-static INIT_HANDLES_VS16_INCORRECTLY: Once = Once::new();
+use std::sync::OnceLock;
+
+static HANDLES_VS16_INCORRECTLY: OnceLock<bool> = OnceLock::new();
 
 /// Some terminals incorrectly only advance the cursor one space for emoji with VS16
 /// This detects those terminals and compensates with additional whitespace
@@ -21,15 +21,12 @@ static INIT_HANDLES_VS16_INCORRECTLY: Once = Once::new();
 /// Based on: https://www.jeffquast.com/post/ucs-detect-test-results/
 /// and: https://darrenburns.net/posts/emoji-in-the-terminal/
 pub(crate) fn handles_vs16_incorrectly() -> bool {
-    unsafe {
-        INIT_HANDLES_VS16_INCORRECTLY.call_once(|| {
-            HANDLES_VS16_INCORRECTLY = env::var("TERM_PROGRAM")
-                .map(|s| s == "Apple_Terminal")
-                .unwrap_or(false)
-                || env::var("GNOME_TERMINAL_SCREEN").is_ok_and(|v| !v.is_empty())
-        });
-        HANDLES_VS16_INCORRECTLY
-    }
+    *HANDLES_VS16_INCORRECTLY.get_or_init(|| {
+        env::var("TERM_PROGRAM")
+            .map(|s| s == "Apple_Terminal")
+            .unwrap_or(false)
+            || env::var("GNOME_TERMINAL_SCREEN").is_ok_and(|v| !v.is_empty())
+    })
 }
 
 /// Calculate the required padding for emoji with VS16 in problematic terminals
@@ -831,12 +828,29 @@ impl Surface {
                 "Surface dimensions too large (max 10000x10000)",
             ));
         }
+        
+        // Check for multiplication overflow
+        if let Some(buffer_size) = w.checked_mul(h) {
+            // Additional safety check for reasonable memory usage (100MB limit for cells)
+            const MAX_CELLS: usize = 100_000_000 / std::mem::size_of::<Cell>();
+            if buffer_size > MAX_CELLS {
+                return Err(ReactiveError::invalid_parameter(
+                    format!("Surface buffer size {} exceeds maximum allowed {}", buffer_size, MAX_CELLS),
+                ));
+            }
+        } else {
+            return Err(ReactiveError::invalid_parameter(
+                format!("Surface dimensions {}x{} would cause integer overflow", w, h),
+            ));
+        }
+        
         Ok(Self::new(w, h))
     }
     /// Calculate buffer index from coordinates
     #[inline]
     fn idx(&self, x: usize, y: usize) -> usize {
-        y * self.w + x
+        // Saturating operations prevent overflow panics
+        y.saturating_mul(self.w).saturating_add(x)
     }
     /// Get the dimensions of the surface
     ///
@@ -887,6 +901,9 @@ impl Surface {
     }
     /// Get a cell at the specified coordinates
     pub fn get(&self, x: usize, y: usize) -> Cell {
+        if x >= self.w || y >= self.h {
+            return Cell::default();
+        }
         self.buf[self.idx(x, y)]
     }
 

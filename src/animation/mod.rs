@@ -11,6 +11,8 @@ pub mod debug;
 pub mod easing;
 /// Keyframe-based animation system
 pub mod keyframes;
+/// Lock-free animation state management to prevent deadlocks
+pub mod lock_free;
 /// Performance monitoring and optimization for animations
 pub mod performance;
 /// Spring physics-based animations
@@ -28,6 +30,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
+use std::sync::atomic::{AtomicU64, Ordering};
 
 // Type aliases for complex function pointer types
 type OnStartCallback = Arc<dyn Fn(&Animation) + Send + Sync>;
@@ -42,6 +45,70 @@ pub type AnimationId = String;
 
 /// Unique identifier for animation timelines
 pub type TimelineId = String;
+
+/// Monotonic time source resistant to time manipulation attacks
+pub struct MonotonicTimer {
+    /// Base time from when the timer was created
+    pub(crate) base_time: Instant,
+    /// Monotonic counter to prevent backward time jumps
+    last_time: AtomicU64,
+}
+
+impl MonotonicTimer {
+    /// Create a new monotonic timer
+    pub fn new() -> Self {
+        Self {
+            base_time: Instant::now(),
+            last_time: AtomicU64::new(0),
+        }
+    }
+
+    /// Get current monotonic time that cannot go backwards
+    pub fn now(&self) -> Duration {
+        let current = self.base_time.elapsed();
+        let current_nanos = current.as_nanos() as u64;
+        
+        // Ensure time only moves forward
+        let last = self.last_time.load(Ordering::Acquire);
+        let monotonic_nanos = if current_nanos > last {
+            // Normal case: time moved forward
+            self.last_time.store(current_nanos, Ordering::Release);
+            current_nanos
+        } else {
+            // Time manipulation detected: use last known good time
+            last
+        };
+        
+        // Protect against overflow
+        let safe_nanos = monotonic_nanos.min(u64::MAX / 2);
+        Duration::from_nanos(safe_nanos)
+    }
+
+    /// Get elapsed time since timer creation
+    pub fn elapsed(&self) -> Duration {
+        self.now()
+    }
+
+    /// Check if a duration has elapsed since a given start time
+    pub fn has_elapsed(&self, start: Duration, duration: Duration) -> bool {
+        let current = self.now();
+        current.saturating_sub(start) >= duration
+    }
+}
+
+impl Default for MonotonicTimer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/// Global monotonic timer instance
+static MONOTONIC_TIMER: std::sync::OnceLock<MonotonicTimer> = std::sync::OnceLock::new();
+
+/// Get the global monotonic timer
+fn get_monotonic_timer() -> &'static MonotonicTimer {
+    MONOTONIC_TIMER.get_or_init(MonotonicTimer::new)
+}
 
 /// Animation controller for managing animations
 pub struct AnimationController {
@@ -1141,9 +1208,8 @@ impl Animation {
         Self {
             id: format!(
                 "anim_{}",
-                std::time::SystemTime::now()
-                    .duration_since(std::time::UNIX_EPOCH)
-                    .unwrap_or_default()
+                get_monotonic_timer()
+                    .elapsed()
                     .as_millis()
             ),
             property: AnimatedProperty::Opacity(0.0, 1.0),
@@ -1201,8 +1267,11 @@ impl Animation {
             state.state = AnimationState::Playing;
         }
 
-        self.runtime.last_frame_time = Some(Instant::now());
-        self.start_time = Some(Instant::now());
+        let now = get_monotonic_timer().now();
+        // Convert monotonic Duration to Instant for compatibility
+        let base = get_monotonic_timer().base_time;
+        self.runtime.last_frame_time = Some(base + now);
+        self.start_time = Some(base + now);
 
         if let Some(callback) = &self.callbacks.on_start {
             callback(self);
@@ -1279,9 +1348,10 @@ impl Animation {
             return false;
         }
 
-        // Handle delay
+        // Handle delay using monotonic time
         if let Some(start_time) = self.start_time {
-            if start_time.elapsed() < self.config.delay {
+            let monotonic_now = get_monotonic_timer().base_time + get_monotonic_timer().now();
+            if monotonic_now.duration_since(start_time) < self.config.delay {
                 return false;
             }
         }
@@ -1837,7 +1907,7 @@ impl AnimationManager {
         Self {
             animations: HashMap::new(),
             timelines: HashMap::new(),
-            last_update: Instant::now(),
+            last_update: get_monotonic_timer().base_time,
         }
     }
 
@@ -1865,7 +1935,8 @@ impl AnimationManager {
 
     /// Update all animations (call in main loop)
     pub fn update(&mut self) {
-        let now = Instant::now();
+        let timer = get_monotonic_timer();
+        let now = timer.base_time + timer.now();
         let delta_time = now.duration_since(self.last_update);
         self.last_update = now;
 
@@ -1895,12 +1966,72 @@ impl AnimationManager {
         self.animations.get_mut(id)
     }
 
-    /// Remove completed animations
+    /// Remove completed, failed, or stuck animations
     pub fn cleanup_completed(&mut self) {
+        // Remove completed animations
         self.animations
             .retain(|_, animation| !animation.is_completed());
-        self.timelines
-            .retain(|_, timeline| *timeline.state.read().unwrap() != AnimationState::Completed);
+        
+        // Remove completed timelines, handling lock failures gracefully
+        self.timelines.retain(|id, timeline| {
+            match timeline.state.read() {
+                Ok(state) => *state != AnimationState::Completed,
+                Err(e) => {
+                    // If we can't read the state, the lock is poisoned - remove it
+                    eprintln!("Warning: Removing timeline {} due to poisoned lock: {}", id, e);
+                    false
+                }
+            }
+        });
+    }
+    
+    /// Clean up all animations including failed/stuck ones
+    /// Returns the number of animations cleaned up
+    pub fn cleanup_all_stale(&mut self, stale_threshold: Duration) -> usize {
+        let timer = get_monotonic_timer();
+        let now = timer.base_time + timer.now();
+        let mut removed = 0;
+        
+        // Remove animations that are completed or haven't updated recently
+        self.animations.retain(|id, animation| {
+            let should_keep = if animation.is_completed() {
+                false
+            } else if let Some(start_time) = animation.start_time {
+                // Keep animations that started recently or are still progressing
+                now.duration_since(start_time) < stale_threshold || 
+                animation.runtime.last_frame_time.is_some_and(|t| 
+                    now.duration_since(t) < stale_threshold
+                )
+            } else {
+                true // Keep animations that haven't started yet
+            };
+            
+            if !should_keep {
+                removed += 1;
+                #[cfg(debug_assertions)]
+                eprintln!("Cleaning up stale animation: {}", id);
+            }
+            should_keep
+        });
+        
+        // Remove stale timelines
+        self.timelines.retain(|id, timeline| {
+            let should_keep = match timeline.state.read() {
+                Ok(state) => *state != AnimationState::Completed,
+                Err(_) => {
+                    removed += 1;
+                    false // Remove poisoned timelines
+                }
+            };
+            
+            if !should_keep {
+                #[cfg(debug_assertions)]
+                eprintln!("Cleaning up stale timeline: {}", id);
+            }
+            should_keep
+        });
+        
+        removed
     }
 
     /// Get active animation count

@@ -16,7 +16,9 @@ mod tests {
             TerminalEvent::Key {
                 code: KeyCode::Up, ..
             } => {}
-            _ => panic!("Expected Up key event"),
+            other => {
+                assert!(false, "Expected Up key event, got: {:?}", other);
+            }
         }
 
         // Test mouse event parsing
@@ -27,7 +29,9 @@ mod tests {
         assert_eq!(events.len(), 1);
         match &events[0] {
             TerminalEvent::Mouse { .. } => {}
-            _ => panic!("Expected Mouse event"),
+            other => {
+                assert!(false, "Expected Mouse event, got: {:?}", other);
+            }
         }
     }
 
@@ -80,7 +84,9 @@ mod tests {
             TerminalEvent::Key {
                 code: KeyCode::Up, ..
             } => {}
-            _ => panic!("Expected Up key event"),
+            other => {
+                assert!(false, "Expected Up key event, got: {:?}", other);
+            }
         }
     }
 
@@ -96,7 +102,9 @@ mod tests {
                 code: KeyCode::F(1),
                 ..
             } => {}
-            _ => panic!("Expected F1 key event"),
+            other => {
+                assert!(false, "Expected F1 key event, got: {:?}", other);
+            }
         }
 
         // Test paste events
@@ -104,7 +112,9 @@ mod tests {
         assert_eq!(events.len(), 1);
         match &events[0] {
             TerminalEvent::PasteStart => {}
-            _ => panic!("Expected PasteStart event"),
+            other => {
+                assert!(false, "Expected PasteStart event, got: {:?}", other);
+            }
         }
     }
 
@@ -117,7 +127,9 @@ mod tests {
         assert_eq!(events.len(), 1);
         match &events[0] {
             TerminalEvent::FocusGained => {}
-            _ => panic!("Expected FocusGained event"),
+            other => {
+                assert!(false, "Expected FocusGained event, got: {:?}", other);
+            }
         }
 
         // Test focus lost
@@ -125,7 +137,9 @@ mod tests {
         assert_eq!(events.len(), 1);
         match &events[0] {
             TerminalEvent::FocusLost => {}
-            _ => panic!("Expected FocusLost event"),
+            other => {
+                assert!(false, "Expected FocusLost event, got: {:?}", other);
+            }
         }
     }
 
@@ -138,7 +152,9 @@ mod tests {
         assert_eq!(events.len(), 1);
         match &events[0] {
             TerminalEvent::ColorScheme(ColorScheme::Dark) => {}
-            _ => panic!("Expected ColorScheme::Dark event"),
+            other => {
+                assert!(false, "Expected ColorScheme::Dark event, got: {:?}", other);
+            }
         }
     }
 
@@ -195,7 +211,9 @@ mod tests {
                 assert!(!modifiers.shift);
                 assert!(!modifiers.alt);
             }
-            _ => panic!("Expected modified Up key event"),
+            other => {
+                assert!(false, "Expected modified Up key event, got: {:?}", other);
+            }
         }
     }
 }

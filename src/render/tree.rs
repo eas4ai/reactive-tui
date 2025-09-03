@@ -189,15 +189,14 @@ impl RenderNode for ElementNode {
 impl Drop for ElementNode {
     fn drop(&mut self) {
         // Automatic cleanup: unregister component instance if present
-        if self.component_instance.is_some() {
-            if let Err(_) = crate::component::registry::get_global_registry()
-                .unregister_instance(&self.key)
+        if self.component_instance.is_some()
+            && crate::component::registry::get_global_registry()
+                .unregister_instance(&self.key).is_err()
             {
                 // Log error in debug mode, but don't panic during drop
                 #[cfg(debug_assertions)]
                 eprintln!("Warning: Failed to unregister component instance during ElementNode drop");
             }
-        }
     }
 }
 

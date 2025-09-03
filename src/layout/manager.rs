@@ -413,9 +413,10 @@ impl LayoutManager {
             // Generate paint ops based on element type
             match &meta.element.element_type {
                 ElementType::Text(content) => {
+                    // Safe conversion with saturation to prevent truncation
                     self.paint_ops.push(PaintOp::Text {
-                        x: x as u16,
-                        y: y as u16,
+                        x: x.min(u16::MAX as f32) as u16,
+                        y: y.min(u16::MAX as f32) as u16,
                         content: content.clone(),
                         style: TextStyle::default(),
                     });
@@ -423,11 +424,12 @@ impl LayoutManager {
                 ElementType::Layout(_) => {
                     // Layout nodes might have borders or backgrounds
                     if layout.size.width > 0.0 && layout.size.height > 0.0 {
+                        // Safe conversion with saturation to prevent truncation
                         self.paint_ops.push(PaintOp::Clear {
-                            x: x as u16,
-                            y: y as u16,
-                            width: layout.size.width as u16,
-                            height: layout.size.height as u16,
+                            x: x.min(u16::MAX as f32) as u16,
+                            y: y.min(u16::MAX as f32) as u16,
+                            width: layout.size.width.min(u16::MAX as f32) as u16,
+                            height: layout.size.height.min(u16::MAX as f32) as u16,
                         });
                     }
                 }

@@ -21,12 +21,15 @@ pub mod props;
 pub mod registry;
 /// Performance optimizations for component operations
 pub mod cache;
+/// Tracked component instances with automatic cleanup
+pub mod tracked_instance;
 
 pub use element::{Element, ElementType, LayoutType};
 pub use instance::{AnyComponentInstance, ComponentInstance};
 pub use lifecycle::{Lifecycle, LifecycleEvent};
 pub use props::Props;
 pub use registry::ComponentRegistry;
+pub use tracked_instance::{TrackedComponentInstance, SharedTrackedInstance};
 /// Bridge between component elements and layout system
 pub mod bridge;
 /// State management flags for component lifecycle

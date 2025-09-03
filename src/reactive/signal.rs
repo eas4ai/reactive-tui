@@ -82,23 +82,46 @@ impl<T> Signal<T> {
     where
         T: PartialEq,
     {
-        let mut inner = self.inner.borrow_mut();
-        if inner.value != value {
-            inner.value = value;
-            inner.version += 1;
-
-            // Notify all subscribers
-            inner.subscribers.retain(|weak| {
-                if let Some(subscriber) = weak.upgrade() {
-                    subscriber.borrow_mut().notify(self.id);
-                    true
-                } else {
-                    false
+        // Collect subscribers and wakers while holding the lock, then notify after releasing
+        let (should_notify, subscribers_to_notify, wakers_to_wake) = {
+            let mut inner = self.inner.borrow_mut();
+            if inner.value != value {
+                inner.value = value;
+                inner.version += 1;
+                
+                // Collect valid subscribers
+                let mut valid_subscribers = Vec::new();
+                let mut new_subscribers = Vec::new();
+                
+                for weak in inner.subscribers.drain(..) {
+                    if let Some(subscriber) = weak.upgrade() {
+                        valid_subscribers.push(subscriber);
+                        new_subscribers.push(weak);
+                    }
                 }
-            });
-
+                
+                inner.subscribers = new_subscribers;
+                
+                // Collect wakers
+                let wakers = inner.wakers.drain(..).collect::<Vec<_>>();
+                
+                (true, valid_subscribers, wakers)
+            } else {
+                (false, Vec::new(), Vec::new())
+            }
+        }; // Lock released here
+        
+        // Now notify subscribers without holding the lock
+        if should_notify {
+            for subscriber in subscribers_to_notify {
+                // Use try_borrow_mut to avoid panics on re-entrant calls
+                if let Ok(mut sub) = subscriber.try_borrow_mut() {
+                    sub.notify(self.id);
+                }
+            }
+            
             // Wake all async tasks
-            for waker in inner.wakers.drain(..) {
+            for waker in wakers_to_wake {
                 waker.wake();
             }
         }
@@ -109,25 +132,48 @@ impl<T> Signal<T> {
     where
         T: PartialEq + Clone,
     {
-        let mut inner = self.inner.borrow_mut();
-        let old_value = inner.value.clone();
-        f(&mut inner.value);
+        // Collect subscribers and wakers while holding the lock, then notify after releasing
+        let (should_notify, subscribers_to_notify, wakers_to_wake) = {
+            let mut inner = self.inner.borrow_mut();
+            let old_value = inner.value.clone();
+            f(&mut inner.value);
 
-        if inner.value != old_value {
-            inner.version += 1;
-
-            // Notify all subscribers
-            inner.subscribers.retain(|weak| {
-                if let Some(subscriber) = weak.upgrade() {
-                    subscriber.borrow_mut().notify(self.id);
-                    true
-                } else {
-                    false
+            if inner.value != old_value {
+                inner.version += 1;
+                
+                // Collect valid subscribers
+                let mut valid_subscribers = Vec::new();
+                let mut new_subscribers = Vec::new();
+                
+                for weak in inner.subscribers.drain(..) {
+                    if let Some(subscriber) = weak.upgrade() {
+                        valid_subscribers.push(subscriber);
+                        new_subscribers.push(weak);
+                    }
                 }
-            });
-
+                
+                inner.subscribers = new_subscribers;
+                
+                // Collect wakers
+                let wakers = inner.wakers.drain(..).collect::<Vec<_>>();
+                
+                (true, valid_subscribers, wakers)
+            } else {
+                (false, Vec::new(), Vec::new())
+            }
+        }; // Lock released here
+        
+        // Now notify subscribers without holding the lock
+        if should_notify {
+            for subscriber in subscribers_to_notify {
+                // Use try_borrow_mut to avoid panics on re-entrant calls
+                if let Ok(mut sub) = subscriber.try_borrow_mut() {
+                    sub.notify(self.id);
+                }
+            }
+            
             // Wake all async tasks
-            for waker in inner.wakers.drain(..) {
+            for waker in wakers_to_wake {
                 waker.wake();
             }
         }

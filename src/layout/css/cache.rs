@@ -129,8 +129,10 @@ static TAILWIND_COLORS: Lazy<HashMap<&'static str, ColorTuple>> = Lazy::new(|| {
 
 thread_local! {
     /// Thread-local LRU cache for dynamically parsed colors (hex codes, rgb(), etc.)
-    static DYNAMIC_COLOR_CACHE: RefCell<LruCache<String, ColorTuple>> = 
-        RefCell::new(LruCache::new(NonZeroUsize::new(128).unwrap()));
+    static DYNAMIC_COLOR_CACHE: RefCell<LruCache<String, ColorTuple>> =
+        RefCell::new(LruCache::new(
+            NonZeroUsize::new(128).expect("Cache size must be non-zero")
+        ));
 }
 
 /// Get a color from the static Tailwind palette

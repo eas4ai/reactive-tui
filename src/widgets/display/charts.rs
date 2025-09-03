@@ -371,7 +371,7 @@ impl Chart {
                     continue;
                 }
 
-                for (_point_idx, point) in series.data.iter().enumerate() {
+                for point in series.data.iter() {
                     let normalized_height = if max_value > 0.0 {
                         (point.value / max_value * bar_height as f64) as u16
                     } else {
@@ -450,7 +450,7 @@ impl Chart {
 
                 let mut bar_line = String::new();
 
-                // Add label
+                // Add label - use point label if available, otherwise series name
                 let label = point.label.as_ref().unwrap_or(&series.name);
                 bar_line.push_str(&format!("{:>15} ", label));
 
@@ -561,6 +561,7 @@ impl Chart {
                 let bar_length = (percentage as f64 / 100.0 * 20.0) as usize; // 20 char width
 
                 let mut line = String::new();
+                // Use point label if available, otherwise series name
                 line.push_str(&format!("│ {:>12} ",
                     point.label.as_ref().unwrap_or(&series.name)));
 

@@ -1,6 +1,12 @@
 use super::{csi::CSIAction, esc::ESCAction, osc::OSCAction, Action};
 use std::mem;
 
+/// Maximum sizes for buffers to prevent DoS attacks
+const MAX_OSC_STRING_SIZE: usize = 8192;  // 8KB limit for OSC strings
+const MAX_DCS_STRING_SIZE: usize = 16384; // 16KB limit for DCS strings
+const MAX_INTERMEDIATE_SIZE: usize = 8;   // VT standard allows max 2 intermediates
+const MAX_PARAMS_SIZE: usize = 32;        // VT standard allows max 16 params
+
 /// VT parser state machine for ANSI escape sequences
 /// Based on Paul Williams' state machine design: <https://vt100.net/emu/dec_ansi_parser>
 pub struct Parser {
@@ -174,7 +180,19 @@ impl Parser {
         match byte {
             0x20..=0x2F => {
                 // Intermediate bytes
-                self.intermediate_bytes.push(byte);
+                if self.intermediate_bytes.len() < MAX_INTERMEDIATE_SIZE {
+                    if self.intermediate_bytes.len() < MAX_INTERMEDIATE_SIZE {
+                        if self.intermediate_bytes.len() < MAX_INTERMEDIATE_SIZE {
+                    self.intermediate_bytes.push(byte);
+                } else {
+                    #[cfg(debug_assertions)]
+                    eprintln!("Warning: intermediate_bytes buffer full, dropping byte");
+                }
+                    }
+                } else {
+                    #[cfg(debug_assertions)]
+                    eprintln!("Warning: intermediate_bytes buffer full, dropping byte");
+                }
                 self.state = State::EscapeIntermediate;
             }
             0x30..=0x4F | 0x51..=0x57 | 0x59 | 0x5A | 0x5C | 0x60..=0x7E => {
@@ -209,9 +227,15 @@ impl Parser {
         match byte {
             0x20..=0x2F => {
                 // More intermediate bytes
-                if self.intermediate_bytes.len() < 2 {
+                if self.intermediate_bytes.len() < 2
+                    && self.intermediate_bytes.len() < MAX_INTERMEDIATE_SIZE {
+                        if self.intermediate_bytes.len() < MAX_INTERMEDIATE_SIZE {
                     self.intermediate_bytes.push(byte);
+                } else {
+                    #[cfg(debug_assertions)]
+                    eprintln!("Warning: intermediate_bytes buffer full, dropping byte");
                 }
+                    }
             }
             0x30..=0x7E => {
                 // Final byte
@@ -229,7 +253,12 @@ impl Parser {
         match byte {
             0x20..=0x2F => {
                 // Intermediate bytes
-                self.intermediate_bytes.push(byte);
+                if self.intermediate_bytes.len() < MAX_INTERMEDIATE_SIZE {
+                    self.intermediate_bytes.push(byte);
+                } else {
+                    #[cfg(debug_assertions)]
+                    eprintln!("Warning: intermediate_bytes buffer full, dropping byte");
+                }
                 self.state = State::CSIIntermediate;
             }
             0x30..=0x39 => {
@@ -248,7 +277,12 @@ impl Parser {
             }
             0x3C..=0x3F => {
                 // Private marker
-                self.intermediate_bytes.push(byte);
+                if self.intermediate_bytes.len() < MAX_INTERMEDIATE_SIZE {
+                    self.intermediate_bytes.push(byte);
+                } else {
+                    #[cfg(debug_assertions)]
+                    eprintln!("Warning: intermediate_bytes buffer full, dropping byte");
+                }
                 self.state = State::CSIParam;
             }
             0x40..=0x7E => {
@@ -267,7 +301,12 @@ impl Parser {
         match byte {
             0x20..=0x2F => {
                 // Intermediate bytes
-                self.intermediate_bytes.push(byte);
+                if self.intermediate_bytes.len() < MAX_INTERMEDIATE_SIZE {
+                    self.intermediate_bytes.push(byte);
+                } else {
+                    #[cfg(debug_assertions)]
+                    eprintln!("Warning: intermediate_bytes buffer full, dropping byte");
+                }
                 self.state = State::CSIIntermediate;
             }
             0x30..=0x39 => {
@@ -302,9 +341,15 @@ impl Parser {
         match byte {
             0x20..=0x2F => {
                 // More intermediate bytes
-                if self.intermediate_bytes.len() < 2 {
+                if self.intermediate_bytes.len() < 2
+                    && self.intermediate_bytes.len() < MAX_INTERMEDIATE_SIZE {
+                        if self.intermediate_bytes.len() < MAX_INTERMEDIATE_SIZE {
                     self.intermediate_bytes.push(byte);
+                } else {
+                    #[cfg(debug_assertions)]
+                    eprintln!("Warning: intermediate_bytes buffer full, dropping byte");
                 }
+                    }
             }
             0x30..=0x3F => {
                 // Invalid in intermediate
@@ -333,7 +378,12 @@ impl Parser {
         match byte {
             0x20..=0x2F => {
                 // Intermediate bytes
-                self.intermediate_bytes.push(byte);
+                if self.intermediate_bytes.len() < MAX_INTERMEDIATE_SIZE {
+                    self.intermediate_bytes.push(byte);
+                } else {
+                    #[cfg(debug_assertions)]
+                    eprintln!("Warning: intermediate_bytes buffer full, dropping byte");
+                }
                 self.state = State::DCSIntermediate;
             }
             0x30..=0x39 => {
@@ -352,7 +402,12 @@ impl Parser {
             }
             0x3C..=0x3F => {
                 // Private marker
-                self.intermediate_bytes.push(byte);
+                if self.intermediate_bytes.len() < MAX_INTERMEDIATE_SIZE {
+                    self.intermediate_bytes.push(byte);
+                } else {
+                    #[cfg(debug_assertions)]
+                    eprintln!("Warning: intermediate_bytes buffer full, dropping byte");
+                }
                 self.state = State::DCSParam;
             }
             0x40..=0x7E => {
@@ -370,7 +425,12 @@ impl Parser {
         match byte {
             0x20..=0x2F => {
                 // Intermediate bytes
-                self.intermediate_bytes.push(byte);
+                if self.intermediate_bytes.len() < MAX_INTERMEDIATE_SIZE {
+                    self.intermediate_bytes.push(byte);
+                } else {
+                    #[cfg(debug_assertions)]
+                    eprintln!("Warning: intermediate_bytes buffer full, dropping byte");
+                }
                 self.state = State::DCSIntermediate;
             }
             0x30..=0x39 => {
@@ -400,9 +460,15 @@ impl Parser {
         match byte {
             0x20..=0x2F => {
                 // More intermediate bytes
-                if self.intermediate_bytes.len() < 2 {
+                if self.intermediate_bytes.len() < 2
+                    && self.intermediate_bytes.len() < MAX_INTERMEDIATE_SIZE {
+                        if self.intermediate_bytes.len() < MAX_INTERMEDIATE_SIZE {
                     self.intermediate_bytes.push(byte);
+                } else {
+                    #[cfg(debug_assertions)]
+                    eprintln!("Warning: intermediate_bytes buffer full, dropping byte");
                 }
+                    }
             }
             0x30..=0x3F => {
                 // Invalid in intermediate
@@ -429,7 +495,15 @@ impl Parser {
             self.dcs_dispatch();
             self.transition_to(State::Ground);
         } else {
-            self.dcs_string.push(byte);
+            // Prevent unbounded buffer growth
+            if self.dcs_string.len() < MAX_DCS_STRING_SIZE {
+                self.dcs_string.push(byte);
+            } else {
+                // Buffer full - silently drop excess data and mark as in error state
+                #[cfg(debug_assertions)]
+                eprintln!("Warning: DCS string buffer full, dropping data");
+                self.transition_to(State::DCSIgnore);
+            }
         }
     }
 
@@ -440,7 +514,10 @@ impl Parser {
         } else if byte != 0x1B {
             self.dcs_string.clear();
         } else {
-            self.dcs_string.push(byte);
+            // Even in ignore state, prevent unbounded growth
+            if self.dcs_string.len() < MAX_DCS_STRING_SIZE {
+                self.dcs_string.push(byte);
+            }
         }
     }
 
@@ -455,7 +532,16 @@ impl Parser {
             self.osc_end();
             self.transition_to(State::Ground);
         } else {
-            self.osc_string.push(byte);
+            // Prevent unbounded buffer growth
+            if self.osc_string.len() < MAX_OSC_STRING_SIZE {
+                self.osc_string.push(byte);
+            } else {
+                // Buffer full - silently drop excess data and terminate the sequence
+                #[cfg(debug_assertions)]
+                eprintln!("Warning: OSC string buffer full, terminating sequence");
+                self.osc_string.clear();
+                self.transition_to(State::Ground);
+            }
         }
     }
 
@@ -486,14 +572,22 @@ impl Parser {
     fn param_separator(&mut self) {
         // Push current parameter and prepare for next
         let param = self.current_param.unwrap_or(0);
-        self.params.push(param);
+        // Prevent unbounded growth of params
+        if self.params.len() < MAX_PARAMS_SIZE {
+            self.params.push(param);
+        } else {
+            #[cfg(debug_assertions)]
+            eprintln!("Warning: params buffer full, dropping parameter");
+        }
         self.current_param = None;
     }
 
     fn finalize_params(&mut self) {
         // Push any pending parameter
         if let Some(p) = self.current_param.take() {
-            self.params.push(p);
+            if self.params.len() < MAX_PARAMS_SIZE {
+                self.params.push(p);
+            }
         } else if self.params.is_empty() {
             // Some sequences expect at least one parameter
             self.params.push(0);

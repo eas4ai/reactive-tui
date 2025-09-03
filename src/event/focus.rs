@@ -87,7 +87,7 @@ impl FocusManager {
     pub fn register_focusable(&mut self, node_id: NodeId, tab_index: Option<i32>, enabled: bool) -> bool {
         // Validate tab index range
         if let Some(index) = tab_index {
-            if index < -1000 || index > 1000 {
+            if !(-1000..=1000).contains(&index) {
                 #[cfg(feature = "debug")]
                 eprintln!("Warning: Tab index {} is outside recommended range [-1000, 1000]", index);
             }
@@ -582,13 +582,17 @@ impl FocusManager {
         // Find the correct insertion position using binary search
         let insert_pos = self.tab_order
             .binary_search_by(|&existing_id| {
-                let existing_info = self.focusable_nodes.get(&existing_id).unwrap();
-                let existing_index = existing_info.tab_index.unwrap_or(0);
-                let existing_sort_key = sort_key(existing_index);
+                if let Some(existing_info) = self.focusable_nodes.get(&existing_id) {
+                    let existing_index = existing_info.tab_index.unwrap_or(0);
+                    let existing_sort_key = sort_key(existing_index);
 
-                // Compare sort keys (with negative indices mapped to i32::MAX), then node IDs for stability
-                existing_sort_key.cmp(&target_sort_key)
-                    .then(existing_id.cmp(&node_id))
+                    // Compare sort keys (with negative indices mapped to i32::MAX), then node IDs for stability
+                    existing_sort_key.cmp(&target_sort_key)
+                        .then(existing_id.cmp(&node_id))
+                } else {
+                    // If node info is missing, treat as greater to push to end
+                    std::cmp::Ordering::Greater
+                }
             })
             .unwrap_or_else(|pos| pos);
 

@@ -248,17 +248,38 @@ impl EventRouter {
             Event::Custom(_) => "custom",
         };
 
-        // Build path with pre-allocated capacity
+        // Build path with pre-allocated capacity and cycle detection
         let mut path = Vec::with_capacity(16); // Most UI trees are < 16 levels deep
+        let mut visited = std::collections::HashSet::with_capacity(16);
         let mut current = Some(target_id);
+        
+        // Maximum depth to prevent infinite loops even with cycle detection
+        const MAX_DEPTH: usize = 1000;
+        let mut depth = 0;
 
         while let Some(node_id) = current {
+            // Check for cycles
+            if !visited.insert(node_id) {
+                // Cycle detected - log error and break
+                #[cfg(debug_assertions)]
+                eprintln!("Warning: Cycle detected in event router tree at node {:?}", node_id);
+                break;
+            }
+            
+            // Check for excessive depth
+            if depth >= MAX_DEPTH {
+                #[cfg(debug_assertions)]
+                eprintln!("Warning: Maximum depth {} exceeded in event router", MAX_DEPTH);
+                break;
+            }
+            
             path.push(node_id);
             if let Some(node) = self.nodes.get(&node_id) {
                 current = node.parent;
             } else {
                 break;
             }
+            depth += 1;
         }
 
         path.reverse(); // Now path goes from root to target

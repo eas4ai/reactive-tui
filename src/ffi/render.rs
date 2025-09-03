@@ -6,7 +6,7 @@ use crate::core::surface::{Rgba, Surface};
 use std::boxed::Box;
 
 /// Create a new renderer
-#[unsafe(no_mangle)]
+#[no_mangle]
 pub extern "C" fn rtui_renderer_create(
     width: u16,
     height: u16,
@@ -35,7 +35,7 @@ pub extern "C" fn rtui_renderer_create(
 }
 
 /// Destroy a renderer
-#[unsafe(no_mangle)]
+#[no_mangle]
 pub extern "C" fn rtui_renderer_destroy(renderer: *mut RTuiRenderer) {
     if !renderer.is_null() {
         unsafe {
@@ -47,7 +47,7 @@ pub extern "C" fn rtui_renderer_destroy(renderer: *mut RTuiRenderer) {
 }
 
 /// Resize the renderer
-#[unsafe(no_mangle)]
+#[no_mangle]
 pub extern "C" fn rtui_renderer_resize(
     renderer: *mut RTuiRenderer,
     width: u16,
@@ -69,7 +69,7 @@ pub extern "C" fn rtui_renderer_resize(
 }
 
 /// Clear the renderer with a color
-#[unsafe(no_mangle)]
+#[no_mangle]
 pub extern "C" fn rtui_renderer_clear(
     renderer: *mut RTuiRenderer,
     r: u8,
@@ -81,6 +81,10 @@ pub extern "C" fn rtui_renderer_clear(
     }
 
     catch_panic(AssertUnwindSafe(|| unsafe {
+        // Validate pointer type before casting
+        if !super::pointer::validate_pointer::<Renderer>(renderer as *const u8) {
+            return Err(ReactiveError::invalid_parameter("Invalid renderer pointer type"));
+        }
         let ren = &mut *(renderer as *mut Renderer);
         let color = Rgba {
             r: r as f32 / 255.0,
@@ -95,7 +99,7 @@ pub extern "C" fn rtui_renderer_clear(
 
 /// Control frame rendering
 /// @param begin: true to begin frame, false to end frame
-#[unsafe(no_mangle)]
+#[no_mangle]
 pub extern "C" fn rtui_renderer_frame(renderer: *mut RTuiRenderer, begin: bool) -> ReactiveError {
     if renderer.is_null() {
         return ReactiveError::NullPointer;
@@ -118,7 +122,7 @@ pub extern "C" fn rtui_renderer_frame(renderer: *mut RTuiRenderer, begin: bool) 
 }
 
 /// Get the surface for drawing
-#[unsafe(no_mangle)]
+#[no_mangle]
 pub extern "C" fn rtui_renderer_get_surface(
     renderer: *mut RTuiRenderer,
     out_surface: *mut *mut RTuiSurface,
@@ -136,7 +140,7 @@ pub extern "C" fn rtui_renderer_get_surface(
 }
 
 /// Shutdown the renderer and exit raw mode
-#[unsafe(no_mangle)]
+#[no_mangle]
 pub extern "C" fn rtui_renderer_shutdown(renderer: *mut RTuiRenderer) -> ReactiveError {
     if renderer.is_null() {
         return ReactiveError::NullPointer;

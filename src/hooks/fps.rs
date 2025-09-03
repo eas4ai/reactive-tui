@@ -254,11 +254,12 @@ pub fn use_adaptive_quality(hooks: &Hooks) -> ThreadSafeSignal<QualityLevel> {
 }
 
 /// Quality level for rendering performance
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Default)]
 pub enum QualityLevel {
     /// Low quality, prioritize performance
     Low,
     /// Medium quality, balanced performance
+    #[default]
     Medium,
     /// High quality, prioritize visual fidelity
     High,

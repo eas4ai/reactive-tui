@@ -404,7 +404,13 @@ impl AnimationDebugger {
             self.config.verbosity_level,
             DebugVerbosity::High | DebugVerbosity::Verbose
         ) {
-            let state = animation.state.read().unwrap().clone();
+            let state = match animation.state.read() {
+                Ok(guard) => guard.clone(),
+                Err(_) => {
+                    log::warn!("Animation state lock poisoned during debug update");
+                    return;
+                }
+            };
             let event = DebugEvent::AnimationUpdated {
                 id: animation.id.clone(),
                 timestamp: self.start_time.elapsed(),
@@ -428,7 +434,13 @@ impl AnimationDebugger {
             return;
         }
 
-        let state = animation.state.read().unwrap().clone();
+        let state = match animation.state.read() {
+            Ok(guard) => guard.clone(),
+            Err(_) => {
+                log::warn!("Animation state lock poisoned during completion debug");
+                return;
+            }
+        };
         let event = DebugEvent::AnimationCompleted {
             id: animation.id.clone(),
             timestamp: self.start_time.elapsed(),
@@ -445,7 +457,13 @@ impl AnimationDebugger {
             return;
         }
 
-        let state = animation.state.read().unwrap().clone();
+        let state = match animation.state.read() {
+            Ok(guard) => guard.clone(),
+            Err(_) => {
+                log::warn!("Animation state lock poisoned during pause debug");
+                return;
+            }
+        };
         let event = DebugEvent::AnimationPaused {
             id: animation.id.clone(),
             timestamp: self.start_time.elapsed(),
@@ -532,7 +550,13 @@ impl AnimationDebugger {
             return;
         }
 
-        let state = animation.state.read().unwrap().clone();
+        let state = match animation.state.read() {
+            Ok(guard) => guard.clone(),
+            Err(_) => {
+                log::warn!("Animation state lock poisoned during snapshot");
+                return;
+            }
+        };
         let snapshot = AnimationSnapshot {
             id: animation.id.clone(),
             state: state.state,
@@ -572,9 +596,15 @@ impl AnimationDebugger {
         let animation_snapshots: Vec<AnimationSnapshot> = timeline
             .animations
             .iter()
-            .map(|animation| {
-                let state = animation.state.read().unwrap().clone();
-                AnimationSnapshot {
+            .filter_map(|animation| {
+                let state = match animation.state.read() {
+                    Ok(guard) => guard.clone(),
+                    Err(_) => {
+                        log::warn!("Animation state lock poisoned during timeline snapshot");
+                        return None;
+                    }
+                };
+                Some(AnimationSnapshot {
                     id: animation.id.clone(),
                     state: state.state,
                     progress: state.progress,
@@ -589,13 +619,21 @@ impl AnimationDebugger {
                         auto_play: animation.config.auto_play,
                         speed: animation.config.speed,
                     },
-                }
+                })
             })
             .collect();
 
+        let timeline_state = match timeline.state.read() {
+            Ok(guard) => *guard,
+            Err(_) => {
+                log::warn!("Timeline state lock poisoned during snapshot");
+                return;
+            }
+        };
+
         let snapshot = TimelineSnapshot {
             id: timeline.id.clone(),
-            state: *timeline.state.read().unwrap(),
+            state: timeline_state,
             sequential: timeline.sequential,
             current_index: timeline.current_index,
             animation_count: timeline.animations.len(),

@@ -32,14 +32,14 @@ impl CommonComponents {
 
 /// Global common components lookup
 static COMMON_COMPONENTS: Lazy<CommonComponents> = Lazy::new(|| {
-    let components = CommonComponents {
-        map: HashMap::with_capacity(32),
-    };
+    
     
     // Register common built-in components here
     // These will be populated by the registry when components are registered
     
-    components
+    CommonComponents {
+        map: HashMap::with_capacity(32),
+    }
 });
 
 /// Get the common components registry

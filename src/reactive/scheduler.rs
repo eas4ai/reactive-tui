@@ -56,19 +56,36 @@ impl Scheduler {
 
     /// Schedule an update task
     pub fn schedule_update(&self, task: SchedulerTask) {
-        let mut queue = self.update_queue.lock().unwrap();
+        // Handle poison error by clearing the poison and continuing
+        let mut queue = match self.update_queue.lock() {
+            Ok(q) => q,
+            Err(poisoned) => {
+                // Clear the poison and continue - scheduler must keep working
+                poisoned.into_inner()
+            }
+        };
         queue.push_back(task);
-        *self.has_updates.lock().unwrap() = true;
+        
+        match self.has_updates.lock() {
+            Ok(mut has_updates) => *has_updates = true,
+            Err(poisoned) => *poisoned.into_inner() = true,
+        }
     }
 
     /// Check if there are pending updates
     pub fn has_pending_updates(&self) -> bool {
-        *self.has_updates.lock().unwrap()
+        match self.has_updates.lock() {
+            Ok(has_updates) => *has_updates,
+            Err(poisoned) => *poisoned.into_inner(),
+        }
     }
 
     /// Process all pending updates
     pub fn process_updates(&self) {
-        let mut queue = self.update_queue.lock().unwrap();
+        let mut queue = match self.update_queue.lock() {
+            Ok(q) => q,
+            Err(poisoned) => poisoned.into_inner(),
+        };
         let mut updates = Vec::new();
 
         // Drain the queue
@@ -77,7 +94,10 @@ impl Scheduler {
         }
 
         // Clear the flag
-        *self.has_updates.lock().unwrap() = false;
+        match self.has_updates.lock() {
+            Ok(mut has_updates) => *has_updates = false,
+            Err(poisoned) => *poisoned.into_inner() = false,
+        }
 
         // Drop the lock before executing tasks
         drop(queue);
@@ -102,7 +122,10 @@ impl Scheduler {
             repeat: true,
         };
 
-        self.timers.lock().unwrap().push(entry);
+        match self.timers.lock() {
+            Ok(mut timers) => timers.push(entry),
+            Err(poisoned) => poisoned.into_inner().push(entry),
+        }
         id
     }
 
@@ -127,20 +150,29 @@ impl Scheduler {
             repeat: false,
         };
 
-        self.timers.lock().unwrap().push(entry);
+        match self.timers.lock() {
+            Ok(mut timers) => timers.push(entry),
+            Err(poisoned) => poisoned.into_inner().push(entry),
+        }
         id
     }
 
     /// Cancel a timer
     pub fn cancel_timer(&self, id: TimerId) {
-        let mut timers = self.timers.lock().unwrap();
+        let mut timers = match self.timers.lock() {
+            Ok(t) => t,
+            Err(poisoned) => poisoned.into_inner(),
+        };
         timers.retain(|timer| timer.id != id);
     }
 
     /// Process any timers that are ready to run
     pub fn process_timers(&self) {
         let now = Instant::now();
-        let mut timers = self.timers.lock().unwrap();
+        let mut timers = match self.timers.lock() {
+            Ok(t) => t,
+            Err(poisoned) => poisoned.into_inner(),
+        };
         let mut indices_to_run = Vec::new();
         let mut completed_ids = Vec::new();
 
@@ -169,9 +201,18 @@ impl Scheduler {
 
     /// Clear all scheduled updates and timers
     pub fn clear(&self) {
-        self.update_queue.lock().unwrap().clear();
-        self.timers.lock().unwrap().clear();
-        *self.has_updates.lock().unwrap() = false;
+        match self.update_queue.lock() {
+            Ok(mut queue) => queue.clear(),
+            Err(poisoned) => poisoned.into_inner().clear(),
+        }
+        match self.timers.lock() {
+            Ok(mut timers) => timers.clear(),
+            Err(poisoned) => poisoned.into_inner().clear(),
+        }
+        match self.has_updates.lock() {
+            Ok(mut has_updates) => *has_updates = false,
+            Err(poisoned) => *poisoned.into_inner() = false,
+        }
     }
 }
 

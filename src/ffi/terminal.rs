@@ -5,7 +5,7 @@ use crate::core::terminal::Terminal;
 use std::boxed::Box;
 
 /// Create a new terminal instance
-#[unsafe(no_mangle)]
+#[no_mangle]
 pub extern "C" fn rtui_terminal_create(out_terminal: *mut *mut ReactiveTerminal) -> ReactiveError {
     if out_terminal.is_null() {
         return ReactiveError::NullPointer;
@@ -24,7 +24,7 @@ pub extern "C" fn rtui_terminal_create(out_terminal: *mut *mut ReactiveTerminal)
 }
 
 /// Destroy a terminal instance
-#[unsafe(no_mangle)]
+#[no_mangle]
 pub extern "C" fn rtui_terminal_destroy(terminal: *mut ReactiveTerminal) {
     if !terminal.is_null() {
         unsafe {
@@ -34,7 +34,7 @@ pub extern "C" fn rtui_terminal_destroy(terminal: *mut ReactiveTerminal) {
 }
 
 /// Get terminal dimensions
-#[unsafe(no_mangle)]
+#[no_mangle]
 pub extern "C" fn rtui_terminal_get_dimensions(
     terminal: *const ReactiveTerminal,
     out_dimensions: *mut RTuiDimensions,
@@ -56,7 +56,7 @@ pub extern "C" fn rtui_terminal_get_dimensions(
 }
 
 /// Enter modern mode (raw mode + alternate screen + mouse)
-#[unsafe(no_mangle)]
+#[no_mangle]
 pub extern "C" fn rtui_terminal_enter_raw_mode(terminal: *mut ReactiveTerminal) -> ReactiveError {
     if terminal.is_null() {
         return ReactiveError::NullPointer;
@@ -72,7 +72,7 @@ pub extern "C" fn rtui_terminal_enter_raw_mode(terminal: *mut ReactiveTerminal) 
 }
 
 /// Exit modern mode
-#[unsafe(no_mangle)]
+#[no_mangle]
 pub extern "C" fn rtui_terminal_exit_raw_mode(terminal: *mut ReactiveTerminal) -> ReactiveError {
     if terminal.is_null() {
         return ReactiveError::NullPointer;
@@ -89,7 +89,7 @@ pub extern "C" fn rtui_terminal_exit_raw_mode(terminal: *mut ReactiveTerminal) -
 
 /// Control synchronized updates
 /// @param begin: true to begin sync, false to end sync
-#[unsafe(no_mangle)]
+#[no_mangle]
 pub extern "C" fn rtui_terminal_sync(
     terminal: *mut ReactiveTerminal,
     begin: bool,
@@ -115,7 +115,7 @@ pub extern "C" fn rtui_terminal_sync(
 }
 
 /// Poll for events (static function)
-#[unsafe(no_mangle)]
+#[no_mangle]
 pub extern "C" fn rtui_terminal_poll_event(
     timeout_ms: u32,
     out_event: *mut RTuiEvent,

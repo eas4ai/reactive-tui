@@ -78,7 +78,11 @@ impl Hooks {
     /// Cleanup all effects
     pub fn cleanup(&self) {
         // Effects will be cleaned up by the runtime
-        self.effects.lock().unwrap().clear();
+        if let Ok(mut effects) = self.effects.lock() {
+            effects.clear();
+        } else {
+            log::warn!("Effects lock poisoned during cleanup");
+        }
     }
 }
 
@@ -94,7 +98,7 @@ pub struct ThreadSafeSignal<T> {
     version: Arc<Mutex<usize>>,
 }
 
-impl<T: Clone> ThreadSafeSignal<T> {
+impl<T: Clone + Default> ThreadSafeSignal<T> {
     /// Create a new thread-safe signal with initial value
     pub fn new(initial: T) -> Self {
         Self {
@@ -105,7 +109,12 @@ impl<T: Clone> ThreadSafeSignal<T> {
 
     /// Get the current value of the signal
     pub fn get(&self) -> T {
-        self.inner.lock().unwrap().clone()
+        self.inner.lock()
+            .map(|guard| guard.clone())
+            .unwrap_or_else(|_| {
+                log::warn!("Signal lock poisoned, returning default value");
+                T::default()
+            })
     }
 
     /// Set a new value for the signal
@@ -113,10 +122,13 @@ impl<T: Clone> ThreadSafeSignal<T> {
     where
         T: PartialEq,
     {
-        let mut inner = self.inner.lock().unwrap();
-        if *inner != value {
-            *inner = value;
-            *self.version.lock().unwrap() += 1;
+        if let (Ok(mut inner), Ok(mut version)) = (self.inner.lock(), self.version.lock()) {
+            if *inner != value {
+                *inner = value;
+                *version += 1;
+            }
+        } else {
+            log::warn!("Signal locks poisoned during set operation");
         }
     }
 
@@ -125,11 +137,14 @@ impl<T: Clone> ThreadSafeSignal<T> {
     where
         T: PartialEq,
     {
-        let mut inner = self.inner.lock().unwrap();
-        let old = inner.clone();
-        f(&mut *inner);
-        if *inner != old {
-            *self.version.lock().unwrap() += 1;
+        if let (Ok(mut inner), Ok(mut version)) = (self.inner.lock(), self.version.lock()) {
+            let old = inner.clone();
+            f(&mut *inner);
+            if *inner != old {
+                *version += 1;
+            }
+        } else {
+            log::warn!("Signal locks poisoned during update operation");
         }
     }
 }
@@ -144,13 +159,18 @@ impl<T> Clone for ThreadSafeSignal<T> {
 }
 
 /// Create a reactive signal (thread-safe version)
-pub fn use_signal<T: Send + Sync + Clone + 'static>(
+pub fn use_signal<T: Send + Sync + Clone + Default + 'static>(
     hooks: &Hooks,
     initial: T,
 ) -> ThreadSafeSignal<T> {
+    let initial_clone = initial.clone();
     let signal = hooks.get_or_create_storage(|| ThreadSafeSignal::new(initial));
-    let result = signal.lock().unwrap().clone();
-    result
+    signal.lock()
+        .map(|guard| guard.clone())
+        .unwrap_or_else(|_| {
+            log::warn!("Signal lock poisoned in use_signal, returning default");
+            ThreadSafeSignal::new(initial_clone)
+        })
 }
 
 /// Run a side effect (thread-safe version)
@@ -196,8 +216,9 @@ where
 
 /// Access context value (thread-safe version)
 pub fn use_context<T: Clone + Send + Sync + 'static>(hooks: &Hooks) -> Option<T> {
-    let contexts = hooks.contexts.lock().unwrap();
-    contexts
+    hooks.contexts.lock()
+        .map_err(|_| log::warn!("Context lock poisoned in use_context"))
+        .ok()?
         .get(&TypeId::of::<T>())
         .and_then(|any| any.downcast_ref::<T>())
         .cloned()
@@ -205,8 +226,11 @@ pub fn use_context<T: Clone + Send + Sync + 'static>(hooks: &Hooks) -> Option<T>
 
 /// Provide context value to children (thread-safe version)
 pub fn provide_context<T: Send + Sync + 'static>(hooks: &Hooks, value: T) {
-    let mut contexts = hooks.contexts.lock().unwrap();
-    contexts.insert(TypeId::of::<T>(), Box::new(value));
+    if let Ok(mut contexts) = hooks.contexts.lock() {
+        contexts.insert(TypeId::of::<T>(), Box::new(value));
+    } else {
+        log::warn!("Context lock poisoned in provide_context");
+    }
 }
 
 /// Hook for managing state with a reducer (thread-safe version)
@@ -216,7 +240,7 @@ pub fn use_reducer<S, A, F>(
     initial: S,
 ) -> (ThreadSafeSignal<S>, Arc<dyn Fn(A) + Send + Sync>)
 where
-    S: Clone + PartialEq + Send + Sync + 'static,
+    S: Clone + PartialEq + Send + Sync + Default + 'static,
     A: Send + Sync + 'static,
     F: Fn(&S, A) -> S + Send + Sync + 'static,
 {
@@ -237,10 +261,20 @@ where
 /// Hook for managing previous value (thread-safe version)
 pub fn use_previous<T: Clone + Send + Sync + 'static>(hooks: &Hooks, value: T) -> Option<T> {
     let prev: Arc<Mutex<Option<T>>> = hooks.get_or_create_storage(|| None::<T>);
-    let mut prev_guard = prev.lock().unwrap();
-    let old = prev_guard.clone();
-    *prev_guard = Some(value);
-    old
+    let result = {
+        match prev.lock() {
+            Ok(mut prev_guard) => {
+                let old = prev_guard.clone();
+                *prev_guard = Some(value);
+                old
+            }
+            Err(_) => {
+                log::warn!("Previous value lock poisoned in use_previous");
+                None
+            }
+        }
+    };
+    result
 }
 
 /// Create a memoized computed value
@@ -249,7 +283,7 @@ pub fn use_memo<T>(
     compute: impl Fn() -> T + Send + Sync + 'static,
 ) -> ThreadSafeSignal<T>
 where
-    T: Clone + PartialEq + Send + Sync + 'static,
+    T: Clone + PartialEq + Send + Sync + Default + 'static,
 {
     // Compute and return a reactive signal
     use_signal(hooks, compute())
@@ -275,7 +309,7 @@ mod tests {
             count_clone.set(10);
         })
         .join()
-        .unwrap();
+        .expect("Thread should not panic");
 
         assert_eq!(count.get(), 10);
     }
@@ -296,6 +330,6 @@ mod tests {
             assert_eq!(ctx, Some("Hello".to_string()));
         })
         .join()
-        .unwrap();
+        .expect("Thread should not panic");
     }
 }

@@ -3,7 +3,7 @@
 //! High-performance event loop with async support
 
 use super::{parser::EscapeSequenceParser, TerminalEvent};
-use crate::error::Result;
+use crate::error::{Result, ReactiveError};
 use std::io::{self, Read};
 #[allow(unused_imports)]
 use std::sync::mpsc::{self, Receiver, Sender};
@@ -134,7 +134,13 @@ impl<T> EventQueue<T> {
             // We got the slot, take the event
             let event = unsafe {
                 let slot = self.buffer.as_mut_ptr().add(head);
-                std::ptr::replace(slot, None).unwrap()
+                match std::ptr::replace(slot, None) {
+                    Some(event) => event,
+                    None => {
+                        log::error!("Event queue corruption: expected event but found None");
+                        return None;
+                    }
+                }
             };
             self.count.fetch_sub(1, Ordering::Release);
             Some(event)
@@ -324,9 +330,13 @@ impl TokioEventLoop {
             return Ok(()); // Already started
         }
 
-        let sender = self.sender.as_ref().unwrap().clone();
+        let sender = self.sender.as_ref()
+            .ok_or_else(|| ReactiveError::internal("Sender not initialized"))?
+            .clone();
         let parser = Arc::clone(&self.parser);
-        let mut shutdown_rx = self.shutdown_rx.as_ref().unwrap().clone();
+        let mut shutdown_rx = self.shutdown_rx.as_ref()
+            .ok_or_else(|| ReactiveError::internal("Shutdown receiver not initialized"))?
+            .clone();
         let is_running = Arc::clone(&self.is_running);
 
         let handle = tokio::spawn(async move {

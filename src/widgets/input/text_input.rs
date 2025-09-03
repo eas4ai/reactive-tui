@@ -1048,8 +1048,8 @@ impl TextInput {
                 };
                 self.execute_command(command, state);
 
-                // Move cursor forward
-                let new_offset = state.cursor.byte_offset + c.len_utf8();
+                // Move cursor forward (with overflow protection)
+                let new_offset = state.cursor.byte_offset.saturating_add(c.len_utf8());
                 self.move_cursor_to_byte_offset(new_offset, state);
 
                 // Update scroll
@@ -1092,15 +1092,30 @@ impl TextInput {
                     }
                 } else if state.cursor.byte_offset > 0 {
                     let current_text = self.get_text_value(state);
-                    let chars: Vec<char> = current_text.chars().collect();
-                    if let Some(ch) = chars.get(state.cursor.byte_offset.saturating_sub(1)) {
+                    // FIX: Convert byte offset to char index properly
+                    let mut _char_index = 0;
+                    let mut byte_count = 0;
+                    let mut prev_char = None;
+                    let mut prev_byte_offset = 0;
+                    
+                    for ch in current_text.chars() {
+                        if byte_count >= state.cursor.byte_offset {
+                            break;
+                        }
+                        prev_char = Some(ch);
+                        prev_byte_offset = byte_count;
+                        byte_count += ch.len_utf8();
+                        _char_index += 1;
+                    }
+                    
+                    if let Some(ch) = prev_char {
                         let command = EditCommand::Delete {
-                            position: state.cursor.byte_offset - ch.len_utf8(),
+                            position: prev_byte_offset,
                             text: ch.to_string(),
                         };
                         self.execute_command(command, state);
 
-                        let new_offset = state.cursor.byte_offset.saturating_sub(ch.len_utf8());
+                        let new_offset = prev_byte_offset;
                         self.move_cursor_to_byte_offset(new_offset, state);
                     }
                 }
@@ -1127,8 +1142,19 @@ impl TextInput {
                     }
                 } else {
                     let current_text = self.get_text_value(state);
-                    let chars: Vec<char> = current_text.chars().collect();
-                    if let Some(ch) = chars.get(state.cursor.byte_offset) {
+                    // FIX: Get character at current byte offset
+                    let mut byte_count = 0;
+                    let mut found_char = None;
+                    
+                    for ch in current_text.chars() {
+                        if byte_count == state.cursor.byte_offset {
+                            found_char = Some(ch);
+                            break;
+                        }
+                        byte_count += ch.len_utf8();
+                    }
+                    
+                    if let Some(ch) = found_char {
                         let command = EditCommand::Delete {
                             position: state.cursor.byte_offset,
                             text: ch.to_string(),
@@ -1161,7 +1187,7 @@ impl TextInput {
                     };
                     self.execute_command(command, state);
 
-                    let new_offset = state.cursor.byte_offset + 1;
+                    let new_offset = state.cursor.byte_offset.saturating_add(1);
                     self.move_cursor_to_byte_offset(new_offset, state);
 
                     // Auto-indent if enabled
@@ -1179,7 +1205,7 @@ impl TextInput {
                                 };
                                 self.execute_command(indent_command, state);
 
-                                let new_offset = state.cursor.byte_offset + indent.len();
+                                let new_offset = state.cursor.byte_offset.saturating_add(indent.len());
                                 self.move_cursor_to_byte_offset(new_offset, state);
                             }
                         }
@@ -1211,7 +1237,7 @@ impl TextInput {
                             self.execute_command(command, state);
 
                             let new_offset =
-                                state.cursor.byte_offset + suggestion.insert_text.len();
+                                state.cursor.byte_offset.saturating_add(suggestion.insert_text.len());
                             self.move_cursor_to_byte_offset(new_offset, state);
 
                             state.show_suggestions = false;

@@ -301,7 +301,7 @@ impl Default for Reconciler {
 pub fn apply_patches(
     patches: &[PatchOp],
     tree: &mut RenderTree,
-) {
+) -> crate::error::Result<()> {
     for patch in patches {
         match patch {
             PatchOp::Insert {
@@ -318,12 +318,13 @@ pub fn apply_patches(
                 eprintln!("REMOVE: {patch:?}");
 
                 // Automatic component cleanup - unregister from global registry
-                if let Err(e) = crate::component::registry::get_global_registry()
+                // Propagate error up instead of suppressing it
+                crate::component::registry::get_global_registry()
                     .unregister_instance(node_key)
-                {
-                    #[cfg(debug_assertions)]
-                    eprintln!("Warning: Failed to unregister component during removal: {}", e);
-                }
+                    .map_err(|e| {
+                        eprintln!("Error: Failed to unregister component during removal: {}", e);
+                        e
+                    })?;
 
                 tree.remove_node(node_key);
             }
@@ -335,12 +336,13 @@ pub fn apply_patches(
                 eprintln!("REPLACE: {patch:?}");
 
                 // Automatic component cleanup for replaced node
-                if let Err(e) = crate::component::registry::get_global_registry()
+                // Propagate error up instead of suppressing it
+                crate::component::registry::get_global_registry()
                     .unregister_instance(old_key)
-                {
-                    #[cfg(debug_assertions)]
-                    eprintln!("Warning: Failed to unregister replaced component: {}", e);
-                }
+                    .map_err(|e| {
+                        eprintln!("Error: Failed to unregister replaced component: {}", e);
+                        e
+                    })?;
 
                 tree.remove_node(old_key);
                 // Note: New component instance will be created automatically during rendering
@@ -369,6 +371,7 @@ pub fn apply_patches(
             }
         }
     }
+    Ok(())
 }
 
 #[cfg(test)]

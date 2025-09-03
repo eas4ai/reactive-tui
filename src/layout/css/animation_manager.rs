@@ -97,7 +97,7 @@ impl CssAnimationManager {
     /// Check if a component has any active animations
     pub fn has_animations(&self, component_id: &str) -> bool {
         if let Ok(active) = self.active_animations.read() {
-            active.get(component_id).map_or(false, |anims| !anims.is_empty())
+            active.get(component_id).is_some_and(|anims| !anims.is_empty())
         } else {
             false
         }
@@ -227,7 +227,8 @@ mod tests {
         // Check that the component has animations
         assert!(manager.has_animations("test-component"));
         
-        let animation_count = manager.get_component_animation_count("test-component").unwrap();
+        let animation_count = manager.get_component_animation_count("test-component")
+            .expect("Should be able to get animation count");
         assert_eq!(animation_count, 1);
         
         let stats = manager.get_stats();
@@ -240,13 +241,16 @@ mod tests {
         let manager = CssAnimationManager::new();
         
         // Apply multiple animations
-        manager.apply_animation("test-component", "pulse").unwrap();
-        manager.apply_animation("test-component", "bounce").unwrap();
+        manager.apply_animation("test-component", "pulse")
+            .expect("Should be able to apply pulse animation");
+        manager.apply_animation("test-component", "bounce")
+            .expect("Should be able to apply bounce animation");
         
         assert_eq!(manager.get_stats().total_animations, 2);
         
         // Remove all animations for the component
-        let removed = manager.remove_component_animations("test-component").unwrap();
+        let removed = manager.remove_component_animations("test-component")
+            .expect("Should be able to remove component animations");
         assert_eq!(removed, 2);
         
         assert!(!manager.has_animations("test-component"));
@@ -264,7 +268,8 @@ mod tests {
         let stats = get_css_animation_stats_global();
         assert!(stats.total_animations > 0);
         
-        let removed = remove_css_animations_global("global-test").unwrap();
+        let removed = remove_css_animations_global("global-test")
+            .expect("Should be able to remove global animations");
         assert!(removed > 0);
         
         assert!(!has_css_animations_global("global-test"));

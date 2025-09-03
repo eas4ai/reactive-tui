@@ -50,6 +50,12 @@ pub struct HandlerChain {
     needs_sort: bool,
 }
 
+impl Default for HandlerChain {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl HandlerChain {
     /// Create a new handler chain
     pub fn new() -> Self {
@@ -92,6 +98,12 @@ pub struct PathCache {
     lru: RefCell<LruCache<(NodeId, NodeId), Arc<[NodeId]>>>,
 }
 
+impl Default for PathCache {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl PathCache {
     /// Create a new path cache
     pub fn new() -> Self {
@@ -106,7 +118,7 @@ impl PathCache {
     #[inline]
     pub fn get(&self, from: NodeId, to: NodeId) -> Option<Arc<[NodeId]>> {
         // Check inline cache first (no allocation, no locks)
-        let hash = ((from.0 ^ to.0) & 0x7) as usize;
+        let hash = (from.0 ^ to.0) & 0x7;
         let entry = &self.inline_cache[hash];
         
         if entry.0 == from && entry.1 == to {
@@ -120,7 +132,7 @@ impl PathCache {
     /// Insert a path into the cache
     pub fn insert(&mut self, from: NodeId, to: NodeId, path: Arc<[NodeId]>) {
         // Update inline cache
-        let hash = ((from.0 ^ to.0) & 0x7) as usize;
+        let hash = (from.0 ^ to.0) & 0x7;
         self.inline_cache[hash] = (from, to, Some(path.clone()));
         
         // Also update LRU
@@ -144,6 +156,12 @@ pub struct HandlerLookup {
     bucket_size: usize,
 }
 
+impl Default for HandlerLookup {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl HandlerLookup {
     const BUCKET_SIZE: usize = 256; // Tune based on typical node count
     const EVENTS_COUNT: usize = 6;
@@ -160,7 +178,7 @@ impl HandlerLookup {
 
     #[inline(always)]
     fn index(&self, node_id: NodeId, event: EventDiscriminant, phase: EventPhase) -> usize {
-        let node_bucket = (node_id.0 % self.bucket_size) as usize;
+        let node_bucket = node_id.0 % self.bucket_size;
         let event_offset = event as usize;
         let phase_offset = match phase {
             EventPhase::Capture => 0,

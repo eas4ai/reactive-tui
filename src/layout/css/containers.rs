@@ -176,14 +176,17 @@ mod tests {
         let sb = StyleBuilder::new();
 
         // Test basic container
-        let result = apply_container("container", sb.clone()).unwrap();
+        let result = apply_container("container", sb.clone())
+            .expect("container class should be valid");
         let _style = result.build();
 
         // Test sized containers
-        let result = apply_container("container-sm", sb.clone()).unwrap();
+        let result = apply_container("container-sm", sb.clone())
+            .expect("container-sm class should be valid");
         let _style = result.build();
 
-        let result = apply_container("container-lg", sb.clone()).unwrap();
+        let result = apply_container("container-lg", sb.clone())
+            .expect("container-lg class should be valid");
         let _style = result.build();
     }
 
@@ -192,15 +195,18 @@ mod tests {
         let sb = StyleBuilder::new();
 
         // Test horizontal centering
-        let result = apply_centering("mx-auto", sb.clone()).unwrap();
+        let result = apply_centering("mx-auto", sb.clone())
+            .expect("mx-auto class should be valid");
         let _style = result.build();
 
         // Test vertical centering
-        let result = apply_centering("my-auto", sb.clone()).unwrap();
+        let result = apply_centering("my-auto", sb.clone())
+            .expect("my-auto class should be valid");
         let _style = result.build();
 
         // Test full centering
-        let result = apply_centering("m-auto", sb.clone()).unwrap();
+        let result = apply_centering("m-auto", sb.clone())
+            .expect("m-auto class should be valid");
         let _style = result.build();
     }
 
@@ -209,15 +215,18 @@ mod tests {
         let sb = StyleBuilder::new();
 
         // Test square aspect ratio
-        let result = apply_aspect_ratio("aspect-square", sb.clone()).unwrap();
+        let result = apply_aspect_ratio("aspect-square", sb.clone())
+            .expect("aspect-square class should be valid");
         let _style = result.build();
 
         // Test video aspect ratio
-        let result = apply_aspect_ratio("aspect-video", sb.clone()).unwrap();
+        let result = apply_aspect_ratio("aspect-video", sb.clone())
+            .expect("aspect-video class should be valid");
         let _style = result.build();
 
         // Test custom aspect ratio
-        let result = apply_aspect_ratio("aspect-[4/3]", sb.clone()).unwrap();
+        let result = apply_aspect_ratio("aspect-[4/3]", sb.clone())
+            .expect("aspect-[4/3] class should be valid");
         let _style = result.build();
     }
 

@@ -38,8 +38,21 @@ pub struct Renderer {
 
 impl Drop for Renderer {
     fn drop(&mut self) {
-        // Always restore terminal state, even on panic
-        let _ = self.term.exit_modern_mode();
+        // Use std::panic::catch_unwind to ensure terminal cleanup even during double panic
+        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            self.term.exit_modern_mode()
+        }));
+        
+        // If normal cleanup failed, try emergency terminal restore
+        if result.is_err() || matches!(result, Ok(Err(_))) {
+            // Emergency terminal restoration - try basic operations individually
+            let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                use crossterm::{execute, cursor, terminal};
+                let _ = execute!(std::io::stdout(), cursor::Show);
+                let _ = execute!(std::io::stdout(), terminal::LeaveAlternateScreen);
+                let _ = terminal::disable_raw_mode();
+            }));
+        }
     }
 }
 

@@ -292,9 +292,14 @@ impl VElement {
         name: impl Into<String>,
         value: T,
     ) -> Self {
-        Arc::get_mut(&mut self.props)
-            .unwrap()
-            .insert(name.into(), Arc::new(value));
+        if let Some(props) = Arc::get_mut(&mut self.props) {
+            props.insert(name.into(), Arc::new(value));
+        } else {
+            // Arc has multiple references, need to clone
+            let mut new_props = (*self.props).clone();
+            new_props.insert(name.into(), Arc::new(value));
+            self.props = Arc::new(new_props);
+        }
         self
     }
 
@@ -327,9 +332,14 @@ impl VElement {
     where
         F: Fn(&dyn Any) + Send + Sync + 'static,
     {
-        Arc::get_mut(&mut self.event_handlers)
-            .unwrap()
-            .insert(event.into(), Arc::new(handler));
+        if let Some(handlers) = Arc::get_mut(&mut self.event_handlers) {
+            handlers.insert(event.into(), Arc::new(handler));
+        } else {
+            // Arc has multiple references, need to clone
+            let mut new_handlers = (*self.event_handlers).clone();
+            new_handlers.insert(event.into(), Arc::new(handler));
+            self.event_handlers = Arc::new(new_handlers);
+        }
         self
     }
 

@@ -59,7 +59,7 @@ impl PaginationConfig {
         if self.page_size == 0 {
             1
         } else {
-            (self.total_rows + self.page_size - 1) / self.page_size
+            self.total_rows.div_ceil(self.page_size)
         }
     }
 
@@ -200,6 +200,7 @@ impl Default for DataTableProps {
 
 /// State for the Advanced Data Table component
 #[derive(Debug, Clone, PartialEq)]
+#[derive(Default)]
 pub struct DataTableState {
     /// Filtered and paginated rows
     pub filtered_rows: Vec<TableRow>,
@@ -226,20 +227,6 @@ pub struct DataTableState {
     pub error_message: Option<String>,
 }
 
-impl Default for DataTableState {
-    fn default() -> Self {
-        Self {
-            filtered_rows: Vec::new(),
-            filter_inputs: HashMap::new(),
-            filter_panel_open: false,
-            column_panel_open: false,
-            search_input: String::new(),
-            scroll_position: 0,
-            loading: false,
-            error_message: None,
-        }
-    }
-}
 
 /// Advanced Data Table component
 pub struct DataTable;
@@ -264,10 +251,7 @@ impl Component for DataTable {
         table_props.rows = display_rows;
 
         // Filter out hidden columns
-        table_props.columns = table_props.columns
-            .into_iter()
-            .filter(|col| !props.hidden_columns.contains(&col.key))
-            .collect();
+        table_props.columns.retain(|col| !props.hidden_columns.contains(&col.key));
 
         // Create a simple layout with the table and basic info
         let info_text = if props.pagination.enabled {

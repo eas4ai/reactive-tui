@@ -11,6 +11,7 @@ mod animation;
 mod component;
 mod dialog;
 mod error;
+mod pointer_tracker;
 mod render;
 mod surface;
 mod terminal;
@@ -58,16 +59,17 @@ where
 }
 
 /// Initialize the library (must be called before any other functions)
-#[unsafe(no_mangle)]
+#[no_mangle]
 pub extern "C" fn rtui_init() -> ReactiveError {
     // Initialize any global state if needed
     ReactiveError::Success
 }
 
 /// Cleanup the library
-#[unsafe(no_mangle)]
+#[no_mangle]
 pub extern "C" fn rtui_cleanup() {
-    // Cleanup any global state
+    // Clear all pointer trackers to prevent stale references
+    pointer_tracker::trackers::clear_all();
 }
 
 /// Helper to convert C string to Rust string

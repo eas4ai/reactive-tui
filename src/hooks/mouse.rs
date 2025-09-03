@@ -335,7 +335,7 @@ pub fn use_long_press(hooks: &Hooks, _threshold: Duration) -> ThreadSafeSignal<L
 }
 
 /// Gesture recognition state
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Default)]
 pub struct GestureState {
     /// Type of gesture currently detected
     pub gesture_type: GestureType,
@@ -350,9 +350,10 @@ pub struct GestureState {
 }
 
 /// Type of mouse gesture detected
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Default)]
 pub enum GestureType {
     /// No gesture detected
+    #[default]
     None,
     /// Swipe gesture in a specific direction
     Swipe(SwipeDirection),

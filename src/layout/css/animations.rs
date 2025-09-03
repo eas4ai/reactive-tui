@@ -106,7 +106,7 @@ pub fn apply_css_animation_to_component(
     let mut builder = AnimationBuilder::new(format!("css-{}-{}", animation_name, component_id))
         .duration(spec.duration)
         .easing(spec.easing.clone())
-        .loop_mode(spec.loop_mode.clone());
+        .loop_mode(spec.loop_mode);
 
     // Add all properties from the spec
     for property in &spec.properties {

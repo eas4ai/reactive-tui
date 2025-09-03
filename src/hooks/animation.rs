@@ -13,7 +13,7 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 /// Animation value that can be animated
-pub trait AnimatableValue: Clone + Debug + Send + Sync + PartialEq + 'static {
+pub trait AnimatableValue: Clone + Debug + Send + Sync + PartialEq + Default + 'static {
     /// Interpolate between this value and another at time t (0.0 to 1.0)
     fn interpolate(&self, to: &Self, t: f32) -> Self;
     /// Convert this value to an f32 for calculations
