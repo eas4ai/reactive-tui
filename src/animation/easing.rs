@@ -71,6 +71,56 @@ pub enum EasingFunction {
 }
 
 impl EasingFunction {
+    /// Create a spring easing with custom parameters
+    pub fn spring(mass: f32, stiffness: f32, damping: f32) -> Self {
+        Self::Spring(SpringConfig::new(mass, stiffness, damping))
+    }
+
+    /// Create a gentle spring easing
+    pub fn spring_gentle() -> Self {
+        Self::Spring(SpringConfig::gentle())
+    }
+
+    /// Create a wobbly spring easing
+    pub fn spring_wobbly() -> Self {
+        Self::Spring(SpringConfig::wobbly())
+    }
+
+    /// Create a stiff spring easing
+    pub fn spring_stiff() -> Self {
+        Self::Spring(SpringConfig::stiff())
+    }
+
+    /// Create stepped easing
+    pub fn steps(count: u32, jump_at_start: bool) -> Self {
+        Self::Steps(count, jump_at_start)
+    }
+
+    /// Create linear points easing
+    pub fn linear_points(points: Vec<f32>) -> Self {
+        Self::LinearPoints(points)
+    }
+
+    /// Create irregular easing
+    pub fn irregular(steps: u32, randomness: f32) -> Self {
+        Self::Irregular(steps, randomness.clamp(0.0, 1.0))
+    }
+
+    /// Create power-in easing with custom exponent
+    pub fn power_in(power: f32) -> Self {
+        Self::InPower(power)
+    }
+
+    /// Create power-out easing with custom exponent
+    pub fn power_out(power: f32) -> Self {
+        Self::OutPower(power)
+    }
+
+    /// Create power-in-out easing with custom exponent
+    pub fn power_in_out(power: f32) -> Self {
+        Self::InOutPower(power)
+    }
+
     /// Create back-in easing with custom overshoot
     ///
     /// # Arguments
@@ -143,9 +193,9 @@ impl EasingFunction {
             Self::Quart => self.ease_in_out_quart(t),
             Self::Quint => self.ease_in_out_quint(t),
             Self::Spring(config) => config.calculate_position(t, 0.0, 1.0),
-            Self::Steps(steps, jump_start) => self.steps(t, *steps, *jump_start),
-            Self::LinearPoints(points) => self.linear_points(t, points),
-            Self::Irregular(steps, randomness) => self.irregular(t, *steps, *randomness),
+            Self::Steps(steps, jump_start) => self.apply_steps(t, *steps, *jump_start),
+            Self::LinearPoints(points) => self.apply_linear_points(t, points),
+            Self::Irregular(steps, randomness) => self.apply_irregular(t, *steps, *randomness),
             Self::InPower(power) => t.powf(*power),
             Self::OutPower(power) => 1.0 - (1.0 - t).powf(*power),
             Self::InOutPower(power) => {
@@ -324,7 +374,7 @@ impl EasingFunction {
         mt3 * 0.0 + 3.0 * mt2 * t * y1 + 3.0 * mt * t2 * y2 + t3 * 1.0
     }
 
-    fn steps(&self, t: f32, steps: u32, jump_start: bool) -> f32 {
+    fn apply_steps(&self, t: f32, steps: u32, jump_start: bool) -> f32 {
         let step_size = 1.0 / steps as f32;
         let current_step = (t / step_size).floor();
 
@@ -335,7 +385,7 @@ impl EasingFunction {
         }
     }
 
-    fn linear_points(&self, t: f32, points: &[f32]) -> f32 {
+    fn apply_linear_points(&self, t: f32, points: &[f32]) -> f32 {
         if points.is_empty() {
             return t;
         }
@@ -354,7 +404,7 @@ impl EasingFunction {
         from + (to - from) * local_t
     }
 
-    fn irregular(&self, t: f32, steps: u32, randomness: f32) -> f32 {
+    fn apply_irregular(&self, t: f32, steps: u32, randomness: f32) -> f32 {
         let step_size = 1.0 / steps as f32;
         let current_step = (t / step_size).floor();
 
@@ -362,6 +412,21 @@ impl EasingFunction {
         let variation = ((current_step * 12.9898).sin() * 43_758.547).fract() * randomness;
 
         ((current_step * step_size) + variation * step_size).clamp(0.0, 1.0)
+    }
+
+    /// Apply easing with explicit from/to values (for spring physics)
+    pub fn apply_with_values(&self, t: f32, from: f32, to: f32) -> f32 {
+        match self {
+            Self::Spring(config) => {
+                let duration = config.estimate_duration(from, to);
+                let current_time = t * duration;
+                config.calculate_position(current_time, from, to)
+            }
+            _ => {
+                let eased_t = self.apply(t);
+                from + (to - from) * eased_t
+            }
+        }
     }
 }
 

@@ -1,4 +1,4 @@
-//! CSS utility module - organized Tailwind CSS utilities for TUI
+//! CSS utility module - organized CSS utilities for TUI
 //!
 //! This module provides a clean, organized structure for CSS utilities:
 //! - `parsers`: Common parsing functions for values
@@ -19,6 +19,7 @@ pub mod containers;
 pub mod css_in_rust;
 pub mod effects;
 pub mod focus;
+pub mod gradients;
 pub mod interactions;
 pub mod layout;
 pub mod optimizer;
@@ -27,12 +28,13 @@ pub mod sizing;
 pub mod spacing;
 pub mod typography;
 pub mod variants;
+pub mod visual_style;
 
 use crate::layout::style::StyleBuilder;
 
 /// Apply utility CSS classes to a StyleBuilder
 ///
-/// This is the main entry point for applying Tailwind CSS utilities.
+/// This is the main entry point for applying utility CSS utilities.
 /// It automatically uses the optimized parser if available, falling back
 /// to the sequential parser for compatibility.
 pub fn apply_utility_classes(class_str: &str, sb: StyleBuilder) -> StyleBuilder {

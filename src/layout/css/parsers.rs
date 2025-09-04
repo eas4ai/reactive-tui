@@ -21,8 +21,8 @@ pub fn parse_px(token: &str, prefix: &str) -> Option<f32> {
     })
 }
 
-/// Parse Tailwind spacing scale values
-/// Maps Tailwind spacing to pixel values: 0, 0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 16, 20, 24, 28, 32, 36, 40, 44, 48, 52, 56, 60, 64, 72, 80, 96
+/// Parse utility spacing scale values
+/// Maps utility spacing to pixel values: 0, 0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 16, 20, 24, 28, 32, 36, 40, 44, 48, 52, 56, 60, 64, 72, 80, 96
 /// Protected against DoS attacks with input length limits
 pub fn parse_spacing(token: &str, prefix: &str) -> Option<f32> {
     // Protect against DoS attacks - limit input length
@@ -73,7 +73,7 @@ pub fn parse_spacing(token: &str, prefix: &str) -> Option<f32> {
             "72" => Some(288.0),
             "80" => Some(320.0),
             "96" => Some(384.0),
-            _ => None, // No fallback for standard spacing - must match Tailwind scale
+            _ => None, // No fallback for standard spacing - must match utility scale
         }
     })
 }
@@ -87,8 +87,8 @@ pub fn parse_spacing_terminal(token: &str, prefix: &str) -> Option<f32> {
     })
 }
 
-/// Parse Tailwind spacing scale values with standard pixel mapping
-/// Maps Tailwind spacing to pixel values: 0, 0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 16, 20, 24, 28, 32, 36, 40, 44, 48, 52, 56, 60, 64, 72, 80, 96
+/// Parse utility spacing scale values with standard pixel mapping
+/// Maps utility spacing to pixel values: 0, 0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 16, 20, 24, 28, 32, 36, 40, 44, 48, 52, 56, 60, 64, 72, 80, 96
 #[allow(dead_code)]
 pub fn parse_spacing_pixels(token: &str, prefix: &str) -> Option<f32> {
     token.strip_prefix(prefix).and_then(|n| {
@@ -233,7 +233,7 @@ mod tests {
 
     #[test]
     fn test_parse_spacing() {
-        // Standard Tailwind scale for padding/margin
+        // Standard utility scale for padding/margin
         assert_eq!(parse_spacing("p-0", "p-"), Some(0.0));
         assert_eq!(parse_spacing("p-4", "p-"), Some(16.0));
         assert_eq!(parse_spacing("m-8", "m-"), Some(32.0));
@@ -253,7 +253,7 @@ mod tests {
 
     #[test]
     fn test_parse_spacing_pixels() {
-        // The pixel version uses standard Tailwind scale
+        // The pixel version uses standard utility scale
         assert_eq!(parse_spacing_pixels("p-0", "p-"), Some(0.0));
         assert_eq!(parse_spacing_pixels("p-4", "p-"), Some(16.0));
         assert_eq!(parse_spacing_pixels("m-8", "m-"), Some(32.0));

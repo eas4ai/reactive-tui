@@ -4,6 +4,7 @@
 //! element creation functions that form the foundation of the builder API.
 
 use crate::component::{Element, ElementType, LayoutType};
+use crate::layout::css::gradients::{Gradient, GradientDirection, GradientBorder};
 
 /// Create a div element (flex container by default)
 pub fn div() -> ElementBuilder {
@@ -79,6 +80,8 @@ pub fn input() -> ElementBuilder {
 pub struct ElementBuilder {
     element: Element,
     current_class: String,
+    gradient: Option<Gradient>,
+    gradient_border: Option<GradientBorder>,
 }
 
 impl ElementBuilder {
@@ -94,6 +97,8 @@ impl ElementBuilder {
                 focus: None,
             },
             current_class: String::new(),
+            gradient: None,
+            gradient_border: None,
         }
     }
 
@@ -261,8 +266,78 @@ impl ElementBuilder {
         self.key(id)
     }
 
+    /// Set a gradient background
+    pub fn gradient(mut self, direction: GradientDirection) -> Self {
+        let gradient = Gradient::new(direction);
+        self.gradient = Some(gradient);
+        self
+    }
+
+    /// Set gradient from color
+    pub fn from_color(mut self, r: u8, g: u8, b: u8) -> Self {
+        if let Some(ref mut gradient) = self.gradient {
+            gradient.stops.from = Some((r, g, b, 1.0));
+        } else {
+            let mut gradient = Gradient::new(GradientDirection::ToRight);
+            gradient.stops.from = Some((r, g, b, 1.0));
+            self.gradient = Some(gradient);
+        }
+        self
+    }
+
+    /// Set gradient via (middle) color
+    pub fn via_color(mut self, r: u8, g: u8, b: u8) -> Self {
+        if let Some(ref mut gradient) = self.gradient {
+            gradient.stops.via = Some((r, g, b, 1.0));
+        } else {
+            let mut gradient = Gradient::new(GradientDirection::ToRight);
+            gradient.stops.via = Some((r, g, b, 1.0));
+            self.gradient = Some(gradient);
+        }
+        self
+    }
+
+    /// Set gradient to color
+    pub fn to_color(mut self, r: u8, g: u8, b: u8) -> Self {
+        if let Some(ref mut gradient) = self.gradient {
+            gradient.stops.to = Some((r, g, b, 1.0));
+        } else {
+            let mut gradient = Gradient::new(GradientDirection::ToRight);
+            gradient.stops.to = Some((r, g, b, 1.0));
+            self.gradient = Some(gradient);
+        }
+        self
+    }
+
+    /// Add gradient border with specified width
+    pub fn gradient_border(mut self, width: usize) -> Self {
+        if let Some(ref gradient) = self.gradient {
+            self.gradient_border = Some(GradientBorder::new(gradient.clone(), width));
+        } else {
+            // Create default rainbow gradient for border if no gradient specified
+            let gradient_border = GradientBorder::rainbow_border(width);
+            self.gradient_border = Some(gradient_border);
+        }
+        self
+    }
+
     /// Build the final Element
-    pub fn build(self) -> Element {
+    pub fn build(mut self) -> Element {
+        // Store gradient information in props if present
+        if self.gradient.is_some() || self.gradient_border.is_some() {
+            let mut props_map = std::collections::HashMap::new();
+            
+            if let Some(gradient) = self.gradient {
+                props_map.insert("__gradient".to_string(), serde_json::json!(gradient));
+            }
+            
+            if let Some(gradient_border) = self.gradient_border {
+                props_map.insert("__gradient_border".to_string(), serde_json::json!(gradient_border));
+            }
+            
+            self.element.props = std::sync::Arc::new(props_map) as std::sync::Arc<dyn std::any::Any + Send + Sync>;
+        }
+        
         self.element
     }
 }

@@ -407,18 +407,36 @@ impl LayoutManager {
     fn paint_node(&mut self, node: NodeId, parent_x: f32, parent_y: f32) -> Result<()> {
         if let Some(meta) = self.meta.get(&node) {
             let layout = meta.layout;
-            let x = parent_x + layout.location.x;
-            let y = parent_y + layout.location.y;
+            
+            // Check if node is absolutely positioned
+            let style = self.taffy.style(node).unwrap();
+            let is_absolute = matches!(style.position, taffy::style::Position::Absolute);
+            
+            // Absolute elements use location directly, relative add parent offset
+            let x = if is_absolute {
+                layout.location.x
+            } else {
+                parent_x + layout.location.x
+            };
+            let y = if is_absolute {
+                layout.location.y
+            } else {
+                parent_y + layout.location.y
+            };
 
             // Generate paint ops based on element type
             match &meta.element.element_type {
                 ElementType::Text(content) => {
+                    // TODO: Extract visual style from the computed style
+                    // For now, use default style
+                    let text_style = TextStyle::default();
+                    
                     // Safe conversion with saturation to prevent truncation
                     self.paint_ops.push(PaintOp::Text {
                         x: x.min(u16::MAX as f32) as u16,
                         y: y.min(u16::MAX as f32) as u16,
                         content: content.clone(),
-                        style: TextStyle::default(),
+                        style: text_style,
                     });
                 }
                 ElementType::Layout(_) => {
@@ -453,26 +471,76 @@ impl LayoutManager {
     fn element_to_style(&self, element: &Element) -> Style {
         let mut style = Style::default();
 
-        // Parse class for layout hints
+        // Parse class using proper CSS parser
         if let Some(class) = &element.class {
-            if class.contains("flex") {
-                style.display = Display::Flex;
+            use crate::layout::style::StyleBuilder;
+            use crate::layout::css::layout::apply_position;
+            use crate::layout::css::spacing::{apply_padding, apply_margin, apply_gap};
+            use crate::layout::css::colors::apply_color_utilities;
+            
+            let mut sb = StyleBuilder::new();
+            
+            // Parse each token in the class string
+            for token in class.split_whitespace() {
+                // Try position utilities first (includes absolute, left-X, top-Y, etc.)
+                if let Some(new_sb) = apply_position(token, sb.clone()) {
+                    sb = new_sb;
+                    continue;
+                }
+                
+                // Try padding utilities
+                if let Some(new_sb) = apply_padding(token, sb.clone()) {
+                    sb = new_sb;
+                    continue;
+                }
+                
+                // Try margin utilities
+                if let Some(new_sb) = apply_margin(token, sb.clone()) {
+                    sb = new_sb;
+                    continue;
+                }
+                
+                // Try gap utilities
+                if let Some(new_sb) = apply_gap(token, sb.clone()) {
+                    sb = new_sb;
+                    continue;
+                }
+                
+                // Try color utilities (text, background, etc.)
+                if let Some(new_sb) = apply_color_utilities(token, sb.clone()) {
+                    sb = new_sb;
+                    continue;
+                }
+                
+                // Basic layout utilities
+                match token {
+                    "flex" => {
+                        sb = sb.display_flex();
+                    }
+                    "flex-row" => {
+                        sb = sb.display_flex().direction(crate::layout::style::Direction::Row);
+                    }
+                    "flex-col" => {
+                        sb = sb.display_flex().direction(crate::layout::style::Direction::Column);
+                    }
+                    "grid" => {
+                        sb = sb.display_grid();
+                    }
+                    "w-full" => {
+                        sb = sb.width_percent(100.0);
+                    }
+                    "h-full" => {
+                        sb = sb.height_percent(100.0);
+                    }
+                    "relative" => {
+                        sb = sb.position_relative();
+                    }
+                    _ => {}
+                }
             }
-            if class.contains("flex-row") {
-                style.flex_direction = FlexDirection::Row;
-            }
-            if class.contains("flex-col") {
-                style.flex_direction = FlexDirection::Column;
-            }
-            if class.contains("absolute") {
-                style.position = Position::Absolute;
-            }
-            if class.contains("w-full") {
-                style.size.width = Dimension::percent(1.0);
-            }
-            if class.contains("h-full") {
-                style.size.height = Dimension::percent(1.0);
-            }
+            
+            // Apply the parsed style to Taffy
+            style = sb.build();
         }
 
         // Set defaults based on element type

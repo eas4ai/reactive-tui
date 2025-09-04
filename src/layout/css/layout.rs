@@ -265,6 +265,28 @@ pub fn apply_position(token: &str, sb: StyleBuilder) -> Option<StyleBuilder> {
         _ => {}
     }
 
+    // Parse left-X, top-Y, right-X, bottom-Y position values
+    if let Some(value) = token.strip_prefix("left-") {
+        if let Ok(v) = value.parse::<f32>() {
+            return Some(sb.inset_left(v));
+        }
+    }
+    if let Some(value) = token.strip_prefix("top-") {
+        if let Ok(v) = value.parse::<f32>() {
+            return Some(sb.inset_top(v));
+        }
+    }
+    if let Some(value) = token.strip_prefix("right-") {
+        if let Ok(v) = value.parse::<f32>() {
+            return Some(sb.inset_right(v));
+        }
+    }
+    if let Some(value) = token.strip_prefix("bottom-") {
+        if let Ok(v) = value.parse::<f32>() {
+            return Some(sb.inset_bottom(v));
+        }
+    }
+
     // Try positioning utilities
     if let Some(result) = apply_positioning_utilities(token, sb.clone()) {
         return Some(result);

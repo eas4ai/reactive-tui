@@ -4,6 +4,7 @@
 //! including cell-based buffers, text attributes, colors, and Unicode handling.
 
 use super::geometry::{Point, Rect, Size};
+use crate::layout::css::gradients::{Gradient, GradientBorder};
 use std::env;
 use unicode_segmentation::UnicodeSegmentation;
 use unicode_width::UnicodeWidthStr;
@@ -1165,6 +1166,232 @@ impl Surface {
                 if x < self.w && y < self.h {
                     let idx = self.idx(x, y);
                     self.buf[idx].bg = color;
+                }
+            }
+        }
+    }
+
+    /// Fill a rectangle with a gradient background
+    pub fn fill_gradient_rect(&mut self, rect: Rect, gradient: &Gradient) {
+        let bounds = Rect::from_coords(0, 0, self.w, self.h);
+        let rect = rect.clamp(&bounds);
+        
+        let width = rect.width();
+        let height = rect.height();
+        
+        // Generate gradient colors based on direction
+        use crate::layout::css::gradients::GradientDirection;
+        
+        match gradient.direction {
+            GradientDirection::ToRight | GradientDirection::ToLeft => {
+                // Horizontal gradient
+                let colors = gradient.render(width);
+                let colors = if matches!(gradient.direction, GradientDirection::ToLeft) {
+                    colors.into_iter().rev().collect()
+                } else {
+                    colors
+                };
+                
+                for y in rect.top()..rect.bottom() {
+                    for (i, x) in (rect.left()..rect.right()).enumerate() {
+                        if x < self.w && y < self.h && i < colors.len() {
+                            let idx = self.idx(x, y);
+                            let color = colors[i];
+                            self.buf[idx].bg = Rgba::new(
+                                color.0 as f32 / 255.0,
+                                color.1 as f32 / 255.0,
+                                color.2 as f32 / 255.0,
+                                color.3,
+                            );
+                        }
+                    }
+                }
+            }
+            GradientDirection::ToBottom | GradientDirection::ToTop => {
+                // Vertical gradient
+                let colors = gradient.render(height);
+                let colors = if matches!(gradient.direction, GradientDirection::ToTop) {
+                    colors.into_iter().rev().collect()
+                } else {
+                    colors
+                };
+                
+                for (i, y) in (rect.top()..rect.bottom()).enumerate() {
+                    for x in rect.left()..rect.right() {
+                        if x < self.w && y < self.h && i < colors.len() {
+                            let idx = self.idx(x, y);
+                            let color = colors[i];
+                            self.buf[idx].bg = Rgba::new(
+                                color.0 as f32 / 255.0,
+                                color.1 as f32 / 255.0,
+                                color.2 as f32 / 255.0,
+                                color.3,
+                            );
+                        }
+                    }
+                }
+            }
+            _ => {
+                // Diagonal gradients - interpolate based on position
+                for y in rect.top()..rect.bottom() {
+                    for x in rect.left()..rect.right() {
+                        if x < self.w && y < self.h {
+                            let rel_x = (x - rect.left()) as f32 / width as f32;
+                            let rel_y = (y - rect.top()) as f32 / height as f32;
+                            
+                            let pos = match gradient.direction {
+                                GradientDirection::ToTopRight => (rel_x + (1.0 - rel_y)) / 2.0,
+                                GradientDirection::ToTopLeft => ((1.0 - rel_x) + (1.0 - rel_y)) / 2.0,
+                                GradientDirection::ToBottomRight => (rel_x + rel_y) / 2.0,
+                                GradientDirection::ToBottomLeft => ((1.0 - rel_x) + rel_y) / 2.0,
+                                _ => 0.5,
+                            };
+                            
+                            if let Some(color) = gradient.color_at(pos) {
+                                let idx = self.idx(x, y);
+                                self.buf[idx].bg = Rgba::new(
+                                    color.0 as f32 / 255.0,
+                                    color.1 as f32 / 255.0,
+                                    color.2 as f32 / 255.0,
+                                    color.3,
+                                );
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /// Draw a gradient border around a rectangle
+    pub fn draw_gradient_border(&mut self, rect: Rect, gradient_border: &GradientBorder) {
+        let bounds = Rect::from_coords(0, 0, self.w, self.h);
+        let rect = rect.clamp(&bounds);
+        
+        let width = rect.width();
+        let height = rect.height();
+        
+        if width < 2 || height < 2 {
+            return; // Too small for a border
+        }
+        
+        // Get border colors for all sides
+        let border_colors = gradient_border.render_border(width, height);
+        
+        if border_colors.len() >= 4 {
+            let top_colors = &border_colors[0];
+            let right_colors = &border_colors[1];
+            let bottom_colors = &border_colors[2];
+            let left_colors = &border_colors[3];
+            
+            // Draw top border
+            for (i, x) in (rect.left()..rect.right()).enumerate() {
+                if x < self.w && i < top_colors.len() {
+                    let idx = self.idx(x, rect.top());
+                    let color = top_colors[i];
+                    self.buf[idx].bg = Rgba::new(
+                        color.0 as f32 / 255.0,
+                        color.1 as f32 / 255.0,
+                        color.2 as f32 / 255.0,
+                        color.3,
+                    );
+                    self.buf[idx].ch = '─';
+                }
+            }
+            
+            // Draw bottom border
+            for (i, x) in (rect.left()..rect.right()).enumerate() {
+                if x < self.w && rect.bottom() > 0 && i < bottom_colors.len() {
+                    let idx = self.idx(x, rect.bottom() - 1);
+                    let color = bottom_colors[i];
+                    self.buf[idx].bg = Rgba::new(
+                        color.0 as f32 / 255.0,
+                        color.1 as f32 / 255.0,
+                        color.2 as f32 / 255.0,
+                        color.3,
+                    );
+                    self.buf[idx].ch = '─';
+                }
+            }
+            
+            // Draw left border
+            for (i, y) in (rect.top()..rect.bottom()).enumerate() {
+                if y < self.h && i < left_colors.len() {
+                    let idx = self.idx(rect.left(), y);
+                    let color = left_colors[i];
+                    self.buf[idx].bg = Rgba::new(
+                        color.0 as f32 / 255.0,
+                        color.1 as f32 / 255.0,
+                        color.2 as f32 / 255.0,
+                        color.3,
+                    );
+                    self.buf[idx].ch = if i == 0 || i == left_colors.len() - 1 { ' ' } else { '│' };
+                }
+            }
+            
+            // Draw right border
+            for (i, y) in (rect.top()..rect.bottom()).enumerate() {
+                if y < self.h && rect.right() > 0 && i < right_colors.len() {
+                    let idx = self.idx(rect.right() - 1, y);
+                    let color = right_colors[i];
+                    self.buf[idx].bg = Rgba::new(
+                        color.0 as f32 / 255.0,
+                        color.1 as f32 / 255.0,
+                        color.2 as f32 / 255.0,
+                        color.3,
+                    );
+                    self.buf[idx].ch = if i == 0 || i == right_colors.len() - 1 { ' ' } else { '│' };
+                }
+            }
+            
+            // Draw corners with special characters
+            if let Some(color) = top_colors.first() {
+                let idx = self.idx(rect.left(), rect.top());
+                self.buf[idx].ch = '╭';
+                self.buf[idx].fg = Rgba::new(
+                    color.0 as f32 / 255.0,
+                    color.1 as f32 / 255.0,
+                    color.2 as f32 / 255.0,
+                    color.3,
+                );
+            }
+            
+            if let Some(color) = top_colors.last() {
+                if rect.right() > 0 {
+                    let idx = self.idx(rect.right() - 1, rect.top());
+                    self.buf[idx].ch = '╮';
+                    self.buf[idx].fg = Rgba::new(
+                        color.0 as f32 / 255.0,
+                        color.1 as f32 / 255.0,
+                        color.2 as f32 / 255.0,
+                        color.3,
+                    );
+                }
+            }
+            
+            if let Some(color) = bottom_colors.first() {
+                if rect.bottom() > 0 {
+                    let idx = self.idx(rect.left(), rect.bottom() - 1);
+                    self.buf[idx].ch = '╰';
+                    self.buf[idx].fg = Rgba::new(
+                        color.0 as f32 / 255.0,
+                        color.1 as f32 / 255.0,
+                        color.2 as f32 / 255.0,
+                        color.3,
+                    );
+                }
+            }
+            
+            if let Some(color) = bottom_colors.last() {
+                if rect.right() > 0 && rect.bottom() > 0 {
+                    let idx = self.idx(rect.right() - 1, rect.bottom() - 1);
+                    self.buf[idx].ch = '╯';
+                    self.buf[idx].fg = Rgba::new(
+                        color.0 as f32 / 255.0,
+                        color.1 as f32 / 255.0,
+                        color.2 as f32 / 255.0,
+                        color.3,
+                    );
                 }
             }
         }

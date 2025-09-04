@@ -11,7 +11,7 @@ use std::num::NonZeroUsize;
 /// RGBA color tuple (r, g, b, a) with u8 components
 type ColorTuple = (u8, u8, u8, f32);
 
-/// Pre-computed Tailwind color palette
+/// Pre-computed utility color palette
 static TAILWIND_COLORS: Lazy<HashMap<&'static str, ColorTuple>> = Lazy::new(|| {
     let mut m = HashMap::with_capacity(300);
     
@@ -135,16 +135,16 @@ thread_local! {
         ));
 }
 
-/// Get a color from the static Tailwind palette
+/// Get a color from the static utility palette
 #[inline(always)]
-pub fn get_tailwind_color(name: &str) -> Option<ColorTuple> {
+pub fn get_utility_color(name: &str) -> Option<ColorTuple> {
     TAILWIND_COLORS.get(name).copied()
 }
 
 /// Get a cached dynamic color
 pub fn get_cached_color(token: &str) -> Option<ColorTuple> {
     // First check static colors
-    if let Some(color) = get_tailwind_color(token) {
+    if let Some(color) = get_utility_color(token) {
         return Some(color);
     }
     

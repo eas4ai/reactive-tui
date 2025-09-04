@@ -291,9 +291,21 @@ fn collect_nodes_by_z_index_recursive(
     parent_y: usize,
 ) {
     if let Ok(layout) = taffy.layout(node) {
-        // Calculate absolute position by adding parent offset
-        let x = parent_x + layout.location.x.max(0.0) as usize;
-        let y = parent_y + layout.location.y.max(0.0) as usize;
+        // Check if this node is absolutely positioned
+        let style = taffy.style(node).unwrap();
+        let is_absolute = matches!(style.position, taffy::style::Position::Absolute);
+        
+        // For absolute positioning, use location directly; for relative, add parent offset
+        let x = if is_absolute {
+            layout.location.x.max(0.0) as usize
+        } else {
+            parent_x + layout.location.x.max(0.0) as usize
+        };
+        let y = if is_absolute {
+            layout.location.y.max(0.0) as usize
+        } else {
+            parent_y + layout.location.y.max(0.0) as usize
+        };
         let w = layout.size.width.max(0.0) as usize;
         let h = layout.size.height.max(0.0) as usize;
 

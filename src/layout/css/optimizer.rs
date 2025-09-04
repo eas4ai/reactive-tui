@@ -437,7 +437,7 @@ fn apply_margin_y_dynamic(token: &str, sb: StyleBuilder) -> Option<StyleBuilder>
     None
 }
 
-/// Parse Tailwind spacing scale to pixel values
+/// Parse utility spacing scale to pixel values
 fn parse_spacing_value(value: &str) -> Option<f32> {
     match value {
         "0" => Some(0.0),
