@@ -91,6 +91,7 @@ impl ElementBuilder {
                 children: Vec::new(),
                 key: None,
                 class: None,
+                focus: None,
             },
             current_class: String::new(),
         }

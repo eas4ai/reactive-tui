@@ -111,6 +111,130 @@ RTuiError rtui_terminal_write(RTuiTerminal* terminal, const char* text);
  */
 RTuiError rtui_terminal_flush(RTuiTerminal* terminal);
 
+// =============================================================================
+// MODERN TERMINAL API DECLARATIONS
+// =============================================================================
+
+/**
+ * @brief Cursor style enumeration
+ */
+typedef enum {
+    RTUI_CURSOR_BLOCK = 0,      ///< Block cursor
+    RTUI_CURSOR_UNDERLINE = 1,  ///< Underline cursor
+    RTUI_CURSOR_BAR = 2         ///< Bar cursor
+} RTuiCursorStyle;
+
+/**
+ * @brief Terminal capabilities structure
+ */
+typedef struct {
+    bool colors_256;        ///< Supports 256 colors
+    bool colors_truecolor;  ///< Supports true color (24-bit)
+    bool mouse_support;     ///< Supports mouse events
+    bool kitty_keyboard;    ///< Supports Kitty keyboard protocol
+    bool sixel_support;     ///< Supports Sixel graphics
+    bool unicode_support;   ///< Supports Unicode
+    uint16_t width;         ///< Terminal width in characters
+    uint16_t height;        ///< Terminal height in characters
+} RTuiCapabilities;
+
+/**
+ * @brief Create a new terminal instance
+ * @return Pointer to terminal or NULL on failure
+ */
+RTuiTerminal* createTerminal(void);
+
+/**
+ * @brief Destroy a terminal and free its resources
+ * @param terminal Terminal to destroy
+ */
+void destroyTerminal(RTuiTerminal* terminal);
+
+/**
+ * @brief Setup terminal for TUI mode
+ * @param terminal Target terminal
+ * @param use_alternate_screen Whether to use alternate screen buffer
+ */
+void setupTerminal(RTuiTerminal* terminal, bool use_alternate_screen);
+
+/**
+ * @brief Clear the terminal screen
+ * @param terminal Target terminal
+ */
+void clearTerminal(RTuiTerminal* terminal);
+
+/**
+ * @brief Get terminal capabilities
+ * @param terminal Target terminal
+ * @param capabilities Output capabilities structure
+ * @return true if successful
+ */
+bool getTerminalCapabilities(RTuiTerminal* terminal, RTuiCapabilities* capabilities);
+
+/**
+ * @brief Process capability response from terminal
+ * @param terminal Target terminal
+ * @param response Response string from terminal
+ * @param response_len Length of response
+ */
+void processCapabilityResponse(RTuiTerminal* terminal, const char* response, size_t response_len);
+
+/**
+ * @brief Set cursor position
+ * @param terminal Target terminal
+ * @param x X coordinate (0-based)
+ * @param y Y coordinate (0-based)
+ */
+void setCursorPosition(RTuiTerminal* terminal, uint16_t x, uint16_t y);
+
+/**
+ * @brief Set cursor style
+ * @param terminal Target terminal
+ * @param style Cursor style
+ */
+void setCursorStyle(RTuiTerminal* terminal, RTuiCursorStyle style);
+
+/**
+ * @brief Set cursor color
+ * @param terminal Target terminal
+ * @param r Red component (0-255)
+ * @param g Green component (0-255)
+ * @param b Blue component (0-255)
+ */
+void setCursorColor(RTuiTerminal* terminal, uint8_t r, uint8_t g, uint8_t b);
+
+/**
+ * @brief Set terminal title
+ * @param terminal Target terminal
+ * @param title Title string
+ * @param title_len Length of title
+ */
+void setTerminalTitle(RTuiTerminal* terminal, const char* title, size_t title_len);
+
+/**
+ * @brief Enable mouse support
+ * @param terminal Target terminal
+ */
+void enableMouse(RTuiTerminal* terminal);
+
+/**
+ * @brief Disable mouse support
+ * @param terminal Target terminal
+ */
+void disableMouse(RTuiTerminal* terminal);
+
+/**
+ * @brief Enable Kitty keyboard protocol
+ * @param terminal Target terminal
+ */
+void enableKittyKeyboard(RTuiTerminal* terminal);
+
+/**
+ * @brief Disable Kitty keyboard protocol
+ * @param terminal Target terminal
+ */
+void disableKittyKeyboard(RTuiTerminal* terminal);
+
 #ifdef __cplusplus
 }
 #endif

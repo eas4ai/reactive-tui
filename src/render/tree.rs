@@ -278,6 +278,19 @@ impl RenderTree {
         self.build_node_map(root.as_ref());
         self.root = Some(root);
     }
+    
+    /// Take the root node, leaving None in its place
+    pub fn take_root(&mut self) -> Option<Box<dyn RenderNode>> {
+        self.node_map.clear();
+        self.dirty_nodes.clear();
+        self.root.take()
+    }
+    
+    /// Replace the root with a new one, returning the old root
+    pub fn replace_root(&mut self, root: Box<dyn RenderNode>) -> Option<Box<dyn RenderNode>> {
+        self.build_node_map(root.as_ref());
+        self.root.replace(root)
+    }
 
     /// Get the root node
     pub fn root(&self) -> Option<&dyn RenderNode> {

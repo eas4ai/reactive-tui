@@ -510,14 +510,14 @@ impl Breadcrumb {
                 .with_class("breadcrumb-segment-label")
         );
 
-        let element = Element::layout(crate::component::LayoutType::Flex)
-            .with_class(segment_classes.join(" "))
-            .with_children(content);
+        
 
         // Note: Tooltip and accessibility attributes would be added here
         // in a real implementation with proper attribute support
 
-        element
+        Element::layout(crate::component::LayoutType::Flex)
+            .with_class(segment_classes.join(" "))
+            .with_children(content)
     }
 
     /// Render separator between segments

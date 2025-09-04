@@ -11,7 +11,7 @@
 //! - `optimizer`: High-performance CSS utility parsing with caching
 
 pub mod accessibility;
-pub mod animation_manager;
+pub mod manager;
 pub mod animations;
 pub mod cache;
 pub mod colors;
@@ -56,105 +56,6 @@ pub fn apply_utility_classes_with_theme(
     optimizer::apply_utility_classes(class_str, sb, theme)
 }
 
-/// Legacy sequential CSS utility application
-/// 
-/// This is the original implementation that processes utilities sequentially.
-/// Kept for compatibility and testing purposes. The optimized version should
-/// be preferred for production use.
-#[allow(dead_code)]
-pub fn apply_utility_classes_sequential(
-    class_str: &str,
-    mut sb: StyleBuilder,
-    theme: Option<&crate::theme::Theme>,
-) -> StyleBuilder {
-    if class_str.is_empty() {
-        return sb;
-    }
-
-    // Split class string into individual tokens
-    let tokens: Vec<&str> = class_str.split_whitespace().collect();
-
-    for token in tokens {
-        // Try each category of utilities in order of likelihood
-
-        // 1. Layout utilities (most common)
-        if let Some(result) = layout::apply_layout_utilities(token, sb.clone()) {
-            sb = result;
-            continue;
-        }
-
-        // 2. Spacing utilities (very common)
-        if let Some(result) = spacing::apply_spacing_utilities(token, sb.clone()) {
-            sb = result;
-            continue;
-        }
-
-        // 3. Color utilities (very common) - with theme support
-        if let Some(result) = colors::apply_color_utilities_with_theme(token, sb.clone(), theme) {
-            sb = result;
-            continue;
-        }
-
-        // 4. Container utilities (common for layouts)
-        if let Some(result) = containers::apply_container_utilities(token, sb.clone()) {
-            sb = result;
-            continue;
-        }
-
-        // 5. Sizing utilities (common)
-        if let Some(result) = sizing::apply_sizing_utilities(token, sb.clone()) {
-            sb = result;
-            continue;
-        }
-
-        // 6. Typography utilities (common)
-        if let Some(result) = typography::apply_typography_utilities(token, sb.clone()) {
-            sb = result;
-            continue;
-        }
-
-        // 7. Effects utilities (less common but important)
-        if let Some(result) = effects::apply_effects_utilities(token, sb.clone()) {
-            sb = result;
-            continue;
-        }
-
-        // 9. Interaction & Scroll utilities (user interaction)
-        if let Some(result) = interactions::apply_interaction_utilities(token, sb.clone()) {
-            sb = result;
-            continue;
-        }
-
-        // 10. Focus & Accessibility utilities (important for TUI)
-        if let Some(result) = focus::apply_focus_utilities(token, sb.clone()) {
-            sb = result;
-            continue;
-        }
-
-        // 11. Accessibility utilities (ARIA, roles, etc.)
-        if let Some(result) = accessibility::apply_accessibility_utilities(token, sb.clone()) {
-            sb = result;
-            continue;
-        }
-
-        // 12. Animation & Transition utilities (smooth interactions)
-        if let Some(result) = animations::apply_animation_utilities(token, sb.clone()) {
-            sb = result;
-            continue;
-        }
-
-        // 13. Pseudo-class Variants (hover:*, active:*, etc.)
-        if let Some(result) = variants::apply_variant_utilities(token, sb.clone()) {
-            sb = result;
-            continue;
-        }
-
-        // If no module handled the token, silently ignore it
-        // This allows for graceful degradation of unsupported utilities
-    }
-
-    sb
-}
 
 #[cfg(test)]
 mod tests {

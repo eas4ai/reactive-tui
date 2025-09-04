@@ -17,7 +17,10 @@ pub enum InputMode {
     #[default]
     SingleLine,
     /// Multi-line input with specified height
-    MultiLine { height: u16 },
+    MultiLine { 
+        /// Height of the multi-line input in rows
+        height: u16 
+    },
     /// Password input (masked)
     Password,
     /// Numeric input only
@@ -33,6 +36,170 @@ pub struct Suggestion {
     pub description: Option<String>,
     /// Text to insert when suggestion is selected
     pub insert_text: String,
+}
+
+/// Builder for creating TextInput components with a fluent API
+#[derive(Clone, Debug, Default)]
+pub struct TextInputBuilder {
+    value: String,
+    placeholder: Option<String>,
+    max_length: Option<usize>,
+    disabled: bool,
+    width: Option<u16>,
+    mode: InputMode,
+    validator_pattern: Option<String>,
+    error_message: Option<String>,
+    suggestions: Vec<Suggestion>,
+    show_line_numbers: bool,
+    wrap_text: bool,
+    tab_size: usize,
+    auto_indent: bool,
+}
+
+impl TextInputBuilder {
+    /// Create a new TextInputBuilder
+    pub fn new() -> Self {
+        Self {
+            wrap_text: true,
+            tab_size: 4,
+            width: Some(30),
+            placeholder: Some("Enter text...".to_string()),
+            ..Default::default()
+        }
+    }
+
+    /// Set the current text value
+    pub fn value(mut self, value: impl Into<String>) -> Self {
+        self.value = value.into();
+        self
+    }
+
+    /// Set the placeholder text
+    pub fn placeholder(mut self, placeholder: impl Into<String>) -> Self {
+        self.placeholder = Some(placeholder.into());
+        self
+    }
+
+    /// Set the maximum text length
+    pub fn max_length(mut self, max_length: usize) -> Self {
+        self.max_length = Some(max_length);
+        self
+    }
+
+    /// Set whether the input is disabled
+    pub fn disabled(mut self, disabled: bool) -> Self {
+        self.disabled = disabled;
+        self
+    }
+
+    /// Set the fixed width in characters
+    pub fn width(mut self, width: u16) -> Self {
+        self.width = Some(width);
+        self
+    }
+
+    /// Set the input mode
+    pub fn mode(mut self, mode: InputMode) -> Self {
+        self.mode = mode;
+        self
+    }
+
+    /// Set single-line mode
+    pub fn single_line(mut self) -> Self {
+        self.mode = InputMode::SingleLine;
+        self
+    }
+
+    /// Set multi-line mode with height
+    pub fn multi_line(mut self, height: u16) -> Self {
+        self.mode = InputMode::MultiLine { height };
+        self
+    }
+
+    /// Set password mode
+    pub fn password(mut self) -> Self {
+        self.mode = InputMode::Password;
+        self
+    }
+
+    /// Set numeric-only mode
+    pub fn numeric(mut self) -> Self {
+        self.mode = InputMode::Numeric;
+        self
+    }
+
+    /// Set validation pattern
+    pub fn validator_pattern(mut self, pattern: impl Into<String>) -> Self {
+        self.validator_pattern = Some(pattern.into());
+        self
+    }
+
+    /// Set error message
+    pub fn error_message(mut self, message: impl Into<String>) -> Self {
+        self.error_message = Some(message.into());
+        self
+    }
+
+    /// Add suggestions
+    pub fn suggestions(mut self, suggestions: Vec<Suggestion>) -> Self {
+        self.suggestions = suggestions;
+        self
+    }
+
+    /// Add a single suggestion
+    pub fn suggestion(mut self, suggestion: Suggestion) -> Self {
+        self.suggestions.push(suggestion);
+        self
+    }
+
+    /// Set whether to show line numbers (multi-line mode)
+    pub fn show_line_numbers(mut self, show: bool) -> Self {
+        self.show_line_numbers = show;
+        self
+    }
+
+    /// Set whether to wrap text
+    pub fn wrap_text(mut self, wrap: bool) -> Self {
+        self.wrap_text = wrap;
+        self
+    }
+
+    /// Set tab size in spaces
+    pub fn tab_size(mut self, size: usize) -> Self {
+        self.tab_size = size;
+        self
+    }
+
+    /// Set whether to auto-indent new lines
+    pub fn auto_indent(mut self, auto: bool) -> Self {
+        self.auto_indent = auto;
+        self
+    }
+
+    /// Build the TextInputProps
+    pub fn build(self) -> TextInputProps {
+        TextInputProps {
+            value: self.value,
+            placeholder: self.placeholder,
+            max_length: self.max_length,
+            disabled: self.disabled,
+            width: self.width,
+            mode: self.mode,
+            validator_pattern: self.validator_pattern,
+            error_message: self.error_message,
+            suggestions: self.suggestions,
+            show_line_numbers: self.show_line_numbers,
+            wrap_text: self.wrap_text,
+            tab_size: self.tab_size,
+            auto_indent: self.auto_indent,
+        }
+    }
+
+    /// Build and render as an Element (convenience method)
+    pub fn render(self) -> Element {
+        Element::component("TextInput")
+            .with_props(self.build())
+    }
 }
 
 /// Properties for TextInput component
@@ -1093,7 +1260,6 @@ impl TextInput {
                 } else if state.cursor.byte_offset > 0 {
                     let current_text = self.get_text_value(state);
                     // FIX: Convert byte offset to char index properly
-                    let mut _char_index = 0;
                     let mut byte_count = 0;
                     let mut prev_char = None;
                     let mut prev_byte_offset = 0;
@@ -1105,7 +1271,6 @@ impl TextInput {
                         prev_char = Some(ch);
                         prev_byte_offset = byte_count;
                         byte_count += ch.len_utf8();
-                        _char_index += 1;
                     }
                     
                     if let Some(ch) = prev_char {

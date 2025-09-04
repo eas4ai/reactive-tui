@@ -12,6 +12,7 @@ pub mod dialog;
 pub mod input;
 pub mod display;
 pub mod layout;
+pub mod menu;
 
 // Re-export all widget builder functions and types
 pub use accordion::*;
@@ -23,3 +24,4 @@ pub use dialog::*;
 pub use input::*;
 pub use display::*;
 pub use layout::*;
+pub use menu::*;

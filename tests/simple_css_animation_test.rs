@@ -1,5 +1,5 @@
 use reactive_tui::component::{Component, Element, Props, registry::{register_component, global_cleanup_all}};
-use reactive_tui::layout::css::animation_manager::{get_css_animation_stats_global, clear_all_css_animations_global};
+use reactive_tui::layout::css::manager::{get_css_animation_stats_global, clear_all_css_animations_global};
 use reactive_tui::layout::css::animations::get_available_css_animations;
 use reactive_tui::render::tree::element_to_render_node;
 

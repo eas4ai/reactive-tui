@@ -2,7 +2,7 @@ use super::instance::AnyComponentInstance;
 use super::tracked_instance::{SharedTrackedInstance, create_shared_tracked_instance};
 use super::{Component, ComponentInstance, LifecycleEvent};
 use crate::error::{ReactiveError, Result};
-use crate::layout::css::animation_manager::apply_css_animation_global;
+use crate::layout::css::manager::apply_css_animation_global;
 use crate::render::tree::NodeKey;
 use std::any::TypeId;
 use std::cell::RefCell;

@@ -90,12 +90,17 @@ impl HandlerChain {
     }
 }
 
+/// Type alias for cache entry to reduce complexity
+type CacheEntry = (NodeId, NodeId, Option<Arc<[NodeId]>>);
+/// Type alias for cache key to reduce complexity
+type CacheKey = (NodeId, NodeId);
+
 /// Path cache using perfect hashing for common cases
 pub struct PathCache {
     // Small inline cache for the most common paths (e.g., root -> immediate children)
-    inline_cache: [(NodeId, NodeId, Option<Arc<[NodeId]>>); 8],
+    inline_cache: [CacheEntry; 8],
     // LRU cache for everything else
-    lru: RefCell<LruCache<(NodeId, NodeId), Arc<[NodeId]>>>,
+    lru: RefCell<LruCache<CacheKey, Arc<[NodeId]>>>,
 }
 
 impl Default for PathCache {
@@ -107,7 +112,7 @@ impl Default for PathCache {
 impl PathCache {
     /// Create a new path cache
     pub fn new() -> Self {
-        const EMPTY: (NodeId, NodeId, Option<Arc<[NodeId]>>) = (NodeId(0), NodeId(0), None);
+        const EMPTY: CacheEntry = (NodeId(0), NodeId(0), None);
         Self {
             inline_cache: [EMPTY; 8],
             lru: RefCell::new(LruCache::new(NonZeroUsize::new(128).unwrap())),

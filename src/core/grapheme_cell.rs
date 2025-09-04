@@ -97,14 +97,7 @@ impl GraphemeCluster {
     /// Get the string representation
     pub fn as_str(&self) -> &str {
         // Safe version with validation instead of unsafe assumption
-        match std::str::from_utf8(&self.bytes[..self.len as usize]) {
-            Ok(s) => s,
-            Err(_) => {
-                // This should never happen with our improved constructor,
-                // but provide a safe fallback if it somehow does
-                ""
-            }
-        }
+        std::str::from_utf8(&self.bytes[..self.len as usize]).unwrap_or_default()
     }
 
     /// Get the display width

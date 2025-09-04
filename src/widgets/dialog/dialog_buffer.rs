@@ -129,10 +129,10 @@ impl DialogBuffer {
         let center = kernel_size / 2;
         let mut sum = 0.0;
         
-        for i in 0..kernel_size {
+        for (i, kernel_item) in kernel.iter_mut().enumerate().take(kernel_size) {
             let x = (i as f64 - center as f64) / sigma;
-            kernel[i] = (-0.5 * x * x).exp();
-            sum += kernel[i];
+            *kernel_item = (-0.5 * x * x).exp();
+            sum += *kernel_item;
         }
         
         // Normalize kernel

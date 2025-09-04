@@ -1,7 +1,6 @@
 //! Terminal Widget - Embedded terminal emulator component
 //!
 //! Provides a complete terminal emulator widget that can be embedded in TUI applications.
-//! This is the "killer feature" equivalent to libvaxis's embedded terminal.
 
 use crate::component::{Component, Element, Props};
 use crate::core::surface::{Attr, Cell, Rgba};

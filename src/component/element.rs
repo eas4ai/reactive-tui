@@ -50,6 +50,8 @@ pub struct Element {
     pub key: Option<String>,
     /// Optional utility-css style class (e.g., "flex flex-row p-2")
     pub class: Option<String>,
+    /// Optional focus properties for declarative focus management
+    pub focus: Option<super::focus::FocusProps>,
 }
 
 impl PartialEq for Element {
@@ -70,6 +72,7 @@ impl PartialEq for Element {
             && self.key == other.key
             && self.class == other.class
             && self.children == other.children
+            && self.focus == other.focus
             && props_equal
     }
 }
@@ -86,6 +89,7 @@ impl Element {
             children: Vec::new(),
             key: None,
             class: None,
+            focus: None,
         }
     }
 
@@ -97,6 +101,7 @@ impl Element {
             children: Vec::new(),
             key: None,
             class: None,
+            focus: None,
         }
     }
 
@@ -109,6 +114,7 @@ impl Element {
             children: Vec::new(),
             key: None,
             class: None,
+            focus: None,
         }
     }
 
@@ -120,6 +126,7 @@ impl Element {
             children: Vec::new(),
             key: None,
             class: None,
+            focus: None,
         }
     }
 
@@ -131,6 +138,7 @@ impl Element {
             children: Vec::new(),
             key: None,
             class: None,
+            focus: None,
         }
     }
 
@@ -142,6 +150,7 @@ impl Element {
             children: Vec::new(),
             key: None,
             class: None,
+            focus: None,
         }
     }
 
@@ -193,6 +202,36 @@ impl Element {
     /// Convenience alias for with_props
     pub fn props<T: Any + Send + Sync + 'static>(self, props: T) -> Self {
         self.with_props(props)
+    }
+
+    /// Set focus properties for declarative focus management
+    pub fn with_focus(mut self, focus: super::focus::FocusProps) -> Self {
+        self.focus = Some(focus);
+        self
+    }
+
+    /// Set auto focus for this element
+    pub fn auto_focus(mut self) -> Self {
+        let mut focus = self.focus.unwrap_or_default();
+        focus.auto_focus = true;
+        self.focus = Some(focus);
+        self
+    }
+
+    /// Set trap focus for this container
+    pub fn trap_focus(mut self) -> Self {
+        let mut focus = self.focus.unwrap_or_default();
+        focus.trap_focus = true;
+        self.focus = Some(focus);
+        self
+    }
+
+    /// Set tab index for this element
+    pub fn tab_index(mut self, index: i32) -> Self {
+        let mut focus = self.focus.unwrap_or_default();
+        focus.tab_index = index;
+        self.focus = Some(focus);
+        self
     }
 
     /// Builder method to set children (replaces existing)
@@ -389,6 +428,7 @@ mod tests {
             children: Vec::new(),
             key: None,
             class: None,
+            focus: None,
         };
         let elem4 = Element {
             element_type: ElementType::Component("Test".to_string()),
@@ -396,6 +436,7 @@ mod tests {
             children: Vec::new(),
             key: None,
             class: None,
+            focus: None,
         };
         assert_eq!(elem3, elem4);
     }

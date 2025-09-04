@@ -17,6 +17,7 @@ pub struct FFIElementBuilder {
 }
 
 impl FFIElementBuilder {
+    /// Create a new element builder with the specified type
     pub fn new(element_type: ElementType) -> Self {
         Self {
             element_type,
@@ -27,6 +28,7 @@ impl FFIElementBuilder {
         }
     }
     
+    /// Build the final element
     pub fn build(self) -> Element {
         let mut builder = ElementBuilder::new(self.element_type);
         
@@ -52,6 +54,7 @@ impl FFIElementBuilder {
 
 /// FFI wrapper for Element
 pub struct FFIElement {
+    /// The wrapped element
     pub inner: Element,
 }
 

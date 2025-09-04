@@ -23,11 +23,14 @@ pub mod registry;
 pub mod cache;
 /// Tracked component instances with automatic cleanup
 pub mod tracked_instance;
+/// Declarative focus management system
+pub mod focus;
 
 pub use element::{Element, ElementType, LayoutType};
 pub use instance::{AnyComponentInstance, ComponentInstance};
 pub use lifecycle::{Lifecycle, LifecycleEvent};
 pub use props::Props;
+pub use focus::{FocusProps, FocusPropsBuilder};
 pub use registry::ComponentRegistry;
 pub use tracked_instance::{TrackedComponentInstance, SharedTrackedInstance};
 /// Bridge between component elements and layout system

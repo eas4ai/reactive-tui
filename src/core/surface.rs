@@ -463,7 +463,7 @@ impl Rgba {
 impl Rgba {
     /// SIMD-optimized epsilon comparison
     pub fn equals_epsilon_simd(self, other: Self, epsilon: f32) -> bool {
-        use std::simd::{f32x4, SimdFloat, SimdPartialOrd};
+        use std::simd::{f32x4, prelude::SimdFloat, prelude::SimdPartialOrd};
 
         let a = f32x4::from_array([self.r, self.g, self.b, self.a]);
         let b = f32x4::from_array([other.r, other.g, other.b, other.a]);
@@ -658,6 +658,7 @@ impl Default for ImageCellPlacement {
 ///
 /// Represents one character position in the terminal with its
 /// associated styling, colors, and optional image content.
+#[repr(C)]
 #[derive(Clone, Copy, Default, PartialEq)]
 pub struct Cell {
     /// The character to display
@@ -1540,6 +1541,35 @@ impl Surface {
             }
         }
         result
+    }
+
+    /// Get direct access to the underlying cell buffer for FFI
+    ///
+    /// # Safety
+    /// This provides raw access to the internal buffer. The caller must ensure:
+    /// - The buffer is not modified while other operations are in progress
+    /// - The buffer size matches width * height
+    /// - No out-of-bounds access occurs
+    pub unsafe fn raw_buffer_ptr(&mut self) -> *mut Cell {
+        self.buf.as_mut_ptr()
+    }
+
+    /// Get the buffer size (width * height)
+    pub fn buffer_size(&self) -> usize {
+        self.buf.len()
+    }
+
+    /// Get direct read-only access to the cell buffer
+    pub fn cells(&self) -> &[Cell] {
+        &self.buf
+    }
+
+    /// Get direct mutable access to the cell buffer
+    ///
+    /// # Safety
+    /// The caller must ensure no concurrent access occurs
+    pub unsafe fn cells_mut(&mut self) -> &mut [Cell] {
+        &mut self.buf
     }
 
     /// Create an image from raw RGBA pixel data

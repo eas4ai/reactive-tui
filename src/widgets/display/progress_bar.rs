@@ -4,8 +4,249 @@ use crate::event::types::Event;
 use std::sync::Arc;
 
 /// Function type for formatting progress bar text
-/// Function type for formatting progress bar text
 pub type FormatterFn = dyn Fn(f64, f64, f64) -> String + Send + Sync;
+
+/// Progress bar orientation
+#[derive(Debug, Clone, PartialEq)]
+pub enum ProgressBarOrientation {
+    /// Horizontal progress bar
+    Horizontal,
+    /// Vertical progress bar
+    Vertical,
+}
+
+/// Builder for creating ProgressBar components with a fluent API
+#[derive(Clone)]
+pub struct ProgressBarBuilder {
+    value: f64,
+    max_value: f64,
+    min_value: f64,
+    show_percentage: bool,
+    show_value: bool,
+    indeterminate: bool,
+    animated: bool,
+    label: Option<String>,
+    color: Option<String>,
+    background_color: Option<String>,
+    height: u16,
+    width: Option<u16>,
+    style: Option<String>,
+    bar_style: Option<String>,
+    text_style: Option<String>,
+    orientation: ProgressBarOrientation,
+    segments: Option<u16>,
+    striped: bool,
+    pulse: bool,
+    custom_formatter: Option<Arc<FormatterFn>>,
+    on_complete: Option<Arc<dyn Fn() + Send + Sync>>,
+}
+
+impl ProgressBarBuilder {
+    /// Create a new ProgressBarBuilder
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Set the current progress value
+    pub fn value(mut self, value: f64) -> Self {
+        self.value = value;
+        self
+    }
+
+    /// Set the maximum value
+    pub fn max_value(mut self, max: f64) -> Self {
+        self.max_value = max;
+        self
+    }
+
+    /// Set the minimum value
+    pub fn min_value(mut self, min: f64) -> Self {
+        self.min_value = min;
+        self
+    }
+
+    /// Set value range (min and max)
+    pub fn range(mut self, min: f64, max: f64) -> Self {
+        self.min_value = min;
+        self.max_value = max;
+        self
+    }
+
+    /// Show or hide percentage text
+    pub fn show_percentage(mut self, show: bool) -> Self {
+        self.show_percentage = show;
+        self
+    }
+
+    /// Show or hide current value
+    pub fn show_value(mut self, show: bool) -> Self {
+        self.show_value = show;
+        self
+    }
+
+    /// Set as indeterminate progress
+    pub fn indeterminate(mut self, indeterminate: bool) -> Self {
+        self.indeterminate = indeterminate;
+        self
+    }
+
+    /// Enable or disable animation
+    pub fn animated(mut self, animated: bool) -> Self {
+        self.animated = animated;
+        self
+    }
+
+    /// Set label text
+    pub fn label(mut self, label: impl Into<String>) -> Self {
+        self.label = Some(label.into());
+        self
+    }
+
+    /// Set progress bar color
+    pub fn color(mut self, color: impl Into<String>) -> Self {
+        self.color = Some(color.into());
+        self
+    }
+
+    /// Set background color
+    pub fn background_color(mut self, color: impl Into<String>) -> Self {
+        self.background_color = Some(color.into());
+        self
+    }
+
+    /// Set the height
+    pub fn height(mut self, height: u16) -> Self {
+        self.height = height;
+        self
+    }
+
+    /// Set the width
+    pub fn width(mut self, width: u16) -> Self {
+        self.width = Some(width);
+        self
+    }
+
+    /// Set container style
+    pub fn style(mut self, style: impl Into<String>) -> Self {
+        self.style = Some(style.into());
+        self
+    }
+
+    /// Set progress bar style
+    pub fn bar_style(mut self, style: impl Into<String>) -> Self {
+        self.bar_style = Some(style.into());
+        self
+    }
+
+    /// Set text style
+    pub fn text_style(mut self, style: impl Into<String>) -> Self {
+        self.text_style = Some(style.into());
+        self
+    }
+
+    /// Set orientation
+    pub fn orientation(mut self, orientation: ProgressBarOrientation) -> Self {
+        self.orientation = orientation;
+        self
+    }
+
+    /// Set as vertical progress bar
+    pub fn vertical(mut self) -> Self {
+        self.orientation = ProgressBarOrientation::Vertical;
+        self
+    }
+
+    /// Set number of segments
+    pub fn segments(mut self, segments: u16) -> Self {
+        self.segments = Some(segments);
+        self
+    }
+
+    /// Enable striped pattern
+    pub fn striped(mut self, striped: bool) -> Self {
+        self.striped = striped;
+        self
+    }
+
+    /// Enable pulse animation
+    pub fn pulse(mut self, pulse: bool) -> Self {
+        self.pulse = pulse;
+        self
+    }
+
+    /// Set custom formatter function
+    pub fn custom_formatter(mut self, formatter: Arc<FormatterFn>) -> Self {
+        self.custom_formatter = Some(formatter);
+        self
+    }
+
+    /// Set completion callback
+    pub fn on_complete(mut self, callback: Arc<dyn Fn() + Send + Sync>) -> Self {
+        self.on_complete = Some(callback);
+        self
+    }
+
+    /// Build the ProgressBarProps
+    pub fn build(self) -> ProgressBarProps {
+        ProgressBarProps {
+            value: self.value,
+            max_value: self.max_value,
+            min_value: self.min_value,
+            show_percentage: self.show_percentage,
+            show_value: self.show_value,
+            indeterminate: self.indeterminate,
+            animated: self.animated,
+            label: self.label,
+            color: self.color,
+            background_color: self.background_color,
+            height: self.height,
+            width: self.width,
+            style: self.style,
+            bar_style: self.bar_style,
+            text_style: self.text_style,
+            orientation: self.orientation,
+            segments: self.segments,
+            striped: self.striped,
+            pulse: self.pulse,
+            custom_formatter: self.custom_formatter,
+            on_complete: self.on_complete,
+        }
+    }
+
+    /// Build and render as an Element (convenience method)
+    pub fn render(self) -> Element {
+        Element::component("ProgressBar")
+            .with_props(self.build())
+    }
+}
+
+impl Default for ProgressBarBuilder {
+    fn default() -> Self {
+        Self {
+            value: 0.0,
+            max_value: 100.0,
+            min_value: 0.0,
+            show_percentage: true,
+            show_value: false,
+            indeterminate: false,
+            animated: false,
+            label: None,
+            color: Some("bg-blue".to_string()),
+            background_color: Some("bg-gray-200".to_string()),
+            height: 1,
+            width: None,
+            style: None,
+            bar_style: None,
+            text_style: None,
+            orientation: ProgressBarOrientation::Horizontal,
+            segments: None,
+            striped: false,
+            pulse: false,
+            custom_formatter: None,
+            on_complete: None,
+        }
+    }
+}
 
 /// Props for the ProgressBar component
 #[derive(Clone)]
@@ -54,14 +295,6 @@ pub struct ProgressBarProps {
     pub on_complete: Option<Arc<dyn Fn() + Send + Sync>>,
 }
 
-/// Progress bar orientation
-#[derive(Debug, Clone, PartialEq)]
-pub enum ProgressBarOrientation {
-    /// Horizontal progress bar
-    Horizontal,
-    /// Vertical progress bar
-    Vertical,
-}
 
 impl Default for ProgressBarProps {
     fn default() -> Self {

@@ -19,6 +19,416 @@ enum TreeHitResult {
     Outside,
 }
 
+/// Tree node representing an item in the tree structure
+#[derive(Debug, Clone, PartialEq)]
+pub struct TreeNode {
+    /// Unique identifier for this node
+    pub id: String,
+    /// Display label for this node
+    pub label: String,
+    /// Child nodes of this node
+    pub children: Vec<TreeNode>,
+    /// Whether this node is expanded to show children
+    pub expanded: bool,
+    /// Whether this node is currently selected
+    pub selected: bool,
+    /// Checkbox state (None=no checkbox, Some(bool)=checked state)
+    pub checked: Option<bool>,
+    /// Optional icon identifier for this node
+    pub icon: Option<String>,
+    /// Optional CSS class or style for this node
+    pub style: Option<String>,
+    /// Additional data associated with this node
+    pub data: HashMap<String, String>,
+    /// Whether this node can be selected
+    pub selectable: bool,
+    /// Whether this node can be checked
+    pub checkable: bool,
+    /// Whether this node can be expanded
+    pub expandable: bool,
+    /// Whether this node loads children lazily
+    pub lazy: bool,
+    /// Whether this node is currently loading children
+    pub loading: bool,
+    /// Nesting level of this node (0=root)
+    pub level: usize,
+    /// ID of the parent node (None for root nodes)
+    pub parent_id: Option<String>,
+}
+
+impl TreeNode {
+    /// Create a new tree node
+    pub fn new(id: impl Into<String>, label: impl Into<String>) -> Self {
+        Self {
+            id: id.into(),
+            label: label.into(),
+            children: Vec::new(),
+            expanded: false,
+            selected: false,
+            checked: None,
+            icon: None,
+            style: None,
+            data: HashMap::new(),
+            selectable: true,
+            checkable: false,
+            expandable: true,
+            lazy: false,
+            loading: false,
+            level: 0,
+            parent_id: None,
+        }
+    }
+
+    /// Add a child node
+    pub fn add_child(mut self, child: TreeNode) -> Self {
+        self.children.push(child);
+        self
+    }
+
+    /// Add multiple children
+    pub fn children(mut self, children: Vec<TreeNode>) -> Self {
+        self.children.extend(children);
+        self
+    }
+
+    /// Set expanded state
+    pub fn expanded(mut self, expanded: bool) -> Self {
+        self.expanded = expanded;
+        self
+    }
+
+    /// Set selected state
+    pub fn selected(mut self, selected: bool) -> Self {
+        self.selected = selected;
+        self
+    }
+
+    /// Set checked state
+    pub fn checked(mut self, checked: bool) -> Self {
+        self.checked = Some(checked);
+        self
+    }
+
+    /// Set icon
+    pub fn icon(mut self, icon: impl Into<String>) -> Self {
+        self.icon = Some(icon.into());
+        self
+    }
+
+    /// Set icon (alternative name for compatibility)
+    pub fn with_icon(mut self, icon: impl Into<String>) -> Self {
+        self.icon = Some(icon.into());
+        self
+    }
+
+    /// Set children (alternative name for compatibility)
+    pub fn with_children(mut self, children: Vec<TreeNode>) -> Self {
+        self.children = children;
+        self
+    }
+
+    /// Set style for the node
+    pub fn with_style(mut self, style: impl Into<String>) -> Self {
+        self.style = Some(style.into());
+        self
+    }
+
+    /// Find a node by ID in this subtree
+    pub fn find_node(&self, id: &str) -> Option<&TreeNode> {
+        if self.id == id {
+            return Some(self);
+        }
+
+        for child in &self.children {
+            if let Some(found) = child.find_node(id) {
+                return Some(found);
+            }
+        }
+
+        None
+    }
+
+    /// Find a mutable node by ID in this subtree
+    pub fn find_node_mut(&mut self, id: &str) -> Option<&mut TreeNode> {
+        if self.id == id {
+            return Some(self);
+        }
+
+        for child in &mut self.children {
+            if let Some(found) = child.find_node_mut(id) {
+                return Some(found);
+            }
+        }
+
+        None
+    }
+}
+
+/// Builder for creating Tree components with a fluent API
+#[derive(Clone)]
+pub struct TreeBuilder {
+    root: Option<TreeNode>,
+    selected_node: Option<String>,
+    expanded_nodes: Vec<String>,
+    selectable: bool,
+    multi_select: bool,
+    show_icons: bool,
+    show_lines: bool,
+    indent_size: u16,
+    lazy_loading: bool,
+    checkable: bool,
+    drag_drop: bool,
+    search_term: Option<String>,
+    filter_visible: bool,
+    border: Border,
+    node_style: Option<String>,
+    selected_style: Option<String>,
+    expanded_style: Option<String>,
+    leaf_style: Option<String>,
+    line_style: Option<String>,
+    scrollable: bool,
+    max_height: Option<u16>,
+    virtual_scrolling: bool,
+    on_select: Option<Arc<dyn Fn(Option<String>) + Send + Sync>>,
+    on_multi_select: Option<Arc<dyn Fn(Vec<String>) + Send + Sync>>,
+    on_expand: Option<Arc<dyn Fn(String, bool) + Send + Sync>>,
+    on_check: Option<Arc<dyn Fn(String, bool) + Send + Sync>>,
+    on_node_action: Option<Arc<NodeActionCallback>>,
+    on_load_children: Option<Arc<dyn Fn(String) -> Vec<TreeNode> + Send + Sync>>,
+}
+
+impl TreeBuilder {
+    /// Create a new TreeBuilder
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Set the root node
+    pub fn root(mut self, root: TreeNode) -> Self {
+        self.root = Some(root);
+        self
+    }
+
+    /// Set the selected node ID
+    pub fn selected(mut self, id: impl Into<String>) -> Self {
+        self.selected_node = Some(id.into());
+        self
+    }
+
+    /// Add an expanded node ID
+    pub fn expand(mut self, id: impl Into<String>) -> Self {
+        self.expanded_nodes.push(id.into());
+        self
+    }
+
+    /// Set expanded nodes
+    pub fn expanded_nodes(mut self, nodes: Vec<String>) -> Self {
+        self.expanded_nodes = nodes;
+        self
+    }
+
+    /// Enable or disable selection
+    pub fn selectable(mut self, selectable: bool) -> Self {
+        self.selectable = selectable;
+        self
+    }
+
+    /// Enable multi-selection
+    pub fn multi_select(mut self, multi: bool) -> Self {
+        self.multi_select = multi;
+        self
+    }
+
+    /// Show or hide icons
+    pub fn show_icons(mut self, show: bool) -> Self {
+        self.show_icons = show;
+        self
+    }
+
+    /// Show or hide tree lines
+    pub fn show_lines(mut self, show: bool) -> Self {
+        self.show_lines = show;
+        self
+    }
+
+    /// Set indent size
+    pub fn indent_size(mut self, size: u16) -> Self {
+        self.indent_size = size;
+        self
+    }
+
+    /// Enable lazy loading
+    pub fn lazy_loading(mut self, lazy: bool) -> Self {
+        self.lazy_loading = lazy;
+        self
+    }
+
+    /// Enable checkboxes
+    pub fn checkable(mut self, checkable: bool) -> Self {
+        self.checkable = checkable;
+        self
+    }
+
+    /// Enable drag and drop
+    pub fn drag_drop(mut self, enable: bool) -> Self {
+        self.drag_drop = enable;
+        self
+    }
+
+    /// Set search term
+    pub fn search(mut self, term: impl Into<String>) -> Self {
+        self.search_term = Some(term.into());
+        self
+    }
+
+    /// Enable filtering
+    pub fn filter_visible(mut self, filter: bool) -> Self {
+        self.filter_visible = filter;
+        self
+    }
+
+    /// Set border style
+    pub fn border(mut self, border: Border) -> Self {
+        self.border = border;
+        self
+    }
+
+    /// Set node style
+    pub fn node_style(mut self, style: impl Into<String>) -> Self {
+        self.node_style = Some(style.into());
+        self
+    }
+
+    /// Set selected node style
+    pub fn selected_style(mut self, style: impl Into<String>) -> Self {
+        self.selected_style = Some(style.into());
+        self
+    }
+
+    /// Set expanded node style
+    pub fn expanded_style(mut self, style: impl Into<String>) -> Self {
+        self.expanded_style = Some(style.into());
+        self
+    }
+
+    /// Set leaf node style
+    pub fn leaf_style(mut self, style: impl Into<String>) -> Self {
+        self.leaf_style = Some(style.into());
+        self
+    }
+
+    /// Set tree line style
+    pub fn line_style(mut self, style: impl Into<String>) -> Self {
+        self.line_style = Some(style.into());
+        self
+    }
+
+    /// Enable scrolling
+    pub fn scrollable(mut self, scroll: bool) -> Self {
+        self.scrollable = scroll;
+        self
+    }
+
+    /// Set maximum height
+    pub fn max_height(mut self, height: u16) -> Self {
+        self.max_height = Some(height);
+        self
+    }
+
+    /// Enable virtual scrolling
+    pub fn virtual_scrolling(mut self, virtual_scroll: bool) -> Self {
+        self.virtual_scrolling = virtual_scroll;
+        self
+    }
+
+    /// Set selection callback
+    pub fn on_select(mut self, callback: Arc<dyn Fn(Option<String>) + Send + Sync>) -> Self {
+        self.on_select = Some(callback);
+        self
+    }
+
+    /// Set expand callback
+    pub fn on_expand(mut self, callback: Arc<dyn Fn(String, bool) + Send + Sync>) -> Self {
+        self.on_expand = Some(callback);
+        self
+    }
+
+    /// Build the TreeProps
+    pub fn build(self) -> TreeProps {
+        TreeProps {
+            root: self.root,
+            selected_node: self.selected_node,
+            expanded_nodes: self.expanded_nodes,
+            selectable: self.selectable,
+            multi_select: self.multi_select,
+            show_icons: self.show_icons,
+            show_lines: self.show_lines,
+            indent_size: self.indent_size,
+            lazy_loading: self.lazy_loading,
+            checkable: self.checkable,
+            drag_drop: self.drag_drop,
+            search_term: self.search_term,
+            filter_visible: self.filter_visible,
+            border: self.border,
+            node_style: self.node_style,
+            selected_style: self.selected_style,
+            expanded_style: self.expanded_style,
+            leaf_style: self.leaf_style,
+            line_style: self.line_style,
+            scrollable: self.scrollable,
+            max_height: self.max_height,
+            virtual_scrolling: self.virtual_scrolling,
+            on_select: self.on_select,
+            on_multi_select: self.on_multi_select,
+            on_expand: self.on_expand,
+            on_check: self.on_check,
+            on_node_action: self.on_node_action,
+            on_load_children: self.on_load_children,
+        }
+    }
+
+    /// Build and render as an Element (convenience method)
+    pub fn render(self) -> Element {
+        Element::component("Tree")
+            .with_props(self.build())
+    }
+}
+
+impl Default for TreeBuilder {
+    fn default() -> Self {
+        Self {
+            root: None,
+            selected_node: None,
+            expanded_nodes: Vec::new(),
+            selectable: true,
+            multi_select: false,
+            show_icons: true,
+            show_lines: true,
+            indent_size: 2,
+            lazy_loading: false,
+            checkable: false,
+            drag_drop: false,
+            search_term: None,
+            filter_visible: false,
+            border: Border::default(),
+            node_style: None,
+            selected_style: Some("bg-blue fg-white".to_string()),
+            expanded_style: None,
+            leaf_style: None,
+            line_style: Some("fg-gray".to_string()),
+            scrollable: true,
+            max_height: None,
+            virtual_scrolling: false,
+            on_select: None,
+            on_multi_select: None,
+            on_expand: None,
+            on_check: None,
+            on_node_action: None,
+            on_load_children: None,
+        }
+    }
+}
+
 /// Props for the Tree component
 #[derive(Clone)]
 pub struct TreeProps {
@@ -80,42 +490,6 @@ pub struct TreeProps {
     pub on_load_children: Option<Arc<dyn Fn(String) -> Vec<TreeNode> + Send + Sync>>,
 }
 
-/// Tree node representing an item in the tree structure
-#[derive(Debug, Clone, PartialEq)]
-pub struct TreeNode {
-    /// Unique identifier for this node
-    pub id: String,
-    /// Display label for this node
-    pub label: String,
-    /// Child nodes of this node
-    pub children: Vec<TreeNode>,
-    /// Whether this node is expanded to show children
-    pub expanded: bool,
-    /// Whether this node is currently selected
-    pub selected: bool,
-    /// Checkbox state (None=no checkbox, Some(bool)=checked state)
-    pub checked: Option<bool>,
-    /// Optional icon identifier for this node
-    pub icon: Option<String>,
-    /// Optional CSS class or style for this node
-    pub style: Option<String>,
-    /// Additional data associated with this node
-    pub data: HashMap<String, String>,
-    /// Whether this node can be selected
-    pub selectable: bool,
-    /// Whether this node can be checked
-    pub checkable: bool,
-    /// Whether this node can be expanded
-    pub expandable: bool,
-    /// Whether this node loads children lazily
-    pub lazy: bool,
-    /// Whether this node is currently loading children
-    pub loading: bool,
-    /// Nesting level of this node (0=root)
-    pub level: usize,
-    /// ID of the parent node (None for root nodes)
-    pub parent_id: Option<String>,
-}
 
 impl Default for TreeProps {
     fn default() -> Self {
@@ -1040,195 +1414,6 @@ impl Default for Tree {
 }
 
 // Helper implementations
-impl TreeNode {
-    /// Create a new tree node
-    ///
-    /// # Arguments
-    /// * `id` - Unique identifier for this node
-    /// * `label` - Display label for the node
-    ///
-    /// # Returns
-    /// A new `TreeNode` with default settings
-    pub fn new(id: &str, label: &str) -> Self {
-        Self {
-            id: id.to_string(),
-            label: label.to_string(),
-            children: Vec::new(),
-            expanded: false,
-            selected: false,
-            checked: None,
-            icon: None,
-            style: None,
-            data: HashMap::new(),
-            selectable: true,
-            checkable: true,
-            expandable: true,
-            lazy: false,
-            loading: false,
-            level: 0,
-            parent_id: None,
-        }
-    }
-
-    /// Set the child nodes for this tree node
-    ///
-    /// # Arguments
-    /// * `children` - Vector of child tree nodes
-    ///
-    /// # Returns
-    /// Self for method chaining
-    pub fn with_children(mut self, children: Vec<TreeNode>) -> Self {
-        self.children = children;
-        self
-    }
-
-    /// Set an icon for this tree node
-    ///
-    /// # Arguments
-    /// * `icon` - Icon string or character to display
-    ///
-    /// # Returns
-    /// Self for method chaining
-    pub fn with_icon(mut self, icon: &str) -> Self {
-        self.icon = Some(icon.to_string());
-        self
-    }
-
-    /// Set the style for this tree node
-    ///
-    /// # Arguments
-    /// * `style` - CSS-like style string for the node
-    ///
-    /// # Returns
-    /// Self for method chaining
-    pub fn with_style(mut self, style: &str) -> Self {
-        self.style = Some(style.to_string());
-        self
-    }
-
-    /// Add metadata to this tree node
-    ///
-    /// # Arguments
-    /// * `key` - Data key
-    /// * `value` - Data value
-    ///
-    /// # Returns
-    /// Self for method chaining
-    pub fn with_data(mut self, key: &str, value: &str) -> Self {
-        self.data.insert(key.to_string(), value.to_string());
-        self
-    }
-
-    /// Set the expanded state of this tree node
-    ///
-    /// # Arguments
-    /// * `expanded` - Whether the node should be expanded to show children
-    ///
-    /// # Returns
-    /// Self for method chaining
-    pub fn expanded(mut self, expanded: bool) -> Self {
-        self.expanded = expanded;
-        self
-    }
-
-    /// Set the selected state of this tree node
-    ///
-    /// # Arguments
-    /// * `selected` - Whether the node should be selected
-    ///
-    /// # Returns
-    /// Self for method chaining
-    pub fn selected(mut self, selected: bool) -> Self {
-        self.selected = selected;
-        self
-    }
-
-    /// Set the checked state of this tree node
-    ///
-    /// # Arguments
-    /// * `checked` - Whether the node should be checked (for checkable trees)
-    ///
-    /// # Returns
-    /// Self for method chaining
-    pub fn checked(mut self, checked: bool) -> Self {
-        self.checked = Some(checked);
-        self
-    }
-
-    /// Enable or disable selection for this tree node
-    ///
-    /// # Arguments
-    /// * `selectable` - Whether this node can be selected by the user
-    ///
-    /// # Returns
-    /// Self for method chaining
-    pub fn selectable(mut self, selectable: bool) -> Self {
-        self.selectable = selectable;
-        self
-    }
-
-    /// Enable or disable lazy loading for this tree node
-    ///
-    /// # Arguments
-    /// * `lazy` - Whether children should be loaded on demand
-    ///
-    /// # Returns
-    /// Self for method chaining
-    pub fn lazy(mut self, lazy: bool) -> Self {
-        self.lazy = lazy;
-        self
-    }
-
-    /// Add a child node to this tree node
-    ///
-    /// # Arguments
-    /// * `child` - The child tree node to add
-    pub fn add_child(&mut self, child: TreeNode) {
-        self.children.push(child);
-    }
-
-    /// Find a node by ID in this tree (recursive search)
-    ///
-    /// # Arguments
-    /// * `id` - The ID of the node to find
-    ///
-    /// # Returns
-    /// `Some(&TreeNode)` if found, `None` otherwise
-    pub fn find_node(&self, id: &str) -> Option<&TreeNode> {
-        if self.id == id {
-            return Some(self);
-        }
-
-        for child in &self.children {
-            if let Some(found) = child.find_node(id) {
-                return Some(found);
-            }
-        }
-
-        None
-    }
-
-    /// Find a mutable node by ID in this tree (recursive search)
-    ///
-    /// # Arguments
-    /// * `id` - The ID of the node to find
-    ///
-    /// # Returns
-    /// `Some(&mut TreeNode)` if found, `None` otherwise
-    pub fn find_node_mut(&mut self, id: &str) -> Option<&mut TreeNode> {
-        if self.id == id {
-            return Some(self);
-        }
-
-        for child in &mut self.children {
-            if let Some(found) = child.find_node_mut(id) {
-                return Some(found);
-            }
-        }
-
-        None
-    }
-}
 
 #[cfg(test)]
 mod tests {

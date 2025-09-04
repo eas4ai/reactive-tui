@@ -4,6 +4,116 @@ use crate::event::types::{KeyCode, KeyEvent, MouseEventKind};
 use crate::event::{Event, MouseEvent};
 use std::any::Any;
 
+/// Builder for creating ScrollView components with a fluent API
+#[derive(Clone, Debug)]
+pub struct ScrollViewBuilder {
+    content: Element,
+    scroll_x: bool,
+    scroll_y: bool,
+    viewport_width: usize,
+    viewport_height: usize,
+    show_scrollbars: bool,
+    smooth_scroll: bool,
+    scroll_speed: usize,
+}
+
+impl ScrollViewBuilder {
+    /// Create a new ScrollViewBuilder with content
+    pub fn new(content: Element) -> Self {
+        Self {
+            content,
+            scroll_x: true,
+            scroll_y: true,
+            viewport_width: 80,
+            viewport_height: 24,
+            show_scrollbars: true,
+            smooth_scroll: false,
+            scroll_speed: 3,
+        }
+    }
+
+    /// Set the content element
+    pub fn content(mut self, content: Element) -> Self {
+        self.content = content;
+        self
+    }
+
+    /// Enable or disable horizontal scrolling
+    pub fn scroll_x(mut self, enable: bool) -> Self {
+        self.scroll_x = enable;
+        self
+    }
+
+    /// Enable or disable vertical scrolling
+    pub fn scroll_y(mut self, enable: bool) -> Self {
+        self.scroll_y = enable;
+        self
+    }
+
+    /// Set the viewport width
+    pub fn viewport_width(mut self, width: usize) -> Self {
+        self.viewport_width = width;
+        self
+    }
+
+    /// Set the viewport height
+    pub fn viewport_height(mut self, height: usize) -> Self {
+        self.viewport_height = height;
+        self
+    }
+
+    /// Set the viewport size
+    pub fn viewport_size(mut self, width: usize, height: usize) -> Self {
+        self.viewport_width = width;
+        self.viewport_height = height;
+        self
+    }
+
+    /// Show or hide scrollbars
+    pub fn show_scrollbars(mut self, show: bool) -> Self {
+        self.show_scrollbars = show;
+        self
+    }
+
+    /// Enable or disable smooth scrolling
+    pub fn smooth_scroll(mut self, smooth: bool) -> Self {
+        self.smooth_scroll = smooth;
+        self
+    }
+
+    /// Set the scroll speed multiplier
+    pub fn scroll_speed(mut self, speed: usize) -> Self {
+        self.scroll_speed = speed;
+        self
+    }
+
+    /// Build the ScrollViewProps
+    pub fn build(self) -> ScrollViewProps {
+        ScrollViewProps {
+            content: self.content,
+            scroll_x: self.scroll_x,
+            scroll_y: self.scroll_y,
+            viewport_width: self.viewport_width,
+            viewport_height: self.viewport_height,
+            show_scrollbars: self.show_scrollbars,
+            smooth_scroll: self.smooth_scroll,
+            scroll_speed: self.scroll_speed,
+        }
+    }
+
+    /// Build and render as an Element (convenience method)
+    pub fn render(self) -> Element {
+        Element::component("ScrollView")
+            .with_props(self.build())
+    }
+}
+
+impl Default for ScrollViewBuilder {
+    fn default() -> Self {
+        Self::new(Element::text(""))
+    }
+}
+
 /// Props for the ScrollView component
 #[derive(Clone, PartialEq)]
 pub struct ScrollViewProps {

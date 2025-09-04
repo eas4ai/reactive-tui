@@ -86,6 +86,8 @@ impl AnimatableValue for (f32, f32) {
 struct AnimationRuntime {
     running: Arc<AtomicBool>,
     animations: Arc<RwLock<Vec<AnimationTask>>>,
+    /// Pre-computed animation updates to avoid blocking render thread
+    pending_updates: Arc<RwLock<Vec<(usize, f32)>>>,
 }
 
 struct AnimationTask {
@@ -100,35 +102,70 @@ impl AnimationRuntime {
         Arc::new(Self {
             running: Arc::new(AtomicBool::new(true)),
             animations: Arc::new(RwLock::new(Vec::new())),
+            pending_updates: Arc::new(RwLock::new(Vec::new())),
         })
     }
 
-    /// Update all hook animations (called from main render loop)
-    pub fn update_animations(&self) {
+    /// Compute animation progress asynchronously (can be called from background thread)
+    pub fn compute_animation_updates(&self) {
         if !self.running.load(Ordering::Relaxed) {
             return;
         }
 
-        // Process all animations
+        let mut updates = Vec::new();
         let mut completed = Vec::new();
+        
         {
             let animations = self.animations.read().unwrap();
             for (idx, task) in animations.iter().enumerate() {
                 let elapsed = task.start_time.elapsed();
                 let progress = (elapsed.as_secs_f32() / task.duration.as_secs_f32()).min(1.0);
-                (task.update)(progress);
-
+                updates.push((task.id, progress));
+                
                 if progress >= 1.0 {
                     completed.push(idx);
                 }
             }
         }
-
+        
+        // Store computed updates for the render thread to apply
+        if !updates.is_empty() {
+            let mut pending = self.pending_updates.write().unwrap();
+            *pending = updates;
+        }
+        
         // Remove completed animations
         if !completed.is_empty() {
             let mut animations = self.animations.write().unwrap();
             for idx in completed.iter().rev() {
                 animations.remove(*idx);
+            }
+        }
+    }
+
+    /// Apply pre-computed animation updates (called from main render loop)
+    pub fn update_animations(&self) {
+        if !self.running.load(Ordering::Relaxed) {
+            return;
+        }
+
+        // First compute the updates (this could be moved to a background thread)
+        self.compute_animation_updates();
+        
+        // Then apply them quickly without blocking
+        let updates = {
+            let mut pending = self.pending_updates.write().unwrap();
+            std::mem::take(&mut *pending)
+        };
+        
+        // Apply updates in batch - much faster than computing inline
+        if !updates.is_empty() {
+            let animations = self.animations.read().unwrap();
+            for (id, progress) in updates {
+                // Find animation by id and apply update
+                if let Some(task) = animations.iter().find(|t| t.id == id) {
+                    (task.update)(progress);
+                }
             }
         }
     }

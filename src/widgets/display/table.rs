@@ -635,23 +635,23 @@ impl Table {
                 let wheel_delta = wheel_up_threshold; // Would be extracted from actual event
                 
                 if wheel_delta > 0 {
-                    return WheelDirection::Up;
+                    WheelDirection::Up
                 } else if wheel_delta < 0 {
-                    return WheelDirection::Down;
+                    WheelDirection::Down
                 } else {
-                    return WheelDirection::Up; // Default
+                    WheelDirection::Up// Default
                 }
             }
             crate::event::types::Position::Pixel { x, y } => {
                 // For pixel-precise terminals, calculate direction from pixel delta
                 let normalized_delta = (*y as f32 - *x as f32) / 10.0;
                 if normalized_delta > 1.0 {
-                    return WheelDirection::Down;
+                    WheelDirection::Down
                 } else if normalized_delta < -1.0 {
-                    return WheelDirection::Up;
+                    WheelDirection::Up
                 } else {
                     // Use modifiers as fallback for fine control
-                    return if modifiers.shift { WheelDirection::Up } else { WheelDirection::Down };
+                    if modifiers.shift { WheelDirection::Up } else { WheelDirection::Down }
                 }
             }
         }

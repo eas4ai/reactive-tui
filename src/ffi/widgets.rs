@@ -7,10 +7,10 @@ use std::boxed::Box;
 use std::ffi::CStr;
 use std::os::raw::c_char;
 
-/// Simple widget creation functions without callbacks (for now)
-/// Callbacks will be added later with proper registry pattern
+/// Simple widget creation functions without callbacks
+/// Callback support requires a registry system for function pointer management
 
-/// Create a simple text input element (without callbacks for now)
+/// Create a simple text input element (without callbacks)
 #[no_mangle]
 pub extern "C" fn rtui_text_input_create(
     placeholder: *const c_char,
@@ -46,7 +46,7 @@ pub extern "C" fn rtui_text_input_create(
     }))
 }
 
-/// Create a simple checkbox element (without callbacks for now)
+/// Create a simple checkbox element (without callbacks)
 #[no_mangle]
 pub extern "C" fn rtui_checkbox_create(
     label: *const c_char,
@@ -120,7 +120,7 @@ pub extern "C" fn rtui_progress_bar_create(
     }))
 }
 
-/// Create a simple button element (without callbacks for now)
+/// Create a simple button element (without callbacks)
 #[no_mangle]
 pub extern "C" fn rtui_button_create(
     text: *const c_char,

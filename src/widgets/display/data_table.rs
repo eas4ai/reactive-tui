@@ -14,6 +14,9 @@ use crate::prelude::LayoutType;
 use std::collections::HashMap;
 use std::sync::Arc;
 
+/// Type alias for export callback to reduce complexity
+type ExportCallback = Arc<dyn Fn(&str) + Send + Sync>;
+
 /// Filter types for table columns
 #[derive(Debug, Clone, PartialEq)]
 pub enum FilterType {
@@ -167,7 +170,7 @@ pub struct DataTableProps {
     pub on_column_visibility_change: Option<Arc<dyn Fn(Vec<String>) + Send + Sync>>,
     
     /// Callback for export requests
-    pub on_export: Option<Arc<dyn Fn(&str) + Send + Sync>>, // format: "csv", "json", etc.
+    pub on_export: Option<ExportCallback>, // format: "csv", "json", etc.
 }
 
 impl Props for DataTableProps {

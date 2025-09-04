@@ -204,7 +204,7 @@ pub fn path_breadcrumb(path: &str) -> Element {
         
         builder = builder.segment(
             BreadcrumbSegment::new(
-                &format!("segment_{}", index),
+                format!("segment_{}", index),
                 *segment,
                 &current_path,
             )
@@ -253,12 +253,12 @@ pub fn url_breadcrumb(url: &str) -> Element {
         current_path.push_str(segment);
         
         let is_current = index == segments.len() - 1;
-        let label = segment.replace('-', " ").replace('_', " ");
+        let label = segment.replace(['-', '_'], " ");
         let title_case_label = title_case(&label);
         
         builder = builder.segment(
             BreadcrumbSegment::new(
-                &format!("segment_{}", index),
+                format!("segment_{}", index),
                 &title_case_label,
                 &current_path,
             )

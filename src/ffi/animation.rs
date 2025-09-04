@@ -26,20 +26,35 @@ pub struct RTuiAnimationManager {
 #[repr(C)]
 #[derive(Debug, Clone, Copy)]
 pub enum RTuiEasingType {
+    /// Linear interpolation
     Linear = 0,
+    /// Ease in (slow start)
     EaseIn = 1,
+    /// Ease out (slow end)
     EaseOut = 2,
+    /// Ease in and out
     EaseInOut = 3,
+    /// Bounce effect
     Bounce = 4,
+    /// Elastic effect
     Elastic = 5,
+    /// Back effect (overshoot)
     Back = 6,
+    /// Exponential easing
     Expo = 7,
+    /// Circular easing
     Circ = 8,
+    /// Sine wave easing
     Sine = 9,
+    /// Quadratic easing
     Quad = 10,
+    /// Cubic easing
     Cubic = 11,
+    /// Quartic easing
     Quart = 12,
+    /// Quintic easing
     Quint = 13,
+    /// Spring effect
     Spring = 14,
 }
 
@@ -47,9 +62,13 @@ pub enum RTuiEasingType {
 #[repr(C)]
 #[derive(Debug, Clone, Copy)]
 pub enum RTuiLoopMode {
+    /// No looping
     None = 0,
+    /// Loop infinitely
     Infinite = 1,
+    /// Loop a specific number of times
     Count = 2,
+    /// Ping-pong back and forth
     PingPong = 3,
 }
 
@@ -57,13 +76,21 @@ pub enum RTuiLoopMode {
 #[repr(C)]
 #[derive(Debug, Clone, Copy)]
 pub enum RTuiAnimatedProperty {
+    /// Opacity animation
     Opacity = 0,
+    /// X-axis translation
     TranslateX = 1,
+    /// Y-axis translation
     TranslateY = 2,
+    /// X-axis scaling
     ScaleX = 3,
+    /// Y-axis scaling
     ScaleY = 4,
+    /// Rotation animation
     Rotation = 5,
+    /// Width animation
     Width = 6,
+    /// Height animation
     Height = 7,
 }
 

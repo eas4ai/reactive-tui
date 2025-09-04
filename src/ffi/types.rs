@@ -91,9 +91,13 @@ pub struct RTuiTextAttributes {
 #[repr(C)]
 #[derive(Debug, Clone, Copy)]
 pub struct RTuiCell {
-    pub ch: u32, // Unicode codepoint
+    /// Unicode codepoint
+    pub ch: u32,
+    /// Foreground color
     pub fg: RTuiColor,
+    /// Background color
     pub bg: RTuiColor,
+    /// Text attributes
     pub attrs: RTuiTextAttributes,
 }
 
@@ -101,10 +105,15 @@ pub struct RTuiCell {
 #[repr(C)]
 #[derive(Debug, Clone, Copy)]
 pub enum RTuiEventType {
+    /// Keyboard event
     Key = 0,
+    /// Mouse event
     Mouse = 1,
+    /// Terminal resize event
     Resize = 2,
+    /// Focus change event
     Focus = 3,
+    /// Paste event
     Paste = 4,
 }
 
@@ -112,46 +121,61 @@ pub enum RTuiEventType {
 #[repr(C)]
 #[derive(Debug, Clone, Copy)]
 pub struct RTuiKeyEvent {
+    /// Key code
     pub key_code: u32,
-    pub modifiers: u8, // Bit flags: 1=Shift, 2=Ctrl, 4=Alt, 8=Meta
+    /// Modifier keys (bit flags: 1=Shift, 2=Ctrl, 4=Alt, 8=Meta)
+    pub modifiers: u8,
 }
 
 /// Mouse event
 #[repr(C)]
 #[derive(Debug, Clone, Copy)]
 pub struct RTuiMouseEvent {
+    /// X coordinate
     pub x: u16,
+    /// Y coordinate
     pub y: u16,
+    /// Mouse button
     pub button: u8,
+    /// Modifier keys
     pub modifiers: u8,
-    pub event_type: u8, // 0=Press, 1=Release, 2=Move, 3=ScrollUp, 4=ScrollDown
+    /// Event type (0=Press, 1=Release, 2=Move, 3=ScrollUp, 4=ScrollDown)
+    pub event_type: u8,
 }
 
 /// Resize event
 #[repr(C)]
 #[derive(Debug, Clone, Copy)]
 pub struct RTuiResizeEvent {
+    /// New width
     pub width: u16,
+    /// New height
     pub height: u16,
 }
 
 /// Event union
 #[repr(C)]
 pub union RTuiEventData {
+    /// Key event data
     pub key: RTuiKeyEvent,
+    /// Mouse event data
     pub mouse: RTuiMouseEvent,
+    /// Resize event data
     pub resize: RTuiResizeEvent,
 }
 
 /// Event structure
 #[repr(C)]
 pub struct RTuiEvent {
+    /// Type of event
     pub event_type: RTuiEventType,
+    /// Event data
     pub data: RTuiEventData,
 }
 
 /// Callback function types
 pub type RTuiEventCallback = extern "C" fn(event: *const RTuiEvent, user_data: *mut c_void);
+/// Render callback function type
 pub type RTuiRenderCallback = extern "C" fn(surface: *mut RTuiSurface, user_data: *mut c_void);
 
 /// Validate that a pointer is not null and properly aligned
@@ -192,8 +216,4 @@ pub(crate) unsafe fn safe_cast_const<T, U>(ptr: *const T) -> Result<*const U, Re
     Ok(ptr as *const U)
 }
 
-/// Cleanup all FFI resources
-#[no_mangle]
-pub extern "C" fn rtui_cleanup() {
-    // Cleanup any global state if needed
-}
+// Cleanup function is in mod.rs to avoid duplication

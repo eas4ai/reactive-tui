@@ -1,34 +1,71 @@
 //! Foreign Function Interface for reactive-tui
 //!
-//! Provides a stable C ABI for using reactive-tui from other languages.
-//! Zero overhead for Rust users - this module is only for FFI bindings.
+//! Modern FFI providing backend APIs for state and rendering.
+//! Follows modern patterns for function naming, parameter passing, and memory management.
 
 use std::ffi::CStr;
 use std::os::raw::c_char;
 use std::panic::{self, AssertUnwindSafe};
 
+// Core modern FFI modules
+mod lib;                // Main FFI interface
+mod terminal;           // Terminal control
+mod text;               // Text buffer operations
+mod stats;              // Performance monitoring and debugging
+
 mod animation;
 mod app;
 mod builder;
 mod component;
-mod dialog;
 mod error;
-// mod pointer; // Disabled due to thread safety issues
-// mod render; // Disabled due to pointer dependency
-// mod surface; // Disabled due to pointer dependency
-mod terminal;
+mod pointer;
+mod reactive;
+mod render;
+mod surface;
 mod types;
 mod widgets;
 
+// Export modern FFI API as primary interface
+pub use lib::{
+    createRenderer, destroyRenderer, setBackgroundColor, render, resizeRenderer,
+    createOptimizedBuffer, destroyOptimizedBuffer, getBufferWidth, getBufferHeight,
+    bufferClear, bufferDrawText, bufferSetCellWithAlphaBlending, bufferFillRect,
+    bufferGetCharPtr, bufferGetFgPtr, bufferGetBgPtr, bufferGetAttributesPtr,
+    bufferReleaseCharPtr, bufferReleaseFgPtr, bufferReleaseBgPtr, bufferReleaseAttrPtr,
+    bufferGetRespectAlpha, bufferSetRespectAlpha, bufferResize,
+    // System integration functions
+    renderSurfaceToTerminal, renderTextToTerminal, renderWithStats,
+};
+pub use terminal::{
+    createTerminal, destroyTerminal, setupTerminal, clearTerminal,
+    getTerminalCapabilities, processCapabilityResponse, setCursorPosition,
+    setCursorStyle, setCursorColor, setTerminalTitle, enableMouse, disableMouse,
+    enableKittyKeyboard, disableKittyKeyboard, Capabilities, CursorStyle,
+};
+pub use text::{
+    createTextBuffer, destroyTextBuffer, textBufferGetCharPtr, textBufferGetLength,
+    textBufferGetCapacity, textBufferResize, textBufferReset, textBufferWriteChunk,
+    textBufferSetSelection, textBufferResetSelection, textBufferGetSelectionInfo,
+    textBufferSetDefaultFg, textBufferSetDefaultBg, textBufferSetDefaultAttributes,
+    textBufferResetDefaults, renderTextBufferToSurface, renderTextBufferToRenderer,
+    renderTextBufferDirect, RTuiTextBuffer, LineInfo,
+};
+pub use stats::{
+    updateStats, updateMemoryStats, setRenderOffset, setDebugOverlay,
+    addToHitGrid, checkHit, dumpHitGrid, dumpBuffers, dumpStdoutBuffer,
+    setLogCallback, startProfiling, stopProfiling, getFrameStats,
+    resetPerformanceCounters, DebugOverlayCorner, LogLevel, LogCallback,
+};
+
+pub use self::reactive::*;
 pub use animation::*;
 pub use app::*;
 pub use builder::*;
 pub use component::*;
-pub use dialog::*;
 pub use error::*;
-// pub use pointer::*; // Disabled due to thread safety issues
-// pub use render::*; // Disabled due to pointer dependency
-// pub use surface::*; // Disabled due to pointer dependency
+pub use pointer::*;
+pub use render::*;
+pub use surface::*;
 pub use terminal::*;
 pub use types::*;
 pub use widgets::*;
@@ -36,9 +73,13 @@ pub use widgets::*;
 /// Version information for ABI compatibility
 #[repr(C)]
 pub struct RTuiVersion {
+    /// Major version number
     pub major: u32,
+    /// Minor version number
     pub minor: u32,
+    /// Patch version number
     pub patch: u32,
+    /// ABI version for compatibility checking
     pub abi_version: u32,
 }
 

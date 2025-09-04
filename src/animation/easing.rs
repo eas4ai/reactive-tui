@@ -35,6 +35,22 @@ pub enum EasingFunction {
     /// Quintic easing
     Quint,
 
+    // Parametric back variations
+    /// Ease in back with custom overshoot
+    InBack(f32),
+    /// Ease out back with custom overshoot
+    OutBack(f32),
+    /// Ease in-out back with custom overshoot
+    InOutBack(f32),
+    
+    // Parametric elastic variations
+    /// Ease in elastic with custom amplitude and period
+    InElastic(f32, f32), // amplitude, period
+    /// Ease out elastic with custom amplitude and period
+    OutElastic(f32, f32),
+    /// Ease in-out elastic with custom amplitude and period
+    InOutElastic(f32, f32),
+
     // Advanced easing functions
     /// Spring physics-based easing
     Spring(SpringConfig),
@@ -55,6 +71,57 @@ pub enum EasingFunction {
 }
 
 impl EasingFunction {
+    /// Create back-in easing with custom overshoot
+    ///
+    /// # Arguments
+    /// * `overshoot` - The amount of overshoot (typically around 1.70158)
+    pub fn back_in(overshoot: f32) -> Self {
+        Self::InBack(overshoot)
+    }
+
+    /// Create back-out easing with custom overshoot
+    ///
+    /// # Arguments
+    /// * `overshoot` - The amount of overshoot (typically around 1.70158)
+    pub fn back_out(overshoot: f32) -> Self {
+        Self::OutBack(overshoot)
+    }
+
+    /// Create back-in-out easing with custom overshoot
+    ///
+    /// # Arguments
+    /// * `overshoot` - The amount of overshoot (typically around 1.70158)
+    pub fn back_in_out(overshoot: f32) -> Self {
+        Self::InOutBack(overshoot)
+    }
+
+    /// Create elastic-in easing with custom amplitude and period
+    ///
+    /// # Arguments
+    /// * `amplitude` - The amplitude of the elastic oscillation
+    /// * `period` - The period of the elastic oscillation
+    pub fn elastic_in(amplitude: f32, period: f32) -> Self {
+        Self::InElastic(amplitude, period)
+    }
+
+    /// Create elastic-out easing with custom amplitude and period
+    ///
+    /// # Arguments
+    /// * `amplitude` - The amplitude of the elastic oscillation
+    /// * `period` - The period of the elastic oscillation
+    pub fn elastic_out(amplitude: f32, period: f32) -> Self {
+        Self::OutElastic(amplitude, period)
+    }
+
+    /// Create elastic-in-out easing with custom amplitude and period
+    ///
+    /// # Arguments
+    /// * `amplitude` - The amplitude of the elastic oscillation
+    /// * `period` - The period of the elastic oscillation
+    pub fn elastic_in_out(amplitude: f32, period: f32) -> Self {
+        Self::InOutElastic(amplitude, period)
+    }
+
     /// Apply the easing function to a normalized time value (0.0 to 1.0)
     pub fn apply(&self, t: f32) -> f32 {
         let t = t.clamp(0.0, 1.0);
@@ -86,6 +153,55 @@ impl EasingFunction {
                     (2.0 * t).powf(*power) / 2.0
                 } else {
                     1.0 - (2.0 * (1.0 - t)).powf(*power) / 2.0
+                }
+            }
+            Self::InBack(overshoot) => {
+                let c3 = overshoot + 1.0;
+                c3 * t * t * t - overshoot * t * t
+            }
+            Self::OutBack(overshoot) => {
+                let c3 = overshoot + 1.0;
+                1.0 + c3 * (t - 1.0).powi(3) + overshoot * (t - 1.0).powi(2)
+            }
+            Self::InOutBack(overshoot) => {
+                let c2 = overshoot * 1.525;
+                if t < 0.5 {
+                    ((2.0 * t).powi(2) * ((c2 + 1.0) * 2.0 * t - c2)) / 2.0
+                } else {
+                    ((2.0 * t - 2.0).powi(2) * ((c2 + 1.0) * (2.0 * t - 2.0) + c2) + 2.0) / 2.0
+                }
+            }
+            Self::InElastic(amplitude, period) => {
+                if t == 0.0 || t == 1.0 {
+                    t
+                } else {
+                    let c = (2.0 * std::f32::consts::PI) / period;
+                    -amplitude * 2.0_f32.powf(10.0 * (t - 1.0)) * ((t - 1.0) * c).sin()
+                }
+            }
+            Self::OutElastic(amplitude, period) => {
+                if t == 0.0 || t == 1.0 {
+                    t
+                } else {
+                    let c = (2.0 * std::f32::consts::PI) / period;
+                    amplitude * 2.0_f32.powf(-10.0 * t) * (t * c).sin() + 1.0
+                }
+            }
+            Self::InOutElastic(amplitude, period) => {
+                if t == 0.0 || t == 1.0 {
+                    t
+                } else {
+                    let c = (2.0 * std::f32::consts::PI) / period;
+                    if t < 0.5 {
+                        -0.5 * amplitude
+                            * 2.0_f32.powf(20.0 * t - 10.0)
+                            * ((20.0 * t - 11.125) * c).sin()
+                    } else {
+                        0.5 * amplitude
+                            * 2.0_f32.powf(-20.0 * t + 10.0)
+                            * ((20.0 * t - 11.125) * c).sin()
+                            + 1.0
+                    }
                 }
             }
         }

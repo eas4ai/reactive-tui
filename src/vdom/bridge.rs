@@ -48,6 +48,7 @@ pub fn vdom_to_element(node: VNode) -> Element {
                     children: Vec::new(),
                     key: None,
                     class: None,
+                    focus: None,
                 },
             };
 
@@ -75,6 +76,7 @@ pub fn vdom_to_element(node: VNode) -> Element {
                 children: Vec::new(),
                 key: None,
                 class: None,
+                focus: None,
             };
             if let Some(k) = key_to_string(&key) {
                 el.key = Some(k);

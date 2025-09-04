@@ -5,6 +5,103 @@ use crate::event::{Event, MouseEvent};
 use std::any::Any;
 use std::sync::Arc;
 
+/// Builder for creating Select components with a fluent API
+#[derive(Clone, Debug)]
+pub struct SelectBuilder<T: Clone + PartialEq + Send + Sync + 'static> {
+    options: Vec<SelectOption<T>>,
+    selected: Option<T>,
+    placeholder: Option<String>,
+    disabled: bool,
+    width: Option<u16>,
+    max_visible_items: usize,
+}
+
+impl<T: Clone + PartialEq + Send + Sync + 'static> SelectBuilder<T> {
+    /// Create a new SelectBuilder
+    pub fn new() -> Self {
+        Self {
+            options: Vec::new(),
+            selected: None,
+            placeholder: Some("Select an option...".to_string()),
+            disabled: false,
+            width: Some(30),
+            max_visible_items: 5,
+        }
+    }
+
+    /// Set the options
+    pub fn options(mut self, options: Vec<SelectOption<T>>) -> Self {
+        self.options = options;
+        self
+    }
+
+    /// Add a single option
+    pub fn option(mut self, option: SelectOption<T>) -> Self {
+        self.options.push(option);
+        self
+    }
+
+    /// Add an option from value and label
+    pub fn add_option(mut self, value: T, label: impl Into<String>) -> Self {
+        self.options.push(SelectOption::new(value, label));
+        self
+    }
+
+    /// Set the selected value
+    pub fn selected(mut self, selected: T) -> Self {
+        self.selected = Some(selected);
+        self
+    }
+
+    /// Set the placeholder text
+    pub fn placeholder(mut self, placeholder: impl Into<String>) -> Self {
+        self.placeholder = Some(placeholder.into());
+        self
+    }
+
+    /// Set whether the select is disabled
+    pub fn disabled(mut self, disabled: bool) -> Self {
+        self.disabled = disabled;
+        self
+    }
+
+    /// Set the width
+    pub fn width(mut self, width: u16) -> Self {
+        self.width = Some(width);
+        self
+    }
+
+    /// Set the maximum number of visible items in dropdown
+    pub fn max_visible_items(mut self, max: usize) -> Self {
+        self.max_visible_items = max;
+        self
+    }
+
+    /// Build the SelectProps
+    pub fn build(self) -> SelectProps<T> {
+        SelectProps {
+            options: self.options,
+            selected: self.selected,
+            placeholder: self.placeholder,
+            disabled: self.disabled,
+            width: self.width,
+            max_visible_items: self.max_visible_items,
+        }
+    }
+
+    /// Build and render as an Element (convenience method)
+    pub fn render(self) -> Element {
+        Element::component("Select")
+            .with_props(self.build())
+    }
+}
+
+impl<T: Clone + PartialEq + Send + Sync + 'static> Default for SelectBuilder<T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 /// A single option in the select dropdown
 #[derive(Clone, Debug, PartialEq)]
 pub struct SelectOption<T: Clone + PartialEq + Send + Sync + 'static> {

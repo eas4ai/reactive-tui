@@ -88,10 +88,8 @@ impl CrosstermBackend {
         let (cols, rows) = crossterm::terminal::size().unwrap_or((80, 24));
         
         // Safe conversion with overflow protection
-        let width = usize::try_from(cols)
-            .map_err(|_| std::io::Error::other(format!("Terminal width {} too large", cols)))?;
-        let height = usize::try_from(rows)
-            .map_err(|_| std::io::Error::other(format!("Terminal height {} too large", rows)))?;
+        let width = usize::from(cols);
+        let height = usize::from(rows);
         
         // Map cells to pixel-like surface width/height; for now treat as cells
         let renderer = Renderer::new(width, height)

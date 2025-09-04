@@ -653,7 +653,7 @@ impl Accordion {
         let section_height = 3; // Header + content preview height
         
         // Iterate through sections to find the one at the given position
-        for (_index, section) in _props.sections.iter().enumerate() {
+        for section in _props.sections.iter() {
             let section_end_y = current_y + section_height;
             
             if _row >= current_y && _row < section_end_y {

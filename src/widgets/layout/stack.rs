@@ -3,48 +3,6 @@ use crate::event::router::EventResult;
 use crate::event::Event;
 use std::any::Any;
 
-/// Properties for Stack layout component
-#[derive(Clone, Debug, PartialEq)]
-pub struct StackProps {
-    /// Direction of the stack layout
-    pub direction: StackDirection,
-    /// Spacing between child elements
-    pub spacing: usize,
-    /// Alignment of child elements
-    pub alignment: StackAlignment,
-    /// Whether to allow wrapping to next line/column
-    pub wrap: bool,
-    /// How to distribute space between elements
-    pub justify: StackJustify,
-    /// Padding around the stack
-    pub padding: StackPadding,
-    /// Whether to reverse the order of children
-    pub reverse: bool,
-    /// Child elements to layout
-    pub children: Vec<Element>,
-}
-
-impl Default for StackProps {
-    fn default() -> Self {
-        Self {
-            direction: StackDirection::Vertical,
-            spacing: 0,
-            alignment: StackAlignment::Start,
-            wrap: false,
-            justify: StackJustify::Start,
-            padding: StackPadding::default(),
-            reverse: false,
-            children: Vec::new(),
-        }
-    }
-}
-
-impl Props for StackProps {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-}
-
 /// Stack layout direction
 #[derive(Clone, Debug, PartialEq)]
 pub enum StackDirection {
@@ -134,6 +92,191 @@ impl StackPadding {
             bottom: padding,
             ..Default::default()
         }
+    }
+}
+
+/// Builder for creating Stack components with a fluent API
+#[derive(Clone, Debug)]
+pub struct StackBuilder {
+    direction: StackDirection,
+    spacing: usize,
+    alignment: StackAlignment,
+    wrap: bool,
+    justify: StackJustify,
+    padding: StackPadding,
+    reverse: bool,
+    children: Vec<Element>,
+}
+
+impl StackBuilder {
+    /// Create a new StackBuilder
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Set the stack direction
+    pub fn direction(mut self, direction: StackDirection) -> Self {
+        self.direction = direction;
+        self
+    }
+
+    /// Create a horizontal stack (convenience method)
+    pub fn horizontal() -> Self {
+        Self::new().direction(StackDirection::Horizontal)
+    }
+
+    /// Create a vertical stack (convenience method)
+    pub fn vertical() -> Self {
+        Self::new().direction(StackDirection::Vertical)
+    }
+
+    /// Set spacing between elements
+    pub fn spacing(mut self, spacing: usize) -> Self {
+        self.spacing = spacing;
+        self
+    }
+
+    /// Set alignment of child elements
+    pub fn alignment(mut self, alignment: StackAlignment) -> Self {
+        self.alignment = alignment;
+        self
+    }
+
+    /// Enable or disable wrapping
+    pub fn wrap(mut self, wrap: bool) -> Self {
+        self.wrap = wrap;
+        self
+    }
+
+    /// Set how to justify content
+    pub fn justify(mut self, justify: StackJustify) -> Self {
+        self.justify = justify;
+        self
+    }
+
+    /// Set padding around the stack
+    pub fn padding(mut self, padding: StackPadding) -> Self {
+        self.padding = padding;
+        self
+    }
+
+    /// Set uniform padding on all sides
+    pub fn padding_all(mut self, padding: usize) -> Self {
+        self.padding = StackPadding::all(padding);
+        self
+    }
+
+    /// Set symmetric padding (vertical and horizontal)
+    pub fn padding_symmetric(mut self, vertical: usize, horizontal: usize) -> Self {
+        self.padding = StackPadding::symmetric(vertical, horizontal);
+        self
+    }
+
+    /// Set horizontal padding
+    pub fn padding_horizontal(mut self, padding: usize) -> Self {
+        self.padding = StackPadding::horizontal(padding);
+        self
+    }
+
+    /// Set vertical padding
+    pub fn padding_vertical(mut self, padding: usize) -> Self {
+        self.padding = StackPadding::vertical(padding);
+        self
+    }
+
+    /// Reverse the order of children
+    pub fn reverse(mut self, reverse: bool) -> Self {
+        self.reverse = reverse;
+        self
+    }
+
+    /// Add a child element
+    pub fn child(mut self, child: Element) -> Self {
+        self.children.push(child);
+        self
+    }
+
+    /// Add multiple children
+    pub fn children(mut self, children: Vec<Element>) -> Self {
+        self.children.extend(children);
+        self
+    }
+
+    /// Build the StackProps
+    pub fn build(self) -> StackProps {
+        StackProps {
+            direction: self.direction,
+            spacing: self.spacing,
+            alignment: self.alignment,
+            wrap: self.wrap,
+            justify: self.justify,
+            padding: self.padding,
+            reverse: self.reverse,
+            children: self.children,
+        }
+    }
+
+    /// Build and render as an Element (convenience method)
+    pub fn render(self) -> Element {
+        Element::component("Stack")
+            .with_props(self.build())
+    }
+}
+
+impl Default for StackBuilder {
+    fn default() -> Self {
+        Self {
+            direction: StackDirection::Vertical,
+            spacing: 0,
+            alignment: StackAlignment::Start,
+            wrap: false,
+            justify: StackJustify::Start,
+            padding: StackPadding::default(),
+            reverse: false,
+            children: Vec::new(),
+        }
+    }
+}
+
+/// Properties for Stack layout component
+#[derive(Clone, Debug, PartialEq)]
+pub struct StackProps {
+    /// Direction of the stack layout
+    pub direction: StackDirection,
+    /// Spacing between child elements
+    pub spacing: usize,
+    /// Alignment of child elements
+    pub alignment: StackAlignment,
+    /// Whether to allow wrapping to next line/column
+    pub wrap: bool,
+    /// How to distribute space between elements
+    pub justify: StackJustify,
+    /// Padding around the stack
+    pub padding: StackPadding,
+    /// Whether to reverse the order of children
+    pub reverse: bool,
+    /// Child elements to layout
+    pub children: Vec<Element>,
+}
+
+impl Default for StackProps {
+    fn default() -> Self {
+        Self {
+            direction: StackDirection::Vertical,
+            spacing: 0,
+            alignment: StackAlignment::Start,
+            wrap: false,
+            justify: StackJustify::Start,
+            padding: StackPadding::default(),
+            reverse: false,
+            children: Vec::new(),
+        }
+    }
+}
+
+impl Props for StackProps {
+    fn as_any(&self) -> &dyn Any {
+        self
     }
 }
 
@@ -511,8 +654,17 @@ impl Stack {
         let child_content = match &child.element_type {
             crate::component::ElementType::Text(text) => {
                 // Wrap text to fit within width, clip lines to height
-                let wrapped_lines: Vec<String> = text
-                    .lines()
+                // Handle text without newlines properly
+                let lines_to_process: Vec<&str> = if text.contains('\n') {
+                    text.lines().collect()
+                } else if !text.is_empty() {
+                    vec![text.as_str()]
+                } else {
+                    vec![]
+                };
+                
+                let wrapped_lines: Vec<String> = lines_to_process
+                    .into_iter()
                     .flat_map(|line| {
                         if line.len() <= width {
                             vec![line.to_string()]
@@ -639,33 +791,22 @@ impl Stack {
 
     /// Calculate natural size of a child element
     fn calculate_child_natural_size(&self, child: &Element, _props: &StackProps) -> (usize, usize) {
-        // Production implementation for child size calculation using Taffy layout engine
-        use taffy::{TaffyTree, AvailableSpace};
+        // Use Taffy for ALL layout calculations including text
+        use taffy::{TaffyTree, AvailableSpace, Size as TaffySize};
         
-        // Create temporary Taffy instance for size calculation
         let mut taffy: TaffyTree<()> = TaffyTree::new();
         
-        // Convert child element to Taffy style
-        let child_style = self.element_to_taffy_style(child);
+        // Get the base style for the element
+        let mut child_style = self.element_to_taffy_style(child);
         
-        // Create node and compute layout
-        if let Ok(node) = taffy.new_leaf(child_style) {
-            if let Ok(_layout) = taffy.compute_layout(
-                node,
-                taffy::Size {
-                    width: AvailableSpace::MaxContent,
-                    height: AvailableSpace::MaxContent,
-                }
-            ) {
-                let layout_result = taffy.layout(node).unwrap();
-                return (layout_result.size.width as usize, layout_result.size.height as usize);
+        // For text elements, set min-content size based on text dimensions
+        if let crate::component::ElementType::Text(text) = &child.element_type {
+            if text.is_empty() {
+                return (0, 0);
             }
-        }
-
-        // Calculate size based on element type
-        match &child.element_type {
-            crate::component::ElementType::Text(text) => {
-                // Calculate text dimensions
+            
+            // Calculate intrinsic text dimensions
+            let (text_width, text_height) = if text.contains('\n') {
                 let lines: Vec<&str> = text.lines().collect();
                 let height = lines.len();
                 let width = lines
@@ -674,6 +815,44 @@ impl Stack {
                     .max()
                     .unwrap_or(0);
                 (width, height)
+            } else {
+                // Single line text without newline
+                (text.chars().count(), 1)
+            };
+            
+            // Set the min-content size for text in Taffy style
+            use taffy::style::Dimension;
+            child_style.min_size = TaffySize {
+                width: Dimension::length(text_width as f32),
+                height: Dimension::length(text_height as f32),
+            };
+            
+            // For text, also set the size to content dimensions
+            // Since we can't check if it's auto, always set it for text
+            child_style.size.width = Dimension::length(text_width as f32);
+            child_style.size.height = Dimension::length(text_height as f32);
+        }
+        
+        // Create Taffy node with the configured style
+        if let Ok(node) = taffy.new_leaf(child_style) {
+            // Compute layout with max-content to get natural size
+            if let Ok(_) = taffy.compute_layout(
+                node,
+                TaffySize {
+                    width: AvailableSpace::MaxContent,
+                    height: AvailableSpace::MaxContent,
+                }
+            ) {
+                let layout_result = taffy.layout(node).unwrap();
+                return (layout_result.size.width as usize, layout_result.size.height as usize);
+            }
+        }
+        
+        // Fallback size estimation based on element type
+        match &child.element_type {
+            crate::component::ElementType::Text(_) => {
+                // This should be unreachable since we handle text above
+                (10, 1)
             }
             crate::component::ElementType::Component(component_name) => {
                 // Estimate size based on component type

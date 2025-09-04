@@ -5,50 +5,99 @@ use crate::event::{Event, MouseEvent};
 use std::any::Any;
 use std::sync::Arc;
 
-/// Properties for Tabs component
+/// Tab orientation options
 #[derive(Clone, Debug, PartialEq)]
-pub struct TabsProps {
-    /// List of tab definitions
-    pub tabs: Vec<Tab>,
-    /// Index of currently active tab
-    pub active_tab: usize,
-    /// Orientation of the tab bar
-    pub orientation: TabOrientation,
-    /// Visual variant of the tabs
-    pub variant: TabVariant,
-    /// Size of the tabs
-    pub size: TabSize,
-    /// Position of the tab bar
-    pub position: TabPosition,
-    /// Whether tabs can be closed
-    pub closable: bool,
-    /// Whether tabs are disabled
-    pub disabled: bool,
-    /// Whether to only render active tab content
-    pub lazy_loading: bool,
-    /// Keyboard activation behavior
-    pub keyboard_activation: TabKeyboardActivation,
+pub enum TabOrientation {
+    /// Tabs arranged horizontally
+    Horizontal,
+    /// Tabs arranged vertically
+    Vertical,
 }
 
-impl Default for TabsProps {
-    fn default() -> Self {
+/// Tab visual style variants
+#[derive(Clone, Debug, PartialEq)]
+pub enum TabVariant {
+    /// Underline/border style
+    Line,
+    /// Box/card style with borders
+    Enclosed,
+    /// Subtle background style
+    Soft,
+    /// Filled background style
+    Solid,
+    /// No decoration
+    Unstyled,
+}
+
+/// Tab size variants
+#[derive(Clone, Debug, PartialEq)]
+pub enum TabSize {
+    /// Small tab size
+    Small,
+    /// Medium tab size (default)
+    Medium,
+    /// Large tab size
+    Large,
+}
+
+/// Position of tabs relative to content
+#[derive(Clone, Debug, PartialEq)]
+pub enum TabPosition {
+    /// Tabs positioned at the top
+    Top,
+    /// Tabs positioned at the bottom
+    Bottom,
+    /// Tabs positioned on the left side
+    Left,
+    /// Tabs positioned on the right side
+    Right,
+}
+
+/// How tabs are activated via keyboard
+#[derive(Clone, Debug, PartialEq)]
+pub enum TabKeyboardActivation {
+    /// Activate tab immediately when focused
+    Automatic,
+    /// Activate tab only on Enter/Space key press
+    Manual,
+}
+
+/// Tab badge visual variants
+#[derive(Clone, Debug, PartialEq)]
+pub enum TabBadgeVariant {
+    /// Default badge style
+    Default,
+    /// Success badge style (green)
+    Success,
+    /// Warning badge style (yellow)
+    Warning,
+    /// Error badge style (red)
+    Error,
+    /// Info badge style (blue)
+    Info,
+}
+
+/// Badge displayed on tabs for notifications or status
+#[derive(Clone, Debug, PartialEq)]
+pub struct TabBadge {
+    /// Text content of the badge
+    pub text: String,
+    /// Visual style variant of the badge
+    pub variant: TabBadgeVariant,
+}
+
+impl TabBadge {
+    /// Create a new tab badge
+    pub fn new(text: impl Into<String>) -> Self {
         Self {
-            tabs: Vec::new(),
-            active_tab: 0,
-            orientation: TabOrientation::Horizontal,
-            variant: TabVariant::Line,
-            size: TabSize::Medium,
-            position: TabPosition::Top,
-            closable: false,
-            disabled: false,
-            lazy_loading: true,
-            keyboard_activation: TabKeyboardActivation::Automatic,
+            text: text.into(),
+            variant: TabBadgeVariant::Default,
         }
     }
-}
 
-impl Props for TabsProps {
-    fn as_any(&self) -> &dyn Any {
+    /// Set the badge variant
+    pub fn with_variant(mut self, variant: TabBadgeVariant) -> Self {
+        self.variant = variant;
         self
     }
 }
@@ -117,102 +166,187 @@ impl Tab {
     }
 }
 
-/// Badge displayed on tabs for notifications or status
-#[derive(Clone, Debug, PartialEq)]
-pub struct TabBadge {
-    /// Text content of the badge
-    pub text: String,
-    /// Visual style variant of the badge
-    pub variant: TabBadgeVariant,
+/// Builder for creating Tabs components with a fluent API
+#[derive(Clone, Debug)]
+pub struct TabsBuilder {
+    tabs: Vec<Tab>,
+    active_tab: usize,
+    orientation: TabOrientation,
+    variant: TabVariant,
+    size: TabSize,
+    position: TabPosition,
+    closable: bool,
+    disabled: bool,
+    lazy_loading: bool,
+    keyboard_activation: TabKeyboardActivation,
 }
 
-impl TabBadge {
-    /// Create a new tab badge
-    pub fn new(text: impl Into<String>) -> Self {
-        Self {
-            text: text.into(),
-            variant: TabBadgeVariant::Default,
+impl TabsBuilder {
+    /// Create a new TabsBuilder
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Add a tab
+    pub fn tab(mut self, tab: Tab) -> Self {
+        self.tabs.push(tab);
+        self
+    }
+
+    /// Add multiple tabs
+    pub fn tabs(mut self, tabs: Vec<Tab>) -> Self {
+        self.tabs.extend(tabs);
+        self
+    }
+
+    /// Add a tab from label and content
+    pub fn add_tab(mut self, label: impl Into<String>, content: Element) -> Self {
+        self.tabs.push(Tab::new(label, content));
+        self
+    }
+
+    /// Set the active tab index
+    pub fn active_tab(mut self, index: usize) -> Self {
+        self.active_tab = index;
+        self
+    }
+
+    /// Set the tab orientation
+    pub fn orientation(mut self, orientation: TabOrientation) -> Self {
+        self.orientation = orientation;
+        self
+    }
+
+    /// Set the visual variant
+    pub fn variant(mut self, variant: TabVariant) -> Self {
+        self.variant = variant;
+        self
+    }
+
+    /// Set the tab size
+    pub fn size(mut self, size: TabSize) -> Self {
+        self.size = size;
+        self
+    }
+
+    /// Set the tab position
+    pub fn position(mut self, position: TabPosition) -> Self {
+        self.position = position;
+        self
+    }
+
+    /// Set whether tabs are closable
+    pub fn closable(mut self, closable: bool) -> Self {
+        self.closable = closable;
+        self
+    }
+
+    /// Set whether tabs are disabled
+    pub fn disabled(mut self, disabled: bool) -> Self {
+        self.disabled = disabled;
+        self
+    }
+
+    /// Set whether to use lazy loading
+    pub fn lazy_loading(mut self, lazy: bool) -> Self {
+        self.lazy_loading = lazy;
+        self
+    }
+
+    /// Set keyboard activation behavior
+    pub fn keyboard_activation(mut self, activation: TabKeyboardActivation) -> Self {
+        self.keyboard_activation = activation;
+        self
+    }
+
+    /// Build the TabsProps
+    pub fn build(self) -> TabsProps {
+        TabsProps {
+            tabs: self.tabs,
+            active_tab: self.active_tab,
+            orientation: self.orientation,
+            variant: self.variant,
+            size: self.size,
+            position: self.position,
+            closable: self.closable,
+            disabled: self.disabled,
+            lazy_loading: self.lazy_loading,
+            keyboard_activation: self.keyboard_activation,
         }
     }
 
-    /// Set the badge variant
-    pub fn with_variant(mut self, variant: TabBadgeVariant) -> Self {
-        self.variant = variant;
+    /// Build and render as an Element (convenience method)
+    pub fn render(self) -> Element {
+        Element::component("Tabs")
+            .with_props(self.build())
+    }
+}
+
+impl Default for TabsBuilder {
+    fn default() -> Self {
+        Self {
+            tabs: Vec::new(),
+            active_tab: 0,
+            orientation: TabOrientation::Horizontal,
+            variant: TabVariant::Line,
+            size: TabSize::Medium,
+            position: TabPosition::Top,
+            closable: false,
+            disabled: false,
+            lazy_loading: true,
+            keyboard_activation: TabKeyboardActivation::Automatic,
+        }
+    }
+}
+
+/// Properties for Tabs component
+#[derive(Clone, Debug, PartialEq)]
+pub struct TabsProps {
+    /// List of tab definitions
+    pub tabs: Vec<Tab>,
+    /// Index of currently active tab
+    pub active_tab: usize,
+    /// Orientation of the tab bar
+    pub orientation: TabOrientation,
+    /// Visual variant of the tabs
+    pub variant: TabVariant,
+    /// Size of the tabs
+    pub size: TabSize,
+    /// Position of the tab bar
+    pub position: TabPosition,
+    /// Whether tabs can be closed
+    pub closable: bool,
+    /// Whether tabs are disabled
+    pub disabled: bool,
+    /// Whether to only render active tab content
+    pub lazy_loading: bool,
+    /// Keyboard activation behavior
+    pub keyboard_activation: TabKeyboardActivation,
+}
+
+impl Default for TabsProps {
+    fn default() -> Self {
+        Self {
+            tabs: Vec::new(),
+            active_tab: 0,
+            orientation: TabOrientation::Horizontal,
+            variant: TabVariant::Line,
+            size: TabSize::Medium,
+            position: TabPosition::Top,
+            closable: false,
+            disabled: false,
+            lazy_loading: true,
+            keyboard_activation: TabKeyboardActivation::Automatic,
+        }
+    }
+}
+
+impl Props for TabsProps {
+    fn as_any(&self) -> &dyn Any {
         self
     }
 }
 
-/// Tab badge visual variants
-#[derive(Clone, Debug, PartialEq)]
-pub enum TabBadgeVariant {
-    /// Default badge style
-    Default,
-    /// Success badge style (green)
-    Success,
-    /// Warning badge style (yellow)
-    Warning,
-    /// Error badge style (red)
-    Error,
-    /// Info badge style (blue)
-    Info,
-}
-
-/// Tab orientation options
-#[derive(Clone, Debug, PartialEq)]
-pub enum TabOrientation {
-    /// Tabs arranged horizontally
-    Horizontal,
-    /// Tabs arranged vertically
-    Vertical,
-}
-
-/// Tab visual style variants
-#[derive(Clone, Debug, PartialEq)]
-pub enum TabVariant {
-    /// Underline/border style
-    Line,
-    /// Box/card style with borders
-    Enclosed,
-    /// Subtle background style
-    Soft,
-    /// Filled background style
-    Solid,
-    /// No decoration
-    Unstyled,
-}
-
-/// Tab size variants
-#[derive(Clone, Debug, PartialEq)]
-pub enum TabSize {
-    /// Small tab size
-    Small,
-    /// Medium tab size (default)
-    Medium,
-    /// Large tab size
-    Large,
-}
-
-/// Position of tabs relative to content
-#[derive(Clone, Debug, PartialEq)]
-pub enum TabPosition {
-    /// Tabs positioned at the top
-    Top,
-    /// Tabs positioned at the bottom
-    Bottom,
-    /// Tabs positioned on the left side
-    Left,
-    /// Tabs positioned on the right side
-    Right,
-}
-
-/// How tabs are activated via keyboard
-#[derive(Clone, Debug, PartialEq)]
-pub enum TabKeyboardActivation {
-    /// Activate tab immediately when focused
-    Automatic,
-    /// Activate tab only on Enter/Space key press
-    Manual,
-}
 
 /// State for Tabs component
 #[derive(Clone, Debug, Default)]

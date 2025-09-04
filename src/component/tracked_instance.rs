@@ -58,7 +58,7 @@ impl TrackedComponentInstance {
             
             // Remove CSS animations
             let component_id = format!("{:?}", self.node_key);
-            if let Err(e) = crate::layout::css::animation_manager::remove_css_animations_global(&component_id) {
+            if let Err(e) = crate::layout::css::manager::remove_css_animations_global(&component_id) {
                 #[cfg(debug_assertions)]
                 eprintln!("Warning: Failed to remove CSS animations during cleanup for component '{}': {}", 
                          component_id, e);

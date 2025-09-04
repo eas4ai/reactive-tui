@@ -7,6 +7,7 @@
 //! - **display**: Data visualization and content display widgets
 //! - **input**: Form controls and user input widgets
 //! - **layout**: Container and layout management widgets
+//! - **menu**: Menu system including menubar, context menus, and popup menus
 //! - **terminal**: Terminal emulator widget with PTY support
 
 /// Dialog system for modal interactions and notifications
@@ -17,6 +18,8 @@ pub mod display;
 pub mod input;
 /// Layout widgets for organizing UI components
 pub mod layout;
+/// Menu system for navigation and context menus
+pub mod menu;
 /// Terminal emulator widget with PTY support
 pub mod terminal;
 
@@ -44,5 +47,13 @@ pub use layout::{
     Accordion, AccordionBuilder, AccordionMode, AccordionProps, AccordionSection, AccordionState,
     Breadcrumb, BreadcrumbBuilder, BreadcrumbProps, BreadcrumbSegment, BreadcrumbState, OverflowStrategy,
     ScrollView, Stack, Tabs
+};
+pub use menu::{
+    MenuBar, MenuBarProps, MenuBarState, MenuBarBuilder,
+    ContextMenu, ContextMenuProps, ContextMenuState,
+    PopupMenu, PopupMenuProps, PopupMenuState, PopupPlacement,
+    DialogMenu, DialogMenuProps, DialogMenuState, DialogMenuType,
+    MenuItem, MenuItemType, MenuSeparator, MenuAction, MenuShortcut,
+    MenuStyle, MenuTheme,
 };
 pub use terminal::{TerminalProps, TerminalState, TerminalWidget};

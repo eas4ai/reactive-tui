@@ -150,7 +150,7 @@ pub mod trackers {
     use super::PointerTracker;
     use crate::core::surface::Surface;
     use crate::core::renderer::Renderer;
-    use crate::terminal::Terminal;
+    use crate::core::terminal::Terminal;
     use std::sync::OnceLock;
 
     static SURFACE_TRACKER: OnceLock<PointerTracker<Surface>> = OnceLock::new();

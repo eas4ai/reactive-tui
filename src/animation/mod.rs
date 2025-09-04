@@ -21,7 +21,7 @@ pub mod spring;
 pub mod stagger;
 
 // Re-export commonly used types
-pub use easing::ease_value;
+pub use easing::{ease_value, EasingFunction};
 pub use keyframes::{Keyframe, KeyframeAnimation};
 pub use spring::SpringConfig;
 pub use stagger::StaggerConfig;
@@ -185,15 +185,12 @@ impl AnimationController {
     }
 }
 
-/// Animation easing functions for smooth transitions
+// EasingFunction is now re-exported from the easing module
+// See easing::EasingFunction for the complete implementation
+
+/// Properties that can be animated
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub enum EasingFunction {
-    /// Linear interpolation (no easing)
-    Linear,
-    /// Ease in (slow start)
-    EaseIn,
-    /// Ease out (slow end)
-    EaseOut,
+pub enum AnimatedProperty {
     /// Ease in and out (slow start and end)
     EaseInOut,
     /// Cubic bezier curve with custom control points

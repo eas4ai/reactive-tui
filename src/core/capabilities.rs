@@ -349,7 +349,14 @@ impl TerminalQuery {
         Ok(0)
     }
 
-    fn parse_response_buffer(&self, buffer: &[u8], caps: &mut TerminalCapabilities) {
+    /// Parse terminal response buffer to extract capability information
+    ///
+    /// Processes escape sequence responses from terminal queries including:
+    /// - Device Attributes (DA1/DA2)
+    /// - Color palette information  
+    /// - Cursor position reports
+    /// - Terminal identification strings
+    pub fn parse_response_buffer(&self, buffer: &[u8], caps: &mut TerminalCapabilities) {
         // Parse Device Attributes (DA1) response
         if let Some(pos) = find_sequence(buffer, b"\x1b[?") {
             if let Some(end) = find_byte(&buffer[pos..], b'c') {
@@ -428,7 +435,12 @@ impl TerminalQuery {
         }
     }
 
-    fn apply_env_fallbacks(&self, caps: &mut TerminalCapabilities) {
+    /// Apply environment-based fallback detection for terminal capabilities
+    ///
+    /// Uses environment variables like TERM, COLORTERM, and terminal-specific
+    /// variables to infer capabilities when direct querying fails or is unavailable.
+    /// This provides reasonable defaults based on common terminal configurations.
+    pub fn apply_env_fallbacks(&self, caps: &mut TerminalCapabilities) {
         // Check COLORTERM for true color support
         if let Ok(colorterm) = std::env::var("COLORTERM") {
             if colorterm.contains("truecolor") || colorterm.contains("24bit") {

@@ -1,219 +1,363 @@
-//! Terminal FFI functions
+//! Terminal FFI functions - Modern API
+//!
+//! Provides terminal control and capabilities detection with modern patterns
 
-use super::*;
 use crate::core::terminal::Terminal;
-use std::boxed::Box;
+use crate::core::capabilities::{TerminalCapabilities, TerminalQuery};
 
-/// Create a new terminal instance
+/// FFI Terminal handle (opaque pointer to Terminal)
+#[repr(C)]
+pub struct RTuiTerminal {
+    _private: [u8; 0],
+}
+
+/// Terminal capabilities structure
+#[repr(C)]
+#[derive(Debug, Clone, Copy)]
+pub struct Capabilities {
+    /// RGB color support
+    pub rgb: bool,
+    /// 256 color support  
+    pub color_256: bool,
+    /// Unicode support level (0=basic, 1=extended, 2=full)
+    pub unicode_level: u8,
+    /// Kitty keyboard protocol support
+    pub kitty_keyboard: bool,
+    /// Mouse support
+    pub mouse: bool,
+    /// Pixel mouse support
+    pub pixel_mouse: bool,
+    /// Hyperlinks support
+    pub hyperlinks: bool,
+    /// Image support
+    pub images: bool,
+    /// Synchronized output support
+    pub synchronized_output: bool,
+    /// Bracketed paste support
+    pub bracketed_paste: bool,
+}
+
+/// Cursor style enumeration
+#[repr(C)]
+#[derive(Debug, Clone, Copy)]
+pub enum CursorStyle {
+    /// Block cursor (solid rectangle)
+    Block = 0,
+    /// Underline cursor (line under character)
+    Underline = 1,
+    /// Bar cursor (vertical line)
+    Bar = 2,
+}
+
+//
+// TERMINAL MANAGEMENT
+//
+
+/// Create terminal instance
 #[no_mangle]
-pub extern "C" fn rtui_terminal_create(out_terminal: *mut *mut ReactiveTerminal) -> ReactiveError {
-    if out_terminal.is_null() {
-        return ReactiveError::NullPointer;
-    }
-
-    catch_panic(AssertUnwindSafe(|| match Terminal::new() {
+pub extern "C" fn createTerminal() -> *mut RTuiTerminal {
+    match Terminal::new() {
         Ok(terminal) => {
             let boxed = Box::new(terminal);
-            unsafe {
-                *out_terminal = Box::into_raw(boxed) as *mut ReactiveTerminal;
-            }
-            Ok(())
-        }
-        Err(e) => Err(e.into()),
-    }))
-}
+            let raw_ptr = Box::into_raw(boxed);
 
-/// Destroy a terminal instance
-#[no_mangle]
-pub extern "C" fn rtui_terminal_destroy(terminal: *mut ReactiveTerminal) {
-    if !terminal.is_null() {
-        unsafe {
-            let _ = Box::from_raw(terminal as *mut Terminal);
+            // Register the pointer for tracking
+            super::pointer::trackers::terminal_tracker().register(raw_ptr);
+
+            raw_ptr as *mut RTuiTerminal
         }
+        Err(_) => std::ptr::null_mut(),
     }
 }
 
-/// Get terminal dimensions
+/// Destroy terminal instance
 #[no_mangle]
-pub extern "C" fn rtui_terminal_get_dimensions(
-    terminal: *const ReactiveTerminal,
-    out_dimensions: *mut RTuiDimensions,
-) -> ReactiveError {
-    if terminal.is_null() || out_dimensions.is_null() {
-        return ReactiveError::NullPointer;
-    }
-
-    catch_panic(AssertUnwindSafe(|| unsafe {
-        // Validate pointer alignment and basic sanity
-        if (terminal as usize) % std::mem::align_of::<Terminal>() != 0 {
-            return Err(ReactiveError::InvalidPointer);
-        }
-        let term = &*(terminal as *const Terminal);
-        match term.size() {
-            Ok((width, height)) => {
-                *out_dimensions = RTuiDimensions { width, height };
-                Ok(())
-            }
-            Err(e) => Err(e.into()),
-        }
-    }))
-}
-
-/// Enter modern mode (raw mode + alternate screen + mouse)
-#[no_mangle]
-pub extern "C" fn rtui_terminal_enter_raw_mode(terminal: *mut ReactiveTerminal) -> ReactiveError {
+pub extern "C" fn destroyTerminal(terminal: *mut RTuiTerminal) {
     if terminal.is_null() {
-        return ReactiveError::NullPointer;
+        return;
     }
 
-    catch_panic(AssertUnwindSafe(|| unsafe {
-        // Validate pointer alignment and basic sanity
-        if (terminal as usize) % std::mem::align_of::<Terminal>() != 0 {
-            return Err(ReactiveError::InvalidPointer);
-        }
-        let term = &mut *(terminal as *mut Terminal);
-        match term.enter_modern_mode() {
-            Ok(()) => Ok(()),
-            Err(e) => Err(e.into()),
-        }
-    }))
+    // Validate pointer before using
+    if !super::pointer::validate_pointer::<Terminal>(terminal as *const u8) {
+        return;
+    }
+
+    let terminal_ptr = terminal as *mut Terminal;
+    unsafe {
+        let mut terminal_box: Box<Terminal> = Box::from_raw(terminal_ptr);
+        let _ = terminal_box.restore();
+    }
+
+    // Unregister the pointer
+    super::pointer::trackers::terminal_tracker().unregister(terminal_ptr);
 }
 
-/// Exit modern mode
+/// Setup terminal for TUI mode
 #[no_mangle]
-pub extern "C" fn rtui_terminal_exit_raw_mode(terminal: *mut ReactiveTerminal) -> ReactiveError {
+pub extern "C" fn setupTerminal(terminal: *mut RTuiTerminal, use_alternate_screen: bool) {
     if terminal.is_null() {
-        return ReactiveError::NullPointer;
+        return;
     }
 
-    catch_panic(AssertUnwindSafe(|| unsafe {
-        // Validate pointer alignment and basic sanity
-        if (terminal as usize) % std::mem::align_of::<Terminal>() != 0 {
-            return Err(ReactiveError::InvalidPointer);
-        }
-        let term = &mut *(terminal as *mut Terminal);
-        match term.exit_modern_mode() {
-            Ok(()) => Ok(()),
-            Err(e) => Err(e.into()),
-        }
-    }))
+    // Validate pointer before using
+    if !super::pointer::validate_pointer::<Terminal>(terminal as *const u8) {
+        return;
+    }
+
+    let terminal_ref = unsafe { &mut *(terminal as *mut Terminal) };
+    let _ = terminal_ref.init();
+
+    if use_alternate_screen {
+        use std::io::{self, Write};
+        let _ = io::stdout().write_all(b"\x1b[?1049h");
+        let _ = io::stdout().flush();
+    }
 }
 
-/// Control synchronized updates
-/// @param begin: true to begin sync, false to end sync
+/// Clear terminal
 #[no_mangle]
-pub extern "C" fn rtui_terminal_sync(
-    terminal: *mut ReactiveTerminal,
-    begin: bool,
-) -> ReactiveError {
+pub extern "C" fn clearTerminal(terminal: *mut RTuiTerminal) {
     if terminal.is_null() {
-        return ReactiveError::NullPointer;
+        return;
     }
 
-    catch_panic(AssertUnwindSafe(|| unsafe {
-        // Validate pointer alignment and basic sanity
-        if (terminal as usize) % std::mem::align_of::<Terminal>() != 0 {
-            return Err(ReactiveError::InvalidPointer);
-        }
-        let term = &mut *(terminal as *mut Terminal);
-        if begin {
-            match term.begin_sync() {
-                Ok(()) => Ok(()),
-                Err(e) => Err(e.into()),
-            }
-        } else {
-            match term.end_sync() {
-                Ok(()) => Ok(()),
-                Err(e) => Err(e.into()),
-            }
-        }
-    }))
+    use std::io::{self, Write};
+    let _ = io::stdout().write_all(b"\x1b[2J\x1b[H");
+    let _ = io::stdout().flush();
 }
 
-/// Poll for events (static function)
+/// Get terminal capabilities
 #[no_mangle]
-pub extern "C" fn rtui_terminal_poll_event(
-    timeout_ms: u32,
-    out_event: *mut RTuiEvent,
-) -> ReactiveError {
-    if out_event.is_null() {
-        return ReactiveError::NullPointer;
+pub extern "C" fn getTerminalCapabilities(
+    terminal: *const RTuiTerminal,
+    caps_ptr: *mut Capabilities,
+) {
+    if terminal.is_null() || caps_ptr.is_null() {
+        return;
     }
 
-    catch_panic(AssertUnwindSafe(|| {
-        let timeout = if timeout_ms > 0 {
-            Some(timeout_ms as u64)
-        } else {
-            None
+    let terminal_ref = unsafe { &*(terminal as *const Terminal) };
+    let caps = terminal_ref.capabilities();
+    
+    unsafe {
+        *caps_ptr = Capabilities {
+            rgb: caps.color_depth.supports(16777216), // 24-bit color
+            color_256: caps.color_depth.supports(256),
+            unicode_level: if caps.unicode { 2 } else { 1 },
+            kitty_keyboard: caps.enhanced_keyboard,
+            mouse: true, // Assume mouse support
+            pixel_mouse: caps.pixel_mouse,
+            hyperlinks: false, // Not exposed in TerminalCapabilities yet
+            images: caps.kitty_graphics || caps.sixel || caps.iterm2_graphics,
+            synchronized_output: caps.synchronized_output,
+            bracketed_paste: false, // Not exposed in TerminalCapabilities yet
         };
-
-        match Terminal::poll_event(timeout) {
-            Ok(Some(event)) => {
-                unsafe {
-                    *out_event = convert_event_to_ffi(event);
-                }
-                Ok(())
-            }
-            Ok(None) => Err(ReactiveError::NotFound),
-            Err(e) => Err(e.into()),
-        }
-    }))
+    }
 }
 
-// Helper to convert crossterm events to FFI events
-fn convert_event_to_ffi(event: crossterm::event::Event) -> RTuiEvent {
-    use crossterm::event::{Event, KeyCode, KeyModifiers};
-
-    match event {
-        Event::Key(key_event) => {
-            let key_code = match key_event.code {
-                KeyCode::Char(c) => c as u32,
-                KeyCode::Enter => 0x0D,
-                KeyCode::Esc => 0x1B,
-                KeyCode::Backspace => 0x08,
-                KeyCode::Tab => 0x09,
-                KeyCode::Left => 0x25,
-                KeyCode::Right => 0x27,
-                KeyCode::Up => 0x26,
-                KeyCode::Down => 0x28,
-                _ => 0,
-            };
-
-            let mut modifiers = 0u8;
-            if key_event.modifiers.contains(KeyModifiers::SHIFT) {
-                modifiers |= 1;
-            }
-            if key_event.modifiers.contains(KeyModifiers::CONTROL) {
-                modifiers |= 2;
-            }
-            if key_event.modifiers.contains(KeyModifiers::ALT) {
-                modifiers |= 4;
-            }
-
-            RTuiEvent {
-                event_type: RTuiEventType::Key,
-                data: RTuiEventData {
-                    key: RTuiKeyEvent {
-                        key_code,
-                        modifiers,
-                    },
-                },
-            }
-        }
-        Event::Resize(width, height) => RTuiEvent {
-            event_type: RTuiEventType::Resize,
-            data: RTuiEventData {
-                resize: RTuiResizeEvent { width, height },
-            },
-        },
-        _ => RTuiEvent {
-            event_type: RTuiEventType::Key,
-            data: RTuiEventData {
-                key: RTuiKeyEvent {
-                    key_code: 0,
-                    modifiers: 0,
-                },
-            },
-        },
+/// Process capability response
+#[no_mangle]
+pub extern "C" fn processCapabilityResponse(
+    terminal: *mut RTuiTerminal,
+    response_ptr: *const u8,
+    response_len: usize,
+) {
+    if terminal.is_null() || response_ptr.is_null() {
+        return;
     }
+
+    let response = unsafe { std::slice::from_raw_parts(response_ptr, response_len) };
+
+    // Use the proper capability parsing from TerminalQuery
+    let query = TerminalQuery::new();
+    let mut caps = TerminalCapabilities::default();
+
+    // Parse the response buffer using the existing capability parser
+    query.parse_response_buffer(response, &mut caps);
+
+    // Apply environment fallbacks to fill in any gaps
+    query.apply_env_fallbacks(&mut caps);
+
+    // Store the updated capabilities in the terminal
+    // The Terminal struct currently initializes capabilities once during creation
+    // Capability updates require extending Terminal with a set_capabilities method
+}
+
+//
+// CURSOR CONTROL
+//
+
+/// Set cursor position
+#[no_mangle]
+pub extern "C" fn setCursorPosition(
+    terminal: *mut RTuiTerminal,
+    x: i32,
+    y: i32,
+    visible: bool,
+) {
+    if terminal.is_null() {
+        return;
+    }
+
+    use std::io::{self, Write};
+
+    let cursor_x = std::cmp::max(1, x) as u16;
+    let cursor_y = std::cmp::max(1, y) as u16;
+
+    // Set cursor position (1-based coordinates)
+    let _ = write!(io::stdout(), "\x1b[{};{}H", cursor_y, cursor_x);
+
+    // Set cursor visibility
+    if visible {
+        let _ = io::stdout().write_all(b"\x1b[?25h");
+    } else {
+        let _ = io::stdout().write_all(b"\x1b[?25l");
+    }
+    let _ = io::stdout().flush();
+}
+
+/// Set cursor style
+#[no_mangle]
+pub extern "C" fn setCursorStyle(
+    terminal: *mut RTuiTerminal,
+    style_ptr: *const u8,
+    style_len: usize,
+    blinking: bool,
+) {
+    if terminal.is_null() || style_ptr.is_null() {
+        return;
+    }
+
+    let style_slice = unsafe { std::slice::from_raw_parts(style_ptr, style_len) };
+    let style_str = match std::str::from_utf8(style_slice) {
+        Ok(s) => s,
+        Err(_) => return,
+    };
+
+    use std::io::{self, Write};
+
+    let cursor_style = match style_str {
+        "block" => CursorStyle::Block,
+        "underline" => CursorStyle::Underline,
+        "bar" => CursorStyle::Bar,
+        _ => CursorStyle::Block,
+    };
+
+    // Apply cursor style
+    let style_code = match cursor_style {
+        CursorStyle::Block => if blinking { "1" } else { "2" },
+        CursorStyle::Underline => if blinking { "3" } else { "4" },
+        CursorStyle::Bar => if blinking { "5" } else { "6" },
+    };
+
+    let _ = write!(io::stdout(), "\x1b[{} q", style_code);
+    let _ = io::stdout().flush();
+}
+
+/// Set cursor color
+#[no_mangle]
+pub extern "C" fn setCursorColor(terminal: *mut RTuiTerminal, color: *const f32) {
+    if terminal.is_null() || color.is_null() {
+        return;
+    }
+
+    use std::io::{self, Write};
+
+    let rgba = super::lib::f32_ptr_to_rgba(color);
+
+    // Set cursor color using OSC 12 sequence
+    let r = (rgba.r * 255.0) as u8;
+    let g = (rgba.g * 255.0) as u8;
+    let b = (rgba.b * 255.0) as u8;
+
+    let _ = write!(io::stdout(), "\x1b]12;#{:02x}{:02x}{:02x}\x1b\\", r, g, b);
+    let _ = io::stdout().flush();
+}
+
+/// Set terminal title
+#[no_mangle]
+pub extern "C" fn setTerminalTitle(
+    terminal: *mut RTuiTerminal,
+    title_ptr: *const u8,
+    title_len: usize,
+) {
+    if terminal.is_null() || title_ptr.is_null() {
+        return;
+    }
+
+    let title_slice = unsafe { std::slice::from_raw_parts(title_ptr, title_len) };
+    use std::io::{self, Write};
+
+    let title_str = match std::str::from_utf8(title_slice) {
+        Ok(s) => s,
+        Err(_) => return,
+    };
+
+    // Set terminal title using OSC 0 sequence
+    let _ = write!(io::stdout(), "\x1b]0;{}\x1b\\", title_str);
+    let _ = io::stdout().flush();
+}
+
+//
+// MOUSE AND KEYBOARD
+//
+
+/// Enable mouse support
+#[no_mangle]
+pub extern "C" fn enableMouse(terminal: *mut RTuiTerminal, enable_movement: bool) {
+    if terminal.is_null() {
+        return;
+    }
+
+    use std::io::{self, Write};
+
+    // Enable mouse reporting
+    let _ = io::stdout().write_all(b"\x1b[?1000h"); // Basic mouse reporting
+    if enable_movement {
+        let _ = io::stdout().write_all(b"\x1b[?1003h"); // Mouse movement tracking
+    }
+    let _ = io::stdout().flush();
+}
+
+/// Disable mouse support
+#[no_mangle]
+pub extern "C" fn disableMouse(terminal: *mut RTuiTerminal) {
+    if terminal.is_null() {
+        return;
+    }
+
+    use std::io::{self, Write};
+
+    // Disable mouse reporting
+    let _ = io::stdout().write_all(b"\x1b[?1000l"); // Disable basic mouse
+    let _ = io::stdout().write_all(b"\x1b[?1003l"); // Disable movement tracking
+    let _ = io::stdout().flush();
+}
+
+/// Enable Kitty keyboard protocol
+#[no_mangle]
+pub extern "C" fn enableKittyKeyboard(terminal: *mut RTuiTerminal, flags: u8) {
+    if terminal.is_null() {
+        return;
+    }
+
+    use std::io::{self, Write};
+
+    // Enable Kitty keyboard protocol
+    let _ = write!(io::stdout(), "\x1b[>{};1u", flags);
+    let _ = io::stdout().flush();
+}
+
+/// Disable Kitty keyboard protocol
+#[no_mangle]
+pub extern "C" fn disableKittyKeyboard(terminal: *mut RTuiTerminal) {
+    if terminal.is_null() {
+        return;
+    }
+
+    use std::io::{self, Write};
+
+    // Disable Kitty keyboard protocol
+    let _ = io::stdout().write_all(b"\x1b[<1u");
+    let _ = io::stdout().flush();
 }

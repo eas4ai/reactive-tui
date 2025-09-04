@@ -9,8 +9,8 @@ mod slider;
 /// Text input components
 mod text_input;
 
-pub use checkbox::{Checkbox, CheckboxProps, CheckboxState};
-pub use radio_button::RadioButton;
-pub use select::{Select, SelectOption, SelectProps, SelectState};
-pub use slider::Slider;
-pub use text_input::{TextInput, TextInputProps, TextInputState};
+pub use checkbox::{Checkbox, CheckboxBuilder, CheckboxProps, CheckboxState};
+pub use radio_button::{RadioButton, RadioButtonBuilder, RadioButtonProps, RadioButtonState, RadioOption, RadioOrientation};
+pub use select::{Select, SelectBuilder, SelectOption, SelectProps, SelectState};
+pub use slider::{Slider, SliderBuilder, SliderProps, SliderState, SliderOrientation};
+pub use text_input::{TextInput, TextInputBuilder, TextInputProps, TextInputState, InputMode, Suggestion};

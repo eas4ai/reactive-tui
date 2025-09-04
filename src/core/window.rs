@@ -294,14 +294,14 @@ impl Window {
             .output()
         {
             if let Ok(size_str) = String::from_utf8(output.stdout) {
-                let parts: Vec<&str> = size_str.trim().split_whitespace().collect();
+                let parts: Vec<&str> = size_str.split_whitespace().collect();
                 if parts.len() >= 2 {
                     if let (Ok(rows), Ok(cols)) = (parts[0].parse::<u16>(), parts[1].parse::<u16>()) {
                         // Estimate pixel dimensions based on typical terminal sizes
                         // Most modern terminals: 80x24 chars at ~1280x384 pixels
                         let char_w = if cols > 0 { 1280 / cols } else { 16 };
                         let char_h = if rows > 0 { 384 / rows } else { 16 };
-                        return Ok((char_w.max(8).min(32), char_h.max(8).min(32)));
+                        return Ok((char_w.clamp(8, 32), char_h.clamp(8, 32)));
                     }
                 }
             }
@@ -314,7 +314,7 @@ impl Window {
         ) {
             let char_w = if term_w > 0 { 1280 / term_w } else { 16 };
             let char_h = if term_h > 0 { 384 / term_h } else { 16 };
-            return Ok((char_w.max(8).min(32), char_h.max(8).min(32)));
+            return Ok((char_w.clamp(8, 32), char_h.clamp(8, 32)));
         }
         
         Err("Could not determine character dimensions".into())

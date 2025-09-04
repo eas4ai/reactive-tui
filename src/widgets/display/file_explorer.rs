@@ -453,27 +453,25 @@ impl FileExplorer {
             Ok(entries) => {
                 let mut file_entries = Vec::new();
 
-                for entry in entries {
-                    if let Ok(entry) = entry {
-                        if let Ok(file_entry) = FileEntry::from_path(&entry.path()) {
-                            // Apply filters
-                            if !props.show_hidden && file_entry.hidden {
-                                continue;
-                            }
+                for entry in entries.flatten() {
+                    if let Ok(file_entry) = FileEntry::from_path(&entry.path()) {
+                        // Apply filters
+                        if !props.show_hidden && file_entry.hidden {
+                            continue;
+                        }
 
-                            // Apply file extension filters
-                            if !props.file_filters.is_empty() {
-                                if let Some(ref ext) = file_entry.extension {
-                                    if !props.file_filters.contains(ext) {
-                                        continue;
-                                    }
-                                } else if file_entry.file_type != FileType::Directory {
+                        // Apply file extension filters
+                        if !props.file_filters.is_empty() {
+                            if let Some(ref ext) = file_entry.extension {
+                                if !props.file_filters.contains(ext) {
                                     continue;
                                 }
+                            } else if file_entry.file_type != FileType::Directory {
+                                continue;
                             }
-
-                            file_entries.push(file_entry);
                         }
+
+                        file_entries.push(file_entry);
                     }
                 }
 
@@ -505,7 +503,7 @@ impl FileExplorer {
     }
 
     /// Sort file entries based on criteria
-    fn sort_entries(&self, entries: &mut Vec<FileEntry>, props: &FileExplorerProps) {
+    fn sort_entries(&self, entries: &mut [FileEntry], props: &FileExplorerProps) {
         entries.sort_by(|a, b| {
             // Always put directories first
             match (&a.file_type, &b.file_type) {
@@ -570,7 +568,7 @@ impl FileExplorer {
 
                     breadcrumb_builder = breadcrumb_builder.segment(
                         BreadcrumbSegment::new(
-                            &format!("segment_{}", index),
+                            format!("segment_{}", index),
                             name,
                             &path_str,
                         )
@@ -611,7 +609,7 @@ impl FileExplorer {
         // Search box (placeholder)
         if props.search_query.is_some() {
             toolbar_children.push(
-                Element::text(&format!("Search: {}", props.search_query.as_ref().unwrap()))
+                Element::text(format!("Search: {}", props.search_query.as_ref().unwrap()))
                     .with_class("search-box")
             );
         }
@@ -643,7 +641,7 @@ impl FileExplorer {
         }
 
         if let Some(ref error) = state.error {
-            return Element::text(&format!("Error: {}", error))
+            return Element::text(format!("Error: {}", error))
                 .with_class("file-explorer-error");
         }
 
@@ -752,11 +750,11 @@ impl FileExplorer {
         // Add details if enabled
         if props.show_details {
             children.push(
-                Element::text(&entry.format_size())
+                Element::text(entry.format_size())
                     .with_class("file-size")
             );
             children.push(
-                Element::text(&entry.format_modified())
+                Element::text(entry.format_modified())
                     .with_class("file-modified")
             );
         }

@@ -110,6 +110,7 @@ pub mod prelude {
     pub use crate::error::{ReactiveError, Result};
     pub use crate::hooks::*;
     pub use crate::reactive::*;
+    pub use crate::vdom::{VNode, menubar, context_menu, popup_menu, dialog_menu, simple_menubar, simple_context_menu, simple_popup_menu};
     pub use crate::{component, Props};
 
     // CSS-in-Rust support

@@ -3,6 +3,7 @@ target/
 build/
 dist/
 node_modules/
+examples-blech/
 
 # For libraries, Cargo.lock should be committed for reproducible builds
 # Cargo.lock

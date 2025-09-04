@@ -648,8 +648,8 @@ impl Popover {
         
         // Estimate grid dimensions - prefer wider grids for better layout
         let cols = (child_count as f64).sqrt().ceil() as usize;
-        let cols = cols.max(1).min(6); // Between 1 and 6 columns
-        let rows = (child_count + cols - 1) / cols; // Ceiling division
+        let cols = cols.clamp(1, 6); // Between 1 and 6 columns
+        let rows = child_count.div_ceil(cols); // Ceiling division
         
         (cols, rows.max(1))
     }

@@ -13,24 +13,32 @@
  * #include <reactive_tui.h>
  *
  * int main() {
- *     // Initialize the library
- *     if (rtui_init() != RTUI_SUCCESS) {
+ *     // Create terminal and renderer using modern API
+ *     RTuiTerminal* terminal = createTerminal();
+ *     if (!terminal) return 1;
+ *
+ *     setupTerminal(terminal, true); // Use alternate screen
+ *
+ *     RTuiRenderer* renderer = createRenderer(80, 24, true, 0);
+ *     if (!renderer) {
+ *         destroyTerminal(terminal);
  *         return 1;
  *     }
  *
- *     // Create terminal and renderer
- *     RTuiTerminal* terminal;
- *     RTuiRenderer* renderer;
+ *     // Create and use a text buffer
+ *     RTuiTextBuffer* text = createTextBuffer(1000, 0);
+ *     float green[] = {0.0f, 1.0f, 0.0f, 1.0f};
+ *     float black[] = {0.0f, 0.0f, 0.0f, 1.0f};
+ *     uint32_t attr = 0;
+ *     textBufferAppendText(text, "Hello, Modern FFI!", 18, green, black, &attr);
  *
- *     rtui_terminal_create(&terminal);
- *     rtui_renderer_create(terminal, &renderer);
- *
- *     // Your application code here...
+ *     // Render using integrated pipeline
+ *     renderTextToTerminal(text, terminal, 10, 5, 80, 24);
  *
  *     // Cleanup
- *     rtui_renderer_destroy(renderer);
- *     rtui_terminal_destroy(terminal);
- *     rtui_cleanup();
+ *     destroyTextBuffer(text);
+ *     destroyRenderer(renderer);
+ *     destroyTerminal(terminal);
  *
  *     return 0;
  * }
@@ -67,6 +75,21 @@ extern "C" {
  * @brief Surface and buffer operations for efficient rendering
  */
 #include "reactive_tui/surface.h"
+
+/**
+ * @brief Text buffer operations and formatted text handling
+ */
+#include "reactive_tui/text.h"
+
+/**
+ * @brief System integration functions for end-to-end workflows
+ */
+#include "reactive_tui/integration.h"
+
+/**
+ * @brief Performance monitoring and debugging functions
+ */
+#include "reactive_tui/stats.h"
 
 /**
  * @brief Rendering system and frame management

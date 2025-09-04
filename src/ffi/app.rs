@@ -4,10 +4,8 @@ use super::*;
 use crate::app::{App, AppBuilder, RootComponent};
 use crate::backend::{DebugBackend, CrosstermBackend};
 use crate::component::Element;
-use crate::display::monitor::{PerformanceMode, PerformanceMetrics};
+use crate::display::monitor::PerformanceMode;
 use std::boxed::Box;
-use std::ffi::{CStr, CString};
-use std::os::raw::c_char;
 
 /// Opaque handle to an app builder
 #[repr(C)]
@@ -31,8 +29,11 @@ pub struct RTuiRootComponent {
 #[repr(C)]
 #[derive(Debug, Clone, Copy)]
 pub enum RTuiPerformanceMode {
+    /// Power saving mode (lower FPS)
     PowerSave = 0,
+    /// Balanced mode (moderate FPS)
     Balanced = 1,
+    /// Performance mode (high FPS)
     Performance = 2,
 }
 
@@ -50,14 +51,18 @@ impl From<RTuiPerformanceMode> for PerformanceMode {
 #[repr(C)]
 #[derive(Debug, Clone, Copy)]
 pub struct RTuiPerformanceMetrics {
+    /// Current frames per second
     pub current_fps: f32,
+    /// Average render time in milliseconds
     pub avg_render_time_ms: f32,
+    /// Frame drop rate as percentage
     pub drop_rate_percent: f32,
+    /// Whether performance is stable
     pub is_stable: bool,
 }
 
 /// Root component callback function type
-pub type RTuiRootComponentCallback = extern "C" fn(user_data: *mut std::ffi::c_void) -> *mut super::component::RTuiElement;
+pub type RTuiRootComponentCallback = extern "C" fn(user_data: *mut std::ffi::c_void) -> *mut super::builder::RTuiElement;
 
 /// FFI-compatible root component wrapper
 struct FFIRootComponent {
@@ -188,7 +193,7 @@ pub extern "C" fn rtui_app_builder_backend_crossterm(
     catch_panic(AssertUnwindSafe(|| unsafe {
         // Take ownership, modify, and put back
         let builder_box = Box::from_raw(builder as *mut AppBuilder);
-        let backend = CrosstermBackend::new();
+        let backend = CrosstermBackend::new()?;
         let new_builder = builder_box.backend(backend);
 
         // Write the modified builder back to the same memory location

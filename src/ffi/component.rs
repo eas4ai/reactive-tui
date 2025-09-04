@@ -1,25 +1,27 @@
 //! Component system FFI functions
 
 use super::*;
+use super::builder::RTuiElement;
 use crate::component::{Element, ElementType, LayoutType};
 use std::boxed::Box;
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
 
-/// Opaque handle to an element
-#[repr(C)]
-pub struct RTuiElement {
-    _private: [u8; 0],
-}
+// RTuiElement is defined in builder.rs to avoid duplication
 
 /// Element types
 #[repr(C)]
 #[derive(Debug, Clone, Copy)]
 pub enum RTuiElementType {
+    /// Component element
     Component = 0,
+    /// Text element
     Text = 1,
+    /// Layout element
     Layout = 2,
+    /// Fragment element
     Fragment = 3,
+    /// Empty element
     Empty = 4,
 }
 
@@ -27,9 +29,13 @@ pub enum RTuiElementType {
 #[repr(C)]
 #[derive(Debug, Clone, Copy)]
 pub enum RTuiLayoutType {
+    /// Flexbox layout
     Flex = 0,
+    /// Grid layout
     Grid = 1,
+    /// Stack layout
     Stack = 2,
+    /// Absolute positioning
     Absolute = 3,
 }
 
@@ -140,15 +146,7 @@ pub extern "C" fn rtui_element_create_empty(out_element: *mut *mut RTuiElement) 
     }))
 }
 
-/// Destroy an element
-#[no_mangle]
-pub extern "C" fn rtui_element_destroy(element: *mut RTuiElement) {
-    if !element.is_null() {
-        unsafe {
-            let _ = Box::from_raw(element as *mut Element);
-        }
-    }
-}
+// Element destroy function is in builder.rs to avoid duplication
 
 /// Set element key
 #[no_mangle]

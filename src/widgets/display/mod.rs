@@ -18,7 +18,7 @@ pub mod table;
 pub mod tree;
 
 pub use charts::{
-    Chart, ChartProps, ChartState, ChartType, ChartAxis, ChartLegend,
+    Chart, ChartsBuilder, ChartProps, ChartState, ChartType, ChartAxis, ChartLegend,
     DataPoint, DataSeries, LineStyle, FillStyle, LegendPosition
 };
 pub use data_table::{
@@ -34,9 +34,9 @@ pub use image::{
 };
 pub use modal::Modal;
 pub use popover::Popover;
-pub use progress_bar::ProgressBar;
+pub use progress_bar::{ProgressBar, ProgressBarBuilder, ProgressBarProps, ProgressBarState, ProgressBarOrientation};
 pub use table::Table;
-pub use tree::Tree;
+pub use tree::{Tree, TreeBuilder, TreeProps, TreeState, TreeNode};
 
 /// Common display component utilities
 #[derive(Debug, Clone, PartialEq)]

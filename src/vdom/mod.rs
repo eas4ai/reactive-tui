@@ -7,12 +7,15 @@
 pub mod bridge;
 /// Virtual DOM diffing algorithm
 pub mod diff;
+/// Menu component helpers for VDOM
+pub mod menu;
 /// Virtual DOM node types and structures
 pub mod node;
 /// Patch operations for updating the DOM
 pub mod patch;
 
 pub use diff::{diff_vnodes, DiffContext};
+pub use menu::{menubar, context_menu, popup_menu, dialog_menu, simple_menubar, simple_context_menu, simple_popup_menu};
 pub use node::{VComponent, VElement, VFragment, VNode, VNodeKey, VNodeType, VText};
 pub use patch::{apply_patches, Patch, PatchList};
 

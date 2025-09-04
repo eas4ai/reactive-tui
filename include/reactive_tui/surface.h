@@ -146,6 +146,195 @@ RTuiError rtui_surface_copy_rect(
     RTuiRect src_rect
 );
 
+// =============================================================================
+// MODERN BUFFER API DECLARATIONS
+// =============================================================================
+
+/**
+ * @brief Create an optimized buffer for drawing operations
+ * @param width Width in characters
+ * @param height Height in characters
+ * @param respect_alpha Whether to respect alpha blending
+ * @param width_method Width calculation method (0 = default)
+ * @param id_ptr Optional identifier pointer
+ * @param id_len Length of identifier
+ * @return Pointer to buffer or NULL on failure
+ */
+RTuiBuffer* createOptimizedBuffer(uint32_t width, uint32_t height, bool respect_alpha,
+                                  uint8_t width_method, const uint8_t* id_ptr, size_t id_len);
+
+/**
+ * @brief Destroy a buffer and free its resources
+ * @param buffer Buffer to destroy
+ */
+void destroyOptimizedBuffer(RTuiBuffer* buffer);
+
+/**
+ * @brief Get buffer width
+ * @param buffer Target buffer
+ * @return Width in characters
+ */
+uint32_t getBufferWidth(const RTuiBuffer* buffer);
+
+/**
+ * @brief Get buffer height
+ * @param buffer Target buffer
+ * @return Height in characters
+ */
+uint32_t getBufferHeight(const RTuiBuffer* buffer);
+
+/**
+ * @brief Clear the buffer with a solid color
+ * @param buffer Target buffer
+ * @param r Red component (0.0-1.0)
+ * @param g Green component (0.0-1.0)
+ * @param b Blue component (0.0-1.0)
+ * @param a Alpha component (0.0-1.0)
+ */
+void bufferClear(RTuiBuffer* buffer, float r, float g, float b, float a);
+
+/**
+ * @brief Draw text to the buffer
+ * @param buffer Target buffer
+ * @param x X coordinate
+ * @param y Y coordinate
+ * @param text Text to draw (UTF-8)
+ * @param text_len Length of text in bytes
+ * @param fg Foreground color (RGBA array)
+ * @param bg Background color (RGBA array)
+ * @param attr Text attributes
+ */
+void bufferDrawText(RTuiBuffer* buffer, uint32_t x, uint32_t y, const char* text,
+                    size_t text_len, const float* fg, const float* bg, const uint32_t* attr);
+
+/**
+ * @brief Write to buffer with direct memory access
+ * @param buffer Target buffer
+ * @param x X coordinate
+ * @param y Y coordinate
+ * @param text Text to write
+ * @param text_len Length of text
+ * @param fg Foreground color array
+ * @param bg Background color array
+ * @param attr Attributes
+ */
+void writeToBuffer(RTuiBuffer* buffer, uint32_t x, uint32_t y, const char* text,
+                   size_t text_len, const float* fg, const float* bg, const uint32_t* attr);
+
+/**
+ * @brief Set a single cell with alpha blending
+ * @param buffer Target buffer
+ * @param x X coordinate
+ * @param y Y coordinate
+ * @param ch Character
+ * @param fg Foreground color
+ * @param bg Background color
+ * @param attr Attributes
+ */
+void bufferSetCellWithAlphaBlending(RTuiBuffer* buffer, uint32_t x, uint32_t y, uint32_t ch,
+                                    const float* fg, const float* bg, uint32_t attr);
+
+/**
+ * @brief Fill a rectangular region
+ * @param buffer Target buffer
+ * @param x X coordinate
+ * @param y Y coordinate
+ * @param width Width of rectangle
+ * @param height Height of rectangle
+ * @param ch Fill character
+ * @param fg Foreground color
+ * @param bg Background color
+ * @param attr Attributes
+ */
+void bufferFillRect(RTuiBuffer* buffer, uint32_t x, uint32_t y, uint32_t width, uint32_t height,
+                    uint32_t ch, const float* fg, const float* bg, uint32_t attr);
+
+/**
+ * @brief Resize buffer
+ * @param buffer Target buffer
+ * @param width New width
+ * @param height New height
+ */
+void bufferResize(RTuiBuffer* buffer, uint32_t width, uint32_t height);
+
+/**
+ * @brief Get/set alpha blending mode
+ */
+bool bufferGetRespectAlpha(const RTuiBuffer* buffer);
+void bufferSetRespectAlpha(RTuiBuffer* buffer, bool respect_alpha);
+
+// =============================================================================
+// DIRECT MEMORY ACCESS FUNCTIONS
+// =============================================================================
+
+/**
+ * @brief Get direct pointer to character buffer
+ * @param buffer Target buffer
+ * @return Pointer to character array (must be freed with bufferReleaseCharPtr)
+ * @warning Caller must call bufferReleaseCharPtr to avoid memory leaks
+ */
+uint32_t* bufferGetCharPtr(RTuiBuffer* buffer);
+
+/**
+ * @brief Get direct pointer to foreground color buffer
+ * @param buffer Target buffer
+ * @return Pointer to RGBA color array (must be freed with bufferReleaseFgPtr)
+ * @warning Caller must call bufferReleaseFgPtr to avoid memory leaks
+ */
+float* bufferGetFgPtr(RTuiBuffer* buffer);
+
+/**
+ * @brief Get direct pointer to background color buffer
+ * @param buffer Target buffer
+ * @return Pointer to RGBA color array (must be freed with bufferReleaseBgPtr)
+ * @warning Caller must call bufferReleaseBgPtr to avoid memory leaks
+ */
+float* bufferGetBgPtr(RTuiBuffer* buffer);
+
+/**
+ * @brief Get direct pointer to attributes buffer
+ * @param buffer Target buffer
+ * @return Pointer to attributes array (must be freed with bufferReleaseAttrPtr)
+ * @warning Caller must call bufferReleaseAttrPtr to avoid memory leaks
+ */
+uint8_t* bufferGetAttributesPtr(RTuiBuffer* buffer);
+
+// =============================================================================
+// MEMORY CLEANUP FUNCTIONS (CRITICAL - MUST BE CALLED)
+// =============================================================================
+
+/**
+ * @brief Release character buffer pointer
+ * @param ptr Pointer returned by bufferGetCharPtr
+ * @param length Number of elements (width * height)
+ * @warning REQUIRED: Must be called for every bufferGetCharPtr call
+ */
+void bufferReleaseCharPtr(uint32_t* ptr, size_t length);
+
+/**
+ * @brief Release foreground color buffer pointer
+ * @param ptr Pointer returned by bufferGetFgPtr
+ * @param length Number of elements (width * height * 4)
+ * @warning REQUIRED: Must be called for every bufferGetFgPtr call
+ */
+void bufferReleaseFgPtr(float* ptr, size_t length);
+
+/**
+ * @brief Release background color buffer pointer
+ * @param ptr Pointer returned by bufferGetBgPtr
+ * @param length Number of elements (width * height * 4)
+ * @warning REQUIRED: Must be called for every bufferGetBgPtr call
+ */
+void bufferReleaseBgPtr(float* ptr, size_t length);
+
+/**
+ * @brief Release attributes buffer pointer
+ * @param ptr Pointer returned by bufferGetAttributesPtr
+ * @param length Number of elements (width * height)
+ * @warning REQUIRED: Must be called for every bufferGetAttributesPtr call
+ */
+void bufferReleaseAttrPtr(uint8_t* ptr, size_t length);
+
 #ifdef __cplusplus
 }
 #endif

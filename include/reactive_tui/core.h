@@ -154,6 +154,67 @@ typedef struct {
  */
 void rtui_free_string(char* string);
 
+// =============================================================================
+// MODERN FFI API DECLARATIONS
+// =============================================================================
+
+// Forward declarations for opaque types
+typedef struct RTuiRenderer RTuiRenderer;
+typedef struct RTuiBuffer RTuiBuffer;
+typedef struct RTuiTerminal RTuiTerminal;
+typedef struct RTuiTextBuffer RTuiTextBuffer;
+
+// =============================================================================
+// RENDERER FUNCTIONS
+// =============================================================================
+
+/**
+ * @brief Create a new renderer
+ * @param width Width in characters
+ * @param height Height in characters
+ * @param use_alternate_screen Whether to use alternate screen buffer
+ * @param split_height Split height for dual-buffer mode (0 for single buffer)
+ * @return Pointer to renderer or NULL on failure
+ */
+RTuiRenderer* createRenderer(uint32_t width, uint32_t height, bool use_alternate_screen, uint32_t split_height);
+
+/**
+ * @brief Destroy a renderer and free its resources
+ * @param renderer Renderer to destroy
+ */
+void destroyRenderer(RTuiRenderer* renderer);
+
+/**
+ * @brief Set the background color for the renderer
+ * @param renderer Target renderer
+ * @param r Red component (0.0-1.0)
+ * @param g Green component (0.0-1.0)
+ * @param b Blue component (0.0-1.0)
+ * @param a Alpha component (0.0-1.0)
+ */
+void setBackgroundColor(RTuiRenderer* renderer, float r, float g, float b, float a);
+
+/**
+ * @brief Render the current frame to the terminal
+ * @param renderer Target renderer
+ */
+void render(RTuiRenderer* renderer);
+
+/**
+ * @brief Resize the renderer
+ * @param renderer Target renderer
+ * @param width New width in characters
+ * @param height New height in characters
+ */
+void resizeRenderer(RTuiRenderer* renderer, uint32_t width, uint32_t height);
+
+/**
+ * @brief Get the renderer's surface for direct drawing
+ * @param renderer Target renderer
+ * @return Pointer to the renderer's surface buffer
+ */
+RTuiBuffer* getRendererSurface(RTuiRenderer* renderer);
+
 #ifdef __cplusplus
 }
 #endif

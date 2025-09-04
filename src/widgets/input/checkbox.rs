@@ -5,6 +5,62 @@ use crate::event::{Event, MouseEvent};
 use std::any::Any;
 use std::sync::Arc;
 
+/// Builder for creating Checkbox components with a fluent API
+#[derive(Clone, Debug, Default)]
+pub struct CheckboxBuilder {
+    checked: bool,
+    label: Option<String>,
+    disabled: bool,
+    indeterminate: bool,
+}
+
+impl CheckboxBuilder {
+    /// Create a new CheckboxBuilder
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Set whether the checkbox is checked
+    pub fn checked(mut self, checked: bool) -> Self {
+        self.checked = checked;
+        self
+    }
+
+    /// Set the label text for the checkbox
+    pub fn label(mut self, label: impl Into<String>) -> Self {
+        self.label = Some(label.into());
+        self
+    }
+
+    /// Set whether the checkbox is disabled
+    pub fn disabled(mut self, disabled: bool) -> Self {
+        self.disabled = disabled;
+        self
+    }
+
+    /// Set whether the checkbox is in indeterminate state
+    pub fn indeterminate(mut self, indeterminate: bool) -> Self {
+        self.indeterminate = indeterminate;
+        self
+    }
+
+    /// Build the CheckboxProps
+    pub fn build(self) -> CheckboxProps {
+        CheckboxProps {
+            checked: self.checked,
+            label: self.label,
+            disabled: self.disabled,
+            indeterminate: self.indeterminate,
+        }
+    }
+
+    /// Build and render as an Element (convenience method)
+    pub fn render(self) -> Element {
+        Element::component("Checkbox")
+            .with_props(self.build())
+    }
+}
+
 /// Properties for Checkbox component
 #[derive(Clone, Debug, PartialEq, Default)]
 pub struct CheckboxProps {
