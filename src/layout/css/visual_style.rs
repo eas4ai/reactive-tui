@@ -1,5 +1,5 @@
 /// Visual style extraction from CSS classes for terminal rendering
-use crate::layout::manager::TextStyle;
+use crate::layout::manager::{TextStyle, BoxStyle};
 
 /// Extract visual styles (colors, text decorations) from CSS classes
 pub fn extract_visual_style(class: &str) -> TextStyle {
@@ -28,6 +28,40 @@ pub fn extract_visual_style(class: &str) -> TextStyle {
     style
 }
 
+/// Extract box styles (backgrounds, borders) from CSS classes
+pub fn extract_box_style(class: &str) -> BoxStyle {
+    let mut style = BoxStyle::default();
+
+    for token in class.split_whitespace() {
+        // Background color utilities
+        if let Some(color) = parse_bg_color(token) {
+            style.bg = Some(color);
+        }
+
+        // Border utilities
+        if token.starts_with("border") {
+            // Parse border-color-* utilities
+            if let Some(color_part) = token.strip_prefix("border-") {
+                if let Some(color) = parse_border_color(color_part) {
+                    style.border_color = Some(color);
+                } else {
+                    // Default border color if no specific color is specified
+                    style.border_color = Some((128, 128, 128)); // Default gray border
+                }
+            } else {
+                style.border_color = Some((128, 128, 128)); // Default gray border
+            }
+
+            // Check for border thickness/style
+            if token.contains("border-2") || token.contains("border-4") {
+                style.double_border = false; // Single border for now
+            }
+        }
+    }
+
+    style
+}
+
 /// Parse text color from token like "text-red-500" or "text-white"
 fn parse_text_color(token: &str) -> Option<(u8, u8, u8)> {
     if !token.starts_with("text-") {
@@ -35,6 +69,22 @@ fn parse_text_color(token: &str) -> Option<(u8, u8, u8)> {
     }
     
     let color_part = &token[5..]; // Skip "text-"
+    parse_color_value(color_part)
+}
+
+/// Parse border color from token like "red-500" or "black" (after "border-" prefix)
+fn parse_border_color(color_part: &str) -> Option<(u8, u8, u8)> {
+    // Handle numeric border utilities (border-2, border-4, etc.)
+    if color_part.chars().all(|c| c.is_ascii_digit()) {
+        return None; // This is a border width, not a color
+    }
+
+    // Handle border style utilities (solid, dashed, etc.)
+    if matches!(color_part, "solid" | "dashed" | "dotted" | "double" | "none") {
+        return None; // This is a border style, not a color
+    }
+
+    // Parse color names and shades
     parse_color_value(color_part)
 }
 
@@ -68,7 +118,7 @@ fn parse_color_value(color: &str) -> Option<(u8, u8, u8)> {
         let shade = &shade[1..]; // Skip the dash
         
         let shade_num = match shade.parse::<u16>() {
-            Ok(n) if n >= 50 && n <= 950 => n,
+            Ok(n) if (50..=950).contains(&n) => n,
             _ => return None,
         };
         

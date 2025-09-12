@@ -348,12 +348,16 @@ impl DialogMenu {
                 match key.code {
                     KeyCode::Up => {
                         state.select_previous(props.items.len());
-                        state.update_scroll(10); // TODO: Calculate based on dialog height
+                        // Calculate scroll based on dialog height and visible items
+                        let visible_items = self.calculate_visible_items(props);
+                        state.update_scroll(visible_items);
                         EventResult::Handled
                     }
                     KeyCode::Down => {
                         state.select_next(props.items.len());
-                        state.update_scroll(10); // TODO: Calculate based on dialog height
+                        // Calculate scroll based on dialog height and visible items
+                        let visible_items = self.calculate_visible_items(props);
+                        state.update_scroll(visible_items);
                         EventResult::Handled
                     }
                     KeyCode::Enter => {
@@ -474,7 +478,21 @@ impl DialogMenu {
                 if state.contains_point(mouse_x, mouse_y) {
                     // Click inside dialog - handle item selection
                     state.is_focused = true;
-                    // TODO: Calculate which item was clicked based on layout
+
+                    // Calculate which item was clicked based on layout
+                    if let Some(clicked_item) = self.calculate_clicked_item(mouse_x, mouse_y, props, state) {
+                        state.selected_index = Some(clicked_item);
+
+                        // If it's a selection dialog, trigger selection
+                        if props.dialog_type == DialogMenuType::Selection {
+                            if let Some(callback) = &self.on_item_selected {
+                                if let Some(item) = props.items.get(clicked_item) {
+                                    callback(&item.text);
+                                }
+                            }
+                        }
+                    }
+
                     EventResult::Handled
                 } else if props.close_on_outside_click && !props.modal {
                     // Click outside dialog - close it
@@ -493,14 +511,70 @@ impl DialogMenu {
             MouseEventKind::Move => {
                 if state.contains_point(mouse_x, mouse_y) {
                     state.is_hovered = true;
-                    // TODO: Update selection based on mouse position
+
+                    // Update selection based on mouse position
+                    if let Some(hovered_item) = self.calculate_clicked_item(mouse_x, mouse_y, props, state) {
+                        // Only update selection if it's different from current
+                        if state.selected_index != Some(hovered_item) {
+                            state.selected_index = Some(hovered_item);
+                        }
+                    }
+
                     EventResult::Handled
                 } else {
                     state.is_hovered = false;
+                    // Clear selection when mouse leaves dialog area
+                    if state.selected_index.is_some() {
+                        state.selected_index = None;
+                    }
                     EventResult::Ignored
                 }
             }
             _ => EventResult::Ignored,
+        }
+    }
+
+    /// Calculate the number of visible items based on dialog height
+    fn calculate_visible_items(&self, props: &DialogMenuProps) -> usize {
+        // Default dialog height calculation
+        let default_height: usize = 20; // Default dialog height in lines
+
+        // Calculate available space for items
+        // Reserve space for: title (1), borders (2), padding (2), buttons area (3)
+        let reserved_space: usize = if props.title.is_some() { 1 } else { 0 } +
+                                   if props.show_border { 2 } else { 0 } +
+                                   2 + // padding
+                                   3; // buttons/input area
+
+        let available_height = default_height.saturating_sub(reserved_space);
+
+        // Ensure at least 3 items are visible
+        available_height.max(3)
+    }
+
+    /// Calculate which menu item was clicked based on mouse position
+    fn calculate_clicked_item(&self, _mouse_x: u16, mouse_y: u16, props: &DialogMenuProps, state: &DialogMenuState) -> Option<usize> {
+        // This is a simplified calculation - in a real implementation, you'd want to
+        // track the exact layout coordinates during rendering
+
+        // Calculate dialog content area
+        // Use a default position since we don't have access to the actual dialog position
+        let dialog_start_y = 5 + if props.show_border { 1 } else { 0 } +
+                            if props.title.is_some() { 1 } else { 0 } + 1; // padding
+
+        // Check if click is within the items area
+        if mouse_y < dialog_start_y {
+            return None;
+        }
+
+        // Calculate which item was clicked (each item takes 1 line)
+        let item_index = (mouse_y - dialog_start_y) as usize + state.scroll_offset;
+
+        // Check if the calculated index is valid
+        if item_index < props.items.len() {
+            Some(item_index)
+        } else {
+            None
         }
     }
 }

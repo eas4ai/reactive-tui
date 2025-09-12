@@ -97,7 +97,19 @@ impl TransitionRenderer {
     /// Render a tree to a surface
     fn render_to_surface(&self, tree: &RenderTree, surface: &mut Surface) {
         if let Some(root) = tree.root() {
-            crate::backend::paint_render_node_linear(surface, root, 0, 0);
+            // Use proper layout system instead of linear painting
+            if let Some(element) = root.as_element() {
+                let nodespec = crate::component::bridge::element_to_nodespec(element);
+                let opts = crate::layout::paint_tree::PaintOptions::default();
+                crate::layout::paint_tree::layout_and_paint_with(&nodespec, surface, self.width, &opts)
+                    .unwrap_or_else(|_| {
+                        // Fallback to linear painting on error
+                        crate::backend::paint_render_node_linear(surface, root, 0, 0);
+                    });
+            } else {
+                // Fallback when no Element is available
+                crate::backend::paint_render_node_linear(surface, root, 0, 0);
+            }
         }
     }
 

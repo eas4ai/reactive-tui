@@ -230,15 +230,35 @@ impl DirectTtyBackend {
                 pixel_y,
                 modifiers,
             } => {
-                let rt_kind = match kind {
-                    crate::platform::MouseEventKind::Down => rt_event::MouseEventKind::Down,
-                    crate::platform::MouseEventKind::Up => rt_event::MouseEventKind::Up,
-                    crate::platform::MouseEventKind::Drag => rt_event::MouseEventKind::Drag,
-                    crate::platform::MouseEventKind::Move => rt_event::MouseEventKind::Move,
-                    crate::platform::MouseEventKind::ScrollUp => rt_event::MouseEventKind::Wheel,
-                    crate::platform::MouseEventKind::ScrollDown => rt_event::MouseEventKind::Wheel,
-                    crate::platform::MouseEventKind::ScrollLeft => rt_event::MouseEventKind::Wheel,
-                    crate::platform::MouseEventKind::ScrollRight => rt_event::MouseEventKind::Wheel,
+                let (rt_kind, wheel_data) = match kind {
+                    crate::platform::MouseEventKind::Down => (rt_event::MouseEventKind::Down, None),
+                    crate::platform::MouseEventKind::Up => (rt_event::MouseEventKind::Up, None),
+                    crate::platform::MouseEventKind::Drag => (rt_event::MouseEventKind::Drag, None),
+                    crate::platform::MouseEventKind::Move => (rt_event::MouseEventKind::Move, None),
+                    crate::platform::MouseEventKind::ScrollUp => {
+                        (rt_event::MouseEventKind::Wheel, Some(rt_event::WheelEvent {
+                            delta: rt_event::WheelDelta::Lines { x: 0.0, y: -1.0 },
+                            phase: rt_event::WheelPhase::Changed,
+                        }))
+                    },
+                    crate::platform::MouseEventKind::ScrollDown => {
+                        (rt_event::MouseEventKind::Wheel, Some(rt_event::WheelEvent {
+                            delta: rt_event::WheelDelta::Lines { x: 0.0, y: 1.0 },
+                            phase: rt_event::WheelPhase::Changed,
+                        }))
+                    },
+                    crate::platform::MouseEventKind::ScrollLeft => {
+                        (rt_event::MouseEventKind::Wheel, Some(rt_event::WheelEvent {
+                            delta: rt_event::WheelDelta::Lines { x: -1.0, y: 0.0 },
+                            phase: rt_event::WheelPhase::Changed,
+                        }))
+                    },
+                    crate::platform::MouseEventKind::ScrollRight => {
+                        (rt_event::MouseEventKind::Wheel, Some(rt_event::WheelEvent {
+                            delta: rt_event::WheelDelta::Lines { x: 1.0, y: 0.0 },
+                            phase: rt_event::WheelPhase::Changed,
+                        }))
+                    },
                 };
 
                 let position = if let (Some(x), Some(y)) = (pixel_x, pixel_y) {
@@ -281,6 +301,7 @@ impl DirectTtyBackend {
                     button,
                     modifiers: rt_modifiers,
                     timestamp: std::time::Instant::now(),
+                    wheel: wheel_data,
                 }))
             }
 
@@ -328,8 +349,13 @@ impl Backend for DirectTtyBackend {
                 a: 1.0,
             });
             if let Some(root) = tree.root() {
-                let surface = self.renderer.surface_mut();
-                let _end_y = crate::backend::paint_render_node_linear(surface, root, 0, 0);
+                // Use proper layout system instead of linear painting
+                if let Some(element) = root.as_element() {
+                    self.render_full(element)?;
+                } else {
+                    let surface = self.renderer.surface_mut();
+                    let _end_y = crate::backend::paint_render_node_linear(surface, root, 0, 0);
+                }
             }
         }
 

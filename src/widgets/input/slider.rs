@@ -306,7 +306,7 @@ impl Component for Slider {
             SliderOrientation::Vertical => {
                 // For vertical, we'd need multi-line rendering
                 // This is a simplified single-line representation
-                result.push_str("│");
+                result.push('│');
                 let thumb_pos = self.calculate_thumb_position(props);
                 for i in 0..props.width {
                     if i == thumb_pos as u16 {
@@ -315,7 +315,7 @@ impl Component for Slider {
                         result.push('│');
                     }
                 }
-                result.push_str("│");
+                result.push('│');
                 
                 if props.show_value {
                     result.push_str(&format!(" {:.1}", props.value));

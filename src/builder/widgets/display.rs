@@ -4,6 +4,7 @@
 //! tree views, images, and other visual display elements.
 
 use crate::component::Element;
+use crate::builder::specialized::{TreeBuilder, ImageBuilder};
 
 /// Create a Progress Bar builder
 ///
@@ -37,7 +38,21 @@ pub fn progress_bar() -> ProgressBarBuilder {
 //     ImageBuilder::new()
 // }
 
-// TODO: TreeBuilder and ImageBuilder not yet implemented
+/// Create a Tree builder
+///
+/// Returns a `TreeBuilder` for creating hierarchical tree view components
+/// with expandable/collapsible nodes and custom rendering.
+pub fn tree() -> TreeBuilder {
+    TreeBuilder::new()
+}
+
+/// Create an Image builder
+///
+/// Returns an `ImageBuilder` for creating image display components
+/// with support for various formats and terminal rendering.
+pub fn image() -> ImageBuilder {
+    ImageBuilder::new()
+}
 
 /// Create a Popover builder
 ///

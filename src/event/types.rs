@@ -291,6 +291,8 @@ pub struct MouseEvent {
     pub modifiers: KeyModifiers,
     /// When the event occurred
     pub timestamp: Instant,
+    /// Wheel event data (only present for wheel events)
+    pub wheel: Option<WheelEvent>,
 }
 
 impl MouseEvent {
@@ -309,6 +311,26 @@ impl MouseEvent {
             position,
             modifiers: KeyModifiers::empty(),
             timestamp: Instant::now(),
+            wheel: None,
+        }
+    }
+
+    /// Create a new wheel mouse event
+    ///
+    /// # Arguments
+    /// * `position` - Where the event occurred
+    /// * `wheel` - Wheel event data
+    ///
+    /// # Returns
+    /// A new `MouseEvent` for wheel scrolling
+    pub fn wheel(position: Position, wheel: WheelEvent) -> Self {
+        Self {
+            kind: MouseEventKind::Wheel,
+            button: MouseButton::None,
+            position,
+            modifiers: KeyModifiers::empty(),
+            timestamp: Instant::now(),
+            wheel: Some(wheel),
         }
     }
 

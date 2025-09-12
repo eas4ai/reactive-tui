@@ -72,11 +72,18 @@ impl Terminal {
 
     /// Gate startup on modern terminal assumptions.
     pub fn capability_gate(&mut self) -> Result<()> {
-        // Check for true color support
+        // Allow bypassing capability checks via environment variable
+        if std::env::var("REACTIVE_TUI_FORCE_ENABLE").is_ok() {
+            // Force enable 256 color support when bypassing
+            self.capabilities.color_depth = crate::core::capabilities::ColorDepth::Colors256;
+            return Ok(());
+        }
+        
+        // Warn about limited color support but don't fail
         if !self.capabilities.color_depth.supports(256) {
-            return Err(ReactiveError::terminal(
-                "Requires a modern terminal with at least 256 color support",
-            ));
+            eprintln!("⚠️  Warning: Terminal may not support 256 colors. Some features may look degraded.");
+            eprintln!("   Set REACTIVE_TUI_FORCE_ENABLE=1 to bypass this check.");
+            // Continue anyway - let it degrade gracefully
         }
         Ok(())
     }

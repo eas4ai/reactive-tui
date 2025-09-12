@@ -78,9 +78,58 @@ impl ExternalRenderer {
 
                 self.write_temp_file(data, extension)
             }
-            ImageSource::Url(_) => Err(ReactiveError::ImageProcessing(
-                "URL loading not yet implemented".to_string(),
-            )),
+            ImageSource::Url(url) => {
+                // Load image from URL and write to temp file
+                self.load_from_url(url)
+            },
+        }
+    }
+
+    /// Load image from URL and write to temp file
+    fn load_from_url(&self, url: &str) -> Result<std::path::PathBuf> {
+        // Check if it's a data URL (base64 encoded)
+        if url.starts_with("data:image/") {
+            if let Some(base64_start) = url.find("base64,") {
+                let base64_data = &url[base64_start + 7..];
+
+                // Decode base64 data
+                use base64::Engine;
+                let decoded = base64::engine::general_purpose::STANDARD
+                    .decode(base64_data)
+                    .map_err(|e| ReactiveError::ImageProcessing(format!("Invalid base64 data: {}", e)))?;
+
+                // Determine file extension from MIME type
+                let extension = if url.contains("data:image/png") {
+                    "png"
+                } else if url.contains("data:image/jpeg") || url.contains("data:image/jpg") {
+                    "jpg"
+                } else if url.contains("data:image/gif") {
+                    "gif"
+                } else if url.contains("data:image/webp") {
+                    "webp"
+                } else {
+                    "png" // Default fallback
+                };
+
+                return self.write_temp_file(&decoded, extension);
+            }
+        }
+
+        // For HTTP/HTTPS URLs, we'd need an HTTP client
+        if url.starts_with("http://") || url.starts_with("https://") {
+            return Err(ReactiveError::ImageProcessing(
+                "HTTP URL loading requires adding reqwest dependency. Use data URLs or local files for now.".to_string()
+            ));
+        }
+
+        // Try to treat as local file path
+        let path = Path::new(url);
+        if path.exists() {
+            Ok(path.to_path_buf())
+        } else {
+            Err(ReactiveError::ImageProcessing(
+                format!("File not found: {}", url)
+            ))
         }
     }
 

@@ -114,6 +114,12 @@ pub struct FocusPropsBuilder {
     props: FocusProps,
 }
 
+impl Default for FocusPropsBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl FocusPropsBuilder {
     /// Create a new builder
     pub fn new() -> Self {

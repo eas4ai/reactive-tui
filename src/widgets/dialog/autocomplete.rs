@@ -383,6 +383,40 @@ impl AutocompleteDialog {
         DialogEventResult::Close(DialogResult::Confirmed(Some(self.input_value.clone())))
     }
 
+    /// Get suggestion index at the given screen position
+    fn get_suggestion_at_position(&self, x: u16, y: u16) -> Option<usize> {
+        if !self.suggestions_visible || self.suggestions.is_empty() {
+            return None;
+        }
+
+        // Calculate dialog bounds and suggestion list area
+        let dialog_bounds = &self.state.bounds;
+
+        // Check if click is within dialog bounds
+        if x < dialog_bounds.origin.x as u16 || x >= (dialog_bounds.origin.x + dialog_bounds.width()) as u16 ||
+           y < dialog_bounds.origin.y as u16 || y >= (dialog_bounds.origin.y + dialog_bounds.height()) as u16 {
+            return None;
+        }
+
+        // Calculate suggestion list area (assuming it starts after title, prompt, and input)
+        // This is a simplified calculation - in a real implementation, you'd want to
+        // track the exact layout coordinates during rendering
+        let suggestions_start_y = dialog_bounds.origin.y as u16 + 4; // Title + prompt + input + padding
+        let suggestion_height = 1; // Each suggestion takes 1 line
+
+        if y < suggestions_start_y {
+            return None;
+        }
+
+        let suggestion_index = (y - suggestions_start_y) as usize / suggestion_height as usize;
+
+        if suggestion_index < self.suggestions.len() {
+            Some(suggestion_index)
+        } else {
+            None
+        }
+    }
+
     /// Render suggestions list
     fn render_suggestions(&self, _theme: &DialogTheme) -> Element {
         use crate::builder::div;
@@ -586,8 +620,22 @@ impl DialogComponent for AutocompleteDialog {
                             return DialogEventResult::Close(DialogResult::Cancelled);
                         }
 
-                        // TODO: Check if click is on a suggestion item
-                        DialogEventResult::NotHandled
+                        // Check if click is on a suggestion item
+                        if let Some(clicked_index) = self.get_suggestion_at_position(mouse_event.position.x() as u16, mouse_event.position.y() as u16) {
+                            // Select the clicked suggestion
+                            self.selected_suggestion = Some(clicked_index);
+
+                            // If it's a double-click or the item is already selected, accept it
+                            if mouse_event.kind == MouseEventKind::Down {
+                                if let Some(suggestion) = self.suggestions.get(clicked_index) {
+                                    return DialogEventResult::Close(DialogResult::Selected(suggestion.value.clone()));
+                                }
+                            }
+
+                            DialogEventResult::StateChanged
+                        } else {
+                            DialogEventResult::NotHandled
+                        }
                     }
                     _ => DialogEventResult::NotHandled,
                 }

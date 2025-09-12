@@ -86,7 +86,7 @@ impl FocusManager {
         }
         
         // Process children
-        for (_index, child) in element.children.iter().enumerate() {
+        for child in element.children.iter() {
             // Generate a unique child ID
             let child_id = NodeId::new();
             self.collect_focus_props(child, child_id);
@@ -109,10 +109,10 @@ impl FocusManager {
         self.collect_focusable_children(element, &container_id, &mut focusable_elements);
         
         let context = FocusContext {
-            container_id: container_id.clone(),
+            container_id: container_id,
             focusable_elements,
             restore_focus: restore,
-            restore_to: self.current_focus.clone(),
+            restore_to: self.current_focus,
         };
         
         self.focus_stack.push(context);
@@ -125,12 +125,12 @@ impl FocusManager {
         _parent_id: &NodeId,
         focusable: &mut Vec<NodeId>,
     ) {
-        for (_index, child) in element.children.iter().enumerate() {
+        for child in element.children.iter() {
             let child_id = NodeId::new();
             
             if let Some(focus) = &child.focus {
                 if focus.focusable && focus.tab_index >= 0 {
-                    focusable.push(child_id.clone());
+                    focusable.push(child_id);
                 }
             }
             
@@ -148,13 +148,12 @@ impl FocusManager {
         
         // If a trap was removed and had restore_focus, restore it
         if let Some(context) = self.focus_stack.last() {
-            if !self.focus_props_map.contains_key(&context.container_id) {
-                if context.restore_focus {
+            if !self.focus_props_map.contains_key(&context.container_id)
+                && context.restore_focus {
                     if let Some(restore_to) = &context.restore_to {
-                        self.set_focus(restore_to.clone());
+                        self.set_focus(*restore_to);
                     }
                 }
-            }
         }
     }
     
@@ -175,8 +174,8 @@ impl FocusManager {
     /// Set focus to an element
     pub fn set_focus(&mut self, element_id: NodeId) {
         if self.can_focus(&element_id) {
-            self.previous_focus = self.current_focus.clone();
-            self.current_focus = Some(element_id.clone());
+            self.previous_focus = self.current_focus;
+            self.current_focus = Some(element_id);
             
             // Call focus callbacks
             if let Some(props) = self.focus_props_map.get(&element_id) {
@@ -220,7 +219,7 @@ impl FocusManager {
             .unwrap_or(0);
         
         let next_index = (current_index + 1) % focusable.len();
-        self.set_focus(focusable[next_index].clone());
+        self.set_focus(focusable[next_index]);
     }
     
     /// Move focus to the previous focusable element
@@ -246,6 +245,6 @@ impl FocusManager {
             current_index - 1
         };
         
-        self.set_focus(focusable[prev_index].clone());
+        self.set_focus(focusable[prev_index]);
     }
 }

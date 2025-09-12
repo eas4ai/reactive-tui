@@ -73,13 +73,25 @@ pub fn layout_and_paint_with<'a>(
     let mut taffy = TaffyTree::new();
     let mut map: HashMap<NodeId, NodePaint> = HashMap::new();
     let root_id = build_nodes(&mut taffy, root, &mut map)?;
+    
+    // Get the surface height to properly constrain percentage-based heights like h-screen
+    let (_surface_width, surface_height) = surface.dims();
+    
+    #[cfg(test)]
+    if std::env::var("PAINT_TREE_DEBUG").is_ok() {
+        eprintln!("Surface dimensions: {}x{}", width, surface_height);
+    }
+    
     let available = Size {
         width: AvailableSpace::Definite(width as f32),
-        height: AvailableSpace::MaxContent,
+        // Use the actual surface height so h-screen (100% height) works properly
+        height: AvailableSpace::Definite(surface_height as f32),
     };
     taffy
         .compute_layout(root_id, available)
         .map_err(|e| ReactiveError::layout(format!("Failed to compute layout: {}", e)))?;
+    
+    
     paint_with_z_index(&taffy, root_id, surface, &map, opts.debug_overlay);
     Ok(())
 }
@@ -133,7 +145,7 @@ fn build_nodes<'a>(
     
     let id = if spec.children.is_empty() {
         taffy
-            .new_leaf(style)
+            .new_leaf(style.clone())
             .map_err(|e| ReactiveError::layout(format!("Failed to create leaf node: {}", e)))?
     } else {
         let id = taffy
@@ -295,6 +307,7 @@ fn collect_nodes_by_z_index_recursive(
         let style = taffy.style(node).unwrap();
         let is_absolute = matches!(style.position, taffy::style::Position::Absolute);
         
+        
         // For absolute positioning, use location directly; for relative, add parent offset
         let x = if is_absolute {
             layout.location.x.max(0.0) as usize
@@ -313,8 +326,9 @@ fn collect_nodes_by_z_index_recursive(
         #[cfg(test)]
         if std::env::var("PAINT_TREE_DEBUG").is_ok() {
             eprintln!(
-                "Node layout: pos=({},{}) size=({},{}) parent=({},{})",
-                x, y, w, h, parent_x, parent_y
+                "Node layout: pos=({},{}) size=({},{}) parent=({},{}) has_text={}",
+                x, y, w, h, parent_x, parent_y, 
+                map.get(&node).and_then(|np| np.text.as_ref()).is_some()
             );
         }
 

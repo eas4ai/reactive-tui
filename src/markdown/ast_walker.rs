@@ -60,8 +60,10 @@ impl AstWalker {
     }
 
     fn walk_node<'a>(&mut self, node: &'a AstNode<'a>) {
-        // Store source position - disabled for now due to API changes
-        // TODO: Re-enable source position tracking when needed
+        // Store source position for debugging and selection
+        let sourcepos = node.data.borrow().sourcepos;
+        let line_index = self.lines.len();
+        self.sourcepos_map.insert(line_index, (sourcepos.start.line, sourcepos.start.column));
 
         match &node.data.borrow().value {
             NodeValue::Document => {

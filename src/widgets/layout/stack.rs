@@ -836,13 +836,13 @@ impl Stack {
         // Create Taffy node with the configured style
         if let Ok(node) = taffy.new_leaf(child_style) {
             // Compute layout with max-content to get natural size
-            if let Ok(_) = taffy.compute_layout(
+            if taffy.compute_layout(
                 node,
                 TaffySize {
                     width: AvailableSpace::MaxContent,
                     height: AvailableSpace::MaxContent,
                 }
-            ) {
+            ).is_ok() {
                 let layout_result = taffy.layout(node).unwrap();
                 return (layout_result.size.width as usize, layout_result.size.height as usize);
             }

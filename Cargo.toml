@@ -19,6 +19,7 @@ exclude = [
 ]
 
 [dependencies]
+atty = "0.2"
 bitflags = "2.9.3"
 crossterm = "0.29.0"
 log = "0.4"

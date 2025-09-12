@@ -4,7 +4,7 @@ use crate::component::{Element, ElementType};
 use crate::error::{ReactiveError, Result};
 use std::collections::{HashMap, HashSet};
 use taffy::{
-    prelude::*, AvailableSpace, Display, FlexDirection, NodeId, Position, Size, Style,
+    AvailableSpace, Display, FlexDirection, NodeId, Position, Size, Style,
     TaffyTree,
 };
 
@@ -427,9 +427,12 @@ impl LayoutManager {
             // Generate paint ops based on element type
             match &meta.element.element_type {
                 ElementType::Text(content) => {
-                    // TODO: Extract visual style from the computed style
-                    // For now, use default style
-                    let text_style = TextStyle::default();
+                    // Extract visual style from CSS classes
+                    let text_style = if let Some(class) = &meta.element.class {
+                        crate::layout::css::visual_style::extract_visual_style(class)
+                    } else {
+                        TextStyle::default()
+                    };
                     
                     // Safe conversion with saturation to prevent truncation
                     self.paint_ops.push(PaintOp::Text {
@@ -442,12 +445,20 @@ impl LayoutManager {
                 ElementType::Layout(_) => {
                     // Layout nodes might have borders or backgrounds
                     if layout.size.width > 0.0 && layout.size.height > 0.0 {
-                        // Safe conversion with saturation to prevent truncation
-                        self.paint_ops.push(PaintOp::Clear {
+                        // Extract visual style from CSS classes for background and borders
+                        let box_style = if let Some(class) = &meta.element.class {
+                            crate::layout::css::visual_style::extract_box_style(class)
+                        } else {
+                            BoxStyle::default()
+                        };
+
+                        // Use Box paint op for backgrounds and borders
+                        self.paint_ops.push(PaintOp::Box {
                             x: x.min(u16::MAX as f32) as u16,
                             y: y.min(u16::MAX as f32) as u16,
                             width: layout.size.width.min(u16::MAX as f32) as u16,
                             height: layout.size.height.min(u16::MAX as f32) as u16,
+                            style: box_style,
                         });
                     }
                 }

@@ -340,6 +340,16 @@ pub struct FileExplorerState {
     pub initialized: bool,
     /// Last directory load time
     pub last_load_time: Option<SystemTime>,
+    /// Previous filter state for change detection
+    pub previous_show_hidden: bool,
+    /// Previous file filters for change detection
+    pub previous_file_filters: Vec<String>,
+    /// Previous search query for change detection
+    pub previous_search_query: Option<String>,
+    /// Previous sort criteria for change detection
+    pub previous_sort_criteria: SortCriteria,
+    /// Previous sort order for change detection
+    pub previous_sort_order: SortOrder,
 }
 
 /// Production-ready File Explorer widget
@@ -364,6 +374,7 @@ impl Component for FileExplorer {
         // Update filtered entries if search query changed
         if self.should_update_filter(props, state) {
             self.update_filtered_entries(props, state);
+            self.update_filter_state(props, state);
             return true;
         }
 
@@ -438,10 +449,22 @@ impl FileExplorer {
     }
 
     /// Check if filter should be updated
-    fn should_update_filter(&self, _props: &FileExplorerProps, _state: &FileExplorerState) -> bool {
-        // This would check if search query or filters changed
-        // For now, always return false as we don't track previous state
-        false
+    fn should_update_filter(&self, props: &FileExplorerProps, state: &FileExplorerState) -> bool {
+        // Check if any filter-related properties have changed
+        props.show_hidden != state.previous_show_hidden
+            || props.file_filters != state.previous_file_filters
+            || props.search_query != state.previous_search_query
+            || props.sort_criteria != state.previous_sort_criteria
+            || props.sort_order != state.previous_sort_order
+    }
+
+    /// Update the previous filter state to current values
+    fn update_filter_state(&self, props: &FileExplorerProps, state: &mut FileExplorerState) {
+        state.previous_show_hidden = props.show_hidden;
+        state.previous_file_filters = props.file_filters.clone();
+        state.previous_search_query = props.search_query.clone();
+        state.previous_sort_criteria = props.sort_criteria.clone();
+        state.previous_sort_order = props.sort_order.clone();
     }
 
     /// Load directory contents
@@ -863,8 +886,17 @@ impl FileExplorer {
 
                     // Handle selection based on modifiers
                     if props.selection_mode != SelectionMode::None {
-                        // TODO: Handle Ctrl+click, Shift+click for multiple selection
-                        self.select_item(item_index, state);
+                        // Handle Ctrl+click, Shift+click for multiple selection
+                        if event.modifiers.ctrl {
+                            // Ctrl+click: Toggle selection of clicked item
+                            self.toggle_item_selection(item_index, state);
+                        } else if event.modifiers.shift && props.selection_mode == SelectionMode::Multiple {
+                            // Shift+click: Select range from last selected to clicked item
+                            self.select_range(item_index, state);
+                        } else {
+                            // Normal click: Clear selection and select only clicked item
+                            self.select_item(item_index, state);
+                        }
                     }
 
                     EventResult::Consumed
@@ -960,6 +992,45 @@ impl FileExplorer {
         if let Some(&entry_index) = state.filtered_entries.get(display_index) {
             state.selected_indices.clear();
             state.selected_indices.insert(entry_index);
+        }
+    }
+
+    /// Toggle selection of an item (for Ctrl+click)
+    fn toggle_item_selection(&self, display_index: usize, state: &mut FileExplorerState) {
+        if let Some(&entry_index) = state.filtered_entries.get(display_index) {
+            if state.selected_indices.contains(&entry_index) {
+                state.selected_indices.remove(&entry_index);
+            } else {
+                state.selected_indices.insert(entry_index);
+            }
+        }
+    }
+
+    /// Select range of items (for Shift+click)
+    fn select_range(&self, display_index: usize, state: &mut FileExplorerState) {
+        // Find the last selected item to determine range start
+        let range_start = if let Some(focused_index) = state.focused_index {
+            focused_index
+        } else if let Some(&last_selected) = state.selected_indices.iter().next() {
+            // Find display index of the last selected entry
+            state.filtered_entries.iter()
+                .position(|&entry_idx| entry_idx == last_selected)
+                .unwrap_or(0)
+        } else {
+            0
+        };
+
+        // Clear current selection
+        state.selected_indices.clear();
+
+        // Select range from range_start to display_index (inclusive)
+        let start = range_start.min(display_index);
+        let end = range_start.max(display_index);
+
+        for i in start..=end {
+            if let Some(&entry_index) = state.filtered_entries.get(i) {
+                state.selected_indices.insert(entry_index);
+            }
         }
     }
 

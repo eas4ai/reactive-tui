@@ -167,10 +167,104 @@ pub fn create_styled_line(runs: Vec<StyledRun>) -> StyledLine {
     line
 }
 
-/*
-TODO: Implement remaining utility functions when needed:
-- extract_plain_text
-- extract_plain_text_lines
-- count_visible_chars
-- word_wrap_styled_runs
-*/
+/// Extract plain text from styled lines
+pub fn extract_plain_text(lines: &[StyledLine]) -> String {
+    lines
+        .iter()
+        .map(|line| {
+            line.runs
+                .iter()
+                .map(|run| run.text.as_str())
+                .collect::<String>()
+        })
+        .collect::<Vec<String>>()
+        .join("\n")
+}
+
+/// Extract plain text lines from styled lines
+pub fn extract_plain_text_lines(lines: &[StyledLine]) -> Vec<String> {
+    lines
+        .iter()
+        .map(|line| {
+            line.runs
+                .iter()
+                .map(|run| run.text.as_str())
+                .collect::<String>()
+        })
+        .collect()
+}
+
+/// Count visible characters in styled lines (excluding ANSI escape sequences)
+pub fn count_visible_chars(lines: &[StyledLine]) -> usize {
+    lines
+        .iter()
+        .map(|line| {
+            line.runs
+                .iter()
+                .map(|run| run.text.chars().count())
+                .sum::<usize>()
+        })
+        .sum()
+}
+
+/// Word wrap styled runs to fit within specified width
+pub fn word_wrap_styled_runs(runs: &[StyledRun], max_width: usize) -> Vec<StyledLine> {
+    let mut lines = Vec::new();
+    let mut current_line = Vec::new();
+    let mut current_width = 0;
+
+    for run in runs {
+        let words: Vec<&str> = run.text.split_whitespace().collect();
+
+        for (i, word) in words.iter().enumerate() {
+            let word_len = word.chars().count();
+            let space_len = if i > 0 { 1 } else { 0 }; // Space before word (except first)
+
+            // Check if word fits on current line
+            if current_width + space_len + word_len <= max_width {
+                // Add space if not first word on line
+                if current_width > 0 && space_len > 0 {
+                    current_line.push(StyledRun {
+                        text: " ".to_string(),
+                        fg: run.fg,
+                        bg: run.bg,
+                        attr: run.attr,
+                    });
+                    current_width += 1;
+                }
+
+                // Add word
+                current_line.push(StyledRun {
+                    text: word.to_string(),
+                    fg: run.fg,
+                    bg: run.bg,
+                    attr: run.attr,
+                });
+                current_width += word_len;
+            } else {
+                // Start new line
+                if !current_line.is_empty() {
+                    lines.push(StyledLine { runs: current_line });
+                    current_line = Vec::new();
+                    current_width = 0;
+                }
+
+                // Add word to new line
+                current_line.push(StyledRun {
+                    text: word.to_string(),
+                    fg: run.fg,
+                    bg: run.bg,
+                    attr: run.attr,
+                });
+                current_width = word_len;
+            }
+        }
+    }
+
+    // Add final line if not empty
+    if !current_line.is_empty() {
+        lines.push(StyledLine { runs: current_line });
+    }
+
+    lines
+}

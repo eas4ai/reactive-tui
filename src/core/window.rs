@@ -1277,6 +1277,7 @@ mod tests {
             position: Position::Cell { x: 15, y: 8 }, // Inside child window
             modifiers: KeyModifiers::empty(),
             timestamp: Instant::now(),
+            wheel: None,
         };
 
         let result = child.has_mouse(Some(&mouse_event));
@@ -1296,6 +1297,7 @@ mod tests {
             position: Position::Cell { x: 5, y: 3 }, // Outside child window
             modifiers: KeyModifiers::empty(),
             timestamp: Instant::now(),
+            wheel: None,
         };
 
         let result = child.has_mouse(Some(&mouse_event_outside));

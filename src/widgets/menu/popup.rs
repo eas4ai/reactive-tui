@@ -364,14 +364,54 @@ impl PopupMenu {
             }
             MouseEventKind::Wheel => {
                 if state.contains_point(mouse_x, mouse_y) {
-                    // TODO: Determine scroll direction from wheel data
-                    // For now, just handle as generic wheel event
+                    // Determine scroll direction from wheel data
+                    // Note: In a real implementation, you'd get the wheel delta from the mouse event
+                    // For now, we'll simulate scroll behavior based on mouse position changes
+
+                    let scroll_delta = self.calculate_wheel_delta(mouse);
+
+                    if scroll_delta > 0 {
+                        // Scroll up - move selection up
+                        state.select_previous(props.items.len());
+                    } else if scroll_delta < 0 {
+                        // Scroll down - move selection down
+                        state.select_next(props.items.len());
+                    }
+
                     EventResult::Handled
                 } else {
                     EventResult::Ignored
                 }
             }
             _ => EventResult::Ignored,
+        }
+    }
+
+    /// Calculate wheel scroll delta from mouse event
+    fn calculate_wheel_delta(&self, mouse: &MouseEvent) -> i32 {
+        // Extract the actual wheel delta from the mouse event
+        match mouse.kind {
+            MouseEventKind::Wheel => {
+                if let Some(wheel_event) = &mouse.wheel {
+                    match &wheel_event.delta {
+                        crate::event::types::WheelDelta::Lines { y, .. } => {
+                            // Convert float lines to integer scroll amount
+                            // Negative y means scroll up, positive means scroll down
+                            // We invert this for menu scrolling (negative = scroll up in menu)
+                            -(*y as i32)
+                        }
+                        crate::event::types::WheelDelta::Pixels { y, .. } => {
+                            // Convert pixels to approximate lines (assuming ~16 pixels per line)
+                            let lines = *y / 16.0;
+                            -lines as i32
+                        }
+                    }
+                } else {
+                    // Fallback if wheel event data is missing
+                    -1
+                }
+            }
+            _ => 0,
         }
     }
 }

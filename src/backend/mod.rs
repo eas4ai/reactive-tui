@@ -193,7 +193,12 @@ impl CrosstermBackend {
 
                     // For inserts, we need to find the node and render it
                     if let Some(node) = tree.find_node(node_key) {
-                        self.render_node_at_position(node, 0, 0)?;
+                        // Try to use proper layout system if Element is available
+                        if let Some(element) = node.as_element() {
+                            self.render_full(element)?;
+                        } else {
+                            self.render_node_at_position(node, 0, 0)?;
+                        }
                     }
                 }
 
@@ -210,8 +215,12 @@ impl CrosstermBackend {
                         a: 1.0,
                     });
                     if let Some(root) = tree.root() {
-                        let surface = self.renderer.surface_mut();
-                        let _end_y = paint_render_node_linear(surface, root, 0, 0);
+                        if let Some(element) = root.as_element() {
+                            self.render_full(element)?;
+                        } else {
+                            let surface = self.renderer.surface_mut();
+                            let _end_y = paint_render_node_linear(surface, root, 0, 0);
+                        }
                     }
                     return Ok(());
                 }
@@ -241,8 +250,12 @@ impl CrosstermBackend {
                         a: 1.0,
                     });
                     if let Some(root) = tree.root() {
-                        let surface = self.renderer.surface_mut();
-                        let _end_y = paint_render_node_linear(surface, root, 0, 0);
+                        if let Some(element) = root.as_element() {
+                            self.render_full(element)?;
+                        } else {
+                            let surface = self.renderer.surface_mut();
+                            let _end_y = paint_render_node_linear(surface, root, 0, 0);
+                        }
                     }
                     return Ok(());
                 }
@@ -263,8 +276,12 @@ impl CrosstermBackend {
                         a: 1.0,
                     });
                     if let Some(root) = tree.root() {
-                        let surface = self.renderer.surface_mut();
-                        let _end_y = paint_render_node_linear(surface, root, 0, 0);
+                        if let Some(element) = root.as_element() {
+                            self.render_full(element)?;
+                        } else {
+                            let surface = self.renderer.surface_mut();
+                            let _end_y = paint_render_node_linear(surface, root, 0, 0);
+                        }
                     }
                     return Ok(());
                 }
@@ -284,8 +301,12 @@ impl CrosstermBackend {
                         a: 1.0,
                     });
                     if let Some(root) = tree.root() {
-                        let surface = self.renderer.surface_mut();
-                        let _end_y = paint_render_node_linear(surface, root, 0, 0);
+                        if let Some(element) = root.as_element() {
+                            self.render_full(element)?;
+                        } else {
+                            let surface = self.renderer.surface_mut();
+                            let _end_y = paint_render_node_linear(surface, root, 0, 0);
+                        }
                     }
                     return Ok(());
                 }
@@ -296,8 +317,15 @@ impl CrosstermBackend {
 
     /// Render a specific node at a given position
     fn render_node_at_position(&mut self, node: &dyn RenderNode, x: usize, y: usize) -> Result<()> {
-        let surface = self.renderer.surface_mut();
-        let _end_y = paint_render_node_linear(surface, node, x, y);
+        // Try to use proper layout system if Element is available
+        if let Some(element) = node.as_element() {
+            // For single nodes, still use render_full to get proper layout
+            self.render_full(element)?;
+        } else {
+            // Fallback to linear painting
+            let surface = self.renderer.surface_mut();
+            let _end_y = paint_render_node_linear(surface, node, x, y);
+        }
         Ok(())
     }
 
@@ -421,15 +449,24 @@ impl Backend for CrosstermBackend {
 
         if should_full_repaint {
             // Fall back to full repaint for complex changes
-            self.renderer.clear(Rgba {
-                r: 0.0,
-                g: 0.0,
-                b: 0.0,
-                a: 1.0,
-            });
+            // Use the proper layout system instead of linear painting
             if let Some(root) = tree.root() {
-                let surface = self.renderer.surface_mut();
-                let _end_y = paint_render_node_linear(surface, root, 0, 0);
+                // Get the Element from the RenderNode (if it has one)
+                if let Some(element) = root.as_element() {
+                    // Use render_full which properly handles CSS layouts with paint_tree
+                    #[cfg(feature = "debug_patches")]
+                    eprintln!("CrosstermBackend: Using paint_tree for full repaint");
+                    self.render_full(element)?;
+                } else {
+                    // Fallback to linear painting if no element available
+                    #[cfg(feature = "debug_patches")]
+                    eprintln!("CrosstermBackend: WARNING - No element available, using linear painting");
+                    let surface = self.renderer.surface_mut();
+                    let _end_y = paint_render_node_linear(surface, root, 0, 0);
+                }
+            } else {
+                #[cfg(feature = "debug_patches")]
+                eprintln!("CrosstermBackend: WARNING - No root in tree!");
             }
         } else {
             // Apply patches selectively
@@ -492,12 +529,39 @@ impl Backend for CrosstermBackend {
     fn render_full(&mut self, element: &Element) -> Result<()> {
         // Convert Element tree to NodeSpec and paint using Taffy-based layout
         let nodespec = crate::component::bridge::element_to_nodespec(element);
+        
+        #[cfg(feature = "debug_patches")]
+        eprintln!("render_full: NodeSpec class = '{}'", nodespec.class);
+        
         // Clear the back buffer surface before painting to avoid stale cells
         self.renderer.clear(Rgba { r: 0.0, g: 0.0, b: 0.0, a: 1.0 });
         let (width, _height) = self.renderer.dims();
         let surface = self.renderer.surface_mut();
         let opts = crate::layout::paint_tree::PaintOptions::default();
-        crate::layout::paint_tree::layout_and_paint_with(&nodespec, surface, width, &opts)
+        let result = crate::layout::paint_tree::layout_and_paint_with(&nodespec, surface, width, &opts);
+        
+        #[cfg(feature = "debug_patches")]
+        {
+            if let Err(ref e) = result {
+                eprintln!("render_full: layout_and_paint_with failed: {}", e);
+            } else {
+                // Check if anything was actually painted
+                let mut has_content = false;
+                for y in 0..5.min(_height) {
+                    for x in 0..20.min(width) {
+                        let cell = surface.get(x, y);
+                        if cell.ch != ' ' {
+                            has_content = true;
+                            break;
+                        }
+                    }
+                    if has_content { break; }
+                }
+                eprintln!("render_full: Surface has content = {}", has_content);
+            }
+        }
+        
+        result
     }
 }
 
@@ -606,7 +670,17 @@ impl Backend for DebugBackend {
         });
 
         if let Some(root) = tree.root() {
-            let _end_y = paint_render_node_linear(&mut self.virtual_screen, root, 0, 0);
+            // Use proper layout system for debug backend too
+            if let Some(element) = root.as_element() {
+                // Convert Element to NodeSpec and paint with layout
+                let nodespec = crate::component::bridge::element_to_nodespec(element);
+                let opts = crate::layout::paint_tree::PaintOptions::default();
+                let (width, _) = (self.size.0 as usize, self.size.1 as usize);
+                crate::layout::paint_tree::layout_and_paint_with(&nodespec, &mut self.virtual_screen, width, &opts)?;
+            } else {
+                // Fallback to linear painting
+                let _end_y = paint_render_node_linear(&mut self.virtual_screen, root, 0, 0);
+            }
         }
 
         #[cfg(feature = "debug_patches")]
@@ -766,7 +840,16 @@ impl Backend for DebugBackend {
                 }
             }
 
-            let _end_y = paint_render_node_linear(&mut self.virtual_screen, root, 0, 0);
+            // This should not be using paint_render_node_linear anymore
+            // Use proper layout system instead
+            if let Some(element_ref) = root.as_element() {
+                let nodespec = crate::component::bridge::element_to_nodespec(element_ref);
+                let opts = crate::layout::paint_tree::PaintOptions::default();
+                let (width, _) = (self.size.0 as usize, self.size.1 as usize);
+                crate::layout::paint_tree::layout_and_paint_with(&nodespec, &mut self.virtual_screen, width, &opts)?;
+            } else {
+                let _end_y = paint_render_node_linear(&mut self.virtual_screen, root, 0, 0);
+            }
         }
 
         self.frame_count += 1;

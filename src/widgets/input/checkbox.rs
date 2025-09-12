@@ -354,6 +354,7 @@ mod tests {
             position: crate::event::types::Position::cell(2, 0),
             modifiers: KeyModifiers::empty(),
             timestamp: std::time::Instant::now(),
+            wheel: None,
         });
 
         let result = checkbox.handle_event(&event, &mut props, &mut state);

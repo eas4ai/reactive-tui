@@ -28,6 +28,7 @@ pub mod sizing;
 pub mod spacing;
 pub mod typography;
 pub mod variants;
+/// Visual style utilities for extracting colors and text decorations from CSS classes
 pub mod visual_style;
 
 use crate::layout::style::StyleBuilder;

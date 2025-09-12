@@ -532,33 +532,123 @@ impl MenuBarBuilder {
 
     /// Build the menubar element
     pub fn build(self) -> Element {
-        // For now, create a placeholder element since the actual MenuBar component needs proper integration
-        // In a real implementation, this would create the actual MenuBar component
-        use crate::component::{ElementType, LayoutType};
-        use crate::builder::core::ElementBuilder;
+        use crate::widgets::menu::{MenuBarProps};
+        use crate::component::{Element, ElementType};
+        use std::sync::Arc;
 
-        let mut builder = ElementBuilder::new(ElementType::Layout(LayoutType::Flex));
-        
-        if let Some(class) = self.class {
-            builder = builder.class(&class);
-        }
+        // Convert builder MenuItem to widget MenuItem
+        let widget_items: Vec<crate::widgets::menu::MenuItem> = self.items.clone().into_iter()
+            .map(|builder_item| self.convert_menu_item(builder_item))
+            .collect();
 
-        // Add a text element showing the menubar items
-        let text_content = if self.items.is_empty() {
-            "Empty MenuBar".to_string()
-        } else {
-            let item_texts: Vec<String> = self.items.iter()
-                .map(|item| item.text.clone())
-                .collect();
-            format!("MenuBar: {}", item_texts.join(" | "))
+        // Convert builder MenuStyle to widget MenuStyle
+        let widget_style = self.convert_menu_style(self.style.clone());
+
+        // Create MenuBar props from builder configuration
+        let props = MenuBarProps {
+            items: widget_items,
+            style: widget_style,
+            enabled: self.enabled,
+            visible: self.visible,
+            title: self.title,
+            show_shortcuts: self.show_shortcuts,
+            max_dropdown_height: self.max_dropdown_height,
         };
 
-        builder = builder.child(
-            ElementBuilder::new(ElementType::Text(text_content.clone()))
-                .build()
+        // Create the actual MenuBar component
+        Element {
+            element_type: ElementType::Component("MenuBar".to_string()),
+            props: Arc::new(props),
+            children: Vec::new(),
+            key: None,
+            class: self.class,
+            focus: None,
+        }
+    }
+
+    /// Convert builder MenuItem to widget MenuItem
+    fn convert_menu_item(&self, builder_item: MenuItem) -> crate::widgets::menu::MenuItem {
+        use crate::widgets::menu::{MenuItem as WidgetMenuItem};
+
+        let widget_item_type = match builder_item.item_type {
+            crate::builder::widgets::menu::MenuItemType::Action => crate::widgets::menu::MenuItemType::Action,
+            crate::builder::widgets::menu::MenuItemType::Submenu => crate::widgets::menu::MenuItemType::Submenu,
+            crate::builder::widgets::menu::MenuItemType::Separator => crate::widgets::menu::MenuItemType::Separator,
+            crate::builder::widgets::menu::MenuItemType::Checkbox { checked } => crate::widgets::menu::MenuItemType::Checkbox { checked },
+            crate::builder::widgets::menu::MenuItemType::Radio { selected, group } => crate::widgets::menu::MenuItemType::Radio { selected, group },
+        };
+
+        let widget_separator = match builder_item.separator {
+            crate::builder::widgets::menu::MenuSeparator::None => crate::widgets::menu::MenuSeparator::None,
+            crate::builder::widgets::menu::MenuSeparator::Line => crate::widgets::menu::MenuSeparator::Line,
+            crate::builder::widgets::menu::MenuSeparator::ThickLine => crate::widgets::menu::MenuSeparator::ThickLine,
+            crate::builder::widgets::menu::MenuSeparator::DoubleLine => crate::widgets::menu::MenuSeparator::DoubleLine,
+            crate::builder::widgets::menu::MenuSeparator::Dashed => crate::widgets::menu::MenuSeparator::Dashed,
+            crate::builder::widgets::menu::MenuSeparator::Dotted => crate::widgets::menu::MenuSeparator::Dotted,
+            crate::builder::widgets::menu::MenuSeparator::Space => crate::widgets::menu::MenuSeparator::Space,
+        };
+
+        let widget_action = builder_item.action.map(|action| {
+            let callback = action.callback.clone();
+            crate::widgets::menu::MenuAction::new(action.id, move || {
+                callback();
+            })
+        });
+
+        let widget_submenu: Vec<crate::widgets::menu::MenuItem> = builder_item.submenu.into_iter()
+            .map(|sub_item| self.convert_menu_item(sub_item))
+            .collect();
+
+        WidgetMenuItem {
+            id: builder_item.id,
+            text: builder_item.text,
+            item_type: widget_item_type,
+            enabled: builder_item.enabled,
+            visible: builder_item.visible,
+            shortcut: builder_item.shortcut.map(|s| crate::widgets::menu::MenuShortcut {
+                display: s.display,
+                keys: s.keys,
+            }),
+            action: widget_action,
+            submenu: widget_submenu,
+            separator: widget_separator,
+            icon: builder_item.icon,
+            description: builder_item.description,
+        }
+    }
+
+    /// Convert builder MenuStyle to widget MenuStyle
+    fn convert_menu_style(&self, builder_style: MenuStyle) -> crate::widgets::menu::MenuStyle {
+        // Convert builder style (color-based) to widget style (CSS class-based)
+        let base_classes = format!(
+            "menu-item {}",
+            builder_style.background.as_deref().unwrap_or("bg-white")
+        );
+        let selected_classes = format!(
+            "menu-item-selected {}",
+            builder_style.selected_background.as_deref().unwrap_or("bg-blue-500")
+        );
+        let disabled_classes = format!(
+            "menu-item-disabled {}",
+            builder_style.disabled_text_color.as_deref().unwrap_or("text-gray-400")
         );
 
-        builder.build()
+        crate::widgets::menu::MenuStyle {
+            base_classes,
+            selected_classes,
+            focused_classes: "menu-item-focused bg-blue-100".to_string(),
+            disabled_classes,
+            separator_classes: "menu-separator border-t border-gray-200".to_string(),
+            shortcut_classes: "menu-shortcut text-gray-500 text-sm".to_string(),
+            icon_classes: "menu-icon mr-2".to_string(),
+            border_classes: builder_style.border.as_deref().unwrap_or("border border-gray-300").to_string(),
+            show_shadow: true,
+            show_icons: true,
+            show_shortcuts: true,
+            min_width: 120,
+            max_width: Some(300),
+            padding: 8,
+        }
     }
 }
 

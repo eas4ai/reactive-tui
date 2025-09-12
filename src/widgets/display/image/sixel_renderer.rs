@@ -72,10 +72,33 @@ impl SixelRenderer {
                 height,
                 format,
             } => self.load_from_raw_bytes(data, *width, *height, *format),
-            ImageSource::Url(_) => Err(ReactiveError::ImageProcessing(
-                "URL loading not yet implemented".to_string(),
-            )),
+            ImageSource::Url(url) => {
+                // Load image from URL
+                self.load_from_url(url)
+            },
         }
+    }
+
+    /// Load image from URL
+    fn load_from_url(&self, url: &str) -> Result<(Vec<u8>, u32, u32)> {
+        // Check if it's a data URL (base64 encoded)
+        if url.starts_with("data:image/") {
+            if let Some(base64_start) = url.find("base64,") {
+                let base64_data = &url[base64_start + 7..];
+                return self.load_from_base64(base64_data);
+            }
+        }
+
+        // For HTTP/HTTPS URLs, we'd need an HTTP client
+        if url.starts_with("http://") || url.starts_with("https://") {
+            return Err(ReactiveError::ImageProcessing(
+                "HTTP URL loading requires adding reqwest dependency. Use data URLs or local files for now.".to_string()
+            ));
+        }
+
+        // Try to treat as local file path
+        let path = Path::new(url);
+        self.load_from_file(path)
     }
 
     /// Load image from file path
