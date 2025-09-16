@@ -152,24 +152,41 @@ impl VisualEffects {
 impl RootComponent for VisualEffects {
     fn render(&self) -> Element {
         let mut elements = Vec::new();
-        
+
+        // Get terminal dimensions for responsive layout
+        let (term_cols, term_rows) = crossterm::terminal::size().unwrap_or((80, 24));
+        let width = term_cols as usize;
+        let height = term_rows as usize;
+
+        // Calculate responsive dimensions and positions
+        let pattern_size = (width.min(height) / 6).max(8);
+        let margin = 2;
+
+        // Top row patterns
+        let row1_y = 3;
+        let col1_x = margin;
+        let col2_x = col1_x + pattern_size + margin;
+        let col3_x = col2_x + pattern_size + margin;
+        let col4_x = col3_x + pattern_size + margin;
+
+        // Bottom row patterns
+        let row2_y = row1_y + pattern_size + 2;
+
         // Checkerboard pattern
-        elements.extend(self.create_checkerboard(5, 3, 12));
-        
+        elements.extend(self.create_checkerboard(col1_x, row1_y, pattern_size));
+
         // Spiral pattern
-        elements.extend(self.create_spiral(25, 3, 15));
-        
+        elements.extend(self.create_spiral(col2_x, row1_y, pattern_size));
+
         // Mandala pattern
-        elements.extend(self.create_mandala(45, 3, 15));
-        
+        elements.extend(self.create_mandala(col3_x, row1_y, pattern_size));
+
         // Plasma effect
-        elements.extend(self.create_plasma(65, 3, 20, 12));
-        
-        // Geometric pattern
-        elements.extend(self.create_geometric(5, 20, 16));
-        
-        // Another geometric pattern
-        elements.extend(self.create_geometric(25, 20, 16));
+        elements.extend(self.create_plasma(col4_x, row1_y, pattern_size, pattern_size));
+
+        // Geometric patterns (bottom row)
+        elements.extend(self.create_geometric(col1_x, row2_y, pattern_size));
+        elements.extend(self.create_geometric(col2_x, row2_y, pattern_size));
 
         div()
             .class("w-screen h-screen bg-black")
