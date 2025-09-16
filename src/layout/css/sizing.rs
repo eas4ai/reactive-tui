@@ -5,6 +5,11 @@ use crate::layout::style::StyleBuilder;
 
 /// Apply width utilities
 pub fn apply_width(token: &str, sb: StyleBuilder) -> Option<StyleBuilder> {
+    // Handle screen width
+    if token == "w-screen" {
+        return Some(sb.width_percent(100.0));
+    }
+
     // For width, use terminal spacing (direct character cells)
     if let Some(px) = parse_spacing_terminal(token, "w-") {
         return Some(sb.width_px(px));
@@ -38,6 +43,11 @@ pub fn apply_width(token: &str, sb: StyleBuilder) -> Option<StyleBuilder> {
 
 /// Apply height utilities
 pub fn apply_height(token: &str, sb: StyleBuilder) -> Option<StyleBuilder> {
+    // Handle screen height
+    if token == "h-screen" {
+        return Some(sb.height_percent(100.0));
+    }
+
     // For height, use terminal spacing (direct character cells)
     if let Some(px) = parse_spacing_terminal(token, "h-") {
         return Some(sb.height_px(px));

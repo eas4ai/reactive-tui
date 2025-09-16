@@ -45,6 +45,13 @@ pub fn apply_bg_color_with_theme(
     theme: Option<&crate::theme::Theme>,
 ) -> Option<StyleBuilder> {
     if let Some(color_part) = token.strip_prefix("bg-") {
+        // Check for dynamic RGB colors like bg-[rgb(255,0,0)]
+        if let Some(rgb_part) = color_part.strip_prefix('[').and_then(|s| s.strip_suffix(']')) {
+            if let Some((r, g, b, a)) = parse_dynamic_color(rgb_part) {
+                return Some(sb.bg_rgba(r, g, b, a));
+            }
+        }
+
         // Try theme variables first
         if let Some(theme) = theme {
             if let Some((r, g, b, a)) = resolve_theme_color(color_part, theme) {
@@ -229,6 +236,39 @@ fn resolve_theme_color(token: &str, theme: &crate::theme::Theme) -> Option<(f32,
     theme
         .get_variable(var_name)
         .and_then(|hex| parse_hex_to_rgba(&hex))
+}
+
+/// Parse dynamic color values like rgb(255,0,0), rgba(255,0,0,0.5), #ff0000
+fn parse_dynamic_color(color_str: &str) -> Option<(f32, f32, f32, f32)> {
+    // Parse rgb(r,g,b) format
+    if let Some(inner) = color_str.strip_prefix("rgb(").and_then(|s| s.strip_suffix(')')) {
+        let parts: Vec<&str> = inner.split(',').map(|s| s.trim()).collect();
+        if parts.len() == 3 {
+            let r = parts[0].parse::<u8>().ok()?;
+            let g = parts[1].parse::<u8>().ok()?;
+            let b = parts[2].parse::<u8>().ok()?;
+            return Some((r as f32 / 255.0, g as f32 / 255.0, b as f32 / 255.0, 1.0));
+        }
+    }
+
+    // Parse rgba(r,g,b,a) format
+    if let Some(inner) = color_str.strip_prefix("rgba(").and_then(|s| s.strip_suffix(')')) {
+        let parts: Vec<&str> = inner.split(',').map(|s| s.trim()).collect();
+        if parts.len() == 4 {
+            let r = parts[0].parse::<u8>().ok()?;
+            let g = parts[1].parse::<u8>().ok()?;
+            let b = parts[2].parse::<u8>().ok()?;
+            let a = parts[3].parse::<f32>().ok()?;
+            return Some((r as f32 / 255.0, g as f32 / 255.0, b as f32 / 255.0, a));
+        }
+    }
+
+    // Parse hex colors like #ff0000
+    if color_str.starts_with('#') {
+        return parse_hex_to_rgba(color_str);
+    }
+
+    None
 }
 
 /// Parse hex color string to RGBA floats

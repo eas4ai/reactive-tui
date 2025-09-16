@@ -213,6 +213,20 @@ fn paint_node_with_overflow(
     let content_w = w.saturating_sub(node_paint.pad.left + node_paint.pad.right);
     let content_h = h.saturating_sub(node_paint.pad.top + node_paint.pad._bottom);
 
+    // Fill background color if present (for layout elements with backgrounds)
+    let default_bg = crate::core::surface::Rgba { r: 0.0, g: 0.0, b: 0.0, a: 1.0 };
+    if node_paint.style.bg != default_bg {
+        // Fill the entire content area with background color
+        let rect = crate::core::geometry::Rect::from_coords(content_x, content_y, content_w, content_h);
+        surface.fill_rect(
+            rect,
+            ' ',
+            node_paint.style.fg,
+            node_paint.style.bg,
+            node_paint.style.attr,
+        );
+    }
+
     if let Some(text) = &node_paint.text {
         if needs_clipping(node_paint) {
             // Use clipped subview for overflow:hidden
