@@ -11,4 +11,4 @@ Bring the renderer from SuprTUI revision 7793deb80c5bceecc5d8ed9fc6bc6d253053177
 
 ## Realized by
 
-(none yet: recorded, not built)
+- f8919cb2de3156e0e32b33fee6954895b59c3889 feat: own the terminal renderer inside Reactive-TUI
