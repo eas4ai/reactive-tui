@@ -142,6 +142,7 @@ fn opaque_cell(cell: Cell) -> Cell {
         ),
         cell.attributes,
     )
+    .with_decoration(cell.decoration)
 }
 
 impl<'a> OptimizedBuffer<'a> {
@@ -295,6 +296,11 @@ impl<'a> OptimizedBuffer<'a> {
             blended_bg,
             TextAttributes::set_link_id(u32::from(base_attrs), overlay_link),
         )
+        .with_decoration(if preserve_char {
+            dest.decoration
+        } else {
+            overlay.decoration
+        })
     }
 
     /// Reference `setCellWithAlphaBlending` (char form).
@@ -324,7 +330,8 @@ impl<'a> OptimizedBuffer<'a> {
             apply_opacity(cell.fg, opacity_u8),
             apply_opacity(cell.bg, opacity_u8),
             cell.attributes,
-        );
+        )
+        .with_decoration(cell.decoration);
         match dest_cell {
             Some(dest) => {
                 let blended = self.blend_cells(effective, dest);
@@ -441,7 +448,8 @@ impl<'a> OptimizedBuffer<'a> {
             apply_opacity(cell.fg, opacity_u8),
             apply_opacity(cell.bg, opacity_u8),
             cell.attributes,
-        );
+        )
+        .with_decoration(cell.decoration);
         match self.get(x, y) {
             Some(dest) => {
                 let blended = self.blend_cells(effective, dest);
@@ -1026,6 +1034,8 @@ impl<'a> OptimizedBuffer<'a> {
                     .copy_from_slice(&frame_buffer.bgs[src_row..src_row + copy_w]);
                 self.attributes[dest_row..dest_row + copy_w]
                     .copy_from_slice(&frame_buffer.attributes[src_row..src_row + copy_w]);
+                self.decorations[dest_row..dest_row + copy_w]
+                    .copy_from_slice(&frame_buffer.decorations[src_row..src_row + copy_w]);
             }
             return;
         }
@@ -1132,6 +1142,7 @@ impl<'a> OptimizedBuffer<'a> {
                 let src_fg = frame_buffer.fgs[src_index];
                 let src_bg = frame_buffer.bgs[src_index];
                 let src_attr = frame_buffer.attributes[src_index];
+                let src_decoration = frame_buffer.decorations[src_index];
                 let transparent_cell = ansi::alpha(src_bg) == 0 && ansi::alpha(src_fg) == 0;
                 if transparent_cell
                     && is_image_char(src_char)
@@ -1140,7 +1151,8 @@ impl<'a> OptimizedBuffer<'a> {
                     self.set(
                         dx as u32,
                         dy as u32,
-                        make_cell(src_char, current.fg, current.bg, current.attributes),
+                        make_cell(src_char, current.fg, current.bg, current.attributes)
+                            .with_decoration(current.decoration),
                     );
                 }
                 if transparent_cell {
@@ -1154,7 +1166,8 @@ impl<'a> OptimizedBuffer<'a> {
                             self.set_cell_with_alpha_blending_cell(
                                 dx as u32,
                                 dy as u32,
-                                make_cell(DEFAULT_SPACE_CHAR, src_fg, src_bg, src_attr),
+                                make_cell(DEFAULT_SPACE_CHAR, src_fg, src_bg, src_attr)
+                                    .with_decoration(src_decoration),
                             );
                         }
                         dx += 1;
@@ -1166,7 +1179,8 @@ impl<'a> OptimizedBuffer<'a> {
                     self.set_cell_with_alpha_blending_cell(
                         dx as u32,
                         dy as u32,
-                        make_cell(src_char, src_fg, src_bg, src_attr),
+                        make_cell(src_char, src_fg, src_bg, src_attr)
+                            .with_decoration(src_decoration),
                     );
                     dx += 1;
                     continue;
@@ -1174,7 +1188,7 @@ impl<'a> OptimizedBuffer<'a> {
                 self.set_cell_with_alpha_blending_raw_cell(
                     dx as u32,
                     dy as u32,
-                    make_cell(src_char, src_fg, src_bg, src_attr),
+                    make_cell(src_char, src_fg, src_bg, src_attr).with_decoration(src_decoration),
                 );
                 dx += 1;
             }
@@ -1194,31 +1208,7 @@ impl<'a> OptimizedBuffer<'a> {
         let mut out = String::new();
         out.push_str(&color_seq(cell.fg, false, rgb, ansi256));
         out.push_str(&color_seq(cell.bg, true, rgb, ansi256));
-        let base = TextAttributes::base_attributes(cell.attributes);
-        if base & TextAttributes::BOLD != 0 {
-            out.push_str("\x1b[1m");
-        }
-        if base & TextAttributes::DIM != 0 {
-            out.push_str("\x1b[2m");
-        }
-        if base & TextAttributes::ITALIC != 0 {
-            out.push_str("\x1b[3m");
-        }
-        if base & TextAttributes::UNDERLINE != 0 {
-            out.push_str("\x1b[4m");
-        }
-        if base & TextAttributes::BLINK != 0 {
-            out.push_str("\x1b[5m");
-        }
-        if base & TextAttributes::INVERSE != 0 {
-            out.push_str("\x1b[7m");
-        }
-        if base & TextAttributes::HIDDEN != 0 {
-            out.push_str("\x1b[8m");
-        }
-        if base & TextAttributes::STRIKETHROUGH != 0 {
-            out.push_str("\x1b[9m");
-        }
+        out.push_str(&style_seq(cell.attributes, cell.decoration));
         if cell.char == 0 {
             out.push(' ');
         } else if is_image_char(cell.char) {
@@ -1241,6 +1231,39 @@ impl<'a> OptimizedBuffer<'a> {
         }
         Some(out)
     }
+}
+
+/// Encode a complete cell style after the renderer's SGR reset.
+fn style_seq(attributes: u32, decoration: ansi::CellDecoration) -> String {
+    let base = TextAttributes::base_attributes(attributes);
+    let mut output = String::new();
+    for (flag, code) in [
+        (TextAttributes::BOLD, 1),
+        (TextAttributes::DIM, 2),
+        (TextAttributes::ITALIC, 3),
+        (TextAttributes::UNDERLINE, 4),
+        (TextAttributes::BLINK, 5),
+        (TextAttributes::INVERSE, 7),
+        (TextAttributes::HIDDEN, 8),
+        (TextAttributes::STRIKETHROUGH, 9),
+    ] {
+        if base & flag != 0
+            && !(flag == TextAttributes::UNDERLINE
+                && decoration.underline != ansi::UnderlineStyle::None)
+        {
+            output.push_str(&format!("\x1b[{code}m"));
+        }
+    }
+    if decoration.underline != ansi::UnderlineStyle::None {
+        output.push_str(&format!("\x1b[4:{}m", decoration.underline as u8));
+    }
+    if decoration.overline {
+        output.push_str("\x1b[53m");
+    }
+    if let Some([r, g, b]) = decoration.underline_color {
+        output.push_str(&format!("\x1b[58:2::{r}:{g}:{b}m"));
+    }
+    output
 }
 
 /// One fg/bg sequence by intent. Reference `emitColor` with truecolor

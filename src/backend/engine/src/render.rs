@@ -748,7 +748,7 @@ impl<'a, B: Backend> Renderer<'a, B> {
     }
 
     fn cells_equal(a: &crate::buffer::Cell, b: &crate::buffer::Cell) -> bool {
-        a.char == b.char && a.attributes == b.attributes && a.fg == b.fg && a.bg == b.bg
+        a == b
     }
 
     fn row_equal(&self, y: u32) -> bool {
@@ -802,6 +802,8 @@ impl<'a, B: Backend> Renderer<'a, B> {
                 self.start_frame(started);
                 let move_to = format!("\x1b[{};{}H", y + 1 + self.render_offset, x + 1);
                 self.emit_str(&move_to);
+                // Every changed cell carries a complete style, including cleared flags.
+                self.emit_str(RESET);
                 // Truecolor assumed; capability-gated emission arrives
                 // with later term work.
                 if is_image_char(next_cell.char) && self.kitty_supported {
@@ -880,6 +882,8 @@ impl<'a, B: Backend> Renderer<'a, B> {
                     cursor.x + 1
                 );
                 self.emit_str(&move_to);
+                // Every changed cell carries a complete style, including cleared flags.
+                self.emit_str(RESET);
                 self.emit_str(SHOW_CURSOR);
             }
             self.last_x = Some(cursor.x);
@@ -1165,8 +1169,7 @@ fn memory_backend_exact() {
     assert_eq!(1, mem_renderer.backend().frames().len());
     assert_eq!(tee_a, mem_renderer.backend().frames()[0]);
     // A 2x1 frame with one drawn cell is byte-exact by hand.
-    let hand =
-        "\x1b[?2026h\x1b[?25l\x1b[1;1H\x1b[38;2;255;255;255m\x1b[48;2;0;0;0mZ\x1b[0m\x1b[?2026l";
+    let hand = "\x1b[?2026h\x1b[?25l\x1b[1;1H\x1b[0m\x1b[38;2;255;255;255m\x1b[48;2;0;0;0mZ\x1b[0m\x1b[?2026l";
     assert_eq!(
         hand.as_bytes(),
         mem_renderer.backend().frames()[0].as_slice()

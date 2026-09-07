@@ -50,6 +50,7 @@ suprtui = { path = "src/backend/engine" }
 # Platform-specific dependencies
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"
+libghostty-vt = { git = "https://github.com/Uzaaft/libghostty-rs", rev = "5988a0b78b4aa804d1c12e66bbfe662bd97d81c0", optional = true }
 
 [target.'cfg(windows)'.dependencies]
 winapi = { version = "0.3", features = ["consoleapi", "commapi", "fileapi", "handleapi", "processenv", "winbase"] }
@@ -75,6 +76,7 @@ simd = []
 async-capabilities = ["tokio"]
 # Enable FFI bindings (C ABI)
 ffi = []
+embedded-terminal = ["dep:libghostty-vt"]
 
 [dev-dependencies]
 criterion = "0.5"

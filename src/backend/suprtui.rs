@@ -1,6 +1,6 @@
 //! Complete application frames rendered by SuprTUI on one owned worker.
 
-use super::{Backend, CrosstermBackend};
+use super::{Backend, CellFrame, CrosstermBackend};
 use crate::component::{bridge::element_to_nodespec, Element};
 use crate::error::{ReactiveError, Result};
 use crate::event::types::Event;
@@ -12,6 +12,7 @@ use std::cell::RefCell;
 use std::io::{self, Write};
 use std::rc::Rc;
 use std::sync::mpsc::{self, SyncSender};
+use std::sync::Arc;
 use std::thread::{self, JoinHandle};
 use std::time::Duration;
 
@@ -21,8 +22,13 @@ use output::{CheckedOutput, TerminalOutput};
 type Reply = mpsc::Sender<Result<()>>;
 
 enum Command {
-    Present(NodeSpec<'static>, (usize, usize), Reply),
+    Present(FrameContent, (usize, usize), Reply),
     Shutdown(Reply),
+}
+
+enum FrameContent {
+    Element(NodeSpec<'static>),
+    Cells(Arc<CellFrame>),
 }
 
 /// ANSI truecolor backend for applications inside a host terminal.
@@ -35,6 +41,7 @@ pub struct SuprTuiBackend {
     worker: Option<JoinHandle<()>>,
     dimensions: (usize, usize),
     frame: Element,
+    cells: Option<Arc<CellFrame>>,
     raw_mode: Option<RawMode>,
 }
 
@@ -77,6 +84,7 @@ impl SuprTuiBackend {
             worker: Some(worker),
             dimensions,
             frame: Element::empty(),
+            cells: None,
             raw_mode: None,
         };
         match initialized.recv().map_err(|_| worker_stopped())? {
@@ -118,8 +126,22 @@ impl Backend for SuprTuiBackend {
         if self.commands.is_none() {
             return Err(worker_stopped());
         }
+        self.cells = None;
         self.frame = element.clone();
         Ok(true)
+    }
+
+    fn render_cells(&mut self, frame: Arc<CellFrame>) -> Result<()> {
+        if self.commands.is_none() {
+            return Err(worker_stopped());
+        }
+        if frame.size() != self.size() {
+            return Err(ReactiveError::invalid_parameter(
+                "cell frame and backend dimensions differ",
+            ));
+        }
+        self.cells = Some(frame);
+        Ok(())
     }
 
     fn render_full(&mut self, element: &Element) -> Result<()> {
@@ -146,7 +168,10 @@ impl Backend for SuprTuiBackend {
         let (reply, result) = mpsc::channel();
         commands
             .send(Command::Present(
-                element_to_nodespec(&self.frame),
+                self.cells.as_ref().map_or_else(
+                    || FrameContent::Element(element_to_nodespec(&self.frame)),
+                    |cells| FrameContent::Cells(Arc::clone(cells)),
+                ),
                 self.dimensions,
                 reply,
             ))
@@ -251,7 +276,21 @@ fn run_worker<W: Write>(
                         dimensions = size;
                         force = true;
                     }
-                    paint_frame(&spec, renderer.next_buffer())?;
+                    match spec {
+                        FrameContent::Element(spec) => {
+                            paint_frame(&spec, renderer.next_buffer())?;
+                            renderer.set_cursor(0, 0, false);
+                        }
+                        FrameContent::Cells(frame) => {
+                            frame.paint(renderer.next_buffer())?;
+                            let (x, y) = frame.cursor().unwrap_or((0, 0));
+                            renderer.set_cursor(
+                                u32::from(x),
+                                u32::from(y),
+                                frame.cursor().is_some(),
+                            );
+                        }
+                    }
                     let status = renderer.render(force);
                     if let Some(error) = renderer.backend_mut().take_error() {
                         return Err(error.into());

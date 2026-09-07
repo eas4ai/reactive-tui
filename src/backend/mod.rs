@@ -12,6 +12,8 @@ use crate::render::tree::{RenderNode, RenderTree};
 
 pub mod direct_tty;
 mod suprtui;
+pub mod cell_frame;
+pub use cell_frame::{CellFrame, FrameCell};
 pub use self::suprtui::SuprTuiBackend;
 
 /// Minimal, patch-driven backend abstraction
@@ -19,6 +21,10 @@ pub trait Backend: Send + Sync {
     /// Stage a complete application frame. Return false to use legacy patches.
     fn render_frame(&mut self, _element: &Element) -> Result<bool> {
         Ok(false)
+    }
+    /// Stage a complete owned cell screen. Unsupported backends fail explicitly.
+    fn render_cells(&mut self, _frame: std::sync::Arc<CellFrame>) -> Result<()> {
+        Err(crate::error::ReactiveError::invalid_state("this backend does not support cell frames"))
     }
     /// Restore resources on a normal application exit (default: no-op).
     fn shutdown(&mut self) -> Result<()> {

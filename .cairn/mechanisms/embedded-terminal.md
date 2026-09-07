@@ -5,6 +5,7 @@ inputs:
   - Cargo.toml
   - Cargo.lock
   - README.md
+  - docs/embedded-terminal.md
   - reactive-tui-macros
   - src
   - tests/embedded_terminal.rs

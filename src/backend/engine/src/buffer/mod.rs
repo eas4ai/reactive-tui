@@ -10,7 +10,7 @@
 //! pixels stay with the media commitment. `clear` drops placement
 //! geometry, so no placement survives it.
 
-use crate::ansi::{self, Rgba, TextAttributes};
+use crate::ansi::{self, CellDecoration, Rgba, TextAttributes};
 use crate::link::{LinkPool, LinkTracker};
 use crate::uni::WidthMethod;
 use crate::uni::pool::{GraphemePool, GraphemeTracker};
@@ -33,6 +33,14 @@ pub struct Cell {
     pub fg: Rgba,
     pub bg: Rgba,
     pub attributes: u32,
+    pub decoration: CellDecoration,
+}
+
+impl Cell {
+    pub fn with_decoration(mut self, decoration: CellDecoration) -> Self {
+        self.decoration = decoration;
+        self
+    }
 }
 
 pub fn make_cell(char: u32, fg: Rgba, bg: Rgba, attributes: u32) -> Cell {
@@ -41,6 +49,7 @@ pub fn make_cell(char: u32, fg: Rgba, bg: Rgba, attributes: u32) -> Cell {
         fg,
         bg,
         attributes,
+        decoration: CellDecoration::default(),
     }
 }
 
@@ -123,6 +132,7 @@ pub struct OptimizedBuffer<'a> {
     fgs: Vec<Rgba>,
     bgs: Vec<Rgba>,
     attributes: Vec<u32>,
+    decorations: Vec<CellDecoration>,
     width: u32,
     height: u32,
     respect_alpha: bool,
@@ -152,6 +162,7 @@ impl<'a> OptimizedBuffer<'a> {
             fgs: vec![ansi::rgb_color(0, 0, 0, 0); size],
             bgs: vec![ansi::rgb_color(0, 0, 0, 0); size],
             attributes: vec![0; size],
+            decorations: vec![CellDecoration::default(); size],
             width,
             height,
             respect_alpha: options.respect_alpha,
@@ -233,6 +244,7 @@ impl<'a> OptimizedBuffer<'a> {
         self.fgs.resize(size, ansi::rgb_color(0, 0, 0, 0));
         self.bgs.resize(size, ansi::rgb_color(0, 0, 0, 0));
         self.attributes.resize(size, 0);
+        self.decorations.resize(size, CellDecoration::default());
         self.width = width;
         self.height = height;
         // Always clear after resize: new cells would be garbage and
@@ -248,6 +260,7 @@ impl<'a> OptimizedBuffer<'a> {
         self.placements.clear();
         self.chars.fill(cell_char);
         self.attributes.fill(0);
+        self.decorations.fill(CellDecoration::default());
         self.fgs.fill(ansi::rgb_color(255, 255, 255, 255));
         self.bgs.fill(bg);
     }
@@ -351,6 +364,7 @@ impl<'a> OptimizedBuffer<'a> {
                     }
                     self.chars[span_i] = DEFAULT_SPACE_CHAR;
                     self.attributes[span_i] = 0;
+                    self.decorations[span_i] = CellDecoration::default();
                 }
                 span_i += 1;
             }
@@ -372,6 +386,7 @@ impl<'a> OptimizedBuffer<'a> {
                 }
                 self.chars[index..end_of_line].fill(DEFAULT_SPACE_CHAR);
                 self.attributes[index..end_of_line].fill(cell.attributes);
+                self.decorations[index..end_of_line].fill(cell.decoration);
                 self.fgs[index..end_of_line].fill(cell.fg);
                 self.bgs[index..end_of_line].fill(cell.bg);
                 let new_link_id = TextAttributes::link_id(cell.attributes);
@@ -387,6 +402,7 @@ impl<'a> OptimizedBuffer<'a> {
             self.fgs[index] = cell.fg;
             self.bgs[index] = cell.bg;
             self.attributes[index] = cell.attributes;
+            self.decorations[index] = cell.decoration;
 
             let id = grapheme_id_from_char(cell.char);
             let is_same_grapheme_start = is_grapheme_char(prev_char) && prev_char == cell.char;
@@ -417,6 +433,7 @@ impl<'a> OptimizedBuffer<'a> {
                     self.fgs[index + 1..index + 1 + max_right].fill(cell.fg);
                     self.bgs[index + 1..index + 1 + max_right].fill(cell.bg);
                     self.attributes[index + 1..index + 1 + max_right].fill(cell.attributes);
+                    self.decorations[index + 1..index + 1 + max_right].fill(cell.decoration);
                     let mut k = 1;
                     while k <= max_right {
                         let cont = pack_continuation(k as u32, (max_right - k) as u32, id);
@@ -441,6 +458,7 @@ impl<'a> OptimizedBuffer<'a> {
         self.fgs[index] = cell.fg;
         self.bgs[index] = cell.bg;
         self.attributes[index] = cell.attributes;
+        self.decorations[index] = cell.decoration;
         if prev_link_id != 0 && prev_link_id != new_link_id {
             self.link_tracker.remove_cell_ref(prev_link_id);
         }
@@ -461,6 +479,7 @@ impl<'a> OptimizedBuffer<'a> {
             fg: self.fgs[index],
             bg: self.bgs[index],
             attributes: self.attributes[index],
+            decoration: self.decorations[index],
         })
     }
 

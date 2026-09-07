@@ -117,3 +117,7 @@ pub mod prelude {
     pub use crate::layout::css::css_in_rust::{apply_css_property, IntoCssValue};
     pub use taffy::style::{Display, FlexDirection, AlignItems, JustifyContent, Position};
 }
+
+/// Owned Unix PTY sessions interpreted by libghostty.
+#[cfg(all(feature = "embedded-terminal", unix))]
+pub mod embedded;

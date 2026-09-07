@@ -7,9 +7,9 @@ use crate::event::router::{EventResult, EventRouter};
 use crate::animation::AnimationManager;
 use crate::error::Result;
 use crate::reactive::scheduler::Scheduler;
-use std::time::{Duration, Instant};
-use crate::render::{Reconciler, RenderTree};
 use crate::render::reconcile::PatchOp;
+use crate::render::{Reconciler, RenderTree};
+use std::time::{Duration, Instant};
 
 mod focus_manager;
 use focus_manager::FocusManager;
@@ -21,10 +21,37 @@ const RENDER_TIME_ESTIMATE_MS: u64 = 1;
 pub trait RootComponent: Send + Sync {
     /// Render the component to an Element tree
     fn render(&self) -> Element;
+    /// Optional complete cell screen, used by direct cell producers.
+    fn cell_frame(&self) -> Result<Option<std::sync::Arc<crate::backend::CellFrame>>> {
+        Ok(None)
+    }
+    /// Poll background state once per event-loop iteration.
+    fn update(&mut self) -> Result<RootUpdate> {
+        Ok(RootUpdate::Unchanged)
+    }
+    /// Called initially and when the application viewport changes.
+    fn resize(&mut self, _width: u16, _height: u16) -> Result<()> {
+        Ok(())
+    }
+    /// Fallible input path; existing roots retain their handle_event behavior.
+    fn try_handle_event(&mut self, event: &crate::event::types::Event) -> Result<EventResult> {
+        Ok(self.handle_event(event))
+    }
     /// Handle input left unhandled by the event router; handled input redraws.
     fn handle_event(&self, _event: &crate::event::types::Event) -> EventResult {
         EventResult::Ignored
     }
+}
+
+/// A root component's background state transition.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum RootUpdate {
+    /// No visible state change.
+    Unchanged,
+    /// Publish the root's new state.
+    Redraw,
+    /// Leave the event loop and restore the host terminal.
+    Exit,
 }
 
 /// Main application context managing the reactive component tree
@@ -43,6 +70,10 @@ pub struct App {
     debug: bool,
     last_frame_time: Instant,
     resize_count: usize,
+    quit_key: Option<(
+        crate::event::types::KeyCode,
+        crate::event::types::KeyModifiers,
+    )>,
 }
 
 impl App {
@@ -53,7 +84,21 @@ impl App {
 
     /// Run the application main loop
     pub fn run(mut self) -> Result<()> {
+        let result = self.run_loop();
+        let cleanup = self.backend.shutdown();
+        match (result, cleanup) {
+            (Err(error), Err(cleanup)) => Err(crate::error::ReactiveError::terminal(format!(
+                "{error}; terminal cleanup also failed: {cleanup}"
+            ))),
+            (Err(error), _) | (_, Err(error)) => Err(error),
+            _ => Ok(()),
+        }
+    }
+
+    fn run_loop(&mut self) -> Result<()> {
         self.running = true;
+        let (width, height) = self.backend.size();
+        self.root.resize(width, height)?;
 
         // Initial render and benchmark
         self.render()?;
@@ -124,11 +169,15 @@ impl App {
 
                 match &event {
                     crate::event::types::Event::Key(key_event) => {
-                        // Check for quit key (Ctrl+C or Esc)
-                        if (key_event.code == crate::event::types::KeyCode::Char('c')
-                            && key_event.modifiers.ctrl)
-                            || key_event.code == crate::event::types::KeyCode::Escape
-                        {
+                        let quit = self.quit_key.as_ref().map_or_else(
+                            || {
+                                (key_event.code == crate::event::types::KeyCode::Char('c')
+                                    && key_event.modifiers.ctrl)
+                                    || key_event.code == crate::event::types::KeyCode::Escape
+                            },
+                            |(code, modifiers)| key_event.matches(code.clone(), *modifiers),
+                        );
+                        if quit && key_event.kind != crate::event::types::KeyEventKind::Release {
                             self.running = false;
                         }
                     }
@@ -143,12 +192,24 @@ impl App {
                 // Process event through the event system
                 let mut result = self.router.process_event(&event);
                 if result == EventResult::Ignored && self.running {
-                    result = self.root.handle_event(&event);
+                    result = self.root.try_handle_event(&event)?;
                 }
 
                 // Trigger re-render if event was handled or if we need to render for other reasons
                 if result != EventResult::Ignored || should_render {
                     self.render()?;
+                }
+            }
+
+            if !self.running {
+                break;
+            }
+            match self.root.update()? {
+                RootUpdate::Unchanged => {}
+                RootUpdate::Redraw => self.render()?,
+                RootUpdate::Exit => {
+                    self.running = false;
+                    break;
                 }
             }
 
@@ -172,7 +233,8 @@ impl App {
 
             // 5) Frame timing and adaptive FPS
             let frame_elapsed = frame_start.elapsed();
-            let render_time = frame_elapsed.saturating_sub(Duration::from_millis(RENDER_TIME_ESTIMATE_MS));
+            let render_time =
+                frame_elapsed.saturating_sub(Duration::from_millis(RENDER_TIME_ESTIMATE_MS));
 
             // Check if we need to drop this frame
             let dropped = frame_elapsed > frame_duration;
@@ -189,7 +251,7 @@ impl App {
             self.last_frame_time = Instant::now();
         }
 
-        self.backend.shutdown()
+        Ok(())
     }
 
     /// Register a focusable node with optional tab index
@@ -240,7 +302,10 @@ impl App {
 
     /// Move focus in a direction using router (imperative legacy)
     /// Returns the newly focused node if successful
-    pub fn focus_move(&mut self, dir: crate::event::FocusDirection) -> Option<crate::event::router::NodeId> {
+    pub fn focus_move(
+        &mut self,
+        dir: crate::event::FocusDirection,
+    ) -> Option<crate::event::router::NodeId> {
         self.router.focus_move(dir)
     }
 
@@ -272,14 +337,19 @@ impl App {
     /// Render the current state
     fn render(&mut self) -> Result<()> {
         use crate::render::tree::element_to_render_node;
-        
+
         // Update hook-based animations as part of component lifecycle
         // This ensures hooks are synchronized with component rendering
         crate::hooks::animation::update_hook_animations();
-        
+
+        if let Some(frame) = self.root.cell_frame()? {
+            self.backend.render_cells(frame)?;
+            return self.backend.present();
+        }
+
         // Build element tree from root component
         let element = self.root.render();
-        
+
         // Process declarative focus properties from the element tree
         let root_id = crate::event::router::NodeId::new();
         self.focus_manager.process_element_tree(&element, root_id);
@@ -292,17 +362,17 @@ impl App {
             }
             return Ok(());
         }
-        
+
         // Convert to RenderTree
         let root_node = element_to_render_node(element.clone());
-        
+
         // Check if this is the first render
         if self.previous_tree.root().is_none() {
             // First render - set up both trees
             let mut new_tree = RenderTree::new();
             new_tree.set_root(root_node);
             self.tree = new_tree;
-            
+
             // Trigger full repaint for first render
             if self.tree.root().is_some() {
                 // The backend's apply_patches with >10 patches triggers full repaint
@@ -320,22 +390,20 @@ impl App {
             // Create temporary tree for diffing without full allocation
             let mut temp_tree = RenderTree::new();
             temp_tree.set_root(root_node);
-            
+
             // Diff against previous tree
             let diff_result = self.reconciler.diff(&self.previous_tree, &temp_tree);
-            
+
             // Apply patches if there are changes
             if !diff_result.patches.is_empty() {
                 // Apply patches to update the current tree
-                crate::render::reconcile::apply_patches(
-                    &diff_result.patches,
-                    &mut self.tree,
-                )?;
+                crate::render::reconcile::apply_patches(&diff_result.patches, &mut self.tree)?;
 
                 // Use incremental patch-based rendering for performance
-                self.backend.apply_patches(&diff_result.patches, &self.tree)?;
+                self.backend
+                    .apply_patches(&diff_result.patches, &self.tree)?;
             }
-            
+
             // Efficiently swap tree roots without allocating full tree structures
             // Move current tree to previous_tree, and temp_tree to current tree
             // This avoids the full memory swap of std::mem::replace
@@ -380,6 +448,11 @@ impl App {
             );
         }
 
+        if width == 0 || height == 0 {
+            return Ok(());
+        }
+        self.root.resize(width, height)?;
+
         // Update backend renderer dimensions
         self.backend.resize(width as usize, height as usize);
 
@@ -422,7 +495,10 @@ impl Drop for App {
         if let Err(e) = self.cleanup() {
             // Use log crate if available, otherwise stderr
             // This ensures the error is visible in both debug and release builds
-            eprintln!("Warning: Failed to cleanup components during App drop: {}", e);
+            eprintln!(
+                "Warning: Failed to cleanup components during App drop: {}",
+                e
+            );
         }
     }
 }
@@ -434,6 +510,10 @@ pub struct AppBuilder {
     debug: bool,
     performance_mode: PerformanceMode,
     adaptive_config: Option<AdaptiveConfig>,
+    quit_key: Option<(
+        crate::event::types::KeyCode,
+        crate::event::types::KeyModifiers,
+    )>,
 }
 
 impl Default for AppBuilder {
@@ -444,6 +524,7 @@ impl Default for AppBuilder {
             debug: false,
             performance_mode: PerformanceMode::Balanced,
             adaptive_config: None,
+            quit_key: None,
         }
     }
 }
@@ -476,6 +557,16 @@ impl AppBuilder {
     /// Set custom adaptive FPS configuration
     pub fn adaptive_config(mut self, config: AdaptiveConfig) -> Self {
         self.adaptive_config = Some(config);
+        self
+    }
+
+    /// Reserve one explicit quit chord instead of the default Ctrl+C and Escape.
+    pub fn quit_key(
+        mut self,
+        code: crate::event::types::KeyCode,
+        modifiers: crate::event::types::KeyModifiers,
+    ) -> Self {
+        self.quit_key = Some((code, modifiers));
         self
     }
 
@@ -512,11 +603,10 @@ impl AppBuilder {
             debug: self.debug,
             last_frame_time: Instant::now(),
             resize_count: 0,
+            quit_key: self.quit_key,
         })
     }
 }
-
-
 
 #[cfg(test)]
 mod tests {

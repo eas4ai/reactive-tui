@@ -229,3 +229,24 @@ impl TextAttributes {
         Self::link_id(attr) != 0
     }
 }
+
+/// Extended decorations carried separately from the legacy style/link word.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct CellDecoration {
+    pub underline: UnderlineStyle,
+    /// Resolved RGB underline color; None follows the foreground color.
+    pub underline_color: Option<[u8; 3]>,
+    pub overline: bool,
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[repr(u8)]
+pub enum UnderlineStyle {
+    #[default]
+    None = 0,
+    Single = 1,
+    Double = 2,
+    Curly = 3,
+    Dotted = 4,
+    Dashed = 5,
+}

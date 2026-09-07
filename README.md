@@ -2,13 +2,19 @@
 
 A modern, reactive terminal user interface library for Rust with CSS-like styling and comprehensive image support.
 
-## Renderer recovery
+## Current renderer and embedded terminal
 
 The current checkout adds a SuprTUI backend for application rendering. Try it
 with `cargo run --locked --example suprtui_counter`; Space changes the counter,
 and Escape or Ctrl+C quits. See the [renderer guide](docs/suprtui-renderer.md)
 for integration and verification. The legacy API examples below predate this
 recovery; known failures are recorded in [recon](docs/recon.md).
+
+The renderer is now owned inside this repository. On Unix, run an embedded
+shell with `cargo run --locked --features embedded-terminal --example embedded_shell`.
+Child output triggers App redraws; Ctrl+C reaches the child and Ctrl+Q leaves
+the host. See [embedded sessions](docs/embedded-terminal.md) for the API,
+Zig build requirement, and verification.
 
 ## Features
 
@@ -149,7 +155,8 @@ cargo run --example syntax_highlight
 
 ## Requirements
 
-- Rust 1.70+
+- A current stable Rust toolchain (verified with Rust 1.95.0)
+- For embedded terminals: Unix and Zig 0.16.x; the bindings require Rust 1.90+
 - 24-bit color terminal
 - For images: chafa, viu, or compatible terminal
 

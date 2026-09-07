@@ -22,7 +22,7 @@ contract; the rest of the legacy feature catalog remains Observed.
 `App` obtains an Element tree from a RootComponent (`src/app.rs`). The component
 bridge converts it to the layout painter's NodeSpec (`src/component/bridge.rs`).
 Taffy computes cell-space layout (`src/layout/paint_tree.rs`). The new backend
-paints complete grapheme-aware frames into SuprTUI; SuprTUI owns cell comparison
+paints complete grapheme-aware frames into SuprTUI; The locally maintained SuprTUI engine owns cell comparison
 and ANSI output. Crossterm supplies host input and raw mode.
 
 A worker owns SuprTUI's local grapheme pool and renderer. Synchronous commands
@@ -45,6 +45,9 @@ choices and the dependency pin live in `docs/decisions/`.
 | TypeScript and C bindings | `bindings/typescript/`, `src/ffi/`; existing defects remain in recon |
 | Animation, screens, editing, Markdown, syntax, themes | `src/animation/`, `src/screen/`, `src/editor/`, `src/markdown/`, `src/syntax/`, `src/theme/`; outside first commitment |
 
-Verification commands are owned by `.cairn/mechanisms/suprtui-renderer.md`.
+Verification commands are owned by `.cairn/mechanisms/suprtui-renderer.md`
+and `.cairn/mechanisms/embedded-terminal.md`. The renderer is maintained in
+`src/backend/engine`; the embedded-session API is documented in
+`docs/embedded-terminal.md`.
 The initial project-wide failures are evidence in `docs/recon-evidence/`;
 this commitment does not declare the entire legacy library production-ready.
