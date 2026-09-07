@@ -11,4 +11,4 @@ Use SuprTUI from https://github.com/eas4ai/suprtui.git at 7793deb80c5bceecc5d8ed
 
 ## Realized by
 
-(none yet: recorded, not built)
+- 296616ee5969e467a3274366c90e5d22895dee53 feat: render complete application frames with SuprTUI
