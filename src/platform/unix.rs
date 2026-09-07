@@ -319,7 +319,7 @@ fn install_signal_handlers() -> Result<()> {
     let mut action = std::mem::MaybeUninit::<libc::sigaction>::uninit();
     unsafe {
         let action_ptr = action.as_mut_ptr();
-        (*action_ptr).sa_sigaction = handle_winch as usize;
+        (*action_ptr).sa_sigaction = handle_winch as *const () as usize;
 
         #[cfg(target_os = "macos")]
         {
