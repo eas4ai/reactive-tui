@@ -11,7 +11,7 @@ Pin libghostty-vt from Uzaaft/libghostty-rs at 5988a0b78b4aa804d1c12e66bbfe662bd
 
 ## Realized by
 
-(none yet: recorded, not built)
+ea11603ee39dcc9866a26167782f0748c32e7248 feat: run reactive embedded terminal sessions through App
 
 ## Feasibility findings (2026-09-07)
 
@@ -31,3 +31,11 @@ attribute bits store a link identifier. A direct cell adapter cannot represent
 all Ghostty styles in that frame format. The owned-session implementation is
 paused pending a decision about extending the renderer dependency or explicitly
 narrowing the attribute requirement. No attribute requirement has been weakened.
+
+## Resolution
+
+The developer authorized owning the pinned renderer locally while retaining
+its MIT notices. The renderer now carries overline, underline styles and
+underline color through cells, composition and emitted SGR. The original
+EMB-002 requirement remains intact. The native session and App integration
+are implemented; acceptance evidence is recorded separately by Cairn.
