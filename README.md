@@ -172,3 +172,11 @@ Contributions are welcome! Please read our [Contributing Guide](CONTRIBUTING.md)
 - Uses [crossterm](https://github.com/crossterm-rs/crossterm) for terminal control
 - Image support powered by [sixel-rs](https://github.com/saitoha/sixel-rs)
 - Inspired by modern web frameworks and Tailwind CSS
+
+### Renderer ownership
+
+The renderer is maintained locally in `src/backend/engine`, imported from
+SuprTUI revision `7793deb80c5bceecc5d8ed9fc6bc6d2530531774`.
+`SuprTuiBackend` remains the application adapter. The internal crate keeps its
+own tests and source notices; `scripts/check-renderer.sh` runs those tests
+alongside the application and PTY checks.

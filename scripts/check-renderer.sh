@@ -1,5 +1,7 @@
 #!/bin/sh
 set -eu
+printf '%s\n' 'Internal renderer tests'
+cargo test --locked --manifest-path src/backend/engine/Cargo.toml --target-dir target/renderer
 printf '%s\n' 'Renderer integration tests'
 cargo test --locked --test suprtui_renderer
 printf '%s\n' 'Renderer example build'

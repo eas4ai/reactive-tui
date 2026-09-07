@@ -1,0 +1,18 @@
+[package]
+name = "suprtui"
+version = "0.1.0"
+edition = "2024"
+description = "Internal Reactive-TUI terminal rendering engine, adapted from SuprTUI"
+license = "MIT"
+publish = false
+
+[lib]
+name = "suprtui"
+path = "src/lib.rs"
+
+[dependencies]
+unicode-segmentation = "1.13.3"
+unicode-properties = "0.1.4"
+vte = "0.14"
+taffy = "0.13"
+image = "0.25"

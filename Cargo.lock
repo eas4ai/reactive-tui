@@ -2118,7 +2118,6 @@ checksum = "7da8b5736845d9f2fcb837ea5d9e2628564b3b043a70948a3f0b778838c5fb4f"
 [[package]]
 name = "suprtui"
 version = "0.1.0"
-source = "git+https://github.com/eas4ai/suprtui.git?rev=7793deb80c5bceecc5d8ed9fc6bc6d2530531774#7793deb80c5bceecc5d8ed9fc6bc6d2530531774"
 dependencies = [
  "image",
  "taffy 0.13.0",
