@@ -14,7 +14,7 @@ On 2026-09-07 the developer agreed to SuprTUI for application rendering and
 libghostty-rs for embedded terminal sessions, accepting its Zig build dependency.
 The first commitment delivers a Reactive-TUI screen through SuprTUI with
 verified updates, Unicode, resizing, and clean terminal restoration. Embedded
-sessions follow that foundation. Only the rendering requirements below are
+sessions follow that foundation. Rendering and embedded-terminal requirements are
 contract; the rest of the legacy feature catalog remains Observed.
 
 ## Architecture
@@ -40,7 +40,7 @@ choices and the dependency pin live in `docs/decisions/`.
 | Commitment order | `docs/spec/roadmap.md` |
 | Widgets and builders | `src/widgets/`, `src/builder/`; outside first commitment |
 | Reactive state and hooks | `src/reactive/`, `src/hooks/`; outside first commitment except root input delivery |
-| Embedded terminal sessions | `src/terminal/`; libghostty-rs integration follows renderer |
+| Embedded terminal sessions | `docs/spec/embedded-terminal.md`, prefix EMB; libghostty-rs with a real child PTY |
 | Images and clipboard | `src/widgets/display/image/`, `src/hooks/clipboard.rs`; separate later work |
 | TypeScript and C bindings | `bindings/typescript/`, `src/ffi/`; existing defects remain in recon |
 | Animation, screens, editing, Markdown, syntax, themes | `src/animation/`, `src/screen/`, `src/editor/`, `src/markdown/`, `src/syntax/`, `src/theme/`; outside first commitment |
