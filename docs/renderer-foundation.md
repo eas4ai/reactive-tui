@@ -1,7 +1,12 @@
 # Renderer foundation assessment
 
-Status: Draft — recommendation, not an agreed architecture
+Status: Historical assessment — superseded by the agreed renderer commitment
 Date: 2026-09-07
+
+The current choice is SuprTUI application rendering with libghostty-rs embedded
+sessions to follow. See [the renderer guide](suprtui-renderer.md) and
+[the agreed contract](spec/rendering.md). The candidate discussion below records
+the assessment that preceded that choice.
 
 The developer wants to rehabilitate Reactive-TUI and has identified rendering
 as the starting point. Existing terminal libraries, including Alacritty, are

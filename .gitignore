@@ -13,6 +13,7 @@ reference/
 docs/*
 !docs/recon.md
 !docs/renderer-foundation.md
+!docs/suprtui-renderer.md
 !docs/recon-evidence/
 !docs/spec/
 !docs/commitments/
@@ -40,10 +41,7 @@ Thumbs.db
 
 # Logs
 *.log
-!docs/recon-evidence/
-!docs/spec/
-!docs/commitments/
-!docs/decisions/clippy.log
+!docs/recon-evidence/clippy.log
 
 # Temporary files
 *.bak

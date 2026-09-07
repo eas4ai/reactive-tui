@@ -1,5 +1,6 @@
 use crate::core::surface::Surface;
 use crate::error::{ReactiveError, Result};
+pub(crate) mod suprtui;
 use taffy::style::Overflow;
 /// Options for controlling paint behavior
 #[derive(Default)]
@@ -56,6 +57,7 @@ pub struct NodeSpec<'a> {
 
 struct NodePaint {
     style: PaintStyle,
+    background_specified: bool,
     text: Option<String>,
     pad: Padding,
     z_index: i32,
@@ -174,10 +176,16 @@ fn build_nodes<'a>(
         padding.bottom as usize,
     );
     let text = spec.text.as_ref().map(|s| s.to_string());
+    let background_specified = spec.class.split_whitespace().any(|token| {
+        token.strip_prefix("bg-")
+            .and_then(crate::layout::colors::parse_color_token)
+            .is_some()
+    });
     map.insert(
         id,
         NodePaint {
             style: paint_style,
+            background_specified,
             text,
             pad,
             z_index,

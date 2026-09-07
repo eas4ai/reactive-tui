@@ -2,6 +2,14 @@
 
 A modern, reactive terminal user interface library for Rust with CSS-like styling and comprehensive image support.
 
+## Renderer recovery
+
+The current checkout adds a SuprTUI backend for application rendering. Try it
+with `cargo run --locked --example suprtui_counter`; Space changes the counter,
+and Escape or Ctrl+C quits. See the [renderer guide](docs/suprtui-renderer.md)
+for integration and verification. The legacy API examples below predate this
+recovery; known failures are recorded in [recon](docs/recon.md).
+
 ## Features
 
 - **CSS-like Layout System**: Use familiar CSS properties like `flex`, `grid`, `padding`, `margin`

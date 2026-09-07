@@ -1,0 +1,957 @@
+    Blocking waiting for file lock on build directory
+    Checking cfg-if v1.0.3
+    Checking memchr v2.7.5
+    Checking simd-adler32 v0.3.7
+    Checking libc v0.2.175
+    Checking crossbeam-utils v0.8.21
+    Checking adler2 v2.0.1
+    Checking num-traits v0.2.19
+    Checking bitflags v2.9.3
+    Checking log v0.4.27
+   Compiling serde v1.0.219
+   Compiling rustix v1.0.8
+    Checking equator v0.4.2
+    Checking crc32fast v1.5.0
+    Checking crossbeam-epoch v0.9.18
+    Checking num-integer v0.1.46
+    Checking equivalent v1.0.2
+    Checking miniz_oxide v0.8.9
+    Checking allocator-api2 v0.2.21
+   Compiling strsim v0.11.1
+    Checking smallvec v1.15.1
+    Checking foldhash v0.1.5
+    Checking crossbeam-deque v0.8.6
+    Checking either v1.15.0
+    Checking arrayvec v0.7.6
+   Compiling fnv v1.0.7
+    Checking linux-raw-sys v0.9.4
+    Checking once_cell v1.21.3
+    Checking num-bigint v0.4.6
+    Checking hashbrown v0.15.5
+   Compiling darling_core v0.21.3
+    Checking rayon-core v1.13.0
+    Checking flate2 v1.1.2
+    Checking aligned-vec v0.6.4
+    Checking thiserror v1.0.69
+    Checking aho-corasick v1.1.3
+    Checking minimal-lexical v0.2.1
+    Checking powerfmt v0.2.0
+    Checking itoa v1.0.15
+    Checking utf8parse v0.2.2
+    Checking regex-syntax v0.8.6
+    Checking v_frame v0.3.9
+   Compiling darling_macro v0.21.3
+    Checking num-rational v0.4.2
+    Checking nom v7.1.3
+    Checking rayon v1.11.0
+    Checking deranged v0.4.0
+    Checking anstyle-parse v0.2.7
+    Checking anyhow v1.0.99
+    Checking regex-automata v0.4.10
+    Checking num-conv v0.1.0
+   Compiling unicode-segmentation v1.12.0
+    Checking time-core v0.1.4
+    Checking anstyle-query v1.1.4
+    Checking is_terminal_polyfill v1.70.1
+    Checking bit-vec v0.6.3
+    Checking tinyvec_macros v0.1.1
+    Checking new_debug_unreachable v1.0.6
+    Checking colorchoice v1.0.4
+    Checking scopeguard v1.2.0
+    Checking anstyle v1.0.11
+    Checking bitflags v1.3.2
+    Checking time v0.3.41
+    Checking tinyvec v1.10.0
+   Compiling convert_case v0.7.1
+    Checking bit-set v0.5.3
+    Checking lock_api v0.4.13
+    Checking regex v1.11.2
+    Checking maybe-rayon v0.1.1
+    Checking anstream v0.6.20
+    Checking av1-grain v0.2.4
+    Checking profiling v1.0.17
+    Checking onig_sys v69.9.1
+   Compiling darling v0.21.3
+    Checking parking_lot_core v0.9.11
+    Checking terminal_size v0.4.3
+    Checking indexmap v2.11.0
+    Checking itertools v0.12.1
+    Checking mio v1.0.4
+    Checking quick-xml v0.38.3
+    Checking signal-hook-registry v1.4.6
+    Checking base64 v0.22.1
+    Checking clap_lex v0.7.5
+   Compiling getrandom v0.3.3
+    Checking ryu v1.0.20
+    Checking weezl v0.1.10
+    Checking bitstream-io v2.6.0
+    Checking linked-hash-map v0.5.6
+    Checking same-file v1.0.6
+    Checking quick-error v2.0.1
+    Checking imgref v1.11.0
+    Checking clap_builder v4.5.46
+    Checking plist v1.7.4
+    Checking serde_json v1.0.143
+    Checking yaml-rust v0.4.5
+    Checking walkdir v2.5.0
+    Checking rav1e v0.7.1
+    Checking signal-hook v0.3.18
+    Checking loop9 v0.1.5
+    Checking parking_lot v0.12.4
+    Checking onig v6.5.1
+   Compiling bon-macros v3.7.1
+    Checking fancy-regex v0.11.0
+    Checking unicode-normalization v0.1.24
+   Compiling derive_more-impl v2.0.1
+    Checking avif-serialize v0.8.6
+    Checking bincode v1.3.3
+    Checking zune-inflate v0.2.54
+    Checking fdeflate v0.3.7
+    Checking half v2.6.0
+    Checking option-ext v0.2.0
+    Checking rgb v0.8.52
+    Checking deunicode v1.6.2
+    Checking color_quant v1.1.0
+    Checking bytemuck v1.23.2
+    Checking lebe v0.5.2
+    Checking siphasher v1.0.1
+    Checking bit_field v0.10.3
+    Checking zune-core v0.4.12
+    Checking jpeg-decoder v0.3.2
+    Checking byteorder-lite v0.1.0
+    Checking qoi v0.4.1
+    Checking gif v0.13.3
+    Checking phf_shared v0.11.3
+    Checking slug v0.1.6
+    Checking ravif v0.11.20
+    Checking exr v1.73.0
+    Checking zune-jpeg v0.4.20
+    Checking tiff v0.9.1
+    Checking syntect v5.2.0
+    Checking dirs-sys v0.4.1
+    Checking image-webp v0.2.4
+    Checking png v0.17.16
+    Checking bon v3.7.1
+    Checking caseless v0.2.2
+    Checking slotmap v1.0.7
+    Checking sixel-sys v0.5.0
+    Checking derive_more v2.0.1
+    Checking signal-hook-mio v0.2.4
+    Checking clap v4.5.46
+    Checking socket2 v0.6.0
+    Checking precomputed-hash v0.1.1
+    Checking grid v0.18.0
+    Checking unicode_categories v0.1.1
+    Checking entities v1.0.1
+    Checking shell-words v1.1.0
+    Checking pin-project-lite v0.2.16
+    Checking xdg v2.5.2
+    Checking bytes v1.10.1
+    Checking typed-arena v2.0.2
+    Checking string_cache v0.8.9
+    Checking taffy v0.9.1
+    Checking uuid v1.18.1
+    Checking sixel-rs v0.5.0
+    Checking crossterm v0.29.0
+    Checking image v0.25.6
+    Checking comrak v0.41.0
+    Checking dirs v5.0.1
+    Checking tokio v1.47.1
+    Checking lru v0.16.0
+    Checking atty v0.2.14
+    Checking lazy_static v1.5.0
+    Checking unicode-width v0.2.1
+    Checking reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+error: empty line after doc comment
+ --> src/app/focus_manager.rs:4:1
+  |
+4 | / /// that works during the render cycle.
+5 | |
+  | |_^
+6 |   use crate::component::{Element, FocusProps};
+  |   - the comment documents this `use` import
+  |
+  = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#empty_line_after_doc_comments
+  = note: `-D clippy::empty-line-after-doc-comments` implied by `-D warnings`
+  = help: to override `-D warnings` add `#[allow(clippy::empty_line_after_doc_comments)]`
+  = help: if the empty line is unintentional, remove it
+help: if the comment should document the parent module use an inner doc comment
+  |
+1 ~ //! Focus manager that processes declarative focus properties from elements
+2 ~ //!
+3 ~ //! This replaces the imperative focus trap system with a declarative one
+4 ~ //! that works during the render cycle.
+  |
+
+error: redundant field names in struct initialization
+   --> src/app/focus_manager.rs:112:13
+    |
+112 |             container_id: container_id,
+    |             ^^^^^^^^^^^^^^^^^^^^^^^^^^ help: replace it with: `container_id`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#redundant_field_names
+    = note: `-D clippy::redundant-field-names` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::redundant_field_names)]`
+
+error: empty line after doc comment
+ --> src/component/focus.rs:4:1
+  |
+4 | / /// attached to elements, replacing the imperative focus trap API.
+5 | |
+  | |_^
+6 |   use std::sync::Arc;
+  |   - the comment documents this `use` import
+  |
+  = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#empty_line_after_doc_comments
+  = help: if the empty line is unintentional, remove it
+help: if the comment should document the parent module use an inner doc comment
+  |
+1 ~ //! Declarative focus management for components
+2 ~ //!
+3 ~ //! This module provides React-like declarative focus properties that can be
+4 ~ //! attached to elements, replacing the imperative focus trap API.
+  |
+
+error: empty line after doc comment
+  --> src/widgets/menu/mod.rs:7:1
+   |
+ 7 | / /// - **dialog**: Dialog-style menus for complex interactions
+ 8 | |
+   | |_^
+ 9 |   /// Menubar with dropdown submenus
+10 |   mod menubar;
+   |   ----------- the comment documents this module
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#empty_line_after_doc_comments
+   = help: if the empty line is unintentional, remove it
+help: if the comment should document the parent module use an inner doc comment
+   |
+ 1 ~ //! Menu system components for reactive-tui
+ 2 ~ //!
+ 3 ~ //! This module provides a comprehensive menu system including:
+ 4 ~ //! - **menubar**: Traditional desktop-style menubar with dropdown submenus
+ 5 ~ //! - **context**: Right-click context menus
+ 6 ~ //! - **popup**: General-purpose popup menus
+ 7 ~ //! - **dialog**: Dialog-style menus for complex interactions
+   |
+help: if the documentation should include the empty line include it in the comment
+   |
+ 8 | ///
+   |
+
+error: value assigned to `current_width` is never read
+   --> src/markdown/converter.rs:249:21
+    |
+249 |                     current_width = 0;
+    |                     ^^^^^^^^^^^^^^^^^
+    |
+    = help: maybe it is overwritten before being read?
+    = note: `-D unused-assignments` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(unused_assignments)]`
+
+error: this `impl` can be derived
+  --> src/animation/state.rs:70:1
+   |
+70 | / impl Default for LoopMode {
+71 | |     fn default() -> Self {
+72 | |         Self::None
+73 | |     }
+74 | | }
+   | |_^
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#derivable_impls
+   = note: `-D clippy::derivable-impls` implied by `-D warnings`
+   = help: to override `-D warnings` add `#[allow(clippy::derivable_impls)]`
+help: replace the manual implementation with a derive attribute and mark the default variant
+   |
+59 + #[derive(Default)]
+60 | pub enum LoopMode {
+61 |     /// Play once
+62 ~     #[default]
+63 ~     None,
+   |
+
+error: this `if` can be collapsed into the outer `match`
+   --> src/app.rs:124:25
+    |
+124 | /                         if (key_event.code == crate::event::types::KeyCode::Char('c')
+125 | |                             && key_event.modifiers.ctrl)
+126 | |                             || key_event.code == crate::event::types::KeyCode::Escape
+...   |
+129 | |                         }
+    | |_________________________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#collapsible_match
+    = note: `-D clippy::collapsible-match` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::collapsible_match)]`
+help: collapse nested if block
+    |
+122 ~                     crate::event::types::Event::Key(key_event)
+123 |                         // Check for quit key (Ctrl+C or Esc)
+124 ~                         if ((key_event.code == crate::event::types::KeyCode::Char('c')
+125 |                             && key_event.modifiers.ctrl)
+126 ~                             || key_event.code == crate::event::types::KeyCode::Escape)
+127 ~                         => {
+128 |                             self.running = false;
+129 ~                         }
+    |
+
+error: this `impl` can be derived
+   --> src/builder/widgets/menu.rs:96:1
+    |
+ 96 | / impl Default for MenuSeparator {
+ 97 | |     fn default() -> Self {
+ 98 | |         Self::None
+ 99 | |     }
+100 | | }
+    | |_^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#derivable_impls
+help: replace the manual implementation with a derive attribute and mark the default variant
+    |
+ 79 + #[derive(Default)]
+ 80 | pub enum MenuSeparator {
+ 81 |     /// No separator
+ 82 ~     #[default]
+ 83 ~     None,
+    |
+
+error: this `impl` can be derived
+   --> src/builder/widgets/menu.rs:125:1
+    |
+125 | / impl Default for MenuItemType {
+126 | |     fn default() -> Self {
+127 | |         Self::Action
+128 | |     }
+129 | | }
+    | |_^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#derivable_impls
+help: replace the manual implementation with a derive attribute and mark the default variant
+    |
+104 + #[derive(Default)]
+105 | pub enum MenuItemType {
+106 |     /// Regular clickable item
+107 ~     #[default]
+108 ~     Action,
+    |
+
+error: this `impl` can be derived
+   --> src/builder/widgets/menu.rs:242:1
+    |
+242 | / impl Default for PopupPlacement {
+243 | |     fn default() -> Self {
+244 | |         Self::Auto
+245 | |     }
+246 | | }
+    | |_^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#derivable_impls
+help: replace the manual implementation with a derive attribute and mark the default variant
+    |
+229 + #[derive(Default)]
+230 | pub enum PopupPlacement {
+231 |     /// Below the trigger element
+...
+239 |     /// Automatically choose best placement
+240 ~     #[default]
+241 ~     Auto,
+    |
+
+error: manual implementation of `.is_multiple_of()`
+   --> src/component/instance.rs:240:43
+    |
+240 |             if component_ptr.is_null() || (component_ptr as usize) % std::mem::align_of::<C>() != 0 {
+    |                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: replace with: `!(component_ptr as usize).is_multiple_of(std::mem::align_of::<C>())`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#manual_is_multiple_of
+    = note: `-D clippy::manual-is-multiple-of` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::manual_is_multiple_of)]`
+
+error: manual checked division
+   --> src/core/window.rs:302:41
+    |
+302 |                         let char_w = if cols > 0 { 1280 / cols } else { 16 };
+    |                                         ^^^^^^^^   ----------- division performed here
+    |                                         |
+    |                                         check performed here
+    |
+    = help: consider using `checked_div`
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#manual_checked_ops
+    = note: `-D clippy::manual-checked-ops` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::manual_checked_ops)]`
+
+error: manual checked division
+   --> src/core/window.rs:303:41
+    |
+303 |                         let char_h = if rows > 0 { 384 / rows } else { 16 };
+    |                                         ^^^^^^^^   ---------- division performed here
+    |                                         |
+    |                                         check performed here
+    |
+    = help: consider using `checked_div`
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#manual_checked_ops
+
+error: manual checked division
+   --> src/core/window.rs:315:29
+    |
+315 |             let char_w = if term_w > 0 { 1280 / term_w } else { 16 };
+    |                             ^^^^^^^^^^   ------------- division performed here
+    |                             |
+    |                             check performed here
+    |
+    = help: consider using `checked_div`
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#manual_checked_ops
+
+error: manual checked division
+   --> src/core/window.rs:316:29
+    |
+316 |             let char_h = if term_h > 0 { 384 / term_h } else { 16 };
+    |                             ^^^^^^^^^^   ------------ division performed here
+    |                             |
+    |                             check performed here
+    |
+    = help: consider using `checked_div`
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#manual_checked_ops
+
+error: the variable `current_col` is used as a loop counter
+   --> src/core/window.rs:685:9
+    |
+685 |         for ch in text.chars() {
+    |         ^^^^^^^^^^^^^^^^^^^^^^ help: consider using: `for (current_col, ch) in (col..).zip(text.chars())`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#explicit_counter_loop
+    = note: `-D clippy::explicit-counter-loop` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::explicit_counter_loop)]`
+
+error: the variable `current_y` is used as a loop counter
+    --> src/core/window.rs:1038:17
+     |
+1038 |                 for child in &element.children {
+     |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: consider using: `for (current_y, child) in (y..).zip(element.children.iter())`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#explicit_counter_loop
+
+error: the variable `current_y` is used as a loop counter
+    --> src/core/window.rs:1049:17
+     |
+1049 |                 for child in &element.children {
+     |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: consider using: `for (current_y, child) in (y..).zip(element.children.iter())`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#explicit_counter_loop
+
+error: this `impl` can be derived
+   --> src/display/monitor.rs:176:1
+    |
+176 | / impl Default for PerformanceMode {
+177 | |     fn default() -> Self {
+178 | |         Self::Balanced
+179 | |     }
+180 | | }
+    | |_^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#derivable_impls
+help: replace the manual implementation with a derive attribute and mark the default variant
+    |
+139 + #[derive(Default)]
+140 | pub enum PerformanceMode {
+141 |     /// Minimize CPU usage, 30 FPS
+142 |     PowerSave,
+143 |     /// Balanced experience, 60 FPS
+144 ~     #[default]
+145 ~     Balanced,
+    |
+
+error: consider using `sort_by_key`
+   --> src/event/hit.rs:320:9
+    |
+320 |         results.sort_by(|a, b| b.1.cmp(&a.1));
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#unnecessary_sort_by
+    = note: `-D clippy::unnecessary-sort-by` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::unnecessary_sort_by)]`
+help: try
+    |
+320 -         results.sort_by(|a, b| b.1.cmp(&a.1));
+320 +         results.sort_by_key(|b| std::cmp::Reverse(b.1));
+    |
+
+error: consider using `sort_by_key`
+   --> src/event/hit.rs:330:9
+    |
+330 |         results.sort_by(|a, b| b.1.cmp(&a.1));
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#unnecessary_sort_by
+help: try
+    |
+330 -         results.sort_by(|a, b| b.1.cmp(&a.1));
+330 +         results.sort_by_key(|b| std::cmp::Reverse(b.1));
+    |
+
+error: consider using `sort_by_key`
+   --> src/event/hit.rs:340:9
+    |
+340 |         results.sort_by(|a, b| b.1.cmp(&a.1));
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#unnecessary_sort_by
+help: try
+    |
+340 -         results.sort_by(|a, b| b.1.cmp(&a.1));
+340 +         results.sort_by_key(|b| std::cmp::Reverse(b.1));
+    |
+
+error: this block may be rewritten with the `?` operator
+   --> src/layout/css/cache.rs:218:12
+    |
+218 |       } else if let Some(inner) = rgb.strip_prefix("rgba(").and_then(|s| s.strip_suffix(')')) {
+    |  ____________^
+219 | |         inner
+220 | |     } else {
+221 | |         return None;
+222 | |     };
+    | |_____^ help: replace it with: `{ rgb.strip_prefix("rgba(").and_then(|s| s.strip_suffix(')'))? }`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#question_mark
+    = note: `-D clippy::question-mark` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::question_mark)]`
+
+error: this `if` can be collapsed into the outer `match`
+   --> src/layout/manager.rs:447:21
+    |
+447 | /                     if layout.size.width > 0.0 && layout.size.height > 0.0 {
+448 | |                         // Extract visual style from CSS classes for background and borders
+449 | |                         let box_style = if let Some(class) = &meta.element.class {
+450 | |                             crate::layout::css::visual_style::extract_box_style(class)
+...   |
+462 | |                         });
+463 | |                     }
+    | |_____________________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#collapsible_match
+help: collapse nested if block
+    |
+445 ~                 ElementType::Layout(_)
+446 |                     // Layout nodes might have borders or backgrounds
+447 ~                     if layout.size.width > 0.0 && layout.size.height > 0.0 => {
+448 |                         // Extract visual style from CSS classes for background and borders
+...
+462 |                         });
+463 ~                     }
+    |
+
+error: this `impl` can be derived
+  --> src/terminal/cursor.rs:24:1
+   |
+24 | / impl Default for CursorShape {
+25 | |     fn default() -> Self {
+26 | |         Self::Default
+27 | |     }
+28 | | }
+   | |_^
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#derivable_impls
+help: replace the manual implementation with a derive attribute and mark the default variant
+   |
+ 7 + #[derive(Default)]
+ 8 | pub enum CursorShape {
+ 9 |     /// Default terminal cursor
+10 ~     #[default]
+11 ~     Default,
+   |
+
+error: this `if` can be collapsed into the outer `match`
+   --> src/terminal/screen.rs:298:17
+    |
+298 | /                 if params.len() >= 2 {
+299 | |                     let id = if params[0].is_empty() {
+300 | |                         None
+301 | |                     } else {
+...   |
+309 | |                     self.cursor.set_hyperlink(url, id);
+310 | |                 }
+    | |_________________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#collapsible_match
+help: collapse nested if block
+    |
+297 ~             "8"
+298 ~                 if params.len() >= 2 => {
+299 |                     let id = if params[0].is_empty() {
+...
+309 |                     self.cursor.set_hyperlink(url, id);
+310 ~                 }
+    |
+
+error: this `impl` can be derived
+   --> src/terminal/mod.rs:169:1
+    |
+169 | / impl Default for TerminalColor {
+170 | |     fn default() -> Self {
+171 | |         Self::Default
+172 | |     }
+173 | | }
+    | |_^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#derivable_impls
+help: replace the manual implementation with a derive attribute and mark the default variant
+    |
+160 + #[derive(Default)]
+161 | pub enum TerminalColor {
+162 |     /// Default terminal color
+163 ~     #[default]
+164 ~     Default,
+    |
+
+error: manual checked division
+   --> src/widgets/dialog/dialog_buffer.rs:169:20
+    |
+169 |                 if count > 0 {
+    |                    ^^^^^^^^^ check performed here
+170 |                     let avg_r = (r_sum / count) as u8;
+    |                                 --------------- division performed here
+171 |                     let avg_g = (g_sum / count) as u8;
+    |                                 --------------- ... and here
+172 |                     let avg_b = (b_sum / count) as u8;
+    |                                 --------------- ... and here
+    |
+    = help: consider using `checked_div`
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#manual_checked_ops
+
+error: called `unwrap` on `props.search_query` after checking its variant with `is_some`
+   --> src/widgets/display/file_explorer.rs:635:53
+    |
+633 |         if props.search_query.is_some() {
+    |         ------------------------------- help: try: `if let Some(<item>) = &props.search_query`
+634 |             toolbar_children.push(
+635 |                 Element::text(format!("Search: {}", props.search_query.as_ref().unwrap()))
+    |                                                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#unnecessary_unwrap
+    = note: `-D clippy::unnecessary-unwrap` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::unnecessary_unwrap)]`
+
+error: this `impl` can be derived
+   --> src/widgets/display/modal.rs:297:1
+    |
+297 | / impl Default for ModalAnimationState {
+298 | |     fn default() -> Self {
+299 | |         Self::Hidden
+300 | |     }
+301 | | }
+    | |_^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#derivable_impls
+help: replace the manual implementation with a derive attribute and mark the default variant
+    |
+286 + #[derive(Default)]
+287 | pub enum ModalAnimationState {
+288 |     /// Modal is completely hidden
+289 ~     #[default]
+290 ~     Hidden,
+    |
+
+error: this `if` can be collapsed into the outer `match`
+   --> src/widgets/display/modal.rs:775:25
+    |
+775 | /                         if props.closable && props.keyboard_navigation {
+776 | |                             self.close_modal(props, ModalCloseReason::EscapeKey);
+777 | |                             return EventResult::Consumed;
+778 | |                         }
+    | |_________________________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#collapsible_match
+help: collapse nested if block
+    |
+774 ~                     KeyCode::Escape
+775 ~                         if props.closable && props.keyboard_navigation => {
+776 |                             self.close_modal(props, ModalCloseReason::EscapeKey);
+777 |                             return EventResult::Consumed;
+778 ~                         }
+    |
+
+error: this `if` can be collapsed into the outer `match`
+   --> src/widgets/display/modal.rs:782:25
+    |
+782 | /                         if !props.buttons.is_empty() {
+783 | |                             let current = state.focused_button.unwrap_or(0);
+784 | |                             let next = if key_event.modifiers.shift {
+785 | |                                 if current == 0 {
+...   |
+794 | |                             return EventResult::Consumed;
+795 | |                         }
+    | |_________________________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#collapsible_match
+help: collapse nested if block
+    |
+780 ~                     KeyCode::Tab
+781 |                         // Navigate between buttons
+782 ~                         if !props.buttons.is_empty() => {
+783 |                             let current = state.focused_button.unwrap_or(0);
+...
+794 |                             return EventResult::Consumed;
+795 ~                         }
+    |
+
+error: this `if` can be collapsed into the outer `match`
+   --> src/widgets/display/modal.rs:813:25
+    |
+813 | /                         if props.backdrop_clickable && props.closable {
+814 | |                             if let Some(click_result) =
+815 | |                                 self.hit_test_modal(mouse_event, props, state)
+...   |
+847 | |                         }
+    | |_________________________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#collapsible_match
+help: collapse nested if block
+    |
+811 ~                     MouseEventKind::Click
+812 |                         // Check if clicking backdrop to close with proper bounds checking
+813 ~                         if props.backdrop_clickable && props.closable => {
+814 |                             if let Some(click_result) =
+...
+846 |                             }
+847 ~                         }
+    |
+
+error: this `if` can be collapsed into the outer `match`
+   --> src/widgets/display/modal.rs:850:25
+    |
+850 | /                         if props.draggable {
+851 | |                             if let Some(hit_result) = self.hit_test_modal(mouse_event, props, state)
+852 | |                             {
+853 | |                                 match hit_result {
+...   |
+867 | |                         }
+    | |_________________________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#collapsible_match
+help: collapse nested if block
+    |
+849 ~                     MouseEventKind::Down
+850 ~                         if props.draggable => {
+851 |                             if let Some(hit_result) = self.hit_test_modal(mouse_event, props, state)
+...
+866 |                             }
+867 ~                         }
+    |
+
+error: this `if` can be collapsed into the outer `match`
+   --> src/widgets/display/modal.rs:881:25
+    |
+881 | /                         if state.dragging && props.draggable {
+882 | |                             // Update position based on mouse movement
+883 | |                             return EventResult::Consumed;
+884 | |                         }
+    | |_________________________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#collapsible_match
+help: collapse nested if block
+    |
+880 ~                     MouseEventKind::Move
+881 ~                         if state.dragging && props.draggable => {
+882 |                             // Update position based on mouse movement
+883 |                             return EventResult::Consumed;
+884 ~                         }
+    |
+
+error: manual checked division
+   --> src/widgets/layout/stack.rs:391:33
+    |
+391 |             let flex_width = if flex_children > 0 {
+    |                                 ^^^^^^^^^^^^^^^^^ check performed here
+392 |                 remaining_width / flex_children
+    |                 ------------------------------- division performed here
+    |
+    = help: consider using `checked_div`
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#manual_checked_ops
+
+error: manual checked division
+   --> src/widgets/layout/stack.rs:450:30
+    |
+450 |         let flex_height = if flex_children > 0 {
+    |                              ^^^^^^^^^^^^^^^^^ check performed here
+451 |             remaining_height / flex_children
+    |             -------------------------------- division performed here
+    |
+    = help: consider using `checked_div`
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#manual_checked_ops
+
+error: doc list item without indentation
+ --> src/widgets/menu/mod.rs:9:5
+  |
+9 | /// Menubar with dropdown submenus
+  |     ^
+  |
+  = help: if this is supposed to be its own paragraph, add a blank line
+  = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#doc_lazy_continuation
+  = note: `-D clippy::doc-lazy-continuation` implied by `-D warnings`
+  = help: to override `-D warnings` add `#[allow(clippy::doc_lazy_continuation)]`
+help: indent this line
+  |
+9 | ///   Menubar with dropdown submenus
+  |     ++
+
+error: very complex type used. Consider factoring parts into `type` definitions
+   --> src/widgets/menu/menubar.rs:165:23
+    |
+165 |     on_item_selected: Option<Arc<dyn Fn(&str) + Send + Sync>>,
+    |                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#type_complexity
+    = note: `-D clippy::type-complexity` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::type_complexity)]`
+
+error: very complex type used. Consider factoring parts into `type` definitions
+   --> src/widgets/menu/context.rs:156:23
+    |
+156 |     on_item_selected: Option<Arc<dyn Fn(&str) + Send + Sync>>,
+    |                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#type_complexity
+
+error: this `impl` can be derived
+  --> src/widgets/menu/popup.rs:70:1
+   |
+70 | / impl Default for PopupPlacement {
+71 | |     fn default() -> Self {
+72 | |         Self::Cursor
+73 | |     }
+74 | | }
+   | |_^
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#derivable_impls
+help: replace the manual implementation with a derive attribute and mark the default variant
+   |
+11 + #[derive(Default)]
+12 | pub enum PopupPlacement {
+13 |     /// Place popup at cursor position
+14 ~     #[default]
+15 ~     Cursor,
+   |
+
+error: very complex type used. Consider factoring parts into `type` definitions
+   --> src/widgets/menu/popup.rs:222:23
+    |
+222 |     on_item_selected: Option<Arc<dyn Fn(&str) + Send + Sync>>,
+    |                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#type_complexity
+
+error: this `impl` can be derived
+  --> src/widgets/menu/dialog.rs:24:1
+   |
+24 | / impl Default for DialogMenuType {
+25 | |     fn default() -> Self {
+26 | |         Self::Selection
+27 | |     }
+28 | | }
+   | |_^
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#derivable_impls
+help: replace the manual implementation with a derive attribute and mark the default variant
+   |
+11 + #[derive(Default)]
+12 | pub enum DialogMenuType {
+13 |     /// Simple selection dialog with a list of options
+14 ~     #[default]
+15 ~     Selection,
+   |
+
+error: very complex type used. Consider factoring parts into `type` definitions
+   --> src/widgets/menu/dialog.rs:251:23
+    |
+251 |     on_item_selected: Option<Arc<dyn Fn(&str) + Send + Sync>>,
+    |                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#type_complexity
+
+error: very complex type used. Consider factoring parts into `type` definitions
+   --> src/widgets/menu/dialog.rs:254:25
+    |
+254 |     on_input_submitted: Option<Arc<dyn Fn(&str) + Send + Sync>>,
+    |                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#type_complexity
+
+error: this `impl` can be derived
+  --> src/widgets/menu/item.rs:81:1
+   |
+81 | / impl Default for MenuSeparator {
+82 | |     fn default() -> Self {
+83 | |         Self::None
+84 | |     }
+85 | | }
+   | |_^
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#derivable_impls
+help: replace the manual implementation with a derive attribute and mark the default variant
+   |
+64 + #[derive(Default)]
+65 | pub enum MenuSeparator {
+66 |     /// No separator
+67 ~     #[default]
+68 ~     None,
+   |
+
+error: this `impl` can be derived
+   --> src/widgets/menu/item.rs:110:1
+    |
+110 | / impl Default for MenuItemType {
+111 | |     fn default() -> Self {
+112 | |         Self::Action
+113 | |     }
+114 | | }
+    | |_^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#derivable_impls
+help: replace the manual implementation with a derive attribute and mark the default variant
+    |
+ 89 + #[derive(Default)]
+ 90 | pub enum MenuItemType {
+ 91 |     /// Regular clickable item
+ 92 ~     #[default]
+ 93 ~     Action,
+    |
+
+error: large size difference between variants
+   --> src/widgets/menu/style.rs:195:1
+    |
+195 | / pub enum MenuTheme {
+196 | |     /// Default theme
+197 | |     Default,
+    | |     ------- the second-largest variant carries no data at all
+198 | |     /// Dark theme
+...   |
+205 | |     Custom(MenuStyle),
+    | |     ----------------- the largest variant contains at least 208 bytes
+206 | | }
+    | |_^ the entire enum is at least 208 bytes
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#large_enum_variant
+    = note: `-D clippy::large-enum-variant` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::large_enum_variant)]`
+help: consider boxing the large fields or introducing indirection in some other way to reduce the total size of the enum
+    |
+205 -     Custom(MenuStyle),
+205 +     Custom(Box<MenuStyle>),
+    |
+
+error: direct cast of function item into an integer
+   --> src/platform/unix.rs:322:51
+    |
+322 |         (*action_ptr).sa_sigaction = handle_winch as usize;
+    |                                                   ^^^^^^^^
+    |
+    = note: `-D function-casts-as-integer` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(function_casts_as_integer)]`
+help: first cast to a pointer `as *const ()`
+    |
+322 |         (*action_ptr).sa_sigaction = handle_winch as *const () as usize;
+    |                                                   ++++++++++++
+
+error: could not compile `reactive-tui` (lib) due to 49 previous errors

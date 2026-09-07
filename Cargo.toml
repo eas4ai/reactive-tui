@@ -45,6 +45,7 @@ sixel-rs = "0.5.0"
 reactive-tui-macros = { path = "reactive-tui-macros" }
 lru = "0.16.0"
 dirs = "5.0"
+suprtui = { git = "https://github.com/eas4ai/suprtui.git", rev = "7793deb80c5bceecc5d8ed9fc6bc6d2530531774" }
 
 # Platform-specific dependencies
 [target.'cfg(unix)'.dependencies]
@@ -79,6 +80,7 @@ ffi = []
 criterion = "0.5"
 proptest = "1.4"
 serial_test = "3.0"
+vt100 = "0.16"
 
 [[bench]]
 name = "diff_benchmark"

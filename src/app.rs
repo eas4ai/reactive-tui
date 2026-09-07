@@ -21,6 +21,10 @@ const RENDER_TIME_ESTIMATE_MS: u64 = 1;
 pub trait RootComponent: Send + Sync {
     /// Render the component to an Element tree
     fn render(&self) -> Element;
+    /// Handle input left unhandled by the event router; handled input redraws.
+    fn handle_event(&self, _event: &crate::event::types::Event) -> EventResult {
+        EventResult::Ignored
+    }
 }
 
 /// Main application context managing the reactive component tree
@@ -137,7 +141,10 @@ impl App {
                 }
 
                 // Process event through the event system
-                let result = self.router.process_event(&event);
+                let mut result = self.router.process_event(&event);
+                if result == EventResult::Ignored && self.running {
+                    result = self.root.handle_event(&event);
+                }
 
                 // Trigger re-render if event was handled or if we need to render for other reasons
                 if result != EventResult::Ignored || should_render {
@@ -182,7 +189,7 @@ impl App {
             self.last_frame_time = Instant::now();
         }
 
-        Ok(())
+        self.backend.shutdown()
     }
 
     /// Register a focusable node with optional tab index
@@ -276,6 +283,15 @@ impl App {
         // Process declarative focus properties from the element tree
         let root_id = crate::event::router::NodeId::new();
         self.focus_manager.process_element_tree(&element, root_id);
+
+        if self.backend.render_frame(&element)? {
+            self.tree.set_root(element_to_render_node(element));
+            self.backend.present()?;
+            if let Some(req) = crate::hooks::perf_context::take_requested_performance_mode() {
+                self.fps_manager.set_performance_mode(req);
+            }
+            return Ok(());
+        }
         
         // Convert to RenderTree
         let root_node = element_to_render_node(element.clone());
