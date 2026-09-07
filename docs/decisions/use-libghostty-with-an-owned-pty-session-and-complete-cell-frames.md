@@ -11,7 +11,7 @@ Pin libghostty-vt from Uzaaft/libghostty-rs at 5988a0b78b4aa804d1c12e66bbfe662bd
 
 ## Realized by
 
-ea11603ee39dcc9866a26167782f0748c32e7248 feat: run reactive embedded terminal sessions through App
+- ea11603ee39dcc9866a26167782f0748c32e7248 feat: run reactive embedded terminal sessions through App
 
 ## Feasibility findings (2026-09-07)
 
