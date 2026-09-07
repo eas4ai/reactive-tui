@@ -2,6 +2,7 @@
 
 command: sh scripts/check-renderer.sh
 inputs:
+  - README.md
   - Cargo.toml
   - Cargo.lock
   - reactive-tui-macros
