@@ -1,0 +1,23 @@
+warning: value assigned to `current_width` is never read
+   --> src/markdown/converter.rs:249:21
+    |
+249 |                     current_width = 0;
+    |                     ^^^^^^^^^^^^^^^^^
+    |
+    = help: maybe it is overwritten before being read?
+    = note: `#[warn(unused_assignments)]` (part of `#[warn(unused)]`) on by default
+
+warning: `reactive-tui` (lib) generated 1 warning
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.07s
+     Running tests/suprtui_renderer.rs (target/debug/deps/suprtui_renderer-462ab125276a6041)
+warning: value assigned to `current_width` is never read
+   --> src/markdown/converter.rs:249:21
+    |
+249 |                     current_width = 0;
+    |                     ^^^^^^^^^^^^^^^^^
+    |
+    = help: maybe it is overwritten before being read?
+    = note: `#[warn(unused_assignments)]` (part of `#[warn(unused)]`) on by default
+
+warning: `reactive-tui` (lib) generated 1 warning
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.07s

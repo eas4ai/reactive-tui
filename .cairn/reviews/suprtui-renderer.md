@@ -1,6 +1,6 @@
 # Renderer commitment review
 
-commit: a4f610bd9a33f0aea8ede14a140052460e5248fd
+commit: e68ea3d969fa352a482bc722a03d17b09ecc7955
 findings:
   - closed: RND-001 complete frames enter through App before legacy patches; exact styled cells, grid, layers, replacement, removal, and unchanged frames are asserted.
   - closed: RND-002 text bypasses the char Surface; grapheme widths, combining sequences, continuation cells, and ancestor clipping are verified without emitting application control characters.
@@ -110,3 +110,11 @@ Final candidate checks on 2026-09-07:
   Other listed paths belong to unchanged legacy rendering, transitions, and
   FFI. Unfiltered runs also include local reference source trees. Compiler,
   screen assertions, and PTY execution supply the relevant runtime evidence.
+
+## Follow-up cast review
+
+Reviewed the existing signal-handler cast correction preserved in e68ea3d969fa352a482bc722a03d17b09ecc7955.
+It changes the function-to-integer conversion to pass through a pointer; the
+handler, registration, and terminal behavior are unchanged. The committed
+renderer mechanism passed again (nine integration tests and four PTY cases).
+No finding from this one-line change remains open.
