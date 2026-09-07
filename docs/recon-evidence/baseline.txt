@@ -1,0 +1,22 @@
+Recon baseline: a3ea1cc85; 2026-09-07
+Toolchain: rustc 1.95.0; cargo 1.95.0
+Initial git status --short: empty
+No docs/spec/overview.md, docs/recon.md, AGENTS.md, or BEST_PRACTICES.md at start.
+No tracked CI, container configuration, or scripts/spec-lint.mjs in inventory.
+Cairn wake: exit 3; not a Cairn repository (no docs/spec/roadmap.md).
+Cargo metadata --no-deps --format-version 1: exit 0.
+Example targets: animated_patterns, gradient_blocks, visual_effects.
+Integration test targets discovered: 44.
+Cargo test --locked: exit 101. Library: 742 passed, 1 failed, 1 ignored.
+Failure: animation::tests::test_easing_function_steps_jump_start, src/animation/mod.rs:1377. Actual 0.25, expected 0.0.
+The test command stopped at the library failure; integration and doctest results are not established.
+Cargo fmt --check: exit 1; existing formatting differences, including benches/event_router_comparison.rs:1.
+Ripwire --quality-delta: exit 0; zero regressions against HEAD (no product edits).
+Ripwire --test-gate: exit 0; zero changed symbols (not a test-suite verdict).
+Cargo clippy --locked -- -D warnings: exit 101; 49 errors. See clippy.log.
+
+Extended checks after repair request:
+Cargo test --locked --no-fail-fast: exit 101; aggregate 966 passed, 6 failed, 35 ignored across library, integration, and documentation tests.
+Failures: JumpStart easing; test_z_index_with_other_utilities (actual Some(10), expected Some(50)); four accordion doctests missing imports. See default-tests.txt.
+Cargo check --locked --features ffi: exit 0, 8 warnings. See ffi-check.txt.
+Cargo test --locked --features ffi --no-fail-fast: exit 101 during compilation; tests/ffi_tests.rs reports 36 errors including missing rtui_terminal_create/destroy. No full FFI test verdict. See ffi-tests.txt.

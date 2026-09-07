@@ -1,0 +1,30 @@
+a3ea1cc 2025-09-16 feat(visual): make example visuals responsive to terminal size
+f339366 2025-09-16 feat(example): add animated_patterns demo with visual patterns
+53c976c 2025-09-12 Add examples, layout tests, and improve input handling
+acd0ddc 2025-09-04 Add gradients, animation core, visual styles, and examples
+f0dff76 2025-09-04 Refactor FFI, add menu widgets and headers, remove examples
+e079a4c 2025-09-03 Add C FFI headers, new widgets, and TypeScript bindings
+8af3484 2025-09-03 Refactor builder placeholders; harden tests and clean up messages
+445aaa5 2025-09-03 Refactor builder into modules; add TS bindings & fixes
+7e2d3f6 2025-09-02 Add TypeScript bindings, CSS animation system, widgets and tests
+16a3d6b 2025-09-02 Improve memory management, event routing, and layout performance
+32bc2cd 2025-09-02 Document Stack layout API and convert comments to rustdoc
+54788ef 2025-09-01 Document and expand dialog/animation enums and helpers
+d6c2f16 2025-09-01 Add C header/FFI bindings; refactor terminal; extend terminal input tests
+96212fe 2025-09-01 Refactor theming/CSS, add dialog widgets, remove legacy parsers
+52be7f5 2025-09-01 Improve input handling, test messages, and validation
+fd0e11f 2025-08-31 Improve focus/event routing and mark interactive elements
+e0acd99 2025-08-31 Add CSS-style layout, props derive macro, examples & tests
+724cc8c 2025-08-31 Refactor terminal/platform layers and add TTY backend support
+77700ea 2025-08-30 Refactor layout and terminal subsystems; add grid, probes, tests
+c5b42d4 2025-08-29 Introduce markdown, image widgets, vdom bridge, and docs
+8d0c3f1 2025-08-28 Add syntax highlighting, markdown renderer and perf hooks
+a7854dc 2025-08-28 Add text editor core: gap buffer, cursor, tests, docs
+ca95647 2025-08-28 Add animation, vdom, hooks, FFI, screen and display systems
+d98ecf9 2025-08-26 Refactor component/core modules and add debug_patches feature
+489f464 2025-08-26 first commit
+
+Branches:
+* main
+  remotes/origin/HEAD -> origin/main
+  remotes/origin/main
