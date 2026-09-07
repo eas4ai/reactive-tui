@@ -1,5 +1,16 @@
 # Renderer commitment review
 
+commit: a4f610bd9a33f0aea8ede14a140052460e5248fd
+findings:
+  - closed: RND-001 complete frames enter through App before legacy patches; exact styled cells, grid, layers, replacement, removal, and unchanged frames are asserted.
+  - closed: RND-002 text bypasses the char Surface; grapheme widths, combining sequences, continuation cells, and ancestor clipping are verified without emitting application control characters.
+  - closed: RND-003 resize rebuilds worker buffers and layout with a forced frame; zero dimensions retain the last valid size; the resized VT screen matches a fresh render.
+  - closed: RND-004 frame publication flushes and preserves I/O errors; retries retain the staged Element and force repaint; cancellation precedes output even when resize replaces a failed sink.
+  - closed: RND-005 terminal output ownership survives renderer replacement; shutdown joins the worker and attempts raw-mode restoration even when output cleanup errors; PTY normal/error/panic paths restore exact termios.
+  - closed: RND-006 root input fallback is additive and only receives unhandled events; the PTY drives counter changes, resize, Escape, and Ctrl+C through App.
+  - closed: Backend remains Send + Sync through worker ownership, with no unsafe implementations or unbounded command queue; construction validates frame allocation limits.
+  - closed: existing Backend and RootComponent implementations keep default behavior; dependency revision and run instructions are documented; baseline failures and direct-host verification limits are explicit.
+
 ## Specification review
 
 Checked 2026-09-07 before implementation. Challenged whether comparing output
@@ -45,7 +56,27 @@ font shaping or compatibility across every terminal.
 
 ## Final review
 
-Pending.
+Reviewed the committed candidate on 2026-09-07 without changing product code.
+Attacked ownership at setup failure, worker disconnect, resize, explicit
+shutdown, and application unwind. Inspected that shutdown evaluates output,
+join, and raw-mode cleanup separately before combining results, so an earlier
+error cannot skip raw-mode restoration. The session is separate from frame
+buffers and remains armed after partial setup failure.
+
+Checked the complete-frame branch against the old patch branch and confirmed
+that new trait methods have defaults. Inspected clipping before unsigned
+coordinate conversion, grapheme-width checks, text-control filtering, forced
+repaint after any failed presentation, and explicit background detection.
+Reviewed the independent terminal parser assertions and both mechanism
+mutations recorded above. No new finding remains open within this commitment.
+
+Self-audit against the production coding rules: the changes stay inside the
+agreed renderer milestone, preserve public trait compatibility, report I/O
+errors, bound buffering and frame dimensions, document operation and limits,
+and have reproducible runtime evidence. The recorded legacy failures and
+performance-test stall prevent a whole-library production-readiness claim;
+they do not invalidate the scoped renderer checks. Real Kitty, GNOME Terminal,
+and Ghostty visual checks remain unverified.
 
 ## Regression and static checks
 
