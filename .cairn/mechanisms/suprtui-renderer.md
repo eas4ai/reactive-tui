@@ -12,7 +12,6 @@ inputs:
   - examples/suprtui_counter.rs
   - scripts
 requirements:
-  - ABI-004
   - RND-001
   - RND-002
   - RND-003

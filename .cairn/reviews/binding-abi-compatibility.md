@@ -77,13 +77,17 @@ found; no code changed during this review.
 
 ## ABI-004 mechanism construction
 
-Attached ABI-004 to all nine existing acceptance declarations. Together they
-cover exactly the 30 inherited requirements; their commands and assertions are
-unchanged. Cairn must retain passing evidence for each declaration. This reuses
-the actual format, lint, FFI, full-suite, registry, wakeup, terminal and renderer
-checks rather than a command that only prints success. The just-recorded
-specification-lint failure proves the inherited chain propagates failure; after
-sentence correction and the missing docs/spec input declarations, the same
-runtime and lint checks passed. Historical violating test demonstrations remain
-in each inherited commitment review. All 30 requirements stay in the current
-commitment, so removing any inherited requirement's coverage cannot complete it.
+The combined runner invokes the nine existing acceptance commands in order,
+checks that they cover exactly the 30 inherited requirements, and verifies that
+its declaration includes their input paths and declaration files. Each command
+has a ten-minute deadline and a failing command stops the run. The underlying
+commands and assertions are unchanged, and all 30 inherited requirements remain
+individually named in the commitment.
+
+Three guarded development mutations were restored in finally blocks: replacing
+the format command with false failed with exit 1; removing MNT-001 failed the
+coverage check; adding an undeclared dependency failed the input check. The
+restored combined runner passed all nine commands. The earlier specification
+lint failure and corrected pass also demonstrate inherited failure propagation.
+Ripwire located the new runner with cyclomatic complexity 9; its qualified
+edit-check lookup did not resolve the symbol and is not claimed as a pass.

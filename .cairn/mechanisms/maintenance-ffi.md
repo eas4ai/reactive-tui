@@ -13,6 +13,5 @@ inputs:
   - include
   - docs/ffi-maintenance.md
 requirements:
-  - ABI-004
   - MNT-003
   - MNT-004

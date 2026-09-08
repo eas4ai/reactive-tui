@@ -15,7 +15,6 @@ inputs:
   - examples/suprtui_counter.rs
   - scripts
 requirements:
-  - ABI-004
   - EMB-001
   - EMB-002
   - EMB-003

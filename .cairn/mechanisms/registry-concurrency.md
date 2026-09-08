@@ -13,7 +13,6 @@ inputs:
   - tests/component_macro_test.rs
   - tests/component_macro_integration.rs
 requirements:
-  - ABI-004
   - REG-001
   - REG-002
   - REG-003
