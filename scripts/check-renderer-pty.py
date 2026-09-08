@@ -5,17 +5,28 @@ import errno
 import fcntl
 import os
 from pathlib import Path
-import re
 import select
 import signal
 import struct
 import subprocess
+import sys
 import termios
 import time
 
 
-ANSI = re.compile(rb"\x1b\[[0-?]*[ -/]*[@-~]")
-SYNC_END = b"\x1b[?2026l"
+sys.dont_write_bytecode = True
+
+from pty_screen import SYNC_END, completed, screen_text
+
+
+def counter_frame(data, count, after=0, dimensions=None):
+    frame = completed(data)
+    if len(frame) <= after or f"Count: {count}" not in screen_text(frame):
+        return False
+    if dimensions is not None:
+        columns, rows = dimensions
+        return f"\x1b[{rows};{columns}H".encode() in frame[after:]
+    return True
 
 
 def read_until(master, process, output, predicate, description):
@@ -56,7 +67,7 @@ def probe(binary, mode="", quit_key=b"\x1b"):
             env={**os.environ, "TERM": "xterm-256color", "RUST_BACKTRACE": "0"},
         )
         read_until(master, process, output,
-                   lambda data: SYNC_END in data and b"Count: 0" in ANSI.sub(b"", data),
+                   lambda data: counter_frame(data, 0),
                    "initial counter frame missing")
         assert termios.tcgetattr(slave) != original, "raw mode was never enabled"
         assert b"\x1b[?1049h" in output and b"\x1b[?25l" in output
@@ -64,14 +75,14 @@ def probe(binary, mode="", quit_key=b"\x1b"):
         os.write(master, b" ")
         if not mode:
             read_until(master, process, output,
-                       lambda data: SYNC_END in data[offset:] and b"1" in ANSI.sub(b"", data[offset:]),
+                       lambda data: counter_frame(data, 1, offset),
                        "Space did not redraw the counter through App")
             for columns, rows in [(34, 12), (60, 18)]:
                 offset = len(output)
                 resize(slave, columns, rows)
                 os.kill(process.pid, signal.SIGWINCH)
                 read_until(master, process, output,
-                           lambda data: SYNC_END in data[offset:] and b"Count: 1" in ANSI.sub(b"", data[offset:]),
+                           lambda data: counter_frame(data, 1, offset, (columns, rows)),
                            "resize did not produce a complete frame")
             os.write(master, quit_key)
         read_until(master, process, output, lambda data: b"\x1b[?1049l" in data,

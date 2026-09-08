@@ -48,3 +48,23 @@ named builder tests and relevant component/inherited suites are run directly.
 These static outputs are reviewed limitations, not reported as passing gates.
 
 Final formal review remains pending until committed acceptance evidence.
+
+## Inherited acceptance finding
+
+The first committed WAK run failed the renderer PTY resize predicate after all
+Rust and earlier PTY tests passed. Captured output ends with a completed frame
+and a sparse one-cell update to 1. The probe strips ANSI and accepts any digit 1
+after a sync marker for input; a partially received cursor sequence can satisfy
+that predicate prematurely. Its resize check also expects contiguous Count: 1
+bytes, although sparse rendering can send the label and digit separately.
+Repair the inherited probe to reconstruct the screen from completed frames
+and require the new dimensions' bottom-right cell after each resize. This is
+inside its existing declared scripts footprint. Keep input/resize/restoration
+requirements unchanged. Historical failing receipts remain intact.
+
+The corrected probe shares the existing ASCII cell interpreter with the
+embedded probe and truncates input to its last completed frame. Four focused
+predicate tests cover partial cursor digits, split sparse updates, stale resize
+coordinates and cleared screens. Restoring the old byte predicates fails two
+of those tests. The corrected predicates pass all four, five complete real-PTY
+runs (20 exit/resize scenarios), and the complete inherited development gate.

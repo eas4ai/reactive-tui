@@ -7,6 +7,7 @@ cargo test --locked --test suprtui_renderer
 printf '%s\n' 'Renderer example build'
 cargo build --locked --example suprtui_counter
 printf '%s\n' 'Renderer pseudo-terminal checks'
+python3 scripts/test-renderer-pty.py
 python3 scripts/check-renderer-pty.py
 printf '%s\n' 'Specification lint'
 node scripts/spec-lint.mjs docs/spec
