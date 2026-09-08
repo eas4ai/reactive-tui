@@ -1,0 +1,889 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running unittests src/lib.rs (target/debug/deps/reactive_tui-82073ab00bfe3025)
+
+running 3 tests
+test reactive::wake::tests::notifications_racing_wait_registration_are_not_lost ... ok
+test reactive::wake::tests::requests_coalesce_and_survive_entry_to_wait ... ok
+test reactive::wake::tests::signal_subscriptions_are_scoped_weak_and_ignore_equal_values ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 746 filtered out; finished in 0.02s
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running unittests src/lib.rs (target/debug/deps/reactive_tui-82073ab00bfe3025)
+
+running 4 tests
+test reactive::scheduler::tests::test_schedule_interval ... ok
+test reactive::scheduler::tests::test_schedule_timeout ... ok
+test reactive::scheduler::tests::test_schedule_update ... ok
+test reactive::scheduler::tests::timer_can_cancel_itself_and_schedule_more_work ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 745 filtered out; finished in 0.00s
+
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.52s
+     Running tests/app_wakeups.rs (target/debug/deps/app_wakeups-df392901bc67172f)
+
+running 7 tests
+test animations_advance_then_app_returns_to_idle_waiting ... ok
+test app_error_closes_wake_handle_and_restores_backend ... ok
+test input_and_legacy_polling_roots_still_progress ... ok
+test queued_work_and_new_earlier_timer_wake_app_and_callbacks_are_reentrant ... ok
+test redraw_burst_retains_latest_state_and_respects_frame_pacing ... ok
+test scheduler_cannot_be_shared_by_two_live_apps_and_detaches_after_drop ... ok
+test signal_wakes_idle_app_without_input_and_equal_writes_do_not_redraw ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.35s
+
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.60s
+PASS WAK-001/002/004 real PTY: background signal, idle output, resize, quit and restoration
+Embedded terminal worker and keyboard tests
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.07s
+     Running unittests src/lib.rs (target/debug/deps/reactive_tui-7dd276e9e54dd81b)
+
+running 2 tests
+test embedded::keyboard::tests::mode_dependent_navigation_and_control_keys ... ok
+test embedded::worker::tests::pending_input_is_bounded_and_io_failure_is_not_success ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 749 filtered out; finished in 0.00s
+
+Embedded terminal integration tests
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.50s
+     Running tests/embedded_terminal.rs (target/debug/deps/embedded_terminal-fbbf4ba65ee1910e)
+
+running 9 tests
+test emb_001_real_tty_configuration_and_spawn_failure ... ok
+test emb_002_cell_frames_reject_invalid_occupancy_and_control_bytes ... ok
+test emb_002_joined_emoji_remains_one_owned_grapheme ... ok
+test emb_002_styled_graphemes_alternate_screen_and_erasure_reach_host ... ok
+test emb_003_text_enter_and_ctrl_c_reach_the_child ... ok
+test emb_004_resize_updates_pty_and_snapshot_and_ignores_zero ... ok
+test emb_005_app_observes_natural_exit_and_final_frame_without_input ... ok
+test emb_005_app_renders_background_updates_and_restores_on_errors ... ok
+test emb_005_delayed_output_exit_and_idle_shutdown_are_observable ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.37s
+
+Embedded shell example
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.52s
+PASS EMB App PTY: input + background redraw + resize + Ctrl+C + Ctrl+Q + cleanup
+PASS EMB App PTY: worker error + cleanup
+Inherited renderer gate
+Internal renderer tests
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.03s
+     Running unittests src/lib.rs (target/renderer/debug/deps/suprtui-bfa5ab8ec07b660c)
+
+running 50 tests
+test buffer::bounds ... ok
+test buffer::cell_roundtrip ... ok
+test buffer::color_model ... ok
+test buffer::clear ... ok
+test buffer::draw::blending ... ok
+test buffer::draw::ansi_output ... ok
+test buffer::draw::composite ... ok
+test buffer::draw::scissor ... ok
+test buffer::draw::cross_pool_composite ... ok
+test buffer::draw::wide_cells ... ok
+test buffer::palette ... ok
+test buffer::resize_clears ... ok
+test buffer::resize_errors ... ok
+test clipboard::lifecycle::cancel_after_completion_is_already_terminal ... ok
+test clipboard::lifecycle::terminal_poll_repeats_status ... ok
+test clipboard::platform::tests::environment_from_map_rules ... ok
+test clipboard::platform::tests::resolve_falls_back_to_available_display ... ok
+test clipboard::platform::tests::wsl_kernel_release_matching ... ok
+test render::cursor_tracking ... ok
+test render::frame_publish ... ok
+test render::failed_frame_rolls_back ... ok
+test render::lifecycle_sequences ... ok
+test render::memory_backend_exact ... ok
+test render::image_fallback ... ok
+test render::stdout_backend_broken_writer ... ok
+test render::split_offset ... ok
+test render::hit_grid ... ok
+test render::stats_count ... ok
+test render::stdout_backend_fail_and_empty ... ok
+test render::stdout_backend_order ... ok
+test render::unchanged_skips ... ok
+test sys::small_tests::emitter_fires_in_order ... ok
+test text::edits ... ok
+test text::cursor_cluster_safety ... ok
+test sys::small_tests::file_logger_gates_levels ... ok
+test render::thread_parity ... ok
+test text::gap_tests::iterators_round_trip ... ok
+test text::gap_tests::viewport_selection_offsets ... ok
+test text::gap_tests::wrap_cache_counts ... ok
+test text::gap_tests::gesture_selection_word_unit ... ok
+test text::highlight_refs ... ok
+test text::offset_bounds ... ok
+test text::selection ... ok
+test text::span_tracking ... ok
+test text::syntax_style ... ok
+test text::undo_redo ... ok
+test text::view_dirty_tracking ... ok
+test uni::pool_isolation ... ok
+test text::wrapping ... ok
+test text::gap_tests::editor_view_cursor_visible ... ok
+
+test result: ok. 50 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/buffer_core.rs (target/renderer/debug/deps/buffer_core-062c921273eaee1f)
+
+running 18 tests
+test req_003_link_id_preserves_flags ... ok
+test req_001_color_intents ... ok
+test req_002_palette_regions ... ok
+test req_003_link_roundtrip ... ok
+test req_003_buffer_init_dims ... ok
+test req_003_set_get_roundtrip ... ok
+test req_003_adjacent_continuation_kept ... ok
+test req_003_link_per_cell_counting ... ok
+test req_003_span_cleanup_link_consistency ... ok
+test req_003_clear_fills_default ... ok
+test req_003_sync_cell_tracker_transitions ... ok
+test req_004_bounds_no_panic ... ok
+test req_003_set_raw_skips_tracker ... ok
+test req_005_resize_zero_rejected ... ok
+test req_006_resize_clears_all ... ok
+test req_006_resize_grow_initialized ... ok
+test req_007_clear_custom_char ... ok
+test req_007_set_clear_cycle_no_leak ... ok
+
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/buffer_draw.rs (target/renderer/debug/deps/buffer_draw-6966481adf2340d6)
+
+running 18 tests
+test req_008_blend_backdrop_flattens ... ok
+test req_008_blend_downgrades_metadata ... ok
+test req_008_blend_transparent_destination ... ok
+test req_008_blend_no_link_clears ... ok
+test req_008_blend_preserves_overlay_link ... ok
+test req_009_fill_rect_clipped ... ok
+test req_010_same_id_extents_keep_slot ... ok
+test req_012_image_free_alpha_copy ... ok
+test req_010_draw_positions_mixed_runs ... ok
+test req_012_image_free_copy ... ok
+test req_011_grapheme_and_image_emission ... ok
+test req_012_placement_geometry_merge ... ok
+test req_012_opaque_copy_preserves_metadata ... ok
+test req_012_subregion_copy ... ok
+test req_013_same_pool_keeps_ids ... ok
+test req_009_draw_text_alpha_scissor ... ok
+test req_010_overwrite_graphemes_repeatedly ... ok
+test req_010_draw_text_stress_no_exhaustion ... ok
+
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+     Running tests/cell_decorations.rs (target/renderer/debug/deps/cell_decorations-3aecad68aa27cd76)
+
+running 2 tests
+test wide_cells_and_composites_keep_decorations_and_clear_them_on_erase ... ok
+test decoration_only_changes_render_and_reset_without_style_leaks ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/layout_engine.rs (target/renderer/debug/deps/layout_engine-452c7acd169f9ed1)
+
+running 4 tests
+test req_002_config_defaults ... ok
+test req_004_computed_positions ... ok
+test req_003_measure_targets ... ok
+test req_001_flex ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/link_pool.rs (target/renderer/debug/deps/link_pool-7030d87d23be293c)
+
+running 11 tests
+test link_pool_alloc_get ... ok
+test link_pool_decref_zero_refcount ... ok
+test link_pool_init ... ok
+test link_pool_intern_live ... ok
+test link_pool_reuse ... ok
+test link_tracker_add_remove ... ok
+test link_tracker_clear_once_per_id ... ok
+test link_tracker_clear ... ok
+test link_pool_generation_exhaustion ... ok
+test link_pool_never_zero_id ... ok
+test link_pool_alloc_only_accumulates ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/media_audio.rs (target/renderer/debug/deps/media_audio-b32bc7d572eb313c)
+
+running 5 tests
+test req_003_engine_lifecycle ... ok
+test req_006_capture ... ok
+test req_004_streams ... ok
+test req_005_devices ... ok
+test req_007_sound_ids ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/media_image.rs (target/renderer/debug/deps/media_image-70ac9a7f7b2dcba0)
+
+running 2 tests
+test req_002_image_roundtrip ... ok
+test req_001_decode ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/render_core.rs (target/renderer/debug/deps/render_core-cd44f347e29feb32)
+
+running 6 tests
+test req_002_unchanged_skips ... ok
+test req_001_frame_publish ... ok
+test req_003_cursor_tracking ... ok
+test req_011_stats_count ... ok
+test req_005_memory_backend_exact ... ok
+test req_004_failed_frame_rolls_back ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/render_stdout.rs (target/renderer/debug/deps/render_stdout-603a9817eb59fcd5)
+
+running 3 tests
+test req_012_empty_frame_writes_nothing ... ok
+test req_012_failed_frame_drops_bytes ... ok
+test req_012_memory_stdout_parity ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/render_terminal.rs (target/renderer/debug/deps/render_terminal-d35dcc813354ec52)
+
+running 5 tests
+test req_007_lifecycle_sequences ... ok
+test req_008_hit_grid ... ok
+test req_009_split_offset ... ok
+test req_010_image_fallback ... ok
+test req_006_thread_parity ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/sys_clipboard.rs (target/renderer/debug/deps/sys_clipboard-643c1d5733abbe23)
+
+running 12 tests
+test req_003_cancel_suppresses_result ... ok
+test req_003_copy_into_buffer ... ok
+test req_003_clear_lifecycle ... ok
+test req_003_invalid_argument ... ok
+test req_003_destroy_pending_is_not_ready ... ok
+test req_003_limit_exceeded_on_write ... ok
+test req_003_limits_and_shutdown ... ok
+test req_003_no_early_completion ... ok
+test req_003_read_lifecycle ... ok
+test req_003_timeout ... ok
+test req_003_unsupported_backend ... ok
+test req_003_write_lifecycle ... ok
+
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/sys_clipboard_backends.rs (target/renderer/debug/deps/sys_clipboard_backends-d958ec6fdaf033e0)
+
+running 13 tests
+test req_009_clear_sends_empty_payload ... ok
+test req_009_empty_read_is_empty ... ok
+test req_009_display_vars_must_be_nonempty ... ok
+test req_009_full_lifecycle_through_helpers ... ok
+test req_009_missing_helper_is_unsupported ... ok
+test req_009_helper_failure_is_failed ... ok
+test req_009_route_matrix ... ok
+test req_009_read_commands_per_route ... ok
+test req_009_write_over_cap_is_limited ... ok
+test req_009_wayland_write_command ... ok
+test req_009_select_backends_truth_table ... ok
+test req_009_write_commands_per_route ... ok
+test req_009_xclip_falls_back_to_xsel ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/sys_core.rs (target/renderer/debug/deps/sys_core-f3ba0a101853eb62)
+
+running 7 tests
+test req_002_event_bus ... ok
+test req_006_split_scrollback ... ok
+test req_001_instance_isolation ... ok
+test req_007_logging ... ok
+test req_005_span_feed ... ok
+test req_004_link_pool ... ok
+test req_008_error_discipline ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/sys_small.rs (target/renderer/debug/deps/sys_small-9bf34b37ba68afd7)
+
+running 7 tests
+test req_010_attach_fire_order ... ok
+test req_010_emit_without_listeners_is_silent ... ok
+test req_010_detach_never_fires_again ... ok
+test req_010_separate_events_stay_separate ... ok
+test req_011_appends_across_calls ... ok
+test req_011_io_failure_reports ... ok
+test req_011_level_gating ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/term_core.rs (target/renderer/debug/deps/term_core-480c7468d308f0e6)
+
+running 12 tests
+test req_001_capability_defaults ... ok
+test req_001_query_responses ... ok
+test req_001_xtgettcap_ms ... ok
+test req_002_mode_bytes ... ok
+test req_002_mode_restore ... ok
+test req_003_alt_screen_balance ... ok
+test req_004_key_encoding ... ok
+test req_005_mouse_encoding ... ok
+test req_008_environment ... ok
+test req_009_clipboard_budget ... ok
+test req_009_clipboard_writes ... ok
+test req_010_image_protocol ... ok
+
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/term_embedded.rs (target/renderer/debug/deps/term_embedded-a81d9c3a74963a7b)
+
+running 8 tests
+test req_006_cursor_state ... ok
+test req_006_select_extract ... ok
+test req_006_embedded_compose ... ok
+test req_006_redraw_clip ... ok
+test req_007_drain_incremental ... ok
+test req_006_lifecycle_resize_scroll ... ok
+test req_006_selection_highlights ... ok
+test req_007_overflow_bound ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+
+     Running tests/text_gaps.rs (target/renderer/debug/deps/text_gaps-f251e95b6c601890)
+
+running 25 tests
+test req_011_cell_press_is_zero_width ... ok
+test req_011_line_drag_unions_lines ... ok
+test req_011_padding_click_is_zero_width ... ok
+test req_011_convert_word_to_cell_keeps_text ... ok
+test req_011_slash_is_not_a_boundary ... ok
+test req_011_wide_word_groups ... ok
+test req_011_space_run_selects ... ok
+test req_012_across_empty_line ... ok
+test req_012_horizontal_viewport_offset ... ok
+test req_012_scrolled_matches_unscrolled ... ok
+test req_012_vertical_viewport_selection ... ok
+test req_012_wrapping_ignores_horizontal_offset ... ok
+test req_013_clusters_never_split ... ok
+test req_013_lines_and_coords_round_trip ... ok
+test req_014_repeated_queries_share_layout ... ok
+test req_014_edits_invalidate_no_stale_rows ... ok
+test req_011_word_press_drag_release ... ok
+test req_015_viewport_scrolls_content ... ok
+test req_013_zero_width_prefix_terminates ... ok
+test req_015_local_word_selection_and_convert ... ok
+test req_015_follow_cursor_syncs_focus ... ok
+test req_011_backward_drag_matches_forward ... ok
+test req_015_visual_round_trip ... ok
+test req_015_local_selection_set_update_reset ... ok
+test req_015_cursor_scrolls_into_view ... ok
+
+test result: ok. 25 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/text_store.rs (target/renderer/debug/deps/text_store-8fa15f1a5c6d9f8e)
+
+running 4 tests
+test req_001_edits ... ok
+test req_002_span_tracking ... ok
+test req_003_undo_redo ... ok
+test req_004_view_dirty_tracking ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/text_view.rs (target/renderer/debug/deps/text_view-51dad4ef1a33d47a)
+
+running 6 tests
+test req_006_selection ... ok
+test req_005_wrapping ... ok
+test req_007_cursor_cluster_safety ... ok
+test req_009_syntax_style ... ok
+test req_008_highlight_refs ... ok
+test req_010_offset_bounds ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/uni_pool.rs (target/renderer/debug/deps/uni_pool-c02878d392ec28fa)
+
+running 66 tests
+test req_008_packing_bit_fns ... ok
+test req_008_packing_continuation ... ok
+test req_008_packing_encoded_width ... ok
+test req_008_packing_extents ... ok
+test req_008_packing_grapheme_start ... ok
+test req_008_packing_image_cell ... ok
+test req_008_packing_grapheme_start_saturates ... ok
+test req_008_pool_alloc_get_combining ... ok
+test req_008_pool_alloc_get_emoji ... ok
+test req_008_pool_alloc_get_multibyte ... ok
+test req_008_pool_alloc_get_small ... ok
+test req_008_pool_concurrent_refcount ... ok
+test req_008_pool_decref_keeps_alive ... ok
+test req_008_pool_decref_stale ... ok
+test req_008_pool_decref_zero_refcount ... ok
+test req_008_pool_decref_zero_reuse ... ok
+test req_008_pool_free_unreferenced ... ok
+test req_008_pool_freed_invalid_after_reuse ... ok
+test req_008_pool_growth ... ok
+test req_008_pool_incref ... ok
+test req_008_pool_init_and_cleanup ... ok
+test req_008_pool_intern_live_id ... ok
+test req_008_pool_invalid_id_after_reuse ... ok
+test req_008_pool_incref_stale ... ok
+test req_008_pool_large_allocation ... ok
+test req_008_pool_isolation ... ok
+test req_008_pool_mixed_owned_unowned ... ok
+test req_008_pool_multiple_incref_decref ... ok
+test req_008_pool_multiple_allocations ... ok
+test req_008_pool_owned_too_long ... ok
+test req_008_pool_owned_skips_unowned ... ok
+test req_008_pool_refcount_blocks_reuse ... ok
+test req_008_pool_size_classes ... ok
+test req_008_pool_small_slots ... ok
+test req_008_pool_stale_generation ... ok
+test req_008_pool_unowned_basic ... ok
+test req_008_pool_unowned_emoji ... ok
+test req_008_pool_unowned_empty ... ok
+test req_008_pool_reuse_many_slots ... ok
+test req_008_pool_unowned_large ... ok
+test req_008_pool_unowned_multiple ... ok
+test req_008_pool_unowned_refcounting ... ok
+test req_008_pool_unowned_stack ... ok
+test req_008_pool_unowned_slot_reuse ... ok
+test req_008_pool_unowned_too_long ... ok
+test req_008_pool_unique_ids ... ok
+test req_008_pool_zero_length ... ok
+test req_008_pool_various_sizes ... ok
+test req_008_tracker_add_single ... ok
+test req_008_tracker_add_multiple ... ok
+test req_008_pool_use_after_free ... ok
+test req_008_pool_zero_slots_panics - should panic ... ok
+test req_008_tracker_add_twice_single_incref ... ok
+test req_008_tracker_init ... ok
+test req_008_tracker_clear ... ok
+test req_008_tracker_keeps_alive ... ok
+test req_008_tracker_mixed ... ok
+test req_008_tracker_remove ... ok
+test req_008_tracker_remove_missing_safe ... ok
+test req_008_tracker_small_pool ... ok
+test req_008_tracker_shared_grapheme ... ok
+test req_008_pool_varying_sizes ... ok
+test req_008_tracker_unowned ... ok
+test req_008_tracker_total_bytes ... ok
+test req_008_tracker_stress ... ok
+test req_008_pool_many_allocations ... ok
+
+test result: ok. 66 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/uni_ported.rs (target/renderer/debug/deps/uni_ported-14fec044053e3b9a)
+
+running 272 tests
+test req_001_calculatetextwidth_wcwidth_emoji_with_skin_tone_counts_both_codepoints ... ok
+test req_001_calculatetextwidth_wcwidth_flag_emoji_counts_both_ris ... ok
+test req_001_findrenderclusterinfo_wcwidth_ascii_with_tab ... ok
+test req_001_findrenderclusterinfo_wcwidth_cjk_characters ... ok
+test req_001_findrenderclusterinfo_wcwidth_combining_mark_part_of_base_grapheme ... ok
+test req_001_findrenderclusterinfo_wcwidth_emoji_with_zwj_single_grapheme_cluster ... ok
+test req_001_findrenderclusterinfo_wcwidth_empty_string ... ok
+test req_001_findrenderclusterinfo_wcwidth_vs_unicode_emoji_with_skin_tone ... ok
+test req_001_findrenderclusterinfo_wcwidth_vs_unicode_flag_emoji ... ok
+test req_001_getwidthat_wcwidth_combining_mark_has_zero_width ... ok
+test req_001_findrenderclusterinfo_wcwidth_ascii_only_returns_empty ... ok
+test req_001_findrenderclusterinfo_wcwidth_emoji_with_skin_tone_single_grapheme_cluster ... ok
+test req_001_no_zwj_basic_emoji_zwj_sequence_split ... ok
+test req_001_no_zwj_combining_marks_still_combined ... ok
+test req_001_no_zwj_devanagari_conjuncts_still_work ... ok
+test req_001_no_zwj_family_emoji_split ... ok
+test req_001_no_zwj_findrenderclusterinfo_splits_zwj_sequences ... ok
+test req_001_no_zwj_keycap_sequences_without_zwj ... ok
+test req_001_no_zwj_flag_emoji_stays_combined ... ok
+test req_001_no_zwj_getwidthat_with_zwj_sequence ... ok
+test req_001_no_zwj_mixed_text_with_zwj_emoji ... ok
+test req_001_no_zwj_multiple_zwj_sequences ... ok
+test req_001_no_zwj_rainbow_flag_without_zwj ... ok
+test req_001_no_zwj_zwj_with_skin_tones ... ok
+test req_001_thai_wcwidth_vs_unicode_mode_comparison ... ok
+test req_001_wcwidth_cjk_characters_have_width_2 ... ok
+test req_001_no_zwj_skin_tone_modifiers_still_combined ... ok
+test req_001_long_cluster_chain ... ok
+test req_001_wcwidth_emoji_zwj_sequences_split ... ok
+test req_001_wcwidth_family_emoji_split_into_components ... ok
+test req_001_wcwidth_getwidthat_with_combining_marks ... ok
+test req_001_wcwidth_mixed_ascii_and_emoji ... ok
+test req_001_wcwidth_regional_indicators_counted_separately ... ok
+test req_001_wcwidth_skin_tone_modifiers_counted_separately ... ok
+test req_001_wcwidth_variation_selectors ... ok
+test req_001_wcwidth_zero_width_characters_are_handled_correctly ... ok
+test req_002_calculatetextwidth_all_ending_words_from_text ... ok
+test req_002_calculatetextwidth_arabic_basic_text ... ok
+test req_002_calculatetextwidth_arabic_character ... ok
+test req_002_calculatetextwidth_arabic_with_diacritics ... ok
+test req_002_calculatetextwidth_ascii_fast_path_consistency ... ok
+test req_002_calculatetextwidth_bengali_script ... ok
+test req_002_calculatetextwidth_bengali_script_word ... ok
+test req_002_calculatetextwidth_box_drawing_characters ... ok
+test req_002_calculatetextwidth_chinese_characters_kanji ... ok
+test req_002_calculatetextwidth_braille_patterns ... ok
+test req_002_calculatetextwidth_chinese_simplified_characters ... ok
+test req_002_calculatetextwidth_chinese_text ... ok
+test req_002_calculatetextwidth_chinese_traditional_characters ... ok
+test req_002_calculatetextwidth_cjk_with_ascii ... ok
+test req_002_calculatetextwidth_cjk_with_tabs ... ok
+test req_002_calculatetextwidth_combining_enclosing_marks ... ok
+test req_002_calculatetextwidth_combining_marks ... ok
+test req_002_calculatetextwidth_control_characters ... ok
+test req_002_calculatetextwidth_devanagari_basic_characters ... ok
+test req_002_calculatetextwidth_devanagari_conjuncts ... ok
+test req_002_calculatetextwidth_devanagari_mixed_with_ascii ... ok
+test req_002_calculatetextwidth_devanagari_namaste ... ok
+test req_002_calculatetextwidth_devanagari_om_symbol ... ok
+test req_002_calculatetextwidth_devanagari_sanskrit_word ... ok
+test req_002_calculatetextwidth_devanagari_script ... ok
+test req_002_calculatetextwidth_devanagari_width_4 ... ok
+test req_002_calculatetextwidth_devanagari_with_combining_marks ... ok
+test req_002_calculatetextwidth_empty_string ... ok
+test req_002_calculatetextwidth_empty_string_with_tabs ... ok
+test req_002_calculatetextwidth_fullwidth_forms_with_tab ... ok
+test req_002_calculatetextwidth_gujarati_script ... ok
+test req_002_calculatetextwidth_hair_style_variations ... ok
+test req_002_calculatetextwidth_hangul_jamo ... ok
+test req_002_calculatetextwidth_hebrew_text ... ok
+test req_002_calculatetextwidth_hiragana ... ok
+test req_002_calculatetextwidth_hiragana_with_tab ... ok
+test req_002_calculatetextwidth_japanese_mixed_scripts ... ok
+test req_002_calculatetextwidth_kannada_script ... ok
+test req_002_calculatetextwidth_katakana ... ok
+test req_002_calculatetextwidth_korean_hangul ... ok
+test req_002_calculatetextwidth_korean_hangul_syllables ... ok
+test req_002_calculatetextwidth_korean_words_love_and_peace ... ok
+test req_002_calculatetextwidth_lao_script ... ok
+test req_002_calculatetextwidth_malayalam_script ... ok
+test req_002_calculatetextwidth_malayalam_report_matches_ghostty_grapheme_widths ... ok
+test req_002_calculatetextwidth_mathematical_symbols ... ok
+test req_002_calculatetextwidth_mixed_ascii_and_unicode_with_tabs ... ok
+test req_002_calculatetextwidth_multilingual_sentence ... ok
+test req_002_calculatetextwidth_multiple_combining_marks_on_one_base ... ok
+test req_002_calculatetextwidth_multiple_tabs ... ok
+test req_002_calculatetextwidth_multiple_tabs_between_text ... ok
+test req_002_calculatetextwidth_musical_symbols ... ok
+test req_002_calculatetextwidth_non_breaking_spaces ... ok
+test req_002_calculatetextwidth_only_combining_marks_invalid_but_should_not_crash ... ok
+test req_002_calculatetextwidth_only_spaces ... ok
+test req_002_calculatetextwidth_oriya_script ... ok
+test req_002_calculatetextwidth_punjabi_script_word ... ok
+test req_002_calculatetextwidth_realistic_code_with_tabs ... ok
+test req_002_calculatetextwidth_realistic_chat_message ... ok
+test req_002_calculatetextwidth_realistic_multilingual_sentence ... ok
+test req_002_calculatetextwidth_sanskrit_text_with_combining_marks ... ok
+test req_002_calculatetextwidth_simple_ascii ... ok
+test req_002_calculatetextwidth_single_tab ... ok
+test req_002_calculatetextwidth_sinhala_script ... ok
+test req_002_calculatetextwidth_social_media_style_text ... ok
+test req_002_calculatetextwidth_surrogate_pair_edge_cases ... ok
+test req_002_calculatetextwidth_tab_at_end ... ok
+test req_002_calculatetextwidth_tab_at_start ... ok
+test req_002_calculatetextwidth_tab_with_different_widths ... ok
+test req_002_calculatetextwidth_tabs_and_spaces_mixed ... ok
+test req_002_calculatetextwidth_tamil_script ... ok
+test req_002_calculatetextwidth_tamil_script_word ... ok
+test req_002_calculatetextwidth_telugu_script ... ok
+test req_002_calculatetextwidth_telugu_script_word ... ok
+test req_002_calculatetextwidth_text_with_tabs ... ok
+test req_002_calculatetextwidth_thai_numerals ... ok
+test req_002_calculatetextwidth_thai_script ... ok
+test req_002_calculatetextwidth_tibetan_script ... ok
+test req_002_calculatetextwidth_u_203c_double_exclamation_mark_should_be_width_2 ... ok
+test req_002_calculatetextwidth_u_2049_exclamation_question_mark_should_be_width_2 ... ok
+test req_002_calculatetextwidth_u_2622_radioactive_sign_should_be_width_2 ... ok
+test req_002_calculatetextwidth_u_2623_biohazard_sign_should_be_width_2 ... ok
+test req_002_calculatetextwidth_u_269b_atom_symbol_should_be_width_2 ... ok
+test req_002_calculatetextwidth_u_26a0_warning_sign_should_be_width_1 ... ok
+test req_002_calculatetextwidth_u_26d1_rescue_worker_helmet_should_be_width_2 ... ok
+test req_002_calculatetextwidth_various_unicode_spaces ... ok
+test req_002_calculatetextwidth_vietnamese_with_multiple_diacritics ... ok
+test req_002_calculatetextwidth_verify_cjk_string_widths_character_by_character ... ok
+test req_002_calculatetextwidth_word_joiner ... ok
+test req_002_calculatetextwidth_zero_width_non_joiner_zwnj ... ok
+test req_002_calculatetextwidth_zero_width_space ... ok
+test req_002_clusters_simd_boundary ... ok
+test req_002_eastasianwidth_verify_all_characters_in_test_string_have_correct_width ... ok
+test req_002_findrenderclusterinfo_ascii_only_returns_empty ... ok
+test req_002_findrenderclusterinfo_ascii_with_tab ... ok
+test req_002_findrenderclusterinfo_cjk_characters ... ok
+test req_002_findrenderclusterinfo_combining_mark ... ok
+test req_002_findrenderclusterinfo_empty_string ... ok
+test req_002_findrenderclusterinfo_hiragana ... ok
+test req_002_findrenderclusterinfo_mixed_content ... ok
+test req_002_findrenderclusterinfo_only_ascii_letters_no_cache ... ok
+test req_002_findrenderclusterinfo_multiple_tabs ... ok
+test req_002_getwidthat_at_exact_end_boundary ... ok
+test req_002_findrenderclusterinfo_realistic_text ... ok
+test req_002_getwidthat_cjk_wide_character ... ok
+test req_002_getwidthat_combining_mark_grapheme ... ok
+test req_002_getwidthat_control_characters ... ok
+test req_002_getwidthat_fullwidth_forms ... ok
+test req_002_getwidthat_hiragana ... ok
+test req_002_getwidthat_katakana ... ok
+test req_002_getwidthat_mixed_ascii_and_cjk ... ok
+test req_002_getwidthat_out_of_bounds ... ok
+test req_002_getwidthat_multiple_combining_marks ... ok
+test req_002_getwidthat_realistic_mixed_content ... ok
+test req_002_getwidthat_simple_ascii ... ok
+test req_002_getwidthat_tab_at_different_columns ... ok
+test req_002_getwidthat_simd_boundary ... ok
+test req_002_getwidthat_tab_character ... ok
+test req_002_getwidthat_zero_width_at_start_of_string ... ok
+test req_002_getwidthat_empty_string ... ok
+test req_002_getwidthat_random_positions_in_realistic_text ... ok
+test req_002_manual_calculation ... ok
+test req_002_thai_base_consonants_have_width_1 ... ok
+test req_002_thai_combined_vowel_and_tone_mark ... ok
+test req_002_thai_combining_vowels_above_have_width_0 ... ok
+test req_002_thai_combining_vowels_below_have_width_0 ... ok
+test req_002_thai_is_a_single_grapheme_cluster ... ok
+test req_002_thai_full_sentence_with_spaces ... ok
+test req_002_thai_mixed_thai_and_ascii ... ok
+test req_002_thai_other_diacritics_have_width_0 ... ok
+test req_002_thai_render_cluster_info_for_combining_marks ... ok
+test req_002_large_tabs ... ok
+test req_002_thai_render_cluster_info_for_word_with_combining_marks ... ok
+test req_002_thai_spacing_vowels_have_width_1 ... ok
+test req_002_thai_tone_marks_have_width_0 ... ok
+test req_002_thai_width_should_be_1 ... ok
+test req_002_thai_width_should_be_2 ... ok
+test req_002_thai_width_should_be_4 ... ok
+test req_002_thai_word_thai_language ... ok
+test req_002_thai_word_with_tone_mark ... ok
+test req_002_thai_word_with_vowel_above ... ok
+test req_003_calculatetextwidth_all_emoji_skin_tones_in_sequence ... ok
+test req_003_calculatetextwidth_all_skin_tone_modifiers ... ok
+test req_003_calculatetextwidth_animal_emoji ... ok
+test req_003_calculatetextwidth_book_and_writing_hand_emojis_width_2 ... ok
+test req_003_calculatetextwidth_checkmark_grapheme ... ok
+test req_003_calculatetextwidth_checkmark_in_text ... ok
+test req_003_calculatetextwidth_checkmark_symbol ... ok
+test req_003_calculatetextwidth_code_with_emoji_comments ... ok
+test req_003_calculatetextwidth_complex_graphemes_with_zwj ... ok
+test req_003_calculatetextwidth_complex_text_with_emojis_and_multiple_scripts ... ok
+test req_003_calculatetextwidth_couple_zwj_sequences ... ok
+test req_003_calculatetextwidth_emoji_collection_bells_and_shrine ... ok
+test req_003_calculatetextwidth_emoji_collection_books_and_writing ... ok
+test req_003_calculatetextwidth_emoji_collection_campfire ... ok
+test req_003_calculatetextwidth_emoji_collection_celestial_and_symbols ... ok
+test req_003_calculatetextwidth_emoji_collection_circus_and_art ... ok
+test req_003_calculatetextwidth_emoji_collection_communication ... ok
+test req_003_calculatetextwidth_emoji_collection_cooking ... ok
+test req_003_calculatetextwidth_emoji_collection_dancers ... ok
+test req_003_calculatetextwidth_emoji_collection_earth_globes ... ok
+test req_003_calculatetextwidth_emoji_collection_education_and_brain ... ok
+test req_003_calculatetextwidth_emoji_collection_elderly_people ... ok
+test req_003_calculatetextwidth_emoji_collection_entertainment ... ok
+test req_003_calculatetextwidth_emoji_collection_exotic_animals ... ok
+test req_003_calculatetextwidth_emoji_collection_family_zwj_sequence ... ok
+test req_003_calculatetextwidth_emoji_collection_food_and_drink ... ok
+test req_003_calculatetextwidth_emoji_collection_global_and_handshake ... ok
+test req_003_calculatetextwidth_emoji_collection_hand_gestures ... ok
+test req_003_calculatetextwidth_emoji_collection_hearts_and_peace ... ok
+test req_003_calculatetextwidth_emoji_collection_japanese_culture ... ok
+test req_003_calculatetextwidth_emoji_collection_landscape ... ok
+test req_003_calculatetextwidth_emoji_collection_lanterns_and_lights ... ok
+test req_003_calculatetextwidth_emoji_collection_love_hearts ... ok
+test req_003_calculatetextwidth_emoji_collection_machinery_and_robots ... ok
+test req_003_calculatetextwidth_emoji_collection_media ... ok
+test req_003_calculatetextwidth_emoji_collection_meditation_and_nature ... ok
+test req_003_calculatetextwidth_emoji_collection_mountains ... ok
+test req_003_calculatetextwidth_emoji_collection_musical_instruments ... ok
+test req_003_calculatetextwidth_emoji_collection_prehistoric_creatures ... ok
+test req_003_calculatetextwidth_emoji_collection_professional_zwj_sequences ... ok
+test req_003_calculatetextwidth_emoji_collection_rainbow_and_magical_creatures ... ok
+test req_003_calculatetextwidth_emoji_collection_religious_and_gestures ... ok
+test req_003_calculatetextwidth_emoji_collection_shocked_and_amazed ... ok
+test req_003_calculatetextwidth_emoji_collection_shopping_and_food_items ... ok
+test req_003_calculatetextwidth_emoji_collection_space_travel ... ok
+test req_003_calculatetextwidth_emoji_collection_special_symbols ... ok
+test req_003_calculatetextwidth_emoji_collection_strength ... ok
+test req_003_calculatetextwidth_emoji_collection_sunrise_and_sunset ... ok
+test req_003_calculatetextwidth_emoji_collection_sweets_and_bubble_tea ... ok
+test req_003_calculatetextwidth_emoji_collection_technology ... ok
+test req_003_calculatetextwidth_emoji_collection_textiles_and_art ... ok
+test req_003_calculatetextwidth_emoji_collection_thoughts_and_dreams ... ok
+test req_003_calculatetextwidth_emoji_collection_traditional_japanese_items ... ok
+test req_003_calculatetextwidth_emoji_collection_vehicles ... ok
+test req_003_calculatetextwidth_emoji_collection_water_and_nature ... ok
+test req_003_calculatetextwidth_emoji_collection_zwj_sequences_astronauts ... ok
+test req_003_calculatetextwidth_emoji_presentation_with_vs15_text ... ok
+test req_003_calculatetextwidth_emoji_presentation_with_vs16_emoji ... ok
+test req_003_calculatetextwidth_emoji_sentence ... ok
+test req_003_calculatetextwidth_emoji_tag_sequences_subdivision_flags ... ok
+test req_003_calculatetextwidth_emoji_with_multiple_modifiers ... ok
+test req_003_calculatetextwidth_emoji_with_skin_tone ... ok
+test req_003_calculatetextwidth_emoji_with_tab ... ok
+test req_003_calculatetextwidth_emoji_with_vs16_selector ... ok
+test req_003_calculatetextwidth_emoji_with_zwj ... ok
+test req_003_calculatetextwidth_emoji_zodiac_signs ... ok
+test req_003_calculatetextwidth_family_zwj_sequences ... ok
+test req_003_calculatetextwidth_flag_emoji ... ok
+test req_003_calculatetextwidth_flag_emoji_grapheme ... ok
+test req_003_calculatetextwidth_food_emoji_collection ... ok
+test req_003_calculatetextwidth_keycap_sequences ... ok
+test req_003_calculatetextwidth_multiple_flags_in_text ... ok
+test req_003_calculatetextwidth_scroll_book_and_writing_emojis_width_2 ... ok
+test req_003_calculatetextwidth_profession_zwj_sequences ... ok
+test req_003_calculatetextwidth_skin_tone_modifier_grapheme ... ok
+test req_003_calculatetextwidth_skin_tone_with_zwj ... ok
+test req_003_calculatetextwidth_various_flag_emojis ... ok
+test req_003_calculatetextwidth_weather_and_nature_emoji ... ok
+test req_003_calculatetextwidth_zero_width_joiner_zwj ... ok
+test req_003_emoji_graphemes_table ... ok
+test req_003_findrenderclusterinfo_emoji_with_skin_tone ... ok
+test req_003_calculatetextwidth_step_by_step_for_emoji_cjk_test_string ... ok
+test req_003_findrenderclusterinfo_emoji_with_vs16 ... ok
+test req_003_findrenderclusterinfo_emoji_with_zwj ... ok
+test req_003_findrenderclusterinfo_flag_emoji ... ok
+test req_003_getwidthat_emoji_single_width ... ok
+test req_003_getwidthat_emoji_with_skin_tone ... ok
+test req_003_getwidthat_emoji_with_vs16_selector ... ok
+test req_003_getwidthat_emoji_with_zwj ... ok
+test req_003_getwidthat_flag_emoji ... ok
+test req_003_long_combining_chain ... ok
+test req_003_thai_mixed_thai_and_emoji ... ok
+test req_003_malayalam_report ... ok
+test req_002_width_map_runs ... ok
+test req_003_multilingual_consistency ... ok
+
+test result: ok. 272 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.25s
+
+     Running tests/uni_segments.rs (target/renderer/debug/deps/uni_segments-4238f27eff0b78b2)
+
+running 81 tests
+test req_004_getprevgraphemestart_at_start ... ok
+test req_004_getprevgraphemestart_combining_mark ... ok
+test req_004_getprevgraphemestart_cjk_wide_character ... ok
+test req_004_getprevgraphemestart_emoji_with_zwj ... ok
+test req_004_getprevgraphemestart_flag_emoji ... ok
+test req_004_getprevgraphemestart_emoji_with_skin_tone ... ok
+test req_004_getprevgraphemestart_hiragana ... ok
+test req_004_getprevgraphemestart_empty_string ... ok
+test req_004_getprevgraphemestart_mixed_content ... ok
+test req_004_getprevgraphemestart_out_of_bounds ... ok
+test req_004_getprevgraphemestart_consecutive_wide_chars ... ok
+test req_004_getprevgraphemestart_simple_ascii ... ok
+test req_004_getprevgraphemestart_tab_handling ... ok
+test req_004_getprevgraphemestart_multiple_combining_marks ... ok
+test req_004_isasciionly_non_ascii_at_different_positions ... ok
+test req_004_getprevgraphemestart_wcwidth_each_codepoint_separate ... ok
+test req_004_isasciionly_builders ... ok
+test req_004_isasciionly_control_chars_rejected ... ok
+test req_004_isasciionly_simple_ascii ... ok
+test req_004_isasciionly_unicode_rejected ... ok
+test req_004_no_zwj_findwrapposbywidth_with_zwj_sequences ... ok
+test req_004_no_zwj_findposbywidth_with_zwj_sequences ... ok
+test req_004_no_zwj_getprevgraphemestart_with_zwj_sequence ... ok
+test req_004_isasciionly_space_character_accepted ... ok
+test req_004_getprevgraphemestart_realistic_scenario ... ok
+test req_004_isasciionly_extended_ascii_rejected ... ok
+test req_004_isasciionly_empty_string ... ok
+test req_004_isasciionly_simd_boundary_tests ... ok
+test req_004_wcwidth_findposbywidth_with_skin_tone_modifier ... ok
+test req_004_no_zwj_getwidthat_with_zwj_sequence ... ok
+test req_005_chunk_layout_kinds_and_edges ... ok
+test req_005_chunk_layout_goldens ... ok
+test req_005_chunk_layout_simd_edges ... ok
+test req_005_find_pos_by_width_ascii_exactly_at_limit ... ok
+test req_004_wcwidth_findwrapposbywidth_with_zwj_sequences ... ok
+test req_005_find_pos_by_width_cjk_wide_characters ... ok
+test req_005_find_pos_by_width_combining_mark ... ok
+test req_005_find_pos_by_width_empty_string ... ok
+test req_005_find_pos_by_width_end_at_first_cell_of_width_2_grapheme_snaps_forward ... ok
+test req_005_find_pos_by_width_selection_boundaries_with_multiple_wide_chars ... ok
+test req_005_find_pos_by_width_multiple_wide_characters ... ok
+test req_005_find_pos_by_width_simple_ascii_no_limit ... ok
+test req_005_find_pos_by_width_start_at_second_cell_of_width_2_grapheme_snaps_backward ... ok
+test req_005_find_pos_by_width_tab_handling ... ok
+test req_005_find_pos_by_width_cjk_characters_with_english_verify_column_calculation ... ok
+test req_005_find_pos_by_width_wide_emoji_at_boundary_includes_grapheme ... ok
+test req_005_find_pos_by_width_wide_emoji_at_start ... ok
+test req_005_split_at_weight_ascii_simple_split ... ok
+test req_005_split_at_weight_ascii_split_in_middle ... ok
+test req_005_split_at_weight_beyond_end ... ok
+test req_005_split_at_weight_cjk_characters ... ok
+test req_005_split_at_weight_combining_marks ... ok
+test req_005_split_at_weight_complex_mixed_content ... ok
+test req_005_split_at_weight_emoji_with_skin_tone ... ok
+test req_005_split_at_weight_tab_character ... ok
+test req_005_split_at_weight_wide_char_at_boundary_exclude_when_starting_after ... ok
+test req_005_split_at_weight_zero_width_at_start ... ok
+test req_005_tab_stop_builders ... ok
+test req_005_tab_stop_goldens ... ok
+test req_005_thai_wrap_by_width_respects_combining_marks ... ok
+test req_005_thai_wrap_by_width_with_tone_marks ... ok
+test req_005_wrap_by_width_ascii_wrap_before_limit ... ok
+test req_005_wrap_by_width_ascii_wrap_exactly_at_limit ... ok
+test req_005_wrap_by_width_combining_mark ... ok
+test req_005_wrap_by_width_cjk_wide_characters_at_boundary ... ok
+test req_005_wrap_by_width_east_asian_wide_char ... ok
+test req_005_wrap_by_width_empty_string ... ok
+test req_005_wrap_by_width_simple_ascii_no_wrap ... ok
+test req_005_wrap_by_width_multiple_wide_characters ... ok
+test req_005_wrap_by_width_wide_emoji_at_start ... ok
+test req_005_wrap_by_width_wide_emoji_exactly_at_column_boundary ... ok
+test req_005_wrap_simd_edges ... ok
+test req_006_line_break_builders ... ok
+test req_006_line_break_kinds ... ok
+test req_009_packing_vectors ... ok
+test req_006_line_break_goldens ... ok
+test req_005_wrap_consistency ... ok
+test req_005_grapheme_safe_equivalence ... ok
+test req_005_deterministic_randoms ... ok
+test req_005_cursor_equivalence ... ok
+test req_007_decode_corpus ... ok
+
+test result: ok. 81 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+
+   Doc-tests suprtui
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+Renderer integration tests
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.42s
+     Running tests/suprtui_renderer.rs (target/debug/deps/suprtui_renderer-8b468f81ee6ea03a)
+
+running 9 tests
+test backend_remains_send_and_sync_and_shutdown_is_idempotent ... ok
+test rnd_001_grid_and_overlapping_layers ... ok
+test rnd_001_explicit_black_background_covers_lower_content ... ok
+test rnd_001_nested_layout_keeps_children_above_their_parent_background ... ok
+test rnd_001_styled_layout_update_removal_and_unchanged_screen ... ok
+test rnd_002_preserves_clusters_and_clips_at_cell_boundaries ... ok
+test rnd_002_nested_absolute_text_obeys_ancestor_clip ... ok
+test rnd_003_resize_matches_fresh_frame_and_ignores_zero ... ok
+test rnd_004_flushes_and_repaints_after_partial_write_or_flush_failure ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+Renderer example build
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.57s
+Renderer pseudo-terminal checks
+....
+----------------------------------------------------------------------
+Ran 4 tests in 0.008s
+
+OK
+PASS RND-003/005/006 PTY: Escape
+PASS RND-003/005/006 PTY: Ctrl+C
+PASS RND-003/005/006 PTY: --probe-error
+PASS RND-003/005/006 PTY: --probe-panic
+Specification lint
+spec lint: docs/spec clean
