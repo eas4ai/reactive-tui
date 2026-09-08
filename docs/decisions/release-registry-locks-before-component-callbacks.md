@@ -11,4 +11,4 @@ Detach instances and copy factory handles while holding the relevant map lock, t
 
 ## Realized by
 
-(none yet: recorded, not built)
+- 36581ee8c8265816468762194b97f05b1aed85e1 fix: release registry locks before callbacks and cleanup
