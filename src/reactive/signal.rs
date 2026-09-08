@@ -24,6 +24,7 @@ pub struct Signal<T> {
     id: SignalId,
     /// Shared inner state
     inner: Rc<RefCell<SignalInner<T>>>,
+    app_subscribers: Rc<super::wake::Subscriptions>,
 }
 
 /// Internal signal state
@@ -49,6 +50,7 @@ impl<T> Signal<T> {
     pub fn new(value: T) -> Self {
         Self {
             id: SignalId::new(),
+            app_subscribers: Rc::new(super::wake::Subscriptions::default()),
             inner: Rc::new(RefCell::new(SignalInner {
                 value,
                 version: 0,
@@ -68,11 +70,13 @@ impl<T> Signal<T> {
     where
         T: Clone,
     {
+        self.app_subscribers.track();
         self.inner.borrow().value.clone()
     }
 
     /// Get a reference to the current value
     pub fn with<R>(&self, f: impl FnOnce(&T) -> R) -> R {
+        self.app_subscribers.track();
         let inner = self.inner.borrow();
         f(&inner.value)
     }
@@ -88,38 +92,39 @@ impl<T> Signal<T> {
             if inner.value != value {
                 inner.value = value;
                 inner.version += 1;
-                
+
                 // Collect valid subscribers
                 let mut valid_subscribers = Vec::new();
                 let mut new_subscribers = Vec::new();
-                
+
                 for weak in inner.subscribers.drain(..) {
                     if let Some(subscriber) = weak.upgrade() {
                         valid_subscribers.push(subscriber);
                         new_subscribers.push(weak);
                     }
                 }
-                
+
                 inner.subscribers = new_subscribers;
-                
+
                 // Collect wakers
                 let wakers = inner.wakers.drain(..).collect::<Vec<_>>();
-                
+
                 (true, valid_subscribers, wakers)
             } else {
                 (false, Vec::new(), Vec::new())
             }
         }; // Lock released here
-        
+
         // Now notify subscribers without holding the lock
         if should_notify {
+            self.app_subscribers.notify();
             for subscriber in subscribers_to_notify {
                 // Use try_borrow_mut to avoid panics on re-entrant calls
                 if let Ok(mut sub) = subscriber.try_borrow_mut() {
                     sub.notify(self.id);
                 }
             }
-            
+
             // Wake all async tasks
             for waker in wakers_to_wake {
                 waker.wake();
@@ -140,38 +145,39 @@ impl<T> Signal<T> {
 
             if inner.value != old_value {
                 inner.version += 1;
-                
+
                 // Collect valid subscribers
                 let mut valid_subscribers = Vec::new();
                 let mut new_subscribers = Vec::new();
-                
+
                 for weak in inner.subscribers.drain(..) {
                     if let Some(subscriber) = weak.upgrade() {
                         valid_subscribers.push(subscriber);
                         new_subscribers.push(weak);
                     }
                 }
-                
+
                 inner.subscribers = new_subscribers;
-                
+
                 // Collect wakers
                 let wakers = inner.wakers.drain(..).collect::<Vec<_>>();
-                
+
                 (true, valid_subscribers, wakers)
             } else {
                 (false, Vec::new(), Vec::new())
             }
         }; // Lock released here
-        
+
         // Now notify subscribers without holding the lock
         if should_notify {
+            self.app_subscribers.notify();
             for subscriber in subscribers_to_notify {
                 // Use try_borrow_mut to avoid panics on re-entrant calls
                 if let Ok(mut sub) = subscriber.try_borrow_mut() {
                     sub.notify(self.id);
                 }
             }
-            
+
             // Wake all async tasks
             for waker in wakers_to_wake {
                 waker.wake();
@@ -215,6 +221,7 @@ impl<T> Clone for Signal<T> {
         Self {
             id: self.id,
             inner: Rc::clone(&self.inner),
+            app_subscribers: Rc::clone(&self.app_subscribers),
         }
     }
 }

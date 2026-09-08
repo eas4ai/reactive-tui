@@ -187,3 +187,9 @@ SuprTUI revision `7793deb80c5bceecc5d8ed9fc6bc6d2530531774`.
 `SuprTuiBackend` remains the application adapter. The internal crate keeps its
 own tests and source notices; `scripts/check-renderer.sh` runs those tests
 alongside the application and PTY checks.
+
+### Shared App wakeups
+
+Signal-driven roots can sleep until input or background work arrives. See
+[App wakeups](docs/app-wakeups.md) for signal subscriptions, scheduler deadlines,
+compatibility behavior, and `cargo run --locked --example wake_counter`.

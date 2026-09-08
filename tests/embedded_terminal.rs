@@ -377,3 +377,83 @@ fn emb_005_app_renders_background_updates_and_restores_on_errors() {
         );
     }
 }
+
+#[test]
+fn emb_005_app_observes_natural_exit_and_final_frame_without_input() {
+    use reactive_tui::{
+        app::App,
+        backend::{Backend, CellFrame},
+        component::Element,
+        embedded::TerminalView,
+        error::{ReactiveError, Result},
+        event::types::Event,
+        render::{reconcile::PatchOp, tree::RenderTree},
+    };
+    use std::sync::{Arc, Mutex};
+    struct CellBackend(Arc<Mutex<Vec<Arc<CellFrame>>>>);
+    impl Backend for CellBackend {
+        fn render_cells(&mut self, frame: Arc<CellFrame>) -> Result<()> {
+            self.0.lock().unwrap().push(frame);
+            Ok(())
+        }
+        fn render_frame(&mut self, _: &Element) -> Result<bool> {
+            panic!("expected native cell frame")
+        }
+        fn apply_patches(&mut self, _: &[PatchOp], _: &RenderTree) -> Result<()> {
+            panic!("expected native cell frame")
+        }
+        fn clear(&mut self) -> Result<()> {
+            Ok(())
+        }
+        fn present(&mut self) -> Result<()> {
+            Ok(())
+        }
+        fn size(&self) -> (u16, u16) {
+            (20, 4)
+        }
+        fn poll_event(&mut self, _: Option<u64>) -> Result<Option<Event>> {
+            panic!("wake-aware wait expected")
+        }
+        fn poll_event_with_wake(
+            &mut self,
+            timeout: Option<Duration>,
+            wake: &reactive_tui::app::AppWaker,
+        ) -> Result<Option<Event>> {
+            let start = Instant::now();
+            wake.wait(Some(timeout.unwrap_or(Duration::from_secs(2))));
+            if start.elapsed() >= Duration::from_secs(2) {
+                return Err(ReactiveError::terminal("native App exit watchdog"));
+            }
+            Ok(None)
+        }
+    }
+    let mut command = Command::new("/bin/sh");
+    command.args(["-c", "sleep 0.05; printf FINISHED"]);
+    let session = EmbeddedSession::spawn(command, 20, 4).unwrap();
+    let pid = session.child_id();
+    let frames = Arc::new(Mutex::new(Vec::new()));
+    App::builder()
+        .backend(CellBackend(frames.clone()))
+        .root(TerminalView::new(session))
+        .build()
+        .unwrap()
+        .run()
+        .unwrap();
+    let frames = frames.lock().unwrap();
+    let final_text: String = frames
+        .last()
+        .unwrap()
+        .cells()
+        .iter()
+        .map(|cell| cell.text.as_str())
+        .collect();
+    assert!(
+        final_text.contains("FINISHED"),
+        "final child output must be rendered before exit"
+    );
+    assert_eq!(unsafe { libc::kill(pid as i32, 0) }, -1);
+    assert_eq!(
+        std::io::Error::last_os_error().raw_os_error(),
+        Some(libc::ESRCH)
+    );
+}

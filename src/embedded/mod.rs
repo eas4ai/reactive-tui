@@ -9,7 +9,7 @@ mod pty;
 mod snapshot;
 mod worker;
 
-use crate::app::{RootComponent, RootUpdate};
+use crate::app::{AppWaker, RootComponent, RootUpdate};
 use crate::backend::CellFrame;
 use crate::component::Element;
 use crate::error::{ReactiveError, Result};
@@ -43,6 +43,7 @@ pub struct SessionSnapshot {
 
 #[derive(Default)]
 struct SharedState {
+    wake: Option<AppWaker>,
     revision: u64,
     frame: Option<Arc<CellFrame>>,
     exit_status: Option<ExitStatus>,
@@ -103,6 +104,13 @@ impl EmbeddedSession {
         }
     }
 
+    /// Notify one App when a frame, exit status or error is published.
+    pub fn attach_waker(&self, wake: AppWaker) -> Result<()> {
+        self.shared.lock().map_err(|_| closed())?.wake = Some(wake.clone());
+        wake.wake();
+        Ok(())
+    }
+
     /// PID of the directly owned executable, for diagnostics.
     pub fn child_id(&self) -> u32 {
         self.child_id
@@ -126,7 +134,22 @@ impl EmbeddedSession {
     /// Queue one key. A full queue returns backpressure instead of blocking App.
     /// Later IO errors appear in snapshot().error and TerminalView::update.
     pub fn send_key(&self, key: KeyEvent) -> Result<()> {
-        self.send(SessionCommand::Key(key))
+        if self.try_key(key)?.is_some() {
+            return Err(ReactiveError::resource(
+                "embedded terminal command queue is full",
+            ));
+        }
+        Ok(())
+    }
+
+    // Return the unqueued key so TerminalView can pause input and retry on wake.
+    fn try_key(&self, key: KeyEvent) -> Result<Option<KeyEvent>> {
+        self.ensure_running()?;
+        match self.commands.try_send(SessionCommand::Key(key)) {
+            Ok(()) => Ok(None),
+            Err(mpsc::TrySendError::Full(SessionCommand::Key(key))) => Ok(Some(key)),
+            Err(_) => Err(closed()),
+        }
     }
 
     /// Resize both the PTY and interpreter, publishing the new frame before return.
@@ -143,7 +166,7 @@ impl EmbeddedSession {
             .map_err(|_| ReactiveError::terminal("embedded terminal resize did not complete"))?
     }
 
-    fn send(&self, command: SessionCommand) -> Result<()> {
+    fn ensure_running(&self) -> Result<()> {
         let snapshot = self.snapshot()?;
         if let Some(error) = snapshot.error {
             return Err(ReactiveError::terminal(error));
@@ -151,6 +174,11 @@ impl EmbeddedSession {
         if snapshot.stopped || snapshot.exit_status.is_some() {
             return Err(closed());
         }
+        Ok(())
+    }
+
+    fn send(&self, command: SessionCommand) -> Result<()> {
+        self.ensure_running()?;
         self.commands
             .try_send(command)
             .map_err(|error| match error {
@@ -189,7 +217,9 @@ impl Drop for EmbeddedSession {
 pub struct TerminalView {
     session: EmbeddedSession,
     revision: u64,
-    exit_shown: bool,
+    exit_shown: AtomicBool,
+    wake: Option<AppWaker>,
+    pending_key: Option<KeyEvent>,
 }
 
 impl TerminalView {
@@ -198,7 +228,9 @@ impl TerminalView {
         Self {
             session,
             revision: 0,
-            exit_shown: false,
+            exit_shown: AtomicBool::new(false),
+            wake: None,
+            pending_key: None,
         }
     }
 }
@@ -207,25 +239,45 @@ impl RootComponent for TerminalView {
     fn render(&self) -> Element {
         Element::empty()
     }
+    fn attach_waker(&mut self, wake: AppWaker) {
+        // Shared-state poisoning is reported by the next snapshot/update call.
+        if let Ok(mut shared) = self.session.shared.lock() {
+            shared.wake = Some(wake.clone());
+        }
+        self.wake = Some(wake);
+    }
+    fn accepts_input(&self) -> bool {
+        self.pending_key.is_none()
+    }
+    fn wake_driven(&self) -> bool {
+        true
+    }
     fn cell_frame(&self) -> Result<Option<Arc<CellFrame>>> {
-        Ok(Some(self.session.snapshot()?.frame))
+        let snapshot = self.session.snapshot()?;
+        if snapshot.exit_status.is_some() {
+            self.exit_shown.store(true, Ordering::Release);
+            if let Some(wake) = &self.wake {
+                wake.wake();
+            }
+        }
+        Ok(Some(snapshot.frame))
     }
     fn update(&mut self) -> Result<RootUpdate> {
         let snapshot = self.session.snapshot()?;
         if let Some(error) = snapshot.error {
             return Err(ReactiveError::terminal(error));
         }
-        if self.exit_shown {
+        if self.exit_shown.load(Ordering::Acquire) {
             return Ok(RootUpdate::Exit);
         }
         if snapshot.exit_status.is_some() {
-            self.exit_shown = true;
+            self.pending_key = None;
+        } else if let Some(key) = self.pending_key.take() {
+            self.pending_key = self.session.try_key(key)?;
         }
         if snapshot.revision != self.revision {
             self.revision = snapshot.revision;
             Ok(RootUpdate::Redraw)
-        } else if self.exit_shown {
-            Ok(RootUpdate::Exit)
         } else {
             Ok(RootUpdate::Unchanged)
         }
@@ -236,10 +288,15 @@ impl RootComponent for TerminalView {
     fn try_handle_event(&mut self, event: &Event) -> Result<EventResult> {
         match event {
             Event::Key(key) => {
+                if self.pending_key.is_some() {
+                    return Err(ReactiveError::resource(
+                        "embedded terminal input is paused; retry after update",
+                    ));
+                }
                 if self.session.snapshot()?.exit_status.is_some() {
                     return Ok(EventResult::Ignored);
                 }
-                self.session.send_key(key.clone())?;
+                self.pending_key = self.session.try_key(key.clone())?;
                 Ok(EventResult::Handled)
             }
             _ => Ok(EventResult::Ignored),

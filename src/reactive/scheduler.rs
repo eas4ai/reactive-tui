@@ -1,221 +1,214 @@
-use std::collections::VecDeque;
-use std::sync::{Arc, Mutex};
+use super::wake::AppWaker;
+use std::collections::{HashMap, VecDeque};
+use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
-/// Task to be executed by the scheduler
+/// Task to be executed by the scheduler.
 pub type SchedulerTask = Box<dyn FnOnce() + Send>;
-
-/// Timer callback
+/// Timer callback.
 pub type TimerCallback = Box<dyn FnMut() + Send>;
-
-/// Handle for a scheduled timer
+/// Handle for a scheduled timer.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct TimerId(usize);
-
 impl TimerId {
-    /// Create a new unique timer ID
     fn new() -> Self {
         static COUNTER: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
         Self(COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed))
     }
 }
-
-/// Timer entry in the scheduler
 struct TimerEntry {
-    /// Unique identifier for this timer
     id: TimerId,
-    /// Callback function to execute
     callback: TimerCallback,
-    /// Interval between executions
     interval: Duration,
-    /// When this timer should next run
     next_run: Instant,
-    /// Whether this timer repeats
     repeat: bool,
 }
-
-/// Scheduler for managing reactive updates and timers
-pub struct Scheduler {
-    /// Queue of pending updates
-    update_queue: Arc<Mutex<VecDeque<SchedulerTask>>>,
-    /// Active timers
-    timers: Arc<Mutex<Vec<TimerEntry>>>,
-    /// Flag to track if updates are pending
-    has_updates: Arc<Mutex<bool>>,
+#[derive(Default)]
+struct Timers {
+    entries: Vec<TimerEntry>,
+    // Timers executing outside the lock; true means cancel after the current call.
+    running: HashMap<TimerId, bool>,
 }
 
+/// Shared work queue and timers. Callbacks execute outside storage locks.
+pub struct Scheduler {
+    update_queue: Mutex<VecDeque<SchedulerTask>>,
+    timers: Mutex<Timers>,
+    wake: Mutex<Option<AppWaker>>,
+}
 impl Scheduler {
-    /// Create a new scheduler
+    /// Create an unattached scheduler.
     pub fn new() -> Self {
         Self {
-            update_queue: Arc::new(Mutex::new(VecDeque::new())),
-            timers: Arc::new(Mutex::new(Vec::new())),
-            has_updates: Arc::new(Mutex::new(false)),
+            update_queue: Mutex::new(VecDeque::new()),
+            timers: Mutex::new(Timers::default()),
+            wake: Mutex::new(None),
         }
     }
-
-    /// Schedule an update task
+    /// Attach notifications to one App. Replacing a live App attachment is rejected.
+    pub(crate) fn attach(&self, wake: AppWaker) -> crate::error::Result<()> {
+        let mut target = self.wake.lock().unwrap();
+        if target.as_ref().is_some_and(|old| !old.is_closed()) {
+            return Err(crate::error::ReactiveError::invalid_state(
+                "scheduler already belongs to a live App",
+            ));
+        }
+        *target = Some(wake);
+        Ok(())
+    }
+    fn notify(&self) {
+        let wake = self.wake.lock().unwrap().clone();
+        if let Some(wake) = wake {
+            wake.wake();
+        }
+    }
+    /// Queue one update and wake an attached App.
     pub fn schedule_update(&self, task: SchedulerTask) {
-        // Handle poison error by clearing the poison and continuing
-        let mut queue = match self.update_queue.lock() {
-            Ok(q) => q,
-            Err(poisoned) => {
-                // Clear the poison and continue - scheduler must keep working
-                poisoned.into_inner()
-            }
-        };
-        queue.push_back(task);
-        
-        match self.has_updates.lock() {
-            Ok(mut has_updates) => *has_updates = true,
-            Err(poisoned) => *poisoned.into_inner() = true,
-        }
+        self.update_queue
+            .lock()
+            .unwrap_or_else(|p| p.into_inner())
+            .push_back(task);
+        self.notify();
     }
-
-    /// Check if there are pending updates
+    /// Whether work is queued.
     pub fn has_pending_updates(&self) -> bool {
-        match self.has_updates.lock() {
-            Ok(has_updates) => *has_updates,
-            Err(poisoned) => *poisoned.into_inner(),
-        }
+        !self
+            .update_queue
+            .lock()
+            .unwrap_or_else(|p| p.into_inner())
+            .is_empty()
     }
-
-    /// Process all pending updates
+    /// Run the current batch. Work queued by callbacks remains for the next batch.
     pub fn process_updates(&self) {
-        let mut queue = match self.update_queue.lock() {
-            Ok(q) => q,
-            Err(poisoned) => poisoned.into_inner(),
-        };
-        let mut updates = Vec::new();
-
-        // Drain the queue
-        while let Some(task) = queue.pop_front() {
-            updates.push(task);
-        }
-
-        // Clear the flag
-        match self.has_updates.lock() {
-            Ok(mut has_updates) => *has_updates = false,
-            Err(poisoned) => *poisoned.into_inner() = false,
-        }
-
-        // Drop the lock before executing tasks
-        drop(queue);
-
-        // Execute all tasks
+        let updates =
+            std::mem::take(&mut *self.update_queue.lock().unwrap_or_else(|p| p.into_inner()));
         for task in updates {
             task();
         }
     }
-
-    /// Schedule a timer that runs at intervals
+    /// Schedule a repeating timer. Zero intervals are eligible once per processing turn.
     pub fn schedule_interval<F>(&self, interval: Duration, callback: F) -> TimerId
     where
         F: FnMut() + Send + 'static,
     {
-        let id = TimerId::new();
-        let entry = TimerEntry {
-            id,
-            callback: Box::new(callback),
-            interval,
-            next_run: Instant::now() + interval,
-            repeat: true,
-        };
-
-        match self.timers.lock() {
-            Ok(mut timers) => timers.push(entry),
-            Err(poisoned) => poisoned.into_inner().push(entry),
-        }
-        id
+        self.add_timer(interval, true, Box::new(callback))
     }
-
-    /// Schedule a one-time timer
+    /// Schedule one callback after a delay.
     pub fn schedule_timeout<F>(&self, delay: Duration, callback: F) -> TimerId
     where
         F: FnOnce() + Send + 'static,
     {
-        let id = TimerId::new();
-
-        // Wrap FnOnce in FnMut for storage
-        let mut callback_opt = Some(callback);
-        let entry = TimerEntry {
-            id,
-            callback: Box::new(move || {
-                if let Some(cb) = callback_opt.take() {
-                    cb();
+        let mut callback = Some(callback);
+        self.add_timer(
+            delay,
+            false,
+            Box::new(move || {
+                if let Some(callback) = callback.take() {
+                    callback();
                 }
             }),
-            interval: delay,
-            next_run: Instant::now() + delay,
-            repeat: false,
-        };
-
-        match self.timers.lock() {
-            Ok(mut timers) => timers.push(entry),
-            Err(poisoned) => poisoned.into_inner().push(entry),
-        }
+        )
+    }
+    fn add_timer(&self, interval: Duration, repeat: bool, callback: TimerCallback) -> TimerId {
+        let id = TimerId::new();
+        let next_run = Instant::now()
+            .checked_add(interval)
+            .expect("timer delay exceeds the clock range");
+        self.timers
+            .lock()
+            .unwrap_or_else(|p| p.into_inner())
+            .entries
+            .push(TimerEntry {
+                id,
+                callback,
+                interval,
+                next_run,
+                repeat,
+            });
+        self.notify();
         id
     }
-
-    /// Cancel a timer
+    /// Cancel a timer. A callback already running may finish but will not repeat.
     pub fn cancel_timer(&self, id: TimerId) {
-        let mut timers = match self.timers.lock() {
-            Ok(t) => t,
-            Err(poisoned) => poisoned.into_inner(),
+        let removed = {
+            let mut timers = self.timers.lock().unwrap_or_else(|p| p.into_inner());
+            if let Some(cancelled) = timers.running.get_mut(&id) {
+                *cancelled = true;
+            }
+            timers
+                .entries
+                .iter()
+                .position(|timer| timer.id == id)
+                .map(|index| timers.entries.remove(index))
         };
-        timers.retain(|timer| timer.id != id);
+        drop(removed);
+        self.notify();
     }
-
-    /// Process any timers that are ready to run
+    /// Earliest scheduled callback, used to bound App's idle wait.
+    pub fn next_deadline(&self) -> Option<Instant> {
+        self.timers
+            .lock()
+            .unwrap_or_else(|p| p.into_inner())
+            .entries
+            .iter()
+            .map(|t| t.next_run)
+            .min()
+    }
+    /// Run ready timers without holding their storage lock.
     pub fn process_timers(&self) {
-        let now = Instant::now();
-        let mut timers = match self.timers.lock() {
-            Ok(t) => t,
-            Err(poisoned) => poisoned.into_inner(),
-        };
-        let mut indices_to_run = Vec::new();
-        let mut completed_ids = Vec::new();
-
-        // Find timers that are ready to run
-        for (index, timer) in timers.iter().enumerate() {
-            if timer.next_run <= now {
-                indices_to_run.push(index);
-                if !timer.repeat {
-                    completed_ids.push(timer.id);
-                }
-            }
-        }
-
-        // Execute callbacks and update repeat timers
-        for index in indices_to_run {
-            let timer = &mut timers[index];
-            (timer.callback)();
-            if timer.repeat {
-                timer.next_run = now + timer.interval;
-            }
-        }
-
-        // Remove one-time timers that have completed
-        timers.retain(|timer| !completed_ids.contains(&timer.id));
+        self.run_ready_timers();
     }
-
-    /// Clear all scheduled updates and timers
+    pub(crate) fn run_ready_timers(&self) -> bool {
+        let now = Instant::now();
+        let ready = {
+            let mut timers = self.timers.lock().unwrap_or_else(|p| p.into_inner());
+            let (ready, later): (Vec<_>, Vec<_>) = std::mem::take(&mut timers.entries)
+                .into_iter()
+                .partition(|t| t.next_run <= now);
+            timers.entries = later;
+            for timer in &ready {
+                timers.running.insert(timer.id, false);
+            }
+            ready
+        };
+        let mut ran = false;
+        for mut timer in ready {
+            let cancelled = self
+                .timers
+                .lock()
+                .unwrap_or_else(|p| p.into_inner())
+                .running
+                .get(&timer.id)
+                .copied()
+                .unwrap_or(true);
+            if !cancelled {
+                ran = true;
+                (timer.callback)();
+            }
+            let mut timers = self.timers.lock().unwrap_or_else(|p| p.into_inner());
+            if timers.running.remove(&timer.id) == Some(false) && timer.repeat {
+                timer.next_run = Instant::now()
+                    .checked_add(timer.interval)
+                    .expect("timer interval exceeds the clock range");
+                timers.entries.push(timer);
+            }
+        }
+        ran
+    }
+    /// Discard queued work and cancel timers, including repeats currently executing.
     pub fn clear(&self) {
-        match self.update_queue.lock() {
-            Ok(mut queue) => queue.clear(),
-            Err(poisoned) => poisoned.into_inner().clear(),
-        }
-        match self.timers.lock() {
-            Ok(mut timers) => timers.clear(),
-            Err(poisoned) => poisoned.into_inner().clear(),
-        }
-        match self.has_updates.lock() {
-            Ok(mut has_updates) => *has_updates = false,
-            Err(poisoned) => *poisoned.into_inner() = false,
-        }
+        let updates =
+            std::mem::take(&mut *self.update_queue.lock().unwrap_or_else(|p| p.into_inner()));
+        let entries = {
+            let mut timers = self.timers.lock().unwrap_or_else(|p| p.into_inner());
+            // Missing running entries are treated as cancelled by the runner.
+            timers.running.clear();
+            std::mem::take(&mut timers.entries)
+        };
+        drop((updates, entries));
+        self.notify();
     }
 }
-
 impl Default for Scheduler {
     fn default() -> Self {
         Self::new()
@@ -226,6 +219,7 @@ impl Default for Scheduler {
 mod tests {
     use super::*;
     use std::sync::atomic::{AtomicUsize, Ordering};
+    use std::sync::Arc;
 
     #[test]
     fn test_schedule_update() {
@@ -286,5 +280,28 @@ mod tests {
         scheduler.cancel_timer(id);
         scheduler.process_timers();
         assert_eq!(counter.load(Ordering::Relaxed), 2);
+    }
+    #[test]
+    fn timer_can_cancel_itself_and_schedule_more_work() {
+        let scheduler = Arc::new(Scheduler::new());
+        let timer_id = Arc::new(Mutex::new(None));
+        let calls = Arc::new(AtomicUsize::new(0));
+        let callback_scheduler = scheduler.clone();
+        let callback_id = timer_id.clone();
+        let callback_calls = calls.clone();
+        let id = scheduler.schedule_interval(Duration::ZERO, move || {
+            callback_calls.fetch_add(1, Ordering::Relaxed);
+            callback_scheduler.cancel_timer(callback_id.lock().unwrap().unwrap());
+            let calls = callback_calls.clone();
+            callback_scheduler.schedule_timeout(Duration::ZERO, move || {
+                calls.fetch_add(10, Ordering::Relaxed);
+            });
+        });
+        *timer_id.lock().unwrap() = Some(id);
+        scheduler.process_timers();
+        scheduler.process_timers();
+        scheduler.process_timers();
+        assert_eq!(calls.load(Ordering::Relaxed), 11);
+        assert!(scheduler.next_deadline().is_none());
     }
 }

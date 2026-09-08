@@ -117,6 +117,11 @@ pub(super) fn run(
         };
         shared.stopped = true;
         shared.revision = shared.revision.saturating_add(1);
+        let wake = shared.wake.clone();
+        drop(shared);
+        if let Some(wake) = wake {
+            wake.wake();
+        }
     }
 }
 
@@ -136,14 +141,17 @@ fn drive<'a>(
         if stop.load(Ordering::Acquire) {
             return Ok(());
         }
+        let mut consumed = false;
         for _ in 0..16 {
             match receiver.try_recv() {
                 Ok(SessionCommand::Key(key)) => {
+                    consumed = true;
                     pending
                         .borrow_mut()
                         .append(&keyboard::encode(terminal, encoder, &key)?);
                 }
                 Ok(SessionCommand::Resize(width, height, reply)) => {
+                    consumed = true;
                     let result = child
                         .resize(width, height)
                         .map_err(|error| io_error("resize PTY", error))
@@ -161,6 +169,12 @@ fn drive<'a>(
                 }
                 Err(mpsc::TryRecvError::Empty) => break,
                 Err(mpsc::TryRecvError::Disconnected) => return Ok(()),
+            }
+        }
+        if consumed {
+            let wake = shared.lock().map_err(|_| super::closed())?.wake.clone();
+            if let Some(wake) = wake {
+                wake.wake();
             }
         }
         let read = if eof {
@@ -259,6 +273,11 @@ fn publish<'a>(
     let mut shared = shared.lock().map_err(|_| super::closed())?;
     shared.frame = Some(frame);
     shared.revision = shared.revision.saturating_add(1);
+    let wake = shared.wake.clone();
+    drop(shared);
+    if let Some(wake) = wake {
+        wake.wake();
+    }
     Ok(())
 }
 
@@ -267,6 +286,11 @@ fn publish_exit(shared: &Mutex<SharedState>, status: ExitStatus) -> Result<()> {
     if shared.exit_status.is_none() {
         shared.exit_status = Some(status);
         shared.revision = shared.revision.saturating_add(1);
+    }
+    let wake = shared.wake.clone();
+    drop(shared);
+    if let Some(wake) = wake {
+        wake.wake();
     }
     Ok(())
 }

@@ -85,6 +85,7 @@ impl AnimatableValue for (f32, f32) {
 /// Shared animation runtime that manages animation frames
 struct AnimationRuntime {
     running: Arc<AtomicBool>,
+    app_subscribers: crate::reactive::wake::Subscriptions,
     animations: Arc<RwLock<Vec<AnimationTask>>>,
     /// Pre-computed animation updates to avoid blocking render thread
     pending_updates: Arc<RwLock<Vec<(usize, f32)>>>,
@@ -101,6 +102,7 @@ impl AnimationRuntime {
     fn new() -> Arc<Self> {
         Arc::new(Self {
             running: Arc::new(AtomicBool::new(true)),
+            app_subscribers: crate::reactive::wake::Subscriptions::default(),
             animations: Arc::new(RwLock::new(Vec::new())),
             pending_updates: Arc::new(RwLock::new(Vec::new())),
         })
@@ -183,6 +185,8 @@ impl AnimationRuntime {
             start_time: Instant::now(),
             duration,
         });
+        drop(animations);
+        self.app_subscribers.notify();
         id
     }
 
@@ -221,7 +225,12 @@ fn get_global_animation_manager() -> Option<&'static mut crate::animation::Anima
 
 /// Update all hook-based animations (called from main render loop)
 pub fn update_hook_animations() {
+    RUNTIME.app_subscribers.track();
     RUNTIME.update_animations();
+}
+
+pub(crate) fn has_hook_animations() -> bool {
+    RUNTIME.running.load(Ordering::Relaxed) && !RUNTIME.animations.read().unwrap().is_empty()
 }
 
 /// Stop the global animation runtime (for cleanup)

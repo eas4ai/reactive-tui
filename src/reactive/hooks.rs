@@ -96,6 +96,7 @@ impl Default for Hooks {
 pub struct ThreadSafeSignal<T> {
     inner: Arc<Mutex<T>>,
     version: Arc<Mutex<usize>>,
+    app_subscribers: Arc<super::wake::Subscriptions>,
 }
 
 impl<T: Clone + Default> ThreadSafeSignal<T> {
@@ -104,13 +105,18 @@ impl<T: Clone + Default> ThreadSafeSignal<T> {
         Self {
             inner: Arc::new(Mutex::new(initial)),
             version: Arc::new(Mutex::new(0)),
+            app_subscribers: Arc::new(super::wake::Subscriptions::default()),
         }
     }
 
     /// Get the current value of the signal
     pub fn get(&self) -> T {
-        self.inner.lock()
-            .map(|guard| guard.clone())
+        self.inner
+            .lock()
+            .map(|guard| {
+                self.app_subscribers.track();
+                guard.clone()
+            })
             .unwrap_or_else(|_| {
                 log::warn!("Signal lock poisoned, returning default value");
                 T::default()
@@ -122,13 +128,21 @@ impl<T: Clone + Default> ThreadSafeSignal<T> {
     where
         T: PartialEq,
     {
-        if let (Ok(mut inner), Ok(mut version)) = (self.inner.lock(), self.version.lock()) {
-            if *inner != value {
-                *inner = value;
-                *version += 1;
-            }
-        } else {
-            log::warn!("Signal locks poisoned during set operation");
+        let changed =
+            if let (Ok(mut inner), Ok(mut version)) = (self.inner.lock(), self.version.lock()) {
+                if *inner != value {
+                    *inner = value;
+                    *version += 1;
+                    true
+                } else {
+                    false
+                }
+            } else {
+                log::warn!("Signal locks poisoned during set operation");
+                false
+            };
+        if changed {
+            self.app_subscribers.notify();
         }
     }
 
@@ -137,14 +151,22 @@ impl<T: Clone + Default> ThreadSafeSignal<T> {
     where
         T: PartialEq,
     {
-        if let (Ok(mut inner), Ok(mut version)) = (self.inner.lock(), self.version.lock()) {
-            let old = inner.clone();
-            f(&mut *inner);
-            if *inner != old {
-                *version += 1;
-            }
-        } else {
-            log::warn!("Signal locks poisoned during update operation");
+        let changed =
+            if let (Ok(mut inner), Ok(mut version)) = (self.inner.lock(), self.version.lock()) {
+                let old = inner.clone();
+                f(&mut *inner);
+                if *inner != old {
+                    *version += 1;
+                    true
+                } else {
+                    false
+                }
+            } else {
+                log::warn!("Signal locks poisoned during update operation");
+                false
+            };
+        if changed {
+            self.app_subscribers.notify();
         }
     }
 }
@@ -154,6 +176,7 @@ impl<T> Clone for ThreadSafeSignal<T> {
         Self {
             inner: Arc::clone(&self.inner),
             version: Arc::clone(&self.version),
+            app_subscribers: Arc::clone(&self.app_subscribers),
         }
     }
 }
@@ -165,7 +188,8 @@ pub fn use_signal<T: Send + Sync + Clone + Default + 'static>(
 ) -> ThreadSafeSignal<T> {
     let initial_clone = initial.clone();
     let signal = hooks.get_or_create_storage(|| ThreadSafeSignal::new(initial));
-    signal.lock()
+    signal
+        .lock()
         .map(|guard| guard.clone())
         .unwrap_or_else(|_| {
             log::warn!("Signal lock poisoned in use_signal, returning default");
@@ -216,7 +240,9 @@ where
 
 /// Access context value (thread-safe version)
 pub fn use_context<T: Clone + Send + Sync + 'static>(hooks: &Hooks) -> Option<T> {
-    hooks.contexts.lock()
+    hooks
+        .contexts
+        .lock()
         .map_err(|_| log::warn!("Context lock poisoned in use_context"))
         .ok()?
         .get(&TypeId::of::<T>())

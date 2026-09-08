@@ -12,6 +12,7 @@ inputs:
   - tests/app_wakeups.rs
   - tests/embedded_terminal.rs
   - tests/suprtui_renderer.rs
+  - examples/wake_counter.rs
   - examples/embedded_shell.rs
   - examples/suprtui_counter.rs
 requirements:

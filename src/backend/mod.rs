@@ -40,6 +40,22 @@ pub trait Backend: Send + Sync {
     fn size(&self) -> (u16, u16);
     /// Poll next high-level Event (converted from crossterm), with optional timeout in ms
     fn poll_event(&mut self, timeout_ms: Option<u64>) -> Result<Option<rt_event::Event>>;
+    /// Wait for input or an App notification. The default adapts legacy backends
+    /// with nonblocking input checks at most 10 ms apart and a wakeable sleep.
+    fn poll_event_with_wake(
+        &mut self,
+        timeout: Option<std::time::Duration>,
+        wake: &crate::app::AppWaker,
+    ) -> Result<Option<rt_event::Event>> {
+        let deadline = timeout.and_then(|duration| std::time::Instant::now().checked_add(duration));
+        loop {
+            if let Some(event) = self.poll_event(Some(0))? { return Ok(Some(event)); }
+            if wake.is_pending() || wake.is_closed() { return Ok(None); }
+            let remaining = deadline.map(|end| end.saturating_duration_since(std::time::Instant::now()));
+            if remaining == Some(std::time::Duration::ZERO) { return Ok(None); }
+            wake.wait(Some(remaining.unwrap_or(std::time::Duration::from_millis(10)).min(std::time::Duration::from_millis(10))));
+        }
+    }
     /// Enable/disable debug overlay if supported (default: no-op)
     fn set_debug_overlay(&mut self, _enabled: bool) {}
     /// Handle terminal resize (default: no-op)

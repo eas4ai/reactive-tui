@@ -16,6 +16,7 @@ use std::sync::Arc;
 use std::thread::{self, JoinHandle};
 use std::time::Duration;
 
+mod input;
 mod output;
 use output::{CheckedOutput, TerminalOutput};
 
@@ -43,6 +44,7 @@ pub struct SuprTuiBackend {
     frame: Element,
     cells: Option<Arc<CellFrame>>,
     raw_mode: Option<RawMode>,
+    input: Option<crossterm::event::EventStream>,
 }
 
 impl SuprTuiBackend {
@@ -86,6 +88,7 @@ impl SuprTuiBackend {
             frame: Element::empty(),
             cells: None,
             raw_mode: None,
+            input: None,
         };
         match initialized.recv().map_err(|_| worker_stopped())? {
             Ok(()) => Ok(backend),
@@ -102,6 +105,7 @@ impl SuprTuiBackend {
 
     /// Restore the session and join the worker. Safe to call more than once.
     pub fn shutdown(&mut self) -> Result<()> {
+        self.input.take();
         let output_result = if let Some(commands) = self.commands.take() {
             let (reply, result) = mpsc::channel();
             commands
@@ -193,12 +197,25 @@ impl Backend for SuprTuiBackend {
     }
 
     fn poll_event(&mut self, timeout_ms: Option<u64>) -> Result<Option<Event>> {
-        if let Some(ms) = timeout_ms {
-            if !crossterm::event::poll(Duration::from_millis(ms))? {
-                return Ok(None);
-            }
+        self.poll_event_with_wake(
+            timeout_ms.map(Duration::from_millis),
+            &crate::app::AppWaker::new(),
+        )
+    }
+
+    fn poll_event_with_wake(
+        &mut self,
+        timeout: Option<Duration>,
+        wake: &crate::app::AppWaker,
+    ) -> Result<Option<Event>> {
+        if self.commands.is_none() {
+            return Err(worker_stopped());
         }
-        Ok(CrosstermBackend::map_ct_event(crossterm::event::read()?))
+        let stream = self
+            .input
+            .get_or_insert_with(crossterm::event::EventStream::new);
+        input::poll(stream, timeout, wake)
+            .map(|event| event.and_then(CrosstermBackend::map_ct_event))
     }
 
     fn shutdown(&mut self) -> Result<()> {

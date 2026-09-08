@@ -7,15 +7,15 @@ use crate::event::router::{EventResult, EventRouter};
 use crate::animation::AnimationManager;
 use crate::error::Result;
 use crate::reactive::scheduler::Scheduler;
+pub use crate::reactive::wake::AppWaker;
+use crate::reactive::wake::Scope;
 use crate::render::reconcile::PatchOp;
 use crate::render::{Reconciler, RenderTree};
-use std::time::{Duration, Instant};
+use std::sync::Arc;
+use std::time::Instant;
 
 mod focus_manager;
 use focus_manager::FocusManager;
-
-/// Estimated time for a single render operation in milliseconds
-const RENDER_TIME_ESTIMATE_MS: u64 = 1;
 
 /// Trait for root components that can render to an Element
 pub trait RootComponent: Send + Sync {
@@ -24,6 +24,17 @@ pub trait RootComponent: Send + Sync {
     /// Optional complete cell screen, used by direct cell producers.
     fn cell_frame(&self) -> Result<Option<std::sync::Arc<crate::backend::CellFrame>>> {
         Ok(None)
+    }
+    /// Attach this App's wake handle to background producers.
+    fn attach_waker(&mut self, _wake: AppWaker) {}
+    /// Whether App may read another input event. A paused root must wake App
+    /// when it can accept input again; timers and stop requests remain active.
+    fn accepts_input(&self) -> bool {
+        true
+    }
+    /// Opt into idle waiting. The default preserves periodic update() polling.
+    fn wake_driven(&self) -> bool {
+        false
     }
     /// Poll background state once per event-loop iteration.
     fn update(&mut self) -> Result<RootUpdate> {
@@ -58,7 +69,8 @@ pub enum RootUpdate {
 pub struct App {
     backend: Box<dyn Backend>,
     root: Box<dyn RootComponent>,
-    scheduler: Scheduler,
+    scheduler: Arc<Scheduler>,
+    wake: AppWaker,
     router: EventRouter,
     tree: RenderTree,
     previous_tree: RenderTree,
@@ -85,6 +97,7 @@ impl App {
     /// Run the application main loop
     pub fn run(mut self) -> Result<()> {
         let result = self.run_loop();
+        self.wake.close();
         let cleanup = self.backend.shutdown();
         match (result, cleanup) {
             (Err(error), Err(cleanup)) => Err(crate::error::ReactiveError::terminal(format!(
@@ -97,161 +110,156 @@ impl App {
 
     fn run_loop(&mut self) -> Result<()> {
         self.running = true;
+        self.root.attach_waker(self.wake.clone());
         let (width, height) = self.backend.size();
         self.root.resize(width, height)?;
-
-        // Initial render and benchmark
-        self.render()?;
-        self.fps_manager.benchmark_if_needed(&self.tree);
-
-        // If debug mode is on, enable backend's debug overlay (no-op if unsupported)
         if self.debug {
             self.backend.set_debug_overlay(true);
         }
-
-        // Show display capabilities
-        if self.debug {
-            eprintln!("{}", self.fps_manager.get_recommendation_summary());
-        }
-
+        self.render()?;
+        self.fps_manager.benchmark_if_needed(&self.tree);
+        let mut next_frame = Instant::now() + self.fps_manager.get_frame_duration();
+        let mut dirty = false;
         while self.running {
-            let frame_start = Instant::now();
-            let frame_duration = self.fps_manager.get_frame_duration();
-
-            // Update global performance context at start of frame
-            {
-                use crate::hooks::perf_context::{
-                    get_global_performance_context, set_global_performance_context,
-                    PerformanceContext,
-                };
-                use crate::reactive::hooks::ThreadSafeSignal;
-                use std::sync::Arc;
-
-                let last_ms = self.last_frame_time.elapsed().as_secs_f32() * 1000.0;
-                let metrics = self.fps_manager.get_performance_metrics();
-                let fps_state = crate::hooks::fps::FpsState {
-                    target_fps: self.fps_manager.get_target_fps(),
-                    current_fps: metrics.current_fps,
-                    avg_render_time_ms: metrics.avg_render_time_ms,
-                    drop_rate_percent: metrics.drop_rate_percent,
-                    is_stable: metrics.is_stable,
-                    mode: crate::display::monitor::PerformanceMode::Auto,
-                };
-                let frame_timing = crate::hooks::fps::FrameTiming {
-                    last_frame_ms: last_ms,
-                    target_frame_ms: frame_duration.as_secs_f32() * 1000.0,
-                    budget_remaining_ms: 0.0,
-                };
-
-                if let Some(ctx) = get_global_performance_context() {
-                    ctx.fps_state.set(fps_state);
-                    ctx.metrics.set(metrics.clone());
-                    ctx.frame_timing.set(frame_timing);
-                } else {
-                    let ctx = PerformanceContext {
-                        fps_state: ThreadSafeSignal::new(fps_state),
-                        metrics: ThreadSafeSignal::new(metrics.clone()),
-                        frame_timing: ThreadSafeSignal::new(frame_timing),
-                        set_mode: Arc::new(|mode| {
-                            crate::hooks::perf_context::request_performance_mode(mode)
-                        }),
-                    };
-                    set_global_performance_context(Arc::new(ctx));
-                }
-            }
-
-            // 1) Poll input with timeout based on target FPS
-            // Use full frame_duration from adaptive FPS manager without artificial caps
-            let poll_timeout = frame_duration.as_millis() as u64;
-            if let Some(event) = self.backend.poll_event(Some(poll_timeout))? {
-                // Handle application-level events first
-                let mut should_render = false;
-
-                match &event {
-                    crate::event::types::Event::Key(key_event) => {
-                        let quit = self.quit_key.as_ref().map_or_else(
-                            || {
-                                (key_event.code == crate::event::types::KeyCode::Char('c')
-                                    && key_event.modifiers.ctrl)
-                                    || key_event.code == crate::event::types::KeyCode::Escape
-                            },
-                            |(code, modifiers)| key_event.matches(code.clone(), *modifiers),
-                        );
-                        if quit && key_event.kind != crate::event::types::KeyEventKind::Release {
-                            self.running = false;
-                        }
-                    }
-                    crate::event::types::Event::Resize(resize_event) => {
-                        // Handle terminal resize - update backend and force re-render
-                        self.handle_resize(resize_event.width, resize_event.height)?;
-                        should_render = true; // Always re-render on resize
-                    }
-                    _ => {}
-                }
-
-                // Process event through the event system
-                let mut result = self.router.process_event(&event);
-                if result == EventResult::Ignored && self.running {
-                    result = self.root.try_handle_event(&event)?;
-                }
-
-                // Trigger re-render if event was handled or if we need to render for other reasons
-                if result != EventResult::Ignored || should_render {
-                    self.render()?;
-                }
-            }
-
-            if !self.running {
+            let requests = self.wake.take();
+            if requests.stop {
                 break;
+            }
+            dirty |= requests.redraw;
+            if self.scheduler.has_pending_updates() {
+                self.scheduler.process_updates();
+                dirty = true;
+            }
+            dirty |= self.scheduler.run_ready_timers();
+            let now = Instant::now();
+            if (self.animation_manager.active_count() > 0
+                || crate::hooks::animation::has_hook_animations())
+                && now >= next_frame
+            {
+                self.animation_manager.update();
+                dirty = true;
+            }
+            if dirty && now >= next_frame {
+                let start = Instant::now();
+                self.render()?;
+                let elapsed = start.elapsed();
+                self.fps_manager.record_frame_performance(
+                    elapsed,
+                    elapsed,
+                    elapsed > self.fps_manager.get_frame_duration(),
+                );
+                self.last_frame_time = Instant::now();
+                next_frame = self.last_frame_time + self.fps_manager.get_frame_duration();
+                dirty = false;
             }
             match self.root.update()? {
                 RootUpdate::Unchanged => {}
-                RootUpdate::Redraw => self.render()?,
-                RootUpdate::Exit => {
+                RootUpdate::Redraw => dirty = true,
+                RootUpdate::Exit => break,
+            }
+            let mut deadline = self.scheduler.next_deadline();
+            if dirty
+                || (self.animation_manager.active_count() > 0
+                    || crate::hooks::animation::has_hook_animations())
+            {
+                deadline = Some(deadline.map_or(next_frame, |end| end.min(next_frame)));
+            }
+            if !self.root.wake_driven() {
+                let poll = Instant::now() + self.fps_manager.get_frame_duration();
+                deadline = Some(deadline.map_or(poll, |end| end.min(poll)));
+            }
+            let timeout = deadline.map(|end| end.saturating_duration_since(Instant::now()));
+            if self.root.accepts_input() {
+                if let Some(event) = self.backend.poll_event_with_wake(timeout, &self.wake)? {
+                    dirty |= self.process_input(&event)?;
+                }
+            } else {
+                self.wake.wait(timeout);
+            }
+        }
+        self.running = false;
+        Ok(())
+    }
+
+    fn process_input(&mut self, event: &crate::event::types::Event) -> Result<bool> {
+        use crate::event::types::{Event, KeyCode, KeyEventKind};
+        let mut dirty = false;
+        match event {
+            Event::Key(key) => {
+                let quit = self.quit_key.as_ref().map_or_else(
+                    || {
+                        (key.code == KeyCode::Char('c') && key.modifiers.ctrl)
+                            || key.code == KeyCode::Escape
+                    },
+                    |(code, modifiers)| key.matches(code.clone(), *modifiers),
+                );
+                if quit && key.kind != KeyEventKind::Release {
                     self.running = false;
-                    break;
                 }
             }
-
-            // 2) Process scheduled updates from reactive system
-            if self.scheduler.has_pending_updates() {
-                self.scheduler.process_updates();
-                self.render()?;
+            Event::Resize(size) => {
+                self.handle_resize(size.width, size.height)?;
+                dirty = true;
             }
-
-            // 3) Update animations and check if render is needed
-            // Update declarative animations
-            self.animation_manager.update();
-
-            // Render if we have active animations
-            if self.animation_manager.active_count() > 0 {
-                self.render()?;
-            }
-
-            // 4) Process any timer callbacks
-            self.scheduler.process_timers();
-
-            // 5) Frame timing and adaptive FPS
-            let frame_elapsed = frame_start.elapsed();
-            let render_time =
-                frame_elapsed.saturating_sub(Duration::from_millis(RENDER_TIME_ESTIMATE_MS));
-
-            // Check if we need to drop this frame
-            let dropped = frame_elapsed > frame_duration;
-
-            // Record performance and potentially adjust FPS
-            self.fps_manager
-                .record_frame_performance(frame_elapsed, render_time, dropped);
-
-            // Sleep if we finished early
-            if let Some(sleep_duration) = frame_duration.checked_sub(frame_elapsed) {
-                std::thread::sleep(sleep_duration);
-            }
-
-            self.last_frame_time = Instant::now();
+            _ => {}
         }
+        let mut result = self.router.process_event(event);
+        if result == EventResult::Ignored && self.running {
+            result = self.root.try_handle_event(event)?;
+        }
+        Ok(dirty || result != EventResult::Ignored)
+    }
 
-        Ok(())
+    fn publish_performance_context(&self) {
+        {
+            use crate::hooks::perf_context::{
+                get_global_performance_context, set_global_performance_context, PerformanceContext,
+            };
+            use crate::reactive::hooks::ThreadSafeSignal;
+            use std::sync::Arc;
+
+            let last_ms = self.last_frame_time.elapsed().as_secs_f32() * 1000.0;
+            let metrics = self.fps_manager.get_performance_metrics();
+            let fps_state = crate::hooks::fps::FpsState {
+                target_fps: self.fps_manager.get_target_fps(),
+                current_fps: metrics.current_fps,
+                avg_render_time_ms: metrics.avg_render_time_ms,
+                drop_rate_percent: metrics.drop_rate_percent,
+                is_stable: metrics.is_stable,
+                mode: crate::display::monitor::PerformanceMode::Auto,
+            };
+            let frame_timing = crate::hooks::fps::FrameTiming {
+                last_frame_ms: last_ms,
+                target_frame_ms: self.fps_manager.get_frame_duration().as_secs_f32() * 1000.0,
+                budget_remaining_ms: 0.0,
+            };
+
+            if let Some(ctx) = get_global_performance_context() {
+                ctx.fps_state.set(fps_state);
+                ctx.metrics.set(metrics.clone());
+                ctx.frame_timing.set(frame_timing);
+            } else {
+                let ctx = PerformanceContext {
+                    fps_state: ThreadSafeSignal::new(fps_state),
+                    metrics: ThreadSafeSignal::new(metrics.clone()),
+                    frame_timing: ThreadSafeSignal::new(frame_timing),
+                    set_mode: Arc::new(|mode| {
+                        crate::hooks::perf_context::request_performance_mode(mode)
+                    }),
+                };
+                set_global_performance_context(Arc::new(ctx));
+            }
+        }
+    }
+
+    /// Clone the handle used to request redraws or graceful stop from other threads.
+    pub fn waker(&self) -> AppWaker {
+        self.wake.clone()
+    }
+
+    /// Access this App's shared work and timer scheduler.
+    pub fn scheduler(&self) -> Arc<Scheduler> {
+        self.scheduler.clone()
     }
 
     /// Register a focusable node with optional tab index
@@ -336,6 +344,8 @@ impl App {
 
     /// Render the current state
     fn render(&mut self) -> Result<()> {
+        let _scope = Scope::enter(&self.wake);
+        self.publish_performance_context();
         use crate::render::tree::element_to_render_node;
 
         // Update hook-based animations as part of component lifecycle
@@ -490,6 +500,8 @@ impl App {
 
 impl Drop for App {
     fn drop(&mut self) {
+        self.wake.close();
+        self.scheduler.clear();
         // Ensure all components are cleaned up when app is dropped
         // Log errors but don't panic in Drop (following Rust best practices)
         if let Err(e) = self.cleanup() {
@@ -510,6 +522,7 @@ pub struct AppBuilder {
     debug: bool,
     performance_mode: PerformanceMode,
     adaptive_config: Option<AdaptiveConfig>,
+    scheduler: Option<Arc<Scheduler>>,
     quit_key: Option<(
         crate::event::types::KeyCode,
         crate::event::types::KeyModifiers,
@@ -524,6 +537,7 @@ impl Default for AppBuilder {
             debug: false,
             performance_mode: PerformanceMode::Balanced,
             adaptive_config: None,
+            scheduler: None,
             quit_key: None,
         }
     }
@@ -570,6 +584,12 @@ impl AppBuilder {
         self
     }
 
+    /// Use a shared scheduler. It may belong to only one live App at a time.
+    pub fn scheduler(mut self, scheduler: Arc<Scheduler>) -> Self {
+        self.scheduler = Some(scheduler);
+        self
+    }
+
     /// Build the App instance
     pub fn build(self) -> Result<App> {
         let backend = self.backend.ok_or_else(|| {
@@ -588,10 +608,14 @@ impl AppBuilder {
         let mut fps_manager = AdaptiveFpsManager::with_config(fps_config);
         fps_manager.set_performance_mode(self.performance_mode);
 
+        let wake = AppWaker::new();
+        let scheduler = self.scheduler.unwrap_or_else(|| Arc::new(Scheduler::new()));
+        scheduler.attach(wake.clone())?;
         Ok(App {
             backend,
             root,
-            scheduler: Scheduler::new(),
+            scheduler,
+            wake,
             router: EventRouter::new(),
             tree: RenderTree::new(),
             previous_tree: RenderTree::new(),

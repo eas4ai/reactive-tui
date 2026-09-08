@@ -11,18 +11,21 @@ controlled backend tests; other hosts and platforms are not implied.
 
 [WAK-001]
 App MUST provide a thread-safe wake handle that interrupts its supported backend wait for redraw, scheduled work or stop.
-Notifications MUST coalesce with bounded notification storage and MUST NOT be lost when sent before or during entry to the wait.
+Notifications MUST coalesce with bounded notification storage.
+Notifications MUST NOT be lost when sent before or during entry to the wait.
 Falsifier: App sleeps through a pending notification, a notification burst creates an unbounded queue, or a stop request requires input.
 Mechanism: scripts/check-app-wakeups.sh, controlled wait/race and lifecycle tests.
 
 [WAK-002]
 Signals read while App renders MUST request a redraw when their value changes, including ThreadSafeSignal writes from another thread.
-Equal writes MUST NOT request redraw, and subscriptions MUST NOT keep a stopped App alive or wake an unrelated App.
+Equal writes MUST NOT request redraw.
+Subscriptions MUST NOT keep a stopped App alive or wake an unrelated App.
 Falsifier: a changed rendered signal stays stale without input, equal writes trigger redraw, or a retained signal wakes the wrong or stopped application.
 Mechanism: scripts/check-app-wakeups.sh, signal-to-App tests.
 
 [WAK-003]
-The App scheduler MUST wake App when work is queued or its timer deadlines change, and App MUST service due timers while idle.
+The App scheduler MUST wake App when work is queued or its timer deadlines change.
+App MUST service due timers while idle.
 Timer callbacks MUST be able to schedule or cancel timers without holding the timer-store lock.
 Falsifier: queued work or a newly earlier timer waits for input, a callback deadlocks on scheduling, or cancelled timers execute again.
 Mechanism: scripts/check-app-wakeups.sh, scheduler and deadline tests.

@@ -17,3 +17,6 @@ pub use hooks::{
 pub use runtime::{ReactiveRuntime, RuntimeContext};
 pub use scheduler::{Scheduler, TimerId};
 pub use signal::{ReadSignal, Signal, SignalId, WriteSignal};
+
+/// Coalesced application wake notifications.
+pub mod wake;
