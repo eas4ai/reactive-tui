@@ -1,7 +1,7 @@
 # Recovery roadmap
 
 Status: Agreed 2026-09-07
-Current: registry-concurrency
+Current: registry-cache-isolation
 
 1. `suprtui-renderer` — the first screen: styled frames, updates, Unicode,
    resize, output errors, input, and terminal restoration (RND-001 through RND-006).
@@ -17,3 +17,6 @@ Image protocols, clipboard, and remaining legacy defects stay in the backlog.
 
 4. `registry-concurrency` — remove the concurrent registry metrics/cleanup
    stall and verify lifecycle reentry and concurrent progress.
+
+5. `registry-cache-isolation` — isolate named lookup between registries, make
+   clones observe shared registrations, and refresh the full-suite assessment.
