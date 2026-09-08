@@ -2,12 +2,12 @@
 
 commit: 1d678d488d6c128cc4de3646822a9127d25cecb3
 findings:
-  - closed: WAK-001 fixed pending flags survive wait entry; both condition-variable and task-waker paths observe requests; stop wakes App and closes handles.
-  - closed: WAK-002 rendered signals subscribe weakly by App generation; writes notify after value locks release; equal writes, stale subscriptions and closed Apps are tested.
-  - closed: WAK-003 queued work and changed deadlines wake App; timer callbacks run outside locks and cancelled intervals do not reinsert themselves.
-  - closed: WAK-004 dirty frames retain their latest state while paced; wake-driven roots sleep; legacy polling roots and active animations continue; input and resize remain serviceable.
-  - closed: WAK-005 native frame, exit, error and queue-space changes wake App; one pending key preserves bounded backpressure; final child output is rendered before exit.
-  - closed: all inherited EMB and RND requirements have current passing committed evidence; direct developer-host claims and unrelated legacy cleanup remain excluded.
+  - resolved: WAK-001 fixed pending flags survive wait entry; both condition-variable and task-waker paths observe requests; stop wakes App and closes handles.
+  - resolved: WAK-002 rendered signals subscribe weakly by App generation; writes notify after value locks release; equal writes, stale subscriptions and closed Apps are tested.
+  - resolved: WAK-003 queued work and changed deadlines wake App; timer callbacks run outside locks and cancelled intervals do not reinsert themselves.
+  - resolved: WAK-004 dirty frames retain their latest state while paced; wake-driven roots sleep; legacy polling roots and active animations continue; input and resize remain serviceable.
+  - resolved: WAK-005 native frame, exit, error and queue-space changes wake App; one pending key preserves bounded backpressure; final child output is rendered before exit.
+  - resolved: all inherited EMB and RND requirements have current passing committed evidence; direct developer-host claims and unrelated legacy cleanup remain excluded.
 
 ## Specification review
 
