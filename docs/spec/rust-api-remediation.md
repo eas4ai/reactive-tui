@@ -33,7 +33,7 @@ Mechanism: real App/SuprTUI captured-frame and lifecycle tests.
 ## Hook state and memoization
 
 [API-003]
-Generated components MUST reset hook indexing for each render and retain existing slots without growth. Memo values MUST follow documented dependency semantics; invalid hook ordering MUST have defined behavior.
+Generated components MUST reset hook indexing for each render and retain existing slots without growth. Memo values MUST follow documented dependency semantics. Invalid hook ordering MUST have defined behavior.
 Audit mapping: RAPI-03.
 Falsifier: repeated renders allocate new state slots, state resets, or a changed dependency returns a stale memo.
 Mechanism: repeated generated-component renders with state, slot-count and memo assertions.
@@ -41,7 +41,7 @@ Mechanism: repeated generated-component renders with state, slot-count and memo 
 ## Effects context and runtime
 
 [API-004]
-App MUST own component effect/timer lifecycle. Effects MUST run and clean up at documented dependency changes and unmount; removed components MUST leave no runnable timer or effect. Descendants MUST inherit context with scoped overrides and isolation between Apps.
+App MUST own component effect/timer lifecycle. Effects MUST run and clean up at documented dependency changes and unmount. Removed components MUST leave no runnable timer or effect. Descendants MUST inherit context with scoped overrides and isolation between Apps.
 Audit mapping: RAPI-03.
 Falsifier: cleanup runs immediately instead of at its lifecycle boundary, work survives removal, parent context is absent, or Apps share component context.
 Mechanism: mount/update/unmount tests with controlled scheduler and nested providers.
@@ -57,7 +57,7 @@ Mechanism: App input-to-callback tests using captured layout and frames.
 ## Stable focus and traps
 
 [API-006]
-Focus identity MUST survive keyed redraw/reorder. Tab and reverse Tab MUST work with and without traps; nested dialogs MUST autofocus, confine focus and restore it on close or removal.
+Focus identity MUST survive keyed redraw/reorder. Tab and reverse Tab MUST work with and without traps. Nested dialogs MUST autofocus, confine focus and restore it on close or removal.
 Audit mapping: RAPI-04.
 Falsifier: focus changes solely because of redraw, navigation stalls, or trapping/restoration targets a different node.
 Mechanism: keyboard sequences through real rendered trees including nested and removed traps.
@@ -105,7 +105,7 @@ Mechanism: per-widget acceptance matrix and App workflows at multiple viewport s
 ## Dialog lifecycle and results
 
 [API-012]
-Dialogs MUST paint, accept events, update and deliver completion/cancellation results synchronously or asynchronously as advertised. Stacking MUST honor z-order and limits; closing MUST emit documented events, release resources and restore focus.
+Dialogs MUST paint, accept events, update and deliver completion/cancellation results synchronously or asynchronously as advertised. Stacking MUST honor z-order and limits. Closing MUST emit documented events, release resources and restore focus.
 Audit mapping: RAPI-09.
 Falsifier: a result is discarded, async mode has no completion, z-order is ignored, or close leaves focus/resources behind.
 Mechanism: nested dialog workflows including limits, cancellation, result delivery and cleanup.
@@ -113,7 +113,7 @@ Mechanism: nested dialog workflows including limits, cancellation, result delive
 ## Animation semantics and screens
 
 [API-013]
-Typed/untyped keyframes MUST preserve values and interpolate according to documented type/easing semantics. Relative values MUST use actual current properties. Active screens MUST receive input, and transition progress MUST visibly affect output.
+Typed/untyped keyframes MUST preserve values and interpolate according to documented type/easing semantics. Relative values MUST use actual current properties. Active screens MUST receive input. Transition progress MUST visibly affect output.
 Audit mapping: RAPI-10.
 Falsifier: a numeric midpoint steps to the previous endpoint, conversion substitutes defaults, relative values start from zero incorrectly, or fade/input is ineffective.
 Mechanism: deterministic clock tests plus intermediate rendered screen frames and input delivery.
@@ -121,7 +121,7 @@ Mechanism: deterministic clock tests plus intermediate rendered screen frames an
 ## Image decoding and terminal output
 
 [API-014]
-Advertised file and encoded-memory image paths MUST decode actual image data and share correct placement, clipping and cleanup semantics. Claimed graphics protocols MUST emit valid output; fallback MUST render the decoded image. URL loading support MUST be explicitly decided before implementation.
+Advertised file and encoded-memory image paths MUST decode actual image data and share correct placement, clipping and cleanup semantics. Claimed graphics protocols MUST emit valid output. Fallback MUST render the decoded image. URL loading support MUST be explicitly decided before implementation.
 Audit mapping: RAPI-11.
 Falsifier: a file yields a synthetic pattern, encoded bytes are mistaken for pixels, a claimed protocol only paints fallback cells, or removal leaves stale placement.
 Mechanism: known-image pixel comparisons, protocol captures and integration evidence on each claimed host/protocol.
@@ -137,7 +137,7 @@ Mechanism: locked feature-matrix builds and applicable behavior tests.
 ## Backend and terminal entry points
 
 [API-016]
-Public application/backend/terminal entry points MUST have a documented supported route, with functional adapters or an explicitly approved migration. Retained legacy App paths MUST initialize and update prior render state correctly without synthetic patches; native App construction MUST expose the recovered rendering path.
+Public application/backend/terminal entry points MUST have a documented supported route, with functional adapters or an explicitly approved migration. Retained legacy App paths MUST initialize and update prior render state correctly without synthetic patches. Native App construction MUST expose the recovered rendering path.
 Audit mapping: RAPI-13.
 Falsifier: a retained entry point repeatedly takes first-render behavior, uses fake patches, fails updates/restoration, or has no functional supported route.
 Mechanism: Rust and native entry-point workflows with update, error and terminal-restoration assertions.
@@ -153,7 +153,7 @@ Mechanism: compiled C and TypeScript end-to-end consumers plus independent ABI/l
 ## Accurate public API documentation
 
 [API-018]
-Publish a complete supported-API matrix linked to behavior evidence and limits. Public Markdown APIs MUST be visible consistently during documentation builds; documented examples MUST compile. Props validation MUST enforce specified constraints or have an explicitly approved narrower contract.
+Publish a complete supported-API matrix linked to behavior evidence and limits. Public Markdown APIs MUST be visible consistently during documentation builds. Documented examples MUST compile. Props validation MUST enforce specified constraints or have an explicitly approved narrower contract.
 Audit mapping: RAPI-15.
 Falsifier: readiness claims exceed evidence, docs hide public APIs, examples fail, or validation accepts every value despite promised constraints.
 Mechanism: documentation/example builds, invalid/valid Props cases and evidence-linked inventory review.
@@ -169,7 +169,7 @@ Mechanism: focused behavior checks and final cross-reference review of the compl
 ## Regression and closure
 
 [API-020]
-Every inherited requirement MUST retain current passing evidence. Final review MUST reconcile every audit finding and named subcase with implementation, tests and any explicit developer-approved contract change. Mechanisms MUST demonstrate safe violating and corrected cases; historical defect-confirming probes MUST not be counted as acceptance passes.
+Every inherited requirement MUST retain current passing evidence. Final review MUST reconcile every audit finding and named subcase with implementation, tests and any explicit developer-approved contract change. Mechanisms MUST demonstrate safe violating and corrected cases. Historical defect-confirming probes MUST not be counted as acceptance passes.
 Audit mapping: RAPI-01 through RAPI-15.
 Falsifier: an inherited check regresses, an audit item is silently deferred, coverage is weakened, or a defect-confirming assertion is counted as correctness.
 Mechanism: all inherited mechanisms and independent final scope/behavior review.
