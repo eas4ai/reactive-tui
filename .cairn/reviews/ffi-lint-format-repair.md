@@ -1,12 +1,20 @@
 # FFI, lint and formatting repair review
 
+commit: e3b1ca0dd0daf5e016e0c61afbed68f7ab24401c
+findings:
+  - resolved: MNT-001 formatting passes and formatting-only edits preserve behavior.
+  - resolved: MNT-002 strict default Clippy passes without broad new suppression or lost assertions.
+  - resolved: MNT-003 all ffi test targets compile/link and the repaired ABI/lifecycle checks pass.
+  - resolved: MNT-004 all 26 inherited requirements have fresh passing receipts.
+  - resolved: the live-desktop test stall is isolated with real command fixtures; the production wait limitation is captured in the backlog.
+
 ## Work tracking
 
 - Done: establish the commitment and reproduce the formatting gate.
 - Done: format workspace Rust and verify unchanged behavior.
 - Done: repair strict Clippy findings and verify behavioral changes.
 - Done: repair FFI compile/link integration and verify repaired ABI entry points.
-- In progress: refresh all acceptance evidence and complete final review.
+- Done: refresh all acceptance evidence and complete final review.
 
 ## Mechanism review plan
 
@@ -105,3 +113,57 @@ is not represented as desktop integration coverage. All production clipboard cod
 is byte-for-byte unchanged. Ripwire edit-check passes; quality/test-gate retain
 their documented static limitations. The new fixture length is test isolation and
 cleanup in one local helper, with no production abstraction or dependency added.
+
+## Final review of the committed candidate
+
+Examined the final FFI signatures against the C terminal/event declarations and
+checked the C fixture links the actual shared library. Reviewed app setters,
+consuming build/run, root FFIElement transfer, terminal destruction, renderer
+shutdown/destroy and borrowed-surface registration. Existing integration tests
+exercise shutdown followed by destroy and surface drawing before presentation.
+The trackers preserve registered ownership; they do not promise concurrent handle
+use or protection against stale-address reuse. The documentation states those
+limits. No modern capabilities-layout call was executed as a compatibility test.
+
+Revisited the behavioral Clippy changes and retained MenuTheme construction.
+Checked that clipboard changes are entirely inside cfg(test), that its child
+assertion failures reach the parent, and that private child environment changes
+do not affect concurrent tests. The wrong-data demonstration tests production
+command input and the resulting paste output rather than only fixture setup.
+
+All 30 requirements have fresh passing receipts. The full default suite records
+1014 passed, zero failed, 35 ignored. The FFI runtime gate records seven unit tests,
+63 integration tests and the C ABI fixture, with terminal settings restored.
+Formatting and strict default-feature Clippy pass. The committed receipt history
+also retains the real earlier failures. No code changed during this final review.
+
+## Production rules self-audit
+
+1. Understood the agreed maintenance contract, existing signatures and inherited
+   requirements before edits; decisions and this review retain the evidence.
+2. Kept changes to formatting, diagnosed lints, FFI integration and the inherited
+   flaky unit check. No new dependency or unrelated product feature was added.
+3. Kept ownership handling at FFI boundaries and fixture orchestration in tests.
+   Reviewed local repeated validation instead of adding a generic abstraction.
+4. Preserved exported signatures, MenuTheme construction and consuming ownership
+   contracts. Updated the event comments and maintenance documentation together.
+5. Restored APIs report errors and unsupported events explicitly. Tests propagate
+   failed child status. Fixtures contain fixed test text and no secrets.
+6. Reviewed pointer ownership before dereference/destruction and the caller's
+   serialization obligation. Fixture commands receive text through stdin, not
+   shell interpolation. No unsafe original ownership path was rerun deliberately.
+7. Separated borrowed from owned surfaces and shutdown from destruction. No
+   persistence migration is involved; check receipts refer to stable commits.
+8. Runtime gates have deadlines and isolated terminals/processes. Clipboard test
+   cleanup kills its owned process group; live product waits remain backlogged.
+9. Maintained one active todo item and completed it only after verification.
+10. Ran formatting, strict default Clippy, complete default tests, FFI compile and
+    runtime checks, and every inherited mechanism. Recorded failure demonstrations.
+11. Distinguished executed passes from static-tool limitations, mock desktop
+    integration and the remaining ABI backlog. No ignored test was added.
+12. Used the authorized commitment and recorded judged decisions without expanding
+    into the separately captured TypeScript or live clipboard product work.
+13. Satisfied with this maintenance change against the agreed contract after final
+    source/evidence review. No unresolved finding remains within this commitment.
+14. Reviewed explanations and documentation for concrete behavior and visible
+    limits, without describing the whole legacy library as production-ready.
