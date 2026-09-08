@@ -215,10 +215,11 @@ fn nested_components_keep_instances_through_props_reorder_and_removal() {
         column(vec![child("a", "A"), child("b", "B")]),
         column(vec![child("b", "B"), child("a", "A2")]),
         column(vec![child("b", "B")]),
+        column(vec![child("b", "B")]),
         column(vec![Element::text("finished")]),
     ]);
     result.unwrap();
-    assert_eq!(frames.len(), 4);
+    assert_eq!(frames.len(), 5);
     assert!(
         frames[0].contains("A:0") && frames[0].contains("B:0"),
         "{:?}",
@@ -226,7 +227,7 @@ fn nested_components_keep_instances_through_props_reorder_and_removal() {
     );
     assert!(frames[1].find("B:0").unwrap() < frames[1].find("A2:1").unwrap());
     assert!(frames[2].contains("B:0") && !frames[2].contains("A2"));
-    assert!(frames[3].contains("finished") && !frames[3].contains("B:0"));
+    assert!(frames[4].contains("finished") && !frames[4].contains("B:0"));
     assert_eq!(
         NEXT_ID.load(Ordering::SeqCst),
         2,
@@ -285,5 +286,53 @@ fn recursive_expansion_fails_with_a_bounded_error() {
     assert!(
         result.is_err(),
         "recursive component output must be bounded"
+    );
+}
+
+#[test]
+#[serial_test::serial]
+fn replacing_component_type_at_a_key_releases_old_state() {
+    register();
+    EVENTS.lock().unwrap().clear();
+    NEXT_ID.store(0, Ordering::SeqCst);
+    let (result, frames) = run_frames(vec![
+        column(vec![child("same", "old")]),
+        column(vec![Element::component_with_props(
+            "ApiExpansionLeaf",
+            Label { text: "new".into() },
+        )
+        .key("same")]),
+        column(vec![Element::text("done")]),
+    ]);
+    result.unwrap();
+    assert!(frames[0].contains("old:0"));
+    assert!(frames[1].contains("new:0") && !frames[1].contains("old"));
+    assert_eq!(NEXT_ID.load(Ordering::SeqCst), 2);
+    let events = EVENTS.lock().unwrap();
+    for id in 0..2 {
+        assert_eq!(
+            events
+                .iter()
+                .filter(|(i, e)| *i == id && e == "mount")
+                .count(),
+            1
+        );
+        assert_eq!(
+            events
+                .iter()
+                .filter(|(i, e)| *i == id && e == "unmount")
+                .count(),
+            1
+        );
+    }
+    assert!(
+        events
+            .iter()
+            .position(|(id, e)| *id == 0 && e == "unmount")
+            .unwrap()
+            < events
+                .iter()
+                .position(|(id, e)| *id == 1 && e == "mount")
+                .unwrap()
     );
 }

@@ -52,3 +52,31 @@ failed. The nested frame was blank. No acceptance criterion was weakened.
 The test also requires props to update state on the same instance, keyed reorder
 to preserve identity, removed children to unmount once before later sibling work,
 and all remaining instances to unmount on App exit.
+
+## API-002 implementation verification
+
+All five App/SuprTUI cases pass: nested output, prop/state updates, keyed reorder
+and removal, component-type replacement, unknown-container fallback, duplicate-key
+errors and bounded recursive expansion. Seven wakeup cases, seven legacy automatic
+memory-management cases and nine renderer cases passed. Strict default-feature
+Clippy across all targets passed.
+
+The first post-repair lifecycle assertion assumed removal must precede sibling
+rendering within the same frame. The runtime prunes after expansion and before
+painting. Added a subsequent sibling frame to verify the actual boundary: removed
+instances are gone before later frames. The requirement was not narrowed.
+
+Inspected ownership and cleanup paths: the App instance map owns live components;
+registry factories release locks before constructors run; no live clone enters
+the paint tree. Replacement and pruning drop descendants before parents. The
+existing public legacy converter and explicit legacy cleanup still function.
+App-owned components are not registered in that global legacy instance map.
+
+Ripwire marks the new recursive walker as complex (80 lines), but it contains one
+bounded expansion traversal with explicit lifecycle and fallback branches. Its
+new-symbol/dead-code and nested-function duplication reports are static-analysis
+limits; real App tests exercise the walker and pure converter. Existing App::waker
+is exercised by wakeup tests. Repository-wide quality-delta still exits 2, including
+ignored reference trees and churn findings; it is not reported as passing.
+Test-gate identifies broader inherited paths, which Cairn will rerun before the
+next requirement. No final commitment-wide review is claimed.

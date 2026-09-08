@@ -375,6 +375,38 @@ impl Default for RenderTree {
     }
 }
 
+/// Convert App output without instantiating or cloning components a second time.
+pub(crate) fn resolved_element_to_render_node(element: Element) -> Box<dyn RenderNode> {
+    fn convert(mut element: Element, parent: Option<NodeKey>, index: usize) -> Box<dyn RenderNode> {
+        let local = element
+            .key
+            .as_ref()
+            .map_or_else(|| NodeKey::index(index), NodeKey::named);
+        let key = parent.map_or_else(
+            || local.clone(),
+            |parent| NodeKey::Composite(Box::new(parent), Box::new(local.clone())),
+        );
+        let children = std::mem::take(&mut element.children)
+            .into_iter()
+            .enumerate()
+            .map(|(index, child)| convert(child, Some(key.clone()), index))
+            .collect();
+        if matches!(
+            element.element_type,
+            crate::component::ElementType::Fragment
+        ) {
+            Box::new(FragmentNode::new(children).with_key(key))
+        } else {
+            Box::new(
+                ElementNode::new(element)
+                    .with_key(key)
+                    .with_children(children),
+            )
+        }
+    }
+    convert(element, None, 0)
+}
+
 /// Helper to convert Element tree to RenderNode tree with automatic component instantiation
 pub fn element_to_render_node(element: Element) -> Box<dyn RenderNode> {
     let children: Vec<Box<dyn RenderNode>> = element

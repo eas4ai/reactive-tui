@@ -23,6 +23,7 @@ pub mod lifecycle;
 pub mod props;
 /// Global component registry for dynamic component creation
 pub mod registry;
+pub(crate) mod runtime;
 /// Tracked component instances with automatic cleanup
 pub mod tracked_instance;
 

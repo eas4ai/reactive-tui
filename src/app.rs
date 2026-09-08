@@ -69,6 +69,7 @@ pub enum RootUpdate {
 pub struct App {
     backend: Box<dyn Backend>,
     root: Box<dyn RootComponent>,
+    components: crate::component::runtime::ComponentRuntime,
     scheduler: Arc<Scheduler>,
     wake: AppWaker,
     router: EventRouter,
@@ -346,26 +347,27 @@ impl App {
     fn render(&mut self) -> Result<()> {
         let _scope = Scope::enter(&self.wake);
         self.publish_performance_context();
-        use crate::render::tree::element_to_render_node;
+        use crate::render::tree::resolved_element_to_render_node;
 
         // Update hook-based animations as part of component lifecycle
         // This ensures hooks are synchronized with component rendering
         crate::hooks::animation::update_hook_animations();
 
         if let Some(frame) = self.root.cell_frame()? {
+            self.components.clear();
             self.backend.render_cells(frame)?;
             return self.backend.present();
         }
 
         // Build element tree from root component
-        let element = self.root.render();
+        let element = self.components.resolve(self.root.render())?;
 
         // Process declarative focus properties from the element tree
         let root_id = crate::event::router::NodeId::new();
         self.focus_manager.process_element_tree(&element, root_id);
 
         if self.backend.render_frame(&element)? {
-            self.tree.set_root(element_to_render_node(element));
+            self.tree.set_root(resolved_element_to_render_node(element));
             self.backend.present()?;
             if let Some(req) = crate::hooks::perf_context::take_requested_performance_mode() {
                 self.fps_manager.set_performance_mode(req);
@@ -374,7 +376,7 @@ impl App {
         }
 
         // Convert to RenderTree
-        let root_node = element_to_render_node(element.clone());
+        let root_node = resolved_element_to_render_node(element.clone());
 
         // Check if this is the first render
         if self.previous_tree.root().is_none() {
@@ -494,7 +496,8 @@ impl App {
 
     /// Cleanup all component instances (called automatically on drop)
     pub fn cleanup(&mut self) -> crate::error::Result<usize> {
-        crate::component::registry::global_cleanup_all()
+        let owned = self.components.clear();
+        crate::component::registry::global_cleanup_all().map(|legacy| owned + legacy)
     }
 }
 
@@ -614,6 +617,7 @@ impl AppBuilder {
         Ok(App {
             backend,
             root,
+            components: crate::component::runtime::ComponentRuntime::default(),
             scheduler,
             wake,
             router: EventRouter::new(),
