@@ -20,7 +20,12 @@ use std::os::raw::{c_char, c_int, c_void};
 use std::rc::Rc;
 use std::sync::Arc;
 
-/// Opaque handle to a reactive signal
+/// Owning, thread-confined handle to a typed reactive signal.
+///
+/// Both destructor names consume this handle exactly once. Live handles from
+/// either constructor family share the same allocation representation; typed
+/// accessors reject mismatched values. Legacy integers are i64, improved integers
+/// are c_int. Arbitrary pointers and handles used after destruction are invalid.
 #[repr(C)]
 pub struct RTuiSignal {
     _private: [u8; 0],
@@ -132,6 +137,8 @@ pub type RTuiEffectFn = extern "C" fn(user_data: *mut c_void);
 enum RTuiSignalType {
     /// Integer signal type
     Int,
+    /// Legacy 64-bit integer signal type
+    Int64,
     /// String signal type
     String,
     /// Boolean signal type
@@ -167,6 +174,29 @@ impl FFISignal {
             signal: Rc::new(Signal::new(value)),
             signal_type: RTuiSignalType::Int,
         }
+    }
+
+    fn new_int64(value: i64) -> Self {
+        Self {
+            signal: Rc::new(Signal::new(value)),
+            signal_type: RTuiSignalType::Int64,
+        }
+    }
+
+    fn get_int64(&self) -> Result<i64, ReactiveError> {
+        self.signal
+            .downcast_ref::<Signal<i64>>()
+            .map(Signal::get)
+            .ok_or(ReactiveError::InvalidParameter)
+    }
+
+    fn set_int64(&self, value: i64) -> Result<(), ReactiveError> {
+        let signal = self
+            .signal
+            .downcast_ref::<Signal<i64>>()
+            .ok_or(ReactiveError::InvalidParameter)?;
+        signal.set(value);
+        Ok(())
     }
 
     fn new_string(value: String) -> Self {
@@ -319,7 +349,7 @@ pub extern "C" fn rtui_signal_string_create(
                 .to_string()
         };
 
-        let signal = Signal::new(initial_str);
+        let signal = FFISignal::new_string(initial_str);
         *out_signal = Box::into_raw(Box::new(signal)) as *mut RTuiSignal;
         Ok(())
     }))
@@ -336,7 +366,7 @@ pub extern "C" fn rtui_signal_int_create(
     }
 
     catch_panic(AssertUnwindSafe(|| {
-        let signal = Signal::new(initial_value);
+        let signal = FFISignal::new_int64(initial_value);
         unsafe {
             *out_signal = Box::into_raw(Box::new(signal)) as *mut RTuiSignal;
         }
@@ -355,7 +385,7 @@ pub extern "C" fn rtui_signal_float_create(
     }
 
     catch_panic(AssertUnwindSafe(|| {
-        let signal = Signal::new(initial_value);
+        let signal = FFISignal::new_float(initial_value);
         unsafe {
             *out_signal = Box::into_raw(Box::new(signal)) as *mut RTuiSignal;
         }
@@ -374,7 +404,7 @@ pub extern "C" fn rtui_signal_bool_create(
     }
 
     catch_panic(AssertUnwindSafe(|| {
-        let signal = Signal::new(initial_value);
+        let signal = FFISignal::new_bool(initial_value);
         unsafe {
             *out_signal = Box::into_raw(Box::new(signal)) as *mut RTuiSignal;
         }
@@ -385,12 +415,7 @@ pub extern "C" fn rtui_signal_bool_create(
 /// Destroy a signal
 #[no_mangle]
 pub extern "C" fn rtui_signal_destroy(signal: *mut RTuiSignal) {
-    if !signal.is_null() {
-        unsafe {
-            // Note: This is simplified - in practice you'd need to handle different signal types
-            let _ = Box::from_raw(signal as *mut Signal<String>);
-        }
-    }
+    rtui_signal_destroy_new(signal);
 }
 
 /// Get string signal value
@@ -405,8 +430,8 @@ pub extern "C" fn rtui_signal_string_get(
     }
 
     catch_panic(AssertUnwindSafe(|| unsafe {
-        let signal_ref = &*(signal as *const Signal<String>);
-        let value = signal_ref.get();
+        let signal_ref = &*(signal as *const FFISignal);
+        let value = signal_ref.get_string()?;
 
         if value.len() >= buffer_size {
             return Err(ReactiveError::BufferTooSmall);
@@ -435,8 +460,8 @@ pub extern "C" fn rtui_signal_string_set(
             .map_err(|_| ReactiveError::InvalidUtf8)?
             .to_string();
 
-        let signal_ref = &mut *(signal as *mut Signal<String>);
-        signal_ref.set(value_str);
+        let signal_ref = &*(signal as *const FFISignal);
+        signal_ref.set_string(&value_str)?;
         Ok(())
     }))
 }
@@ -452,8 +477,8 @@ pub extern "C" fn rtui_signal_int_get(
     }
 
     catch_panic(AssertUnwindSafe(|| unsafe {
-        let signal_ref = &*(signal as *const Signal<i64>);
-        *out_value = signal_ref.get();
+        let signal_ref = &*(signal as *const FFISignal);
+        *out_value = signal_ref.get_int64()?;
         Ok(())
     }))
 }
@@ -466,8 +491,8 @@ pub extern "C" fn rtui_signal_int_set(signal: *mut RTuiSignal, value: i64) -> Re
     }
 
     catch_panic(AssertUnwindSafe(|| unsafe {
-        let signal_ref = &mut *(signal as *mut Signal<i64>);
-        signal_ref.set(value);
+        let signal_ref = &*(signal as *const FFISignal);
+        signal_ref.set_int64(value)?;
         Ok(())
     }))
 }
@@ -483,8 +508,8 @@ pub extern "C" fn rtui_signal_float_get(
     }
 
     catch_panic(AssertUnwindSafe(|| unsafe {
-        let signal_ref = &*(signal as *const Signal<f64>);
-        *out_value = signal_ref.get();
+        let signal_ref = &*(signal as *const FFISignal);
+        *out_value = signal_ref.get_float()?;
         Ok(())
     }))
 }
@@ -497,8 +522,8 @@ pub extern "C" fn rtui_signal_float_set(signal: *mut RTuiSignal, value: f64) -> 
     }
 
     catch_panic(AssertUnwindSafe(|| unsafe {
-        let signal_ref = &mut *(signal as *mut Signal<f64>);
-        signal_ref.set(value);
+        let signal_ref = &*(signal as *const FFISignal);
+        signal_ref.set_float(value)?;
         Ok(())
     }))
 }
@@ -514,8 +539,8 @@ pub extern "C" fn rtui_signal_bool_get(
     }
 
     catch_panic(AssertUnwindSafe(|| unsafe {
-        let signal_ref = &*(signal as *const Signal<bool>);
-        *out_value = signal_ref.get();
+        let signal_ref = &*(signal as *const FFISignal);
+        *out_value = signal_ref.get_bool()?;
         Ok(())
     }))
 }
@@ -528,8 +553,8 @@ pub extern "C" fn rtui_signal_bool_set(signal: *mut RTuiSignal, value: bool) -> 
     }
 
     catch_panic(AssertUnwindSafe(|| unsafe {
-        let signal_ref = &mut *(signal as *mut Signal<bool>);
-        signal_ref.set(value);
+        let signal_ref = &*(signal as *const FFISignal);
+        signal_ref.set_bool(value)?;
         Ok(())
     }))
 }

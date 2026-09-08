@@ -18,3 +18,25 @@ cases with leak checking enabled. Completion requires the corrected cases to run
 the source guard alone is not acceptance evidence.
 
 This is a mechanism construction note, not the final commitment review.
+
+## API-001 implementation verification
+
+The safe baseline guard rejected the original direct casts before native tests.
+After repair, all four Rust integration cases, the compiled C consumer, and all
+four actual Rust cases under Miri passed. Miri leak checking was not disabled.
+Legacy i64 extrema survive; mismatched i64/C-int access returns an error without
+changing output. Shared hook handles remain valid after their context is freed.
+
+Reviewed the implementation diff: all ordinary RTuiSignal constructors now box
+FFISignal, both destructors release that allocation, and all legacy typed getters
+and setters downcast before use. The separate thread-safe String allocation still
+uses its matching destructor. No exported signature or layout changed.
+
+Ripwire edit-check reported no FFISignal contract change. Test-gate named the new
+ownership test and existing seamless tests; both ran. It also named rtui_free_string
+through a broad static edge; this change uses rtui_string_free, which is exercised
+with the owned getter. Quality-delta exited 2, dominated by ignored reference trees;
+changed-file rows report repeated typed FFI wrappers and the new i64 constructor.
+Those short explicit wrappers preserve distinct C signatures and existing patterns;
+introducing a macro/generalized dispatch solely to remove those rows would obscure
+the ownership repair. This is not a claim that the quality-delta gate passed.
