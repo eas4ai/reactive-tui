@@ -5,23 +5,12 @@ use crate::error::{ReactiveError, Result};
 use crate::layout::css::manager::apply_css_animation_global;
 use crate::render::tree::NodeKey;
 use std::any::TypeId;
-use std::cell::RefCell;
 use std::collections::HashMap;
-use std::sync::{
-    atomic::{AtomicU64, Ordering},
-    Arc, OnceLock, RwLock,
-};
+use std::sync::{Arc, OnceLock, RwLock};
 use std::time::{Duration, Instant};
 use string_cache::DefaultAtom;
 
 type ComponentFactory = Arc<dyn Fn(&dyn std::any::Any) -> AnyComponentInstance + Send + Sync>;
-
-/// Thread-local cache for component name->TypeId lookups to reduce lock contention
-#[derive(Default)]
-struct NameCache {
-    names: HashMap<DefaultAtom, TypeId>,
-    version: u64,
-}
 
 /// Registry for component types, allowing dynamic component creation with automatic memory management
 pub struct ComponentRegistry {
@@ -29,8 +18,6 @@ pub struct ComponentRegistry {
     names: Arc<RwLock<HashMap<DefaultAtom, TypeId>>>,
     /// Active component instances tracked by node key for automatic cleanup
     active_instances: Arc<RwLock<HashMap<NodeKey, SharedTrackedInstance>>>,
-    /// Version counter for cache invalidation
-    cache_version: AtomicU64,
     /// Performance tracking
     performance_stats: Arc<RwLock<ComponentPerformanceStats>>,
 }
@@ -99,7 +86,6 @@ impl ComponentRegistry {
             factories: Arc::new(RwLock::new(HashMap::new())),
             names: Arc::new(RwLock::new(HashMap::new())),
             active_instances: Arc::new(RwLock::new(HashMap::new())),
-            cache_version: AtomicU64::new(0),
             performance_stats: Arc::new(RwLock::new(ComponentPerformanceStats::new())),
         }
     }
@@ -161,12 +147,6 @@ impl ComponentRegistry {
         factories.insert(type_id, factory);
         names.insert(name_atom, type_id);
 
-        // Release locks before cache invalidation
-        drop(factories);
-        drop(names);
-
-        // Invalidate thread-local caches
-        self.cache_version.fetch_add(1, Ordering::Relaxed);
         Ok(())
     }
 
@@ -185,51 +165,24 @@ impl ComponentRegistry {
         Ok(registered.then(|| ComponentInstance::new(props)))
     }
 
-    /// Get TypeId for component name with thread-local caching
-    fn get_cached_type_id(&self, name: &str) -> Result<Option<TypeId>> {
-        thread_local! {
-            static CACHE: RefCell<NameCache> = RefCell::new(NameCache::default());
-        }
-
-        let name_atom = DefaultAtom::from(name);
-        let current_version = self.cache_version.load(Ordering::Relaxed);
-
-        CACHE.with(|cache| {
-            let mut cache = cache.borrow_mut();
-
-            // Check if cache needs refresh
-            if cache.version != current_version {
-                // Refresh cache from global registry
-                let names = self
-                    .names
-                    .read()
-                    .map_err(|_| ReactiveError::internal("Component registry lock poisoned"))?;
-
-                cache.names.clear();
-                cache
-                    .names
-                    .extend(names.iter().map(|(k, &v)| (k.clone(), v)));
-                cache.version = current_version;
-            }
-
-            // Look up in cache
-            Ok(cache.names.get(&name_atom).copied())
-        })
-    }
-
-    /// Create a component instance by name with optimized caching
+    /// Create a component instance using this registry's current name map.
+    /// Clones share the map; independent registries never share lookup state.
     pub fn create_by_name(
         &self,
         name: &str,
         props: &dyn std::any::Any,
     ) -> Result<Option<AnyComponentInstance>> {
-        // Fast path: check thread-local cache for name->TypeId lookup
-        let type_id = match self.get_cached_type_id(name)? {
-            Some(id) => id,
-            None => return Ok(None),
-        };
-
-        self.create_by_type_id(type_id, props)
+        let type_id = self
+            .names
+            .read()
+            .map_err(|_| ReactiveError::internal("Component registry name lock poisoned"))?
+            .get(&DefaultAtom::from(name))
+            .copied();
+        // Release the name guard before factory lookup and user constructors.
+        match type_id {
+            Some(type_id) => self.create_by_type_id(type_id, props),
+            None => Ok(None),
+        }
     }
 
     /// Create a component instance by TypeId (optimized for direct TypeId access)
@@ -290,7 +243,6 @@ impl ComponentRegistry {
                 .map_err(|_| ReactiveError::internal("Component registry lock poisoned"))?;
             factories.clear();
             names.clear();
-            self.cache_version.fetch_add(1, Ordering::Relaxed);
         }
         self.cleanup_all()?;
         Ok(())
@@ -600,7 +552,6 @@ impl Clone for ComponentRegistry {
             factories: Arc::clone(&self.factories),
             names: Arc::clone(&self.names),
             active_instances: Arc::clone(&self.active_instances),
-            cache_version: AtomicU64::new(self.cache_version.load(Ordering::Relaxed)),
             performance_stats: Arc::clone(&self.performance_stats),
         }
     }

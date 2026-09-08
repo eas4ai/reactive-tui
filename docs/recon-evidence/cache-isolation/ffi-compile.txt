@@ -1,0 +1,130 @@
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+warning: ambiguous glob re-exports
+  --> src/ffi/mod.rs:66:9
+   |
+66 | pub use pointer::*;
+   |         ^^^^^^^^^^ the name `validate_pointer` in the value namespace is first re-exported here
+...
+70 | pub use types::*;
+   |         -------- but the name `validate_pointer` in the value namespace is also re-exported here
+   |
+   = note: `#[warn(ambiguous_glob_reexports)]` on by default
+
+warning: unused variable: `width`
+  --> src/ffi/lib.rs:80:14
+   |
+80 |         let (width, height) = renderer_box.dims();
+   |              ^^^^^ help: if this is intentional, prefix it with an underscore: `_width`
+   |
+   = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: value assigned to `current_width` is never read
+   --> src/markdown/converter.rs:249:21
+    |
+249 |                     current_width = 0;
+    |                     ^^^^^^^^^^^^^^^^^
+    |
+    = help: maybe it is overwritten before being read?
+    = note: `#[warn(unused_assignments)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `validate_pointer` is never used
+   --> src/ffi/types.rs:182:15
+    |
+182 | pub(crate) fn validate_pointer<T>(ptr: *const T) -> bool {
+    |               ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `validate_mut_pointer` is never used
+   --> src/ffi/types.rs:187:15
+    |
+187 | pub(crate) fn validate_mut_pointer<T>(ptr: *mut T) -> bool {
+    |               ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `safe_cast` is never used
+   --> src/ffi/types.rs:192:22
+    |
+192 | pub(crate) unsafe fn safe_cast<T, U>(ptr: *mut T) -> Result<*mut U, ReactiveError> {
+    |                      ^^^^^^^^^
+
+warning: function `safe_cast_const` is never used
+   --> src/ffi/types.rs:206:22
+    |
+206 | pub(crate) unsafe fn safe_cast_const<T, U>(ptr: *const T) -> Result<*const U, ReactiveError> {
+    |                      ^^^^^^^^^^^^^^^
+
+warning: `reactive-tui` (lib test) generated 7 warnings (7 duplicates)
+warning: `reactive-tui` (lib) generated 7 warnings (run `cargo fix --lib -p reactive-tui` to apply 1 suggestion)
+warning: unnecessary `unsafe` block
+  --> tests/test_ffi_integration.rs:10:9
+   |
+10 |         unsafe {
+   |         ^^^^^^ unnecessary `unsafe` block
+   |
+   = note: `#[warn(unused_unsafe)]` (part of `#[warn(unused)]`) on by default
+
+warning: unnecessary `unsafe` block
+  --> tests/test_ffi_integration.rs:52:9
+   |
+52 |         unsafe {
+   |         ^^^^^^ unnecessary `unsafe` block
+
+warning: unnecessary `unsafe` block
+   --> tests/test_ffi_integration.rs:112:9
+    |
+112 |         unsafe {
+    |         ^^^^^^ unnecessary `unsafe` block
+
+warning: unnecessary `unsafe` block
+   --> tests/test_ffi_integration.rs:146:9
+    |
+146 |         unsafe {
+    |         ^^^^^^ unnecessary `unsafe` block
+
+warning: unnecessary `unsafe` block
+   --> tests/test_ffi_integration.rs:167:9
+    |
+167 |         unsafe {
+    |         ^^^^^^ unnecessary `unsafe` block
+
+warning: `reactive-tui` (test "test_ffi_integration") generated 5 warnings
+error: linking with `cc` failed: exit status: 1
+  |
+  = note:  "cc" "-m64" "/home/shawn/workspace2/reactive-tui/target/debug/deps/rustcsChDna/symbols.o" "<28 object files omitted>" "-Wl,--as-needed" "-Wl,-Bstatic" "<sysroot>/lib/rustlib/x86_64-unknown-linux-gnu/lib/{libtest-*,libgetopts-*,librustc_std_workspace_std-*,libstd-*,libpanic_unwind-*,libobject-*,libmemchr-*,libaddr2line-*,libgimli-*,libcfg_if-*,librustc_demangle-*,libstd_detect-*,libhashbrown-*,librustc_std_workspace_alloc-*,libminiz_oxide-*,libadler2-*,libunwind-*,liblibc-*,librustc_std_workspace_core-*,liballoc-*,libcore-*,libcompiler_builtins-*}.rlib" "-Wl,-Bdynamic" "-lgcc_s" "-lutil" "-lrt" "-lpthread" "-lm" "-ldl" "-lc" "-L" "/home/shawn/workspace2/reactive-tui/target/debug/deps/rustcsChDna/raw-dylibs" "-B<sysroot>/lib/rustlib/x86_64-unknown-linux-gnu/bin/gcc-ld" "-fuse-ld=lld" "-Wl,--eh-frame-hdr" "-Wl,-z,noexecstack" "-L" "/home/shawn/workspace2/reactive-tui/target/debug/build/onig_sys-5d1ab1a160df4359/out" "-L" "/home/shawn/workspace2/reactive-tui/target/debug/build/sixel-sys-855de26beac480dc/out/lib" "-L" "<sysroot>/lib/rustlib/x86_64-unknown-linux-gnu/lib" "-o" "/home/shawn/workspace2/reactive-tui/target/debug/deps/test_minimal_ffi-c70b6438d6eb3ab3" "-Wl,--gc-sections" "-pie" "-Wl,-z,relro,-z,now" "-nodefaultlibs" "-Wl,--threads=8"
+  = note: some arguments are omitted. use `--verbose` to show all linker arguments
+  = note: rust-lld: error: undefined symbol: rtui_element_builder_div
+          >>> referenced by test_minimal_ffi.rs:53 (tests/test_minimal_ffi.rs:53)
+          >>>               /home/shawn/workspace2/reactive-tui/target/debug/deps/test_minimal_ffi-c70b6438d6eb3ab3.9pzwg72u3b2gpobwyrlbbmmzm.1tndx41.rcgu.o:(test_minimal_ffi::minimal_ffi_tests::test_null_pointer_handling::heddcfa392a8234e1)
+          >>> referenced by test_minimal_ffi.rs:62 (tests/test_minimal_ffi.rs:62)
+          >>>               /home/shawn/workspace2/reactive-tui/target/debug/deps/test_minimal_ffi-c70b6438d6eb3ab3.9pzwg72u3b2gpobwyrlbbmmzm.1tndx41.rcgu.o:(test_minimal_ffi::minimal_ffi_tests::test_null_pointer_handling::heddcfa392a8234e1)
+          >>> referenced by test_minimal_ffi.rs:22 (tests/test_minimal_ffi.rs:22)
+          >>>               /home/shawn/workspace2/reactive-tui/target/debug/deps/test_minimal_ffi-c70b6438d6eb3ab3.9pzwg72u3b2gpobwyrlbbmmzm.1tndx41.rcgu.o:(test_minimal_ffi::minimal_ffi_tests::test_minimal_builder_functionality::hdf9e6ed5dff78878)
+          
+          rust-lld: error: undefined symbol: rtui_element_builder_add_class
+          >>> referenced by test_minimal_ffi.rs:57 (tests/test_minimal_ffi.rs:57)
+          >>>               /home/shawn/workspace2/reactive-tui/target/debug/deps/test_minimal_ffi-c70b6438d6eb3ab3.9pzwg72u3b2gpobwyrlbbmmzm.1tndx41.rcgu.o:(test_minimal_ffi::minimal_ffi_tests::test_null_pointer_handling::heddcfa392a8234e1)
+          >>> referenced by test_minimal_ffi.rs:63 (tests/test_minimal_ffi.rs:63)
+          >>>               /home/shawn/workspace2/reactive-tui/target/debug/deps/test_minimal_ffi-c70b6438d6eb3ab3.9pzwg72u3b2gpobwyrlbbmmzm.1tndx41.rcgu.o:(test_minimal_ffi::minimal_ffi_tests::test_null_pointer_handling::heddcfa392a8234e1)
+          >>> referenced by test_minimal_ffi.rs:29 (tests/test_minimal_ffi.rs:29)
+          >>>               /home/shawn/workspace2/reactive-tui/target/debug/deps/test_minimal_ffi-c70b6438d6eb3ab3.9pzwg72u3b2gpobwyrlbbmmzm.1tndx41.rcgu.o:(test_minimal_ffi::minimal_ffi_tests::test_minimal_builder_functionality::hdf9e6ed5dff78878)
+          
+          rust-lld: error: undefined symbol: rtui_element_builder_destroy
+          >>> referenced by test_minimal_ffi.rs:66 (tests/test_minimal_ffi.rs:66)
+          >>>               /home/shawn/workspace2/reactive-tui/target/debug/deps/test_minimal_ffi-c70b6438d6eb3ab3.9pzwg72u3b2gpobwyrlbbmmzm.1tndx41.rcgu.o:(test_minimal_ffi::minimal_ffi_tests::test_null_pointer_handling::heddcfa392a8234e1)
+          
+          rust-lld: error: undefined symbol: rtui_element_builder_set_text
+          >>> referenced by test_minimal_ffi.rs:34 (tests/test_minimal_ffi.rs:34)
+          >>>               /home/shawn/workspace2/reactive-tui/target/debug/deps/test_minimal_ffi-c70b6438d6eb3ab3.9pzwg72u3b2gpobwyrlbbmmzm.1tndx41.rcgu.o:(test_minimal_ffi::minimal_ffi_tests::test_minimal_builder_functionality::hdf9e6ed5dff78878)
+          
+          rust-lld: error: undefined symbol: rtui_element_builder_build
+          >>> referenced by test_minimal_ffi.rs:40 (tests/test_minimal_ffi.rs:40)
+          >>>               /home/shawn/workspace2/reactive-tui/target/debug/deps/test_minimal_ffi-c70b6438d6eb3ab3.9pzwg72u3b2gpobwyrlbbmmzm.1tndx41.rcgu.o:(test_minimal_ffi::minimal_ffi_tests::test_minimal_builder_functionality::hdf9e6ed5dff78878)
+          
+          rust-lld: error: undefined symbol: rtui_element_destroy
+          >>> referenced by test_minimal_ffi.rs:45 (tests/test_minimal_ffi.rs:45)
+          >>>               /home/shawn/workspace2/reactive-tui/target/debug/deps/test_minimal_ffi-c70b6438d6eb3ab3.9pzwg72u3b2gpobwyrlbbmmzm.1tndx41.rcgu.o:(test_minimal_ffi::minimal_ffi_tests::test_minimal_builder_functionality::hdf9e6ed5dff78878)
+          collect2: error: ld returned 1 exit status
+          
+
+error: could not compile `reactive-tui` (test "test_minimal_ffi") due to 1 previous error
+warning: build failed, waiting for other jobs to finish...
