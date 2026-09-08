@@ -1,0 +1,21 @@
+requirement: ABI-001
+requirement_digest: sha256:9f9b2a0f1fd519a05a16d9d724882258ccbc7b18522991cfc05ce63ef20d766d
+sequence: 2
+history_digest: sha256:303b02c4496be68628fdfe808585bc89478983ee3bf43f86e70bcb6db5956e47
+mechanism: binding-abi-inventory.md
+commit: 8d023b2
+inputs_digest: sha256:ea9bc55a654629fbed40526fd44fec03ec35fc9d4541d6c19c3058db5e3edf3e
+mechanism_digest: sha256:48cf9c7a2a81d2c8f43263657645248e51abdcb6c23911c0990f26ebd1d7701f
+inputs_detail: .cairn/evidence/ABI-001/20260908T202652607Z-274484.inputs.json
+command: python3 scripts/check-binding-abi.py
+cwd: .
+exit: 1
+output_digest: sha256:29094196a7f96bd0e4c9c059c0d39d9fae4a70905709f7f7854e630e787a2d19
+output: .cairn/evidence/ABI-001/20260908T202652607Z-274484.out
+stderr_output: .cairn/evidence/ABI-001/20260908T202652607Z-274484.err
+stderr_digest: sha256:7f32d766714b7f75580327895578876b958e10a32b9c7b658f26c7b76ee57ade
+signal: none
+execution_error: null
+result: fail
+source: exit
+recorded: 2026-09-08T20:26:53.064Z
