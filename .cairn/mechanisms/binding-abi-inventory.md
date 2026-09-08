@@ -9,5 +9,7 @@ inputs:
   - include
   - bindings/typescript
   - scripts
+  - docs/binding-abi-audit.md
+  - docs/binding-abi-baseline.json
 requirements:
   - ABI-001
