@@ -39,6 +39,8 @@ impl Component for TestComponent {
 
 #[test]
 fn test_thread_safety_fixes() {
+    let _guard = TEST_MUTEX.lock().unwrap_or_else(|p| p.into_inner());
+
     global_cleanup_all().unwrap();
 
     // Enable strict registration mode for this test
@@ -74,6 +76,8 @@ fn test_thread_safety_fixes() {
 
 #[test]
 fn test_effect_cleanup() {
+    let _guard = TEST_MUTEX.lock().unwrap_or_else(|p| p.into_inner());
+
     global_cleanup_all().unwrap();
 
     // Test 2: Effect system cleanup
@@ -99,6 +103,8 @@ fn test_effect_cleanup() {
 
 #[test]
 fn test_memory_bounds() {
+    let _guard = TEST_MUTEX.lock().unwrap_or_else(|p| p.into_inner());
+
     global_cleanup_all().unwrap();
 
     // Test 3: Bounded collections in render stats
@@ -231,6 +237,8 @@ fn test_stress_component_creation() {
 
 #[test]
 fn test_panic_recovery() {
+    let _guard = TEST_MUTEX.lock().unwrap_or_else(|p| p.into_inner());
+
     global_cleanup_all().unwrap();
 
     // Test 6: Panic recovery in hooks (this tests our try_lock improvements)

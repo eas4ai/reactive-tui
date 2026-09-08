@@ -80,3 +80,13 @@ is exercised by wakeup tests. Repository-wide quality-delta still exits 2, inclu
 ignored reference trees and churn findings; it is not reported as passing.
 Test-gate identifies broader inherited paths, which Cairn will rerun before the
 next requirement. No final commitment-wide review is claimed.
+
+## Inherited default-suite isolation repair
+
+The independent DFT refresh failed test_component_lifecycle_safety with 99 live
+components instead of 100 after the aggregate run passed. Inspection found four
+other tests calling global_cleanup_all without the file's TEST_MUTEX while the
+counting tests held it. Added that same guard to every remaining global-cleanup
+test. Concurrent registration still spawns ten workers within its guarded test;
+no concurrency or lifecycle assertion was disabled. Five repeated executions of
+the eight-test production_readiness_test binary passed after the repair.
