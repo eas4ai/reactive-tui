@@ -1,0 +1,21 @@
+requirement: EMB-004
+requirement_digest: sha256:5c0be71da9a0738f31d5642511dee863efc4cb744a0201615d97df53e082efbd
+sequence: 10
+history_digest: sha256:136e690dce114d3a7403d16da43b47722860a98046a89f5bc61ff191b823582f
+mechanism: embedded-terminal.md
+commit: 4702c0a
+inputs_digest: sha256:ac9947778f39867b1f662a3b6e7aeaaf1431e8290d75af9f05f6456824f21d89
+mechanism_digest: sha256:c676d647c8257e73f2f707f40bbf43bdcb20161173099ab3d91dcc55ab208c55
+inputs_detail: .cairn/evidence/EMB-001/20260908T232935455Z-3630052.inputs.json
+command: sh scripts/check-embedded-terminal.sh
+cwd: .
+exit: 0
+output_digest: sha256:b4c49c2816de801490d238202837d29a7691ab0666c9d73dddaff43aea90a9e6
+output: .cairn/evidence/EMB-001/20260908T232935455Z-3630052.out
+stderr_output: .cairn/evidence/EMB-001/20260908T232935455Z-3630052.err
+stderr_digest: sha256:5fcb0e0802f109cb788ab570a8727bc678467b55a8c8bc119debb46c0b4af9c7
+signal: none
+execution_error: null
+result: pass
+source: exit
+recorded: 2026-09-08T23:29:43.953Z
