@@ -1,0 +1,33 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.03s
+     Running unittests src/lib.rs (target/renderer/debug/deps/suprtui-bfa5ab8ec07b660c)
+     Running tests/buffer_core.rs (target/renderer/debug/deps/buffer_core-062c921273eaee1f)
+     Running tests/buffer_draw.rs (target/renderer/debug/deps/buffer_draw-6966481adf2340d6)
+     Running tests/cell_decorations.rs (target/renderer/debug/deps/cell_decorations-3aecad68aa27cd76)
+     Running tests/layout_engine.rs (target/renderer/debug/deps/layout_engine-452c7acd169f9ed1)
+     Running tests/link_pool.rs (target/renderer/debug/deps/link_pool-7030d87d23be293c)
+     Running tests/media_audio.rs (target/renderer/debug/deps/media_audio-b32bc7d572eb313c)
+     Running tests/media_image.rs (target/renderer/debug/deps/media_image-70ac9a7f7b2dcba0)
+     Running tests/render_core.rs (target/renderer/debug/deps/render_core-cd44f347e29feb32)
+     Running tests/render_stdout.rs (target/renderer/debug/deps/render_stdout-603a9817eb59fcd5)
+     Running tests/render_terminal.rs (target/renderer/debug/deps/render_terminal-d35dcc813354ec52)
+     Running tests/sys_clipboard.rs (target/renderer/debug/deps/sys_clipboard-643c1d5733abbe23)
+     Running tests/sys_clipboard_backends.rs (target/renderer/debug/deps/sys_clipboard_backends-d958ec6fdaf033e0)
+     Running tests/sys_core.rs (target/renderer/debug/deps/sys_core-f3ba0a101853eb62)
+     Running tests/sys_small.rs (target/renderer/debug/deps/sys_small-9bf34b37ba68afd7)
+     Running tests/term_core.rs (target/renderer/debug/deps/term_core-480c7468d308f0e6)
+     Running tests/term_embedded.rs (target/renderer/debug/deps/term_embedded-a81d9c3a74963a7b)
+     Running tests/text_gaps.rs (target/renderer/debug/deps/text_gaps-f251e95b6c601890)
+     Running tests/text_store.rs (target/renderer/debug/deps/text_store-8fa15f1a5c6d9f8e)
+     Running tests/text_view.rs (target/renderer/debug/deps/text_view-51dad4ef1a33d47a)
+     Running tests/uni_pool.rs (target/renderer/debug/deps/uni_pool-c02878d392ec28fa)
+     Running tests/uni_ported.rs (target/renderer/debug/deps/uni_ported-14fec044053e3b9a)
+     Running tests/uni_segments.rs (target/renderer/debug/deps/uni_segments-4238f27eff0b78b2)
+   Doc-tests suprtui
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.07s
+     Running tests/suprtui_renderer.rs (target/debug/deps/suprtui_renderer-8b468f81ee6ea03a)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.08s
+....
+----------------------------------------------------------------------
+Ran 4 tests in 0.008s
+
+OK
