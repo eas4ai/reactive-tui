@@ -40,3 +40,15 @@ changed-file rows report repeated typed FFI wrappers and the new i64 constructor
 Those short explicit wrappers preserve distinct C signatures and existing patterns;
 introducing a macro/generalized dispatch solely to remove those rows would obscure
 the ownership repair. This is not a claim that the quality-delta gate passed.
+
+## API-002 mechanism construction
+
+Inspected App render ordering, registry factory/instance ownership, component
+update/mount/unmount wrappers, Element props/children and render-tree conversion.
+A real App delegates painting to SuprTUI and captures parsed terminal frames.
+The baseline ran four cases: unknown-container/plain-text controls passed;
+nested keyed rendering, duplicate-key rejection and bounded recursive output
+failed. The nested frame was blank. No acceptance criterion was weakened.
+The test also requires props to update state on the same instance, keyed reorder
+to preserve identity, removed children to unmount once before later sibling work,
+and all remaining instances to unmount on App exit.
