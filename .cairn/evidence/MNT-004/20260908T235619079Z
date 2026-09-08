@@ -1,0 +1,21 @@
+requirement: MNT-004
+requirement_digest: sha256:e7e90cc20a4008d96ae122551e8c708e2e3a1e275a0a31a2d4f4bcf14508d094
+sequence: 9
+history_digest: sha256:b829717ca4c949617eccfcb1367af7b98961d20f5af126f79a6e572c0bc2e921
+mechanism: maintenance-ffi.md
+commit: 6d98d5c
+inputs_digest: sha256:181de726caf0fbd7c0b949df38da0a21ea7f2c05ac37706165a96bea6aa9e5c0
+mechanism_digest: sha256:72ae9a3e333f19068cf7baa34277327796dfe755a2fe4e905b33b6f47252ce6a
+inputs_detail: .cairn/evidence/MNT-003/20260908T235552287Z-4176617.inputs.json
+command: python3 scripts/check-maintenance.py ffi
+cwd: .
+exit: 0
+output_digest: sha256:74e7263bd74160ac09bd822430f813fe861689769820013355911f9c4ea76aef
+output: .cairn/evidence/MNT-003/20260908T235552287Z-4176617.out
+stderr_output: .cairn/evidence/MNT-003/20260908T235552287Z-4176617.err
+stderr_digest: sha256:5502c7495be3f45b7a37078d95394b387a288f4732e03d88be00a35b299c6dbc
+signal: none
+execution_error: null
+result: pass
+source: exit
+recorded: 2026-09-08T23:56:19.077Z
