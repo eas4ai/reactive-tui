@@ -1,6 +1,6 @@
 # Binding ABI compatibility review
 
-commit: 2af681c3194fa33728d6a2524f0dff1f511c3345
+commit: 37ec5ac9761fafcf5d9f2dd98527e05c2d51a627
 findings:
   - resolved: ABI-001 audit report now separates the historical baseline from the repaired contract, names the explicit retirements and points to current evidence.
 
@@ -8,7 +8,7 @@ findings:
 
 - Complete: establish the commitment, capture the failing baseline, and record compatibility decisions.
 - Complete: reconcile C/TypeScript declarations, ownership, consumer workflows and migration guidance; verify failure demonstrations and packaging.
-- In progress: record committed acceptance evidence, refresh inherited requirements and complete final review.
+- Complete: record committed acceptance evidence, refresh inherited requirements and complete final review.
 
 ## Verification approach
 
@@ -156,3 +156,18 @@ Read the revised introduction and baseline/result sections against the migration
 guides and receipts; obsolete pending-policy and no-removal claims are absent.
 No executable code changed. Acceptance freshness will be refreshed before closing
 the remaining work-tracking item.
+
+## Closing review
+
+Reviewed the only declared-input change since the code review: the audit report
+now labels the original missing symbols and mismatched types as historical,
+states the recorded compatibility policy and explicit retirements, and points
+to the current result. The migration guides and complete machine inventories
+agree. No code changed during this closing review. ABI-001, ABI-002 and ABI-003
+were checked again and passed; ABI-004 and all 30 inherited receipts remain current.
+The working tree was clean before this review update. All work items are complete.
+
+Repeated the production self-audit after the documentation correction: all 14
+rules are satisfied for this commitment. No further revision is required for the
+agreed binding repair. This judgment retains the stated Linux coverage and legacy
+native behavior limits; it does not broaden the completed contract.
