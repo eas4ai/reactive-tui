@@ -1,7 +1,7 @@
 # Recovery roadmap
 
 Status: Agreed 2026-09-07
-Current: ffi-lint-format-repair
+Current: binding-abi-compatibility
 
 1. `suprtui-renderer` — the first screen: styled frames, updates, Unicode,
    resize, output errors, input, and terminal restoration (RND-001 through RND-006).
@@ -26,3 +26,6 @@ Image protocols, clipboard, and remaining legacy defects stay in the backlog.
 
 7. `ffi-lint-format-repair` — repair FFI compile/link integration, strict
    default-feature Clippy failures and workspace formatting debt.
+
+8. `binding-abi-compatibility` — align C headers and TypeScript bindings with
+   Rust exports and verify consumer interoperability.
