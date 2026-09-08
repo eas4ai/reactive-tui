@@ -1,0 +1,71 @@
+warning: value assigned to `current_width` is never read
+   --> src/markdown/converter.rs:249:21
+    |
+249 |                     current_width = 0;
+    |                     ^^^^^^^^^^^^^^^^^
+    |
+    = help: maybe it is overwritten before being read?
+    = note: `#[warn(unused_assignments)]` (part of `#[warn(unused)]`) on by default
+
+warning: `reactive-tui` (lib) generated 1 warning
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+warning: `reactive-tui` (lib test) generated 1 warning (1 duplicate)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 6.22s
+     Running unittests src/lib.rs (target/debug/deps/reactive_tui-82073ab00bfe3025)
+error: test failed, to rerun pass `--lib`
+     Running tests/advanced_table_test.rs (target/debug/deps/advanced_table_test-7f47c4a142b3e920)
+     Running tests/alignment_strict_tests.rs (target/debug/deps/alignment_strict_tests-4ff3ae84c06f62df)
+     Running tests/alignment_utility_tests.rs (target/debug/deps/alignment_utility_tests-c544334a2823db92)
+     Running tests/animations_integration.rs (target/debug/deps/animations_integration-628a5f05903d048c)
+     Running tests/app_wakeups.rs (target/debug/deps/app_wakeups-df392901bc67172f)
+     Running tests/automatic_memory_management_tests.rs (target/debug/deps/automatic_memory_management_tests-0d2adc303ab5c18c)
+     Running tests/charts_test.rs (target/debug/deps/charts_test-19b61e4377a665bf)
+     Running tests/color_more_shades_tests.rs (target/debug/deps/color_more_shades_tests-a100ad2d8957e811)
+     Running tests/color_shades_tests.rs (target/debug/deps/color_shades_tests-45128a1b46429574)
+     Running tests/color_utility_tests.rs (target/debug/deps/color_utility_tests-2957953bf953d31d)
+     Running tests/component_macro_integration.rs (target/debug/deps/component_macro_integration-2a76eb1db0be838b)
+     Running tests/component_macro_test.rs (target/debug/deps/component_macro_test-c82ed04b6d967071)
+     Running tests/component_tests.rs (target/debug/deps/component_tests-78e543986b7087f1)
+     Running tests/css_animation_integration_test.rs (target/debug/deps/css_animation_integration_test-40c107f402399c30)
+     Running tests/css_in_rust_simple_test.rs (target/debug/deps/css_in_rust_simple_test-105aa7cb48ffdf68)
+     Running tests/debug_animate_none.rs (target/debug/deps/debug_animate_none-247f6f92e0837d80)
+     Running tests/element_bridge_tests.rs (target/debug/deps/element_bridge_tests-780344f7bdeb1bf3)
+     Running tests/embedded_terminal.rs (target/debug/deps/embedded_terminal-0a1343974e521a7d)
+     Running tests/ffi_basic_test.rs (target/debug/deps/ffi_basic_test-c3210d72f582af50)
+     Running tests/ffi_tests.rs (target/debug/deps/ffi_tests-0d17ae3d18c90105)
+     Running tests/full_pipeline_integration.rs (target/debug/deps/full_pipeline_integration-92a318d9bade791f)
+     Running tests/layout_paint_tests.rs (target/debug/deps/layout_paint_tests-a4bf37f71f119b6a)
+     Running tests/mouse_hooks_test.rs (target/debug/deps/mouse_hooks_test-d125df3fddc758a7)
+     Running tests/opacity_tests.rs (target/debug/deps/opacity_tests-eaec6550f2a38234)
+     Running tests/performance_monitoring_test.rs (target/debug/deps/performance_monitoring_test-183e8ca7c218ba73)
+     Running tests/production_readiness_test.rs (target/debug/deps/production_readiness_test-9e18445be8136369)
+     Running tests/property_tests.rs (target/debug/deps/property_tests-1b9d22ed4d852a60)
+     Running tests/props_derive_test.rs (target/debug/deps/props_derive_test-03afadfd63ba24a2)
+     Running tests/registry_cache_isolation.rs (target/debug/deps/registry_cache_isolation-d9aa7922619d63fd)
+     Running tests/registry_concurrency.rs (target/debug/deps/registry_concurrency-ac1fa8331022f0ef)
+     Running tests/render_ops_snapshots.rs (target/debug/deps/render_ops_snapshots-fcfa7fd9e7f66de3)
+     Running tests/screen_system_tests.rs (target/debug/deps/screen_system_tests-29bd69e4b3fcd435)
+     Running tests/simple_css_animation_test.rs (target/debug/deps/simple_css_animation_test-878e2e0d6d7f6fb1)
+     Running tests/simple_performance_test.rs (target/debug/deps/simple_performance_test-0ae68f46d310ba47)
+     Running tests/simple_props_test.rs (target/debug/deps/simple_props_test-6a158f63c52ec184)
+     Running tests/suprtui_renderer.rs (target/debug/deps/suprtui_renderer-8b468f81ee6ea03a)
+     Running tests/surface_integration.rs (target/debug/deps/surface_integration-1204b61af4b6ef23)
+     Running tests/syntax_highlighting_integration.rs (target/debug/deps/syntax_highlighting_integration-68d46e03de14574a)
+     Running tests/test_absolute_debug.rs (target/debug/deps/test_absolute_debug-f8a738fd071c67f2)
+     Running tests/test_absolute_paint.rs (target/debug/deps/test_absolute_paint-d9963056b2bc8199)
+     Running tests/test_animation_api.rs (target/debug/deps/test_animation_api-7c6fbb11daaa4a69)
+     Running tests/test_app_layout.rs (target/debug/deps/test_app_layout-564fdceaf364f39a)
+     Running tests/test_ffi_core_only.rs (target/debug/deps/test_ffi_core_only-7661765abc7ee42e)
+     Running tests/test_ffi_integration.rs (target/debug/deps/test_ffi_integration-27f4d53304cef92b)
+     Running tests/test_ffi_reactive_seamless.rs (target/debug/deps/test_ffi_reactive_seamless-b36fb34cf155af5f)
+     Running tests/test_flex_layout.rs (target/debug/deps/test_flex_layout-f1bc08bada9c7026)
+     Running tests/test_minimal_ffi.rs (target/debug/deps/test_minimal_ffi-069aa8520c77ca55)
+     Running tests/utility_paint_tests.rs (target/debug/deps/utility_paint_tests-e322594177250de3)
+     Running tests/z_index_tests.rs (target/debug/deps/z_index_tests-a70997376c6cd14a)
+error: test failed, to rerun pass `--test z_index_tests`
+   Doc-tests reactive_tui
+error: doctest failed, to rerun pass `--doc`
+error: 3 targets failed:
+    `--lib`
+    `--test z_index_tests`
+    `--doc`
