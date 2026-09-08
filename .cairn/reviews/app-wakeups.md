@@ -47,3 +47,15 @@ new wake and scheduler files had no diagnostics in that run.
 ## Final review
 
 Pending.
+
+## Revised mechanism review: WAK-001
+
+Compared the revised text and falsifier with wake.rs, the backend wait
+adapter, App request handling and the acceptance runner. Splitting the
+compound sentence preserved both bounded coalescing and loss-free waiting.
+The primitive tests cover requests before wait and 200 registration races;
+the App tests cover idle stop and final burst state; the real PTY checks a
+background change against Crossterm's actual blocking input wait. Pending
+storage is fixed flags and one task waker. Removing pending flag retention
+failed its runtime assertion; restoring it passed the complete development
+gate. No mismatch requires a separate code change.
