@@ -1,7 +1,7 @@
 # Recovery roadmap
 
 Status: Agreed 2026-09-07
-Current: default-suite-repair
+Current: ffi-lint-format-repair
 
 1. `suprtui-renderer` — the first screen: styled frames, updates, Unicode,
    resize, output errors, input, and terminal restoration (RND-001 through RND-006).
@@ -23,3 +23,6 @@ Image protocols, clipboard, and remaining legacy defects stay in the backlog.
 
 6. `default-suite-repair` — repair numeric inset layering, step-easing test
    semantics and accordion doctests; make the default full suite pass.
+
+7. `ffi-lint-format-repair` — repair FFI compile/link integration, strict
+   default-feature Clippy failures and workspace formatting debt.
