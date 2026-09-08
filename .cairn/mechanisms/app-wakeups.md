@@ -17,6 +17,7 @@ inputs:
   - examples/embedded_shell.rs
   - examples/suprtui_counter.rs
 requirements:
+  - ABI-004
   - WAK-001
   - WAK-002
   - WAK-003

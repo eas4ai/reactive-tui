@@ -11,5 +11,6 @@ inputs:
   - examples
   - docs/recon-evidence/cache-isolation
 requirements:
+  - ABI-004
   - CCH-001
   - CCH-002

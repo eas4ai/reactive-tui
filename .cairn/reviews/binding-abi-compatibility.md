@@ -74,3 +74,16 @@ wrong-heading-alias demonstration fails its observable class assertion; the
 restored C and C++ consumers passed in the committed ABI-002 evidence. The
 independent layout violations also fail before invocation. No mechanism mismatch
 found; no code changed during this review.
+
+## ABI-004 mechanism construction
+
+Attached ABI-004 to all nine existing acceptance declarations. Together they
+cover exactly the 30 inherited requirements; their commands and assertions are
+unchanged. Cairn must retain passing evidence for each declaration. This reuses
+the actual format, lint, FFI, full-suite, registry, wakeup, terminal and renderer
+checks rather than a command that only prints success. The just-recorded
+specification-lint failure proves the inherited chain propagates failure; after
+sentence correction and the missing docs/spec input declarations, the same
+runtime and lint checks passed. Historical violating test demonstrations remain
+in each inherited commitment review. All 30 requirements stay in the current
+commitment, so removing any inherited requirement's coverage cannot complete it.

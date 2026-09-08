@@ -12,4 +12,5 @@ inputs:
   - scripts
   - include
 requirements:
+  - ABI-004
   - MNT-001

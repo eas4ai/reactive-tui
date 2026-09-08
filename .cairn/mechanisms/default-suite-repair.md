@@ -10,6 +10,7 @@ inputs:
   - tests
   - examples
 requirements:
+  - ABI-004
   - DFT-001
   - DFT-002
   - DFT-003
