@@ -1,7 +1,7 @@
 # Recovery roadmap
 
 Status: Agreed 2026-09-07
-Current: registry-cache-isolation
+Current: default-suite-repair
 
 1. `suprtui-renderer` — the first screen: styled frames, updates, Unicode,
    resize, output errors, input, and terminal restoration (RND-001 through RND-006).
@@ -20,3 +20,6 @@ Image protocols, clipboard, and remaining legacy defects stay in the backlog.
 
 5. `registry-cache-isolation` — isolate named lookup between registries, make
    clones observe shared registrations, and refresh the full-suite assessment.
+
+6. `default-suite-repair` — repair numeric inset layering, step-easing test
+   semantics and accordion doctests; make the default full suite pass.
