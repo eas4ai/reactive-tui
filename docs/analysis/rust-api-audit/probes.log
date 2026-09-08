@@ -1,0 +1,22 @@
+
+running 8 tests
+test app_mounts_named_component_without_rendering_its_output ... TrackedComponentInstance dropped for node Auto(0)
+REPRODUCED: App component render calls=0; plain text control paints correctly
+ok
+test builder_drops_callback_before_element_is_dropped ... REPRODUCED: on_click discards captured handler and retains only class
+ok
+test focus_identity_changes_and_trapped_autofocus_fails ... REPRODUCED: keyed focus ID changes; trapped child autofocus is absent
+ok
+test focus_style_applies_without_focus_and_uppercase_does_not_transform ... REPRODUCED: unfocused cell is red; uppercase leaves lower-case text unchanged
+ok
+test macro_hook_slots_do_not_reset_between_renders ... REPRODUCED: macro renders 1,1; explicit hook reset preserves state=5
+ok
+test memo_returns_stale_value_after_recompute ... REPRODUCED: memo input becomes 2 but returned signal remains 1
+ok
+test text_editor_insert_text_counts_bytes_but_backspace_counts_chars ... REPRODUCED: backspace after insert_text(界) leaves 界; ASCII control deletes correctly
+ok
+test typed_keyframes_step_instead_of_interpolating ... REPRODUCED: 0 to 10 midpoint is 0 rather than interpolated 5
+ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

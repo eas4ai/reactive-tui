@@ -1,0 +1,175 @@
+# Rust API remediation
+
+Status: Agreed 2026-09-08
+Prefix: API
+
+The developer requested a commitment to remediate all findings in
+`docs/api-audit.md`. This specification turns that audit into requirements.
+The audit is diagnostic evidence, not an acceptance suite.
+
+Existing working APIs and inherited contracts remain binding. Removing features,
+retiring APIs, narrowing promised semantics, or declaring a finding out of scope
+requires an explicit developer decision; documentation alone cannot repair broken
+behavior. Routine implementation choices remain with the agent. Judged choices
+are recorded before implementation. Platform claims require platform evidence;
+unavailable verification is reported and escalated, never fabricated.
+
+## Signal ownership
+
+[API-001]
+Every legacy and tagged native signal constructor/getter/setter/destructor MUST use matching allocation types and documented ownership. Preserve existing ABI; reject invalid family use where validation is supported without dereferencing an invalid allocation.
+Audit mapping: RAPI-01.
+Falsifier: a supported typed lifecycle miscasts or leaks an allocation, or consumer ownership becomes ambiguous.
+Mechanism: typed Rust/C lifecycle probes with a suitable memory-safety checker.
+
+## Component expansion and identity
+
+[API-002]
+App MUST recursively render registered components before layout and painting, retain one live instance per stable key, deliver prop changes, and unmount removed instances exactly once. Unknown component names MUST have defined observable behavior.
+Audit mapping: RAPI-02.
+Falsifier: a nested component fails to paint, keyed reorder loses state, props remain stale, or lifecycle callbacks duplicate.
+Mechanism: real App/SuprTUI captured-frame and lifecycle tests.
+
+## Hook state and memoization
+
+[API-003]
+Generated components MUST reset hook indexing for each render and retain existing slots without growth. Memo values MUST follow documented dependency semantics; invalid hook ordering MUST have defined behavior.
+Audit mapping: RAPI-03.
+Falsifier: repeated renders allocate new state slots, state resets, or a changed dependency returns a stale memo.
+Mechanism: repeated generated-component renders with state, slot-count and memo assertions.
+
+## Effects context and runtime
+
+[API-004]
+App MUST own component effect/timer lifecycle. Effects MUST run and clean up at documented dependency changes and unmount; removed components MUST leave no runnable timer or effect. Descendants MUST inherit context with scoped overrides and isolation between Apps.
+Audit mapping: RAPI-03.
+Falsifier: cleanup runs immediately instead of at its lifecycle boundary, work survives removal, parent context is absent, or Apps share component context.
+Mechanism: mount/update/unmount tests with controlled scheduler and nested providers.
+
+## Callbacks and event routing
+
+[API-005]
+Builder callbacks MUST be retained and invoked through App keyboard/mouse routing exactly once for the intended target. Event bounds and ordering MUST agree with the painted layout after resize and updates.
+Audit mapping: RAPI-04.
+Falsifier: a supplied handler is discarded, an event hits the wrong node, or resized bounds are stale.
+Mechanism: App input-to-callback tests using captured layout and frames.
+
+## Stable focus and traps
+
+[API-006]
+Focus identity MUST survive keyed redraw/reorder. Tab and reverse Tab MUST work with and without traps; nested dialogs MUST autofocus, confine focus and restore it on close or removal.
+Audit mapping: RAPI-04.
+Falsifier: focus changes solely because of redraw, navigation stalls, or trapping/restoration targets a different node.
+Mechanism: keyboard sequences through real rendered trees including nested and removed traps.
+
+## Unicode editor positions
+
+[API-007]
+Both plain and syntax editors MUST consistently convert text positions and terminal display columns. Insertion, deletion, movement and selection MUST respect documented grapheme boundaries and multiline behavior for ASCII, CJK, emoji and combining text.
+Audit mapping: RAPI-05.
+Falsifier: mixed insert_char/insert_text operations corrupt cursor position, backspace leaves the inserted grapheme, or selection/display bounds split a grapheme.
+Mechanism: editor operation and rendered-cell tests across Unicode and multiline cases.
+
+## Bounded clipboard operations
+
+[API-008]
+Clipboard subprocess operations MUST have bounded deadlines, propagate nonzero exits and unavailable-backend errors, and reap owned children on timeout/cancellation. Claimed desktop backends MUST have explicit verification coverage.
+Audit mapping: RAPI-06.
+Falsifier: a stalled tool blocks indefinitely, a failed or unavailable copy reports success, or a child survives timeout.
+Mechanism: isolated subprocess fixtures plus recorded integration checks for each claimed backend.
+
+## Dynamic styling and text tokens
+
+[API-009]
+Focus/hover/disabled variants MUST depend on actual node state. Accepted typography and overflow tokens MUST change rendered output according to their documented terminal semantics.
+Audit mapping: RAPI-07.
+Falsifier: unfocused styling applies unconditionally, uppercase/truncation is accepted without effect, or a state change fails to repaint.
+Mechanism: App state transitions and independent expected cell/text output.
+
+## Gradient and animation painting
+
+[API-010]
+Supported gradient and animation properties MUST survive component expansion and layout and affect the supported painter. Terminal approximations MUST be explicit and tested.
+Audit mapping: RAPI-07.
+Falsifier: properties disappear in the bridge or configured changes never affect frames.
+Mechanism: captured intermediate frames with gradients and scheduled property changes.
+
+## Widget behavior and builders
+
+[API-011]
+An inventory MUST enumerate public widgets/builders and advertised controls. Existing advertised behavior MUST work through App, including input, checkbox/select, tables/trees, menus, scrolling, selection, callbacks and disabled/empty states. Builders MUST produce functional controls rather than descriptive placeholders.
+Audit mapping: RAPI-08.
+Falsifier: a catalog entry lacks behavioral coverage, a builder paints a description instead of its control, or interaction relies on fixed/default bounds.
+Mechanism: per-widget acceptance matrix and App workflows at multiple viewport sizes.
+
+## Dialog lifecycle and results
+
+[API-012]
+Dialogs MUST paint, accept events, update and deliver completion/cancellation results synchronously or asynchronously as advertised. Stacking MUST honor z-order and limits; closing MUST emit documented events, release resources and restore focus.
+Audit mapping: RAPI-09.
+Falsifier: a result is discarded, async mode has no completion, z-order is ignored, or close leaves focus/resources behind.
+Mechanism: nested dialog workflows including limits, cancellation, result delivery and cleanup.
+
+## Animation semantics and screens
+
+[API-013]
+Typed/untyped keyframes MUST preserve values and interpolate according to documented type/easing semantics. Relative values MUST use actual current properties. Active screens MUST receive input, and transition progress MUST visibly affect output.
+Audit mapping: RAPI-10.
+Falsifier: a numeric midpoint steps to the previous endpoint, conversion substitutes defaults, relative values start from zero incorrectly, or fade/input is ineffective.
+Mechanism: deterministic clock tests plus intermediate rendered screen frames and input delivery.
+
+## Image decoding and terminal output
+
+[API-014]
+Advertised file and encoded-memory image paths MUST decode actual image data and share correct placement, clipping and cleanup semantics. Claimed graphics protocols MUST emit valid output; fallback MUST render the decoded image. URL loading support MUST be explicitly decided before implementation.
+Audit mapping: RAPI-11.
+Falsifier: a file yields a synthetic pattern, encoded bytes are mistaken for pixels, a claimed protocol only paints fallback cells, or removal leaves stale placement.
+Mechanism: known-image pixel comparisons, protocol captures and integration evidence on each claimed host/protocol.
+
+## Feature configurations
+
+[API-015]
+The no-default-features configuration MUST compile and have defined runtime behavior. Optional dependencies MUST be correctly gated or made mandatory by a recorded compatibility decision. The supported feature matrix MUST pass build and applicable behavior checks.
+Audit mapping: RAPI-12.
+Falsifier: no-default compilation references an absent optional dependency or a claimed feature combination fails.
+Mechanism: locked feature-matrix builds and applicable behavior tests.
+
+## Backend and terminal entry points
+
+[API-016]
+Public application/backend/terminal entry points MUST have a documented supported route, with functional adapters or an explicitly approved migration. Retained legacy App paths MUST initialize and update prior render state correctly without synthetic patches; native App construction MUST expose the recovered rendering path.
+Audit mapping: RAPI-13.
+Falsifier: a retained entry point repeatedly takes first-render behavior, uses fake patches, fails updates/restoration, or has no functional supported route.
+Mechanism: Rust and native entry-point workflows with update, error and terminal-restoration assertions.
+
+## Complete native binding access
+
+[API-017]
+After native behavior works, editor/layout/dialog APIs and a stateful foreign component/event bridge MUST be exposed through audited C and TypeScript interfaces. Define callback lifetime, reentry, prop/state updates, errors and ownership; preserve existing ABI guarantees.
+Audit mapping: RAPI-14.
+Falsifier: a required family remains excluded or a consumer cannot paint, interact, observe state/results and clean up safely.
+Mechanism: compiled C and TypeScript end-to-end consumers plus independent ABI/layout checks.
+
+## Accurate public API documentation
+
+[API-018]
+Publish a complete supported-API matrix linked to behavior evidence and limits. Public Markdown APIs MUST be visible consistently during documentation builds; documented examples MUST compile. Props validation MUST enforce specified constraints or have an explicitly approved narrower contract.
+Audit mapping: RAPI-15.
+Falsifier: readiness claims exceed evidence, docs hide public APIs, examples fail, or validation accepts every value despite promised constraints.
+Mechanism: documentation/example builds, invalid/valid Props cases and evidence-linked inventory review.
+
+## Residual audit concerns
+
+[API-019]
+The audit coverage table concerns MUST be resolved or verified explicitly: gesture hooks, ui::Updater dispatch, theme propagation and multi-App isolation, Markdown/syntax integration and bounded large-input behavior, editor undo/selection claims, and claimed platform/legacy terminal behavior. Each MUST have an inventory entry with a concrete contract and falsifier before implementation.
+Audit mapping: RAPI-03, RAPI-15 and coverage table.
+Falsifier: a named concern disappears from the inventory or an advertised operation remains a marker/no-op without approved contract change.
+Mechanism: focused behavior checks and final cross-reference review of the complete audit.
+
+## Regression and closure
+
+[API-020]
+Every inherited requirement MUST retain current passing evidence. Final review MUST reconcile every audit finding and named subcase with implementation, tests and any explicit developer-approved contract change. Mechanisms MUST demonstrate safe violating and corrected cases; historical defect-confirming probes MUST not be counted as acceptance passes.
+Audit mapping: RAPI-01 through RAPI-15.
+Falsifier: an inherited check regresses, an audit item is silently deferred, coverage is weakened, or a defect-confirming assertion is counted as correctness.
+Mechanism: all inherited mechanisms and independent final scope/behavior review.

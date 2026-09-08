@@ -1,7 +1,7 @@
 # Recovery roadmap
 
 Status: Agreed 2026-09-07
-Current: binding-abi-compatibility
+Current: rust-api-remediation
 
 1. `suprtui-renderer` — the first screen: styled frames, updates, Unicode,
    resize, output errors, input, and terminal restoration (RND-001 through RND-006).
@@ -10,7 +10,8 @@ Current: binding-abi-compatibility
    displayed through App/SuprTUI, with keyboard input, resize, and cleanup.
 
 The first renderer commitment is complete; its requirements remain inherited.
-Image protocols, clipboard, and remaining legacy defects stay in the backlog.
+Image protocols, clipboard, and remaining legacy defects were deferred until
+the Rust API remediation commitment below.
 
 3. `app-wakeups` — shared wake notifications connect signals, scheduled work
    and terminal output to App, with idle waiting and bounded redraw bursts.
@@ -29,3 +30,7 @@ Image protocols, clipboard, and remaining legacy defects stay in the backlog.
 
 8. `binding-abi-compatibility` — align C headers and TypeScript bindings with
    Rust exports and verify consumer interoperability.
+
+9. `rust-api-remediation` — remediate all 15 Rust API audit findings and named
+   residual concerns, restore end-to-end native behavior and bindings, and retain
+   all inherited acceptance contracts (API-001 through API-020).

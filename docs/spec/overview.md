@@ -15,7 +15,9 @@ libghostty-rs for embedded terminal sessions, accepting its Zig build dependency
 The first commitment delivers a Reactive-TUI screen through SuprTUI with
 verified updates, Unicode, resizing, and clean terminal restoration. Embedded
 sessions follow that foundation. Rendering and embedded-terminal requirements are
-contract; the rest of the legacy feature catalog remains Observed.
+contract; the rest of the legacy feature catalog was initially Observed. The developer
+subsequently committed the Rust API audit remediation on 2026-09-08;
+`docs/spec/rust-api-remediation.md` now governs those audited behaviors.
 
 ## Architecture
 
@@ -51,3 +53,11 @@ and `.cairn/mechanisms/embedded-terminal.md`. The renderer is maintained in
 `docs/embedded-terminal.md`.
 The initial project-wide failures are evidence in `docs/recon-evidence/`;
 this commitment does not declare the entire legacy library production-ready.
+
+## Current API recovery contract
+
+The historical scope exclusions above describe the initial recovery stages.
+`docs/spec/rust-api-remediation.md` (API) now covers the complete Rust API audit,
+including widgets, hooks, editing, clipboard, images, animation, documentation
+and native bindings. See `docs/commitments/rust-api-remediation.md` for sequencing
+and boundaries. No catalog-wide readiness claim is made before acceptance.
