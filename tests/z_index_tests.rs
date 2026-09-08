@@ -195,3 +195,41 @@ fn test_z_index_order_independence() {
         "Explicit z-index should override position"
     );
 }
+
+#[test]
+fn numeric_side_offsets_preserve_position_and_layer() {
+    for position in ["static", "relative", "absolute", "fixed", "sticky"] {
+        let expected_position = apply_utility_classes(position, StyleBuilder::new())
+            .build()
+            .position;
+        for side in ["top", "right", "bottom", "left"] {
+            for value in [0.0_f32, 2.0, -2.0, 0.5] {
+                let classes = format!("{position} z-37 {side}-{value}");
+                let sb = apply_utility_classes(&classes, StyleBuilder::new());
+                assert_eq!(sb.get_z_index(), Some(37), "{classes}");
+                let style = sb.build();
+                assert_eq!(style.position, expected_position, "{classes}");
+                let inset = match side {
+                    "top" => style.inset.top,
+                    "right" => style.inset.right,
+                    "bottom" => style.inset.bottom,
+                    _ => style.inset.left,
+                };
+                assert_eq!(
+                    inset,
+                    taffy::style::LengthPercentageAuto::length(value),
+                    "{classes}"
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn side_offsets_do_not_implicitly_choose_a_position_or_layer() {
+    for side in ["top", "right", "bottom", "left"] {
+        let sb = apply_utility_classes(&format!("{side}-2"), StyleBuilder::new());
+        assert_eq!(sb.get_z_index(), None);
+        assert_eq!(sb.build().position, StyleBuilder::new().build().position);
+    }
+}

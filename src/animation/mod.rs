@@ -1374,10 +1374,28 @@ mod tests {
         let steps = EasingFunction::Steps(4, true);
 
         // With jump_start=true, we should get the next step value immediately
-        assert_eq!(steps.apply(0.0), 0.0); // Actually starts at 0, then jumps
+        assert_eq!(steps.apply(0.0), 0.25); // First jump occurs at zero
         assert_eq!(steps.apply(0.1), 0.25); // First step
         assert_eq!(steps.apply(0.3), 0.5); // Second step
         assert_eq!(steps.apply(1.0), 1.0);
+    }
+
+    #[test]
+    fn test_step_easing_boundaries() {
+        for count in [1, 2, 4, 8] {
+            let start = EasingFunction::Steps(count, true);
+            let end = EasingFunction::Steps(count, false);
+            for boundary in 0..=count {
+                let progress = boundary as f32 / count as f32;
+                assert_eq!(start.apply(progress), (boundary + 1).min(count) as f32 / count as f32);
+                assert_eq!(end.apply(progress), boundary as f32 / count as f32);
+                if boundary > 0 {
+                    let before = progress - 0.001;
+                    assert_eq!(start.apply(before), boundary as f32 / count as f32);
+                    assert_eq!(end.apply(before), (boundary - 1) as f32 / count as f32);
+                }
+            }
+        }
     }
 
     #[test]

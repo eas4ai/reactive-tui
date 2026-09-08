@@ -54,7 +54,8 @@ pub enum EasingFunction {
     // Advanced easing functions
     /// Spring physics-based easing
     Spring(SpringConfig),
-    /// Stepped easing with specified number of steps
+    /// Stepped easing with a positive step count.
+    /// `true` jumps at zero and each boundary; `false` jumps at interval ends.
     Steps(u32, bool), // step count, jump at start
     /// Piecewise linear easing with control points
     LinearPoints(Vec<f32>),

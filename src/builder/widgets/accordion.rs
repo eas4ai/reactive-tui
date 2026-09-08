@@ -14,7 +14,8 @@ use crate::widgets::layout::{AccordionBuilder, AccordionSection, AccordionMode};
 /// # Example
 /// ```rust
 /// use reactive_tui::builder::accordion;
-/// use reactive_tui::widgets::AccordionSection;
+/// use reactive_tui::component::Element;
+/// use reactive_tui::widgets::{AccordionMode, AccordionSection};
 ///
 /// let accordion = accordion()
 ///     .section(AccordionSection::new("general", "General Settings")
@@ -65,6 +66,7 @@ pub fn simple_accordion(sections: Vec<(&str, &str, &str)>) -> Element {
 /// # Example
 /// ```rust
 /// use reactive_tui::builder::settings_accordion;
+/// use reactive_tui::component::Element;
 /// use reactive_tui::widgets::AccordionSection;
 ///
 /// let settings = settings_accordion()
@@ -92,6 +94,7 @@ pub fn settings_accordion() -> AccordionBuilder {
 /// # Example
 /// ```rust
 /// use reactive_tui::builder::faq_accordion;
+/// use reactive_tui::component::Element;
 /// use reactive_tui::widgets::AccordionSection;
 ///
 /// let faq = faq_accordion()
@@ -117,6 +120,7 @@ pub fn faq_accordion() -> AccordionBuilder {
 /// # Example
 /// ```rust
 /// use reactive_tui::builder::navigation_accordion;
+/// use reactive_tui::component::Element;
 /// use reactive_tui::widgets::AccordionSection;
 ///
 /// let nav = navigation_accordion()
