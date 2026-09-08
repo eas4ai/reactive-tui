@@ -1,5 +1,5 @@
 use super::instance::AnyComponentInstance;
-use super::tracked_instance::{SharedTrackedInstance, create_shared_tracked_instance};
+use super::tracked_instance::{create_shared_tracked_instance, SharedTrackedInstance};
 use super::{Component, ComponentInstance, LifecycleEvent};
 use crate::error::{ReactiveError, Result};
 use crate::layout::css::manager::apply_css_animation_global;
@@ -7,11 +7,14 @@ use crate::render::tree::NodeKey;
 use std::any::TypeId;
 use std::cell::RefCell;
 use std::collections::HashMap;
-use std::sync::{Arc, RwLock, OnceLock, atomic::{AtomicU64, Ordering}};
+use std::sync::{
+    atomic::{AtomicU64, Ordering},
+    Arc, OnceLock, RwLock,
+};
 use std::time::{Duration, Instant};
 use string_cache::DefaultAtom;
 
-type ComponentFactory = Box<dyn Fn(&dyn std::any::Any) -> AnyComponentInstance + Send + Sync>;
+type ComponentFactory = Arc<dyn Fn(&dyn std::any::Any) -> AnyComponentInstance + Send + Sync>;
 
 /// Thread-local cache for component name->TypeId lookups to reduce lock contention
 #[derive(Default)]
@@ -113,7 +116,8 @@ impl ComponentRegistry {
         // Check for existing registration first (read lock) - only for thread safety test
         // In normal operation, allow re-registration (overwrite)
         if std::env::var("REACTIVE_TUI_STRICT_REGISTRATION").is_ok() {
-            let names = self.names
+            let names = self
+                .names
                 .read()
                 .map_err(|_| ReactiveError::internal("Component registry lock poisoned"))?;
             if names.contains_key(&name_atom) {
@@ -124,7 +128,7 @@ impl ComponentRegistry {
             }
         }
 
-        let factory: ComponentFactory = Box::new(move |props_any| {
+        let factory: ComponentFactory = Arc::new(move |props_any| {
             let props = if let Some(props) = props_any.downcast_ref::<C::Props>() {
                 props.clone()
             } else {
@@ -136,10 +140,12 @@ impl ComponentRegistry {
         });
 
         // Atomic registration: acquire both locks in consistent order to prevent deadlock
-        let mut factories = self.factories
+        let mut factories = self
+            .factories
             .write()
             .map_err(|_| ReactiveError::internal("Component registry lock poisoned"))?;
-        let mut names = self.names
+        let mut names = self
+            .names
             .write()
             .map_err(|_| ReactiveError::internal("Component registry lock poisoned"))?;
 
@@ -170,16 +176,13 @@ impl ComponentRegistry {
         C: Component,
     {
         let type_id = TypeId::of::<C>();
-        let factories = self
+        let registered = self
             .factories
             .read()
-            .map_err(|_| ReactiveError::internal("Component registry lock poisoned"))?;
-
-        if factories.contains_key(&type_id) {
-            Ok(Some(ComponentInstance::new(props)))
-        } else {
-            Ok(None)
-        }
+            .map_err(|_| ReactiveError::internal("Component registry lock poisoned"))?
+            .contains_key(&type_id);
+        // Constructors are user code and may register other components.
+        Ok(registered.then(|| ComponentInstance::new(props)))
     }
 
     /// Get TypeId for component name with thread-local caching
@@ -197,11 +200,15 @@ impl ComponentRegistry {
             // Check if cache needs refresh
             if cache.version != current_version {
                 // Refresh cache from global registry
-                let names = self.names.read()
+                let names = self
+                    .names
+                    .read()
                     .map_err(|_| ReactiveError::internal("Component registry lock poisoned"))?;
 
                 cache.names.clear();
-                cache.names.extend(names.iter().map(|(k, &v)| (k.clone(), v)));
+                cache
+                    .names
+                    .extend(names.iter().map(|(k, &v)| (k.clone(), v)));
                 cache.version = current_version;
             }
 
@@ -222,15 +229,7 @@ impl ComponentRegistry {
             None => return Ok(None),
         };
 
-        // Only acquire factory lock when we know the component exists
-        let factories = self.factories.read()
-            .map_err(|_| ReactiveError::internal("Component registry lock poisoned"))?;
-
-        if let Some(factory) = factories.get(&type_id) {
-            Ok(Some(factory(props)))
-        } else {
-            Ok(None)
-        }
+        self.create_by_type_id(type_id, props)
     }
 
     /// Create a component instance by TypeId (optimized for direct TypeId access)
@@ -239,15 +238,13 @@ impl ComponentRegistry {
         type_id: TypeId,
         props: &dyn std::any::Any,
     ) -> Result<Option<AnyComponentInstance>> {
-        // Direct factory lookup - no caching needed for TypeId access
-        let factories = self.factories.read()
-            .map_err(|_| ReactiveError::internal("Component registry lock poisoned"))?;
-
-        if let Some(factory) = factories.get(&type_id) {
-            Ok(Some(factory(props)))
-        } else {
-            Ok(None)
-        }
+        let factory = self
+            .factories
+            .read()
+            .map_err(|_| ReactiveError::internal("Component registry lock poisoned"))?
+            .get(&type_id)
+            .cloned();
+        Ok(factory.map(|factory| factory(props)))
     }
 
     /// Check if a component type is registered
@@ -281,26 +278,30 @@ impl ComponentRegistry {
 
     /// Clear all registrations
     pub fn clear(&self) -> Result<()> {
-        self.factories
-            .write()
-            .map_err(|_| ReactiveError::internal("Component registry lock poisoned"))?
-            .clear();
-        self.names
-            .write()
-            .map_err(|_| ReactiveError::internal("Component registry lock poisoned"))?
-            .clear();
-        self.active_instances
-            .write()
-            .map_err(|_| ReactiveError::internal("Component registry lock poisoned"))?
-            .clear();
-
-        // Invalidate thread-local caches
-        self.cache_version.fetch_add(1, Ordering::Relaxed);
+        {
+            // Match registration order and make both tables empty together.
+            let mut factories = self
+                .factories
+                .write()
+                .map_err(|_| ReactiveError::internal("Component registry lock poisoned"))?;
+            let mut names = self
+                .names
+                .write()
+                .map_err(|_| ReactiveError::internal("Component registry lock poisoned"))?;
+            factories.clear();
+            names.clear();
+            self.cache_version.fetch_add(1, Ordering::Relaxed);
+        }
+        self.cleanup_all()?;
         Ok(())
     }
 
     /// Register a component instance for automatic cleanup tracking
-    pub fn register_instance(&self, node_key: NodeKey, mut instance: AnyComponentInstance) -> Result<()> {
+    pub fn register_instance(
+        &self,
+        node_key: NodeKey,
+        mut instance: AnyComponentInstance,
+    ) -> Result<()> {
         let start = Instant::now();
 
         // Call mount lifecycle event before wrapping
@@ -310,20 +311,20 @@ impl ComponentRegistry {
         let tracked = create_shared_tracked_instance(
             instance,
             node_key.clone(),
-            Arc::new(self.clone())  // Registry needs to be Arc for Drop trait
+            Arc::new(self.clone()), // Retained constructor argument for API compatibility
         );
 
-        let mut instances = self.active_instances.write()
-            .map_err(|_| ReactiveError::internal("Component registry lock poisoned"))?;
+        let replaced = self
+            .active_instances
+            .write()
+            .map_err(|_| ReactiveError::internal("Component registry lock poisoned"))?
+            .insert(node_key, tracked);
 
-        instances.insert(node_key, tracked);
-
-        // Record performance metrics
-        let creation_time = start.elapsed();
-        if let Ok(mut stats) = self.performance_stats.write() {
-            stats.record_creation(creation_time);
-        }
-
+        self.performance_stats
+            .write()
+            .map_err(|_| ReactiveError::internal("Component registry statistics lock poisoned"))?
+            .record_creation(start.elapsed());
+        self.dispose_instances(replaced)?;
         Ok(())
     }
 
@@ -331,76 +332,66 @@ impl ComponentRegistry {
     pub fn register_instance_with_element(
         &self,
         node_key: NodeKey,
-        mut instance: AnyComponentInstance,
+        instance: AnyComponentInstance,
         element: &crate::component::Element,
     ) -> Result<()> {
-        let start = Instant::now();
-
         // Extract CSS animations from the element's class string
         if let Some(class_str) = &element.class {
-            let animations = crate::layout::css::animations::extract_css_animations_from_classes(class_str);
+            let animations =
+                crate::layout::css::animations::extract_css_animations_from_classes(class_str);
             let component_id = format!("{:?}", node_key); // Use NodeKey as component ID
 
             // Apply each CSS animation found
             for animation_name in animations {
                 if let Err(e) = apply_css_animation_global(&component_id, &animation_name) {
                     // Log error but don't fail the registration
-                    eprintln!("Warning: Failed to apply CSS animation '{}' to component '{}': {}",
-                             animation_name, component_id, e);
+                    eprintln!(
+                        "Warning: Failed to apply CSS animation '{}' to component '{}': {}",
+                        animation_name, component_id, e
+                    );
                 }
             }
         }
 
-        // Call mount lifecycle event before wrapping
-        instance.on_lifecycle(LifecycleEvent::Mount);
-
-        // Create a tracked instance with automatic cleanup
-        let tracked = create_shared_tracked_instance(
-            instance,
-            node_key.clone(),
-            Arc::new(self.clone())  // Registry needs to be Arc for Drop trait
-        );
-
-        let mut instances = self.active_instances.write()
-            .map_err(|_| ReactiveError::internal("Component registry lock poisoned"))?;
-
-        instances.insert(node_key, tracked);
-
-        // Record performance metrics
-        let creation_time = start.elapsed();
-        if let Ok(mut stats) = self.performance_stats.write() {
-            stats.record_creation(creation_time);
-        }
-
-        Ok(())
+        self.register_instance(node_key, instance)
     }
 
     /// Unregister and cleanup a component instance
     pub fn unregister_instance(&self, node_key: &NodeKey) -> Result<()> {
-        let start = Instant::now();
-
-        let mut instances = self.active_instances.write()
-            .map_err(|_| ReactiveError::internal("Component registry lock poisoned"))?;
-
-        // Remove the tracked instance - cleanup happens automatically via Drop trait
-        if let Some(_tracked) = instances.remove(node_key) {
-            // The TrackedComponentInstance's Drop impl will:
-            // 1. Call unmount lifecycle event
-            // 2. Remove CSS animations
-            // This happens automatically when _tracked goes out of scope
-
-            // Record performance metrics
-            let cleanup_time = start.elapsed();
-            if let Ok(mut stats) = self.performance_stats.write() {
-                stats.record_cleanup(cleanup_time);
-            }
-        }
+        let removed = self
+            .active_instances
+            .write()
+            .map_err(|_| ReactiveError::internal("Component registry lock poisoned"))?
+            .remove(node_key);
+        self.dispose_instances(removed)?;
         Ok(())
+    }
+
+    // Map guards must be gone before this runs: Drop invokes user callbacks.
+    fn dispose_instances(
+        &self,
+        removed: impl IntoIterator<Item = SharedTrackedInstance>,
+    ) -> Result<usize> {
+        let mut count = 0;
+        for instance in removed {
+            let start = Instant::now();
+            drop(instance);
+            self.performance_stats
+                .write()
+                .map_err(|_| {
+                    ReactiveError::internal("Component registry statistics lock poisoned")
+                })?
+                .record_cleanup(start.elapsed());
+            count += 1;
+        }
+        Ok(count)
     }
 
     /// Get the number of active component instances
     pub fn active_count(&self) -> Result<usize> {
-        let instances = self.active_instances.read()
+        let instances = self
+            .active_instances
+            .read()
             .map_err(|_| ReactiveError::internal("Component registry lock poisoned"))?;
         Ok(instances.len())
     }
@@ -408,42 +399,37 @@ impl ComponentRegistry {
     /// Perform a cleanup sweep to remove orphaned components
     /// This is a fallback mechanism that should be called periodically
     /// Returns the number of orphaned components cleaned up
-    pub fn cleanup_orphaned_components(&self, active_node_keys: &std::collections::HashSet<NodeKey>) -> Result<usize> {
-        let mut instances = self.active_instances.write()
-            .map_err(|_| ReactiveError::internal("Component registry lock poisoned"))?;
-        
-        let _initial_count = instances.len();
-        
-        // Find orphaned components (registered but not in active tree)
-        let orphaned_keys: Vec<NodeKey> = instances
-            .keys()
-            .filter(|key| !active_node_keys.contains(key))
-            .cloned()
-            .collect();
-        
-        // Remove orphaned components
-        for key in &orphaned_keys {
-            if let Some(_tracked) = instances.remove(key) {
-                // Cleanup happens automatically via Drop trait
-                #[cfg(debug_assertions)]
-                eprintln!("Cleaned up orphaned component: {:?}", key);
-            }
-        }
-        
-        let cleaned_count = orphaned_keys.len();
-        
-        if cleaned_count > 0 {
-            eprintln!("Component cleanup sweep removed {} orphaned components", cleaned_count);
-        }
-        
-        Ok(cleaned_count)
+    pub fn cleanup_orphaned_components(
+        &self,
+        active_node_keys: &std::collections::HashSet<NodeKey>,
+    ) -> Result<usize> {
+        let removed = {
+            let mut instances = self
+                .active_instances
+                .write()
+                .map_err(|_| ReactiveError::internal("Component registry lock poisoned"))?;
+            let orphaned_keys: Vec<_> = instances
+                .keys()
+                .filter(|key| !active_node_keys.contains(key))
+                .cloned()
+                .collect();
+            orphaned_keys
+                .into_iter()
+                .filter_map(|key| instances.remove(&key))
+                .collect::<Vec<_>>()
+        };
+        self.dispose_instances(removed)
     }
 
-    /// Get component performance metrics
+    /// Get component performance metrics.
+    /// Counts may span concurrent operations; they settle once those operations
+    /// complete. This does not hold the instance and statistics locks together.
     pub fn performance_metrics(&self) -> Result<ComponentRegistryMetrics> {
-        let stats = self.performance_stats.read()
-            .map_err(|_| ReactiveError::internal("Component registry lock poisoned"))?;
         let active_count = self.active_count()?;
+        let stats = self
+            .performance_stats
+            .read()
+            .map_err(|_| ReactiveError::internal("Component registry lock poisoned"))?;
 
         Ok(ComponentRegistryMetrics {
             total_created: stats.total_created,
@@ -458,7 +444,9 @@ impl ComponentRegistry {
 
     /// Reset performance statistics
     pub fn reset_performance_stats(&self) -> Result<()> {
-        let mut stats = self.performance_stats.write()
+        let mut stats = self
+            .performance_stats
+            .write()
             .map_err(|_| ReactiveError::internal("Component registry lock poisoned"))?;
         *stats = ComponentPerformanceStats::new();
         Ok(())
@@ -466,47 +454,39 @@ impl ComponentRegistry {
 
     /// Get a component instance by node key (for debugging)
     pub fn get_instance(&self, node_key: &NodeKey) -> Result<Option<AnyComponentInstance>> {
-        let instances = self.active_instances.read()
-            .map_err(|_| ReactiveError::internal("Component registry lock poisoned"))?;
-        
-        if let Some(tracked) = instances.get(node_key) {
-            // Try to get a read lock on the tracked instance
-            if let Ok(guard) = tracked.read() {
-                return Ok(guard.instance().cloned());
+        let tracked = self
+            .active_instances
+            .read()
+            .map_err(|_| ReactiveError::internal("Component registry lock poisoned"))?
+            .get(node_key)
+            .cloned();
+        match tracked {
+            Some(tracked) => {
+                let guard = tracked
+                    .read()
+                    .map_err(|_| ReactiveError::internal("Tracked component lock poisoned"))?;
+                Ok(guard.instance().cloned())
             }
+            None => Ok(None),
         }
-        Ok(None)
     }
 
     /// Cleanup all instances (for shutdown)
     pub fn cleanup_all(&self) -> Result<usize> {
-        let mut instances = self.active_instances.write()
-            .map_err(|_| ReactiveError::internal("Component registry lock poisoned"))?;
-
-        let count = instances.len();
-
-        // Simply clear the map - Drop trait will handle cleanup
-        instances.clear();
-
-        Ok(count)
+        let removed = {
+            let mut instances = self
+                .active_instances
+                .write()
+                .map_err(|_| ReactiveError::internal("Component registry lock poisoned"))?;
+            std::mem::take(&mut *instances)
+        };
+        self.dispose_instances(removed.into_values())
     }
 
     /// Clear all registered components (for testing only)
     /// WARNING: This is a testing utility and should not be used in production
     pub fn clear_all(&self) -> Result<()> {
-        let mut factories = self.factories.write()
-            .map_err(|_| ReactiveError::internal("Component registry lock poisoned"))?;
-        let mut names = self.names.write()
-            .map_err(|_| ReactiveError::internal("Component registry lock poisoned"))?;
-        let mut instances = self.active_instances.write()
-            .map_err(|_| ReactiveError::internal("Component registry lock poisoned"))?;
-        
-        // Clear everything
-        factories.clear();
-        names.clear();
-        instances.clear();
-        
-        Ok(())
+        self.clear()
     }
 }
 
@@ -515,7 +495,8 @@ impl ComponentRegistry {
 pub struct ComponentRegistryMetrics {
     /// Total components created
     pub total_created: u64,
-    /// Total components destroyed
+    /// Total tracked registrations removed, including replacement and bulk cleanup.
+    /// A concurrent get_instance call can briefly retain a removed instance.
     pub total_destroyed: u64,
     /// Current active components
     pub active_components: u32,
@@ -565,16 +546,14 @@ where
 
     // Try to acquire registration lock
     let mut attempts = 0;
-    while REGISTRATION_IN_PROGRESS.compare_exchange_weak(
-        false,
-        true,
-        Ordering::Acquire,
-        Ordering::Relaxed
-    ).is_err() {
+    while REGISTRATION_IN_PROGRESS
+        .compare_exchange_weak(false, true, Ordering::Acquire, Ordering::Relaxed)
+        .is_err()
+    {
         attempts += 1;
         if attempts > 1000 {
             return Err(ReactiveError::internal(
-                "Component registration timeout - possible deadlock"
+                "Component registration timeout - possible deadlock",
             ));
         }
         std::hint::spin_loop();

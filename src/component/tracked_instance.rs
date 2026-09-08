@@ -12,21 +12,19 @@ use std::sync::Arc;
 pub struct TrackedComponentInstance {
     instance: Option<AnyComponentInstance>,
     node_key: NodeKey,
-    #[allow(dead_code)] // Used for future cleanup coordination
-    registry: Arc<super::registry::ComponentRegistry>,
 }
 
 impl TrackedComponentInstance {
-    /// Create a new tracked component instance
+    /// Create a new tracked component instance. The registry argument is kept
+    /// for compatibility; retaining it would create a registry/instance cycle.
     pub fn new(
         instance: AnyComponentInstance,
         node_key: NodeKey,
-        registry: Arc<super::registry::ComponentRegistry>,
+        _registry: Arc<super::registry::ComponentRegistry>,
     ) -> Self {
         Self {
             instance: Some(instance),
             node_key,
-            registry,
         }
     }
 
@@ -55,10 +53,11 @@ impl TrackedComponentInstance {
         if let Some(mut instance) = self.instance.take() {
             // Call unmount lifecycle event
             instance.on_lifecycle(LifecycleEvent::Unmount);
-            
+
             // Remove CSS animations
             let component_id = format!("{:?}", self.node_key);
-            if let Err(e) = crate::layout::css::manager::remove_css_animations_global(&component_id) {
+            if let Err(e) = crate::layout::css::manager::remove_css_animations_global(&component_id)
+            {
                 #[cfg(debug_assertions)]
                 eprintln!("Warning: Failed to remove CSS animations during cleanup for component '{}': {}", 
                          component_id, e);
@@ -71,10 +70,13 @@ impl Drop for TrackedComponentInstance {
     fn drop(&mut self) {
         // Automatic cleanup when the instance is dropped
         self.cleanup();
-        
+
         // Log cleanup for debugging
         #[cfg(debug_assertions)]
-        eprintln!("TrackedComponentInstance dropped for node {:?}", self.node_key);
+        eprintln!(
+            "TrackedComponentInstance dropped for node {:?}",
+            self.node_key
+        );
     }
 }
 
@@ -87,7 +89,7 @@ pub fn create_shared_tracked_instance(
     node_key: NodeKey,
     registry: Arc<super::registry::ComponentRegistry>,
 ) -> SharedTrackedInstance {
-    Arc::new(std::sync::RwLock::new(
-        TrackedComponentInstance::new(instance, node_key, registry)
-    ))
+    Arc::new(std::sync::RwLock::new(TrackedComponentInstance::new(
+        instance, node_key, registry,
+    )))
 }
