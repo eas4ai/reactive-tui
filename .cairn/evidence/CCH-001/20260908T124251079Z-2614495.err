@@ -1,0 +1,42 @@
+warning: value assigned to `current_width` is never read
+   --> src/markdown/converter.rs:249:21
+    |
+249 |                     current_width = 0;
+    |                     ^^^^^^^^^^^^^^^^^
+    |
+    = help: maybe it is overwritten before being read?
+    = note: `#[warn(unused_assignments)]` (part of `#[warn(unused)]`) on by default
+
+warning: `reactive-tui` (lib) generated 1 warning
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.12s
+     Running tests/registry_cache_isolation.rs (target/debug/deps/registry_cache_isolation-d9aa7922619d63fd)
+warning: value assigned to `current_width` is never read
+   --> src/markdown/converter.rs:249:21
+    |
+249 |                     current_width = 0;
+    |                     ^^^^^^^^^^^^^^^^^
+    |
+    = help: maybe it is overwritten before being read?
+    = note: `#[warn(unused_assignments)]` (part of `#[warn(unused)]`) on by default
+
+warning: `reactive-tui` (lib test) generated 1 warning
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.09s
+     Running unittests src/lib.rs (target/debug/deps/reactive_tui-82073ab00bfe3025)
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.89s
+warning: value assigned to `current_width` is never read
+   --> src/markdown/converter.rs:249:21
+    |
+249 |                     current_width = 0;
+    |                     ^^^^^^^^^^^^^^^^^
+    |
+    = help: maybe it is overwritten before being read?
+    = note: `#[warn(unused_assignments)]` (part of `#[warn(unused)]`) on by default
+
+warning: `reactive-tui` (lib) generated 1 warning
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.86s
+     Running tests/component_macro_integration.rs (target/debug/deps/component_macro_integration-2a76eb1db0be838b)
+     Running tests/component_macro_test.rs (target/debug/deps/component_macro_test-c82ed04b6d967071)
+     Running tests/component_tests.rs (target/debug/deps/component_tests-78e543986b7087f1)
