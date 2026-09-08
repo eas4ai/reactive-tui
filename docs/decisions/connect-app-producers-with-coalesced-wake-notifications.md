@@ -11,4 +11,4 @@ Use a per-App wake handle with bounded pending flags, weak render-observed signa
 
 ## Realized by
 
-(none yet: recorded, not built)
+- 6a0ce9d030113872d670ea8f875c8ef2d9cac59e feat: wake App from signals scheduled work and terminal output
