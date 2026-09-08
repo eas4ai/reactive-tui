@@ -11,4 +11,4 @@ Replace ffi-napi and ref-napi with a pinned Koffi dependency. The current ffi-na
 
 ## Realized by
 
-- d485469ce6722e9efb9068673a68e8ce4115c13c
+- d485469ce6722e9efb9068673a68e8ce4115c13c Align C and TypeScript bindings with the compiled Rust ABI
