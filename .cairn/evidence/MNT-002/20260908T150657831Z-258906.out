@@ -1,0 +1,1478 @@
+    Checking reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+error: redundant field names in struct initialization
+   --> src/app/focus_manager.rs:111:13
+    |
+111 |             container_id: container_id,
+    |             ^^^^^^^^^^^^^^^^^^^^^^^^^^ help: replace it with: `container_id`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#redundant_field_names
+    = note: `-D clippy::redundant-field-names` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::redundant_field_names)]`
+
+error: empty line after doc comment
+  --> src/widgets/menu/mod.rs:13:1
+   |
+13 | / /// - **dialog**: Dialog-style menus for complex interactions
+14 | |
+   | |_^
+15 |   /// Menubar with dropdown submenus
+16 |   mod menubar;
+   |   ----------- the comment documents this module
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#empty_line_after_doc_comments
+   = note: `-D clippy::empty-line-after-doc-comments` implied by `-D warnings`
+   = help: to override `-D warnings` add `#[allow(clippy::empty_line_after_doc_comments)]`
+   = help: if the empty line is unintentional, remove it
+help: if the documentation should include the empty line include it in the comment
+   |
+14 | ///
+   |
+
+error: value assigned to `current_width` is never read
+   --> src/markdown/converter.rs:249:21
+    |
+249 |                     current_width = 0;
+    |                     ^^^^^^^^^^^^^^^^^
+    |
+    = help: maybe it is overwritten before being read?
+    = note: `-D unused-assignments` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(unused_assignments)]`
+
+error: this `impl` can be derived
+  --> src/animation/state.rs:70:1
+   |
+70 | / impl Default for LoopMode {
+71 | |     fn default() -> Self {
+72 | |         Self::None
+73 | |     }
+74 | | }
+   | |_^
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#derivable_impls
+   = note: `-D clippy::derivable-impls` implied by `-D warnings`
+   = help: to override `-D warnings` add `#[allow(clippy::derivable_impls)]`
+help: replace the manual implementation with a derive attribute and mark the default variant
+   |
+59 + #[derive(Default)]
+60 | pub enum LoopMode {
+61 |     /// Play once
+62 ~     #[default]
+63 ~     None,
+   |
+
+error: this `impl` can be derived
+   --> src/builder/widgets/menu.rs:96:1
+    |
+ 96 | / impl Default for MenuSeparator {
+ 97 | |     fn default() -> Self {
+ 98 | |         Self::None
+ 99 | |     }
+100 | | }
+    | |_^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#derivable_impls
+help: replace the manual implementation with a derive attribute and mark the default variant
+    |
+ 79 + #[derive(Default)]
+ 80 | pub enum MenuSeparator {
+ 81 |     /// No separator
+ 82 ~     #[default]
+ 83 ~     None,
+    |
+
+error: this `impl` can be derived
+   --> src/builder/widgets/menu.rs:125:1
+    |
+125 | / impl Default for MenuItemType {
+126 | |     fn default() -> Self {
+127 | |         Self::Action
+128 | |     }
+129 | | }
+    | |_^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#derivable_impls
+help: replace the manual implementation with a derive attribute and mark the default variant
+    |
+104 + #[derive(Default)]
+105 | pub enum MenuItemType {
+106 |     /// Regular clickable item
+107 ~     #[default]
+108 ~     Action,
+    |
+
+error: this `impl` can be derived
+   --> src/builder/widgets/menu.rs:240:1
+    |
+240 | / impl Default for PopupPlacement {
+241 | |     fn default() -> Self {
+242 | |         Self::Auto
+243 | |     }
+244 | | }
+    | |_^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#derivable_impls
+help: replace the manual implementation with a derive attribute and mark the default variant
+    |
+227 + #[derive(Default)]
+228 | pub enum PopupPlacement {
+229 |     /// Below the trigger element
+...
+237 |     /// Automatically choose best placement
+238 ~     #[default]
+239 ~     Auto,
+    |
+
+error: manual implementation of `.is_multiple_of()`
+   --> src/component/instance.rs:240:43
+    |
+240 |             if component_ptr.is_null() || (component_ptr as usize) % std::mem::align_of::<C>() != 0
+    |                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: replace with: `!(component_ptr as usize).is_multiple_of(std::mem::align_of::<C>())`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#manual_is_multiple_of
+    = note: `-D clippy::manual-is-multiple-of` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::manual_is_multiple_of)]`
+
+error: manual checked division
+   --> src/core/window.rs:300:41
+    |
+300 |                         let char_w = if cols > 0 { 1280 / cols } else { 16 };
+    |                                         ^^^^^^^^   ----------- division performed here
+    |                                         |
+    |                                         check performed here
+    |
+    = help: consider using `checked_div`
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#manual_checked_ops
+    = note: `-D clippy::manual-checked-ops` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::manual_checked_ops)]`
+
+error: manual checked division
+   --> src/core/window.rs:301:41
+    |
+301 |                         let char_h = if rows > 0 { 384 / rows } else { 16 };
+    |                                         ^^^^^^^^   ---------- division performed here
+    |                                         |
+    |                                         check performed here
+    |
+    = help: consider using `checked_div`
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#manual_checked_ops
+
+error: manual checked division
+   --> src/core/window.rs:315:29
+    |
+315 |             let char_w = if term_w > 0 { 1280 / term_w } else { 16 };
+    |                             ^^^^^^^^^^   ------------- division performed here
+    |                             |
+    |                             check performed here
+    |
+    = help: consider using `checked_div`
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#manual_checked_ops
+
+error: manual checked division
+   --> src/core/window.rs:316:29
+    |
+316 |             let char_h = if term_h > 0 { 384 / term_h } else { 16 };
+    |                             ^^^^^^^^^^   ------------ division performed here
+    |                             |
+    |                             check performed here
+    |
+    = help: consider using `checked_div`
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#manual_checked_ops
+
+error: the variable `current_col` is used as a loop counter
+   --> src/core/window.rs:685:9
+    |
+685 |         for ch in text.chars() {
+    |         ^^^^^^^^^^^^^^^^^^^^^^ help: consider using: `for (current_col, ch) in (col..).zip(text.chars())`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#explicit_counter_loop
+    = note: `-D clippy::explicit-counter-loop` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::explicit_counter_loop)]`
+
+error: the variable `current_y` is used as a loop counter
+    --> src/core/window.rs:1038:17
+     |
+1038 |                 for child in &element.children {
+     |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: consider using: `for (current_y, child) in (y..).zip(element.children.iter())`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#explicit_counter_loop
+
+error: the variable `current_y` is used as a loop counter
+    --> src/core/window.rs:1049:17
+     |
+1049 |                 for child in &element.children {
+     |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: consider using: `for (current_y, child) in (y..).zip(element.children.iter())`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#explicit_counter_loop
+
+error: this `impl` can be derived
+   --> src/display/monitor.rs:176:1
+    |
+176 | / impl Default for PerformanceMode {
+177 | |     fn default() -> Self {
+178 | |         Self::Balanced
+179 | |     }
+180 | | }
+    | |_^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#derivable_impls
+help: replace the manual implementation with a derive attribute and mark the default variant
+    |
+139 + #[derive(Default)]
+140 | pub enum PerformanceMode {
+141 |     /// Minimize CPU usage, 30 FPS
+142 |     PowerSave,
+143 |     /// Balanced experience, 60 FPS
+144 ~     #[default]
+145 ~     Balanced,
+    |
+
+error: consider using `sort_by_key`
+   --> src/event/hit.rs:320:9
+    |
+320 |         results.sort_by(|a, b| b.1.cmp(&a.1));
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#unnecessary_sort_by
+    = note: `-D clippy::unnecessary-sort-by` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::unnecessary_sort_by)]`
+help: try
+    |
+320 -         results.sort_by(|a, b| b.1.cmp(&a.1));
+320 +         results.sort_by_key(|b| std::cmp::Reverse(b.1));
+    |
+
+error: consider using `sort_by_key`
+   --> src/event/hit.rs:330:9
+    |
+330 |         results.sort_by(|a, b| b.1.cmp(&a.1));
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#unnecessary_sort_by
+help: try
+    |
+330 -         results.sort_by(|a, b| b.1.cmp(&a.1));
+330 +         results.sort_by_key(|b| std::cmp::Reverse(b.1));
+    |
+
+error: consider using `sort_by_key`
+   --> src/event/hit.rs:340:9
+    |
+340 |         results.sort_by(|a, b| b.1.cmp(&a.1));
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#unnecessary_sort_by
+help: try
+    |
+340 -         results.sort_by(|a, b| b.1.cmp(&a.1));
+340 +         results.sort_by_key(|b| std::cmp::Reverse(b.1));
+    |
+
+error: this block may be rewritten with the `?` operator
+   --> src/layout/css/cache.rs:216:12
+    |
+216 |       } else if let Some(inner) = rgb.strip_prefix("rgba(").and_then(|s| s.strip_suffix(')')) {
+    |  ____________^
+217 | |         inner
+218 | |     } else {
+219 | |         return None;
+220 | |     };
+    | |_____^ help: replace it with: `{ rgb.strip_prefix("rgba(").and_then(|s| s.strip_suffix(')'))? }`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#question_mark
+    = note: `-D clippy::question-mark` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::question_mark)]`
+
+error: this `if` can be collapsed into the outer `match`
+   --> src/layout/manager.rs:456:21
+    |
+456 | /                     if layout.size.width > 0.0 && layout.size.height > 0.0 {
+457 | |                         // Extract visual style from CSS classes for background and borders
+458 | |                         let box_style = if let Some(class) = &meta.element.class {
+459 | |                             crate::layout::css::visual_style::extract_box_style(class)
+...   |
+471 | |                         });
+472 | |                     }
+    | |_____________________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#collapsible_match
+    = note: `-D clippy::collapsible-match` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::collapsible_match)]`
+help: collapse nested if block
+    |
+454 ~                 ElementType::Layout(_)
+455 |                     // Layout nodes might have borders or backgrounds
+456 ~                     if layout.size.width > 0.0 && layout.size.height > 0.0 => {
+457 |                         // Extract visual style from CSS classes for background and borders
+...
+471 |                         });
+472 ~                     }
+    |
+
+error: this `impl` can be derived
+  --> src/terminal/cursor.rs:24:1
+   |
+24 | / impl Default for CursorShape {
+25 | |     fn default() -> Self {
+26 | |         Self::Default
+27 | |     }
+28 | | }
+   | |_^
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#derivable_impls
+help: replace the manual implementation with a derive attribute and mark the default variant
+   |
+ 7 + #[derive(Default)]
+ 8 | pub enum CursorShape {
+ 9 |     /// Default terminal cursor
+10 ~     #[default]
+11 ~     Default,
+   |
+
+error: this `if` can be collapsed into the outer `match`
+   --> src/terminal/screen.rs:298:17
+    |
+298 | /                 if params.len() >= 2 {
+299 | |                     let id = if params[0].is_empty() {
+300 | |                         None
+301 | |                     } else {
+...   |
+309 | |                     self.cursor.set_hyperlink(url, id);
+310 | |                 }
+    | |_________________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#collapsible_match
+help: collapse nested if block
+    |
+297 ~             "8"
+298 ~                 if params.len() >= 2 => {
+299 |                     let id = if params[0].is_empty() {
+...
+309 |                     self.cursor.set_hyperlink(url, id);
+310 ~                 }
+    |
+
+error: this `impl` can be derived
+   --> src/terminal/mod.rs:169:1
+    |
+169 | / impl Default for TerminalColor {
+170 | |     fn default() -> Self {
+171 | |         Self::Default
+172 | |     }
+173 | | }
+    | |_^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#derivable_impls
+help: replace the manual implementation with a derive attribute and mark the default variant
+    |
+160 + #[derive(Default)]
+161 | pub enum TerminalColor {
+162 |     /// Default terminal color
+163 ~     #[default]
+164 ~     Default,
+    |
+
+error: manual checked division
+   --> src/widgets/dialog/dialog_buffer.rs:169:20
+    |
+169 |                 if count > 0 {
+    |                    ^^^^^^^^^ check performed here
+170 |                     let avg_r = (r_sum / count) as u8;
+    |                                 --------------- division performed here
+171 |                     let avg_g = (g_sum / count) as u8;
+    |                                 --------------- ... and here
+172 |                     let avg_b = (b_sum / count) as u8;
+    |                                 --------------- ... and here
+    |
+    = help: consider using `checked_div`
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#manual_checked_ops
+
+error: this assertion is always `false`
+   --> src/animation/spring.rs:403:17
+    |
+403 |                 assert!(false, "Expected Spring easing function, got: {:?}", other);
+    |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: replace this with `panic!()` or `unreachable!()`
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#assertions_on_constants
+    = note: `-D clippy::assertions-on-constants` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::assertions_on_constants)]`
+
+error: called `unwrap` on `props.search_query` after checking its variant with `is_some`
+   --> src/widgets/display/file_explorer.rs:639:53
+    |
+637 |         if props.search_query.is_some() {
+    |         ------------------------------- help: try: `if let Some(<item>) = &props.search_query`
+638 |             toolbar_children.push(
+639 |                 Element::text(format!("Search: {}", props.search_query.as_ref().unwrap()))
+    |                                                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#unnecessary_unwrap
+    = note: `-D clippy::unnecessary-unwrap` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::unnecessary_unwrap)]`
+
+error: manual `RangeInclusive::contains` implementation
+    --> src/animation/mod.rs:1429:17
+     |
+1429 |         assert!(pos >= 0.0 && pos <= 1.0);
+     |                 ^^^^^^^^^^^^^^^^^^^^^^^^ help: use: `(0.0..=1.0).contains(&pos)`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#manual_range_contains
+     = note: `-D clippy::manual-range-contains` implied by `-D warnings`
+     = help: to override `-D warnings` add `#[allow(clippy::manual_range_contains)]`
+
+error: this `impl` can be derived
+   --> src/widgets/display/modal.rs:297:1
+    |
+297 | / impl Default for ModalAnimationState {
+298 | |     fn default() -> Self {
+299 | |         Self::Hidden
+300 | |     }
+301 | | }
+    | |_^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#derivable_impls
+help: replace the manual implementation with a derive attribute and mark the default variant
+    |
+286 + #[derive(Default)]
+287 | pub enum ModalAnimationState {
+288 |     /// Modal is completely hidden
+289 ~     #[default]
+290 ~     Hidden,
+    |
+
+error: this `if` can be collapsed into the outer `match`
+   --> src/widgets/display/modal.rs:775:25
+    |
+775 | /                         if props.closable && props.keyboard_navigation {
+776 | |                             self.close_modal(props, ModalCloseReason::EscapeKey);
+777 | |                             return EventResult::Consumed;
+778 | |                         }
+    | |_________________________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#collapsible_match
+help: collapse nested if block
+    |
+774 ~                     KeyCode::Escape
+775 ~                         if props.closable && props.keyboard_navigation => {
+776 |                             self.close_modal(props, ModalCloseReason::EscapeKey);
+777 |                             return EventResult::Consumed;
+778 ~                         }
+    |
+
+error: this `if` can be collapsed into the outer `match`
+   --> src/widgets/display/modal.rs:782:25
+    |
+782 | /                         if !props.buttons.is_empty() {
+783 | |                             let current = state.focused_button.unwrap_or(0);
+784 | |                             let next = if key_event.modifiers.shift {
+785 | |                                 if current == 0 {
+...   |
+794 | |                             return EventResult::Consumed;
+795 | |                         }
+    | |_________________________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#collapsible_match
+help: collapse nested if block
+    |
+780 ~                     KeyCode::Tab
+781 |                         // Navigate between buttons
+782 ~                         if !props.buttons.is_empty() => {
+783 |                             let current = state.focused_button.unwrap_or(0);
+...
+794 |                             return EventResult::Consumed;
+795 ~                         }
+    |
+
+error: this `if` can be collapsed into the outer `match`
+   --> src/widgets/display/modal.rs:813:25
+    |
+813 | /                         if props.backdrop_clickable && props.closable {
+814 | |                             if let Some(click_result) =
+815 | |                                 self.hit_test_modal(mouse_event, props, state)
+...   |
+847 | |                         }
+    | |_________________________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#collapsible_match
+help: collapse nested if block
+    |
+811 ~                     MouseEventKind::Click
+812 |                         // Check if clicking backdrop to close with proper bounds checking
+813 ~                         if props.backdrop_clickable && props.closable => {
+814 |                             if let Some(click_result) =
+...
+846 |                             }
+847 ~                         }
+    |
+
+error: this `if` can be collapsed into the outer `match`
+   --> src/widgets/display/modal.rs:850:25
+    |
+850 | /                         if props.draggable {
+851 | |                             if let Some(hit_result) = self.hit_test_modal(mouse_event, props, state)
+852 | |                             {
+853 | |                                 match hit_result {
+...   |
+867 | |                         }
+    | |_________________________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#collapsible_match
+help: collapse nested if block
+    |
+849 ~                     MouseEventKind::Down
+850 ~                         if props.draggable => {
+851 |                             if let Some(hit_result) = self.hit_test_modal(mouse_event, props, state)
+...
+866 |                             }
+867 ~                         }
+    |
+
+error: this `if` can be collapsed into the outer `match`
+   --> src/widgets/display/modal.rs:881:25
+    |
+881 | /                         if state.dragging && props.draggable {
+882 | |                             // Update position based on mouse movement
+883 | |                             return EventResult::Consumed;
+884 | |                         }
+    | |_________________________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#collapsible_match
+help: collapse nested if block
+    |
+880 ~                     MouseEventKind::Move
+881 ~                         if state.dragging && props.draggable => {
+882 |                             // Update position based on mouse movement
+883 |                             return EventResult::Consumed;
+884 ~                         }
+    |
+
+error: this assertion is always `false`
+   --> src/component/element.rs:298:13
+    |
+298 |             assert!(false, "Expected text element, got: {:?}", text.element_type);
+    |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: replace this with `panic!()` or `unreachable!()`
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#assertions_on_constants
+
+error: this assertion is always `false`
+   --> src/component/element.rs:307:13
+    |
+307 | /             assert!(
+308 | |                 false,
+309 | |                 "Expected layout element, got: {:?}",
+310 | |                 layout.element_type
+311 | |             );
+    | |_____________^
+    |
+    = help: replace this with `panic!()` or `unreachable!()`
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#assertions_on_constants
+
+error: use of `default` to create a unit struct
+  --> src/component/props.rs:95:29
+   |
+95 |         let default_props = EmptyProps::default();
+   |                             ^^^^^^^^^^^^^^^^^^^^^
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#default_constructed_unit_structs
+   = note: `-D clippy::default-constructed-unit-structs` implied by `-D warnings`
+   = help: to override `-D warnings` add `#[allow(clippy::default_constructed_unit_structs)]`
+help: remove this call to `default`
+   |
+95 -         let default_props = EmptyProps::default();
+95 +         let default_props = EmptyProps;
+   |
+
+error: length comparison to zero
+   --> src/core/grapheme_cell.rs:418:58
+    |
+418 |         let text_spans: Vec<_> = spans.iter().filter(|s| s.text.trim().len() > 0).collect();
+    |                                                          ^^^^^^^^^^^^^^^^^^^^^^^ help: using `!is_empty` is clearer and more explicit: `!s.text.trim().is_empty()`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#len_zero
+    = note: `-D clippy::len-zero` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::len_zero)]`
+
+error: manual checked division
+   --> src/widgets/layout/stack.rs:390:33
+    |
+390 |             let flex_width = if flex_children > 0 {
+    |                                 ^^^^^^^^^^^^^^^^^ check performed here
+391 |                 remaining_width / flex_children
+    |                 ------------------------------- division performed here
+    |
+    = help: consider using `checked_div`
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#manual_checked_ops
+
+error: manual checked division
+   --> src/widgets/layout/stack.rs:449:30
+    |
+449 |         let flex_height = if flex_children > 0 {
+    |                              ^^^^^^^^^^^^^^^^^ check performed here
+450 |             remaining_height / flex_children
+    |             -------------------------------- division performed here
+    |
+    = help: consider using `checked_div`
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#manual_checked_ops
+
+error: this boolean expression contains a logic bug
+   --> src/core/renderer.rs:557:17
+    |
+557 |         assert!(is_good || !is_good); // Should return a boolean
+    |                 ^^^^^^^^^^^^^^^^^^^ help: it would look like the following: `true`
+    |
+help: this expression can be optimized out by applying boolean operations to the outer expression
+   --> src/core/renderer.rs:557:17
+    |
+557 |         assert!(is_good || !is_good); // Should return a boolean
+    |                 ^^^^^^^
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#overly_complex_bool_expr
+    = note: `#[deny(clippy::overly_complex_bool_expr)]` on by default
+
+error: length comparison to zero
+   --> src/core/span_diff.rs:381:58
+    |
+381 |         let text_spans: Vec<_> = spans.iter().filter(|s| s.text.trim().len() > 0).collect();
+    |                                                          ^^^^^^^^^^^^^^^^^^^^^^^ help: using `!is_empty` is clearer and more explicit: `!s.text.trim().is_empty()`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#len_zero
+
+error: very complex type used. Consider factoring parts into `type` definitions
+   --> src/widgets/menu/context.rs:163:23
+    |
+163 |     on_item_selected: Option<Arc<dyn Fn(&str) + Send + Sync>>,
+    |                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#type_complexity
+    = note: `-D clippy::type-complexity` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::type_complexity)]`
+
+error: this `impl` can be derived
+  --> src/widgets/menu/dialog.rs:24:1
+   |
+24 | / impl Default for DialogMenuType {
+25 | |     fn default() -> Self {
+26 | |         Self::Selection
+27 | |     }
+28 | | }
+   | |_^
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#derivable_impls
+help: replace the manual implementation with a derive attribute and mark the default variant
+   |
+11 + #[derive(Default)]
+12 | pub enum DialogMenuType {
+13 |     /// Simple selection dialog with a list of options
+14 ~     #[default]
+15 ~     Selection,
+   |
+
+error: very complex type used. Consider factoring parts into `type` definitions
+   --> src/widgets/menu/dialog.rs:251:23
+    |
+251 |     on_item_selected: Option<Arc<dyn Fn(&str) + Send + Sync>>,
+    |                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#type_complexity
+
+error: very complex type used. Consider factoring parts into `type` definitions
+   --> src/widgets/menu/dialog.rs:254:25
+    |
+254 |     on_input_submitted: Option<Arc<dyn Fn(&str) + Send + Sync>>,
+    |                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#type_complexity
+
+error: this `impl` can be derived
+  --> src/widgets/menu/item.rs:80:1
+   |
+80 | / impl Default for MenuSeparator {
+81 | |     fn default() -> Self {
+82 | |         Self::None
+83 | |     }
+84 | | }
+   | |_^
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#derivable_impls
+help: replace the manual implementation with a derive attribute and mark the default variant
+   |
+63 + #[derive(Default)]
+64 | pub enum MenuSeparator {
+65 |     /// No separator
+66 ~     #[default]
+67 ~     None,
+   |
+
+error: this `impl` can be derived
+   --> src/widgets/menu/item.rs:109:1
+    |
+109 | / impl Default for MenuItemType {
+110 | |     fn default() -> Self {
+111 | |         Self::Action
+112 | |     }
+113 | | }
+    | |_^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#derivable_impls
+help: replace the manual implementation with a derive attribute and mark the default variant
+    |
+ 88 + #[derive(Default)]
+ 89 | pub enum MenuItemType {
+ 90 |     /// Regular clickable item
+ 91 ~     #[default]
+ 92 ~     Action,
+    |
+
+error: doc list item without indentation
+  --> src/widgets/menu/mod.rs:15:5
+   |
+15 | /// Menubar with dropdown submenus
+   |     ^
+   |
+   = help: if this is supposed to be its own paragraph, add a blank line
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#doc_lazy_continuation
+   = note: `-D clippy::doc-lazy-continuation` implied by `-D warnings`
+   = help: to override `-D warnings` add `#[allow(clippy::doc_lazy_continuation)]`
+help: indent this line
+   |
+15 | ///   Menubar with dropdown submenus
+   |     ++
+
+error: very complex type used. Consider factoring parts into `type` definitions
+   --> src/widgets/menu/menubar.rs:165:23
+    |
+165 |     on_item_selected: Option<Arc<dyn Fn(&str) + Send + Sync>>,
+    |                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#type_complexity
+
+error: this `impl` can be derived
+  --> src/widgets/menu/popup.rs:70:1
+   |
+70 | / impl Default for PopupPlacement {
+71 | |     fn default() -> Self {
+72 | |         Self::Cursor
+73 | |     }
+74 | | }
+   | |_^
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#derivable_impls
+help: replace the manual implementation with a derive attribute and mark the default variant
+   |
+11 + #[derive(Default)]
+12 | pub enum PopupPlacement {
+13 |     /// Place popup at cursor position
+14 ~     #[default]
+15 ~     Cursor,
+   |
+
+error: very complex type used. Consider factoring parts into `type` definitions
+   --> src/widgets/menu/popup.rs:222:23
+    |
+222 |     on_item_selected: Option<Arc<dyn Fn(&str) + Send + Sync>>,
+    |                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#type_complexity
+
+error: large size difference between variants
+   --> src/widgets/menu/style.rs:195:1
+    |
+195 | / pub enum MenuTheme {
+196 | |     /// Default theme
+197 | |     Default,
+    | |     ------- the second-largest variant carries no data at all
+198 | |     /// Dark theme
+...   |
+205 | |     Custom(MenuStyle),
+    | |     ----------------- the largest variant contains at least 208 bytes
+206 | | }
+    | |_^ the entire enum is at least 208 bytes
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#large_enum_variant
+    = note: `-D clippy::large-enum-variant` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::large_enum_variant)]`
+help: consider boxing the large fields or introducing indirection in some other way to reduce the total size of the enum
+    |
+205 -     Custom(MenuStyle),
+205 +     Custom(Box<MenuStyle>),
+    |
+
+error: this boolean expression contains a logic bug
+   --> src/core/terminal.rs:428:17
+    |
+428 |         assert!(caps.sixel || !caps.sixel); // Always true, just checking it exists
+    |                 ^^^^^^^^^^^^^^^^^^^^^^^^^ help: it would look like the following: `true`
+    |
+help: this expression can be optimized out by applying boolean operations to the outer expression
+   --> src/core/terminal.rs:428:17
+    |
+428 |         assert!(caps.sixel || !caps.sixel); // Always true, just checking it exists
+    |                 ^^^^^^^^^^
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#overly_complex_bool_expr
+
+error: could not compile `reactive-tui` (lib) due to 45 previous errors
+warning: build failed, waiting for other jobs to finish...
+error: this assertion is always `true`
+   --> src/layout/css/css_in_rust.rs:370:9
+    |
+370 |         assert!(true); // Placeholder test
+    |         ^^^^^^^^^^^^^
+    |
+    = help: remove the assertion
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#assertions_on_constants
+
+error: this assertion is always `true`
+   --> src/layout/css/css_in_rust.rs:380:9
+    |
+380 |         assert!(true); // Placeholder test
+    |         ^^^^^^^^^^^^^
+    |
+    = help: remove the assertion
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#assertions_on_constants
+
+error: this assertion is always `true`
+   --> src/layout/css/css_in_rust.rs:390:9
+    |
+390 |         assert!(true); // Placeholder test
+    |         ^^^^^^^^^^^^^
+    |
+    = help: remove the assertion
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#assertions_on_constants
+
+error: this assertion is always `true`
+   --> src/layout/css/css_in_rust.rs:401:9
+    |
+401 |         assert!(true); // Placeholder test
+    |         ^^^^^^^^^^^^^
+    |
+    = help: remove the assertion
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#assertions_on_constants
+
+error: this assertion is always `true`
+   --> src/layout/css/css_in_rust.rs:410:9
+    |
+410 |         assert!(true); // Placeholder test
+    |         ^^^^^^^^^^^^^
+    |
+    = help: remove the assertion
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#assertions_on_constants
+
+error: length comparison to zero
+   --> src/layout/manager.rs:658:17
+    |
+658 |         assert!(manager.dirty_nodes.len() > 0);
+    |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: using `!is_empty` is clearer and more explicit: `!manager.dirty_nodes.is_empty()`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#len_zero
+
+error: length comparison to zero
+   --> src/layout/manager.rs:705:17
+    |
+705 |         assert!(ops.len() > 0);
+    |                 ^^^^^^^^^^^^^ help: using `!is_empty` is clearer and more explicit: `!ops.is_empty()`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#len_zero
+
+error: module has the same name as its containing module
+   --> src/platform/tests.rs:4:1
+    |
+  4 | / mod tests {
+  5 | |     use crate::platform::parser::EscapeSequenceParser;
+  6 | |     use crate::platform::{sequences, ColorScheme, KeyCode, TerminalEvent};
+...   |
+219 | | }
+    | |_^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#module_inception
+    = note: `-D clippy::module-inception` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::module_inception)]`
+
+error: this assertion is always `false`
+  --> src/platform/tests.rs:20:17
+   |
+20 |                 assert!(false, "Expected Up key event, got: {:?}", other);
+   |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = help: replace this with `panic!()` or `unreachable!()`
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#assertions_on_constants
+
+error: this assertion is always `false`
+  --> src/platform/tests.rs:33:17
+   |
+33 |                 assert!(false, "Expected Mouse event, got: {:?}", other);
+   |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = help: replace this with `panic!()` or `unreachable!()`
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#assertions_on_constants
+
+error: this assertion is always `false`
+  --> src/platform/tests.rs:88:17
+   |
+88 |                 assert!(false, "Expected Up key event, got: {:?}", other);
+   |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = help: replace this with `panic!()` or `unreachable!()`
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#assertions_on_constants
+
+error: this assertion is always `false`
+   --> src/platform/tests.rs:106:17
+    |
+106 |                 assert!(false, "Expected F1 key event, got: {:?}", other);
+    |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: replace this with `panic!()` or `unreachable!()`
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#assertions_on_constants
+
+error: this assertion is always `false`
+   --> src/platform/tests.rs:116:17
+    |
+116 |                 assert!(false, "Expected PasteStart event, got: {:?}", other);
+    |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: replace this with `panic!()` or `unreachable!()`
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#assertions_on_constants
+
+error: this assertion is always `false`
+   --> src/platform/tests.rs:131:17
+    |
+131 |                 assert!(false, "Expected FocusGained event, got: {:?}", other);
+    |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: replace this with `panic!()` or `unreachable!()`
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#assertions_on_constants
+
+error: this assertion is always `false`
+   --> src/platform/tests.rs:141:17
+    |
+141 |                 assert!(false, "Expected FocusLost event, got: {:?}", other);
+    |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: replace this with `panic!()` or `unreachable!()`
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#assertions_on_constants
+
+error: this assertion is always `false`
+   --> src/platform/tests.rs:156:17
+    |
+156 |                 assert!(false, "Expected ColorScheme::Dark event, got: {:?}", other);
+    |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: replace this with `panic!()` or `unreachable!()`
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#assertions_on_constants
+
+error: this assertion is always `false`
+   --> src/platform/tests.rs:215:17
+    |
+215 |                 assert!(false, "Expected modified Up key event, got: {:?}", other);
+    |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: replace this with `panic!()` or `unreachable!()`
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#assertions_on_constants
+
+error: length comparison to zero
+   --> src/syntax/highlighter.rs:319:17
+    |
+319 |         assert!(first_line.runs.len() > 0);
+    |                 ^^^^^^^^^^^^^^^^^^^^^^^^^ help: using `!is_empty` is clearer and more explicit: `!first_line.runs.is_empty()`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#len_zero
+
+error: length comparison to zero
+   --> src/syntax/resources.rs:190:17
+    |
+190 |         assert!(resources.syntax_set.syntaxes().len() > 0);
+    |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: using `!is_empty` is clearer and more explicit: `!resources.syntax_set.syntaxes().is_empty()`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#len_zero
+
+error: length comparison to zero
+   --> src/syntax/resources.rs:193:17
+    |
+193 |         assert!(resources.theme_set.names().len() > 0);
+    |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: using `!is_empty` is clearer and more explicit: `!resources.theme_set.names().is_empty()`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#len_zero
+
+error: length comparison to zero
+   --> src/syntax/resources.rs:220:17
+    |
+220 |         assert!(themes.len() > 0);
+    |                 ^^^^^^^^^^^^^^^^ help: using `!is_empty` is clearer and more explicit: `!themes.is_empty()`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#len_zero
+
+error: this `impl` can be derived
+   --> src/vdom/patch.rs:289:1
+    |
+289 | / impl Default for TestPatchApplier {
+290 | |     fn default() -> Self {
+291 | |         Self {
+292 | |             operations: Vec::new(),
+...   |
+295 | | }
+    | |_^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#derivable_impls
+help: replace the manual implementation with a derive attribute
+    |
+284 + #[derive(Default)]
+285 | pub struct TestPatchApplier {
+    |
+
+error: manual `RangeInclusive::contains` implementation
+   --> src/widgets/dialog/dialog_types.rs:439:17
+    |
+439 |         assert!(width >= 20 && width <= 100);
+    |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: use: `(20..=100).contains(&width)`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#manual_range_contains
+
+error: manual `RangeInclusive::contains` implementation
+   --> src/widgets/dialog/dialog_types.rs:444:17
+    |
+444 |         assert!(width >= 40 && width <= 120);
+    |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: use: `(40..=120).contains(&width)`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#manual_range_contains
+
+error: use of `default` to create a unit struct
+    --> src/widgets/display/modal.rs:1122:25
+     |
+1122 |         let mut modal = Modal::default();
+     |                         ^^^^^^^^^^^^^^^^
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#default_constructed_unit_structs
+help: remove this call to `default`
+     |
+1122 -         let mut modal = Modal::default();
+1122 +         let mut modal = Modal;
+     |
+
+error: use of `default` to create a unit struct
+    --> src/widgets/display/modal.rs:1147:25
+     |
+1147 |         let mut modal = Modal::default();
+     |                         ^^^^^^^^^^^^^^^^
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#default_constructed_unit_structs
+help: remove this call to `default`
+     |
+1147 -         let mut modal = Modal::default();
+1147 +         let mut modal = Modal;
+     |
+
+error: use of `default` to create a unit struct
+    --> src/widgets/display/modal.rs:1214:25
+     |
+1214 |         let mut modal = Modal::default();
+     |                         ^^^^^^^^^^^^^^^^
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#default_constructed_unit_structs
+help: remove this call to `default`
+     |
+1214 -         let mut modal = Modal::default();
+1214 +         let mut modal = Modal;
+     |
+
+error: used `assert_eq!` with a literal bool
+    --> src/widgets/display/popover.rs:1480:9
+     |
+1480 |         assert_eq!(props.visible, true);
+     |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#bool_assert_comparison
+     = note: `-D clippy::bool-assert-comparison` implied by `-D warnings`
+     = help: to override `-D warnings` add `#[allow(clippy::bool_assert_comparison)]`
+help: replace it with `assert!(..)`
+     |
+1480 -         assert_eq!(props.visible, true);
+1480 +         assert!(props.visible);
+     |
+
+error: manual `RangeInclusive::contains` implementation
+    --> src/widgets/display/popover.rs:1642:17
+     |
+1642 |         assert!(bounce_result >= 0.0 && bounce_result <= 1.2); // Bounce can overshoot slightly
+     |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: use: `(0.0..=1.2).contains(&bounce_result)`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#manual_range_contains
+
+error: use of `default` to create a unit struct
+   --> src/widgets/display/progress_bar.rs:727:28
+    |
+727 |         let progress_bar = ProgressBar::default();
+    |                            ^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#default_constructed_unit_structs
+help: remove this call to `default`
+    |
+727 -         let progress_bar = ProgressBar::default();
+727 +         let progress_bar = ProgressBar;
+    |
+
+error: use of `default` to create a unit struct
+   --> src/widgets/display/progress_bar.rs:741:28
+    |
+741 |         let progress_bar = ProgressBar::default();
+    |                            ^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#default_constructed_unit_structs
+help: remove this call to `default`
+    |
+741 -         let progress_bar = ProgressBar::default();
+741 +         let progress_bar = ProgressBar;
+    |
+
+error: use of `default` to create a unit struct
+   --> src/widgets/display/progress_bar.rs:761:28
+    |
+761 |         let progress_bar = ProgressBar::default();
+    |                            ^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#default_constructed_unit_structs
+help: remove this call to `default`
+    |
+761 -         let progress_bar = ProgressBar::default();
+761 +         let progress_bar = ProgressBar;
+    |
+
+error: use of `default` to create a unit struct
+   --> src/widgets/display/progress_bar.rs:782:28
+    |
+782 |         let progress_bar = ProgressBar::default();
+    |                            ^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#default_constructed_unit_structs
+help: remove this call to `default`
+    |
+782 -         let progress_bar = ProgressBar::default();
+782 +         let progress_bar = ProgressBar;
+    |
+
+error: use of `default` to create a unit struct
+   --> src/widgets/display/progress_bar.rs:801:28
+    |
+801 |         let progress_bar = ProgressBar::default();
+    |                            ^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#default_constructed_unit_structs
+help: remove this call to `default`
+    |
+801 -         let progress_bar = ProgressBar::default();
+801 +         let progress_bar = ProgressBar;
+    |
+
+error: use of `default` to create a unit struct
+   --> src/widgets/display/progress_bar.rs:815:28
+    |
+815 |         let progress_bar = ProgressBar::default();
+    |                            ^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#default_constructed_unit_structs
+help: remove this call to `default`
+    |
+815 -         let progress_bar = ProgressBar::default();
+815 +         let progress_bar = ProgressBar;
+    |
+
+error: use of `default` to create a unit struct
+   --> src/widgets/display/progress_bar.rs:829:28
+    |
+829 |         let progress_bar = ProgressBar::default();
+    |                            ^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#default_constructed_unit_structs
+help: remove this call to `default`
+    |
+829 -         let progress_bar = ProgressBar::default();
+829 +         let progress_bar = ProgressBar;
+    |
+
+error: use of `default` to create a unit struct
+   --> src/widgets/display/progress_bar.rs:848:28
+    |
+848 |         let progress_bar = ProgressBar::default();
+    |                            ^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#default_constructed_unit_structs
+help: remove this call to `default`
+    |
+848 -         let progress_bar = ProgressBar::default();
+848 +         let progress_bar = ProgressBar;
+    |
+
+error: use of `default` to create a unit struct
+   --> src/widgets/display/progress_bar.rs:890:32
+    |
+890 |         let mut progress_bar = ProgressBar::default();
+    |                                ^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#default_constructed_unit_structs
+help: remove this call to `default`
+    |
+890 -         let mut progress_bar = ProgressBar::default();
+890 +         let mut progress_bar = ProgressBar;
+    |
+
+error: use of `default` to create a unit struct
+   --> src/widgets/display/progress_bar.rs:909:32
+    |
+909 |         let mut progress_bar = ProgressBar::default();
+    |                                ^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#default_constructed_unit_structs
+help: remove this call to `default`
+    |
+909 -         let mut progress_bar = ProgressBar::default();
+909 +         let mut progress_bar = ProgressBar;
+    |
+
+error: use of `default` to create a unit struct
+    --> src/widgets/display/table.rs:1230:21
+     |
+1230 |         let table = Table::default();
+     |                     ^^^^^^^^^^^^^^^^
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#default_constructed_unit_structs
+help: remove this call to `default`
+     |
+1230 -         let table = Table::default();
+1230 +         let table = Table;
+     |
+
+error: use of `default` to create a unit struct
+    --> src/widgets/display/table.rs:1243:21
+     |
+1243 |         let table = Table::default();
+     |                     ^^^^^^^^^^^^^^^^
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#default_constructed_unit_structs
+help: remove this call to `default`
+     |
+1243 -         let table = Table::default();
+1243 +         let table = Table;
+     |
+
+error: use of `default` to create a unit struct
+    --> src/widgets/display/table.rs:1254:21
+     |
+1254 |         let table = Table::default();
+     |                     ^^^^^^^^^^^^^^^^
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#default_constructed_unit_structs
+help: remove this call to `default`
+     |
+1254 -         let table = Table::default();
+1254 +         let table = Table;
+     |
+
+error: field assignment outside of initializer for an instance created with Default::default()
+    --> src/widgets/display/table.rs:1276:9
+     |
+1276 |         state.sort_column = Some(0);
+     |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+note: consider initializing the variable with `widgets::display::table::TableState { sort_column: Some(0), sort_ascending: true, ..Default::default() }` and removing relevant reassignments
+    --> src/widgets/display/table.rs:1273:9
+     |
+1273 |         let mut state = TableState::default();
+     |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#field_reassign_with_default
+     = note: `-D clippy::field-reassign-with-default` implied by `-D warnings`
+     = help: to override `-D warnings` add `#[allow(clippy::field_reassign_with_default)]`
+
+error: use of `default` to create a unit struct
+    --> src/widgets/display/table.rs:1271:21
+     |
+1271 |         let table = Table::default();
+     |                     ^^^^^^^^^^^^^^^^
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#default_constructed_unit_structs
+help: remove this call to `default`
+     |
+1271 -         let table = Table::default();
+1271 +         let table = Table;
+     |
+
+error: use of `default` to create a unit struct
+    --> src/widgets/display/table.rs:1288:21
+     |
+1288 |         let table = Table::default();
+     |                     ^^^^^^^^^^^^^^^^
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#default_constructed_unit_structs
+help: remove this call to `default`
+     |
+1288 -         let table = Table::default();
+1288 +         let table = Table;
+     |
+
+error: use of `default` to create a unit struct
+    --> src/widgets/display/table.rs:1346:25
+     |
+1346 |         let mut table = Table::default();
+     |                         ^^^^^^^^^^^^^^^^
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#default_constructed_unit_structs
+help: remove this call to `default`
+     |
+1346 -         let mut table = Table::default();
+1346 +         let mut table = Table;
+     |
+
+error: use of `default` to create a unit struct
+    --> src/widgets/display/table.rs:1367:25
+     |
+1367 |         let mut table = Table::default();
+     |                         ^^^^^^^^^^^^^^^^
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#default_constructed_unit_structs
+help: remove this call to `default`
+     |
+1367 -         let mut table = Table::default();
+1367 +         let mut table = Table;
+     |
+
+error: use of `default` to create a unit struct
+    --> src/widgets/display/tree.rs:1452:20
+     |
+1452 |         let tree = Tree::default();
+     |                    ^^^^^^^^^^^^^^^
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#default_constructed_unit_structs
+help: remove this call to `default`
+     |
+1452 -         let tree = Tree::default();
+1452 +         let tree = Tree;
+     |
+
+error: use of `default` to create a unit struct
+    --> src/widgets/display/tree.rs:1466:20
+     |
+1466 |         let tree = Tree::default();
+     |                    ^^^^^^^^^^^^^^^
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#default_constructed_unit_structs
+help: remove this call to `default`
+     |
+1466 -         let tree = Tree::default();
+1466 +         let tree = Tree;
+     |
+
+error: use of `default` to create a unit struct
+    --> src/widgets/display/tree.rs:1489:20
+     |
+1489 |         let tree = Tree::default();
+     |                    ^^^^^^^^^^^^^^^
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#default_constructed_unit_structs
+help: remove this call to `default`
+     |
+1489 -         let tree = Tree::default();
+1489 +         let tree = Tree;
+     |
+
+error: use of `default` to create a unit struct
+    --> src/widgets/display/tree.rs:1509:20
+     |
+1509 |         let tree = Tree::default();
+     |                    ^^^^^^^^^^^^^^^
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#default_constructed_unit_structs
+help: remove this call to `default`
+     |
+1509 -         let tree = Tree::default();
+1509 +         let tree = Tree;
+     |
+
+error: use of `default` to create a unit struct
+    --> src/widgets/display/tree.rs:1524:20
+     |
+1524 |         let tree = Tree::default();
+     |                    ^^^^^^^^^^^^^^^
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#default_constructed_unit_structs
+help: remove this call to `default`
+     |
+1524 -         let tree = Tree::default();
+1524 +         let tree = Tree;
+     |
+
+error: use of `default` to create a unit struct
+    --> src/widgets/display/tree.rs:1548:20
+     |
+1548 |         let tree = Tree::default();
+     |                    ^^^^^^^^^^^^^^^
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#default_constructed_unit_structs
+help: remove this call to `default`
+     |
+1548 -         let tree = Tree::default();
+1548 +         let tree = Tree;
+     |
+
+error: use of `default` to create a unit struct
+    --> src/widgets/display/tree.rs:1564:20
+     |
+1564 |         let tree = Tree::default();
+     |                    ^^^^^^^^^^^^^^^
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#default_constructed_unit_structs
+help: remove this call to `default`
+     |
+1564 -         let tree = Tree::default();
+1564 +         let tree = Tree;
+     |
+
+error: use of `default` to create a unit struct
+    --> src/widgets/display/tree.rs:1624:20
+     |
+1624 |         let tree = Tree::default();
+     |                    ^^^^^^^^^^^^^^^
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#default_constructed_unit_structs
+help: remove this call to `default`
+     |
+1624 -         let tree = Tree::default();
+1624 +         let tree = Tree;
+     |
+
+error: use of `default` to create a unit struct
+    --> src/widgets/display/tree.rs:1654:24
+     |
+1654 |         let mut tree = Tree::default();
+     |                        ^^^^^^^^^^^^^^^
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#default_constructed_unit_structs
+help: remove this call to `default`
+     |
+1654 -         let mut tree = Tree::default();
+1654 +         let mut tree = Tree;
+     |
+
+error: use of `default` to create a unit struct
+    --> src/widgets/display/tree.rs:1676:24
+     |
+1676 |         let mut tree = Tree::default();
+     |                        ^^^^^^^^^^^^^^^
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#default_constructed_unit_structs
+help: remove this call to `default`
+     |
+1676 -         let mut tree = Tree::default();
+1676 +         let mut tree = Tree;
+     |
+
+error: field assignment outside of initializer for an instance created with Default::default()
+    --> src/widgets/input/text_input.rs:1678:9
+     |
+1678 |         state.is_focused = true;
+     |         ^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+note: consider initializing the variable with `widgets::input::text_input::TextInputState { is_focused: true, ..Default::default() }` and removing relevant reassignments
+    --> src/widgets/input/text_input.rs:1676:9
+     |
+1676 |         let mut state = TextInputState::default();
+     |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#field_reassign_with_default
+
+error: could not compile `reactive-tui` (lib test) due to 112 previous errors
