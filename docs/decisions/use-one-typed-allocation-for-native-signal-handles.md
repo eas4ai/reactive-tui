@@ -12,3 +12,7 @@ Use the existing type-erased FFISignal allocation for both legacy and improved R
 ## Realized by
 
 (none yet: recorded, not built)
+
+## Realized by
+
+- 7fc976546f807527e666e6b16244adb5f64823a4 Repair native signal allocation types and destructor ownership
