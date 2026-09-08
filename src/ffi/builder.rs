@@ -52,7 +52,8 @@ impl FFIElementBuilder {
     }
 }
 
-/// FFI wrapper for Element
+/// FFI wrapper for Element. Component and builder APIs share the same handle layout.
+#[repr(transparent)]
 pub struct FFIElement {
     /// The wrapped element
     pub inner: Element,
@@ -272,4 +273,200 @@ pub extern "C" fn rtui_element_destroy(element: *mut RTuiElement) {
             let _ = Box::from_raw(element as *mut FFIElement);
         }
     }
+}
+
+// Compatibility names from the original C builder header. These delegate to
+// the existing implementation and retain its consuming ownership rules.
+/// Create a legacy div builder; the caller owns the returned builder.
+#[no_mangle]
+pub extern "C" fn rtui_div(out: *mut *mut RTuiElementBuilder) -> ReactiveError {
+    rtui_element_builder_div(out)
+}
+
+/// Create a legacy inline span builder; the caller owns the returned builder.
+#[no_mangle]
+pub extern "C" fn rtui_span(out: *mut *mut RTuiElementBuilder) -> ReactiveError {
+    rtui_element_builder_span(out)
+}
+
+/// Create a legacy styled button builder without a click callback.
+#[no_mangle]
+pub extern "C" fn rtui_button(out: *mut *mut RTuiElementBuilder) -> ReactiveError {
+    rtui_element_builder_button(out)
+}
+
+// The paragraph and heading factories produce plain layout containers. Preserve
+// their native type and classes instead of copying their style defaults here.
+fn text_container_builder(
+    factory: fn() -> ElementBuilder,
+    out: *mut *mut RTuiElementBuilder,
+) -> ReactiveError {
+    if out.is_null() {
+        return ReactiveError::NullPointer;
+    }
+    catch_panic(AssertUnwindSafe(|| unsafe {
+        *out = std::ptr::null_mut();
+        let element = factory().build();
+        let builder = FFIElementBuilder {
+            element_type: element.element_type,
+            classes: element.class.unwrap_or_default(),
+            text_content: None,
+            children: element.children,
+            key: element.key,
+        };
+        *out = Box::into_raw(Box::new(builder)).cast();
+        Ok(())
+    }))
+}
+
+/// Create a paragraph builder using the native paragraph classes.
+#[no_mangle]
+pub extern "C" fn rtui_p(out: *mut *mut RTuiElementBuilder) -> ReactiveError {
+    text_container_builder(crate::builder::p, out)
+}
+
+/// Create a level-one heading builder using the native heading classes.
+#[no_mangle]
+pub extern "C" fn rtui_h1(out: *mut *mut RTuiElementBuilder) -> ReactiveError {
+    text_container_builder(crate::builder::h1, out)
+}
+
+/// Create a level-two heading builder using the native heading classes.
+#[no_mangle]
+pub extern "C" fn rtui_h2(out: *mut *mut RTuiElementBuilder) -> ReactiveError {
+    text_container_builder(crate::builder::h2, out)
+}
+
+/// Create a level-three heading builder using the native heading classes.
+#[no_mangle]
+pub extern "C" fn rtui_h3(out: *mut *mut RTuiElementBuilder) -> ReactiveError {
+    text_container_builder(crate::builder::h3, out)
+}
+
+/// Append classes through the legacy non-consuming builder name.
+#[no_mangle]
+pub extern "C" fn rtui_element_builder_class(
+    builder: *mut RTuiElementBuilder,
+    classes: *const c_char,
+) -> ReactiveError {
+    rtui_element_builder_add_class(builder, classes)
+}
+
+/// Set text through the legacy non-consuming builder name.
+#[no_mangle]
+pub extern "C" fn rtui_element_builder_text(
+    builder: *mut RTuiElementBuilder,
+    text: *const c_char,
+) -> ReactiveError {
+    rtui_element_builder_set_text(builder, text)
+}
+
+/// Set the key through the legacy non-consuming builder name.
+#[no_mangle]
+pub extern "C" fn rtui_element_builder_key(
+    builder: *mut RTuiElementBuilder,
+    key: *const c_char,
+) -> ReactiveError {
+    rtui_element_builder_set_key(builder, key)
+}
+
+/// Append and consume a live child through the legacy builder name.
+#[no_mangle]
+pub extern "C" fn rtui_element_builder_child(
+    builder: *mut RTuiElementBuilder,
+    child: *mut RTuiElement,
+) -> ReactiveError {
+    rtui_element_builder_add_child(builder, child)
+}
+
+// All handles must be live, distinct and caller-owned. Validate the whole array
+// before consuming anything; a null array is allowed only for zero children.
+unsafe fn take_children(
+    children: *const *mut RTuiElement,
+    count: usize,
+) -> Result<Vec<Element>, ReactiveError> {
+    if count == 0 {
+        return Ok(Vec::new());
+    }
+    if children.is_null() {
+        return Err(ReactiveError::NullPointer);
+    }
+    if count > isize::MAX as usize / std::mem::size_of::<*mut RTuiElement>() {
+        return Err(ReactiveError::InvalidParameter);
+    }
+    let handles = unsafe { std::slice::from_raw_parts(children, count) };
+    let mut seen = std::collections::HashSet::new();
+    for &handle in handles {
+        if handle.is_null() {
+            return Err(ReactiveError::NullPointer);
+        }
+        if !seen.insert(handle) {
+            return Err(ReactiveError::InvalidParameter);
+        }
+    }
+    Ok(handles
+        .iter()
+        .map(|&handle| unsafe { Box::from_raw(handle.cast::<FFIElement>()).inner })
+        .collect())
+}
+
+/// Append children, consuming every child after successful argument validation.
+#[no_mangle]
+pub extern "C" fn rtui_element_builder_children(
+    builder: *mut RTuiElementBuilder,
+    children: *const *mut RTuiElement,
+    children_count: usize,
+) -> ReactiveError {
+    if builder.is_null() {
+        return ReactiveError::NullPointer;
+    }
+    catch_panic(AssertUnwindSafe(|| unsafe {
+        let children = take_children(children, children_count)?;
+        (*builder.cast::<FFIElementBuilder>())
+            .children
+            .extend(children);
+        Ok(())
+    }))
+}
+
+/// Create a caller-owned text element through the legacy name.
+#[no_mangle]
+pub extern "C" fn rtui_element_text(
+    text: *const c_char,
+    out: *mut *mut RTuiElement,
+) -> ReactiveError {
+    rtui_text_element_create(text, out)
+}
+
+/// Create a caller-owned empty element through the legacy name.
+#[no_mangle]
+pub extern "C" fn rtui_element_empty(out: *mut *mut RTuiElement) -> ReactiveError {
+    rtui_element_create_empty(out)
+}
+
+/// Create a native card, consuming its children after argument validation.
+#[no_mangle]
+pub extern "C" fn rtui_card(
+    children: *const *mut RTuiElement,
+    children_count: usize,
+    out: *mut *mut RTuiElement,
+) -> ReactiveError {
+    if out.is_null() {
+        return ReactiveError::NullPointer;
+    }
+    catch_panic(AssertUnwindSafe(|| unsafe {
+        *out = std::ptr::null_mut();
+        let children = take_children(children, children_count)?;
+        let element = FFIElement {
+            inner: crate::builder::card(children),
+        };
+        *out = Box::into_raw(Box::new(element)).cast();
+        Ok(())
+    }))
+}
+
+/// Free a string allocated by native string getters; null is allowed.
+#[no_mangle]
+pub extern "C" fn rtui_free_string(string: *mut c_char) {
+    rtui_string_free(string)
 }

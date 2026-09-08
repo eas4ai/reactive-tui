@@ -1,94 +1,48 @@
-/**
- * Renderer API for drawing to terminal
- */
-
-import * as ref from 'ref-napi';
-import { lib, VoidPtr } from './ffi';
+import { lib, output, readHandle, NativeHandle, unsigned } from './ffi';
 import { checkError } from './error';
+import { Surface } from './surface';
 
 export class Renderer {
-  private handle: Buffer;
-  private width: number;
-  private height: number;
-
+  private handle: NativeHandle | null;
+  private generation = 0;
   constructor(width: number, height: number) {
-    this.width = width;
-    this.height = height;
-    const handlePtr = ref.alloc('pointer');
-    checkError(lib.rtui_renderer_create(width, height, handlePtr));
-    this.handle = handlePtr.deref();
-    
-    if (this.handle.isNull()) {
-      throw new Error(`Failed to create renderer of size ${width}x${height}`);
-    }
+    const out = output('void *');
+    checkError(lib.rtui_renderer_create(unsigned(width, 16, 'width'), unsigned(height, 16, 'height'), out));
+    this.handle = readHandle(out);
   }
-
-  /**
-   * Resize the renderer
-   */
   resize(width: number, height: number): void {
-    checkError(lib.rtui_renderer_resize(this.handle, width, height));
-    this.width = width;
-    this.height = height;
+    checkError(lib.rtui_renderer_resize(this.getNativeHandle(), unsigned(width, 16, 'width'), unsigned(height, 16, 'height')));
+    this.generation++;
   }
-
-  /**
-   * Clear the renderer with a background color
-   */
-  clear(r: number = 0, g: number = 0, b: number = 0): void {
-    checkError(lib.rtui_renderer_clear(this.handle, r, g, b));
+  clear(r = 0, g = 0, b = 0): void {
+    checkError(lib.rtui_renderer_clear(this.getNativeHandle(), unsigned(r, 8, 'r'), unsigned(g, 8, 'g'), unsigned(b, 8, 'b')));
   }
-
-  /**
-   * Begin a new frame
-   */
-  beginFrame(): void {
-    checkError(lib.rtui_renderer_frame(this.handle, true));
-  }
-
-  /**
-   * End the current frame and flush to terminal
-   */
-  endFrame(): void {
-    checkError(lib.rtui_renderer_frame(this.handle, false));
-  }
-
-  /**
-   * Render a complete frame with a callback
-   */
+  beginFrame(): void { checkError(lib.rtui_renderer_frame(this.getNativeHandle(), true)); }
+  endFrame(): void { checkError(lib.rtui_renderer_frame(this.getNativeHandle(), false)); }
   frame(callback: () => void): void {
     this.beginFrame();
-    try {
-      callback();
-    } finally {
-      this.endFrame();
-    }
+    try { callback(); } finally { this.endFrame(); }
   }
-
-  /**
-   * Get the renderer dimensions
-   */
+  getSurface(): Surface {
+    const out = output('void *');
+    checkError(lib.rtui_renderer_get_surface(this.getNativeHandle(), out));
+    const generation = this.generation;
+    return Surface.borrowed(readHandle(out), () => {
+      this.getNativeHandle();
+      if (generation !== this.generation) throw new Error('Surface view expired after renderer resize');
+    });
+  }
   getSize(): { width: number; height: number } {
-    return {
-      width: this.width,
-      height: this.height,
-    };
+    const surface = this.getSurface();
+    try { return surface.getSize(); } finally { surface.dispose(); }
   }
-
-  /**
-   * Free the renderer resources
-   */
   dispose(): void {
-    if (!this.handle.isNull()) {
-      lib.rtui_renderer_destroy(this.handle);
-      this.handle = Buffer.alloc(0);
-    }
+    if (this.handle === null) return;
+    lib.rtui_renderer_destroy(this.handle);
+    this.handle = null;
   }
-
-  /**
-   * Get the native handle for low-level operations
-   */
-  getNativeHandle(): Buffer {
+  getNativeHandle(): NativeHandle {
+    if (this.handle === null) throw new Error('Renderer is disposed');
     return this.handle;
   }
 }

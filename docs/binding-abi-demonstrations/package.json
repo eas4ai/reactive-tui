@@ -1,0 +1,231 @@
+[
+  {
+    "id": "@reactive-tui/core@0.1.0",
+    "name": "@reactive-tui/core",
+    "version": "0.1.0",
+    "size": 42764,
+    "unpackedSize": 210214,
+    "shasum": "c0fc494dd06bea5261b773ada1388e2439477f76",
+    "integrity": "sha512-FFgqEyRUIVX54MjztJe69OiEPkPBtf2L1NuMHDHtB9XtbceND8vC9agJqMv94Q7JoNkjnQ4fJ/HqdYGVPkRzmQ==",
+    "filename": "reactive-tui-core-0.1.0.tgz",
+    "files": [
+      {
+        "path": "MIGRATION.md",
+        "size": 16441,
+        "mode": 420
+      },
+      {
+        "path": "README.md",
+        "size": 3883,
+        "mode": 420
+      },
+      {
+        "path": "dist/builder.d.ts",
+        "size": 1482,
+        "mode": 420
+      },
+      {
+        "path": "dist/builder.d.ts.map",
+        "size": 1150,
+        "mode": 420
+      },
+      {
+        "path": "dist/builder.js",
+        "size": 2504,
+        "mode": 420
+      },
+      {
+        "path": "dist/component.d.ts",
+        "size": 3657,
+        "mode": 420
+      },
+      {
+        "path": "dist/component.d.ts.map",
+        "size": 1874,
+        "mode": 420
+      },
+      {
+        "path": "dist/component.js",
+        "size": 7710,
+        "mode": 420
+      },
+      {
+        "path": "dist/error.d.ts",
+        "size": 366,
+        "mode": 420
+      },
+      {
+        "path": "dist/error.d.ts.map",
+        "size": 321,
+        "mode": 420
+      },
+      {
+        "path": "dist/error.js",
+        "size": 671,
+        "mode": 420
+      },
+      {
+        "path": "dist/events.d.ts",
+        "size": 6505,
+        "mode": 420
+      },
+      {
+        "path": "dist/events.d.ts.map",
+        "size": 5170,
+        "mode": 420
+      },
+      {
+        "path": "dist/events.js",
+        "size": 12049,
+        "mode": 420
+      },
+      {
+        "path": "dist/ffi.d.ts",
+        "size": 1263,
+        "mode": 420
+      },
+      {
+        "path": "dist/ffi.d.ts.map",
+        "size": 1159,
+        "mode": 420
+      },
+      {
+        "path": "dist/ffi.js",
+        "size": 6446,
+        "mode": 420
+      },
+      {
+        "path": "dist/index.d.ts",
+        "size": 741,
+        "mode": 420
+      },
+      {
+        "path": "dist/index.d.ts.map",
+        "size": 647,
+        "mode": 420
+      },
+      {
+        "path": "dist/index.js",
+        "size": 3036,
+        "mode": 420
+      },
+      {
+        "path": "dist/layout.d.ts",
+        "size": 5710,
+        "mode": 420
+      },
+      {
+        "path": "dist/layout.d.ts.map",
+        "size": 4345,
+        "mode": 420
+      },
+      {
+        "path": "dist/layout.js",
+        "size": 11900,
+        "mode": 420
+      },
+      {
+        "path": "dist/native-api.json",
+        "size": 43727,
+        "mode": 420
+      },
+      {
+        "path": "dist/native-types.d.ts",
+        "size": 5478,
+        "mode": 420
+      },
+      {
+        "path": "dist/native-types.d.ts.map",
+        "size": 2806,
+        "mode": 420
+      },
+      {
+        "path": "dist/native-types.js",
+        "size": 77,
+        "mode": 420
+      },
+      {
+        "path": "dist/renderer.d.ts",
+        "size": 582,
+        "mode": 420
+      },
+      {
+        "path": "dist/renderer.d.ts.map",
+        "size": 656,
+        "mode": 420
+      },
+      {
+        "path": "dist/renderer.js",
+        "size": 2370,
+        "mode": 420
+      },
+      {
+        "path": "dist/surface.d.ts",
+        "size": 957,
+        "mode": 420
+      },
+      {
+        "path": "dist/surface.d.ts.map",
+        "size": 919,
+        "mode": 420
+      },
+      {
+        "path": "dist/surface.js",
+        "size": 3746,
+        "mode": 420
+      },
+      {
+        "path": "dist/terminal.d.ts",
+        "size": 1034,
+        "mode": 420
+      },
+      {
+        "path": "dist/terminal.d.ts.map",
+        "size": 858,
+        "mode": 420
+      },
+      {
+        "path": "dist/terminal.js",
+        "size": 2338,
+        "mode": 420
+      },
+      {
+        "path": "dist/theme.d.ts",
+        "size": 5187,
+        "mode": 420
+      },
+      {
+        "path": "dist/theme.d.ts.map",
+        "size": 4777,
+        "mode": 420
+      },
+      {
+        "path": "dist/theme.js",
+        "size": 10201,
+        "mode": 420
+      },
+      {
+        "path": "dist/types.d.ts",
+        "size": 8996,
+        "mode": 420
+      },
+      {
+        "path": "dist/types.d.ts.map",
+        "size": 8785,
+        "mode": 420
+      },
+      {
+        "path": "dist/types.js",
+        "size": 6381,
+        "mode": 420
+      },
+      {
+        "path": "package.json",
+        "size": 1309,
+        "mode": 420
+      }
+    ],
+    "entryCount": 43,
+    "bundled": []
+  }
+]

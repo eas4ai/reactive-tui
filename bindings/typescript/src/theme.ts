@@ -5,7 +5,6 @@
  * spacing, and custom properties support.
  */
 
-import { createContext, useContext } from './hooks';
 import { EventEmitter } from './events';
 
 /**
@@ -533,80 +532,6 @@ export class ThemeManager extends EventEmitter {
  * Global theme manager instance
  */
 export const themeManager = new ThemeManager();
-
-/**
- * Theme context for React-style usage
- */
-export const ThemeContext = createContext<Theme>(lightTheme);
-
-/**
- * Hook to access the current theme
- */
-export function useTheme(): Theme {
-    return useContext(ThemeContext);
-}
-
-/**
- * Theme provider component wrapper
- */
-export interface ThemeProviderProps {
-    theme?: Theme;
-    children: any;
-}
-
-// Global theme context storage
-const themeContextStack: Theme[] = [];
-
-export function ThemeProvider({ theme = lightTheme, children }: ThemeProviderProps): any {
-    // Push theme onto context stack
-    themeContextStack.push(theme);
-    
-    // Wrap children with theme context by injecting theme into their props
-    const wrappedChildren = Array.isArray(children) 
-        ? children.map(child => injectTheme(child, theme))
-        : injectTheme(children, theme);
-    
-    // Create the provider element
-    const provider = {
-        type: 'ThemeProvider',
-        props: { theme },
-        children: wrappedChildren,
-        cleanup: () => {
-            // Pop theme from stack when component unmounts
-            themeContextStack.pop();
-        }
-    };
-    
-    return provider;
-}
-
-function injectTheme(element: any, theme: Theme): any {
-    if (!element || typeof element !== 'object') return element;
-    
-    // Clone element and inject theme
-    const injected = { ...element };
-    
-    // Add theme to props if element has props
-    if (injected.props) {
-        injected.props = { ...injected.props, theme };
-    }
-    
-    // Recursively inject into children
-    if (injected.children) {
-        injected.children = Array.isArray(injected.children)
-            ? injected.children.map(child => injectTheme(child, theme))
-            : injectTheme(injected.children, theme);
-    }
-    
-    return injected;
-}
-
-// Get current theme from context stack
-export function useTheme(): Theme {
-    return themeContextStack.length > 0 
-        ? themeContextStack[themeContextStack.length - 1] 
-        : lightTheme;
-}
 
 /**
  * Utility function to get color value from theme

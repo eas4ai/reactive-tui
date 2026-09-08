@@ -2,10 +2,9 @@
 
 ## Work tracking
 
-- In progress: establish the commitment and inventory the advertised ABI.
-- Pending: reconcile and verify C declarations, layouts and aliases.
-- Pending: reconcile and verify TypeScript loading and consumer workflows.
-- Pending: refresh inherited evidence and complete final review.
+- Complete: establish the commitment, capture the failing baseline, and record compatibility decisions.
+- Complete: reconcile C/TypeScript declarations, ownership, consumer workflows and migration guidance; verify failure demonstrations and packaging.
+- In progress: record committed acceptance evidence, refresh inherited requirements and complete final review.
 
 ## Verification approach
 
@@ -24,3 +23,28 @@ definitions and 14 enums. Source review confirmed terminal, renderer, animation
 and capability mismatches without invoking them. The inventory gate currently
 checks symbol presence; compiler-backed signature and layout checks are still
 required before ABI-001 can be considered complete.
+
+
+## Mechanism construction and failure demonstrations
+
+Replaced the name-only gate with independent rustc function-item type inference,
+C/Rust record/enum programs, C/C++ compilation and actual Koffi interface inspection.
+The gate checks original native compatibility and complete consumer migration
+inventories. No native function runs during the declaration/type stage.
+
+Nine guarded violations failed for their intended reasons: missing export, C
+signature drift, capability layout drift, TypeScript signature drift, actual Koffi
+packing, migration omission, wrong RGB result, wrong heading alias and omitted
+native string release. Restored C/C++ and TypeScript consumers passed. Full logs
+are in docs/binding-abi-demonstrations; these development runs are not receipts.
+
+The package build removes stale generated files. npm ci, the package and example
+TypeScript checks, configured ESLint and npm pack dry-run passed. Ripwire's
+nonzero quality/test-gate results and their scope/FFI limitations are recorded in
+the demonstration README; they have not been represented as passes.
+
+The final development rerun passed both C/C++ and TypeScript consumer scripts,
+including the independent ABI gate and a downstream declaration compile without
+resolveJsonModule. Generated header/schema/type verification passed. The package
+dry run contains 43 files, including the native schema, standalone native name
+types and migration guide; retired compiled modules are absent.

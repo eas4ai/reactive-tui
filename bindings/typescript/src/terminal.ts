@@ -1,118 +1,59 @@
-/**
- * Terminal management API
- */
-
-import * as ref from 'ref-napi';
-import { lib, VoidPtr, ReactiveError } from './ffi';
+import { lib, output, decode, readHandle, NativeHandle } from './ffi';
 import { checkError } from './error';
 
+export interface Capabilities {
+  rgb: boolean; color_256: boolean; unicode_level: number;
+  kitty_keyboard: boolean; mouse: boolean; pixel_mouse: boolean;
+  hyperlinks: boolean; images: boolean; synchronized_output: boolean; bracketed_paste: boolean;
+}
+
+/** Uses the host terminal dimensions. Dispose restores the terminal. */
 export class Terminal {
-  private handle: Buffer;
-  private isSetup: boolean = false;
-
-  constructor(width: number = 80, height: number = 24) {
-    const handlePtr = ref.alloc('pointer');
-    checkError(lib.rtui_terminal_create(width, height, handlePtr));
-    this.handle = handlePtr.deref();
-    if (this.handle.isNull()) {
-      throw new Error('Failed to create terminal');
-    }
+  private handle: NativeHandle | null;
+  private cursor = { x: 1, y: 1, visible: true };
+  constructor() {
+    const out = output('void *');
+    checkError(lib.rtui_terminal_create(out));
+    this.handle = readHandle(out);
   }
-
-  /**
-   * Initialize the terminal
-   */
-  init(): void {
-    checkError(lib.rtui_terminal_init(this.handle));
-    this.isSetup = true;
-  }
-
-  /**
-   * Shutdown the terminal
-   */
-  shutdown(): void {
-    if (this.isSetup) {
-      checkError(lib.rtui_terminal_shutdown(this.handle));
-      this.isSetup = false;
-    }
-  }
-
-  /**
-   * Clear the terminal screen
-   * Note: Clear functionality may be provided through renderer API
-   */
-  clear(): void {
-    // Terminal clear is handled through renderer
-    console.warn('Terminal clear should be done through renderer API');
-  }
-
-  /**
-   * Flush any buffered output to the terminal
-   * Note: Flush functionality may be provided through renderer API
-   */
-  flush(): void {
-    // Terminal flush is handled through renderer
-    console.warn('Terminal flush should be done through renderer API');
-  }
-
-  /**
-   * Get the terminal size
-   */
+  /** The existing native setup API has no error result. */
+  init(): void { lib.setupTerminal(this.getNativeHandle(), false); }
+  /** Shutdown releases this handle. Construct a new Terminal to reopen it. */
+  shutdown(): void { this.dispose(); }
+  clear(): void { lib.clearTerminal(this.getNativeHandle()); }
   getSize(): { width: number; height: number } {
-    const dimensionsPtr = ref.alloc(ref.types.uint32);
-    
-    checkError(lib.rtui_terminal_get_size(this.handle, dimensionsPtr));
-    
-    const dimensions = dimensionsPtr.deref();
-    // Dimensions are packed as width in lower 16 bits, height in upper 16 bits
-    return {
-      width: dimensions & 0xFFFF,
-      height: (dimensions >> 16) & 0xFFFF,
-    };
+    const out = output('RTuiDimensions');
+    checkError(lib.rtui_terminal_get_dimensions(this.getNativeHandle(), out));
+    return decode(out, 'RTuiDimensions');
   }
-
-  /**
-   * Set the cursor position
-   * Note: Cursor control may be provided through renderer API
-   */
+  getCapabilities(): Capabilities {
+    const out = output('RTuiCapabilities');
+    lib.getTerminalCapabilities(this.getNativeHandle(), out);
+    return decode(out, 'RTuiCapabilities');
+  }
+  /** Cursor coordinates are one-based. */
   setCursor(x: number, y: number): void {
-    // Cursor control is handled through renderer
-    console.warn('Cursor control should be done through renderer API');
-  }
-
-  /**
-   * Hide the cursor
-   * Note: Cursor control may be provided through renderer API
-   */
-  hideCursor(): void {
-    // Cursor control is handled through renderer
-    console.warn('Cursor control should be done through renderer API');
-  }
-
-  /**
-   * Show the cursor
-   * Note: Cursor control may be provided through renderer API
-   */
-  showCursor(): void {
-    // Cursor control is handled through renderer
-    console.warn('Cursor control should be done through renderer API');
-  }
-
-  /**
-   * Free the terminal resources
-   */
-  dispose(): void {
-    if (!this.handle.isNull()) {
-      this.shutdown();
-      lib.rtui_terminal_destroy(this.handle);
-      this.handle = Buffer.alloc(0);
+    if (![x, y].every(value => Number.isInteger(value) && value >= 1 && value <= 65535)) {
+      throw new RangeError('Cursor coordinates must be in 1..65535');
     }
+    lib.setCursorPosition(this.getNativeHandle(), x, y, this.cursor.visible);
+    this.cursor = { x, y, visible: this.cursor.visible };
   }
-
-  /**
-   * Get the native handle for low-level operations
-   */
-  getNativeHandle(): Buffer {
+  hideCursor(): void {
+    lib.setCursorPosition(this.getNativeHandle(), this.cursor.x, this.cursor.y, false);
+    this.cursor.visible = false;
+  }
+  showCursor(): void {
+    lib.setCursorPosition(this.getNativeHandle(), this.cursor.x, this.cursor.y, true);
+    this.cursor.visible = true;
+  }
+  dispose(): void {
+    if (this.handle === null) return;
+    lib.rtui_terminal_destroy(this.handle);
+    this.handle = null;
+  }
+  getNativeHandle(): NativeHandle {
+    if (this.handle === null) throw new Error('Terminal is disposed');
     return this.handle;
   }
 }

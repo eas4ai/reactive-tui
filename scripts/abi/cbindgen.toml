@@ -1,0 +1,36 @@
+language = "C"
+include_guard = "REACTIVE_TUI_NATIVE_H"
+cpp_compat = true
+usize_is_size_t = true
+documentation = false
+autogen_warning = "/* Generated from Rust by cbindgen 0.29.4. Run scripts/generate-native-header.py. */"
+after_includes = """
+typedef struct RTuiRenderer RTuiRenderer;
+typedef struct RTuiBuffer RTuiBuffer;
+typedef struct RTuiTerminal RTuiTerminal;
+typedef struct RTuiTextBuffer RTuiTextBuffer;
+typedef struct RTuiAnimationManager RTuiAnimationManager;
+typedef struct RTuiAnimation RTuiAnimation;
+typedef struct RTuiAppBuilder RTuiAppBuilder;
+typedef struct RTuiElement RTuiElement;
+typedef struct RTuiApp RTuiApp;
+typedef struct RTuiElementBuilder RTuiElementBuilder;
+typedef struct RTuiSignal RTuiSignal;
+typedef struct RTuiThreadSafeSignal RTuiThreadSafeSignal;
+typedef struct RTuiEffect RTuiEffect;
+typedef struct RTuiHooks RTuiHooks;
+typedef struct RTuiSurface RTuiSurface;
+"""
+[parse]
+parse_deps = false
+[export]
+include = ["LogCallback"]
+exclude = ["RTuiRenderer", "RTuiBuffer", "RTuiTerminal", "RTuiTextBuffer", "RTuiAnimationManager", "RTuiAnimation", "RTuiAppBuilder", "RTuiElement", "RTuiApp", "RTuiElementBuilder", "RTuiSignal", "RTuiThreadSafeSignal", "RTuiEffect", "RTuiHooks", "RTuiSurface", "ReactiveTerminal"]
+item_types = ["functions", "structs", "enums", "typedefs", "unions", "opaque"]
+[enum]
+prefix_with_name = true
+rename_variants = "ScreamingSnakeCase"
+[export.rename]
+"ReactiveError" = "RTuiError"
+"ReactiveTerminal" = "RTuiTerminal"
+"Capabilities" = "RTuiCapabilities"

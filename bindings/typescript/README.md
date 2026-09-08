@@ -1,180 +1,91 @@
 # Reactive TUI TypeScript SDK
 
-TypeScript/JavaScript bindings for the Reactive TUI library, providing a high-level API for building terminal user interfaces.
+The package wraps the implemented Rust terminal, surface, renderer and static
+Element APIs. It uses Koffi 3.2.1 and compiler-audited native declarations.
 
-## Installation
+## Build and verify
 
-```bash
-npm install @reactive-tui/core
-```
+Use Node.js 20 or later, the repository's Rust toolchain, and a compatible native
+library. The acceptance checks currently run on Linux with clang and rustc.
+Other platform names are recognized by the loader but are not certified by these checks.
 
-## Features
-
-- **Terminal Management**: Initialize and control terminal settings
-- **Rendering System**: Efficient double-buffered rendering with frame management
-- **Surface API**: Low-level drawing operations for cells and colors
-- **Component System**: Declarative UI components with builder pattern
-- **Animation Framework**: Smooth animations with easing functions
-- **Dialog System**: Built-in dialogs (alert, confirm, prompt, select)
-- **Type Safety**: Full TypeScript support with comprehensive type definitions
-
-## Quick Start
-
-```typescript
-import { initialize, cleanup, Terminal, Renderer, Surface } from '@reactive-tui/core';
-
-// Initialize the library
-initialize();
-
-// Create terminal and renderer
-const terminal = new Terminal(80, 24);
-terminal.init();
-
-const renderer = new Renderer(80, 24);
-const surface = new Surface(80, 24);
-
-// Draw something
-surface.clear(0, 0, 0);
-surface.setCell(10, 10, 'H', 0xFFFFFF, 0x000000);
-
-// Render frame
-renderer.frame(() => {
-  // Rendering logic here
-});
-
-// Cleanup when done
-surface.dispose();
-renderer.dispose();
-terminal.dispose();
-cleanup();
-```
-
-## API Overview
-
-### Core Functions
-
-- `initialize()` - Initialize the library (called automatically on import)
-- `cleanup()` - Clean up resources
-- `getVersion()` - Get library version information
-
-### Terminal Class
-
-```typescript
-const terminal = new Terminal(width, height);
-terminal.init();                    // Initialize terminal
-terminal.getSize();                 // Get terminal dimensions
-terminal.shutdown();                // Shutdown terminal
-terminal.dispose();                 // Free resources
-```
-
-### Renderer Class
-
-```typescript
-const renderer = new Renderer(width, height);
-renderer.resize(newWidth, newHeight);     // Resize renderer
-renderer.clear(r, g, b);                  // Clear with color
-renderer.beginFrame();                     // Start frame
-renderer.endFrame();                       // End frame
-renderer.frame(callback);                  // Render complete frame
-```
-
-### Surface Class
-
-```typescript
-const surface = new Surface(width, height);
-surface.clear(r, g, b);                          // Clear surface
-surface.setCell(x, y, char, fg, bg);            // Set cell
-surface.getCell(x, y);                          // Get cell
-surface.getSize();                               // Get dimensions
-```
-
-### Component System
-
-```typescript
-import { div, text, button, flex, grid } from '@reactive-tui/core';
-
-const ui = div()
-  .prop('style', { padding: 2 })
-  .children(
-    text('Hello World'),
-    button('Click me').prop('onClick', handleClick),
-    flex().children(
-      text('Item 1'),
-      text('Item 2')
-    )
-  );
-
-const component = ui.build();
-component.render(surface);
-```
-
-### Animation
-
-```typescript
-import { Animation, AnimationType, AnimationProperty } from '@reactive-tui/core';
-
-const animation = new Animation(
-  AnimationProperty.X,
-  0,    // from
-  100,  // to
-  {
-    duration: 1000,
-    type: AnimationType.EaseInOut,
-    onComplete: () => console.log('Done!')
-  }
-);
-
-animation.start();
-animation.update(deltaTime);
-```
-
-### Dialogs
-
-```typescript
-import { alert, confirm, prompt, select } from '@reactive-tui/core';
-
-await alert('Hello!', 'Title');
-const result = await confirm('Are you sure?');
-const name = await prompt('Enter your name:');
-const choice = await select(['Option 1', 'Option 2'], 'Choose one:');
-```
-
-## Examples
-
-See the `examples/` directory for complete examples:
-
-- `hello-world.ts` - Basic rendering example
-- `animation-demo.ts` - Animation showcase
-- `component-demo.ts` - Component system demonstration
-
-Run examples with:
-
-```bash
-npm run example:hello
-npm run example:animation
-npm run example:component
-```
-
-## Requirements
-
-- Node.js 14+
-- Native library (`libreactive_tui.so` / `.dylib` / `.dll`)
-
-## Building from Source
-
-```bash
-# Build the Rust library
-cd ../..
-cargo build --release
-
-# Install TypeScript dependencies
+```sh
+# From the repository root:
+cargo build --locked --features ffi
 cd bindings/typescript
-npm install
-
-# Build TypeScript
+npm ci
 npm run build
+npm test
 ```
 
-## License
+`npm run build` checks all remaining TypeScript source and recreates dist.
+`npm test` audits signatures/layouts before executing real C-boundary calls in an
+isolated terminal, with a deadline and terminal-restoration checks.
+`npm run lint` runs the configured ESLint correctness and unused-variable checks.
 
-MIT License - See LICENSE file for details
+Set `RTUI_LIBRARY_PATH` to select a particular shared library. Otherwise the loader
+looks in package/native, then the repository release and debug target directories.
+`npm run build:rust` builds a release library. Native libraries are not downloaded
+or included automatically: distribute a matching library in package/native or set
+the environment variable. A package must be rebuilt with the same native ABI schema.
+
+## Draw a frame
+
+```typescript
+import { initialize, cleanup, Renderer } from '@reactive-tui/core';
+
+initialize();
+try {
+  const renderer = new Renderer(40, 10);
+  try {
+    const surface = renderer.getSurface();
+    renderer.frame(() => {
+      surface.clear(15, 20, 30);
+      surface.setCell(2, 2, '界', 0xFFFFFF, 0x0F141E);
+    });
+    surface.dispose(); // Releases this view, not the renderer's storage.
+  } finally { renderer.dispose(); }
+} finally { cleanup(); }
+```
+
+Use `new Terminal()` to query the host size and capabilities. Its shutdown/dispose
+restores the terminal and releases the handle. Native setup currently returns no
+error value; the TypeScript wrapper does not invent a success/error result.
+Initialize and dispose terminal/renderer owners in sequence so their terminal modes
+do not overlap. Importing this package installs no signal or exit handlers.
+
+An independently created `Surface` owns its storage. Its resize recreates an empty
+surface. A renderer's surface is borrowed; renderer resize or disposal invalidates
+the TypeScript view. A cell stores one Unicode scalar, not a grapheme cluster.
+
+## Build a native Element tree
+
+```typescript
+import { div, text } from '@reactive-tui/core';
+
+const root = div().class('flex-col').key('root').child(text('Hello')).build();
+try {
+  const child = root.getChild(0);
+  try { console.log(child.getText()); }
+  finally { child.dispose(); }
+} finally { root.dispose(); }
+```
+
+Child insertion consumes the child owner. Build consumes its builder. Child
+getters return owned clones. Explicitly dispose owners that are not consumed.
+Native builder `.text()` converts its result to a text Element; use `.child(text())`
+when you want a container with text children.
+
+Static trees are supported; generic JSON component state, automatic rerendering,
+interactive widget wrappers and dialogs were never implemented at this native
+boundary. They are deliberately retired in this repair. See
+[TypeScript migration](MIGRATION.md) and
+[C/native ABI migration](MIGRATION.md) for the complete
+inventory, changed call signatures, and ownership rules. The low-level `lib`
+export exposes native signatures; it requires valid pointers and caller-managed
+ownership/callback lifetimes.
+
+The examples `hello-world.ts` and `component-demo.ts` use the supported API.
+The old animation/widget demos are retired along with their unsupported wrappers.
+
+The low-level owned signal-string getter converts to a JS string and releases the native allocation automatically. See the migration guide before using either native signal family.

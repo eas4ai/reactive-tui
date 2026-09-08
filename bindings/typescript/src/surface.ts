@@ -1,135 +1,92 @@
-/**
- * Surface (rendering buffer) API
- */
-
-import * as ref from 'ref-napi';
-import { lib, VoidPtr } from './ffi';
+/** Owned surface storage, or a renderer-owned view with checked lifetime. */
+import { lib, output, decode, encode, readHandle, NativeHandle, unsigned } from './ffi';
 import { checkError } from './error';
 
-export interface Cell {
-  content: string;
-  fg: number;
-  bg: number;
+export interface Cell { content: string; fg: number; bg: number; }
+interface Color { r: number; g: number; b: number; }
+interface NativeCell { ch: number; fg: Color; bg: Color; attrs: Record<string, boolean>; }
+function color(value: number): Color {
+  if (!Number.isInteger(value) || value < 0 || value > 0xFFFFFF) throw new RangeError('Color must be RGB24');
+  return { r: value >>> 16, g: (value >>> 8) & 255, b: value & 255 };
 }
+function packed(value: Color): number { return (value.r << 16) | (value.g << 8) | value.b; }
 
 export class Surface {
-  private handle: Buffer;
-  private width: number;
-  private height: number;
+  private handle: NativeHandle | null;
+  private ownerAlive?: () => void;
 
   constructor(width: number, height: number) {
-    this.width = width;
-    this.height = height;
-    const handlePtr = ref.alloc('pointer');
-    checkError(lib.rtui_surface_create(width, height, handlePtr));
-    this.handle = handlePtr.deref();
-    
-    if (this.handle.isNull()) {
-      throw new Error(`Failed to create surface of size ${width}x${height}`);
-    }
+    unsigned(width, 16, 'width'); unsigned(height, 16, 'height');
+    const out = output('void *');
+    checkError(lib.rtui_surface_create(width, height, out));
+    this.handle = readHandle(out);
   }
 
-  /**
-   * Resize the surface
-   * Note: Surface resizing may need to be done by creating a new surface
-   */
+  /** Internal borrowed view. The renderer must stay alive and must not resize. */
+  static borrowed(handle: NativeHandle, ownerAlive: () => void): Surface {
+    const view = Object.create(Surface.prototype) as Surface;
+    view.handle = handle;
+    view.ownerAlive = ownerAlive;
+    return view;
+  }
+
+  /** Recreate owned storage; resizing discards cells. */
   resize(width: number, height: number): void {
-    // Surface resize is not directly available in C API
-    // Need to recreate the surface
-    console.warn('Surface resize not directly supported, consider creating new surface');
-    this.width = width;
-    this.height = height;
+    this.getNativeHandle();
+    if (this.ownerAlive) throw new Error('Resize the owning renderer instead');
+    const replacement = new Surface(width, height);
+    this.dispose();
+    this.handle = replacement.handle;
+    replacement.handle = null;
   }
 
-  /**
-   * Clear the surface with a color
-   */
-  clear(r: number = 0, g: number = 0, b: number = 0): void {
-    checkError(lib.rtui_surface_clear(this.handle, r, g, b));
+  clear(r = 0, g = 0, b = 0): void {
+    checkError(lib.rtui_surface_clear(this.getNativeHandle(), unsigned(r, 8, 'r'), unsigned(g, 8, 'g'), unsigned(b, 8, 'b')));
   }
 
-  /**
-   * Set a cell at the given position
-   */
-  setCell(x: number, y: number, content: string, fg: number = 0xFFFFFF, bg: number = 0x000000): void {
-    // Create a cell structure
-    const cellSize = 8 + 3 + 3 + 1; // char[8] + RGB + RGB + attributes
-    const cellPtr = Buffer.alloc(cellSize);
-    
-    // Write character (UTF-8, max 8 bytes)
-    const charBuffer = Buffer.from(content, 'utf8');
-    charBuffer.copy(cellPtr, 0, 0, Math.min(charBuffer.length, 7));
-    cellPtr[Math.min(charBuffer.length, 7)] = 0; // null terminator
-    
-    // Write foreground color (RGB)
-    cellPtr[8] = (fg >> 16) & 0xFF; // R
-    cellPtr[9] = (fg >> 8) & 0xFF;  // G
-    cellPtr[10] = fg & 0xFF;        // B
-    
-    // Write background color (RGB)
-    cellPtr[11] = (bg >> 16) & 0xFF; // R
-    cellPtr[12] = (bg >> 8) & 0xFF;  // G
-    cellPtr[13] = bg & 0xFF;         // B
-    
-    // Attributes (0 for now)
-    cellPtr[14] = 0;
-    
-    checkError(lib.rtui_surface_set_cell(this.handle, x, y, cellPtr));
+  private position(x: number, y: number): void {
+    unsigned(x, 16, 'x'); unsigned(y, 16, 'y');
+    const size = this.getSize();
+    if (x >= size.width || y >= size.height) throw new RangeError('Cell position outside surface');
   }
 
-  /**
-   * Get a cell at the given position
-   */
+  setCell(x: number, y: number, content: string, fg = 0xFFFFFF, bg = 0): void {
+    this.position(x, y);
+    const chars = Array.from(content);
+    const ch = content.codePointAt(0);
+    if (chars.length !== 1 || ch === undefined || ch === 0 || (ch >= 0xD800 && ch <= 0xDFFF)) {
+      throw new TypeError('Cell content must be one non-NUL Unicode scalar');
+    }
+    const cell = encode('RTuiCell', { ch, fg: color(fg), bg: color(bg), attrs: {
+      bold: false, hidden: false, italic: false, underline: false,
+      blink: false, reverse: false, strikethrough: false,
+    }});
+    checkError(lib.rtui_surface_set_cell(this.getNativeHandle(), x, y, cell));
+  }
+
   getCell(x: number, y: number): Cell {
-    const cellSize = 8 + 3 + 3 + 1; // char[8] + RGB + RGB + attributes
-    const cellPtr = Buffer.alloc(cellSize);
-    
-    checkError(lib.rtui_surface_get_cell(this.handle, x, y, cellPtr));
-    
-    // Read character
-    let contentEnd = 0;
-    while (contentEnd < 8 && cellPtr[contentEnd] !== 0) {
-      contentEnd++;
-    }
-    const content = cellPtr.toString('utf8', 0, contentEnd);
-    
-    // Read foreground color
-    const fg = (cellPtr[8] << 16) | (cellPtr[9] << 8) | cellPtr[10];
-    
-    // Read background color
-    const bg = (cellPtr[11] << 16) | (cellPtr[12] << 8) | cellPtr[13];
-    
-    return {
-      content,
-      fg,
-      bg,
-    };
+    this.position(x, y);
+    const out = output('RTuiCell');
+    checkError(lib.rtui_surface_get_cell(this.getNativeHandle(), x, y, out));
+    const cell = decode<NativeCell>(out, 'RTuiCell');
+    return { content: String.fromCodePoint(cell.ch), fg: packed(cell.fg), bg: packed(cell.bg) };
   }
 
-  /**
-   * Get the surface dimensions
-   */
   getSize(): { width: number; height: number } {
-    return {
-      width: this.width,
-      height: this.height,
-    };
+    const out = output('RTuiDimensions');
+    checkError(lib.rtui_surface_get_dimensions(this.getNativeHandle(), out));
+    return decode(out, 'RTuiDimensions');
   }
 
-  /**
-   * Free the surface resources
-   */
   dispose(): void {
-    if (!this.handle.isNull()) {
-      lib.rtui_surface_destroy(this.handle);
-      this.handle = Buffer.alloc(0);
-    }
+    if (this.handle === null) return;
+    if (!this.ownerAlive) lib.rtui_surface_destroy(this.handle);
+    this.handle = null;
   }
 
-  /**
-   * Get the native handle for low-level operations
-   */
-  getNativeHandle(): Buffer {
+  getNativeHandle(): NativeHandle {
+    if (this.handle === null) throw new Error('Surface is disposed');
+    this.ownerAlive?.();
     return this.handle;
   }
 }

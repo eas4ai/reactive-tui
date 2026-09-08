@@ -256,7 +256,10 @@ static mut LOG_CALLBACK: Option<LogCallback> = None;
 
 /// Set log callback for debugging
 #[no_mangle]
-pub extern "C" fn setLogCallback(callback: Option<LogCallback>) {
+pub extern "C" fn setLogCallback(
+    // Spell out the nullable function type so header generation retains its ABI.
+    callback: Option<extern "C" fn(level: u8, msg_ptr: *const u8, msg_len: usize)>,
+) {
     unsafe {
         LOG_CALLBACK = callback;
     }

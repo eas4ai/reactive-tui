@@ -1,17 +1,11 @@
-/**
- * Low-level FFI bindings to the reactive-tui Rust library
- */
-
-import * as ffi from 'ffi-napi';
-import * as ref from 'ref-napi';
+/** Native declarations generated from the compiler-audited C API. */
+import * as koffi from 'koffi';
 import * as path from 'path';
 import * as fs from 'fs';
+import schema from './native-api.json';
+import type { NativeFunctionName } from './native-types';
+export type { NativeFunctionName } from './native-types';
 
-// Basic FFI types
-export const VoidPtr = ref.refType(ref.types.void);
-export const StringPtr = ref.refType(ref.types.CString);
-
-// Error codes matching C header RTuiError enum
 export enum ReactiveError {
   Success = 0,
   InvalidParameter = -1,
@@ -24,114 +18,74 @@ export enum ReactiveError {
   AlreadyExists = -8,
   NotFound = -9,
   InvalidState = -10,
+  InvalidPointer = -11,
+  InternalError = -12,
   Panic = -99,
   Unknown = -100,
 }
 
-// Version struct
-export const RTuiVersion = ref.types.void; // Will be defined as struct
-
-// Find the native library
-function findNativeLibrary(): string {
-  const libName = process.platform === 'win32' 
-    ? 'reactive_tui.dll'
-    : process.platform === 'darwin'
-    ? 'libreactive_tui.dylib'
-    : 'libreactive_tui.so';
-
-  // Try multiple paths
-  const possiblePaths = [
-    // Local development path
-    path.join(__dirname, '..', '..', '..', 'target', 'release', libName),
-    // Installed path
-    path.join(__dirname, '..', 'native', libName),
-    // Alternative development path
-    path.join(__dirname, '..', '..', '..', 'target', 'debug', libName),
-  ];
-
-  for (const libPath of possiblePaths) {
-    if (fs.existsSync(libPath)) {
-      return libPath;
-    }
-  }
-
-  throw new Error(`Could not find native library ${libName}. Tried paths: ${possiblePaths.join(', ')}`);
+// Layouts and signatures are checked against independent rustc and clang probes.
+for (const name of schema.opaque) koffi.opaque(name);
+for (const name of schema.enums) koffi.alias(name, 'int');
+for (const [name, record] of Object.entries(schema.records)) {
+  if (record.kind === 'union') koffi.union(name, record.fields);
+  else koffi.struct(name, record.fields);
+}
+for (const [name, signature] of Object.entries(schema.callbacks)) {
+  const declaration = signature.replace('(*)', name + 'Callback');
+  koffi.alias(name, koffi.pointer(koffi.proto(declaration)));
 }
 
-// Load the native library
-const libPath = findNativeLibrary();
-export const lib = ffi.Library(libPath, {
-  // Core functions
-  'rtui_init': ['int', []],
-  'rtui_cleanup': ['void', []],
-  'rtui_version': [RTuiVersion, []],
+function findNativeLibrary(): string {
+  if (process.env.RTUI_LIBRARY_PATH) return path.resolve(process.env.RTUI_LIBRARY_PATH);
+  const filename = process.platform === 'win32' ? 'reactive_tui.dll'
+    : process.platform === 'darwin' ? 'libreactive_tui.dylib' : 'libreactive_tui.so';
+  const candidates = [
+    path.join(__dirname, '..', 'native', filename),
+    path.join(__dirname, '..', '..', '..', 'target', 'release', filename),
+    path.join(__dirname, '..', '..', '..', 'target', 'debug', filename),
+  ];
+  const found = candidates.find(candidate => fs.existsSync(candidate));
+  if (!found) throw new Error(`Native library missing. Build with cargo build --features ffi, or set RTUI_LIBRARY_PATH. Tried: ${candidates.join(', ')}`);
+  return found;
+}
 
-  // Terminal API - matching C header
-  'rtui_terminal_create': ['int', ['uint16', 'uint16', 'pointer']],
-  'rtui_terminal_destroy': ['void', [VoidPtr]],
-  'rtui_terminal_init': ['int', [VoidPtr]],
-  'rtui_terminal_shutdown': ['int', [VoidPtr]],
-  'rtui_terminal_get_size': ['int', [VoidPtr, 'pointer']],
+const library = koffi.load(findNativeLibrary());
+type NativeFunction = ReturnType<typeof library.func>;
+function parameterType(type: string): string {
+  return Object.entries(schema.callbacks).find(([, signature]) => signature === type)?.[0] ?? type;
+}
+// Koffi converts char* results to JS strings. Free the owned allocation after
+// conversion with Rust's allocator, not Koffi's default C free().
+const ownedString = koffi.disposable('char *', (pointer: NativeHandle) => lib.rtui_string_free(pointer));
+export const lib = Object.fromEntries(Object.entries(schema.functions).map(([name, entry]) =>
+  [name, library.func(name, name === 'rtui_signal_get_string_owned' ? ownedString : entry.result,
+    entry.parameters.map(parameterType))]
+)) as Record<NativeFunctionName, NativeFunction>;
 
-  // Renderer API - matching C header
-  'rtui_renderer_create': ['int', ['uint16', 'uint16', 'pointer']],
-  'rtui_renderer_destroy': ['void', [VoidPtr]],
-  'rtui_renderer_resize': ['int', [VoidPtr, 'uint16', 'uint16']],
-  'rtui_renderer_clear': ['int', [VoidPtr, 'uint8', 'uint8', 'uint8']],
-  'rtui_renderer_frame': ['int', [VoidPtr, 'bool']],
-
-  // Surface API - matching C header
-  'rtui_surface_create': ['int', ['uint16', 'uint16', 'pointer']],
-  'rtui_surface_destroy': ['void', [VoidPtr]],
-  'rtui_surface_get_dimensions': ['int', [VoidPtr, 'pointer']],
-  'rtui_surface_clear': ['int', [VoidPtr, 'uint8', 'uint8', 'uint8']],
-  'rtui_surface_set_cell': ['int', [VoidPtr, 'uint16', 'uint16', 'pointer']],
-  'rtui_surface_get_cell': ['int', [VoidPtr, 'uint16', 'uint16', 'pointer']],
-
-  // Component functions
-  'rtui_component_create': [VoidPtr, ['string', 'string']],
-  'rtui_component_free': ['void', [VoidPtr]],
-  'rtui_component_render': ['int', [VoidPtr, VoidPtr]],
-  'rtui_component_update': ['int', [VoidPtr, 'string']],
-  'rtui_component_handle_event': ['int', [VoidPtr, 'pointer']],
-  'rtui_component_get_state': ['string', [VoidPtr]],
-  'rtui_component_set_state': ['int', [VoidPtr, 'string']],
-
-  // Animation functions
-  'rtui_animation_create': [VoidPtr, ['int', 'double', 'double', 'uint32', 'int', 'uint32', 'int', 'bool']],
-  'rtui_animation_free': ['void', [VoidPtr]],
-  'rtui_animation_start': ['int', [VoidPtr]],
-  'rtui_animation_stop': ['int', [VoidPtr]],
-  'rtui_animation_pause': ['int', [VoidPtr]],
-  'rtui_animation_resume': ['int', [VoidPtr]],
-  'rtui_animation_reset': ['int', [VoidPtr]],
-  'rtui_animation_update': ['int', [VoidPtr, 'double']],
-  'rtui_animation_is_running': ['bool', [VoidPtr]],
-  'rtui_animation_is_complete': ['bool', [VoidPtr]],
-  'rtui_animation_get_progress': ['double', [VoidPtr]],
-  'rtui_animation_set_progress': ['int', [VoidPtr, 'double']],
-  
-  // Animation group functions
-  'rtui_animation_group_create': [VoidPtr, []],
-  'rtui_animation_group_free': ['void', [VoidPtr]],
-  'rtui_animation_group_add': ['int', [VoidPtr, VoidPtr]],
-  'rtui_animation_group_remove': ['int', [VoidPtr, VoidPtr]],
-  'rtui_animation_group_start': ['int', [VoidPtr]],
-  'rtui_animation_group_stop': ['int', [VoidPtr]],
-  'rtui_animation_group_pause': ['int', [VoidPtr]],
-  'rtui_animation_group_resume': ['int', [VoidPtr]],
-  'rtui_animation_group_update': ['int', [VoidPtr, 'double']],
-  'rtui_animation_group_is_running': ['bool', [VoidPtr]],
-
-  // Dialog functions
-  'rtui_dialog_create': [VoidPtr, ['int', 'string']],
-  'rtui_dialog_free': ['void', [VoidPtr]],
-  'rtui_dialog_show': [VoidPtr, [VoidPtr]],
-  'rtui_dialog_show_async': [VoidPtr, [VoidPtr, 'string', 'pointer']], // async with callback
-  'rtui_dialog_close': ['int', [VoidPtr]],
-  'rtui_dialog_update': ['int', [VoidPtr, 'string']],
-  'rtui_dialog_is_visible': ['bool', [VoidPtr]],
-  'rtui_dialog_focus': ['int', [VoidPtr]],
-  'rtui_dialog_get_result': ['string', [VoidPtr]],
-  'rtui_dialog_result_free': ['void', [VoidPtr]],
-});
+// Buffer-backed output storage stays alive for each synchronous call. Native
+// pointers returned in it remain owned by their caller until explicitly freed.
+export function output(type: string): Buffer { return Buffer.alloc(koffi.sizeof(type)); }
+export function decode<T>(buffer: Buffer, type: string): T { return koffi.decode(buffer, type) as T; }
+export function encode(type: string, value: unknown): Buffer {
+  const buffer = output(type);
+  koffi.encode(buffer, type, value);
+  return buffer;
+}
+export type NativeHandle = bigint;
+export function readHandle(buffer: Buffer): NativeHandle {
+  const handle = decode<NativeHandle | null>(buffer, 'void *');
+  if (handle === null || handle === 0n) throw new Error('Native function returned a null handle');
+  return handle;
+}
+export function nativeString(value: string): string {
+  if (value.includes('\0')) throw new TypeError('Native strings cannot contain NUL');
+  return value;
+}
+export function unsigned(value: number, bits: 8 | 16 | 32, name: string): number {
+  if (!Number.isInteger(value) || value < 0 || value > 2 ** bits - 1) {
+    throw new RangeError(`${name} must be an unsigned ${bits}-bit integer`);
+  }
+  return value;
+}
+export { koffi };

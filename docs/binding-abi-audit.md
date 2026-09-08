@@ -156,3 +156,32 @@ The TypeScript rtui_version return is void although Rust returns a four-u32
 record. Its animation constructor uses eight unrelated arguments while Rust
 accepts an ID string, duration, easing/loop configuration and an output handle.
 These are declaration defects; no attempt was made to invoke them.
+
+
+## Reconciled candidate
+
+The canonical native header and TypeScript schema now contain 210 Rust exports:
+the original 194 plus 16 compatibility aliases. Independent rustc/clang probes
+compare all signatures, 13 record/union layouts and field types, eight enum layouts
+and 59 enum values. Koffi's actual loaded signatures, record layouts, field types
+and error constants are compared against those compiler results before any consumer
+call. A separate snapshot recovered from the original Rust revision protects the
+existing native signatures, records and enum values.
+
+The migration inventory covers all 198 original C declarations, 58 original
+TypeScript loader declarations, 52 original C type aliases and public declarations
+from all 17 original TypeScript modules. All original C type names still compile;
+legacy-only types are explicitly distinguished from native records. The invalid
+adaptive enum value is not advertised. Current package sources and examples
+strictly typecheck; retired modules are removed from generated package output.
+
+Development C/C++ and TypeScript consumer checks pass with real native values,
+raw-mode changes and restoration, capabilities canaries, RGB/Unicode cells,
+renderer-owned views, legacy builder aliases, consuming children/builders,
+owned child clones, null/error results and string release. Nine safe failure
+demonstrations and their restored controls are in binding-abi-demonstrations/.
+Formal Cairn receipts and the final review still determine completion.
+
+The preexisting legacy signal destructor mismatch is recorded in the backlog and
+migration guidance. No mismatched signal-family call was executed. This ABI
+commitment does not claim that every legacy native feature is behaviorally complete.

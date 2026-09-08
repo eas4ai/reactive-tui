@@ -5,7 +5,7 @@
  * for building responsive terminal UIs.
  */
 
-import { Theme, getSpacing } from './theme';
+import { Theme } from './theme';
 
 /**
  * Display types
