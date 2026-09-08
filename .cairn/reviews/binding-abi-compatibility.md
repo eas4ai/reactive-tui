@@ -48,3 +48,16 @@ including the independent ABI gate and a downstream declaration compile without
 resolveJsonModule. Generated header/schema/type verification passed. The package
 dry run contains 43 files, including the native schema, standalone native name
 types and migration guide; retired compiled modules are absent.
+
+## ABI-001 mechanism review after sentence clarification
+
+The revised requirement separates native export preservation from migration
+reporting into two sentences. Neither obligation nor the falsifier changed.
+Read check-binding-abi.py against both obligations: it compares the original
+native signatures/records/callbacks/enums, validates the full old C and TypeScript
+inventories, and checks current compiler and loader types independently. The
+existing missing-symbol, C-signature, capabilities-layout, TypeScript-signature,
+Koffi-layout and migration-omission demonstrations reject the stated violations;
+the restored gate passed in the committed ABI-001 receipt. Those demonstrations
+still apply to the clarified wording. No mechanism mismatch found; no code
+changed during this review.
