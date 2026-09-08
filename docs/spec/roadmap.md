@@ -1,7 +1,7 @@
 # Recovery roadmap
 
 Status: Agreed 2026-09-07
-Current: app-wakeups
+Current: registry-concurrency
 
 1. `suprtui-renderer` — the first screen: styled frames, updates, Unicode,
    resize, output errors, input, and terminal restoration (RND-001 through RND-006).
@@ -14,3 +14,6 @@ Image protocols, clipboard, and remaining legacy defects stay in the backlog.
 
 3. `app-wakeups` — shared wake notifications connect signals, scheduled work
    and terminal output to App, with idle waiting and bounded redraw bursts.
+
+4. `registry-concurrency` — remove the concurrent registry metrics/cleanup
+   stall and verify lifecycle reentry and concurrent progress.
