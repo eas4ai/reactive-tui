@@ -11,4 +11,4 @@ The ordinary FFI app-builder test exposed invalid allocation ownership in the se
 
 ## Realized by
 
-(none yet: recorded, not built)
+- 24a6ad39aac8269454346d74455cf1cbee0593ae Restore terminal FFI linkage and preserve handle ownership
