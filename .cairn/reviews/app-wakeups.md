@@ -59,3 +59,14 @@ background change against Crossterm's actual blocking input wait. Pending
 storage is fixed flags and one task waker. Removing pending flag retention
 failed its runtime assertion; restoring it passed the complete development
 gate. No mismatch requires a separate code change.
+
+## Revised mechanism review: WAK-002
+
+Compared the separate equal-write and ownership obligations with Signal,
+ThreadSafeSignal, render Scope and weak generation subscriptions. Tests cover
+both signal types, two independent App notification sources, dependency
+removal on later renders, closed handles and weak ownership. The threaded
+App test checks actual displayed value after an idle change and no redraw
+on an equal write. Suppressing ThreadSafeSignal notification failed that
+runtime test; restoration passed the full development gate. No assertion
+was weakened when the specification sentence was split. No mismatch found.
