@@ -2,6 +2,7 @@
 
 command: sh scripts/check-renderer.sh
 inputs:
+  - docs/spec
   - README.md
   - Cargo.toml
   - Cargo.lock

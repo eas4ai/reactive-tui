@@ -11,14 +11,14 @@ against the Rust shared library, including their sizes, layouts and ownership.
 Every function and data type advertised by the shipped C headers and TypeScript
 native loader MUST be inventoried and reconciled with the Rust exports.
 Missing symbols and incompatible signatures/layouts MUST fail an automated check.
-Existing Rust exports MUST remain compatible; corrections to broken consumer
+Existing Rust exports MUST remain compatible. Corrections to broken consumer
 contracts MUST be documented with migration guidance where callers change.
 Falsifier: a declared callable symbol is absent, a calling signature or data
 layout disagrees, or a public declaration is silently removed to pass the check.
 Mechanism: ABI inventory and declaration/export consistency checks.
 
 [ABI-002]
-The shipped C headers MUST compile together as C and C++, and audited boundary
+The shipped C headers MUST compile together as C and C++. Audited boundary
 values MUST round-trip through the built shared library with matching sizes,
 alignments, offsets and enum values. Terminal capabilities and legacy builder
 aliases MUST be covered. Owning, borrowed and consuming handles MUST be documented.

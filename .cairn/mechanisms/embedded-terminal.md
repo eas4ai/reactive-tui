@@ -2,6 +2,7 @@
 
 command: sh scripts/check-embedded-terminal.sh
 inputs:
+  - docs/spec
   - Cargo.toml
   - Cargo.lock
   - README.md
