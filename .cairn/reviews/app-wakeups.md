@@ -70,3 +70,15 @@ App test checks actual displayed value after an idle change and no redraw
 on an equal write. Suppressing ThreadSafeSignal notification failed that
 runtime test; restoration passed the full development gate. No assertion
 was weakened when the specification sentence was split. No mismatch found.
+
+## Revised mechanism review: WAK-003
+
+Compared scheduler notification, earliest deadline selection and callback
+execution with the revised separate obligations. The integration test starts
+with a distant timer, queues work while App waits, inserts an earlier timer,
+and schedules another timer from a callback after clear. The scheduler unit
+test cancels a running interval from inside its own callback and verifies
+that only the nested timeout follows. Callback bodies execute outside both
+queue and timer locks. Suppressing scheduler notification failed the queued
+work assertion; restoration passed the complete development gate. Existing
+timer assertions remain intact. No mismatch requires implementation work.
