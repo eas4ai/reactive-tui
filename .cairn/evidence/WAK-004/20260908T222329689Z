@@ -1,0 +1,21 @@
+requirement: WAK-004
+requirement_digest: sha256:c3d66d94f0669eb0836e7cb7dc682bd3dd8db2068eb0cb2ef9814edcdbac79bb
+sequence: 10
+history_digest: sha256:d07453bf4054a6ab0417d7229ee7fdcc63d22e3c06bbc2b3df4b02a29867590b
+mechanism: app-wakeups.md
+commit: 79f43dd
+inputs_digest: sha256:78568e835bacbafd681adedff83394c008715bdf7027ccef0ec04bea0f81c4e4
+mechanism_digest: sha256:95aaeebdd6c1bffba57a1f6301e99ffa48ed02913ca5fe86ef65a9ecbe49f5c3
+inputs_detail: .cairn/evidence/WAK-001/20260908T222318576Z-2300601.inputs.json
+command: sh scripts/check-app-wakeups.sh
+cwd: .
+exit: 0
+output_digest: sha256:52b2f925af6c8dda032d6db85b20dedb564fa5160556a3f4f6a6ee25d92b01f2
+output: .cairn/evidence/WAK-001/20260908T222318576Z-2300601.out
+stderr_output: .cairn/evidence/WAK-001/20260908T222318576Z-2300601.err
+stderr_digest: sha256:f348afbab7b0fc906aa2b3aaaea53192e11bc875007ada170dae4a7aca4aa4b5
+signal: none
+execution_error: null
+result: pass
+source: exit
+recorded: 2026-09-08T22:23:29.688Z
