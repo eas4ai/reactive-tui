@@ -282,21 +282,19 @@ pub struct Window {
 
 impl Window {
     /// Get terminal character dimensions in pixels
-    /// 
+    ///
     /// Returns the width and height in pixels of a single character cell.
     /// This queries the terminal if possible, otherwise returns standard dimensions.
     fn get_character_dimensions(&self) -> Result<(u16, u16), Box<dyn std::error::Error>> {
         use std::process::Command;
-        
+
         // Try to query terminal using escape sequences
-        if let Ok(output) = Command::new("stty")
-            .arg("size")
-            .output()
-        {
+        if let Ok(output) = Command::new("stty").arg("size").output() {
             if let Ok(size_str) = String::from_utf8(output.stdout) {
                 let parts: Vec<&str> = size_str.split_whitespace().collect();
                 if parts.len() >= 2 {
-                    if let (Ok(rows), Ok(cols)) = (parts[0].parse::<u16>(), parts[1].parse::<u16>()) {
+                    if let (Ok(rows), Ok(cols)) = (parts[0].parse::<u16>(), parts[1].parse::<u16>())
+                    {
                         // Estimate pixel dimensions based on typical terminal sizes
                         // Most modern terminals: 80x24 chars at ~1280x384 pixels
                         let char_w = if cols > 0 { 1280 / cols } else { 16 };
@@ -306,17 +304,19 @@ impl Window {
                 }
             }
         }
-        
+
         // Fallback to environment variables
         if let (Ok(term_w), Ok(term_h)) = (
-            std::env::var("COLUMNS").and_then(|s| s.parse::<u16>().map_err(|_| std::env::VarError::NotPresent)),
-            std::env::var("LINES").and_then(|s| s.parse::<u16>().map_err(|_| std::env::VarError::NotPresent))
+            std::env::var("COLUMNS")
+                .and_then(|s| s.parse::<u16>().map_err(|_| std::env::VarError::NotPresent)),
+            std::env::var("LINES")
+                .and_then(|s| s.parse::<u16>().map_err(|_| std::env::VarError::NotPresent)),
         ) {
             let char_w = if term_w > 0 { 1280 / term_w } else { 16 };
             let char_h = if term_h > 0 { 384 / term_h } else { 16 };
             return Ok((char_w.clamp(8, 32), char_h.clamp(8, 32)));
         }
-        
+
         Err("Could not determine character dimensions".into())
     }
     /// Create a new root window from a surface
@@ -956,14 +956,14 @@ impl Window {
                 // This matches the dimensions used elsewhere in the codebase
                 const CHAR_WIDTH: u16 = 16;
                 const CHAR_HEIGHT: u16 = 16;
-                
+
                 // Query terminal for actual dimensions if available
                 let (char_w, char_h) = if let Ok(dimensions) = self.get_character_dimensions() {
                     dimensions
                 } else {
                     (CHAR_WIDTH, CHAR_HEIGHT)
                 };
-                
+
                 ((x / char_w as u32) as usize, (y / char_h as u32) as usize)
             }
         };

@@ -17,9 +17,9 @@ pub enum InputMode {
     #[default]
     SingleLine,
     /// Multi-line input with specified height
-    MultiLine { 
+    MultiLine {
         /// Height of the multi-line input in rows
-        height: u16 
+        height: u16,
     },
     /// Password input (masked)
     Password,
@@ -197,8 +197,7 @@ impl TextInputBuilder {
 
     /// Build and render as an Element (convenience method)
     pub fn render(self) -> Element {
-        Element::component("TextInput")
-            .with_props(self.build())
+        Element::component("TextInput").with_props(self.build())
     }
 }
 
@@ -1263,7 +1262,7 @@ impl TextInput {
                     let mut byte_count = 0;
                     let mut prev_char = None;
                     let mut prev_byte_offset = 0;
-                    
+
                     for ch in current_text.chars() {
                         if byte_count >= state.cursor.byte_offset {
                             break;
@@ -1272,7 +1271,7 @@ impl TextInput {
                         prev_byte_offset = byte_count;
                         byte_count += ch.len_utf8();
                     }
-                    
+
                     if let Some(ch) = prev_char {
                         let command = EditCommand::Delete {
                             position: prev_byte_offset,
@@ -1310,7 +1309,7 @@ impl TextInput {
                     // FIX: Get character at current byte offset
                     let mut byte_count = 0;
                     let mut found_char = None;
-                    
+
                     for ch in current_text.chars() {
                         if byte_count == state.cursor.byte_offset {
                             found_char = Some(ch);
@@ -1318,7 +1317,7 @@ impl TextInput {
                         }
                         byte_count += ch.len_utf8();
                     }
-                    
+
                     if let Some(ch) = found_char {
                         let command = EditCommand::Delete {
                             position: state.cursor.byte_offset,
@@ -1370,7 +1369,8 @@ impl TextInput {
                                 };
                                 self.execute_command(indent_command, state);
 
-                                let new_offset = state.cursor.byte_offset.saturating_add(indent.len());
+                                let new_offset =
+                                    state.cursor.byte_offset.saturating_add(indent.len());
                                 self.move_cursor_to_byte_offset(new_offset, state);
                             }
                         }
@@ -1401,8 +1401,10 @@ impl TextInput {
                             };
                             self.execute_command(command, state);
 
-                            let new_offset =
-                                state.cursor.byte_offset.saturating_add(suggestion.insert_text.len());
+                            let new_offset = state
+                                .cursor
+                                .byte_offset
+                                .saturating_add(suggestion.insert_text.len());
                             self.move_cursor_to_byte_offset(new_offset, state);
 
                             state.show_suggestions = false;

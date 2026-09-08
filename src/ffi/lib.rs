@@ -6,8 +6,8 @@
 //! - Packed parameter passing
 //! - Zero-copy operations where possible
 
-use crate::core::surface::{Surface, Cell, Rgba, Attr};
 use crate::core::renderer::Renderer;
+use crate::core::surface::{Attr, Cell, Rgba, Surface};
 
 /// FFI Buffer handle (opaque pointer to Surface)
 #[repr(C)]
@@ -24,14 +24,12 @@ pub(crate) fn f32_ptr_to_rgba(ptr: *const f32) -> Rgba {
     unsafe {
         Rgba::new(
             *ptr.offset(0),
-            *ptr.offset(1), 
+            *ptr.offset(1),
             *ptr.offset(2),
             *ptr.offset(3),
         )
     }
 }
-
-
 
 //
 // RENDERER MANAGEMENT
@@ -39,10 +37,7 @@ pub(crate) fn f32_ptr_to_rgba(ptr: *const f32) -> Rgba {
 
 /// Create a new renderer
 #[no_mangle]
-pub extern "C" fn createRenderer(
-    width: u32,
-    height: u32,
-) -> *mut RTuiRenderer {
+pub extern "C" fn createRenderer(width: u32, height: u32) -> *mut RTuiRenderer {
     if width == 0 || height == 0 {
         return std::ptr::null_mut();
     }
@@ -66,7 +61,7 @@ pub extern "C" fn destroyRenderer(
     if renderer.is_null() {
         return;
     }
-    
+
     let renderer_ptr = renderer as *mut Renderer;
     unsafe {
         let mut renderer_box = Box::from_raw(renderer_ptr);
@@ -96,17 +91,14 @@ pub extern "C" fn destroyRenderer(
 
 /// Set renderer background color
 #[no_mangle]
-pub extern "C" fn setBackgroundColor(
-    renderer: *mut RTuiRenderer,
-    color: *const f32,
-) {
+pub extern "C" fn setBackgroundColor(renderer: *mut RTuiRenderer, color: *const f32) {
     if renderer.is_null() || color.is_null() {
         return;
     }
 
     let renderer_ref = unsafe { &mut *(renderer as *mut Renderer) };
     let bg_color = f32_ptr_to_rgba(color);
-    
+
     // Apply background color to renderer's surface
     renderer_ref.surface_mut().clear(bg_color);
 }
@@ -119,7 +111,7 @@ pub extern "C" fn render(renderer: *mut RTuiRenderer, force: bool) {
     }
 
     let renderer_ref = unsafe { &mut *(renderer as *mut Renderer) };
-    
+
     if force {
         let _ = renderer_ref.begin_frame();
     }
@@ -128,11 +120,7 @@ pub extern "C" fn render(renderer: *mut RTuiRenderer, force: bool) {
 
 /// Resize renderer
 #[no_mangle]
-pub extern "C" fn resizeRenderer(
-    renderer: *mut RTuiRenderer,
-    width: u32,
-    height: u32,
-) {
+pub extern "C" fn resizeRenderer(renderer: *mut RTuiRenderer, width: u32, height: u32) {
     if renderer.is_null() || width == 0 || height == 0 {
         return;
     }
@@ -171,7 +159,7 @@ pub extern "C" fn destroyOptimizedBuffer(buffer: *mut RTuiBuffer) {
     if buffer.is_null() {
         return;
     }
-    
+
     let buffer_ptr = buffer as *mut Surface;
     unsafe {
         let _ = Box::from_raw(buffer_ptr);
@@ -481,7 +469,11 @@ pub extern "C" fn bufferGetAttributesPtr(buffer: *mut RTuiBuffer) -> *mut u8 {
     let surface = unsafe { &*(buffer as *const Surface) };
 
     // Extract attributes into a contiguous u8 array
-    let attrs: Vec<u8> = surface.cells().iter().map(|cell| cell.attr.bits()).collect();
+    let attrs: Vec<u8> = surface
+        .cells()
+        .iter()
+        .map(|cell| cell.attr.bits())
+        .collect();
 
     // Convert to boxed slice and leak to return stable pointer
     let boxed = attrs.into_boxed_slice();
@@ -628,12 +620,10 @@ pub extern "C" fn renderSurfaceToTerminal(
 
             // Render to terminal using begin/end frame
             match renderer.begin_frame() {
-                Ok(_) => {
-                    match renderer.end_frame() {
-                        Ok(_) => true,
-                        Err(_) => false,
-                    }
-                }
+                Ok(_) => match renderer.end_frame() {
+                    Ok(_) => true,
+                    Err(_) => false,
+                },
                 Err(_) => false,
             }
         }
@@ -661,10 +651,10 @@ pub extern "C" fn renderTextToTerminal(
     let surface = createOptimizedBuffer(
         width,
         height,
-        false, // respect_alpha
-        0,     // width_method
+        false,            // respect_alpha
+        0,                // width_method
         std::ptr::null(), // id_ptr
-        0      // id_len
+        0,                // id_len
     );
     if surface.is_null() {
         return false;
@@ -724,12 +714,15 @@ pub extern "C" fn renderWithStats(
                     // Log stats if enabled
                     if collect_stats {
                         let metrics = renderer_ref.performance_metrics();
-                        super::stats::log_message(super::stats::LogLevel::Debug, &format!(
-                            "Render Stats: {:.2}ms, {} bytes, {:.1} FPS",
-                            metrics.avg_frame_time.as_secs_f32() * 1000.0,
-                            renderer_ref.write_stats().total_bytes,
-                            metrics.fps
-                        ));
+                        super::stats::log_message(
+                            super::stats::LogLevel::Debug,
+                            &format!(
+                                "Render Stats: {:.2}ms, {} bytes, {:.1} FPS",
+                                metrics.avg_frame_time.as_secs_f32() * 1000.0,
+                                renderer_ref.write_stats().total_bytes,
+                                metrics.fps
+                            ),
+                        );
                     }
                     true
                 }
@@ -739,5 +732,3 @@ pub extern "C" fn renderWithStats(
         Err(_) => false,
     }
 }
-
-

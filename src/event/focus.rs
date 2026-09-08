@@ -84,12 +84,20 @@ impl FocusManager {
 
     /// Register a node as focusable
     /// Returns true if successful, false if the node ID is invalid
-    pub fn register_focusable(&mut self, node_id: NodeId, tab_index: Option<i32>, enabled: bool) -> bool {
+    pub fn register_focusable(
+        &mut self,
+        node_id: NodeId,
+        tab_index: Option<i32>,
+        enabled: bool,
+    ) -> bool {
         // Validate tab index range
         if let Some(index) = tab_index {
             if !(-1000..=1000).contains(&index) {
                 #[cfg(feature = "debug")]
-                eprintln!("Warning: Tab index {} is outside recommended range [-1000, 1000]", index);
+                eprintln!(
+                    "Warning: Tab index {} is outside recommended range [-1000, 1000]",
+                    index
+                );
             }
         }
 
@@ -132,7 +140,14 @@ impl FocusManager {
 
     /// Update spatial information for a node
     /// Returns true if successful, false if coordinates are invalid
-    pub fn update_spatial(&mut self, node_id: NodeId, x: f32, y: f32, width: f32, height: f32) -> bool {
+    pub fn update_spatial(
+        &mut self,
+        node_id: NodeId,
+        x: f32,
+        y: f32,
+        width: f32,
+        height: f32,
+    ) -> bool {
         // Validate spatial coordinates
         if !x.is_finite() || !y.is_finite() || !width.is_finite() || !height.is_finite() {
             #[cfg(feature = "debug")]
@@ -143,8 +158,10 @@ impl FocusManager {
 
         if width < 0.0 || height < 0.0 {
             #[cfg(feature = "debug")]
-            eprintln!("Warning: Negative dimensions for node {:?}: width={}, height={}",
-                     node_id, width, height);
+            eprintln!(
+                "Warning: Negative dimensions for node {:?}: width={}, height={}",
+                node_id, width, height
+            );
             return false;
         }
 
@@ -191,18 +208,24 @@ impl FocusManager {
 
             // Emit Lost event for old element (if any)
             if let Some(old_id) = old_focus {
-                events.push((old_id, FocusEvent {
-                    kind: FocusEventKind::Lost,
-                    timestamp: Instant::now(),
-                }));
+                events.push((
+                    old_id,
+                    FocusEvent {
+                        kind: FocusEventKind::Lost,
+                        timestamp: Instant::now(),
+                    },
+                ));
             }
 
             // Emit Gained event for new element (if any)
             if let Some(new_id) = node_id {
-                events.push((new_id, FocusEvent {
-                    kind: FocusEventKind::Gained,
-                    timestamp: Instant::now(),
-                }));
+                events.push((
+                    new_id,
+                    FocusEvent {
+                        kind: FocusEventKind::Gained,
+                        timestamp: Instant::now(),
+                    },
+                ));
             }
 
             events
@@ -218,7 +241,10 @@ impl FocusManager {
 
     /// Move focus in a direction
     /// Returns the focused node ID and optionally a focus event
-    pub fn move_focus(&mut self, direction: FocusDirection) -> (Option<NodeId>, Option<FocusEvent>) {
+    pub fn move_focus(
+        &mut self,
+        direction: FocusDirection,
+    ) -> (Option<NodeId>, Option<FocusEvent>) {
         match direction {
             FocusDirection::Next => self.focus_next(),
             FocusDirection::Previous => self.focus_previous(),
@@ -361,7 +387,9 @@ impl FocusManager {
         // Get nodes to search - respect focus traps
         let search_nodes: Vec<NodeId> = if let Some(active_trap) = self.get_active_trap() {
             // If there's an active trap, only search within trapped nodes that have spatial info
-            active_trap.trapped_nodes.iter()
+            active_trap
+                .trapped_nodes
+                .iter()
                 .filter(|&&node_id| self.spatial_map.contains_key(&node_id))
                 .copied()
                 .collect()
@@ -464,12 +492,12 @@ impl FocusManager {
                 // Set focus directly without adding to history
                 let old_focus = self.current;
                 self.current = Some(prev);
-                
+
                 // Emit focus events
                 if old_focus != Some(prev) {
                     // Could emit events here if needed, but for now just return the node
                 }
-                
+
                 Some(prev)
             } else {
                 // Try next in history
@@ -580,14 +608,16 @@ impl FocusManager {
         let target_sort_key = sort_key(target_index);
 
         // Find the correct insertion position using binary search
-        let insert_pos = self.tab_order
+        let insert_pos = self
+            .tab_order
             .binary_search_by(|&existing_id| {
                 if let Some(existing_info) = self.focusable_nodes.get(&existing_id) {
                     let existing_index = existing_info.tab_index.unwrap_or(0);
                     let existing_sort_key = sort_key(existing_index);
 
                     // Compare sort keys (with negative indices mapped to i32::MAX), then node IDs for stability
-                    existing_sort_key.cmp(&target_sort_key)
+                    existing_sort_key
+                        .cmp(&target_sort_key)
                         .then(existing_id.cmp(&node_id))
                 } else {
                     // If node info is missing, treat as greater to push to end

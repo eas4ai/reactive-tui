@@ -2,8 +2,8 @@
 //!
 //! Pre-computed color values and LRU caching for dynamic colors
 
-use once_cell::sync::Lazy;
 use lru::LruCache;
+use once_cell::sync::Lazy;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::num::NonZeroUsize;
@@ -14,12 +14,12 @@ type ColorTuple = (u8, u8, u8, f32);
 /// Pre-computed utility color palette
 static TAILWIND_COLORS: Lazy<HashMap<&'static str, ColorTuple>> = Lazy::new(|| {
     let mut m = HashMap::with_capacity(300);
-    
+
     // Basic colors
     m.insert("black", (0, 0, 0, 1.0));
     m.insert("white", (255, 255, 255, 1.0));
     m.insert("transparent", (0, 0, 0, 0.0));
-    
+
     // Slate palette
     m.insert("slate-50", (248, 250, 252, 1.0));
     m.insert("slate-100", (241, 245, 249, 1.0));
@@ -32,7 +32,7 @@ static TAILWIND_COLORS: Lazy<HashMap<&'static str, ColorTuple>> = Lazy::new(|| {
     m.insert("slate-800", (30, 41, 59, 1.0));
     m.insert("slate-900", (15, 23, 42, 1.0));
     m.insert("slate-950", (2, 6, 23, 1.0));
-    
+
     // Gray palette
     m.insert("gray-50", (249, 250, 251, 1.0));
     m.insert("gray-100", (243, 244, 246, 1.0));
@@ -45,7 +45,7 @@ static TAILWIND_COLORS: Lazy<HashMap<&'static str, ColorTuple>> = Lazy::new(|| {
     m.insert("gray-800", (31, 41, 55, 1.0));
     m.insert("gray-900", (17, 24, 39, 1.0));
     m.insert("gray-950", (3, 7, 18, 1.0));
-    
+
     // Zinc palette
     m.insert("zinc-50", (250, 250, 250, 1.0));
     m.insert("zinc-100", (244, 244, 245, 1.0));
@@ -58,7 +58,7 @@ static TAILWIND_COLORS: Lazy<HashMap<&'static str, ColorTuple>> = Lazy::new(|| {
     m.insert("zinc-800", (39, 39, 42, 1.0));
     m.insert("zinc-900", (24, 24, 27, 1.0));
     m.insert("zinc-950", (9, 9, 11, 1.0));
-    
+
     // Red palette
     m.insert("red-50", (254, 242, 242, 1.0));
     m.insert("red-100", (254, 226, 226, 1.0));
@@ -71,7 +71,7 @@ static TAILWIND_COLORS: Lazy<HashMap<&'static str, ColorTuple>> = Lazy::new(|| {
     m.insert("red-800", (153, 27, 27, 1.0));
     m.insert("red-900", (127, 29, 29, 1.0));
     m.insert("red-950", (69, 10, 10, 1.0));
-    
+
     // Blue palette
     m.insert("blue-50", (239, 246, 255, 1.0));
     m.insert("blue-100", (219, 234, 254, 1.0));
@@ -84,8 +84,8 @@ static TAILWIND_COLORS: Lazy<HashMap<&'static str, ColorTuple>> = Lazy::new(|| {
     m.insert("blue-800", (30, 64, 175, 1.0));
     m.insert("blue-900", (30, 58, 138, 1.0));
     m.insert("blue-950", (23, 37, 84, 1.0));
-    
-    // Green palette  
+
+    // Green palette
     m.insert("green-50", (240, 253, 244, 1.0));
     m.insert("green-100", (220, 252, 231, 1.0));
     m.insert("green-200", (187, 247, 208, 1.0));
@@ -97,7 +97,7 @@ static TAILWIND_COLORS: Lazy<HashMap<&'static str, ColorTuple>> = Lazy::new(|| {
     m.insert("green-800", (22, 101, 52, 1.0));
     m.insert("green-900", (20, 83, 45, 1.0));
     m.insert("green-950", (5, 46, 22, 1.0));
-    
+
     // Yellow palette
     m.insert("yellow-50", (254, 252, 232, 1.0));
     m.insert("yellow-100", (254, 249, 195, 1.0));
@@ -110,7 +110,7 @@ static TAILWIND_COLORS: Lazy<HashMap<&'static str, ColorTuple>> = Lazy::new(|| {
     m.insert("yellow-800", (133, 77, 14, 1.0));
     m.insert("yellow-900", (113, 63, 18, 1.0));
     m.insert("yellow-950", (66, 32, 6, 1.0));
-    
+
     // Purple palette
     m.insert("purple-50", (250, 245, 255, 1.0));
     m.insert("purple-100", (243, 232, 255, 1.0));
@@ -123,7 +123,7 @@ static TAILWIND_COLORS: Lazy<HashMap<&'static str, ColorTuple>> = Lazy::new(|| {
     m.insert("purple-800", (107, 33, 168, 1.0));
     m.insert("purple-900", (88, 28, 135, 1.0));
     m.insert("purple-950", (59, 7, 100, 1.0));
-    
+
     m
 });
 
@@ -147,11 +147,9 @@ pub fn get_cached_color(token: &str) -> Option<ColorTuple> {
     if let Some(color) = get_utility_color(token) {
         return Some(color);
     }
-    
+
     // Then check dynamic cache
-    DYNAMIC_COLOR_CACHE.with(|cache| {
-        cache.borrow_mut().get(token).copied()
-    })
+    DYNAMIC_COLOR_CACHE.with(|cache| cache.borrow_mut().get(token).copied())
 }
 
 /// Cache a dynamically parsed color
@@ -167,7 +165,7 @@ pub fn parse_hex_cached(hex: &str) -> Option<ColorTuple> {
     if let Some(color) = get_cached_color(hex) {
         return Some(color);
     }
-    
+
     // Parse hex color
     let hex = hex.strip_prefix('#').unwrap_or(hex);
     let (r, g, b, a) = match hex.len() {
@@ -199,7 +197,7 @@ pub fn parse_hex_cached(hex: &str) -> Option<ColorTuple> {
         }
         _ => return None,
     };
-    
+
     let color = (r, g, b, a);
     cache_color(hex.to_string(), color);
     Some(color)
@@ -211,7 +209,7 @@ pub fn parse_rgb_cached(rgb: &str) -> Option<ColorTuple> {
     if let Some(color) = get_cached_color(rgb) {
         return Some(color);
     }
-    
+
     // Parse rgb(r, g, b) or rgba(r, g, b, a)
     let inner = if let Some(inner) = rgb.strip_prefix("rgb(").and_then(|s| s.strip_suffix(')')) {
         inner
@@ -220,7 +218,7 @@ pub fn parse_rgb_cached(rgb: &str) -> Option<ColorTuple> {
     } else {
         return None;
     };
-    
+
     let parts: Vec<&str> = inner.split(',').map(|s| s.trim()).collect();
     let color = match parts.len() {
         3 => {
@@ -238,7 +236,7 @@ pub fn parse_rgb_cached(rgb: &str) -> Option<ColorTuple> {
         }
         _ => return None,
     };
-    
+
     cache_color(rgb.to_string(), color);
     Some(color)
 }

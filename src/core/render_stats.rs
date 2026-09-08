@@ -250,14 +250,16 @@ impl RenderStatsCollector {
         };
 
         // Component metrics calculations
-        let total_component_creation_time: Duration = self.samples.iter().map(|s| s.component_creation_time).sum();
+        let total_component_creation_time: Duration =
+            self.samples.iter().map(|s| s.component_creation_time).sum();
         let avg_component_creation_time = if sample_count > 0.0 {
             total_component_creation_time / sample_count as u32
         } else {
             Duration::ZERO
         };
 
-        let total_component_cleanup_time: Duration = self.samples.iter().map(|s| s.component_cleanup_time).sum();
+        let total_component_cleanup_time: Duration =
+            self.samples.iter().map(|s| s.component_cleanup_time).sum();
         let avg_component_cleanup_time = if sample_count > 0.0 {
             total_component_cleanup_time / sample_count as u32
         } else {
@@ -265,11 +267,23 @@ impl RenderStatsCollector {
         };
 
         // Current active components (from latest sample)
-        let active_components = self.samples.back().map(|s| s.active_components).unwrap_or(0);
+        let active_components = self
+            .samples
+            .back()
+            .map(|s| s.active_components)
+            .unwrap_or(0);
 
         // Total components created/destroyed across all samples
-        let total_components_created: u64 = self.samples.iter().map(|s| s.components_created as u64).sum();
-        let total_components_destroyed: u64 = self.samples.iter().map(|s| s.components_destroyed as u64).sum();
+        let total_components_created: u64 = self
+            .samples
+            .iter()
+            .map(|s| s.components_created as u64)
+            .sum();
+        let total_components_destroyed: u64 = self
+            .samples
+            .iter()
+            .map(|s| s.components_destroyed as u64)
+            .sum();
 
         // Component creation/cleanup rates (per second)
         let time_span_secs = if self.samples.len() > 1 {
@@ -355,7 +369,8 @@ impl RenderStatsCollector {
             total_created: metrics.total_components_created,
             total_destroyed: metrics.total_components_destroyed,
             creation_efficiency: if metrics.avg_component_creation_time.as_nanos() > 0 {
-                1_000_000.0 / metrics.avg_component_creation_time.as_nanos() as f32 // components per millisecond
+                1_000_000.0 / metrics.avg_component_creation_time.as_nanos() as f32
+            // components per millisecond
             } else {
                 f32::INFINITY
             },

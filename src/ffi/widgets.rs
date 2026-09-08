@@ -65,7 +65,11 @@ pub extern "C" fn rtui_checkbox_create(
             let label_str = CStr::from_ptr(label)
                 .to_str()
                 .map_err(|_| ReactiveError::InvalidUtf8)?;
-            format!("[{}] {}", if initial_checked { "x" } else { " " }, label_str)
+            format!(
+                "[{}] {}",
+                if initial_checked { "x" } else { " " },
+                label_str
+            )
         } else {
             format!("[{}]", if initial_checked { "x" } else { " " })
         };
@@ -97,7 +101,9 @@ pub extern "C" fn rtui_progress_bar_create(
         builder = builder.class("progress-bar border rounded");
 
         let percentage = if max_value > min_value {
-            ((current_value - min_value) / (max_value - min_value) * 100.0).min(100.0).max(0.0)
+            ((current_value - min_value) / (max_value - min_value) * 100.0)
+                .min(100.0)
+                .max(0.0)
         } else {
             0.0
         };
@@ -136,7 +142,9 @@ pub extern "C" fn rtui_button_create(
             .map_err(|_| ReactiveError::InvalidUtf8)?;
 
         let mut builder = ElementBuilder::new(ElementType::Layout(LayoutType::Flex));
-        builder = builder.class("button px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 cursor-pointer");
+        builder = builder.class(
+            "button px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 cursor-pointer",
+        );
         builder = builder.text(text_str);
 
         let element = builder.build();

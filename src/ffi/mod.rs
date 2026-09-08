@@ -8,10 +8,10 @@ use std::os::raw::c_char;
 use std::panic::{self, AssertUnwindSafe};
 
 // Core modern FFI modules
-mod lib;                // Main FFI interface
-mod terminal;           // Terminal control
-mod text;               // Text buffer operations
-mod stats;              // Performance monitoring and debugging
+mod lib; // Main FFI interface
+mod stats;
+mod terminal; // Terminal control
+mod text; // Text buffer operations // Performance monitoring and debugging
 
 mod animation;
 mod app;
@@ -27,34 +27,52 @@ mod widgets;
 
 // Export modern FFI API as primary interface
 pub use lib::{
-    createRenderer, destroyRenderer, setBackgroundColor, render, resizeRenderer,
-    createOptimizedBuffer, destroyOptimizedBuffer, getBufferWidth, getBufferHeight,
-    bufferClear, bufferDrawText, bufferSetCellWithAlphaBlending, bufferFillRect,
-    bufferGetCharPtr, bufferGetFgPtr, bufferGetBgPtr, bufferGetAttributesPtr,
-    bufferReleaseCharPtr, bufferReleaseFgPtr, bufferReleaseBgPtr, bufferReleaseAttrPtr,
-    bufferGetRespectAlpha, bufferSetRespectAlpha, bufferResize,
+    bufferClear,
+    bufferDrawText,
+    bufferFillRect,
+    bufferGetAttributesPtr,
+    bufferGetBgPtr,
+    bufferGetCharPtr,
+    bufferGetFgPtr,
+    bufferGetRespectAlpha,
+    bufferReleaseAttrPtr,
+    bufferReleaseBgPtr,
+    bufferReleaseCharPtr,
+    bufferReleaseFgPtr,
+    bufferResize,
+    bufferSetCellWithAlphaBlending,
+    bufferSetRespectAlpha,
+    createOptimizedBuffer,
+    createRenderer,
+    destroyOptimizedBuffer,
+    destroyRenderer,
+    getBufferHeight,
+    getBufferWidth,
+    render,
     // System integration functions
-    renderSurfaceToTerminal, renderTextToTerminal, renderWithStats,
-};
-pub use terminal::{
-    createTerminal, destroyTerminal, setupTerminal, clearTerminal,
-    getTerminalCapabilities, processCapabilityResponse, setCursorPosition,
-    setCursorStyle, setCursorColor, setTerminalTitle, enableMouse, disableMouse,
-    enableKittyKeyboard, disableKittyKeyboard, Capabilities, CursorStyle,
-};
-pub use text::{
-    createTextBuffer, destroyTextBuffer, textBufferGetCharPtr, textBufferGetLength,
-    textBufferGetCapacity, textBufferResize, textBufferReset, textBufferWriteChunk,
-    textBufferSetSelection, textBufferResetSelection, textBufferGetSelectionInfo,
-    textBufferSetDefaultFg, textBufferSetDefaultBg, textBufferSetDefaultAttributes,
-    textBufferResetDefaults, renderTextBufferToSurface, renderTextBufferToRenderer,
-    renderTextBufferDirect, RTuiTextBuffer, LineInfo,
+    renderSurfaceToTerminal,
+    renderTextToTerminal,
+    renderWithStats,
+    resizeRenderer,
+    setBackgroundColor,
 };
 pub use stats::{
-    updateStats, updateMemoryStats, setRenderOffset, setDebugOverlay,
-    addToHitGrid, checkHit, dumpHitGrid, dumpBuffers, dumpStdoutBuffer,
-    setLogCallback, startProfiling, stopProfiling, getFrameStats,
-    resetPerformanceCounters, DebugOverlayCorner, LogLevel, LogCallback,
+    addToHitGrid, checkHit, dumpBuffers, dumpHitGrid, dumpStdoutBuffer, getFrameStats,
+    resetPerformanceCounters, setDebugOverlay, setLogCallback, setRenderOffset, startProfiling,
+    stopProfiling, updateMemoryStats, updateStats, DebugOverlayCorner, LogCallback, LogLevel,
+};
+pub use terminal::{
+    clearTerminal, createTerminal, destroyTerminal, disableKittyKeyboard, disableMouse,
+    enableKittyKeyboard, enableMouse, getTerminalCapabilities, processCapabilityResponse,
+    setCursorColor, setCursorPosition, setCursorStyle, setTerminalTitle, setupTerminal,
+    Capabilities, CursorStyle,
+};
+pub use text::{
+    createTextBuffer, destroyTextBuffer, renderTextBufferDirect, renderTextBufferToRenderer,
+    renderTextBufferToSurface, textBufferGetCapacity, textBufferGetCharPtr, textBufferGetLength,
+    textBufferGetSelectionInfo, textBufferReset, textBufferResetDefaults, textBufferResetSelection,
+    textBufferResize, textBufferSetDefaultAttributes, textBufferSetDefaultBg,
+    textBufferSetDefaultFg, textBufferSetSelection, textBufferWriteChunk, LineInfo, RTuiTextBuffer,
 };
 
 pub use self::reactive::*;

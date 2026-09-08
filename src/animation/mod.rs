@@ -30,16 +30,21 @@ pub mod state;
 pub use core::AnimationConfig;
 pub use easing::{ease_value, EasingFunction};
 pub use keyframes::{Keyframe, KeyframeAnimation};
-pub use properties::{AnimatedProperty, CssValue, PropertyAnimation, TransformMatrix, TransformProperty};
+pub use properties::{
+    AnimatedProperty, CssValue, PropertyAnimation, TransformMatrix, TransformProperty,
+};
 pub use spring::SpringConfig;
 pub use stagger::StaggerConfig;
-pub use state::{AnimatedValue, AnimationRuntime, AnimationRuntimeState, AnimationState, AnimationValue, LoopMode};
+pub use state::{
+    AnimatedValue, AnimationRuntime, AnimationRuntimeState, AnimationState, AnimationValue,
+    LoopMode,
+};
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
-use std::sync::atomic::{AtomicU64, Ordering};
 
 // Type aliases for complex function pointer types
 type OnStartCallback = Arc<dyn Fn(&Animation) + Send + Sync>;
@@ -76,7 +81,7 @@ impl MonotonicTimer {
     pub fn now(&self) -> Duration {
         let current = self.base_time.elapsed();
         let current_nanos = current.as_nanos() as u64;
-        
+
         // Ensure time only moves forward
         let last = self.last_time.load(Ordering::Acquire);
         let monotonic_nanos = if current_nanos > last {
@@ -87,7 +92,7 @@ impl MonotonicTimer {
             // Time manipulation detected: use last known good time
             last
         };
-        
+
         // Protect against overflow
         let safe_nanos = monotonic_nanos.min(u64::MAX / 2);
         Duration::from_nanos(safe_nanos)
@@ -198,7 +203,7 @@ impl AnimationController {
 // See easing::EasingFunction for the complete implementation
 
 /// Callbacks for animation lifecycle events
-/// 
+///
 /// This struct holds optional callbacks that are triggered at various
 /// points in an animation's lifecycle, allowing for custom behavior
 /// on start, update, completion, loop, pause, and stop events.
@@ -251,12 +256,7 @@ impl Animation {
         };
 
         Self {
-            id: format!(
-                "anim_{}",
-                get_monotonic_timer()
-                    .elapsed()
-                    .as_millis()
-            ),
+            id: format!("anim_{}", get_monotonic_timer().elapsed().as_millis()),
             property: AnimatedProperty::Opacity(0.0, 1.0),
             config: AnimationConfig {
                 duration,
@@ -1016,41 +1016,45 @@ impl AnimationManager {
         // Remove completed animations
         self.animations
             .retain(|_, animation| !animation.is_completed());
-        
+
         // Remove completed timelines, handling lock failures gracefully
         self.timelines.retain(|id, timeline| {
             match timeline.state.read() {
                 Ok(state) => *state != AnimationState::Completed,
                 Err(e) => {
                     // If we can't read the state, the lock is poisoned - remove it
-                    eprintln!("Warning: Removing timeline {} due to poisoned lock: {}", id, e);
+                    eprintln!(
+                        "Warning: Removing timeline {} due to poisoned lock: {}",
+                        id, e
+                    );
                     false
                 }
             }
         });
     }
-    
+
     /// Clean up all animations including failed/stuck ones
     /// Returns the number of animations cleaned up
     pub fn cleanup_all_stale(&mut self, stale_threshold: Duration) -> usize {
         let timer = get_monotonic_timer();
         let now = timer.base_time + timer.now();
         let mut removed = 0;
-        
+
         // Remove animations that are completed or haven't updated recently
         self.animations.retain(|id, animation| {
             let should_keep = if animation.is_completed() {
                 false
             } else if let Some(start_time) = animation.start_time {
                 // Keep animations that started recently or are still progressing
-                now.duration_since(start_time) < stale_threshold || 
-                animation.runtime.last_frame_time.is_some_and(|t| 
-                    now.duration_since(t) < stale_threshold
-                )
+                now.duration_since(start_time) < stale_threshold
+                    || animation
+                        .runtime
+                        .last_frame_time
+                        .is_some_and(|t| now.duration_since(t) < stale_threshold)
             } else {
                 true // Keep animations that haven't started yet
             };
-            
+
             if !should_keep {
                 removed += 1;
                 #[cfg(debug_assertions)]
@@ -1058,7 +1062,7 @@ impl AnimationManager {
             }
             should_keep
         });
-        
+
         // Remove stale timelines
         self.timelines.retain(|id, timeline| {
             let should_keep = match timeline.state.read() {
@@ -1068,14 +1072,14 @@ impl AnimationManager {
                     false // Remove poisoned timelines
                 }
             };
-            
+
             if !should_keep {
                 #[cfg(debug_assertions)]
                 eprintln!("Cleaning up stale timeline: {}", id);
             }
             should_keep
         });
-        
+
         removed
     }
 
@@ -1387,7 +1391,10 @@ mod tests {
             let end = EasingFunction::Steps(count, false);
             for boundary in 0..=count {
                 let progress = boundary as f32 / count as f32;
-                assert_eq!(start.apply(progress), (boundary + 1).min(count) as f32 / count as f32);
+                assert_eq!(
+                    start.apply(progress),
+                    (boundary + 1).min(count) as f32 / count as f32
+                );
                 assert_eq!(end.apply(progress), boundary as f32 / count as f32);
                 if boundary > 0 {
                     let before = progress - 0.001;

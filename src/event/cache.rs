@@ -10,7 +10,7 @@ use std::num::NonZeroUsize;
 use std::sync::Arc;
 
 /// Event type discriminant for zero-cost dispatch
-/// 
+///
 /// Uses Rust's discriminant mechanism to avoid string comparisons
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 #[repr(u8)]
@@ -85,7 +85,7 @@ impl HandlerChain {
                 EventResult::Captured | EventResult::Handled | EventResult::Ignored => {}
             }
         }
-        
+
         EventResult::Ignored
     }
 }
@@ -125,11 +125,11 @@ impl PathCache {
         // Check inline cache first (no allocation, no locks)
         let hash = (from.0 ^ to.0) & 0x7;
         let entry = &self.inline_cache[hash];
-        
+
         if entry.0 == from && entry.1 == to {
             return entry.2.clone();
         }
-        
+
         // Fall back to LRU
         self.lru.borrow_mut().get(&(from, to)).cloned()
     }
@@ -139,7 +139,7 @@ impl PathCache {
         // Update inline cache
         let hash = (from.0 ^ to.0) & 0x7;
         self.inline_cache[hash] = (from, to, Some(path.clone()));
-        
+
         // Also update LRU
         self.lru.borrow_mut().put((from, to), path);
     }
@@ -190,20 +190,31 @@ impl HandlerLookup {
             EventPhase::Target => 1,
             EventPhase::Bubble => 2,
         };
-        
+
         node_bucket * Self::EVENTS_COUNT * Self::PHASES_COUNT
             + event_offset * Self::PHASES_COUNT
             + phase_offset
     }
 
     /// Get handler chain for a specific node, event type, and phase
-    pub fn get(&self, node_id: NodeId, event: EventDiscriminant, phase: EventPhase) -> Option<&Arc<HandlerChain>> {
+    pub fn get(
+        &self,
+        node_id: NodeId,
+        event: EventDiscriminant,
+        phase: EventPhase,
+    ) -> Option<&Arc<HandlerChain>> {
         let idx = self.index(node_id, event, phase);
         self.buckets[idx].as_ref()
     }
 
     /// Insert a handler chain for a specific node, event type, and phase
-    pub fn insert(&mut self, node_id: NodeId, event: EventDiscriminant, phase: EventPhase, chain: Arc<HandlerChain>) {
+    pub fn insert(
+        &mut self,
+        node_id: NodeId,
+        event: EventDiscriminant,
+        phase: EventPhase,
+        chain: Arc<HandlerChain>,
+    ) {
         let idx = self.index(node_id, event, phase);
         self.buckets[idx] = Some(chain);
     }
@@ -237,11 +248,11 @@ impl EventBatch {
     {
         self.results.clear();
         self.results.reserve(self.events.len());
-        
+
         for (event, target) in &self.events {
             self.results.push(router(event, *target));
         }
-        
+
         &self.results
     }
 }

@@ -119,27 +119,27 @@ impl DialogBuffer {
     fn apply_blur_effect(&self, surface: &mut Surface) {
         // Production Gaussian blur implementation with separable convolution
         // Use two-pass separable filter for optimal performance O(n*r) instead of O(n*r²)
-        
+
         let blur_radius = 2.0;
         let sigma = blur_radius / 2.0;
-        
+
         // Generate 1D Gaussian kernel
         let kernel_size = (blur_radius * 2.0_f64).ceil() as usize * 2 + 1;
         let mut kernel = vec![0.0; kernel_size];
         let center = kernel_size / 2;
         let mut sum = 0.0;
-        
+
         for (i, kernel_item) in kernel.iter_mut().enumerate().take(kernel_size) {
             let x = (i as f64 - center as f64) / sigma;
             *kernel_item = (-0.5 * x * x).exp();
             sum += *kernel_item;
         }
-        
+
         // Normalize kernel
         for k in &mut kernel {
             *k /= sum;
         }
-        
+
         // Create temporary buffer for first pass
         let _temp_buffer = Surface::new(surface.size().width, surface.size().height);
         let size = surface.size();

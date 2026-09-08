@@ -6,11 +6,11 @@ pub fn parse_px(token: &str, prefix: &str) -> Option<f32> {
     // Protect against DoS attacks - limit input length
     const MAX_TOKEN_LENGTH: usize = 64;
     const MAX_PREFIX_LENGTH: usize = 16;
-    
+
     if token.len() > MAX_TOKEN_LENGTH || prefix.len() > MAX_PREFIX_LENGTH {
         return None;
     }
-    
+
     token.strip_prefix(prefix).and_then(|n| {
         // Additional length check on the remaining part
         if n.len() > 32 {
@@ -28,11 +28,11 @@ pub fn parse_spacing(token: &str, prefix: &str) -> Option<f32> {
     // Protect against DoS attacks - limit input length
     const MAX_TOKEN_LENGTH: usize = 64;
     const MAX_PREFIX_LENGTH: usize = 16;
-    
+
     if token.len() > MAX_TOKEN_LENGTH || prefix.len() > MAX_PREFIX_LENGTH {
         return None;
     }
-    
+
     token.strip_prefix(prefix).and_then(|n| {
         // Additional length check on the remaining part
         if n.len() > 16 {

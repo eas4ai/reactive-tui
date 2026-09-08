@@ -18,25 +18,27 @@ pub mod table;
 pub mod tree;
 
 pub use charts::{
-    Chart, ChartsBuilder, ChartProps, ChartState, ChartType, ChartAxis, ChartLegend,
-    DataPoint, DataSeries, LineStyle, FillStyle, LegendPosition
+    Chart, ChartAxis, ChartLegend, ChartProps, ChartState, ChartType, ChartsBuilder, DataPoint,
+    DataSeries, FillStyle, LegendPosition, LineStyle,
 };
 pub use data_table::{
-    DataTable, DataTableProps, DataTableState,
-    ColumnFilter, FilterType, PaginationConfig, VirtualScrollConfig
+    ColumnFilter, DataTable, DataTableProps, DataTableState, FilterType, PaginationConfig,
+    VirtualScrollConfig,
 };
 pub use file_explorer::{
-    FileExplorer, FileExplorerProps, FileExplorerState, FileExplorerBuilder,
-    FileEntry, FileType, SortCriteria, SortOrder, ViewMode, SelectionMode
+    FileEntry, FileExplorer, FileExplorerBuilder, FileExplorerProps, FileExplorerState, FileType,
+    SelectionMode, SortCriteria, SortOrder, ViewMode,
 };
 pub use image::{
     Image, ImageCapabilities, ImageDisplayMode, ImageFormat, ImageQuality, ImageSource,
 };
 pub use modal::Modal;
 pub use popover::Popover;
-pub use progress_bar::{ProgressBar, ProgressBarBuilder, ProgressBarProps, ProgressBarState, ProgressBarOrientation};
+pub use progress_bar::{
+    ProgressBar, ProgressBarBuilder, ProgressBarOrientation, ProgressBarProps, ProgressBarState,
+};
 pub use table::Table;
-pub use tree::{Tree, TreeBuilder, TreeProps, TreeState, TreeNode};
+pub use tree::{Tree, TreeBuilder, TreeNode, TreeProps, TreeState};
 
 /// Common display component utilities
 #[derive(Debug, Clone, PartialEq)]

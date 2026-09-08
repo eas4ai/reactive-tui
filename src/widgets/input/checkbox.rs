@@ -56,8 +56,7 @@ impl CheckboxBuilder {
 
     /// Build and render as an Element (convenience method)
     pub fn render(self) -> Element {
-        Element::component("Checkbox")
-            .with_props(self.build())
+        Element::component("Checkbox").with_props(self.build())
     }
 }
 

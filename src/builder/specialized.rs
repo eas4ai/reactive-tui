@@ -4,11 +4,9 @@
 //! that have complete implementations in the widgets module.
 
 use crate::component::Element;
-use crate::widgets::{
-    ImageDisplayMode, ImageFormat, ImageQuality, ImageSource,
-};
-use crate::widgets::display::tree::{TreeProps, TreeNode};
-use crate::widgets::layout::stack::{StackDirection, StackAlignment, StackJustify, StackPadding};
+use crate::widgets::display::tree::{TreeNode, TreeProps};
+use crate::widgets::layout::stack::{StackAlignment, StackDirection, StackJustify, StackPadding};
+use crate::widgets::{ImageDisplayMode, ImageFormat, ImageQuality, ImageSource};
 use std::path::PathBuf;
 
 /// Create a Tree view builder
@@ -90,14 +88,36 @@ impl TreeBuilder {
 
     /// Build the Tree element
     pub fn build(self) -> Element {
-        let selectable_text = if self.props.selectable { "selectable" } else { "non-selectable" };
-        let multi_text = if self.props.multi_select { ", multi-select" } else { "" };
-        let icons_text = if self.props.show_icons { ", with icons" } else { "" };
-        let lines_text = if self.props.show_lines { ", with lines" } else { "" };
-        let checkable_text = if self.props.checkable { ", checkable" } else { "" };
+        let selectable_text = if self.props.selectable {
+            "selectable"
+        } else {
+            "non-selectable"
+        };
+        let multi_text = if self.props.multi_select {
+            ", multi-select"
+        } else {
+            ""
+        };
+        let icons_text = if self.props.show_icons {
+            ", with icons"
+        } else {
+            ""
+        };
+        let lines_text = if self.props.show_lines {
+            ", with lines"
+        } else {
+            ""
+        };
+        let checkable_text = if self.props.checkable {
+            ", checkable"
+        } else {
+            ""
+        };
 
-        let display_text = format!("Tree ({}{}{}{}{})",
-            selectable_text, multi_text, icons_text, lines_text, checkable_text);
+        let display_text = format!(
+            "Tree ({}{}{}{}{})",
+            selectable_text, multi_text, icons_text, lines_text, checkable_text
+        );
 
         Element::text(display_text)
     }
@@ -143,8 +163,19 @@ impl ImageBuilder {
     }
 
     /// Set the image source from raw bytes with format
-    pub fn source_raw_bytes(mut self, data: Vec<u8>, width: u32, height: u32, format: ImageFormat) -> Self {
-        self.source = Some(ImageSource::RawBytes { data, width, height, format });
+    pub fn source_raw_bytes(
+        mut self,
+        data: Vec<u8>,
+        width: u32,
+        height: u32,
+        format: ImageFormat,
+    ) -> Self {
+        self.source = Some(ImageSource::RawBytes {
+            data,
+            width,
+            height,
+            format,
+        });
         self
     }
 
@@ -193,8 +224,10 @@ impl ImageBuilder {
                 String::new()
             };
 
-            let display_text = format!("Image (mode: {:?}, quality: {:?}{})",
-                self.display_mode, self.quality, format_text);
+            let display_text = format!(
+                "Image (mode: {:?}, quality: {:?}{})",
+                self.display_mode, self.quality, format_text
+            );
 
             Element::text(display_text)
         } else {
@@ -280,7 +313,10 @@ impl RadioButtonBuilder {
         let disabled_text = if self.disabled { " (disabled)" } else { "" };
 
         let display_text = if let Some(label) = &self.label {
-            format!("RadioButton ({}{}): {} = {}", state, disabled_text, label, self.value)
+            format!(
+                "RadioButton ({}{}): {} = {}",
+                state, disabled_text, label, self.value
+            )
         } else {
             format!("RadioButton ({}{}): {}", state, disabled_text, self.value)
         };
@@ -373,11 +409,15 @@ impl SliderBuilder {
         let disabled_text = if self.disabled { " (disabled)" } else { "" };
 
         let display_text = if let Some(label) = &self.label {
-            format!("Slider{}: {} = {} (range: {} to {}, step: {})",
-                disabled_text, label, self.value, self.min, self.max, self.step)
+            format!(
+                "Slider{}: {} = {} (range: {} to {}, step: {})",
+                disabled_text, label, self.value, self.min, self.max, self.step
+            )
         } else {
-            format!("Slider{}: {} (range: {} to {}, step: {})",
-                disabled_text, self.value, self.min, self.max, self.step)
+            format!(
+                "Slider{}: {} (range: {} to {}, step: {})",
+                disabled_text, self.value, self.min, self.max, self.step
+            )
         };
 
         Element::text(display_text)
@@ -462,10 +502,18 @@ impl ScrollViewBuilder {
             (false, false) => "none",
         };
 
-        let scrollbar_info = if self.show_scrollbars { "with scrollbars" } else { "no scrollbars" };
+        let scrollbar_info = if self.show_scrollbars {
+            "with scrollbars"
+        } else {
+            "no scrollbars"
+        };
 
-        let display_text = format!("ScrollView ({} scroll, {}) with {} items",
-            scroll_info, scrollbar_info, self.content.len());
+        let display_text = format!(
+            "ScrollView ({} scroll, {}) with {} items",
+            scroll_info,
+            scrollbar_info,
+            self.content.len()
+        );
 
         Element::text(display_text)
     }
@@ -564,8 +612,12 @@ impl StackBuilder {
             StackDirection::Vertical => "vertical",
         };
 
-        let display_text = format!("Stack ({} direction, {} children, spacing: {})",
-            direction_text, self.children.len(), self.spacing);
+        let display_text = format!(
+            "Stack ({} direction, {} children, spacing: {})",
+            direction_text,
+            self.children.len(),
+            self.spacing
+        );
 
         Element::text(display_text)
     }
@@ -659,7 +711,11 @@ impl DialogBuilder {
     /// Build the Dialog element
     pub fn build(self) -> Element {
         let modal_text = if self.modal { "modal" } else { "non-modal" };
-        let closable_text = if self.closable { "closable" } else { "non-closable" };
+        let closable_text = if self.closable {
+            "closable"
+        } else {
+            "non-closable"
+        };
 
         let title_text = if let Some(title) = &self.title {
             format!(" \"{}\"", title)
@@ -674,8 +730,14 @@ impl DialogBuilder {
             (None, None) => String::new(),
         };
 
-        let display_text = format!("Dialog{} ({}, {}, {} items{})",
-            title_text, modal_text, closable_text, self.content.len(), size_text);
+        let display_text = format!(
+            "Dialog{} ({}, {}, {} items{})",
+            title_text,
+            modal_text,
+            closable_text,
+            self.content.len(),
+            size_text
+        );
 
         Element::text(display_text)
     }
@@ -762,8 +824,10 @@ impl ConfirmationDialogBuilder {
             String::new()
         };
 
-        let display_text = format!("ConfirmationDialog{}{}: {} [{}] [{}]",
-            title_text, danger_text, self.message, self.confirm_text, self.cancel_text);
+        let display_text = format!(
+            "ConfirmationDialog{}{}: {} [{}] [{}]",
+            title_text, danger_text, self.message, self.confirm_text, self.cancel_text
+        );
 
         Element::text(display_text)
     }

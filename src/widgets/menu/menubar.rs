@@ -91,7 +91,7 @@ impl MenuBarState {
         if item_count == 0 {
             return;
         }
-        
+
         self.selected_index = Some(match self.selected_index {
             Some(idx) => (idx + 1) % item_count,
             None => 0,
@@ -103,7 +103,7 @@ impl MenuBarState {
         if item_count == 0 {
             return;
         }
-        
+
         self.selected_index = Some(match self.selected_index {
             Some(idx) => {
                 if idx == 0 {
@@ -121,7 +121,7 @@ impl MenuBarState {
         if submenu_count == 0 {
             return;
         }
-        
+
         self.submenu_selected_index = Some(match self.submenu_selected_index {
             Some(idx) => (idx + 1) % submenu_count,
             None => 0,
@@ -133,7 +133,7 @@ impl MenuBarState {
         if submenu_count == 0 {
             return;
         }
-        
+
         self.submenu_selected_index = Some(match self.submenu_selected_index {
             Some(idx) => {
                 if idx == 0 {
@@ -167,7 +167,6 @@ pub struct MenuBar {
     on_dropdown_closed: Option<Arc<dyn Fn() + Send + Sync>>,
 }
 
-
 impl MenuBar {
     /// Set callback for when a menu item is selected
     pub fn with_on_item_selected(mut self, f: impl Fn(&str) + Send + Sync + 'static) -> Self {
@@ -188,7 +187,12 @@ impl MenuBar {
     }
 
     /// Handle keyboard navigation
-    fn handle_key_event(&mut self, key: &KeyEvent, props: &MenuBarProps, state: &mut MenuBarState) -> EventResult {
+    fn handle_key_event(
+        &mut self,
+        key: &KeyEvent,
+        props: &MenuBarProps,
+        state: &mut MenuBarState,
+    ) -> EventResult {
         if !props.enabled {
             return EventResult::Ignored;
         }
@@ -261,7 +265,9 @@ impl MenuBar {
             KeyCode::Enter => {
                 if state.dropdown_open {
                     // Execute submenu item
-                    if let (Some(main_idx), Some(sub_idx)) = (state.selected_index, state.submenu_selected_index) {
+                    if let (Some(main_idx), Some(sub_idx)) =
+                        (state.selected_index, state.submenu_selected_index)
+                    {
                         if main_idx < props.items.len() {
                             let main_item = &props.items[main_idx];
                             if sub_idx < main_item.submenu.len() {
@@ -315,7 +321,12 @@ impl MenuBar {
     }
 
     /// Handle mouse events
-    fn handle_mouse_event(&mut self, mouse: &MouseEvent, props: &MenuBarProps, state: &mut MenuBarState) -> EventResult {
+    fn handle_mouse_event(
+        &mut self,
+        mouse: &MouseEvent,
+        props: &MenuBarProps,
+        state: &mut MenuBarState,
+    ) -> EventResult {
         if !props.enabled {
             return EventResult::Ignored;
         }
@@ -372,7 +383,7 @@ impl Component for MenuBar {
         // 2. Render the main menubar
         // 3. Render dropdown menus if open
         // 4. Handle styling and theming
-        
+
         Element::layout(crate::component::element::LayoutType::Flex)
             .with_key("menubar")
             .with_class(&props.style.base_classes)

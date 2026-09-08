@@ -26,26 +26,34 @@ mod ffi_core_tests {
             let mut builder_ptr: *mut RTuiElementBuilder = ptr::null_mut();
             let result = rtui_element_builder_div(&mut builder_ptr);
             assert_eq!(result, ReactiveError::Success);
-            
+
             let original_ptr = builder_ptr;
 
             // Test in-place class addition - pointer should remain the same
-            let result = rtui_element_builder_add_class(builder_ptr, b"test-class\0".as_ptr() as *const i8);
+            let result =
+                rtui_element_builder_add_class(builder_ptr, b"test-class\0".as_ptr() as *const i8);
             assert_eq!(result, ReactiveError::Success);
             assert_eq!(builder_ptr, original_ptr); // Pointer unchanged!
 
             // Test adding more classes
-            let result = rtui_element_builder_add_class(builder_ptr, b"another-class\0".as_ptr() as *const i8);
+            let result = rtui_element_builder_add_class(
+                builder_ptr,
+                b"another-class\0".as_ptr() as *const i8,
+            );
             assert_eq!(result, ReactiveError::Success);
             assert_eq!(builder_ptr, original_ptr); // Pointer unchanged!
 
             // Test setting text
-            let result = rtui_element_builder_set_text(builder_ptr, b"Hello, World!\0".as_ptr() as *const i8);
+            let result = rtui_element_builder_set_text(
+                builder_ptr,
+                b"Hello, World!\0".as_ptr() as *const i8,
+            );
             assert_eq!(result, ReactiveError::Success);
             assert_eq!(builder_ptr, original_ptr); // Pointer unchanged!
 
             // Test setting key
-            let result = rtui_element_builder_set_key(builder_ptr, b"my-element\0".as_ptr() as *const i8);
+            let result =
+                rtui_element_builder_set_key(builder_ptr, b"my-element\0".as_ptr() as *const i8);
             assert_eq!(result, ReactiveError::Success);
             assert_eq!(builder_ptr, original_ptr); // Pointer unchanged!
 
@@ -62,10 +70,12 @@ mod ffi_core_tests {
             let result = rtui_element_builder_div(&mut builder_ptr);
             assert_eq!(result, ReactiveError::Success);
 
-            let result = rtui_element_builder_add_class(builder_ptr, b"container\0".as_ptr() as *const i8);
+            let result =
+                rtui_element_builder_add_class(builder_ptr, b"container\0".as_ptr() as *const i8);
             assert_eq!(result, ReactiveError::Success);
 
-            let result = rtui_element_builder_set_text(builder_ptr, b"Test content\0".as_ptr() as *const i8);
+            let result =
+                rtui_element_builder_set_text(builder_ptr, b"Test content\0".as_ptr() as *const i8);
             assert_eq!(result, ReactiveError::Success);
 
             // Build the element
@@ -87,15 +97,14 @@ mod ffi_core_tests {
             let result = rtui_element_builder_div(&mut parent_builder);
             assert_eq!(result, ReactiveError::Success);
 
-            let result = rtui_element_builder_add_class(parent_builder, b"parent\0".as_ptr() as *const i8);
+            let result =
+                rtui_element_builder_add_class(parent_builder, b"parent\0".as_ptr() as *const i8);
             assert_eq!(result, ReactiveError::Success);
 
             // Create child element using text widget
             let mut child_element: *mut RTuiElement = ptr::null_mut();
-            let result = rtui_text_element_create(
-                b"Child text\0".as_ptr() as *const i8,
-                &mut child_element,
-            );
+            let result =
+                rtui_text_element_create(b"Child text\0".as_ptr() as *const i8, &mut child_element);
             assert_eq!(result, ReactiveError::Success);
 
             // Add child to parent
@@ -129,21 +138,15 @@ mod ffi_core_tests {
 
             // Test checkbox
             let mut element_ptr: *mut RTuiElement = ptr::null_mut();
-            let result = rtui_checkbox_create(
-                b"Check me\0".as_ptr() as *const i8,
-                true,
-                &mut element_ptr,
-            );
+            let result =
+                rtui_checkbox_create(b"Check me\0".as_ptr() as *const i8, true, &mut element_ptr);
             assert_eq!(result, ReactiveError::Success);
             assert!(!element_ptr.is_null());
             rtui_element_destroy(element_ptr);
 
             // Test button
             let mut element_ptr: *mut RTuiElement = ptr::null_mut();
-            let result = rtui_button_create(
-                b"Click me\0".as_ptr() as *const i8,
-                &mut element_ptr,
-            );
+            let result = rtui_button_create(b"Click me\0".as_ptr() as *const i8, &mut element_ptr);
             assert_eq!(result, ReactiveError::Success);
             assert!(!element_ptr.is_null());
             rtui_element_destroy(element_ptr);
@@ -171,7 +174,8 @@ mod ffi_core_tests {
             assert_eq!(result, ReactiveError::NullPointer);
 
             // Test null builder
-            let result = rtui_element_builder_add_class(ptr::null_mut(), b"test\0".as_ptr() as *const i8);
+            let result =
+                rtui_element_builder_add_class(ptr::null_mut(), b"test\0".as_ptr() as *const i8);
             assert_eq!(result, ReactiveError::NullPointer);
 
             // Test null classes
@@ -194,7 +198,8 @@ mod ffi_core_tests {
                 assert_eq!(result, ReactiveError::Success);
 
                 let class_name = format!("test-class-{}\0", i);
-                let result = rtui_element_builder_add_class(builder, class_name.as_ptr() as *const i8);
+                let result =
+                    rtui_element_builder_add_class(builder, class_name.as_ptr() as *const i8);
                 assert_eq!(result, ReactiveError::Success);
 
                 let mut element: *mut RTuiElement = ptr::null_mut();

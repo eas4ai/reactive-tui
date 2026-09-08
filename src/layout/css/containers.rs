@@ -176,8 +176,8 @@ mod tests {
         let sb = StyleBuilder::new();
 
         // Test basic container
-        let result = apply_container("container", sb.clone())
-            .expect("container class should be valid");
+        let result =
+            apply_container("container", sb.clone()).expect("container class should be valid");
         let _style = result.build();
 
         // Test sized containers
@@ -195,18 +195,15 @@ mod tests {
         let sb = StyleBuilder::new();
 
         // Test horizontal centering
-        let result = apply_centering("mx-auto", sb.clone())
-            .expect("mx-auto class should be valid");
+        let result = apply_centering("mx-auto", sb.clone()).expect("mx-auto class should be valid");
         let _style = result.build();
 
         // Test vertical centering
-        let result = apply_centering("my-auto", sb.clone())
-            .expect("my-auto class should be valid");
+        let result = apply_centering("my-auto", sb.clone()).expect("my-auto class should be valid");
         let _style = result.build();
 
         // Test full centering
-        let result = apply_centering("m-auto", sb.clone())
-            .expect("m-auto class should be valid");
+        let result = apply_centering("m-auto", sb.clone()).expect("m-auto class should be valid");
         let _style = result.build();
     }
 

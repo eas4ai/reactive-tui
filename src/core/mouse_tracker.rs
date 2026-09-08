@@ -400,10 +400,10 @@ impl Drop for MouseTracker {
         if let Err(e) = self.shutdown() {
             // Log error but don't panic during drop
             eprintln!("Warning: MouseTracker shutdown failed: {}", e);
-            
+
             // Attempt emergency cleanup of critical terminal state
             let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                use crossterm::{execute, event::DisableMouseCapture};
+                use crossterm::{event::DisableMouseCapture, execute};
                 let _ = execute!(std::io::stdout(), DisableMouseCapture);
             }));
         }

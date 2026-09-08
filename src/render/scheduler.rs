@@ -172,16 +172,18 @@ impl RenderScheduler {
             // Recover from poisoned lock by clearing the data
             poisoned.into_inner()
         });
-        let mut pending = self.pending_handles.lock().unwrap_or_else(|poisoned| {
-            poisoned.into_inner()
-        });
+        let mut pending = self
+            .pending_handles
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
 
         tasks.push(task);
         pending.insert(handle, priority);
 
-        let mut stats = self.stats.lock().unwrap_or_else(|poisoned| {
-            poisoned.into_inner()
-        });
+        let mut stats = self
+            .stats
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
         stats.total_tasks += 1;
 
         handle
@@ -189,9 +191,10 @@ impl RenderScheduler {
 
     /// Cancel a scheduled task
     pub fn cancel(&self, handle: ScheduleHandle) -> bool {
-        let mut pending = self.pending_handles.lock().unwrap_or_else(|poisoned| {
-            poisoned.into_inner()
-        });
+        let mut pending = self
+            .pending_handles
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
         pending.remove(&handle).is_some()
     }
 
@@ -199,9 +202,10 @@ impl RenderScheduler {
     pub fn execute_frame(&self) -> usize {
         let mut completed = 0;
         let frame_budget = {
-            let mut budget = self.frame_budget.lock().unwrap_or_else(|poisoned| {
-                poisoned.into_inner()
-            });
+            let mut budget = self
+                .frame_budget
+                .lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner());
             budget.start_frame()
         };
 
@@ -210,9 +214,10 @@ impl RenderScheduler {
 
         // Set running flag
         {
-            let mut running = self.is_running.lock().unwrap_or_else(|poisoned| {
-                poisoned.into_inner()
-            });
+            let mut running = self
+                .is_running
+                .lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner());
             if *running {
                 return 0; // Already running
             }
@@ -222,12 +227,14 @@ impl RenderScheduler {
         // Process tasks until frame budget exhausted
         loop {
             let task = {
-                let mut tasks = self.tasks.lock().unwrap_or_else(|poisoned| {
-                    poisoned.into_inner()
-                });
-                let mut pending = self.pending_handles.lock().unwrap_or_else(|poisoned| {
-                    poisoned.into_inner()
-                });
+                let mut tasks = self
+                    .tasks
+                    .lock()
+                    .unwrap_or_else(|poisoned| poisoned.into_inner());
+                let mut pending = self
+                    .pending_handles
+                    .lock()
+                    .unwrap_or_else(|poisoned| poisoned.into_inner());
 
                 // Find next valid task
                 let mut found_task = None;
@@ -256,18 +263,21 @@ impl RenderScheduler {
             // Check frame budget
             if Instant::now() >= frame_deadline {
                 // Out of time, reschedule task
-                let mut tasks = self.tasks.lock().unwrap_or_else(|poisoned| {
-                    poisoned.into_inner()
-                });
-                let mut pending = self.pending_handles.lock().unwrap_or_else(|poisoned| {
-                    poisoned.into_inner()
-                });
+                let mut tasks = self
+                    .tasks
+                    .lock()
+                    .unwrap_or_else(|poisoned| poisoned.into_inner());
+                let mut pending = self
+                    .pending_handles
+                    .lock()
+                    .unwrap_or_else(|poisoned| poisoned.into_inner());
                 tasks.push(task.clone());
                 pending.insert(task.handle, task.priority);
 
-                let mut stats = self.stats.lock().unwrap_or_else(|poisoned| {
-                    poisoned.into_inner()
-                });
+                let mut stats = self
+                    .stats
+                    .lock()
+                    .unwrap_or_else(|poisoned| poisoned.into_inner());
                 stats.dropped_frames += 1;
                 break;
             }
@@ -276,17 +286,19 @@ impl RenderScheduler {
             (task.callback)();
             completed += 1;
 
-            let mut stats = self.stats.lock().unwrap_or_else(|poisoned| {
-                poisoned.into_inner()
-            });
+            let mut stats = self
+                .stats
+                .lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner());
             stats.completed_tasks += 1;
         }
 
         // Update stats
         {
-            let mut stats = self.stats.lock().unwrap_or_else(|poisoned| {
-                poisoned.into_inner()
-            });
+            let mut stats = self
+                .stats
+                .lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner());
             let frame_time = frame_start.elapsed();
 
             // Simple moving average
@@ -298,42 +310,49 @@ impl RenderScheduler {
         }
 
         // Clear running flag
-        *self.is_running.lock().unwrap_or_else(|poisoned| {
-            poisoned.into_inner()
-        }) = false;
+        *self
+            .is_running
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner()) = false;
 
         completed
     }
 
     /// Check if there are pending tasks
     pub fn has_pending_tasks(&self) -> bool {
-        !self.tasks.lock().unwrap_or_else(|poisoned| {
-            poisoned.into_inner()
-        }).is_empty()
+        !self
+            .tasks
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .is_empty()
     }
 
     /// Get the number of pending tasks
     pub fn pending_count(&self) -> usize {
-        self.tasks.lock().unwrap_or_else(|poisoned| {
-            poisoned.into_inner()
-        }).len()
+        self.tasks
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .len()
     }
 
     /// Clear all pending tasks
     pub fn clear(&self) {
-        self.tasks.lock().unwrap_or_else(|poisoned| {
-            poisoned.into_inner()
-        }).clear();
-        self.pending_handles.lock().unwrap_or_else(|poisoned| {
-            poisoned.into_inner()
-        }).clear();
+        self.tasks
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .clear();
+        self.pending_handles
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .clear();
     }
 
     /// Get scheduler statistics
     pub fn stats(&self) -> String {
-        let stats = self.stats.lock().unwrap_or_else(|poisoned| {
-            poisoned.into_inner()
-        });
+        let stats = self
+            .stats
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
         format!(
             "Scheduler Stats: {} total, {} completed, {} dropped frames, {:?} avg frame time",
             stats.total_tasks,
@@ -363,24 +382,35 @@ mod tests {
         // Schedule tasks in reverse priority order
         let order1 = execution_order.clone();
         scheduler.schedule(Priority::Low, move || {
-            order1.lock().expect("Test mutex should not be poisoned").push("low");
+            order1
+                .lock()
+                .expect("Test mutex should not be poisoned")
+                .push("low");
         });
 
         let order2 = execution_order.clone();
         scheduler.schedule(Priority::Normal, move || {
-            order2.lock().expect("Test mutex should not be poisoned").push("normal");
+            order2
+                .lock()
+                .expect("Test mutex should not be poisoned")
+                .push("normal");
         });
 
         let order3 = execution_order.clone();
         scheduler.schedule(Priority::Immediate, move || {
-            order3.lock().expect("Test mutex should not be poisoned").push("immediate");
+            order3
+                .lock()
+                .expect("Test mutex should not be poisoned")
+                .push("immediate");
         });
 
         // Execute all tasks in frame
         scheduler.execute_frame();
 
         // Check execution order: immediate should run first, then normal, then low
-        let order = execution_order.lock().expect("Test mutex should not be poisoned");
+        let order = execution_order
+            .lock()
+            .expect("Test mutex should not be poisoned");
         assert_eq!(order[0], "immediate");
         assert_eq!(order[1], "normal");
         assert_eq!(order[2], "low");

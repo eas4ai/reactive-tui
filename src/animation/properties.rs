@@ -237,7 +237,7 @@ impl AnimatedProperty {
             Self::Keyframes(sequence) => {
                 // Sample the keyframe sequence at the given time
                 let sampled = sequence.sample(t);
-                
+
                 // Convert the sampled values to AnimatedValue
                 // For simplicity, we'll take the first property if multiple exist
                 if let Some((key, value)) = sampled.iter().next() {
@@ -245,13 +245,11 @@ impl AnimatedProperty {
                         keyframes::KeyframeValue::Number(n) => {
                             AnimatedValue::Custom(key.clone(), *n)
                         }
-                        keyframes::KeyframeValue::Color(r, g, b, _a) => {
-                            AnimatedValue::Color {
-                                r: *r,
-                                g: *g, 
-                                b: *b,
-                            }
-                        }
+                        keyframes::KeyframeValue::Color(r, g, b, _a) => AnimatedValue::Color {
+                            r: *r,
+                            g: *g,
+                            b: *b,
+                        },
                         keyframes::KeyframeValue::Transform(matrix) => {
                             AnimatedValue::Animation(AnimationValue::Transform(matrix.clone()))
                         }
@@ -263,9 +261,17 @@ impl AnimatedProperty {
                                 CssValue::Pixels(px) => AnimatedValue::Custom(key.clone(), *px),
                                 CssValue::Em(em) => AnimatedValue::Custom(key.clone(), *em),
                                 CssValue::Rem(rem) => AnimatedValue::Custom(key.clone(), *rem),
-                                CssValue::ViewportWidth(vw) => AnimatedValue::Custom(key.clone(), *vw),
-                                CssValue::ViewportHeight(vh) => AnimatedValue::Custom(key.clone(), *vh),
-                                CssValue::Color { r, g, b } => AnimatedValue::Color { r: *r, g: *g, b: *b },
+                                CssValue::ViewportWidth(vw) => {
+                                    AnimatedValue::Custom(key.clone(), *vw)
+                                }
+                                CssValue::ViewportHeight(vh) => {
+                                    AnimatedValue::Custom(key.clone(), *vh)
+                                }
+                                CssValue::Color { r, g, b } => AnimatedValue::Color {
+                                    r: *r,
+                                    g: *g,
+                                    b: *b,
+                                },
                                 CssValue::String(_) => AnimatedValue::Custom(key.clone(), 0.0),
                             }
                         }

@@ -1,7 +1,10 @@
-use reactive_tui::component::{Component, Element, LifecycleEvent, Props, registry::{register_component, global_active_count, global_cleanup_all, global_clear_all}};
+use reactive_tui::component::{
+    registry::{global_active_count, global_cleanup_all, global_clear_all, register_component},
+    Component, Element, LifecycleEvent, Props,
+};
 use reactive_tui::render::{tree::element_to_render_node, Reconciler, RenderTree};
-use std::sync::atomic::{AtomicU32, Ordering};
 use serial_test::serial;
+use std::sync::atomic::{AtomicU32, Ordering};
 
 // Test component with lifecycle tracking
 static MOUNT_COUNT: AtomicU32 = AtomicU32::new(0);
@@ -77,15 +80,30 @@ fn test_automatic_component_instantiation() {
 
     // Verify component was created and registered
     assert_eq!(global_active_count().unwrap(), 1);
-    assert_eq!(get_mount_count(), 1, "Mount count should be 1, got {}", get_mount_count());
-    assert_eq!(get_unmount_count(), 0, "Unmount count should be 0, got {}", get_unmount_count());
+    assert_eq!(
+        get_mount_count(),
+        1,
+        "Mount count should be 1, got {}",
+        get_mount_count()
+    );
+    assert_eq!(
+        get_unmount_count(),
+        0,
+        "Unmount count should be 0, got {}",
+        get_unmount_count()
+    );
 
     // Drop render node - should automatically cleanup
     drop(render_node);
-    
+
     // Verify component was cleaned up
     assert_eq!(global_active_count().unwrap(), 0);
-    assert_eq!(get_unmount_count(), 1, "Unmount count should be 1 after drop, got {}", get_unmount_count());
+    assert_eq!(
+        get_unmount_count(),
+        1,
+        "Unmount count should be 1 after drop, got {}",
+        get_unmount_count()
+    );
 }
 
 #[test]
@@ -139,9 +157,7 @@ fn test_multiple_components_lifecycle() {
         Element::component_with_props("TestComponentMultiple", TestProps { value: 3 }),
     ];
 
-    let render_nodes: Vec<_> = elements.into_iter()
-        .map(element_to_render_node)
-        .collect();
+    let render_nodes: Vec<_> = elements.into_iter().map(element_to_render_node).collect();
 
     // Verify all components were created
     assert_eq!(global_active_count().unwrap(), 3);
@@ -184,8 +200,12 @@ fn test_component_replacement() {
     tree2.set_root(root_node2);
 
     // Both trees have their own component instances
-    assert_eq!(global_active_count().unwrap(), 2, "Should have 2 active components (one per tree)");
-    
+    assert_eq!(
+        global_active_count().unwrap(),
+        2,
+        "Should have 2 active components (one per tree)"
+    );
+
     // Cleanup
     global_cleanup_all().unwrap();
     assert_eq!(global_active_count().unwrap(), 0);
@@ -203,13 +223,13 @@ fn test_memory_leak_prevention_under_load() {
     for i in 0..1000 {
         let element = Element::component_with_props("TestComponentMemLeak", TestProps { value: i });
         let render_node = element_to_render_node(element);
-        
+
         // Verify component was created
         assert_eq!(global_active_count().unwrap(), 1);
-        
+
         // Drop immediately
         drop(render_node);
-        
+
         // Verify component was cleaned up
         assert_eq!(global_active_count().unwrap(), 0);
     }
@@ -226,7 +246,7 @@ fn test_unregistered_component_handling() {
     global_cleanup_all().unwrap();
 
     // Don't register the component
-    
+
     // Create element with unregistered component
     let element = Element::component_with_props("UnregisteredComponent", TestProps { value: 42 });
     let render_node = element_to_render_node(element);
@@ -251,7 +271,8 @@ fn test_global_cleanup() {
     // Create multiple components without dropping them
     let _nodes: Vec<_> = (0..10)
         .map(|i| {
-            let element = Element::component_with_props("TestComponentGlobal", TestProps { value: i });
+            let element =
+                Element::component_with_props("TestComponentGlobal", TestProps { value: i });
             element_to_render_node(element)
         })
         .collect();

@@ -3,9 +3,8 @@
 //! Provides text buffer operations following OpenTUI's patterns for text handling
 
 use super::*;
-use crate::core::surface::{Rgba, Attr, Surface};
+use crate::core::surface::{Attr, Rgba, Surface};
 use crate::ffi::lib::RTuiBuffer;
-
 
 /// Text buffer handle (opaque)
 #[repr(C)]
@@ -92,7 +91,7 @@ pub extern "C" fn destroyTextBuffer(tb: *mut RTuiTextBuffer) {
     if tb.is_null() {
         return;
     }
-    
+
     let tb_ptr = tb as *mut TextBuffer;
     unsafe {
         let _ = Box::from_raw(tb_ptr);
@@ -140,10 +139,14 @@ pub extern "C" fn textBufferResize(tb: *mut RTuiTextBuffer, new_length: u32) {
     }
 
     let text_buffer = unsafe { &mut *(tb as *mut TextBuffer) };
-    
+
     text_buffer.chars.resize(new_length as usize, 0);
-    text_buffer.fg_colors.resize(new_length as usize, Rgba::new(1.0, 1.0, 1.0, 1.0));
-    text_buffer.bg_colors.resize(new_length as usize, Rgba::new(0.0, 0.0, 0.0, 1.0));
+    text_buffer
+        .fg_colors
+        .resize(new_length as usize, Rgba::new(1.0, 1.0, 1.0, 1.0));
+    text_buffer
+        .bg_colors
+        .resize(new_length as usize, Rgba::new(0.0, 0.0, 0.0, 1.0));
     text_buffer.attributes.resize(new_length as usize, 0);
     text_buffer.capacity = new_length;
 }
@@ -156,7 +159,7 @@ pub extern "C" fn textBufferReset(tb: *mut RTuiTextBuffer) {
     }
 
     let text_buffer = unsafe { &mut *(tb as *mut TextBuffer) };
-    
+
     text_buffer.chars.clear();
     text_buffer.fg_colors.clear();
     text_buffer.bg_colors.clear();
@@ -186,20 +189,24 @@ pub extern "C" fn textBufferWriteChunk(
 
     let text_buffer = unsafe { &mut *(tb as *mut TextBuffer) };
     let text_slice = unsafe { std::slice::from_raw_parts(text_bytes, text_len as usize) };
-    
+
     let text_str = match std::str::from_utf8(text_slice) {
         Ok(s) => s,
         Err(_) => return 0,
     };
 
     let fg_color = if fg.is_null() {
-        text_buffer.default_fg.unwrap_or(Rgba::new(1.0, 1.0, 1.0, 1.0))
+        text_buffer
+            .default_fg
+            .unwrap_or(Rgba::new(1.0, 1.0, 1.0, 1.0))
     } else {
         super::lib::f32_ptr_to_rgba(fg)
     };
 
     let bg_color = if bg.is_null() {
-        text_buffer.default_bg.unwrap_or(Rgba::new(0.0, 0.0, 0.0, 1.0))
+        text_buffer
+            .default_bg
+            .unwrap_or(Rgba::new(0.0, 0.0, 0.0, 1.0))
     } else {
         super::lib::f32_ptr_to_rgba(bg)
     };
@@ -211,7 +218,7 @@ pub extern "C" fn textBufferWriteChunk(
     };
 
     let mut chars_written = 0;
-    
+
     for ch in text_str.chars() {
         if text_buffer.length < text_buffer.capacity {
             text_buffer.chars.push(ch as u32);
@@ -246,9 +253,9 @@ pub extern "C" fn textBufferSetSelection(
     }
 
     let text_buffer = unsafe { &mut *(tb as *mut TextBuffer) };
-    
+
     text_buffer.selection = Some((start, end));
-    
+
     if !bg_color.is_null() {
         text_buffer.selection_bg = Some(super::lib::f32_ptr_to_rgba(bg_color));
     }
@@ -326,7 +333,14 @@ pub extern "C" fn renderTextBufferToSurface(
 
             // Write character to surface
             let char_str = ch.to_string();
-            surface.write_str(current_x, current_y, &char_str, final_fg, final_bg, Attr::from_bits_truncate(attr));
+            surface.write_str(
+                current_x,
+                current_y,
+                &char_str,
+                final_fg,
+                final_bg,
+                Attr::from_bits_truncate(attr),
+            );
 
             current_x += 1;
             chars_rendered += 1;
@@ -403,7 +417,14 @@ pub extern "C" fn renderTextBufferToRenderer(
 
             // Write character to surface
             let char_str = ch.to_string();
-            surface.write_str(current_x, current_y, &char_str, final_fg, final_bg, Attr::from_bits_truncate(attr));
+            surface.write_str(
+                current_x,
+                current_y,
+                &char_str,
+                final_fg,
+                final_bg,
+                Attr::from_bits_truncate(attr),
+            );
 
             current_x += 1;
             chars_rendered += 1;
@@ -456,7 +477,7 @@ pub extern "C" fn textBufferGetSelectionInfo(tb: *const RTuiTextBuffer) -> u64 {
     }
 
     let text_buffer = unsafe { &*(tb as *const TextBuffer) };
-    
+
     match text_buffer.selection {
         Some((start, end)) => ((start as u64) << 32) | (end as u64),
         None => 0xFFFFFFFF_FFFFFFFF,
@@ -475,7 +496,7 @@ pub extern "C" fn textBufferSetDefaultFg(tb: *mut RTuiTextBuffer, fg: *const f32
     }
 
     let text_buffer = unsafe { &mut *(tb as *mut TextBuffer) };
-    
+
     if fg.is_null() {
         text_buffer.default_fg = None;
     } else {
@@ -491,7 +512,7 @@ pub extern "C" fn textBufferSetDefaultBg(tb: *mut RTuiTextBuffer, bg: *const f32
     }
 
     let text_buffer = unsafe { &mut *(tb as *mut TextBuffer) };
-    
+
     if bg.is_null() {
         text_buffer.default_bg = None;
     } else {
@@ -507,7 +528,7 @@ pub extern "C" fn textBufferSetDefaultAttributes(tb: *mut RTuiTextBuffer, attr: 
     }
 
     let text_buffer = unsafe { &mut *(tb as *mut TextBuffer) };
-    
+
     if attr.is_null() {
         text_buffer.default_attr = None;
     } else {

@@ -3,7 +3,6 @@ use std::any::Any;
 use std::collections::HashMap;
 use std::fmt::Debug;
 
-
 /// Key for stable component identity across renders
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum NodeKey {
@@ -51,10 +50,10 @@ pub trait RenderNode: Debug + Send + Sync {
 
     /// Mark this node as clean after rendering
     fn mark_clean(&mut self);
-    
+
     /// Mark this node as dirty (needs re-rendering)
     fn mark_dirty(&mut self);
-    
+
     /// Check if any child is dirty (for optimization)
     fn has_dirty_children(&self) -> bool {
         self.children().iter().any(|child| child.is_dirty())
@@ -133,7 +132,10 @@ impl ElementNode {
 
     /// Check if this node represents a component
     pub fn is_component(&self) -> bool {
-        matches!(self.element.element_type, crate::component::ElementType::Component(_))
+        matches!(
+            self.element.element_type,
+            crate::component::ElementType::Component(_)
+        )
     }
 }
 
@@ -168,7 +170,7 @@ impl RenderNode for ElementNode {
     fn mark_clean(&mut self) {
         self.dirty = false;
     }
-    
+
     fn mark_dirty(&mut self) {
         self.dirty = true;
     }
@@ -191,12 +193,13 @@ impl Drop for ElementNode {
         // Automatic cleanup: unregister component instance if present
         if self.component_instance.is_some()
             && crate::component::registry::get_global_registry()
-                .unregister_instance(&self.key).is_err()
-            {
-                // Log error in debug mode, but don't panic during drop
-                #[cfg(debug_assertions)]
-                eprintln!("Warning: Failed to unregister component instance during ElementNode drop");
-            }
+                .unregister_instance(&self.key)
+                .is_err()
+        {
+            // Log error in debug mode, but don't panic during drop
+            #[cfg(debug_assertions)]
+            eprintln!("Warning: Failed to unregister component instance during ElementNode drop");
+        }
     }
 }
 
@@ -245,7 +248,7 @@ impl RenderNode for FragmentNode {
     fn mark_clean(&mut self) {
         self.dirty = false;
     }
-    
+
     fn mark_dirty(&mut self) {
         self.dirty = true;
     }
@@ -278,14 +281,14 @@ impl RenderTree {
         self.build_node_map(root.as_ref());
         self.root = Some(root);
     }
-    
+
     /// Take the root node, leaving None in its place
     pub fn take_root(&mut self) -> Option<Box<dyn RenderNode>> {
         self.node_map.clear();
         self.dirty_nodes.clear();
         self.root.take()
     }
-    
+
     /// Replace the root with a new one, returning the old root
     pub fn replace_root(&mut self, root: Box<dyn RenderNode>) -> Option<Box<dyn RenderNode>> {
         self.build_node_map(root.as_ref());
@@ -364,8 +367,6 @@ impl RenderTree {
         // Note: The actual node removal from the tree structure
         // is handled by the reconciliation process during tree rebuilding
     }
-
-
 }
 
 impl Default for RenderTree {
@@ -413,11 +414,14 @@ pub fn element_to_render_node(element: Element) -> Box<dyn RenderNode> {
                 // Component not registered - this is not an error, just means
                 // the component will be treated as a regular element
                 #[cfg(debug_assertions)]
-                eprintln!("Info: Component '{}' not registered, treating as regular element", component_name);
+                eprintln!(
+                    "Info: Component '{}' not registered, treating as regular element",
+                    component_name
+                );
             }
 
             Box::new(node)
-        },
+        }
         _ => Box::new(ElementNode::new(element).with_children(children)),
     }
 }

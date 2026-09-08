@@ -120,7 +120,7 @@ impl EventRouter {
             path_cache: None,
         }
     }
-    
+
     /// Enable path caching for improved performance
     pub fn enable_caching(&mut self) {
         self.path_cache = Some(super::cache::PathCache::new());
@@ -252,7 +252,7 @@ impl EventRouter {
         let mut path = Vec::with_capacity(16); // Most UI trees are < 16 levels deep
         let mut visited = std::collections::HashSet::with_capacity(16);
         let mut current = Some(target_id);
-        
+
         // Maximum depth to prevent infinite loops even with cycle detection
         const MAX_DEPTH: usize = 1000;
         let mut depth = 0;
@@ -262,17 +262,23 @@ impl EventRouter {
             if !visited.insert(node_id) {
                 // Cycle detected - log error and break
                 #[cfg(debug_assertions)]
-                eprintln!("Warning: Cycle detected in event router tree at node {:?}", node_id);
+                eprintln!(
+                    "Warning: Cycle detected in event router tree at node {:?}",
+                    node_id
+                );
                 break;
             }
-            
+
             // Check for excessive depth
             if depth >= MAX_DEPTH {
                 #[cfg(debug_assertions)]
-                eprintln!("Warning: Maximum depth {} exceeded in event router", MAX_DEPTH);
+                eprintln!(
+                    "Warning: Maximum depth {} exceeded in event router",
+                    MAX_DEPTH
+                );
                 break;
             }
-            
+
             path.push(node_id);
             if let Some(node) = self.nodes.get(&node_id) {
                 current = node.parent;
@@ -391,7 +397,11 @@ impl EventRouter {
     }
 
     /// Helper method to emit focus events from a focus operation result
-    fn emit_focus_operation_events(&self, node_id: Option<NodeId>, focus_event: Option<super::types::FocusEvent>) {
+    fn emit_focus_operation_events(
+        &self,
+        node_id: Option<NodeId>,
+        focus_event: Option<super::types::FocusEvent>,
+    ) {
         if let Some(event) = focus_event {
             if let Some(target_id) = node_id {
                 self.emit_focus_event(target_id, event);
@@ -457,12 +467,18 @@ impl EventRouter {
                     node_id
                 } else {
                     // Default to root or focused node
-                    self.focus_manager.get_focus().or(self.root).unwrap_or_default()
+                    self.focus_manager
+                        .get_focus()
+                        .or(self.root)
+                        .unwrap_or_default()
                 }
             }
             _ => {
                 // For keyboard and other events, use focused node or root
-                self.focus_manager.get_focus().or(self.root).unwrap_or_default()
+                self.focus_manager
+                    .get_focus()
+                    .or(self.root)
+                    .unwrap_or_default()
             }
         }
     }
@@ -480,10 +496,9 @@ impl EventRouter {
     /// Add a focusable node with optional tab index
     /// Returns true if successful
     pub fn add_focusable(&mut self, node_id: NodeId, tab_index: Option<i32>) -> bool {
-        self.focus_manager.register_focusable(node_id, tab_index, true)
+        self.focus_manager
+            .register_focusable(node_id, tab_index, true)
     }
-
-
 
     /// Remove a focusable node
     pub fn remove_focusable(&mut self, node_id: NodeId) {
@@ -492,8 +507,16 @@ impl EventRouter {
 
     /// Update spatial information for a node (for arrow-key navigation)
     /// Returns true if successful
-    pub fn update_spatial(&mut self, node_id: NodeId, x: f32, y: f32, width: f32, height: f32) -> bool {
-        self.focus_manager.update_spatial(node_id, x, y, width, height)
+    pub fn update_spatial(
+        &mut self,
+        node_id: NodeId,
+        x: f32,
+        y: f32,
+        width: f32,
+        height: f32,
+    ) -> bool {
+        self.focus_manager
+            .update_spatial(node_id, x, y, width, height)
     }
 
     /// Move focus in a specific direction
@@ -507,7 +530,8 @@ impl EventRouter {
     /// Create a focus trap for a container (e.g., modal dialog)
     /// This restricts focus navigation to only nodes within the container
     pub fn create_focus_trap(&mut self, container: NodeId, trapped_nodes: Vec<NodeId>) -> bool {
-        self.focus_manager.create_focus_trap(container, trapped_nodes)
+        self.focus_manager
+            .create_focus_trap(container, trapped_nodes)
     }
 
     /// Remove a focus trap and restore previous focus behavior

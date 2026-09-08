@@ -3,10 +3,7 @@
 use crate::component::{Element, ElementType};
 use crate::error::{ReactiveError, Result};
 use std::collections::{HashMap, HashSet};
-use taffy::{
-    AvailableSpace, Display, FlexDirection, NodeId, Position, Size, Style,
-    TaffyTree,
-};
+use taffy::{AvailableSpace, Display, FlexDirection, NodeId, Position, Size, Style, TaffyTree};
 
 /// Key type for identifying nodes in the layout tree
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -164,16 +161,17 @@ impl LayoutManager {
         index: usize,
         element: Element,
     ) -> Result<()> {
-        let key = element.key
-            .clone()
-            .ok_or_else(|| ReactiveError::layout("Element must have a key for layout management"))?;
+        let key = element.key.clone().ok_or_else(|| {
+            ReactiveError::layout("Element must have a key for layout management")
+        })?;
         let layout_key = LayoutKey::new(key.clone());
 
         // Convert element to Taffy style
         let style = self.element_to_style(&element);
-        
+
         // Create new Taffy node
-        let node_id = self.taffy
+        let node_id = self
+            .taffy
             .new_leaf(style)
             .map_err(|e| ReactiveError::layout(format!("Failed to create Taffy node: {}", e)))?;
 
@@ -193,11 +191,14 @@ impl LayoutManager {
         // Store mappings and metadata
         self.node_map.insert(layout_key.clone(), node_id);
         self.reverse_map.insert(node_id, layout_key);
-        self.meta.insert(node_id, NodeMeta {
-            element,
-            layout: taffy::Layout::new(),
-            dirty: true,
-        });
+        self.meta.insert(
+            node_id,
+            NodeMeta {
+                element,
+                layout: taffy::Layout::new(),
+                dirty: true,
+            },
+        );
         self.dirty_nodes.insert(node_id);
 
         // Recursively insert children
@@ -278,9 +279,9 @@ impl LayoutManager {
         if let Some(&node_id) = self.node_map.get(&key) {
             // Remove from current parent
             if let Some(old_parent) = self.taffy.parent(node_id) {
-                self.taffy
-                    .remove_child(old_parent, node_id)
-                    .map_err(|e| ReactiveError::layout(format!("Failed to remove from parent: {}", e)))?;
+                self.taffy.remove_child(old_parent, node_id).map_err(|e| {
+                    ReactiveError::layout(format!("Failed to remove from parent: {}", e))
+                })?;
                 self.dirty_nodes.insert(old_parent);
             }
 
@@ -289,7 +290,9 @@ impl LayoutManager {
                 if let Some(&parent_id) = self.node_map.get(&parent_key) {
                     self.taffy
                         .insert_child_at_index(parent_id, index, node_id)
-                        .map_err(|e| ReactiveError::layout(format!("Failed to move node: {}", e)))?;
+                        .map_err(|e| {
+                            ReactiveError::layout(format!("Failed to move node: {}", e))
+                        })?;
                     self.dirty_nodes.insert(parent_id);
                 }
             }
@@ -310,8 +313,10 @@ impl LayoutManager {
             if self.dirty_nodes.contains(&root) {
                 self.taffy
                     .compute_layout(root, self.available_space)
-                    .map_err(|e| ReactiveError::layout(format!("Failed to compute layout: {}", e)))?;
-                
+                    .map_err(|e| {
+                        ReactiveError::layout(format!("Failed to compute layout: {}", e))
+                    })?;
+
                 // Update all metadata with computed layouts
                 self.update_layout_metadata(root)?;
                 self.dirty_nodes.clear();
@@ -336,10 +341,10 @@ impl LayoutManager {
                 self.available_space
             };
 
-            self.taffy
-                .compute_layout(node, available)
-                .map_err(|e| ReactiveError::layout(format!("Failed to compute subtree layout: {}", e)))?;
-            
+            self.taffy.compute_layout(node, available).map_err(|e| {
+                ReactiveError::layout(format!("Failed to compute subtree layout: {}", e))
+            })?;
+
             self.update_layout_metadata(node)?;
         }
 
@@ -353,7 +358,7 @@ impl LayoutManager {
         for &node in &self.dirty_nodes {
             let mut is_root = true;
             let mut current = node;
-            
+
             // Check if any ancestor is also dirty
             while let Some(parent) = self.taffy.parent(current) {
                 if self.dirty_nodes.contains(&parent) {
@@ -362,7 +367,7 @@ impl LayoutManager {
                 }
                 current = parent;
             }
-            
+
             if is_root {
                 roots.push(node);
             }
@@ -372,19 +377,23 @@ impl LayoutManager {
 
     /// Update layout metadata after computation
     fn update_layout_metadata(&mut self, node: NodeId) -> Result<()> {
-        let layout = *self.taffy.layout(node)
+        let layout = *self
+            .taffy
+            .layout(node)
             .map_err(|e| ReactiveError::layout(format!("Failed to get layout: {}", e)))?;
-        
+
         if let Some(meta) = self.meta.get_mut(&node) {
             meta.layout = layout;
             meta.dirty = false;
         }
 
         // Update children recursively
-        let children: Vec<NodeId> = self.taffy.children(node)
+        let children: Vec<NodeId> = self
+            .taffy
+            .children(node)
             .map_err(|e| ReactiveError::layout(format!("Failed to get children: {}", e)))?
             .to_vec();
-        
+
         for child in children {
             self.update_layout_metadata(child)?;
         }
@@ -395,7 +404,7 @@ impl LayoutManager {
     /// Generate paint operations from current layout
     pub fn generate_paint_ops(&mut self) -> Result<Vec<PaintOp>> {
         self.paint_ops.clear();
-        
+
         if let Some(root) = self.root {
             self.paint_node(root, 0.0, 0.0)?;
         }
@@ -407,11 +416,11 @@ impl LayoutManager {
     fn paint_node(&mut self, node: NodeId, parent_x: f32, parent_y: f32) -> Result<()> {
         if let Some(meta) = self.meta.get(&node) {
             let layout = meta.layout;
-            
+
             // Check if node is absolutely positioned
             let style = self.taffy.style(node).unwrap();
             let is_absolute = matches!(style.position, taffy::style::Position::Absolute);
-            
+
             // Absolute elements use location directly, relative add parent offset
             let x = if is_absolute {
                 layout.location.x
@@ -433,7 +442,7 @@ impl LayoutManager {
                     } else {
                         TextStyle::default()
                     };
-                    
+
                     // Safe conversion with saturation to prevent truncation
                     self.paint_ops.push(PaintOp::Text {
                         x: x.min(u16::MAX as f32) as u16,
@@ -466,10 +475,14 @@ impl LayoutManager {
             }
 
             // Paint children
-            let children: Vec<NodeId> = self.taffy.children(node)
-                .map_err(|e| ReactiveError::layout(format!("Failed to get children for paint: {}", e)))?
+            let children: Vec<NodeId> = self
+                .taffy
+                .children(node)
+                .map_err(|e| {
+                    ReactiveError::layout(format!("Failed to get children for paint: {}", e))
+                })?
                 .to_vec();
-            
+
             for child in children {
                 self.paint_node(child, x, y)?;
             }
@@ -484,13 +497,13 @@ impl LayoutManager {
 
         // Parse class using proper CSS parser
         if let Some(class) = &element.class {
-            use crate::layout::style::StyleBuilder;
-            use crate::layout::css::layout::apply_position;
-            use crate::layout::css::spacing::{apply_padding, apply_margin, apply_gap};
             use crate::layout::css::colors::apply_color_utilities;
-            
+            use crate::layout::css::layout::apply_position;
+            use crate::layout::css::spacing::{apply_gap, apply_margin, apply_padding};
+            use crate::layout::style::StyleBuilder;
+
             let mut sb = StyleBuilder::new();
-            
+
             // Parse each token in the class string
             for token in class.split_whitespace() {
                 // Try position utilities first (includes absolute, left-X, top-Y, etc.)
@@ -498,41 +511,45 @@ impl LayoutManager {
                     sb = new_sb;
                     continue;
                 }
-                
+
                 // Try padding utilities
                 if let Some(new_sb) = apply_padding(token, sb.clone()) {
                     sb = new_sb;
                     continue;
                 }
-                
+
                 // Try margin utilities
                 if let Some(new_sb) = apply_margin(token, sb.clone()) {
                     sb = new_sb;
                     continue;
                 }
-                
+
                 // Try gap utilities
                 if let Some(new_sb) = apply_gap(token, sb.clone()) {
                     sb = new_sb;
                     continue;
                 }
-                
+
                 // Try color utilities (text, background, etc.)
                 if let Some(new_sb) = apply_color_utilities(token, sb.clone()) {
                     sb = new_sb;
                     continue;
                 }
-                
+
                 // Basic layout utilities
                 match token {
                     "flex" => {
                         sb = sb.display_flex();
                     }
                     "flex-row" => {
-                        sb = sb.display_flex().direction(crate::layout::style::Direction::Row);
+                        sb = sb
+                            .display_flex()
+                            .direction(crate::layout::style::Direction::Row);
                     }
                     "flex-col" => {
-                        sb = sb.display_flex().direction(crate::layout::style::Direction::Column);
+                        sb = sb
+                            .display_flex()
+                            .direction(crate::layout::style::Direction::Column);
                     }
                     "grid" => {
                         sb = sb.display_grid();
@@ -549,7 +566,7 @@ impl LayoutManager {
                     _ => {}
                 }
             }
-            
+
             // Apply the parsed style to Taffy
             style = sb.build();
         }
@@ -618,7 +635,7 @@ mod tests {
         let mut manager = LayoutManager::new(80, 24);
         let mut element = Element::text("Hello");
         element.key = Some("root".to_string());
-        
+
         let result = manager.insert_node(None, 0, element);
         assert!(result.is_ok());
         assert!(manager.root.is_some());
@@ -630,12 +647,12 @@ mod tests {
         let mut manager = LayoutManager::new(80, 24);
         let mut element = Element::text("Hello");
         element.key = Some("text1".to_string());
-        
+
         manager.insert_node(None, 0, element.clone()).unwrap();
-        
+
         element = Element::text("World");
         element.key = Some("text1".to_string());
-        
+
         let result = manager.update_node(LayoutKey::new("text1"), element);
         assert!(result.is_ok());
         assert!(manager.dirty_nodes.len() > 0);
@@ -646,10 +663,10 @@ mod tests {
         let mut manager = LayoutManager::new(80, 24);
         let mut element = Element::text("Hello");
         element.key = Some("text1".to_string());
-        
+
         manager.insert_node(None, 0, element).unwrap();
         assert_eq!(manager.node_map.len(), 1);
-        
+
         let result = manager.remove_node(LayoutKey::new("text1"));
         assert!(result.is_ok());
         assert_eq!(manager.node_map.len(), 0);
@@ -660,13 +677,13 @@ mod tests {
         let mut manager = LayoutManager::new(80, 24);
         let mut root = Element::layout(crate::component::LayoutType::Flex);
         root.key = Some("root".to_string());
-        
+
         let mut child = Element::text("Hello");
         child.key = Some("child".to_string());
         root.children.push(child);
-        
+
         manager.insert_node(None, 0, root).unwrap();
-        
+
         let result = manager.compute_dirty_layouts();
         assert!(result.is_ok());
         assert!(manager.dirty_nodes.is_empty());
@@ -677,13 +694,13 @@ mod tests {
         let mut manager = LayoutManager::new(80, 24);
         let mut element = Element::text("Hello");
         element.key = Some("text1".to_string());
-        
+
         manager.insert_node(None, 0, element).unwrap();
         manager.compute_dirty_layouts().unwrap();
-        
+
         let result = manager.generate_paint_ops();
         assert!(result.is_ok());
-        
+
         let ops = result.unwrap();
         assert!(ops.len() > 0);
     }

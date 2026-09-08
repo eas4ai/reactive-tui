@@ -29,12 +29,12 @@
 
 // Core builder functionality
 pub mod core;
-pub mod layout;
-pub mod mixed;
-pub mod macros;
-pub mod widgets;
-pub mod specialized;
 pub mod dialog_builders;
+pub mod layout;
+pub mod macros;
+pub mod mixed;
+pub mod specialized;
+pub mod widgets;
 
 #[cfg(test)]
 mod test_specialized;
@@ -52,7 +52,10 @@ pub use mixed::*;
 pub use widgets::*;
 
 // Re-export macros - these need special handling
-pub use crate::{el, div, span, button, input, data_table, chart, text_input, checkbox, select, progress_bar, toast, tabs};
+pub use crate::{
+    button, chart, checkbox, data_table, div, el, input, progress_bar, select, span, tabs,
+    text_input, toast,
+};
 
 // Additional convenience re-exports for common patterns
 // Note: button and input are already re-exported via `pub use core::*;`
@@ -60,9 +63,8 @@ pub use crate::{el, div, span, button, input, data_table, chart, text_input, che
 // Ensure all builder functions are available at the module root
 // This maintains the existing API where users can call `builder::div()`, etc.
 
-
 // Core traits and utilities
-pub use core::{IntoElement, to_element};
+pub use core::{to_element, IntoElement};
 
 /// Builder module version for compatibility tracking
 pub const BUILDER_VERSION: &str = "2.0.0";
@@ -80,42 +82,39 @@ pub mod docs {
     //! - `macros`: Declarative macros for rapid development
     //! - `widgets`: Specialized builders for complex components
     //!
-    
+
     /// Example of creating a complex layout
     pub fn example_layout() -> crate::component::Element {
         use super::*;
-        
+
         screen()
             .children(vec![
                 header()
                     .class("bg-blue-600 text-white p-4")
                     .child(h1().text("My App").build())
                     .build(),
-                    
                 div()
                     .class("flex flex-1")
                     .children(vec![
-                        sidebar()
-                            .child(nav().text("Navigation").build())
-                            .build(),
-                            
+                        sidebar().child(nav().text("Navigation").build()).build(),
                         content()
                             .children(vec![
                                 card(vec![
                                     h2().text("Dashboard").build(),
                                     p().text("Welcome to your dashboard").build(),
                                 ]),
-                                
                                 data_table()
                                     .column("Name", "name")
                                     .column("Email", "email")
-                                    .simple_row(vec![("name", "John"), ("email", "john@example.com")])
+                                    .simple_row(vec![
+                                        ("name", "John"),
+                                        ("email", "john@example.com"),
+                                    ])
                                     .build(),
                             ])
                             .build(),
                     ])
                     .build(),
-                    
                 footer()
                     .class("bg-gray-100 p-4 text-center")
                     .child(text("© 2024 My App"))
@@ -123,7 +122,7 @@ pub mod docs {
             ])
             .build()
     }
-    
+
     /// Example of using macros for rapid development
     ///
     /// Note: This example is commented out to avoid macro import issues during compilation.

@@ -10,7 +10,12 @@ mod slider;
 mod text_input;
 
 pub use checkbox::{Checkbox, CheckboxBuilder, CheckboxProps, CheckboxState};
-pub use radio_button::{RadioButton, RadioButtonBuilder, RadioButtonProps, RadioButtonState, RadioOption, RadioOrientation};
+pub use radio_button::{
+    RadioButton, RadioButtonBuilder, RadioButtonProps, RadioButtonState, RadioOption,
+    RadioOrientation,
+};
 pub use select::{Select, SelectBuilder, SelectOption, SelectProps, SelectState};
-pub use slider::{Slider, SliderBuilder, SliderProps, SliderState, SliderOrientation};
-pub use text_input::{TextInput, TextInputBuilder, TextInputProps, TextInputState, InputMode, Suggestion};
+pub use slider::{Slider, SliderBuilder, SliderOrientation, SliderProps, SliderState};
+pub use text_input::{
+    InputMode, Suggestion, TextInput, TextInputBuilder, TextInputProps, TextInputState,
+};

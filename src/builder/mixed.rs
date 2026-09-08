@@ -3,8 +3,8 @@
 //! This module provides interoperability between the builder API and the virtual DOM system,
 //! allowing seamless mixing of builder-created elements and VDOM nodes.
 
-use crate::component::{Element, ElementType, LayoutType};
 use super::core::ElementBuilder;
+use crate::component::{Element, ElementType, LayoutType};
 
 /// Integration helpers for VDOM interop
 ///

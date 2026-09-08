@@ -188,8 +188,7 @@ impl ChartsBuilder {
 
     /// Build and render as an Element (convenience method)
     pub fn render(self) -> Element {
-        Element::component("Charts")
-            .with_props(self.build())
+        Element::component("Charts").with_props(self.build())
     }
 }
 
@@ -221,7 +220,6 @@ impl Default for ChartsBuilder {
         }
     }
 }
-
 
 /// Chart axis configuration
 #[derive(Debug, Clone, PartialEq)]
@@ -433,7 +431,6 @@ pub enum ChartType {
     Scatter,
 }
 
-
 /// Props for the Chart component
 #[derive(Clone, PartialEq)]
 pub struct ChartProps {
@@ -529,10 +526,8 @@ impl Component for Chart {
 
         // Add title if present
         if let Some(title) = &props.title {
-            container = container.child(
-                Element::text(title)
-                    .with_class("chart-title text-center font-bold mb-2")
-            );
+            container = container
+                .child(Element::text(title).with_class("chart-title text-center font-bold mb-2"));
         }
 
         // Create the main chart area
@@ -696,10 +691,12 @@ impl Chart {
 
             // Plot points and connect with lines
             for (i, point) in series.data.iter().enumerate() {
-                let x = (i as f64 / (series.data.len() - 1).max(1) as f64 * (props.width - 1) as f64) as usize;
+                let x = (i as f64 / (series.data.len() - 1).max(1) as f64
+                    * (props.width - 1) as f64) as usize;
                 let y = if chart_data.max_value > chart_data.min_value {
-                    ((chart_data.max_value - point.value) / (chart_data.max_value - chart_data.min_value)
-                     * (props.height - 1) as f64) as usize
+                    ((chart_data.max_value - point.value)
+                        / (chart_data.max_value - chart_data.min_value)
+                        * (props.height - 1) as f64) as usize
                 } else {
                     props.height as usize / 2
                 };
@@ -711,10 +708,12 @@ impl Chart {
                 // Connect to previous point with line
                 if i > 0 && series.line_style != LineStyle::None {
                     let prev_point = &series.data[i - 1];
-                    let prev_x = ((i - 1) as f64 / (series.data.len() - 1).max(1) as f64 * (props.width - 1) as f64) as usize;
+                    let prev_x = ((i - 1) as f64 / (series.data.len() - 1).max(1) as f64
+                        * (props.width - 1) as f64) as usize;
                     let prev_y = if chart_data.max_value > chart_data.min_value {
-                        ((chart_data.max_value - prev_point.value) / (chart_data.max_value - chart_data.min_value)
-                         * (props.height - 1) as f64) as usize
+                        ((chart_data.max_value - prev_point.value)
+                            / (chart_data.max_value - chart_data.min_value)
+                            * (props.height - 1) as f64) as usize
                     } else {
                         props.height as usize / 2
                     };
@@ -728,7 +727,8 @@ impl Chart {
         // Convert chart lines to elements
         let mut chart_element = Element::layout(LayoutType::Flex);
         for line in chart_lines {
-            chart_element = chart_element.child(Element::text(line.into_iter().collect::<String>()));
+            chart_element =
+                chart_element.child(Element::text(line.into_iter().collect::<String>()));
         }
 
         chart_element
@@ -775,8 +775,10 @@ impl Chart {
 
                 let mut line = String::new();
                 // Use point label if available, otherwise series name
-                line.push_str(&format!("│ {:>12} ",
-                    point.label.as_ref().unwrap_or(&series.name)));
+                line.push_str(&format!(
+                    "│ {:>12} ",
+                    point.label.as_ref().unwrap_or(&series.name)
+                ));
 
                 // Visual representation
                 for _ in 0..bar_length {
@@ -822,10 +824,12 @@ impl Chart {
             }
 
             for (i, point) in series.data.iter().enumerate() {
-                let x = (i as f64 / series.data.len().max(1) as f64 * (props.width - 1) as f64) as usize;
+                let x = (i as f64 / series.data.len().max(1) as f64 * (props.width - 1) as f64)
+                    as usize;
                 let y = if chart_data.max_value > chart_data.min_value {
-                    ((chart_data.max_value - point.value) / (chart_data.max_value - chart_data.min_value)
-                     * (props.height - 1) as f64) as usize
+                    ((chart_data.max_value - point.value)
+                        / (chart_data.max_value - chart_data.min_value)
+                        * (props.height - 1) as f64) as usize
                 } else {
                     props.height as usize / 2
                 };
@@ -839,7 +843,8 @@ impl Chart {
         // Convert to elements
         let mut chart_element = Element::layout(LayoutType::Flex);
         for line in chart_lines {
-            chart_element = chart_element.child(Element::text(line.into_iter().collect::<String>()));
+            chart_element =
+                chart_element.child(Element::text(line.into_iter().collect::<String>()));
         }
 
         chart_element
@@ -915,7 +920,15 @@ impl Chart {
     }
 
     /// Draw a line between two points in the chart grid
-    fn draw_line(&self, grid: &mut [Vec<char>], x1: usize, y1: usize, x2: usize, y2: usize, style: &LineStyle) {
+    fn draw_line(
+        &self,
+        grid: &mut [Vec<char>],
+        x1: usize,
+        y1: usize,
+        x2: usize,
+        y2: usize,
+        style: &LineStyle,
+    ) {
         let line_char = match style {
             LineStyle::Solid => '─',
             LineStyle::Dashed => '┄',

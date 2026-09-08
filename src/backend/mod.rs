@@ -10,11 +10,11 @@ use crate::event::types as rt_event;
 use crate::render::reconcile::PatchOp;
 use crate::render::tree::{RenderNode, RenderTree};
 
+pub mod cell_frame;
 pub mod direct_tty;
 mod suprtui;
-pub mod cell_frame;
-pub use cell_frame::{CellFrame, FrameCell};
 pub use self::suprtui::SuprTuiBackend;
+pub use cell_frame::{CellFrame, FrameCell};
 
 /// Minimal, patch-driven backend abstraction
 pub trait Backend: Send + Sync {
@@ -24,7 +24,9 @@ pub trait Backend: Send + Sync {
     }
     /// Stage a complete owned cell screen. Unsupported backends fail explicitly.
     fn render_cells(&mut self, _frame: std::sync::Arc<CellFrame>) -> Result<()> {
-        Err(crate::error::ReactiveError::invalid_state("this backend does not support cell frames"))
+        Err(crate::error::ReactiveError::invalid_state(
+            "this backend does not support cell frames",
+        ))
     }
     /// Restore resources on a normal application exit (default: no-op).
     fn shutdown(&mut self) -> Result<()> {
@@ -49,11 +51,22 @@ pub trait Backend: Send + Sync {
     ) -> Result<Option<rt_event::Event>> {
         let deadline = timeout.and_then(|duration| std::time::Instant::now().checked_add(duration));
         loop {
-            if let Some(event) = self.poll_event(Some(0))? { return Ok(Some(event)); }
-            if wake.is_pending() || wake.is_closed() { return Ok(None); }
-            let remaining = deadline.map(|end| end.saturating_duration_since(std::time::Instant::now()));
-            if remaining == Some(std::time::Duration::ZERO) { return Ok(None); }
-            wake.wait(Some(remaining.unwrap_or(std::time::Duration::from_millis(10)).min(std::time::Duration::from_millis(10))));
+            if let Some(event) = self.poll_event(Some(0))? {
+                return Ok(Some(event));
+            }
+            if wake.is_pending() || wake.is_closed() {
+                return Ok(None);
+            }
+            let remaining =
+                deadline.map(|end| end.saturating_duration_since(std::time::Instant::now()));
+            if remaining == Some(std::time::Duration::ZERO) {
+                return Ok(None);
+            }
+            wake.wait(Some(
+                remaining
+                    .unwrap_or(std::time::Duration::from_millis(10))
+                    .min(std::time::Duration::from_millis(10)),
+            ));
         }
     }
     /// Enable/disable debug overlay if supported (default: no-op)
@@ -118,14 +131,14 @@ impl CrosstermBackend {
     pub fn new() -> Result<Self> {
         // Determine terminal size and initialize renderer buffers
         let (cols, rows) = crossterm::terminal::size().unwrap_or((80, 24));
-        
+
         // Safe conversion with overflow protection
         let width = usize::from(cols);
         let height = usize::from(rows);
-        
+
         // Map cells to pixel-like surface width/height; for now treat as cells
-        let renderer = Renderer::new(width, height)
-            .map_err(|e| std::io::Error::other(e.to_string()))?;
+        let renderer =
+            Renderer::new(width, height).map_err(|e| std::io::Error::other(e.to_string()))?;
         let grapheme_surface = GraphemeSurface::new(width, height);
         Ok(Self {
             renderer,
@@ -492,7 +505,9 @@ impl Backend for CrosstermBackend {
                 } else {
                     // Fallback to linear painting if no element available
                     #[cfg(feature = "debug_patches")]
-                    eprintln!("CrosstermBackend: WARNING - No element available, using linear painting");
+                    eprintln!(
+                        "CrosstermBackend: WARNING - No element available, using linear painting"
+                    );
                     let surface = self.renderer.surface_mut();
                     let _end_y = paint_render_node_linear(surface, root, 0, 0);
                 }
@@ -561,17 +576,23 @@ impl Backend for CrosstermBackend {
     fn render_full(&mut self, element: &Element) -> Result<()> {
         // Convert Element tree to NodeSpec and paint using Taffy-based layout
         let nodespec = crate::component::bridge::element_to_nodespec(element);
-        
+
         #[cfg(feature = "debug_patches")]
         eprintln!("render_full: NodeSpec class = '{}'", nodespec.class);
-        
+
         // Clear the back buffer surface before painting to avoid stale cells
-        self.renderer.clear(Rgba { r: 0.0, g: 0.0, b: 0.0, a: 1.0 });
+        self.renderer.clear(Rgba {
+            r: 0.0,
+            g: 0.0,
+            b: 0.0,
+            a: 1.0,
+        });
         let (width, _height) = self.renderer.dims();
         let surface = self.renderer.surface_mut();
         let opts = crate::layout::paint_tree::PaintOptions::default();
-        let result = crate::layout::paint_tree::layout_and_paint_with(&nodespec, surface, width, &opts);
-        
+        let result =
+            crate::layout::paint_tree::layout_and_paint_with(&nodespec, surface, width, &opts);
+
         #[cfg(feature = "debug_patches")]
         {
             if let Err(ref e) = result {
@@ -587,12 +608,14 @@ impl Backend for CrosstermBackend {
                             break;
                         }
                     }
-                    if has_content { break; }
+                    if has_content {
+                        break;
+                    }
                 }
                 eprintln!("render_full: Surface has content = {}", has_content);
             }
         }
-        
+
         result
     }
 }
@@ -708,7 +731,12 @@ impl Backend for DebugBackend {
                 let nodespec = crate::component::bridge::element_to_nodespec(element);
                 let opts = crate::layout::paint_tree::PaintOptions::default();
                 let (width, _) = (self.size.0 as usize, self.size.1 as usize);
-                crate::layout::paint_tree::layout_and_paint_with(&nodespec, &mut self.virtual_screen, width, &opts)?;
+                crate::layout::paint_tree::layout_and_paint_with(
+                    &nodespec,
+                    &mut self.virtual_screen,
+                    width,
+                    &opts,
+                )?;
             } else {
                 // Fallback to linear painting
                 let _end_y = paint_render_node_linear(&mut self.virtual_screen, root, 0, 0);
@@ -878,7 +906,12 @@ impl Backend for DebugBackend {
                 let nodespec = crate::component::bridge::element_to_nodespec(element_ref);
                 let opts = crate::layout::paint_tree::PaintOptions::default();
                 let (width, _) = (self.size.0 as usize, self.size.1 as usize);
-                crate::layout::paint_tree::layout_and_paint_with(&nodespec, &mut self.virtual_screen, width, &opts)?;
+                crate::layout::paint_tree::layout_and_paint_with(
+                    &nodespec,
+                    &mut self.virtual_screen,
+                    width,
+                    &opts,
+                )?;
             } else {
                 let _end_y = paint_render_node_linear(&mut self.virtual_screen, root, 0, 0);
             }

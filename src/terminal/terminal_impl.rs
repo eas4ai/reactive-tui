@@ -187,7 +187,8 @@ impl Terminal {
                         "7" => {
                             // Working directory change
                             if let Some(path) = params.first() {
-                                terminal_events.push(TerminalEvent::WorkingDirectoryChanged(path.clone()));
+                                terminal_events
+                                    .push(TerminalEvent::WorkingDirectoryChanged(path.clone()));
                             }
                         }
                         _ => {}

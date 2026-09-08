@@ -7,10 +7,10 @@
 #![allow(dead_code)]
 
 use super::*;
+use crate::component::Element;
 use crate::reactive::signal::Signal;
 use crate::reactive::ThreadSafeSignal;
-use crate::reactive::{Hooks, use_signal, use_effect};
-use crate::component::Element;
+use crate::reactive::{use_effect, use_signal, Hooks};
 use std::any::{Any, TypeId};
 use std::boxed::Box;
 use std::cell::RefCell;
@@ -102,7 +102,8 @@ pub type RTuiEffectCallback = extern "C" fn(user_data: *mut std::ffi::c_void);
 pub type RTuiEffectCleanupCallback = extern "C" fn(user_data: *mut std::ffi::c_void);
 
 /// Memo compute callback function type
-pub type RTuiMemoComputeCallback = extern "C" fn(user_data: *mut std::ffi::c_void) -> RTuiSignalValue;
+pub type RTuiMemoComputeCallback =
+    extern "C" fn(user_data: *mut std::ffi::c_void) -> RTuiSignalValue;
 
 /// Component function type - takes hooks, props, and user data, returns element
 pub type RTuiComponentFn = extern "C" fn(
@@ -194,7 +195,8 @@ impl FFISignal {
             return Err(ReactiveError::InvalidParameter);
         }
 
-        let signal = self.signal
+        let signal = self
+            .signal
             .downcast_ref::<Signal<c_int>>()
             .ok_or(ReactiveError::InvalidParameter)?;
 
@@ -206,7 +208,8 @@ impl FFISignal {
             return Err(ReactiveError::InvalidParameter);
         }
 
-        let signal = self.signal
+        let signal = self
+            .signal
             .downcast_ref::<Signal<c_int>>()
             .ok_or(ReactiveError::InvalidParameter)?;
 
@@ -219,7 +222,8 @@ impl FFISignal {
             return Err(ReactiveError::InvalidParameter);
         }
 
-        let signal = self.signal
+        let signal = self
+            .signal
             .downcast_ref::<Signal<String>>()
             .ok_or(ReactiveError::InvalidParameter)?;
 
@@ -231,7 +235,8 @@ impl FFISignal {
             return Err(ReactiveError::InvalidParameter);
         }
 
-        let signal = self.signal
+        let signal = self
+            .signal
             .downcast_ref::<Signal<String>>()
             .ok_or(ReactiveError::InvalidParameter)?;
 
@@ -244,7 +249,8 @@ impl FFISignal {
             return Err(ReactiveError::InvalidParameter);
         }
 
-        let signal = self.signal
+        let signal = self
+            .signal
             .downcast_ref::<Signal<bool>>()
             .ok_or(ReactiveError::InvalidParameter)?;
 
@@ -256,7 +262,8 @@ impl FFISignal {
             return Err(ReactiveError::InvalidParameter);
         }
 
-        let signal = self.signal
+        let signal = self
+            .signal
             .downcast_ref::<Signal<bool>>()
             .ok_or(ReactiveError::InvalidParameter)?;
 
@@ -269,7 +276,8 @@ impl FFISignal {
             return Err(ReactiveError::InvalidParameter);
         }
 
-        let signal = self.signal
+        let signal = self
+            .signal
             .downcast_ref::<Signal<f64>>()
             .ok_or(ReactiveError::InvalidParameter)?;
 
@@ -281,7 +289,8 @@ impl FFISignal {
             return Err(ReactiveError::InvalidParameter);
         }
 
-        let signal = self.signal
+        let signal = self
+            .signal
             .downcast_ref::<Signal<f64>>()
             .ok_or(ReactiveError::InvalidParameter)?;
 
@@ -398,7 +407,7 @@ pub extern "C" fn rtui_signal_string_get(
     catch_panic(AssertUnwindSafe(|| unsafe {
         let signal_ref = &*(signal as *const Signal<String>);
         let value = signal_ref.get();
-        
+
         if value.len() >= buffer_size {
             return Err(ReactiveError::BufferTooSmall);
         }
@@ -451,10 +460,7 @@ pub extern "C" fn rtui_signal_int_get(
 
 /// Set integer signal value
 #[no_mangle]
-pub extern "C" fn rtui_signal_int_set(
-    signal: *mut RTuiSignal,
-    value: i64,
-) -> ReactiveError {
+pub extern "C" fn rtui_signal_int_set(signal: *mut RTuiSignal, value: i64) -> ReactiveError {
     if signal.is_null() {
         return ReactiveError::NullPointer;
     }
@@ -485,10 +491,7 @@ pub extern "C" fn rtui_signal_float_get(
 
 /// Set float signal value
 #[no_mangle]
-pub extern "C" fn rtui_signal_float_set(
-    signal: *mut RTuiSignal,
-    value: f64,
-) -> ReactiveError {
+pub extern "C" fn rtui_signal_float_set(signal: *mut RTuiSignal, value: f64) -> ReactiveError {
     if signal.is_null() {
         return ReactiveError::NullPointer;
     }
@@ -519,10 +522,7 @@ pub extern "C" fn rtui_signal_bool_get(
 
 /// Set boolean signal value
 #[no_mangle]
-pub extern "C" fn rtui_signal_bool_set(
-    signal: *mut RTuiSignal,
-    value: bool,
-) -> ReactiveError {
+pub extern "C" fn rtui_signal_bool_set(signal: *mut RTuiSignal, value: bool) -> ReactiveError {
     if signal.is_null() {
         return ReactiveError::NullPointer;
     }
@@ -584,7 +584,7 @@ pub extern "C" fn rtui_thread_safe_signal_string_get(
     catch_panic(AssertUnwindSafe(|| unsafe {
         let signal_ref = &*(signal as *const ThreadSafeSignal<String>);
         let value = signal_ref.get();
-        
+
         if value.len() >= buffer_size {
             return Err(ReactiveError::BufferTooSmall);
         }
@@ -646,7 +646,14 @@ pub extern "C" fn rtui_effect_create(
 pub extern "C" fn rtui_effect_destroy(effect: *mut RTuiEffect) {
     if !effect.is_null() {
         unsafe {
-            let effect_data = Box::from_raw(effect as *mut (RTuiEffectCallback, RTuiEffectCleanupCallback, *mut std::ffi::c_void));
+            let effect_data = Box::from_raw(
+                effect
+                    as *mut (
+                        RTuiEffectCallback,
+                        RTuiEffectCleanupCallback,
+                        *mut std::ffi::c_void,
+                    ),
+            );
             // Call cleanup if provided
             if effect_data.1 as *const () != std::ptr::null() {
                 (effect_data.1)(effect_data.2);
@@ -663,7 +670,12 @@ pub extern "C" fn rtui_effect_run(effect: *const RTuiEffect) -> ReactiveError {
     }
 
     catch_panic(AssertUnwindSafe(|| unsafe {
-        let effect_data = &*(effect as *const (RTuiEffectCallback, RTuiEffectCleanupCallback, *mut std::ffi::c_void));
+        let effect_data = &*(effect
+            as *const (
+                RTuiEffectCallback,
+                RTuiEffectCleanupCallback,
+                *mut std::ffi::c_void,
+            ));
         (effect_data.0)(effect_data.2);
         Ok(())
     }))
@@ -676,11 +688,14 @@ pub extern "C" fn rtui_effect_run(effect: *const RTuiEffect) -> ReactiveError {
 /// Create a new integer signal (improved API)
 #[no_mangle]
 pub extern "C" fn rtui_signal_new_int(initial_value: c_int) -> *mut RTuiSignal {
-    catch_panic_with_default(AssertUnwindSafe(|| {
-        let signal = FFISignal::new_int(initial_value);
-        let boxed = Box::new(signal);
-        Ok(Box::into_raw(boxed) as *mut RTuiSignal)
-    }), std::ptr::null_mut())
+    catch_panic_with_default(
+        AssertUnwindSafe(|| {
+            let signal = FFISignal::new_int(initial_value);
+            let boxed = Box::new(signal);
+            Ok(Box::into_raw(boxed) as *mut RTuiSignal)
+        }),
+        std::ptr::null_mut(),
+    )
 }
 
 /// Create a new string signal (improved API)
@@ -690,34 +705,43 @@ pub extern "C" fn rtui_signal_new_string(initial_value: *const c_char) -> *mut R
         return std::ptr::null_mut();
     }
 
-    catch_panic_with_default(AssertUnwindSafe(|| {
-        let c_str = unsafe { CStr::from_ptr(initial_value) };
-        let value = c_str.to_str().map_err(|_| ReactiveError::InvalidUtf8)?;
+    catch_panic_with_default(
+        AssertUnwindSafe(|| {
+            let c_str = unsafe { CStr::from_ptr(initial_value) };
+            let value = c_str.to_str().map_err(|_| ReactiveError::InvalidUtf8)?;
 
-        let signal = FFISignal::new_string(value.to_string());
-        let boxed = Box::new(signal);
-        Ok(Box::into_raw(boxed) as *mut RTuiSignal)
-    }), std::ptr::null_mut())
+            let signal = FFISignal::new_string(value.to_string());
+            let boxed = Box::new(signal);
+            Ok(Box::into_raw(boxed) as *mut RTuiSignal)
+        }),
+        std::ptr::null_mut(),
+    )
 }
 
 /// Create a new boolean signal (improved API)
 #[no_mangle]
 pub extern "C" fn rtui_signal_new_bool(initial_value: bool) -> *mut RTuiSignal {
-    catch_panic_with_default(AssertUnwindSafe(|| {
-        let signal = FFISignal::new_bool(initial_value);
-        let boxed = Box::new(signal);
-        Ok(Box::into_raw(boxed) as *mut RTuiSignal)
-    }), std::ptr::null_mut())
+    catch_panic_with_default(
+        AssertUnwindSafe(|| {
+            let signal = FFISignal::new_bool(initial_value);
+            let boxed = Box::new(signal);
+            Ok(Box::into_raw(boxed) as *mut RTuiSignal)
+        }),
+        std::ptr::null_mut(),
+    )
 }
 
 /// Create a new float signal (improved API)
 #[no_mangle]
 pub extern "C" fn rtui_signal_new_float(initial_value: f64) -> *mut RTuiSignal {
-    catch_panic_with_default(AssertUnwindSafe(|| {
-        let signal = FFISignal::new_float(initial_value);
-        let boxed = Box::new(signal);
-        Ok(Box::into_raw(boxed) as *mut RTuiSignal)
-    }), std::ptr::null_mut())
+    catch_panic_with_default(
+        AssertUnwindSafe(|| {
+            let signal = FFISignal::new_float(initial_value);
+            let boxed = Box::new(signal);
+            Ok(Box::into_raw(boxed) as *mut RTuiSignal)
+        }),
+        std::ptr::null_mut(),
+    )
 }
 
 /// Get the current value of an integer signal (improved API)
@@ -727,10 +751,13 @@ pub extern "C" fn rtui_signal_get_int(signal: *const RTuiSignal) -> c_int {
         return 0;
     }
 
-    catch_panic_with_default(AssertUnwindSafe(|| {
-        let signal_ref = unsafe { &*(signal as *const FFISignal) };
-        signal_ref.get_int()
-    }), 0)
+    catch_panic_with_default(
+        AssertUnwindSafe(|| {
+            let signal_ref = unsafe { &*(signal as *const FFISignal) };
+            signal_ref.get_int()
+        }),
+        0,
+    )
 }
 
 /// Set the value of an integer signal (improved API)
@@ -754,17 +781,23 @@ pub extern "C" fn rtui_signal_get_string_owned(signal: *const RTuiSignal) -> *mu
         return std::ptr::null_mut();
     }
 
-    catch_panic_with_default(AssertUnwindSafe(|| {
-        let signal_ref = unsafe { &*(signal as *const FFISignal) };
-        let value = signal_ref.get_string()?;
-        let c_string = CString::new(value).map_err(|_| ReactiveError::InvalidUtf8)?;
-        Ok(c_string.into_raw())
-    }), std::ptr::null_mut())
+    catch_panic_with_default(
+        AssertUnwindSafe(|| {
+            let signal_ref = unsafe { &*(signal as *const FFISignal) };
+            let value = signal_ref.get_string()?;
+            let c_string = CString::new(value).map_err(|_| ReactiveError::InvalidUtf8)?;
+            Ok(c_string.into_raw())
+        }),
+        std::ptr::null_mut(),
+    )
 }
 
 /// Set the value of a string signal (improved API)
 #[no_mangle]
-pub extern "C" fn rtui_signal_set_string_new(signal: *mut RTuiSignal, value: *const c_char) -> ReactiveError {
+pub extern "C" fn rtui_signal_set_string_new(
+    signal: *mut RTuiSignal,
+    value: *const c_char,
+) -> ReactiveError {
     if signal.is_null() || value.is_null() {
         return ReactiveError::NullPointer;
     }
@@ -785,10 +818,13 @@ pub extern "C" fn rtui_signal_get_bool_new(signal: *const RTuiSignal) -> bool {
         return false;
     }
 
-    catch_panic_with_default(AssertUnwindSafe(|| {
-        let signal_ref = unsafe { &*(signal as *const FFISignal) };
-        signal_ref.get_bool()
-    }), false)
+    catch_panic_with_default(
+        AssertUnwindSafe(|| {
+            let signal_ref = unsafe { &*(signal as *const FFISignal) };
+            signal_ref.get_bool()
+        }),
+        false,
+    )
 }
 
 /// Set the value of a boolean signal (improved API)
@@ -812,10 +848,13 @@ pub extern "C" fn rtui_signal_get_float_new(signal: *const RTuiSignal) -> f64 {
         return 0.0;
     }
 
-    catch_panic_with_default(AssertUnwindSafe(|| {
-        let signal_ref = unsafe { &*(signal as *const FFISignal) };
-        signal_ref.get_float()
-    }), 0.0)
+    catch_panic_with_default(
+        AssertUnwindSafe(|| {
+            let signal_ref = unsafe { &*(signal as *const FFISignal) };
+            signal_ref.get_float()
+        }),
+        0.0,
+    )
 }
 
 /// Set the value of a float signal (improved API)
@@ -901,11 +940,14 @@ impl FFIHooks {
 /// Create a new hooks context
 #[no_mangle]
 pub extern "C" fn rtui_hooks_new() -> *mut RTuiHooks {
-    catch_panic_with_default(AssertUnwindSafe(|| {
-        let hooks = FFIHooks::new();
-        let boxed = Box::new(hooks);
-        Ok(Box::into_raw(boxed) as *mut RTuiHooks)
-    }), std::ptr::null_mut())
+    catch_panic_with_default(
+        AssertUnwindSafe(|| {
+            let hooks = FFIHooks::new();
+            let boxed = Box::new(hooks);
+            Ok(Box::into_raw(boxed) as *mut RTuiHooks)
+        }),
+        std::ptr::null_mut(),
+    )
 }
 
 /// Destroy a hooks context
@@ -929,16 +971,19 @@ pub extern "C" fn rtui_use_signal_int(
         return std::ptr::null_mut();
     }
 
-    catch_panic_with_default(AssertUnwindSafe(|| {
-        let hooks_ref = unsafe { &*(hooks as *const FFIHooks) };
-        let c_str = unsafe { CStr::from_ptr(key) };
-        let key_str = c_str.to_str().map_err(|_| ReactiveError::InvalidUtf8)?;
+    catch_panic_with_default(
+        AssertUnwindSafe(|| {
+            let hooks_ref = unsafe { &*(hooks as *const FFIHooks) };
+            let c_str = unsafe { CStr::from_ptr(key) };
+            let key_str = c_str.to_str().map_err(|_| ReactiveError::InvalidUtf8)?;
 
-        let signal = hooks_ref.use_signal_int(key_str, initial);
-        // Return a new reference to the signal
-        let boxed = Box::new((*signal).clone());
-        Ok(Box::into_raw(boxed) as *mut RTuiSignal)
-    }), std::ptr::null_mut())
+            let signal = hooks_ref.use_signal_int(key_str, initial);
+            // Return a new reference to the signal
+            let boxed = Box::new((*signal).clone());
+            Ok(Box::into_raw(boxed) as *mut RTuiSignal)
+        }),
+        std::ptr::null_mut(),
+    )
 }
 
 /// Use a string signal in a component (React-like hook)
@@ -952,23 +997,26 @@ pub extern "C" fn rtui_use_signal_string(
         return std::ptr::null_mut();
     }
 
-    catch_panic_with_default(AssertUnwindSafe(|| {
-        let hooks_ref = unsafe { &*(hooks as *const FFIHooks) };
-        let c_str = unsafe { CStr::from_ptr(key) };
-        let key_str = c_str.to_str().map_err(|_| ReactiveError::InvalidUtf8)?;
+    catch_panic_with_default(
+        AssertUnwindSafe(|| {
+            let hooks_ref = unsafe { &*(hooks as *const FFIHooks) };
+            let c_str = unsafe { CStr::from_ptr(key) };
+            let key_str = c_str.to_str().map_err(|_| ReactiveError::InvalidUtf8)?;
 
-        let initial_str = if initial.is_null() {
-            ""
-        } else {
-            let c_str = unsafe { CStr::from_ptr(initial) };
-            c_str.to_str().map_err(|_| ReactiveError::InvalidUtf8)?
-        };
+            let initial_str = if initial.is_null() {
+                ""
+            } else {
+                let c_str = unsafe { CStr::from_ptr(initial) };
+                c_str.to_str().map_err(|_| ReactiveError::InvalidUtf8)?
+            };
 
-        let signal = hooks_ref.use_signal_string(key_str, initial_str);
-        // Return a new reference to the signal
-        let boxed = Box::new((*signal).clone());
-        Ok(Box::into_raw(boxed) as *mut RTuiSignal)
-    }), std::ptr::null_mut())
+            let signal = hooks_ref.use_signal_string(key_str, initial_str);
+            // Return a new reference to the signal
+            let boxed = Box::new((*signal).clone());
+            Ok(Box::into_raw(boxed) as *mut RTuiSignal)
+        }),
+        std::ptr::null_mut(),
+    )
 }
 
 /// Use a boolean signal in a component (React-like hook)
@@ -982,14 +1030,17 @@ pub extern "C" fn rtui_use_signal_bool(
         return std::ptr::null_mut();
     }
 
-    catch_panic_with_default(AssertUnwindSafe(|| {
-        let hooks_ref = unsafe { &*(hooks as *const FFIHooks) };
-        let c_str = unsafe { CStr::from_ptr(key) };
-        let key_str = c_str.to_str().map_err(|_| ReactiveError::InvalidUtf8)?;
+    catch_panic_with_default(
+        AssertUnwindSafe(|| {
+            let hooks_ref = unsafe { &*(hooks as *const FFIHooks) };
+            let c_str = unsafe { CStr::from_ptr(key) };
+            let key_str = c_str.to_str().map_err(|_| ReactiveError::InvalidUtf8)?;
 
-        let signal = hooks_ref.use_signal_bool(key_str, initial);
-        // Return a new reference to the signal
-        let boxed = Box::new((*signal).clone());
-        Ok(Box::into_raw(boxed) as *mut RTuiSignal)
-    }), std::ptr::null_mut())
+            let signal = hooks_ref.use_signal_bool(key_str, initial);
+            // Return a new reference to the signal
+            let boxed = Box::new((*signal).clone());
+            Ok(Box::into_raw(boxed) as *mut RTuiSignal)
+        }),
+        std::ptr::null_mut(),
+    )
 }

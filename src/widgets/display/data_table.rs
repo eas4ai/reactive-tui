@@ -8,7 +8,7 @@
 //! - Export capabilities
 //! - Column visibility controls
 
-use super::table::{TableProps, TableColumn, TableRow, TableCell};
+use super::table::{TableCell, TableColumn, TableProps, TableRow};
 use crate::component::{Component, Element, Props};
 use crate::prelude::LayoutType;
 use std::collections::HashMap;
@@ -126,49 +126,49 @@ impl VirtualScrollConfig {
 pub struct DataTableProps {
     /// Base table properties
     pub table_props: TableProps,
-    
+
     /// Column filters
     pub filters: Vec<ColumnFilter>,
-    
+
     /// Pagination configuration
     pub pagination: PaginationConfig,
-    
+
     /// Virtual scrolling configuration
     pub virtual_scroll: VirtualScrollConfig,
-    
+
     /// Whether to show filter controls
     pub show_filters: bool,
-    
+
     /// Whether to show pagination controls
     pub show_pagination: bool,
-    
+
     /// Whether columns can be hidden/shown
     pub column_visibility_control: bool,
-    
+
     /// Hidden column keys
     pub hidden_columns: Vec<String>,
-    
+
     /// Search query for global search
     pub search_query: Option<String>,
-    
+
     /// Whether to enable global search
     pub searchable: bool,
-    
+
     /// Export options
     pub exportable: bool,
-    
+
     /// Callback for filter changes
     pub on_filter_change: Option<Arc<dyn Fn(Vec<ColumnFilter>) + Send + Sync>>,
-    
+
     /// Callback for pagination changes
     pub on_page_change: Option<Arc<dyn Fn(usize) + Send + Sync>>,
-    
+
     /// Callback for search changes
     pub on_search_change: Option<Arc<dyn Fn(String) + Send + Sync>>,
-    
+
     /// Callback for column visibility changes
     pub on_column_visibility_change: Option<Arc<dyn Fn(Vec<String>) + Send + Sync>>,
-    
+
     /// Callback for export requests
     pub on_export: Option<ExportCallback>, // format: "csv", "json", etc.
 }
@@ -202,34 +202,32 @@ impl Default for DataTableProps {
 }
 
 /// State for the Advanced Data Table component
-#[derive(Debug, Clone, PartialEq)]
-#[derive(Default)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct DataTableState {
     /// Filtered and paginated rows
     pub filtered_rows: Vec<TableRow>,
-    
+
     /// Current filter input values
     pub filter_inputs: HashMap<String, String>,
-    
+
     /// Whether filter panel is open
     pub filter_panel_open: bool,
-    
+
     /// Whether column visibility panel is open
     pub column_panel_open: bool,
-    
+
     /// Current search input
     pub search_input: String,
-    
+
     /// Virtual scroll state
     pub scroll_position: usize,
-    
+
     /// Loading state for async operations
     pub loading: bool,
-    
+
     /// Error message if any
     pub error_message: Option<String>,
 }
-
 
 /// Advanced Data Table component
 pub struct DataTable;
@@ -254,7 +252,9 @@ impl Component for DataTable {
         table_props.rows = display_rows;
 
         // Filter out hidden columns
-        table_props.columns.retain(|col| !props.hidden_columns.contains(&col.key));
+        table_props
+            .columns
+            .retain(|col| !props.hidden_columns.contains(&col.key));
 
         // Create a simple layout with the table and basic info
         let info_text = if props.pagination.enabled {
@@ -276,9 +276,6 @@ impl Component for DataTable {
 }
 
 impl DataTable {
-
-
-
     /// Get the rows to display after applying filters and pagination
     fn get_display_rows(&self, props: &DataTableProps, _state: &DataTableState) -> Vec<TableRow> {
         let mut rows = props.table_props.rows.clone();
@@ -309,9 +306,9 @@ impl DataTable {
 
         rows.into_iter()
             .filter(|row| {
-                row.cells.values().any(|cell| {
-                    cell.content.to_lowercase().contains(&query)
-                })
+                row.cells
+                    .values()
+                    .any(|cell| cell.content.to_lowercase().contains(&query))
             })
             .collect()
     }
@@ -343,9 +340,7 @@ impl DataTable {
             FilterType::Contains(text) => {
                 cell.content.to_lowercase().contains(&text.to_lowercase())
             }
-            FilterType::Equals(text) => {
-                cell.content.eq_ignore_ascii_case(text)
-            }
+            FilterType::Equals(text) => cell.content.eq_ignore_ascii_case(text),
             FilterType::Range(min, max) => {
                 if let Ok(value) = cell.content.parse::<f64>() {
                     value >= *min && value <= *max
@@ -367,11 +362,8 @@ impl DataTable {
                 // Return whether the parsed value matches the expected value
                 cell_value == *expected
             }
-
         }
     }
-
-
 }
 
 /// Helper functions for creating advanced table configurations
@@ -425,7 +417,12 @@ impl DataTableProps {
     }
 
     /// Configure virtual scrolling
-    pub fn with_virtual_scroll(mut self, enabled: bool, row_height: u16, viewport_height: u16) -> Self {
+    pub fn with_virtual_scroll(
+        mut self,
+        enabled: bool,
+        row_height: u16,
+        viewport_height: u16,
+    ) -> Self {
         self.virtual_scroll.enabled = enabled;
         self.virtual_scroll.row_height = row_height;
         self.virtual_scroll.viewport_height = viewport_height;

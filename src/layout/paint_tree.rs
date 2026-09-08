@@ -75,15 +75,15 @@ pub fn layout_and_paint_with<'a>(
     let mut taffy = TaffyTree::new();
     let mut map: HashMap<NodeId, NodePaint> = HashMap::new();
     let root_id = build_nodes(&mut taffy, root, &mut map)?;
-    
+
     // Get the surface height to properly constrain percentage-based heights like h-screen
     let (_surface_width, surface_height) = surface.dims();
-    
+
     #[cfg(test)]
     if std::env::var("PAINT_TREE_DEBUG").is_ok() {
         eprintln!("Surface dimensions: {}x{}", width, surface_height);
     }
-    
+
     let available = Size {
         width: AvailableSpace::Definite(width as f32),
         // Use the actual surface height so h-screen (100% height) works properly
@@ -92,8 +92,7 @@ pub fn layout_and_paint_with<'a>(
     taffy
         .compute_layout(root_id, available)
         .map_err(|e| ReactiveError::layout(format!("Failed to compute layout: {}", e)))?;
-    
-    
+
     paint_with_z_index(&taffy, root_id, surface, &map, opts.debug_overlay);
     Ok(())
 }
@@ -144,7 +143,7 @@ fn build_nodes<'a>(
     }
 
     let style: Style = sb.clone().build();
-    
+
     let id = if spec.children.is_empty() {
         taffy
             .new_leaf(style.clone())
@@ -177,7 +176,8 @@ fn build_nodes<'a>(
     );
     let text = spec.text.as_ref().map(|s| s.to_string());
     let background_specified = spec.class.split_whitespace().any(|token| {
-        token.strip_prefix("bg-")
+        token
+            .strip_prefix("bg-")
             .and_then(crate::layout::colors::parse_color_token)
             .is_some()
     });
@@ -222,10 +222,16 @@ fn paint_node_with_overflow(
     let content_h = h.saturating_sub(node_paint.pad.top + node_paint.pad._bottom);
 
     // Fill background color if present (for layout elements with backgrounds)
-    let default_bg = crate::core::surface::Rgba { r: 0.0, g: 0.0, b: 0.0, a: 1.0 };
+    let default_bg = crate::core::surface::Rgba {
+        r: 0.0,
+        g: 0.0,
+        b: 0.0,
+        a: 1.0,
+    };
     if node_paint.style.bg != default_bg {
         // Fill the entire content area with background color
-        let rect = crate::core::geometry::Rect::from_coords(content_x, content_y, content_w, content_h);
+        let rect =
+            crate::core::geometry::Rect::from_coords(content_x, content_y, content_w, content_h);
         surface.fill_rect(
             rect,
             ' ',
@@ -328,8 +334,7 @@ fn collect_nodes_by_z_index_recursive(
         // Check if this node is absolutely positioned
         let style = taffy.style(node).unwrap();
         let is_absolute = matches!(style.position, taffy::style::Position::Absolute);
-        
-        
+
         // For absolute positioning, use location directly; for relative, add parent offset
         let x = if is_absolute {
             layout.location.x.max(0.0) as usize
@@ -349,7 +354,12 @@ fn collect_nodes_by_z_index_recursive(
         if std::env::var("PAINT_TREE_DEBUG").is_ok() {
             eprintln!(
                 "Node layout: pos=({},{}) size=({},{}) parent=({},{}) has_text={}",
-                x, y, w, h, parent_x, parent_y, 
+                x,
+                y,
+                w,
+                h,
+                parent_x,
+                parent_y,
                 map.get(&node).and_then(|np| np.text.as_ref()).is_some()
             );
         }

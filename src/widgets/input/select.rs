@@ -91,8 +91,7 @@ impl<T: Clone + PartialEq + Send + Sync + 'static> SelectBuilder<T> {
 
     /// Build and render as an Element (convenience method)
     pub fn render(self) -> Element {
-        Element::component("Select")
-            .with_props(self.build())
+        Element::component("Select").with_props(self.build())
     }
 }
 

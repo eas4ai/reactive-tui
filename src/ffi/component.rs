@@ -1,7 +1,7 @@
 //! Component system FFI functions
 
-use super::*;
 use super::builder::RTuiElement;
+use super::*;
 use crate::component::{Element, ElementType, LayoutType};
 use std::boxed::Box;
 use std::ffi::{CStr, CString};

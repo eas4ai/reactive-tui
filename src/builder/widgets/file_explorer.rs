@@ -4,7 +4,7 @@
 //! file system navigation, filtering, and advanced features.
 
 use crate::component::Element;
-use crate::widgets::display::{FileExplorerBuilder, ViewMode, SelectionMode, SortCriteria};
+use crate::widgets::display::{FileExplorerBuilder, SelectionMode, SortCriteria, ViewMode};
 use std::path::PathBuf;
 
 /// Create a file explorer widget builder
@@ -97,10 +97,21 @@ pub fn media_gallery_explorer(media_path: impl Into<PathBuf>) -> FileExplorerBui
         .view_mode(ViewMode::Grid)
         .selection_mode(SelectionMode::Multiple)
         .file_filters(vec![
-            "jpg".to_string(), "jpeg".to_string(), "png".to_string(), "gif".to_string(),
-            "bmp".to_string(), "svg".to_string(), "webp".to_string(),
-            "mp4".to_string(), "avi".to_string(), "mkv".to_string(), "mov".to_string(),
-            "mp3".to_string(), "wav".to_string(), "flac".to_string(), "ogg".to_string(),
+            "jpg".to_string(),
+            "jpeg".to_string(),
+            "png".to_string(),
+            "gif".to_string(),
+            "bmp".to_string(),
+            "svg".to_string(),
+            "webp".to_string(),
+            "mp4".to_string(),
+            "avi".to_string(),
+            "mkv".to_string(),
+            "mov".to_string(),
+            "mp3".to_string(),
+            "wav".to_string(),
+            "flac".to_string(),
+            "ogg".to_string(),
         ])
         .show_preview(true)
         .show_details(false)
@@ -127,10 +138,17 @@ pub fn document_browser(docs_path: impl Into<PathBuf>) -> FileExplorerBuilder {
         .view_mode(ViewMode::List)
         .selection_mode(SelectionMode::Multiple)
         .file_filters(vec![
-            "pdf".to_string(), "doc".to_string(), "docx".to_string(),
-            "txt".to_string(), "md".to_string(), "rtf".to_string(),
-            "odt".to_string(), "xls".to_string(), "xlsx".to_string(),
-            "ppt".to_string(), "pptx".to_string(),
+            "pdf".to_string(),
+            "doc".to_string(),
+            "docx".to_string(),
+            "txt".to_string(),
+            "md".to_string(),
+            "rtf".to_string(),
+            "odt".to_string(),
+            "xls".to_string(),
+            "xlsx".to_string(),
+            "ppt".to_string(),
+            "pptx".to_string(),
         ])
         .show_details(true)
         .show_preview(false)
@@ -240,12 +258,9 @@ pub fn home_directory_explorer() -> Element {
 ///     vec!["rs", "toml", "md"]
 /// );
 /// ```
-pub fn filtered_file_explorer(
-    path: impl Into<PathBuf>,
-    extensions: Vec<&str>,
-) -> Element {
+pub fn filtered_file_explorer(path: impl Into<PathBuf>, extensions: Vec<&str>) -> Element {
     let filters: Vec<String> = extensions.into_iter().map(|s| s.to_string()).collect();
-    
+
     FileExplorerBuilder::new()
         .current_path(path)
         .file_filters(filters)
@@ -266,7 +281,7 @@ mod tests {
             .current_path("/test")
             .view_mode(ViewMode::List)
             .build();
-        
+
         assert!(explorer.is_component());
         assert_eq!(explorer.component_name(), Some("FileExplorer"));
     }
@@ -282,7 +297,7 @@ mod tests {
         let explorer = code_project_explorer("/project")
             .file_filters(vec!["rs".to_string()])
             .build();
-        
+
         assert!(explorer.is_component());
     }
 
@@ -291,16 +306,14 @@ mod tests {
         let gallery = media_gallery_explorer("/pictures")
             .show_preview(true)
             .build();
-        
+
         assert!(gallery.is_component());
     }
 
     #[test]
     fn test_document_browser() {
-        let browser = document_browser("/documents")
-            .search("test")
-            .build();
-        
+        let browser = document_browser("/documents").search("test").build();
+
         assert!(browser.is_component());
     }
 
@@ -309,7 +322,7 @@ mod tests {
         let picker = compact_file_picker("/")
             .file_filters(vec!["txt".to_string()])
             .build();
-        
+
         assert!(picker.is_component());
     }
 

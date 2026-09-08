@@ -2,7 +2,9 @@ use crate::component::{Component, Element, Props};
 use crate::event::router::EventResult;
 use crate::event::types::{KeyEvent, MouseEventKind};
 use crate::event::{Event, MouseEvent};
-use crate::widgets::menu::{MenuItem, MenuStyle, MenuTheme, PopupMenu, PopupMenuProps, PopupMenuState, PopupPlacement};
+use crate::widgets::menu::{
+    MenuItem, MenuStyle, MenuTheme, PopupMenu, PopupMenuProps, PopupMenuState, PopupPlacement,
+};
 use std::any::Any;
 use std::sync::Arc;
 
@@ -102,14 +104,19 @@ impl ContextMenuState {
     }
 
     /// Check if a point is within any of the trigger areas
-    pub fn is_in_trigger_area(&self, x: u16, y: u16, trigger_areas: &[(u16, u16, u16, u16)]) -> bool {
+    pub fn is_in_trigger_area(
+        &self,
+        x: u16,
+        y: u16,
+        trigger_areas: &[(u16, u16, u16, u16)],
+    ) -> bool {
         if trigger_areas.is_empty() {
             return true; // Global context menu
         }
-        
-        trigger_areas.iter().any(|(tx, ty, tw, th)| {
-            x >= *tx && x < tx + tw && y >= *ty && y < ty + th
-        })
+
+        trigger_areas
+            .iter()
+            .any(|(tx, ty, tw, th)| x >= *tx && x < tx + tw && y >= *ty && y < ty + th)
     }
 
     /// Start long press detection
@@ -158,13 +165,14 @@ pub struct ContextMenu {
     on_hide: Option<Arc<dyn Fn() + Send + Sync>>,
 }
 
-
 impl ContextMenu {
     /// Set callback for when a menu item is selected
     pub fn with_on_item_selected(mut self, f: impl Fn(&str) + Send + Sync + 'static) -> Self {
         let callback: Arc<dyn Fn(&str) + Send + Sync> = Arc::new(f);
         self.on_item_selected = Some(Arc::clone(&callback));
-        self.popup_menu = self.popup_menu.with_on_item_selected(move |item| callback(item));
+        self.popup_menu = self
+            .popup_menu
+            .with_on_item_selected(move |item| callback(item));
         self
     }
 
@@ -183,7 +191,12 @@ impl ContextMenu {
     }
 
     /// Handle keyboard events
-    fn handle_key_event(&mut self, key: &KeyEvent, props: &ContextMenuProps, state: &mut ContextMenuState) -> EventResult {
+    fn handle_key_event(
+        &mut self,
+        key: &KeyEvent,
+        props: &ContextMenuProps,
+        state: &mut ContextMenuState,
+    ) -> EventResult {
         if !props.enabled {
             return EventResult::Ignored;
         }
@@ -195,7 +208,7 @@ impl ContextMenu {
                 style: props.style.clone(),
                 visible: state.is_visible,
                 enabled: props.enabled,
-                placement: PopupPlacement::Position { 
+                placement: PopupPlacement::Position {
                     x: state.position.map(|(x, _)| x).unwrap_or(0),
                     y: state.position.map(|(_, y)| y).unwrap_or(0),
                 },
@@ -228,7 +241,12 @@ impl ContextMenu {
     }
 
     /// Handle mouse events
-    fn handle_mouse_event(&mut self, mouse: &MouseEvent, props: &ContextMenuProps, state: &mut ContextMenuState) -> EventResult {
+    fn handle_mouse_event(
+        &mut self,
+        mouse: &MouseEvent,
+        props: &ContextMenuProps,
+        state: &mut ContextMenuState,
+    ) -> EventResult {
         if !props.enabled {
             return EventResult::Ignored;
         }
@@ -242,8 +260,9 @@ impl ContextMenu {
             MouseEventKind::Down => {
                 match mouse.button {
                     crate::event::types::MouseButton::Right => {
-                        if props.show_on_right_click && 
-                           state.is_in_trigger_area(mouse_x, mouse_y, &props.trigger_areas) {
+                        if props.show_on_right_click
+                            && state.is_in_trigger_area(mouse_x, mouse_y, &props.trigger_areas)
+                        {
                             state.show_at(mouse_x, mouse_y);
                             if let Some(callback) = &self.on_show {
                                 callback(mouse_x, mouse_y);
@@ -253,8 +272,9 @@ impl ContextMenu {
                         EventResult::Ignored
                     }
                     crate::event::types::MouseButton::Left => {
-                        if props.show_on_long_press && 
-                           state.is_in_trigger_area(mouse_x, mouse_y, &props.trigger_areas) {
+                        if props.show_on_long_press
+                            && state.is_in_trigger_area(mouse_x, mouse_y, &props.trigger_areas)
+                        {
                             state.start_long_press(mouse_x, mouse_y);
                         }
 
@@ -265,7 +285,7 @@ impl ContextMenu {
                                 style: props.style.clone(),
                                 visible: state.is_visible,
                                 enabled: props.enabled,
-                                placement: PopupPlacement::Position { 
+                                placement: PopupPlacement::Position {
                                     x: state.position.map(|(x, _)| x).unwrap_or(0),
                                     y: state.position.map(|(_, y)| y).unwrap_or(0),
                                 },
@@ -299,7 +319,9 @@ impl ContextMenu {
                 }
             }
             MouseEventKind::Up => {
-                if mouse.button == crate::event::types::MouseButton::Left && state.press_start_time.is_some() {
+                if mouse.button == crate::event::types::MouseButton::Left
+                    && state.press_start_time.is_some()
+                {
                     // Check for long press completion
                     if state.update_long_press(mouse_x, mouse_y, props.long_press_duration) {
                         state.show_at(mouse_x, mouse_y);
@@ -325,7 +347,7 @@ impl ContextMenu {
                         style: props.style.clone(),
                         visible: state.is_visible,
                         enabled: props.enabled,
-                        placement: PopupPlacement::Position { 
+                        placement: PopupPlacement::Position {
                             x: state.position.map(|(x, _)| x).unwrap_or(0),
                             y: state.position.map(|(_, y)| y).unwrap_or(0),
                         },
@@ -353,7 +375,7 @@ impl ContextMenu {
                         style: props.style.clone(),
                         visible: state.is_visible,
                         enabled: props.enabled,
-                        placement: PopupPlacement::Position { 
+                        placement: PopupPlacement::Position {
                             x: state.position.map(|(x, _)| x).unwrap_or(0),
                             y: state.position.map(|(_, y)| y).unwrap_or(0),
                         },
@@ -397,7 +419,7 @@ impl Component for ContextMenu {
             style: props.style.clone(),
             visible: state.is_visible,
             enabled: props.enabled,
-            placement: PopupPlacement::Position { 
+            placement: PopupPlacement::Position {
                 x: state.position.map(|(x, _)| x).unwrap_or(0),
                 y: state.position.map(|(_, y)| y).unwrap_or(0),
             },
@@ -423,7 +445,7 @@ impl Component for ContextMenu {
             style: props.style.clone(),
             visible: state.is_visible,
             enabled: props.enabled,
-            placement: PopupPlacement::Position { 
+            placement: PopupPlacement::Position {
                 x: state.position.map(|(x, _)| x).unwrap_or(0),
                 y: state.position.map(|(_, y)| y).unwrap_or(0),
             },

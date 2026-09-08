@@ -7,10 +7,14 @@ use std::any::{Any, TypeId};
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
+/// Performance optimizations for component operations
+pub mod cache;
 /// Component change detection and tracking
 pub mod change;
 /// Element types and builders for the component tree
 pub mod element;
+/// Declarative focus management system
+pub mod focus;
 /// Component instance management and rendering
 pub mod instance;
 /// Component lifecycle events and hooks
@@ -19,20 +23,16 @@ pub mod lifecycle;
 pub mod props;
 /// Global component registry for dynamic component creation
 pub mod registry;
-/// Performance optimizations for component operations
-pub mod cache;
 /// Tracked component instances with automatic cleanup
 pub mod tracked_instance;
-/// Declarative focus management system
-pub mod focus;
 
 pub use element::{Element, ElementType, LayoutType};
+pub use focus::{FocusProps, FocusPropsBuilder};
 pub use instance::{AnyComponentInstance, ComponentInstance};
 pub use lifecycle::{Lifecycle, LifecycleEvent};
 pub use props::Props;
-pub use focus::{FocusProps, FocusPropsBuilder};
 pub use registry::ComponentRegistry;
-pub use tracked_instance::{TrackedComponentInstance, SharedTrackedInstance};
+pub use tracked_instance::{SharedTrackedInstance, TrackedComponentInstance};
 /// Bridge between component elements and layout system
 pub mod bridge;
 /// State management flags for component lifecycle
@@ -118,7 +118,7 @@ pub trait AnyComponent: Any + Send + Sync {
     fn as_any(&self) -> &dyn Any;
     /// Get a mutable reference to the component as Any for downcasting
     fn as_any_mut(&mut self) -> &mut dyn Any;
-    
+
     /// Check if the component is mounted
     fn is_mounted_any(&self) -> bool;
 }

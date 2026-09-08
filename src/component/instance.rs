@@ -119,12 +119,12 @@ impl std::fmt::Debug for AnyComponentInstance {
 
 impl AnyComponentInstance {
     /// Create from a typed component instance with factory
-    /// 
+    ///
     /// The factory pattern ensures that cloning creates fresh component instances
     /// with the same props but clean state. This is the correct behavior for
     /// component instances - they should not share mutable state.
-    pub fn new<C: Component>(instance: ComponentInstance<C>) -> Self 
-    where 
+    pub fn new<C: Component>(instance: ComponentInstance<C>) -> Self
+    where
         C::Props: Clone + 'static,
     {
         let props = instance.props.clone();
@@ -132,7 +132,7 @@ impl AnyComponentInstance {
             let new_instance = ComponentInstance::<C>::new(props.clone());
             Box::new(ComponentInstanceWrapper(new_instance))
         });
-        
+
         Self {
             inner: Box::new(ComponentInstanceWrapper(instance)),
             factory,
@@ -163,9 +163,9 @@ impl AnyComponentInstance {
     pub fn type_id(&self) -> TypeId {
         AnyComponent::type_id(&*self.inner)
     }
-    
+
     /// Check if this instance supports cloning
-    /// 
+    ///
     /// Always returns true since we use the factory pattern for all instances
     pub fn is_clonable(&self) -> bool {
         true
@@ -194,8 +194,6 @@ impl Drop for AnyComponentInstance {
     }
 }
 
-
-
 /// Wrapper to make ComponentInstance implement AnyComponent
 struct ComponentInstanceWrapper<C: Component>(ComponentInstance<C>);
 
@@ -221,7 +219,9 @@ impl<C: Component> AnyComponent for ComponentInstanceWrapper<C> {
 
         if self_ptr != self_mut_ptr {
             // Pin stability check failed - this should never happen but provides safety
-            log::error!("Pin stability check failed in poll_change_any - potential memory safety issue");
+            log::error!(
+                "Pin stability check failed in poll_change_any - potential memory safety issue"
+            );
             return Poll::Pending;
         }
 
@@ -237,7 +237,8 @@ impl<C: Component> AnyComponent for ComponentInstanceWrapper<C> {
             let component_ptr = &mut wrapper.0.component as *mut C;
 
             // Additional safety: verify the component pointer is aligned and non-null
-            if component_ptr.is_null() || (component_ptr as usize) % std::mem::align_of::<C>() != 0 {
+            if component_ptr.is_null() || (component_ptr as usize) % std::mem::align_of::<C>() != 0
+            {
                 log::error!("Invalid component pointer in poll_change_any");
                 return Poll::Pending;
             }
@@ -255,7 +256,7 @@ impl<C: Component> AnyComponent for ComponentInstanceWrapper<C> {
                 if self.0.lifecycle.is_mounted() {
                     self.0.unmount();
                 }
-            },
+            }
             _ => self.0.component.on_lifecycle(event, &mut self.0.state),
         }
     }

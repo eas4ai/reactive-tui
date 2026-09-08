@@ -110,12 +110,15 @@ pub mod prelude {
     pub use crate::error::{ReactiveError, Result};
     pub use crate::hooks::*;
     pub use crate::reactive::*;
-    pub use crate::vdom::{VNode, menubar, context_menu, popup_menu, dialog_menu, simple_menubar, simple_context_menu, simple_popup_menu};
+    pub use crate::vdom::{
+        context_menu, dialog_menu, menubar, popup_menu, simple_context_menu, simple_menubar,
+        simple_popup_menu, VNode,
+    };
     pub use crate::{component, Props};
 
     // CSS-in-Rust support
     pub use crate::layout::css::css_in_rust::{apply_css_property, IntoCssValue};
-    pub use taffy::style::{Display, FlexDirection, AlignItems, JustifyContent, Position};
+    pub use taffy::style::{AlignItems, Display, FlexDirection, JustifyContent, Position};
 }
 
 /// Owned Unix PTY sessions interpreted by libghostty.

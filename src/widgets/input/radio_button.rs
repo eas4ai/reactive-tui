@@ -87,8 +87,7 @@ impl<T: Clone + PartialEq + Send + Sync + 'static> RadioButtonBuilder<T> {
 
     /// Build and render as an Element (convenience method)
     pub fn render(self) -> Element {
-        Element::component("RadioButton")
-            .with_props(self.build())
+        Element::component("RadioButton").with_props(self.build())
     }
 }
 
@@ -186,7 +185,7 @@ impl<T: Clone + PartialEq + Send + Sync + 'static> Component for RadioButton<T> 
 
     fn render(&self, props: &Self::Props, state: &Self::State) -> Element {
         let mut result = String::new();
-        
+
         for (index, option) in props.options.iter().enumerate() {
             // Add focus/hover indicators
             if state.focused_index == Some(index) && !props.disabled && !option.disabled {
@@ -283,11 +282,11 @@ impl<T: Clone + PartialEq + Send + Sync + 'static> RadioButton<T> {
                     } else {
                         new_index -= 1;
                     }
-                    
+
                     if new_index == current_index {
                         break; // We've wrapped around
                     }
-                    
+
                     if !props.options[new_index].disabled {
                         state.focused_index = Some(new_index);
                         break;
@@ -300,11 +299,11 @@ impl<T: Clone + PartialEq + Send + Sync + 'static> RadioButton<T> {
                 let mut new_index = current_index;
                 loop {
                     new_index = (new_index + 1) % props.options.len();
-                    
+
                     if new_index == current_index {
                         break; // We've wrapped around
                     }
-                    
+
                     if !props.options[new_index].disabled {
                         state.focused_index = Some(new_index);
                         break;
@@ -317,7 +316,7 @@ impl<T: Clone + PartialEq + Send + Sync + 'static> RadioButton<T> {
                 if current_index < props.options.len() && !props.options[current_index].disabled {
                     let value = props.options[current_index].value.clone();
                     props.selected = Some(value.clone());
-                    
+
                     if let Some(on_change) = &self.on_change {
                         on_change(value);
                     }
@@ -337,7 +336,7 @@ impl<T: Clone + PartialEq + Send + Sync + 'static> RadioButton<T> {
         match event.kind {
             MouseEventKind::Click => {
                 let y = event.position.y() as usize;
-                
+
                 // Determine which option was clicked based on orientation
                 let clicked_index = match props.orientation {
                     RadioOrientation::Vertical => {
@@ -364,7 +363,7 @@ impl<T: Clone + PartialEq + Send + Sync + 'static> RadioButton<T> {
                         state.focused_index = Some(index);
                         let value = props.options[index].value.clone();
                         props.selected = Some(value.clone());
-                        
+
                         if let Some(on_change) = &self.on_change {
                             on_change(value);
                         }
@@ -376,7 +375,7 @@ impl<T: Clone + PartialEq + Send + Sync + 'static> RadioButton<T> {
             MouseEventKind::Move => {
                 // Track hover state
                 let y = event.position.y() as usize;
-                
+
                 match props.orientation {
                     RadioOrientation::Vertical => {
                         if y < props.options.len() {
@@ -449,9 +448,21 @@ mod tests {
         let mut radio = RadioButton::<i32>::new(RadioButtonProps::default());
         let mut props = RadioButtonProps {
             options: vec![
-                RadioOption { value: 1, label: "One".to_string(), disabled: false },
-                RadioOption { value: 2, label: "Two".to_string(), disabled: false },
-                RadioOption { value: 3, label: "Three".to_string(), disabled: false },
+                RadioOption {
+                    value: 1,
+                    label: "One".to_string(),
+                    disabled: false,
+                },
+                RadioOption {
+                    value: 2,
+                    label: "Two".to_string(),
+                    disabled: false,
+                },
+                RadioOption {
+                    value: 3,
+                    label: "Three".to_string(),
+                    disabled: false,
+                },
             ],
             selected: None,
             disabled: false,

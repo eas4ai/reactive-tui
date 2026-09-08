@@ -215,8 +215,7 @@ impl ProgressBarBuilder {
 
     /// Build and render as an Element (convenience method)
     pub fn render(self) -> Element {
-        Element::component("ProgressBar")
-            .with_props(self.build())
+        Element::component("ProgressBar").with_props(self.build())
     }
 }
 
@@ -294,7 +293,6 @@ pub struct ProgressBarProps {
     /// Callback when progress completes
     pub on_complete: Option<Arc<dyn Fn() + Send + Sync>>,
 }
-
 
 impl Default for ProgressBarProps {
     fn default() -> Self {

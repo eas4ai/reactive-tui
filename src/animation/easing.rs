@@ -42,7 +42,7 @@ pub enum EasingFunction {
     OutBack(f32),
     /// Ease in-out back with custom overshoot
     InOutBack(f32),
-    
+
     // Parametric elastic variations
     /// Ease in elastic with custom amplitude and period
     InElastic(f32, f32), // amplitude, period

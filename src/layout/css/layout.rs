@@ -503,7 +503,8 @@ mod tests {
     fn test_justify_content_utilities() {
         let sb = StyleBuilder::new();
 
-        let result = apply_justify_content("justify-center", sb).expect("Should apply justify-center");
+        let result =
+            apply_justify_content("justify-center", sb).expect("Should apply justify-center");
         let style = result.build();
         assert_eq!(
             style.justify_content,

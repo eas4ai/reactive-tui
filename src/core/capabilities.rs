@@ -219,7 +219,10 @@ impl TerminalQuery {
         // Restore original flags
         unsafe {
             if fcntl(fd, F_SETFL, original_flags) == -1 {
-                log::warn!("Failed to restore original fcntl flags: {}", io::Error::last_os_error());
+                log::warn!(
+                    "Failed to restore original fcntl flags: {}",
+                    io::Error::last_os_error()
+                );
             }
         }
 

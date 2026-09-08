@@ -3,8 +3,8 @@
 //! This module provides pre-styled components and layout utilities that make it easy
 //! to create common UI patterns with consistent styling.
 
+use super::core::{aside, button, div, grid_builder, input, main, span, ElementBuilder};
 use crate::component::Element;
-use super::core::{ElementBuilder, div, span, aside, main, grid_builder, button, input};
 
 /// Convenience functions for common layout patterns
 ///

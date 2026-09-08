@@ -304,7 +304,11 @@ mod tests {
         if let ElementType::Layout(layout_type) = &layout.element_type {
             assert_eq!(*layout_type, LayoutType::Flex);
         } else {
-            assert!(false, "Expected layout element, got: {:?}", layout.element_type);
+            assert!(
+                false,
+                "Expected layout element, got: {:?}",
+                layout.element_type
+            );
         }
 
         // Test fragment creation
@@ -333,7 +337,8 @@ mod tests {
         assert!(element.is_component());
 
         // Test props downcasting
-        let retrieved_props = element.props_as::<ButtonProps>()
+        let retrieved_props = element
+            .props_as::<ButtonProps>()
             .expect("Should be able to downcast to ButtonProps");
         assert_eq!(retrieved_props.label, "Click me");
         assert!(!retrieved_props.disabled);
@@ -478,7 +483,8 @@ mod tests {
             count: 5,
         });
 
-        let props = element.props_as::<TestProps>()
+        let props = element
+            .props_as::<TestProps>()
             .expect("Should be able to downcast to TestProps");
         assert_eq!(props.name, "test");
         assert_eq!(props.count, 5);

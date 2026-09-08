@@ -2,7 +2,6 @@
 ///
 /// This module provides React-like declarative focus properties that can be
 /// attached to elements, replacing the imperative focus trap API.
-
 use std::sync::Arc;
 
 /// Focus-related properties that can be attached to any element
@@ -10,22 +9,22 @@ use std::sync::Arc;
 pub struct FocusProps {
     /// Whether this element should receive focus automatically when rendered
     pub auto_focus: bool,
-    
+
     /// Whether this element can receive focus via keyboard navigation
     pub focusable: bool,
-    
+
     /// Whether focus should be trapped within this container and its children
     pub trap_focus: bool,
-    
+
     /// Tab index for controlling focus order (-1 = not focusable, 0 = default order, 1+ = custom order)
     pub tab_index: i32,
-    
+
     /// Whether to restore focus to previous element when this element unmounts
     pub restore_focus: bool,
-    
+
     /// Callback when element receives focus
     pub on_focus: Option<Arc<dyn Fn() + Send + Sync>>,
-    
+
     /// Callback when element loses focus
     pub on_blur: Option<Arc<dyn Fn() + Send + Sync>>,
 }
@@ -79,7 +78,7 @@ impl FocusProps {
             ..Default::default()
         }
     }
-    
+
     /// Create focus props for a button
     pub fn button() -> Self {
         Self {
@@ -88,7 +87,7 @@ impl FocusProps {
             ..Default::default()
         }
     }
-    
+
     /// Create focus props for a modal dialog
     pub fn modal() -> Self {
         Self {
@@ -98,7 +97,7 @@ impl FocusProps {
             ..Default::default()
         }
     }
-    
+
     /// Create focus props for a menu
     pub fn menu() -> Self {
         Self {
@@ -127,49 +126,49 @@ impl FocusPropsBuilder {
             props: FocusProps::default(),
         }
     }
-    
+
     /// Set auto focus
     pub fn auto_focus(mut self, value: bool) -> Self {
         self.props.auto_focus = value;
         self
     }
-    
+
     /// Set focusable
     pub fn focusable(mut self, value: bool) -> Self {
         self.props.focusable = value;
         self
     }
-    
+
     /// Set trap focus
     pub fn trap_focus(mut self, value: bool) -> Self {
         self.props.trap_focus = value;
         self
     }
-    
+
     /// Set tab index
     pub fn tab_index(mut self, value: i32) -> Self {
         self.props.tab_index = value;
         self
     }
-    
+
     /// Set restore focus
     pub fn restore_focus(mut self, value: bool) -> Self {
         self.props.restore_focus = value;
         self
     }
-    
+
     /// Set on focus callback
     pub fn on_focus(mut self, callback: impl Fn() + Send + Sync + 'static) -> Self {
         self.props.on_focus = Some(Arc::new(callback));
         self
     }
-    
+
     /// Set on blur callback
     pub fn on_blur(mut self, callback: impl Fn() + Send + Sync + 'static) -> Self {
         self.props.on_blur = Some(Arc::new(callback));
         self
     }
-    
+
     /// Build the focus props
     pub fn build(self) -> FocusProps {
         self.props

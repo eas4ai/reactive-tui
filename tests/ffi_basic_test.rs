@@ -1,5 +1,5 @@
 //! Basic FFI functionality tests
-//! 
+//!
 //! Tests the core FFI functions to ensure they work correctly after fixes
 
 #[cfg(feature = "ffi")]
@@ -24,7 +24,8 @@ mod ffi_tests {
             assert_eq!(builder_ptr, original_ptr); // Pointer should remain the same
 
             // Test in-place performance mode modification
-            let result = rtui_app_builder_performance_mode(builder_ptr, RTuiPerformanceMode::Performance);
+            let result =
+                rtui_app_builder_performance_mode(builder_ptr, RTuiPerformanceMode::Performance);
             assert_eq!(result, ReactiveError::Success);
             assert_eq!(builder_ptr, original_ptr); // Pointer should remain the same
 
@@ -84,8 +85,11 @@ mod ffi_tests {
             let placeholder = CString::new("Enter text").unwrap();
             let initial_value = CString::new("").unwrap();
             let mut element_ptr: *mut RTuiElement = ptr::null_mut();
-            
-            extern "C" fn dummy_callback(_value: *const std::os::raw::c_char, _user_data: *mut std::ffi::c_void) {
+
+            extern "C" fn dummy_callback(
+                _value: *const std::os::raw::c_char,
+                _user_data: *mut std::ffi::c_void,
+            ) {
                 // Dummy callback for testing
             }
 
@@ -109,8 +113,11 @@ mod ffi_tests {
         unsafe {
             let label = CString::new("Test Checkbox").unwrap();
             let mut element_ptr: *mut RTuiElement = ptr::null_mut();
-            
-            extern "C" fn dummy_checkbox_callback(_checked: bool, _user_data: *mut std::ffi::c_void) {
+
+            extern "C" fn dummy_checkbox_callback(
+                _checked: bool,
+                _user_data: *mut std::ffi::c_void,
+            ) {
                 // Dummy callback for testing
             }
 
@@ -136,9 +143,9 @@ mod ffi_tests {
             let mut element_ptr: *mut RTuiElement = ptr::null_mut();
 
             let result = rtui_progress_bar_create(
-                0.0,    // min_value
-                100.0,  // max_value
-                50.0,   // current_value
+                0.0,   // min_value
+                100.0, // max_value
+                50.0,  // current_value
                 RTuiProgressBarOrientation::Horizontal,
                 label.as_ptr(),
                 &mut element_ptr,
@@ -156,7 +163,7 @@ mod ffi_tests {
         unsafe {
             let text = CString::new("Click Me").unwrap();
             let mut element_ptr: *mut RTuiElement = ptr::null_mut();
-            
+
             extern "C" fn dummy_click_handler(_user_data: *mut std::ffi::c_void) {
                 // Dummy click handler for testing
             }
@@ -179,7 +186,9 @@ mod ffi_tests {
     fn test_root_component_functionality() {
         unsafe {
             // Test root component callback system
-            extern "C" fn test_root_callback(_user_data: *mut std::ffi::c_void) -> *mut RTuiElement {
+            extern "C" fn test_root_callback(
+                _user_data: *mut std::ffi::c_void,
+            ) -> *mut RTuiElement {
                 // Create a simple element to return
                 let mut element_ptr: *mut RTuiElement = ptr::null_mut();
                 let result = rtui_text_element_create(
@@ -199,11 +208,8 @@ mod ffi_tests {
             assert_eq!(result, ReactiveError::Success);
 
             // Set root component
-            let result = rtui_app_builder_root_component(
-                builder_ptr,
-                test_root_callback,
-                ptr::null_mut(),
-            );
+            let result =
+                rtui_app_builder_root_component(builder_ptr, test_root_callback, ptr::null_mut());
             assert_eq!(result, ReactiveError::Success);
 
             // Set backend

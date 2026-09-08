@@ -4,7 +4,7 @@
 //! through static lookup tables and caching. Currently optimizes:
 //! - Static utility lookups (flex, grid, display, etc.)
 //! - Dynamic spacing utilities (padding, margin)
-//! 
+//!
 //! Note: This is a partial optimization. Many dynamic utilities still
 //! delegate to the original sequential parsers for correctness.
 
@@ -23,7 +23,7 @@ struct UtilityEntry {
 /// Global utility lookup table for static utilities
 static UTILITY_REGISTRY: Lazy<HashMap<&'static str, UtilityEntry>> = Lazy::new(|| {
     let mut registry = HashMap::with_capacity(200);
-    
+
     // Register only static utilities that we can optimize
     register_display_utilities(&mut registry);
     register_flexbox_utilities(&mut registry);
@@ -32,7 +32,7 @@ static UTILITY_REGISTRY: Lazy<HashMap<&'static str, UtilityEntry>> = Lazy::new(|
     register_static_color_utilities(&mut registry);
     register_typography_utilities(&mut registry);
     register_position_utilities(&mut registry);
-    
+
     registry
 });
 
@@ -68,12 +68,12 @@ thread_local! {
 }
 
 /// CSS utility class application with performance improvements
-/// 
+///
 /// Provides performance improvements for:
 /// - Static utility lookups via HashMap (O(1))
 /// - Common spacing utilities via optimized handlers
 /// - LRU caching of complete class strings
-/// 
+///
 /// Falls back to original implementations for:
 /// - Dynamic colors, sizes, grid values
 /// - Theme-aware utilities
@@ -88,10 +88,8 @@ pub fn apply_utility_classes(
     }
 
     // Check cache first
-    let cached = CLASS_CACHE.with(|cache| {
-        cache.borrow_mut().get(class_str).cloned()
-    });
-    
+    let cached = CLASS_CACHE.with(|cache| cache.borrow_mut().get(class_str).cloned());
+
     if let Some(cached_sb) = cached {
         return cached_sb;
     }
@@ -144,58 +142,59 @@ fn delegate_to_existing_modules(
     theme: Option<&crate::theme::Theme>,
 ) -> StyleBuilder {
     // Try each module in order of likelihood
-    
+
     // Layout utilities (includes position, display not in static registry)
     if let Some(result) = super::layout::apply_layout_utilities(token, sb.clone()) {
         return result;
     }
-    
+
     // Spacing utilities (for gap, space-between utilities not in SPACING_PREFIXES)
     if let Some(result) = super::spacing::apply_spacing_utilities(token, sb.clone()) {
         return result;
     }
-    
+
     // Sizing utilities (for dynamic values like w-[100px])
     if let Some(result) = super::sizing::apply_sizing_utilities(token, sb.clone()) {
         return result;
     }
-    
+
     // Color utilities (with theme support)
-    if let Some(result) = super::colors::apply_color_utilities_with_theme(token, sb.clone(), theme) {
+    if let Some(result) = super::colors::apply_color_utilities_with_theme(token, sb.clone(), theme)
+    {
         return result;
     }
-    
+
     // Container utilities
     if let Some(result) = super::containers::apply_container_utilities(token, sb.clone()) {
         return result;
     }
-    
+
     // Effects utilities
     if let Some(result) = super::effects::apply_effects_utilities(token, sb.clone()) {
         return result;
     }
-    
+
     // Other utilities...
     if let Some(result) = super::interactions::apply_interaction_utilities(token, sb.clone()) {
         return result;
     }
-    
+
     if let Some(result) = super::focus::apply_focus_utilities(token, sb.clone()) {
         return result;
     }
-    
+
     if let Some(result) = super::accessibility::apply_accessibility_utilities(token, sb.clone()) {
         return result;
     }
-    
+
     if let Some(result) = super::animations::apply_animation_utilities(token, sb.clone()) {
         return result;
     }
-    
+
     if let Some(result) = super::variants::apply_variant_utilities(token, sb.clone()) {
         return result;
     }
-    
+
     // Token not recognized
     sb
 }
@@ -203,110 +202,187 @@ fn delegate_to_existing_modules(
 // Registration functions for static utilities only
 fn register_display_utilities(registry: &mut HashMap<&'static str, UtilityEntry>) {
     let displays = [
-        "block", "inline", "inline-block", "flex", "inline-flex",
-        "grid", "inline-grid", "hidden", "contents", "flow-root"
+        "block",
+        "inline",
+        "inline-block",
+        "flex",
+        "inline-flex",
+        "grid",
+        "inline-grid",
+        "hidden",
+        "contents",
+        "flow-root",
     ];
-    
+
     for display in displays {
-        registry.insert(display, UtilityEntry {
-            handler: |token, sb| super::layout::apply_layout_utilities(token, sb),
-        });
+        registry.insert(
+            display,
+            UtilityEntry {
+                handler: |token, sb| super::layout::apply_layout_utilities(token, sb),
+            },
+        );
     }
 }
 
 fn register_flexbox_utilities(registry: &mut HashMap<&'static str, UtilityEntry>) {
     let flexbox = [
-        "flex-row", "flex-row-reverse", "flex-col", "flex-col-reverse",
-        "flex-wrap", "flex-nowrap", "flex-1", "flex-auto", "flex-initial",
-        "flex-none", "grow", "grow-0", "shrink", "shrink-0",
-        "justify-start", "justify-end", "justify-center", "justify-between",
-        "justify-around", "justify-evenly", "items-start", "items-end",
-        "items-center", "items-baseline", "items-stretch"
+        "flex-row",
+        "flex-row-reverse",
+        "flex-col",
+        "flex-col-reverse",
+        "flex-wrap",
+        "flex-nowrap",
+        "flex-1",
+        "flex-auto",
+        "flex-initial",
+        "flex-none",
+        "grow",
+        "grow-0",
+        "shrink",
+        "shrink-0",
+        "justify-start",
+        "justify-end",
+        "justify-center",
+        "justify-between",
+        "justify-around",
+        "justify-evenly",
+        "items-start",
+        "items-end",
+        "items-center",
+        "items-baseline",
+        "items-stretch",
     ];
-    
+
     for flex in flexbox {
-        registry.insert(flex, UtilityEntry {
-            handler: |token, sb| super::layout::apply_layout_utilities(token, sb),
-        });
+        registry.insert(
+            flex,
+            UtilityEntry {
+                handler: |token, sb| super::layout::apply_layout_utilities(token, sb),
+            },
+        );
     }
 }
 
 fn register_static_spacing_utilities(registry: &mut HashMap<&'static str, UtilityEntry>) {
     // Only register common static spacing values
     let spacings = [
-        "p-0", "p-1", "p-2", "p-3", "p-4", "p-5", "p-6", "p-8",
-        "m-0", "m-1", "m-2", "m-3", "m-4", "m-5", "m-6", "m-8",
-        "px-0", "px-1", "px-2", "px-3", "px-4",
-        "py-0", "py-1", "py-2", "py-3", "py-4",
-        "mx-0", "mx-1", "mx-2", "mx-3", "mx-4",
-        "my-0", "my-1", "my-2", "my-3", "my-4",
-        "m-auto", "mx-auto", "my-auto"
+        "p-0", "p-1", "p-2", "p-3", "p-4", "p-5", "p-6", "p-8", "m-0", "m-1", "m-2", "m-3", "m-4",
+        "m-5", "m-6", "m-8", "px-0", "px-1", "px-2", "px-3", "px-4", "py-0", "py-1", "py-2",
+        "py-3", "py-4", "mx-0", "mx-1", "mx-2", "mx-3", "mx-4", "my-0", "my-1", "my-2", "my-3",
+        "my-4", "m-auto", "mx-auto", "my-auto",
     ];
-    
+
     for spacing in spacings {
-        registry.insert(spacing, UtilityEntry {
-            handler: |token, sb| super::spacing::apply_spacing_utilities(token, sb),
-        });
+        registry.insert(
+            spacing,
+            UtilityEntry {
+                handler: |token, sb| super::spacing::apply_spacing_utilities(token, sb),
+            },
+        );
     }
 }
 
 fn register_static_sizing_utilities(registry: &mut HashMap<&'static str, UtilityEntry>) {
     let sizes = [
-        "w-full", "w-screen", "w-auto", "w-min", "w-max", "w-fit",
-        "h-full", "h-screen", "h-auto", "h-min", "h-max", "h-fit",
-        "w-1/2", "w-1/3", "w-2/3", "w-1/4", "w-3/4",
-        "h-1/2", "h-1/3", "h-2/3", "h-1/4", "h-3/4"
+        "w-full", "w-screen", "w-auto", "w-min", "w-max", "w-fit", "h-full", "h-screen", "h-auto",
+        "h-min", "h-max", "h-fit", "w-1/2", "w-1/3", "w-2/3", "w-1/4", "w-3/4", "h-1/2", "h-1/3",
+        "h-2/3", "h-1/4", "h-3/4",
     ];
-    
+
     for size in sizes {
-        registry.insert(size, UtilityEntry {
-            handler: |token, sb| super::sizing::apply_sizing_utilities(token, sb),
-        });
+        registry.insert(
+            size,
+            UtilityEntry {
+                handler: |token, sb| super::sizing::apply_sizing_utilities(token, sb),
+            },
+        );
     }
 }
 
 fn register_static_color_utilities(registry: &mut HashMap<&'static str, UtilityEntry>) {
     // Only register non-theme colors
     let colors = [
-        "bg-transparent", "bg-white", "bg-black",
-        "text-white", "text-black", "text-transparent",
-        "border-transparent", "border-white", "border-black"
+        "bg-transparent",
+        "bg-white",
+        "bg-black",
+        "text-white",
+        "text-black",
+        "text-transparent",
+        "border-transparent",
+        "border-white",
+        "border-black",
     ];
-    
+
     for color in colors {
-        registry.insert(color, UtilityEntry {
-            handler: |token, sb| super::colors::apply_color_utilities(token, sb),
-        });
+        registry.insert(
+            color,
+            UtilityEntry {
+                handler: |token, sb| super::colors::apply_color_utilities(token, sb),
+            },
+        );
     }
 }
 
 fn register_typography_utilities(registry: &mut HashMap<&'static str, UtilityEntry>) {
     let typography = [
-        "text-xs", "text-sm", "text-base", "text-lg", "text-xl", "text-2xl",
-        "font-thin", "font-light", "font-normal", "font-medium", "font-semibold",
-        "font-bold", "font-extrabold", "font-black",
-        "italic", "not-italic", "underline", "no-underline", "line-through",
-        "uppercase", "lowercase", "capitalize", "normal-case"
+        "text-xs",
+        "text-sm",
+        "text-base",
+        "text-lg",
+        "text-xl",
+        "text-2xl",
+        "font-thin",
+        "font-light",
+        "font-normal",
+        "font-medium",
+        "font-semibold",
+        "font-bold",
+        "font-extrabold",
+        "font-black",
+        "italic",
+        "not-italic",
+        "underline",
+        "no-underline",
+        "line-through",
+        "uppercase",
+        "lowercase",
+        "capitalize",
+        "normal-case",
     ];
-    
+
     for typo in typography {
-        registry.insert(typo, UtilityEntry {
-            handler: |token, sb| super::typography::apply_typography_utilities(token, sb),
-        });
+        registry.insert(
+            typo,
+            UtilityEntry {
+                handler: |token, sb| super::typography::apply_typography_utilities(token, sb),
+            },
+        );
     }
 }
 
 fn register_position_utilities(registry: &mut HashMap<&'static str, UtilityEntry>) {
     let positions = [
-        "static", "fixed", "absolute", "relative", "sticky",
-        "inset-0", "inset-x-0", "inset-y-0",
-        "top-0", "right-0", "bottom-0", "left-0"
+        "static",
+        "fixed",
+        "absolute",
+        "relative",
+        "sticky",
+        "inset-0",
+        "inset-x-0",
+        "inset-y-0",
+        "top-0",
+        "right-0",
+        "bottom-0",
+        "left-0",
     ];
-    
+
     for pos in positions {
-        registry.insert(pos, UtilityEntry {
-            handler: |token, sb| super::layout::apply_layout_utilities(token, sb),
-        });
+        registry.insert(
+            pos,
+            UtilityEntry {
+                handler: |token, sb| super::layout::apply_layout_utilities(token, sb),
+            },
+        );
     }
 }
 
@@ -482,7 +558,6 @@ fn parse_spacing_value(value: &str) -> Option<f32> {
 #[cfg(test)]
 #[path = "optimizer_test.rs"]
 // mod focused_tests; // TODO: Add focused tests
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -501,13 +576,13 @@ mod tests {
     fn test_cache_hit() {
         let sb = StyleBuilder::new();
         let classes = "flex p-4";
-        
+
         // First call - cache miss
         let _result1 = apply_utility_classes(classes, sb.clone(), None);
-        
+
         // Second call - cache hit
         let _result2 = apply_utility_classes(classes, sb, None);
-        
+
         // Cache should contain the entry
         CLASS_CACHE.with(|cache| {
             let mut cache_ref = cache.borrow_mut();
@@ -518,27 +593,27 @@ mod tests {
     #[test]
     fn test_dynamic_spacing() {
         let sb = StyleBuilder::new();
-        
+
         // Test padding
         let result = apply_padding_dynamic("p-4", sb.clone());
         assert!(result.is_some());
-        
+
         // Test margin
         let result = apply_margin_dynamic("m-2", sb);
         assert!(result.is_some());
     }
-    
+
     #[test]
     fn test_delegation_to_existing() {
         let sb = StyleBuilder::new();
-        
+
         // These should delegate to existing modules
         let result = apply_utility_classes("bg-red-500", sb.clone(), None);
         let _built = result.build();
-        
+
         let result = apply_utility_classes("w-[200px]", sb.clone(), None);
         let _built = result.build();
-        
+
         let result = apply_utility_classes("hover:bg-blue-500", sb, None);
         let _built = result.build();
     }

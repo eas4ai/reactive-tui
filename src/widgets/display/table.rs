@@ -632,7 +632,7 @@ impl Table {
             table_position.0 as usize,
             table_position.1 as usize,
             total_width as usize,
-            total_height
+            total_height,
         )
     }
 
@@ -643,9 +643,7 @@ impl Table {
     ) -> WheelDirection {
         // Production wheel direction detection using precise delta extraction
         // Parse wheel event data from terminal escape sequences or system events
-        
 
-        
         // Extract actual wheel delta from the event data
         // Modern terminals report wheel events with direction and magnitude
         match position {
@@ -654,13 +652,13 @@ impl Table {
                 // Most terminals encode wheel direction in the button field
                 let wheel_up_threshold = (*y as f32 * 0.1) as i16;
                 let wheel_delta = wheel_up_threshold; // Would be extracted from actual event
-                
+
                 if wheel_delta > 0 {
                     WheelDirection::Up
                 } else if wheel_delta < 0 {
                     WheelDirection::Down
                 } else {
-                    WheelDirection::Up// Default
+                    WheelDirection::Up // Default
                 }
             }
             crate::event::types::Position::Pixel { x, y } => {
@@ -672,7 +670,11 @@ impl Table {
                     WheelDirection::Up
                 } else {
                     // Use modifiers as fallback for fine control
-                    if modifiers.shift { WheelDirection::Up } else { WheelDirection::Down }
+                    if modifiers.shift {
+                        WheelDirection::Up
+                    } else {
+                        WheelDirection::Down
+                    }
                 }
             }
         }

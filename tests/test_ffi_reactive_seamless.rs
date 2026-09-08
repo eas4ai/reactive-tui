@@ -8,8 +8,8 @@
 #[cfg(feature = "ffi")]
 mod ffi_reactive_tests {
     use reactive_tui::ffi::*;
-    use std::ptr;
     use std::ffi::CString;
+    use std::ptr;
 
     #[test]
     fn test_seamless_signal_creation() {
@@ -153,14 +153,14 @@ mod ffi_reactive_tests {
         {
             let hooks = rtui_hooks_new();
             assert!(!hooks.is_null());
-            
+
             let key = CString::new("enabled").unwrap();
             let signal = rtui_use_signal_bool(hooks, key.as_ptr(), true);
             assert!(!signal.is_null());
-            
+
             let value = rtui_signal_get_bool_new(signal);
             assert_eq!(value, true);
-            
+
             rtui_signal_destroy_new(signal);
             rtui_hooks_destroy(hooks);
         }
@@ -172,19 +172,19 @@ mod ffi_reactive_tests {
             // Create an integer signal
             let int_signal = rtui_signal_new_int(42);
             assert!(!int_signal.is_null());
-            
+
             // Try to get it as a string - should return null/error
             let string_ptr = rtui_signal_get_string_owned(int_signal);
             assert!(string_ptr.is_null()); // Type mismatch should return null
-            
+
             // Try to get it as a bool - should return false (default)
             let bool_value = rtui_signal_get_bool_new(int_signal);
             assert_eq!(bool_value, false); // Type mismatch returns default
-            
+
             // But getting as int should work
             let int_value = rtui_signal_get_int(int_signal);
             assert_eq!(int_value, 42);
-            
+
             rtui_signal_destroy_new(int_signal);
         }
     }
@@ -195,13 +195,13 @@ mod ffi_reactive_tests {
             // Test null pointer handling
             let value = rtui_signal_get_int(ptr::null());
             assert_eq!(value, 0); // Should return default value
-            
+
             let result = rtui_signal_set_int(ptr::null_mut(), 42);
             assert_eq!(result, ReactiveError::NullPointer);
-            
+
             let string_ptr = rtui_signal_get_string_owned(ptr::null());
             assert!(string_ptr.is_null());
-            
+
             // Destroying null pointer should be safe
             rtui_signal_destroy_new(ptr::null_mut()); // Should not crash
         }
@@ -214,25 +214,25 @@ mod ffi_reactive_tests {
             for i in 0..100 {
                 let signal = rtui_signal_new_int(i);
                 assert!(!signal.is_null());
-                
+
                 let value = rtui_signal_get_int(signal);
                 assert_eq!(value, i);
-                
+
                 rtui_signal_destroy_new(signal);
             }
-            
+
             // Test string signals
             for i in 0..50 {
                 let text = format!("Test string {}", i);
                 let c_string = CString::new(text.clone()).unwrap();
                 let signal = rtui_signal_new_string(c_string.as_ptr());
                 assert!(!signal.is_null());
-                
+
                 let value_ptr = rtui_signal_get_string_owned(signal);
                 let value_cstr = unsafe { std::ffi::CStr::from_ptr(value_ptr) };
                 let value_str = value_cstr.to_str().unwrap();
                 assert_eq!(value_str, text);
-                
+
                 rtui_string_free(value_ptr);
                 rtui_signal_destroy_new(signal);
             }
@@ -244,22 +244,22 @@ mod ffi_reactive_tests {
         {
             let hooks = rtui_hooks_new();
             assert!(!hooks.is_null());
-            
+
             let key = CString::new("persistent").unwrap();
-            
+
             // Create signal with initial value
             let signal1 = rtui_use_signal_int(hooks, key.as_ptr(), 100);
             assert!(!signal1.is_null());
-            
+
             // Update the signal
             let result = rtui_signal_set_int(signal1, 200);
             assert_eq!(result, ReactiveError::Success);
-            
+
             // Get the same signal again - should have the updated value
             let signal2 = rtui_use_signal_int(hooks, key.as_ptr(), 999);
             let value = rtui_signal_get_int(signal2);
             assert_eq!(value, 200); // Should be 200, not 100 or 999
-            
+
             rtui_signal_destroy_new(signal1);
             rtui_signal_destroy_new(signal2);
             rtui_hooks_destroy(hooks);

@@ -1,21 +1,21 @@
 /// Visual style extraction from CSS classes for terminal rendering
-use crate::layout::manager::{TextStyle, BoxStyle};
+use crate::layout::manager::{BoxStyle, TextStyle};
 
 /// Extract visual styles (colors, text decorations) from CSS classes
 pub fn extract_visual_style(class: &str) -> TextStyle {
     let mut style = TextStyle::default();
-    
+
     for token in class.split_whitespace() {
         // Text color utilities
         if let Some(color) = parse_text_color(token) {
             style.fg = Some(color);
         }
-        
+
         // Background color utilities
         if let Some(color) = parse_bg_color(token) {
             style.bg = Some(color);
         }
-        
+
         // Text decoration utilities
         match token {
             "font-bold" | "bold" => style.bold = true,
@@ -24,7 +24,7 @@ pub fn extract_visual_style(class: &str) -> TextStyle {
             _ => {}
         }
     }
-    
+
     style
 }
 
@@ -67,7 +67,7 @@ fn parse_text_color(token: &str) -> Option<(u8, u8, u8)> {
     if !token.starts_with("text-") {
         return None;
     }
-    
+
     let color_part = &token[5..]; // Skip "text-"
     parse_color_value(color_part)
 }
@@ -80,7 +80,10 @@ fn parse_border_color(color_part: &str) -> Option<(u8, u8, u8)> {
     }
 
     // Handle border style utilities (solid, dashed, etc.)
-    if matches!(color_part, "solid" | "dashed" | "dotted" | "double" | "none") {
+    if matches!(
+        color_part,
+        "solid" | "dashed" | "dotted" | "double" | "none"
+    ) {
         return None; // This is a border style, not a color
     }
 
@@ -93,7 +96,7 @@ fn parse_bg_color(token: &str) -> Option<(u8, u8, u8)> {
     if !token.starts_with("bg-") {
         return None;
     }
-    
+
     let color_part = &token[3..]; // Skip "bg-"
     parse_color_value(color_part)
 }
@@ -104,24 +107,24 @@ fn parse_color_value(color: &str) -> Option<(u8, u8, u8)> {
     match color {
         "black" => return Some((0, 0, 0)),
         "white" => return Some((255, 255, 255)),
-        "red" => return Some((239, 68, 68)),     // red-500 default
-        "green" => return Some((34, 197, 94)),    // green-500 default
-        "blue" => return Some((59, 130, 246)),    // blue-500 default
-        "yellow" => return Some((234, 179, 8)),   // yellow-500 default
-        "gray" => return Some((107, 114, 128)),   // gray-500 default
+        "red" => return Some((239, 68, 68)),   // red-500 default
+        "green" => return Some((34, 197, 94)), // green-500 default
+        "blue" => return Some((59, 130, 246)), // blue-500 default
+        "yellow" => return Some((234, 179, 8)), // yellow-500 default
+        "gray" => return Some((107, 114, 128)), // gray-500 default
         _ => {}
     }
-    
+
     // Shaded colors like "red-500", "blue-700", etc.
     if let Some(dash_pos) = color.find('-') {
         let (base, shade) = color.split_at(dash_pos);
         let shade = &shade[1..]; // Skip the dash
-        
+
         let shade_num = match shade.parse::<u16>() {
             Ok(n) if (50..=950).contains(&n) => n,
             _ => return None,
         };
-        
+
         // Map color + shade to RGB values (simplified mapping)
         match base {
             "red" => match shade_num {
@@ -260,28 +263,28 @@ fn parse_color_value(color: &str) -> Option<(u8, u8, u8)> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_extract_text_colors() {
         let style = extract_visual_style("text-red-500");
         assert_eq!(style.fg, Some((239, 68, 68)));
-        
+
         let style = extract_visual_style("text-white");
         assert_eq!(style.fg, Some((255, 255, 255)));
-        
+
         let style = extract_visual_style("text-green-300");
         assert_eq!(style.fg, Some((134, 239, 172)));
     }
-    
+
     #[test]
     fn test_extract_bg_colors() {
         let style = extract_visual_style("bg-black");
         assert_eq!(style.bg, Some((0, 0, 0)));
-        
+
         let style = extract_visual_style("bg-blue-500");
         assert_eq!(style.bg, Some((59, 130, 246)));
     }
-    
+
     #[test]
     fn test_extract_multiple_styles() {
         let style = extract_visual_style("text-white bg-red-600 font-bold underline");
@@ -291,7 +294,7 @@ mod tests {
         assert!(style.underline);
         assert!(!style.italic);
     }
-    
+
     #[test]
     fn test_absolute_positioning_ignored() {
         // Position utilities shouldn't affect visual style

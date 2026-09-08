@@ -116,26 +116,26 @@ impl AnimationRuntime {
 
         let mut updates = Vec::new();
         let mut completed = Vec::new();
-        
+
         {
             let animations = self.animations.read().unwrap();
             for (idx, task) in animations.iter().enumerate() {
                 let elapsed = task.start_time.elapsed();
                 let progress = (elapsed.as_secs_f32() / task.duration.as_secs_f32()).min(1.0);
                 updates.push((task.id, progress));
-                
+
                 if progress >= 1.0 {
                     completed.push(idx);
                 }
             }
         }
-        
+
         // Store computed updates for the render thread to apply
         if !updates.is_empty() {
             let mut pending = self.pending_updates.write().unwrap();
             *pending = updates;
         }
-        
+
         // Remove completed animations
         if !completed.is_empty() {
             let mut animations = self.animations.write().unwrap();
@@ -153,13 +153,13 @@ impl AnimationRuntime {
 
         // First compute the updates (this could be moved to a background thread)
         self.compute_animation_updates();
-        
+
         // Then apply them quickly without blocking
         let updates = {
             let mut pending = self.pending_updates.write().unwrap();
             std::mem::take(&mut *pending)
         };
-        
+
         // Apply updates in batch - much faster than computing inline
         if !updates.is_empty() {
             let animations = self.animations.read().unwrap();

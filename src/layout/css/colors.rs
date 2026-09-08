@@ -46,7 +46,10 @@ pub fn apply_bg_color_with_theme(
 ) -> Option<StyleBuilder> {
     if let Some(color_part) = token.strip_prefix("bg-") {
         // Check for dynamic RGB colors like bg-[rgb(255,0,0)]
-        if let Some(rgb_part) = color_part.strip_prefix('[').and_then(|s| s.strip_suffix(']')) {
+        if let Some(rgb_part) = color_part
+            .strip_prefix('[')
+            .and_then(|s| s.strip_suffix(']'))
+        {
             if let Some((r, g, b, a)) = parse_dynamic_color(rgb_part) {
                 return Some(sb.bg_rgba(r, g, b, a));
             }
@@ -241,7 +244,10 @@ fn resolve_theme_color(token: &str, theme: &crate::theme::Theme) -> Option<(f32,
 /// Parse dynamic color values like rgb(255,0,0), rgba(255,0,0,0.5), #ff0000
 fn parse_dynamic_color(color_str: &str) -> Option<(f32, f32, f32, f32)> {
     // Parse rgb(r,g,b) format
-    if let Some(inner) = color_str.strip_prefix("rgb(").and_then(|s| s.strip_suffix(')')) {
+    if let Some(inner) = color_str
+        .strip_prefix("rgb(")
+        .and_then(|s| s.strip_suffix(')'))
+    {
         let parts: Vec<&str> = inner.split(',').map(|s| s.trim()).collect();
         if parts.len() == 3 {
             let r = parts[0].parse::<u8>().ok()?;
@@ -252,7 +258,10 @@ fn parse_dynamic_color(color_str: &str) -> Option<(f32, f32, f32, f32)> {
     }
 
     // Parse rgba(r,g,b,a) format
-    if let Some(inner) = color_str.strip_prefix("rgba(").and_then(|s| s.strip_suffix(')')) {
+    if let Some(inner) = color_str
+        .strip_prefix("rgba(")
+        .and_then(|s| s.strip_suffix(')'))
+    {
         let parts: Vec<&str> = inner.split(',').map(|s| s.trim()).collect();
         if parts.len() == 4 {
             let r = parts[0].parse::<u8>().ok()?;
@@ -371,7 +380,8 @@ mod tests {
     fn test_apply_border_color() {
         let sb = StyleBuilder::new();
 
-        let result = apply_border_color("border-gray-300", sb).expect("CSS colors test should succeed");
+        let result =
+            apply_border_color("border-gray-300", sb).expect("CSS colors test should succeed");
         let _style = result.build();
 
         let sb = StyleBuilder::new();
@@ -395,7 +405,8 @@ mod tests {
     fn test_apply_accent_color() {
         let sb = StyleBuilder::new();
 
-        let result = apply_accent_color("accent-purple-500", sb).expect("CSS colors test should succeed");
+        let result =
+            apply_accent_color("accent-purple-500", sb).expect("CSS colors test should succeed");
         let _style = result.build();
 
         let sb = StyleBuilder::new();
@@ -407,7 +418,8 @@ mod tests {
     fn test_apply_placeholder_color() {
         let sb = StyleBuilder::new();
 
-        let result = apply_placeholder_color("placeholder-gray-400", sb).expect("CSS colors test should succeed");
+        let result = apply_placeholder_color("placeholder-gray-400", sb)
+            .expect("CSS colors test should succeed");
         let _style = result.build();
 
         let sb = StyleBuilder::new();

@@ -120,8 +120,7 @@ impl SliderBuilder {
 
     /// Build and render as an Element (convenience method)
     pub fn render(self) -> Element {
-        Element::component("Slider")
-            .with_props(self.build())
+        Element::component("Slider").with_props(self.build())
     }
 }
 
@@ -203,14 +202,14 @@ impl Slider {
         self.on_change = Some(Arc::new(f));
         self
     }
-    
+
     /// Calculate the position of the thumb on the track
     fn calculate_thumb_position(&self, props: &SliderProps) -> usize {
         let range = props.max - props.min;
         if range == 0.0 {
             return 0;
         }
-        
+
         let normalized = (props.value - props.min) / range;
         let track_length = props.width.saturating_sub(1) as f64;
         (normalized * track_length).round() as usize
@@ -222,10 +221,10 @@ impl Slider {
         if track_length == 0.0 {
             return props.min;
         }
-        
+
         let normalized = position as f64 / track_length;
         let value = props.min + normalized * (props.max - props.min);
-        
+
         // Round to nearest step
         let steps = ((value - props.min) / props.step).round();
         (props.min + steps * props.step).clamp(props.min, props.max)
@@ -250,24 +249,24 @@ impl Component for Slider {
 
     fn render(&self, props: &Self::Props, state: &Self::State) -> Element {
         let mut result = String::new();
-        
+
         // Add focus indicator
         if state.is_focused && !props.disabled {
             result.push_str("▶ ");
         } else {
             result.push_str("  ");
         }
-        
+
         match props.orientation {
             SliderOrientation::Horizontal => {
                 // Show min label if requested
                 if props.show_labels {
                     result.push_str(&format!("{:.0} ", props.min));
                 }
-                
+
                 // Draw the track
                 result.push('[');
-                
+
                 let thumb_pos = self.calculate_thumb_position(props);
                 for i in 0..props.width {
                     if i == thumb_pos as u16 {
@@ -286,14 +285,14 @@ impl Component for Slider {
                         result.push('─'); // Empty track
                     }
                 }
-                
+
                 result.push(']');
-                
+
                 // Show max label if requested
                 if props.show_labels {
                     result.push_str(&format!(" {:.0}", props.max));
                 }
-                
+
                 // Show current value if requested
                 if props.show_value {
                     if props.disabled {
@@ -316,13 +315,13 @@ impl Component for Slider {
                     }
                 }
                 result.push('│');
-                
+
                 if props.show_value {
                     result.push_str(&format!(" {:.1}", props.value));
                 }
             }
         }
-        
+
         Element::text(result)
     }
 
@@ -361,7 +360,7 @@ impl Slider {
         _state: &mut SliderState,
     ) -> EventResult {
         let old_value = props.value;
-        
+
         match event.code {
             KeyCode::Left | KeyCode::Down => {
                 // Decrease value by step
@@ -397,7 +396,7 @@ impl Slider {
             }
             _ => return EventResult::Ignored,
         }
-        
+
         if props.value != old_value {
             if let Some(on_change) = &self.on_change {
                 on_change(props.value);
@@ -419,7 +418,7 @@ impl Slider {
                 // Start dragging
                 state.is_dragging = true;
                 state.is_focused = true;
-                
+
                 // Update value based on click position
                 if props.orientation == SliderOrientation::Horizontal {
                     let x = event.position.x() as usize;
@@ -427,8 +426,9 @@ impl Slider {
                     let offset = 2 + if props.show_labels { 3 } else { 0 };
                     if x >= offset && x < offset + props.width as usize {
                         let relative_x = x - offset;
-                        let new_value = self.value_from_position(relative_x.min(props.width as usize - 1), props);
-                        
+                        let new_value = self
+                            .value_from_position(relative_x.min(props.width as usize - 1), props);
+
                         if new_value != props.value {
                             props.value = new_value;
                             if let Some(on_change) = &self.on_change {
@@ -437,7 +437,7 @@ impl Slider {
                         }
                     }
                 }
-                
+
                 EventResult::Consumed
             }
             MouseEventKind::Up => {
@@ -452,8 +452,9 @@ impl Slider {
                     let offset = 2 + if props.show_labels { 3 } else { 0 };
                     if x >= offset && x < offset + props.width as usize {
                         let relative_x = x - offset;
-                        let new_value = self.value_from_position(relative_x.min(props.width as usize - 1), props);
-                        
+                        let new_value = self
+                            .value_from_position(relative_x.min(props.width as usize - 1), props);
+
                         if new_value != props.value {
                             props.value = new_value;
                             if let Some(on_change) = &self.on_change {

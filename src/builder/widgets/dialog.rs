@@ -3,8 +3,10 @@
 //! This module provides builders for various dialog components including modals,
 //! toasts, confirmation dialogs, and other overlay components.
 
+use super::super::specialized::{
+    ConfirmationDialogBuilder, DialogBuilder, ProgressDialogBuilder, WizardBuilder,
+};
 use crate::component::{Element, LayoutType};
-use super::super::specialized::{DialogBuilder, ConfirmationDialogBuilder, ProgressDialogBuilder, WizardBuilder};
 
 /// Create a Modal dialog builder
 ///
@@ -69,8 +71,6 @@ pub fn progress_dialog() -> ProgressDialogBuilder {
 pub fn wizard() -> WizardBuilder {
     WizardBuilder::new()
 }
-
-
 
 /// Builder for Modal dialog components
 ///
@@ -206,8 +206,7 @@ impl ModalBuilder {
 
         modal_content.extend(self.content);
 
-        let mut element = Element::layout(LayoutType::Flex)
-            .children(modal_content);
+        let mut element = Element::layout(LayoutType::Flex).children(modal_content);
 
         if let Some(class) = self.class {
             element = element.with_class(&class);
@@ -384,8 +383,6 @@ impl From<ToastBuilder> for Element {
         builder.build()
     }
 }
-
-
 
 // Note: Placeholder builders (DialogBuilder, ConfirmationDialogBuilder,
 // ProgressDialogBuilder, WizardBuilder) are now provided by the placeholders module

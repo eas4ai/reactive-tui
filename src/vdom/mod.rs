@@ -15,7 +15,10 @@ pub mod node;
 pub mod patch;
 
 pub use diff::{diff_vnodes, DiffContext};
-pub use menu::{menubar, context_menu, popup_menu, dialog_menu, simple_menubar, simple_context_menu, simple_popup_menu};
+pub use menu::{
+    context_menu, dialog_menu, menubar, popup_menu, simple_context_menu, simple_menubar,
+    simple_popup_menu,
+};
 pub use node::{VComponent, VElement, VFragment, VNode, VNodeKey, VNodeType, VText};
 pub use patch::{apply_patches, Patch, PatchList};
 

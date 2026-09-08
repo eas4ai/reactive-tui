@@ -411,7 +411,8 @@ mod tests {
         let _style = result.build();
 
         let sb = StyleBuilder::new();
-        let result = apply_backdrop("backdrop-brightness-50", sb).expect("CSS effects test should succeed");
+        let result =
+            apply_backdrop("backdrop-brightness-50", sb).expect("CSS effects test should succeed");
         let _style = result.build();
 
         let sb = StyleBuilder::new();

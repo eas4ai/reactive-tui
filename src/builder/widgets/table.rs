@@ -4,10 +4,8 @@
 //! features like pagination, virtual scrolling, filtering, and sorting.
 
 use crate::component::Element;
-use crate::widgets::display::{
-    DataTableProps, ColumnFilter, FilterType, DisplaySize, Alignment,
-};
-use crate::widgets::display::table::{TableColumn, TableRow, TableCell};
+use crate::widgets::display::table::{TableCell, TableColumn, TableRow};
+use crate::widgets::display::{Alignment, ColumnFilter, DataTableProps, DisplaySize, FilterType};
 use std::collections::HashMap;
 
 /// Create a DataTable with fluent configuration
@@ -94,13 +92,16 @@ impl DataTableBuilder {
     pub fn simple_row(mut self, data: Vec<(&str, &str)>) -> Self {
         let mut cells = HashMap::new();
         for (key, value) in data {
-            cells.insert(key.to_string(), TableCell {
-                content: value.to_string(),
-                style: None,
-                alignment: None,
-                clickable: false,
-                action: None,
-            });
+            cells.insert(
+                key.to_string(),
+                TableCell {
+                    content: value.to_string(),
+                    style: None,
+                    alignment: None,
+                    clickable: false,
+                    action: None,
+                },
+            );
         }
 
         self.rows.push(TableRow {
@@ -167,7 +168,11 @@ impl DataTableBuilder {
     pub fn build_with_name(self, component_name: &str) -> Element {
         let props = DataTableProps::new(self.columns, self.rows)
             .with_pagination(self.pagination_enabled, self.page_size)
-            .with_virtual_scroll(self.virtual_scroll_enabled, self.row_height, self.viewport_height)
+            .with_virtual_scroll(
+                self.virtual_scroll_enabled,
+                self.row_height,
+                self.viewport_height,
+            )
             .with_features(self.searchable, self.filterable, self.exportable);
 
         let mut element = Element::component_with_props(component_name, props);

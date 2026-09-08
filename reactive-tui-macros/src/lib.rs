@@ -36,23 +36,23 @@ use syn::{parse_macro_input, FnArg, ItemFn, Pat, Type};
 #[proc_macro_attribute]
 pub fn component(_args: TokenStream, input: TokenStream) -> TokenStream {
     let input_fn = parse_macro_input!(input as ItemFn);
-    
+
     let fn_name = &input_fn.sig.ident;
     let fn_vis = &input_fn.vis;
     let fn_body = &input_fn.block;
     let fn_return_type = &input_fn.sig.output;
-    
+
     // Parse function parameters
     let mut hooks_param = None;
     let mut prop_params = Vec::new();
-    
+
     for input in &input_fn.sig.inputs {
         match input {
             FnArg::Typed(pat_type) => {
                 if let Pat::Ident(pat_ident) = &*pat_type.pat {
                     let param_name = &pat_ident.ident;
                     let param_type = &*pat_type.ty;
-                    
+
                     // Check if this is the hooks parameter
                     if param_name == "hooks" {
                         hooks_param = Some((param_name, param_type));
@@ -64,15 +64,17 @@ pub fn component(_args: TokenStream, input: TokenStream) -> TokenStream {
             FnArg::Receiver(_) => {
                 return syn::Error::new_spanned(
                     input,
-                    "Component functions cannot have self parameters"
-                ).to_compile_error().into();
+                    "Component functions cannot have self parameters",
+                )
+                .to_compile_error()
+                .into();
             }
         }
     }
-    
+
     // Generate the component struct and implementation
     let component_struct_name = fn_name;
-    
+
     if prop_params.is_empty() {
         // No props component
         generate_no_props_component(
@@ -80,7 +82,7 @@ pub fn component(_args: TokenStream, input: TokenStream) -> TokenStream {
             component_struct_name,
             fn_body,
             fn_return_type,
-            hooks_param.is_some()
+            hooks_param.is_some(),
         )
     } else {
         // Component with props
@@ -90,7 +92,7 @@ pub fn component(_args: TokenStream, input: TokenStream) -> TokenStream {
             fn_body,
             fn_return_type,
             &prop_params,
-            hooks_param.is_some()
+            hooks_param.is_some(),
         )
     }
 }
@@ -127,7 +129,7 @@ fn generate_no_props_component(
                 #body
             }
         }
-        
+
         impl #name {
             /// Create a new element for this component
             pub fn element() -> reactive_tui::component::Element {
@@ -137,14 +139,14 @@ fn generate_no_props_component(
                 )
             }
         }
-        
+
         impl Into<reactive_tui::component::Element> for #name {
             fn into(self) -> reactive_tui::component::Element {
                 Self::element()
             }
         }
     };
-    
+
     TokenStream::from(expanded)
 }
 
@@ -157,12 +159,12 @@ fn generate_props_component(
     has_hooks: bool,
 ) -> TokenStream {
     let props_struct_name = syn::Ident::new(&format!("{}Props", name), name.span());
-    
+
     // Generate props struct fields
     let prop_fields = prop_params.iter().map(|(name, ty)| {
         quote! { pub #name: #ty }
     });
-    
+
     // Generate props struct field names for destructuring
     let prop_names: Vec<_> = prop_params.iter().map(|(name, _)| name).collect();
     let prop_names_clone = prop_names.clone();
@@ -181,7 +183,7 @@ fn generate_props_component(
             #body
         }
     };
-    
+
     let expanded = quote! {
         #[derive(Clone, PartialEq, Debug)]
         #vis struct #props_struct_name {
@@ -198,26 +200,26 @@ fn generate_props_component(
         #vis struct #name {
             hooks: reactive_tui::reactive::Hooks,
         }
-        
+
         impl reactive_tui::component::Component for #name {
             type Props = #props_struct_name;
             type State = ();
-            
+
             fn new(_props: Self::Props) -> Self {
                 Self {
                     hooks: reactive_tui::reactive::Hooks::new(),
                 }
             }
-            
+
             fn update(&mut self, _props: &Self::Props, _state: &mut Self::State) -> bool {
                 true
             }
-            
+
             fn render(&self, props: &Self::Props, _state: &Self::State) #return_type {
                 #render_call
             }
         }
-        
+
         impl #name {
             /// Create a new element for this component with props
             pub fn element(#(#prop_names_clone: #prop_types),*) -> reactive_tui::component::Element {
@@ -228,7 +230,7 @@ fn generate_props_component(
             }
         }
     };
-    
+
     TokenStream::from(expanded)
 }
 
@@ -259,7 +261,7 @@ fn generate_props_component(
 /// - `#[prop(validate)]` - Add validation for this field
 #[proc_macro_derive(Props, attributes(prop))]
 pub fn derive_props(input: TokenStream) -> TokenStream {
-    use syn::{parse_macro_input, DeriveInput, Data, Fields, Lit};
+    use syn::{parse_macro_input, Data, DeriveInput, Fields, Lit};
 
     let input = parse_macro_input!(input as DeriveInput);
     let name = &input.ident;
@@ -271,15 +273,16 @@ pub fn derive_props(input: TokenStream) -> TokenStream {
             _ => {
                 return syn::Error::new_spanned(
                     &input,
-                    "Props can only be derived for structs with named fields"
-                ).to_compile_error().into();
+                    "Props can only be derived for structs with named fields",
+                )
+                .to_compile_error()
+                .into();
             }
         },
         _ => {
-            return syn::Error::new_spanned(
-                &input,
-                "Props can only be derived for structs"
-            ).to_compile_error().into();
+            return syn::Error::new_spanned(&input, "Props can only be derived for structs")
+                .to_compile_error()
+                .into();
         }
     };
 
@@ -320,7 +323,8 @@ pub fn derive_props(input: TokenStream) -> TokenStream {
         }
 
         // Generate builder method
-        let builder_method_name = syn::Ident::new(&format!("with_{}", field_name), field_name.span());
+        let builder_method_name =
+            syn::Ident::new(&format!("with_{}", field_name), field_name.span());
         builder_methods.push(quote! {
             pub fn #builder_method_name(mut self, value: #field_type) -> Self {
                 self.#field_name = value;

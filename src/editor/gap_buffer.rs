@@ -116,16 +116,16 @@ impl GapBuffer {
         if pos < self.gap_start {
             // Move gap left
             let distance = self.gap_start - pos;
-            
+
             // Safe bounds checking before copy
             debug_assert!(pos < self.buffer.len());
             debug_assert!(self.gap_end >= distance);
             debug_assert!(self.gap_end - distance + distance <= self.buffer.len());
-            
+
             // Use safe slice operations instead of unsafe pointer arithmetic
             let src_range = pos..pos + distance;
             let dst_start = self.gap_end - distance;
-            
+
             if src_range.end <= self.buffer.len() && dst_start + distance <= self.buffer.len() {
                 // Create temporary copy to avoid aliasing issues
                 let temp: Vec<char> = self.buffer[src_range].to_vec();
@@ -135,21 +135,21 @@ impl GapBuffer {
                 eprintln!("Warning: Gap buffer move_gap_to: invalid bounds for left move");
                 return;
             }
-            
+
             self.gap_start = pos;
             self.gap_end -= distance;
         } else {
             // Move gap right
             let distance = pos - self.gap_start;
-            
+
             // Safe bounds checking before copy
             debug_assert!(self.gap_end + distance <= self.buffer.len());
             debug_assert!(self.gap_start + distance <= self.buffer.len());
-            
+
             // Use safe slice operations instead of unsafe pointer arithmetic
             let src_range = self.gap_end..self.gap_end + distance;
             let dst_start = self.gap_start;
-            
+
             if src_range.end <= self.buffer.len() && dst_start + distance <= self.buffer.len() {
                 // Create temporary copy to avoid aliasing issues
                 let temp: Vec<char> = self.buffer[src_range].to_vec();
@@ -159,7 +159,7 @@ impl GapBuffer {
                 eprintln!("Warning: Gap buffer move_gap_to: invalid bounds for right move");
                 return;
             }
-            
+
             self.gap_start = pos;
             self.gap_end += distance;
         }
@@ -188,7 +188,7 @@ impl GapBuffer {
                 // Validate bounds before operation
                 debug_assert!(self.gap_end + count == old_len);
                 debug_assert!(self.gap_end + additional + count == new_len);
-                
+
                 if self.gap_end < old_len && self.gap_end + additional < new_len {
                     // Create temporary copy to avoid aliasing issues
                     let temp: Vec<char> = self.buffer[self.gap_end..old_len].to_vec();

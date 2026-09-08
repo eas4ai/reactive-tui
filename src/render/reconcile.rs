@@ -298,10 +298,7 @@ impl Default for Reconciler {
 }
 
 /// Apply patches to update the actual UI and manage component lifecycle
-pub fn apply_patches(
-    patches: &[PatchOp],
-    tree: &mut RenderTree,
-) -> crate::error::Result<()> {
+pub fn apply_patches(patches: &[PatchOp], tree: &mut RenderTree) -> crate::error::Result<()> {
     for patch in patches {
         match patch {
             PatchOp::Insert {
@@ -322,7 +319,10 @@ pub fn apply_patches(
                 crate::component::registry::get_global_registry()
                     .unregister_instance(node_key)
                     .map_err(|e| {
-                        eprintln!("Error: Failed to unregister component during removal: {}", e);
+                        eprintln!(
+                            "Error: Failed to unregister component during removal: {}",
+                            e
+                        );
                         e
                     })?;
 
@@ -558,7 +558,10 @@ mod tests {
         let result = reconciler.diff(&tree1, &tree2);
 
         // Should detect an update since content changed but key/type same
-        assert!(result.patches.iter().any(|p| matches!(p, PatchOp::Update { .. })));
+        assert!(result
+            .patches
+            .iter()
+            .any(|p| matches!(p, PatchOp::Update { .. })));
         assert_eq!(result.reused_nodes, 1);
     }
 
@@ -578,9 +581,7 @@ mod tests {
         // Tree 2: Root with 1 child (B and C removed)
         let tree2_root = Element::layout(LayoutType::Flex)
             .with_key("root")
-            .with_children(vec![
-                Element::text("A").with_key("a"),
-            ]);
+            .with_children(vec![Element::text("A").with_key("a")]);
 
         let mut tree1 = RenderTree::new();
         tree1.set_root(element_to_render_node(tree1_root));
@@ -591,7 +592,9 @@ mod tests {
         let result = reconciler.diff(&tree1, &tree2);
 
         // Should detect removals
-        let remove_count = result.patches.iter()
+        let remove_count = result
+            .patches
+            .iter()
             .filter(|p| matches!(p, PatchOp::Remove { .. }))
             .count();
         assert_eq!(remove_count, 2); // B and C removed
@@ -606,9 +609,7 @@ mod tests {
         // Tree 1: Root with 1 child
         let tree1_root = Element::layout(LayoutType::Flex)
             .with_key("root")
-            .with_children(vec![
-                Element::text("A").with_key("a"),
-            ]);
+            .with_children(vec![Element::text("A").with_key("a")]);
 
         // Tree 2: Root with 3 children (B and C added)
         let tree2_root = Element::layout(LayoutType::Flex)
@@ -628,7 +629,9 @@ mod tests {
         let result = reconciler.diff(&tree1, &tree2);
 
         // Should detect insertions
-        let insert_count = result.patches.iter()
+        let insert_count = result
+            .patches
+            .iter()
             .filter(|p| matches!(p, PatchOp::Insert { .. }))
             .count();
         assert_eq!(insert_count, 2); // B and C inserted

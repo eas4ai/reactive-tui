@@ -4,7 +4,7 @@
 //! animations, and accessibility features.
 
 use crate::component::Element;
-use crate::widgets::layout::{AccordionBuilder, AccordionSection, AccordionMode};
+use crate::widgets::layout::{AccordionBuilder, AccordionMode, AccordionSection};
 
 /// Create an accordion widget builder
 ///
@@ -48,13 +48,12 @@ pub fn accordion() -> AccordionBuilder {
 /// ```
 pub fn simple_accordion(sections: Vec<(&str, &str, &str)>) -> Element {
     let mut builder = AccordionBuilder::new();
-    
+
     for (id, title, content) in sections {
-        let section = AccordionSection::new(id, title)
-            .content(Element::text(content));
+        let section = AccordionSection::new(id, title).content(Element::text(content));
         builder = builder.section(section);
     }
-    
+
     builder.build()
 }
 
@@ -147,10 +146,12 @@ mod tests {
     #[test]
     fn test_accordion_builder() {
         let accordion = accordion()
-            .section(AccordionSection::new("test", "Test Section")
-                .content(Element::text("Test content")))
+            .section(
+                AccordionSection::new("test", "Test Section")
+                    .content(Element::text("Test content")),
+            )
             .build();
-        
+
         // Should create a component element
         assert!(accordion.is_component());
         assert_eq!(accordion.component_name(), Some("Accordion"));
@@ -162,38 +163,40 @@ mod tests {
             ("intro", "Introduction", "Welcome!"),
             ("help", "Help", "Need help?"),
         ]);
-        
+
         assert!(accordion.is_component());
     }
 
     #[test]
     fn test_settings_accordion() {
         let settings = settings_accordion()
-            .section(AccordionSection::new("general", "General")
-                .content(Element::text("Settings...")))
+            .section(
+                AccordionSection::new("general", "General").content(Element::text("Settings...")),
+            )
             .build();
-        
+
         assert!(settings.is_component());
     }
 
     #[test]
     fn test_faq_accordion() {
         let faq = faq_accordion()
-            .section(AccordionSection::new("q1", "Question 1")
-                .content(Element::text("Answer 1")))
+            .section(AccordionSection::new("q1", "Question 1").content(Element::text("Answer 1")))
             .build();
-        
+
         assert!(faq.is_component());
     }
 
     #[test]
     fn test_navigation_accordion() {
         let nav = navigation_accordion()
-            .section(AccordionSection::new("dashboard", "Dashboard")
-                .content(Element::text("Dashboard"))
-                .expanded(true))
+            .section(
+                AccordionSection::new("dashboard", "Dashboard")
+                    .content(Element::text("Dashboard"))
+                    .expanded(true),
+            )
             .build();
-        
+
         assert!(nav.is_component());
     }
 }

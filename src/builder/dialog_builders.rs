@@ -86,7 +86,7 @@ impl ProgressDialogBuilder {
         } else {
             String::new()
         };
-        
+
         let progress_text = if self.indeterminate {
             "indeterminate".to_string()
         } else if self.show_percentage {
@@ -94,12 +94,14 @@ impl ProgressDialogBuilder {
         } else {
             format!("{:.2}", self.progress)
         };
-        
+
         let cancelable_text = if self.cancelable { " (cancelable)" } else { "" };
-        
-        let display_text = format!("ProgressDialog{}: {} [{}]{}",
-            title_text, self.message, progress_text, cancelable_text);
-        
+
+        let display_text = format!(
+            "ProgressDialog{}: {} [{}]{}",
+            title_text, self.message, progress_text, cancelable_text
+        );
+
         Element::text(display_text)
     }
 }
@@ -221,18 +223,23 @@ impl WizardBuilder {
         } else {
             String::new()
         };
-        
+
         let progress_text = if self.show_progress {
             format!(" (step {} of {})", self.current_step + 1, self.steps.len())
         } else {
             String::new()
         };
-        
+
         let cancelable_text = if self.cancelable { " (cancelable)" } else { "" };
-        
-        let display_text = format!("Wizard{}{} with {} steps{}",
-            title_text, progress_text, self.steps.len(), cancelable_text);
-        
+
+        let display_text = format!(
+            "Wizard{}{} with {} steps{}",
+            title_text,
+            progress_text,
+            self.steps.len(),
+            cancelable_text
+        );
+
         Element::text(display_text)
     }
 }

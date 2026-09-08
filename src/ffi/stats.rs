@@ -94,11 +94,7 @@ pub enum DebugOverlayCorner {
 
 /// Set debug overlay
 #[no_mangle]
-pub extern "C" fn setDebugOverlay(
-    renderer: *mut RTuiRenderer,
-    enabled: bool,
-    _corner: u8,
-) {
+pub extern "C" fn setDebugOverlay(renderer: *mut RTuiRenderer, enabled: bool, _corner: u8) {
     if renderer.is_null() {
         return;
     }
@@ -181,10 +177,13 @@ pub extern "C" fn dumpHitGrid(renderer: *mut RTuiRenderer) {
     let (width, height) = renderer_ref.dims();
 
     // Log hit grid information
-    log_message(LogLevel::Debug, &format!(
-        "Hit Grid Debug: Renderer dimensions {}x{}, hit testing available for bounds checking",
-        width, height
-    ));
+    log_message(
+        LogLevel::Debug,
+        &format!(
+            "Hit Grid Debug: Renderer dimensions {}x{}, hit testing available for bounds checking",
+            width, height
+        ),
+    );
 }
 
 //
@@ -208,10 +207,13 @@ pub extern "C" fn dumpBuffers(renderer: *mut RTuiRenderer, timestamp: i64) {
     let stats = renderer_ref.frame_stats();
 
     // Log buffer state information
-    log_message(LogLevel::Debug, &format!(
-        "Buffer Dump [{}]: {}x{} surface, last frame: {:.2}ms, {} bytes written, {} spans",
-        timestamp, width, height, stats.frame_ms, stats.bytes_written, stats.spans_written
-    ));
+    log_message(
+        LogLevel::Debug,
+        &format!(
+            "Buffer Dump [{}]: {}x{} surface, last frame: {:.2}ms, {} bytes written, {} spans",
+            timestamp, width, height, stats.frame_ms, stats.bytes_written, stats.spans_written
+        ),
+    );
 }
 
 /// Dump stdout buffer for debugging
@@ -230,10 +232,16 @@ pub extern "C" fn dumpStdoutBuffer(renderer: *mut RTuiRenderer, timestamp: i64) 
     let write_stats = renderer_ref.write_stats();
 
     // Log stdout buffer information
-    log_message(LogLevel::Debug, &format!(
-        "Stdout Buffer Dump [{}]: {} total writes, {:.1}% buffer utilization, {} total bytes",
-        timestamp, write_stats.total_writes, write_stats.buffer_utilization * 100.0, write_stats.total_bytes
-    ));
+    log_message(
+        LogLevel::Debug,
+        &format!(
+            "Stdout Buffer Dump [{}]: {} total writes, {:.1}% buffer utilization, {} total bytes",
+            timestamp,
+            write_stats.total_writes,
+            write_stats.buffer_utilization * 100.0,
+            write_stats.total_bytes
+        ),
+    );
 }
 
 //
@@ -334,10 +342,16 @@ pub extern "C" fn stopProfiling(renderer: *mut RTuiRenderer) {
     let grade = renderer_ref.performance_grade();
 
     // Log profiling results
-    log_message(LogLevel::Info, &format!(
-        "Profiling Results: FPS: {:.1}, Efficiency: {:.1}%, Grade: {}, Frames: {}",
-        metrics.fps, metrics.efficiency_ratio * 100.0, grade, metrics.total_frames
-    ));
+    log_message(
+        LogLevel::Info,
+        &format!(
+            "Profiling Results: FPS: {:.1}, Efficiency: {:.1}%, Grade: {}, Frames: {}",
+            metrics.fps,
+            metrics.efficiency_ratio * 100.0,
+            grade,
+            metrics.total_frames
+        ),
+    );
 
     // Disable detailed stats collection
     renderer_ref.disable_detailed_stats();
@@ -352,9 +366,12 @@ pub extern "C" fn getFrameStats(
     out_max_frame_time: *mut f32,
     out_frame_count: *mut u32,
 ) {
-    if renderer.is_null() || out_avg_frame_time.is_null() ||
-       out_min_frame_time.is_null() || out_max_frame_time.is_null() ||
-       out_frame_count.is_null() {
+    if renderer.is_null()
+        || out_avg_frame_time.is_null()
+        || out_min_frame_time.is_null()
+        || out_max_frame_time.is_null()
+        || out_frame_count.is_null()
+    {
         return;
     }
 

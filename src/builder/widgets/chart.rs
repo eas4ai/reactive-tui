@@ -5,8 +5,7 @@
 
 use crate::component::Element;
 use crate::widgets::display::{
-    ChartProps, ChartType, ChartAxis, ChartLegend,
-    DataPoint, DataSeries, LegendPosition,
+    ChartAxis, ChartLegend, ChartProps, ChartType, DataPoint, DataSeries, LegendPosition,
 };
 
 /// Create a Chart with fluent configuration
@@ -42,8 +41,12 @@ impl ChartBuilder {
             y_axis: ChartAxis::default(),
             legend: ChartLegend::default(),
             color_palette: vec![
-                "#3b82f6".to_string(), "#ef4444".to_string(), "#10b981".to_string(),
-                "#f59e0b".to_string(), "#8b5cf6".to_string(), "#06b6d4".to_string(),
+                "#3b82f6".to_string(),
+                "#ef4444".to_string(),
+                "#10b981".to_string(),
+                "#f59e0b".to_string(),
+                "#8b5cf6".to_string(),
+                "#06b6d4".to_string(),
             ],
             animated: false,
             animation_duration: 1000,

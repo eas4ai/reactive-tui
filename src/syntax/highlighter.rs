@@ -79,8 +79,10 @@ impl SyntaxHighlighter {
             Ok(r) => r,
             Err(_) => {
                 // Lock poisoned, return unhighlighted text
-                return text.lines().enumerate().map(|(line_num, line)| {
-                    HighlightedLine {
+                return text
+                    .lines()
+                    .enumerate()
+                    .map(|(line_num, line)| HighlightedLine {
                         runs: vec![StyledRun::new(
                             line.to_string(),
                             Rgba::black(),
@@ -88,8 +90,8 @@ impl SyntaxHighlighter {
                             Attr::empty(),
                         )],
                         line_number: line_num,
-                    }
-                }).collect();
+                    })
+                    .collect();
             }
         };
         let theme = resources.active_theme();
@@ -144,8 +146,8 @@ impl SyntaxHighlighter {
             Ok(r) => r,
             Err(_) => {
                 // Lock poisoned, return fallback for visible range
-                return (start_line..end_line.min(lines.len())).map(|line_num| {
-                    HighlightedLine {
+                return (start_line..end_line.min(lines.len()))
+                    .map(|line_num| HighlightedLine {
                         runs: vec![StyledRun::new(
                             lines.get(line_num).unwrap_or(&"").to_string(),
                             Rgba::black(),
@@ -153,8 +155,8 @@ impl SyntaxHighlighter {
                             Attr::empty(),
                         )],
                         line_number: line_num,
-                    }
-                }).collect();
+                    })
+                    .collect();
             }
         };
         let theme = resources.active_theme();

@@ -83,19 +83,19 @@ impl Theme {
 
         // Cache the result using thread-safe interior mutability
         if let Some(ref val) = value {
-            use std::sync::Arc;
             use std::collections::HashMap;
-            
+            use std::sync::Arc;
+
             // Use atomic reference counting for thread-safe caching
             thread_local! {
-                static THEME_CACHE: std::cell::RefCell<HashMap<String, Arc<String>>> = 
+                static THEME_CACHE: std::cell::RefCell<HashMap<String, Arc<String>>> =
                     std::cell::RefCell::new(HashMap::new());
             }
-            
+
             THEME_CACHE.with(|cache| {
                 let mut cache_map = cache.borrow_mut();
                 cache_map.insert(key.to_string(), Arc::new(val.clone()));
-                
+
                 // Prevent unbounded growth - keep last 100 entries
                 if cache_map.len() > 100 {
                     // Remove oldest entries (simple LRU approximation)

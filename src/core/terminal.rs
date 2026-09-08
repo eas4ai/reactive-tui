@@ -78,7 +78,7 @@ impl Terminal {
             self.capabilities.color_depth = crate::core::capabilities::ColorDepth::Colors256;
             return Ok(());
         }
-        
+
         // Warn about limited color support but don't fail
         if !self.capabilities.color_depth.supports(256) {
             eprintln!("⚠️  Warning: Terminal may not support 256 colors. Some features may look degraded.");

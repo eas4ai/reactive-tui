@@ -221,9 +221,12 @@ impl Component for Accordion {
         // Check if sections have changed
         let current_section_ids: Vec<_> = props.sections.iter().map(|s| &s.id).collect();
         let state_section_ids: Vec<_> = state.expanded_sections.keys().collect();
-        
-        if current_section_ids.len() != state_section_ids.len() ||
-           current_section_ids.iter().any(|id| !state.expanded_sections.contains_key(*id)) {
+
+        if current_section_ids.len() != state_section_ids.len()
+            || current_section_ids
+                .iter()
+                .any(|id| !state.expanded_sections.contains_key(*id))
+        {
             self.sync_sections(props, state);
             return true;
         }
@@ -233,7 +236,7 @@ impl Component for Accordion {
 
     fn render(&self, props: &Self::Props, state: &Self::State) -> Element {
         let mut accordion_classes = vec!["accordion".to_string()];
-        
+
         // Add mode-specific classes
         match props.mode {
             AccordionMode::Single => accordion_classes.push("accordion-single".to_string()),
@@ -256,9 +259,12 @@ impl Component for Accordion {
         }
 
         // Render sections
-        let sections: Vec<Element> = props.sections.iter().enumerate().map(|(index, section)| {
-            self.render_section(props, state, section, index)
-        }).collect();
+        let sections: Vec<Element> = props
+            .sections
+            .iter()
+            .enumerate()
+            .map(|(index, section)| self.render_section(props, state, section, index))
+            .collect();
 
         Element::layout(crate::component::LayoutType::Flex)
             .with_class(accordion_classes.join(" "))
@@ -279,9 +285,7 @@ impl Component for Accordion {
                     EventResult::Ignored
                 }
             }
-            Event::Mouse(mouse_event) => {
-                self.handle_mouse_event(mouse_event, props, state)
-            }
+            Event::Mouse(mouse_event) => self.handle_mouse_event(mouse_event, props, state),
             _ => EventResult::Ignored,
         }
     }
@@ -294,7 +298,9 @@ impl Accordion {
 
         // Set initial expanded state based on props
         for section in &props.sections {
-            state.expanded_sections.insert(section.id.clone(), section.expanded);
+            state
+                .expanded_sections
+                .insert(section.id.clone(), section.expanded);
         }
 
         // Ensure mode constraints are respected
@@ -312,7 +318,8 @@ impl Accordion {
 
         // Preserve existing state where possible
         for section in &props.sections {
-            let expanded = state.expanded_sections
+            let expanded = state
+                .expanded_sections
                 .get(&section.id)
                 .copied()
                 .unwrap_or(section.expanded);
@@ -348,7 +355,9 @@ impl Accordion {
                 let expanded_count = state.expanded_sections.values().filter(|&&v| v).count();
                 if expanded_count == 0 && !props.sections.is_empty() {
                     // Expand the first section
-                    state.expanded_sections.insert(props.sections[0].id.clone(), true);
+                    state
+                        .expanded_sections
+                        .insert(props.sections[0].id.clone(), true);
                 }
             }
             AccordionMode::Multiple => {
@@ -365,7 +374,11 @@ impl Accordion {
         section: &AccordionSection,
         index: usize,
     ) -> Element {
-        let is_expanded = state.expanded_sections.get(&section.id).copied().unwrap_or(false);
+        let is_expanded = state
+            .expanded_sections
+            .get(&section.id)
+            .copied()
+            .unwrap_or(false);
         let is_focused = state.focused_section.as_ref() == Some(&section.id);
 
         let mut section_classes = vec!["accordion-section".to_string()];
@@ -430,17 +443,11 @@ impl Accordion {
 
         // Add icon if present
         if let Some(ref icon) = section.icon {
-            header_content.push(
-                Element::text(icon)
-                    .with_class("accordion-header-icon")
-            );
+            header_content.push(Element::text(icon).with_class("accordion-header-icon"));
         }
 
         // Add title
-        header_content.push(
-            Element::text(&section.title)
-                .with_class("accordion-header-title")
-        );
+        header_content.push(Element::text(&section.title).with_class("accordion-header-title"));
 
         // Add expand/collapse indicator
         if props.show_icons {
@@ -450,10 +457,8 @@ impl Accordion {
                 &props.expand_icon
             };
 
-            header_content.push(
-                Element::text(indicator_icon)
-                    .with_class("accordion-header-indicator")
-            );
+            header_content
+                .push(Element::text(indicator_icon).with_class("accordion-header-indicator"));
         }
 
         Element::layout(crate::component::LayoutType::Flex)
@@ -526,7 +531,12 @@ impl Accordion {
         match event.kind {
             MouseEventKind::Down => {
                 // Determine which section was clicked
-                if let Some(section_id) = self.get_section_at_position(event.position.x() as u16, event.position.y() as u16, props, state) {
+                if let Some(section_id) = self.get_section_at_position(
+                    event.position.x() as u16,
+                    event.position.y() as u16,
+                    props,
+                    state,
+                ) {
                     state.focused_section = Some(section_id.clone());
                     self.toggle_section(&section_id, props, state);
                     EventResult::Consumed
@@ -552,7 +562,11 @@ impl Accordion {
             }
         }
 
-        let current_state = state.expanded_sections.get(section_id).copied().unwrap_or(false);
+        let current_state = state
+            .expanded_sections
+            .get(section_id)
+            .copied()
+            .unwrap_or(false);
         let new_state = !current_state;
 
         // Handle mode constraints
@@ -564,7 +578,9 @@ impl Accordion {
                         *expanded = id == section_id;
                     }
                 } else {
-                    state.expanded_sections.insert(section_id.to_string(), false);
+                    state
+                        .expanded_sections
+                        .insert(section_id.to_string(), false);
                 }
             }
             AccordionMode::AlwaysOne => {
@@ -574,13 +590,17 @@ impl Accordion {
                     // Check if this is the only expanded section
                     let expanded_count = state.expanded_sections.values().filter(|&&v| v).count();
                     if expanded_count > 1 {
-                        state.expanded_sections.insert(section_id.to_string(), false);
+                        state
+                            .expanded_sections
+                            .insert(section_id.to_string(), false);
                     }
                     // If it's the only one, don't collapse it
                 }
             }
             AccordionMode::Multiple => {
-                state.expanded_sections.insert(section_id.to_string(), new_state);
+                state
+                    .expanded_sections
+                    .insert(section_id.to_string(), new_state);
             }
         }
 
@@ -596,7 +616,11 @@ impl Accordion {
     /// Focus the next section for keyboard navigation
     fn focus_next_section(&self, props: &AccordionProps, state: &mut AccordionState) {
         let current_index = if let Some(ref focused_id) = state.focused_section {
-            props.sections.iter().position(|s| s.id == *focused_id).unwrap_or(0)
+            props
+                .sections
+                .iter()
+                .position(|s| s.id == *focused_id)
+                .unwrap_or(0)
         } else {
             0
         };
@@ -610,7 +634,11 @@ impl Accordion {
     /// Focus the previous section for keyboard navigation
     fn focus_previous_section(&self, props: &AccordionProps, state: &mut AccordionState) {
         let current_index = if let Some(ref focused_id) = state.focused_section {
-            props.sections.iter().position(|s| s.id == *focused_id).unwrap_or(0)
+            props
+                .sections
+                .iter()
+                .position(|s| s.id == *focused_id)
+                .unwrap_or(0)
         } else {
             0
         };
@@ -651,19 +679,24 @@ impl Accordion {
         // Production implementation: Calculate section from mouse coordinates using layout data
         let mut current_y = 0u16;
         let section_height = 3; // Header + content preview height
-        
+
         // Iterate through sections to find the one at the given position
         for section in _props.sections.iter() {
             let section_end_y = current_y + section_height;
-            
+
             if _row >= current_y && _row < section_end_y {
                 // Found the section containing this row
                 return Some(section.id.clone());
             }
-            
+
             // Add height based on section state
             current_y = section_end_y;
-            if state.expanded_sections.get(&section.id).copied().unwrap_or(false) {
+            if state
+                .expanded_sections
+                .get(&section.id)
+                .copied()
+                .unwrap_or(false)
+            {
                 // Add expanded content height (estimated)
                 current_y += 5; // Estimated content height
             }

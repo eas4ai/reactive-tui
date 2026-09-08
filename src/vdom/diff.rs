@@ -80,12 +80,12 @@ fn diff_node(
     index: usize,
 ) {
     ctx.stats.nodes_compared += 1;
-    
+
     // Stack overflow prevention: check depth limit
     if ctx.depth >= ctx.max_depth {
         #[cfg(debug_assertions)]
         eprintln!("Warning: Maximum VDOM diff depth ({}) reached. Tree may be too deep or contain cycles.", ctx.max_depth);
-        
+
         // Replace entire subtree to avoid stack overflow
         patches.push(Patch::Replace {
             index,
@@ -96,7 +96,7 @@ fn diff_node(
         ctx.stats.patches_generated += 1;
         return;
     }
-    
+
     // Increment depth for this recursion level
     ctx.depth += 1;
 
@@ -198,7 +198,7 @@ fn diff_node(
             ctx.stats.patches_generated += 1;
         }
     }
-    
+
     // Decrement depth after processing
     ctx.depth -= 1;
 }

@@ -43,19 +43,15 @@ pub fn breadcrumb() -> BreadcrumbBuilder {
 ///     ("laptops", "Laptops", "/products/laptops"),
 /// ], Some("laptops")); // Mark "laptops" as current
 /// ```
-pub fn simple_breadcrumb(
-    segments: Vec<(&str, &str, &str)>,
-    current_id: Option<&str>,
-) -> Element {
+pub fn simple_breadcrumb(segments: Vec<(&str, &str, &str)>, current_id: Option<&str>) -> Element {
     let mut builder = BreadcrumbBuilder::new();
-    
+
     for (id, label, path) in segments {
         let is_current = current_id == Some(id);
-        let segment = BreadcrumbSegment::new(id, label, path)
-            .current(is_current);
+        let segment = BreadcrumbSegment::new(id, label, path).current(is_current);
         builder = builder.segment(segment);
     }
-    
+
     builder.build()
 }
 
@@ -186,33 +182,30 @@ pub fn application_breadcrumb() -> BreadcrumbBuilder {
 pub fn path_breadcrumb(path: &str) -> Element {
     let segments: Vec<&str> = path.split('/').filter(|s| !s.is_empty()).collect();
     let mut builder = filesystem_breadcrumb();
-    
+
     // Add root segment
-    builder = builder.segment(
-        BreadcrumbSegment::new("root", "Root", "/")
-            .icon("🏠")
-    );
-    
+    builder = builder.segment(BreadcrumbSegment::new("root", "Root", "/").icon("🏠"));
+
     // Add path segments
     let mut current_path = String::new();
     for (index, segment) in segments.iter().enumerate() {
         current_path.push('/');
         current_path.push_str(segment);
-        
+
         let is_current = index == segments.len() - 1;
-        let icon = if segment.contains('.') { "📄" } else { "📁" };
-        
+        let icon = if segment.contains('.') {
+            "📄"
+        } else {
+            "📁"
+        };
+
         builder = builder.segment(
-            BreadcrumbSegment::new(
-                format!("segment_{}", index),
-                *segment,
-                &current_path,
-            )
-            .icon(icon)
-            .current(is_current)
+            BreadcrumbSegment::new(format!("segment_{}", index), *segment, &current_path)
+                .icon(icon)
+                .current(is_current),
         );
     }
-    
+
     builder.build()
 }
 
@@ -237,35 +230,33 @@ pub fn url_breadcrumb(url: &str) -> Element {
     } else {
         url
     };
-    
+
     let segments: Vec<&str> = path.split('/').filter(|s| !s.is_empty()).collect();
     let mut builder = website_breadcrumb();
-    
+
     // Add home segment
-    builder = builder.segment(
-        BreadcrumbSegment::new("home", "Home", "/")
-    );
-    
+    builder = builder.segment(BreadcrumbSegment::new("home", "Home", "/"));
+
     // Add URL segments
     let mut current_path = String::new();
     for (index, segment) in segments.iter().enumerate() {
         current_path.push('/');
         current_path.push_str(segment);
-        
+
         let is_current = index == segments.len() - 1;
         let label = segment.replace(['-', '_'], " ");
         let title_case_label = title_case(&label);
-        
+
         builder = builder.segment(
             BreadcrumbSegment::new(
                 format!("segment_{}", index),
                 &title_case_label,
                 &current_path,
             )
-            .current(is_current)
+            .current(is_current),
         );
     }
-    
+
     builder.build()
 }
 
@@ -276,7 +267,9 @@ fn title_case(s: &str) -> String {
             let mut chars = word.chars();
             match chars.next() {
                 None => String::new(),
-                Some(first) => first.to_uppercase().collect::<String>() + &chars.as_str().to_lowercase(),
+                Some(first) => {
+                    first.to_uppercase().collect::<String>() + &chars.as_str().to_lowercase()
+                }
             }
         })
         .collect::<Vec<_>>()
@@ -294,18 +287,18 @@ mod tests {
             .segment(BreadcrumbSegment::new("home", "Home", "/"))
             .segment(BreadcrumbSegment::new("docs", "Docs", "/docs"))
             .build();
-        
+
         assert!(breadcrumb.is_component());
         assert_eq!(breadcrumb.component_name(), Some("Breadcrumb"));
     }
 
     #[test]
     fn test_simple_breadcrumb() {
-        let breadcrumb = simple_breadcrumb(vec![
-            ("home", "Home", "/"),
-            ("docs", "Documentation", "/docs"),
-        ], Some("docs"));
-        
+        let breadcrumb = simple_breadcrumb(
+            vec![("home", "Home", "/"), ("docs", "Documentation", "/docs")],
+            Some("docs"),
+        );
+
         assert!(breadcrumb.is_component());
     }
 
@@ -314,7 +307,7 @@ mod tests {
         let breadcrumb = filesystem_breadcrumb()
             .segment(BreadcrumbSegment::new("root", "Root", "/"))
             .build();
-        
+
         assert!(breadcrumb.is_component());
     }
 
@@ -323,7 +316,7 @@ mod tests {
         let breadcrumb = website_breadcrumb()
             .segment(BreadcrumbSegment::new("home", "Home", "/"))
             .build();
-        
+
         assert!(breadcrumb.is_component());
     }
 

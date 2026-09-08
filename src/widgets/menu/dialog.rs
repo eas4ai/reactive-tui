@@ -156,7 +156,7 @@ impl DialogMenuState {
         if item_count == 0 {
             return;
         }
-        
+
         self.selected_index = Some(match self.selected_index {
             Some(idx) => (idx + 1) % item_count,
             None => 0,
@@ -168,7 +168,7 @@ impl DialogMenuState {
         if item_count == 0 {
             return;
         }
-        
+
         self.selected_index = Some(match self.selected_index {
             Some(idx) => {
                 if idx == 0 {
@@ -256,7 +256,6 @@ pub struct DialogMenu {
     on_hide: Option<Arc<dyn Fn() + Send + Sync>>,
 }
 
-
 impl DialogMenu {
     /// Set callback for when a menu item is selected
     pub fn with_on_item_selected(mut self, f: impl Fn(&str) + Send + Sync + 'static) -> Self {
@@ -295,55 +294,58 @@ impl DialogMenu {
     }
 
     /// Handle keyboard events
-    fn handle_key_event(&mut self, key: &KeyEvent, props: &DialogMenuProps, state: &mut DialogMenuState) -> EventResult {
+    fn handle_key_event(
+        &mut self,
+        key: &KeyEvent,
+        props: &DialogMenuProps,
+        state: &mut DialogMenuState,
+    ) -> EventResult {
         if !props.enabled || !props.visible {
             return EventResult::Ignored;
         }
 
         match props.dialog_type {
-            DialogMenuType::Input => {
-                match key.code {
-                    KeyCode::Char(ch) => {
-                        state.insert_char(ch);
-                        EventResult::Handled
+            DialogMenuType::Input => match key.code {
+                KeyCode::Char(ch) => {
+                    state.insert_char(ch);
+                    EventResult::Handled
+                }
+                KeyCode::Backspace => {
+                    state.delete_char();
+                    EventResult::Handled
+                }
+                KeyCode::Left => {
+                    state.move_cursor_left();
+                    EventResult::Handled
+                }
+                KeyCode::Right => {
+                    state.move_cursor_right();
+                    EventResult::Handled
+                }
+                KeyCode::Enter => {
+                    if let Some(callback) = &self.on_input_submitted {
+                        callback(&state.input_text);
                     }
-                    KeyCode::Backspace => {
-                        state.delete_char();
-                        EventResult::Handled
+                    state.hide();
+                    if let Some(callback) = &self.on_hide {
+                        callback();
                     }
-                    KeyCode::Left => {
-                        state.move_cursor_left();
-                        EventResult::Handled
-                    }
-                    KeyCode::Right => {
-                        state.move_cursor_right();
-                        EventResult::Handled
-                    }
-                    KeyCode::Enter => {
-                        if let Some(callback) = &self.on_input_submitted {
-                            callback(&state.input_text);
+                    EventResult::Handled
+                }
+                KeyCode::Escape => {
+                    if props.close_on_escape {
+                        if let Some(callback) = &self.on_cancelled {
+                            callback();
                         }
                         state.hide();
                         if let Some(callback) = &self.on_hide {
                             callback();
                         }
-                        EventResult::Handled
                     }
-                    KeyCode::Escape => {
-                        if props.close_on_escape {
-                            if let Some(callback) = &self.on_cancelled {
-                                callback();
-                            }
-                            state.hide();
-                            if let Some(callback) = &self.on_hide {
-                                callback();
-                            }
-                        }
-                        EventResult::Handled
-                    }
-                    _ => EventResult::Ignored,
+                    EventResult::Handled
                 }
-            }
+                _ => EventResult::Ignored,
+            },
             _ => {
                 match key.code {
                     KeyCode::Up => {
@@ -424,7 +426,8 @@ impl DialogMenu {
                     KeyCode::Tab => {
                         // For multi-selection, Tab could confirm selection
                         if matches!(props.dialog_type, DialogMenuType::MultiSelection) {
-                            let selected_items: Vec<String> = state.selected_items
+                            let selected_items: Vec<String> = state
+                                .selected_items
                                 .iter()
                                 .filter_map(|&i| {
                                     if i < props.items.len() {
@@ -434,7 +437,7 @@ impl DialogMenu {
                                     }
                                 })
                                 .collect();
-                            
+
                             if let Some(callback) = &self.on_confirmed {
                                 callback(selected_items);
                             }
@@ -461,7 +464,12 @@ impl DialogMenu {
     }
 
     /// Handle mouse events
-    fn handle_mouse_event(&mut self, mouse: &MouseEvent, props: &DialogMenuProps, state: &mut DialogMenuState) -> EventResult {
+    fn handle_mouse_event(
+        &mut self,
+        mouse: &MouseEvent,
+        props: &DialogMenuProps,
+        state: &mut DialogMenuState,
+    ) -> EventResult {
         if !props.enabled || !props.visible {
             return EventResult::Ignored;
         }
@@ -470,7 +478,7 @@ impl DialogMenu {
             crate::event::types::Position::Cell { x, y } => (x, y),
             crate::event::types::Position::Pixel { x, y } => (x as u16, y as u16),
         };
-        
+
         state.mouse_position = Some((mouse_x, mouse_y));
 
         match mouse.kind {
@@ -480,7 +488,9 @@ impl DialogMenu {
                     state.is_focused = true;
 
                     // Calculate which item was clicked based on layout
-                    if let Some(clicked_item) = self.calculate_clicked_item(mouse_x, mouse_y, props, state) {
+                    if let Some(clicked_item) =
+                        self.calculate_clicked_item(mouse_x, mouse_y, props, state)
+                    {
                         state.selected_index = Some(clicked_item);
 
                         // If it's a selection dialog, trigger selection
@@ -513,7 +523,9 @@ impl DialogMenu {
                     state.is_hovered = true;
 
                     // Update selection based on mouse position
-                    if let Some(hovered_item) = self.calculate_clicked_item(mouse_x, mouse_y, props, state) {
+                    if let Some(hovered_item) =
+                        self.calculate_clicked_item(mouse_x, mouse_y, props, state)
+                    {
                         // Only update selection if it's different from current
                         if state.selected_index != Some(hovered_item) {
                             state.selected_index = Some(hovered_item);
@@ -553,14 +565,22 @@ impl DialogMenu {
     }
 
     /// Calculate which menu item was clicked based on mouse position
-    fn calculate_clicked_item(&self, _mouse_x: u16, mouse_y: u16, props: &DialogMenuProps, state: &DialogMenuState) -> Option<usize> {
+    fn calculate_clicked_item(
+        &self,
+        _mouse_x: u16,
+        mouse_y: u16,
+        props: &DialogMenuProps,
+        state: &DialogMenuState,
+    ) -> Option<usize> {
         // This is a simplified calculation - in a real implementation, you'd want to
         // track the exact layout coordinates during rendering
 
         // Calculate dialog content area
         // Use a default position since we don't have access to the actual dialog position
-        let dialog_start_y = 5 + if props.show_border { 1 } else { 0 } +
-                            if props.title.is_some() { 1 } else { 0 } + 1; // padding
+        let dialog_start_y = 5
+            + if props.show_border { 1 } else { 0 }
+            + if props.title.is_some() { 1 } else { 0 }
+            + 1; // padding
 
         // Check if click is within the items area
         if mouse_y < dialog_start_y {
@@ -598,7 +618,7 @@ impl Component for DialogMenu {
     fn update(&mut self, props: &Self::Props, state: &mut Self::State) -> bool {
         let was_visible = self.state.is_focused;
         self.state = state.clone();
-        
+
         // Trigger callbacks for visibility changes
         if props.visible && !was_visible {
             if let Some(callback) = &self.on_show {
@@ -609,7 +629,7 @@ impl Component for DialogMenu {
                 callback();
             }
         }
-        
+
         true
     }
 
@@ -625,7 +645,7 @@ impl Component for DialogMenu {
         // 3. Handle different dialog types (input field, checkboxes, etc.)
         // 4. Render borders, shadows, and close button if enabled
         // 5. Handle modal overlay if modal is true
-        
+
         Element::layout(crate::component::element::LayoutType::Flex)
             .with_key("dialog-menu")
             .with_class(&props.style.base_classes)

@@ -33,7 +33,8 @@ pub fn set_global_performance_context(ctx: Arc<PerformanceContext>) {
 
 /// Get the global performance context (read by hooks if no local context provided)
 pub fn get_global_performance_context() -> Option<Arc<PerformanceContext>> {
-    GLOBAL_CTX.read()
+    GLOBAL_CTX
+        .read()
         .map_err(|_| log::warn!("Global performance context lock poisoned during read"))
         .ok()
         .and_then(|guard| guard.clone())
@@ -50,7 +51,8 @@ pub fn request_performance_mode(mode: PerformanceMode) {
 
 /// Take any requested performance mode (called by App each frame)
 pub fn take_requested_performance_mode() -> Option<PerformanceMode> {
-    REQUESTED_MODE.lock()
+    REQUESTED_MODE
+        .lock()
         .map_err(|_| log::warn!("Requested performance mode lock poisoned during take"))
         .ok()
         .and_then(|mut guard| guard.take())

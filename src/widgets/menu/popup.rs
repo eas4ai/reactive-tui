@@ -12,58 +12,58 @@ pub enum PopupPlacement {
     /// Place popup at cursor position
     Cursor,
     /// Place popup at specific coordinates
-    Position { 
+    Position {
         /// X coordinate
-        x: u16, 
+        x: u16,
         /// Y coordinate
-        y: u16 
+        y: u16,
     },
     /// Place popup relative to a widget area
-    Widget { 
+    Widget {
         /// X coordinate
-        x: u16, 
+        x: u16,
         /// Y coordinate
-        y: u16, 
+        y: u16,
         /// Widget width
-        width: u16, 
+        width: u16,
         /// Widget height
-        height: u16 
+        height: u16,
     },
     /// Place popup below the specified area
-    Below { 
+    Below {
         /// X coordinate
-        x: u16, 
+        x: u16,
         /// Y coordinate
-        y: u16, 
+        y: u16,
         /// Area width
-        width: u16 
+        width: u16,
     },
     /// Place popup above the specified area
-    Above { 
+    Above {
         /// X coordinate
-        x: u16, 
+        x: u16,
         /// Y coordinate
-        y: u16, 
+        y: u16,
         /// Area width
-        width: u16 
+        width: u16,
     },
     /// Place popup to the right of the specified area
-    Right { 
+    Right {
         /// X coordinate
-        x: u16, 
+        x: u16,
         /// Y coordinate
-        y: u16, 
+        y: u16,
         /// Area height
-        height: u16 
+        height: u16,
     },
     /// Place popup to the left of the specified area
-    Left { 
+    Left {
         /// X coordinate
-        x: u16, 
+        x: u16,
         /// Y coordinate
-        y: u16, 
+        y: u16,
         /// Area height
-        height: u16 
+        height: u16,
     },
 }
 
@@ -169,7 +169,7 @@ impl PopupMenuState {
         if item_count == 0 {
             return;
         }
-        
+
         self.selected_index = Some(match self.selected_index {
             Some(idx) => (idx + 1) % item_count,
             None => 0,
@@ -181,7 +181,7 @@ impl PopupMenuState {
         if item_count == 0 {
             return;
         }
-        
+
         self.selected_index = Some(match self.selected_index {
             Some(idx) => {
                 if idx == 0 {
@@ -224,7 +224,6 @@ pub struct PopupMenu {
     on_hide: Option<Arc<dyn Fn() + Send + Sync>>,
 }
 
-
 impl PopupMenu {
     /// Set callback for when a menu item is selected
     pub fn with_on_item_selected(mut self, f: impl Fn(&str) + Send + Sync + 'static) -> Self {
@@ -245,7 +244,12 @@ impl PopupMenu {
     }
 
     /// Handle keyboard navigation
-    fn handle_key_event(&mut self, key: &KeyEvent, props: &PopupMenuProps, state: &mut PopupMenuState) -> EventResult {
+    fn handle_key_event(
+        &mut self,
+        key: &KeyEvent,
+        props: &PopupMenuProps,
+        state: &mut PopupMenuState,
+    ) -> EventResult {
         if !props.enabled || !props.visible {
             return EventResult::Ignored;
         }
@@ -310,7 +314,8 @@ impl PopupMenu {
             }
             KeyCode::PageDown => {
                 if let Some(selected) = state.selected_index {
-                    let new_selected = (selected + props.max_visible_items).min(props.items.len() - 1);
+                    let new_selected =
+                        (selected + props.max_visible_items).min(props.items.len() - 1);
                     state.selected_index = Some(new_selected);
                     state.update_scroll(props.max_visible_items);
                 }
@@ -321,7 +326,12 @@ impl PopupMenu {
     }
 
     /// Handle mouse events
-    fn handle_mouse_event(&mut self, mouse: &MouseEvent, props: &PopupMenuProps, state: &mut PopupMenuState) -> EventResult {
+    fn handle_mouse_event(
+        &mut self,
+        mouse: &MouseEvent,
+        props: &PopupMenuProps,
+        state: &mut PopupMenuState,
+    ) -> EventResult {
         if !props.enabled || !props.visible {
             return EventResult::Ignored;
         }
@@ -330,7 +340,7 @@ impl PopupMenu {
             crate::event::types::Position::Cell { x, y } => (x, y),
             crate::event::types::Position::Pixel { x, y } => (x as u16, y as u16),
         };
-        
+
         state.mouse_position = Some((mouse_x, mouse_y));
 
         match mouse.kind {
@@ -432,7 +442,7 @@ impl Component for PopupMenu {
     fn update(&mut self, props: &Self::Props, state: &mut Self::State) -> bool {
         let was_visible = self.state.is_focused;
         self.state = state.clone();
-        
+
         // Trigger callbacks for visibility changes
         if props.visible && !was_visible {
             if let Some(callback) = &self.on_show {
@@ -443,7 +453,7 @@ impl Component for PopupMenu {
                 callback();
             }
         }
-        
+
         true
     }
 
@@ -458,7 +468,7 @@ impl Component for PopupMenu {
         // 2. Render menu items with proper styling
         // 3. Handle scrolling for long menus
         // 4. Render borders and shadows if enabled
-        
+
         Element::layout(crate::component::element::LayoutType::Flex)
             .with_key("popup-menu")
             .with_class(&props.style.base_classes)

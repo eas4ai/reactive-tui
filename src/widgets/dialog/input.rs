@@ -449,21 +449,22 @@ impl InputDialog {
                 }
                 ValidationRuleType::Pattern(pattern) => {
                     // Production regex pattern matching using regex crate
-                    use std::sync::OnceLock;
                     use std::collections::HashMap;
-                    
-                    static REGEX_CACHE: OnceLock<std::sync::Mutex<HashMap<String, regex::Regex>>> = OnceLock::new();
-                    
+                    use std::sync::OnceLock;
+
+                    static REGEX_CACHE: OnceLock<std::sync::Mutex<HashMap<String, regex::Regex>>> =
+                        OnceLock::new();
+
                     let cache = REGEX_CACHE.get_or_init(|| std::sync::Mutex::new(HashMap::new()));
                     let mut cache_guard = cache.lock().unwrap();
-                    
+
                     let compiled_regex = cache_guard.entry(pattern.clone()).or_insert_with(|| {
                         regex::Regex::new(pattern).unwrap_or_else(|_| {
                             // Fallback for invalid regex - treat as literal string match
                             regex::Regex::new(&regex::escape(pattern)).unwrap()
                         })
                     });
-                    
+
                     if !compiled_regex.is_match(value) {
                         result.valid = false;
                         result.message = Some(rule.message.clone());

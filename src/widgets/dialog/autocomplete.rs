@@ -393,8 +393,11 @@ impl AutocompleteDialog {
         let dialog_bounds = &self.state.bounds;
 
         // Check if click is within dialog bounds
-        if x < dialog_bounds.origin.x as u16 || x >= (dialog_bounds.origin.x + dialog_bounds.width()) as u16 ||
-           y < dialog_bounds.origin.y as u16 || y >= (dialog_bounds.origin.y + dialog_bounds.height()) as u16 {
+        if x < dialog_bounds.origin.x as u16
+            || x >= (dialog_bounds.origin.x + dialog_bounds.width()) as u16
+            || y < dialog_bounds.origin.y as u16
+            || y >= (dialog_bounds.origin.y + dialog_bounds.height()) as u16
+        {
             return None;
         }
 
@@ -621,14 +624,19 @@ impl DialogComponent for AutocompleteDialog {
                         }
 
                         // Check if click is on a suggestion item
-                        if let Some(clicked_index) = self.get_suggestion_at_position(mouse_event.position.x() as u16, mouse_event.position.y() as u16) {
+                        if let Some(clicked_index) = self.get_suggestion_at_position(
+                            mouse_event.position.x() as u16,
+                            mouse_event.position.y() as u16,
+                        ) {
                             // Select the clicked suggestion
                             self.selected_suggestion = Some(clicked_index);
 
                             // If it's a double-click or the item is already selected, accept it
                             if mouse_event.kind == MouseEventKind::Down {
                                 if let Some(suggestion) = self.suggestions.get(clicked_index) {
-                                    return DialogEventResult::Close(DialogResult::Selected(suggestion.value.clone()));
+                                    return DialogEventResult::Close(DialogResult::Selected(
+                                        suggestion.value.clone(),
+                                    ));
                                 }
                             }
 

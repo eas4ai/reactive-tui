@@ -277,8 +277,7 @@ impl TabsBuilder {
 
     /// Build and render as an Element (convenience method)
     pub fn render(self) -> Element {
-        Element::component("Tabs")
-            .with_props(self.build())
+        Element::component("Tabs").with_props(self.build())
     }
 }
 
@@ -346,7 +345,6 @@ impl Props for TabsProps {
         self
     }
 }
-
 
 /// State for Tabs component
 #[derive(Clone, Debug, Default)]

@@ -2,7 +2,7 @@
 
 use super::*;
 use crate::app::{App, AppBuilder, RootComponent};
-use crate::backend::{DebugBackend, CrosstermBackend};
+use crate::backend::{CrosstermBackend, DebugBackend};
 use crate::component::Element;
 use crate::display::monitor::PerformanceMode;
 use std::boxed::Box;
@@ -62,7 +62,8 @@ pub struct RTuiPerformanceMetrics {
 }
 
 /// Root component callback function type
-pub type RTuiRootComponentCallback = extern "C" fn(user_data: *mut std::ffi::c_void) -> *mut super::builder::RTuiElement;
+pub type RTuiRootComponentCallback =
+    extern "C" fn(user_data: *mut std::ffi::c_void) -> *mut super::builder::RTuiElement;
 
 /// FFI-compatible root component wrapper
 struct FFIRootComponent {

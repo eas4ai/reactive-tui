@@ -27,27 +27,27 @@ impl FFIElementBuilder {
             key: None,
         }
     }
-    
+
     /// Build the final element
     pub fn build(self) -> Element {
         let mut builder = ElementBuilder::new(self.element_type);
-        
+
         if !self.classes.is_empty() {
             builder = builder.class(&self.classes);
         }
-        
+
         if let Some(text) = self.text_content {
             builder = builder.text(&text);
         }
-        
+
         if let Some(key) = self.key {
             builder = builder.key(&key);
         }
-        
+
         for child in self.children {
             builder = builder.child(child);
         }
-        
+
         builder.build()
     }
 }
@@ -118,7 +118,8 @@ pub extern "C" fn rtui_element_builder_button(
 
     catch_panic(AssertUnwindSafe(|| unsafe {
         let mut ffi_builder = FFIElementBuilder::new(ElementType::Layout(LayoutType::Flex));
-        ffi_builder.classes = "px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 cursor-pointer".to_string();
+        ffi_builder.classes =
+            "px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 cursor-pointer".to_string();
         *out_builder = Box::into_raw(Box::new(ffi_builder)) as *mut RTuiElementBuilder;
         Ok(())
     }))
@@ -145,13 +146,13 @@ pub extern "C" fn rtui_element_builder_add_class(
 
         // Get mutable reference to FFI builder - NO Box::from_raw!
         let ffi_builder = &mut *(builder as *mut FFIElementBuilder);
-        
+
         // Actually modify in place
         if !ffi_builder.classes.is_empty() {
             ffi_builder.classes.push(' ');
         }
         ffi_builder.classes.push_str(classes_str);
-        
+
         Ok(())
     }))
 }
@@ -173,10 +174,10 @@ pub extern "C" fn rtui_element_builder_set_text(
 
         // Get mutable reference to FFI builder - NO Box::from_raw!
         let ffi_builder = &mut *(builder as *mut FFIElementBuilder);
-        
+
         // Actually modify in place
         ffi_builder.text_content = Some(text_str.to_string());
-        
+
         Ok(())
     }))
 }
@@ -198,10 +199,10 @@ pub extern "C" fn rtui_element_builder_set_key(
 
         // Get mutable reference to FFI builder - NO Box::from_raw!
         let ffi_builder = &mut *(builder as *mut FFIElementBuilder);
-        
+
         // Actually modify in place
         ffi_builder.key = Some(key_str.to_string());
-        
+
         Ok(())
     }))
 }
@@ -219,13 +220,13 @@ pub extern "C" fn rtui_element_builder_add_child(
     catch_panic(AssertUnwindSafe(|| unsafe {
         // Take ownership of the child element
         let ffi_element = Box::from_raw(child as *mut FFIElement);
-        
+
         // Get mutable reference to FFI builder - NO Box::from_raw!
         let ffi_builder = &mut *(builder as *mut FFIElementBuilder);
-        
+
         // Actually modify in place
         ffi_builder.children.push(ffi_element.inner);
-        
+
         Ok(())
     }))
 }
@@ -243,11 +244,11 @@ pub extern "C" fn rtui_element_builder_build(
     catch_panic(AssertUnwindSafe(|| unsafe {
         // Take ownership of the builder (build consumes it)
         let ffi_builder = Box::from_raw(builder as *mut FFIElementBuilder);
-        
+
         // Build the element
         let element = ffi_builder.build();
         let ffi_element = FFIElement { inner: element };
-        
+
         *out_element = Box::into_raw(Box::new(ffi_element)) as *mut RTuiElement;
         Ok(())
     }))

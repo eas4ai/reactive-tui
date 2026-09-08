@@ -2,14 +2,14 @@
 //!
 //! Pre-computed lookups and caching for common components
 
-use std::any::TypeId;
-use std::collections::HashMap;
-use once_cell::sync::Lazy;
+use super::instance::AnyComponentInstance;
 use lru::LruCache;
+use once_cell::sync::Lazy;
+use std::any::TypeId;
 use std::cell::RefCell;
+use std::collections::HashMap;
 use std::num::NonZeroUsize;
 use std::sync::Arc;
-use super::instance::AnyComponentInstance;
 
 /// Pre-computed TypeIds for common components
 /// These are computed at compile-time and stored in a perfect hash map
@@ -23,7 +23,7 @@ impl CommonComponents {
     pub fn get(&self, name: &str) -> Option<TypeId> {
         self.map.get(name).copied()
     }
-    
+
     /// Register a common component
     pub fn register(&mut self, name: &'static str, type_id: TypeId) {
         self.map.insert(name, type_id);
@@ -32,11 +32,9 @@ impl CommonComponents {
 
 /// Global common components lookup
 static COMMON_COMPONENTS: Lazy<CommonComponents> = Lazy::new(|| {
-    
-    
     // Register common built-in components here
     // These will be populated by the registry when components are registered
-    
+
     CommonComponents {
         map: HashMap::with_capacity(32),
     }
@@ -49,7 +47,7 @@ pub fn common_components() -> &'static CommonComponents {
 
 thread_local! {
     /// Thread-local LRU cache for component instances
-    static INSTANCE_CACHE: RefCell<LruCache<(TypeId, u64), Arc<AnyComponentInstance>>> = 
+    static INSTANCE_CACHE: RefCell<LruCache<(TypeId, u64), Arc<AnyComponentInstance>>> =
         RefCell::new(LruCache::new(NonZeroUsize::new(64).unwrap()));
 }
 
@@ -63,21 +61,29 @@ pub struct InstanceCacheKey {
 impl InstanceCacheKey {
     /// Create a new cache key
     pub fn new(type_id: TypeId, props_hash: u64) -> Self {
-        Self { type_id, props_hash }
+        Self {
+            type_id,
+            props_hash,
+        }
     }
 }
 
 /// Get a cached component instance
 pub fn get_cached_instance(key: InstanceCacheKey) -> Option<Arc<AnyComponentInstance>> {
     INSTANCE_CACHE.with(|cache| {
-        cache.borrow_mut().get(&(key.type_id, key.props_hash)).cloned()
+        cache
+            .borrow_mut()
+            .get(&(key.type_id, key.props_hash))
+            .cloned()
     })
 }
 
 /// Store a component instance in the cache
 pub fn cache_instance(key: InstanceCacheKey, instance: Arc<AnyComponentInstance>) {
     INSTANCE_CACHE.with(|cache| {
-        cache.borrow_mut().put((key.type_id, key.props_hash), instance);
+        cache
+            .borrow_mut()
+            .put((key.type_id, key.props_hash), instance);
     });
 }
 

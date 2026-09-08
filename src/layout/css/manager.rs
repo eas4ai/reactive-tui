@@ -4,9 +4,11 @@
 //! into actual component animations using the animation system.
 
 use crate::animation::Animation;
-use crate::layout::css::animations::{apply_css_animation_to_component, get_available_css_animations};
+use crate::layout::css::animations::{
+    apply_css_animation_to_component, get_available_css_animations,
+};
 use std::collections::HashMap;
-use std::sync::{Arc, RwLock, OnceLock};
+use std::sync::{Arc, OnceLock, RwLock};
 
 /// Manages the lifecycle of CSS animations applied to components
 pub struct CssAnimationManager {
@@ -42,19 +44,24 @@ impl CssAnimationManager {
 
         // Store the animation
         {
-            let mut active = self.active_animations.write()
+            let mut active = self
+                .active_animations
+                .write()
                 .map_err(|_| "Failed to acquire write lock on active animations")?;
-            
-            active.entry(component_id.to_string())
+
+            active
+                .entry(component_id.to_string())
                 .or_insert_with(Vec::new)
                 .push(animation);
         }
 
         // Register for cleanup
         {
-            let mut registry = self.animation_registry.write()
+            let mut registry = self
+                .animation_registry
+                .write()
                 .map_err(|_| "Failed to acquire write lock on animation registry")?;
-            
+
             registry.insert(animation_id, component_id.to_string());
         }
 
@@ -67,9 +74,11 @@ impl CssAnimationManager {
 
         // Remove from active animations
         {
-            let mut active = self.active_animations.write()
+            let mut active = self
+                .active_animations
+                .write()
                 .map_err(|_| "Failed to acquire write lock on active animations")?;
-            
+
             if let Some(animations) = active.remove(component_id) {
                 removed_count = animations.len();
             }
@@ -77,9 +86,11 @@ impl CssAnimationManager {
 
         // Clean up registry entries
         {
-            let mut registry = self.animation_registry.write()
+            let mut registry = self
+                .animation_registry
+                .write()
                 .map_err(|_| "Failed to acquire write lock on animation registry")?;
-            
+
             registry.retain(|_, comp_id| comp_id != component_id);
         }
 
@@ -88,7 +99,9 @@ impl CssAnimationManager {
 
     /// Get active animations count for a component
     pub fn get_component_animation_count(&self, component_id: &str) -> Result<usize, String> {
-        let active = self.active_animations.read()
+        let active = self
+            .active_animations
+            .read()
             .map_err(|_| "Failed to acquire read lock on active animations")?;
 
         Ok(active.get(component_id).map(|v| v.len()).unwrap_or(0))
@@ -97,7 +110,9 @@ impl CssAnimationManager {
     /// Check if a component has any active animations
     pub fn has_animations(&self, component_id: &str) -> bool {
         if let Ok(active) = self.active_animations.read() {
-            active.get(component_id).is_some_and(|anims| !anims.is_empty())
+            active
+                .get(component_id)
+                .is_some_and(|anims| !anims.is_empty())
         } else {
             false
         }
@@ -114,7 +129,8 @@ impl CssAnimationManager {
 
     /// Get statistics about active animations
     pub fn get_stats(&self) -> CssAnimationStats {
-        let (component_count, total_animations) = if let Ok(active) = self.active_animations.read() {
+        let (component_count, total_animations) = if let Ok(active) = self.active_animations.read()
+        {
             let component_count = active.len();
             let total_animations = active.values().map(|v| v.len()).sum();
             (component_count, total_animations)
@@ -134,7 +150,9 @@ impl CssAnimationManager {
         let total_removed;
 
         {
-            let mut active = self.active_animations.write()
+            let mut active = self
+                .active_animations
+                .write()
                 .map_err(|_| "Failed to acquire write lock on active animations")?;
 
             total_removed = active.values().map(|v| v.len()).sum();
@@ -142,7 +160,9 @@ impl CssAnimationManager {
         }
 
         {
-            let mut registry = self.animation_registry.write()
+            let mut registry = self
+                .animation_registry
+                .write()
                 .map_err(|_| "Failed to acquire write lock on animation registry")?;
 
             registry.clear();
@@ -210,7 +230,7 @@ mod tests {
     fn test_css_animation_manager_creation() {
         let manager = CssAnimationManager::new();
         let stats = manager.get_stats();
-        
+
         assert_eq!(stats.active_components, 0);
         assert_eq!(stats.total_animations, 0);
         assert!(stats.available_css_animations > 0); // Should have built-in animations
@@ -219,18 +239,19 @@ mod tests {
     #[test]
     fn test_apply_css_animation() {
         let manager = CssAnimationManager::new();
-        
+
         // Apply a pulse animation
         let result = manager.apply_animation("test-component", "pulse");
         assert!(result.is_ok());
-        
+
         // Check that the component has animations
         assert!(manager.has_animations("test-component"));
-        
-        let animation_count = manager.get_component_animation_count("test-component")
+
+        let animation_count = manager
+            .get_component_animation_count("test-component")
             .expect("Should be able to get animation count");
         assert_eq!(animation_count, 1);
-        
+
         let stats = manager.get_stats();
         assert_eq!(stats.active_components, 1);
         assert_eq!(stats.total_animations, 1);
@@ -239,20 +260,23 @@ mod tests {
     #[test]
     fn test_remove_component_animations() {
         let manager = CssAnimationManager::new();
-        
+
         // Apply multiple animations
-        manager.apply_animation("test-component", "pulse")
+        manager
+            .apply_animation("test-component", "pulse")
             .expect("Should be able to apply pulse animation");
-        manager.apply_animation("test-component", "bounce")
+        manager
+            .apply_animation("test-component", "bounce")
             .expect("Should be able to apply bounce animation");
-        
+
         assert_eq!(manager.get_stats().total_animations, 2);
-        
+
         // Remove all animations for the component
-        let removed = manager.remove_component_animations("test-component")
+        let removed = manager
+            .remove_component_animations("test-component")
             .expect("Should be able to remove component animations");
         assert_eq!(removed, 2);
-        
+
         assert!(!manager.has_animations("test-component"));
         assert_eq!(manager.get_stats().total_animations, 0);
     }
@@ -262,16 +286,16 @@ mod tests {
         // Test global functions
         let result = apply_css_animation_global("global-test", "spin");
         assert!(result.is_ok());
-        
+
         assert!(has_css_animations_global("global-test"));
-        
+
         let stats = get_css_animation_stats_global();
         assert!(stats.total_animations > 0);
-        
+
         let removed = remove_css_animations_global("global-test")
             .expect("Should be able to remove global animations");
         assert!(removed > 0);
-        
+
         assert!(!has_css_animations_global("global-test"));
     }
 }

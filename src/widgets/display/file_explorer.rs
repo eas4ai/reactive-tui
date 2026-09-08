@@ -15,12 +15,12 @@ use crate::component::{Component, Element, Props};
 use crate::event::router::EventResult;
 use crate::event::types::{KeyCode, KeyEvent, MouseEventKind};
 use crate::event::{Event, MouseEvent};
-use crate::widgets::layout::{BreadcrumbSegment, BreadcrumbBuilder};
+use crate::widgets::layout::{BreadcrumbBuilder, BreadcrumbSegment};
 use std::any::Any;
 use std::collections::HashSet;
+use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::SystemTime;
-use std::fs;
 
 /// File system entry type
 #[derive(Clone, Debug, PartialEq)]
@@ -64,11 +64,12 @@ impl FileEntry {
     /// Create a new file entry from a path
     pub fn from_path(path: &Path) -> std::io::Result<Self> {
         let metadata = fs::metadata(path)?;
-        let name = path.file_name()
+        let name = path
+            .file_name()
             .and_then(|n| n.to_str())
             .unwrap_or("")
             .to_string();
-        
+
         let file_type = if metadata.is_dir() {
             FileType::Directory
         } else if metadata.is_file() {
@@ -77,7 +78,8 @@ impl FileEntry {
             FileType::Unknown
         };
 
-        let extension = path.extension()
+        let extension = path
+            .extension()
             .and_then(|ext| ext.to_str())
             .map(|s| s.to_lowercase());
 
@@ -88,7 +90,11 @@ impl FileEntry {
             name,
             path: path.to_path_buf(),
             file_type,
-            size: if metadata.is_file() { Some(metadata.len()) } else { None },
+            size: if metadata.is_file() {
+                Some(metadata.len())
+            } else {
+                None
+            },
             modified: metadata.modified().ok(),
             hidden,
             extension,
@@ -101,15 +107,13 @@ impl FileEntry {
     /// Get appropriate icon for file type
     fn get_icon_for_file(name: &str, file_type: &FileType, extension: &Option<String>) -> String {
         match file_type {
-            FileType::Directory => {
-                match name {
-                    ".git" => "🔧".to_string(),
-                    "node_modules" => "📦".to_string(),
-                    "target" => "🎯".to_string(),
-                    "build" | "dist" => "🏗️".to_string(),
-                    _ => "📁".to_string(),
-                }
-            }
+            FileType::Directory => match name {
+                ".git" => "🔧".to_string(),
+                "node_modules" => "📦".to_string(),
+                "target" => "🎯".to_string(),
+                "build" | "dist" => "🏗️".to_string(),
+                _ => "📁".to_string(),
+            },
             FileType::File => {
                 if let Some(ext) = extension {
                     match ext.as_str() {
@@ -125,7 +129,7 @@ impl FileEntry {
                         "rb" => "💎",
                         "swift" => "🦉",
                         "kt" => "🎯",
-                        
+
                         // Web technologies
                         "html" | "htm" => "🌐",
                         "css" => "🎨",
@@ -133,7 +137,7 @@ impl FileEntry {
                         "json" => "📋",
                         "xml" => "📄",
                         "yaml" | "yml" => "📝",
-                        
+
                         // Documents
                         "md" | "markdown" => "📖",
                         "txt" => "📄",
@@ -141,26 +145,26 @@ impl FileEntry {
                         "doc" | "docx" => "📘",
                         "xls" | "xlsx" => "📊",
                         "ppt" | "pptx" => "📈",
-                        
+
                         // Images
                         "png" | "jpg" | "jpeg" | "gif" | "bmp" | "svg" => "🖼️",
                         "ico" => "🎭",
-                        
+
                         // Audio/Video
                         "mp3" | "wav" | "flac" | "ogg" => "🎵",
                         "mp4" | "avi" | "mkv" | "mov" => "🎬",
-                        
+
                         // Archives
                         "zip" | "tar" | "gz" | "rar" | "7z" => "📦",
-                        
+
                         // Config files
                         "toml" | "ini" | "conf" | "config" => "⚙️",
                         "env" => "🔐",
-                        
+
                         // Build files
                         "dockerfile" => "🐳",
                         "makefile" => "🔨",
-                        
+
                         _ => "📄",
                     }
                 } else {
@@ -172,7 +176,8 @@ impl FileEntry {
                         "makefile" => "🔨",
                         _ => "📄",
                     }
-                }.to_string()
+                }
+                .to_string()
             }
             FileType::Symlink => "🔗".to_string(),
             FileType::Unknown => "❓".to_string(),
@@ -383,7 +388,7 @@ impl Component for FileExplorer {
 
     fn render(&self, props: &Self::Props, state: &Self::State) -> Element {
         let mut explorer_classes = vec!["file-explorer".to_string()];
-        
+
         // Add view mode classes
         match props.view_mode {
             ViewMode::List => explorer_classes.push("file-explorer-list".to_string()),
@@ -428,9 +433,7 @@ impl Component for FileExplorer {
                     EventResult::Ignored
                 }
             }
-            Event::Mouse(mouse_event) => {
-                self.handle_mouse_event(mouse_event, props, state)
-            }
+            Event::Mouse(mouse_event) => self.handle_mouse_event(mouse_event, props, state),
             _ => EventResult::Ignored,
         }
     }
@@ -438,10 +441,16 @@ impl Component for FileExplorer {
 
 impl FileExplorer {
     /// Check if directory should be reloaded
-    fn should_reload_directory(&self, _props: &FileExplorerProps, state: &FileExplorerState) -> bool {
+    fn should_reload_directory(
+        &self,
+        _props: &FileExplorerProps,
+        state: &FileExplorerState,
+    ) -> bool {
         // Reload if path changed or if it's been a while since last load
         if let Some(last_load) = state.last_load_time {
-            let elapsed = SystemTime::now().duration_since(last_load).unwrap_or_default();
+            let elapsed = SystemTime::now()
+                .duration_since(last_load)
+                .unwrap_or_default();
             elapsed.as_secs() > 30 // Reload every 30 seconds
         } else {
             true
@@ -530,10 +539,10 @@ impl FileExplorer {
         entries.sort_by(|a, b| {
             // Always put directories first
             match (&a.file_type, &b.file_type) {
-                (FileType::Directory, FileType::Directory) => {},
+                (FileType::Directory, FileType::Directory) => {}
                 (FileType::Directory, _) => return std::cmp::Ordering::Less,
                 (_, FileType::Directory) => return std::cmp::Ordering::Greater,
-                _ => {},
+                _ => {}
             }
 
             let ordering = match props.sort_criteria {
@@ -554,7 +563,8 @@ impl FileExplorer {
     fn update_filtered_entries(&self, props: &FileExplorerProps, state: &mut FileExplorerState) {
         if let Some(ref query) = props.search_query {
             let query_lower = query.to_lowercase();
-            state.filtered_entries = state.entries
+            state.filtered_entries = state
+                .entries
                 .iter()
                 .enumerate()
                 .filter(|(_, entry)| entry.name.to_lowercase().contains(&query_lower))
@@ -577,10 +587,8 @@ impl FileExplorer {
         let mut current_path = PathBuf::new();
 
         // Add root segment
-        breadcrumb_builder = breadcrumb_builder.segment(
-            BreadcrumbSegment::new("root", "Root", "/")
-                .icon("🏠")
-        );
+        breadcrumb_builder =
+            breadcrumb_builder.segment(BreadcrumbSegment::new("root", "Root", "/").icon("🏠"));
 
         // Add path segments
         for (index, component) in props.current_path.components().enumerate() {
@@ -590,13 +598,9 @@ impl FileExplorer {
                     let path_str = current_path.to_string_lossy().to_string();
 
                     breadcrumb_builder = breadcrumb_builder.segment(
-                        BreadcrumbSegment::new(
-                            format!("segment_{}", index),
-                            name,
-                            &path_str,
-                        )
-                        .icon("📁")
-                        .current(current_path == props.current_path)
+                        BreadcrumbSegment::new(format!("segment_{}", index), name, &path_str)
+                            .icon("📁")
+                            .current(current_path == props.current_path),
                     );
                 }
             }
@@ -617,7 +621,7 @@ impl FileExplorer {
                     Element::text("📋").with_class("view-mode-button list"),
                     Element::text("⊞").with_class("view-mode-button grid"),
                     Element::text("🌳").with_class("view-mode-button tree"),
-                ])
+                ]),
         );
 
         // Sort controls
@@ -625,15 +629,15 @@ impl FileExplorer {
             Element::layout(crate::component::LayoutType::Flex)
                 .with_class("file-explorer-sort-controls")
                 .with_children(vec![
-                    Element::text("Sort: Name ↑").with_class("sort-indicator"),
-                ])
+                    Element::text("Sort: Name ↑").with_class("sort-indicator")
+                ]),
         );
 
         // Search box (placeholder)
         if props.search_query.is_some() {
             toolbar_children.push(
                 Element::text(format!("Search: {}", props.search_query.as_ref().unwrap()))
-                    .with_class("search-box")
+                    .with_class("search-box"),
             );
         }
 
@@ -646,10 +650,7 @@ impl FileExplorer {
             format!("{} items", state.filtered_entries.len())
         };
 
-        toolbar_children.push(
-            Element::text(&status_text)
-                .with_class("file-explorer-status")
-        );
+        toolbar_children.push(Element::text(&status_text).with_class("file-explorer-status"));
 
         Element::layout(crate::component::LayoutType::Flex)
             .with_class("file-explorer-toolbar")
@@ -659,18 +660,15 @@ impl FileExplorer {
     /// Render main content area
     fn render_content(&self, props: &FileExplorerProps, state: &FileExplorerState) -> Element {
         if state.loading {
-            return Element::text("Loading directory...")
-                .with_class("file-explorer-loading");
+            return Element::text("Loading directory...").with_class("file-explorer-loading");
         }
 
         if let Some(ref error) = state.error {
-            return Element::text(format!("Error: {}", error))
-                .with_class("file-explorer-error");
+            return Element::text(format!("Error: {}", error)).with_class("file-explorer-error");
         }
 
         if state.filtered_entries.is_empty() {
-            return Element::text("No files found")
-                .with_class("file-explorer-empty");
+            return Element::text("No files found").with_class("file-explorer-empty");
         }
 
         match props.view_mode {
@@ -693,7 +691,7 @@ impl FileExplorer {
                         Element::text("Name").with_class("header-name"),
                         Element::text("Size").with_class("header-size"),
                         Element::text("Modified").with_class("header-modified"),
-                    ])
+                    ]),
             );
         }
 
@@ -767,19 +765,13 @@ impl FileExplorer {
                 .with_children(vec![
                     Element::text(&entry.icon).with_class("file-icon"),
                     Element::text(&entry.name).with_class("file-label"),
-                ])
+                ]),
         ];
 
         // Add details if enabled
         if props.show_details {
-            children.push(
-                Element::text(entry.format_size())
-                    .with_class("file-size")
-            );
-            children.push(
-                Element::text(entry.format_modified())
-                    .with_class("file-modified")
-            );
+            children.push(Element::text(entry.format_size()).with_class("file-size"));
+            children.push(Element::text(entry.format_modified()).with_class("file-modified"));
         }
 
         Element::layout(crate::component::LayoutType::Flex)
@@ -812,10 +804,8 @@ impl FileExplorer {
         Element::layout(crate::component::LayoutType::Flex)
             .with_class(item_classes.join(" "))
             .with_children(vec![
-                Element::text(&entry.icon)
-                    .with_class("file-icon-large"),
-                Element::text(&entry.name)
-                    .with_class("file-name-grid"),
+                Element::text(&entry.icon).with_class("file-icon-large"),
+                Element::text(&entry.name).with_class("file-name-grid"),
             ])
     }
 
@@ -881,7 +871,12 @@ impl FileExplorer {
         match event.kind {
             MouseEventKind::Down => {
                 // Determine which item was clicked
-                if let Some(item_index) = self.get_item_at_position(event.position.x() as u16, event.position.y() as u16, props, state) {
+                if let Some(item_index) = self.get_item_at_position(
+                    event.position.x() as u16,
+                    event.position.y() as u16,
+                    props,
+                    state,
+                ) {
                     state.focused_index = Some(item_index);
 
                     // Handle selection based on modifiers
@@ -890,7 +885,9 @@ impl FileExplorer {
                         if event.modifiers.ctrl {
                             // Ctrl+click: Toggle selection of clicked item
                             self.toggle_item_selection(item_index, state);
-                        } else if event.modifiers.shift && props.selection_mode == SelectionMode::Multiple {
+                        } else if event.modifiers.shift
+                            && props.selection_mode == SelectionMode::Multiple
+                        {
                             // Shift+click: Select range from last selected to clicked item
                             self.select_range(item_index, state);
                         } else {
@@ -1013,7 +1010,9 @@ impl FileExplorer {
             focused_index
         } else if let Some(&last_selected) = state.selected_indices.iter().next() {
             // Find display index of the last selected entry
-            state.filtered_entries.iter()
+            state
+                .filtered_entries
+                .iter()
                 .position(|&entry_idx| entry_idx == last_selected)
                 .unwrap_or(0)
         } else {

@@ -6,9 +6,9 @@
 #[cfg(test)]
 mod tests {
     use super::super::specialized::*;
-    use crate::widgets::{ImageDisplayMode, ImageFormat, ImageQuality};
-    use crate::widgets::layout::stack::{StackDirection, StackAlignment};
     use crate::component::{Element, ElementType};
+    use crate::widgets::layout::stack::{StackAlignment, StackDirection};
+    use crate::widgets::{ImageDisplayMode, ImageFormat, ImageQuality};
 
     #[test]
     fn test_tree_builder() {
@@ -19,7 +19,7 @@ mod tests {
             .show_lines(true)
             .checkable(false)
             .build();
-        
+
         // Should create a text element describing the tree configuration
         assert!(matches!(tree.element_type, ElementType::Text(_)));
     }
@@ -46,7 +46,7 @@ mod tests {
             .disabled(false)
             .group("options")
             .build();
-        
+
         // Should create a text element describing the radio button
         assert!(matches!(radio.element_type, ElementType::Text(_)));
     }
@@ -61,7 +61,7 @@ mod tests {
             .label("Volume")
             .disabled(false)
             .build();
-        
+
         // Should create a text element describing the slider
         assert!(matches!(slider.element_type, ElementType::Text(_)));
     }
@@ -75,7 +75,7 @@ mod tests {
             .vertical_scroll(true)
             .show_scrollbars(true)
             .build();
-        
+
         // Should create a text element describing the scroll view
         assert!(matches!(scroll_view.element_type, ElementType::Text(_)));
     }
@@ -89,7 +89,7 @@ mod tests {
             .alignment(StackAlignment::Center)
             .spacing(10.0)
             .build();
-        
+
         // Should create a text element describing the stack
         assert!(matches!(stack.element_type, ElementType::Text(_)));
     }
@@ -104,7 +104,7 @@ mod tests {
             .width(400)
             .height(300)
             .build();
-        
+
         // Should create a text element describing the dialog
         assert!(matches!(dialog.element_type, ElementType::Text(_)));
     }
@@ -118,7 +118,7 @@ mod tests {
             .cancel_text("No")
             .danger(true)
             .build();
-        
+
         // Should create a text element describing the confirmation dialog
         assert!(matches!(confirmation.element_type, ElementType::Text(_)));
     }
@@ -133,7 +133,7 @@ mod tests {
             .cancelable(true)
             .show_percentage(true)
             .build();
-        
+
         // Should create a text element describing the progress dialog
         assert!(matches!(progress.element_type, ElementType::Text(_)));
     }
@@ -143,11 +143,11 @@ mod tests {
         let step1 = WizardStep::new("Step 1")
             .content(Element::text("Step 1 content"))
             .can_proceed(true);
-        
+
         let step2 = WizardStep::new("Step 2")
             .content(Element::text("Step 2 content"))
             .can_proceed(false);
-        
+
         let wizard = WizardBuilder::new()
             .title("Setup Wizard")
             .step(step1)
@@ -156,7 +156,7 @@ mod tests {
             .show_progress(true)
             .cancelable(true)
             .build();
-        
+
         // Should create a text element describing the wizard
         assert!(matches!(wizard.element_type, ElementType::Text(_)));
     }
@@ -167,7 +167,7 @@ mod tests {
         let tree: Element = tree().selectable(true).into();
         let image: Element = image().source_file("/test.png").into();
         let radio: Element = RadioButtonBuilder::new().value("test").into();
-        
+
         assert!(matches!(tree.element_type, ElementType::Text(_)));
         assert!(matches!(image.element_type, ElementType::Text(_)));
         assert!(matches!(radio.element_type, ElementType::Text(_)));

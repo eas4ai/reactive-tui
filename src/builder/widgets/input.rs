@@ -3,8 +3,8 @@
 //! This module provides builders for various input components including text inputs,
 //! checkboxes, radio buttons, select dropdowns, and sliders.
 
-use crate::component::Element;
 use super::super::specialized::{RadioButtonBuilder, SliderBuilder};
+use crate::component::Element;
 
 /// Create a Text Input builder
 ///
@@ -442,10 +442,15 @@ impl SelectBuilder {
                 .map(|(_, label)| label.clone())
                 .unwrap_or_else(|| selected.clone())
         } else {
-            self.placeholder.unwrap_or_else(|| "Select an option".to_string())
+            self.placeholder
+                .unwrap_or_else(|| "Select an option".to_string())
         };
 
-        let display_text = format!("Select: {} ({} options)", selected_label, self.options.len());
+        let display_text = format!(
+            "Select: {} ({} options)",
+            selected_label,
+            self.options.len()
+        );
 
         let mut element = Element::text(display_text);
 

@@ -81,7 +81,7 @@ impl ExternalRenderer {
             ImageSource::Url(url) => {
                 // Load image from URL and write to temp file
                 self.load_from_url(url)
-            },
+            }
         }
     }
 
@@ -96,7 +96,9 @@ impl ExternalRenderer {
                 use base64::Engine;
                 let decoded = base64::engine::general_purpose::STANDARD
                     .decode(base64_data)
-                    .map_err(|e| ReactiveError::ImageProcessing(format!("Invalid base64 data: {}", e)))?;
+                    .map_err(|e| {
+                        ReactiveError::ImageProcessing(format!("Invalid base64 data: {}", e))
+                    })?;
 
                 // Determine file extension from MIME type
                 let extension = if url.contains("data:image/png") {
@@ -127,9 +129,10 @@ impl ExternalRenderer {
         if path.exists() {
             Ok(path.to_path_buf())
         } else {
-            Err(ReactiveError::ImageProcessing(
-                format!("File not found: {}", url)
-            ))
+            Err(ReactiveError::ImageProcessing(format!(
+                "File not found: {}",
+                url
+            )))
         }
     }
 

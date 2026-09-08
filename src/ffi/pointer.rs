@@ -3,10 +3,10 @@
 //! This module provides a thread-safe system for tracking FFI pointers
 //! to prevent use-after-free vulnerabilities.
 
-use std::collections::HashMap;
-use std::sync::{Arc, RwLock};
-use std::marker::PhantomData;
 use std::any::TypeId;
+use std::collections::HashMap;
+use std::marker::PhantomData;
+use std::sync::{Arc, RwLock};
 
 /// Tracks valid pointers with type information to prevent use-after-free and type confusion
 pub struct PointerTracker<T> {
@@ -31,7 +31,7 @@ impl<T> PointerTracker<T> {
         if ptr.is_null() {
             return false;
         }
-        
+
         let addr = ptr as usize;
         let type_id = TypeId::of::<T>();
         match self.valid_pointers.write() {
@@ -51,13 +51,13 @@ impl<T> PointerTracker<T> {
         if ptr.is_null() {
             return false;
         }
-        
+
         let addr = ptr as usize;
         let expected_type = TypeId::of::<T>();
         match self.valid_pointers.read() {
-            Ok(map) => {
-                map.get(&addr).map_or(false, |&stored_type| stored_type == expected_type)
-            }
+            Ok(map) => map
+                .get(&addr)
+                .map_or(false, |&stored_type| stored_type == expected_type),
             Err(_) => false,
         }
     }
@@ -67,7 +67,7 @@ impl<T> PointerTracker<T> {
         if ptr.is_null() {
             return false;
         }
-        
+
         let addr = ptr as usize;
         match self.valid_pointers.write() {
             Ok(mut map) => map.remove(&addr).is_some(),
@@ -109,26 +109,26 @@ impl<T> Default for PointerTracker<T> {
 /// Global validation function for type-safe FFI pointer operations
 pub fn validate_pointer<T: 'static>(ptr: *const u8) -> bool {
     use std::sync::OnceLock;
-    
+
     static GLOBAL_TRACKER: OnceLock<PointerTracker<u8>> = OnceLock::new();
     let _tracker = GLOBAL_TRACKER.get_or_init(PointerTracker::new);
-    
+
     // For now, we'll use a simplified validation approach
     // In a full implementation, you'd maintain separate trackers per type
     if ptr.is_null() {
         return false;
     }
-    
+
     // Basic alignment check for the type - this prevents most type confusion attacks
     let alignment = std::mem::align_of::<T>();
     if (ptr as usize) % alignment != 0 {
         return false;
     }
-    
+
     // Additional safety: check pointer is in valid memory range
     // This is a simplified check - in production you'd want more sophisticated validation
     let addr = ptr as usize;
-    
+
     // Check if pointer is in reasonable user space (not kernel space)
     const USER_SPACE_MAX: usize = 0x7FFF_FFFF_FFFF; // 47-bit user space
     addr < USER_SPACE_MAX
@@ -139,7 +139,7 @@ pub fn register_typed_pointer<T: 'static>(ptr: *mut T) -> bool {
     if ptr.is_null() {
         return false;
     }
-    
+
     // Basic alignment check for the type
     let alignment = std::mem::align_of::<T>();
     (ptr as usize) % alignment == 0
@@ -148,8 +148,8 @@ pub fn register_typed_pointer<T: 'static>(ptr: *mut T) -> bool {
 /// Global pointer trackers for different types
 pub mod trackers {
     use super::PointerTracker;
-    use crate::core::surface::Surface;
     use crate::core::renderer::Renderer;
+    use crate::core::surface::Surface;
     use crate::core::terminal::Terminal;
     use std::sync::OnceLock;
 

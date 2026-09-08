@@ -9,20 +9,27 @@ pub struct GradientBlocks;
 
 impl GradientBlocks {
     /// Create a visual gradient block (colored rectangle)
-    fn create_gradient_block(&self, x: usize, y: usize, width: usize, height: usize, colors: Vec<(u8, u8, u8)>) -> Vec<Element> {
+    fn create_gradient_block(
+        &self,
+        x: usize,
+        y: usize,
+        width: usize,
+        height: usize,
+        colors: Vec<(u8, u8, u8)>,
+    ) -> Vec<Element> {
         let mut elements = Vec::new();
-        
+
         for row in 0..height {
             for col in 0..width {
                 // Calculate gradient position (0.0 to 1.0)
                 let pos = col as f32 / (width - 1) as f32;
-                
+
                 // Interpolate between colors
                 let color = if colors.len() >= 2 {
                     let segment_size = 1.0 / (colors.len() - 1) as f32;
                     let segment = (pos / segment_size).floor() as usize;
                     let local_pos = (pos % segment_size) / segment_size;
-                    
+
                     if segment >= colors.len() - 1 {
                         colors[colors.len() - 1]
                     } else {
@@ -37,34 +44,45 @@ impl GradientBlocks {
                 } else {
                     colors[0]
                 };
-                
+
                 elements.push(
                     div()
-                        .class(&format!("absolute left-{} top-{} w-1 h-1", x + col, y + row))
+                        .class(&format!(
+                            "absolute left-{} top-{} w-1 h-1",
+                            x + col,
+                            y + row
+                        ))
                         .class(&format!("bg-[rgb({},{},{})]", color.0, color.1, color.2))
-                        .build()
+                        .build(),
                 );
             }
         }
-        
+
         elements
     }
-    
+
     /// Create a vertical gradient block
-    fn create_vertical_gradient(&self, x: usize, y: usize, width: usize, height: usize, colors: Vec<(u8, u8, u8)>) -> Vec<Element> {
+    fn create_vertical_gradient(
+        &self,
+        x: usize,
+        y: usize,
+        width: usize,
+        height: usize,
+        colors: Vec<(u8, u8, u8)>,
+    ) -> Vec<Element> {
         let mut elements = Vec::new();
-        
+
         for row in 0..height {
             for col in 0..width {
                 // Calculate gradient position (0.0 to 1.0) vertically
                 let pos = row as f32 / (height - 1) as f32;
-                
+
                 // Interpolate between colors
                 let color = if colors.len() >= 2 {
                     let segment_size = 1.0 / (colors.len() - 1) as f32;
                     let segment = (pos / segment_size).floor() as usize;
                     let local_pos = (pos % segment_size) / segment_size;
-                    
+
                     if segment >= colors.len() - 1 {
                         colors[colors.len() - 1]
                     } else {
@@ -79,16 +97,20 @@ impl GradientBlocks {
                 } else {
                     colors[0]
                 };
-                
+
                 elements.push(
                     div()
-                        .class(&format!("absolute left-{} top-{} w-1 h-1", x + col, y + row))
+                        .class(&format!(
+                            "absolute left-{} top-{} w-1 h-1",
+                            x + col,
+                            y + row
+                        ))
                         .class(&format!("bg-[rgb({},{},{})]", color.0, color.1, color.2))
-                        .build()
+                        .build(),
                 );
             }
         }
-        
+
         elements
     }
 }
@@ -108,10 +130,10 @@ impl RootComponent for GradientBlocks {
         let available_height = base_height.saturating_sub(6); // Leave space for title and quit text
 
         // Adaptive sizing based on terminal size
-        let block_width = (available_width * 30) / 100;  // ~30% of available width
+        let block_width = (available_width * 30) / 100; // ~30% of available width
         let block_height = (available_height * 35) / 100; // ~35% of available height
-        let small_width = (available_width * 15) / 100;   // ~15% of available width
-        let tall_height = (available_height * 75) / 100;  // ~75% of available height
+        let small_width = (available_width * 15) / 100; // ~15% of available width
+        let tall_height = (available_height * 75) / 100; // ~75% of available height
 
         // Ensure minimum sizes for readability
         let block_width = block_width.max(15);
@@ -129,31 +151,46 @@ impl RootComponent for GradientBlocks {
 
         // Top-left: Horizontal gradient Red to Blue
         elements.extend(self.create_gradient_block(
-            col1_x, row1_y, block_width, block_height,
-            vec![(255, 0, 0), (0, 0, 255)]
+            col1_x,
+            row1_y,
+            block_width,
+            block_height,
+            vec![(255, 0, 0), (0, 0, 255)],
         ));
 
         // Bottom-left: Horizontal gradient Green to Yellow to Red
         elements.extend(self.create_gradient_block(
-            col1_x, row2_y, block_width, block_height,
-            vec![(0, 255, 0), (255, 255, 0), (255, 0, 0)]
+            col1_x,
+            row2_y,
+            block_width,
+            block_height,
+            vec![(0, 255, 0), (255, 255, 0), (255, 0, 0)],
         ));
 
         // Center: Vertical gradient Blue to Purple (tall)
         elements.extend(self.create_vertical_gradient(
-            col2_x, row1_y, small_width, tall_height,
-            vec![(0, 100, 255), (128, 0, 255)]
+            col2_x,
+            row1_y,
+            small_width,
+            tall_height,
+            vec![(0, 100, 255), (128, 0, 255)],
         ));
 
         // Top-right: Horizontal gradient Cyan to Magenta
         elements.extend(self.create_gradient_block(
-            col3_x, row1_y, block_width, block_height,
-            vec![(0, 255, 255), (255, 0, 255)]
+            col3_x,
+            row1_y,
+            block_width,
+            block_height,
+            vec![(0, 255, 255), (255, 0, 255)],
         ));
 
         // Bottom-right: Rainbow gradient
         elements.extend(self.create_gradient_block(
-            col3_x, row2_y, block_width, block_height,
+            col3_x,
+            row2_y,
+            block_width,
+            block_height,
             vec![
                 (255, 0, 0),   // Red
                 (255, 127, 0), // Orange
@@ -162,7 +199,7 @@ impl RootComponent for GradientBlocks {
                 (0, 0, 255),   // Blue
                 (75, 0, 130),  // Indigo
                 (148, 0, 211), // Violet
-            ]
+            ],
         ));
 
         div()
@@ -172,13 +209,13 @@ impl RootComponent for GradientBlocks {
                 div()
                     .class("absolute left-5 top-1 text-white")
                     .child(to_element("🎨 Visual Gradient Blocks"))
-                    .build()
+                    .build(),
             )
             .child(
                 div()
                     .class("absolute bottom-1 left-5 text-gray-400")
                     .child(to_element("Press CTRL+Q to quit"))
-                    .build()
+                    .build(),
             )
             .build()
     }

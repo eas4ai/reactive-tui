@@ -218,8 +218,7 @@ impl StackBuilder {
 
     /// Build and render as an Element (convenience method)
     pub fn render(self) -> Element {
-        Element::component("Stack")
-            .with_props(self.build())
+        Element::component("Stack").with_props(self.build())
     }
 }
 
@@ -662,7 +661,7 @@ impl Stack {
                 } else {
                     vec![]
                 };
-                
+
                 let wrapped_lines: Vec<String> = lines_to_process
                     .into_iter()
                     .flat_map(|line| {
@@ -751,11 +750,11 @@ impl Stack {
     fn element_to_taffy_style(&self, element: &Element) -> taffy::Style {
         // Production implementation: Convert reactive-tui Element to Taffy Style
         // This would parse CSS-like properties from the element's styling
-        use taffy::style::*;
         use taffy::geometry::*;
-        
+        use taffy::style::*;
+
         let mut style = taffy::Style::default();
-        
+
         // Set flex direction based on element type
         match &element.element_type {
             crate::component::ElementType::Layout(layout_type) => {
@@ -776,7 +775,7 @@ impl Stack {
                 style.display = Display::Block;
             }
         }
-        
+
         // Set default dimensions for content elements
         if matches!(element.element_type, crate::component::ElementType::Text(_)) {
             // Text elements should fit content
@@ -785,26 +784,26 @@ impl Stack {
                 height: Dimension::auto(),
             };
         }
-        
+
         style
     }
 
     /// Calculate natural size of a child element
     fn calculate_child_natural_size(&self, child: &Element, _props: &StackProps) -> (usize, usize) {
         // Use Taffy for ALL layout calculations including text
-        use taffy::{TaffyTree, AvailableSpace, Size as TaffySize};
-        
+        use taffy::{AvailableSpace, Size as TaffySize, TaffyTree};
+
         let mut taffy: TaffyTree<()> = TaffyTree::new();
-        
+
         // Get the base style for the element
         let mut child_style = self.element_to_taffy_style(child);
-        
+
         // For text elements, set min-content size based on text dimensions
         if let crate::component::ElementType::Text(text) = &child.element_type {
             if text.is_empty() {
                 return (0, 0);
             }
-            
+
             // Calculate intrinsic text dimensions
             let (text_width, text_height) = if text.contains('\n') {
                 let lines: Vec<&str> = text.lines().collect();
@@ -819,35 +818,41 @@ impl Stack {
                 // Single line text without newline
                 (text.chars().count(), 1)
             };
-            
+
             // Set the min-content size for text in Taffy style
             use taffy::style::Dimension;
             child_style.min_size = TaffySize {
                 width: Dimension::length(text_width as f32),
                 height: Dimension::length(text_height as f32),
             };
-            
+
             // For text, also set the size to content dimensions
             // Since we can't check if it's auto, always set it for text
             child_style.size.width = Dimension::length(text_width as f32);
             child_style.size.height = Dimension::length(text_height as f32);
         }
-        
+
         // Create Taffy node with the configured style
         if let Ok(node) = taffy.new_leaf(child_style) {
             // Compute layout with max-content to get natural size
-            if taffy.compute_layout(
-                node,
-                TaffySize {
-                    width: AvailableSpace::MaxContent,
-                    height: AvailableSpace::MaxContent,
-                }
-            ).is_ok() {
+            if taffy
+                .compute_layout(
+                    node,
+                    TaffySize {
+                        width: AvailableSpace::MaxContent,
+                        height: AvailableSpace::MaxContent,
+                    },
+                )
+                .is_ok()
+            {
                 let layout_result = taffy.layout(node).unwrap();
-                return (layout_result.size.width as usize, layout_result.size.height as usize);
+                return (
+                    layout_result.size.width as usize,
+                    layout_result.size.height as usize,
+                );
             }
         }
-        
+
         // Fallback size estimation based on element type
         match &child.element_type {
             crate::component::ElementType::Text(_) => {

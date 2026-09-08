@@ -7,7 +7,8 @@ use crate::core::surface::{Attr, Cell, Rgba};
 use crate::event::router::EventResult;
 use crate::event::types::{Event, KeyEvent, MouseEvent, ResizeEvent};
 use crate::terminal::{
-    Terminal, TerminalCell, TerminalColor, TerminalConfig, TerminalError, TerminalEvent, TerminalResult,
+    Terminal, TerminalCell, TerminalColor, TerminalConfig, TerminalError, TerminalEvent,
+    TerminalResult,
 };
 use std::any::Any;
 use std::sync::{mpsc, Arc, Mutex};
@@ -131,8 +132,9 @@ impl TerminalWidget {
 
         // Start the terminal
         {
-            let mut terminal = self.state.terminal.lock()
-                .map_err(|_| TerminalError::Process("Terminal lock poisoned during start".to_string()))?;
+            let mut terminal = self.state.terminal.lock().map_err(|_| {
+                TerminalError::Process("Terminal lock poisoned during start".to_string())
+            })?;
             terminal.start()?;
         }
 
@@ -152,8 +154,9 @@ impl TerminalWidget {
         }
 
         {
-            let mut terminal = self.state.terminal.lock()
-                .map_err(|_| TerminalError::Process("Terminal lock poisoned during stop".to_string()))?;
+            let mut terminal = self.state.terminal.lock().map_err(|_| {
+                TerminalError::Process("Terminal lock poisoned during stop".to_string())
+            })?;
             terminal.stop()?;
         }
 
@@ -163,8 +166,9 @@ impl TerminalWidget {
 
     /// Send input to the terminal
     pub fn send_input(&mut self, data: &[u8]) -> TerminalResult<()> {
-        let mut terminal = self.state.terminal.lock()
-            .map_err(|_| TerminalError::Process("Terminal lock poisoned during input".to_string()))?;
+        let mut terminal = self.state.terminal.lock().map_err(|_| {
+            TerminalError::Process("Terminal lock poisoned during input".to_string())
+        })?;
         terminal.write_input(data)
     }
 
@@ -180,8 +184,9 @@ impl TerminalWidget {
         }
 
         {
-            let mut terminal = self.state.terminal.lock()
-                .map_err(|_| TerminalError::Process("Terminal lock poisoned during resize".to_string()))?;
+            let mut terminal = self.state.terminal.lock().map_err(|_| {
+                TerminalError::Process("Terminal lock poisoned during resize".to_string())
+            })?;
             terminal.resize(width, height)?;
         }
 

@@ -42,12 +42,12 @@ impl Drop for Renderer {
         let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
             self.term.exit_modern_mode()
         }));
-        
+
         // If normal cleanup failed, try emergency terminal restore
         if result.is_err() || matches!(result, Ok(Err(_))) {
             // Emergency terminal restoration - try basic operations individually
             let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                use crossterm::{execute, cursor, terminal};
+                use crossterm::{cursor, execute, terminal};
                 let _ = execute!(std::io::stdout(), cursor::Show);
                 let _ = execute!(std::io::stdout(), terminal::LeaveAlternateScreen);
                 let _ = terminal::disable_raw_mode();

@@ -3,14 +3,14 @@
 //! This module provides a complete event handling system including keyboard,
 //! mouse, and custom event types with routing and focus management.
 
+/// Performance enhancements for event routing
+pub mod cache;
 /// Focus management and keyboard navigation
 pub mod focus;
 /// Hit testing for mouse events and click detection
 pub mod hit;
 /// Event routing and dispatching to handlers
 pub mod router;
-/// Performance enhancements for event routing
-pub mod cache;
 /// Core event types (keyboard, mouse, resize, etc.)
 pub mod types;
 

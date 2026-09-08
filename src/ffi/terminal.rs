@@ -2,8 +2,8 @@
 //!
 //! Provides terminal control and capabilities detection with modern patterns
 
-use crate::core::terminal::Terminal;
 use crate::core::capabilities::{TerminalCapabilities, TerminalQuery};
+use crate::core::terminal::Terminal;
 
 /// FFI Terminal handle (opaque pointer to Terminal)
 #[repr(C)]
@@ -138,7 +138,7 @@ pub extern "C" fn getTerminalCapabilities(
 
     let terminal_ref = unsafe { &*(terminal as *const Terminal) };
     let caps = terminal_ref.capabilities();
-    
+
     unsafe {
         *caps_ptr = Capabilities {
             rgb: caps.color_depth.supports(16777216), // 24-bit color
@@ -189,12 +189,7 @@ pub extern "C" fn processCapabilityResponse(
 
 /// Set cursor position
 #[no_mangle]
-pub extern "C" fn setCursorPosition(
-    terminal: *mut RTuiTerminal,
-    x: i32,
-    y: i32,
-    visible: bool,
-) {
+pub extern "C" fn setCursorPosition(terminal: *mut RTuiTerminal, x: i32, y: i32, visible: bool) {
     if terminal.is_null() {
         return;
     }
@@ -245,9 +240,27 @@ pub extern "C" fn setCursorStyle(
 
     // Apply cursor style
     let style_code = match cursor_style {
-        CursorStyle::Block => if blinking { "1" } else { "2" },
-        CursorStyle::Underline => if blinking { "3" } else { "4" },
-        CursorStyle::Bar => if blinking { "5" } else { "6" },
+        CursorStyle::Block => {
+            if blinking {
+                "1"
+            } else {
+                "2"
+            }
+        }
+        CursorStyle::Underline => {
+            if blinking {
+                "3"
+            } else {
+                "4"
+            }
+        }
+        CursorStyle::Bar => {
+            if blinking {
+                "5"
+            } else {
+                "6"
+            }
+        }
     };
 
     let _ = write!(io::stdout(), "\x1b[{} q", style_code);

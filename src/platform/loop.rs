@@ -3,7 +3,7 @@
 //! High-performance event loop with async support
 
 use super::{parser::EscapeSequenceParser, TerminalEvent};
-use crate::error::{Result, ReactiveError};
+use crate::error::{ReactiveError, Result};
 use std::io::{self, Read};
 #[allow(unused_imports)]
 use std::sync::mpsc::{self, Receiver, Sender};
@@ -330,11 +330,15 @@ impl TokioEventLoop {
             return Ok(()); // Already started
         }
 
-        let sender = self.sender.as_ref()
+        let sender = self
+            .sender
+            .as_ref()
             .ok_or_else(|| ReactiveError::internal("Sender not initialized"))?
             .clone();
         let parser = Arc::clone(&self.parser);
-        let mut shutdown_rx = self.shutdown_rx.as_ref()
+        let mut shutdown_rx = self
+            .shutdown_rx
+            .as_ref()
             .ok_or_else(|| ReactiveError::internal("Shutdown receiver not initialized"))?
             .clone();
         let is_running = Arc::clone(&self.is_running);

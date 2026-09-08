@@ -115,8 +115,8 @@ impl DialogComponent for WizardDialog {
         "wizard"
     }
     fn render(&self, _bounds: Rect, _theme: &DialogTheme) -> Element {
-        use crate::builder::core::{div, button};
-        use crate::builder::layout::{text, h2};
+        use crate::builder::core::{button, div};
+        use crate::builder::layout::{h2, text};
 
         if self.options.steps.is_empty() {
             return Element::empty();
@@ -130,39 +130,48 @@ impl DialogComponent for WizardDialog {
         children.push(
             h2().class("wizard-title text-xl font-bold text-gray-800 mb-4")
                 .text(&self.options.title)
-                .build()
+                .build(),
         );
 
         // Add progress indicator if enabled
         if self.options.show_progress {
-            let progress_text = format!("Step {} of {}", self.current_step + 1, self.options.steps.len());
+            let progress_text = format!(
+                "Step {} of {}",
+                self.current_step + 1,
+                self.options.steps.len()
+            );
             children.push(text(&progress_text));
 
             // Progress bar
-            let progress_percent = ((self.current_step + 1) as f32 / self.options.steps.len() as f32 * 100.0) as u32;
+            let progress_percent =
+                ((self.current_step + 1) as f32 / self.options.steps.len() as f32 * 100.0) as u32;
             children.push(
-                div().class("wizard-progress-bar bg-gray-200 rounded-full h-2 mb-4")
+                div()
+                    .class("wizard-progress-bar bg-gray-200 rounded-full h-2 mb-4")
                     .child(
-                        div().class("bg-blue-500 h-2 rounded-full")
+                        div()
+                            .class("bg-blue-500 h-2 rounded-full")
                             .class(&format!("w-{}", progress_percent.min(100)))
-                            .build()
+                            .build(),
                     )
-                    .build()
+                    .build(),
             );
         }
 
         // Add current step title
         children.push(
-            div().class("step-title text-lg font-semibold text-gray-700 mb-3")
+            div()
+                .class("step-title text-lg font-semibold text-gray-700 mb-3")
                 .text(&current_step.title)
-                .build()
+                .build(),
         );
 
         // Add current step content
         children.push(
-            div().class("step-content flex-1 mb-4")
+            div()
+                .class("step-content flex-1 mb-4")
                 .child(current_step.content.clone())
-                .build()
+                .build(),
         );
 
         // Add navigation buttons
@@ -189,19 +198,22 @@ impl DialogComponent for WizardDialog {
         };
 
         nav_buttons.push(
-            button().class(next_button_class)
+            button()
+                .class(next_button_class)
                 .text(next_button_text)
-                .build()
+                .build(),
         );
 
         children.push(
-            div().class("wizard-buttons flex justify-between")
+            div()
+                .class("wizard-buttons flex justify-between")
                 .children(nav_buttons)
-                .build()
+                .build(),
         );
 
         // Create main dialog container
-        div().class("wizard-dialog bg-white border border-gray-300 rounded-lg shadow-lg p-4")
+        div()
+            .class("wizard-dialog bg-white border border-gray-300 rounded-lg shadow-lg p-4")
             .class("flex flex-col min-w-96 min-h-72")
             .children(children)
             .build()
@@ -309,7 +321,10 @@ impl WizardDialog {
     }
 
     /// Handle mouse events for wizard interaction
-    fn handle_mouse_event(&mut self, mouse_event: &crate::event::types::MouseEvent) -> DialogEventResult {
+    fn handle_mouse_event(
+        &mut self,
+        mouse_event: &crate::event::types::MouseEvent,
+    ) -> DialogEventResult {
         use crate::event::types::MouseEventKind;
 
         match mouse_event.kind {
@@ -324,7 +339,7 @@ impl WizardDialog {
 
     /// Finish the wizard and call completion callback
     fn finish_wizard(&mut self) -> DialogEventResult {
-        use super::{DialogResult};
+        use super::DialogResult;
 
         if let Some(ref on_complete) = self.options.on_complete {
             if on_complete(&self.step_data) {
@@ -339,7 +354,7 @@ impl WizardDialog {
 
     /// Cancel the wizard and call cancellation callback
     fn cancel_wizard(&mut self) -> DialogEventResult {
-        use super::{DialogResult};
+        use super::DialogResult;
 
         if let Some(ref on_cancel) = self.options.on_cancel {
             on_cancel();

@@ -23,8 +23,10 @@
 //! };
 //! ```
 
-use crate::layout::style::{StyleBuilder, Direction, JustifyContent as RJustifyContent, AlignItems as RAlignItems};
-use taffy::style::{Display, FlexDirection, AlignItems, JustifyContent, Position};
+use crate::layout::style::{
+    AlignItems as RAlignItems, Direction, JustifyContent as RJustifyContent, StyleBuilder,
+};
+use taffy::style::{AlignItems, Display, FlexDirection, JustifyContent, Position};
 
 /// Main CSS-in-Rust macro for creating styles
 ///
@@ -49,7 +51,7 @@ use taffy::style::{Display, FlexDirection, AlignItems, JustifyContent, Position}
 /// # Example
 /// ```rust,ignore
 /// use reactive_tui::css;
-/// 
+///
 /// let button_styles = css! {
 ///     display: Display::Flex,
 ///     align_items: AlignItems::Center,
@@ -128,7 +130,7 @@ impl IntoCssValue for FlexDirection {
                     FlexDirection::ColumnReverse => Direction::ColumnReverse,
                 };
                 sb.direction(direction)
-            },
+            }
             _ => sb,
         }
     }
@@ -146,7 +148,7 @@ impl IntoCssValue for AlignItems {
                     _ => RAlignItems::Start, // Default fallback
                 };
                 sb.align_items(align)
-            },
+            }
             _ => sb,
         }
     }
@@ -166,7 +168,7 @@ impl IntoCssValue for JustifyContent {
                     _ => RJustifyContent::Start, // Default fallback
                 };
                 sb.justify(justify)
-            },
+            }
             _ => sb,
         }
     }
@@ -200,8 +202,16 @@ impl IntoCssValue for f32 {
             "opacity" => sb.opacity(self),
             "width" => sb.size_px(Some(self), None),
             "height" => sb.size_px(None, Some(self)),
-            "padding" => sb.padding_t_px(self).padding_r_px(self).padding_b_px(self).padding_l_px(self),
-            "margin" => sb.margin_t_px(self).margin_r_px(self).margin_b_px(self).margin_l_px(self),
+            "padding" => sb
+                .padding_t_px(self)
+                .padding_r_px(self)
+                .padding_b_px(self)
+                .padding_l_px(self),
+            "margin" => sb
+                .margin_t_px(self)
+                .margin_r_px(self)
+                .margin_b_px(self)
+                .margin_l_px(self),
             _ => sb,
         }
     }
@@ -233,7 +243,7 @@ impl IntoCssValue for &str {
             "class" | "classes" => {
                 // Apply CSS utility classes
                 crate::layout::css::apply_utility_classes(self, sb)
-            },
+            }
             _ => {
                 // Unknown string property, return unchanged
                 sb
@@ -253,7 +263,7 @@ impl IntoCssValue for String {
 /// # Example
 /// ```rust,ignore
 /// use reactive_tui::{flex_center, flex_column, absolute_fill};
-/// 
+///
 /// let flex_center = flex_center!();
 /// let flex_column = flex_column!();
 /// let absolute_fill = absolute_fill!();
@@ -297,7 +307,7 @@ macro_rules! absolute_fill {
 /// # Example
 /// ```rust,ignore
 /// use reactive_tui::responsive_css;
-/// 
+///
 /// let responsive_styles = responsive_css! {
 ///     base: {
 ///         display: Display::Block,
@@ -321,7 +331,7 @@ macro_rules! responsive_css {
     ) => {
         {
             let mut sb = $crate::css! { $($base_prop: $base_val),* };
-            
+
             // Add breakpoint-specific styles as CSS classes
             let mut classes = Vec::new();
             $(
@@ -334,11 +344,11 @@ macro_rules! responsive_css {
                     // classes.push(format!("{}:{}-{}", bp_name, prop_name, value));
                 )*
             )*
-            
+
             if !classes.is_empty() {
                 sb = sb.class(&classes.join(" "));
             }
-            
+
             sb
         }
     };

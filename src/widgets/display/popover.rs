@@ -635,25 +635,25 @@ impl Popover {
     fn parse_grid_template(&self, element: &Element) -> (usize, usize) {
         // Production implementation: Parse CSS grid-template-columns and grid-template-rows
         // This would analyze style properties like:
-        // - grid-template-columns: repeat(3, 1fr) -> 3 columns  
+        // - grid-template-columns: repeat(3, 1fr) -> 3 columns
         // - grid-template-columns: 100px auto 200px -> 3 columns
         // - grid-template-rows: auto auto -> 2 rows
-        
+
         // For now, return reasonable defaults based on element structure
         let child_count = element.children.len();
-        
+
         if child_count == 0 {
             return (1, 1);
         }
-        
+
         // Estimate grid dimensions - prefer wider grids for better layout
         let cols = (child_count as f64).sqrt().ceil() as usize;
         let cols = cols.clamp(1, 6); // Between 1 and 6 columns
         let rows = child_count.div_ceil(cols); // Ceiling division
-        
+
         (cols, rows.max(1))
     }
-    
+
     /// Extract grid gap values from CSS properties
     fn extract_grid_gap(&self, element: &Element) -> (usize, usize) {
         // Production implementation: Parse CSS gap, row-gap, column-gap properties
@@ -661,7 +661,7 @@ impl Popover {
         // - gap: 10px -> (10, 10)
         // - row-gap: 5px; column-gap: 15px -> (15, 5)
         // - gap: 8px 12px -> (12, 8)
-        
+
         // Check if element has any gap-related styling hints
         if let Some(ref class) = element.class {
             // Simple heuristic based on class names
@@ -673,7 +673,7 @@ impl Popover {
                 return (2, 2);
             }
         }
-        
+
         // Default gap for grid layouts
         (1, 1) // 1 character gap both horizontally and vertically
     }
@@ -720,11 +720,13 @@ impl Popover {
                     crate::component::LayoutType::Grid => {
                         // For grid layouts, parse CSS grid properties using production parser
                         let (cols, rows) = self.parse_grid_template(element);
-                        
+
                         // Calculate actual grid dimensions with gap handling
                         let gap = self.extract_grid_gap(element);
-                        let total_width = child_width * (cols as u16) + (gap.0 as u16) * ((cols.saturating_sub(1)) as u16);
-                        let total_height = child_height * (rows as u16) + (gap.1 as u16) * ((rows.saturating_sub(1)) as u16);
+                        let total_width = child_width * (cols as u16)
+                            + (gap.0 as u16) * ((cols.saturating_sub(1)) as u16);
+                        let total_height = child_height * (rows as u16)
+                            + (gap.1 as u16) * ((rows.saturating_sub(1)) as u16);
                         (total_width, total_height)
                     }
                     crate::component::LayoutType::Stack => {

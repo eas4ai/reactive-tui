@@ -309,12 +309,12 @@ mod tests {
     #[test]
     fn test_apply_styles() {
         let style = MenuStyle::default();
-        
+
         // Test that styles can be applied (without theme)
         let base_builder = style.apply_base_style(None);
         let selected_builder = style.apply_selected_style(None);
         let focused_builder = style.apply_focused_style(None);
-        
+
         // Should not panic and should return valid StyleBuilders
         let _base_style = base_builder.build();
         let _selected_style = selected_builder.build();

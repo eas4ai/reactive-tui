@@ -3,10 +3,10 @@
 //! This backend uses direct TTY access instead of crossterm for advanced features
 
 use crate::backend::Backend;
+use crate::component::Element;
 use crate::core::grapheme_cell::GraphemeSurface;
 use crate::core::renderer::Renderer;
 use crate::core::span_diff::SpanDiffWriter;
-use crate::component::Element;
 
 use crate::core::surface::Rgba;
 use crate::error::Result;
@@ -235,30 +235,34 @@ impl DirectTtyBackend {
                     crate::platform::MouseEventKind::Up => (rt_event::MouseEventKind::Up, None),
                     crate::platform::MouseEventKind::Drag => (rt_event::MouseEventKind::Drag, None),
                     crate::platform::MouseEventKind::Move => (rt_event::MouseEventKind::Move, None),
-                    crate::platform::MouseEventKind::ScrollUp => {
-                        (rt_event::MouseEventKind::Wheel, Some(rt_event::WheelEvent {
+                    crate::platform::MouseEventKind::ScrollUp => (
+                        rt_event::MouseEventKind::Wheel,
+                        Some(rt_event::WheelEvent {
                             delta: rt_event::WheelDelta::Lines { x: 0.0, y: -1.0 },
                             phase: rt_event::WheelPhase::Changed,
-                        }))
-                    },
-                    crate::platform::MouseEventKind::ScrollDown => {
-                        (rt_event::MouseEventKind::Wheel, Some(rt_event::WheelEvent {
+                        }),
+                    ),
+                    crate::platform::MouseEventKind::ScrollDown => (
+                        rt_event::MouseEventKind::Wheel,
+                        Some(rt_event::WheelEvent {
                             delta: rt_event::WheelDelta::Lines { x: 0.0, y: 1.0 },
                             phase: rt_event::WheelPhase::Changed,
-                        }))
-                    },
-                    crate::platform::MouseEventKind::ScrollLeft => {
-                        (rt_event::MouseEventKind::Wheel, Some(rt_event::WheelEvent {
+                        }),
+                    ),
+                    crate::platform::MouseEventKind::ScrollLeft => (
+                        rt_event::MouseEventKind::Wheel,
+                        Some(rt_event::WheelEvent {
                             delta: rt_event::WheelDelta::Lines { x: -1.0, y: 0.0 },
                             phase: rt_event::WheelPhase::Changed,
-                        }))
-                    },
-                    crate::platform::MouseEventKind::ScrollRight => {
-                        (rt_event::MouseEventKind::Wheel, Some(rt_event::WheelEvent {
+                        }),
+                    ),
+                    crate::platform::MouseEventKind::ScrollRight => (
+                        rt_event::MouseEventKind::Wheel,
+                        Some(rt_event::WheelEvent {
                             delta: rt_event::WheelDelta::Lines { x: 1.0, y: 0.0 },
                             phase: rt_event::WheelPhase::Changed,
-                        }))
-                    },
+                        }),
+                    ),
                 };
 
                 let position = if let (Some(x), Some(y)) = (pixel_x, pixel_y) {
@@ -400,7 +404,12 @@ impl Backend for DirectTtyBackend {
         // Convert Element tree to NodeSpec and paint using Taffy-based layout
         let nodespec = crate::component::bridge::element_to_nodespec(element);
         // Clear the back buffer surface before painting to avoid stale cells
-        self.renderer.clear(Rgba { r: 0.0, g: 0.0, b: 0.0, a: 1.0 });
+        self.renderer.clear(Rgba {
+            r: 0.0,
+            g: 0.0,
+            b: 0.0,
+            a: 1.0,
+        });
         let (width, _height) = self.renderer.dims();
         let surface = self.renderer.surface_mut();
         let opts = crate::layout::paint_tree::PaintOptions::default();

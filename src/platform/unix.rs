@@ -7,8 +7,8 @@ use crate::error::Result;
 use std::os::unix::io::{AsRawFd, RawFd};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
-use std::time::Duration;
 use std::sync::OnceLock;
+use std::time::Duration;
 
 static SIGNAL_HANDLERS: Mutex<Vec<SignalHandler>> = Mutex::new(Vec::new());
 static HANDLER_INSTALLED: AtomicBool = AtomicBool::new(false);

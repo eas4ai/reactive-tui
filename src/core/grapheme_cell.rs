@@ -62,7 +62,7 @@ impl GraphemeCluster {
     pub fn new(s: &str) -> Self {
         let bytes_slice = s.as_bytes();
         let mut len = bytes_slice.len();
-        
+
         // Ensure we don't break UTF-8 character boundaries
         if len > 16 {
             len = 16;
@@ -79,7 +79,7 @@ impl GraphemeCluster {
                 };
             }
         }
-        
+
         let mut bytes = [0u8; 16];
         bytes[..len].copy_from_slice(&bytes_slice[..len]);
 

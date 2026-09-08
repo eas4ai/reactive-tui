@@ -22,36 +22,36 @@ impl AnimatedPatterns {
             .class("bg-[rgb(255,100,100)]")
             .build()
     }
-    
+
     /// Create a rotating pattern
     fn create_rotating_pattern(&self, time: f32, width: usize, height: usize) -> Vec<Element> {
         let mut elements = Vec::new();
         let center_x = width / 4;
         let center_y = height / 3;
         let radius = (width.min(height) / 8) as f32;
-        
+
         for i in 0..8 {
             let angle = time + (i as f32 * std::f32::consts::PI / 4.0);
             let x = (center_x as f32 + angle.cos() * radius) as usize;
             let y = (center_y as f32 + angle.sin() * radius / 2.0) as usize;
-            
+
             let color = match i % 3 {
-                0 => (255, 0, 0),   // Red
-                1 => (0, 255, 0),   // Green
-                _ => (0, 0, 255),   // Blue
+                0 => (255, 0, 0), // Red
+                1 => (0, 255, 0), // Green
+                _ => (0, 0, 255), // Blue
             };
-            
+
             elements.push(
                 div()
                     .class(&format!("absolute left-{} top-{} w-1 h-1", x, y))
                     .class(&format!("bg-[rgb({},{},{})]", color.0, color.1, color.2))
-                    .build()
+                    .build(),
             );
         }
-        
+
         elements
     }
-    
+
     /// Create a wave pattern
     fn create_wave_pattern(&self, time: f32, width: usize, height: usize) -> Vec<Element> {
         let mut elements = Vec::new();
@@ -62,20 +62,25 @@ impl AnimatedPatterns {
         let wave_amplitude = (height / 8).max(3) as f32;
 
         for x in 0..wave_width {
-            let wave_y = ((x as f32 * 0.3 + time * 2.0).sin() * wave_amplitude + wave_center_y as f32) as usize;
+            let wave_y = ((x as f32 * 0.3 + time * 2.0).sin() * wave_amplitude
+                + wave_center_y as f32) as usize;
             let intensity = ((x as f32 * 0.1 + time).sin() * 0.5 + 0.5) * 255.0;
-            
+
             elements.push(
                 div()
-                    .class(&format!("absolute left-{} top-{} w-1 h-1", wave_start_x + x, wave_y))
+                    .class(&format!(
+                        "absolute left-{} top-{} w-1 h-1",
+                        wave_start_x + x,
+                        wave_y
+                    ))
                     .class(&format!("bg-[rgb(0,{},255)]", intensity as u8))
-                    .build()
+                    .build(),
             );
         }
-        
+
         elements
     }
-    
+
     /// Create a pulsing circle
     fn create_pulsing_circle(&self, time: f32, width: usize, height: usize) -> Vec<Element> {
         let mut elements = Vec::new();
@@ -83,28 +88,36 @@ impl AnimatedPatterns {
         let center_y = height / 4;
         let max_radius = (width.min(height) / 8) as f32;
         let pulse_radius = (time * 2.0).sin().abs() * max_radius;
-        
+
         for y in 0..15 {
             for x in 0..15 {
                 let dx = (x as f32 - 7.5).abs();
                 let dy = (y as f32 - 7.5).abs() * 2.0; // Adjust for terminal aspect ratio
                 let distance = (dx * dx + dy * dy).sqrt();
-                
+
                 if distance <= pulse_radius {
                     let intensity = (1.0 - distance / pulse_radius) * 255.0;
                     elements.push(
                         div()
-                            .class(&format!("absolute left-{} top-{} w-1 h-1", center_x + x, center_y + y))
-                            .class(&format!("bg-[rgb({},0,{})]", intensity as u8, 255 - intensity as u8))
-                            .build()
+                            .class(&format!(
+                                "absolute left-{} top-{} w-1 h-1",
+                                center_x + x,
+                                center_y + y
+                            ))
+                            .class(&format!(
+                                "bg-[rgb({},0,{})]",
+                                intensity as u8,
+                                255 - intensity as u8
+                            ))
+                            .build(),
                     );
                 }
             }
         }
-        
+
         elements
     }
-    
+
     /// Create a color cycling pattern
     fn create_color_cycle(&self, time: f32, width: usize, height: usize) -> Vec<Element> {
         let mut elements = Vec::new();
@@ -123,13 +136,17 @@ impl AnimatedPatterns {
 
                 elements.push(
                     div()
-                        .class(&format!("absolute left-{} top-{} w-1 h-1", start_x + i, start_y + j))
+                        .class(&format!(
+                            "absolute left-{} top-{} w-1 h-1",
+                            start_x + i,
+                            start_y + j
+                        ))
                         .class(&format!("bg-[rgb({},{},{})]", r, g, b))
-                        .build()
+                        .build(),
                 );
             }
         }
-        
+
         elements
     }
 }
@@ -171,13 +188,13 @@ impl RootComponent for AnimatedPatterns {
                 div()
                     .class("absolute left-2 top-1 text-white")
                     .child(to_element("🌊 Animated Visual Patterns"))
-                    .build()
+                    .build(),
             )
             .child(
                 div()
                     .class("absolute bottom-1 left-2 text-gray-400")
                     .child(to_element("Press CTRL+Q to quit"))
-                    .build()
+                    .build(),
             )
             .build()
     }

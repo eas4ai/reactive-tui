@@ -99,10 +99,10 @@ pub struct AnsiParser {
 
 impl AnsiParser {
     /// Maximum buffer sizes to prevent DoS attacks
-    const MAX_PARAMS: usize = 32;        // CSI sequences rarely need more than 16
-    const MAX_INTERMEDIATES: usize = 8;  // Intermediates are single bytes, rarely more than 2
+    const MAX_PARAMS: usize = 32; // CSI sequences rarely need more than 16
+    const MAX_INTERMEDIATES: usize = 8; // Intermediates are single bytes, rarely more than 2
     const MAX_STRING_BUFFER: usize = 8192; // OSC/DCS strings should be reasonable
-    
+
     /// Create a new ANSI parser
     pub fn new() -> Self {
         Self {
@@ -363,7 +363,8 @@ impl AnsiParser {
                     self.finalize_osc(events);
                     self.reset_state();
                 } else if self.string_buffer.len() < Self::MAX_STRING_BUFFER
-                        && self.string_buffer.len() < Self::MAX_STRING_BUFFER {
+                    && self.string_buffer.len() < Self::MAX_STRING_BUFFER
+                {
                     self.string_buffer.push(byte);
                 }
             }
@@ -412,7 +413,7 @@ impl AnsiParser {
         if self.params.len() >= Self::MAX_PARAMS {
             return;
         }
-        
+
         if let Some(param) = self.current_param.take() {
             self.params.push(param);
         } else if !self.params.is_empty() || self.current_param.is_some() {
@@ -617,8 +618,6 @@ impl Utf8Decoder {
         }
     }
 
-
-
     fn decode(&mut self, byte: u8) -> Option<char> {
         // Simple approach: if buffer is full, reset and start fresh
         if self.len >= 4 {
@@ -770,7 +769,7 @@ mod tests {
             _ => panic!("Expected OSC event"),
         }
     }
-    
+
     #[test]
     fn test_utf8_decoder_buffer_overflow_protection() {
         let mut decoder = Utf8Decoder::new();
@@ -786,37 +785,41 @@ mod tests {
         // The fact that this works proves the buffer was reset
         // Test with valid UTF-8 sequence
         assert_eq!(decoder.decode(0x41), Some('A')); // ASCII 'A'
-        
+
         // Test with multi-byte UTF-8 sequence
         assert_eq!(decoder.decode(0xC3), None); // First byte of 2-byte sequence
         assert_eq!(decoder.decode(0xA9), Some('é')); // Second byte completes 'é'
-        
+
         // Test continuous invalid bytes don't cause overflow
         // Send many continuation bytes without start byte
         for i in 0..10 {
             let result = decoder.decode(0x80); // Continuation byte without start byte
-            assert_eq!(result, None, "Iteration {}: should return None for invalid continuation byte", i);
+            assert_eq!(
+                result, None,
+                "Iteration {}: should return None for invalid continuation byte",
+                i
+            );
             // We can't check len directly as it's private, but no panic means no overflow
         }
-        
+
         // Verify decoder still works after all the invalid input
         assert_eq!(decoder.decode(0x42), Some('B')); // ASCII 'B'
     }
-    
+
     #[test]
     fn test_utf8_decoder_valid_sequence_recovery() {
         let mut decoder = Utf8Decoder::new();
-        
+
         // Test that valid UTF-8 is extracted even from mixed invalid data
         decoder.decode(0xC3); // Start of 2-byte sequence
         decoder.decode(0xA9); // Valid completion: 'é'
-        
+
         // Add invalid bytes that would previously cause issues
         decoder.decode(0xFF);
         decoder.decode(0xFF);
         decoder.decode(0xFF);
         decoder.decode(0xFF);
-        
+
         // Should still be able to decode valid sequences
         assert_eq!(decoder.decode(0x43), Some('C')); // ASCII 'C'
     }

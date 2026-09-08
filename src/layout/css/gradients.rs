@@ -8,7 +8,7 @@
 
 use crate::layout::colors::parse_color_token;
 use crate::layout::style::StyleBuilder;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 /// Gradient direction for linear gradients
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -63,7 +63,7 @@ impl Gradient {
     /// Calculate color at a specific position (0.0 to 1.0)
     pub fn color_at(&self, position: f32) -> Option<(u8, u8, u8, f32)> {
         let position = position.clamp(0.0, 1.0);
-        
+
         match (self.stops.from, self.stops.via, self.stops.to) {
             // Three color stops (from -> via -> to)
             (Some(from), Some(via), Some(to)) => {
@@ -78,9 +78,7 @@ impl Gradient {
                 }
             }
             // Two color stops (from -> to)
-            (Some(from), None, Some(to)) => {
-                Some(interpolate_color(from, to, position))
-            }
+            (Some(from), None, Some(to)) => Some(interpolate_color(from, to, position)),
             // Only starting color
             (Some(color), None, None) => Some(color),
             // Only ending color
@@ -97,14 +95,14 @@ impl Gradient {
         }
 
         let mut colors = Vec::with_capacity(width);
-        
+
         for i in 0..width {
             let position = if width == 1 {
                 0.5 // Single cell gets middle color
             } else {
                 i as f32 / (width - 1) as f32
             };
-            
+
             if let Some(color) = self.color_at(position) {
                 colors.push(color);
             } else {
@@ -112,17 +110,13 @@ impl Gradient {
                 colors.push((0, 0, 0, 0.0));
             }
         }
-        
+
         colors
     }
 }
 
 /// Interpolate between two colors
-fn interpolate_color(
-    from: (u8, u8, u8, f32),
-    to: (u8, u8, u8, f32),
-    t: f32,
-) -> (u8, u8, u8, f32) {
+fn interpolate_color(from: (u8, u8, u8, f32), to: (u8, u8, u8, f32), t: f32) -> (u8, u8, u8, f32) {
     let t = t.clamp(0.0, 1.0);
     (
         (from.0 as f32 + (to.0 as f32 - from.0 as f32) * t) as u8,
@@ -151,15 +145,24 @@ pub fn parse_gradient_direction(token: &str) -> Option<GradientDirection> {
 pub fn parse_gradient_stop(token: &str) -> Option<(GradientStopType, (u8, u8, u8, f32))> {
     if let Some(color_part) = token.strip_prefix("from-") {
         parse_color_token(color_part).map(|(r, g, b, a)| {
-            (GradientStopType::From, ((r * 255.0) as u8, (g * 255.0) as u8, (b * 255.0) as u8, a))
+            (
+                GradientStopType::From,
+                ((r * 255.0) as u8, (g * 255.0) as u8, (b * 255.0) as u8, a),
+            )
         })
     } else if let Some(color_part) = token.strip_prefix("via-") {
         parse_color_token(color_part).map(|(r, g, b, a)| {
-            (GradientStopType::Via, ((r * 255.0) as u8, (g * 255.0) as u8, (b * 255.0) as u8, a))
+            (
+                GradientStopType::Via,
+                ((r * 255.0) as u8, (g * 255.0) as u8, (b * 255.0) as u8, a),
+            )
         })
     } else if let Some(color_part) = token.strip_prefix("to-") {
         parse_color_token(color_part).map(|(r, g, b, a)| {
-            (GradientStopType::To, ((r * 255.0) as u8, (g * 255.0) as u8, (b * 255.0) as u8, a))
+            (
+                GradientStopType::To,
+                ((r * 255.0) as u8, (g * 255.0) as u8, (b * 255.0) as u8, a),
+            )
         })
     } else {
         None
@@ -191,25 +194,25 @@ impl GradientBorder {
     pub fn new(gradient: Gradient, width: usize) -> Self {
         Self { gradient, width }
     }
-    
+
     /// Calculate border color at a specific position around the perimeter
     /// Position goes from 0.0 (top-left) clockwise around the border to 1.0 (back to top-left)
     pub fn border_color_at(&self, perimeter_position: f32) -> Option<(u8, u8, u8, f32)> {
         self.gradient.color_at(perimeter_position)
     }
-    
+
     /// Render gradient border for a rectangle
     /// Returns colors for each border cell position (top, right, bottom, left)
     pub fn render_border(&self, width: usize, height: usize) -> Vec<Vec<(u8, u8, u8, f32)>> {
         let mut border_colors = Vec::new();
-        
+
         // Calculate total perimeter
         let perimeter = 2 * (width + height) - 4; // -4 for corners counted once
-        
+
         if perimeter == 0 {
             return border_colors;
         }
-        
+
         // Top border
         let mut top = Vec::new();
         for x in 0..width {
@@ -219,7 +222,7 @@ impl GradientBorder {
             }
         }
         border_colors.push(top);
-        
+
         // Right border
         let mut right = Vec::new();
         for y in 0..height {
@@ -229,7 +232,7 @@ impl GradientBorder {
             }
         }
         border_colors.push(right);
-        
+
         // Bottom border (reversed)
         let mut bottom = Vec::new();
         for x in (0..width).rev() {
@@ -239,7 +242,7 @@ impl GradientBorder {
             }
         }
         border_colors.push(bottom);
-        
+
         // Left border (reversed)
         let mut left = Vec::new();
         for y in (0..height).rev() {
@@ -249,25 +252,25 @@ impl GradientBorder {
             }
         }
         border_colors.push(left);
-        
+
         border_colors
     }
-    
+
     /// Create an animated rainbow border that cycles through colors
     pub fn rainbow_border(width: usize) -> Self {
         let mut gradient = Gradient::new(GradientDirection::ToRight);
         // Create a rainbow gradient
-        gradient.stops.from = Some((255, 0, 0, 1.0));     // Red
-        gradient.stops.via = Some((0, 255, 0, 1.0));      // Green  
-        gradient.stops.to = Some((0, 0, 255, 1.0));       // Blue
-        
+        gradient.stops.from = Some((255, 0, 0, 1.0)); // Red
+        gradient.stops.via = Some((0, 255, 0, 1.0)); // Green
+        gradient.stops.to = Some((0, 0, 255, 1.0)); // Blue
+
         Self::new(gradient, width)
     }
-    
+
     /// Create a conic gradient border (rotates around the perimeter)
     pub fn conic_gradient(colors: Vec<(u8, u8, u8)>) -> Self {
         let mut gradient = Gradient::new(GradientDirection::ToRight);
-        
+
         if colors.len() >= 2 {
             gradient.stops.from = Some((colors[0].0, colors[0].1, colors[0].2, 1.0));
             if colors.len() >= 3 {
@@ -277,17 +280,20 @@ impl GradientBorder {
                 gradient.stops.to = Some((colors[1].0, colors[1].1, colors[1].2, 1.0));
             }
         }
-        
+
         Self::new(gradient, 1)
     }
 }
 
 /// Apply gradient utilities to a style builder
 /// This would need to be integrated with the rendering system to actually display gradients
-pub fn apply_gradient(tokens: &[&str], sb: StyleBuilder) -> Option<(StyleBuilder, Option<Gradient>)> {
+pub fn apply_gradient(
+    tokens: &[&str],
+    sb: StyleBuilder,
+) -> Option<(StyleBuilder, Option<Gradient>)> {
     let mut gradient: Option<Gradient> = None;
     let style = sb;
-    
+
     for token in tokens {
         // Check for gradient direction
         if let Some(direction) = parse_gradient_direction(token) {
@@ -304,7 +310,7 @@ pub fn apply_gradient(tokens: &[&str], sb: StyleBuilder) -> Option<(StyleBuilder
             }
         }
     }
-    
+
     if gradient.is_some() {
         Some((style, gradient))
     } else {
@@ -320,14 +326,14 @@ mod tests {
     fn test_gradient_interpolation() {
         let mut gradient = Gradient::new(GradientDirection::ToRight);
         gradient.stops.from = Some((255, 0, 0, 1.0)); // Red
-        gradient.stops.to = Some((0, 0, 255, 1.0));   // Blue
-        
+        gradient.stops.to = Some((0, 0, 255, 1.0)); // Blue
+
         // At position 0, should be red
         assert_eq!(gradient.color_at(0.0), Some((255, 0, 0, 1.0)));
-        
+
         // At position 1, should be blue
         assert_eq!(gradient.color_at(1.0), Some((0, 0, 255, 1.0)));
-        
+
         // At position 0.5, should be purple-ish
         let mid = gradient.color_at(0.5).unwrap();
         assert!(mid.0 > 100 && mid.0 < 150); // Red component
@@ -338,38 +344,38 @@ mod tests {
     #[test]
     fn test_three_color_gradient() {
         let mut gradient = Gradient::new(GradientDirection::ToRight);
-        gradient.stops.from = Some((255, 0, 0, 1.0));   // Red
-        gradient.stops.via = Some((0, 255, 0, 1.0));    // Green
-        gradient.stops.to = Some((0, 0, 255, 1.0));     // Blue
-        
+        gradient.stops.from = Some((255, 0, 0, 1.0)); // Red
+        gradient.stops.via = Some((0, 255, 0, 1.0)); // Green
+        gradient.stops.to = Some((0, 0, 255, 1.0)); // Blue
+
         // At 0.25, should be between red and green
         let quarter = gradient.color_at(0.25).unwrap();
         assert!(quarter.0 > 0); // Some red
         assert!(quarter.1 > 0); // Some green
         assert_eq!(quarter.2, 0); // No blue
-        
+
         // At 0.75, should be between green and blue
         let three_quarter = gradient.color_at(0.75).unwrap();
         assert_eq!(three_quarter.0, 0); // No red
-        assert!(three_quarter.1 > 0);   // Some green
-        assert!(three_quarter.2 > 0);   // Some blue
+        assert!(three_quarter.1 > 0); // Some green
+        assert!(three_quarter.2 > 0); // Some blue
     }
 
     #[test]
     fn test_gradient_rendering() {
         let mut gradient = Gradient::new(GradientDirection::ToRight);
         gradient.stops.from = Some((255, 0, 0, 1.0)); // Red
-        gradient.stops.to = Some((0, 0, 255, 1.0));   // Blue
-        
+        gradient.stops.to = Some((0, 0, 255, 1.0)); // Blue
+
         let colors = gradient.render(5);
         assert_eq!(colors.len(), 5);
-        
+
         // First color should be red
         assert_eq!(colors[0], (255, 0, 0, 1.0));
-        
+
         // Last color should be blue
         assert_eq!(colors[4], (0, 0, 255, 1.0));
-        
+
         // Middle colors should be interpolated
         assert!(colors[2].0 > 100 && colors[2].0 < 150);
     }

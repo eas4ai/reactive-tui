@@ -2,10 +2,10 @@ use super::{csi::CSIAction, esc::ESCAction, osc::OSCAction, Action};
 use std::mem;
 
 /// Maximum sizes for buffers to prevent DoS attacks
-const MAX_OSC_STRING_SIZE: usize = 8192;  // 8KB limit for OSC strings
+const MAX_OSC_STRING_SIZE: usize = 8192; // 8KB limit for OSC strings
 const MAX_DCS_STRING_SIZE: usize = 16384; // 16KB limit for DCS strings
-const MAX_INTERMEDIATE_SIZE: usize = 8;   // VT standard allows max 2 intermediates
-const MAX_PARAMS_SIZE: usize = 32;        // VT standard allows max 16 params
+const MAX_INTERMEDIATE_SIZE: usize = 8; // VT standard allows max 2 intermediates
+const MAX_PARAMS_SIZE: usize = 32; // VT standard allows max 16 params
 
 /// VT parser state machine for ANSI escape sequences
 /// Based on Paul Williams' state machine design: <https://vt100.net/emu/dec_ansi_parser>
@@ -183,11 +183,11 @@ impl Parser {
                 if self.intermediate_bytes.len() < MAX_INTERMEDIATE_SIZE {
                     if self.intermediate_bytes.len() < MAX_INTERMEDIATE_SIZE {
                         if self.intermediate_bytes.len() < MAX_INTERMEDIATE_SIZE {
-                    self.intermediate_bytes.push(byte);
-                } else {
-                    #[cfg(debug_assertions)]
-                    eprintln!("Warning: intermediate_bytes buffer full, dropping byte");
-                }
+                            self.intermediate_bytes.push(byte);
+                        } else {
+                            #[cfg(debug_assertions)]
+                            eprintln!("Warning: intermediate_bytes buffer full, dropping byte");
+                        }
                     }
                 } else {
                     #[cfg(debug_assertions)]
@@ -228,14 +228,15 @@ impl Parser {
             0x20..=0x2F => {
                 // More intermediate bytes
                 if self.intermediate_bytes.len() < 2
-                    && self.intermediate_bytes.len() < MAX_INTERMEDIATE_SIZE {
-                        if self.intermediate_bytes.len() < MAX_INTERMEDIATE_SIZE {
-                    self.intermediate_bytes.push(byte);
-                } else {
-                    #[cfg(debug_assertions)]
-                    eprintln!("Warning: intermediate_bytes buffer full, dropping byte");
-                }
+                    && self.intermediate_bytes.len() < MAX_INTERMEDIATE_SIZE
+                {
+                    if self.intermediate_bytes.len() < MAX_INTERMEDIATE_SIZE {
+                        self.intermediate_bytes.push(byte);
+                    } else {
+                        #[cfg(debug_assertions)]
+                        eprintln!("Warning: intermediate_bytes buffer full, dropping byte");
                     }
+                }
             }
             0x30..=0x7E => {
                 // Final byte
@@ -342,14 +343,15 @@ impl Parser {
             0x20..=0x2F => {
                 // More intermediate bytes
                 if self.intermediate_bytes.len() < 2
-                    && self.intermediate_bytes.len() < MAX_INTERMEDIATE_SIZE {
-                        if self.intermediate_bytes.len() < MAX_INTERMEDIATE_SIZE {
-                    self.intermediate_bytes.push(byte);
-                } else {
-                    #[cfg(debug_assertions)]
-                    eprintln!("Warning: intermediate_bytes buffer full, dropping byte");
-                }
+                    && self.intermediate_bytes.len() < MAX_INTERMEDIATE_SIZE
+                {
+                    if self.intermediate_bytes.len() < MAX_INTERMEDIATE_SIZE {
+                        self.intermediate_bytes.push(byte);
+                    } else {
+                        #[cfg(debug_assertions)]
+                        eprintln!("Warning: intermediate_bytes buffer full, dropping byte");
                     }
+                }
             }
             0x30..=0x3F => {
                 // Invalid in intermediate
@@ -461,14 +463,15 @@ impl Parser {
             0x20..=0x2F => {
                 // More intermediate bytes
                 if self.intermediate_bytes.len() < 2
-                    && self.intermediate_bytes.len() < MAX_INTERMEDIATE_SIZE {
-                        if self.intermediate_bytes.len() < MAX_INTERMEDIATE_SIZE {
-                    self.intermediate_bytes.push(byte);
-                } else {
-                    #[cfg(debug_assertions)]
-                    eprintln!("Warning: intermediate_bytes buffer full, dropping byte");
-                }
+                    && self.intermediate_bytes.len() < MAX_INTERMEDIATE_SIZE
+                {
+                    if self.intermediate_bytes.len() < MAX_INTERMEDIATE_SIZE {
+                        self.intermediate_bytes.push(byte);
+                    } else {
+                        #[cfg(debug_assertions)]
+                        eprintln!("Warning: intermediate_bytes buffer full, dropping byte");
                     }
+                }
             }
             0x30..=0x3F => {
                 // Invalid in intermediate

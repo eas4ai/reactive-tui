@@ -389,8 +389,7 @@ impl TreeBuilder {
 
     /// Build and render as an Element (convenience method)
     pub fn render(self) -> Element {
-        Element::component("Tree")
-            .with_props(self.build())
+        Element::component("Tree").with_props(self.build())
     }
 }
 
@@ -489,7 +488,6 @@ pub struct TreeProps {
     /// Callback for lazy loading children
     pub on_load_children: Option<Arc<dyn Fn(String) -> Vec<TreeNode> + Send + Sync>>,
 }
-
 
 impl Default for TreeProps {
     fn default() -> Self {

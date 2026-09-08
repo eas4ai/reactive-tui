@@ -201,9 +201,12 @@ impl Component for Breadcrumb {
         // Check if segments have changed
         let current_segment_ids: Vec<_> = props.segments.iter().map(|s| &s.id).collect();
         let visible_segment_ids: Vec<_> = state.visible_segments.iter().collect();
-        
-        if current_segment_ids.len() != visible_segment_ids.len() ||
-           current_segment_ids.iter().any(|id| !state.visible_segments.contains(id)) {
+
+        if current_segment_ids.len() != visible_segment_ids.len()
+            || current_segment_ids
+                .iter()
+                .any(|id| !state.visible_segments.contains(id))
+        {
             self.recalculate_overflow(props, state);
             return true;
         }
@@ -213,10 +216,12 @@ impl Component for Breadcrumb {
 
     fn render(&self, props: &Self::Props, state: &Self::State) -> Element {
         let mut breadcrumb_classes = vec!["breadcrumb".to_string()];
-        
+
         // Add mode-specific classes
         match props.overflow_strategy {
-            OverflowStrategy::MiddleEllipsis => breadcrumb_classes.push("breadcrumb-ellipsis".to_string()),
+            OverflowStrategy::MiddleEllipsis => {
+                breadcrumb_classes.push("breadcrumb-ellipsis".to_string())
+            }
             OverflowStrategy::Scroll => breadcrumb_classes.push("breadcrumb-scroll".to_string()),
             OverflowStrategy::Wrap => breadcrumb_classes.push("breadcrumb-wrap".to_string()),
             _ => {}
@@ -259,9 +264,7 @@ impl Component for Breadcrumb {
                     EventResult::Ignored
                 }
             }
-            Event::Mouse(mouse_event) => {
-                self.handle_mouse_event(mouse_event, props, state)
-            }
+            Event::Mouse(mouse_event) => self.handle_mouse_event(mouse_event, props, state),
             _ => EventResult::Ignored,
         }
     }
@@ -272,10 +275,10 @@ impl Breadcrumb {
     fn initialize_state(&self, props: &BreadcrumbProps, state: &mut BreadcrumbState) {
         // Initialize visible segments
         state.visible_segments = props.segments.iter().map(|s| s.id.clone()).collect();
-        
+
         // Calculate overflow if needed
         self.recalculate_overflow(props, state);
-        
+
         // Set initial focus to current segment or last segment
         if let Some(current_segment) = props.segments.iter().find(|s| s.current) {
             state.focused_segment = Some(current_segment.id.clone());
@@ -289,7 +292,7 @@ impl Breadcrumb {
         if let Some(max_width) = props.max_width {
             // Estimate total width (simplified calculation)
             let estimated_width = self.estimate_total_width(props);
-            
+
             if estimated_width > max_width {
                 state.has_overflow = true;
                 self.apply_overflow_strategy(props, state, max_width);
@@ -306,21 +309,25 @@ impl Breadcrumb {
     /// Estimate total width of breadcrumb
     fn estimate_total_width(&self, props: &BreadcrumbProps) -> usize {
         let mut total_width = 0;
-        
+
         for segment in &props.segments {
             // Estimate segment width (icon + label + padding)
-            let icon_width = if props.show_icons && segment.icon.is_some() { 3 } else { 0 };
+            let icon_width = if props.show_icons && segment.icon.is_some() {
+                3
+            } else {
+                0
+            };
             let label_width = segment.label.len();
             let padding = if props.compact { 2 } else { 4 };
-            
+
             total_width += icon_width + label_width + padding;
         }
-        
+
         // Add separator widths
         if props.segments.len() > 1 {
             total_width += (props.segments.len() - 1) * (props.separator.len() + 2);
         }
-        
+
         total_width
     }
 
@@ -362,30 +369,35 @@ impl Breadcrumb {
 
         // Show first, ellipsis, and last segment
         let mut visible = Vec::new();
-        
+
         if let Some(first) = props.segments.first() {
             visible.push(first.id.clone());
         }
-        
+
         // Add ellipsis marker (special ID)
         visible.push("__ellipsis__".to_string());
-        
+
         if let Some(last) = props.segments.last() {
             visible.push(last.id.clone());
         }
-        
+
         state.visible_segments = visible;
     }
 
     /// Apply truncate start strategy
-    fn apply_truncate_start(&self, props: &BreadcrumbProps, state: &mut BreadcrumbState, max_width: usize) {
+    fn apply_truncate_start(
+        &self,
+        props: &BreadcrumbProps,
+        state: &mut BreadcrumbState,
+        max_width: usize,
+    ) {
         let mut current_width = 0;
         let mut visible = Vec::new();
-        
+
         // Start from the end and work backwards
         for segment in props.segments.iter().rev() {
             let segment_width = self.estimate_segment_width(segment, props);
-            
+
             if current_width + segment_width <= max_width {
                 visible.insert(0, segment.id.clone());
                 current_width += segment_width;
@@ -393,19 +405,24 @@ impl Breadcrumb {
                 break;
             }
         }
-        
+
         state.visible_segments = visible;
     }
 
     /// Apply truncate end strategy
-    fn apply_truncate_end(&self, props: &BreadcrumbProps, state: &mut BreadcrumbState, max_width: usize) {
+    fn apply_truncate_end(
+        &self,
+        props: &BreadcrumbProps,
+        state: &mut BreadcrumbState,
+        max_width: usize,
+    ) {
         let mut current_width = 0;
         let mut visible = Vec::new();
-        
+
         // Start from the beginning
         for segment in &props.segments {
             let segment_width = self.estimate_segment_width(segment, props);
-            
+
             if current_width + segment_width <= max_width {
                 visible.push(segment.id.clone());
                 current_width += segment_width;
@@ -413,16 +430,24 @@ impl Breadcrumb {
                 break;
             }
         }
-        
+
         state.visible_segments = visible;
     }
 
     /// Estimate width of a single segment
-    fn estimate_segment_width(&self, segment: &BreadcrumbSegment, props: &BreadcrumbProps) -> usize {
-        let icon_width = if props.show_icons && segment.icon.is_some() { 3 } else { 0 };
+    fn estimate_segment_width(
+        &self,
+        segment: &BreadcrumbSegment,
+        props: &BreadcrumbProps,
+    ) -> usize {
+        let icon_width = if props.show_icons && segment.icon.is_some() {
+            3
+        } else {
+            0
+        };
         let label_width = segment.label.len();
         let padding = if props.compact { 2 } else { 4 };
-        
+
         icon_width + label_width + padding
     }
 
@@ -497,20 +522,12 @@ impl Breadcrumb {
             };
 
             if let Some(icon_text) = icon {
-                content.push(
-                    Element::text(&icon_text)
-                        .with_class("breadcrumb-segment-icon")
-                );
+                content.push(Element::text(&icon_text).with_class("breadcrumb-segment-icon"));
             }
         }
 
         // Add label
-        content.push(
-            Element::text(&segment.label)
-                .with_class("breadcrumb-segment-label")
-        );
-
-        
+        content.push(Element::text(&segment.label).with_class("breadcrumb-segment-label"));
 
         // Note: Tooltip and accessibility attributes would be added here
         // in a real implementation with proper attribute support
@@ -522,14 +539,12 @@ impl Breadcrumb {
 
     /// Render separator between segments
     fn render_separator(&self, props: &BreadcrumbProps) -> Element {
-        Element::text(&props.separator)
-            .with_class("breadcrumb-separator")
+        Element::text(&props.separator).with_class("breadcrumb-separator")
     }
 
     /// Render ellipsis for overflow
     fn render_ellipsis(&self, _props: &BreadcrumbProps) -> Element {
-        Element::text("...")
-            .with_class("breadcrumb-ellipsis")
+        Element::text("...").with_class("breadcrumb-ellipsis")
     }
 
     /// Handle keyboard events for navigation
@@ -578,7 +593,12 @@ impl Breadcrumb {
         match event.kind {
             MouseEventKind::Down => {
                 // Determine which segment was clicked
-                if let Some(segment_id) = self.get_segment_at_position(event.position.x() as u16, event.position.y() as u16, props, state) {
+                if let Some(segment_id) = self.get_segment_at_position(
+                    event.position.x() as u16,
+                    event.position.y() as u16,
+                    props,
+                    state,
+                ) {
                     state.focused_segment = Some(segment_id.clone());
                     self.activate_segment(&segment_id, props, state);
                     EventResult::Consumed
@@ -593,7 +613,11 @@ impl Breadcrumb {
     /// Focus the previous segment
     fn focus_previous_segment(&self, _props: &BreadcrumbProps, state: &mut BreadcrumbState) {
         if let Some(ref focused_id) = state.focused_segment.clone() {
-            if let Some(current_index) = state.visible_segments.iter().position(|id| id == focused_id) {
+            if let Some(current_index) = state
+                .visible_segments
+                .iter()
+                .position(|id| id == focused_id)
+            {
                 if current_index > 0 {
                     let prev_id = &state.visible_segments[current_index - 1];
                     if prev_id != "__ellipsis__" {
@@ -611,7 +635,11 @@ impl Breadcrumb {
     /// Focus the next segment
     fn focus_next_segment(&self, _props: &BreadcrumbProps, state: &mut BreadcrumbState) {
         if let Some(ref focused_id) = state.focused_segment.clone() {
-            if let Some(current_index) = state.visible_segments.iter().position(|id| id == focused_id) {
+            if let Some(current_index) = state
+                .visible_segments
+                .iter()
+                .position(|id| id == focused_id)
+            {
                 if current_index < state.visible_segments.len() - 1 {
                     let next_id = &state.visible_segments[current_index + 1];
                     if next_id != "__ellipsis__" {
@@ -656,12 +684,12 @@ impl Breadcrumb {
             if segment.clickable && !segment.current {
                 // Trigger navigation event using production event system
                 use crate::event::Event;
-                
+
                 // Create custom navigation event using the existing event system
                 let nav_data = format!("{}:{}:{}", segment.id, segment.path, segment.label);
                 let _nav_event = Event::Custom(crate::event::types::CustomEvent::new(
                     "breadcrumb_navigation",
-                    nav_data.into_bytes()
+                    nav_data.into_bytes(),
                 ));
 
                 // Trigger navigation callback if provided
@@ -685,20 +713,20 @@ impl Breadcrumb {
         // Production implementation: Calculate segment from mouse coordinates using layout metrics
         let mut current_x = 0u16;
         let separator_width = _props.separator.chars().count() as u16;
-        
+
         // Iterate through segments to find the one at the given position
         for segment in &_props.segments {
             let segment_width = segment.label.chars().count() as u16;
             let segment_end_x = current_x + segment_width;
-            
+
             // Check if click is within this segment's bounds
             if _column >= current_x && _column < segment_end_x && _row == 0 {
                 return Some(segment.id.clone());
             }
-            
+
             // Advance position past segment and separator
             current_x = segment_end_x + separator_width + 1; // +1 for spacing
-            
+
             // Early exit if we've passed the click position
             if current_x > _column {
                 break;

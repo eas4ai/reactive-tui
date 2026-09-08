@@ -63,7 +63,8 @@ impl AstWalker {
         // Store source position for debugging and selection
         let sourcepos = node.data.borrow().sourcepos;
         let line_index = self.lines.len();
-        self.sourcepos_map.insert(line_index, (sourcepos.start.line, sourcepos.start.column));
+        self.sourcepos_map
+            .insert(line_index, (sourcepos.start.line, sourcepos.start.column));
 
         match &node.data.borrow().value {
             NodeValue::Document => {

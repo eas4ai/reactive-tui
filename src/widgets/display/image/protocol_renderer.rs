@@ -108,7 +108,7 @@ impl ProtocolRenderer {
             ImageSource::Url(url) => {
                 // Load image from URL
                 self.load_from_url(url)
-            },
+            }
         }
     }
 

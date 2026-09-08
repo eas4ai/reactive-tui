@@ -3,8 +3,8 @@
 //! This module provides builders for display components including progress bars,
 //! tree views, images, and other visual display elements.
 
+use crate::builder::specialized::{ImageBuilder, TreeBuilder};
 use crate::component::Element;
-use crate::builder::specialized::{TreeBuilder, ImageBuilder};
 
 /// Create a Progress Bar builder
 ///
@@ -223,7 +223,7 @@ impl From<ProgressBarBuilder> for Element {
 /// ```rust,ignore
 /// use reactive_tui::builder::popover;
 /// use reactive_tui::component::Element;
-/// 
+///
 /// let popover = popover()
 ///     .content(Element::text("Helpful information"))
 ///     .trigger(Element::text("Help"))

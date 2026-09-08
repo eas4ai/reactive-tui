@@ -1,4 +1,3 @@
-
 use std::sync::Arc;
 
 /// Keyboard shortcut for menu items
@@ -92,16 +91,16 @@ pub enum MenuItemType {
     /// Item with submenu
     Submenu,
     /// Checkable item (checkbox)
-    Checkbox { 
+    Checkbox {
         /// Whether the checkbox is checked
-        checked: bool 
+        checked: bool,
     },
     /// Radio button item
-    Radio { 
+    Radio {
         /// Whether this radio button is selected
-        selected: bool, 
+        selected: bool,
         /// Radio button group name
-        group: String 
+        group: String,
     },
     /// Separator only (no text)
     Separator,
@@ -185,11 +184,7 @@ impl MenuItem {
     }
 
     /// Create a submenu item
-    pub fn submenu(
-        id: impl Into<String>,
-        text: impl Into<String>,
-        items: Vec<MenuItem>,
-    ) -> Self {
+    pub fn submenu(id: impl Into<String>, text: impl Into<String>, items: Vec<MenuItem>) -> Self {
         Self {
             id: id.into(),
             text: text.into(),
@@ -291,9 +286,7 @@ impl MenuItem {
 
     /// Check if this item is selectable
     pub fn is_selectable(&self) -> bool {
-        self.enabled
-            && self.visible
-            && !matches!(self.item_type, MenuItemType::Separator)
+        self.enabled && self.visible && !matches!(self.item_type, MenuItemType::Separator)
     }
 
     /// Execute the item's action if it has one

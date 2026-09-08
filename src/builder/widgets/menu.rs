@@ -107,16 +107,16 @@ pub enum MenuItemType {
     /// Item with submenu
     Submenu,
     /// Checkable item (checkbox)
-    Checkbox { 
+    Checkbox {
         /// Whether the checkbox is checked
-        checked: bool 
+        checked: bool,
     },
     /// Radio button item
-    Radio { 
+    Radio {
         /// Whether this radio button is selected
-        selected: bool, 
+        selected: bool,
         /// Radio button group name
-        group: String 
+        group: String,
     },
     /// Separator only (no text)
     Separator,
@@ -190,9 +190,7 @@ impl MenuItem {
 
     /// Check if this item is selectable
     pub fn is_selectable(&self) -> bool {
-        self.enabled
-            && self.visible
-            && !matches!(self.item_type, MenuItemType::Separator)
+        self.enabled && self.visible && !matches!(self.item_type, MenuItemType::Separator)
     }
 
     /// Execute the item's action if it has one
@@ -532,12 +530,15 @@ impl MenuBarBuilder {
 
     /// Build the menubar element
     pub fn build(self) -> Element {
-        use crate::widgets::menu::{MenuBarProps};
         use crate::component::{Element, ElementType};
+        use crate::widgets::menu::MenuBarProps;
         use std::sync::Arc;
 
         // Convert builder MenuItem to widget MenuItem
-        let widget_items: Vec<crate::widgets::menu::MenuItem> = self.items.clone().into_iter()
+        let widget_items: Vec<crate::widgets::menu::MenuItem> = self
+            .items
+            .clone()
+            .into_iter()
             .map(|builder_item| self.convert_menu_item(builder_item))
             .collect();
 
@@ -568,24 +569,48 @@ impl MenuBarBuilder {
 
     /// Convert builder MenuItem to widget MenuItem
     fn convert_menu_item(&self, builder_item: MenuItem) -> crate::widgets::menu::MenuItem {
-        use crate::widgets::menu::{MenuItem as WidgetMenuItem};
+        use crate::widgets::menu::MenuItem as WidgetMenuItem;
 
         let widget_item_type = match builder_item.item_type {
-            crate::builder::widgets::menu::MenuItemType::Action => crate::widgets::menu::MenuItemType::Action,
-            crate::builder::widgets::menu::MenuItemType::Submenu => crate::widgets::menu::MenuItemType::Submenu,
-            crate::builder::widgets::menu::MenuItemType::Separator => crate::widgets::menu::MenuItemType::Separator,
-            crate::builder::widgets::menu::MenuItemType::Checkbox { checked } => crate::widgets::menu::MenuItemType::Checkbox { checked },
-            crate::builder::widgets::menu::MenuItemType::Radio { selected, group } => crate::widgets::menu::MenuItemType::Radio { selected, group },
+            crate::builder::widgets::menu::MenuItemType::Action => {
+                crate::widgets::menu::MenuItemType::Action
+            }
+            crate::builder::widgets::menu::MenuItemType::Submenu => {
+                crate::widgets::menu::MenuItemType::Submenu
+            }
+            crate::builder::widgets::menu::MenuItemType::Separator => {
+                crate::widgets::menu::MenuItemType::Separator
+            }
+            crate::builder::widgets::menu::MenuItemType::Checkbox { checked } => {
+                crate::widgets::menu::MenuItemType::Checkbox { checked }
+            }
+            crate::builder::widgets::menu::MenuItemType::Radio { selected, group } => {
+                crate::widgets::menu::MenuItemType::Radio { selected, group }
+            }
         };
 
         let widget_separator = match builder_item.separator {
-            crate::builder::widgets::menu::MenuSeparator::None => crate::widgets::menu::MenuSeparator::None,
-            crate::builder::widgets::menu::MenuSeparator::Line => crate::widgets::menu::MenuSeparator::Line,
-            crate::builder::widgets::menu::MenuSeparator::ThickLine => crate::widgets::menu::MenuSeparator::ThickLine,
-            crate::builder::widgets::menu::MenuSeparator::DoubleLine => crate::widgets::menu::MenuSeparator::DoubleLine,
-            crate::builder::widgets::menu::MenuSeparator::Dashed => crate::widgets::menu::MenuSeparator::Dashed,
-            crate::builder::widgets::menu::MenuSeparator::Dotted => crate::widgets::menu::MenuSeparator::Dotted,
-            crate::builder::widgets::menu::MenuSeparator::Space => crate::widgets::menu::MenuSeparator::Space,
+            crate::builder::widgets::menu::MenuSeparator::None => {
+                crate::widgets::menu::MenuSeparator::None
+            }
+            crate::builder::widgets::menu::MenuSeparator::Line => {
+                crate::widgets::menu::MenuSeparator::Line
+            }
+            crate::builder::widgets::menu::MenuSeparator::ThickLine => {
+                crate::widgets::menu::MenuSeparator::ThickLine
+            }
+            crate::builder::widgets::menu::MenuSeparator::DoubleLine => {
+                crate::widgets::menu::MenuSeparator::DoubleLine
+            }
+            crate::builder::widgets::menu::MenuSeparator::Dashed => {
+                crate::widgets::menu::MenuSeparator::Dashed
+            }
+            crate::builder::widgets::menu::MenuSeparator::Dotted => {
+                crate::widgets::menu::MenuSeparator::Dotted
+            }
+            crate::builder::widgets::menu::MenuSeparator::Space => {
+                crate::widgets::menu::MenuSeparator::Space
+            }
         };
 
         let widget_action = builder_item.action.map(|action| {
@@ -595,7 +620,9 @@ impl MenuBarBuilder {
             })
         });
 
-        let widget_submenu: Vec<crate::widgets::menu::MenuItem> = builder_item.submenu.into_iter()
+        let widget_submenu: Vec<crate::widgets::menu::MenuItem> = builder_item
+            .submenu
+            .into_iter()
             .map(|sub_item| self.convert_menu_item(sub_item))
             .collect();
 
@@ -605,10 +632,12 @@ impl MenuBarBuilder {
             item_type: widget_item_type,
             enabled: builder_item.enabled,
             visible: builder_item.visible,
-            shortcut: builder_item.shortcut.map(|s| crate::widgets::menu::MenuShortcut {
-                display: s.display,
-                keys: s.keys,
-            }),
+            shortcut: builder_item
+                .shortcut
+                .map(|s| crate::widgets::menu::MenuShortcut {
+                    display: s.display,
+                    keys: s.keys,
+                }),
             action: widget_action,
             submenu: widget_submenu,
             separator: widget_separator,
@@ -626,11 +655,17 @@ impl MenuBarBuilder {
         );
         let selected_classes = format!(
             "menu-item-selected {}",
-            builder_style.selected_background.as_deref().unwrap_or("bg-blue-500")
+            builder_style
+                .selected_background
+                .as_deref()
+                .unwrap_or("bg-blue-500")
         );
         let disabled_classes = format!(
             "menu-item-disabled {}",
-            builder_style.disabled_text_color.as_deref().unwrap_or("text-gray-400")
+            builder_style
+                .disabled_text_color
+                .as_deref()
+                .unwrap_or("text-gray-400")
         );
 
         crate::widgets::menu::MenuStyle {
@@ -641,7 +676,11 @@ impl MenuBarBuilder {
             separator_classes: "menu-separator border-t border-gray-200".to_string(),
             shortcut_classes: "menu-shortcut text-gray-500 text-sm".to_string(),
             icon_classes: "menu-icon mr-2".to_string(),
-            border_classes: builder_style.border.as_deref().unwrap_or("border border-gray-300").to_string(),
+            border_classes: builder_style
+                .border
+                .as_deref()
+                .unwrap_or("border border-gray-300")
+                .to_string(),
             show_shadow: true,
             show_icons: true,
             show_shortcuts: true,
@@ -758,11 +797,11 @@ impl ContextMenuBuilder {
     /// Build the context menu element
     pub fn build(self) -> Element {
         // For now, create a placeholder element since the actual ContextMenu component needs proper integration
-        use crate::component::{ElementType, LayoutType};
         use crate::builder::core::ElementBuilder;
+        use crate::component::{ElementType, LayoutType};
 
         let mut builder = ElementBuilder::new(ElementType::Layout(LayoutType::Flex));
-        
+
         if let Some(class) = self.class {
             builder = builder.class(&class);
         }
@@ -771,16 +810,12 @@ impl ContextMenuBuilder {
         let text_content = if self.items.is_empty() {
             "Empty ContextMenu".to_string()
         } else {
-            let item_texts: Vec<String> = self.items.iter()
-                .map(|item| item.text.clone())
-                .collect();
+            let item_texts: Vec<String> = self.items.iter().map(|item| item.text.clone()).collect();
             format!("ContextMenu: {}", item_texts.join(", "))
         };
 
-        builder = builder.child(
-            ElementBuilder::new(ElementType::Text(text_content.clone()))
-                .build()
-        );
+        builder =
+            builder.child(ElementBuilder::new(ElementType::Text(text_content.clone())).build());
 
         builder.build()
     }
@@ -900,11 +935,11 @@ impl PopupMenuBuilder {
     /// Build the popup menu element
     pub fn build(self) -> Element {
         // For now, create a placeholder element since the actual PopupMenu component needs proper integration
-        use crate::component::{ElementType, LayoutType};
         use crate::builder::core::ElementBuilder;
+        use crate::component::{ElementType, LayoutType};
 
         let mut builder = ElementBuilder::new(ElementType::Layout(LayoutType::Flex));
-        
+
         if let Some(class) = self.class {
             builder = builder.class(&class);
         }
@@ -913,13 +948,12 @@ impl PopupMenuBuilder {
         let text_content = if self.items.is_empty() {
             "Empty PopupMenu".to_string()
         } else {
-            let item_texts: Vec<String> = self.items.iter()
-                .map(|item| item.text.clone())
-                .collect();
-            format!("PopupMenu ({}): {}", 
+            let item_texts: Vec<String> = self.items.iter().map(|item| item.text.clone()).collect();
+            format!(
+                "PopupMenu ({}): {}",
                 match self.placement {
                     PopupPlacement::Below => "below",
-                    PopupPlacement::Above => "above", 
+                    PopupPlacement::Above => "above",
                     PopupPlacement::Left => "left",
                     PopupPlacement::Right => "right",
                     PopupPlacement::Auto => "auto",
@@ -928,10 +962,8 @@ impl PopupMenuBuilder {
             )
         };
 
-        builder = builder.child(
-            ElementBuilder::new(ElementType::Text(text_content.clone()))
-                .build()
-        );
+        builder =
+            builder.child(ElementBuilder::new(ElementType::Text(text_content.clone())).build());
 
         builder.build()
     }

@@ -25,14 +25,16 @@ pub extern "C" fn rtui_surface_create(
         let surface = Surface::new(width as usize, height as usize);
         let boxed = Box::new(surface);
         let raw_ptr = Box::into_raw(boxed);
-        
+
         // Register the pointer to track its lifetime
         if !trackers::surface_tracker().register(raw_ptr) {
             // Failed to register, clean up and return error
-            unsafe { let _ = Box::from_raw(raw_ptr); }
+            unsafe {
+                let _ = Box::from_raw(raw_ptr);
+            }
             return Err(ReactiveError::InternalError);
         }
-        
+
         unsafe {
             *out_surface = raw_ptr as *mut RTuiSurface;
         }
@@ -46,18 +48,18 @@ pub extern "C" fn rtui_surface_destroy(surface: *mut RTuiSurface) {
     if surface.is_null() {
         return;
     }
-    
+
     let surf_ptr = surface as *mut Surface;
-    
+
     // Check if this pointer is still valid
     if !trackers::surface_tracker().is_valid(surf_ptr) {
         // Pointer is not tracked or already freed - prevent double-free
         return;
     }
-    
+
     // Unregister the pointer before freeing
     trackers::surface_tracker().unregister(surf_ptr);
-    
+
     unsafe {
         let _ = Box::from_raw(surf_ptr);
     }
@@ -75,12 +77,12 @@ pub extern "C" fn rtui_surface_get_dimensions(
 
     catch_panic(AssertUnwindSafe(|| unsafe {
         let surf_ptr = surface as *const Surface;
-        
+
         // Validate pointer before use
         if !trackers::surface_tracker().is_valid(surf_ptr) {
             return Err(ReactiveError::InvalidPointer);
         }
-        
+
         let surf = &*surf_ptr;
         let (width, height) = surf.dims();
         *out_dimensions = RTuiDimensions {
@@ -105,12 +107,12 @@ pub extern "C" fn rtui_surface_clear(
 
     catch_panic(AssertUnwindSafe(|| unsafe {
         let surf_ptr = surface as *mut Surface;
-        
+
         // Validate pointer before use
         if !trackers::surface_tracker().is_valid(surf_ptr) {
             return Err(ReactiveError::InvalidPointer);
         }
-        
+
         let surf = &mut *surf_ptr;
         let bg = crate::core::surface::Rgba {
             r: r as f32 / 255.0,
@@ -138,12 +140,12 @@ pub extern "C" fn rtui_surface_set_cell(
     catch_panic(AssertUnwindSafe(|| {
         unsafe {
             let surf_ptr = surface as *mut Surface;
-            
+
             // Validate pointer before use
             if !trackers::surface_tracker().is_valid(surf_ptr) {
                 return Err(ReactiveError::InvalidPointer);
             }
-            
+
             let surf = &mut *surf_ptr;
             let c = &*cell;
 
@@ -199,12 +201,12 @@ pub extern "C" fn rtui_surface_get_cell(
 
     catch_panic(AssertUnwindSafe(|| unsafe {
         let surf_ptr = surface as *const Surface;
-        
+
         // Validate pointer before use
         if !trackers::surface_tracker().is_valid(surf_ptr) {
             return Err(ReactiveError::InvalidPointer);
         }
-        
+
         let surf = &*surf_ptr;
         let cell = surf.get(x as usize, y as usize);
 
@@ -250,12 +252,12 @@ pub extern "C" fn rtui_surface_draw_text(
 
     catch_panic(AssertUnwindSafe(|| unsafe {
         let surf_ptr = surface as *mut Surface;
-        
+
         // Validate pointer before use
         if !trackers::surface_tracker().is_valid(surf_ptr) {
             return Err(ReactiveError::InvalidPointer);
         }
-        
+
         let surf = &mut *surf_ptr;
         let text_str = c_str_to_string(text)?;
 
@@ -321,12 +323,12 @@ pub extern "C" fn rtui_surface_fill_rect(
 
     catch_panic(AssertUnwindSafe(|| unsafe {
         let surf_ptr = surface as *mut Surface;
-        
+
         // Validate pointer before use
         if !trackers::surface_tracker().is_valid(surf_ptr) {
             return Err(ReactiveError::InvalidPointer);
         }
-        
+
         let surf = &mut *surf_ptr;
         let r = &*rect;
         let fill_char = std::char::from_u32(ch).unwrap_or(' ');
