@@ -154,12 +154,22 @@ pub mod trackers {
     use std::sync::OnceLock;
 
     static SURFACE_TRACKER: OnceLock<PointerTracker<Surface>> = OnceLock::new();
+    static BORROWED_SURFACE_TRACKER: OnceLock<PointerTracker<Surface>> = OnceLock::new();
     static RENDERER_TRACKER: OnceLock<PointerTracker<Renderer>> = OnceLock::new();
     static TERMINAL_TRACKER: OnceLock<PointerTracker<Terminal>> = OnceLock::new();
 
     /// Get the surface pointer tracker
     pub fn surface_tracker() -> &'static PointerTracker<Surface> {
         SURFACE_TRACKER.get_or_init(PointerTracker::new)
+    }
+
+    /// Surfaces owned by renderers may be used but must not be freed by callers.
+    pub(crate) fn borrowed_surface_tracker() -> &'static PointerTracker<Surface> {
+        BORROWED_SURFACE_TRACKER.get_or_init(PointerTracker::new)
+    }
+
+    pub(crate) fn is_valid_surface(ptr: *const Surface) -> bool {
+        surface_tracker().is_valid(ptr) || borrowed_surface_tracker().is_valid(ptr)
     }
 
     /// Get the renderer pointer tracker
@@ -175,6 +185,7 @@ pub mod trackers {
     /// Clear all trackers (called on cleanup)
     pub fn clear_all() {
         surface_tracker().clear();
+        borrowed_surface_tracker().clear();
         renderer_tracker().clear();
         terminal_tracker().clear();
     }

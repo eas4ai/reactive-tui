@@ -297,6 +297,11 @@ impl Renderer {
 
     /// Shutdown the renderer and restore terminal state
     pub fn shutdown(mut self) -> Result<()> {
+        self.restore_terminal()
+    }
+
+    /// Restore terminal state while retaining the renderer allocation for FFI destruction.
+    pub(crate) fn restore_terminal(&mut self) -> Result<()> {
         // Ensure all buffered data is flushed before shutdown
         let _ = self.term.disable_buffered_mode();
         self.term.exit_modern_mode()

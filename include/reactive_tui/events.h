@@ -91,9 +91,14 @@ typedef bool (*RTuiEventHandler)(const RTuiEvent* event, void* user_data);
 
 /**
  * @brief Poll for terminal events
- * @param timeout_ms Timeout in milliseconds (0 for no timeout)
+ * @param timeout_ms Timeout in milliseconds (0 is nonblocking)
  * @param out_event Output event structure
- * @return Error code
+ * @return RTUI_NOT_FOUND on timeout; RTUI_NOT_SUPPORTED for payloads not
+ * representable by this legacy ABI. Output is unchanged on error.
+ * Character keys use Unicode codepoints; Enter/Tab/Escape/Backspace use
+ * 13/9/27/8. Named special keys, key releases, paste and focus are unsupported.
+ * Mouse buttons are 0=none, 1=left, 2=middle, 3=right.
+ * The caller must use a single reader for the terminal input stream.
  */
 RTuiError rtui_terminal_poll_event(uint32_t timeout_ms, RTuiEvent* out_event);
 

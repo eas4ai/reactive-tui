@@ -11,6 +11,7 @@ use std::panic::{self, AssertUnwindSafe};
 mod lib; // Main FFI interface
 mod stats;
 mod terminal; // Terminal control
+mod terminal_legacy;
 mod text; // Text buffer operations // Performance monitoring and debugging
 
 mod animation;
@@ -85,6 +86,7 @@ pub use pointer::*;
 pub use render::*;
 pub use surface::*;
 pub use terminal::*;
+pub use terminal_legacy::*;
 pub use types::*;
 pub use widgets::*;
 

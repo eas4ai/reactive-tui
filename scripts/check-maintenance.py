@@ -34,6 +34,9 @@ def main():
             status = 124
         output.seek(0)
         shutil.copyfileobj(output, sys.stdout.buffer)
+        sys.stdout.buffer.flush()
+        if status == 0 and sys.argv[1] == "ffi":
+            return subprocess.call([sys.executable, "scripts/check-ffi-runtime.py"])
         return status
 
 

@@ -10,7 +10,7 @@ mod ffi_tests {
 
     #[test]
     fn test_app_builder_creation_and_modification() {
-        unsafe {
+        {
             // Test app builder creation
             let mut builder_ptr: *mut RTuiAppBuilder = ptr::null_mut();
             let result = rtui_app_builder_create(&mut builder_ptr);
@@ -41,7 +41,7 @@ mod ffi_tests {
 
     #[test]
     fn test_element_builder_creation_and_modification() {
-        unsafe {
+        {
             // Test element builder creation
             let mut builder_ptr: *mut RTuiElementBuilder = ptr::null_mut();
             let result = rtui_element_builder_div(&mut builder_ptr);
@@ -51,19 +51,19 @@ mod ffi_tests {
             // Test in-place class modification (should not change pointer)
             let original_ptr = builder_ptr;
             let class_str = CString::new("test-class").unwrap();
-            let result = rtui_element_builder_class(builder_ptr, class_str.as_ptr());
+            let result = rtui_element_builder_add_class(builder_ptr, class_str.as_ptr());
             assert_eq!(result, ReactiveError::Success);
             assert_eq!(builder_ptr, original_ptr); // Pointer should remain the same
 
             // Test in-place text modification
             let text_str = CString::new("Hello, World!").unwrap();
-            let result = rtui_element_builder_text(builder_ptr, text_str.as_ptr());
+            let result = rtui_element_builder_set_text(builder_ptr, text_str.as_ptr());
             assert_eq!(result, ReactiveError::Success);
             assert_eq!(builder_ptr, original_ptr); // Pointer should remain the same
 
             // Test in-place key modification
             let key_str = CString::new("test-key").unwrap();
-            let result = rtui_element_builder_key(builder_ptr, key_str.as_ptr());
+            let result = rtui_element_builder_set_key(builder_ptr, key_str.as_ptr());
             assert_eq!(result, ReactiveError::Success);
             assert_eq!(builder_ptr, original_ptr); // Pointer should remain the same
 
@@ -80,24 +80,15 @@ mod ffi_tests {
 
     #[test]
     fn test_widget_creation() {
-        unsafe {
+        {
             // Test text input creation
             let placeholder = CString::new("Enter text").unwrap();
             let initial_value = CString::new("").unwrap();
             let mut element_ptr: *mut RTuiElement = ptr::null_mut();
 
-            extern "C" fn dummy_callback(
-                _value: *const std::os::raw::c_char,
-                _user_data: *mut std::ffi::c_void,
-            ) {
-                // Dummy callback for testing
-            }
-
             let result = rtui_text_input_create(
                 placeholder.as_ptr(),
                 initial_value.as_ptr(),
-                dummy_callback,
-                ptr::null_mut(),
                 &mut element_ptr,
             );
             assert_eq!(result, ReactiveError::Success);
@@ -110,24 +101,11 @@ mod ffi_tests {
 
     #[test]
     fn test_checkbox_creation() {
-        unsafe {
+        {
             let label = CString::new("Test Checkbox").unwrap();
             let mut element_ptr: *mut RTuiElement = ptr::null_mut();
 
-            extern "C" fn dummy_checkbox_callback(
-                _checked: bool,
-                _user_data: *mut std::ffi::c_void,
-            ) {
-                // Dummy callback for testing
-            }
-
-            let result = rtui_checkbox_create(
-                label.as_ptr(),
-                false,
-                dummy_checkbox_callback,
-                ptr::null_mut(),
-                &mut element_ptr,
-            );
+            let result = rtui_checkbox_create(label.as_ptr(), false, &mut element_ptr);
             assert_eq!(result, ReactiveError::Success);
             assert!(!element_ptr.is_null());
 
@@ -138,7 +116,7 @@ mod ffi_tests {
 
     #[test]
     fn test_progress_bar_creation() {
-        unsafe {
+        {
             let label = CString::new("Loading...").unwrap();
             let mut element_ptr: *mut RTuiElement = ptr::null_mut();
 
@@ -146,7 +124,6 @@ mod ffi_tests {
                 0.0,   // min_value
                 100.0, // max_value
                 50.0,  // current_value
-                RTuiProgressBarOrientation::Horizontal,
                 label.as_ptr(),
                 &mut element_ptr,
             );
@@ -160,20 +137,11 @@ mod ffi_tests {
 
     #[test]
     fn test_button_creation() {
-        unsafe {
+        {
             let text = CString::new("Click Me").unwrap();
             let mut element_ptr: *mut RTuiElement = ptr::null_mut();
 
-            extern "C" fn dummy_click_handler(_user_data: *mut std::ffi::c_void) {
-                // Dummy click handler for testing
-            }
-
-            let result = rtui_button_create(
-                text.as_ptr(),
-                dummy_click_handler,
-                ptr::null_mut(),
-                &mut element_ptr,
-            );
+            let result = rtui_button_create(text.as_ptr(), &mut element_ptr);
             assert_eq!(result, ReactiveError::Success);
             assert!(!element_ptr.is_null());
 
@@ -184,7 +152,7 @@ mod ffi_tests {
 
     #[test]
     fn test_root_component_functionality() {
-        unsafe {
+        {
             // Test root component callback system
             extern "C" fn test_root_callback(
                 _user_data: *mut std::ffi::c_void,
@@ -221,6 +189,15 @@ mod ffi_tests {
             let result = rtui_app_builder_build(builder_ptr, &mut app_ptr);
             assert_eq!(result, ReactiveError::Success);
             assert!(!app_ptr.is_null());
+            let mut dimensions = RTuiDimensions {
+                width: 0,
+                height: 0,
+            };
+            assert_eq!(
+                rtui_app_get_size(app_ptr, &mut dimensions),
+                ReactiveError::Success
+            );
+            assert_eq!((dimensions.width, dimensions.height), (80, 24));
 
             // Note: We don't call run() as it would block and consume the app
             // Clean up
@@ -230,21 +207,15 @@ mod ffi_tests {
 
     #[test]
     fn test_null_pointer_safety() {
-        unsafe {
+        {
             // Test that null pointers are handled safely
             let result = rtui_app_builder_debug(ptr::null_mut(), true);
             assert_eq!(result, ReactiveError::NullPointer);
 
-            let result = rtui_element_builder_class(ptr::null_mut(), ptr::null());
+            let result = rtui_element_builder_add_class(ptr::null_mut(), ptr::null());
             assert_eq!(result, ReactiveError::NullPointer);
 
-            let result = rtui_text_input_create(
-                ptr::null(),
-                ptr::null(),
-                None,
-                ptr::null_mut(),
-                ptr::null_mut(),
-            );
+            let result = rtui_text_input_create(ptr::null(), ptr::null(), ptr::null_mut());
             assert_eq!(result, ReactiveError::NullPointer);
         }
     }

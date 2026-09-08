@@ -44,8 +44,14 @@ pub extern "C" fn createRenderer(width: u32, height: u32) -> *mut RTuiRenderer {
 
     match Renderer::new(width as usize, height as usize) {
         Ok(renderer) => {
-            let boxed = Box::new(renderer);
-            Box::into_raw(boxed) as *mut RTuiRenderer
+            let raw = Box::into_raw(Box::new(renderer));
+            if !super::pointer::trackers::renderer_tracker().register(raw) {
+                unsafe {
+                    drop(Box::from_raw(raw));
+                }
+                return std::ptr::null_mut();
+            }
+            raw.cast()
         }
         Err(_) => std::ptr::null_mut(),
     }
@@ -63,8 +69,12 @@ pub extern "C" fn destroyRenderer(
     }
 
     let renderer_ptr = renderer as *mut Renderer;
+    if !super::pointer::trackers::renderer_tracker().unregister(renderer_ptr) {
+        return;
+    }
     unsafe {
         let mut renderer_box = Box::from_raw(renderer_ptr);
+        super::pointer::trackers::borrowed_surface_tracker().unregister(renderer_box.surface_mut());
 
         // Handle alternate screen mode - the renderer is already initialized
         // with alternate screen mode in Renderer::new(), so we don't need

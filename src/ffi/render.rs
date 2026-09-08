@@ -23,9 +23,15 @@ pub extern "C" fn rtui_renderer_create(
     catch_panic(AssertUnwindSafe(|| {
         match Renderer::new(width as usize, height as usize) {
             Ok(renderer) => {
-                let boxed = Box::new(renderer);
+                let raw = Box::into_raw(Box::new(renderer));
+                if !pointer::trackers::renderer_tracker().register(raw) {
+                    unsafe {
+                        drop(Box::from_raw(raw));
+                    }
+                    return Err(ReactiveError::InternalError);
+                }
                 unsafe {
-                    *out_renderer = Box::into_raw(boxed) as *mut RTuiRenderer;
+                    *out_renderer = raw.cast();
                 }
                 Ok(())
             }
@@ -37,12 +43,14 @@ pub extern "C" fn rtui_renderer_create(
 /// Destroy a renderer
 #[no_mangle]
 pub extern "C" fn rtui_renderer_destroy(renderer: *mut RTuiRenderer) {
-    if !renderer.is_null() {
-        unsafe {
-            let r = Box::from_raw(renderer as *mut Renderer);
-            // Renderer's drop will call shutdown
-            drop(r);
-        }
+    let raw = renderer.cast::<Renderer>();
+    if !pointer::trackers::renderer_tracker().unregister(raw) {
+        return;
+    }
+    unsafe {
+        let mut renderer = Box::from_raw(raw);
+        pointer::trackers::borrowed_surface_tracker().unregister(renderer.surface_mut());
+        drop(renderer);
     }
 }
 
@@ -62,6 +70,9 @@ pub extern "C" fn rtui_renderer_resize(
     }
 
     catch_panic(AssertUnwindSafe(|| unsafe {
+        if !pointer::trackers::renderer_tracker().is_valid(renderer.cast::<Renderer>()) {
+            return Err(ReactiveError::InvalidPointer);
+        }
         let r = &mut *(renderer as *mut Renderer);
         r.resize(width as usize, height as usize);
         Ok(())
@@ -82,7 +93,7 @@ pub extern "C" fn rtui_renderer_clear(
 
     catch_panic(AssertUnwindSafe(|| unsafe {
         // Validate pointer type before casting
-        if !super::pointer::validate_pointer::<Renderer>(renderer as *const u8) {
+        if !pointer::trackers::renderer_tracker().is_valid(renderer.cast::<Renderer>()) {
             return Err(ReactiveError::InvalidParameter);
         }
         let ren = &mut *(renderer as *mut Renderer);
@@ -106,6 +117,9 @@ pub extern "C" fn rtui_renderer_frame(renderer: *mut RTuiRenderer, begin: bool) 
     }
 
     catch_panic(AssertUnwindSafe(|| unsafe {
+        if !pointer::trackers::renderer_tracker().is_valid(renderer.cast::<Renderer>()) {
+            return Err(ReactiveError::InvalidPointer);
+        }
         let r = &mut *(renderer as *mut Renderer);
         if begin {
             match r.begin_frame() {
@@ -121,7 +135,8 @@ pub extern "C" fn rtui_renderer_frame(renderer: *mut RTuiRenderer, begin: bool) 
     }))
 }
 
-/// Get the surface for drawing
+/// Borrow the drawing surface until renderer shutdown or destruction.
+/// The caller must serialize access with renderer operations and must not free it.
 #[no_mangle]
 pub extern "C" fn rtui_renderer_get_surface(
     renderer: *mut RTuiRenderer,
@@ -132,14 +147,20 @@ pub extern "C" fn rtui_renderer_get_surface(
     }
 
     catch_panic(AssertUnwindSafe(|| unsafe {
+        if !pointer::trackers::renderer_tracker().is_valid(renderer.cast::<Renderer>()) {
+            return Err(ReactiveError::InvalidPointer);
+        }
         let r = &mut *(renderer as *mut Renderer);
         let surface_ptr = r.surface_mut() as *mut Surface;
+        if !pointer::trackers::borrowed_surface_tracker().register(surface_ptr) {
+            return Err(ReactiveError::InternalError);
+        }
         *out_surface = surface_ptr as *mut RTuiSurface;
         Ok(())
     }))
 }
 
-/// Shutdown the renderer and exit raw mode
+/// Restore the terminal without freeing the handle; call destroy afterward.
 #[no_mangle]
 pub extern "C" fn rtui_renderer_shutdown(renderer: *mut RTuiRenderer) -> ReactiveError {
     if renderer.is_null() {
@@ -147,8 +168,12 @@ pub extern "C" fn rtui_renderer_shutdown(renderer: *mut RTuiRenderer) -> Reactiv
     }
 
     catch_panic(AssertUnwindSafe(|| unsafe {
-        let r = Box::from_raw(renderer as *mut Renderer);
-        match r.shutdown() {
+        if !pointer::trackers::renderer_tracker().is_valid(renderer.cast::<Renderer>()) {
+            return Err(ReactiveError::InvalidPointer);
+        }
+        let r = &mut *(renderer as *mut Renderer);
+        pointer::trackers::borrowed_surface_tracker().unregister(r.surface_mut());
+        match r.restore_terminal() {
             Ok(()) => Ok(()),
             Err(e) => Err(e.into()),
         }

@@ -84,8 +84,8 @@ impl RootComponent for FFIRootComponent {
         // SAFETY: Convert FFI element pointer back to native Element
         // The callback is expected to return a valid Element pointer that we own
         unsafe {
-            let element_box = Box::from_raw(element_ptr as *mut Element);
-            *element_box
+            let element_box = Box::from_raw(element_ptr as *mut super::builder::FFIElement);
+            element_box.inner
         }
     }
 }
@@ -128,12 +128,12 @@ pub extern "C" fn rtui_app_builder_debug(
     }
 
     catch_panic(AssertUnwindSafe(|| unsafe {
-        // Take ownership, modify, and put back
-        let builder_box = Box::from_raw(builder as *mut AppBuilder);
-        let new_builder = builder_box.debug(debug);
+        // Update the value while retaining the caller-owned allocation.
+        let builder_ref = &mut *builder.cast::<AppBuilder>();
+        let new_builder = std::mem::take(builder_ref).debug(debug);
 
-        // Write the modified builder back to the same memory location
-        std::ptr::write(builder as *mut AppBuilder, new_builder);
+        // Replace the empty value; the allocation and handle remain unchanged.
+        *builder_ref = new_builder;
         Ok(())
     }))
 }
@@ -149,12 +149,12 @@ pub extern "C" fn rtui_app_builder_performance_mode(
     }
 
     catch_panic(AssertUnwindSafe(|| unsafe {
-        // Take ownership, modify, and put back
-        let builder_box = Box::from_raw(builder as *mut AppBuilder);
-        let new_builder = builder_box.performance_mode(mode.into());
+        // Update the value while retaining the caller-owned allocation.
+        let builder_ref = &mut *builder.cast::<AppBuilder>();
+        let new_builder = std::mem::take(builder_ref).performance_mode(mode.into());
 
-        // Write the modified builder back to the same memory location
-        std::ptr::write(builder as *mut AppBuilder, new_builder);
+        // Replace the empty value; the allocation and handle remain unchanged.
+        *builder_ref = new_builder;
         Ok(())
     }))
 }
@@ -171,13 +171,13 @@ pub extern "C" fn rtui_app_builder_backend_debug(
     }
 
     catch_panic(AssertUnwindSafe(|| unsafe {
-        // Take ownership, modify, and put back
-        let builder_box = Box::from_raw(builder as *mut AppBuilder);
+        // Update the value while retaining the caller-owned allocation.
         let backend = DebugBackend::new(width, height);
-        let new_builder = builder_box.backend(backend);
+        let builder_ref = &mut *builder.cast::<AppBuilder>();
+        let new_builder = std::mem::take(builder_ref).backend(backend);
 
-        // Write the modified builder back to the same memory location
-        std::ptr::write(builder as *mut AppBuilder, new_builder);
+        // Replace the empty value; the allocation and handle remain unchanged.
+        *builder_ref = new_builder;
         Ok(())
     }))
 }
@@ -192,13 +192,13 @@ pub extern "C" fn rtui_app_builder_backend_crossterm(
     }
 
     catch_panic(AssertUnwindSafe(|| unsafe {
-        // Take ownership, modify, and put back
-        let builder_box = Box::from_raw(builder as *mut AppBuilder);
+        // Update the value while retaining the caller-owned allocation.
         let backend = CrosstermBackend::new()?;
-        let new_builder = builder_box.backend(backend);
+        let builder_ref = &mut *builder.cast::<AppBuilder>();
+        let new_builder = std::mem::take(builder_ref).backend(backend);
 
-        // Write the modified builder back to the same memory location
-        std::ptr::write(builder as *mut AppBuilder, new_builder);
+        // Replace the empty value; the allocation and handle remain unchanged.
+        *builder_ref = new_builder;
         Ok(())
     }))
 }
@@ -215,16 +215,16 @@ pub extern "C" fn rtui_app_builder_root_component(
     }
 
     catch_panic(AssertUnwindSafe(|| unsafe {
-        // Take ownership, modify, and put back
-        let builder_box = Box::from_raw(builder as *mut AppBuilder);
+        // Update the value while retaining the caller-owned allocation.
+        let builder_ref = &mut *builder.cast::<AppBuilder>();
         let root_component = FFIRootComponent {
             callback,
             user_data,
         };
-        let new_builder = builder_box.root(root_component);
+        let new_builder = std::mem::take(builder_ref).root(root_component);
 
-        // Write the modified builder back to the same memory location
-        std::ptr::write(builder as *mut AppBuilder, new_builder);
+        // Replace the empty value; the allocation and handle remain unchanged.
+        *builder_ref = new_builder;
         Ok(())
     }))
 }
@@ -366,4 +366,29 @@ pub extern "C" fn rtui_app_get_performance_metrics(
         };
         Ok(())
     }))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn root_callback_transfers_the_ffi_element_wrapper() {
+        extern "C" fn render(_: *mut std::ffi::c_void) -> *mut super::super::builder::RTuiElement {
+            let mut element = std::ptr::null_mut();
+            assert_eq!(
+                super::super::rtui_text_element_create(c"callback root".as_ptr(), &mut element),
+                ReactiveError::Success,
+            );
+            element
+        }
+        let root = FFIRootComponent {
+            callback: render,
+            user_data: std::ptr::null_mut(),
+        };
+        assert_eq!(
+            root.render().element_type,
+            crate::component::ElementType::Text("callback root".into())
+        );
+    }
 }

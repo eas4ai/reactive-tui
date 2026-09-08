@@ -62,7 +62,12 @@ pub extern "C" fn createTerminal() -> *mut RTuiTerminal {
             let raw_ptr = Box::into_raw(boxed);
 
             // Register the pointer for tracking
-            super::pointer::trackers::terminal_tracker().register(raw_ptr);
+            if !super::pointer::trackers::terminal_tracker().register(raw_ptr) {
+                unsafe {
+                    drop(Box::from_raw(raw_ptr));
+                }
+                return std::ptr::null_mut();
+            }
 
             raw_ptr as *mut RTuiTerminal
         }
@@ -77,19 +82,14 @@ pub extern "C" fn destroyTerminal(terminal: *mut RTuiTerminal) {
         return;
     }
 
-    // Validate pointer before using
-    if !super::pointer::validate_pointer::<Terminal>(terminal as *const u8) {
+    let terminal_ptr = terminal as *mut Terminal;
+    // Remove ownership before releasing the allocation.
+    if !super::pointer::trackers::terminal_tracker().unregister(terminal_ptr) {
         return;
     }
-
-    let terminal_ptr = terminal as *mut Terminal;
     unsafe {
-        let mut terminal_box: Box<Terminal> = Box::from_raw(terminal_ptr);
-        let _ = terminal_box.restore();
+        drop(Box::from_raw(terminal_ptr));
     }
-
-    // Unregister the pointer
-    super::pointer::trackers::terminal_tracker().unregister(terminal_ptr);
 }
 
 /// Setup terminal for TUI mode

@@ -4,9 +4,9 @@
 
 - Done: establish the commitment and reproduce the formatting gate.
 - Done: format workspace Rust and verify unchanged behavior.
-- In progress: repair strict Clippy findings and verify behavioral changes.
-- Pending: repair FFI compile/link integration and verify repaired ABI entry points.
-- Pending: refresh all acceptance evidence and complete final review.
+- Done: repair strict Clippy findings and verify behavioral changes.
+- Done: repair FFI compile/link integration and verify repaired ABI entry points.
+- In progress: refresh all acceptance evidence and complete final review.
 
 ## Mechanism review plan
 
@@ -40,3 +40,42 @@ denominator defaults. Counter iterators start at the same offsets and retain
 bounds checks. Menu callback aliases retain their exact Arc/dyn trait type.
 The only new lint exception is the recorded expectation on MenuTheme to retain
 Custom(MenuStyle) construction without boxing or adding a new allocation.
+
+## FFI implementation and verification
+
+Restored the five terminal symbols using the shipped terminal/event declarations.
+The Rust extern-only target now links the crate. Stale widget tests call the
+existing Rust exports; their success, non-null and pointer-stability assertions
+remain. Removed callback arguments were empty stubs, not tested behavior.
+
+The ordinary app-builder workflow exposed a released allocation in the setters.
+The repair preserves that allocation and takes only its contained value. Fallible
+backend construction precedes taking the value. The root callback now consumes
+FFIElement, matching the constructors. Renderer shutdown retains its allocation;
+borrowed surfaces have separate registration and cannot be freed as owned surfaces.
+Modern and legacy renderer/terminal constructors share their ownership trackers.
+
+The developer FFI gate passes all test-target compilation, the C shared-library
+smoke fixture, seven FFI unit tests and 63 tests across six integration targets.
+Each runtime command runs serially in a controlled 80x24 PTY and must restore
+terminal settings. A safe mutation returning width plus one made the C dimension
+assertion fail; restoring the implementation made the full gate pass. The initial
+missing-symbol compile/link failure is the compile gate's failing case. No unsafe
+original ownership path was deliberately rerun for a failure demonstration.
+
+The final source diff retains public signatures. Unsupported legacy event payloads
+return an error rather than inventing a representation. Remaining TypeScript and
+modern-header ABI drift is backlogged; docs/ffi-maintenance.md states the tested
+scope and caller serialization/lifetime requirements.
+
+Ripwire's qualified terminal-create edit check passes. Its quality scan exits 2
+and includes ignored reference trees, preexisting symbols, FFI exports and test
+functions labeled dead. Reviewed the changed-file findings: short boundary
+validation/registration blocks deliberately remain local; event translation is
+one explicit match. Its test gate exits 4 listing test obligations and unmodeled
+coverage, not executed test failures. The actual default, FFI and inherited Cairn
+checks provide runtime evidence; no clean whole-repository static claim is made.
+
+Final post-FFI formatting and strict default Clippy commands exit zero. The
+post-FFI default-suite developer run is pending: two existing clipboard tests
+are waiting for their wl-copy children. No passing result is claimed for it.

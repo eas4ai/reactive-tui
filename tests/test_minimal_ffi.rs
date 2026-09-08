@@ -4,6 +4,8 @@
 mod minimal_ffi_tests {
     use std::ptr;
 
+    // Ensure Cargo links the library that provides these C symbols.
+    extern crate reactive_tui;
     // Import only the specific functions I implemented
     extern "C" {
         fn rtui_element_builder_div(out_builder: *mut *mut std::ffi::c_void) -> i32;

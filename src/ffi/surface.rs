@@ -51,14 +51,10 @@ pub extern "C" fn rtui_surface_destroy(surface: *mut RTuiSurface) {
 
     let surf_ptr = surface as *mut Surface;
 
-    // Check if this pointer is still valid
-    if !trackers::surface_tracker().is_valid(surf_ptr) {
-        // Pointer is not tracked or already freed - prevent double-free
+    // Only caller-owned surfaces can be destroyed through this API.
+    if !trackers::surface_tracker().unregister(surf_ptr) {
         return;
     }
-
-    // Unregister the pointer before freeing
-    trackers::surface_tracker().unregister(surf_ptr);
 
     unsafe {
         let _ = Box::from_raw(surf_ptr);
@@ -79,7 +75,7 @@ pub extern "C" fn rtui_surface_get_dimensions(
         let surf_ptr = surface as *const Surface;
 
         // Validate pointer before use
-        if !trackers::surface_tracker().is_valid(surf_ptr) {
+        if !trackers::is_valid_surface(surf_ptr) {
             return Err(ReactiveError::InvalidPointer);
         }
 
@@ -109,7 +105,7 @@ pub extern "C" fn rtui_surface_clear(
         let surf_ptr = surface as *mut Surface;
 
         // Validate pointer before use
-        if !trackers::surface_tracker().is_valid(surf_ptr) {
+        if !trackers::is_valid_surface(surf_ptr) {
             return Err(ReactiveError::InvalidPointer);
         }
 
@@ -142,7 +138,7 @@ pub extern "C" fn rtui_surface_set_cell(
             let surf_ptr = surface as *mut Surface;
 
             // Validate pointer before use
-            if !trackers::surface_tracker().is_valid(surf_ptr) {
+            if !trackers::is_valid_surface(surf_ptr) {
                 return Err(ReactiveError::InvalidPointer);
             }
 
@@ -203,7 +199,7 @@ pub extern "C" fn rtui_surface_get_cell(
         let surf_ptr = surface as *const Surface;
 
         // Validate pointer before use
-        if !trackers::surface_tracker().is_valid(surf_ptr) {
+        if !trackers::is_valid_surface(surf_ptr) {
             return Err(ReactiveError::InvalidPointer);
         }
 
@@ -254,7 +250,7 @@ pub extern "C" fn rtui_surface_draw_text(
         let surf_ptr = surface as *mut Surface;
 
         // Validate pointer before use
-        if !trackers::surface_tracker().is_valid(surf_ptr) {
+        if !trackers::is_valid_surface(surf_ptr) {
             return Err(ReactiveError::InvalidPointer);
         }
 
@@ -325,7 +321,7 @@ pub extern "C" fn rtui_surface_fill_rect(
         let surf_ptr = surface as *mut Surface;
 
         // Validate pointer before use
-        if !trackers::surface_tracker().is_valid(surf_ptr) {
+        if !trackers::is_valid_surface(surf_ptr) {
             return Err(ReactiveError::InvalidPointer);
         }
 
