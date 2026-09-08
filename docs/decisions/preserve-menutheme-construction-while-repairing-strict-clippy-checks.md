@@ -11,4 +11,4 @@ Keep the public MenuTheme::Custom(MenuStyle) construction contract. Boxing that 
 
 ## Realized by
 
-(none yet: recorded, not built)
+- 0491877cbec9f928a8a9c6d88229562ce846a2a9 Resolve strict Clippy findings and replace tautological tests
