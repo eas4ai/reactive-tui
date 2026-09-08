@@ -1,0 +1,16 @@
+# Mechanism: api-signal-ownership
+
+command: python3 -B scripts/check-api-signal-ownership.py
+inputs:
+  - .cairn/mechanisms/api-signal-ownership.md
+  - Cargo.toml
+  - Cargo.lock
+  - src
+  - reactive-tui-macros
+  - include
+  - tests/api_signal_ownership.rs
+  - tests/api_signal_ownership.c
+  - scripts/check-api-signal-ownership.py
+  - docs/spec/rust-api-remediation.md
+requirements:
+  - API-001
