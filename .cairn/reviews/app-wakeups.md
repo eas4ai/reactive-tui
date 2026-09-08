@@ -1,5 +1,14 @@
 # App wakeups review
 
+commit: 1d678d488d6c128cc4de3646822a9127d25cecb3
+findings:
+  - closed: WAK-001 fixed pending flags survive wait entry; both condition-variable and task-waker paths observe requests; stop wakes App and closes handles.
+  - closed: WAK-002 rendered signals subscribe weakly by App generation; writes notify after value locks release; equal writes, stale subscriptions and closed Apps are tested.
+  - closed: WAK-003 queued work and changed deadlines wake App; timer callbacks run outside locks and cancelled intervals do not reinsert themselves.
+  - closed: WAK-004 dirty frames retain their latest state while paced; wake-driven roots sleep; legacy polling roots and active animations continue; input and resize remain serviceable.
+  - closed: WAK-005 native frame, exit, error and queue-space changes wake App; one pending key preserves bounded backpressure; final child output is rendered before exit.
+  - closed: all inherited EMB and RND requirements have current passing committed evidence; direct developer-host claims and unrelated legacy cleanup remain excluded.
+
 ## Specification review
 
 Acceptance must observe the wait boundary and final rendered state, not
@@ -46,7 +55,64 @@ new wake and scheduler files had no diagnostics in that run.
 
 ## Final review
 
-Pending.
+Reviewed the committed candidate on 2026-09-07 local time without changing
+product code. Examined the wait handoff around publication, flag consumption,
+task registration, timeout expiry and stop. Pending flags are guarded by the
+same mutex as the condition-variable predicate. The native input adapter
+registers before checking pending state; an unpark token survives a request
+between the check and park. Its registration guard removes the task reference
+on return and error. Spurious wakeups recheck both input and App state.
+
+Examined signal reads racing background writes. ThreadSafeSignal records its
+subscription while holding the value lock, then writers notify after releasing
+that lock. The next render generation invalidates obsolete reads. Scope
+restores the prior thread-local context on unwind. Subscriptions contain weak
+notification-state references, not App or component owners; finished handles
+are inert. No unsafe cross-thread trait implementations were introduced.
+
+Examined the scheduler's queue transfer, earlier deadline insertion, callback
+reentrancy and interval cancellation. Locks protect storage only while batches
+are taken or restored. Running cancellation is recorded separately; clear
+removes those records, which the runner treats as cancellation. App closes
+its wake handle and clears its scheduler on drop. Arbitrary user callback
+execution remains cooperative and cannot be preempted. Work items themselves
+remain a queue; only notification storage has the bounded coalescing contract.
+
+Examined rendering while new notifications arrive, active-animation deadlines,
+legacy polling defaults and a root temporarily unable to accept input. Dirty
+state survives frame pacing. Keyboard input is checked even during wake bursts.
+TerminalView retains one unqueued key, and worker queue consumption wakes its
+retry; it does not enlarge the native queue or discard keys. Timers and explicit
+stop requests remain live while input is paused. Existing animation/timeline
+registration and interpolation semantics remain unchanged; legacy inactive
+registrations still require their normal cleanup.
+
+Examined native final-frame and error ordering. Exit visibility is recorded only
+when App obtains the final cell frame, and session errors are checked before
+leaving. The new real-child test verifies final FINISHED text and reaping with
+no host input. The real controlling-PTY gates verify signal redraw, input,
+resize, normal/error/panic restoration and child lifecycle. Captured output is
+interpreted at complete synchronized-frame boundaries. No direct developer-host
+compatibility claim follows from these probes.
+
+Checked the dependency boundary and documentation: the existing Crossterm
+version gains its event-stream feature and futures-core supplies the Stream
+trait. No WezTerm source was copied. Upstream input-helper cancellation is
+explicitly distinguished from joining our owned renderer and terminal workers.
+Standalone hook/runtime schedulers retain their documented existing lifecycle;
+this work does not claim to merge those systems or resolve their legacy defects.
+
+Final development gate and all three Cairn mechanisms passed against committed
+inputs. Formatting checks on the touched Rust paths and git diff --check passed.
+Final Clippy completed with no diagnostics in the new wake, scheduler, App,
+input, embedded, test and example paths; legacy warnings remain. The four
+controlled mutations each failed a runtime assertion and were restored.
+
+Self-audit against production rules 1–14: implementation follows the approved
+scope; interfaces are additive; ownership, error paths and limits are explicit;
+source changes, example and documentation agree; verification includes real
+failure demonstrations and committed receipts. No unresolved finding within
+this commitment requires another code change.
 
 ## Revised mechanism review: WAK-001
 
