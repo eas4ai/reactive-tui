@@ -79,3 +79,29 @@ checks provide runtime evidence; no clean whole-repository static claim is made.
 Final post-FFI formatting and strict default Clippy commands exit zero. The
 post-FFI default-suite developer run is pending: two existing clipboard tests
 are waiting for their wl-copy children. No passing result is claimed for it.
+
+## Inherited default-suite clipboard repair
+
+The post-FFI developer run and the committed DFT mechanism both reached their
+300-second deadlines in two live wl-copy children. Their process groups stopped.
+Recorded the failing DFT receipts before repair. No FFI change touched clipboard
+production code; the host dependency made these unit checks non-repeatable.
+
+The two Unix clipboard operation tests now run themselves in bounded child test
+processes. A private PATH selects fixture which/wl-copy/wl-paste commands. Actual
+backend detection, process creation, stdin writes, stdout reads and hook state
+updates still execute. All earlier assertions remain or are stronger; both copy
+and paste now have result assertions, including a Unicode/newline round trip.
+There is no global environment mutation and no new ignored test. The child must
+report exactly one passed test. A drop guard stops its process group on failure
+and removes the private fixture directory. Non-Unix execution remains unchanged.
+
+Replacing the actual Wayland copy bytes with wrong data makes the child round-trip
+assertion fail and propagates exit 101 to the parent. Restoring the code passes
+all four clipboard unit tests and the full default suite: 1014 passed, zero failed,
+35 ignored. Strict default Clippy, formatting and diff whitespace checks pass.
+The production live-desktop wait remains separately backlogged; fixture evidence
+is not represented as desktop integration coverage. All production clipboard code
+is byte-for-byte unchanged. Ripwire edit-check passes; quality/test-gate retain
+their documented static limitations. The new fixture length is test isolation and
+cleanup in one local helper, with no production abstraction or dependency added.

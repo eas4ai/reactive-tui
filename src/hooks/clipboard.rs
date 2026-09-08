@@ -336,6 +336,104 @@ pub fn use_simple_clipboard(hooks: &Hooks) -> (ClipboardWriter, ClipboardReader)
 mod tests {
     use super::*;
 
+    // Keep real backend detection and command I/O, but give each Unix test its
+    // own clipboard commands. Only the child environment changes.
+    #[cfg(unix)]
+    fn run_with_clipboard_fixture(test: &str) -> bool {
+        use std::os::unix::{fs::PermissionsExt, process::CommandExt};
+        use std::time::{Duration, Instant};
+
+        if std::env::var("RTUI_CLIPBOARD_TEST_CHILD").as_deref() == Ok(test) {
+            return false;
+        }
+
+        struct Fixture {
+            directory: std::path::PathBuf,
+            child: Option<std::process::Child>,
+        }
+        impl Drop for Fixture {
+            fn drop(&mut self) {
+                if let Some(child) = &mut self.child {
+                    if !matches!(child.try_wait(), Ok(Some(_))) {
+                        // The child owns this process group; stop any fixture
+                        // command too if the tested code fails to return.
+                        unsafe { libc::kill(-(child.id() as i32), libc::SIGKILL) };
+                        let _ = child.wait();
+                    }
+                }
+                if let Err(error) = std::fs::remove_dir_all(&self.directory) {
+                    eprintln!("Could not remove clipboard test fixture: {error}");
+                }
+            }
+        }
+
+        let directory =
+            std::env::temp_dir().join(format!("rtui-clipboard-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir(&directory).unwrap();
+        let mut fixture = Fixture {
+            directory,
+            child: None,
+        };
+        for (name, script) in [
+            (
+                "which",
+                "#!/bin/sh\ncase \"$1\" in wl-copy|wl-paste) exit 0;; *) exit 1;; esac\n",
+            ),
+            (
+                "wl-copy",
+                "#!/bin/sh\n/bin/cat > \"$RTUI_CLIPBOARD_FIXTURE_FILE\"\n",
+            ),
+            (
+                "wl-paste",
+                "#!/bin/sh\n/bin/cat \"$RTUI_CLIPBOARD_FIXTURE_FILE\"\n",
+            ),
+        ] {
+            let path = fixture.directory.join(name);
+            std::fs::write(&path, script).unwrap();
+            std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o700)).unwrap();
+        }
+        let output_path = fixture.directory.join("output");
+        let output = std::fs::File::create(&output_path).unwrap();
+        fixture.child = Some(
+            Command::new(std::env::current_exe().unwrap())
+                .args([
+                    "--exact",
+                    &format!("hooks::clipboard::tests::{test}"),
+                    "--nocapture",
+                ])
+                .env("RTUI_CLIPBOARD_TEST_CHILD", test)
+                .env(
+                    "RTUI_CLIPBOARD_FIXTURE_FILE",
+                    fixture.directory.join("clipboard"),
+                )
+                .env("WAYLAND_DISPLAY", "fixture")
+                .env("PATH", &fixture.directory)
+                .stdout(output.try_clone().unwrap())
+                .stderr(output)
+                .process_group(0)
+                .spawn()
+                .unwrap(),
+        );
+        let deadline = Instant::now() + Duration::from_secs(10);
+        let status = loop {
+            if let Some(status) = fixture.child.as_mut().unwrap().try_wait().unwrap() {
+                break status;
+            }
+            assert!(
+                Instant::now() < deadline,
+                "clipboard fixture test exceeded 10 seconds"
+            );
+            std::thread::sleep(Duration::from_millis(10));
+        };
+        let output = std::fs::read_to_string(output_path).unwrap();
+        assert!(status.success(), "clipboard child failed: {output}");
+        assert!(
+            output.contains("1 passed"),
+            "clipboard child did not run its test: {output}"
+        );
+        true
+    }
+
     #[test]
     fn test_clipboard_backend_detection() {
         let backend = ClipboardBackend::detect();
@@ -352,29 +450,50 @@ mod tests {
 
     #[test]
     fn test_use_clipboard() {
+        #[cfg(unix)]
+        if run_with_clipboard_fixture("test_use_clipboard") {
+            return;
+        }
         let hooks = Hooks::new();
-        let (state, copy, _paste) = use_clipboard(&hooks);
+        let (state, copy, paste) = use_clipboard(&hooks);
 
         // Initial state
         assert!(state.get().content.is_none());
 
-        // Copy some text (may fail if no clipboard available)
+        // Exercise the actual command stdin and the hook cache.
         copy("Test text");
 
-        // Check if it was copied (depends on backend availability)
         let current = state.get();
-        if current.backend != ClipboardBackend::NoOp {
-            assert_eq!(current.content, Some("Test text".to_string()));
+        assert_eq!(current.content, Some("Test text".to_string()));
+        #[cfg(unix)]
+        {
+            assert_eq!(current.backend, ClipboardBackend::Wayland);
+            assert_eq!(paste(), Some("Test text".into()));
+            let text = "clipboard '界'\nsecond line";
+            copy(text);
+            assert_eq!(paste(), Some(text.into()));
+            assert_eq!(state.get().content, Some(text.into()));
+            assert!(state.get().error.is_none());
         }
+        #[cfg(not(unix))]
+        let _ = paste;
     }
 
     #[test]
     fn test_use_simple_clipboard() {
+        #[cfg(unix)]
+        if run_with_clipboard_fixture("test_use_simple_clipboard") {
+            return;
+        }
         let hooks = Hooks::new();
         let (copy, paste) = use_simple_clipboard(&hooks);
 
         // Should be able to call functions without error
         copy("Test");
-        let _result = paste();
+        let result = paste();
+        #[cfg(unix)]
+        assert_eq!(result, Some("Test".into()));
+        #[cfg(not(unix))]
+        let _ = result;
     }
 }
