@@ -11,4 +11,4 @@ Keep component factories in the existing registry and give each App a private in
 
 ## Realized by
 
-(none yet: recorded, not built)
+- 919afade932ec4cb034c5cb49766ce3aa38d20da Render App components through persistent keyed instances
