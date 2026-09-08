@@ -1,17 +1,25 @@
 # Binding ABI audit
 
-Status: In progress, 2026-09-08
+Status: Declarations reconciled, 2026-09-08
+
+The repaired header and TypeScript loader agree with 210 Rust exports. The
+current checks compare signatures, layouts and enum values, then run real C/C++
+and TypeScript consumers. Migration guides record every corrected or retired
+consumer declaration. See the reconciled result below and the commitment review
+for acceptance evidence and the limits of the runtime coverage.
+
+## Historical baseline
 
 The first committed static check found 198 C function declarations, 58 symbols
 requested by the TypeScript loader and 194 exported Rust functions. Of those
-consumer declarations, 75 C names and 38 TypeScript names are absent from the
-shared library. The headers compile together as C; matching names do not yet
+consumer declarations, 75 C names and 38 TypeScript names were absent from the
+shared library. The original headers compiled together as C; that did not
 prove matching signatures or layouts. No mismatched native call was executed.
 
 The complete initial inventory is in binding-abi-baseline.json. The failing
 receipt is ABI-001/20260908T201846770Z.
 
-## Compatibility distinction
+## Baseline compatibility distinction
 
 Some missing names are aliases for existing operations, such as the older
 element-builder setters. Others describe API families with no compiled native
@@ -21,11 +29,13 @@ placeholder for an unsupported engine update. Enabling that file alone cannot
 establish compatibility. TypeScript component creation/state/event functions are
 absent; its builder source also has method/property name collisions.
 
-The recommended compatibility policy uses existing exported Rust functions as
-the baseline; the developer can steer the pending policy question. No public declaration has been removed and
-no missing API has been replaced with a success-returning stub.
+The recorded compatibility decision uses existing exported Rust functions as the
+baseline. The repair restores aliases with implemented behavior and explicitly
+retires unsupported consumer declarations. The migration inventories preserve
+the old declarations and name replacements or unsupported behavior. No missing
+API was replaced with a success-returning stub.
 
-## Missing C symbols
+## C symbols missing at the baseline
 
 - `createRenderingContext`
 - `destroyRenderingContext`
@@ -103,7 +113,7 @@ no missing API has been replaced with a success-returning stub.
 - `textBufferAppendText`
 - `writeToBuffer`
 
-## Missing TypeScript loader symbols
+## TypeScript loader symbols missing at the baseline
 
 - `rtui_animation_free`
 - `rtui_animation_group_add`
@@ -144,9 +154,9 @@ no missing API has been replaced with a success-returning stub.
 - `rtui_terminal_init`
 - `rtui_terminal_shutdown`
 
-## Static type audit
+## Baseline static type audit
 
-All 13 headers also compile together as C++ without native invocation. The
+All 13 original headers also compiled together as C++ without native invocation. The
 baseline JSON includes C typedefs, record fields and enum variant inventories.
 Known matching-name mismatches include createRenderer (four header arguments,
 two Rust arguments), destroyRenderer (one header argument, three Rust arguments),
@@ -158,7 +168,7 @@ accepts an ID string, duration, easing/loop configuration and an output handle.
 These are declaration defects; no attempt was made to invoke them.
 
 
-## Reconciled candidate
+## Reconciled result
 
 The canonical native header and TypeScript schema now contain 210 Rust exports:
 the original 194 plus 16 compatibility aliases. Independent rustc/clang probes
@@ -180,7 +190,9 @@ raw-mode changes and restoration, capabilities canaries, RGB/Unicode cells,
 renderer-owned views, legacy builder aliases, consuming children/builders,
 owned child clones, null/error results and string release. Nine safe failure
 demonstrations and their restored controls are in binding-abi-demonstrations/.
-Formal Cairn receipts and the final review still determine completion.
+The committed Cairn receipts record passing checks for ABI-001 through ABI-004
+and all 30 inherited requirements. The commitment review records the final audit
+and production self-assessment.
 
 The preexisting legacy signal destructor mismatch is recorded in the backlog and
 migration guidance. No mismatched signal-family call was executed. This ABI

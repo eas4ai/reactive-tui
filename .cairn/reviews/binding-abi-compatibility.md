@@ -2,7 +2,7 @@
 
 commit: 2af681c3194fa33728d6a2524f0dff1f511c3345
 findings:
-  - open: ABI-001 audit report introduction still describes baseline failures as current and says no declarations were removed; distinguish historical findings from the repaired contract.
+  - resolved: ABI-001 audit report now separates the historical baseline from the repaired contract, names the explicit retirements and points to current evidence.
 
 ## Work tracking
 
@@ -150,3 +150,9 @@ diff. It was not used to dismiss those earlier findings or reset their baseline.
 12. Scope and compatibility decisions are recorded; the separate legacy signal issue is captured for the developer.
 13. The stale audit introduction needs revision before delivery; the code review found no other blocker.
 14. The documentation correction must identify the historical baseline and current result in plain language.
+
+The audit documentation finding was corrected as a separate implementation action.
+Read the revised introduction and baseline/result sections against the migration
+guides and receipts; obsolete pending-policy and no-removal claims are absent.
+No executable code changed. Acceptance freshness will be refreshed before closing
+the remaining work-tracking item.
