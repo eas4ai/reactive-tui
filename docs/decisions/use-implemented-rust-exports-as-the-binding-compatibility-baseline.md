@@ -11,4 +11,4 @@ Keep the compiled Rust C ABI authoritative. Correct incompatible consumer declar
 
 ## Realized by
 
-(none yet: recorded, not built)
+- d485469ce6722e9efb9068673a68e8ce4115c13c
