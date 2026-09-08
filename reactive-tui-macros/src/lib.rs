@@ -125,6 +125,7 @@ fn generate_no_props_component(
             }
 
             fn render(&self, _props: &Self::Props, _state: &Self::State) #return_type {
+                let _hook_frame = self.hooks.begin_render();
                 let hooks = &self.hooks;
                 #body
             }
@@ -216,6 +217,7 @@ fn generate_props_component(
             }
 
             fn render(&self, props: &Self::Props, _state: &Self::State) #return_type {
+                let _hook_frame = self.hooks.begin_render();
                 #render_call
             }
         }

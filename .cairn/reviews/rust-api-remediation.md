@@ -94,3 +94,11 @@ the eight-test production_readiness_test binary passed after the repair.
 ## API-003 mechanism baseline
 
 The five new hook tests all failed against the existing code: generated renders reset state, memo handles stayed stale, and type, count and kind violations were accepted. These are safe Rust failure demonstrations. The corrected cases retain state for 1,000 renders and retain memo handles across value changes.
+
+## API-003 corrected mechanism and implementation
+
+Generated renders now enter a hook frame; one mutex protects positional index and slots. Count, kind and type violations panic after releasing the mutex, so a corrected subsequent render remains usable. State, reducer, previous and memo slots have separate kinds. Memo has no dependency-list API: it computes each call, retains its signal and publishes changed values. Manual reset remains supported.
+
+The corrected mechanism passed all five integration cases and four hook unit cases. The bounded-storage test renders 1,000 frames with exactly three retained slots. Overlapping frames fail without poisoning state. Related macro, mouse, production-readiness and App wakeup suites passed 32 tests. Strict all-target Clippy and formatting passed.
+
+Ripwire edit-check reports the private storage signature change with no incompatible callers. Test-gate named the six suites now exercised (including the new mechanism); its unmodelled runtime paths remain covered by inherited acceptance where declared, not by a claim of complete static coverage. Quality-delta exits 2 because ignored reference sources enter its baseline and normalized constructor/cleanup patterns trigger duplication. The hook rows were examined: the new types are used and the tests run; typed Arc/Mutex constructors do not warrant a shared abstraction. The macro change adds one render-boundary statement. No quality-gate pass is claimed.

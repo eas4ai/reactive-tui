@@ -6,11 +6,7 @@ use std::sync::{Arc, Mutex};
 /// Thread-safe hook context for managing component state and effects
 #[derive(Clone)]
 pub struct Hooks {
-    /// Current hook index for ordering
-    index: Arc<Mutex<usize>>,
-
-    /// Storage for hook state
-    storage: Arc<Mutex<Vec<Box<dyn Any + Send + Sync>>>>,
+    state: Arc<Mutex<HookState>>,
 
     /// Active effects for this component
     effects: Arc<Mutex<Vec<EffectId>>>,
@@ -19,60 +15,115 @@ pub struct Hooks {
     contexts: Arc<Mutex<HashMap<TypeId, Box<dyn Any + Send + Sync>>>>,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum HookKind {
+    Signal,
+    Memo,
+    Reducer,
+    Previous,
+}
+
+struct HookSlot {
+    kind: HookKind,
+    value: Box<dyn Any + Send + Sync>,
+}
+
+#[derive(Default)]
+struct HookState {
+    index: usize,
+    slots: Vec<HookSlot>,
+    expected_count: Option<usize>,
+    rendering: bool,
+}
+
+/// Render boundary used by generated components.
+#[doc(hidden)]
+pub struct HookRender {
+    state: Arc<Mutex<HookState>>,
+}
+
+impl Drop for HookRender {
+    fn drop(&mut self) {
+        let mut state = self.state.lock().expect("hook state lock poisoned");
+        state.rendering = false;
+        if std::thread::panicking() {
+            return;
+        }
+        let count = state.index;
+        let expected = state.expected_count.get_or_insert(count);
+        let mismatch = *expected != count;
+        drop(state);
+        assert!(!mismatch, "hook count changed between renders");
+    }
+}
+
 impl Hooks {
     /// Create a new hooks context
     pub fn new() -> Self {
         Self {
-            index: Arc::new(Mutex::new(0)),
-            storage: Arc::new(Mutex::new(Vec::new())),
+            state: Arc::new(Mutex::new(HookState::default())),
             effects: Arc::new(Mutex::new(Vec::new())),
             contexts: Arc::new(Mutex::new(HashMap::new())),
         }
     }
 
-    /// Reset hook index for new render
-    pub fn reset(&self) {
-        if let Ok(mut index) = self.index.lock() {
-            *index = 0;
-        } else {
-            log::error!("Failed to acquire hook index lock during reset");
+    /// Begin a generated render, retaining positional state from prior renders.
+    /// Panics on overlapping renders or a changed hook count, kind, or type.
+    #[doc(hidden)]
+    pub fn begin_render(&self) -> HookRender {
+        let mut state = self.state.lock().expect("hook state lock poisoned");
+        if state.rendering {
+            drop(state);
+            panic!("overlapping renders on the same hook context");
+        }
+        state.index = 0;
+        state.rendering = true;
+        HookRender {
+            state: Arc::clone(&self.state),
         }
     }
 
-    /// Get or create storage at current index
+    /// Reset positional indexing for a manually managed render.
+    /// Calls must keep the same order and types. Generated components also
+    /// validate the completed render's hook count automatically.
+    pub fn reset(&self) {
+        let mut state = self.state.lock().expect("hook state lock poisoned");
+        if state.rendering {
+            drop(state);
+            panic!("cannot reset hooks during a generated render");
+        }
+        state.index = 0;
+    }
+
     fn get_or_create_storage<T: Send + Sync + 'static>(
         &self,
-        init: impl FnOnce() -> T,
+        kind: HookKind,
+        initial: T,
     ) -> Arc<Mutex<T>> {
-        // Use try_lock to avoid deadlock, with fallback behavior
-        let index_result = self.index.try_lock();
-        let storage_result = self.storage.try_lock();
-
-        match (index_result, storage_result) {
-            (Ok(mut index), Ok(mut storage)) => {
-                if *index >= storage.len() {
-                    let value = Arc::new(Mutex::new(init()));
-                    storage.push(Box::new(value.clone()));
-                    *index += 1;
-                    value
-                } else {
-                    let stored = &storage[*index];
-                    *index += 1;
-
-                    if let Some(arc) = stored.downcast_ref::<Arc<Mutex<T>>>() {
-                        arc.clone()
-                    } else {
-                        log::error!("Type mismatch in hook storage, creating new value");
-                        Arc::new(Mutex::new(init()))
-                    }
-                }
+        let mut state = self.state.lock().expect("hook state lock poisoned");
+        let index = state.index;
+        let value = if let Some(slot) = state.slots.get(index) {
+            let existing = slot.value.downcast_ref::<Arc<Mutex<T>>>();
+            if slot.kind != kind || existing.is_none() {
+                drop(state);
+                panic!("hook kind or type changed at slot {index}");
             }
-            _ => {
-                log::error!("Failed to acquire hook storage locks, creating isolated value");
-                // Fallback: create isolated value (not ideal but prevents panic)
-                Arc::new(Mutex::new(init()))
+            Arc::clone(existing.expect("hook type checked above"))
+        } else {
+            if state.rendering && state.expected_count.is_some() {
+                drop(state);
+                panic!("hook count increased at slot {index}");
             }
-        }
+            let value = Arc::new(Mutex::new(initial));
+            state.slots.push(HookSlot {
+                kind,
+                value: Box::new(Arc::clone(&value)),
+            });
+            value
+        };
+        state.index += 1;
+        drop(state);
+        value
     }
 
     /// Cleanup all effects
@@ -186,15 +237,17 @@ pub fn use_signal<T: Send + Sync + Clone + Default + 'static>(
     hooks: &Hooks,
     initial: T,
 ) -> ThreadSafeSignal<T> {
-    let initial_clone = initial.clone();
-    let signal = hooks.get_or_create_storage(|| ThreadSafeSignal::new(initial));
-    signal
-        .lock()
-        .map(|guard| guard.clone())
-        .unwrap_or_else(|_| {
-            log::warn!("Signal lock poisoned in use_signal, returning default");
-            ThreadSafeSignal::new(initial_clone)
-        })
+    use_signal_kind(hooks, initial, HookKind::Signal)
+}
+
+fn use_signal_kind<T: Send + Sync + Clone + Default + 'static>(
+    hooks: &Hooks,
+    initial: T,
+    kind: HookKind,
+) -> ThreadSafeSignal<T> {
+    let signal = hooks.get_or_create_storage(kind, ThreadSafeSignal::new(initial));
+    let result = signal.lock().expect("hook signal lock poisoned").clone();
+    result
 }
 
 /// Run a side effect (thread-safe version)
@@ -270,7 +323,7 @@ where
     A: Send + Sync + 'static,
     F: Fn(&S, A) -> S + Send + Sync + 'static,
 {
-    let state = use_signal(hooks, initial);
+    let state = use_signal_kind(hooks, initial, HookKind::Reducer);
     let state_clone = state.clone();
     let reducer = Arc::new(reducer);
     let reducer_clone = Arc::clone(&reducer);
@@ -286,7 +339,7 @@ where
 
 /// Hook for managing previous value (thread-safe version)
 pub fn use_previous<T: Clone + Send + Sync + 'static>(hooks: &Hooks, value: T) -> Option<T> {
-    let prev: Arc<Mutex<Option<T>>> = hooks.get_or_create_storage(|| None::<T>);
+    let prev: Arc<Mutex<Option<T>>> = hooks.get_or_create_storage(HookKind::Previous, None::<T>);
     let result = {
         match prev.lock() {
             Ok(mut prev_guard) => {
@@ -303,7 +356,8 @@ pub fn use_previous<T: Clone + Send + Sync + 'static>(hooks: &Hooks, value: T) -
     result
 }
 
-/// Create a memoized computed value
+/// Recompute once per call (normally once per render), retaining the output signal.
+/// There is no dependency list; only changed values notify subscribers.
 pub fn use_memo<T>(
     hooks: &Hooks,
     compute: impl Fn() -> T + Send + Sync + 'static,
@@ -311,13 +365,41 @@ pub fn use_memo<T>(
 where
     T: Clone + PartialEq + Send + Sync + Default + 'static,
 {
-    // Compute and return a reactive signal
-    use_signal(hooks, compute())
+    let value = compute();
+    let signal = use_signal_kind(hooks, value.clone(), HookKind::Memo);
+    signal.set(value);
+    signal
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn repeated_frames_keep_a_bounded_slot_count() {
+        let hooks = Hooks::new();
+        for n in 0..1000 {
+            let _frame = hooks.begin_render();
+            let state = use_signal(&hooks, 0usize);
+            assert_eq!(state.get(), n);
+            state.set(n + 1);
+            assert_eq!(use_memo(&hooks, move || n).get(), n);
+            assert_eq!(use_previous(&hooks, n), n.checked_sub(1));
+        }
+        assert_eq!(hooks.state.lock().unwrap().slots.len(), 3);
+    }
+
+    #[test]
+    fn overlapping_frames_fail_without_poisoning_state() {
+        let hooks = Hooks::new();
+        let frame = hooks.begin_render();
+        assert!(std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            hooks.begin_render()
+        }))
+        .is_err());
+        drop(frame);
+        let _next = hooks.begin_render();
+    }
 
     #[test]
     fn test_thread_safe_signal() {
