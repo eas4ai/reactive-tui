@@ -61,3 +61,16 @@ Koffi-layout and migration-omission demonstrations reject the stated violations;
 the restored gate passed in the committed ABI-001 receipt. Those demonstrations
 still apply to the clarified wording. No mechanism mismatch found; no code
 changed during this review.
+
+## ABI-002 mechanism review after sentence clarification
+
+The revised requirement separates C/C++ compilation from boundary round-trips;
+its obligations and falsifier are unchanged. Read check-c-binding-abi.py and
+binding_abi_consumer.c: the compiler-backed audit runs before native calls,
+both C11 and C++17 compile with strict diagnostics, and PTY runs exercise
+capability canaries, terminal mode, Unicode/RGB/attributes, resize/render,
+legacy aliases, consumed children, owned clones and string release. The safe
+wrong-heading-alias demonstration fails its observable class assertion; the
+restored C and C++ consumers passed in the committed ABI-002 evidence. The
+independent layout violations also fail before invocation. No mechanism mismatch
+found; no code changed during this review.
