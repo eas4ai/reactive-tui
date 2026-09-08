@@ -90,3 +90,7 @@ counting tests held it. Added that same guard to every remaining global-cleanup
 test. Concurrent registration still spawns ten workers within its guarded test;
 no concurrency or lifecycle assertion was disabled. Five repeated executions of
 the eight-test production_readiness_test binary passed after the repair.
+
+## API-003 mechanism baseline
+
+The five new hook tests all failed against the existing code: generated renders reset state, memo handles stayed stale, and type, count and kind violations were accepted. These are safe Rust failure demonstrations. The corrected cases retain state for 1,000 renders and retain memo handles across value changes.
