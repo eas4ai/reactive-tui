@@ -1,5 +1,9 @@
 # Binding ABI compatibility review
 
+commit: 2af681c3194fa33728d6a2524f0dff1f511c3345
+findings:
+  - open: ABI-001 audit report introduction still describes baseline failures as current and says no declarations were removed; distinguish historical findings from the repaired contract.
+
 ## Work tracking
 
 - Complete: establish the commitment, capture the failing baseline, and record compatibility decisions.
@@ -91,3 +95,58 @@ restored combined runner passed all nine commands. The earlier specification
 lint failure and corrected pass also demonstrate inherited failure propagation.
 Ripwire located the new runner with cyclomatic complexity 9; its qualified
 edit-check lookup did not resolve the symbol and is not claimed as a pass.
+
+## Final code review
+
+Read the native builder diff, nullable callback signature, TypeScript loader,
+terminal/surface/renderer/component/builders, package exports, native consumers,
+compiler probe, loader probe, migration guides and audit report. The audit report
+needs the documentation correction recorded above. No other blocking finding was
+identified in the repaired paths.
+
+Attacked allocation ownership across builder/component handles: repr(transparent)
+provides their shared Element layout; array aliases reject null/duplicate children
+before consumption; Rust-backed clones survive parent destruction. TypeScript
+marks builders/children consumed before consuming calls, guards self-ownership,
+frees owned strings through Rust, and invalidates borrowed renderer views after
+resize/disposal. Constructor property errors dispose the new Component. Raw FFI
+callers still must supply valid live pointers and retained callback lifetimes.
+
+Attacked boundary values and agreement between tools: scalar, RGB, unsigned
+coordinates, NUL and disposed-handle validation match the documented wrapper
+behavior. Independent rustc function-item inference is not derived from the C
+signature; field types, offsets, sizes and enum values are compared separately.
+The loaded Koffi interface is also inspected before consumer invocation. The
+original native snapshot and complete old declaration inventories guard against
+quiet deletion. The twelve recorded violation demonstrations cover these checks
+and inherited failure/coverage/dependency propagation.
+
+Checked build/distribution: clean dist generation prevents retired JS artifacts;
+ordinary downstream declarations compile without requiring resolveJsonModule;
+package metadata locks Koffi and does not download a native library. Linux is the
+verified platform; other recognized library suffixes are not cross-platform proof.
+Only the required consumer workflows have runtime proof, not every legacy export.
+The known legacy signal destructor defect remains explicitly documented/backlogged.
+
+All 34 requirements have passing committed evidence. Earlier pre-commit Ripwire
+quality/test-gate failures remain recorded with their FFI/scope limitations; the
+final rerun exits zero against unchanged HEAD and adds no proof for the committed
+diff. It was not used to dismiss those earlier findings or reset their baseline.
+
+## Production rules self-audit
+
+1. Outcome and paths are mapped by the initial inventories and judged decisions.
+2. Native changes are limited to the shared layout guarantee and real aliases;
+   unsupported wrappers are explicitly retired rather than replaced with stubs.
+3. Generation/schema and boundary helpers have one purpose; ownership remains explicit.
+4. Original Rust contracts are compiler-checked; consumer changes have migration inventories.
+5. Native errors propagate; output storage and pointer ownership are explicit; no secrets added.
+6. Input validation covers safe wrapper boundaries; raw native pointers remain a caller contract.
+7. No persistent-data migration is introduced; constructor/disposal/consumption paths were reviewed.
+8. Native calls are synchronous, tests have deadlines, and borrowed/owned resources have tested cleanup.
+9. Work tracking retains one in-progress item until the documentation finding and final review close.
+10. C/C++, TypeScript, downstream types, lint, package output and all inherited checks ran and passed.
+11. Failed demonstrations and the specification-lint regression remain in history; platform/native limits are stated.
+12. Scope and compatibility decisions are recorded; the separate legacy signal issue is captured for the developer.
+13. The stale audit introduction needs revision before delivery; the code review found no other blocker.
+14. The documentation correction must identify the historical baseline and current result in plain language.
