@@ -11,4 +11,4 @@ Remove the thread-local name cache and its copied version counter. Resolve names
 
 ## Realized by
 
-(none yet: recorded, not built)
+- 27b23aed1c1e6a7ba95f48f30f3daaa72ad68e66 fix: isolate registry lookup using shared authoritative names
