@@ -75,9 +75,10 @@ impl MenuAction {
 }
 
 /// Type of separator to display after a menu item
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Default)]
 pub enum MenuSeparator {
     /// No separator
+    #[default]
     None,
     /// Simple line separator
     Line,
@@ -93,16 +94,11 @@ pub enum MenuSeparator {
     Space,
 }
 
-impl Default for MenuSeparator {
-    fn default() -> Self {
-        Self::None
-    }
-}
-
 /// Type of menu item
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Default)]
 pub enum MenuItemType {
     /// Regular clickable item
+    #[default]
     Action,
     /// Item with submenu
     Submenu,
@@ -120,12 +116,6 @@ pub enum MenuItemType {
     },
     /// Separator only (no text)
     Separator,
-}
-
-impl Default for MenuItemType {
-    fn default() -> Self {
-        Self::Action
-    }
 }
 
 /// A single menu item
@@ -223,7 +213,7 @@ pub struct MenuStyle {
 }
 
 /// Placement options for popup menus
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Default)]
 pub enum PopupPlacement {
     /// Below the trigger element
     Below,
@@ -234,13 +224,8 @@ pub enum PopupPlacement {
     /// To the right of the trigger element
     Right,
     /// Automatically choose best placement
+    #[default]
     Auto,
-}
-
-impl Default for PopupPlacement {
-    fn default() -> Self {
-        Self::Auto
-    }
 }
 
 /// Create a menu item with fluent configuration

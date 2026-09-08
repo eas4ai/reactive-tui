@@ -387,11 +387,7 @@ impl Stack {
             }
 
             let remaining_width = available_width.saturating_sub(fixed_width_total);
-            let flex_width = if flex_children > 0 {
-                remaining_width / flex_children
-            } else {
-                0
-            };
+            let flex_width = remaining_width.checked_div(flex_children).unwrap_or(0);
 
             // Second pass: assign final sizes
             for child in &props.children {
@@ -446,11 +442,7 @@ impl Stack {
         }
 
         let remaining_height = available_height.saturating_sub(fixed_height_total);
-        let flex_height = if flex_children > 0 {
-            remaining_height / flex_children
-        } else {
-            0
-        };
+        let flex_height = remaining_height.checked_div(flex_children).unwrap_or(0);
 
         // Second pass: assign final sizes
         for child in &props.children {

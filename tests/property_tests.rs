@@ -182,8 +182,8 @@ proptest! {
         prop_assert_eq!(a + b, b + a); // Addition is commutative
         prop_assert_eq!(a * b, b * a); // Multiplication is commutative
 
-        if b != 0 {
-            prop_assert_eq!(a / b * b + a % b, a); // Division property
+        if let Some(quotient) = a.checked_div(b) {
+            prop_assert_eq!(quotient * b + a % b, a); // Division property
         }
     }
 

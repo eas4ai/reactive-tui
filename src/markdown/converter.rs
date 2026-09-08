@@ -246,7 +246,6 @@ pub fn word_wrap_styled_runs(runs: &[StyledRun], max_width: usize) -> Vec<Styled
                 if !current_line.is_empty() {
                     lines.push(StyledLine { runs: current_line });
                     current_line = Vec::new();
-                    current_width = 0;
                 }
 
                 // Add word to new line

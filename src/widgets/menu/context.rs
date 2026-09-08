@@ -160,7 +160,7 @@ impl ContextMenuState {
 #[derive(Default)]
 pub struct ContextMenu {
     popup_menu: PopupMenu,
-    on_item_selected: Option<Arc<dyn Fn(&str) + Send + Sync>>,
+    on_item_selected: Option<super::TextCallback>,
     on_show: Option<Arc<dyn Fn(u16, u16) + Send + Sync>>,
     on_hide: Option<Arc<dyn Fn() + Send + Sync>>,
 }

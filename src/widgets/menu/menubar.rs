@@ -162,7 +162,7 @@ impl MenuBarState {
 #[derive(Default)]
 pub struct MenuBar {
     state: MenuBarState,
-    on_item_selected: Option<Arc<dyn Fn(&str) + Send + Sync>>,
+    on_item_selected: Option<super::TextCallback>,
     on_dropdown_opened: Option<Arc<dyn Fn(usize) + Send + Sync>>,
     on_dropdown_closed: Option<Arc<dyn Fn() + Send + Sync>>,
 }

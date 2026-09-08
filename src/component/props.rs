@@ -92,7 +92,7 @@ mod tests {
         assert!(any_ref.downcast_ref::<EmptyProps>().is_some());
 
         // Should have default
-        let default_props = EmptyProps::default();
+        let default_props = EmptyProps;
         assert_eq!(props1, default_props);
 
         // Should use default_props trait method

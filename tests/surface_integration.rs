@@ -78,7 +78,12 @@ mod tests {
         println!("  - Text wrapping: ✅");
         println!("  - Emoji handling: ✅");
 
-        // Test passes if no panics occurred
-        assert!(true);
+        assert_eq!(surface.dims(), (80, 24));
+        assert_eq!(width, 15);
+        assert!(lines_written > 1);
+        assert_eq!(surface.get(60, 2).ch, '█');
+        assert_eq!(surface.get(30, 8).ch, '╭');
+        assert_eq!(surface.get(55, 10).bg, Rgba::new(0.8, 0.4, 0.4, 1.0));
+        assert_eq!(surface.get(2, 20).ch, ' ');
     }
 }

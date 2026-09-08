@@ -634,11 +634,9 @@ impl FileExplorer {
         );
 
         // Search box (placeholder)
-        if props.search_query.is_some() {
-            toolbar_children.push(
-                Element::text(format!("Search: {}", props.search_query.as_ref().unwrap()))
-                    .with_class("search-box"),
-            );
+        if let Some(query) = &props.search_query {
+            toolbar_children
+                .push(Element::text(format!("Search: {query}")).with_class("search-box"));
         }
 
         // Status info

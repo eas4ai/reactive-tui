@@ -415,7 +415,7 @@ mod tests {
         assert!(spans.len() >= 2);
 
         // Find the two text spans
-        let text_spans: Vec<_> = spans.iter().filter(|s| s.text.trim().len() > 0).collect();
+        let text_spans: Vec<_> = spans.iter().filter(|s| !s.text.trim().is_empty()).collect();
         assert_eq!(text_spans.len(), 2);
         assert_eq!(text_spans[0].text, "AAA");
         assert_eq!(text_spans[0].fg, fg1);

@@ -316,7 +316,7 @@ mod tests {
 
         // First line should have 'fn' keyword highlighted
         let first_line = &highlighted[0];
-        assert!(first_line.runs.len() > 0);
+        assert!(!first_line.runs.is_empty());
 
         // Verify caching works
         let visible = highlighter.highlight_lines(code, 0, 2);

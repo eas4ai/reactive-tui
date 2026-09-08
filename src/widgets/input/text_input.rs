@@ -1673,9 +1673,10 @@ mod tests {
     fn test_text_input_basic() {
         let mut input = TextInput::new(TextInputProps::default());
         let mut props = TextInputProps::default();
-        let mut state = TextInputState::default();
-
-        state.is_focused = true;
+        let mut state = TextInputState {
+            is_focused: true,
+            ..TextInputState::default()
+        };
 
         // Type 'H'
         let event = Event::Key(KeyEvent {

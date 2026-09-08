@@ -1227,7 +1227,7 @@ mod tests {
 
     #[test]
     fn test_table_creation() {
-        let table = Table::default();
+        let table = Table;
         let props = create_test_props();
         let state = TableState::default();
         let element = table.render(&props, &state);
@@ -1240,7 +1240,7 @@ mod tests {
 
     #[test]
     fn test_column_width_calculation() {
-        let table = Table::default();
+        let table = Table;
         let props = create_test_props();
         let widths = table.calculate_column_widths(&props, 200);
 
@@ -1251,7 +1251,7 @@ mod tests {
 
     #[test]
     fn test_row_selection() {
-        let table = Table::default();
+        let table = Table;
         let props = create_test_props();
         let mut state = TableState::default();
 
@@ -1268,13 +1268,14 @@ mod tests {
 
     #[test]
     fn test_sorting() {
-        let table = Table::default();
+        let table = Table;
         let props = create_test_props();
-        let mut state = TableState::default();
-
-        // Sort by first column (name)
-        state.sort_column = Some(0);
-        state.sort_ascending = true;
+        // Sort by first column (name).
+        let state = TableState {
+            sort_column: Some(0),
+            sort_ascending: true,
+            ..TableState::default()
+        };
 
         let sorted_indices = table.sort_rows(&props, &state);
         assert_eq!(sorted_indices.len(), 3);
@@ -1285,7 +1286,7 @@ mod tests {
 
     #[test]
     fn test_keyboard_navigation() {
-        let table = Table::default();
+        let table = Table;
         let props = create_test_props();
         let mut state = TableState::default();
 
@@ -1343,7 +1344,7 @@ mod tests {
 
     #[test]
     fn test_event_handling() {
-        let mut table = Table::default();
+        let mut table = Table;
         let mut props = create_test_props();
         let mut state = TableState::default();
 
@@ -1364,7 +1365,7 @@ mod tests {
 
     #[test]
     fn test_component_update() {
-        let mut table = Table::default();
+        let mut table = Table;
         let props = create_test_props();
         let mut state = TableState::default();
 

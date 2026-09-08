@@ -317,7 +317,7 @@ impl HitTest {
         self.root.query(point, &mut results);
 
         // Sort by z-index (highest first) and return the top one
-        results.sort_by(|a, b| b.1.cmp(&a.1));
+        results.sort_by_key(|entry| std::cmp::Reverse(entry.1));
         results.first().map(|(node_id, _)| *node_id)
     }
 
@@ -327,7 +327,7 @@ impl HitTest {
         self.root.query(point, &mut results);
 
         // Sort by z-index (highest first)
-        results.sort_by(|a, b| b.1.cmp(&a.1));
+        results.sort_by_key(|entry| std::cmp::Reverse(entry.1));
         results.into_iter().map(|(node_id, _)| node_id).collect()
     }
 
@@ -337,7 +337,7 @@ impl HitTest {
         self.root.query_bounds(&bounds, &mut results);
 
         // Sort by z-index (highest first)
-        results.sort_by(|a, b| b.1.cmp(&a.1));
+        results.sort_by_key(|entry| std::cmp::Reverse(entry.1));
         results.into_iter().map(|(node_id, _)| node_id).collect()
     }
 

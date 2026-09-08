@@ -15,7 +15,7 @@ fn HelloWorld(hooks: &Hooks) -> Element {
 #[component]
 fn Counter(hooks: &Hooks) -> Element {
     let count = use_signal(hooks, 0);
-    Element::text(&format!("Count: {}", count.get()))
+    Element::text(format!("Count: {}", count.get()))
 }
 
 /// Component with props
@@ -40,6 +40,49 @@ fn UserCard(hooks: &Hooks, id: u32, name: String, email: String, active: bool) -
         if *active { "Active" } else { "Inactive" }
     );
     Element::text(&display_text)
+}
+
+/// Integration test function (not a unit test)
+pub fn run_component_macro_integration_test() -> std::result::Result<(), Box<dyn std::error::Error>>
+{
+    println!("🎨 Testing Component Macro Integration");
+
+    // Test no-props component
+    let hello_element = HelloWorld::element();
+    println!(
+        "✅ No-props component: {:?}",
+        hello_element.component_name()
+    );
+
+    // Test component with props
+    let greeting_element = Greeting::element("Test User".to_string(), Some(42));
+    println!(
+        "✅ Props component: {:?}",
+        greeting_element.component_name()
+    );
+
+    // Test complex props
+    let user_element = UserCard::element(
+        123,
+        "Jane Smith".to_string(),
+        "jane@test.com".to_string(),
+        true,
+    );
+    println!(
+        "✅ Complex props component: {:?}",
+        user_element.component_name()
+    );
+
+    println!("🎉 All component macro tests passed!");
+    println!();
+    println!("📊 Component Macro Benefits:");
+    println!("  🚀 70%+ less boilerplate compared to manual Component implementation");
+    println!("  🔧 Seamless integration with existing reactive-tui architecture");
+    println!("  ⚡ Zero runtime overhead - pure compile-time transformation");
+    println!("  🎯 Full type safety with automatic Props generation");
+    println!("  🌟 iocraft-style ergonomics with reactive-tui's advanced features");
+
+    Ok(())
 }
 
 #[cfg(test)]
@@ -98,7 +141,7 @@ mod tests {
         assert_eq!(props.id, 1);
         assert_eq!(props.name, "John Doe");
         assert_eq!(props.email, "john@example.com");
-        assert_eq!(props.active, true);
+        assert!(props.active);
     }
 
     #[test]
@@ -162,47 +205,4 @@ mod tests {
         let needs_update = instance.update_props(new_props);
         assert!(needs_update); // Should need update due to prop change
     }
-}
-
-/// Integration test function (not a unit test)
-pub fn run_component_macro_integration_test() -> std::result::Result<(), Box<dyn std::error::Error>>
-{
-    println!("🎨 Testing Component Macro Integration");
-
-    // Test no-props component
-    let hello_element = HelloWorld::element();
-    println!(
-        "✅ No-props component: {:?}",
-        hello_element.component_name()
-    );
-
-    // Test component with props
-    let greeting_element = Greeting::element("Test User".to_string(), Some(42));
-    println!(
-        "✅ Props component: {:?}",
-        greeting_element.component_name()
-    );
-
-    // Test complex props
-    let user_element = UserCard::element(
-        123,
-        "Jane Smith".to_string(),
-        "jane@test.com".to_string(),
-        true,
-    );
-    println!(
-        "✅ Complex props component: {:?}",
-        user_element.component_name()
-    );
-
-    println!("🎉 All component macro tests passed!");
-    println!();
-    println!("📊 Component Macro Benefits:");
-    println!("  🚀 70%+ less boilerplate compared to manual Component implementation");
-    println!("  🔧 Seamless integration with existing reactive-tui architecture");
-    println!("  ⚡ Zero runtime overhead - pure compile-time transformation");
-    println!("  🎯 Full type safety with automatic Props generation");
-    println!("  🌟 iocraft-style ergonomics with reactive-tui's advanced features");
-
-    Ok(())
 }

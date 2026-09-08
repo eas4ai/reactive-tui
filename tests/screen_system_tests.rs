@@ -288,6 +288,6 @@ fn test_easing_functions() {
 
         // Test mid-point
         let mid_result = easing.apply(0.5);
-        assert!(mid_result >= -0.1 && mid_result <= 1.5); // Allow for back easing and bounce overshoot
+        assert!((-0.1..=1.5).contains(&mid_result)); // Allow for back easing and bounce overshoot
     }
 }

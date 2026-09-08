@@ -213,14 +213,15 @@ fn test_chart_configuration() {
 fn test_chart_axis_configuration() {
     println!("🧪 Testing Chart Axis Configuration");
 
-    let mut x_axis = ChartAxis::default();
-    x_axis.title = Some("X Axis".to_string());
-    x_axis.min = Some(0.0);
-    x_axis.max = Some(100.0);
-    x_axis.show_grid = true;
-    x_axis.show_labels = true;
-    x_axis.tick_count = 10;
-    x_axis.custom_labels = vec!["Start".to_string(), "Middle".to_string(), "End".to_string()];
+    let x_axis = ChartAxis {
+        title: Some("X Axis".to_string()),
+        min: Some(0.0),
+        max: Some(100.0),
+        show_grid: true,
+        show_labels: true,
+        tick_count: 10,
+        custom_labels: vec!["Start".to_string(), "Middle".to_string(), "End".to_string()],
+    };
 
     assert_eq!(x_axis.title, Some("X Axis".to_string()));
     assert_eq!(x_axis.min, Some(0.0));

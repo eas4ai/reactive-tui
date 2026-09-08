@@ -724,7 +724,7 @@ mod tests {
 
     #[test]
     fn test_progress_bar_creation() {
-        let progress_bar = ProgressBar::default();
+        let progress_bar = ProgressBar;
         let props = create_test_props();
         let state = ProgressBarState::default();
 
@@ -738,7 +738,7 @@ mod tests {
 
     #[test]
     fn test_percentage_calculation() {
-        let progress_bar = ProgressBar::default();
+        let progress_bar = ProgressBar;
         let props = create_test_props();
 
         let percentage = progress_bar.calculate_percentage(&props);
@@ -758,7 +758,7 @@ mod tests {
 
     #[test]
     fn test_text_formatting() {
-        let progress_bar = ProgressBar::default();
+        let progress_bar = ProgressBar;
         let props = create_test_props();
 
         let text = progress_bar.format_text(&props);
@@ -779,7 +779,7 @@ mod tests {
 
     #[test]
     fn test_bar_creation() {
-        let progress_bar = ProgressBar::default();
+        let progress_bar = ProgressBar;
         let props = ProgressBarProps {
             value: 50.0,
             width: Some(10),
@@ -798,7 +798,7 @@ mod tests {
 
     #[test]
     fn test_indeterminate_bar() {
-        let progress_bar = ProgressBar::default();
+        let progress_bar = ProgressBar;
         let state = ProgressBarState {
             indeterminate_position: 25.0,
             ..Default::default()
@@ -812,7 +812,7 @@ mod tests {
 
     #[test]
     fn test_segmented_bar() {
-        let progress_bar = ProgressBar::default();
+        let progress_bar = ProgressBar;
         let props = ProgressBarProps {
             value: 30.0,
             segments: Some(10),
@@ -826,7 +826,7 @@ mod tests {
 
     #[test]
     fn test_animation_update() {
-        let progress_bar = ProgressBar::default();
+        let progress_bar = ProgressBar;
         let props = ProgressBarProps {
             animated: true,
             indeterminate: true,
@@ -845,7 +845,7 @@ mod tests {
 
     #[test]
     fn test_completion_detection() {
-        let progress_bar = ProgressBar::default();
+        let progress_bar = ProgressBar;
         let props = ProgressBarProps {
             value: 100.0,
             max_value: 100.0,
@@ -887,7 +887,7 @@ mod tests {
 
     #[test]
     fn test_component_update() {
-        let mut progress_bar = ProgressBar::default();
+        let mut progress_bar = ProgressBar;
         let props = create_test_props();
         let mut state = ProgressBarState::default();
 
@@ -906,7 +906,7 @@ mod tests {
 
     #[test]
     fn test_event_handling() {
-        let mut progress_bar = ProgressBar::default();
+        let mut progress_bar = ProgressBar;
         let mut props = create_test_props();
         let mut state = ProgressBarState::default();
 

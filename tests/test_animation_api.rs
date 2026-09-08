@@ -17,11 +17,11 @@ fn test_animation_api_accessibility() {
     let _val = AnimationValue::pixels(10.0);
 
     // Config types
-    let _config = AnimationConfig::default();
+    let config = AnimationConfig::default();
     let _spring = SpringConfig::gentle();
 
     // Easing
-    let _ease = EasingFunction::Linear;
+    let ease = EasingFunction::Linear;
 
     // Builder
     let _builder = Animation::builder("test");
@@ -34,5 +34,7 @@ fn test_animation_api_accessibility() {
     let _ = translate_x("test", 0.0, 100.0, std::time::Duration::from_secs(1));
     let _ = keyframe_fade_in(1000);
 
-    assert!(true); // If we get here, all types are accessible
+    assert_eq!(config.loop_mode, LoopMode::None);
+    assert_eq!(config.speed, 1.0);
+    assert_eq!(ease.apply(0.5), 0.5);
 }

@@ -436,12 +436,12 @@ mod tests {
     fn test_dialog_utils_calculate_size() {
         // Test small content
         let (width, height) = DialogUtils::calculate_size(30, 20, 100);
-        assert!(width >= 20 && width <= 100);
+        assert!((20..=100).contains(&width));
         assert!(height >= 8);
 
         // Test large content
         let (width, height) = DialogUtils::calculate_size(500, 40, 120);
-        assert!(width >= 40 && width <= 120);
+        assert!((40..=120).contains(&width));
         assert!(height <= 40);
 
         // Test minimum constraints

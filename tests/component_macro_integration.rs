@@ -14,7 +14,7 @@ fn HelloWorld(hooks: &Hooks) -> Element {
 #[component]
 fn Counter(hooks: &Hooks) -> Element {
     let count = use_signal(hooks, 0);
-    Element::text(&format!("Count: {}", count.get()))
+    Element::text(format!("Count: {}", count.get()))
 }
 
 /// Component with props

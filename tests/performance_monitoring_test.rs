@@ -203,11 +203,11 @@ fn test_render_stats_component_integration() {
         comp_metrics.active_components
     );
     assert_eq!(
-        perf_metrics.total_components_created as u64,
+        perf_metrics.total_components_created,
         comp_metrics.total_created
     );
     assert_eq!(
-        perf_metrics.total_components_destroyed as u64,
+        perf_metrics.total_components_destroyed,
         comp_metrics.total_destroyed
     );
 

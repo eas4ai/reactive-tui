@@ -7,9 +7,10 @@ use std::any::Any;
 use std::sync::Arc;
 
 /// Placement options for popup menus
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Default)]
 pub enum PopupPlacement {
     /// Place popup at cursor position
+    #[default]
     Cursor,
     /// Place popup at specific coordinates
     Position {
@@ -65,12 +66,6 @@ pub enum PopupPlacement {
         /// Area height
         height: u16,
     },
-}
-
-impl Default for PopupPlacement {
-    fn default() -> Self {
-        Self::Cursor
-    }
 }
 
 /// Properties for PopupMenu component
@@ -219,7 +214,7 @@ impl PopupMenuState {
 #[derive(Default)]
 pub struct PopupMenu {
     state: PopupMenuState,
-    on_item_selected: Option<Arc<dyn Fn(&str) + Send + Sync>>,
+    on_item_selected: Option<super::TextCallback>,
     on_show: Option<Arc<dyn Fn() + Send + Sync>>,
     on_hide: Option<Arc<dyn Fn() + Send + Sync>>,
 }

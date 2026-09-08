@@ -192,6 +192,10 @@ impl MenuStyle {
 
 /// Predefined menu themes using CSS utility classes
 #[derive(Clone, Debug, PartialEq)]
+#[expect(
+    clippy::large_enum_variant,
+    reason = "Preserve the public Custom(MenuStyle) constructor without adding allocation"
+)]
 pub enum MenuTheme {
     /// Default theme
     Default,

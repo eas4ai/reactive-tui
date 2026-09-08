@@ -451,9 +451,9 @@ impl LayoutManager {
                         style: text_style,
                     });
                 }
-                ElementType::Layout(_) => {
+                ElementType::Layout(_)
                     // Layout nodes might have borders or backgrounds
-                    if layout.size.width > 0.0 && layout.size.height > 0.0 {
+                    if layout.size.width > 0.0 && layout.size.height > 0.0 => {
                         // Extract visual style from CSS classes for background and borders
                         let box_style = if let Some(class) = &meta.element.class {
                             crate::layout::css::visual_style::extract_box_style(class)
@@ -470,7 +470,6 @@ impl LayoutManager {
                             style: box_style,
                         });
                     }
-                }
                 _ => {}
             }
 
@@ -655,7 +654,7 @@ mod tests {
 
         let result = manager.update_node(LayoutKey::new("text1"), element);
         assert!(result.is_ok());
-        assert!(manager.dirty_nodes.len() > 0);
+        assert!(!manager.dirty_nodes.is_empty());
     }
 
     #[test]
@@ -702,6 +701,6 @@ mod tests {
         assert!(result.is_ok());
 
         let ops = result.unwrap();
-        assert!(ops.len() > 0);
+        assert!(!ops.is_empty());
     }
 }

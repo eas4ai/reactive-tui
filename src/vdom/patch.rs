@@ -281,17 +281,9 @@ pub fn apply_patches<A: PatchApplier>(
 
 /// Example patch applier for testing
 #[cfg(test)]
+#[derive(Default)]
 pub struct TestPatchApplier {
     operations: Vec<String>,
-}
-
-#[cfg(test)]
-impl Default for TestPatchApplier {
-    fn default() -> Self {
-        Self {
-            operations: Vec::new(),
-        }
-    }
 }
 
 #[cfg(test)]

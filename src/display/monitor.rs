@@ -135,11 +135,12 @@ impl PerformanceMetrics {
 }
 
 /// Performance modes for user selection
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum PerformanceMode {
     /// Minimize CPU usage, 30 FPS
     PowerSave,
     /// Balanced experience, 60 FPS
+    #[default]
     Balanced,
     /// Smooth animations, 90+ FPS
     Performance,
@@ -170,11 +171,5 @@ impl PerformanceMode {
             Self::Gaming => 0.9,      // Maximum quality
             Self::Auto => 0.6,        // Slight quality preference
         }
-    }
-}
-
-impl Default for PerformanceMode {
-    fn default() -> Self {
-        Self::Balanced
     }
 }

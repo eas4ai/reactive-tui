@@ -55,9 +55,10 @@ pub enum AnimationState {
 }
 
 /// Animation loop behavior
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum LoopMode {
     /// Play once
+    #[default]
     None,
     /// Loop indefinitely
     Infinite,
@@ -65,12 +66,6 @@ pub enum LoopMode {
     Count(u32),
     /// Ping-pong (forward then reverse)
     PingPong,
-}
-
-impl Default for LoopMode {
-    fn default() -> Self {
-        Self::None
-    }
 }
 
 /// Animation runtime state

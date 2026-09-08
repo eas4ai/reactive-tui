@@ -282,9 +282,10 @@ pub struct ModalState {
 }
 
 /// Animation state for modal transitions
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub enum ModalAnimationState {
     /// Modal is completely hidden
+    #[default]
     Hidden,
     /// Modal is animating in (showing)
     Showing,
@@ -292,12 +293,6 @@ pub enum ModalAnimationState {
     Visible,
     /// Modal is animating out (hiding)
     Hiding,
-}
-
-impl Default for ModalAnimationState {
-    fn default() -> Self {
-        Self::Hidden
-    }
 }
 
 /// Resize handle positions for modal dialogs
@@ -771,15 +766,14 @@ impl Component for Modal {
         match event {
             Event::Key(key_event) => {
                 match key_event.code {
-                    KeyCode::Escape => {
-                        if props.closable && props.keyboard_navigation {
+                    KeyCode::Escape
+                        if props.closable && props.keyboard_navigation => {
                             self.close_modal(props, ModalCloseReason::EscapeKey);
                             return EventResult::Consumed;
                         }
-                    }
-                    KeyCode::Tab => {
+                    KeyCode::Tab
                         // Navigate between buttons
-                        if !props.buttons.is_empty() {
+                        if !props.buttons.is_empty() => {
                             let current = state.focused_button.unwrap_or(0);
                             let next = if key_event.modifiers.shift {
                                 if current == 0 {
@@ -793,7 +787,6 @@ impl Component for Modal {
                             state.focused_button = Some(next);
                             return EventResult::Consumed;
                         }
-                    }
                     KeyCode::Enter => {
                         // Activate focused button
                         if let Some(button_index) = state.focused_button {
@@ -808,9 +801,9 @@ impl Component for Modal {
             }
             Event::Mouse(mouse_event) => {
                 match mouse_event.kind {
-                    MouseEventKind::Click => {
+                    MouseEventKind::Click
                         // Check if clicking backdrop to close with proper bounds checking
-                        if props.backdrop_clickable && props.closable {
+                        if props.backdrop_clickable && props.closable => {
                             if let Some(click_result) =
                                 self.hit_test_modal(mouse_event, props, state)
                             {
@@ -845,9 +838,8 @@ impl Component for Modal {
                                 }
                             }
                         }
-                    }
-                    MouseEventKind::Down => {
-                        if props.draggable {
+                    MouseEventKind::Down
+                        if props.draggable => {
                             if let Some(hit_result) = self.hit_test_modal(mouse_event, props, state)
                             {
                                 match hit_result {
@@ -865,7 +857,6 @@ impl Component for Modal {
                                 }
                             }
                         }
-                    }
                     MouseEventKind::Up => {
                         if state.dragging {
                             state.dragging = false;
@@ -877,12 +868,11 @@ impl Component for Modal {
                             return EventResult::Consumed;
                         }
                     }
-                    MouseEventKind::Move => {
-                        if state.dragging && props.draggable {
+                    MouseEventKind::Move
+                        if state.dragging && props.draggable => {
                             // Update position based on mouse movement
                             return EventResult::Consumed;
                         }
-                    }
                     _ => {}
                 }
             }
@@ -1119,7 +1109,7 @@ mod tests {
 
     #[test]
     fn test_keyboard_navigation() {
-        let mut modal = Modal::default();
+        let mut modal = Modal;
         let mut props = ModalProps {
             visible: true,
             buttons: vec![ModalButton::ok(), ModalButton::cancel()],
@@ -1144,7 +1134,7 @@ mod tests {
 
     #[test]
     fn test_escape_key_handling() {
-        let mut modal = Modal::default();
+        let mut modal = Modal;
         let mut props = create_test_props();
         let mut state = ModalState::default();
 
@@ -1211,7 +1201,7 @@ mod tests {
 
     #[test]
     fn test_component_update() {
-        let mut modal = Modal::default();
+        let mut modal = Modal;
         let props = create_test_props();
         let mut state = ModalState::default();
 

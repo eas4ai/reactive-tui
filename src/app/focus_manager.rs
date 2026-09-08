@@ -108,7 +108,7 @@ impl FocusManager {
         self.collect_focusable_children(element, &container_id, &mut focusable_elements);
 
         let context = FocusContext {
-            container_id: container_id,
+            container_id,
             focusable_elements,
             restore_focus: restore,
             restore_to: self.current_focus,

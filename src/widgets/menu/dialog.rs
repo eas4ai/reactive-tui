@@ -7,9 +7,10 @@ use std::any::Any;
 use std::sync::Arc;
 
 /// Type of dialog menu
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Default)]
 pub enum DialogMenuType {
     /// Simple selection dialog with a list of options
+    #[default]
     Selection,
     /// Multi-selection dialog with checkboxes
     MultiSelection,
@@ -19,12 +20,6 @@ pub enum DialogMenuType {
     Input,
     /// Custom dialog with arbitrary menu items
     Custom,
-}
-
-impl Default for DialogMenuType {
-    fn default() -> Self {
-        Self::Selection
-    }
 }
 
 /// Properties for DialogMenu component
@@ -248,10 +243,10 @@ impl DialogMenuState {
 #[derive(Default)]
 pub struct DialogMenu {
     state: DialogMenuState,
-    on_item_selected: Option<Arc<dyn Fn(&str) + Send + Sync>>,
+    on_item_selected: Option<super::TextCallback>,
     on_confirmed: Option<Arc<dyn Fn(Vec<String>) + Send + Sync>>,
     on_cancelled: Option<Arc<dyn Fn() + Send + Sync>>,
-    on_input_submitted: Option<Arc<dyn Fn(&str) + Send + Sync>>,
+    on_input_submitted: Option<super::TextCallback>,
     on_show: Option<Arc<dyn Fn() + Send + Sync>>,
     on_hide: Option<Arc<dyn Fn() + Send + Sync>>,
 }

@@ -1,7 +1,7 @@
 //! Tests for the direct TTY implementation
 
 #[cfg(test)]
-mod tests {
+mod tty_tests {
     use crate::platform::parser::EscapeSequenceParser;
     use crate::platform::{sequences, ColorScheme, KeyCode, TerminalEvent};
 
@@ -17,7 +17,7 @@ mod tests {
                 code: KeyCode::Up, ..
             } => {}
             other => {
-                assert!(false, "Expected Up key event, got: {:?}", other);
+                panic!("Expected Up key event, got: {:?}", other);
             }
         }
 
@@ -30,7 +30,7 @@ mod tests {
         match &events[0] {
             TerminalEvent::Mouse { .. } => {}
             other => {
-                assert!(false, "Expected Mouse event, got: {:?}", other);
+                panic!("Expected Mouse event, got: {:?}", other);
             }
         }
     }
@@ -85,7 +85,7 @@ mod tests {
                 code: KeyCode::Up, ..
             } => {}
             other => {
-                assert!(false, "Expected Up key event, got: {:?}", other);
+                panic!("Expected Up key event, got: {:?}", other);
             }
         }
     }
@@ -103,7 +103,7 @@ mod tests {
                 ..
             } => {}
             other => {
-                assert!(false, "Expected F1 key event, got: {:?}", other);
+                panic!("Expected F1 key event, got: {:?}", other);
             }
         }
 
@@ -113,7 +113,7 @@ mod tests {
         match &events[0] {
             TerminalEvent::PasteStart => {}
             other => {
-                assert!(false, "Expected PasteStart event, got: {:?}", other);
+                panic!("Expected PasteStart event, got: {:?}", other);
             }
         }
     }
@@ -128,7 +128,7 @@ mod tests {
         match &events[0] {
             TerminalEvent::FocusGained => {}
             other => {
-                assert!(false, "Expected FocusGained event, got: {:?}", other);
+                panic!("Expected FocusGained event, got: {:?}", other);
             }
         }
 
@@ -138,7 +138,7 @@ mod tests {
         match &events[0] {
             TerminalEvent::FocusLost => {}
             other => {
-                assert!(false, "Expected FocusLost event, got: {:?}", other);
+                panic!("Expected FocusLost event, got: {:?}", other);
             }
         }
     }
@@ -153,7 +153,7 @@ mod tests {
         match &events[0] {
             TerminalEvent::ColorScheme(ColorScheme::Dark) => {}
             other => {
-                assert!(false, "Expected ColorScheme::Dark event, got: {:?}", other);
+                panic!("Expected ColorScheme::Dark event, got: {:?}", other);
             }
         }
     }
@@ -212,7 +212,7 @@ mod tests {
                 assert!(!modifiers.alt);
             }
             other => {
-                assert!(false, "Expected modified Up key event, got: {:?}", other);
+                panic!("Expected modified Up key event, got: {:?}", other);
             }
         }
     }

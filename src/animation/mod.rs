@@ -1426,7 +1426,7 @@ mod tests {
 
         // Test position calculation
         let pos = spring.calculate_position(0.1, 0.0, 1.0);
-        assert!(pos >= 0.0 && pos <= 1.0);
+        assert!((0.0..=1.0).contains(&pos));
     }
 
     #[test]

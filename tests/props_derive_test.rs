@@ -56,6 +56,45 @@ struct ComplexProps {
     layout: String,
 }
 
+/// Integration test function (not a unit test)
+pub fn run_props_derive_integration_test() -> std::result::Result<(), Box<dyn std::error::Error>> {
+    println!("🎨 Testing Props Derive Macro Integration");
+
+    // Test basic props creation
+    let basic_props = BasicProps::new()
+        .with_enabled(true)
+        .with_message("Integration test".to_string());
+    println!(
+        "✅ Basic props: enabled={}, message='{}'",
+        basic_props.enabled, basic_props.message
+    );
+
+    // Test complex props with builder pattern
+    let button_props = ButtonProps::new()
+        .with_text("Click Me".to_string())
+        .with_variant("primary".to_string())
+        .with_size(24);
+    println!(
+        "✅ Button props: text='{}', variant='{}', size={}",
+        button_props.text, button_props.variant, button_props.size
+    );
+
+    // Test validation
+    let validation_result = button_props.validate();
+    println!("✅ Validation result: {:?}", validation_result);
+
+    println!("🎉 All Props derive macro tests passed!");
+    println!();
+    println!("📊 Props Derive Benefits:");
+    println!("  🚀 80%+ less boilerplate for props structs");
+    println!("  🔧 Automatic Props trait implementation");
+    println!("  ⚡ Fluent builder API generation");
+    println!("  🎯 Type-safe defaults and validation");
+    println!("  🌟 Perfect integration with component macro");
+
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -65,7 +104,7 @@ mod tests {
     fn test_basic_props_defaults() {
         let props = BasicProps::default();
 
-        assert_eq!(props.enabled, false); // Default bool
+        assert!(!props.enabled); // Default bool
         assert_eq!(props.message, "Hello"); // Custom default
         assert!(props.count.is_none()); // Optional field
     }
@@ -76,7 +115,7 @@ mod tests {
             .with_enabled(true)
             .with_message("World".to_string());
 
-        assert_eq!(props.enabled, true);
+        assert!(props.enabled);
         assert_eq!(props.message, "World");
         assert!(props.count.is_none());
     }
@@ -86,7 +125,7 @@ mod tests {
         let props = ButtonProps::default();
 
         assert_eq!(props.text, ""); // Default string
-        assert_eq!(props.disabled, false); // Default bool
+        assert!(!props.disabled); // Default bool
         assert_eq!(props.variant, "primary"); // Custom default
         assert!(props.icon.is_none()); // Optional field
         assert_eq!(props.size, 0); // Default u32
@@ -117,7 +156,7 @@ mod tests {
 
         assert_eq!(props.name, "Alice");
         assert_eq!(props.email, "alice@example.com");
-        assert_eq!(props.active, true);
+        assert!(props.active);
         assert!(props.avatar_url.is_none());
         assert_eq!(props.role, "admin");
         assert_eq!(props.age, 25);
@@ -156,7 +195,7 @@ mod tests {
 
         // Test that we can downcast
         let props_ref: &BasicProps = props.as_any().downcast_ref().unwrap();
-        assert_eq!(props_ref.enabled, false);
+        assert!(!props_ref.enabled);
     }
 
     #[test]
@@ -208,7 +247,7 @@ mod tests {
 
         assert_eq!(props.name, "Bob");
         assert_eq!(props.email, "bob@test.com");
-        assert_eq!(props.active, true);
+        assert!(props.active);
         assert_eq!(props.role, "moderator");
         assert_eq!(props.age, 30);
         assert_eq!(
@@ -223,7 +262,7 @@ mod tests {
 
         #[component]
         fn TestComponent(hooks: &Hooks, props: ButtonProps) -> Element {
-            Element::text(&format!("Button: {} ({})", props.text, props.variant))
+            Element::text(format!("Button: {} ({})", props.text, props.variant))
         }
 
         // Create props using the derived functionality
@@ -236,43 +275,4 @@ mod tests {
         assert!(element.is_component());
         assert_eq!(element.component_name(), Some("TestComponent"));
     }
-}
-
-/// Integration test function (not a unit test)
-pub fn run_props_derive_integration_test() -> std::result::Result<(), Box<dyn std::error::Error>> {
-    println!("🎨 Testing Props Derive Macro Integration");
-
-    // Test basic props creation
-    let basic_props = BasicProps::new()
-        .with_enabled(true)
-        .with_message("Integration test".to_string());
-    println!(
-        "✅ Basic props: enabled={}, message='{}'",
-        basic_props.enabled, basic_props.message
-    );
-
-    // Test complex props with builder pattern
-    let button_props = ButtonProps::new()
-        .with_text("Click Me".to_string())
-        .with_variant("primary".to_string())
-        .with_size(24);
-    println!(
-        "✅ Button props: text='{}', variant='{}', size={}",
-        button_props.text, button_props.variant, button_props.size
-    );
-
-    // Test validation
-    let validation_result = button_props.validate();
-    println!("✅ Validation result: {:?}", validation_result);
-
-    println!("🎉 All Props derive macro tests passed!");
-    println!();
-    println!("📊 Props Derive Benefits:");
-    println!("  🚀 80%+ less boilerplate for props structs");
-    println!("  🔧 Automatic Props trait implementation");
-    println!("  ⚡ Fluent builder API generation");
-    println!("  🎯 Type-safe defaults and validation");
-    println!("  🌟 Perfect integration with component macro");
-
-    Ok(())
 }

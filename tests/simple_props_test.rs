@@ -16,6 +16,6 @@ mod tests {
     #[test]
     fn test_simple_props() {
         let props = SimpleProps::default();
-        assert_eq!(props.enabled, false);
+        assert!(!props.enabled);
     }
 }

@@ -213,10 +213,9 @@ pub fn parse_rgb_cached(rgb: &str) -> Option<ColorTuple> {
     // Parse rgb(r, g, b) or rgba(r, g, b, a)
     let inner = if let Some(inner) = rgb.strip_prefix("rgb(").and_then(|s| s.strip_suffix(')')) {
         inner
-    } else if let Some(inner) = rgb.strip_prefix("rgba(").and_then(|s| s.strip_suffix(')')) {
-        inner
     } else {
-        return None;
+        rgb.strip_prefix("rgba(")
+            .and_then(|s| s.strip_suffix(')'))?
     };
 
     let parts: Vec<&str> = inner.split(',').map(|s| s.trim()).collect();

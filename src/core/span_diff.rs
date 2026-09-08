@@ -378,7 +378,7 @@ mod tests {
         }
 
         // The surface will have one text span and potentially a spacer span for the rest of the row
-        let text_spans: Vec<_> = spans.iter().filter(|s| s.text.trim().len() > 0).collect();
+        let text_spans: Vec<_> = spans.iter().filter(|s| !s.text.trim().is_empty()).collect();
 
         assert_eq!(
             text_spans.len(),

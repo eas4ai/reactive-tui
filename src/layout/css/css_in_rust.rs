@@ -360,53 +360,92 @@ mod tests {
 
     #[test]
     fn test_basic_css_macro() {
-        let _styles = css! {
+        let styles = css! {
             display: Display::Flex,
             flex_direction: FlexDirection::Column,
         };
 
-        // Test that the StyleBuilder was created and properties were applied
-        // This would need access to the internal state of StyleBuilder
-        assert!(true); // Placeholder test
+        let style = styles.build();
+        assert_eq!(style.display, Display::Flex);
+        assert_eq!(style.flex_direction, FlexDirection::Column);
     }
 
     #[test]
     fn test_color_properties() {
-        let _styles = css! {
+        let mut styles = css! {
             color: (1.0, 0.0, 0.0, 1.0), // Red
             background_color: (0.0, 0.0, 1.0, 1.0), // Blue
         };
 
-        assert!(true); // Placeholder test
+        let visuals = styles.take_visuals().expect("color properties");
+        assert_eq!(
+            visuals.fg,
+            crate::core::surface::Rgba::new(1.0, 0.0, 0.0, 1.0)
+        );
+        assert_eq!(
+            visuals.bg,
+            crate::core::surface::Rgba::new(0.0, 0.0, 1.0, 1.0)
+        );
     }
 
     #[test]
     fn test_spacing_properties() {
-        let _styles = css! {
+        let styles = css! {
             padding: 16.0,
             margin: 8.0,
         };
 
-        assert!(true); // Placeholder test
+        let style = styles.build();
+        assert_eq!(
+            style.padding,
+            taffy::geometry::Rect {
+                left: taffy::style::LengthPercentage::length(16.0),
+                right: taffy::style::LengthPercentage::length(16.0),
+                top: taffy::style::LengthPercentage::length(16.0),
+                bottom: taffy::style::LengthPercentage::length(16.0)
+            }
+        );
+        assert_eq!(
+            style.margin.left,
+            taffy::style::LengthPercentageAuto::length(8.0)
+        );
+        assert_eq!(style.margin.right, style.margin.left);
+        assert_eq!(style.margin.top, style.margin.left);
+        assert_eq!(style.margin.bottom, style.margin.left);
     }
 
     #[test]
     fn test_numeric_properties() {
-        let _styles = css! {
+        let mut styles = css! {
             opacity: 0.8,
             width: 100.0,
             height: 50.0,
         };
 
-        assert!(true); // Placeholder test
+        let visuals = styles.take_visuals().expect("opacity");
+        assert_eq!(visuals.fg.a, 0.8);
+        assert_eq!(visuals.bg.a, 0.8);
+        let style = styles.build();
+        assert_eq!(style.size.width, taffy::style::Dimension::length(100.0));
+        assert_eq!(style.size.height, taffy::style::Dimension::length(50.0));
     }
 
     #[test]
     fn test_convenience_macros() {
-        let _center = flex_center!();
-        let _column = flex_column!();
-        let _fill = absolute_fill!();
+        let center = flex_center!();
+        let column = flex_column!();
+        let fill = absolute_fill!();
 
-        assert!(true); // Placeholder test
+        let center = center.build();
+        assert_eq!(center.align_items, Some(taffy::style::AlignItems::Center));
+        assert_eq!(
+            center.justify_content,
+            Some(taffy::style::JustifyContent::Center)
+        );
+        assert_eq!(column.build().flex_direction, FlexDirection::Column);
+        let fill = fill.build();
+        assert_eq!(fill.position, taffy::style::Position::Absolute);
+        assert_eq!(fill.size.width, taffy::style::Dimension::length(100.0));
+        assert_eq!(fill.size.height, taffy::style::Dimension::length(100.0));
     }
 }

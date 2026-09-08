@@ -400,7 +400,7 @@ mod tests {
                 assert_eq!(config.damping, expected_damping);
             }
             other => {
-                assert!(false, "Expected Spring easing function, got: {:?}", other);
+                panic!("Expected Spring easing function, got: {:?}", other);
             }
         }
     }

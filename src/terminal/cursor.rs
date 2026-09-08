@@ -3,9 +3,10 @@
 use super::{ScrollingRegion, TerminalStyle};
 
 /// Terminal cursor shape styles
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub enum CursorShape {
     /// Default terminal cursor
+    #[default]
     Default,
     /// Solid block cursor
     Block,
@@ -19,12 +20,6 @@ pub enum CursorShape {
     BlinkingUnderline,
     /// Blinking vertical bar cursor
     BlinkingBar,
-}
-
-impl Default for CursorShape {
-    fn default() -> Self {
-        Self::Default
-    }
 }
 
 /// Terminal cursor state and properties

@@ -237,7 +237,8 @@ impl<C: Component> AnyComponent for ComponentInstanceWrapper<C> {
             let component_ptr = &mut wrapper.0.component as *mut C;
 
             // Additional safety: verify the component pointer is aligned and non-null
-            if component_ptr.is_null() || (component_ptr as usize) % std::mem::align_of::<C>() != 0
+            if component_ptr.is_null()
+                || !(component_ptr as usize).is_multiple_of(std::mem::align_of::<C>())
             {
                 log::error!("Invalid component pointer in poll_change_any");
                 return Poll::Pending;

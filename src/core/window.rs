@@ -297,8 +297,8 @@ impl Window {
                     {
                         // Estimate pixel dimensions based on typical terminal sizes
                         // Most modern terminals: 80x24 chars at ~1280x384 pixels
-                        let char_w = if cols > 0 { 1280 / cols } else { 16 };
-                        let char_h = if rows > 0 { 384 / rows } else { 16 };
+                        let char_w = 1280_u16.checked_div(cols).unwrap_or(16);
+                        let char_h = 384_u16.checked_div(rows).unwrap_or(16);
                         return Ok((char_w.clamp(8, 32), char_h.clamp(8, 32)));
                     }
                 }
@@ -312,8 +312,8 @@ impl Window {
             std::env::var("LINES")
                 .and_then(|s| s.parse::<u16>().map_err(|_| std::env::VarError::NotPresent)),
         ) {
-            let char_w = if term_w > 0 { 1280 / term_w } else { 16 };
-            let char_h = if term_h > 0 { 384 / term_h } else { 16 };
+            let char_w = 1280_u16.checked_div(term_w).unwrap_or(16);
+            let char_h = 384_u16.checked_div(term_h).unwrap_or(16);
             return Ok((char_w.clamp(8, 32), char_h.clamp(8, 32)));
         }
 
@@ -681,8 +681,7 @@ impl Window {
             return;
         }
 
-        let mut current_col = col;
-        for ch in text.chars() {
+        for (current_col, ch) in (col..).zip(text.chars()) {
             if current_col >= self.width {
                 break;
             }
@@ -698,7 +697,6 @@ impl Window {
                     image_placement: None,
                 },
             );
-            current_col += 1;
         }
     }
 
@@ -1034,24 +1032,20 @@ impl ElementWindow {
             }
             ElementType::Layout(_) => {
                 // Render children in a simple vertical layout
-                let mut current_y = y;
-                for child in &element.children {
+                for (current_y, child) in (y..).zip(&element.children) {
                     if current_y >= self.window.height {
                         break;
                     }
                     self.render_element_simple(child, x, current_y);
-                    current_y += 1;
                 }
             }
             ElementType::Component(_) | ElementType::Fragment | ElementType::Empty => {
                 // For these types, just render children
-                let mut current_y = y;
-                for child in &element.children {
+                for (current_y, child) in (y..).zip(&element.children) {
                     if current_y >= self.window.height {
                         break;
                     }
                     self.render_element_simple(child, x, current_y);
-                    current_y += 1;
                 }
             }
         }

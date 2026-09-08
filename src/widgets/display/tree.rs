@@ -1449,7 +1449,7 @@ mod tests {
 
     #[test]
     fn test_tree_creation() {
-        let tree = Tree::default();
+        let tree = Tree;
         let props = create_test_props();
         let state = TreeState::default();
 
@@ -1463,7 +1463,7 @@ mod tests {
 
     #[test]
     fn test_tree_flattening() {
-        let tree = Tree::default();
+        let tree = Tree;
         let props = create_test_props();
         let mut state = TreeState::default();
 
@@ -1486,7 +1486,7 @@ mod tests {
 
     #[test]
     fn test_node_selection() {
-        let tree = Tree::default();
+        let tree = Tree;
         let props = create_test_props();
         let mut state = TreeState::default();
 
@@ -1506,7 +1506,7 @@ mod tests {
 
     #[test]
     fn test_node_expansion() {
-        let tree = Tree::default();
+        let tree = Tree;
         let props = create_test_props();
         let mut state = TreeState::default();
 
@@ -1521,7 +1521,7 @@ mod tests {
 
     #[test]
     fn test_keyboard_navigation() {
-        let tree = Tree::default();
+        let tree = Tree;
         let props = create_test_props();
         let mut state = TreeState::default();
         state.flat_nodes = tree.flatten_tree(&props, &state);
@@ -1545,7 +1545,7 @@ mod tests {
 
     #[test]
     fn test_search_functionality() {
-        let tree = Tree::default();
+        let tree = Tree;
         let mut props = create_test_props();
         let mut state = TreeState::default();
 
@@ -1561,7 +1561,7 @@ mod tests {
 
     #[test]
     fn test_checkbox_functionality() {
-        let tree = Tree::default();
+        let tree = Tree;
         let mut props = create_test_props();
         props.checkable = true;
         let mut state = TreeState::default();
@@ -1621,7 +1621,7 @@ mod tests {
         state.scroll_state.content_height = 50;
 
         // Test scroll to node
-        let tree = Tree::default();
+        let tree = Tree;
         // Create enough nodes to require scrolling
         state.flat_nodes = (0..25)
             .map(|i| FlatTreeNode {
@@ -1651,7 +1651,7 @@ mod tests {
 
     #[test]
     fn test_event_handling() {
-        let mut tree = Tree::default();
+        let mut tree = Tree;
         let mut props = create_test_props();
         let mut state = TreeState::default();
         state.flat_nodes = tree.flatten_tree(&props, &state);
@@ -1673,7 +1673,7 @@ mod tests {
 
     #[test]
     fn test_component_update() {
-        let mut tree = Tree::default();
+        let mut tree = Tree;
         let props = create_test_props();
         let mut state = TreeState::default();
 

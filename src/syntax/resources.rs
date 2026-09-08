@@ -187,10 +187,10 @@ mod tests {
         let resources = SyntaxResources::default();
 
         // Should have syntax definitions
-        assert!(resources.syntax_set.syntaxes().len() > 0);
+        assert!(!resources.syntax_set.syntaxes().is_empty());
 
         // Should have themes
-        assert!(resources.theme_set.names().len() > 0);
+        assert!(!resources.theme_set.names().is_empty());
 
         // Should have a default theme
         assert!(resources.active_theme() != &Theme::default());
@@ -217,7 +217,7 @@ mod tests {
         let mut resources = SyntaxResources::default();
         let themes = resources.available_themes();
 
-        assert!(themes.len() > 0);
+        assert!(!themes.is_empty());
 
         // Should be able to set a theme that exists
         if let Some(theme_name) = themes.first() {

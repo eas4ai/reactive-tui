@@ -166,10 +166,12 @@ impl DialogBuffer {
                     }
                 }
 
-                if count > 0 {
-                    let avg_r = (r_sum / count) as u8;
-                    let avg_g = (g_sum / count) as u8;
-                    let avg_b = (b_sum / count) as u8;
+                if let (Some(avg_r), Some(avg_g), Some(avg_b)) = (
+                    r_sum.checked_div(count),
+                    g_sum.checked_div(count),
+                    b_sum.checked_div(count),
+                ) {
+                    let (avg_r, avg_g, avg_b) = (avg_r as u8, avg_g as u8, avg_b as u8);
 
                     if x < size.width && y < size.height {
                         let mut cell = surface.get(x, y);

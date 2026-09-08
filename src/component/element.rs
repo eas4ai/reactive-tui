@@ -295,7 +295,7 @@ mod tests {
         if let ElementType::Text(content) = &text.element_type {
             assert_eq!(content, "Hello World");
         } else {
-            assert!(false, "Expected text element, got: {:?}", text.element_type);
+            panic!("Expected text element, got: {:?}", text.element_type);
         }
 
         // Test layout creation
@@ -304,11 +304,7 @@ mod tests {
         if let ElementType::Layout(layout_type) = &layout.element_type {
             assert_eq!(*layout_type, LayoutType::Flex);
         } else {
-            assert!(
-                false,
-                "Expected layout element, got: {:?}",
-                layout.element_type
-            );
+            panic!("Expected layout element, got: {:?}", layout.element_type);
         }
 
         // Test fragment creation

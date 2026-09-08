@@ -424,8 +424,11 @@ mod tests {
     fn test_image_capabilities_detection() {
         // Test that we can detect capabilities without terminal I/O
         let caps = Terminal::detect_image_capabilities();
-        // Just verify the struct is created - actual values depend on environment
-        assert!(caps.sixel || !caps.sixel); // Always true, just checking it exists
+        // Image capabilities must preserve the detected terminal protocol flags.
+        let detected = TerminalQuery::detect_from_env();
+        assert_eq!(caps.sixel, detected.sixel);
+        assert_eq!(caps.kitty_graphics, detected.kitty_graphics);
+        assert_eq!(caps.iterm2_inline, detected.iterm2_graphics);
     }
 
     #[test]

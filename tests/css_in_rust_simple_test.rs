@@ -7,19 +7,21 @@ use taffy::style::{AlignItems, Display, FlexDirection, JustifyContent, Position}
 #[test]
 fn test_basic_css_macro() {
     // Test that the css! macro compiles and creates a StyleBuilder
-    let _styles = css! {
+    let mut styles = css! {
         display: Display::Flex,
         opacity: 0.8,
     };
 
-    // If this compiles, the macro is working correctly
-    assert!(true);
+    // Check the resulting layout and visual properties.
+    let visuals = styles.take_visuals().expect("opacity");
+    assert_eq!(visuals.fg.a, 0.8);
+    assert_eq!(styles.build().display, Display::Flex);
 }
 
 #[test]
 fn test_layout_properties() {
     // Test layout-related CSS properties
-    let _layout_styles = css! {
+    let layout_styles = css! {
         display: Display::Flex,
         flex_direction: FlexDirection::Column,
         align_items: AlignItems::Center,
@@ -27,52 +29,88 @@ fn test_layout_properties() {
         position: Position::Absolute,
     };
 
-    assert!(true);
+    let style = layout_styles.build();
+    assert_eq!(style.display, Display::Flex);
+    assert_eq!(style.flex_direction, FlexDirection::Column);
+    assert_eq!(style.align_items, Some(AlignItems::Center));
+    assert_eq!(style.justify_content, Some(JustifyContent::SpaceBetween));
+    assert_eq!(style.position, Position::Absolute);
 }
 
 #[test]
 fn test_color_properties() {
     // Test color-related CSS properties
-    let _color_styles = css! {
+    let mut color_styles = css! {
         color: (1.0, 1.0, 1.0, 1.0), // White
         background_color: (0.0, 0.0, 1.0, 1.0), // Blue
     };
 
-    assert!(true);
+    let visuals = color_styles.take_visuals().expect("colors");
+    assert_eq!(visuals.fg, reactive_tui::core::surface::Rgba::white());
+    assert_eq!(
+        visuals.bg,
+        reactive_tui::core::surface::Rgba::new(0.0, 0.0, 1.0, 1.0)
+    );
 }
 
 #[test]
 fn test_spacing_properties() {
     // Test spacing-related CSS properties
-    let _spacing_styles = css! {
+    let spacing_styles = css! {
         padding: 16.0,
         margin: 8.0,
     };
 
-    assert!(true);
+    let style = spacing_styles.build();
+    for padding in [
+        style.padding.left,
+        style.padding.right,
+        style.padding.top,
+        style.padding.bottom,
+    ] {
+        assert_eq!(padding, taffy::style::LengthPercentage::length(16.0));
+    }
+    for margin in [
+        style.margin.left,
+        style.margin.right,
+        style.margin.top,
+        style.margin.bottom,
+    ] {
+        assert_eq!(margin, taffy::style::LengthPercentageAuto::length(8.0));
+    }
 }
 
 #[test]
 fn test_numeric_properties() {
     // Test numeric CSS properties
-    let _numeric_styles = css! {
+    let mut numeric_styles = css! {
         opacity: 0.9,
         width: 100.0,
         height: 50.0,
     };
 
-    assert!(true);
+    assert_eq!(numeric_styles.take_visuals().expect("opacity").fg.a, 0.9);
+    let style = numeric_styles.build();
+    assert_eq!(style.size.width, taffy::style::Dimension::length(100.0));
+    assert_eq!(style.size.height, taffy::style::Dimension::length(50.0));
 }
 
 #[test]
 fn test_convenience_macros() {
     // Test convenience macros
-    let _center = flex_center!();
-    let _column = flex_column!();
-    let _fill = absolute_fill!();
+    let center = flex_center!();
+    let column = flex_column!();
+    let fill = absolute_fill!();
 
-    // If these compile, the convenience macros are working
-    assert!(true);
+    // Verify the styles produced by each convenience macro.
+    let center = center.build();
+    assert_eq!(center.align_items, Some(AlignItems::Center));
+    assert_eq!(center.justify_content, Some(JustifyContent::Center));
+    assert_eq!(column.build().flex_direction, FlexDirection::Column);
+    let fill = fill.build();
+    assert_eq!(fill.position, Position::Absolute);
+    assert_eq!(fill.size.width, taffy::style::Dimension::length(100.0));
+    assert_eq!(fill.size.height, taffy::style::Dimension::length(100.0));
 }
 
 #[test]
@@ -222,21 +260,23 @@ fn test_type_safety() {
     // Test that the CSS-in-Rust system is type-safe
 
     // This should compile - correct types
-    let _valid_styles = css! {
+    let mut valid_styles = css! {
         display: Display::Flex,
         color: (1.0, 0.0, 0.0, 1.0),
         padding: 10.0,
         opacity: 0.5,
     };
 
-    assert!(true);
-
-    // The following would not compile due to type mismatches:
-    // css! {
-    //     display: "flex",  // Wrong type - should be Display
-    //     color: "red",     // Wrong type - should be (f32, f32, f32, f32)
-    //     padding: "10px",  // Wrong type - should be f32
-    // }
+    assert_eq!(
+        valid_styles.take_visuals().expect("color and opacity").fg,
+        reactive_tui::core::surface::Rgba::new(1.0, 0.0, 0.0, 0.5)
+    );
+    let style = valid_styles.build();
+    assert_eq!(style.display, Display::Flex);
+    assert_eq!(
+        style.padding.left,
+        taffy::style::LengthPercentage::length(10.0)
+    );
 }
 
 #[test]
@@ -244,21 +284,28 @@ fn test_macro_edge_cases() {
     // Test edge cases for the CSS macro
 
     // Empty CSS
-    let _empty_styles = css! {};
-    assert!(true);
+    let empty_styles = css! {};
+    assert_eq!(
+        empty_styles.build(),
+        reactive_tui::layout::style::StyleBuilder::new().build()
+    );
 
     // Single property
-    let _single_prop = css! {
+    let single_prop = css! {
         display: Display::Flex,
     };
-    assert!(true);
+    assert_eq!(single_prop.build().display, Display::Flex);
 
     // Trailing comma
-    let _trailing_comma = css! {
+    let mut trailing_comma = css! {
         display: Display::Flex,
         color: (0.0, 0.0, 1.0, 1.0),
     };
-    assert!(true);
+    assert_eq!(
+        trailing_comma.take_visuals().expect("color").fg,
+        reactive_tui::core::surface::Rgba::new(0.0, 0.0, 1.0, 1.0)
+    );
+    assert_eq!(trailing_comma.build().display, Display::Flex);
 }
 
 #[test]

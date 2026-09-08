@@ -1477,7 +1477,7 @@ mod tests {
             .animation(PopoverAnimation::Scale)
             .build();
 
-        assert_eq!(props.visible, true);
+        assert!(props.visible);
         assert_eq!(props.position, PopoverPosition::Top);
         assert_eq!(props.trigger, PopoverTrigger::Hover);
         assert_eq!(props.animation, PopoverAnimation::Scale);
@@ -1639,7 +1639,7 @@ mod tests {
         assert!(popover.ease_out_cubic(0.5) > 0.5); // Should be accelerated
 
         let bounce_result = popover.ease_out_bounce(0.8);
-        assert!(bounce_result >= 0.0 && bounce_result <= 1.2); // Bounce can overshoot slightly
+        assert!((0.0..=1.2).contains(&bounce_result)); // Bounce can overshoot slightly
     }
 
     #[test]

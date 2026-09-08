@@ -294,20 +294,18 @@ impl VirtualScreen {
                     self.working_directory = Some(dir.clone());
                 }
             }
-            "8" => {
-                if params.len() >= 2 {
-                    let id = if params[0].is_empty() {
-                        None
-                    } else {
-                        Some(params[0].clone())
-                    };
-                    let url = if params[1].is_empty() {
-                        None
-                    } else {
-                        Some(params[1].clone())
-                    };
-                    self.cursor.set_hyperlink(url, id);
-                }
+            "8" if params.len() >= 2 => {
+                let id = if params[0].is_empty() {
+                    None
+                } else {
+                    Some(params[0].clone())
+                };
+                let url = if params[1].is_empty() {
+                    None
+                } else {
+                    Some(params[1].clone())
+                };
+                self.cursor.set_hyperlink(url, id);
             }
             _ => {}
         }

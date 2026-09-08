@@ -156,20 +156,15 @@ impl ScrollingRegion {
 }
 
 /// Terminal colors
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub enum TerminalColor {
     /// Default terminal color
+    #[default]
     Default,
     /// Indexed color (0-255)
     Indexed(u8),
     /// RGB color (red, green, blue)
     Rgb(u8, u8, u8),
-}
-
-impl Default for TerminalColor {
-    fn default() -> Self {
-        Self::Default
-    }
 }
 
 /// Terminal text style

@@ -553,8 +553,10 @@ mod tests {
         renderer.clear_stats();
 
         // Test performance check
-        let is_good = renderer.is_performance_good();
-        assert!(is_good || !is_good); // Should return a boolean
+        assert!(
+            !renderer.is_performance_good(),
+            "Cleared stats have no measured frame rate"
+        );
 
         // Test latest detailed stats (should be None initially)
         let latest = renderer.latest_detailed_stats();
