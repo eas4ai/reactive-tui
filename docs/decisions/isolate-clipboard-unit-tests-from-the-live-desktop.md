@@ -11,4 +11,4 @@ Two whole-suite runs timed out in wl-copy children. Run the clipboard operation 
 
 ## Realized by
 
-(none yet: recorded, not built)
+- eae70fd70190cde9d267178dd3fbd122c1726d28 Isolate clipboard unit tests and verify command round trips
