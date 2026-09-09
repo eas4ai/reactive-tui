@@ -11,4 +11,4 @@ Retain GapBuffer scalar offsets and the existing public Cursor integer fields. D
 
 ## Realized by
 
-(none yet: recorded, not built)
+- 762af4605ac9b25c6b1edfd0a63c837cdcfac5f5 Repair Unicode editor positions and complete grapheme painting
