@@ -11,4 +11,4 @@ Use the event router focus manager for both public App focus methods and routed 
 
 ## Realized by
 
-(none yet: recorded, not built)
+- 07bfeec54339eb77121cf9312af656906a38084c Unify stable App focus and nested trap lifecycle
