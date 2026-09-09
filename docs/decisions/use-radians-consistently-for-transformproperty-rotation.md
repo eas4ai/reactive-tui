@@ -12,4 +12,4 @@ The developer approved .cairn/escalations/api-010-api-013.md. TransformProperty:
 
 ## Realized by
 
-src/app/motion.rs and src/app/motion/property.rs; src/component/bridge.rs; src/layout/paint_tree/suprtui.rs and transform.rs; src/layout/css/gradients.rs. Development coverage is in tests/api_paint_properties.rs and the app::motion::tests unit module. Formal acceptance is recorded separately by Cairn.
+- 4603bdc Paint gradients and owned animation frames through App
