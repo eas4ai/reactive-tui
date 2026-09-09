@@ -1,0 +1,101 @@
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.53s
+     Running tests/api_editor_unicode.rs (target/debug/deps/api_editor_unicode-5580632ac2a75cf3)
+
+running 8 tests
+test cursor_uses_scalar_offsets_and_display_columns ... FAILED
+test line_index_tracks_edits_before_and_at_newlines ... FAILED
+test plain::mixed_insertion_and_grapheme_deletion ... FAILED
+test plain::painted_columns_and_selection_match_text ... FAILED
+test plain::selection_replaces_whole_graphemes_across_lines ... FAILED
+test syntax::mixed_insertion_and_grapheme_deletion ... FAILED
+test syntax::painted_columns_and_selection_match_text ... FAILED
+test syntax::selection_replaces_whole_graphemes_across_lines ... FAILED
+
+failures:
+
+---- cursor_uses_scalar_offsets_and_display_columns stdout ----
+
+thread 'cursor_uses_scalar_offsets_and_display_columns' (2679448) panicked at tests/api_editor_unicode.rs:106:9:
+assertion `left == right` failed
+  left: 4
+ right: 2
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- line_index_tracks_edits_before_and_at_newlines stdout ----
+
+thread 'line_index_tracks_edits_before_and_at_newlines' (2679449) panicked at tests/api_editor_unicode.rs:83:5:
+assertion `left == right` failed
+  left: "界"
+ right: "界a"
+
+---- plain::mixed_insertion_and_grapheme_deletion stdout ----
+
+thread 'plain::mixed_insertion_and_grapheme_deletion' (2679450) panicked at tests/api_editor_unicode.rs:76:1:
+assertion `left == right` failed
+  left: "A界e\u{301}👩🏽\u{200d}💻"
+ right: "A界e\u{301}"
+
+---- plain::painted_columns_and_selection_match_text stdout ----
+
+thread 'plain::painted_columns_and_selection_match_text' (2679451) panicked at tests/api_editor_unicode.rs:76:1:
+assertion `left == right` failed
+  left: ""
+ right: "e\u{301}"
+
+---- plain::selection_replaces_whole_graphemes_across_lines stdout ----
+
+thread 'plain::selection_replaces_whole_graphemes_across_lines' (2679452) panicked at tests/api_editor_unicode.rs:76:1:
+assertion `left == right` failed
+  left: "A界e\u{301}\n👩🏽\u{200d}💻Z!"
+ right: "A界!Z"
+
+---- syntax::mixed_insertion_and_grapheme_deletion stdout ----
+
+thread 'syntax::mixed_insertion_and_grapheme_deletion' (2679453) panicked at tests/api_editor_unicode.rs:77:1:
+assertion `left == right` failed
+  left: "A界e\u{301}👩🏽\u{200d}💻"
+ right: "A界e\u{301}"
+
+---- syntax::painted_columns_and_selection_match_text stdout ----
+
+thread 'syntax::painted_columns_and_selection_match_text' (2679475) panicked at tests/api_editor_unicode.rs:77:1:
+assertion `left == right` failed
+  left: ""
+ right: "e\u{301}"
+
+---- syntax::selection_replaces_whole_graphemes_across_lines stdout ----
+
+thread 'syntax::selection_replaces_whole_graphemes_across_lines' (2679476) panicked at tests/api_editor_unicode.rs:77:1:
+assertion `left == right` failed
+  left: "A界e\u{301}\n👩🏽\u{200d}💻Z!"
+ right: "A界!Z"
+
+
+failures:
+    cursor_uses_scalar_offsets_and_display_columns
+    line_index_tracks_edits_before_and_at_newlines
+    plain::mixed_insertion_and_grapheme_deletion
+    plain::painted_columns_and_selection_match_text
+    plain::selection_replaces_whole_graphemes_across_lines
+    syntax::mixed_insertion_and_grapheme_deletion
+    syntax::painted_columns_and_selection_match_text
+    syntax::selection_replaces_whole_graphemes_across_lines
+
+test result: FAILED. 0 passed; 8 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+error: test failed, to rerun pass `--test api_editor_unicode`
+Traceback (most recent call last):
+  File "/home/shawn/workspace2/reactive-tui/scripts/check-api-editor-unicode.py", line 7, in <module>
+    subprocess.run(
+    ~~~~~~~~~~~~~~^
+        ["cargo", "test", "--locked", *arguments, "--", "--test-threads=1"],
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        cwd=Path(__file__).resolve().parents[1], check=True, timeout=120,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/home/linuxbrew/.linuxbrew/Cellar/python@3.14/3.14.7/lib/python3.14/subprocess.py", line 578, in run
+    raise CalledProcessError(retcode, process.args,
+                             output=stdout, stderr=stderr)
+subprocess.CalledProcessError: Command '['cargo', 'test', '--locked', '--test', 'api_editor_unicode', '--', '--test-threads=1']' returned non-zero exit status 101.
