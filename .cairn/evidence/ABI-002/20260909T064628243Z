@@ -1,0 +1,21 @@
+requirement: ABI-002
+requirement_digest: sha256:d8e46af26519da25a85cdcbaf60e6f9aac4f721346080e07e751827832c93e81
+sequence: 14
+history_digest: sha256:de0eb77cd470494bd1be2ef8374b093979aebf8a05576ec02b857c02842fb070
+mechanism: binding-c-consumer.md
+commit: 929f873
+inputs_digest: sha256:4447b2a522e6e98d713b873ef74d92b754e620111557f0071d18924fbeda29ed
+mechanism_digest: sha256:ad85578c35a2579ecdf28c2973359afa8bc5b8a9dc9ad0d50146423b3e9b8cfd
+inputs_detail: .cairn/evidence/ABI-002/20260909T064626330Z-1884341.inputs.json
+command: python3 -B scripts/check-c-binding-abi.py
+cwd: .
+exit: 0
+output_digest: sha256:5395e11313bc3fd81c317028672dff5b93de2760fa630ee47dd8133f163d6083
+output: .cairn/evidence/ABI-002/20260909T064626330Z-1884341.out
+stderr_output: .cairn/evidence/ABI-002/20260909T064626330Z-1884341.err
+stderr_digest: sha256:a85739122075c799fa796d5149380698cb029a196fe0b24fd3b4792386802aee
+signal: none
+execution_error: null
+result: pass
+source: exit
+recorded: 2026-09-09T06:46:28.243Z
