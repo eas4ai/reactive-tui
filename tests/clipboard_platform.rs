@@ -24,7 +24,8 @@ fn clipboard_platform_roundtrip() {
         copy(text);
         assert!(
             state.get().error.is_none(),
-            "{backend} copy: {:?}",
+            "{backend} copy of {} bytes: {:?}",
+            text.len(),
             state.get().error
         );
         let actual = paste();

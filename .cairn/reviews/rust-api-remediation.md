@@ -470,3 +470,9 @@ when GitHub invoked Python directly. That probe differed from the actual Bash
 parent environment. Run it under the same Bash shell and fail early on its exit
 code; do not infer a command fix from the mismatched diagnostic. All 13 local
 clipboard failure-path tests passed at 4f95a7a.
+
+The fixed ASCII copy also passed under Bash in run 34312614549. Inspection
+found that the Rust assertion did not report which fixture failed, so the earlier
+first-copy claim was unsupported. Label the input byte count and run all five
+fixed fixtures through the exact source scripts with stderr captured. This
+diagnostic remains separate from the native hook acceptance and uses no user data.
