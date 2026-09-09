@@ -482,3 +482,13 @@ result while capturing a stderr pipe, unlike the actual file-backed process runn
 Use a temporary stderr file and report each case before launch. Make this extra
 diagnostic nonblocking for the native Rust acceptance, which remains mandatory;
 it must not replace the actual failing path with a mismatched probe.
+
+Run 34312996266 identifies the actual failure: ASCII and quoted Unicode with
+trailing newlines round-trip, then copying zero bytes fails. The exact-script
+diagnostic reports Set-Clipboard ArgumentNullException (parameter text); the Rust
+hook independently reports copy of 0 bytes. Windows PowerShell supports clearing
+with Set-Clipboard -Value $null (PowerShell/PowerShell PR 14579 documents this
+preexisting Windows behavior). Branch only for empty input to use that operation.
+Retain the nonempty UTF-8 path and all five native cases. Remove the temporary
+workflow diagnostic, whose duplicate clipboard operations are no longer needed.
+Source: https://github.com/PowerShell/PowerShell/pull/14579 .

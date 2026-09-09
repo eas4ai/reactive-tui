@@ -106,7 +106,7 @@ impl ClipboardBackend {
             Self::Windows => {
                 let mut command = Command::new("powershell");
                 let script = if copy {
-                    "$ErrorActionPreference='Stop'; [Console]::InputEncoding=[System.Text.UTF8Encoding]::new($false); Set-Clipboard -Value ([Console]::In.ReadToEnd())"
+                    "$ErrorActionPreference='Stop'; [Console]::InputEncoding=[System.Text.UTF8Encoding]::new($false); $text=[Console]::In.ReadToEnd(); if ($text.Length -eq 0) { Set-Clipboard -Value $null } else { Set-Clipboard -Value $text }"
                 } else {
                     "$ErrorActionPreference='Stop'; [Console]::OutputEncoding=[System.Text.UTF8Encoding]::new($false); [Console]::Write([string](Get-Clipboard -Raw))"
                 };
