@@ -575,3 +575,21 @@ Test-gate exited 4 and named broad widget/legacy surfaces, reference-tree symbol
 and integration demo files; compiled default targets ran, while actual embedded
 and native acceptance stays with the inherited mechanisms. This is incremental
 API-009 verification, not the final catalog review.
+
+
+## API-008 refresh after styling: native cancellation fixture
+
+Run 34317275077 built Windows successfully, but its cancellation fixture returned
+the correct five-second timeout before the PowerShell child published its PID.
+Cancellation was conditional on that publication, so the test never requested it.
+The following deadline test passed. The Windows clipboard round trips had not yet
+run; macOS and the three Linux backends passed at source commit 1c8c4f0.
+
+Replace the shell sleeper with an ignored native test-binary child invoked only
+by the two lifecycle tests. It publishes its PID and sleeps. On Windows, retain a
+handle to that live process before cancellation and require the same handle to be
+signaled after stop. This avoids shell startup in the cancellation trigger and
+avoids a second PowerShell query or PID-reuse ambiguity in the exit assertion.
+The production five-second Windows/two-second Unix deadlines and native clipboard
+round-trip requirements remain unchanged. Fresh platform records must use this
+fixture digest before acceptance; collected earlier records remain historical.

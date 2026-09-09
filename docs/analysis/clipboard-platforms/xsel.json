@@ -2,14 +2,14 @@
   "backend": "xsel",
   "system": "Linux",
   "platform": "Linux-7.0.0-30-generic-x86_64-with-glibc2.43",
-  "commit": "09f143544a83c1bfa38719e2f0e4a2cbdd289924",
+  "commit": "1c8c4f078636a26392a4afed782c32f1b39a5333",
   "committed_inputs": true,
-  "inputs_digest": "6dd905bfc690f784a8327048c52d59d2e40f5e5fdd133c9d00700cd55c4a4e24",
+  "inputs_digest": "ac44ee5ec62c03a875108859b38c9255a6e4ae61f091f358afc240e7a5de8c9d",
   "result": "pass",
   "output": "xsel.out",
   "output_digest": "a26234e585871545138647b18a8e73f33b9c5bc65aa5a82a37fcf9a92b569c45",
   "process_output": "xsel.process.out",
-  "process_output_digest": "0ca90d666e1b3b6e0525547d89b94fad21db542a4c27bf7eb4ce720fdc4f26fc",
+  "process_output_digest": "332f10887d022a2101a2a1290ef206490d50b8f103eb9e6b6953b5739a2273a0",
   "tools": {
     "xsel": {
       "path": "/usr/bin/xsel",
