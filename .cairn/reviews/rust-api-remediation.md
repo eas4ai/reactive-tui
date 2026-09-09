@@ -602,3 +602,16 @@ still exceeds the allowance. Before changing that decision, add a diagnostic job
 on a separate fresh Windows runner to time the exact copy/paste scripts under a
 30-second observation bound. It does not warm the acceptance runner, and its
 results are diagnostics, not substitutes for the production-deadline checks.
+
+
+Cold-start diagnostic job 102362246907 in run 34319319017 used a separate fresh
+Windows desktop: copy took 3.250 seconds; paste took 0.343 seconds; the following
+four calls took 0.266, 0.266, 0.281 and 0.281 seconds. Those timings do not bound
+other runners: both the earlier readiness fixture and the first real Rust copy
+exceeded five seconds. Record a Consequential replacement decision allowing up
+to fifteen seconds on Windows, with a separate sixteen-second test assertion.
+Unix remains two seconds. Remove the temporary diagnostic job; cold acceptance
+must pass without any preceding PowerShell fixture or diagnostic in that VM.
+Run 34319319017 was canceled after the diagnostic to avoid another redundant
+five-second candidate run. Another normal-startup failure under the new allowance
+will return to the developer rather than trigger another arbitrary increase.

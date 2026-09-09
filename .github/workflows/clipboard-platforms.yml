@@ -13,43 +13,6 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  windows-startup-diagnostic:
-    runs-on: windows-2022
-    timeout-minutes: 3
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
-        with:
-          persist-credentials: false
-      - name: Measure cold and warm PowerShell clipboard calls on a separate desktop
-        shell: python
-        run: |
-          import json, pathlib, re, subprocess, tempfile, time
-          source = pathlib.Path('src/hooks/clipboard.rs').read_text()
-          scripts = re.findall(r'"(\$ErrorActionPreference[^"\n]+)"', source)
-          assert len(scripts) == 2
-          payload = b'simple ascii\n'
-          for iteration in range(3):
-              for mode, script in zip(('copy', 'paste'), scripts):
-                  with tempfile.TemporaryFile() as stdin, tempfile.TemporaryFile() as stdout, tempfile.TemporaryFile() as stderr:
-                      stdin.write(payload if mode == 'copy' else b'')
-                      stdin.seek(0)
-                      start = time.monotonic()
-                      child = subprocess.Popen(['powershell', '-NoLogo', '-NoProfile', '-NonInteractive', '-Command', script], stdin=stdin, stdout=stdout, stderr=stderr)
-                      try:
-                          status = child.wait(timeout=30)
-                      except subprocess.TimeoutExpired:
-                          child.kill()
-                          child.wait()
-                          raise
-                      elapsed = time.monotonic() - start
-                      stdout.seek(0)
-                      output = stdout.read()
-                      stderr.seek(0)
-                      error = stderr.read().decode(errors='replace')
-                      print(json.dumps(dict(iteration=iteration, mode=mode, elapsed=elapsed, status=status, bytes=len(output), error=error)), flush=True)
-                      assert status == 0
-                      if mode == 'paste':
-                          assert output == payload, repr(output)
   clipboard:
     strategy:
       fail-fast: false

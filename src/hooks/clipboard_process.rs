@@ -8,7 +8,7 @@ use std::time::{Duration, Instant};
 #[cfg(not(windows))]
 const TIMEOUT: Duration = Duration::from_secs(2);
 #[cfg(windows)]
-const TIMEOUT: Duration = Duration::from_secs(5);
+const TIMEOUT: Duration = Duration::from_secs(15);
 const MAX_BYTES: u64 = 64 * 1024 * 1024;
 const POLL: Duration = Duration::from_millis(5);
 
@@ -298,7 +298,7 @@ mod tests {
         #[cfg(unix)]
         assert!(start.elapsed() < Duration::from_secs(3));
         #[cfg(windows)]
-        assert!(start.elapsed() < Duration::from_secs(6));
+        assert!(start.elapsed() < Duration::from_secs(16));
         #[cfg(unix)]
         {
             let pid: i32 = std::fs::read_to_string(&pid_path)
