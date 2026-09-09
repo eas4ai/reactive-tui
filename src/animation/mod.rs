@@ -1184,7 +1184,7 @@ pub fn scale_animation(id: impl Into<String>, from: f32, to: f32, duration: Dura
         .build()
 }
 
-/// Create a rotate animation
+/// Create a rotate animation with endpoints in radians.
 pub fn rotate_animation(
     id: impl Into<String>,
     from: f32,

@@ -1,10 +1,10 @@
 //! Complete application frames rendered by SuprTUI on one owned worker.
 
 use super::{Backend, CellFrame, CrosstermBackend};
-use crate::component::{bridge::element_to_nodespec, Element};
+use crate::component::{bridge::element_to_paintspec, Element};
 use crate::error::{ReactiveError, Result};
 use crate::event::types::Event;
-use crate::layout::paint_tree::{suprtui::paint_frame, NodeSpec};
+use crate::layout::paint_tree::suprtui::paint_frame;
 use crate::render::{reconcile::PatchOp, tree::RenderTree};
 use ::suprtui::render::{RenderStatus, Renderer};
 use ::suprtui::uni::pool::GraphemePool;
@@ -32,7 +32,7 @@ enum Command {
 }
 
 enum FrameContent {
-    Element(NodeSpec<'static>),
+    Element(Box<Element>),
     Cells(Arc<CellFrame>),
 }
 
@@ -182,7 +182,7 @@ impl Backend for SuprTuiBackend {
         commands
             .send(Command::Present(
                 self.cells.as_ref().map_or_else(
-                    || FrameContent::Element(element_to_nodespec(&self.frame)),
+                    || FrameContent::Element(Box::new(self.frame.clone())),
                     |cells| FrameContent::Cells(Arc::clone(cells)),
                 ),
                 self.dimensions,
@@ -305,6 +305,7 @@ fn run_worker<W: Write>(
                     }
                     let geometry = match spec {
                         FrameContent::Element(spec) => {
+                            let spec = element_to_paintspec(&spec)?;
                             let geometry = paint_frame(&spec, renderer.next_buffer())?;
                             renderer.set_cursor(0, 0, false);
                             geometry

@@ -190,7 +190,7 @@ pub enum AlignSelf {
 }
 
 /// CSS Grid auto flow direction
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum GridAutoFlow {
     /// Fill rows first
     Row,
@@ -213,8 +213,11 @@ impl GridAutoFlow {
     }
 }
 /// Builder for creating and configuring styles
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct StyleBuilder {
+    pub(crate) motion: super::motion::MotionStyle,
+    pub(crate) gradient: Option<super::css::gradients::Gradient>,
+    pub(crate) gradient_border: Option<super::css::gradients::GradientBorder>,
     pub(crate) text: super::text::TextStyle,
     style: Style,
     // Grid extras
@@ -228,9 +231,9 @@ pub struct StyleBuilder {
     row_start: Option<i16>,
     row_end: Option<i16>,
     // Visual extras (Utility CSS)
-    fg_rgba: Option<(f32, f32, f32, f32)>,
-    bg_rgba: Option<(f32, f32, f32, f32)>,
-    opacity: Option<f32>,
+    pub(crate) fg_rgba: Option<(f32, f32, f32, f32)>,
+    pub(crate) bg_rgba: Option<(f32, f32, f32, f32)>,
+    pub(crate) opacity: Option<f32>,
     z_index: Option<i32>,
     bold: bool,
     italic: bool,
@@ -251,6 +254,81 @@ pub struct StyleBuilder {
 }
 
 impl StyleBuilder {
+    /// Capture styles as owned data that can cross the renderer worker boundary.
+    pub fn snapshot(&self) -> StyleSnapshot {
+        if !self.finite_numbers() {
+            return StyleSnapshot(Err("Style numbers must be finite".into()));
+        }
+        StyleSnapshot(serde_json::to_vec(self).map_err(|error| error.to_string()))
+    }
+
+    fn finite_numbers(&self) -> bool {
+        let s = &self.style;
+        let lengths = [
+            s.size.width.into_raw(),
+            s.size.height.into_raw(),
+            s.min_size.width.into_raw(),
+            s.min_size.height.into_raw(),
+            s.max_size.width.into_raw(),
+            s.max_size.height.into_raw(),
+            s.flex_basis.into_raw(),
+            s.inset.left.into_raw(),
+            s.inset.right.into_raw(),
+            s.inset.top.into_raw(),
+            s.inset.bottom.into_raw(),
+            s.margin.left.into_raw(),
+            s.margin.right.into_raw(),
+            s.margin.top.into_raw(),
+            s.margin.bottom.into_raw(),
+            s.padding.left.into_raw(),
+            s.padding.right.into_raw(),
+            s.padding.top.into_raw(),
+            s.padding.bottom.into_raw(),
+            s.border.left.into_raw(),
+            s.border.right.into_raw(),
+            s.border.top.into_raw(),
+            s.border.bottom.into_raw(),
+            s.gap.width.into_raw(),
+            s.gap.height.into_raw(),
+        ];
+        let m = self.motion.transform;
+        let numbers = [
+            s.flex_grow,
+            s.flex_shrink,
+            s.scrollbar_width,
+            s.aspect_ratio.unwrap_or(1.0),
+            self.opacity.unwrap_or(1.0),
+            m.x,
+            m.y,
+            m.x_percent,
+            m.y_percent,
+            m.scale_x,
+            m.scale_y,
+            m.rotation,
+            m.skew_x,
+            m.skew_y,
+        ];
+        let colors = [self.fg_rgba, self.bg_rgba];
+        let gradients = [
+            self.gradient.as_ref(),
+            self.gradient_border.as_ref().map(|border| &border.gradient),
+        ];
+        lengths.iter().all(|length| length.value().is_finite())
+            && numbers
+                .iter()
+                .chain(m.matrix.iter())
+                .all(|value| value.is_finite())
+            && colors
+                .iter()
+                .flatten()
+                .all(|&(r, g, b, a)| [r, g, b, a].iter().all(|value| value.is_finite()))
+            && gradients.iter().flatten().all(|gradient| {
+                [gradient.stops.from, gradient.stops.via, gradient.stops.to]
+                    .iter()
+                    .flatten()
+                    .all(|stop| stop.3.is_finite())
+            })
+    }
     /// Create a new StyleBuilder with default values
     ///
     /// # Returns
@@ -1482,6 +1560,22 @@ impl StyleBuilder {
     /// Take the CSS animation name, leaving None
     pub fn take_css_animation(&mut self) -> Option<String> {
         self.css_animation.take()
+    }
+}
+
+/// Owned style data. Taffy's tagged layout values remain local to each thread.
+/// Invalid numeric styles report an error when App prepares the frame.
+#[derive(Clone, Debug, PartialEq)]
+pub struct StyleSnapshot(std::result::Result<Vec<u8>, String>);
+
+impl StyleSnapshot {
+    pub(crate) fn restore(&self) -> crate::error::Result<StyleBuilder> {
+        let bytes = self.0.as_ref().map_err(|error| {
+            crate::error::ReactiveError::layout(format!("Cannot capture explicit styles: {error}"))
+        })?;
+        serde_json::from_slice(bytes).map_err(|error| {
+            crate::error::ReactiveError::layout(format!("Invalid explicit styles: {error}"))
+        })
     }
 }
 

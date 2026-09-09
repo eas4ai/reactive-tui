@@ -14,6 +14,7 @@ pub mod css;
 pub mod grid;
 /// Layout manager for persistent Taffy tree and incremental updates
 pub mod manager;
+pub(crate) mod motion;
 /// Paint tree for rendering layout results to terminal
 pub mod paint_tree;
 /// Layout renderer for painting to surfaces

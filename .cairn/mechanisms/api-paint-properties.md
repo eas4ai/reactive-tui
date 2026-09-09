@@ -11,5 +11,6 @@ inputs:
   - tests/support/app_input.rs
   - scripts/check-api-paint-properties.py
   - docs/spec/rust-api-remediation.md
+  - docs/paint-properties.md
 requirements:
   - API-010

@@ -3,7 +3,7 @@
 use unicode_segmentation::UnicodeSegmentation;
 use unicode_width::UnicodeWidthStr;
 
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, serde::Serialize, serde::Deserialize)]
 pub(crate) enum Transform {
     #[default]
     None,
@@ -11,7 +11,7 @@ pub(crate) enum Transform {
     Lower,
     Capitalize,
 }
-#[derive(Clone, Copy, Debug, Default, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, serde::Serialize, serde::Deserialize)]
 pub(crate) enum WhiteSpace {
     Normal,
     NoWrap,
@@ -20,14 +20,14 @@ pub(crate) enum WhiteSpace {
     PreLine,
     PreWrap,
 }
-#[derive(Clone, Copy, Debug, Default, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, serde::Serialize, serde::Deserialize)]
 pub(crate) enum WordBreak {
     #[default]
     Normal,
     Words,
     All,
 }
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, serde::Serialize, serde::Deserialize)]
 pub(crate) enum Align {
     #[default]
     Left,
@@ -37,7 +37,7 @@ pub(crate) enum Align {
 }
 
 /// Options remain unset until inheritance has been resolved.
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, PartialEq, serde::Serialize, serde::Deserialize)]
 pub(crate) struct TextStyle {
     pub bold: Option<bool>,
     pub italic: Option<bool>,

@@ -16,6 +16,7 @@ use std::time::Instant;
 
 mod event_tree;
 mod focus_manager;
+mod motion;
 use focus_manager::FocusManager;
 
 /// Trait for root components that can render to an Element
@@ -81,6 +82,7 @@ pub struct App {
     reconciler: Reconciler,
     fps_manager: AdaptiveFpsManager,
     animation_manager: AnimationManager,
+    motion: motion::MotionTree,
     focus_manager: FocusManager,
     running: bool,
     debug: bool,
@@ -137,7 +139,8 @@ impl App {
             dirty |= self.scheduler.run_ready_timers();
             let now = Instant::now();
             if (self.animation_manager.active_count() > 0
-                || crate::hooks::animation::has_hook_animations())
+                || crate::hooks::animation::has_hook_animations()
+                || self.motion.active())
                 && now >= next_frame
             {
                 self.animation_manager.update();
@@ -164,7 +167,8 @@ impl App {
             let mut deadline = self.scheduler.next_deadline();
             if dirty
                 || (self.animation_manager.active_count() > 0
-                    || crate::hooks::animation::has_hook_animations())
+                    || crate::hooks::animation::has_hook_animations()
+                    || self.motion.active())
             {
                 deadline = Some(deadline.map_or(next_frame, |end| end.min(next_frame)));
             }
@@ -363,6 +367,7 @@ impl App {
         crate::hooks::animation::update_hook_animations();
 
         if let Some(frame) = self.root.cell_frame()? {
+            self.motion.clear();
             self.components.clear();
             self.event_tree.clear(&mut self.router);
             self.focus_manager
@@ -374,7 +379,10 @@ impl App {
         // Build element tree from root component
         let element = self.components.resolve(self.root.render())?;
 
-        let styled = self.event_tree.styled(&element, &self.router);
+        let state_styled = self.event_tree.styled(&element, &self.router);
+        let mut styled = state_styled.clone();
+        self.motion
+            .apply(&mut styled, Instant::now(), self.backend.size())?;
         if self.backend.render_frame(&styled)? {
             self.backend.present()?;
             let state = (self.router.get_focus(), self.router.hovered_node());
@@ -387,7 +395,7 @@ impl App {
                     .apply(&mut self.router, focus_manager::FocusPlan::default());
             }
             if state != (self.router.get_focus(), self.router.hovered_node())
-                && styled != self.event_tree.styled(&element, &self.router)
+                && state_styled != self.event_tree.styled(&element, &self.router)
             {
                 self.wake.request_redraw();
             }
@@ -653,6 +661,7 @@ impl AppBuilder {
             reconciler: Reconciler::new(),
             fps_manager,
             animation_manager: AnimationManager::new(),
+            motion: motion::MotionTree::default(),
             focus_manager: FocusManager::new(),
             running: false,
             debug: self.debug,

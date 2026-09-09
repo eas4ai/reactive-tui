@@ -5,6 +5,13 @@ use std::sync::Arc;
 /// Owned behavior attached to an element independently of its component props.
 #[derive(Clone, Default)]
 pub struct ElementMetadata {
+    pub(crate) paint_style: Option<Arc<crate::layout::style::StyleSnapshot>>,
+    /// Explicit layout and paint styles, independent of component props.
+    pub styles: Option<Arc<crate::layout::style::StyleSnapshot>>,
+    /// Cell background gradient.
+    pub gradient: Option<crate::layout::css::gradients::Gradient>,
+    /// Cell border gradient.
+    pub gradient_border: Option<crate::layout::css::gradients::GradientBorder>,
     /// Disabled nodes do not receive focus or activation.
     pub disabled: bool,
     /// Activation callbacks, invoked in registration order.
@@ -14,6 +21,10 @@ pub struct ElementMetadata {
 impl PartialEq for ElementMetadata {
     fn eq(&self, other: &Self) -> bool {
         self.disabled == other.disabled
+            && self.paint_style == other.paint_style
+            && self.styles == other.styles
+            && self.gradient == other.gradient
+            && self.gradient_border == other.gradient_border
             && self.on_click.len() == other.on_click.len()
             && self
                 .on_click

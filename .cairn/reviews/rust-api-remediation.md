@@ -630,3 +630,61 @@ before copying; the platform verifier reports all five current. Existing Windows
 compiler warnings remain in the API-019 inventory; no native strict-Clippy pass
 is claimed. The Consequential deadline decision remains queued for developer
 review, as required by the working agreement.
+
+## API-010 development and mechanism challenge
+
+The mechanism exercises the real App/SuprTUI route: explicit styles and gradient
+metadata survive typed component props and expansion, gradients have independent
+expected cell colors, and animations produce intermediate frames without input.
+Deterministic clock cases cover transitions and interruption, key continuity,
+removal, independent Apps, named property sets, nonfinite values and border cycles.
+The current development run passed 28 captured-frame cases and ten clock/property
+cases. Strict default-feature all-target Clippy also passed after boxing the
+private worker Element message; this introduces no public interface change.
+
+Three deliberately violating local variants each compiled and failed behavior
+assertions. Stripping gradient metadata in the bridge failed the independent
+endpoint test. Disabling the App motion wake flag failed the bounded intermediate
+frame test. Restoring degree conversion inside the radians TransformProperty path
+failed the quarter-turn matrix assertion. The original source bytes were restored
+after every probe. Captured failures are in api010-gradient-bridge-negative.txt,
+api010-animation-wakeup-negative.txt and api010-rotation-units-negative.txt beside
+this review. They are negative controls, not acceptance passes.
+
+One new static-border test initially waited for unsolicited frames; its timeout
+was a test scheduling error. The corrected test forces a resize to inspect another
+static frame. This preserves the idle-wait contract. A previous wide-grapheme alpha
+test was corrected to inspect color on the leading cell and assert continuation
+on the second cell, matching VT100's representation.
+
+The developer explicitly approved radians for TransformProperty::Rotate while
+keeping degree-based Rotation/CSS helpers, and the new optional GradientBorder
+cycle_duration field. The answered escalations and corresponding decision records
+preserve those compatibility choices. Public constructor signatures and the C ABI
+are unchanged. docs/paint-properties.md states the struct-literal migration,
+unit semantics, upright glyph approximation and rectangular transformed hit areas.
+
+Inventory boundary: this requirement establishes style/property delivery into
+App's supported painter. The separate animation target APIs, CSS manager target
+binding, typed-keyframe conversion, relative bases and screen transitions remain
+explicit API-013 work; they are not declared repaired by these paint checks.
+
+Ripwire edit-check found no incompatible callers for the new property projector.
+Its quality-delta and test-gate do not pass: the index includes ignored reference
+projects and produces false dead-code/cross-project duplication findings (including
+executed tests and width_px/height_px calls visible in this change). Real complexity
+growth was inspected in the property dispatch, affine/clipping painter and App
+clock traversal. These branches implement distinct value types, clipping and
+lifecycle cases covered by the focused checks. No suppression or baseline reset
+was used. The relevant regression paths also run in the default full suite and
+Cairn's inherited mechanisms. Final commitment-wide review remains pending.
+
+The first full default-suite run found two compatibility assertions for the
+existing css-in-rust-applied class marker. Restored that marker alongside the
+functional style metadata, preserving the observable builder output without
+using the marker as a substitute for painting. All 14 css_in_rust_simple_test
+cases passed after this repair; the full suite is rerun before acceptance.
+
+The corrected full default-suite run exited zero: 1,167 passed and 37 ignored
+across 63 test groups. Formatting and git diff whitespace checks passed. The
+ignored cases are unchanged; no ignored case is counted as acceptance.

@@ -14,7 +14,7 @@ use std::sync::{Arc, OnceLock, RwLock};
 use std::time::Duration;
 
 /// CSS Animation metadata that can be converted to component animations
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct CssAnimationSpec {
     /// Animation name (e.g., "pulse", "bounce", "spin")
     pub name: String,
@@ -26,6 +26,19 @@ pub struct CssAnimationSpec {
     pub loop_mode: LoopMode,
     /// Animation properties to animate
     pub properties: Vec<AnimatedProperty>,
+}
+
+pub(crate) fn animation_spec(name: &str) -> crate::error::Result<CssAnimationSpec> {
+    get_css_animation_registry()
+        .read()
+        .map_err(|_| {
+            crate::error::ReactiveError::invalid_state("CSS animation registry lock poisoned")
+        })?
+        .get(name)
+        .cloned()
+        .ok_or_else(|| {
+            crate::error::ReactiveError::invalid_parameter(format!("Unknown CSS animation: {name}"))
+        })
 }
 
 /// Global registry of CSS animations that can be applied to components
@@ -81,7 +94,7 @@ fn register_builtin_animations(registry: &mut HashMap<String, CssAnimationSpec>)
             easing: EasingFunction::Linear,
             loop_mode: LoopMode::Infinite,
             properties: vec![AnimatedProperty::Transform(
-                crate::animation::TransformProperty::Rotate(0.0, 360.0),
+                crate::animation::TransformProperty::Rotate(0.0, std::f32::consts::TAU),
             )],
         },
     );
@@ -279,6 +292,22 @@ fn apply_easing_utilities(token: &str, sb: StyleBuilder) -> Option<StyleBuilder>
 
 /// Apply transform utilities
 fn apply_transform_utilities(token: &str, sb: StyleBuilder) -> Option<StyleBuilder> {
+    if let Some(positive) = token.strip_prefix('-') {
+        if positive.starts_with("translate-") || positive.starts_with("rotate-") {
+            let mut result = apply_transform_utilities(positive, sb)?;
+            if positive.starts_with("translate-x-") {
+                result.motion.transform.x *= -1.0;
+            }
+            if positive.starts_with("translate-y-") {
+                result.motion.transform.y *= -1.0;
+            }
+            if positive.starts_with("rotate-") {
+                result.motion.transform.rotation *= -1.0;
+            }
+            return Some(result);
+        }
+        return None;
+    }
     // Scale utilities
     if let Some(scale_str) = token.strip_prefix("scale-") {
         if let Ok(scale) = scale_str.parse::<u16>() {
@@ -344,100 +373,105 @@ fn apply_animation_presets(token: &str, sb: StyleBuilder) -> Option<StyleBuilder
 // Implementation functions
 
 /// Apply transition to all properties
-fn apply_transition_all(sb: StyleBuilder) -> StyleBuilder {
-    // In TUI, we can simulate transitions with opacity changes or color shifts
-    // This is metadata that would be used by the animation system
+fn apply_transition_all(mut sb: StyleBuilder) -> StyleBuilder {
+    sb.motion.transition = crate::layout::motion::Transition::All;
     sb
 }
 
 /// Remove all transitions
-fn apply_transition_none(sb: StyleBuilder) -> StyleBuilder {
-    // Disable transitions
+fn apply_transition_none(mut sb: StyleBuilder) -> StyleBuilder {
+    sb.motion.transition = crate::layout::motion::Transition::None;
     sb
 }
 
 /// Apply transition to color properties
-fn apply_transition_colors(sb: StyleBuilder) -> StyleBuilder {
-    // Transition colors only
+fn apply_transition_colors(mut sb: StyleBuilder) -> StyleBuilder {
+    sb.motion.transition = crate::layout::motion::Transition::Colors;
     sb
 }
 
 /// Apply transition to opacity
-fn apply_transition_opacity(sb: StyleBuilder) -> StyleBuilder {
-    // Transition opacity only
+fn apply_transition_opacity(mut sb: StyleBuilder) -> StyleBuilder {
+    sb.motion.transition = crate::layout::motion::Transition::Opacity;
     sb
 }
 
 /// Apply transition to shadow (TUI-adapted)
-fn apply_transition_shadow(sb: StyleBuilder) -> StyleBuilder {
-    // In TUI, shadows might be background color changes
+fn apply_transition_shadow(mut sb: StyleBuilder) -> StyleBuilder {
+    sb.motion.transition = crate::layout::motion::Transition::Shadow;
     sb
 }
 
 /// Apply transition to transform properties
-fn apply_transition_transform(sb: StyleBuilder) -> StyleBuilder {
-    // Transition transforms
+fn apply_transition_transform(mut sb: StyleBuilder) -> StyleBuilder {
+    sb.motion.transition = crate::layout::motion::Transition::Transform;
     sb
 }
 
 /// Apply animation duration
-fn apply_duration(sb: StyleBuilder, _duration: Duration) -> StyleBuilder {
-    // Duration is metadata for the animation system
+fn apply_duration(mut sb: StyleBuilder, duration: Duration) -> StyleBuilder {
+    sb.motion.duration = Some(duration);
     sb
 }
 
 /// Apply linear easing
-fn apply_easing_linear(sb: StyleBuilder) -> StyleBuilder {
-    // Easing is metadata for the animation system
+fn apply_easing_linear(mut sb: StyleBuilder) -> StyleBuilder {
+    sb.motion.easing = Some(EasingFunction::Linear);
     sb
 }
 
 /// Apply ease-in easing
-fn apply_easing_in(sb: StyleBuilder) -> StyleBuilder {
+fn apply_easing_in(mut sb: StyleBuilder) -> StyleBuilder {
+    sb.motion.easing = Some(EasingFunction::EaseIn);
     sb
 }
 
 /// Apply ease-out easing
-fn apply_easing_out(sb: StyleBuilder) -> StyleBuilder {
+fn apply_easing_out(mut sb: StyleBuilder) -> StyleBuilder {
+    sb.motion.easing = Some(EasingFunction::EaseOut);
     sb
 }
 
 /// Apply ease-in-out easing
-fn apply_easing_in_out(sb: StyleBuilder) -> StyleBuilder {
+fn apply_easing_in_out(mut sb: StyleBuilder) -> StyleBuilder {
+    sb.motion.easing = Some(EasingFunction::EaseInOut);
     sb
 }
 
 /// Apply scale transform
-fn apply_scale(sb: StyleBuilder, _scale: f32) -> StyleBuilder {
-    // In TUI, scaling might be simulated with different character densities
-    // or by affecting the layout size
+fn apply_scale(mut sb: StyleBuilder, scale: f32) -> StyleBuilder {
+    sb.motion.transform.scale_x = scale;
+    sb.motion.transform.scale_y = scale;
     sb
 }
 
 /// Apply X-axis translation
-fn apply_translate_x(sb: StyleBuilder, _pixels: f32) -> StyleBuilder {
-    // Translation in TUI could affect positioning
+fn apply_translate_x(mut sb: StyleBuilder, cells: f32) -> StyleBuilder {
+    sb.motion.transform.x = cells;
     sb
 }
 
 /// Apply Y-axis translation
-fn apply_translate_y(sb: StyleBuilder, _pixels: f32) -> StyleBuilder {
+fn apply_translate_y(mut sb: StyleBuilder, cells: f32) -> StyleBuilder {
+    sb.motion.transform.y = cells;
     sb
 }
 
 /// Apply rotation (limited TUI support)
-fn apply_rotate(sb: StyleBuilder, _degrees: f32) -> StyleBuilder {
-    // Rotation in TUI is very limited, might affect text orientation
+fn apply_rotate(mut sb: StyleBuilder, degrees: f32) -> StyleBuilder {
+    sb.motion.transform.rotation = degrees;
     sb
 }
 
 /// Remove all transforms
-fn apply_transform_none(sb: StyleBuilder) -> StyleBuilder {
+fn apply_transform_none(mut sb: StyleBuilder) -> StyleBuilder {
+    sb.motion.transform = Default::default();
     sb
 }
 
 /// Remove all animations
-fn apply_animate_none(sb: StyleBuilder) -> StyleBuilder {
+fn apply_animate_none(mut sb: StyleBuilder) -> StyleBuilder {
+    sb.take_css_animation();
     sb
 }
 

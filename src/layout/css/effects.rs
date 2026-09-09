@@ -204,67 +204,22 @@ pub fn apply_backdrop(token: &str, sb: StyleBuilder) -> Option<StyleBuilder> {
 
 /// Apply transform utilities
 pub fn apply_transform(token: &str, sb: StyleBuilder) -> Option<StyleBuilder> {
-    // Scale transforms
-    if token.starts_with("scale-") {
-        return apply_scale_transform(token, sb);
-    }
-
-    // Translate transforms
-    if token.starts_with("translate-") {
-        return apply_translate_transform(token, sb);
-    }
-
-    // Rotate transforms
-    if token.starts_with("rotate-") || token.starts_with("-rotate-") {
-        return apply_rotate_transform(token, sb);
-    }
-
-    // Transform control
-    match token {
-        "transform" => Some(sb),
-        "transform-none" => Some(sb),
-        _ => None,
-    }
+    super::animations::apply_animation_utilities(token, sb)
 }
 
 /// Apply scale transform utilities
 pub fn apply_scale_transform(token: &str, sb: StyleBuilder) -> Option<StyleBuilder> {
-    match token {
-        "scale-0" => Some(sb.opacity(0.0)),
-        "scale-50" => Some(sb.opacity(0.5)),
-        "scale-75" => Some(sb.opacity(0.75)),
-        "scale-90" => Some(sb.opacity(0.9)),
-        "scale-95" => Some(sb.opacity(0.95)),
-        "scale-100" => Some(sb),
-        "scale-105" => Some(sb.bold(true)),
-        "scale-110" => Some(sb.bold(true)),
-        "scale-125" => Some(sb.bold(true).underline(true)),
-        "scale-150" => Some(sb.bold(true).underline(true)),
-        _ => None,
-    }
+    super::animations::apply_animation_utilities(token, sb)
 }
 
 /// Apply translate transform utilities
 pub fn apply_translate_transform(token: &str, sb: StyleBuilder) -> Option<StyleBuilder> {
-    // For TUI, translate effects can be represented through positioning hints
-    if token.starts_with("translate-x-")
-        || token.starts_with("translate-y-")
-        || token.starts_with("translate-")
-    {
-        Some(sb) // Positioning handled by layout system
-    } else {
-        None
-    }
+    super::animations::apply_animation_utilities(token, sb)
 }
 
 /// Apply rotate transform utilities
 pub fn apply_rotate_transform(token: &str, sb: StyleBuilder) -> Option<StyleBuilder> {
-    // For TUI, rotation can be represented through text styling
-    if token.contains("rotate-") {
-        Some(sb.italic(true)) // Subtle indication of rotation
-    } else {
-        None
-    }
+    super::animations::apply_animation_utilities(token, sb)
 }
 
 /// Apply all effects utilities

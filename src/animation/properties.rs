@@ -339,7 +339,7 @@ impl AnimatedProperty {
                 })
             }
             TransformProperty::Rotate(from, to) => {
-                let angle = (from + (to - from) * t).to_radians();
+                let angle = from + (to - from) * t;
                 let cos_a = angle.cos();
                 let sin_a = angle.sin();
                 let matrix = TransformMatrix {
@@ -375,7 +375,7 @@ impl AnimatedProperty {
     }
 
     /// Interpolate CSS values
-    fn interpolate_css_value(from: &CssValue, to: &CssValue, t: f32) -> AnimationValue {
+    pub(crate) fn interpolate_css_value(from: &CssValue, to: &CssValue, t: f32) -> AnimationValue {
         match (from, to) {
             (CssValue::Number(f), CssValue::Number(t_val)) => {
                 AnimationValue::Number(f + (t_val - f) * t)
@@ -428,23 +428,16 @@ impl AnimatedProperty {
                 }
             }
             _ => {
-                // Mismatched types - use from value
-                match from {
-                    CssValue::Number(val) => AnimationValue::Number(*val),
-                    CssValue::Color { r, g, b } => AnimationValue::Color {
-                        r: *r,
-                        g: *g,
-                        b: *b,
-                    },
-                    CssValue::String(s) => AnimationValue::String(s.clone()),
-                    _ => AnimationValue::Number(0.0),
-                }
+                // Different units cannot be interpolated without a layout context.
+                // Preserve the selected endpoint's value and unit at the midpoint.
+                keyframes::KeyframeValue::Css(if t < 0.5 { from.clone() } else { to.clone() })
+                    .to_animation_value()
             }
         }
     }
 
     /// Interpolate between two AnimationValues
-    fn interpolate_animation_value(
+    pub(crate) fn interpolate_animation_value(
         from: &AnimationValue,
         to: &AnimationValue,
         t: f32,

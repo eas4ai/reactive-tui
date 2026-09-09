@@ -32,7 +32,7 @@ pub enum GradientDirection {
 }
 
 /// Gradient color stops
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct GradientStops {
     /// Starting color (from-*)
     pub from: Option<(u8, u8, u8, f32)>,
@@ -43,7 +43,7 @@ pub struct GradientStops {
 }
 
 /// Gradient configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Gradient {
     /// Direction of the gradient flow
     pub direction: GradientDirection,
@@ -64,28 +64,13 @@ impl Gradient {
     pub fn color_at(&self, position: f32) -> Option<(u8, u8, u8, f32)> {
         let position = position.clamp(0.0, 1.0);
 
-        match (self.stops.from, self.stops.via, self.stops.to) {
-            // Three color stops (from -> via -> to)
-            (Some(from), Some(via), Some(to)) => {
-                if position <= 0.5 {
-                    // Interpolate between from and via
-                    let t = position * 2.0; // Scale to 0-1 for first half
-                    Some(interpolate_color(from, via, t))
-                } else {
-                    // Interpolate between via and to
-                    let t = (position - 0.5) * 2.0; // Scale to 0-1 for second half
-                    Some(interpolate_color(via, to, t))
-                }
-            }
-            // Two color stops (from -> to)
-            (Some(from), None, Some(to)) => Some(interpolate_color(from, to, position)),
-            // Only starting color
-            (Some(color), None, None) => Some(color),
-            // Only ending color
-            (None, None, Some(color)) => Some(color),
-            // No colors defined
-            _ => None,
-        }
+        let from = self.stops.from.or(self.stops.via).or(self.stops.to)?;
+        let to = self.stops.to.or(self.stops.via).unwrap_or(from);
+        Some(match self.stops.via {
+            Some(via) if position <= 0.5 => interpolate_color(from, via, position * 2.0),
+            Some(via) => interpolate_color(via, to, (position - 0.5) * 2.0),
+            None => interpolate_color(from, to, position),
+        })
     }
 
     /// Render gradient across a width (returns colors for each cell)
@@ -113,6 +98,28 @@ impl Gradient {
 
         colors
     }
+}
+
+pub(crate) fn apply_gradient_utility(token: &str, mut sb: StyleBuilder) -> Option<StyleBuilder> {
+    if token == "bg-none" {
+        sb.gradient = None;
+    } else if let Some(direction) = parse_gradient_direction(token) {
+        sb.gradient
+            .get_or_insert_with(|| Gradient::new(direction))
+            .direction = direction;
+    } else if let Some((stop, color)) = parse_gradient_stop(token) {
+        let gradient = sb
+            .gradient
+            .get_or_insert_with(|| Gradient::new(GradientDirection::ToRight));
+        match stop {
+            GradientStopType::From => gradient.stops.from = Some(color),
+            GradientStopType::Via => gradient.stops.via = Some(color),
+            GradientStopType::To => gradient.stops.to = Some(color),
+        }
+    } else {
+        return None;
+    }
+    Some(sb)
 }
 
 /// Interpolate between two colors
@@ -181,18 +188,26 @@ pub enum GradientStopType {
 }
 
 /// Gradient border configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GradientBorder {
     /// Gradient to apply to the border
     pub gradient: Gradient,
     /// Border width in terminal cells
     pub width: usize,
+    /// Duration of a complete RGB color cycle in App. None or zero is static.
+    /// Struct literals must supply this field; older serialized data defaults to None.
+    #[serde(default)]
+    pub cycle_duration: Option<std::time::Duration>,
 }
 
 impl GradientBorder {
     /// Create a new gradient border
     pub fn new(gradient: Gradient, width: usize) -> Self {
-        Self { gradient, width }
+        Self {
+            gradient,
+            width,
+            cycle_duration: None,
+        }
     }
 
     /// Calculate border color at a specific position around the perimeter
@@ -201,59 +216,71 @@ impl GradientBorder {
         self.gradient.color_at(perimeter_position)
     }
 
-    /// Render gradient border for a rectangle
-    /// Returns colors for each border cell position (top, right, bottom, left)
+    pub(crate) fn color_at_cell(
+        &self,
+        column: usize,
+        row: usize,
+        width: usize,
+        height: usize,
+    ) -> Option<(u8, u8, u8, f32)> {
+        if column >= width || row >= height {
+            return None;
+        }
+        let edge = column
+            .min(row)
+            .min(width - column - 1)
+            .min(height - row - 1);
+        if edge >= self.width {
+            return None;
+        }
+        let width = width - 2 * edge;
+        let height = height - 2 * edge;
+        let column = column - edge;
+        let row = row - edge;
+        let position = if width == 1 && height == 1 {
+            0.5
+        } else if height == 1 {
+            column as f32 / (width - 1) as f32
+        } else if width == 1 {
+            row as f32 / (height - 1) as f32
+        } else {
+            let perimeter = 2.0 * ((width - 1) as f32 + (height - 1) as f32);
+            let along = if row == 0 {
+                column as f32
+            } else if column == width - 1 {
+                (width - 1) as f32 + row as f32
+            } else if row == height - 1 {
+                (width - 1) as f32 + (height - 1) as f32 + (width - column - 1) as f32
+            } else {
+                2.0 * (width - 1) as f32 + (height - 1) as f32 + (height - row - 1) as f32
+            };
+            along / perimeter
+        };
+        self.border_color_at(position)
+    }
+
+    /// Render the top, right, reversed bottom and reversed left border colors.
+    /// Empty dimensions return no edges; a single cell samples the midpoint.
     pub fn render_border(&self, width: usize, height: usize) -> Vec<Vec<(u8, u8, u8, f32)>> {
-        let mut border_colors = Vec::new();
-
-        // Calculate total perimeter
-        let perimeter = 2 * (width + height) - 4; // -4 for corners counted once
-
-        if perimeter == 0 {
-            return border_colors;
+        if width == 0 || height == 0 {
+            return Vec::new();
         }
-
-        // Top border
-        let mut top = Vec::new();
-        for x in 0..width {
-            let pos = x as f32 / perimeter as f32;
-            if let Some(color) = self.gradient.color_at(pos) {
-                top.push(color);
-            }
-        }
-        border_colors.push(top);
-
-        // Right border
-        let mut right = Vec::new();
-        for y in 0..height {
-            let pos = (width + y) as f32 / perimeter as f32;
-            if let Some(color) = self.gradient.color_at(pos) {
-                right.push(color);
-            }
-        }
-        border_colors.push(right);
-
-        // Bottom border (reversed)
-        let mut bottom = Vec::new();
-        for x in (0..width).rev() {
-            let pos = (width + height + (width - 1 - x)) as f32 / perimeter as f32;
-            if let Some(color) = self.gradient.color_at(pos) {
-                bottom.push(color);
-            }
-        }
-        border_colors.push(bottom);
-
-        // Left border (reversed)
-        let mut left = Vec::new();
-        for y in (0..height).rev() {
-            let pos = (2 * width + height + (height - 1 - y)) as f32 / perimeter as f32;
-            if let Some(color) = self.gradient.color_at(pos) {
-                left.push(color);
-            }
-        }
-        border_colors.push(left);
-
-        border_colors
+        vec![
+            (0..width)
+                .filter_map(|x| self.color_at_cell(x, 0, width, height))
+                .collect(),
+            (0..height)
+                .filter_map(|y| self.color_at_cell(width - 1, y, width, height))
+                .collect(),
+            (0..width)
+                .rev()
+                .filter_map(|x| self.color_at_cell(x, height - 1, width, height))
+                .collect(),
+            (0..height)
+                .rev()
+                .filter_map(|y| self.color_at_cell(0, y, width, height))
+                .collect(),
+        ]
     }
 
     /// Create an animated rainbow border that cycles through colors
@@ -264,7 +291,11 @@ impl GradientBorder {
         gradient.stops.via = Some((0, 255, 0, 1.0)); // Green
         gradient.stops.to = Some((0, 0, 255, 1.0)); // Blue
 
-        Self::new(gradient, width)
+        Self {
+            gradient,
+            width,
+            cycle_duration: Some(std::time::Duration::from_secs(2)),
+        }
     }
 
     /// Create a conic gradient border (rotates around the perimeter)

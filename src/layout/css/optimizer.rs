@@ -88,7 +88,11 @@ pub fn apply_utility_classes(
     }
 
     // Check cache first
-    let cached = CLASS_CACHE.with(|cache| cache.borrow_mut().get(class_str).cloned());
+    // A class-only key is valid only for the default base and no theme.
+    let cacheable = sb == StyleBuilder::default() && theme.is_none();
+    let cached = cacheable
+        .then(|| CLASS_CACHE.with(|cache| cache.borrow_mut().get(class_str).cloned()))
+        .flatten();
 
     if let Some(cached_sb) = cached {
         return cached_sb;
@@ -100,9 +104,11 @@ pub fn apply_utility_classes(
     }
 
     // Cache the result
-    CLASS_CACHE.with(|cache| {
-        cache.borrow_mut().put(class_str.to_string(), sb.clone());
-    });
+    if cacheable {
+        CLASS_CACHE.with(|cache| {
+            cache.borrow_mut().put(class_str.to_string(), sb.clone());
+        });
+    }
 
     sb
 }
@@ -171,6 +177,9 @@ fn delegate_to_existing_modules(
     }
 
     // Color utilities (with theme support)
+    if let Some(result) = super::gradients::apply_gradient_utility(token, sb.clone()) {
+        return result;
+    }
     if let Some(result) = super::colors::apply_color_utilities_with_theme(token, sb.clone(), theme)
     {
         return result;
@@ -182,6 +191,9 @@ fn delegate_to_existing_modules(
     }
 
     // Effects utilities
+    if let Some(result) = super::animations::apply_animation_utilities(token, sb.clone()) {
+        return result;
+    }
     if let Some(result) = super::effects::apply_effects_utilities(token, sb.clone()) {
         return result;
     }

@@ -1,11 +1,12 @@
 //! Grapheme painting over the existing CSS/Taffy layout metadata.
 
-use super::{build_nodes, NodePaint, NodeSpec};
+use super::{build_nodes_inherited, transform::Affine, NodePaint};
 use crate::core::surface::{Attr, Rgba};
 use crate::error::{ReactiveError, Result};
 use ::suprtui::ansi::{self, TextAttributes};
 use ::suprtui::buffer::OptimizedBuffer;
 use std::collections::HashMap;
+use std::sync::Arc;
 use taffy::{geometry::Size, prelude::NodeId, style::Overflow, AvailableSpace, TaffyTree};
 use unicode_segmentation::UnicodeSegmentation;
 use unicode_width::UnicodeWidthStr;
@@ -30,6 +31,10 @@ impl Rect {
 }
 
 struct PaintNode {
+    mask: Option<Arc<ClipMask>>,
+    transform: Affine,
+    local: Rect,
+    parent_opacity: f32,
     element_index: usize,
     id: NodeId,
     bounds: Rect,
@@ -38,13 +43,19 @@ struct PaintNode {
 }
 
 pub(crate) fn paint_frame(
-    root: &NodeSpec<'_>,
+    root: &crate::component::bridge::PaintSpec,
     target: &mut OptimizedBuffer<'_>,
 ) -> Result<Vec<crate::backend::PaintedNode>> {
     target.clear(ansi::rgb_color(0, 0, 0, 255), None);
     let mut tree = TaffyTree::new();
     let mut paints = HashMap::new();
-    let root = build_nodes(&mut tree, root, &mut paints)?;
+    let root = build_nodes_inherited(
+        &mut tree,
+        &root.root,
+        &mut paints,
+        &crate::layout::text::TextStyle::default(),
+        &mut root.styles.iter().cloned(),
+    )?;
     let available = Size {
         width: AvailableSpace::Definite(target.width() as f32),
         height: AvailableSpace::Definite(target.height() as f32),
@@ -60,13 +71,25 @@ pub(crate) fn paint_frame(
         bottom: target.height() as i32,
     };
     let mut nodes = Vec::new();
-    collect(&tree, &paints, root, (0, 0), screen, i32::MIN, &mut nodes)?;
+    collect(
+        &tree,
+        &paints,
+        root,
+        Placement {
+            mask: None,
+            transform: Affine::default(),
+            clip: screen,
+            layer: i32::MIN,
+            opacity: 1.0,
+        },
+        &mut nodes,
+    )?;
     // Stable sorting preserves parent-before-child and sibling paint order.
     nodes.sort_by_key(|node| node.z);
     let mut geometry = Vec::with_capacity(nodes.len());
     for node in nodes {
         paint_node(target, &paints[&node.id], &node)?;
-        let visible = node.bounds.intersect(node.clip);
+        let visible = hit_bounds(&node);
         geometry.push(crate::backend::PaintedNode {
             element_index: node.element_index,
             bounds: crate::event::hit::Bounds::new(
@@ -80,71 +103,174 @@ pub(crate) fn paint_frame(
     Ok(geometry)
 }
 
+fn hit_bounds(node: &PaintNode) -> Rect {
+    let visible = node.bounds.intersect(node.clip);
+    if node.mask.is_none() {
+        return visible;
+    }
+    // The public event API uses rectangles. Bound the cells that survive local
+    // ancestor clipping, rather than registering an entirely clipped child.
+    let mut bounds = Rect {
+        left: visible.right,
+        right: visible.left,
+        top: visible.bottom,
+        bottom: visible.top,
+    };
+    for y in visible.top..visible.bottom {
+        for x in visible.left..visible.right {
+            if inside_masks(&node.mask, x, y) {
+                bounds.left = bounds.left.min(x);
+                bounds.right = bounds.right.max(x + 1);
+                bounds.top = bounds.top.min(y);
+                bounds.bottom = bounds.bottom.max(y + 1);
+            }
+        }
+    }
+    bounds
+}
+
+struct ClipMask {
+    parent: Option<Arc<ClipMask>>,
+    transform: Affine,
+    local: Rect,
+    x: bool,
+    y: bool,
+}
+
+fn inside_masks(mask: &Option<Arc<ClipMask>>, x: i32, y: i32) -> bool {
+    let mut current = mask.as_deref();
+    while let Some(mask) = current {
+        let Some((local_x, local_y)) = mask.transform.inverse(x as f32, y as f32) else {
+            return false;
+        };
+        if (mask.x && (local_x < -0.5 || local_x >= mask.local.right as f32 - 0.5))
+            || (mask.y && (local_y < -0.5 || local_y >= mask.local.bottom as f32 - 0.5))
+        {
+            return false;
+        }
+        current = mask.parent.as_deref();
+    }
+    true
+}
+
+#[derive(Clone)]
+struct Placement {
+    mask: Option<Arc<ClipMask>>,
+    transform: Affine,
+    clip: Rect,
+    layer: i32,
+    opacity: f32,
+}
+
 fn collect(
     tree: &TaffyTree<()>,
     paints: &HashMap<NodeId, NodePaint>,
     id: NodeId,
-    origin: (i32, i32),
-    clip: Rect,
-    parent_layer: i32,
+    parent: Placement,
     nodes: &mut Vec<PaintNode>,
 ) -> Result<()> {
     let layout = tree
         .layout(id)
         .map_err(|error| ReactiveError::layout(error.to_string()))?;
-    let left = origin.0.saturating_add(layout.location.x as i32);
-    let top = origin.1.saturating_add(layout.location.y as i32);
+    let paint = &paints[&id];
+    let local = Rect {
+        left: 0,
+        top: 0,
+        right: layout.size.width as i32,
+        bottom: layout.size.height as i32,
+    };
+    let transform = parent.transform.placed(
+        (layout.location.x, layout.location.y),
+        (layout.size.width, layout.size.height),
+        paint.transform,
+    );
+    let (left, top, right, bottom) = transform.bounds(local.right, local.bottom);
     let bounds = Rect {
         left,
         top,
-        right: left.saturating_add(layout.size.width as i32),
-        bottom: top.saturating_add(layout.size.height as i32),
+        right,
+        bottom,
     };
-    let paint = &paints[&id];
-    // Descendants paint at least on their parent's layer; otherwise a
-    // positioned box's background would hide ordinary text children.
-    let layer = parent_layer.max(paint.z_index);
+    let layer = parent.layer.max(paint.z_index);
     nodes.push(PaintNode {
+        mask: parent.mask.clone(),
+        transform,
+        local,
+        parent_opacity: parent.opacity,
         element_index: nodes.len(),
         id,
         bounds,
-        clip,
+        clip: parent.clip,
         z: layer,
     });
+    let clip = parent.clip;
     let child_clip = Rect {
-        left: if paint.overflow_x == Overflow::Hidden {
+        left: if paint.overflow_x == Overflow::Hidden && paint.overflow_y == Overflow::Hidden {
             clip.left.max(bounds.left)
         } else {
             clip.left
         },
-        right: if paint.overflow_x == Overflow::Hidden {
+        right: if paint.overflow_x == Overflow::Hidden && paint.overflow_y == Overflow::Hidden {
             clip.right.min(bounds.right)
         } else {
             clip.right
         },
-        top: if paint.overflow_y == Overflow::Hidden {
+        top: if paint.overflow_x == Overflow::Hidden && paint.overflow_y == Overflow::Hidden {
             clip.top.max(bounds.top)
         } else {
             clip.top
         },
-        bottom: if paint.overflow_y == Overflow::Hidden {
+        bottom: if paint.overflow_x == Overflow::Hidden && paint.overflow_y == Overflow::Hidden {
             clip.bottom.min(bounds.bottom)
         } else {
             clip.bottom
         },
     };
+    let mask = if paint.overflow_x == Overflow::Hidden || paint.overflow_y == Overflow::Hidden {
+        Some(Arc::new(ClipMask {
+            parent: parent.mask,
+            transform,
+            local,
+            x: paint.overflow_x == Overflow::Hidden,
+            y: paint.overflow_y == Overflow::Hidden,
+        }))
+    } else {
+        parent.mask
+    };
     for child in tree
         .children(id)
         .map_err(|error| ReactiveError::layout(error.to_string()))?
     {
-        // Taffy locations are relative to the parent, including absolute nodes.
-        collect(tree, paints, child, (left, top), child_clip, layer, nodes)?;
+        collect(
+            tree,
+            paints,
+            child,
+            Placement {
+                mask: mask.clone(),
+                transform,
+                clip: child_clip,
+                layer,
+                opacity: parent.opacity * paint.opacity,
+            },
+            nodes,
+        )?;
     }
     Ok(())
 }
 
 fn color(value: Rgba) -> ansi::Rgba {
     ansi::rgba_from_floats(value.r, value.g, value.b, value.a)
+}
+
+fn with_opacity(value: ansi::Rgba, opacity: f32) -> ansi::Rgba {
+    ansi::rgb_color(
+        ansi::red(value),
+        ansi::green(value),
+        ansi::blue(value),
+        (f32::from(ansi::alpha(value)) * opacity)
+            .round()
+            .clamp(0.0, 255.0) as u8,
+    )
 }
 
 fn attributes(paint: &NodePaint) -> u32 {
@@ -165,17 +291,124 @@ fn attributes(paint: &NodePaint) -> u32 {
     u32::from(flags)
 }
 
+fn gradient_color(
+    gradient: &crate::layout::css::gradients::Gradient,
+    bounds: Rect,
+    x: i32,
+    y: i32,
+) -> Option<ansi::Rgba> {
+    use crate::layout::css::gradients::GradientDirection::*;
+    let coordinate = |position: i32, start: i32, end: i32| {
+        if end - start <= 1 {
+            0.5
+        } else {
+            (position - start) as f32 / (end - start - 1) as f32
+        }
+    };
+    let horizontal = coordinate(x, bounds.left, bounds.right);
+    let vertical = coordinate(y, bounds.top, bounds.bottom);
+    let position = match gradient.direction {
+        ToRight => horizontal,
+        ToLeft => 1.0 - horizontal,
+        ToBottom => vertical,
+        ToTop => 1.0 - vertical,
+        ToTopRight => (horizontal + 1.0 - vertical) / 2.0,
+        ToTopLeft => (2.0 - horizontal - vertical) / 2.0,
+        ToBottomRight => (horizontal + vertical) / 2.0,
+        ToBottomLeft => (1.0 - horizontal + vertical) / 2.0,
+    };
+    gradient.color_at(position).map(|(r, g, b, a)| {
+        ansi::rgba_from_floats(r as f32 / 255.0, g as f32 / 255.0, b as f32 / 255.0, a)
+    })
+}
+
+fn background(paint: &NodePaint, bounds: Rect, x: i32, y: i32) -> Option<ansi::Rgba> {
+    if let Some(border) = &paint.gradient_border {
+        let width = (bounds.right - bounds.left).max(0) as usize;
+        let height = (bounds.bottom - bounds.top).max(0) as usize;
+        if let Some((r, g, b, a)) = border.color_at_cell(
+            (x - bounds.left).max(0) as usize,
+            (y - bounds.top).max(0) as usize,
+            width,
+            height,
+        ) {
+            return Some(ansi::rgba_from_floats(
+                r as f32 / 255.0,
+                g as f32 / 255.0,
+                b as f32 / 255.0,
+                a * paint.opacity,
+            ));
+        }
+    }
+    paint
+        .gradient
+        .as_ref()
+        .and_then(|gradient| gradient_color(gradient, bounds, x, y))
+        .map(|color| with_opacity(color, paint.opacity))
+        .or_else(|| paint.background_specified.then(|| color(paint.style.bg)))
+}
+
 fn paint_node(target: &mut OptimizedBuffer<'_>, paint: &NodePaint, node: &PaintNode) -> Result<()> {
-    let fg = color(paint.style.fg);
+    use ::suprtui::buffer::draw::blend_colors;
+    if paint.opacity * node.parent_opacity <= 0.0 {
+        return Ok(());
+    }
+    if node.transform.inverse(0.0, 0.0).is_none() {
+        return Ok(());
+    }
+    let fg = with_opacity(color(paint.style.fg), node.parent_opacity);
     let bg = color(paint.style.bg);
     let attr = attributes(paint);
     let visible = node.bounds.intersect(node.clip);
     // Fill the complete box, including padding, when a background is supplied.
-    if paint.background_specified || paint.style.bg != crate::ui::paint::PaintStyle::default().bg {
+    if paint.gradient.is_some() || paint.gradient_border.is_some() || paint.background_specified {
         for y in visible.top..visible.bottom {
             for x in visible.left..visible.right {
+                if !inside_masks(&node.mask, x, y) {
+                    continue;
+                }
+                let Some((local_x, local_y)) = node.transform.inverse(x as f32, y as f32) else {
+                    continue;
+                };
+                let local_x = local_x.round() as i32;
+                let local_y = local_y.round() as i32;
+                if local_x < 0
+                    || local_x >= node.local.right
+                    || local_y < 0
+                    || local_y >= node.local.bottom
+                {
+                    continue;
+                }
+                let Some(source) = background(paint, node.local, local_x, local_y) else {
+                    continue;
+                };
+                let source = with_opacity(source, node.parent_opacity);
+                if ansi::alpha(source) == 0 {
+                    continue;
+                }
+                let below = target
+                    .get(x as u32, y as u32)
+                    .expect("visible cell is in the target");
+                let background = blend_colors(source, below.bg, None);
+                if ansi::alpha(source) < 255 {
+                    // Preserve the underlying grapheme span while tinting its colors.
+                    // Character and link ownership do not change on this path.
+                    let mut cell = below;
+                    cell.bg = background;
+                    cell.fg = blend_colors(source, below.fg, None);
+                    target.set_raw(x as u32, y as u32, cell);
+                    continue;
+                }
                 target
-                    .draw_grapheme(b" ", 1, x as u32, y as u32, fg, bg, attr)
+                    .draw_grapheme(
+                        b" ",
+                        1,
+                        x as u32,
+                        y as u32,
+                        blend_colors(fg, background, None),
+                        background,
+                        attr,
+                    )
                     .map_err(|error| {
                         ReactiveError::resource(format!("SuprTUI paint: {error:?}"))
                     })?;
@@ -184,12 +417,12 @@ fn paint_node(target: &mut OptimizedBuffer<'_>, paint: &NodePaint, node: &PaintN
     }
     if let Some(text) = &paint.text {
         let content = Rect {
-            left: node.bounds.left.saturating_add(paint.pad.left as i32),
-            top: node.bounds.top.saturating_add(paint.pad.top as i32),
-            right: node.bounds.right.saturating_sub(paint.pad.right as i32),
-            bottom: node.bounds.bottom.saturating_sub(paint.pad._bottom as i32),
+            left: node.local.left.saturating_add(paint.pad.left as i32),
+            top: node.local.top.saturating_add(paint.pad.top as i32),
+            right: node.local.right.saturating_sub(paint.pad.right as i32),
+            bottom: node.local.bottom.saturating_sub(paint.pad._bottom as i32),
         };
-        let clip = content.intersect(node.clip);
+        let clip = content;
         let width = (content.right - content.left).max(0) as usize;
         for (row, line) in paint.typography.lines(text, width).iter().enumerate() {
             let y = content.top.saturating_add(
@@ -217,10 +450,40 @@ fn paint_node(target: &mut OptimizedBuffer<'_>, paint: &NodePaint, node: &PaintN
                     break;
                 }
                 if x >= clip.left {
+                    let (paint_x, paint_y) = node
+                        .transform
+                        .point(x as f32 + (width as f32 - 1.0) / 2.0, y as f32);
+                    let paint_x = (paint_x - (width as f32 - 1.0) / 2.0).round() as i32;
+                    let paint_y = paint_y.round() as i32;
+                    if paint_x < node.clip.left
+                        || paint_y < node.clip.top
+                        || paint_x.saturating_add(width as i32) > node.clip.right
+                        || paint_y >= node.clip.bottom
+                    {
+                        x = right;
+                        continue;
+                    }
+                    if !(0..width).all(|offset| {
+                        inside_masks(&node.mask, paint_x.saturating_add(offset as i32), paint_y)
+                    }) {
+                        x = right;
+                        continue;
+                    }
+                    let bg = target
+                        .get(paint_x as u32, paint_y as u32)
+                        .map_or(bg, |cell| cell.bg);
                     let width = u8::try_from(width)
                         .map_err(|_| ReactiveError::layout("grapheme exceeds 255 cells"))?;
                     target
-                        .draw_grapheme(grapheme.as_bytes(), width, x as u32, y as u32, fg, bg, attr)
+                        .draw_grapheme(
+                            grapheme.as_bytes(),
+                            width,
+                            paint_x as u32,
+                            paint_y as u32,
+                            blend_colors(fg, bg, None),
+                            bg,
+                            attr,
+                        )
                         .map_err(|error| {
                             ReactiveError::resource(format!("SuprTUI paint: {error:?}"))
                         })?;

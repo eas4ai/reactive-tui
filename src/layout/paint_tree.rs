@@ -1,6 +1,7 @@
 use crate::core::surface::Surface;
 use crate::error::{ReactiveError, Result};
 pub(crate) mod suprtui;
+mod transform;
 use taffy::style::Overflow;
 /// Options for controlling paint behavior
 #[derive(Default)]
@@ -56,6 +57,10 @@ pub struct NodeSpec<'a> {
 }
 
 struct NodePaint {
+    opacity: f32,
+    transform: crate::layout::motion::CellTransform,
+    gradient: Option<crate::layout::css::gradients::Gradient>,
+    gradient_border: Option<crate::layout::css::gradients::GradientBorder>,
     typography: crate::layout::text::TextStyle,
     style: PaintStyle,
     background_specified: bool,
@@ -134,7 +139,13 @@ fn build_nodes<'a>(
     spec: &NodeSpec<'a>,
     map: &mut HashMap<NodeId, NodePaint>,
 ) -> Result<NodeId> {
-    build_nodes_inherited(taffy, spec, map, &crate::layout::text::TextStyle::default())
+    build_nodes_inherited(
+        taffy,
+        spec,
+        map,
+        &crate::layout::text::TextStyle::default(),
+        &mut std::iter::empty(),
+    )
 }
 
 fn build_nodes_inherited(
@@ -142,8 +153,11 @@ fn build_nodes_inherited(
     spec: &NodeSpec<'_>,
     map: &mut HashMap<NodeId, NodePaint>,
     inherited: &crate::layout::text::TextStyle,
+    styles: &mut dyn Iterator<Item = StyleBuilder>,
 ) -> Result<NodeId> {
-    let mut sb = apply_utility_classes(spec.class.as_ref(), StyleBuilder::new());
+    let mut sb = styles
+        .next()
+        .unwrap_or_else(|| apply_utility_classes(spec.class.as_ref(), StyleBuilder::new()));
     let typography = sb.text.inherit(inherited);
     sb = sb
         .bold(typography.bold.unwrap_or(false))
@@ -174,7 +188,7 @@ fn build_nodes_inherited(
             .map_err(|e| ReactiveError::layout(format!("Failed to create parent node: {}", e)))?;
         let mut child_ids: Vec<NodeId> = Vec::with_capacity(spec.children.len());
         for child in &spec.children {
-            let cid = build_nodes_inherited(taffy, child, map, &typography)?;
+            let cid = build_nodes_inherited(taffy, child, map, &typography, styles)?;
             child_ids.push(cid);
         }
         taffy
@@ -183,6 +197,8 @@ fn build_nodes_inherited(
         id
     };
     // Extract visuals + padding/margin cache (px only)
+    let opacity = sb.opacity.unwrap_or(1.0).clamp(0.0, 1.0);
+    let explicit_background = sb.has_bg_color();
     let paint_style = extract_paint_style(&mut sb).unwrap_or_default();
     let z_index = sb.get_z_index().unwrap_or(0);
     let overflow_x = sb.get_overflow_x();
@@ -195,15 +211,20 @@ fn build_nodes_inherited(
         padding.bottom as usize,
     );
     let text = spec.text.as_ref().map(|s| typography.prepare(s));
-    let background_specified = spec.class.split_whitespace().any(|token| {
-        token
-            .strip_prefix("bg-")
-            .and_then(crate::layout::colors::parse_color_token)
-            .is_some()
-    });
+    let background_specified = explicit_background
+        || spec.class.split_whitespace().any(|token| {
+            token
+                .strip_prefix("bg-")
+                .and_then(crate::layout::colors::parse_color_token)
+                .is_some()
+        });
     map.insert(
         id,
         NodePaint {
+            opacity,
+            transform: sb.motion.transform,
+            gradient: sb.gradient.clone(),
+            gradient_border: sb.gradient_border.clone(),
             typography,
             style: paint_style,
             background_specified,

@@ -100,6 +100,15 @@ impl ComponentRuntime {
                 let mut resolved = self.expand(output, output_path, seen, depth + 1)?;
                 resolved.metadata.on_click.extend(element.metadata.on_click);
                 resolved.metadata.disabled |= element.metadata.disabled;
+                if element.metadata.styles.is_some() {
+                    resolved.metadata.styles = element.metadata.styles;
+                }
+                if element.metadata.gradient.is_some() {
+                    resolved.metadata.gradient = element.metadata.gradient;
+                }
+                if element.metadata.gradient_border.is_some() {
+                    resolved.metadata.gradient_border = element.metadata.gradient_border;
+                }
                 // Caller styling belongs to the rendered root and takes precedence.
                 if let Some(class) = element.class {
                     resolved.class = Some(match resolved.class {

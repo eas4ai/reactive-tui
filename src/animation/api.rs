@@ -370,7 +370,7 @@ fn extract_animated_properties(params: &AnimateParams) -> Vec<AnimatedProperty> 
                 "translateY" => TransformProperty::TranslateY(0.0, *value),
                 "scale" | "scaleX" => TransformProperty::ScaleX(1.0, *value),
                 "scaleY" => TransformProperty::ScaleY(1.0, *value),
-                "rotate" => TransformProperty::Rotate(0.0, *value),
+                "rotate" => TransformProperty::Rotate(0.0, value.to_radians()),
                 "skewX" => TransformProperty::SkewX(0.0, *value),
                 "skewY" => TransformProperty::SkewY(0.0, *value),
                 _ => continue,
@@ -488,14 +488,14 @@ fn convert_property_to_transform(transform_type: &str, value: &PropertyValue) ->
             "translateX" => TransformProperty::TranslateX(0.0, *to),
             "translateY" => TransformProperty::TranslateY(0.0, *to),
             "scale" => TransformProperty::Scale(1.0, *to),
-            "rotate" => TransformProperty::Rotate(0.0, *to),
+            "rotate" => TransformProperty::Rotate(0.0, to.to_radians()),
             _ => TransformProperty::TranslateX(0.0, *to),
         },
         PropertyValue::FromTo { from, to } => match transform_type {
             "translateX" => TransformProperty::TranslateX(*from, *to),
             "translateY" => TransformProperty::TranslateY(*from, *to),
             "scale" => TransformProperty::Scale(*from, *to),
-            "rotate" => TransformProperty::Rotate(*from, *to),
+            "rotate" => TransformProperty::Rotate(from.to_radians(), to.to_radians()),
             _ => TransformProperty::TranslateX(*from, *to),
         },
         PropertyValue::Array(values) => {
@@ -506,7 +506,7 @@ fn convert_property_to_transform(transform_type: &str, value: &PropertyValue) ->
                     "translateX" => TransformProperty::TranslateX(from, to),
                     "translateY" => TransformProperty::TranslateY(from, to),
                     "scale" => TransformProperty::Scale(from, to),
-                    "rotate" => TransformProperty::Rotate(from, to),
+                    "rotate" => TransformProperty::Rotate(from.to_radians(), to.to_radians()),
                     _ => TransformProperty::TranslateX(from, to),
                 }
             } else {
@@ -535,7 +535,9 @@ fn convert_property_to_transform(transform_type: &str, value: &PropertyValue) ->
                 "translateX" => TransformProperty::TranslateX(base_value, target_value),
                 "translateY" => TransformProperty::TranslateY(base_value, target_value),
                 "scale" => TransformProperty::Scale(base_value, target_value),
-                "rotate" => TransformProperty::Rotate(base_value, target_value),
+                "rotate" => {
+                    TransformProperty::Rotate(base_value.to_radians(), target_value.to_radians())
+                }
                 _ => TransformProperty::TranslateX(base_value, target_value),
             }
         }
