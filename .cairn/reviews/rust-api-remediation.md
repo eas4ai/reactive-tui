@@ -456,3 +456,11 @@ Microsoft documents that this mode converts input for ReadFile/ReadConsole;
 the adapter uses ReadConsoleInputW instead. Select window/mouse record input
 with extended flags (and no Quick Edit), retaining virtual-terminal output.
 The existing injected-text check is the failure demonstration for the rerun.
+
+Run 34311479497 passed the Windows adapter and both process lifecycle guards
+(the runner reached the subsequent clipboard executable), then failed the first
+ASCII copy with PowerShell exit code 1. The public hook deliberately suppresses
+command stderr because it can contain clipboard text. Reproduce only the fixed
+ASCII fixture on the disposable Windows runner with stderr captured before the
+full build, so the next correction follows the native error. macOS and all three
+Linux tools passed at 04885d59; these records will need refreshing if inputs change.
