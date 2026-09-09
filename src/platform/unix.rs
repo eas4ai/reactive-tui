@@ -254,8 +254,9 @@ impl UnixTty {
                             0 => break, // EOF
                             _ => {
                                 // Error reading
-                                let errno = unsafe { *libc::__errno_location() };
-                                if errno != libc::EAGAIN && errno != libc::EWOULDBLOCK {
+                                if std::io::Error::last_os_error().kind()
+                                    != std::io::ErrorKind::WouldBlock
+                                {
                                     break; // Real error
                                 }
                             }

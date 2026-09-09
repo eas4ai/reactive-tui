@@ -372,3 +372,16 @@ committed_inputs to false, changing the source digest, and damaging captured
 output each caused the expected rejection. That restricted verifier exercise
 is not evidence for the other four platforms. Full API-008 acceptance still
 requires native macOS and Windows records.
+
+## Native CI build finding
+
+The hosted macOS run 34307222183 failed compiling the real library because
+UnixTty::spawn_input_thread called libc::__errno_location, which exists on
+Linux but not macOS. Inspection confirms the only use is to recognize EAGAIN
+or EWOULDBLOCK after read fails. Replace that accessor with the standard
+last_os_error().kind() == WouldBlock classification. This preserves the branch
+and lets the claimed macOS clipboard path build without a Linux-only symbol.
+The actual native rerun is required; this note does not claim a corrected pass.
+
+The portable error classification passed the full Linux default-suite run
+(all 60 result groups) and strict all-target Clippy before the native rerun.
