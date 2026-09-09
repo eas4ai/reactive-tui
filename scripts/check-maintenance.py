@@ -20,10 +20,15 @@ def main():
         raise SystemExit("Expected format, lint or ffi")
     target = Path(os.environ.get("CARGO_TARGET_DIR", "target")).resolve()
     target.mkdir(parents=True, exist_ok=True)
+    environment = {**os.environ}
+    if sys.argv[1] == "ffi":
+        # rustc 1.95 panicked reusing an incremental dependency graph after an
+        # editor type change. Compile acceptance targets without that cache.
+        environment["CARGO_INCREMENTAL"] = "0"
     with tempfile.TemporaryDirectory(dir=target) as scratch, tempfile.TemporaryFile(dir=target) as output:
         process = subprocess.Popen(
             COMMANDS[sys.argv[1]],
-            env={**os.environ, "TMPDIR": scratch},
+            env={**environment, "TMPDIR": scratch},
             stdout=output, stderr=subprocess.STDOUT, start_new_session=True,
         )
         try:

@@ -289,3 +289,16 @@ per grapheme. Metadata ownership is local, overwrite cleanup is explicit, no
 new dependency or unsafe operation was added, and public layouts are preserved.
 The change has failure demonstrations and real output verification. This is an
 API-007 implementation review, not the final commitment-wide review.
+
+
+## Inherited FFI compiler-cache repair after API-007
+
+API-007 and ABI-001 through ABI-003 passed, then ABI-004's inherited FFI
+compile gate failed inside rustc 1.95.0's incremental dependency graph
+(index 1025949 against length 90883, compiling app_wakeups). The receipt retains
+the compiler backtrace. This was a compiler panic, not a Rust test assertion.
+The maintenance FFI compile now sets CARGO_INCREMENTAL=0 for that subprocess.
+Its command, target set, timeout, exit handling and following real FFI runtime
+checks are unchanged. No application source or assertion changed. The corrected
+maintenance FFI command passed its build, C consumer and Rust lifecycle checks.
+This is a bounded build configuration repair inside the inherited footprint.
