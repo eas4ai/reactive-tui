@@ -1,0 +1,9 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running unittests src/lib.rs (target/debug/deps/reactive_tui-35d2457f13c1be87)
+
+running 2 tests
+test hooks::clipboard_process::tests::cancellation_kills_and_reaps_child ... ok
+test hooks::clipboard_process::tests::deadline_kills_and_reaps_child ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 760 filtered out; finished in 2.01s
+

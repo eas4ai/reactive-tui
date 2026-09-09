@@ -361,3 +361,14 @@ executed and helpers called by the tested runner. No advisory pass is claimed.
 The cleanup scanner catches process disappearance and inaccessible environment
 files; other I/O errors propagate. Production self-audit: local behavior and
 regression checks pass; native macOS/Windows acceptance remains incomplete.
+
+## API-008 committed Linux platform evidence
+
+All three native Linux runs passed against committed inputs: five round trips
+and two process lifecycle checks per backend. Their records and captured output
+are stored under docs/analysis/clipboard-platforms. A disposable copy of the
+real Wayland record passed the verifier restricted to that backend; changing
+committed_inputs to false, changing the source digest, and damaging captured
+output each caused the expected rejection. That restricted verifier exercise
+is not evidence for the other four platforms. Full API-008 acceptance still
+requires native macOS and Windows records.
