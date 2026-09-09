@@ -1,0 +1,2 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.16s
+     Running tests/api_event_routing.rs (target/debug/deps/api_event_routing-fa7d298def23b208)
