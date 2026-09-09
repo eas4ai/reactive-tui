@@ -1,0 +1,3 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running tests/api_widget_behavior.rs (target/debug/deps/api_widget_behavior-7f2863957cf22e70)
+error: test failed, to rerun pass `--test api_widget_behavior`
