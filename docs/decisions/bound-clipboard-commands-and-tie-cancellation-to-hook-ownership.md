@@ -11,4 +11,4 @@ Keep synchronous clipboard hook signatures and cached error state. Detect execut
 
 ## Realized by
 
-(none yet: recorded, not built)
+- 12d7635 — bounded command ownership, error propagation, isolated fixtures and native platform evidence runner.
