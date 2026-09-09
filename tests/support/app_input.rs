@@ -25,6 +25,8 @@ impl Write for Capture {
     }
 }
 pub struct Snapshot {
+    #[allow(dead_code)]
+    pub output: Vec<u8>,
     pub text: String,
     #[allow(dead_code)]
     pub screen: vt100::Screen,
@@ -65,6 +67,7 @@ impl Backend for InputBackend {
         let mut parser = vt100::Parser::new(height, width, 0);
         parser.process(&self.capture.0.lock().unwrap());
         self.snapshots.lock().unwrap().push(Snapshot {
+            output: self.capture.0.lock().unwrap().clone(),
             text: parser.screen().contents(),
             screen: parser.screen().clone(),
             geometry: self.inner.painted_nodes().unwrap().to_vec(),

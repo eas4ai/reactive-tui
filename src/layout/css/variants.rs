@@ -35,24 +35,16 @@ pub fn apply_variant_utilities(token: &str, sb: StyleBuilder) -> Option<StyleBui
 
 /// Apply state variant utilities (hover:*, active:*, etc.)
 fn apply_state_variants(token: &str, sb: StyleBuilder) -> Option<StyleBuilder> {
-    // Hover variants
-    if let Some(hover_token) = token.strip_prefix("hover:") {
-        return apply_hover_variant(hover_token, sb);
+    // App strips matching state prefixes before layout. A standalone parser
+    // has no node state, so these variants are inactive.
+    if token.starts_with("hover:") || token.starts_with("disabled:") || token.starts_with("focus:")
+    {
+        return Some(sb);
     }
 
     // Active variants
     if let Some(active_token) = token.strip_prefix("active:") {
         return apply_active_variant(active_token, sb);
-    }
-
-    // Disabled variants
-    if let Some(disabled_token) = token.strip_prefix("disabled:") {
-        return apply_disabled_variant(disabled_token, sb);
-    }
-
-    // Focus variants (already handled in focus.rs, but included for completeness)
-    if let Some(focus_token) = token.strip_prefix("focus:") {
-        return apply_focus_variant(focus_token, sb);
     }
 
     // Visited variants (for links)
@@ -135,29 +127,9 @@ fn apply_responsive_variants(token: &str, sb: StyleBuilder) -> Option<StyleBuild
 
 // State variant implementations
 
-/// Apply hover variant
-fn apply_hover_variant(token: &str, sb: StyleBuilder) -> Option<StyleBuilder> {
-    // For now, apply the styles directly since we don't have conditional styling yet
-    // In a full implementation, these would be stored and applied when hover state changes
-    apply_base_utility_with_hover(token, sb)
-}
-
 /// Apply active variant
 fn apply_active_variant(token: &str, sb: StyleBuilder) -> Option<StyleBuilder> {
     apply_base_utility_with_active(token, sb)
-}
-
-/// Apply disabled variant
-fn apply_disabled_variant(token: &str, sb: StyleBuilder) -> Option<StyleBuilder> {
-    // Disabled styles are often dimmed
-    let mut result_sb = apply_base_utility_with_disabled(token, sb)?;
-    result_sb = result_sb.opacity(0.5); // Make disabled elements dimmed
-    Some(result_sb)
-}
-
-/// Apply focus variant
-fn apply_focus_variant(token: &str, sb: StyleBuilder) -> Option<StyleBuilder> {
-    apply_base_utility_with_focus(token, sb)
 }
 
 /// Apply visited variant
@@ -229,23 +201,8 @@ fn apply_xl_variant(token: &str, sb: StyleBuilder) -> Option<StyleBuilder> {
 
 // Helper functions to apply base utilities with different contexts
 
-/// Apply base utility with hover context
-fn apply_base_utility_with_hover(token: &str, sb: StyleBuilder) -> Option<StyleBuilder> {
-    apply_base_utility(token, sb)
-}
-
 /// Apply base utility with active context
 fn apply_base_utility_with_active(token: &str, sb: StyleBuilder) -> Option<StyleBuilder> {
-    apply_base_utility(token, sb)
-}
-
-/// Apply base utility with disabled context
-fn apply_base_utility_with_disabled(token: &str, sb: StyleBuilder) -> Option<StyleBuilder> {
-    apply_base_utility(token, sb)
-}
-
-/// Apply base utility with focus context
-fn apply_base_utility_with_focus(token: &str, sb: StyleBuilder) -> Option<StyleBuilder> {
     apply_base_utility(token, sb)
 }
 

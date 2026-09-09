@@ -5,13 +5,16 @@ use std::sync::Arc;
 /// Owned behavior attached to an element independently of its component props.
 #[derive(Clone, Default)]
 pub struct ElementMetadata {
+    /// Disabled nodes do not receive focus or activation.
+    pub disabled: bool,
     /// Activation callbacks, invoked in registration order.
     pub on_click: Vec<Arc<dyn Fn() + Send + Sync>>,
 }
 
 impl PartialEq for ElementMetadata {
     fn eq(&self, other: &Self) -> bool {
-        self.on_click.len() == other.on_click.len()
+        self.disabled == other.disabled
+            && self.on_click.len() == other.on_click.len()
             && self
                 .on_click
                 .iter()
@@ -234,6 +237,12 @@ impl Element {
     /// Set focus properties for declarative focus management
     pub fn with_focus(mut self, focus: super::focus::FocusProps) -> Self {
         self.focus = Some(focus);
+        self
+    }
+
+    /// Set whether this element accepts focus and activation.
+    pub fn disabled(mut self, disabled: bool) -> Self {
+        self.metadata.disabled = disabled;
         self
     }
 

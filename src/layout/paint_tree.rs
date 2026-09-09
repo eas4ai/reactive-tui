@@ -56,6 +56,7 @@ pub struct NodeSpec<'a> {
 }
 
 struct NodePaint {
+    typography: crate::layout::text::TextStyle,
     style: PaintStyle,
     background_specified: bool,
     text: Option<String>,
@@ -90,7 +91,9 @@ pub fn layout_and_paint_with<'a>(
         height: AvailableSpace::Definite(surface_height as f32),
     };
     taffy
-        .compute_layout(root_id, available)
+        .compute_layout_with_measure(root_id, available, |known, available, id, _, _| {
+            measure_text(&map[&id], known, available)
+        })
         .map_err(|e| ReactiveError::layout(format!("Failed to compute layout: {}", e)))?;
 
     paint_with_z_index(&taffy, root_id, surface, &map, opts.debug_overlay);
@@ -119,7 +122,9 @@ pub fn layout_and_paint_constrained<'a>(
         height: AvailableSpace::Definite(height as f32),
     };
     taffy
-        .compute_layout(root_id, available)
+        .compute_layout_with_measure(root_id, available, |known, available, id, _, _| {
+            measure_text(&map[&id], known, available)
+        })
         .unwrap_or_else(|_| panic!("Failed to compute layout"));
     paint_with_z_index(&taffy, root_id, surface, &map, false);
 }
@@ -129,7 +134,22 @@ fn build_nodes<'a>(
     spec: &NodeSpec<'a>,
     map: &mut HashMap<NodeId, NodePaint>,
 ) -> Result<NodeId> {
+    build_nodes_inherited(taffy, spec, map, &crate::layout::text::TextStyle::default())
+}
+
+fn build_nodes_inherited(
+    taffy: &mut TaffyTree<()>,
+    spec: &NodeSpec<'_>,
+    map: &mut HashMap<NodeId, NodePaint>,
+    inherited: &crate::layout::text::TextStyle,
+) -> Result<NodeId> {
     let mut sb = apply_utility_classes(spec.class.as_ref(), StyleBuilder::new());
+    let typography = sb.text.inherit(inherited);
+    sb = sb
+        .bold(typography.bold.unwrap_or(false))
+        .italic(typography.italic.unwrap_or(false))
+        .underline(typography.underline.unwrap_or(false))
+        .strike(typography.strike.unwrap_or(false));
 
     // For text nodes, ensure minimum height of 1 cell
     // This ensures text is visible in flexbox column layouts
@@ -154,7 +174,7 @@ fn build_nodes<'a>(
             .map_err(|e| ReactiveError::layout(format!("Failed to create parent node: {}", e)))?;
         let mut child_ids: Vec<NodeId> = Vec::with_capacity(spec.children.len());
         for child in &spec.children {
-            let cid = build_nodes(taffy, child, map)?;
+            let cid = build_nodes_inherited(taffy, child, map, &typography)?;
             child_ids.push(cid);
         }
         taffy
@@ -174,7 +194,7 @@ fn build_nodes<'a>(
         padding.top as usize,
         padding.bottom as usize,
     );
-    let text = spec.text.as_ref().map(|s| s.to_string());
+    let text = spec.text.as_ref().map(|s| typography.prepare(s));
     let background_specified = spec.class.split_whitespace().any(|token| {
         token
             .strip_prefix("bg-")
@@ -184,6 +204,7 @@ fn build_nodes<'a>(
     map.insert(
         id,
         NodePaint {
+            typography,
             style: paint_style,
             background_specified,
             text,
@@ -194,6 +215,44 @@ fn build_nodes<'a>(
         },
     );
     Ok(id)
+}
+
+fn measure_text(
+    paint: &NodePaint,
+    known: Size<Option<f32>>,
+    available: Size<AvailableSpace>,
+) -> Size<f32> {
+    use unicode_width::UnicodeWidthStr;
+    let text = paint.text.as_deref().unwrap_or("");
+    let natural = text.lines().map(UnicodeWidthStr::width).max().unwrap_or(0);
+    let width = known
+        .width
+        .map(|width| width.max(0.0) as usize)
+        .unwrap_or_else(|| match available.width {
+            AvailableSpace::Definite(width) => width.max(0.0) as usize,
+            AvailableSpace::MinContent => 1,
+            AvailableSpace::MaxContent => natural,
+        });
+    let lines = paint.typography.lines(text, width);
+    Size {
+        width: known.width.unwrap_or_else(|| {
+            lines
+                .iter()
+                .map(|line| UnicodeWidthStr::width(line.as_str()))
+                .max()
+                .unwrap_or(0)
+                .min(width) as f32
+        }),
+        height: known.height.unwrap_or(if lines.is_empty() {
+            0.0
+        } else {
+            (lines
+                .len()
+                .saturating_sub(1)
+                .saturating_mul(paint.typography.line_height.unwrap_or(1))
+                .saturating_add(1)) as f32
+        }),
+    }
 }
 
 /// Check if a node needs overflow clipping
@@ -242,6 +301,18 @@ fn paint_node_with_overflow(
     }
 
     if let Some(text) = &node_paint.text {
+        let lines = node_paint.typography.lines(text, content_w);
+        let spacing = node_paint.typography.line_height.unwrap_or(1);
+        let mut text = String::new();
+        for (index, line) in lines.iter().enumerate() {
+            if index.saturating_mul(spacing) >= content_h {
+                break;
+            }
+            if index > 0 {
+                text.extend(std::iter::repeat_n('\n', spacing));
+            }
+            text.push_str(line);
+        }
         if needs_clipping(node_paint) {
             // Use clipped subview for overflow:hidden
             let (surface_w, surface_h) = surface.dims();
@@ -266,7 +337,7 @@ fn paint_node_with_overflow(
             subview.write_text(
                 0,
                 0,
-                text,
+                &text,
                 crate::core::surface::TextStyle {
                     fg: node_paint.style.fg,
                     bg: node_paint.style.bg,
@@ -279,7 +350,7 @@ fn paint_node_with_overflow(
             surface.write_text_styled_clipped(
                 content_x,
                 content_y,
-                text,
+                &text,
                 content_w,
                 &node_paint.style,
             );

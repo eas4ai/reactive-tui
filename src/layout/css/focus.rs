@@ -11,13 +11,9 @@ use crate::layout::style::StyleBuilder;
 
 /// Apply focus and accessibility utilities
 pub fn apply_focus_utilities(token: &str, sb: StyleBuilder) -> Option<StyleBuilder> {
-    // Handle pseudo-class variants first
-    if let Some(focus_token) = token.strip_prefix("focus:") {
-        return apply_focus_variant(focus_token, sb);
-    }
-
-    if let Some(focus_within_token) = token.strip_prefix("focus-within:") {
-        return apply_focus_within_variant(focus_within_token, sb);
+    // App resolves variants before layout. Standalone builders have no focus.
+    if token.starts_with("focus:") || token.starts_with("focus-within:") {
+        return Some(sb);
     }
 
     // Handle direct focus utilities
@@ -64,63 +60,6 @@ pub fn apply_focus_utilities(token: &str, sb: StyleBuilder) -> Option<StyleBuild
             None
         }
     }
-}
-
-/// Apply focus variant utilities (focus:*)
-fn apply_focus_variant(token: &str, sb: StyleBuilder) -> Option<StyleBuilder> {
-    // For now, we'll apply the styles directly since we don't have conditional styling yet
-    // In a full implementation, these would be stored and applied when focus state changes
-
-    match token {
-        // Focus ring variants
-        "ring" | "ring-2" => Some(apply_focus_ring(sb, Some(2), Some((59, 130, 246, 0.5)))), // blue-500 with opacity
-        "ring-0" => Some(sb), // No ring
-        "ring-1" => Some(apply_focus_ring(sb, Some(1), Some((59, 130, 246, 0.5)))),
-        "ring-4" => Some(apply_focus_ring(sb, Some(4), Some((59, 130, 246, 0.5)))),
-
-        // Focus outline variants
-        "outline-none" => Some(sb), // Remove outline
-        "outline" => Some(apply_focus_outline(sb, None)),
-
-        _ => {
-            // Try to apply the base utility with focus context
-            // This allows focus:bg-blue-500, focus:text-white, etc.
-            apply_base_utility_with_focus(token, sb)
-        }
-    }
-}
-
-/// Apply focus-within variant utilities (focus-within:*)
-fn apply_focus_within_variant(token: &str, sb: StyleBuilder) -> Option<StyleBuilder> {
-    // Similar to focus variants, but for parent elements when child has focus
-    apply_base_utility_with_focus_within(token, sb)
-}
-
-/// Apply base utility with focus context
-fn apply_base_utility_with_focus(token: &str, sb: StyleBuilder) -> Option<StyleBuilder> {
-    // For now, apply the utility directly
-    // In a full implementation, this would be conditional on focus state
-
-    // Try each CSS module to handle the base utility
-    if let Some(result) = super::colors::apply_color_utilities(token, sb.clone()) {
-        return Some(result);
-    }
-
-    if let Some(result) = super::effects::apply_effects_utilities(token, sb.clone()) {
-        return Some(result);
-    }
-
-    if let Some(result) = super::spacing::apply_spacing_utilities(token, sb.clone()) {
-        return Some(result);
-    }
-
-    None
-}
-
-/// Apply base utility with focus-within context
-fn apply_base_utility_with_focus_within(token: &str, sb: StyleBuilder) -> Option<StyleBuilder> {
-    // Similar to focus variants
-    apply_base_utility_with_focus(token, sb)
 }
 
 /// Apply focus ring styling

@@ -31,12 +31,13 @@ struct Trap {
 impl FocusPlan {
     pub(super) fn enter(&mut self, element: &Element, id: NodeId) -> bool {
         self.order.push(id);
-        let focusable = element
-            .focus
-            .as_ref()
-            .map_or(!element.metadata.on_click.is_empty(), |focus| {
-                focus.focusable
-            });
+        let focusable = !element.metadata.disabled
+            && element
+                .focus
+                .as_ref()
+                .map_or(!element.metadata.on_click.is_empty(), |focus| {
+                    focus.focusable
+                });
         if focusable {
             for &index in &self.ancestors {
                 self.traps[index].members.push(id);

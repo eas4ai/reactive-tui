@@ -215,6 +215,7 @@ impl GridAutoFlow {
 /// Builder for creating and configuring styles
 #[derive(Clone, Debug, Default)]
 pub struct StyleBuilder {
+    pub(crate) text: super::text::TextStyle,
     style: Style,
     // Grid extras
     grid_cols: Option<u16>,
@@ -817,18 +818,21 @@ impl StyleBuilder {
     /// Set bold text style
     pub fn bold(mut self, v: bool) -> Self {
         self.bold = v;
+        self.text.bold = Some(v);
         self
     }
 
     /// Set italic text style
     pub fn italic(mut self, v: bool) -> Self {
         self.italic = v;
+        self.text.italic = Some(v);
         self
     }
 
     /// Set underline text style
     pub fn underline(mut self, v: bool) -> Self {
         self.underline = v;
+        self.text.underline = Some(v);
         self
     }
 
@@ -841,35 +845,35 @@ impl StyleBuilder {
     /// Set strikethrough text style
     pub fn strike(mut self, v: bool) -> Self {
         self.strike = v;
+        self.text.strike = Some(v);
         self
+    }
+
+    /// Whether the text uses strikethrough, independently of legacy decorations.
+    pub fn get_strike(&self) -> bool {
+        self.strike
     }
 
     // Font weight methods for CSS utility compatibility
     /// Set font weight to light (removes bold)
-    pub fn font_weight_light(mut self) -> Self {
-        // Light weight is typically represented by making text less bold
-        self.bold = false;
-        self
+    pub fn font_weight_light(self) -> Self {
+        self.bold(false)
     }
     /// Set font weight to normal (removes bold)
-    pub fn font_weight_normal(mut self) -> Self {
-        self.bold = false;
-        self
+    pub fn font_weight_normal(self) -> Self {
+        self.bold(false)
     }
     /// Set font weight to medium (normal in terminals)
-    pub fn font_weight_medium(mut self) -> Self {
-        self.bold = false; // Medium is closer to normal in terminal
-        self
+    pub fn font_weight_medium(self) -> Self {
+        self.bold(false)
     }
     /// Set font weight to bold
-    pub fn font_weight_bold(mut self) -> Self {
-        self.bold = true;
-        self
+    pub fn font_weight_bold(self) -> Self {
+        self.bold(true)
     }
     /// Set font weight to black (bold in terminals)
-    pub fn font_weight_black(mut self) -> Self {
-        self.bold = true; // Black weight is still just bold in terminal
-        self
+    pub fn font_weight_black(self) -> Self {
+        self.bold(true)
     }
 
     /// Set opacity/alpha value (0.0-1.0)
@@ -915,7 +919,8 @@ impl StyleBuilder {
             || self.bold
             || self.italic
             || self.underline
-            || self.reverse;
+            || self.reverse
+            || self.strike;
         if !any {
             return None;
         }

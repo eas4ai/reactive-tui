@@ -94,6 +94,7 @@ pub struct EventRouter {
     root: Option<NodeId>,
     focus_manager: FocusManager,
     hit_test: HitTest,
+    pointer: Option<super::hit::Point>,
     /// Path cache for event routing optimization
     path_cache: Option<super::cache::PathCache>,
 }
@@ -106,6 +107,7 @@ impl EventRouter {
             root: None,
             focus_manager: FocusManager::new(),
             hit_test: HitTest::new(80.0, 24.0), // Default terminal size
+            pointer: None,
             path_cache: None,
         }
     }
@@ -117,6 +119,7 @@ impl EventRouter {
             root: None,
             focus_manager: FocusManager::new(),
             hit_test: HitTest::new(width as f32, height as f32),
+            pointer: None,
             path_cache: None,
         }
     }
@@ -459,6 +462,11 @@ impl EventRouter {
         self.focus_manager.get_focus()
     }
 
+    /// Hover follows the last cell position against acknowledged frame bounds.
+    pub(crate) fn hovered_node(&self) -> Option<NodeId> {
+        self.pointer.and_then(|point| self.hit_test.hit_test(point))
+    }
+
     pub(crate) fn current_focus_ref(&self) -> Option<&NodeId> {
         self.focus_manager.current_ref()
     }
@@ -486,6 +494,15 @@ impl EventRouter {
 
     /// Process an event - THE central event processing method
     pub fn process_event(&mut self, event: &Event) -> EventResult {
+        if let Event::Mouse(mouse) = event {
+            self.pointer = match mouse.position {
+                super::types::Position::Cell { .. } => Some(super::hit::Point::new(
+                    mouse.position.x() as f32,
+                    mouse.position.y() as f32,
+                )),
+                _ => None,
+            };
+        }
         // 1. Handle system events first (focus traversal, etc.)
         if let Some(result) = self.handle_system_event(event) {
             return result;

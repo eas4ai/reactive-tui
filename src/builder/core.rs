@@ -327,6 +327,12 @@ impl ElementBuilder {
         self
     }
 
+    /// Set whether the resulting element accepts focus and activation.
+    pub fn disabled(mut self, disabled: bool) -> Self {
+        self.element.metadata.disabled = disabled;
+        self
+    }
+
     /// Build the final Element
     pub fn build(mut self) -> Element {
         // Store gradient information in props if present

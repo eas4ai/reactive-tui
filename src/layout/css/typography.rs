@@ -2,6 +2,7 @@
 
 use super::parsers::parse_font_weight;
 use crate::layout::style::StyleBuilder;
+use crate::layout::text::{Align, Transform, WhiteSpace, WordBreak};
 
 /// Apply font weight utilities
 pub fn apply_font_weight(token: &str, sb: StyleBuilder) -> Option<StyleBuilder> {
@@ -20,7 +21,7 @@ pub fn apply_font_weight(token: &str, sb: StyleBuilder) -> Option<StyleBuilder> 
 }
 
 /// Apply text style utilities
-pub fn apply_text_style(token: &str, sb: StyleBuilder) -> Option<StyleBuilder> {
+pub fn apply_text_style(token: &str, mut sb: StyleBuilder) -> Option<StyleBuilder> {
     match token {
         // Font styles
         "italic" => Some(sb.italic(true)),
@@ -32,36 +33,83 @@ pub fn apply_text_style(token: &str, sb: StyleBuilder) -> Option<StyleBuilder> {
         "line-through" => Some(sb.strike(true)),
         "no-underline" => Some(sb.underline(false)),
 
-        // Text transform
-        "uppercase" => Some(sb),  // Would need text processing
-        "lowercase" => Some(sb),  // Would need text processing
-        "capitalize" => Some(sb), // Would need text processing
-        "normal-case" => Some(sb),
-
-        // Text alignment (handled by layout)
-        "text-left" => Some(sb.justify_content(crate::layout::style::JustifyContent::Start)),
-        "text-center" => Some(sb.justify_content(crate::layout::style::JustifyContent::Center)),
-        "text-right" => Some(sb.justify_content(crate::layout::style::JustifyContent::End)),
-        "text-justify" => {
-            Some(sb.justify_content(crate::layout::style::JustifyContent::SpaceBetween))
+        "uppercase" => {
+            sb.text.transform = Some(Transform::Upper);
+            Some(sb)
         }
-
-        // Text overflow
-        "truncate" => Some(sb),      // Would need text clipping
-        "text-ellipsis" => Some(sb), // Would need text processing
-        "text-clip" => Some(sb),
-
-        // White space
-        "whitespace-normal" => Some(sb),
-        "whitespace-nowrap" => Some(sb),
-        "whitespace-pre" => Some(sb),
-        "whitespace-pre-line" => Some(sb),
-        "whitespace-pre-wrap" => Some(sb),
-
-        // Word break
-        "break-normal" => Some(sb),
-        "break-words" => Some(sb),
-        "break-all" => Some(sb),
+        "lowercase" => {
+            sb.text.transform = Some(Transform::Lower);
+            Some(sb)
+        }
+        "capitalize" => {
+            sb.text.transform = Some(Transform::Capitalize);
+            Some(sb)
+        }
+        "normal-case" => {
+            sb.text.transform = Some(Transform::None);
+            Some(sb)
+        }
+        "text-left" => {
+            sb.text.align = Some(Align::Left);
+            Some(sb)
+        }
+        "text-center" => {
+            sb.text.align = Some(Align::Center);
+            Some(sb)
+        }
+        "text-right" => {
+            sb.text.align = Some(Align::Right);
+            Some(sb)
+        }
+        "text-justify" => {
+            sb.text.align = Some(Align::Justify);
+            Some(sb)
+        }
+        "truncate" => {
+            sb.text.ellipsis = Some(true);
+            sb.text.whitespace = Some(WhiteSpace::NoWrap);
+            Some(sb.overflow_hidden())
+        }
+        "text-ellipsis" => {
+            sb.text.ellipsis = Some(true);
+            Some(sb)
+        }
+        "text-clip" => {
+            sb.text.ellipsis = Some(false);
+            Some(sb)
+        }
+        "whitespace-normal" => {
+            sb.text.whitespace = Some(WhiteSpace::Normal);
+            Some(sb)
+        }
+        "whitespace-nowrap" => {
+            sb.text.whitespace = Some(WhiteSpace::NoWrap);
+            Some(sb)
+        }
+        "whitespace-pre" => {
+            sb.text.whitespace = Some(WhiteSpace::Pre);
+            Some(sb)
+        }
+        "whitespace-pre-line" => {
+            sb.text.whitespace = Some(WhiteSpace::PreLine);
+            Some(sb)
+        }
+        "whitespace-pre-wrap" => {
+            sb.text.whitespace = Some(WhiteSpace::PreWrap);
+            Some(sb)
+        }
+        "break-normal" => {
+            sb.text.word_break = Some(WordBreak::Normal);
+            Some(sb)
+        }
+        "break-words" => {
+            sb.text.word_break = Some(WordBreak::Words);
+            Some(sb)
+        }
+        "break-all" => {
+            sb.text.word_break = Some(WordBreak::All);
+            Some(sb)
+        }
 
         _ => None,
     }
@@ -89,41 +137,27 @@ pub fn apply_font_size(token: &str, sb: StyleBuilder) -> Option<StyleBuilder> {
 }
 
 /// Apply line height utilities
-pub fn apply_line_height(token: &str, sb: StyleBuilder) -> Option<StyleBuilder> {
-    match token {
-        // Line heights (TUI doesn't support line height, but we acknowledge them)
-        "leading-none" => Some(sb),    // 1
-        "leading-tight" => Some(sb),   // 1.25
-        "leading-snug" => Some(sb),    // 1.375
-        "leading-normal" => Some(sb),  // 1.5
-        "leading-relaxed" => Some(sb), // 1.625
-        "leading-loose" => Some(sb),   // 2
+pub fn apply_line_height(token: &str, mut sb: StyleBuilder) -> Option<StyleBuilder> {
+    let rows = match token {
+        "leading-none" | "leading-tight" | "leading-snug" => 1,
+        "leading-normal" | "leading-relaxed" | "leading-loose" => 2,
         _ => {
-            // Numeric line heights (leading-3, leading-4, etc.)
-            if let Some(num_str) = token.strip_prefix("leading-") {
-                // Only accept valid numeric values
-                if num_str.parse::<f32>().is_ok() {
-                    Some(sb)
-                } else {
-                    None
-                }
-            } else {
-                None
+            let value = token.strip_prefix("leading-")?.parse::<f32>().ok()?;
+            if !value.is_finite() || value < 0.0 {
+                return None;
             }
+            value.round().clamp(1.0, u16::MAX as f32) as usize
         }
-    }
+    };
+    sb.text.line_height = Some(rows);
+    Some(sb)
 }
 
-/// Apply letter spacing utilities
+/// Fractional tracking rounds to terminal cells; negative overlap is clamped.
 pub fn apply_letter_spacing(token: &str, sb: StyleBuilder) -> Option<StyleBuilder> {
     match token {
-        // Letter spacing (TUI doesn't support letter spacing, but we acknowledge them)
-        "tracking-tighter" => Some(sb), // -0.05em
-        "tracking-tight" => Some(sb),   // -0.025em
-        "tracking-normal" => Some(sb),  // 0em
-        "tracking-wide" => Some(sb),    // 0.025em
-        "tracking-wider" => Some(sb),   // 0.05em
-        "tracking-widest" => Some(sb),  // 0.1em
+        "tracking-tighter" | "tracking-tight" | "tracking-normal" | "tracking-wide"
+        | "tracking-wider" | "tracking-widest" => Some(sb),
         _ => None,
     }
 }

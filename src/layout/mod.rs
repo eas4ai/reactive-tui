@@ -20,6 +20,7 @@ pub mod paint_tree;
 pub mod renderer;
 /// Style builder and management utilities
 pub mod style;
+pub(crate) mod text;
 
 /// Main layout engine that manages the layout tree
 ///

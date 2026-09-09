@@ -210,7 +210,9 @@ impl App {
             }
             _ => {}
         }
+        let state = (self.router.get_focus(), self.router.hovered_node());
         let mut result = self.router.process_event(event);
+        dirty |= state != (self.router.get_focus(), self.router.hovered_node());
         if result == EventResult::Ignored && self.running {
             result = self.root.try_handle_event(event)?;
         }
@@ -372,8 +374,10 @@ impl App {
         // Build element tree from root component
         let element = self.components.resolve(self.root.render())?;
 
-        if self.backend.render_frame(&element)? {
+        let styled = self.event_tree.styled(&element, &self.router);
+        if self.backend.render_frame(&styled)? {
             self.backend.present()?;
+            let state = (self.router.get_focus(), self.router.hovered_node());
             if let Some(geometry) = self.backend.painted_nodes() {
                 let focus = self.event_tree.sync(&element, geometry, &mut self.router);
                 self.focus_manager.apply(&mut self.router, focus);
@@ -382,7 +386,12 @@ impl App {
                 self.focus_manager
                     .apply(&mut self.router, focus_manager::FocusPlan::default());
             }
-            self.tree.set_root(resolved_element_to_render_node(element));
+            if state != (self.router.get_focus(), self.router.hovered_node())
+                && styled != self.event_tree.styled(&element, &self.router)
+            {
+                self.wake.request_redraw();
+            }
+            self.tree.set_root(resolved_element_to_render_node(styled));
             if let Some(req) = crate::hooks::perf_context::take_requested_performance_mode() {
                 self.fps_manager.set_performance_mode(req);
             }

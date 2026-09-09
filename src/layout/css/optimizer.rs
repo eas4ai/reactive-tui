@@ -114,6 +114,14 @@ fn apply_single_utility(
     sb: StyleBuilder,
     theme: Option<&crate::theme::Theme>,
 ) -> StyleBuilder {
+    // App resolves these against acknowledged node state before layout.
+    // A direct, stateless layout call has no active interaction state.
+    if token
+        .split(':')
+        .any(|part| matches!(part, "focus" | "focus-within" | "hover" | "disabled"))
+    {
+        return sb;
+    }
     // First, try exact match in registry (O(1) lookup)
     if let Some(entry) = UTILITY_REGISTRY.get(token) {
         if let Some(result) = (entry.handler)(token, sb.clone()) {
@@ -155,6 +163,10 @@ fn delegate_to_existing_modules(
 
     // Sizing utilities (for dynamic values like w-[100px])
     if let Some(result) = super::sizing::apply_sizing_utilities(token, sb.clone()) {
+        return result;
+    }
+
+    if let Some(result) = super::typography::apply_typography_utilities(token, sb.clone()) {
         return result;
     }
 

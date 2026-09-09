@@ -49,17 +49,8 @@ pub(crate) fn paint_frame(
         width: AvailableSpace::Definite(target.width() as f32),
         height: AvailableSpace::Definite(target.height() as f32),
     };
-    tree.compute_layout_with_measure(root, available, |known, _, id, _, _| {
-        let text = paints
-            .get(&id)
-            .and_then(|paint| paint.text.as_deref())
-            .unwrap_or("");
-        Size {
-            width: known.width.unwrap_or_else(|| {
-                text.lines().map(UnicodeWidthStr::width).max().unwrap_or(0) as f32
-            }),
-            height: known.height.unwrap_or(text.lines().count() as f32),
-        }
+    tree.compute_layout_with_measure(root, available, |known, available, id, _, _| {
+        super::measure_text(&paints[&id], known, available)
     })
     .map_err(|error| ReactiveError::layout(format!("SuprTUI layout: {error}")))?;
     let screen = Rect {
@@ -199,10 +190,12 @@ fn paint_node(target: &mut OptimizedBuffer<'_>, paint: &NodePaint, node: &PaintN
             bottom: node.bounds.bottom.saturating_sub(paint.pad._bottom as i32),
         };
         let clip = content.intersect(node.clip);
-        for (row, line) in text.lines().enumerate() {
-            let y = content
-                .top
-                .saturating_add(row.min(i32::MAX as usize) as i32);
+        let width = (content.right - content.left).max(0) as usize;
+        for (row, line) in paint.typography.lines(text, width).iter().enumerate() {
+            let y = content.top.saturating_add(
+                row.saturating_mul(paint.typography.line_height.unwrap_or(1))
+                    .min(i32::MAX as usize) as i32,
+            );
             if y >= clip.bottom {
                 break;
             }

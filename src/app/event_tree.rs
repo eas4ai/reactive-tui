@@ -32,6 +32,70 @@ struct Registration<'a> {
 }
 
 impl EventTree {
+    /// Resolve state variants without publishing a candidate event tree.
+    pub(super) fn styled(&self, element: &Element, router: &EventRouter) -> Element {
+        let focus = router.get_focus().and_then(|id| self.path_for(id));
+        let hover = router.hovered_node().and_then(|id| self.path_for(id));
+        Self::style_node(element.clone(), Vec::new(), 0, focus, hover)
+    }
+
+    fn path_for(&self, id: NodeId) -> Option<&[Slot]> {
+        self.nodes
+            .iter()
+            .find_map(|(path, node)| (*node == id).then_some(path.as_slice()))
+    }
+
+    fn style_node(
+        mut element: Element,
+        mut path: Vec<Slot>,
+        index: usize,
+        focus: Option<&[Slot]>,
+        hover: Option<&[Slot]>,
+    ) -> Element {
+        path.push(
+            element
+                .key
+                .as_ref()
+                .map_or(Slot::Index(index), |key| Slot::Key(key.clone())),
+        );
+        if let Some(class) = &element.class {
+            element.class = Some(
+                class
+                    .split_whitespace()
+                    .filter_map(|token| {
+                        let mut base = token;
+                        while let Some((variant, rest)) = base.split_once(':') {
+                            let matches = match variant {
+                                "focus" => {
+                                    !element.metadata.disabled && focus == Some(path.as_slice())
+                                }
+                                "focus-within" => {
+                                    focus.is_some_and(|focused| focused.starts_with(&path))
+                                }
+                                "hover" => hover.is_some_and(|hovered| hovered.starts_with(&path)),
+                                "disabled" => element.metadata.disabled,
+                                _ => break,
+                            };
+                            if !matches {
+                                return None;
+                            }
+                            base = rest;
+                        }
+                        Some(base)
+                    })
+                    .collect::<Vec<_>>()
+                    .join(" "),
+            );
+        }
+        element.children = element
+            .children
+            .into_iter()
+            .enumerate()
+            .map(|(index, child)| Self::style_node(child, path.clone(), index, focus, hover))
+            .collect();
+        element
+    }
+
     pub(super) fn sync(
         &mut self,
         element: &Element,
@@ -111,11 +175,12 @@ impl EventTree {
 impl Registration<'_> {
     fn register(&mut self, element: &Element, id: NodeId) {
         self.router.remove_hit_target(id);
-        let interactive = !element.metadata.on_click.is_empty();
-        let focusable = element
-            .focus
-            .as_ref()
-            .map_or(interactive, |focus| focus.focusable);
+        let interactive = !element.metadata.disabled && !element.metadata.on_click.is_empty();
+        let focusable = !element.metadata.disabled
+            && element
+                .focus
+                .as_ref()
+                .map_or(interactive, |focus| focus.focusable);
         if focusable {
             self.router
                 .add_focusable(id, element.focus.as_ref().map(|focus| focus.tab_index));

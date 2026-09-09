@@ -528,3 +528,50 @@ that connection must schedule repaint rather than moving registration before it.
 The metadata type was introduced within this still-unfinished commitment; extending
 its payload does not require another field or migration for the original Element
 API. No production styling code changed in this declaration action.
+
+
+## API-009 implementation and local verification
+
+The original committed App baseline had 16 failures and two controls. After the
+repair, 29 independent captured-output cases pass. They cover inactive variants,
+Tab and mouse focus, idle autofocus/hover redraws, focus-within and compound state,
+disabled activation/focus/re-enable, stationary-pointer geometry changes, Unicode
+case conversion and inheritance, ellipsis/clip, whitespace and word breaking,
+text alignment/justification, sibling placement from measured wrapping, baseline
+spacing and resets, font/decorations, tab stops and control filtering.
+
+The expanded strikethrough test initially failed: extract_paint_style discarded
+the stored flag. The repair retains it without changing the public VisualStyle
+or TextDecorations struct shape. The corrected test sees SGR 9 in real App output;
+its plain-text control does not. Font reset cases begin with bold and baseline
+spacing resets begin with leading-3 so unchanged defaults cannot satisfy them.
+
+State classes are resolved from acknowledged router IDs before layout; publishing
+new handlers, focus and hit bounds still follows successful presentation. A state
+change after registration schedules a follow-up frame only when resolved styling
+changes. The class cache contains resolved ordinary tokens; inherited text options
+are applied after lookup. Disabled is stored in the owned metadata introduced in
+this commitment, not in typed component props or an added original Element field.
+The private text helper handles grapheme widths for both measurement and painting.
+Large baseline spacing is represented arithmetically, without allocating empty
+lines proportional to the numeric token. Terminal approximations and token behavior
+are documented in docs/text-styling.md, now declared as a mechanism input.
+
+Local checks ran: 29 API styling cases; 37 event/focus/wakeup/renderer cases;
+24 layout/bridge/alignment cases; strict all-target default Clippy; formatting;
+and the full default test targets (1088 passed, two ignored). The 761 library
+passes are included in that full total, not additional tests. The latest font and
+leading reset assertions were then rerun in the 29-case styling suite. These local
+runs are development verification; committed Cairn receipts must still refresh.
+
+Ripwire edit-check found no EventTree arity break. The initial TextStyle lookup
+was ambiguous; the qualified private helper lookup found zero incompatible calls
+and reported the shared-name definition count, not a public signature change.
+Quality-delta exited 2: reviewed changed-code complexity in App::render, the legacy
+painter and the wrapping helper; state acknowledgement and explicit word/grapheme
+branches account for the changes. Most gate rows refer to ignored reference trees
+or name-based dead-code false positives. No quality gate pass is claimed.
+Test-gate exited 4 and named broad widget/legacy surfaces, reference-tree symbols
+and integration demo files; compiled default targets ran, while actual embedded
+and native acceptance stays with the inherited mechanisms. This is incremental
+API-009 verification, not the final catalog review.

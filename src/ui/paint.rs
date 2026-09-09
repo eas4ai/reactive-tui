@@ -36,6 +36,7 @@ impl Default for PaintStyle {
 
 /// Extract paint style information from a style builder
 pub fn extract_paint_style(sb: &mut StyleBuilder) -> Option<PaintStyle> {
+    let strike = sb.get_strike();
     if let Some(visual_style) = sb.take_visuals() {
         let fg = visual_style.fg;
         let bg = visual_style.bg;
@@ -50,7 +51,7 @@ pub fn extract_paint_style(sb: &mut StyleBuilder) -> Option<PaintStyle> {
             fg,
             bg,
             attr,
-            strike: false,
+            strike,
         })
     } else {
         None

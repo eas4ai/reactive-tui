@@ -11,5 +11,6 @@ inputs:
   - tests/support/app_input.rs
   - scripts/check-api-styling.py
   - docs/spec/rust-api-remediation.md
+  - docs/text-styling.md
 requirements:
   - API-009
