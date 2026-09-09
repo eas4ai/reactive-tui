@@ -1,12 +1,10 @@
-    Blocking waiting for file lock on package cache
-    Blocking waiting for file lock on artifact directory
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 8.59s
-     Running unittests src/lib.rs (target/debug/deps/reactive_tui-35d2457f13c1be87)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.07s
+     Running unittests src/lib.rs (target/debug/deps/reactive_tui-b4c6a17e01ac8449)
 
 running 3 tests
 test hooks::clipboard_process::tests::cancellation_kills_and_reaps_child ... ok
 test hooks::clipboard_process::tests::deadline_kills_and_reaps_child ... ok
 test hooks::clipboard_process::tests::sleeping_child_fixture ... ignored, child fixture invoked only by the process lifecycle tests
 
-test result: ok. 2 passed; 0 failed; 1 ignored; 0 measured; 760 filtered out; finished in 2.01s
+test result: ok. 2 passed; 0 failed; 1 ignored; 0 measured; 770 filtered out; finished in 2.01s
 
