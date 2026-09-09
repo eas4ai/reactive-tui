@@ -1,0 +1,187 @@
+Inherited acceptance: maintenance-format
+Inherited acceptance: maintenance-lint
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.16s
+Inherited acceptance: maintenance-ffi
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+warning: ambiguous glob re-exports
+  --> src/ffi/mod.rs:85:9
+   |
+85 | pub use pointer::*;
+   |         ^^^^^^^^^^ the name `validate_pointer` in the value namespace is first re-exported here
+...
+90 | pub use types::*;
+   |         -------- but the name `validate_pointer` in the value namespace is also re-exported here
+   |
+   = note: `#[warn(ambiguous_glob_reexports)]` on by default
+
+warning: unused variable: `width`
+  --> src/ffi/lib.rs:85:14
+   |
+85 |         let (width, height) = renderer_box.dims();
+   |              ^^^^^ help: if this is intentional, prefix it with an underscore: `_width`
+   |
+   = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `validate_pointer` is never used
+   --> src/ffi/types.rs:182:15
+    |
+182 | pub(crate) fn validate_pointer<T>(ptr: *const T) -> bool {
+    |               ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `validate_mut_pointer` is never used
+   --> src/ffi/types.rs:187:15
+    |
+187 | pub(crate) fn validate_mut_pointer<T>(ptr: *mut T) -> bool {
+    |               ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `safe_cast` is never used
+   --> src/ffi/types.rs:192:22
+    |
+192 | pub(crate) unsafe fn safe_cast<T, U>(ptr: *mut T) -> Result<*mut U, ReactiveError> {
+    |                      ^^^^^^^^^
+
+warning: function `safe_cast_const` is never used
+   --> src/ffi/types.rs:206:22
+    |
+206 | pub(crate) unsafe fn safe_cast_const<T, U>(ptr: *const T) -> Result<*const U, ReactiveError> {
+    |                      ^^^^^^^^^^^^^^^
+
+warning: `reactive-tui` (lib) generated 6 warnings (run `cargo fix --lib -p reactive-tui` to apply 1 suggestion)
+warning: unnecessary `unsafe` block
+  --> tests/test_ffi_core_only.rs:10:9
+   |
+10 |         unsafe {
+   |         ^^^^^^ unnecessary `unsafe` block
+   |
+   = note: `#[warn(unused_unsafe)]` (part of `#[warn(unused)]`) on by default
+
+warning: unnecessary `unsafe` block
+  --> tests/test_ffi_core_only.rs:24:9
+   |
+24 |         unsafe {
+   |         ^^^^^^ unnecessary `unsafe` block
+
+warning: unnecessary `unsafe` block
+  --> tests/test_ffi_core_only.rs:67:9
+   |
+67 |         unsafe {
+   |         ^^^^^^ unnecessary `unsafe` block
+
+warning: unnecessary `unsafe` block
+  --> tests/test_ffi_core_only.rs:94:9
+   |
+94 |         unsafe {
+   |         ^^^^^^ unnecessary `unsafe` block
+
+warning: unnecessary `unsafe` block
+   --> tests/test_ffi_core_only.rs:127:9
+    |
+127 |         unsafe {
+    |         ^^^^^^ unnecessary `unsafe` block
+
+warning: unnecessary `unsafe` block
+   --> tests/test_ffi_core_only.rs:171:9
+    |
+171 |         unsafe {
+    |         ^^^^^^ unnecessary `unsafe` block
+
+warning: unnecessary `unsafe` block
+   --> tests/test_ffi_core_only.rs:193:9
+    |
+193 |         unsafe {
+    |         ^^^^^^ unnecessary `unsafe` block
+
+warning: `reactive-tui` (test "test_ffi_core_only") generated 7 warnings
+warning: unnecessary `unsafe` block
+  --> tests/test_ffi_integration.rs:10:9
+   |
+10 |         unsafe {
+   |         ^^^^^^ unnecessary `unsafe` block
+   |
+   = note: `#[warn(unused_unsafe)]` (part of `#[warn(unused)]`) on by default
+
+warning: unnecessary `unsafe` block
+  --> tests/test_ffi_integration.rs:60:9
+   |
+60 |         unsafe {
+   |         ^^^^^^ unnecessary `unsafe` block
+
+warning: unnecessary `unsafe` block
+   --> tests/test_ffi_integration.rs:115:9
+    |
+115 |         unsafe {
+    |         ^^^^^^ unnecessary `unsafe` block
+
+warning: unnecessary `unsafe` block
+   --> tests/test_ffi_integration.rs:150:9
+    |
+150 |         unsafe {
+    |         ^^^^^^ unnecessary `unsafe` block
+
+warning: unnecessary `unsafe` block
+   --> tests/test_ffi_integration.rs:172:9
+    |
+172 |         unsafe {
+    |         ^^^^^^ unnecessary `unsafe` block
+
+warning: `reactive-tui` (test "test_ffi_integration") generated 5 warnings
+warning: `reactive-tui` (lib test) generated 6 warnings (6 duplicates)
+
+thread 'rustc' (2876513) panicked at /rustc-dev/59807616e1fa2540724bfbac14d7976d7e4a3860/compiler/rustc_middle/src/dep_graph/graph.rs:1413:32:
+index out of bounds: the len is 90883 but the index is 1025949
+stack backtrace:
+   0:     0x75db9a39314b - <<std[e28293b1aa0f68bd]::sys::backtrace::BacktraceLock>::print::DisplayBacktrace as core[c1f1a4ba060b9bfa]::fmt::Display>::fmt
+   1:     0x75db9aa1f408 - core[c1f1a4ba060b9bfa]::fmt::write
+   2:     0x75db9bf683b6 - <std[e28293b1aa0f68bd]::sys::stdio::unix::Stderr as std[e28293b1aa0f68bd]::io::Write>::write_fmt
+   3:     0x75db9a369238 - std[e28293b1aa0f68bd]::panicking::default_hook::{closure#0}
+   4:     0x75db9a3865b3 - std[e28293b1aa0f68bd]::panicking::default_hook
+   5:     0x75db9935cc30 - std[e28293b1aa0f68bd]::panicking::update_hook::<alloc[fdfd2bd8633a6659]::boxed::Box<rustc_driver_impl[e4ca9dd5dd6cf2a8]::install_ice_hook::{closure#1}>>::{closure#0}
+   6:     0x75db9a386892 - std[e28293b1aa0f68bd]::panicking::panic_with_hook
+   7:     0x75db9a3692f8 - std[e28293b1aa0f68bd]::panicking::panic_handler::{closure#0}
+   8:     0x75db9a360029 - std[e28293b1aa0f68bd]::sys::backtrace::__rust_end_short_backtrace::<std[e28293b1aa0f68bd]::panicking::panic_handler::{closure#0}, !>
+   9:     0x75db9a36ad5d - __rustc[b7974e8690430dd9]::rust_begin_unwind
+  10:     0x75db970de82c - core[c1f1a4ba060b9bfa]::panicking::panic_fmt
+  11:     0x75db9744a232 - core[c1f1a4ba060b9bfa]::panicking::panic_bounds_check
+  12:     0x75db9ab40e49 - <rustc_middle[9956b31dc9b62104]::dep_graph::graph::DepGraphData>::try_mark_previous_green
+  13:     0x75db9b85493f - <rustc_middle[9956b31dc9b62104]::dep_graph::graph::DepGraph>::try_mark_green
+  14:     0x75db9bd74c53 - rustc_query_impl[b21371cac9e22a84]::plumbing::try_mark_green
+  15:     0x75db9bd74af3 - rustc_codegen_ssa[fd5ecd340cdb7a09]::base::determine_cgu_reuse
+  16:     0x75db9bd70aea - rustc_codegen_ssa[fd5ecd340cdb7a09]::base::codegen_crate::<rustc_codegen_llvm[3c18e353d9a32df8]::LlvmCodegenBackend>
+  17:     0x75db9bd6ecc1 - <rustc_codegen_llvm[3c18e353d9a32df8]::LlvmCodegenBackend as rustc_codegen_ssa[fd5ecd340cdb7a09]::traits::backend::CodegenBackend>::codegen_crate
+  18:     0x75db9bc5b3d3 - <rustc_interface[c8170c4b7b680ee8]::queries::Linker>::codegen_and_build_linker
+  19:     0x75db9bc563e6 - rustc_interface[c8170c4b7b680ee8]::interface::run_compiler::<(), rustc_driver_impl[e4ca9dd5dd6cf2a8]::run_compiler::{closure#0}>::{closure#1}
+  20:     0x75db9bc2663e - std[e28293b1aa0f68bd]::sys::backtrace::__rust_begin_short_backtrace::<rustc_interface[c8170c4b7b680ee8]::util::run_in_thread_with_globals<rustc_interface[c8170c4b7b680ee8]::util::run_in_thread_pool_with_globals<rustc_interface[c8170c4b7b680ee8]::interface::run_compiler<(), rustc_driver_impl[e4ca9dd5dd6cf2a8]::run_compiler::{closure#0}>::{closure#1}, ()>::{closure#0}, ()>::{closure#0}::{closure#0}, ()>
+  21:     0x75db9bc26ca0 - <std[e28293b1aa0f68bd]::thread::lifecycle::spawn_unchecked<rustc_interface[c8170c4b7b680ee8]::util::run_in_thread_with_globals<rustc_interface[c8170c4b7b680ee8]::util::run_in_thread_pool_with_globals<rustc_interface[c8170c4b7b680ee8]::interface::run_compiler<(), rustc_driver_impl[e4ca9dd5dd6cf2a8]::run_compiler::{closure#0}>::{closure#1}, ()>::{closure#0}, ()>::{closure#0}::{closure#0}, ()>::{closure#1} as core[c1f1a4ba060b9bfa]::ops::function::FnOnce<()>>::call_once::{shim:vtable#0}
+  22:     0x75db9bc27b2c - <std[e28293b1aa0f68bd]::sys::thread::unix::Thread>::new::thread_start
+  23:     0x75db954a407a - start_thread
+                               at ./nptl/pthread_create.c:454:8
+  24:     0x75db9553772c - __GI___clone3
+                               at ./misc/../sysdeps/unix/sysv/linux/x86_64/clone3.S:78:0
+  25:                0x0 - <unknown>
+
+error: the compiler unexpectedly panicked. This is a bug
+
+note: we would appreciate a bug report: https://github.com/rust-lang/rust/issues/new?labels=C-bug%2C+I-ICE%2C+T-compiler&template=ice.md
+
+note: rustc 1.95.0 (59807616e 2026-04-14) running on x86_64-unknown-linux-gnu
+
+note: compiler flags: -C embed-bitcode=no -C debuginfo=2 -C incremental=[REDACTED] -C link-arg=-Wl,--threads=8
+
+note: some of the compiler flags provided by cargo are hidden
+
+query stack during panic:
+end of query stack
+error: could not compile `reactive-tui` (test "app_wakeups")
+
+Caused by:
+  process didn't exit successfully: `sccache /home/shawn/.rustup/toolchains/1.95-x86_64-unknown-linux-gnu/bin/rustc --crate-name app_wakeups --edition=2021 tests/app_wakeups.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --test --cfg 'feature="default"' --cfg 'feature="ffi"' --cfg 'feature="tokio"' --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values("async-capabilities", "debug", "debug_patches", "default", "embedded-terminal", "ffi", "simd", "tokio", "tokio-util"))' -C metadata=02f47a949c2944ab -C extra-filename=-ea916118418b3532 --out-dir /home/shawn/workspace2/reactive-tui/target/debug/deps -C incremental=/home/shawn/workspace2/reactive-tui/target/debug/incremental -L dependency=/home/shawn/workspace2/reactive-tui/target/debug/deps --extern atty=/home/shawn/workspace2/reactive-tui/target/debug/deps/libatty-4b67ae4c17d002ef.rlib --extern base64=/home/shawn/workspace2/reactive-tui/target/debug/deps/libbase64-a283bc3bbc85c06d.rlib --extern bitflags=/home/shawn/workspace2/reactive-tui/target/debug/deps/libbitflags-ddb49399ac116e4d.rlib --extern comrak=/home/shawn/workspace2/reactive-tui/target/debug/deps/libcomrak-f74a4f483fb8bd5b.rlib --extern criterion=/home/shawn/workspace2/reactive-tui/target/debug/deps/libcriterion-3d42e4eb9a0ac4c2.rlib --extern crossterm=/home/shawn/workspace2/reactive-tui/target/debug/deps/libcrossterm-7576b1086d8d75a9.rlib --extern dirs=/home/shawn/workspace2/reactive-tui/target/debug/deps/libdirs-cb048465d5d055bf.rlib --extern futures_core=/home/shawn/workspace2/reactive-tui/target/debug/deps/libfutures_core-16126cd1d6a07f0c.rlib --extern image=/home/shawn/workspace2/reactive-tui/target/debug/deps/libimage-23ed481b0269af10.rlib --extern lazy_static=/home/shawn/workspace2/reactive-tui/target/debug/deps/liblazy_static-dda9e99a377d5c0e.rlib --extern libc=/home/shawn/workspace2/reactive-tui/target/debug/deps/liblibc-9cd67df2e5ea2fdd.rlib --extern log=/home/shawn/workspace2/reactive-tui/target/debug/deps/liblog-32b251c9f60de43e.rlib --extern lru=/home/shawn/workspace2/reactive-tui/target/debug/deps/liblru-2f5b991bdc8841e3.rlib --extern once_cell=/home/shawn/workspace2/reactive-tui/target/debug/deps/libonce_cell-163a1ec3ed8f6d8d.rlib --extern proptest=/home/shawn/workspace2/reactive-tui/target/debug/deps/libproptest-bb48e21839406dba.rlib --extern reactive_tui=/home/shawn/workspace2/reactive-tui/target/debug/deps/libreactive_tui.rlib --extern reactive_tui_macros=/home/shawn/workspace2/reactive-tui/target/debug/deps/libreactive_tui_macros-d6d9092e752fd436.so --extern regex=/home/shawn/workspace2/reactive-tui/target/debug/deps/libregex-8dacbc7718c4ca80.rlib --extern serde=/home/shawn/workspace2/reactive-tui/target/debug/deps/libserde-856f081402861442.rlib --extern serde_json=/home/shawn/workspace2/reactive-tui/target/debug/deps/libserde_json-a1c27ace0474bfa2.rlib --extern serial_test=/home/shawn/workspace2/reactive-tui/target/debug/deps/libserial_test-2757cf4113ffca2b.rlib --extern sixel_rs=/home/shawn/workspace2/reactive-tui/target/debug/deps/libsixel_rs-d7acfd4e8b9345bd.rlib --extern string_cache=/home/shawn/workspace2/reactive-tui/target/debug/deps/libstring_cache-5c68701cd5588483.rlib --extern suprtui=/home/shawn/workspace2/reactive-tui/target/debug/deps/libsuprtui-46716b7c0fafaa26.rlib --extern syntect=/home/shawn/workspace2/reactive-tui/target/debug/deps/libsyntect-9ecec9e50065830d.rlib --extern taffy=/home/shawn/workspace2/reactive-tui/target/debug/deps/libtaffy-f902816e38762805.rlib --extern thiserror=/home/shawn/workspace2/reactive-tui/target/debug/deps/libthiserror-21c3b918acf5d9b1.rlib --extern tokio=/home/shawn/workspace2/reactive-tui/target/debug/deps/libtokio-02addda794cfd3ab.rlib --extern unicode_segmentation=/home/shawn/workspace2/reactive-tui/target/debug/deps/libunicode_segmentation-9f284445673a86e7.rlib --extern unicode_width=/home/shawn/workspace2/reactive-tui/target/debug/deps/libunicode_width-0638d1d28c69d517.rlib --extern uuid=/home/shawn/workspace2/reactive-tui/target/debug/deps/libuuid-9e47b34225824f6a.rlib --extern vt100=/home/shawn/workspace2/reactive-tui/target/debug/deps/libvt100-da219aef7cf0116f.rlib -C link-arg=-Wl,--threads=8 -L native=/home/shawn/workspace2/reactive-tui/target/debug/build/onig_sys-5d1ab1a160df4359/out -L native=/home/shawn/workspace2/reactive-tui/target/debug/build/sixel-sys-855de26beac480dc/out/lib` (exit status: 101)
+warning: build failed, waiting for other jobs to finish...
+Traceback (most recent call last):
+  File "/home/shawn/workspace2/reactive-tui/scripts/check-inherited-abi.py", line 57, in <module>
+    main()
+    ~~~~^^
+  File "/home/shawn/workspace2/reactive-tui/scripts/check-inherited-abi.py", line 52, in main
+    raise RuntimeError(f'Inherited acceptance failed: {name} (exit {status})')
+RuntimeError: Inherited acceptance failed: maintenance-ffi (exit 101)
