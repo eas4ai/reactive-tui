@@ -48,19 +48,33 @@ fn inject(input: HANDLE, records: &[INPUT_RECORD]) {
 }
 
 fn check_private_console() {
+    let slots = [STD_INPUT_HANDLE, STD_OUTPUT_HANDLE, STD_ERROR_HANDLE];
+    let inherited = slots.map(|slot| unsafe { GetStdHandle(slot) });
     // The parent redirects this detached child to NUL. Clear only this child's
     // standard-handle slots so AllocConsole installs handles for its new console.
-    for handle in [STD_INPUT_HANDLE, STD_OUTPUT_HANDLE, STD_ERROR_HANDLE] {
+    for handle in slots {
         assert_ne!(unsafe { SetStdHandle(handle, std::ptr::null_mut()) }, 0);
     }
     assert_ne!(unsafe { AllocConsole() }, 0, "allocate a private console");
-    struct Console;
+    struct Console([HANDLE; 3]);
     impl Drop for Console {
         fn drop(&mut self) {
-            unsafe { FreeConsole() };
+            let freed = unsafe { FreeConsole() };
+            // The test harness still needs its redirected output after detaching.
+            let mut restored = true;
+            for (slot, handle) in [STD_INPUT_HANDLE, STD_OUTPUT_HANDLE, STD_ERROR_HANDLE]
+                .into_iter()
+                .zip(self.0)
+            {
+                restored &= unsafe { SetStdHandle(slot, handle) } != 0;
+            }
+            if !std::thread::panicking() {
+                assert_ne!(freed, 0);
+                assert!(restored);
+            }
         }
     }
-    let _console = Console;
+    let _console = Console(inherited);
     let input = unsafe { GetStdHandle(STD_INPUT_HANDLE) };
     let mut original_mode = 0;
     assert_ne!(unsafe { GetConsoleMode(input, &mut original_mode) }, 0);

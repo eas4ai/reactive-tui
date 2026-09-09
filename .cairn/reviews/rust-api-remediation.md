@@ -441,3 +441,10 @@ record validation and a sequential private-console lifecycle; no advisory pass
 is claimed. Its four legacy nested integration paths are not default Cargo test
 targets and remain part of the broader platform inventory. The new native console
 fixture covers the prerequisite's actual public entry points and conversions.
+
+Fixture review found two timing/cleanup hazards before final native acceptance:
+PID-path existence could precede the PID write, and detaching the private console
+could leave the test harness's standard handles pointing at the freed console.
+Cancellation now waits for a parseable PID; the console guard restores inherited
+redirected handles after detaching. The revised Windows fixture cross-checks,
+and both Unix lifecycle tests, strict Clippy and formatting checks pass.

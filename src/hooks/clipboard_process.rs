@@ -255,7 +255,13 @@ mod tests {
         };
         command.env("RTUI_PID_PATH", &pid_path);
         let start = Instant::now();
-        let error = run(command, None, || cancel && pid_path.exists()).unwrap_err();
+        let error = run(command, None, || {
+            cancel
+                && std::fs::read_to_string(&pid_path)
+                    .ok()
+                    .is_some_and(|pid| pid.trim().parse::<u32>().is_ok())
+        })
+        .unwrap_err();
         assert!(
             error.contains(if cancel { "cancelled" } else { "timed out" }),
             "{error}"
