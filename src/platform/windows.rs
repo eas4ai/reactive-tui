@@ -112,9 +112,9 @@ impl WindowsTty {
                 return Err(std::io::Error::last_os_error().into());
             }
 
-            // Set raw input mode
-            let new_input_mode =
-                ENABLE_VIRTUAL_TERMINAL_INPUT | ENABLE_WINDOW_INPUT | ENABLE_MOUSE_INPUT;
+            // Consume INPUT_RECORD values, not the VT stream produced for ReadFile.
+            // Extended flags also disable Quick Edit so selection cannot pause input.
+            let new_input_mode = ENABLE_WINDOW_INPUT | ENABLE_MOUSE_INPUT | ENABLE_EXTENDED_FLAGS;
 
             if SetConsoleMode(stdin_handle, new_input_mode) == 0 {
                 return Err(std::io::Error::last_os_error().into());
@@ -122,6 +122,7 @@ impl WindowsTty {
 
             // Set virtual terminal output mode
             let new_output_mode = original_output_mode
+                | ENABLE_PROCESSED_OUTPUT
                 | ENABLE_VIRTUAL_TERMINAL_PROCESSING
                 | DISABLE_NEWLINE_AUTO_RETURN;
 

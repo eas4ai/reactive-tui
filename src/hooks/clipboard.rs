@@ -108,7 +108,7 @@ impl ClipboardBackend {
                 let script = if copy {
                     "$ErrorActionPreference='Stop'; [Console]::InputEncoding=[System.Text.UTF8Encoding]::new($false); Set-Clipboard -Value ([Console]::In.ReadToEnd())"
                 } else {
-                    "$ErrorActionPreference='Stop'; [Console]::OutputEncoding=[System.Text.UTF8Encoding]::new($false); [Console]::Write((Get-Clipboard -Raw))"
+                    "$ErrorActionPreference='Stop'; [Console]::OutputEncoding=[System.Text.UTF8Encoding]::new($false); [Console]::Write([string](Get-Clipboard -Raw))"
                 };
                 command.args([
                     "-NoLogo",

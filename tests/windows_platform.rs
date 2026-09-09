@@ -107,7 +107,10 @@ fn check_private_console() {
         let mut byte = [0];
         assert_eq!(
             tty.read(&mut byte, Some(Duration::from_millis(100)))
-                .unwrap(),
+                .unwrap_or_else(|error| panic!(
+                    "byte {} of {expected:?}: {error}; received {observed:?}",
+                    observed.len()
+                )),
             1
         );
         observed.push(byte[0]);

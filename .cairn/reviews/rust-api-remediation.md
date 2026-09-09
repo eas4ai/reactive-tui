@@ -448,3 +448,11 @@ could leave the test harness's standard handles pointing at the freed console.
 Cancellation now waits for a parseable PID; the console guard restores inherited
 redirected handles after detaching. The revised Windows fixture cross-checks,
 and both Unix lifecycle tests, strict Clippy and formatting checks pass.
+
+Run 34310205820 passed both Windows process lifecycle checks with the five-second
+limit, then failed the private console's injected UTF-8 byte read with a timeout.
+The adapter enabled virtual-terminal input while consuming INPUT_RECORD values.
+Microsoft documents that this mode converts input for ReadFile/ReadConsole;
+the adapter uses ReadConsoleInputW instead. Select window/mouse record input
+with extended flags (and no Quick Edit), retaining virtual-terminal output.
+The existing injected-text check is the failure demonstration for the rerun.
