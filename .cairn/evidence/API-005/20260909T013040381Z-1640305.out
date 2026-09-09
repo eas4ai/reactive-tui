@@ -1,0 +1,38 @@
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.54s
+     Running tests/api_event_routing.rs (target/debug/deps/api_event_routing-fa7d298def23b208)
+
+running 1 test
+test builder_callback_receives_keyboard_activation_once ... FAILED
+
+failures:
+
+---- builder_callback_receives_keyboard_activation_once stdout ----
+
+thread 'builder_callback_receives_keyboard_activation_once' (1640682) panicked at tests/api_event_routing.rs:86:5:
+assertion `left == right` failed: the focused builder callback must run once
+  left: 0
+ right: 1
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    builder_callback_receives_keyboard_activation_once
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `--test api_event_routing`
+Traceback (most recent call last):
+  File "/home/shawn/workspace2/reactive-tui/scripts/check-api-event-routing.py", line 6, in <module>
+    subprocess.run(
+    ~~~~~~~~~~~~~~^
+        ["cargo", "test", "--locked", "--test", "api_event_routing", "--", "--test-threads=1"],
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        cwd=Path(__file__).resolve().parents[1], check=True, timeout=120,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/home/linuxbrew/.linuxbrew/Cellar/python@3.14/3.14.7/lib/python3.14/subprocess.py", line 578, in run
+    raise CalledProcessError(retcode, process.args,
+                             output=stdout, stderr=stderr)
+subprocess.CalledProcessError: Command '['cargo', 'test', '--locked', '--test', 'api_event_routing', '--', '--test-threads=1']' returned non-zero exit status 101.
