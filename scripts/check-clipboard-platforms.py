@@ -58,6 +58,9 @@ def captured(command, env, timeout=300):
         output.seek(0)
         text = output.read().decode(errors="replace")
     if status:
+        diagnostic = ROOT / "target" / "clipboard-platform-failure.log"
+        diagnostic.parent.mkdir(parents=True, exist_ok=True)
+        diagnostic.write_bytes(text.encode())
         raise RuntimeError(f"command exited {status}: {command}\n{text[-12000:]}")
     return text
 

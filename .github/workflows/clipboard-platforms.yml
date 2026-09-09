@@ -56,3 +56,11 @@ jobs:
           path: docs/analysis/clipboard-platforms/${{ matrix.backend }}.*
           if-no-files-found: warn
           retention-days: 14
+      - name: Capture failure diagnostics
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: clipboard-${{ matrix.backend }}-diagnostics
+          path: target/clipboard-platform-failure.log
+          if-no-files-found: warn
+          retention-days: 14
