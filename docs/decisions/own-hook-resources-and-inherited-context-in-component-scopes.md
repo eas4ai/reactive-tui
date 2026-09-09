@@ -11,4 +11,4 @@ Give each App root and keyed component an owned resource scope, with a temporary
 
 ## Realized by
 
-(none yet: recorded, not built)
+- 0e6d00d46d8f4310d29c0eb7d8fa6d987ab82e00 Own component effects timers and inherited context in App scopes
