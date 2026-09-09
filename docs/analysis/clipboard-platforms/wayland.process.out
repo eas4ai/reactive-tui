@@ -1,5 +1,6 @@
+    Blocking waiting for file lock on artifact directory
    Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 8.80s
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 8.65s
      Running unittests src/lib.rs (target/debug/deps/reactive_tui-35d2457f13c1be87)
 
 running 3 tests

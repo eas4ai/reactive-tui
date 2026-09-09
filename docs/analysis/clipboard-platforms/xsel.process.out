@@ -1,6 +1,6 @@
     Blocking waiting for file lock on package cache
-    Blocking waiting for file lock on package cache
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.13s
+    Blocking waiting for file lock on artifact directory
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 8.55s
      Running unittests src/lib.rs (target/debug/deps/reactive_tui-35d2457f13c1be87)
 
 running 3 tests

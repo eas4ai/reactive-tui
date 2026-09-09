@@ -615,3 +615,18 @@ must pass without any preceding PowerShell fixture or diagnostic in that VM.
 Run 34319319017 was canceled after the diagnostic to avoid another redundant
 five-second candidate run. Another normal-startup failure under the new allowance
 will return to the developer rather than trigger another arbitrary increase.
+
+
+## API-008 cold-start correction verified
+
+Native run 34319776534 passed macOS and Windows at 50e5bfd. On Windows the five
+exact clipboard cases passed in 6.47 seconds total; two lifecycle checks passed
+in 15.01 seconds, including the forced fifteen-second deadline, and the private
+console adapter test passed. No PowerShell warm-up fixture or diagnostic preceded
+the real clipboard calls on that runner. The separate earlier timing job was
+removed before this candidate. Wayland, Xsel and Xclip also passed at the same
+source digest. All five records and both output hashes per backend were checked
+before copying; the platform verifier reports all five current. Existing Windows
+compiler warnings remain in the API-019 inventory; no native strict-Clippy pass
+is claimed. The Consequential deadline decision remains queued for developer
+review, as required by the working agreement.

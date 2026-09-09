@@ -14,4 +14,4 @@ Retain the previous child ownership, cancellation, temporary streams, transfer l
 
 ## Realized by
 
-(none yet: recorded, not built)
+- 50e5bfd86092abbd69aee9b5e7d8978700f17daa Allow fifteen seconds for cold Windows clipboard commands
