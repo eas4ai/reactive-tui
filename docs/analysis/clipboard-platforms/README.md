@@ -36,7 +36,8 @@ missing, stale or damaged results; it does not authenticate a remote runner.
 `--allow-dirty --output target/clipboard-platform-development` is for local
 development only. Such results cannot satisfy the acceptance mechanism.
 
-The command deadline is two seconds and the text transfer limit is 64 MiB.
+The command deadline is two seconds on Unix and five seconds on Windows;
+the text transfer limit is 64 MiB.
 Timeout and hook-owner cleanup stop and reap the direct child; Unix also
 stops its process group. Successful copy tools may retain a background
 clipboard server, as required by Wayland and X11 selection ownership.

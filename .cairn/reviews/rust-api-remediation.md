@@ -420,3 +420,24 @@ records now require its success marker as well as the clipboard/process checks.
 Linux default-suite verification passed all 61 result groups, strict all-target
 Clippy passed, and formatting/diff checks passed. The Windows-only test is not
 counted as a Linux pass; native Windows execution remains pending.
+
+## Native Windows startup deadline finding
+
+Run 34309300920 built the real Windows library successfully. The native process
+checks then reported one failure: the first PowerShell startup exceeded two
+seconds before its PID marker appeared, so the cancellation fixture got the
+timeout error. The next warm timeout case passed, including its exit assertion.
+The superseding decision gives Windows five seconds while retaining Unix's two.
+The tests retain separate six/three-second upper limits and PID exit checks.
+This repairs an observed startup allowance; it does not bypass cancellation.
+
+The full Windows library and both native integration targets also passed a
+local Windows cross-check with Zig's MinGW target and explicit Autoconf host/C11
+settings. That is compilation evidence only, not native clipboard acceptance.
+An isolated pre-change worktree made Ripwire's adapter delta readable: it flags
+read/run_backend/verify branch complexity and the long console integration test,
+plus false dead-code rows for state and a test. These flows separate actual I/O,
+record validation and a sequential private-console lifecycle; no advisory pass
+is claimed. Its four legacy nested integration paths are not default Cargo test
+targets and remain part of the broader platform inventory. The new native console
+fixture covers the prerequisite's actual public entry points and conversions.

@@ -1,5 +1,7 @@
 # Bound clipboard commands and tie cancellation to hook ownership
 
+Superseded by: allow-five-seconds-for-windows-clipboard-commands
+
 Level: Judged
 Decided by: Codex
 Rests on: API-008

@@ -5,7 +5,10 @@ use std::io::{Read, Seek, SeekFrom, Write};
 use std::process::{Child, Command, ExitStatus, Stdio};
 use std::time::{Duration, Instant};
 
+#[cfg(not(windows))]
 const TIMEOUT: Duration = Duration::from_secs(2);
+#[cfg(windows)]
+const TIMEOUT: Duration = Duration::from_secs(5);
 const MAX_BYTES: u64 = 64 * 1024 * 1024;
 const POLL: Duration = Duration::from_millis(5);
 
@@ -19,7 +22,10 @@ impl<F: Fn() -> bool> Deadline<F> {
         if (self.cancelled)() {
             Err("clipboard operation cancelled: hook owner has closed".into())
         } else if Instant::now() >= self.end {
-            Err("clipboard operation timed out after two seconds".into())
+            Err(format!(
+                "clipboard operation timed out after {} seconds",
+                TIMEOUT.as_secs()
+            ))
         } else {
             Ok(())
         }
@@ -254,7 +260,10 @@ mod tests {
             error.contains(if cancel { "cancelled" } else { "timed out" }),
             "{error}"
         );
+        #[cfg(unix)]
         assert!(start.elapsed() < Duration::from_secs(3));
+        #[cfg(windows)]
+        assert!(start.elapsed() < Duration::from_secs(6));
         let pid: i32 = std::fs::read_to_string(&pid_path)
             .unwrap()
             .trim()
