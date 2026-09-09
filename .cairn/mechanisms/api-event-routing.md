@@ -10,5 +10,6 @@ inputs:
   - tests/api_event_routing.rs
   - scripts/check-api-event-routing.py
   - docs/spec/rust-api-remediation.md
+  - docs/app-events.md
 requirements:
   - API-005

@@ -549,6 +549,7 @@ impl MenuBarBuilder {
             key: None,
             class: self.class,
             focus: None,
+            metadata: Default::default(),
         }
     }
 

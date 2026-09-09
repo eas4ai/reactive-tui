@@ -49,6 +49,7 @@ pub fn vdom_to_element(node: VNode) -> Element {
                     key: None,
                     class: None,
                     focus: None,
+                    metadata: Default::default(),
                 },
             };
 
@@ -77,6 +78,7 @@ pub fn vdom_to_element(node: VNode) -> Element {
                 key: None,
                 class: None,
                 focus: None,
+                metadata: Default::default(),
             };
             if let Some(k) = key_to_string(&key) {
                 el.key = Some(k);

@@ -98,6 +98,7 @@ impl ComponentRuntime {
                 output_path.push(Segment::Output(name));
                 output_path.push(Self::slot(&output, 0));
                 let mut resolved = self.expand(output, output_path, seen, depth + 1)?;
+                resolved.metadata.on_click.extend(element.metadata.on_click);
                 // Caller styling belongs to the rendered root and takes precedence.
                 if let Some(class) = element.class {
                     resolved.class = Some(match resolved.class {

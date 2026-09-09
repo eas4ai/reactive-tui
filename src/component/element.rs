@@ -2,6 +2,24 @@ use std::any::Any;
 use std::fmt::Debug;
 use std::sync::Arc;
 
+/// Owned behavior attached to an element independently of its component props.
+#[derive(Clone, Default)]
+pub struct ElementMetadata {
+    /// Activation callbacks, invoked in registration order.
+    pub on_click: Vec<Arc<dyn Fn() + Send + Sync>>,
+}
+
+impl PartialEq for ElementMetadata {
+    fn eq(&self, other: &Self) -> bool {
+        self.on_click.len() == other.on_click.len()
+            && self
+                .on_click
+                .iter()
+                .zip(&other.on_click)
+                .all(|(left, right)| Arc::ptr_eq(left, right))
+    }
+}
+
 /// Type of element in the render tree
 #[derive(Debug, Clone, PartialEq)]
 pub enum ElementType {
@@ -40,6 +58,8 @@ pub enum LayoutType {
 /// Core element structure for the component system
 #[derive(Clone)]
 pub struct Element {
+    /// Owned callbacks and other runtime metadata.
+    pub metadata: ElementMetadata,
     /// Type of element (text, component, etc.)
     pub element_type: ElementType,
     /// Type-erased properties for the element
@@ -69,6 +89,7 @@ impl PartialEq for Element {
         };
 
         self.element_type == other.element_type
+            && self.metadata == other.metadata
             && self.key == other.key
             && self.class == other.class
             && self.children == other.children
@@ -90,6 +111,7 @@ impl Element {
             key: None,
             class: None,
             focus: None,
+            metadata: ElementMetadata::default(),
         }
     }
 
@@ -102,6 +124,7 @@ impl Element {
             key: None,
             class: None,
             focus: None,
+            metadata: ElementMetadata::default(),
         }
     }
 
@@ -115,6 +138,7 @@ impl Element {
             key: None,
             class: None,
             focus: None,
+            metadata: ElementMetadata::default(),
         }
     }
 
@@ -127,6 +151,7 @@ impl Element {
             key: None,
             class: None,
             focus: None,
+            metadata: ElementMetadata::default(),
         }
     }
 
@@ -139,6 +164,7 @@ impl Element {
             key: None,
             class: None,
             focus: None,
+            metadata: ElementMetadata::default(),
         }
     }
 
@@ -151,6 +177,7 @@ impl Element {
             key: None,
             class: None,
             focus: None,
+            metadata: ElementMetadata::default(),
         }
     }
 
@@ -430,6 +457,7 @@ mod tests {
             key: None,
             class: None,
             focus: None,
+            metadata: ElementMetadata::default(),
         };
         let elem4 = Element {
             element_type: ElementType::Component("Test".to_string()),
@@ -438,6 +466,7 @@ mod tests {
             key: None,
             class: None,
             focus: None,
+            metadata: ElementMetadata::default(),
         };
         assert_eq!(elem3, elem4);
     }

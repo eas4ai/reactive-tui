@@ -23,7 +23,11 @@ use output::{CheckedOutput, TerminalOutput};
 type Reply = mpsc::Sender<Result<()>>;
 
 enum Command {
-    Present(FrameContent, (usize, usize), Reply),
+    Present(
+        FrameContent,
+        (usize, usize),
+        mpsc::Sender<Result<Vec<super::PaintedNode>>>,
+    ),
     Shutdown(Reply),
 }
 
@@ -43,6 +47,7 @@ pub struct SuprTuiBackend {
     dimensions: (usize, usize),
     frame: Element,
     cells: Option<Arc<CellFrame>>,
+    painted_nodes: Vec<super::PaintedNode>,
     raw_mode: Option<RawMode>,
     input: Option<crossterm::event::EventStream>,
 }
@@ -87,6 +92,7 @@ impl SuprTuiBackend {
             dimensions,
             frame: Element::empty(),
             cells: None,
+            painted_nodes: Vec::new(),
             raw_mode: None,
             input: None,
         };
@@ -126,6 +132,9 @@ impl SuprTuiBackend {
 }
 
 impl Backend for SuprTuiBackend {
+    fn painted_nodes(&self) -> Option<&[super::PaintedNode]> {
+        Some(&self.painted_nodes)
+    }
     fn render_frame(&mut self, element: &Element) -> Result<bool> {
         if self.commands.is_none() {
             return Err(worker_stopped());
@@ -180,7 +189,8 @@ impl Backend for SuprTuiBackend {
                 reply,
             ))
             .map_err(|_| worker_stopped())?;
-        result.recv().map_err(|_| worker_stopped())?
+        self.painted_nodes = result.recv().map_err(|_| worker_stopped())??;
+        Ok(())
     }
 
     fn size(&self) -> (u16, u16) {
@@ -293,10 +303,11 @@ fn run_worker<W: Write>(
                         dimensions = size;
                         force = true;
                     }
-                    match spec {
+                    let geometry = match spec {
                         FrameContent::Element(spec) => {
-                            paint_frame(&spec, renderer.next_buffer())?;
+                            let geometry = paint_frame(&spec, renderer.next_buffer())?;
                             renderer.set_cursor(0, 0, false);
+                            geometry
                         }
                         FrameContent::Cells(frame) => {
                             frame.paint(renderer.next_buffer())?;
@@ -306,8 +317,9 @@ fn run_worker<W: Write>(
                                 u32::from(y),
                                 frame.cursor().is_some(),
                             );
+                            Vec::new()
                         }
-                    }
+                    };
                     let status = renderer.render(force);
                     if let Some(error) = renderer.backend_mut().take_error() {
                         return Err(error.into());
@@ -317,7 +329,7 @@ fn run_worker<W: Write>(
                             "SuprTUI could not publish the frame",
                         ));
                     }
-                    Ok(())
+                    Ok(geometry)
                 })();
                 force = result.is_err();
                 let _ = reply.send(result);

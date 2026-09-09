@@ -120,3 +120,52 @@ The first timer assertion was too weak: a fallback timer could run while the App
 Final targeted checks passed six App integration tests, seven hook unit tests, one nested-scope test and eight timer unit tests. The full repository runner passed, including 41 doctests; the first bare cargo run hit the known system /tmp quota during doctest linking, so the documented workspace-temp runner was used. The final added App-stop case and strict all-target Clippy passed. Formatting and diff whitespace checks passed.
 
 Ripwire edit checks found no incompatible use_effect or storage callers. Test-gate listed the affected existing suites plus unmodelled/reference paths; the actual project suite was run. Quality-delta exits 2, not a pass: inspected changed rows are short-horizon churn from consecutive hook requirements, constructor/lock pattern duplication, duplicated fixture structure, and false dead-code reports for exercised types/tests and App::waker. The resource and timer logic remains separated by ownership responsibility; sharing normalized constructor or lock sequences would hide that responsibility. The component traversal grows by scope entry/exit only. This is an API-004 implementation review, not the final commitment review.
+
+## API-005 mechanism and implementation review
+
+The committed baseline keyboard probe failed with zero callback invocations instead
+of one. Inspected builder storage, component expansion, App input/presentation
+ordering, the worker acknowledgement, clipping and stable painter order, routing
+propagation, subtree cleanup and callback ownership. The approved Element metadata
+field and Send + Sync bounds are documented with Rust migration examples. C ABI
+signatures and layouts are unchanged.
+
+Nine focused cases pass. App cases use real SuprTUI output: keyboard activation
+without release/repeat duplication; mouse focus and misses; resize geometry;
+redraw callback refresh; overlap and ancestor clipping; callback capture release
+before later App input; nested registrations; expanded component callbacks; and
+a 120-column initial viewport with enough targets to split the spatial index.
+The router phase test independently asserts capture/target/bubble ordering and
+retained Handled status. Captured VT100 text and explicit expected coordinates
+are checked alongside callback logs.
+
+A safe violating case reversed only the returned geometry order, leaving painting
+unchanged. The overlap test failed: callbacks were [] instead of [top, clipped].
+The mutation was restored and the corrected suite passed. This is real failure
+demonstration, not a defect-confirming acceptance assertion.
+
+The first full default run exposed a pre-existing test race in debug_animate_none:
+one case cleared the global animation count while another subtracted it, causing
+unsigned underflow (initial count 1, final count 0). Reproduction failed on run 5
+with three test threads. A mutex now isolates the two global-reset integration
+cases; 20 parallel repetitions passed. No animation implementation or assertion
+was weakened. The subsequent complete default suite passed, including 759 library
+cases, all runnable integration targets, and 41 doctests (34 remain ignored).
+Strict Clippy with all default-feature targets also passed.
+
+Ripwire edit-check found no incompatible on_click call arities; it does not model
+the approved Send/Sync change, which cargo check/clippy verified. Test-gate exited
+4 with 39 named suites and a broad static blast radius that includes ignored
+reference trees and non-built integration demos; this is not an all-static-path
+coverage claim. Quality-delta exited 2, dominated by those reference imports,
+normalized initializer/HashMap/fixture similarities and trait-dispatch dead-code
+false positives. Its real nine-argument traversal finding was addressed by
+grouping frame registration state; node traversal and registration are separate.
+Short-horizon renderer churn reflects the consecutive committed recovery steps.
+
+Self-audit: callback ownership is explicit, user code runs without router locks,
+old registrations are replaced, and geometry comes from acknowledged painting.
+No dependency, C ABI, terminal protocol or persistence changes were introduced.
+Custom backend wrappers must forward painted_nodes; complete legacy backend
+integration and focus traps remain governed by API-016 and API-006. This is an
+API-005 review, not final acceptance of the entire commitment.

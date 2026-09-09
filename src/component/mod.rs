@@ -27,7 +27,7 @@ pub(crate) mod runtime;
 /// Tracked component instances with automatic cleanup
 pub mod tracked_instance;
 
-pub use element::{Element, ElementType, LayoutType};
+pub use element::{Element, ElementMetadata, ElementType, LayoutType};
 pub use focus::{FocusProps, FocusPropsBuilder};
 pub use instance::{AnyComponentInstance, ComponentInstance};
 pub use lifecycle::{Lifecycle, LifecycleEvent};

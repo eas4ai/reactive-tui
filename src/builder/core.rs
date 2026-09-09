@@ -95,6 +95,7 @@ impl ElementBuilder {
                 key: None,
                 class: None,
                 focus: None,
+                metadata: Default::default(),
             },
             current_class: String::new(),
             gradient: None,
@@ -240,15 +241,14 @@ impl ElementBuilder {
     }
 
     /// Add click handler - integrates with reactive-tui's event system
-    pub fn on_click<F>(self, _handler: F) -> Self
+    pub fn on_click<F>(mut self, handler: F) -> Self
     where
-        F: Fn() + 'static,
+        F: Fn() + Send + Sync + 'static,
     {
-        // Production-ready event handler integration
-        // In reactive-tui's architecture, event handlers are registered with the EventRouter
-        // This builder method would store the handler for later registration
-
-        // Mark element as interactive for event system
+        self.element
+            .metadata
+            .on_click
+            .push(std::sync::Arc::new(handler));
         self.class("interactive")
     }
 

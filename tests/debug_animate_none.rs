@@ -8,6 +8,9 @@ use reactive_tui::layout::css::manager::{
 };
 use reactive_tui::render::tree::element_to_render_node;
 
+// These integration cases reset the same process-wide registry and animations.
+static ANIMATION_TEST: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
 #[derive(Clone, PartialEq, Default)]
 struct DebugProps {
     text: String,
@@ -65,6 +68,7 @@ fn test_animate_none_parsing() {
 
 #[test]
 fn test_animate_none_integration() {
+    let _isolation = ANIMATION_TEST.lock().unwrap();
     global_cleanup_all().unwrap();
     clear_all_css_animations_global().unwrap();
     register_component::<DebugComponent>("DebugComponent").unwrap();
@@ -108,6 +112,7 @@ fn test_animate_none_integration() {
 
 #[test]
 fn test_animate_none_vs_regular() {
+    let _isolation = ANIMATION_TEST.lock().unwrap();
     global_cleanup_all().unwrap();
     clear_all_css_animations_global().unwrap();
     register_component::<DebugComponent>("CompareComponent").unwrap();

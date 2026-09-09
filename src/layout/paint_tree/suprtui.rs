@@ -30,13 +30,17 @@ impl Rect {
 }
 
 struct PaintNode {
+    element_index: usize,
     id: NodeId,
     bounds: Rect,
     clip: Rect,
     z: i32,
 }
 
-pub(crate) fn paint_frame(root: &NodeSpec<'_>, target: &mut OptimizedBuffer<'_>) -> Result<()> {
+pub(crate) fn paint_frame(
+    root: &NodeSpec<'_>,
+    target: &mut OptimizedBuffer<'_>,
+) -> Result<Vec<crate::backend::PaintedNode>> {
     target.clear(ansi::rgb_color(0, 0, 0, 255), None);
     let mut tree = TaffyTree::new();
     let mut paints = HashMap::new();
@@ -68,10 +72,21 @@ pub(crate) fn paint_frame(root: &NodeSpec<'_>, target: &mut OptimizedBuffer<'_>)
     collect(&tree, &paints, root, (0, 0), screen, i32::MIN, &mut nodes)?;
     // Stable sorting preserves parent-before-child and sibling paint order.
     nodes.sort_by_key(|node| node.z);
+    let mut geometry = Vec::with_capacity(nodes.len());
     for node in nodes {
         paint_node(target, &paints[&node.id], &node)?;
+        let visible = node.bounds.intersect(node.clip);
+        geometry.push(crate::backend::PaintedNode {
+            element_index: node.element_index,
+            bounds: crate::event::hit::Bounds::new(
+                visible.left as f32,
+                visible.top as f32,
+                (visible.right - visible.left).max(0) as f32,
+                (visible.bottom - visible.top).max(0) as f32,
+            ),
+        });
     }
-    Ok(())
+    Ok(geometry)
 }
 
 fn collect(
@@ -99,6 +114,7 @@ fn collect(
     // positioned box's background would hide ordinary text children.
     let layer = parent_layer.max(paint.z_index);
     nodes.push(PaintNode {
+        element_index: nodes.len(),
         id,
         bounds,
         clip,

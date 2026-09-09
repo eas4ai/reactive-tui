@@ -99,7 +99,7 @@ pub fn card(children: Vec<Element>) -> Element {
 /// A styled primary button element
 pub fn primary_button<F>(text: &str, onclick: F) -> Element
 where
-    F: Fn() + 'static,
+    F: Fn() + Send + Sync + 'static,
 {
     button()
         .class("px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500")

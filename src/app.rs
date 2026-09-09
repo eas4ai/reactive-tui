@@ -14,6 +14,7 @@ use crate::render::{Reconciler, RenderTree};
 use std::sync::Arc;
 use std::time::Instant;
 
+mod event_tree;
 mod focus_manager;
 use focus_manager::FocusManager;
 
@@ -74,6 +75,7 @@ pub struct App {
     scheduler: Arc<Scheduler>,
     wake: AppWaker,
     router: EventRouter,
+    event_tree: event_tree::EventTree,
     tree: RenderTree,
     previous_tree: RenderTree,
     reconciler: Reconciler,
@@ -201,6 +203,9 @@ impl App {
             }
             Event::Resize(size) => {
                 self.handle_resize(size.width, size.height)?;
+                if size.width > 0 && size.height > 0 {
+                    self.render()?;
+                }
                 dirty = true;
             }
             _ => {}
@@ -357,6 +362,7 @@ impl App {
 
         if let Some(frame) = self.root.cell_frame()? {
             self.components.clear();
+            self.event_tree.clear(&mut self.router);
             self.backend.render_cells(frame)?;
             return self.backend.present();
         }
@@ -369,8 +375,13 @@ impl App {
         self.focus_manager.process_element_tree(&element, root_id);
 
         if self.backend.render_frame(&element)? {
-            self.tree.set_root(resolved_element_to_render_node(element));
             self.backend.present()?;
+            if let Some(geometry) = self.backend.painted_nodes() {
+                self.event_tree.sync(&element, geometry, &mut self.router);
+            } else {
+                self.event_tree.clear(&mut self.router);
+            }
+            self.tree.set_root(resolved_element_to_render_node(element));
             if let Some(req) = crate::hooks::perf_context::take_requested_performance_mode() {
                 self.fps_manager.set_performance_mode(req);
             }
@@ -617,6 +628,7 @@ impl AppBuilder {
         let wake = AppWaker::new();
         let scheduler = self.scheduler.unwrap_or_else(|| Arc::new(Scheduler::new()));
         scheduler.attach(wake.clone())?;
+        let (width, height) = backend.size();
         Ok(App {
             backend,
             root,
@@ -624,7 +636,8 @@ impl AppBuilder {
             hook_scope: crate::reactive::component_scope::ComponentScope::new(scheduler.clone()),
             scheduler,
             wake,
-            router: EventRouter::new(),
+            router: EventRouter::new_with_size(width, height),
+            event_tree: event_tree::EventTree::default(),
             tree: RenderTree::new(),
             previous_tree: RenderTree::new(),
             reconciler: Reconciler::new(),

@@ -16,8 +16,21 @@ mod suprtui;
 pub use self::suprtui::SuprTuiBackend;
 pub use cell_frame::{CellFrame, FrameCell};
 
+/// One node from the last successfully presented Element frame, in paint order.
+#[derive(Clone, Debug)]
+pub struct PaintedNode {
+    /// Index in a preorder traversal of the resolved Element tree.
+    pub element_index: usize,
+    /// Visible cell bounds after ancestor and viewport clipping.
+    pub bounds: crate::event::hit::Bounds,
+}
+
 /// Minimal, patch-driven backend abstraction
 pub trait Backend: Send + Sync {
+    /// Geometry from the last acknowledged frame. Wrappers should forward this.
+    fn painted_nodes(&self) -> Option<&[PaintedNode]> {
+        None
+    }
     /// Stage a complete application frame. Return false to use legacy patches.
     fn render_frame(&mut self, _element: &Element) -> Result<bool> {
         Ok(false)

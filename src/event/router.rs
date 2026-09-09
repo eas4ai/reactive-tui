@@ -166,6 +166,8 @@ impl EventRouter {
         // Remove node and all descendants
         let mut to_remove = vec![id];
         while let Some(node_id) = to_remove.pop() {
+            self.hit_test.remove_node(node_id);
+            self.focus_manager.unregister_focusable(node_id);
             if let Some(node) = self.nodes.remove(&node_id) {
                 to_remove.extend(&node.children);
             }
@@ -219,6 +221,14 @@ impl EventRouter {
         }
 
         handler_id
+    }
+
+    /// Remove an event handler
+    pub(crate) fn clear_handlers(&mut self, node_id: NodeId) {
+        if let Some(node) = self.nodes.get_mut(&node_id) {
+            node.handlers.clear();
+            node.capture_handlers.clear();
+        }
     }
 
     /// Remove an event handler
@@ -290,15 +300,16 @@ impl EventRouter {
 
         path.reverse(); // Now path goes from root to target
 
-        // Capture phase - root to target (excluding target)
-        for &node_id in &path[..path.len().saturating_sub(1)] {
+        let mut result = EventResult::Ignored;
+        // Capture phase - root to target, including target capture handlers.
+        for &node_id in &path {
             if let Some(node) = self.nodes.get(&node_id) {
                 if let Some(handlers) = node.capture_handlers.get(event_type) {
                     for handler in handlers {
                         match (handler.handler)(event) {
                             EventResult::Consumed => return EventResult::Consumed,
-                            EventResult::Captured => {} // Continue to bubble phase
-                            EventResult::Handled => {}
+                            EventResult::Captured => result = EventResult::Handled,
+                            EventResult::Handled => result = EventResult::Handled,
                             EventResult::Ignored => {}
                         }
                     }
@@ -312,8 +323,8 @@ impl EventRouter {
                 for handler in handlers {
                     match (handler.handler)(event) {
                         EventResult::Consumed => return EventResult::Consumed,
-                        EventResult::Captured => {} // Captured only meaningful in capture phase
-                        EventResult::Handled => {}
+                        EventResult::Captured => result = EventResult::Handled,
+                        EventResult::Handled => result = EventResult::Handled,
                         EventResult::Ignored => {}
                     }
                 }
@@ -338,8 +349,8 @@ impl EventRouter {
                             if handler.phase == EventPhase::Bubble {
                                 match (handler.handler)(event) {
                                     EventResult::Consumed => return EventResult::Consumed,
-                                    EventResult::Captured => {} // Captured only meaningful in capture phase
-                                    EventResult::Handled => {}
+                                    EventResult::Captured => result = EventResult::Handled,
+                                    EventResult::Handled => result = EventResult::Handled,
                                     EventResult::Ignored => {}
                                 }
                             }
@@ -349,7 +360,7 @@ impl EventRouter {
             }
         }
 
-        EventResult::Ignored
+        result
     }
 
     /// Dispatch an event to the focused node
@@ -424,6 +435,18 @@ impl EventRouter {
         // 2. Determine target node
         let target = self.determine_target(event);
 
+        if matches!(event, Event::Mouse(mouse) if mouse.button == super::types::MouseButton::Left && matches!(mouse.kind, super::types::MouseEventKind::Down | super::types::MouseEventKind::Click))
+        {
+            let mut candidate = Some(target);
+            while let Some(id) = candidate {
+                self.set_focus(Some(id));
+                if self.get_focus() == Some(id) {
+                    break;
+                }
+                candidate = self.nodes.get(&id).and_then(|node| node.parent);
+            }
+        }
+
         // 3. Route the event
         self.route_event(event, target)
     }
@@ -457,21 +480,17 @@ impl EventRouter {
     fn determine_target(&self, event: &Event) -> NodeId {
         match event {
             Event::Mouse(mouse_event) => {
+                if !matches!(mouse_event.position, super::types::Position::Cell { .. }) {
+                    return NodeId::new();
+                }
                 // Use hit testing for mouse events
                 let point = super::hit::Point::new(
                     mouse_event.position.x() as f32,
                     mouse_event.position.y() as f32,
                 );
 
-                if let Some(node_id) = self.hit_test.hit_test(point) {
-                    node_id
-                } else {
-                    // Default to root or focused node
-                    self.focus_manager
-                        .get_focus()
-                        .or(self.root)
-                        .unwrap_or_default()
-                }
+                // A miss must not activate the focused element or the root.
+                self.hit_test.hit_test(point).unwrap_or_default()
             }
             _ => {
                 // For keyboard and other events, use focused node or root
