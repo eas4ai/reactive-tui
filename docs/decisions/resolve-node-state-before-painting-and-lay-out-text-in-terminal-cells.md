@@ -12,4 +12,4 @@ Resolve focus, focus-within and hover variants from the existing acknowledged ev
 
 ## Realized by
 
-(none yet: recorded, not built)
+- 4b2369d3ed1fbe86829491b25978ecafac0e2ef7 Render state-dependent styles and Unicode terminal typography
