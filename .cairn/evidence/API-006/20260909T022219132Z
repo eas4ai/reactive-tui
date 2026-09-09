@@ -1,0 +1,21 @@
+requirement: API-006
+requirement_digest: sha256:d1772317f3815cace0d34c17eb0fe267bd6f8eda7ec66786b548ac9de49261f7
+sequence: 2
+history_digest: sha256:b33ce049e173b616f1af725a885a1c133e09f895662c99d959289a2cd4bcd67f
+mechanism: api-focus.md
+commit: 884ca60
+inputs_digest: sha256:a095d1695031972cf8fdcb8bfc5651a98f2566c48972011ef4fcc44c393b6bb1
+mechanism_digest: sha256:e4508fc7d39667029ddc5eff399011b1e0e3eccf6a1e04424450a22ebc3a5f7b
+inputs_detail: .cairn/evidence/API-006/20260909T022217950Z-2576656.inputs.json
+command: python3 -B scripts/check-api-focus.py
+cwd: .
+exit: 0
+output_digest: sha256:80c9bfacf4ac1a1fb4c277a8d4ece35dcbabcfb82a168f6ef38b03f56ab732ce
+output: .cairn/evidence/API-006/20260909T022217950Z-2576656.out
+stderr_output: .cairn/evidence/API-006/20260909T022217950Z-2576656.err
+stderr_digest: sha256:0e6271bad5f06ff131b0b57811355514399725dda955be09e593ac93fb2a6b1e
+signal: none
+execution_error: null
+result: pass
+source: exit
+recorded: 2026-09-09T02:22:19.132Z
