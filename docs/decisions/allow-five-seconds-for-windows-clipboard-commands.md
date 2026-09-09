@@ -1,5 +1,7 @@
 # Allow five seconds for Windows clipboard commands
 
+Superseded by: allow-cold-windows-clipboard-startup-within-a-fifteen-second-bound
+
 Level: Judged
 Decided by: Codex
 Supersedes: bound-clipboard-commands-and-tie-cancellation-to-hook-ownership
