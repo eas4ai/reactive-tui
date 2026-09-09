@@ -13,4 +13,6 @@ Keep the bounded clipboard ownership, temporary streams, transfer limit, error h
 
 ## Realized by
 
-(none yet: recorded, not built)
+- 67b350b — retain the Unix two-second bound and use a five-second Windows bound.
+- c94d9dd — wait for a complete child PID before exercising cancellation.
+- Native run 34313628354 at 09f1435 passed both Windows lifecycle checks and all five clipboard cases; all Unix backends also passed.

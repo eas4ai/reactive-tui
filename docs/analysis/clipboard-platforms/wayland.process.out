@@ -1,4 +1,5 @@
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.07s
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 6.44s
      Running unittests src/lib.rs (target/debug/deps/reactive_tui-35d2457f13c1be87)
 
 running 2 tests

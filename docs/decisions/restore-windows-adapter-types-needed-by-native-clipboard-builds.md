@@ -11,4 +11,7 @@ Repair the existing Windows Console adapter so the real library can run the clip
 
 ## Realized by
 
-(none yet: recorded, not built)
+- 9779c16 — restore native adapter types, trait forwarding, UTF-16 event conversion and bounded character reads.
+- c94d9dd — preserve inherited test handles when the private console closes.
+- 04885d5 — consume native console input records with matching console modes.
+- Native run 34313628354 at 09f1435 passed the Windows adapter fixture and real clipboard checks.

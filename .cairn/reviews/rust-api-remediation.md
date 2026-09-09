@@ -492,3 +492,13 @@ preexisting Windows behavior). Branch only for empty input to use that operation
 Retain the nonempty UTF-8 path and all five native cases. Remove the temporary
 workflow diagnostic, whose duplicate clipboard operations are no longer needed.
 Source: https://github.com/PowerShell/PowerShell/pull/14579 .
+
+Native run 34313628354 at 09f1435 passed macOS and Windows. Windows executes
+all five clipboard cases (including the previously failing empty copy), both
+owned-child lifecycle tests, and the private console I/O/event fixture. The same
+committed inputs passed Wayland, xsel and xclip on isolated desktops. Downloaded
+output hashes and source digests were checked before copying; the five-backend
+verifier passes. All 13 clipboard failure-path tests, strict default Clippy and
+formatting also pass. The temporary workflow diagnostic has been removed.
+Four existing Windows compiler warnings remain in the broader API-019 platform
+inventory; this evidence does not claim native strict-lint or whole-API acceptance.
