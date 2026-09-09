@@ -27,6 +27,8 @@ pub struct FocusManager {
 
     /// Focus order for tab navigation
     tab_order: Vec<NodeId>,
+    /// Render order, or insertion order for imperative registrations.
+    document_order: Vec<NodeId>,
 
     /// Spatial navigation map (for arrow keys)
     spatial_map: HashMap<NodeId, SpatialInfo>,
@@ -40,6 +42,7 @@ pub struct FocusManager {
 
     /// Focus trap containers (for modals, dialogs)
     focus_traps: HashMap<NodeId, FocusTrap>,
+    trap_stack: Vec<NodeId>,
 }
 
 #[derive(Clone, Debug)]
@@ -50,7 +53,7 @@ struct SpatialInfo {
     height: f32,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 struct FocusableInfo {
     tab_index: Option<i32>,
     enabled: bool,
@@ -62,8 +65,6 @@ struct FocusableInfo {
 struct FocusTrap {
     /// Nodes that are focusable within this trap
     trapped_nodes: Vec<NodeId>,
-    /// Whether this trap is currently active
-    active: bool,
     /// Focus to restore when trap is deactivated
     restore_focus: Option<NodeId>,
 }
@@ -74,11 +75,13 @@ impl FocusManager {
         Self {
             current: None,
             tab_order: Vec::new(),
+            document_order: Vec::new(),
             spatial_map: HashMap::new(),
             history: VecDeque::with_capacity(10),
             history_limit: 10,
             focusable_nodes: HashMap::new(),
             focus_traps: HashMap::new(),
+            trap_stack: Vec::new(),
         }
     }
 
@@ -107,18 +110,14 @@ impl FocusManager {
             visible: true,
         };
 
-        // Check if this is an update to existing node
-        let is_update = self.focusable_nodes.contains_key(&node_id);
-
-        self.focusable_nodes.insert(node_id, info);
-
-        if is_update {
-            // For updates, do a full rebuild to maintain correct order
-            self.rebuild_tab_order_optimized();
-        } else {
-            // For new nodes, try incremental insert
-            self.insert_node_in_tab_order(node_id, tab_index, enabled);
+        if self.focusable_nodes.get(&node_id) == Some(&info) {
+            return true;
         }
+        if !self.focusable_nodes.contains_key(&node_id) {
+            self.document_order.push(node_id);
+        }
+        self.focusable_nodes.insert(node_id, info);
+        self.rebuild_tab_order_with_traps();
 
         true
     }
@@ -128,6 +127,10 @@ impl FocusManager {
         self.focusable_nodes.remove(&node_id);
         self.spatial_map.remove(&node_id);
         self.tab_order.retain(|&id| id != node_id);
+        self.document_order.retain(|&id| id != node_id);
+        for trap in self.focus_traps.values_mut() {
+            trap.trapped_nodes.retain(|&id| id != node_id);
+        }
 
         // Clear focus if this node was focused
         if self.current == Some(node_id) {
@@ -182,12 +185,7 @@ impl FocusManager {
     /// Returns focus events if focus actually changed (Lost event for old element, Gained for new)
     pub fn set_focus(&mut self, node_id: Option<NodeId>) -> Vec<(NodeId, FocusEvent)> {
         if let Some(id) = node_id {
-            // Check if node is focusable and enabled
-            if let Some(info) = self.focusable_nodes.get(&id) {
-                if !info.enabled || !info.visible {
-                    return Vec::new();
-                }
-            } else {
+            if !self.can_focus(id) {
                 return Vec::new();
             }
 
@@ -237,6 +235,36 @@ impl FocusManager {
     /// Get the currently focused node
     pub fn get_focus(&self) -> Option<NodeId> {
         self.current
+    }
+
+    pub(crate) fn current_ref(&self) -> Option<&NodeId> {
+        self.current.as_ref()
+    }
+
+    pub(crate) fn can_focus(&self, id: NodeId) -> bool {
+        self.focusable_nodes
+            .get(&id)
+            .is_some_and(|info| info.enabled && info.visible)
+            && self
+                .get_active_trap()
+                .is_none_or(|trap| trap.trapped_nodes.contains(&id))
+    }
+
+    pub(crate) fn set_document_order(&mut self, nodes: &[NodeId]) {
+        let mut ordered: Vec<_> = nodes
+            .iter()
+            .copied()
+            .filter(|id| self.focusable_nodes.contains_key(id))
+            .collect();
+        let present: std::collections::HashSet<_> = ordered.iter().copied().collect();
+        ordered.extend(
+            self.document_order
+                .iter()
+                .copied()
+                .filter(|id| !present.contains(id)),
+        );
+        self.document_order = ordered;
+        self.rebuild_tab_order_with_traps();
     }
 
     /// Move focus in a direction
@@ -384,19 +412,12 @@ impl FocusManager {
         let mut best_candidate = None;
         let mut best_score = f32::MAX;
 
-        // Get nodes to search - respect focus traps
-        let search_nodes: Vec<NodeId> = if let Some(active_trap) = self.get_active_trap() {
-            // If there's an active trap, only search within trapped nodes that have spatial info
-            active_trap
-                .trapped_nodes
-                .iter()
-                .filter(|&&node_id| self.spatial_map.contains_key(&node_id))
-                .copied()
-                .collect()
-        } else {
-            // No active trap, search all spatial nodes
-            self.spatial_map.keys().copied().collect()
-        };
+        let search_nodes: Vec<_> = self
+            .document_order
+            .iter()
+            .copied()
+            .filter(|id| self.can_focus(*id))
+            .collect();
 
         for node_id in search_nodes {
             if node_id == current {
@@ -486,49 +507,36 @@ impl FocusManager {
 
     /// Go back in focus history
     pub fn focus_back(&mut self) -> Option<NodeId> {
-        if let Some(prev) = self.history.pop_back() {
-            // Check if still focusable
-            if self.focusable_nodes.contains_key(&prev) {
-                // Set focus directly without adding to history
-                let old_focus = self.current;
-                self.current = Some(prev);
-
-                // Emit focus events
-                if old_focus != Some(prev) {
-                    // Could emit events here if needed, but for now just return the node
-                }
-
-                Some(prev)
-            } else {
-                // Try next in history
-                self.focus_back()
+        while let Some(previous) = self.history.pop_back() {
+            if self.can_focus(previous) {
+                self.current = Some(previous);
+                return Some(previous);
             }
-        } else {
-            None
         }
+        None
     }
 
     /// Set whether a node is enabled for focus
     pub fn set_enabled(&mut self, node_id: NodeId, enabled: bool) {
         if let Some(info) = self.focusable_nodes.get_mut(&node_id) {
             info.enabled = enabled;
-
-            // Clear focus if disabling current node
-            if !enabled && self.current == Some(node_id) {
-                self.focus_next();
-            }
         }
+        self.refresh_availability();
     }
 
-    /// Set whether a node is visible for focus
+    /// Set whether a node is visible for focus.
     pub fn set_visible(&mut self, node_id: NodeId, visible: bool) {
         if let Some(info) = self.focusable_nodes.get_mut(&node_id) {
             info.visible = visible;
+        }
+        self.refresh_availability();
+    }
 
-            // Clear focus if hiding current node
-            if !visible && self.current == Some(node_id) {
-                self.focus_next();
-            }
+    fn refresh_availability(&mut self) {
+        self.rebuild_tab_order_with_traps();
+        if self.current.is_some_and(|id| !self.can_focus(id)) {
+            self.set_focus(None);
+            self.focus_first();
         }
     }
 
@@ -545,88 +553,21 @@ impl FocusManager {
         }
     }
 
-    /// Rebuild tab order considering active focus traps
+    /// Positive indices first, then default indices in stable document order.
     fn rebuild_tab_order_with_traps(&mut self) {
-        // Check if there are any active focus traps
-        let active_trap = self.focus_traps.values().find(|trap| trap.active);
-
-        if let Some(trap) = active_trap {
-            // If there's an active trap, only include trapped nodes in tab order
-            let mut trapped_entries: Vec<(NodeId, i32)> = Vec::new();
-
-            for &node_id in &trap.trapped_nodes {
-                if let Some(info) = self.focusable_nodes.get(&node_id) {
-                    if info.enabled && info.visible {
-                        let tab_index = info.tab_index.unwrap_or(0);
-                        trapped_entries.push((node_id, tab_index));
-                    }
-                }
-            }
-
-            // Sort by tab index (negative values come last)
-            trapped_entries.sort_by_key(|&(_, index)| if index < 0 { i32::MAX } else { index });
-
-            self.tab_order = trapped_entries.into_iter().map(|(id, _)| id).collect();
-        } else {
-            // No active traps, use normal tab order
-            self.rebuild_tab_order_optimized();
-        }
-    }
-
-    /// Optimized tab order rebuild with better performance for large numbers of nodes
-    fn rebuild_tab_order_optimized(&mut self) {
-        // Pre-allocate with known capacity to avoid reallocations
-        let mut entries = Vec::with_capacity(self.focusable_nodes.len());
-
-        // Single pass through focusable nodes to collect enabled/visible entries
-        for (&node_id, info) in &self.focusable_nodes {
-            if info.enabled && info.visible {
-                let tab_index = info.tab_index.unwrap_or(0);
-                entries.push((node_id, tab_index));
-            }
-        }
-
-        // Use unstable sort for better performance (order of equal elements doesn't matter)
-        entries.sort_unstable_by_key(|&(_, index)| if index < 0 { i32::MAX } else { index });
-
-        // Pre-allocate tab_order with exact capacity and collect in one pass
-        self.tab_order.clear();
-        self.tab_order.reserve_exact(entries.len());
-        self.tab_order.extend(entries.into_iter().map(|(id, _)| id));
-    }
-
-    /// Insert a single node into the tab order at the correct position
-    fn insert_node_in_tab_order(&mut self, node_id: NodeId, tab_index: Option<i32>, enabled: bool) {
-        if !enabled {
-            return; // Don't add disabled nodes to tab order
-        }
-
-        let target_index = tab_index.unwrap_or(0);
-
-        // Use the same sorting logic as rebuild_tab_order for consistency
-        let sort_key = |index: i32| if index < 0 { i32::MAX } else { index };
-        let target_sort_key = sort_key(target_index);
-
-        // Find the correct insertion position using binary search
-        let insert_pos = self
-            .tab_order
-            .binary_search_by(|&existing_id| {
-                if let Some(existing_info) = self.focusable_nodes.get(&existing_id) {
-                    let existing_index = existing_info.tab_index.unwrap_or(0);
-                    let existing_sort_key = sort_key(existing_index);
-
-                    // Compare sort keys (with negative indices mapped to i32::MAX), then node IDs for stability
-                    existing_sort_key
-                        .cmp(&target_sort_key)
-                        .then(existing_id.cmp(&node_id))
-                } else {
-                    // If node info is missing, treat as greater to push to end
-                    std::cmp::Ordering::Greater
-                }
+        let mut entries: Vec<_> = self
+            .document_order
+            .iter()
+            .copied()
+            .filter(|id| {
+                self.can_focus(*id) && self.focusable_nodes[id].tab_index.unwrap_or(0) >= 0
             })
-            .unwrap_or_else(|pos| pos);
-
-        self.tab_order.insert(insert_pos, node_id);
+            .collect();
+        entries.sort_by_key(|id| {
+            let index = self.focusable_nodes[id].tab_index.unwrap_or(0);
+            (index == 0, index)
+        });
+        self.tab_order = entries;
     }
 
     /// Get all focusable nodes in tab order
@@ -634,89 +575,126 @@ impl FocusManager {
         self.tab_order.clone()
     }
 
-    /// Create a focus trap for a container (e.g., modal dialog)
-    /// This restricts focus navigation to only nodes within the container
+    /// Create or explicitly reactivate a focus trap for this container.
     pub fn create_focus_trap(&mut self, container: NodeId, trapped_nodes: Vec<NodeId>) -> bool {
-        // Validate that trapped nodes are actually focusable
-        let valid_trapped_nodes: Vec<NodeId> = trapped_nodes
+        if !trapped_nodes.iter().any(|id| {
+            self.focusable_nodes
+                .get(id)
+                .is_some_and(|info| info.enabled && info.visible)
+        }) {
+            return false;
+        }
+        // An imperative call activates the requested container. Declarative
+        // frame reconciliation below preserves the opening order instead.
+        self.focus_traps.remove(&container);
+        self.trap_stack.retain(|id| *id != container);
+        self.upsert_trap(container, trapped_nodes, true, false, None)
+    }
+
+    pub(crate) fn set_declarative_trap(
+        &mut self,
+        container: NodeId,
+        nodes: Vec<NodeId>,
+        restore: bool,
+        preferred: Option<NodeId>,
+    ) {
+        self.upsert_trap(container, nodes, restore, true, preferred);
+    }
+
+    fn upsert_trap(
+        &mut self,
+        container: NodeId,
+        nodes: Vec<NodeId>,
+        restore: bool,
+        allow_empty: bool,
+        preferred: Option<NodeId>,
+    ) -> bool {
+        let mut seen = std::collections::HashSet::new();
+        let valid: Vec<_> = nodes
             .into_iter()
-            .filter(|&node_id| {
-                self.focusable_nodes
-                    .get(&node_id)
-                    .map(|info| info.enabled && info.visible)
-                    .unwrap_or(false)
+            .filter(|id| {
+                seen.insert(*id)
+                    && self
+                        .focusable_nodes
+                        .get(id)
+                        .is_some_and(|info| info.enabled && info.visible)
             })
             .collect();
-
-        if valid_trapped_nodes.is_empty() {
-            return false; // Cannot create trap with no focusable nodes
+        if valid.is_empty() && !allow_empty {
+            return false;
         }
-
-        // Deactivate any existing traps (only one trap can be active at a time)
-        for trap in self.focus_traps.values_mut() {
-            trap.active = false;
-        }
-
-        // Store current focus to restore later
-        let restore_focus = self.current;
-
-        let trap = FocusTrap {
-            trapped_nodes: valid_trapped_nodes.clone(),
-            active: true,
-            restore_focus,
-        };
-
-        self.focus_traps.insert(container, trap);
-
-        // Update tab order to only include trapped nodes
-        self.rebuild_tab_order_with_traps();
-
-        // Focus first element in trap if no current focus or current focus is outside trap
-        if let Some(current) = self.current {
-            if !valid_trapped_nodes.contains(&current) {
-                if let Some(&first_trapped) = valid_trapped_nodes.first() {
-                    self.set_focus(Some(first_trapped));
-                }
+        let new_trap = !self.focus_traps.contains_key(&container);
+        if let Some(trap) = self.focus_traps.get_mut(&container) {
+            trap.trapped_nodes = valid;
+            if !restore {
+                trap.restore_focus = None;
             }
-        } else if let Some(&first_trapped) = valid_trapped_nodes.first() {
-            self.set_focus(Some(first_trapped));
+        } else {
+            self.focus_traps.insert(
+                container,
+                FocusTrap {
+                    trapped_nodes: valid,
+                    restore_focus: self.current.filter(|_| restore),
+                },
+            );
+            self.trap_stack.push(container);
         }
-
+        self.rebuild_tab_order_with_traps();
+        if (new_trap && preferred.is_some()) || self.current.is_none_or(|id| !self.can_focus(id)) {
+            let target = preferred
+                .filter(|id| self.can_focus(*id))
+                .or_else(|| self.tab_order.first().copied());
+            self.set_focus(target);
+        }
         true
     }
 
-    /// Remove a focus trap and restore previous focus behavior
+    /// Remove a trap. Closing the active trap reactivates the preceding one.
     pub fn remove_focus_trap(&mut self, container: NodeId) -> bool {
-        if let Some(trap) = self.focus_traps.remove(&container) {
-            // Restore previous focus if it was saved
-            if let Some(restore_focus) = trap.restore_focus {
-                self.set_focus(Some(restore_focus));
+        let active = self.get_active_focus_trap() == Some(container);
+        let Some(trap) = self.focus_traps.remove(&container) else {
+            return false;
+        };
+        self.trap_stack.retain(|id| *id != container);
+        self.rebuild_tab_order_with_traps();
+        if active {
+            if let Some(id) = trap.restore_focus.filter(|id| self.can_focus(*id)) {
+                self.set_focus(Some(id));
+            } else if self.current.is_none_or(|id| !self.can_focus(id)) {
+                self.set_focus(None);
+                self.focus_first();
             }
+        }
+        true
+    }
 
-            // Rebuild tab order without the trap
-            self.rebuild_tab_order_with_traps();
-            true
-        } else {
-            false
+    /// Check if focus is currently trapped.
+    pub fn is_focus_trapped(&self) -> bool {
+        !self.trap_stack.is_empty()
+    }
+
+    pub(crate) fn remove_traps_for_nodes(&mut self, removed: &std::collections::HashSet<NodeId>) {
+        let traps: Vec<_> = self
+            .trap_stack
+            .iter()
+            .rev()
+            .copied()
+            .filter(|id| removed.contains(id))
+            .collect();
+        for id in traps {
+            self.remove_focus_trap(id);
         }
     }
 
-    /// Check if focus is currently trapped
-    pub fn is_focus_trapped(&self) -> bool {
-        self.focus_traps.values().any(|trap| trap.active)
-    }
-
-    /// Get the active focus trap container, if any
+    /// Get the most recently opened live trap.
     pub fn get_active_focus_trap(&self) -> Option<NodeId> {
-        self.focus_traps
-            .iter()
-            .find(|(_, trap)| trap.active)
-            .map(|(&container, _)| container)
+        self.trap_stack.last().copied()
     }
 
-    /// Get the active focus trap, if any
     fn get_active_trap(&self) -> Option<&FocusTrap> {
-        self.focus_traps.values().find(|trap| trap.active)
+        self.trap_stack
+            .last()
+            .and_then(|id| self.focus_traps.get(id))
     }
 }
 

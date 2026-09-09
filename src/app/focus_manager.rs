@@ -1,249 +1,106 @@
-/// Focus manager that processes declarative focus properties from elements
-///
-/// This replaces the imperative focus trap system with a declarative one
-/// that works during the render cycle.
-use crate::component::{Element, FocusProps};
-use crate::event::router::NodeId;
-use std::collections::{HashMap, VecDeque};
+//! Declarative focus bookkeeping; the router is the only owner of current focus.
 
-/// Manages focus based on declarative properties from the element tree
-pub struct FocusManager {
-    /// Currently focused element
-    current_focus: Option<NodeId>,
+use crate::{
+    component::Element,
+    event::router::{EventRouter, NodeId},
+};
+use std::collections::HashSet;
 
-    /// Stack of focus contexts (for nested focus traps)
-    focus_stack: Vec<FocusContext>,
-
-    /// Elements requesting auto-focus this frame
-    auto_focus_queue: VecDeque<NodeId>,
-
-    /// Map of element IDs to their focus properties
-    focus_props_map: HashMap<NodeId, FocusProps>,
-
-    /// Previous focus for restoration
-    previous_focus: Option<NodeId>,
+#[derive(Default)]
+pub(super) struct FocusManager {
+    /// Creation order, retained when keyed containers move in the rendered tree.
+    traps: Vec<NodeId>,
+    autofocus: HashSet<NodeId>,
 }
 
-/// A focus context (typically from trap_focus)
-#[derive(Clone, Debug)]
-struct FocusContext {
-    /// Container that traps focus
-    container_id: NodeId,
+#[derive(Default)]
+pub(super) struct FocusPlan {
+    order: Vec<NodeId>,
+    autofocus: Vec<NodeId>,
+    traps: Vec<Trap>,
+    ancestors: Vec<usize>,
+}
 
-    /// Elements within this focus trap
-    focusable_elements: Vec<NodeId>,
+struct Trap {
+    id: NodeId,
+    members: Vec<NodeId>,
+    restore: bool,
+    focusable: bool,
+}
 
-    /// Should restore focus when unmounted
-    restore_focus: bool,
+impl FocusPlan {
+    pub(super) fn enter(&mut self, element: &Element, id: NodeId) -> bool {
+        self.order.push(id);
+        let focusable = element
+            .focus
+            .as_ref()
+            .map_or(!element.metadata.on_click.is_empty(), |focus| {
+                focus.focusable
+            });
+        if focusable {
+            for &index in &self.ancestors {
+                self.traps[index].members.push(id);
+            }
+        }
+        let Some(focus) = &element.focus else {
+            return false;
+        };
+        if focus.auto_focus && focusable && !focus.trap_focus {
+            self.autofocus.push(id);
+        }
+        if !focus.trap_focus {
+            return false;
+        }
+        self.ancestors.push(self.traps.len());
+        self.traps.push(Trap {
+            id,
+            members: Vec::new(),
+            restore: focus.restore_focus,
+            focusable,
+        });
+        true
+    }
 
-    /// Focus to restore to
-    restore_to: Option<NodeId>,
+    pub(super) fn leave(&mut self, trap: bool) {
+        if trap {
+            self.ancestors.pop();
+        }
+    }
 }
 
 impl FocusManager {
-    /// Create a new focus manager
-    pub fn new() -> Self {
-        Self {
-            current_focus: None,
-            focus_stack: Vec::new(),
-            auto_focus_queue: VecDeque::new(),
-            focus_props_map: HashMap::new(),
-            previous_focus: None,
-        }
+    pub(super) fn new() -> Self {
+        Self::default()
     }
 
-    /// Process focus properties from the rendered element tree
-    pub fn process_element_tree(&mut self, root: &Element, root_id: NodeId) {
-        // Clear previous frame's data
-        self.focus_props_map.clear();
-        self.auto_focus_queue.clear();
-
-        // Walk the tree and collect focus properties
-        self.collect_focus_props(root, root_id);
-
-        // Process auto-focus requests
-        self.process_auto_focus();
-
-        // Update focus traps
-        self.update_focus_traps();
-    }
-
-    /// Recursively collect focus properties from the element tree
-    fn collect_focus_props(&mut self, element: &Element, element_id: NodeId) {
-        if let Some(focus) = &element.focus {
-            self.focus_props_map.insert(element_id, focus.clone());
-
-            // Queue auto-focus requests
-            if focus.auto_focus {
-                self.auto_focus_queue.push_back(element_id);
-            }
-
-            // Handle focus traps
-            if focus.trap_focus {
-                self.create_focus_trap(element_id, element, focus.restore_focus);
+    pub(super) fn apply(&mut self, router: &mut EventRouter, plan: FocusPlan) {
+        router.set_focus_order(&plan.order);
+        let present: HashSet<_> = plan.traps.iter().map(|trap| trap.id).collect();
+        for &id in self.traps.iter().rev() {
+            if !present.contains(&id) {
+                router.remove_focus_trap(id);
             }
         }
-
-        // Process children
-        for child in element.children.iter() {
-            // Generate a unique child ID
-            let child_id = NodeId::new();
-            self.collect_focus_props(child, child_id);
-        }
-    }
-
-    /// Process auto-focus queue (first element requesting auto-focus wins)
-    fn process_auto_focus(&mut self) {
-        if let Some(element_id) = self.auto_focus_queue.pop_front() {
-            // Check if element is within current focus trap (if any)
-            if self.can_focus(&element_id) {
-                self.set_focus(element_id);
+        self.traps.retain(|id| present.contains(id));
+        for mut trap in plan.traps {
+            if trap.members.is_empty() && trap.focusable {
+                trap.members.push(trap.id);
+            }
+            let preferred = plan
+                .autofocus
+                .iter()
+                .find(|id| trap.members.contains(id))
+                .copied();
+            router.set_declarative_trap(trap.id, trap.members, trap.restore, preferred);
+            if !self.traps.contains(&trap.id) {
+                self.traps.push(trap.id);
             }
         }
-    }
-
-    /// Create a focus trap for a container
-    fn create_focus_trap(&mut self, container_id: NodeId, element: &Element, restore: bool) {
-        let mut focusable_elements = Vec::new();
-        self.collect_focusable_children(element, &container_id, &mut focusable_elements);
-
-        let context = FocusContext {
-            container_id,
-            focusable_elements,
-            restore_focus: restore,
-            restore_to: self.current_focus,
-        };
-
-        self.focus_stack.push(context);
-    }
-
-    /// Collect all focusable children within a container
-    fn collect_focusable_children(
-        &self,
-        element: &Element,
-        _parent_id: &NodeId,
-        focusable: &mut Vec<NodeId>,
-    ) {
-        for child in element.children.iter() {
-            let child_id = NodeId::new();
-
-            if let Some(focus) = &child.focus {
-                if focus.focusable && focus.tab_index >= 0 {
-                    focusable.push(child_id);
-                }
-            }
-
-            // Recurse into children
-            self.collect_focusable_children(child, &child_id, focusable);
+        if let Some(id) = plan.autofocus.iter().find(|id| {
+            (!self.autofocus.contains(id) || router.get_focus().is_none()) && router.can_focus(**id)
+        }) {
+            router.set_focus(Some(*id));
         }
-    }
-
-    /// Update focus traps based on current element tree
-    fn update_focus_traps(&mut self) {
-        // Remove stale focus traps (whose containers no longer exist)
-        self.focus_stack
-            .retain(|context| self.focus_props_map.contains_key(&context.container_id));
-
-        // If a trap was removed and had restore_focus, restore it
-        if let Some(context) = self.focus_stack.last() {
-            if !self.focus_props_map.contains_key(&context.container_id) && context.restore_focus {
-                if let Some(restore_to) = &context.restore_to {
-                    self.set_focus(*restore_to);
-                }
-            }
-        }
-    }
-
-    /// Check if an element can receive focus given current constraints
-    fn can_focus(&self, element_id: &NodeId) -> bool {
-        // If there's a focus trap, element must be within it
-        if let Some(trap) = self.focus_stack.last() {
-            trap.focusable_elements.contains(element_id)
-        } else {
-            // No trap, check if element is focusable
-            self.focus_props_map
-                .get(element_id)
-                .map(|props| props.focusable && props.tab_index >= 0)
-                .unwrap_or(false)
-        }
-    }
-
-    /// Set focus to an element
-    pub fn set_focus(&mut self, element_id: NodeId) {
-        if self.can_focus(&element_id) {
-            self.previous_focus = self.current_focus;
-            self.current_focus = Some(element_id);
-
-            // Call focus callbacks
-            if let Some(props) = self.focus_props_map.get(&element_id) {
-                if let Some(on_focus) = &props.on_focus {
-                    on_focus();
-                }
-            }
-
-            // Call blur on previous
-            if let Some(prev) = &self.previous_focus {
-                if let Some(props) = self.focus_props_map.get(prev) {
-                    if let Some(on_blur) = &props.on_blur {
-                        on_blur();
-                    }
-                }
-            }
-        }
-    }
-
-    /// Get the currently focused element
-    pub fn current_focus(&self) -> Option<&NodeId> {
-        self.current_focus.as_ref()
-    }
-
-    /// Move focus to the next focusable element
-    pub fn focus_next(&mut self) {
-        let focusable = if let Some(trap) = self.focus_stack.last() {
-            &trap.focusable_elements
-        } else {
-            // Get all focusable elements
-            return; // For now, skip if no trap
-        };
-
-        if focusable.is_empty() {
-            return;
-        }
-
-        let current_index = self
-            .current_focus
-            .as_ref()
-            .and_then(|f| focusable.iter().position(|e| e == f))
-            .unwrap_or(0);
-
-        let next_index = (current_index + 1) % focusable.len();
-        self.set_focus(focusable[next_index]);
-    }
-
-    /// Move focus to the previous focusable element
-    pub fn focus_previous(&mut self) {
-        let focusable = if let Some(trap) = self.focus_stack.last() {
-            &trap.focusable_elements
-        } else {
-            return;
-        };
-
-        if focusable.is_empty() {
-            return;
-        }
-
-        let current_index = self
-            .current_focus
-            .as_ref()
-            .and_then(|f| focusable.iter().position(|e| e == f))
-            .unwrap_or(0);
-
-        let prev_index = if current_index == 0 {
-            focusable.len() - 1
-        } else {
-            current_index - 1
-        };
-
-        self.set_focus(focusable[prev_index]);
+        self.autofocus = plan.autofocus.into_iter().collect();
     }
 }

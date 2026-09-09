@@ -307,12 +307,12 @@ impl App {
 
     /// Move focus to next focusable element (declarative)
     pub fn focus_next(&mut self) {
-        self.focus_manager.focus_next()
+        self.router.focus_next();
     }
 
     /// Move focus to previous focusable element (declarative)  
     pub fn focus_previous(&mut self) {
-        self.focus_manager.focus_previous()
+        self.router.focus_prev();
     }
 
     /// Move focus in a direction using router (imperative legacy)
@@ -326,7 +326,7 @@ impl App {
 
     /// Get the currently focused element (declarative)
     pub fn current_focus(&self) -> Option<&crate::event::router::NodeId> {
-        self.focus_manager.current_focus()
+        self.router.current_focus_ref()
     }
 
     /// Stop the application
@@ -363,6 +363,8 @@ impl App {
         if let Some(frame) = self.root.cell_frame()? {
             self.components.clear();
             self.event_tree.clear(&mut self.router);
+            self.focus_manager
+                .apply(&mut self.router, focus_manager::FocusPlan::default());
             self.backend.render_cells(frame)?;
             return self.backend.present();
         }
@@ -370,16 +372,15 @@ impl App {
         // Build element tree from root component
         let element = self.components.resolve(self.root.render())?;
 
-        // Process declarative focus properties from the element tree
-        let root_id = crate::event::router::NodeId::new();
-        self.focus_manager.process_element_tree(&element, root_id);
-
         if self.backend.render_frame(&element)? {
             self.backend.present()?;
             if let Some(geometry) = self.backend.painted_nodes() {
-                self.event_tree.sync(&element, geometry, &mut self.router);
+                let focus = self.event_tree.sync(&element, geometry, &mut self.router);
+                self.focus_manager.apply(&mut self.router, focus);
             } else {
                 self.event_tree.clear(&mut self.router);
+                self.focus_manager
+                    .apply(&mut self.router, focus_manager::FocusPlan::default());
             }
             self.tree.set_root(resolved_element_to_render_node(element));
             if let Some(req) = crate::hooks::perf_context::take_requested_performance_mode() {

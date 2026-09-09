@@ -152,36 +152,44 @@ impl EventRouter {
         id
     }
 
-    /// Remove an event node and all its descendants
+    /// Remove an event node and all its descendants, including owned traps.
     pub fn remove_node(&mut self, id: NodeId) {
-        // Remove from parent's children
-        if let Some(node) = self.nodes.get(&id) {
-            if let Some(parent_id) = node.parent {
-                if let Some(parent) = self.nodes.get_mut(&parent_id) {
-                    parent.children.retain(|&child| child != id);
+        self.remove_nodes(&[id]);
+    }
+
+    pub(crate) fn remove_nodes(&mut self, roots: &[NodeId]) {
+        let mut pending = roots.to_vec();
+        let mut removed = std::collections::HashSet::new();
+        while let Some(id) = pending.pop() {
+            if removed.insert(id) {
+                if let Some(node) = self.nodes.get(&id) {
+                    pending.extend(&node.children);
                 }
             }
         }
-
-        // Remove node and all descendants
-        let mut to_remove = vec![id];
-        while let Some(node_id) = to_remove.pop() {
-            self.hit_test.remove_node(node_id);
-            self.focus_manager.unregister_focusable(node_id);
-            if let Some(node) = self.nodes.remove(&node_id) {
-                to_remove.extend(&node.children);
+        if self.get_focus().is_some_and(|id| removed.contains(&id)) {
+            self.set_focus(None);
+        }
+        let parents: std::collections::HashSet<_> = removed
+            .iter()
+            .filter_map(|id| self.nodes.get(id).and_then(|node| node.parent))
+            .collect();
+        for id in &removed {
+            self.hit_test.remove_node(*id);
+            self.focus_manager.unregister_focusable(*id);
+            self.nodes.remove(id);
+        }
+        for parent in parents {
+            if let Some(node) = self.nodes.get_mut(&parent) {
+                node.children.retain(|id| !removed.contains(id));
             }
         }
-
-        // Clear root if removed
-        if self.root == Some(id) {
+        if self.root.is_some_and(|id| removed.contains(&id)) {
             self.root = None;
         }
-
-        // Clear focus if removed
-        if self.focus_manager.get_focus() == Some(id) {
-            self.focus_manager.set_focus(None);
-        }
+        let previous = self.get_focus();
+        self.focus_manager.remove_traps_for_nodes(&removed);
+        self.emit_focus_change(previous);
     }
 
     /// Add an event handler to a node
@@ -367,7 +375,7 @@ impl EventRouter {
     pub fn dispatch_to_focus(&self, event: &Event) -> EventResult {
         if let Some(focus_id) = self.focus_manager.get_focus() {
             self.route_event(event, focus_id)
-        } else if let Some(root_id) = self.root {
+        } else if let Some(root_id) = self.root.filter(|_| !self.is_focus_trapped()) {
             self.route_event(event, root_id)
         } else {
             EventResult::Ignored
@@ -377,7 +385,9 @@ impl EventRouter {
     /// Advance focus to next node id
     /// Returns the focused node and collects events for later emission
     pub fn focus_next(&mut self) -> Option<NodeId> {
+        let previous = self.get_focus();
         let (node_id, focus_event) = self.focus_manager.focus_next();
+        self.emit_focus_change(previous);
         self.emit_focus_operation_events(node_id, focus_event);
         node_id
     }
@@ -385,7 +395,9 @@ impl EventRouter {
     /// Move focus to previous node id
     /// Returns the focused node and emits focus event if focus changed
     pub fn focus_prev(&mut self) -> Option<NodeId> {
+        let previous = self.get_focus();
         let (node_id, focus_event) = self.focus_manager.focus_previous();
+        self.emit_focus_change(previous);
         self.emit_focus_operation_events(node_id, focus_event);
         node_id
     }
@@ -407,6 +419,28 @@ impl EventRouter {
         self.route_event(&event, target_id);
     }
 
+    fn emit_focus_change(&self, previous: Option<NodeId>) {
+        use super::types::{FocusEvent, FocusEventKind};
+        let current = self.get_focus();
+        if previous == current {
+            return;
+        }
+        for (id, kind) in [
+            (previous, FocusEventKind::Lost),
+            (current, FocusEventKind::Gained),
+        ] {
+            if let Some(id) = id {
+                self.emit_focus_event(
+                    id,
+                    FocusEvent {
+                        kind,
+                        timestamp: std::time::Instant::now(),
+                    },
+                );
+            }
+        }
+    }
+
     /// Helper method to emit focus events from a focus operation result
     fn emit_focus_operation_events(
         &self,
@@ -423,6 +457,31 @@ impl EventRouter {
     /// Get the currently focused node
     pub fn get_focus(&self) -> Option<NodeId> {
         self.focus_manager.get_focus()
+    }
+
+    pub(crate) fn current_focus_ref(&self) -> Option<&NodeId> {
+        self.focus_manager.current_ref()
+    }
+
+    pub(crate) fn can_focus(&self, id: NodeId) -> bool {
+        self.focus_manager.can_focus(id)
+    }
+
+    pub(crate) fn set_focus_order(&mut self, order: &[NodeId]) {
+        self.focus_manager.set_document_order(order);
+    }
+
+    pub(crate) fn set_declarative_trap(
+        &mut self,
+        container: NodeId,
+        nodes: Vec<NodeId>,
+        restore: bool,
+        preferred: Option<NodeId>,
+    ) {
+        let previous = self.get_focus();
+        self.focus_manager
+            .set_declarative_trap(container, nodes, restore, preferred);
+        self.emit_focus_change(previous);
     }
 
     /// Process an event - THE central event processing method
@@ -455,13 +514,21 @@ impl EventRouter {
     fn handle_system_event(&mut self, event: &Event) -> Option<EventResult> {
         match event {
             Event::Key(key_event) => {
-                use super::types::KeyCode;
-                if key_event.code == KeyCode::Tab {
-                    if key_event.modifiers.shift {
+                use super::types::{KeyCode, KeyEventKind};
+                if matches!(key_event.code, KeyCode::Tab | KeyCode::BackTab)
+                    && key_event.kind != KeyEventKind::Release
+                    && !key_event.modifiers.ctrl
+                    && !key_event.modifiers.alt
+                    && !key_event.modifiers.meta
+                {
+                    if key_event.modifiers.shift || key_event.code == KeyCode::BackTab {
                         if self.focus_prev().is_some() {
                             return Some(EventResult::Handled);
                         }
                     } else if self.focus_next().is_some() {
+                        return Some(EventResult::Handled);
+                    }
+                    if self.is_focus_trapped() {
                         return Some(EventResult::Handled);
                     }
                 }
@@ -496,7 +563,7 @@ impl EventRouter {
                 // For keyboard and other events, use focused node or root
                 self.focus_manager
                     .get_focus()
-                    .or(self.root)
+                    .or_else(|| self.root.filter(|_| !self.is_focus_trapped()))
                     .unwrap_or_default()
             }
         }
@@ -521,6 +588,9 @@ impl EventRouter {
 
     /// Remove a focusable node
     pub fn remove_focusable(&mut self, node_id: NodeId) {
+        if self.get_focus() == Some(node_id) {
+            self.set_focus(None);
+        }
         self.focus_manager.unregister_focusable(node_id);
     }
 
@@ -541,7 +611,9 @@ impl EventRouter {
     /// Move focus in a specific direction
     /// Returns the focused node and emits focus event if focus changed
     pub fn focus_move(&mut self, direction: super::focus::FocusDirection) -> Option<NodeId> {
+        let previous = self.get_focus();
         let (node_id, focus_event) = self.focus_manager.move_focus(direction);
+        self.emit_focus_change(previous);
         self.emit_focus_operation_events(node_id, focus_event);
         node_id
     }
@@ -549,13 +621,20 @@ impl EventRouter {
     /// Create a focus trap for a container (e.g., modal dialog)
     /// This restricts focus navigation to only nodes within the container
     pub fn create_focus_trap(&mut self, container: NodeId, trapped_nodes: Vec<NodeId>) -> bool {
-        self.focus_manager
-            .create_focus_trap(container, trapped_nodes)
+        let previous = self.get_focus();
+        let created = self
+            .focus_manager
+            .create_focus_trap(container, trapped_nodes);
+        self.emit_focus_change(previous);
+        created
     }
 
     /// Remove a focus trap and restore previous focus behavior
     pub fn remove_focus_trap(&mut self, container: NodeId) -> bool {
-        self.focus_manager.remove_focus_trap(container)
+        let previous = self.get_focus();
+        let removed = self.focus_manager.remove_focus_trap(container);
+        self.emit_focus_change(previous);
+        removed
     }
 
     /// Check if focus is currently trapped

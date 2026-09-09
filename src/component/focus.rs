@@ -7,7 +7,7 @@ use std::sync::Arc;
 /// Focus-related properties that can be attached to any element
 #[derive(Clone)]
 pub struct FocusProps {
-    /// Whether this element should receive focus automatically when rendered
+    /// Request focus on mount or when changed from false to true.
     pub auto_focus: bool,
 
     /// Whether this element can receive focus via keyboard navigation
@@ -16,7 +16,8 @@ pub struct FocusProps {
     /// Whether focus should be trapped within this container and its children
     pub trap_focus: bool,
 
-    /// Tab index for controlling focus order (-1 = not focusable, 0 = default order, 1+ = custom order)
+    /// Tab order: positive values first, then zero in rendered order; negative
+    /// values allow explicit focus but are skipped by Tab navigation.
     pub tab_index: i32,
 
     /// Whether to restore focus to previous element when this element unmounts

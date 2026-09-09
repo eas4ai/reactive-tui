@@ -169,3 +169,62 @@ No dependency, C ABI, terminal protocol or persistence changes were introduced.
 Custom backend wrappers must forward painted_nodes; complete legacy backend
 integration and focus traps remain governed by API-016 and API-006. This is an
 API-005 review, not final acceptance of the entire commitment.
+
+## API-006 mechanism and implementation review
+
+The committed baseline failed all three initial App cases: focus callbacks were
+[A+, A+, A+] across redraws instead of [A+, A-, B+]; BackTab and release events
+navigated incorrectly; nested dialogs activated the opener or wrong outer control.
+The tests share API-005's captured SuprTUI input harness. Its new file was added
+to both mechanism footprints, and API-005 passed after the extraction.
+
+Inspected both previous focus managers, stable event IDs, tab-order rebuilds,
+trap activation/removal, App's public focus methods and focus-event dispatch.
+The router now owns current focus for both App APIs and input. The private App
+manager retains only declarative trap/autofocus bookkeeping. Rendered order
+breaks equal-index ties; negative indices skip Tab; release and modified Tab
+are not treated as ordinary traversal. Lost/Gained callbacks match identity
+transitions rather than render count. Removed subtrees release registrations
+and traps in one batch before restoration chooses a surviving target.
+
+Twelve acceptance cases pass: keyed redraw/reorder; forward/reverse/release
+navigation; nested autofocus/wrapping/restoration; parent removal with an inner
+dialog open; mouse focus confinement; positive/default/negative ordering;
+public App focus methods; missing opener fallback; empty traps; imperative
+subtree cleanup; false-to-true autofocus; and explicit imperative reactivation.
+The seven existing focus unit cases and all nine API-005 cases also pass.
+
+Compatibility review caught an implementation regression before commitment:
+an explicit create_focus_trap call must reactivate the named container, whereas
+a declarative redraw must not reorder live traps. Added a failing regression
+case, then preserved the imperative behavior separately from frame reconciliation.
+Public App and EventRouter signatures and the C ABI remain unchanged.
+
+A safe mutation discarded saved restoration targets. The nested test then
+activated OUTER1 after closing the inner dialog, rather than the remembered
+OUTER2. Restoring the implementation made the corrected cases pass. A frame
+assertion was corrected to trim terminal row padding, while still checking
+the exact C/B/A row order; no behavior assertion was weakened.
+
+The full default runner passed all 57 suite groups, including 759 library cases,
+all runnable integration targets and 41 doctests (34 ignored). After extracting
+focus callback registration into its own helper, the 21 focus/event cases and
+strict all-target Clippy passed again. The acceptance receipt is still
+produced separately by cairn check; development test output is not a receipt.
+
+Ripwire edit-check found unchanged public trap-call arity and no incompatible
+callers. Test-gate exited 4 with 12 static suite paths, including non-built demos
+and historical defect probes; those are not claimed as runnable coverage.
+Quality-delta exited 2, again dominated by ignored reference imports and static
+trait/callback blind spots. Its registration-complexity finding prompted the
+focus callback helper extraction. The remaining system-event branches directly
+express release, reverse traversal and modifier rules; tests exercise them.
+Six private upsert arguments distinguish validated imperative creation from
+empty declarative traps and their preferred/restored target. No gate-pass claim
+is made for this advisory output.
+
+Self-audit: one focus owner, bounded tree walks, explicit callback ownership,
+no internal locks while user callbacks run, tested removal and fallback paths,
+and no new dependencies or unrelated production changes. A focus trap confines
+focus; a modal pointer backdrop remains part of API-012. This is API-006 review,
+not final completion of the 54-requirement commitment.

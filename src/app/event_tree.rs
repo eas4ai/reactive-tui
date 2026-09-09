@@ -28,7 +28,7 @@ struct Registration<'a> {
     router: &'a mut EventRouter,
     seen: HashSet<Vec<Slot>>,
     preorder: Vec<NodeId>,
-    autofocus: Option<NodeId>,
+    focus: super::focus_manager::FocusPlan,
 }
 
 impl EventTree {
@@ -37,12 +37,12 @@ impl EventTree {
         element: &Element,
         geometry: &[PaintedNode],
         router: &mut EventRouter,
-    ) {
+    ) -> super::focus_manager::FocusPlan {
         let mut frame = Registration {
             router,
             seen: HashSet::new(),
             preorder: Vec::new(),
-            autofocus: None,
+            focus: super::focus_manager::FocusPlan::default(),
         };
         self.visit(element, Vec::new(), 0, None, &mut frame);
         let removed: Vec<_> = self
@@ -51,11 +51,12 @@ impl EventTree {
             .filter(|path| !frame.seen.contains(*path))
             .cloned()
             .collect();
-        for path in removed {
-            if let Some(id) = self.nodes.remove(&path) {
-                frame.router.remove_node(id);
-            }
-        }
+        let removed: Vec<_> = removed
+            .iter()
+            .filter_map(|path| self.nodes.remove(path))
+            .collect();
+        frame.router.set_focus_order(&frame.preorder);
+        frame.router.remove_nodes(&removed);
         for (order, node) in geometry.iter().enumerate() {
             if let Some(&id) = frame.preorder.get(node.element_index) {
                 frame
@@ -70,11 +71,7 @@ impl EventTree {
                 );
             }
         }
-        if frame.router.get_focus().is_none() {
-            if let Some(id) = frame.autofocus {
-                frame.router.set_focus(Some(id));
-            }
-        }
+        frame.focus
     }
 
     fn visit(
@@ -98,21 +95,21 @@ impl EventTree {
         frame.seen.insert(path.clone());
         frame.preorder.push(id);
         frame.register(element, id);
+        let trap = frame.focus.enter(element, id);
         for (index, child) in element.children.iter().enumerate() {
             self.visit(child, path.clone(), index, Some(id), frame);
         }
+        frame.focus.leave(trap);
     }
 
     pub(super) fn clear(&mut self, router: &mut EventRouter) {
-        for (_, id) in self.nodes.drain() {
-            router.remove_node(id);
-        }
+        let nodes: Vec<_> = self.nodes.drain().map(|(_, id)| id).collect();
+        router.remove_nodes(&nodes);
     }
 }
 
 impl Registration<'_> {
     fn register(&mut self, element: &Element, id: NodeId) {
-        self.router.clear_handlers(id);
         self.router.remove_hit_target(id);
         let interactive = !element.metadata.on_click.is_empty();
         let focusable = element
@@ -125,12 +122,8 @@ impl Registration<'_> {
         } else {
             self.router.remove_focusable(id);
         }
-        if element.focus.as_ref().is_some_and(|focus| focus.auto_focus)
-            && focusable
-            && self.autofocus.is_none()
-        {
-            self.autofocus = Some(id);
-        }
+        self.router.clear_handlers(id);
+        self.register_focus_callbacks(element, id);
         if interactive {
             let callbacks = element.metadata.on_click.clone();
             let handler: crate::event::router::EventHandlerFn = Arc::new(move |event| {
@@ -162,6 +155,32 @@ impl Registration<'_> {
                 .add_handler(id, "key", EventPhase::Bubble, handler.clone());
             self.router
                 .add_handler(id, "mouse", EventPhase::Bubble, handler);
+        }
+    }
+    fn register_focus_callbacks(&mut self, element: &Element, id: NodeId) {
+        if let Some(focus) = &element.focus {
+            let gained = focus.on_focus.clone();
+            let lost = focus.on_blur.clone();
+            if gained.is_some() || lost.is_some() {
+                self.router.add_handler(
+                    id,
+                    "focus",
+                    EventPhase::Target,
+                    Arc::new(move |event| {
+                        use crate::event::types::FocusEventKind;
+                        let callback = match event {
+                            Event::Focus(event) if event.kind == FocusEventKind::Gained => &gained,
+                            Event::Focus(event) if event.kind == FocusEventKind::Lost => &lost,
+                            _ => return EventResult::Ignored,
+                        };
+                        if let Some(callback) = callback {
+                            callback();
+                            return EventResult::Handled;
+                        }
+                        EventResult::Ignored
+                    }),
+                );
+            }
         }
     }
 }
