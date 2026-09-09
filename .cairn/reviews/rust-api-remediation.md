@@ -476,3 +476,9 @@ found that the Rust assertion did not report which fixture failed, so the earlie
 first-copy claim was unsupported. Label the input byte count and run all five
 fixed fixtures through the exact source scripts with stderr captured. This
 diagnostic remains separate from the native hook acceptance and uses no user data.
+
+The expanded Python diagnostic in run 34312759483 timed out before its first
+result while capturing a stderr pipe, unlike the actual file-backed process runner.
+Use a temporary stderr file and report each case before launch. Make this extra
+diagnostic nonblocking for the native Rust acceptance, which remains mandatory;
+it must not replace the actual failing path with a mismatched probe.

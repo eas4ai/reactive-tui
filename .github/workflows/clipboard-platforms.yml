@@ -47,6 +47,7 @@ jobs:
           'C:\msys64\usr\bin' | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
       - name: Diagnose fixed Windows clipboard fixture
         if: runner.os == 'Windows'
+        continue-on-error: true
         shell: bash
         run: |
           python - <<'PYTHON'
@@ -56,14 +57,17 @@ jobs:
           cases = ["ASCII control", "quote ' 界e\u0301 🙂\nsecond line\n", "", "two endings\n\n", "界e\u0301🙂\n" * 4096]
           for index, text in enumerate(cases):
               for copy, script in zip([True, False], scripts):
-                  with tempfile.TemporaryFile() as input, tempfile.TemporaryFile() as output:
+                  print("Starting fixed case", index, "copy" if copy else "paste", flush=True)
+                  with tempfile.TemporaryFile() as input, tempfile.TemporaryFile() as output, tempfile.TemporaryFile() as error:
                       input.write(text.encode() if copy else b"")
                       input.seek(0)
-                      result = subprocess.run(["powershell", "-NoLogo", "-NoProfile", "-NonInteractive", "-Command", script], stdin=input, stdout=subprocess.DEVNULL if copy else output, stderr=subprocess.PIPE, timeout=10)
+                      result = subprocess.run(["powershell", "-NoLogo", "-NoProfile", "-NonInteractive", "-Command", script], stdin=input, stdout=subprocess.DEVNULL if copy else output, stderr=error, timeout=10)
                       output.seek(0)
                       actual = output.read()
+                      error.seek(0)
+                      diagnostic = error.read()
                   print("Fixed case", index, "copy" if copy else "paste", "exit:", result.returncode, flush=True)
-                  print(result.stderr.decode(errors="replace"), flush=True)
+                  print(diagnostic.decode(errors="replace"), flush=True)
                   if result.returncode:
                       raise SystemExit(result.returncode)
                   if not copy and actual != text.encode():
