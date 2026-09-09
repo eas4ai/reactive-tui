@@ -27,6 +27,8 @@ impl Write for Capture {
 pub struct Snapshot {
     pub text: String,
     #[allow(dead_code)]
+    pub screen: vt100::Screen,
+    #[allow(dead_code)]
     pub geometry: Vec<PaintedNode>,
 }
 struct Step {
@@ -64,6 +66,7 @@ impl Backend for InputBackend {
         parser.process(&self.capture.0.lock().unwrap());
         self.snapshots.lock().unwrap().push(Snapshot {
             text: parser.screen().contents(),
+            screen: parser.screen().clone(),
             geometry: self.inner.painted_nodes().unwrap().to_vec(),
         });
         Ok(())

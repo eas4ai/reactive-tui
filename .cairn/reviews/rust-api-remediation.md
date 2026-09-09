@@ -502,3 +502,29 @@ verifier passes. All 13 clipboard failure-path tests, strict default Clippy and
 formatting also pass. The temporary workflow diagnostic has been removed.
 Four existing Windows compiler warnings remain in the broader API-019 platform
 inventory; this evidence does not claim native strict-lint or whole-API acceptance.
+
+## API-009 mechanism declaration and baseline
+
+The App input harness now retains the independently parsed VT100 screen as well
+as text and acknowledged geometry. The new styling mechanism exercises inactive
+focus/hover/disabled variants, keyboard and mouse focus, mount autofocus, pointer
+enter/leave without application handlers, Unicode case conversion and inheritance,
+grapheme-safe ellipsis/clipping, whitespace/word-break modes and cell alignment.
+It compares explicit colors and text rather than recomputing the implementation.
+
+Development baseline: 18 tests execute; 2 controls pass and 16 fail. Plain Unicode
+text and exact basic colors pass, as does preserved whitespace. Inactive variants
+paint red, state-only changes do not repaint, uppercase leaves text unchanged,
+and overflow/wrapping/alignment assertions expose the missing behavior. The first
+probe also compared unused screen padding; correcting only the observation helper
+made the two controls pass while retaining leading and interior spaces.
+
+The declaration is a failing baseline, not complete styling acceptance. During
+implementation, add disabled on/off transitions using explicit metadata, combined
+state and focus-within cases, and the remaining accepted typography token matrix.
+Only then can a passing mechanism support API-009. Preserve the prior decision
+that event routing is connected after successful presentation; state changes from
+that connection must schedule repaint rather than moving registration before it.
+The metadata type was introduced within this still-unfinished commitment; extending
+its payload does not require another field or migration for the original Element
+API. No production styling code changed in this declaration action.
