@@ -1,0 +1,100 @@
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.63s
+     Running tests/api_paint_properties.rs (target/debug/deps/api_paint_properties-d8609d022e6da344)
+
+running 9 tests
+test builder_gradient_paints_both_endpoints_and_midpoint ... FAILED
+test css_gradient_keeps_the_via_stop ... FAILED
+test css_pulse_schedules_intermediate_frames_without_input ... FAILED
+test explicit_style_properties_reach_layout_and_paint ... FAILED
+test gradient_border_has_visible_edge_colors ... FAILED
+test registered_component_output_retains_gradient ... FAILED
+test solid_color_control_reaches_the_terminal ... ok
+test translate_changes_visible_text_position ... FAILED
+test vertical_gradient_uses_rows ... FAILED
+
+failures:
+
+---- builder_gradient_paints_both_endpoints_and_midpoint stdout ----
+
+thread 'builder_gradient_paints_both_endpoints_and_midpoint' (2035952) panicked at tests/api_paint_properties.rs:49:5:
+assertion `left == right` failed
+  left: Rgb(0, 0, 0)
+ right: Rgb(240, 0, 0)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- css_gradient_keeps_the_via_stop stdout ----
+
+thread 'css_gradient_keeps_the_via_stop' (2035954) panicked at tests/api_paint_properties.rs:62:5:
+assertion `left == right` failed
+  left: Rgb(0, 0, 0)
+ right: Rgb(239, 68, 68)
+
+---- css_pulse_schedules_intermediate_frames_without_input stdout ----
+
+thread 'css_pulse_schedules_intermediate_frames_without_input' (2035956) panicked at tests/support/app_input.rs:91:9:
+App did not paint the expected frame before the input deadline
+
+---- explicit_style_properties_reach_layout_and_paint stdout ----
+
+thread 'explicit_style_properties_reach_layout_and_paint' (2036632) panicked at tests/api_paint_properties.rs:148:5:
+assertion `left == right` failed
+  left: Rgb(0, 0, 0)
+ right: Rgb(255, 0, 0)
+
+---- gradient_border_has_visible_edge_colors stdout ----
+
+thread 'gradient_border_has_visible_edge_colors' (2036634) panicked at tests/api_paint_properties.rs:95:5:
+assertion `left == right` failed
+  left: Rgb(0, 0, 0)
+ right: Rgb(240, 0, 0)
+
+---- registered_component_output_retains_gradient stdout ----
+
+thread 'registered_component_output_retains_gradient' (2036636) panicked at tests/api_paint_properties.rs:133:5:
+assertion `left == right` failed
+  left: Rgb(0, 0, 0)
+ right: Rgb(120, 0, 120)
+
+---- translate_changes_visible_text_position stdout ----
+
+thread 'translate_changes_visible_text_position' (2036640) panicked at tests/api_paint_properties.rs:158:5:
+assertion `left == right` failed
+  left: " "
+ right: "X"
+
+---- vertical_gradient_uses_rows stdout ----
+
+thread 'vertical_gradient_uses_rows' (2036642) panicked at tests/api_paint_properties.rs:78:5:
+assertion `left == right` failed
+  left: Rgb(0, 0, 0)
+ right: Rgb(240, 0, 0)
+
+
+failures:
+    builder_gradient_paints_both_endpoints_and_midpoint
+    css_gradient_keeps_the_via_stop
+    css_pulse_schedules_intermediate_frames_without_input
+    explicit_style_properties_reach_layout_and_paint
+    gradient_border_has_visible_edge_colors
+    registered_component_output_retains_gradient
+    translate_changes_visible_text_position
+    vertical_gradient_uses_rows
+
+test result: FAILED. 1 passed; 8 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.01s
+
+error: test failed, to rerun pass `--test api_paint_properties`
+Traceback (most recent call last):
+  File "/home/shawn/workspace2/reactive-tui/scripts/check-api-paint-properties.py", line 6, in <module>
+    subprocess.run(
+    ~~~~~~~~~~~~~~^
+        ["cargo", "test", "--locked", "--test", "api_paint_properties", "--", "--test-threads=1"],
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        cwd=Path(__file__).resolve().parents[1], check=True, timeout=120,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/home/linuxbrew/.linuxbrew/Cellar/python@3.14/3.14.7/lib/python3.14/subprocess.py", line 578, in run
+    raise CalledProcessError(retcode, process.args,
+                             output=stdout, stderr=stderr)
+subprocess.CalledProcessError: Command '['cargo', 'test', '--locked', '--test', 'api_paint_properties', '--', '--test-threads=1']' returned non-zero exit status 101.
