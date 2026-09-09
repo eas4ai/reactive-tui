@@ -1,26 +1,31 @@
 use super::effect::EffectId;
+pub(crate) use super::hook_resources::{HookResources, OwnedEffect};
 use std::any::{Any, TypeId};
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, Weak};
 
 /// Thread-safe hook context for managing component state and effects
 #[derive(Clone)]
 pub struct Hooks {
     state: Arc<Mutex<HookState>>,
 
-    /// Active effects for this component
-    effects: Arc<Mutex<Vec<EffectId>>>,
+    resources: Arc<HookResources>,
 
     /// Context values by type
     contexts: Arc<Mutex<HashMap<TypeId, Box<dyn Any + Send + Sync>>>>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum HookKind {
+pub(crate) enum HookKind {
     Signal,
     Memo,
     Reducer,
     Previous,
+    Effect,
+    EffectDeps,
+    Interval,
+    Timeout,
+    Debounce,
 }
 
 struct HookSlot {
@@ -40,6 +45,7 @@ struct HookState {
 #[doc(hidden)]
 pub struct HookRender {
     state: Arc<Mutex<HookState>>,
+    resources: Arc<HookResources>,
 }
 
 impl Drop for HookRender {
@@ -47,13 +53,19 @@ impl Drop for HookRender {
         let mut state = self.state.lock().expect("hook state lock poisoned");
         state.rendering = false;
         if std::thread::panicking() {
+            drop(state);
+            self.resources.discard_pending();
             return;
         }
         let count = state.index;
         let expected = state.expected_count.get_or_insert(count);
         let mismatch = *expected != count;
         drop(state);
-        assert!(!mismatch, "hook count changed between renders");
+        if mismatch {
+            self.resources.discard_pending();
+            panic!("hook count changed between renders");
+        }
+        self.resources.flush();
     }
 }
 
@@ -62,7 +74,7 @@ impl Hooks {
     pub fn new() -> Self {
         Self {
             state: Arc::new(Mutex::new(HookState::default())),
-            effects: Arc::new(Mutex::new(Vec::new())),
+            resources: Arc::new(HookResources::default()),
             contexts: Arc::new(Mutex::new(HashMap::new())),
         }
     }
@@ -71,6 +83,7 @@ impl Hooks {
     /// Panics on overlapping renders or a changed hook count, kind, or type.
     #[doc(hidden)]
     pub fn begin_render(&self) -> HookRender {
+        self.resources.bind();
         let mut state = self.state.lock().expect("hook state lock poisoned");
         if state.rendering {
             drop(state);
@@ -80,6 +93,7 @@ impl Hooks {
         state.rendering = true;
         HookRender {
             state: Arc::clone(&self.state),
+            resources: Arc::clone(&self.resources),
         }
     }
 
@@ -95,11 +109,12 @@ impl Hooks {
         state.index = 0;
     }
 
-    fn get_or_create_storage<T: Send + Sync + 'static>(
+    pub(crate) fn get_or_create_storage<T: Send + Sync + 'static>(
         &self,
         kind: HookKind,
-        initial: T,
+        init: impl FnOnce() -> T,
     ) -> Arc<Mutex<T>> {
+        self.resources.bind();
         let mut state = self.state.lock().expect("hook state lock poisoned");
         let index = state.index;
         let value = if let Some(slot) = state.slots.get(index) {
@@ -114,7 +129,7 @@ impl Hooks {
                 drop(state);
                 panic!("hook count increased at slot {index}");
             }
-            let value = Arc::new(Mutex::new(initial));
+            let value = Arc::new(Mutex::new(init()));
             state.slots.push(HookSlot {
                 kind,
                 value: Box::new(Arc::clone(&value)),
@@ -126,14 +141,20 @@ impl Hooks {
         value
     }
 
-    /// Cleanup all effects
+    /// End this hook context's resource lifetime, running cleanup once.
+    /// Retained timer handles cannot schedule work after cleanup.
     pub fn cleanup(&self) {
-        // Effects will be cleaned up by the runtime
-        if let Ok(mut effects) = self.effects.lock() {
-            effects.clear();
-        } else {
-            log::warn!("Effects lock poisoned during cleanup");
-        }
+        self.resources.close();
+    }
+
+    pub(crate) fn resource_scheduler(&self) -> Option<Arc<super::scheduler::Scheduler>> {
+        self.resources.bind();
+        self.resources.scheduler()
+    }
+
+    pub(crate) fn resource_token(&self) -> Weak<HookResources> {
+        self.resources.bind();
+        Arc::downgrade(&self.resources)
     }
 }
 
@@ -245,54 +266,77 @@ fn use_signal_kind<T: Send + Sync + Clone + Default + 'static>(
     initial: T,
     kind: HookKind,
 ) -> ThreadSafeSignal<T> {
-    let signal = hooks.get_or_create_storage(kind, ThreadSafeSignal::new(initial));
+    let signal = hooks.get_or_create_storage(kind, || ThreadSafeSignal::new(initial));
     let result = signal.lock().expect("hook signal lock poisoned").clone();
     result
 }
 
-/// Run a side effect (thread-safe version)
+/// Run after each completed render, cleaning up the previous invocation first.
+/// Without a render frame, run immediately and retain cleanup until `cleanup`
+/// or the last Hooks clone drops. Use `use_effect_with_deps` to skip unchanged inputs.
 pub fn use_effect<F>(hooks: &Hooks, effect: F) -> EffectId
 where
     F: FnOnce() -> Option<Box<dyn FnOnce() + Send + Sync>> + Send + Sync + 'static,
 {
-    // Prefer scheduling via the global reactive runtime if present
-    // Move effect into an Option so we can take it exactly once
-    let mut effect_opt = Some(effect);
-    if let Some(id) = crate::reactive::runtime::with_runtime(|ctx| {
-        // Take ownership of the effect for the scheduled closure
-        let effect_inner = effect_opt.take().expect("effect already taken");
-        ctx.runtime()
-            .register_effect(super::effect::Effect::new(move || {
-                // Adapt Send+Sync cleanup to non-threaded cleanup expected by Effect
-                let cleanup = effect_inner();
-                cleanup.map(|boxed| Box::new(boxed) as Box<dyn FnOnce()>)
-            }))
-    }) {
-        // Use try_lock to avoid deadlock
-        if let Ok(mut effects) = hooks.effects.try_lock() {
-            effects.push(id);
-        } else {
-            log::warn!("Could not acquire effects lock, effect may not be tracked properly");
-        }
-        return id;
-    }
-
-    // Fallback: no runtime set. Execute effect now (best-effort) and return a fresh id.
-    let effect_id = EffectId::new();
-    if let Ok(mut effects) = hooks.effects.try_lock() {
-        effects.push(effect_id);
-    } else {
-        log::warn!("Could not acquire effects lock in fallback path");
-    }
-    if let Some(cleanup) = effect_opt.and_then(|f| f()) {
-        // Without a scheduler to own deferred cleanup, execute immediately to avoid leaks
-        cleanup();
-    }
-    effect_id
+    effect_hook(hooks, HookKind::Effect, (), true, effect)
 }
 
-/// Access context value (thread-safe version)
+/// Run after the first completed render and whenever `deps` changes by PartialEq.
+/// Cleanup runs before replacement and when the component or Hooks owner ends.
+pub fn use_effect_with_deps<D, F>(hooks: &Hooks, deps: D, effect: F) -> EffectId
+where
+    D: PartialEq + Send + Sync + 'static,
+    F: FnOnce() -> Option<Box<dyn FnOnce() + Send + Sync>> + Send + Sync + 'static,
+{
+    effect_hook(hooks, HookKind::EffectDeps, deps, false, effect)
+}
+
+struct EffectHook<D> {
+    deps: Option<D>,
+    effect: Arc<OwnedEffect>,
+}
+
+fn effect_hook<D, F>(hooks: &Hooks, kind: HookKind, deps: D, always: bool, effect: F) -> EffectId
+where
+    D: PartialEq + Send + Sync + 'static,
+    F: FnOnce() -> Option<Box<dyn FnOnce() + Send + Sync>> + Send + Sync + 'static,
+{
+    let storage = hooks.get_or_create_storage(kind, || EffectHook::<D> {
+        deps: None,
+        effect: Arc::new(OwnedEffect::new()),
+    });
+    let (owned, changed) = {
+        let stored = storage.lock().unwrap();
+        let changed = always || stored.deps.as_ref() != Some(&deps);
+        (Arc::clone(&stored.effect), changed)
+    };
+    hooks.resources.track(&owned);
+    if changed {
+        let storage = Arc::downgrade(&storage);
+        owned.queue(Box::new(move || {
+            let cleanup = effect();
+            if let Some(storage) = storage.upgrade() {
+                storage.lock().unwrap().deps = Some(deps);
+            }
+            cleanup
+        }));
+    }
+    if !hooks.state.lock().unwrap().rendering {
+        owned.flush();
+    }
+    owned.id
+}
+
+/// Read the nearest provider in this component render.
+/// Outside rendering, attached hooks read their last inherited context;
+/// standalone hooks read their own provided values.
 pub fn use_context<T: Clone + Send + Sync + 'static>(hooks: &Hooks) -> Option<T> {
+    if super::component_scope::current().is_some() {
+        return super::component_scope::lookup();
+    }
+    if let Some(value) = hooks.resources.context() {
+        return value;
+    }
     hooks
         .contexts
         .lock()
@@ -303,8 +347,12 @@ pub fn use_context<T: Clone + Send + Sync + 'static>(hooks: &Hooks) -> Option<T>
         .cloned()
 }
 
-/// Provide context value to children (thread-safe version)
+/// Provide a value to this component and its descendants for the current render.
+/// Standalone calls store the value locally in Hooks.
 pub fn provide_context<T: Send + Sync + 'static>(hooks: &Hooks, value: T) {
+    let Err(value) = super::component_scope::provide(value) else {
+        return;
+    };
     if let Ok(mut contexts) = hooks.contexts.lock() {
         contexts.insert(TypeId::of::<T>(), Box::new(value));
     } else {
@@ -339,7 +387,7 @@ where
 
 /// Hook for managing previous value (thread-safe version)
 pub fn use_previous<T: Clone + Send + Sync + 'static>(hooks: &Hooks, value: T) -> Option<T> {
-    let prev: Arc<Mutex<Option<T>>> = hooks.get_or_create_storage(HookKind::Previous, None::<T>);
+    let prev: Arc<Mutex<Option<T>>> = hooks.get_or_create_storage(HookKind::Previous, || None::<T>);
     let result = {
         match prev.lock() {
             Ok(mut prev_guard) => {
@@ -374,6 +422,65 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn aborted_render_does_not_commit_effect_dependencies() {
+        let hooks = Hooks::new();
+        let calls = Arc::new(Mutex::new(Vec::new()));
+        let render = |value: i32, abort: bool| {
+            let _frame = hooks.begin_render();
+            let calls = calls.clone();
+            use_effect_with_deps(&hooks, value, move || {
+                calls.lock().unwrap().push(value);
+                Some(Box::new(move || calls.lock().unwrap().push(-value)))
+            });
+            assert!(!abort, "deliberately aborted render");
+        };
+        render(1, false);
+        assert!(
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| render(2, true))).is_err()
+        );
+        assert_eq!(*calls.lock().unwrap(), [1]);
+        render(2, false);
+        assert_eq!(*calls.lock().unwrap(), [1, -1, 2]);
+        hooks.cleanup();
+        assert_eq!(*calls.lock().unwrap(), [1, -1, 2, -2]);
+    }
+
+    #[test]
+    fn panicking_effect_does_not_leave_its_slot_running() {
+        let hooks = Hooks::new();
+        assert!(std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let _frame = hooks.begin_render();
+            use_effect_with_deps(&hooks, (), || panic!("deliberate effect panic"));
+        }))
+        .is_err());
+        let calls = Arc::new(Mutex::new(0));
+        {
+            let _frame = hooks.begin_render();
+            let calls = calls.clone();
+            use_effect_with_deps(&hooks, (), move || {
+                *calls.lock().unwrap() += 1;
+                None
+            });
+        }
+        assert_eq!(*calls.lock().unwrap(), 1);
+    }
+
+    #[test]
+    fn final_hook_clone_drop_runs_cleanup_once() {
+        let hooks = Hooks::new();
+        let other = hooks.clone();
+        let calls = Arc::new(Mutex::new(0));
+        let copy = calls.clone();
+        use_effect(&hooks, move || {
+            Some(Box::new(move || *copy.lock().unwrap() += 1))
+        });
+        drop(hooks);
+        assert_eq!(*calls.lock().unwrap(), 0);
+        drop(other);
+        assert_eq!(*calls.lock().unwrap(), 1);
+    }
 
     #[test]
     fn repeated_frames_keep_a_bounded_slot_count() {

@@ -4,7 +4,9 @@ use super::{
     registry::get_global_registry, AnyComponentInstance, Element, ElementType, LifecycleEvent,
 };
 use crate::error::{ReactiveError, Result};
+use crate::reactive::component_scope::ComponentScope;
 use std::collections::{HashMap, HashSet};
+use std::sync::Arc;
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 enum Segment {
@@ -18,6 +20,7 @@ type Path = Vec<Segment>;
 struct LiveComponent {
     name: String,
     instance: AnyComponentInstance,
+    scope: Arc<ComponentScope>,
 }
 
 #[derive(Default)]
@@ -62,7 +65,14 @@ impl ComponentRuntime {
             {
                 self.remove_where(|candidate| candidate.starts_with(&path));
             }
-            if !self.instances.contains_key(&path) {
+            let newly_created = !self.instances.contains_key(&path);
+            if newly_created {
+                let scope = ComponentScope::child(
+                    crate::reactive::component_scope::current()
+                        .expect("App component expansion requires its resource scope")
+                        .scheduler(),
+                );
+                let _binding = scope.enter(true);
                 // create_by_name releases registry locks before calling user code.
                 if let Some(mut instance) =
                     get_global_registry().create_by_name(&name, element.props.as_ref())?
@@ -73,11 +83,13 @@ impl ComponentRuntime {
                         LiveComponent {
                             name: name.clone(),
                             instance,
+                            scope: scope.clone(),
                         },
                     );
                 }
             }
             if let Some(live) = self.instances.get_mut(&path) {
+                let _binding = live.scope.enter(!newly_created);
                 seen.insert(path.clone());
                 live.instance.update(element.props.as_ref());
                 let mut output = live.instance.render();
@@ -133,7 +145,12 @@ impl ComponentRuntime {
         removed.sort_by_key(|path| std::cmp::Reverse(path.len()));
         let count = removed.len();
         for path in removed {
-            self.instances.remove(&path);
+            if let Some(mut live) = self.instances.remove(&path) {
+                let _binding = live.scope.enter(false);
+                live.instance.on_lifecycle(LifecycleEvent::Unmount);
+                live.scope.close();
+                drop(live);
+            }
         }
         count
     }

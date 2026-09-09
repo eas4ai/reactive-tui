@@ -1,9 +1,12 @@
-use crate::reactive::hooks::{use_effect, use_signal, Hooks, ThreadSafeSignal};
+use crate::reactive::hooks::{
+    use_effect_with_deps, use_signal, HookKind, HookResources, Hooks, ThreadSafeSignal,
+};
 use crate::reactive::scheduler::{Scheduler, TimerId};
-use std::sync::{Arc, Mutex, OnceLock};
+use std::sync::{Arc, Mutex, OnceLock, Weak};
 use std::time::Duration;
 
-/// Hook for creating an interval timer that calls a callback repeatedly
+/// Create an interval owned by this hook context.
+/// Unchanged durations preserve the deadline while callbacks refresh on render.
 ///
 /// # Example
 /// ```rust, ignore
@@ -21,39 +24,14 @@ pub fn use_interval<F>(hooks: &Hooks, duration: Duration, callback: F) -> TimerH
 where
     F: FnMut() + Send + Sync + 'static,
 {
-    let timer_id = use_signal(hooks, None::<TimerId>);
-    let handle = TimerHandle {
-        timer_id: timer_id.clone(),
-    };
-
-    // Wrap the callback to make it work with the effect system
-    let callback = Arc::new(Mutex::new(callback));
-    let callback_clone = callback.clone();
-
-    use_effect(hooks, move || {
-        // Schedule the interval
-        if let Some(scheduler) = get_scheduler() {
-            let id = scheduler.schedule_interval(duration, move || {
-                let mut cb = callback_clone.lock().unwrap();
-                cb();
-            });
-            timer_id.set(Some(id));
-        }
-
-        // Cleanup function to cancel the timer
-        Some(Box::new(move || {
-            if let Some(id) = timer_id.get() {
-                if let Some(scheduler) = get_scheduler() {
-                    scheduler.cancel_timer(id);
-                }
-            }
-        }) as Box<dyn FnOnce() + Send + Sync>)
-    });
-
-    handle
+    let timer = use_timer(hooks, HookKind::Interval);
+    timer.replace_callback(Box::new(callback));
+    install_timer(hooks, timer.clone(), duration, true);
+    TimerHandle { timer }
 }
 
-/// Hook for creating a one-time timeout that calls a callback after a delay
+/// Create a timeout owned by this hook context.
+/// It fires once; changing duration restarts it, while redraw alone does not.
 ///
 /// # Example
 /// ```rust, ignore
@@ -75,38 +53,15 @@ pub fn use_timeout<F>(hooks: &Hooks, duration: Duration, callback: F) -> TimerHa
 where
     F: FnOnce() + Send + Sync + 'static,
 {
-    let timer_id = use_signal(hooks, None::<TimerId>);
-    let handle = TimerHandle {
-        timer_id: timer_id.clone(),
-    };
-
-    // Wrap FnOnce in an Option so we can take it
-    let callback = Arc::new(Mutex::new(Some(callback)));
-    let callback_clone = callback.clone();
-
-    use_effect(hooks, move || {
-        // Schedule the timeout
-        if let Some(scheduler) = get_scheduler() {
-            let id = scheduler.schedule_timeout(duration, move || {
-                let mut cb_opt = callback_clone.lock().unwrap();
-                if let Some(cb) = cb_opt.take() {
-                    cb();
-                }
-            });
-            timer_id.set(Some(id));
+    let timer = use_timer(hooks, HookKind::Timeout);
+    let mut callback = Some(callback);
+    timer.replace_callback(Box::new(move || {
+        if let Some(callback) = callback.take() {
+            callback();
         }
-
-        // Cleanup function to cancel the timer if component unmounts before it fires
-        Some(Box::new(move || {
-            if let Some(id) = timer_id.get() {
-                if let Some(scheduler) = get_scheduler() {
-                    scheduler.cancel_timer(id);
-                }
-            }
-        }) as Box<dyn FnOnce() + Send + Sync>)
-    });
-
-    handle
+    }));
+    install_timer(hooks, timer.clone(), duration, false);
+    TimerHandle { timer }
 }
 
 /// Hook for creating a debounced callback that only fires after a delay of inactivity
@@ -136,13 +91,13 @@ where
     T: Send + 'static,
     F: Fn(T) + Send + 'static,
 {
-    let timer_id = use_signal(hooks, None::<TimerId>);
-    let callback = Arc::new(Mutex::new(callback));
-
+    let timer = use_timer(hooks, HookKind::Debounce);
+    let owned = timer.clone();
+    use_effect_with_deps(hooks, (), move || Some(Box::new(move || owned.close())));
     DebouncedFunction {
-        timer_id,
+        timer,
         delay,
-        callback,
+        callback: Arc::new(Mutex::new(callback)),
     }
 }
 
@@ -175,80 +130,63 @@ where
     let callback = Arc::new(Mutex::new(callback));
 
     ThrottledFunction {
+        owner: hooks.resource_token(),
         last_call,
         interval,
         callback,
     }
 }
 
-/// Handle for controlling a timer
+/// Handle for controlling a timer. It retains the scheduler that created it.
 #[derive(Clone)]
 pub struct TimerHandle {
-    timer_id: ThreadSafeSignal<Option<TimerId>>,
+    timer: Arc<HookTimer>,
 }
 
 impl TimerHandle {
-    /// Cancel the timer
+    /// Cancel the timer.
     pub fn cancel(&self) {
-        if let Some(id) = self.timer_id.get() {
-            if let Some(scheduler) = get_scheduler() {
-                scheduler.cancel_timer(id);
-            }
-            self.timer_id.set(None);
-        }
+        self.timer.cancel();
     }
 
-    /// Check if the timer is active
+    /// Whether a callback remains scheduled; false after a timeout fires or unmount.
     pub fn is_active(&self) -> bool {
-        self.timer_id.get().is_some()
+        self.timer.active.get()
     }
 }
 
-/// A debounced function that delays execution until after a period of inactivity
+/// A debounced function that delays execution until after a period of inactivity.
 pub struct DebouncedFunction<T> {
-    timer_id: ThreadSafeSignal<Option<TimerId>>,
+    timer: Arc<HookTimer>,
     delay: Duration,
     callback: Arc<Mutex<dyn Fn(T) + Send>>,
 }
 
 impl<T: Send + 'static> DebouncedFunction<T> {
-    /// Call the debounced function
+    /// Replace pending execution. Calls after owner cleanup are ignored.
     pub fn call(&self, value: T) {
-        // Cancel any existing timer
-        if let Some(id) = self.timer_id.get() {
-            if let Some(scheduler) = get_scheduler() {
-                scheduler.cancel_timer(id);
-            }
-        }
-
-        // Schedule a new timer
-        if let Some(scheduler) = get_scheduler() {
-            let callback = self.callback.clone();
-            let timer_id = self.timer_id.clone();
-
-            let id = scheduler.schedule_timeout(self.delay, move || {
-                let cb = callback.lock().unwrap();
-                cb(value);
-                timer_id.set(None);
-            });
-
-            self.timer_id.set(Some(id));
-        }
+        let callback = self.callback.clone();
+        let mut value = Some(value);
+        self.timer.restart(
+            self.delay,
+            false,
+            Some(Box::new(move || {
+                if let Some(value) = value.take() {
+                    callback.lock().unwrap()(value);
+                }
+            })),
+        );
     }
 
-    /// Cancel any pending execution
+    /// Cancel any pending execution.
     pub fn cancel(&self) {
-        if let Some(id) = self.timer_id.get() {
-            if let Some(scheduler) = get_scheduler() {
-                scheduler.cancel_timer(id);
-            }
-            self.timer_id.set(None);
-        }
+        self.timer.cancel();
     }
 }
 
 /// A throttled function that limits execution to once per interval
 pub struct ThrottledFunction<T> {
+    owner: Weak<HookResources>,
     last_call: ThreadSafeSignal<Option<std::time::Instant>>,
     interval: Duration,
     callback: Arc<Mutex<dyn Fn(T) + Send>>,
@@ -257,6 +195,9 @@ pub struct ThrottledFunction<T> {
 impl<T: Send + 'static> ThrottledFunction<T> {
     /// Call the throttled function
     pub fn call(&self, value: T) {
+        if !self.owner.upgrade().is_some_and(|owner| owner.is_alive()) {
+            return;
+        }
         let now = std::time::Instant::now();
         let should_call = match self.last_call.get() {
             None => true,
@@ -276,14 +217,165 @@ impl<T: Send + 'static> ThrottledFunction<T> {
     }
 }
 
+type Callback = Box<dyn FnMut() + Send>;
+
+#[derive(Default)]
+struct TimerState {
+    id: Option<TimerId>,
+    generation: u64,
+    closed: bool,
+}
+
+#[derive(Default)]
+struct CallbackState {
+    callback: Option<Callback>,
+    generation: u64,
+}
+
+struct HookTimer {
+    scheduler: Arc<Scheduler>,
+    owner: Weak<HookResources>,
+    state: Mutex<TimerState>,
+    callback: Mutex<CallbackState>,
+    active: ThreadSafeSignal<bool>,
+}
+
+impl HookTimer {
+    fn new(scheduler: Arc<Scheduler>, owner: Weak<HookResources>) -> Self {
+        Self {
+            scheduler,
+            owner,
+            state: Mutex::new(TimerState::default()),
+            callback: Mutex::new(CallbackState::default()),
+            active: ThreadSafeSignal::new(false),
+        }
+    }
+
+    fn replace_callback(&self, callback: Callback) {
+        drop(self.swap_callback(callback));
+    }
+
+    fn swap_callback(&self, callback: Callback) -> Option<Callback> {
+        let mut state = self.callback.lock().unwrap();
+        state.generation = state.generation.wrapping_add(1);
+        let old = state.callback.replace(callback);
+        drop(state);
+        old
+    }
+
+    fn restart(self: &Arc<Self>, duration: Duration, repeat: bool, callback: Option<Callback>) {
+        let mut state = self.state.lock().unwrap();
+        if state.closed || !self.owner.upgrade().is_some_and(|owner| owner.is_alive()) {
+            return;
+        }
+        if let Some(id) = state.id.take() {
+            self.scheduler.cancel_timer(id);
+        }
+        let old_callback = callback.and_then(|callback| self.swap_callback(callback));
+        state.generation = state.generation.wrapping_add(1);
+        let generation = state.generation;
+        let timer = Arc::downgrade(self);
+        let fire = move || {
+            if let Some(timer) = timer.upgrade() {
+                timer.fire(generation, repeat);
+            }
+        };
+        state.id = Some(if repeat {
+            self.scheduler.schedule_interval(duration, fire)
+        } else {
+            self.scheduler.schedule_timeout(duration, fire)
+        });
+        self.active.set(true);
+        drop(state);
+        drop(old_callback);
+    }
+
+    fn fire(&self, generation: u64, repeat: bool) {
+        let mut state = self.state.lock().unwrap();
+        if state.closed
+            || state.generation != generation
+            || !self.owner.upgrade().is_some_and(|owner| owner.is_alive())
+        {
+            return;
+        }
+        if !repeat {
+            state.id = None;
+            self.active.set(false);
+        }
+        drop(state);
+        let mut callbacks = self.callback.lock().unwrap();
+        let Some(mut callback) = callbacks.callback.take() else {
+            return;
+        };
+        let generation = callbacks.generation;
+        drop(callbacks);
+        callback();
+        let mut callbacks = self.callback.lock().unwrap();
+        if repeat && callbacks.generation == generation {
+            callbacks.callback = Some(callback);
+        }
+    }
+
+    fn cancel(&self) {
+        let mut state = self.state.lock().unwrap();
+        state.generation = state.generation.wrapping_add(1);
+        let id = state.id.take();
+        self.active.set(false);
+        drop(state);
+        if let Some(id) = id {
+            self.scheduler.cancel_timer(id);
+        }
+    }
+
+    fn close(&self) {
+        self.state.lock().unwrap().closed = true;
+        self.cancel();
+        let mut callbacks = self.callback.lock().unwrap();
+        callbacks.generation = callbacks.generation.wrapping_add(1);
+        let callback = callbacks.callback.take();
+        drop(callbacks);
+        drop(callback);
+    }
+}
+
+impl Drop for HookTimer {
+    fn drop(&mut self) {
+        self.close();
+    }
+}
+
+fn use_timer(hooks: &Hooks, kind: HookKind) -> Arc<HookTimer> {
+    let storage = hooks.get_or_create_storage(kind, || {
+        Arc::new(HookTimer::new(get_scheduler(hooks), hooks.resource_token()))
+    });
+    let timer = storage.lock().unwrap().clone();
+    timer
+}
+
+fn install_timer(hooks: &Hooks, timer: Arc<HookTimer>, duration: Duration, repeat: bool) {
+    use_effect_with_deps(hooks, duration, move || {
+        timer.restart(duration, repeat, None);
+        Some(Box::new(move || {
+            if timer.owner.upgrade().is_some_and(|owner| owner.is_alive()) {
+                timer.cancel();
+            } else {
+                timer.close();
+            }
+        }))
+    });
+}
+
 /// Get the global scheduler instance
-fn get_scheduler() -> Option<Arc<Scheduler>> {
+fn get_scheduler(hooks: &Hooks) -> Arc<Scheduler> {
+    if let Some(scheduler) = hooks.resource_scheduler() {
+        return scheduler;
+    }
     // Prefer the runtime scheduler when available
     if let Some(s) = crate::reactive::runtime::with_runtime(|ctx| ctx.scheduler().clone()) {
-        return Some(s);
+        return s;
     }
     // Fallback: a lightweight global scheduler with a background tick thread for timers
-    Some(get_fallback_scheduler())
+    get_fallback_scheduler()
 }
 
 fn get_fallback_scheduler() -> Arc<Scheduler> {
@@ -304,6 +396,152 @@ fn get_fallback_scheduler() -> Arc<Scheduler> {
 mod tests {
     use super::*;
     use std::sync::atomic::{AtomicUsize, Ordering};
+
+    #[test]
+    fn owned_interval_preserves_deadlines_and_refreshes_callbacks() {
+        let scheduler = Arc::new(Scheduler::new());
+        let scope = crate::reactive::component_scope::ComponentScope::new(scheduler.clone());
+        let hooks = Hooks::new();
+        let calls = Arc::new(AtomicUsize::new(0));
+        let handle = {
+            let _scope = scope.enter(true);
+            let _frame = hooks.begin_render();
+            let calls = calls.clone();
+            use_interval(&hooks, Duration::from_secs(3600), move || {
+                calls.fetch_add(1, Ordering::SeqCst);
+            })
+        };
+        let first = scheduler.next_deadline().unwrap();
+        {
+            let _scope = scope.enter(true);
+            let _frame = hooks.begin_render();
+            let calls = calls.clone();
+            use_interval(&hooks, Duration::from_secs(3600), move || {
+                calls.fetch_add(10, Ordering::SeqCst);
+            });
+        }
+        assert_eq!(scheduler.next_deadline(), Some(first));
+        {
+            let _scope = scope.enter(true);
+            let _frame = hooks.begin_render();
+            let calls = calls.clone();
+            use_interval(&hooks, Duration::ZERO, move || {
+                calls.fetch_add(100, Ordering::SeqCst);
+            });
+        }
+        assert!(scheduler.next_deadline().unwrap() < first);
+        scheduler.process_timers();
+        assert_eq!(calls.load(Ordering::SeqCst), 100);
+        {
+            let _scope = scope.enter(true);
+            let _frame = hooks.begin_render();
+            let calls = calls.clone();
+            use_interval(&hooks, Duration::ZERO, move || {
+                calls.fetch_add(1000, Ordering::SeqCst);
+            });
+        }
+        scheduler.process_timers();
+        assert_eq!(calls.load(Ordering::SeqCst), 1100);
+        scope.close();
+        assert!(!handle.is_active());
+        assert!(scheduler.next_deadline().is_none());
+        scheduler.process_timers();
+        assert_eq!(calls.load(Ordering::SeqCst), 1100);
+    }
+
+    #[test]
+    fn timeout_completes_once_and_only_changed_duration_restarts_it() {
+        let scheduler = Arc::new(Scheduler::new());
+        let scope = crate::reactive::component_scope::ComponentScope::new(scheduler.clone());
+        let hooks = Hooks::new();
+        let calls = Arc::new(AtomicUsize::new(0));
+        let render = |duration| {
+            let _scope = scope.enter(true);
+            let _frame = hooks.begin_render();
+            let calls = calls.clone();
+            use_timeout(&hooks, duration, move || {
+                calls.fetch_add(1, Ordering::SeqCst);
+            })
+        };
+        let handle = render(Duration::ZERO);
+        assert!(handle.is_active());
+        scheduler.process_timers();
+        assert!(!handle.is_active());
+        render(Duration::ZERO);
+        assert!(scheduler.next_deadline().is_none());
+        scheduler.process_timers();
+        assert_eq!(calls.load(Ordering::SeqCst), 1);
+        render(Duration::from_secs(3600));
+        assert!(handle.is_active());
+        // Cancel after leaving the ambient scope; it still targets the original scheduler.
+        handle.cancel();
+        assert!(scheduler.next_deadline().is_none());
+        assert!(!handle.is_active());
+    }
+
+    #[test]
+    fn retained_debounce_cannot_schedule_after_owner_removal() {
+        let scheduler = Arc::new(Scheduler::new());
+        let scope = crate::reactive::component_scope::ComponentScope::new(scheduler.clone());
+        let hooks = Hooks::new();
+        let calls = Arc::new(AtomicUsize::new(0));
+        let debounce = {
+            let _scope = scope.enter(true);
+            let _frame = hooks.begin_render();
+            let calls = calls.clone();
+            use_debounce(&hooks, Duration::ZERO, move |value| {
+                calls.fetch_add(value, Ordering::SeqCst);
+            })
+        };
+        debounce.call(1);
+        debounce.call(2);
+        scheduler.process_timers();
+        assert_eq!(calls.load(Ordering::SeqCst), 2);
+        debounce.call(4);
+        scope.close();
+        assert!(scheduler.next_deadline().is_none());
+        debounce.call(8);
+        assert!(scheduler.next_deadline().is_none());
+        scheduler.process_timers();
+        assert_eq!(calls.load(Ordering::SeqCst), 2);
+    }
+
+    #[test]
+    fn interval_callback_can_cancel_its_own_handle() {
+        let scheduler = Arc::new(Scheduler::new());
+        let scope = crate::reactive::component_scope::ComponentScope::new(scheduler.clone());
+        let hooks = Hooks::new();
+        let shared: Arc<Mutex<Option<TimerHandle>>> = Arc::new(Mutex::new(None));
+        let handle = {
+            let _scope = scope.enter(true);
+            let _frame = hooks.begin_render();
+            let shared = shared.clone();
+            use_interval(&hooks, Duration::ZERO, move || {
+                shared.lock().unwrap().as_ref().unwrap().cancel();
+            })
+        };
+        *shared.lock().unwrap() = Some(handle.clone());
+        scheduler.process_timers();
+        assert!(!handle.is_active());
+        assert!(scheduler.next_deadline().is_none());
+    }
+
+    #[test]
+    fn dropping_standalone_hooks_releases_callback_even_with_a_retained_handle() {
+        let hooks = Hooks::new();
+        let lifetime = Arc::new(());
+        let weak = Arc::downgrade(&lifetime);
+        let handle = use_interval(&hooks, Duration::from_secs(3600), move || {
+            let _ = &lifetime;
+        });
+        assert!(weak.upgrade().is_some());
+        drop(hooks);
+        assert!(!handle.is_active());
+        assert!(
+            weak.upgrade().is_none(),
+            "unmount must release callback captures"
+        );
+    }
 
     #[test]
     fn test_timer_handle() {

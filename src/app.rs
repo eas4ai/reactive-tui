@@ -70,6 +70,7 @@ pub struct App {
     backend: Box<dyn Backend>,
     root: Box<dyn RootComponent>,
     components: crate::component::runtime::ComponentRuntime,
+    hook_scope: Arc<crate::reactive::component_scope::ComponentScope>,
     scheduler: Arc<Scheduler>,
     wake: AppWaker,
     router: EventRouter,
@@ -346,6 +347,7 @@ impl App {
     /// Render the current state
     fn render(&mut self) -> Result<()> {
         let _scope = Scope::enter(&self.wake);
+        let _hooks = self.hook_scope.enter(true);
         self.publish_performance_context();
         use crate::render::tree::resolved_element_to_render_node;
 
@@ -497,6 +499,7 @@ impl App {
     /// Cleanup all component instances (called automatically on drop)
     pub fn cleanup(&mut self) -> crate::error::Result<usize> {
         let owned = self.components.clear();
+        self.hook_scope.close();
         crate::component::registry::global_cleanup_all().map(|legacy| owned + legacy)
     }
 }
@@ -618,6 +621,7 @@ impl AppBuilder {
             backend,
             root,
             components: crate::component::runtime::ComponentRuntime::default(),
+            hook_scope: crate::reactive::component_scope::ComponentScope::new(scheduler.clone()),
             scheduler,
             wake,
             router: EventRouter::new(),
