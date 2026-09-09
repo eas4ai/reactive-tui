@@ -9,6 +9,7 @@ inputs:
   - reactive-tui-macros
   - tests/api_clipboard.rs
   - tests/clipboard_platform.rs
+  - tests/windows_platform.rs
   - scripts/check-api-clipboard.py
   - scripts/check-clipboard-platforms.py
   - .github/workflows/clipboard-platforms.yml

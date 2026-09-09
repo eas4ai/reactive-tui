@@ -400,3 +400,23 @@ Windows adapter. Complete CI diagnostic artifacts are now captured so those
 prerequisites can be repaired. No Windows acceptance or final API-008 pass is
 claimed. Hosted execution and artifact collection are working; the remaining
 adapter repair has its own recorded decision and prerequisite inventory.
+
+## Windows adapter prerequisite implementation
+
+The complete native diagnostic artifact identified all 56 errors in the Windows
+adapter and its consumers: wrong HANDLE ownership for Send/Sync, obsolete DWORD
+aliases, missing feature-gated APIs, duplicate record parsers, mismatched event
+families, invalid union access, nonexistent trait delegates and missing byte read.
+The repair duplicates standard handles into OwnedHandle, keeps public methods,
+uses the current Windows API types, and converts records into TerminalEvent.
+UTF-16 surrogate pairs, press/release/repeat and partial UTF-8 output are retained.
+The new byte reader buffers unread bytes and carries a timeout across records.
+
+The native test starts a detached child, allocates its own console, and checks
+empty-input timeout, repeated text and Unicode through one-byte reads, event
+conversion, queued key events, output, size, restored input mode and invalid
+initial handles. It never attaches to the parent's console. Native platform
+records now require its success marker as well as the clipboard/process checks.
+Linux default-suite verification passed all 61 result groups, strict all-target
+Clippy passed, and formatting/diff checks passed. The Windows-only test is not
+counted as a Linux pass; native Windows execution remains pending.

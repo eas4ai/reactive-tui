@@ -20,7 +20,7 @@ RECORDS = ROOT / "docs/analysis/clipboard-platforms"
 PLATFORMS = {"wayland": "Linux", "xsel": "Linux", "xclip": "Linux", "macos": "Darwin", "windows": "Windows"}
 INPUTS = (
     "Cargo.toml", "Cargo.lock", "src", "reactive-tui-macros", "tests/api_clipboard.rs",
-    "tests/clipboard_platform.rs", "scripts/check-clipboard-platforms.py",
+    "tests/clipboard_platform.rs", "tests/windows_platform.rs", "scripts/check-clipboard-platforms.py",
     ".github/workflows/clipboard-platforms.yml",
 )
 
@@ -167,6 +167,11 @@ def run_backend(args):
     process_output = captured(["cargo", "test", "--locked", "--lib", "hooks::clipboard_process::tests", "--", "--test-threads=1"], env)
     if "2 passed" not in process_output:
         raise RuntimeError("native process lifecycle checks did not execute")
+    if args.backend == "windows":
+        adapter = captured(["cargo", "test", "--locked", "--test", "windows_platform", "--", "--nocapture"], env)
+        if "RTUI_WINDOWS_ADAPTER_OK" not in adapter or "1 passed" not in adapter:
+            raise RuntimeError("native Windows adapter checks did not execute")
+        process_output += "\n" + adapter
     run_id = str(uuid.uuid4())
     env.update(RTUI_CLIPBOARD_DEDICATED_SESSION="1", RTUI_CLIPBOARD_EXPECT_BACKEND=args.backend, RTUI_CLIPBOARD_PLATFORM_RUN=run_id)
     command = [executable, "--ignored", "--exact", "clipboard_platform_roundtrip", "--nocapture"]
@@ -234,6 +239,8 @@ def verify():
                 raise RuntimeError("damaged platform output: " + backend)
         if f"RTUI_CLIPBOARD_PLATFORM_OK backend={backend} cases=5" not in (RECORDS / record["output"]).read_text() or "2 passed" not in (RECORDS / record["process_output"]).read_text():
             raise RuntimeError("platform output lacks executed behavior checks: " + backend)
+        if backend == "windows" and "RTUI_WINDOWS_ADAPTER_OK" not in (RECORDS / record["process_output"]).read_text():
+            raise RuntimeError("Windows adapter checks are missing")
     print("All five clipboard backends have current native platform evidence")
 
 

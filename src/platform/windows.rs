@@ -4,32 +4,61 @@
 
 use super::PlatformTty;
 use crate::error::Result;
-use std::os::windows::io::{AsRawHandle, RawHandle};
+use std::collections::VecDeque;
+use std::os::windows::io::{AsRawHandle, BorrowedHandle, OwnedHandle, RawHandle};
+use std::sync::{Mutex, TryLockError};
 use std::time::Duration;
 
 #[cfg(windows)]
-use windows_sys::Win32::{Foundation::*, Storage::FileSystem::*, System::Console::*};
+use windows_sys::Win32::{
+    Foundation::*,
+    Storage::FileSystem::*,
+    System::{Console::*, Threading::WaitForSingleObject},
+    UI::Input::KeyboardAndMouse::*,
+};
 
-#[cfg(windows)]
-const FROM_LEFT_1ST_BUTTON_PRESSED: DWORD = 0x0001;
-#[cfg(windows)]
-const RIGHTMOST_BUTTON_PRESSED: DWORD = 0x0002;
-#[cfg(windows)]
-const MOUSE_MOVED: DWORD = 0x0001;
-#[cfg(windows)]
-const MOUSE_WHEELED: DWORD = 0x0004;
+#[derive(Default)]
+struct InputState {
+    bytes: VecDeque<u8>,
+    byte_surrogate: Option<u16>,
+    press_surrogate: Option<u16>,
+    release_surrogate: Option<u16>,
+}
+
+// Console character records contain UTF-16 code units, including surrogate pairs.
+fn decode_character(unit: u16, pending: &mut Option<u16>) -> Option<char> {
+    if (0xD800..=0xDBFF).contains(&unit) {
+        *pending = Some(unit);
+        return None;
+    }
+    if (0xDC00..=0xDFFF).contains(&unit) {
+        return Some(
+            pending
+                .take()
+                .and_then(|high| {
+                    char::from_u32(
+                        0x10000 + ((u32::from(high) - 0xD800) << 10) + (u32::from(unit) - 0xDC00),
+                    )
+                })
+                .unwrap_or(char::REPLACEMENT_CHARACTER),
+        );
+    }
+    *pending = None;
+    char::from_u32(u32::from(unit))
+}
 
 /// Windows TTY implementation using Console API
 #[cfg(windows)]
 pub struct WindowsTty {
     /// Handle to console input
-    stdin_handle: HANDLE,
+    stdin_handle: OwnedHandle,
     /// Handle to console output  
-    stdout_handle: HANDLE,
+    stdout_handle: OwnedHandle,
     /// Original input mode to restore
-    original_input_mode: DWORD,
+    original_input_mode: u32,
     /// Original output mode to restore
-    original_output_mode: DWORD,
+    original_output_mode: u32,
+    input: Mutex<InputState>,
 }
 
 #[cfg(not(windows))]
@@ -38,15 +67,15 @@ pub struct WindowsTty;
 #[cfg(windows)]
 impl PlatformTty for WindowsTty {
     fn write(&self, data: &[u8]) -> Result<usize> {
-        self.write_bytes(data)
+        WindowsTty::write(self, data)
     }
 
     fn size(&self) -> Result<(u16, u16)> {
-        self.get_size()
+        WindowsTty::size(self)
     }
 
     fn restore(&self) -> Result<()> {
-        self.restore_modes()
+        WindowsTty::restore(self)
     }
 }
 
@@ -58,9 +87,18 @@ impl WindowsTty {
             let stdin_handle = GetStdHandle(STD_INPUT_HANDLE);
             let stdout_handle = GetStdHandle(STD_OUTPUT_HANDLE);
 
-            if stdin_handle == INVALID_HANDLE_VALUE || stdout_handle == INVALID_HANDLE_VALUE {
+            if stdin_handle.is_null()
+                || stdout_handle.is_null()
+                || stdin_handle == INVALID_HANDLE_VALUE
+                || stdout_handle == INVALID_HANDLE_VALUE
+            {
                 return Err(std::io::Error::last_os_error().into());
             }
+
+            // Duplicate the borrowed standard handles. OwnedHandle supplies the
+            // Send/Sync and close-on-drop guarantees without unsafe trait impls.
+            let stdin_owner = BorrowedHandle::borrow_raw(stdin_handle).try_clone_to_owned()?;
+            let stdout_owner = BorrowedHandle::borrow_raw(stdout_handle).try_clone_to_owned()?;
 
             // Get original console modes
             let mut original_input_mode = 0;
@@ -94,10 +132,11 @@ impl WindowsTty {
             }
 
             Ok(WindowsTty {
-                stdin_handle,
-                stdout_handle,
+                stdin_handle: stdin_owner,
+                stdout_handle: stdout_owner,
                 original_input_mode,
                 original_output_mode,
+                input: Mutex::new(InputState::default()),
             })
         }
     }
@@ -107,9 +146,9 @@ impl WindowsTty {
         unsafe {
             let mut bytes_written = 0;
             let result = WriteFile(
-                self.stdout_handle,
-                data.as_ptr() as *const std::ffi::c_void,
-                data.len() as u32,
+                self.stdout_handle.as_raw_handle(),
+                data.as_ptr(),
+                data.len().min(u32::MAX as usize) as u32,
                 &mut bytes_written,
                 std::ptr::null_mut(),
             );
@@ -127,7 +166,12 @@ impl WindowsTty {
         unsafe {
             // Check if input is available
             if let Some(timeout) = timeout {
-                let result = WaitForSingleObject(self.stdin_handle, timeout.as_millis() as u32);
+                let milliseconds =
+                    timeout.as_millis() + u128::from(timeout.subsec_nanos() % 1_000_000 != 0);
+                let result = WaitForSingleObject(
+                    self.stdin_handle.as_raw_handle(),
+                    milliseconds.min(u128::from(u32::MAX - 1)) as u32,
+                );
                 match result {
                     WAIT_OBJECT_0 => {} // Input available
                     WAIT_TIMEOUT => {
@@ -145,7 +189,7 @@ impl WindowsTty {
             let mut events_read = 0;
 
             let result = ReadConsoleInputW(
-                self.stdin_handle,
+                self.stdin_handle.as_raw_handle(),
                 input_record.as_mut_ptr(),
                 1,
                 &mut events_read,
@@ -162,6 +206,57 @@ impl WindowsTty {
                 Ok(input_record.assume_init())
             }
         }
+    }
+
+    /// Read UTF-8 bytes from console character records, retaining partial output.
+    /// Use one input reader for a console; competing byte reads return WouldBlock.
+    pub fn read(&self, buffer: &mut [u8], timeout: Option<Duration>) -> Result<usize> {
+        if buffer.is_empty() {
+            return Ok(0);
+        }
+        let mut input = self.input.try_lock().map_err(|error| match error {
+            TryLockError::WouldBlock => std::io::Error::new(
+                std::io::ErrorKind::WouldBlock,
+                "another console input reader is active",
+            ),
+            TryLockError::Poisoned(_) => std::io::Error::other("console input lock poisoned"),
+        })?;
+        let start = std::time::Instant::now();
+        let mut first = true;
+        while input.bytes.is_empty() {
+            if !first && timeout.is_some_and(|limit| start.elapsed() >= limit) {
+                return Err(
+                    std::io::Error::new(std::io::ErrorKind::TimedOut, "Read timeout").into(),
+                );
+            }
+            first = false;
+            let record =
+                self.read_input_record(timeout.map(|limit| limit.saturating_sub(start.elapsed())))?;
+            if u32::from(record.EventType) != KEY_EVENT {
+                continue;
+            }
+            // EventType selects this union member; the OS filled the record.
+            let key = unsafe { record.Event.KeyEvent };
+            let unit = unsafe { key.uChar.UnicodeChar };
+            if key.bKeyDown == 0 || unit == 0 {
+                continue;
+            }
+            if let Some(character) = decode_character(unit, &mut input.byte_surrogate) {
+                let mut bytes = [0; 4];
+                let text = character.encode_utf8(&mut bytes);
+                for _ in 0..key.wRepeatCount.max(1) {
+                    input.bytes.extend(text.as_bytes());
+                }
+            }
+        }
+        let count = buffer.len().min(input.bytes.len());
+        for destination in &mut buffer[..count] {
+            *destination = input
+                .bytes
+                .pop_front()
+                .expect("count is bounded by buffered bytes");
+        }
+        Ok(count)
     }
 
     /// Read multiple input events with timeout
@@ -194,7 +289,9 @@ impl WindowsTty {
                     }
                 }
                 Err(e) => {
-                    if e.to_string().contains("timeout") || e.to_string().contains("WouldBlock") {
+                    if matches!(&e, crate::error::ReactiveError::Io(error)
+                        if matches!(error.kind(), std::io::ErrorKind::TimedOut | std::io::ErrorKind::WouldBlock))
+                    {
                         break; // Normal timeout
                     } else {
                         return Err(e); // Real error
@@ -207,26 +304,29 @@ impl WindowsTty {
     }
 
     /// Parse a Windows INPUT_RECORD into a TerminalEvent
-    fn parse_input_record(&self, record: &INPUT_RECORD) -> Option<crate::platform::TerminalEvent> {
+    pub fn parse_input_record(
+        &self,
+        record: &INPUT_RECORD,
+    ) -> Option<crate::platform::TerminalEvent> {
         unsafe {
-            match record.EventType {
+            match u32::from(record.EventType) {
                 KEY_EVENT => {
-                    let key_event = record.Event.KeyEvent();
+                    let key_event = &record.Event.KeyEvent;
                     self.parse_key_event(key_event)
                 }
                 MOUSE_EVENT => {
-                    let mouse_event = record.Event.MouseEvent();
+                    let mouse_event = &record.Event.MouseEvent;
                     self.parse_mouse_event(mouse_event)
                 }
                 WINDOW_BUFFER_SIZE_EVENT => {
-                    let resize_event = record.Event.WindowBufferSizeEvent();
+                    let resize_event = &record.Event.WindowBufferSizeEvent;
                     Some(crate::platform::TerminalEvent::Resize {
                         width: resize_event.dwSize.X as u16,
                         height: resize_event.dwSize.Y as u16,
                     })
                 }
                 FOCUS_EVENT => {
-                    let focus_event = record.Event.FocusEvent();
+                    let focus_event = &record.Event.FocusEvent;
                     if focus_event.bSetFocus != 0 {
                         Some(crate::platform::TerminalEvent::FocusGained)
                     } else {
@@ -245,13 +345,8 @@ impl WindowsTty {
     ) -> Option<crate::platform::TerminalEvent> {
         use crate::platform::{KeyCode, KeyEventKind, KeyModifiers};
 
-        // Only process key down events for now
-        if key_event.bKeyDown == 0 {
-            return None;
-        }
-
         let vk_code = key_event.wVirtualKeyCode;
-        let char_code = unsafe { key_event.uChar.UnicodeChar() };
+        let char_code = unsafe { key_event.uChar.UnicodeChar };
         let control_key_state = key_event.dwControlKeyState;
 
         // Map virtual key code to KeyCode
@@ -271,28 +366,18 @@ impl WindowsTty {
             VK_DOWN => KeyCode::Down,
             VK_INSERT => KeyCode::Insert,
             VK_DELETE => KeyCode::Delete,
-            VK_F1 => KeyCode::F(1),
-            VK_F2 => KeyCode::F(2),
-            VK_F3 => KeyCode::F(3),
-            VK_F4 => KeyCode::F(4),
-            VK_F5 => KeyCode::F(5),
-            VK_F6 => KeyCode::F(6),
-            VK_F7 => KeyCode::F(7),
-            VK_F8 => KeyCode::F(8),
-            VK_F9 => KeyCode::F(9),
-            VK_F10 => KeyCode::F(10),
-            VK_F11 => KeyCode::F(11),
-            VK_F12 => KeyCode::F(12),
+            VK_F1..=VK_F24 => KeyCode::F((vk_code - VK_F1 + 1) as u8),
             _ => {
-                // Use character if available
-                if char_code != 0 && char_code != 0xFFFF {
-                    if let Some(ch) = char::from_u32(char_code as u32) {
-                        KeyCode::Char(ch)
-                    } else {
-                        KeyCode::Unknown
-                    }
-                } else {
+                if char_code == 0 || char_code == 0xFFFF {
                     KeyCode::Unknown
+                } else {
+                    let mut input = self.input.lock().expect("console input lock poisoned");
+                    let pending = if key_event.bKeyDown == 0 {
+                        &mut input.release_surrogate
+                    } else {
+                        &mut input.press_surrogate
+                    };
+                    KeyCode::Char(decode_character(char_code, pending)?)
                 }
             }
         };
@@ -308,7 +393,13 @@ impl WindowsTty {
         Some(crate::platform::TerminalEvent::Key {
             code,
             modifiers,
-            kind: KeyEventKind::Press,
+            kind: if key_event.bKeyDown == 0 {
+                KeyEventKind::Release
+            } else if key_event.wRepeatCount > 1 {
+                KeyEventKind::Repeat
+            } else {
+                KeyEventKind::Press
+            },
         })
     }
 
@@ -333,6 +424,7 @@ impl WindowsTty {
         };
 
         let kind = match event_flags {
+            MOUSE_MOVED if button_state & 0xFFFF != 0 => MouseEventKind::Drag,
             MOUSE_MOVED => MouseEventKind::Move,
             MOUSE_WHEELED => {
                 let wheel_delta = (button_state >> 16) as i16;
@@ -353,7 +445,7 @@ impl WindowsTty {
             DOUBLE_CLICK => MouseEventKind::Down, // Treat as regular click
             _ => {
                 // Regular button event
-                if (button_state & FROM_LEFT_1ST_BUTTON_PRESSED) != 0 {
+                if button_state & 0xFFFF != 0 {
                     MouseEventKind::Down
                 } else {
                     MouseEventKind::Up
@@ -375,7 +467,8 @@ impl WindowsTty {
     pub fn size(&self) -> Result<(u16, u16)> {
         unsafe {
             let mut csbi = std::mem::MaybeUninit::<CONSOLE_SCREEN_BUFFER_INFO>::uninit();
-            let result = GetConsoleScreenBufferInfo(self.stdout_handle, csbi.as_mut_ptr());
+            let result =
+                GetConsoleScreenBufferInfo(self.stdout_handle.as_raw_handle(), csbi.as_mut_ptr());
 
             if result == 0 {
                 Err(std::io::Error::last_os_error().into())
@@ -391,175 +484,18 @@ impl WindowsTty {
     /// Restore original console modes
     pub fn restore(&self) -> Result<()> {
         unsafe {
-            let input_result = SetConsoleMode(self.stdin_handle, self.original_input_mode);
-            let output_result = SetConsoleMode(self.stdout_handle, self.original_output_mode);
+            let input_result =
+                SetConsoleMode(self.stdin_handle.as_raw_handle(), self.original_input_mode);
+            let output_result = SetConsoleMode(
+                self.stdout_handle.as_raw_handle(),
+                self.original_output_mode,
+            );
 
             if input_result == 0 || output_result == 0 {
                 Err(std::io::Error::last_os_error().into())
             } else {
                 Ok(())
             }
-        }
-    }
-
-    /// Convert Windows input record to our event format
-    pub fn parse_input_record(
-        &self,
-        record: &INPUT_RECORD,
-    ) -> Option<crate::platform::TerminalEvent> {
-        unsafe {
-            match record.EventType {
-                KEY_EVENT => {
-                    let key_event = record.Event.KeyEvent;
-                    if key_event.bKeyDown != 0 {
-                        // Key press
-                        let code = self.map_virtual_key_code(key_event.wVirtualKeyCode);
-                        let modifiers = self.map_control_key_state(key_event.dwControlKeyState);
-
-                        Some(crate::platform::TerminalEvent::Key {
-                            code,
-                            modifiers,
-                            kind: crate::platform::KeyEventKind::Press,
-                        })
-                    } else {
-                        // Key release
-                        let code = self.map_virtual_key_code(key_event.wVirtualKeyCode);
-                        let modifiers = self.map_control_key_state(key_event.dwControlKeyState);
-
-                        Some(crate::platform::TerminalEvent::Key {
-                            code,
-                            modifiers,
-                            kind: crate::platform::KeyEventKind::Release,
-                        })
-                    }
-                }
-
-                MOUSE_EVENT => {
-                    let mouse_event = record.Event.MouseEvent;
-
-                    // Parse mouse event based on button state and event flags
-                    let x = mouse_event.dwMousePosition.X as u16;
-                    let y = mouse_event.dwMousePosition.Y as u16;
-
-                    // Check for button events
-                    if mouse_event.dwEventFlags == 0 {
-                        // Button press/release event
-                        if mouse_event.dwButtonState & FROM_LEFT_1ST_BUTTON_PRESSED != 0 {
-                            Some(crate::event::Event::Mouse(
-                                crate::event::MouseEvent::Press {
-                                    button: crate::event::MouseButton::Left,
-                                    position: (x, y),
-                                    modifiers: parse_control_key_state(
-                                        mouse_event.dwControlKeyState,
-                                    ),
-                                },
-                            ))
-                        } else if mouse_event.dwButtonState & RIGHTMOST_BUTTON_PRESSED != 0 {
-                            Some(crate::event::Event::Mouse(
-                                crate::event::MouseEvent::Press {
-                                    button: crate::event::MouseButton::Right,
-                                    position: (x, y),
-                                    modifiers: parse_control_key_state(
-                                        mouse_event.dwControlKeyState,
-                                    ),
-                                },
-                            ))
-                        } else {
-                            // Button release
-                            Some(crate::event::Event::Mouse(
-                                crate::event::MouseEvent::Release {
-                                    button: crate::event::MouseButton::Left, // Default to left
-                                    position: (x, y),
-                                    modifiers: parse_control_key_state(
-                                        mouse_event.dwControlKeyState,
-                                    ),
-                                },
-                            ))
-                        }
-                    } else if mouse_event.dwEventFlags & MOUSE_MOVED != 0 {
-                        // Mouse move event
-                        Some(crate::event::Event::Mouse(crate::event::MouseEvent::Move {
-                            position: (x, y),
-                            modifiers: parse_control_key_state(mouse_event.dwControlKeyState),
-                        }))
-                    } else if mouse_event.dwEventFlags & MOUSE_WHEELED != 0 {
-                        // Mouse wheel event
-                        let delta = ((mouse_event.dwButtonState >> 16) as i16) as i32;
-                        let direction = if delta > 0 {
-                            crate::event::ScrollDirection::Up
-                        } else {
-                            crate::event::ScrollDirection::Down
-                        };
-                        Some(crate::event::Event::Mouse(
-                            crate::event::MouseEvent::Scroll {
-                                direction,
-                                position: (x, y),
-                                modifiers: parse_control_key_state(mouse_event.dwControlKeyState),
-                            },
-                        ))
-                    } else {
-                        None
-                    }
-                }
-
-                WINDOW_BUFFER_SIZE_EVENT => {
-                    let size_event = record.Event.WindowBufferSizeEvent;
-                    Some(crate::platform::TerminalEvent::Resize {
-                        width: size_event.dwSize.X as u16,
-                        height: size_event.dwSize.Y as u16,
-                    })
-                }
-
-                FOCUS_EVENT => {
-                    let focus_event = record.Event.FocusEvent;
-                    if focus_event.bSetFocus != 0 {
-                        Some(crate::platform::TerminalEvent::FocusGained)
-                    } else {
-                        Some(crate::platform::TerminalEvent::FocusLost)
-                    }
-                }
-
-                _ => None,
-            }
-        }
-    }
-
-    fn map_virtual_key_code(&self, vk: u16) -> crate::platform::KeyCode {
-        use crate::platform::KeyCode;
-
-        match vk {
-            VK_BACK => KeyCode::Backspace,
-            VK_RETURN => KeyCode::Enter,
-            VK_LEFT => KeyCode::Left,
-            VK_RIGHT => KeyCode::Right,
-            VK_UP => KeyCode::Up,
-            VK_DOWN => KeyCode::Down,
-            VK_HOME => KeyCode::Home,
-            VK_END => KeyCode::End,
-            VK_PRIOR => KeyCode::PageUp,
-            VK_NEXT => KeyCode::PageDown,
-            VK_TAB => KeyCode::Tab,
-            VK_DELETE => KeyCode::Delete,
-            VK_INSERT => KeyCode::Insert,
-            VK_ESCAPE => KeyCode::Escape,
-            VK_F1..=VK_F24 => KeyCode::F((vk - VK_F1 + 1) as u8),
-            _ => {
-                // Try to get character representation
-                if vk >= 0x20 && vk <= 0x7E {
-                    KeyCode::Char(vk as u8 as char)
-                } else {
-                    KeyCode::Unknown
-                }
-            }
-        }
-    }
-
-    fn map_control_key_state(&self, state: u32) -> crate::platform::KeyModifiers {
-        crate::platform::KeyModifiers {
-            shift: (state & SHIFT_PRESSED) != 0,
-            ctrl: (state & (LEFT_CTRL_PRESSED | RIGHT_CTRL_PRESSED)) != 0,
-            alt: (state & (LEFT_ALT_PRESSED | RIGHT_ALT_PRESSED)) != 0,
-            meta: false, // Windows doesn't have a meta key
         }
     }
 }
@@ -574,7 +510,7 @@ impl Drop for WindowsTty {
 #[cfg(windows)]
 impl AsRawHandle for WindowsTty {
     fn as_raw_handle(&self) -> RawHandle {
-        self.stdout_handle as RawHandle
+        self.stdout_handle.as_raw_handle()
     }
 }
 
@@ -608,21 +544,4 @@ impl WindowsTty {
     pub fn restore(&self) -> Result<()> {
         Ok(())
     }
-}
-
-#[cfg(windows)]
-fn parse_control_key_state(state: DWORD) -> crate::event::KeyModifiers {
-    let mut modifiers = crate::event::KeyModifiers::empty();
-
-    if state & LEFT_CTRL_PRESSED != 0 || state & RIGHT_CTRL_PRESSED != 0 {
-        modifiers |= crate::event::KeyModifiers::CONTROL;
-    }
-    if state & LEFT_ALT_PRESSED != 0 || state & RIGHT_ALT_PRESSED != 0 {
-        modifiers |= crate::event::KeyModifiers::ALT;
-    }
-    if state & SHIFT_PRESSED != 0 {
-        modifiers |= crate::event::KeyModifiers::SHIFT;
-    }
-
-    modifiers
 }
