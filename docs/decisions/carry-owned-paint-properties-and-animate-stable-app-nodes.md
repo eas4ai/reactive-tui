@@ -12,7 +12,7 @@ Store explicit styles and gradients in the Element metadata introduced by API-00
 
 ## Realized by
 
-4603bdc Paint gradients and owned animation frames through App
+- 4603bdc Paint gradients and owned animation frames through App
 
 ## Worker boundary
 
