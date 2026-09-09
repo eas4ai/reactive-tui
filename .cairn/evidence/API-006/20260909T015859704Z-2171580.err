@@ -1,0 +1,26 @@
+warning: function `click` is never used
+   --> tests/support/app_input.rs:138:8
+    |
+138 | pub fn click(x: u16, y: u16) -> Option<Event> {
+    |        ^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `reactive-tui` (test "api_focus") generated 1 warning
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.07s
+     Running tests/api_focus.rs (target/debug/deps/api_focus-1f9a06d8653f30b7)
+error: test failed, to rerun pass `--test api_focus`
+Traceback (most recent call last):
+  File "/home/shawn/workspace2/reactive-tui/scripts/check-api-focus.py", line 7, in <module>
+    subprocess.run(
+    ~~~~~~~~~~~~~~^
+        ["cargo", "test", "--locked", *arguments, "--", "--test-threads=1"],
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        cwd=Path(__file__).resolve().parents[1], check=True, timeout=120,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/home/linuxbrew/.linuxbrew/Cellar/python@3.14/3.14.7/lib/python3.14/subprocess.py", line 578, in run
+    raise CalledProcessError(retcode, process.args,
+                             output=stdout, stderr=stderr)
+subprocess.CalledProcessError: Command '['cargo', 'test', '--locked', '--test', 'api_focus', '--', '--test-threads=1']' returned non-zero exit status 101.
