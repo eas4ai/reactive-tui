@@ -385,3 +385,9 @@ The actual native rerun is required; this note does not claim a corrected pass.
 
 The portable error classification passed the full Linux default-suite run
 (all 60 result groups) and strict all-target Clippy before the native rerun.
+
+The first Windows job in run 34307222183 failed inside Sixel's configure script:
+PKG_PROG_PKG_CONFIG and PKG_CHECK_MODULES were unexpanded. The MinGW pkgconf
+package was present, but MSYS Autoconf lacked /usr/share/aclocal/pkg.m4.
+The MSYS pkgconf package provides that file; add it alongside the MinGW tools.
+This is a CI prerequisite repair, not a clipboard behavior pass.

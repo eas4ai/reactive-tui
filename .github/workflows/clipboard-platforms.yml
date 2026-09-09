@@ -8,6 +8,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: clipboard-platforms-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   clipboard:
     strategy:
@@ -34,7 +38,7 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          & C:\msys64\usr\bin\bash.exe -lc 'pacman -S --needed --noconfirm autoconf automake libtool make mingw-w64-x86_64-gcc mingw-w64-x86_64-pkgconf'
+          & C:\msys64\usr\bin\bash.exe -lc 'pacman -S --needed --noconfirm autoconf automake libtool make pkgconf mingw-w64-x86_64-gcc mingw-w64-x86_64-pkgconf'
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           rustup toolchain install 1.95.0-x86_64-pc-windows-gnu --profile minimal
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
