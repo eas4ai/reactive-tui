@@ -593,3 +593,12 @@ avoids a second PowerShell query or PID-reuse ambiguity in the exit assertion.
 The production five-second Windows/two-second Unix deadlines and native clipboard
 round-trip requirements remain unchanged. Fresh platform records must use this
 fixture digest before acceptance; collected earlier records remain historical.
+
+
+Native run 34318193514 passed the revised Windows lifecycle checks and reached
+the real clipboard probe. The first 13-byte copy timed out at five seconds.
+The previous five-second decision explicitly says it is wrong if normal startup
+still exceeds the allowance. Before changing that decision, add a diagnostic job
+on a separate fresh Windows runner to time the exact copy/paste scripts under a
+30-second observation bound. It does not warm the acceptance runner, and its
+results are diagnostics, not substitutes for the production-deadline checks.
