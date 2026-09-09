@@ -46,6 +46,7 @@ sixel-rs = "0.5.0"
 reactive-tui-macros = { path = "reactive-tui-macros" }
 lru = "0.16.0"
 dirs = "5.0"
+tempfile = "3.21"
 suprtui = { path = "src/backend/engine" }
 
 # Platform-specific dependencies

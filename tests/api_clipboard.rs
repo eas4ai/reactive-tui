@@ -16,6 +16,20 @@ struct Fixture {
 impl Drop for Fixture {
     fn drop(&mut self) {
         if let Some(child) = &mut self.child {
+            // A corrected library gives its command a separate group. If a
+            // regression stalls the test itself, stop that recorded group too.
+            if let Ok(pids) = fs::read_to_string(self.directory.join("pid")) {
+                for pid in pids
+                    .lines()
+                    .filter_map(|pid| pid.trim().parse::<i32>().ok())
+                {
+                    if pid > 0 {
+                        unsafe {
+                            libc::kill(-pid, libc::SIGKILL);
+                        }
+                    }
+                }
+            }
             // Every fixture has a private process group. Reap its direct test
             // child and stop fixture descendants even when an assertion fails.
             unsafe {
@@ -43,6 +57,15 @@ fn isolated(name: &str) -> bool {
         "paste_nonzero_is_error" => ("exit 0", "printf partial\nexit 19"),
         "copy_has_deadline" | "cleanup_cancels_owned_child" => ("exec /bin/sleep 30", "exit 0"),
         "paste_has_deadline" => ("exit 0", "exec /bin/sleep 30"),
+        "invalid_utf8_is_error" => ("exit 0", "printf '\\377'"),
+        "oversized_output_is_error" => (
+            "exit 0",
+            "/bin/dd if=/dev/zero bs=1048576 count=65 2>/dev/null",
+        ),
+        "inherited_output_handles_do_not_block" => (
+            "/bin/cat > \"$RTUI_CLIPBOARD_STORE\"",
+            "/bin/sleep 30 &\n/bin/cat \"$RTUI_CLIPBOARD_STORE\"",
+        ),
         _ => (
             "/bin/cat > \"$RTUI_CLIPBOARD_STORE\"",
             "/bin/cat \"$RTUI_CLIPBOARD_STORE\"",
@@ -64,7 +87,7 @@ fn isolated(name: &str) -> bool {
         let path = fixture.directory.join(tool);
         fs::write(
             &path,
-            format!("#!/bin/sh\necho $$ > \"$RTUI_CLIPBOARD_PID\"\n{body}\n"),
+            format!("#!/bin/sh\necho $$ >> \"$RTUI_CLIPBOARD_PID\"\n{body}\n"),
         )
         .unwrap();
         fs::set_permissions(&path, fs::Permissions::from_mode(0o700)).unwrap();
@@ -109,6 +132,9 @@ fn isolated(name: &str) -> bool {
 
 fn assert_child_reaped() {
     let pid: i32 = fs::read_to_string(std::env::var("RTUI_CLIPBOARD_PID").unwrap())
+        .unwrap()
+        .lines()
+        .last()
         .unwrap()
         .trim()
         .parse()
@@ -264,4 +290,86 @@ fn unicode_roundtrip_retains_newlines() {
     assert_eq!(state.get().content, Some(text.into()));
     assert!(state.get().error.is_none());
     assert_child_reaped();
+}
+
+#[test]
+fn invalid_utf8_is_error() {
+    if isolated("invalid_utf8_is_error") {
+        return;
+    }
+    let hooks = Hooks::new();
+    let (state, _, paste) = use_clipboard(&hooks);
+    assert_eq!(paste(), None);
+    assert!(state
+        .get()
+        .error
+        .as_deref()
+        .is_some_and(|error| error.contains("UTF-8")));
+    assert_child_reaped();
+}
+
+#[test]
+fn oversized_output_is_error() {
+    if isolated("oversized_output_is_error") {
+        return;
+    }
+    let hooks = Hooks::new();
+    let (state, _, paste) = use_clipboard(&hooks);
+    assert_eq!(paste(), None);
+    assert!(state
+        .get()
+        .error
+        .as_deref()
+        .is_some_and(|error| error.contains("64 MiB")));
+    assert_child_reaped();
+}
+
+#[test]
+fn inherited_output_handles_do_not_block() {
+    if isolated("inherited_output_handles_do_not_block") {
+        return;
+    }
+    let hooks = Hooks::new();
+    let (state, copy, paste) = use_clipboard(&hooks);
+    copy("retained pipe control");
+    let start = Instant::now();
+    assert_eq!(paste(), Some("retained pipe control".into()));
+    assert!(start.elapsed() < Duration::from_secs(1));
+    assert!(state.get().error.is_none());
+    assert_child_reaped();
+}
+
+#[test]
+fn dropping_hook_owner_prevents_new_commands() {
+    if isolated("dropping_hook_owner_prevents_new_commands") {
+        return;
+    }
+    let hooks = Hooks::new();
+    let (state, copy, paste) = use_clipboard(&hooks);
+    drop(hooks);
+    copy("after owner drop");
+    assert_eq!(paste(), None);
+    assert!(state
+        .get()
+        .error
+        .as_deref()
+        .is_some_and(|error| error.contains("cancelled")));
+    assert!(!PathBuf::from(std::env::var("RTUI_CLIPBOARD_PID").unwrap()).exists());
+}
+
+#[test]
+fn failed_copy_retains_last_successful_cache() {
+    if isolated("failed_copy_retains_last_successful_cache") {
+        return;
+    }
+    let hooks = Hooks::new();
+    let (state, copy, paste) = use_clipboard(&hooks);
+    copy("saved text");
+    let path = PathBuf::from(std::env::var("PATH").unwrap()).join("wl-copy");
+    fs::write(&path, "#!/bin/sh\nexit 17\n").unwrap();
+    copy("failed replacement");
+    assert_eq!(state.get().content, Some("saved text".into()));
+    assert!(state.get().error.is_some());
+    assert_eq!(paste(), Some("saved text".into()));
+    assert!(state.get().error.is_none());
 }

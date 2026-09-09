@@ -7,6 +7,7 @@
 pub mod animation;
 /// Clipboard hooks for copy/paste operations
 pub mod clipboard;
+mod clipboard_process;
 /// Frame rate monitoring hooks
 pub mod fps;
 /// Mouse interaction hooks

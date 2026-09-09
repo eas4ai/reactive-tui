@@ -8,7 +8,10 @@ inputs:
   - src
   - reactive-tui-macros
   - tests/api_clipboard.rs
+  - tests/clipboard_platform.rs
   - scripts/check-api-clipboard.py
+  - scripts/check-clipboard-platforms.py
+  - docs/analysis/clipboard-platforms
   - docs/spec/rust-api-remediation.md
 requirements:
   - API-008

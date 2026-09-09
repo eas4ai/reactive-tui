@@ -1801,6 +1801,7 @@ dependencies = [
  "suprtui",
  "syntect",
  "taffy 0.9.1",
+ "tempfile",
  "thiserror",
  "tokio",
  "tokio-util",

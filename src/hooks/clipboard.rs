@@ -1,229 +1,139 @@
-use crate::reactive::hooks::{use_signal, Hooks, ThreadSafeSignal};
+//! Clipboard hooks with bounded commands and cancellation on owner cleanup.
+
+use crate::reactive::hooks::{HookKind, Hooks, ThreadSafeSignal};
 use std::process::Command;
 use std::sync::Arc;
 
-// Type aliases for clipboard operations
+// Preserve the existing synchronous callback signatures.
 type ClipboardWriter = Arc<dyn Fn(&str) + Send + Sync>;
 type ClipboardReader = Arc<dyn Fn() -> Option<String> + Send + Sync>;
 
-/// Clipboard backend detection
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum ClipboardBackend {
-    Wayland, // wl-copy/wl-paste
-    Xsel,    // xsel
-    Xclip,   // xclip
+    Wayland,
+    Xsel,
+    Xclip,
     #[cfg(target_os = "macos")]
-    MacOS, // pbcopy/pbpaste
+    MacOS,
     #[cfg(target_os = "windows")]
-    Windows, // clip.exe/powershell
-    NoOp,    // Fallback when no clipboard available
+    Windows,
+    Unavailable,
 }
 
 impl ClipboardBackend {
-    /// Check if a command exists
-    fn command_exists(cmd: &str) -> bool {
-        Command::new("which")
-            .arg(cmd)
-            .output()
-            .map(|output| output.status.success())
-            .unwrap_or(false)
+    fn command_exists(program: &str) -> bool {
+        let Some(path) = std::env::var_os("PATH") else {
+            return false;
+        };
+        std::env::split_paths(&path).any(|directory| {
+            #[cfg(windows)]
+            let program = format!("{program}.exe");
+            let Ok(metadata) = std::fs::metadata(directory.join(program)) else {
+                return false;
+            };
+            if !metadata.is_file() {
+                return false;
+            }
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::PermissionsExt;
+                metadata.permissions().mode() & 0o111 != 0
+            }
+            #[cfg(not(unix))]
+            {
+                true
+            }
+        })
     }
 
-    /// Detect available clipboard backend
     fn detect() -> Self {
-        // Check for Wayland
-        if std::env::var("WAYLAND_DISPLAY").is_ok()
+        #[cfg(target_os = "windows")]
+        if Self::command_exists("powershell") {
+            return Self::Windows;
+        }
+        #[cfg(target_os = "macos")]
+        if Self::command_exists("pbcopy") && Self::command_exists("pbpaste") {
+            return Self::MacOS;
+        }
+        if std::env::var_os("WAYLAND_DISPLAY").is_some_and(|display| !display.is_empty())
             && Self::command_exists("wl-copy")
             && Self::command_exists("wl-paste")
         {
-            return ClipboardBackend::Wayland;
+            return Self::Wayland;
         }
-
-        // Check for X11 tools
-        if Self::command_exists("xsel") {
-            return ClipboardBackend::Xsel;
-        }
-        if Self::command_exists("xclip") {
-            return ClipboardBackend::Xclip;
-        }
-
-        // Platform-specific checks
-        #[cfg(target_os = "macos")]
-        {
-            if Self::command_exists("pbcopy") && Self::command_exists("pbpaste") {
-                return ClipboardBackend::MacOS;
+        if std::env::var_os("DISPLAY").is_some_and(|display| !display.is_empty()) {
+            if Self::command_exists("xsel") {
+                return Self::Xsel;
+            }
+            if Self::command_exists("xclip") {
+                return Self::Xclip;
             }
         }
-
-        #[cfg(target_os = "windows")]
-        {
-            return ClipboardBackend::Windows;
-        }
-
-        // No clipboard available
-        ClipboardBackend::NoOp
+        Self::Unavailable
     }
 
-    /// Copy text to clipboard
-    fn copy(&self, text: &str) -> Result<(), String> {
-        match self {
-            ClipboardBackend::Wayland => {
-                let mut child = Command::new("wl-copy")
-                    .stdin(std::process::Stdio::piped())
-                    .spawn()
-                    .map_err(|e| format!("Failed to spawn wl-copy: {e}"))?;
-
-                if let Some(mut stdin) = child.stdin.take() {
-                    use std::io::Write;
-                    stdin
-                        .write_all(text.as_bytes())
-                        .map_err(|e| format!("Failed to write to wl-copy: {e}"))?;
+    fn command(&self, copy: bool) -> Result<Command, String> {
+        let command = match self {
+            Self::Wayland => {
+                let mut command = Command::new(if copy { "wl-copy" } else { "wl-paste" });
+                if copy {
+                    command.args(["--type", "text/plain;charset=utf-8"]);
+                } else {
+                    command.arg("--no-newline");
                 }
-
-                child
-                    .wait()
-                    .map_err(|e| format!("Failed to wait for wl-copy: {e}"))?;
-                Ok(())
+                command
             }
-
-            ClipboardBackend::Xsel => {
-                let mut child = Command::new("xsel")
-                    .arg("-ib")
-                    .stdin(std::process::Stdio::piped())
-                    .spawn()
-                    .map_err(|e| format!("Failed to spawn xsel: {e}"))?;
-
-                if let Some(mut stdin) = child.stdin.take() {
-                    use std::io::Write;
-                    stdin
-                        .write_all(text.as_bytes())
-                        .map_err(|e| format!("Failed to write to xsel: {e}"))?;
+            Self::Xsel => {
+                let mut command = Command::new("xsel");
+                command.arg(if copy { "-ib" } else { "-ob" });
+                command
+            }
+            Self::Xclip => {
+                let mut command = Command::new("xclip");
+                command.args(["-selection", "clipboard"]);
+                if !copy {
+                    command.arg("-o");
                 }
-
-                child
-                    .wait()
-                    .map_err(|e| format!("Failed to wait for xsel: {e}"))?;
-                Ok(())
+                command
             }
-
-            ClipboardBackend::Xclip => {
-                let mut child = Command::new("xclip")
-                    .arg("-selection")
-                    .arg("clipboard")
-                    .stdin(std::process::Stdio::piped())
-                    .spawn()
-                    .map_err(|e| format!("Failed to spawn xclip: {e}"))?;
-
-                if let Some(mut stdin) = child.stdin.take() {
-                    use std::io::Write;
-                    stdin
-                        .write_all(text.as_bytes())
-                        .map_err(|e| format!("Failed to write to xclip: {e}"))?;
-                }
-
-                child
-                    .wait()
-                    .map_err(|e| format!("Failed to wait for xclip: {e}"))?;
-                Ok(())
-            }
-
             #[cfg(target_os = "macos")]
-            ClipboardBackend::MacOS => {
-                let mut child = Command::new("pbcopy")
-                    .stdin(std::process::Stdio::piped())
-                    .spawn()
-                    .map_err(|e| format!("Failed to spawn pbcopy: {}", e))?;
-
-                if let Some(mut stdin) = child.stdin.take() {
-                    use std::io::Write;
-                    stdin
-                        .write_all(text.as_bytes())
-                        .map_err(|e| format!("Failed to write to pbcopy: {}", e))?;
-                }
-
-                child
-                    .wait()
-                    .map_err(|e| format!("Failed to wait for pbcopy: {}", e))?;
-                Ok(())
+            Self::MacOS => {
+                let mut command = Command::new(if copy { "pbcopy" } else { "pbpaste" });
+                command.env("LC_CTYPE", "en_US.UTF-8");
+                command
             }
-
             #[cfg(target_os = "windows")]
-            ClipboardBackend::Windows => {
-                // Use PowerShell to set clipboard
-                Command::new("powershell")
-                    .arg("-Command")
-                    .arg(format!(
-                        "Set-Clipboard -Value '{}'",
-                        text.replace("'", "''")
-                    ))
-                    .output()
-                    .map_err(|e| format!("Failed to set clipboard via PowerShell: {}", e))?;
-                Ok(())
+            Self::Windows => {
+                let mut command = Command::new("powershell");
+                let script = if copy {
+                    "$ErrorActionPreference='Stop'; [Console]::InputEncoding=[System.Text.UTF8Encoding]::new($false); Set-Clipboard -Value ([Console]::In.ReadToEnd())"
+                } else {
+                    "$ErrorActionPreference='Stop'; [Console]::OutputEncoding=[System.Text.UTF8Encoding]::new($false); [Console]::Write((Get-Clipboard -Raw))"
+                };
+                command.args([
+                    "-NoLogo",
+                    "-NoProfile",
+                    "-NonInteractive",
+                    "-Command",
+                    script,
+                ]);
+                command
             }
-
-            _ => Ok(()), // NoOp and non-platform specific variants
-        }
+            Self::Unavailable => {
+                return Err("No clipboard backend is available for this desktop session".into())
+            }
+        };
+        Ok(command)
     }
 
-    /// Paste text from clipboard
-    fn paste(&self) -> Result<String, String> {
-        match self {
-            ClipboardBackend::Wayland => {
-                let output = Command::new("wl-paste")
-                    .output()
-                    .map_err(|e| format!("Failed to run wl-paste: {e}"))?;
+    fn copy(&self, text: &str, cancelled: impl Fn() -> bool) -> Result<(), String> {
+        super::clipboard_process::run(self.command(true)?, Some(text), cancelled).map(|_| ())
+    }
 
-                String::from_utf8(output.stdout)
-                    .map_err(|e| format!("Invalid UTF-8 from wl-paste: {e}"))
-            }
-
-            ClipboardBackend::Xsel => {
-                let output = Command::new("xsel")
-                    .arg("-ob")
-                    .output()
-                    .map_err(|e| format!("Failed to run xsel: {e}"))?;
-
-                String::from_utf8(output.stdout)
-                    .map_err(|e| format!("Invalid UTF-8 from xsel: {e}"))
-            }
-
-            ClipboardBackend::Xclip => {
-                let output = Command::new("xclip")
-                    .arg("-selection")
-                    .arg("clipboard")
-                    .arg("-o")
-                    .output()
-                    .map_err(|e| format!("Failed to run xclip: {e}"))?;
-
-                String::from_utf8(output.stdout)
-                    .map_err(|e| format!("Invalid UTF-8 from xclip: {e}"))
-            }
-
-            #[cfg(target_os = "macos")]
-            ClipboardBackend::MacOS => {
-                let output = Command::new("pbpaste")
-                    .output()
-                    .map_err(|e| format!("Failed to run pbpaste: {}", e))?;
-
-                String::from_utf8(output.stdout)
-                    .map_err(|e| format!("Invalid UTF-8 from pbpaste: {}", e))
-            }
-
-            #[cfg(target_os = "windows")]
-            ClipboardBackend::Windows => {
-                let output = Command::new("powershell")
-                    .arg("-Command")
-                    .arg("Get-Clipboard")
-                    .output()
-                    .map_err(|e| format!("Failed to get clipboard via PowerShell: {}", e))?;
-
-                String::from_utf8(output.stdout)
-                    .map_err(|e| format!("Invalid UTF-8 from PowerShell: {}", e))
-                    .map(|s| s.trim_end().to_string())
-            }
-
-            _ => Ok(String::new()), // NoOp returns empty string
-        }
+    fn paste(&self, cancelled: impl Fn() -> bool) -> Result<String, String> {
+        let output = super::clipboard_process::run(self.command(false)?, None, cancelled)?;
+        String::from_utf8(output)
+            .map_err(|error| format!("Clipboard returned invalid UTF-8: {error}"))
     }
 }
 
@@ -236,6 +146,22 @@ pub struct ClipboardState {
     pub error: Option<String>,
     /// Backend being used
     backend: ClipboardBackend,
+}
+
+impl ClipboardState {
+    /// Selected desktop backend, or `unavailable` when no usable tool was found.
+    pub fn backend_name(&self) -> &'static str {
+        match self.backend {
+            ClipboardBackend::Wayland => "wayland",
+            ClipboardBackend::Xsel => "xsel",
+            ClipboardBackend::Xclip => "xclip",
+            #[cfg(target_os = "macos")]
+            ClipboardBackend::MacOS => "macos",
+            #[cfg(target_os = "windows")]
+            ClipboardBackend::Windows => "windows",
+            ClipboardBackend::Unavailable => "unavailable",
+        }
+    }
 }
 
 impl Default for ClipboardState {
@@ -268,42 +194,54 @@ pub fn use_clipboard(
     ClipboardWriter,
     ClipboardReader,
 ) {
-    let state = use_signal(hooks, ClipboardState::default());
+    // Detection happens only when the retained signal slot is first created.
+    let storage = hooks.get_or_create_storage(HookKind::Signal, || {
+        ThreadSafeSignal::new(ClipboardState::default())
+    });
+    let state = storage
+        .lock()
+        .expect("clipboard state lock poisoned")
+        .clone();
     let state_copy = state.clone();
     let state_paste = state.clone();
+    let copy_owner = hooks.resource_token();
+    let paste_owner = copy_owner.clone();
 
-    // Copy function
     let copy = Arc::new(move |text: &str| {
-        let mut current = state_copy.get();
-        match current.backend.copy(text) {
-            Ok(()) => {
-                current.content = Some(text.to_string());
-                current.error = None;
-            }
-            Err(e) => {
-                current.error = Some(e);
-            }
+        let backend = state_copy.get().backend;
+        let result = backend.copy(text, || {
+            !copy_owner.upgrade().is_some_and(|owner| owner.is_alive())
+        });
+        if result.is_err() {
+            // Keep copied text and tool output out of logs. The full hook exposes
+            // its error signal; the simple hook retains its void copy callback.
+            log::warn!("Clipboard copy failed; inspect use_clipboard's error state for details");
         }
-        state_copy.set(current);
-    }) as Arc<dyn Fn(&str) + Send + Sync>;
-
-    // Paste function
-    let paste = Arc::new(move || -> Option<String> {
-        let mut current = state_paste.get();
-        match current.backend.paste() {
-            Ok(text) => {
-                current.content = Some(text.clone());
+        state_copy.update(|current| match result {
+            Ok(()) => {
+                current.content = Some(text.to_owned());
                 current.error = None;
-                state_paste.set(current);
+            }
+            Err(error) => current.error = Some(error),
+        });
+    }) as ClipboardWriter;
+
+    let paste = Arc::new(move || -> Option<String> {
+        let backend = state_paste.get().backend;
+        match backend.paste(|| !paste_owner.upgrade().is_some_and(|owner| owner.is_alive())) {
+            Ok(text) => {
+                state_paste.update(|current| {
+                    current.content = Some(text.clone());
+                    current.error = None;
+                });
                 Some(text)
             }
-            Err(e) => {
-                current.error = Some(e);
-                state_paste.set(current);
+            Err(error) => {
+                state_paste.update(|current| current.error = Some(error));
                 None
             }
         }
-    }) as Arc<dyn Fn() -> Option<String> + Send + Sync>;
+    }) as ClipboardReader;
 
     (state, copy, paste)
 }
@@ -437,7 +375,7 @@ mod tests {
     #[test]
     fn test_clipboard_backend_detection() {
         let backend = ClipboardBackend::detect();
-        // Should detect something, even if it's NoOp
+        // Detection is read-only, including an unavailable desktop.
         println!("Detected clipboard backend: {backend:?}");
     }
 
