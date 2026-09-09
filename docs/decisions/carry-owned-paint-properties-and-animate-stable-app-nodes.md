@@ -12,7 +12,7 @@ Store explicit styles and gradients in the Element metadata introduced by API-00
 
 ## Realized by
 
-src/app/motion.rs and src/app/motion/property.rs; src/component/bridge.rs; src/layout/paint_tree/suprtui.rs and transform.rs; src/layout/css/gradients.rs. Development coverage is in tests/api_paint_properties.rs and the app::motion::tests unit module. Formal acceptance is recorded separately by Cairn.
+4603bdc Paint gradients and owned animation frames through App
 
 ## Worker boundary
 
