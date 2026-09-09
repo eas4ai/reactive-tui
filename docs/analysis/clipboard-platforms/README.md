@@ -44,3 +44,21 @@ Commands use private temporary files to avoid blocking on inherited pipes.
 The deadline is cooperative between system calls, not a real-time guarantee
 against a stalled kernel or filesystem. Native macOS and Windows behavior
 remains unverified until their records are supplied.
+
+## Windows adapter prerequisite inventory (API-008, API-019)
+
+The native Windows clipboard probe builds the real library. The legacy Windows
+Console adapter must therefore compile without removing its public entry points.
+Its PlatformTty methods must call real I/O; INPUT_RECORD conversion must produce
+the platform TerminalEvent for key press/release, Unicode characters, function
+keys, mouse actions, resize and focus. Byte reads used by terminal queries must
+read actual input and respect the supplied timeout. Falsifiers are a native
+compile error, a mismatched translated event, a successful no-op read, or an
+unbounded wait. Windows fixture tests will exercise conversion and timed I/O.
+This prerequisite is not completion of the remaining API-019 terminal inventory.
+
+The workflow in .github/workflows/clipboard-platforms.yml runs macOS and Windows
+on disposable hosted desktops and stores native evidence as artifacts. Complete
+build diagnostics are retained separately on failure. Existing records may be
+historical while a prerequisite repair changes the source; the verifier rejects
+such stale records until all platforms rerun against the same source digest.

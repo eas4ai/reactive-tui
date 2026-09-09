@@ -11,4 +11,5 @@ Run the existing macOS and Windows clipboard probes on disposable GitHub-hosted 
 
 ## Realized by
 
-(none yet: recorded, not built)
+- 81bfe9953b1b4a082b584fd3851b014d79753615 Run clipboard evidence on disposable native CI desktops
+- 000fa6b5f1523a1a67a61bc561723eec6abefdad Preserve complete native build diagnostics in CI artifacts

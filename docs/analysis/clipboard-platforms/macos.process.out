@@ -1,0 +1,10 @@
+   Compiling reactive-tui v0.0.7 (/Users/runner/work/reactive-tui/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 19.20s
+     Running unittests src/lib.rs (target/debug/deps/reactive_tui-89e8f2538aba193f)
+
+running 2 tests
+test hooks::clipboard_process::tests::cancellation_kills_and_reaps_child ... ok
+test hooks::clipboard_process::tests::deadline_kills_and_reaps_child ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 760 filtered out; finished in 2.04s
+

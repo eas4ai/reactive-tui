@@ -391,3 +391,12 @@ PKG_PROG_PKG_CONFIG and PKG_CHECK_MODULES were unexpanded. The MinGW pkgconf
 package was present, but MSYS Autoconf lacked /usr/share/aclocal/pkg.m4.
 The MSYS pkgconf package provides that file; add it alongside the MinGW tools.
 This is a CI prerequisite repair, not a clipboard behavior pass.
+
+The macOS jobs in runs 34307525622 and 34307683870 passed five real clipboard
+round trips and both child lifecycle tests after the portable errno repair.
+Downloaded artifacts matched their captured-output hashes. The later Windows
+job built Sixel successfully, then found 56 Rust compile errors in the existing
+Windows adapter. Complete CI diagnostic artifacts are now captured so those
+prerequisites can be repaired. No Windows acceptance or final API-008 pass is
+claimed. Hosted execution and artifact collection are working; the remaining
+adapter repair has its own recorded decision and prerequisite inventory.
