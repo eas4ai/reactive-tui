@@ -21,6 +21,7 @@ PLATFORMS = {"wayland": "Linux", "xsel": "Linux", "xclip": "Linux", "macos": "Da
 INPUTS = (
     "Cargo.toml", "Cargo.lock", "src", "reactive-tui-macros", "tests/api_clipboard.rs",
     "tests/clipboard_platform.rs", "scripts/check-clipboard-platforms.py",
+    ".github/workflows/clipboard-platforms.yml",
 )
 
 
@@ -62,7 +63,7 @@ def captured(command, env, timeout=300):
 
 
 def build_probe(env):
-    text = captured(["cargo", "test", "--locked", "--test", "clipboard_platform", "--no-run", "--message-format=json"], env)
+    text = captured(["cargo", "test", "--locked", "--test", "clipboard_platform", "--no-run", "--message-format=json"], env, timeout=900)
     for line in text.splitlines():
         try:
             message = json.loads(line)

@@ -11,6 +11,7 @@ inputs:
   - tests/clipboard_platform.rs
   - scripts/check-api-clipboard.py
   - scripts/check-clipboard-platforms.py
+  - .github/workflows/clipboard-platforms.yml
   - docs/analysis/clipboard-platforms
   - docs/spec/rust-api-remediation.md
 requirements:
