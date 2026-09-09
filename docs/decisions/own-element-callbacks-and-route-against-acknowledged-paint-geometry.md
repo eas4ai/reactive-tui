@@ -11,4 +11,4 @@ Add owned Element metadata for thread-safe event callbacks, as approved in the a
 
 ## Realized by
 
-(none yet: recorded, not built)
+- 2d83e085878d76e68902835f0171df97792984b7 Retain builder callbacks and route against painted frames
