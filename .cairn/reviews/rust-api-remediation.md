@@ -302,3 +302,62 @@ Its command, target set, timeout, exit handling and following real FFI runtime
 checks are unchanged. No application source or assertion changed. The corrected
 maintenance FFI command passed its build, C consumer and Rust lifecycle checks.
 This is a bounded build configuration repair inside the inherited footprint.
+
+## Inherited default-suite race found during API-008 verification
+
+The full default run failed in simple_css_animation_test at the unchecked
+counter subtraction (initial animations 4, final 3). A rerun passed. Inspection
+found four tests in that binary clear and mutate the same global registry and
+animation state concurrently. The neighboring CSS animation integration suite
+already serializes this shared-state pattern. The repair is to use the existing
+serial_test guard on those four tests, preserving every assertion and leaving
+the parser-only test parallel. This is an inherited full-suite reliability fix;
+it does not change animation runtime behavior or satisfy pending API-010/013.
+
+The repaired animation binary passed 20 runs with --test-threads=16 (100 tests).
+The complete default-suite script then passed all 60 result groups, including
+761 library tests (one ignored), 41 doctests (34 ignored), and all runnable
+integration tests. Strict all-target Clippy, workspace formatting and diff
+whitespace checks passed. Ignored platform/manual tests are not claimed as passes.
+
+## API-008 implementation and mechanism review
+
+The recorded baseline failed seven of eight isolated cases: nonzero exits and
+missing tools reported success, detection spawned an unbounded which process,
+and copy/paste/cancellation exceeded the fixture deadline. The corrected code
+passed all 13 isolated cases plus both direct-child lifecycle unit checks.
+The added cases reject invalid UTF-8 and oversized output, preserve the last
+successful cache after errors, prevent commands after owner drop, and return
+without waiting for inherited output handles. Fixture cleanup owns its process
+groups and checks the direct child is no longer live or unreaped.
+
+Inspected backend detection, fixed command arguments, deadline checks, temporary
+stream ownership, child kill/wait paths, weak hook cancellation, cache updates
+and successful Unix clipboard-server ownership. Clipboard text is neither
+interpolated into shell code nor included in logs. The Windows fixed script
+uses UTF-8 stdin/stdout; native verification remains required. Public callback
+signatures remain unchanged. Transfers have an explicit 64 MiB limit; kernel
+and filesystem calls are not real-time bounded. Successful copy may leave the
+desktop tool's clipboard-serving process; failure/timeout/cancellation kills
+the Unix group and reaps the direct child. Paste stops leftover group members.
+
+Real development probes passed five exact round trips each for Wayland, Xsel
+and Xclip on isolated Linux desktops. The first Wayland probe failed because
+wl-copy invokes cat for redirected stdin; adding cat to the test-only PATH
+made it pass. The harness therefore tests actual tools and their dependencies.
+Native platform records are keyed to committed source, macros, Cargo inputs,
+tests and the runner script, with canonical bytes across checkout platforms.
+Dirty runs cannot satisfy acceptance; missing or damaged records fail closed.
+macOS and Windows evidence is absent and API-008 is not yet accepted.
+
+Ripwire edit-check reports use_clipboard unchanged with no incompatible callers.
+Test-gate lists four test paths (covered by the suite/native runs) and animation
+symbols it cannot connect to tests. Quality-delta exits 2 with extensive ignored
+reference-tree findings; relevant rows include branch complexity in platform
+selection/verification, fixture setup duplication, and standard Drop/error
+handling patterns. These are distinct bounded cases, not a reason to combine
+unrelated ownership implementations. Its dead-code rows include tests actually
+executed and helpers called by the tested runner. No advisory pass is claimed.
+The cleanup scanner catches process disappearance and inaccessible environment
+files; other I/O errors propagate. Production self-audit: local behavior and
+regression checks pass; native macOS/Windows acceptance remains incomplete.

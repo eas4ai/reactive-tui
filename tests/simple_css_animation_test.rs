@@ -7,6 +7,7 @@ use reactive_tui::layout::css::manager::{
     clear_all_css_animations_global, get_css_animation_stats_global,
 };
 use reactive_tui::render::tree::element_to_render_node;
+use serial_test::serial;
 
 #[derive(Clone, PartialEq, Default)]
 struct TestProps {
@@ -35,6 +36,7 @@ impl Component for TestComponent {
 }
 
 #[test]
+#[serial]
 fn test_css_animation_system_works() {
     // Clean up everything
     global_cleanup_all().unwrap();
@@ -87,6 +89,7 @@ fn test_css_animation_system_works() {
 }
 
 #[test]
+#[serial]
 fn test_css_animation_parsing_works() {
     global_cleanup_all().unwrap();
     clear_all_css_animations_global().unwrap();
@@ -119,6 +122,7 @@ fn test_css_animation_parsing_works() {
 }
 
 #[test]
+#[serial]
 fn test_css_animation_cleanup_works() {
     global_cleanup_all().unwrap();
     clear_all_css_animations_global().unwrap();
@@ -194,6 +198,7 @@ fn test_animate_none_works() {
 }
 
 #[test]
+#[serial]
 fn test_css_animation_integration_end_to_end() {
     global_cleanup_all().unwrap();
     clear_all_css_animations_global().unwrap();
