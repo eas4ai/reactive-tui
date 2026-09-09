@@ -1,0 +1,21 @@
+requirement: MNT-001
+requirement_digest: sha256:192dda0a4da7864db65045020600efda63ba580a492aa58c7839ba5cb437bed1
+sequence: 13
+history_digest: sha256:5dabab1b42128c2604222c31f1175ae4ace765352a348e96377f3f1fc618a6b5
+mechanism: maintenance-format.md
+commit: 32a5cb9
+inputs_digest: sha256:7d36086f2addbe4529933d89083f29bb08b349a2c54d308e2e5ea74fc585d844
+mechanism_digest: sha256:5cd712302c6e97941270fc39f37b971bc0f813ea1c6e3495d000aa9c08368649
+inputs_detail: .cairn/evidence/MNT-001/20260909T015038999Z-2009084.inputs.json
+command: python3 scripts/check-maintenance.py format
+cwd: .
+exit: 0
+output_digest: sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+output: .cairn/evidence/MNT-001/20260909T015038999Z-2009084.out
+stderr_output: .cairn/evidence/MNT-001/20260909T015038999Z-2009084.err
+stderr_digest: sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+signal: none
+execution_error: null
+result: pass
+source: exit
+recorded: 2026-09-09T01:50:39.731Z
