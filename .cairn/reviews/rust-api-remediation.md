@@ -464,3 +464,9 @@ command stderr because it can contain clipboard text. Reproduce only the fixed
 ASCII fixture on the disposable Windows runner with stderr captured before the
 full build, so the next correction follows the native error. macOS and all three
 Linux tools passed at 04885d59; these records will need refreshing if inputs change.
+
+Run 34312040125 reproduced the hook failure, but the fixed copy command passed
+when GitHub invoked Python directly. That probe differed from the actual Bash
+parent environment. Run it under the same Bash shell and fail early on its exit
+code; do not infer a command fix from the mismatched diagnostic. All 13 local
+clipboard failure-path tests passed at 4f95a7a.
