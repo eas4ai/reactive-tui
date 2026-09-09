@@ -228,3 +228,64 @@ no internal locks while user callbacks run, tested removal and fallback paths,
 and no new dependencies or unrelated production changes. A focus trap confines
 focus; a modal pointer backdrop remains part of API-012. This is API-006 review,
 not final completion of the 54-requirement commitment.
+
+
+## API-007 mechanism and implementation review
+
+The committed baseline failed all eight initial cases. Both editors advanced
+insert_text by byte length against a scalar buffer; cursor movement mixed the
+same units, newline indices stayed stale, and selection/rendering split or
+misplaced text. Inspected GapBuffer mutation/index maintenance, both editor
+paths, Cursor movement/selection, syntax runs and Surface output/copy/mutation.
+
+The shared edit path retains scalar offsets and converts explicitly at grapheme
+and display boundaries. Insertions and deletions account for clusters formed by
+joining adjacent text. Vertical movement preserves a terminal column, while word
+movement retains graphemes. LF indexing updates for every mutation; CRLF moves
+and deletes atomically. Both painters apply selection at actual scalar positions
+across syntax runs, expand tabs, clip complete graphemes and render control text
+as visible replacements. The documented behavior is in docs/editor-positions.md.
+
+Private Surface metadata retains multi-scalar and wide glyphs without changing
+Cell or the C ABI. Reviewed overwrite of either wide cell, copies, clear, resize,
+raw mutable access and DiffWriter comparison/output. Existing editor signatures
+remain intact. Mutable legacy Cell access cannot retain full graphemes and clears
+that metadata explicitly. Other legacy writers/adapters retain their API-016
+integration requirement; SuprTUI is unchanged.
+
+Twenty-three acceptance cases and 22 existing editor unit cases passed. The
+expanded cases cover mixed insert methods, CJK/combining/emoji clusters, selection
+across lines and syntax runs, forward/backward deletion, CRLF, word and vertical
+movement, tabs, control characters, zero-size and clipped viewports, Surface
+ownership, and actual parsed terminal cells before and after edits. Those terminal
+checks found a real stale-output defect during implementation: Cell::default
+contains NUL, so clearing with it did not erase prior text. Clearing with spaces
+fixed the failing update tests. One vertical fixture's explicit scalar offsets
+were corrected after enumerating its text; no behavior assertion was removed.
+
+A safe mutation emitted only each stored grapheme's first scalar. Both parsed
+terminal tests failed with e instead of e-plus-accent (exit 101). Restoring complete
+text passed. The full default runner passed all 58 groups: 759 library tests,
+all runnable integrations and 41 doctests (one library and 34 doctests ignored).
+After extracting Surface text comparison/output helpers, the 23 acceptance and
+22 unit cases passed again. Strict all-target Clippy passed after fixing a blank
+line in a documentation list. Formatting and whitespace checks run before commit.
+
+Ripwire test-gate exited 4 and named 53 static paths, including ignored references,
+non-built demos, engine suites and inherited integration checks. Actual default
+and focused tests were run; inherited checks follow on the committed tree.
+Edit-check's Cursor definition-count change includes reference-tree name collisions;
+its parameter count is unchanged, and existing Rust consumers compile. Quality-delta
+exited 2, dominated by those references and normalized initializer/wrapper/test
+similarities. New Surface text helpers reduce added branching in the already
+complex diff routine. The line painter's branches represent syntax style lookup,
+control/tab representation and selection/cursor overlays in one traversal. Short
+forward/backward wrappers and explicit tests remain clearer than generic dispatch.
+No advisory gate pass or complete static-path coverage is claimed.
+
+Self-audit: shared position/painting rules replace divergent editor code; the
+new boundary map is line-sized and the painter avoids cloning entire syntax runs
+per grapheme. Metadata ownership is local, overwrite cleanup is explicit, no
+new dependency or unsafe operation was added, and public layouts are preserved.
+The change has failure demonstrations and real output verification. This is an
+API-007 implementation review, not the final commitment-wide review.

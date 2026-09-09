@@ -4,9 +4,10 @@
 
 use super::cursor::{Cursor, Movement};
 use super::gap_buffer::GapBuffer;
+use super::painting::{self, LinePainter};
 use crate::core::geometry::{Point, Size};
 use crate::core::styled_text::{StyledLine, StyledRun};
-use crate::core::surface::{Attr, Cell, Rgba, Surface};
+use crate::core::surface::{Attr, Rgba, Surface};
 use std::ops::Range;
 
 /// A text editor widget
@@ -63,12 +64,14 @@ impl TextEditor {
     pub fn set_size(&mut self, width: usize, height: usize) {
         self.width = width;
         self.height = height;
+        self.ensure_cursor_visible();
     }
 
     /// Set editor viewport using Size
     pub fn set_viewport(&mut self, size: Size) {
         self.width = size.width;
         self.height = size.height;
+        self.ensure_cursor_visible();
     }
 
     /// Enable or disable line numbers
@@ -93,56 +96,26 @@ impl TextEditor {
         self.scroll_offset = 0;
     }
 
-    /// Insert text at cursor position
+    /// Insert text, replacing the selected complete graphemes.
     pub fn insert_text(&mut self, text: &str) {
-        // Delete selection if any
-        if let Some((start, end)) = self.cursor.selection_range() {
-            self.buffer.delete_range(start..end);
-            self.cursor.position = start;
-            self.cursor.clear_selection();
-        }
-
-        self.buffer.insert_str(self.cursor.position, text);
-        self.cursor.position += text.len();
+        self.cursor.insert(&mut self.buffer, text);
         self.ensure_cursor_visible();
     }
 
-    /// Insert a single character
+    /// Insert one Unicode scalar; adjacent combining text remains one grapheme.
     pub fn insert_char(&mut self, ch: char) {
-        // Delete selection if any
-        if let Some((start, end)) = self.cursor.selection_range() {
-            self.buffer.delete_range(start..end);
-            self.cursor.position = start;
-            self.cursor.clear_selection();
-        }
-
-        self.buffer.insert_char(self.cursor.position, ch);
-        self.cursor.position += 1;
-        self.ensure_cursor_visible();
+        self.insert_text(ch.encode_utf8(&mut [0; 4]));
     }
 
-    /// Delete character before cursor (backspace)
+    /// Delete the selection or the preceding complete grapheme.
     pub fn delete_backward(&mut self) {
-        if let Some((start, end)) = self.cursor.selection_range() {
-            self.buffer.delete_range(start..end);
-            self.cursor.position = start;
-            self.cursor.clear_selection();
-        } else if self.cursor.position > 0 {
-            self.cursor.position -= 1;
-            self.buffer.delete_char(self.cursor.position);
-        }
+        self.cursor.delete(&mut self.buffer, true);
         self.ensure_cursor_visible();
     }
 
-    /// Delete character at cursor (delete)
+    /// Delete the selection or the following complete grapheme.
     pub fn delete_forward(&mut self) {
-        if let Some((start, end)) = self.cursor.selection_range() {
-            self.buffer.delete_range(start..end);
-            self.cursor.position = start;
-            self.cursor.clear_selection();
-        } else {
-            self.buffer.delete_char(self.cursor.position);
-        }
+        self.cursor.delete(&mut self.buffer, false);
         self.ensure_cursor_visible();
     }
 
@@ -164,15 +137,15 @@ impl TextEditor {
 
         if cursor_line < self.scroll_offset {
             self.scroll_offset = cursor_line;
-        } else if cursor_line >= self.scroll_offset + self.height {
-            self.scroll_offset = cursor_line - self.height + 1;
+        } else if cursor_line >= self.scroll_offset.saturating_add(self.height.max(1)) {
+            self.scroll_offset = cursor_line - self.height.max(1) + 1;
         }
     }
 
     /// Get visible lines range
     fn visible_lines(&self) -> Range<usize> {
         let start = self.scroll_offset;
-        let end = (start + self.height).min(self.buffer.line_count());
+        let end = (start.saturating_add(self.height)).min(self.buffer.line_count());
         start..end
     }
 
@@ -181,221 +154,63 @@ impl TextEditor {
         self.render(surface, origin.x, origin.y)
     }
 
-    /// Render to a surface
+    /// Render complete graphemes to the requested viewport, clearing stale cells.
     pub fn render(&self, surface: &mut Surface, x: usize, y: usize) {
-        let text_fg = Rgba {
-            r: 0.9,
-            g: 0.9,
-            b: 0.9,
-            a: 1.0,
-        };
-        let text_bg = Rgba {
-            r: 0.1,
-            g: 0.1,
-            b: 0.1,
-            a: 1.0,
-        };
-        let line_num_fg = Rgba {
-            r: 0.5,
-            g: 0.5,
-            b: 0.5,
-            a: 1.0,
-        };
-        let selection_bg = Rgba {
-            r: 0.2,
-            g: 0.4,
-            b: 0.6,
-            a: 1.0,
-        };
-        let cursor_bg = Rgba {
-            r: 0.8,
-            g: 0.8,
-            b: 0.8,
-            a: 1.0,
-        };
-
-        let selection_range = self.cursor.selection_range();
-        let cursor_pos = self.cursor.position;
-
-        let mut current_y = y;
-        let text_start_x = if self.show_line_numbers {
-            x + self.line_number_width + 1
-        } else {
-            x
-        };
-
-        for line_idx in self.visible_lines() {
-            // Render line number
-            if self.show_line_numbers {
-                let line_num = format!("{:>width$}", line_idx + 1, width = self.line_number_width);
-                surface.write_str(x, current_y, &line_num, line_num_fg, text_bg, Attr::empty());
-                surface.write_str(
-                    x + self.line_number_width,
-                    current_y,
-                    " ",
-                    line_num_fg,
-                    text_bg,
-                    Attr::empty(),
-                );
-            }
-
-            // Get line content
-            let line_start = self.buffer.line_start(line_idx);
-            let line_end = self.buffer.line_end(line_idx);
-            let line_text = self.buffer.get_range(line_start..line_end);
-
-            // Render line content with selection and cursor
-            let mut current_x = text_start_x;
-
-            for (char_idx, ch) in line_text.chars().enumerate() {
-                let pos = line_start + char_idx;
-                let mut bg = text_bg;
-                let mut fg = text_fg;
-                let attr = Attr::empty();
-
-                // Check if character is in selection
-                if let Some((sel_start, sel_end)) = selection_range {
-                    if pos >= sel_start && pos < sel_end {
-                        bg = selection_bg;
-                    }
-                }
-
-                // Check if this is cursor position
-                if pos == cursor_pos {
-                    bg = cursor_bg;
-                    fg = Rgba {
-                        r: 0.0,
-                        g: 0.0,
-                        b: 0.0,
-                        a: 1.0,
-                    };
-                }
-
-                if current_x < x + self.width {
-                    surface.set(
-                        current_x,
-                        current_y,
-                        Cell {
-                            ch,
-                            fg,
-                            bg,
-                            attr,
-                            image_id: None,
-                            image_placement: None,
-                        },
-                    );
-                    current_x += 1;
-                }
-            }
-
-            // Show cursor at end of line if needed
-            if cursor_pos == line_end
-                && line_idx == self.buffer.pos_to_line_col(cursor_pos).0
-                && current_x < x + self.width
-            {
-                surface.set(
-                    current_x,
-                    current_y,
-                    Cell {
-                        ch: ' ',
-                        fg: Rgba {
-                            r: 0.0,
-                            g: 0.0,
-                            b: 0.0,
-                            a: 1.0,
-                        },
-                        bg: cursor_bg,
-                        attr: Attr::empty(),
-                        image_id: None,
-                        image_placement: None,
-                    },
-                );
-            }
-
-            current_y += 1;
-            if current_y >= y + self.height {
-                break;
-            }
-        }
+        let lines = self.get_styled_lines();
+        painting::render(
+            surface,
+            lines,
+            (x, y),
+            (self.width, self.height),
+            Rgba {
+                r: 0.1,
+                g: 0.1,
+                b: 0.1,
+                a: 1.0,
+            },
+        );
     }
 
-    /// Get styled lines for the visible portion (for RenderOps pipeline)
+    /// Visible styled lines, clipped to complete terminal graphemes.
     pub fn get_styled_lines(&self) -> Vec<StyledLine> {
-        let text_fg = Rgba {
+        let foreground = Rgba {
             r: 0.9,
             g: 0.9,
             b: 0.9,
             a: 1.0,
         };
-        let text_bg = Rgba {
+        let background = Rgba {
             r: 0.1,
             g: 0.1,
             b: 0.1,
             a: 1.0,
         };
-        let line_num_fg = Rgba {
-            r: 0.5,
-            g: 0.5,
-            b: 0.5,
-            a: 1.0,
-        };
-        let selection_bg = Rgba {
-            r: 0.2,
-            g: 0.4,
-            b: 0.6,
-            a: 1.0,
-        };
-
-        let selection_range = self.cursor.selection_range();
         let mut lines = Vec::new();
-
-        for line_idx in self.visible_lines() {
-            let mut line = StyledLine::new();
-
-            // Add line number
-            if self.show_line_numbers {
-                let line_num = format!("{:>width$} ", line_idx + 1, width = self.line_number_width);
-                line.push(StyledRun::new(
-                    line_num,
-                    line_num_fg,
-                    text_bg,
-                    Attr::empty(),
-                ));
-            }
-
-            // Add line content
-            let line_start = self.buffer.line_start(line_idx);
-            let line_end = self.buffer.line_end(line_idx);
-            let line_text = self.buffer.get_range(line_start..line_end);
-
-            // Check if any part of line is selected
-            if let Some((sel_start, sel_end)) = selection_range {
-                if line_end > sel_start && line_start < sel_end {
-                    // Line has selection - for simplicity, just highlight the whole line
-                    if !line_text.is_empty() {
-                        line.push(StyledRun::new(
-                            line_text,
-                            text_fg,
-                            selection_bg,
-                            Attr::empty(),
-                        ));
-                    }
-                } else {
-                    // No selection on this line
-                    if !line_text.is_empty() {
-                        line.push(StyledRun::new(line_text, text_fg, text_bg, Attr::empty()));
-                    }
+        for index in self.visible_lines() {
+            let text = self.buffer.get_line(index);
+            let source =
+                StyledLine::from_run(StyledRun::new(text, foreground, background, Attr::empty()));
+            lines.push(
+                LinePainter {
+                    buffer: &self.buffer,
+                    cursor: &self.cursor,
+                    width: self.width,
+                    gutter: if self.show_line_numbers {
+                        self.line_number_width + 1
+                    } else {
+                        0
+                    },
+                    number_fg: Rgba {
+                        r: 0.5,
+                        g: 0.5,
+                        b: 0.5,
+                        a: 1.0,
+                    },
+                    background,
                 }
-            } else {
-                // No selection at all
-                if !line_text.is_empty() {
-                    line.push(StyledRun::new(line_text, text_fg, text_bg, Attr::empty()));
-                }
-            }
-
-            lines.push(line);
+                .paint(index, source),
+            );
         }
-
         lines
     }
 }

@@ -1,10 +1,13 @@
 //! Text editor components with efficient gap buffer backend
 //!
-//! This module provides text editing capabilities using a zero-copy
-//! gap buffer for optimal performance with large files.
+//! This module provides text editing capabilities using a scalar gap buffer. Positions count Unicode scalars; editor movement
+//! and deletion use complete graphemes, while vertical movement uses terminal
+//! columns. See `docs/editor-positions.md` for the conversion and rendering rules.
 
 pub mod cursor;
 pub mod gap_buffer;
+mod painting;
+mod positions;
 pub mod syntax_editor;
 pub mod text_editor;
 

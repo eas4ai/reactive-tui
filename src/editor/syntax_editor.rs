@@ -5,8 +5,9 @@
 
 use super::cursor::{Cursor, Movement};
 use super::gap_buffer::GapBuffer;
+use super::painting::{self, LinePainter};
 use crate::core::styled_text::{StyledLine, StyledRun};
-use crate::core::surface::{Attr, Cell, Rgba, Surface};
+use crate::core::surface::{Attr, Rgba, Surface};
 use crate::syntax::cache::{hash_line_content, LineCache};
 use crate::syntax::highlighter::SyntaxHighlighter;
 use std::ops::Range;
@@ -107,6 +108,7 @@ impl SyntaxEditor {
     pub fn set_size(&mut self, width: usize, height: usize) {
         self.width = width;
         self.height = height;
+        self.ensure_cursor_visible();
         self.rehighlight_visible();
     }
 
@@ -115,85 +117,31 @@ impl SyntaxEditor {
         self.buffer.to_string()
     }
 
-    /// Insert text at cursor position
+    /// Insert text, replacing the selected complete graphemes.
     pub fn insert_text(&mut self, text: &str) {
-        // Delete selection if any
-        if let Some((start, end)) = self.cursor.selection_range() {
-            self.buffer.delete_range(start..end);
-            self.cursor.position = start;
-            self.cursor.clear_selection();
-
-            // Invalidate affected lines
-            let start_line = self.buffer.pos_to_line_col(start).0;
-            let end_line = self.buffer.pos_to_line_col(end).0;
-            self.cache.invalidate_range(start_line, end_line + 1);
-        }
-
-        let insert_pos = self.cursor.position;
-        let insert_line = self.buffer.pos_to_line_col(insert_pos).0;
-
-        self.buffer.insert_str(self.cursor.position, text);
-        self.cursor.position += text.len();
-
-        // Invalidate affected lines
-        let lines_added = text.chars().filter(|&c| c == '\n').count();
-        self.cache
-            .invalidate_range(insert_line, insert_line + lines_added + 1);
-
+        self.cursor.insert(&mut self.buffer, text);
+        self.cache.clear();
         self.ensure_cursor_visible();
         self.rehighlight_visible();
     }
 
-    /// Insert a single character
+    /// Insert one Unicode scalar; adjacent combining text remains one grapheme.
     pub fn insert_char(&mut self, ch: char) {
-        // Delete selection if any
-        if let Some((start, end)) = self.cursor.selection_range() {
-            self.buffer.delete_range(start..end);
-            self.cursor.position = start;
-            self.cursor.clear_selection();
-        }
+        self.insert_text(ch.encode_utf8(&mut [0; 4]));
+    }
 
-        let insert_line = self.buffer.pos_to_line_col(self.cursor.position).0;
-
-        self.buffer.insert_char(self.cursor.position, ch);
-        self.cursor.position += 1;
-
-        // Invalidate current line (and next if newline)
-        if ch == '\n' {
-            self.cache.invalidate_range(insert_line, insert_line + 2);
-        } else {
-            self.cache.invalidate_range(insert_line, insert_line + 1);
-        }
-
+    /// Delete the selection or the preceding complete grapheme.
+    pub fn delete_backward(&mut self) {
+        self.cursor.delete(&mut self.buffer, true);
+        self.cache.clear();
         self.ensure_cursor_visible();
         self.rehighlight_visible();
     }
 
-    /// Delete character before cursor (backspace)
-    pub fn delete_backward(&mut self) {
-        let line_before = self.buffer.pos_to_line_col(self.cursor.position).0;
-
-        if let Some((start, end)) = self.cursor.selection_range() {
-            self.buffer.delete_range(start..end);
-            self.cursor.position = start;
-            self.cursor.clear_selection();
-
-            let start_line = self.buffer.pos_to_line_col(start).0;
-            let end_line = self.buffer.pos_to_line_col(end.min(self.buffer.len())).0;
-            self.cache.invalidate_range(start_line, end_line + 1);
-        } else if self.cursor.position > 0 {
-            self.cursor.position -= 1;
-            let deleted = self.buffer.delete_char(self.cursor.position);
-
-            // Invalidate affected lines
-            if deleted == Some('\n') {
-                self.cache
-                    .invalidate_range(line_before - 1, line_before + 1);
-            } else {
-                self.cache.invalidate_range(line_before, line_before + 1);
-            }
-        }
-
+    /// Delete the selection or the following complete grapheme.
+    pub fn delete_forward(&mut self) {
+        self.cursor.delete(&mut self.buffer, false);
+        self.cache.clear();
         self.ensure_cursor_visible();
         self.rehighlight_visible();
     }
@@ -217,8 +165,8 @@ impl SyntaxEditor {
         if cursor_line < self.scroll_offset {
             self.scroll_offset = cursor_line;
             self.rehighlight_visible();
-        } else if cursor_line >= self.scroll_offset + self.height {
-            self.scroll_offset = cursor_line - self.height + 1;
+        } else if cursor_line >= self.scroll_offset.saturating_add(self.height.max(1)) {
+            self.scroll_offset = cursor_line - self.height.max(1) + 1;
             self.rehighlight_visible();
         }
     }
@@ -226,7 +174,7 @@ impl SyntaxEditor {
     /// Get visible lines range
     fn visible_lines(&self) -> Range<usize> {
         let start = self.scroll_offset;
-        let end = (start + self.height).min(self.buffer.line_count());
+        let end = (start.saturating_add(self.height)).min(self.buffer.line_count());
         start..end
     }
 
@@ -241,156 +189,77 @@ impl SyntaxEditor {
         }
     }
 
-    /// Get styled lines for the visible portion
+    /// Render complete graphemes to the requested viewport, clearing stale cells.
+    pub fn render(&mut self, surface: &mut Surface, x: usize, y: usize) {
+        let lines = self.get_styled_lines();
+        painting::render(
+            surface,
+            lines,
+            (x, y),
+            (self.width, self.height),
+            Rgba {
+                r: 0.05,
+                g: 0.05,
+                b: 0.05,
+                a: 1.0,
+            },
+        );
+    }
+
+    /// Visible styled lines, clipped to complete terminal graphemes.
     pub fn get_styled_lines(&mut self) -> Vec<StyledLine> {
-        let text_bg = Rgba {
+        let foreground = Rgba {
+            r: 0.9,
+            g: 0.9,
+            b: 0.9,
+            a: 1.0,
+        };
+        let background = Rgba {
             r: 0.05,
             g: 0.05,
             b: 0.05,
             a: 1.0,
         };
-        let line_num_fg = Rgba {
-            r: 0.4,
-            g: 0.4,
-            b: 0.4,
-            a: 1.0,
-        };
-        let selection_bg = Rgba {
-            r: 0.2,
-            g: 0.4,
-            b: 0.6,
-            a: 1.0,
-        };
-        let cursor_bg = Rgba {
-            r: 0.8,
-            g: 0.8,
-            b: 0.8,
-            a: 1.0,
-        };
-
-        let selection_range = self.cursor.selection_range();
-        let cursor_pos = self.cursor.position;
         let mut lines = Vec::new();
-
-        for line_idx in self.visible_lines() {
-            let mut line = StyledLine::new();
-
-            // Add line number
-            if self.show_line_numbers {
-                let line_num = format!("{:>width$} ", line_idx + 1, width = self.line_number_width);
-                line.push(StyledRun::new(
-                    line_num,
-                    line_num_fg,
-                    text_bg,
-                    Attr::empty(),
-                ));
-            }
-
-            let line_start = self.buffer.line_start(line_idx);
-            let line_end = self.buffer.line_end(line_idx);
-            let line_text = self.buffer.get_range(line_start..line_end);
-
-            // Check if we have syntax highlighting
-            if let Some(ref mut highlighter) = self.highlighter {
-                // Try cache first
-                let hash = hash_line_content(&line_text);
-
-                let highlighted = if let Some(cached) = self.cache.get(line_idx, hash) {
+        for index in self.visible_lines() {
+            let text = self.buffer.get_line(index);
+            let source = if let Some(ref mut highlighter) = self.highlighter {
+                let hash = hash_line_content(&text);
+                let highlighted = if let Some(cached) = self.cache.get(index, hash) {
                     cached.clone()
                 } else {
-                    // Re-highlight this line
-                    let highlighted = highlighter.rehighlight_line(&line_text, line_idx);
-                    self.cache.insert(line_idx, highlighted.clone(), hash);
+                    let highlighted = highlighter.rehighlight_line(&text, index);
+                    self.cache.insert(index, highlighted.clone(), hash);
                     highlighted
                 };
-
-                // Apply selection overlay
-                for run in highlighted.runs {
-                    if let Some((sel_start, sel_end)) = selection_range {
-                        // Check if this run overlaps with selection
-                        let run_start = line_start;
-                        let run_end = line_start + run.text.len();
-
-                        if run_end > sel_start && run_start < sel_end {
-                            // Run has selection - might need to split
-                            line.push(StyledRun::new(run.text, run.fg, selection_bg, run.attr));
-                        } else {
-                            line.push(run);
-                        }
-                    } else {
-                        line.push(run);
-                    }
+                StyledLine {
+                    runs: highlighted.runs,
                 }
             } else {
-                // No syntax highlighting - use plain text
-                let fg = Rgba {
-                    r: 0.9,
-                    g: 0.9,
-                    b: 0.9,
-                    a: 1.0,
-                };
-
-                if let Some((sel_start, sel_end)) = selection_range {
-                    if line_end > sel_start && line_start < sel_end {
-                        // Line has selection
-                        line.push(StyledRun::new(line_text, fg, selection_bg, Attr::empty()));
+                StyledLine::from_run(StyledRun::new(text, foreground, background, Attr::empty()))
+            };
+            lines.push(
+                LinePainter {
+                    buffer: &self.buffer,
+                    cursor: &self.cursor,
+                    width: self.width,
+                    gutter: if self.show_line_numbers {
+                        self.line_number_width + 1
                     } else {
-                        line.push(StyledRun::new(line_text, fg, text_bg, Attr::empty()));
-                    }
-                } else {
-                    line.push(StyledRun::new(line_text, fg, text_bg, Attr::empty()));
+                        0
+                    },
+                    number_fg: Rgba {
+                        r: 0.4,
+                        g: 0.4,
+                        b: 0.4,
+                        a: 1.0,
+                    },
+                    background,
                 }
-            }
-
-            // Show cursor at end of line if needed
-            if cursor_pos == line_end && line_idx == self.buffer.pos_to_line_col(cursor_pos).0 {
-                line.push(StyledRun::new(
-                    " ".to_string(),
-                    Rgba::black(),
-                    cursor_bg,
-                    Attr::empty(),
-                ));
-            }
-
-            lines.push(line);
+                .paint(index, source),
+            );
         }
-
         lines
-    }
-
-    /// Render to a surface
-    pub fn render(&mut self, surface: &mut Surface, x: usize, y: usize) {
-        let styled_lines = self.get_styled_lines();
-
-        let mut current_y = y;
-        for line in styled_lines {
-            let mut current_x = x;
-
-            for run in line.runs.iter() {
-                for ch in run.text.chars() {
-                    if current_x < x + self.width {
-                        surface.set(
-                            current_x,
-                            current_y,
-                            Cell {
-                                ch,
-                                fg: run.fg,
-                                bg: run.bg,
-                                attr: run.attr,
-                                image_id: None,
-                                image_placement: None,
-                            },
-                        );
-                        current_x += 1;
-                    }
-                }
-            }
-
-            current_y += 1;
-            if current_y >= y + self.height {
-                break;
-            }
-        }
     }
 }
 

@@ -3,15 +3,16 @@
 //! Handles cursor position, movement, and selection within a gap buffer.
 
 use super::gap_buffer::GapBuffer;
+use super::positions;
 
 /// Cursor position and movement controller
 #[derive(Debug, Clone)]
 pub struct Cursor {
-    /// Current position in the buffer (byte offset)
+    /// Current Unicode scalar offset; movement snaps to grapheme boundaries.
     pub position: usize,
     /// Selection anchor position (None if no selection)
     pub selection_anchor: Option<usize>,
-    /// Preferred column for vertical movement
+    /// Preferred terminal display column for vertical movement
     preferred_column: Option<usize>,
 }
 
@@ -27,81 +28,39 @@ impl Cursor {
 
     /// Move cursor to an absolute position
     pub fn move_to(&mut self, position: usize, buffer: &GapBuffer) {
-        self.position = position.min(buffer.len());
+        self.position = positions::floor(buffer, position);
         self.preferred_column = None;
     }
 
-    /// Move cursor left by one character
+    /// Move left by one complete grapheme.
     pub fn move_left(&mut self, buffer: &GapBuffer) {
-        if self.position > 0 {
-            // Move by grapheme cluster for proper Unicode support
-            let text = buffer.get_range(0..self.position);
-            if let Some((last_idx, _)) = text.grapheme_indices(true).next_back() {
-                self.position = last_idx;
-            } else {
-                self.position = 0;
-            }
-        }
+        self.position = positions::previous(buffer, self.position);
         self.preferred_column = None;
     }
 
-    /// Move cursor right by one character
+    /// Move right by one complete grapheme.
     pub fn move_right(&mut self, buffer: &GapBuffer) {
-        if self.position < buffer.len() {
-            let text = buffer.get_range(self.position..buffer.len());
-            if let Some((idx, grapheme)) = text.grapheme_indices(true).next() {
-                self.position += idx + grapheme.len();
-            } else {
-                self.position = buffer.len();
-            }
-        }
+        self.position = positions::next(buffer, self.position);
         self.preferred_column = None;
     }
 
-    /// Move cursor up one line
+    /// Move up, preserving the preferred terminal display column.
     pub fn move_up(&mut self, buffer: &GapBuffer) {
-        let (line, col) = buffer.pos_to_line_col(self.position);
-
-        if line > 0 {
-            let target_line = line - 1;
-            let preferred_col = self.preferred_column.unwrap_or(col);
-
-            // Try to maintain column position
-            let line_start = buffer.line_start(target_line);
-            let line_end = buffer.line_end(target_line);
-            let line_len = line_end - line_start;
-
-            let new_col = preferred_col.min(line_len);
-            self.position = line_start + new_col;
-
-            // Preserve preferred column for consecutive vertical movements
-            if self.preferred_column.is_none() {
-                self.preferred_column = Some(col);
-            }
-        }
+        let line = buffer.pos_to_line_col(self.position).0;
+        self.move_vertical(buffer, line.saturating_sub(1));
     }
 
-    /// Move cursor down one line
+    /// Move down, preserving the preferred terminal display column.
     pub fn move_down(&mut self, buffer: &GapBuffer) {
-        let (line, col) = buffer.pos_to_line_col(self.position);
+        let line = buffer.pos_to_line_col(self.position).0;
+        self.move_vertical(buffer, (line + 1).min(buffer.line_count() - 1));
+    }
 
-        if line < buffer.line_count() - 1 {
-            let target_line = line + 1;
-            let preferred_col = self.preferred_column.unwrap_or(col);
-
-            // Try to maintain column position
-            let line_start = buffer.line_start(target_line);
-            let line_end = buffer.line_end(target_line);
-            let line_len = line_end - line_start;
-
-            let new_col = preferred_col.min(line_len);
-            self.position = line_start + new_col;
-
-            // Preserve preferred column for consecutive vertical movements
-            if self.preferred_column.is_none() {
-                self.preferred_column = Some(col);
-            }
-        }
+    fn move_vertical(&mut self, buffer: &GapBuffer, line: usize) {
+        let column = *self
+            .preferred_column
+            .get_or_insert_with(|| positions::display_column(buffer, self.position));
+        self.position = positions::at_column(buffer, line, column);
     }
 
     /// Move to beginning of line
@@ -114,7 +73,7 @@ impl Cursor {
     /// Move to end of line
     pub fn move_to_line_end(&mut self, buffer: &GapBuffer) {
         let (line, _) = buffer.pos_to_line_col(self.position);
-        self.position = buffer.line_end(line);
+        self.position = positions::floor(buffer, buffer.line_end(line));
         self.preferred_column = None;
     }
 
@@ -130,51 +89,71 @@ impl Cursor {
         self.preferred_column = None;
     }
 
-    /// Move by word forward
+    /// Skip separators, then a word of alphanumeric/underscore graphemes.
     pub fn move_word_forward(&mut self, buffer: &GapBuffer) {
+        self.position = positions::floor(buffer, self.position);
         let text = buffer.get_range(self.position..buffer.len());
         let mut in_word = false;
-        let mut new_pos = self.position;
-
-        for (idx, ch) in text.char_indices() {
-            if ch.is_alphanumeric() || ch == '_' {
-                in_word = true;
-            } else if in_word {
-                new_pos = self.position + idx;
+        for grapheme in text.graphemes(true) {
+            let word = grapheme.chars().any(|ch| ch.is_alphanumeric() || ch == '_');
+            if in_word && !word {
                 break;
             }
+            in_word |= word;
+            self.position += grapheme.chars().count();
         }
-
-        // If we didn't find a word boundary, move to end
-        if new_pos == self.position && !text.is_empty() {
-            new_pos = buffer.len();
-        }
-
-        self.position = new_pos;
         self.preferred_column = None;
     }
 
-    /// Move by word backward
+    /// Skip separators backward, then move to the beginning of a word.
     pub fn move_word_backward(&mut self, buffer: &GapBuffer) {
-        if self.position == 0 {
-            return;
-        }
-
+        self.position = positions::floor(buffer, self.position);
         let text = buffer.get_range(0..self.position);
         let mut in_word = false;
-        let mut new_pos = 0;
-
-        for (idx, ch) in text.char_indices().rev() {
-            if ch.is_alphanumeric() || ch == '_' {
-                in_word = true;
-            } else if in_word {
-                new_pos = idx + 1;
+        for grapheme in text.graphemes(true).rev() {
+            let word = grapheme.chars().any(|ch| ch.is_alphanumeric() || ch == '_');
+            if in_word && !word {
                 break;
             }
+            in_word |= word;
+            self.position -= grapheme.chars().count();
         }
-
-        self.position = new_pos;
         self.preferred_column = None;
+    }
+
+    /// Replace the selection or insert at a complete grapheme boundary.
+    pub(super) fn insert(&mut self, buffer: &mut GapBuffer, text: &str) {
+        self.delete_selection(buffer);
+        self.position = positions::floor(buffer, self.position);
+        buffer.insert_str(self.position, text);
+        self.position = positions::ceil(buffer, self.position + text.chars().count());
+        self.preferred_column = None;
+    }
+
+    pub(super) fn delete(&mut self, buffer: &mut GapBuffer, backward: bool) {
+        if !self.delete_selection(buffer) {
+            let position = positions::floor(buffer, self.position);
+            let (start, end) = if backward {
+                (positions::previous(buffer, position), position)
+            } else {
+                (position, positions::next(buffer, position))
+            };
+            buffer.delete_range(start..end);
+            self.position = positions::floor(buffer, start);
+        }
+        self.preferred_column = None;
+    }
+
+    fn delete_selection(&mut self, buffer: &mut GapBuffer) -> bool {
+        let Some((start, end)) = self.selection_range() else {
+            return false;
+        };
+        let start = positions::floor(buffer, start);
+        let end = positions::ceil(buffer, end);
+        buffer.delete_range(start..end);
+        self.position = positions::floor(buffer, start);
+        self.clear_selection();
+        true
     }
 
     /// Start selection at current position

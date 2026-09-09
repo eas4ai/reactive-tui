@@ -305,6 +305,7 @@ impl<'a> SurfaceSubview<'a> {
             for x in left..right {
                 if x < self.surface.w && y < self.surface.h {
                     let idx = self.surface.idx(x, y);
+                    self.surface.clear_grapheme_at(idx);
                     self.surface.buf[idx].ch = ' ';
                 }
             }
@@ -798,6 +799,8 @@ pub struct Surface {
     buf: Vec<Cell>,
     /// Image registry for managing cell-referenced images
     image_registry: ImageRegistry,
+    /// Complete multi-scalar or wide graphemes, keyed by their leading cell.
+    graphemes: std::collections::BTreeMap<usize, (String, usize)>,
 }
 
 impl Surface {
@@ -815,6 +818,7 @@ impl Surface {
             h,
             buf: vec![Cell::default(); w * h],
             image_registry: ImageRegistry::new(),
+            graphemes: Default::default(),
         }
     }
 
@@ -865,6 +869,7 @@ impl Surface {
     }
     /// Reinitialize the surface to the given dimensions, reusing allocation when possible.
     pub fn reinit(&mut self, w: usize, h: usize) {
+        self.graphemes.clear();
         self.w = w;
         self.h = h;
         let needed = w * h;
@@ -880,6 +885,7 @@ impl Surface {
     /// # Arguments
     /// * `bg` - Background color to fill the surface with
     pub fn clear(&mut self, bg: Rgba) {
+        self.graphemes.clear();
         for c in &mut self.buf {
             *c = Cell {
                 ch: ' ',
@@ -900,6 +906,7 @@ impl Surface {
     pub fn set(&mut self, x: usize, y: usize, cell: Cell) {
         if x < self.w && y < self.h {
             let i = self.idx(x, y);
+            self.clear_grapheme_at(i);
             self.buf[i] = cell;
         }
     }
@@ -909,6 +916,91 @@ impl Surface {
             return Cell::default();
         }
         self.buf[self.idx(x, y)]
+    }
+
+    /// Store one complete printable grapheme without changing the legacy Cell layout.
+    /// Returns false for multiple graphemes, control text, zero width or clipping.
+    /// `get` retains the first scalar; `grapheme` and DiffWriter retain full text.
+    pub fn set_grapheme(&mut self, x: usize, y: usize, text: &str, mut cell: Cell) -> bool {
+        use unicode_segmentation::UnicodeSegmentation;
+        use unicode_width::UnicodeWidthStr;
+        let width = text.width();
+        if y >= self.h
+            || width == 0
+            || x >= self.w
+            || width > self.w - x
+            || text.graphemes(true).count() != 1
+            || text.chars().any(char::is_control)
+        {
+            return false;
+        }
+        let start = self.idx(x, y);
+        for index in start..start + width {
+            self.clear_grapheme_at(index);
+        }
+        cell.ch = text.chars().next().expect("nonempty grapheme");
+        self.buf[start] = cell;
+        for index in start + 1..start + width {
+            self.buf[index] = Cell { ch: ' ', ..cell };
+        }
+        if width > 1 || text.chars().count() > 1 {
+            self.graphemes.insert(start, (text.to_owned(), width));
+        }
+        true
+    }
+
+    /// Complete text for a leading cell, empty text for a continuation cell.
+    pub fn grapheme(&self, x: usize, y: usize) -> std::borrow::Cow<'_, str> {
+        if x >= self.w || y >= self.h {
+            return std::borrow::Cow::Borrowed("");
+        }
+        let index = self.idx(x, y);
+        if let Some((text, _)) = self.graphemes.get(&index) {
+            std::borrow::Cow::Borrowed(text)
+        } else if self.grapheme_continuation(index) {
+            std::borrow::Cow::Borrowed("")
+        } else {
+            std::borrow::Cow::Owned(self.buf[index].ch.to_string())
+        }
+    }
+
+    fn grapheme_continuation(&self, index: usize) -> bool {
+        self.graphemes
+            .range(..index)
+            .next_back()
+            .is_some_and(|(&start, (_, width))| index < start + width)
+    }
+
+    fn cell_text_matches(&self, other: &Self, index: usize) -> bool {
+        self.graphemes.get(&index) == other.graphemes.get(&index)
+            && !self.grapheme_continuation(index)
+    }
+
+    fn append_cell_text(&self, index: usize, output: &mut String) {
+        if let Some((text, _)) = self.graphemes.get(&index) {
+            output.push_str(text);
+        } else {
+            let ch = self.buf[index].ch;
+            output.push(ch);
+            if unicode_width::UnicodeWidthChar::width(ch).unwrap_or(1) == 2 {
+                output.push(' ');
+            }
+        }
+    }
+
+    fn clear_grapheme_at(&mut self, index: usize) {
+        let covered = self
+            .graphemes
+            .range(..=index)
+            .next_back()
+            .filter(|(start, (_, width))| index < **start + width)
+            .map(|(&start, (_, width))| (start, *width));
+        if let Some((start, width)) = covered {
+            self.graphemes.remove(&start);
+            for cell in &mut self.buf[start..start + width] {
+                cell.ch = ' ';
+            }
+        }
     }
 
     /// Write a string at the specified position with styling
@@ -1789,7 +1881,10 @@ impl Surface {
     /// - The buffer is not modified while other operations are in progress
     /// - The buffer size matches width * height
     /// - No out-of-bounds access occurs
+    ///
+    /// Obtaining mutable cell access discards complete-grapheme metadata.
     pub unsafe fn raw_buffer_ptr(&mut self) -> *mut Cell {
+        self.graphemes.clear();
         self.buf.as_mut_ptr()
     }
 
@@ -1807,7 +1902,9 @@ impl Surface {
     ///
     /// # Safety
     /// The caller must ensure no concurrent access occurs
+    /// Obtaining mutable cell access discards complete-grapheme metadata.
     pub unsafe fn cells_mut(&mut self) -> &mut [Cell] {
+        self.graphemes.clear();
         &mut self.buf
     }
 
@@ -1871,6 +1968,7 @@ impl Surface {
     pub fn clone_into_new(&self) -> Surface {
         let mut s = Surface::new(self.w, self.h);
         s.buf.copy_from_slice(&self.buf);
+        s.graphemes.clone_from(&self.graphemes);
         // Clone the image registry
         s.image_registry = ImageRegistry {
             images: self.image_registry.images.clone(),
@@ -1883,6 +1981,7 @@ impl Surface {
     pub fn copy_from(&mut self, other: &Surface) {
         assert_eq!(self.dims(), other.dims());
         self.buf.copy_from_slice(&other.buf);
+        self.graphemes.clone_from(&other.graphemes);
         // Copy the image registry
         self.image_registry = ImageRegistry {
             images: other.image_registry.images.clone(),
@@ -2052,6 +2151,10 @@ impl DiffWriter {
             let mut run_start_col: Option<usize> = None;
             let mut wrote_row = false;
             for x in 0..w {
+                let index = next.idx(x, y);
+                if next.grapheme_continuation(index) {
+                    continue;
+                }
                 let a = cur.get(x, y);
                 let b = next.get(x, y);
 
@@ -2071,6 +2174,7 @@ impl DiffWriter {
                     false
                 };
 
+                let cells_equal = cells_equal && cur.cell_text_matches(next, index);
                 if cells_equal {
                     if let Some(start) = run_start_col {
                         self.push(&format!("\x1b[{y1};{x1}H", y1 = y + 1, x1 = start + 1));
@@ -2153,10 +2257,7 @@ impl DiffWriter {
                 }
 
                 // Add character to current run
-                run_buf.push(b.ch);
-                if unicode_width::UnicodeWidthChar::width(b.ch).unwrap_or(1) == 2 {
-                    run_buf.push(' ');
-                }
+                next.append_cell_text(index, &mut run_buf);
             }
 
             // Flush any remaining run at end of line

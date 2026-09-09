@@ -10,5 +10,6 @@ inputs:
   - tests/api_editor_unicode.rs
   - scripts/check-api-editor-unicode.py
   - docs/spec/rust-api-remediation.md
+  - docs/editor-positions.md
 requirements:
   - API-007

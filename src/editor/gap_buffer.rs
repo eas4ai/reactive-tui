@@ -13,7 +13,7 @@ use std::ops::Range;
 pub struct TextPosition {
     /// Line number (0-based)
     pub line: usize,
-    /// Column number (0-based)
+    /// Unicode scalar column (0-based), not a terminal display column.
     pub column: usize,
 }
 
@@ -81,7 +81,7 @@ impl GapBuffer {
         }
     }
 
-    /// Get the total length of text (excluding gap)
+    /// Get the number of Unicode scalars (excluding the gap).
     pub fn len(&self) -> usize {
         self.buffer.len() - self.gap_size()
     }
@@ -204,79 +204,39 @@ impl GapBuffer {
         }
     }
 
-    /// Insert a character at the specified position
+    /// Insert a Unicode scalar at a scalar offset, clamped to the buffer end.
     pub fn insert_char(&mut self, pos: usize, ch: char) {
-        self.move_gap_to(pos);
-        self.ensure_gap_capacity(1);
-
-        self.buffer[self.gap_start] = ch;
-        self.gap_start += 1;
-
-        // Update line breaks if needed
-        if ch == '\n' {
-            let insert_pos = self.line_breaks.binary_search(&pos).unwrap_or_else(|i| i);
-            self.line_breaks.insert(insert_pos, pos);
-            // Update subsequent line breaks
-            for lb in &mut self.line_breaks[insert_pos + 1..] {
-                *lb += 1;
-            }
-        }
+        self.insert_str(pos, ch.encode_utf8(&mut [0; 4]));
     }
 
-    /// Insert a string at the specified position
+    /// Insert text at a scalar offset, clamped to the buffer end.
     pub fn insert_str(&mut self, pos: usize, s: &str) {
+        let pos = pos.min(self.len());
         let chars: Vec<char> = s.chars().collect();
         let len = chars.len();
-
-        self.move_gap_to(pos);
         self.ensure_gap_capacity(len);
-
-        for (i, &ch) in chars.iter().enumerate() {
-            self.buffer[self.gap_start + i] = ch;
-
-            if ch == '\n' {
-                let line_pos = pos + i;
-                let insert_pos = self
-                    .line_breaks
-                    .binary_search(&line_pos)
-                    .unwrap_or_else(|i| i);
-                self.line_breaks.insert(insert_pos, line_pos);
-            }
-        }
-
+        assert!(self.gap_size() >= len, "gap buffer capacity limit exceeded");
+        self.move_gap_to(pos);
+        self.buffer[self.gap_start..self.gap_start + len].copy_from_slice(&chars);
         self.gap_start += len;
 
-        // Update subsequent line breaks
-        for lb in &mut self.line_breaks {
-            if *lb > pos {
-                *lb += len;
-            }
+        let first = self.line_breaks.partition_point(|&lb| lb < pos);
+        for lb in &mut self.line_breaks[first..] {
+            *lb += len;
         }
+        self.line_breaks.splice(
+            first..first,
+            chars
+                .iter()
+                .enumerate()
+                .filter_map(|(i, &ch)| (ch == '\n').then_some(pos + i)),
+        );
     }
 
-    /// Delete a character at the specified position
+    /// Delete one Unicode scalar at the specified scalar offset.
     pub fn delete_char(&mut self, pos: usize) -> Option<char> {
-        if pos >= self.len() {
-            return None;
-        }
-
-        self.move_gap_to(pos);
-
-        let ch = self.buffer[self.gap_end];
-        self.gap_end += 1;
-
-        // Update line breaks
-        if ch == '\n' {
-            if let Ok(idx) = self.line_breaks.binary_search(&pos) {
-                self.line_breaks.remove(idx);
-            }
-            for lb in &mut self.line_breaks {
-                if *lb > pos {
-                    *lb -= 1;
-                }
-            }
-        }
-
+        let ch = self.get_char(pos)?;
+        self.delete_range(pos..pos + 1);
         Some(ch)
     }
 
@@ -292,15 +252,6 @@ impl GapBuffer {
         self.move_gap_to(start);
 
         let delete_count = end - start;
-
-        // Check for deleted line breaks
-        let mut deleted_breaks = Vec::new();
-        for i in start..end {
-            let physical_pos = self.logical_to_physical(i);
-            if physical_pos < self.buffer.len() && self.buffer[physical_pos] == '\n' {
-                deleted_breaks.push(i);
-            }
-        }
 
         // Expand gap to delete
         self.gap_end += delete_count;
@@ -329,7 +280,7 @@ impl GapBuffer {
         let start = range.start.min(self.len());
         let end = range.end.min(self.len());
 
-        let mut result = String::with_capacity(end - start);
+        let mut result = String::with_capacity(end.saturating_sub(start));
 
         for i in start..end {
             if let Some(ch) = self.get_char(i) {
@@ -374,6 +325,7 @@ impl GapBuffer {
 
     /// Get line and column from a position
     pub fn pos_to_line_col(&self, pos: usize) -> (usize, usize) {
+        let pos = pos.min(self.len());
         let line = self.line_breaks.binary_search(&pos).unwrap_or_else(|i| i);
         let line_start = self.line_start(line);
         (line, pos - line_start)
@@ -389,7 +341,7 @@ impl GapBuffer {
     pub fn line_col_to_pos(&self, line: usize, col: usize) -> usize {
         let line_start = self.line_start(line);
         let line_end = self.line_end(line);
-        (line_start + col).min(line_end)
+        line_start.saturating_add(col).min(line_end)
     }
 }
 
