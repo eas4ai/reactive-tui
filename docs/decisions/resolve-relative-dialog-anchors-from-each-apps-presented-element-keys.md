@@ -12,6 +12,8 @@ Keep an App-owned snapshot of presented keyed element bounds and provide it thro
 
 ## Realized by
 
+- b2079c401464b25ccb33747e33b5b3373f284a90 Restore widget behavior, native terminal sessions, and image output through App
+
 Implementation: `src/component/anchors.rs`, `src/widgets/dialog/frame.rs`.
 
 Behavior checks: `tests/api_widget_behavior/dialog_position.rs`.
