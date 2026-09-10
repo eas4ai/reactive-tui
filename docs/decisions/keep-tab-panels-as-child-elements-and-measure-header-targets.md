@@ -12,6 +12,8 @@ Render tab headers, close controls and panels as real layout children. Measure e
 
 ## Realized by
 
+- b2079c401464b25ccb33747e33b5b3373f284a90 Restore widget behavior, native terminal sessions, and image output through App
+
 Implementation: `src/widgets/layout/tabs.rs`, `src/builder/widgets/layout.rs`.
 
 Behavior checks: `tests/api_widget_behavior/tabs.rs`, `tests/api_widget_behavior/orca_tabs.py`.
