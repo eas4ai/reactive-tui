@@ -12,6 +12,8 @@ Render Stack as a flex container with its original child Elements. Map direction
 
 ## Realized by
 
+- b2079c401464b25ccb33747e33b5b3373f284a90 Restore widget behavior, native terminal sessions, and image output through App
+
 Implementation: `src/widgets/layout/stack.rs`.
 
 Behavior checks: `tests/api_widget_behavior/stack.rs`.
