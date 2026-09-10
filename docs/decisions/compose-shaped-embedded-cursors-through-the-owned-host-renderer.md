@@ -12,6 +12,8 @@ Keep solid block cursors in cell composition. Carry a private cursor request wit
 
 ## Realized by
 
+- b2079c401464b25ccb33747e33b5b3373f284a90 Restore widget behavior, native terminal sessions, and image output through App
+
 Implementation: `src/layout/paint_tree/suprtui/cursor.rs`, `src/backend/suprtui/cursor_tests.rs`.
 
 Behavior checks: `tests/api_widget_behavior/terminal.rs`.
