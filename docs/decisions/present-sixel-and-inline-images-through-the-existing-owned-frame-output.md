@@ -12,6 +12,8 @@ Keep the SuprTUI worker and common image planes. Select Kitty, Sixel or inline o
 
 ## Realized by
 
+- b2079c401464b25ccb33747e33b5b3373f284a90 Restore widget behavior, native terminal sessions, and image output through App
+
 `src/backend/suprtui/graphics.rs` selects shared Kitty, Sixel and inline
 encoders and composites preceding pixels into legacy placements. Sixel uses
 saved/restored DECSDM and bounded origin padding to avoid Xterm scrolling at
