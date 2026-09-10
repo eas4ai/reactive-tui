@@ -12,6 +12,8 @@ MenuAction exposes a public Arc<dyn Fn()> field, while MenuItem::checkbox accept
 
 ## Realized by
 
+- b2079c401464b25ccb33747e33b5b3373f284a90 Restore widget behavior, native terminal sessions, and image output through App
+
 Implementation: `src/widgets/menu/invocation.rs`, `src/widgets/menu/item.rs`.
 
 Behavior checks: `tests/api_widget_behavior/menus.rs`.
