@@ -12,7 +12,7 @@ Decode GIF frames with the existing image library disposal handling and read rep
 
 ## Realized by
 
-b2079c401464b25ccb33747e33b5b3373f284a90 Restore widget behavior, native terminal sessions, and image output through App
+- b2079c401464b25ccb33747e33b5b3373f284a90 Restore widget behavior, native terminal sessions, and image output through App
 
 `live/animation.rs` uses the shared source reader, image GIF disposal handling,
 and the already locked gif 0.13.3 decoder for frame count and repetition metadata.
