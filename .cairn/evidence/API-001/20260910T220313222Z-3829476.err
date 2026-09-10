@@ -1,0 +1,23 @@
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+error: linking with `cc` failed: signal: 6 (SIGABRT) (core dumped)
+  |
+  = note:  "cc" "-m64" "/home/shawn/workspace2/reactive-tui/target/debug/build/reactive-tui-88f7541e95fc6d22/rustcgwp4g3/symbols.o" "<15 object files omitted>" "-Wl,--as-needed" "-Wl,-Bstatic" "<sysroot>/lib/rustlib/x86_64-unknown-linux-gnu/lib/{libstd-*,libpanic_unwind-*,libobject-*,libmemchr-*,libaddr2line-*,libgimli-*,libcfg_if-*,librustc_demangle-*,libstd_detect-*,libhashbrown-*,librustc_std_workspace_alloc-*,libminiz_oxide-*,libadler2-*,libunwind-*,liblibc-*,librustc_std_workspace_core-*,liballoc-*,libcore-*,libcompiler_builtins-*}.rlib" "-Wl,-Bdynamic" "-lgcc_s" "-lutil" "-lrt" "-lpthread" "-lm" "-ldl" "-lc" "-L" "/home/shawn/workspace2/reactive-tui/target/debug/build/reactive-tui-88f7541e95fc6d22/rustcgwp4g3/raw-dylibs" "-B<sysroot>/lib/rustlib/x86_64-unknown-linux-gnu/bin/gcc-ld" "-fuse-ld=lld" "-Wl,--eh-frame-hdr" "-Wl,-z,noexecstack" "-L" "<sysroot>/lib/rustlib/x86_64-unknown-linux-gnu/lib" "-o" "/home/shawn/workspace2/reactive-tui/target/debug/build/reactive-tui-88f7541e95fc6d22/build_script_build-88f7541e95fc6d22" "-Wl,--gc-sections" "-pie" "-Wl,-z,relro,-z,now" "-nodefaultlibs" "-Wl,--threads=8"
+  = note: some arguments are omitted. use `--verbose` to show all linker arguments
+  = note: Cannot create temporary file in /tmp/: No space left on device
+          
+
+error: could not compile `reactive-tui` (build script) due to 1 previous error
+Traceback (most recent call last):
+  File "/home/shawn/workspace2/reactive-tui/scripts/check-api-signal-ownership.py", line 47, in <module>
+    main()
+    ~~~~^^
+  File "/home/shawn/workspace2/reactive-tui/scripts/check-api-signal-ownership.py", line 31, in main
+    run(["cargo", "test", "--locked", "--features", "ffi", "--test", "api_signal_ownership"])
+    ~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/shawn/workspace2/reactive-tui/scripts/check-api-signal-ownership.py", line 18, in run
+    subprocess.run(command, cwd=ROOT, check=True, timeout=900, **kwargs)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/linuxbrew/.linuxbrew/Cellar/python@3.14/3.14.7/lib/python3.14/subprocess.py", line 578, in run
+    raise CalledProcessError(retcode, process.args,
+                             output=stdout, stderr=stderr)
+subprocess.CalledProcessError: Command '['cargo', 'test', '--locked', '--features', 'ffi', '--test', 'api_signal_ownership']' returned non-zero exit status 101.
