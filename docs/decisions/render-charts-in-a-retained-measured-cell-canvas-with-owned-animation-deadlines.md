@@ -12,6 +12,8 @@ Preserve Chart, ChartProps, ChartState and both builder routes. Use a retained A
 
 ## Realized by
 
+- b2079c401464b25ccb33747e33b5b3373f284a90 Restore widget behavior, native terminal sessions, and image output through App
+
 Implementation: `src/widgets/display/charts`.
 
 Behavior checks: `tests/api_widget_behavior/charts.rs`, `tests/api_widget_behavior/orca_display.py`.
