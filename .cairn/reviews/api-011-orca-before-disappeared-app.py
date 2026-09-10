@@ -208,43 +208,24 @@ def inside(args):
             if child:
                 yield from descendants(child, depth + 1)
 
-    def application_disappeared(error):
-        return (error.domain == "atspi_error" and error.code == 0
-                and error.message == "The application no longer exists")
-
     def applications():
         desktop = Atspi.get_desktop(0)
         desktop.clear_cache()
         for index in range(desktop.get_child_count()):
-            try:
-                app = desktop.get_child_at_index(index)
-                if app and app.get_name() == "accessibility_probe":
-                    yield app
-            except GLib.Error as error:
-                if not application_disappeared(error):
-                    raise
+            app = desktop.get_child_at_index(index)
+            if app and app.get_name() == "accessibility_probe":
+                yield app
 
     def application():
         return next(applications(), None)
 
-    def find_window(name):
-        for app in applications():
-            try:
-                for node in descendants(app):
-                    if node.get_name() == name:
-                        return node
-            except GLib.Error as error:
-                # App removal can race this remote traversal. The caller's
-                # existing deadline still requires its replacement to appear.
-                if not application_disappeared(error):
-                    raise
-        return None
-
     def window(round_number):
-        return find_window(f"Reactive TUI App accessibility round {round_number}")
+        return next((node for app in applications() for node in descendants(app)
+                     if node.get_name() == f"Reactive TUI App accessibility round {round_number}"), None)
 
     def background_window():
-        return find_window("Independent background App")
+        return next((node for app in applications() for node in descendants(app)
+                     if node.get_name() == "Independent background App"), None)
 
     def named(root, label, role=None):
         return next((node for node in descendants(root) if node.get_name() == label

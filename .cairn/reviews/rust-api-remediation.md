@@ -3066,3 +3066,31 @@ fixture change requires another committed native run, now being started from
 bd3ba95. The widget matrix now records reviewed coverage for its last image and
 terminal rows. Dedicated lifecycle, image, entry-point and remaining requirements
 are still required by the commitment; no overall readiness claim is made.
+
+
+### API-011 acceptance refresh: stable Python inputs and departed App discovery
+
+The first committed widget run passed all 399 App workflows and all Orca
+catalogs, but imported Python helpers created bytecode inside declared inputs.
+Cairn correctly withheld a receipt. The mechanism now sets
+PYTHONDONTWRITEBYTECODE for its children; the next run kept the candidate stable.
+That run recorded a failure while discovering the replacement App after the
+display workflow at 100x32. AT-SPI reported that the old application had already
+exited during child enumeration. The captured session is
+`api-011-orca-disappeared-app-session.log`.
+
+Discovery now skips only the exact atspi_error code 0 message indicating that
+the application no longer exists. It checks remaining applications and retains
+the existing five-second replacement deadline. Other errors still propagate.
+The retained baseline and fixture demonstrate the original failure at both name
+and child-count reads, successful discovery of the replacement, and propagation
+of three unrelated errors. The real 100x32 display workflow passes with reader
+speech, child input/output and adapter removal. Its corrected session, Orca and
+callback logs are retained beside this review. Full committed acceptance and
+refreshed native receipts remain required because the reader helper is inside
+the native recorders' declared tests directory.
+
+Dependency inspection also found that the ConPTY negative-build source copy
+includes `benches`, whose presence is required by the Cargo manifest, but the
+native recorder and widget mechanism do not declare it. Add that dependency
+before the next native run; do not edit an old receipt to treat it as covered.
