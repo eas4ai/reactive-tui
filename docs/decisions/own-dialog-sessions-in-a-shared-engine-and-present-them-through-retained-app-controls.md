@@ -12,4 +12,4 @@ Replace the private construction-only engine store with shared owned dialog sess
 
 ## Realized by
 
-a1e2a83adb242190aa04c472521cf8dff5240e4f — Implement owned dialog sessions and App lifecycle results
+- a1e2a83adb242190aa04c472521cf8dff5240e4f Implement owned dialog sessions and App lifecycle results
