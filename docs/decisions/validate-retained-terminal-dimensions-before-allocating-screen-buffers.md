@@ -12,6 +12,8 @@ Use the same nonzero and 262144-cell limit for construction and resize. Add fall
 
 ## Realized by
 
+- b2079c401464b25ccb33747e33b5b3373f284a90 Restore widget behavior, native terminal sessions, and image output through App
+
 Implementation: `src/widgets/terminal.rs`, `src/terminal/terminal_impl.rs`, `src/terminal/screen.rs`, `src/terminal/owned_pty.rs`.
 
 Behavior checks: `tests/api_widget_behavior/terminal.rs`.
