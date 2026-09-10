@@ -14,4 +14,8 @@ Reflow retained history and the main grid together, preserving all bounded histo
 
 ## Realized by
 
-(none yet: recorded, not built)
+- b2079c401464b25ccb33747e33b5b3373f284a90 Restore widget behavior, native terminal sessions, and image output through App
+
+`VirtualScreen::reflow_main` maps the old visible origin along with the active
+and saved cursor. A row containing a historical prefix remains above the new
+viewport; the active cursor remains visible and scrollback stays bounded.
