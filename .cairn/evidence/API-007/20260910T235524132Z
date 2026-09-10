@@ -1,0 +1,21 @@
+requirement: API-007
+requirement_digest: sha256:7b4b9d35956b130238c2f4a2da4da40b78a48bbe98c309a0ec4b9fbe4073e8bd
+sequence: 9
+history_digest: sha256:d9ad790c0ecd9bd911c278aebb1c82f2df3a8ae27bb16fbfa0d922cf92593bb1
+mechanism: api-editor-unicode.md
+commit: 08249ff
+inputs_digest: sha256:1bc15299ec2fc8dc132c11863a4ba058aca014fbd3796d39cca58f04ff9bfba5
+mechanism_digest: sha256:708590ee313c765e818023eb641ed35399d29a597dc63a143913ce6d1e4fd091
+inputs_detail: .cairn/evidence/API-007/20260910T235522333Z-1460866.inputs.json
+command: python3 -B scripts/check-api-editor-unicode.py
+cwd: .
+exit: 0
+output_digest: sha256:dbf94b9f2683d8a2a3529e9923b117531a377c00ee33e34ad712e1de0fd1a570
+output: .cairn/evidence/API-007/20260910T235522333Z-1460866.out
+stderr_output: .cairn/evidence/API-007/20260910T235522333Z-1460866.err
+stderr_digest: sha256:7a2577f8d186260d1b837eda502770042874612ef727201bd71fab5e45867574
+signal: none
+execution_error: null
+result: pass
+source: exit
+recorded: 2026-09-10T23:55:24.132Z
