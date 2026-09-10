@@ -3122,3 +3122,20 @@ stall. The previous same-input Windows clipboard record passed; neither it nor
 this failed run establishes the cause. The failed Windows job is being retried
 once on the unchanged snapshot to check recurrence. No timeout was extended,
 no application code changed, and the failed output remains evidence.
+
+### Windows clipboard retry, 2026-09-10
+
+GitHub run 34537629660 attempt 2 completed successfully on the unchanged
+`eb453944cc27341d6b99c71f790708127bfd1711` snapshot. Its clipboard probe
+completed five native round trips in 7.85 seconds; both process lifecycle
+cases and the Windows console adapter check passed. I verified the current
+committed input digest and both captured output hashes before importing the
+three Windows clipboard evidence files. ConPTY and widget steps also passed;
+their already-valid first-attempt records remain in place.
+
+The first attempt timed out on its first 13-byte copy at the existing
+15-second deadline. Its diagnostics remain in
+`api-011-windows-34537629660-clipboard-platform-failure.log`. The cause is
+unconfirmed. The unchanged retry demonstrates a passing run, not a runtime
+fix or proof that the intermittent timeout cannot recur. No deadline was
+extended for this retry.
