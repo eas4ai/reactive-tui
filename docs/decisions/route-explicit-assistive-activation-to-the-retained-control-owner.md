@@ -12,6 +12,8 @@ Add an optional private click event alongside the existing accessibility focus e
 
 ## Realized by
 
+- b2079c401464b25ccb33747e33b5b3373f284a90 Restore widget behavior, native terminal sessions, and image output through App
+
 Implementation: `src/accessibility/connection.rs`, `src/app/event_tree/accessibility.rs`.
 
 Behavior checks: `tests/api_widget_behavior/orca.py`, `tests/api_widget_behavior/orca_menus.py`.
