@@ -12,6 +12,8 @@ Give each private Unix adapter its own application context, bounded outgoing que
 
 ## Realized by
 
+- b2079c401464b25ccb33747e33b5b3373f284a90 Restore widget behavior, native terminal sessions, and image output through App
+
 Implementation: `src/accessibility/connection.rs`, `src/accessibility/platform/unix/transport.rs`.
 
 Behavior checks: `src/accessibility/platform/unix/transport/tests.rs`, `tests/api_widget_behavior/transport_failures.py`.
