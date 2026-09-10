@@ -12,8 +12,11 @@ Decode file, base64, encoded-memory and raw RGB/RGBA sources into one checked RG
 
 ## Realized by
 
+- b2079c401464b25ccb33747e33b5b3373f284a90 Restore widget behavior, native terminal sessions, and image output through App
+
 The widget image family now shares checked RGBA decoding for file, base64,
 encoded-memory, data-URL and raw pixel sources. Native tests compare known pixels
 and reject invalid data and extents. External renderers retain caller files and
-own temporary PNG files for memory sources. The parallel platform image API still
-needs this integration. See docs/widget-acceptance.md for evidence and limits.
+own temporary PNG files for memory sources. The parallel platform image API now
+shares this decoder through the later platform-image decision. See
+docs/widget-acceptance.md for evidence and limits.
