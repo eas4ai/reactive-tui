@@ -12,4 +12,8 @@ Before Terminal changes the child and screen dimensions, consume a bounded batch
 
 ## Realized by
 
-(none yet: recorded, not built)
+- b2079c401464b25ccb33747e33b5b3373f284a90 Restore widget behavior, native terminal sessions, and image output through App
+
+`Terminal::resize` reads queued output before changing geometry and retains its
+events for polling. The retained raw output is bounded at 64 KiB; callers receive
+a backpressure error when they must poll before another resize.
