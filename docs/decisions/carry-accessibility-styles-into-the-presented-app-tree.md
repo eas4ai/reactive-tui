@@ -12,6 +12,8 @@ Retain accessibility attributes in StyleBuilder snapshots and apply them to the 
 
 ## Realized by
 
+- b2079c401464b25ccb33747e33b5b3373f284a90 Restore widget behavior, native terminal sessions, and image output through App
+
 Implementation: `src/accessibility/style.rs`, `src/app/event_tree/accessibility.rs`.
 
 Behavior checks: `tests/api_widget_behavior/accessibility_styles.rs`, `tests/api_widget_behavior/orca.py`.
