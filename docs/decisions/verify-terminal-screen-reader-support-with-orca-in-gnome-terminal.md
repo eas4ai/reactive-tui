@@ -12,6 +12,8 @@ The developer approved escalation api-011-api-018 on 2026-09-09. Replace the bla
 
 ## Realized by
 
+- b2079c401464b25ccb33747e33b5b3373f284a90 Restore widget behavior, native terminal sessions, and image output through App
+
 Implementation: `src/accessibility`, `tests/api_widget_behavior/accessibility_probe.rs`.
 
 Behavior checks: `tests/api_widget_behavior/orca.py`, `tests/api_widget_behavior/orca_data.py`, `tests/api_widget_behavior/orca_tabs.py`, `tests/api_widget_behavior/orca_menus.py`, `tests/api_widget_behavior/orca_overlays.py`, `tests/api_widget_behavior/orca_dialogs.py`, `tests/api_widget_behavior/orca_display.py`.
