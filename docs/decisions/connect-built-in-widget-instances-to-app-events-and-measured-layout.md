@@ -12,6 +12,8 @@ Keep the existing Component implementations and the App-owned keyed instance tre
 
 ## Realized by
 
+- b2079c401464b25ccb33747e33b5b3373f284a90 Restore widget behavior, native terminal sessions, and image output through App
+
 Implementation: `src/component/builtin.rs`, `src/component/runtime.rs`, `src/component/layout_info.rs`, `src/app/event_tree.rs`.
 
 Behavior checks: `tests/api_widget_behavior.rs`.
