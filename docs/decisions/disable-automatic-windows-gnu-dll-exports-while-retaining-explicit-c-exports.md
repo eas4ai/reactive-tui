@@ -12,6 +12,8 @@ The native Windows default build fails with export ordinal too large: 134953. Wi
 
 ## Realized by
 
+- b2079c401464b25ccb33747e33b5b3373f284a90 Restore widget behavior, native terminal sessions, and image output through App
+
 Implementation: `build.rs`.
 
 Behavior checks: `scripts/check-widget-platforms.py`, `docs/binding-abi-baseline.json`.
