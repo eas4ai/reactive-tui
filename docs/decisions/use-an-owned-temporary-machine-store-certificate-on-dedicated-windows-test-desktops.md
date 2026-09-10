@@ -12,6 +12,8 @@ Import the freshly generated HTTPS fixture certificate into the dedicated Window
 
 ## Realized by
 
+- b2079c401464b25ccb33747e33b5b3373f284a90 Restore widget behavior, native terminal sessions, and image output through App
+
 Implementation: `scripts/check-dialog-http.py`, `scripts/check-widget-platforms.py`.
 
 Behavior checks: `.cairn/reviews/api-011-windows-34505587248-https.out`.
