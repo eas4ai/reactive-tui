@@ -12,6 +12,8 @@ Make dialog construction routes produce retained App components with their autho
 
 ## Realized by
 
+- b2079c401464b25ccb33747e33b5b3373f284a90 Restore widget behavior, native terminal sessions, and image output through App
+
 Implementation: `src/widgets/dialog`, `src/widgets/display/modal`.
 
 Behavior checks: `tests/api_widget_behavior/dialogs.rs`, `tests/api_widget_behavior/confirmation.rs`, `tests/api_widget_behavior/input.rs`, `tests/api_widget_behavior/autocomplete.rs`, `tests/api_widget_behavior/wizard.rs`.
