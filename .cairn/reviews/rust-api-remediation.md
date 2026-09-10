@@ -3139,3 +3139,60 @@ The first attempt timed out on its first 13-byte copy at the existing
 unconfirmed. The unchanged retry demonstrates a passing run, not a runtime
 fix or proof that the intermittent timeout cannot recur. No deadline was
 extended for this retry.
+
+
+## API-012 engine implementation and failure demonstrations
+
+The construction-only engine now owns shared sessions and presents all six
+dialog families through retained App controls. I examined the close path,
+mailbox reservation, callback ownership, host release, input revision, modal
+presentation and remote-work activity checks. Open reserves a Closed event
+slot; close removes the active entry before waking consumers or invoking
+callbacks. Host removal cancels sessions even when a controller survives.
+The exit presentation has its own cancelled deadline and cannot accept input.
+Callbacks stored by the same engine can use a weak controller to avoid cycles.
+
+The original DialogBuffer ignored z-index: its acceptance assertion returned
+[2, 1, 3] where [1, 3, 2] was required. The retained diagnostic is
+`api-012-dialog-buffer-before.out`. The corrected implementation sorts by
+priority and replaces duplicate IDs; its test passes in
+`api-012-corrected.out`.
+
+Two controlled mutations tested the actual falsifiers. Removing the input
+revision comparison left the edited `seedX` visible after resetting to `seed`;
+the frame-driven test failed at its deadline. Replacing the close-event result
+with Cancelled failed the assertion for Selected("archive"). The logs are
+`api-012-input-reset-mutation.out` and `api-012-discarded-result-mutation.out`.
+Both mutations were restored in a finally block. All 25 lifecycle tests then
+passed (`api-012-corrected.out`). The earlier
+`api-012-input-reset-before.out` used a faulty fixture that matched `seed`
+inside `seedX`; it is retained as a diagnostic and is not a failure proof.
+
+The dedicated development runner passes 25 lifecycle tests, 37 dialog unit
+tests, 12 modal unit tests and two real HTTP engine workflows, and builds the
+documented example. One TLS fixture probe is ignored in the unit selection;
+it is exercised by the separate inherited HTTP mechanism and is not counted
+as a pass here. The modal clock test covers an 800 ms duration, closing and
+zero duration. Strict Clippy passed before the final clock test addition;
+the full default suite and final Clippy run are still in progress.
+
+Ripwire edit-check reported no incompatible caller it could identify. Its
+quality-delta exited 2 and test-gate exited 4, not passes. The map includes
+downloaded terminal reference sources and names trait methods and tests as
+dead code despite their execution. Relevant changes include four additional
+branches in modal rendering for custom motion and error propagation, plus
+owned shutdown cleanup in the new engine. I inspected those paths and retained
+the explicit cleanup logic. Duplication reports include short lock accessors,
+lifecycle handlers and the moved input-render adapter; combining unrelated
+owners to remove these small patterns would obscure ownership. The test gate
+also names legacy dialog handlers and native bindings; the full library/widget
+suite covers the retained Rust paths, and native binding recovery remains
+API-017. This inspection does not replace committed Cairn evidence or the final
+commitment review.
+
+The final development `cargo test --locked` run passed, including 974 library
+tests, all 401 widget workflow tests, the 25 engine lifecycle tests, and 42
+doctests. Ignored tests remain explicitly ignored in the captured output.
+Strict `cargo clippy --locked --all-targets -- -D warnings` also passed after
+the clock test addition. Logs are `api-012-full-suite.out` and
+`api-012-clippy.out`. Formatting and `git diff --check` passed.

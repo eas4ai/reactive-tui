@@ -256,6 +256,21 @@ pub struct InputDialog {
 }
 
 impl InputDialog {
+    pub(super) fn render_with_revision(
+        &self,
+        bounds: Rect,
+        theme: &DialogTheme,
+        revision: u64,
+    ) -> Element {
+        Element::typed::<live::LiveInput>(live::LiveProps {
+            id: self.state.id,
+            options: self.options.clone(),
+            value: self.input_value.clone(),
+            bounds,
+            theme: theme.clone(),
+            revision,
+        })
+    }
     /// Create a new input dialog
     pub fn new(id: DialogId, options: InputDialogOptions) -> Self {
         let input_value = options.input.default_value.clone().unwrap_or_default();
@@ -474,13 +489,7 @@ impl DialogComponent for InputDialog {
     }
 
     fn render(&self, bounds: Rect, theme: &DialogTheme) -> Element {
-        Element::typed::<live::LiveInput>(live::LiveProps {
-            id: self.state.id,
-            options: self.options.clone(),
-            value: self.input_value.clone(),
-            bounds,
-            theme: theme.clone(),
-        })
+        self.render_with_revision(bounds, theme, 0)
     }
 
     fn handle_event(&mut self, event: &Event) -> DialogEventResult {

@@ -9,7 +9,7 @@ use crate::{
         ThreadSafeSignal,
     },
     widgets::{
-        display::modal::{Modal, ModalButton, ModalButtonAction, ModalProps, ModalSize},
+        display::modal::{ModalButton, ModalButtonAction, ModalProps, ModalSize},
         TextInput, TextInputProps,
     },
 };
@@ -33,6 +33,7 @@ impl Props for LiveProps {
 }
 
 struct Runtime {
+    activity: super::super::frame::Activity,
     options: Mutex<Arc<AutocompleteDialogOptions>>,
     value: ThreadSafeSignal<String>,
     suggestions: ThreadSafeSignal<Vec<AutocompleteSuggestion>>,
@@ -64,7 +65,7 @@ impl Runtime {
         self.loading.set(false);
     }
     fn finish(&self, result: DialogResult) {
-        if !self.visible.get() {
+        if !self.visible.get() || !self.activity.active() {
             return;
         }
         self.cancel();
@@ -74,7 +75,7 @@ impl Runtime {
         }
     }
     fn select(&self, index: usize) {
-        if !self.visible.get() || !self.expanded.get() {
+        if !self.visible.get() || !self.activity.active() || !self.expanded.get() {
             return;
         }
         let Some(suggestion) = self.suggestions.get().get(index).cloned() else {
@@ -125,7 +126,7 @@ impl Runtime {
         true
     }
     fn changed(self: &Arc<Self>, value: String) {
-        if !self.visible.get() {
+        if !self.visible.get() || !self.activity.active() {
             return;
         }
         self.value.set(value.clone());
@@ -140,7 +141,7 @@ impl Runtime {
         self.selected.set(None);
         self.expanded.set(false);
         self.error.set(None);
-        if !self.visible.get() {
+        if !self.visible.get() || !self.activity.active() {
             return;
         }
         let options = self.options();
@@ -183,7 +184,7 @@ impl Runtime {
         *self.timer.lock().unwrap() = Some(scheduler.schedule_timeout(delay, move || {
             if let Some(owner) = owner.upgrade() {
                 owner.timer.lock().unwrap().take();
-                if owner.visible.get() {
+                if owner.visible.get() && owner.activity.active() {
                     if polling {
                         owner.poll();
                     } else {
@@ -274,6 +275,7 @@ impl Component for LiveAutocomplete {
     type State = ();
     fn new(props: Self::Props) -> Self {
         let runtime = Arc::new(Runtime {
+            activity: super::super::frame::activity(),
             options: Mutex::new(Arc::new(props.options)),
             value: ThreadSafeSignal::new(props.value.clone()),
             suggestions: ThreadSafeSignal::new(Vec::new()),
@@ -344,6 +346,9 @@ impl Component for LiveAutocomplete {
         changed
     }
     fn render(&self, props: &Self::Props, _: &()) -> Element {
+        if !self.runtime.activity.active() {
+            self.runtime.cancel();
+        }
         let options = &props.options;
         let owner = self.runtime.clone();
         let mut input = Element::typed_with::<TextInput>(
@@ -557,7 +562,11 @@ impl Component for LiveAutocomplete {
             ..Default::default()
         };
         super::super::frame::apply_bounds(&mut modal, props.bounds);
-        Modal::with_escape_policy(modal, options.escape_closable)
+        super::super::frame::modal(
+            modal,
+            options.escape_closable,
+            crate::accessibility::Role::Dialog,
+        )
     }
     fn on_lifecycle(&mut self, event: LifecycleEvent, _: &mut ()) {
         if event == LifecycleEvent::Unmount {

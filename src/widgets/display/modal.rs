@@ -311,27 +311,33 @@ pub enum ResizeHandle {
 /// Modal component for overlaying content
 pub struct Modal;
 
+type MotionCallback =
+    dyn Fn(f32, &mut crate::layout::style::StyleBuilder) -> Result<(), String> + Send + Sync;
+
+#[derive(Clone)]
+pub(in crate::widgets) struct Motion {
+    pub duration: std::time::Duration,
+    pub apply: Arc<MotionCallback>,
+}
+impl PartialEq for Motion {
+    fn eq(&self, other: &Self) -> bool {
+        self.duration == other.duration && Arc::ptr_eq(&self.apply, &other.apply)
+    }
+}
+
 impl Modal {
-    pub(in crate::widgets) fn with_role(
+    pub(in crate::widgets) fn with_presentation(
         props: ModalProps,
         role: crate::accessibility::Role,
+        escape_closable: bool,
+        motion: Option<Motion>,
     ) -> Element {
         Element::typed::<live::LiveModal>(live::LiveProps {
-            escape_closable: props.keyboard_navigation,
             config: props,
             seed: ModalState::default(),
             role,
-        })
-    }
-    pub(in crate::widgets) fn with_escape_policy(
-        props: ModalProps,
-        escape_closable: bool,
-    ) -> Element {
-        Element::typed::<live::LiveModal>(live::LiveProps {
-            config: props,
-            seed: ModalState::default(),
-            role: crate::accessibility::Role::Dialog,
             escape_closable,
+            motion,
         })
     }
     /// Create a Modal element with default props
@@ -500,6 +506,7 @@ impl Component for Modal {
             seed: state.clone(),
             role: crate::accessibility::Role::Dialog,
             escape_closable: props.keyboard_navigation,
+            motion: None,
         })
     }
 }

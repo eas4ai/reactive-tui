@@ -3,7 +3,7 @@ use crate::{
     component::{Component, LayoutType, Props},
     reactive::ThreadSafeSignal,
     widgets::display::{
-        modal::{Modal, ModalButton, ModalButtonAction, ModalProps},
+        modal::{ModalButton, ModalButtonAction, ModalProps},
         progress_bar::{ProgressBar, ProgressBarProps},
     },
 };
@@ -283,6 +283,6 @@ impl Component for LiveWizard {
             ..Default::default()
         };
         super::super::frame::apply_bounds(&mut modal, props.bounds);
-        Modal::with_escape_policy(modal, props.cancelable)
+        super::super::frame::modal(modal, props.cancelable, crate::accessibility::Role::Dialog)
     }
 }

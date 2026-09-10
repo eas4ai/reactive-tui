@@ -26,12 +26,14 @@ pub(super) struct LiveProps {
     pub seed: ModalState,
     pub role: crate::accessibility::Role,
     pub escape_closable: bool,
+    pub motion: Option<Motion>,
 }
 impl PartialEq for LiveProps {
     fn eq(&self, other: &Self) -> bool {
         self.config == other.config
             && self.role == other.role
             && self.escape_closable == other.escape_closable
+            && self.motion == other.motion
     }
 }
 impl Props for LiveProps {
@@ -55,8 +57,12 @@ impl Component for LiveModal {
         }))
     }
     fn render(&self, props: &Self::Props, _: &Self::State) -> Element {
-        self.0
-            .render(&props.config, props.role, props.escape_closable)
+        self.0.render(
+            &props.config,
+            props.role,
+            props.escape_closable,
+            props.motion.as_ref(),
+        )
     }
     fn on_lifecycle(&mut self, event: LifecycleEvent, _: &mut Self::State) {
         if event == LifecycleEvent::Unmount {
@@ -171,7 +177,16 @@ impl Runtime {
         *slot = Some(layout);
         changed
     }
+    #[cfg(test)]
     fn sample(&self, props: &ModalProps, now: Instant) -> (bool, f32, Measurements) {
+        self.sample_with_duration(props, now, Duration::from_millis(200))
+    }
+    fn sample_with_duration(
+        &self,
+        props: &ModalProps,
+        now: Instant,
+        duration: Duration,
+    ) -> (bool, f32, Measurements) {
         self.changed.get();
         let mut data = self.data.lock().unwrap();
         if data
@@ -203,7 +218,11 @@ impl Runtime {
             let t = data
                 .changed_at
                 .map_or(1.0, |start| {
-                    now.saturating_duration_since(start).as_secs_f32() / 0.2
+                    if duration.is_zero() {
+                        1.0
+                    } else {
+                        now.saturating_duration_since(start).as_secs_f32() / duration.as_secs_f32()
+                    }
                 })
                 .min(1.0);
             data.from + (f32::from(data.target) - data.from) * t
@@ -280,6 +299,44 @@ mod tests {
     use super::*;
 
     #[test]
+    fn configured_duration_controls_opening_closing_and_zero_duration() {
+        for duration in [Duration::ZERO, Duration::from_millis(800)] {
+            let scheduler = Arc::new(Scheduler::new());
+            let scope = component_scope::ComponentScope::new(scheduler.clone());
+            let _binding = scope.enter(true);
+            let mut props = ModalProps {
+                visible: true,
+                ..Default::default()
+            };
+            let child = LiveModal::new(LiveProps {
+                config: props.clone(),
+                seed: ModalState::default(),
+                role: crate::accessibility::Role::Dialog,
+                motion: None,
+                escape_closable: true,
+            });
+            let start = Instant::now();
+            let sample =
+                |props: &ModalProps, at| child.0.sample_with_duration(props, at, duration).1;
+            if duration.is_zero() {
+                assert_eq!(sample(&props, start), 1.0);
+                props.visible = false;
+                assert_eq!(sample(&props, start), 0.0);
+            } else {
+                assert_eq!(sample(&props, start), 0.0);
+                assert_eq!(sample(&props, start + duration / 2), 0.5);
+                assert_eq!(sample(&props, start + duration), 1.0);
+                props.visible = false;
+                assert_eq!(sample(&props, start + duration), 1.0);
+                assert_eq!(sample(&props, start + duration + duration / 2), 0.5);
+                assert_eq!(sample(&props, start + duration * 2), 0.0);
+            }
+            assert!(scheduler.next_deadline().is_none());
+            scope.close();
+        }
+    }
+
+    #[test]
     fn transition_reverses_from_current_progress_and_releases_deadline() {
         let scheduler = Arc::new(Scheduler::new());
         let scope = component_scope::ComponentScope::new(scheduler.clone());
@@ -292,6 +349,7 @@ mod tests {
             config: props.clone(),
             seed: ModalState::default(),
             role: crate::accessibility::Role::Dialog,
+            motion: None,
             escape_closable: true,
         });
         let start = Instant::now();
@@ -335,6 +393,7 @@ mod tests {
             },
             seed: ModalState::default(),
             role: crate::accessibility::Role::Dialog,
+            motion: None,
             escape_closable: true,
         };
         let mut child = LiveModal::new(props.clone());
@@ -361,6 +420,7 @@ mod tests {
             config: props.clone(),
             seed: ModalState::default(),
             role: crate::accessibility::Role::Dialog,
+            motion: None,
             escape_closable: true,
         });
         child.0.sample(&props, Instant::now());

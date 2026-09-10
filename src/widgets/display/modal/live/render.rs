@@ -33,12 +33,17 @@ impl Runtime {
         props: &ModalProps,
         role: Role,
         escape_closable: bool,
+        motion: Option<&Motion>,
     ) -> Element {
         if let Some(error) = validation_error(props) {
             self.cancel();
             return Element::text(error).class("text-red-500");
         }
-        let (visible, progress, measured) = self.sample(props, Instant::now());
+        let (visible, progress, measured) = self.sample_with_duration(
+            props,
+            Instant::now(),
+            motion.map_or(Duration::from_millis(200), |motion| motion.duration),
+        );
         let mut children = Vec::new();
         if let Some(root) = measured.root.filter(|_| visible || progress > 0.0) {
             let bounds = local_rect(
@@ -236,6 +241,11 @@ impl Runtime {
             }
             if !ready {
                 style = style.opacity(0.0);
+            } else if let Some(motion) = motion {
+                if let Err(error) = (motion.apply)(progress, &mut style) {
+                    self.cancel();
+                    return Element::text(error).class("text-red-500");
+                }
             } else {
                 match props.animation {
                     ModalAnimation::Fade => style = style.opacity(progress),

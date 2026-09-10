@@ -9,7 +9,7 @@ use crate::{
         ThreadSafeSignal,
     },
     widgets::{
-        display::modal::{Modal, ModalButton, ModalButtonAction, ModalProps, ModalSize},
+        display::modal::{ModalButton, ModalButtonAction, ModalProps, ModalSize},
         input::InputMode,
         TextInput, TextInputProps,
     },
@@ -25,6 +25,7 @@ pub(super) struct LiveProps {
     pub value: String,
     pub bounds: Rect,
     pub theme: DialogTheme,
+    pub revision: u64,
 }
 impl Props for LiveProps {
     fn as_any(&self) -> &dyn Any {
@@ -33,6 +34,7 @@ impl Props for LiveProps {
 }
 
 struct Runtime {
+    activity: super::super::frame::Activity,
     options: Mutex<Arc<InputDialogOptions>>,
     value: ThreadSafeSignal<String>,
     error: ThreadSafeSignal<Option<String>>,
@@ -75,7 +77,7 @@ impl Runtime {
         self.remote_validation(false)
     }
     fn changed(self: &Arc<Self>, value: String) {
-        if !self.visible.get() {
+        if !self.visible.get() || !self.activity.active() {
             return;
         }
         self.value.set(value.clone());
@@ -105,7 +107,7 @@ impl Runtime {
             *self.timer.lock().unwrap() = Some(scheduler.schedule_timeout(delay, move || {
                 if let Some(owner) = owner.upgrade() {
                     owner.timer.lock().unwrap().take();
-                    if owner.visible.get() {
+                    if owner.visible.get() && owner.activity.active() {
                         owner.validate();
                     }
                 }
@@ -115,7 +117,7 @@ impl Runtime {
         }
     }
     fn finish(&self, result: DialogResult) {
-        if !self.visible.get() {
+        if !self.visible.get() || !self.activity.active() {
             return;
         }
         self.cancel();
@@ -126,7 +128,7 @@ impl Runtime {
         }
     }
     fn submit(self: &Arc<Self>) {
-        if !self.visible.get() {
+        if !self.visible.get() || !self.activity.active() {
             return;
         }
         self.cancel_debounce();
@@ -140,7 +142,7 @@ impl Runtime {
         self.complete_submission();
     }
     fn complete_submission(&self) {
-        if !self.visible.get() {
+        if !self.visible.get() || !self.activity.active() {
             return;
         }
         let options = self.options();
@@ -165,6 +167,7 @@ impl Drop for Runtime {
 pub(super) struct LiveInput {
     runtime: Arc<Runtime>,
     seed: String,
+    revision: u64,
     id: DialogId,
     layout: Option<LayoutInfo>,
 }
@@ -174,6 +177,7 @@ impl Component for LiveInput {
     fn new(props: Self::Props) -> Self {
         Self {
             runtime: Arc::new(Runtime {
+                activity: super::super::frame::activity(),
                 options: Mutex::new(Arc::new(props.options)),
                 value: ThreadSafeSignal::new(props.value.clone()),
                 error: ThreadSafeSignal::new(None),
@@ -187,6 +191,7 @@ impl Component for LiveInput {
                 content_width: ThreadSafeSignal::new(None),
             }),
             seed: props.value,
+            revision: props.revision,
             id: props.id,
             layout: None,
         }
@@ -225,12 +230,13 @@ impl Component for LiveInput {
             self.runtime.warnings.set(Vec::new());
         }
         *self.runtime.options.lock().unwrap() = Arc::new(props.options.clone());
-        if self.seed != props.value || self.id != props.id {
+        if self.seed != props.value || self.id != props.id || self.revision != props.revision {
             self.runtime.cancel();
             self.runtime.value.set(props.value.clone());
             self.runtime.error.set(None);
             self.runtime.warnings.set(Vec::new());
             self.seed = props.value.clone();
+            self.revision = props.revision;
         } else if reschedule {
             if let Some(validation) = props
                 .options
@@ -253,6 +259,9 @@ impl Component for LiveInput {
         changed
     }
     fn render(&self, props: &Self::Props, _: &()) -> Element {
+        if !self.runtime.activity.active() {
+            self.runtime.cancel();
+        }
         let options = &props.options;
         let owner = self.runtime.clone();
         let mode = if options.input.input_type == InputType::Password {
@@ -406,7 +415,11 @@ impl Component for LiveInput {
             ..Default::default()
         };
         super::super::frame::apply_bounds(&mut modal, props.bounds);
-        Modal::with_escape_policy(modal, options.escape_closable)
+        super::super::frame::modal(
+            modal,
+            options.escape_closable,
+            crate::accessibility::Role::Dialog,
+        )
     }
     fn on_lifecycle(&mut self, event: LifecycleEvent, _: &mut ()) {
         if event == LifecycleEvent::Unmount {

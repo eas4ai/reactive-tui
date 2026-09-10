@@ -4,7 +4,7 @@ use crate::{
     event::router::EventResult,
     reactive::ThreadSafeSignal,
     widgets::display::modal::{
-        Modal, ModalAnimation, ModalButton, ModalButtonAction, ModalProps, ModalSize,
+        ModalAnimation, ModalButton, ModalButtonAction, ModalProps, ModalSize,
     },
 };
 
@@ -188,7 +188,11 @@ impl Component for LiveConfirmation {
             ..Default::default()
         };
         super::super::frame::apply_bounds(&mut modal, props.bounds);
-        let mut element = Modal::with_escape_policy(modal, options.escape_closable);
+        let mut element = super::super::frame::modal(
+            modal,
+            options.escape_closable,
+            crate::accessibility::Role::Dialog,
+        );
         let visible = self.visible.clone();
         let config = options.clone();
         element.metadata.capture_events.push(Arc::new(move |event| {

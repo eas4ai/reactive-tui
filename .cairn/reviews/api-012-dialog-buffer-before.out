@@ -1,0 +1,17 @@
+
+running 1 test
+
+thread 'dialog_buffer_orders_by_z_and_replaces_existing_ids_without_duplicate_hits' (987376) panicked at tests/api_dialog_lifecycle.rs:147:5:
+assertion `left == right` failed
+  left: [DialogId(2), DialogId(1), DialogId(3)]
+ right: [DialogId(1), DialogId(3), DialogId(2)]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test dialog_buffer_orders_by_z_and_replaces_existing_ids_without_duplicate_hits ... FAILED
+
+failures:
+
+failures:
+    dialog_buffer_orders_by_z_and_replaces_existing_ids_without_duplicate_hits
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 11 filtered out; finished in 0.00s
+

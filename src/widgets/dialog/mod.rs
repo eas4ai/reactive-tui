@@ -40,25 +40,11 @@ use crate::core::geometry::Rect;
 use std::collections::HashMap;
 use std::time::Duration;
 
-/// Main dialog engine that manages all dialog types and their lifecycle
-#[derive(Debug)]
-pub struct DialogEngine {
-    /// Active dialogs by ID
-    active_dialogs: HashMap<DialogId, Box<dyn DialogComponent>>,
-    /// Dialog stack for proper layering
-    dialog_stack: Vec<DialogId>,
-    /// Next available dialog ID
-    next_id: u32,
-    /// Global dialog configuration
-    config: DialogEngineConfig,
-    /// Event channel for async operations (placeholder)
-    event_sender: Option<()>,
-    /// Focus management
-    focus_manager: DialogFocusManager,
-    /// Animation system integration
-    #[allow(dead_code)]
-    animation_enabled: bool,
-}
+mod engine;
+pub use engine::{
+    DialogAnimationFrame, DialogCompletion, DialogEngine, DialogEngineError, DialogEvents,
+    DialogUpdate, WeakDialogEngine,
+};
 
 /// Unique identifier for dialogs
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -81,7 +67,7 @@ impl DialogId {
 pub struct DialogEngineConfig {
     /// Default animation duration
     pub animation_duration: Duration,
-    /// Enable backdrop blur effect
+    /// Dim backdrop cells as the terminal approximation of blur.
     pub backdrop_blur: bool,
     /// Default z-index for dialogs
     pub base_z_index: u16,
@@ -295,120 +281,6 @@ impl Default for DialogTheme {
     }
 }
 
-impl DialogEngine {
-    /// Create a new dialog engine
-    pub fn new() -> Self {
-        Self::with_config(DialogEngineConfig::default())
-    }
-
-    /// Create a new dialog engine with custom configuration
-    pub fn with_config(config: DialogEngineConfig) -> Self {
-        Self {
-            active_dialogs: HashMap::new(),
-            dialog_stack: Vec::new(),
-            next_id: 1,
-            config,
-            event_sender: None,
-            focus_manager: DialogFocusManager::new(),
-            animation_enabled: true,
-        }
-    }
-
-    /// Enable async event handling (placeholder)
-    pub fn enable_async(&mut self) {
-        // Placeholder for async event handling
-        self.event_sender = Some(());
-    }
-
-    /// Show a confirmation dialog
-    pub fn show_confirmation(&mut self, options: ConfirmationDialogOptions) -> DialogId {
-        let id = self.next_dialog_id();
-        let dialog = Box::new(ConfirmationDialog::new(id, options));
-        self.add_dialog(id, dialog);
-        id
-    }
-
-    /// Show an input dialog
-    pub fn show_input(&mut self, options: InputDialogOptions) -> DialogId {
-        let id = self.next_dialog_id();
-        let dialog = Box::new(InputDialog::new(id, options));
-        self.add_dialog(id, dialog);
-        id
-    }
-
-    /// Show an autocomplete dialog
-    pub fn show_autocomplete(&mut self, options: AutocompleteDialogOptions) -> DialogId {
-        let id = self.next_dialog_id();
-        let dialog = Box::new(AutocompleteDialog::new(id, options));
-        self.add_dialog(id, dialog);
-        id
-    }
-
-    /// Show a progress dialog
-    pub fn show_progress(&mut self, options: ProgressDialogOptions) -> DialogId {
-        let id = self.next_dialog_id();
-        let dialog = Box::new(ProgressDialog::new(id, options));
-        self.add_dialog(id, dialog);
-        id
-    }
-
-    /// Show a toast notification
-    pub fn show_toast(&mut self, options: ToastOptions) -> DialogId {
-        let id = self.next_dialog_id();
-        let dialog = Box::new(Toast::new(id, options));
-        self.add_dialog(id, dialog);
-        id
-    }
-
-    /// Show a wizard dialog
-    pub fn show_wizard(&mut self, options: WizardDialogOptions) -> DialogId {
-        let id = self.next_dialog_id();
-        let dialog = Box::new(WizardDialog::new(id, options));
-        self.add_dialog(id, dialog);
-        id
-    }
-
-    /// Close a dialog
-    pub fn close_dialog(&mut self, id: DialogId, _result: DialogResult) {
-        if let Some(_dialog) = self.active_dialogs.remove(&id) {
-            // Remove from stack
-            self.dialog_stack.retain(|&dialog_id| dialog_id != id);
-
-            // Update focus
-            self.focus_manager.dialog_closed(id);
-
-            // Send event (placeholder)
-            if self.event_sender.is_some() {
-                // Would send DialogEvent::Closed(id, result) here
-            }
-        }
-    }
-
-    /// Get the next available dialog ID
-    fn next_dialog_id(&mut self) -> DialogId {
-        let id = DialogId(self.next_id);
-        self.next_id += 1;
-        id
-    }
-
-    /// Add a dialog to the engine
-    fn add_dialog(&mut self, id: DialogId, dialog: Box<dyn DialogComponent>) {
-        // Check max dialogs limit
-        if self.active_dialogs.len() >= self.config.max_dialogs {
-            return;
-        }
-
-        self.active_dialogs.insert(id, dialog);
-        self.dialog_stack.push(id);
-        self.focus_manager.dialog_opened(id);
-
-        // Send event (placeholder)
-        if self.event_sender.is_some() {
-            // Would send DialogEvent::Opened(id) here
-        }
-    }
-}
-
 impl DialogFocusManager {
     fn new() -> Self {
         Self {
@@ -431,11 +303,5 @@ impl DialogFocusManager {
             self.focused_dialog = self.focus_stack.pop();
         }
         self.focus_stack.retain(|&dialog_id| dialog_id != id);
-    }
-}
-
-impl Default for DialogEngine {
-    fn default() -> Self {
-        Self::new()
     }
 }

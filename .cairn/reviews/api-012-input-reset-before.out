@@ -1,0 +1,20 @@
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.60s
+     Running tests/api_dialog_lifecycle.rs (target/debug/deps/api_dialog_lifecycle-9cbc974cef276e62)
+
+running 1 test
+
+thread 'app::explicit_input_reset_replaces_edits_even_when_the_seed_value_is_unchanged' (1123159) panicked at tests/api_dialog_lifecycle/app.rs:278:5:
+assertion failed: matches!(completion.try_result(), Some(DialogResult::Confirmed(Some(value)))
+    if value == "seed")
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test app::explicit_input_reset_replaces_edits_even_when_the_seed_value_is_unchanged ... FAILED
+
+failures:
+
+failures:
+    app::explicit_input_reset_replaces_edits_even_when_the_seed_value_is_unchanged
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 21 filtered out; finished in 0.13s
+
+error: test failed, to rerun pass `--test api_dialog_lifecycle`

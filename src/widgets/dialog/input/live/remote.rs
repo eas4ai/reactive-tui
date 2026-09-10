@@ -142,7 +142,7 @@ impl Runtime {
             scheduler.cancel_timer(timer);
         }
         self.remote_pending.set(false);
-        if !self.visible.get() || !pending.snapshot.matches(self) {
+        if !self.visible.get() || !self.activity.active() || !pending.snapshot.matches(self) {
             return;
         }
         let response = result.and_then(|bytes| {

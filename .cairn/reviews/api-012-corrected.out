@@ -1,0 +1,33 @@
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 24.00s
+     Running tests/api_dialog_lifecycle.rs (target/debug/deps/api_dialog_lifecycle-d368492673b8b582)
+
+running 25 tests
+test app::dropping_the_app_cancels_sessions_even_when_a_controller_survives ... ok
+test app::custom_animation_receives_intermediate_progress_and_changes_app_frames ... ok
+test app::invalid_custom_animation_completes_with_error_instead_of_silent_success ... ok
+test app::engine_toast_expiration_delivers_completion_without_input ... ok
+test app::explicit_input_reset_replaces_edits_even_when_the_seed_value_is_unchanged ... ok
+test async_event_wakers_can_reenter_without_an_engine_lock ... ok
+test asynchronous_completion_waits_then_delivers_without_tokio ... ok
+test close_callbacks_can_reenter_and_see_the_closed_session_removed ... ok
+test close_preserves_the_actual_result_once_and_in_order ... ok
+test dialog_buffer_orders_by_z_and_replaces_existing_ids_without_duplicate_hits ... ok
+test dropping_an_unmounted_engine_cancels_waiters_and_closes_the_event_stream ... ok
+test invalid_animation_configuration_is_an_observable_rejection ... ok
+test limits_reject_without_inventing_a_live_id_or_an_open_event ... ok
+test one_panicking_close_callback_does_not_strand_other_sessions_or_waiters ... ok
+test shutdown_reentry_cannot_leave_replacement_dialogs_running ... ok
+test unread_events_are_bounded_and_every_accepted_dialog_can_still_close ... ok
+test updates_reject_wrong_types_unknown_ids_and_nonfinite_progress ... ok
+test weak_callbacks_do_not_keep_abandoned_sessions_alive ... ok
+test app::progress_updates_change_the_presented_control_and_deliver_completion ... ok
+test app::engine_escape_configuration_preserves_keyboard_cancel ... ok
+test app::engine_confirmation_callback_and_close_event_fire_once ... ok
+test app::engine_input_paints_edits_and_delivers_the_resized_pointer_result ... ok
+test app::engine_z_priority_controls_both_paint_and_pointer_target ... ok
+test app::autocomplete_selection_and_wizard_data_reach_engine_results ... ok
+test app::nested_dialogs_restore_the_underlying_control_and_then_the_background ... ok
+
+test result: ok. 25 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.25s
+

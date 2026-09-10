@@ -1,3 +1,4 @@
+pub(super) use super::engine::Activity;
 use super::{DialogAnchor, DialogPosition};
 use crate::{
     component::LayoutInfo,
@@ -5,11 +6,23 @@ use crate::{
     widgets::display::modal::{ModalPosition, ModalProps, ModalSize},
 };
 
+pub(super) fn activity() -> Activity {
+    crate::reactive::component_scope::lookup::<super::engine::Presentation>()
+        .map(|presentation| presentation.activity)
+        .unwrap_or_default()
+}
+
 fn cell(value: usize) -> u16 {
     value.min(u16::MAX as usize) as u16
 }
 
 pub(super) fn apply_bounds(modal: &mut ModalProps, bounds: Rect) {
+    if let Some(presentation) =
+        crate::reactive::component_scope::lookup::<super::engine::Presentation>()
+    {
+        modal.z_index = presentation.z_index;
+        modal.focus_trap &= presentation.focus_trap;
+    }
     if !bounds.size.is_empty() {
         modal.width = ModalSize::Fixed(cell(bounds.size.width));
         modal.height = ModalSize::Fixed(cell(bounds.size.height));
@@ -18,6 +31,35 @@ pub(super) fn apply_bounds(modal: &mut ModalProps, bounds: Rect) {
             y: cell(bounds.origin.y),
         };
     }
+}
+
+pub(super) fn escape_allowed(allowed: bool) -> bool {
+    allowed
+        && crate::reactive::component_scope::lookup::<super::engine::Presentation>()
+            .is_none_or(|presentation| presentation.escape_to_close)
+}
+
+pub(super) fn modal(
+    mut props: ModalProps,
+    escape_closable: bool,
+    role: crate::accessibility::Role,
+) -> crate::component::Element {
+    use crate::widgets::display::modal::{Modal, ModalAnimation};
+    let motion = crate::reactive::component_scope::lookup::<super::engine::Presentation>().map(
+        |presentation| {
+            props.visible &= presentation.activity.active();
+            if !presentation.backdrop_blur {
+                props.backdrop_style = None;
+            }
+            props.animation = if presentation.animated {
+                ModalAnimation::Fade
+            } else {
+                ModalAnimation::None
+            };
+            presentation.motion
+        },
+    );
+    Modal::with_presentation(props, role, escape_allowed(escape_closable), motion)
 }
 
 pub(super) fn position(

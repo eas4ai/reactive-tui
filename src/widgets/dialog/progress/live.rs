@@ -3,7 +3,7 @@ use crate::{
     component::{Component, Props},
     reactive::ThreadSafeSignal,
     widgets::display::{
-        modal::{Modal, ModalButton, ModalProps, ModalSize},
+        modal::{ModalButton, ModalProps, ModalSize},
         progress_bar::ProgressBarBuilder,
     },
 };
@@ -126,6 +126,10 @@ impl Component for LiveProgress {
             ..Default::default()
         };
         super::super::frame::apply_bounds(&mut modal, props.bounds);
-        Modal::with_props(modal)
+        super::super::frame::modal(
+            modal,
+            props.options.cancellable,
+            crate::accessibility::Role::Dialog,
+        )
     }
 }

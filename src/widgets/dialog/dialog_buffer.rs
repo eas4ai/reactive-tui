@@ -17,6 +17,7 @@ pub struct DialogBuffer {
     dialog_bounds: HashMap<super::DialogId, Rect>,
     /// Z-index ordering
     z_order: Vec<super::DialogId>,
+    z_indices: HashMap<super::DialogId, u16>,
     /// Whether backdrop blur is enabled
     backdrop_blur: bool,
 }
@@ -29,6 +30,7 @@ impl DialogBuffer {
             backdrop_surface: None,
             dialog_bounds: HashMap::new(),
             z_order: Vec::new(),
+            z_indices: HashMap::new(),
             backdrop_blur: false,
         }
     }
@@ -51,31 +53,26 @@ impl DialogBuffer {
     }
 
     /// Add a dialog to the buffer
-    pub fn add_dialog(&mut self, id: super::DialogId, bounds: Rect, _z_index: u16) {
+    pub fn add_dialog(&mut self, id: super::DialogId, bounds: Rect, z_index: u16) {
         self.dialog_bounds.insert(id, bounds);
-
-        // Insert in z-order
-        let insert_pos = self
-            .z_order
-            .iter()
-            .position(|&_existing_id| {
-                // Get z-index of existing dialog (would need to be stored)
-                false // Placeholder logic
-            })
-            .unwrap_or(self.z_order.len());
-
-        self.z_order.insert(insert_pos, id);
+        if self.z_indices.insert(id, z_index).is_none() {
+            self.z_order.push(id);
+        }
+        // Stable ordering preserves ties and updating an ID does not duplicate it.
+        self.z_order.sort_by_key(|id| self.z_indices[id]);
     }
 
     /// Remove a dialog from the buffer
     pub fn remove_dialog(&mut self, id: super::DialogId) {
         self.dialog_bounds.remove(&id);
+        self.z_indices.remove(&id);
         self.z_order.retain(|&dialog_id| dialog_id != id);
     }
 
     /// Clear all dialogs
     pub fn clear(&mut self) {
         self.dialog_bounds.clear();
+        self.z_indices.clear();
         self.z_order.clear();
         self.surface
             .clear(crate::core::surface::Rgba::new(0.0, 0.0, 0.0, 0.0));

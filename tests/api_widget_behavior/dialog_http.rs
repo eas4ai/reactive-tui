@@ -130,6 +130,138 @@ impl Drop for Server {
     }
 }
 
+#[test]
+fn dialog_engine_http_validation_delivers_an_awaitable_result() {
+    use reactive_tui::widgets::dialog::{DialogEngine, DialogEvent, InputFieldConfig};
+    for size in [(32, 12), (60, 20)] {
+        let server = Server::new(vec![Reply::json(r#"{"valid":true}"#)]);
+        let mut engine = DialogEngine::new();
+        engine.enable_async();
+        let id = engine.show_input(InputDialogOptions {
+            title: "ENGINE REMOTE".into(),
+            input: InputFieldConfig {
+                default_value: Some("界e\u{301}🙂".into()),
+                ..Default::default()
+            },
+            validation: Some(ValidationConfig {
+                validate_on_change: false,
+                validate_on_blur: false,
+                async_validation_url: Some(server.url.clone()),
+                ..Default::default()
+            }),
+            ..Default::default()
+        });
+        let completion = engine.completion(id).unwrap();
+        app_input::run_until_hidden(
+            engine.clone(),
+            size,
+            vec![("ENGINE REMOTE", app_input::key(KeyCode::Enter))],
+            "ENGINE REMOTE",
+        );
+        assert!(
+            matches!(futures_lite::future::block_on(completion.result()), DialogResult::Confirmed(Some(value)) if value == "界e\u{301}🙂")
+        );
+        let events: Vec<_> = std::iter::from_fn(|| engine.take_event()).collect();
+        assert!(matches!(
+            events.as_slice(),
+            [
+                DialogEvent::Opened(_),
+                DialogEvent::Closed(_, DialogResult::Confirmed(Some(_)))
+            ]
+        ));
+        let requests = server.requests.lock().unwrap();
+        assert_eq!(requests.len(), 1);
+        assert_eq!(
+            requests[0].body,
+            serde_json::json!({"value":"界e\u{301}🙂"})
+        );
+    }
+}
+
+#[test]
+fn dialog_engine_http_close_cancels_a_live_request_and_does_not_submit() {
+    use reactive_tui::{
+        app::RootComponent,
+        event::router::EventResult,
+        widgets::dialog::{DialogEngine, DialogId},
+    };
+    use std::sync::atomic::AtomicUsize;
+    struct Root {
+        engine: DialogEngine,
+        id: DialogId,
+        requests: ThreadSafeSignal<usize>,
+    }
+    impl RootComponent for Root {
+        fn render(&self) -> Element {
+            let status = if self.engine.is_open(self.id) {
+                format!("REQUESTS {}", self.requests.get())
+            } else {
+                "REMOVED".into()
+            };
+            reactive_tui::builder::div()
+                .children(vec![Element::text(status), self.engine.render()])
+                .build()
+        }
+        fn wake_driven(&self) -> bool {
+            true
+        }
+        fn try_handle_event(&mut self, event: &Event) -> reactive_tui::error::Result<EventResult> {
+            if matches!(event, Event::Key(key) if key.code == KeyCode::F(2)) {
+                self.engine.close_dialog(self.id, DialogResult::Cancelled);
+                Ok(EventResult::Handled)
+            } else {
+                Ok(EventResult::Ignored)
+            }
+        }
+    }
+    let server = Server::new(vec![Reply {
+        delay: Duration::from_secs(2),
+        ..Reply::json(r#"{"valid":true}"#)
+    }]);
+    let submissions = Arc::new(AtomicUsize::new(0));
+    let submitted = submissions.clone();
+    let mut engine = DialogEngine::new();
+    engine.enable_async();
+    let id = engine.show_input(InputDialogOptions {
+        title: "ENGINE PENDING".into(),
+        validation: Some(ValidationConfig {
+            validate_on_change: false,
+            validate_on_blur: false,
+            async_validation_url: Some(server.url.clone()),
+            ..Default::default()
+        }),
+        on_submit: Some(Arc::new(move |_| {
+            submitted.fetch_add(1, Ordering::SeqCst);
+            true
+        })),
+        ..Default::default()
+    });
+    let completion = engine.completion(id).unwrap();
+    let start = Instant::now();
+    let frames = app_input::run_when(
+        Root {
+            engine: engine.clone(),
+            id,
+            requests: server.count.clone(),
+        },
+        (60, 20),
+        vec![
+            ("ENGINE PENDING", app_input::key(KeyCode::Enter)),
+            ("REQUESTS 1", app_input::key(KeyCode::F(2))),
+            ("REMOVED", None),
+        ],
+    );
+    assert!(start.elapsed() < Duration::from_secs(1));
+    assert!(!frames.last().unwrap().text.contains("ENGINE PENDING"));
+    assert_eq!(submissions.load(Ordering::SeqCst), 0);
+    assert!(matches!(
+        completion.try_result(),
+        Some(DialogResult::Cancelled)
+    ));
+    assert_eq!(engine.active_count(), 0);
+    assert_eq!(server.requests.lock().unwrap().len(), 1);
+}
+
 fn read_request(stream: &mut TcpStream, stopped: &AtomicBool) -> Option<Request> {
     stream
         .set_read_timeout(Some(Duration::from_millis(10)))

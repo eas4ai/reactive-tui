@@ -7,7 +7,7 @@ use crate::{
         scheduler::{Scheduler, TimerId},
         ThreadSafeSignal,
     },
-    widgets::display::modal::{Modal, ModalAnimation, ModalPosition, ModalProps},
+    widgets::display::modal::{ModalAnimation, ModalPosition, ModalProps},
 };
 use std::{sync::Mutex, time::Instant};
 
@@ -131,7 +131,7 @@ impl Component for LiveToast {
             ..Default::default()
         };
         super::super::frame::apply_bounds(&mut modal, props.bounds);
-        Modal::with_role(modal, role)
+        super::super::frame::modal(modal, props.options.closable, role)
     }
     fn on_lifecycle(&mut self, event: LifecycleEvent, _: &mut ()) {
         if event == LifecycleEvent::Unmount {
