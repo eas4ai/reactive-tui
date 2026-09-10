@@ -26,6 +26,6 @@ warning: function `change` is never used
     |    ^^^^^^
 
 warning: `reactive-tui` (test "api_widget_behavior") generated 2 warnings
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 8.86s
-  Executable unittests src/lib.rs (target/debug/deps/reactive_tui-ba54f0cf170e0cff)
-  Executable tests/api_widget_behavior.rs (target/debug/deps/api_widget_behavior-3f5047ab9cdd57ce)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 8.50s
+  Executable unittests src/lib.rs (target/debug/deps/reactive_tui-9ab1f7f6d7411a5e)
+  Executable tests/api_widget_behavior.rs (target/debug/deps/api_widget_behavior-c4799a79c80edbc6)

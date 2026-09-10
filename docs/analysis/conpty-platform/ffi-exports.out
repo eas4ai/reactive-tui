@@ -1,0 +1,97 @@
+   Compiling getrandom v0.3.3
+   Compiling reactive-tui v0.0.7 (D:\a\reactive-tui\reactive-tui)
+   Compiling uuid v1.18.1
+   Compiling tempfile v3.21.0
+   Compiling accesskit v0.25.0
+warning: unused import: `std::os::windows::io::AsRawHandle`
+  --> src\core\capabilities.rs:12:5
+   |
+12 | use std::os::windows::io::AsRawHandle;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: ambiguous glob re-exports
+  --> src\ffi\mod.rs:85:9
+   |
+85 | pub use pointer::*;
+   |         ^^^^^^^^^^ the name `validate_pointer` in the value namespace is first re-exported here
+...
+90 | pub use types::*;
+   |         -------- but the name `validate_pointer` in the value namespace is also re-exported here
+   |
+   = note: `#[warn(ambiguous_glob_reexports)]` on by default
+
+warning: unused variable: `width`
+  --> src\ffi\lib.rs:85:14
+   |
+85 |         let (width, height) = renderer_box.dims();
+   |              ^^^^^ help: if this is intentional, prefix it with an underscore: `_width`
+   |
+   = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: variable does not need to be mutable
+    --> src\platform\mod.rs:1199:13
+     |
+1199 |         let mut buffer = [0u8; 8192];
+     |             ----^^^^^^
+     |             |
+     |             help: remove this `mut`
+     |
+     = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: variable does not need to be mutable
+    --> src\platform\mod.rs:1200:13
+     |
+1200 |         let mut total_read = 0;
+     |             ----^^^^^^^^^^
+     |             |
+     |             help: remove this `mut`
+
+warning: method `serial` is never used
+  --> src\event\router.rs:84:19
+   |
+83 | impl NodeId {
+   | ----------- method in this implementation
+84 |     pub(crate) fn serial(self) -> usize {
+   |                   ^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `validate_pointer` is never used
+   --> src\ffi\types.rs:182:15
+    |
+182 | pub(crate) fn validate_pointer<T>(ptr: *const T) -> bool {
+    |               ^^^^^^^^^^^^^^^^
+
+warning: function `validate_mut_pointer` is never used
+   --> src\ffi\types.rs:187:15
+    |
+187 | pub(crate) fn validate_mut_pointer<T>(ptr: *mut T) -> bool {
+    |               ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `safe_cast` is never used
+   --> src\ffi\types.rs:192:22
+    |
+192 | pub(crate) unsafe fn safe_cast<T, U>(ptr: *mut T) -> Result<*mut U, ReactiveError> {
+    |                      ^^^^^^^^^
+
+warning: function `safe_cast_const` is never used
+   --> src\ffi\types.rs:206:22
+    |
+206 | pub(crate) unsafe fn safe_cast_const<T, U>(ptr: *const T) -> Result<*const U, ReactiveError> {
+    |                      ^^^^^^^^^^^^^^^
+
+warning: field `parser` is never read
+   --> src\platform\mod.rs:474:5
+    |
+471 | pub struct DirectTty {
+    |            --------- field in this struct
+...
+474 |     parser: parser::EscapeSequenceParser,
+    |     ^^^^^^
+
+warning: `reactive-tui` (lib) generated 11 warnings (run `cargo fix --lib -p reactive-tui` to apply 4 suggestions)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 59.65s
+
+PASS 194 baseline C exports load
