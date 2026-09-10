@@ -12,6 +12,8 @@ Keep the public platform Image and DrawOptions data shapes and signatures. Decod
 
 ## Realized by
 
+- b2079c401464b25ccb33747e33b5b3373f284a90 Restore widget behavior, native terminal sessions, and image output through App
+
 Implementation: `src/platform/image`, `src/core/surface`, `src/backend/suprtui/graphics`.
 
 Behavior checks: `tests/api_widget_behavior/image.rs`, `tests/api_widget_behavior/image_host_capture.py`.
