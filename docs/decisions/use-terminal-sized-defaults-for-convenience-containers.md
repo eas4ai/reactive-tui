@@ -12,6 +12,8 @@ Use modest terminal padding for the content and card convenience helpers. Their 
 
 ## Realized by
 
+- b2079c401464b25ccb33747e33b5b3373f284a90 Restore widget behavior, native terminal sessions, and image output through App
+
 Implementation: `src/builder/layout.rs`, `src/builder/core.rs`, `src/layout/css/variants.rs`.
 
 Behavior checks: `tests/api_widget_behavior/core_builders.rs`.
