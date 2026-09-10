@@ -12,6 +12,8 @@ Extend the maintained AT-SPI translation with State::Active for nonfalse AriaCur
 
 ## Realized by
 
+- b2079c401464b25ccb33747e33b5b3373f284a90 Restore widget behavior, native terminal sessions, and image output through App
+
 Implementation: `src/accessibility/platform/translation`.
 
 Behavior checks: `src/accessibility/platform/translation/state_tests.rs`, `tests/api_widget_behavior/orca.py`, `tests/api_widget_behavior/orca_data.py`.
