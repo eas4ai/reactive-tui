@@ -12,6 +12,8 @@ Use the existing table and modal cell-border renderer for popup, context and dia
 
 ## Realized by
 
+- b2079c401464b25ccb33747e33b5b3373f284a90 Restore widget behavior, native terminal sessions, and image output through App
+
 `src/widgets/menu/panels.rs` reserves a Taffy border and reuses
 `src/widgets/display/table/border.rs` for measured glyphs. The internal
 `StyleBuilder::cell_border` keeps the edge independent of CSS padding. Border
