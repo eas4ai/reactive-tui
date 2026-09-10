@@ -12,6 +12,8 @@ Expose explicit set_data and data access on WizardDialog. Callers own the named 
 
 ## Realized by
 
+- b2079c401464b25ccb33747e33b5b3373f284a90 Restore widget behavior, native terminal sessions, and image output through App
+
 Implementation: `src/widgets/dialog/wizard.rs`, `src/widgets/dialog/wizard/live.rs`, `src/builder/dialog_builders.rs`.
 
 Behavior checks: `tests/api_widget_behavior/wizard.rs`, `tests/api_widget_behavior/orca_dialogs.py`.
