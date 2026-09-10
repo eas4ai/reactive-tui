@@ -12,6 +12,8 @@ Add an internal inherited inert flag to expanded element metadata. Event registr
 
 ## Realized by
 
+- b2079c401464b25ccb33747e33b5b3373f284a90 Restore widget behavior, native terminal sessions, and image output through App
+
 Implementation: `src/widgets/display/modal`, `src/widgets/layout/accordion/live.rs`.
 
 Behavior checks: `tests/api_widget_behavior/modal.rs`, `tests/api_widget_behavior/accordion.rs`.
