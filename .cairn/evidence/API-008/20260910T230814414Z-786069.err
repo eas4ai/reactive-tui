@@ -1,0 +1,5 @@
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.83s
+     Running tests/api_clipboard.rs (target/debug/deps/api_clipboard-3bbe8d916ff07d89)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.13s
+     Running unittests src/lib.rs (target/debug/deps/reactive_tui-e9e38f93cee1f718)
