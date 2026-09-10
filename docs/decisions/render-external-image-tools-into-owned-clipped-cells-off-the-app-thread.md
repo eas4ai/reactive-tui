@@ -17,6 +17,8 @@ select internal ASCII. Capability probes never read App input.
 
 ## Realized by
 
+- b2079c401464b25ccb33747e33b5b3373f284a90 Restore widget behavior, native terminal sessions, and image output through App
+
 `live/worker.rs` reuses decoded sources for layout changes and executes selected
 external modes with generation-aware cancellation. `live/cells.rs` parses bounded
 captured output and creates clipped styled runs. The existing vt100 test dependency
