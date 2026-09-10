@@ -161,7 +161,27 @@ impl Component for Checkbox {
             }
         }
 
+        use crate::accessibility::{Node, Role, Toggled};
+        let mut accessible = Node::new(Role::CheckBox);
+        if let Some(label) = &props.label {
+            accessible.set_label(label.clone());
+        }
+        accessible.set_toggled(if props.indeterminate {
+            Toggled::Mixed
+        } else if props.checked {
+            Toggled::True
+        } else {
+            Toggled::False
+        });
+        if props.disabled {
+            accessible.set_disabled();
+        } else {
+            accessible.set_clickable();
+        }
         Element::text(result)
+            .with_accessibility(accessible)
+            .with_focus(crate::component::FocusProps::input())
+            .disabled(props.disabled)
     }
 
     fn handle_event(
@@ -170,7 +190,7 @@ impl Component for Checkbox {
         props: &mut Self::Props,
         state: &mut Self::State,
     ) -> EventResult {
-        if props.disabled {
+        if props.disabled && !matches!(event, Event::Focus(_)) {
             return EventResult::Ignored;
         }
 
@@ -183,8 +203,14 @@ impl Component for Checkbox {
                 self.handle_key_event(key_event, props, state)
             }
             Event::Mouse(mouse_event) => self.handle_mouse_event(mouse_event, props, state),
-            Event::Focus(_) => {
-                state.is_focused = true;
+            Event::Focus(event)
+                if matches!(
+                    event.kind,
+                    crate::event::types::FocusEventKind::Gained
+                        | crate::event::types::FocusEventKind::Lost
+                ) =>
+            {
+                state.is_focused = event.kind == crate::event::types::FocusEventKind::Gained;
                 EventResult::Consumed
             }
             _ => EventResult::Ignored,
@@ -200,7 +226,7 @@ impl Checkbox {
         _state: &mut CheckboxState,
     ) -> EventResult {
         match event.code {
-            KeyCode::Char(' ') | KeyCode::Enter => {
+            KeyCode::Char(' ') | KeyCode::Space | KeyCode::Enter => {
                 // Toggle checkbox
                 if props.indeterminate {
                     // If indeterminate, go to checked
@@ -228,7 +254,9 @@ impl Checkbox {
         state: &mut CheckboxState,
     ) -> EventResult {
         match event.kind {
-            MouseEventKind::Click => {
+            MouseEventKind::Down | MouseEventKind::Click
+                if event.button == crate::event::types::MouseButton::Left =>
+            {
                 // Toggle on click
                 state.is_focused = true;
 
@@ -245,14 +273,13 @@ impl Checkbox {
 
                 EventResult::Consumed
             }
-            MouseEventKind::Move => {
-                // Track hover state for visual feedback
-                let pos_x = event.position.x() as usize;
-                let pos_y = event.position.y() as usize;
-
-                // Check if mouse is over the checkbox area
-                state.is_hover = pos_y == 0 && pos_x <= 5;
-
+            MouseEventKind::Enter | MouseEventKind::Move => {
+                // App routes only cells within the acknowledged control bounds.
+                state.is_hover = true;
+                EventResult::Ignored
+            }
+            MouseEventKind::Leave => {
+                state.is_hover = false;
                 EventResult::Ignored
             }
             _ => EventResult::Ignored,

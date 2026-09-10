@@ -4,6 +4,7 @@ command: python3 -B scripts/check-api-event-routing.py
 inputs:
   - .cairn/mechanisms/api-event-routing.md
   - Cargo.toml
+  - build.rs
   - Cargo.lock
   - src
   - reactive-tui-macros

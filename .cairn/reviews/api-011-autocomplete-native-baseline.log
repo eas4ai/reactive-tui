@@ -1,0 +1,45 @@
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 17.01s
+     Running unittests src/lib.rs (target/debug/deps/reactive_tui-8db3a30746e1a23f)
+
+running 4 tests
+test widgets::dialog::autocomplete::tests::native_editing_preserves_whole_graphemes ... FAILED
+test widgets::dialog::autocomplete::tests::native_minimum_counts_displayed_characters ... FAILED
+test widgets::dialog::autocomplete::tests::native_selection_without_callback_closes ... FAILED
+test widgets::dialog::autocomplete::tests::native_submit_honors_selection_veto_once_without_mutation ... FAILED
+
+failures:
+
+---- widgets::dialog::autocomplete::tests::native_editing_preserves_whole_graphemes stdout ----
+
+thread 'widgets::dialog::autocomplete::tests::native_editing_preserves_whole_graphemes' (3862339) panicked at src/widgets/dialog/autocomplete.rs:223:30:
+start byte index 17 is not a char boundary; it is inside '💻' (bytes 14..18) of `Aé界👩‍💻Z`
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- widgets::dialog::autocomplete::tests::native_minimum_counts_displayed_characters stdout ----
+
+thread 'widgets::dialog::autocomplete::tests::native_minimum_counts_displayed_characters' (3862343) panicked at src/widgets/dialog/autocomplete.rs:923:9:
+assertion failed: dialog.suggestions.is_empty()
+
+---- widgets::dialog::autocomplete::tests::native_selection_without_callback_closes stdout ----
+
+thread 'widgets::dialog::autocomplete::tests::native_selection_without_callback_closes' (3862345) panicked at src/widgets/dialog/autocomplete.rs:934:9:
+assertion failed: matches!(dialog.select_suggestion(),
+    DialogEventResult::Close(DialogResult::Selected(value)) if value ==
+    "chosen")
+
+---- widgets::dialog::autocomplete::tests::native_submit_honors_selection_veto_once_without_mutation stdout ----
+
+thread 'widgets::dialog::autocomplete::tests::native_submit_honors_selection_veto_once_without_mutation' (3862346) panicked at src/widgets/dialog/autocomplete.rs:953:9:
+assertion failed: !matches!(dialog.submit(), DialogEventResult::Close(_))
+
+
+failures:
+    widgets::dialog::autocomplete::tests::native_editing_preserves_whole_graphemes
+    widgets::dialog::autocomplete::tests::native_minimum_counts_displayed_characters
+    widgets::dialog::autocomplete::tests::native_selection_without_callback_closes
+    widgets::dialog::autocomplete::tests::native_submit_honors_selection_veto_once_without_mutation
+
+test result: FAILED. 0 passed; 4 failed; 0 ignored; 0 measured; 837 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `--lib`

@@ -1,0 +1,29 @@
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 15.03s
+     Running unittests src/lib.rs (target/debug/deps/reactive_tui-8db3a30746e1a23f)
+
+running 3 tests
+
+thread 'widgets::display::image::protocol_renderer::tests::api_image_protocol_rejects_invalid_raw_extents' (935003) panicked at src/widgets/display/image/protocol_renderer.rs:337:13:
+1x1
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+thread 'widgets::display::image::protocol_renderer::tests::api_image_protocol_iterm_encodes_an_image_file_with_byte_size' (935001) panicked at src/widgets/display/image/protocol_renderer.rs:323:109:
+size counts bytes: ParseIntError { kind: InvalidDigit }
+
+thread 'widgets::display::image::protocol_renderer::tests::api_image_protocol_kitty_transmits_one_chunked_rgba_image' (935002) panicked at src/widgets/display/image/protocol_renderer.rs:297:17:
+a=T,f=24,s=32,v=32,i=1789018134
+test widgets::display::image::protocol_renderer::tests::api_image_protocol_iterm_encodes_an_image_file_with_byte_size ... FAILED
+test widgets::display::image::protocol_renderer::tests::api_image_protocol_rejects_invalid_raw_extents ... FAILED
+test widgets::display::image::protocol_renderer::tests::api_image_protocol_kitty_transmits_one_chunked_rgba_image ... FAILED
+
+failures:
+
+failures:
+    widgets::display::image::protocol_renderer::tests::api_image_protocol_iterm_encodes_an_image_file_with_byte_size
+    widgets::display::image::protocol_renderer::tests::api_image_protocol_kitty_transmits_one_chunked_rgba_image
+    widgets::display::image::protocol_renderer::tests::api_image_protocol_rejects_invalid_raw_extents
+
+test result: FAILED. 0 passed; 3 failed; 0 ignored; 0 measured; 852 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `--lib`

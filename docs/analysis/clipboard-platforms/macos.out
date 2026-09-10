@@ -3,5 +3,5 @@ running 1 test
 RTUI_CLIPBOARD_PLATFORM_OK backend=macos cases=5
 test clipboard_platform_roundtrip ... ok
 
-test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.41s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.37s
 

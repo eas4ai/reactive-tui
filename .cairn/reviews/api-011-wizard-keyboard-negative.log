@@ -1,0 +1,31 @@
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.15s
+     Running tests/api_widget_behavior.rs (target/debug/deps/api_widget_behavior-af8b000cab735812)
+
+running 1 test
+
+thread 'wizard_acceptance::noncancelable_wizard_keeps_keyboard_finish_available' (512784) panicked at tests/support/app_input.rs:102:13:
+App painted 7 frames but input needs Some((1, [])) before the deadline. Last frame:
+                                
+                                
+   ┌────────────────────────┐   
+   │    KEYBOARD WIZARD     │   
+   │Step 1 of 1             │   
+   │████████████████████████│   
+   │ONLY                    │   
+   │                  Finish│   
+   └────────────────────────┘   
+                                
+                                
+                                
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test wizard_acceptance::noncancelable_wizard_keeps_keyboard_finish_available ... FAILED
+
+failures:
+
+failures:
+    wizard_acceptance::noncancelable_wizard_keeps_keyboard_finish_available
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 392 filtered out; finished in 3.00s
+
+error: test failed, to rerun pass `--test api_widget_behavior`

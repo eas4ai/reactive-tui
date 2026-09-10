@@ -4,6 +4,7 @@ command: python3 -B scripts/check-api-editor-unicode.py
 inputs:
   - .cairn/mechanisms/api-editor-unicode.md
   - Cargo.toml
+  - build.rs
   - Cargo.lock
   - src
   - reactive-tui-macros

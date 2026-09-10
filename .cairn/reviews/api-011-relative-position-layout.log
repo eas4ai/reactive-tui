@@ -1,0 +1,11 @@
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 4.99s
+     Running tests/api_widget_behavior.rs (target/debug/deps/api_widget_behavior-591f6bff9f7c0602)
+
+running 3 tests
+test dialog_position_acceptance::relative_dialog_reports_ambiguous_and_removed_anchors ... ok
+test dialog_position_acceptance::relative_dialog_tracks_changed_parent_layout_and_viewport_resize ... ok
+test dialog_position_acceptance::relative_dialog_uses_all_nine_measured_anchor_points_and_offset ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 321 filtered out; finished in 2.04s
+

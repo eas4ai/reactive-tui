@@ -1,7 +1,4 @@
 use crate::component::{Component, Element, Props};
-use crate::event::router::EventResult;
-use crate::event::types::{KeyCode, KeyEvent, MouseEventKind};
-use crate::event::{Event, MouseEvent};
 use crate::widgets::menu::{MenuItem, MenuStyle, MenuTheme};
 use std::any::Any;
 use std::sync::Arc;
@@ -120,7 +117,7 @@ impl Props for PopupMenuProps {
 }
 
 /// State for PopupMenu component
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct PopupMenuState {
     /// Index of the currently selected item
     pub selected_index: Option<usize>,
@@ -161,52 +158,23 @@ impl PopupMenuState {
 
     /// Select the next menu item
     pub fn select_next(&mut self, item_count: usize) {
-        if item_count == 0 {
-            return;
-        }
-
-        self.selected_index = Some(match self.selected_index {
-            Some(idx) => (idx + 1) % item_count,
-            None => 0,
-        });
+        self.selected_index = super::state::step(self.selected_index, item_count, true);
     }
 
     /// Select the previous menu item
     pub fn select_previous(&mut self, item_count: usize) {
-        if item_count == 0 {
-            return;
-        }
-
-        self.selected_index = Some(match self.selected_index {
-            Some(idx) => {
-                if idx == 0 {
-                    item_count - 1
-                } else {
-                    idx - 1
-                }
-            }
-            None => item_count - 1,
-        });
+        self.selected_index = super::state::step(self.selected_index, item_count, false);
     }
 
     /// Update scroll offset to keep selected item visible
     pub fn update_scroll(&mut self, max_visible: usize) {
-        if let Some(selected) = self.selected_index {
-            if selected < self.scroll_offset {
-                self.scroll_offset = selected;
-            } else if selected >= self.scroll_offset + max_visible {
-                self.scroll_offset = selected - max_visible + 1;
-            }
-        }
+        super::state::keep_visible(self.selected_index, &mut self.scroll_offset, max_visible);
     }
 
     /// Check if a point is inside the popup area
     pub fn contains_point(&self, x: u16, y: u16) -> bool {
-        if let Some((px, py, pw, ph)) = self.popup_area {
-            x >= px && x < px + pw && y >= py && y < py + ph
-        } else {
-            false
-        }
+        self.popup_area
+            .is_some_and(|rect| super::state::contains(rect, (x, y)))
     }
 }
 
@@ -220,6 +188,23 @@ pub struct PopupMenu {
 }
 
 impl PopupMenu {
+    pub(crate) fn element_with_callbacks(
+        config: PopupMenuProps,
+        relative_placement: Option<super::popup_live::RelativePlacement>,
+        selected: Option<super::TextCallback>,
+        shown: Option<Arc<dyn Fn() + Send + Sync>>,
+        hidden: Option<Arc<dyn Fn() + Send + Sync>>,
+    ) -> Element {
+        Element::typed::<super::popup_live::LivePopup>(super::popup_live::LiveProps {
+            config,
+            relative_placement,
+            seed: PopupMenuState::default(),
+            selected,
+            shown,
+            hidden,
+        })
+    }
+
     /// Set callback for when a menu item is selected
     pub fn with_on_item_selected(mut self, f: impl Fn(&str) + Send + Sync + 'static) -> Self {
         self.on_item_selected = Some(Arc::new(f));
@@ -237,188 +222,6 @@ impl PopupMenu {
         self.on_hide = Some(Arc::new(f));
         self
     }
-
-    /// Handle keyboard navigation
-    fn handle_key_event(
-        &mut self,
-        key: &KeyEvent,
-        props: &PopupMenuProps,
-        state: &mut PopupMenuState,
-    ) -> EventResult {
-        if !props.enabled || !props.visible {
-            return EventResult::Ignored;
-        }
-
-        match key.code {
-            KeyCode::Up => {
-                state.select_previous(props.items.len());
-                state.update_scroll(props.max_visible_items);
-                EventResult::Handled
-            }
-            KeyCode::Down => {
-                state.select_next(props.items.len());
-                state.update_scroll(props.max_visible_items);
-                EventResult::Handled
-            }
-            KeyCode::Enter => {
-                if let Some(selected) = state.selected_index {
-                    if selected < props.items.len() {
-                        let item = &props.items[selected];
-                        if item.is_selectable() {
-                            item.execute();
-                            if let Some(callback) = &self.on_item_selected {
-                                callback(&item.id);
-                            }
-                            if props.auto_close {
-                                state.hide();
-                                if let Some(callback) = &self.on_hide {
-                                    callback();
-                                }
-                            }
-                        }
-                    }
-                }
-                EventResult::Handled
-            }
-            KeyCode::Escape => {
-                state.hide();
-                if let Some(callback) = &self.on_hide {
-                    callback();
-                }
-                EventResult::Handled
-            }
-            KeyCode::Home => {
-                state.selected_index = Some(0);
-                state.scroll_offset = 0;
-                EventResult::Handled
-            }
-            KeyCode::End => {
-                if !props.items.is_empty() {
-                    state.selected_index = Some(props.items.len() - 1);
-                    state.update_scroll(props.max_visible_items);
-                }
-                EventResult::Handled
-            }
-            KeyCode::PageUp => {
-                if let Some(selected) = state.selected_index {
-                    let new_selected = selected.saturating_sub(props.max_visible_items);
-                    state.selected_index = Some(new_selected);
-                    state.update_scroll(props.max_visible_items);
-                }
-                EventResult::Handled
-            }
-            KeyCode::PageDown => {
-                if let Some(selected) = state.selected_index {
-                    let new_selected =
-                        (selected + props.max_visible_items).min(props.items.len() - 1);
-                    state.selected_index = Some(new_selected);
-                    state.update_scroll(props.max_visible_items);
-                }
-                EventResult::Handled
-            }
-            _ => EventResult::Ignored,
-        }
-    }
-
-    /// Handle mouse events
-    fn handle_mouse_event(
-        &mut self,
-        mouse: &MouseEvent,
-        props: &PopupMenuProps,
-        state: &mut PopupMenuState,
-    ) -> EventResult {
-        if !props.enabled || !props.visible {
-            return EventResult::Ignored;
-        }
-
-        let (mouse_x, mouse_y) = match mouse.position {
-            crate::event::types::Position::Cell { x, y } => (x, y),
-            crate::event::types::Position::Pixel { x, y } => (x as u16, y as u16),
-        };
-
-        state.mouse_position = Some((mouse_x, mouse_y));
-
-        match mouse.kind {
-            MouseEventKind::Down => {
-                if state.contains_point(mouse_x, mouse_y) {
-                    // Click inside popup - handle item selection
-                    // This would need actual layout information to determine which item was clicked
-                    state.is_focused = true;
-                    EventResult::Handled
-                } else if props.close_on_outside_click {
-                    // Click outside popup - close it
-                    state.hide();
-                    if let Some(callback) = &self.on_hide {
-                        callback();
-                    }
-                    EventResult::Handled
-                } else {
-                    EventResult::Ignored
-                }
-            }
-            MouseEventKind::Move => {
-                if state.contains_point(mouse_x, mouse_y) {
-                    state.is_hovered = true;
-                    // Update selection based on mouse position
-                    // This would need actual layout information
-                    EventResult::Handled
-                } else {
-                    state.is_hovered = false;
-                    EventResult::Ignored
-                }
-            }
-            MouseEventKind::Wheel => {
-                if state.contains_point(mouse_x, mouse_y) {
-                    // Determine scroll direction from wheel data
-                    // Note: In a real implementation, you'd get the wheel delta from the mouse event
-                    // For now, we'll simulate scroll behavior based on mouse position changes
-
-                    let scroll_delta = self.calculate_wheel_delta(mouse);
-
-                    if scroll_delta > 0 {
-                        // Scroll up - move selection up
-                        state.select_previous(props.items.len());
-                    } else if scroll_delta < 0 {
-                        // Scroll down - move selection down
-                        state.select_next(props.items.len());
-                    }
-
-                    EventResult::Handled
-                } else {
-                    EventResult::Ignored
-                }
-            }
-            _ => EventResult::Ignored,
-        }
-    }
-
-    /// Calculate wheel scroll delta from mouse event
-    fn calculate_wheel_delta(&self, mouse: &MouseEvent) -> i32 {
-        // Extract the actual wheel delta from the mouse event
-        match mouse.kind {
-            MouseEventKind::Wheel => {
-                if let Some(wheel_event) = &mouse.wheel {
-                    match &wheel_event.delta {
-                        crate::event::types::WheelDelta::Lines { y, .. } => {
-                            // Convert float lines to integer scroll amount
-                            // Negative y means scroll up, positive means scroll down
-                            // We invert this for menu scrolling (negative = scroll up in menu)
-                            -(*y as i32)
-                        }
-                        crate::event::types::WheelDelta::Pixels { y, .. } => {
-                            // Convert pixels to approximate lines (assuming ~16 pixels per line)
-                            let lines = *y / 16.0;
-                            -lines as i32
-                        }
-                    }
-                } else {
-                    // Fallback if wheel event data is missing
-                    -1
-                }
-            }
-            _ => 0,
-        }
-    }
 }
 
 impl Component for PopupMenu {
@@ -434,62 +237,27 @@ impl Component for PopupMenu {
         }
     }
 
-    fn update(&mut self, props: &Self::Props, state: &mut Self::State) -> bool {
-        let was_visible = self.state.is_focused;
+    fn update(&mut self, _props: &Self::Props, state: &mut Self::State) -> bool {
         self.state = state.clone();
-
-        // Trigger callbacks for visibility changes
-        if props.visible && !was_visible {
-            if let Some(callback) = &self.on_show {
-                callback();
-            }
-        } else if !props.visible && was_visible {
-            if let Some(callback) = &self.on_hide {
-                callback();
-            }
-        }
-
         true
     }
-
-    fn render(&self, props: &Self::Props, _state: &Self::State) -> Element {
-        if !props.visible {
-            return Element::empty();
-        }
-
-        // Create the popup menu element
-        // This is a simplified version - in a real implementation, you'd need to:
-        // 1. Calculate popup position based on placement
-        // 2. Render menu items with proper styling
-        // 3. Handle scrolling for long menus
-        // 4. Render borders and shadows if enabled
-
-        Element::layout(crate::component::element::LayoutType::Flex)
-            .with_key("popup-menu")
-            .with_class(&props.style.base_classes)
-    }
-
-    fn handle_event(
-        &mut self,
-        event: &Event,
-        props: &mut Self::Props,
-        state: &mut Self::State,
-    ) -> EventResult {
-        match event {
-            Event::Key(key_event) => self.handle_key_event(key_event, props, state),
-            Event::Mouse(mouse_event) => self.handle_mouse_event(mouse_event, props, state),
-            _ => EventResult::Ignored,
-        }
+    fn render(&self, props: &Self::Props, state: &Self::State) -> Element {
+        Element::typed::<super::popup_live::LivePopup>(super::popup_live::LiveProps {
+            config: props.clone(),
+            relative_placement: None,
+            seed: state.clone(),
+            selected: self.on_item_selected.clone(),
+            shown: self.on_show.clone(),
+            hidden: self.on_hide.clone(),
+        })
     }
 }
 
 /// Builder for creating PopupMenu components with a fluent API
-#[allow(dead_code)]
 pub struct PopupMenuBuilder {
     props: PopupMenuProps,
 }
 
-#[allow(dead_code)]
 impl PopupMenuBuilder {
     /// Create a new popup menu builder
     pub fn new() -> Self {

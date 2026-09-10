@@ -4,8 +4,9 @@
 //! format conversion, and image manipulation utilities.
 
 use crate::error::{ReactiveError, Result};
-use crate::widgets::display::image::{Image, ImageFormat, ImageQuality, ImageSource};
-use std::path::Path;
+#[cfg(test)]
+use crate::widgets::display::image::ImageFormat;
+use crate::widgets::display::image::{Image, ImageQuality};
 
 /// Image processor for various image manipulation tasks
 pub struct ImageProcessor;
@@ -40,127 +41,82 @@ impl ImageProcessor {
 
     /// Convert image to ASCII art
     pub fn to_ascii_art(&self, image: &Image) -> Result<String> {
-        let config = self.create_ascii_config(image);
-        let (image_data, width, height) = self.load_image_data(&image.source)?;
-
-        self.convert_to_ascii(&image_data, width, height, &config)
+        let (image_data, width, height) = self.load_image_data(image)?;
+        self.render_data(&image_data, width, height, image)
     }
 
-    /// Load image data from various sources
-    fn load_image_data(&self, source: &ImageSource) -> Result<(Vec<u8>, u32, u32)> {
-        match source {
-            ImageSource::FilePath(path) => self.load_from_file(path),
-            ImageSource::Base64Data(data) => self.load_from_base64(data),
-            ImageSource::RawBytes {
-                data,
-                width,
-                height,
-                format,
-            } => self.load_from_raw_bytes(data, *width, *height, *format),
-            ImageSource::Url(url) => {
-                // Load image from URL
-                self.load_from_url(url)
-            }
-        }
-    }
-
-    /// Load image from URL
-    fn load_from_url(&self, url: &str) -> Result<(Vec<u8>, u32, u32)> {
-        // Check if it's a data URL (base64 encoded)
-        if url.starts_with("data:image/") {
-            if let Some(base64_start) = url.find("base64,") {
-                let base64_data = &url[base64_start + 7..];
-                return self.load_from_base64(base64_data);
-            }
-        }
-
-        // For HTTP/HTTPS URLs, we'd need an HTTP client
-        if url.starts_with("http://") || url.starts_with("https://") {
-            return Err(ReactiveError::ImageProcessing(
-                "HTTP URL loading requires adding reqwest dependency. Use data URLs or local files for now.".to_string()
-            ));
-        }
-
-        // Try to treat as local file path
-        let path = Path::new(url);
-        self.load_from_file(path)
-    }
-
-    /// Load image from file path
-    fn load_from_file(&self, path: &Path) -> Result<(Vec<u8>, u32, u32)> {
-        let img = image::open(path)
-            .map_err(|e| ReactiveError::ImageProcessing(format!("Failed to load image: {}", e)))?;
-
-        let gray_img = img.to_luma8();
-        let (width, height) = gray_img.dimensions();
-        let data = gray_img.into_raw();
-
-        Ok((data, width, height))
-    }
-
-    /// Load image from base64 data
-    fn load_from_base64(&self, base64_data: &str) -> Result<(Vec<u8>, u32, u32)> {
-        use base64::Engine;
-        let decoded = base64::engine::general_purpose::STANDARD
-            .decode(base64_data)
-            .map_err(|e| ReactiveError::ImageProcessing(format!("Invalid base64 data: {}", e)))?;
-
-        let img = image::load_from_memory(&decoded).map_err(|e| {
-            ReactiveError::ImageProcessing(format!("Failed to decode image: {}", e))
-        })?;
-
-        let gray_img = img.to_luma8();
-        let (width, height) = gray_img.dimensions();
-        let data = gray_img.into_raw();
-
-        Ok((data, width, height))
-    }
-
-    /// Load image from raw bytes
-    fn load_from_raw_bytes(
+    pub(super) fn ascii_from_pixels(
         &self,
-        data: &[u8],
+        pixels: &image::RgbaImage,
+        image: &Image,
+    ) -> Result<String> {
+        let rgb = super::decoded::rgb_pixels(pixels, image.background_color);
+        let gray = Self::grayscale(&rgb);
+        self.render_data(&gray, rgb.width(), rgb.height(), image)
+    }
+
+    fn render_data(
+        &self,
+        image_data: &[u8],
         width: u32,
         height: u32,
-        format: ImageFormat,
-    ) -> Result<(Vec<u8>, u32, u32)> {
-        match format {
-            ImageFormat::RGB888 => {
-                // Convert RGB to grayscale
-                let gray_data: Vec<u8> = data
-                    .chunks_exact(3)
-                    .map(|rgb| {
-                        // Use standard luminance formula
-                        (0.299 * rgb[0] as f32 + 0.587 * rgb[1] as f32 + 0.114 * rgb[2] as f32)
-                            as u8
-                    })
-                    .collect();
-                Ok((gray_data, width, height))
-            }
-            ImageFormat::RGBA8888 => {
-                // Convert RGBA to grayscale (ignore alpha)
-                let gray_data: Vec<u8> = data
-                    .chunks_exact(4)
-                    .map(|rgba| {
-                        (0.299 * rgba[0] as f32 + 0.587 * rgba[1] as f32 + 0.114 * rgba[2] as f32)
-                            as u8
-                    })
-                    .collect();
-                Ok((gray_data, width, height))
-            }
-            _ => {
-                // For compressed formats, decode using image crate
-                let img = image::load_from_memory(data).map_err(|e| {
-                    ReactiveError::ImageProcessing(format!("Failed to decode image: {}", e))
-                })?;
-
-                let gray_img = img.to_luma8();
-                let (w, h) = gray_img.dimensions();
-                let gray_data = gray_img.into_raw();
-
-                Ok((gray_data, w, h))
-            }
+        image: &Image,
+    ) -> Result<String> {
+        let config = self.create_ascii_config(image);
+        let max_height = image
+            .size_constraints
+            .map(|(_, height)| height)
+            .unwrap_or_else(|| {
+                crate::core::terminal::Terminal::get_size()
+                    .map(|(_, rows)| u32::from(rows))
+                    .unwrap_or(24)
+            });
+        if config.max_width == 0 || max_height == 0 {
+            return Ok(String::new());
         }
+        let (output_width, output_height) = if image.preserve_aspect {
+            let height_at_width =
+                f64::from(config.max_width) * f64::from(height) / f64::from(width) * 0.5;
+            if height_at_width <= f64::from(max_height) {
+                (config.max_width, (height_at_width as u32).max(1))
+            } else {
+                (
+                    ((f64::from(max_height) * f64::from(width) / f64::from(height) * 2.0) as u32)
+                        .max(1),
+                    max_height,
+                )
+            }
+        } else {
+            (config.max_width, max_height)
+        };
+        super::decoded::dimensions(output_width, output_height)?;
+        self.convert_to_ascii(
+            image_data,
+            width,
+            height,
+            &config,
+            output_width,
+            output_height,
+        )
+    }
+
+    /// Load checked opaque pixels and convert all sources using the same luminance.
+    fn load_image_data(&self, image: &Image) -> Result<(Vec<u8>, u32, u32)> {
+        let pixels = super::decoded::rgb(image)?;
+        let (width, height) = pixels.dimensions();
+        Ok((Self::grayscale(&pixels), width, height))
+    }
+
+    fn grayscale(pixels: &image::RgbImage) -> Vec<u8> {
+        pixels
+            .pixels()
+            .map(|pixel| {
+                ((299 * u32::from(pixel[0])
+                    + 587 * u32::from(pixel[1])
+                    + 114 * u32::from(pixel[2]))
+                    / 1000) as u8
+            })
+            .collect()
     }
 
     /// Create ASCII configuration based on image settings
@@ -186,6 +142,8 @@ impl ImageProcessor {
         width: u32,
         height: u32,
         config: &AsciiConfig,
+        new_width: u32,
+        new_height: u32,
     ) -> Result<String> {
         // ASCII character ramps
         let ascii_chars_detailed =
@@ -199,11 +157,6 @@ impl ImageProcessor {
         };
         let ramp_len = char_ramp.len() as f32;
 
-        // Calculate new dimensions
-        let aspect_ratio = height as f32 / width as f32;
-        let new_width = config.max_width;
-        let new_height = (new_width as f32 * aspect_ratio * 0.5) as u32; // 0.5 for character aspect ratio
-
         // Resize image
         let resized_data = self.resize_grayscale(data, width, height, new_width, new_height)?;
 
@@ -215,7 +168,8 @@ impl ImageProcessor {
         };
 
         // Convert to ASCII
-        let mut ascii_art = String::with_capacity((new_width * new_height + new_height) as usize);
+        let mut ascii_art =
+            String::with_capacity(new_width as usize * new_height as usize + new_height as usize);
 
         for (i, &pixel) in final_data.iter().enumerate() {
             let mut brightness = pixel as f32;
@@ -327,6 +281,45 @@ mod tests {
     use super::*;
 
     #[test]
+    fn api_image_ascii_obeys_both_dimensions_and_uses_decoded_pixels() {
+        let image = Image::from_raw_bytes(vec![0, 0, 0, 255], 1, 1, ImageFormat::RGBA8888)
+            .with_max_size(4, 1)
+            .with_preserve_aspect(false)
+            .with_quality(ImageQuality::Fast);
+        assert_eq!(
+            ImageProcessor::new().to_ascii_art(&image).unwrap(),
+            "@@@@\n"
+        );
+        let white = Image::from_raw_bytes(vec![255; 4], 1, 1, ImageFormat::RGBA8888)
+            .with_max_size(4, 1)
+            .with_preserve_aspect(false)
+            .with_quality(ImageQuality::Fast);
+        assert_eq!(
+            ImageProcessor::new().to_ascii_art(&white).unwrap(),
+            "    \n"
+        );
+        let tall = Image::from_raw_bytes(vec![0; 3 * 20], 1, 20, ImageFormat::RGB888)
+            .with_max_size(4, 2)
+            .with_quality(ImageQuality::Fast);
+        assert_eq!(ImageProcessor::new().to_ascii_art(&tall).unwrap(), "@\n@\n");
+        assert_eq!(
+            ImageProcessor::new()
+                .to_ascii_art(&white.with_max_size(0, 2))
+                .unwrap(),
+            ""
+        );
+    }
+
+    #[test]
+    fn api_image_grayscale_preserves_neutral_channels() {
+        let pixels = image::RgbImage::from_fn(256, 1, |x, _| image::Rgb([x as u8; 3]));
+        assert_eq!(
+            ImageProcessor::grayscale(&pixels),
+            (0..=255).collect::<Vec<u8>>()
+        );
+    }
+
+    #[test]
     fn test_ascii_config_default() {
         let config = AsciiConfig::default();
         assert_eq!(config.max_width, 80);
@@ -344,7 +337,7 @@ mod tests {
         let rgb_data = vec![255, 0, 0, 0, 255, 0, 0, 0, 255];
 
         let (gray_data, width, height) = processor
-            .load_from_raw_bytes(&rgb_data, 3, 1, ImageFormat::RGB888)
+            .load_image_data(&Image::from_raw_bytes(rgb_data, 3, 1, ImageFormat::RGB888))
             .unwrap();
 
         assert_eq!(width, 3);

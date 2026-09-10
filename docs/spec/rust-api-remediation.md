@@ -102,6 +102,12 @@ Audit mapping: RAPI-08.
 Falsifier: a catalog entry lacks behavioral coverage, a builder paints a description instead of its control, or interaction relies on fixed/default bounds.
 Mechanism: per-widget acceptance matrix and App workflows at multiple viewport sizes.
 
+Screen-reader guarantee (approved 2026-09-09, escalation api-011-api-018): verify
+Orca with GNOME Terminal on Linux, including actual delivery of labels, roles,
+focus and state changes. Preserve public label APIs. Other terminal/screen-reader
+pairs are explicitly unverified; their existing rendering/input guarantees remain.
+Retained metadata or painted text alone is not screen-reader acceptance evidence.
+
 ## Dialog lifecycle and results
 
 [API-012]
@@ -125,6 +131,13 @@ Advertised file and encoded-memory image paths MUST decode actual image data and
 Audit mapping: RAPI-11.
 Falsifier: a file yields a synthetic pattern, encoded bytes are mistaken for pixels, a claimed protocol only paints fallback cells, or removal leaves stale placement.
 Mechanism: known-image pixel comparisons, protocol captures and integration evidence on each claimed host/protocol.
+
+iTerm2 3.7 color/transparency limit (approved 2026-09-10, escalation
+api-011-api-014-api-020): inline-image color accuracy and transparency are
+unsupported on this host/version. Preserve the public inline-image APIs and
+all other host requirements, including placement, update and removal. Retain
+its failing color evidence. WezTerm remains the verified inline-protocol host
+for color acceptance. This exception does not apply to other hosts or protocols.
 
 ## Feature configurations
 

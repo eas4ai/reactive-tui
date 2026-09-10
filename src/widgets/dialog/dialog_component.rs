@@ -219,7 +219,7 @@ impl PartialEq for DialogPosition {
                     anchor: anc2,
                 },
             ) => id1 == id2 && off1 == off2 && anc1 == anc2,
-            (DialogPosition::Custom(_), DialogPosition::Custom(_)) => false, // Can't compare functions
+            (DialogPosition::Custom(a), DialogPosition::Custom(b)) => Arc::ptr_eq(a, b),
             _ => false,
         }
     }

@@ -1,0 +1,15 @@
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.55s
+     Running tests/api_widget_behavior.rs (target/debug/deps/api_widget_behavior-af8b000cab735812)
+
+running 7 tests
+test scroll_acceptance::scroll_view_keeps_unicode_content_and_reaches_last_row ... ok
+test scroll_acceptance::specialized_scroll_keeps_child_input_and_clips_hidden_hits ... ok
+test scroll_acceptance::smooth_scroll_paints_intermediate_content ... ok
+test scroll_acceptance::scrollbars_follow_offsets_and_disabled_axes_and_empty_content_are_inert ... ok
+test scroll_acceptance::scroll_resize_preserves_position_then_clamps_to_new_viewport ... ok
+test scroll_acceptance::scroll_wheel_has_direction_and_horizontal_unicode_uses_cells ... ok
+test scroll_acceptance::padded_scrollbars_and_wheel_hits_stay_inside_the_viewport ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 375 filtered out; finished in 0.13s
+

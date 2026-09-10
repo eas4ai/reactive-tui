@@ -91,6 +91,7 @@ pub fn slider() -> SliderBuilder {
 ///     .class("email-field")
 ///     .build();
 /// ```
+#[derive(Clone, PartialEq)]
 pub struct TextInputBuilder {
     value: String,
     placeholder: Option<String>,
@@ -185,19 +186,112 @@ impl TextInputBuilder {
     /// # Returns
     /// An `Element` representing the text input field
     pub fn build(self) -> Element {
-        let display_text = if self.value.is_empty() {
-            self.placeholder.unwrap_or_else(|| "Text Input".to_string())
-        } else {
-            self.value
-        };
-
-        let mut element = Element::text(format!("Input: {}", display_text));
-
-        if let Some(class) = self.class {
+        let class = self.class.clone();
+        let mut element = Element::typed::<ConfiguredTextInput>(self);
+        if let Some(class) = class {
             element = element.with_class(&class);
         }
 
         element
+    }
+}
+
+impl crate::component::Props for TextInputBuilder {
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+}
+
+impl TextInputBuilder {
+    fn widget_props(&self) -> crate::widgets::TextInputProps {
+        use crate::widgets::input::InputMode;
+        crate::widgets::TextInputProps {
+            value: self.value.clone(),
+            placeholder: self.placeholder.clone(),
+            disabled: self.disabled,
+            max_length: self.max_length,
+            mode: match self.input_type.as_str() {
+                "password" => InputMode::Password,
+                "number" => InputMode::Numeric,
+                _ => InputMode::SingleLine,
+            },
+            validator_pattern: (self.input_type == "email").then(|| "email".to_owned()),
+            ..Default::default()
+        }
+    }
+}
+
+struct ConfiguredTextInput(crate::widgets::TextInput);
+
+impl crate::component::Component for ConfiguredTextInput {
+    type Props = TextInputBuilder;
+    type State = crate::widgets::TextInputState;
+
+    fn new(props: Self::Props) -> Self {
+        Self(crate::widgets::TextInput::new(props.widget_props()))
+    }
+    fn initial_state(&mut self, props: &Self::Props) -> Self::State {
+        self.0.initial_state(&props.widget_props())
+    }
+    fn update(&mut self, props: &Self::Props, state: &mut Self::State) -> bool {
+        self.0.update(&props.widget_props(), state)
+    }
+    fn render(&self, props: &Self::Props, state: &Self::State) -> Element {
+        self.0.render(&props.widget_props(), state)
+    }
+    fn layout(
+        &mut self,
+        bounds: crate::component::LayoutInfo,
+        props: &mut Self::Props,
+        state: &mut Self::State,
+    ) -> bool {
+        self.0.layout(bounds, &mut props.widget_props(), state)
+    }
+    fn handle_event(
+        &mut self,
+        event: &crate::event::Event,
+        props: &mut Self::Props,
+        state: &mut Self::State,
+    ) -> crate::event::router::EventResult {
+        use crate::event::{
+            router::EventResult,
+            types::{Event, KeyCode},
+        };
+        if props.readonly {
+            let allowed = match event {
+                Event::Key(key) if key.modifiers.ctrl => matches!(
+                    key.code,
+                    KeyCode::Char('a' | 'c')
+                        | KeyCode::Left
+                        | KeyCode::Right
+                        | KeyCode::Home
+                        | KeyCode::End
+                ),
+                Event::Key(key) => matches!(
+                    key.code,
+                    KeyCode::Left
+                        | KeyCode::Right
+                        | KeyCode::Up
+                        | KeyCode::Down
+                        | KeyCode::Home
+                        | KeyCode::End
+                        | KeyCode::PageUp
+                        | KeyCode::PageDown
+                        | KeyCode::Escape
+                        | KeyCode::Tab
+                        | KeyCode::BackTab
+                ),
+                Event::Paste(_) => false,
+                _ => true,
+            };
+            if !allowed {
+                return EventResult::Consumed;
+            }
+        }
+        let mut inner = props.widget_props();
+        let result = self.0.handle_event(event, &mut inner, state);
+        props.value = inner.value;
+        result
     }
 }
 
@@ -294,21 +388,13 @@ impl CheckboxBuilder {
     /// # Returns
     /// An `Element` representing the checkbox input
     pub fn build(self) -> Element {
-        let state = if self.indeterminate {
-            "indeterminate"
-        } else if self.checked {
-            "checked"
-        } else {
-            "unchecked"
-        };
-
-        let display_text = if let Some(label) = &self.label {
-            format!("Checkbox ({}): {}", state, label)
-        } else {
-            format!("Checkbox ({})", state)
-        };
-
-        let mut element = Element::text(display_text);
+        let mut element =
+            Element::typed::<crate::widgets::Checkbox>(crate::widgets::CheckboxProps {
+                checked: self.checked,
+                label: self.label,
+                disabled: self.disabled,
+                indeterminate: self.indeterminate,
+            });
 
         if let Some(class) = self.class {
             element = element.with_class(&class);
@@ -340,6 +426,7 @@ impl From<CheckboxBuilder> for Element {
 ///     .placeholder("Choose country")
 ///     .build();
 /// ```
+#[derive(Clone, PartialEq)]
 pub struct SelectBuilder {
     options: Vec<(String, String)>, // (value, label)
     selected_value: Option<String>,
@@ -435,30 +522,119 @@ impl SelectBuilder {
     /// # Returns
     /// An `Element` representing the select dropdown
     pub fn build(self) -> Element {
-        let selected_label = if let Some(selected) = &self.selected_value {
-            self.options
-                .iter()
-                .find(|(value, _)| value == selected)
-                .map(|(_, label)| label.clone())
-                .unwrap_or_else(|| selected.clone())
-        } else {
-            self.placeholder
-                .unwrap_or_else(|| "Select an option".to_string())
-        };
-
-        let display_text = format!(
-            "Select: {} ({} options)",
-            selected_label,
-            self.options.len()
-        );
-
-        let mut element = Element::text(display_text);
-
-        if let Some(class) = self.class {
+        let class = self.class.clone();
+        let mut element = Element::typed::<ConfiguredSelect>(self);
+        if let Some(class) = class {
             element = element.with_class(&class);
         }
 
         element
+    }
+}
+
+impl crate::component::Props for SelectBuilder {
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+}
+
+impl SelectBuilder {
+    fn widget_props(&self) -> crate::widgets::SelectProps<String> {
+        crate::widgets::SelectProps {
+            options: self
+                .options
+                .iter()
+                .map(|(value, label)| {
+                    crate::widgets::SelectOption::new(value.clone(), label.clone())
+                })
+                .collect(),
+            selected: self.selected_value.clone(),
+            placeholder: self.placeholder.clone(),
+            disabled: self.disabled,
+            ..Default::default()
+        }
+    }
+}
+
+struct ConfiguredSelect {
+    inner: crate::widgets::Select<String>,
+    selected: Vec<String>,
+    selection_prop: Option<String>,
+    multiple_prop: bool,
+}
+
+impl crate::component::Component for ConfiguredSelect {
+    type Props = SelectBuilder;
+    type State = crate::widgets::SelectState;
+    fn new(props: Self::Props) -> Self {
+        Self {
+            inner: crate::widgets::Select::new(props.widget_props()),
+            selected: props.selected_value.clone().into_iter().collect(),
+            selection_prop: props.selected_value,
+            multiple_prop: props.multiple,
+        }
+    }
+    fn update(&mut self, props: &Self::Props, state: &mut Self::State) -> bool {
+        if self.selection_prop != props.selected_value || self.multiple_prop != props.multiple {
+            self.selected = props.selected_value.clone().into_iter().collect();
+        }
+        self.selection_prop.clone_from(&props.selected_value);
+        self.multiple_prop = props.multiple;
+        self.selected
+            .retain(|value| props.options.iter().any(|option| &option.0 == value));
+        self.inner.update(&props.widget_props(), state)
+    }
+    fn render(&self, props: &Self::Props, state: &Self::State) -> Element {
+        self.inner.render_control(
+            &props.widget_props(),
+            state,
+            props.multiple.then_some(self.selected.as_slice()),
+        )
+    }
+    fn layout(
+        &mut self,
+        bounds: crate::component::LayoutInfo,
+        props: &mut Self::Props,
+        state: &mut Self::State,
+    ) -> bool {
+        self.inner.layout(bounds, &mut props.widget_props(), state)
+    }
+    fn handle_event(
+        &mut self,
+        event: &crate::event::Event,
+        props: &mut Self::Props,
+        state: &mut Self::State,
+    ) -> crate::event::router::EventResult {
+        use crate::event::types::{Event, KeyCode, MouseButton, MouseEventKind};
+        let choosing = state.is_open
+            && match event {
+                Event::Key(key) => matches!(
+                    key.code,
+                    KeyCode::Enter | KeyCode::Char(' ') | KeyCode::Space
+                ),
+                Event::Mouse(mouse) => {
+                    self.inner
+                        .option_at(mouse.position, &props.widget_props(), state)
+                        .is_some()
+                        && mouse.button == MouseButton::Left
+                        && matches!(mouse.kind, MouseEventKind::Down | MouseEventKind::Click)
+                }
+                _ => false,
+            };
+        let mut inner = props.widget_props();
+        let result = self.inner.handle_event(event, &mut inner, state);
+        if props.multiple && choosing && !state.is_open {
+            if let Some(value) = &inner.selected {
+                if self.selected.contains(value) {
+                    self.selected.retain(|selected| selected != value);
+                } else {
+                    self.selected.push(value.clone());
+                }
+                state.is_open = true;
+            }
+        }
+        props.selected_value = inner.selected;
+        result
     }
 }
 

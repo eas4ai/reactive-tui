@@ -194,6 +194,13 @@ impl Terminal {
         &self.write_stats
     }
 
+    /// A failed frame is retried in full by its owner. Do not prepend bytes
+    /// retained after a partial buffered write to that replacement frame.
+    pub(crate) fn discard_buffered(&mut self) {
+        self.write_buffer.clear();
+        self.write_stats.buffer_utilization = 0.0;
+    }
+
     /// Reset write statistics
     pub fn reset_write_stats(&mut self) {
         self.write_stats = TerminalWriteStats::default();

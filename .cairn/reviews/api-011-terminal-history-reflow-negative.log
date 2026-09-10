@@ -1,0 +1,41 @@
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 8.13s
+     Running unittests src/lib.rs (target/debug/deps/reactive_tui-ff7f40ac5b910bef)
+
+running 10 tests
+test terminal::screen::reflow_tests::a_full_width_hard_break_and_erased_wrap_boundary_do_not_join_rows ... ok
+test terminal::screen::reflow_tests::alternate_screen_stays_fixed_while_its_saved_main_cursor_reflows ... ok
+test terminal::screen::reflow_tests::narrowing_reflows_existing_scrollback_without_hiding_columns ... FAILED
+test terminal::screen::reflow_tests::one_column_resize_never_leaves_half_a_wide_grapheme ... ok
+test terminal::screen::reflow_tests::reflow_joins_soft_wraps_across_the_history_viewport_boundary ... FAILED
+test terminal::screen::reflow_tests::reflow_preserves_styled_graphemes_and_omits_wide_wrap_padding ... ok
+test terminal::screen::reflow_tests::resizing_preserves_hard_breaks_and_pending_wrap_insertion ... ok
+test terminal::screen::reflow_tests::saved_cursor_follows_its_text_after_reflow ... ok
+test terminal::screen::reflow_tests::shrinking_keeps_the_cursor_visible_and_bounds_new_history ... ok
+test terminal::screen::reflow_tests::wider_main_screen_reflows_the_native_command_banner_before_next_input ... ok
+
+failures:
+
+---- terminal::screen::reflow_tests::narrowing_reflows_existing_scrollback_without_hiding_columns stdout ----
+
+thread 'terminal::screen::reflow_tests::narrowing_reflows_existing_scrollback_without_hiding_columns' (2173129) panicked at src/terminal/screen/reflow_tests.rs:133:5:
+assertion `left == right` failed
+  left: 1
+ right: 2
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- terminal::screen::reflow_tests::reflow_joins_soft_wraps_across_the_history_viewport_boundary stdout ----
+
+thread 'terminal::screen::reflow_tests::reflow_joins_soft_wraps_across_the_history_viewport_boundary' (2173134) panicked at src/terminal/screen/reflow_tests.rs:149:5:
+assertion `left == right` failed
+  left: 1
+ right: 0
+
+
+failures:
+    terminal::screen::reflow_tests::narrowing_reflows_existing_scrollback_without_hiding_columns
+    terminal::screen::reflow_tests::reflow_joins_soft_wraps_across_the_history_viewport_boundary
+
+test result: FAILED. 8 passed; 2 failed; 0 ignored; 0 measured; 958 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `--lib`

@@ -1,0 +1,25 @@
+info: ghostty version=1.3.1
+info: ghostty build optimize=ReleaseFast
+info: runtime=.gtk
+info: font_backend=.fontconfig_freetype
+info: dependency harfbuzz=12.3.2
+info: dependency fontconfig=21701
+info: renderer=renderer.generic.Renderer(renderer.OpenGL)
+info: libxev default backend=io_uring
+info(os_locale): setlocale from env result=C.UTF-8
+info(gtk): GTK version build=4.22.1 runtime=4.22.2
+info(gtk): libadwaita version build=1.9.0 runtime=1.9.0
+info(config): creating template config file: path=/tmp/rtui-image-host-_s5dny0e/config/ghostty/config.ghostty
+info(config): config-default-files unset, discarding configuration from default files
+info(config): default shell source=env value=/bin/bash
+warning(gtk_ghostty_application): setting GDK_DEBUG=
+warning(gtk_ghostty_application): setting GDK_DISABLE=gles-api,vulkan
+warning(glib): WARNING: Adwaita: The resource style-dark.css is deprecated and shouldn't be used anymore. Use style.css with media queries instead.
+warning(glib): WARNING: Adwaita: The resource style-hc.css is deprecated and shouldn't be used anymore. Use style.css with media queries instead.
+warning(glib): WARNING: Adwaita: The resource style-hc-dark.css is deprecated and shouldn't be used anymore. Use style.css with media queries instead.
+error(glib): CRITICAL: Gtk: Unable to connect to the accessibility bus at 'unix:path=/run/user/1000/at-spi/bus_0,guid=26d384852ec8a90b15ba66bf6a916e0b': Could not connect: No such file or directory
+info(opengl): loaded OpenGL 4.5
+info(io_exec): found Ghostty resources dir: /usr/share/ghostty
+warning(io_exec): shell could not be detected, no automatic shell integration will be injected
+warning(gtk_ghostty_application): unimplemented action=.cell_size
+info(io_exec): started subcommand path=/home/shawn/workspace2/reactive-tui/target/debug/examples/image_host_probe pid=2056616

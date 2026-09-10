@@ -6,7 +6,44 @@ use std::sync::Arc;
 /// Type alias for event handler function
 type EventHandler = Arc<dyn Fn(&dyn Any) + Send + Sync>;
 /// Type alias for event handler map
-type EventHandlerMap = Arc<HashMap<String, EventHandler>>;
+pub(super) type EventHandlerMap = Arc<HashMap<String, EventHandler>>;
+
+/// Properties delivered to registered components authored with `VNode::element`.
+/// Use this as the component's `Props` type; `VNode::component` instead delivers
+/// its caller-defined props type unchanged.
+#[derive(Clone, Default)]
+pub struct VElementProps {
+    /// Typed properties supplied by `VElement::prop`.
+    pub values: Arc<HashMap<String, Arc<dyn Any + Send + Sync>>>,
+    /// String attributes supplied by `VElement::attr`.
+    pub attrs: HashMap<String, String>,
+}
+
+impl VElementProps {
+    /// Read a property without losing its Rust type.
+    pub fn get<T: Any>(&self, name: &str) -> Option<&T> {
+        self.values.get(name)?.downcast_ref()
+    }
+}
+
+impl PartialEq for VElementProps {
+    fn eq(&self, other: &Self) -> bool {
+        self.attrs == other.attrs
+            && self.values.len() == other.values.len()
+            && self.values.iter().all(|(key, value)| {
+                other
+                    .values
+                    .get(key)
+                    .is_some_and(|other| Arc::ptr_eq(value, other))
+            })
+    }
+}
+
+impl crate::component::Props for VElementProps {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+}
 
 /// Key for identifying nodes across renders
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
@@ -142,74 +179,10 @@ impl VNode {
     }
 
     /// Create a VNode from a web_api Element (for reverse interop)
+    /// Native elements use an opaque VComponent payload to retain their full
+    /// behavior, props, styles and focus when converted back with `to_element`.
     pub fn from_element(element: crate::component::Element) -> Self {
-        use crate::component::{ElementType, LayoutType};
-
-        match element.element_type {
-            ElementType::Text(content) => {
-                let mut text_node = VText::new(content);
-                if let Some(key) = element.key {
-                    text_node.key = VNodeKey::String(key);
-                }
-                VNode::Text(text_node)
-            }
-            ElementType::Layout(layout_type) => {
-                let tag = match layout_type {
-                    LayoutType::Flex => "flex",
-                    LayoutType::Grid => "grid",
-                    LayoutType::Stack => "stack",
-                    LayoutType::Absolute => "div",
-                };
-
-                let mut element_builder = VNode::element(tag);
-                if let Some(class) = element.class {
-                    element_builder = element_builder.class(&class);
-                }
-                if let Some(key) = element.key {
-                    element_builder = element_builder.key(key);
-                }
-
-                let children: Vec<VNode> = element
-                    .children
-                    .into_iter()
-                    .map(VNode::from_element)
-                    .collect();
-
-                element_builder.children(children).build()
-            }
-            ElementType::Component(name) => {
-                let mut element_builder = VNode::element(&name);
-                if let Some(class) = element.class {
-                    element_builder = element_builder.class(&class);
-                }
-                if let Some(key) = element.key {
-                    element_builder = element_builder.key(key);
-                }
-
-                let children: Vec<VNode> = element
-                    .children
-                    .into_iter()
-                    .map(VNode::from_element)
-                    .collect();
-
-                element_builder.children(children).build()
-            }
-            ElementType::Fragment => {
-                let mut fragment_builder = VNode::fragment();
-                if let Some(key) = element.key {
-                    fragment_builder = fragment_builder.key(key);
-                }
-
-                let children: Vec<VNode> = element
-                    .children
-                    .into_iter()
-                    .map(VNode::from_element)
-                    .collect();
-
-                fragment_builder.children(children).build()
-            }
-            ElementType::Empty => VNode::Empty,
-        }
+        super::bridge::element_to_vdom(element)
     }
 }
 
@@ -286,7 +259,8 @@ impl VElement {
         self
     }
 
-    /// Add a property
+    /// Add a typed property. Registered components receive `VElementProps` and
+    /// can read it with `VElementProps::get` during each render and update.
     pub fn prop<T: Any + Send + Sync + 'static>(
         mut self,
         name: impl Into<String>,
@@ -309,7 +283,9 @@ impl VElement {
         self
     }
 
-    /// Set the style
+    /// Set terminal inline declarations, applied after utility classes.
+    /// Lengths use cells (unitless, `px` or `ch`); dimensions also accept `%` and
+    /// `auto`. Invalid declarations return a layout error when App renders.
     pub fn style(mut self, style: impl Into<String>) -> Self {
         self.style = Some(style.into());
         self
@@ -327,7 +303,11 @@ impl VElement {
         self
     }
 
-    /// Add an event handler
+    /// Add an App event handler. The payload downcasts to `crate::event::Event`.
+    /// `click` activates on unmodified Enter/Space or left mouse down/click.
+    /// `key`, `mouse`, `focus`, `paste` and `custom` observe native bubbling;
+    /// native handlers that consume an event stop later bubbling callbacks.
+    /// Reusing a name replaces its handler. Disabled elements receive no input.
     pub fn on<F>(mut self, event: impl Into<String>, handler: F) -> Self
     where
         F: Fn(&dyn Any) + Send + Sync + 'static,

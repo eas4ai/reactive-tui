@@ -1,0 +1,12 @@
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0100 55.2M  100 55.2M    0     0   105M      0 --:--:-- --:--:-- --:--:--  105M
+Traceback (most recent call last):
+  File "/Users/runner/work/reactive-tui/reactive-tui/scripts/check-iterm-host.py", line 233, in <module>
+    run(parser.parse_args())
+    ~~~^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/runner/work/reactive-tui/reactive-tui/scripts/check-iterm-host.py", line 212, in run
+    results = capture(app, output / mode, mode)
+  File "/Users/runner/work/reactive-tui/reactive-tui/scripts/check-iterm-host.py", line 148, in capture
+    raise RuntimeError("iTerm2 did not create the probe window; see host.log")
+RuntimeError: iTerm2 did not create the probe window; see host.log

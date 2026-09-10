@@ -1,0 +1,18 @@
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 5.49s
+     Running tests/api_widget_behavior.rs (target/debug/deps/api_widget_behavior-7f38c785954f09a5)
+
+running 10 tests
+test terminal_acceptance::terminal_widget_launch_failure_is_visible ... ok
+test terminal_acceptance::terminal_widget_paints_cursor_on_wide_continuation ... ok
+test terminal_acceptance::terminal_widget_paints_extended_colors_unicode_and_hidden_text ... ok
+test terminal_acceptance::terminal_widget_input_uses_focus_and_ignores_release_events ... ok
+test terminal_acceptance::terminal_widget_restores_main_screen_after_alternate_screen ... ok
+test terminal_acceptance::terminal_widget_display_changes_retain_child_launch_changes_replace_and_removal_reaps ... ok
+test terminal_acceptance::terminal_widget_scrolls_history_using_signed_wheel_at_two_sizes ... ok
+test terminal_acceptance::terminal_widget_paints_child_output_routes_input_resizes_and_reaps ... ok
+test terminal_acceptance::terminal_widget_uses_child_cursor_and_paste_modes ... ok
+test terminal_acceptance::terminal_widget_blinks_without_child_output_or_input ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 340 filtered out; finished in 2.04s
+

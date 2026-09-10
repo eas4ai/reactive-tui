@@ -102,27 +102,12 @@ fn apply_group_variants(token: &str, sb: StyleBuilder) -> Option<StyleBuilder> {
 
 /// Apply responsive variant utilities (sm:*, md:*, lg:*)
 fn apply_responsive_variants(token: &str, sb: StyleBuilder) -> Option<StyleBuilder> {
-    // Small screen variants
-    if let Some(sm_token) = token.strip_prefix("sm:") {
-        return apply_sm_variant(sm_token, sb);
-    }
-
-    // Medium screen variants
-    if let Some(md_token) = token.strip_prefix("md:") {
-        return apply_md_variant(md_token, sb);
-    }
-
-    // Large screen variants
-    if let Some(lg_token) = token.strip_prefix("lg:") {
-        return apply_lg_variant(lg_token, sb);
-    }
-
-    // Extra large screen variants
-    if let Some(xl_token) = token.strip_prefix("xl:") {
-        return apply_xl_variant(xl_token, sb);
-    }
-
-    None
+    // App resolves these prefixes against its viewport before parsing styles.
+    // A standalone parser has no viewport and cannot activate a breakpoint.
+    ["sm:", "md:", "lg:", "xl:"]
+        .iter()
+        .any(|prefix| token.starts_with(prefix))
+        .then_some(sb)
 }
 
 // State variant implementations
@@ -176,29 +161,6 @@ fn apply_group_active_variant(token: &str, sb: StyleBuilder) -> Option<StyleBuil
     apply_base_utility_with_group_active(token, sb)
 }
 
-// Responsive variant implementations
-
-/// Apply small screen variant
-fn apply_sm_variant(token: &str, sb: StyleBuilder) -> Option<StyleBuilder> {
-    // For TUI, responsive variants might be based on terminal size
-    apply_base_utility_with_responsive(token, sb, "sm")
-}
-
-/// Apply medium screen variant
-fn apply_md_variant(token: &str, sb: StyleBuilder) -> Option<StyleBuilder> {
-    apply_base_utility_with_responsive(token, sb, "md")
-}
-
-/// Apply large screen variant
-fn apply_lg_variant(token: &str, sb: StyleBuilder) -> Option<StyleBuilder> {
-    apply_base_utility_with_responsive(token, sb, "lg")
-}
-
-/// Apply extra large screen variant
-fn apply_xl_variant(token: &str, sb: StyleBuilder) -> Option<StyleBuilder> {
-    apply_base_utility_with_responsive(token, sb, "xl")
-}
-
 // Helper functions to apply base utilities with different contexts
 
 /// Apply base utility with active context
@@ -243,15 +205,6 @@ fn apply_base_utility_with_group_focus(token: &str, sb: StyleBuilder) -> Option<
 
 /// Apply base utility with group active context
 fn apply_base_utility_with_group_active(token: &str, sb: StyleBuilder) -> Option<StyleBuilder> {
-    apply_base_utility(token, sb)
-}
-
-/// Apply base utility with responsive context
-fn apply_base_utility_with_responsive(
-    token: &str,
-    sb: StyleBuilder,
-    _breakpoint: &str,
-) -> Option<StyleBuilder> {
     apply_base_utility(token, sb)
 }
 

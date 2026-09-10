@@ -1,0 +1,20 @@
+[
+  {
+    "kCGWindowAlpha" : 1,
+    "kCGWindowBounds" : {
+      "Height" : 282,
+      "Width" : 260,
+      "X" : 830,
+      "Y" : 197
+    },
+    "kCGWindowIsOnscreen" : true,
+    "kCGWindowLayer" : 0,
+    "kCGWindowMemoryUsage" : 2176,
+    "kCGWindowName" : "",
+    "kCGWindowNumber" : 24,
+    "kCGWindowOwnerName" : "iTerm2",
+    "kCGWindowOwnerPID" : 14441,
+    "kCGWindowSharingState" : 1,
+    "kCGWindowStoreType" : 1
+  }
+]

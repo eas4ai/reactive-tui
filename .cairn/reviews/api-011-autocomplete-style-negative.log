@@ -1,0 +1,35 @@
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.05s
+     Running tests/api_widget_behavior.rs (target/debug/deps/api_widget_behavior-af8b000cab735812)
+
+running 1 test
+test autocomplete_acceptance::autocomplete_highlight_and_region_styles_reach_rendered_cells ... FAILED
+
+failures:
+
+---- autocomplete_acceptance::autocomplete_highlight_and_region_styles_reach_rendered_cells stdout ----
+
+thread 'autocomplete_acceptance::autocomplete_highlight_and_region_styles_reach_rendered_cells' (1351482) panicked at tests/api_widget_behavior/autocomplete.rs:52:17:
+assertion `left == right` failed: offset 0:                                 
+┌──────────────────────────────┐
+│    STYLED                   ✕│
+│QUERY                         │
+│  [ph                         │
+│                              │
+│Alpha                         │
+│                              │
+│                     Cancel OK│
+└──────────────────────────────┘
+                                
+                                
+  left: true
+ right: false
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    autocomplete_acceptance::autocomplete_highlight_and_region_styles_reach_rendered_cells
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 396 filtered out; finished in 0.11s
+
+error: test failed, to rerun pass `--test api_widget_behavior`

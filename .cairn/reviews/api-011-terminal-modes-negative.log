@@ -1,0 +1,38 @@
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 6.92s
+     Running unittests src/lib.rs (target/debug/deps/reactive_tui-fa00cdcf48e682eb)
+
+running 7 tests
+test terminal::screen::tests::sgr_attributes_and_malformed_colors ... ok
+test terminal::screen::tests::sgr_extended_colors_and_resets ... ok
+test terminal::screen::tests::wide_overwrite_clears_both_halves_and_old_links ... ok
+test terminal::screen::tests::wide_glyph_wraps_before_last_column ... ok
+test terminal::screen::tests::scroll_region_and_origin_mode_keep_header_and_footer ... FAILED
+test terminal::screen::tests::private_modes_preserve_main_screen_and_cursor ... FAILED
+test terminal::screen::tests::streamed_graphemes_occupy_whole_cells ... ok
+
+failures:
+
+---- terminal::screen::tests::scroll_region_and_origin_mode_keep_header_and_footer stdout ----
+
+thread 'terminal::screen::tests::scroll_region_and_origin_mode_keep_header_and_footer' (3902408) panicked at src/terminal/screen/tests.rs:35:5:
+assertion `left == right` failed
+  left: " "
+ right: "H"
+
+---- terminal::screen::tests::private_modes_preserve_main_screen_and_cursor stdout ----
+
+thread 'terminal::screen::tests::private_modes_preserve_main_screen_and_cursor' (3902407) panicked at src/terminal/screen/tests.rs:20:5:
+assertion `left == right` failed
+  left: "m"
+ right: "A"
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    terminal::screen::tests::private_modes_preserve_main_screen_and_cursor
+    terminal::screen::tests::scroll_region_and_origin_mode_keep_header_and_footer
+
+test result: FAILED. 5 passed; 2 failed; 0 ignored; 0 measured; 905 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `--lib`

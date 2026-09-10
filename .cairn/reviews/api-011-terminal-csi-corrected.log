@@ -1,0 +1,75 @@
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 7.40s
+     Running unittests src/lib.rs (target/debug/deps/reactive_tui-fa00cdcf48e682eb)
+
+running 67 tests
+[?25h[?1006l[?1015l[?1003l[?1002l[?1000ltest terminal::ansi::tests::test_color_sequences ... ok
+test terminal::ansi::tests::test_cursor_movement ... ok
+test core::terminal::tests::test_terminal_creation ... ok
+test terminal::ansi::tests::test_title_sequence ... ok
+test terminal::ansi::tests::test_hyperlink ... ok
+test terminal::cell::tests::test_cell_clear ... ok
+test terminal::cell::tests::test_cell_creation ... ok
+test terminal::cell::tests::test_cell_wide_char ... ok
+test terminal::cell::tests::test_cell_with_char ... ok
+test terminal::cell::tests::test_char_width ... ok
+test terminal::ansi::tests::test_cursor_position ... ok
+test terminal::cursor::tests::test_cursor_advance ... ok
+test terminal::cursor::tests::movement_saturates_and_non_wrapping_output_stays_on_screen ... ok
+test terminal::cursor::tests::test_cursor_creation ... ok
+test terminal::cell::tests::unicode_cell_widths_and_continuations ... ok
+test terminal::cursor::tests::test_cursor_movement ... ok
+test terminal::cursor::tests::test_cursor_save_restore ... ok
+test terminal::parser::recovery_tests::interrupted_utf8_does_not_poison_following_characters ... ok
+test terminal::parser::recovery_tests::csi_recovers_after_cancellation_and_preserves_empty_parameters ... ok
+test terminal::parser::recovery_tests::osc_ignores_controls_and_allows_escape_to_start_new_sequence ... ok
+test terminal::parser::tests::test_parse_control_characters ... ok
+test terminal::parser::tests::test_parse_csi_sequence ... ok
+test terminal::parser::tests::test_parse_osc_sequence ... ok
+test terminal::parser::tests::test_utf8_decoder_valid_sequence_recovery ... ok
+test terminal::parser::tests::test_parser_creation ... ok
+test terminal::parser::tests::test_parse_simple_text ... ok
+test terminal::parser::tests::test_utf8_decoder_buffer_overflow_protection ... ok
+test terminal::pty::tests::test_pty_creation ... ok
+test terminal::pty::tests::test_pty_resize ... ok
+test terminal::screen::tests::sgr_attributes_and_malformed_colors ... ok
+test terminal::screen::tests::scroll_region_and_origin_mode_keep_header_and_footer ... ok
+test terminal::screen::tests::private_modes_preserve_main_screen_and_cursor ... ok
+test terminal::parser::recovery_tests::oversized_osc_terminates_without_consuming_following_text ... ok
+test terminal::screen::tests::sgr_extended_colors_and_resets ... ok
+test terminal::screen::tests::wide_glyph_wraps_before_last_column ... ok
+test terminal::screen::tests::streamed_graphemes_occupy_whole_cells ... ok
+test terminal::screen::tests::wide_overwrite_clears_both_halves_and_old_links ... ok
+test terminal::terminal_impl::tests::test_terminal_creation ... ok
+test terminal::terminal_impl::tests::test_terminal_invalid_resize ... ok
+test terminal::tests::test_scrolling_region ... ok
+test terminal::tests::test_terminal_config_default ... ok
+test terminal::tests::test_terminal_style ... ok
+test terminal::terminal_impl::tests::test_key_sequences ... ok
+test core::terminal::tests::test_image_capabilities_detection ... ok
+test core::terminal::tests::test_size_detection ... ok
+test widgets::terminal::tests::test_key_event_to_bytes_characters ... ok
+test terminal::terminal_impl::tests::test_terminal_resize ... ok
+test widgets::terminal::tests::test_key_event_to_bytes_arrow_keys ... ok
+test widgets::terminal::tests::test_key_event_to_bytes_ctrl_combinations ... ok
+test widgets::terminal::tests::test_terminal_props_creation ... ok
+test widgets::terminal::tests::test_terminal_props_default ... ok
+test widgets::terminal::tests::test_key_event_to_bytes_function_keys ... ok
+test widgets::terminal::tests::test_terminal_state_default ... ok
+test widgets::terminal::tests::test_key_event_to_bytes_navigation_keys ... ok
+test widgets::terminal::tests::test_key_event_to_bytes_unsupported_keys ... ok
+test widgets::terminal::tests::test_key_event_to_bytes_special_keys ... ok
+test widgets::terminal::tests::test_terminal_config_integration ... ok
+test widgets::terminal::tests::test_terminal_widget_focus ... ok
+test widgets::terminal::tests::test_terminal_widget_creation ... ok
+test widgets::terminal::tests::test_terminal_widget_running_state ... ok
+test widgets::terminal::tests::test_terminal_widget_resize ... ok
+test widgets::terminal::tests::test_terminal_widget_with_custom_props ... ok
+test widgets::terminal::tests::test_terminal_widget_send_input ... ok
+test widgets::terminal::tests::test_terminal_widget_send_string ... ok
+test widgets::terminal::tests::test_terminal_widget_scroll ... ok
+test terminal::pty::tests::api_terminal_pty_is_a_real_controlling_terminal ... ok
+test terminal::pty::tests::api_terminal_pty_backpressure_and_drop_reap_a_flooding_child ... ok
+
+test result: ok. 67 passed; 0 failed; 0 ignored; 0 measured; 849 filtered out; finished in 0.06s
+

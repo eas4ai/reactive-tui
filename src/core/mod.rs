@@ -9,6 +9,7 @@ pub mod geometry;
 pub mod grapheme_cell;
 /// Mouse position and event tracking
 pub mod mouse_tracker;
+pub(crate) mod owned_process;
 /// Low-level rendering operations and commands
 pub mod render_ops;
 /// Performance statistics and frame timing metrics

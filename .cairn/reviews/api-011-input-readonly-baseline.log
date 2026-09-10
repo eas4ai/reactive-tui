@@ -1,0 +1,37 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.11s
+     Running tests/api_widget_behavior.rs (target/debug/deps/api_widget_behavior-591f6bff9f7c0602)
+
+running 11 tests
+test dialog_acceptance::input_dialog_direct_events_delete_whole_graphemes_and_accept_paste ... ok
+test dialog_acceptance::input_dialog_direct_readonly_disabled_and_key_release_do_not_edit ... FAILED
+test dialog_acceptance::input_dialog_direct_length_limit_counts_the_resulting_graphemes ... ok
+test dialog_acceptance::input_dialog_validator_types_and_rules_reject_invalid_values ... ok
+test dialog_acceptance::input_dialog_readonly_keeps_value_while_allowing_submission_through_app ... FAILED
+test dialog_acceptance::input_dialog_app_length_limit_accepts_combining_marks_and_rejects_oversized_paste ... ok
+test dialog_acceptance::input_dialog_password_masks_frames_and_returns_the_original_value ... ok
+test dialog_acceptance::input_dialog_change_validation_shows_warnings_without_blocking_submit ... ok
+test dialog_acceptance::input_dialog_blur_validation_runs_before_cancel_closes_it ... ok
+test dialog_acceptance::input_dialog_multiline_enter_edits_and_ok_submits_both_lines ... ok
+test dialog_acceptance::input_dialog_validates_edits_graphemes_and_delivers_submission_through_app ... ok
+
+failures:
+
+---- dialog_acceptance::input_dialog_direct_readonly_disabled_and_key_release_do_not_edit stdout ----
+
+thread 'dialog_acceptance::input_dialog_direct_readonly_disabled_and_key_release_do_not_edit' (2535524) panicked at tests/api_widget_behavior/dialogs.rs:128:42:
+protected field changed
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- dialog_acceptance::input_dialog_readonly_keeps_value_while_allowing_submission_through_app stdout ----
+
+thread 'dialog_acceptance::input_dialog_readonly_keeps_value_while_allowing_submission_through_app' (2535529) panicked at tests/api_widget_behavior/dialogs.rs:88:46:
+read-only field changed
+
+
+failures:
+    dialog_acceptance::input_dialog_direct_readonly_disabled_and_key_release_do_not_edit
+    dialog_acceptance::input_dialog_readonly_keeps_value_while_allowing_submission_through_app
+
+test result: FAILED. 9 passed; 2 failed; 0 ignored; 0 measured; 272 filtered out; finished in 0.94s
+
+error: test failed, to rerun pass `--test api_widget_behavior`

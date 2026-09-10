@@ -1,0 +1,12 @@
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 19.63s
+     Running unittests src/lib.rs (target/debug/deps/reactive_tui-8db3a30746e1a23f)
+
+running 4 tests
+test widgets::dialog::autocomplete::tests::native_editing_preserves_whole_graphemes ... ok
+test widgets::dialog::autocomplete::tests::native_minimum_counts_displayed_characters ... ok
+test widgets::dialog::autocomplete::tests::native_selection_without_callback_closes ... ok
+test widgets::dialog::autocomplete::tests::native_submit_honors_selection_veto_once_without_mutation ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 837 filtered out; finished in 0.00s
+

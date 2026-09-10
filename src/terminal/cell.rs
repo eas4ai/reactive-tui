@@ -2,6 +2,7 @@
 
 use super::{TerminalColor, TerminalStyle};
 use std::fmt;
+use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
 
 /// A single cell in the terminal grid
 #[derive(Debug, Clone, PartialEq)]
@@ -14,7 +15,7 @@ pub struct TerminalCell {
     pub style: TerminalStyle,
     /// Whether this cell needs to be redrawn
     pub dirty: bool,
-    /// Whether this cell is part of a wrapped line
+    /// Whether this cell ends a soft-wrapped row (before any wide-glyph padding).
     pub wrapped: bool,
     /// Hyperlink URL if this cell is part of a link
     pub hyperlink: Option<String>,
@@ -103,7 +104,7 @@ impl TerminalCell {
     /// # Returns
     /// `true` if this cell is part of a multi-column character but not the first column
     pub fn is_wide_continuation(&self) -> bool {
-        self.width == 0 && !self.character.is_empty()
+        self.width == 0 && self.character.is_empty()
     }
 
     /// Set a hyperlink for this cell
@@ -164,42 +165,11 @@ impl fmt::Display for TerminalCell {
 }
 
 fn char_width(ch: char) -> u8 {
-    match ch {
-        '\0'..='\x1F' | '\x7F' => 0,
-        ' '..='~' => 1,
-        '\u{1100}'..='\u{115F}'
-        | '\u{2329}'..='\u{232A}'
-        | '\u{2E80}'..='\u{2EFF}'
-        | '\u{2F00}'..='\u{2FDF}'
-        | '\u{2FF0}'..='\u{2FFF}'
-        | '\u{3000}'..='\u{303E}'
-        | '\u{3041}'..='\u{3096}'
-        | '\u{30A1}'..='\u{30FA}'
-        | '\u{3105}'..='\u{312D}'
-        | '\u{3131}'..='\u{318E}'
-        | '\u{3190}'..='\u{31BA}'
-        | '\u{31C0}'..='\u{31E3}'
-        | '\u{31F0}'..='\u{31FF}'
-        | '\u{3200}'..='\u{32FF}'
-        | '\u{3300}'..='\u{33FF}'
-        | '\u{3400}'..='\u{4DBF}'
-        | '\u{4E00}'..='\u{9FFF}'
-        | '\u{A000}'..='\u{A48C}'
-        | '\u{A490}'..='\u{A4C6}'
-        | '\u{AC00}'..='\u{D7A3}'
-        | '\u{F900}'..='\u{FAFF}'
-        | '\u{FE10}'..='\u{FE19}'
-        | '\u{FE30}'..='\u{FE6F}'
-        | '\u{FF00}'..='\u{FF60}'
-        | '\u{FFE0}'..='\u{FFE6}'
-        | '\u{20000}'..='\u{2FFFD}'
-        | '\u{30000}'..='\u{3FFFD}' => 2,
-        _ => 1,
-    }
+    UnicodeWidthChar::width(ch).unwrap_or(0) as u8
 }
 
 fn string_width(s: &str) -> u8 {
-    s.chars().map(char_width).sum::<u8>().max(1)
+    UnicodeWidthStr::width(s).min(usize::from(u8::MAX)) as u8
 }
 
 #[cfg(test)]
@@ -252,5 +222,19 @@ mod tests {
         assert_eq!(char_width('中'), 2);
         assert_eq!(char_width('\t'), 0);
         assert_eq!(char_width('\n'), 0);
+    }
+
+    #[test]
+    fn unicode_cell_widths_and_continuations() {
+        assert_eq!(TerminalCell::with_char('😀').width, 2);
+        assert_eq!(TerminalCell::with_char('\u{301}').width, 0);
+        let mut cell = TerminalCell::new();
+        for (text, width) in [("e\u{301}", 1), ("👩‍💻", 2), ("🇺🇸", 2), ("", 0)] {
+            cell.set_string(text.into());
+            assert_eq!(cell.width, width, "{text:?}");
+        }
+        assert!(cell.is_wide_continuation());
+        cell.set_string("x".repeat(512));
+        assert_eq!(cell.width, u8::MAX);
     }
 }

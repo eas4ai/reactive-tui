@@ -12,8 +12,8 @@ use crate::render::tree::{RenderNode, RenderTree};
 
 pub mod cell_frame;
 pub mod direct_tty;
-mod suprtui;
-pub use self::suprtui::SuprTuiBackend;
+pub(crate) mod suprtui;
+pub use self::suprtui::{ImageOutputOptions, SuprTuiBackend};
 pub use cell_frame::{CellFrame, FrameCell};
 
 /// One node from the last successfully presented Element frame, in paint order.
@@ -25,10 +25,39 @@ pub struct PaintedNode {
     pub bounds: crate::event::hit::Bounds,
 }
 
+/// Original layout for a node in the presented Element tree.
+#[derive(Clone, Copy, Debug)]
+pub struct PresentedLayout {
+    /// Preorder index, matching PaintedNode::element_index.
+    pub element_index: usize,
+    /// Original local size, placement transform and ancestor clipping.
+    pub layout: crate::component::LayoutInfo,
+}
+
+#[derive(Default)]
+pub(crate) struct PresentedGeometry {
+    pub nodes: Vec<PaintedNode>,
+    pub layouts: Vec<PresentedLayout>,
+    pub images: Vec<crate::layout::paint_tree::suprtui::images::Plane>,
+    pub cursor: Option<::suprtui::render::CursorState>,
+}
+
 /// Minimal, patch-driven backend abstraction
 pub trait Backend: Send + Sync {
+    /// Whether this backend owns an interactive host terminal session.
+    /// App enables the Linux screen-reader adapter automatically for such sessions.
+    fn is_interactive_terminal(&self) -> bool {
+        false
+    }
+
     /// Geometry from the last acknowledged frame. Wrappers should forward this.
     fn painted_nodes(&self) -> Option<&[PaintedNode]> {
+        None
+    }
+
+    /// Original component layout from the acknowledged frame. Wrappers should
+    /// forward this with painted_nodes so clipped controls retain local coordinates.
+    fn component_layouts(&self) -> Option<&[PresentedLayout]> {
         None
     }
     /// Stage a complete application frame. Return false to use legacy patches.

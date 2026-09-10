@@ -1,0 +1,32 @@
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 9.14s
+     Running tests/api_widget_behavior.rs (target/debug/deps/api_widget_behavior-af8b000cab735812)
+
+running 4 tests
+
+thread 'vdom_acceptance::typed_vdom_properties_and_component_payloads_survive_conversion' (1063735) panicked at tests/api_widget_behavior/vdom.rs:95:46:
+called `Option::unwrap()` on a `None` value
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test vdom_acceptance::typed_vdom_properties_and_component_payloads_survive_conversion ... FAILED
+
+thread 'vdom_acceptance::native_elements_round_trip_through_vdom_without_losing_controls' (1063734) panicked at tests/api_widget_behavior/vdom.rs:77:9:
+assertion `left == right` failed
+  left: 0
+ right: 1
+test vdom_acceptance::native_elements_round_trip_through_vdom_without_losing_controls ... FAILED
+
+thread 'vdom_acceptance::inline_styles_override_classes_and_retain_terminal_paint_and_geometry' (1063732) panicked at tests/api_widget_behavior/vdom.rs:62:9:
+assertion failed: cell.bold() && cell.italic() && cell.underline()
+test vdom_acceptance::inline_styles_override_classes_and_retain_terminal_paint_and_geometry ... FAILED
+test vdom_acceptance::mixed_routes_preserve_native_payloads_disabled_state_and_resized_targets ... ok
+
+failures:
+
+failures:
+    vdom_acceptance::inline_styles_override_classes_and_retain_terminal_paint_and_geometry
+    vdom_acceptance::native_elements_round_trip_through_vdom_without_losing_controls
+    vdom_acceptance::typed_vdom_properties_and_component_payloads_survive_conversion
+
+test result: FAILED. 1 passed; 3 failed; 0 ignored; 0 measured; 357 filtered out; finished in 0.22s
+
+error: test failed, to rerun pass `--test api_widget_behavior`

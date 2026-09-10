@@ -1,0 +1,19 @@
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 15.94s
+     Running unittests src/lib.rs (target/debug/deps/reactive_tui-ff7f40ac5b910bef)
+
+running 1 test
+
+thread 'accessibility::platform::unix::transport::tests::shutdown_during_an_operation_poll_does_not_report_queue_disconnect' (2701351) panicked at src/accessibility/platform/unix/transport/tests.rs:141:23:
+called `Result::unwrap()` on an `Err` value: "screen-reader outgoing queue closed"
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test accessibility::platform::unix::transport::tests::shutdown_during_an_operation_poll_does_not_report_queue_disconnect ... FAILED
+
+failures:
+
+failures:
+    accessibility::platform::unix::transport::tests::shutdown_during_an_operation_poll_does_not_report_queue_disconnect
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 947 filtered out; finished in 0.02s
+
+error: test failed, to rerun pass `--lib`

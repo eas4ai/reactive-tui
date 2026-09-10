@@ -1,0 +1,24 @@
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 6.79s
+     Running unittests src/lib.rs (target/debug/deps/reactive_tui-fa00cdcf48e682eb)
+
+running 1 test
+test core::surface::tests::test_image_region_placement ... FAILED
+
+failures:
+
+---- core::surface::tests::test_image_region_placement stdout ----
+
+thread 'core::surface::tests::test_image_region_placement' (3175995) panicked at src/core/surface.rs:2609:9:
+assertion `left == right` failed
+  left: 63
+ right: 64
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    core::surface::tests::test_image_region_placement
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 896 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `--lib`

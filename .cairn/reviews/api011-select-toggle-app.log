@@ -1,0 +1,45 @@
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 3.83s
+     Running tests/api_widget_behavior.rs (target/debug/deps/api_widget_behavior-af8b000cab735812)
+
+running 37 tests
+test input_acceptance::empty_and_zero_width_selects_handle_navigation_without_panics ... ok
+test input_acceptance::input_selection_copy_cut_paste_redo_and_submit_reach_app ... ok
+test input_acceptance::select_end_skips_disabled_last_option_and_reopen_keeps_it_visible ... ok
+test file_explorer_acceptance::explorer_disabled_empty_and_no_selection_modes_are_inert_where_requested ... ok
+test input_acceptance::select_mouse_respects_padding_and_open_close_callbacks_after_resize ... ok
+test input_acceptance::typed_select_skips_disabled_first_option_and_reports_selection_once ... ok
+test file_explorer_acceptance::explorer_multiple_selection_uses_paths_and_emits_callbacks_once ... ok
+test file_explorer_acceptance::explorer_signed_wheels_and_release_events_preserve_selection_until_activation ... ok
+test menu_acceptance::context_menu_builder_delivers_one_open_action_selection_and_close ... ok
+test macro_acceptance::checkbox_and_select_macros_change_selection ... ok
+test menu_acceptance::dialog_menu_multi_selection_seed_excludes_unselectable_entries ... ok
+test menu_acceptance::dialog_menu_hover_selects_the_painted_item_without_activating_it ... ok
+test data_table_acceptance::data_table_multi_selection_keeps_cursor_and_selections_across_pages ... ok
+test menu_acceptance::dialog_menu_selection_reports_action_selection_and_hide_once ... ok
+test menu_acceptance::dialog_menu_multi_selection_toggles_and_confirms_ids ... ok
+test autocomplete_acceptance::autocomplete_reveals_the_keyboard_selection_in_a_long_list ... ok
+test menu_acceptance::menu_bar_reorder_retains_nested_selection_and_replaces_callback ... ok
+test multiple_select_retains_independent_choices_and_escape_closes ... ok
+test radio_acceptance::nested_apps_do_not_share_named_radio_selection ... ok
+test radio_acceptance::radio_callback_runs_once_for_a_changed_selection ... ok
+test menu_acceptance::popup_menu_scroll_keeps_selected_rows_visible_with_separators ... ok
+test radio_acceptance::radio_generic_builder_selects_by_keyboard_and_horizontal_mouse ... ok
+test autocomplete_acceptance::autocomplete_filters_navigates_and_delivers_selection_once ... ok
+test menu_acceptance::popup_menu_selects_nested_items_and_closes_after_action ... ok
+test radio_acceptance::named_radio_builder_groups_distinct_owners_and_preserves_keyed_selection ... ok
+test select_acceptance::select_builder_search_cycles_and_multiple_choices_survive_reopening ... ok
+test select_builder_selects_through_app_at_two_sizes ... ok
+test select_acceptance::select_search_opens_and_matches_enabled_unicode_prefixes ... ok
+test table_acceptance::table_initial_sort_selection_and_hidden_header_follow_props ... ok
+test table_acceptance::table_keeps_selected_row_identity_when_props_reorder ... ok
+test table_acceptance::table_named_route_sorts_selects_and_activates_source_rows ... ok
+test menu_acceptance::dialog_menu_nested_multi_selection_paints_and_survives_prop_updates ... ok
+test table_acceptance::table_multi_selection_cell_actions_and_inert_inputs ... ok
+test tree_acceptance::tree_per_node_flags_skip_selection_and_allow_independent_checks ... ok
+test tree_acceptance::tree_checking_and_multiple_selection_have_independent_cursor ... ok
+test menu_acceptance::menu_public_state_updates_replace_selection_and_callbacks_through_app ... ok
+test autocomplete_acceptance::autocomplete_prop_updates_keep_edits_and_selection_with_fresh_callbacks ... ok
+
+test result: ok. 37 passed; 0 failed; 0 ignored; 0 measured; 342 filtered out; finished in 1.51s
+

@@ -1,0 +1,85 @@
+PASS console handles, input, environment, resize, real exit 259, repeated stop
+ConPTY before pipes: 73 handles
+ConPTY after pipes: 77 handles
+ConPTY after CreatePseudoConsole: 80 handles
+ConPTY after attributes: 80 handles
+ConPTY after failed CreateProcessW: 81 handles
+ConPTY after DeleteProcThreadAttributeList: 81 handles
+ConPTY after ClosePseudoConsole: 75 handles
+failed launch 0: handles 75 (baseline 73)
+ConPTY before pipes: 75 handles
+ConPTY after pipes: 79 handles
+ConPTY after CreatePseudoConsole: 82 handles
+ConPTY after attributes: 82 handles
+ConPTY after failed CreateProcessW: 82 handles
+ConPTY after DeleteProcThreadAttributeList: 82 handles
+ConPTY after ClosePseudoConsole: 76 handles
+failed launch 1: handles 76 (baseline 73)
+ConPTY before pipes: 76 handles
+ConPTY after pipes: 80 handles
+ConPTY after CreatePseudoConsole: 83 handles
+ConPTY after attributes: 83 handles
+ConPTY after failed CreateProcessW: 83 handles
+ConPTY after DeleteProcThreadAttributeList: 83 handles
+ConPTY after ClosePseudoConsole: 77 handles
+failed launch 2: handles 77 (baseline 73)
+ConPTY before pipes: 77 handles
+ConPTY after pipes: 81 handles
+ConPTY after CreatePseudoConsole: 84 handles
+ConPTY after attributes: 84 handles
+ConPTY after failed CreateProcessW: 84 handles
+ConPTY after DeleteProcThreadAttributeList: 84 handles
+ConPTY after ClosePseudoConsole: 78 handles
+failed launch 3: handles 78 (baseline 73)
+ConPTY before pipes: 78 handles
+ConPTY after pipes: 82 handles
+ConPTY after CreatePseudoConsole: 85 handles
+ConPTY after attributes: 85 handles
+ConPTY after failed CreateProcessW: 85 handles
+ConPTY after DeleteProcThreadAttributeList: 85 handles
+ConPTY after ClosePseudoConsole: 79 handles
+failed launch 4: handles 79 (baseline 73)
+ConPTY before pipes: 79 handles
+ConPTY after pipes: 83 handles
+ConPTY after CreatePseudoConsole: 86 handles
+ConPTY after attributes: 86 handles
+ConPTY after failed CreateProcessW: 86 handles
+ConPTY after DeleteProcThreadAttributeList: 86 handles
+ConPTY after ClosePseudoConsole: 80 handles
+failed launch 5: handles 80 (baseline 73)
+ConPTY before pipes: 80 handles
+ConPTY after pipes: 84 handles
+ConPTY after CreatePseudoConsole: 87 handles
+ConPTY after attributes: 87 handles
+ConPTY after failed CreateProcessW: 87 handles
+ConPTY after DeleteProcThreadAttributeList: 87 handles
+ConPTY after ClosePseudoConsole: 81 handles
+failed launch 6: handles 81 (baseline 73)
+ConPTY before pipes: 81 handles
+ConPTY after pipes: 85 handles
+ConPTY after CreatePseudoConsole: 88 handles
+ConPTY after attributes: 88 handles
+ConPTY after failed CreateProcessW: 88 handles
+ConPTY after DeleteProcThreadAttributeList: 88 handles
+ConPTY after ClosePseudoConsole: 82 handles
+failed launch 7: handles 82 (baseline 73)
+ConPTY before pipes: 82 handles
+ConPTY after pipes: 86 handles
+ConPTY after CreatePseudoConsole: 89 handles
+ConPTY after attributes: 89 handles
+ConPTY after failed CreateProcessW: 89 handles
+ConPTY after DeleteProcThreadAttributeList: 89 handles
+ConPTY after ClosePseudoConsole: 83 handles
+failed launch 8: handles 83 (baseline 73)
+ConPTY before pipes: 83 handles
+ConPTY after pipes: 87 handles
+ConPTY after CreatePseudoConsole: 90 handles
+ConPTY after attributes: 90 handles
+ConPTY after failed CreateProcessW: 90 handles
+ConPTY after DeleteProcThreadAttributeList: 90 handles
+ConPTY after ClosePseudoConsole: 84 handles
+failed launch 9: handles 84 (baseline 73)
+
+thread 'main' (2780) panicked at tests\api_widget_behavior\conpty_probe.rs:216:9:
+failed launches leaked handles: before 73, after 84
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace

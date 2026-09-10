@@ -1,0 +1,19 @@
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 9.69s
+     Running tests/api_widget_behavior.rs (target/debug/deps/api_widget_behavior-af8b000cab735812)
+
+running 11 tests
+test core_builder_acceptance::mixed_vdom_children_preserve_click_handlers_through_app ... ok
+test core_builder_acceptance::primary_button_default_style_preserves_visible_text_and_activation ... ok
+test core_builder_acceptance::responsive_grid_changes_columns_after_resizing_across_its_breakpoint ... ok
+test core_builder_acceptance::row_column_and_grid_helpers_place_real_children ... ok
+test core_builder_acceptance::core_input_text_is_an_editable_seed ... ok
+test core_builder_acceptance::core_input_placeholder_is_visible_and_typing_replaces_it ... ok
+test core_builder_acceptance::headings_labels_and_text_helpers_paint_inherited_typography ... ok
+test core_builder_acceptance::core_input_routes_resized_clicks_and_honors_disabled ... ok
+test core_builder_acceptance::convenience_containers_show_their_children_with_default_styles ... ok
+test core_builder_acceptance::styled_input_helpers_are_visible_and_editable_at_terminal_sizes ... ok
+test core_builder_acceptance::core_input_macro_routes_edit_real_controls ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 357 filtered out; finished in 0.19s
+

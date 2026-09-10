@@ -3,6 +3,7 @@
 command: python3 scripts/check-maintenance.py ffi
 inputs:
   - Cargo.toml
+  - build.rs
   - Cargo.lock
   - reactive-tui-macros
   - src

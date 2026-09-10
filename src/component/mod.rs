@@ -34,8 +34,12 @@ pub use lifecycle::{Lifecycle, LifecycleEvent};
 pub use props::Props;
 pub use registry::ComponentRegistry;
 pub use tracked_instance::{SharedTrackedInstance, TrackedComponentInstance};
+pub(crate) mod anchors;
 /// Bridge between component elements and layout system
 pub mod bridge;
+mod builtin;
+mod layout_info;
+pub use layout_info::LayoutInfo;
 /// State management flags for component lifecycle
 pub mod state_flags;
 
@@ -54,6 +58,11 @@ pub trait Component: Any + Send + Sync + 'static {
 
     /// Create a new instance of the component with the given props
     fn new(props: Self::Props) -> Self;
+
+    /// Initialize the state owned by an application instance.
+    fn initial_state(&mut self, _props: &Self::Props) -> Self::State {
+        Self::State::default()
+    }
 
     /// Update the component with new props and state.
     /// Returns true if the component needs to re-render.
@@ -83,6 +92,17 @@ pub trait Component: Any + Send + Sync + 'static {
         crate::event::router::EventResult::Ignored
     }
 
+    /// Receive layout and placement from the last presented frame, in terminal cells.
+    /// Return true when the new dimensions require another render.
+    fn layout(
+        &mut self,
+        _layout: LayoutInfo,
+        _props: &mut Self::Props,
+        _state: &mut Self::State,
+    ) -> bool {
+        false
+    }
+
     /// Handle lifecycle events
     fn on_lifecycle(&mut self, _event: LifecycleEvent, _state: &mut Self::State) {
         // Default implementation does nothing
@@ -101,6 +121,19 @@ pub trait AnyComponent: Any + Send + Sync {
 
     /// Render the component
     fn render_any(&self) -> Element;
+
+    /// Dispatch input to the retained component state.
+    fn handle_event_any(
+        &mut self,
+        _event: &crate::event::Event,
+    ) -> crate::event::router::EventResult {
+        crate::event::router::EventResult::Ignored
+    }
+
+    /// Notify a retained component of its presented cell bounds.
+    fn layout_any(&mut self, _layout: LayoutInfo) -> bool {
+        false
+    }
 
     /// Poll for changes
     fn poll_change_any(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<()>;

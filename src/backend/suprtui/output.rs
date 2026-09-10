@@ -10,6 +10,8 @@ pub(super) struct CheckedOutput<W: Write> {
     frame: Vec<u8>,
     error: Option<io::Error>,
     failed: bool,
+    before_cells: Vec<u8>,
+    after_cells: Vec<u8>,
 }
 
 impl<W: Write> CheckedOutput<W> {
@@ -19,7 +21,33 @@ impl<W: Write> CheckedOutput<W> {
             frame: Vec::new(),
             error: None,
             failed: false,
+            before_cells: Vec::new(),
+            after_cells: Vec::new(),
         }
+    }
+
+    /// Attach trusted graphics commands to the next complete cell frame.
+    /// The caller forces cell output when only these commands have changed.
+    pub(super) fn set_graphics(&mut self, before_cells: Vec<u8>, after_cells: Vec<u8>) {
+        self.before_cells = before_cells;
+        self.after_cells = after_cells;
+    }
+
+    pub(super) fn finish_graphics(&mut self, cleanup: Vec<u8>) -> Result<()> {
+        if cleanup.is_empty() {
+            return Ok(());
+        }
+        self.error = None;
+        self.set_graphics(cleanup, Vec::new());
+        self.begin_frame();
+        self.write_bytes(b"\x1b[?2026h\x1b[?2026l");
+        if self.end_frame() != WriteStatus::Ok {
+            return Err(self
+                .take_error()
+                .unwrap_or_else(|| io::Error::other("image cleanup failed"))
+                .into());
+        }
+        Ok(())
     }
 
     pub(super) fn take_error(&mut self) -> Option<io::Error> {
@@ -59,7 +87,27 @@ impl<W: Write> ByteBackend for CheckedOutput<W> {
             // Establish a frame boundary even after a partial write followed
             // by resize (which replaces the renderer and its byte sink).
             writer.write_all(b"\x18\x1b[?2026l\x1b[0m")?;
-            writer.write_all(&self.frame)?;
+            if self.before_cells.is_empty() && self.after_cells.is_empty() {
+                writer.write_all(&self.frame)?;
+            } else {
+                // Keep image deletion, cells and new placements in the engine's
+                // single synchronized update. Never append after its closing marker.
+                let body = self
+                    .frame
+                    .strip_prefix(b"\x1b[?2026h")
+                    .and_then(|bytes| bytes.strip_suffix(b"\x1b[?2026l"))
+                    .ok_or_else(|| {
+                        io::Error::new(
+                            io::ErrorKind::InvalidData,
+                            "SuprTUI frame has no synchronized-update envelope",
+                        )
+                    })?;
+                writer.write_all(b"\x1b[?2026h")?;
+                writer.write_all(&self.before_cells)?;
+                writer.write_all(body)?;
+                writer.write_all(&self.after_cells)?;
+                writer.write_all(b"\x1b[?2026l")?;
+            }
             writer.flush()
         })();
         match result {
@@ -93,7 +141,7 @@ impl<W: Write> TerminalOutput<W> {
         if self.terminal {
             self.active = true; // Also restore if setup only partially writes.
             let mut writer = self.writer.borrow_mut();
-            writer.write_all(b"\x1b[?1049h\x1b[?25l")?;
+            writer.write_all(b"\x1b[?1049h\x1b[?25l\x1b[?1004h")?;
             writer.flush()?;
         }
         Ok(())
@@ -102,7 +150,9 @@ impl<W: Write> TerminalOutput<W> {
     pub(super) fn restore(&mut self) -> Result<()> {
         if self.active {
             let mut writer = self.writer.borrow_mut();
-            writer.write_all(b"\x18\x1b[?2026l\x1b[0m\x1b[?25h\x1b[?1049l")?;
+            writer.write_all(
+                b"\x18\x1b[?2026l\x1b[0m\x1b[?1004l\x1b[0 q\x1b]112\x07\x1b[?25h\x1b[?1049l",
+            )?;
             writer.flush()?;
             self.active = false;
         }

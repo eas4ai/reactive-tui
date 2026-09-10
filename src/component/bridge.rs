@@ -5,27 +5,51 @@ use std::borrow::Cow;
 pub(crate) struct PaintSpec {
     pub root: NodeSpec<'static>,
     pub styles: Vec<crate::layout::style::StyleBuilder>,
+    pub images: Vec<Option<std::sync::Arc<crate::widgets::display::image::paint::ImagePaint>>>,
+    pub image_fallbacks: Vec<Option<u32>>,
+    pub cursors: Vec<Option<super::element::TextCursor>>,
 }
 
 pub(crate) fn element_to_paintspec(element: &Element) -> crate::error::Result<PaintSpec> {
     fn collect(
         element: &Element,
         styles: &mut Vec<crate::layout::style::StyleBuilder>,
+        images: &mut Vec<Option<std::sync::Arc<crate::widgets::display::image::paint::ImagePaint>>>,
+        fallbacks: &mut Vec<Option<u32>>,
+        fallback: Option<u32>,
+        cursors: &mut Vec<Option<super::element::TextCursor>>,
     ) -> crate::error::Result<()> {
+        let fallback = element.metadata.image_fallback.or(fallback);
+        images.push(element.metadata.image.clone());
+        fallbacks.push(fallback);
+        cursors.push(element.metadata.text_cursor);
         styles.push(match &element.metadata.paint_style {
             Some(style) => style.restore()?,
             None => element_style(element)?,
         });
         for child in &element.children {
-            collect(child, styles)?;
+            collect(child, styles, images, fallbacks, fallback, cursors)?;
         }
         Ok(())
     }
     let mut styles = Vec::new();
-    collect(element, &mut styles)?;
+    let mut images = Vec::new();
+    let mut image_fallbacks = Vec::new();
+    let mut cursors = Vec::new();
+    collect(
+        element,
+        &mut styles,
+        &mut images,
+        &mut image_fallbacks,
+        None,
+        &mut cursors,
+    )?;
     Ok(PaintSpec {
         root: element_to_nodespec(element),
         styles,
+        images,
+        image_fallbacks,
+        cursors,
     })
 }
 
@@ -49,10 +73,14 @@ pub(crate) fn element_style(
         ElementType::Layout(LayoutType::Grid) => "grid",
         _ => "",
     };
-    Ok(crate::layout::css::apply_utility_classes(
+    let styled = crate::layout::css::apply_utility_classes(
         element.class.as_deref().unwrap_or(default_class),
         base,
-    ))
+    );
+    match &element.metadata.inline_styles {
+        Some(declarations) => styled.with_inline_declarations(declarations),
+        None => Ok(styled),
+    }
 }
 
 /// Convert an Element tree to a NodeSpec tree that our painter/layout understands.

@@ -16,6 +16,7 @@ pub struct ProgressDialogBuilder {
     indeterminate: bool,
     cancelable: bool,
     show_percentage: bool,
+    class: Option<String>,
 }
 
 impl Default for ProgressDialogBuilder {
@@ -34,6 +35,7 @@ impl ProgressDialogBuilder {
             indeterminate: false,
             cancelable: false,
             show_percentage: true,
+            class: None,
         }
     }
 
@@ -74,35 +76,26 @@ impl ProgressDialogBuilder {
     }
 
     /// Set CSS classes for styling
-    pub fn class(self, _class: &str) -> Self {
-        // ProgressDialog component styling is handled through props
+    pub fn class(mut self, class: &str) -> Self {
+        self.class = Some(class.to_string());
         self
     }
 
     /// Build the ProgressDialog element
     pub fn build(self) -> Element {
-        let title_text = if let Some(title) = &self.title {
-            format!(" \"{}\"", title)
-        } else {
-            String::new()
-        };
-
-        let progress_text = if self.indeterminate {
-            "indeterminate".to_string()
-        } else if self.show_percentage {
-            format!("{:.1}%", self.progress * 100.0)
-        } else {
-            format!("{:.2}", self.progress)
-        };
-
-        let cancelable_text = if self.cancelable { " (cancelable)" } else { "" };
-
-        let display_text = format!(
-            "ProgressDialog{}: {} [{}]{}",
-            title_text, self.message, progress_text, cancelable_text
-        );
-
-        Element::text(display_text)
+        use crate::widgets::dialog::{ProgressDialog, ProgressDialogOptions};
+        ProgressDialog::element(
+            ProgressDialogOptions {
+                title: self.title.unwrap_or_else(|| "Progress".to_string()),
+                message: self.message,
+                cancellable: self.cancelable,
+                show_percentage: self.show_percentage,
+                ..Default::default()
+            },
+            self.progress,
+            self.indeterminate,
+            self.class,
+        )
     }
 }
 
@@ -121,6 +114,7 @@ pub struct WizardBuilder {
     current_step: usize,
     show_progress: bool,
     cancelable: bool,
+    class: Option<String>,
 }
 
 /// Represents a step in a wizard dialog
@@ -171,6 +165,7 @@ impl WizardBuilder {
             current_step: 0,
             show_progress: true,
             cancelable: true,
+            class: None,
         }
     }
 
@@ -211,36 +206,47 @@ impl WizardBuilder {
     }
 
     /// Set CSS classes for styling
-    pub fn class(self, _class: &str) -> Self {
-        // Wizard component styling is handled through props
+    pub fn class(mut self, class: &str) -> Self {
+        self.class = Some(class.to_string());
         self
     }
 
     /// Build the Wizard element
     pub fn build(self) -> Element {
-        let title_text = if let Some(title) = &self.title {
-            format!(" \"{}\"", title)
-        } else {
-            String::new()
+        use crate::widgets::dialog::{
+            ValidationResult, WizardDialog, WizardDialogOptions, WizardStep as DialogStep,
         };
-
-        let progress_text = if self.show_progress {
-            format!(" (step {} of {})", self.current_step + 1, self.steps.len())
-        } else {
-            String::new()
-        };
-
-        let cancelable_text = if self.cancelable { " (cancelable)" } else { "" };
-
-        let display_text = format!(
-            "Wizard{}{} with {} steps{}",
-            title_text,
-            progress_text,
-            self.steps.len(),
-            cancelable_text
-        );
-
-        Element::text(display_text)
+        WizardDialog::element(
+            WizardDialogOptions {
+                title: self.title.unwrap_or_else(|| "Wizard".into()),
+                steps: self
+                    .steps
+                    .into_iter()
+                    .enumerate()
+                    .map(|(index, step)| {
+                        let can_proceed = step.can_proceed;
+                        DialogStep {
+                            id: format!("step-{index}"),
+                            title: step.title,
+                            content: crate::builder::div()
+                                .class("flex-col")
+                                .children(step.content)
+                                .build(),
+                            can_skip: false,
+                            validator: Some(std::sync::Arc::new(move |_| ValidationResult {
+                                valid: can_proceed,
+                                ..Default::default()
+                            })),
+                        }
+                    })
+                    .collect(),
+                show_progress: self.show_progress,
+                ..Default::default()
+            },
+            self.current_step,
+            self.cancelable,
+            self.class,
+        )
     }
 }
 

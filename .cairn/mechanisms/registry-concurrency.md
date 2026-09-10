@@ -3,6 +3,7 @@
 command: sh scripts/check-registry-concurrency.sh
 inputs:
   - Cargo.toml
+  - build.rs
   - Cargo.lock
   - reactive-tui-macros
   - src

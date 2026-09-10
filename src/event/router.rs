@@ -81,6 +81,10 @@ impl Default for NodeId {
 }
 
 impl NodeId {
+    pub(crate) fn serial(self) -> usize {
+        self.0
+    }
+
     /// Create a new unique node ID
     pub fn new() -> Self {
         static COUNTER: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
@@ -95,6 +99,7 @@ pub struct EventRouter {
     focus_manager: FocusManager,
     hit_test: HitTest,
     pointer: Option<super::hit::Point>,
+    hover_path: Vec<NodeId>,
     /// Path cache for event routing optimization
     path_cache: Option<super::cache::PathCache>,
 }
@@ -108,6 +113,7 @@ impl EventRouter {
             focus_manager: FocusManager::new(),
             hit_test: HitTest::new(80.0, 24.0), // Default terminal size
             pointer: None,
+            hover_path: Vec::new(),
             path_cache: None,
         }
     }
@@ -120,6 +126,7 @@ impl EventRouter {
             focus_manager: FocusManager::new(),
             hit_test: HitTest::new(width as f32, height as f32),
             pointer: None,
+            hover_path: Vec::new(),
             path_cache: None,
         }
     }
@@ -467,6 +474,46 @@ impl EventRouter {
         self.pointer.and_then(|point| self.hit_test.hit_test(point))
     }
 
+    /// Deliver boundary events only to nodes whose own hover membership changed.
+    /// Moving between two children must not make their shared parent leave.
+    pub(crate) fn refresh_hover(&mut self) -> bool {
+        use super::types::{MouseEvent, MouseEventKind, Position};
+        let mut path = Vec::new();
+        let mut current = self.hovered_node();
+        while let Some(id) = current {
+            if path.contains(&id) {
+                break;
+            }
+            path.push(id);
+            current = self.nodes.get(&id).and_then(|node| node.parent);
+        }
+        if path == self.hover_path {
+            return false;
+        }
+        let position = self.pointer.map_or(Position::cell(0, 0), |point| {
+            Position::cell(point.x as u16, point.y as u16)
+        });
+        for (from, to, kind) in [
+            (&self.hover_path, &path, MouseEventKind::Leave),
+            (&path, &self.hover_path, MouseEventKind::Enter),
+        ] {
+            let event = Event::Mouse(MouseEvent::new(kind, position));
+            for id in from.iter().filter(|id| !to.contains(id)) {
+                if let Some(node) = self.nodes.get(id) {
+                    let capture = node.capture_handlers.get("mouse").into_iter().flatten();
+                    let bubble = node.handlers.get("mouse").into_iter().flatten();
+                    for handler in capture.chain(bubble) {
+                        if (handler.handler)(&event) == EventResult::Consumed {
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        self.hover_path = path;
+        true
+    }
+
     pub(crate) fn current_focus_ref(&self) -> Option<&NodeId> {
         self.focus_manager.current_ref()
     }
@@ -495,13 +542,21 @@ impl EventRouter {
     /// Process an event - THE central event processing method
     pub fn process_event(&mut self, event: &Event) -> EventResult {
         if let Event::Mouse(mouse) = event {
-            self.pointer = match mouse.position {
-                super::types::Position::Cell { .. } => Some(super::hit::Point::new(
+            self.pointer = match (mouse.kind.clone(), mouse.position) {
+                (super::types::MouseEventKind::Leave, _) => None,
+                (_, super::types::Position::Cell { .. }) => Some(super::hit::Point::new(
                     mouse.position.x() as f32,
                     mouse.position.y() as f32,
                 )),
                 _ => None,
             };
+            self.refresh_hover();
+            if matches!(
+                mouse.kind,
+                super::types::MouseEventKind::Enter | super::types::MouseEventKind::Leave
+            ) {
+                return EventResult::Handled;
+            }
         }
         // 1. Handle system events first (focus traversal, etc.)
         if let Some(result) = self.handle_system_event(event) {
@@ -538,6 +593,12 @@ impl EventRouter {
                     && !key_event.modifiers.alt
                     && !key_event.modifiers.meta
                 {
+                    if key_event.code == KeyCode::Tab && !key_event.modifiers.shift {
+                        let result = self.dispatch_to_focus(event);
+                        if result != EventResult::Ignored {
+                            return Some(result);
+                        }
+                    }
                     if key_event.modifiers.shift || key_event.code == KeyCode::BackTab {
                         if self.focus_prev().is_some() {
                             return Some(EventResult::Handled);
@@ -547,6 +608,10 @@ impl EventRouter {
                     }
                     if self.is_focus_trapped() {
                         return Some(EventResult::Handled);
+                    }
+                    if key_event.code == KeyCode::Tab && !key_event.modifiers.shift {
+                        // The focused/root handler already saw this Tab above.
+                        return Some(EventResult::Ignored);
                     }
                 }
             }
@@ -686,6 +751,110 @@ mod tests {
     use super::*;
     use crate::event::types::{KeyCode, KeyEvent};
     use std::sync::Mutex;
+
+    #[test]
+    fn hover_capture_receives_each_own_boundary_once() {
+        use crate::event::{
+            hit::Bounds,
+            types::{MouseEvent, MouseEventKind, Position},
+        };
+        let mut router = EventRouter::new();
+        let parent = router.create_node(None);
+        let child = router.create_node(Some(parent));
+        router.add_hit_target(parent, Bounds::new(0.0, 0.0, 10.0, 2.0), 0);
+        router.add_hit_target(child, Bounds::new(0.0, 0.0, 4.0, 1.0), 1);
+        let observed = Arc::new(Mutex::new(Vec::new()));
+        let output = observed.clone();
+        router.add_handler(
+            parent,
+            "mouse",
+            EventPhase::Capture,
+            Arc::new(move |event| {
+                if let Event::Mouse(mouse) = event {
+                    if matches!(mouse.kind, MouseEventKind::Enter | MouseEventKind::Leave) {
+                        output.lock().unwrap().push(mouse.kind.clone());
+                    }
+                }
+                EventResult::Handled
+            }),
+        );
+        for (x, y) in [(1, 0), (8, 1), (20, 5)] {
+            router.process_event(&Event::Mouse(MouseEvent::new(
+                MouseEventKind::Move,
+                Position::cell(x, y),
+            )));
+        }
+        assert_eq!(
+            *observed.lock().unwrap(),
+            [MouseEventKind::Enter, MouseEventKind::Leave]
+        );
+    }
+
+    #[test]
+    fn hover_boundaries_preserve_shared_ancestors_and_follow_layout() {
+        use crate::event::{
+            hit::Bounds,
+            types::{MouseEvent, MouseEventKind, Position},
+        };
+        let mut router = EventRouter::new();
+        let parent = router.create_node(None);
+        let left = router.create_node(Some(parent));
+        let right = router.create_node(Some(parent));
+        router.add_hit_target(parent, Bounds::new(0.0, 0.0, 10.0, 1.0), 0);
+        router.add_hit_target(left, Bounds::new(0.0, 0.0, 5.0, 1.0), 1);
+        router.add_hit_target(right, Bounds::new(5.0, 0.0, 5.0, 1.0), 2);
+        let events = Arc::new(Mutex::new(Vec::new()));
+        for (id, name) in [(parent, "parent"), (left, "left"), (right, "right")] {
+            let events = events.clone();
+            router.add_handler(
+                id,
+                "mouse",
+                EventPhase::Bubble,
+                Arc::new(move |event| {
+                    if let Event::Mouse(mouse) = event {
+                        events.lock().unwrap().push((name, mouse.kind.clone()));
+                    }
+                    EventResult::Ignored
+                }),
+            );
+        }
+        for x in [1, 6] {
+            router.process_event(&Event::Mouse(MouseEvent::new(
+                MouseEventKind::Move,
+                Position::cell(x, 0),
+            )));
+        }
+        assert_eq!(
+            *events.lock().unwrap(),
+            vec![
+                ("left", MouseEventKind::Enter),
+                ("parent", MouseEventKind::Enter),
+                ("left", MouseEventKind::Move),
+                ("parent", MouseEventKind::Move),
+                ("left", MouseEventKind::Leave),
+                ("right", MouseEventKind::Enter),
+                ("right", MouseEventKind::Move),
+                ("parent", MouseEventKind::Move),
+            ]
+        );
+        events.lock().unwrap().clear();
+        router.add_hit_target(right, Bounds::new(20.0, 0.0, 5.0, 1.0), 2);
+        assert!(router.refresh_hover());
+        assert_eq!(
+            *events.lock().unwrap(),
+            vec![("right", MouseEventKind::Leave)]
+        );
+        events.lock().unwrap().clear();
+        router.process_event(&Event::Mouse(MouseEvent::new(
+            MouseEventKind::Leave,
+            Position::cell(6, 0),
+        )));
+        assert_eq!(
+            *events.lock().unwrap(),
+            vec![("parent", MouseEventKind::Leave)]
+        );
+        assert_eq!(router.hovered_node(), None);
+    }
 
     #[test]
     fn test_event_routing() {

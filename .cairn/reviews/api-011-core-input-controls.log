@@ -1,0 +1,26 @@
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 3.64s
+     Running tests/api_widget_behavior.rs (target/debug/deps/api_widget_behavior-591f6bff9f7c0602)
+
+running 3 tests
+test core_builder_acceptance::core_input_placeholder_is_visible_and_typing_replaces_it ... ok
+test core_builder_acceptance::core_input_routes_resized_clicks_and_honors_disabled ... FAILED
+test core_builder_acceptance::core_input_text_is_an_editable_seed ... ok
+
+failures:
+
+---- core_builder_acceptance::core_input_routes_resized_clicks_and_honors_disabled stdout ----
+
+thread 'core_builder_acceptance::core_input_routes_resized_clicks_and_honors_disabled' (693908) panicked at tests/api_widget_behavior/core_builders.rs:88:13:
+assertion `left == right` failed
+  left: 0
+ right: 1
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    core_builder_acceptance::core_input_routes_resized_clicks_and_honors_disabled
+
+test result: FAILED. 2 passed; 1 failed; 0 ignored; 0 measured; 324 filtered out; finished in 0.12s
+
+error: test failed, to rerun pass `--test api_widget_behavior`

@@ -1,0 +1,19 @@
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 14.97s
+     Running unittests src/lib.rs (target/debug/deps/reactive_tui-8db3a30746e1a23f)
+
+running 1 test
+
+thread 'widgets::display::image::external_renderer::tests::api_image_external_raw_pixels_are_encoded_as_png' (901181) panicked at src/widgets/display/image/external_renderer.rs:424:48:
+external tool needs an encoded image: Decoding(DecodingError { format: Exact(Png), underlying: Some(Format(FormatError { inner: InvalidSignature })) })
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test widgets::display::image::external_renderer::tests::api_image_external_raw_pixels_are_encoded_as_png ... FAILED
+
+failures:
+
+failures:
+    widgets::display::image::external_renderer::tests::api_image_external_raw_pixels_are_encoded_as_png
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 851 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `--lib`

@@ -3,17 +3,22 @@
 //! Provides a complete terminal emulator widget that can be embedded in TUI applications.
 
 use crate::component::{Component, Element, Props};
-use crate::core::surface::{Attr, Cell, Rgba};
+use crate::component::{LayoutInfo, LifecycleEvent};
 use crate::event::router::EventResult;
-use crate::event::types::{Event, KeyEvent, MouseEvent, ResizeEvent};
-use crate::terminal::{
-    Terminal, TerminalCell, TerminalColor, TerminalConfig, TerminalError, TerminalEvent,
-    TerminalResult,
+use crate::event::types::{
+    Event, KeyEvent, KeyEventKind, MouseEvent, MouseEventKind, ResizeEvent, WheelDelta,
 };
+use crate::terminal::{Terminal, TerminalConfig, TerminalError, TerminalResult};
 use std::any::Any;
-use std::sync::{mpsc, Arc, Mutex};
-use std::thread;
-use std::time::{Duration, Instant};
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc, Mutex,
+};
+
+use crate::terminal::keyboard;
+mod blink;
+mod monitor;
+mod paint;
 
 /// Properties for Terminal widget
 #[derive(Clone, Debug, PartialEq)]
@@ -54,481 +59,444 @@ impl Props for TerminalProps {
     }
 }
 
-/// State for Terminal widget
+/// State for the retained terminal widget.
 #[derive(Debug)]
 pub struct TerminalState {
-    /// The underlying terminal emulator
     terminal: Arc<Mutex<Terminal>>,
-    /// Event receiver for terminal events (wrapped in `Arc<Mutex>` for Sync)
-    event_receiver: Option<Arc<Mutex<mpsc::Receiver<TerminalEvent>>>>,
-    /// Whether the terminal is running
-    is_running: bool,
-    /// Whether the terminal has focus
     has_focus: bool,
-    /// Current scroll position in scrollback
     scroll_position: usize,
-    /// Last update time for performance
-    #[allow(dead_code)]
-    last_update: Instant,
-    /// Cached terminal size
     cached_size: (u16, u16),
-    /// Whether terminal needs redraw
     needs_redraw: bool,
 }
-
 impl Default for TerminalState {
     fn default() -> Self {
-        let config = TerminalConfig::default();
-        let terminal = Terminal::new(config);
-
         Self {
-            terminal: Arc::new(Mutex::new(terminal)),
-            event_receiver: None,
-            is_running: false,
+            terminal: Arc::new(Mutex::new(Terminal::new(TerminalConfig::default()))),
             has_focus: false,
             scroll_position: 0,
-            last_update: Instant::now(),
             cached_size: (80, 24),
             needs_redraw: true,
         }
     }
 }
 
-/// Terminal widget component
+/// A terminal whose child process and output monitor live until stop or removal.
 pub struct TerminalWidget {
     props: TerminalProps,
     state: TerminalState,
+    monitor: Option<monitor::Monitor>,
+    blink: Arc<blink::Blink>,
+    focused: Arc<AtomicBool>,
+    scroll_dragging: Arc<AtomicBool>,
+    layout: Option<LayoutInfo>,
+    mounted: bool,
+    launched: bool,
+    error: Option<String>,
+    invalid_size: Option<(u16, u16)>,
+}
+
+fn configuration(props: &TerminalProps) -> TerminalConfig {
+    let mut config = props.config.clone();
+    if let Some(shell) = &props.shell_command {
+        config.shell = Some(shell.clone());
+    }
+    if let Some(dir) = &props.working_directory {
+        config.working_directory = Some(dir.clone());
+    }
+    config.env.extend(props.env_vars.iter().cloned());
+    config.title = props.title.clone();
+    config
+}
+fn configured_terminal(
+    mut config: TerminalConfig,
+) -> (Terminal, Option<(u16, u16)>, Option<String>) {
+    match Terminal::try_new(config.clone()) {
+        Ok(terminal) => (terminal, None, None),
+        Err(error) => {
+            let size = config.size;
+            // Retain a small screen for the error view. start() refuses it until resize succeeds.
+            config.size = (1, 1);
+            (Terminal::new(config), Some(size), Some(error.to_string()))
+        }
+    }
+}
+
+fn same_launch(a: &TerminalProps, b: &TerminalProps) -> bool {
+    let mut a = configuration(a);
+    let mut b = configuration(b);
+    a.size = (1, 1);
+    b.size = (1, 1);
+    a.title.clear();
+    b.title.clear();
+    a == b
 }
 
 impl TerminalWidget {
-    /// Create a new terminal widget
+    /// Construct an unstarted terminal. App starts it after measuring its content.
     pub fn new(props: TerminalProps) -> Self {
-        let mut config = props.config.clone();
-
-        // Apply props to config
-        if let Some(ref shell) = props.shell_command {
-            config.shell = Some(shell.clone());
+        let config = configuration(&props);
+        let size = config.size;
+        let (terminal, invalid_size, error) = configured_terminal(config);
+        Self {
+            state: TerminalState {
+                cached_size: size,
+                terminal: Arc::new(Mutex::new(terminal)),
+                ..Default::default()
+            },
+            props,
+            monitor: None,
+            blink: Arc::new(blink::Blink::new()),
+            focused: Arc::new(AtomicBool::new(false)),
+            scroll_dragging: Arc::new(AtomicBool::new(false)),
+            layout: None,
+            mounted: false,
+            launched: false,
+            error,
+            invalid_size,
         }
-        if let Some(ref dir) = props.working_directory {
-            config.working_directory = Some(dir.clone());
-        }
-        config.title = props.title.clone();
-        config.env.extend(props.env_vars.iter().cloned());
-
-        let terminal = Terminal::new(config);
-        let state = TerminalState {
-            terminal: Arc::new(Mutex::new(terminal)),
-            ..Default::default()
-        };
-
-        Self { props, state }
     }
-
-    /// Start the terminal emulator
+    /// Start the child and its owned output monitor.
     pub fn start(&mut self) -> TerminalResult<()> {
-        if self.state.is_running {
+        if let Some((width, height)) = self.invalid_size {
+            return Err(TerminalError::InvalidSize { width, height });
+        }
+        if self.is_running() {
             return Ok(());
         }
-
-        // Start the terminal
-        {
-            let mut terminal = self.state.terminal.lock().map_err(|_| {
-                TerminalError::Process("Terminal lock poisoned during start".to_string())
-            })?;
-            terminal.start()?;
+        self.monitor = None;
+        self.state
+            .terminal
+            .lock()
+            .map_err(|_| lock_error())?
+            .start()?;
+        match monitor::Monitor::new(self.state.terminal.clone()) {
+            Ok(monitor) => self.monitor = Some(monitor),
+            Err(error) => {
+                self.state
+                    .terminal
+                    .lock()
+                    .map_err(|_| lock_error())?
+                    .stop()?;
+                return Err(TerminalError::Process(format!(
+                    "Cannot monitor terminal: {error}"
+                )));
+            }
         }
-
-        self.state.is_running = true;
+        self.launched = true;
+        self.error = None;
         self.state.needs_redraw = true;
-
-        // Setup event monitoring thread
-        self.setup_event_monitoring();
-
         Ok(())
     }
-
-    /// Stop the terminal emulator
+    /// Stop monitoring, terminate and reap the owned child.
     pub fn stop(&mut self) -> TerminalResult<()> {
-        if !self.state.is_running {
-            return Ok(());
-        }
-
-        {
-            let mut terminal = self.state.terminal.lock().map_err(|_| {
-                TerminalError::Process("Terminal lock poisoned during stop".to_string())
-            })?;
-            terminal.stop()?;
-        }
-
-        self.state.is_running = false;
-        Ok(())
+        self.blink.cancel();
+        self.scroll_dragging.store(false, Ordering::Release);
+        self.monitor = None;
+        self.state.terminal.lock().map_err(|_| lock_error())?.stop()
     }
-
-    /// Send input to the terminal
+    /// Queue input or report a stopped child or full input queue.
     pub fn send_input(&mut self, data: &[u8]) -> TerminalResult<()> {
-        let mut terminal = self.state.terminal.lock().map_err(|_| {
-            TerminalError::Process("Terminal lock poisoned during input".to_string())
-        })?;
-        terminal.write_input(data)
+        self.state
+            .terminal
+            .lock()
+            .map_err(|_| lock_error())?
+            .write_input(data)
     }
-
-    /// Send a string to the terminal
+    /// Queue UTF-8 input.
     pub fn send_string(&mut self, text: &str) -> TerminalResult<()> {
         self.send_input(text.as_bytes())
     }
-
-    /// Resize the terminal
+    /// Resize the screen and child PTY in cells.
     pub fn resize(&mut self, width: u16, height: u16) -> TerminalResult<()> {
+        crate::terminal::VirtualScreen::validate_size(width, height)?;
         if self.state.cached_size == (width, height) {
             return Ok(());
         }
-
-        {
-            let mut terminal = self.state.terminal.lock().map_err(|_| {
-                TerminalError::Process("Terminal lock poisoned during resize".to_string())
-            })?;
-            terminal.resize(width, height)?;
-        }
-
+        self.state
+            .terminal
+            .lock()
+            .map_err(|_| lock_error())?
+            .resize(width, height)?;
         self.state.cached_size = (width, height);
+        if self.invalid_size.take().is_some() {
+            self.error = None;
+        }
         self.state.needs_redraw = true;
         Ok(())
     }
-
-    /// Scroll the terminal view
+    /// Move into history with positive lines, toward live output with negative lines.
     pub fn scroll(&mut self, lines: i32) {
-        if lines > 0 {
-            self.state.scroll_position = self.state.scroll_position.saturating_add(lines as usize);
+        self.state.scroll_position = if lines >= 0 {
+            self.state.scroll_position.saturating_add(lines as usize)
         } else {
-            self.state.scroll_position =
-                self.state.scroll_position.saturating_sub((-lines) as usize);
+            self.state
+                .scroll_position
+                .saturating_sub(lines.unsigned_abs() as usize)
+        };
+        if let Ok(terminal) = self.state.terminal.lock() {
+            self.state.scroll_position = self
+                .state
+                .scroll_position
+                .min(terminal.screen().scrollback_len());
         }
         self.state.needs_redraw = true;
     }
-
-    /// Get the current terminal title
+    /// Current child title, with the configured title as fallback.
     pub fn title(&self) -> String {
-        match self.state.terminal.lock() {
-            Ok(terminal) => {
-                let title = terminal.title();
-                if title.is_empty() {
-                    self.props.title.clone()
-                } else {
-                    title.to_string()
-                }
-            }
-            Err(_) => {
-                // Lock poisoned, return fallback title
-                self.props.title.clone()
-            }
-        }
+        self.state
+            .terminal
+            .lock()
+            .ok()
+            .and_then(|terminal| {
+                (!terminal.title().is_empty()).then(|| terminal.title().to_owned())
+            })
+            .unwrap_or_else(|| self.props.title.clone())
     }
-
-    /// Check if terminal is running
+    /// Whether the directly owned child is running.
     pub fn is_running(&self) -> bool {
-        self.state.is_running
+        self.state
+            .terminal
+            .lock()
+            .is_ok_and(|terminal| terminal.is_running())
     }
-
-    /// Set focus state
+    /// Override focus for callers delivering events directly.
     pub fn set_focus(&mut self, focused: bool) {
-        if self.state.has_focus != focused {
-            self.state.has_focus = focused;
-            self.state.needs_redraw = true;
+        self.focused.store(focused, Ordering::Release);
+        if !focused {
+            self.blink.cancel();
+            self.scroll_dragging.store(false, Ordering::Release);
         }
+        self.state.has_focus = focused;
+        self.state.needs_redraw = true;
+    }
+    /// Most recent widget or PTY error, also shown in its content area.
+    pub fn last_error(&self) -> Option<String> {
+        self.error.clone().or_else(|| {
+            self.state
+                .terminal
+                .lock()
+                .ok()
+                .and_then(|terminal| terminal.last_error().map(str::to_owned))
+        })
+    }
+    fn input(&mut self, input: &[u8]) -> EventResult {
+        if input.is_empty() {
+            return EventResult::Ignored;
+        }
+        match self.send_input(input) {
+            Ok(()) => self.state.scroll_position = 0,
+            Err(error) => self.error = Some(error.to_string()),
+        }
+        EventResult::Consumed
+    }
+    fn handle_key_event(&mut self, event: &KeyEvent) -> EventResult {
+        if !self.focused.load(Ordering::Acquire) || event.kind == KeyEventKind::Release {
+            return EventResult::Ignored;
+        }
+        self.input(&self.key_event_to_bytes(event))
+    }
+    fn key_event_to_bytes(&self, event: &KeyEvent) -> Vec<u8> {
+        let application_cursor = self
+            .state
+            .terminal
+            .lock()
+            .is_ok_and(|terminal| terminal.screen().input_modes().application_cursor_keys);
+        keyboard::encode(event, application_cursor)
+    }
+    fn scrollbar_offset(&self, event: &MouseEvent, dragging: bool) -> Option<usize> {
+        let (width, height) = paint::content_size(self);
+        if !self.props.show_scrollbar || height == 0 || self.last_error().is_some() {
+            return None;
+        }
+        let insets = self.layout?.insets;
+        let x = event.position.x() as f32 - insets[0];
+        let y = event.position.y() as f32
+            - insets[1]
+            - f32::from(u8::from(!self.props.title.is_empty()));
+        if !dragging
+            && (!(f32::from(width)..f32::from(width) + 1.0).contains(&x)
+                || !(0.0..f32::from(height)).contains(&y))
+        {
+            return None;
+        }
+        let history = self.state.terminal.lock().ok()?.screen().scrollback_len();
+        let range = height - 1;
+        if range == 0 {
+            return Some(0);
+        }
+        let position = y.clamp(0.0, f32::from(range)) as u16;
+        Some((history as u128 * u128::from(range - position) / u128::from(range)) as usize)
     }
 
-    /// Setup event monitoring thread
-    fn setup_event_monitoring(&mut self) {
-        let terminal = Arc::clone(&self.state.terminal);
-        let (tx, rx) = mpsc::channel();
-        self.state.event_receiver = Some(Arc::new(Mutex::new(rx)));
-
-        thread::spawn(move || {
-            loop {
-                // Poll for terminal events
-                if let Ok(mut terminal) = terminal.lock() {
-                    let events = terminal.poll_events();
-                    for event in events {
-                        if tx.send(event).is_err() {
-                            return; // Channel closed
-                        }
+    fn handle_mouse_event(&mut self, event: &MouseEvent) -> EventResult {
+        match event.kind {
+            MouseEventKind::Down | MouseEventKind::Click => {
+                self.scroll_dragging.store(false, Ordering::Release);
+                self.set_focus(true);
+                if event.button == crate::event::types::MouseButton::Left {
+                    if let Some(offset) = self.scrollbar_offset(event, false) {
+                        self.state.scroll_position = offset;
+                        self.state.needs_redraw = true;
+                        self.scroll_dragging
+                            .store(event.kind == MouseEventKind::Down, Ordering::Release);
+                        return EventResult::Consumed;
                     }
                 }
-
-                thread::sleep(Duration::from_millis(16)); // ~60 FPS
+                EventResult::Handled
             }
-        });
-    }
-
-    /// Process pending terminal events
-    #[allow(dead_code)]
-    fn process_events(&mut self) {
-        if let Some(ref receiver) = self.state.event_receiver {
-            if let Ok(receiver) = receiver.lock() {
-                while let Ok(event) = receiver.try_recv() {
-                    match event {
-                        TerminalEvent::Output(_) => {
-                            self.state.needs_redraw = true;
-                            self.state.last_update = Instant::now();
-                        }
-                        TerminalEvent::TitleChanged(_) => {
-                            // Title changed - could trigger parent update
-                        }
-                        TerminalEvent::Resized(w, h) => {
-                            self.state.cached_size = (w, h);
-                            self.state.needs_redraw = true;
-                        }
-                        TerminalEvent::ProcessExited(_) => {
-                            self.state.is_running = false;
-                        }
-                        TerminalEvent::Bell => {
-                            // Could trigger visual bell or sound
-                        }
-                        TerminalEvent::WorkingDirectoryChanged(_) => {
-                            // Working directory changed
-                        }
-                    }
+            MouseEventKind::Drag
+                if self.scroll_dragging.load(Ordering::Acquire)
+                    && event.button == crate::event::types::MouseButton::Left =>
+            {
+                if let Some(offset) = self.scrollbar_offset(event, true) {
+                    self.state.scroll_position = offset;
+                    self.state.needs_redraw = true;
+                }
+                EventResult::Consumed
+            }
+            MouseEventKind::Up | MouseEventKind::Leave => {
+                if self.scroll_dragging.swap(false, Ordering::AcqRel) {
+                    EventResult::Consumed
+                } else {
+                    EventResult::Ignored
                 }
             }
-        }
-    }
-
-    /// Convert terminal cell to surface cell
-    #[allow(dead_code)]
-    fn convert_cell(&self, term_cell: &TerminalCell) -> Cell {
-        let fg = self.convert_color(term_cell.style.foreground);
-        let bg = self.convert_color(term_cell.style.background);
-        let mut attr = Attr::empty();
-
-        if term_cell.style.bold {
-            attr |= Attr::BOLD;
-        }
-        if term_cell.style.italic {
-            attr |= Attr::ITALIC;
-        }
-        if term_cell.style.underline {
-            attr |= Attr::UNDERLINE;
-        }
-        if term_cell.style.reverse {
-            attr |= Attr::REVERSE;
-        }
-
-        // Get the first character from the string
-        let ch = term_cell.character.chars().next().unwrap_or(' ');
-
-        Cell {
-            ch,
-            fg,
-            bg,
-            attr,
-            image_id: None,
-            image_placement: None,
-        }
-    }
-
-    /// Convert terminal color to RGBA
-    #[allow(dead_code)]
-    fn convert_color(&self, color: TerminalColor) -> Rgba {
-        match color {
-            TerminalColor::Default => Rgba::white(),
-            TerminalColor::Indexed(idx) => {
-                // Convert indexed color to RGB (simplified)
-                match idx {
-                    0 => Rgba::black(),
-                    1 => Rgba::new(0.8, 0.0, 0.0, 1.0), // Red
-                    2 => Rgba::new(0.0, 0.8, 0.0, 1.0), // Green
-                    3 => Rgba::new(0.8, 0.8, 0.0, 1.0), // Yellow
-                    4 => Rgba::new(0.0, 0.0, 0.8, 1.0), // Blue
-                    5 => Rgba::new(0.8, 0.0, 0.8, 1.0), // Magenta
-                    6 => Rgba::new(0.0, 0.8, 0.8, 1.0), // Cyan
-                    7 => Rgba::white(),
-                    _ => Rgba::white(), // Default for other indices
+            MouseEventKind::Wheel => {
+                let Some(wheel) = &event.wheel else {
+                    return EventResult::Ignored;
+                };
+                let y = match wheel.delta {
+                    WheelDelta::Lines { y, .. } | WheelDelta::Pixels { y, .. } => y,
+                };
+                if !y.is_finite() || y == 0.0 {
+                    return EventResult::Ignored;
                 }
+                self.scroll((-y).round() as i32);
+                EventResult::Consumed
             }
-            TerminalColor::Rgb(r, g, b) => {
-                Rgba::new(r as f32 / 255.0, g as f32 / 255.0, b as f32 / 255.0, 1.0)
+            _ => EventResult::Ignored,
+        }
+    }
+    fn apply_measured_size(&mut self) -> bool {
+        let (w, h) = paint::content_size(self);
+        if w == 0 || h == 0 {
+            return false;
+        }
+        let changed = self.state.cached_size != (w, h);
+        if let Err(error) = self.resize(w, h) {
+            self.error = Some(error.to_string());
+            return changed;
+        }
+        if self.mounted && !self.launched {
+            self.launched = true;
+            if let Err(error) = self.start() {
+                self.error = Some(error.to_string());
             }
+            return true;
+        }
+        changed
+    }
+    fn handle_resize_event(&mut self, event: &ResizeEvent) -> EventResult {
+        // App supplies local dimensions through layout, not host resize broadcasts.
+        if self.mounted {
+            return EventResult::Ignored;
+        }
+        if let Err(error) = self.resize(event.width, event.height) {
+            self.error = Some(error.to_string());
+        }
+        EventResult::Handled
+    }
+}
+fn lock_error() -> TerminalError {
+    TerminalError::Process("Terminal lock poisoned".into())
+}
+impl Drop for TerminalWidget {
+    fn drop(&mut self) {
+        if let Err(error) = self.stop() {
+            log::error!("Cannot stop terminal widget: {error}");
         }
     }
 }
-
 impl Component for TerminalWidget {
     type Props = TerminalProps;
     type State = TerminalState;
-
     fn new(props: Self::Props) -> Self {
         Self::new(props)
     }
-
-    fn render(&self, _props: &Self::Props, _state: &Self::State) -> Element {
-        // Process pending events using immutable event pattern
-        // Events are processed via internal state machine without mutable render access
-        let has_pending_events = _state.event_receiver.is_some();
-        if has_pending_events {
-            // Events are processed through the component lifecycle
-            // This maintains render function purity while handling events
-            // Event processing happens in the update() method instead
+    fn update(&mut self, props: &Self::Props, _: &mut Self::State) -> bool {
+        if !same_launch(&self.props, props) {
+            if let Err(error) = self.stop() {
+                self.error = Some(error.to_string());
+                return true;
+            }
+            let (terminal, invalid_size, error) = configured_terminal(configuration(props));
+            self.state.terminal = Arc::new(Mutex::new(terminal));
+            self.state.cached_size = props.config.size;
+            self.state.scroll_position = 0;
+            self.launched = false;
+            self.invalid_size = invalid_size;
+            self.error = error;
         }
-
-        Element::layout(crate::component::LayoutType::Flex)
-            .class("terminal-widget w-full h-full bg-black text-white")
-            .children(vec![
-                // Terminal title bar (if enabled)
-                if !self.props.title.is_empty() {
-                    Element::layout(crate::component::LayoutType::Flex)
-                        .class("terminal-title-bar h-6 bg-gray-800 text-white px-2 items-center")
-                        .children(vec![
-                            Element::text(self.title()).class("text-sm font-bold"),
-                            Element::layout(crate::component::LayoutType::Flex)
-                                .class("ml-auto")
-                                .children(vec![if self.is_running() {
-                                    Element::text("●").class("text-green-400 mr-2")
-                                } else {
-                                    Element::text("●").class("text-red-400 mr-2")
-                                }]),
-                        ])
-                } else {
-                    Element::empty()
-                },
-                // Main terminal content area
-                Element::layout(crate::component::LayoutType::Flex)
-                    .class("terminal-content flex-1 relative")
-                    .children(vec![
-                        // Terminal screen (this would be rendered via custom rendering)
-                        Element::text("[Terminal Content - Custom Rendered]")
-                            .class("absolute inset-0 font-mono text-sm"),
-                        // Scrollbar (if enabled)
-                        if self.props.show_scrollbar {
-                            Element::layout(crate::component::LayoutType::Flex)
-                                .class("scrollbar absolute right-0 top-0 bottom-0 w-2 bg-gray-700")
-                                .children(vec![Element::layout(crate::component::LayoutType::Flex)
-                                    .class("scrollbar-thumb bg-gray-500 rounded")])
-                        } else {
-                            Element::empty()
-                        },
-                    ]),
-            ])
+        self.props = props.clone();
+        if !props.show_scrollbar {
+            self.scroll_dragging.store(false, Ordering::Release);
+        }
+        if self.layout.is_some() {
+            self.apply_measured_size();
+        }
+        true
     }
-
+    fn render(&self, _: &Self::Props, _: &Self::State) -> Element {
+        if let Some(monitor) = &self.monitor {
+            monitor.observe();
+        }
+        paint::render(self)
+    }
+    fn layout(&mut self, layout: LayoutInfo, _: &mut Self::Props, _: &mut Self::State) -> bool {
+        let changed = self.layout.is_none_or(|old| old != layout);
+        self.layout = Some(layout);
+        self.apply_measured_size() || changed
+    }
+    fn on_lifecycle(&mut self, event: LifecycleEvent, _: &mut Self::State) {
+        match event {
+            LifecycleEvent::Mount => self.mounted = true,
+            LifecycleEvent::Unmount => {
+                self.mounted = false;
+                if let Err(error) = self.stop() {
+                    self.error = Some(error.to_string());
+                }
+            }
+            _ => {}
+        }
+    }
     fn handle_event(
         &mut self,
         event: &Event,
-        _props: &mut Self::Props,
-        _state: &mut Self::State,
+        _: &mut Self::Props,
+        _: &mut Self::State,
     ) -> EventResult {
         match event {
-            Event::Key(key_event) => self.handle_key_event(key_event),
-            Event::Mouse(mouse_event) => self.handle_mouse_event(mouse_event),
-            Event::Resize(resize_event) => self.handle_resize_event(resize_event),
-            _ => EventResult::Ignored,
-        }
-    }
-}
-
-impl TerminalWidget {
-    /// Handle keyboard events
-    fn handle_key_event(&mut self, event: &KeyEvent) -> EventResult {
-        if !self.state.has_focus {
-            return EventResult::Ignored;
-        }
-
-        // Convert key event to terminal input
-        let input = self.key_event_to_bytes(event);
-        if let Err(e) = self.send_input(&input) {
-            eprintln!("Failed to send input to terminal: {}", e);
-        }
-
-        EventResult::Handled
-    }
-
-    /// Handle mouse events
-    fn handle_mouse_event(&mut self, event: &MouseEvent) -> EventResult {
-        use crate::event::types::{MouseEventKind, Position};
-
-        match event.kind {
-            MouseEventKind::Click => {
-                // Focus the terminal on click
-                self.state.has_focus = true;
-                EventResult::Handled
-            }
-            MouseEventKind::Wheel => {
-                // Handle scrolling
-                if let Position::Cell { y, .. } = event.position {
-                    if y > 0 {
-                        self.scroll(-3); // Scroll up
-                    } else {
-                        self.scroll(3); // Scroll down
+            Event::Key(key) => self.handle_key_event(key),
+            Event::Mouse(mouse) => self.handle_mouse_event(mouse),
+            Event::Resize(resize) => self.handle_resize_event(resize),
+            Event::Paste(paste) if self.focused.load(Ordering::Acquire) => {
+                let bracketed = self
+                    .state
+                    .terminal
+                    .lock()
+                    .is_ok_and(|terminal| terminal.screen().input_modes().bracketed_paste);
+                if bracketed {
+                    if paste.content.len() > crate::terminal::pty::MAX_INPUT - 12 {
+                        self.error = Some("Bracketed paste exceeds the 64 KiB input limit".into());
+                        return EventResult::Consumed;
                     }
+                    self.input(format!("\x1b[200~{}\x1b[201~", paste.content).as_bytes())
+                } else {
+                    self.input(paste.content.as_bytes())
                 }
-                EventResult::Handled
             }
             _ => EventResult::Ignored,
         }
-    }
-
-    /// Handle resize events
-    fn handle_resize_event(&mut self, event: &ResizeEvent) -> EventResult {
-        if let Err(e) = self.resize(event.width, event.height) {
-            eprintln!("Failed to resize terminal: {}", e);
-        }
-        EventResult::Handled
-    }
-
-    /// Convert key event to terminal input bytes
-    fn key_event_to_bytes(&self, event: &KeyEvent) -> Vec<u8> {
-        use crate::event::types::KeyCode;
-
-        let mut bytes = Vec::new();
-
-        // Handle modifiers
-        if event.modifiers.ctrl {
-            if let KeyCode::Char(c) = event.code {
-                // Ctrl+letter combinations
-                let ctrl_code = (c.to_ascii_uppercase() as u8)
-                    .wrapping_sub(b'A')
-                    .wrapping_add(1);
-                bytes.push(ctrl_code);
-            }
-        } else {
-            match event.code {
-                KeyCode::Char(c) => bytes.extend(c.to_string().as_bytes()),
-                KeyCode::Enter => bytes.push(b'\r'),
-                KeyCode::Tab => bytes.push(b'\t'),
-                KeyCode::Backspace => bytes.push(0x7F),
-                KeyCode::Delete => bytes.extend(b"\x1b[3~"),
-                KeyCode::Up => bytes.extend(b"\x1b[A"),
-                KeyCode::Down => bytes.extend(b"\x1b[B"),
-                KeyCode::Right => bytes.extend(b"\x1b[C"),
-                KeyCode::Left => bytes.extend(b"\x1b[D"),
-                KeyCode::Home => bytes.extend(b"\x1b[H"),
-                KeyCode::End => bytes.extend(b"\x1b[F"),
-                KeyCode::PageUp => bytes.extend(b"\x1b[5~"),
-                KeyCode::PageDown => bytes.extend(b"\x1b[6~"),
-                KeyCode::Escape => bytes.push(0x1B),
-                KeyCode::Space => bytes.push(b' '),
-                KeyCode::F(n) => {
-                    // Function keys
-                    match n {
-                        1 => bytes.extend(b"\x1bOP"),
-                        2 => bytes.extend(b"\x1bOQ"),
-                        3 => bytes.extend(b"\x1bOR"),
-                        4 => bytes.extend(b"\x1bOS"),
-                        5 => bytes.extend(b"\x1b[15~"),
-                        6 => bytes.extend(b"\x1b[17~"),
-                        7 => bytes.extend(b"\x1b[18~"),
-                        8 => bytes.extend(b"\x1b[19~"),
-                        9 => bytes.extend(b"\x1b[20~"),
-                        10 => bytes.extend(b"\x1b[21~"),
-                        11 => bytes.extend(b"\x1b[23~"),
-                        12 => bytes.extend(b"\x1b[24~"),
-                        _ => {} // Ignore other function keys
-                    }
-                }
-                _ => {} // Ignore other keys
-            }
-        }
-
-        bytes
     }
 }
 
@@ -544,6 +512,45 @@ mod tests {
         std::env::var("CI").is_err()
             && std::env::var("GITHUB_ACTIONS").is_err()
             && std::env::var("TERM").is_ok() // Basic check for terminal environment
+    }
+
+    #[test]
+    fn scrollbar_drag_ends_on_leave_blur_stop_and_hidden_track() {
+        use crate::event::{
+            hit::Bounds,
+            types::{MouseButton, Position},
+        };
+        let mut widget = TerminalWidget::new(TerminalProps::default());
+        widget.layout = Some(LayoutInfo::from_bounds(Bounds::new(0.0, 0.0, 8.0, 4.0)));
+        widget
+            .state
+            .terminal
+            .lock()
+            .unwrap()
+            .process_output(&b"row\r\n".repeat(40));
+        let down = MouseEvent::new(MouseEventKind::Down, Position::cell(7, 1))
+            .with_button(MouseButton::Left);
+        let drag = MouseEvent::new(MouseEventKind::Drag, Position::cell(7, 3))
+            .with_button(MouseButton::Left);
+        assert_eq!(widget.handle_mouse_event(&down), EventResult::Consumed);
+        assert!(widget.state.scroll_position > 0);
+        widget.handle_mouse_event(&MouseEvent::new(
+            MouseEventKind::Leave,
+            Position::cell(u16::MAX, u16::MAX),
+        ));
+        assert_eq!(widget.handle_mouse_event(&drag), EventResult::Ignored);
+        widget.handle_mouse_event(&down);
+        paint::render(&widget).focus.unwrap().on_blur.unwrap()();
+        assert!(!widget.scroll_dragging.load(Ordering::Acquire));
+        widget.handle_mouse_event(&down);
+        widget.stop().unwrap();
+        assert!(!widget.scroll_dragging.load(Ordering::Acquire));
+        widget.handle_mouse_event(&down);
+        let mut props = widget.props.clone();
+        props.show_scrollbar = false;
+        widget.update(&props, &mut TerminalState::default());
+        assert!(!widget.scroll_dragging.load(Ordering::Acquire));
+        assert_eq!(widget.handle_mouse_event(&drag), EventResult::Ignored);
     }
 
     #[test]
@@ -581,12 +588,11 @@ mod tests {
     #[test]
     fn test_terminal_state_default() {
         let state = TerminalState::default();
-        assert!(!state.is_running);
+        assert!(!state.terminal.lock().unwrap().is_running());
         assert!(!state.has_focus);
         assert_eq!(state.scroll_position, 0);
         assert_eq!(state.cached_size, (80, 24));
         assert!(state.needs_redraw);
-        assert!(state.event_receiver.is_none());
     }
 
     #[test]
@@ -595,7 +601,7 @@ mod tests {
         let widget = TerminalWidget::new(props.clone());
 
         assert_eq!(widget.props.title, props.title);
-        assert!(!widget.state.is_running);
+        assert!(!widget.is_running());
         assert!(widget.state.needs_redraw);
     }
 
@@ -735,7 +741,13 @@ mod tests {
         // Initial scroll position should be 0
         assert_eq!(widget.state.scroll_position, 0);
 
-        // Scroll down
+        widget
+            .state
+            .terminal
+            .lock()
+            .unwrap()
+            .process_output(&b"line\r\n".repeat(40));
+        // Move into retained history.
         widget.scroll(5);
         assert_eq!(widget.state.scroll_position, 5);
         assert!(widget.state.needs_redraw);
@@ -798,7 +810,7 @@ mod tests {
         let widget = TerminalWidget::new(TerminalProps::default());
 
         // Initially should not be running
-        assert!(!widget.state.is_running);
+        assert!(!widget.is_running());
         assert!(!widget.is_running());
 
         // Note: We don't test start() and stop() here because they require TTY access
@@ -814,7 +826,7 @@ mod tests {
         let result = widget.send_string("echo hello\n");
 
         // The result depends on the terminal implementation - just ensure it doesn't panic
-        let _ = result; // Consume the result without asserting specific behavior
+        assert!(result.is_err());
     }
 
     #[test]
@@ -825,7 +837,7 @@ mod tests {
         let result = widget.send_input(b"test data");
 
         // The result depends on the terminal implementation - just ensure it doesn't panic
-        let _ = result; // Consume the result without asserting specific behavior
+        assert!(result.is_err());
     }
 
     #[test]
@@ -886,31 +898,5 @@ mod tests {
         assert_eq!(widget.props.shell_command, Some("/bin/sh".to_string()));
         assert_eq!(widget.props.working_directory, Some("/tmp".to_string()));
         assert_eq!(widget.props.env_vars.len(), 1);
-    }
-
-    // TTY-dependent tests would be conditionally compiled or skipped
-    #[test]
-    #[ignore] // Use #[ignore] for tests that require special setup
-    fn test_terminal_start_stop_integration() {
-        if !is_tty_available() {
-            eprintln!("Skipping TTY-dependent test in non-TTY environment");
-            return;
-        }
-
-        // This test would only run in a proper TTY environment
-        // Implementation would test actual terminal start/stop functionality
-        let widget = TerminalWidget::new(TerminalProps::default());
-
-        // In a real TTY environment, these would work
-        // let result = widget.start();
-        // assert!(result.is_ok());
-        // assert!(widget.is_running());
-
-        // let result = widget.stop();
-        // assert!(result.is_ok());
-        // assert!(!widget.is_running());
-
-        // For now, just verify the test framework works
-        assert!(!widget.is_running());
     }
 }

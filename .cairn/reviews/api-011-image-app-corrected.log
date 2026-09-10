@@ -1,0 +1,10 @@
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 3.41s
+     Running tests/api_widget_behavior.rs (target/debug/deps/api_widget_behavior-591f6bff9f7c0602)
+
+running 2 tests
+test image_acceptance::image_builder_loads_encoded_file_contents ... ok
+test image_acceptance::image_builder_paints_decoded_pixels_with_authored_bounds ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 328 filtered out; finished in 0.09s
+

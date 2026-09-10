@@ -4,6 +4,7 @@ command: python3 -B scripts/check-api-clipboard.py
 inputs:
   - .cairn/mechanisms/api-clipboard.md
   - Cargo.toml
+  - build.rs
   - Cargo.lock
   - src
   - reactive-tui-macros

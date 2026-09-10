@@ -1,0 +1,45 @@
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 6.99s
+     Running unittests src/lib.rs (target/debug/deps/reactive_tui-fa00cdcf48e682eb)
+
+running 14 tests
+test terminal::screen::tests::saved_cursor_is_clamped_after_resize ... ok
+test terminal::screen::tests::erase_from_cursor_clears_whole_wide_glyph_with_current_background ... ok
+test terminal::screen::tests::osc_hyperlink_and_directory_keep_semicolons ... ok
+test terminal::screen::tests::private_modes_preserve_main_screen_and_cursor ... ok
+test terminal::screen::tests::scroll_region_and_origin_mode_keep_header_and_footer ... ok
+test terminal::screen::tests::escape_index_and_reverse_index_respect_scroll_margins ... FAILED
+test terminal::screen::tests::reset_restores_screen_modes_and_cursor ... FAILED
+test terminal::screen::tests::erase_to_cursor_includes_cursor_and_preserves_later_cells ... ok
+test terminal::screen::tests::erase_saved_lines_preserves_visible_screen ... ok
+test terminal::screen::tests::sgr_attributes_and_malformed_colors ... ok
+test terminal::screen::tests::streamed_graphemes_occupy_whole_cells ... ok
+test terminal::screen::tests::sgr_extended_colors_and_resets ... ok
+test terminal::screen::tests::wide_glyph_wraps_before_last_column ... ok
+test terminal::screen::tests::wide_overwrite_clears_both_halves_and_old_links ... ok
+
+failures:
+
+---- terminal::screen::tests::escape_index_and_reverse_index_respect_scroll_margins stdout ----
+
+thread 'terminal::screen::tests::escape_index_and_reverse_index_respect_scroll_margins' (4164361) panicked at src/terminal/screen/tests.rs:94:5:
+assertion `left == right` failed
+  left: "o"
+ right: " "
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- terminal::screen::tests::reset_restores_screen_modes_and_cursor stdout ----
+
+thread 'terminal::screen::tests::reset_restores_screen_modes_and_cursor' (4164364) panicked at src/terminal/screen/tests.rs:110:5:
+assertion `left == right` failed
+  left: "A"
+ right: "X"
+
+
+failures:
+    terminal::screen::tests::escape_index_and_reverse_index_respect_scroll_margins
+    terminal::screen::tests::reset_restores_screen_modes_and_cursor
+
+test result: FAILED. 12 passed; 2 failed; 0 ignored; 0 measured; 914 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `--lib`

@@ -153,6 +153,15 @@ impl MotionTree {
                 .map_or(Slot::Index(index), |key| Slot::Key(key.clone())),
         );
         let mut style = element_style(element)?;
+        if style.accessibility.contains_key("reduced-motion") {
+            // Use the requested static values immediately and release this
+            // node's animation clock when the current traversal finishes.
+            element.metadata.paint_style = Some(Arc::new(style.snapshot()));
+            for (index, child) in element.children.iter_mut().enumerate() {
+                self.visit(child, path.clone(), index, now, seen)?;
+            }
+            return Ok(());
+        }
         let mut names = extract_css_animations_from_classes(element.class.as_deref().unwrap_or(""));
         if names.is_empty()
             && !element
@@ -339,6 +348,32 @@ fn animation_progress(elapsed: Duration, spec: &CssAnimationSpec) -> (f32, bool)
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn reduced_motion_releases_clocks_and_applies_static_values_immediately() {
+        let now = Instant::now();
+        let mut tree = MotionTree::default();
+        let mut element = Element::text("X")
+            .key("stable")
+            .class("animate-pulse transition-opacity opacity-50");
+        tree.apply(&mut element, now, (24, 6)).unwrap();
+        assert!(tree.active());
+        let mut reduced = Element::text("X")
+            .key("stable")
+            .class("animate-pulse transition-opacity opacity-100 reduced-motion");
+        tree.apply(&mut reduced, now + Duration::from_millis(50), (24, 6))
+            .unwrap();
+        assert!(!tree.active());
+        assert!(tree.nodes.is_empty());
+        let style = reduced
+            .metadata
+            .paint_style
+            .as_ref()
+            .unwrap()
+            .restore()
+            .unwrap();
+        assert_eq!(style.opacity, Some(1.0));
+    }
 
     #[test]
     fn property_sets_keep_names_offsets_and_easing() {

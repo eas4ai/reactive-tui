@@ -4,8 +4,9 @@
 //! high-quality image display directly in the terminal.
 
 use crate::error::{ReactiveError, Result};
-use crate::widgets::display::image::{Image, ImageFormat, ImageSource};
-use std::path::Path;
+use crate::widgets::display::image::Image;
+#[cfg(test)]
+use crate::widgets::display::image::{ImageFormat, ImageSource};
 
 /// Protocol-based renderer for terminal-specific image protocols
 pub struct ProtocolRenderer;
@@ -18,6 +19,9 @@ impl ProtocolRenderer {
 
     /// Render image using Kitty graphics protocol
     pub fn render_kitty_graphics(&self, image: &Image) -> Result<String> {
+        if image.has_empty_size() {
+            return Ok(String::new());
+        }
         let (image_data, width, height) = self.load_and_process_image(image)?;
 
         // Calculate display dimensions
@@ -31,35 +35,73 @@ impl ProtocolRenderer {
         // Resize if needed
         let (final_data, final_width, final_height) =
             if display_width != width || display_height != height {
-                self.resize_image(&image_data, width, height, display_width, display_height)?
+                self.resize_image(
+                    &image_data,
+                    (width, height),
+                    (display_width, display_height),
+                    image.quality,
+                )?
             } else {
                 (image_data, width, height)
             };
 
-        // Convert to base64
+        let pixels = image::RgbaImage::from_raw(final_width, final_height, final_data)
+            .ok_or_else(|| ReactiveError::ImageProcessing("Invalid RGBA image buffer".into()))?;
+        Ok(Self::kitty_pixels(
+            &pixels,
+            self.generate_image_id(),
+            0,
+            false,
+        ))
+    }
+
+    pub(crate) fn kitty_pixels(
+        pixels: &image::RgbaImage,
+        image_id: u32,
+        z: i32,
+        keep_cursor: bool,
+    ) -> String {
+        Self::kitty_pixels_at(pixels, image_id, z, keep_cursor, None)
+    }
+
+    pub(crate) fn kitty_pixels_at(
+        pixels: &image::RgbaImage,
+        image_id: u32,
+        z: i32,
+        keep_cursor: bool,
+        offset: Option<(u16, u16)>,
+    ) -> String {
         use base64::Engine;
-        let base64_data = base64::engine::general_purpose::STANDARD.encode(&final_data);
-
-        // Generate unique image ID
-        let image_id = self.generate_image_id();
-
-        // Build Kitty graphics protocol sequence
+        let base64_data = base64::engine::general_purpose::STANDARD.encode(pixels.as_raw());
+        let (width, height) = pixels.dimensions();
+        let cursor = if keep_cursor { ",C=1" } else { "" };
+        let offset = offset
+            .map(|(x, y)| format!(",X={x},Y={y}"))
+            .unwrap_or_default();
         let mut sequence = String::new();
-
-        // Transmission command
-        sequence.push_str(&format!(
-            "\x1b_Ga=T,f=24,s={},v={},i={};{}\x1b\\",
-            final_width, final_height, image_id, base64_data
-        ));
-
-        // Placement command
-        sequence.push_str(&format!("\x1b_Ga=p,i={}\x1b\\", image_id));
-
-        Ok(sequence)
+        let mut chunks = base64_data.as_bytes().chunks(4096).peekable();
+        let mut first = true;
+        while let Some(chunk) = chunks.next() {
+            let more = u8::from(chunks.peek().is_some());
+            if first {
+                sequence.push_str(&format!(
+                    "\x1b_Ga=T,f=32,s={width},v={height},i={image_id},q=2{cursor},z={z}{offset},m={more};"
+                ));
+                first = false;
+            } else {
+                sequence.push_str(&format!("\x1b_Gm={more};"));
+            }
+            sequence.extend(chunk.iter().map(|byte| char::from(*byte)));
+            sequence.push_str("\x1b\\");
+        }
+        sequence
     }
 
     /// Render image using iTerm2 inline images protocol
     pub fn render_iterm2_inline(&self, image: &Image) -> Result<String> {
+        if image.has_empty_size() {
+            return Ok(String::new());
+        }
         let (image_data, width, height) = self.load_and_process_image(image)?;
 
         // Calculate display dimensions
@@ -73,22 +115,36 @@ impl ProtocolRenderer {
         // Resize if needed
         let (final_data, final_width, final_height) =
             if display_width != width || display_height != height {
-                self.resize_image(&image_data, width, height, display_width, display_height)?
+                self.resize_image(
+                    &image_data,
+                    (width, height),
+                    (display_width, display_height),
+                    image.quality,
+                )?
             } else {
                 (image_data, width, height)
             };
 
-        // Convert to base64
+        // Inline images carry an encoded file, not raw pixel bytes.
+        let pixels = image::RgbaImage::from_raw(final_width, final_height, final_data)
+            .ok_or_else(|| ReactiveError::ImageProcessing("Invalid RGBA image buffer".into()))?;
+        Self::iterm_pixels(&pixels, image.preserve_aspect)
+    }
+
+    pub(crate) fn iterm_pixels(pixels: &image::RgbaImage, preserve_aspect: bool) -> Result<String> {
+        let (final_width, final_height) = pixels.dimensions();
+        let mut png = std::io::Cursor::new(Vec::new());
+        pixels
+            .write_to(&mut png, image::ImageFormat::Png)
+            .map_err(|error| {
+                ReactiveError::ImageProcessing(format!("Cannot encode inline image: {error}"))
+            })?;
         use base64::Engine;
-        let base64_data = base64::engine::general_purpose::STANDARD.encode(&final_data);
-
-        // Build iTerm2 inline image sequence
-        let size_param = format!("size={}x{};", final_width, final_height);
-        let preserve_param = if image.preserve_aspect { "1" } else { "0" };
-
+        let base64_data = base64::engine::general_purpose::STANDARD.encode(png.get_ref());
+        let preserve = u8::from(preserve_aspect);
         let sequence = format!(
-            "\x1b]1337;File={}inline=1;preserveAspectRatio={}:{}\x07",
-            size_param, preserve_param, base64_data
+            "\x1b]1337;File=size={};width={final_width}px;height={final_height}px;inline=1;preserveAspectRatio={preserve}:{base64_data}\x07",
+            png.get_ref().len()
         );
 
         Ok(sequence)
@@ -96,110 +152,22 @@ impl ProtocolRenderer {
 
     /// Load and process image data from various sources
     fn load_and_process_image(&self, image: &Image) -> Result<(Vec<u8>, u32, u32)> {
-        match &image.source {
-            ImageSource::FilePath(path) => self.load_from_file(path),
-            ImageSource::Base64Data(data) => self.load_from_base64(data),
-            ImageSource::RawBytes {
-                data,
-                width,
-                height,
-                format,
-            } => self.process_raw_bytes(data, *width, *height, *format),
-            ImageSource::Url(url) => {
-                // Load image from URL
-                self.load_from_url(url)
+        let mut pixels = super::decoded::load(&image.source)?;
+        if let Some(color) = image.background_color {
+            let background = image::Rgba([
+                (color.r.clamp(0.0, 1.0) * 255.0).round() as u8,
+                (color.g.clamp(0.0, 1.0) * 255.0).round() as u8,
+                (color.b.clamp(0.0, 1.0) * 255.0).round() as u8,
+                (color.a.clamp(0.0, 1.0) * 255.0).round() as u8,
+            ]);
+            for pixel in pixels.pixels_mut() {
+                let mut composite = background;
+                super::decoded::blend_pixel(&mut composite, pixel);
+                *pixel = composite;
             }
         }
-    }
-
-    /// Load image from URL
-    fn load_from_url(&self, url: &str) -> Result<(Vec<u8>, u32, u32)> {
-        // For production use, you'd want to use a proper HTTP client like reqwest
-        // For now, we'll implement a basic URL loading mechanism
-
-        // Check if it's a data URL (base64 encoded)
-        if url.starts_with("data:image/") {
-            if let Some(base64_start) = url.find("base64,") {
-                let base64_data = &url[base64_start + 7..];
-                return self.load_from_base64(base64_data);
-            }
-        }
-
-        // For HTTP/HTTPS URLs, we'd need an HTTP client
-        // For now, return an error with guidance
-        if url.starts_with("http://") || url.starts_with("https://") {
-            return Err(ReactiveError::ImageProcessing(
-                "HTTP URL loading requires adding reqwest dependency. Use data URLs or local files for now.".to_string()
-            ));
-        }
-
-        // Try to treat as local file path
-        let path = Path::new(url);
-        self.load_from_file(path)
-    }
-
-    /// Load image from file path
-    fn load_from_file(&self, path: &Path) -> Result<(Vec<u8>, u32, u32)> {
-        let img = image::open(path)
-            .map_err(|e| ReactiveError::ImageProcessing(format!("Failed to load image: {}", e)))?;
-
-        // Convert to RGBA for protocol compatibility
-        let rgba_img = img.to_rgba8();
-        let (width, height) = rgba_img.dimensions();
-        let data = rgba_img.into_raw();
-
-        Ok((data, width, height))
-    }
-
-    /// Load image from base64 data
-    fn load_from_base64(&self, base64_data: &str) -> Result<(Vec<u8>, u32, u32)> {
-        use base64::Engine;
-        let decoded = base64::engine::general_purpose::STANDARD
-            .decode(base64_data)
-            .map_err(|e| ReactiveError::ImageProcessing(format!("Invalid base64 data: {}", e)))?;
-
-        let img = image::load_from_memory(&decoded).map_err(|e| {
-            ReactiveError::ImageProcessing(format!("Failed to decode image: {}", e))
-        })?;
-
-        let rgba_img = img.to_rgba8();
-        let (width, height) = rgba_img.dimensions();
-        let data = rgba_img.into_raw();
-
-        Ok((data, width, height))
-    }
-
-    /// Process raw bytes based on format
-    fn process_raw_bytes(
-        &self,
-        data: &[u8],
-        width: u32,
-        height: u32,
-        format: ImageFormat,
-    ) -> Result<(Vec<u8>, u32, u32)> {
-        match format {
-            ImageFormat::RGBA8888 => Ok((data.to_vec(), width, height)),
-            ImageFormat::RGB888 => {
-                // Convert RGB to RGBA by adding alpha channel
-                let rgba_data: Vec<u8> = data
-                    .chunks_exact(3)
-                    .flat_map(|rgb| [rgb[0], rgb[1], rgb[2], 255])
-                    .collect();
-                Ok((rgba_data, width, height))
-            }
-            _ => {
-                // For compressed formats, decode using image crate
-                let img = image::load_from_memory(data).map_err(|e| {
-                    ReactiveError::ImageProcessing(format!("Failed to decode image: {}", e))
-                })?;
-
-                let rgba_img = img.to_rgba8();
-                let (w, h) = rgba_img.dimensions();
-                let rgba_data = rgba_img.into_raw();
-
-                Ok((rgba_data, w, h))
-            }
-        }
+        let (width, height) = pixels.dimensions();
+        Ok((pixels.into_raw(), width, height))
     }
 
     /// Calculate display size based on constraints
@@ -239,10 +207,9 @@ impl ProtocolRenderer {
     fn resize_image(
         &self,
         data: &[u8],
-        width: u32,
-        height: u32,
-        new_width: u32,
-        new_height: u32,
+        (width, height): (u32, u32),
+        (new_width, new_height): (u32, u32),
+        quality: super::ImageQuality,
     ) -> Result<(Vec<u8>, u32, u32)> {
         use image::{ImageBuffer, Rgba};
 
@@ -253,20 +220,25 @@ impl ProtocolRenderer {
             &img_buffer,
             new_width,
             new_height,
-            image::imageops::FilterType::Lanczos3,
+            match quality {
+                super::ImageQuality::Fast => image::imageops::FilterType::Nearest,
+                super::ImageQuality::Balanced => image::imageops::FilterType::Triangle,
+                super::ImageQuality::High => image::imageops::FilterType::Lanczos3,
+            },
         );
 
         Ok((resized.into_raw(), new_width, new_height))
     }
 
     /// Generate a unique image ID for protocols that require it
-    fn generate_image_id(&self) -> u32 {
-        use std::time::{SystemTime, UNIX_EPOCH};
-
-        SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_secs() as u32
+    pub(crate) fn generate_image_id(&self) -> u32 {
+        use std::sync::atomic::{AtomicU32, Ordering};
+        static NEXT_ID: AtomicU32 = AtomicU32::new(1);
+        NEXT_ID
+            .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |id| {
+                Some(id.checked_add(1).unwrap_or(1))
+            })
+            .expect("image ID update always returns a value")
     }
 }
 
@@ -279,6 +251,151 @@ impl Default for ProtocolRenderer {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn api_image_protocol_background_and_fast_resize_reach_encoded_pixels() {
+        use base64::Engine;
+        let mut input = Image::from_raw_bytes(
+            vec![255, 0, 0, 0, 0, 0, 255, 0, 255, 0, 0, 0, 0, 0, 255, 0],
+            4,
+            1,
+            ImageFormat::RGBA8888,
+        )
+        .with_max_size(2, 1)
+        .with_preserve_aspect(false);
+        input.background_color = Some(crate::core::surface::Rgba {
+            r: 0.0,
+            g: 1.0,
+            b: 0.0,
+            a: 1.0,
+        });
+        input.quality = super::super::ImageQuality::Fast;
+        let renderer = ProtocolRenderer::new();
+        let output = renderer.render_kitty_graphics(&input).unwrap();
+        let payload = output
+            .split_once(';')
+            .unwrap()
+            .1
+            .strip_suffix("\x1b\\")
+            .unwrap();
+        let pixels = base64::engine::general_purpose::STANDARD
+            .decode(payload)
+            .unwrap();
+        assert_eq!(pixels, [0, 255, 0, 255, 0, 255, 0, 255]);
+        input.background_color = None;
+        input.source = super::super::ImageSource::RawBytes {
+            data: vec![
+                255, 0, 0, 255, 0, 0, 255, 255, 255, 0, 0, 255, 0, 0, 255, 255,
+            ],
+            width: 4,
+            height: 1,
+            format: ImageFormat::RGBA8888,
+        };
+        let output = renderer.render_kitty_graphics(&input).unwrap();
+        let payload = output
+            .split_once(';')
+            .unwrap()
+            .1
+            .strip_suffix("\x1b\\")
+            .unwrap();
+        let pixels = base64::engine::general_purpose::STANDARD
+            .decode(payload)
+            .unwrap();
+        assert_eq!(pixels, [0, 0, 255, 255, 0, 0, 255, 255]);
+    }
+
+    #[test]
+    fn api_image_protocol_kitty_transmits_one_chunked_rgba_image() {
+        use base64::Engine;
+        let pixels: Vec<u8> = (0..4096).map(|index| (index % 251) as u8).collect();
+        let image = Image::from_raw_bytes(pixels.clone(), 32, 32, ImageFormat::RGBA8888)
+            .with_max_size(32, 32);
+        let output = ProtocolRenderer::new()
+            .render_kitty_graphics(&image)
+            .unwrap();
+        let mut payload = String::new();
+        let commands: Vec<_> = output.split("\x1b_G").skip(1).collect();
+        assert!(commands.len() > 1, "image must be chunked");
+        for (index, command) in commands.iter().enumerate() {
+            let command = command.strip_suffix("\x1b\\").unwrap();
+            let (control, data) = command.split_once(';').unwrap();
+            if index == 0 {
+                assert!(control.split(',').any(|field| field == "f=32"), "{control}");
+                assert!(control.split(',').any(|field| field == "a=T"));
+                assert!(control.split(',').any(|field| field == "s=32"));
+                assert!(control.split(',').any(|field| field == "v=32"));
+            } else {
+                assert!(!control.contains("a="), "one transmit-and-display action");
+            }
+            assert!(data.len() <= 4096);
+            let last = index + 1 == commands.len();
+            assert!(control
+                .split(',')
+                .any(|field| field == if last { "m=0" } else { "m=1" }));
+            if !last {
+                assert_eq!(data.len() % 4, 0);
+            }
+            payload.push_str(data);
+        }
+        assert_eq!(
+            base64::engine::general_purpose::STANDARD
+                .decode(payload)
+                .unwrap(),
+            pixels
+        );
+    }
+
+    #[test]
+    fn api_image_protocol_iterm_encodes_an_image_file_with_byte_size() {
+        use base64::Engine;
+        let pixels = vec![255, 0, 0, 128, 0, 255, 0, 255];
+        let image =
+            Image::from_raw_bytes(pixels.clone(), 2, 1, ImageFormat::RGBA8888).with_max_size(2, 1);
+        let output = ProtocolRenderer::new()
+            .render_iterm2_inline(&image)
+            .unwrap();
+        let sequence = output
+            .strip_prefix("\x1b]1337;File=")
+            .unwrap()
+            .strip_suffix('\x07')
+            .unwrap();
+        let (control, payload) = sequence.split_once(':').unwrap();
+        let bytes = base64::engine::general_purpose::STANDARD
+            .decode(payload)
+            .unwrap();
+        let size: usize = control
+            .split(';')
+            .find_map(|field| field.strip_prefix("size="))
+            .unwrap()
+            .parse()
+            .expect("size counts bytes");
+        assert_eq!(size, bytes.len());
+        assert!(control.split(';').any(|field| field == "width=2px"));
+        assert!(control.split(';').any(|field| field == "height=1px"));
+        let decoded = image::load_from_memory(&bytes)
+            .expect("inline payload is an encoded file")
+            .to_rgba8();
+        assert_eq!(decoded.dimensions(), (2, 1));
+        assert_eq!(decoded.into_raw(), pixels);
+    }
+
+    #[test]
+    fn api_image_protocol_rejects_invalid_raw_extents() {
+        let renderer = ProtocolRenderer::new();
+        for (bytes, width, height) in [
+            (vec![0; 3], 1, 1),
+            (vec![0; 5], 1, 1),
+            (vec![], 0, 0),
+            (vec![], u32::MAX, u32::MAX),
+        ] {
+            let image = Image::from_raw_bytes(bytes, width, height, ImageFormat::RGBA8888)
+                .with_max_size(1, 1);
+            assert!(
+                renderer.render_kitty_graphics(&image).is_err(),
+                "{width}x{height}"
+            );
+        }
+    }
 
     #[test]
     fn test_calculate_display_size_preserve_aspect() {
@@ -302,8 +419,7 @@ mod tests {
         let id1 = renderer.generate_image_id();
         let id2 = renderer.generate_image_id();
 
-        // IDs should be different (though they might be the same if called very quickly)
-        // At minimum, they should be valid u32 values
+        assert_ne!(id1, id2);
         assert!(id1 > 0);
         assert!(id2 > 0);
     }
@@ -316,7 +432,15 @@ mod tests {
         let rgb_data = vec![255, 0, 0, 0, 255, 0, 0, 0, 255];
 
         let (rgba_data, width, height) = renderer
-            .process_raw_bytes(&rgb_data, 3, 1, ImageFormat::RGB888)
+            .load_and_process_image(&Image {
+                source: ImageSource::RawBytes {
+                    data: rgb_data,
+                    width: 3,
+                    height: 1,
+                    format: ImageFormat::RGB888,
+                },
+                ..Image::default()
+            })
             .unwrap();
 
         assert_eq!(width, 3);

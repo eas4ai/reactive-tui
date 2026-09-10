@@ -55,7 +55,7 @@ impl std::fmt::Debug for MenuAction {
 
 impl PartialEq for MenuAction {
     fn eq(&self, other: &Self) -> bool {
-        self.id == other.id
+        self.id == other.id && Arc::ptr_eq(&self.callback, &other.callback)
     }
 }
 
@@ -515,20 +515,18 @@ impl MenuBarBuilder {
 
     /// Build the menubar element
     pub fn build(self) -> Element {
-        use crate::component::{Element, ElementType};
         use crate::widgets::menu::MenuBarProps;
-        use std::sync::Arc;
 
         // Convert builder MenuItem to widget MenuItem
         let widget_items: Vec<crate::widgets::menu::MenuItem> = self
             .items
             .clone()
             .into_iter()
-            .map(|builder_item| self.convert_menu_item(builder_item))
+            .map(convert_menu_item)
             .collect();
 
         // Convert builder MenuStyle to widget MenuStyle
-        let widget_style = self.convert_menu_style(self.style.clone());
+        let widget_style = convert_menu_style(self.style.clone());
 
         // Create MenuBar props from builder configuration
         let props = MenuBarProps {
@@ -541,139 +539,14 @@ impl MenuBarBuilder {
             max_dropdown_height: self.max_dropdown_height,
         };
 
-        // Create the actual MenuBar component
-        Element {
-            element_type: ElementType::Component("MenuBar".to_string()),
-            props: Arc::new(props),
-            children: Vec::new(),
-            key: None,
-            class: self.class,
-            focus: None,
-            metadata: Default::default(),
-        }
-    }
-
-    /// Convert builder MenuItem to widget MenuItem
-    fn convert_menu_item(&self, builder_item: MenuItem) -> crate::widgets::menu::MenuItem {
-        use crate::widgets::menu::MenuItem as WidgetMenuItem;
-
-        let widget_item_type = match builder_item.item_type {
-            crate::builder::widgets::menu::MenuItemType::Action => {
-                crate::widgets::menu::MenuItemType::Action
-            }
-            crate::builder::widgets::menu::MenuItemType::Submenu => {
-                crate::widgets::menu::MenuItemType::Submenu
-            }
-            crate::builder::widgets::menu::MenuItemType::Separator => {
-                crate::widgets::menu::MenuItemType::Separator
-            }
-            crate::builder::widgets::menu::MenuItemType::Checkbox { checked } => {
-                crate::widgets::menu::MenuItemType::Checkbox { checked }
-            }
-            crate::builder::widgets::menu::MenuItemType::Radio { selected, group } => {
-                crate::widgets::menu::MenuItemType::Radio { selected, group }
-            }
-        };
-
-        let widget_separator = match builder_item.separator {
-            crate::builder::widgets::menu::MenuSeparator::None => {
-                crate::widgets::menu::MenuSeparator::None
-            }
-            crate::builder::widgets::menu::MenuSeparator::Line => {
-                crate::widgets::menu::MenuSeparator::Line
-            }
-            crate::builder::widgets::menu::MenuSeparator::ThickLine => {
-                crate::widgets::menu::MenuSeparator::ThickLine
-            }
-            crate::builder::widgets::menu::MenuSeparator::DoubleLine => {
-                crate::widgets::menu::MenuSeparator::DoubleLine
-            }
-            crate::builder::widgets::menu::MenuSeparator::Dashed => {
-                crate::widgets::menu::MenuSeparator::Dashed
-            }
-            crate::builder::widgets::menu::MenuSeparator::Dotted => {
-                crate::widgets::menu::MenuSeparator::Dotted
-            }
-            crate::builder::widgets::menu::MenuSeparator::Space => {
-                crate::widgets::menu::MenuSeparator::Space
-            }
-        };
-
-        let widget_action = builder_item.action.map(|action| {
-            let callback = action.callback.clone();
-            crate::widgets::menu::MenuAction::new(action.id, move || {
-                callback();
-            })
-        });
-
-        let widget_submenu: Vec<crate::widgets::menu::MenuItem> = builder_item
-            .submenu
-            .into_iter()
-            .map(|sub_item| self.convert_menu_item(sub_item))
-            .collect();
-
-        WidgetMenuItem {
-            id: builder_item.id,
-            text: builder_item.text,
-            item_type: widget_item_type,
-            enabled: builder_item.enabled,
-            visible: builder_item.visible,
-            shortcut: builder_item
-                .shortcut
-                .map(|s| crate::widgets::menu::MenuShortcut {
-                    display: s.display,
-                    keys: s.keys,
-                }),
-            action: widget_action,
-            submenu: widget_submenu,
-            separator: widget_separator,
-            icon: builder_item.icon,
-            description: builder_item.description,
-        }
-    }
-
-    /// Convert builder MenuStyle to widget MenuStyle
-    fn convert_menu_style(&self, builder_style: MenuStyle) -> crate::widgets::menu::MenuStyle {
-        // Convert builder style (color-based) to widget style (CSS class-based)
-        let base_classes = format!(
-            "menu-item {}",
-            builder_style.background.as_deref().unwrap_or("bg-white")
+        let mut element = crate::widgets::menu::MenuBar::element_with_callbacks(
+            props,
+            self.on_item_selected,
+            self.on_dropdown_opened,
+            self.on_dropdown_closed,
         );
-        let selected_classes = format!(
-            "menu-item-selected {}",
-            builder_style
-                .selected_background
-                .as_deref()
-                .unwrap_or("bg-blue-500")
-        );
-        let disabled_classes = format!(
-            "menu-item-disabled {}",
-            builder_style
-                .disabled_text_color
-                .as_deref()
-                .unwrap_or("text-gray-400")
-        );
-
-        crate::widgets::menu::MenuStyle {
-            base_classes,
-            selected_classes,
-            focused_classes: "menu-item-focused bg-blue-100".to_string(),
-            disabled_classes,
-            separator_classes: "menu-separator border-t border-gray-200".to_string(),
-            shortcut_classes: "menu-shortcut text-gray-500 text-sm".to_string(),
-            icon_classes: "menu-icon mr-2".to_string(),
-            border_classes: builder_style
-                .border
-                .as_deref()
-                .unwrap_or("border border-gray-300")
-                .to_string(),
-            show_shadow: true,
-            show_icons: true,
-            show_shortcuts: true,
-            min_width: 120,
-            max_width: Some(300),
-            padding: 8,
-        }
+        element.class = self.class;
+        element
     }
 }
 
@@ -782,28 +655,26 @@ impl ContextMenuBuilder {
 
     /// Build the context menu element
     pub fn build(self) -> Element {
-        // For now, create a placeholder element since the actual ContextMenu component needs proper integration
-        use crate::builder::core::ElementBuilder;
-        use crate::component::{ElementType, LayoutType};
-
-        let mut builder = ElementBuilder::new(ElementType::Layout(LayoutType::Flex));
-
+        use crate::widgets::menu::{ContextMenu, ContextMenuProps};
+        let element = ContextMenu::element_with_callbacks(
+            ContextMenuProps {
+                items: self.items.into_iter().map(convert_menu_item).collect(),
+                style: convert_menu_style(self.style),
+                enabled: self.enabled,
+                show_on_right_click: self.trigger_on_right_click,
+                ..Default::default()
+            },
+            self.visible,
+            self.auto_close,
+            self.on_item_selected,
+            self.on_opened,
+            self.on_closed,
+        );
         if let Some(class) = self.class {
-            builder = builder.class(&class);
-        }
-
-        // Add a text element showing the context menu items
-        let text_content = if self.items.is_empty() {
-            "Empty ContextMenu".to_string()
+            element.with_class(class)
         } else {
-            let item_texts: Vec<String> = self.items.iter().map(|item| item.text.clone()).collect();
-            format!("ContextMenu: {}", item_texts.join(", "))
-        };
-
-        builder =
-            builder.child(ElementBuilder::new(ElementType::Text(text_content.clone())).build());
-
-        builder.build()
+            element
+        }
     }
 }
 
@@ -920,37 +791,167 @@ impl PopupMenuBuilder {
 
     /// Build the popup menu element
     pub fn build(self) -> Element {
-        // For now, create a placeholder element since the actual PopupMenu component needs proper integration
-        use crate::builder::core::ElementBuilder;
-        use crate::component::{ElementType, LayoutType};
-
-        let mut builder = ElementBuilder::new(ElementType::Layout(LayoutType::Flex));
-
-        if let Some(class) = self.class {
-            builder = builder.class(&class);
-        }
-
-        // Add a text element showing the popup menu items
-        let text_content = if self.items.is_empty() {
-            "Empty PopupMenu".to_string()
-        } else {
-            let item_texts: Vec<String> = self.items.iter().map(|item| item.text.clone()).collect();
-            format!(
-                "PopupMenu ({}): {}",
-                match self.placement {
-                    PopupPlacement::Below => "below",
-                    PopupPlacement::Above => "above",
-                    PopupPlacement::Left => "left",
-                    PopupPlacement::Right => "right",
-                    PopupPlacement::Auto => "auto",
-                },
-                item_texts.join(", ")
-            )
+        use crate::widgets::menu::{PopupMenu, PopupMenuProps, RelativePlacement};
+        let side = match self.placement {
+            PopupPlacement::Above => RelativePlacement::Above,
+            PopupPlacement::Below => RelativePlacement::Below,
+            PopupPlacement::Left => RelativePlacement::Left,
+            PopupPlacement::Right => RelativePlacement::Right,
+            PopupPlacement::Auto => RelativePlacement::Auto,
         };
+        let element = PopupMenu::element_with_callbacks(
+            PopupMenuProps {
+                items: self.items.into_iter().map(convert_menu_item).collect(),
+                style: convert_menu_style(self.style),
+                enabled: self.enabled,
+                visible: self.visible,
+                auto_close: self.auto_close,
+                close_on_outside_click: self.close_on_outside_click,
+                ..Default::default()
+            },
+            Some(side),
+            self.on_item_selected,
+            self.on_opened,
+            self.on_closed,
+        );
+        if let Some(class) = self.class {
+            element.with_class(class)
+        } else {
+            element
+        }
+    }
+}
 
-        builder =
-            builder.child(ElementBuilder::new(ElementType::Text(text_content.clone())).build());
+/// Convert builder MenuItem to widget MenuItem
+fn convert_menu_item(builder_item: MenuItem) -> crate::widgets::menu::MenuItem {
+    use crate::widgets::menu::MenuItem as WidgetMenuItem;
 
-        builder.build()
+    let widget_item_type = match builder_item.item_type {
+        crate::builder::widgets::menu::MenuItemType::Action => {
+            crate::widgets::menu::MenuItemType::Action
+        }
+        crate::builder::widgets::menu::MenuItemType::Submenu => {
+            crate::widgets::menu::MenuItemType::Submenu
+        }
+        crate::builder::widgets::menu::MenuItemType::Separator => {
+            crate::widgets::menu::MenuItemType::Separator
+        }
+        crate::builder::widgets::menu::MenuItemType::Checkbox { checked } => {
+            crate::widgets::menu::MenuItemType::Checkbox { checked }
+        }
+        crate::builder::widgets::menu::MenuItemType::Radio { selected, group } => {
+            crate::widgets::menu::MenuItemType::Radio { selected, group }
+        }
+    };
+
+    let widget_separator = match builder_item.separator {
+        crate::builder::widgets::menu::MenuSeparator::None => {
+            crate::widgets::menu::MenuSeparator::None
+        }
+        crate::builder::widgets::menu::MenuSeparator::Line => {
+            crate::widgets::menu::MenuSeparator::Line
+        }
+        crate::builder::widgets::menu::MenuSeparator::ThickLine => {
+            crate::widgets::menu::MenuSeparator::ThickLine
+        }
+        crate::builder::widgets::menu::MenuSeparator::DoubleLine => {
+            crate::widgets::menu::MenuSeparator::DoubleLine
+        }
+        crate::builder::widgets::menu::MenuSeparator::Dashed => {
+            crate::widgets::menu::MenuSeparator::Dashed
+        }
+        crate::builder::widgets::menu::MenuSeparator::Dotted => {
+            crate::widgets::menu::MenuSeparator::Dotted
+        }
+        crate::builder::widgets::menu::MenuSeparator::Space => {
+            crate::widgets::menu::MenuSeparator::Space
+        }
+    };
+
+    let widget_action = builder_item
+        .action
+        .map(|action| crate::widgets::menu::MenuAction {
+            id: action.id,
+            callback: action.callback,
+        });
+
+    let widget_submenu: Vec<crate::widgets::menu::MenuItem> = builder_item
+        .submenu
+        .into_iter()
+        .map(convert_menu_item)
+        .collect();
+
+    WidgetMenuItem {
+        id: builder_item.id,
+        text: builder_item.text,
+        item_type: widget_item_type,
+        enabled: builder_item.enabled,
+        visible: builder_item.visible,
+        shortcut: builder_item
+            .shortcut
+            .map(|s| crate::widgets::menu::MenuShortcut {
+                display: s.display,
+                keys: s.keys,
+            }),
+        action: widget_action,
+        submenu: widget_submenu,
+        separator: widget_separator,
+        icon: builder_item.icon,
+        description: builder_item.description,
+    }
+}
+
+fn menu_color(value: &str, prefix: &str) -> String {
+    if crate::layout::colors::parse_color_token(value).is_some() {
+        format!("{prefix}-{value}")
+    } else {
+        value.to_owned()
+    }
+}
+
+/// Convert builder colors and utility classes to the shared menu style.
+fn convert_menu_style(builder_style: MenuStyle) -> crate::widgets::menu::MenuStyle {
+    let base_classes = format!(
+        "{} {} {} {}",
+        menu_color(builder_style.background.as_deref().unwrap_or("white"), "bg"),
+        menu_color(
+            builder_style.text_color.as_deref().unwrap_or("black"),
+            "text"
+        ),
+        builder_style.padding.as_deref().unwrap_or(""),
+        builder_style.margin.as_deref().unwrap_or("")
+    );
+    let selected_classes = format!(
+        "{} {}",
+        menu_color(
+            builder_style
+                .selected_background
+                .as_deref()
+                .unwrap_or("blue-500"),
+            "bg"
+        ),
+        menu_color(
+            builder_style
+                .selected_text_color
+                .as_deref()
+                .unwrap_or("white"),
+            "text"
+        )
+    );
+    crate::widgets::menu::MenuStyle {
+        base_classes,
+        focused_classes: selected_classes.clone(),
+        selected_classes,
+        disabled_classes: menu_color(
+            builder_style
+                .disabled_text_color
+                .as_deref()
+                .unwrap_or("gray-400"),
+            "text",
+        ),
+        border_classes: builder_style
+            .border
+            .unwrap_or_else(|| "border border-gray-300".into()),
+        ..Default::default()
     }
 }

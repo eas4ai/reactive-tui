@@ -1,12 +1,16 @@
 #!/usr/bin/env python3
 """Require the widget matrix and real App input/frame acceptance workflows."""
 from pathlib import Path
+import os
 import subprocess
 
 root = Path(__file__).resolve().parents[1]
+# Avoid the observed rustc incremental metadata ICE; execute the same tests.
+environment = os.environ.copy()
+environment["CARGO_INCREMENTAL"] = "0"
 result = subprocess.run(
     ["cargo", "test", "--locked", "--test", "api_widget_behavior", "--", "--test-threads=1"],
-    cwd=root, timeout=180,
+    cwd=root, env=environment, timeout=180,
 )
 matrix = (root / "docs/widget-acceptance.md").read_text()
 pending = [line for line in matrix.splitlines() if line.startswith("|") and "PENDING" in line]
@@ -14,3 +18,69 @@ for line in pending:
     print("Missing App acceptance coverage: " + line, flush=True)
 if result.returncode or pending:
     raise SystemExit(1)
+
+for selector in ["accessibility::style::tests", "reduced_motion_releases_clocks",
+                 "app::event_tree::accessibility::tests", "widgets::terminal::paint::tests",
+                 "widgets::input::select::tests",
+                 "widgets::display::table::", "widgets::display::data_table::",
+                 "widgets::display::tree::", "widgets::display::file_explorer::",
+                 "widgets::display::charts::", "widgets::display::progress_bar::",
+                  "widgets::display::image::", "core::surface::", "backend::suprtui::graphics::",
+                 "widgets::dialog::http::", "widgets::dialog::wizard::", "component::anchors::tests"]:
+    subprocess.run(
+        ["cargo", "test", "--locked", "--lib", selector],
+        cwd=root, env=environment, check=True, timeout=180,
+    )
+
+subprocess.run(
+    ["python3", "-B", "scripts/check-dialog-http.py"],
+    cwd=root, env=environment, check=True, timeout=180,
+)
+
+subprocess.run(
+    ["cargo", "test", "--locked", "--lib", "accessibility::platform::translation::state_tests"],
+    cwd=root, env=environment, check=True, timeout=180,
+)
+subprocess.run(
+    ["cargo", "test", "--locked", "--lib", "accessibility::platform::unix::transport::tests"],
+    cwd=root, env=environment, check=True, timeout=180,
+)
+subprocess.run(
+    ["cargo", "test", "--locked", "--lib", "accessibility::connection::tests"],
+    cwd=root, env=environment, check=True, timeout=180,
+)
+subprocess.run(
+    ["cargo", "build", "--locked", "--example", "accessibility_probe"],
+    cwd=root, env=environment, check=True, timeout=180,
+)
+# Orca excludes other processes owned by the same user. Keep these serial.
+probe = ["/usr/bin/python3", "tests/api_widget_behavior/orca.py", "--binary",
+         "target/debug/examples/accessibility_probe"]
+subprocess.run(
+    ["/usr/bin/python3", "tests/api_widget_behavior/transport_failures.py", "--binary",
+     "target/debug/examples/accessibility_probe"],
+    cwd=root, env=environment, check=True, timeout=30,
+)
+subprocess.run(probe + ["--negative"], cwd=root, env=environment, check=True, timeout=90)
+subprocess.run(probe + ["--negative-css"], cwd=root, env=environment, check=True, timeout=90)
+for geometry in ["32x10", "60x16"]:
+    subprocess.run(probe + ["--geometry", geometry], cwd=root, env=environment, check=True, timeout=90)
+for catalog, geometries in [
+    ("tables", ["32x10", "60x16"]),
+    ("tabs", ["60x16", "100x32"]),
+    ("overlays", ["60x16", "100x32"]),
+    ("display", ["60x16", "100x32"]),
+    ("dialogs", ["60x16", "100x32"]),
+]:
+    for geometry in geometries:
+        subprocess.run(probe + ["--catalog", catalog, "--geometry", geometry],
+                       cwd=root, env=environment, check=True, timeout=90)
+
+subprocess.run(
+    ["python3", "-B", "scripts/check-conpty-platform.py", "--verify"],
+    cwd=root, env=environment, check=True, timeout=180,
+)
+subprocess.run(
+    ["python3", "-B", "scripts/check-widget-platforms.py", "--verify"],
+    cwd=root, env=environment, check=True, timeout=180,
+)

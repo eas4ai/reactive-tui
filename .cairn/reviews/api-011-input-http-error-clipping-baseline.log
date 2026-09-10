@@ -1,0 +1,41 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.33s
+     Running tests/api_widget_behavior.rs (target/debug/deps/api_widget_behavior-591f6bff9f7c0602)
+
+running 1 test
+test dialog_http_acceptance::input_dialog_remote_http_and_json_failures_remain_open ... FAILED
+
+failures:
+
+---- dialog_http_acceptance::input_dialog_remote_http_and_json_failures_remain_open stdout ----
+
+thread 'dialog_http_acceptance::input_dialog_remote_http_and_json_failures_remain_open' (2822894) panicked at tests/support/app_input.rs:99:13:
+App painted 8 frames but input needs Some((1, ["status 503"])) before the deadline. Last frame:
+                                                            
+                                                            
+                                                            
+                                                            
+                                                            
+                                                            
+          ┌──────────────────────────────────────┐          
+          │    REMOTE                           ✕│          
+          │VALUE                                 │          
+          │▶ [                              ]    │          
+          │Dialog HTTP endpoint returned status  │          
+          │███████████████████████████████████░░ │          
+          │                             Cancel OK│          
+          └──────────────────────────────────────┘          
+                                                            
+                                                            
+                                                            
+                                                            
+                                                            
+                                                            
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    dialog_http_acceptance::input_dialog_remote_http_and_json_failures_remain_open
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 286 filtered out; finished in 3.00s
+
+error: test failed, to rerun pass `--test api_widget_behavior`

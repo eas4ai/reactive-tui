@@ -1,10 +1,8 @@
 use crate::component::{Component, Element, Props};
-use crate::event::router::EventResult;
-use crate::event::types::{KeyCode, KeyEvent, MouseEventKind};
-use crate::event::{Event, MouseEvent};
 use crate::widgets::menu::{MenuItem, MenuStyle, MenuTheme};
 use std::any::Any;
 use std::sync::Arc;
+use unicode_segmentation::UnicodeSegmentation;
 
 /// Type of dialog menu
 #[derive(Clone, Debug, PartialEq, Default)]
@@ -98,7 +96,7 @@ impl Props for DialogMenuProps {
 }
 
 /// State for DialogMenu component
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct DialogMenuState {
     /// Index of the currently selected item
     pub selected_index: Option<usize>,
@@ -116,7 +114,7 @@ pub struct DialogMenuState {
     pub selected_items: Vec<usize>,
     /// Input text for input dialogs
     pub input_text: String,
-    /// Cursor position in input text
+    /// UTF-8 byte offset of the cursor, normalized to a grapheme boundary by editing methods
     pub input_cursor: usize,
 }
 
@@ -148,32 +146,12 @@ impl DialogMenuState {
 
     /// Select the next menu item
     pub fn select_next(&mut self, item_count: usize) {
-        if item_count == 0 {
-            return;
-        }
-
-        self.selected_index = Some(match self.selected_index {
-            Some(idx) => (idx + 1) % item_count,
-            None => 0,
-        });
+        self.selected_index = super::state::step(self.selected_index, item_count, true);
     }
 
     /// Select the previous menu item
     pub fn select_previous(&mut self, item_count: usize) {
-        if item_count == 0 {
-            return;
-        }
-
-        self.selected_index = Some(match self.selected_index {
-            Some(idx) => {
-                if idx == 0 {
-                    item_count - 1
-                } else {
-                    idx - 1
-                }
-            }
-            None => item_count - 1,
-        });
+        self.selected_index = super::state::step(self.selected_index, item_count, false);
     }
 
     /// Toggle selection for multi-selection dialogs
@@ -192,50 +170,71 @@ impl DialogMenuState {
 
     /// Update scroll offset to keep selected item visible
     pub fn update_scroll(&mut self, max_visible: usize) {
-        if let Some(selected) = self.selected_index {
-            if selected < self.scroll_offset {
-                self.scroll_offset = selected;
-            } else if selected >= self.scroll_offset + max_visible {
-                self.scroll_offset = selected - max_visible + 1;
-            }
-        }
+        super::state::keep_visible(self.selected_index, &mut self.scroll_offset, max_visible);
     }
 
     /// Check if a point is inside the dialog area
     pub fn contains_point(&self, x: u16, y: u16) -> bool {
-        if let Some((dx, dy, dw, dh)) = self.dialog_area {
-            x >= dx && x < dx + dw && y >= dy && y < dy + dh
-        } else {
-            false
-        }
+        self.dialog_area
+            .is_some_and(|rect| super::state::contains(rect, (x, y)))
     }
 
-    /// Insert character at cursor position in input text
+    pub(super) fn input_boundary(&self) -> usize {
+        self.input_text
+            .grapheme_indices(true)
+            .map(|(index, _)| index)
+            .chain(std::iter::once(self.input_text.len()))
+            .take_while(|index| *index <= self.input_cursor)
+            .last()
+            .unwrap_or(0)
+    }
+
+    /// Insert a character and move past its complete grapheme cluster.
     pub fn insert_char(&mut self, ch: char) {
-        self.input_text.insert(self.input_cursor, ch);
-        self.input_cursor += 1;
+        self.insert_text(ch.encode_utf8(&mut [0; 4]));
     }
 
-    /// Delete character before cursor in input text
+    pub(super) fn insert_text(&mut self, text: &str) {
+        let cursor = self.input_boundary();
+        self.input_text.insert_str(cursor, text);
+        let after = cursor + text.len();
+        self.input_cursor = self
+            .input_text
+            .grapheme_indices(true)
+            .map(|(index, _)| index)
+            .find(|index| *index >= after)
+            .unwrap_or(self.input_text.len());
+    }
+
+    /// Delete the grapheme cluster before the cursor.
     pub fn delete_char(&mut self) {
-        if self.input_cursor > 0 {
-            self.input_text.remove(self.input_cursor - 1);
-            self.input_cursor -= 1;
-        }
+        let cursor = self.input_boundary();
+        let previous = self.input_text[..cursor]
+            .grapheme_indices(true)
+            .next_back()
+            .map_or(0, |(index, _)| index);
+        self.input_text.replace_range(previous..cursor, "");
+        self.input_cursor = previous;
     }
 
-    /// Move cursor left in input text
+    /// Move left by one grapheme cluster.
     pub fn move_cursor_left(&mut self) {
-        if self.input_cursor > 0 {
-            self.input_cursor -= 1;
-        }
+        let cursor = self.input_boundary();
+        self.input_cursor = self.input_text[..cursor]
+            .grapheme_indices(true)
+            .next_back()
+            .map_or(0, |(index, _)| index);
     }
 
-    /// Move cursor right in input text
+    /// Move right by one grapheme cluster.
     pub fn move_cursor_right(&mut self) {
-        if self.input_cursor < self.input_text.len() {
-            self.input_cursor += 1;
-        }
+        let cursor = self.input_boundary();
+        self.input_cursor = self
+            .input_text
+            .grapheme_indices(true)
+            .map(|(index, _)| index)
+            .find(|index| *index > cursor)
+            .unwrap_or(self.input_text.len());
     }
 }
 
@@ -287,311 +286,6 @@ impl DialogMenu {
         self.on_hide = Some(Arc::new(f));
         self
     }
-
-    /// Handle keyboard events
-    fn handle_key_event(
-        &mut self,
-        key: &KeyEvent,
-        props: &DialogMenuProps,
-        state: &mut DialogMenuState,
-    ) -> EventResult {
-        if !props.enabled || !props.visible {
-            return EventResult::Ignored;
-        }
-
-        match props.dialog_type {
-            DialogMenuType::Input => match key.code {
-                KeyCode::Char(ch) => {
-                    state.insert_char(ch);
-                    EventResult::Handled
-                }
-                KeyCode::Backspace => {
-                    state.delete_char();
-                    EventResult::Handled
-                }
-                KeyCode::Left => {
-                    state.move_cursor_left();
-                    EventResult::Handled
-                }
-                KeyCode::Right => {
-                    state.move_cursor_right();
-                    EventResult::Handled
-                }
-                KeyCode::Enter => {
-                    if let Some(callback) = &self.on_input_submitted {
-                        callback(&state.input_text);
-                    }
-                    state.hide();
-                    if let Some(callback) = &self.on_hide {
-                        callback();
-                    }
-                    EventResult::Handled
-                }
-                KeyCode::Escape => {
-                    if props.close_on_escape {
-                        if let Some(callback) = &self.on_cancelled {
-                            callback();
-                        }
-                        state.hide();
-                        if let Some(callback) = &self.on_hide {
-                            callback();
-                        }
-                    }
-                    EventResult::Handled
-                }
-                _ => EventResult::Ignored,
-            },
-            _ => {
-                match key.code {
-                    KeyCode::Up => {
-                        state.select_previous(props.items.len());
-                        // Calculate scroll based on dialog height and visible items
-                        let visible_items = self.calculate_visible_items(props);
-                        state.update_scroll(visible_items);
-                        EventResult::Handled
-                    }
-                    KeyCode::Down => {
-                        state.select_next(props.items.len());
-                        // Calculate scroll based on dialog height and visible items
-                        let visible_items = self.calculate_visible_items(props);
-                        state.update_scroll(visible_items);
-                        EventResult::Handled
-                    }
-                    KeyCode::Enter => {
-                        match props.dialog_type {
-                            DialogMenuType::Selection | DialogMenuType::Custom => {
-                                if let Some(selected) = state.selected_index {
-                                    if selected < props.items.len() {
-                                        let item = &props.items[selected];
-                                        if item.is_selectable() {
-                                            item.execute();
-                                            if let Some(callback) = &self.on_item_selected {
-                                                callback(&item.id);
-                                            }
-                                            state.hide();
-                                            if let Some(callback) = &self.on_hide {
-                                                callback();
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                            DialogMenuType::MultiSelection => {
-                                if let Some(selected) = state.selected_index {
-                                    state.toggle_selection(selected);
-                                }
-                            }
-                            DialogMenuType::Confirmation => {
-                                if let Some(default_btn) = props.default_button {
-                                    if default_btn < props.items.len() {
-                                        let item = &props.items[default_btn];
-                                        item.execute();
-                                        if let Some(callback) = &self.on_item_selected {
-                                            callback(&item.id);
-                                        }
-                                        state.hide();
-                                        if let Some(callback) = &self.on_hide {
-                                            callback();
-                                        }
-                                    }
-                                }
-                            }
-                            _ => {}
-                        }
-                        EventResult::Handled
-                    }
-                    KeyCode::Escape => {
-                        if props.close_on_escape {
-                            if let Some(cancel_btn) = props.cancel_button {
-                                if cancel_btn < props.items.len() {
-                                    let item = &props.items[cancel_btn];
-                                    item.execute();
-                                }
-                            }
-                            if let Some(callback) = &self.on_cancelled {
-                                callback();
-                            }
-                            state.hide();
-                            if let Some(callback) = &self.on_hide {
-                                callback();
-                            }
-                        }
-                        EventResult::Handled
-                    }
-                    KeyCode::Tab => {
-                        // For multi-selection, Tab could confirm selection
-                        if matches!(props.dialog_type, DialogMenuType::MultiSelection) {
-                            let selected_items: Vec<String> = state
-                                .selected_items
-                                .iter()
-                                .filter_map(|&i| {
-                                    if i < props.items.len() {
-                                        Some(props.items[i].id.clone())
-                                    } else {
-                                        None
-                                    }
-                                })
-                                .collect();
-
-                            if let Some(callback) = &self.on_confirmed {
-                                callback(selected_items);
-                            }
-                            state.hide();
-                            if let Some(callback) = &self.on_hide {
-                                callback();
-                            }
-                        }
-                        EventResult::Handled
-                    }
-                    KeyCode::Char(' ') => {
-                        // Space toggles selection in multi-selection mode
-                        if matches!(props.dialog_type, DialogMenuType::MultiSelection) {
-                            if let Some(selected) = state.selected_index {
-                                state.toggle_selection(selected);
-                            }
-                        }
-                        EventResult::Handled
-                    }
-                    _ => EventResult::Ignored,
-                }
-            }
-        }
-    }
-
-    /// Handle mouse events
-    fn handle_mouse_event(
-        &mut self,
-        mouse: &MouseEvent,
-        props: &DialogMenuProps,
-        state: &mut DialogMenuState,
-    ) -> EventResult {
-        if !props.enabled || !props.visible {
-            return EventResult::Ignored;
-        }
-
-        let (mouse_x, mouse_y) = match mouse.position {
-            crate::event::types::Position::Cell { x, y } => (x, y),
-            crate::event::types::Position::Pixel { x, y } => (x as u16, y as u16),
-        };
-
-        state.mouse_position = Some((mouse_x, mouse_y));
-
-        match mouse.kind {
-            MouseEventKind::Down => {
-                if state.contains_point(mouse_x, mouse_y) {
-                    // Click inside dialog - handle item selection
-                    state.is_focused = true;
-
-                    // Calculate which item was clicked based on layout
-                    if let Some(clicked_item) =
-                        self.calculate_clicked_item(mouse_x, mouse_y, props, state)
-                    {
-                        state.selected_index = Some(clicked_item);
-
-                        // If it's a selection dialog, trigger selection
-                        if props.dialog_type == DialogMenuType::Selection {
-                            if let Some(callback) = &self.on_item_selected {
-                                if let Some(item) = props.items.get(clicked_item) {
-                                    callback(&item.text);
-                                }
-                            }
-                        }
-                    }
-
-                    EventResult::Handled
-                } else if props.close_on_outside_click && !props.modal {
-                    // Click outside dialog - close it
-                    if let Some(callback) = &self.on_cancelled {
-                        callback();
-                    }
-                    state.hide();
-                    if let Some(callback) = &self.on_hide {
-                        callback();
-                    }
-                    EventResult::Handled
-                } else {
-                    EventResult::Ignored
-                }
-            }
-            MouseEventKind::Move => {
-                if state.contains_point(mouse_x, mouse_y) {
-                    state.is_hovered = true;
-
-                    // Update selection based on mouse position
-                    if let Some(hovered_item) =
-                        self.calculate_clicked_item(mouse_x, mouse_y, props, state)
-                    {
-                        // Only update selection if it's different from current
-                        if state.selected_index != Some(hovered_item) {
-                            state.selected_index = Some(hovered_item);
-                        }
-                    }
-
-                    EventResult::Handled
-                } else {
-                    state.is_hovered = false;
-                    // Clear selection when mouse leaves dialog area
-                    if state.selected_index.is_some() {
-                        state.selected_index = None;
-                    }
-                    EventResult::Ignored
-                }
-            }
-            _ => EventResult::Ignored,
-        }
-    }
-
-    /// Calculate the number of visible items based on dialog height
-    fn calculate_visible_items(&self, props: &DialogMenuProps) -> usize {
-        // Default dialog height calculation
-        let default_height: usize = 20; // Default dialog height in lines
-
-        // Calculate available space for items
-        // Reserve space for: title (1), borders (2), padding (2), buttons area (3)
-        let reserved_space: usize = if props.title.is_some() { 1 } else { 0 } +
-                                   if props.show_border { 2 } else { 0 } +
-                                   2 + // padding
-                                   3; // buttons/input area
-
-        let available_height = default_height.saturating_sub(reserved_space);
-
-        // Ensure at least 3 items are visible
-        available_height.max(3)
-    }
-
-    /// Calculate which menu item was clicked based on mouse position
-    fn calculate_clicked_item(
-        &self,
-        _mouse_x: u16,
-        mouse_y: u16,
-        props: &DialogMenuProps,
-        state: &DialogMenuState,
-    ) -> Option<usize> {
-        // This is a simplified calculation - in a real implementation, you'd want to
-        // track the exact layout coordinates during rendering
-
-        // Calculate dialog content area
-        // Use a default position since we don't have access to the actual dialog position
-        let dialog_start_y = 5
-            + if props.show_border { 1 } else { 0 }
-            + if props.title.is_some() { 1 } else { 0 }
-            + 1; // padding
-
-        // Check if click is within the items area
-        if mouse_y < dialog_start_y {
-            return None;
-        }
-
-        // Calculate which item was clicked (each item takes 1 line)
-        let item_index = (mouse_y - dialog_start_y) as usize + state.scroll_offset;
-
-        // Check if the calculated index is valid
-        if item_index < props.items.len() {
-            Some(item_index)
-        } else {
-            None
-        }
-    }
 }
 
 impl Component for DialogMenu {
@@ -610,63 +304,29 @@ impl Component for DialogMenu {
         }
     }
 
-    fn update(&mut self, props: &Self::Props, state: &mut Self::State) -> bool {
-        let was_visible = self.state.is_focused;
+    fn update(&mut self, _props: &Self::Props, state: &mut Self::State) -> bool {
         self.state = state.clone();
-
-        // Trigger callbacks for visibility changes
-        if props.visible && !was_visible {
-            if let Some(callback) = &self.on_show {
-                callback();
-            }
-        } else if !props.visible && was_visible {
-            if let Some(callback) = &self.on_hide {
-                callback();
-            }
-        }
-
         true
     }
-
-    fn render(&self, props: &Self::Props, _state: &Self::State) -> Element {
-        if !props.visible {
-            return Element::empty();
-        }
-
-        // Create the dialog element
-        // This is a simplified version - in a real implementation, you'd need to:
-        // 1. Calculate dialog position and size
-        // 2. Render title, message, and menu items
-        // 3. Handle different dialog types (input field, checkboxes, etc.)
-        // 4. Render borders, shadows, and close button if enabled
-        // 5. Handle modal overlay if modal is true
-
-        Element::layout(crate::component::element::LayoutType::Flex)
-            .with_key("dialog-menu")
-            .with_class(&props.style.base_classes)
-    }
-
-    fn handle_event(
-        &mut self,
-        event: &Event,
-        props: &mut Self::Props,
-        state: &mut Self::State,
-    ) -> EventResult {
-        match event {
-            Event::Key(key_event) => self.handle_key_event(key_event, props, state),
-            Event::Mouse(mouse_event) => self.handle_mouse_event(mouse_event, props, state),
-            _ => EventResult::Ignored,
-        }
+    fn render(&self, props: &Self::Props, state: &Self::State) -> Element {
+        Element::typed::<super::dialog_live::LiveDialog>(super::dialog_live::LiveProps {
+            config: props.clone(),
+            seed: state.clone(),
+            selected: self.on_item_selected.clone(),
+            confirmed: self.on_confirmed.clone(),
+            cancelled: self.on_cancelled.clone(),
+            submitted: self.on_input_submitted.clone(),
+            shown: self.on_show.clone(),
+            hidden: self.on_hide.clone(),
+        })
     }
 }
 
 /// Builder for creating DialogMenu components with a fluent API
-#[allow(dead_code)]
 pub struct DialogMenuBuilder {
     props: DialogMenuProps,
 }
 
-#[allow(dead_code)]
 impl DialogMenuBuilder {
     /// Create a new dialog menu builder
     pub fn new(dialog_type: DialogMenuType) -> Self {
@@ -821,5 +481,45 @@ impl DialogMenuBuilder {
 impl Default for DialogMenuBuilder {
     fn default() -> Self {
         Self::new(DialogMenuType::Selection)
+    }
+}
+
+#[cfg(test)]
+mod input_tests {
+    use super::DialogMenuState;
+
+    #[test]
+    fn input_edits_and_moves_by_grapheme_with_byte_cursor_positions() {
+        let mut state = DialogMenuState::default();
+        for ch in "界e\u{301}👩\u{200d}💻".chars() {
+            state.insert_char(ch);
+        }
+        assert_eq!(state.input_text, "界e\u{301}👩\u{200d}💻");
+        assert_eq!(state.input_cursor, state.input_text.len());
+        state.move_cursor_left();
+        assert_eq!(state.input_cursor, "界e\u{301}".len());
+        state.delete_char();
+        assert_eq!(state.input_text, "界👩\u{200d}💻");
+        assert_eq!(state.input_cursor, "界".len());
+        state.move_cursor_right();
+        state.delete_char();
+        assert_eq!(state.input_text, "界");
+        state.delete_char();
+        assert_eq!(state.input_cursor, 0);
+        assert!(state.input_text.is_empty());
+    }
+
+    #[test]
+    fn externally_supplied_cursor_is_clamped_to_a_grapheme_boundary() {
+        let mut state = DialogMenuState {
+            input_text: "界X".into(),
+            input_cursor: 1,
+            ..Default::default()
+        };
+        state.insert_char('A');
+        assert_eq!(state.input_text, "A界X");
+        state.input_cursor = usize::MAX;
+        state.delete_char();
+        assert_eq!(state.input_text, "A界");
     }
 }

@@ -4,6 +4,7 @@ command: python3 -B scripts/check-api-signal-ownership.py
 inputs:
   - .cairn/mechanisms/api-signal-ownership.md
   - Cargo.toml
+  - build.rs
   - Cargo.lock
   - src
   - reactive-tui-macros

@@ -1,0 +1,11 @@
+PASS console handles, input, environment, resize, real exit 259, repeated stop
+failed launch 0: handles 136 (baseline 135)
+failed launch 1: handles 137 (baseline 135)
+failed launch 2: handles 138 (baseline 135)
+failed launch 3: handles 139 (baseline 135)
+failed launch 4: handles 140 (baseline 135)
+failed launch 5: handles 141 (baseline 135)
+failed launch 6: handles 142 (baseline 135)
+failed launch 7: handles 143 (baseline 135)
+failed launch 8: handles 144 (baseline 135)
+failed launch 9: handles 145 (baseline 135)

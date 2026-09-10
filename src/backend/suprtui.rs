@@ -16,9 +16,61 @@ use std::sync::Arc;
 use std::thread::{self, JoinHandle};
 use std::time::Duration;
 
+pub(crate) mod graphics;
 mod input;
 mod output;
 use output::{CheckedOutput, TerminalOutput};
+
+/// Host graphics settings for an owned writer. Cell dimensions are physical pixels.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct ImageOutputOptions {
+    /// Emit Kitty graphics when the host supports that protocol.
+    pub kitty_graphics: bool,
+    /// Emit Sixel graphics when supported by the host.
+    pub sixel: bool,
+    /// Emit iTerm2 inline image files when supported by the host.
+    pub iterm2_inline: bool,
+    /// Physical pixel width and height of a cell; each must be in 1..=256.
+    pub cell_pixels: (u16, u16),
+}
+impl Default for ImageOutputOptions {
+    fn default() -> Self {
+        Self {
+            kitty_graphics: false,
+            sixel: false,
+            iterm2_inline: false,
+            cell_pixels: (8, 16),
+        }
+    }
+}
+
+impl ImageOutputOptions {
+    pub(crate) fn protocol(
+        self,
+        mode: crate::widgets::ImageDisplayMode,
+    ) -> Option<crate::widgets::display::image::paint::ImageProtocol> {
+        use crate::widgets::{
+            display::image::paint::ImageProtocol as Protocol, ImageDisplayMode as Mode,
+        };
+        match mode {
+            Mode::Auto if self.sixel => Some(Protocol::Sixel),
+            Mode::Auto | Mode::KittyGraphics if self.kitty_graphics => Some(Protocol::Kitty),
+            Mode::Auto | Mode::ITerm2Inline if self.iterm2_inline => Some(Protocol::Inline),
+            Mode::Sixel if self.sixel => Some(Protocol::Sixel),
+            _ => None,
+        }
+    }
+    pub(crate) fn refresh_cell_pixels(&mut self) {
+        if let Ok(size) = crossterm::terminal::window_size() {
+            if size.columns > 0 && size.rows > 0 {
+                let cell = (size.width / size.columns, size.height / size.rows);
+                if (1..=256).contains(&cell.0) && (1..=256).contains(&cell.1) {
+                    self.cell_pixels = cell;
+                }
+            }
+        }
+    }
+}
 
 type Reply = mpsc::Sender<Result<()>>;
 
@@ -26,7 +78,8 @@ enum Command {
     Present(
         FrameContent,
         (usize, usize),
-        mpsc::Sender<Result<Vec<super::PaintedNode>>>,
+        ImageOutputOptions,
+        mpsc::Sender<Result<super::PresentedGeometry>>,
     ),
     Shutdown(Reply),
 }
@@ -45,9 +98,11 @@ pub struct SuprTuiBackend {
     commands: Option<SyncSender<Command>>,
     worker: Option<JoinHandle<()>>,
     dimensions: (usize, usize),
+    images: ImageOutputOptions,
     frame: Element,
     cells: Option<Arc<CellFrame>>,
     painted_nodes: Vec<super::PaintedNode>,
+    component_layouts: Vec<super::PresentedLayout>,
     raw_mode: Option<RawMode>,
     input: Option<crossterm::event::EventStream>,
 }
@@ -55,9 +110,22 @@ pub struct SuprTuiBackend {
 impl SuprTuiBackend {
     /// Enter raw mode and the alternate screen on stdout.
     pub fn new() -> Result<Self> {
+        let caps = crate::core::capabilities::TerminalQuery::detect_from_env();
+        Self::new_with_images(ImageOutputOptions {
+            kitty_graphics: caps.kitty_graphics,
+            sixel: caps.sixel,
+            iterm2_inline: caps.iterm2_graphics,
+            ..Default::default()
+        })
+    }
+
+    /// Enter an interactive terminal with caller-confirmed graphics support.
+    /// Physical cell dimensions are refreshed from the terminal when available.
+    pub fn new_with_images(mut images: ImageOutputOptions) -> Result<Self> {
         let (width, height) = crossterm::terminal::size()?;
         let raw_mode = RawMode::enter()?;
-        let mut backend = Self::start(width, height, io::stdout(), true)?;
+        images.refresh_cell_pixels();
+        let mut backend = Self::start(width, height, io::stdout(), true, images)?;
         backend.raw_mode = Some(raw_mode);
         Ok(backend)
     }
@@ -68,7 +136,17 @@ impl SuprTuiBackend {
         height: u16,
         writer: W,
     ) -> Result<Self> {
-        Self::start(width, height, writer, false)
+        Self::start(width, height, writer, false, ImageOutputOptions::default())
+    }
+
+    /// Render graphics to a writer whose host capabilities and cell pixels are known.
+    pub fn with_writer_and_images<W: Write + Send + 'static>(
+        width: u16,
+        height: u16,
+        writer: W,
+        images: ImageOutputOptions,
+    ) -> Result<Self> {
+        Self::start(width, height, writer, false, images)
     }
 
     fn start<W: Write + Send + 'static>(
@@ -76,7 +154,17 @@ impl SuprTuiBackend {
         height: u16,
         writer: W,
         terminal: bool,
+        images: ImageOutputOptions,
     ) -> Result<Self> {
+        if images.cell_pixels.0 == 0
+            || images.cell_pixels.1 == 0
+            || images.cell_pixels.0 > 256
+            || images.cell_pixels.1 > 256
+        {
+            return Err(ReactiveError::invalid_parameter(
+                "image cell dimensions must be between 1 and 256 pixels",
+            ));
+        }
         let dimensions = (usize::from(width), usize::from(height));
         validate_size(dimensions)?;
         let (commands, receiver) = mpsc::sync_channel(0);
@@ -84,15 +172,17 @@ impl SuprTuiBackend {
         let worker = thread::Builder::new()
             .name("suprtui-renderer".into())
             .spawn(move || {
-                run_worker(writer, terminal, dimensions, receiver, ready);
+                run_worker(writer, terminal, dimensions, receiver, ready, images);
             })?;
         let mut backend = Self {
             commands: Some(commands),
             worker: Some(worker),
             dimensions,
+            images,
             frame: Element::empty(),
             cells: None,
             painted_nodes: Vec::new(),
+            component_layouts: Vec::new(),
             raw_mode: None,
             input: None,
         };
@@ -132,8 +222,15 @@ impl SuprTuiBackend {
 }
 
 impl Backend for SuprTuiBackend {
+    fn is_interactive_terminal(&self) -> bool {
+        self.raw_mode.is_some()
+    }
+
     fn painted_nodes(&self) -> Option<&[super::PaintedNode]> {
         Some(&self.painted_nodes)
+    }
+    fn component_layouts(&self) -> Option<&[super::PresentedLayout]> {
+        Some(&self.component_layouts)
     }
     fn render_frame(&mut self, element: &Element) -> Result<bool> {
         if self.commands.is_none() {
@@ -186,10 +283,13 @@ impl Backend for SuprTuiBackend {
                     |cells| FrameContent::Cells(Arc::clone(cells)),
                 ),
                 self.dimensions,
+                self.images,
                 reply,
             ))
             .map_err(|_| worker_stopped())?;
-        self.painted_nodes = result.recv().map_err(|_| worker_stopped())??;
+        let geometry = result.recv().map_err(|_| worker_stopped())??;
+        self.painted_nodes = geometry.nodes;
+        self.component_layouts = geometry.layouts;
         Ok(())
     }
 
@@ -203,6 +303,9 @@ impl Backend for SuprTuiBackend {
     fn resize(&mut self, width: usize, height: usize) {
         if width > 0 && height > 0 {
             self.dimensions = (width, height);
+            if self.raw_mode.is_some() {
+                self.images.refresh_cell_pixels();
+            }
         }
     }
 
@@ -267,6 +370,7 @@ fn run_worker<W: Write>(
     mut dimensions: (usize, usize),
     receiver: mpsc::Receiver<Command>,
     ready: Reply,
+    mut images: ImageOutputOptions,
 ) {
     let writer = Rc::new(RefCell::new(writer));
     let mut session = TerminalOutput::new(Rc::clone(&writer), terminal);
@@ -294,10 +398,15 @@ fn run_worker<W: Write>(
         return;
     }
     let mut force = true;
+    let mut graphics = graphics::Graphics::default();
     while let Ok(command) = receiver.recv() {
         match command {
-            Command::Present(spec, size, reply) => {
+            Command::Present(spec, size, current_images, reply) => {
                 let result = (|| {
+                    if images != current_images {
+                        images = current_images;
+                        force = true;
+                    }
                     if size != dimensions {
                         renderer = make_renderer(size)?;
                         dimensions = size;
@@ -306,22 +415,36 @@ fn run_worker<W: Write>(
                     let geometry = match spec {
                         FrameContent::Element(spec) => {
                             let spec = element_to_paintspec(&spec)?;
-                            let geometry = paint_frame(&spec, renderer.next_buffer())?;
-                            renderer.set_cursor(0, 0, false);
+                            let geometry = paint_frame(&spec, renderer.next_buffer(), images)?;
                             geometry
                         }
                         FrameContent::Cells(frame) => {
                             frame.paint(renderer.next_buffer())?;
                             let (x, y) = frame.cursor().unwrap_or((0, 0));
-                            renderer.set_cursor(
-                                u32::from(x),
-                                u32::from(y),
-                                frame.cursor().is_some(),
-                            );
-                            Vec::new()
+                            super::PresentedGeometry {
+                                cursor: frame.cursor().map(|_| ::suprtui::render::CursorState {
+                                    x: u32::from(x),
+                                    y: u32::from(y),
+                                    visible: true,
+                                    ..Default::default()
+                                }),
+                                ..Default::default()
+                            }
                         }
                     };
-                    let status = renderer.render(force);
+                    let mut geometry = geometry;
+                    let commands = graphics.prepare(&geometry.images, images.cell_pixels, force)?;
+                    let cursor = geometry
+                        .cursor
+                        .filter(|cursor| !graphics.covers_cell(cursor.x, cursor.y))
+                        .unwrap_or_default();
+                    renderer.set_cursor(cursor.x, cursor.y, cursor.visible);
+                    renderer.set_cursor_style(cursor.style, cursor.blinking);
+                    renderer.set_cursor_color(cursor.color);
+                    let graphics_changed = commands.is_some();
+                    let (before, after) = commands.unwrap_or_default();
+                    renderer.backend_mut().set_graphics(before, after);
+                    let status = renderer.render(force || graphics_changed);
                     if let Some(error) = renderer.backend_mut().take_error() {
                         return Err(error.into());
                     }
@@ -330,16 +453,22 @@ fn run_worker<W: Write>(
                             "SuprTUI could not publish the frame",
                         ));
                     }
+                    graphics.acknowledge(std::mem::take(&mut geometry.images));
                     Ok(geometry)
                 })();
                 force = result.is_err();
                 let _ = reply.send(result);
             }
             Command::Shutdown(reply) => {
-                let _ = reply.send(session.restore());
+                let cleanup = renderer.backend_mut().finish_graphics(graphics.cleanup());
+                let restored = session.restore();
+                let _ = reply.send(cleanup.and(restored));
                 return;
             }
         }
+    }
+    if let Err(error) = renderer.backend_mut().finish_graphics(graphics.cleanup()) {
+        eprintln!("Image output cleanup failed: {error}");
     }
 }
 
@@ -373,3 +502,6 @@ impl Drop for RawMode {
         }
     }
 }
+
+#[cfg(test)]
+mod cursor_tests;

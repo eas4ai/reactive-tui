@@ -10,7 +10,6 @@
 
 use super::table::{TableCell, TableColumn, TableProps, TableRow};
 use crate::component::{Component, Element, Props};
-use crate::prelude::LayoutType;
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -33,7 +32,7 @@ pub enum FilterType {
 }
 
 /// Column filter configuration
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct ColumnFilter {
     /// Column key to filter on
     pub column_key: String,
@@ -68,12 +67,16 @@ impl PaginationConfig {
 
     /// Get the start index for current page
     pub fn start_index(&self) -> usize {
-        self.current_page * self.page_size
+        self.current_page
+            .saturating_mul(self.page_size)
+            .min(self.total_rows)
     }
 
     /// Get the end index for current page
     pub fn end_index(&self) -> usize {
-        std::cmp::min(self.start_index() + self.page_size, self.total_rows)
+        self.start_index()
+            .saturating_add(self.page_size)
+            .min(self.total_rows)
     }
 
     /// Check if there's a next page
@@ -111,12 +114,18 @@ impl VirtualScrollConfig {
             return (0, self.total_rows);
         }
 
-        let visible_rows = (self.viewport_height / self.row_height) as usize;
-        let start = self.scroll_offset.saturating_sub(self.overscan);
-        let end = std::cmp::min(
-            self.scroll_offset + visible_rows + self.overscan,
-            self.total_rows,
-        );
+        // A zero row height cannot describe a viewport. Return an empty range
+        // instead of dividing by zero or inventing a row size.
+        if self.row_height == 0 {
+            return (0, 0);
+        }
+        let visible_rows = (self.viewport_height as usize).div_ceil(self.row_height as usize);
+        let offset = self.scroll_offset.min(self.total_rows);
+        let start = offset.saturating_sub(self.overscan);
+        let end = offset
+            .saturating_add(visible_rows)
+            .saturating_add(self.overscan)
+            .min(self.total_rows);
         (start, end)
     }
 }
@@ -183,6 +192,7 @@ impl PartialEq for DataTableProps {
     fn eq(&self, other: &Self) -> bool {
         // Compare all fields except callbacks
         self.table_props == other.table_props
+            && self.filters == other.filters
             && self.pagination == other.pagination
             && self.virtual_scroll == other.virtual_scroll
             && self.show_filters == other.show_filters
@@ -232,6 +242,8 @@ pub struct DataTableState {
 /// Advanced Data Table component
 pub struct DataTable;
 
+mod live;
+
 impl Component for DataTable {
     type Props = DataTableProps;
     type State = DataTableState;
@@ -241,99 +253,14 @@ impl Component for DataTable {
     }
 
     fn render(&self, props: &Self::Props, state: &Self::State) -> Element {
-        // For now, just render the main table with basic controls
-        // In a full implementation, we would create a complex layout with all features
-
-        // Apply filters and pagination to get the rows to display
-        let display_rows = self.get_display_rows(props, state);
-
-        // Create modified table props with filtered rows
-        let mut table_props = props.table_props.clone();
-        table_props.rows = display_rows;
-
-        // Filter out hidden columns
-        table_props
-            .columns
-            .retain(|col| !props.hidden_columns.contains(&col.key));
-
-        // Create a simple layout with the table and basic info
-        let info_text = if props.pagination.enabled {
-            format!(
-                "Advanced Table: Page {} of {} ({} total rows)",
-                props.pagination.current_page + 1,
-                props.pagination.total_pages(),
-                props.pagination.total_rows
-            )
-        } else {
-            format!("Advanced Table: {} rows", table_props.rows.len())
-        };
-
-        // Return a layout with info and table
-        Element::layout(LayoutType::Flex)
-            .child(Element::text(info_text))
-            .child(Element::component_with_props("Table", table_props))
+        Element::typed::<live::LiveDataTable>(live::LiveProps {
+            config: props.clone(),
+            seed: state.clone(),
+        })
     }
 }
 
 impl DataTable {
-    /// Get the rows to display after applying filters and pagination
-    fn get_display_rows(&self, props: &DataTableProps, _state: &DataTableState) -> Vec<TableRow> {
-        let mut rows = props.table_props.rows.clone();
-
-        // Apply global search
-        if let Some(search_query) = &props.search_query {
-            if !search_query.is_empty() {
-                rows = self.apply_global_search(rows, search_query);
-            }
-        }
-
-        // Apply column filters
-        rows = self.apply_filters(rows, &props.filters);
-
-        // Apply pagination
-        if props.pagination.enabled {
-            let start = props.pagination.start_index();
-            let end = props.pagination.end_index();
-            rows = rows.into_iter().skip(start).take(end - start).collect();
-        }
-
-        rows
-    }
-
-    /// Apply global search across all columns
-    fn apply_global_search(&self, rows: Vec<TableRow>, search_query: &str) -> Vec<TableRow> {
-        let query = search_query.to_lowercase();
-
-        rows.into_iter()
-            .filter(|row| {
-                row.cells
-                    .values()
-                    .any(|cell| cell.content.to_lowercase().contains(&query))
-            })
-            .collect()
-    }
-
-    /// Apply column-specific filters
-    fn apply_filters(&self, rows: Vec<TableRow>, filters: &[ColumnFilter]) -> Vec<TableRow> {
-        let active_filters: Vec<&ColumnFilter> = filters.iter().filter(|f| f.active).collect();
-
-        if active_filters.is_empty() {
-            return rows;
-        }
-
-        rows.into_iter()
-            .filter(|row| {
-                active_filters.iter().all(|filter| {
-                    if let Some(cell) = row.cells.get(&filter.column_key) {
-                        self.apply_filter_to_cell(cell, &filter.filter_type)
-                    } else {
-                        false
-                    }
-                })
-            })
-            .collect()
-    }
-
     /// Apply a specific filter to a cell
     fn apply_filter_to_cell(&self, cell: &TableCell, filter_type: &FilterType) -> bool {
         match filter_type {
@@ -349,8 +276,11 @@ impl DataTable {
                 }
             }
             FilterType::DateRange(start, end) => {
-                // Simple date comparison (would need proper date parsing in production)
-                cell.content >= *start && cell.content <= *end
+                valid_date(start)
+                    && valid_date(end)
+                    && valid_date(&cell.content)
+                    && cell.content >= *start
+                    && cell.content <= *end
             }
             FilterType::Boolean(expected) => {
                 // Parse the cell content to a boolean value
@@ -364,6 +294,40 @@ impl DataTable {
             }
         }
     }
+}
+
+/// Validate the ISO calendar-date form accepted by column date filters.
+fn valid_date(value: &str) -> bool {
+    let bytes = value.as_bytes();
+    if bytes.len() != 10
+        || bytes[4] != b'-'
+        || bytes[7] != b'-'
+        || bytes
+            .iter()
+            .enumerate()
+            .any(|(i, byte)| i != 4 && i != 7 && !byte.is_ascii_digit())
+    {
+        return false;
+    }
+    let year: u32 = value[..4].parse().unwrap();
+    let month: usize = value[5..7].parse().unwrap();
+    let day: u32 = value[8..].parse().unwrap();
+    let leap = year.is_multiple_of(400) || year.is_multiple_of(4) && !year.is_multiple_of(100);
+    let days = [
+        31,
+        if leap { 29 } else { 28 },
+        31,
+        30,
+        31,
+        30,
+        31,
+        31,
+        30,
+        31,
+        30,
+        31,
+    ];
+    month > 0 && month <= 12 && day > 0 && day <= days[month - 1]
 }
 
 /// Helper functions for creating advanced table configurations
@@ -435,5 +399,48 @@ impl DataTableProps {
         self.show_filters = filterable;
         self.exportable = exportable;
         self
+    }
+}
+
+#[cfg(test)]
+mod boundary_tests {
+    use super::*;
+
+    #[test]
+    fn page_ranges_remain_sliceable_after_data_shrinks_or_indices_overflow() {
+        let mut page = PaginationConfig {
+            current_page: usize::MAX,
+            page_size: 25,
+            total_rows: 3,
+            enabled: true,
+        };
+        assert_eq!((page.start_index(), page.end_index()), (3, 3));
+        page.current_page = 1;
+        page.page_size = usize::MAX;
+        assert_eq!((page.start_index(), page.end_index()), (3, 3));
+        page.current_page = 0;
+        assert_eq!((page.start_index(), page.end_index()), (0, 3));
+        page.page_size = 0;
+        assert_eq!((page.start_index(), page.end_index()), (0, 0));
+    }
+
+    #[test]
+    fn virtual_ranges_include_partial_rows_and_handle_invalid_geometry() {
+        let mut viewport = VirtualScrollConfig {
+            row_height: 3,
+            overscan: 0,
+            total_rows: 10,
+            scroll_offset: 2,
+            viewport_height: 4,
+            enabled: true,
+        };
+        assert_eq!(viewport.visible_range(), (2, 4));
+        viewport.scroll_offset = usize::MAX;
+        viewport.overscan = usize::MAX;
+        assert_eq!(viewport.visible_range(), (0, 10));
+        viewport.row_height = 0;
+        assert_eq!(viewport.visible_range(), (0, 0));
+        viewport.enabled = false;
+        assert_eq!(viewport.visible_range(), (0, 10));
     }
 }

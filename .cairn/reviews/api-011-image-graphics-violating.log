@@ -1,0 +1,24 @@
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 15.73s
+     Running unittests src/lib.rs (target/debug/deps/reactive_tui-8db3a30746e1a23f)
+
+running 1 test
+test backend::suprtui::graphics::tests::api_image_graphics_output_is_owned_cached_moved_and_removed ... FAILED
+
+failures:
+
+---- backend::suprtui::graphics::tests::api_image_graphics_output_is_owned_cached_moved_and_removed stdout ----
+
+thread 'backend::suprtui::graphics::tests::api_image_graphics_output_is_owned_cached_moved_and_removed' (1845749) panicked at src/backend/suprtui/graphics/tests.rs:115:5:
+assertion `left == right` failed
+  left: 0
+ right: 1
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    backend::suprtui::graphics::tests::api_image_graphics_output_is_owned_cached_moved_and_removed
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 870 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `--lib`

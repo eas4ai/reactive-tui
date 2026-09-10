@@ -1,0 +1,23 @@
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 4.23s
+     Running tests/api_widget_behavior.rs (target/debug/deps/api_widget_behavior-af8b000cab735812)
+
+running 15 tests
+test tree_acceptance::tree_empty_disabled_and_invalid_roots_are_observable_and_inert ... ok
+test tree_acceptance::tree_border_and_builder_classes_reach_painted_cells ... ok
+test tree_acceptance::tree_down_up_click_does_not_toggle_twice_and_release_keys_are_inert ... ok
+test tree_acceptance::tree_drop_moves_owned_nodes_and_rejects_descendant_cycles ... ok
+test tree_acceptance::tree_initial_lazy_expansion_loads_and_duplicate_children_fail_visibly ... ok
+test tree_acceptance::tree_checking_and_multiple_selection_have_independent_cursor ... ok
+test tree_acceptance::tree_changed_props_preserve_ids_and_replace_authored_flags ... ok
+test tree_acceptance::tree_both_builders_render_real_hierarchy_and_keep_classes ... ok
+test tree_acceptance::tree_search_filters_hidden_nodes_before_mouse_hit_testing ... ok
+test tree_acceptance::tree_lazy_load_uses_returned_children_once_and_reports_expansion ... ok
+test tree_acceptance::tree_lines_icons_styles_and_padded_targets_follow_resize ... ok
+test file_explorer_acceptance::explorer_views_filter_hidden_files_and_render_a_real_expanded_tree ... ok
+test tree_acceptance::tree_per_node_flags_skip_selection_and_allow_independent_checks ... ok
+test tree_acceptance::tree_named_keyboard_and_mouse_keep_expansion_and_callbacks ... ok
+test tree_acceptance::tree_virtual_scroll_uses_measured_height_and_signed_wheel ... ok
+
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 365 filtered out; finished in 0.84s
+

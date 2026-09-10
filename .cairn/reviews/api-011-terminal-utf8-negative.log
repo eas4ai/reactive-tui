@@ -1,0 +1,21 @@
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 7.12s
+     Running unittests src/lib.rs (target/debug/deps/reactive_tui-fa00cdcf48e682eb)
+
+running 1 test
+
+thread 'terminal::parser::recovery_tests::interrupted_utf8_does_not_poison_following_characters' (3959235) panicked at src/terminal/parser.rs:838:13:
+assertion `left == right` failed
+  left: []
+ right: [Print('é'), Print('界')]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test terminal::parser::recovery_tests::interrupted_utf8_does_not_poison_following_characters ... FAILED
+
+failures:
+
+failures:
+    terminal::parser::recovery_tests::interrupted_utf8_does_not_poison_following_characters
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 914 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `--lib`

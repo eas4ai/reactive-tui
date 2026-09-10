@@ -13,8 +13,12 @@ enum ParserState {
     CsiParam,
     /// CSI intermediate bytes
     CsiIntermediate,
+    /// Discard an unsupported CSI through its final byte
+    CsiIgnore,
     /// OSC string processing
     OscString,
+    /// Escape seen inside an OSC, independent of payload capacity
+    OscEscape,
     /// DCS sequence entry
     DcsEntry,
     /// DCS parameter processing
@@ -23,6 +27,8 @@ enum ParserState {
     DcsIntermediate,
     /// DCS passthrough mode
     DcsPassthrough,
+    /// Escape seen after a DCS payload
+    DcsEscape,
     /// SOS string processing
     SosString,
     /// PM string processing
@@ -94,6 +100,7 @@ pub struct AnsiParser {
     intermediates: Vec<u8>,
     string_buffer: Vec<u8>,
     private: bool,
+    dcs_final: u8,
     utf8_decoder: Utf8Decoder,
 }
 
@@ -101,7 +108,7 @@ impl AnsiParser {
     /// Maximum buffer sizes to prevent DoS attacks
     const MAX_PARAMS: usize = 32; // CSI sequences rarely need more than 16
     const MAX_INTERMEDIATES: usize = 8; // Intermediates are single bytes, rarely more than 2
-    const MAX_STRING_BUFFER: usize = 8192; // OSC/DCS strings should be reasonable
+    pub(crate) const MAX_STRING_BUFFER: usize = 8192; // OSC/DCS strings should be reasonable
 
     /// Create a new ANSI parser
     pub fn new() -> Self {
@@ -112,6 +119,7 @@ impl AnsiParser {
             intermediates: Vec::new(),
             string_buffer: Vec::new(),
             private: false,
+            dcs_final: 0,
             utf8_decoder: Utf8Decoder::new(),
         }
     }
@@ -119,6 +127,29 @@ impl AnsiParser {
     /// Parse a single byte and return any resulting events
     pub fn parse(&mut self, byte: u8) -> Vec<AnsiEvent> {
         let mut events = Vec::new();
+        if matches!(byte, 0x18 | 0x1A) {
+            self.reset_state();
+            self.utf8_decoder.len = 0;
+            self.execute_control(byte, &mut events);
+            return events;
+        }
+        if byte == 0x1B
+            && matches!(
+                self.state,
+                ParserState::Escape
+                    | ParserState::CsiEntry
+                    | ParserState::CsiParam
+                    | ParserState::CsiIntermediate
+                    | ParserState::CsiIgnore
+                    | ParserState::DcsEntry
+                    | ParserState::DcsParam
+                    | ParserState::DcsIntermediate
+            )
+        {
+            self.reset_buffers();
+            self.state = ParserState::Escape;
+            return events;
+        }
 
         match self.state {
             ParserState::Ground => {
@@ -136,8 +167,40 @@ impl AnsiParser {
             ParserState::CsiIntermediate => {
                 self.parse_csi_intermediate(byte, &mut events);
             }
+            ParserState::CsiIgnore => {
+                if (0x40..=0x7E).contains(&byte) {
+                    self.reset_state();
+                } else if byte < 0x20 {
+                    self.execute_control(byte, &mut events);
+                }
+            }
             ParserState::OscString => {
                 self.parse_osc_string(byte, &mut events);
+            }
+            ParserState::OscEscape => {
+                if byte == b'\\' {
+                    self.finalize_osc(&mut events);
+                    self.reset_state();
+                } else {
+                    self.reset_buffers();
+                    self.state = ParserState::Escape;
+                    self.parse_escape(byte, &mut events);
+                }
+            }
+            ParserState::DcsEscape => {
+                if byte == b'\\' {
+                    events.push(AnsiEvent::Dcs {
+                        final_byte: self.dcs_final as char,
+                        params: std::mem::take(&mut self.params),
+                        intermediates: std::mem::take(&mut self.intermediates),
+                        data: std::mem::take(&mut self.string_buffer),
+                    });
+                    self.reset_state();
+                } else {
+                    self.reset_buffers();
+                    self.state = ParserState::Escape;
+                    self.parse_escape(byte, &mut events);
+                }
             }
             ParserState::DcsEntry => {
                 self.parse_dcs_entry(byte, &mut events);
@@ -170,6 +233,9 @@ impl AnsiParser {
     }
 
     fn parse_ground(&mut self, byte: u8, events: &mut Vec<AnsiEvent>) {
+        if byte < 0x80 {
+            self.utf8_decoder.len = 0;
+        }
         match byte {
             0x00..=0x17 | 0x19 | 0x1C..=0x1F => {
                 self.execute_control(byte, events);
@@ -182,9 +248,10 @@ impl AnsiParser {
                 self.state = ParserState::Escape;
                 self.reset_buffers();
             }
-            0x20..=0x7F => {
+            0x20..=0x7E => {
                 events.push(AnsiEvent::Print(byte as char));
             }
+            0x7F => {}
             0x80..=0xFF => {
                 if let Some(ch) = self.utf8_decoder.decode(byte) {
                     events.push(AnsiEvent::Print(ch));
@@ -244,10 +311,11 @@ impl AnsiParser {
                 self.state = ParserState::CsiIntermediate;
             }
             0x30..=0x39 | 0x3B => {
+                self.state = ParserState::CsiParam;
                 self.parse_csi_param(byte, events);
             }
             0x3A => {
-                self.reset_state();
+                self.state = ParserState::CsiIgnore;
             }
             0x3C..=0x3F => {
                 self.private = true;
@@ -292,10 +360,12 @@ impl AnsiParser {
                 );
             }
             0x3A => {
-                self.reset_state();
+                self.state = ParserState::CsiIgnore;
             }
             0x3B => {
+                self.current_param.get_or_insert(0);
                 self.finalize_param();
+                self.current_param = Some(0);
             }
             0x3C..=0x3F => {
                 self.reset_state();
@@ -344,27 +414,16 @@ impl AnsiParser {
 
     fn parse_osc_string(&mut self, byte: u8, events: &mut Vec<AnsiEvent>) {
         match byte {
-            0x00..=0x06 | 0x08..=0x17 | 0x19 | 0x1C..=0x1F => {
-                self.reset_state();
-            }
+            0x18 | 0x1A => self.reset_state(),
             0x07 => {
                 self.finalize_osc(events);
                 self.reset_state();
             }
-            0x1B => {
-                if self.string_buffer.len() < Self::MAX_STRING_BUFFER {
-                    self.string_buffer.push(byte);
-                }
-                // Silently drop if buffer is full
-            }
+            0x1B => self.state = ParserState::OscEscape,
+            // Embedded controls do not turn the remainder of a title into text.
+            0x00..=0x1F => {}
             _ => {
-                if self.string_buffer.ends_with(&[0x1B]) && byte == 0x5C {
-                    self.string_buffer.pop();
-                    self.finalize_osc(events);
-                    self.reset_state();
-                } else if self.string_buffer.len() < Self::MAX_STRING_BUFFER
-                    && self.string_buffer.len() < Self::MAX_STRING_BUFFER
-                {
+                if self.string_buffer.len() < Self::MAX_STRING_BUFFER {
                     self.string_buffer.push(byte);
                 }
             }
@@ -385,6 +444,11 @@ impl AnsiParser {
     }
 
     fn execute_escape(&mut self, byte: u8, events: &mut Vec<AnsiEvent>) {
+        // Intermediate bytes identify a different escape command (for example
+        // charset designation). Do not execute its final byte as bare ESC D/M/c.
+        if !self.intermediates.is_empty() {
+            return;
+        }
         match byte {
             0x37 => {
                 events.push(AnsiEvent::Csi {
@@ -427,7 +491,11 @@ impl AnsiParser {
 
         if let Some(command) = parts.first() {
             let params = if parts.len() > 1 {
-                parts[1].split(';').map(|s| s.to_string()).collect()
+                match *command {
+                    "0" | "1" | "2" | "7" => vec![parts[1].to_string()],
+                    "8" => parts[1].splitn(2, ';').map(str::to_string).collect(),
+                    _ => parts[1].split(';').map(str::to_string).collect(),
+                }
             } else {
                 vec![]
             };
@@ -450,6 +518,7 @@ impl AnsiParser {
         self.intermediates.clear();
         self.string_buffer.clear();
         self.private = false;
+        self.dcs_final = 0;
     }
 
     /// Parse DCS entry state - Device Control String entry
@@ -466,9 +535,6 @@ impl AnsiParser {
                 self.state = ParserState::DcsIntermediate;
             }
             0x30..=0x39 | 0x3B => {
-                if self.params.len() < Self::MAX_PARAMS {
-                    self.params.push(0);
-                }
                 self.current_param = Some(0);
                 self.state = ParserState::DcsParam;
                 self.parse_dcs_param(byte, events);
@@ -481,6 +547,7 @@ impl AnsiParser {
                 self.state = ParserState::DcsParam;
             }
             0x40..=0x7E => {
+                self.dcs_final = byte;
                 self.state = ParserState::DcsPassthrough;
             }
             _ => {
@@ -496,6 +563,7 @@ impl AnsiParser {
                 self.execute_control(byte, events);
             }
             0x20..=0x2F => {
+                self.finalize_param();
                 if self.intermediates.len() < Self::MAX_INTERMEDIATES {
                     self.intermediates.push(byte);
                 }
@@ -527,6 +595,7 @@ impl AnsiParser {
                         self.params.push(param);
                     }
                 }
+                self.dcs_final = byte;
                 self.state = ParserState::DcsPassthrough;
             }
             _ => {
@@ -548,6 +617,7 @@ impl AnsiParser {
                 // Silently drop if buffer is full
             }
             0x40..=0x7E => {
+                self.dcs_final = byte;
                 self.state = ParserState::DcsPassthrough;
             }
             _ => {
@@ -564,7 +634,7 @@ impl AnsiParser {
             }
             0x1B => {
                 // Escape - might be end of DCS
-                self.state = ParserState::Escape;
+                self.state = ParserState::DcsEscape;
             }
             _ => {
                 // Collect DCS data
@@ -619,85 +689,26 @@ impl Utf8Decoder {
     }
 
     fn decode(&mut self, byte: u8) -> Option<char> {
-        // Simple approach: if buffer is full, reset and start fresh
-        if self.len >= 4 {
+        // A fresh leading byte ends any incomplete prior character.
+        if !(0x80..=0xBF).contains(&byte) {
             self.len = 0;
         }
-
+        if self.len == 0 && !matches!(byte, 0x00..=0x7F | 0xC2..=0xF4) {
+            return None;
+        }
         self.buffer[self.len] = byte;
         self.len += 1;
-
-        // Try to decode what we have so far
         match std::str::from_utf8(&self.buffer[..self.len]) {
-            Ok(s) => {
-                // Successfully decoded - return the character and reset
-                if let Some(ch) = s.chars().next() {
-                    self.len = 0;
-                    Some(ch)
-                } else {
-                    // Empty string somehow - reset and continue
-                    self.len = 0;
-                    None
-                }
+            Ok(text) => {
+                let character = text.chars().next();
+                self.len = 0;
+                character
             }
-            Err(e) => {
-                // Check if we have a valid prefix that we can decode
-                if e.valid_up_to() > 0 {
-                    if let Ok(valid_str) = std::str::from_utf8(&self.buffer[..e.valid_up_to()]) {
-                        if let Some(ch) = valid_str.chars().next() {
-                            // We found a valid character, shift remaining bytes
-                            let remaining = self.len - e.valid_up_to();
-                            if remaining > 0 {
-                                self.buffer.copy_within(e.valid_up_to()..self.len, 0);
-                                self.len = remaining;
-                            } else {
-                                self.len = 0;
-                            }
-                            return Some(ch);
-                        }
-                    }
+            Err(error) => {
+                if error.error_len().is_some() || self.len == self.buffer.len() {
+                    self.len = 0;
                 }
-
-                // Check if this could be the start of a valid sequence
-                if self.len == 1 {
-                    // Single byte - check if it could be start of multi-byte sequence
-                    match byte {
-                        0x00..=0x7F => {
-                            // ASCII - should have been decoded above, so it's invalid
-                            self.len = 0;
-                            None
-                        }
-                        0x80..=0xBF => {
-                            // Continuation byte without start - invalid
-                            self.len = 0;
-                            None
-                        }
-                        0xC0..=0xDF => {
-                            // Start of 2-byte sequence - wait for more
-                            None
-                        }
-                        0xE0..=0xEF => {
-                            // Start of 3-byte sequence - wait for more
-                            None
-                        }
-                        0xF0..=0xF7 => {
-                            // Start of 4-byte sequence - wait for more
-                            None
-                        }
-                        0xF8..=0xFF => {
-                            // Invalid UTF-8 start byte
-                            self.len = 0;
-                            None
-                        }
-                    }
-                } else {
-                    // Multi-byte sequence in progress
-                    // If we're at max length and still invalid, reset
-                    if self.len >= 4 {
-                        self.len = 0;
-                    }
-                    None
-                }
+                None
             }
         }
     }
@@ -822,5 +833,119 @@ mod tests {
 
         // Should still be able to decode valid sequences
         assert_eq!(decoder.decode(0x43), Some('C')); // ASCII 'C'
+    }
+}
+
+#[cfg(test)]
+mod recovery_tests {
+    use super::*;
+
+    #[test]
+    fn dcs_emits_payload_and_resumes_text_after_terminator() {
+        let mut parser = AnsiParser::new();
+        assert_eq!(
+            parser.parse_bytes(b"\x1bP1;2 qabc\x1b\\X"),
+            vec![
+                AnsiEvent::Dcs {
+                    final_byte: 'q',
+                    params: vec![1, 2],
+                    intermediates: vec![b' '],
+                    data: b"abc".to_vec()
+                },
+                AnsiEvent::Print('X'),
+            ]
+        );
+        parser.parse_bytes(b"\x1bPq");
+        parser.parse_bytes(&vec![b'a'; AnsiParser::MAX_STRING_BUFFER + 10]);
+        let events = parser.parse_bytes(b"\x1b\\X");
+        assert!(
+            matches!(&events[0], AnsiEvent::Dcs { data, .. } if data.len() == AnsiParser::MAX_STRING_BUFFER)
+        );
+        assert_eq!(events.last(), Some(&AnsiEvent::Print('X')));
+    }
+
+    #[test]
+    fn csi_recovers_after_cancellation_and_preserves_empty_parameters() {
+        let mut parser = AnsiParser::new();
+        assert_eq!(
+            parser.parse_bytes(b"\x1b[9\x1b[;2H"),
+            vec![AnsiEvent::Csi {
+                final_byte: 'H',
+                params: vec![0, 2],
+                intermediates: vec![],
+                private: false,
+            }]
+        );
+        assert_eq!(
+            parser.parse_bytes(b"\x1b[38:2:1:2:3mX"),
+            vec![AnsiEvent::Print('X')]
+        );
+        assert_eq!(
+            parser.parse_bytes(b"\x1b[12 q"),
+            vec![AnsiEvent::Csi {
+                final_byte: 'q',
+                params: vec![12],
+                intermediates: vec![b' '],
+                private: false,
+            }]
+        );
+        let events = parser.parse_bytes(b"\x1b[123\x18X");
+        assert_eq!(events.last(), Some(&AnsiEvent::Print('X')));
+        assert!(!events
+            .iter()
+            .any(|event| matches!(event, AnsiEvent::Csi { .. })));
+    }
+
+    #[test]
+    fn interrupted_utf8_does_not_poison_following_characters() {
+        for prefix in [&b"\xc3X"[..], &b"\xe2\x1b[0m"[..], &b"\xf0\xff"[..]] {
+            let mut parser = AnsiParser::new();
+            parser.parse_bytes(prefix);
+            assert_eq!(
+                parser.parse_bytes("é界".as_bytes()),
+                vec![AnsiEvent::Print('é'), AnsiEvent::Print('界')]
+            );
+        }
+        assert!(AnsiParser::new().parse(0x7f).is_empty());
+    }
+
+    #[test]
+    fn oversized_osc_terminates_without_consuming_following_text() {
+        for length in [
+            AnsiParser::MAX_STRING_BUFFER,
+            AnsiParser::MAX_STRING_BUFFER + 10,
+        ] {
+            let mut parser = AnsiParser::new();
+            parser.parse_bytes(b"\x1b]0;");
+            parser.parse_bytes(&vec![b'a'; length]);
+            let events = parser.parse_bytes(b"\x1b\\OK");
+            assert!(events.ends_with(&[AnsiEvent::Print('O'), AnsiEvent::Print('K')]));
+            assert_eq!(parser.state, ParserState::Ground);
+            assert!(parser.string_buffer.is_empty());
+        }
+    }
+
+    #[test]
+    fn osc_ignores_controls_and_allows_escape_to_start_new_sequence() {
+        let mut parser = AnsiParser::new();
+        assert_eq!(
+            parser.parse_bytes(b"\x1b]0;ti\x01tle\x07"),
+            vec![AnsiEvent::Osc {
+                command: "0".into(),
+                params: vec!["title".into()],
+            }]
+        );
+        assert_eq!(
+            parser.parse_bytes(b"\x1b]0;discard\x1b[2JX"),
+            vec![
+                AnsiEvent::Csi {
+                    final_byte: 'J',
+                    params: vec![2],
+                    intermediates: vec![],
+                    private: false
+                },
+                AnsiEvent::Print('X'),
+            ]
+        );
     }
 }

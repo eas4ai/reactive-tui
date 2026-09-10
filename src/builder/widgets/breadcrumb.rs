@@ -289,7 +289,14 @@ mod tests {
             .build();
 
         assert!(breadcrumb.is_component());
-        assert_eq!(breadcrumb.component_name(), Some("Breadcrumb"));
+        assert!(breadcrumb.metadata.factory.is_some());
+        let props = breadcrumb
+            .props
+            .downcast_ref::<crate::widgets::layout::BreadcrumbProps>()
+            .unwrap();
+        assert_eq!(props.segments.len(), 2);
+        assert_eq!(props.segments[0].id, "home");
+        assert_eq!(props.segments[1].id, "docs");
     }
 
     #[test]

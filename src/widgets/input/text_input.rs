@@ -4,11 +4,13 @@ use crate::event::types::{KeyCode, KeyEvent, MouseEventKind};
 use crate::event::{Event, MouseEvent};
 use std::any::Any;
 use std::collections::VecDeque;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 // Type alias for complex function pointer type
 type SuggestionRequestCallback = Arc<dyn Fn(String, usize) -> Vec<Suggestion> + Send + Sync>;
 use unicode_segmentation::UnicodeSegmentation;
+mod accessibility;
+mod paint;
 
 /// Input mode for different text input behaviors
 #[derive(Clone, Debug, PartialEq, Default)]
@@ -261,8 +263,11 @@ impl Props for TextInputProps {
 /// Cursor position in a multi-line text input
 #[derive(Clone, Debug, PartialEq, Default)]
 pub struct CursorPosition {
+    /// Logical line, starting at zero.
     pub line: usize,
+    /// Grapheme index within the logical line.
     pub column: usize,
+    /// UTF-8 byte offset in the full text, always at a grapheme boundary.
     pub byte_offset: usize,
 }
 
@@ -327,9 +332,9 @@ pub struct TextInputState {
     pub is_focused: bool,
     /// Whether the current input value is valid
     pub is_valid: bool,
-    /// Horizontal scroll offset for long text
+    /// Horizontal scroll offset in terminal cells.
     pub scroll_offset_x: usize,
-    /// Vertical scroll offset for multi-line text
+    /// Vertical scroll offset in rendered rows, including wrapped rows.
     pub scroll_offset_y: usize,
     /// Stack of edit commands for undo functionality
     pub undo_stack: VecDeque<EditCommand>,
@@ -366,10 +371,25 @@ pub struct TextInput {
     on_change: Option<Arc<dyn Fn(String) + Send + Sync>>,
     on_submit: Option<Arc<dyn Fn(String) + Send + Sync>>,
     on_suggestion_request: Option<SuggestionRequestCallback>,
+    read_only: Option<Arc<dyn Fn() -> bool + Send + Sync>>,
     clipboard_content: Option<String>,
+    viewport: Option<crate::component::LayoutInfo>,
+    validator: Mutex<Option<(String, Option<regex::Regex>)>>,
 }
 
 impl TextInput {
+    pub(crate) fn with_read_only(
+        mut self,
+        read_only: impl Fn() -> bool + Send + Sync + 'static,
+    ) -> Self {
+        self.read_only = Some(Arc::new(read_only));
+        self
+    }
+
+    fn is_read_only(&self) -> bool {
+        self.read_only.as_ref().is_some_and(|read_only| read_only())
+    }
+
     /// Create a new TextInput with an onChange callback
     pub fn with_on_change(mut self, f: impl Fn(String) + Send + Sync + 'static) -> Self {
         self.on_change = Some(Arc::new(f));
@@ -401,7 +421,7 @@ impl TextInput {
         state.lines = if value.is_empty() {
             vec![String::new()]
         } else {
-            value.lines().map(|s| s.to_string()).collect()
+            value.split('\n').map(|s| s.to_string()).collect()
         };
 
         // Ensure cursor is within bounds
@@ -450,7 +470,6 @@ impl TextInput {
     /// Validate the input value
     fn validate(&self, value: &str, pattern: &Option<String>) -> bool {
         if let Some(pattern_str) = pattern {
-            // Simple pattern matching (in production, use regex crate)
             match pattern_str.as_str() {
                 "numeric" => value.chars().all(|c| c.is_numeric() || c.is_whitespace()),
                 "alpha" => value
@@ -459,8 +478,24 @@ impl TextInput {
                 "alphanumeric" => value
                     .chars()
                     .all(|c| c.is_alphanumeric() || c.is_whitespace()),
-                "email" => value.contains('@') && value.contains('.'),
-                _ => true,
+                pattern => {
+                    let pattern = if pattern == "email" {
+                        r"^[^\s@]+@[^\s@]+\.[^\s@]+$"
+                    } else {
+                        pattern
+                    };
+                    let mut cache = self.validator.lock().unwrap();
+                    if cache
+                        .as_ref()
+                        .is_none_or(|(previous, _)| previous != pattern)
+                    {
+                        *cache = Some((pattern.to_owned(), regex::Regex::new(pattern).ok()));
+                    }
+                    cache
+                        .as_ref()
+                        .and_then(|(_, regex)| regex.as_ref())
+                        .is_some_and(|regex| regex.is_match(value))
+                }
             }
         } else {
             true
@@ -469,6 +504,9 @@ impl TextInput {
 
     /// Execute an edit command and add to undo stack
     fn execute_command(&mut self, command: EditCommand, state: &mut TextInputState) {
+        if self.is_read_only() {
+            return;
+        }
         // Clear redo stack when new command is executed
         state.redo_stack.clear();
 
@@ -485,61 +523,31 @@ impl TextInput {
 
     /// Apply a command to the text
     fn apply_command(&mut self, command: &EditCommand, state: &mut TextInputState) {
-        match command {
-            EditCommand::Insert { position, text } => {
-                let current_text = self.get_text_value(state);
-                let mut chars: Vec<char> = current_text.chars().collect();
-                let insert_chars: Vec<char> = text.chars().collect();
-
-                for (i, &ch) in insert_chars.iter().enumerate() {
-                    chars.insert(position + i, ch);
-                }
-
-                let new_text: String = chars.into_iter().collect();
-                self.set_text_value(&new_text, state);
-            }
-            EditCommand::Delete { position, text } => {
-                let current_text = self.get_text_value(state);
-                let mut chars: Vec<char> = current_text.chars().collect();
-
-                for _ in 0..text.chars().count() {
-                    if *position < chars.len() {
-                        chars.remove(*position);
-                    }
-                }
-
-                let new_text: String = chars.into_iter().collect();
-                self.set_text_value(&new_text, state);
-            }
+        let mut current = self.get_text_value(state);
+        let (position, removed, inserted) = match command {
+            EditCommand::Insert { position, text } => (*position, "", text.as_str()),
+            EditCommand::Delete { position, text } => (*position, text.as_str(), ""),
             EditCommand::Replace {
                 position,
-                old_text: _,
+                old_text,
                 new_text,
-            } => {
-                let current_text = self.get_text_value(state);
-                let mut chars: Vec<char> = current_text.chars().collect();
-
-                // Remove old text
-                for _ in 0..new_text.chars().count() {
-                    if *position < chars.len() {
-                        chars.remove(*position);
-                    }
-                }
-
-                // Insert new text
-                let insert_chars: Vec<char> = new_text.chars().collect();
-                for (i, &ch) in insert_chars.iter().enumerate() {
-                    chars.insert(position + i, ch);
-                }
-
-                let new_text: String = chars.into_iter().collect();
-                self.set_text_value(&new_text, state);
-            }
+            } => (*position, old_text.as_str(), new_text.as_str()),
+        };
+        let end = position.saturating_add(removed.len());
+        if current.get(position..end) != Some(removed) {
+            return;
         }
+        current.replace_range(position..end, inserted);
+        self.set_text_value(&current, state);
+        state.selection = None;
+        self.move_cursor_to_byte_offset(position + inserted.len(), state);
     }
 
     /// Undo the last edit
     fn undo(&mut self, state: &mut TextInputState) {
+        if self.is_read_only() {
+            return;
+        }
         if let Some(command) = state.undo_stack.pop_back() {
             state.redo_stack.push_back(command.inverse());
             self.apply_command(&command, state);
@@ -548,6 +556,9 @@ impl TextInput {
 
     /// Redo the last undone edit
     fn redo(&mut self, state: &mut TextInputState) {
+        if self.is_read_only() {
+            return;
+        }
         if let Some(command) = state.redo_stack.pop_back() {
             state.undo_stack.push_back(command.inverse());
             self.apply_command(&command, state);
@@ -556,132 +567,108 @@ impl TextInput {
 
     /// Find word boundaries for navigation
     fn find_word_start(&self, text: &str, position: usize) -> usize {
-        let chars: Vec<char> = text.chars().collect();
-        if position == 0 || position > chars.len() {
-            return position;
-        }
-
-        let mut pos = position.saturating_sub(1);
-
-        // Skip whitespace backwards
-        while pos > 0 && chars[pos].is_whitespace() {
-            pos -= 1;
-        }
-
-        // Skip word characters backwards
-        while pos > 0 && !chars[pos].is_whitespace() && chars[pos].is_alphanumeric() {
-            pos -= 1;
-        }
-
-        // If we stopped on a non-alphanumeric, move forward one
-        if pos < chars.len() && !chars[pos].is_alphanumeric() && !chars[pos].is_whitespace() {
-            pos += 1;
-        }
-
-        pos
+        text.unicode_word_indices()
+            .take_while(|(start, _)| *start < position)
+            .last()
+            .map_or(0, |(start, _)| start)
     }
 
     fn find_word_end(&self, text: &str, position: usize) -> usize {
-        let chars: Vec<char> = text.chars().collect();
-        if position >= chars.len() {
-            return chars.len();
-        }
-
-        let mut pos = position;
-
-        // Skip whitespace forward
-        while pos < chars.len() && chars[pos].is_whitespace() {
-            pos += 1;
-        }
-
-        // Skip word characters forward
-        while pos < chars.len() && !chars[pos].is_whitespace() && chars[pos].is_alphanumeric() {
-            pos += 1;
-        }
-
-        pos
+        text.unicode_word_indices()
+            .find(|(start, word)| start + word.len() > position)
+            .map_or(text.len(), |(start, word)| start + word.len())
     }
 
     /// Delete the current selection
     fn delete_selection(&mut self, state: &mut TextInputState) -> Option<String> {
-        if let Some(selection) = &state.selection {
-            let text = self.get_text_value(state);
-            let start_offset = selection.start.byte_offset;
-            let end_offset = selection.end.byte_offset;
-
-            let (del_start, del_end) = if start_offset < end_offset {
-                (start_offset, end_offset)
-            } else {
-                (end_offset, start_offset)
-            };
-
-            let deleted_text = text[del_start..del_end].to_string();
-            let new_text = format!("{}{}", &text[..del_start], &text[del_end..]);
-
-            self.set_text_value(&new_text, state);
-            state.selection = None;
-
-            // Move cursor to start of deleted selection
-            self.move_cursor_to_byte_offset(del_start, state);
-
-            Some(deleted_text)
-        } else {
-            None
+        if self.is_read_only() {
+            return None;
         }
+        let selection = state.selection.take()?;
+        let text = self.get_text_value(state);
+        let start = selection.start.byte_offset.min(selection.end.byte_offset);
+        let end = selection.start.byte_offset.max(selection.end.byte_offset);
+        let deleted = text.get(start..end)?.to_owned();
+        if !deleted.is_empty() {
+            self.execute_command(
+                EditCommand::Delete {
+                    position: start,
+                    text: deleted.clone(),
+                },
+                state,
+            );
+        }
+        self.move_cursor_to_byte_offset(start, state);
+        Some(deleted)
+    }
+
+    fn insert_text(&mut self, inserted: &str, props: &TextInputProps, state: &mut TextInputState) {
+        let text = self.get_text_value(state);
+        let (start, end) = state.selection.as_ref().map_or(
+            (state.cursor.byte_offset, state.cursor.byte_offset),
+            |selection| {
+                (
+                    selection.start.byte_offset.min(selection.end.byte_offset),
+                    selection.start.byte_offset.max(selection.end.byte_offset),
+                )
+            },
+        );
+        let Some(removed) = text.get(start..end) else {
+            return;
+        };
+        let mut candidate = text.clone();
+        candidate.replace_range(start..end, inserted);
+        if props
+            .max_length
+            .is_some_and(|max| candidate.graphemes(true).count() > max)
+        {
+            return;
+        }
+        if matches!(props.mode, InputMode::Numeric)
+            && !inserted
+                .chars()
+                .all(|c| c.is_numeric() || matches!(c, '.' | '-'))
+        {
+            return;
+        }
+        if candidate == text {
+            return;
+        }
+        self.execute_command(
+            EditCommand::Replace {
+                position: start,
+                old_text: removed.to_owned(),
+                new_text: inserted.to_owned(),
+            },
+            state,
+        );
     }
 
     /// Move cursor to a specific byte offset
     fn move_cursor_to_byte_offset(&self, byte_offset: usize, state: &mut TextInputState) {
-        let mut current_offset = 0;
-
-        for (line_idx, line) in state.lines.iter().enumerate() {
-            if current_offset + line.len() >= byte_offset {
-                // Cursor is in this line
-                let line_offset = byte_offset - current_offset;
-                let graphemes: Vec<&str> = line.graphemes(true).collect();
-
+        let mut previous = 0;
+        for (line_index, line) in state.lines.iter().enumerate() {
+            if byte_offset <= previous + line.len() || line_index + 1 == state.lines.len() {
+                let local = byte_offset.saturating_sub(previous).min(line.len());
+                let mut bytes = 0;
                 let mut column = 0;
-                let mut char_offset = 0;
-
-                for grapheme in graphemes {
-                    if char_offset >= line_offset {
+                for grapheme in line.graphemes(true) {
+                    if bytes + grapheme.len() > local {
                         break;
                     }
-                    char_offset += grapheme.len();
+                    bytes += grapheme.len();
                     column += 1;
                 }
-
-                state.cursor.line = line_idx;
-                state.cursor.column = column;
-                state.cursor.byte_offset = byte_offset;
+                state.cursor = CursorPosition {
+                    line: line_index,
+                    column,
+                    byte_offset: previous + bytes,
+                };
                 return;
             }
-            current_offset += line.len() + 1; // +1 for newline
+            previous += line.len() + 1;
         }
-
-        // If we get here, move to end
-        if let Some(last_line) = state.lines.last() {
-            state.cursor.line = state.lines.len() - 1;
-            state.cursor.column = last_line.graphemes(true).count();
-            state.cursor.byte_offset = byte_offset;
-        }
-    }
-
-    /// Update scroll offset to keep cursor visible
-    fn update_scroll(&mut self, state: &mut TextInputState, width: usize, height: usize) {
-        // Horizontal scrolling
-        if state.cursor.column < state.scroll_offset_x {
-            state.scroll_offset_x = state.cursor.column;
-        } else if state.cursor.column >= state.scroll_offset_x + width {
-            state.scroll_offset_x = state.cursor.column - width + 1;
-        }
-
-        // Vertical scrolling
-        if state.cursor.line < state.scroll_offset_y {
-            state.scroll_offset_y = state.cursor.line;
-        } else if state.cursor.line >= state.scroll_offset_y + height {
-            state.scroll_offset_y = state.cursor.line - height + 1;
-        }
+        state.cursor = CursorPosition::default();
     }
 
     /// Copy selected text to clipboard
@@ -705,35 +692,14 @@ impl TextInput {
 
     /// Cut selected text to clipboard
     fn cut_selection(&mut self, state: &mut TextInputState) {
-        if state.selection.is_some() {
-            self.copy_selection(state);
-            if let Some(deleted) = self.delete_selection(state) {
-                let command = EditCommand::Delete {
-                    position: state.cursor.byte_offset,
-                    text: deleted,
-                };
-                self.execute_command(command, state);
-            }
-        }
+        self.copy_selection(state);
+        self.delete_selection(state);
     }
 
-    /// Paste text from clipboard
-    fn paste_from_clipboard(&mut self, state: &mut TextInputState) {
-        if let Some(clipboard_text) = &self.clipboard_content.clone() {
-            // Delete selection if exists
-            if state.selection.is_some() {
-                self.delete_selection(state);
-            }
-
-            let command = EditCommand::Insert {
-                position: state.cursor.byte_offset,
-                text: clipboard_text.clone(),
-            };
-            self.execute_command(command, state);
-
-            // Move cursor to end of pasted text
-            let new_offset = state.cursor.byte_offset + clipboard_text.len();
-            self.move_cursor_to_byte_offset(new_offset, state);
+    /// Paste from this control's copy/cut buffer.
+    fn paste_from_clipboard(&mut self, props: &TextInputProps, state: &mut TextInputState) {
+        if let Some(text) = self.clipboard_content.clone() {
+            self.insert_text(&text, props, state);
         }
     }
 
@@ -863,110 +829,62 @@ impl TextInput {
     ) -> EventResult {
         match event.code {
             KeyCode::Char('a') => {
-                // Select all
+                let start = CursorPosition::default();
                 let text = self.get_text_value(state);
-                if !text.is_empty() {
-                    state.selection = Some(Selection {
-                        start: CursorPosition {
-                            line: 0,
-                            column: 0,
-                            byte_offset: 0,
-                        },
-                        end: CursorPosition {
-                            line: state.lines.len().saturating_sub(1),
-                            column: state
-                                .lines
-                                .last()
-                                .map(|l| l.graphemes(true).count())
-                                .unwrap_or(0),
-                            byte_offset: text.len(),
-                        },
-                    });
-                }
-                EventResult::Consumed
+                self.move_cursor_to_byte_offset(text.len(), state);
+                state.selection = Some(Selection {
+                    start,
+                    end: state.cursor.clone(),
+                });
             }
-            KeyCode::Char('c') => {
-                // Copy
-                self.copy_selection(state);
-                EventResult::Consumed
-            }
-            KeyCode::Char('x') => {
-                // Cut
-                self.cut_selection(state);
-                let current_text = self.get_text_value(state);
-                props.value = current_text.clone();
-                if let Some(on_change) = &self.on_change {
-                    on_change(current_text);
-                }
-                EventResult::Consumed
-            }
-            KeyCode::Char('v') => {
-                // Paste
-                self.paste_from_clipboard(state);
-                let current_text = self.get_text_value(state);
-                props.value = current_text.clone();
-                if let Some(on_change) = &self.on_change {
-                    on_change(current_text);
-                }
-                EventResult::Consumed
-            }
-            KeyCode::Char('z') => {
-                // Undo
-                self.undo(state);
-                let current_text = self.get_text_value(state);
-                props.value = current_text.clone();
-                if let Some(on_change) = &self.on_change {
-                    on_change(current_text);
-                }
-                EventResult::Consumed
-            }
-            KeyCode::Char('y') => {
-                // Redo
-                self.redo(state);
-                let current_text = self.get_text_value(state);
-                props.value = current_text.clone();
-                if let Some(on_change) = &self.on_change {
-                    on_change(current_text);
-                }
-                EventResult::Consumed
-            }
-            KeyCode::Left => {
-                // Word left
+            KeyCode::Char('c') if state.selection.is_some() => self.copy_selection(state),
+            KeyCode::Char('x') => self.cut_selection(state),
+            KeyCode::Char('v') => self.paste_from_clipboard(props, state),
+            KeyCode::Char('z') => self.undo(state),
+            KeyCode::Char('y') => self.redo(state),
+            KeyCode::Left | KeyCode::Right | KeyCode::Home | KeyCode::End => {
                 let text = self.get_text_value(state);
-                let word_start = self.find_word_start(&text, state.cursor.byte_offset);
-                self.move_cursor_to_byte_offset(word_start, state);
-                EventResult::Consumed
+                let destination = match event.code {
+                    KeyCode::Left => self.find_word_start(&text, state.cursor.byte_offset),
+                    KeyCode::Right => self.find_word_end(&text, state.cursor.byte_offset),
+                    KeyCode::Home => 0,
+                    _ => text.len(),
+                };
+                let start = state
+                    .selection
+                    .as_ref()
+                    .map_or_else(|| state.cursor.clone(), |selection| selection.start.clone());
+                self.move_cursor_to_byte_offset(destination, state);
+                state.selection = event.modifiers.shift.then(|| Selection {
+                    start,
+                    end: state.cursor.clone(),
+                });
             }
-            KeyCode::Right => {
-                // Word right
-                let text = self.get_text_value(state);
-                let word_end = self.find_word_end(&text, state.cursor.byte_offset);
-                self.move_cursor_to_byte_offset(word_end, state);
-                EventResult::Consumed
-            }
-            KeyCode::Backspace => {
-                // Delete word left
-                let text = self.get_text_value(state);
-                let word_start = self.find_word_start(&text, state.cursor.byte_offset);
-                if word_start < state.cursor.byte_offset {
-                    let deleted_text = text[word_start..state.cursor.byte_offset].to_string();
-                    let command = EditCommand::Delete {
-                        position: word_start,
-                        text: deleted_text,
+            KeyCode::Backspace | KeyCode::Delete => {
+                if state.selection.is_some() {
+                    self.delete_selection(state);
+                } else {
+                    let text = self.get_text_value(state);
+                    let cursor = state.cursor.byte_offset;
+                    let (start, end) = if event.code == KeyCode::Backspace {
+                        (self.find_word_start(&text, cursor), cursor)
+                    } else {
+                        (cursor, self.find_word_end(&text, cursor))
                     };
-                    self.execute_command(command, state);
-                    self.move_cursor_to_byte_offset(word_start, state);
-
-                    let current_text = self.get_text_value(state);
-                    props.value = current_text.clone();
-                    if let Some(on_change) = &self.on_change {
-                        on_change(current_text);
+                    if start < end {
+                        self.execute_command(
+                            EditCommand::Delete {
+                                position: start,
+                                text: text[start..end].to_owned(),
+                            },
+                            state,
+                        );
                     }
                 }
-                EventResult::Consumed
             }
-            _ => EventResult::Ignored,
+            _ => return EventResult::Ignored,
         }
+        EventResult::Consumed
     }
 
     /// Handle Alt+key combinations
@@ -990,8 +908,18 @@ impl Component for TextInput {
             on_change: None,
             on_submit: None,
             on_suggestion_request: None,
+            read_only: None,
             clipboard_content: None,
+            viewport: None,
+            validator: Mutex::new(None),
         }
+    }
+
+    fn initial_state(&mut self, props: &Self::Props) -> Self::State {
+        let mut state = TextInputState::default();
+        self.set_text_value(&props.value, &mut state);
+        state.is_valid = self.validate(&props.value, &props.validator_pattern);
+        state
     }
 
     fn update(&mut self, props: &Self::Props, state: &mut Self::State) -> bool {
@@ -999,6 +927,19 @@ impl Component for TextInput {
         let current_text = self.get_text_value(state);
         if current_text != props.value {
             self.set_text_value(&props.value, state);
+            if let Some(mut selection) = state.selection.take() {
+                let cursor = state.cursor.clone();
+                self.move_cursor_to_byte_offset(selection.start.byte_offset, state);
+                selection.start = state.cursor.clone();
+                self.move_cursor_to_byte_offset(selection.end.byte_offset, state);
+                selection.end = state.cursor.clone();
+                state.cursor = cursor;
+                state.selection = (selection.start != selection.end).then_some(selection);
+            }
+            state.undo_stack.clear();
+            state.redo_stack.clear();
+            state.show_suggestions = false;
+            state.suggestion_index = None;
         }
 
         // Validate on prop changes
@@ -1009,128 +950,20 @@ impl Component for TextInput {
     }
 
     fn render(&self, props: &Self::Props, state: &Self::State) -> Element {
-        let width = props.width.unwrap_or(30) as usize;
+        self.render_accessible(props, state)
+    }
 
-        // Get display value based on mode
-        let display_value = match &props.mode {
-            InputMode::Password => "*".repeat(props.value.len()),
-            _ => {
-                if props.value.is_empty() {
-                    if let Some(placeholder) = &props.placeholder {
-                        placeholder.clone()
-                    } else {
-                        props.value.clone()
-                    }
-                } else {
-                    props.value.clone()
-                }
-            }
-        };
-
-        // Calculate visible portion for single line
-        let visible_start = state.scroll_offset_x;
-        let visible_end = (visible_start + width).min(display_value.len());
-        let visible_text = if visible_end > visible_start {
-            &display_value[visible_start..visible_end]
-        } else {
-            ""
-        };
-
-        // Build the display string with cursor and selection
-        let mut result = String::new();
-
-        // Add border style based on state
-        if !state.is_valid && props.error_message.is_some() {
-            result.push_str("❌ ");
-        } else if state.is_focused {
-            result.push_str("▶ ");
-        } else if props.disabled {
-            result.push_str("🔒 ");
-        } else {
-            result.push_str("  ");
-        }
-
-        // Build the text with cursor and selection highlighting
-        result.push('[');
-
-        for (i, ch) in visible_text.chars().enumerate() {
-            let abs_pos = visible_start + i;
-
-            // Check if this position is selected
-            let is_selected = if let Some(selection) = &state.selection {
-                let start_offset = selection.start.byte_offset;
-                let end_offset = selection.end.byte_offset;
-                let (start, end) = if start_offset < end_offset {
-                    (start_offset, end_offset)
-                } else {
-                    (end_offset, start_offset)
-                };
-                abs_pos >= start && abs_pos < end
-            } else {
-                false
-            };
-
-            // Add cursor or selection marker
-            if state.is_focused && abs_pos == state.cursor.byte_offset {
-                result.push('│'); // Cursor
-            }
-
-            if is_selected {
-                // In a real TUI, we'd use background color
-                result.push_str(&format!("《{ch}》"));
-            } else {
-                result.push(ch);
-            }
-        }
-
-        // Add cursor at end if needed
-        if state.is_focused
-            && state.cursor.byte_offset == display_value.len()
-            && state.cursor.byte_offset >= visible_start
-            && state.cursor.byte_offset <= visible_end
-        {
-            result.push('│');
-        }
-
-        // Add scroll indicators
-        if visible_start > 0 || visible_end < display_value.len() {
-            result.push_str("...");
-        }
-
-        result.push(']');
-
-        // Add error message if invalid
-        if !state.is_valid && props.error_message.is_some() {
-            result.push_str(&format!(" {}", props.error_message.clone().unwrap()));
-        }
-
-        // Add suggestions if showing
-        if state.show_suggestions && !props.suggestions.is_empty() {
-            result.push_str("\n💡 Suggestions:");
-            for (i, suggestion) in props.suggestions.iter().enumerate() {
-                let marker = if Some(i) == state.suggestion_index {
-                    "▶"
-                } else {
-                    " "
-                };
-                result.push_str(&format!("\n{marker} {}", suggestion.text));
-                if let Some(desc) = &suggestion.description {
-                    result.push_str(&format!(" - {desc}"));
-                }
-            }
-        }
-
-        Element::component("div")
-            .class(if props.disabled {
-                "text-input disabled"
-            } else if !state.is_valid {
-                "text-input invalid"
-            } else if state.is_focused {
-                "text-input focused"
-            } else {
-                "text-input"
-            })
-            .with_child(Element::text(result))
+    fn layout(
+        &mut self,
+        layout: crate::component::LayoutInfo,
+        props: &mut Self::Props,
+        state: &mut Self::State,
+    ) -> bool {
+        let old = self.view_size(props, state);
+        self.viewport = Some(layout);
+        let changed = old != self.view_size(props, state);
+        self.scroll_to_cursor(props, state);
+        changed
     }
 
     fn handle_event(
@@ -1139,25 +972,54 @@ impl Component for TextInput {
         props: &mut Self::Props,
         state: &mut Self::State,
     ) -> EventResult {
-        if props.disabled {
+        if props.disabled && !matches!(event, Event::Focus(_)) {
             return EventResult::Ignored;
         }
-
-        match event {
-            Event::Key(key_event) => {
-                if !state.is_focused {
-                    return EventResult::Ignored;
-                }
-
-                self.handle_key_event(key_event, props, state)
+        let result = match event {
+            Event::Key(key) if state.is_focused => self.handle_key_event(key, props, state),
+            Event::Mouse(mouse) => self.handle_mouse_event(mouse, props, state),
+            Event::Paste(paste) if state.is_focused => {
+                let text = if matches!(props.mode, InputMode::MultiLine { .. }) {
+                    paste.content.replace("\r\n", "\n").replace('\r', "\n")
+                } else {
+                    paste.content.replace(['\r', '\n'], " ")
+                };
+                self.insert_text(&text, props, state);
+                EventResult::Consumed
             }
-            Event::Mouse(mouse_event) => self.handle_mouse_event(mouse_event, props, state),
-            Event::Focus(_) => {
-                state.is_focused = true;
+            Event::Focus(event)
+                if matches!(
+                    event.kind,
+                    crate::event::types::FocusEventKind::Gained
+                        | crate::event::types::FocusEventKind::Lost
+                ) =>
+            {
+                state.is_focused = event.kind == crate::event::types::FocusEventKind::Gained;
                 EventResult::Consumed
             }
             _ => EventResult::Ignored,
+        };
+        let text = self.get_text_value(state);
+        if props.value != text {
+            props.value = text.clone();
+            state.is_valid = self.validate(&text, &props.validator_pattern);
+            if let Some(callback) = &self.on_change {
+                callback(text.clone());
+            }
+            if matches!(event, Event::Key(key) if matches!(key.code, KeyCode::Char(_)) && !key.modifiers.ctrl)
+                || matches!(event, Event::Paste(_))
+            {
+                if let Some(callback) = &self.on_suggestion_request {
+                    props.suggestions = callback(text, state.cursor.byte_offset);
+                }
+                state.show_suggestions = !props.suggestions.is_empty();
+                state.suggestion_index = state.show_suggestions.then_some(0);
+            }
         }
+        if !matches!(event, Event::Mouse(mouse) if mouse.kind == MouseEventKind::Wheel) {
+            self.scroll_to_cursor(props, state);
+        }
+        result
     }
 }
 
@@ -1168,402 +1030,165 @@ impl TextInput {
         props: &mut TextInputProps,
         state: &mut TextInputState,
     ) -> EventResult {
-        // Handle modifiers first
         if event.modifiers.ctrl {
             return self.handle_ctrl_key(event, props, state);
         }
-
         if event.modifiers.alt {
             return self.handle_alt_key(event, props, state);
         }
-
-        let width = props.width.unwrap_or(30) as usize;
-        let height = match &props.mode {
-            InputMode::MultiLine { height } => *height as usize,
-            _ => 1,
-        };
-
         match event.code {
-            KeyCode::Char(c) => {
-                // Handle numeric mode
-                if matches!(props.mode, InputMode::Numeric)
-                    && !c.is_numeric()
-                    && c != '.'
-                    && c != '-'
-                {
-                    return EventResult::Consumed;
-                }
-
-                // Check max length
-                if let Some(max_len) = props.max_length {
-                    let current_text = self.get_text_value(state);
-                    if current_text.len() >= max_len && state.selection.is_none() {
-                        return EventResult::Consumed;
-                    }
-                }
-
-                // Delete selection if exists
+            KeyCode::Char(c) => self.insert_text(&c.to_string(), props, state),
+            KeyCode::Space => self.insert_text(" ", props, state),
+            KeyCode::Backspace | KeyCode::Delete => {
                 if state.selection.is_some() {
                     self.delete_selection(state);
-                }
-
-                // Insert character
-                let command = EditCommand::Insert {
-                    position: state.cursor.byte_offset,
-                    text: c.to_string(),
-                };
-                self.execute_command(command, state);
-
-                // Move cursor forward (with overflow protection)
-                let new_offset = state.cursor.byte_offset.saturating_add(c.len_utf8());
-                self.move_cursor_to_byte_offset(new_offset, state);
-
-                // Update scroll
-                self.update_scroll(state, width, height);
-
-                // Validate
-                let current_text = self.get_text_value(state);
-                state.is_valid = self.validate(&current_text, &props.validator_pattern);
-
-                // Update props value
-                props.value = current_text.clone();
-
-                // Trigger onChange
-                if let Some(on_change) = &self.on_change {
-                    on_change(current_text.clone());
-                }
-
-                // Request suggestions if available
-                if let Some(suggestion_fn) = &self.on_suggestion_request {
-                    let suggestions = suggestion_fn(current_text, state.cursor.byte_offset);
-                    props.suggestions = suggestions;
-                    state.show_suggestions = !props.suggestions.is_empty();
-                    state.suggestion_index = if state.show_suggestions {
-                        Some(0)
-                    } else {
-                        None
-                    };
-                }
-
-                EventResult::Consumed
-            }
-            KeyCode::Backspace => {
-                if state.selection.is_some() {
-                    if let Some(deleted) = self.delete_selection(state) {
-                        let command = EditCommand::Delete {
-                            position: state.cursor.byte_offset,
-                            text: deleted,
-                        };
-                        self.execute_command(command, state);
-                    }
-                } else if state.cursor.byte_offset > 0 {
-                    let current_text = self.get_text_value(state);
-                    // FIX: Convert byte offset to char index properly
-                    let mut byte_count = 0;
-                    let mut prev_char = None;
-                    let mut prev_byte_offset = 0;
-
-                    for ch in current_text.chars() {
-                        if byte_count >= state.cursor.byte_offset {
-                            break;
-                        }
-                        prev_char = Some(ch);
-                        prev_byte_offset = byte_count;
-                        byte_count += ch.len_utf8();
-                    }
-
-                    if let Some(ch) = prev_char {
-                        let command = EditCommand::Delete {
-                            position: prev_byte_offset,
-                            text: ch.to_string(),
-                        };
-                        self.execute_command(command, state);
-
-                        let new_offset = prev_byte_offset;
-                        self.move_cursor_to_byte_offset(new_offset, state);
-                    }
-                }
-
-                self.update_scroll(state, width, height);
-                let current_text = self.get_text_value(state);
-                state.is_valid = self.validate(&current_text, &props.validator_pattern);
-                props.value = current_text.clone();
-
-                if let Some(on_change) = &self.on_change {
-                    on_change(current_text);
-                }
-
-                EventResult::Consumed
-            }
-            KeyCode::Delete => {
-                if state.selection.is_some() {
-                    if let Some(deleted) = self.delete_selection(state) {
-                        let command = EditCommand::Delete {
-                            position: state.cursor.byte_offset,
-                            text: deleted,
-                        };
-                        self.execute_command(command, state);
-                    }
                 } else {
-                    let current_text = self.get_text_value(state);
-                    // FIX: Get character at current byte offset
-                    let mut byte_count = 0;
-                    let mut found_char = None;
-
-                    for ch in current_text.chars() {
-                        if byte_count == state.cursor.byte_offset {
-                            found_char = Some(ch);
-                            break;
-                        }
-                        byte_count += ch.len_utf8();
-                    }
-
-                    if let Some(ch) = found_char {
-                        let command = EditCommand::Delete {
-                            position: state.cursor.byte_offset,
-                            text: ch.to_string(),
-                        };
-                        self.execute_command(command, state);
+                    let text = self.get_text_value(state);
+                    let cursor = state.cursor.byte_offset;
+                    let range = if event.code == KeyCode::Backspace {
+                        text.grapheme_indices(true)
+                            .take_while(|(index, _)| *index < cursor)
+                            .last()
+                            .map(|(index, grapheme)| (index, grapheme.to_owned()))
+                    } else {
+                        text.get(cursor..)
+                            .and_then(|tail| tail.graphemes(true).next())
+                            .map(|grapheme| (cursor, grapheme.to_owned()))
+                    };
+                    if let Some((position, text)) = range {
+                        self.execute_command(EditCommand::Delete { position, text }, state);
                     }
                 }
-
-                self.update_scroll(state, width, height);
-                let current_text = self.get_text_value(state);
-                state.is_valid = self.validate(&current_text, &props.validator_pattern);
-                props.value = current_text.clone();
-
-                if let Some(on_change) = &self.on_change {
-                    on_change(current_text);
-                }
-
-                EventResult::Consumed
             }
             KeyCode::Enter => {
                 if matches!(props.mode, InputMode::MultiLine { .. }) {
-                    // Insert newline in multiline mode
-                    if state.selection.is_some() {
-                        self.delete_selection(state);
-                    }
-
-                    let command = EditCommand::Insert {
-                        position: state.cursor.byte_offset,
-                        text: "\n".to_string(),
+                    let indent = if props.auto_indent {
+                        state.lines[state.cursor.line]
+                            .chars()
+                            .take_while(|c| matches!(c, ' ' | '\t'))
+                            .collect::<String>()
+                    } else {
+                        String::new()
                     };
-                    self.execute_command(command, state);
-
-                    let new_offset = state.cursor.byte_offset.saturating_add(1);
-                    self.move_cursor_to_byte_offset(new_offset, state);
-
-                    // Auto-indent if enabled
-                    if props.auto_indent && state.cursor.line > 0 {
-                        if let Some(prev_line) = state.lines.get(state.cursor.line - 1) {
-                            let indent = prev_line
-                                .chars()
-                                .take_while(|&c| c == ' ' || c == '\t')
-                                .collect::<String>();
-
-                            if !indent.is_empty() {
-                                let indent_command = EditCommand::Insert {
-                                    position: state.cursor.byte_offset,
-                                    text: indent.clone(),
-                                };
-                                self.execute_command(indent_command, state);
-
-                                let new_offset =
-                                    state.cursor.byte_offset.saturating_add(indent.len());
-                                self.move_cursor_to_byte_offset(new_offset, state);
-                            }
-                        }
-                    }
-
-                    let current_text = self.get_text_value(state);
-                    props.value = current_text.clone();
-                    if let Some(on_change) = &self.on_change {
-                        on_change(current_text);
-                    }
-                } else {
-                    // Submit in single-line mode
-                    if let Some(on_submit) = &self.on_submit {
-                        on_submit(self.get_text_value(state));
-                    }
+                    self.insert_text(&format!("\n{indent}"), props, state);
+                } else if let Some(callback) = &self.on_submit {
+                    callback(self.get_text_value(state));
                 }
-                EventResult::Consumed
             }
             KeyCode::Tab => {
-                if state.show_suggestions && !props.suggestions.is_empty() {
-                    // Accept current suggestion
-                    if let Some(index) = state.suggestion_index {
-                        if let Some(suggestion) = props.suggestions.get(index) {
-                            // Replace current word with suggestion
-                            let command = EditCommand::Insert {
-                                position: state.cursor.byte_offset,
-                                text: suggestion.insert_text.clone(),
-                            };
-                            self.execute_command(command, state);
-
-                            let new_offset = state
-                                .cursor
-                                .byte_offset
-                                .saturating_add(suggestion.insert_text.len());
-                            self.move_cursor_to_byte_offset(new_offset, state);
-
-                            state.show_suggestions = false;
-                            state.suggestion_index = None;
-                            props.suggestions.clear();
-
-                            let current_text = self.get_text_value(state);
-                            props.value = current_text.clone();
-                            if let Some(on_change) = &self.on_change {
-                                on_change(current_text);
-                            }
-                        }
-                    }
-                } else {
-                    // Insert tab character or spaces
-                    let tab_text = if props.tab_size > 0 {
-                        " ".repeat(props.tab_size)
-                    } else {
-                        "\t".to_string()
-                    };
-
-                    if state.selection.is_some() {
-                        self.delete_selection(state);
-                    }
-
-                    let command = EditCommand::Insert {
-                        position: state.cursor.byte_offset,
-                        text: tab_text.clone(),
-                    };
-                    self.execute_command(command, state);
-
-                    let new_offset = state.cursor.byte_offset + tab_text.len();
-                    self.move_cursor_to_byte_offset(new_offset, state);
-
-                    let current_text = self.get_text_value(state);
-                    props.value = current_text.clone();
-                    if let Some(on_change) = &self.on_change {
-                        on_change(current_text);
-                    }
+                if self.is_read_only() {
+                    return EventResult::Ignored;
                 }
-                EventResult::Consumed
+                if state.show_suggestions {
+                    if let Some(index) = state.suggestion_index {
+                        self.accept_suggestion(index, props, state);
+                    }
+                } else if matches!(props.mode, InputMode::MultiLine { .. }) {
+                    let text = if props.tab_size == 0 {
+                        "\t".to_owned()
+                    } else {
+                        " ".repeat(props.tab_size)
+                    };
+                    self.insert_text(&text, props, state);
+                } else {
+                    return EventResult::Ignored;
+                }
             }
             KeyCode::Escape => {
-                // Hide suggestions
+                if !state.show_suggestions && state.selection.is_none() {
+                    return EventResult::Ignored;
+                }
                 state.show_suggestions = false;
                 state.suggestion_index = None;
-                props.suggestions.clear();
-
-                // Clear selection
                 state.selection = None;
-
-                EventResult::Consumed
             }
-            KeyCode::Left => {
-                if event.modifiers.shift {
-                    self.extend_selection_left(state);
-                } else {
-                    state.selection = None;
-                    self.move_cursor_left(state);
-                }
-                self.update_scroll(state, width, height);
-                EventResult::Consumed
-            }
-            KeyCode::Right => {
-                if event.modifiers.shift {
-                    self.extend_selection_right(state);
-                } else {
-                    state.selection = None;
-                    self.move_cursor_right(state);
-                }
-                self.update_scroll(state, width, height);
-                EventResult::Consumed
-            }
-            KeyCode::Up => {
-                if matches!(props.mode, InputMode::MultiLine { .. }) {
-                    if event.modifiers.shift {
-                        self.extend_selection_up(state);
+            KeyCode::Left | KeyCode::Right | KeyCode::Up | KeyCode::Down => {
+                if state.show_suggestions && matches!(event.code, KeyCode::Up | KeyCode::Down) {
+                    let index = state.suggestion_index.unwrap_or(0);
+                    state.suggestion_index = Some(if event.code == KeyCode::Up {
+                        index.saturating_sub(1)
                     } else {
-                        state.selection = None;
-                        self.move_cursor_up(state);
-                    }
-                    self.update_scroll(state, width, height);
-                } else if state.show_suggestions && !props.suggestions.is_empty() {
-                    // Navigate suggestions
-                    if let Some(index) = state.suggestion_index {
-                        state.suggestion_index = Some(index.saturating_sub(1));
-                    }
-                }
-                EventResult::Consumed
-            }
-            KeyCode::Down => {
-                if matches!(props.mode, InputMode::MultiLine { .. }) {
-                    if event.modifiers.shift {
-                        self.extend_selection_down(state);
-                    } else {
-                        state.selection = None;
-                        self.move_cursor_down(state);
-                    }
-                    self.update_scroll(state, width, height);
-                } else if state.show_suggestions && !props.suggestions.is_empty() {
-                    // Navigate suggestions
-                    if let Some(index) = state.suggestion_index {
-                        let max_index = props.suggestions.len().saturating_sub(1);
-                        state.suggestion_index = Some((index + 1).min(max_index));
-                    }
-                }
-                EventResult::Consumed
-            }
-            KeyCode::Home => {
-                if event.modifiers.shift && state.selection.is_none() {
-                    state.selection = Some(Selection {
-                        start: state.cursor.clone(),
-                        end: state.cursor.clone(),
+                        (index + 1).min(props.suggestions.len().saturating_sub(1))
                     });
-                }
-
-                // Move to start of current line
-                state.cursor.column = 0;
-                self.update_cursor_byte_offset(state);
-
-                if event.modifiers.shift {
-                    if let Some(selection) = &mut state.selection {
-                        selection.end = state.cursor.clone();
-                    }
                 } else {
-                    state.selection = None;
+                    if !event.modifiers.shift {
+                        state.selection = None;
+                    }
+                    match (&event.code, event.modifiers.shift) {
+                        (KeyCode::Left, true) => self.extend_selection_left(state),
+                        (KeyCode::Left, false) => self.move_cursor_left(state),
+                        (KeyCode::Right, true) => self.extend_selection_right(state),
+                        (KeyCode::Right, false) => self.move_cursor_right(state),
+                        (KeyCode::Up, true) => self.extend_selection_up(state),
+                        (KeyCode::Up, false) => self.move_cursor_up(state),
+                        (KeyCode::Down, true) => self.extend_selection_down(state),
+                        _ => self.move_cursor_down(state),
+                    }
                 }
-
-                state.scroll_offset_x = 0;
-                EventResult::Consumed
             }
-            KeyCode::End => {
-                if event.modifiers.shift && state.selection.is_none() {
-                    state.selection = Some(Selection {
-                        start: state.cursor.clone(),
-                        end: state.cursor.clone(),
-                    });
-                }
-
-                // Move to end of current line
-                if let Some(line) = state.lines.get(state.cursor.line) {
-                    state.cursor.column = line.graphemes(true).count();
+            KeyCode::Home | KeyCode::End | KeyCode::PageUp | KeyCode::PageDown => {
+                let start = state
+                    .selection
+                    .as_ref()
+                    .map_or_else(|| state.cursor.clone(), |selection| selection.start.clone());
+                match event.code {
+                    KeyCode::Home => state.cursor.column = 0,
+                    KeyCode::End => {
+                        state.cursor.column = state.lines[state.cursor.line].graphemes(true).count()
+                    }
+                    _ => {
+                        let height = match props.mode {
+                            InputMode::MultiLine { height } => usize::from(height).max(1),
+                            _ => 1,
+                        };
+                        if event.code == KeyCode::PageUp {
+                            state.cursor.line = state.cursor.line.saturating_sub(height);
+                        } else {
+                            state.cursor.line = state
+                                .cursor
+                                .line
+                                .saturating_add(height)
+                                .min(state.lines.len().saturating_sub(1));
+                        }
+                        state.cursor.column = state
+                            .cursor
+                            .column
+                            .min(state.lines[state.cursor.line].graphemes(true).count());
+                    }
                 }
                 self.update_cursor_byte_offset(state);
-
-                if event.modifiers.shift {
-                    if let Some(selection) = &mut state.selection {
-                        selection.end = state.cursor.clone();
-                    }
-                } else {
-                    state.selection = None;
-                }
-
-                self.update_scroll(state, width, height);
-                EventResult::Consumed
+                state.selection = event.modifiers.shift.then(|| Selection {
+                    start,
+                    end: state.cursor.clone(),
+                });
             }
-
-            _ => EventResult::Ignored,
+            _ => return EventResult::Ignored,
         }
+        EventResult::Consumed
+    }
+
+    fn accept_suggestion(
+        &mut self,
+        index: usize,
+        props: &TextInputProps,
+        state: &mut TextInputState,
+    ) {
+        if self.is_read_only() {
+            return;
+        }
+        let Some(suggestion) = props.suggestions.get(index) else {
+            return;
+        };
+        let text = self.get_text_value(state);
+        let end = state.cursor.clone();
+        self.move_cursor_to_byte_offset(self.find_word_start(&text, end.byte_offset), state);
+        state.selection = Some(Selection {
+            start: state.cursor.clone(),
+            end,
+        });
+        self.insert_text(&suggestion.insert_text, props, state);
+        state.show_suggestions = false;
+        state.suggestion_index = None;
     }
 
     fn handle_mouse_event(
@@ -1572,92 +1197,66 @@ impl TextInput {
         props: &mut TextInputProps,
         state: &mut TextInputState,
     ) -> EventResult {
+        use crate::event::types::MouseButton;
         match event.kind {
-            MouseEventKind::Click => {
-                state.is_focused = true;
-
-                // Calculate click position in text
-                let click_x = event.position.x() as usize;
-                let click_y = event.position.y() as usize;
-                let text_start = 3; // Account for status prefix
-
-                // For multiline, calculate line and column
-                if matches!(props.mode, InputMode::MultiLine { .. }) {
-                    let line =
-                        (click_y + state.scroll_offset_y).min(state.lines.len().saturating_sub(1));
-                    let column = if click_x >= text_start {
-                        let col_pos = click_x - text_start + state.scroll_offset_x;
-                        if let Some(line_text) = state.lines.get(line) {
-                            col_pos.min(line_text.graphemes(true).count())
-                        } else {
-                            0
-                        }
-                    } else {
-                        0
-                    };
-
-                    state.cursor.line = line;
-                    state.cursor.column = column;
-                    self.update_cursor_byte_offset(state);
-                } else {
-                    // Single line
-                    if click_x >= text_start {
-                        let text_pos = click_x - text_start + state.scroll_offset_x;
-                        let byte_offset = text_pos.min(props.value.len());
-                        self.move_cursor_to_byte_offset(byte_offset, state);
-                    }
+            MouseEventKind::Down | MouseEventKind::Click | MouseEventKind::Drag
+                if event.button == MouseButton::Left =>
+            {
+                let (inset_x, inset_y) = self.viewport.map_or((0, 0), |layout| {
+                    (layout.insets[0] as usize, layout.insets[1] as usize)
+                });
+                let (x, y) = (event.position.x() as usize, event.position.y() as usize);
+                if x < inset_x || y < inset_y {
+                    return EventResult::Ignored;
                 }
-
-                state.selection = None;
+                let y = y - inset_y;
+                let suggestion_top = self.view_size(props, state).1
+                    + usize::from(!state.is_valid && props.error_message.is_some());
+                if state.show_suggestions && y >= suggestion_top {
+                    if event.kind != MouseEventKind::Drag {
+                        let range = Self::suggestion_window(props, state);
+                        if let Some(index) = range.into_iter().nth(y - suggestion_top) {
+                            self.accept_suggestion(index, props, state);
+                            return EventResult::Consumed;
+                        }
+                    }
+                    return EventResult::Ignored;
+                }
+                let position = self.mouse_byte(props, state, x - inset_x, y);
+                let Some(position) = position else {
+                    return EventResult::Ignored;
+                };
+                let start = state
+                    .selection
+                    .as_ref()
+                    .map_or_else(|| state.cursor.clone(), |selection| selection.start.clone());
+                self.move_cursor_to_byte_offset(position, state);
+                state.is_focused = true;
+                state.selection = (event.kind == MouseEventKind::Drag || event.modifiers.shift)
+                    .then(|| Selection {
+                        start,
+                        end: state.cursor.clone(),
+                    });
                 EventResult::Consumed
             }
-            MouseEventKind::Drag => {
-                if state.is_focused {
-                    let drag_x = event.position.x() as usize;
-                    let drag_y = event.position.y() as usize;
-                    let text_start = 3;
-
-                    // Start selection if not already started
-                    if state.selection.is_none() {
-                        state.selection = Some(Selection {
-                            start: state.cursor.clone(),
-                            end: state.cursor.clone(),
-                        });
-                    }
-
-                    // Calculate drag position
-                    if matches!(props.mode, InputMode::MultiLine { .. }) {
-                        let line = (drag_y + state.scroll_offset_y)
-                            .min(state.lines.len().saturating_sub(1));
-                        let column = if drag_x >= text_start {
-                            let col_pos = drag_x - text_start + state.scroll_offset_x;
-                            if let Some(line_text) = state.lines.get(line) {
-                                col_pos.min(line_text.graphemes(true).count())
-                            } else {
-                                0
-                            }
-                        } else {
-                            0
-                        };
-
-                        state.cursor.line = line;
-                        state.cursor.column = column;
-                        self.update_cursor_byte_offset(state);
-                    } else if drag_x >= text_start {
-                        let text_pos = drag_x - text_start + state.scroll_offset_x;
-                        let byte_offset = text_pos.min(props.value.len());
-                        self.move_cursor_to_byte_offset(byte_offset, state);
-                    }
-
-                    // Update selection end
-                    if let Some(selection) = &mut state.selection {
-                        selection.end = state.cursor.clone();
-                    }
-
-                    EventResult::Consumed
-                } else {
-                    EventResult::Ignored
+            MouseEventKind::Wheel => {
+                let direction = event
+                    .wheel
+                    .as_ref()
+                    .map(|wheel| match wheel.delta {
+                        crate::event::types::WheelDelta::Lines { y, .. }
+                        | crate::event::types::WheelDelta::Pixels { y, .. } => y,
+                    })
+                    .unwrap_or_else(|| match event.button {
+                        MouseButton::Back => -1.0,
+                        MouseButton::Forward => 1.0,
+                        _ => 0.0,
+                    });
+                if direction == 0.0 {
+                    return EventResult::Ignored;
                 }
+                self.scroll_rows(props, state, direction);
+                EventResult::Consumed
             }
             _ => EventResult::Ignored,
         }
@@ -1824,15 +1423,15 @@ mod tests {
         let state = TextInputState::default();
 
         let rendered = input.render(&props, &state);
-        // The render returns a div with text as a child
-        if let Some(child) = rendered.children.first() {
-            if let crate::component::ElementType::Text(ref t) = child.element_type {
-                assert!(t.contains("******")); // Should show masked value
-            } else {
-                panic!("Expected text child element");
+        let mut pending = vec![&rendered];
+        let mut text = String::new();
+        while let Some(element) = pending.pop() {
+            if let crate::component::ElementType::Text(value) = &element.element_type {
+                text.push_str(value);
             }
-        } else {
-            panic!("Expected child element");
+            pending.extend(element.children.iter().rev());
         }
+        assert!(text.contains("******"));
+        assert!(!text.contains("secret"));
     }
 }

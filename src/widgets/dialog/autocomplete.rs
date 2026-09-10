@@ -14,6 +14,9 @@ use std::any::Any;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
+use unicode_segmentation::UnicodeSegmentation;
+
+mod live;
 
 // Type aliases for complex function pointer types
 type OnSelectCallback = Arc<dyn Fn(&str) -> bool + Send + Sync>;
@@ -50,6 +53,24 @@ pub struct AutocompleteDialogOptions {
     pub on_close: Option<Arc<dyn Fn(DialogResult) + Send + Sync>>,
 }
 
+impl PartialEq for AutocompleteDialogOptions {
+    fn eq(&self, other: &Self) -> bool {
+        use crate::widgets::display::overlay::same_callback;
+        self.title == other.title
+            && self.prompt == other.prompt
+            && self.autocomplete == other.autocomplete
+            && self.size == other.size
+            && self.position == other.position
+            && self.modal == other.modal
+            && self.backdrop_closable == other.backdrop_closable
+            && self.escape_closable == other.escape_closable
+            && self.css_classes == other.css_classes
+            && same_callback(&self.on_select, &other.on_select)
+            && same_callback(&self.on_change, &other.on_change)
+            && same_callback(&self.on_close, &other.on_close)
+    }
+}
+
 impl std::fmt::Debug for AutocompleteDialogOptions {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("AutocompleteDialogOptions")
@@ -74,7 +95,7 @@ pub struct AutocompleteConfig {
     pub placeholder: Option<String>,
     /// Default value
     pub default_value: Option<String>,
-    /// Minimum characters before triggering autocomplete
+    /// Minimum grapheme clusters before triggering autocomplete
     pub min_chars: usize,
     /// Debounce delay for API calls
     pub debounce_delay: Duration,
@@ -96,6 +117,24 @@ pub struct AutocompleteConfig {
     pub filter_function: Option<FilterFunction>,
 }
 
+impl PartialEq for AutocompleteConfig {
+    fn eq(&self, other: &Self) -> bool {
+        use crate::widgets::display::overlay::same_callback;
+        self.placeholder == other.placeholder
+            && self.default_value == other.default_value
+            && self.min_chars == other.min_chars
+            && self.debounce_delay == other.debounce_delay
+            && self.max_suggestions == other.max_suggestions
+            && self.suggestions_url == other.suggestions_url
+            && self.headers == other.headers
+            && self.static_suggestions == other.static_suggestions
+            && self.show_descriptions == other.show_descriptions
+            && self.highlight_matches == other.highlight_matches
+            && same_callback(&self.suggestion_renderer, &other.suggestion_renderer)
+            && same_callback(&self.filter_function, &other.filter_function)
+    }
+}
+
 impl std::fmt::Debug for AutocompleteConfig {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("AutocompleteConfig")
@@ -113,7 +152,7 @@ impl std::fmt::Debug for AutocompleteConfig {
 }
 
 /// Individual autocomplete suggestion
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize)]
 pub struct AutocompleteSuggestion {
     /// Suggestion text/value
     pub value: String,
@@ -124,6 +163,7 @@ pub struct AutocompleteSuggestion {
     /// Optional icon or category
     pub icon: Option<String>,
     /// Custom metadata
+    #[serde(default)]
     pub metadata: HashMap<String, String>,
 }
 
@@ -195,7 +235,14 @@ impl AutocompleteDialog {
     /// Handle text input
     fn handle_text_input(&mut self, text: &str) -> DialogEventResult {
         self.input_value.insert_str(self.cursor_position, text);
-        self.cursor_position += text.len();
+        let inserted_end = self.cursor_position + text.len();
+        self.cursor_position = self
+            .input_value
+            .grapheme_indices(true)
+            .map(|(index, _)| index)
+            .chain(std::iter::once(self.input_value.len()))
+            .find(|index| *index >= inserted_end)
+            .unwrap_or(self.input_value.len());
         self.last_input_time = Some(Instant::now());
 
         // Reset suggestions
@@ -207,7 +254,7 @@ impl AutocompleteDialog {
         }
 
         // Trigger autocomplete if minimum characters reached
-        if self.input_value.len() >= self.options.autocomplete.min_chars {
+        if self.input_value.graphemes(true).count() >= self.options.autocomplete.min_chars {
             self.trigger_autocomplete();
         } else {
             self.suggestions.clear();
@@ -220,8 +267,13 @@ impl AutocompleteDialog {
     /// Handle backspace
     fn handle_backspace(&mut self) -> DialogEventResult {
         if self.cursor_position > 0 {
-            self.input_value.remove(self.cursor_position - 1);
-            self.cursor_position -= 1;
+            let start = self.input_value[..self.cursor_position]
+                .grapheme_indices(true)
+                .next_back()
+                .map_or(0, |(index, _)| index);
+            self.input_value
+                .replace_range(start..self.cursor_position, "");
+            self.cursor_position = start;
             self.last_input_time = Some(Instant::now());
 
             // Reset suggestions
@@ -233,7 +285,7 @@ impl AutocompleteDialog {
             }
 
             // Trigger autocomplete if minimum characters reached
-            if self.input_value.len() >= self.options.autocomplete.min_chars {
+            if self.input_value.graphemes(true).count() >= self.options.autocomplete.min_chars {
                 self.trigger_autocomplete();
             } else {
                 self.suggestions.clear();
@@ -247,7 +299,10 @@ impl AutocompleteDialog {
     /// Move cursor left
     fn move_cursor_left(&mut self) -> DialogEventResult {
         if self.cursor_position > 0 {
-            self.cursor_position -= 1;
+            self.cursor_position = self.input_value[..self.cursor_position]
+                .grapheme_indices(true)
+                .next_back()
+                .map_or(0, |(index, _)| index);
         }
         DialogEventResult::StateChanged
     }
@@ -255,7 +310,10 @@ impl AutocompleteDialog {
     /// Move cursor right
     fn move_cursor_right(&mut self) -> DialogEventResult {
         if self.cursor_position < self.input_value.len() {
-            self.cursor_position += 1;
+            self.cursor_position += self.input_value[self.cursor_position..]
+                .graphemes(true)
+                .next()
+                .map_or(0, str::len);
         }
         DialogEventResult::StateChanged
     }
@@ -302,20 +360,19 @@ impl AutocompleteDialog {
     fn select_suggestion(&mut self) -> DialogEventResult {
         if let Some(index) = self.selected_suggestion {
             if let Some(suggestion) = self.suggestions.get(index) {
+                if self
+                    .options
+                    .on_select
+                    .as_ref()
+                    .is_some_and(|callback| !callback(&suggestion.value))
+                {
+                    return DialogEventResult::Handled;
+                }
                 self.input_value = suggestion.value.clone();
                 self.cursor_position = self.input_value.len();
                 self.suggestions_visible = false;
 
-                // Call select callback
-                if let Some(callback) = &self.options.on_select {
-                    if callback(&suggestion.value) {
-                        return DialogEventResult::Close(DialogResult::Selected(
-                            suggestion.value.clone(),
-                        ));
-                    }
-                }
-
-                return DialogEventResult::StateChanged;
+                return DialogEventResult::Close(DialogResult::Selected(suggestion.value.clone()));
             }
         }
         DialogEventResult::NotHandled
@@ -336,31 +393,7 @@ impl AutocompleteDialog {
 
     /// Update suggestions from static list
     fn update_static_suggestions(&mut self) {
-        let query = &self.input_value;
-        let static_suggestions = &self.options.autocomplete.static_suggestions;
-
-        let filtered = if let Some(filter_fn) = &self.options.autocomplete.filter_function {
-            filter_fn(query, static_suggestions)
-        } else {
-            // Default filtering: case-insensitive contains
-            static_suggestions
-                .iter()
-                .filter(|s| s.to_lowercase().contains(&query.to_lowercase()))
-                .cloned()
-                .collect()
-        };
-
-        self.suggestions = filtered
-            .into_iter()
-            .take(self.options.autocomplete.max_suggestions)
-            .map(|value| AutocompleteSuggestion {
-                value,
-                display: None,
-                description: None,
-                icon: None,
-                metadata: HashMap::new(),
-            })
-            .collect();
+        self.suggestions = filtered_suggestions(&self.options.autocomplete, &self.input_value);
 
         self.suggestions_visible = !self.suggestions.is_empty();
         self.selected_suggestion = if self.suggestions.is_empty() {
@@ -373,10 +406,8 @@ impl AutocompleteDialog {
     /// Submit the dialog
     fn submit(&mut self) -> DialogEventResult {
         // If a suggestion is selected, use it
-        if let Some(index) = self.selected_suggestion {
-            if let Some(suggestion) = self.suggestions.get(index) {
-                return DialogEventResult::Close(DialogResult::Selected(suggestion.value.clone()));
-            }
+        if self.suggestions_visible && self.selected_suggestion.is_some() {
+            return self.select_suggestion();
         }
 
         // Otherwise use current input value
@@ -419,51 +450,6 @@ impl AutocompleteDialog {
             None
         }
     }
-
-    /// Render suggestions list
-    fn render_suggestions(&self, _theme: &DialogTheme) -> Element {
-        use crate::builder::div;
-
-        if !self.suggestions_visible || self.suggestions.is_empty() {
-            return Element::empty();
-        }
-
-        let suggestion_elements: Vec<Element> = self
-            .suggestions
-            .iter()
-            .enumerate()
-            .map(|(index, suggestion)| {
-                let mut classes = vec!["suggestion-item"];
-
-                if Some(index) == self.selected_suggestion {
-                    classes.push("selected");
-                }
-
-                let mut children = vec![div()
-                    .class("suggestion-value font-medium")
-                    .text(suggestion.display.as_ref().unwrap_or(&suggestion.value))
-                    .build()];
-
-                if self.options.autocomplete.show_descriptions {
-                    if let Some(description) = &suggestion.description {
-                        children.push(
-                            div()
-                                .class("suggestion-description text-sm text-gray-600")
-                                .text(description)
-                                .build(),
-                        );
-                    }
-                }
-
-                div().class(&classes.join(" ")).children(children).build()
-            })
-            .collect();
-
-        div()
-            .class("suggestions-list border border-gray-300 bg-white max-h-48 overflow-y-auto")
-            .children(suggestion_elements)
-            .build()
-    }
 }
 
 impl DialogComponent for AutocompleteDialog {
@@ -475,103 +461,14 @@ impl DialogComponent for AutocompleteDialog {
         "autocomplete"
     }
 
-    fn render(&self, _bounds: Rect, theme: &DialogTheme) -> Element {
-        use crate::builder::{button, div, input};
-
-        let mut children = Vec::new();
-
-        // Title bar
-        if !self.options.title.is_empty() {
-            children.push(
-                div()
-                    .class(&format!("dialog-title {}", theme.title_style))
-                    .text(&self.options.title)
-                    .build(),
-            );
-        }
-
-        // Content area
-        let mut content_children = Vec::new();
-
-        // Prompt
-        content_children.push(
-            div()
-                .class("dialog-prompt text-lg font-medium mb-4")
-                .text(&self.options.prompt)
-                .build(),
-        );
-
-        // Input field container
-        let mut input_container_children = Vec::new();
-
-        // Input field
-        let mut input_classes = vec!["dialog-input", "autocomplete-input"];
-        if self.input_focused {
-            input_classes.push("focused");
-        }
-
-        let mut input_element = input().class(&input_classes.join(" "));
-
-        if let Some(placeholder) = &self.options.autocomplete.placeholder {
-            input_element = input_element.placeholder(placeholder);
-        }
-
-        input_container_children.push(input_element.build());
-
-        // Loading indicator
-        if self.loading {
-            input_container_children.push(
-                div()
-                    .class("loading-indicator text-gray-500 text-sm")
-                    .text("Loading...")
-                    .build(),
-            );
-        }
-
-        // Suggestions
-        let suggestions_element = self.render_suggestions(theme);
-        input_container_children.push(suggestions_element);
-
-        content_children.push(
-            div()
-                .class("input-container relative")
-                .children(input_container_children)
-                .build(),
-        );
-
-        children.push(
-            div()
-                .class("dialog-content p-6")
-                .children(content_children)
-                .build(),
-        );
-
-        // Button area
-        let button_elements = vec![
-            button()
-                .class("dialog-button btn-secondary mr-2")
-                .text("Cancel")
-                .build(),
-            button()
-                .class("dialog-button btn-primary")
-                .text("OK")
-                .build(),
-        ];
-
-        children.push(
-            div()
-                .class("dialog-buttons flex justify-end gap-2 p-4 border-t")
-                .children(button_elements)
-                .build(),
-        );
-
-        div()
-            .class(&format!(
-                "dialog autocomplete-dialog {} {}",
-                theme.dialog_bg, theme.border_style
-            ))
-            .children(children)
-            .build()
+    fn render(&self, bounds: Rect, theme: &DialogTheme) -> Element {
+        Element::typed::<live::LiveAutocomplete>(live::LiveProps {
+            id: self.state.id,
+            options: self.options.clone(),
+            value: self.input_value.clone(),
+            bounds,
+            theme: theme.clone(),
+        })
     }
 
     fn handle_event(&mut self, event: &Event) -> DialogEventResult {
@@ -631,16 +528,7 @@ impl DialogComponent for AutocompleteDialog {
                             // Select the clicked suggestion
                             self.selected_suggestion = Some(clicked_index);
 
-                            // If it's a double-click or the item is already selected, accept it
-                            if mouse_event.kind == MouseEventKind::Down {
-                                if let Some(suggestion) = self.suggestions.get(clicked_index) {
-                                    return DialogEventResult::Close(DialogResult::Selected(
-                                        suggestion.value.clone(),
-                                    ));
-                                }
-                            }
-
-                            DialogEventResult::StateChanged
+                            self.select_suggestion()
                         } else {
                             DialogEventResult::NotHandled
                         }
@@ -658,7 +546,7 @@ impl DialogComponent for AutocompleteDialog {
             if last_input.elapsed() >= self.options.autocomplete.debounce_delay
                 && !self.pending_request
             {
-                if self.input_value.len() >= self.options.autocomplete.min_chars {
+                if self.input_value.graphemes(true).count() >= self.options.autocomplete.min_chars {
                     self.trigger_autocomplete();
                 }
                 self.last_input_time = None;
@@ -846,6 +734,28 @@ impl Default for AutocompleteConfig {
     }
 }
 
+fn filtered_suggestions(config: &AutocompleteConfig, query: &str) -> Vec<AutocompleteSuggestion> {
+    if query.graphemes(true).count() < config.min_chars {
+        return Vec::new();
+    }
+    let values = if let Some(filter) = &config.filter_function {
+        filter(query, &config.static_suggestions)
+    } else {
+        let query = query.to_lowercase();
+        config
+            .static_suggestions
+            .iter()
+            .filter(|value| value.to_lowercase().contains(&query))
+            .cloned()
+            .collect()
+    };
+    values
+        .into_iter()
+        .take(config.max_suggestions)
+        .map(|value| AutocompleteSuggestion::simple(&value))
+        .collect()
+}
+
 impl AutocompleteSuggestion {
     /// Create a simple suggestion with just a value
     pub fn simple(value: &str) -> Self {
@@ -890,5 +800,71 @@ impl AutocompleteSuggestion {
     pub fn with_metadata(mut self, key: &str, value: &str) -> Self {
         self.metadata.insert(key.to_string(), value.to_string());
         self
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    #[test]
+    fn native_editing_preserves_whole_graphemes() {
+        let mut dialog = AutocompleteDialog::new(DialogId::from_u32(1), Default::default());
+        dialog.handle_text_input("Ae\u{301}界👩‍💻Z");
+        dialog.move_cursor_left();
+        dialog.handle_backspace();
+        assert_eq!(dialog.input_value, "Ae\u{301}界Z");
+        dialog.move_cursor_left();
+        dialog.handle_backspace();
+        assert_eq!(dialog.input_value, "A界Z");
+        dialog.move_cursor_right();
+        dialog.handle_text_input("X");
+        assert_eq!(dialog.input_value, "A界XZ");
+    }
+
+    #[test]
+    fn native_minimum_counts_displayed_characters() {
+        let mut options = AutocompleteDialogOptions::default();
+        options.autocomplete.min_chars = 2;
+        options.autocomplete.static_suggestions = vec!["界面".into()];
+        let mut dialog = AutocompleteDialog::new(DialogId::from_u32(1), options);
+        dialog.handle_text_input("界");
+        assert!(dialog.suggestions.is_empty());
+        dialog.handle_text_input("面");
+        assert_eq!(dialog.suggestions.len(), 1);
+    }
+
+    #[test]
+    fn native_selection_without_callback_closes() {
+        let mut dialog = AutocompleteDialog::new(DialogId::from_u32(1), Default::default());
+        dialog.suggestions = vec![AutocompleteSuggestion::simple("chosen")];
+        dialog.selected_suggestion = Some(0);
+        dialog.suggestions_visible = true;
+        assert!(
+            matches!(dialog.select_suggestion(), DialogEventResult::Close(DialogResult::Selected(value)) if value == "chosen")
+        );
+    }
+
+    #[test]
+    fn native_submit_honors_selection_veto_once_without_mutation() {
+        let calls = Arc::new(AtomicUsize::new(0));
+        let observed = calls.clone();
+        let options = AutocompleteDialogOptions {
+            on_select: Some(Arc::new(move |_| {
+                observed.fetch_add(1, Ordering::SeqCst);
+                false
+            })),
+            ..Default::default()
+        };
+        let mut dialog = AutocompleteDialog::new(DialogId::from_u32(1), options);
+        dialog.handle_text_input("draft");
+        dialog.suggestions = vec![AutocompleteSuggestion::simple("chosen")];
+        dialog.selected_suggestion = Some(0);
+        dialog.suggestions_visible = true;
+        assert!(!matches!(dialog.submit(), DialogEventResult::Close(_)));
+        assert_eq!(calls.load(Ordering::SeqCst), 1);
+        assert_eq!(dialog.input_value, "draft");
+        assert!(dialog.suggestions_visible);
     }
 }

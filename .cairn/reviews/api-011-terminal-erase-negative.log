@@ -1,0 +1,33 @@
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 6.67s
+     Running unittests src/lib.rs (target/debug/deps/reactive_tui-fa00cdcf48e682eb)
+
+running 2 tests
+test terminal::screen::tests::erase_from_cursor_clears_whole_wide_glyph_with_current_background ... FAILED
+test terminal::screen::tests::erase_to_cursor_includes_cursor_and_preserves_later_cells ... FAILED
+
+failures:
+
+---- terminal::screen::tests::erase_from_cursor_clears_whole_wide_glyph_with_current_background stdout ----
+
+thread 'terminal::screen::tests::erase_from_cursor_clears_whole_wide_glyph_with_current_background' (4039465) panicked at src/terminal/screen/tests.rs:40:9:
+assertion `left == right` failed: column 1
+  left: "界"
+ right: " "
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- terminal::screen::tests::erase_to_cursor_includes_cursor_and_preserves_later_cells stdout ----
+
+thread 'terminal::screen::tests::erase_to_cursor_includes_cursor_and_preserves_later_cells' (4039466) panicked at src/terminal/screen/tests.rs:52:13:
+assertion `left == right` failed
+  left: "a"
+ right: " "
+
+
+failures:
+    terminal::screen::tests::erase_from_cursor_clears_whole_wide_glyph_with_current_background
+    terminal::screen::tests::erase_to_cursor_includes_cursor_and_preserves_later_cells
+
+test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 918 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `--lib`

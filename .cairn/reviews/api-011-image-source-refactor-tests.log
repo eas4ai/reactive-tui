@@ -1,0 +1,12 @@
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 17.17s
+     Running unittests src/lib.rs (target/debug/deps/reactive_tui-fa00cdcf48e682eb)
+
+running 4 tests
+test widgets::display::image::decoded::tests::api_image_decode_opaque_renderers_composite_alpha ... ok
+test widgets::display::image::decoded::tests::api_image_decode_rejects_malformed_and_oversized_sources ... ok
+test widgets::display::image::decoded::tests::api_image_decode_sources_preserve_pixels_and_encoded_dimensions ... ok
+test widgets::display::image::decoded::tests::api_image_decode_all_advertised_encoded_formats ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 888 filtered out; finished in 0.00s
+

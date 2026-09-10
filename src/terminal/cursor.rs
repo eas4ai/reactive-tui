@@ -38,7 +38,7 @@ pub struct TerminalCursor {
     /// Whether the cursor is pending a wrap to next line
     pub pending_wrap: bool,
     /// Saved cursor position for restore operations
-    saved_position: Option<(u16, u16)>,
+    pub(super) saved_position: Option<(u16, u16)>,
     /// Saved cursor style for restore operations
     saved_style: Option<TerminalStyle>,
     /// URL for hyperlink at cursor position
@@ -106,10 +106,13 @@ impl TerminalCursor {
         self.pending_wrap = false;
         match scrolling_region {
             Some(region) if self.is_within_region(region) => {
-                self.row = (self.row + n).min(region.bottom);
+                self.row = self.row.saturating_add(n).min(region.bottom);
             }
             _ => {
-                self.row = (self.row + n).min(screen_height.saturating_sub(1));
+                self.row = self
+                    .row
+                    .saturating_add(n)
+                    .min(screen_height.saturating_sub(1));
             }
         }
     }
@@ -137,10 +140,13 @@ impl TerminalCursor {
         self.pending_wrap = false;
         match scrolling_region {
             Some(region) if self.is_within_region(region) => {
-                self.col = (self.col + n).min(region.right);
+                self.col = self.col.saturating_add(n).min(region.right);
             }
             _ => {
-                self.col = (self.col + n).min(screen_width.saturating_sub(1));
+                self.col = self
+                    .col
+                    .saturating_add(n)
+                    .min(screen_width.saturating_sub(1));
             }
         }
     }
@@ -172,12 +178,9 @@ impl TerminalCursor {
 
     /// Advance cursor by character width
     pub fn advance(&mut self, char_width: u8, screen_width: u16, auto_wrap: bool) {
-        self.col += char_width as u16;
-
-        if auto_wrap && self.col >= screen_width {
-            self.pending_wrap = true;
-            self.col = screen_width.saturating_sub(1);
-        }
+        let next = self.col.saturating_add(u16::from(char_width));
+        self.pending_wrap = auto_wrap && next >= screen_width;
+        self.col = next.min(screen_width.saturating_sub(1));
     }
 
     /// Handle pending line wrap
@@ -329,5 +332,21 @@ mod tests {
         assert_eq!(cursor.col, 10);
         assert_eq!(cursor.row, 5);
         assert!(cursor.style.bold);
+    }
+
+    #[test]
+    fn movement_saturates_and_non_wrapping_output_stays_on_screen() {
+        let mut cursor = TerminalCursor::new();
+        cursor.move_to(79, 23);
+        cursor.advance(2, 80, false);
+        assert_eq!(cursor.col, 79);
+        assert!(!cursor.pending_wrap);
+        cursor.move_right(u16::MAX, None, 80);
+        cursor.move_down(u16::MAX, None, 24);
+        assert_eq!((cursor.col, cursor.row), (79, 23));
+        cursor.col = u16::MAX;
+        cursor.advance(2, 80, true);
+        assert_eq!(cursor.col, 79);
+        assert!(cursor.pending_wrap);
     }
 }

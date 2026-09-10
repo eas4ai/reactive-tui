@@ -34,14 +34,15 @@ pub struct Renderer {
     diff_start: Option<Instant>,
     write_start: Option<Instant>,
     surface_start: Option<Instant>,
+    output_failed: bool,
+    terminal_active: bool,
 }
 
 impl Drop for Renderer {
     fn drop(&mut self) {
         // Use std::panic::catch_unwind to ensure terminal cleanup even during double panic
-        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            self.term.exit_modern_mode()
-        }));
+        let result =
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| self.restore_terminal()));
 
         // If normal cleanup failed, try emergency terminal restore
         if result.is_err() || matches!(result, Ok(Err(_))) {
@@ -67,11 +68,21 @@ impl Renderer {
         let mut term = Terminal::new()?;
         term.capability_gate()?;
         term.enter_modern_mode()?;
+        let caps = term.capabilities();
+        let mut images = crate::backend::ImageOutputOptions {
+            kitty_graphics: caps.kitty_graphics,
+            sixel: caps.sixel,
+            iterm2_inline: caps.iterm2_graphics,
+            ..Default::default()
+        };
+        images.refresh_cell_pixels();
+        let mut diff = DiffWriter::new();
+        diff.set_image_options(images);
         Ok(Self {
             term,
             front: Surface::new(width, height),
             back: Surface::new(width, height),
-            diff: DiffWriter::new(),
+            diff,
             last_stats: FrameStats::default(),
             frame_start: None,
             debug_overlay: false,
@@ -80,6 +91,8 @@ impl Renderer {
             diff_start: None,
             write_start: None,
             surface_start: None,
+            output_failed: true,
+            terminal_active: true,
         })
     }
 
@@ -92,6 +105,15 @@ impl Renderer {
     pub fn resize(&mut self, width: usize, height: usize) {
         self.front.reinit(width, height);
         self.back.reinit(width, height);
+        self.diff.refresh_image_cell_pixels();
+        self.output_failed = true;
+    }
+
+    /// Override detected graphics support with caller-confirmed host settings.
+    pub fn set_image_options(&mut self, mut options: crate::backend::ImageOutputOptions) {
+        options.refresh_cell_pixels();
+        self.diff.set_image_options(options);
+        self.output_failed = true;
     }
 
     /// Enable high-performance mode with large output buffers
@@ -173,6 +195,28 @@ impl Renderer {
 
     /// End the current frame and send updates to terminal
     pub fn end_frame(&mut self) -> Result<()> {
+        let output = self
+            .write_frame()
+            .and_then(|()| self.term.flush_buffered())
+            .and_then(|()| self.term.flush());
+        // End synchronized output even after preparation, write or flush failed.
+        let ended = self.term.end_sync();
+        let result = output.and(ended);
+        self.output_failed = result.is_err();
+        if self.output_failed {
+            self.term.discard_buffered();
+        }
+        result?;
+        self.diff.acknowledge_output();
+        if self.front.dims() == self.back.dims() {
+            self.front.copy_from(&self.back);
+        } else {
+            self.front = self.back.clone_into_new();
+        }
+        Ok(())
+    }
+
+    fn write_frame(&mut self) -> Result<()> {
         let surface_time = self
             .surface_start
             .take()
@@ -183,7 +227,8 @@ impl Renderer {
         self.diff_start = Some(Instant::now());
 
         // Diff and write
-        self.diff.diff(&self.front, &self.back, false);
+        self.diff
+            .try_diff(&self.front, &self.back, self.output_failed)?;
         let out = self.diff.output();
 
         let diff_time = self
@@ -195,10 +240,7 @@ impl Renderer {
         // Start write timing
         self.write_start = Some(Instant::now());
 
-        // Try buffered write first, fall back to direct write
-        if self.term.write_all_buffered(out).is_err() {
-            Terminal::write_all(out)?;
-        }
+        self.term.write_all_buffered(out)?;
 
         let write_time = self
             .write_start
@@ -275,24 +317,9 @@ impl Renderer {
                 )
             };
 
-            // Try buffered write first, fall back to direct write
-            if self.term.write_all_buffered(overlay.as_bytes()).is_err() {
-                Terminal::write_all(overlay.as_bytes())?;
-            }
+            self.term.write_all_buffered(overlay.as_bytes())?;
         }
-        // Make front reflect the just-rendered back buffer for next diff
-        let (fw, fh) = self.front.dims();
-        let (bw, bh) = self.back.dims();
-        if (fw, fh) == (bw, bh) {
-            self.front.copy_from(&self.back);
-        } else {
-            self.front = self.back.clone_into_new();
-        }
-
-        // Flush buffered output before ending sync
-        let _ = self.term.flush_buffered();
-
-        self.term.end_sync()
+        Ok(())
     }
 
     /// Shutdown the renderer and restore terminal state
@@ -302,9 +329,17 @@ impl Renderer {
 
     /// Restore terminal state while retaining the renderer allocation for FFI destruction.
     pub(crate) fn restore_terminal(&mut self) -> Result<()> {
-        // Ensure all buffered data is flushed before shutdown
-        let _ = self.term.disable_buffered_mode();
-        self.term.exit_modern_mode()
+        if !self.terminal_active {
+            return Ok(());
+        }
+        self.terminal_active = false;
+        let flushed = self.term.disable_buffered_mode();
+        let cleaned = self
+            .term
+            .write_raw(&self.diff.image_cleanup())
+            .and_then(|()| self.term.flush());
+        let restored = self.term.exit_modern_mode();
+        flushed.and(cleaned).and(restored)
     }
 
     /// Get statistics from the last rendered frame

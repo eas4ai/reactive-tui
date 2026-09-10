@@ -1,0 +1,12 @@
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 8.24s
+     Running unittests src/lib.rs (target/debug/deps/reactive_tui-fa00cdcf48e682eb)
+
+running 4 tests
+test terminal::screen::tests::terminal_screen_tab_stops_addressing_and_pending_wrap ... ok
+test terminal::screen::tests::terminal_screen_insert_mode_preserves_combining_clusters ... ok
+test terminal::screen::tests::terminal_screen_line_edits_and_scroll_preserve_margins ... ok
+test terminal::screen::tests::terminal_screen_character_edits_preserve_text_and_wide_boundaries ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 937 filtered out; finished in 0.00s
+

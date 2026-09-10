@@ -1,0 +1,25 @@
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 7.27s
+     Running tests/api_widget_behavior.rs (target/debug/deps/api_widget_behavior-7f38c785954f09a5)
+
+running 1 test
+
+thread 'image_acceptance::image_animated_gif_advances_without_input_and_repeats_through_app' (3009290) panicked at tests/support/app_input.rs:102:13:
+App painted 2 frames but input needs Some((1, [])) before the deadline. Last frame:
+                
+                
+                
+                
+                
+                
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test image_acceptance::image_animated_gif_advances_without_input_and_repeats_through_app ... FAILED
+
+failures:
+
+failures:
+    image_acceptance::image_animated_gif_advances_without_input_and_repeats_through_app
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 339 filtered out; finished in 3.00s
+
+error: test failed, to rerun pass `--test api_widget_behavior`

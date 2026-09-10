@@ -76,6 +76,9 @@ impl MixedElementBuilder {
 }
 
 /// Enum for mixed children types
+// Keep the public Element(Element) constructor compatible. Element's optional
+// accessibility payload is boxed; boxing this variant would break callers.
+#[allow(clippy::large_enum_variant)]
 pub enum MixedChild {
     /// A built Element from the builder API
     Element(Element),

@@ -8,7 +8,6 @@ use crate::widgets::menu::{
     ContextMenuProps, DialogMenuProps, MenuBarProps, MenuItem, MenuStyle, PopupMenuProps,
     PopupPlacement,
 };
-use std::sync::Arc;
 
 /// Create a MenuBar component in VDOM
 pub fn menubar() -> VComponent {
@@ -32,22 +31,22 @@ pub fn dialog_menu() -> VComponent {
 
 /// Create a MenuBar VNode with props
 pub fn menubar_with_props(props: MenuBarProps) -> VNode {
-    VNode::Component(VComponent::new("MenuBar").props(Arc::new(props)))
+    VNode::Component(VComponent::new("MenuBar").props(props))
 }
 
 /// Create a ContextMenu VNode with props
 pub fn context_menu_with_props(props: ContextMenuProps) -> VNode {
-    VNode::Component(VComponent::new("ContextMenu").props(Arc::new(props)))
+    VNode::Component(VComponent::new("ContextMenu").props(props))
 }
 
 /// Create a PopupMenu VNode with props
 pub fn popup_menu_with_props(props: PopupMenuProps) -> VNode {
-    VNode::Component(VComponent::new("PopupMenu").props(Arc::new(props)))
+    VNode::Component(VComponent::new("PopupMenu").props(props))
 }
 
 /// Create a DialogMenu VNode with props
 pub fn dialog_menu_with_props(props: DialogMenuProps) -> VNode {
-    VNode::Component(VComponent::new("DialogMenu").props(Arc::new(props)))
+    VNode::Component(VComponent::new("DialogMenu").props(props))
 }
 
 /// Convenience function to create a simple menubar with items

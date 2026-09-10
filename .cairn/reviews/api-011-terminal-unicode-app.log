@@ -1,0 +1,8 @@
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 10.30s
+     Running tests/api_widget_behavior.rs (target/debug/deps/api_widget_behavior-7f38c785954f09a5)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 345 filtered out; finished in 0.00s
+

@@ -10,6 +10,37 @@ use crate::layout::style::StyleBuilder;
 
 /// Apply accessibility utilities
 pub fn apply_accessibility_utilities(token: &str, sb: StyleBuilder) -> Option<StyleBuilder> {
+    let mut sb = sb;
+    if token.starts_with("aria-") {
+        let (attribute, value) = if let Some(attribute) = token.strip_suffix("-false") {
+            (attribute, Some("false"))
+        } else if let Some(level) = token.strip_prefix("aria-live-") {
+            ("aria-live", Some(level))
+        } else if matches!(token, "aria-label" | "aria-labelledby" | "aria-describedby") {
+            (token, None)
+        } else {
+            (token, Some("true"))
+        };
+        match value {
+            Some(value) => {
+                sb.accessibility
+                    .insert(attribute.into(), Some(value.into()));
+            }
+            None => {
+                sb.accessibility.entry(attribute.into()).or_insert(None);
+            }
+        }
+    } else if let Some(role) = token.strip_prefix("role-") {
+        sb = super::focus::apply_role(sb, role);
+    } else if let Some(index) = token.strip_prefix("tabindex-") {
+        sb.accessibility
+            .insert("tabindex".into(), Some(index.into()));
+    } else if matches!(
+        token,
+        "keyboard-focusable" | "keyboard-only" | "reduced-motion"
+    ) {
+        sb.accessibility.insert(token.into(), Some("true".into()));
+    }
     // ARIA attributes
     if token.starts_with("aria-") {
         return apply_aria_utility(token, sb);
@@ -271,11 +302,11 @@ fn apply_generic_role(sb: StyleBuilder, _role: &str) -> StyleBuilder {
 
 // Other accessibility utilities
 fn apply_screen_reader_only(sb: StyleBuilder) -> StyleBuilder {
-    sb.opacity(0.0)
+    super::focus::apply_focus_utilities("sr-only", sb).expect("known accessibility utility")
 }
 
 fn apply_not_screen_reader_only(sb: StyleBuilder) -> StyleBuilder {
-    sb.opacity(1.0)
+    super::focus::apply_focus_utilities("not-sr-only", sb).expect("known accessibility utility")
 }
 
 fn apply_keyboard_focusable(sb: StyleBuilder) -> StyleBuilder {

@@ -1,0 +1,30 @@
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 14.54s
+     Running tests/api_widget_behavior.rs (target/debug/deps/api_widget_behavior-af8b000cab735812)
+
+running 6 tests
+test vdom_acceptance::typed_vdom_properties_and_component_payloads_survive_conversion ... ok
+
+thread 'vdom_acceptance::invalid_inline_declarations_return_app_errors' (1114202) panicked at src/layout/colors.rs:9:34:
+end byte index 1 is not a char boundary; it is inside '界' (bytes 0..3) of `界`
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test vdom_acceptance::invalid_inline_declarations_return_app_errors ... FAILED
+test vdom_acceptance::inline_styles_override_classes_and_retain_terminal_paint_and_geometry ... ok
+
+thread 'vdom_acceptance::registered_vdom_components_update_props_styles_and_replace_handlers' (1114205) panicked at tests/api_widget_behavior/vdom.rs:145:9:
+assertion `left == right` failed
+  left: []
+ right: [0, 1]
+test vdom_acceptance::registered_vdom_components_update_props_styles_and_replace_handlers ... FAILED
+test vdom_acceptance::native_elements_round_trip_through_vdom_without_losing_controls ... ok
+test vdom_acceptance::mixed_routes_preserve_native_payloads_disabled_state_and_resized_targets ... ok
+
+failures:
+
+failures:
+    vdom_acceptance::invalid_inline_declarations_return_app_errors
+    vdom_acceptance::registered_vdom_components_update_props_styles_and_replace_handlers
+
+test result: FAILED. 4 passed; 2 failed; 0 ignored; 0 measured; 357 filtered out; finished in 0.17s
+
+error: test failed, to rerun pass `--test api_widget_behavior`

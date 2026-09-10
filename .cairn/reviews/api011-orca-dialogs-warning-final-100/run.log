@@ -1,0 +1,12 @@
+A11Y # GNOME Terminal 3.58.0 using VTE 0.84.0 +BIDI +GNUTLS +ICU +SYSTEMD
+A11Y Orca version 50.1.2, AT-SPI2 version: 2.60.0, Session: x11 gnome
+A11Y isolated X11/Xvfb viewport 100x32
+A11Y ConfirmationDialog: dialog speech, default focus, disabled action and completion passed
+A11Y InputDialog: entry speech, required error announcement, editing and confirmed result passed
+A11Y AutocompleteDialog: input/list/option roles, selected speech, assistive selection and result passed
+A11Y ProgressDialog: dialog/progress roles, numeric value speech and cancellation passed
+A11Y WizardDialog: validation speech, step navigation, nested editing and completion passed
+A11Y Toast: message speech, expiry and retained background focus passed
+A11Y DialogBuilder: dialog and entry roles, input speech/editing and dismissal passed
+A11Y data controls: reader delivery and adapter removal passed
+Orca diagnostic logs: /var/tmp/reactive-tui-api011/rtui-orca-c1pdwbwl

@@ -1,0 +1,14 @@
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 5.56s
+     Running tests/api_widget_behavior.rs (target/debug/deps/api_widget_behavior-af8b000cab735812)
+
+running 6 tests
+test macro_acceptance::button_macros_preserve_callbacks_and_children ... ok
+test macro_acceptance::chart_macros_paint_data_geometry ... ok
+test macro_acceptance::checkbox_and_select_macros_change_selection ... ok
+test macro_acceptance::display_macros_paint_actual_values ... ok
+test macro_acceptance::input_macros_build_editable_controls ... ok
+test macro_acceptance::tabs_macro_retains_editable_child_controls ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 371 filtered out; finished in 2.01s
+

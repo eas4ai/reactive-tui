@@ -1,0 +1,30 @@
+clipboard (windows-2022, windows)	Native clipboard round trips and child cleanup	﻿2026-09-10T11:20:16.3764451Z ##[group]Run python -B scripts/check-clipboard-platforms.py --backend windows --dedicated-desktop
+clipboard (windows-2022, windows)	Native clipboard round trips and child cleanup	2026-09-10T11:20:16.3765253Z [36;1mpython -B scripts/check-clipboard-platforms.py --backend windows --dedicated-desktop[0m
+clipboard (windows-2022, windows)	Native clipboard round trips and child cleanup	2026-09-10T11:20:16.3819084Z shell: C:\msys64\usr\bin\bash.EXE --noprofile --norc -e -o pipefail {0}
+clipboard (windows-2022, windows)	Native clipboard round trips and child cleanup	2026-09-10T11:20:16.3819496Z ##[endgroup]
+clipboard (windows-2022, windows)	Native clipboard round trips and child cleanup	2026-09-10T11:27:26.6312442Z Traceback (most recent call last):
+clipboard (windows-2022, windows)	Native clipboard round trips and child cleanup	2026-09-10T11:27:26.6316868Z   File "D:\a\reactive-tui\reactive-tui\scripts\check-clipboard-platforms.py", line 260, in <module>
+clipboard (windows-2022, windows)	Native clipboard round trips and child cleanup	2026-09-10T11:27:26.6317621Z     run_backend(arguments)
+clipboard (windows-2022, windows)	Native clipboard round trips and child cleanup	2026-09-10T11:27:26.6410737Z   File "D:\a\reactive-tui\reactive-tui\scripts\check-clipboard-platforms.py", line 196, in run_backend
+clipboard (windows-2022, windows)	Native clipboard round trips and child cleanup	2026-09-10T11:27:26.6476572Z     output = captured(command, env, timeout=30)
+clipboard (windows-2022, windows)	Native clipboard round trips and child cleanup	2026-09-10T11:27:26.6477692Z              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+clipboard (windows-2022, windows)	Native clipboard round trips and child cleanup	2026-09-10T11:27:26.6479474Z   File "D:\a\reactive-tui\reactive-tui\scripts\check-clipboard-platforms.py", line 64, in captured
+clipboard (windows-2022, windows)	Native clipboard round trips and child cleanup	2026-09-10T11:27:26.6480833Z     raise RuntimeError(f"command exited {status}: {command}\n{text[-12000:]}")
+clipboard (windows-2022, windows)	Native clipboard round trips and child cleanup	2026-09-10T11:27:26.6482513Z RuntimeError: command exited 101: ['D:\\a\\reactive-tui\\reactive-tui\\target\\debug\\deps\\clipboard_platform-8cb8b475987fef1d.exe', '--ignored', '--exact', 'clipboard_platform_roundtrip', '--nocapture']
+clipboard (windows-2022, windows)	Native clipboard round trips and child cleanup	2026-09-10T11:27:26.6483493Z 
+clipboard (windows-2022, windows)	Native clipboard round trips and child cleanup	2026-09-10T11:27:26.6483814Z running 1 test
+clipboard (windows-2022, windows)	Native clipboard round trips and child cleanup	2026-09-10T11:27:26.6484143Z 
+clipboard (windows-2022, windows)	Native clipboard round trips and child cleanup	2026-09-10T11:27:26.6484711Z thread 'clipboard_platform_roundtrip' (2880) panicked at tests\clipboard_platform.rs:25:9:
+clipboard (windows-2022, windows)	Native clipboard round trips and child cleanup	2026-09-10T11:27:26.6485674Z windows copy of 13 bytes: Some("clipboard operation timed out after 15 seconds")
+clipboard (windows-2022, windows)	Native clipboard round trips and child cleanup	2026-09-10T11:27:26.6486491Z note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+clipboard (windows-2022, windows)	Native clipboard round trips and child cleanup	2026-09-10T11:27:26.6487249Z test clipboard_platform_roundtrip ... FAILED
+clipboard (windows-2022, windows)	Native clipboard round trips and child cleanup	2026-09-10T11:27:26.6487609Z 
+clipboard (windows-2022, windows)	Native clipboard round trips and child cleanup	2026-09-10T11:27:26.6487870Z failures:
+clipboard (windows-2022, windows)	Native clipboard round trips and child cleanup	2026-09-10T11:27:26.6488117Z 
+clipboard (windows-2022, windows)	Native clipboard round trips and child cleanup	2026-09-10T11:27:26.6488363Z failures:
+clipboard (windows-2022, windows)	Native clipboard round trips and child cleanup	2026-09-10T11:27:26.6488837Z     clipboard_platform_roundtrip
+clipboard (windows-2022, windows)	Native clipboard round trips and child cleanup	2026-09-10T11:27:26.6489205Z 
+clipboard (windows-2022, windows)	Native clipboard round trips and child cleanup	2026-09-10T11:27:26.6489651Z test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 15.07s
+clipboard (windows-2022, windows)	Native clipboard round trips and child cleanup	2026-09-10T11:27:26.6490215Z 
+clipboard (windows-2022, windows)	Native clipboard round trips and child cleanup	2026-09-10T11:27:26.6490310Z 
+clipboard (windows-2022, windows)	Native clipboard round trips and child cleanup	2026-09-10T11:27:26.8457546Z ##[error]Process completed with exit code 1.

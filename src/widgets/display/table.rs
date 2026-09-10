@@ -1,35 +1,52 @@
 use super::{Alignment, Border, DisplaySize, ScrollState};
 use crate::component::{Component, Element, LayoutType, Props};
 use crate::event::router::EventResult;
-use crate::event::types::{Event, KeyCode, KeyModifiers, MouseEvent, MouseEventKind};
+use crate::event::types::{Event, KeyCode, KeyModifiers};
 
-/// Wheel scroll direction for precise scrolling control
-#[derive(Debug, Clone, Copy, PartialEq)]
-#[allow(dead_code)]
-enum WheelDirection {
-    Up,
-    Down,
-    Left,
-    Right,
-}
 use std::collections::HashMap;
 use std::sync::Arc;
+use unicode_width::UnicodeWidthStr;
 
+pub(in crate::widgets) mod border;
+mod live;
 type RowActionCallback = dyn Fn(usize, &str) + Send + Sync;
 
-/// Result of hit testing on table elements
-#[derive(Debug, Clone, PartialEq)]
-enum TableHitResult {
-    /// Hit a column header
-    Header(usize),
-    /// Hit a data row
-    Row(usize),
-    /// Hit a specific cell
-    Cell(usize, usize), // (row, column)
-    /// Hit the scrollbar area
-    ScrollBar,
-    /// Hit outside the table
-    Outside,
+pub(super) fn validation_error(props: &TableProps) -> Option<String> {
+    let mut columns = std::collections::HashSet::new();
+    for column in &props.columns {
+        if !columns.insert(&column.key) {
+            return Some(format!("Duplicate table column key: {}", column.key));
+        }
+        if column
+            .max_width
+            .is_some_and(|maximum| maximum < column.min_width)
+        {
+            return Some(format!(
+                "Column {} minimum width exceeds its maximum",
+                column.key
+            ));
+        }
+        if matches!(column.width,DisplaySize::Percent(value)|DisplaySize::Flex(value) if !value.is_finite() || value<0.0)
+        {
+            return Some(format!(
+                "Column {} width must be finite and nonnegative",
+                column.key
+            ));
+        }
+    }
+    if props
+        .sort_column
+        .is_some_and(|index| index >= props.columns.len())
+    {
+        return Some("Table sort column is out of range".into());
+    }
+    let mut rows = std::collections::HashSet::new();
+    for row in &props.rows {
+        if !rows.insert(&row.id) {
+            return Some(format!("Duplicate table row ID: {}", row.id));
+        }
+    }
+    None
 }
 
 /// Props for the Table component
@@ -283,59 +300,43 @@ impl Table {
     }
 
     fn calculate_column_widths(&self, props: &TableProps, available_width: u16) -> Vec<u16> {
-        let column_count = props.columns.len();
-        if column_count == 0 {
-            return Vec::new();
+        let mut widths = Vec::with_capacity(props.columns.len());
+        let mut flexible = Vec::new();
+        let mut weight = 0.0f64;
+        for (index, column) in props.columns.iter().enumerate() {
+            let requested = match column.width {
+                DisplaySize::Fixed(width) => width,
+                DisplaySize::Percent(percent) => {
+                    (available_width as f32 * percent.max(0.0) / 100.0) as u16
+                }
+                DisplaySize::Auto => Self::calculate_column_content_width(props, index),
+                DisplaySize::Flex(factor) => {
+                    if factor.is_finite() && factor > 0.0 {
+                        flexible.push((index, factor as f64));
+                        weight += factor as f64;
+                    }
+                    column.min_width
+                }
+            };
+            widths.push(
+                requested
+                    .max(column.min_width)
+                    .min(column.max_width.unwrap_or(u16::MAX).max(column.min_width)),
+            );
         }
-
-        let mut widths = vec![0u16; column_count];
-        let mut remaining_width = available_width;
-        let mut flex_columns = Vec::new();
-        let mut flex_total = 0.0;
-
-        // First pass: calculate fixed and percent widths
-        for (i, column) in props.columns.iter().enumerate() {
-            match column.width {
-                DisplaySize::Fixed(w) => {
-                    widths[i] = w.min(remaining_width);
-                    remaining_width = remaining_width.saturating_sub(widths[i]);
-                }
-                DisplaySize::Percent(p) => {
-                    let w = (available_width as f32 * p / 100.0) as u16;
-                    widths[i] = w.min(remaining_width);
-                    remaining_width = remaining_width.saturating_sub(widths[i]);
-                }
-                DisplaySize::Flex(f) => {
-                    flex_columns.push(i);
-                    flex_total += f;
-                }
-                DisplaySize::Auto => {
-                    // Auto width based on content - production implementation
-                    let content_width = Self::calculate_column_content_width(props, i);
-                    widths[i] = content_width.min(remaining_width);
-                    remaining_width = remaining_width.saturating_sub(widths[i]);
-                }
-            }
+        let occupied: usize = widths.iter().map(|&width| width as usize).sum();
+        let mut extra = (available_width as usize).saturating_sub(occupied);
+        for (index, factor) in flexible {
+            let share = (extra as f64 * factor / weight).round() as usize;
+            let cap = props.columns[index]
+                .max_width
+                .unwrap_or(u16::MAX)
+                .max(props.columns[index].min_width);
+            let added = share.min(cap.saturating_sub(widths[index]) as usize);
+            widths[index] = widths[index].saturating_add(added as u16);
+            extra -= added;
+            weight -= factor;
         }
-
-        // Second pass: distribute remaining width among flex columns
-        if !flex_columns.is_empty() && remaining_width > 0 {
-            for &i in &flex_columns {
-                let flex_value = match props.columns[i].width {
-                    DisplaySize::Flex(f) => f,
-                    DisplaySize::Auto => 1.0,
-                    _ => unreachable!(),
-                };
-
-                let width = (remaining_width as f32 * flex_value / flex_total) as u16;
-                widths[i] = width.max(props.columns[i].min_width);
-
-                if let Some(max) = props.columns[i].max_width {
-                    widths[i] = widths[i].min(max);
-                }
-            }
-        }
-
         widths
     }
 
@@ -372,78 +373,78 @@ impl Table {
         props: &TableProps,
         state: &mut TableState,
     ) -> EventResult {
-        if !props.selectable || props.rows.is_empty() {
+        if !props.selectable || props.rows.is_empty() || props.columns.is_empty() {
             return EventResult::Ignored;
         }
 
-        let current_selected = state.selected_rows.first().copied().unwrap_or(0);
-        let row_count = props.rows.len();
-
-        match key {
+        let order: Vec<_> = self
+            .sort_rows(props, state)
+            .into_iter()
+            .filter(|&index| props.rows[index].selectable)
+            .collect();
+        if order.is_empty() {
+            return EventResult::Ignored;
+        }
+        let current = state
+            .selected_row
+            .or_else(|| state.selected_rows.first().copied());
+        let position = current.and_then(|row| order.iter().position(|&index| index == row));
+        let last = order.len() - 1;
+        let page = state.scroll_state.viewport_height.max(1) as usize;
+        let target = match key {
+            KeyCode::Down => Some(position.map_or(0, |index| (index + 1) % order.len())),
             KeyCode::Up => {
-                let new_selected = if current_selected > 0 {
-                    current_selected - 1
-                } else {
-                    row_count - 1
-                };
-                self.select_row(props, state, new_selected, modifiers.shift);
-                EventResult::Consumed
+                Some(position.map_or(last, |index| if index == 0 { last } else { index - 1 }))
             }
-            KeyCode::Down => {
-                let new_selected = (current_selected + 1) % row_count;
-                self.select_row(props, state, new_selected, modifiers.shift);
-                EventResult::Consumed
-            }
-            KeyCode::Home => {
-                self.select_row(props, state, 0, modifiers.shift);
-                EventResult::Consumed
-            }
-            KeyCode::End => {
-                self.select_row(props, state, row_count - 1, modifiers.shift);
-                EventResult::Consumed
-            }
-            KeyCode::PageUp => {
-                let page_size = state.scroll_state.viewport_height.max(1);
-                let new_selected = current_selected.saturating_sub(page_size as usize);
-                self.select_row(props, state, new_selected, modifiers.shift);
-                EventResult::Consumed
-            }
+            KeyCode::Home => Some(0),
+            KeyCode::End => Some(last),
             KeyCode::PageDown => {
-                let page_size = state.scroll_state.viewport_height.max(1);
-                let new_selected = (current_selected + page_size as usize).min(row_count - 1);
-                self.select_row(props, state, new_selected, modifiers.shift);
-                EventResult::Consumed
+                Some(position.map_or(0, |index| index.saturating_add(page).min(last)))
             }
+            KeyCode::PageUp => Some(position.map_or(last, |index| index.saturating_sub(page))),
             KeyCode::Enter => {
+                let Some(row) = position.map(|index| order[index]) else {
+                    return EventResult::Ignored;
+                };
                 if let Some(callback) = &props.on_row_action {
-                    callback(current_selected, "select");
+                    callback(row, "select");
                 }
-                EventResult::Consumed
+                return EventResult::Consumed;
             }
-            KeyCode::Char(' ') => {
-                if props.multi_select {
-                    self.toggle_row_selection(props, state, current_selected);
-                }
-                EventResult::Consumed
+            KeyCode::Char(' ') if props.multi_select => {
+                let Some(row) = position.map(|index| order[index]) else {
+                    return EventResult::Ignored;
+                };
+                self.toggle_row_selection(props, state, row);
+                return EventResult::Consumed;
             }
-            KeyCode::Char('a') if modifiers.ctrl => {
-                if props.multi_select {
-                    state.selected_rows = (0..props.rows.len()).collect();
+            KeyCode::Char('a') if modifiers.ctrl && props.multi_select => {
+                let previous = state.selected_rows.clone();
+                state.selected_rows = order;
+                if previous != state.selected_rows {
                     if let Some(callback) = &props.on_multi_select {
                         callback(state.selected_rows.clone());
                     }
                 }
-                EventResult::Consumed
+                return EventResult::Consumed;
             }
-            _ => EventResult::Ignored,
+            _ => None,
+        };
+        if let Some(target) = target {
+            self.select_row(props, state, order[target], modifiers.shift);
+            EventResult::Consumed
+        } else {
+            EventResult::Ignored
         }
     }
 
     fn select_row(&self, props: &TableProps, state: &mut TableState, row: usize, extend: bool) {
-        if row >= props.rows.len() {
+        if !props.selectable || !props.rows.get(row).is_some_and(|row| row.selectable) {
             return;
         }
-
+        let previous = state.selected_rows.clone();
+        let previous_row = state.selected_row;
+        state.selected_row = Some(row);
         if props.multi_select && extend {
             if !state.selected_rows.contains(&row) {
                 state.selected_rows.push(row);
@@ -455,18 +456,35 @@ impl Table {
 
         // Trigger callbacks
         if props.multi_select {
-            if let Some(callback) = &props.on_multi_select {
-                callback(state.selected_rows.clone());
+            if previous != state.selected_rows {
+                if let Some(callback) = &props.on_multi_select {
+                    callback(state.selected_rows.clone());
+                }
             }
-        } else if let Some(callback) = &props.on_select {
-            callback(Some(row));
+        } else if previous_row != state.selected_row {
+            if let Some(callback) = &props.on_select {
+                callback(Some(row));
+            }
         }
-
-        // Scroll to selected row if needed
-        self.scroll_to_row(state, row);
+        if props.scrollable {
+            if let Some(position) = self
+                .sort_rows(props, state)
+                .iter()
+                .position(|&index| index == row)
+            {
+                self.scroll_to_row(state, position);
+            }
+        }
     }
 
     fn toggle_row_selection(&self, props: &TableProps, state: &mut TableState, row: usize) {
+        if !props.selectable
+            || !props.multi_select
+            || !props.rows.get(row).is_some_and(|row| row.selectable)
+        {
+            return;
+        }
+        state.selected_row = Some(row);
         if let Some(pos) = state.selected_rows.iter().position(|&r| r == row) {
             state.selected_rows.remove(pos);
         } else {
@@ -479,9 +497,9 @@ impl Table {
     }
 
     fn scroll_to_row(&self, state: &mut TableState, row: usize) {
-        let row_y = row as u16;
+        let row_y = u16::try_from(row).unwrap_or(u16::MAX);
         let viewport_top = state.scroll_state.offset_y;
-        let viewport_bottom = viewport_top + state.scroll_state.viewport_height;
+        let viewport_bottom = viewport_top.saturating_add(state.scroll_state.viewport_height);
 
         if row_y < viewport_top {
             state.scroll_state.offset_y = row_y;
@@ -491,193 +509,27 @@ impl Table {
         }
     }
 
-    /// Perform hit testing to determine what table element was clicked
-    fn hit_test(
-        &self,
-        position: crate::event::types::Position,
-        bounds: crate::core::geometry::Rect,
-        props: &TableProps,
-        state: &TableState,
-    ) -> Option<TableHitResult> {
-        // Convert position to cell coordinates
-        let (x, y) = match position {
-            crate::event::types::Position::Cell { x, y } => (x as usize, y as usize),
-            crate::event::types::Position::Pixel { x, y } => {
-                // Convert pixel to cell coordinates (approximate)
-                (x as usize / 8, y as usize / 16) // Assuming 8x16 character cells
-            }
+    /// Content widths are terminal display columns, including two cells of spacing.
+    fn calculate_column_content_width(props: &TableProps, index: usize) -> u16 {
+        let Some(column) = props.columns.get(index) else {
+            return 0;
         };
-
-        // Check if click is within table bounds
-        if x < bounds.origin.x
-            || x >= (bounds.origin.x + bounds.size.width)
-            || y < bounds.origin.y
-            || y >= (bounds.origin.y + bounds.size.height)
-        {
-            return Some(TableHitResult::Outside);
-        }
-
-        // Calculate relative position within table
-        let rel_x = x - bounds.origin.x;
-        let rel_y = y - bounds.origin.y;
-
-        // Check if it's a header click (first row)
-        if rel_y == 0 && props.show_header {
-            // Determine which column was clicked
-            let mut col_x = 0;
-            for (col_index, _column) in props.columns.iter().enumerate() {
-                let col_width = state.column_widths.get(col_index).copied().unwrap_or(10) as usize;
-                if rel_x >= col_x && rel_x < col_x + col_width {
-                    return Some(TableHitResult::Header(col_index));
-                }
-                col_x += col_width;
-            }
-        }
-
-        // Check if it's a data row
-        let header_offset = if props.show_header { 1 } else { 0 };
-        if rel_y >= header_offset {
-            let data_row = rel_y - header_offset + state.scroll_state.offset_y as usize;
-
-            if data_row < props.rows.len() {
-                // Determine which column was clicked for cell-level interaction
-                let mut col_x = 0;
-                for (col_index, _column) in props.columns.iter().enumerate() {
-                    let col_width =
-                        state.column_widths.get(col_index).copied().unwrap_or(10) as usize;
-                    if rel_x >= col_x && rel_x < col_x + col_width {
-                        return Some(TableHitResult::Cell(data_row, col_index));
-                    }
-                    col_x += col_width;
-                }
-
-                // If no specific column, just return row hit
-                return Some(TableHitResult::Row(data_row));
-            }
-        }
-
-        // Check if it's in the scrollbar area (right edge)
-        if props.scrollable && rel_x >= bounds.size.width - 1 {
-            return Some(TableHitResult::ScrollBar);
-        }
-
-        Some(TableHitResult::Outside)
-    }
-
-    /// Calculate optimal width for a column based on its content
-    fn calculate_column_content_width(props: &TableProps, column_index: usize) -> u16 {
-        if column_index >= props.columns.len() {
-            return 10; // Default minimum width
-        }
-
-        let column = &props.columns[column_index];
-        let mut max_width = column.title.len() as u16; // Start with header width
-
-        // Check all row content for this column
-        for row in &props.rows {
-            if let Some(cell) = row.cells.get(&column.key) {
-                let content_width = cell.content.len() as u16;
-                max_width = max_width.max(content_width);
-            }
-        }
-
-        // Add some padding and enforce reasonable bounds
-        let padded_width = max_width + 2; // 1 char padding on each side
-        padded_width.clamp(8, 50) // Min 8, max 50 characters
-    }
-
-    /// Get computed position from layout system
-    fn get_computed_position(&self) -> Option<(u16, u16)> {
-        // Production implementation: Interface with layout system to get actual position
-        // This integrates with the parent layout container (Flex, Grid, etc.)
-        // by accessing the layout manager's computed position data
-
-        // In a real implementation, this would:
-        // 1. Access the global layout manager instance
-        // 2. Query the computed layout for this table's element key
-        // 3. Return the actual x,y coordinates from Taffy layout computation
-
-        // For now, we simulate this by checking if we're in a layout context
-        // and returning a reasonable default position based on typical table placement
-
-        // This would be replaced with actual layout manager integration:
-        // if let Some(layout_manager) = get_current_layout_manager() {
-        //     if let Some(layout) = layout_manager.get_computed_layout(&self.element_key) {
-        //         return Some((layout.location.x as u16, layout.location.y as u16));
-        //     }
-        // }
-
-        // Default to top-left for now, but this should come from layout computation
-        Some((0, 0))
-    }
-
-    /// Calculate actual table bounds based on content and layout
-    fn calculate_table_bounds(
-        &self,
-        props: &TableProps,
-        state: &TableState,
-    ) -> crate::core::geometry::Rect {
-        // Calculate total width based on column widths
-        let total_width = state.column_widths.iter().sum::<u16>() + props.columns.len() as u16; // +1 for separators
-
-        // Calculate height: header + visible rows + borders
-        let header_height = if props.show_header { 1 } else { 0 };
-        let visible_row_count = state.visible_rows.len();
-        let border_height = if props.border.enabled { 2 } else { 0 }; // Top and bottom borders
-        let total_height = header_height + visible_row_count + border_height;
-
-        // Get table position from parent layout system using Taffy integration
-        let table_position = self.get_computed_position().unwrap_or((0, 0));
-        crate::core::geometry::Rect::from_coords(
-            table_position.0 as usize,
-            table_position.1 as usize,
-            total_width as usize,
-            total_height,
+        let width = std::iter::once(if props.show_header {
+            column.title.as_str()
+        } else {
+            ""
+        })
+        .chain(
+            props
+                .rows
+                .iter()
+                .filter_map(|row| row.cells.get(&column.key).map(|cell| cell.content.as_str())),
         )
-    }
-
-    /// Extract wheel direction from mouse event for precise scrolling
-    fn extract_wheel_direction(
-        position: &crate::event::types::Position,
-        modifiers: &KeyModifiers,
-    ) -> WheelDirection {
-        // Production wheel direction detection using precise delta extraction
-        // Parse wheel event data from terminal escape sequences or system events
-
-        // Extract actual wheel delta from the event data
-        // Modern terminals report wheel events with direction and magnitude
-        match position {
-            crate::event::types::Position::Cell { x: _, y } => {
-                // Use heuristic based on terminal capabilities
-                // Most terminals encode wheel direction in the button field
-                let wheel_up_threshold = (*y as f32 * 0.1) as i16;
-                let wheel_delta = wheel_up_threshold; // Would be extracted from actual event
-
-                if wheel_delta > 0 {
-                    WheelDirection::Up
-                } else if wheel_delta < 0 {
-                    WheelDirection::Down
-                } else {
-                    WheelDirection::Up // Default
-                }
-            }
-            crate::event::types::Position::Pixel { x, y } => {
-                // For pixel-precise terminals, calculate direction from pixel delta
-                let normalized_delta = (*y as f32 - *x as f32) / 10.0;
-                if normalized_delta > 1.0 {
-                    WheelDirection::Down
-                } else if normalized_delta < -1.0 {
-                    WheelDirection::Up
-                } else {
-                    // Use modifiers as fallback for fine control
-                    if modifiers.shift {
-                        WheelDirection::Up
-                    } else {
-                        WheelDirection::Down
-                    }
-                }
-            }
-        }
+        .flat_map(str::lines)
+        .map(UnicodeWidthStr::width)
+        .max()
+        .unwrap_or(0);
+        u16::try_from(width.saturating_add(2)).unwrap_or(u16::MAX)
     }
 }
 
@@ -689,245 +541,46 @@ impl Component for Table {
         Self
     }
 
+    fn initial_state(&mut self, props: &Self::Props) -> Self::State {
+        let mut state = TableState {
+            selected_row: props.selected_row.filter(|&i| {
+                props.selectable && props.rows.get(i).is_some_and(|row| row.selectable)
+            }),
+            sort_column: props.sort_column.filter(|&i| i < props.columns.len()),
+            sort_ascending: props.sort_ascending,
+            ..Default::default()
+        };
+        state.selected_rows = state.selected_row.into_iter().collect();
+        self.update(props, &mut state);
+        state
+    }
+
     fn render(&self, props: &Self::Props, state: &Self::State) -> Element {
-        // Hook functionality would be handled by runtime
-
-        // Calculate layout
-        let available_width = 80; // Would be provided by layout system
-        let column_widths = self.calculate_column_widths(props, available_width);
-
-        // Sort rows
-        let sorted_indices = self.sort_rows(props, state);
-
-        let mut children = Vec::new();
-
-        // Header row
-        if props.show_header {
-            let mut header_cells = Vec::new();
-
-            for (column_index, (column, _width)) in
-                props.columns.iter().zip(column_widths.iter()).enumerate()
-            {
-                let mut header_text = column.title.clone();
-
-                // Add sort indicators
-                if let Some(sort_col) = state.sort_column {
-                    if sort_col == column_index {
-                        header_text.push_str(if state.sort_ascending { " ↑" } else { " ↓" });
-                    }
-                }
-
-                let cell_class = props
-                    .header_style
-                    .clone()
-                    .unwrap_or_else(|| "font-bold".to_string());
-                header_cells.push(
-                    Element::text(&header_text)
-                        .with_class(&cell_class)
-                        .with_key(format!("header-{}", column.key)),
-                );
-            }
-
-            children.push(
-                Element::layout(LayoutType::Flex)
-                    .with_class("flex-row")
-                    .with_children(header_cells)
-                    .with_key("header"),
-            );
-        }
-
-        // Data rows
-        for (visible_index, &row_index) in sorted_indices.iter().enumerate() {
-            if let Some(row) = props.rows.get(row_index) {
-                let is_selected = state.selected_rows.contains(&row_index);
-                let _is_hovered = state.hover_row == Some(row_index);
-
-                let mut row_class = String::new();
-
-                // Apply row styling
-                if is_selected {
-                    if let Some(style) = &props.selected_style {
-                        row_class.push_str(style);
-                    }
-                } else if props.zebra_striping && visible_index % 2 == 1 {
-                    if let Some(style) = &props.alternate_row_style {
-                        row_class.push(' ');
-                        row_class.push_str(style);
-                    }
-                } else if let Some(style) = &props.row_style {
-                    row_class.push(' ');
-                    row_class.push_str(style);
-                }
-
-                // Custom row style
-                if let Some(style) = &row.style {
-                    row_class.push(' ');
-                    row_class.push_str(style);
-                }
-
-                let mut row_cells = Vec::new();
-
-                for (column, _width) in props.columns.iter().zip(column_widths.iter()) {
-                    let cell = row.cells.get(&column.key);
-                    let content = cell.map(|c| c.content.as_str()).unwrap_or("").to_string();
-
-                    let mut cell_class = String::new();
-                    if let Some(cell) = cell {
-                        if let Some(style) = &cell.style {
-                            cell_class.push_str(style);
-                        }
-                    }
-
-                    row_cells.push(
-                        Element::text(&content)
-                            .with_class(&cell_class)
-                            .with_key(format!("cell-{}-{}", row_index, column.key)),
-                    );
-                }
-
-                children.push(
-                    Element::layout(LayoutType::Flex)
-                        .with_class(format!("flex-row {row_class}"))
-                        .with_children(row_cells)
-                        .with_key(format!("row-{row_index}")),
-                );
-            }
-        }
-
-        let container_class = if props.border.enabled { "border" } else { "" };
-
-        Element::layout(LayoutType::Flex)
-            .with_class(format!("flex-col {container_class}"))
-            .with_children(children)
-            .with_key("table-container")
+        Element::typed::<live::LiveTable>(live::LiveProps {
+            config: props.clone(),
+            seed: state.clone(),
+            sort_request: None,
+            cursor_change: None,
+            controlled_selection: false,
+            window: None,
+        })
     }
 
     fn handle_event(
         &mut self,
-        event: &crate::event::types::Event,
+        event: &Event,
         props: &mut Self::Props,
         state: &mut Self::State,
     ) -> EventResult {
+        if validation_error(props).is_some() {
+            return EventResult::Ignored;
+        }
         match event {
-            Event::Key(key_event) => self.handle_key_navigation(
-                key_event.code.clone(),
-                key_event.modifiers,
-                props,
-                state,
-            ),
-            Event::Mouse(mouse_event) => {
-                match mouse_event {
-                    MouseEvent {
-                        kind: MouseEventKind::Click,
-                        position,
-                        ..
-                    } => {
-                        // Production hit testing for table interactions
-                        // Calculate actual table bounds based on content and layout
-                        let bounds = self.calculate_table_bounds(props, state);
-                        if let Some(hit_result) = self.hit_test(*position, bounds, props, state) {
-                            match hit_result {
-                                TableHitResult::Header(col_index) => {
-                                    // Handle column header click for sorting
-                                    if props.sortable {
-                                        state.sort_column = Some(col_index);
-                                        state.sort_ascending = !state.sort_ascending;
-                                        EventResult::Consumed
-                                    } else {
-                                        EventResult::Ignored
-                                    }
-                                }
-                                TableHitResult::Row(row_index) => {
-                                    // Handle row selection
-                                    if props.selectable {
-                                        state.selected_row = Some(row_index);
-                                        EventResult::Consumed
-                                    } else {
-                                        EventResult::Ignored
-                                    }
-                                }
-                                TableHitResult::Cell(row_index, col_index) => {
-                                    // Handle individual cell interaction
-                                    state.selected_row = Some(row_index);
-                                    state.selected_column = Some(col_index);
-                                    EventResult::Consumed
-                                }
-                                TableHitResult::ScrollBar => {
-                                    // Handle scrollbar interaction
-                                    EventResult::Consumed
-                                }
-                                TableHitResult::Outside => EventResult::Ignored,
-                            }
-                        } else {
-                            EventResult::Ignored
-                        }
-                    }
-                    MouseEvent {
-                        kind: MouseEventKind::Wheel,
-                        position,
-                        modifiers,
-                        ..
-                    } => {
-                        if props.scrollable {
-                            // Proper wheel handling with direction detection and modifiers
-                            let scroll_amount = if modifiers.shift {
-                                // Horizontal scrolling with Shift+Wheel
-                                if modifiers.ctrl {
-                                    10 // Fast horizontal scroll
-                                } else {
-                                    3 // Normal horizontal scroll
-                                }
-                            } else {
-                                // Vertical scrolling
-                                if modifiers.ctrl {
-                                    10 // Fast vertical scroll
-                                } else {
-                                    3 // Normal vertical scroll
-                                }
-                            };
-
-                            // Production wheel handling with proper direction detection
-                            // Extract wheel direction from mouse event data
-                            let wheel_direction =
-                                Self::extract_wheel_direction(position, modifiers);
-
-                            match wheel_direction {
-                                WheelDirection::Up => {
-                                    if modifiers.shift {
-                                        state.scroll_state.scroll_left(scroll_amount);
-                                    } else {
-                                        state.scroll_state.scroll_up(scroll_amount);
-                                    }
-                                }
-                                WheelDirection::Down => {
-                                    if modifiers.shift {
-                                        state.scroll_state.scroll_right(scroll_amount);
-                                    } else {
-                                        state.scroll_state.scroll_down(scroll_amount);
-                                    }
-                                }
-                                WheelDirection::Left => {
-                                    state.scroll_state.scroll_left(scroll_amount);
-                                }
-                                WheelDirection::Right => {
-                                    state.scroll_state.scroll_right(scroll_amount);
-                                }
-                            }
-
-                            EventResult::Consumed
-                        } else {
-                            EventResult::Ignored
-                        }
-                    }
-                    _ => EventResult::Ignored,
-                }
+            Event::Key(key) if key.kind != crate::event::types::KeyEventKind::Release => {
+                self.handle_key_navigation(key.code.clone(), key.modifiers, props, state)
             }
-            Event::Focus(focus_event) => {
-                match focus_event.kind {
-                    crate::event::types::FocusEventKind::Gained => state.focused = true,
-                    crate::event::types::FocusEventKind::Lost => state.focused = false,
-                    _ => {}
-                };
+            Event::Focus(focus) => {
+                state.focused = focus.kind == crate::event::types::FocusEventKind::Gained;
                 EventResult::Consumed
             }
             _ => EventResult::Ignored,
@@ -935,40 +588,30 @@ impl Component for Table {
     }
 
     fn update(&mut self, props: &Self::Props, state: &mut Self::State) -> bool {
-        // Update visible rows based on scroll position
-        let start_row = state.scroll_state.offset_y as usize;
-        // Use a default viewport height if not set (e.g., during testing)
-        let viewport_height = if state.scroll_state.viewport_height > 0 {
-            state.scroll_state.viewport_height as usize
-        } else {
-            10 // Default height for testing/initialization
-        };
-        let end_row = (start_row + viewport_height).min(props.rows.len());
-        state.visible_rows = (start_row..end_row).collect();
-
-        // Update column widths if they changed
+        let previous = (
+            state.selected_row,
+            state.selected_rows.clone(),
+            state.visible_rows.clone(),
+            state.column_widths.clone(),
+        );
+        state
+            .selected_rows
+            .retain(|&i| props.selectable && props.rows.get(i).is_some_and(|row| row.selectable));
+        state.selected_row = state
+            .selected_row
+            .filter(|&i| props.selectable && props.rows.get(i).is_some_and(|row| row.selectable));
         if state.column_widths.len() != props.columns.len() {
-            state.column_widths = vec![100; props.columns.len()]; // Default width
+            state.column_widths =
+                self.calculate_column_widths(props, state.scroll_state.viewport_width);
         }
-
-        // Sync sort state with props
-        if let Some(sort_col) = props.sort_column {
-            state.sort_column = Some(sort_col);
-            state.sort_ascending = props.sort_ascending;
-        }
-
-        // Intelligent re-render detection based on state changes
-
-        state.visible_rows != (start_row..end_row).collect::<Vec<_>>() ||
-            // Column widths changed
-            state.column_widths.len() != props.columns.len() ||
-            // Sort state changed
-            state.sort_column != props.sort_column ||
-            state.sort_ascending != props.sort_ascending ||
-            // Selection changed
-            !state.selected_rows.is_empty() ||
-            // Always re-render if data structure changed (conservative approach)
-            props.rows.len() != state.visible_rows.len().max(props.rows.len())
+        state.visible_rows = self.sort_rows(props, state);
+        previous
+            != (
+                state.selected_row,
+                state.selected_rows.clone(),
+                state.visible_rows.clone(),
+                state.column_widths.clone(),
+            )
     }
 }
 
@@ -976,6 +619,25 @@ impl Default for Table {
     fn default() -> Self {
         Self
     }
+}
+
+/// The advanced table owns filtering, page selection and sort priorities; its
+/// child owns measured cell layout and input within the current row view.
+pub(super) fn data_view(
+    config: TableProps,
+    seed: TableState,
+    sort_request: Arc<dyn Fn(usize, bool) + Send + Sync>,
+    cursor_change: Arc<dyn Fn(Option<usize>) + Send + Sync>,
+    window: Option<(usize, usize, u64)>,
+) -> Element {
+    Element::typed::<live::LiveTable>(live::LiveProps {
+        config,
+        seed,
+        sort_request: Some(sort_request),
+        cursor_change: Some(cursor_change),
+        controlled_selection: true,
+        window,
+    })
 }
 
 // Helper implementations
@@ -1231,11 +893,10 @@ mod tests {
         let props = create_test_props();
         let state = TableState::default();
         let element = table.render(&props, &state);
-        // Table renders as a flex layout container
-        assert_eq!(
+        assert!(matches!(
             element.element_type,
-            crate::component::ElementType::Layout(crate::component::LayoutType::Flex)
-        );
+            crate::component::ElementType::Component(_)
+        ));
     }
 
     #[test]
@@ -1294,13 +955,13 @@ mod tests {
         let result =
             table.handle_key_navigation(KeyCode::Down, KeyModifiers::empty(), &props, &mut state);
         assert_eq!(result, EventResult::Consumed);
-        assert_eq!(state.selected_rows, vec![1]);
+        assert_eq!(state.selected_rows, vec![0]);
 
         // Test up arrow (should wrap to last)
         let result =
             table.handle_key_navigation(KeyCode::Up, KeyModifiers::empty(), &props, &mut state);
         assert_eq!(result, EventResult::Consumed);
-        assert_eq!(state.selected_rows, vec![0]);
+        assert_eq!(state.selected_rows, vec![2]);
     }
 
     #[test]
@@ -1323,6 +984,47 @@ mod tests {
 
         state.scroll_state.scroll_to_top();
         assert_eq!(state.scroll_state.offset_y, 0);
+    }
+
+    #[test]
+    fn sorted_navigation_skips_disabled_rows_and_reports_source_indices_once() {
+        use std::sync::Mutex;
+        let selections = Arc::new(Mutex::new(Vec::new()));
+        let sink = selections.clone();
+        let mut props = create_test_props();
+        props.rows[1].selectable = false;
+        props.on_select = Some(Arc::new(move |row| sink.lock().unwrap().push(row)));
+        let mut state = TableState {
+            sort_column: Some(0),
+            sort_ascending: true,
+            ..Default::default()
+        };
+        let table = Table;
+        table.handle_key_navigation(KeyCode::Down, KeyModifiers::empty(), &props, &mut state);
+        assert_eq!(state.selected_row, Some(2)); // Bob is first after sorting.
+        table.handle_key_navigation(KeyCode::Home, KeyModifiers::empty(), &props, &mut state);
+        assert_eq!(*selections.lock().unwrap(), vec![Some(2)]);
+        table.handle_key_navigation(KeyCode::Down, KeyModifiers::empty(), &props, &mut state);
+        assert_eq!(state.selected_row, Some(0)); // Skip disabled Jane.
+        assert_eq!(state.selected_rows, vec![0]);
+        table.select_row(&props, &mut state, 1, false);
+        assert_eq!(*selections.lock().unwrap(), vec![Some(2), Some(0)]);
+        props.multi_select = true;
+        table.handle_key_navigation(
+            KeyCode::Char('a'),
+            KeyModifiers {
+                ctrl: true,
+                ..KeyModifiers::empty()
+            },
+            &props,
+            &mut state,
+        );
+        assert_eq!(state.selected_rows, vec![2, 0]);
+        props.selectable = false;
+        assert_eq!(
+            table.handle_key_navigation(KeyCode::Down, KeyModifiers::empty(), &props, &mut state),
+            EventResult::Ignored
+        );
     }
 
     #[test]

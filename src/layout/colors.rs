@@ -4,6 +4,9 @@ pub struct Rgba(pub f32, pub f32, pub f32, pub f32);
 
 fn hex_to_rgba(s: &str) -> Option<Rgba> {
     let s = s.strip_prefix('#')?;
+    if !s.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+        return None;
+    }
     let (r, g, b, a) = match s.len() {
         3 => (
             u8::from_str_radix(&s[0..1], 16).ok()? * 17,

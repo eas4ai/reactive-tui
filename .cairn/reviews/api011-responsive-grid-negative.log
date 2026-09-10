@@ -1,0 +1,21 @@
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.73s
+     Running tests/api_widget_behavior.rs (target/debug/deps/api_widget_behavior-af8b000cab735812)
+
+running 1 test
+
+thread 'core_builder_acceptance::responsive_grid_changes_columns_after_resizing_across_its_breakpoint' (1170023) panicked at tests/api_widget_behavior/core_builders.rs:13:13:
+assertion `left == right` failed: width 40: "A                   B                   \n                                        \n                                        \n                                        \n                                        \n                                        \n                                        \n                                        \n                                        \n                                        \n                                        \n                                        \n                                        \n                                        \n                                        \n                                        "
+  left: " "
+ right: "B"
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test core_builder_acceptance::responsive_grid_changes_columns_after_resizing_across_its_breakpoint ... FAILED
+
+failures:
+
+failures:
+    core_builder_acceptance::responsive_grid_changes_columns_after_resizing_across_its_breakpoint
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 367 filtered out; finished in 0.01s
+
+error: test failed, to rerun pass `--test api_widget_behavior`

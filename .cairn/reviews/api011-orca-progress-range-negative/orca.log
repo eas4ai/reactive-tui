@@ -1,0 +1,1353 @@
+10:03:58.701082 - INFO: Preparing to launch.
+10:03:58.701821 - ORCA: Attempt to load orca-customizations from /var/tmp/reactive-tui-api011/rtui-orca-d23zm684/data/orca/orca-customizations.py succeeded.
+10:03:58.741843 - INFO: About to launch Orca.
+10:03:58.743527 - ORCA: Accessibility enabled: false
+10:03:58.743559 - ORCA: Enabling accessibility.
+10:03:58.747367 - GSETTINGS REGISTRY: No dconf settings found; proceeding with migration.
+10:03:58.747429 - GSETTINGS REGISTRY: Migrating 'live-regions' settings to GSettings.
+10:03:58.747471 - GSETTINGS REGISTRY: Schema org.gnome.Orca.LiveRegions loaded
+10:03:58.747530 - GSETTINGS REGISTRY: Migrating 'sound' settings to GSettings.
+10:03:58.747543 - GSETTINGS REGISTRY: Schema org.gnome.Orca.Sound loaded
+10:03:58.747568 - GSETTINGS REGISTRY: Migrating 'structural-navigation' settings to GSettings.
+10:03:58.747579 - GSETTINGS REGISTRY: Schema org.gnome.Orca.StructuralNavigation loaded
+10:03:58.747611 - GSETTINGS REGISTRY: Migrating 'say-all' settings to GSettings.
+10:03:58.747624 - GSETTINGS REGISTRY: Schema org.gnome.Orca.SayAll loaded
+10:03:58.747647 - GSETTINGS REGISTRY: Migrating 'caret-navigation' settings to GSettings.
+10:03:58.747655 - GSETTINGS REGISTRY: Schema org.gnome.Orca.CaretNavigation loaded
+10:03:58.747675 - GSETTINGS REGISTRY: Migrating 'table-navigation' settings to GSettings.
+10:03:58.747683 - GSETTINGS REGISTRY: Schema org.gnome.Orca.TableNavigation loaded
+10:03:58.747702 - GSETTINGS REGISTRY: Migrating 'document' settings to GSettings.
+10:03:58.747710 - GSETTINGS REGISTRY: Schema org.gnome.Orca.Document loaded
+10:03:58.747744 - GSETTINGS REGISTRY: Migrating 'speech' settings to GSettings.
+10:03:58.747753 - GSETTINGS REGISTRY: Schema org.gnome.Orca.Speech loaded
+10:03:58.747772 - GSETTINGS REGISTRY: Migrating 'voice' settings to GSettings.
+10:03:58.747780 - GSETTINGS REGISTRY: Schema org.gnome.Orca.Voice loaded
+10:03:58.747799 - GSETTINGS REGISTRY: Migrating 'typing-echo' settings to GSettings.
+10:03:58.747808 - GSETTINGS REGISTRY: Schema org.gnome.Orca.TypingEcho loaded
+10:03:58.747828 - GSETTINGS REGISTRY: Migrating 'chat' settings to GSettings.
+10:03:58.747837 - GSETTINGS REGISTRY: Schema org.gnome.Orca.Chat loaded
+10:03:58.747854 - GSETTINGS REGISTRY: Migrating 'flat-review' settings to GSettings.
+10:03:58.747863 - GSETTINGS REGISTRY: Schema org.gnome.Orca.FlatReview loaded
+10:03:58.747877 - GSETTINGS REGISTRY: Migrating 'mouse-review' settings to GSettings.
+10:03:58.747884 - GSETTINGS REGISTRY: Schema org.gnome.Orca.MouseReview loaded
+10:03:58.747906 - GSETTINGS REGISTRY: Migrating 'spellcheck' settings to GSettings.
+10:03:58.747913 - GSETTINGS REGISTRY: Schema org.gnome.Orca.Spellcheck loaded
+10:03:58.747931 - GSETTINGS REGISTRY: Migrating 'system-information' settings to GSettings.
+10:03:58.747939 - GSETTINGS REGISTRY: Schema org.gnome.Orca.SystemInformation loaded
+10:03:58.747959 - GSETTINGS REGISTRY: Migrating 'text-attributes' settings to GSettings.
+10:03:58.747966 - GSETTINGS REGISTRY: Schema org.gnome.Orca.TextAttributes loaded
+10:03:58.748014 - GSETTINGS REGISTRY: Migrating 'braille' settings to GSettings.
+10:03:58.748024 - GSETTINGS REGISTRY: Schema org.gnome.Orca.Braille loaded
+10:03:58.748051 - GSETTINGS REGISTRY: Migrating 'keybindings' settings to GSettings.
+10:03:58.748059 - GSETTINGS REGISTRY: Schema org.gnome.Orca.Keybindings loaded
+10:03:58.748076 - GSETTINGS REGISTRY: Schema org.gnome.Orca.ProfileMetadata loaded
+10:03:58.754901 - ORCA: Loading User Settings
+10:03:58.754967 - EVENT MANAGER: Pause queueing: True. Clear queue: True. Loading user settings.
+10:03:58.754996 - INPUT EVENT MANAGER: Pause queueing: True. Loading user settings.
+10:03:58.755321 - DEFAULT: Setting up commands for None
+10:03:58.756218 - BRAILLE PRESENTER: Commands set up.
+10:03:58.756249 - NOTIFICATION PRESENTER: Commands set up.
+10:03:58.756258 - CLIPBOARD PRESENTER: Commands set up.
+10:03:58.756263 - COMMAND MANAGER: Setting up commands.
+10:03:58.756287 - SAY ALL PRESENTER: Commands set up.
+10:03:58.756295 - TYPING ECHO PRESENTER: Commands set up.
+10:03:58.756325 - SPEECH MANAGER: Commands set up.
+10:03:58.756375 - SPEECH PRESENTER: Commands set up.
+10:03:58.756402 - SLEEP MODE MANAGER: Commands set up.
+10:03:58.756422 - SYSTEM INFORMATION PRESENTER: Commands set up.
+10:03:58.756479 - OBJECT NAVIGATOR: Commands set up.
+10:03:58.756518 - GSETTINGS REGISTRY: Schema org.gnome.Orca.CaretNavigation loaded
+10:03:58.756626 - GSETTINGS SCHEMA HANDLE: caret-navigation/enabled not set [profile:default]
+10:03:58.756635 - GSETTINGS REGISTRY: caret-navigation/enabled using default value = True
+10:03:58.756677 - CARET NAVIGATOR: Commands set up. Suspended: False
+10:03:58.756991 - STRUCTURAL NAVIGATOR: Commands set up. Suspended: False
+10:03:58.757022 - TABLE NAVIGATOR: Commands set up.
+10:03:58.757034 - DOCUMENT PRESENTER: Commands set up.
+10:03:58.757055 - LIVE REGION PRESENTER: Commands set up.
+10:03:58.757063 - LEARN MODE PRESENTER: Commands set up.
+10:03:58.757070 - MOUSE REVIEW: Commands set up.
+10:03:58.757076 - ACTION PRESENTER: Commands set up.
+10:03:58.757203 - FLAT REVIEW PRESENTER: Commands set up.
+10:03:58.757223 - FLAT REVIEW FINDER: Commands set up.
+10:03:58.757261 - WHERE AM I PRESENTER: Commands set up.
+10:03:58.757270 - DEBUGGING TOOLS MANAGER: Commands set up.
+10:03:58.757281 - CHAT PRESENTER: Commands set up.
+10:03:58.757288 - PROFILE MANAGER: Commands set up.
+10:03:58.757301 - BRAILLE: Setting up key ranges.
+10:03:58.757328 - BRAILLE: Initializing. Callback: None
+10:03:58.757347 - BRAILLE: WINDOWPATH= None
+10:03:58.757361 - BRAILLE: XDG_VTNR= 1
+10:03:58.757388 - BRAILLE: Attempting connection with BrlAPI.
+10:03:58.757536 - BRAILLE: Not setting up key ranges: BrlAPI not running.
+10:03:58.757581 - DEFAULT: Commands set up: 219 keyboard commands
+10:03:58.757604 - SCRIPT: default (module=orca.scripts.default) initialized
+10:03:58.757650 - GSETTINGS REGISTRY: Schema org.gnome.Orca.Keybindings loaded
+10:03:58.757862 - BRAILLE: BrlAPI Connection is unavailable (ConnectionError): couldn't connect to b':0' with key b'keyfile:/etc/brlapi.key+polkit': connect: No such file or directory
+                  (brlerrno 11, libcerrno 2, gaierrno 0)
+                  Is BRLTTY really running?
+10:03:58.757938 - GSETTINGS SCHEMA HANDLE: keybindings/keyboard-layout not set [profile:default]
+10:03:58.757958 - GSETTINGS REGISTRY: keybindings/keyboard-layout using default value = 'desktop'
+10:03:58.757973 - COMMAND MANAGER: Setting keyboard layout is_desktop to True.
+10:03:58.758065 - GSETTINGS SCHEMA HANDLE: keybindings/entries no dict values set
+10:03:58.758082 - GSETTINGS REGISTRY: keybindings/entries using default value = {}
+10:03:58.758093 - COMMAND MANAGER: No user overrides to apply
+10:03:58.758105 - COMMAND MANAGER: Device not ready, skipping grab updates.
+10:03:58.758115 - COMMAND MANAGER: Keyboard layout set to desktop.
+10:03:58.758128 - PRESENTATION MANAGER: Starting presenters
+10:03:58.758195 - SPEECH MANAGER: start_speech. Script: None Event: None notify_user: False
+10:03:58.758207 - SPEECH MANAGER: Initializing server
+10:03:58.758234 - GSETTINGS REGISTRY: Schema org.gnome.Orca.Speech loaded
+10:03:58.758279 - GSETTINGS SCHEMA HANDLE: speech/speech-server-factory not set [profile:default]
+10:03:58.758297 - GSETTINGS REGISTRY: speech/speech-server-factory using default value = 'speechdispatcherfactory'
+10:03:58.939882 - SPEECH MANAGER: Using speech server factory: speechdispatcherfactory
+10:03:58.940012 - GSETTINGS SCHEMA HANDLE: speech/synthesizer not set [profile:default]
+10:03:58.940065 - GSETTINGS REGISTRY: Schema org.gnome.Orca.Voice loaded
+10:03:58.940138 - GSETTINGS SCHEMA HANDLE: voice/established not set [profile:default]
+10:03:58.940175 - GSETTINGS SCHEMA HANDLE: voice/rate not set [profile:default]
+10:03:58.940207 - GSETTINGS SCHEMA HANDLE: voice/pitch not set [profile:default]
+10:03:58.940234 - GSETTINGS SCHEMA HANDLE: voice/volume not set [profile:default]
+10:03:58.940269 - GSETTINGS SCHEMA HANDLE: voice/family-name not set [profile:default]
+10:03:58.940295 - GSETTINGS SCHEMA HANDLE: voice/family-lang not set [profile:default]
+10:03:58.940320 - GSETTINGS SCHEMA HANDLE: voice/family-dialect not set [profile:default]
+10:03:58.940353 - GSETTINGS SCHEMA HANDLE: voice/family-gender not set [profile:default]
+10:03:58.940380 - GSETTINGS SCHEMA HANDLE: voice/family-variant not set [profile:default]
+10:03:58.940416 - GSETTINGS SCHEMA HANDLE: speech/punctuation-level not set [profile:default]
+10:03:58.940428 - GSETTINGS REGISTRY: speech/punctuation-level using default value = 'most'
+10:03:58.940503 - GSETTINGS SCHEMA HANDLE: speech/capitalization-style not set [profile:default]
+10:03:58.940518 - GSETTINGS REGISTRY: speech/capitalization-style using default value = 'none'
+10:03:58.940571 - SPEECH MANAGER: Server initialized
+10:03:58.940610 - GSETTINGS REGISTRY: Schema org.gnome.Orca.Braille loaded
+10:03:58.940655 - GSETTINGS SCHEMA HANDLE: braille/enabled not set [profile:default]
+10:03:58.940669 - GSETTINGS REGISTRY: braille/enabled using default value = True
+10:03:58.940710 - BRAILLE: Initializing. Callback: input_event_manager.InputEventManager.process_braille_event
+10:03:58.940724 - BRAILLE: BrlAPI connection already in progress.
+10:03:58.940752 - GSETTINGS SCHEMA HANDLE: braille/contracted-braille not set [profile:default]
+10:03:58.940763 - GSETTINGS REGISTRY: braille/contracted-braille using default value = False
+10:03:58.940788 - GSETTINGS SCHEMA HANDLE: braille/contraction-table not set [profile:default]
+10:03:58.940799 - GSETTINGS REGISTRY: braille/contraction-table using default value = ''
+10:03:58.940824 - GSETTINGS SCHEMA HANDLE: braille/computer-braille-at-cursor not set [profile:default]
+10:03:58.940835 - GSETTINGS REGISTRY: braille/computer-braille-at-cursor using default value = True
+10:03:58.940858 - GSETTINGS SCHEMA HANDLE: braille/end-of-line-indicator not set [profile:default]
+10:03:58.940869 - GSETTINGS REGISTRY: braille/end-of-line-indicator using default value = True
+10:03:58.940891 - GSETTINGS SCHEMA HANDLE: braille/word-wrap not set [profile:default]
+10:03:58.940902 - GSETTINGS REGISTRY: braille/word-wrap using default value = False
+10:03:58.940927 - GSETTINGS SCHEMA HANDLE: braille/selector-indicator not set [profile:default]
+10:03:58.940938 - GSETTINGS REGISTRY: braille/selector-indicator using default value = 'dots78'
+10:03:58.940952 - BRAILLE PRESENTER: Getting selector indicator: 192.
+10:03:58.940975 - GSETTINGS SCHEMA HANDLE: braille/link-indicator not set [profile:default]
+10:03:58.940993 - GSETTINGS REGISTRY: braille/link-indicator using default value = 'dots78'
+10:03:58.941005 - BRAILLE PRESENTER: Getting link indicator: 192.
+10:03:58.941029 - GSETTINGS SCHEMA HANDLE: braille/text-attributes-indicator not set [profile:default]
+10:03:58.941040 - GSETTINGS REGISTRY: braille/text-attributes-indicator using default value = 'none'
+10:03:58.941051 - BRAILLE PRESENTER: Getting text attributes indicator: 0.
+10:03:58.941079 - GSETTINGS REGISTRY: Schema org.gnome.Orca.Sound loaded
+10:03:58.941119 - GSETTINGS SCHEMA HANDLE: sound/enabled not set [profile:default]
+10:03:58.941132 - GSETTINGS REGISTRY: sound/enabled using default value = True
+10:03:58.941168 - GSETTINGS REGISTRY: Schema org.gnome.Orca.MouseReview loaded
+10:03:58.941212 - GSETTINGS SCHEMA HANDLE: mouse-review/enabled not set [profile:default]
+10:03:58.941224 - GSETTINGS REGISTRY: mouse-review/enabled using default value = False
+10:03:58.941238 - ORCA MODIFIER MANAGER: Refreshing Orca modifiers: Loading user settings.
+10:03:58.941270 - GSETTINGS SCHEMA HANDLE: keybindings/keyboard-layout not set [profile:default]
+10:03:58.941281 - GSETTINGS REGISTRY: keybindings/keyboard-layout using default value = 'desktop'
+10:03:58.941308 - GSETTINGS SCHEMA HANDLE: keybindings/desktop-modifier-keys not set [profile:default]
+10:03:58.941321 - GSETTINGS REGISTRY: keybindings/desktop-modifier-keys using default value = ['Insert', 'KP_Insert']
+10:03:58.941347 - GSETTINGS SCHEMA HANDLE: keybindings/keyboard-layout not set [profile:default]
+10:03:58.941362 - GSETTINGS REGISTRY: keybindings/keyboard-layout using default value = 'desktop'
+10:03:58.941383 - GSETTINGS SCHEMA HANDLE: keybindings/desktop-modifier-keys not set [profile:default]
+10:03:58.941399 - GSETTINGS REGISTRY: keybindings/desktop-modifier-keys using default value = ['Insert', 'KP_Insert']
+10:03:58.941471 - INPUT EVENT MANAGER: No device to add grab for Insert
+10:03:58.941513 - INPUT EVENT MANAGER: No device to add grab for KP_Insert
+10:03:58.941533 - ORCA MODIFIER MANAGER: No stored xmodmap found
+10:03:58.944024 - ORCA MODIFIER MANAGER: Creating Orca xmodmap
+10:03:58.944083 - GSETTINGS SCHEMA HANDLE: keybindings/keyboard-layout not set [profile:default]
+10:03:58.944091 - GSETTINGS REGISTRY: keybindings/keyboard-layout using default value = 'desktop'
+10:03:58.944101 - GSETTINGS SCHEMA HANDLE: keybindings/desktop-modifier-keys not set [profile:default]
+10:03:58.944106 - GSETTINGS REGISTRY: keybindings/desktop-modifier-keys using default value = ['Insert', 'KP_Insert']
+10:03:58.944118 - EVENT MANAGER: Pause queueing: False. Clear queue: False. User settings loaded.
+10:03:58.944124 - INPUT EVENT MANAGER: Pause queueing: False. User settings loaded.
+10:03:58.944127 - ORCA: User Settings Loaded
+10:03:58.944145 - DEBUGGING TOOLS MANAGER: Orca version 50.1.2, AT-SPI2 version: 2.60.0, Session: x11 gnome
+10:03:58.946214 - DEBUGGING TOOLS MANAGER: Desktop has 0 app(s):
+10:03:58.946257 - ORCA: Running under systemd: False
+10:03:58.946334 - ORCA: Connected to a11y applications gsetting: True
+10:03:58.946353 - REMOTE CONTROLLER: Attempting to start D-Bus service.
+10:03:58.946426 - REMOTE CONTROLLER: SessionMessageBus acquired: :1.6
+10:03:58.947940 - REMOTE CONTROLLER: Service started name=org.gnome.Orca.Service path=/org/gnome/Orca/Service.
+10:03:58.947966 - REMOTE CONTROLLER: Processing 25 pending module registrations.
+10:03:58.947990 - REMOTE CONTROLLER: Processing pending registration for LiveRegionPresenter.
+10:03:58.948082 - REMOTE CONTROLLER: Processing pending registration for SoundPresenter.
+10:03:58.948202 - DBUS SERVICE: OrcaModuleDBusInterface for SoundPresenter initialized with 0 command(s), 0 parameterized command(s), 5 getter(s), 5 setter(s).
+10:03:58.948425 - DBUS SERVICE: Successfully published SoundPresenter at /org/gnome/Orca/Service/SoundPresenter.
+10:03:58.948442 - REMOTE CONTROLLER: Successfully registered 10 commands/getters/setters for module SoundPresenter.
+10:03:58.948454 - REMOTE CONTROLLER: Processing pending registration for StructuralNavigator.
+10:03:58.948789 - DBUS SERVICE: OrcaModuleDBusInterface for StructuralNavigator initialized with 85 command(s), 0 parameterized command(s), 4 getter(s), 4 setter(s).
+10:03:58.949001 - DBUS SERVICE: Successfully published StructuralNavigator at /org/gnome/Orca/Service/StructuralNavigator.
+10:03:58.949020 - REMOTE CONTROLLER: Successfully registered 93 commands/getters/setters for module StructuralNavigator.
+10:03:58.949032 - REMOTE CONTROLLER: Processing pending registration for SayAllPresenter.
+10:03:58.949175 - DBUS SERVICE: OrcaModuleDBusInterface for SayAllPresenter initialized with 3 command(s), 0 parameterized command(s), 10 getter(s), 10 setter(s).
+10:03:58.949377 - DBUS SERVICE: Successfully published SayAllPresenter at /org/gnome/Orca/Service/SayAllPresenter.
+10:03:58.949392 - REMOTE CONTROLLER: Successfully registered 23 commands/getters/setters for module SayAllPresenter.
+10:03:58.949403 - REMOTE CONTROLLER: Processing pending registration for CaretNavigator.
+10:03:58.949512 - DBUS SERVICE: OrcaModuleDBusInterface for CaretNavigator initialized with 12 command(s), 0 parameterized command(s), 3 getter(s), 3 setter(s).
+10:03:58.949720 - DBUS SERVICE: Successfully published CaretNavigator at /org/gnome/Orca/Service/CaretNavigator.
+10:03:58.949736 - REMOTE CONTROLLER: Successfully registered 18 commands/getters/setters for module CaretNavigator.
+10:03:58.949747 - REMOTE CONTROLLER: Processing pending registration for TableNavigator.
+10:03:58.949852 - DBUS SERVICE: OrcaModuleDBusInterface for TableNavigator initialized with 15 command(s), 0 parameterized command(s), 2 getter(s), 2 setter(s).
+10:03:58.950054 - DBUS SERVICE: Successfully published TableNavigator at /org/gnome/Orca/Service/TableNavigator.
+10:03:58.950072 - REMOTE CONTROLLER: Successfully registered 19 commands/getters/setters for module TableNavigator.
+10:03:58.950091 - REMOTE CONTROLLER: Processing pending registration for DocumentPresenter.
+10:03:58.950242 - DBUS SERVICE: OrcaModuleDBusInterface for DocumentPresenter initialized with 3 command(s), 0 parameterized command(s), 10 getter(s), 7 setter(s).
+10:03:58.950446 - DBUS SERVICE: Successfully published DocumentPresenter at /org/gnome/Orca/Service/DocumentPresenter.
+10:03:58.950467 - REMOTE CONTROLLER: Successfully registered 20 commands/getters/setters for module DocumentPresenter.
+10:03:58.950481 - REMOTE CONTROLLER: Processing pending registration for SpeechPresenter.
+10:03:58.950895 - DBUS SERVICE: OrcaModuleDBusInterface for SpeechPresenter initialized with 5 command(s), 0 parameterized command(s), 33 getter(s), 33 setter(s).
+10:03:58.951186 - DBUS SERVICE: Successfully published SpeechPresenter at /org/gnome/Orca/Service/SpeechPresenter.
+10:03:58.951220 - REMOTE CONTROLLER: Successfully registered 71 commands/getters/setters for module SpeechPresenter.
+10:03:58.951233 - REMOTE CONTROLLER: Processing pending registration for SpeechManager.
+10:03:58.951553 - DBUS SERVICE: OrcaModuleDBusInterface for SpeechManager initialized with 14 command(s), 1 parameterized command(s), 18 getter(s), 15 setter(s).
+10:03:58.951768 - DBUS SERVICE: Successfully published SpeechManager at /org/gnome/Orca/Service/SpeechManager.
+10:03:58.951784 - REMOTE CONTROLLER: Successfully registered 48 commands/getters/setters for module SpeechManager.
+10:03:58.951796 - REMOTE CONTROLLER: Processing pending registration for TypingEchoPresenter.
+10:03:58.951960 - DBUS SERVICE: OrcaModuleDBusInterface for TypingEchoPresenter initialized with 1 command(s), 0 parameterized command(s), 14 getter(s), 14 setter(s).
+10:03:58.952170 - DBUS SERVICE: Successfully published TypingEchoPresenter at /org/gnome/Orca/Service/TypingEchoPresenter.
+10:03:58.952188 - REMOTE CONTROLLER: Successfully registered 29 commands/getters/setters for module TypingEchoPresenter.
+10:03:58.952200 - REMOTE CONTROLLER: Processing pending registration for SleepModeManager.
+10:03:58.952244 - DBUS SERVICE: OrcaModuleDBusInterface for SleepModeManager initialized with 1 command(s), 0 parameterized command(s), 0 getter(s), 0 setter(s).
+10:03:58.952437 - DBUS SERVICE: Successfully published SleepModeManager at /org/gnome/Orca/Service/SleepModeManager.
+10:03:58.952453 - REMOTE CONTROLLER: Successfully registered 1 commands/getters/setters for module SleepModeManager.
+10:03:58.952463 - REMOTE CONTROLLER: Processing pending registration for ActionPresenter.
+10:03:58.952510 - DBUS SERVICE: OrcaModuleDBusInterface for ActionPresenter initialized with 1 command(s), 0 parameterized command(s), 0 getter(s), 0 setter(s).
+10:03:58.952701 - DBUS SERVICE: Successfully published ActionPresenter at /org/gnome/Orca/Service/ActionPresenter.
+10:03:58.952716 - REMOTE CONTROLLER: Successfully registered 1 commands/getters/setters for module ActionPresenter.
+10:03:58.952727 - REMOTE CONTROLLER: Processing pending registration for ChatPresenter.
+10:03:58.952825 - DBUS SERVICE: OrcaModuleDBusInterface for ChatPresenter initialized with 5 command(s), 0 parameterized command(s), 5 getter(s), 5 setter(s).
+10:03:58.953044 - DBUS SERVICE: Successfully published ChatPresenter at /org/gnome/Orca/Service/ChatPresenter.
+10:03:58.953063 - REMOTE CONTROLLER: Successfully registered 15 commands/getters/setters for module ChatPresenter.
+10:03:58.953074 - REMOTE CONTROLLER: Processing pending registration for ClipboardPresenter.
+10:03:58.953130 - DBUS SERVICE: OrcaModuleDBusInterface for ClipboardPresenter initialized with 1 command(s), 0 parameterized command(s), 0 getter(s), 0 setter(s).
+10:03:58.953330 - DBUS SERVICE: Successfully published ClipboardPresenter at /org/gnome/Orca/Service/ClipboardPresenter.
+10:03:58.953348 - REMOTE CONTROLLER: Successfully registered 1 commands/getters/setters for module ClipboardPresenter.
+10:03:58.953359 - REMOTE CONTROLLER: Processing pending registration for FlatReviewPresenter.
+10:03:58.953507 - DBUS SERVICE: OrcaModuleDBusInterface for FlatReviewPresenter initialized with 33 command(s), 0 parameterized command(s), 1 getter(s), 1 setter(s).
+10:03:58.953720 - DBUS SERVICE: Successfully published FlatReviewPresenter at /org/gnome/Orca/Service/FlatReviewPresenter.
+10:03:58.953736 - REMOTE CONTROLLER: Successfully registered 35 commands/getters/setters for module FlatReviewPresenter.
+10:03:58.953747 - REMOTE CONTROLLER: Processing pending registration for MouseReviewer.
+10:03:58.953832 - DBUS SERVICE: OrcaModuleDBusInterface for MouseReviewer initialized with 1 command(s), 0 parameterized command(s), 2 getter(s), 2 setter(s).
+10:03:58.954046 - DBUS SERVICE: Successfully published MouseReviewer at /org/gnome/Orca/Service/MouseReviewer.
+10:03:58.954066 - REMOTE CONTROLLER: Successfully registered 5 commands/getters/setters for module MouseReviewer.
+10:03:58.954078 - REMOTE CONTROLLER: Processing pending registration for NotificationPresenter.
+10:03:58.954136 - DBUS SERVICE: OrcaModuleDBusInterface for NotificationPresenter initialized with 4 command(s), 0 parameterized command(s), 0 getter(s), 0 setter(s).
+10:03:58.954329 - DBUS SERVICE: Successfully published NotificationPresenter at /org/gnome/Orca/Service/NotificationPresenter.
+10:03:58.954345 - REMOTE CONTROLLER: Successfully registered 4 commands/getters/setters for module NotificationPresenter.
+10:03:58.954356 - REMOTE CONTROLLER: Processing pending registration for ObjectNavigator.
+10:03:58.954424 - DBUS SERVICE: OrcaModuleDBusInterface for ObjectNavigator initialized with 6 command(s), 0 parameterized command(s), 0 getter(s), 0 setter(s).
+10:03:58.954616 - DBUS SERVICE: Successfully published ObjectNavigator at /org/gnome/Orca/Service/ObjectNavigator.
+10:03:58.954632 - REMOTE CONTROLLER: Successfully registered 6 commands/getters/setters for module ObjectNavigator.
+10:03:58.954643 - REMOTE CONTROLLER: Processing pending registration for ProfileManager.
+10:03:58.954720 - DBUS SERVICE: OrcaModuleDBusInterface for ProfileManager initialized with 2 command(s), 0 parameterized command(s), 3 getter(s), 2 setter(s).
+10:03:58.954914 - DBUS SERVICE: Successfully published ProfileManager at /org/gnome/Orca/Service/ProfileManager.
+10:03:58.954929 - REMOTE CONTROLLER: Successfully registered 7 commands/getters/setters for module ProfileManager.
+10:03:58.954940 - REMOTE CONTROLLER: Processing pending registration for SpellCheckPresenter.
+10:03:58.955045 - DBUS SERVICE: OrcaModuleDBusInterface for SpellCheckPresenter initialized with 0 command(s), 0 parameterized command(s), 3 getter(s), 3 setter(s).
+10:03:58.955246 - DBUS SERVICE: Successfully published SpellCheckPresenter at /org/gnome/Orca/Service/SpellCheckPresenter.
+10:03:58.955262 - REMOTE CONTROLLER: Successfully registered 6 commands/getters/setters for module SpellCheckPresenter.
+10:03:58.955273 - REMOTE CONTROLLER: Processing pending registration for SystemInformationPresenter.
+10:03:58.955353 - DBUS SERVICE: OrcaModuleDBusInterface for SystemInformationPresenter initialized with 4 command(s), 0 parameterized command(s), 4 getter(s), 2 setter(s).
+10:03:58.955543 - DBUS SERVICE: Successfully published SystemInformationPresenter at /org/gnome/Orca/Service/SystemInformationPresenter.
+10:03:58.955559 - REMOTE CONTROLLER: Successfully registered 10 commands/getters/setters for module SystemInformationPresenter.
+10:03:58.955570 - REMOTE CONTROLLER: Processing pending registration for TextAttributeManager.
+10:03:58.955627 - DBUS SERVICE: OrcaModuleDBusInterface for TextAttributeManager initialized with 0 command(s), 0 parameterized command(s), 2 getter(s), 2 setter(s).
+10:03:58.955821 - DBUS SERVICE: Successfully published TextAttributeManager at /org/gnome/Orca/Service/TextAttributeManager.
+10:03:58.955836 - REMOTE CONTROLLER: Successfully registered 4 commands/getters/setters for module TextAttributeManager.
+10:03:58.955847 - REMOTE CONTROLLER: Processing pending registration for WhereAmIPresenter.
+10:03:58.955918 - DBUS SERVICE: OrcaModuleDBusInterface for WhereAmIPresenter initialized with 11 command(s), 0 parameterized command(s), 0 getter(s), 0 setter(s).
+10:03:58.956119 - DBUS SERVICE: Successfully published WhereAmIPresenter at /org/gnome/Orca/Service/WhereAmIPresenter.
+10:03:58.956137 - REMOTE CONTROLLER: Successfully registered 11 commands/getters/setters for module WhereAmIPresenter.
+10:03:58.956149 - REMOTE CONTROLLER: Processing pending registration for BraillePresenter.
+10:03:58.956430 - DBUS SERVICE: OrcaModuleDBusInterface for BraillePresenter initialized with 1 command(s), 0 parameterized command(s), 26 getter(s), 25 setter(s).
+10:03:58.956632 - DBUS SERVICE: Successfully published BraillePresenter at /org/gnome/Orca/Service/BraillePresenter.
+10:03:58.956649 - REMOTE CONTROLLER: Successfully registered 52 commands/getters/setters for module BraillePresenter.
+10:03:58.956660 - REMOTE CONTROLLER: Processing pending registration for CommandManager.
+10:03:58.956788 - DBUS SERVICE: OrcaModuleDBusInterface for CommandManager initialized with 1 command(s), 0 parameterized command(s), 3 getter(s), 3 setter(s).
+10:03:58.956954 - DBUS SERVICE: Successfully published CommandManager at /org/gnome/Orca/Service/CommandManager.
+10:03:58.956964 - REMOTE CONTROLLER: Successfully registered 7 commands/getters/setters for module CommandManager.
+10:03:58.956994 - REMOTE CONTROLLER: Registration complete. Summary: 24 modules, 210 module commands, 148 module getters, 138 module setters, 6 system commands. Total handlers: 502.
+10:03:58.957043 - GSETTINGS SCHEMA HANDLE: speech/enable not set [profile:default]
+10:03:58.957048 - GSETTINGS REGISTRY: speech/enable using default value = True
+10:03:58.957063 - GSETTINGS SCHEMA HANDLE: speech/messages-are-detailed not set [profile:default]
+10:03:58.957067 - GSETTINGS REGISTRY: speech/messages-are-detailed using default value = True
+10:03:58.957077 - GSETTINGS SCHEMA HANDLE: speech/only-speak-displayed-text not set [profile:default]
+10:03:58.957081 - GSETTINGS REGISTRY: speech/only-speak-displayed-text using default value = False
+10:03:58.957113 - GSETTINGS SCHEMA HANDLE: voice/established not set [profile:default]
+10:03:58.957125 - GSETTINGS SCHEMA HANDLE: voice/rate not set [profile:default]
+10:03:58.957134 - GSETTINGS SCHEMA HANDLE: voice/pitch not set [profile:default]
+10:03:58.957142 - GSETTINGS SCHEMA HANDLE: voice/volume not set [profile:default]
+10:03:58.957153 - GSETTINGS SCHEMA HANDLE: voice/family-name not set [profile:default]
+10:03:58.957161 - GSETTINGS SCHEMA HANDLE: voice/family-lang not set [profile:default]
+10:03:58.957168 - GSETTINGS SCHEMA HANDLE: voice/family-dialect not set [profile:default]
+10:03:58.957175 - GSETTINGS SCHEMA HANDLE: voice/family-gender not set [profile:default]
+10:03:58.957182 - GSETTINGS SCHEMA HANDLE: voice/family-variant not set [profile:default]
+10:03:58.957293 - GSETTINGS SCHEMA HANDLE: speech/punctuation-level not set [profile:default]
+10:03:58.957298 - GSETTINGS REGISTRY: speech/punctuation-level using default value = 'most'
+10:03:58.957373 - SPEECH PRESENTER: Adjusting 'Screen reader on.' from None start_offset: None
+10:03:58.957385 - GSETTINGS SCHEMA HANDLE: speech/repeated-character-limit not set [profile:default]
+10:03:58.957389 - GSETTINGS REGISTRY: speech/repeated-character-limit using default value = 4
+10:03:58.957486 - GSETTINGS SCHEMA HANDLE: speech/use-pronunciation-dictionary not set [profile:default]
+10:03:58.957493 - GSETTINGS REGISTRY: speech/use-pronunciation-dictionary using default value = True
+10:03:58.957539 - GSETTINGS REGISTRY: Schema org.gnome.Orca.Pronunciations loaded
+10:03:58.957564 - GSETTINGS SCHEMA HANDLE: pronunciations/entries no dict values set
+10:03:58.957572 - GSETTINGS REGISTRY: pronunciations/entries using default value = {}
+10:03:58.957580 - SPEECH PRESENTER: Adjusted text: 'Screen reader on.'
+10:03:58.957587 - SPEECH: Speak 'Screen reader on.' acss: {'established': False}
+10:03:58.957593 - SPEECH OUTPUT: 'Screen reader on.' {'established': False}
+10:03:58.957598 - SPEECH DISPATCHER: Speaking 'Screen reader on.' as string
+10:03:58.957794 - SPEECH DISPATCHER: Speaking '<speak><mark name="0:6"/>Screen <mark name="7:13"/>reader <mark name="14:17"/>on.</speak>' 
+                  ORCA rate 50.0, pitch 5.0, volume 10.0, language C, punctuation: SOME
+                  SD rate 2, pitch 10, volume 100, language c
+10:03:58.958340 - SPEECH MANAGER: Speech server is <orca.speechdispatcherfactory.SpeechServer object at 0x7d0202a196a0>
+10:03:58.958376 - GSETTINGS SCHEMA HANDLE: speech/capitalization-style not set [profile:default]
+10:03:58.958382 - GSETTINGS REGISTRY: speech/capitalization-style using default value = 'none'
+10:03:58.958543 - SPEECH MANAGER: Speech server is <orca.speechdispatcherfactory.SpeechServer object at 0x7d0202a196a0>
+10:03:58.958574 - GSETTINGS SCHEMA HANDLE: speech/punctuation-level not set [profile:default]
+10:03:58.958582 - GSETTINGS REGISTRY: speech/punctuation-level using default value = 'most'
+10:03:58.958628 - GSETTINGS SCHEMA HANDLE: braille/enabled not set [profile:default]
+10:03:58.958634 - GSETTINGS REGISTRY: braille/enabled using default value = True
+10:03:58.958642 - GSETTINGS SCHEMA HANDLE: braille/flash-messages not set [profile:default]
+10:03:58.958646 - GSETTINGS REGISTRY: braille/flash-messages using default value = True
+10:03:58.958653 - GSETTINGS SCHEMA HANDLE: braille/flash-messages-detailed not set [profile:default]
+10:03:58.958656 - GSETTINGS REGISTRY: braille/flash-messages-detailed using default value = True
+10:03:58.958664 - GSETTINGS SCHEMA HANDLE: braille/enabled not set [profile:default]
+10:03:58.958667 - GSETTINGS REGISTRY: braille/enabled using default value = True
+10:03:58.958675 - GSETTINGS SCHEMA HANDLE: braille/flash-messages-persistent not set [profile:default]
+10:03:58.958678 - GSETTINGS REGISTRY: braille/flash-messages-persistent using default value = False
+10:03:58.958685 - GSETTINGS SCHEMA HANDLE: braille/flash-message-duration not set [profile:default]
+10:03:58.958689 - GSETTINGS REGISTRY: braille/flash-message-duration using default value = 5000
+10:03:58.958695 - BRAILLE: Display message: 'Screen reader on.' (flash_time: 5000)
+10:03:58.958700 - BRAILLE: Initializing flash: Source ID: 0
+10:03:58.958720 - BRAILLE: Not contracting 'Screen reader on.' because contracted braille is not enabled.
+10:03:58.958809 - BRAILLE: Refresh. Pan: True target: 0
+10:03:58.958826 - GSETTINGS SCHEMA HANDLE: braille/enabled not set [profile:default]
+10:03:58.958830 - GSETTINGS REGISTRY: braille/enabled using default value = True
+10:03:58.958853 - BRAILLE: Last text object: None (Caret: 0, Line: 0, Cell: 0)
+10:03:58.958879 - BRAILLE: Current text object: None (Caret: 0, Line: 0). On same line: False
+10:03:58.958886 - BRAILLE: Line 0: 'Screen reader on.' focusOffset: 0 [[0, 17]]
+10:03:58.958892 - BRAILLE: Current range: (0, 32). Target cell: 0
+10:03:58.958897 - BRAILLE LINE:  'Screen reader on.'
+10:03:58.958901 -      VISIBLE:  'Screen reader on.', cursor=0
+10:03:58.958915 - BRAILLE: Enabling braille. BrlAPI running: False
+10:03:58.958918 - BRAILLE: Need to initialize first.
+10:03:58.958933 - BRAILLE: Initializing. Callback: input_event_manager.InputEventManager.process_braille_event
+10:03:58.958937 - BRAILLE: BrlAPI connection already in progress.
+10:03:58.958951 - EVENT MANAGER: Activating <unknown>.<module>:373 > orca._activate_services:248 > event_manager.activate:85
+10:03:58.962554 - INPUT EVENT MANAGER: Starting key watcher.
+10:03:58.962623 - GSETTINGS SCHEMA HANDLE: keybindings/keyboard-layout not set [profile:default]
+10:03:58.962633 - GSETTINGS REGISTRY: keybindings/keyboard-layout using default value = 'desktop'
+10:03:58.962647 - GSETTINGS SCHEMA HANDLE: keybindings/desktop-modifier-keys not set [profile:default]
+10:03:58.962653 - GSETTINGS REGISTRY: keybindings/desktop-modifier-keys using default value = ['Insert', 'KP_Insert']
+10:03:58.962849 - INPUT EVENT MANAGER: Grab id for Insert: 0
+10:03:58.962902 - INPUT EVENT MANAGER: Grab id for KP_Insert: 0
+10:03:58.962914 - EVENT MANAGER: Activated
+10:03:58.962922 - SCRIPT MANAGER: Activating <unknown>.<module>:373 > orca._activate_services:249 > script_manager.activate:56
+10:03:58.963310 - EVENT MANAGER: Registering listeners for: default (module=orca.scripts.default)
+10:03:58.963325 - EVENT MANAGER: registering listener for: document:attributes-changed
+10:03:58.963539 - EVENT MANAGER: registering listener for: document:load-complete
+10:03:58.963610 - EVENT MANAGER: registering listener for: document:load-stopped
+10:03:58.963669 - EVENT MANAGER: registering listener for: document:page-changed
+10:03:58.963725 - EVENT MANAGER: registering listener for: document:reload
+10:03:58.963781 - EVENT MANAGER: registering listener for: mouse:button
+10:03:58.963838 - EVENT MANAGER: registering listener for: object:active-descendant-changed
+10:03:58.963896 - EVENT MANAGER: registering listener for: object:announcement
+10:03:58.963954 - EVENT MANAGER: registering listener for: object:attributes-changed
+10:03:58.964015 - EVENT MANAGER: registering listener for: object:children-changed:add
+10:03:58.964099 - EVENT MANAGER: registering listener for: object:children-changed:remove
+10:03:58.964172 - EVENT MANAGER: registering listener for: object:column-reordered
+10:03:58.964227 - EVENT MANAGER: registering listener for: object:property-change:accessible-description
+10:03:58.964299 - EVENT MANAGER: registering listener for: object:property-change:accessible-name
+10:03:58.964378 - EVENT MANAGER: registering listener for: object:property-change:accessible-value
+10:03:58.964450 - EVENT MANAGER: registering listener for: object:row-reordered
+10:03:58.964645 - EVENT MANAGER: registering listener for: object:selection-changed
+10:03:58.964816 - EVENT MANAGER: registering listener for: object:state-changed:active
+10:03:58.965015 - EVENT MANAGER: registering listener for: object:state-changed:busy
+10:03:58.965206 - EVENT MANAGER: registering listener for: object:state-changed:checked
+10:03:58.965377 - EVENT MANAGER: registering listener for: object:state-changed:expanded
+10:03:58.965543 - EVENT MANAGER: registering listener for: object:state-changed:focused
+10:03:58.965707 - EVENT MANAGER: registering listener for: object:state-changed:indeterminate
+10:03:58.965878 - EVENT MANAGER: registering listener for: object:state-changed:invalid-entry
+10:03:58.966045 - EVENT MANAGER: registering listener for: object:state-changed:pressed
+10:03:58.966210 - EVENT MANAGER: registering listener for: object:state-changed:selected
+10:03:58.966369 - EVENT MANAGER: registering listener for: object:state-changed:sensitive
+10:03:58.966529 - EVENT MANAGER: registering listener for: object:state-changed:showing
+10:03:58.966703 - EVENT MANAGER: registering listener for: object:text-attributes-changed
+10:03:58.966829 - EVENT MANAGER: registering listener for: object:text-caret-moved
+10:03:58.966954 - EVENT MANAGER: registering listener for: object:text-changed:delete
+10:03:58.967148 - EVENT MANAGER: registering listener for: object:text-changed:insert
+10:03:58.967322 - EVENT MANAGER: registering listener for: object:text-selection-changed
+10:03:58.967449 - EVENT MANAGER: registering listener for: object:value-changed
+10:03:58.967575 - EVENT MANAGER: registering listener for: window:activate
+10:03:58.967700 - EVENT MANAGER: registering listener for: window:create
+10:03:58.967825 - EVENT MANAGER: registering listener for: window:deactivate
+10:03:58.967949 - EVENT MANAGER: registering listener for: window:destroy
+10:03:58.968151 - SCRIPT MANAGER: Setting active script to default (module=orca.scripts.default) reason: activate
+10:03:58.968192 - DEFAULT: Activating script for None
+10:03:58.968482 - SPEECH MANAGER: Speech server is <orca.speechdispatcherfactory.SpeechServer object at 0x7d0202a196a0>
+10:03:58.968535 - GSETTINGS SCHEMA HANDLE: speech/punctuation-level not set [profile:default]
+10:03:58.968550 - GSETTINGS REGISTRY: speech/punctuation-level using default value = 'most'
+10:03:58.968887 - SPEECH MANAGER: Speech server is <orca.speechdispatcherfactory.SpeechServer object at 0x7d0202a196a0>
+10:03:58.968928 - GSETTINGS SCHEMA HANDLE: speech/capitalization-style not set [profile:default]
+10:03:58.968941 - GSETTINGS REGISTRY: speech/capitalization-style using default value = 'none'
+10:03:58.969484 - SPEECH MANAGER: Speech server is <orca.speechdispatcherfactory.SpeechServer object at 0x7d0202a196a0>
+10:03:58.969583 - GSETTINGS SCHEMA HANDLE: speech/synthesizer not set [profile:default]
+10:03:58.969631 - SCRIPT MANAGER: Active script is: default (module=orca.scripts.default)
+10:03:58.969647 - CARET NAVIGATOR: Commands suspended: False: script activation, no prior state
+10:03:58.969682 - GSETTINGS SCHEMA HANDLE: keybindings/keyboard-layout not set [profile:default]
+10:03:58.969701 - GSETTINGS REGISTRY: keybindings/keyboard-layout using default value = 'desktop'
+10:03:58.969729 - GSETTINGS SCHEMA HANDLE: keybindings/desktop-modifier-keys not set [profile:default]
+10:03:58.969743 - GSETTINGS REGISTRY: keybindings/desktop-modifier-keys using default value = ['Insert', 'KP_Insert']
+10:03:58.969807 - SCRIPT MANAGER: Active script is: default (module=orca.scripts.default)
+10:03:58.969822 - STRUCTURAL NAVIGATOR: Suspended: False: script activation, no prior state
+10:03:58.969850 - GSETTINGS SCHEMA HANDLE: keybindings/keyboard-layout not set [profile:default]
+10:03:58.969863 - GSETTINGS REGISTRY: keybindings/keyboard-layout using default value = 'desktop'
+10:03:58.969886 - GSETTINGS SCHEMA HANDLE: keybindings/desktop-modifier-keys not set [profile:default]
+10:03:58.969898 - GSETTINGS REGISTRY: keybindings/desktop-modifier-keys using default value = ['Insert', 'KP_Insert']
+10:03:58.969973 - STRUCTURAL NAVIGATOR: Setting mode for default (module=orca.scripts.default) to NavigationMode.OFF
+10:03:58.970131 - SCRIPT MANAGER: Active script is: default (module=orca.scripts.default)
+10:03:58.970175 - GSETTINGS SCHEMA HANDLE: keybindings/keyboard-layout not set [profile:default]
+10:03:58.970184 - GSETTINGS REGISTRY: keybindings/keyboard-layout using default value = 'desktop'
+10:03:58.970195 - GSETTINGS SCHEMA HANDLE: keybindings/desktop-modifier-keys not set [profile:default]
+10:03:58.970200 - GSETTINGS REGISTRY: keybindings/desktop-modifier-keys using default value = ['Insert', 'KP_Insert']
+10:03:58.970247 - CARET NAVIGATOR: Setting enabled state for default (module=orca.scripts.default) to False
+10:03:58.970262 - SCRIPT MANAGER: Active script is: default (module=orca.scripts.default)
+10:03:58.970273 - GSETTINGS SCHEMA HANDLE: keybindings/keyboard-layout not set [profile:default]
+10:03:58.970277 - GSETTINGS REGISTRY: keybindings/keyboard-layout using default value = 'desktop'
+10:03:58.970284 - GSETTINGS SCHEMA HANDLE: keybindings/desktop-modifier-keys not set [profile:default]
+10:03:58.970288 - GSETTINGS REGISTRY: keybindings/desktop-modifier-keys using default value = ['Insert', 'KP_Insert']
+10:03:58.970301 - COMMAND MANAGER: Activating commands: activated default (module=orca.scripts.default)
+10:03:58.970379 - GSETTINGS SCHEMA HANDLE: keybindings/entries no dict values set
+10:03:58.970383 - GSETTINGS REGISTRY: keybindings/entries using default value = {}
+10:03:58.970387 - COMMAND MANAGER: No user overrides to apply
+10:03:58.970438 - GSETTINGS SCHEMA HANDLE: keybindings/keyboard-layout not set [profile:default]
+10:03:58.970443 - GSETTINGS REGISTRY: keybindings/keyboard-layout using default value = 'desktop'
+10:03:58.970450 - GSETTINGS SCHEMA HANDLE: keybindings/desktop-modifier-keys not set [profile:default]
+10:03:58.970454 - GSETTINGS REGISTRY: keybindings/desktop-modifier-keys using default value = ['Insert', 'KP_Insert']
+
+vvvvv COMMAND MANAGER: Grab diff: activated default (module=orca.scripts.default) (old: 77, new: 77) vvvvv
+10:03:58.972145 -   Added (46):
+10:03:58.972168 -     Orca+KP_Divide: routePointerToItemHandler
+10:03:58.972177 -     Orca+space: preferencesSettingsHandler
+10:03:58.972182 -     Orca+Control+space: appPreferencesSettingsHandler
+10:03:58.972187 -     Orca+s: toggleSilenceSpeechHandler
+10:03:58.972192 -     Orca+v: toggleSpeechVerbosityHandler
+10:03:58.972195 -     Orca+F11: toggleTableCellReadModeHandler
+10:03:58.972200 -     Orca+Shift+d: toggle_speech_monitor
+10:03:58.972203 -     Orca+t: presentTimeHandler
+10:03:58.972208 -     Orca+t x2: presentDateHandler
+10:03:58.972212 -     Orca+Control+Up: object_navigator_up
+10:03:58.972217 -     Orca+Control+Down: object_navigator_down
+10:03:58.972225 -     Orca+Control+Right: object_navigator_next
+10:03:58.972229 -     Orca+Control+Left: object_navigator_previous
+10:03:58.972232 -     Orca+Control+Return: object_navigator_perform_action
+10:03:58.972236 -     Orca+Control+s: object_navigator_toggle_simplify
+10:03:58.972240 -     Orca+F12: toggle_enabled
+10:03:58.972244 -     Orca+z: structural_navigator_mode_cycle
+10:03:58.972248 -     Orca+Shift+t: table_navigator_toggle_enabled
+10:03:58.972253 -     Orca+Alt+Shift+Left: table_cell_beginning_of_row
+10:03:58.972256 -     Orca+Alt+Shift+Right: table_cell_end_of_row
+10:03:58.972260 -     Orca+Alt+Shift+Up: table_cell_top_of_column
+10:03:58.972264 -     Orca+Alt+Shift+Down: table_cell_bottom_of_column
+10:03:58.972268 -     Orca+Shift+r: set_dynamic_column_headers_row
+10:03:58.972272 -     Orca+Shift+r x2: clear_dynamic_column_headers_row
+10:03:58.972275 -     Orca+Shift+c: set_dynamic_row_headers_column
+10:03:58.972279 -     Orca+Shift+c x2: clear_dynamic_row_headers_column
+10:03:58.972283 -     Orca+a: toggle_presentation_mode
+10:03:58.972286 -     Orca+a x2: enable_sticky_focus_mode
+10:03:58.972290 -     Orca+a x3: enable_sticky_browse_mode
+10:03:58.972294 -     Orca+backslash: toggle_live_region_support
+10:03:58.972298 -     Orca+h: enterLearnModeHandler
+10:03:58.972302 -     Orca+Shift+a: show_actions_list
+10:03:58.972306 -     Orca+KP_Home: reviewHomeHandler
+10:03:58.972309 -     Orca+KP_Page_Up: reviewEndHandler
+10:03:58.972313 -     Orca+KP_End: reviewEndOfLineHandler
+10:03:58.972316 -     Orca+KP_Begin: reviewCurrentAccessibleHandler
+10:03:58.972320 -     Orca+KP_Left: reviewAboveHandler
+10:03:58.972324 -     Orca+KP_Right: reviewBelowHandler
+10:03:58.972328 -     Orca+KP_Delete: findNextHandler
+10:03:58.972331 -     Orca+Shift+KP_Delete: findPreviousHandler
+10:03:58.972335 -     Orca+f: readCharAttributesHandler
+10:03:58.972339 -     Orca+KP_Enter: getTitleHandler
+10:03:58.972343 -     Orca+KP_Enter x2: getStatusBarHandler
+10:03:58.972346 -     Orca+e: present_default_button
+10:03:58.972350 -     Orca+equal: present_cell_formula
+10:03:58.972354 -     Orca+Shift+Up: whereAmISelectionHandler
+^^^^^ COMMAND MANAGER: Diff completed in 0.0019s. Removed 0, added 46, transferred 0 ^^^^^
+
+10:03:58.972387 - GSETTINGS SCHEMA HANDLE: speech/enable not set [profile:default]
+10:03:58.972392 - GSETTINGS REGISTRY: speech/enable using default value = True
+10:03:58.972396 - SPEECH MANAGER: Speech is enabled.
+10:03:58.972428 - SPEECH MANAGER: start_speech. Script: None Event: None notify_user: False
+10:03:58.972433 - SPEECH MANAGER: Initializing server
+10:03:58.972436 - SPEECH MANAGER: Already initialized
+10:03:58.972449 - GSETTINGS SCHEMA HANDLE: keybindings/keyboard-layout not set [profile:default]
+10:03:58.972453 - GSETTINGS REGISTRY: keybindings/keyboard-layout using default value = 'desktop'
+10:03:58.972458 - COMMAND MANAGER: Setting keyboard layout is_desktop to True.
+10:03:58.972511 - GSETTINGS SCHEMA HANDLE: keybindings/entries no dict values set
+10:03:58.972516 - GSETTINGS REGISTRY: keybindings/entries using default value = {}
+10:03:58.972519 - COMMAND MANAGER: No user overrides to apply
+10:03:58.972559 - GSETTINGS SCHEMA HANDLE: keybindings/keyboard-layout not set [profile:default]
+10:03:58.972565 - GSETTINGS REGISTRY: keybindings/keyboard-layout using default value = 'desktop'
+10:03:58.972572 - GSETTINGS SCHEMA HANDLE: keybindings/desktop-modifier-keys not set [profile:default]
+10:03:58.972576 - GSETTINGS REGISTRY: keybindings/desktop-modifier-keys using default value = ['Insert', 'KP_Insert']
+
+vvvvv COMMAND MANAGER: Grab diff: keyboard layout change (old: 77, new: 77) vvvvv
+10:03:58.973192 -   No grab changes
+^^^^^ COMMAND MANAGER: Diff completed in 0.0006s. Removed 0, added 0, transferred 0 ^^^^^
+
+10:03:58.973202 - COMMAND MANAGER: Keyboard layout set to desktop.
+10:03:58.973217 - GSETTINGS SCHEMA HANDLE: keybindings/keyboard-layout not set [profile:default]
+10:03:58.973221 - GSETTINGS REGISTRY: keybindings/keyboard-layout using default value = 'desktop'
+10:03:58.973231 - GSETTINGS SCHEMA HANDLE: keybindings/desktop-modifier-keys not set [profile:default]
+10:03:58.973234 - GSETTINGS REGISTRY: keybindings/desktop-modifier-keys using default value = ['Insert', 'KP_Insert']
+10:03:58.973239 - SCRIPT MANAGER: Activated
+10:03:58.973357 - AXUtilities: Unable to find active window from []
+10:03:58.973365 - CLIPBOARD PRESENTER: Activating
+10:03:58.974567 - CLIPBOARD PRESENTER: Could not access klipper interface: The name org.kde.klipper was not provided by any .service files
+10:03:58.975119 - CLIPBOARD PRESENTER: Could not access GPaste interface: The name org.gnome.GPaste was not provided by any .service files
+10:03:58.975316 - CLIPBOARD PRESENTER: Using Gtk.Clipboard as fallback.
+10:03:58.975329 - CLIPBOARD PRESENTER: Activated
+10:03:58.975344 - ORCA: Starting Atspi main event loop
+10:03:58.975436 - WARNING: Braille initialization failed: BrlAPI connection unavailable.
+10:03:58.975451 - BRAILLE: Scheduling BrlAPI retry in 2000 ms.
+
+10:03:58.975888 - EVENT MANAGER: object:children-changed:add for [desktop frame: 'main' (0x7d0201905c00)]  in  (0, 0, [application: 'orca' (0x7d0202a40400)])
+10:03:58.975918 - FOCUS MANAGER: Locus of focus is None
+10:03:58.976165 - SCRIPT MANAGER: Active script is: default (module=orca.scripts.default)
+10:03:58.976216 - EVENT MANAGER: Queueing object:children-changed:add for [desktop frame: 'main' (0x7d02018eac80)]  in  (0, 0, [application: 'orca' (0x7d02018ff680)])
+10:03:58.976235 - EVENT MANAGER: App for event source is None
+10:03:58.976254 - SCRIPT MANAGER: Getting script for None [desktop frame: 'main' (0x7d0201943680)] 
+10:03:58.976315 - SCRIPT MANAGER: Script is app script default (module=orca.scripts.default)
+10:03:58.976351 - EVENT MANAGER: object:children-changed:add for [desktop frame: 'main' (0x7d02019437c0)]  in  (0, 0, [application: 'orca' (0x7d0201943800)]) has priority level: 6
+10:03:58.976389 - EVENT MANAGER: Queued object:children-changed:add for [desktop frame: 'main' (0x7d02018eb680)]  in  (0, 0, [application: 'orca' (0x7d020191b140)]) priority: 6, counter: 0
+10:03:58.976437 - EVENT MANAGER: Dequeueing object:children-changed:add for [desktop frame: 'main' (0x7d0201943800)]  in  (0, 0, [application: 'orca' (0x7d0201943780)])
+10:03:58.976466 - EVENT MANAGER: Dequeued object:children-changed:add for [desktop frame: 'main' (0x7d0201943780)]  in  (0, 0, [application: 'orca' (0x7d0201943800)]) priority: 6, counter: 0
+
+vvvvv START PRIORITY-6 OBJECT EVENT OBJECT:CHILDREN-CHANGED:ADD (queue size: 0) vvvvv
+10:03:58.977163 - EVENT SOURCE:
+                  app='' name='main' role='desktop frame' axid='None' id=0x7d0202c7e8c0
+                  description=''
+                  help=''
+                  locale=''
+                  states=''
+                  relations=''
+                  actions=''
+                  interfaces='Component'
+                  attributes=''
+                  text=''
+                  path=[-1]
+                  
+                  EVENT ANY DATA:
+                  name='orca' role='application' axid='' id=0x7d0202c7e8c0
+                  description=''
+                  help=''
+                  locale='C.UTF-8'
+                  states=''
+                  relations=''
+                  actions=''
+                  interfaces='Collection'
+                  attributes=''
+                  text=''
+                  path=[-1]
+                  
+10:03:58.977193 - SCRIPT MANAGER: Active script is: default (module=orca.scripts.default)
+10:03:58.977214 - FOCUS MANAGER: Locus of focus is None
+10:03:58.977241 - EVENT MANAGER: Getting script for event for None [desktop frame: 'main' (0x7d0202ace6c0)] 
+10:03:58.977260 - SCRIPT MANAGER: Getting script for None [desktop frame: 'main' (0x7d0202ace6c0)] 
+10:03:58.977313 - SCRIPT MANAGER: Script is app script default (module=orca.scripts.default)
+10:03:58.977327 - EVENT MANAGER: Script for event is default (module=orca.scripts.default)
+10:03:58.977334 - EVENT MANAGER: Processing object:children-changed:add: script for event is active
+10:03:58.977344 - AXUtilitiesRelation: Clearing local cache. Reason: children-changed event.
+10:03:58.977355 - AXObject: Clearing local cache. Reason: children-changed event.
+10:03:58.977361 - AXUtilitiesRelation: Clearing local cache. Reason: children-changed event.
+10:03:58.977367 - AXUtilitiesEvent: Clearing local cache. Reason: children-changed event.
+10:03:58.977374 - AXUtilitiesSelection: Clearing cache. Reason: children-changed event.
+TOTAL PROCESSING TIME: 0.0009
+^^^^^ FINISHED PRIORITY-6 OBJECT EVENT OBJECT:CHILDREN-CHANGED:ADD ^^^^^
+
+
+10:03:59.209827 - EVENT MANAGER: object:children-changed:add for [desktop frame: 'main' (0x7d0202a42a00)]  in  (1, 0, [application: 'xdg-desktop-portal-gtk' (0x7d0202aa6880)])
+10:03:59.209919 - FOCUS MANAGER: Locus of focus is None
+10:03:59.210065 - SCRIPT MANAGER: Active script is: default (module=orca.scripts.default)
+10:03:59.210120 - EVENT MANAGER: Queueing object:children-changed:add for [desktop frame: 'main' (0x7d02019438c0)]  in  (1, 0, [application: 'xdg-desktop-portal-gtk' (0x7d0201940640)])
+10:03:59.210146 - EVENT MANAGER: App for event source is None
+10:03:59.210172 - SCRIPT MANAGER: Getting script for None [desktop frame: 'main' (0x7d02019403c0)] 
+10:03:59.210244 - SCRIPT MANAGER: Script is app script default (module=orca.scripts.default)
+10:03:59.210286 - EVENT MANAGER: object:children-changed:add for [desktop frame: 'main' (0x7d0202a303c0)]  in  (1, 0, [application: 'xdg-desktop-portal-gtk' (0x7d02019403c0)]) has priority level: 6
+10:03:59.210326 - EVENT MANAGER: Queued object:children-changed:add for [desktop frame: 'main' (0x7d0202aacbc0)]  in  (1, 0, [application: 'xdg-desktop-portal-gtk' (0x7d0202aacbc0)]) priority: 6, counter: 1
+10:03:59.210427 - EVENT MANAGER: Dequeueing object:children-changed:add for [desktop frame: 'main' (0x7d02019403c0)]  in  (1, 0, [application: 'xdg-desktop-portal-gtk' (0x7d02019438c0)])
+10:03:59.210458 - EVENT MANAGER: Dequeued object:children-changed:add for [desktop frame: 'main' (0x7d021807a440)]  in  (1, 0, [application: 'xdg-desktop-portal-gtk' (0x7d021807a440)]) priority: 6, counter: 1
+
+vvvvv START PRIORITY-6 OBJECT EVENT OBJECT:CHILDREN-CHANGED:ADD (queue size: 0) vvvvv
+10:03:59.210999 - EVENT SOURCE:
+                  app='' name='main' role='desktop frame' axid='None' id=0x7d02019403c0
+                  description=''
+                  help=''
+                  locale=''
+                  states=''
+                  relations=''
+                  actions=''
+                  interfaces='Component'
+                  attributes=''
+                  text=''
+                  path=[-1]
+                  
+                  EVENT ANY DATA:
+                  name='xdg-desktop-portal-gtk' role='application' axid='' id=0x7d02019403c0
+                  description=''
+                  help=''
+                  locale='C.UTF-8'
+                  states=''
+                  relations=''
+                  actions=''
+                  interfaces='Collection'
+                  attributes=''
+                  text=''
+                  path=[-1]
+                  
+10:03:59.211025 - SCRIPT MANAGER: Active script is: default (module=orca.scripts.default)
+10:03:59.211045 - FOCUS MANAGER: Locus of focus is None
+10:03:59.211069 - EVENT MANAGER: Getting script for event for None [desktop frame: 'main' (0x7d0202a303c0)] 
+10:03:59.211085 - SCRIPT MANAGER: Getting script for None [desktop frame: 'main' (0x7d0202a303c0)] 
+10:03:59.211141 - SCRIPT MANAGER: Script is app script default (module=orca.scripts.default)
+10:03:59.211154 - EVENT MANAGER: Script for event is default (module=orca.scripts.default)
+10:03:59.211159 - EVENT MANAGER: Processing object:children-changed:add: script for event is active
+10:03:59.211169 - AXUtilitiesRelation: Clearing local cache. Reason: children-changed event.
+10:03:59.211175 - AXObject: Clearing local cache. Reason: children-changed event.
+10:03:59.211181 - AXUtilitiesRelation: Clearing local cache. Reason: children-changed event.
+10:03:59.211188 - AXUtilitiesEvent: Clearing local cache. Reason: children-changed event.
+10:03:59.211196 - AXUtilitiesSelection: Clearing cache. Reason: children-changed event.
+TOTAL PROCESSING TIME: 0.0008
+^^^^^ FINISHED PRIORITY-6 OBJECT EVENT OBJECT:CHILDREN-CHANGED:ADD ^^^^^
+
+
+10:03:59.279758 - EVENT MANAGER: object:children-changed:add for [desktop frame: 'main' (0x7d0202a40700)]  in  (2, 0, [application: 'org.gnome.Terminal' (0x7d0201954400)])
+10:03:59.279814 - FOCUS MANAGER: Locus of focus is None
+10:03:59.279893 - EVENT_MANAGER: Ignoring object:children-changed:add due to multiple instances in short time
+
+10:03:59.459105 - EVENT MANAGER: object:property-change:accessible-name for [button: 'New Tab' (0x7d02019544c0)]  in org.gnome.Terminal (gtk 3.24.52) (0, 0, New Tab)
+10:03:59.459186 - FOCUS MANAGER: Locus of focus is None
+10:03:59.459365 - EVENT MANAGER: Queueing object:property-change:accessible-name for [button: 'New Tab' (0x7d0201943340)]  in org.gnome.Terminal (gtk 3.24.52) (0, 0, New Tab)
+10:03:59.459387 - EVENT MANAGER: App for event source is [application: 'org.gnome.Terminal' (0x7d02019433c0)] 
+10:03:59.459407 - SCRIPT MANAGER: Getting script for [application: 'org.gnome.Terminal' (0x7d02019433c0)]  [button: 'New Tab' (0x7d02019438c0)] 
+10:03:59.459462 - SCRIPT MANAGER: Creating toolkit script for [application: 'org.gnome.Terminal' (0x7d02019433c0)]  [button: 'New Tab' (0x7d02019438c0)]  gtk
+10:03:59.459498 - SCRIPT MANAGER: Mapped [application: 'org.gnome.Terminal' (0x7d02019433c0)]  to Terminal
+10:03:59.460354 - SCRIPT MANAGER: Found orca.scripts.toolkits.gtk
+10:03:59.460741 - DEFAULT: Setting up commands for [application: 'org.gnome.Terminal' (0x7d02019433c0)] 
+10:03:59.460762 - DEFAULT: Commands already initialized.
+10:03:59.460771 - SCRIPT: org.gnome.Terminal (module=orca.scripts.toolkits.gtk.script) initialized
+10:03:59.460790 - SCRIPT MANAGER: Creating app script for [application: 'org.gnome.Terminal' (0x7d02019433c0)] 
+10:03:59.460823 - SCRIPT MANAGER: Mapped [application: 'org.gnome.Terminal' (0x7d02019433c0)]  to Terminal
+10:03:59.460940 - SCRIPT MANAGER: Found orca.scripts.toolkits.gtk
+10:03:59.461242 - DEFAULT: Setting up commands for [application: 'org.gnome.Terminal' (0x7d02019433c0)] 
+10:03:59.461267 - DEFAULT: Commands already initialized.
+10:03:59.461274 - SCRIPT: org.gnome.Terminal (module=orca.scripts.toolkits.gtk.script) initialized
+10:03:59.461312 - SCRIPT MANAGER: Script is app script org.gnome.Terminal (module=orca.scripts.toolkits.gtk.script)
+10:03:59.461378 - EVENT MANAGER: object:property-change:accessible-name for [button: 'New Tab' (0x7d020195f840)]  in org.gnome.Terminal (gtk 3.24.52) (0, 0, New Tab) has priority level: 4
+10:03:59.461424 - EVENT MANAGER: Queued object:property-change:accessible-name for [button: 'New Tab' (0x7d020195f740)]  in org.gnome.Terminal (gtk 3.24.52) (0, 0, New Tab) priority: 4, counter: 2
+10:03:59.464857 - EVENT MANAGER: Dequeueing object:property-change:accessible-name for [button: 'New Tab' (0x7d020195f740)]  in org.gnome.Terminal (gtk 3.24.52) (0, 0, New Tab)
+10:03:59.464914 - EVENT MANAGER: Dequeued object:property-change:accessible-name for [button: 'New Tab' (0x7d020195fa80)]  in org.gnome.Terminal (gtk 3.24.52) (0, 0, New Tab) priority: 4, counter: 2
+
+vvvvv START PRIORITY-4 OBJECT EVENT OBJECT:PROPERTY-CHANGE:ACCESSIBLE-NAME (queue size: 0) vvvvv
+
+10:03:59.465226 - EVENT MANAGER: object:property-change:accessible-name for [toggle button: 'Profiles' (0x7d020195fd80)]  in org.gnome.Terminal (gtk 3.24.52) (0, 0, Profiles)
+10:03:59.465248 - FOCUS MANAGER: Locus of focus is None
+10:03:59.465332 - EVENT_MANAGER: Ignoring object:property-change:accessible-name due to multiple instances in short time
+
+10:03:59.465437 - EVENT MANAGER: object:property-change:accessible-name for [button: 'Find' (0x7d0201960040)]  in org.gnome.Terminal (gtk 3.24.52) (0, 0, Find)
+10:03:59.465453 - FOCUS MANAGER: Locus of focus is None
+10:03:59.465516 - EVENT_MANAGER: Ignoring object:property-change:accessible-name due to multiple instances in short time
+
+10:03:59.465634 - EVENT MANAGER: object:state-changed:sensitive for [toggle button: 'Profiles' (0x7d0201960100)]  in org.gnome.Terminal (gtk 3.24.52) (1, 0, 0)
+10:03:59.465655 - FOCUS MANAGER: Locus of focus is None
+10:03:59.465735 - EVENT MANAGER: Ignoring object:state-changed:sensitive due to role of unfocused source
+
+10:03:59.465882 - EVENT MANAGER: object:children-changed:add for [frame: 'Terminal' (0x7d0201960300)]  in org.gnome.Terminal (gtk 3.24.52) (-1, 0, [panel (0x7d02019602c0)])
+10:03:59.465899 - FOCUS MANAGER: Locus of focus is None
+10:03:59.465916 - EVENT MANAGER: Not ignoring object:children-changed:add based on role
+10:03:59.465946 - EVENT MANAGER: Queueing object:children-changed:add for [frame: 'Terminal' (0x7d0201960400)]  in org.gnome.Terminal (gtk 3.24.52) (-1, 0, [panel (0x7d0201960280)])
+10:03:59.465960 - EVENT MANAGER: App for event source is [application: 'org.gnome.Terminal' (0x7d02019433c0)] 
+10:03:59.465993 - SCRIPT MANAGER: Getting script for [application: 'org.gnome.Terminal' (0x7d02019433c0)]  [frame: 'Terminal' (0x7d0201960400)] 
+10:03:59.466086 - SCRIPT MANAGER: Script is app script org.gnome.Terminal (module=orca.scripts.toolkits.gtk.script)
+10:03:59.466135 - EVENT MANAGER: object:children-changed:add for [frame: 'Terminal' (0x7d02019605c0)]  in org.gnome.Terminal (gtk 3.24.52) (-1, 0, [panel (0x7d0201960580)]) has priority level: 6
+10:03:59.466173 - EVENT MANAGER: Queued object:children-changed:add for [frame: 'Terminal' (0x7d02019606c0)]  in org.gnome.Terminal (gtk 3.24.52) (-1, 0, [panel (0x7d0201960600)]) priority: 6, counter: 3
+
+10:03:59.466289 - EVENT MANAGER: object:state-changed:sensitive for [button: 'Find' (0x7d0202a40400)]  in org.gnome.Terminal (gtk 3.24.52) (1, 0, 0)
+10:03:59.466306 - FOCUS MANAGER: Locus of focus is None
+10:03:59.466377 - EVENT_MANAGER: Ignoring object:state-changed:sensitive due to multiple instances in short time
+
+10:03:59.466426 - EVENT MANAGER: object:state-changed:sensitive for [button: 'New Tab' (0x7d020195fc40)]  in org.gnome.Terminal (gtk 3.24.52) (1, 0, 0)
+10:03:59.466441 - FOCUS MANAGER: Locus of focus is None
+10:03:59.466482 - EVENT_MANAGER: Ignoring object:state-changed:sensitive due to multiple instances in short time
+
+10:03:59.466579 - EVENT MANAGER: object:state-changed:sensitive for [panel (0x7d0201960940)]  in org.gnome.Terminal (gtk 3.24.52) (1, 0, 0)
+10:03:59.466595 - FOCUS MANAGER: Locus of focus is None
+10:03:59.466656 - EVENT_MANAGER: Ignoring object:state-changed:sensitive due to multiple instances in short time
+
+10:03:59.466967 - EVENT MANAGER: object:state-changed:sensitive for [toggle button: 'Menu' (0x7d0201960980)]  in org.gnome.Terminal (gtk 3.24.52) (1, 0, 0)
+10:03:59.467007 - FOCUS MANAGER: Locus of focus is None
+10:03:59.467089 - EVENT_MANAGER: Ignoring object:state-changed:sensitive due to multiple instances in short time
+
+10:03:59.468073 - EVENT MANAGER: object:state-changed:sensitive for [check box: 'Read-Only' (0x7d0201960dc0)]  in org.gnome.Terminal (gtk 3.24.52) (1, 0, 0)
+10:03:59.468117 - FOCUS MANAGER: Locus of focus is None
+10:03:59.468217 - EVENT_MANAGER: Ignoring object:state-changed:sensitive due to multiple instances in short time
+
+10:03:59.468539 - EVENT MANAGER: object:state-changed:checked for [check menu item: 'Show Menubar' (0x7d0201960f00)]  in org.gnome.Terminal (gtk 3.24.52) (1, 0, 0)
+10:03:59.468559 - FOCUS MANAGER: Locus of focus is None
+10:03:59.469036 - EVENT MANAGER: Ignoring object:state-changed:checked due to unfocused, non-showing source
+
+10:03:59.470694 - EVENT MANAGER: object:state-changed:sensitive for [check menu item: 'Read-Only' (0x7d0201961040)]  in org.gnome.Terminal (gtk 3.24.52) (1, 0, 0)
+10:03:59.470761 - FOCUS MANAGER: Locus of focus is None
+10:03:59.471038 - EVENT_MANAGER: Ignoring object:state-changed:sensitive due to multiple instances in short time
+
+10:03:59.471597 - EVENT MANAGER: object:state-changed:sensitive for [check menu item: 'Full Screen' (0x7d02019614c0)]  in org.gnome.Terminal (gtk 3.24.52) (1, 0, 0)
+10:03:59.471653 - FOCUS MANAGER: Locus of focus is None
+10:03:59.471865 - EVENT_MANAGER: Ignoring object:state-changed:sensitive due to multiple instances in short time
+
+10:03:59.472460 - EVENT MANAGER: object:state-changed:checked for [check menu item: 'Show Menubar' (0x7d0201961740)]  in org.gnome.Terminal (gtk 3.24.52) (0, 0, 0)
+10:03:59.472514 - FOCUS MANAGER: Locus of focus is None
+10:03:59.472707 - EVENT_MANAGER: Ignoring object:state-changed:checked due to multiple instances in short time
+
+10:03:59.472870 - EVENT MANAGER: object:property-change:accessible-name for [frame: 'Terminal' (0x7d0201961900)]  in org.gnome.Terminal (gtk 3.24.52) (0, 0, Terminal)
+10:03:59.472908 - FOCUS MANAGER: Locus of focus is None
+10:03:59.472966 - EVENT MANAGER: Not ignoring object:property-change:accessible-name based on role
+10:03:59.473069 - EVENT MANAGER: Queueing object:property-change:accessible-name for [frame: 'Terminal' (0x7d0201961ac0)]  in org.gnome.Terminal (gtk 3.24.52) (0, 0, Terminal)
+10:03:59.473114 - EVENT MANAGER: App for event source is [application: 'org.gnome.Terminal' (0x7d02019433c0)] 
+10:03:59.473164 - SCRIPT MANAGER: Getting script for [application: 'org.gnome.Terminal' (0x7d02019433c0)]  [frame: 'Terminal' (0x7d02018e1b40)] 
+10:03:59.473222 - SCRIPT MANAGER: Script is app script org.gnome.Terminal (module=orca.scripts.toolkits.gtk.script)
+10:03:59.473323 - EVENT MANAGER: object:property-change:accessible-name for [frame: 'Terminal' (0x7d0201961c00)]  in org.gnome.Terminal (gtk 3.24.52) (0, 0, Terminal) has priority level: 4
+10:03:59.473421 - EVENT MANAGER: Queued object:property-change:accessible-name for [frame: 'Terminal' (0x7d0201961cc0)]  in org.gnome.Terminal (gtk 3.24.52) (0, 0, Terminal) priority: 4, counter: 4
+
+10:03:59.473572 - EVENT MANAGER: object:state-changed:showing for [button: 'New Tab' (0x7d020195fc40)]  in org.gnome.Terminal (gtk 3.24.52) (1, 0, 0)
+10:03:59.473608 - FOCUS MANAGER: Locus of focus is None
+10:03:59.473771 - EVENT MANAGER: Ignoring object:state-changed:showing due to role
+
+10:03:59.473875 - EVENT MANAGER: object:state-changed:showing for [toggle button: 'Menu' (0x7d0201961ec0)]  in org.gnome.Terminal (gtk 3.24.52) (1, 0, 0)
+10:03:59.473910 - FOCUS MANAGER: Locus of focus is None
+10:03:59.474059 - EVENT_MANAGER: Ignoring object:state-changed:showing due to multiple instances in short time
+
+10:03:59.474355 - EVENT MANAGER: object:state-changed:showing for [button: 'Find' (0x7d0201962140)]  in org.gnome.Terminal (gtk 3.24.52) (1, 0, 0)
+10:03:59.474396 - FOCUS MANAGER: Locus of focus is None
+10:03:59.474591 - EVENT_MANAGER: Ignoring object:state-changed:showing due to multiple instances in short time
+
+10:03:59.474942 - EVENT MANAGER: object:state-changed:showing for [button: 'Minimize' (0x7d02019625c0)]  in org.gnome.Terminal (gtk 3.24.52) (1, 0, 0)
+10:03:59.474999 - FOCUS MANAGER: Locus of focus is None
+10:03:59.475201 - EVENT_MANAGER: Ignoring object:state-changed:showing due to multiple instances in short time
+
+10:03:59.475570 - EVENT MANAGER: object:state-changed:showing for [button: 'Maximize' (0x7d0201962440)]  in org.gnome.Terminal (gtk 3.24.52) (1, 0, 0)
+10:03:59.475616 - FOCUS MANAGER: Locus of focus is None
+10:03:59.475811 - EVENT_MANAGER: Ignoring object:state-changed:showing due to multiple instances in short time
+
+10:03:59.476184 - EVENT MANAGER: object:state-changed:showing for [button: 'Close' (0x7d0202ada8c0)]  in org.gnome.Terminal (gtk 3.24.52) (1, 0, 0)
+10:03:59.476238 - FOCUS MANAGER: Locus of focus is None
+10:03:59.476437 - EVENT_MANAGER: Ignoring object:state-changed:showing due to multiple instances in short time
+
+10:03:59.476556 - EVENT MANAGER: object:state-changed:showing for [frame: 'Terminal' (0x7d0201962a80)]  in org.gnome.Terminal (gtk 3.24.52) (1, 0, 0)
+10:03:59.476595 - FOCUS MANAGER: Locus of focus is None
+10:03:59.476653 - EVENT MANAGER: Not ignoring object:state-changed:showing based on role
+10:03:59.476739 - EVENT MANAGER: Queueing object:state-changed:showing for [frame: 'Terminal' (0x7d0201962c40)]  in org.gnome.Terminal (gtk 3.24.52) (1, 0, 0)
+10:03:59.476783 - EVENT MANAGER: App for event source is [application: 'org.gnome.Terminal' (0x7d02019433c0)] 
+10:03:59.476831 - SCRIPT MANAGER: Getting script for [application: 'org.gnome.Terminal' (0x7d02019433c0)]  [frame: 'Terminal' (0x7d0201962bc0)] 
+10:03:59.476899 - SCRIPT MANAGER: Script is app script org.gnome.Terminal (module=orca.scripts.toolkits.gtk.script)
+10:03:59.477020 - EVENT MANAGER: object:state-changed:showing for [frame: 'Terminal' (0x7d0201962cc0)]  in org.gnome.Terminal (gtk 3.24.52) (1, 0, 0) has priority level: 4
+10:03:59.477126 - EVENT MANAGER: Queued object:state-changed:showing for [frame: 'Terminal' (0x7d0202c92d40)]  in org.gnome.Terminal (gtk 3.24.52) (1, 0, 0) priority: 4, counter: 5
+
+10:03:59.477236 - EVENT MANAGER: object:children-changed:add for [application: 'org.gnome.Terminal' (0x7d02019433c0)]  in org.gnome.Terminal (gtk 3.24.52) (0, 0, [frame: 'Terminal' (0x7d0201962d40)])
+10:03:59.477273 - FOCUS MANAGER: Locus of focus is None
+10:03:59.477469 - SCRIPT MANAGER: Active script is: default (module=orca.scripts.default)
+10:03:59.477499 - EVENT MANAGER: Ignoring object:children-changed:add because event is not from active app
+
+10:03:59.477608 - EVENT MANAGER: window:create for [frame: 'Terminal' (0x7d0201962fc0)]  in org.gnome.Terminal (gtk 3.24.52) (0, 0, Terminal)
+10:03:59.477701 - EVENT MANAGER: Queueing window:create for [frame: 'Terminal' (0x7d0201963000)]  in org.gnome.Terminal (gtk 3.24.52) (0, 0, Terminal)
+10:03:59.477748 - EVENT MANAGER: App for event source is [application: 'org.gnome.Terminal' (0x7d02019433c0)] 
+10:03:59.477799 - SCRIPT MANAGER: Getting script for [application: 'org.gnome.Terminal' (0x7d02019433c0)]  [frame: 'Terminal' (0x7d0201963040)] 
+10:03:59.477854 - SCRIPT MANAGER: Script is app script org.gnome.Terminal (module=orca.scripts.toolkits.gtk.script)
+10:03:59.477954 - EVENT MANAGER: window:create for [frame: 'Terminal' (0x7d0202a33100)]  in org.gnome.Terminal (gtk 3.24.52) (0, 0, Terminal) has priority level: 2
+10:03:59.478054 - EVENT MANAGER: Queued window:create for [frame: 'Terminal' (0x7d0201963180)]  in org.gnome.Terminal (gtk 3.24.52) (0, 0, Terminal) priority: 2, counter: 6
+
+10:03:59.478798 - EVENT MANAGER: object:children-changed:add for [page tab list (0x7d0201963040)]  in org.gnome.Terminal (gtk 3.24.52) (0, 0, [page tab (0x7d0201963040)])
+10:03:59.478853 - FOCUS MANAGER: Locus of focus is None
+10:03:59.479064 - EVENT_MANAGER: Ignoring object:children-changed:add due to multiple instances in short time
+10:03:59.480517 - CLIPBOARD PRESENTER: Possible change event object:text-changed:insert for [terminal: 'Terminal' (0x7d0201963280)]  in org.gnome.Terminal (gtk 3.24.52) (0, 16, \n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n)
+
+10:03:59.480679 - EVENT MANAGER: object:text-changed:insert for [terminal: 'Terminal' (0x7d0201960280)]  in org.gnome.Terminal (gtk 3.24.52) (0, 16, \n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n)
+10:03:59.480714 - FOCUS MANAGER: Locus of focus is None
+10:03:59.480950 - EVENT MANAGER: Queueing object:text-changed:insert for [terminal: 'Terminal' (0x7d0201963400)]  in org.gnome.Terminal (gtk 3.24.52) (0, 16, \n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n)
+10:03:59.481000 - EVENT MANAGER: App for event source is [application: 'org.gnome.Terminal' (0x7d02019433c0)] 
+10:03:59.481049 - SCRIPT MANAGER: Getting script for [application: 'org.gnome.Terminal' (0x7d02019433c0)]  [terminal: 'Terminal' (0x7d0202a2b540)] 
+10:03:59.481424 - SCRIPT MANAGER: Found orca.scripts.terminal
+10:03:59.482498 - DEFAULT: Setting up commands for [application: 'org.gnome.Terminal' (0x7d02019433c0)] 
+10:03:59.482523 - DEFAULT: Commands already initialized.
+10:03:59.482539 - SCRIPT: org.gnome.Terminal (module=orca.scripts.terminal.script) initialized
+10:03:59.482664 - SCRIPT MANAGER: Script is custom script org.gnome.Terminal (module=orca.scripts.terminal.script)
+10:03:59.482771 - EVENT MANAGER: object:text-changed:insert for [terminal: 'Terminal' (0x7d020196cbc0)]  in org.gnome.Terminal (gtk 3.24.52) (0, 16, \n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n) has priority level: 4
+10:03:59.482863 - EVENT MANAGER: Queued object:text-changed:insert for [terminal: 'Terminal' (0x7d020196cd80)]  in org.gnome.Terminal (gtk 3.24.52) (0, 16, \n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n) priority: 4, counter: 7
+
+10:03:59.482961 - EVENT MANAGER: object:text-caret-moved for [terminal: 'Terminal' (0x7d020196ce80)]  in org.gnome.Terminal (gtk 3.24.52) (0, 0, 0)
+10:03:59.483015 - FOCUS MANAGER: Locus of focus is None
+10:03:59.483254 - EVENT MANAGER: Queueing object:text-caret-moved for [terminal: 'Terminal' (0x7d0201905280)]  in org.gnome.Terminal (gtk 3.24.52) (0, 0, 0)
+10:03:59.483297 - EVENT MANAGER: App for event source is [application: 'org.gnome.Terminal' (0x7d02019433c0)] 
+10:03:59.483342 - SCRIPT MANAGER: Getting script for [application: 'org.gnome.Terminal' (0x7d02019433c0)]  [terminal: 'Terminal' (0x7d02019601c0)] 
+10:03:59.483390 - SCRIPT MANAGER: Script is custom script org.gnome.Terminal (module=orca.scripts.terminal.script)
+10:03:59.483482 - EVENT MANAGER: object:text-caret-moved for [terminal: 'Terminal' (0x7d020196d440)]  in org.gnome.Terminal (gtk 3.24.52) (0, 0, 0) has priority level: 4
+10:03:59.483570 - EVENT MANAGER: Queued object:text-caret-moved for [terminal: 'Terminal' (0x7d020196d480)]  in org.gnome.Terminal (gtk 3.24.52) (0, 0, 0) priority: 4, counter: 8
+
+10:03:59.484019 - EVENT MANAGER: object:children-changed:add for [desktop frame: 'main' (0x7d020196d500)]  in  (3, 0, [application: 'gnome-terminal' (0x7d020196cbc0)])
+10:03:59.484059 - FOCUS MANAGER: Locus of focus is None
+10:03:59.484244 - SCRIPT MANAGER: Active script is: default (module=orca.scripts.default)
+10:03:59.484333 - EVENT MANAGER: Queueing object:children-changed:add for [desktop frame: 'main' (0x7d020196d5c0)]  in  (3, 0, [application: 'gnome-terminal' (0x7d020196cb80)])
+10:03:59.484370 - EVENT MANAGER: App for event source is None
+10:03:59.484412 - SCRIPT MANAGER: Getting script for None [desktop frame: 'main' (0x7d020196d4c0)] 
+10:03:59.484567 - SCRIPT MANAGER: Script is app script default (module=orca.scripts.default)
+10:03:59.484656 - EVENT MANAGER: object:children-changed:add for [desktop frame: 'main' (0x7d020196d800)]  in  (3, 0, [application: 'gnome-terminal' (0x7d020196d700)]) has priority level: 6
+10:03:59.484736 - EVENT MANAGER: Queued object:children-changed:add for [desktop frame: 'main' (0x7d020196d8c0)]  in  (3, 0, [application: 'gnome-terminal' (0x7d020196d840)]) priority: 6, counter: 9
+10:03:59.485649 - EVENT SOURCE:
+                  app='org.gnome.Terminal (gtk 3.24.52)' name='New Tab' role='button' axid='' id=0x7d020195fc40
+                  description=''
+                  help=''
+                  locale='C.UTF-8'
+                  states='enabled, focusable, sensitive, showing, visible'
+                  relations=''
+                  actions='click'
+                  interfaces='Action, Collection, Component, Image'
+                  attributes='toolkit:gtk'
+                  text=''
+                  path=[-1, 0, 1, 0, 0]
+                  
+10:03:59.485685 - SCRIPT MANAGER: Active script is: default (module=orca.scripts.default)
+10:03:59.485705 - FOCUS MANAGER: Locus of focus is None
+10:03:59.485743 - EVENT MANAGER: Getting script for event for [application: 'org.gnome.Terminal' (0x7d02019433c0)]  [button: 'New Tab' (0x7d020196e440)] 
+10:03:59.485761 - SCRIPT MANAGER: Getting script for [application: 'org.gnome.Terminal' (0x7d02019433c0)]  [button: 'New Tab' (0x7d020196e440)] 
+10:03:59.485791 - SCRIPT MANAGER: Script is app script org.gnome.Terminal (module=orca.scripts.toolkits.gtk.script)
+10:03:59.485805 - EVENT MANAGER: Script for event is org.gnome.Terminal (module=orca.scripts.toolkits.gtk.script)
+10:03:59.488239 - EVENT MANAGER: Change active script: False (No reason found to activate a different script.)
+10:03:59.488253 - EVENT MANAGER: Processing object:property-change:accessible-name: script handles events when inactive
+10:03:59.488307 - FOCUS MANAGER: Locus of focus is None
+10:03:59.488315 - AXUtilitiesEvent: The event is not from the locus of focus.
+TOTAL PROCESSING TIME: 0.0234
+^^^^^ FINISHED PRIORITY-4 OBJECT EVENT OBJECT:PROPERTY-CHANGE:ACCESSIBLE-NAME ^^^^^
+
+10:03:59.488670 - EVENT MANAGER: Dequeueing window:create for [frame: 'Terminal' (0x7d020196e2c0)]  in org.gnome.Terminal (gtk 3.24.52) (0, 0, Terminal)
+10:03:59.488709 - EVENT MANAGER: Dequeued window:create for [frame: 'Terminal' (0x7d0202aa6880)]  in org.gnome.Terminal (gtk 3.24.52) (0, 0, Terminal) priority: 2, counter: 6
+
+vvvvv START PRIORITY-2 OBJECT EVENT WINDOW:CREATE (queue size: 6) vvvvv
+
+10:03:59.489071 - EVENT MANAGER: object:children-changed:add for [desktop frame: 'main' (0x7d020196e840)]  in  (4, 0, [application: 'accessibility_probe' (0x7d020196e980)])
+10:03:59.489095 - FOCUS MANAGER: Locus of focus is None
+10:03:59.489145 - EVENT_MANAGER: Ignoring object:children-changed:add due to multiple instances in short time
+
+10:03:59.490442 - EVENT MANAGER: object:children-changed:add for [desktop frame: 'main' (0x7d020196ee40)]  in  (5, 0, [application: 'accessibility_probe' (0x7d020196ed80)])
+10:03:59.490525 - FOCUS MANAGER: Locus of focus is None
+10:03:59.490628 - EVENT_MANAGER: Ignoring object:children-changed:add due to multiple instances in short time
+
+10:03:59.492570 - EVENT MANAGER: object:children-changed:add for [application: 'accessibility_probe' (0x7d020196ef80)]  in accessibility_probe (AccessKit) (0, 0, [frame: 'Reactive TUI App accessibility round 1' (0x7d020196ef80)])
+10:03:59.492608 - FOCUS MANAGER: Locus of focus is None
+10:03:59.492840 - SCRIPT MANAGER: Active script is: default (module=orca.scripts.default)
+10:03:59.492852 - EVENT MANAGER: Ignoring object:children-changed:add because event is not from active app
+
+10:03:59.493969 - EVENT MANAGER: object:children-changed:add for [application: 'accessibility_probe' (0x7d020196f400)]  in accessibility_probe (AccessKit) (0, 0, [frame: 'Independent background App' (0x7d020196f2c0)])
+10:03:59.494000 - FOCUS MANAGER: Locus of focus is None
+10:03:59.494204 - SCRIPT MANAGER: Active script is: default (module=orca.scripts.default)
+10:03:59.494214 - EVENT MANAGER: Ignoring object:children-changed:add because event is not from active app
+
+10:03:59.495007 - EVENT MANAGER: object:announcement for [label: 'Background calls 0' (0x7d020196f500)]  in accessibility_probe (AccessKit) (1, 0, Background calls 0)
+10:03:59.495026 - FOCUS MANAGER: Locus of focus is None
+10:03:59.495244 - EVENT MANAGER: Queueing object:announcement for [label: 'Background calls 0' (0x7d020196f640)]  in accessibility_probe (AccessKit) (1, 0, Background calls 0)
+10:03:59.495262 - EVENT MANAGER: App for event source is [application: 'accessibility_probe' (0x7d020196f4c0)] 
+10:03:59.495280 - SCRIPT MANAGER: Getting script for [application: 'accessibility_probe' (0x7d020196f4c0)]  [label: 'Background calls 0' (0x7d020195f740)] 
+10:03:59.495428 - SCRIPT MANAGER: Creating app script for [application: 'accessibility_probe' (0x7d020196f4c0)] 
+10:03:59.495457 - SCRIPT MANAGER: Mapped [application: 'accessibility_probe' (0x7d020196f4c0)]  to accessibility_probe
+10:03:59.495842 - DEFAULT: Setting up commands for [application: 'accessibility_probe' (0x7d020196f4c0)] 
+10:03:59.495852 - DEFAULT: Commands already initialized.
+10:03:59.495859 - SCRIPT: accessibility_probe (module=orca.scripts.default) initialized
+10:03:59.495887 - SCRIPT MANAGER: Default script created for [application: 'accessibility_probe' (0x7d020196f4c0)]  (obj:  None)
+10:03:59.495904 - SCRIPT MANAGER: Script is app script accessibility_probe (module=orca.scripts.default)
+10:03:59.496072 - EVENT MANAGER: object:announcement for [label: 'Background calls 0' (0x7d020196d000)]  in accessibility_probe (AccessKit) (1, 0, Background calls 0) has priority level: 3
+10:03:59.496120 - EVENT MANAGER: Queued object:announcement for [label: 'Background calls 0' (0x7d0201974fc0)]  in accessibility_probe (AccessKit) (1, 0, Background calls 0) priority: 3, counter: 10
+10:03:59.496163 - CLIPBOARD PRESENTER: Possible change event object:text-changed:delete for [terminal: 'Terminal' (0x7d020195f840)]  in org.gnome.Terminal (gtk 3.24.52) (0, 2, \n\n)
+
+10:03:59.496220 - EVENT MANAGER: object:text-changed:delete for [terminal: 'Terminal' (0x7d0201974e00)]  in org.gnome.Terminal (gtk 3.24.52) (0, 2, \n\n)
+10:03:59.496235 - FOCUS MANAGER: Locus of focus is None
+10:03:59.496315 - EVENT MANAGER: Queueing object:text-changed:delete for [terminal: 'Terminal' (0x7d0201974e00)]  in org.gnome.Terminal (gtk 3.24.52) (0, 2, \n\n)
+10:03:59.496334 - EVENT MANAGER: App for event source is [application: 'org.gnome.Terminal' (0x7d02019433c0)] 
+10:03:59.496350 - SCRIPT MANAGER: Getting script for [application: 'org.gnome.Terminal' (0x7d02019433c0)]  [terminal: 'Terminal' (0x7d020195f840)] 
+10:03:59.496373 - SCRIPT MANAGER: Script is custom script org.gnome.Terminal (module=orca.scripts.terminal.script)
+10:03:59.496409 - EVENT MANAGER: object:text-changed:delete for [terminal: 'Terminal' (0x7d0201974a80)]  in org.gnome.Terminal (gtk 3.24.52) (0, 2, \n\n) has priority level: 4
+10:03:59.496444 - EVENT MANAGER: Queued object:text-changed:delete for [terminal: 'Terminal' (0x7d020196d040)]  in org.gnome.Terminal (gtk 3.24.52) (0, 2, \n\n) priority: 4, counter: 11
+10:03:59.496477 - CLIPBOARD PRESENTER: Possible change event object:text-changed:insert for [terminal: 'Terminal' (0x7d020196d080)]  in org.gnome.Terminal (gtk 3.24.52) (13, 2, \n\n)
+
+10:03:59.496521 - EVENT MANAGER: object:text-changed:insert for [terminal: 'Terminal' (0x7d020196d080)]  in org.gnome.Terminal (gtk 3.24.52) (13, 2, \n\n)
+10:03:59.496534 - FOCUS MANAGER: Locus of focus is None
+10:03:59.496582 - EVENT_MANAGER: Ignoring object:text-changed:insert due to multiple instances in short time
+10:03:59.496616 - CLIPBOARD PRESENTER: Possible change event object:text-changed:delete for [terminal: 'Terminal' (0x7d0201975180)]  in org.gnome.Terminal (gtk 3.24.52) (0, 3, \n\n\n)
+
+10:03:59.496657 - EVENT MANAGER: object:text-changed:delete for [terminal: 'Terminal' (0x7d0201975240)]  in org.gnome.Terminal (gtk 3.24.52) (0, 3, \n\n\n)
+10:03:59.496671 - FOCUS MANAGER: Locus of focus is None
+10:03:59.496713 - EVENT_MANAGER: Ignoring object:text-changed:delete due to multiple instances in short time
+10:03:59.496749 - CLIPBOARD PRESENTER: Possible change event object:text-changed:insert for [terminal: 'Terminal' (0x7d0201975200)]  in org.gnome.Terminal (gtk 3.24.52) (0, 186, \n \n \nAdv... \n \n \nAdv (189 chars.))
+
+10:03:59.496792 - EVENT MANAGER: object:text-changed:insert for [terminal: 'Terminal' (0x7d02018f5280)]  in org.gnome.Terminal (gtk 3.24.52) (0, 186, \n \n \nAdv... \n \n \nAdv (189 chars.))
+10:03:59.496806 - FOCUS MANAGER: Locus of focus is None
+10:03:59.496849 - EVENT_MANAGER: Ignoring object:text-changed:insert due to multiple instances in short time
+
+10:03:59.496884 - EVENT MANAGER: object:text-caret-moved for [terminal: 'Terminal' (0x7d02018f5280)]  in org.gnome.Terminal (gtk 3.24.52) (186, 0, 0)
+10:03:59.496897 - FOCUS MANAGER: Locus of focus is None
+10:03:59.496937 - EVENT_MANAGER: Ignoring object:text-caret-moved due to multiple instances in short time
+
+10:03:59.497595 - EVENT MANAGER: object:children-changed:add for [frame: 'Independent background App' (0x7d02019607c0)]  in accessibility_probe (AccessKit) (0, 0, [toggle button: 'Independent App action' (0x7d0201975280)])
+10:03:59.497631 - FOCUS MANAGER: Locus of focus is None
+10:03:59.497657 - EVENT MANAGER: Not ignoring object:children-changed:add based on role
+10:03:59.497697 - EVENT MANAGER: Queueing object:children-changed:add for [frame: 'Independent background App' (0x7d020196d440)]  in accessibility_probe (AccessKit) (0, 0, [toggle button: 'Independent App action' (0x7d0201975440)])
+10:03:59.497713 - EVENT MANAGER: App for event source is [application: 'accessibility_probe' (0x7d020196f4c0)] 
+10:03:59.497730 - SCRIPT MANAGER: Getting script for [application: 'accessibility_probe' (0x7d020196f4c0)]  [frame: 'Independent background App' (0x7d02019754c0)] 
+10:03:59.497894 - SCRIPT MANAGER: Script is app script accessibility_probe (module=orca.scripts.default)
+10:03:59.497933 - EVENT MANAGER: object:children-changed:add for [frame: 'Independent background App' (0x7d0201975480)]  in accessibility_probe (AccessKit) (0, 0, [toggle button: 'Independent App action' (0x7d0201975580)]) has priority level: 6
+10:03:59.497969 - EVENT MANAGER: Queued object:children-changed:add for [frame: 'Independent background App' (0x7d02019754c0)]  in accessibility_probe (AccessKit) (0, 0, [toggle button: 'Independent App action' (0x7d02019754c0)]) priority: 6, counter: 12
+
+10:03:59.498018 - EVENT MANAGER: object:children-changed:add for [frame: 'Independent background App' (0x7d0201975400)]  in accessibility_probe (AccessKit) (1, 0, [label: 'Background calls 0' (0x7d0202c7db40)])
+10:03:59.498033 - FOCUS MANAGER: Locus of focus is None
+10:03:59.498051 - EVENT MANAGER: Not ignoring object:children-changed:add based on role
+10:03:59.498079 - EVENT MANAGER: Queueing object:children-changed:add for [frame: 'Independent background App' (0x7d0201975540)]  in accessibility_probe (AccessKit) (1, 0, [label: 'Background calls 0' (0x7d0201975540)])
+10:03:59.498093 - EVENT MANAGER: App for event source is [application: 'accessibility_probe' (0x7d020196f4c0)] 
+10:03:59.498108 - SCRIPT MANAGER: Getting script for [application: 'accessibility_probe' (0x7d020196f4c0)]  [frame: 'Independent background App' (0x7d0201975580)] 
+10:03:59.498366 - SCRIPT MANAGER: Script is app script accessibility_probe (module=orca.scripts.default)
+10:03:59.498404 - EVENT MANAGER: object:children-changed:add for [frame: 'Independent background App' (0x7d020196d300)]  in accessibility_probe (AccessKit) (1, 0, [label: 'Background calls 0' (0x7d0201975300)]) has priority level: 6
+10:03:59.498437 - EVENT MANAGER: Queued object:children-changed:add for [frame: 'Independent background App' (0x7d0201975300)]  in accessibility_probe (AccessKit) (1, 0, [label: 'Background calls 0' (0x7d0201975580)]) priority: 6, counter: 13
+
+10:03:59.498768 - EVENT MANAGER: object:children-changed:add for [frame: 'Independent background App' (0x7d0201975540)]  in accessibility_probe (AccessKit) (2, 0, [button: 'CSS expanded control' (0x7d0201975580)])
+10:03:59.498784 - FOCUS MANAGER: Locus of focus is None
+10:03:59.498802 - EVENT MANAGER: Not ignoring object:children-changed:add based on role
+10:03:59.498829 - EVENT MANAGER: Queueing object:children-changed:add for [frame: 'Independent background App' (0x7d02019752c0)]  in accessibility_probe (AccessKit) (2, 0, [button: 'CSS expanded control' (0x7d02019752c0)])
+10:03:59.498843 - EVENT MANAGER: App for event source is [application: 'accessibility_probe' (0x7d020196f4c0)] 
+10:03:59.498862 - SCRIPT MANAGER: Getting script for [application: 'accessibility_probe' (0x7d020196f4c0)]  [frame: 'Independent background App' (0x7d020196d440)] 
+10:03:59.499059 - SCRIPT MANAGER: Script is app script accessibility_probe (module=orca.scripts.default)
+10:03:59.499125 - EVENT MANAGER: object:children-changed:add for [frame: 'Independent background App' (0x7d020196d600)]  in accessibility_probe (AccessKit) (2, 0, [button: 'CSS expanded control' (0x7d0201975600)]) has priority level: 6
+10:03:59.499165 - EVENT MANAGER: Queued object:children-changed:add for [frame: 'Independent background App' (0x7d020195fa80)]  in accessibility_probe (AccessKit) (2, 0, [button: 'CSS expanded control' (0x7d0202acfa80)]) priority: 6, counter: 14
+
+10:03:59.499621 - EVENT MANAGER: object:children-changed:add for [frame: 'Independent background App' (0x7d0201975600)]  in accessibility_probe (AccessKit) (3, 0, [heading: 'CSS direct label' (0x7d0201975580)])
+10:03:59.499648 - FOCUS MANAGER: Locus of focus is None
+10:03:59.499670 - EVENT MANAGER: Not ignoring object:children-changed:add based on role
+10:03:59.499703 - EVENT MANAGER: Queueing object:children-changed:add for [frame: 'Independent background App' (0x7d020196d300)]  in accessibility_probe (AccessKit) (3, 0, [heading: 'CSS direct label' (0x7d0201975300)])
+10:03:59.499718 - EVENT MANAGER: App for event source is [application: 'accessibility_probe' (0x7d020196f4c0)] 
+10:03:59.499735 - SCRIPT MANAGER: Getting script for [application: 'accessibility_probe' (0x7d020196f4c0)]  [frame: 'Independent background App' (0x7d020196d700)] 
+10:03:59.499955 - SCRIPT MANAGER: Script is app script accessibility_probe (module=orca.scripts.default)
+10:03:59.500032 - EVENT MANAGER: object:children-changed:add for [frame: 'Independent background App' (0x7d020196d300)]  in accessibility_probe (AccessKit) (3, 0, [heading: 'CSS direct label' (0x7d0201975300)]) has priority level: 6
+10:03:59.500071 - EVENT MANAGER: Queued object:children-changed:add for [frame: 'Independent background App' (0x7d02019751c0)]  in accessibility_probe (AccessKit) (3, 0, [heading: 'CSS direct label' (0x7d0201975740)]) priority: 6, counter: 15
+
+10:03:59.500493 - EVENT MANAGER: object:children-changed:add for [frame: 'Independent background App' (0x7d02019757c0)]  in accessibility_probe (AccessKit) (4, 0, [list item: 'CSS selected option' (0x7d0201975740)])
+10:03:59.500541 - FOCUS MANAGER: Locus of focus is None
+10:03:59.500606 - EVENT MANAGER: Not ignoring object:children-changed:add based on role
+10:03:59.500699 - EVENT MANAGER: Queueing object:children-changed:add for [frame: 'Independent background App' (0x7d0201975780)]  in accessibility_probe (AccessKit) (4, 0, [list item: 'CSS selected option' (0x7d02019757c0)])
+10:03:59.500744 - EVENT MANAGER: App for event source is [application: 'accessibility_probe' (0x7d020196f4c0)] 
+10:03:59.500794 - SCRIPT MANAGER: Getting script for [application: 'accessibility_probe' (0x7d020196f4c0)]  [frame: 'Independent background App' (0x7d020196d300)] 
+10:03:59.501005 - SCRIPT MANAGER: Script is app script accessibility_probe (module=orca.scripts.default)
+10:03:59.501114 - EVENT MANAGER: object:children-changed:add for [frame: 'Independent background App' (0x7d020196d8c0)]  in accessibility_probe (AccessKit) (4, 0, [list item: 'CSS selected option' (0x7d02019758c0)]) has priority level: 6
+10:03:59.501212 - EVENT MANAGER: Queued object:children-changed:add for [frame: 'Independent background App' (0x7d0201975580)]  in accessibility_probe (AccessKit) (4, 0, [list item: 'CSS selected option' (0x7d0201975580)]) priority: 6, counter: 16
+
+10:03:59.501647 - EVENT MANAGER: object:children-changed:add for [frame: 'Independent background App' (0x7d022c3b5300)]  in accessibility_probe (AccessKit) (5, 0, [label: 'CSS restored reader text' (0x7d020195fb80)])
+10:03:59.501685 - FOCUS MANAGER: Locus of focus is None
+10:03:59.501742 - EVENT MANAGER: Not ignoring object:children-changed:add based on role
+10:03:59.501825 - EVENT MANAGER: Queueing object:children-changed:add for [frame: 'Independent background App' (0x7d020196d840)]  in accessibility_probe (AccessKit) (5, 0, [label: 'CSS restored reader text' (0x7d0201975840)])
+10:03:59.501867 - EVENT MANAGER: App for event source is [application: 'accessibility_probe' (0x7d020196f4c0)] 
+10:03:59.501913 - SCRIPT MANAGER: Getting script for [application: 'accessibility_probe' (0x7d020196f4c0)]  [frame: 'Independent background App' (0x7d022c3b5300)] 
+10:03:59.502116 - SCRIPT MANAGER: Script is app script accessibility_probe (module=orca.scripts.default)
+10:03:59.502220 - EVENT MANAGER: object:children-changed:add for [frame: 'Independent background App' (0x7d02019758c0)]  in accessibility_probe (AccessKit) (5, 0, [label: 'CSS restored reader text' (0x7d0202c7d8c0)]) has priority level: 6
+10:03:59.502312 - EVENT MANAGER: Queued object:children-changed:add for [frame: 'Independent background App' (0x7d02019758c0)]  in accessibility_probe (AccessKit) (5, 0, [label: 'CSS restored reader text' (0x7d020196d8c0)]) priority: 6, counter: 17
+
+10:03:59.502775 - EVENT MANAGER: object:children-changed:add for [frame: 'Independent background App' (0x7d0201975300)]  in accessibility_probe (AccessKit) (6, 0, [label: 'Reader-only nested detail' (0x7d0201975300)])
+10:03:59.502813 - FOCUS MANAGER: Locus of focus is None
+10:03:59.502868 - EVENT MANAGER: Not ignoring object:children-changed:add based on role
+10:03:59.502956 - EVENT MANAGER: Queueing object:children-changed:add for [frame: 'Independent background App' (0x7d0201975940)]  in accessibility_probe (AccessKit) (6, 0, [label: 'Reader-only nested detail' (0x7d0201975580)])
+10:03:59.503003 - EVENT MANAGER: App for event source is [application: 'accessibility_probe' (0x7d020196f4c0)] 
+10:03:59.503052 - SCRIPT MANAGER: Getting script for [application: 'accessibility_probe' (0x7d020196f4c0)]  [frame: 'Independent background App' (0x7d020196d300)] 
+10:03:59.503260 - SCRIPT MANAGER: Script is app script accessibility_probe (module=orca.scripts.default)
+10:03:59.503363 - EVENT MANAGER: object:children-changed:add for [frame: 'Independent background App' (0x7d020196d840)]  in accessibility_probe (AccessKit) (6, 0, [label: 'Reader-only nested detail' (0x7d0201975840)]) has priority level: 6
+10:03:59.503461 - EVENT MANAGER: Queued object:children-changed:add for [frame: 'Independent background App' (0x7d020196d840)]  in accessibility_probe (AccessKit) (6, 0, [label: 'Reader-only nested detail' (0x7d0201975840)]) priority: 6, counter: 18
+
+10:03:59.504658 - EVENT MANAGER: object:children-changed:add for [frame: 'Reactive TUI App accessibility round 1' (0x7d020196d840)]  in accessibility_probe (AccessKit) (0, 0, [progress bar: 'Download progress' (0x7d0201975840)])
+10:03:59.504700 - FOCUS MANAGER: Locus of focus is None
+10:03:59.504725 - EVENT MANAGER: Not ignoring object:children-changed:add based on role
+10:03:59.504763 - EVENT MANAGER: Queueing object:children-changed:add for [frame: 'Reactive TUI App accessibility round 1' (0x7d0201975b00)]  in accessibility_probe (AccessKit) (0, 0, [progress bar: 'Download progress' (0x7d0201975b80)])
+10:03:59.504779 - EVENT MANAGER: App for event source is [application: 'accessibility_probe' (0x7d0201975740)] 
+10:03:59.504796 - SCRIPT MANAGER: Getting script for [application: 'accessibility_probe' (0x7d0201975740)]  [frame: 'Reactive TUI App accessibility round 1' (0x7d020196d840)] 
+10:03:59.504937 - SCRIPT MANAGER: Creating app script for [application: 'accessibility_probe' (0x7d0201975740)] 
+10:03:59.504973 - SCRIPT MANAGER: Mapped [application: 'accessibility_probe' (0x7d0201975740)]  to accessibility_probe
+10:03:59.509226 - DEFAULT: Setting up commands for [application: 'accessibility_probe' (0x7d0201975740)] 
+10:03:59.509266 - DEFAULT: Commands already initialized.
+10:03:59.509273 - SCRIPT: accessibility_probe (module=orca.scripts.default) initialized
+10:03:59.509303 - SCRIPT MANAGER: Default script created for [application: 'accessibility_probe' (0x7d0201975740)]  (obj:  None)
+10:03:59.509320 - SCRIPT MANAGER: Script is app script accessibility_probe (module=orca.scripts.default)
+10:03:59.509386 - EVENT MANAGER: object:children-changed:add for [frame: 'Reactive TUI App accessibility round 1' (0x7d020197e900)]  in accessibility_probe (AccessKit) (0, 0, [progress bar: 'Download progress' (0x7d0202c92d40)]) has priority level: 6
+10:03:59.509427 - EVENT MANAGER: Queued object:children-changed:add for [frame: 'Reactive TUI App accessibility round 1' (0x7d020197e8c0)]  in accessibility_probe (AccessKit) (0, 0, [progress bar: 'Download progress' (0x7d0201975300)]) priority: 6, counter: 19
+
+10:03:59.510132 - EVENT MANAGER: object:children-changed:add for [frame: 'Reactive TUI App accessibility round 1' (0x7d020196e800)]  in accessibility_probe (AccessKit) (1, 0, [button: 'Advance download' (0x7d020195fc40)])
+10:03:59.510153 - FOCUS MANAGER: Locus of focus is None
+10:03:59.510177 - EVENT MANAGER: Not ignoring object:children-changed:add based on role
+10:03:59.510215 - EVENT MANAGER: Queueing object:children-changed:add for [frame: 'Reactive TUI App accessibility round 1' (0x7d020197e880)]  in accessibility_probe (AccessKit) (1, 0, [button: 'Advance download' (0x7d020197e940)])
+10:03:59.510230 - EVENT MANAGER: App for event source is [application: 'accessibility_probe' (0x7d0201975740)] 
+10:03:59.510247 - SCRIPT MANAGER: Getting script for [application: 'accessibility_probe' (0x7d0201975740)]  [frame: 'Reactive TUI App accessibility round 1' (0x7d0201905840)] 
+10:03:59.510406 - SCRIPT MANAGER: Script is app script accessibility_probe (module=orca.scripts.default)
+10:03:59.510444 - EVENT MANAGER: object:children-changed:add for [frame: 'Reactive TUI App accessibility round 1' (0x7d020197ea00)]  in accessibility_probe (AccessKit) (1, 0, [button: 'Advance download' (0x7d020197e9c0)]) has priority level: 6
+10:03:59.510483 - EVENT MANAGER: Queued object:children-changed:add for [frame: 'Reactive TUI App accessibility round 1' (0x7d020197ea80)]  in accessibility_probe (AccessKit) (1, 0, [button: 'Advance download' (0x7d020197e900)]) priority: 6, counter: 20
+
+10:03:59.510530 - EVENT MANAGER: window:activate for [frame: 'Terminal' (0x7d0201960700)]  in org.gnome.Terminal (gtk 3.24.52) (0, 0, Terminal)
+10:03:59.510559 - EVENT MANAGER: Queueing window:activate for [frame: 'Terminal' (0x7d0201960700)]  in org.gnome.Terminal (gtk 3.24.52) (0, 0, Terminal)
+10:03:59.510573 - EVENT MANAGER: App for event source is [application: 'org.gnome.Terminal' (0x7d02019433c0)] 
+10:03:59.510588 - SCRIPT MANAGER: Getting script for [application: 'org.gnome.Terminal' (0x7d02019433c0)]  [frame: 'Terminal' (0x7d0201960700)] 
+10:03:59.510611 - SCRIPT MANAGER: Script is app script org.gnome.Terminal (module=orca.scripts.toolkits.gtk.script)
+10:03:59.510645 - EVENT MANAGER: window:activate for [frame: 'Terminal' (0x7d0201960700)]  in org.gnome.Terminal (gtk 3.24.52) (0, 0, Terminal) has priority level: 2
+10:03:59.510678 - EVENT MANAGER: Queued window:activate for [frame: 'Terminal' (0x7d0201960700)]  in org.gnome.Terminal (gtk 3.24.52) (0, 0, Terminal) priority: 2, counter: 21
+
+10:03:59.510757 - EVENT MANAGER: object:state-changed:focused for [terminal: 'Terminal' (0x7d020197e980)]  in org.gnome.Terminal (gtk 3.24.52) (1, 0, 0)
+10:03:59.510772 - FOCUS MANAGER: Locus of focus is None
+10:03:59.510829 - EVENT_MANAGER: Not ignoring object:state-changed:focused due to source being focused
+10:03:59.510861 - EVENT MANAGER: Queueing object:state-changed:focused for [terminal: 'Terminal' (0x7d020196d300)]  in org.gnome.Terminal (gtk 3.24.52) (1, 0, 0)
+10:03:59.510876 - EVENT MANAGER: App for event source is [application: 'org.gnome.Terminal' (0x7d02019433c0)] 
+10:03:59.510891 - SCRIPT MANAGER: Getting script for [application: 'org.gnome.Terminal' (0x7d02019433c0)]  [terminal: 'Terminal' (0x7d022c3b5300)] 
+10:03:59.510912 - SCRIPT MANAGER: Script is custom script org.gnome.Terminal (module=orca.scripts.terminal.script)
+10:03:59.510948 - EVENT MANAGER: object:state-changed:focused for [terminal: 'Terminal' (0x7d020197e980)]  in org.gnome.Terminal (gtk 3.24.52) (1, 0, 0) has priority level: 3
+10:03:59.510987 - EVENT MANAGER: Queued object:state-changed:focused for [terminal: 'Terminal' (0x7d02019604c0)]  in org.gnome.Terminal (gtk 3.24.52) (1, 0, 0) priority: 3, counter: 22
+
+10:03:59.511024 - EVENT MANAGER: object:state-changed:active for [frame: 'Terminal' (0x7d0201960700)]  in org.gnome.Terminal (gtk 3.24.52) (1, 0, 0)
+10:03:59.511038 - FOCUS MANAGER: Locus of focus is None
+10:03:59.511054 - EVENT MANAGER: Not ignoring object:state-changed:active based on role
+10:03:59.511083 - EVENT MANAGER: Queueing object:state-changed:active for [frame: 'Terminal' (0x7d0201960700)]  in org.gnome.Terminal (gtk 3.24.52) (1, 0, 0)
+10:03:59.511096 - EVENT MANAGER: App for event source is [application: 'org.gnome.Terminal' (0x7d02019433c0)] 
+10:03:59.511111 - SCRIPT MANAGER: Getting script for [application: 'org.gnome.Terminal' (0x7d02019433c0)]  [frame: 'Terminal' (0x7d0201960700)] 
+10:03:59.511131 - SCRIPT MANAGER: Script is app script org.gnome.Terminal (module=orca.scripts.toolkits.gtk.script)
+10:03:59.511168 - EVENT MANAGER: object:state-changed:active for [frame: 'Terminal' (0x7d0201960700)]  in org.gnome.Terminal (gtk 3.24.52) (1, 0, 0) has priority level: 2
+10:03:59.511200 - EVENT MANAGER: Queued object:state-changed:active for [frame: 'Terminal' (0x7d0201960700)]  in org.gnome.Terminal (gtk 3.24.52) (1, 0, 0) priority: 2, counter: 23
+
+10:03:59.511235 - EVENT MANAGER: window:activate for [frame: 'Reactive TUI App accessibility round 1' (0x7d020197ea80)]  in accessibility_probe (AccessKit) (0, 0, Reactive TUI App accessibility round 1)
+10:03:59.511263 - EVENT MANAGER: Queueing window:activate for [frame: 'Reactive TUI App accessibility round 1' (0x7d020197ea80)]  in accessibility_probe (AccessKit) (0, 0, Reactive TUI App accessibility round 1)
+10:03:59.511277 - EVENT MANAGER: App for event source is [application: 'accessibility_probe' (0x7d0201975740)] 
+10:03:59.511292 - SCRIPT MANAGER: Getting script for [application: 'accessibility_probe' (0x7d0201975740)]  [frame: 'Reactive TUI App accessibility round 1' (0x7d020197ea80)] 
+10:03:59.511495 - SCRIPT MANAGER: Script is app script accessibility_probe (module=orca.scripts.default)
+10:03:59.511533 - EVENT MANAGER: window:activate for [frame: 'Reactive TUI App accessibility round 1' (0x7d020197ebc0)]  in accessibility_probe (AccessKit) (0, 0, Reactive TUI App accessibility round 1) has priority level: 2
+10:03:59.511567 - EVENT MANAGER: Queued window:activate for [frame: 'Reactive TUI App accessibility round 1' (0x7d020197eb00)]  in accessibility_probe (AccessKit) (0, 0, Reactive TUI App accessibility round 1) priority: 2, counter: 24
+
+10:03:59.511617 - EVENT MANAGER: object:state-changed:active for [frame: 'Reactive TUI App accessibility round 1' (0x7d020196ebc0)]  in accessibility_probe (AccessKit) (1, 0, 0)
+10:03:59.511631 - FOCUS MANAGER: Locus of focus is None
+10:03:59.511648 - EVENT MANAGER: Not ignoring object:state-changed:active based on role
+10:03:59.511675 - EVENT MANAGER: Queueing object:state-changed:active for [frame: 'Reactive TUI App accessibility round 1' (0x7d020197e900)]  in accessibility_probe (AccessKit) (1, 0, 0)
+10:03:59.511689 - EVENT MANAGER: App for event source is [application: 'accessibility_probe' (0x7d0201975740)] 
+10:03:59.511704 - SCRIPT MANAGER: Getting script for [application: 'accessibility_probe' (0x7d0201975740)]  [frame: 'Reactive TUI App accessibility round 1' (0x7d020197ec00)] 
+10:03:59.511832 - SCRIPT MANAGER: Script is app script accessibility_probe (module=orca.scripts.default)
+10:03:59.511872 - EVENT MANAGER: object:state-changed:active for [frame: 'Reactive TUI App accessibility round 1' (0x7d020197eac0)]  in accessibility_probe (AccessKit) (1, 0, 0) has priority level: 2
+10:03:59.511905 - EVENT MANAGER: Queued object:state-changed:active for [frame: 'Reactive TUI App accessibility round 1' (0x7d020197ec40)]  in accessibility_probe (AccessKit) (1, 0, 0) priority: 2, counter: 25
+
+10:03:59.511939 - EVENT MANAGER: object:text-caret-moved for [terminal: 'Terminal' (0x7d020197e900)]  in org.gnome.Terminal (gtk 3.24.52) (198, 0, 0)
+10:03:59.511953 - FOCUS MANAGER: Locus of focus is None
+10:03:59.512006 - EVENT_MANAGER: Not ignoring object:text-caret-moved due to source being focused
+10:03:59.512039 - EVENT MANAGER: Queueing object:text-caret-moved for [terminal: 'Terminal' (0x7d020197ec00)]  in org.gnome.Terminal (gtk 3.24.52) (198, 0, 0)
+10:03:59.512053 - EVENT MANAGER: App for event source is [application: 'org.gnome.Terminal' (0x7d02019433c0)] 
+10:03:59.512068 - SCRIPT MANAGER: Getting script for [application: 'org.gnome.Terminal' (0x7d02019433c0)]  [terminal: 'Terminal' (0x7d020197eac0)] 
+10:03:59.512088 - SCRIPT MANAGER: Script is custom script org.gnome.Terminal (module=orca.scripts.terminal.script)
+10:03:59.512124 - EVENT MANAGER: object:text-caret-moved for [terminal: 'Terminal' (0x7d020197ed40)]  in org.gnome.Terminal (gtk 3.24.52) (198, 0, 0) has priority level: 4
+10:03:59.512158 - EVENT MANAGER: Queued object:text-caret-moved for [terminal: 'Terminal' (0x7d020197e900)]  in org.gnome.Terminal (gtk 3.24.52) (198, 0, 0) priority: 4, counter: 26
+
+10:03:59.512193 - EVENT MANAGER: object:active-descendant-changed for [application: 'accessibility_probe' (0x7d0201975740)]  in accessibility_probe (AccessKit) (0, 0, [frame: 'Reactive TUI App accessibility round 1' (0x7d020197eb40)])
+10:03:59.512207 - FOCUS MANAGER: Locus of focus is None
+10:03:59.512278 - EVENT MANAGER: Queueing object:active-descendant-changed for [application: 'accessibility_probe' (0x7d0201975740)]  in accessibility_probe (AccessKit) (0, 0, [frame: 'Reactive TUI App accessibility round 1' (0x7d0202aafc40)])
+10:03:59.512292 - EVENT MANAGER: App for event source is [application: 'accessibility_probe' (0x7d0201975740)] 
+10:03:59.512307 - SCRIPT MANAGER: Getting script for [application: 'accessibility_probe' (0x7d0201975740)]  [application: 'accessibility_probe' (0x7d0201975740)] 
+10:03:59.512438 - SCRIPT MANAGER: Script is app script accessibility_probe (module=orca.scripts.default)
+10:03:59.512474 - EVENT MANAGER: object:active-descendant-changed for [application: 'accessibility_probe' (0x7d0201975740)]  in accessibility_probe (AccessKit) (0, 0, [frame: 'Reactive TUI App accessibility round 1' (0x7d020197ec00)]) has priority level: 3
+10:03:59.512506 - EVENT MANAGER: Queued object:active-descendant-changed for [application: 'accessibility_probe' (0x7d0201975740)]  in accessibility_probe (AccessKit) (0, 0, [frame: 'Reactive TUI App accessibility round 1' (0x7d0202aafc40)]) priority: 3, counter: 27
+
+10:03:59.512843 - EVENT MANAGER: object:state-changed:focused for [button: 'Advance download' (0x7d020197eb40)]  in accessibility_probe (AccessKit) (1, 0, 0)
+10:03:59.512859 - FOCUS MANAGER: Locus of focus is None
+10:03:59.513093 - EVENT_MANAGER: Not ignoring object:state-changed:focused due to source being focused
+10:03:59.513157 - EVENT MANAGER: Queueing object:state-changed:focused for [button: 'Advance download' (0x7d020196eec0)]  in accessibility_probe (AccessKit) (1, 0, 0)
+10:03:59.513181 - EVENT MANAGER: App for event source is [application: 'accessibility_probe' (0x7d0201975740)] 
+10:03:59.513199 - SCRIPT MANAGER: Getting script for [application: 'accessibility_probe' (0x7d0201975740)]  [button: 'Advance download' (0x7d020196ee80)] 
+10:03:59.513504 - SCRIPT MANAGER: Script is app script accessibility_probe (module=orca.scripts.default)
+10:03:59.513622 - EVENT MANAGER: object:state-changed:focused for [button: 'Advance download' (0x7d020197ef80)]  in accessibility_probe (AccessKit) (1, 0, 0) has priority level: 3
+10:03:59.513717 - EVENT MANAGER: Queued object:state-changed:focused for [button: 'Advance download' (0x7d020197eec0)]  in accessibility_probe (AccessKit) (1, 0, 0) priority: 3, counter: 28
+10:03:59.513814 - CLIPBOARD PRESENTER: Possible change event object:text-changed:delete for [terminal: 'Terminal' (0x7d020197f000)]  in org.gnome.Terminal (gtk 3.24.52) (186, 12, \n\n\n\n\n\n\n\n\n\n\n\n)
+
+10:03:59.513947 - EVENT MANAGER: object:text-changed:delete for [terminal: 'Terminal' (0x7d020197ee80)]  in org.gnome.Terminal (gtk 3.24.52) (186, 12, \n\n\n\n\n\n\n\n\n\n\n\n)
+10:03:59.513995 - FOCUS MANAGER: Locus of focus is None
+10:03:59.514092 - EVENT_MANAGER: Not ignoring object:text-changed:delete due to source being focused
+10:03:59.514147 - EVENT MANAGER: Queueing object:text-changed:delete for [terminal: 'Terminal' (0x7d020197f140)]  in org.gnome.Terminal (gtk 3.24.52) (186, 12, \n\n\n\n\n\n\n\n\n\n\n\n)
+10:03:59.514167 - EVENT MANAGER: App for event source is [application: 'org.gnome.Terminal' (0x7d02019433c0)] 
+10:03:59.514184 - SCRIPT MANAGER: Getting script for [application: 'org.gnome.Terminal' (0x7d02019433c0)]  [terminal: 'Terminal' (0x7d020196f200)] 
+10:03:59.514208 - SCRIPT MANAGER: Script is custom script org.gnome.Terminal (module=orca.scripts.terminal.script)
+10:03:59.514246 - EVENT MANAGER: object:text-changed:delete for [terminal: 'Terminal' (0x7d020197f180)]  in org.gnome.Terminal (gtk 3.24.52) (186, 12, \n\n\n\n\n\n\n\n\n\n\n\n) has priority level: 4
+10:03:59.514283 - EVENT MANAGER: Queued object:text-changed:delete for [terminal: 'Terminal' (0x7d020197f1c0)]  in org.gnome.Terminal (gtk 3.24.52) (186, 12, \n\n\n\n\n\n\n\n\n\n\n\n) priority: 4, counter: 29
+10:03:59.514326 - CLIPBOARD PRESENTER: Possible change event object:text-changed:insert for [terminal: 'Terminal' (0x7d020197f140)]  in org.gnome.Terminal (gtk 3.24.52) (186, 789, ance download \n \n \n... \n \n \n \n \n (801 chars.))
+
+10:03:59.514375 - EVENT MANAGER: object:text-changed:insert for [terminal: 'Terminal' (0x7d020197f300)]  in org.gnome.Terminal (gtk 3.24.52) (186, 789, ance download \n \n \n... \n \n \n \n \n (801 chars.))
+10:03:59.514390 - FOCUS MANAGER: Locus of focus is None
+10:03:59.514436 - EVENT_MANAGER: Not ignoring object:text-changed:insert due to source being focused
+10:03:59.514469 - EVENT MANAGER: Queueing object:text-changed:insert for [terminal: 'Terminal' (0x7d020197f540)]  in org.gnome.Terminal (gtk 3.24.52) (186, 789, ance download \n \n \n... \n \n \n \n \n (801 chars.))
+10:03:59.514484 - EVENT MANAGER: App for event source is [application: 'org.gnome.Terminal' (0x7d02019433c0)] 
+10:03:59.514506 - SCRIPT MANAGER: Getting script for [application: 'org.gnome.Terminal' (0x7d02019433c0)]  [terminal: 'Terminal' (0x7d020197f500)] 
+10:03:59.514526 - SCRIPT MANAGER: Script is custom script org.gnome.Terminal (module=orca.scripts.terminal.script)
+10:03:59.514564 - EVENT MANAGER: object:text-changed:insert for [terminal: 'Terminal' (0x7d020197f600)]  in org.gnome.Terminal (gtk 3.24.52) (186, 789, ance download \n \n \n... \n \n \n \n \n (801 chars.)) has priority level: 4
+10:03:59.514600 - EVENT MANAGER: Queued object:text-changed:insert for [terminal: 'Terminal' (0x7d020197f580)]  in org.gnome.Terminal (gtk 3.24.52) (186, 789, ance download \n \n \n... \n \n \n \n \n (801 chars.)) priority: 4, counter: 30
+
+10:03:59.514637 - EVENT MANAGER: object:text-caret-moved for [terminal: 'Terminal' (0x7d020197f6c0)]  in org.gnome.Terminal (gtk 3.24.52) (975, 0, 0)
+10:03:59.514651 - FOCUS MANAGER: Locus of focus is None
+10:03:59.514698 - EVENT_MANAGER: Not ignoring object:text-caret-moved due to source being focused
+10:03:59.514728 - EVENT MANAGER: Queueing object:text-caret-moved for [terminal: 'Terminal' (0x7d020197f680)]  in org.gnome.Terminal (gtk 3.24.52) (975, 0, 0)
+10:03:59.514743 - EVENT MANAGER: App for event source is [application: 'org.gnome.Terminal' (0x7d02019433c0)] 
+10:03:59.514758 - SCRIPT MANAGER: Getting script for [application: 'org.gnome.Terminal' (0x7d02019433c0)]  [terminal: 'Terminal' (0x7d0201961e40)] 
+10:03:59.514778 - SCRIPT MANAGER: Script is custom script org.gnome.Terminal (module=orca.scripts.terminal.script)
+10:03:59.514813 - EVENT MANAGER: object:text-caret-moved for [terminal: 'Terminal' (0x7d020196f680)]  in org.gnome.Terminal (gtk 3.24.52) (975, 0, 0) has priority level: 4
+10:03:59.514847 - EVENT MANAGER: Queued object:text-caret-moved for [terminal: 'Terminal' (0x7d020195f700)]  in org.gnome.Terminal (gtk 3.24.52) (975, 0, 0) priority: 4, counter: 31
+
+10:03:59.514882 - EVENT MANAGER: object:state-changed:focused for [terminal: 'Terminal' (0x7d0202a29f00)]  in org.gnome.Terminal (gtk 3.24.52) (1, 0, 0)
+10:03:59.514895 - FOCUS MANAGER: Locus of focus is None
+10:03:59.514938 - EVENT_MANAGER: Not ignoring object:state-changed:focused due to source being focused
+10:03:59.514968 - EVENT MANAGER: Queueing object:state-changed:focused for [terminal: 'Terminal' (0x7d020195f700)]  in org.gnome.Terminal (gtk 3.24.52) (1, 0, 0)
+10:03:59.514986 - EVENT MANAGER: App for event source is [application: 'org.gnome.Terminal' (0x7d02019433c0)] 
+10:03:59.515004 - SCRIPT MANAGER: Getting script for [application: 'org.gnome.Terminal' (0x7d02019433c0)]  [terminal: 'Terminal' (0x7d02019611c0)] 
+10:03:59.515022 - SCRIPT MANAGER: Script is custom script org.gnome.Terminal (module=orca.scripts.terminal.script)
+10:03:59.515057 - EVENT MANAGER: object:state-changed:focused for [terminal: 'Terminal' (0x7d0202a299c0)]  in org.gnome.Terminal (gtk 3.24.52) (1, 0, 0) has priority level: 3
+10:03:59.515090 - EVENT MANAGER: Queued object:state-changed:focused for [terminal: 'Terminal' (0x7d0202ad99c0)]  in org.gnome.Terminal (gtk 3.24.52) (1, 0, 0) priority: 3, counter: 32
+10:03:59.515383 - EVENT SOURCE:
+                  app='org.gnome.Terminal (gtk 3.24.52)' name='Terminal' role='frame' axid='' id=0x7d0201960700
+                  description=''
+                  help=''
+                  locale='C.UTF-8'
+                  states='active, enabled, resizable, sensitive, showing, visible'
+                  relations=''
+                  actions=''
+                  interfaces='Collection, Component'
+                  attributes='toolkit:gtk, window-type:normal'
+                  text=''
+                  path=[-1, 0]
+                  
+10:03:59.515402 - SCRIPT MANAGER: Active script is: default (module=orca.scripts.default)
+10:03:59.515419 - FOCUS MANAGER: Locus of focus is None
+10:03:59.515443 - EVENT MANAGER: Getting script for event for [application: 'org.gnome.Terminal' (0x7d02019433c0)]  [frame: 'Terminal' (0x7d0202c90180)] 
+10:03:59.515462 - SCRIPT MANAGER: Getting script for [application: 'org.gnome.Terminal' (0x7d02019433c0)]  [frame: 'Terminal' (0x7d0202c90180)] 
+10:03:59.515484 - SCRIPT MANAGER: Script is app script org.gnome.Terminal (module=orca.scripts.toolkits.gtk.script)
+10:03:59.515497 - EVENT MANAGER: Script for event is org.gnome.Terminal (module=orca.scripts.toolkits.gtk.script)
+10:03:59.515941 - EVENT MANAGER: Change active script: False (No reason found to activate a different script.)
+10:03:59.515948 - EVENT MANAGER: Processing window:create: script handles events when inactive
+TOTAL PROCESSING TIME: 0.0272
+^^^^^ FINISHED PRIORITY-2 OBJECT EVENT WINDOW:CREATE ^^^^^
+
+10:03:59.515968 - ORCA: GLib handler received shutdown signal
+10:03:59.515974 - ORCA: Shutting down
+10:03:59.515997 - PRESENTATION MANAGER: Interrupting presentation
+10:03:59.516030 - SPEECH MANAGER: interrupt_speech. Script: None Event: None notify_user: False
+10:03:59.516326 - SPEECH MANAGER: Speech server is <orca.speechdispatcherfactory.SpeechServer object at 0x7d0202a196a0>
+10:03:59.516395 - BRAILLE: Kill flash message orca.shutdown:118 > presentation_manager.interrupt_presentation:88 > braille_presenter.kill_flash:1829 > braille.kill_flash:2182
+10:03:59.517597 - BRAILLE: Refresh. Pan: False target: 0
+10:03:59.517651 - GSETTINGS SCHEMA HANDLE: braille/enabled not set [profile:default]
+10:03:59.517659 - GSETTINGS REGISTRY: braille/enabled using default value = True
+10:03:59.517680 - BRAILLE: Initializing. Callback: input_event_manager.InputEventManager.process_braille_event
+10:03:59.517701 - BRAILLE: WINDOWPATH= None
+10:03:59.517715 - BRAILLE: XDG_VTNR= 1
+10:03:59.517732 - BRAILLE: Attempting connection with BrlAPI.
+10:03:59.517943 - GSETTINGS SCHEMA HANDLE: speech/enable not set [profile:default]
+10:03:59.517950 - GSETTINGS REGISTRY: speech/enable using default value = True
+10:03:59.517963 - GSETTINGS SCHEMA HANDLE: speech/messages-are-detailed not set [profile:default]
+10:03:59.517967 - GSETTINGS REGISTRY: speech/messages-are-detailed using default value = True
+10:03:59.517985 - GSETTINGS SCHEMA HANDLE: speech/only-speak-displayed-text not set [profile:default]
+10:03:59.517990 - GSETTINGS REGISTRY: speech/only-speak-displayed-text using default value = False
+10:03:59.518001 - GSETTINGS SCHEMA HANDLE: voice/established not set [profile:default]
+10:03:59.518010 - GSETTINGS SCHEMA HANDLE: voice/rate not set [profile:default]
+10:03:59.518018 - GSETTINGS SCHEMA HANDLE: voice/pitch not set [profile:default]
+10:03:59.518026 - GSETTINGS SCHEMA HANDLE: voice/volume not set [profile:default]
+10:03:59.518035 - GSETTINGS SCHEMA HANDLE: voice/family-name not set [profile:default]
+10:03:59.518042 - GSETTINGS SCHEMA HANDLE: voice/family-lang not set [profile:default]
+10:03:59.518049 - GSETTINGS SCHEMA HANDLE: voice/family-dialect not set [profile:default]
+10:03:59.518056 - GSETTINGS SCHEMA HANDLE: voice/family-gender not set [profile:default]
+10:03:59.518063 - GSETTINGS SCHEMA HANDLE: voice/family-variant not set [profile:default]
+10:03:59.518155 - BRAILLE: BrlAPI Connection is unavailable (ConnectionError): couldn't connect to b':0' with key b'keyfile:/etc/brlapi.key+polkit': connect: No such file or directory
+                  (brlerrno 11, libcerrno 2, gaierrno 0)
+                  Is BRLTTY really running?
+10:03:59.518179 - GSETTINGS SCHEMA HANDLE: speech/punctuation-level not set [profile:default]
+10:03:59.518195 - GSETTINGS REGISTRY: speech/punctuation-level using default value = 'most'
+10:03:59.518269 - SPEECH PRESENTER: Adjusting 'Screen reader off.' from None start_offset: None
+10:03:59.518281 - GSETTINGS SCHEMA HANDLE: speech/repeated-character-limit not set [profile:default]
+10:03:59.518285 - GSETTINGS REGISTRY: speech/repeated-character-limit using default value = 4
+10:03:59.518302 - GSETTINGS SCHEMA HANDLE: speech/use-pronunciation-dictionary not set [profile:default]
+10:03:59.518306 - GSETTINGS REGISTRY: speech/use-pronunciation-dictionary using default value = True
+10:03:59.518317 - SPEECH PRESENTER: Adjusted text: 'Screen reader off.'
+10:03:59.518323 - SPEECH: Speak 'Screen reader off.' acss: {'established': False}
+10:03:59.518332 - SPEECH OUTPUT: 'Screen reader off.' {'established': False}
+10:03:59.518336 - SPEECH DISPATCHER: Speaking 'Screen reader off.' as string
+10:03:59.518499 - SPEECH DISPATCHER: Speaking '<speak><mark name="0:6"/>Screen <mark name="7:13"/>reader <mark name="14:18"/>off.</speak>' 
+                  ORCA rate 50.0, pitch 5.0, volume 10.0, language C, punctuation: SOME
+                  SD rate 2, pitch 10, volume 100, language c
+10:03:59.518713 - SPEECH MANAGER: Speech server is <orca.speechdispatcherfactory.SpeechServer object at 0x7d0202a196a0>
+10:03:59.518735 - GSETTINGS SCHEMA HANDLE: speech/capitalization-style not set [profile:default]
+10:03:59.518740 - GSETTINGS REGISTRY: speech/capitalization-style using default value = 'none'
+10:03:59.519158 - SPEECH MANAGER: Speech server is <orca.speechdispatcherfactory.SpeechServer object at 0x7d0202a196a0>
+10:03:59.519176 - GSETTINGS SCHEMA HANDLE: speech/punctuation-level not set [profile:default]
+10:03:59.519181 - GSETTINGS REGISTRY: speech/punctuation-level using default value = 'most'
+10:03:59.519213 - GSETTINGS SCHEMA HANDLE: braille/enabled not set [profile:default]
+10:03:59.519217 - GSETTINGS REGISTRY: braille/enabled using default value = True
+10:03:59.519225 - GSETTINGS SCHEMA HANDLE: braille/flash-messages not set [profile:default]
+10:03:59.519229 - GSETTINGS REGISTRY: braille/flash-messages using default value = True
+10:03:59.519236 - GSETTINGS SCHEMA HANDLE: braille/flash-messages-detailed not set [profile:default]
+10:03:59.519239 - GSETTINGS REGISTRY: braille/flash-messages-detailed using default value = True
+10:03:59.519247 - GSETTINGS SCHEMA HANDLE: braille/enabled not set [profile:default]
+10:03:59.519250 - GSETTINGS REGISTRY: braille/enabled using default value = True
+10:03:59.519257 - GSETTINGS SCHEMA HANDLE: braille/flash-messages-persistent not set [profile:default]
+10:03:59.519260 - GSETTINGS REGISTRY: braille/flash-messages-persistent using default value = False
+10:03:59.519267 - GSETTINGS SCHEMA HANDLE: braille/flash-message-duration not set [profile:default]
+10:03:59.519270 - GSETTINGS REGISTRY: braille/flash-message-duration using default value = 5000
+10:03:59.519275 - BRAILLE: Display message: 'Screen reader off.' (flash_time: 5000)
+10:03:59.519279 - BRAILLE: Initializing flash: Source ID: 0
+10:03:59.519295 - BRAILLE: Not contracting 'Screen reader off.' because contracted braille is not enabled.
+10:03:59.519320 - BRAILLE: Refresh. Pan: True target: 0
+10:03:59.519333 - GSETTINGS SCHEMA HANDLE: braille/enabled not set [profile:default]
+10:03:59.519337 - GSETTINGS REGISTRY: braille/enabled using default value = True
+10:03:59.519355 - BRAILLE: Last text object: None (Caret: 0, Line: 0, Cell: 0)
+10:03:59.519377 - BRAILLE: Current text object: None (Caret: 0, Line: 0). On same line: False
+10:03:59.519383 - BRAILLE: Line 0: 'Screen reader off.' focusOffset: 0 [[0, 18]]
+10:03:59.519389 - BRAILLE: Current range: (0, 32). Target cell: 0
+10:03:59.519395 - BRAILLE LINE:  'Screen reader off.'
+10:03:59.519398 -      VISIBLE:  'Screen reader off.', cursor=0
+10:03:59.519412 - BRAILLE: Enabling braille. BrlAPI running: False
+10:03:59.519415 - BRAILLE: Need to initialize first.
+10:03:59.519429 - BRAILLE: Initializing. Callback: input_event_manager.InputEventManager.process_braille_event
+10:03:59.519432 - BRAILLE: BrlAPI connection already in progress.
+10:03:59.519443 - REMOTE CONTROLLER: Attempting to shut down D-Bus service.
+10:03:59.519448 - DBUS SERVICE: Releasing D-Bus resources for service.
+10:03:59.519452 - DBUS SERVICE: Shutting down and unpublishing module ProfileManager from main service.
+10:03:59.519489 - DBUS SERVICE: Shutting down and unpublishing module ChatPresenter from main service.
+10:03:59.519500 - DBUS SERVICE: Shutting down and unpublishing module StructuralNavigator from main service.
+10:03:59.519511 - DBUS SERVICE: Shutting down and unpublishing module SpeechPresenter from main service.
+10:03:59.519520 - DBUS SERVICE: Shutting down and unpublishing module ActionPresenter from main service.
+10:03:59.519531 - DBUS SERVICE: Shutting down and unpublishing module SleepModeManager from main service.
+10:03:59.519538 - DBUS SERVICE: Shutting down and unpublishing module ClipboardPresenter from main service.
+10:03:59.519546 - DBUS SERVICE: Shutting down and unpublishing module ObjectNavigator from main service.
+10:03:59.519554 - DBUS SERVICE: Shutting down and unpublishing module MouseReviewer from main service.
+10:03:59.519562 - DBUS SERVICE: Shutting down and unpublishing module SystemInformationPresenter from main service.
+10:03:59.519570 - DBUS SERVICE: Shutting down and unpublishing module SpellCheckPresenter from main service.
+10:03:59.519577 - DBUS SERVICE: Shutting down and unpublishing module CommandManager from main service.
+10:03:59.519585 - DBUS SERVICE: Shutting down and unpublishing module SpeechManager from main service.
+10:03:59.519593 - DBUS SERVICE: Shutting down and unpublishing module NotificationPresenter from main service.
+10:03:59.519600 - DBUS SERVICE: Shutting down and unpublishing module SoundPresenter from main service.
+10:03:59.519608 - DBUS SERVICE: Shutting down and unpublishing module TypingEchoPresenter from main service.
+10:03:59.519615 - DBUS SERVICE: Shutting down and unpublishing module BraillePresenter from main service.
+10:03:59.519622 - DBUS SERVICE: Shutting down and unpublishing module WhereAmIPresenter from main service.
+10:03:59.519630 - DBUS SERVICE: Shutting down and unpublishing module FlatReviewPresenter from main service.
+10:03:59.519637 - DBUS SERVICE: Shutting down and unpublishing module SayAllPresenter from main service.
+10:03:59.519645 - DBUS SERVICE: Shutting down and unpublishing module TextAttributeManager from main service.
+10:03:59.519652 - DBUS SERVICE: Shutting down and unpublishing module CaretNavigator from main service.
+10:03:59.519660 - DBUS SERVICE: Shutting down and unpublishing module DocumentPresenter from main service.
+10:03:59.519667 - DBUS SERVICE: Shutting down and unpublishing module TableNavigator from main service.
+10:03:59.519972 - REMOTE CONTROLLER: D-Bus service shut down.
+10:03:59.519992 - ORCA MODIFIER MANAGER: Unsetting Orca modifiers: Shutting down.
+10:03:59.525693 - ORCA MODIFIER MANAGER: Original xmodmap restored
+10:03:59.525835 - EVENT MANAGER: Pause queueing: True. Clear queue: True. Shutting down.
+10:03:59.525884 - INPUT EVENT MANAGER: Pause queueing: True. Shutting down.
+10:03:59.525895 - SCRIPT MANAGER: Deactivating <unknown>.<module>:373 > orca._glib_shutdown_handler:182 > orca.shutdown:129 > script_manager.deactivate:70
+10:03:59.526212 - EVENT MANAGER: De-registering listeners for: default (module=orca.scripts.default)
+10:03:59.526221 - EVENT MANAGER: deregistering listener for: document:attributes-changed
+10:03:59.527012 - EVENT MANAGER: deregistering listener for: document:load-complete
+10:03:59.527077 - EVENT MANAGER: deregistering listener for: document:load-stopped
+10:03:59.527124 - EVENT MANAGER: deregistering listener for: document:page-changed
+10:03:59.527171 - EVENT MANAGER: deregistering listener for: document:reload
+10:03:59.527215 - EVENT MANAGER: deregistering listener for: mouse:button
+10:03:59.527257 - EVENT MANAGER: deregistering listener for: object:active-descendant-changed
+10:03:59.527302 - EVENT MANAGER: deregistering listener for: object:announcement
+10:03:59.527353 - EVENT MANAGER: deregistering listener for: object:attributes-changed
+10:03:59.527398 - EVENT MANAGER: deregistering listener for: object:children-changed:add
+10:03:59.527448 - EVENT MANAGER: deregistering listener for: object:children-changed:remove
+10:03:59.527495 - EVENT MANAGER: deregistering listener for: object:column-reordered
+10:03:59.527536 - EVENT MANAGER: deregistering listener for: object:property-change:accessible-description
+10:03:59.527583 - EVENT MANAGER: deregistering listener for: object:property-change:accessible-name
+10:03:59.527630 - EVENT MANAGER: deregistering listener for: object:property-change:accessible-value
+10:03:59.527676 - EVENT MANAGER: deregistering listener for: object:row-reordered
+10:03:59.527723 - EVENT MANAGER: deregistering listener for: object:selection-changed
+10:03:59.527763 - EVENT MANAGER: deregistering listener for: object:state-changed:active
+10:03:59.527809 - EVENT MANAGER: deregistering listener for: object:state-changed:busy
+10:03:59.527855 - EVENT MANAGER: deregistering listener for: object:state-changed:checked
+10:03:59.527900 - EVENT MANAGER: deregistering listener for: object:state-changed:expanded
+10:03:59.527949 - EVENT MANAGER: deregistering listener for: object:state-changed:focused
+10:03:59.528004 - EVENT MANAGER: deregistering listener for: object:state-changed:indeterminate
+10:03:59.528062 - EVENT MANAGER: deregistering listener for: object:state-changed:invalid-entry
+10:03:59.528111 - EVENT MANAGER: deregistering listener for: object:state-changed:pressed
+10:03:59.528157 - EVENT MANAGER: deregistering listener for: object:state-changed:selected
+10:03:59.528202 - EVENT MANAGER: deregistering listener for: object:state-changed:sensitive
+10:03:59.528247 - EVENT MANAGER: deregistering listener for: object:state-changed:showing
+10:03:59.528292 - EVENT MANAGER: deregistering listener for: object:text-attributes-changed
+10:03:59.528333 - EVENT MANAGER: deregistering listener for: object:text-caret-moved
+10:03:59.528372 - EVENT MANAGER: deregistering listener for: object:text-changed:delete
+10:03:59.528416 - EVENT MANAGER: deregistering listener for: object:text-changed:insert
+10:03:59.528461 - EVENT MANAGER: deregistering listener for: object:text-selection-changed
+10:03:59.528501 - EVENT MANAGER: deregistering listener for: object:value-changed
+10:03:59.528541 - EVENT MANAGER: deregistering listener for: window:activate
+10:03:59.528581 - EVENT MANAGER: deregistering listener for: window:create
+10:03:59.528621 - EVENT MANAGER: deregistering listener for: window:deactivate
+10:03:59.528662 - EVENT MANAGER: deregistering listener for: window:destroy
+10:03:59.528733 - SCRIPT MANAGER: Deactivating default (module=orca.scripts.default) reason: deactivate
+10:03:59.528779 - GSETTINGS SCHEMA HANDLE: keybindings/keyboard-layout not set [profile:default]
+10:03:59.528785 - GSETTINGS REGISTRY: keybindings/keyboard-layout using default value = 'desktop'
+10:03:59.528789 - COMMAND MANAGER: Setting keyboard layout is_desktop to True.
+10:03:59.528864 - GSETTINGS SCHEMA HANDLE: keybindings/entries no dict values set
+10:03:59.528870 - GSETTINGS REGISTRY: keybindings/entries using default value = {}
+10:03:59.528873 - COMMAND MANAGER: No user overrides to apply
+10:03:59.528916 - GSETTINGS SCHEMA HANDLE: keybindings/keyboard-layout not set [profile:default]
+10:03:59.528920 - GSETTINGS REGISTRY: keybindings/keyboard-layout using default value = 'desktop'
+10:03:59.528928 - GSETTINGS SCHEMA HANDLE: keybindings/desktop-modifier-keys not set [profile:default]
+10:03:59.528933 - GSETTINGS REGISTRY: keybindings/desktop-modifier-keys using default value = ['Insert', 'KP_Insert']
+
+vvvvv COMMAND MANAGER: Grab diff: keyboard layout change (old: 77, new: 77) vvvvv
+10:03:59.529820 -   Added (31):
+10:03:59.529837 -     KP_Divide: leftClickReviewItemHandler
+10:03:59.529842 -     KP_Multiply: rightClickReviewItemHandler
+10:03:59.529846 -     KP_Add: sayAllHandler
+10:03:59.529854 -     Alt+BackSpace: bypass_mode_toggle
+10:03:59.529859 -     Alt+Control+Shift+q: toggle_sleep_mode
+10:03:59.529865 -     Alt+Shift+Left: table_cell_left
+10:03:59.529869 -     Alt+Shift+Right: table_cell_right
+10:03:59.529873 -     Alt+Shift+Up: table_cell_up
+10:03:59.529876 -     Alt+Shift+Down: table_cell_down
+10:03:59.529880 -     Alt+Shift+Home: table_cell_first
+10:03:59.529884 -     Alt+Shift+End: table_cell_last
+10:03:59.529887 -     KP_Subtract: toggleFlatReviewModeHandler
+10:03:59.529890 -     KP_Home: reviewPreviousLineHandler
+10:03:59.529893 -     KP_Up: reviewCurrentLineHandler
+10:03:59.529896 -     KP_Page_Up: reviewNextLineHandler
+10:03:59.529899 -     KP_Up x2: reviewSpellCurrentLineHandler
+10:03:59.529902 -     KP_Up x3: reviewPhoneticCurrentLineHandler
+10:03:59.529905 -     KP_Left: reviewPreviousItemHandler
+10:03:59.529908 -     KP_Begin: reviewCurrentItemHandler
+10:03:59.529915 -     KP_Right: reviewNextItemHandler
+10:03:59.529918 -     KP_Begin x2: reviewSpellCurrentItemHandler
+10:03:59.529921 -     KP_Begin x3: reviewPhoneticCurrentItemHandler
+10:03:59.529924 -     KP_End: reviewPreviousCharacterHandler
+10:03:59.529928 -     KP_Down: reviewCurrentCharacterHandler
+10:03:59.529931 -     KP_Down x2: reviewSpellCurrentCharacterHandler
+10:03:59.529935 -     KP_Down x3: reviewUnicodeCurrentCharacterHandler
+10:03:59.529938 -     KP_Page_Down: reviewNextCharacterHandler
+10:03:59.529941 -     KP_Add x2: flatReviewSayAllHandler
+10:03:59.529945 -     KP_Delete: findHandler
+10:03:59.529948 -     KP_Enter: whereAmIBasicHandler
+10:03:59.529951 -     KP_Enter x2: whereAmIDetailedHandler
+^^^^^ COMMAND MANAGER: Diff completed in 0.0010s. Removed 0, added 31, transferred 0 ^^^^^
+
+10:03:59.529963 - COMMAND MANAGER: Keyboard layout set to desktop.
+10:03:59.529995 - GSETTINGS SCHEMA HANDLE: keybindings/keyboard-layout not set [profile:default]
+10:03:59.530001 - GSETTINGS REGISTRY: keybindings/keyboard-layout using default value = 'desktop'
+10:03:59.530011 - GSETTINGS SCHEMA HANDLE: keybindings/desktop-modifier-keys not set [profile:default]
+10:03:59.530016 - GSETTINGS REGISTRY: keybindings/desktop-modifier-keys using default value = ['Insert', 'KP_Insert']
+10:03:59.530023 - SCRIPT MANAGER: Deactivated
+10:03:59.530029 - EVENT MANAGER: Deactivating <unknown>.<module>:373 > orca._glib_shutdown_handler:182 > orca.shutdown:130 > event_manager.deactivate:98
+10:03:59.530264 - INPUT EVENT MANAGER: Stopping key watcher.
+10:03:59.530297 - EVENT MANAGER: Deactivated
+10:03:59.530306 - CLIPBOARD PRESENTER: Deactivating
+10:03:59.531093 - CLIPBOARD PRESENTER: Deactivated
+10:03:59.531107 - PRESENTATION MANAGER: Shutting down presenters
+10:03:59.531407 - SPEECH MANAGER: shutdown_speech. Script: None Event: None notify_user: False
+10:03:59.531603 - SPEECH MANAGER: Speech server is <orca.speechdispatcherfactory.SpeechServer object at 0x7d0202a196a0>
+10:03:59.541040 - BRAILLE: Attempting braille shutdown.
+10:03:59.541114 - BRAILLE: Braille was not running.
+10:03:59.541127 - ORCA: Quitting Atspi main event loop
+10:03:59.541153 - ORCA: Shutdown complete

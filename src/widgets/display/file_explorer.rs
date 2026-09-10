@@ -12,10 +12,6 @@
 //! - Preview pane support
 
 use crate::component::{Component, Element, Props};
-use crate::event::router::EventResult;
-use crate::event::types::{KeyCode, KeyEvent, MouseEventKind};
-use crate::event::{Event, MouseEvent};
-use crate::widgets::layout::{BreadcrumbBuilder, BreadcrumbSegment};
 use std::any::Any;
 use std::collections::HashSet;
 use std::fs;
@@ -63,14 +59,15 @@ pub struct FileEntry {
 impl FileEntry {
     /// Create a new file entry from a path
     pub fn from_path(path: &Path) -> std::io::Result<Self> {
-        let metadata = fs::metadata(path)?;
+        let metadata = fs::symlink_metadata(path)?;
         let name = path
             .file_name()
-            .and_then(|n| n.to_str())
-            .unwrap_or("")
-            .to_string();
+            .map(|name| name.to_string_lossy().into_owned())
+            .unwrap_or_default();
 
-        let file_type = if metadata.is_dir() {
+        let file_type = if metadata.file_type().is_symlink() {
+            FileType::Symlink
+        } else if metadata.is_dir() {
             FileType::Directory
         } else if metadata.is_file() {
             FileType::File
@@ -85,6 +82,14 @@ impl FileEntry {
 
         let icon = Self::get_icon_for_file(&name, &file_type, &extension);
         let hidden = name.starts_with('.');
+        #[cfg(windows)]
+        let hidden = {
+            use std::os::windows::fs::MetadataExt;
+            hidden
+                || metadata.file_attributes()
+                    & windows_sys::Win32::Storage::FileSystem::FILE_ATTRIBUTE_HIDDEN
+                    != 0
+        };
 
         Ok(Self {
             name,
@@ -196,8 +201,21 @@ impl FileEntry {
     pub fn format_modified(&self) -> String {
         match self.modified {
             Some(time) => {
-                // Simplified time formatting
-                format!("{:?}", time)
+                let nanos = match time.duration_since(SystemTime::UNIX_EPOCH) {
+                    Ok(duration) => duration.as_nanos() as i128,
+                    Err(error) => -(error.duration().as_nanos() as i128),
+                };
+                match time::OffsetDateTime::from_unix_timestamp_nanos(nanos) {
+                    Ok(date) => format!(
+                        "{:04}-{:02}-{:02} {:02}:{:02} UTC",
+                        date.year(),
+                        u8::from(date.month()),
+                        date.day(),
+                        date.hour(),
+                        date.minute()
+                    ),
+                    Err(_) => "Time out of range".into(),
+                }
             }
             None => "-".to_string(),
         }
@@ -325,7 +343,7 @@ impl Props for FileExplorerProps {
 }
 
 /// File explorer widget state
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct FileExplorerState {
     /// Current directory entries
     pub entries: Vec<FileEntry>,
@@ -360,6 +378,8 @@ pub struct FileExplorerState {
 /// Production-ready File Explorer widget
 pub struct FileExplorer;
 
+mod live;
+
 impl Component for FileExplorer {
     type Props = FileExplorerProps;
     type State = FileExplorerState;
@@ -368,722 +388,11 @@ impl Component for FileExplorer {
         Self
     }
 
-    fn update(&mut self, props: &Self::Props, state: &mut Self::State) -> bool {
-        // Initialize or reload directory if path changed
-        if !state.initialized || self.should_reload_directory(props, state) {
-            self.load_directory(props, state);
-            state.initialized = true;
-            return true;
-        }
-
-        // Update filtered entries if search query changed
-        if self.should_update_filter(props, state) {
-            self.update_filtered_entries(props, state);
-            self.update_filter_state(props, state);
-            return true;
-        }
-
-        false
-    }
-
     fn render(&self, props: &Self::Props, state: &Self::State) -> Element {
-        let mut explorer_classes = vec!["file-explorer".to_string()];
-
-        // Add view mode classes
-        match props.view_mode {
-            ViewMode::List => explorer_classes.push("file-explorer-list".to_string()),
-            ViewMode::Grid => explorer_classes.push("file-explorer-grid".to_string()),
-            ViewMode::Tree => explorer_classes.push("file-explorer-tree".to_string()),
-        }
-
-        // Add custom classes
-        if let Some(ref class) = props.class {
-            explorer_classes.push(class.clone());
-        }
-
-        let mut children = Vec::new();
-
-        // Add breadcrumb if enabled
-        if props.show_breadcrumb {
-            children.push(self.render_breadcrumb(props, state));
-        }
-
-        // Add toolbar
-        children.push(self.render_toolbar(props, state));
-
-        // Add main content area
-        children.push(self.render_content(props, state));
-
-        Element::layout(crate::component::LayoutType::Flex)
-            .with_class(explorer_classes.join(" "))
-            .with_children(children)
-    }
-
-    fn handle_event(
-        &mut self,
-        event: &Event,
-        props: &mut Self::Props,
-        state: &mut Self::State,
-    ) -> EventResult {
-        match event {
-            Event::Key(key_event) => {
-                if props.keyboard_navigation {
-                    self.handle_keyboard_event(key_event, props, state)
-                } else {
-                    EventResult::Ignored
-                }
-            }
-            Event::Mouse(mouse_event) => self.handle_mouse_event(mouse_event, props, state),
-            _ => EventResult::Ignored,
-        }
-    }
-}
-
-impl FileExplorer {
-    /// Check if directory should be reloaded
-    fn should_reload_directory(
-        &self,
-        _props: &FileExplorerProps,
-        state: &FileExplorerState,
-    ) -> bool {
-        // Reload if path changed or if it's been a while since last load
-        if let Some(last_load) = state.last_load_time {
-            let elapsed = SystemTime::now()
-                .duration_since(last_load)
-                .unwrap_or_default();
-            elapsed.as_secs() > 30 // Reload every 30 seconds
-        } else {
-            true
-        }
-    }
-
-    /// Check if filter should be updated
-    fn should_update_filter(&self, props: &FileExplorerProps, state: &FileExplorerState) -> bool {
-        // Check if any filter-related properties have changed
-        props.show_hidden != state.previous_show_hidden
-            || props.file_filters != state.previous_file_filters
-            || props.search_query != state.previous_search_query
-            || props.sort_criteria != state.previous_sort_criteria
-            || props.sort_order != state.previous_sort_order
-    }
-
-    /// Update the previous filter state to current values
-    fn update_filter_state(&self, props: &FileExplorerProps, state: &mut FileExplorerState) {
-        state.previous_show_hidden = props.show_hidden;
-        state.previous_file_filters = props.file_filters.clone();
-        state.previous_search_query = props.search_query.clone();
-        state.previous_sort_criteria = props.sort_criteria.clone();
-        state.previous_sort_order = props.sort_order.clone();
-    }
-
-    /// Load directory contents
-    fn load_directory(&self, props: &FileExplorerProps, state: &mut FileExplorerState) {
-        state.loading = true;
-        state.error = None;
-
-        match fs::read_dir(&props.current_path) {
-            Ok(entries) => {
-                let mut file_entries = Vec::new();
-
-                for entry in entries.flatten() {
-                    if let Ok(file_entry) = FileEntry::from_path(&entry.path()) {
-                        // Apply filters
-                        if !props.show_hidden && file_entry.hidden {
-                            continue;
-                        }
-
-                        // Apply file extension filters
-                        if !props.file_filters.is_empty() {
-                            if let Some(ref ext) = file_entry.extension {
-                                if !props.file_filters.contains(ext) {
-                                    continue;
-                                }
-                            } else if file_entry.file_type != FileType::Directory {
-                                continue;
-                            }
-                        }
-
-                        file_entries.push(file_entry);
-                    }
-                }
-
-                // Sort entries
-                self.sort_entries(&mut file_entries, props);
-
-                state.entries = file_entries;
-                state.loading = false;
-                state.last_load_time = Some(SystemTime::now());
-
-                // Update filtered entries
-                self.update_filtered_entries(props, state);
-
-                // Reset selection and focus
-                state.selected_indices.clear();
-                state.focused_index = if !state.filtered_entries.is_empty() {
-                    Some(0)
-                } else {
-                    None
-                };
-            }
-            Err(err) => {
-                state.error = Some(format!("Failed to read directory: {}", err));
-                state.loading = false;
-                state.entries.clear();
-                state.filtered_entries.clear();
-            }
-        }
-    }
-
-    /// Sort file entries based on criteria
-    fn sort_entries(&self, entries: &mut [FileEntry], props: &FileExplorerProps) {
-        entries.sort_by(|a, b| {
-            // Always put directories first
-            match (&a.file_type, &b.file_type) {
-                (FileType::Directory, FileType::Directory) => {}
-                (FileType::Directory, _) => return std::cmp::Ordering::Less,
-                (_, FileType::Directory) => return std::cmp::Ordering::Greater,
-                _ => {}
-            }
-
-            let ordering = match props.sort_criteria {
-                SortCriteria::Name => a.name.to_lowercase().cmp(&b.name.to_lowercase()),
-                SortCriteria::Size => a.size.unwrap_or(0).cmp(&b.size.unwrap_or(0)),
-                SortCriteria::Modified => a.modified.cmp(&b.modified),
-                SortCriteria::Type => a.extension.cmp(&b.extension),
-            };
-
-            match props.sort_order {
-                SortOrder::Ascending => ordering,
-                SortOrder::Descending => ordering.reverse(),
-            }
-        });
-    }
-
-    /// Update filtered entries based on search query
-    fn update_filtered_entries(&self, props: &FileExplorerProps, state: &mut FileExplorerState) {
-        if let Some(ref query) = props.search_query {
-            let query_lower = query.to_lowercase();
-            state.filtered_entries = state
-                .entries
-                .iter()
-                .enumerate()
-                .filter(|(_, entry)| entry.name.to_lowercase().contains(&query_lower))
-                .map(|(index, _)| index)
-                .collect();
-        } else {
-            state.filtered_entries = (0..state.entries.len()).collect();
-        }
-    }
-
-    /// Render breadcrumb navigation
-    fn render_breadcrumb(&self, props: &FileExplorerProps, _state: &FileExplorerState) -> Element {
-        let mut breadcrumb_builder = BreadcrumbBuilder::new()
-            .separator("/")
-            .show_icons(true)
-            .home_icon("🏠")
-            .class("file-explorer-breadcrumb");
-
-        // Build breadcrumb segments from current path
-        let mut current_path = PathBuf::new();
-
-        // Add root segment
-        breadcrumb_builder =
-            breadcrumb_builder.segment(BreadcrumbSegment::new("root", "Root", "/").icon("🏠"));
-
-        // Add path segments
-        for (index, component) in props.current_path.components().enumerate() {
-            if let Some(name) = component.as_os_str().to_str() {
-                if !name.is_empty() && name != "/" {
-                    current_path.push(component);
-                    let path_str = current_path.to_string_lossy().to_string();
-
-                    breadcrumb_builder = breadcrumb_builder.segment(
-                        BreadcrumbSegment::new(format!("segment_{}", index), name, &path_str)
-                            .icon("📁")
-                            .current(current_path == props.current_path),
-                    );
-                }
-            }
-        }
-
-        breadcrumb_builder.build()
-    }
-
-    /// Render toolbar with controls
-    fn render_toolbar(&self, props: &FileExplorerProps, state: &FileExplorerState) -> Element {
-        let mut toolbar_children = Vec::new();
-
-        // View mode buttons
-        toolbar_children.push(
-            Element::layout(crate::component::LayoutType::Flex)
-                .with_class("file-explorer-view-modes")
-                .with_children(vec![
-                    Element::text("📋").with_class("view-mode-button list"),
-                    Element::text("⊞").with_class("view-mode-button grid"),
-                    Element::text("🌳").with_class("view-mode-button tree"),
-                ]),
-        );
-
-        // Sort controls
-        toolbar_children.push(
-            Element::layout(crate::component::LayoutType::Flex)
-                .with_class("file-explorer-sort-controls")
-                .with_children(vec![
-                    Element::text("Sort: Name ↑").with_class("sort-indicator")
-                ]),
-        );
-
-        // Search box (placeholder)
-        if let Some(query) = &props.search_query {
-            toolbar_children
-                .push(Element::text(format!("Search: {query}")).with_class("search-box"));
-        }
-
-        // Status info
-        let status_text = if state.loading {
-            "Loading...".to_string()
-        } else if let Some(ref error) = state.error {
-            format!("Error: {}", error)
-        } else {
-            format!("{} items", state.filtered_entries.len())
-        };
-
-        toolbar_children.push(Element::text(&status_text).with_class("file-explorer-status"));
-
-        Element::layout(crate::component::LayoutType::Flex)
-            .with_class("file-explorer-toolbar")
-            .with_children(toolbar_children)
-    }
-
-    /// Render main content area
-    fn render_content(&self, props: &FileExplorerProps, state: &FileExplorerState) -> Element {
-        if state.loading {
-            return Element::text("Loading directory...").with_class("file-explorer-loading");
-        }
-
-        if let Some(ref error) = state.error {
-            return Element::text(format!("Error: {}", error)).with_class("file-explorer-error");
-        }
-
-        if state.filtered_entries.is_empty() {
-            return Element::text("No files found").with_class("file-explorer-empty");
-        }
-
-        match props.view_mode {
-            ViewMode::List => self.render_list_view(props, state),
-            ViewMode::Grid => self.render_grid_view(props, state),
-            ViewMode::Tree => self.render_tree_view(props, state),
-        }
-    }
-
-    /// Render list view
-    fn render_list_view(&self, props: &FileExplorerProps, state: &FileExplorerState) -> Element {
-        let mut rows = Vec::new();
-
-        // Add header row if showing details
-        if props.show_details {
-            rows.push(
-                Element::layout(crate::component::LayoutType::Flex)
-                    .with_class("file-explorer-header")
-                    .with_children(vec![
-                        Element::text("Name").with_class("header-name"),
-                        Element::text("Size").with_class("header-size"),
-                        Element::text("Modified").with_class("header-modified"),
-                    ]),
-            );
-        }
-
-        // Add file rows
-        for (display_index, &entry_index) in state.filtered_entries.iter().enumerate() {
-            if let Some(entry) = state.entries.get(entry_index) {
-                rows.push(self.render_file_row(props, state, entry, display_index, entry_index));
-            }
-        }
-
-        Element::layout(crate::component::LayoutType::Flex)
-            .with_class("file-explorer-list")
-            .with_children(rows)
-    }
-
-    /// Render grid view
-    fn render_grid_view(&self, props: &FileExplorerProps, state: &FileExplorerState) -> Element {
-        let mut items = Vec::new();
-
-        for (display_index, &entry_index) in state.filtered_entries.iter().enumerate() {
-            if let Some(entry) = state.entries.get(entry_index) {
-                items.push(self.render_file_item(props, state, entry, display_index, entry_index));
-            }
-        }
-
-        Element::layout(crate::component::LayoutType::Grid)
-            .with_class("file-explorer-grid")
-            .with_children(items)
-    }
-
-    /// Render tree view
-    fn render_tree_view(&self, props: &FileExplorerProps, state: &FileExplorerState) -> Element {
-        // Tree view would be more complex, showing nested directory structure
-        // For now, fall back to list view
-        self.render_list_view(props, state)
-    }
-
-    /// Render a file row in list view
-    fn render_file_row(
-        &self,
-        props: &FileExplorerProps,
-        state: &FileExplorerState,
-        entry: &FileEntry,
-        display_index: usize,
-        entry_index: usize,
-    ) -> Element {
-        let is_focused = state.focused_index == Some(display_index);
-        let is_selected = state.selected_indices.contains(&entry_index);
-
-        let mut row_classes = vec!["file-explorer-row".to_string()];
-
-        if is_focused {
-            row_classes.push("focused".to_string());
-        }
-
-        if is_selected {
-            row_classes.push("selected".to_string());
-        }
-
-        match entry.file_type {
-            FileType::Directory => row_classes.push("directory".to_string()),
-            FileType::File => row_classes.push("file".to_string()),
-            FileType::Symlink => row_classes.push("symlink".to_string()),
-            FileType::Unknown => row_classes.push("unknown".to_string()),
-        }
-
-        let mut children = vec![
-            // Icon and name
-            Element::layout(crate::component::LayoutType::Flex)
-                .with_class("file-name")
-                .with_children(vec![
-                    Element::text(&entry.icon).with_class("file-icon"),
-                    Element::text(&entry.name).with_class("file-label"),
-                ]),
-        ];
-
-        // Add details if enabled
-        if props.show_details {
-            children.push(Element::text(entry.format_size()).with_class("file-size"));
-            children.push(Element::text(entry.format_modified()).with_class("file-modified"));
-        }
-
-        Element::layout(crate::component::LayoutType::Flex)
-            .with_class(row_classes.join(" "))
-            .with_children(children)
-    }
-
-    /// Render a file item in grid view
-    fn render_file_item(
-        &self,
-        _props: &FileExplorerProps,
-        state: &FileExplorerState,
-        entry: &FileEntry,
-        display_index: usize,
-        entry_index: usize,
-    ) -> Element {
-        let is_focused = state.focused_index == Some(display_index);
-        let is_selected = state.selected_indices.contains(&entry_index);
-
-        let mut item_classes = vec!["file-explorer-item".to_string()];
-
-        if is_focused {
-            item_classes.push("focused".to_string());
-        }
-
-        if is_selected {
-            item_classes.push("selected".to_string());
-        }
-
-        Element::layout(crate::component::LayoutType::Flex)
-            .with_class(item_classes.join(" "))
-            .with_children(vec![
-                Element::text(&entry.icon).with_class("file-icon-large"),
-                Element::text(&entry.name).with_class("file-name-grid"),
-            ])
-    }
-
-    /// Handle keyboard events
-    fn handle_keyboard_event(
-        &mut self,
-        event: &KeyEvent,
-        props: &mut FileExplorerProps,
-        state: &mut FileExplorerState,
-    ) -> EventResult {
-        match event.code {
-            KeyCode::Down => {
-                self.move_focus_down(state);
-                EventResult::Consumed
-            }
-            KeyCode::Up => {
-                self.move_focus_up(state);
-                EventResult::Consumed
-            }
-            KeyCode::Enter => {
-                self.activate_focused_item(props, state);
-                EventResult::Consumed
-            }
-            KeyCode::Char(' ') => {
-                if event.modifiers.ctrl {
-                    self.toggle_selection(state);
-                } else {
-                    self.activate_focused_item(props, state);
-                }
-                EventResult::Consumed
-            }
-            KeyCode::Char('a') if event.modifiers.ctrl => {
-                self.select_all(props, state);
-                EventResult::Consumed
-            }
-            KeyCode::Backspace => {
-                self.navigate_up(props, state);
-                EventResult::Consumed
-            }
-            KeyCode::Home => {
-                self.move_focus_to_start(state);
-                EventResult::Consumed
-            }
-            KeyCode::End => {
-                self.move_focus_to_end(state);
-                EventResult::Consumed
-            }
-            KeyCode::F(5) => {
-                self.refresh_directory(props, state);
-                EventResult::Consumed
-            }
-            _ => EventResult::Ignored,
-        }
-    }
-
-    /// Handle mouse events
-    fn handle_mouse_event(
-        &mut self,
-        event: &MouseEvent,
-        props: &mut FileExplorerProps,
-        state: &mut FileExplorerState,
-    ) -> EventResult {
-        match event.kind {
-            MouseEventKind::Down => {
-                // Determine which item was clicked
-                if let Some(item_index) = self.get_item_at_position(
-                    event.position.x() as u16,
-                    event.position.y() as u16,
-                    props,
-                    state,
-                ) {
-                    state.focused_index = Some(item_index);
-
-                    // Handle selection based on modifiers
-                    if props.selection_mode != SelectionMode::None {
-                        // Handle Ctrl+click, Shift+click for multiple selection
-                        if event.modifiers.ctrl {
-                            // Ctrl+click: Toggle selection of clicked item
-                            self.toggle_item_selection(item_index, state);
-                        } else if event.modifiers.shift
-                            && props.selection_mode == SelectionMode::Multiple
-                        {
-                            // Shift+click: Select range from last selected to clicked item
-                            self.select_range(item_index, state);
-                        } else {
-                            // Normal click: Clear selection and select only clicked item
-                            self.select_item(item_index, state);
-                        }
-                    }
-
-                    EventResult::Consumed
-                } else {
-                    EventResult::Ignored
-                }
-            }
-            MouseEventKind::DoubleClick => {
-                if state.focused_index.is_some() {
-                    self.activate_focused_item(props, state);
-                    EventResult::Consumed
-                } else {
-                    EventResult::Ignored
-                }
-            }
-            _ => EventResult::Ignored,
-        }
-    }
-
-    /// Move focus down
-    fn move_focus_down(&self, state: &mut FileExplorerState) {
-        if let Some(current) = state.focused_index {
-            if current < state.filtered_entries.len().saturating_sub(1) {
-                state.focused_index = Some(current + 1);
-            }
-        } else if !state.filtered_entries.is_empty() {
-            state.focused_index = Some(0);
-        }
-    }
-
-    /// Move focus up
-    fn move_focus_up(&self, state: &mut FileExplorerState) {
-        if let Some(current) = state.focused_index {
-            if current > 0 {
-                state.focused_index = Some(current - 1);
-            }
-        } else if !state.filtered_entries.is_empty() {
-            state.focused_index = Some(state.filtered_entries.len() - 1);
-        }
-    }
-
-    /// Move focus to start
-    fn move_focus_to_start(&self, state: &mut FileExplorerState) {
-        if !state.filtered_entries.is_empty() {
-            state.focused_index = Some(0);
-        }
-    }
-
-    /// Move focus to end
-    fn move_focus_to_end(&self, state: &mut FileExplorerState) {
-        if !state.filtered_entries.is_empty() {
-            state.focused_index = Some(state.filtered_entries.len() - 1);
-        }
-    }
-
-    /// Activate the currently focused item
-    fn activate_focused_item(&self, props: &mut FileExplorerProps, state: &mut FileExplorerState) {
-        if let Some(display_index) = state.focused_index {
-            if let Some(&entry_index) = state.filtered_entries.get(display_index) {
-                if let Some(entry) = state.entries.get(entry_index) {
-                    match entry.file_type {
-                        FileType::Directory => {
-                            // Navigate into directory
-                            props.current_path = entry.path.clone();
-                            self.load_directory(props, state);
-                        }
-                        FileType::File => {
-                            // Trigger file activation callback
-                            println!("Activating file: {}", entry.path.display());
-                        }
-                        _ => {}
-                    }
-                }
-            }
-        }
-    }
-
-    /// Toggle selection of focused item
-    fn toggle_selection(&self, state: &mut FileExplorerState) {
-        if let Some(display_index) = state.focused_index {
-            if let Some(&entry_index) = state.filtered_entries.get(display_index) {
-                if state.selected_indices.contains(&entry_index) {
-                    state.selected_indices.remove(&entry_index);
-                } else {
-                    state.selected_indices.insert(entry_index);
-                }
-            }
-        }
-    }
-
-    /// Select an item
-    fn select_item(&self, display_index: usize, state: &mut FileExplorerState) {
-        if let Some(&entry_index) = state.filtered_entries.get(display_index) {
-            state.selected_indices.clear();
-            state.selected_indices.insert(entry_index);
-        }
-    }
-
-    /// Toggle selection of an item (for Ctrl+click)
-    fn toggle_item_selection(&self, display_index: usize, state: &mut FileExplorerState) {
-        if let Some(&entry_index) = state.filtered_entries.get(display_index) {
-            if state.selected_indices.contains(&entry_index) {
-                state.selected_indices.remove(&entry_index);
-            } else {
-                state.selected_indices.insert(entry_index);
-            }
-        }
-    }
-
-    /// Select range of items (for Shift+click)
-    fn select_range(&self, display_index: usize, state: &mut FileExplorerState) {
-        // Find the last selected item to determine range start
-        let range_start = if let Some(focused_index) = state.focused_index {
-            focused_index
-        } else if let Some(&last_selected) = state.selected_indices.iter().next() {
-            // Find display index of the last selected entry
-            state
-                .filtered_entries
-                .iter()
-                .position(|&entry_idx| entry_idx == last_selected)
-                .unwrap_or(0)
-        } else {
-            0
-        };
-
-        // Clear current selection
-        state.selected_indices.clear();
-
-        // Select range from range_start to display_index (inclusive)
-        let start = range_start.min(display_index);
-        let end = range_start.max(display_index);
-
-        for i in start..=end {
-            if let Some(&entry_index) = state.filtered_entries.get(i) {
-                state.selected_indices.insert(entry_index);
-            }
-        }
-    }
-
-    /// Select all items
-    fn select_all(&self, props: &FileExplorerProps, state: &mut FileExplorerState) {
-        if props.selection_mode == SelectionMode::Multiple {
-            state.selected_indices.clear();
-            for &entry_index in &state.filtered_entries {
-                state.selected_indices.insert(entry_index);
-            }
-        }
-    }
-
-    /// Navigate up one directory level
-    fn navigate_up(&self, props: &mut FileExplorerProps, state: &mut FileExplorerState) {
-        if let Some(parent) = props.current_path.parent() {
-            props.current_path = parent.to_path_buf();
-            self.load_directory(props, state);
-        }
-    }
-
-    /// Refresh current directory
-    fn refresh_directory(&self, props: &FileExplorerProps, state: &mut FileExplorerState) {
-        self.load_directory(props, state);
-    }
-
-    /// Get item index at mouse position (simplified implementation)
-    fn get_item_at_position(
-        &self,
-        _column: u16,
-        _row: u16,
-        _props: &FileExplorerProps,
-        _state: &FileExplorerState,
-    ) -> Option<usize> {
-        // Calculate item index from mouse coordinates using viewport data
-        let header_height = if _props.show_details { 2 } else { 0 };
-        let toolbar_height = 2; // Toolbar takes 2 rows
-        let breadcrumb_height = if _props.show_breadcrumb { 1 } else { 0 };
-
-        let content_start_row = header_height + toolbar_height + breadcrumb_height;
-
-        // Account for scroll offset and header
-        if _row < content_start_row {
-            return None; // Click is in header/toolbar area
-        }
-
-        let content_row = _row - content_start_row;
-        let scroll_offset = _state.scroll_position;
-        let item_index = (content_row as usize).saturating_add(scroll_offset);
-
-        // Validate against actual item count
-        if item_index < _state.filtered_entries.len() {
-            Some(item_index)
-        } else {
-            None
-        }
+        Element::typed::<live::LiveExplorer>(live::LiveProps {
+            config: props.clone(),
+            seed: state.clone(),
+        })
     }
 }
 
@@ -1108,6 +417,8 @@ fn format_bytes(bytes: u64) -> String {
 /// Builder for creating file explorer widgets with fluent API
 pub struct FileExplorerBuilder {
     props: FileExplorerProps,
+    #[cfg(windows)]
+    explicit_root: bool,
 }
 
 impl FileExplorerBuilder {
@@ -1115,18 +426,35 @@ impl FileExplorerBuilder {
     pub fn new() -> Self {
         Self {
             props: FileExplorerProps::default(),
+            #[cfg(windows)]
+            explicit_root: false,
         }
     }
 
     /// Set the root directory path
     pub fn root_path(mut self, path: impl Into<PathBuf>) -> Self {
-        self.props.root_path = path.into();
+        #[cfg(windows)]
+        {
+            self.explicit_root = true;
+        }
+        let path = path.into();
+        if self.props.current_path == self.props.root_path {
+            self.props.current_path = path.clone();
+        }
+        self.props.root_path = path;
         self
     }
 
-    /// Set the current directory path
+    /// Set the current directory path. On Windows, an absolute path chooses its
+    /// volume/share root unless `root_path` already set an explicit boundary.
     pub fn current_path(mut self, path: impl Into<PathBuf>) -> Self {
         self.props.current_path = path.into();
+        #[cfg(windows)]
+        if !self.explicit_root && self.props.current_path.is_absolute() {
+            if let Some(root) = self.props.current_path.ancestors().last() {
+                self.props.root_path = root.to_path_buf();
+            }
+        }
         self
     }
 
@@ -1208,6 +536,24 @@ impl FileExplorerBuilder {
         self
     }
 
+    /// Deliver a JSON object with display paths and lossless native path units to App.
+    pub fn on_select(mut self, callback: impl Into<String>) -> Self {
+        self.props.on_select = Some(callback.into());
+        self
+    }
+
+    /// Deliver the activated file path through the App root custom event.
+    pub fn on_activate(mut self, callback: impl Into<String>) -> Self {
+        self.props.on_activate = Some(callback.into());
+        self
+    }
+
+    /// Deliver the new browser location through the App root custom event.
+    pub fn on_navigate(mut self, callback: impl Into<String>) -> Self {
+        self.props.on_navigate = Some(callback.into());
+        self
+    }
+
     /// Build the file explorer element
     pub fn build(self) -> Element {
         Element::component_with_props("FileExplorer", self.props)
@@ -1217,5 +563,27 @@ impl FileExplorerBuilder {
 impl Default for FileExplorerBuilder {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+#[cfg(all(test, windows))]
+mod windows_builder_tests {
+    use super::*;
+
+    #[test]
+    fn current_path_chooses_its_volume_without_replacing_an_explicit_root() {
+        for (path, root) in [
+            (r"C:\users\fixture", r"C:\"),
+            (r"\\server\share\fixture", r"\\server\share\"),
+            (r"\\?\D:\fixture", r"\\?\D:\"),
+        ] {
+            let builder = FileExplorerBuilder::new().current_path(path);
+            assert_eq!(builder.props.root_path, PathBuf::from(root));
+            assert_eq!(builder.props.current_path, PathBuf::from(path));
+            let explicit = FileExplorerBuilder::new()
+                .root_path(r"D:\limited")
+                .current_path(path);
+            assert_eq!(explicit.props.root_path, PathBuf::from(r"D:\limited"));
+        }
     }
 }

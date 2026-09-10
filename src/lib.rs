@@ -39,6 +39,8 @@
 
 #![warn(missing_docs)]
 
+/// Accessible node semantics and the owned Linux screen-reader connection.
+pub mod accessibility;
 /// Animation system with keyframes, springs, and easing functions
 pub mod animation;
 /// Application framework for building TUI applications

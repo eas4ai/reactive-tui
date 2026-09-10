@@ -1,9 +1,12 @@
+use super::overlay::same_callback;
 use crate::component::{Component, Element, LayoutType, Props};
 use crate::event::router::EventResult;
-use crate::event::types::{Event, KeyCode, KeyModifiers, MouseButton, MouseEventKind, Position};
+use crate::event::types::{Event, KeyCode, MouseButton, MouseEventKind, Position};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use taffy::geometry::Rect;
+
+mod live;
 
 /// Position relative to trigger element
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -212,7 +215,9 @@ impl PartialEq for PopoverProps {
             && self.max_width == other.max_width
             && self.min_height == other.min_height
             && self.max_height == other.max_height
-        // Skip callback comparisons
+            && same_callback(&self.on_open, &other.on_open)
+            && same_callback(&self.on_close, &other.on_close)
+            && same_callback(&self.on_position_change, &other.on_position_change)
     }
 }
 
@@ -313,14 +318,17 @@ impl Default for PopoverState {
 }
 
 /// Popover component for contextual overlays
+#[derive(Clone)]
 pub struct Popover {
     state: Arc<Mutex<PopoverState>>,
+    live: Arc<live::Runtime>,
 }
 
 impl Default for Popover {
     fn default() -> Self {
         Self {
             state: Arc::new(Mutex::new(PopoverState::default())),
+            live: Arc::default(),
         }
     }
 }
@@ -334,46 +342,6 @@ impl Popover {
     /// Create a popover builder for customization
     pub fn builder() -> PopoverBuilder {
         PopoverBuilder::new()
-    }
-
-    fn calculate_position(
-        &self,
-        props: &PopoverProps,
-        state: &PopoverState,
-        container_rect: Rect<f32>,
-    ) -> (Rect<f32>, PopoverPosition, Option<Position>) {
-        let trigger_rect = state.trigger_rect;
-        let content_size = self.estimate_content_size(&props.content, props);
-
-        let mut position = props.position;
-        let mut rect =
-            self.calculate_rect_for_position(position, trigger_rect, content_size, props.offset);
-
-        // Apply boundary behavior
-        if props.boundary_behavior != BoundaryBehavior::Ignore {
-            let (adjusted_rect, adjusted_position) = self.adjust_for_boundaries(
-                rect,
-                position,
-                trigger_rect,
-                content_size,
-                container_rect,
-                props,
-            );
-            rect = adjusted_rect;
-            position = adjusted_position;
-        }
-
-        // Apply size constraints
-        rect = self.apply_size_constraints(rect, props);
-
-        // Calculate arrow position
-        let arrow_pos = if props.arrow.enabled {
-            self.calculate_arrow_position(position, rect, trigger_rect, &props.arrow)
-        } else {
-            None
-        };
-
-        (rect, position, arrow_pos)
     }
 
     fn make_rect(x: f32, y: f32, width: f32, height: f32) -> Rect<f32> {
@@ -402,7 +370,7 @@ impl Popover {
 
         match position {
             PopoverPosition::Top => Self::make_rect(
-                trigger_x + (trigger_width - content_width) / 2.0,
+                trigger_x + (trigger_width - content_width) / 2.0 + offset_x,
                 trigger_y - content_height - offset_y,
                 content_width,
                 content_height,
@@ -420,7 +388,7 @@ impl Popover {
                 content_height,
             ),
             PopoverPosition::Bottom => Self::make_rect(
-                trigger_x + (trigger_width - content_width) / 2.0,
+                trigger_x + (trigger_width - content_width) / 2.0 + offset_x,
                 trigger_y + trigger_height + offset_y,
                 content_width,
                 content_height,
@@ -439,7 +407,7 @@ impl Popover {
             ),
             PopoverPosition::Left => Self::make_rect(
                 trigger_x - content_width - offset_x,
-                trigger_y + (trigger_height - content_height) / 2.0,
+                trigger_y + (trigger_height - content_height) / 2.0 + offset_y,
                 content_width,
                 content_height,
             ),
@@ -457,7 +425,7 @@ impl Popover {
             ),
             PopoverPosition::Right => Self::make_rect(
                 trigger_x + trigger_width + offset_x,
-                trigger_y + (trigger_height - content_height) / 2.0,
+                trigger_y + (trigger_height - content_height) / 2.0 + offset_y,
                 content_width,
                 content_height,
             ),
@@ -503,29 +471,18 @@ impl Popover {
                         content_size,
                         props.offset,
                     );
-                    // Always use flipped position when attempting to flip
-                    // (Either it fits better, or we tried our best)
-                    adjusted_rect = flipped_rect;
-                    adjusted_position = flipped_position;
-                }
-                BoundaryBehavior::Shift => {
-                    let width = adjusted_rect.right - adjusted_rect.left;
-                    let height = adjusted_rect.bottom - adjusted_rect.top;
-                    if adjusted_rect.left < container_rect.left {
-                        adjusted_rect.left = container_rect.left;
-                        adjusted_rect.right = adjusted_rect.left + width;
-                    } else if adjusted_rect.right > container_rect.right {
-                        adjusted_rect.right = container_rect.right;
-                        adjusted_rect.left = adjusted_rect.right - width;
-                    }
-                    if adjusted_rect.top < container_rect.top {
-                        adjusted_rect.top = container_rect.top;
-                        adjusted_rect.bottom = adjusted_rect.top + height;
-                    } else if adjusted_rect.bottom > container_rect.bottom {
-                        adjusted_rect.bottom = container_rect.bottom;
-                        adjusted_rect.top = adjusted_rect.bottom - height;
+                    let overflow = |candidate: Rect<f32>| {
+                        (container_rect.left - candidate.left).max(0.0)
+                            + (candidate.right - container_rect.right).max(0.0)
+                            + (container_rect.top - candidate.top).max(0.0)
+                            + (candidate.bottom - container_rect.bottom).max(0.0)
+                    };
+                    if overflow(flipped_rect) < overflow(rect) {
+                        adjusted_rect = flipped_rect;
+                        adjusted_position = flipped_position;
                     }
                 }
+                BoundaryBehavior::Shift => {}
                 BoundaryBehavior::Hide => {
                     if !fits_in_bounds {
                         adjusted_rect.right = adjusted_rect.left;
@@ -533,6 +490,23 @@ impl Popover {
                     }
                 }
                 BoundaryBehavior::Ignore => {}
+            }
+            if matches!(
+                props.boundary_behavior,
+                BoundaryBehavior::Flip | BoundaryBehavior::Shift
+            ) {
+                let width = adjusted_rect.right - adjusted_rect.left;
+                let height = adjusted_rect.bottom - adjusted_rect.top;
+                adjusted_rect.left = adjusted_rect.left.clamp(
+                    container_rect.left,
+                    (container_rect.right - width).max(container_rect.left),
+                );
+                adjusted_rect.top = adjusted_rect.top.clamp(
+                    container_rect.top,
+                    (container_rect.bottom - height).max(container_rect.top),
+                );
+                adjusted_rect.right = adjusted_rect.left + width;
+                adjusted_rect.bottom = adjusted_rect.top + height;
             }
         }
         (adjusted_rect, adjusted_position)
@@ -556,243 +530,6 @@ impl Popover {
         rect.right = rect.left + width;
         rect.bottom = rect.top + height;
         rect
-    }
-
-    fn calculate_arrow_position(
-        &self,
-        position: PopoverPosition,
-        popover_rect: Rect<f32>,
-        _trigger_rect: Rect<f32>,
-        arrow: &PopoverArrow,
-    ) -> Option<Position> {
-        if !arrow.enabled {
-            return None;
-        }
-
-        let arrow_size = arrow.size as i16;
-        let offset = arrow.offset;
-
-        match position {
-            PopoverPosition::Top | PopoverPosition::TopStart | PopoverPosition::TopEnd => {
-                Some(Position::Cell {
-                    x: (popover_rect.left + popover_rect.right) as u16 / 2 + offset as u16,
-                    y: popover_rect.bottom as u16,
-                })
-            }
-            PopoverPosition::Bottom | PopoverPosition::BottomStart | PopoverPosition::BottomEnd => {
-                Some(Position::Cell {
-                    x: (popover_rect.left + popover_rect.right) as u16 / 2 + offset as u16,
-                    y: (popover_rect.top - arrow_size as f32) as u16,
-                })
-            }
-            PopoverPosition::Left | PopoverPosition::LeftStart | PopoverPosition::LeftEnd => {
-                Some(Position::Cell {
-                    x: popover_rect.right as u16,
-                    y: (popover_rect.top + popover_rect.bottom) as u16 / 2 + offset as u16,
-                })
-            }
-            PopoverPosition::Right | PopoverPosition::RightStart | PopoverPosition::RightEnd => {
-                Some(Position::Cell {
-                    x: (popover_rect.left - arrow_size as f32) as u16,
-                    y: (popover_rect.top + popover_rect.bottom) as u16 / 2 + offset as u16,
-                })
-            }
-        }
-    }
-
-    fn estimate_content_size(&self, content: &Element, props: &PopoverProps) -> (u16, u16) {
-        // Comprehensive content size estimation based on element structure
-        let (estimated_width, estimated_height) = self.calculate_element_size(content);
-
-        // Apply padding considerations
-        let padding = 2; // Default padding for popover content
-        let border_width = 1; // Default border width
-        let total_padding = (padding + border_width) * 2;
-
-        let content_width = estimated_width + total_padding;
-        let content_height = estimated_height + total_padding;
-
-        // Apply min/max width constraints
-        let width = props.min_width.unwrap_or(content_width).max(
-            props
-                .max_width
-                .map(|max| content_width.min(max))
-                .unwrap_or(content_width),
-        );
-
-        // Apply min/max height constraints
-        let height = props.min_height.unwrap_or(content_height).max(
-            props
-                .max_height
-                .map(|max| content_height.min(max))
-                .unwrap_or(content_height),
-        );
-
-        (width, height)
-    }
-
-    /// Parse CSS grid template to get column and row counts
-    fn parse_grid_template(&self, element: &Element) -> (usize, usize) {
-        // Production implementation: Parse CSS grid-template-columns and grid-template-rows
-        // This would analyze style properties like:
-        // - grid-template-columns: repeat(3, 1fr) -> 3 columns
-        // - grid-template-columns: 100px auto 200px -> 3 columns
-        // - grid-template-rows: auto auto -> 2 rows
-
-        // For now, return reasonable defaults based on element structure
-        let child_count = element.children.len();
-
-        if child_count == 0 {
-            return (1, 1);
-        }
-
-        // Estimate grid dimensions - prefer wider grids for better layout
-        let cols = (child_count as f64).sqrt().ceil() as usize;
-        let cols = cols.clamp(1, 6); // Between 1 and 6 columns
-        let rows = child_count.div_ceil(cols); // Ceiling division
-
-        (cols, rows.max(1))
-    }
-
-    /// Extract grid gap values from CSS properties
-    fn extract_grid_gap(&self, element: &Element) -> (usize, usize) {
-        // Production implementation: Parse CSS gap, row-gap, column-gap properties
-        // This would analyze style properties like:
-        // - gap: 10px -> (10, 10)
-        // - row-gap: 5px; column-gap: 15px -> (15, 5)
-        // - gap: 8px 12px -> (12, 8)
-
-        // Check if element has any gap-related styling hints
-        if let Some(ref class) = element.class {
-            // Simple heuristic based on class names
-            if class.contains("gap-small") {
-                return (1, 1);
-            } else if class.contains("gap-large") {
-                return (3, 3);
-            } else if class.contains("gap") {
-                return (2, 2);
-            }
-        }
-
-        // Default gap for grid layouts
-        (1, 1) // 1 character gap both horizontally and vertically
-    }
-
-    /// Calculate the estimated size of an element and its children
-    fn calculate_element_size(&self, element: &Element) -> (u16, u16) {
-        use crate::component::ElementType;
-
-        match &element.element_type {
-            ElementType::Text(text) => {
-                // Calculate text dimensions
-                let lines: Vec<&str> = text.lines().collect();
-                let height = lines.len() as u16;
-                let width = lines
-                    .iter()
-                    .map(|line| line.chars().count() as u16)
-                    .max()
-                    .unwrap_or(0);
-                (width, height)
-            }
-            ElementType::Component(component_name) => {
-                // Estimate size based on component type
-                match component_name.as_str() {
-                    "Button" => (10, 1),              // Typical button size
-                    "Input" | "TextInput" => (20, 1), // Typical input size
-                    "Table" => (40, 10),              // Typical table size
-                    "Tree" => (30, 15),               // Typical tree size
-                    "List" => (25, 8),                // Typical list size
-                    _ => {
-                        // For unknown components, calculate based on children
-                        self.calculate_children_size(element)
-                    }
-                }
-            }
-            ElementType::Layout(layout_type) => {
-                // Calculate size based on layout type and children
-                let (child_width, child_height) = self.calculate_children_size(element);
-
-                match layout_type {
-                    crate::component::LayoutType::Flex => {
-                        // For flex layouts, assume vertical stacking by default
-                        (child_width, child_height)
-                    }
-                    crate::component::LayoutType::Grid => {
-                        // For grid layouts, parse CSS grid properties using production parser
-                        let (cols, rows) = self.parse_grid_template(element);
-
-                        // Calculate actual grid dimensions with gap handling
-                        let gap = self.extract_grid_gap(element);
-                        let total_width = child_width * (cols as u16)
-                            + (gap.0 as u16) * ((cols.saturating_sub(1)) as u16);
-                        let total_height = child_height * (rows as u16)
-                            + (gap.1 as u16) * ((rows.saturating_sub(1)) as u16);
-                        (total_width, total_height)
-                    }
-                    crate::component::LayoutType::Stack => {
-                        // Stack layouts overlay children, so use max dimensions
-                        (child_width, child_height)
-                    }
-                    crate::component::LayoutType::Absolute => {
-                        // Absolute layouts can have any size, use children as guide
-                        (child_width, child_height)
-                    }
-                }
-            }
-            ElementType::Fragment => {
-                // Fragments are invisible, just calculate children
-                self.calculate_children_size(element)
-            }
-            ElementType::Empty => {
-                // Empty elements have no size
-                (0, 0)
-            }
-        }
-    }
-
-    /// Calculate the combined size of all children
-    fn calculate_children_size(&self, element: &Element) -> (u16, u16) {
-        if element.children.is_empty() {
-            return (0, 0);
-        }
-
-        let _total_width = 0;
-        let mut total_height = 0;
-        let mut max_width = 0;
-
-        for child in &element.children {
-            let (child_width, child_height) = self.calculate_element_size(child);
-
-            // Assume vertical stacking by default
-            total_height += child_height;
-            max_width = max_width.max(child_width);
-        }
-
-        // Use the maximum width and total height
-        (max_width, total_height)
-    }
-
-    fn update_animation(&self, state: &mut PopoverState, props: &PopoverProps) {
-        if let Some(start_time) = state.animation_start {
-            let elapsed = start_time.elapsed();
-            let duration = props.animation_duration;
-
-            if elapsed >= duration {
-                state.animation_progress = 1.0;
-                state.is_animating = false;
-                state.animation_start = None;
-            } else {
-                let t = elapsed.as_millis() as f32 / duration.as_millis() as f32;
-                state.animation_progress = match props.animation {
-                    PopoverAnimation::None => 1.0,
-                    PopoverAnimation::Fade => t,
-                    PopoverAnimation::Scale => self.ease_out_back(t),
-                    PopoverAnimation::Slide => self.ease_out_cubic(t),
-                    PopoverAnimation::Bounce => self.ease_out_bounce(t),
-                };
-                state.is_animating = true;
-            }
-        }
     }
 
     fn ease_out_back(&self, t: f32) -> f32 {
@@ -823,195 +560,25 @@ impl Popover {
         }
     }
 
-    fn handle_trigger_event(
-        &self,
-        props: &PopoverProps,
-        state: &mut PopoverState,
-        event: &Event,
-    ) -> bool {
-        match props.trigger {
-            PopoverTrigger::Click => {
-                if let Event::Mouse(mouse_event) = event {
-                    if mouse_event.button == MouseButton::Left
-                        && mouse_event.kind == MouseEventKind::Down
-                    {
-                        if self.is_point_in_rect(mouse_event.position, state.trigger_rect) {
-                            self.toggle_visibility(props, state);
-                            return true;
-                        } else if props.close_on_outside_click
-                            && state.visible
-                            && !self.is_point_in_rect(mouse_event.position, state.calculated_rect)
-                        {
-                            self.hide_popover(props, state);
-                            return true;
-                        }
-                    }
-                }
-            }
-            PopoverTrigger::Hover => {
-                if let Event::Mouse(mouse_event) = event {
-                    let in_trigger =
-                        self.is_point_in_rect(mouse_event.position, state.trigger_rect);
-                    let in_popover =
-                        self.is_point_in_rect(mouse_event.position, state.calculated_rect);
-
-                    if in_trigger || in_popover {
-                        if !state.is_hovered && !state.visible {
-                            state.hover_timer = Some(Instant::now());
-                        }
-                        state.is_hovered = true;
-                        state.last_mouse_pos = Some(mouse_event.position);
-                    } else if state.is_hovered {
-                        state.is_hovered = false;
-                        state.hover_timer = Some(Instant::now());
-                    }
-                }
-            }
-            PopoverTrigger::Focus => {
-                if let Event::Key(_key_event) = event {
-                    // Handle focus changes
-                    state.is_focused = true;
-                }
-            }
-            PopoverTrigger::Manual => {
-                // Manual control only
-            }
-        }
-        false
-    }
-
-    fn update_hover_state(&self, props: &PopoverProps, state: &mut PopoverState) {
-        if props.trigger != PopoverTrigger::Hover {
-            return;
-        }
-
-        if let Some(timer) = state.hover_timer {
-            if state.is_hovered {
-                if !state.visible && timer.elapsed() >= props.hover_delay {
-                    self.show_popover(props, state);
-                    state.hover_timer = None;
-                }
-            } else if !state.is_hovered && state.visible {
-                if let Some(timer) = &state.hover_timer {
-                    if timer.elapsed() >= props.hover_leave_delay {
-                        self.hide_popover(props, state);
-                        state.hover_timer = None;
-                    }
-                }
-            }
-        }
-    }
-
-    fn toggle_visibility(&self, props: &PopoverProps, state: &mut PopoverState) {
-        if state.visible {
-            self.hide_popover(props, state);
-        } else {
-            self.show_popover(props, state);
-        }
-    }
-
-    fn show_popover(&self, props: &PopoverProps, state: &mut PopoverState) {
-        if !state.visible {
-            state.visible = true;
-            state.animation_start = Some(Instant::now());
-            state.animation_progress = 0.0;
-            state.is_animating = props.animation != PopoverAnimation::None;
-
-            if let Some(callback) = &props.on_open {
-                callback();
-            }
-        }
-    }
-
-    fn hide_popover(&self, props: &PopoverProps, state: &mut PopoverState) {
-        if state.visible {
-            state.visible = false;
-            state.animation_start = None;
-            state.animation_progress = 0.0;
-            state.is_animating = false;
-            state.is_hovered = false;
-            state.is_focused = false;
-            state.hover_timer = None;
-
-            if let Some(callback) = &props.on_close {
-                callback();
-            }
-        }
-    }
-
-    fn is_point_in_rect(&self, point: Position, rect: Rect<f32>) -> bool {
-        let x = point.x() as f32;
-        let y = point.y() as f32;
-        x >= rect.left && x < rect.right && y >= rect.top && y < rect.bottom
-    }
-
-    fn handle_keyboard_navigation(
-        &self,
-        key: KeyCode,
-        _modifiers: KeyModifiers,
-        props: &PopoverProps,
-        state: &mut PopoverState,
-    ) -> EventResult {
-        match key {
-            KeyCode::Escape => {
-                if props.close_on_escape && state.visible {
-                    self.hide_popover(props, state);
-                    EventResult::Consumed
-                } else {
-                    EventResult::Ignored
-                }
-            }
-            KeyCode::Tab => {
-                if props.focus_trap && state.visible {
-                    if state.focusable_elements.is_empty() {
-                        EventResult::Ignored
-                    } else {
-                        state.focused_element_index =
-                            (state.focused_element_index + 1) % state.focusable_elements.len();
-                        EventResult::Consumed
-                    }
-                } else {
-                    EventResult::Ignored
-                }
-            }
-            KeyCode::Enter | KeyCode::Space => {
-                if state.visible && !state.focusable_elements.is_empty() {
-                    // Activate focused element
-                    EventResult::Consumed
-                } else {
-                    EventResult::Ignored
-                }
-            }
-            _ => EventResult::Ignored,
-        }
-    }
-
-    /// Set the trigger rectangle for positioning
+    /// Set the trigger rectangle in terminal cells. Nonfinite or reversed bounds
+    /// restore automatic measurement of the rendered trigger.
     pub fn set_trigger_rect(&self, rect: Rect<f32>) {
-        if let Ok(mut state) = self.state.lock() {
-            state.trigger_rect = rect;
-        }
+        self.live.set_trigger(&self.state, rect);
     }
 
-    /// Check if the popover is currently visible
+    /// Check if the popover is currently visible.
     pub fn is_visible(&self) -> bool {
-        self.state.lock().map(|s| s.visible).unwrap_or(false)
+        self.state.lock().unwrap().visible
     }
 
-    /// Show the popover with animation
+    /// Show the popover and wake its mounted App.
     pub fn show(&self) {
-        if let Ok(mut state) = self.state.lock() {
-            state.visible = true;
-            state.animation_start = Some(Instant::now());
-        }
+        self.live.request(&self.state, true);
     }
 
-    /// Hide the popover with animation
+    /// Hide the popover and wake its mounted App.
     pub fn hide(&self) {
-        if let Ok(mut state) = self.state.lock() {
-            state.visible = false;
-            state.animation_start = None;
-        }
+        self.live.request(&self.state, false);
     }
 }
 
@@ -1020,183 +587,33 @@ impl Component for Popover {
     type State = PopoverState;
 
     fn new(_props: Self::Props) -> Self {
-        Popover::new()
+        Self::default()
     }
 
     fn render(&self, props: &Self::Props, _state: &Self::State) -> Element {
-        let mut state = self.state.lock().unwrap();
-
-        // Update visibility from props
-        if props.visible != state.visible {
-            if props.visible {
-                self.show_popover(props, &mut state);
-            } else {
-                self.hide_popover(props, &mut state);
-            }
-        }
-
-        if !state.visible && !state.is_animating {
-            return Element::empty();
-        }
-
-        // Update animation
-        self.update_animation(&mut state, props);
-
-        // Update hover state
-        self.update_hover_state(props, &mut state);
-
-        // Calculate position (using default container for now)
-        let container_rect = Rect {
-            left: 0.0,
-            top: 0.0,
-            right: 1000.0,
-            bottom: 1000.0,
-        };
-        let (calc_rect, calc_position, arrow_pos) =
-            self.calculate_position(props, &state, container_rect);
-
-        // Update state with calculated values
-        state.calculated_rect = calc_rect;
-        state.arrow_position = arrow_pos;
-        if calc_position != state.position {
-            state.position = calc_position;
-            state.boundary_adjusted = calc_position != props.position;
-
-            if let Some(callback) = &props.on_position_change {
-                callback(calc_position);
-            }
-        }
-
-        // Apply animation transforms
-        let (_opacity, _scale, _translate) = match props.animation {
-            PopoverAnimation::None => (1.0, 1.0, (0, 0)),
-            PopoverAnimation::Fade => (state.animation_progress, 1.0, (0, 0)),
-            PopoverAnimation::Scale => (1.0, 0.8 + 0.2 * state.animation_progress, (0, 0)),
-            PopoverAnimation::Slide => {
-                let offset = ((1.0 - state.animation_progress) * 10.0) as i16;
-                let translate_offset = match state.position {
-                    PopoverPosition::Top | PopoverPosition::TopStart | PopoverPosition::TopEnd => {
-                        (0, offset)
-                    }
-                    PopoverPosition::Bottom
-                    | PopoverPosition::BottomStart
-                    | PopoverPosition::BottomEnd => (0, -offset),
-                    PopoverPosition::Left
-                    | PopoverPosition::LeftStart
-                    | PopoverPosition::LeftEnd => (offset, 0),
-                    PopoverPosition::Right
-                    | PopoverPosition::RightStart
-                    | PopoverPosition::RightEnd => (-offset, 0),
-                };
-                (1.0, 1.0, translate_offset)
-            }
-            PopoverAnimation::Bounce => (1.0, state.animation_progress, (0, 0)),
-        };
-
-        // Build popover content
-        let mut popover_content = vec![props.content.clone()];
-
-        // Add arrow if enabled
-        if let Some(arrow_position) = arrow_pos {
-            let arrow_element =
-                self.create_arrow_element(&props.arrow, state.position, arrow_position);
-            popover_content.push(arrow_element);
-        }
-
-        // Create the popover container
-        Element::layout(LayoutType::Stack)
-            .with_children(popover_content)
-            .with_key("popover-container")
+        Element::typed::<live::LivePopover>(live::LiveProps {
+            owner: self.clone(),
+            config: props.clone(),
+        })
     }
 
     fn update(&mut self, _props: &Self::Props, _state: &mut Self::State) -> bool {
-        // Check if animation is running
-        self.state.lock().map(|s| s.is_animating).unwrap_or(false)
+        self.state.lock().unwrap().is_animating
     }
 
     fn handle_event(
         &mut self,
         event: &Event,
         props: &mut Self::Props,
-        _state: &mut Self::State,
+        _: &mut Self::State,
     ) -> EventResult {
-        let mut state = self.state.lock().unwrap();
-
-        // Handle trigger events
-        if self.handle_trigger_event(props, &mut state, event) {
-            return EventResult::Consumed;
-        }
-
-        if !state.visible {
-            return EventResult::Ignored;
-        }
-
-        match event {
-            Event::Key(key_event) => self.handle_keyboard_navigation(
-                key_event.code.clone(),
-                key_event.modifiers,
-                props,
-                &mut state,
-            ),
-            Event::Mouse(mouse_event) => {
-                if self.is_point_in_rect(mouse_event.position, state.calculated_rect) {
-                    EventResult::Consumed
-                } else {
-                    EventResult::Ignored
-                }
-            }
-            _ => EventResult::Ignored,
-        }
+        self.escape(event, props)
     }
-}
 
-impl Popover {
-    fn create_arrow_element(
-        &self,
-        arrow: &PopoverArrow,
-        position: PopoverPosition,
-        _arrow_pos: Position,
-    ) -> Element {
-        let arrow_char = match arrow.style {
-            ArrowStyle::Solid => match position {
-                PopoverPosition::Top | PopoverPosition::TopStart | PopoverPosition::TopEnd => "▲",
-                PopoverPosition::Bottom
-                | PopoverPosition::BottomStart
-                | PopoverPosition::BottomEnd => "▼",
-                PopoverPosition::Left | PopoverPosition::LeftStart | PopoverPosition::LeftEnd => {
-                    "◀"
-                }
-                PopoverPosition::Right
-                | PopoverPosition::RightStart
-                | PopoverPosition::RightEnd => "▶",
-            },
-            ArrowStyle::Outline => match position {
-                PopoverPosition::Top | PopoverPosition::TopStart | PopoverPosition::TopEnd => "△",
-                PopoverPosition::Bottom
-                | PopoverPosition::BottomStart
-                | PopoverPosition::BottomEnd => "▽",
-                PopoverPosition::Left | PopoverPosition::LeftStart | PopoverPosition::LeftEnd => {
-                    "◁"
-                }
-                PopoverPosition::Right
-                | PopoverPosition::RightStart
-                | PopoverPosition::RightEnd => "▷",
-            },
-            ArrowStyle::Double => match position {
-                PopoverPosition::Top | PopoverPosition::TopStart | PopoverPosition::TopEnd => "⇈",
-                PopoverPosition::Bottom
-                | PopoverPosition::BottomStart
-                | PopoverPosition::BottomEnd => "⇊",
-                PopoverPosition::Left | PopoverPosition::LeftStart | PopoverPosition::LeftEnd => {
-                    "⇇"
-                }
-                PopoverPosition::Right
-                | PopoverPosition::RightStart
-                | PopoverPosition::RightEnd => "⇉",
-            },
-        };
-
-        Element::text(arrow_char)
+    fn on_lifecycle(&mut self, event: crate::component::LifecycleEvent, _: &mut Self::State) {
+        if matches!(event, crate::component::LifecycleEvent::Unmount) {
+            self.live.cancel();
+        }
     }
 }
 
@@ -1315,8 +732,8 @@ impl PopoverBuilder {
     /// Set the offset from the trigger element
     ///
     /// # Arguments
-    /// * `x` - Horizontal offset in pixels
-    /// * `y` - Vertical offset in pixels
+    /// * `x` - Horizontal offset in terminal cells
+    /// * `y` - Vertical offset in terminal cells
     ///
     /// # Returns
     /// Self for method chaining
@@ -1576,32 +993,6 @@ mod tests {
     }
 
     #[test]
-    fn test_arrow_position_calculation() {
-        let popover = Popover::new();
-        let popover_rect = Popover::make_rect(100.0, 50.0, 200.0, 100.0);
-        let trigger_rect = Popover::make_rect(150.0, 160.0, 100.0, 30.0);
-        let arrow = PopoverArrow::default();
-
-        let arrow_pos = popover.calculate_arrow_position(
-            PopoverPosition::Top,
-            popover_rect,
-            trigger_rect,
-            &arrow,
-        );
-
-        assert!(arrow_pos.is_some());
-        if let Some(Position::Cell { x, y }) = arrow_pos {
-            // For PopoverPosition::Top, arrow is at bottom of popover
-            // Center x: (100 + 300) / 2 = 200
-            // Bottom y: 150
-            assert_eq!(x, 200);
-            assert_eq!(y, 150);
-        } else {
-            panic!("Expected Cell position");
-        }
-    }
-
-    #[test]
     fn test_size_constraints() {
         let popover = Popover::new();
         let rect = Popover::make_rect(0.0, 0.0, 150.0, 80.0);
@@ -1618,16 +1009,6 @@ mod tests {
 
         assert_eq!(adjusted_rect.right - adjusted_rect.left, 200.0); // Applied min_width
         assert_eq!(adjusted_rect.bottom - adjusted_rect.top, 100.0); // Applied min_height
-    }
-
-    #[test]
-    fn test_point_in_rect() {
-        let popover = Popover::new();
-        let rect = Popover::make_rect(10.0, 20.0, 50.0, 30.0);
-
-        assert!(popover.is_point_in_rect(Position::Cell { x: 30, y: 35 }, rect));
-        assert!(!popover.is_point_in_rect(Position::Cell { x: 5, y: 25 }, rect));
-        assert!(!popover.is_point_in_rect(Position::Cell { x: 65, y: 35 }, rect));
     }
 
     #[test]
@@ -1668,35 +1049,28 @@ mod tests {
     }
 
     #[test]
-    fn test_render_empty_when_invisible() {
+    fn rendered_handle_retains_manual_visibility_until_app_expansion() {
         let popover = Popover::new();
-        let props = PopoverProps::default();
-        let state = PopoverState::default();
-
-        let element = popover.render(&props, &state);
-
-        assert!(matches!(element.element_type, ElementType::Empty));
+        popover.show();
+        let element = popover.render(&PopoverProps::default(), &PopoverState::default());
+        assert!(popover.is_visible());
+        assert!(matches!(element.element_type, ElementType::Component(_)));
+        popover.hide();
+        assert!(!popover.is_visible());
     }
 
     #[test]
-    fn test_render_with_content() {
-        let popover = Popover::new();
-        let content = Element::text("Hello World");
+    fn callback_replacement_changes_props_identity() {
         let props = PopoverProps {
-            visible: true,
-            content,
-            animation: PopoverAnimation::None,
-            ..PopoverProps::default()
+            on_open: Some(Arc::new(|| {})),
+            ..Default::default()
         };
-        let state = PopoverState::default();
-
-        let element = popover.render(&props, &state);
-
-        assert!(matches!(
-            element.element_type,
-            ElementType::Layout(LayoutType::Stack)
-        ));
-        assert!(!element.children.is_empty());
+        assert!(props == props.clone());
+        let replaced = PopoverProps {
+            on_open: Some(Arc::new(|| {})),
+            ..props.clone()
+        };
+        assert!(props != replaced);
     }
 
     #[test]
@@ -1721,31 +1095,29 @@ mod tests {
     }
 
     #[test]
-    fn test_click_outside_closes() {
+    fn escape_disabled_and_release_do_not_close() {
         let mut popover = Popover::new();
-        let props = PopoverProps {
-            visible: true,
-            close_on_outside_click: true,
-            ..PopoverProps::default()
-        };
-
-        // Set visible state and trigger rect
         popover.show();
-        popover.set_trigger_rect(Popover::make_rect(50.0, 50.0, 50.0, 30.0));
-
-        let outside_click = Event::Mouse(
-            crate::event::types::MouseEvent::new(
-                MouseEventKind::Down,
-                crate::event::types::Position::cell(10, 10),
-            )
-            .with_button(MouseButton::Left),
-        );
-
+        let mut props = PopoverProps {
+            close_on_escape: false,
+            ..Default::default()
+        };
         let mut state = PopoverState::default();
-        let result = popover.handle_event(&outside_click, &mut props.clone(), &mut state);
-        // Note: This test depends on the calculated_rect being set properly
-        // In real usage, render() would be called first to set up the state
-        assert!(result == EventResult::Consumed || result == EventResult::Ignored);
+        let escape = Event::Key(crate::event::types::KeyEvent::new(KeyCode::Escape));
+        assert_eq!(
+            popover.handle_event(&escape, &mut props, &mut state),
+            EventResult::Consumed
+        );
+        props.close_on_escape = true;
+        let release = Event::Key(
+            crate::event::types::KeyEvent::new(KeyCode::Escape)
+                .with_kind(crate::event::types::KeyEventKind::Release),
+        );
+        assert_eq!(
+            popover.handle_event(&release, &mut props, &mut state),
+            EventResult::Ignored
+        );
+        assert!(popover.is_visible());
     }
 
     #[test]

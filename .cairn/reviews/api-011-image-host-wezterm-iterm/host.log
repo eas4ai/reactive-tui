@@ -1,0 +1,2 @@
+03:14:01.115  ERROR  mux::ssh_agent > failed to set "/run/user/1000/wezterm/agent.2319865" to initial inherited SSH_AUTH_SOCK value of "/run/user/1000/gcr/ssh": failed to create symlink /run/user/1000/wezterm/agent.2319865 -> /run/user/1000/gcr/ssh: No such file or directory (os error 2)
+03:14:01.177  ERROR  window::os::x11::connection > error fetching window manager name: empty list of windows

@@ -92,35 +92,50 @@ fn apply_focus_outline(sb: StyleBuilder, style: Option<&str>) -> StyleBuilder {
 }
 
 /// Apply screen reader only styling
-fn apply_screen_reader_only(sb: StyleBuilder) -> StyleBuilder {
+fn apply_screen_reader_only(mut sb: StyleBuilder) -> StyleBuilder {
+    sb.accessibility
+        .insert("sr-only".into(), Some("true".into()));
     // In TUI, sr-only content is completely hidden
     sb.opacity(0.0)
 }
 
 /// Apply not screen reader only styling
-fn apply_not_screen_reader_only(sb: StyleBuilder) -> StyleBuilder {
+fn apply_not_screen_reader_only(mut sb: StyleBuilder) -> StyleBuilder {
+    sb.accessibility
+        .insert("sr-only".into(), Some("false".into()));
     // Make content visible
     sb.opacity(1.0)
 }
 
 /// Apply tabindex utility
-fn apply_tabindex(sb: StyleBuilder, _index: i32) -> StyleBuilder {
-    // Tabindex is metadata that doesn't affect visual styling
-    // In a full implementation, this would be stored as element metadata
+fn apply_tabindex(mut sb: StyleBuilder, index: i32) -> StyleBuilder {
+    sb.accessibility
+        .insert("tabindex".into(), Some(index.to_string()));
     sb
 }
 
 /// Apply accessibility role utility
-pub fn apply_role(sb: StyleBuilder, _role: &str) -> StyleBuilder {
-    // ARIA roles are metadata that don't affect visual styling
-    // In a full implementation, this would be stored as element metadata
+pub fn apply_role(mut sb: StyleBuilder, role: &str) -> StyleBuilder {
+    sb.accessibility
+        .insert("role".into(), Some(role.to_owned()));
     sb
 }
 
 /// Apply ARIA attribute utility
-pub fn apply_aria_attribute(sb: StyleBuilder, _attribute: &str, _value: &str) -> StyleBuilder {
-    // ARIA attributes are metadata that don't affect visual styling
-    // In a full implementation, this would be stored as element metadata
+///
+/// Accepts attribute names with or without the `aria-` prefix. App validates
+/// values and resolves `labelledby`/`describedby` against Element accessibility
+/// IDs. Missing values, duplicate IDs and unresolved references are errors.
+///
+/// ```
+/// use reactive_tui::{builder, layout::{css::focus::apply_aria_attribute, style::StyleBuilder}};
+/// let styles = apply_aria_attribute(StyleBuilder::new(), "label", "Save preferences");
+/// let button = builder::button().text("Save").styles(styles).build();
+/// ```
+pub fn apply_aria_attribute(mut sb: StyleBuilder, attribute: &str, value: &str) -> StyleBuilder {
+    let attribute = attribute.strip_prefix("aria-").unwrap_or(attribute);
+    sb.accessibility
+        .insert(format!("aria-{attribute}"), Some(value.to_owned()));
     sb
 }
 

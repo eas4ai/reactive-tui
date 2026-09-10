@@ -4,6 +4,7 @@ command: python3 -B scripts/check-api-component-expansion.py
 inputs:
   - .cairn/mechanisms/api-component-expansion.md
   - Cargo.toml
+  - build.rs
   - Cargo.lock
   - src
   - reactive-tui-macros

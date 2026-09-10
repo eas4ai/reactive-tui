@@ -1,0 +1,31 @@
+
+running 1 test
+test menu_acceptance::popup_menu_hover_opens_and_preserves_the_nested_panel ... FAILED
+
+failures:
+
+failures:
+    menu_acceptance::popup_menu_hover_opens_and_preserves_the_nested_panel
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 243 filtered out; finished in 3.05s
+
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.40s
+     Running tests/api_widget_behavior.rs (target/debug/deps/api_widget_behavior-6de95be2275b0733)
+
+thread 'menu_acceptance::popup_menu_hover_opens_and_preserves_the_nested_panel' (616815) panicked at tests/support/app_input.rs:98:13:
+App painted 4 frames but input needs Some((1, ["OPEN"])) before the deadline. Last frame:
+                                
+  RECENT ▶                      
+                                
+                                
+                                
+                                
+                                
+                                
+                                
+                                
+                                
+                                
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+error: test failed, to rerun pass `--test api_widget_behavior`

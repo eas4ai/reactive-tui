@@ -41,7 +41,7 @@ pub struct MenuStyle {
 impl Default for MenuStyle {
     fn default() -> Self {
         Self {
-            base_classes: "bg-gray-800 text-white p-1".to_string(),
+            base_classes: "bg-gray-800 text-white".to_string(),
             selected_classes: "bg-blue-600 text-white font-bold".to_string(),
             focused_classes: "bg-cyan-500 text-black font-bold".to_string(),
             disabled_classes: "text-gray-500".to_string(),
@@ -151,7 +151,11 @@ impl MenuStyle {
 
     /// Apply base menu item styling with optional theme
     pub fn apply_base_style(&self, theme: Option<&Theme>) -> StyleBuilder {
-        apply_utility_classes_with_theme(&self.base_classes, StyleBuilder::new(), theme)
+        apply_utility_classes_with_theme(
+            &self.base_classes,
+            StyleBuilder::new().padding_all_px(f32::from(self.padding)),
+            theme,
+        )
     }
 
     /// Apply selected item styling with optional theme
@@ -215,7 +219,7 @@ impl MenuTheme {
         match self {
             MenuTheme::Default => MenuStyle::default(),
             MenuTheme::Dark => MenuStyle {
-                base_classes: "bg-gray-900 text-gray-100 p-1".to_string(),
+                base_classes: "bg-gray-900 text-gray-100".to_string(),
                 selected_classes: "bg-blue-600 text-white font-bold".to_string(),
                 focused_classes: "bg-cyan-400 text-black font-bold".to_string(),
                 disabled_classes: "text-gray-600".to_string(),
@@ -231,7 +235,7 @@ impl MenuTheme {
                 padding: 1,
             },
             MenuTheme::Light => MenuStyle {
-                base_classes: "bg-white text-black p-1".to_string(),
+                base_classes: "bg-white text-black".to_string(),
                 selected_classes: "bg-blue-500 text-white font-bold".to_string(),
                 focused_classes: "bg-blue-200 text-black font-bold".to_string(),
                 disabled_classes: "text-gray-400".to_string(),
@@ -247,7 +251,7 @@ impl MenuTheme {
                 padding: 1,
             },
             MenuTheme::HighContrast => MenuStyle {
-                base_classes: "bg-black text-white p-1".to_string(),
+                base_classes: "bg-black text-white".to_string(),
                 selected_classes: "bg-white text-black font-bold".to_string(),
                 focused_classes: "bg-yellow-400 text-black font-bold".to_string(),
                 disabled_classes: "text-gray-600".to_string(),
@@ -274,7 +278,8 @@ mod tests {
     #[test]
     fn test_menu_style_default() {
         let style = MenuStyle::default();
-        assert_eq!(style.base_classes, "bg-gray-800 text-white p-1");
+        assert_eq!(style.base_classes, "bg-gray-800 text-white");
+        assert_eq!(style.padding, 1);
         assert_eq!(style.selected_classes, "bg-blue-600 text-white font-bold");
         assert!(style.show_shadow);
         assert!(style.show_icons);

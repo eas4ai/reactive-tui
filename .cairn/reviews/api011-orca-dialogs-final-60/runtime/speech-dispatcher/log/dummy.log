@@ -1,0 +1,2 @@
+Error opening configuration file '/etc/speech-dispatcher/modules/dummy.conf'
+pulse.c: pa_simple_new() failed: Connection refused

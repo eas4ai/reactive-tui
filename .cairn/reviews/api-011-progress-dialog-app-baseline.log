@@ -1,0 +1,31 @@
+
+running 1 test
+test dialog_acceptance::progress_dialog_public_and_builder_routes_show_progress_and_cancel_once ... FAILED
+
+failures:
+
+failures:
+    dialog_acceptance::progress_dialog_public_and_builder_routes_show_progress_and_cancel_once
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 270 filtered out; finished in 3.00s
+
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.67s
+     Running tests/api_widget_behavior.rs (target/debug/deps/api_widget_behavior-6de95be2275b0733)
+
+thread 'dialog_acceptance::progress_dialog_public_and_builder_routes_show_progress_and_cancel_once' (1904534) panicked at tests/support/app_input.rs:99:13:
+App painted 1 frames but input needs Some((1, ["50%"])) before the deadline. Last frame:
+                                
+                                
+                                
+                                
+                                
+                                
+                                
+                                
+                                
+                                
+                                
+                                
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+error: test failed, to rerun pass `--test api_widget_behavior`

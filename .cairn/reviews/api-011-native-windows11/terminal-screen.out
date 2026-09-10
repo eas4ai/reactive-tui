@@ -1,0 +1,42 @@
+
+running 37 tests
+test terminal::screen::reflow::tests::blank_reflow_rows_remain_compact_before_viewport_selection ... ok
+test terminal::screen::reflow_tests::a_full_width_hard_break_and_erased_wrap_boundary_do_not_join_rows ... ok
+test terminal::screen::reflow_tests::alternate_screen_stays_fixed_while_its_saved_main_cursor_reflows ... ok
+test terminal::screen::reflow_tests::conpty_resize_keeps_a_reflowed_historical_prefix_above_the_viewport ... ok
+test terminal::screen::reflow_tests::history_reflow_preserves_main_saved_cursor_while_alternate_is_active ... ok
+test terminal::screen::reflow_tests::narrowing_reflows_existing_scrollback_without_hiding_columns ... ok
+test terminal::screen::reflow_tests::one_column_resize_never_leaves_half_a_wide_grapheme ... ok
+test terminal::screen::reflow_tests::reflow_joins_soft_wraps_across_the_history_viewport_boundary ... ok
+test terminal::screen::reflow_tests::reflow_keeps_the_cursor_line_visible_when_it_joins_a_historical_prefix ... ok
+test terminal::screen::reflow_tests::reflow_preserves_styled_graphemes_and_omits_wide_wrap_padding ... ok
+test terminal::screen::reflow_tests::reflowed_history_stays_bounded_and_height_growth_keeps_the_origin ... ok
+test terminal::screen::reflow_tests::resizing_preserves_hard_breaks_and_pending_wrap_insertion ... ok
+test terminal::screen::reflow_tests::saved_cursor_follows_its_text_after_reflow ... ok
+test terminal::screen::reflow_tests::shrinking_keeps_the_cursor_visible_and_bounds_new_history ... ok
+test terminal::screen::reflow_tests::wider_main_screen_reflows_the_native_command_banner_before_next_input ... ok
+test terminal::screen::tests::cursor_shape_sequences_preserve_blink_and_ignore_unknown_values ... ok
+test terminal::screen::tests::erase_from_cursor_clears_whole_wide_glyph_with_current_background ... ok
+test terminal::screen::tests::erase_saved_lines_preserves_visible_screen ... ok
+test terminal::screen::tests::erase_to_cursor_includes_cursor_and_preserves_later_cells ... ok
+test terminal::screen::tests::escape_index_and_reverse_index_respect_scroll_margins ... ok
+test terminal::screen::tests::osc_hyperlink_and_directory_keep_semicolons ... ok
+test terminal::screen::tests::private_modes_preserve_main_screen_and_cursor ... ok
+test terminal::screen::tests::reset_restores_screen_modes_and_cursor ... ok
+test terminal::screen::tests::resize_preserves_configured_tab_stops ... ok
+test terminal::screen::tests::retained_terminal_constructors_reject_zero_dimensions_at_boundary ... ok
+test terminal::screen::tests::retained_terminal_fallible_constructors_bound_allocation_and_preserve_valid_sizes ... ok
+test terminal::screen::tests::saved_cursor_is_clamped_after_resize ... ok
+test terminal::screen::tests::scroll_region_and_origin_mode_keep_header_and_footer ... ok
+test terminal::screen::tests::sgr_attributes_and_malformed_colors ... ok
+test terminal::screen::tests::sgr_extended_colors_and_resets ... ok
+test terminal::screen::tests::streamed_graphemes_occupy_whole_cells ... ok
+test terminal::screen::tests::terminal_screen_character_edits_preserve_text_and_wide_boundaries ... ok
+test terminal::screen::tests::terminal_screen_insert_mode_preserves_combining_clusters ... ok
+test terminal::screen::tests::terminal_screen_line_edits_and_scroll_preserve_margins ... ok
+test terminal::screen::tests::terminal_screen_tab_stops_addressing_and_pending_wrap ... ok
+test terminal::screen::tests::wide_glyph_wraps_before_last_column ... ok
+test terminal::screen::tests::wide_overwrite_clears_both_halves_and_old_links ... ok
+
+test result: ok. 37 passed; 0 failed; 0 ignored; 0 measured; 896 filtered out; finished in 0.05s
+

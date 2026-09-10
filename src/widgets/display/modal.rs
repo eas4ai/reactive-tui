@@ -1,21 +1,8 @@
 use super::{Border, ScrollState};
-use crate::component::{Component, Element, LayoutType, Props};
-use crate::event::router::EventResult;
-use crate::event::types::{Event, KeyCode, MouseEventKind};
+use crate::component::{Component, Element, Props};
 use std::sync::Arc;
 
-/// Result of hit testing on modal elements
-#[derive(Debug, Clone, PartialEq)]
-enum ModalHitResult {
-    /// Hit the backdrop area
-    Backdrop,
-    /// Hit the modal content area
-    Content,
-    /// Hit the title bar
-    TitleBar,
-    /// Hit the close button
-    CloseButton,
-}
+mod live;
 
 /// Props for the Modal component
 #[derive(Clone)]
@@ -85,7 +72,7 @@ pub struct ModalProps {
 pub enum ModalSize {
     /// Automatic sizing based on content
     Auto,
-    /// Fixed size in pixels
+    /// Fixed size in terminal cells
     Fixed(u16),
     /// Percentage of parent container
     Percent(f32),
@@ -116,9 +103,9 @@ pub enum ModalPosition {
     BottomRight,
     /// Custom position with x, y coordinates
     Custom {
-        /// X coordinate in pixels
+        /// X coordinate in terminal cells
         x: u16,
-        /// Y coordinate in pixels
+        /// Y coordinate in terminal cells
         y: u16,
     },
 }
@@ -194,8 +181,8 @@ impl Default for ModalProps {
             backdrop_clickable: true,
             keyboard_navigation: true,
             border: Border::default(),
-            backdrop_style: Some("bg-black bg-opacity-50".to_string()),
-            modal_style: Some("bg-white shadow-lg".to_string()),
+            backdrop_style: Some("bg-black/50".to_string()),
+            modal_style: Some("bg-white text-black shadow-lg".to_string()),
             header_style: Some("border-b font-bold".to_string()),
             content_style: None,
             footer_style: Some("border-t".to_string()),
@@ -220,6 +207,8 @@ impl Default for ModalProps {
 impl PartialEq for ModalProps {
     fn eq(&self, other: &Self) -> bool {
         self.visible == other.visible
+            && self.content == other.content
+            && self.footer == other.footer
             && self.title == other.title
             && self.width == other.width
             && self.height == other.height
@@ -242,7 +231,10 @@ impl PartialEq for ModalProps {
             && self.buttons == other.buttons
             && self.focus_trap == other.focus_trap
             && self.auto_focus == other.auto_focus
-        // Skip callback and content comparisons as they can't be compared
+            && super::overlay::same_callback(&self.on_close, &other.on_close)
+            && super::overlay::same_callback(&self.on_confirm, &other.on_confirm)
+            && super::overlay::same_callback(&self.on_cancel, &other.on_cancel)
+            && super::overlay::same_callback(&self.on_button_click, &other.on_button_click)
     }
 }
 
@@ -320,6 +312,28 @@ pub enum ResizeHandle {
 pub struct Modal;
 
 impl Modal {
+    pub(in crate::widgets) fn with_role(
+        props: ModalProps,
+        role: crate::accessibility::Role,
+    ) -> Element {
+        Element::typed::<live::LiveModal>(live::LiveProps {
+            escape_closable: props.keyboard_navigation,
+            config: props,
+            seed: ModalState::default(),
+            role,
+        })
+    }
+    pub(in crate::widgets) fn with_escape_policy(
+        props: ModalProps,
+        escape_closable: bool,
+    ) -> Element {
+        Element::typed::<live::LiveModal>(live::LiveProps {
+            config: props,
+            seed: ModalState::default(),
+            role: crate::accessibility::Role::Dialog,
+            escape_closable,
+        })
+    }
     /// Create a Modal element with default props
     pub fn element() -> Element {
         Element::component_with_props("Modal", ModalProps::default())
@@ -445,6 +459,12 @@ impl Modal {
             return;
         }
 
+        if let Some(callback) = &props.on_button_click {
+            callback(match &button.action {
+                ModalButtonAction::Custom(action) => action.clone(),
+                _ => button.id.clone(),
+            });
+        }
         match &button.action {
             ModalButtonAction::Close => {
                 self.close_modal(props, ModalCloseReason::ButtonClick(button.id.clone()));
@@ -461,233 +481,8 @@ impl Modal {
                 }
                 self.close_modal(props, ModalCloseReason::ButtonClick(button.id.clone()));
             }
-            ModalButtonAction::Custom(action) => {
-                if let Some(callback) = &props.on_button_click {
-                    callback(action.clone());
-                }
-            }
+            ModalButtonAction::Custom(_) => {}
         }
-    }
-
-    /// Create the modal header
-    fn create_header(&self, props: &ModalProps) -> Option<Element> {
-        if props.title.is_none() && !props.closable {
-            return None;
-        }
-
-        let mut header_children = Vec::new();
-
-        // Title
-        if let Some(title) = &props.title {
-            header_children.push(
-                Element::text(title)
-                    .with_class(props.header_style.clone().unwrap_or_default())
-                    .with_key("modal-title"),
-            );
-        }
-
-        // Close button
-        if props.closable {
-            let close_style = props.close_button_style.clone().unwrap_or_default();
-            header_children.push(
-                Element::text("✕")
-                    .with_class(&close_style)
-                    .with_key("modal-close-btn"),
-            );
-        }
-
-        Some(
-            Element::layout(LayoutType::Flex)
-                .with_class("flex-row justify-between items-center")
-                .with_children(header_children)
-                .with_key("modal-header"),
-        )
-    }
-
-    /// Create the modal content area
-    fn create_content(&self, props: &ModalProps, _state: &ModalState) -> Element {
-        let mut content_children = Vec::new();
-
-        if let Some(content) = &props.content {
-            content_children.push(content.clone());
-        }
-
-        let content_class = if props.scrollable {
-            format!(
-                "overflow-auto {}",
-                props.content_style.clone().unwrap_or_default()
-            )
-        } else {
-            props.content_style.clone().unwrap_or_default()
-        };
-
-        Element::layout(LayoutType::Flex)
-            .with_class(format!("flex-col flex-1 {content_class}"))
-            .with_children(content_children)
-            .with_key("modal-content")
-    }
-
-    /// Create the modal footer
-    fn create_footer(&self, props: &ModalProps, state: &ModalState) -> Option<Element> {
-        if props.footer.is_none() && props.buttons.is_empty() {
-            return None;
-        }
-
-        let mut footer_children = Vec::new();
-
-        // Custom footer content
-        if let Some(footer) = &props.footer {
-            footer_children.push(footer.clone());
-        }
-
-        // Buttons
-        if !props.buttons.is_empty() {
-            let mut button_elements = Vec::new();
-
-            for (i, button) in props.buttons.iter().enumerate() {
-                let is_focused = state.focused_button == Some(i);
-                let mut button_class = button.style.clone().unwrap_or_default();
-
-                if is_focused {
-                    button_class.push_str(" focused");
-                }
-
-                if button.disabled {
-                    button_class.push_str(" disabled");
-                }
-
-                button_elements.push(
-                    Element::text(&button.label)
-                        .with_class(&button_class)
-                        .with_key(format!("modal-btn-{}", button.id)),
-                );
-            }
-
-            footer_children.push(
-                Element::layout(LayoutType::Flex)
-                    .with_class("flex-row gap-2 justify-end")
-                    .with_children(button_elements)
-                    .with_key("modal-buttons"),
-            );
-        }
-
-        Some(
-            Element::layout(LayoutType::Flex)
-                .with_class(format!(
-                    "flex-col {}",
-                    props.footer_style.clone().unwrap_or_default()
-                ))
-                .with_children(footer_children)
-                .with_key("modal-footer"),
-        )
-    }
-
-    /// Update animation state
-    fn update_animation(&self, props: &ModalProps, state: &mut ModalState) {
-        if props.animation == ModalAnimation::None {
-            state.animation_state = if props.visible {
-                ModalAnimationState::Visible
-            } else {
-                ModalAnimationState::Hidden
-            };
-            return;
-        }
-
-        match state.animation_state {
-            ModalAnimationState::Hidden => {
-                if props.visible {
-                    state.animation_state = ModalAnimationState::Showing;
-                    state.animation_frame = 0;
-                }
-            }
-            ModalAnimationState::Showing => {
-                state.animation_frame += 1;
-                if state.animation_frame >= 10 {
-                    // Animation duration
-                    state.animation_state = ModalAnimationState::Visible;
-                }
-            }
-            ModalAnimationState::Visible => {
-                if !props.visible {
-                    state.animation_state = ModalAnimationState::Hiding;
-                    state.animation_frame = 0;
-                }
-            }
-            ModalAnimationState::Hiding => {
-                state.animation_frame += 1;
-                if state.animation_frame >= 10 {
-                    // Animation duration
-                    state.animation_state = ModalAnimationState::Hidden;
-                }
-            }
-        }
-    }
-
-    /// Perform hit testing to determine what part of the modal was clicked
-    fn hit_test_modal(
-        &self,
-        mouse_event: &crate::event::types::MouseEvent,
-        props: &ModalProps,
-        state: &ModalState,
-    ) -> Option<ModalHitResult> {
-        // Get click position
-        let (click_x, click_y) = match mouse_event.position {
-            crate::event::types::Position::Cell { x, y } => (x, y),
-            crate::event::types::Position::Pixel { x, y } => {
-                // Convert pixel to cell coordinates (approximate)
-                (x as u16 / 8, y as u16 / 16)
-            }
-        };
-
-        // Calculate modal bounds based on position and size
-        let modal_x = state.position.0;
-        let modal_y = state.position.1;
-        let modal_width = state.size.0;
-        let modal_height = state.size.1;
-
-        // Check if click is within modal content area
-        if click_x >= modal_x
-            && click_x < modal_x + modal_width
-            && click_y >= modal_y
-            && click_y < modal_y + modal_height
-        {
-            // Check specific areas within the modal
-            if props.title.is_some() && click_y == modal_y {
-                // Click on title bar
-                if props.closable && click_x >= modal_x + modal_width - 3 {
-                    // Click on close button (last 3 characters of title bar)
-                    Some(ModalHitResult::CloseButton)
-                } else {
-                    // Click on title bar
-                    Some(ModalHitResult::TitleBar)
-                }
-            } else {
-                // Click on modal content
-                Some(ModalHitResult::Content)
-            }
-        } else {
-            // Click outside modal content - on backdrop
-            Some(ModalHitResult::Backdrop)
-        }
-    }
-
-    /// Calculate drag offset for modal dragging
-    fn calculate_drag_offset(
-        &self,
-        mouse_event: &crate::event::types::MouseEvent,
-        _props: &ModalProps,
-        state: &ModalState,
-    ) -> (u16, u16) {
-        let (click_x, click_y) = match mouse_event.position {
-            crate::event::types::Position::Cell { x, y } => (x, y),
-            crate::event::types::Position::Pixel { x, y } => (x as u16 / 8, y as u16 / 16),
-        };
-
-        // Calculate offset from modal's top-left corner
-        let offset_x = click_x.saturating_sub(state.position.0);
-        let offset_y = click_y.saturating_sub(state.position.1);
-
-        (offset_x, offset_y)
     }
 }
 
@@ -700,212 +495,12 @@ impl Component for Modal {
     }
 
     fn render(&self, props: &Self::Props, state: &Self::State) -> Element {
-        // Don't render if not visible and not animating
-        if !props.visible && state.animation_state == ModalAnimationState::Hidden {
-            return Element::empty();
-        }
-
-        // Calculate dimensions and position
-        let viewport_size = (100, 30); // Would be provided by layout system
-        let modal_size = self.calculate_dimensions(props, viewport_size.0, viewport_size.1);
-        let _modal_position = self.calculate_position(props, modal_size, viewport_size);
-
-        // Create modal content
-        let mut modal_children = Vec::new();
-
-        // Header
-        if let Some(header) = self.create_header(props) {
-            modal_children.push(header);
-        }
-
-        // Content
-        modal_children.push(self.create_content(props, state));
-
-        // Footer
-        if let Some(footer) = self.create_footer(props, state) {
-            modal_children.push(footer);
-        }
-
-        // Modal container
-        let mut modal_class = format!("modal {}", props.modal_style.clone().unwrap_or_default());
-        if props.border.enabled {
-            modal_class.push_str(" border");
-        }
-
-        // Add animation classes
-        match state.animation_state {
-            ModalAnimationState::Showing => modal_class.push_str(" modal-showing"),
-            ModalAnimationState::Hiding => modal_class.push_str(" modal-hiding"),
-            _ => {}
-        }
-
-        let modal_element = Element::layout(LayoutType::Flex)
-            .with_class(format!("flex-col {modal_class}"))
-            .with_children(modal_children)
-            .with_key("modal-dialog");
-
-        // Backdrop
-        let backdrop_class = props.backdrop_style.clone().unwrap_or_default();
-
-        Element::layout(LayoutType::Absolute)
-            .with_class(format!("modal-backdrop {backdrop_class}"))
-            .with_child(modal_element)
-            .with_key("modal-backdrop")
-    }
-
-    fn handle_event(
-        &mut self,
-        event: &Event,
-        props: &mut Self::Props,
-        state: &mut Self::State,
-    ) -> EventResult {
-        if !props.visible {
-            return EventResult::Ignored;
-        }
-
-        match event {
-            Event::Key(key_event) => {
-                match key_event.code {
-                    KeyCode::Escape
-                        if props.closable && props.keyboard_navigation => {
-                            self.close_modal(props, ModalCloseReason::EscapeKey);
-                            return EventResult::Consumed;
-                        }
-                    KeyCode::Tab
-                        // Navigate between buttons
-                        if !props.buttons.is_empty() => {
-                            let current = state.focused_button.unwrap_or(0);
-                            let next = if key_event.modifiers.shift {
-                                if current == 0 {
-                                    props.buttons.len() - 1
-                                } else {
-                                    current - 1
-                                }
-                            } else {
-                                (current + 1) % props.buttons.len()
-                            };
-                            state.focused_button = Some(next);
-                            return EventResult::Consumed;
-                        }
-                    KeyCode::Enter => {
-                        // Activate focused button
-                        if let Some(button_index) = state.focused_button {
-                            if let Some(button) = props.buttons.get(button_index) {
-                                self.handle_button_click(props, button);
-                                return EventResult::Consumed;
-                            }
-                        }
-                    }
-                    _ => {}
-                }
-            }
-            Event::Mouse(mouse_event) => {
-                match mouse_event.kind {
-                    MouseEventKind::Click
-                        // Check if clicking backdrop to close with proper bounds checking
-                        if props.backdrop_clickable && props.closable => {
-                            if let Some(click_result) =
-                                self.hit_test_modal(mouse_event, props, state)
-                            {
-                                match click_result {
-                                    ModalHitResult::Backdrop => {
-                                        self.close_modal(props, ModalCloseReason::BackdropClick);
-                                        return EventResult::Consumed;
-                                    }
-                                    ModalHitResult::Content => {
-                                        // Click on modal content - don't close
-                                        return EventResult::Ignored;
-                                    }
-                                    ModalHitResult::TitleBar => {
-                                        // Click on title bar - could start dragging if draggable
-                                        if props.draggable {
-                                            state.dragging = true;
-                                            state.drag_offset = self.calculate_drag_offset(
-                                                mouse_event,
-                                                props,
-                                                state,
-                                            );
-                                        }
-                                        return EventResult::Consumed;
-                                    }
-                                    ModalHitResult::CloseButton => {
-                                        // Click on close button
-                                        if props.closable {
-                                            self.close_modal(props, ModalCloseReason::CloseButton);
-                                        }
-                                        return EventResult::Consumed;
-                                    }
-                                }
-                            }
-                        }
-                    MouseEventKind::Down
-                        if props.draggable => {
-                            if let Some(hit_result) = self.hit_test_modal(mouse_event, props, state)
-                            {
-                                match hit_result {
-                                    ModalHitResult::TitleBar => {
-                                        // Start dragging from title bar
-                                        state.dragging = true;
-                                        state.drag_offset =
-                                            self.calculate_drag_offset(mouse_event, props, state);
-                                        return EventResult::Consumed;
-                                    }
-                                    _ => {
-                                        // Don't start dragging from other areas
-                                        return EventResult::Ignored;
-                                    }
-                                }
-                            }
-                        }
-                    MouseEventKind::Up => {
-                        if state.dragging {
-                            state.dragging = false;
-                            return EventResult::Consumed;
-                        }
-                        if state.resizing {
-                            state.resizing = false;
-                            state.resize_handle = None;
-                            return EventResult::Consumed;
-                        }
-                    }
-                    MouseEventKind::Move
-                        if state.dragging && props.draggable => {
-                            // Update position based on mouse movement
-                            return EventResult::Consumed;
-                        }
-                    _ => {}
-                }
-            }
-            Event::Focus(focus_event) => {
-                state.focused = match focus_event.kind {
-                    crate::event::types::FocusEventKind::Gained => true,
-                    crate::event::types::FocusEventKind::Lost => false,
-                    _ => state.focused,
-                };
-
-                // Auto-focus first button if enabled
-                if state.focused && props.auto_focus && !props.buttons.is_empty() {
-                    state.focused_button = Some(0);
-                }
-
-                return EventResult::Consumed;
-            }
-            _ => {}
-        }
-
-        EventResult::Ignored
-    }
-
-    fn update(&mut self, props: &Self::Props, state: &mut Self::State) -> bool {
-        let old_animation_state = state.animation_state.clone();
-        let old_frame = state.animation_frame;
-
-        self.update_animation(props, state);
-
-        // Re-render if visibility changed, animation is active, or other state changed
-        props.visible != (state.animation_state != ModalAnimationState::Hidden)
-            || old_animation_state != state.animation_state
-            || old_frame != state.animation_frame
+        Element::typed::<live::LiveModal>(live::LiveProps {
+            config: props.clone(),
+            seed: state.clone(),
+            role: crate::accessibility::Role::Dialog,
+            escape_closable: props.keyboard_navigation,
+        })
     }
 }
 
@@ -1010,11 +605,11 @@ mod tests {
         let state = ModalState::default();
 
         let element = modal.render(&props, &state);
-        // Modal renders as a layout with absolute positioning for the backdrop
-        assert_eq!(
+        assert!(matches!(
             element.element_type,
-            crate::component::ElementType::Layout(crate::component::LayoutType::Absolute)
-        );
+            crate::component::ElementType::Component(_)
+        ));
+        assert!(element.metadata.factory.is_some());
     }
 
     #[test]
@@ -1025,12 +620,26 @@ mod tests {
 
         // Visible modal
         let element = modal.render(&props, &state);
-        assert_ne!(element.element_type, crate::component::ElementType::Empty);
+        assert!(
+            element
+                .props
+                .downcast_ref::<live::LiveProps>()
+                .unwrap()
+                .config
+                .visible
+        );
 
         // Hidden modal
         props.visible = false;
         let element = modal.render(&props, &state);
-        assert_eq!(element.element_type, crate::component::ElementType::Empty);
+        assert!(
+            !element
+                .props
+                .downcast_ref::<live::LiveProps>()
+                .unwrap()
+                .config
+                .visible
+        );
     }
 
     #[test]
@@ -1081,73 +690,6 @@ mod tests {
         // Test button click
         modal.handle_button_click(&props, &button);
         // Would trigger callback in real usage
-    }
-
-    #[test]
-    fn test_animation_update() {
-        let modal = Modal;
-        let props = ModalProps {
-            visible: true,
-            animation: ModalAnimation::Fade,
-            ..Default::default()
-        };
-        let mut state = ModalState {
-            animation_state: ModalAnimationState::Hidden,
-            ..Default::default()
-        };
-
-        modal.update_animation(&props, &mut state);
-        assert_eq!(state.animation_state, ModalAnimationState::Showing);
-        assert_eq!(state.animation_frame, 0);
-
-        // Advance animation
-        for _ in 0..10 {
-            modal.update_animation(&props, &mut state);
-        }
-        assert_eq!(state.animation_state, ModalAnimationState::Visible);
-    }
-
-    #[test]
-    fn test_keyboard_navigation() {
-        let mut modal = Modal;
-        let mut props = ModalProps {
-            visible: true,
-            buttons: vec![ModalButton::ok(), ModalButton::cancel()],
-            keyboard_navigation: true,
-            ..Default::default()
-        };
-        let mut state = ModalState::default();
-
-        // Test Tab navigation
-        let tab_event = Event::Key(crate::event::types::KeyEvent {
-            code: KeyCode::Tab,
-            modifiers: crate::event::types::KeyModifiers::empty(),
-            kind: crate::event::types::KeyEventKind::Press,
-            repeat: false,
-            timestamp: std::time::Instant::now(),
-        });
-
-        let result = modal.handle_event(&tab_event, &mut props, &mut state);
-        assert_eq!(result, EventResult::Consumed);
-        assert_eq!(state.focused_button, Some(1)); // Should move to next button
-    }
-
-    #[test]
-    fn test_escape_key_handling() {
-        let mut modal = Modal;
-        let mut props = create_test_props();
-        let mut state = ModalState::default();
-
-        let escape_event = Event::Key(crate::event::types::KeyEvent {
-            code: KeyCode::Escape,
-            modifiers: crate::event::types::KeyModifiers::empty(),
-            kind: crate::event::types::KeyEventKind::Press,
-            repeat: false,
-            timestamp: std::time::Instant::now(),
-        });
-
-        let result = modal.handle_event(&escape_event, &mut props, &mut state);
-        assert_eq!(result, EventResult::Consumed);
     }
 
     #[test]

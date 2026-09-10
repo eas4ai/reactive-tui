@@ -1,0 +1,21 @@
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 7.14s
+     Running unittests src/lib.rs (target/debug/deps/reactive_tui-fa00cdcf48e682eb)
+
+running 1 test
+
+thread 'terminal::parser::recovery_tests::dcs_emits_payload_and_resumes_text_after_terminator' (3990959) panicked at src/terminal/parser.rs:816:9:
+assertion `left == right` failed
+  left: [Execute(92), Print('X')]
+ right: [Dcs { final_byte: 'q', params: [1, 2], intermediates: [32], data: [97, 98, 99] }, Print('X')]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test terminal::parser::recovery_tests::dcs_emits_payload_and_resumes_text_after_terminator ... FAILED
+
+failures:
+
+failures:
+    terminal::parser::recovery_tests::dcs_emits_payload_and_resumes_text_after_terminator
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 916 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `--lib`

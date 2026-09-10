@@ -1,0 +1,19 @@
+
+xwininfo: Window id: 0x2cf (the root window) (has no name)
+
+  Root window id: 0x2cf (the root window) (has no name)
+  Parent window id: 0x0 (none)
+     8 children:
+     0xa0000b "Terminal": ("org.gnome.Terminal" "Gnome-terminal")  924x634+0+0  +0+0
+        1 child:
+        0xa0000c (has no name): ()  1x1+-1+-1  +-1+-1
+     0xa00006 (has no name): ()  1x1+-1+-1  +-1+-1
+     0xa00002 "Terminal": ()  10x10+-100+-100  +-100+-100
+     0xe00001 "xdg-desktop-portal-gtk": ("xdg-desktop-portal-gtk" "Xdg-desktop-portal-gtk")  10x10+10+10  +10+10
+     0xc00003 "xdg-desktop-portal-gnome": ("xdg-desktop-portal-gnome" "xdg-desktop-portal-gnome")  1x1+0+0  +0+0
+        1 child:
+        0xc00004 (has no name): ()  1x1+-1+-1  +-1+-1
+     0xa00001 "Terminal": ("org.gnome.Terminal" "Org.gnome.Terminal")  10x10+10+10  +10+10
+     0x800001 "gnome-terminal": ("gnome-terminal" "Gnome-terminal")  10x10+10+10  +10+10
+     0x200001 "orca": ("orca" "")  10x10+10+10  +10+10
+

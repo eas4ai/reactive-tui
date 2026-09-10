@@ -196,23 +196,22 @@ impl ModalBuilder {
     /// # Returns
     /// An `Element` representing the modal dialog
     pub fn build(self) -> Element {
-        // Create a simple modal representation
-        // In a full implementation, this would use Modal component props
-        let mut modal_content = Vec::new();
-
-        if let Some(title) = self.title {
-            modal_content.push(Element::text(format!("Modal: {}", title)));
-        }
-
-        modal_content.extend(self.content);
-
-        let mut element = Element::layout(LayoutType::Flex).children(modal_content);
-
-        if let Some(class) = self.class {
-            element = element.with_class(&class);
-        }
-
-        element
+        use crate::widgets::display::modal::{Modal, ModalProps, ModalSize};
+        Modal::with_props(ModalProps {
+            title: self.title,
+            content: Some(
+                Element::layout(LayoutType::Flex)
+                    .class("flex-col")
+                    .children(self.content),
+            ),
+            visible: self.visible,
+            closable: self.closable,
+            backdrop_clickable: self.backdrop_dismissible,
+            width: self.width.map_or(ModalSize::Auto, ModalSize::Fixed),
+            height: self.height.map_or(ModalSize::Auto, ModalSize::Fixed),
+            modal_style: self.class.or_else(|| ModalProps::default().modal_style),
+            ..Default::default()
+        })
     }
 }
 
@@ -366,15 +365,34 @@ impl ToastBuilder {
     /// # Returns
     /// An `Element` representing the toast notification
     pub fn build(self) -> Element {
-        let display_text = format!("Toast ({}): {}", self.toast_type, self.message);
-
-        let mut element = Element::text(display_text);
-
-        if let Some(class) = self.class {
-            element = element.with_class(&class);
-        }
-
-        element
+        use crate::widgets::dialog::{Toast, ToastOptions, ToastPosition, ToastType};
+        let position = match self.position.as_str() {
+            "top-left" => ToastPosition::TopLeft,
+            "top-center" => ToastPosition::TopCenter,
+            "top-right" => ToastPosition::TopRight,
+            "bottom-left" => ToastPosition::BottomLeft,
+            "bottom-center" => ToastPosition::BottomCenter,
+            "bottom-right" => ToastPosition::BottomRight,
+            _ => return Element::text(format!("Invalid toast position: {}", self.position)),
+        };
+        let toast_type = match self.toast_type.as_str() {
+            "success" => ToastType::Success,
+            "error" => ToastType::Error,
+            "warning" => ToastType::Warning,
+            "info" => ToastType::Info,
+            _ => ToastType::Custom(self.toast_type),
+        };
+        Toast::element(
+            ToastOptions {
+                message: self.message,
+                toast_type,
+                position,
+                duration: self.duration.map(std::time::Duration::from_millis),
+                closable: self.closable,
+                on_close: None,
+            },
+            self.class,
+        )
     }
 }
 

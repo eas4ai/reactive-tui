@@ -1,0 +1,15 @@
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 4.07s
+     Running tests/api_widget_behavior.rs (target/debug/deps/api_widget_behavior-591f6bff9f7c0602)
+
+running 7 tests
+test image_acceptance::image_builder_clips_to_its_parent_and_keeps_other_images_independent ... ok
+test image_acceptance::image_builder_loads_encoded_file_contents ... ok
+test image_acceptance::image_builder_paints_decoded_pixels_with_authored_bounds ... ok
+test image_acceptance::image_builder_reports_invalid_sources_and_empty_state ... ok
+test image_acceptance::image_builder_resizes_to_its_presented_content_area ... ok
+test image_acceptance::image_builder_retains_base64_data_url_and_format_hint ... ok
+test image_acceptance::image_builder_updates_a_keyed_source_and_clears_on_removal ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 328 filtered out; finished in 0.70s
+

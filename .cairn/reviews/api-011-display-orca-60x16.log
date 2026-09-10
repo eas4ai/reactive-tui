@@ -1,0 +1,10 @@
+A11Y # GNOME Terminal 3.58.0 using VTE 0.84.0 +BIDI +GNUTLS +ICU +SYSTEMD
+A11Y Orca version 50.1.2, AT-SPI2 version: 2.60.0, Session: x11 gnome
+A11Y isolated X11/Xvfb viewport 60x16
+A11Y ProgressBar: role, range, changed value and Orca progress speech passed
+A11Y Chart: image role, title, focus and keyboard point speech passed
+A11Y ScrollView: pane role, label, scrolling, child focus, speech and editing passed
+A11Y Image: image role, alternative label, hidden fallback cells and changed-prop speech passed
+A11Y Terminal: role, title, focus, readable screen and real child input/output speech passed
+A11Y data controls: reader delivery and adapter removal passed
+Orca diagnostic logs: /tmp/rtui-orca-4rei1epc

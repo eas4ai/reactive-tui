@@ -1,0 +1,11 @@
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 7.51s
+     Running unittests src/lib.rs (target/debug/deps/reactive_tui-fa00cdcf48e682eb)
+
+running 3 tests
+test widgets::display::image::live::animation::tests::api_image_gif_rejects_cumulative_storage_before_allocating_frames_and_cancels ... ok
+test widgets::display::image::live::animation::tests::api_image_gif_composites_disposal_and_obeys_finite_and_infinite_timing ... ok
+test widgets::display::image::live::worker::tests::api_image_gif_worker_stops_finite_playback_and_replaces_infinite_source ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 892 filtered out; finished in 1.40s
+

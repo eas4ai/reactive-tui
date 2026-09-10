@@ -5,6 +5,9 @@
 pub mod ansi;
 pub mod cell;
 pub mod cursor;
+pub(crate) mod keyboard;
+#[cfg(unix)]
+pub(crate) mod owned_pty;
 pub mod parser;
 pub mod pty;
 pub mod screen;

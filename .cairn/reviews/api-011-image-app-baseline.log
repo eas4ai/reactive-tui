@@ -1,0 +1,45 @@
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 3.44s
+     Running tests/api_widget_behavior.rs (target/debug/deps/api_widget_behavior-591f6bff9f7c0602)
+
+running 2 tests
+test image_acceptance::image_builder_loads_encoded_file_contents ... FAILED
+test image_acceptance::image_builder_paints_decoded_pixels_with_authored_bounds ... FAILED
+
+failures:
+
+---- image_acceptance::image_builder_loads_encoded_file_contents stdout ----
+
+thread 'image_acceptance::image_builder_loads_encoded_file_contents' (1202585) panicked at tests/support/app_input.rs:101:13:
+App painted 1 frames but input needs Some((1, ["@@@@"])) before the deadline. Last frame:
+Image (mode: AsciiArt, q
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- image_acceptance::image_builder_paints_decoded_pixels_with_authored_bounds stdout ----
+
+thread 'image_acceptance::image_builder_paints_decoded_pixels_with_authored_bounds' (1202976) panicked at tests/support/app_input.rs:101:13:
+App painted 1 frames but input needs Some((1, ["@@@@"])) before the deadline. Last frame:
+Image (mode: AsciiArt, q
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+
+
+failures:
+    image_acceptance::image_builder_loads_encoded_file_contents
+    image_acceptance::image_builder_paints_decoded_pixels_with_authored_bounds
+
+test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 328 filtered out; finished in 6.00s
+
+error: test failed, to rerun pass `--test api_widget_behavior`

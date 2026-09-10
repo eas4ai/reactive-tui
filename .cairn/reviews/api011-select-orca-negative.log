@@ -1,0 +1,18 @@
+A11Y # GNOME Terminal 3.58.0 using VTE 0.84.0 +BIDI +GNUTLS +ICU +SYSTEMD
+A11Y Orca version 50.1.2, AT-SPI2 version: 2.60.0, Session: x11 gnome
+A11Y isolated X11/Xvfb viewport 60x16
+A11Y round 1: labels, roles, focus, disabled actions, expansion, nested input and removal passed
+A11Y breadcrumb: labels, link roles, current page announcement, inert actions, assistive and keyboard focus, activation and removal passed
+A11Y CSS: reference labels, description, role, focus, pressed update, live announcement and hidden state passed
+A11Y checkbox: role, distinct label, mixed/checked/unchecked speech, focus, assistive/keyboard toggles and disabled actions passed
+A11Y slider: label, role, focus, numeric bounds, keyboard step and changed value speech passed
+A11Y radio: group/option roles, labels, focus, disabled skipping, exclusive keyboard and assistive selection passed
+A11Y named radios: roles, labels, focus and exclusive group selection passed
+Orca diagnostic logs: /tmp/rtui-orca-ekfcophe
+Traceback (most recent call last):
+  File "/home/shawn/workspace2/reactive-tui/tests/api_widget_behavior/orca.py", line 584, in <module>
+    isolated(arguments)
+    ~~~~~~~~^^^^^^^^^^^
+  File "/home/shawn/workspace2/reactive-tui/tests/api_widget_behavior/orca.py", line 110, in isolated
+    raise RuntimeError(f"Orca workflow failed with exit {status}; see {run / 'session.log'}")
+RuntimeError: Orca workflow failed with exit 1; see /tmp/rtui-orca-ekfcophe/session.log

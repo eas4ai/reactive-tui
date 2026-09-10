@@ -1,0 +1,9 @@
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 4.75s
+     Running tests/api_widget_behavior.rs (target/debug/deps/api_widget_behavior-7f38c785954f09a5)
+
+running 1 test
+test core_builder_acceptance::convenience_containers_show_their_children_with_default_styles ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 356 filtered out; finished in 0.12s
+

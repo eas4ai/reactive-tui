@@ -1,23 +1,13 @@
 use super::{Border, ScrollState};
-use crate::component::{Component, Element, LayoutType, Props};
+use crate::component::{Component, Element, Props};
 use crate::event::router::EventResult;
-use crate::event::types::{Event, KeyCode, KeyModifiers, MouseEvent, MouseEventKind};
+use crate::event::types::{Event, KeyCode, KeyModifiers};
 use std::collections::HashMap;
 use std::sync::Arc;
 
-type NodeActionCallback = dyn Fn(String, &str) + Send + Sync;
+mod live;
 
-/// Result of hit testing on tree elements
-#[derive(Debug, Clone, PartialEq)]
-enum TreeHitResult {
-    /// Hit a tree node
-    Node(String),
-    /// Hit an expander/collapse button
-    Expander(String),
-    /// Hit outside the tree
-    #[allow(dead_code)]
-    Outside,
-}
+type NodeActionCallback = dyn Fn(String, &str) + Send + Sync;
 
 /// Tree node representing an item in the tree structure
 #[derive(Debug, Clone, PartialEq)]
@@ -350,6 +340,33 @@ impl TreeBuilder {
     /// Set expand callback
     pub fn on_expand(mut self, callback: Arc<dyn Fn(String, bool) + Send + Sync>) -> Self {
         self.on_expand = Some(callback);
+        self
+    }
+
+    /// Set the multi-selection callback.
+    pub fn on_multi_select(mut self, callback: Arc<dyn Fn(Vec<String>) + Send + Sync>) -> Self {
+        self.on_multi_select = Some(callback);
+        self
+    }
+
+    /// Set the checkbox callback.
+    pub fn on_check(mut self, callback: Arc<dyn Fn(String, bool) + Send + Sync>) -> Self {
+        self.on_check = Some(callback);
+        self
+    }
+
+    /// Set the activation and in-memory drop callback.
+    pub fn on_node_action(mut self, callback: Arc<NodeActionCallback>) -> Self {
+        self.on_node_action = Some(callback);
+        self
+    }
+
+    /// Supply children when an unloaded lazy node is expanded.
+    pub fn on_load_children(
+        mut self,
+        callback: Arc<dyn Fn(String) -> Vec<TreeNode> + Send + Sync>,
+    ) -> Self {
+        self.on_load_children = Some(callback);
         self
     }
 
@@ -1054,170 +1071,6 @@ impl Tree {
             }
         }
     }
-
-    fn render_node(&self, node: &FlatTreeNode, props: &TreeProps, state: &TreeState) -> Element {
-        let mut node_class = String::new();
-
-        // Apply node styling
-        if node.selected {
-            if let Some(style) = &props.selected_style {
-                node_class.push_str(style);
-            }
-        } else if let Some(style) = &props.node_style {
-            node_class.push(' ');
-            node_class.push_str(style);
-        }
-
-        // Custom node style
-        if let Some(style) = &node.style {
-            node_class.push(' ');
-            node_class.push_str(style);
-        }
-
-        let mut content = String::new();
-
-        // Indentation
-        for _ in 0..node.level {
-            for _ in 0..props.indent_size {
-                content.push(' ');
-            }
-        }
-
-        // Tree lines
-        if props.show_lines && node.level > 0 {
-            if node.has_children {
-                if node.expanded {
-                    content.push_str("┬─ ");
-                } else {
-                    content.push_str("├─ ");
-                }
-            } else {
-                content.push_str("└─ ");
-            }
-        }
-
-        // Expansion indicator
-        if node.has_children {
-            if node.expanded {
-                content.push_str("▼ ");
-            } else {
-                content.push_str("▶ ");
-            }
-        } else {
-            content.push_str("  ");
-        }
-
-        // Checkbox
-        if props.checkable {
-            if let Some(checked) = node.checked {
-                if checked {
-                    content.push_str("☑ ");
-                } else {
-                    content.push_str("☐ ");
-                }
-            } else {
-                content.push_str("☐ ");
-            }
-        }
-
-        // Icon
-        if props.show_icons {
-            if let Some(icon) = &node.icon {
-                content.push_str(icon);
-                content.push(' ');
-            } else if node.has_children {
-                content.push_str("📁 ");
-            } else {
-                content.push_str("📄 ");
-            }
-        }
-
-        // Label
-        content.push_str(&node.label);
-
-        // Loading indicator
-        if state.loading_nodes.contains(&node.id) {
-            content.push_str(" ⟳");
-        }
-
-        Element::text(&content)
-            .with_class(&node_class)
-            .with_key(format!("node-{}", node.id))
-    }
-
-    /// Perform hit testing to determine what tree element was clicked
-    fn hit_test_tree(
-        &self,
-        position: crate::event::types::Position,
-        props: &TreeProps,
-        state: &TreeState,
-    ) -> Option<TreeHitResult> {
-        // Convert position to coordinates
-        let (x, y) = match position {
-            crate::event::types::Position::Cell { x, y } => (x as usize, y as usize),
-            crate::event::types::Position::Pixel { x, y } => {
-                // Convert pixel to cell coordinates (approximate)
-                (x as usize / 8, y as usize / 16)
-            }
-        };
-
-        // Get the root node
-        let root = props.root.as_ref()?;
-
-        // Traverse the visible tree structure to find what was clicked
-        let mut current_row = 0;
-        self.hit_test_node(root, x, y, &mut current_row, 0, props, state)
-    }
-
-    /// Recursively test hit on tree nodes
-    #[allow(clippy::too_many_arguments)]
-    #[allow(clippy::only_used_in_recursion)]
-    fn hit_test_node(
-        &self,
-        node: &TreeNode,
-        click_x: usize,
-        click_y: usize,
-        current_row: &mut usize,
-        level: usize,
-        props: &TreeProps,
-        state: &TreeState,
-    ) -> Option<TreeHitResult> {
-        // Check if this row matches the click
-        if *current_row == click_y {
-            let indent = level * props.indent_size as usize;
-
-            // Check if click is on the expander (first few characters)
-            if !node.children.is_empty() && click_x >= indent && click_x < indent + 2 {
-                return Some(TreeHitResult::Expander(node.id.clone()));
-            }
-
-            // Check if click is on the node content
-            if click_x >= indent + 2 {
-                return Some(TreeHitResult::Node(node.id.clone()));
-            }
-        }
-
-        *current_row += 1;
-
-        // If node is expanded, check children
-        if state.expanded_nodes.iter().any(|id| id == &node.id) {
-            for child in &node.children {
-                if let Some(result) = self.hit_test_node(
-                    child,
-                    click_x,
-                    click_y,
-                    current_row,
-                    level + 1,
-                    props,
-                    state,
-                ) {
-                    return Some(result);
-                }
-            }
-        }
-
-        None
-    }
 }
 
 impl Component for Tree {
@@ -1229,58 +1082,10 @@ impl Component for Tree {
     }
 
     fn render(&self, props: &Self::Props, state: &Self::State) -> Element {
-        // Hook functionality would be handled by runtime
-
-        // Flatten tree structure
-        let flat_nodes = self.flatten_tree(props, state);
-
-        // Calculate visible nodes (for virtual scrolling)
-        let start_index = state.scroll_state.offset_y as usize;
-        let end_index = if props.virtual_scrolling {
-            (start_index + state.scroll_state.viewport_height as usize).min(flat_nodes.len())
-        } else {
-            flat_nodes.len()
-        };
-
-        let mut children = Vec::new();
-
-        // Render visible nodes
-        for (_i, node) in flat_nodes
-            .iter()
-            .enumerate()
-            .skip(start_index)
-            .take(end_index - start_index)
-        {
-            if node.visible || !props.filter_visible {
-                children.push(self.render_node(node, props, state));
-            }
-        }
-
-        // Empty state
-        if children.is_empty() {
-            if let Some(search_term) = &props.search_term {
-                if !search_term.is_empty() {
-                    children.push(
-                        Element::text("No matching nodes found")
-                            .with_class("text-muted text-center")
-                            .with_key("empty-search"),
-                    );
-                }
-            } else {
-                children.push(
-                    Element::text("No data")
-                        .with_class("text-muted text-center")
-                        .with_key("empty"),
-                );
-            }
-        }
-
-        let container_class = if props.border.enabled { "border" } else { "" };
-
-        Element::layout(LayoutType::Flex)
-            .with_class(format!("flex-col {container_class}"))
-            .with_children(children)
-            .with_key("tree-container")
+        Element::typed::<live::LiveTree>(live::LiveProps {
+            config: props.clone(),
+            seed: state.clone(),
+        })
     }
 
     fn handle_event(
@@ -1290,66 +1095,15 @@ impl Component for Tree {
         state: &mut Self::State,
     ) -> EventResult {
         match event {
-            Event::Key(key_event) => self.handle_key_navigation(
-                key_event.code.clone(),
-                key_event.modifiers,
-                props,
-                state,
-            ),
-            Event::Mouse(mouse_event) => {
-                match mouse_event {
-                    MouseEvent {
-                        kind: MouseEventKind::Click,
-                        position,
-                        ..
-                    } => {
-                        // Handle node selection and expansion with proper hit testing
-                        if let Some(hit_result) = self.hit_test_tree(*position, props, state) {
-                            match hit_result {
-                                TreeHitResult::Node(node_id) => {
-                                    // Select the node (clear previous selection and add this one)
-                                    state.selected_nodes.clear();
-                                    state.selected_nodes.push(node_id.clone());
-                                    EventResult::Consumed
-                                }
-                                TreeHitResult::Expander(node_id) => {
-                                    // Toggle expansion
-                                    if let Some(pos) =
-                                        state.expanded_nodes.iter().position(|x| x == &node_id)
-                                    {
-                                        state.expanded_nodes.remove(pos);
-                                    } else {
-                                        state.expanded_nodes.push(node_id);
-                                    }
-                                    EventResult::Consumed
-                                }
-                                TreeHitResult::Outside => EventResult::Ignored,
-                            }
-                        } else {
-                            EventResult::Ignored
-                        }
-                    }
-                    MouseEvent {
-                        kind: MouseEventKind::DoubleClick,
-                        ..
-                    } => {
-                        // Handle expansion on double-click
-                        EventResult::Consumed
-                    }
-                    MouseEvent {
-                        kind: MouseEventKind::Wheel,
-                        ..
-                    } => {
-                        if props.scrollable {
-                            // Simplified wheel handling
-                            state.scroll_state.scroll_down(3);
-                            EventResult::Consumed
-                        } else {
-                            EventResult::Ignored
-                        }
-                    }
-                    _ => EventResult::Ignored,
-                }
+            Event::Key(key_event)
+                if key_event.kind != crate::event::types::KeyEventKind::Release =>
+            {
+                self.handle_key_navigation(
+                    key_event.code.clone(),
+                    key_event.modifiers,
+                    props,
+                    state,
+                )
             }
             Event::Focus(focus_event) => {
                 match focus_event.kind {
@@ -1454,11 +1208,10 @@ mod tests {
         let state = TreeState::default();
 
         let element = tree.render(&props, &state);
-        // Tree renders as a flex layout container
-        assert_eq!(
+        assert!(matches!(
             element.element_type,
-            crate::component::ElementType::Layout(crate::component::LayoutType::Flex)
-        );
+            crate::component::ElementType::Component(_)
+        ));
     }
 
     #[test]

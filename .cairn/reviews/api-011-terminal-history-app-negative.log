@@ -1,0 +1,28 @@
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 8.93s
+     Running tests/api_widget_behavior.rs (target/debug/deps/api_widget_behavior-af8b000cab735812)
+
+running 1 test
+test terminal_acceptance::terminal_widget_keeps_old_history_text_readable_after_narrowing ... FAILED
+
+failures:
+
+---- terminal_acceptance::terminal_widget_keeps_old_history_text_readable_after_narrowing stdout ----
+
+thread 'terminal_acceptance::terminal_widget_keeps_old_history_text_readable_after_narrowing' (2202148) panicked at tests/support/app_input.rs:102:13:
+App painted 5 frames but input needs Some((1, ["LMNOPQRST"])) before the deadline. Last frame:
+Terminal    
+ABCDEFGHIJK█
+ROW00      │
+ROW01      │
+ROW02      │
+ROW03      │
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    terminal_acceptance::terminal_widget_keeps_old_history_text_readable_after_narrowing
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 398 filtered out; finished in 3.01s
+
+error: test failed, to rerun pass `--test api_widget_behavior`

@@ -13,6 +13,8 @@ use std::any::Any;
 use std::sync::Arc;
 use std::time::Duration;
 
+mod live;
+
 /// Configuration options for progress dialogs
 #[derive(Clone)]
 pub struct ProgressDialogOptions {
@@ -28,6 +30,17 @@ pub struct ProgressDialogOptions {
     pub show_time_remaining: bool,
     /// Optional callback function when user cancels
     pub on_cancel: Option<Arc<dyn Fn() + Send + Sync>>,
+}
+
+impl PartialEq for ProgressDialogOptions {
+    fn eq(&self, other: &Self) -> bool {
+        self.title == other.title
+            && self.message == other.message
+            && self.cancellable == other.cancellable
+            && self.show_percentage == other.show_percentage
+            && self.show_time_remaining == other.show_time_remaining
+            && crate::widgets::display::overlay::same_callback(&self.on_cancel, &other.on_cancel)
+    }
 }
 
 impl std::fmt::Debug for ProgressDialogOptions {
@@ -53,6 +66,22 @@ pub struct ProgressDialog {
 }
 
 impl ProgressDialog {
+    pub(crate) fn element(
+        options: ProgressDialogOptions,
+        progress: f32,
+        indeterminate: bool,
+        class: Option<String>,
+    ) -> Element {
+        Element::typed::<live::LiveProgress>(live::LiveProps {
+            id: DialogId::from_u32(0),
+            options,
+            progress,
+            indeterminate,
+            class,
+            bounds: Rect::default(),
+            theme: DialogTheme::default(),
+        })
+    }
     /// Create a new progress dialog
     pub fn new(id: DialogId, options: ProgressDialogOptions) -> Self {
         Self {
@@ -76,8 +105,16 @@ impl DialogComponent for ProgressDialog {
     fn dialog_type(&self) -> &'static str {
         "progress"
     }
-    fn render(&self, _bounds: Rect, _theme: &DialogTheme) -> Element {
-        Element::empty()
+    fn render(&self, bounds: Rect, theme: &DialogTheme) -> Element {
+        Element::typed::<live::LiveProgress>(live::LiveProps {
+            id: self.state.id,
+            options: self.options.clone(),
+            progress: self.progress,
+            indeterminate: false,
+            class: None,
+            bounds,
+            theme: theme.clone(),
+        })
     }
     fn handle_event(&mut self, _event: &Event) -> DialogEventResult {
         DialogEventResult::NotHandled

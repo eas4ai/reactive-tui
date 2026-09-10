@@ -1,0 +1,40 @@
+warning: method `serial` is never used
+  --> src/event/router.rs:84:19
+   |
+83 | impl NodeId {
+   | ----------- method in this implementation
+84 |     pub(crate) fn serial(self) -> usize {
+   |                   ^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `reactive-tui` (lib test) generated 1 warning
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.26s
+     Running unittests src/lib.rs (target/debug/deps/reactive_tui-ba54f0cf170e0cff)
+
+running 1 test
+test widgets::dialog::http::tests::tls_certificate_probe ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 944 filtered out; finished in 0.08s
+
+Dialog HTTPS trusted: passed
+warning: method `serial` is never used
+  --> src/event/router.rs:84:19
+   |
+83 | impl NodeId {
+   | ----------- method in this implementation
+84 |     pub(crate) fn serial(self) -> usize {
+   |                   ^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `reactive-tui` (lib test) generated 1 warning
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.38s
+     Running unittests src/lib.rs (target/debug/deps/reactive_tui-ba54f0cf170e0cff)
+
+running 1 test
+test widgets::dialog::http::tests::tls_certificate_probe ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 944 filtered out; finished in 0.19s
+
+Dialog HTTPS untrusted: passed

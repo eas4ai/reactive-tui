@@ -41,28 +41,62 @@ thiserror = "1.0"
 string_cache = "0.8"
 # Image support dependencies (enabled by default)
 image = "0.25.6"
+gif = "0.13.3"
+vt100 = "0.16"
 base64 = "0.22.1"
-sixel-rs = "0.5.0"
 reactive-tui-macros = { path = "reactive-tui-macros" }
 lru = "0.16.0"
 dirs = "5.0"
 tempfile = "3.21"
 suprtui = { path = "src/backend/engine" }
+accesskit = "0.25.0"
+cap-std = "4.0.2"
+cap-fs-ext = "4.0.2"
+time = "0.3"
+
+[target.'cfg(target_os = "linux")'.dependencies]
+accesskit_consumer = "0.39.0"
+async-channel = "2.1.1"
+async-io = "2.6"
+async-executor = "1.5.0"
+async-task = "4.3.0"
+atspi = { version = "0.29", features = ["proxies"], default-features = false }
+atspi-common = { version = "0.13", default-features = false }
+futures-lite = "2.3"
+futures-util = "0.3.27"
+phf = { version = "0.14.0", features = ["macros"] }
+zbus = { version = "5.19", features = ["async-io"], default-features = false }
+zvariant = { version = "5.4", default-features = false }
 
 # Platform-specific dependencies
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"
 libghostty-vt = { git = "https://github.com/Uzaaft/libghostty-rs", rev = "5988a0b78b4aa804d1c12e66bbfe662bd97d81c0", optional = true }
+rustix = { version = "1", features = ["fs"] }
 
 [target.'cfg(windows)'.dependencies]
+libloading = "0.8.9"
+sha2 = "0.10.9"
 winapi = { version = "0.3", features = ["consoleapi", "commapi", "fileapi", "handleapi", "processenv", "winbase"] }
-windows-sys = { version = "0.59", features = ["Win32_Foundation", "Win32_System_Console", "Win32_Storage_FileSystem", "Win32_System_IO", "Win32_System_Threading", "Win32_UI_Input_KeyboardAndMouse"] }
+windows-sys = { version = "0.59", features = ["Wdk_Storage_FileSystem", "Win32_Foundation", "Win32_System_Console", "Win32_Storage_FileSystem", "Win32_System_IO", "Win32_System_Ioctl", "Win32_System_SystemServices", "Win32_System_Threading", "Win32_System_JobObjects", "Win32_System_Pipes", "Win32_Security", "Win32_Globalization", "Win32_UI_Input_KeyboardAndMouse"] }
 
 
 [lib]
 name = "reactive_tui"
 path = "src/lib.rs"
 crate-type = ["rlib", "cdylib"]
+
+[[example]]
+name = "accessibility_probe"
+path = "tests/api_widget_behavior/accessibility_probe.rs"
+
+[[example]]
+name = "image_host_probe"
+path = "tests/api_widget_behavior/image_host_probe.rs"
+
+[[example]]
+name = "conpty_probe"
+path = "tests/api_widget_behavior/conpty_probe.rs"
 
 
 [features]
@@ -84,7 +118,6 @@ embedded-terminal = ["dep:libghostty-vt"]
 criterion = "0.5"
 proptest = "1.4"
 serial_test = "3.0"
-vt100 = "0.16"
 
 [[bench]]
 name = "diff_benchmark"

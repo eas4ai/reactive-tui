@@ -1,0 +1,12 @@
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 13.53s
+     Running unittests src/lib.rs (target/debug/deps/reactive_tui-8db3a30746e1a23f)
+
+running 4 tests
+test widgets::display::image::external_renderer::tests::test_get_display_constraints_with_size ... ok
+test widgets::display::image::external_renderer::tests::test_write_temp_file ... ok
+test widgets::display::image::external_renderer::tests::test_get_display_constraints_default ... ok
+test widgets::display::image::external_renderer::tests::api_image_external_render_preserves_caller_file ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 846 filtered out; finished in 0.01s
+

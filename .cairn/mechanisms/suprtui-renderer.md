@@ -5,6 +5,7 @@ inputs:
   - docs/spec
   - README.md
   - Cargo.toml
+  - build.rs
   - Cargo.lock
   - reactive-tui-macros
   - src

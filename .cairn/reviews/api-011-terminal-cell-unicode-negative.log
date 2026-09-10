@@ -1,0 +1,24 @@
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 8.00s
+     Running unittests src/lib.rs (target/debug/deps/reactive_tui-fa00cdcf48e682eb)
+
+running 1 test
+test terminal::cell::tests::unicode_cell_widths_and_continuations ... FAILED
+
+failures:
+
+---- terminal::cell::tests::unicode_cell_widths_and_continuations stdout ----
+
+thread 'terminal::cell::tests::unicode_cell_widths_and_continuations' (3796145) panicked at src/terminal/cell.rs:259:9:
+assertion `left == right` failed
+  left: 1
+ right: 2
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    terminal::cell::tests::unicode_cell_widths_and_continuations
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 903 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `--lib`

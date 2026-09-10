@@ -1,0 +1,24 @@
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.66s
+     Running tests/api_widget_behavior.rs (target/debug/deps/api_widget_behavior-af8b000cab735812)
+
+running 16 tests
+test chart_acceptance::chart_own_padding_positions_plot_and_tooltips_in_the_content_box ... ok
+test chart_acceptance::chart_line_segments_intersect_axes_without_inventing_edge_points ... ok
+test chart_acceptance::chart_builder_and_macro_draw_data_instead_of_descriptions ... ok
+test chart_acceptance::chart_bars_keep_signed_values_and_do_not_paint_values_outside_the_scale ... ok
+test chart_acceptance::chart_tooltips_follow_painted_points_and_keyboard_and_can_be_disabled ... ok
+test chart_acceptance::charts_clip_scatter_values_outside_explicit_axes_and_color_pie_sectors ... ok
+test chart_acceptance::charts_update_props_and_resize_inside_a_padded_parent ... ok
+test chart_acceptance::charts_display_axis_titles_grid_custom_ticks_and_all_legend_positions ... ok
+test chart_acceptance::charts_use_exact_values_colors_and_point_overrides ... ok
+test chart_acceptance::chart_animation_paints_intermediate_frames_and_reduced_motion_is_immediate ... ok
+test chart_acceptance::chart_legend_placement_and_width_follow_the_configuration ... ok
+test chart_acceptance::charts_reject_invalid_values_ranges_and_handle_empty_data ... ok
+test chart_acceptance::charts_render_distinct_geometry_at_two_measured_sizes ... ok
+test chart_acceptance::chart_convenience_builders_and_disabled_controls_keep_their_behavior ... ok
+test chart_acceptance::charts_honor_line_and_fill_styles_and_visible_series ... ok
+test macro_acceptance::chart_macros_paint_data_geometry ... ok
+
+test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 366 filtered out; finished in 1.07s
+

@@ -1,0 +1,467 @@
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 34.06s
+     Running unittests src/lib.rs (target/debug/deps/reactive_tui-0fe28f82db83e8df)
+
+running 75 tests
+test backend::suprtui::graphics::tests::api_image_graphics_actual_coverage_masks_text_and_opaque_backgrounds ... ok
+test backend::suprtui::graphics::tests::api_image_graphics_cell_pixels_padding_tint_and_layer_order_follow_the_painter ... ok
+test backend::suprtui::graphics::tests::api_image_graphics_clip_and_output_failure_retry_delete_possible_placements ... ok
+test backend::suprtui::graphics::tests::api_image_graphics_failed_sixel_flush_keeps_cleanup_for_retry ... ok
+test backend::suprtui::graphics::tests::api_image_graphics_output_is_owned_cached_moved_and_removed ... ok
+test backend::suprtui::graphics::tests::api_image_graphics_refreshes_cell_metrics_and_clears_when_switching_to_cell_frames ... ok
+test backend::suprtui::graphics::tests::api_image_graphics_sixel_absolute_offsets_keep_preceding_translucent_pixels ... ok
+test backend::suprtui::graphics::tests::api_image_graphics_sixel_and_inline_keep_masks_cache_and_clear_owned_placements ... ok
+test backend::suprtui::graphics::tests::api_image_graphics_writer_requires_explicit_capability_and_valid_cell_pixels ... ok
+test backend::suprtui::graphics::tests::native_cursor_respects_image_pixels_and_retains_coverage_on_cached_frames ... ok
+test builder::test_specialized::tests::test_image_builder ... ok
+test core::surface::image_output::tests::api_surface_image_fallback_uses_source_regions_and_removes_pixels ... ok
+test core::surface::image_output::tests::api_surface_image_foreground_fallback_clears_a_whole_wide_grapheme ... ok
+test core::surface::image_output::tests::api_surface_image_projection_layer_alpha_and_checked_errors ... ok
+test core::surface::image_output::tests::api_surface_image_protocol_retry_and_removal_are_owned ... ok
+test core::surface::tests::api_surface_image_small_source_and_removal ... ok
+test core::surface::tests::api_surface_image_validation_and_clipped_work ... ok
+test core::surface::tests::test_cell_image_placement ... ok
+test core::surface::tests::test_clear_all_image_placements ... ok
+test core::surface::tests::test_image_region_placement ... ok
+test core::surface::tests::test_image_registry_basic_operations ... ok
+test core::surface::tests::test_surface_copy_preserves_images ... ok
+test core::surface::tests::test_surface_image_operations ... ok
+test core::terminal::tests::test_image_capabilities_detection ... ok
+test platform::image::tests::api_image_platform_empty_clipping_and_unsupported_z_order_write_nothing ... ok
+test platform::image::tests::api_image_platform_file_and_memory_decode_actual_pixels ... ok
+test platform::image::tests::api_image_platform_iterm_uses_encoded_file_and_byte_count ... ok
+test platform::image::tests::api_image_platform_kitty_crops_and_retains_placement_options ... ok
+test platform::image::tests::api_image_platform_rejects_invalid_encoded_and_raw_data_without_output ... ok
+test platform::image::tests::api_image_platform_scaling_and_pixel_offsets_use_real_raster_bounds ... ok
+test platform::image::tests::api_image_platform_sixel_encoder_transmits_colors_and_decoded_sources ... ok
+test platform::image::tests::api_image_platform_sixel_malformed_bodies_do_not_panic ... ok
+test platform::image::tests::api_image_platform_sixel_offsets_preserve_transparent_pixels ... ok
+test platform::image::tests::api_image_platform_sixel_quality_handles_more_than_256_colors ... ok
+test platform::image::tests::api_image_platform_sixel_rejects_overflow_truncation_and_non_image_controls ... ok
+test platform::image::tests::api_image_platform_webp_and_sixel_files_preserve_pixels ... ok
+test platform::tests::tty_tests::test_kitty_image_sequence ... ok
+test widgets::display::image::decoded::tests::api_image_decode_all_advertised_encoded_formats ... ok
+test widgets::display::image::decoded::tests::api_image_decode_opaque_renderers_composite_alpha ... ok
+test widgets::display::image::decoded::tests::api_image_decode_rejects_malformed_and_oversized_sources ... ok
+test widgets::display::image::decoded::tests::api_image_decode_sources_preserve_pixels_and_encoded_dimensions ... ok
+test widgets::display::image::external_renderer::tests::api_image_external_commands_bound_resources ... ok
+test widgets::display::image::external_renderer::tests::api_image_external_raw_pixels_are_encoded_as_png ... ok
+test widgets::display::image::external_renderer::tests::api_image_external_render_preserves_caller_file ... ok
+test widgets::display::image::external_renderer::tests::api_image_temporary_files_are_independent_and_owned ... ok
+test widgets::display::image::external_renderer::tests::api_image_viu_prepares_aspect_background_and_stretched_pixels ... ok
+test widgets::display::image::external_renderer::tests::test_get_display_constraints_default ... ok
+test widgets::display::image::external_renderer::tests::test_get_display_constraints_with_size ... ok
+test widgets::display::image::external_renderer::tests::test_write_temp_file ... ok
+test widgets::display::image::image_processor::tests::api_image_ascii_obeys_both_dimensions_and_uses_decoded_pixels ... ok
+test widgets::display::image::image_processor::tests::api_image_grayscale_preserves_neutral_channels ... ok
+test widgets::display::image::image_processor::tests::test_ascii_config_default ... ok
+test widgets::display::image::image_processor::tests::test_floyd_steinberg_dithering ... ok
+test widgets::display::image::image_processor::tests::test_rgb_to_grayscale_conversion ... ok
+test widgets::display::image::live::animation::tests::api_image_gif_bounds_zero_delay_and_rejects_excess_tiny_frames ... ok
+test widgets::display::image::live::animation::tests::api_image_gif_composites_disposal_and_obeys_finite_and_infinite_timing ... ok
+test widgets::display::image::live::animation::tests::api_image_gif_rejects_cumulative_storage_before_allocating_frames_and_cancels ... ok
+test widgets::display::image::live::cells::tests::api_image_external_cells_preserve_first_row_colors_and_ignore_host_commands ... ok
+test widgets::display::image::live::worker::external_tests::api_image_external_auto_keeps_graphics_priority_and_falls_back_between_tools ... ok
+test widgets::display::image::live::worker::external_tests::api_image_external_worker_reuses_decoded_source_and_cancels_owned_child ... ok
+test widgets::display::image::live::worker::tests::api_image_gif_worker_stops_finite_playback_and_replaces_infinite_source ... ok
+test widgets::display::image::live::worker::tests::api_image_worker_publishes_latest_source_and_releases_ownership ... ok
+test widgets::display::image::live::worker::tests::api_image_worker_reports_current_errors_and_joins_pending_work ... ok
+test widgets::display::image::protocol_renderer::tests::api_image_protocol_background_and_fast_resize_reach_encoded_pixels ... ok
+test widgets::display::image::protocol_renderer::tests::api_image_protocol_iterm_encodes_an_image_file_with_byte_size ... ok
+test widgets::display::image::protocol_renderer::tests::api_image_protocol_kitty_transmits_one_chunked_rgba_image ... ok
+test widgets::display::image::protocol_renderer::tests::api_image_protocol_rejects_invalid_raw_extents ... ok
+test widgets::display::image::protocol_renderer::tests::test_calculate_display_size_preserve_aspect ... ok
+test widgets::display::image::protocol_renderer::tests::test_generate_image_id ... ok
+test widgets::display::image::protocol_renderer::tests::test_process_raw_bytes_rgb_to_rgba ... ok
+test widgets::display::image::sixel_renderer::tests::test_calculate_display_size_no_upscale ... ok
+test widgets::display::image::sixel_renderer::tests::test_calculate_display_size_preserve_aspect ... ok
+test widgets::display::image::sixel_renderer::tests::test_ensure_rgb888_validation ... ok
+test widgets::display::image::tests::api_image_empty_bounds_emit_no_protocol_or_placeholder ... ok
+test widgets::display::image::tests::api_image_unavailable_protocols_fall_back_to_decoded_image ... ok
+
+test result: ok. 75 passed; 0 failed; 0 ignored; 0 measured; 897 filtered out; finished in 7.21s
+
+     Running tests/advanced_table_test.rs (target/debug/deps/advanced_table_test-4bb15b34617a3b5c)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.00s
+
+     Running tests/alignment_strict_tests.rs (target/debug/deps/alignment_strict_tests-b7694f47804a55b5)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+
+     Running tests/alignment_utility_tests.rs (target/debug/deps/alignment_utility_tests-20c0260a04fa0531)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+
+     Running tests/animations_integration.rs (target/debug/deps/animations_integration-8534c4446f766a76)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running tests/api_clipboard.rs (target/debug/deps/api_clipboard-de9b76bbe8232a6e)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 13 filtered out; finished in 0.00s
+
+     Running tests/api_component_expansion.rs (target/debug/deps/api_component_expansion-c5c3407a5bdab583)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.00s
+
+     Running tests/api_editor_unicode.rs (target/debug/deps/api_editor_unicode-13766c895357dfdb)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 23 filtered out; finished in 0.00s
+
+     Running tests/api_event_routing.rs (target/debug/deps/api_event_routing-4f839b4b21869615)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 0.00s
+
+     Running tests/api_focus.rs (target/debug/deps/api_focus-5c00976239e499b5)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.00s
+
+     Running tests/api_hook_lifecycle.rs (target/debug/deps/api_hook_lifecycle-c90f22e45e1909e7)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.00s
+
+     Running tests/api_hook_state.rs (target/debug/deps/api_hook_state-495bfb464b16fdcd)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.00s
+
+     Running tests/api_paint_properties.rs (target/debug/deps/api_paint_properties-e8c44bea26aacd86)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 28 filtered out; finished in 0.00s
+
+     Running tests/api_signal_ownership.rs (target/debug/deps/api_signal_ownership-ae95fe95ebcd7099)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/api_styling.rs (target/debug/deps/api_styling-986a17e63be11957)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 29 filtered out; finished in 0.00s
+
+     Running tests/api_widget_behavior.rs (target/debug/deps/api_widget_behavior-b44de95d3adf5336)
+
+running 12 tests
+test image_acceptance::image_animated_gif_advances_without_input_and_repeats_through_app ... ok
+test image_acceptance::image_builder_clips_to_its_parent_and_keeps_other_images_independent ... ok
+test image_acceptance::image_builder_loads_encoded_file_contents ... ok
+test image_acceptance::image_builder_paints_decoded_pixels_with_authored_bounds ... ok
+test image_acceptance::image_builder_presents_decoded_kitty_pixels_and_releases_updated_and_removed_resources ... ok
+test image_acceptance::image_builder_presents_sixel_and_inline_updates_and_removal ... ok
+test image_acceptance::image_builder_reports_invalid_sources_and_empty_state ... ok
+test image_acceptance::image_builder_resizes_to_its_presented_content_area ... ok
+test image_acceptance::image_builder_retains_base64_data_url_and_format_hint ... ok
+test image_acceptance::image_builder_updates_a_keyed_source_and_clears_on_removal ... ok
+test image_acceptance::image_file_and_encoded_memory_share_kitty_payloads_in_app ... ok
+test image_acceptance::image_native_element_honors_alpha_background_quality_and_text_mode ... ok
+
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 387 filtered out; finished in 1.86s
+
+     Running tests/app_wakeups.rs (target/debug/deps/app_wakeups-680f3a2d0ac4c776)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 7 filtered out; finished in 0.00s
+
+     Running tests/automatic_memory_management_tests.rs (target/debug/deps/automatic_memory_management_tests-ca023a150363715a)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 7 filtered out; finished in 0.00s
+
+     Running tests/charts_test.rs (target/debug/deps/charts_test-6f36cdf49d79eadc)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 0.00s
+
+     Running tests/clipboard_platform.rs (target/debug/deps/clipboard_platform-298c382542f3ffc9)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running tests/color_more_shades_tests.rs (target/debug/deps/color_more_shades_tests-830ff526f42cf148)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running tests/color_shades_tests.rs (target/debug/deps/color_shades_tests-447fb760d01eb3fe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+
+     Running tests/color_utility_tests.rs (target/debug/deps/color_utility_tests-bfdb57ed3e348394)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+
+     Running tests/component_macro_integration.rs (target/debug/deps/component_macro_integration-781eb31e163ddf85)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running tests/component_macro_test.rs (target/debug/deps/component_macro_test-74bd183df2ffc733)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 7 filtered out; finished in 0.00s
+
+     Running tests/component_tests.rs (target/debug/deps/component_tests-41482dd572afa8ae)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 7 filtered out; finished in 0.00s
+
+     Running tests/css_animation_integration_test.rs (target/debug/deps/css_animation_integration_test-1557c2a3ab25fdac)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 7 filtered out; finished in 0.00s
+
+     Running tests/css_in_rust_simple_test.rs (target/debug/deps/css_in_rust_simple_test-330fde16b19c0312)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 14 filtered out; finished in 0.00s
+
+     Running tests/debug_animate_none.rs (target/debug/deps/debug_animate_none-c65fa227064de16a)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.00s
+
+     Running tests/element_bridge_tests.rs (target/debug/deps/element_bridge_tests-2e2bf415e4c933df)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.00s
+
+     Running tests/embedded_terminal.rs (target/debug/deps/embedded_terminal-8f5f58249a975f1e)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/ffi_basic_test.rs (target/debug/deps/ffi_basic_test-f6cc118d896d2fa8)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/ffi_tests.rs (target/debug/deps/ffi_tests-1eaf88ca587d2979)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/full_pipeline_integration.rs (target/debug/deps/full_pipeline_integration-1bcc900ba4bf8324)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.00s
+
+     Running tests/layout_paint_tests.rs (target/debug/deps/layout_paint_tests-15546e9e25bb863e)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.00s
+
+     Running tests/mouse_hooks_test.rs (target/debug/deps/mouse_hooks_test-da76d71b350f8a0c)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 0.00s
+
+     Running tests/opacity_tests.rs (target/debug/deps/opacity_tests-cd13ccf5744c057b)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 7 filtered out; finished in 0.00s
+
+     Running tests/performance_monitoring_test.rs (target/debug/deps/performance_monitoring_test-9f86f84a32431ebf)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.00s
+
+     Running tests/production_readiness_test.rs (target/debug/deps/production_readiness_test-66110030e9fa627e)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 0.00s
+
+     Running tests/property_tests.rs (target/debug/deps/property_tests-9b73b6ce67991b26)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 14 filtered out; finished in 0.00s
+
+     Running tests/props_derive_test.rs (target/debug/deps/props_derive_test-055014356fcf41ce)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 13 filtered out; finished in 0.00s
+
+     Running tests/registry_cache_isolation.rs (target/debug/deps/registry_cache_isolation-650827b2330ad169)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 7 filtered out; finished in 0.00s
+
+     Running tests/registry_concurrency.rs (target/debug/deps/registry_concurrency-e286fa02d0636265)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.00s
+
+     Running tests/render_ops_snapshots.rs (target/debug/deps/render_ops_snapshots-5a83920fecad185c)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 7 filtered out; finished in 0.00s
+
+     Running tests/screen_system_tests.rs (target/debug/deps/screen_system_tests-c82f05d73ea5b3f5)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 0.00s
+
+     Running tests/simple_css_animation_test.rs (target/debug/deps/simple_css_animation_test-7377ebc4ab37ca6e)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.00s
+
+     Running tests/simple_performance_test.rs (target/debug/deps/simple_performance_test-e640142b1b449e00)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+
+     Running tests/simple_props_test.rs (target/debug/deps/simple_props_test-ff07769a3c52a531)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running tests/suprtui_renderer.rs (target/debug/deps/suprtui_renderer-2419599ab9d0badf)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 0.00s
+
+     Running tests/surface_integration.rs (target/debug/deps/surface_integration-05d7a126279fe3e2)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running tests/syntax_highlighting_integration.rs (target/debug/deps/syntax_highlighting_integration-22c915661510d31c)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running tests/test_absolute_debug.rs (target/debug/deps/test_absolute_debug-ffb283cb9f9d2b37)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running tests/test_absolute_paint.rs (target/debug/deps/test_absolute_paint-c7dce57c5b8a9895)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+
+     Running tests/test_animation_api.rs (target/debug/deps/test_animation_api-caed3e7a928b7af4)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running tests/test_app_layout.rs (target/debug/deps/test_app_layout-f0b95c825a73ca40)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running tests/test_ffi_core_only.rs (target/debug/deps/test_ffi_core_only-3f1b4cb5f3a735a7)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/test_ffi_integration.rs (target/debug/deps/test_ffi_integration-82f583324965e432)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/test_ffi_reactive_seamless.rs (target/debug/deps/test_ffi_reactive_seamless-56549fafccf13522)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/test_flex_layout.rs (target/debug/deps/test_flex_layout-7a59f9495cb54f08)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out; finished in 0.00s
+
+     Running tests/test_minimal_ffi.rs (target/debug/deps/test_minimal_ffi-8521a439dc878fe9)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/utility_paint_tests.rs (target/debug/deps/utility_paint_tests-a85a8bc282e92f1c)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+
+     Running tests/windows_platform.rs (target/debug/deps/windows_platform-1651df7ecf66eee1)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/z_index_tests.rs (target/debug/deps/z_index_tests-d5a8125823381ae8)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.00s
+

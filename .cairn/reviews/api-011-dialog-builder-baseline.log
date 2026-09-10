@@ -1,0 +1,40 @@
+
+running 1 test
+test dialog_acceptance::dialog_builder_retains_editable_children_and_closes_through_app ... FAILED
+
+failures:
+
+failures:
+    dialog_acceptance::dialog_builder_retains_editable_children_and_closes_through_app
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 264 filtered out; finished in 3.00s
+
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+warning: unused import: `Element`
+ --> tests/api_widget_behavior/dialogs.rs:1:33
+  |
+1 | use super::{app_input, Control, Element};
+  |                                 ^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: `reactive-tui` (test "api_widget_behavior") generated 1 warning (run `cargo fix --test "api_widget_behavior" -p reactive-tui` to apply 1 suggestion)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.05s
+     Running tests/api_widget_behavior.rs (target/debug/deps/api_widget_behavior-6de95be2275b0733)
+
+thread 'dialog_acceptance::dialog_builder_retains_editable_children_and_closes_through_app' (1662828) panicked at tests/support/app_input.rs:99:13:
+App painted 1 frames but input needs Some((1, ["draft"])) before the deadline. Last frame:
+Dialog "DIALOG" (modal, closable
+                                
+                                
+                                
+                                
+                                
+                                
+                                
+                                
+                                
+                                
+                                
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+error: test failed, to rerun pass `--test api_widget_behavior`

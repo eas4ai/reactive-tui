@@ -1,0 +1,15 @@
+{
+  "system": "Windows",
+  "platform": "Windows-2022Server-10.0.20348-SP0",
+  "inputs_digest": "c579829a340e755aea259abd11ddb5f68fb5351dcd8b7a9bdc3c6d28bdfab480",
+  "commit": "b18a5aae47a2c8bf7f2cb3660b63d686c55c573d",
+  "result": "pass",
+  "outputs": {
+    "build.out": "b02977384b84b8655d8e6f1f35f679c5047e34aa00e587fcbf3d9a3748e3922c",
+    "corrected.out": "fb8b01f3c6bb21dfd532785b02bc3b578d6db09ba715697dd528431e2b43f3a1",
+    "negative-build.out": "ddd0a8cb6750690115c8b3e87fa71609aee13d2eab0cd6f93110d0ac442e0548",
+    "negative.out": "ae2498e648126881f4c0724e6b6f5d43b40d7741461d9c131f7207cf2bda0a0d",
+    "ffi-exports.out": "ac126e9f8a26ac0253785d6f1c71bc4bc5f302fdcb257a460217f755287c847d",
+    "runtime-errors.out": "a62b512b9870cb32638b2c59d78d4675222c38a27bb09d8fa54e1a6acccd404f"
+  }
+}

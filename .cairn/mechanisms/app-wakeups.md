@@ -4,6 +4,7 @@ command: sh scripts/check-app-wakeups.sh
 inputs:
   - docs/spec
   - Cargo.toml
+  - build.rs
   - Cargo.lock
   - README.md
   - docs/app-wakeups.md

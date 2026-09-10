@@ -4,6 +4,7 @@ command: python3 -B scripts/check-api-styling.py
 inputs:
   - .cairn/mechanisms/api-styling.md
   - Cargo.toml
+  - build.rs
   - Cargo.lock
   - src
   - reactive-tui-macros

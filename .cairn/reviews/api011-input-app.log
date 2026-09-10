@@ -1,0 +1,26 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.44s
+     Running tests/api_widget_behavior.rs (target/debug/deps/api_widget_behavior-af8b000cab735812)
+
+running 19 tests
+test input_acceptance::narrow_multiline_fields_wrap_wide_graphemes_into_visible_rows ... ok
+test input_acceptance::empty_and_zero_width_selects_handle_navigation_without_panics ... ok
+test input_acceptance::max_length_counts_graphemes_and_accepts_combining_input ... ok
+test input_acceptance::input_selection_copy_cut_paste_redo_and_submit_reach_app ... ok
+test input_acceptance::bracketed_paste_and_undo_preserve_multiline_trailing_newlines ... ok
+test input_acceptance::multiline_builder_renders_line_numbers_tabs_and_auto_indent ... ok
+test input_acceptance::password_masks_graphemes_without_revealing_original_text ... ok
+test input_acceptance::regex_validation_changes_visible_error_and_recovers ... ok
+test input_acceptance::readonly_input_allows_tab_to_the_next_control ... ok
+test input_acceptance::numeric_and_email_builder_modes_affect_input_and_validation ... ok
+test input_acceptance::select_end_skips_disabled_last_option_and_reopen_keeps_it_visible ... ok
+test input_acceptance::text_input_mouse_uses_display_columns_before_and_after_resize ... ok
+test input_acceptance::select_mouse_respects_padding_and_open_close_callbacks_after_resize ... ok
+test input_acceptance::unhandled_default_quit_keys_exit_before_further_typing ... ok
+test input_acceptance::typed_select_skips_disabled_first_option_and_reports_selection_once ... ok
+test input_acceptance::static_suggestions_are_available_after_typing ... ok
+test input_acceptance::autocomplete_accepts_with_tab_and_mouse_without_moving_focus ... ok
+test input_acceptance::supplied_text_replacement_resets_undo_without_corrupting_value ... ok
+test input_acceptance::input_builders_and_macros_preserve_editable_controls ... ok
+
+test result: ok. 19 passed; 0 failed; 0 ignored; 0 measured; 362 filtered out; finished in 0.17s
+

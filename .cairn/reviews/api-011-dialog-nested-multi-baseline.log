@@ -1,0 +1,31 @@
+
+running 1 test
+test menu_acceptance::dialog_menu_nested_multi_selection_paints_and_survives_prop_updates ... FAILED
+
+failures:
+
+failures:
+    menu_acceptance::dialog_menu_nested_multi_selection_paints_and_survives_prop_updates
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 251 filtered out; finished in 3.00s
+
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.21s
+     Running tests/api_widget_behavior.rs (target/debug/deps/api_widget_behavior-6de95be2275b0733)
+
+thread 'menu_acceptance::dialog_menu_nested_multi_selection_paints_and_survives_prop_updates' (982633) panicked at tests/support/app_input.rs:99:13:
+App painted 6 frames but input needs Some((1, ["[ ] ONE"])) before the deadline. Last frame:
+                                
+                                
+                                
+                                
+          INITIAL               
+           GROUP ▶              
+          Confirm   ONE         
+          Close                 
+                                
+                                
+                                
+                                
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+error: test failed, to rerun pass `--test api_widget_behavior`

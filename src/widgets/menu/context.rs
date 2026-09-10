@@ -1,10 +1,5 @@
 use crate::component::{Component, Element, Props};
-use crate::event::router::EventResult;
-use crate::event::types::{KeyEvent, MouseEventKind};
-use crate::event::{Event, MouseEvent};
-use crate::widgets::menu::{
-    MenuItem, MenuStyle, MenuTheme, PopupMenu, PopupMenuProps, PopupMenuState, PopupPlacement,
-};
+use crate::widgets::menu::{MenuItem, MenuStyle, MenuTheme, PopupMenuState};
 use std::any::Any;
 use std::sync::Arc;
 
@@ -63,7 +58,7 @@ impl Props for ContextMenuProps {
 }
 
 /// State for ContextMenu component
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct ContextMenuState {
     /// Whether the context menu is currently visible
     pub is_visible: bool,
@@ -116,7 +111,7 @@ impl ContextMenuState {
 
         trigger_areas
             .iter()
-            .any(|(tx, ty, tw, th)| x >= *tx && x < tx + tw && y >= *ty && y < ty + th)
+            .any(|rect| super::state::contains(*rect, (x, y)))
     }
 
     /// Start long press detection
@@ -131,8 +126,8 @@ impl ContextMenuState {
         if let Some(start_time) = self.press_start_time {
             if let Some((last_x, last_y)) = self.last_mouse_position {
                 // Check if mouse moved too much (cancel long press)
-                let dx = (x as i16 - last_x as i16).abs();
-                let dy = (y as i16 - last_y as i16).abs();
+                let dx = x.abs_diff(last_x);
+                let dy = y.abs_diff(last_y);
                 if dx > 5 || dy > 5 {
                     self.cancel_long_press();
                     return false;
@@ -159,20 +154,39 @@ impl ContextMenuState {
 /// ContextMenu component for right-click and long-press menus
 #[derive(Default)]
 pub struct ContextMenu {
-    popup_menu: PopupMenu,
     on_item_selected: Option<super::TextCallback>,
     on_show: Option<Arc<dyn Fn(u16, u16) + Send + Sync>>,
     on_hide: Option<Arc<dyn Fn() + Send + Sync>>,
 }
 
 impl ContextMenu {
+    pub(crate) fn element_with_callbacks(
+        config: ContextMenuProps,
+        visible: bool,
+        auto_close: bool,
+        selected: Option<super::TextCallback>,
+        shown: Option<Arc<dyn Fn() + Send + Sync>>,
+        hidden: Option<Arc<dyn Fn() + Send + Sync>>,
+    ) -> Element {
+        Element::typed::<super::context_live::LiveContext>(super::context_live::LiveProps {
+            config,
+            seed: ContextMenuState {
+                is_visible: visible,
+                ..Default::default()
+            },
+            auto_close,
+            selected,
+            shown: shown.map(|callback| {
+                Arc::new(move |_, _| callback()) as Arc<dyn Fn(u16, u16) + Send + Sync>
+            }),
+            hidden,
+        })
+    }
+
     /// Set callback for when a menu item is selected
     pub fn with_on_item_selected(mut self, f: impl Fn(&str) + Send + Sync + 'static) -> Self {
         let callback: Arc<dyn Fn(&str) + Send + Sync> = Arc::new(f);
         self.on_item_selected = Some(Arc::clone(&callback));
-        self.popup_menu = self
-            .popup_menu
-            .with_on_item_selected(move |item| callback(item));
         self
     }
 
@@ -186,216 +200,7 @@ impl ContextMenu {
     pub fn with_on_hide(mut self, f: impl Fn() + Send + Sync + 'static) -> Self {
         let callback: Arc<dyn Fn() + Send + Sync> = Arc::new(f);
         self.on_hide = Some(Arc::clone(&callback));
-        self.popup_menu = self.popup_menu.with_on_hide(move || callback());
         self
-    }
-
-    /// Handle keyboard events
-    fn handle_key_event(
-        &mut self,
-        key: &KeyEvent,
-        props: &ContextMenuProps,
-        state: &mut ContextMenuState,
-    ) -> EventResult {
-        if !props.enabled {
-            return EventResult::Ignored;
-        }
-
-        if state.is_visible {
-            // Forward keyboard events to the popup menu
-            let mut popup_props = PopupMenuProps {
-                items: props.items.clone(),
-                style: props.style.clone(),
-                visible: state.is_visible,
-                enabled: props.enabled,
-                placement: PopupPlacement::Position {
-                    x: state.position.map(|(x, _)| x).unwrap_or(0),
-                    y: state.position.map(|(_, y)| y).unwrap_or(0),
-                },
-                auto_close: true,
-                close_on_outside_click: props.close_on_outside_click,
-                max_visible_items: props.max_visible_items,
-                width: props.width,
-                show_border: props.show_border,
-                show_shadow: props.show_shadow,
-            };
-
-            let result = self.popup_menu.handle_event(
-                &Event::Key(key.clone()),
-                &mut popup_props,
-                &mut state.popup_state,
-            );
-
-            // Check if popup was closed
-            if !state.popup_state.is_focused && state.is_visible {
-                state.hide();
-                if let Some(callback) = &self.on_hide {
-                    callback();
-                }
-            }
-
-            result
-        } else {
-            EventResult::Ignored
-        }
-    }
-
-    /// Handle mouse events
-    fn handle_mouse_event(
-        &mut self,
-        mouse: &MouseEvent,
-        props: &ContextMenuProps,
-        state: &mut ContextMenuState,
-    ) -> EventResult {
-        if !props.enabled {
-            return EventResult::Ignored;
-        }
-
-        let (mouse_x, mouse_y) = match mouse.position {
-            crate::event::types::Position::Cell { x, y } => (x, y),
-            crate::event::types::Position::Pixel { x, y } => (x as u16, y as u16),
-        };
-
-        match mouse.kind {
-            MouseEventKind::Down => {
-                match mouse.button {
-                    crate::event::types::MouseButton::Right => {
-                        if props.show_on_right_click
-                            && state.is_in_trigger_area(mouse_x, mouse_y, &props.trigger_areas)
-                        {
-                            state.show_at(mouse_x, mouse_y);
-                            if let Some(callback) = &self.on_show {
-                                callback(mouse_x, mouse_y);
-                            }
-                            return EventResult::Handled;
-                        }
-                        EventResult::Ignored
-                    }
-                    crate::event::types::MouseButton::Left => {
-                        if props.show_on_long_press
-                            && state.is_in_trigger_area(mouse_x, mouse_y, &props.trigger_areas)
-                        {
-                            state.start_long_press(mouse_x, mouse_y);
-                        }
-
-                        if state.is_visible {
-                            // Forward to popup menu for handling clicks inside/outside
-                            let mut popup_props = PopupMenuProps {
-                                items: props.items.clone(),
-                                style: props.style.clone(),
-                                visible: state.is_visible,
-                                enabled: props.enabled,
-                                placement: PopupPlacement::Position {
-                                    x: state.position.map(|(x, _)| x).unwrap_or(0),
-                                    y: state.position.map(|(_, y)| y).unwrap_or(0),
-                                },
-                                auto_close: true,
-                                close_on_outside_click: props.close_on_outside_click,
-                                max_visible_items: props.max_visible_items,
-                                width: props.width,
-                                show_border: props.show_border,
-                                show_shadow: props.show_shadow,
-                            };
-
-                            let result = self.popup_menu.handle_event(
-                                &Event::Mouse(mouse.clone()),
-                                &mut popup_props,
-                                &mut state.popup_state,
-                            );
-
-                            // Check if popup was closed
-                            if !state.popup_state.is_focused && state.is_visible {
-                                state.hide();
-                                if let Some(callback) = &self.on_hide {
-                                    callback();
-                                }
-                            }
-
-                            return result;
-                        }
-                        EventResult::Ignored
-                    }
-                    _ => EventResult::Ignored,
-                }
-            }
-            MouseEventKind::Up => {
-                if mouse.button == crate::event::types::MouseButton::Left
-                    && state.press_start_time.is_some()
-                {
-                    // Check for long press completion
-                    if state.update_long_press(mouse_x, mouse_y, props.long_press_duration) {
-                        state.show_at(mouse_x, mouse_y);
-                        if let Some(callback) = &self.on_show {
-                            callback(mouse_x, mouse_y);
-                        }
-                        return EventResult::Handled;
-                    }
-                    state.cancel_long_press();
-                }
-                EventResult::Ignored
-            }
-            MouseEventKind::Move => {
-                if state.press_start_time.is_some() {
-                    // Update long press tracking
-                    state.update_long_press(mouse_x, mouse_y, props.long_press_duration);
-                }
-
-                if state.is_visible {
-                    // Forward mouse movement to popup menu
-                    let mut popup_props = PopupMenuProps {
-                        items: props.items.clone(),
-                        style: props.style.clone(),
-                        visible: state.is_visible,
-                        enabled: props.enabled,
-                        placement: PopupPlacement::Position {
-                            x: state.position.map(|(x, _)| x).unwrap_or(0),
-                            y: state.position.map(|(_, y)| y).unwrap_or(0),
-                        },
-                        auto_close: true,
-                        close_on_outside_click: props.close_on_outside_click,
-                        max_visible_items: props.max_visible_items,
-                        width: props.width,
-                        show_border: props.show_border,
-                        show_shadow: props.show_shadow,
-                    };
-
-                    return self.popup_menu.handle_event(
-                        &Event::Mouse(mouse.clone()),
-                        &mut popup_props,
-                        &mut state.popup_state,
-                    );
-                }
-                EventResult::Ignored
-            }
-            _ => {
-                if state.is_visible {
-                    // Forward other mouse events to popup menu
-                    let mut popup_props = PopupMenuProps {
-                        items: props.items.clone(),
-                        style: props.style.clone(),
-                        visible: state.is_visible,
-                        enabled: props.enabled,
-                        placement: PopupPlacement::Position {
-                            x: state.position.map(|(x, _)| x).unwrap_or(0),
-                            y: state.position.map(|(_, y)| y).unwrap_or(0),
-                        },
-                        auto_close: true,
-                        close_on_outside_click: props.close_on_outside_click,
-                        max_visible_items: props.max_visible_items,
-                        width: props.width,
-                        show_border: props.show_border,
-                        show_shadow: props.show_shadow,
-                    };
-
-                    return self.popup_menu.handle_event(
-                        &Event::Mouse(mouse.clone()),
-                        &mut popup_props,
-                        &mut state.popup_state,
-                    );
-                }
-                EventResult::Ignored
-            }
-        }
     }
 }
 
@@ -405,82 +210,33 @@ impl Component for ContextMenu {
 
     fn new(_props: Self::Props) -> Self {
         Self {
-            popup_menu: PopupMenu::default(),
             on_item_selected: None,
             on_show: None,
             on_hide: None,
         }
     }
 
-    fn update(&mut self, props: &Self::Props, state: &mut Self::State) -> bool {
-        // Update popup menu with current state
-        let popup_props = PopupMenuProps {
-            items: props.items.clone(),
-            style: props.style.clone(),
-            visible: state.is_visible,
-            enabled: props.enabled,
-            placement: PopupPlacement::Position {
-                x: state.position.map(|(x, _)| x).unwrap_or(0),
-                y: state.position.map(|(_, y)| y).unwrap_or(0),
-            },
-            auto_close: true,
-            close_on_outside_click: props.close_on_outside_click,
-            max_visible_items: props.max_visible_items,
-            width: props.width,
-            show_border: props.show_border,
-            show_shadow: props.show_shadow,
-        };
-
-        self.popup_menu.update(&popup_props, &mut state.popup_state)
+    fn update(&mut self, _props: &Self::Props, _: &mut Self::State) -> bool {
+        true
     }
 
     fn render(&self, props: &Self::Props, state: &Self::State) -> Element {
-        if !state.is_visible {
-            return Element::empty();
-        }
-
-        // Render the popup menu
-        let popup_props = PopupMenuProps {
-            items: props.items.clone(),
-            style: props.style.clone(),
-            visible: state.is_visible,
-            enabled: props.enabled,
-            placement: PopupPlacement::Position {
-                x: state.position.map(|(x, _)| x).unwrap_or(0),
-                y: state.position.map(|(_, y)| y).unwrap_or(0),
-            },
+        Element::typed::<super::context_live::LiveContext>(super::context_live::LiveProps {
+            config: props.clone(),
+            seed: state.clone(),
             auto_close: true,
-            close_on_outside_click: props.close_on_outside_click,
-            max_visible_items: props.max_visible_items,
-            width: props.width,
-            show_border: props.show_border,
-            show_shadow: props.show_shadow,
-        };
-
-        self.popup_menu.render(&popup_props, &state.popup_state)
-    }
-
-    fn handle_event(
-        &mut self,
-        event: &Event,
-        props: &mut Self::Props,
-        state: &mut Self::State,
-    ) -> EventResult {
-        match event {
-            Event::Key(key_event) => self.handle_key_event(key_event, props, state),
-            Event::Mouse(mouse_event) => self.handle_mouse_event(mouse_event, props, state),
-            _ => EventResult::Ignored,
-        }
+            selected: self.on_item_selected.clone(),
+            shown: self.on_show.clone(),
+            hidden: self.on_hide.clone(),
+        })
     }
 }
 
 /// Builder for creating ContextMenu components with a fluent API
-#[allow(dead_code)]
 pub struct ContextMenuBuilder {
     props: ContextMenuProps,
 }
 
-#[allow(dead_code)]
 impl ContextMenuBuilder {
     /// Create a new context menu builder
     pub fn new() -> Self {

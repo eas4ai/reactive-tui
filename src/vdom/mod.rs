@@ -19,12 +19,12 @@ pub use menu::{
     context_menu, dialog_menu, menubar, popup_menu, simple_context_menu, simple_menubar,
     simple_popup_menu,
 };
-pub use node::{VComponent, VElement, VFragment, VNode, VNodeKey, VNodeType, VText};
+pub use node::{VComponent, VElement, VElementProps, VFragment, VNode, VNodeKey, VNodeType, VText};
 pub use patch::{apply_patches, Patch, PatchList};
 
 /// Re-export commonly used items
 pub mod prelude {
     pub use super::diff::diff_vnodes;
-    pub use super::node::{VComponent, VElement, VFragment, VNode, VText};
+    pub use super::node::{VComponent, VElement, VElementProps, VFragment, VNode, VText};
     pub use super::patch::{apply_patches, Patch};
 }

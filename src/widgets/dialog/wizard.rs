@@ -14,6 +14,11 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 
+#[cfg(test)]
+mod tests;
+
+mod live;
+
 // Type aliases for complex function pointer types
 type StepValidator = Arc<dyn Fn(&HashMap<String, String>) -> ValidationResult + Send + Sync>;
 type OnCompleteCallback = Arc<dyn Fn(&HashMap<String, String>) -> bool + Send + Sync>;
@@ -50,6 +55,30 @@ pub struct WizardDialogOptions {
     pub on_cancel: Option<Arc<dyn Fn() + Send + Sync>>,
 }
 
+impl PartialEq for WizardStep {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
+            && self.title == other.title
+            && self.content == other.content
+            && self.can_skip == other.can_skip
+            && crate::widgets::display::overlay::same_callback(&self.validator, &other.validator)
+    }
+}
+
+impl PartialEq for WizardDialogOptions {
+    fn eq(&self, other: &Self) -> bool {
+        self.title == other.title
+            && self.steps == other.steps
+            && self.show_progress == other.show_progress
+            && self.allow_back == other.allow_back
+            && crate::widgets::display::overlay::same_callback(
+                &self.on_complete,
+                &other.on_complete,
+            )
+            && crate::widgets::display::overlay::same_callback(&self.on_cancel, &other.on_cancel)
+    }
+}
+
 impl std::fmt::Debug for WizardDialogOptions {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("WizardDialogOptions")
@@ -69,12 +98,29 @@ pub struct WizardDialog {
     state: BaseDialogState,
     options: WizardDialogOptions,
     current_step: usize,
-    #[allow(dead_code)]
     step_data: HashMap<String, String>,
     bounds: DialogBounds,
 }
 
 impl WizardDialog {
+    pub(crate) fn element(
+        options: WizardDialogOptions,
+        initial_step: usize,
+        cancelable: bool,
+        class: Option<String>,
+    ) -> Element {
+        Element::typed::<live::LiveWizard>(live::LiveProps {
+            id: DialogId::from_u32(0),
+            options,
+            initial_step,
+            cancelable,
+            class,
+            data: HashMap::new(),
+            bounds: Rect::default(),
+            theme: DialogTheme::default(),
+        })
+    }
+
     /// Create a new wizard dialog
     pub fn new(id: DialogId, options: WizardDialogOptions) -> Self {
         Self {
@@ -88,7 +134,35 @@ impl WizardDialog {
 
     /// Move to the next step in the wizard
     pub fn next_step(&mut self) -> bool {
-        if self.current_step < self.options.steps.len() - 1 {
+        if self.validate().valid && self.current_step + 1 < self.options.steps.len() {
+            self.current_step += 1;
+            true
+        } else {
+            false
+        }
+    }
+
+    /// Replace the named values supplied to step validators and completion callbacks.
+    /// Child controls should update these values through the caller's normal state.
+    pub fn set_data(&mut self, data: HashMap<String, String>) {
+        self.step_data = data;
+    }
+
+    /// Current named values supplied to validators and completion callbacks.
+    pub fn data(&self) -> &HashMap<String, String> {
+        &self.step_data
+    }
+
+    /// Skip an optional step without running its validator.
+    pub fn skip_step(&mut self) -> bool {
+        if configuration_error(&self.options).is_none()
+            && self
+                .options
+                .steps
+                .get(self.current_step)
+                .is_some_and(|step| step.can_skip)
+            && self.current_step + 1 < self.options.steps.len()
+        {
             self.current_step += 1;
             true
         } else {
@@ -114,109 +188,17 @@ impl DialogComponent for WizardDialog {
     fn dialog_type(&self) -> &'static str {
         "wizard"
     }
-    fn render(&self, _bounds: Rect, _theme: &DialogTheme) -> Element {
-        use crate::builder::core::{button, div};
-        use crate::builder::layout::{h2, text};
-
-        if self.options.steps.is_empty() {
-            return Element::empty();
-        }
-
-        let current_step = &self.options.steps[self.current_step];
-
-        let mut children = Vec::new();
-
-        // Add title
-        children.push(
-            h2().class("wizard-title text-xl font-bold text-gray-800 mb-4")
-                .text(&self.options.title)
-                .build(),
-        );
-
-        // Add progress indicator if enabled
-        if self.options.show_progress {
-            let progress_text = format!(
-                "Step {} of {}",
-                self.current_step + 1,
-                self.options.steps.len()
-            );
-            children.push(text(&progress_text));
-
-            // Progress bar
-            let progress_percent =
-                ((self.current_step + 1) as f32 / self.options.steps.len() as f32 * 100.0) as u32;
-            children.push(
-                div()
-                    .class("wizard-progress-bar bg-gray-200 rounded-full h-2 mb-4")
-                    .child(
-                        div()
-                            .class("bg-blue-500 h-2 rounded-full")
-                            .class(&format!("w-{}", progress_percent.min(100)))
-                            .build(),
-                    )
-                    .build(),
-            );
-        }
-
-        // Add current step title
-        children.push(
-            div()
-                .class("step-title text-lg font-semibold text-gray-700 mb-3")
-                .text(&current_step.title)
-                .build(),
-        );
-
-        // Add current step content
-        children.push(
-            div()
-                .class("step-content flex-1 mb-4")
-                .child(current_step.content.clone())
-                .build(),
-        );
-
-        // Add navigation buttons
-        let mut nav_buttons = Vec::new();
-
-        // Back button
-        if self.options.allow_back && self.current_step > 0 {
-            nav_buttons.push(
-                button().class("wizard-back-btn bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600")
-                    .text("Back")
-                    .build()
-            );
-        } else {
-            nav_buttons.push(div().build()); // Spacer
-        }
-
-        // Next/Finish button
-        let is_last_step = self.current_step >= self.options.steps.len() - 1;
-        let next_button_text = if is_last_step { "Finish" } else { "Next" };
-        let next_button_class = if is_last_step {
-            "wizard-finish-btn bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
-        } else {
-            "wizard-next-btn bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
-        };
-
-        nav_buttons.push(
-            button()
-                .class(next_button_class)
-                .text(next_button_text)
-                .build(),
-        );
-
-        children.push(
-            div()
-                .class("wizard-buttons flex justify-between")
-                .children(nav_buttons)
-                .build(),
-        );
-
-        // Create main dialog container
-        div()
-            .class("wizard-dialog bg-white border border-gray-300 rounded-lg shadow-lg p-4")
-            .class("flex flex-col min-w-96 min-h-72")
-            .children(children)
-            .build()
+    fn render(&self, bounds: Rect, theme: &DialogTheme) -> Element {
+        Element::typed::<live::LiveWizard>(live::LiveProps {
+            id: self.state.id,
+            options: self.options.clone(),
+            data: self.step_data.clone(),
+            initial_step: self.current_step,
+            cancelable: true,
+            class: None,
+            bounds,
+            theme: theme.clone(),
+        })
     }
 
     fn handle_event(&mut self, event: &Event) -> DialogEventResult {
@@ -259,7 +241,21 @@ impl DialogComponent for WizardDialog {
         None
     }
     fn validate(&self) -> super::dialog_component::ValidationResult {
-        super::dialog_component::ValidationResult::default()
+        let result = validate_step(&self.options, self.current_step, &self.step_data);
+        super::dialog_component::ValidationResult {
+            valid: result.valid,
+            errors: result
+                .message
+                .map(|message| HashMap::from([("wizard".into(), message)]))
+                .unwrap_or_default(),
+            warnings: result
+                .warnings
+                .into_iter()
+                .enumerate()
+                .map(|(index, message)| (index.to_string(), message))
+                .collect(),
+            data: None,
+        }
     }
     fn as_any(&self) -> &dyn Any {
         self
@@ -290,7 +286,7 @@ impl WizardDialog {
         match key_event.code {
             KeyCode::Enter => {
                 // Move to next step or finish
-                if self.current_step >= self.options.steps.len() - 1 {
+                if self.current_step + 1 >= self.options.steps.len() {
                     self.finish_wizard()
                 } else {
                     if self.next_step() {
@@ -341,6 +337,10 @@ impl WizardDialog {
     fn finish_wizard(&mut self) -> DialogEventResult {
         use super::DialogResult;
 
+        if self.current_step + 1 != self.options.steps.len() || !self.validate().valid {
+            return DialogEventResult::NotHandled;
+        }
+
         if let Some(ref on_complete) = self.options.on_complete {
             if on_complete(&self.step_data) {
                 DialogEventResult::Close(DialogResult::Confirmed(None))
@@ -361,4 +361,45 @@ impl WizardDialog {
         }
         DialogEventResult::Close(DialogResult::Cancelled)
     }
+}
+
+fn configuration_error(options: &WizardDialogOptions) -> Option<String> {
+    if options.steps.is_empty() {
+        return Some("Wizard has no steps".into());
+    }
+    let mut ids = std::collections::HashSet::new();
+    for step in &options.steps {
+        if step.id.trim().is_empty() || !ids.insert(&step.id) {
+            return Some("Wizard step IDs must be nonempty and unique".into());
+        }
+    }
+    None
+}
+
+fn validate_step(
+    options: &WizardDialogOptions,
+    index: usize,
+    data: &HashMap<String, String>,
+) -> ValidationResult {
+    if let Some(error) = configuration_error(options) {
+        return ValidationResult {
+            valid: false,
+            message: Some(error),
+            ..Default::default()
+        };
+    }
+    let Some(step) = options.steps.get(index) else {
+        return ValidationResult {
+            valid: false,
+            message: Some("Wizard step is out of range".into()),
+            ..Default::default()
+        };
+    };
+    step.validator.as_ref().map_or_else(
+        || ValidationResult {
+            valid: true,
+            ..Default::default()
+        },
+        |validator| validator(data),
+    )
 }

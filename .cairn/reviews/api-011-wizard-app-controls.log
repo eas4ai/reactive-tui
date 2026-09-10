@@ -1,0 +1,53 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.28s
+     Running tests/api_widget_behavior.rs (target/debug/deps/api_widget_behavior-591f6bff9f7c0602)
+
+running 4 tests
+test wizard_acceptance::empty_wizard_displays_error_and_can_cancel ... FAILED
+test wizard_acceptance::wizard_navigates_back_and_finishes_once_after_resize ... FAILED
+test wizard_acceptance::wizard_validation_blocks_next_but_optional_skip_advances ... ok
+test wizard_acceptance::wizard_veto_keeps_final_step_open_and_cancel_delivers_once ... ok
+
+failures:
+
+---- wizard_acceptance::empty_wizard_displays_error_and_can_cancel stdout ----
+
+thread 'wizard_acceptance::empty_wizard_displays_error_and_can_cancel' (378544) panicked at tests/support/app_input.rs:100:13:
+App painted 9 frames but input needs Some((1, ["at least one step"])) before the deadline. Last frame:
+                                
+                                
+                                
+┌──────────────────────────────┐
+│    WIZARD                   ✕│
+│Wizard requires at least one  │
+│██████████████████████████░░░ │
+│                        Cancel│
+└──────────────────────────────┘
+                                
+                                
+                                
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- wizard_acceptance::wizard_navigates_back_and_finishes_once_after_resize stdout ----
+
+thread 'wizard_acceptance::wizard_navigates_back_and_finishes_once_after_resize' (379513) panicked at tests/support/app_input.rs:158:17:
+Click target "Back" is not painted:                                 
+                                
+                                
+                                
+                                
+                                
+                 ┌──────────────
+                 │    WIZARD    
+                 │Step 2 of 2   
+                 │██████████████
+                 │SECOND        
+                 │CONTENT-SECOND
+
+
+failures:
+    wizard_acceptance::empty_wizard_displays_error_and_can_cancel
+    wizard_acceptance::wizard_navigates_back_and_finishes_once_after_resize
+
+test result: FAILED. 2 passed; 2 failed; 0 ignored; 0 measured; 311 filtered out; finished in 4.86s
+
+error: test failed, to rerun pass `--test api_widget_behavior`

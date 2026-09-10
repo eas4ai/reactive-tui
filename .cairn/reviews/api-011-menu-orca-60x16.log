@@ -1,0 +1,180 @@
+A11Y # GNOME Terminal 3.58.0 using VTE 0.84.0 +BIDI +GNUTLS +ICU +SYSTEMD
+A11Y Orca version 50.1.2, AT-SPI2 version: 2.60.0, Session: x11 gnome
+A11Y isolated X11/Xvfb viewport 60x16
+A11Y round 1: labels, roles, focus, disabled actions, expansion, nested input and removal passed
+A11Y breadcrumb: labels, link roles, current page announcement, inert actions, assistive and keyboard focus, activation and removal passed
+A11Y CSS: reference labels, description, role, focus, pressed update, live announcement and hidden state passed
+A11Y menu family 1: roles, disabled actions, assistive/keyboard focus, nested activation and removal passed
+A11Y menu family 2: roles, disabled actions, assistive/keyboard focus, nested activation and removal passed
+A11Y menu family 3: roles, disabled actions, assistive/keyboard focus, nested activation and removal passed
+A11Y menu family 4: roles, disabled actions, assistive/keyboard focus, nested activation and removal passed
+A11Y round 2: simultaneous and successive App isolation, action delivery, exactly-once callbacks and adapter cleanup passed
+A11Y 21:51:32.143620 - SPEECH OUTPUT: 'Account preferences accessible label' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+A11Y 21:51:32.150684 - SPEECH OUTPUT: 'collapsed button.' {'established': False}
+A11Y 21:51:32.314389 - SPEECH OUTPUT: 'Account preferences accessible label' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+A11Y 21:51:32.338950 - SPEECH OUTPUT: 'expanded' {'established': False}
+A11Y 21:51:32.396115 - SPEECH OUTPUT: 'Nested account entry' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+A11Y 21:51:32.436903 - SPEECH OUTPUT: 'Privacy preferences accessible label' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+A11Y 21:51:32.437222 - SPEECH OUTPUT: 'collapsed button.' {'established': False}
+A11Y 21:51:32.489135 - SPEECH OUTPUT: 'expanded' {'established': False}
+A11Y 21:51:32.572733 - SPEECH OUTPUT: 'Account preferences accessible label' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+A11Y 21:51:32.573226 - SPEECH OUTPUT: 'collapsed button.' {'established': False}
+A11Y 21:51:32.677788 - SPEECH OUTPUT: 'Breadcrumb docs accessible label' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+A11Y 21:51:32.730003 - SPEECH OUTPUT: 'Breadcrumb home accessible label' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+A11Y 21:51:32.812013 - SPEECH OUTPUT: 'Breadcrumb docs accessible label' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+A11Y 21:51:32.878336 - SPEECH OUTPUT: 'Breadcrumb current accessible label' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+A11Y 21:51:32.878560 - SPEECH OUTPUT: 'static (Current page)' {'established': False}
+A11Y 21:51:33.023169 - SPEECH OUTPUT: 'Independent App action' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+A11Y 21:51:33.186667 - SPEECH OUTPUT: 'Background calls 1' {'established': False}
+A11Y 21:51:33.198409 - SPEECH OUTPUT: 'pressed' {'established': False}
+A11Y 21:51:33.263555 - SPEECH OUTPUT: 'Menu file' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+A11Y 21:51:33.349132 - SPEECH OUTPUT: 'Enable notifications' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+A11Y 21:51:33.418119 - SPEECH OUTPUT: 'expanded' {'established': False}
+A11Y 21:51:33.441073 - SPEECH OUTPUT: 'checked' {'established': False}
+A11Y 21:51:33.520392 - SPEECH OUTPUT: 'Recent menu' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+A11Y 21:51:33.603275 - SPEECH OUTPUT: 'Recent document.' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+A11Y 21:51:33.633464 - SPEECH OUTPUT: 'expanded' {'established': False}
+A11Y 21:51:33.746270 - SPEECH OUTPUT: 'Enable notifications' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+A11Y 21:51:33.836542 - SPEECH OUTPUT: 'checked' {'established': False}
+A11Y 21:51:33.898305 - SPEECH OUTPUT: 'Recent menu' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+A11Y 21:51:33.981791 - SPEECH OUTPUT: 'Recent document.' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+A11Y 21:51:34.014476 - SPEECH OUTPUT: 'expanded' {'established': False}
+A11Y 21:51:34.088116 - SPEECH OUTPUT: 'Recent menu' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+A11Y 21:51:34.192519 - SPEECH OUTPUT: 'Enable notifications' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+A11Y 21:51:34.257930 - SPEECH OUTPUT: 'Recent menu' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+A11Y 21:51:34.340863 - SPEECH OUTPUT: 'Recent document.' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+A11Y 21:51:34.484393 - SPEECH OUTPUT: 'Enable notifications' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+A11Y 21:51:34.561157 - SPEECH OUTPUT: 'checked' {'established': False}
+A11Y 21:51:34.628802 - SPEECH OUTPUT: 'Recent menu' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+A11Y 21:51:34.707500 - SPEECH OUTPUT: 'Recent document' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+A11Y 21:51:34.738839 - SPEECH OUTPUT: 'expanded' {'established': False}
+A11Y 21:51:34.804790 - SPEECH OUTPUT: 'Background calls 1' {'established': False}
+A11Y 21:51:34.828229 - SPEECH OUTPUT: 'Background calls 1' {'established': False}
+A11Y 21:51:34.959990 - SPEECH OUTPUT: 'Account preferences accessible label' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+A11Y 21:51:34.960467 - SPEECH OUTPUT: 'collapsed button.' {'established': False}
+A11Y 21:51:35.046418 - SPEECH OUTPUT: 'expanded' {'established': False}
+21:51:31.527302 - SPEECH OUTPUT: 'Screen reader on.' {'established': False}
+21:51:32.029761 - SPEECH OUTPUT: 'Terminal' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+21:51:32.061366 - SPEECH OUTPUT: 'Reactive TUI App accessibility round 1' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+21:51:32.061689 - SPEECH OUTPUT: 'frame' {'established': False}
+21:51:32.086628 - SPEECH OUTPUT: 'Background calls 0' {'established': False}
+21:51:32.104314 - SPEECH OUTPUT: 'Terminal' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+21:51:32.104666 - SPEECH OUTPUT: 'page tab' {'established': False}
+21:51:32.108594 - SPEECH OUTPUT: '▶ Painted account ▼                                         
+21:51:32.142236 - SPEECH OUTPUT: 'Reactive TUI App accessibility round 1' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+21:51:32.143620 - SPEECH OUTPUT: 'Account preferences accessible label' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+21:51:32.150684 - SPEECH OUTPUT: 'collapsed button.' {'established': False}
+21:51:32.190815 - SPEECH OUTPUT: 'Terminal' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+21:51:32.191101 - SPEECH OUTPUT: 'frame' {'established': False}
+21:51:32.223631 - SPEECH OUTPUT: 'Reactive TUI App accessibility round 1' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+21:51:32.223888 - SPEECH OUTPUT: 'frame' {'established': False}
+21:51:32.271609 - SPEECH OUTPUT: 'Terminal' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+21:51:32.271845 - SPEECH OUTPUT: 'page tab' {'established': False}
+21:51:32.279286 - SPEECH OUTPUT: '  Painted privacy ▼                                         
+21:51:32.314074 - SPEECH OUTPUT: 'Reactive TUI App accessibility round 1' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+21:51:32.314389 - SPEECH OUTPUT: 'Account preferences accessible label' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+21:51:32.314565 - SPEECH OUTPUT: 'expanded button.' {'established': False}
+21:51:32.338950 - SPEECH OUTPUT: 'expanded' {'established': False}
+21:51:32.396115 - SPEECH OUTPUT: 'Nested account entry' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+21:51:32.396409 - SPEECH OUTPUT: 'entry.' {'established': False}
+21:51:32.436903 - SPEECH OUTPUT: 'Privacy preferences accessible label' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+21:51:32.437222 - SPEECH OUTPUT: 'collapsed button.' {'established': False}
+21:51:32.468080 - SPEECH OUTPUT: 'return' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+21:51:32.489135 - SPEECH OUTPUT: 'expanded' {'established': False}
+21:51:32.518058 - SPEECH OUTPUT: 'collapsed' {'established': False}
+21:51:32.572733 - SPEECH OUTPUT: 'Account preferences accessible label' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+21:51:32.573226 - SPEECH OUTPUT: 'collapsed button.' {'established': False}
+21:51:32.601857 - SPEECH OUTPUT: 'return' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+21:51:32.610806 - SPEECH OUTPUT: 'F8' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+21:51:32.677438 - SPEECH OUTPUT: 'landmark' {'established': False}
+21:51:32.677788 - SPEECH OUTPUT: 'Breadcrumb docs accessible label' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+21:51:32.680801 - SPEECH OUTPUT: 'link.' {'established': False}
+21:51:32.730003 - SPEECH OUTPUT: 'Breadcrumb home accessible label' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+21:51:32.730442 - SPEECH OUTPUT: 'link.' {'established': False}
+21:51:32.761671 - SPEECH OUTPUT: 'return' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+21:51:32.812013 - SPEECH OUTPUT: 'Breadcrumb docs accessible label' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+21:51:32.812289 - SPEECH OUTPUT: 'link.' {'established': False}
+21:51:32.853639 - SPEECH OUTPUT: 'left control' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+21:51:32.861895 - SPEECH OUTPUT: 'insert' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+21:51:32.878336 - SPEECH OUTPUT: 'Breadcrumb current accessible label' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+21:51:32.878560 - SPEECH OUTPUT: 'static (Current page)' {'established': False}
+21:51:32.922369 - SPEECH OUTPUT: 'F6' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+21:51:32.931693 - SPEECH OUTPUT: 'F5' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+21:51:32.967201 - SPEECH OUTPUT: 'Reactive TUI App accessibility round 1' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+21:51:32.967513 - SPEECH OUTPUT: 'frame' {'established': False}
+21:51:32.990274 - SPEECH OUTPUT: 'Background calls 0' {'established': False}
+21:51:33.023169 - SPEECH OUTPUT: 'Independent App action' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+21:51:33.023850 - SPEECH OUTPUT: 'toggle button not pressed.' {'established': False}
+21:51:33.032757 - SPEECH OUTPUT: 'CSS description delivered.' {'established': False}
+21:51:33.186667 - SPEECH OUTPUT: 'Background calls 1' {'established': False}
+21:51:33.198409 - SPEECH OUTPUT: 'pressed' {'established': False}
+21:51:33.227225 - SPEECH OUTPUT: 'F4' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+21:51:33.263555 - SPEECH OUTPUT: 'Menu file' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+21:51:33.263883 - SPEECH OUTPUT: 'collapsed.' {'established': False}
+21:51:33.348689 - SPEECH OUTPUT: 'menu' {'established': False}
+21:51:33.349132 - SPEECH OUTPUT: 'Enable notifications' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+21:51:33.353312 - SPEECH OUTPUT: 'check menu item not checked.' {'established': False}
+21:51:33.418119 - SPEECH OUTPUT: 'expanded' {'established': False}
+21:51:33.441073 - SPEECH OUTPUT: 'checked' {'established': False}
+21:51:33.520392 - SPEECH OUTPUT: 'Recent menu' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+21:51:33.520709 - SPEECH OUTPUT: 'collapsed.' {'established': False}
+21:51:33.602561 - SPEECH OUTPUT: 'menu' {'established': False}
+21:51:33.603275 - SPEECH OUTPUT: 'Recent document.' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+21:51:33.633464 - SPEECH OUTPUT: 'expanded' {'established': False}
+21:51:33.656295 - SPEECH OUTPUT: 'F4' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+21:51:33.686042 - SPEECH OUTPUT: 'Reactive TUI App accessibility round 1' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+21:51:33.686394 - SPEECH OUTPUT: 'frame' {'established': False}
+21:51:33.745868 - SPEECH OUTPUT: 'menu' {'established': False}
+21:51:33.746270 - SPEECH OUTPUT: 'Enable notifications' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+21:51:33.754560 - SPEECH OUTPUT: 'check menu item not checked.' {'established': False}
+21:51:33.836542 - SPEECH OUTPUT: 'checked' {'established': False}
+21:51:33.898305 - SPEECH OUTPUT: 'Recent menu' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+21:51:33.898614 - SPEECH OUTPUT: 'collapsed.' {'established': False}
+21:51:33.981515 - SPEECH OUTPUT: 'menu' {'established': False}
+21:51:33.981791 - SPEECH OUTPUT: 'Recent document.' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+21:51:34.014476 - SPEECH OUTPUT: 'expanded' {'established': False}
+21:51:34.038908 - SPEECH OUTPUT: 'escape' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+21:51:34.087803 - SPEECH OUTPUT: 'menu' {'established': False}
+21:51:34.088116 - SPEECH OUTPUT: 'Recent menu' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+21:51:34.091882 - SPEECH OUTPUT: 'collapsed.' {'established': False}
+21:51:34.119920 - SPEECH OUTPUT: 'escape' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+21:51:34.127002 - SPEECH OUTPUT: 'F4' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+21:51:34.192022 - SPEECH OUTPUT: 'menu' {'established': False}
+21:51:34.192519 - SPEECH OUTPUT: 'Enable notifications' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+21:51:34.196675 - SPEECH OUTPUT: 'check menu item not checked.' {'established': False}
+21:51:34.257930 - SPEECH OUTPUT: 'Recent menu' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+21:51:34.258701 - SPEECH OUTPUT: 'collapsed.' {'established': False}
+21:51:34.340595 - SPEECH OUTPUT: 'menu' {'established': False}
+21:51:34.340863 - SPEECH OUTPUT: 'Recent document.' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+21:51:34.381639 - SPEECH OUTPUT: 'F4' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+21:51:34.411559 - SPEECH OUTPUT: 'Reactive TUI App accessibility round 1' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+21:51:34.412134 - SPEECH OUTPUT: 'frame' {'established': False}
+21:51:34.474596 - SPEECH OUTPUT: 'dialog' {'established': False}
+21:51:34.475610 - SPEECH OUTPUT: 'menu' {'established': False}
+21:51:34.484393 - SPEECH OUTPUT: 'Enable notifications' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+21:51:34.484817 - SPEECH OUTPUT: 'check menu item not checked.' {'established': False}
+21:51:34.561157 - SPEECH OUTPUT: 'checked' {'established': False}
+21:51:34.628802 - SPEECH OUTPUT: 'Recent menu' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+21:51:34.629486 - SPEECH OUTPUT: 'collapsed.' {'established': False}
+21:51:34.707184 - SPEECH OUTPUT: 'menu' {'established': False}
+21:51:34.707500 - SPEECH OUTPUT: 'Recent document' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+21:51:34.711236 - SPEECH OUTPUT: 'check menu item not checked.' {'established': False}
+21:51:34.738839 - SPEECH OUTPUT: 'expanded' {'established': False}
+21:51:34.771046 - SPEECH OUTPUT: 'Reactive TUI App accessibility round 1' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+21:51:34.771306 - SPEECH OUTPUT: 'frame' {'established': False}
+21:51:34.794824 - SPEECH OUTPUT: 'F5' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+21:51:34.804790 - SPEECH OUTPUT: 'Background calls 1' {'established': False}
+21:51:34.828229 - SPEECH OUTPUT: 'Background calls 1' {'established': False}
+21:51:34.868369 - SPEECH OUTPUT: 'F9' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+21:51:34.905887 - SPEECH OUTPUT: 'Reactive TUI App accessibility round 2' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+21:51:34.959990 - SPEECH OUTPUT: 'Account preferences accessible label' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+21:51:34.960467 - SPEECH OUTPUT: 'collapsed button.' {'established': False}
+21:51:34.995593 - SPEECH OUTPUT: 'Background calls 2' {'established': False}
+21:51:35.046418 - SPEECH OUTPUT: 'expanded' {'established': False}
+21:51:35.066958 - SPEECH OUTPUT: 'F9' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+21:51:35.117655 - SPEECH OUTPUT: 'Screen reader off.' {'established': False}
+Callback report:
+{"changes":[{"expanded":true,"expanded_sections":["account"],"section_id":"account"},{"expanded":true,"expanded_sections":["privacy"],"section_id":"privacy"},{"expanded":false,"expanded_sections":[],"section_id":"privacy"},{"expanded":true,"expanded_sections":["account"],"section_id":"account"}],"css_calls":1,"menu_calls":["1:checked:true","1:document","2:checked:true","2:document","3:document","4:confirmed:notify,document"],"navigation":[{"label":"Home","path":"/","segment_id":"home"},{"label":"Docs","path":"/docs","segment_id":"docs"}],"round":1}
+{"changes":[{"expanded":true,"expanded_sections":["account"],"section_id":"account"}],"css_calls":0,"menu_calls":[],"navigation":[],"round":2}
+{"background_calls":2}
+

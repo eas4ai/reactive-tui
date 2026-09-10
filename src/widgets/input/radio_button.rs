@@ -4,6 +4,7 @@ use crate::event::types::{KeyCode, KeyEvent, MouseEventKind};
 use crate::event::{Event, MouseEvent};
 use std::any::Any;
 use std::sync::Arc;
+use unicode_width::UnicodeWidthStr;
 
 /// Builder for creating RadioButton components with a fluent API
 #[derive(Clone, Debug)]
@@ -87,7 +88,7 @@ impl<T: Clone + PartialEq + Send + Sync + 'static> RadioButtonBuilder<T> {
 
     /// Build and render as an Element (convenience method)
     pub fn render(self) -> Element {
-        Element::component("RadioButton").with_props(self.build())
+        Element::typed::<RadioButton<T>>(self.build())
     }
 }
 
@@ -153,7 +154,7 @@ pub struct RadioButtonState {
 
 /// RadioButton component with full keyboard and mouse support
 pub struct RadioButton<T: Clone + PartialEq + Send + Sync + 'static> {
-    state: RadioButtonState,
+    viewport: Option<crate::component::LayoutInfo>,
     on_change: Option<Arc<dyn Fn(T) + Send + Sync>>,
     _phantom: std::marker::PhantomData<T>,
 }
@@ -172,63 +173,73 @@ impl<T: Clone + PartialEq + Send + Sync + 'static> Component for RadioButton<T> 
 
     fn new(_props: Self::Props) -> Self {
         Self {
-            state: RadioButtonState::default(),
+            viewport: None,
             on_change: None,
             _phantom: std::marker::PhantomData,
         }
     }
 
-    fn update(&mut self, _props: &Self::Props, state: &mut Self::State) -> bool {
-        self.state = state.clone();
+    fn update(&mut self, props: &Self::Props, state: &mut Self::State) -> bool {
+        if state.focused_index.is_some() {
+            state.focused_index = state
+                .focused_index
+                .filter(|&i| props.options.get(i).is_some_and(|o| !o.disabled))
+                .or_else(|| props.options.iter().position(|o| !o.disabled));
+        }
+        state.hover_index = state.hover_index.filter(|&i| i < props.options.len());
         true
     }
 
+    fn layout(
+        &mut self,
+        layout: crate::component::LayoutInfo,
+        _props: &mut Self::Props,
+        _state: &mut Self::State,
+    ) -> bool {
+        self.viewport = Some(layout);
+        false
+    }
+
     fn render(&self, props: &Self::Props, state: &Self::State) -> Element {
-        let mut result = String::new();
-
+        use crate::accessibility::{Node, Role, Toggled};
+        let mut root = Element::layout(crate::component::LayoutType::Flex)
+            .with_class(if props.orientation == RadioOrientation::Horizontal {
+                "flex flex-row gap-0.5 overflow-hidden"
+            } else {
+                "flex flex-col overflow-hidden"
+            })
+            .with_accessibility(Node::new(Role::RadioGroup))
+            .with_focus(crate::component::FocusProps::input())
+            .disabled(props.disabled || props.options.iter().all(|o| o.disabled));
         for (index, option) in props.options.iter().enumerate() {
-            // Add focus/hover indicators
-            if state.focused_index == Some(index) && !props.disabled && !option.disabled {
-                result.push_str("▶ ");
+            let disabled = props.disabled || option.disabled;
+            let mut node = Node::new(Role::RadioButton);
+            node.set_label(option.label.clone());
+            node.set_toggled(if props.selected.as_ref() == Some(&option.value) {
+                Toggled::True
             } else {
-                result.push_str("  ");
-            }
-
-            // Radio button symbol
-            result.push('(');
-            if props.selected.as_ref() == Some(&option.value) {
-                result.push('●'); // Selected
+                Toggled::False
+            });
+            if disabled {
+                node.set_disabled();
             } else {
-                result.push(' '); // Not selected
+                node.set_clickable();
             }
-            result.push(')');
-
-            // Add label
-            result.push(' ');
-            if props.disabled || option.disabled {
-                result.push_str(&format!("({})", option.label)); // Show disabled state
-            } else if state.hover_index == Some(index) {
-                result.push_str(&format!("_{}_", option.label)); // Show hover state
-            } else {
-                result.push_str(&option.label);
+            let mut child = Element::text(Self::option_text(index, props, state))
+                .with_key(format!("radio:{index}"))
+                .with_class("whitespace-pre shrink-0")
+                .with_accessibility(node);
+            if !disabled {
+                let options = child.metadata.accessibility_options.get_or_insert_default();
+                options.focus = state.focused_index == Some(index);
+                options.focus_event = Some(crate::event::CustomEvent::new(
+                    "reactive_tui.radio.focus",
+                    index.to_string().into_bytes(),
+                ));
             }
-
-            // Add separator based on orientation
-            match props.orientation {
-                RadioOrientation::Horizontal => {
-                    if index < props.options.len() - 1 {
-                        result.push_str("  ");
-                    }
-                }
-                RadioOrientation::Vertical => {
-                    if index < props.options.len() - 1 {
-                        result.push('\n');
-                    }
-                }
-            }
+            root = root.with_child(child);
         }
-
-        Element::text(result)
+        root
     }
 
     fn handle_event(
@@ -237,23 +248,44 @@ impl<T: Clone + PartialEq + Send + Sync + 'static> Component for RadioButton<T> 
         props: &mut Self::Props,
         state: &mut Self::State,
     ) -> EventResult {
-        if props.disabled {
+        if props.disabled && !matches!(event, Event::Focus(_)) {
             return EventResult::Ignored;
         }
 
         match event {
+            Event::Custom(event) if event.name == "reactive_tui.radio.focus" => {
+                let index = std::str::from_utf8(&event.data)
+                    .ok()
+                    .and_then(|value| value.parse::<usize>().ok());
+                if let Some(index) =
+                    index.filter(|&i| props.options.get(i).is_some_and(|o| !o.disabled))
+                {
+                    state.focused_index = Some(index);
+                    EventResult::Consumed
+                } else {
+                    EventResult::Ignored
+                }
+            }
             Event::Key(key_event) => self.handle_key_event(key_event, props, state),
             Event::Mouse(mouse_event) => self.handle_mouse_event(mouse_event, props, state),
-            Event::Focus(_) => {
-                if state.focused_index.is_none() && !props.options.is_empty() {
-                    // Focus first non-disabled option
-                    for (i, option) in props.options.iter().enumerate() {
-                        if !option.disabled {
-                            state.focused_index = Some(i);
-                            break;
-                        }
-                    }
-                }
+            Event::Focus(event)
+                if matches!(
+                    event.kind,
+                    crate::event::types::FocusEventKind::Gained
+                        | crate::event::types::FocusEventKind::Lost
+                ) =>
+            {
+                state.focused_index = if event.kind == crate::event::types::FocusEventKind::Gained
+                    && !props.disabled
+                {
+                    props
+                        .options
+                        .iter()
+                        .position(|o| !o.disabled && props.selected.as_ref() == Some(&o.value))
+                        .or_else(|| props.options.iter().position(|o| !o.disabled))
+                } else {
+                    None
+                };
                 EventResult::Consumed
             }
             _ => EventResult::Ignored,
@@ -262,69 +294,110 @@ impl<T: Clone + PartialEq + Send + Sync + 'static> Component for RadioButton<T> 
 }
 
 impl<T: Clone + PartialEq + Send + Sync + 'static> RadioButton<T> {
+    fn option_text(index: usize, props: &RadioButtonProps<T>, state: &RadioButtonState) -> String {
+        let option = &props.options[index];
+        let focus = if state.focused_index == Some(index) && !props.disabled && !option.disabled {
+            "▶ "
+        } else {
+            "  "
+        };
+        let mark = if props.selected.as_ref() == Some(&option.value) {
+            '●'
+        } else {
+            ' '
+        };
+        let label = if props.disabled || option.disabled {
+            format!("({})", option.label)
+        } else if state.hover_index == Some(index) {
+            format!("_{}_", option.label)
+        } else {
+            option.label.clone()
+        };
+        format!("{focus}({mark}) {label}")
+    }
+
+    fn select(
+        &self,
+        index: usize,
+        props: &mut RadioButtonProps<T>,
+        state: &mut RadioButtonState,
+    ) -> EventResult {
+        let Some(option) = props.options.get(index).filter(|o| !o.disabled) else {
+            return EventResult::Ignored;
+        };
+        state.focused_index = Some(index);
+        if props.selected.as_ref() != Some(&option.value) {
+            let value = option.value.clone();
+            props.selected = Some(value.clone());
+            if let Some(callback) = &self.on_change {
+                callback(value);
+            }
+        }
+        EventResult::Consumed
+    }
+
     fn handle_key_event(
         &mut self,
         event: &KeyEvent,
         props: &mut RadioButtonProps<T>,
         state: &mut RadioButtonState,
     ) -> EventResult {
-        let Some(current_index) = state.focused_index else {
+        let Some(current) = state.focused_index.filter(|&i| i < props.options.len()) else {
             return EventResult::Ignored;
         };
-
         match event.code {
-            KeyCode::Up | KeyCode::Left => {
-                // Move to previous non-disabled option
-                let mut new_index = current_index;
-                loop {
-                    if new_index == 0 {
-                        new_index = props.options.len() - 1;
-                    } else {
-                        new_index -= 1;
-                    }
-
-                    if new_index == current_index {
-                        break; // We've wrapped around
-                    }
-
-                    if !props.options[new_index].disabled {
-                        state.focused_index = Some(new_index);
-                        break;
-                    }
-                }
+            KeyCode::Up | KeyCode::Left | KeyCode::Down | KeyCode::Right => {
+                let len = props.options.len();
+                let backwards = matches!(event.code, KeyCode::Up | KeyCode::Left);
+                state.focused_index = (1..=len)
+                    .map(|offset| {
+                        if backwards {
+                            (current + len - offset) % len
+                        } else {
+                            (current + offset) % len
+                        }
+                    })
+                    .find(|&i| !props.options[i].disabled);
                 EventResult::Consumed
             }
-            KeyCode::Down | KeyCode::Right => {
-                // Move to next non-disabled option
-                let mut new_index = current_index;
-                loop {
-                    new_index = (new_index + 1) % props.options.len();
-
-                    if new_index == current_index {
-                        break; // We've wrapped around
-                    }
-
-                    if !props.options[new_index].disabled {
-                        state.focused_index = Some(new_index);
-                        break;
-                    }
-                }
-                EventResult::Consumed
-            }
-            KeyCode::Char(' ') | KeyCode::Enter => {
-                // Select the focused option
-                if current_index < props.options.len() && !props.options[current_index].disabled {
-                    let value = props.options[current_index].value.clone();
-                    props.selected = Some(value.clone());
-
-                    if let Some(on_change) = &self.on_change {
-                        on_change(value);
-                    }
-                }
-                EventResult::Consumed
+            KeyCode::Char(' ') | KeyCode::Space | KeyCode::Enter => {
+                self.select(current, props, state)
             }
             _ => EventResult::Ignored,
         }
+    }
+
+    fn option_at(
+        &self,
+        event: &MouseEvent,
+        props: &RadioButtonProps<T>,
+        state: &RadioButtonState,
+    ) -> Option<usize> {
+        let (mut x, mut y) = (event.position.x() as usize, event.position.y() as usize);
+        if let Some(layout) = self.viewport {
+            x = x.checked_sub(layout.insets[0] as usize)?;
+            y = y.checked_sub(layout.insets[1] as usize)?;
+            let (width, height) = layout.content_size();
+            if x >= width as usize || y >= height as usize {
+                return None;
+            }
+        }
+        if props.orientation == RadioOrientation::Vertical {
+            return (y < props.options.len() && x < Self::option_text(y, props, state).width())
+                .then_some(y);
+        }
+        if y != 0 {
+            return None;
+        }
+        let mut start = 0;
+        for index in 0..props.options.len() {
+            let end = start + Self::option_text(index, props, state).width();
+            if (start..end).contains(&x) {
+                return Some(index);
+            }
+            start = end + 2;
+        }
+        None
     }
 
     fn handle_mouse_event(
@@ -334,64 +407,22 @@ impl<T: Clone + PartialEq + Send + Sync + 'static> RadioButton<T> {
         state: &mut RadioButtonState,
     ) -> EventResult {
         match event.kind {
-            MouseEventKind::Click => {
-                let y = event.position.y() as usize;
-
-                // Determine which option was clicked based on orientation
-                let clicked_index = match props.orientation {
-                    RadioOrientation::Vertical => {
-                        // Each option is on its own line
-                        if y < props.options.len() {
-                            Some(y)
-                        } else {
-                            None
-                        }
-                    }
-                    RadioOrientation::Horizontal => {
-                        // All options on same line, need to calculate based on x position
-                        // This is a simplified implementation
-                        if y == 0 {
-                            Some(0) // For now, just select first option for horizontal
-                        } else {
-                            None
-                        }
-                    }
-                };
-
-                if let Some(index) = clicked_index {
-                    if index < props.options.len() && !props.options[index].disabled {
-                        state.focused_index = Some(index);
-                        let value = props.options[index].value.clone();
-                        props.selected = Some(value.clone());
-
-                        if let Some(on_change) = &self.on_change {
-                            on_change(value);
-                        }
-                        return EventResult::Consumed;
-                    }
-                }
+            MouseEventKind::Down | MouseEventKind::Click
+                if event.button == crate::event::types::MouseButton::Left =>
+            {
+                self.option_at(event, props, state)
+                    .map_or(EventResult::Ignored, |index| {
+                        self.select(index, props, state)
+                    })
+            }
+            MouseEventKind::Enter | MouseEventKind::Move => {
+                state.hover_index = self
+                    .option_at(event, props, state)
+                    .filter(|&i| !props.options[i].disabled);
                 EventResult::Ignored
             }
-            MouseEventKind::Move => {
-                // Track hover state
-                let y = event.position.y() as usize;
-
-                match props.orientation {
-                    RadioOrientation::Vertical => {
-                        if y < props.options.len() {
-                            state.hover_index = Some(y);
-                        } else {
-                            state.hover_index = None;
-                        }
-                    }
-                    RadioOrientation::Horizontal => {
-                        if y == 0 {
-                            state.hover_index = Some(0);
-                        } else {
-                            state.hover_index = None;
-                        }
-                    }
-                }
+            MouseEventKind::Leave => {
+                state.hover_index = None;
                 EventResult::Ignored
             }
             _ => EventResult::Ignored,

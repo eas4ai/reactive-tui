@@ -37,6 +37,26 @@ pub enum Event {
 }
 
 impl Event {
+    /// Native activation shared by builder and VDOM controls.
+    pub(crate) fn activates_control(&self) -> bool {
+        match self {
+            Event::Key(key) => {
+                key.kind == KeyEventKind::Press
+                    && !key.repeat
+                    && key.modifiers.is_empty()
+                    && matches!(
+                        key.code,
+                        KeyCode::Enter | KeyCode::Space | KeyCode::Char(' ')
+                    )
+            }
+            Event::Mouse(mouse) => {
+                mouse.button == MouseButton::Left
+                    && matches!(mouse.kind, MouseEventKind::Down | MouseEventKind::Click)
+            }
+            _ => false,
+        }
+    }
+
     /// Check if this is a keyboard event
     pub fn is_key(&self) -> bool {
         matches!(self, Event::Key(_))
@@ -380,9 +400,11 @@ pub enum MouseEventKind {
     Move,
     /// Mouse moved while button held (dragging)
     Drag,
-    /// Mouse cursor entered the terminal window
+    /// Mouse cursor entered the terminal window or a routed node's painted bounds.
     Enter,
-    /// Mouse cursor left the terminal window
+    /// Mouse cursor left the terminal window or a routed node's painted bounds.
+    /// Component-local leave positions may be outside the control; do not use
+    /// them to activate or select content.
     Leave,
     /// Mouse wheel was scrolled
     Wheel,

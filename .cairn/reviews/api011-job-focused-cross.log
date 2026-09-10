@@ -1,0 +1,42 @@
+    Updating crates.io index
+     Locking 18 packages to latest compatible versions
+      Adding block-buffer v0.10.4
+      Adding cpufeatures v0.2.17
+      Adding crypto-common v0.1.7
+      Adding digest v0.10.7
+      Adding generic-array v0.14.7 (available: v0.14.9)
+      Adding itoa v1.0.18
+      Adding libloading v0.8.9 (available: v0.9.0)
+      Adding memchr v2.8.3
+      Adding serde v1.0.229
+      Adding serde_core v1.0.229
+      Adding serde_derive v1.0.229
+      Adding serde_json v1.0.151
+      Adding sha2 v0.10.9 (available: v0.11.0)
+      Adding syn v3.0.5
+      Adding typenum v1.20.1
+      Adding version_check v0.9.5
+      Adding windows-link v0.2.1
+      Adding zmij v1.0.23
+   Compiling version_check v0.9.5
+    Checking typenum v1.20.1
+   Compiling serde_core v1.0.229
+   Compiling zmij v1.0.23
+   Compiling serde_json v1.0.151
+   Compiling serde v1.0.229
+   Compiling syn v3.0.5
+    Checking windows-sys v0.59.0
+    Checking windows-link v0.2.1
+    Checking memchr v2.8.3
+    Checking cpufeatures v0.2.17
+   Compiling generic-array v0.14.7
+    Checking itoa v1.0.18
+    Checking libloading v0.8.9
+    Checking tempfile v3.27.0
+    Checking block-buffer v0.10.4
+    Checking crypto-common v0.1.7
+   Compiling serde_derive v1.0.229
+    Checking digest v0.10.7
+    Checking sha2 v0.10.9
+    Checking reactive-tui v0.0.0 (/tmp/reactive-conpty-check-9o4nn_7h)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 14.27s

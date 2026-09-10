@@ -1,0 +1,93 @@
+#!/usr/bin/env python3
+"""Force missing and stalled private buses through App and verify terminal cleanup."""
+import argparse
+import fcntl
+import os
+from pathlib import Path
+import pty
+import select
+import signal
+import socket
+import struct
+import subprocess
+import tempfile
+import termios
+import time
+
+
+def probe(binary, directory, stalled, automatic=False):
+    endpoint = directory / ("stalled.sock" if stalled else "missing.sock")
+    server = socket.socket(socket.AF_UNIX) if stalled else None
+    master, slave = pty.openpty()
+    child = None
+    try:
+        if server:
+            server.bind(str(endpoint))
+            server.listen(1)  # Accept the connection without answering its authentication.
+        fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack("HHHH", 10, 32, 0, 0))
+        original = termios.tcgetattr(slave)
+        env = os.environ.copy()
+        env["DBUS_SESSION_BUS_ADDRESS"] = "unix:path=" + str(endpoint)
+        if automatic:
+            env.pop("DBUS_SESSION_BUS_ADDRESS", None)
+        env.pop("AT_SPI_BUS_ADDRESS", None)
+        env.pop("DBUS_STARTER_ADDRESS", None)
+        start = time.monotonic()
+        command = [binary, str(directory / "callbacks.jsonl")]
+        if automatic:
+            command.append("--automatic")
+        child = subprocess.Popen(command,
+                                 stdin=slave, stdout=slave, stderr=slave,
+                                 env=env, start_new_session=True)
+        output = bytearray()
+        next_key = start + 0.2
+        # Drain terminal output during execution: a full PTY would block the
+        # renderer before App can observe the independent transport failure.
+        while child.poll() is None:
+            if time.monotonic() - start > 8:
+                raise AssertionError(f"App did not stop after bus failure: {output[-2000:].decode(errors='replace')!r}")
+            if select.select([master], [], [], 0.05)[0]:
+                output.extend(os.read(master, 16384))
+                assert len(output) < 1_000_000, "unexpected fixture output volume"
+            if automatic and time.monotonic() >= next_key:
+                os.write(master, b"\x1b[20~")  # F9 closes each successive App.
+                next_key = time.monotonic() + 0.2
+        child.wait(timeout=1)
+        elapsed = time.monotonic() - start
+        while select.select([master], [], [], 0)[0]:
+            output.extend(os.read(master, 16384))
+            assert len(output) < 1_000_000, "unexpected fixture output volume"
+        text = output.decode(errors="replace")
+        if automatic:
+            assert child.returncode == 0, text
+        else:
+            assert child.returncode != 0, "unavailable screen-reader transport reported success"
+            assert "screen-reader session-bus connection" in text, text
+            if stalled:
+                assert "3000 ms deadline" in text, text
+                assert elapsed >= 2.5, "the stalled connection did not reach its deadline"
+        assert elapsed < 7, elapsed
+        assert termios.tcgetattr(slave) == original, "App left the terminal in raw mode"
+        assert b"\x1b[?1049l" in output, "App did not leave its alternate screen"
+        if automatic:
+            print(f"A11Y automatic mode without desktop bus: ordinary App input and cleanup passed in {elapsed:.2f}s")
+        else:
+            print(f"A11Y {'stalled' if stalled else 'missing'} bus: error returned and terminal restored in {elapsed:.2f}s")
+    finally:
+        if child and child.poll() is None:
+            os.killpg(child.pid, signal.SIGKILL)
+            child.wait(timeout=3)
+        os.close(master)
+        os.close(slave)
+        if server:
+            server.close()
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--binary", required=True)
+    args = parser.parse_args()
+    with tempfile.TemporaryDirectory(prefix="rtui-a11y-failure-") as temporary:
+        for stalled in [False, True]:
+            probe(str(Path(args.binary).resolve()), Path(temporary), stalled)
+        probe(str(Path(args.binary).resolve()), Path(temporary), False, automatic=True)

@@ -13,6 +13,8 @@ use std::any::Any;
 use std::sync::Arc;
 use std::time::Duration;
 
+mod live;
+
 /// Toast notification types
 #[derive(Debug, Clone, PartialEq)]
 pub enum ToastType {
@@ -43,6 +45,17 @@ pub struct ToastOptions {
     pub closable: bool,
     /// Optional callback when toast is closed
     pub on_close: Option<Arc<dyn Fn() + Send + Sync>>,
+}
+
+impl PartialEq for ToastOptions {
+    fn eq(&self, other: &Self) -> bool {
+        self.message == other.message
+            && self.toast_type == other.toast_type
+            && self.duration == other.duration
+            && self.position == other.position
+            && self.closable == other.closable
+            && crate::widgets::display::overlay::same_callback(&self.on_close, &other.on_close)
+    }
 }
 
 impl std::fmt::Debug for ToastOptions {
@@ -85,6 +98,13 @@ pub struct Toast {
 }
 
 impl Toast {
+    pub(crate) fn element(options: ToastOptions, class: Option<String>) -> Element {
+        Element::typed::<live::LiveToast>(live::LiveProps {
+            options,
+            class,
+            bounds: Rect::default(),
+        })
+    }
     /// Create a new toast notification
     pub fn new(id: DialogId, options: ToastOptions) -> Self {
         let auto_dismiss_time = options.duration.map(|_| std::time::Instant::now());
@@ -105,8 +125,12 @@ impl DialogComponent for Toast {
     fn dialog_type(&self) -> &'static str {
         "toast"
     }
-    fn render(&self, _bounds: Rect, _theme: &DialogTheme) -> Element {
-        Element::empty()
+    fn render(&self, bounds: Rect, _theme: &DialogTheme) -> Element {
+        Element::typed::<live::LiveToast>(live::LiveProps {
+            options: self.options.clone(),
+            class: None,
+            bounds,
+        })
     }
     fn handle_event(&mut self, _event: &Event) -> DialogEventResult {
         DialogEventResult::NotHandled

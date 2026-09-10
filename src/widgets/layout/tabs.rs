@@ -1,9 +1,11 @@
-use crate::component::{Component, Element, Props};
+use crate::accessibility::{Node, Role};
+use crate::component::{Component, Element, LayoutInfo, LayoutType, Props};
 use crate::event::router::EventResult;
-use crate::event::types::{FocusEventKind, KeyCode, KeyEvent, MouseEventKind};
+use crate::event::types::{FocusEventKind, KeyCode, MouseEventKind};
 use crate::event::{Event, MouseEvent};
 use std::any::Any;
-use std::sync::Arc;
+use std::collections::HashSet;
+use std::sync::{Arc, Mutex};
 
 /// Tab orientation options
 #[derive(Clone, Debug, PartialEq)]
@@ -277,7 +279,7 @@ impl TabsBuilder {
 
     /// Build and render as an Element (convenience method)
     pub fn render(self) -> Element {
-        Element::component("Tabs").with_props(self.build())
+        Element::typed::<Tabs>(self.build())
     }
 }
 
@@ -357,24 +359,106 @@ pub struct TabsState {
     pub is_focused: bool,
 }
 
+#[derive(Clone, Copy, Default)]
+struct TabTarget {
+    header: Option<LayoutInfo>,
+    close: Option<LayoutInfo>,
+}
+
 /// Tabs component with full keyboard and mouse support
 pub struct Tabs {
-    state: TabsState,
+    authored: TabsProps,
+    live: TabsProps,
+    identities: Vec<TabIdentity>,
+    closed: HashSet<TabIdentity>,
+    received_event: bool,
+    viewport: Option<LayoutInfo>,
+    targets: Arc<Mutex<Vec<TabTarget>>>,
     on_change: Option<Arc<dyn Fn(usize) + Send + Sync>>,
     on_close: Option<Arc<dyn Fn(usize) + Send + Sync>>,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+enum TabIdentity {
+    Key(String),
+    Position(usize),
+}
+
+fn identities(props: &TabsProps) -> Vec<TabIdentity> {
+    props
+        .tabs
+        .iter()
+        .enumerate()
+        .map(|(i, tab)| {
+            tab.content
+                .key
+                .clone()
+                .map_or(TabIdentity::Position(i), TabIdentity::Key)
+        })
+        .collect()
+}
+
 impl Tabs {
-    /// Set the onChange callback (called when active tab changes)
+    fn reconcile(&mut self, props: &TabsProps, state: &mut TabsState) {
+        let focused = state
+            .focused_tab
+            .and_then(|i| self.identities.get(i))
+            .cloned();
+        let selected = Self::active(&self.live)
+            .and_then(|i| self.identities.get(i))
+            .cloned();
+        let incoming = identities(props);
+        self.closed.retain(|id| incoming.contains(id));
+        let authored_selection_changed = props.active_tab != self.authored.active_tab;
+        let selected = if authored_selection_changed {
+            let selected = incoming.get(props.active_tab).cloned();
+            if let Some(id) = &selected {
+                self.closed.remove(id);
+            }
+            selected
+        } else {
+            selected
+        };
+        self.live = props.clone();
+        self.live.tabs = props
+            .tabs
+            .iter()
+            .zip(&incoming)
+            .filter(|(_, id)| !self.closed.contains(id))
+            .map(|(tab, _)| tab.clone())
+            .collect();
+        self.identities = incoming
+            .into_iter()
+            .filter(|id| !self.closed.contains(id))
+            .collect();
+        self.live.active_tab = selected
+            .and_then(|id| self.identities.iter().position(|i| *i == id))
+            .unwrap_or(0);
+        state.focused_tab = focused
+            .and_then(|id| self.identities.iter().position(|i| *i == id))
+            .filter(|&i| !self.live.tabs[i].disabled)
+            .or_else(|| Self::active(&self.live));
+        self.authored = props.clone();
+    }
+    /// Set the callback for an active tab change.
     pub fn with_on_change(mut self, f: impl Fn(usize) + Send + Sync + 'static) -> Self {
         self.on_change = Some(Arc::new(f));
         self
     }
 
-    /// Set the onClose callback (called when a tab is closed)
+    /// Request that the parent close a tab. The parent owns tab removal.
     pub fn with_on_close(mut self, f: impl Fn(usize) + Send + Sync + 'static) -> Self {
         self.on_close = Some(Arc::new(f));
         self
+    }
+
+    fn active(props: &TabsProps) -> Option<usize> {
+        props
+            .tabs
+            .get(props.active_tab)
+            .filter(|t| !t.disabled)
+            .map(|_| props.active_tab)
+            .or_else(|| props.tabs.iter().position(|t| !t.disabled))
     }
 
     fn find_next_enabled_tab(
@@ -387,22 +471,64 @@ impl Tabs {
         if len == 0 {
             return None;
         }
+        let current = current.min(len - 1);
+        (1..=len)
+            .map(|offset| {
+                if direction > 0 {
+                    (current + offset) % len
+                } else {
+                    (current + len - offset) % len
+                }
+            })
+            .find(|&i| !props.tabs[i].disabled)
+    }
 
-        let mut index = current;
-        for _ in 0..len {
-            index = if direction > 0 {
-                (index + 1) % len
-            } else if index == 0 {
-                len - 1
-            } else {
-                index - 1
-            };
-
-            if !props.tabs[index].disabled {
-                return Some(index);
+    fn activate(&self, index: usize, props: &mut TabsProps, state: &mut TabsState) {
+        if props.tabs.get(index).is_none_or(|t| t.disabled) {
+            return;
+        }
+        state.focused_tab = Some(index);
+        let changed = Self::active(props) != Some(index);
+        props.active_tab = index;
+        if changed {
+            if let Some(callback) = &self.on_change {
+                callback(index);
             }
         }
-        None
+    }
+
+    fn close(&mut self, index: usize, props: &mut TabsProps, state: &mut TabsState) {
+        if props
+            .tabs
+            .get(index)
+            .is_none_or(|tab| tab.disabled || !(tab.closable || props.closable))
+        {
+            return;
+        }
+        if let Some(callback) = &self.on_close {
+            callback(index);
+            return;
+        }
+        // Without a parent close callback, the built-in control owns removal.
+        let active = Self::active(props);
+        if index < self.identities.len() {
+            self.closed.insert(self.identities.remove(index));
+        }
+        props.tabs.remove(index);
+        props.active_tab = active.map_or(0, |active| {
+            if index < active {
+                active - 1
+            } else {
+                active.min(props.tabs.len().saturating_sub(1))
+            }
+        });
+        state.focused_tab = Self::active(props);
+        state.hover_tab = None;
+        if active == Some(index) {
+            if let (Some(next), Some(callback)) = (Self::active(props), &self.on_change) {
+                callback(next);
+            }
+        }
     }
 
     fn render_tab_header(
@@ -412,262 +538,77 @@ impl Tabs {
         props: &TabsProps,
         state: &TabsState,
     ) -> String {
-        let is_active = index == props.active_tab;
-        let is_focused = state.focused_tab == Some(index);
-        let is_hovered = state.hover_tab == Some(index);
-
-        let mut header = String::new();
-
-        // Add focus/hover indicator
-        if is_focused && state.is_focused {
-            header.push('▶');
-        } else if is_hovered {
-            header.push('→');
+        let focus = if state.is_focused && state.focused_tab == Some(index) {
+            "▶"
+        } else if state.hover_tab == Some(index) {
+            "→"
         } else {
-            header.push(' ');
-        }
-
-        // Add icon if present
+            " "
+        };
+        let mut label = String::from(focus);
         if let Some(icon) = &tab.icon {
-            header.push_str(icon);
-            header.push(' ');
+            label.push_str(icon);
+            label.push(' ');
         }
-
-        // Style the tab based on variant and state
-        match props.variant {
-            TabVariant::Line => {
-                if is_active {
-                    header.push_str(&format!("┌─{}─┐", "─".repeat(tab.label.len())));
-                    header.push('\n');
-                    header.push_str(&format!("│ {} │", tab.label));
-                    header.push('\n');
-                    header.push_str(&format!("└─{}─┘", "─".repeat(tab.label.len())));
-                } else if is_focused {
-                    header.push_str(&format!("[{}]", tab.label));
-                } else {
-                    header.push_str(&tab.label);
-                }
-            }
-            TabVariant::Enclosed => {
-                if is_active || is_focused {
-                    header.push_str(&format!("┌{}┐", "─".repeat(tab.label.len() + 2)));
-                    header.push('\n');
-                    header.push_str(&format!("│ {} │", tab.label));
-                    header.push('\n');
-                    header.push_str(&format!("└{}┘", "─".repeat(tab.label.len() + 2)));
-                } else {
-                    header.push_str(&tab.label);
-                }
-            }
-            TabVariant::Soft => {
-                if is_active {
-                    header.push_str(&format!("⟦{}⟧", tab.label));
-                } else if is_focused {
-                    header.push_str(&format!("⟨{}⟩", tab.label));
-                } else {
-                    header.push_str(&tab.label);
-                }
-            }
-            TabVariant::Solid => {
-                if is_active {
-                    header.push_str(&format!("■ {} ■", tab.label));
-                } else if is_focused {
-                    header.push_str(&format!("▣ {} ▣", tab.label));
-                } else {
-                    header.push_str(&format!("□ {} □", tab.label));
-                }
-            }
-            TabVariant::Unstyled => {
-                header.push_str(&tab.label);
-            }
-        }
-
-        // Add badge if present
+        label.push_str(&tab.label);
         if let Some(badge) = &tab.badge {
-            let badge_char = match badge.variant {
+            let mark = match badge.variant {
                 TabBadgeVariant::Default => "●",
                 TabBadgeVariant::Success => "✓",
                 TabBadgeVariant::Warning => "⚠",
                 TabBadgeVariant::Error => "✗",
                 TabBadgeVariant::Info => "ⓘ",
             };
-            header.push_str(&format!(" {}{}", badge_char, badge.text));
+            label.push_str(&format!(" {mark}{}", badge.text));
         }
-
-        // Add close button if closable
-        if (tab.closable || props.closable) && !tab.disabled {
-            header.push_str(" ✕");
+        if props.disabled || tab.disabled {
+            label = format!("~{label}~");
         }
-
-        // Show disabled state
-        if tab.disabled {
-            header = format!("~{header}~");
-        }
-
-        header
+        label
     }
 
-    fn render_tab_list(&self, props: &TabsProps, state: &TabsState) -> String {
-        if props.tabs.is_empty() {
-            return String::new();
-        }
-
-        let mut tab_headers = Vec::new();
-
-        for (index, tab) in props.tabs.iter().enumerate() {
-            let header = self.render_tab_header(tab, index, props, state);
-            tab_headers.push(header);
-        }
-
-        match props.orientation {
-            TabOrientation::Horizontal => {
-                // Join tabs horizontally with spacing
-                match props.position {
-                    TabPosition::Top | TabPosition::Bottom => tab_headers.join("  "),
-                    TabPosition::Left | TabPosition::Right => tab_headers.join("\n"),
+    fn measured(&self, mut element: Element, index: usize, close: bool) -> Element {
+        let targets = self.targets.clone();
+        element.metadata.layout.push(Arc::new(move |layout| {
+            if let Some(target) = targets.lock().unwrap().get_mut(index) {
+                if close {
+                    target.close = Some(layout);
+                } else {
+                    target.header = Some(layout);
                 }
             }
-            TabOrientation::Vertical => {
-                // Join tabs vertically
-                tab_headers.join("\n")
-            }
-        }
+            false
+        }));
+        element
     }
 
-    fn render_tab_content(&self, props: &TabsProps) -> String {
-        if props.tabs.is_empty() || props.active_tab >= props.tabs.len() {
-            return String::new();
-        }
-
-        let active_tab = &props.tabs[props.active_tab];
-        // For now, render only the active tab's content as plain text by walking the Element tree.
-        self.render_element_text(&active_tab.content)
-    }
-
-    #[allow(clippy::only_used_in_recursion)]
-    fn render_element_text(&self, element: &crate::component::Element) -> String {
-        match &element.element_type {
-            crate::component::ElementType::Text(t) => t.clone(),
-            _ => element
-                .children
-                .iter()
-                .map(|child| self.render_element_text(child))
-                .filter(|s| !s.is_empty())
-                .collect::<Vec<_>>()
-                .join("\n"),
-        }
-    }
-
-    fn get_tab_at_position(&self, props: &TabsProps, x: usize, y: usize) -> Option<usize> {
-        if props.tabs.is_empty() {
-            return None;
-        }
-
-        // Calculate actual tab positions based on rendered text
-        let mut tab_positions = Vec::new();
-        let mut current_x = 0;
-        let mut current_y = 0;
-
-        for tab in props.tabs.iter() {
-            // Calculate tab width including decorations
-            let label_width = tab.label.len();
-            let icon_width = tab.icon.as_ref().map(|i| i.len() + 1).unwrap_or(0);
-            let badge_width = tab.badge.as_ref().map(|b| b.text.len() + 2).unwrap_or(0);
-            let close_width = if tab.closable || props.closable { 2 } else { 0 };
-            let focus_indicator = 1; // Space for focus/hover indicator
-
-            let total_width =
-                focus_indicator + icon_width + label_width + badge_width + close_width + 2; // +2 for padding
-
-            match props.orientation {
-                TabOrientation::Horizontal => {
-                    tab_positions.push((
-                        current_x,
-                        current_y,
-                        current_x + total_width,
-                        current_y + 1,
-                    ));
-                    current_x += total_width + 2; // Add spacing between tabs
+    fn target_at(&self, event: &MouseEvent) -> Option<(usize, bool)> {
+        let root = self.viewport?;
+        let [a, b, c, d, tx, ty] = root.transform;
+        let (x, y) = (event.position.x() as f32, event.position.y() as f32);
+        let (x, y) = (a * x + c * y + tx, b * x + d * y + ty);
+        let contains = |layout: LayoutInfo| {
+            let clip = layout.clip;
+            x >= clip.x
+                && y >= clip.y
+                && x < clip.x + clip.width
+                && y < clip.y + clip.height
+                && layout.local_cell(x, y).is_some()
+        };
+        self.targets
+            .lock()
+            .unwrap()
+            .iter()
+            .enumerate()
+            .find_map(|(i, target)| {
+                if target.close.is_some_and(contains) {
+                    Some((i, true))
+                } else if target.header.is_some_and(contains) {
+                    Some((i, false))
+                } else {
+                    None
                 }
-                TabOrientation::Vertical => {
-                    let line_height = match props.variant {
-                        TabVariant::Line | TabVariant::Enclosed => 3, // Multi-line variants
-                        _ => 1,                                       // Single line variants
-                    };
-                    tab_positions.push((0, current_y, total_width, current_y + line_height));
-                    current_y += line_height;
-                }
-            }
-        }
-
-        // Find which tab was clicked
-        for (index, (x1, y1, x2, y2)) in tab_positions.iter().enumerate() {
-            if x >= *x1 && x < *x2 && y >= *y1 && y < *y2 {
-                return Some(index);
-            }
-        }
-
-        None
-    }
-
-    fn is_close_button_clicked(
-        &self,
-        props: &TabsProps,
-        tab_index: usize,
-        x: usize,
-        y: usize,
-    ) -> bool {
-        if tab_index >= props.tabs.len() {
-            return false;
-        }
-
-        let tab = &props.tabs[tab_index];
-        if !tab.closable && !props.closable {
-            return false;
-        }
-
-        // Calculate the exact position of the close button
-        let mut tab_end_x = 1; // Focus indicator
-        tab_end_x += tab.icon.as_ref().map(|i| i.len() + 1).unwrap_or(0);
-        tab_end_x += tab.label.len();
-        tab_end_x += tab.badge.as_ref().map(|b| b.text.len() + 2).unwrap_or(0);
-        tab_end_x += 1; // Space before close button
-
-        // For horizontal tabs, accumulate x position
-        if props.orientation == TabOrientation::Horizontal && tab_index > 0 {
-            for i in 0..tab_index {
-                let prev_tab = &props.tabs[i];
-                let prev_width = 1
-                    + prev_tab.icon.as_ref().map(|i| i.len() + 1).unwrap_or(0)
-                    + prev_tab.label.len()
-                    + prev_tab
-                        .badge
-                        .as_ref()
-                        .map(|b| b.text.len() + 2)
-                        .unwrap_or(0)
-                    + (if prev_tab.closable || props.closable {
-                        2
-                    } else {
-                        0
-                    })
-                    + 2;
-                tab_end_x += prev_width + 2; // +2 for spacing
-            }
-        }
-
-        // Check if click is on the close button (✕ is 1 char wide)
-        match props.orientation {
-            TabOrientation::Horizontal => x >= tab_end_x && x <= tab_end_x + 1,
-            TabOrientation::Vertical => {
-                // For vertical tabs, check both x and y
-                let line_height = match props.variant {
-                    TabVariant::Line | TabVariant::Enclosed => 3,
-                    _ => 1,
-                };
-                let tab_y = tab_index * line_height;
-                y >= tab_y && y < tab_y + line_height && x >= tab_end_x && x <= tab_end_x + 1
-            }
-        }
+            })
     }
 }
 
@@ -675,256 +616,314 @@ impl Component for Tabs {
     type Props = TabsProps;
     type State = TabsState;
 
-    fn new(_props: Self::Props) -> Self {
+    fn new(props: Self::Props) -> Self {
         Self {
-            state: TabsState::default(),
+            authored: props.clone(),
+            identities: identities(&props),
+            live: props,
+            closed: HashSet::new(),
+            received_event: false,
+            viewport: None,
+            targets: Arc::new(Mutex::new(Vec::new())),
             on_change: None,
             on_close: None,
         }
     }
 
-    fn update(&mut self, _props: &Self::Props, state: &mut Self::State) -> bool {
-        self.state = state.clone();
+    fn update(&mut self, props: &Self::Props, state: &mut Self::State) -> bool {
+        self.reconcile(props, state);
+        let props = &self.live;
+        if state
+            .focused_tab
+            .is_none_or(|i| props.tabs.get(i).is_none_or(|t| t.disabled))
+        {
+            state.focused_tab = Self::active(props);
+        }
         true
     }
 
-    fn render(&self, props: &Self::Props, state: &Self::State) -> Element {
-        if props.tabs.is_empty() {
-            return Element::text("No tabs");
+    fn layout(
+        &mut self,
+        layout: LayoutInfo,
+        _props: &mut Self::Props,
+        _state: &mut Self::State,
+    ) -> bool {
+        self.viewport = Some(layout);
+        false
+    }
+
+    fn render(&self, _props: &Self::Props, state: &Self::State) -> Element {
+        let props = &self.live;
+        // Discard targets from the previous structure; callbacks replace them after presentation.
+        *self.targets.lock().unwrap() = vec![TabTarget::default(); props.tabs.len()];
+        let active = Self::active(props);
+        let vertical = props.orientation == TabOrientation::Vertical
+            || matches!(props.position, TabPosition::Left | TabPosition::Right);
+        let mut headers = Vec::new();
+        for (index, tab) in props.tabs.iter().enumerate() {
+            let mut label = Element::text(self.render_tab_header(tab, index, props, state))
+                .with_class("whitespace-pre shrink-0");
+            if active == Some(index) {
+                label = label.with_class(match props.variant {
+                    TabVariant::Line => "underline",
+                    TabVariant::Enclosed => "border",
+                    TabVariant::Soft => "bg-gray-700",
+                    TabVariant::Solid => "bg-blue-600 text-white",
+                    TabVariant::Unstyled => "",
+                });
+            }
+            let padding = match props.size {
+                TabSize::Small => "px-0",
+                TabSize::Medium => "px-0.5",
+                TabSize::Large => "px-1",
+            };
+            let mut children = vec![label];
+            if (props.closable || tab.closable) && !props.disabled && !tab.disabled {
+                let mut semantic = Node::new(Role::Button);
+                semantic.set_label(format!("Close {} tab", tab.label));
+                semantic.set_clickable();
+                let mut close = Element::text(" ✕")
+                    .with_class("whitespace-pre shrink-0")
+                    .with_accessibility(semantic);
+                close
+                    .metadata
+                    .accessibility_options
+                    .get_or_insert_default()
+                    .click_event = Some(crate::event::CustomEvent::new(
+                    "reactive_tui.tabs.close",
+                    index.to_string().into_bytes(),
+                ));
+                children.push(self.measured(close, index, true));
+            }
+            let enabled = !props.disabled && !tab.disabled;
+            let mut semantic = Node::new(Role::Tab);
+            semantic.set_label(&tab.label);
+            semantic.set_selected(active == Some(index));
+            if enabled {
+                semantic.set_clickable();
+            } else {
+                semantic.set_disabled();
+            }
+            let mut header = Element::layout(LayoutType::Flex)
+                .with_key(format!("header-{:?}", self.identities[index]))
+                .with_class(format!("flex flex-row items-center shrink-0 {padding}"))
+                .with_children(children)
+                .with_accessibility(semantic);
+            if enabled {
+                let options = header
+                    .metadata
+                    .accessibility_options
+                    .get_or_insert_default();
+                options.focus = state.is_focused && state.focused_tab == Some(index);
+                options.focus_event = Some(crate::event::CustomEvent::new(
+                    "reactive_tui.tabs.focus",
+                    index.to_string().into_bytes(),
+                ));
+                options.click_event = Some(crate::event::CustomEvent::new(
+                    "reactive_tui.tabs.activate",
+                    index.to_string().into_bytes(),
+                ));
+            }
+            headers.push(self.measured(header, index, false));
         }
-
-        let tab_list = self.render_tab_list(props, state);
-        let tab_content = self.render_tab_content(props);
-
-        let result = match props.position {
-            TabPosition::Top => {
-                format!("{}\n{}\n{}", tab_list, "─".repeat(80), tab_content)
-            }
-            TabPosition::Bottom => {
-                format!("{}\n{}\n{}", tab_content, "─".repeat(80), tab_list)
-            }
-            TabPosition::Left => {
-                // Split content and render side by side
-                let tab_lines: Vec<&str> = tab_list.lines().collect();
-                let content_lines: Vec<&str> = tab_content.lines().collect();
-                let max_lines = tab_lines.len().max(content_lines.len());
-
-                let mut combined_lines = Vec::new();
-                for i in 0..max_lines {
-                    let tab_line = tab_lines.get(i).unwrap_or(&"");
-                    let content_line = content_lines.get(i).unwrap_or(&"");
-                    combined_lines.push(format!("{tab_line:<20} │ {content_line}"));
+        let header = Element::layout(LayoutType::Flex)
+            .with_key("headers")
+            .with_class(if vertical {
+                "flex flex-col shrink-0"
+            } else {
+                "flex flex-row shrink-0"
+            })
+            .with_children(headers)
+            .with_accessibility(Node::new(Role::TabList))
+            .with_accessibility_label("Tabs");
+        let panels = props
+            .tabs
+            .iter()
+            .enumerate()
+            .filter_map(|(index, tab)| {
+                if props.lazy_loading && active != Some(index) {
+                    return None;
                 }
-                combined_lines.join("\n")
-            }
-            TabPosition::Right => {
-                // Split content and render side by side (content first)
-                let tab_lines: Vec<&str> = tab_list.lines().collect();
-                let content_lines: Vec<&str> = tab_content.lines().collect();
-                let max_lines = tab_lines.len().max(content_lines.len());
-
-                let mut combined_lines = Vec::new();
-                for i in 0..max_lines {
-                    let tab_line = tab_lines.get(i).unwrap_or(&"");
-                    let content_line = content_lines.get(i).unwrap_or(&"");
-                    combined_lines.push(format!("{content_line} │ {tab_line:<20}"));
-                }
-                combined_lines.join("\n")
-            }
+                Some(
+                    Element::layout(LayoutType::Flex)
+                        .with_key(format!("panel-{:?}", self.identities[index]))
+                        .with_class(if active == Some(index) {
+                            "flex flex-col min-w-0"
+                        } else {
+                            "hidden"
+                        })
+                        .with_child(tab.content.clone())
+                        .with_accessibility(Node::new(Role::TabPanel))
+                        .with_accessibility_label(format!("{} panel", tab.label)),
+                )
+            })
+            .collect();
+        let content = Element::layout(LayoutType::Flex)
+            .with_key("panels")
+            .with_class("flex flex-col flex-1 min-w-0 overflow-hidden")
+            .with_children(panels);
+        let mut children = if matches!(props.position, TabPosition::Bottom | TabPosition::Right) {
+            vec![content, header]
+        } else {
+            vec![header, content]
         };
-
-        Element::text(result)
+        if let Some(tooltip) = state
+            .hover_tab
+            .and_then(|index| props.tabs.get(index))
+            .and_then(|tab| tab.tooltip.as_ref())
+        {
+            children.push(Element::text(tooltip).with_key("tooltip")
+                .with_class("absolute bottom-0 left-0 z-10 bg-gray-800 text-white whitespace-pre overflow-hidden"));
+        }
+        let mut root = Element::layout(LayoutType::Flex)
+            .with_class(
+                if matches!(props.position, TabPosition::Left | TabPosition::Right) {
+                    "flex flex-row min-w-0 overflow-hidden"
+                } else {
+                    "flex flex-col min-w-0 overflow-hidden"
+                },
+            )
+            .with_children(children)
+            .with_accessibility(Node::new(Role::Group));
+        root.focus = Some(crate::component::FocusProps::input());
+        root.metadata.disabled = props.disabled || active.is_none();
+        root
     }
 
     fn handle_event(
         &mut self,
         event: &Event,
-        props: &mut Self::Props,
+        supplied: &mut Self::Props,
         state: &mut Self::State,
     ) -> EventResult {
-        if props.disabled {
-            return EventResult::Ignored;
+        // Direct Component users may pass their initial props on first delivery.
+        if !self.received_event && self.authored != *supplied {
+            self.reconcile(supplied, state);
         }
-
-        match event {
-            Event::Key(key_event) => self.handle_key_event(key_event, props, state),
-            Event::Mouse(mouse_event) => self.handle_mouse_event(mouse_event, props, state),
-            Event::Focus(focus_event) => {
-                match focus_event.kind {
-                    FocusEventKind::Gained => {
-                        state.is_focused = true;
-                        state.focused_tab = Some(props.active_tab);
-                    }
-                    FocusEventKind::Lost => {
-                        state.is_focused = false;
-                        state.focused_tab = None;
-                        state.hover_tab = None;
-                    }
-                    _ => {}
-                }
-                EventResult::Consumed
-            }
-            _ => EventResult::Ignored,
-        }
+        self.received_event = true;
+        let mut current = self.live.clone();
+        let result = self.dispatch(event, &mut current, state);
+        self.live = current.clone();
+        *supplied = current;
+        result
     }
 }
 
 impl Tabs {
-    fn handle_key_event(
+    fn dispatch(
         &mut self,
-        event: &KeyEvent,
+        event: &Event,
         props: &mut TabsProps,
         state: &mut TabsState,
     ) -> EventResult {
-        if !state.is_focused {
+        if let Event::Focus(focus) = event {
+            match focus.kind {
+                FocusEventKind::Gained if !props.disabled => {
+                    state.is_focused = true;
+                    state.focused_tab = Self::active(props);
+                }
+                FocusEventKind::Lost => {
+                    state.is_focused = false;
+                    state.hover_tab = None;
+                }
+                _ => return EventResult::Ignored,
+            }
+            return EventResult::Consumed;
+        }
+        if props.disabled {
             return EventResult::Ignored;
         }
-
-        let current_focused = state.focused_tab.unwrap_or(props.active_tab);
-
-        match event.code {
-            KeyCode::Left | KeyCode::Up => {
-                // Move focus to previous tab
-                if let Some(prev_tab) = self.find_next_enabled_tab(props, current_focused, -1) {
-                    state.focused_tab = Some(prev_tab);
-
-                    // Auto-activate if enabled
+        match event {
+            Event::Custom(event)
+                if matches!(
+                    event.name.as_str(),
+                    "reactive_tui.tabs.focus"
+                        | "reactive_tui.tabs.activate"
+                        | "reactive_tui.tabs.close"
+                ) =>
+            {
+                let Some(index) = std::str::from_utf8(&event.data)
+                    .ok()
+                    .and_then(|s| s.parse::<usize>().ok())
+                    .filter(|&i| props.tabs.get(i).is_some_and(|tab| !tab.disabled))
+                else {
+                    return EventResult::Ignored;
+                };
+                if event.name == "reactive_tui.tabs.close" {
+                    self.close(index, props, state);
+                    return EventResult::Consumed;
+                }
+                state.is_focused = true;
+                state.focused_tab = Some(index);
+                if event.name == "reactive_tui.tabs.activate"
+                    || props.keyboard_activation == TabKeyboardActivation::Automatic
+                {
+                    self.activate(index, props, state);
+                }
+                EventResult::Consumed
+            }
+            Event::Key(key)
+                if state.is_focused && key.kind != crate::event::types::KeyEventKind::Release =>
+            {
+                let Some(current) = state
+                    .focused_tab
+                    .filter(|&i| props.tabs.get(i).is_some_and(|t| !t.disabled))
+                    .or_else(|| Self::active(props))
+                else {
+                    return EventResult::Ignored;
+                };
+                let next = match key.code {
+                    KeyCode::Left | KeyCode::Up => self.find_next_enabled_tab(props, current, -1),
+                    KeyCode::Right | KeyCode::Down => self.find_next_enabled_tab(props, current, 1),
+                    KeyCode::Home => props.tabs.iter().position(|t| !t.disabled),
+                    KeyCode::End => props.tabs.iter().rposition(|t| !t.disabled),
+                    KeyCode::Enter | KeyCode::Char(' ') => {
+                        self.activate(current, props, state);
+                        return EventResult::Consumed;
+                    }
+                    KeyCode::Delete | KeyCode::Char('x') => {
+                        self.close(current, props, state);
+                        return EventResult::Consumed;
+                    }
+                    KeyCode::Char(c @ '1'..='9') => {
+                        self.activate(c as usize - '1' as usize, props, state);
+                        return EventResult::Consumed;
+                    }
+                    _ => return EventResult::Ignored,
+                };
+                if let Some(next) = next {
+                    state.focused_tab = Some(next);
                     if props.keyboard_activation == TabKeyboardActivation::Automatic {
-                        props.active_tab = prev_tab;
-                        if let Some(on_change) = &self.on_change {
-                            on_change(prev_tab);
-                        }
+                        self.activate(next, props, state);
                     }
                 }
                 EventResult::Consumed
             }
-            KeyCode::Right | KeyCode::Down => {
-                // Move focus to next tab
-                if let Some(next_tab) = self.find_next_enabled_tab(props, current_focused, 1) {
-                    state.focused_tab = Some(next_tab);
-
-                    // Auto-activate if enabled
-                    if props.keyboard_activation == TabKeyboardActivation::Automatic {
-                        props.active_tab = next_tab;
-                        if let Some(on_change) = &self.on_change {
-                            on_change(next_tab);
+            Event::Mouse(mouse) => match mouse.kind {
+                MouseEventKind::Down | MouseEventKind::Click
+                    if mouse.button == crate::event::types::MouseButton::Left =>
+                {
+                    if let Some((index, close)) = self.target_at(mouse) {
+                        if close {
+                            self.close(index, props, state);
+                        } else {
+                            self.activate(index, props, state);
                         }
+                        EventResult::Consumed
+                    } else {
+                        EventResult::Ignored
                     }
                 }
-                EventResult::Consumed
-            }
-            KeyCode::Home => {
-                // Focus first enabled tab
-                if let Some(first_tab) = props.tabs.iter().position(|tab| !tab.disabled) {
-                    state.focused_tab = Some(first_tab);
-
-                    if props.keyboard_activation == TabKeyboardActivation::Automatic {
-                        props.active_tab = first_tab;
-                        if let Some(on_change) = &self.on_change {
-                            on_change(first_tab);
-                        }
-                    }
+                MouseEventKind::Move | MouseEventKind::Enter => {
+                    state.hover_tab = self.target_at(mouse).map(|t| t.0);
+                    EventResult::Ignored
                 }
-                EventResult::Consumed
-            }
-            KeyCode::End => {
-                // Focus last enabled tab
-                if let Some(last_tab) = props.tabs.iter().rposition(|tab| !tab.disabled) {
-                    state.focused_tab = Some(last_tab);
-
-                    if props.keyboard_activation == TabKeyboardActivation::Automatic {
-                        props.active_tab = last_tab;
-                        if let Some(on_change) = &self.on_change {
-                            on_change(last_tab);
-                        }
-                    }
+                MouseEventKind::Leave => {
+                    state.hover_tab = None;
+                    EventResult::Ignored
                 }
-                EventResult::Consumed
-            }
-            KeyCode::Enter | KeyCode::Char(' ') => {
-                // Activate focused tab (for manual activation mode)
-                if let Some(focused) = state.focused_tab {
-                    if !props.tabs[focused].disabled {
-                        props.active_tab = focused;
-                        if let Some(on_change) = &self.on_change {
-                            on_change(focused);
-                        }
-                    }
-                }
-                EventResult::Consumed
-            }
-            KeyCode::Delete | KeyCode::Char('x') => {
-                // Close focused tab if closable
-                if let Some(focused) = state.focused_tab {
-                    let tab = &props.tabs[focused];
-                    if (tab.closable || props.closable) && !tab.disabled {
-                        if let Some(on_close) = &self.on_close {
-                            on_close(focused);
-                        }
-                    }
-                    // Note: actual tab removal should be handled by parent component
-                }
-                EventResult::Consumed
-            }
-            KeyCode::Char(c) if c.is_ascii_digit() => {
-                // Quick access to tabs by number (1-9)
-                let tab_index = (c.to_digit(10).unwrap() as usize).saturating_sub(1);
-                if tab_index < props.tabs.len() && !props.tabs[tab_index].disabled {
-                    state.focused_tab = Some(tab_index);
-                    props.active_tab = tab_index;
-                    if let Some(on_change) = &self.on_change {
-                        on_change(tab_index);
-                    }
-                }
-                EventResult::Consumed
-            }
-            _ => EventResult::Ignored,
-        }
-    }
-
-    fn handle_mouse_event(
-        &mut self,
-        event: &MouseEvent,
-        props: &mut TabsProps,
-        state: &mut TabsState,
-    ) -> EventResult {
-        match event.kind {
-            MouseEventKind::Click => {
-                let x = event.position.x() as usize;
-                let y = event.position.y() as usize;
-
-                if let Some(tab_index) = self.get_tab_at_position(props, x, y) {
-                    // Check if close button was clicked
-                    if self.is_close_button_clicked(props, tab_index, x, y) {
-                        let tab = &props.tabs[tab_index];
-                        if (tab.closable || props.closable) && !tab.disabled {
-                            if let Some(on_close) = &self.on_close {
-                                on_close(tab_index);
-                            }
-                            return EventResult::Consumed;
-                        }
-                    }
-
-                    // Regular tab click
-                    if !props.tabs[tab_index].disabled {
-                        state.focused_tab = Some(tab_index);
-                        state.is_focused = true;
-                        props.active_tab = tab_index;
-                        if let Some(on_change) = &self.on_change {
-                            on_change(tab_index);
-                        }
-                    }
-                }
-                EventResult::Consumed
-            }
-            MouseEventKind::Move => {
-                // Track hover state
-                let x = event.position.x() as usize;
-                let y = event.position.y() as usize;
-
-                state.hover_tab = self.get_tab_at_position(props, x, y);
-                EventResult::Ignored
-            }
+                _ => EventResult::Ignored,
+            },
             _ => EventResult::Ignored,
         }
     }
@@ -933,8 +932,62 @@ impl Tabs {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::component::ElementType;
-    use crate::event::types::KeyModifiers;
+    use crate::event::types::{KeyEvent, KeyModifiers};
+
+    #[test]
+    fn authored_updates_preserve_keyed_choice_and_replace_content() {
+        let mut props = TabsProps {
+            tabs: vec![
+                Tab::new("A", Element::text("A1").with_key("a")),
+                Tab::new("B", Element::text("B1").with_key("b")),
+            ],
+            closable: true,
+            ..Default::default()
+        };
+        let mut tabs = Tabs::new(props.clone());
+        let mut state = TabsState {
+            is_focused: true,
+            focused_tab: Some(0),
+            ..Default::default()
+        };
+        tabs.handle_event(
+            &Event::Key(KeyEvent::new(KeyCode::Right)),
+            &mut props,
+            &mut state,
+        );
+        assert_eq!(tabs.live.active_tab, 1);
+        let mut authored = TabsProps {
+            tabs: vec![
+                Tab::new("B", Element::text("B2").with_key("b")),
+                Tab::new("A", Element::text("A2").with_key("a")),
+            ],
+            closable: true,
+            ..Default::default()
+        };
+        tabs.update(&authored, &mut state);
+        assert_eq!(tabs.live.active_tab, 0);
+        assert_eq!(state.focused_tab, Some(0));
+        assert_eq!(tabs.live.tabs[0].content, Element::text("B2").with_key("b"));
+        authored.active_tab = 1;
+        tabs.update(&authored, &mut state);
+        assert_eq!(tabs.live.active_tab, 1);
+        state.focused_tab = Some(1);
+        tabs.handle_event(
+            &Event::Key(KeyEvent::new(KeyCode::Delete)),
+            &mut props,
+            &mut state,
+        );
+        tabs.update(&authored, &mut state);
+        assert_eq!(tabs.live.tabs.len(), 1);
+        assert_eq!(tabs.live.tabs[0].label, "B");
+        authored.tabs.remove(1);
+        tabs.update(&authored, &mut state);
+        authored
+            .tabs
+            .push(Tab::new("A", Element::text("A3").with_key("a")));
+        tabs.update(&authored, &mut state);
+        assert_eq!(tabs.live.tabs.len(), 2);
+    }
 
     #[test]
     fn test_tabs_basic_functionality() {
@@ -983,23 +1036,6 @@ mod tests {
         // Should skip disabled tab
         let next_tab = tabs.find_next_enabled_tab(&props, 0, 1);
         assert_eq!(next_tab, Some(2)); // Skip index 1 (disabled)
-    }
-
-    #[test]
-    fn test_tabs_render_with_variants() {
-        let tabs = Tabs::new(TabsProps::default());
-        let props = TabsProps {
-            tabs: vec![Tab::new("Tab 1", Element::text("Content 1"))],
-            variant: TabVariant::Enclosed,
-            ..Default::default()
-        };
-        let state = TabsState::default();
-
-        let element = tabs.render(&props, &state);
-        if let ElementType::Text(content) = &element.element_type {
-            assert!(content.contains("Tab 1"));
-            assert!(content.contains("Content 1"));
-        }
     }
 
     #[test]

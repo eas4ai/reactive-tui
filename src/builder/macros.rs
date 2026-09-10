@@ -25,11 +25,6 @@ macro_rules! el {
         $crate::builder::to_element($child)
     };
 
-    // Multiple elements as children
-    [$($child:expr),* $(,)?] => {
-        vec![$($crate::builder::to_element($child)),*]
-    };
-
     // Container with class and children
     ($tag:ident, class: $class:expr, [$($child:expr),* $(,)?]) => {
         $crate::builder::$tag()
@@ -43,6 +38,11 @@ macro_rules! el {
         $crate::builder::$tag()
             .children(vec![$($crate::builder::to_element($child)),*])
             .build()
+    };
+
+    // Multiple elements as children
+    [$($child:expr),* $(,)?] => {
+        vec![$($crate::builder::to_element($child)),*]
     };
 }
 

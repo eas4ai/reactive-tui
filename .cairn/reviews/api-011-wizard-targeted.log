@@ -1,0 +1,25 @@
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 18.44s
+     Running unittests src/lib.rs (target/debug/deps/reactive_tui-8db3a30746e1a23f)
+
+running 4 tests
+test builder::test_specialized::tests::test_wizard_builder ... FAILED
+test widgets::dialog::wizard::tests::empty_wizard_rejects_navigation_and_completion_without_panicking ... ok
+test widgets::dialog::wizard::tests::wizard_rejects_ambiguous_step_identifiers ... ok
+test widgets::dialog::wizard::tests::wizard_validates_before_navigation_and_completion ... ok
+
+failures:
+
+---- builder::test_specialized::tests::test_wizard_builder stdout ----
+
+thread 'builder::test_specialized::tests::test_wizard_builder' (375192) panicked at src/builder/test_specialized.rs:195:9:
+assertion failed: matches!(wizard.element_type, ElementType::Text(_))
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    builder::test_specialized::tests::test_wizard_builder
+
+test result: FAILED. 3 passed; 1 failed; 0 ignored; 0 measured; 842 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `--lib`

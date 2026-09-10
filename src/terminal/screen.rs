@@ -5,6 +5,16 @@ use super::{
 };
 use std::collections::VecDeque;
 
+mod edit;
+mod modes;
+mod reflow;
+mod text;
+
+#[cfg(test)]
+mod reflow_tests;
+#[cfg(test)]
+mod tests;
+
 /// Virtual screen buffer for terminal emulation
 #[derive(Debug)]
 pub struct VirtualScreen {
@@ -15,7 +25,6 @@ pub struct VirtualScreen {
     scrollback: VecDeque<Vec<TerminalCell>>,
     max_scrollback: usize,
     cursor: TerminalCursor,
-    #[allow(dead_code)]
     saved_cursor: Option<TerminalCursor>,
     modes: TerminalModes,
     scrolling_region: ScrollingRegion,
@@ -24,12 +33,23 @@ pub struct VirtualScreen {
     tab_width: u16,
     using_alt_screen: bool,
     title: String,
+    last_print: Option<(u16, u16)>,
     working_directory: Option<String>,
 }
 
 impl VirtualScreen {
-    /// Create a new virtual screen with specified dimensions
+    /// Create a virtual screen with specified dimensions.
+    ///
+    /// # Panics
+    /// Panics for zero dimensions or more than 262144 cells. Use [`Self::try_new`]
+    /// when dimensions come from input that may be invalid.
     pub fn new(width: u16, height: u16, max_scrollback: usize) -> Self {
+        Self::try_new(width, height, max_scrollback).expect("invalid virtual screen dimensions")
+    }
+
+    /// Validate dimensions before allocating either screen buffer.
+    pub fn try_new(width: u16, height: u16, max_scrollback: usize) -> super::TerminalResult<Self> {
+        Self::validate_size(width, height)?;
         let mut screen = Self {
             width,
             height,
@@ -45,13 +65,21 @@ impl VirtualScreen {
             tab_width: 8,
             using_alt_screen: false,
             title: String::new(),
+            last_print: None,
             working_directory: None,
         };
 
         screen.modes.cursor_visible = true;
         screen.modes.auto_wrap = true;
 
-        screen
+        Ok(screen)
+    }
+
+    pub(crate) fn validate_size(width: u16, height: u16) -> super::TerminalResult<()> {
+        if width == 0 || height == 0 || usize::from(width) * usize::from(height) > 262_144 {
+            return Err(super::TerminalError::InvalidSize { width, height });
+        }
+        Ok(())
     }
 
     fn create_buffer(width: u16, height: u16) -> Vec<Vec<TerminalCell>> {
@@ -82,6 +110,9 @@ impl VirtualScreen {
 
     /// Process an ANSI event and update the screen
     pub fn process_event(&mut self, event: AnsiEvent) {
+        if !matches!(event, AnsiEvent::Print(_) | AnsiEvent::PrintString(_)) {
+            self.last_print = None;
+        }
         match event {
             AnsiEvent::Print(ch) => self.print_char(ch),
             AnsiEvent::PrintString(s) => {
@@ -112,59 +143,6 @@ impl VirtualScreen {
         }
     }
 
-    fn print_char(&mut self, ch: char) {
-        if self.cursor.pending_wrap {
-            let scrolling_region = self.scrolling_region;
-            let height = self.height;
-            self.cursor.handle_wrap(Some(&scrolling_region), height);
-            if self.cursor.row >= height {
-                self.scroll_up(1);
-                self.cursor.row = height - 1;
-            }
-        }
-
-        if self.cursor.row >= self.height {
-            return;
-        }
-
-        let row = self.cursor.row as usize;
-        let col = self.cursor.col as usize;
-        let cursor_style = self.cursor.style;
-        let hyperlink_url = self.cursor.hyperlink_url.clone();
-        let hyperlink_id = self.cursor.hyperlink_id.clone();
-        let width = self.width;
-        let auto_wrap = self.modes.auto_wrap;
-
-        let buffer = self.current_buffer();
-        if row < buffer.len() && col < buffer[row].len() {
-            let cell = &mut buffer[row][col];
-            cell.set_char(ch);
-            cell.set_style(cursor_style);
-
-            if let Some(url) = hyperlink_url {
-                cell.set_hyperlink(url, hyperlink_id);
-            }
-
-            let char_width = cell.width;
-
-            if char_width > 1 {
-                for i in 1..char_width {
-                    let next_col = col + i as usize;
-                    if next_col < buffer[row].len() {
-                        let continuation_cell = &mut buffer[row][next_col];
-                        continuation_cell.character = String::new();
-                        continuation_cell.width = 0;
-                        continuation_cell.set_style(cursor_style);
-                        continuation_cell.mark_dirty();
-                    }
-                }
-            }
-
-            let _ = buffer;
-            self.cursor.advance(char_width, width, auto_wrap);
-        }
-    }
-
     fn execute_control(&mut self, byte: u8) {
         match byte {
             0x08 => self.backspace(),
@@ -173,34 +151,57 @@ impl VirtualScreen {
             0x0B => self.vertical_tab(),
             0x0C => self.form_feed(),
             0x0D => self.carriage_return(),
+            b'D' => self.line_feed(),
+            b'E' => {
+                self.line_feed();
+                self.carriage_return();
+            }
+            b'M' => self.reverse_index(),
+            b'H' => {
+                if let Some(stop) = self.tab_stops.get_mut(usize::from(self.cursor.col)) {
+                    *stop = true;
+                }
+            }
+            b'=' => self.modes.application_keypad = true,
+            b'>' => self.modes.application_keypad = false,
+            b'c' => *self = Self::new(self.width, self.height, self.max_scrollback),
             _ => {}
         }
     }
 
     fn backspace(&mut self) {
+        self.cursor.pending_wrap = false;
         if self.cursor.col > 0 {
             self.cursor.col -= 1;
         }
     }
 
     fn tab(&mut self) {
-        let mut next_tab = self.cursor.col + 1;
-        while next_tab < self.width && next_tab < self.tab_stops.len() as u16 {
-            if self.tab_stops[next_tab as usize] {
-                break;
-            }
-            next_tab += 1;
-        }
-        self.cursor.col = next_tab.min(self.width - 1);
+        self.tabulate(1, false);
     }
 
     fn line_feed(&mut self) {
-        let scrolling_region = self.scrolling_region;
-        let height = self.height;
-        self.cursor.line_feed(Some(&scrolling_region), height);
-        if self.cursor.row >= height {
+        self.advance_line(None);
+    }
+
+    fn advance_line(&mut self, wrap_end: Option<u16>) {
+        let row = usize::from(self.cursor.row);
+        if let Some(line) = self.current_buffer().get_mut(row) {
+            for cell in line.iter_mut() {
+                cell.wrapped = false;
+            }
+            if let Some(end) = wrap_end.filter(|&end| end != 0) {
+                line[usize::from(end - 1)].wrapped = true;
+            }
+        }
+        self.cursor.pending_wrap = false;
+        if self.height == 0 {
+            return;
+        }
+        if self.cursor.row == self.scrolling_region.bottom {
             self.scroll_up(1);
-            self.cursor.row = height - 1;
+        } else {
+            self.cursor.row = self.cursor.row.saturating_add(1).min(self.height - 1);
         }
     }
 
@@ -219,60 +220,85 @@ impl VirtualScreen {
 
     fn scroll_up(&mut self, n: u16) {
         let region = self.scrolling_region;
-        let using_alt_screen = self.using_alt_screen;
-        let max_scrollback = self.max_scrollback;
-
-        for _ in 0..n {
-            if !using_alt_screen && region.top == 0 {
-                let line = {
-                    let buffer = self.current_buffer();
-                    buffer[region.top as usize].clone()
-                };
-                self.scrollback.push_back(line);
-
-                while self.scrollback.len() > max_scrollback {
-                    self.scrollback.pop_front();
-                }
-            }
-
-            let buffer = self.current_buffer();
-            for row in region.top..region.bottom {
-                let src_row = (row + 1) as usize;
-                let dst_row = row as usize;
-                if src_row < buffer.len() && dst_row < buffer.len() {
-                    let src_line = buffer[src_row].clone();
-                    buffer[dst_row] = src_line;
-                }
-            }
-
-            let bottom_row = region.bottom as usize;
-            if bottom_row < buffer.len() {
-                for col in region.left..=region.right {
-                    if (col as usize) < buffer[bottom_row].len() {
-                        buffer[bottom_row][col as usize].clear(TerminalColor::Default);
-                    }
-                }
-            }
-        }
+        self.scroll_lines(region.top, region.bottom, n, true, true);
     }
 
     fn process_csi(
         &mut self,
         final_byte: char,
         params: &[u16],
-        _intermediates: &[u8],
-        _private: bool,
+        intermediates: &[u8],
+        private: bool,
     ) {
+        if !intermediates.is_empty() {
+            if !private && intermediates == b" " && final_byte == 'q' {
+                use super::cursor::CursorShape;
+                self.cursor.shape = match params.first().copied().unwrap_or(0) {
+                    0 | 1 => CursorShape::BlinkingBlock,
+                    2 => CursorShape::Block,
+                    3 => CursorShape::BlinkingUnderline,
+                    4 => CursorShape::Underline,
+                    5 => CursorShape::BlinkingBar,
+                    6 => CursorShape::Bar,
+                    _ => self.cursor.shape,
+                };
+            }
+            return;
+        }
+        if private {
+            if matches!(final_byte, 'h' | 'l') {
+                self.set_private_modes(params, final_byte == 'h');
+            }
+            return;
+        }
+        let count = params.first().copied().unwrap_or(1).max(1);
         match final_byte {
-            'A' => self.cursor_up(params.first().copied().unwrap_or(1)),
-            'B' => self.cursor_down(params.first().copied().unwrap_or(1)),
-            'C' => self.cursor_right(params.first().copied().unwrap_or(1)),
-            'D' => self.cursor_left(params.first().copied().unwrap_or(1)),
+            'A' => self.cursor_up(count),
+            'B' => self.cursor_down(count),
+            'C' => self.cursor_right(count),
+            'D' => self.cursor_left(count),
+            'E' => {
+                self.cursor_down(count);
+                self.carriage_return();
+            }
+            'F' => {
+                self.cursor_up(count);
+                self.carriage_return();
+            }
+            'G' | '`' => self.set_cursor_position(count - 1, self.cursor.row),
+            'd' => self.address_cursor(self.cursor.col, count - 1),
+            'a' => self.cursor_right(count),
+            'e' => self.cursor_down(count),
+            'I' => self.tabulate(count, false),
+            'Z' => self.tabulate(count, true),
+            'g' => self.clear_tab_stops(params.first().copied().unwrap_or(0)),
+            '@' => self.shift_characters(count, true),
+            'P' => self.shift_characters(count, false),
+            'X' => self.erase_characters(count),
+            'L' => self.shift_lines(count, true),
+            'M' => self.shift_lines(count, false),
+            'S' => {
+                self.cursor.pending_wrap = false;
+                self.scroll_up(count);
+            }
+            'T' if params.len() <= 1 => {
+                self.cursor.pending_wrap = false;
+                let region = self.scrolling_region;
+                self.scroll_lines(region.top, region.bottom, count, false, false);
+            }
+            'h' | 'l' => {
+                for &mode in params {
+                    if mode == 4 {
+                        self.modes.insert_mode = final_byte == 'h';
+                    }
+                }
+            }
             'H' | 'f' => {
                 let row = params.first().copied().unwrap_or(1).saturating_sub(1);
                 let col = params.get(1).copied().unwrap_or(1).saturating_sub(1);
-                self.set_cursor_position(col, row);
+                self.address_cursor(col, row);
             }
+            'r' => self.set_scroll_margins(params),
             'J' => self.erase_display(params.first().copied().unwrap_or(0)),
             'K' => self.erase_line(params.first().copied().unwrap_or(0)),
             'm' => self.set_graphics_rendition(params),
@@ -334,6 +360,7 @@ impl VirtualScreen {
     }
 
     fn set_cursor_position(&mut self, col: u16, row: u16) {
+        self.last_print = None;
         let col = col.min(self.width - 1);
         let row = row.min(self.height - 1);
         self.cursor.move_to(col, row);
@@ -345,68 +372,42 @@ impl VirtualScreen {
 
     fn restore_cursor(&mut self) {
         self.cursor.restore();
+        self.cursor.constrain_to_screen(self.width, self.height);
     }
 
     fn erase_display(&mut self, mode: u16) {
-        match mode {
+        let rows = match mode {
             0 => {
                 self.erase_line(0);
-                let cursor_row = self.cursor.row;
-                let height = self.height;
-                let width = self.width;
-                let buffer = self.current_buffer();
-                for row in (cursor_row + 1)..height {
-                    for col in 0..width {
-                        if let Some(cell) = buffer
-                            .get_mut(row as usize)
-                            .and_then(|r| r.get_mut(col as usize))
-                        {
-                            cell.clear(TerminalColor::Default);
-                        }
-                    }
-                }
+                self.cursor.row.saturating_add(1)..self.height
             }
-            2 => {
-                let height = self.height;
-                let width = self.width;
-                let buffer = self.current_buffer();
-                for row in 0..height {
-                    for col in 0..width {
-                        if let Some(cell) = buffer
-                            .get_mut(row as usize)
-                            .and_then(|r| r.get_mut(col as usize))
-                        {
-                            cell.clear(TerminalColor::Default);
-                        }
-                    }
-                }
+            1 => {
+                self.erase_line(1);
+                0..self.cursor.row.min(self.height)
             }
-            _ => {}
+            2 => 0..self.height,
+            3 => {
+                self.scrollback.clear();
+                return;
+            }
+            _ => return,
+        };
+        for row in rows {
+            for col in 0..self.width {
+                self.clear_glyph_at(col, row);
+            }
         }
     }
 
     fn erase_line(&mut self, mode: u16) {
-        let row = self.cursor.row as usize;
-        let cursor_col = self.cursor.col;
-        let width = self.width;
-
-        let buffer = self.current_buffer();
-        if let Some(line) = buffer.get_mut(row) {
-            match mode {
-                0 => {
-                    for col in cursor_col..width {
-                        if let Some(cell) = line.get_mut(col as usize) {
-                            cell.clear(TerminalColor::Default);
-                        }
-                    }
-                }
-                2 => {
-                    for cell in line.iter_mut() {
-                        cell.clear(TerminalColor::Default);
-                    }
-                }
-                _ => {}
-            }
+        let columns = match mode {
+            0 => self.cursor.col..self.width,
+            1 => 0..self.cursor.col.saturating_add(1).min(self.width),
+            2 => 0..self.width,
+            _ => return,
+        };
+        for col in columns {
+            self.clear_glyph_at(col, self.cursor.row);
         }
     }
 
@@ -416,17 +417,28 @@ impl VirtualScreen {
             return;
         }
 
-        for &param in params {
+        let mut params = params.iter().copied();
+        while let Some(param) = params.next() {
             match param {
                 0 => self.cursor.style.reset(),
                 1 => self.cursor.style.bold = true,
+                2 => self.cursor.style.dim = true,
                 3 => self.cursor.style.italic = true,
                 4 => self.cursor.style.underline = true,
+                5 | 6 => self.cursor.style.blink = true,
                 7 => self.cursor.style.reverse = true,
-                22 => self.cursor.style.bold = false,
+                8 => self.cursor.style.invisible = true,
+                9 => self.cursor.style.strikethrough = true,
+                22 => {
+                    self.cursor.style.bold = false;
+                    self.cursor.style.dim = false;
+                }
                 23 => self.cursor.style.italic = false,
                 24 => self.cursor.style.underline = false,
+                25 => self.cursor.style.blink = false,
                 27 => self.cursor.style.reverse = false,
+                28 => self.cursor.style.invisible = false,
+                29 => self.cursor.style.strikethrough = false,
                 30..=37 => {
                     self.cursor.style.foreground = TerminalColor::Indexed((param - 30) as u8);
                 }
@@ -435,6 +447,37 @@ impl VirtualScreen {
                     self.cursor.style.background = TerminalColor::Indexed((param - 40) as u8);
                 }
                 49 => self.cursor.style.background = TerminalColor::Default,
+                90..=97 => {
+                    self.cursor.style.foreground = TerminalColor::Indexed((param - 90 + 8) as u8);
+                }
+                100..=107 => {
+                    self.cursor.style.background = TerminalColor::Indexed((param - 100 + 8) as u8);
+                }
+                38 | 48 => {
+                    // Consume color operands even when invalid; they are not style codes.
+                    let color = match params.next() {
+                        Some(5) => params
+                            .next()
+                            .and_then(|index| u8::try_from(index).ok().map(TerminalColor::Indexed)),
+                        Some(2) => {
+                            let components = (params.next(), params.next(), params.next());
+                            match components {
+                                (Some(r), Some(g), Some(b)) if r <= 255 && g <= 255 && b <= 255 => {
+                                    Some(TerminalColor::Rgb(r as u8, g as u8, b as u8))
+                                }
+                                _ => None,
+                            }
+                        }
+                        _ => None,
+                    };
+                    if let Some(color) = color {
+                        if param == 38 {
+                            self.cursor.style.foreground = color;
+                        } else {
+                            self.cursor.style.background = color;
+                        }
+                    }
+                }
                 _ => {}
             }
         }
@@ -443,6 +486,50 @@ impl VirtualScreen {
     /// Get the screen dimensions (width, height)
     pub fn size(&self) -> (u16, u16) {
         (self.width, self.height)
+    }
+
+    /// Reflow main-screen soft wraps and preserve hard line breaks and scrollback.
+    /// The alternate screen remains a fixed grid; clipped wide glyphs are cleared.
+    pub fn resize(&mut self, width: u16, height: u16) -> super::TerminalResult<()> {
+        Self::validate_size(width, height)?;
+        self.reflow_main(width, height);
+        reflow::resize_fixed_grid(&mut self.alt_buffer, width, height);
+        if self.using_alt_screen {
+            reflow::resize_fixed_cursor(&mut self.cursor, width, height);
+        }
+        self.last_print = None;
+        self.width = width;
+        self.height = height;
+        self.cursor.col = self.cursor.col.min(width - 1);
+        self.cursor.row = self.cursor.row.min(height - 1);
+        self.scrolling_region = ScrollingRegion::full_screen(width, height);
+        // Resize preserves the child's tab configuration. New columns have no
+        // stops until the child sets them; cleared defaults must not reappear.
+        self.tab_stops.resize(usize::from(width), false);
+        Ok(())
+    }
+
+    /// Retained history rows available above the visible screen.
+    pub fn scrollback_len(&self) -> usize {
+        if self.using_alt_screen {
+            0
+        } else {
+            self.scrollback.len()
+        }
+    }
+
+    /// A cell viewed `offset` rows above the live screen. Offset is clamped.
+    pub fn scrolled_cell_at(&self, col: u16, row: u16, offset: usize) -> Option<&TerminalCell> {
+        if col >= self.width || row >= self.height {
+            return None;
+        }
+        let history = self.scrollback_len();
+        let index = history - offset.min(history) + usize::from(row);
+        if index < history {
+            self.scrollback.get(index)?.get(usize::from(col))
+        } else {
+            self.cell_at(col, (index - history) as u16)
+        }
     }
 
     /// Get the current cursor position (column, row)
@@ -474,5 +561,9 @@ impl VirtualScreen {
     /// Get the current cursor shape
     pub fn cursor_shape(&self) -> super::cursor::CursorShape {
         self.cursor.shape
+    }
+
+    pub(crate) fn input_modes(&self) -> &TerminalModes {
+        &self.modes
     }
 }

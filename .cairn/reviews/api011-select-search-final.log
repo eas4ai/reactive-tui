@@ -1,0 +1,10 @@
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 5.55s
+     Running tests/api_widget_behavior.rs (target/debug/deps/api_widget_behavior-af8b000cab735812)
+
+running 2 tests
+test select_acceptance::select_builder_search_cycles_and_multiple_choices_survive_reopening ... ok
+test select_acceptance::select_search_opens_and_matches_enabled_unicode_prefixes ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 377 filtered out; finished in 0.08s
+

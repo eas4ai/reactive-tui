@@ -1,0 +1,31 @@
+Independent raw ConPTY probe; no Reactive-TUI code
+initial: 77
+standard missing launch 0: 123 (The system cannot find the file specified. (os error 2))
+standard missing launch 1: 123 (The system cannot find the file specified. (os error 2))
+standard missing launch 2: 123 (The system cannot find the file specified. (os error 2))
+OS before: 123
+OS cycle 0: 126
+OS cycle 1: 126
+OS cycle 2: 126
+OS cycle 3: 126
+OS cycle 4: 126
+OS cycle 5: 126
+OS after 500ms: 126
+SDK load 0 before: 126
+SDK load 0 cycle 0: 129
+SDK load 0 cycle 1: 129
+SDK load 0 cycle 2: 129
+SDK load 0 cycle 3: 129
+SDK load 0 cycle 4: 129
+SDK load 0 cycle 5: 129
+SDK load 0 after 500ms: 129
+SDK unload 0: 129
+SDK load 1 before: 129
+SDK load 1 cycle 0: 129
+SDK load 1 cycle 1: 129
+SDK load 1 cycle 2: 129
+SDK load 1 cycle 3: 129
+SDK load 1 cycle 4: 129
+SDK load 1 cycle 5: 129
+SDK load 1 after 500ms: 129
+SDK unload 1: 129

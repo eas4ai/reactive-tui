@@ -468,7 +468,7 @@ impl TerminalQuery {
         // Check TERM_PROGRAM for specific terminal features
         if let Ok(term_program) = std::env::var("TERM_PROGRAM") {
             match term_program.as_str() {
-                "kitty" => {
+                "kitty" | "ghostty" => {
                     caps.kitty_graphics = true;
                     caps.enhanced_keyboard = true;
                     caps.color_depth = ColorDepth::TrueColor;
@@ -481,6 +481,7 @@ impl TerminalQuery {
                 }
                 "WezTerm" => {
                     caps.sixel = true;
+                    caps.iterm2_graphics = true;
                     caps.synchronized_output = true;
                     caps.color_depth = ColorDepth::TrueColor;
                     caps.unicode = true;

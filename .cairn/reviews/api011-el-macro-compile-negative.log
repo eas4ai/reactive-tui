@@ -1,0 +1,46 @@
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+error[E0425]: cannot find value `div` in this scope
+  --> tests/api_widget_behavior/vdom.rs:45:44
+   |
+45 |                     7 => reactive_tui::el!(div, [node]),
+   |                                            ^^^ not found in this scope
+
+error[E0277]: the trait bound `[reactive_tui::vdom::VNode; 1]: IntoElement` is not satisfied
+   --> tests/api_widget_behavior/vdom.rs:45:49
+    |
+ 45 |                     7 => reactive_tui::el!(div, [node]),
+    |                          -----------------------^^^^^^-
+    |                          |                      |
+    |                          |                      the trait `IntoElement` is not implemented for `[reactive_tui::vdom::VNode; 1]`
+    |                          required by a bound introduced by this call
+    |
+    = help: the following other types implement trait `IntoElement`:
+              &str
+              ElementBuilder
+              reactive_tui::component::Element
+              reactive_tui::vdom::VNode
+              std::string::String
+note: required by a bound in `to_element`
+   --> src/builder/core.rs:330:22
+    |
+330 | pub fn to_element<T: IntoElement>(item: T) -> Element {
+    |                      ^^^^^^^^^^^ required by this bound in `to_element`
+
+error[E0308]: `match` arms have incompatible types
+  --> tests/api_widget_behavior/vdom.rs:45:26
+   |
+35 |                 let child = match route {
+   |                             ----------- `match` arms have incompatible types
+...
+44 |                     6 => reactive_tui::el!(node),
+   |                          ----------------------- this and all prior arms are found to be of type `reactive_tui::component::Element`
+45 |                     7 => reactive_tui::el!(div, [node]),
+   |                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ expected `Element`, found `Vec<Element>`
+   |
+   = note: expected struct `reactive_tui::component::Element`
+              found struct `Vec<reactive_tui::component::Element>`
+   = note: this error originates in the macro `vec` which comes from the expansion of the macro `reactive_tui::el` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+Some errors have detailed explanations: E0277, E0308, E0425.
+For more information about an error, try `rustc --explain E0277`.
+error: could not compile `reactive-tui` (test "api_widget_behavior") due to 3 previous errors

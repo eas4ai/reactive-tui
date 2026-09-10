@@ -1,0 +1,22 @@
+
+running 1 test
+test dialog_acceptance::input_dialog_direct_readonly_disabled_and_key_release_do_not_edit ... FAILED
+
+failures:
+
+---- dialog_acceptance::input_dialog_direct_readonly_disabled_and_key_release_do_not_edit stdout ----
+
+thread 'dialog_acceptance::input_dialog_direct_readonly_disabled_and_key_release_do_not_edit' (3114788) panicked at tests/api_widget_behavior/dialogs.rs:140:13:
+assertion failed: !dialog.set_focus("input")
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    dialog_acceptance::input_dialog_direct_readonly_disabled_and_key_release_do_not_edit
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 288 filtered out; finished in 0.00s
+
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 7.38s
+     Running tests/api_widget_behavior.rs (target/debug/deps/api_widget_behavior-591f6bff9f7c0602)
+error: test failed, to rerun pass `--test api_widget_behavior`

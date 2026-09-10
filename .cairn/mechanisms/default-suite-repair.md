@@ -3,6 +3,7 @@
 command: python3 scripts/check-default-suite.py
 inputs:
   - Cargo.toml
+  - build.rs
   - Cargo.lock
   - reactive-tui-macros
   - src

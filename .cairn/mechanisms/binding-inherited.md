@@ -13,6 +13,7 @@ inputs:
   - .cairn/mechanisms/suprtui-renderer.md
   - Cargo.lock
   - Cargo.toml
+  - build.rs
   - README.md
   - benches
   - docs/app-wakeups.md

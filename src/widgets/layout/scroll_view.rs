@@ -1,7 +1,11 @@
-use crate::component::{Component, Element, ElementType, Props};
+use crate::component::{Component, Element, ElementType, LayoutInfo, LayoutType, Props};
 use crate::event::router::EventResult;
-use crate::event::types::{KeyCode, KeyEvent, MouseEventKind};
-use crate::event::{Event, MouseEvent};
+use crate::event::types::{FocusEventKind, KeyCode, KeyEventKind, MouseEventKind, WheelDelta};
+use crate::event::Event;
+use crate::layout::style::{Direction, StyleBuilder};
+use std::sync::{Arc, Mutex};
+
+mod motion;
 use std::any::Any;
 
 /// Builder for creating ScrollView components with a fluent API
@@ -103,7 +107,7 @@ impl ScrollViewBuilder {
 
     /// Build and render as an Element (convenience method)
     pub fn render(self) -> Element {
-        Element::component("ScrollView").with_props(self.build())
+        Element::typed::<ScrollView>(self.build())
     }
 }
 
@@ -170,9 +174,50 @@ pub struct ScrollViewState {
     pub is_focused: bool,
 }
 
-/// Scroll view component for scrollable content
+/// Scroll view component for scrollable content.
 pub struct ScrollView {
-    state: ScrollViewState,
+    viewport: Option<LayoutInfo>,
+    content_size: Arc<Mutex<(usize, usize)>>,
+    motion: motion::ScrollMotion,
+}
+
+impl ScrollView {
+    fn visible_size(&self, props: &ScrollViewProps) -> (usize, usize) {
+        let (width, height) = self
+            .viewport
+            .map(|v| v.content_size())
+            .unwrap_or((props.viewport_width as f32, props.viewport_height as f32));
+        (
+            (width as usize).saturating_sub(usize::from(props.show_scrollbars && props.scroll_y)),
+            (height as usize).saturating_sub(usize::from(props.show_scrollbars && props.scroll_x)),
+        )
+    }
+
+    fn limits(&self, props: &ScrollViewProps) -> (usize, usize) {
+        let content = *self.content_size.lock().unwrap();
+        let visible = self.visible_size(props);
+        (
+            if props.scroll_x {
+                content.0.saturating_sub(visible.0)
+            } else {
+                0
+            },
+            if props.scroll_y {
+                content.1.saturating_sub(visible.1)
+            } else {
+                0
+            },
+        )
+    }
+
+    fn clamp(&self, props: &ScrollViewProps, state: &mut ScrollViewState) -> bool {
+        let old = (state.scroll_x, state.scroll_y);
+        let limits = self.limits(props);
+        state.scroll_x = state.scroll_x.min(limits.0);
+        state.scroll_y = state.scroll_y.min(limits.1);
+        (state.content_width, state.content_height) = *self.content_size.lock().unwrap();
+        old != (state.scroll_x, state.scroll_y)
+    }
 }
 
 impl Component for ScrollView {
@@ -181,132 +226,138 @@ impl Component for ScrollView {
 
     fn new(_props: Self::Props) -> Self {
         Self {
-            state: ScrollViewState::default(),
+            viewport: None,
+            content_size: Arc::new(Mutex::new((0, 0))),
+            motion: motion::ScrollMotion::new(),
         }
     }
 
-    fn update(&mut self, _props: &Self::Props, state: &mut Self::State) -> bool {
-        self.state = state.clone();
+    fn update(&mut self, props: &Self::Props, state: &mut Self::State) -> bool {
+        self.clamp(props, state);
         true
     }
 
+    fn layout(
+        &mut self,
+        bounds: LayoutInfo,
+        props: &mut Self::Props,
+        state: &mut Self::State,
+    ) -> bool {
+        let old = self.visible_size(props);
+        self.viewport = Some(bounds);
+        self.clamp(props, state) || old != self.visible_size(props)
+    }
+
     fn render(&self, props: &Self::Props, state: &Self::State) -> Element {
-        let content = match &props.content.element_type {
-            ElementType::Text(text) => text.clone(),
-            _ => props
-                .content
-                .children
-                .iter()
-                .map(|c| match &c.element_type {
-                    ElementType::Text(text) => text.clone(),
-                    _ => String::new(),
-                })
-                .collect::<Vec<_>>()
-                .join("\n"),
-        };
-
-        let content_lines: Vec<&str> = content.lines().collect();
-        let content_height = content_lines.len();
-        let content_width = content_lines
-            .iter()
-            .map(|line| line.len())
-            .max()
-            .unwrap_or(0);
-
-        let visible_height = if props.show_scrollbars && props.scroll_x {
-            props.viewport_height.saturating_sub(1)
+        let (width, height) = self.visible_size(props);
+        let limits = self.limits(props);
+        let offset = self.motion.position(
+            (state.scroll_x.min(limits.0), state.scroll_y.min(limits.1)),
+            props.smooth_scroll,
+        );
+        let offset = (offset.0.min(limits.0), offset.1.min(limits.1));
+        let mut content_style = StyleBuilder::new()
+            .display_flex()
+            .direction(Direction::Column)
+            .position_absolute()
+            .z_index(0)
+            .inset_left(-(offset.0 as f32))
+            .inset_top(-(offset.1 as f32));
+        content_style.unconstrained_width = Some(props.scroll_x);
+        let content_style = if props.scroll_x {
+            content_style
         } else {
-            props.viewport_height
+            content_style.width_px(width as f32)
         };
-
-        let visible_width = if props.show_scrollbars && props.scroll_y {
-            props.viewport_width.saturating_sub(1)
+        let content_style = if props.scroll_y {
+            content_style
         } else {
-            props.viewport_width
+            content_style.height_px(height as f32)
         };
-
-        let start_y = state.scroll_y;
-        let end_y = (start_y + visible_height).min(content_height);
-        let start_x = state.scroll_x;
-        let _end_x = start_x + visible_width;
-
-        let mut visible_lines = Vec::new();
-        for i in start_y..end_y {
-            if let Some(line) = content_lines.get(i) {
-                let visible_line = if line.len() > start_x {
-                    let line_end = (start_x + visible_width).min(line.len());
-                    &line[start_x..line_end]
-                } else {
-                    ""
-                };
-                visible_lines.push(visible_line.to_string());
-            }
+        let mut content =
+            crate::builder::ElementBuilder::new(ElementType::Layout(LayoutType::Flex))
+                .styles(content_style)
+                .class("whitespace-pre")
+                .child(props.content.clone())
+                .build();
+        let measured = self.content_size.clone();
+        content.metadata.layout.push(Arc::new(move |layout| {
+            let mut size = measured.lock().unwrap();
+            let next = (
+                layout.content_extent.0.max(layout.size.0).ceil() as usize,
+                layout.content_extent.1.max(layout.size.1).ceil() as usize,
+            );
+            let changed = *size != next;
+            *size = next;
+            changed
+        }));
+        let viewport = crate::builder::ElementBuilder::new(ElementType::Layout(LayoutType::Flex))
+            .styles(
+                StyleBuilder::new()
+                    .size_px(Some(width as f32), Some(height as f32))
+                    .flex_shrink(0.0)
+                    .overflow_hidden(),
+            )
+            .child(content)
+            .build();
+        let mut children = vec![viewport];
+        let measured = *self.content_size.lock().unwrap();
+        let insets = self.viewport.map(|v| v.insets).unwrap_or([0.0; 4]);
+        if props.show_scrollbars && props.scroll_y && limits.1 > 0 && height > 0 {
+            let bar = scrollbar(height, measured.1, offset.1);
+            children.push(
+                crate::builder::ElementBuilder::new(ElementType::Text(
+                    bar.chars()
+                        .map(|c| c.to_string())
+                        .collect::<Vec<_>>()
+                        .join("\n"),
+                ))
+                .styles(
+                    StyleBuilder::new()
+                        .position_absolute()
+                        .inset_left(width as f32 + insets[0])
+                        .inset_top(insets[1])
+                        .size_px(Some(1.0), Some(height as f32)),
+                )
+                .class("whitespace-pre")
+                .build(),
+            );
         }
-
-        while visible_lines.len() < visible_height {
-            visible_lines.push(String::new());
+        if props.show_scrollbars && props.scroll_x && limits.0 > 0 && width > 0 {
+            children.push(
+                crate::builder::ElementBuilder::new(ElementType::Text(scrollbar(
+                    width, measured.0, offset.0,
+                )))
+                .styles(
+                    StyleBuilder::new()
+                        .position_absolute()
+                        .inset_left(insets[0])
+                        .inset_top(height as f32 + insets[1])
+                        .size_px(Some(width as f32), Some(1.0)),
+                )
+                .class("whitespace-pre")
+                .build(),
+            );
         }
-
-        if props.show_scrollbars {
-            if props.scroll_y && content_height > visible_height && content_height > 0 {
-                let scrollbar_height = visible_height;
-                let thumb_size = if content_height > 0 {
-                    ((visible_height as f64 / content_height as f64) * scrollbar_height as f64)
-                        .ceil() as usize
-                } else {
-                    scrollbar_height
-                };
-                let thumb_pos = if content_height > 0 {
-                    ((state.scroll_y as f64 / content_height as f64) * scrollbar_height as f64)
-                        as usize
-                } else {
-                    0
-                };
-
-                for (i, line) in visible_lines.iter_mut().enumerate() {
-                    let scrollbar_char = if i >= thumb_pos && i < thumb_pos + thumb_size {
-                        '█'
-                    } else {
-                        '░'
-                    };
-                    line.push(scrollbar_char);
-                }
-            }
-
-            if props.scroll_x && content_width > visible_width && content_width > 0 {
-                let scrollbar_width = visible_width;
-                let thumb_size = if content_width > 0 {
-                    ((visible_width as f64 / content_width as f64) * scrollbar_width as f64).ceil()
-                        as usize
-                } else {
-                    scrollbar_width
-                };
-                let thumb_pos = if content_width > 0 {
-                    ((state.scroll_x as f64 / content_width as f64) * scrollbar_width as f64)
-                        as usize
-                } else {
-                    0
-                };
-
-                let mut scrollbar_line = String::new();
-                for i in 0..scrollbar_width {
-                    let scrollbar_char = if i >= thumb_pos && i < thumb_pos + thumb_size {
-                        '█'
-                    } else {
-                        '░'
-                    };
-                    scrollbar_line.push(scrollbar_char);
-                }
-
-                if props.scroll_y && content_height > visible_height {
-                    scrollbar_line.push('█');
-                }
-
-                visible_lines.push(scrollbar_line);
-            }
-        }
-
-        Element::text(visible_lines.join("\n"))
+        crate::builder::ElementBuilder::new(ElementType::Layout(LayoutType::Flex))
+            .styles(
+                StyleBuilder::new()
+                    .display_flex()
+                    .direction(Direction::Column)
+                    .size_px(
+                        Some(props.viewport_width as f32),
+                        Some(props.viewport_height as f32),
+                    )
+                    .max_width_percent(100.0)
+                    .max_height_percent(100.0)
+                    .overflow_hidden(),
+            )
+            .children(children)
+            .build()
+            .with_accessibility(crate::accessibility::Node::new(
+                crate::accessibility::Role::ScrollView,
+            ))
+            .with_focus(crate::component::FocusProps::input())
     }
 
     fn handle_event(
@@ -316,192 +367,104 @@ impl Component for ScrollView {
         state: &mut Self::State,
     ) -> EventResult {
         match event {
-            Event::Key(key_event) => self.handle_key_event(key_event, props, state),
-            Event::Mouse(mouse_event) => self.handle_mouse_event(mouse_event, props, state),
-            Event::Focus(_) => {
-                state.is_focused = true;
-                EventResult::Consumed
-            }
-            _ => EventResult::Ignored,
-        }
-    }
-}
-
-impl ScrollView {
-    fn handle_key_event(
-        &mut self,
-        event: &KeyEvent,
-        props: &ScrollViewProps,
-        state: &mut ScrollViewState,
-    ) -> EventResult {
-        if !state.is_focused {
-            return EventResult::Ignored;
-        }
-
-        let content = match &props.content.element_type {
-            ElementType::Text(text) => text.clone(),
-            _ => props
-                .content
-                .children
-                .iter()
-                .map(|c| match &c.element_type {
-                    ElementType::Text(text) => text.clone(),
-                    _ => String::new(),
-                })
-                .collect::<Vec<_>>()
-                .join("\n"),
-        };
-
-        let content_lines: Vec<&str> = content.lines().collect();
-        let content_height = content_lines.len();
-        let content_width = content_lines
-            .iter()
-            .map(|line| line.len())
-            .max()
-            .unwrap_or(0);
-
-        match event.code {
-            KeyCode::Up => {
-                if props.scroll_y {
-                    state.scroll_y = state.scroll_y.saturating_sub(1);
+            Event::Focus(focus) => {
+                match focus.kind {
+                    FocusEventKind::Gained => state.is_focused = true,
+                    FocusEventKind::Lost => state.is_focused = false,
+                    _ => return EventResult::Ignored,
                 }
-                EventResult::Consumed
+                return EventResult::Consumed;
             }
-            KeyCode::Down => {
-                if props.scroll_y {
-                    let max_scroll = content_height.saturating_sub(props.viewport_height);
-                    state.scroll_y = (state.scroll_y + 1).min(max_scroll);
-                }
-                EventResult::Consumed
-            }
-            KeyCode::Left => {
-                if props.scroll_x {
-                    state.scroll_x = state.scroll_x.saturating_sub(1);
-                }
-                EventResult::Consumed
-            }
-            KeyCode::Right => {
-                if props.scroll_x {
-                    let max_scroll = content_width.saturating_sub(props.viewport_width);
-                    state.scroll_x = (state.scroll_x + 1).min(max_scroll);
-                }
-                EventResult::Consumed
-            }
-            KeyCode::PageUp => {
-                if props.scroll_y {
-                    state.scroll_y = state.scroll_y.saturating_sub(props.viewport_height / 2);
-                }
-                EventResult::Consumed
-            }
-            KeyCode::PageDown => {
-                if props.scroll_y {
-                    let max_scroll = content_height.saturating_sub(props.viewport_height);
-                    state.scroll_y = (state.scroll_y + props.viewport_height / 2).min(max_scroll);
-                }
-                EventResult::Consumed
-            }
-            KeyCode::Home => {
-                state.scroll_y = 0;
-                state.scroll_x = 0;
-                EventResult::Consumed
-            }
-            KeyCode::End => {
-                if props.scroll_y {
-                    state.scroll_y = content_height.saturating_sub(props.viewport_height);
-                }
-                EventResult::Consumed
-            }
-            _ => EventResult::Ignored,
-        }
-    }
-
-    fn handle_mouse_event(
-        &mut self,
-        event: &MouseEvent,
-        props: &ScrollViewProps,
-        state: &mut ScrollViewState,
-    ) -> EventResult {
-        match event.kind {
-            MouseEventKind::Wheel => {
-                // Mouse wheel always scrolls down by default
-                // Use Shift+Wheel to scroll up (common pattern in terminals)
-                if props.scroll_y {
-                    let content = match &props.content.element_type {
-                        ElementType::Text(text) => text.clone(),
-                        _ => props
-                            .content
-                            .children
-                            .iter()
-                            .map(|c| match &c.element_type {
-                                ElementType::Text(text) => text.clone(),
-                                _ => String::new(),
-                            })
-                            .collect::<Vec<_>>()
-                            .join("\n"),
-                    };
-                    let content_height = content.lines().count();
-                    let max_scroll = content_height.saturating_sub(props.viewport_height);
-
-                    if event.modifiers.shift {
-                        // Shift+Wheel scrolls up
-                        state.scroll_y = state.scroll_y.saturating_sub(props.scroll_speed);
-                    } else {
-                        // Normal wheel scrolls down
-                        state.scroll_y = (state.scroll_y + props.scroll_speed).min(max_scroll);
+            Event::Key(key) if state.is_focused && key.kind != KeyEventKind::Release => {
+                let (_, height) = self.visible_size(props);
+                match key.code {
+                    KeyCode::Up if props.scroll_y => {
+                        state.scroll_y = state.scroll_y.saturating_sub(1)
                     }
+                    KeyCode::Down if props.scroll_y => {
+                        state.scroll_y = state.scroll_y.saturating_add(1)
+                    }
+                    KeyCode::Left if props.scroll_x => {
+                        state.scroll_x = state.scroll_x.saturating_sub(1)
+                    }
+                    KeyCode::Right if props.scroll_x => {
+                        state.scroll_x = state.scroll_x.saturating_add(1)
+                    }
+                    KeyCode::PageUp if props.scroll_y => {
+                        state.scroll_y = state.scroll_y.saturating_sub(height.max(1))
+                    }
+                    KeyCode::PageDown if props.scroll_y => {
+                        state.scroll_y = state.scroll_y.saturating_add(height.max(1))
+                    }
+                    KeyCode::Home => {
+                        state.scroll_x = 0;
+                        state.scroll_y = 0;
+                    }
+                    KeyCode::End => {
+                        let limits = self.limits(props);
+                        state.scroll_y = limits.1;
+                        if !props.scroll_y {
+                            state.scroll_x = limits.0;
+                        }
+                    }
+                    _ => return EventResult::Ignored,
                 }
-                EventResult::Consumed
             }
-            _ => EventResult::Ignored,
+            Event::Mouse(mouse) if mouse.kind == MouseEventKind::Wheel => {
+                let (mut x, mut y) = match mouse.wheel.as_ref().map(|wheel| &wheel.delta) {
+                    Some(WheelDelta::Lines { x, y }) => (*x as f64, *y as f64),
+                    Some(WheelDelta::Pixels { x, y }) => (*x as f64, *y as f64),
+                    None => return EventResult::Ignored,
+                };
+                if mouse.modifiers.shift && x == 0.0 {
+                    x = y;
+                    y = 0.0;
+                }
+                if props.scroll_x {
+                    state.scroll_x = shifted(state.scroll_x, x, props.scroll_speed);
+                }
+                if props.scroll_y {
+                    state.scroll_y = shifted(state.scroll_y, y, props.scroll_speed);
+                }
+            }
+            _ => return EventResult::Ignored,
+        }
+        self.clamp(props, state);
+        EventResult::Consumed
+    }
+
+    fn on_lifecycle(&mut self, event: crate::component::LifecycleEvent, _state: &mut Self::State) {
+        if matches!(event, crate::component::LifecycleEvent::Unmount) {
+            self.motion.cancel();
         }
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_scroll_view_basic() {
-        let scroll_view = ScrollView::new(ScrollViewProps::default());
-        let props = ScrollViewProps {
-            content: Element::text("Line 1\nLine 2\nLine 3\nLine 4\nLine 5"),
-            viewport_height: 3,
-            show_scrollbars: false, // Disable scrollbars for simple test
-            ..Default::default()
-        };
-        let state = ScrollViewState::default();
-
-        let element = scroll_view.render(&props, &state);
-        if let ElementType::Text(content) = &element.element_type {
-            // With viewport_height=3, should show 3 lines
-            assert!(content.contains("Line 1"), "Content: {:?}", content);
-            assert!(content.contains("Line 2"), "Content: {:?}", content);
-            assert!(content.contains("Line 3"), "Content: {:?}", content);
-            assert!(!content.contains("Line 4"), "Content: {:?}", content);
-        }
+pub(super) fn shifted(value: usize, delta: f64, speed: usize) -> usize {
+    if !delta.is_finite() {
+        return value;
     }
-
-    #[test]
-    fn test_scroll_view_scrolling() {
-        let scroll_view = ScrollView::new(ScrollViewProps::default());
-        let props = ScrollViewProps {
-            content: Element::text("Line 1\nLine 2\nLine 3\nLine 4\nLine 5"),
-            viewport_height: 3,
-            show_scrollbars: false, // Disable scrollbars for simple test
-            ..Default::default()
-        };
-        let state = ScrollViewState {
-            scroll_y: 2,
-            ..Default::default()
-        };
-
-        let element = scroll_view.render(&props, &state);
-        if let ElementType::Text(content) = &element.element_type {
-            assert!(content.contains("Line 3"));
-            assert!(content.contains("Line 4"));
-            assert!(content.contains("Line 5"));
-            assert!(!content.contains("Line 1"));
-        }
+    let amount = (delta.abs() * speed as f64).round() as usize;
+    if delta < 0.0 {
+        value.saturating_sub(amount)
+    } else {
+        value.saturating_add(amount)
     }
+}
+
+fn scrollbar(visible: usize, total: usize, offset: usize) -> String {
+    let thumb = ((visible as f64 / total.max(1) as f64) * visible as f64).ceil() as usize;
+    let thumb = thumb.clamp(1, visible.max(1));
+    let travel = visible.saturating_sub(thumb);
+    let start = ((offset as f64 / total.saturating_sub(visible).max(1) as f64) * travel as f64)
+        .round() as usize;
+    (0..visible)
+        .map(|i| {
+            if i >= start && i < start + thumb {
+                '█'
+            } else {
+                '░'
+            }
+        })
+        .collect()
 }

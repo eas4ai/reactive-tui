@@ -1,0 +1,12 @@
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0  0 55.2M    0 82895    0     0   453k      0  0:02:04 --:--:--  0:02:04  452k100 55.2M  100 55.2M    0     0  57.3M      0 --:--:-- --:--:-- --:--:-- 57.3M
+Traceback (most recent call last):
+  File "/Users/runner/work/reactive-tui/reactive-tui/scripts/check-iterm-host.py", line 210, in <module>
+    run(parser.parse_args())
+    ~~~^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/runner/work/reactive-tui/reactive-tui/scripts/check-iterm-host.py", line 189, in run
+    results = capture(app, output / mode, mode)
+  File "/Users/runner/work/reactive-tui/reactive-tui/scripts/check-iterm-host.py", line 128, in capture
+    raise RuntimeError("Expected exactly one owned iTerm2 probe window")
+RuntimeError: Expected exactly one owned iTerm2 probe window

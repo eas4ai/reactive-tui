@@ -1,0 +1,24 @@
+
+running 1 test
+test dialog_acceptance::input_dialog_direct_length_limit_counts_the_resulting_graphemes ... FAILED
+
+failures:
+
+---- dialog_acceptance::input_dialog_direct_length_limit_counts_the_resulting_graphemes stdout ----
+
+thread 'dialog_acceptance::input_dialog_direct_length_limit_counts_the_resulting_graphemes' (2324554) panicked at tests/api_widget_behavior/dialogs.rs:86:5:
+assertion failed: matches!(dialog.handle_event(&Event::Key(KeyEvent::new(KeyCode::Enter))),
+    DialogEventResult::Close(DialogResult::Confirmed(Some(value))) if value ==
+    "e\u{301}")
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    dialog_acceptance::input_dialog_direct_length_limit_counts_the_resulting_graphemes
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 274 filtered out; finished in 0.00s
+
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.90s
+     Running tests/api_widget_behavior.rs (target/debug/deps/api_widget_behavior-6de95be2275b0733)
+error: test failed, to rerun pass `--test api_widget_behavior`

@@ -13,6 +13,10 @@ use std::any::Any;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
+use unicode_segmentation::UnicodeSegmentation;
+
+mod live;
+mod validation;
 
 // Type aliases for complex function pointer types
 type ValidationCallback = Arc<dyn Fn(&str) -> ValidationResult + Send + Sync>;
@@ -53,6 +57,26 @@ pub struct InputDialogOptions {
     pub on_close: Option<Arc<dyn Fn(DialogResult) + Send + Sync>>,
 }
 
+impl PartialEq for InputDialogOptions {
+    fn eq(&self, other: &Self) -> bool {
+        use crate::widgets::display::overlay::same_callback;
+        self.title == other.title
+            && self.prompt == other.prompt
+            && self.input == other.input
+            && self.validation == other.validation
+            && self.size == other.size
+            && self.position == other.position
+            && self.modal == other.modal
+            && self.backdrop_closable == other.backdrop_closable
+            && self.escape_closable == other.escape_closable
+            && self.css_classes == other.css_classes
+            && same_callback(&self.on_validate, &other.on_validate)
+            && same_callback(&self.on_change, &other.on_change)
+            && same_callback(&self.on_submit, &other.on_submit)
+            && same_callback(&self.on_close, &other.on_close)
+    }
+}
+
 impl std::fmt::Debug for InputDialogOptions {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("InputDialogOptions")
@@ -74,7 +98,7 @@ impl std::fmt::Debug for InputDialogOptions {
 }
 
 /// Input field configuration
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct InputFieldConfig {
     /// Input type
     pub input_type: InputType,
@@ -90,12 +114,25 @@ pub struct InputFieldConfig {
     pub multiline: bool,
     /// Number of rows for multiline input
     pub rows: Option<usize>,
-    /// Input mask/format
+    /// Exact input format, checked by validation and before submission.
+    /// `#` matches an ASCII digit, `A` a Unicode alphabetic grapheme,
+    /// and `*` any non-control grapheme. Backslash escapes the next grapheme;
+    /// other graphemes are literals that the user enters (for example `AA-##`).
+    /// Editing preserves the user's text; it does not insert separators.
+    /// Empty optional values are allowed. A trailing escape is an error.
     pub mask: Option<String>,
     /// Whether to show character count
     pub show_count: bool,
     /// Custom attributes
     pub attributes: HashMap<String, String>,
+}
+
+impl InputFieldConfig {
+    fn attribute_enabled(&self, name: &str) -> bool {
+        self.attributes
+            .get(name)
+            .is_some_and(|value| value != "false")
+    }
 }
 
 /// Types of input fields
@@ -136,6 +173,20 @@ pub struct ValidationConfig {
     pub custom_validator: Option<CustomValidatorCallback>,
 }
 
+impl PartialEq for ValidationConfig {
+    fn eq(&self, other: &Self) -> bool {
+        self.rules == other.rules
+            && self.validate_on_change == other.validate_on_change
+            && self.validate_on_blur == other.validate_on_blur
+            && self.debounce_delay == other.debounce_delay
+            && self.async_validation_url == other.async_validation_url
+            && crate::widgets::display::overlay::same_callback(
+                &self.custom_validator,
+                &other.custom_validator,
+            )
+    }
+}
+
 impl std::fmt::Debug for ValidationConfig {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("ValidationConfig")
@@ -146,7 +197,7 @@ impl std::fmt::Debug for ValidationConfig {
 }
 
 /// Individual validation rule
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct ValidationRule {
     /// Rule type
     pub rule_type: ValidationRuleType,
@@ -209,6 +260,7 @@ impl InputDialog {
     pub fn new(id: DialogId, options: InputDialogOptions) -> Self {
         let input_value = options.input.default_value.clone().unwrap_or_default();
         let cursor_position = input_value.len();
+        let input_focused = !options.input.attribute_enabled("disabled");
 
         let bounds = DialogBounds {
             size: options.size,
@@ -227,186 +279,152 @@ impl InputDialog {
             cursor_position,
             selection: None,
             validation_state: ValidationResult::default(),
-            input_focused: true,
+            input_focused,
             bounds,
             last_validation: None,
             pending_validation: false,
         }
     }
 
-    /// Handle text input
+    fn boundary(&self, offset: usize) -> usize {
+        self.input_value
+            .grapheme_indices(true)
+            .map(|(offset, _)| offset)
+            .chain(std::iter::once(self.input_value.len()))
+            .take_while(|index| *index <= offset)
+            .last()
+            .unwrap_or(0)
+    }
+
+    fn replace(&mut self, start: usize, end: usize, text: &str) -> DialogEventResult {
+        if !self.input_focused
+            || self.options.input.attribute_enabled("disabled")
+            || self.options.input.attribute_enabled("readonly")
+        {
+            return DialogEventResult::Handled;
+        }
+        let start = self.boundary(start.min(end));
+        let end = self.boundary(end.max(start));
+        let mut value = self.input_value.clone();
+        value.replace_range(start..end, text);
+        if self
+            .options
+            .input
+            .max_length
+            .is_some_and(|maximum| value.graphemes(true).count() > maximum)
+            || value == self.input_value
+        {
+            return DialogEventResult::Handled;
+        }
+        self.input_value = value;
+        let cursor = start + text.len();
+        self.cursor_position = self
+            .input_value
+            .grapheme_indices(true)
+            .map(|(index, _)| index)
+            .chain(std::iter::once(self.input_value.len()))
+            .find(|index| *index >= cursor)
+            .unwrap_or(self.input_value.len());
+        self.selection = None;
+        if self
+            .options
+            .validation
+            .as_ref()
+            .is_some_and(|validation| validation.validate_on_change)
+        {
+            self.trigger_validation();
+        }
+        if let Some(callback) = &self.options.on_change {
+            callback(&self.input_value);
+        }
+        DialogEventResult::StateChanged
+    }
+
     fn handle_text_input(&mut self, text: &str) -> DialogEventResult {
-        // Insert text at cursor position
-        if let Some((start, end)) = self.selection {
-            // Replace selection
-            self.input_value.replace_range(start..end, text);
-            self.cursor_position = start + text.len();
-            self.selection = None;
-        } else {
-            // Insert at cursor
-            self.input_value.insert_str(self.cursor_position, text);
-            self.cursor_position += text.len();
-        }
-
-        // Check max length
-        if let Some(max_length) = self.options.input.max_length {
-            if self.input_value.len() > max_length {
-                self.input_value.truncate(max_length);
-                self.cursor_position = self.cursor_position.min(max_length);
-            }
-        }
-
-        // Trigger validation if enabled
-        if let Some(validation) = &self.options.validation {
-            if validation.validate_on_change {
-                self.trigger_validation();
-            }
-        }
-
-        // Call change callback
-        if let Some(callback) = &self.options.on_change {
-            callback(&self.input_value);
-        }
-
-        DialogEventResult::StateChanged
+        let (start, end) = self
+            .selection
+            .unwrap_or((self.cursor_position, self.cursor_position));
+        self.replace(start, end, text)
     }
 
-    /// Handle backspace
     fn handle_backspace(&mut self) -> DialogEventResult {
-        if let Some((start, end)) = self.selection {
-            // Delete selection
-            self.input_value.replace_range(start..end, "");
-            self.cursor_position = start;
-            self.selection = None;
-        } else if self.cursor_position > 0 {
-            // Delete character before cursor
-            self.input_value.remove(self.cursor_position - 1);
-            self.cursor_position -= 1;
-        }
-
-        // Trigger validation if enabled
-        if let Some(validation) = &self.options.validation {
-            if validation.validate_on_change {
-                self.trigger_validation();
-            }
-        }
-
-        // Call change callback
-        if let Some(callback) = &self.options.on_change {
-            callback(&self.input_value);
-        }
-
-        DialogEventResult::StateChanged
+        let (start, end) = self.selection.unwrap_or_else(|| {
+            let end = self.boundary(self.cursor_position);
+            (
+                self.input_value[..end]
+                    .grapheme_indices(true)
+                    .next_back()
+                    .map_or(0, |(index, _)| index),
+                end,
+            )
+        });
+        self.replace(start, end, "")
     }
 
-    /// Handle delete key
     fn handle_delete(&mut self) -> DialogEventResult {
-        if let Some((start, end)) = self.selection {
-            // Delete selection
-            self.input_value.replace_range(start..end, "");
-            self.cursor_position = start;
-            self.selection = None;
-        } else if self.cursor_position < self.input_value.len() {
-            // Delete character after cursor
-            self.input_value.remove(self.cursor_position);
-        }
+        let (start, end) = self.selection.unwrap_or_else(|| {
+            let start = self.boundary(self.cursor_position);
+            (
+                start,
+                start
+                    + self.input_value[start..]
+                        .graphemes(true)
+                        .next()
+                        .map_or(0, str::len),
+            )
+        });
+        self.replace(start, end, "")
+    }
 
-        // Trigger validation if enabled
-        if let Some(validation) = &self.options.validation {
-            if validation.validate_on_change {
-                self.trigger_validation();
-            }
-        }
-
-        // Call change callback
-        if let Some(callback) = &self.options.on_change {
-            callback(&self.input_value);
-        }
-
+    fn move_cursor(&mut self, position: usize, select: bool) -> DialogEventResult {
+        let position = self.boundary(position);
+        self.selection = if select {
+            let anchor = self.selection.map_or(self.cursor_position, |(start, end)| {
+                if self.cursor_position == start {
+                    end
+                } else {
+                    start
+                }
+            });
+            (anchor != position).then_some((anchor.min(position), anchor.max(position)))
+        } else {
+            None
+        };
+        self.cursor_position = position;
         DialogEventResult::StateChanged
     }
 
-    /// Move cursor left
     fn move_cursor_left(&mut self, select: bool) -> DialogEventResult {
-        if select {
-            if self.selection.is_none() {
-                self.selection = Some((self.cursor_position, self.cursor_position));
-            }
+        let cursor = self.boundary(self.cursor_position);
+        let position = if let Some((start, _)) = self.selection.filter(|_| !select) {
+            start
         } else {
-            self.selection = None;
-        }
-
-        if self.cursor_position > 0 {
-            self.cursor_position -= 1;
-
-            if select {
-                if let Some((start, _)) = &mut self.selection {
-                    *start = self.cursor_position;
-                }
-            }
-        }
-
-        DialogEventResult::StateChanged
+            self.input_value[..cursor]
+                .grapheme_indices(true)
+                .next_back()
+                .map_or(0, |(index, _)| index)
+        };
+        self.move_cursor(position, select)
     }
-
-    /// Move cursor right
     fn move_cursor_right(&mut self, select: bool) -> DialogEventResult {
-        if select {
-            if self.selection.is_none() {
-                self.selection = Some((self.cursor_position, self.cursor_position));
-            }
+        let cursor = self.boundary(self.cursor_position);
+        let position = if let Some((_, end)) = self.selection.filter(|_| !select) {
+            end
         } else {
-            self.selection = None;
-        }
-
-        if self.cursor_position < self.input_value.len() {
-            self.cursor_position += 1;
-
-            if select {
-                if let Some((_, end)) = &mut self.selection {
-                    *end = self.cursor_position;
-                }
-            }
-        }
-
-        DialogEventResult::StateChanged
+            cursor
+                + self.input_value[cursor..]
+                    .graphemes(true)
+                    .next()
+                    .map_or(0, str::len)
+        };
+        self.move_cursor(position, select)
     }
-
-    /// Move cursor to beginning
     fn move_cursor_home(&mut self, select: bool) -> DialogEventResult {
-        if select {
-            if self.selection.is_none() {
-                self.selection = Some((self.cursor_position, self.cursor_position));
-            }
-            if let Some((start, _)) = &mut self.selection {
-                *start = 0;
-            }
-        } else {
-            self.selection = None;
-        }
-
-        self.cursor_position = 0;
-        DialogEventResult::StateChanged
+        self.move_cursor(0, select)
     }
-
-    /// Move cursor to end
     fn move_cursor_end(&mut self, select: bool) -> DialogEventResult {
-        if select {
-            if self.selection.is_none() {
-                self.selection = Some((self.cursor_position, self.cursor_position));
-            }
-            if let Some((_, end)) = &mut self.selection {
-                *end = self.input_value.len();
-            }
-        } else {
-            self.selection = None;
-        }
-
-        self.cursor_position = self.input_value.len();
-        DialogEventResult::StateChanged
+        self.move_cursor(self.input_value.len(), select)
     }
-
-    /// Select all text
     fn select_all(&mut self) -> DialogEventResult {
         self.selection = Some((0, self.input_value.len()));
         self.cursor_position = self.input_value.len();
@@ -424,105 +442,15 @@ impl InputDialog {
     }
 
     /// Validate input value
-    fn validate_input(&self, value: &str, validation: &ValidationConfig) -> ValidationResult {
-        let mut result = ValidationResult::default();
-
-        for rule in &validation.rules {
-            match &rule.rule_type {
-                ValidationRuleType::Required => {
-                    if value.trim().is_empty() {
-                        result.valid = false;
-                        result.message = Some(rule.message.clone());
-                    }
-                }
-                ValidationRuleType::MinLength(min_len) => {
-                    if value.len() < *min_len {
-                        result.valid = false;
-                        result.message = Some(rule.message.clone());
-                    }
-                }
-                ValidationRuleType::MaxLength(max_len) => {
-                    if value.len() > *max_len {
-                        result.valid = false;
-                        result.message = Some(rule.message.clone());
-                    }
-                }
-                ValidationRuleType::Pattern(pattern) => {
-                    // Production regex pattern matching using regex crate
-                    use std::collections::HashMap;
-                    use std::sync::OnceLock;
-
-                    static REGEX_CACHE: OnceLock<std::sync::Mutex<HashMap<String, regex::Regex>>> =
-                        OnceLock::new();
-
-                    let cache = REGEX_CACHE.get_or_init(|| std::sync::Mutex::new(HashMap::new()));
-                    let mut cache_guard = cache.lock().unwrap();
-
-                    let compiled_regex = cache_guard.entry(pattern.clone()).or_insert_with(|| {
-                        regex::Regex::new(pattern).unwrap_or_else(|_| {
-                            // Fallback for invalid regex - treat as literal string match
-                            regex::Regex::new(&regex::escape(pattern)).unwrap()
-                        })
-                    });
-
-                    if !compiled_regex.is_match(value) {
-                        result.valid = false;
-                        result.message = Some(rule.message.clone());
-                    }
-                }
-                ValidationRuleType::Email => {
-                    if !value.contains('@') || !value.contains('.') {
-                        result.valid = false;
-                        result.message = Some(rule.message.clone());
-                    }
-                }
-                ValidationRuleType::Url => {
-                    if !value.starts_with("http://") && !value.starts_with("https://") {
-                        result.valid = false;
-                        result.message = Some(rule.message.clone());
-                    }
-                }
-                ValidationRuleType::Number => {
-                    if value.parse::<f64>().is_err() {
-                        result.valid = false;
-                        result.message = Some(rule.message.clone());
-                    }
-                }
-                ValidationRuleType::Phone => {
-                    // Simple phone validation
-                    let digits: String = value.chars().filter(|c| c.is_ascii_digit()).collect();
-                    if digits.len() < 10 {
-                        result.valid = false;
-                        result.message = Some(rule.message.clone());
-                    }
-                }
-                ValidationRuleType::Custom(_) => {
-                    // Custom validation would be handled by callback
-                }
-            }
-        }
-
-        // Call custom validator if provided
-        if let Some(validator) = &validation.custom_validator {
-            let custom_result = validator(value);
-            if !custom_result.valid {
-                result.valid = false;
-                // Custom validation errors are handled in the valid flag
-                result.warnings.extend(custom_result.warnings);
-            }
-        }
-
-        result
+    fn validate_input(&self, value: &str, _validation: &ValidationConfig) -> ValidationResult {
+        validation::validate(&self.options, value)
     }
 
     /// Submit the dialog
     fn submit(&mut self) -> DialogEventResult {
-        // Validate before submit
-        if let Some(validation) = &self.options.validation {
-            self.validation_state = self.validate_input(&self.input_value, validation);
-            if !self.validation_state.valid {
-                return DialogEventResult::StateChanged;
-            }
+        self.validation_state = validation::validate(&self.options, &self.input_value);
+        if !self.validation_state.valid {
+            return DialogEventResult::StateChanged;
         }
 
         // Call submit callback
@@ -545,90 +473,23 @@ impl DialogComponent for InputDialog {
         "input"
     }
 
-    fn render(&self, _bounds: Rect, theme: &DialogTheme) -> Element {
-        use crate::builder::{button, div};
-
-        let mut children = Vec::new();
-
-        // Title bar
-        if !self.options.title.is_empty() {
-            children.push(
-                div()
-                    .class(&format!("dialog-title {}", theme.title_style))
-                    .text(&self.options.title)
-                    .build(),
-            );
-        }
-
-        // Content area
-        let mut content_children = Vec::new();
-
-        // Prompt
-        content_children.push(
-            div()
-                .class("dialog-prompt text-lg font-medium mb-4")
-                .text(&self.options.prompt)
-                .build(),
-        );
-
-        // Input field
-        let input_element = self.render_input_field(theme);
-        content_children.push(input_element);
-
-        // Validation messages
-        if !self.validation_state.valid {
-            let error_messages: Vec<String> = if let Some(msg) = &self.validation_state.message {
-                vec![msg.clone()]
-            } else {
-                vec![]
-            };
-            if !error_messages.is_empty() {
-                content_children.push(
-                    div()
-                        .class("validation-errors text-red-500 text-sm mt-2")
-                        .text(&error_messages.join(", "))
-                        .build(),
-                );
-            }
-        }
-
-        children.push(
-            div()
-                .class("dialog-content p-6")
-                .children(content_children)
-                .build(),
-        );
-
-        // Button area
-        let button_elements = vec![
-            button()
-                .class("dialog-button btn-secondary mr-2")
-                .text("Cancel")
-                .build(),
-            button()
-                .class("dialog-button btn-primary")
-                .text("OK")
-                .build(),
-        ];
-
-        children.push(
-            div()
-                .class("dialog-buttons flex justify-end gap-2 p-4 border-t")
-                .children(button_elements)
-                .build(),
-        );
-
-        div()
-            .class(&format!(
-                "dialog input-dialog {} {}",
-                theme.dialog_bg, theme.border_style
-            ))
-            .children(children)
-            .build()
+    fn render(&self, bounds: Rect, theme: &DialogTheme) -> Element {
+        Element::typed::<live::LiveInput>(live::LiveProps {
+            id: self.state.id,
+            options: self.options.clone(),
+            value: self.input_value.clone(),
+            bounds,
+            theme: theme.clone(),
+        })
     }
 
     fn handle_event(&mut self, event: &Event) -> DialogEventResult {
         match event {
+            Event::Key(key_event)
+                if key_event.kind == crate::event::types::KeyEventKind::Release =>
+            {
+                DialogEventResult::NotHandled
+            }
             Event::Key(key_event) => match key_event.code {
                 KeyCode::Escape if self.options.escape_closable => {
                     DialogEventResult::Close(DialogResult::Cancelled)
@@ -647,9 +508,23 @@ impl DialogComponent for InputDialog {
                 KeyCode::Home => self.move_cursor_home(key_event.modifiers.shift),
                 KeyCode::End => self.move_cursor_end(key_event.modifiers.shift),
                 KeyCode::Char('a') if key_event.modifiers.ctrl => self.select_all(),
-                KeyCode::Char(c) => self.handle_text_input(&c.to_string()),
+                KeyCode::Char(c)
+                    if !key_event.modifiers.ctrl
+                        && !key_event.modifiers.alt
+                        && !key_event.modifiers.meta =>
+                {
+                    self.handle_text_input(&c.to_string())
+                }
                 _ => DialogEventResult::NotHandled,
             },
+            Event::Paste(paste) => {
+                let text = if self.options.input.multiline {
+                    paste.content.replace("\r\n", "\n").replace('\r', "\n")
+                } else {
+                    paste.content.replace(['\r', '\n'], " ")
+                };
+                self.handle_text_input(&text)
+            }
             Event::Mouse(mouse_event) => {
                 match mouse_event.kind {
                     MouseEventKind::Down => {
@@ -747,9 +622,9 @@ impl DialogComponent for InputDialog {
                 id: "input".to_string(),
                 element_type: super::dialog_component::FocusableElementType::Input,
                 tab_index: 0,
-                enabled: true,
+                enabled: !self.options.input.attribute_enabled("disabled"),
                 bounds: Rect::default(), // Would be calculated during render
-                properties: std::collections::HashMap::new(),
+                properties: self.options.input.attributes.clone(),
             },
             super::dialog_component::FocusableElementInfo {
                 id: "cancel".to_string(),
@@ -772,7 +647,7 @@ impl DialogComponent for InputDialog {
 
     fn set_focus(&mut self, element_id: &str) -> bool {
         match element_id {
-            "input" => {
+            "input" if !self.options.input.attribute_enabled("disabled") => {
                 self.input_focused = true;
                 true
             }
@@ -793,22 +668,24 @@ impl DialogComponent for InputDialog {
     }
 
     fn validate(&self) -> super::dialog_component::ValidationResult {
-        if let Some(validation) = &self.options.validation {
-            // Convert local ValidationResult to dialog_component::ValidationResult
-            let local_result = self.validate_input(&self.input_value, validation);
-            let mut warnings_map = std::collections::HashMap::new();
-            for (i, warning) in local_result.warnings.iter().enumerate() {
-                warnings_map.insert(format!("warning_{}", i), warning.clone());
-            }
-
-            super::dialog_component::ValidationResult {
-                valid: local_result.valid,
-                errors: std::collections::HashMap::new(), // Simplified for now
-                warnings: warnings_map,
-                data: local_result.message,
-            }
-        } else {
-            super::dialog_component::ValidationResult::default()
+        let result = validation::validate(&self.options, &self.input_value);
+        let errors = result
+            .message
+            .as_ref()
+            .filter(|_| !result.valid)
+            .map(|message| ("input".to_string(), message.clone()))
+            .into_iter()
+            .collect();
+        super::dialog_component::ValidationResult {
+            valid: result.valid,
+            errors,
+            warnings: result
+                .warnings
+                .into_iter()
+                .enumerate()
+                .map(|(index, warning)| (format!("warning_{index}"), warning))
+                .collect(),
+            data: result.message,
         }
     }
 
@@ -818,51 +695,6 @@ impl DialogComponent for InputDialog {
 
     fn as_any_mut(&mut self) -> &mut dyn Any {
         self
-    }
-}
-
-impl InputDialog {
-    /// Render the input field
-    fn render_input_field(&self, _theme: &DialogTheme) -> Element {
-        use crate::builder::input;
-
-        let mut classes = vec!["dialog-input"];
-
-        // Add input type class
-        let type_class = match &self.options.input.input_type {
-            InputType::Text => "input-text",
-            InputType::Password => "input-password",
-            InputType::Email => "input-email",
-            InputType::Number => "input-number",
-            InputType::Phone => "input-phone",
-            InputType::Url => "input-url",
-            InputType::Search => "input-search",
-            InputType::Custom(class) => class,
-        };
-        classes.push(type_class);
-
-        // Add state classes
-        if self.input_focused {
-            classes.push("focused");
-        }
-
-        if !self.validation_state.valid {
-            classes.push("invalid");
-        }
-
-        // Add multiline class
-        if self.options.input.multiline {
-            classes.push("multiline");
-        }
-
-        let mut element = input().class(&classes.join(" "));
-
-        // Add placeholder
-        if let Some(placeholder) = &self.options.input.placeholder {
-            element = element.placeholder(placeholder);
-        }
-
-        element.build()
     }
 }
 

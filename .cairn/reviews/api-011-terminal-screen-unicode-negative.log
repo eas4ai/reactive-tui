@@ -1,0 +1,42 @@
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 6.80s
+     Running unittests src/lib.rs (target/debug/deps/reactive_tui-fa00cdcf48e682eb)
+
+running 3 tests
+test terminal::screen::tests::wide_glyph_wraps_before_last_column ... FAILED
+test terminal::screen::tests::wide_overwrite_clears_both_halves_and_old_links ... FAILED
+test terminal::screen::tests::streamed_graphemes_occupy_whole_cells ... FAILED
+
+failures:
+
+---- terminal::screen::tests::wide_glyph_wraps_before_last_column stdout ----
+
+thread 'terminal::screen::tests::wide_glyph_wraps_before_last_column' (3818686) panicked at src/terminal/screen/tests.rs:39:5:
+assertion `left == right` failed
+  left: "界"
+ right: " "
+
+---- terminal::screen::tests::wide_overwrite_clears_both_halves_and_old_links stdout ----
+
+thread 'terminal::screen::tests::wide_overwrite_clears_both_halves_and_old_links' (3818687) panicked at src/terminal/screen/tests.rs:30:5:
+assertion `left == right` failed
+  left: "界"
+ right: " "
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- terminal::screen::tests::streamed_graphemes_occupy_whole_cells stdout ----
+
+thread 'terminal::screen::tests::streamed_graphemes_occupy_whole_cells' (3818685) panicked at src/terminal/screen/tests.rs:13:5:
+assertion `left == right` failed
+  left: "e"
+ right: "e\u{301}"
+
+
+failures:
+    terminal::screen::tests::streamed_graphemes_occupy_whole_cells
+    terminal::screen::tests::wide_glyph_wraps_before_last_column
+    terminal::screen::tests::wide_overwrite_clears_both_halves_and_old_links
+
+test result: FAILED. 0 passed; 3 failed; 0 ignored; 0 measured; 905 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `--lib`

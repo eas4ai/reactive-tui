@@ -4,6 +4,7 @@ command: sh scripts/check-embedded-terminal.sh
 inputs:
   - docs/spec
   - Cargo.toml
+  - build.rs
   - Cargo.lock
   - README.md
   - docs/embedded-terminal.md

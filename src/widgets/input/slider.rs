@@ -55,7 +55,7 @@ impl SliderBuilder {
 
     /// Set the current value
     pub fn value(mut self, value: f64) -> Self {
-        self.value = value.clamp(self.min, self.max);
+        self.value = value;
         self
     }
 
@@ -69,7 +69,6 @@ impl SliderBuilder {
     pub fn range(mut self, min: f64, max: f64) -> Self {
         self.min = min;
         self.max = max;
-        self.value = self.value.clamp(min, max);
         self
     }
 
@@ -105,7 +104,7 @@ impl SliderBuilder {
 
     /// Build the SliderProps
     pub fn build(self) -> SliderProps {
-        SliderProps {
+        let mut props = SliderProps {
             min: self.min,
             max: self.max,
             value: self.value,
@@ -115,12 +114,16 @@ impl SliderBuilder {
             show_labels: self.show_labels,
             disabled: self.disabled,
             width: self.width,
+        };
+        if props.valid() {
+            props.value = props.bounded_value();
         }
+        props
     }
 
     /// Build and render as an Element (convenience method)
     pub fn render(self) -> Element {
-        Element::component("Slider").with_props(self.build())
+        Element::typed::<Slider>(self.build())
     }
 }
 
@@ -192,8 +195,25 @@ pub struct SliderState {
 
 /// Slider component with full keyboard and mouse support
 pub struct Slider {
-    state: SliderState,
+    viewport: Option<crate::component::LayoutInfo>,
+    label: Option<String>,
     on_change: Option<Arc<dyn Fn(f64) + Send + Sync>>,
+}
+
+impl SliderProps {
+    fn valid(&self) -> bool {
+        self.min.is_finite()
+            && self.max.is_finite()
+            && self.min <= self.max
+            && (self.max - self.min).is_finite()
+            && self.value.is_finite()
+            && self.step.is_finite()
+            && self.step > 0.0
+    }
+
+    fn bounded_value(&self) -> f64 {
+        self.value.clamp(self.min, self.max)
+    }
 }
 
 impl Slider {
@@ -203,31 +223,126 @@ impl Slider {
         self
     }
 
-    /// Calculate the position of the thumb on the track
-    fn calculate_thumb_position(&self, props: &SliderProps) -> usize {
-        let range = props.max - props.min;
-        if range == 0.0 {
-            return 0;
-        }
-
-        let normalized = (props.value - props.min) / range;
-        let track_length = props.width.saturating_sub(1) as f64;
-        (normalized * track_length).round() as usize
+    pub(crate) fn set_label(&mut self, label: Option<String>) {
+        self.label = label;
     }
 
-    /// Calculate value from position
+    fn label_rows(&self) -> usize {
+        self.label
+            .as_ref()
+            .map_or(0, |label| label.split('\n').count())
+    }
+
+    // Track coordinates are relative to rendered content; padding is handled
+    // once at the mouse boundary. Decorations occupy cells outside the track.
+    fn track(&self, props: &SliderProps) -> (usize, usize, usize) {
+        let labels = if props.show_labels {
+            (
+                format!("{:.0} ", props.min).len(),
+                format!(" {:.0}", props.max).len(),
+            )
+        } else {
+            (0, 0)
+        };
+        let value_width = if props.show_value {
+            1 + format!("{:.1}", props.min)
+                .len()
+                .max(format!("{:.1}", props.max).len())
+        } else {
+            0
+        };
+        match props.orientation {
+            SliderOrientation::Horizontal => {
+                let x = 3 + labels.0;
+                let available = self.viewport.map_or(props.width as usize, |bounds| {
+                    (bounds.content_size().0 as usize)
+                        .saturating_sub(x + 1 + labels.1 + value_width)
+                });
+                (x, self.label_rows(), available.min(props.width as usize))
+            }
+            SliderOrientation::Vertical => {
+                let label_rows = self.label_rows();
+                let y = usize::from(props.show_labels);
+                let available = self.viewport.map_or(props.width as usize, |bounds| {
+                    (bounds.content_size().1 as usize)
+                        .saturating_sub(label_rows + y * 2 + usize::from(props.show_value))
+                });
+                (2, label_rows + y, available.min(props.width as usize))
+            }
+        }
+    }
+
+    fn calculate_thumb_position(&self, props: &SliderProps) -> usize {
+        if !props.valid() || props.min == props.max {
+            return 0;
+        }
+        let normalized = (props.bounded_value() - props.min) / (props.max - props.min);
+        (normalized * self.track(props).2.saturating_sub(1) as f64).round() as usize
+    }
+
     fn value_from_position(&self, position: usize, props: &SliderProps) -> f64 {
-        let track_length = props.width.saturating_sub(1) as f64;
-        if track_length == 0.0 {
+        let last = self.track(props).2.saturating_sub(1);
+        if last == 0 {
             return props.min;
         }
+        if position >= last {
+            return props.max;
+        }
+        let value = props.min + position as f64 / last as f64 * (props.max - props.min);
+        Self::snap(value, props)
+    }
 
-        let normalized = position as f64 / track_length;
-        let value = props.min + normalized * (props.max - props.min);
-
-        // Round to nearest step
+    fn snap(value: f64, props: &SliderProps) -> f64 {
+        if value <= props.min {
+            return props.min;
+        }
+        if value >= props.max {
+            return props.max;
+        }
         let steps = ((value - props.min) / props.step).round();
-        (props.min + steps * props.step).clamp(props.min, props.max)
+        let snapped = props.min + steps * props.step;
+        if snapped.is_finite() {
+            snapped.clamp(props.min, props.max)
+        } else {
+            value.clamp(props.min, props.max)
+        }
+    }
+
+    fn change(&self, value: f64, props: &mut SliderProps) {
+        if value != props.value {
+            props.value = value;
+            if let Some(callback) = &self.on_change {
+                callback(value);
+            }
+        }
+    }
+
+    fn mouse_position(
+        &self,
+        event: &MouseEvent,
+        props: &SliderProps,
+        dragging: bool,
+    ) -> Option<usize> {
+        let (x, y, length) = self.track(props);
+        if length == 0 {
+            return None;
+        }
+        let insets = self.viewport.map_or([0.0; 4], |v| v.insets);
+        let mx = event.position.x() as f32 - insets[0];
+        let my = event.position.y() as f32 - insets[1];
+        let (along, across) = match props.orientation {
+            SliderOrientation::Horizontal => (mx - x as f32, my - y as f32),
+            SliderOrientation::Vertical => (my - y as f32, mx - x as f32),
+        };
+        if !dragging && (!(0.0..1.0).contains(&across) || along < 0.0 || along >= length as f32) {
+            return None;
+        }
+        let position = along.clamp(0.0, (length - 1) as f32) as usize;
+        Some(if props.orientation == SliderOrientation::Vertical {
+            length - 1 - position
+        } else {
+            position
+        })
     }
 }
 
@@ -237,92 +352,122 @@ impl Component for Slider {
 
     fn new(_props: Self::Props) -> Self {
         Self {
-            state: SliderState::default(),
+            viewport: None,
+            label: None,
             on_change: None,
         }
     }
 
-    fn update(&mut self, _props: &Self::Props, state: &mut Self::State) -> bool {
-        self.state = state.clone();
+    fn update(&mut self, props: &Self::Props, state: &mut Self::State) -> bool {
+        if props.disabled || !props.valid() {
+            *state = SliderState::default();
+        }
         true
     }
 
+    fn layout(
+        &mut self,
+        bounds: crate::component::LayoutInfo,
+        props: &mut Self::Props,
+        _state: &mut Self::State,
+    ) -> bool {
+        let previous = self.track(props);
+        self.viewport = Some(bounds);
+        previous != self.track(props)
+    }
+
     fn render(&self, props: &Self::Props, state: &Self::State) -> Element {
-        let mut result = String::new();
-
-        // Add focus indicator
-        if state.is_focused && !props.disabled {
-            result.push_str("▶ ");
-        } else {
-            result.push_str("  ");
+        if !props.valid() {
+            return Element::text("Invalid slider range").disabled(true);
         }
-
-        match props.orientation {
+        let (_, _, length) = self.track(props);
+        let thumb = self.calculate_thumb_position(props);
+        let marker = if props.disabled {
+            '○'
+        } else if state.is_hover {
+            '◉'
+        } else {
+            '●'
+        };
+        let focus = if state.is_focused && !props.disabled {
+            "▶ "
+        } else {
+            "  "
+        };
+        let value = props.bounded_value();
+        let result = match props.orientation {
             SliderOrientation::Horizontal => {
-                // Show min label if requested
+                let mut text = focus.to_owned();
                 if props.show_labels {
-                    result.push_str(&format!("{:.0} ", props.min));
+                    text.push_str(&format!("{:.0} ", props.min));
                 }
-
-                // Draw the track
-                result.push('[');
-
-                let thumb_pos = self.calculate_thumb_position(props);
-                for i in 0..props.width {
-                    if i == thumb_pos as u16 {
-                        if props.disabled {
-                            result.push('○'); // Disabled thumb
-                        } else if state.is_dragging {
-                            result.push('●'); // Dragging thumb
-                        } else if state.is_hover {
-                            result.push('◉'); // Hover thumb
-                        } else {
-                            result.push('●'); // Normal thumb
-                        }
-                    } else if i < thumb_pos as u16 {
-                        result.push('═'); // Filled track
+                text.push('[');
+                for i in 0..length {
+                    text.push(if i == thumb {
+                        marker
+                    } else if i < thumb {
+                        '═'
                     } else {
-                        result.push('─'); // Empty track
-                    }
+                        '─'
+                    });
                 }
-
-                result.push(']');
-
-                // Show max label if requested
+                text.push(']');
                 if props.show_labels {
-                    result.push_str(&format!(" {:.0}", props.max));
+                    text.push_str(&format!(" {:.0}", props.max));
                 }
-
-                // Show current value if requested
                 if props.show_value {
-                    if props.disabled {
-                        result.push_str(&format!(" ({:.1})", props.value));
-                    } else {
-                        result.push_str(&format!(" {:.1}", props.value));
-                    }
+                    text.push_str(&format!(" {value:.1}"));
                 }
+                text
             }
             SliderOrientation::Vertical => {
-                // For vertical, we'd need multi-line rendering
-                // This is a simplified single-line representation
-                result.push('│');
-                let thumb_pos = self.calculate_thumb_position(props);
-                for i in 0..props.width {
-                    if i == thumb_pos as u16 {
-                        result.push('●');
+                let mut rows = Vec::new();
+                if props.show_labels {
+                    rows.push(format!("  {:.0}", props.max));
+                }
+                for row in 0..length {
+                    let position = length - 1 - row;
+                    let symbol = if position == thumb {
+                        marker
+                    } else if position < thumb {
+                        '┃'
                     } else {
-                        result.push('│');
-                    }
+                        '│'
+                    };
+                    rows.push(format!("{}{symbol}", if row == 0 { focus } else { "  " }));
                 }
-                result.push('│');
-
+                if props.show_labels {
+                    rows.push(format!("  {:.0}", props.min));
+                }
                 if props.show_value {
-                    result.push_str(&format!(" {:.1}", props.value));
+                    rows.push(format!("  {value:.1}"));
                 }
+                rows.join("\n")
             }
+        };
+        let result = if let Some(label) = &self.label {
+            format!("{label}\n{result}")
+        } else {
+            result
+        };
+        use crate::accessibility::{Node, Role};
+        let mut accessible = Node::new(Role::Slider);
+        if let Some(label) = &self.label {
+            accessible.set_label(label.clone());
         }
-
+        accessible.inner.set_numeric_value(value);
+        accessible.inner.set_min_numeric_value(props.min);
+        accessible.inner.set_max_numeric_value(props.max);
+        accessible.inner.set_numeric_value_step(props.step);
+        accessible.inner.set_orientation(match props.orientation {
+            SliderOrientation::Horizontal => accesskit::Orientation::Horizontal,
+            SliderOrientation::Vertical => accesskit::Orientation::Vertical,
+        });
         Element::text(result)
+            .with_accessibility(accessible)
+            .with_class("whitespace-pre overflow-hidden")
+            .with_focus(crate::component::FocusProps::input())
+            .disabled(props.disabled || length == 0)
     }
 
     fn handle_event(
@@ -331,22 +476,29 @@ impl Component for Slider {
         props: &mut Self::Props,
         state: &mut Self::State,
     ) -> EventResult {
-        if props.disabled {
+        if let Event::Focus(event) = event {
+            if !matches!(
+                event.kind,
+                crate::event::types::FocusEventKind::Gained
+                    | crate::event::types::FocusEventKind::Lost
+            ) {
+                return EventResult::Ignored;
+            }
+            state.is_focused = event.kind == crate::event::types::FocusEventKind::Gained
+                && !props.disabled
+                && props.valid();
+            if !state.is_focused {
+                state.is_dragging = false;
+                state.is_hover = false;
+            }
+            return EventResult::Consumed;
+        }
+        if props.disabled || !props.valid() || self.track(props).2 == 0 {
             return EventResult::Ignored;
         }
-
         match event {
-            Event::Key(key_event) => {
-                if !state.is_focused {
-                    return EventResult::Ignored;
-                }
-                self.handle_key_event(key_event, props, state)
-            }
-            Event::Mouse(mouse_event) => self.handle_mouse_event(mouse_event, props, state),
-            Event::Focus(_) => {
-                state.is_focused = true;
-                EventResult::Consumed
-            }
+            Event::Key(event) if state.is_focused => self.handle_key_event(event, props, state),
+            Event::Mouse(event) => self.handle_mouse_event(event, props, state),
             _ => EventResult::Ignored,
         }
     }
@@ -359,52 +511,24 @@ impl Slider {
         props: &mut SliderProps,
         _state: &mut SliderState,
     ) -> EventResult {
-        let old_value = props.value;
-
-        match event.code {
-            KeyCode::Left | KeyCode::Down => {
-                // Decrease value by step
-                props.value = (props.value - props.step).max(props.min);
-            }
-            KeyCode::Right | KeyCode::Up => {
-                // Increase value by step
-                props.value = (props.value + props.step).min(props.max);
-            }
-            KeyCode::PageDown => {
-                // Decrease by larger step (10% of range)
-                let large_step = (props.max - props.min) * 0.1;
-                props.value = (props.value - large_step).max(props.min);
-                // Round to nearest step
-                let steps = ((props.value - props.min) / props.step).round();
-                props.value = props.min + steps * props.step;
-            }
-            KeyCode::PageUp => {
-                // Increase by larger step (10% of range)
-                let large_step = (props.max - props.min) * 0.1;
-                props.value = (props.value + large_step).min(props.max);
-                // Round to nearest step
-                let steps = ((props.value - props.min) / props.step).round();
-                props.value = props.min + steps * props.step;
-            }
-            KeyCode::Home => {
-                // Jump to minimum
-                props.value = props.min;
-            }
-            KeyCode::End => {
-                // Jump to maximum
-                props.value = props.max;
-            }
+        let value = props.bounded_value();
+        let new_value = match event.code {
+            KeyCode::Left | KeyCode::Down => (value - props.step).max(props.min),
+            KeyCode::Right | KeyCode::Up => (value + props.step).min(props.max),
+            KeyCode::PageDown => Self::snap(
+                (value - ((props.max - props.min) * 0.1).max(props.step)).max(props.min),
+                props,
+            ),
+            KeyCode::PageUp => Self::snap(
+                (value + ((props.max - props.min) * 0.1).max(props.step)).min(props.max),
+                props,
+            ),
+            KeyCode::Home => props.min,
+            KeyCode::End => props.max,
             _ => return EventResult::Ignored,
-        }
-
-        if props.value != old_value {
-            if let Some(on_change) = &self.on_change {
-                on_change(props.value);
-            }
-            EventResult::Consumed
-        } else {
-            EventResult::Ignored
-        }
+        };
+        self.change(new_value, props);
+        EventResult::Consumed
     }
 
     fn handle_mouse_event(
@@ -413,63 +537,32 @@ impl Slider {
         props: &mut SliderProps,
         state: &mut SliderState,
     ) -> EventResult {
+        use crate::event::types::MouseButton;
         match event.kind {
-            MouseEventKind::Down => {
-                // Start dragging
-                state.is_dragging = true;
-                state.is_focused = true;
-
-                // Update value based on click position
-                if props.orientation == SliderOrientation::Horizontal {
-                    let x = event.position.x() as usize;
-                    // Account for the focus indicator and labels
-                    let offset = 2 + if props.show_labels { 3 } else { 0 };
-                    if x >= offset && x < offset + props.width as usize {
-                        let relative_x = x - offset;
-                        let new_value = self
-                            .value_from_position(relative_x.min(props.width as usize - 1), props);
-
-                        if new_value != props.value {
-                            props.value = new_value;
-                            if let Some(on_change) = &self.on_change {
-                                on_change(props.value);
-                            }
-                        }
-                    }
-                }
-
+            MouseEventKind::Down | MouseEventKind::Click if event.button == MouseButton::Left => {
+                let Some(position) = self.mouse_position(event, props, false) else {
+                    return EventResult::Ignored;
+                };
+                state.is_dragging = event.kind == MouseEventKind::Down;
+                self.change(self.value_from_position(position, props), props);
                 EventResult::Consumed
             }
-            MouseEventKind::Up => {
-                // Stop dragging
+            MouseEventKind::Drag if state.is_dragging && event.button == MouseButton::Left => {
+                if let Some(position) = self.mouse_position(event, props, true) {
+                    self.change(self.value_from_position(position, props), props);
+                }
+                EventResult::Consumed
+            }
+            MouseEventKind::Up if state.is_dragging => {
                 state.is_dragging = false;
                 EventResult::Consumed
             }
-            MouseEventKind::Drag => {
-                // Update value while dragging
-                if state.is_dragging && props.orientation == SliderOrientation::Horizontal {
-                    let x = event.position.x() as usize;
-                    let offset = 2 + if props.show_labels { 3 } else { 0 };
-                    if x >= offset && x < offset + props.width as usize {
-                        let relative_x = x - offset;
-                        let new_value = self
-                            .value_from_position(relative_x.min(props.width as usize - 1), props);
-
-                        if new_value != props.value {
-                            props.value = new_value;
-                            if let Some(on_change) = &self.on_change {
-                                on_change(props.value);
-                            }
-                        }
-                    }
-                }
-                EventResult::Consumed
+            MouseEventKind::Move | MouseEventKind::Enter => {
+                state.is_hover = self.mouse_position(event, props, false).is_some();
+                EventResult::Ignored
             }
-            MouseEventKind::Move => {
-                // Track hover state
-                let x = event.position.x() as usize;
-                let offset = 2 + if props.show_labels { 3 } else { 0 };
-                state.is_hover = x >= offset && x < offset + props.width as usize;
+            MouseEventKind::Leave => {
+                state.is_hover = false;
                 EventResult::Ignored
             }
             _ => EventResult::Ignored,

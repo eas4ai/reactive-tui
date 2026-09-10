@@ -1,0 +1,9 @@
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 6.40s
+     Running unittests src/lib.rs (target/debug/deps/reactive_tui-fa00cdcf48e682eb)
+
+running 1 test
+test widgets::terminal::paint::tests::terminal_cursor_deadline_tracks_clipping_focus_and_stop ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 932 filtered out; finished in 0.01s
+

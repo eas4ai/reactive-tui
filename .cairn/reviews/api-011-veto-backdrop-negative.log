@@ -1,0 +1,39 @@
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.71s
+     Running tests/api_widget_behavior.rs (target/debug/deps/api_widget_behavior-af8b000cab735812)
+
+running 1 test
+
+thread 'dialog_http_acceptance::input_dialog_remote_completion_preserves_the_submit_veto_and_revalidates_on_retry' (3981440) panicked at tests/support/app_input.rs:102:13:
+App painted 23 frames but input needs Some((1, ["REQUESTS 1"])) before the deadline. Last frame:
+                                                            
+                                                            
+                                                            
+                                                            
+                                                            
+                                                            
+          ┌──────────────────────────────────────┐          
+          │    REMOTE                           ✕│          
+          │VALUE                                 │          
+          │▶ [                              ]    │          
+          │                                      │          
+          │                             Cancel OK│          
+          └──────────────────────────────────────┘          
+                                                            
+                                                            
+                                                            
+                                                            
+                                                            
+                                                            
+                                                            
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test dialog_http_acceptance::input_dialog_remote_completion_preserves_the_submit_veto_and_revalidates_on_retry ... FAILED
+
+failures:
+
+failures:
+    dialog_http_acceptance::input_dialog_remote_completion_preserves_the_submit_veto_and_revalidates_on_retry
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 381 filtered out; finished in 3.00s
+
+error: test failed, to rerun pass `--test api_widget_behavior`

@@ -4,6 +4,7 @@ command: python3 -B scripts/check-api-hook-state.py
 inputs:
   - .cairn/mechanisms/api-hook-state.md
   - Cargo.toml
+  - build.rs
   - Cargo.lock
   - src
   - reactive-tui-macros

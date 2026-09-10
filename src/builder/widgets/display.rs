@@ -184,27 +184,20 @@ impl ProgressBarBuilder {
     /// # Returns
     /// An `Element` representing the progress bar
     pub fn build(self) -> Element {
-        let percentage = (self.value / self.max_value * 100.0).clamp(0.0, 100.0);
-
-        let display_text = if let Some(label) = &self.label {
-            if self.show_percentage {
-                format!("{}: {:.1}%", label, percentage)
-            } else {
-                label.clone()
-            }
-        } else if self.show_percentage {
-            format!("{:.1}%", percentage)
-        } else {
-            format!("{}/{}", self.value, self.max_value)
+        let props = crate::widgets::display::ProgressBarProps {
+            value: self.value,
+            max_value: self.max_value,
+            label: self.label,
+            show_percentage: self.show_percentage,
+            animated: self.animated,
+            color: self
+                .color
+                .or_else(|| crate::widgets::display::ProgressBarProps::default().color),
+            width: self.width,
+            style: self.class,
+            ..Default::default()
         };
-
-        let mut element = Element::text(format!("Progress: {}", display_text));
-
-        if let Some(class) = self.class {
-            element = element.with_class(&class);
-        }
-
-        element
+        Element::component_with_props("ProgressBar", props)
     }
 }
 
@@ -285,7 +278,15 @@ impl PopoverBuilder {
     /// # Returns
     /// An `Element` representing the popover
     pub fn build(self) -> Element {
-        Element::text("Popover")
+        let props = crate::widgets::display::popover::PopoverProps {
+            trigger_element: self.trigger.unwrap_or_else(Element::empty),
+            content: Element::layout(crate::component::LayoutType::Flex)
+                .with_children(self.content),
+            ..Default::default()
+        };
+        let mut element = Element::component_with_props("Popover", props);
+        element.class = self.class;
+        element
     }
 }
 

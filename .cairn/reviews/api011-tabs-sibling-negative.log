@@ -1,0 +1,26 @@
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.53s
+     Running tests/api_widget_behavior.rs (target/debug/deps/api_widget_behavior-af8b000cab735812)
+
+running 1 test
+
+thread 'tabs_acceptance::closing_a_preceding_tab_preserves_the_active_unkeyed_editor' (3089564) panicked at tests/api_widget_behavior/tabs.rs:473:9:
+  ▶Two ✕                        
+  [seed                         
+                                
+                                
+                                
+                                
+                                
+                                
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test tabs_acceptance::closing_a_preceding_tab_preserves_the_active_unkeyed_editor ... FAILED
+
+failures:
+
+failures:
+    tabs_acceptance::closing_a_preceding_tab_preserves_the_active_unkeyed_editor
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 381 filtered out; finished in 0.07s
+
+error: test failed, to rerun pass `--test api_widget_behavior`

@@ -1,0 +1,23 @@
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+error[E0308]: mismatched types
+   --> tests/api_widget_behavior/wizard.rs:117:35
+    |
+117 |                     Action::Event(app_input::key(KeyCode::Escape)),
+    |                     ------------- ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ expected `Event`, found `Option<Event>`
+    |                     |
+    |                     arguments to this enum variant are incorrect
+    |
+    = note: expected enum `Event`
+               found enum `Option<Event>`
+note: tuple variant defined here
+   --> tests/support/app_input.rs:273:5
+    |
+273 |     Event(Event),
+    |     ^^^^^
+help: consider using `Option::expect` to unwrap the `Option<Event>` value, panicking if the value is an `Option::None`
+    |
+117 |                     Action::Event(app_input::key(KeyCode::Escape).expect("REASON")),
+    |                                                                  +++++++++++++++++
+
+For more information about this error, try `rustc --explain E0308`.
+error: could not compile `reactive-tui` (test "api_widget_behavior") due to 1 previous error

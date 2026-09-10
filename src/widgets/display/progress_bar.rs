@@ -1,4 +1,4 @@
-use crate::component::{Component, Element, LayoutType, Props};
+use crate::component::{Component, Element, Props};
 use crate::event::router::EventResult;
 use crate::event::types::Event;
 use std::sync::Arc;
@@ -343,7 +343,16 @@ impl PartialEq for ProgressBarProps {
             && self.segments == other.segments
             && self.striped == other.striped
             && self.pulse == other.pulse
-        // Skip callback comparisons as they can't be compared
+            && match (&self.custom_formatter, &other.custom_formatter) {
+                (Some(a), Some(b)) => Arc::ptr_eq(a, b),
+                (None, None) => true,
+                _ => false,
+            }
+            && match (&self.on_complete, &other.on_complete) {
+                (Some(a), Some(b)) => Arc::ptr_eq(a, b),
+                (None, None) => true,
+                _ => false,
+            }
     }
 }
 
@@ -354,7 +363,7 @@ impl Props for ProgressBarProps {
 }
 
 /// State for the ProgressBar component
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, PartialEq)]
 /// State for the ProgressBar component
 pub struct ProgressBarState {
     /// Current animation frame counter
@@ -433,7 +442,7 @@ impl ProgressBar {
 
     /// Calculate the percentage complete
     fn calculate_percentage(&self, props: &ProgressBarProps) -> f64 {
-        if props.indeterminate || props.max_value == props.min_value {
+        if props.indeterminate || !valid_range(props) {
             return 0.0;
         }
 
@@ -463,86 +472,6 @@ impl ProgressBar {
             (false, true) => format!("{:.1}/{:.1}", props.value, props.max_value),
             (false, false) => String::new(),
         }
-    }
-
-    /// Create the progress bar visual
-    fn create_bar(&self, props: &ProgressBarProps, state: &ProgressBarState) -> String {
-        let width = props.width.unwrap_or(40) as usize;
-
-        if props.indeterminate {
-            return self.create_indeterminate_bar(width, state);
-        }
-
-        let percentage = self.calculate_percentage(props);
-        let filled_width = (width as f64 * percentage / 100.0) as usize;
-        let empty_width = width.saturating_sub(filled_width);
-
-        let fill_char = if props.striped { '▌' } else { '█' };
-        let empty_char = if props.striped { '░' } else { '▒' };
-
-        let mut bar = String::new();
-
-        // Filled portion
-        for _ in 0..filled_width {
-            bar.push(fill_char);
-        }
-
-        // Empty portion
-        for _ in 0..empty_width {
-            bar.push(empty_char);
-        }
-
-        bar
-    }
-
-    /// Create indeterminate progress bar animation
-    fn create_indeterminate_bar(&self, width: usize, state: &ProgressBarState) -> String {
-        let mut bar = vec!['▒'; width];
-        let segment_width = (width / 4).max(1); // Ensure at least 1 character
-
-        // Calculate position based on animation frame
-        let position = (state.indeterminate_position as usize) % (width + segment_width);
-
-        // Fill the moving segment
-        for i in 0..segment_width {
-            let pos = position.saturating_sub(segment_width).saturating_add(i);
-            if pos < width {
-                bar[pos] = '█';
-            }
-        }
-
-        bar.into_iter().collect()
-    }
-
-    /// Create segmented progress bar
-    fn create_segmented_bar(&self, props: &ProgressBarProps) -> Vec<Element> {
-        let segments = props.segments.unwrap_or(10) as usize;
-        let percentage = self.calculate_percentage(props);
-        let filled_segments = (segments as f64 * percentage / 100.0) as usize;
-
-        let mut elements = Vec::new();
-
-        for i in 0..segments {
-            let is_filled = i < filled_segments;
-            let segment_char = if is_filled { '█' } else { '▒' };
-
-            let mut segment_style = String::new();
-            if is_filled {
-                if let Some(color) = &props.color {
-                    segment_style.push_str(color);
-                }
-            } else if let Some(bg_color) = &props.background_color {
-                segment_style.push_str(bg_color);
-            }
-
-            elements.push(
-                Element::text(segment_char.to_string())
-                    .with_class(&segment_style)
-                    .with_key(format!("segment-{i}")),
-            );
-        }
-
-        elements
     }
 
     /// Update animation state
@@ -577,8 +506,9 @@ impl ProgressBar {
         // Check if completed
         let was_completed = state.completed;
         state.completed = !props.indeterminate
-            && props.value >= props.max_value
-            && props.max_value > props.min_value;
+            && valid_range(props)
+            && live::validate(props).is_ok()
+            && props.value >= props.max_value;
 
         // Trigger completion callback
         if state.completed && !was_completed {
@@ -591,6 +521,16 @@ impl ProgressBar {
     }
 }
 
+mod live;
+
+fn valid_range(props: &ProgressBarProps) -> bool {
+    props.value.is_finite()
+        && props.min_value.is_finite()
+        && props.max_value.is_finite()
+        && props.max_value > props.min_value
+        && (props.max_value - props.min_value).is_finite()
+}
+
 impl Component for ProgressBar {
     type Props = ProgressBarProps;
     type State = ProgressBarState;
@@ -599,82 +539,17 @@ impl Component for ProgressBar {
         Self
     }
 
+    fn initial_state(&mut self, props: &Self::Props) -> Self::State {
+        let mut state = ProgressBarState::default();
+        self.update_animation(props, &mut state);
+        state
+    }
+
     fn render(&self, props: &Self::Props, state: &Self::State) -> Element {
-        // Create main container
-        let mut container_class = String::new();
-        if let Some(style) = &props.style {
-            container_class.push_str(style);
-        }
-
-        let mut children = Vec::new();
-
-        // Add label if present
-        if let Some(label) = &props.label {
-            let mut label_style = String::new();
-            if let Some(text_style) = &props.text_style {
-                label_style.push_str(text_style);
-            }
-
-            children.push(
-                Element::text(label)
-                    .with_class(&label_style)
-                    .with_key("label"),
-            );
-        }
-
-        // Create progress bar container
-        let orientation_class = match props.orientation {
-            ProgressBarOrientation::Horizontal => "flex-row",
-            ProgressBarOrientation::Vertical => "flex-col",
-        };
-
-        // Progress bar content
-        let progress_children = if let Some(_segments) = props.segments {
-            self.create_segmented_bar(props)
-        } else {
-            let bar_text = self.create_bar(props, state);
-
-            let mut bar_style = String::new();
-            if let Some(color) = &props.color {
-                bar_style.push(' ');
-                bar_style.push_str(color);
-            }
-            if let Some(style) = &props.bar_style {
-                bar_style.push(' ');
-                bar_style.push_str(style);
-            }
-
-            vec![Element::text(&bar_text)
-                .with_class(&bar_style)
-                .with_key("progress-bar")]
-        };
-
-        let progress_bar = Element::layout(LayoutType::Flex)
-            .with_class(orientation_class)
-            .with_children(progress_children)
-            .with_key("progress-container");
-
-        children.push(progress_bar);
-
-        // Add text if should be shown
-        let text = self.format_text(props);
-        if !text.is_empty() {
-            let mut text_style = String::new();
-            if let Some(style) = &props.text_style {
-                text_style.push_str(style);
-            }
-
-            children.push(
-                Element::text(&text)
-                    .with_class(&text_style)
-                    .with_key("progress-text"),
-            );
-        }
-
-        Element::layout(LayoutType::Flex)
-            .with_class(format!("flex-col {container_class}"))
-            .with_children(children)
-            .with_key("progress-bar-component")
+        Element::typed::<live::LiveProgress>(live::LiveProps {
+            config: props.clone(),
+            seed: state.clone(),
+        })
     }
 
     fn handle_event(
@@ -729,11 +604,10 @@ mod tests {
         let state = ProgressBarState::default();
 
         let element = progress_bar.render(&props, &state);
-        // ProgressBar renders as a flex layout container
-        assert_eq!(
+        assert!(matches!(
             element.element_type,
-            crate::component::ElementType::Layout(crate::component::LayoutType::Flex)
-        );
+            crate::component::ElementType::Component(_)
+        ));
     }
 
     #[test]
@@ -787,7 +661,18 @@ mod tests {
         };
         let state = ProgressBarState::default();
 
-        let bar = progress_bar.create_bar(&props, &state);
+        let bar: String = (0..10)
+            .map(|i| {
+                live::bar_char(
+                    &props,
+                    progress_bar.calculate_percentage(&props) / 100.0,
+                    i,
+                    10,
+                    state.indeterminate_position / 100.0,
+                )
+                .0
+            })
+            .collect();
         // Width is in characters, but some Unicode characters might be multi-byte
         // Count actual characters, not bytes
         let char_count = bar.chars().count();
@@ -798,13 +683,18 @@ mod tests {
 
     #[test]
     fn test_indeterminate_bar() {
-        let progress_bar = ProgressBar;
         let state = ProgressBarState {
             indeterminate_position: 25.0,
             ..Default::default()
         };
 
-        let bar = progress_bar.create_indeterminate_bar(20, &state);
+        let props = ProgressBarProps {
+            indeterminate: true,
+            ..Default::default()
+        };
+        let bar: String = (0..20)
+            .map(|i| live::bar_char(&props, 0.0, i, 20, state.indeterminate_position / 100.0).0)
+            .collect();
         assert_eq!(bar.chars().count(), 20); // Count characters not bytes
         assert!(bar.contains('█')); // Should have moving segment
         assert!(bar.contains('▒')); // Should have background
@@ -819,9 +709,19 @@ mod tests {
             ..Default::default()
         };
 
-        let segments = progress_bar.create_segmented_bar(&props);
+        let segments: Vec<_> = (0..10)
+            .map(|i| {
+                live::bar_char(
+                    &props,
+                    progress_bar.calculate_percentage(&props) / 100.0,
+                    i,
+                    10,
+                    0.0,
+                )
+            })
+            .collect();
         assert_eq!(segments.len(), 10);
-        // 30% of 10 segments = 3 filled segments
+        assert_eq!(segments.iter().filter(|(_, filled)| *filled).count(), 3);
     }
 
     #[test]

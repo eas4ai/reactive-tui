@@ -1,0 +1,11 @@
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 7.64s
+     Running tests/api011_resize_replay_probe.rs (target/debug/deps/api011_resize_replay_probe-4c774b20346faa7e)
+
+running 1 test
+completed_prompt=false; screen="Microsoft Windows [Version 10.0    \n.20348.5499]                       \n(c) Microsoft Corporation. All     \nrights reserved.                   \n                                   \nREADY>@set /a 41+1                 \n42    @set /a 52+1                 \n53ADY>                             \nREADY>                             "
+completed_prompt=true; screen=".20348.5499]                       \n(c) Microsoft Corporation. All     \nrights reserved.                   \n                                   \nREADY>@set /a 41+1                 \n42                                 \nREADY>@set /a 52+1                 \n53                                 \nREADY>                             "
+test captured_conpty_resize_ordering_probe ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

@@ -1,0 +1,34 @@
+
+running 1 test
+test dialog_acceptance::input_dialog_change_validation_shows_warnings_without_blocking_submit ... FAILED
+
+failures:
+
+---- dialog_acceptance::input_dialog_change_validation_shows_warnings_without_blocking_submit stdout ----
+
+thread 'dialog_acceptance::input_dialog_change_validation_shows_warnings_without_blocking_submit' (2410558) panicked at tests/support/app_input.rs:99:13:
+App painted 9 frames but input needs Some((1, ["Check spelling"])) before the deadline. Last frame:
+                                
+                                
+┌──────────────────────────────┐
+│    VALIDATION               ✕│
+│VALUE                         │
+│▶ [a                          │
+│█████████████████████████░░░░ │
+│                     Cancel OK│
+└──────────────────────────────┘
+                                
+                                
+                                
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    dialog_acceptance::input_dialog_change_validation_shows_warnings_without_blocking_submit
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 278 filtered out; finished in 3.00s
+
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.46s
+     Running tests/api_widget_behavior.rs (target/debug/deps/api_widget_behavior-6de95be2275b0733)
+error: test failed, to rerun pass `--test api_widget_behavior`

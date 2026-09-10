@@ -1,0 +1,12 @@
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 7.03s
+     Running unittests src/lib.rs (target/debug/deps/reactive_tui-fa00cdcf48e682eb)
+
+running 4 tests
+test terminal::pty::tests::test_pty_creation ... ok
+test terminal::pty::tests::test_pty_resize ... ok
+test terminal::pty::tests::api_terminal_pty_is_a_real_controlling_terminal ... ok
+test terminal::pty::tests::api_terminal_pty_backpressure_and_drop_reap_a_flooding_child ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 900 filtered out; finished in 0.05s
+

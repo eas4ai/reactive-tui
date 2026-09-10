@@ -4,14 +4,19 @@
 
 use super::ImageFormat;
 use crate::error::Result;
+use crate::widgets::display::image::{
+    decoded, Image as WidgetImage, ImageFormat as WidgetFormat, ProtocolRenderer, SixelRenderer,
+};
 use std::io::Write;
+
+mod sixel_decode;
 
 /// Image source data
 #[derive(Debug, Clone)]
 pub enum ImageSource {
     /// File path
     Path(String),
-    /// Raw image data in memory
+    /// Encoded image file bytes in memory
     Memory(Vec<u8>),
     /// Raw RGB/RGBA pixel data
     Pixels {
@@ -90,7 +95,7 @@ pub struct DrawOptions {
     /// Scaling mode
     pub scale: ScaleMode,
 
-    /// Explicit size in terminal cells
+    /// Drawing box in terminal cells. None scaling clips; other modes scale to fit this box.
     pub size: Option<(u16, u16)>,
 }
 
@@ -135,36 +140,36 @@ pub struct Image {
 }
 
 impl Image {
-    /// Create image from file path
+    /// Load and validate an encoded image from a regular file.
     pub fn from_file(path: &str) -> Result<Self> {
         let format = detect_format_from_path(path)?;
-
+        let bytes = decoded::read_file(std::path::Path::new(path))?;
+        let pixels = decode(&bytes, format)?;
         Ok(Self {
-            id: generate_image_id(),
-            width: 0, // Will be detected when loaded
-            height: 0,
-            source: ImageSource::Path(path.to_string()),
+            id: ProtocolRenderer::new().generate_image_id(),
+            width: pixels.width(),
+            height: pixels.height(),
+            source: ImageSource::Path(path.to_owned()),
             format,
         })
     }
 
-    /// Create image from memory data
+    /// Decode encoded file bytes. Raw data requires `from_pixels` and dimensions.
     pub fn from_memory(data: Vec<u8>, format: ImageFormat) -> Result<Self> {
-        let (width, height) = detect_dimensions(&data, format)?;
-
+        let pixels = decode(&data, format)?;
         Ok(Self {
-            id: generate_image_id(),
-            width,
-            height,
+            id: ProtocolRenderer::new().generate_image_id(),
+            width: pixels.width(),
+            height: pixels.height(),
             source: ImageSource::Memory(data),
             format,
         })
     }
 
-    /// Create image from raw pixel data
+    /// Store raw pixels. Rendering validates their dimensions and exact byte count.
     pub fn from_pixels(data: Vec<u8>, width: u32, height: u32, format: PixelFormat) -> Self {
         Self {
-            id: generate_image_id(),
+            id: ProtocolRenderer::new().generate_image_id(),
             width,
             height,
             source: ImageSource::Pixels {
@@ -173,430 +178,212 @@ impl Image {
                 height,
                 format,
             },
-            format: match format {
-                PixelFormat::Rgb => ImageFormat::Raw,
-                PixelFormat::Rgba => ImageFormat::Raw,
-            },
+            format: ImageFormat::Raw,
         }
     }
 
-    /// Render image using Kitty graphics protocol
-    pub fn render_kitty<W: Write>(&self, writer: &mut W, opts: &DrawOptions) -> Result<()> {
-        let _transmit_format = match &self.source {
+    fn pixels(&self) -> Result<image::RgbaImage> {
+        match &self.source {
+            ImageSource::Path(path) => decode(
+                &decoded::read_file(std::path::Path::new(path))?,
+                self.format,
+            ),
+            ImageSource::Memory(bytes) => decode(bytes, self.format),
             ImageSource::Pixels {
-                format: PixelFormat::Rgb,
-                ..
-            } => TransmitFormat::Rgb,
-            ImageSource::Pixels {
-                format: PixelFormat::Rgba,
-                ..
-            } => TransmitFormat::Rgba,
-            _ => TransmitFormat::Png,
-        };
-
-        // Kitty graphics transmission sequence
-        let opener = format!(
-            "\x1b_Gf=32,i={},s={},v={},m=1;",
-            self.id, self.width, self.height
-        );
-
-        writer.write_all(opener.as_bytes())?;
-
-        // Encode and transmit image data
-        match &self.source {
-            ImageSource::Memory(data) => {
-                let encoded = base64::encode(data);
-                writer.write_all(encoded.as_bytes())?;
-            }
-            ImageSource::Pixels { data, .. } => {
-                let encoded = base64::encode(data);
-                writer.write_all(encoded.as_bytes())?;
-            }
-            ImageSource::Path(path) => {
-                // For file paths, we could either read and encode,
-                // or use Kitty's file transmission mode
-                let data = std::fs::read(path)?;
-                let encoded = base64::encode(&data);
-                writer.write_all(encoded.as_bytes())?;
-            }
-        }
-
-        // End transmission
-        writer.write_all(b"\x1b\\")?;
-
-        // Placement command
-        if opts.pixel_offset.is_some() || opts.z_index.is_some() || opts.size.is_some() {
-            let mut placement = format!("\x1b_Ga=p,i={}", self.id);
-
-            if let Some((x, y)) = opts.pixel_offset {
-                placement.push_str(&format!(",X={},Y={}", x, y));
-            }
-
-            if let Some(z) = opts.z_index {
-                placement.push_str(&format!(",z={}", z));
-            }
-
-            if let Some((cols, rows)) = opts.size {
-                placement.push_str(&format!(",c={},r={}", cols, rows));
-            }
-
-            placement.push_str(";\x1b\\");
-            writer.write_all(placement.as_bytes())?;
-        }
-
-        Ok(())
-    }
-
-    /// Render image using Sixel protocol
-    /// Production-ready implementation for reactive-tui's advanced image rendering
-    pub fn render_sixel<W: Write>(&self, writer: &mut W, opts: &DrawOptions) -> Result<()> {
-        writer.write_all(b"\x1bPq")?; // Start sixel sequence
-
-        // Production sixel implementation:
-        // 1. Convert image to 6-pixel high bands
-        let band_height = 6u32;
-        let bands = self.height.div_ceil(band_height);
-
-        // 2. Quantize colors to sixel palette (256 colors max)
-        let palette = self.build_sixel_palette();
-
-        // 3. Encode each band as sixel data
-        for band in 0..bands {
-            let y_start = band * band_height;
-            let y_end = (y_start + band_height).min(self.height);
-
-            self.encode_sixel_band(writer, y_start as usize, y_end as usize, &palette, opts)?;
-        }
-
-        writer.write_all(b"\x1b\\")?; // End sixel sequence
-        Ok(())
-    }
-
-    /// Render image using iTerm2 inline images
-    pub fn render_iterm2<W: Write>(&self, writer: &mut W, opts: &DrawOptions) -> Result<()> {
-        let mut sequence = String::from("\x1b]1337;File=");
-
-        // Add parameters
-        sequence.push_str(&format!("width={}px;height={}px", self.width, self.height));
-
-        if let Some((cols, rows)) = opts.size {
-            sequence.push_str(&format!(";size={}x{}", cols, rows));
-        }
-
-        sequence.push(':'); // End parameters
-
-        // Add base64-encoded image data
-        match &self.source {
-            ImageSource::Memory(data) => {
-                sequence.push_str(&base64::encode(data));
-            }
-            ImageSource::Path(path) => {
-                let data = std::fs::read(path)?;
-                sequence.push_str(&base64::encode(&data));
-            }
-            ImageSource::Pixels { data, .. } => {
-                sequence.push_str(&base64::encode(data));
-            }
-        }
-
-        sequence.push('\x07'); // End sequence
-        writer.write_all(sequence.as_bytes())?;
-
-        Ok(())
-    }
-
-    /// Build optimized sixel color palette
-    fn build_sixel_palette(&self) -> Vec<(u8, u8, u8)> {
-        // Production-ready palette generation for sixel rendering
-        // Use a standard 256-color palette optimized for terminal display
-        let mut palette = Vec::with_capacity(256);
-
-        // Add standard 16 colors
-        let standard_colors = [
-            (0, 0, 0),
-            (128, 0, 0),
-            (0, 128, 0),
-            (128, 128, 0),
-            (0, 0, 128),
-            (128, 0, 128),
-            (0, 128, 128),
-            (192, 192, 192),
-            (128, 128, 128),
-            (255, 0, 0),
-            (0, 255, 0),
-            (255, 255, 0),
-            (0, 0, 255),
-            (255, 0, 255),
-            (0, 255, 255),
-            (255, 255, 255),
-        ];
-        palette.extend_from_slice(&standard_colors);
-
-        // Add 216 color cube (6x6x6)
-        for r in 0..6 {
-            for g in 0..6 {
-                for b in 0..6 {
-                    let r_val = if r == 0 { 0 } else { 55 + r * 40 };
-                    let g_val = if g == 0 { 0 } else { 55 + g * 40 };
-                    let b_val = if b == 0 { 0 } else { 55 + b * 40 };
-                    palette.push((r_val, g_val, b_val));
-                }
-            }
-        }
-
-        // Add 24 grayscale colors
-        for i in 0..24 {
-            let gray = 8 + i * 10;
-            palette.push((gray, gray, gray));
-        }
-
-        palette
-    }
-
-    /// Encode a single sixel band
-    fn encode_sixel_band<W: Write>(
-        &self,
-        writer: &mut W,
-        y_start: usize,
-        y_end: usize,
-        palette: &[(u8, u8, u8)],
-        _opts: &DrawOptions,
-    ) -> Result<()> {
-        // Production sixel band encoding
-        for x in 0..self.width as usize {
-            let mut sixel_char = 0u8;
-
-            // Process 6 pixels vertically
-            for y_offset in 0..(y_end - y_start) {
-                let y = y_start + y_offset;
-                if y < self.height as usize {
-                    // Get pixel color and find closest palette match
-                    let pixel_color = self.get_pixel_color(x, y);
-                    let palette_index = self.find_closest_palette_color(&pixel_color, palette);
-
-                    // Set bit in sixel character
-                    if palette_index > 0 {
-                        sixel_char |= 1 << y_offset;
-                    }
-                }
-            }
-
-            // Write sixel character (add 63 to make it printable)
-            writer.write_all(&[sixel_char + 63])?;
-        }
-
-        // End line
-        writer.write_all(b"-")?;
-        Ok(())
-    }
-
-    /// Get pixel color at coordinates
-    fn get_pixel_color(&self, x: usize, y: usize) -> (u8, u8, u8) {
-        // Bounds checking
-        if x >= self.width as usize || y >= self.height as usize {
-            return (0, 0, 0); // Black for out-of-bounds
-        }
-
-        // Extract pixel data based on source type
-        match &self.source {
-            ImageSource::Pixels { data, format, .. } => {
+                data,
+                width,
+                height,
+                format,
+            } => decoded::raw(
+                data,
+                *width,
+                *height,
                 match format {
-                    PixelFormat::Rgb => {
-                        let index = (y * self.width as usize + x) * 3;
-                        if index + 2 < data.len() {
-                            (data[index], data[index + 1], data[index + 2])
-                        } else {
-                            (0, 0, 0)
-                        }
-                    }
-                    PixelFormat::Rgba => {
-                        let index = (y * self.width as usize + x) * 4;
-                        if index + 3 < data.len() {
-                            // Extract RGB, ignore alpha for now
-                            (data[index], data[index + 1], data[index + 2])
-                        } else {
-                            (0, 0, 0)
-                        }
-                    }
-                }
-            }
-            ImageSource::Memory(data) => {
-                // For encoded image data, we'd need to decode it first
-                // This is a simplified implementation that assumes grayscale
-                let index = y * self.width as usize + x;
-                if index < data.len() {
-                    let gray = data[index % data.len()]; // Wrap around if needed
-                    (gray, gray, gray)
-                } else {
-                    (128, 128, 128) // Default gray
-                }
-            }
-            ImageSource::Path(_) => {
-                // For file paths, we'd need to load and decode the image
-                // This is a placeholder that returns a pattern based on coordinates
-                let r = ((x * 255) / self.width as usize) as u8;
-                let g = ((y * 255) / self.height as usize) as u8;
-                let b = ((x + y) % 256) as u8;
-                (r, g, b)
-            }
+                    PixelFormat::Rgb => WidgetFormat::RGB888,
+                    PixelFormat::Rgba => WidgetFormat::RGBA8888,
+                },
+            ),
         }
     }
 
-    /// Find closest color in palette
-    fn find_closest_palette_color(&self, color: &(u8, u8, u8), palette: &[(u8, u8, u8)]) -> usize {
-        let (r, g, b) = *color;
-        let mut best_index = 0;
-        let mut best_distance = u32::MAX;
+    /// Transmit and display one decoded, cropped image at the current cursor.
+    pub fn render_kitty<W: Write>(&self, writer: &mut W, opts: &DrawOptions) -> Result<()> {
+        if self.id == 0 {
+            return Err(image_error("Kitty image ID must be nonzero"));
+        }
+        if let Some(pixels) = self.prepared(opts, false)? {
+            let output = ProtocolRenderer::kitty_pixels_at(
+                &pixels,
+                self.id,
+                opts.z_index.unwrap_or(0),
+                false,
+                opts.pixel_offset,
+            );
+            writer.write_all(output.as_bytes())?;
+        }
+        Ok(())
+    }
 
-        for (i, &(pr, pg, pb)) in palette.iter().enumerate() {
-            let dr = (r as i32 - pr as i32).unsigned_abs();
-            let dg = (g as i32 - pg as i32).unsigned_abs();
-            let db = (b as i32 - pb as i32).unsigned_abs();
-            let distance = dr * dr + dg * dg + db * db;
+    /// Encode decoded pixels as Sixel. Nonzero z-order is Kitty-specific.
+    pub fn render_sixel<W: Write>(&self, writer: &mut W, opts: &DrawOptions) -> Result<()> {
+        reject_z_order(opts)?;
+        if let Some(pixels) = self.prepared(opts, true)? {
+            let output =
+                SixelRenderer::encode_pixels(&pixels, crate::widgets::ImageQuality::Balanced)?;
+            writer.write_all(output.as_bytes())?;
+        }
+        Ok(())
+    }
 
-            if distance < best_distance {
-                best_distance = distance;
-                best_index = i;
+    /// Encode a PNG file for iTerm2 inline display. Nonzero z-order is Kitty-specific.
+    pub fn render_iterm2<W: Write>(&self, writer: &mut W, opts: &DrawOptions) -> Result<()> {
+        reject_z_order(opts)?;
+        if let Some(pixels) = self.prepared(opts, true)? {
+            let image = widget_image(pixels);
+            let output = ProtocolRenderer::new().render_iterm2_inline(&image)?;
+            writer.write_all(output.as_bytes())?;
+        }
+        Ok(())
+    }
+
+    fn prepared(&self, opts: &DrawOptions, pad_offset: bool) -> Result<Option<image::RgbaImage>> {
+        let mut pixels = self.pixels()?;
+        if let Some(clip) = &opts.clip_region {
+            let x = clip.x.unwrap_or(0).min(pixels.width());
+            let y = clip.y.unwrap_or(0).min(pixels.height());
+            let width = clip.width.unwrap_or(pixels.width()).min(pixels.width() - x);
+            let height = clip
+                .height
+                .unwrap_or(pixels.height())
+                .min(pixels.height() - y);
+            if width == 0 || height == 0 {
+                return Ok(None);
+            }
+            pixels = image::imageops::crop_imm(&pixels, x, y, width, height).to_image();
+        }
+        if opts.size.is_some() || opts.scale != ScaleMode::None {
+            let (width, height) = drawing_box(opts.size);
+            if width == 0 || height == 0 {
+                return Ok(None);
+            }
+            if opts.scale == ScaleMode::None {
+                pixels = image::imageops::crop_imm(
+                    &pixels,
+                    0,
+                    0,
+                    pixels.width().min(width),
+                    pixels.height().min(height),
+                )
+                .to_image();
+            } else {
+                let (width, height) = if opts.scale == ScaleMode::Fill {
+                    (width, height)
+                } else {
+                    let ratio = (width as f64 / pixels.width() as f64)
+                        .min(height as f64 / pixels.height() as f64);
+                    let ratio = if opts.scale == ScaleMode::Contain {
+                        ratio.min(1.0)
+                    } else {
+                        ratio
+                    };
+                    (
+                        ((pixels.width() as f64 * ratio) as u32).max(1),
+                        ((pixels.height() as f64 * ratio) as u32).max(1),
+                    )
+                };
+                decoded::dimensions(width, height)?;
+                if pixels.dimensions() != (width, height) {
+                    pixels = image::imageops::resize(
+                        &pixels,
+                        width,
+                        height,
+                        image::imageops::FilterType::Lanczos3,
+                    );
+                }
             }
         }
-
-        best_index
+        if let Some((x, y)) = opts.pixel_offset.filter(|_| pad_offset) {
+            let width = pixels
+                .width()
+                .checked_add(u32::from(x))
+                .ok_or_else(|| image_error("Image offset overflow"))?;
+            let height = pixels
+                .height()
+                .checked_add(u32::from(y))
+                .ok_or_else(|| image_error("Image offset overflow"))?;
+            decoded::dimensions(width, height)?;
+            let mut padded = image::RgbaImage::new(width, height);
+            image::imageops::replace(&mut padded, &pixels, i64::from(x), i64::from(y));
+            pixels = padded;
+        }
+        Ok(Some(pixels))
     }
 }
 
-/// Detect image format from file extension
+fn image_error(message: &str) -> crate::error::ReactiveError {
+    crate::error::ReactiveError::ImageProcessing(message.into())
+}
+
+fn reject_z_order(opts: &DrawOptions) -> Result<()> {
+    if opts.z_index.is_some_and(|z| z != 0) {
+        return Err(image_error("Nonzero image z-order requires Kitty graphics"));
+    }
+    Ok(())
+}
+
+fn widget_image(pixels: image::RgbaImage) -> WidgetImage {
+    let (width, height) = pixels.dimensions();
+    WidgetImage::from_raw_bytes(pixels.into_raw(), width, height, WidgetFormat::RGBA8888)
+        .with_max_size(width, height)
+        .with_preserve_aspect(false)
+}
+
+fn drawing_box(size: Option<(u16, u16)>) -> (u32, u32) {
+    let window = crossterm::terminal::window_size().ok();
+    let cell = window
+        .filter(|s| s.columns > 0 && s.rows > 0 && s.width >= s.columns && s.height >= s.rows)
+        .map(|s| (s.width / s.columns, s.height / s.rows))
+        .unwrap_or((8, 16));
+    let (cols, rows) = size
+        .or_else(|| crossterm::terminal::size().ok())
+        .unwrap_or((80, 24));
+    (
+        u32::from(cols) * u32::from(cell.0),
+        u32::from(rows) * u32::from(cell.1),
+    )
+}
+
+fn decode(bytes: &[u8], format: ImageFormat) -> Result<image::RgbaImage> {
+    let format = match format {
+        ImageFormat::Png => image::ImageFormat::Png,
+        ImageFormat::Jpeg => image::ImageFormat::Jpeg,
+        ImageFormat::Gif => image::ImageFormat::Gif,
+        ImageFormat::WebP => image::ImageFormat::WebP,
+        ImageFormat::Raw => {
+            return Err(image_error(
+                "Raw image data requires explicit dimensions and pixel format",
+            ))
+        }
+        ImageFormat::Sixel => return sixel_decode::decode(bytes),
+    };
+    decoded::encoded_format(bytes, Some(format))
+}
+
 fn detect_format_from_path(path: &str) -> Result<ImageFormat> {
     let extension = std::path::Path::new(path)
         .extension()
-        .and_then(|ext| ext.to_str())
+        .and_then(|s| s.to_str())
         .unwrap_or("")
-        .to_lowercase();
-
+        .to_ascii_lowercase();
     match extension.as_str() {
         "png" => Ok(ImageFormat::Png),
         "jpg" | "jpeg" => Ok(ImageFormat::Jpeg),
         "gif" => Ok(ImageFormat::Gif),
         "webp" => Ok(ImageFormat::WebP),
         "six" | "sixel" => Ok(ImageFormat::Sixel),
-        _ => Err(
-            std::io::Error::new(std::io::ErrorKind::InvalidData, "Unsupported image format").into(),
-        ),
+        _ => Err(image_error("Unsupported image file extension")),
     }
 }
 
-/// Detect image dimensions from data
-fn detect_dimensions(data: &[u8], format: ImageFormat) -> Result<(u32, u32)> {
-    match format {
-        ImageFormat::Png => detect_png_dimensions(data),
-        ImageFormat::Jpeg => detect_jpeg_dimensions(data),
-        ImageFormat::Gif => detect_gif_dimensions(data),
-        _ => Err(std::io::Error::new(
-            std::io::ErrorKind::InvalidData,
-            "Cannot detect dimensions for this format",
-        )
-        .into()),
-    }
-}
-
-/// Detect PNG dimensions (simplified)
-fn detect_png_dimensions(data: &[u8]) -> Result<(u32, u32)> {
-    if data.len() < 24 || &data[0..8] != b"\x89PNG\r\n\x1a\n" {
-        return Err(
-            std::io::Error::new(std::io::ErrorKind::InvalidData, "Invalid PNG header").into(),
-        );
-    }
-
-    // IHDR chunk starts at offset 8
-    let width = u32::from_be_bytes([data[16], data[17], data[18], data[19]]);
-    let height = u32::from_be_bytes([data[20], data[21], data[22], data[23]]);
-
-    Ok((width, height))
-}
-
-/// Detect JPEG dimensions (simplified)
-fn detect_jpeg_dimensions(data: &[u8]) -> Result<(u32, u32)> {
-    if data.len() < 4 || &data[0..2] != b"\xff\xd8" {
-        return Err(
-            std::io::Error::new(std::io::ErrorKind::InvalidData, "Invalid JPEG header").into(),
-        );
-    }
-
-    // Parse JPEG segments to find SOF (Start of Frame) marker
-    let mut i = 2; // Skip initial FF D8
-    while i + 3 < data.len() {
-        if data[i] == 0xFF {
-            let marker = data[i + 1];
-            let length = ((data[i + 2] as u16) << 8) | (data[i + 3] as u16);
-
-            // SOF markers (Start of Frame) contain image dimensions
-            if matches!(marker, 0xC0..=0xC3 | 0xC5..=0xC7 | 0xC9..=0xCB | 0xCD..=0xCF)
-                && i + 7 < data.len()
-            {
-                let height = ((data[i + 5] as u32) << 8) | (data[i + 6] as u32);
-                let width = ((data[i + 7] as u32) << 8) | (data[i + 8] as u32);
-                return Ok((width, height));
-            }
-
-            i += length as usize + 2;
-        } else {
-            i += 1;
-        }
-    }
-
-    // Fallback if no SOF found
-    Ok((800, 600))
-}
-
-/// Detect GIF dimensions (simplified)
-fn detect_gif_dimensions(data: &[u8]) -> Result<(u32, u32)> {
-    if data.len() < 10 || (&data[0..6] != b"GIF87a" && &data[0..6] != b"GIF89a") {
-        return Err(
-            std::io::Error::new(std::io::ErrorKind::InvalidData, "Invalid GIF header").into(),
-        );
-    }
-
-    let width = u16::from_le_bytes([data[6], data[7]]) as u32;
-    let height = u16::from_le_bytes([data[8], data[9]]) as u32;
-
-    Ok((width, height))
-}
-
-/// Generate unique image ID
-fn generate_image_id() -> u32 {
-    use std::sync::atomic::{AtomicU32, Ordering};
-    static COUNTER: AtomicU32 = AtomicU32::new(1);
-    COUNTER.fetch_add(1, Ordering::Relaxed)
-}
-
-/// Base64 encoding implementation
-mod base64 {
-    pub fn encode(data: &[u8]) -> String {
-        const CHARS: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-        let mut result = String::with_capacity(data.len().div_ceil(3) * 4);
-
-        for chunk in data.chunks(3) {
-            let b1 = chunk[0];
-            let b2 = chunk.get(1).copied().unwrap_or(0);
-            let b3 = chunk.get(2).copied().unwrap_or(0);
-
-            let n = ((b1 as u32) << 16) | ((b2 as u32) << 8) | (b3 as u32);
-
-            result.push(CHARS[((n >> 18) & 63) as usize] as char);
-            result.push(CHARS[((n >> 12) & 63) as usize] as char);
-
-            if chunk.len() > 1 {
-                result.push(CHARS[((n >> 6) & 63) as usize] as char);
-            } else {
-                result.push('=');
-            }
-
-            if chunk.len() > 2 {
-                result.push(CHARS[(n & 63) as usize] as char);
-            } else {
-                result.push('=');
-            }
-        }
-
-        result
-    }
-}
+#[cfg(test)]
+mod tests;

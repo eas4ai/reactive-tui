@@ -1,0 +1,18 @@
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 13.26s
+     Running tests/api_widget_behavior.rs (target/debug/deps/api_widget_behavior-af8b000cab735812)
+
+running 10 tests
+test tabs_acceptance::tabs_builder_close_removes_panels_without_a_parent_callback ... ok
+test tabs_acceptance::tabs_manual_activation_skips_disabled_and_empty_is_inert ... ok
+test tabs_acceptance::tabs_lazy_loading_controls_mounting_and_hidden_panels_cannot_activate ... ok
+test tabs_acceptance::closing_a_preceding_tab_preserves_the_active_unkeyed_editor ... ok
+test tabs_acceptance::tabs_resize_moves_header_targets_and_key_release_does_not_close ... ok
+test tabs_acceptance::tabs_eager_panels_retain_input_state_and_hidden_controls_ignore_clicks ... ok
+test tabs_acceptance::tabs_builders_switch_real_panels_and_preserve_child_input ... ok
+test tabs_acceptance::tabs_reconstructed_children_preserve_choice_edits_and_local_close ... ok
+test tabs_acceptance::tabs_positions_use_measured_unicode_header_and_close_targets ... ok
+test tabs_acceptance::tabs_badge_icon_tooltip_and_variants_reach_frames ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 372 filtered out; finished in 0.73s
+

@@ -4,6 +4,7 @@ command: python3 -B scripts/check-api-paint-properties.py
 inputs:
   - .cairn/mechanisms/api-paint-properties.md
   - Cargo.toml
+  - build.rs
   - Cargo.lock
   - src
   - reactive-tui-macros

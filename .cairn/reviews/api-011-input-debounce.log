@@ -1,0 +1,10 @@
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 4.63s
+     Running tests/api_widget_behavior.rs (target/debug/deps/api_widget_behavior-591f6bff9f7c0602)
+
+running 2 tests
+test dialog_input_lifecycle_acceptance::input_dialog_debounce_coalesces_edits_and_reschedules_when_delay_changes ... ok
+test dialog_input_lifecycle_acceptance::input_dialog_disabling_change_validation_or_removing_cancels_the_pending_debounce ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 296 filtered out; finished in 5.67s
+

@@ -8,6 +8,7 @@ use std::task::{Context, Poll};
 pub struct ComponentInstance<C: Component> {
     component: C,
     props: C::Props,
+    supplied_props: C::Props,
     state: C::State,
     lifecycle: Lifecycle,
     needs_update: bool,
@@ -16,11 +17,17 @@ pub struct ComponentInstance<C: Component> {
 impl<C: Component> ComponentInstance<C> {
     /// Create a new component instance
     pub fn new(props: C::Props) -> Self {
-        let component = C::new(props.clone());
+        Self::from_component(C::new(props.clone()), props)
+    }
+
+    /// Wrap a configured component, retaining its callbacks for this instance.
+    pub fn from_component(mut component: C, props: C::Props) -> Self {
+        let state = component.initial_state(&props);
         Self {
             component,
+            supplied_props: props.clone(),
             props,
-            state: C::State::default(),
+            state,
             lifecycle: Lifecycle::new(),
             needs_update: true,
         }
@@ -28,7 +35,8 @@ impl<C: Component> ComponentInstance<C> {
 
     /// Update the component with new props
     pub fn update_props(&mut self, new_props: C::Props) -> bool {
-        if self.props != new_props {
+        if self.supplied_props != new_props {
+            self.supplied_props = new_props.clone();
             self.props = new_props;
             self.lifecycle.begin_update();
             self.needs_update = self.component.update(&self.props, &mut self.state);
@@ -44,6 +52,21 @@ impl<C: Component> ComponentInstance<C> {
     /// Render the component
     pub fn render(&self) -> Element {
         self.component.render(&self.props, &self.state)
+    }
+
+    /// Deliver input to this instance without recreating its state.
+    pub fn handle_event(
+        &mut self,
+        event: &crate::event::Event,
+    ) -> crate::event::router::EventResult {
+        self.component
+            .handle_event(event, &mut self.props, &mut self.state)
+    }
+
+    /// Update dimensions from the presented frame.
+    pub fn layout(&mut self, bounds: super::LayoutInfo) -> bool {
+        self.component
+            .layout(bounds, &mut self.props, &mut self.state)
     }
 
     /// Mount the component
@@ -149,6 +172,19 @@ impl AnyComponentInstance {
         self.inner.render_any()
     }
 
+    /// Deliver input to the retained typed instance.
+    pub fn handle_event(
+        &mut self,
+        event: &crate::event::Event,
+    ) -> crate::event::router::EventResult {
+        self.inner.handle_event_any(event)
+    }
+
+    /// Deliver presented cell bounds to the retained typed instance.
+    pub fn layout(&mut self, bounds: super::LayoutInfo) -> bool {
+        self.inner.layout_any(bounds)
+    }
+
     /// Handle lifecycle event
     pub fn on_lifecycle(&mut self, event: LifecycleEvent) {
         self.inner.on_lifecycle_any(event)
@@ -208,6 +244,17 @@ impl<C: Component> AnyComponent for ComponentInstanceWrapper<C> {
 
     fn render_any(&self) -> Element {
         self.0.render()
+    }
+
+    fn handle_event_any(
+        &mut self,
+        event: &crate::event::Event,
+    ) -> crate::event::router::EventResult {
+        self.0.handle_event(event)
+    }
+
+    fn layout_any(&mut self, bounds: super::LayoutInfo) -> bool {
+        self.0.layout(bounds)
     }
 
     fn poll_change_any(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<()> {

@@ -1,11 +1,17 @@
 //! Connect owned element callbacks to acknowledged painter geometry.
 
+#[cfg(target_os = "linux")]
+mod accessibility;
+
+#[cfg(test)]
+mod capture_tests;
+
 use crate::{
     backend::PaintedNode,
     component::Element,
     event::{
         router::{EventPhase, EventResult, EventRouter, NodeId},
-        types::{Event, KeyCode, KeyEventKind, MouseButton, MouseEventKind},
+        types::Event,
     },
 };
 use std::{
@@ -15,8 +21,28 @@ use std::{
 
 #[derive(Clone, Hash, Eq, PartialEq)]
 enum Slot {
+    Component(u64),
     Key(String),
     Index(usize),
+}
+
+impl Slot {
+    fn append(path: &mut Vec<Self>, element: &Element, index: usize) {
+        path.extend(
+            element
+                .metadata
+                .component_instances
+                .iter()
+                .copied()
+                .map(Self::Component),
+        );
+        path.push(
+            element
+                .key
+                .as_ref()
+                .map_or(Self::Index(index), |key| Self::Key(key.clone())),
+        );
+    }
 }
 
 #[derive(Default)]
@@ -25,18 +51,22 @@ pub(super) struct EventTree {
 }
 
 struct Registration<'a> {
+    inert: bool,
+    keyboard_only: bool,
+    inert_nodes: HashSet<NodeId>,
     router: &'a mut EventRouter,
     seen: HashSet<Vec<Slot>>,
     preorder: Vec<NodeId>,
     focus: super::focus_manager::FocusPlan,
+    layouts: Vec<Vec<crate::component::element::LayoutCallback>>,
 }
 
 impl EventTree {
     /// Resolve state variants without publishing a candidate event tree.
-    pub(super) fn styled(&self, element: &Element, router: &EventRouter) -> Element {
+    pub(super) fn styled(&self, element: &Element, router: &EventRouter, width: u16) -> Element {
         let focus = router.get_focus().and_then(|id| self.path_for(id));
         let hover = router.hovered_node().and_then(|id| self.path_for(id));
-        Self::style_node(element.clone(), Vec::new(), 0, focus, hover)
+        Self::style_node(element.clone(), Vec::new(), 0, focus, hover, width)
     }
 
     fn path_for(&self, id: NodeId) -> Option<&[Slot]> {
@@ -51,13 +81,9 @@ impl EventTree {
         index: usize,
         focus: Option<&[Slot]>,
         hover: Option<&[Slot]>,
+        width: u16,
     ) -> Element {
-        path.push(
-            element
-                .key
-                .as_ref()
-                .map_or(Slot::Index(index), |key| Slot::Key(key.clone())),
-        );
+        Slot::append(&mut path, &element, index);
         if let Some(class) = &element.class {
             element.class = Some(
                 class
@@ -74,6 +100,10 @@ impl EventTree {
                                 }
                                 "hover" => hover.is_some_and(|hovered| hovered.starts_with(&path)),
                                 "disabled" => element.metadata.disabled,
+                                "sm" => width >= 40,
+                                "md" => width >= 80,
+                                "lg" => width >= 120,
+                                "xl" => width >= 160,
                                 _ => break,
                             };
                             if !matches {
@@ -91,7 +121,7 @@ impl EventTree {
             .children
             .into_iter()
             .enumerate()
-            .map(|(index, child)| Self::style_node(child, path.clone(), index, focus, hover))
+            .map(|(index, child)| Self::style_node(child, path.clone(), index, focus, hover, width))
             .collect();
         element
     }
@@ -100,13 +130,19 @@ impl EventTree {
         &mut self,
         element: &Element,
         geometry: &[PaintedNode],
+        layouts: Option<&[crate::backend::PresentedLayout]>,
         router: &mut EventRouter,
-    ) -> super::focus_manager::FocusPlan {
+    ) -> (super::focus_manager::FocusPlan, bool) {
+        let previous_focus = router.get_focus();
         let mut frame = Registration {
+            inert: false,
+            keyboard_only: false,
+            inert_nodes: HashSet::new(),
             router,
             seen: HashSet::new(),
             preorder: Vec::new(),
-            focus: super::focus_manager::FocusPlan::default(),
+            focus: super::focus_manager::FocusPlan::new(previous_focus),
+            layouts: Vec::new(),
         };
         self.visit(element, Vec::new(), 0, None, &mut frame);
         let removed: Vec<_> = self
@@ -121,21 +157,39 @@ impl EventTree {
             .collect();
         frame.router.set_focus_order(&frame.preorder);
         frame.router.remove_nodes(&removed);
+        let mut layout_changed = false;
+        let layouts: HashMap<_, _> = layouts
+            .unwrap_or_default()
+            .iter()
+            .map(|node| (node.element_index, node.layout))
+            .collect();
         for (order, node) in geometry.iter().enumerate() {
             if let Some(&id) = frame.preorder.get(node.element_index) {
-                frame
-                    .router
-                    .add_hit_target(id, node.bounds, order.min(i32::MAX as usize) as i32);
-                frame.router.update_spatial(
-                    id,
-                    node.bounds.x,
-                    node.bounds.y,
-                    node.bounds.width,
-                    node.bounds.height,
-                );
+                for callback in &frame.layouts[node.element_index] {
+                    let layout = layouts
+                        .get(&node.element_index)
+                        .copied()
+                        .unwrap_or_else(|| crate::component::LayoutInfo::from_bounds(node.bounds));
+                    layout_changed |= callback(layout);
+                }
+                if !frame.inert_nodes.contains(&id) {
+                    frame.router.add_hit_target(
+                        id,
+                        node.bounds,
+                        order.min(i32::MAX as usize) as i32,
+                    );
+                    frame.router.update_spatial(
+                        id,
+                        node.bounds.x,
+                        node.bounds.y,
+                        node.bounds.width,
+                        node.bounds.height,
+                    );
+                }
             }
         }
-        frame.focus
+        layout_changed |= frame.router.refresh_hover();
+        (frame.focus, layout_changed)
     }
 
     fn visit(
@@ -146,24 +200,34 @@ impl EventTree {
         parent: Option<NodeId>,
         frame: &mut Registration<'_>,
     ) {
-        path.push(
-            element
-                .key
-                .as_ref()
-                .map_or(Slot::Index(index), |key| Slot::Key(key.clone())),
-        );
+        Slot::append(&mut path, element, index);
         let id = *self
             .nodes
             .entry(path.clone())
             .or_insert_with(|| frame.router.create_node(parent));
         frame.seen.insert(path.clone());
         frame.preorder.push(id);
+        frame.layouts.push(element.metadata.layout.clone());
+        let ancestor_inert = frame.inert;
+        let ancestor_keyboard_only = frame.keyboard_only;
+        frame.inert |= element.metadata.inert;
+        frame.keyboard_only |= element
+            .metadata
+            .accessibility_options
+            .as_ref()
+            .is_some_and(|o| o.keyboard_only);
         frame.register(element, id);
-        let trap = frame.focus.enter(element, id);
+        let trap = if frame.inert {
+            (false, false)
+        } else {
+            frame.focus.enter(element, id)
+        };
         for (index, child) in element.children.iter().enumerate() {
             self.visit(child, path.clone(), index, Some(id), frame);
         }
         frame.focus.leave(trap);
+        frame.inert = ancestor_inert;
+        frame.keyboard_only = ancestor_keyboard_only;
     }
 
     pub(super) fn clear(&mut self, router: &mut EventRouter) {
@@ -175,6 +239,15 @@ impl EventTree {
 impl Registration<'_> {
     fn register(&mut self, element: &Element, id: NodeId) {
         self.router.remove_hit_target(id);
+        if self.keyboard_only {
+            self.inert_nodes.insert(id);
+        }
+        if self.inert {
+            self.inert_nodes.insert(id);
+            self.router.remove_focusable(id);
+            self.router.clear_handlers(id);
+            return;
+        }
         let interactive = !element.metadata.disabled && !element.metadata.on_click.is_empty();
         let focusable = !element.metadata.disabled
             && element
@@ -189,26 +262,24 @@ impl Registration<'_> {
         }
         self.router.clear_handlers(id);
         self.register_focus_callbacks(element, id);
+        if !element.metadata.disabled {
+            for handler in &element.metadata.capture_events {
+                for event_type in ["key", "mouse", "focus", "paste", "custom"] {
+                    self.router
+                        .add_handler(id, event_type, EventPhase::Capture, handler.clone());
+                }
+            }
+            for handler in &element.metadata.events {
+                for event_type in ["key", "mouse", "focus", "paste", "custom"] {
+                    self.router
+                        .add_handler(id, event_type, EventPhase::Bubble, handler.clone());
+                }
+            }
+        }
         if interactive {
             let callbacks = element.metadata.on_click.clone();
             let handler: crate::event::router::EventHandlerFn = Arc::new(move |event| {
-                let activate = match event {
-                    Event::Key(key) => {
-                        key.kind == KeyEventKind::Press
-                            && !key.repeat
-                            && key.modifiers.is_empty()
-                            && matches!(
-                                key.code,
-                                KeyCode::Enter | KeyCode::Space | KeyCode::Char(' ')
-                            )
-                    }
-                    Event::Mouse(mouse) => {
-                        mouse.button == MouseButton::Left
-                            && matches!(mouse.kind, MouseEventKind::Down | MouseEventKind::Click)
-                    }
-                    _ => false,
-                };
-                if !activate {
+                if !event.activates_control() {
                     return EventResult::Ignored;
                 }
                 for callback in &callbacks {

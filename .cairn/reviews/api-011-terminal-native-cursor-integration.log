@@ -1,0 +1,17 @@
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.90s
+     Running tests/suprtui_renderer.rs (target/debug/deps/suprtui_renderer-cbea91609984ac29)
+
+running 9 tests
+test backend_remains_send_and_sync_and_shutdown_is_idempotent ... ok
+test rnd_001_explicit_black_background_covers_lower_content ... ok
+test rnd_002_nested_absolute_text_obeys_ancestor_clip ... ok
+test rnd_001_nested_layout_keeps_children_above_their_parent_background ... ok
+test rnd_002_preserves_clusters_and_clips_at_cell_boundaries ... ok
+test rnd_001_grid_and_overlapping_layers ... ok
+test rnd_001_styled_layout_update_removal_and_unchanged_screen ... ok
+test rnd_003_resize_matches_fresh_frame_and_ignores_zero ... ok
+test rnd_004_flushes_and_repaints_after_partial_write_or_flush_failure ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

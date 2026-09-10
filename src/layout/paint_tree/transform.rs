@@ -2,7 +2,7 @@
 
 use crate::layout::motion::CellTransform;
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub(super) struct Affine {
     a: f32,
     b: f32,
@@ -26,6 +26,9 @@ impl Default for Affine {
 }
 
 impl Affine {
+    pub(super) fn coefficients(self) -> [f32; 6] {
+        [self.a, self.b, self.c, self.d, self.x, self.y]
+    }
     pub(super) fn point(self, x: f32, y: f32) -> (f32, f32) {
         (
             self.a * x + self.c * y + self.x,

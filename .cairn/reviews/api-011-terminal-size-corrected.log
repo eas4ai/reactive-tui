@@ -1,0 +1,23 @@
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 7.57s
+     Running unittests src/lib.rs (target/debug/deps/reactive_tui-fa00cdcf48e682eb)
+
+running 2 tests
+
+thread 'terminal::screen::tests::retained_terminal_constructors_reject_zero_dimensions_at_boundary' (436275) panicked at src/terminal/screen.rs:44:54:
+invalid virtual screen dimensions: InvalidSize { width: 0, height: 2 }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+thread 'terminal::screen::tests::retained_terminal_constructors_reject_zero_dimensions_at_boundary' (436275) panicked at src/terminal/terminal_impl.rs:30:31:
+invalid terminal dimensions: InvalidSize { width: 0, height: 2 }
+
+thread 'terminal::screen::tests::retained_terminal_constructors_reject_zero_dimensions_at_boundary' (436275) panicked at src/terminal/screen.rs:44:54:
+invalid virtual screen dimensions: InvalidSize { width: 2, height: 0 }
+
+thread 'terminal::screen::tests::retained_terminal_constructors_reject_zero_dimensions_at_boundary' (436275) panicked at src/terminal/terminal_impl.rs:30:31:
+invalid terminal dimensions: InvalidSize { width: 2, height: 0 }
+test terminal::screen::tests::retained_terminal_constructors_reject_zero_dimensions_at_boundary ... ok
+test terminal::screen::tests::retained_terminal_fallible_constructors_bound_allocation_and_preserve_valid_sizes ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 942 filtered out; finished in 0.00s
+

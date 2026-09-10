@@ -688,3 +688,2381 @@ cases passed after this repair; the full suite is rerun before acceptance.
 The corrected full default-suite run exited zero: 1,167 passed and 37 ignored
 across 63 test groups. Formatting and git diff whitespace checks passed. The
 ignored cases are unchanged; no ignored case is counted as acceptance.
+
+## API-011 Accordion work and unresolved accessibility contract
+
+The new App test accordion_builder_opens_real_content_and_skips_disabled_headers
+failed against the old builder with an input deadline: opening the named widget
+never produced the required content frame. The repaired named builder preserves
+its component name and uses the built-in factory. The public Accordion remains a
+unit struct; a retained private child owns measured headers and motion resources.
+Seven App cases now cover expansion and disabled navigation, measured multi-line
+custom headers, root callback IDs and mode constraints, empty/disabled/release
+input, nested input retention and resize, intermediate animation/reduced motion,
+and persistence when supplied props change. These run at two viewport sizes.
+
+Editing verification: the combined api_widget_behavior, api_styling and
+layout_paint_tests run passed 100 tests. The six accordion library tests passed,
+including bounded spring timing, stagger, reversal and timer cleanup. The scoped
+notification isolation/abandonment unit test passed separately. Formatting and
+git diff whitespace checks passed. These are editing checks, not Cairn receipts;
+API-011 remains in progress and its catalog is not complete.
+
+A focused source examination found that Accordion's full ARIA/screen-reader claim
+has no delivery path. AccordionSection and BreadcrumbSegment store aria_label,
+but no code reads those fields. apply_aria_label, apply_aria_labelledby,
+apply_aria_describedby and apply_aria_live in src/layout/css/accessibility.rs
+return the unchanged StyleBuilder. Their unit checks only test parser acceptance.
+No accessibility claim was replaced with those passing tests. The proposed
+terminal/reader guarantee and observable acceptance criteria are recorded in
+docs/widget-acceptance.md for a developer decision. Accessibility implementation,
+remaining catalog families and the final commitment review remain outstanding.
+
+## API-011 screen-reader construction checks
+
+The real App/SuprTUI fixture now exposes labels that differ from its painted
+headers. The isolated GNOME Terminal / Orca workflow at 60x16 passed label and
+button-role announcements, collapsed/expanded state, disabled-action exclusion,
+assistive focus on a nested input and another header, keyboard activation,
+removal, exactly-once callbacks, and cleanup/state isolation across two App
+instances in one process. These are editing checks, not Cairn receipts. The
+smaller viewport and semantic-label negative control are still pending.
+
+The test first found that focus-only nodes lacked an AT-SPI Component interface.
+The recorded successor decision preserves that interface without inventing pixel
+bounds. Four focused tests fail with the original upstream state/focus mapping
+and pass with the repaired mapping restored. They check expandable/expanded,
+disabled enabled/sensitive state, read-only enabled inputs, and focus without a
+click action. The real workflow also failed when switching away from the host
+left accessible focus set. Enabling terminal focus reports and disabling them on
+restoration fixed that case. The full strict all-target Clippy check passed.
+
+An early disposable launch used the inherited display for D-Bus activation.
+Those App runs are invalid evidence; their diagnostic directories were removed,
+including unintended input captures. The corrected runner creates the private
+XDG environment and Xvfb display before starting D-Bus, passes the display
+explicitly to GNOME Terminal, and verifies a mapped window on that display
+before sending input. The desktop accessibility settings were read afterward;
+both toolkit-accessibility and screen-reader-enabled remained false. Tests use
+Orca's ordinary reader implementation; a private customization only makes its
+real debug log line-buffered for bounded observation. Orca's launcher excludes
+other instances by user rather than D-Bus session, so these tests run serially.
+
+The same real-reader workflow subsequently passed at 32x10. The negative fixture
+paints the same headings but omits their semantic labels; the workflow rejected
+it at the missing-semantic-label assertion. A first attempt to run two readers
+concurrently was rejected by Orca's per-user single-instance guard, not counted
+as a negative-control pass. Serial execution passed. The mechanism retains both
+viewport runs, the missing-label negative control, and the four state/focus unit
+cases. All of this remains editing verification until the implementation and
+mechanism are committed and Cairn records current evidence.
+
+Remaining accessibility review obligations include semantic state for the other
+catalog controls and CSS utilities, clipped/hidden focus ownership, transport
+failure reporting and boundedness of the included adapter's internal message
+queue. The owned App action receiver is bounded at 64, but the upstream adapter
+uses an unbounded outbound queue; do not describe the complete transport as
+bounded before that concern is resolved and tested.
+
+## API-011 Breadcrumb implementation checks
+
+The baseline failed all three new App workflows: named builder output, keyboard
+callback delivery and measured mouse targeting. The padded fixture originally
+had an eight-row viewport with eight rows of top padding (p-2 uses the existing
+CSS spacing scale); its corrected 20/24-row viewports expose the intended target.
+That fixture correction was not counted as a product fix.
+
+The recorded retained-child decision preserves Breadcrumb's public unit type,
+props, state and named/typed builders. The child measures actual segment widths,
+fits separators and overflow into the allocated viewport, wraps and scrolls real
+layout children, handles measured pointer targets and hover tooltips, and emits
+one deferred JSON navigation notification. Current and nonclickable segments do
+not activate. Public labels are carried independently from painted labels.
+
+Ten App cases passed at two sizes, including all overflow strategies, keyboard
+and mouse callbacks, wrapping, scrolling to focused segments, tooltips, resize,
+prop reorder with focus retention, empty controls, disabled keyboard navigation
+and key release. Strict all-target Clippy passed before the last three tests were
+added; full widget regression and updated checks are running separately. Reader
+coverage for Breadcrumb and current-page attribute translation remain pending.
+
+
+## API-011 breadcrumb reader and replacement-focus construction checks
+
+The isolated real App/Orca workflow exposed a replacement defect: after a
+focused Accordion was replaced with Breadcrumb, assistive focus announced Home
+but keyboard Right did not advance. A local App case reproduced the mismatch:
+clicking Root and pressing Enter delivered Root then Docs instead of Root twice.
+The event tree reused the flattened layout slot while the retained component had
+been replaced, so the new child missed its focus notification. The runtime now
+retains an App-local mount identity chain in expanded metadata; event, styling
+and accessibility paths use that chain with the existing keys. Replacement gets
+fresh targets and focus delivery. The corrected click/Enter/Right case passes.
+All five component-expansion tests, 12 focus tests and then-current 79 widget
+tests passed after this change, including keyed reorder and focus traps.
+
+The next reader assertion failed because the current breadcrumb had no AT-SPI
+Active state. AccessKit already retained AriaCurrent::Page. The maintained
+translation now supplies Active and the exact current attribute token, following
+https://w3c.github.io/core-aam/#ariaCurrent. Five adapter tests pass, covering
+absent/false and all seven current tokens, focus/selection independence, existing
+window active behavior, disclosure state, disabled/read-only state and focus
+without pixel bounds. The first speech assertion used lowercase current page;
+Orca actually emitted static (Current page). Correcting that test's case made
+the complete workflow pass; no reader output or state was manufactured.
+
+The final reader workflow passed serially at 60x16 and 32x10 with GNOME Terminal
+3.58.0/VTE 0.84.0, Orca 50.1.2 and AT-SPI2 2.60.0 in the isolated X11 session.
+It checks distinct breadcrumb labels and Link roles, inert current/disabled
+activation, assistive focus followed by keyboard focus, one navigation callback
+per activation, and removal. Orca's standard Ctrl+Orca+Right object navigation
+reads the inert current item and announces Current page. Speech after keyboard
+Right must occur after that action, rather than match the earlier autofocus
+announcement. The separate negative run still rejects painted labels when the
+semantic labels are removed. Both successive App instances detach cleanly.
+
+Fourteen breadcrumb App cases now pass, adding replacement focus, home/icon and
+compact/noncompact options, segment classes, inert mouse targets, signed/zero/
+large wheel deltas and mouse targets after scrolling. One new spacing assertion
+initially stripped spaces on only one side; correcting its expected normalization
+made it pass without a product change. Strict all-target Clippy passed after the
+runtime/adapter repairs; the later test-only additions still need that final pass.
+These are editing checks, not committed Cairn receipts. The catalog, shared
+accessibility helpers, outgoing transport bounds and error lifecycle remain open.
+
+
+## API-011 closing-body input construction check
+
+A two-second collapse test confirmed a closing accordion body stayed in Tab order:
+Tab/Enter activated its inner button even though its semantic subtree was hidden.
+The initial test fixture used the button's large default padding and clipped its
+label; setting explicit one-row bounds made the intended failure observable.
+The fix retains and paints the body with an inherited internal inert flag. Event
+registration removes its focus, handlers and hit targets, and excludes its traps;
+accessibility traversal hides the same subtree. Layout callbacks still run and
+component instances stay mounted. Reopening restores ordinary registration.
+The corrected test checks the body is still painted, attempts a pointer click,
+and confirms Tab/Enter reaches the outside button without activating the inside
+button. All nine accordion-related App cases passed, including retained input
+across collapse/reopen and the breadcrumb replacement regression. The broader
+focus/component/widget rerun is pending at this entry. No Cairn receipt claimed.
+
+
+## API-011 bounded transport construction checks
+
+The source audit found the private upstream Unix adapter used an unbounded
+process-wide outgoing queue and an unowned worker, ignored most bus errors and
+could not restart after that worker failed. The retained state translation was
+correct for the reader fixture but did not establish the required ownership or
+reliability. The new judged transport decision is implemented with one application
+context and worker per App, a 4096-message queue, separate cancellation, returned
+failure state and three-second asynchronous bus-operation deadlines. App wakes on
+failure, checks it during publishing/input, cancels and joins the adapter before
+terminal cleanup. The incoming queue and per-turn action drain are bounded to 64.
+
+Five transport tests pass for overflow, cancellation during a pending operation,
+worker panic, independent/later connections after failure and the operation
+deadline. An incoming-action overload test passes. A temporary negative control
+silently discarded outgoing overflow; the overload test failed on its expected
+error assertion. The source was restored and all five transport tests passed
+again. The negative-control log is /tmp/rtui-a11y-overload-negative.log; it is
+editing evidence, not a Cairn receipt. The broader accessibility unit selection
+passed 26 cases, including upstream cache/translation tests. The three existing
+CSS recognition tests in that selection still do not prove semantic behavior.
+
+The private-bus App fixture returns an error and restores raw mode and the
+alternate screen for a missing endpoint (about 0.06 seconds) and an endpoint that
+never answers authentication (about 3.05 seconds). Automatic mode without a
+desktop bus also accepts ordinary F9 input and cleans up successfully (about 0.53
+seconds). The first harness version failed to drain PTY output while waiting;
+its full output buffer blocked the renderer before App could observe the error.
+Concurrent draining repaired the harness without changing the product.
+
+The real GNOME Terminal/Orca fixture now keeps an independent App alive while the
+first foreground App closes and a second starts. Its action counter advances
+once before and once after the first App closes, and all three adapters disappear
+at final shutdown. This passed at both 60x16 and 32x10 along with the accordion
+and breadcrumb reader workflow. The final 32x10 run used the current fixture,
+including its automatic-mode option. The missing-semantic-label negative rerun
+is pending at this entry. All 83 widget tests, 12 focus tests and five component
+expansion tests passed after the transport changes. Strict all-target Clippy,
+format checking and diff whitespace checks also passed. The catalog and shared
+accessibility CSS behavior remain unfinished; no API-011 acceptance or current
+committed Cairn evidence is claimed here.
+
+
+## API-011 accessibility styles and frame publication
+
+Source review found that the shared CSS helpers discarded values, roles, tab
+indices and live-region settings. The repaired path retains those attributes in
+StyleBuilder snapshots, validates label references against App-local IDs, and
+uses the presented semantic candidate for event registration and reader updates.
+Base disabled semantics are established before selecting disabled style variants.
+Missing values, invalid booleans, duplicate IDs, missing references and cycles
+fail before presenting a candidate. Existing Element and widget label APIs remain.
+
+Attacked snapshot transport, reference labels/descriptions, false state overrides,
+keyboard order, inherited disabled controls, keyboard-only hit targets, resize,
+screen-reader-only text and animation cleanup. App tests exposed sr-only forcing
+size zero permanently; visibility now carries a reversible flag, and nested
+reader-only content stays in the reader tree even without cell geometry. Two App
+workflows pass at 24x6 and 48x12. Three semantic unit cases and the owned reduced-
+motion clock case pass. The public value-taking helper doctest passes.
+
+The real Orca fixture now includes CSS labels that differ from painted text,
+label/description references, heading and toggle roles, expanded/selected/checked
+states, hidden and restored content, nested reader-only content, assistive focus,
+pressed changes and a polite live announcement. An initial fixture attempted to
+assert host focus for the deliberately noninteractive background App; those
+assertions now run in the actual GNOME Terminal foreground App. Another fixture
+combined expanded and pressed on one button; Orca prioritizes the disclosure
+announcement, so the two semantics now have distinct controls. Neither fixture
+error justified changing the adapter or weakening the state assertions.
+
+The 32x10 live speech check also exposed Orca 50.1.2 suppressing same-App
+announcements within 100 ms. Its own log recorded delivery followed by that
+spam-filter decision; installed event_manager.py lines 343-353 implement it.
+The fixture now pumps its event loop for 150 ms between initial announcement
+and activation, preserving the speech assertion and leaving Orca unchanged.
+The corrected 32x10 reader run passes; the prior 60x16 run passed all these
+semantic cases. Both use GNOME Terminal 3.58.0/VTE 0.84.0 and AT-SPI2 2.60.0
+in the isolated GNOME X11 session. The CSS-negative fixture must fail to locate
+the semantic control after removing its styles; it has rejected that case.
+
+Current widget/focus/component regression run: 102 tests passed. The complete
+accessibility-filtered library run passes, including bounded transport and
+action-queue tests. Strict all-target Clippy passed during this change; final
+format/lint checks follow the last fixture edits. This is implementation review,
+not a passing API-011 receipt: the catalog matrix still contains pending rows.
+
+Final checks after the fixture edits: workspace format check, strict all-target
+Clippy and git diff whitespace check all passed. The final CSS-negative run
+rejected the missing semantic control. The widget inventory remains pending.
+
+
+### API-011 implementation checks: Table and DataTable
+
+This records local implementation checks, not a completed commitment review or
+Cairn evidence receipt. API-011 and the remaining catalog are still in progress.
+
+Examined the public Table/DataTable props, states, constructors, builder and macro,
+the named component registry, App layout/input callbacks, shared disabled-state
+preparation, and the retained breadcrumb/scroll ownership patterns. The old Table
+assumed width 80 and origin zero, ignored widths while painting, split mouse and
+keyboard selection between incompatible fields, and guessed wheel direction from
+pointer position. DataTable painted an informational description, lacked controls,
+ignored virtual scrolling, and its builder dropped filters and hidden columns.
+
+The retained table now measures its viewport and cells, clips the body separately
+from headers and borders, uses signed wheel input, and retains source-row identity.
+Widths, alignment, styles, border shapes/color, sorting, selection, actions and
+column dragging reach frames and App callbacks. Private full-sized row offsets
+preserve access beyond the public compatibility state's 16-bit offset. Duplicate
+row/column IDs, contradictory widths, invalid numeric widths and invalid sort
+indices produce inert errors. Error text wraps so the diagnosis remains readable.
+
+DataTable retains query and control state, applies filters and stable sort before
+paging, translates callbacks to source indices, preserves selections across pages,
+and keeps the current row independent of the selected set. Its controls use the
+working button/input/scroll components. Virtual scrolling uses the configured row
+count within measured terminal space, retains overscan rows and clips their input.
+The builder retains filters and hidden columns, and enables its advertised sorting.
+Removed the obsolete filter-copy helpers; the App tests exercise the live view and
+shared cell predicate, including stale counts and changed filter props.
+
+Failures found during implementation included a missing redraw after first layout
+for fixed columns, drag state cleared by ordinary redraws, missing border glyphs
+and content clipping, an unconstrained long table that could not reveal its last
+row, selection collapse when DataTable changed its current row, and inherited
+Element disabled state not reaching nested input. Corrected each and kept the
+corresponding App regression. Two test additions initially sent input before a
+panel was presented or stopped before its change was painted; corrected their
+frame gates without changing the content/callback assertions.
+
+Safe violating examples were tried and restored:
+- Changed the measured cell handler to route to `(row + 1) % rows.len()`. The named
+  Table App workflow failed its source-index/callback assertion. Diagnostic output:
+  /tmp/api011-table-wrong-row-negative.log.
+- Removed the DataTable builder's filter assignment. The real builder App workflow
+  failed because Zed remained visible beside Ada. Diagnostic output:
+  /tmp/api011-datatable-dropped-filter-negative.log.
+The corrected cases subsequently passed in the combined Table/DataTable App run.
+
+Verification run locally: 164 tests passed across api_widget_behavior, api_focus,
+api_event_routing, api_component_expansion and api_styling after the shared disabled
+fix. Subsequent targeted runs cover twelve Table and fourteen DataTable App cases
+at two sizes; the public Table unit suite passed 11 tests and DataTable range
+boundaries passed 2. Strict all-target Clippy and diff whitespace checks passed.
+The default Orca probe was rebuilt and its 32x10 GNOME Terminal workflow passed
+labels, roles, focus, disabled actions, expansion, nested input, breadcrumbs, CSS
+semantics/live announcements, App isolation and cleanup. Environment: GNOME
+Terminal 3.58.0/VTE 0.84.0, Orca 50.1.2, AT-SPI2 2.60.0, isolated X11/GNOME/Xvfb;
+logs: /tmp/rtui-orca-ui0u8ske. This is the existing reader workflow, not new Table
+screen-reader acceptance. The full API-011 mechanism still rejects pending rows.
+
+
+### API-011 Tree implementation checks (not the final commitment review)
+
+The Tree convenience builder painted a description, the named factory was absent,
+mouse hits used guessed rows, redraws reset expansion, and lazy-load results were
+ignored. The public unit component now renders a retained App child with measured
+expander, checkbox and label targets. It retains state by ID, uses returned lazy
+children, filters before hit testing, and implements bounded visible rows, callbacks,
+per-node controls, in-memory drag/drop with root/cycle rejection, and explicit errors.
+Public TreeProps and TreeState layouts remain intact. Builder callbacks and classes
+reach the live control. The old guessed mouse fallback was removed.
+
+Fourteen App tests pass at 24x8 and 48x14 (with resized viewports where applicable).
+They attack both builders/typed construction, expansion persistence, returned and
+initially expanded lazy children, duplicate/missing-loader errors, multi-selection
+cursor behavior, per-node flags, checking, filter hit order, virtual row bounds,
+negative wheels, drag/drop cycles, keyed prop replacement, duplicate mouse events,
+key release, borders/classes, padding/resize and disabled/empty roots. A temporary
+source mutation discarded the lazy callback result. The real App workflow failed;
+restoring the source made the corrected suite pass. Negative log:
+`/tmp/api011-tree-discarded-children-negative.log`.
+
+A padded auto-sized parent exposed zero intrinsic width from absolute rows. The
+same failure was reproduced for Table before repair. Both controls now contribute
+intrinsic width without moving their scrolling viewport; the new Table App test
+passes and Table coverage is now thirteen cases. The full current widget suite
+passes 126 tests, and component expansion (5), event routing (9), focus (12) and
+styling (29) also pass: 181 tests total. Strict library/widget-test Clippy passes.
+These are editing checks against the unfinished action, not Cairn receipts or a
+catalog-wide readiness claim. Tree semantic roles/states are present, but these
+Tree tests are not a new screen-reader integration acceptance claim.
+
+
+### API-011 FileExplorer implementation checks (catalog acceptance pending)
+
+The retained FileExplorer now connects every builder route to App input, measured
+layout and an owned filesystem worker. Seventeen App workflows passed, including
+copy/move/rename/delete with confirmation and cancellation, native filename callback
+payloads, sorting/filtering, preview completion while idle, all views, changed props,
+disabled/empty/error states, padded auto-sized parents and viewport resizing. Eight
+worker tests passed for rooted reads, external symlinks, non-UTF8 paths, preview
+bounds, cancellation/stale responses, owner cleanup, exclusive destinations and
+permission-preserving directory copy. A broader run of widget, component expansion,
+event routing, focus and styling tests passed all 198 cases.
+
+Failure demonstrations: temporarily replacing Unix RenameFlags::NOREPLACE with
+empty flags made worker_never_overwrites_and_failed_copy_preserves_source_and_cleans_staging
+fail at the existing-destination assertion (exit 101). The original source was
+restored byte for byte and all eight worker tests passed again. Diagnostic output
+is in target/api011-fileexplorer-overwrite-negative.log, not a Cairn receipt.
+Earlier new tests exposed an unreachable final grid entry with a visible-item
+limit smaller than the column count, and copied directory mode 0755 instead of
+0700. Whole-row grid capacity and preserved directory permissions corrected these;
+the corresponding App and worker cases now pass. Late destination collision also
+checks removal of read-only private staging without changing source permissions.
+
+The full library and api_widget_behavior test target compile for
+x86_64-pc-windows-gnu using the existing cross tools. Five warnings remain in
+capabilities/platform/router outside the new FileExplorer code. This is compilation,
+not native Windows execution. Native Windows/macOS operation behavior and actual
+Orca delivery for FileExplorer remain unverified. Worker cancellation cannot
+preempt an OS filesystem call already running; no hard shutdown deadline is claimed.
+The matrix stays PENDING until the remaining catalog and accessibility reviews.
+No formal check or completion receipt is claimed for this uncommitted action.
+
+
+### API-011 Chart implementation checks (catalog acceptance pending)
+
+Chart and Charts now resolve both builder routes to a retained measured renderer.
+Fourteen App cases passed across multiple viewport sizes. They assert distinct
+geometry for all seven modes, exact point coordinates and RGB colors, visible
+series and palette precedence, actual area fills and donut holes, signed bars,
+line/fill styles, explicit axis clipping, axis titles/grid/custom ticks, legend
+coordinates and width, hover metadata, keyboard details, disabled input, changed
+props and padded resize. New series default to solid area fill; explicit None
+still disables it. Invalid dimensions produce a readable fallback error.
+
+The tests found and corrected erased shared line endpoints, clipped tooltip
+metadata, and a duplicate mouse coordinate conversion inside padded parents.
+Line segments now intersect axis bounds in data space; out-of-scale scatter
+points are omitted instead of clamped into false edge points. Pie uses scaled
+weights to avoid overflowing a finite-value total and binary search over
+cumulative sectors, rather than scanning every point for every cell.
+
+The finite reveal timer has a deterministic test for quarter progress, completion,
+restart, reduced motion and removal; it passed. App frames separately show actual
+intermediate bars. A temporary violation suppressed solid area fill: the distinct
+geometry App test failed (exit 101). The original file was restored byte for byte;
+its diagnostic is target/api011-chart-area-negative.log. After the final pattern
+fill changes, all 220 tests across widget behavior, component expansion, event
+routing, focus, styling and the original chart suite passed. Strict library/widget
+Clippy and cargo fmt --check also passed. Ripwire reports Chart's public shape
+unchanged and LiveChart as a new internal symbol; those structural results are not
+behavior evidence. The catalog and actual reader acceptance remain pending; no
+formal Cairn receipt is claimed for this uncommitted action.
+
+
+### API-011 ProgressBar implementation checks (catalog acceptance pending)
+
+The generic builder now constructs ProgressBar props instead of descriptive text.
+The retained child paints measured horizontal thickness, vertical height, bounded
+segments, stripes and configured colors/styles. It owns scheduler deadlines for
+200 ms value transitions, indeterminate movement and pulse. The public component
+owns completion detection; valid initial completion and later crossings invoke the
+callback once, while invalid and indeterminate values cannot report completion.
+Props comparison now observes changed formatter and completion callback Arcs.
+
+Ten App tests passed at multiple sizes, with precise cell/count/color assertions,
+all builder/factory routes, signed ranges/clamping, custom formatter inputs and
+replacement, callback transitions/replacement, own padding and resize, invalid
+input, disabled interaction, reduced motion and intermediate animation frames.
+The initial-completion test exposed a missing initialization callback; setting
+initial component state through the same completion transition corrected it.
+Twelve unit cases passed, including deterministic interpolation, reversal,
+completion, reduced motion and timer release on drop. Old private renderer tests
+now exercise the cell-selection function used by the live painter.
+
+Temporarily suppressing determinate fill made the App geometry test fail with
+zero filled cells instead of twenty (exit 101); the source was restored byte for
+byte. Diagnostic: target/api011-progress-fill-negative.log. The corrected broad
+run passed all 231 tests across widget, component, event, focus, styling and chart
+suites, and all twelve progress unit cases passed again. Strict library/widget
+Clippy and formatting passed. Ripwire keeps ProgressBar's public shape unchanged
+and identifies LiveProgress as a new internal class. No formal receipt is claimed.
+
+The same work checked Chart's own padding, in addition to its padded-parent test.
+Its canvas now sits at the measured content insets; the fifteenth Chart App case
+passes for painted point placement and hover metadata inside that box. Actual
+reader acceptance and the remaining widget families are still pending.
+
+### API-011 popover implementation checkpoint (2026-09-09)
+
+Work is still in progress; this is not final widget acceptance. Private capture metadata now survives component expansion and runs before consuming child controls. Three focused registration tests passed. Changing capture registration to bubbling made the ordering assertion fail (exit 101; `target/api011-capture-negative.log`); the original source was restored and all three checks passed again. Hover boundary delivery now includes capture handlers, with a focused own-boundary test passing.
+
+Popover now retains visibility and measured geometry, renders its trigger while closed, opens actual child content, closes via Escape/outside clicks, and keeps child callbacks intact. Its private rendered child cancels scheduler deadlines even while a caller retains the public handle. A private nontrapping focus scope selects real expanded descendants and restores focus without stealing it after Tab has left the overlay. Nine App tests and 19 popover unit tests passed during editing, including all twelve positions at two viewport sizes, generic-builder defaults, hover deadlines, imperative idle wakeup and callback reentry. Strict library/widget-test Clippy passed. Remaining work includes arrow and boundary/resize acceptance, prop replacement, nested overlays, animation frames, validation, accessibility delivery and the rest of the widget inventory. No formal Cairn receipt is claimed.
+
+### API-011 Popover placement and lifecycle checks
+
+The expanded App cases cover all four boundary modes, intrinsic overflow before
+terminal clipping, resize placement and initial position callbacks, three arrow
+styles in four directions, arrow/body mouse targeting, all four animations, mixed
+nested focus traps, callback/content replacement, independent dismissal flags,
+invalid anchors and size constraints, empty content and disabled triggers. The
+new tests exposed and repaired suppressed initial position callbacks, premature
+viewport clamping in Ignore mode, disabled trigger observation, leaving the host
+at the origin, and disabled Escape dismissal reaching App's quit fallback. The
+Escape unit expectation now requires consumption without closing; the real App
+case establishes why returning Ignored was wrong. Arrow transforms follow the
+body, stale arrow positions clear, and generation is bounded by the viewport axis.
+
+A safe mutation replaced measured body size with a fixed 10-by-5 size. The actual
+placement assertion failed with exit 101; output is in
+`target/api011-popover-guessed-size-negative.log`. The source was restored exactly.
+After the final behavior edits, all seven related integration suites passed: 281
+tests across widgets, events, focus, component expansion, styling, painting and hook
+lifecycle. Twenty-one Popover unit cases passed, including controlled-clock
+reversal/completion, hover cancellation, changing the retained public owner and
+unmount cleanup. Strict library/widget-test Clippy passed. These are editing
+checks, not committed Cairn evidence.
+
+The arrow animation test uses a one-second duration so the measured frame can
+show an intermediate scale before terminal-cell rounding reaches its final
+appearance. Both 24-by-16 and 48-by-24 viewports pass. The screen-reader workflow,
+remaining catalog families and final acceptance review are still pending.
+
+### API-011 Modal implementation checkpoint
+
+The first three App probes failed against the old Modal: fixed viewport
+placement, hidden generic-builder content, and named-route button completion.
+That baseline is retained in `target/api011-modal-baseline.log`. The retained
+implementation now passes fifteen cases covering geometry and sizing, actual
+child input and scrolling, close reasons, all resize edges, title dragging,
+callbacks and focus restoration, prop replacement, animation, invalid sizes
+and region styles. Eleven unit cases include controlled-clock reversal and
+completion, unmount cancellation, and duplicate action suppression.
+
+The old outer Modal handler intercepted Tab before App could move real focus.
+It also emitted another close callback after the retained owner had already
+closed; `target/api011-modal-duplicate-close.log` records that failure. Removed
+those competing event and frame-counter animation paths. The public unit type,
+props/state types, enums and construction helpers remain. The private child now
+owns dispatch and lifecycle for all construction routes, including manual render.
+The former index-only keyboard and frame-counter unit tests were replaced by
+actual App navigation and controlled-clock lifecycle checks.
+
+Cell-color checks found white text on Modal's white background, and then exposed
+missing foreground inheritance in the shared layout builder. The default Modal
+foreground is now black. The builder carries ancestor foreground colors unless
+a child provides its own; a direct failure probe and corrected case also verify
+sibling isolation (`target/api011-foreground-inheritance-baseline.log`).
+After these edits, 296 tests passed across the seven related integration suites,
+strict library/widget-test Clippy passed, formatting ran, and the whitespace
+check passed. Ripwire reports a private builder parameter change with no known
+incompatible callers. No committed Cairn evidence or catalog completion is claimed.
+
+Modal still needs the remaining dismissal-option, stacking/nesting, closing-body
+and public-route checks, plus actual reader delivery and final catalog review.
+Other pending widget families remain part of API-011.
+
+### API-011 Modal additional implementation checks
+
+Added App workflows for dismissal flag combinations, explicit actions when dismissal is disabled, viewport drag clamping and focus-loss cancellation, visible generic construction with multiple children, public prop helpers and empty content, overlapping mouse z-order, nested Escape/focus restoration, inert closing fades with immediate reopening, and invalid-dimension recovery. All 23 modal module tests pass at the tested viewport sizes. Two new close assertions initially stopped the harness before its next presentation; they now wait for the post-input frame. This was a test sequencing correction, not a runtime defect.
+
+The broad library run exposed seven stale builder tests expecting descriptive text or a short registry name. Replaced these expectations with real component/props/child checks, consistent with the existing App acceptance workflows. The corrected library run passed 814 tests, with two ignored; TTY-dependent legacy cases report skips in this headless run. The prior failed run is retained at target/api011-builder-unit-baseline.log. This remains an implementation checkpoint, not the final Cairn review or complete catalog acceptance.
+
+### API-011 menu baseline
+
+Four new App probes in tests/api_widget_behavior/menus.rs fail before menu repair: MenuBar, PopupMenu and DialogMenu do not paint their item labels; ContextMenu does not open a painted menu after right-click. Captured failure output is target/api011-menu-baseline.log. Source inspection confirms empty menu render containers, missing measured mouse targets, discarded generic MenuBar callbacks and a checkbox constructor that captures the original boolean forever. These are implementation findings under API-011, not accepted behavior. Menu repair and full interaction coverage remain pending.
+
+### API-011 menu repair checkpoint: callbacks and menu bar
+
+The menu checkbox constructor captured its initial checked value. A public item execution probe changed the current item state and observed two true callback values instead of true then false. A second probe replaced an action with the same ID and found props compared equal. Both failed before repair (target/api011-menu-callback-baseline.log). The scoped argument adapter and callback identity comparison now pass six focused tests, including nested/direct invocation, panic cleanup, cloned actions and concurrent scopes. These tests establish the adapter contract, not App isolation for the whole catalog.
+
+The retained menu bar paints actual items and uses measured item and panel layouts. Seven App tests pass: visible items at two viewport sizes, nested action delivery with disabled-item skipping, generic builder callback retention, checkbox state across openings, pointer activation at painted positions, Home/End scrolling, and disabled/empty controls. The nested probe initially failed because the submenu painted off screen; measured panel bounds now keep it visible. Strict library/widget Clippy passed before the final Home/End and visible-target additions; rerun remains required. Menu bar shortcuts, separators/styles, hover/outside dismissal, callback/prop replacement and reader delivery still need acceptance. Popup, context and dialog menu render baselines remain failing and are not repaired by this checkpoint. API-011 remains in progress.
+
+### API-011 menu shortcut and identity work, 2026-09-10
+
+Added three real App workflows at 32×12 and 60×20. Before repair, Ctrl+S called no action; after a prop reorder, Enter called ALPHA instead of the selected BRAVO; arrow navigation invoked leaf actions. Their failing development outputs are preserved in target/api011-menu-{shortcut,reorder,direction}-baseline.log. These are diagnostics, not Cairn receipts. The corrected ten menu-bar workflows passed before and after extracting the shared MenuModel and MenuView. Shortcut traversal excludes hidden/disabled ancestors and requires exact modifiers. The reorder workflow also verifies the newly supplied callback. Arrow navigation opens submenus and leaves leaf invocation to Enter/Space.
+
+MenuModel now owns retained item values, identity reconciliation, selection, action-state mutation and shortcut traversal. MenuView owns item rendering and measured pointer targets. Popup/context/dialog integration remains unfinished; API-011 is not accepted. Separators, shadow/width options, hover/outside/wheel behavior, state seeds, additional lifecycle and reader acceptance still require work.
+
+### API-011 popup hover repair (2026-09-09)
+
+The App regression `popup_menu_hover_opens_and_preserves_the_nested_panel` failed before the repair (0 passed, 1 failed): hovering RECENT never painted OPEN. The captured output is `.cairn/reviews/api-011-popup-hover-baseline.log`. After the repair the same command passed at 32x12 and 60x20. It also repeats hover on the parent before Enter, proving the open child remains selected and its action fires once. Popup outside dismissal now restricts measured panels to currently open depth and clipping. That dismissal change still needs its own regression. These are development runs, not Cairn evidence.
+
+### API-011 menu row-height repair (2026-09-09)
+
+`popup_menu_scroll_keeps_selected_rows_visible_with_separators` failed before the repair: End selected the last item but its row was clipped, so the App workflow could not proceed. Output is retained in `.cairn/reviews/api-011-menu-scroll-separators-baseline.log`. Shared panels now budget measured outer row heights, including attached separators, alongside panel insets and header/footer height. Before a row is measured, its text line count and separator supply the initial estimate. The same test passed at 32x8 and 60x10; all 30 menu App workflows passed together. Strict default-feature all-target Clippy passed. These runs are development verification, not committed Cairn receipts.
+
+### API-011 menu wheel routing (2026-09-09)
+
+`menu_wheel_navigation_reaches_actions_through_app` failed with no second-item callback for the menubar before the repair. Its baseline is `.cairn/reviews/api-011-menu-wheel-baseline.log`. Menubar and dialog menu had no wheel handler. The shared menu model now navigates the panel under the pointer, bounds numeric deltas, rejects nonfinite/zero values, and handles line or pixel wheel input. The corrected App test passed for menubar, popup and dialog at 32x12 and 60x20, checking the selected action callback. `popup_and_dialog_menu_outside_click_ignores_closed_submenu_bounds` also passed for popup and nonmodal dialog at two sizes; it passed before the dialog depth-filter cleanup, so it is coverage, not a demonstrated defect for that cleanup.
+
+### API-011 dialog input and broad regression (2026-09-09)
+
+`dialog_menu_input_pastes_scrolls_and_deletes_whole_graphemes` failed before repair waiting for pasted text. Baseline: `.cairn/reviews/api-011-dialog-paste-baseline.log`. The corrected App workflow passes at 24x10 and 48x14: paste a long Unicode value, see its tail, Home, delete a CJK grapheme and a combining grapheme, End, and submit the exact remaining value. Input paints a bounded grapheme window around the caret using its measured width; pointer placement includes that window offset. Paste inserts once rather than per character, and strips control characters for this single-line field.
+
+The broader run initially found an old MenuStyle default-class assertion. It now checks the corrected class string and numeric one-cell padding, which has independent painted-cell coverage. A subsequent full run passed all 827 library tests (two ignored) but failed the popover slide probe requiring three visible body/arrow frames among the first twelve total frames. The isolated rerun and then the 248-test widget rerun passed unchanged apart from a diagnostic message. To remove dependence on the count of setup renders, the slide probe now waits for three presented frames containing both body and arrow, retaining the exact geometry and changed-frame assertions. Verification after that test-gate change is still pending. These are development results; no formal receipts have been recorded.
+
+### API-011 measured page navigation and dialog hover (2026-09-09)
+
+`menu_page_navigation_uses_the_presented_row_count` failed before repair: Page Down advanced by the configured menu maximum instead of the presented page size. Baseline: `.cairn/reviews/api-011-menu-page-baseline.log`. The shared view counts rendered row targets in the current panel; menubar, popup and dialog use that count for Page Up/Down. The corrected App workflow passed for all three at 32x10 and 60x14, comparing the chosen action to an independent count of ROW labels in the captured frame.
+
+`dialog_menu_hover_selects_the_painted_item_without_activating_it` failed before repair with no second-item callback. Baseline: `.cairn/reviews/api-011-menu-dialog-hover-baseline.log`. Dialog and popup now share selection-only hover logic that preserves open ancestors and opens selectable child menus without firing item callbacks. The full menu rerun is pending.
+
+The preceding slide test-gate change passed the full 248-test widget suite, and strict default-feature all-target Clippy passed before the page/hover additions.
+
+### API-011 reopen/focus verification and current development suite (2026-09-09)
+
+The corrected `popup_and_dialog_menus_reopen_and_restore_the_trigger_focus` test passes for popup, modal dialog menu and nonmodal dialog menu at 32x12 and 60x20. It opens, cancels, reopens, selects, opens again and cancels, asserting exact trigger/action/hide callback order. No production focus change was needed. The first probe was invalid: it gated later input only on OPEN, which was already painted behind the menu; subsequent keys could use stale frames. The shared `run_visibility` test helper now requires menu disappearance before each reopen.
+
+All 35 menu workflows passed after the page/hover repair; the reopen test adds a 36th. The latest complete development command `cargo test --locked --lib --test api_widget_behavior` passed: 1,078 tests passed and two ignored (827 library and 251 widget App tests). Formatting passed. Strict default-feature all-target Clippy after this final helper addition passed, as did git diff --check. API-011 and the commitment remain incomplete; none of these results is a formal Cairn receipt.
+
+### API-011 nested dialog multi-selection follow-up
+
+The real App probe `dialog_menu_nested_multi_selection_paints_and_survives_prop_updates` failed before repair: the submenu painted ONE without its checkbox, so the expected `[ ] ONE` frame never arrived. Captured output is `api-011-dialog-nested-multi-baseline.log` in this directory. Dialog rendering now maps checkbox state recursively, and prop updates retain selectable nested IDs while removing selections whose parent becomes disabled. The corrected probe passed at 32x12 and 60x20 for both retained and disabled-parent cases, including the exact confirmed IDs. All 37 menu App tests passed. The broader development run passed 827 library and 252 App tests (1,079 total, two ignored); strict locked all-target Clippy and git diff --check passed. These are development checks, not committed Cairn receipts; API-011 remains unfinished.
+
+The additional `disabled_and_empty_menus_ignore_activation_through_app` workflow passed for MenuBar, PopupMenu and DialogMenu at both viewport sizes: disabled actions emit no callbacks, and empty menus tolerate direction and activation keys. No production repair was needed for those cases. The subsequent development suite passed 1,080 tests (827 library, 253 App; two ignored), strict all-target Clippy passed, and diff whitespace checks passed.
+
+
+API-011 menu scroll seed and lifecycle follow-up: the public PopupMenuState and
+DialogMenuState scroll offsets were ignored by MenuView. The App test
+menu_public_scroll_seed_keeps_its_window_through_navigation failed on the old
+renderer (captured in api-011-menu-scroll-seed-baseline.log). Retained panel offsets
+now start from the public seed, keep the selected row inside the measured cell
+budget, and remain stable when navigation stays within the window. The corrected
+case passes for both menu families at 32x12 and 60x20, including movement past the
+window and back. Existing separator and measured-page workflows remain passing.
+
+Additional App checks passed without production changes: all seven PopupPlacement
+variants paint at independently expected screen cells; viewport shrink from both
+sizes to 20x8 moves paint and the second item's mouse target together. Popup and
+dialog prop reordering retains selection by ID and replaces action/selection/hide
+callbacks. Closing and remounting resets state, and removing a visible owner emits
+exactly one hide callback. The same scenario in fresh Apps produces independent
+state and callbacks. These are sequential App isolation checks, not concurrent
+screen-reader acceptance. Latest development library/widget run:
+`cargo test --lib --test api_widget_behavior`: 1,084 passed, two ignored.
+The initial filter `menus::` matched zero cases and is not acceptance evidence;
+the corrected menu filter ran 41 cases before the lifecycle case was added.
+Cairn receipts and remaining catalog acceptance are still pending.
+
+
+API-011 public-builder and invalid-seed follow-up: 45 menu App workflows passed.
+The public MenuBar/PopupMenu/DialogMenu props builders and MenuItemBuilder now have
+activation checks at both sizes. ContextMenuBuilder trigger areas were exercised
+inside an offset parent: outside and right-edge clicks do not open it, while an
+inside click reports screen coordinates and the painted action responds there.
+A new DialogMenu multi-selection seed probe demonstrated that disabled, hidden and
+submenu entries were returned on confirmation. See
+api-011-dialog-invalid-multi-seed-baseline.log. Seed normalization now excludes
+those entries both initially and on updates; the corrected initial-state test passes.
+
+The Orca suite is being extended with real-terminal menu workflows in menu_probe.rs
+and orca_menus.py. The initial run passed the existing accordion, breadcrumb and
+CSS stages, then failed because the menubar item did not expose an assistive-focus
+interface. Baseline: api-011-menu-orca-focus-baseline.log (private session
+/tmp/rtui-orca-y1ce1c3b). Menu rows now use the existing App virtual-focus metadata
+and click dispatch; retained owners validate requested item paths. Corrected Orca
+verification is still in progress; do not count this as a passing reader claim.
+
+
+Orca menu follow-up: after enabling assistive row focus and clicks, the menubar,
+popup and context workflows passed. DialogMenu exposed a second defect: nested
+panels inherited the outer trap as their accessibility focus owner, while keyboard
+focus remained on the main panel. The reader therefore did not receive nested-row
+focus. Baseline: api-011-dialog-orca-submenu-focus-baseline.log. A single retained
+content focus owner now encloses all dialog panels, preserving the outer trap and
+footer controls. All 45 menu App cases still pass, including input and restoration.
+The corrected real Orca workflow passed all four families at 60x16 in
+/tmp/rtui-orca-un1ujrtj, including exact callback results. Development library/widget
+suite after this correction: 1,087 passed, two ignored. The reader's checked-state
+assertion has since been tightened to exclude 'not checked'; reruns are in progress.
+
+
+The tightened Orca workflow passed at 32x10 (/tmp/rtui-orca-d0qtis5k) and 60x16
+(/tmp/rtui-orca-tswe0bub). Checked-state speech now requires either an isolated
+'checked' announcement or 'check menu item checked', excluding 'not checked'.
+The captured speech and callback summaries are api-011-menu-orca-32x10.log and
+api-011-menu-orca-60x16.log. Strict all-target Clippy passed after the focus repair;
+`git diff --check` also passed. Reader negative controls are being rerun. These
+remain development results, not committed Cairn receipts.
+
+
+Both existing reader negative controls also passed after the menu extension:
+`orca.py --negative` rejected painted account text without its semantic label,
+and `orca.py --negative-css` rejected the missing CSS semantic control. The menu
+focus failure demonstrations above independently establish that menu metadata
+alone was insufficient. No new formal receipt has been recorded.
+
+### API-011 menu state and resize continuation
+
+Development checks: 1,091 library/App tests passed, two ignored; strict locked
+all-target Clippy passed. Four new App cases cover public selection/callback
+updates for all four menu families, long-press cancellation after release/move/drag
+outside an offset context owner (waiting 200 ms past an 80 ms timer), menubar
+authored dropdown scroll state, and menubar resize with open-dropdown clicks.
+The existing popup resize case now also covers context and dialog menus.
+All run at 32x12 and 60x20, with resize to 20x8.
+
+The menubar scroll case failed against the implementation: it showed rows 2–4
+when the caller supplied selected row 4 and scroll offset 4 (rows 4–6). The
+captured failing assertion is api-011-menubar-scroll-seed-baseline.log. Menubar
+now supplies that initial/changed public offset to the existing retained menu
+view; the corrected case passes. Earlier test harness corrections (waiting for
+a nonexistent fourth frame, and a clipped stage marker) are not defect evidence.
+The context cancellation and other resize/state cases required no runtime repair.
+API-011 and final catalog review remain unfinished; these development runs are
+not Cairn evidence receipts.
+
+### API-011 initial dialog-family repair
+
+Generic Dialog now renders real editable children through Modal, retains classes
+and dimensions, honors non-closable behavior and distinguishes modal background
+input. The shared frame omits its mouse shield only when both backdrop style and
+focus trap are absent. ConfirmationDialog and its generic builder now render
+retained buttons with disabled/default state, ordered focus, vetoed actions and
+a single close result. Toast now paints and owns an expiry timer; its six
+positions use measured dimensions and do not steal background editing. Manual
+close and unmount cancel its timer even while rendered output is retained.
+ProgressDialog and its generic builder paint the real ProgressBar, update values
+and callbacks, honor cancellation policy and show estimated-time text.
+
+Baselines captured before repair: api-011-dialog-builder-baseline.log,
+api-011-dialog-nonmodal-baseline.log, api-011-confirmation-app-baseline.log,
+api-011-toast-app-baseline.log and api-011-progress-dialog-app-baseline.log.
+Eight initial dialog App cases pass at 32x12 and 60x20. The latest complete
+development run passed 1,100 library/App cases with two ignored tests.
+
+A broad run also exposed the old Modal animation test waiting for exactly ten
+frames when the animation had finished in nine. It now waits until a root marker
+appears after the 200 ms transition, excludes marker frames from its formatted
+intermediate-state comparison, and checks final content. The marker cannot itself
+satisfy the animation assertion. The corrected target and complete run pass.
+Two fixture corrections (50.0% formatting and toast border dimensions) are not
+runtime defect evidence.
+
+Dialog families remain under implementation: InputDialog, AutocompleteDialog and
+Wizard are unfinished, as are detailed lifecycle/engine, positioning and reader
+checks. Confirmation relative anchors currently report an unresolved-anchor error;
+that advertised route still needs implementation. No catalog acceptance or Cairn
+evidence receipt is claimed by these development runs.
+
+### API-011 initial InputDialog recovery
+
+InputDialog now renders the retained TextInput and Modal controls through App.
+The initial App case rejects empty required input, accepts four graphemes, rejects
+a fifth typed character, deletes a whole emoji, and sends the exact confirmed
+value once. Direct InputDialog events now delete whole graphemes and accept paste.
+Validation shares required/type/rule/custom-callback handling and a bounded regex
+cache; invalid regular expressions no longer become literal-match fallbacks.
+
+The original App and direct UTF-8 failures are captured in
+api-011-input-dialog-app-and-unicode-baseline.log. The first repaired App path
+exposed Modal auto-height omitting the horizontal scrollbar row, hiding its
+validation error. That capture is api-011-input-dialog-validation-clipping-baseline.log.
+Auto-height now includes the scrollbar row. Both corrected InputDialog cases pass.
+The paste fixture was adjusted to use four graphemes followed by a rejected typed
+character: TextInput rejects an oversized paste, while the legacy InputDialog
+direct path truncates it. That difference remains for the detailed input review.
+
+The complete development suite passed 1,102 tests with two ignored tests; strict
+all-target Clippy passed after iterator/selection-branch corrections. Masks,
+remote validation, password/multiline and detailed lifecycle/reader checks remain
+unfinished. The temporary remote-validation message is not completed HTTP support
+and must not be treated as acceptance. These runs are not Cairn evidence receipts.
+
+## API-011 InputDialog grapheme-limit consistency
+
+Direct-event edits previously counted the inserted text separately, which rejected a
+combining mark joining an existing letter and silently truncated oversized paste.
+The failing direct-event regression is captured in
+`api-011-input-grapheme-limit-baseline.log`. Edits now validate the complete proposed
+value and reject an oversized change without changing the value or selection, as
+the App TextInput route already does. Four input-dialog tests passed, including
+the new App workflow at 32x12 and 60x20. The App test explicitly moves to End before
+adding the combining mark; TextInput initially places the cursor at the start.
+This is editing-time verification, not a Cairn receipt or API-011 acceptance.
+
+## API-011 InputDialog validation and HTTP checkpoint
+
+InputDialog now shows nonblocking validation warnings, honors its read-only
+attribute through the shared TextInput editor, and ignores direct key releases.
+The warning and read-only regressions are captured in
+`api-011-input-validation-warning-baseline.log` and
+`api-011-input-readonly-baseline.log`. App tests cover password masking with exact
+Unicode results, multiline edits and action submission, blur validation, warning
+display, and read-only submission. Direct tests cover typed validators/rules and
+protected input events.
+
+The recorded curl transport decision is now implemented for App InputDialog. Its
+worker has a request-size bound, one deadline covering version/startup/transfer,
+a response bound that also applies to chunked transfer, and cancellation that
+stops its process and joins the worker. The existing clipboard runner was
+extracted into `src/core/owned_process.rs`; all thirteen clipboard integration
+tests passed after extraction. Six HTTP unit tests passed with actual loopback
+requests, including escaped payloads/headers, timeout, chunked overrun, missing
+curl and actual-connection cancellation. The missing-curl subprocess fixture is
+Unix-only because Windows executable lookup also searches system directories.
+
+HTTP error tests exposed clipped status codes; the capture is
+`api-011-input-http-error-clipping-baseline.log`. InputDialog now measures the
+content clip width and wraps errors/warnings, allowing auto height to account for
+all their lines. The test gates on the status code because wrapping may split
+`status` and `503` across lines. Seventeen input-dialog integration tests then
+passed, including remote HTTP/JSON errors at 32x12 and 60x20, replacement during a
+request, removal before the server replies, and submission vetoes.
+
+Rust's incremental compiler crashed once during editing; a build with
+`CARGO_INCREMENTAL=0` proceeded normally. Strict all-target Clippy passed before
+the HTTP extraction/addition; a new full check remains required. No Cairn receipt
+is claimed. Masks, detailed prop/pointer/debounce checks, native engine HTTP/result
+integration, HTTPS/platform verification and Orca remain unfinished.
+
+## API-011 validator replacement and HTTPS follow-up
+
+The full library/App/clipboard run passed 1,136 tests with two fixture tests
+ignored before this follow-up. A new App regression then showed that fresh
+validator callback Arcs on each root render cancelled an in-flight HTTP request.
+The captured failure is `api-011-input-inline-validator-lifetime-baseline.log`.
+Requests and accepted remote results now follow value and endpoint identity;
+local rules and callbacks are rechecked at completion. Replacing callback Arcs
+does not clear visible validation errors or discard a matching request. Pending
+debounce work is rescheduled when its delay/settings change, and completed
+timeout IDs are cleared. Twenty input-dialog tests passed after that repair,
+including latest-local-validation rejection and reuse of remote warning results.
+Strict all-target Clippy also passed at that checkpoint.
+
+`scripts/check-dialog-http.py` generated an ephemeral certificate and explicitly
+ran the ignored transport fixture for both trusted and untrusted cases on Linux.
+Both executed and passed; the untrusted case delivered no HTTP request. The
+wrapper rejects an empty test selection and owns subprocess groups on timeout.
+It handles the expected connection reset after certificate rejection, while
+recording other server failures. The widget mechanism declares and invokes this
+fixture and the six ordinary HTTP unit tests. Native Windows/macOS HTTP evidence
+remains pending. A newer direct-event regression also rejected disabled input
+focus; its failure is `api-011-input-disabled-focus-baseline.log`, and disabled
+focus metadata/selection were repaired before the 1,136-test run above.
+
+Latest additions exercise another validation request after a submission veto
+and a useful fallback message for empty remote rejection text. The fresh twenty
+input-dialog tests passed, and the six ordinary HTTP unit tests passed with the
+HTTPS fixture ignored in that ordinary run. The separate trusted/untrusted HTTPS
+runs both executed and passed. Formatting, whitespace checks and Python syntax
+checks passed. No formal Cairn evidence or API-011 acceptance is claimed.
+
+### API-011 input formats and live prop/timer checks (2026-09-10)
+
+The new mask workflow failed on the old implementation: `12-AB` closed a dialog configured with `AA-##`; see `api-011-input-mask-baseline.log`. The shared native/App validator now applies the recorded grapheme format syntax and the App shows its format. `api-011-input-masks-all.log` records 22 passing input cases, including corrected Unicode and native configuration cases. The subsequent prop-update check passed preservation of edits, dynamic read-only state, seed replacement and current callback delivery (`api-011-input-prop-updates.log`).
+
+The first resize fixture used coordinates from another run and hit the backdrop while the resized modal was still settling (`api-011-input-pointer-fixture-diagnostic.log`); that is a fixture diagnostic, not product acceptance. The corrected helper locates ASCII click targets in the current presented screen, and the App pointer edit/submit test passes after both growing and shrinking (`api-011-input-pointer-resize.log`). Two additional debounce tests pass at both sizes: coalescing edits, replacing the pending delay, disabling change validation and removing the dialog (`api-011-input-debounce.log`). The cancellation cases keep the App alive past the old deadline and require no validator calls. Full regression and lint results are recorded separately when finished. No API-011 acceptance or dialog-engine/reader completion is claimed.
+
+The completed regression run passed 834 library tests (three explicit fixture tests ignored) and all 298 App widget tests, including 26 input-dialog cases (`api-011-input-mask-lifecycle-regression.log`). Strict locked all-target Clippy passed (`api-011-input-mask-lifecycle-clippy.log`); workspace formatting and `git diff --check` also ran and passed. This run did not rerun native desktop clipboard platform probes or the explicit TLS fixture. Ripwire edit-check identifies mask_matches as one new private symbol with one direct caller and no incompatible call found; this structural scan does not replace the behavioral failure demonstration.
+
+
+### API-011 autocomplete editing-time review
+
+Four new native regressions first failed: joined-emoji backspace panicked, minimum length counted bytes, selection without a callback did not close, and submission bypassed the selection veto. The baseline is api-011-autocomplete-native-baseline.log; the corrected probe passes. Shared static filtering now serves native and App paths. The retained App component owns draft, selection, callbacks, debounce and one bounded HTTP job. Callback invocation releases option locks first. Replacement and removal cancel timers and drop the owned request. Scheduler review confirmed that cancellation also suppresses ready callbacks before invocation; no second cancellation mechanism was added.
+
+Thirteen new App integration cases at 32x12 and 60x20 cover static and custom filtering/rendering, the public autocomplete builder, grapheme editing, empty results, keyboard selection, vetoed/resized clicks, Escape dismissal, wheel navigation, long-list visibility, callback and seed updates, real HTTP query/header/object parsing, malformed responses, debounce, request replacement and removal. Two additional unit cases cover whole-grapheme highlighting under case expansion and suggestion response validation. Native engine HTTP/results and actual reader acceptance remain separate outstanding work, and further advertised style/lifecycle cases remain in the inventory.
+
+The long-list baseline could select Item9 without painting it. Row visibility must compare transformed row edges to the ancestor clip rectangle; clip.height alone is not the visible part of a row. The diagnostic and corrected App cases are retained. A separate HTTP test diagnostic showed REQUESTS 1 before any modal was painted: its early keys could not edit an absent input. The corrected replacement fixture types the first query through the painted control before waiting for its request. It then replaces that live request and observes only the new result. The initial Unicode App fixture also needed End before Left because the shared text input starts at column zero; no shared TextInput product change was made for that fixture correction.
+
+Final editing-time regression: api-011-autocomplete-full-regression.log passed 840 library tests and 311 App tests, with three explicit library fixtures ignored. api-011-autocomplete-final-clippy.log passed locked strict all-target Clippy with -D warnings. cargo fmt --all -- --check and git diff --check passed. Ripwire edit checks report the new retained component and shared filter with no incompatible callers (static lower bounds only). These are not Cairn acceptance receipts; API-011 remains unfinished.
+
+### API-011 Wizard implementation probes (2026-09-10)
+
+The pre-repair native probes reproduced the empty-list subtraction panic, ignored
+step validation and accepted empty/duplicate step IDs (api-011-wizard-native-baseline.log: three failures).
+The first corrections exposed two distinct public ValidationResult types and their
+different defaults; the adapter now preserves validator messages/warnings and treats
+a missing optional validator as valid. Compilation failures are retained in the
+native-corrected and native-live logs. The old builder unit test required descriptive
+text, so it now checks component construction; real builder behavior is independently
+covered through App.
+
+The retained Wizard uses shared Modal buttons/progress, explicit caller data,
+validation before navigation/completion, optional Skip, completion veto, and keyed
+visited child panels. Nine App tests and five native/builder tests passed in
+api-011-wizard-final-targeted.log, including both viewport sizes, pointer navigation
+after resize, edited child state on Back, new data/callbacks after keyed step reorder,
+builder initial step/can_proceed/cancelable/progress settings, empty configuration and
+exactly one App completion/cancellation. An initial resize fixture attempted Back
+while that button was not yet painted during reflow; it now waits for the actual
+Back target, then clicks its measured coordinates. The empty-state message was
+shortened to fit the narrow viewport. The initial App failures are preserved in
+api-011-wizard-app-controls.log.
+
+An additional keyboard/allow_back case and pruning of removed visited IDs are in
+the subsequent full regression run; its result is recorded separately after execution.
+Strict all-target Clippy passed before that final small change (api-011-wizard-clippy.log).
+Ripwire edit-check for WizardDialog reported an unchanged struct contract and no
+resolved callers; its caller counts are lower bounds, not proof of absent consumers.
+Native engine result/focus/lifecycle repair remains API-012. Extended style, disabled,
+removal and actual reader coverage remain explicit API-011 inventory obligations.
+No API-011 acceptance receipt or completion claim is made by these editing probes.
+
+Wizard follow-up verification completed: api-011-wizard-full-regression.log records 844 library passes, three explicit ignored library fixtures, and 321 App passes (including ten Wizard workflows). api-011-wizard-final-clippy.log records strict all-target Clippy passing. cargo fmt --all --check and git diff --check both ran and passed. These checks cover the final visited-ID pruning and keyboard/allow_back case.
+
+### API-011 RelativeTo positioning probes (2026-09-10)
+
+The baseline App test failed with an unresolved-anchor message and no dialog body
+(api-011-relative-position-baseline.log). The new App-owned, scoped snapshot maps
+requested Element keys to acknowledged visible bounds. It rejects ambiguous keys,
+updates after movement/resize/removal, and releases names no longer requested.
+RelativeTo uses all nine points on that measured rectangle and saturating offsets.
+The corrected nine-anchor test passes at both viewports; two more App cases exercise
+parent movement, resize, ambiguity and removal. Two snapshot tests check owner
+isolation, changed/unchanged publication, removed geometry and requested-name cleanup.
+The resize fixture gates events on independent expected border cells, rather than
+assuming how many setup frames layout needs.
+
+api-011-relative-full-regression.log passed 846 library tests (three explicit ignored
+fixtures) and 324 App tests. Clippy initially rejected the test-module placement;
+that module was moved after production items. api-011-relative-final-clippy.log
+records strict all-target Clippy passing. The later core-input work has its own
+verification; these results do not establish that subsequent source tree.
+
+### API-011 core input construction probes (2026-09-10)
+
+Two baseline App probes fail: core input does not paint its placeholder and cannot
+edit a text seed (api-011-core-input-baseline.log). The builder now constructs the
+existing TextInput with its value and placeholder while preserving authored metadata
+and children. A further resize/disabled probe exposed a swallowed on_click callback
+(api-011-core-input-controls.log); that input-specific callback now observes pointer
+activation during capture on the same measured target, before text editing consumes
+the bubble event. Disabled input suppresses the capture handler as well as editing.
+
+Four App tests pass at both viewport sizes (api-011-core-input-macros.log): Unicode
+entry replaces a visible placeholder, text seeds edit, all four input macro forms
+are real controls, and resized clicks focus/edit while invoking a callback once.
+Disabled controls neither edit nor invoke that callback; typing does not invoke it.
+The final full regression run is recorded separately when complete. Strict all-target
+Clippy passed in api-011-core-final-clippy.log. Formatting and diff whitespace checks
+ran and passed. Ripwire ElementBuilder edit-check reports an unchanged struct contract
+and no resolved callers; those counts are lower bounds. The core inventory row
+retains pending helper/style/reader reconciliation.
+
+Core-input full regression completed: api-011-core-full-regression.log records 846 library passes, three explicit ignored library fixtures, and 328 App passes. No API-011 Cairn receipt has been produced; catalog completion is still pending.
+
+## API-011 external image source ownership
+
+Inspection found that both external renderer methods deleted their prepared path
+after command completion, including caller-owned FilePath and local Url sources.
+A subprocess fixture reproduced deletion on a successful chafa call using only an
+owned test file. The baseline failed with “renderer deleted caller-owned image”;
+see `api-011-image-ownership-baseline.log`.
+
+The repair distinguishes borrowed source paths from renderer-owned temporary files.
+Only the latter have automatic cleanup. Temporary files use the existing tempfile
+dependency for unique, exclusive creation instead of a predictable per-process path.
+Public renderer signatures remain unchanged. The fixture covers both renderers
+with success, nonzero exit and unavailable-tool outcomes. The initial corrected run passed all four external-renderer tests
+(`api-011-image-ownership-corrected.log`). Local Url ownership and concurrent
+temporary-file coverage are being added. Image decoding, bounded external execution and App placement remain
+separate unfinished work under the current commitment.
+
+## API-011 image payload failure demonstrations
+
+`api-011-image-raw-baseline.log` records the external raw RGB test failing: the
+renderer wrote unencoded pixel bytes to a .png file. The shared decoder and PNG
+encoding repair passed all six external-renderer tests in
+`api-011-image-raw-corrected.log`, including local-path Url ownership and unique
+temporary-file cleanup.
+
+`api-011-image-protocol-baseline.log` records three expected failures: Kitty
+labelled RGBA bytes as f=24, iTerm2 used dimensions for the byte-size field, and
+a short raw RGBA payload was accepted. The corrected serializer is being checked
+against the official protocol definitions at
+https://sw.kovidgoyal.net/kitty/graphics-protocol/ and
+https://iterm2.com/documentation-images.html (read 2026-09-10). The tests decode
+the actual emitted payload and compare pixels, lengths, dimensions and chunk
+controls; they do not count a protocol marker as a valid image. Actual host
+integration and retained placement remain unfinished.
+
+The corrected native image suite passed all 26 tests, including decoded fallback
+and zero-area output (`api-011-image-fallback-corrected.log`). Strict default
+all-target Clippy passed (`api-011-image-native-clippy.log`). The owned-process
+fixtures stop and reap a stalled child after the five-second deadline and reject
+excess output, invalid UTF-8 and nonzero exits. Full library/App regression is
+running before the retained image adapter work.
+
+## API-011 retained image adapter work
+
+The two initial real App image tests failed because ImageBuilder painted its
+configuration description (`api-011-image-app-baseline.log`). The adapter now
+retains source data, format hints and classes, loads on an owned worker, and
+paints decoded ASCII fallback at the presented content size. Both initial App
+tests passed (`api-011-image-app-corrected.log`). The margin fixture was corrected
+to exercise a child in a parent and use the existing four-cell spacing scale.
+
+The expanded source-update fixtures initially expected the wrong ramp character
+for neutral 128. They now use neutral 160, which maps away from a character
+threshold. Integer luminance coefficients have a separate identity-property test
+covering all 256 neutral values; the original floating-point expression was
+checked independently before recording any discrepancy.
+The old ImageBuilder unit test asserted the configuration-description defect. It
+now checks retained construction; actual behavior is verified through App. Worker
+latest-result and removal tests are being added. Protocol placement remains open.
+
+The independent rustc probe of the original floating-point neutral-channel
+expression found 13 mismatches: 37→36, 61→60, 74→73, 93→92, 111→110, 122→121,
+148→147, 186→185, 215→214, 222→221, 233→232, 244→243 and 253→252. The integer
+identity-property test passes. This is separate from correcting the App fixture's
+128 ramp expectation; that fixture expectation was an authoring error.
+
+The retained image check passed 38 image-filtered library tests and all eight
+App image workflows (`api-011-image-retained-tests.log`). These include actual
+source changes, removal, resize, clipping, independent images and format errors.
+Strict all-target Clippy passed (`api-011-image-retained-clippy.log`). Full
+regression is running in `api-011-image-retained-regression.log`. Graphics-mode
+transmission/cleanup, external-mode App output and actual host checks remain open.
+
+## API-011 owned Kitty frame output, work in progress
+
+The retained-adapter full regression passed 863 library tests and 336 App tests,
+with three library fixtures ignored (`api-011-image-retained-regression.log`).
+It first exposed a second stale Image conversion assertion in the specialized
+builder suite; that assertion now checks a retained component and its factory.
+
+Decoded Image metadata now reaches the existing Taffy/SuprTUI painter. The painter
+uses actual content insets, transforms, ancestor clipping and cell coverage to
+project RGBA image planes. Later text and opaque backgrounds mask earlier image
+cells; translucent backgrounds tint them. Explicit Kitty layer values preserve
+paint order independently of image IDs. The backend owns transmission, replacement,
+removal and shutdown deletion. Image commands sit inside the engine's synchronized
+update and share its checked flush; failed output keeps possible image IDs for
+cleanup and retries. Unchanged placements do not retransmit. The owned-writer
+constructor accepts explicit Kitty capability and physical cell pixels; native
+construction uses environment capability detection and terminal pixel dimensions
+when available, with an 8x16-cell fallback. Other protocol selection is not yet
+connected to this App graphics path.
+
+The first combined editing check passed 34 image-filtered library tests and ten
+App image workflows (`api-011-image-graphics-combined.log`). New cases decode Kitty
+payloads for authored positions, clipping, layering, translucent image pixels,
+text/background occlusion, physical cell dimensions, changed sources and removal.
+They also exercise failed-flush retries, shutdown deletion and capability fallback.
+Real App raw, encoded-file and base64 workflows pass at two viewport sizes. A
+violating-example run and strict all-target Clippy are still pending for this work.
+These are editing checks, not Cairn receipts or actual host evidence.
+
+Kitty cursor policy, positive layer ordering, chunk controls and owned-ID deletion
+were checked against https://sw.kovidgoyal.net/kitty/graphics-protocol/ on 2026-09-10.
+The App serializer keeps the cursor in place; the standalone serializer retains
+its existing default cursor movement. iTerm2, Sixel, external renderer modes,
+parallel platform/Surface adapters and actual host integration remain unfinished.
+
+The safe violating example disabled the painter's graphics selection and the
+owned-output test failed with zero image transmissions instead of one
+(`api-011-image-graphics-violating.log`). Restoring selection passed 34 filtered
+library tests and ten App workflows (`api-011-image-graphics-corrected.log`), then
+strict all-target Clippy (`api-011-image-graphics-clippy.log`). Later follow-up
+work refreshes native pixel metrics after resize and indexes coverage by cell
+so glyph masking visits only overlapping images. That follow-up is being checked.
+
+The resize/coverage follow-up passed 35 filtered library tests and ten App image
+workflows, then strict all-target Clippy (same corrected/Clippy logs). It includes
+metric changes, terminal resize and switching from image Elements to CellFrame
+output. Formatting and diff whitespace checks also passed. Full library/App
+regression is running in `api-011-image-graphics-regression.log`. Ripwire's
+paint_frame edit-check reports the intended private parameter addition, one caller
+and zero incompatible calls; counts are lower bounds. Local host discovery found
+Kitty 0.45.0, Ghostty 1.3.1, GNOME Terminal and Xvfb. No graphics host check has run yet.
+
+The owned-Kitty full regression completed successfully:
+`api-011-image-graphics-regression.log` records 869 library passes, three explicit
+ignored fixtures and 338 App passes. No actual host check or new Cairn acceptance
+receipt has been produced. Kitty/Ghostty host work is next; Ghostty's environment
+capability branch still needs to recognize its advertised Kitty support (official
+feature documentation: https://ghostty.org/docs/features, read 2026-09-10).
+
+## API-011 real Linux image hosts
+
+Added an App fixture and isolated Xvfb capture driver in tests/api_widget_behavior.
+The fixture shows red/blue pixels, changes to green/yellow at a new position,
+then removes the image. Kitty 0.45.0 and Ghostty 1.3.1 pass independent screenshot
+color counts and bounds, stale-color absence and final removal assertions.
+See api-011-image-host-kitty-corrected/ and api-011-image-host-ghostty-corrected/
+for PNGs, pixels.json and host logs. The Ghostty safe baseline failed with zero
+image-color pixels and visible ASCII fallback (api-011-image-host-ghostty-system-mesa-baseline/).
+The correction recognizes TERM_PROGRAM=ghostty alongside kitty. Six existing
+capability tests pass; Ripwire reports no signature or caller incompatibility.
+
+Initial software-rendering experiments were not acceptance passes: the installed
+AMD Mesa/LLVM crashed or did not render image textures. A captured Ghostty stack
+located its crash inside /opt/amdgpu LLVM vector lowering. The driver now selects
+the system Mesa library/driver paths for its own child processes, llvmpipe with
+SSE2/128-bit vectors and disabled shader cache. It changes no desktop settings.
+Mesa environment reference: https://docs.mesa3d.org/drivers/llvmpipe.html.
+Ghostty protocol reference: https://ghostty.org/docs/features.
+The Rust host fixture builds and its strict Clippy check passes.
+These are editing checks; image protocol/platform completion and Cairn evidence
+remain outstanding.
+
+GNOME Terminal fallback captures also passed ink presence, movement and removal
+(api-011-image-host-gnome-corrected/). Visual inspection of the three stages
+confirmed different decoded-glyph patterns and an empty image area after removal.
+Strict all-target Clippy, cargo fmt --check and git diff --check passed after
+these changes. No surviving fixture or owned Xvfb process was found.
+
+## API-011 platform image and Sixel repair in progress
+
+Four platform acceptance probes failed on the original implementation: zero file
+dimensions, malformed accepted input, incomplete Kitty upload, and invalid inline
+file parameters (api-011-image-platform-baseline.log). Shared decoding and serializers
+now cover platform files, PNG/JPEG/GIF/WebP memory, raw pixels, clipping, scaling and
+pixel offsets. Sixel input uses a bounded two-pass decoder for one DCS image;
+numeric overflow, malformed controls, resource limits and RGB/HLS palettes are tested.
+The native sixel-rs encoder produced one red palette entry and a leading row advance
+for a two-pixel red/blue image; that failure is recorded in
+api-011-image-sixel-encoder-baseline.log. A recorded replacement uses owned Rust
+palette encoding, exact small palettes, a bounded 256-color palette for larger images
+and the original quality diffusion choices. Twelve platform cases now include
+quantization quality, transparent offsets and randomized malformed Sixel bodies.
+
+Standalone protocol fixtures pass actual screenshots in Kitty (Kitty), Xterm
+(Sixel), and WezTerm (iTerm inline): api-011-image-host-kitty-platform/,
+api-011-image-host-xterm-sixel/, and api-011-image-host-wezterm-iterm/.
+These standalone fixtures clear their own test screen between stages; they prove
+protocol pixels and placement, not App lifecycle ownership. The App fixture also
+passes in Xterm/Sixel and WezTerm/inline (api-011-image-host-xterm-app-sixel/ and
+api-011-image-host-wezterm-app-iterm/). The worker now clears and fully repaints its
+owned screen when non-Kitty placements change, disappear or resize. Kitty retains
+ID-specific cleanup. Sparse cell pixel tiles compose overlapping images without
+scanning every previous image per pixel. A capture caught image crate alpha rounding
+that changed opaque compositing to alpha 254; integer source-over now preserves 255.
+Focused tests and strict Clippy for the final changes are running; no new Cairn
+receipt or image-family completion claim is made.
+
+The corrected multiprotocol checks passed: 49 image-filtered library tests and
+11 App workflows (api-011-image-multiprotocol-tests.log), then strict all-target
+Clippy (api-011-image-multiprotocol-clippy.log). Those checks include exact opaque
+alpha, masking, cross-image blending, failed-flush retry cleanup, resize and
+shutdown. A subsequent host-fixture extension checks full-viewport images for
+unwanted terminal scrolling; it builds, and host captures are running.
+
+### API-011 Sixel bottom-edge host repair (2026-09-10)
+
+The full-height Xterm fixture exposed two separate facts: cursor-relative Sixel
+scrolled away the bottom row (299 of 312 image rows remained), and the fixture
+needed an explicit foreground label layer to test image occlusion unambiguously.
+The label now uses an absolute top-row z-10 overlay. With this same corrected
+fixture, mode 8452 still failed the label assertion; see
+`api-011-image-host-xterm-app-sixel-full-overlay-scrolling/`. Restoring absolute
+Sixel display mode passed all stages and retained all 312 rows; see
+`api-011-image-host-xterm-app-sixel-full-corrected/`. This is a failure/correction
+demonstration, not a weakened pixel assertion. Earlier captures without an
+explicit label layer are diagnostic only for label behavior.
+
+The worker saves, selects and restores DECSDM around Sixel output, pads from the
+screen origin with bounded pixels, and preserves preceding image pixels in that
+padding for hosts that replace complete image cells. Xterm and WezTerm both
+passed source changes, nonzero-position movement and removal:
+`api-011-image-host-xterm-app-sixel-absolute/` and
+`api-011-image-host-wezterm-app-sixel-absolute/`. Nine focused graphics tests passed,
+including non-square cells, top/left padding, partial-alpha preceding pixels,
+text masks, unchanged-frame caching, resize, removal and failed flush. The last
+small generalization of background composition still needs the focused rerun.
+The overall image catalog and API-011 remain incomplete; these are local checks,
+not committed Cairn evidence.
+
+The native option regression first failed with transparent red/blue pixels instead
+of the requested opaque green background; its actual failure output is retained
+in `api-011-image-native-options-baseline.log`. The corrected Kitty pixel test
+passes and also checks Fast nearest-neighbor resizing. Shared loading applies
+the requested RGBA background for Kitty and inline output; both protocol and
+Sixel resize paths now select the requested quality. The two private resize
+signatures changed to grouped dimensions plus quality; Ripwire edit-check found
+zero incompatible callers for each. No public signature changed.
+
+After these edits: `cargo test --lib image -- --nocapture` passed 60 tests;
+`cargo test --test api_widget_behavior image -- --nocapture` passed 11;
+`cargo clippy --all-targets -- -D warnings`, `cargo fmt --all`, and
+`git diff --check` passed. An attempted test target `api_component_tree` does
+not exist; it ran no tests and was corrected to `api_widget_behavior`.
+
+Inline multipart investigation remains separate from a demonstrated defect.
+The official iTerm2 image documentation describes MultipartFile as a v3.5
+extension for tmux integration. The local WezTerm reference has no such command.
+Do not silently switch all existing inline hosts to an unsupported extension.
+Original File transfer is parsed as multiple internal tokens by iTerm2; a
+claimed universal 1 MiB limit on that older route is not established by the
+multipart paragraph. Source: https://iterm2.com/documentation-images.html and
+https://gitlab.com/gnachman/iterm2/-/blob/82e4781d462d0d2cc50fced133f31d60dc5076ef/sources/VT100Terminal.m .
+
+### API-011 external image modes and automatic selection
+
+The retained image worker now invokes Chafa/Viu in static symbol mode. Captured
+ANSI is parsed into a bounded vt100 screen and composed as styled runs through the
+ordinary layout; it is never written directly to the host. Requests are generation
+checked and cancelled through the existing owned-process runner. Resize can reuse
+decoded pixels after the source file has disappeared. The worker caches Auto's
+fallback choice only after an uncancelled probe, with graphics priority retained.
+Viu's two explicit dimensions otherwise stretch the source; its prepared pixels
+now honor aspect, background and quality. Public signatures remain unchanged.
+
+Failure demonstration: the real-host fixture forced to internal ASCII produces zero
+red/blue/green/yellow pixels and fails its color assertion, retained in
+`api-011-image-host-external-ascii-negative/` and its log. Actual Chafa 1.18.1 and Viu
+1.6.1 pass Kitty captures for source update, movement, enlargement and removal in
+`api-011-image-host-{chafa,viu}-resize/`. Auto with Chafa passes GNOME Terminal in
+`api-011-image-host-auto-chafa/`. The executables were installed only under
+`/tmp/rtui-image-tools` (Ubuntu package extraction and locked cargo install), with
+PATH scoped to these fixture commands. These are Linux/Xvfb/system-Mesa captures.
+The same fake-process worker tests check deletion of a source before resize and
+cancel/reap an active process in less than one second on removal. A separate Viu
+prepared-PNG test compares aspect/stretch dimensions and selected-background pixels.
+
+Editing checks: `api-011-image-external-tests.log` has 64 image library tests passing;
+`api-011-image-external-app-tests.log` has 11 App image workflows passing;
+`api-011-image-external-clippy.log` records strict all-target Clippy passing before
+the final equivalent config-allocation cleanup. Ripwire reports the public external
+renderer contract unchanged. Full regression passed: 889 library tests (three ignored) and 339 App workflows
+in `api-011-image-external-full-regression.log`. Animation, Surface and remaining image-platform acceptance are still
+unfinished, and none of these editing checks are committed Cairn receipts.
+
+### API-011 animated GIF delivery
+
+The former static shared decoder now also supplies a bounded retained animation
+path through a common source reader. GIF frame pixels use the image library's
+compositor; the already locked gif 0.13.3 dependency supplies repetition and a
+preflight frame count. The preflight rejects cumulative RGBA above 256 MiB before
+allocating the frames. The image worker owns the clock, skips expired frames,
+retains timing on layout changes, stops finite/hidden animations, and cancels and
+releases state on replacement/removal. App observes every publication through an
+incremented wake signal; frames use the same native/external output paths.
+
+Safe violation: temporarily disabling the worker frame deadline made the new App
+GIF workflow fail after only two initial App frames (`api-011-image-gif-frozen-baseline.log`).
+The exact corrected source was restored before further work. The corrected test
+observes red, green, red without input at two viewport sizes. The current
+`api-011-image-gif-app-tests.log` records all 12 image App workflows passing.
+`api-011-image-gif-library-tests.log` records 68 image library tests passing,
+including zero-delay and tiny-frame-count bounds. The final broad editing run in
+`api-011-image-gif-full-regression.log` passed 893 library tests (three ignored) and
+340 App workflows. Strict all-target Clippy, formatting and diff checks also pass
+in `api-011-image-gif-{clippy,format,diff-check}.log`.
+
+The unchanged-source GIF fixture contains two six-second frames. Captures at four
+and eight seconds show different decoded colors, then removal clears the image.
+All five routes pass measured host pixels: Kitty, Xterm Sixel, WezTerm inline,
+Chafa and Viu, in `api-011-image-host-gif-*/`. The original driver log's generic
+'source update' phrase means frame advancement for these unchanged-source GIFs;
+the driver now names that distinction. The Kitty first frame and Viu moved second
+frame were visually inspected: correct paired colors, aspect and label placement.
+These remain editing checks, not Cairn receipts; Surface and remaining platform
+image paths still need work.
+
+
+### API-011 Surface image output repair (editing checks)
+
+The old region split covered only 63 of 64 source rows. The extended existing test
+failed on that boundary (`api-011-surface-region-baseline.log`); proportional source
+boundaries and at least one source pixel for upscaled cells correct it. Placement
+loops now clip before iteration, checked alternatives report invalid input, zero is
+reserved as the legacy registration error ID, and removing/clearing images removes
+cell references. Registry IDs do not repeat after clear.
+
+The old DiffWriter background-SGR/placeholder path is replaced with decoded
+half-block fallback and shared Graphics state/serializers. The shared owner now
+accepts a private raster interface; App keeps its existing plane implementation.
+Surface uses bounded projected rasters and caller-confirmed protocol settings.
+Kitty negative z-index draws behind text; legacy protocols retain text with a
+sampled decoded background. Invalid preparation emits no bytes. Acknowledgment is
+explicit and follows successful delivery; possible graphics IDs remain available
+for cleanup after partial failures. Renderer now propagates writes and flushes,
+updates the previous surface only after success, retries complete frames after
+failure, discards failed buffered bytes, and cleans graphics before restoration.
+Restoration is idempotent, preventing a repeated cleanup from clearing the normal
+screen after leaving the alternate screen.
+
+Seventeen focused Surface tests and nine shared App graphics tests passed. Real
+Kitty, Xterm/Sixel (including full height), WezTerm/inline and GNOME fallback host
+captures pass source updates, movement and removal. Kitty and Xterm behind-text
+captures retain white glyph pixels without black holes in the image. A separate
+Kitty fixture replaces only its own stdout with /dev/full, observes the frame
+error, restores stdout and successfully redraws the same frame; its terminal byte
+capture contains the failure/retry marker. The full-screen Xterm and moved GNOME
+fallback screenshots were inspected visually. These are Linux host results.
+
+A safe placeholder mutation makes the decoded fallback assertion fail, retained in
+`api-011-surface-output-negative.log`; the production source is restored before
+corrected/regression checks. Strict all-target Clippy passed before this temporary
+mutation. Full corrected regression results will be recorded separately. No Cairn
+receipt or completion claim is made by these editing checks.
+
+Corrected full regression after the Surface repair: 899 library tests passed
+(three ignored), all 340 App widget tests passed, strict all-target Clippy passed,
+and formatting and diff checks passed. Logs are
+`api-011-surface-regression-{library,app,clippy,format,diff}.log`. Ripwire reports
+unchanged public contracts and zero incompatible callers for DiffWriter and
+place_image_region. The API-011 mechanism now includes Surface and shared graphics
+unit selectors, in addition to widget image and App workflows.
+
+
+### API-011 retained terminal repair underway
+
+The real-child baseline reports NOT_A_TTY because the legacy PseudoTerminal uses
+pipes. The failure is retained in `api-011-terminal-pty-baseline.log`. Unix now
+shares the existing PtyChild primitive with the libghostty session, through
+`src/terminal/owned_pty.rs`; the native embedded module reexports that same owner.
+A joined worker owns the retained PTY, bounded command/input/output queues and
+actual resize/exit/reaping. Four PTY checks pass, including controlling streams,
+child-observed sizes before and after resize, input/output, natural exit, missing
+executables, invalid sizes, input bounds and cleanup while output is flooded.
+The old Windows implementation is isolated in pty/windows.rs and is not repaired
+or accepted yet.
+
+Terminal no longer spawns a placeholder polling thread. Its caller drains bounded
+output, observes one process-exit event and can inspect a distinct IO error.
+Input without a running process now reports an error; the old test accepted a
+successful no-op and has been corrected. Screen convenience operations apply to
+the interpreted screen instead of sending escape bytes as shell input. Resize
+retains cells and offers bounded scrollback access for the widget. Fifty-four
+terminal-filtered library checks pass, with one preexisting ignored integration
+case (`api-011-terminal-core-tests.log`). The widget still needs real measured
+painting/lifecycle integration, and the legacy screen's Unicode/style/mode paths
+need completion. These partial editing checks do not establish API-011 acceptance.
+
+Strict all-target Clippy also passes for the partial terminal core changes
+(`api-011-terminal-core-clippy.log`). Enabling embedded-terminal compiles and its
+two native keyboard/buffering library checks pass after sharing PtyChild
+(`api-011-terminal-shared-native-tests.log`). The full native integration gate
+has not been rerun at this point.
+
+
+### API-011 retained terminal widget: measured App ownership (development checks)
+
+Replaced placeholder rendering with actual terminal-cell content, grouped by style
+and cursor state. Title and scrollbar reserve measured cell rows/columns. App focus
+callbacks control input delivery; key releases are ignored, wheel direction comes
+from signed wheel data, and UTF-8 paste reaches the input queue. An owned monitor
+publishes screen/exit/error changes through the existing wake signal and is joined
+before stop/removal. Launch-prop changes replace the child; title and scrollbar
+changes retain it. Prop updates apply the previously measured dimensions, because
+unchanged layout does not produce another layout notification. Named Terminal and
+TerminalWidget construction now resolve the same public component.
+
+The strengthened scroll unit check initially failed (expected offset 5, observed 0):
+line feed clamped the cursor before the screen could scroll. The screen now scrolls
+at its bottom margin. The first launch-replacement App check also failed waiting
+for GEN:two; applying measured size on prop updates fixes it. These were actual
+failing development checks, not historical acceptance receipts.
+
+A temporary placeholder-rendering mutation failed the real launch-error App check
+with the placeholder visible instead of an error, exit 101. Source was restored in
+a finally block. Output: api-011-terminal-widget-placeholder-negative.log.
+Corrected development runs: five App cases PASS (including two viewport sizes for
+PTY dimensions and signed scrollback), 54 terminal-filtered library cases PASS,
+and all-target strict Clippy PASS. Captures: api-011-terminal-widget-app-corrected.log,
+api-011-terminal-widget-unit-corrected.log, api-011-terminal-widget-clippy-corrected.log.
+The prior ignored empty widget start/stop probe was replaced by real Linux child
+PID/reaping assertions. No claim is made yet for remaining Unicode/style/mode,
+full key/paste, Windows, accessibility or final catalog acceptance. This action
+remains uncommitted API-011 implementation, not Cairn evidence or final review.
+
+
+### API-011 retained terminal Unicode cells (development checks)
+
+Replaced the retained cell width table with the existing unicode-width dependency,
+including combined emoji widths and saturating the public u8 string width. Empty
+zero-width cells now identify wide continuations. Cursor movement saturates before
+clamping and output with wrapping disabled stays within the last column.
+VirtualScreen joins streamed grapheme code points, limits a cell to 4096 UTF-8
+bytes, clears both halves of overwritten wide glyphs and their old hyperlinks,
+and wraps a two-column glyph before the last column. Public method signatures
+remain unchanged; ripwire edit-check found no contract change for TerminalCell,
+TerminalCursor or VirtualScreen (its call counts are lower bounds).
+
+Failure demonstrations ran before repair: the Unicode cell check failed on emoji
+width 1 versus 2; the cursor check failed on column 81 versus 79; all three screen
+checks failed on split graphemes, stale wide leaders and last-column clipping.
+Logs: api-011-terminal-cell-unicode-negative.log,
+api-011-terminal-cursor-negative.log and
+api-011-terminal-screen-unicode-negative.log. Corrected terminal unit run passed
+59 tests with none ignored (api-011-terminal-screen-unicode-corrected.log).
+Strict all-target Clippy passed (api-011-terminal-unicode-clippy.log).
+The first App command used the wrong filter and selected zero tests; that log is
+not acceptance. The corrected terminal_acceptance filter passed all five real-PTY
+App tests (api-011-terminal-unicode-app-corrected.log). Formatting and diff checks
+passed. These are development results, not committed Cairn evidence.
+
+Remaining terminal work includes extended SGR styles and painting, terminal modes,
+complete input/paste handling, parser edge cases, constructor bounds, Windows PTY
+behavior and the advertised accessibility/platform acceptance. Unicode cell
+coverage also needs the real-PTY styled-output fixture to include clusters and
+wide overwrites before claiming full widget acceptance.
+
+
+## API-011 retained terminal colors and private modes (development checks)
+
+Extended SGR colors now consume their operands as a unit, reject out-of-range
+components without interpreting them as attributes, and support RGB, indexed and
+bright ANSI colors. Dim, blink, hidden and strike flags and their resets are
+retained. The widget paints dim foreground at half intensity, hidden text as
+same-width spaces, and strike through the existing painter attribute. Blink
+animation remains pending; retaining its flag alone is not acceptance.
+
+Two new screen tests failed before repair (wrong RGB and missing attributes):
+`api-011-terminal-sgr-negative.log`. The corrected terminal unit run passed 61
+checks; strict all-target Clippy passed (`api-011-terminal-sgr-corrected.log`,
+`api-011-terminal-sgr-clippy.log`). An actual PTY/App test at 28x8 and 42x12 then
+failed because dim output retained full intensity (`api-011-terminal-style-app-negative.log`).
+After painting repair, six App workflows passed, including wide Unicode,
+combining text, RGB/indexed colors, bold/italic/underline, dim and hidden text
+(`api-011-terminal-style-app-corrected.log`). Strict Clippy, fmt and diff checks passed.
+
+Private mode handling now switches main/alternate buffers, preserves/restores the
+main cursor for 1049, changes cursor visibility and autowrap, retains application
+cursor/bracketed paste state, and implements scroll margins and origin addressing.
+Zero relative movement parameters mean one. Two new tests first failed because
+the alternate screen still showed main content and scrolling destroyed the header
+(`api-011-terminal-modes-negative.log`). The corrected terminal run passed 63 tests
+with none ignored (`api-011-terminal-modes-corrected.log`). Seven App workflows
+passed, including entering an alternate screen and restoring main content after
+input at both sizes (`api-011-terminal-modes-app-corrected.log`). Strict all-target
+Clippy, fmt and diff checks passed (`api-011-terminal-modes-clippy.log`).
+Ripwire edit checks reported unchanged contracts and zero incompatible callers
+for set_graphics_rendition and process_csi (static lower bounds).
+
+These are development runs on the unfinished implementation, not Cairn receipts.
+Remaining terminal work includes parser recovery/bounds, further screen operations,
+key/paste modes, blink/cursor details, scrollbar pointer controls and native Windows
+PTY evidence. API-011 catalog and actual reader acceptance also remain open.
+
+
+## API-011 retained terminal parser recovery (development checks)
+
+Attacked oversized OSC titles, embedded controls, interrupted UTF-8 and CSI,
+omitted CSI parameters, unsupported colon parameters, and DCS payload delivery.
+The added tests failed before repair: a full title swallowed subsequent text,
+an embedded control leaked title bytes onto the screen, incomplete UTF-8 discarded
+valid later characters, an interrupted CSI printed the replacement command, and
+DCS never emitted its public payload event. Negative logs are
+`api-011-terminal-{parser,utf8,csi,dcs}-negative.log` in this directory.
+
+OSC and DCS now track their terminating escape independently of bounded payload
+storage. OSC controls remain inside the title; cancellation resets the sequence.
+UTF-8 decoding discards malformed fragments and resumes at a fresh leading byte;
+DEL does not paint. CSI preserves empty parameters, transitions through parameter
+state before intermediates, and discards unsupported colon syntax through its
+final byte. DCS emits bounded data with its actual final byte and parameters.
+No public event variant or parser signature changed.
+
+Corrected terminal unit runs progressed from 65 to 68 passing tests, none ignored;
+the final log is `api-011-terminal-dcs-corrected.log`. Seven real-PTY App workflows
+passed after these changes (`api-011-terminal-dcs-app.log`). Strict all-target
+Clippy passed (`api-011-terminal-dcs-clippy.log`); fmt and diff checks passed.
+Ripwire edit checks found unchanged contracts for the changed sequence handlers.
+These development checks do not complete API-011 or replace committed Cairn evidence.
+Remaining terminal work includes screen operations and input/mode integration,
+Windows PTY verification, and catalog/platform acceptance.
+
+### API-011 retained terminal cursor and erase behavior (development checks)
+
+Attacked saved cursor restoration after shrinking the screen, both ESC 7/8 and
+CSI s/u. The new test failed with cursor (11, 5) after resize to 4 by 2;
+restoration now uses the existing screen-bound constraint and preserves SGR.
+Attacked erase-from-cursor at a wide glyph continuation and erase-to-cursor across
+rows. Both failed: the wide glyph remained split and erase mode 1 did nothing.
+Erase now reuses whole-glyph clearing with the current background, implements
+inclusive mode 1, and clears saved history independently with mode 3.
+Verified 72 terminal library tests, seven real-PTY App acceptance tests, strict
+all-target Clippy, workspace formatting, and diff whitespace. Logs:
+`api-011-terminal-cursor-{negative,corrected}.log` and
+`api-011-terminal-erase-{negative,corrected,app,clippy}.log` in this directory.
+These are development checks, not Cairn receipts; API-011 remains unfinished.
+
+### API-011 retained terminal child input modes (development checks)
+
+A new real-PTY App test makes the child inspect exact input bytes in raw mode.
+Before repair it stopped at APP-READY: Up ignored the child's application cursor
+mode. The corrected test passes at 28 by 8 and 42 by 12: application Up is SS3,
+normal Up is CSI, Ctrl+Shift+Up includes modifiers, UTF-8 paste has delimiters only
+while the child enables bracketed paste. Modified navigation and function keys
+now carry modifiers in CSI rather than an extra Escape prefix. Plain Alt+text
+retains its Escape prefix, and key release remains ignored. Bracketed paste checks
+the shared 64 KiB PTY input limit before allocating the envelope.
+Eight terminal App tests and 73 terminal library tests passed. Strict all-target
+Clippy, workspace formatting, and diff whitespace passed. Logs are
+`api-011-terminal-input-modes-{negative,corrected,unit,clippy}.log`.
+These are development checks; API-011 is still in progress.
+
+### API-011 terminal helpers and escape operations (development checks)
+
+Three public helper tests failed before repair: maximum u16 cursor coordinates
+panicked, a semicolon truncated the title, and a title containing BEL plus CSI
+was accepted as terminal commands. Cursor conversion now saturates. The title
+helper rejects controls and payloads larger than the parser's 8190-byte title
+capacity before mutation. OSC titles, working-directory URLs and hyperlink URLs
+retain semicolons; hyperlink termination still clears the link.
+Two more tests showed ESC M reverse index and ESC c reset doing nothing. The
+screen now handles index, next line, reverse index within scrolling margins, and
+reset. Escape intermediates are kept distinct so charset designation cannot
+accidentally execute a bare index/reset command. Header/footer preservation,
+reset modes/styles/cursor and existing App workflows pass.
+Latest verification: 79 terminal library tests, eight terminal App tests,
+strict all-target Clippy, workspace formatting, and diff whitespace. Logs:
+`api-011-terminal-helpers-{negative,corrected,app,clippy}.log` and
+`api-011-terminal-escape-{negative,corrected,app,clippy}.log`.
+These are development checks; the current implementation action remains open.
+
+API-011 retained Terminal named-key follow-up: the real-PTY regression sent all six navigation keys with application-cursor mode enabled then disabled. Before repair the child received CSI sequences in both modes (api-011-terminal-named-keys-negative.log). Moved the existing widget encoder into the terminal module and reused it from the public string-key API; the child now receives SS3 then CSI as required. No public signature changed. The terminal subset passed 81 tests, all eight TerminalWidget App tests passed, strict all-target Clippy, formatting and diff checks passed (api-011-terminal-named-keys-{corrected,app,clippy}.log). An oversized-resize state-preservation test passed before changes: Unix PTY validation already rejects the oversized area before mutation; api-011-terminal-resize-negative.log is a baseline PASS despite its filename. Windows remains to repair and validate separately.
+
+API-011 cursor-shape interpretation: a new parser-to-screen regression failed because every DECSCUSR selection stayed Default. The screen now honors the space intermediate and maps values 0–6 to blinking/steady block, underline and bar, ignoring unknown selections and unrelated intermediate sequences. All 82 terminal tests, eight real-PTY App tests, strict all-target Clippy, formatting and diff checks passed. Logs: api-011-terminal-cursor-shape-{negative,corrected,app,clippy}.log. This establishes interpreted cursor state; widget shape painting and blink deadlines still need repair and acceptance.
+
+### API-011 terminal cursor on wide characters
+
+A real shell prints `界READY` and moves the solid block cursor to column two,
+the continuation cell of the wide character. The App/SuprTUI acceptance test
+failed because the cursor disappeared (black background instead of white).
+The widget now applies the cursor to the complete grapheme whose cell range
+contains its position. The original glyph and its following cell remain intact.
+All nine terminal-widget App tests passed after the repair. Logs:
+`api-011-terminal-wide-cursor-negative.log` and
+`api-011-terminal-wide-cursor-corrected.log`. This verifies wide-cell cursor
+placement; shape rendering and owned blink deadlines remain unfinished.
+
+### API-011 terminal cursor blink ownership
+
+Added an owned 500 ms scheduler deadline for explicitly blinking cursor modes.
+Output or input activity restarts the visible phase. Steady modes, hidden cursors,
+scrollback, focus loss, stop and destruction cancel the owned deadline.
+The deterministic clock test exercises off/on phases, activity, deactivation,
+steady mode and destruction. The real-PTY App test observes off/on rendering
+while the child is silent and receives no input. Disabling blink in the adapter
+made that test fail after only two setup/output frames; restoration passed.
+The negative mutation was restored before other changes. Logs:
+`api-011-terminal-blink-negative.log`, `api-011-terminal-blink-clock.log`,
+`api-011-terminal-blink-library.log` (83 tests) and
+`api-011-terminal-blink-corrected.log` (10 App tests).
+Underline/bar shape painting and clipping-sensitive deadline cancellation still
+need completion; no claim of complete cursor support is made here.
+
+### API-011 cursor clipping and stopped-session deadlines
+
+A new retained-widget test reproduced a blink timer surviving clipping. The
+widget now checks the cursor grapheme against measured content, ancestor clip,
+and placement transform before scheduling. Collapsed transforms and stopped
+sessions suppress the timer. Geometry changes request rendering even when
+content size stays constant. The test passes for clipping, translated visibility,
+focus loss/resumption, collapsed geometry, hidden cursor and stop followed by
+render. All 84 terminal library tests and ten real-PTY App tests passed; strict
+all-target Clippy, formatting and diff checks passed. Logs:
+`api-011-terminal-clip-{negative,corrected,library,app,clippy}.log`.
+Underline/bar shape painting remains unfinished.
+
+### API-011 native underline and bar cursors
+
+The real-PTY App test failed when underline/bar modes inverted the complete
+wide glyph as a block. Private text metadata now carries the requested native
+shape through layout. The painter selects a cursor only for a successfully
+painted grapheme, using its actual transformed coordinates. Later text or opaque
+background hides it; translucent background tints its color. SuprTUI emits its
+steady shape inside the existing checked frame, while the widget owns blinking.
+The original wide glyph remains intact, including a cursor on its continuation.
+
+A separate failure demonstration found that an opaque image above the glyph
+left the native cursor visible. Image output now retains compact cell coverage
+from the already rasterized pixels. It suppresses a cursor under nontransparent
+image pixels, including cached image frames; transparent pixels and images below
+the glyph preserve it. Coverage follows candidate/acknowledgment state and adds
+one bit per image cell, bounded by the existing raster allocation limit.
+
+The corrected tests verify native shape bytes, wide text, both blinking shapes
+with a silent child, clipping, covering content, image order/transparency/cache,
+removal, failed flush/retry, plain CellFrame shape isolation and host style/color
+restoration. Passed: 84 terminal library tests, 12 real-PTY TerminalWidget App
+workflows, 13 SuprTUI backend tests, nine renderer integration tests, strict
+all-target Clippy, formatting and diff checks. Logs:
+`api-011-terminal-native-cursor-{negative,corrected,backend,image-negative,image-corrected,renderer,library,app-final,integration,clippy}.log`.
+These captured-output tests verify emitted host commands; they do not add a new
+claim of interactive visual verification in every named host.
+
+### API-011 retained screen character, line and tab editing
+
+Four parser-to-screen tests failed for missing character insertion/deletion,
+insert mode, line insertion/deletion, scrolling and custom tab stops. Implemented
+ICH/DCH/ECH, IL/DL, SU/SD, CHA/VPA/CNL/CPL, relative aliases, forward/backward
+tabulation, tab clearing/setting and insert mode. Row rotations bound work to the
+scrolling region and clear with the current background. Character shifts preserve
+complete wide glyphs; combining marks do not insert a second cell. Backspace
+cancels pending wrap. ESC keypad mode state is also retained. Sequence meanings
+were checked against https://invisible-island.net/xterm/ctlseqs/ctlseqs.html.
+
+A real shell performs character, line and scroll edits through App at two sizes.
+Temporarily disabling character insertion made that workflow fail at cell (3,0);
+the mutation was restored. All 88 terminal tests, 13 TerminalWidget App workflows,
+strict all-target Clippy, formatting and diff checks passed after restoration.
+Logs: `api-011-terminal-screen-edits-{negative,corrected,app-negative,library,app,clippy}.log`.
+
+### API-011 retained terminal construction bounds
+
+The zero-size constructor test failed because invalid screens were accepted
+before later operations could underflow. VirtualScreen and Terminal now expose
+`try_new`, with the existing nonzero/262144-cell resize limit checked before
+allocation. Existing `new` signatures remain and document an immediate panic for
+invalid dimensions. Widget construction uses the fallible path, preserves an
+error and blocks start until valid resize; its internal 1x1 error placeholder
+never starts a child. Normal measured App layout can repair the initial size.
+
+Zero and oversized fallible constructions return InvalidSize without allocating
+the requested buffers. The widget test verifies visible error state, failed start,
+invalid resize rejection and valid resize/start recovery. A real-PTY App workflow
+starts with zero configuration dimensions and verifies the child starts at the
+actual measured size, at two viewports. Passed: 91 terminal library tests,
+13 existing TerminalWidget App workflows plus the new recovery workflow, strict
+all-target Clippy, formatting and diff checks. Logs:
+`api-011-terminal-size-{negative,corrected,widget,library,app,recovery-app,clippy-final}.log`.
+
+### API-011 terminal scrollbar pointer controls
+
+The first fixture mistakenly used the four-cell `p-1` spacing utility; its
+content height was zero, so the child correctly did not start. Replaced that
+fixture spacing with explicit one-cell padding. The resulting negative test
+reached READY but clicking the painted track never showed the oldest row.
+The widget now maps left press/click and its owned drag through measured content
+size, title and padding. Dragging continues across the widget width and ends on
+release, leave, blur, stop or hidden scrollbar. No fixed screen coordinates are
+used in the implementation.
+
+The real-PTY App workflow passes at two offset/padded sizes: press the track top,
+observe ROW00, drag down to READY, release, and verify an unowned drag does not
+scroll. A lifecycle test verifies leave/blur/stop/hide cancellation. Passed:
+92 terminal tests, 15 TerminalWidget App workflows, strict all-target Clippy,
+formatting and diff checks. Logs:
+`api-011-terminal-scrollbar-{fixture-padding,negative,corrected,library,app,clippy}.log`.
+
+### Retained terminal tab stops survive resizing
+
+The resize path recreated default stops, losing child-program settings even on height-only changes. The new regression clears the defaults, installs a stop at column 6, and tests height changes, shrinking and growth. It failed before repair (column 9 instead of 6); resize now retains surviving stops and adds new columns without resurrecting cleared defaults. All 93 terminal library tests passed after repair. Logs: `api011-tab-resize-negative.log`, `api011-tab-resize-corrected.log`. These are editing checks, not committed Cairn evidence.
+
+### Native PTY and remaining builder checks in progress
+
+All 355 App widget cases passed on Linux before the new helper regressions. The owned Windows ConPTY module and native probe pass a focused Windows cross-Clippy build. A full cross-build cannot run without the MinGW compiler needed by onig_sys; this is not native proof. Dedicated native verification run 34468541194 tests snapshot d476098127502cd11115a93a9d1b913910f9c74f. Its macOS build exposed openpty pointer mutability differences; the main candidate now supplies valid mutable raw pointers and four Linux PTY cases plus strict Clippy passed. Native rerun remains required.
+
+New helper App cases fail on invisible default content padding and a dropped VDOM click handler. Content/card padding now uses p-0.5 and the default-container matrix passes at 40x16 and 80x24. The VDOM conversion finding remains open under the recorded decision. Logs: api011-core-helper-negative.log, api011-core-helper-corrected.log, api011-conpty-native-macos-job.log, api011-conpty-linux-app-regression.log and api011-conpty-focused-cross.log. None is committed Cairn acceptance evidence.
+
+### API-011 mixed VDOM, helpers and native launch follow-up
+
+The App click probe reproduced the VDOM handler loss. Expanded tests then
+reproduced native Element round-trip loss of button callbacks and component
+props, discarded element event metadata during component expansion, and a
+Unicode hex-color parser panic. The bridge now delivers VElementProps to
+registered components, retains native Element factories/metadata through opaque
+VComponent payloads, shares activation matching with native builders, propagates
+event metadata and applies inline styles after class resolution. Hex parsing
+rejects non-ASCII digits before byte slicing. Six VDOM cases pass, including
+props/handler replacement, disabled/resized routing, inherited paint and invalid
+App style errors. Failure and corrected logs are retained alongside this review.
+
+Search-input default padding hid editable text at 40 columns; smaller terminal
+insets fix it. Responsive grid used two columns at 40 because its prefix ignored
+the viewport. App now selects sm/md/lg/xl at 40/80/120/160 columns. Grid resizing
+and exact boundary/focus tests pass. One initial fixed-grid expectation was
+wrong: a widthless root grid sizes to content, so two one-cell columns are
+adjacent; the test now asserts the actual content-sized contract. A focus test
+also needed an actual callback and no-underline to override button cursor
+styling, and no second-frame requirement when its pixels stay unchanged.
+All 369 widget App cases pass serially (126.15 seconds); captured in
+api011-vdom-all-widgets-corrected.log. These are editing verification, not
+Cairn evidence. Remaining macro/catalog/native/Orca coverage is still pending.
+
+Native run 34468541194 failed macOS openpty pointer mutability and Windows GNU
+DLL export overflow. The corrected macOS build/clipboard run passed in
+34469553622. A target-specific build script disables implicit GNU DLL exports
+while keeping explicit FFI exports; all Cargo-input mechanisms now declare
+build.rs and native digest scripts include it. Windows then passed its build
+and clipboard cases, but ConPTY exposed copied redirected standard handles.
+STARTF_USESTDHANDLES with null streams addresses the documented Windows case;
+see Microsoft Terminal discussion 15814. Run 34470625419 then hit a clipboard
+timeout before ConPTY; the next run executes ConPTY even after clipboard failure.
+No native ConPTY acceptance or FFI export-table pass is claimed yet.
+
+Ripwire source quality delta was examined: it flags new inline parser complexity
+and VDOM bridge growth along with broad preexisting changes and false dead-code
+findings for externally called/trait methods. Split inline parsing by layout,
+paint and spacing, and extracted VElement conversion to keep responsibilities
+readable. The full-repo invocation also indexed reference checkouts and is not a
+useful pass/fail result. Retain source findings for the final production review;
+no quality-delta pass is claimed.
+
+
+### API-011 VDOM menus and public macro routes
+
+The VDOM library suite passed all 19 tests, but its menu tests only inspected
+component names. An App test produced an empty frame: `*_with_props` helpers
+wrapped props twice and the named factory omitted all four menu families.
+Removed the extra Arc and connected MenuBar, ContextMenu, PopupMenu and DialogMenu
+to the existing public components. Nine VDOM-related App tests passed, including
+eleven menu helper routes at 40x16 and 80x24 with real actions and right-click
+context-menu opening. The negative and corrected logs are retained here.
+
+Expanding macro coverage found `el!(div, [node])` matched the generic expression
+list arm before the container arm. The advertised invocation failed to compile.
+The specific arm now precedes the list arm. The mixed routing test also exercises
+el, div and span forms while retaining disabled state, resized targets and native
+event payloads. A 16-column input macro was entirely consumed by the original
+12-cell horizontal padding. Its defaults now use two horizontal and one vertical
+cell, following the existing terminal-sized helper decision. Checkbox accepted
+Char(' ') but ignored KeyCode::Space; both now toggle through the same handler.
+
+Six macro App tests passed at both sizes: button callbacks, eight input forms,
+editable tab children, checkbox/select state, data-table and progress values,
+four toast forms and all six chart forms with actual data geometry. Two fixture
+errors were corrected: wait for the updated tab frame before asserting its text,
+and expect the progress bar's documented decimal percentage. Neither was a code
+repair. Full suite and strict lint refresh are still pending at this point.
+
+Native run 34471509566 passed macOS and Windows clipboard checks. Its Windows
+ConPTY probe passed console handles, actual input, environment, directory, resize,
+exit 259 and repeated stop, then rejected handle growth after ten failed launches.
+This is not a platform acceptance pass. Preserve its output and add per-attempt
+counts to diagnose bounded initialization versus persistent leakage; do not
+relax the assertion. The API-011 mechanism now invokes the ConPTY record verifier
+and declares its complete source/test, workflow, baseline and record dependencies.
+
+Verification refresh: all 377 App tests passed in 129.65 seconds. Strict
+`cargo clippy --locked --all-targets -- -D warnings` and `cargo fmt --all -- --check`
+also passed. Both modified Python mechanism scripts parsed successfully. Ripwire
+edit-check reports unchanged public contracts and no incompatible callers for
+`menubar_with_props` and `el`. These are editing checks, not Cairn receipts.
+Native diagnostic snapshot 7508a65 is running as GitHub run 34472611040; its
+per-attempt handle counts remain pending. No native acceptance claim is made.
+
+### API-011 checkbox reader semantics
+
+The actual Orca/GNOME Terminal fixture rejected the retained checkbox with
+`checkbox semantic role absent` before implementation. Checkbox now supplies its
+role, label, mixed/checked/unchecked state and enabled activation through the
+existing App-owned semantic bridge. An explicit Element label remains distinct
+from the painted label. Disabled controls expose no assistive action.
+
+The corrected full reader workflow passed at 60x16 and 32x10, including assistive
+focus/click, Space toggling, actual Orca mixed/checked/unchecked announcements,
+and removal before menu replacement. Existing accordion, breadcrumb, CSS, menu
+and simultaneous/successive App checks also passed. The four existing checkbox
+unit tests passed. Logs: api011-checkbox-orca-{negative,negative-session,60,32}.log.
+These are implementation checks; the full catalog and commitment remain pending.
+
+### API-011 slider reader semantics and native handle diagnosis
+
+The real reader fixture rejected Slider with `slider semantic role absent`.
+The control now publishes its slider role, authored label, orientation, finite
+current/minimum/maximum values and step. Orca/GNOME Terminal workflows at 60x16
+and 32x10 pass focus, numeric range, Right changing 25 to 30, End reaching 100,
+and actual changed-value speech. Six existing Slider App workflows pass.
+Logs: api011-slider-orca-{negative,negative-session,60,32}.log. The reader adapter
+currently offers focus and keyboard interaction; no unimplemented value-setting
+action is advertised.
+
+Native run 34472611040 passed normal ConPTY behavior but failed cleanup of ten
+failed launches: handles grew from 73 to 84, one per attempt after first-use
+initialization. api011-conpty-handles-growth.log records exact counts. The next
+isolated native snapshot a142f2e adds per-stage handle diagnostics; it does not
+relax acceptance or claim the leak repaired. Run 34473564931 is pending.
+
+### API-011 radio reader semantics
+
+The real reader first rejected the generic group (`radio group semantic role
+absent`) and then the named builder (`named radio alpha absent`). Generic radio
+options now render as individual cells inside the same horizontal/vertical
+layout, with radio roles, undecorated labels and checked states. Their semantic
+focus targets use the existing owned custom-focus event route; bounds remain
+with the rendered options. Space's explicit public key variant also selects.
+Named radios publish their existing App-owned group selection without new state.
+
+All six radio App cases passed after both changes, including measured horizontal
+pointer selection, disabled/empty controls, exactly-once callbacks, keyed named
+groups, removal and multi-App isolation. Full Orca workflows passed at 60x16 and
+32x10: role/labels, disabled actions, assistive focus, arrow navigation skipping
+inert choices, selection speech, exclusive keyboard and assistive selection,
+and named-builder selection. Logs: api011-radio-orca-negative{,-session}.log,
+api011-named-radio-orca-negative{,-session}.log, api011-radios-orca-{60,32}.log.
+Catalog reconciliation and remaining reader families are still pending.
+
+The complete widget App suite passed after the reader changes: 377 tests,
+129.14 seconds (api011-controls-reader-app.log). Strict all-target Clippy passed.
+Native run 34473564931 remains failing: each attempted session creates four pipe
+handles plus three console handles, then cleanup drops only six. The failed
+CreateProcessW adds one first-use handle only; attributes add none. Per-stage
+counts are in api011-conpty-stage-handles.log. This narrows the leak to console
+cleanup but does not yet prove the OS is responsible.
+
+## API-011 Select search and reader delivery (2026-09-10)
+
+The new App workflow failed before repair: typing `br` left Alpha selected and Enter merely opened the dropdown. Select now retains a bounded, one-second Unicode lowercase prefix, skips disabled options, keeps matching options visible, cycles repeated letters, and clears the prefix on close and navigation. Both construction routes and multiple selection pass at 24x6 and 48x12; a deterministic clock test checks expiry and the 128-byte bound.
+
+The initial real Orca run rejected the Select because its combo-box role was missing. The renderer now retains the visible header and option rows as real child elements with combo/list/option roles, selected and disabled states, distinct labels, expansion, multiple-selection state and owned assistive-focus events. Orca/GNOME Terminal passes at 32x10 and 60x16 with assistive choices, keyboard navigation that skips disabled options, multiple selection and actual selected-state speech. The workflow waits for the initial focused-option announcement before keyboard selection; otherwise Orca coalesces the immediately preceding focus/state events and does not announce the intervening change. Root combo activation while already expanded still needs review: the shared synthetic click uses the control's full bounds.
+
+Editing checks: 379 App tests passed in 129.72s; strict all-target Clippy passed before the subsequent Windows-only runtime change. Logs: api011-select-search-negative.log, api011-select-search-unit.log, api011-select-semantic-app.log, api011-select-orca-negative-session.log, api011-select-orca-32.log, api011-select-orca-60.log, api011-select-full-app.log. These are editing/review observations, not committed Cairn receipts.
+
+## API-011 Windows ConPTY leak isolation (2026-09-10)
+
+Native run 34474501424 reproduces one leaked handle for each bare OS CreatePseudoConsole/ClosePseudoConsole cycle without Reactive-TUI session, process attributes or child-launch code. Five cycles rise from 73 to 78 handles and remain at 78 after 500 ms. Session failure cycles retain the same growth. See api011-conpty-raw-os-leak.log.
+
+A separate native diagnostic, run 34476091245 at snapshot 1006f67e4b23050b990e548a2554a8447f987b58, compares the OS with the pinned Microsoft.Windows.Console.ConPTY 1.24.260710001 package. After initial runtime setup the OS grows by one each cycle; the SDK stays at exactly 194 handles across all six cycles and after 500 ms. Package SHA-256 is 175640566a3b59c4b132070ee96c2c77e5ab7edd2e92732a5eb3610bbf63d90e. This is diagnosis only, not an application acceptance pass. The recorded replacement decision requires a verified, packaged runtime and a new complete native test. See api011-conpty-sdk-diagnostic.log.
+
+The expanded-combo action defect above is now reproduced and repaired. Orca's explicit combo activation no longer synthesizes a press at the center of the option list. A private click event follows the existing retained-owner focus-event route, with the same trap and disabled checks. Component expansion preserves that event; options keep their measured mouse fallback. Corrected Orca close/reopen and all prior reader workflows pass at 32x10 and 60x16. Targeted App selection workflows and the complete api_focus suite pass, as does strict all-target Clippy. Logs: api011-select-toggle-negative-session.log, api011-select-toggle-32.log, api011-select-toggle-60.log, api011-select-toggle-app.log, api011-select-toggle-focus.log, api011-select-toggle-clippy.log.
+
+Select prop updates: the parent-authored selected value now replaces retained multiple choices when it changes, while unchanged parent props preserve user choices. The App test waits for the actual Alpha/Beta frame before replacing it with Gamma at both viewports. Removing the reset fails that same Gamma assertion (`api011-select-props-negative.log`); the corrected Select-filtered suite passes 38 tests (`api011-select-props-corrected.log`), and all 380 App widget tests pass (`api011-app380.log`). These are editing checks, not Cairn receipts.
+
+Table reader acceptance: the real Orca/GNOME Terminal baseline did not announce navigation to Bea after skipping a disabled row (`api011-orca-tables-negative2/`). LiveTable now publishes its current cell as virtual accessible focus and handles assistive cell focus through its retained owner. Cell focus preserves selected rows and does not invoke row actions. Corrected 32x10 and 60x16 runs verify cell/table roles, labels, keyboard focus, selected and disabled state, assistive focus with unchanged selection, spoken row changes and adapter removal (`api011-orca-tables-focus32/`, `api011-orca-tables-focus60/`). The 35 App tests matching Table pass in `/tmp/api011-tables-a11y-app.log`; these remain editing checks.
+
+DataTable uses the repaired LiveTable cell focus. The real 32x10 and 60x16 reader runs exercise Search table, Next/Prev availability, page replacement, search-driven page reset, cell focus and actual speech for paged and filtered rows (`api011-orca-datatable32/`, `api011-orca-datatable60/`). Strict default all-target Clippy passes (`api011-table-a11y-clippy.log`). The combined table App log is retained as `api011-tables-a11y-app.log`.
+
+## API-011 data-widget reader delivery and transport shutdown
+
+Tree and FileExplorer join Table/DataTable in real Orca 50.1.2 with GNOME Terminal 3.58.0 at 32x10 and 60x16. The focus32/focus60 logs and diagnostics retain both successful App rounds and adapter removal. File toolbar controls now expose descriptive action labels; the negative search-label run could not locate Search files. Seventeen FileExplorer App cases pass. Tree has fifteen App cases, including accessible child checkboxes.
+
+The first 60-column collapse run failed: Orca processed an older Test folder focus event after the immediate refocus action, so it rejected the collapse event as outside its focus. The corrected sequence waits for Test folder speech, separates focus actions by 150 ms (Orca suppresses rapid repeated event types), and requires Documentation folder speech before collapsing. Both geometries pass without reader configuration changes or reduced assertions.
+
+Repeated App shutdown exposed a transport race: closing the outgoing queue while a worker operation was already polling reported a false queue-disconnect error. A deterministic interleaving test fails before the fix and passes after cancellation is joined before queue closure. All six transport tests pass; genuine failures remain errors. These are development checks, not Cairn receipts.
+
+## API-011 Windows process-job correction and Tabs follow-up
+
+Native Windows run 34481972388 passes console IO, environment, resize, normal exit 259, repeated stop, failed-launch handle stability, flood and idle output, and descendant cleanup. The SDK console close alone had left the output reader blocked; suspended launch plus a private kill-on-close job repairs this. The run also builds and loads baseline C exports. Its negative source copy failed before compilation because benches/diff_benchmark.rs was omitted; including benches fixes the harness, and run 34483150446 is pending. No complete native acceptance pass is claimed yet.
+
+The real tab workflow exposed active selection resetting when the parent rebuilds a child component. The reconstructed-child App regression fails with focus on Two while FIRST remains visible. Retaining effective tab props and reconciling authored selection/content fixes it: all nine tab App tests and seven tab unit tests pass, including keyed reorder, changed content, explicit authored selection, and closed-tab persistence/removal/readdition. Strict Clippy passes. Tab/list/panel semantics and explicit assistive focus/activation now reach Orca, but the complete run fails at input text reading because AT-SPI Text is absent; this remains an acceptance obligation. Earlier F11/stage-navigation fixture failures did not demonstrate the tab product defect.
+
+
+## API-011 readable text inputs and tab reader completion
+
+The missing AT-SPI Text interface is repaired with keyed text runs, editor-derived Unicode boundaries and exported caret/selection positions. Empty fields retain a text run, hard line breaks remain readable, and password runs contain only masks. Painted input decorations are excluded from reader navigation. The consumer test covers empty, Unicode, multiline, password and a grapheme longer than 255 bytes, including Select All. AccessKit length entries are bytes; unusually long graphemes use scalar entries while editor caret endpoints remain at the outer grapheme boundaries.
+
+Orca/GNOME Terminal passes the tabs workflow at 100x32 and 100x60: tab/list roles, disabled skipping, selection and focus speech, initial input value speech, exact keyboard edit, reported caret movement, assistive tab activation, removed panel and App adapter removal. The Python fixture needed the explicit Atspi.Text.get_text interface method to avoid an Accessible method-name collision, and lowercase x to match the unshifted XTest key. The earlier missing-interface failure remains the genuine negative; these fixture errors are not product failures.
+
+The consumer case, all 19 input_acceptance App cases and strict all-target Clippy pass. Logs are api011-text-consumer.log, api011-input-app.log, api011-text-clippy.log and api011-orca-tabs-text32/60. Other text-entry implementations and the remaining reader catalog still require reconciliation. These remain editing checks, not committed Cairn evidence.
+
+
+Native Windows run 34483150446 is now complete and passes at snapshot b18a5aae47a2c8bf7f2cb3660b63d686c55c573d. The receipt and all six output hashes match. It proves console handles/input/environment, resize, real exit 259, repeated stop, ten failed-launch handle-stability cycles, flood and idle output, attached descendant cleanup, missing/corrupt runtime rejection and all 194 baseline C exports loading. The compiled violating resize returns the old 80x24 dimensions and fails the required 100x30 observation. Artifacts: api011-conpty-native-34483150446/. Final committed inputs still require a fresh native run; these snapshot results are not substituted for current Cairn evidence.
+
+
+Tab close follow-up: closing an earlier unkeyed tab reset the active editor from seedX to seed. The failing App test is api011-tabs-sibling-negative.log. Header and panel keys now use the tab owner's retained identities; all ten tab App cases and seven unit cases pass. The real reader also reproduced the absent Close Settings tab action. Close now exposes a labelled button and routes to the same retained close handler, preserving disabled and parent-callback checks. Corrected Orca runs pass at 100x32 and 60x16, including assistive close, panel removal and preserved Overview selection. Strict all-target Clippy passes. Diagnostics are api011-orca-tabs-close-negative/32/60; these remain development checks.
+
+
+## API-011 modal and popover reader delivery
+
+The real overlay workflow at 60x16 and 100x32 verifies modal dialog/title speech, input value speech and editing, assistive focus rejection outside the trap, Escape and labelled Close dismissal, restored opener speech and removal. Popover verifies assistive trigger activation, automatic content focus, input speech/editing, Escape removal and restored trigger speech. Both App rounds detach successfully.
+
+The baseline popover trigger had no assistive activation interface because its behavior lives in a capture handler. A private clickable option now exposes that existing mouse path, survives component expansion and leaves a typed trigger's role, value and text selection intact. The negative reader run is api011-orca-popover-action-negative/; the typed-input expansion regression passes. Twenty-three modal App cases, twenty-four popover App cases, twelve api_focus cases and strict all-target Clippy pass. Final reader logs are api011-orca-overlays-60/100. These are development checks; remaining catalog and platform acceptance are still pending.
+
+### API-011 ProgressBar reader follow-up
+
+The real Orca fixture rejected the baseline because the progress control lacked an AT-SPI Value interface (`api011-orca-progress-range-negative`). LiveProgress now supplies valid determinate numeric bounds and a clamped current value, using the existing Slider/AccessKit path. Invalid and indeterminate props supply no numeric value. The corrected real workflow verifies role/range/value, inert keyboard focus, indeterminate state and a clamped complete value. Orca object navigation reads the label and 25 percent, then 75 percent after a real App callback updates the value, at 60x16 and 100x32 (`api011-orca-progress-60`, `-100`). Automatic progress-update speech did not occur under default reader settings and is not claimed.
+
+The initial speech assertion incorrectly matched digits in a log timestamp. That result is rejected. The shared speech matcher now searches only the text after SPEECH OUTPUT; the strict automatic-update attempt failed (`api011-orca-progress-speech-negative`), and only the corrected object-navigation runs count. Ten ProgressBar App tests and strict all-target Clippy passed. Remaining catalog/reader/platform work is still pending.
+
+### API-011 Chart reader follow-up
+
+The real reader announced the chart title/image role and focus but failed to read keyboard-selected points (`api011-orca-chart-negative`). The chart now exposes its existing tooltip text as a keyed reader-only polite live announcement while a tooltip is present; Escape removes it. There is no empty initial announcement. Corrected Orca/GNOME Terminal runs at 60x16 and 100x32 read both Low: 2 and High: 8 with unit metadata after Home/End (`api011-orca-chart-60`, `-100`); the latter also verifies Escape removes the point. Navigation waits 300 ms between announced points because Orca's installed event spam filter suppresses announcements less than 100 ms apart. This preserves the real reader's default settings. Sixteen chart App/macro cases pass after the final source change. Remaining catalog/reader/platform checks are pending.
+
+### API-011 ScrollView and Image reader follow-up
+
+ScrollView was delivered as a generic section; its added ScrollView metadata initially mapped to Panel. The recorded ScrollPane translation fixes the dedicated role while preserving Pane. Real Orca/GNOME Terminal at 60x16 and 100x32 verifies the scroll label/focus, rejects assistive focus on a clipped input, scrolls to the input, reads its label and draft, and edits it through the real keyboard. Seven ScrollView App cases pass. The same reader workflows verify Image role, public alternative label, hidden fallback cells, and reading an updated label after an App callback changes the image. No Image source change was needed. Evidence: api011-orca-scroll-negative, api011-orca-scroll-image-60 and -100. Strict all-target Clippy passed at this source state. Remaining terminal/dialog/platform and final catalog checks are pending.
+
+### API-011 Terminal reader and shared text follow-up
+
+The baseline terminal had no Terminal role or readable document (`api011-orca-terminal-role-negative`). TerminalWidget now publishes its parsed current screen through the existing TextInput text-run conversion, extracted into private accessibility/text.rs. The document keeps graphemes, masks invisible cells as spaces, excludes the decorative title/scrollbar/cell fragments, and maps the child caret while viewing the current screen. Scrolled history has no false current caret. The unit regression verifies styled CJK/combining text, hidden cells, byte-to-grapheme caret and scrollback; the existing editor Unicode/password/selection export regression also passes. Fifteen terminal App cases pass, including PTY input/output/resize/reaping and cursor shapes/blinking. Strict all-target Clippy passes.
+
+Final display workflows at 60x16 and 100x32 (`api011-orca-display-final-60`, `-100`) verify all five display families, then read actual child output and send input to the retained terminal. Orca's normal terminal-focus presentation reads the current line; its standard keypad-Enter Where Am I command speaks Build terminal and terminal. New child output Received:x is spoken without that command. The fixture moves assistive focus to an external focusable text node before F9 shutdown, since terminal function keys correctly belong to the child. Both successive App adapters detach. Reader catalog workflows and the relevant text/terminal unit selectors are now included in the API-011 mechanism; remaining dialog/platform/catalog work is still pending.
+
+### API-011 dialog reader delivery
+
+The seven dialog families pass real Orca/GNOME Terminal workflows at 60x16
+and 100x32. Confirmation checks default focus, disabled actions and completion;
+Input checks spoken required validation, editing and its exact result;
+Autocomplete checks selected-option speech and assistive selection; Progress
+checks numeric value speech and cancellation; Wizard checks validation speech,
+step navigation, retained child editing and completion; Toast checks message
+speech and expiry without moving background focus; generic DialogBuilder checks
+entry speech, editing and Escape dismissal. The probe verifies the six exact
+completion/cancellation reports and adapter removal across two Apps.
+
+Safe failure demonstrations retained in api011-orca-input-validation-negative,
+api011-orca-wizard-validation-negative and api011-orca-toast-announcement-negative
+show visible content without the required spoken announcement. Input and Wizard
+validation now publish assertive live text; Toast publishes live text according
+to its Alert/Status urgency. Final diagnostics and output are in
+api011-orca-dialogs-final-60 and api011-orca-dialogs-final-100. The 26 input,
+10 wizard and two toast App cases passed; strict all-target Clippy passed.
+These working-tree checks are diagnostic evidence, not Cairn receipts.
+Native engine, platform and remaining advertised-control reconciliation stay open.
+
+The additional InputDialog warning case failed with the visible Status node
+but no speech (api011-orca-input-warning-negative60). Adding polite live text
+makes the warning speak while the entry retains focus. The complete seven-family
+dialog workflow passes with that assertion at both sizes; see
+api011-orca-dialogs-warning-final-60 and api011-orca-dialogs-warning-final-100.
+All 26 input-dialog App cases passed again. Shared text-run extraction also
+retains real reader behavior for Tabs and Modal/Popover at 60x16; diagnostics
+are retained in api011-orca-shared-text-tabs60 and api011-orca-shared-text-overlays60.
+
+
+### API-011 reader refresh and native platform diagnostics, 2026-09-10
+
+Orca/GNOME Terminal passed the display, dialog and overlay catalogs at 60x16 and
+100x32 after the dialog Escape-policy changes. The display run once timed out
+closing its replacement App after completing every control assertion. The driver
+had waited only for the replacement window registration. It now waits for a
+rendered enabled control, requests its focus, establishes host input as it does
+for the first App, and observes focused state before sending the exit key. An
+initial handshake without host input failed because inactive adapters suppress
+focused state; these diagnostic failures remain recorded. All six corrected runs
+passed, including adapter removal, in api-011-reader-active-handoff-*.log. This
+is development verification; final committed Cairn evidence remains pending.
+
+Native run 34494618226 passed Windows HTTP transport and all 14 HTTP App cases.
+FileExplorer directory copy failed with Windows error 87; operation-specific
+errors and native short-name rename cases are added to identify the failing call.
+The failure output is api-011-windows-filesystem-baseline.log. macOS HTTP passed;
+its unsupported raw-byte filename fixture was corrected to test actual filesystem
+identities (including normalization), while Linux byte names and Windows unpaired
+UTF-16 names retain their own platform tests. Ten worker tests pass on Linux.
+Native run 34497209141 tests these changes plus native image entry points and the
+new iTerm2 desktop capture. Neither platform has complete current acceptance yet.
+
+API-011 dialog follow-up: confirmation replacement/disabled-button callbacks and
+all seven positioning modes plus explicit bounds pass at both viewport sizes,
+including resized pointer activation. Logs: api-011-confirmation-updated-controls.log
+and api-011-confirmation-position-modes.log. The noncancelable Wizard keyboard
+failure is independently reproduced in api-011-wizard-keyboard-negative.log.
+Separating cancellation from keyboard navigation passes all eleven Wizard cases
+(api-011-wizard-keyboard-corrected.log). Removed-step reinsertion resets the child
+editor as required (api-011-wizard-removed-step.log). The pre-fix broad App run
+passes 392 tests in 140.22 seconds (api-011-catalog-app-reconciliation.log); its
+coverage did not catch the Wizard bug. These are editing checks, not Cairn receipts.
+
+## API-011 menu and native follow-up checks
+
+The outline baseline failed on missing border glyphs. Menu panels now share the
+measured table/modal border painter and reserve their edge independently of CSS
+padding. Border colors stay on the glyphs, and border-0 suppresses the outline.
+The updated resize test includes that edge. The outside-click fixture now uses
+a parent narrower than the viewport and converts UTF-8 offsets to cell columns.
+Both changes keep their original callback and dismissal assertions.
+
+The complete local App rerun passes 396 cases in
+`api-011-catalog-final-local.log`. Its earlier autocomplete failure was an input
+fixture race: waiting for Alpha did not establish that Beta had emerged from the
+resize animation. Waiting for the actual click target preserves the veto/result
+assertions and passes the targeted and complete runs. Orca passes the base controls
+and four menu families at 32x10 and 60x16 after the outline change.
+
+Native macOS snapshot 34503199020 passes all widget groups after the owned-process
+cleanup repair. iTerm still stops on its relocation prompt; the owned-window
+screenshot proves that startup failure. The private Applications-directory repair
+needs native execution. Windows evidence and final catalog reconciliation remain
+open. These are editing checks, not Cairn receipts.
+
+Ripwire was also run against src. Test-gate returned 4 with 11 named test files
+and 1123 symbols lacking a modeled test edge; this src-only map excludes the
+root App integration suite and cannot establish absent behavioral coverage.
+Quality-delta returned 2 with 583 major existing-symbol findings, including
+unchanged engine paths and new retained-control complexity. Neither tool passed.
+Their findings remain advisory input to the final source review; they are not
+substitutes for the behavioral checks or permission for unrelated rewrites.
+
+The subsequent library run passes 953 cases with two fixture-only cases ignored
+(`api-011-current-library.log`). Seven earlier shared-contract suites pass all
+94 cases (`api-011-shared-contract-regressions.log`): component expansion, hook
+state/lifecycle, event routing, focus, styling and paint properties. These remain
+editing checks until committed Cairn execution records fresh receipts.
+
+### API-011 style and native-host follow-up (2026-09-10)
+
+The Wizard builder's background-color option was configured but not asserted.
+Its existing two-size App case now checks the authored RGB value at the step
+title and uses reduced motion to isolate styling from the opening fade. All
+twelve Wizard App cases pass (`api-011-wizard-style.log`).
+
+Autocomplete now has a two-size cell test for custom input/content backgrounds
+and enabled/disabled matching emphasis. A first fixture version treated a UTF-8
+byte offset past a border glyph as a terminal column; its failure
+(`api-011-autocomplete-style-negative.log`) is not a product defect demonstration.
+After correcting the coordinate, the case passes. Temporarily disabling only
+the match-rendering branch makes it fail at the first matched letter
+(`api-011-autocomplete-highlighting-disabled-negative.log`). The original
+implementation was restored immediately. No changed product behavior is claimed.
+
+Native snapshot 34505587248 passes all macOS widget groups. Its iTerm screenshot
+shows a normal shell, resolving the earlier relocation prompt. The probe
+startup marker is still absent. iTerm 3.7.0's legacy task route discards task
+creation/execution errors, whereas its AutoLaunch-directory route reports them:
+https://github.com/gnachman/iTerm2/blob/v3.7.0/sources/API/iTermScriptsMenuController.m
+The driver now uses the pinned version's direct `--command` option instead:
+https://github.com/gnachman/iTerm2/blob/v3.7.0/sources/AppKit/main.m
+The child writes its actual terminal size before capture; the driver requires
+exactly one visible regular window owned by its process. It still measures real
+colored pixels and rejects ASCII fallback. No AppleScript is installed. This
+change still needs native execution. Evidence:
+`api-011-iterm-autolaunch-baseline/`. Windows remains in progress.
+
+The complete local App suite passes all 398 cases in
+`api-011-catalog-398-local.log`, including the additional styles and grapheme
+minimum cases. Windows run 34505587248 passes both TLS trust cases and all
+filesystem/image groups. Its TerminalWidget case still fails: the first frame
+containing `53` retains `ADY>` after it. The test now waits for the complete
+numeric row, retaining the exact-result assertion. A lower-level native
+terminal check also resizes and submits a second command, waiting for complete
+result lines and retaining raw output on failure. Whether this is an incomplete
+output frame or a persistent terminal defect remains unverified until native
+execution; no product repair is claimed. Logs are
+`api-011-windows-34505587248-{terminal-app,https,filesystem-native,filesystem-app}.out`.
+
+The final construction-route cross-check found an inventory wording error:
+the core row named secondary/danger button helpers, but the current builder
+module and baseline f9e8d7df contain only the public `primary_button` helper.
+A baseline source/document/test search for secondary_button, danger_button,
+button_secondary and button_danger returns no matches. The row now names
+`button`, `input` and `primary_button`. Confirmation and Modal button variants
+remain separate required controls and retain their tests. No public API was
+removed or renamed. Core helper, macro, VDOM, input, named radio, slider,
+layout and menu construction routes were cross-checked against their actual
+App cases; the remaining platform blockers stay explicit.
+
+API-011 matrix reconciliation records the existing App behavior and public
+construction tests as reviewed. It retains two unresolved platform rows: actual
+iTerm image capture and the Windows TerminalWidget complete-result workflow.
+The decision `record-app-widget-evidence-while-retaining-the-engine-lifecycle-requirements`
+keeps API-012 engine results/stacking/lifecycle and API-014/API-016 obligations
+explicit. No claim of DialogEngine or whole-catalog readiness follows from the
+App matrix, and all 54 requirements remain necessary before Done. Decision
+records now point to their implementations and behavioral checks; the shared
+App dialog decision explicitly marks its engine portion unfinished.
+
+Native run 34507954693 confirms direct iTerm command launch and real terminal
+startup. Two owned windows exist: the probe (Python) and an extra default shell.
+The strict single-window selector rejects that ambiguity. The fixture now sets
+a unique OSC window title from its runner and matches it within the child
+PID's visible windows. Actual image captures still need a native run.
+See `api-011-iterm-direct-launch-baseline/`.
+
+The focused `ripwire scripts --edit-check=owned_windows` finds its two callers
+and no incompatible arity. Script quality-delta exits 2 with 18 findings
+(`api011-script-quality-delta.xml`), not a pass. Its same-name aggregation
+attributes changed `run`/`main` counts to unchanged check-api-signal-ownership.py.
+The capture function owns one temporary runner, host process and multi-stage
+measurement/cleanup sequence; its branches enforce startup, window identity,
+fixture exit and error cleanup. Reported HTTP Handler methods are standard
+server overrides reached dynamically. Cancellation handlers accept only the
+expected closed-connection/process-already-gone races. Separate standalone
+evidence drivers retain explicit bounded subprocess handling and input digests.
+No source refactor or baseline change was made solely to quiet these findings.
+The script test-gate exits 0 but reports zero tests; it is not behavioral
+verification. Native fixture execution and the retained violating cases remain
+the required evidence (`api011-script-test-gate.xml`).
+
+### API-011 Windows resize ordering investigation
+
+Native run 34507954693 failed the strict second calculated-result row in both
+the Terminal unit workflow and App. The captured bytes and screen are retained
+in api-011-windows-34507954693-terminal-{native,app}.out. A deterministic replay
+of those bytes through the real Terminal parser/screen reproduces `53ADY>` when
+the trailing first-command prompt is processed after resize. Processing that
+prompt before resize produces the correct bare `53` row. The diagnostic source
+and successful comparison output are api-011-conpty-resize-ordering-replay.rs
+and .log in this directory; this proves an ordering-sensitive corruption, not
+a product fix or Cairn acceptance. The temporary integration test was removed
+after running; its source is retained here for reproduction.
+
+Native diagnostic snapshot 81c125e retains the original immediate-resize failure
+case, adds per-stage raw-output/screen/cursor diagnostics, and adds a second
+case that waits for the completed first prompt. Run 34510730395 is pending.
+Microsoft upstream `_ResizePseudoConsole` writes a resize signal to a separate
+pipe and returns after WriteFile; it does not acknowledge parsing of preceding
+output (https://github.com/microsoft/terminal/blob/main/src/winconpty/winconpty.cpp).
+No runtime resize repair has been made at this point.
+
+The macOS side of native run 34510730395 reached the uniquely titled iTerm
+window. Its stage screenshots show iTerm 3.7's “Allow Terminal-Initiated
+Display?” confirmation blocking the generated image; pixel counts are all
+zero and the fixture cannot finish. Captures are retained under
+api-011-iterm-display-permission-baseline. The driver now launches with a
+unique `-suite` and process argument defaults selecting Yes for this generated
+fixture, then removes only its unique preference domains after the child exits.
+This does not alter macOS privacy permissions or the user's iTerm settings.
+Source checked at iTerm2 v3.7.0 commit 63cfc92a76881de34863c79f0fb4bd667f5d747f:
+sources/AppKit/main.m (`-suite`), sources/Settings/iTermUserDefaults.m (suite
+ownership), sources/PTYSession/PTYSession.m:19130 (inline image prompt), and
+sources/Infrastructure/iTermWarning.m:602 (saved selection). Syntax passes;
+native execution of this change is still pending.
+
+### API-011 terminal resize repairs and remaining native image check
+
+Native 34510730395 passed both direct Terminal cases but failed the App case
+at 43 -> 47 content columns. The wider native console reflows a wrapped banner
+line; the prior VirtualScreen only extended rows. Six new deterministic tests
+failed on that implementation (api-011-terminal-reflow-negative.log). Soft-wrap
+markers and compact main-screen reflow now preserve hard breaks, whole styled
+graphemes, active/saved cursor positions and bounded newly scrolled rows; the
+alternate screen remains fixed. Existing history is retained separately; history
+reflow across the viewport boundary needs further review before acceptance.
+
+A separate real-PTY regression failed because resize did not consume output
+already fully queued by the reaped owner (api-011-terminal-queued-resize-negative.log).
+Resize now drains a bounded batch with the old geometry and keeps public events
+for exactly-once delivery at the next poll. A real-PTY burst test verifies the
+64 KiB event budget and recovery after polling; a temporary 128 KiB limit was
+rejected (api-011-terminal-resize-backpressure-negative.log), then restored.
+All 105 local terminal unit tests and all 15 terminal App cases pass. Strict
+all-target Clippy passes. The complete 398-case App suite passes in 139.22s
+(api-011-catalog-after-terminal-resize.log). An additional retained diagnostic
+source/log, api-011-terminal-reflow-property-probe.{rs,log}, checks 100 mixed
+Unicode streams through ten width changes each and continued typing; it passes.
+Its temporary integration-test copy was removed after execution.
+
+Ripwire qualified resize edit checks and git diff --check pass. The full
+quality-delta exits 2 and test-gate exits 4: the git-HEAD comparison includes
+the entire unfinished API-011 change and untracked reference trees, with
+21993 findings and 125 named test files/1506 reported untested symbols. These
+are not passing gates. Focused inspection finds real complexity in reflow_main
+(19) and pack_line (27), plus native driver/test complexity and syntactic test
+duplication. Reflow branches are covered by the explicit regressions and the
+Unicode property probe; graph dead-code results are not proof that those tested
+functions are unreachable. Full commitment checks and final review still remain.
+
+Native snapshot 52a3f211148e84b9f8e1aef5ee5cc15fe3f69b89 is running as 34515563869.
+The macOS fixture now finishes and captures actual image display/update/removal,
+but exact color assertions fail: red (255,38,0), blue (5,50,255), green (8,249,0),
+yellow (255,251,0), both in raw screenshot RGB and after its ICC-to-sRGB conversion.
+Stage 2 has no colored pixels. Captures are retained under
+api-011-iterm-color-profile-baseline. No color tolerance was introduced.
+Windows remains pending. These editing results do not establish Cairn acceptance.
+
+History reflow decision process note: the first cairn decide call rejected a missing reversal-history field. A batched edit ran despite that failure; the subsequent decision records the required history before further implementation. This was an orchestration error, not an approval or acceptance pass.
+
+### Retained history reflow follow-up (2026-09-10)
+
+The previous visible-grid reflow left preexisting history rows at their old
+width. Two screen regressions failed before repair: narrowing hid the right
+columns, and widening failed to join a soft wrap crossing the history boundary.
+The App negative also failed with a real PTY: after narrowing and scrolling to
+the top, only ABCDEFGHIJK appeared; LMNOPQRST was inaccessible. Captures are
+api-011-terminal-history-reflow-negative.log and
+api-011-terminal-history-app-negative.log. These are defect demonstrations.
+
+The correction reflows history and the main grid together. An origin anchor
+keeps the viewport attached to its text; active and saved cursors use the same
+mapping. Full historical lines remain above the origin, while a soft-wrapped
+prefix may share the first visible row. The configured history limit is applied
+as rows are retained. Height growth alone does not pull older rows into view.
+Alternate-screen cells remain a fixed grid. The new screen cases also cover
+bounded history, height growth and saved main cursor restoration from alternate.
+
+The final local terminal suite passed 109 tests. The App terminal suite passed
+16 tests, including the real PTY narrowing/scrolling workflow at two sizes.
+Strict all-target Clippy passed. Logs: api-011-terminal-history-final.log,
+api-011-terminal-history-app-final.log and
+api-011-terminal-history-clippy-final.log. Formatting and git diff --check passed.
+Ripwire edit-check reports the new reflow symbol with one caller and no arity
+mismatch; its earlier repository-wide quality and test gate findings remain
+recorded above, not relabeled as passes. Native verification of this follow-up
+and final commitment evidence are still pending.
+
+The macOS run 34515563869 passed its non-host widget groups, including terminal,
+filesystem, HTTP/HTTPS and decoded-image tests, but failed iTerm pixel color
+acceptance. Its screenshot also shows white transparent padding. The new
+api-011-iterm-color-diagnostic.py compares otherwise identical untagged, sRGB
+chunk and ICC-profile PNGs through the existing owned-window capture driver.
+Local generation checks confirmed all three images have the expected opaque
+primaries, transparent padding, geometry and distinct profile metadata; this is
+not macOS rendering evidence. No product encoder or color acceptance threshold
+has been changed on this hypothesis.
+
+Native follow-up: Windows job 102999974673 in run 34515563869 completed
+successfully, including clipboard, ConPTY failure demonstrations and all widget
+workflow groups. Its terminal output logs are retained as
+api-011-windows-34515563869-terminal-{screen,native,app}.out. That snapshot predates
+the history follow-up. Snapshot 8c587111c4afae31e24092d90f87351a7188d189 is now
+running as 34517617898. Only the isolated native verification checkout adds a
+macOS diagnostic workflow step; the main workflow's acceptance checks remain.
+The fourth diagnostic PNG case resets current SGR background before inline
+output to distinguish host default-background effects on transparent padding.
+
+Focused Ripwire follow-up: scanning src/terminal with --quality-delta still exits
+2 against the original f9e8d7 baseline (163 findings, 11 preexisting-worse major).
+The new history mapping raises reflow_main complexity from the prior measured
+19 to 20; pack_line remains 27 with nesting 5. The changed path's --test-gate
+exits 4 and reports resize as untested, despite the screen regressions and real
+App failure/correction just executed. Its static graph does not establish Rust
+test reachability here. Dead-code reports include executed #[test] functions
+and used Anchor/Position types. Retained logs name these limits explicitly:
+api-011-terminal-history-quality-delta.log and
+api-011-terminal-history-test-gate.log. No static-gate pass is claimed.
+
+A standalone history stress probe also passed: 100 deterministic mixed-Unicode
+streams (CJK, combining accents and emoji), ten width changes each, continued
+input after each resize, viewport heights 2 through 6 and retained history.
+It reconstructs public visible/history cells and compares their complete logical
+text after every transition. The probe source and output are retained as
+api-011-terminal-history-property-probe.{rs,log}; the temporary integration test
+was removed after execution. It supplements the permanent targeted tests.
+
+Native color diagnostic 34517617898: untagged PNG, explicit sRGB chunk and sRGB
+ICC PNG all produce identical shifted primaries (red 255,38,0; blue 5,50,255;
+green 8,249,0; yellow 255,251,0). All also show white transparent padding, with
+both explicit ANSI black and reset default background. This rules out the
+missing-PNG-profile hypothesis and current SGR background as a remedy. Captures
+are retained in api-011-iterm-color-diagnostic/. The next experiment runs the
+same generated image with iTerm's UseMetal=NO argument; it is diagnostic only.
+The verification branch temporarily runs that short macOS diagnostic with a
+separate concurrency group, so full Windows run 34517617898 continues. Main
+acceptance workflow is unchanged. Restore the full isolated workflow before
+collecting final platform acceptance. Diagnostic run: 34518697890, snapshot
+5f4650fe137954cb8045afbeba0b8798d3e7d2a6.
+
+The corrected renderer diagnostic 34519052052 completed successfully. Both
+normal launch and explicit UseMetal=NO produced the same four shifted primaries
+and white transparent padding; captures are in api-011-iterm-renderer-diagnostic/.
+This demonstrates the failure with a generated PNG independent of Reactive-TUI,
+and disabling Metal does not remedy it. It does not prove the normal launch
+actually selected Metal on this virtual desktop. The first software launch
+attempt's command-order error is retained separately in
+api-011-iterm-software-launch-negative/ and is not image-rendering evidence.
+A focused Swift reproduction now checks sample colors and alpha after iTerm's
+DeviceRGB worker round trip and calibrated resize to locate the conversion.
+
+### Native history origin correction
+
+Windows 34517617898 passed ConPTY ownership/resize checks but failed the Terminal
+and App command-shell workflows after history reflow: the next result became
+53ADY> instead of 53. The combined reflow pulled a historical prefix into the
+visible first row, shifting the cursor relative to ConPTY's addressed output.
+The captured byte sequence reproduces this exactly on Linux; the failing replay
+is api-011-terminal-history-origin-negative.log. The revised decision keeps a
+partly historical packed row above the viewport, unless doing so would hide the
+active cursor's own line. A separate failing cursor-first-line test demonstrates
+that required exception (api-011-terminal-history-origin-cursor-negative.log).
+This supersedes the earlier origin choice; it does not discard historical text.
+
+The correction passes 111 terminal tests, 16 App terminal tests and strict
+all-target Clippy; logs are api-011-terminal-history-origin-{final,app,clippy}.log.
+The native Windows command workflow still needs a fresh run. Earlier full native
+Windows success belongs to 34515563869 and is not evidence for this correction.
+
+### Independent native image reference
+
+Diagnostic 34520546487 renders the identical untagged PNG in a small owned
+AppKit window next to explicit sRGB red/blue rectangles. Both the PNG and native
+rectangles produce exact (255,0,0)/(0,0,255) pixels: 1568 pixels per color, split
+between the 784-pixel image region and its 784-pixel reference rectangle. The
+transparent part preserves the black window background. This confirms the
+pixel expectation against an independent native display path. Its captures and
+source are retained under api-011-iterm-native-reference/ and
+api-011-native-image-reference.{py,swift}.
+
+The same PNG through iTerm 3.7.0 changes colors and displays white behind its
+transparent part, including with explicit sRGB/ICC metadata and UseMetal=NO.
+The Swift pipeline reproduction retains alpha=0 through decode/resize. Its
+NSBitmapImageRep.colorAt samples change interpretation between color spaces;
+those values alone are not treated as proof of the exact color-loss stage.
+The independent displayed reference is the reliable pixel comparison.
+No product encoder or acceptance threshold was altered to match the defect.
+
+A cell-region workaround for App transparency was considered but not built:
+opaque flattening alone would cover clipped text, and region splitting would
+still leave iTerm's independently reproduced color failure. Maintaining a host
+terminal patch is outside this library commitment. An explicit host-support
+decision is required rather than silently narrowing API-014 or weakening tests.
+Latest full native run 34520423069 verifies the corrected history origin; its
+Windows job is still running at this recording. Main acceptance workflow is
+unchanged; the verification branch currently has a temporary macOS diagnostic
+workflow and must restore the full workflow before final acceptance work.
+
+Latest macOS acceptance snapshot aa8970450dba4373d6bb7499549cb07896e2e662
+(run 34520423069) passes 37 screen tests, 11 native Terminal tests and 14 Terminal
+App tests; only the iTerm host output file reports failure among the widget
+groups. The history-origin stress probe also passed after the correction
+(api-011-terminal-history-origin-property.log). The isolated verification
+checkout now has the full original native workflow restored in a local commit;
+it is not pushed while that Windows verification is running, to avoid canceling
+its job. Remote branch diagnostics are not final acceptance receipts.
+
+The host repair is captured in
+.cairn/backlog/repair-iterm-3-7-inline-image-color-and-transparency-behavior-in-the-host.md.
+The proposed scope decision preserves the public inline-image APIs and all
+other host guarantees, but would explicitly exclude iTerm 3.7 inline rendering
+from accepted color/transparency coverage until the host is repaired. No such
+exclusion is implemented or accepted yet. The alternative keeps that guarantee
+blocking and requires a separately agreed host repair or an upstream fix.
+The full commitment, API-011 implementation and final self-audit remain open.
+
+
+### Approved iTerm 3.7 limit and retained geometry checks (2026-09-10)
+
+The developer answered `ok` to escalation api-011-api-014-api-020. Recorded
+that answer with Cairn before updating the specification and widget inventory.
+No image API or encoder changed. Exact sRGB measurements remain available in
+native captures and the strict diagnostic remains runnable with
+`--require-exact-srgb`. The native acceptance path now measures dominant-channel
+regions solely for presence, replacement, movement and removal on pinned iTerm
+3.7. The approved exclusion covers color accuracy and transparency only.
+
+The local generated-image demonstration passed corrected geometry with a shifted
+red channel, and rejected strict color accuracy, missing images, stale images,
+unremoved images and unmoved images. See api-011-iterm-geometry-falsification.log.
+The default Python lacked Pillow; reran successfully with /usr/bin/python3,
+which provides Pillow 12.1.1. Native rerun 34529569174 is pending; none of this
+local demonstration establishes native acceptance. Prior run 34520423069 completed
+with Windows clipboard, ConPTY and all native widget groups passing; macOS failed
+its strict iTerm color check, as retained in the diagnostic evidence.
+
+
+### Widget quality review before committing the implementation
+
+Ran Ripwire quality-delta and test-gate. They returned 2 and 4 respectively;
+neither is recorded as a pass. The whole-tree scan includes downloaded reference
+projects and cannot distinguish external Rust trait calls or App-routed handlers
+from unused code. The retained filtered report api-011-current-quality.json
+contains 3,036 project-source/test findings, including 704 gating rows. Large
+clone pairs primarily join independent App scenario setup; small clone rows also
+pair unrelated constructors and accessors across subsystems. Retained public API
+methods must not be deleted merely because this graph has no internal caller.
+
+Read the error-handling findings in clipboard capture, ConPTY execution, HTTPS
+fixture handling and Orca process cleanup. Timeout wrappers raise explicit errors;
+Orca retries termination with SIGKILL and a bounded wait; HTTPS tolerates a reset
+from the deliberate untrusted-certificate case. These are not successful no-ops.
+Read the new nesting and state paths in ElementBuilder::build, paint_frame,
+FocusManager::apply and ComponentRuntime::expand. The branches retain callbacks,
+image/fallback ownership, focus restoration and caller metadata. Existing App
+cases exercise those paths. Kept those cohesive steps together rather than
+introducing a shared abstraction across unrelated widget behaviors. Churn counts
+include the prior API recovery sequence and do not establish a present defect.
+The formal inherited checks and native proof remain required.
+
+Reprocessed the historical run 34520423069 app-iterm screenshots through the new
+geometry classifier: both initial regions and both replacement regions contained
+784 pixels, moved down/right, and the removed stage contained zero classified
+pixels. This is diagnostic corroboration only; fresh native evidence is pending.
+
+
+Current editing checks: 970 library tests passed (two ignored), all 399 App
+acceptance tests passed, strict all-target Clippy passed, and cargo fmt --check
+passed. Logs are api-011-current-{library,app,clippy}.log. These are editing checks,
+not Cairn receipts; the candidate still needs its implementation commit.
+
+
+The broader default-suite editing check also passed: 1,766 passing tests across
+64 reported targets, zero failures and 37 ignored cases (including 34 documentation
+examples). It ran through scripts/check-default-suite.py with its 300-second
+process-group deadline. See api-011-current-default-suite.log. Native macOS run
+34529569174 passed all widget groups and five iTerm modes; its unchanged receipts
+and captures are retained under docs/analysis/widget-platforms/darwin. The Windows
+job passed clipboard verification and is still checking ConPTY and widgets.
+
+
+### Standard compiler checks on developer-provided machines
+
+The developer made Windows and macOS machines available for testing. Both SSH
+connections succeeded. Windows is x64 build 26200 with Rust 1.98 MSVC; the MacBook
+runs macOS 26.6.1 arm64 with Rust 1.97.1. Created uniquely named temporary source
+checkouts from the same local Git bundle, revision ceff3560cc7f097a8d97128557582af0b36672ac.
+These supplemental probes do not change clipboard contents, trust stores or
+terminal application settings. They exercise terminal, HTTP, filesystem and
+image App/native paths without a GUI host capture.
+
+The repaired Sixel encoder no longer imports sixel_rs anywhere in the Rust tree.
+Removed its unused Cargo dependency and the four orphaned lockfile packages
+(sixel-rs, sixel-sys, autotools and make-cmd). This realizes the existing encoder
+replacement decision and removes an unnecessary MinGW/autotools prerequisite.
+Cargo check passed; 87 image-filtered tests passed afterward. The new dependency
+set requires refreshed formal native receipts even though the renderer code did
+not change. The earlier passing macOS receipt remains historical evidence.
+
+
+Hosted run 34529569174 completed with macOS passing and Windows failing only
+`a_silent_endpoint_hits_the_owned_deadline`: the request reported a timeout, but
+the whole call exceeded the test's one-second bound. Windows clipboard, ConPTY,
+terminal screen/native/App groups and the other widget groups passed. Retained
+its HTTP and terminal logs with the run number. Do not treat that run as an
+overall native acceptance pass. Added elapsed deadline-check diagnostics to the
+same test without relaxing either its 200 ms requested deadline or its one-second
+assertion. The local HTTP group passed. Fresh run 34531816183 checks that diagnostic
+and the dependency cleanup; it is pending.
+
+The developer's MacBook passed all eleven selected groups (188 tests total) on
+snapshot ceff356 with Rust 1.97.1. Its unmodified logs and machine record are in
+api-011-native-macbook. Windows/MSVC remains in progress on that same snapshot.
+These supplemental checks do not substitute for GUI host or TLS trust evidence.
+
+
+### Windows 11 failed-launch handle baseline
+
+The initial supplemental MSVC build actually completed successfully, but the
+PowerShell launcher lost its process exit-code handle and reported an empty
+status. Preserved that log and fixed the launcher to retain the process handle;
+the bounded build rerun returned zero. The first full ConPTY probe then failed
+its handle assertion: 102 before failed launches, 141 after every one of ten
+attempts. All eleven selected Windows groups separately passed (171 tests).
+
+Independent std-only Rust probes isolate initialization from PTY ownership.
+Formatting an OS error alone retains one handle. An ordinary missing-executable
+std::process::Command launch, without Reactive-TUI, increases from 77 to 123 once
+and then remains at 123. Raw OS ConPTY stabilizes at 126; raw SDK ConPTY stabilizes
+at 129 across six cycles, unload/reload, another six cycles and 500 ms waits.
+See api-011-windows11-raw-handle-reference.{rs,log}. This establishes independent
+Windows initialization, not a reason to increase the leak allowance.
+
+Recorded a Judged decision before warming the independent missing-process path
+in the acceptance probe. The original ten failed PTY attempts and allowance of
+two handles remain unchanged. The corrected native probe passed. A temporary
+isolated mutation deliberately leaked one file handle per attempt and failed the
+same handle assertion; restored the exact corrected source immediately afterward.
+The final corrected binary rebuild/rerun is in progress. Original failure and
+selected-group logs remain in api-011-native-windows11; final logs will supplement
+them. No production cleanup code changed for this measurement correction.
+
+
+The final corrected Windows 11 ConPTY rerun passed, with 135 handles before and
+after every failed launch. The deliberate leak control grew to 145 and failed.
+Thirty separate HTTP deadline trials on that machine each passed the unchanged
+one-second internal assertion; full process durations ranged from 222.7 to
+273.0 ms. The PowerShell summary command failed to measure hashtable keys; checked
+the retained 30 raw zero-exit test records independently in Python and wrote a
+separate summary. No trial was rerun or discarded to manufacture a pass.
+
+Hosted run 34531816183 also passed both macOS and Windows, including the unchanged
+HTTP bound with added diagnostic output. The historical single Windows timing
+failure was not reproduced; its cause remains unconfirmed. The final failed-launch
+fixture change requires another committed native run, now being started from
+bd3ba95. The widget matrix now records reviewed coverage for its last image and
+terminal rows. Dedicated lifecycle, image, entry-point and remaining requirements
+are still required by the commitment; no overall readiness claim is made.

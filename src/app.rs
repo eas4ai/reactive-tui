@@ -50,7 +50,8 @@ pub trait RootComponent: Send + Sync {
     fn try_handle_event(&mut self, event: &crate::event::types::Event) -> Result<EventResult> {
         Ok(self.handle_event(event))
     }
-    /// Handle input left unhandled by the event router; handled input redraws.
+    /// Handle input left unhandled by the router and widget CustomEvent notifications.
+    /// Notifications arrive after the originating widget handler returns; handled events redraw.
     fn handle_event(&self, _event: &crate::event::types::Event) -> EventResult {
         EventResult::Ignored
     }
@@ -84,6 +85,12 @@ pub struct App {
     animation_manager: AnimationManager,
     motion: motion::MotionTree,
     focus_manager: FocusManager,
+    #[cfg(target_os = "linux")]
+    accessibility: Option<crate::accessibility::Connection>,
+    #[cfg(target_os = "linux")]
+    accessibility_snapshot: crate::accessibility::Snapshot,
+    #[cfg(target_os = "linux")]
+    accessibility_name: String,
     running: bool,
     debug: bool,
     last_frame_time: Instant,
@@ -103,6 +110,20 @@ impl App {
     /// Run the application main loop
     pub fn run(mut self) -> Result<()> {
         let result = self.run_loop();
+        #[cfg(target_os = "linux")]
+        let result = match self
+            .accessibility
+            .take()
+            .map(|mut connection| connection.close())
+        {
+            Some(Err(cleanup)) => match result {
+                Err(error) => Err(crate::error::ReactiveError::invalid_state(format!(
+                    "{error}; screen-reader cleanup: {cleanup}"
+                ))),
+                Ok(()) => Err(cleanup),
+            },
+            _ => result,
+        };
         self.wake.close();
         let cleanup = self.backend.shutdown();
         match (result, cleanup) {
@@ -132,6 +153,10 @@ impl App {
                 break;
             }
             dirty |= requests.redraw;
+            #[cfg(target_os = "linux")]
+            {
+                dirty |= self.process_accessibility_actions()?;
+            }
             if self.scheduler.has_pending_updates() {
                 self.scheduler.process_updates();
                 dirty = true;
@@ -191,16 +216,28 @@ impl App {
 
     fn process_input(&mut self, event: &crate::event::types::Event) -> Result<bool> {
         use crate::event::types::{Event, KeyCode, KeyEventKind};
+        let notifications = crate::event::notifications::Dispatch::enter();
+        #[cfg(target_os = "linux")]
+        if let Some(accessibility) = &mut self.accessibility {
+            use crate::event::types::FocusEventKind;
+            match event {
+                Event::Focus(focus) if focus.kind == FocusEventKind::Lost => {
+                    accessibility.focus(false)?
+                }
+                Event::Focus(focus) if focus.kind == FocusEventKind::Gained => {
+                    accessibility.focus(true)?
+                }
+                Event::Key(_) | Event::Mouse(_) => accessibility.focus(true)?,
+                _ => {}
+            }
+        }
         let mut dirty = false;
         match event {
             Event::Key(key) => {
-                let quit = self.quit_key.as_ref().map_or_else(
-                    || {
-                        (key.code == KeyCode::Char('c') && key.modifiers.ctrl)
-                            || key.code == KeyCode::Escape
-                    },
-                    |(code, modifiers)| key.matches(code.clone(), *modifiers),
-                );
+                let quit = self
+                    .quit_key
+                    .as_ref()
+                    .is_some_and(|(code, modifiers)| key.matches(code.clone(), *modifiers));
                 if quit && key.kind != KeyEventKind::Release {
                     self.running = false;
                 }
@@ -220,7 +257,85 @@ impl App {
         if result == EventResult::Ignored && self.running {
             result = self.root.try_handle_event(event)?;
         }
+        if self.quit_key.is_none() && result == EventResult::Ignored {
+            if let Event::Key(key) = event {
+                if key.kind != KeyEventKind::Release
+                    && ((key.code == KeyCode::Char('c') && key.modifiers.ctrl)
+                        || key.code == KeyCode::Escape)
+                {
+                    self.running = false;
+                }
+            }
+        }
+        let pending = notifications.take();
+        for notification in pending {
+            dirty |=
+                self.root.try_handle_event(&Event::Custom(notification))? != EventResult::Ignored;
+        }
+        drop(notifications);
         Ok(dirty || result != EventResult::Ignored)
+    }
+
+    #[cfg(target_os = "linux")]
+    fn process_accessibility_actions(&mut self) -> Result<bool> {
+        use crate::event::{
+            types::{MouseButton, MouseEvent, MouseEventKind, Position},
+            Event,
+        };
+        let actions = match &self.accessibility {
+            Some(accessibility) => accessibility.actions()?,
+            None => return Ok(false),
+        };
+        let mut dirty = false;
+        for action in actions {
+            if !matches!(
+                action.action,
+                accesskit::Action::Focus | accesskit::Action::Click
+            ) {
+                continue;
+            }
+            let Some(target) = self
+                .accessibility_snapshot
+                .targets
+                .get(&action.target_node)
+                .cloned()
+            else {
+                continue;
+            };
+            if action.action == accesskit::Action::Click && !target.clickable {
+                continue;
+            }
+            let notifications = crate::event::notifications::Dispatch::enter();
+            self.router.set_focus(Some(target.owner));
+            // Focus traps and disabled/removed nodes remain authoritative.
+            if self.router.get_focus() != Some(target.owner) {
+                continue;
+            }
+            if let Some(event) = target.focus_event {
+                self.router.route_event(&Event::Custom(event), target.node);
+            }
+            if action.action == accesskit::Action::Click {
+                if let Some(event) = target.click_event {
+                    self.router.route_event(&Event::Custom(event), target.node);
+                } else {
+                    let bounds = target.bounds;
+                    let event = MouseEvent::new(
+                        MouseEventKind::Down,
+                        Position::cell(
+                            (bounds.x + bounds.width / 2.0).floor() as u16,
+                            (bounds.y + bounds.height / 2.0).floor() as u16,
+                        ),
+                    )
+                    .with_button(MouseButton::Left);
+                    self.router.route_event(&Event::Mouse(event), target.node);
+                }
+            }
+            for notification in notifications.take() {
+                self.root.try_handle_event(&Event::Custom(notification))?;
+            }
+            dirty = true;
+        }
+        Ok(dirty)
     }
 
     fn publish_performance_context(&self) {
@@ -373,13 +488,28 @@ impl App {
             self.focus_manager
                 .apply(&mut self.router, focus_manager::FocusPlan::default());
             self.backend.render_cells(frame)?;
-            return self.backend.present();
+            self.backend.present()?;
+            #[cfg(target_os = "linux")]
+            {
+                self.accessibility_snapshot =
+                    crate::accessibility::Snapshot::empty(&self.accessibility_name);
+                if let Some(accessibility) = &mut self.accessibility {
+                    accessibility.publish(&self.accessibility_snapshot)?;
+                }
+            }
+            return Ok(());
         }
 
         // Build element tree from root component
-        let element = self.components.resolve(self.root.render())?;
+        let mut element = self.components.resolve(self.root.render())?;
+        // Base semantics establish disabled state before state variants are
+        // selected. Resolve again afterward for conditional semantic styles.
+        crate::accessibility::style::prepare(&mut element)?;
 
-        let state_styled = self.event_tree.styled(&element, &self.router);
+        let mut state_styled =
+            self.event_tree
+                .styled(&element, &self.router, self.backend.size().0);
+        crate::accessibility::style::prepare(&mut state_styled)?;
         let mut styled = state_styled.clone();
         self.motion
             .apply(&mut styled, Instant::now(), self.backend.size())?;
@@ -387,16 +517,42 @@ impl App {
             self.backend.present()?;
             let state = (self.router.get_focus(), self.router.hovered_node());
             if let Some(geometry) = self.backend.painted_nodes() {
-                let focus = self.event_tree.sync(&element, geometry, &mut self.router);
+                let anchors_changed = self.components.anchors.publish(&state_styled, geometry);
+                let (focus, layout_changed) = self.event_tree.sync(
+                    &state_styled,
+                    geometry,
+                    self.backend.component_layouts(),
+                    &mut self.router,
+                );
                 self.focus_manager.apply(&mut self.router, focus);
+                #[cfg(target_os = "linux")]
+                if let Some(accessibility) = &mut self.accessibility {
+                    self.accessibility_snapshot = self.event_tree.accessibility_snapshot(
+                        &state_styled,
+                        geometry,
+                        &self.router,
+                        &self.accessibility_name,
+                    );
+                    accessibility.publish(&self.accessibility_snapshot)?;
+                }
+                if layout_changed || anchors_changed {
+                    self.wake.request_redraw();
+                }
             } else {
+                if self.components.anchors.clear() {
+                    self.wake.request_redraw();
+                }
+                #[cfg(target_os = "linux")]
+                if self.accessibility.is_some() {
+                    return Err(crate::error::ReactiveError::invalid_state(
+                        "screen-reader integration requires presented Element geometry",
+                    ));
+                }
                 self.event_tree.clear(&mut self.router);
                 self.focus_manager
                     .apply(&mut self.router, focus_manager::FocusPlan::default());
             }
-            if state != (self.router.get_focus(), self.router.hovered_node())
-                && state_styled != self.event_tree.styled(&element, &self.router)
-            {
+            if state != (self.router.get_focus(), self.router.hovered_node()) {
                 self.wake.request_redraw();
             }
             self.tree.set_root(resolved_element_to_render_node(styled));
@@ -406,6 +562,12 @@ impl App {
             return Ok(());
         }
 
+        #[cfg(target_os = "linux")]
+        if self.accessibility.is_some() {
+            return Err(crate::error::ReactiveError::invalid_state(
+                "screen-reader integration requires a complete Element frame backend",
+            ));
+        }
         // Convert to RenderTree
         let root_node = resolved_element_to_render_node(element.clone());
 
@@ -535,6 +697,8 @@ impl App {
 
 impl Drop for App {
     fn drop(&mut self) {
+        #[cfg(target_os = "linux")]
+        self.accessibility.take();
         self.wake.close();
         self.scheduler.clear();
         // Ensure all components are cleaned up when app is dropped
@@ -558,6 +722,8 @@ pub struct AppBuilder {
     performance_mode: PerformanceMode,
     adaptive_config: Option<AdaptiveConfig>,
     scheduler: Option<Arc<Scheduler>>,
+    accessibility: Option<bool>,
+    accessibility_name: String,
     quit_key: Option<(
         crate::event::types::KeyCode,
         crate::event::types::KeyModifiers,
@@ -573,12 +739,29 @@ impl Default for AppBuilder {
             performance_mode: PerformanceMode::Balanced,
             adaptive_config: None,
             scheduler: None,
+            accessibility: None,
+            accessibility_name: "Reactive TUI".into(),
             quit_key: None,
         }
     }
 }
 
 impl AppBuilder {
+    /// Enable or disable the Linux screen-reader connection.
+    /// Enabled automatically for an interactive Linux terminal with a desktop
+    /// session-bus address. Explicit enabling reports connection failures.
+    /// Enabling on other platforms returns an error during build.
+    pub fn screen_reader(mut self, enabled: bool) -> Self {
+        self.accessibility = Some(enabled);
+        self
+    }
+
+    /// Name of this App in the screen reader's accessible window list.
+    pub fn accessibility_name(mut self, name: impl Into<String>) -> Self {
+        self.accessibility_name = name.into();
+        self
+    }
+
     /// Set the backend implementation
     pub fn backend(mut self, backend: impl Backend + 'static) -> Self {
         self.backend = Some(Box::new(backend));
@@ -647,6 +830,22 @@ impl AppBuilder {
         let scheduler = self.scheduler.unwrap_or_else(|| Arc::new(Scheduler::new()));
         scheduler.attach(wake.clone())?;
         let (width, height) = backend.size();
+        #[cfg(not(target_os = "linux"))]
+        if self.accessibility == Some(true) {
+            return Err(crate::error::ReactiveError::invalid_state(
+                "screen-reader integration currently supports Linux only",
+            ));
+        }
+        #[cfg(target_os = "linux")]
+        let accessibility = self
+            .accessibility
+            .unwrap_or_else(|| {
+                backend.is_interactive_terminal()
+                    && std::env::var_os("DBUS_SESSION_BUS_ADDRESS")
+                        .is_some_and(|address| !address.is_empty())
+            })
+            .then(|| crate::accessibility::Connection::new(&self.accessibility_name, wake.clone()))
+            .transpose()?;
         Ok(App {
             backend,
             root,
@@ -663,6 +862,12 @@ impl AppBuilder {
             animation_manager: AnimationManager::new(),
             motion: motion::MotionTree::default(),
             focus_manager: FocusManager::new(),
+            #[cfg(target_os = "linux")]
+            accessibility,
+            #[cfg(target_os = "linux")]
+            accessibility_snapshot: crate::accessibility::Snapshot::empty(&self.accessibility_name),
+            #[cfg(target_os = "linux")]
+            accessibility_name: self.accessibility_name,
             running: false,
             debug: self.debug,
             last_frame_time: Instant::now(),

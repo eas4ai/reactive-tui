@@ -1,5 +1,8 @@
 //! Grapheme painting over the existing CSS/Taffy layout metadata.
 
+mod cursor;
+pub(crate) mod images;
+
 use super::{build_nodes_inherited, transform::Affine, NodePaint};
 use crate::core::surface::{Attr, Rgba};
 use crate::error::{ReactiveError, Result};
@@ -11,7 +14,7 @@ use taffy::{geometry::Size, prelude::NodeId, style::Overflow, AvailableSpace, Ta
 use unicode_segmentation::UnicodeSegmentation;
 use unicode_width::UnicodeWidthStr;
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq)]
 struct Rect {
     left: i32,
     top: i32,
@@ -45,15 +48,19 @@ struct PaintNode {
 pub(crate) fn paint_frame(
     root: &crate::component::bridge::PaintSpec,
     target: &mut OptimizedBuffer<'_>,
-) -> Result<Vec<crate::backend::PaintedNode>> {
+    image_options: crate::backend::ImageOutputOptions,
+) -> Result<crate::backend::PresentedGeometry> {
     target.clear(ansi::rgb_color(0, 0, 0, 255), None);
     let mut tree = TaffyTree::new();
     let mut paints = HashMap::new();
+    let spec = root;
     let root = build_nodes_inherited(
         &mut tree,
         &root.root,
         &mut paints,
         &crate::layout::text::TextStyle::default(),
+        None,
+        false,
         &mut root.styles.iter().cloned(),
     )?;
     let available = Size {
@@ -87,9 +94,68 @@ pub(crate) fn paint_frame(
     // Stable sorting preserves parent-before-child and sibling paint order.
     nodes.sort_by_key(|node| node.z);
     let mut geometry = Vec::with_capacity(nodes.len());
+    let mut layouts = Vec::with_capacity(nodes.len());
+    let selected: std::collections::HashSet<u32> = spec
+        .images
+        .iter()
+        .flatten()
+        .filter(|image| image_options.protocol(image.mode).is_some())
+        .map(|image| image.id)
+        .collect();
+    let mut images = images::Layers::new(target.width() as usize, target.height() as usize);
+    let mut cursor = cursor::Layer::default();
     for node in nodes {
-        paint_node(target, &paints[&node.id], &node)?;
+        let fallback =
+            spec.image_fallbacks[node.element_index].is_some_and(|id| selected.contains(&id));
+        if !fallback {
+            paint_node(
+                target,
+                &paints[&node.id],
+                &node,
+                &mut images,
+                &mut cursor,
+                spec.cursors[node.element_index],
+            )?;
+            if let Some(image) = &spec.images[node.element_index] {
+                if selected.contains(&image.id) {
+                    if let Some(plane) = images::Plane::new(
+                        image.clone(),
+                        &paints[&node.id],
+                        &node,
+                        target,
+                        image_options
+                            .protocol(image.mode)
+                            .expect("selected image protocol"),
+                    )? {
+                        images.push(plane)?;
+                    }
+                }
+            }
+        }
         let visible = hit_bounds(&node);
+        let layout = tree
+            .layout(node.id)
+            .map_err(|error| ReactiveError::layout(error.to_string()))?;
+        layouts.push(crate::backend::PresentedLayout {
+            element_index: node.element_index,
+            layout: crate::component::LayoutInfo {
+                size: (node.local.right as f32, node.local.bottom as f32),
+                content_extent: (layout.content_size.width, layout.content_size.height),
+                clip: crate::event::hit::Bounds::new(
+                    node.clip.left as f32,
+                    node.clip.top as f32,
+                    (node.clip.right - node.clip.left).max(0) as f32,
+                    (node.clip.bottom - node.clip.top).max(0) as f32,
+                ),
+                transform: node.transform.coefficients(),
+                insets: [
+                    layout.padding.left + layout.border.left,
+                    layout.padding.top + layout.border.top,
+                    layout.padding.right + layout.border.right,
+                    layout.padding.bottom + layout.border.bottom,
+                ],
+            },
+        });
         geometry.push(crate::backend::PaintedNode {
             element_index: node.element_index,
             bounds: crate::event::hit::Bounds::new(
@@ -100,7 +166,12 @@ pub(crate) fn paint_frame(
             ),
         });
     }
-    Ok(geometry)
+    Ok(crate::backend::PresentedGeometry {
+        nodes: geometry,
+        layouts,
+        images: images.into_planes(),
+        cursor: cursor.state,
+    })
 }
 
 fn hit_bounds(node: &PaintNode) -> Rect {
@@ -348,7 +419,14 @@ fn background(paint: &NodePaint, bounds: Rect, x: i32, y: i32) -> Option<ansi::R
         .or_else(|| paint.background_specified.then(|| color(paint.style.bg)))
 }
 
-fn paint_node(target: &mut OptimizedBuffer<'_>, paint: &NodePaint, node: &PaintNode) -> Result<()> {
+fn paint_node(
+    target: &mut OptimizedBuffer<'_>,
+    paint: &NodePaint,
+    node: &PaintNode,
+    images: &mut images::Layers,
+    cursor: &mut cursor::Layer,
+    request: Option<crate::component::element::TextCursor>,
+) -> Result<()> {
     use ::suprtui::buffer::draw::blend_colors;
     if paint.opacity * node.parent_opacity <= 0.0 {
         return Ok(());
@@ -386,6 +464,8 @@ fn paint_node(target: &mut OptimizedBuffer<'_>, paint: &NodePaint, node: &PaintN
                 if ansi::alpha(source) == 0 {
                     continue;
                 }
+                images.cover(x, y, source);
+                cursor.cover(x, y, source);
                 let below = target
                     .get(x as u32, y as u32)
                     .expect("visible cell is in the target");
@@ -469,6 +549,18 @@ fn paint_node(target: &mut OptimizedBuffer<'_>, paint: &NodePaint, node: &PaintN
                         x = right;
                         continue;
                     }
+                    for offset in 0..width {
+                        cursor.cover(
+                            paint_x + offset as i32,
+                            paint_y,
+                            ansi::rgb_color(0, 0, 0, 255),
+                        );
+                        images.cover(
+                            paint_x + offset as i32,
+                            paint_y,
+                            ansi::rgb_color(0, 0, 0, 255),
+                        );
+                    }
                     let bg = target
                         .get(paint_x as u32, paint_y as u32)
                         .map_or(bg, |cell| cell.bg);
@@ -487,6 +579,13 @@ fn paint_node(target: &mut OptimizedBuffer<'_>, paint: &NodePaint, node: &PaintN
                         .map_err(|error| {
                             ReactiveError::resource(format!("SuprTUI paint: {error:?}"))
                         })?;
+                    cursor.paint(
+                        request,
+                        (x, y),
+                        width,
+                        (paint_x, paint_y),
+                        blend_colors(fg, bg, None),
+                    );
                 }
                 x = right;
             }

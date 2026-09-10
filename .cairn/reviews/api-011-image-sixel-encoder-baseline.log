@@ -1,0 +1,32 @@
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 6.63s
+     Running unittests src/lib.rs (target/debug/deps/reactive_tui-29efd94ed46ffee2)
+
+running 9 tests
+test platform::image::tests::api_image_platform_empty_clipping_and_unsupported_z_order_write_nothing ... ok
+test platform::image::tests::api_image_platform_file_and_memory_decode_actual_pixels ... ok
+test platform::image::tests::api_image_platform_iterm_uses_encoded_file_and_byte_count ... ok
+test platform::image::tests::api_image_platform_kitty_crops_and_retains_placement_options ... ok
+test platform::image::tests::api_image_platform_rejects_invalid_encoded_and_raw_data_without_output ... ok
+test platform::image::tests::api_image_platform_scaling_and_pixel_offsets_use_real_raster_bounds ... ok
+test platform::image::tests::api_image_platform_sixel_encoder_transmits_colors_and_decoded_sources ... FAILED
+test platform::image::tests::api_image_platform_sixel_rejects_overflow_truncation_and_non_image_controls ... ok
+test platform::image::tests::api_image_platform_webp_and_sixel_files_preserve_pixels ... ok
+
+failures:
+
+---- platform::image::tests::api_image_platform_sixel_encoder_transmits_colors_and_decoded_sources stdout ----
+
+thread 'platform::image::tests::api_image_platform_sixel_encoder_transmits_colors_and_decoded_sources' (2239327) panicked at src/platform/image/tests.rs:184:9:
+assertion `left == right` failed
+  left: (2, 7)
+ right: (2, 1)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    platform::image::tests::api_image_platform_sixel_encoder_transmits_colors_and_decoded_sources
+
+test result: FAILED. 8 passed; 1 failed; 0 ignored; 0 measured; 872 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `--lib`

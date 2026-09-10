@@ -8,6 +8,7 @@ pub mod file_explorer;
 pub mod image;
 /// Modal dialog components
 pub mod modal;
+pub(super) mod overlay;
 /// Popover and tooltip components
 pub mod popover;
 /// Progress bar components

@@ -4,9 +4,7 @@
 //! which is supported by many modern terminals including xterm, wezterm, and mlterm.
 
 use crate::error::{ReactiveError, Result};
-use crate::widgets::display::image::{Image, ImageFormat, ImageQuality, ImageSource};
-use sixel_rs::{optflags::DiffusionMethod, pixelformat::PixelFormat, sixel_string};
-use std::path::Path;
+use crate::widgets::display::image::{Image, ImageQuality};
 
 /// Sixel graphics renderer
 pub struct SixelRenderer;
@@ -19,8 +17,11 @@ impl SixelRenderer {
 
     /// Render an image using sixel graphics
     pub fn render_image(&self, image: &Image) -> Result<String> {
+        if image.has_empty_size() {
+            return Ok(String::new());
+        }
         // Load and process the image data
-        let (image_data, width, height) = self.load_image_data(&image.source)?;
+        let (image_data, width, height) = self.load_image_data(image)?;
 
         // Calculate display dimensions
         let (display_width, display_height) = self.calculate_display_size(
@@ -33,7 +34,12 @@ impl SixelRenderer {
         // Resize image if needed
         let (final_data, final_width, final_height) =
             if display_width != width || display_height != height {
-                self.resize_image(&image_data, width, height, display_width, display_height)?
+                self.resize_image(
+                    &image_data,
+                    (width, height),
+                    (display_width, display_height),
+                    image.quality,
+                )?
             } else {
                 (image_data, width, height)
             };
@@ -41,127 +47,46 @@ impl SixelRenderer {
         // Convert to RGB888 format for sixel
         let rgb_data = self.ensure_rgb888(&final_data, final_width, final_height)?;
 
-        // Select diffusion method based on quality setting
-        let diffusion_method = match image.quality {
-            ImageQuality::Fast => DiffusionMethod::None,
-            ImageQuality::Balanced => DiffusionMethod::Atkinson,
-            ImageQuality::High => DiffusionMethod::Stucki,
-        };
+        let pixels = image::RgbaImage::from_fn(final_width, final_height, |x, y| {
+            let offset = (y as usize * final_width as usize + x as usize) * 3;
+            image::Rgba([
+                rgb_data[offset],
+                rgb_data[offset + 1],
+                rgb_data[offset + 2],
+                255,
+            ])
+        });
+        super::sixel_encode::encode(&pixels, image.quality)
+    }
 
-        // Generate sixel string
-        let sixel_output = sixel_string(
-            &rgb_data,
-            final_width as i32,
-            final_height as i32,
-            PixelFormat::RGB888,
-            diffusion_method,
-        )
-        .map_err(|e| ReactiveError::ImageProcessing(format!("Sixel encoding failed: {:?}", e)))?;
-
-        Ok(sixel_output)
+    pub(crate) fn encode_pixels(
+        pixels: &image::RgbaImage,
+        quality: ImageQuality,
+    ) -> Result<String> {
+        // Sixel has binary transparency. Blend partial alpha against black;
+        // preserve fully transparent pixels for clipping and pixel offsets.
+        let rgb = super::decoded::rgb_pixels(pixels, None);
+        let pixels = image::RgbaImage::from_fn(pixels.width(), pixels.height(), |x, y| {
+            let color = rgb.get_pixel(x, y);
+            image::Rgba([
+                color[0],
+                color[1],
+                color[2],
+                if pixels.get_pixel(x, y)[3] == 0 {
+                    0
+                } else {
+                    255
+                },
+            ])
+        });
+        super::sixel_encode::encode(&pixels, quality)
     }
 
     /// Load image data from various sources
-    fn load_image_data(&self, source: &ImageSource) -> Result<(Vec<u8>, u32, u32)> {
-        match source {
-            ImageSource::FilePath(path) => self.load_from_file(path),
-            ImageSource::Base64Data(data) => self.load_from_base64(data),
-            ImageSource::RawBytes {
-                data,
-                width,
-                height,
-                format,
-            } => self.load_from_raw_bytes(data, *width, *height, *format),
-            ImageSource::Url(url) => {
-                // Load image from URL
-                self.load_from_url(url)
-            }
-        }
-    }
-
-    /// Load image from URL
-    fn load_from_url(&self, url: &str) -> Result<(Vec<u8>, u32, u32)> {
-        // Check if it's a data URL (base64 encoded)
-        if url.starts_with("data:image/") {
-            if let Some(base64_start) = url.find("base64,") {
-                let base64_data = &url[base64_start + 7..];
-                return self.load_from_base64(base64_data);
-            }
-        }
-
-        // For HTTP/HTTPS URLs, we'd need an HTTP client
-        if url.starts_with("http://") || url.starts_with("https://") {
-            return Err(ReactiveError::ImageProcessing(
-                "HTTP URL loading requires adding reqwest dependency. Use data URLs or local files for now.".to_string()
-            ));
-        }
-
-        // Try to treat as local file path
-        let path = Path::new(url);
-        self.load_from_file(path)
-    }
-
-    /// Load image from file path
-    fn load_from_file(&self, path: &Path) -> Result<(Vec<u8>, u32, u32)> {
-        let img = image::open(path)
-            .map_err(|e| ReactiveError::ImageProcessing(format!("Failed to load image: {}", e)))?;
-
-        let rgb_img = img.to_rgb8();
-        let (width, height) = rgb_img.dimensions();
-        let data = rgb_img.into_raw();
-
-        Ok((data, width, height))
-    }
-
-    /// Load image from base64 data
-    fn load_from_base64(&self, base64_data: &str) -> Result<(Vec<u8>, u32, u32)> {
-        use base64::Engine;
-        let decoded = base64::engine::general_purpose::STANDARD
-            .decode(base64_data)
-            .map_err(|e| ReactiveError::ImageProcessing(format!("Invalid base64 data: {}", e)))?;
-
-        let img = image::load_from_memory(&decoded).map_err(|e| {
-            ReactiveError::ImageProcessing(format!("Failed to decode image: {}", e))
-        })?;
-
-        let rgb_img = img.to_rgb8();
-        let (width, height) = rgb_img.dimensions();
-        let data = rgb_img.into_raw();
-
-        Ok((data, width, height))
-    }
-
-    /// Load image from raw bytes
-    fn load_from_raw_bytes(
-        &self,
-        data: &[u8],
-        width: u32,
-        height: u32,
-        format: ImageFormat,
-    ) -> Result<(Vec<u8>, u32, u32)> {
-        match format {
-            ImageFormat::RGB888 => Ok((data.to_vec(), width, height)),
-            ImageFormat::RGBA8888 => {
-                // Convert RGBA to RGB by dropping alpha channel
-                let rgb_data: Vec<u8> = data
-                    .chunks_exact(4)
-                    .flat_map(|rgba| [rgba[0], rgba[1], rgba[2]])
-                    .collect();
-                Ok((rgb_data, width, height))
-            }
-            _ => {
-                // For compressed formats, decode using image crate
-                let img = image::load_from_memory(data).map_err(|e| {
-                    ReactiveError::ImageProcessing(format!("Failed to decode image: {}", e))
-                })?;
-
-                let rgb_img = img.to_rgb8();
-                let (w, h) = rgb_img.dimensions();
-                let rgb_data = rgb_img.into_raw();
-
-                Ok((rgb_data, w, h))
-            }
-        }
+    fn load_image_data(&self, image: &Image) -> Result<(Vec<u8>, u32, u32)> {
+        let pixels = super::decoded::rgb(image)?;
+        let (width, height) = pixels.dimensions();
+        Ok((pixels.into_raw(), width, height))
     }
 
     /// Calculate display size based on constraints and terminal size
@@ -202,10 +127,9 @@ impl SixelRenderer {
     fn resize_image(
         &self,
         data: &[u8],
-        width: u32,
-        height: u32,
-        new_width: u32,
-        new_height: u32,
+        (width, height): (u32, u32),
+        (new_width, new_height): (u32, u32),
+        quality: super::ImageQuality,
     ) -> Result<(Vec<u8>, u32, u32)> {
         use image::{ImageBuffer, Rgb};
 
@@ -216,7 +140,11 @@ impl SixelRenderer {
             &img_buffer,
             new_width,
             new_height,
-            image::imageops::FilterType::Lanczos3,
+            match quality {
+                super::ImageQuality::Fast => image::imageops::FilterType::Nearest,
+                super::ImageQuality::Balanced => image::imageops::FilterType::Triangle,
+                super::ImageQuality::High => image::imageops::FilterType::Lanczos3,
+            },
         );
 
         Ok((resized.into_raw(), new_width, new_height))

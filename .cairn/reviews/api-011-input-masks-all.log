@@ -1,0 +1,30 @@
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 20.77s
+     Running tests/api_widget_behavior.rs (target/debug/deps/api_widget_behavior-591f6bff9f7c0602)
+
+running 22 tests
+test dialog_acceptance::input_dialog_direct_events_delete_whole_graphemes_and_accept_paste ... ok
+test dialog_acceptance::input_dialog_direct_length_limit_counts_the_resulting_graphemes ... ok
+test dialog_acceptance::input_dialog_direct_readonly_disabled_and_key_release_do_not_edit ... ok
+test dialog_acceptance::input_dialog_mask_native_submission_checks_literals_unicode_and_configuration ... ok
+test dialog_acceptance::input_dialog_readonly_keeps_value_while_allowing_submission_through_app ... ok
+test dialog_acceptance::input_dialog_validator_types_and_rules_reject_invalid_values ... ok
+test dialog_acceptance::input_dialog_app_length_limit_accepts_combining_marks_and_rejects_oversized_paste ... ok
+test dialog_acceptance::input_dialog_password_masks_frames_and_returns_the_original_value ... ok
+test dialog_acceptance::input_dialog_multiline_enter_edits_and_ok_submits_both_lines ... ok
+test dialog_acceptance::input_dialog_change_validation_shows_warnings_without_blocking_submit ... ok
+test dialog_acceptance::input_dialog_blur_validation_runs_before_cancel_closes_it ... ok
+test dialog_acceptance::input_dialog_validates_edits_graphemes_and_delivers_submission_through_app ... ok
+test dialog_acceptance::input_dialog_mask_rejects_invalid_format_then_submits_corrected_unicode ... ok
+test dialog_http_acceptance::input_dialog_edit_cancels_pending_remote_submission ... ok
+test dialog_http_acceptance::input_dialog_inline_validators_do_not_cancel_a_matching_http_request_on_redraw ... ok
+test dialog_http_acceptance::input_dialog_removal_cancels_a_live_request_without_waiting_for_the_server ... ok
+test dialog_http_acceptance::input_dialog_remote_completion_preserves_the_submit_veto_and_revalidates_on_retry ... ok
+test dialog_http_acceptance::input_dialog_remote_completion_rechecks_current_local_validation ... ok
+test dialog_http_acceptance::input_dialog_remote_change_validation_keeps_warnings_and_reuses_the_matching_result ... ok
+test dialog_http_acceptance::input_dialog_remote_validation_posts_json_and_completes_pending_submission ... ok
+test dialog_http_acceptance::input_dialog_remote_rejection_can_be_corrected_and_resubmitted ... ok
+test dialog_http_acceptance::input_dialog_remote_http_and_json_failures_remain_open ... ok
+
+test result: ok. 22 passed; 0 failed; 0 ignored; 0 measured; 272 filtered out; finished in 4.26s
+

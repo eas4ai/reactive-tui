@@ -1,5 +1,6 @@
 /// Checkbox input components
 mod checkbox;
+pub(crate) mod named_radio;
 /// Radio button input components
 mod radio_button;
 /// Select dropdown components

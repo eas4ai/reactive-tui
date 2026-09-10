@@ -1,0 +1,19 @@
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 7.41s
+     Running tests/api_widget_behavior.rs (target/debug/deps/api_widget_behavior-af8b000cab735812)
+
+running 11 tests
+test wizard_acceptance::empty_wizard_displays_error_and_can_cancel ... ok
+test wizard_acceptance::noncancelable_wizard_keeps_keyboard_finish_available ... ok
+test wizard_acceptance::wizard_app_supplies_authored_data_to_validation_and_completion ... ok
+test wizard_acceptance::wizard_builder_enforces_can_proceed_and_initial_step ... ok
+test wizard_acceptance::wizard_builder_hides_progress_and_disables_cancel_without_disabling_finish ... ok
+test wizard_acceptance::wizard_keyboard_advances_with_back_disabled ... ok
+test wizard_acceptance::wizard_navigates_back_and_finishes_once_after_resize ... ok
+test wizard_acceptance::wizard_reorder_retains_active_id_and_uses_updated_data_and_callback ... ok
+test wizard_acceptance::wizard_retains_edited_child_on_back ... ok
+test wizard_acceptance::wizard_validation_blocks_next_but_optional_skip_advances ... ok
+test wizard_acceptance::wizard_veto_keeps_final_step_open_and_cancel_delivers_once ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 382 filtered out; finished in 7.02s
+

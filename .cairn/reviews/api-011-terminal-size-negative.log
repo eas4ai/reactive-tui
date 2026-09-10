@@ -1,0 +1,19 @@
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 7.56s
+     Running unittests src/lib.rs (target/debug/deps/reactive_tui-fa00cdcf48e682eb)
+
+running 1 test
+
+thread 'terminal::screen::tests::retained_terminal_constructors_reject_zero_dimensions_at_boundary' (414305) panicked at src/terminal/screen/tests.rs:351:9:
+screen accepted 0x2
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test terminal::screen::tests::retained_terminal_constructors_reject_zero_dimensions_at_boundary ... FAILED
+
+failures:
+
+failures:
+    terminal::screen::tests::retained_terminal_constructors_reject_zero_dimensions_at_boundary
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 942 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `--lib`

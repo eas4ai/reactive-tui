@@ -71,9 +71,13 @@ pub fn button() -> ElementBuilder {
     div().class("px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 cursor-pointer")
 }
 
-/// Create an input-like element
+/// Create an editable single-line input. `text` supplies its initial value.
 pub fn input() -> ElementBuilder {
-    div().class("px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500")
+    let mut builder = div().class(
+        "px-0.5 py-0.25 border border-gray-300 rounded focus:outline-none focus:border-blue-500",
+    );
+    builder.input = Some(crate::widgets::TextInputProps::default());
+    builder
 }
 
 /// Builder for creating elements with a fluent API
@@ -82,6 +86,7 @@ pub struct ElementBuilder {
     current_class: String,
     gradient: Option<Gradient>,
     gradient_border: Option<GradientBorder>,
+    input: Option<crate::widgets::TextInputProps>,
 }
 
 impl ElementBuilder {
@@ -100,6 +105,7 @@ impl ElementBuilder {
             current_class: String::new(),
             gradient: None,
             gradient_border: None,
+            input: None,
         }
     }
 
@@ -147,6 +153,10 @@ impl ElementBuilder {
 
     /// Set text content (for text nodes)
     pub fn text(mut self, content: &str) -> Self {
+        if let Some(input) = &mut self.input {
+            input.value = content.to_owned();
+            return self;
+        }
         // Convert to text element if it's not already
         self.element.element_type = ElementType::Text(content.to_string());
         self.element.props = std::sync::Arc::new(content.to_string());
@@ -193,18 +203,18 @@ impl ElementBuilder {
     }
 
     /// Set placeholder for input elements
-    /// Stores placeholder text as a data attribute for input element styling
+    /// Inputs render this text while empty; the styling marker is also retained.
     pub fn placeholder(mut self, placeholder: &str) -> Self {
-        let current_class = self.element.class.unwrap_or_default();
-        self.element.class = Some(format!(
-            "{} data-placeholder-{}",
-            current_class,
+        if let Some(input) = &mut self.input {
+            input.placeholder = Some(placeholder.to_owned());
+        }
+        self.class(&format!(
+            "data-placeholder-{}",
             placeholder
                 .replace(" ", "-")
                 .replace("'", "")
                 .replace("\"", "")
-        ));
-        self
+        ))
     }
 
     /// Set an ID (maps to key internally)
@@ -275,6 +285,34 @@ impl ElementBuilder {
 
     /// Build the final Element
     pub fn build(mut self) -> Element {
+        if let Some(props) = self.input {
+            let input = Element::typed::<crate::widgets::TextInput>(props);
+            self.element.element_type = input.element_type;
+            self.element.props = input.props;
+            self.element.metadata.factory = input.metadata.factory;
+            // Editing consumes pointer input during bubbling. Observe the click
+            // on the same measured target before the editor handles it.
+            let callbacks = std::mem::take(&mut self.element.metadata.on_click);
+            if !callbacks.is_empty() {
+                self.element
+                    .metadata
+                    .capture_events
+                    .push(std::sync::Arc::new(move |event| {
+                        use crate::event::{
+                            router::EventResult,
+                            types::{Event, MouseButton, MouseEventKind},
+                        };
+                        if matches!(event, Event::Mouse(mouse) if mouse.button == MouseButton::Left
+                        && matches!(mouse.kind, MouseEventKind::Down | MouseEventKind::Click))
+                        {
+                            for callback in &callbacks {
+                                callback();
+                            }
+                        }
+                        EventResult::Ignored
+                    }));
+            }
+        }
         self.element.metadata.gradient = self.gradient;
         self.element.metadata.gradient_border = self.gradient_border;
 

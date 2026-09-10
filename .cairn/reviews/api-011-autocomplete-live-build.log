@@ -1,0 +1,11 @@
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+error[E0593]: closure is expected to take 0 arguments, but it takes 1 argument
+   --> src/widgets/dialog/autocomplete/live.rs:405:22
+    |
+405 |                     .on_click(move |_| owner.select(index))
+    |                      ^^^^^^^^ -------- takes 1 argument
+    |                      |
+    |                      expected closure that takes 0 arguments
+
+For more information about this error, try `rustc --explain E0593`.
+error: could not compile `reactive-tui` (lib test) due to 1 previous error

@@ -1,0 +1,21 @@
+
+running 1 test
+test menu_acceptance::dialog_menu_multi_selection_seed_excludes_unselectable_entries ... FAILED
+
+failures:
+
+failures:
+    menu_acceptance::dialog_menu_multi_selection_seed_excludes_unselectable_entries
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 257 filtered out; finished in 0.07s
+
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.63s
+     Running tests/api_widget_behavior.rs (target/debug/deps/api_widget_behavior-6de95be2275b0733)
+
+thread 'menu_acceptance::dialog_menu_multi_selection_seed_excludes_unselectable_entries' (1223090) panicked at tests/api_widget_behavior/menus.rs:2104:9:
+assertion `left == right` failed
+  left: [["valid", "disabled", "hidden", "group"]]
+ right: [["valid"]]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+error: test failed, to rerun pass `--test api_widget_behavior`

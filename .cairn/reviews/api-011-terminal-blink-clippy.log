@@ -1,0 +1,14 @@
+    Checking reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+error: manual implementation of `.is_multiple_of()`
+  --> src/widgets/terminal/blink.rs:68:9
+   |
+68 |         phase % 2 == 0
+   |         ^^^^^^^^^^^^^^ help: replace with: `phase.is_multiple_of(2)`
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#manual_is_multiple_of
+   = note: `-D clippy::manual-is-multiple-of` implied by `-D warnings`
+   = help: to override `-D warnings` add `#[allow(clippy::manual_is_multiple_of)]`
+
+error: could not compile `reactive-tui` (lib) due to 1 previous error
+warning: build failed, waiting for other jobs to finish...
+error: could not compile `reactive-tui` (lib test) due to 1 previous error

@@ -3,6 +3,7 @@
 command: python3 -B scripts/check-typescript-abi.py
 inputs:
   - Cargo.toml
+  - build.rs
   - Cargo.lock
   - reactive-tui-macros
   - src

@@ -1,4 +1,5 @@
 use taffy::geometry::{Line, Point, Rect, Size};
+mod inline;
 use taffy::prelude::{FromFr as _, TaffyGridLine, TaffyGridSpan};
 use taffy::style::{
     AlignContent as TAlignContent, AlignItems as TAlign, Dimension, Display, FlexDirection,
@@ -215,6 +216,10 @@ impl GridAutoFlow {
 /// Builder for creating and configuring styles
 #[derive(Clone, Debug, Default, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct StyleBuilder {
+    #[serde(default)]
+    pub(crate) accessibility: std::collections::BTreeMap<String, Option<String>>,
+    #[serde(default)]
+    pub(crate) unconstrained_width: Option<bool>,
     pub(crate) motion: super::motion::MotionStyle,
     pub(crate) gradient: Option<super::css::gradients::Gradient>,
     pub(crate) gradient_border: Option<super::css::gradients::GradientBorder>,
@@ -335,6 +340,12 @@ impl StyleBuilder {
     /// A new `StyleBuilder` instance with default styling
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// Reserve cell space for an outline painted by a widget, independently of padding.
+    pub(crate) fn cell_border(mut self, width: f32) -> Self {
+        self.style.border = taffy::geometry::Rect::length(width);
+        self
     }
 
     /// Set display mode to flex layout
@@ -1481,6 +1492,14 @@ impl StyleBuilder {
 
     /// Build the final Style object
     pub fn build(mut self) -> Style {
+        if self
+            .accessibility
+            .get("sr-only")
+            .is_some_and(|value| value.as_deref() == Some("true"))
+        {
+            self.style.size.width = Dimension::length(0.0);
+            self.style.size.height = Dimension::length(0.0);
+        }
         // Wire grid templates to equal-fr tracks when counts are set
         if let Some(cols) = self.grid_cols {
             self.style.display = Display::Grid;

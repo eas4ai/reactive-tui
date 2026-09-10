@@ -35,7 +35,13 @@ pub struct Snapshot {
 }
 struct Step {
     frame: usize,
+    text: Vec<String>,
+    absent: Vec<String>,
+    occurrences: usize,
     event: Option<Event>,
+    pointer_text: Option<(String, u16, Option<f32>)>,
+    cell: Option<(u16, u16, String)>,
+    output: Option<(String, usize)>,
 }
 
 struct InputBackend {
@@ -48,6 +54,9 @@ struct InputBackend {
 impl Backend for InputBackend {
     fn painted_nodes(&self) -> Option<&[reactive_tui::backend::PaintedNode]> {
         self.inner.painted_nodes()
+    }
+    fn component_layouts(&self) -> Option<&[reactive_tui::backend::PresentedLayout]> {
+        self.inner.component_layouts()
     }
     fn render_frame(&mut self, element: &Element) -> Result<bool> {
         self.inner.render_frame(element)
@@ -88,19 +97,85 @@ impl Backend for InputBackend {
         _: Option<Duration>,
         wake: &AppWaker,
     ) -> Result<Option<Event>> {
-        assert!(
-            Instant::now() < self.deadline,
-            "App did not paint the expected frame before the input deadline"
-        );
-        if self
-            .events
-            .front()
-            .is_some_and(|step| step.frame > self.snapshots.lock().unwrap().len())
-        {
+        if Instant::now() >= self.deadline {
+            let snapshots = self.snapshots.lock().unwrap();
+            panic!(
+                "App painted {} frames but input needs {:?} before the deadline. Last frame:\n{}",
+                snapshots.len(),
+                self.events.front().map(|step| (step.frame, &step.text)),
+                snapshots.last().map_or("", |frame| frame.text.as_str())
+            );
+        }
+        if self.events.front().is_some_and(|step| {
+            let frames = self.snapshots.lock().unwrap();
+            step.output.as_ref().is_some_and(|(needle, count)| {
+                frames.last().is_none_or(|frame| {
+                    String::from_utf8_lossy(&frame.output)
+                        .matches(needle.as_str())
+                        .count()
+                        < *count
+                })
+            }) || step.cell.as_ref().is_some_and(|(x, y, content)| {
+                frames
+                    .last()
+                    .and_then(|frame| frame.screen.cell(*y, *x))
+                    .is_none_or(|cell| cell.contents() != *content)
+            }) || step.frame > frames.len()
+                || frames
+                    .iter()
+                    .filter(|frame| step.text.iter().all(|text| frame.text.contains(text)))
+                    .count()
+                    < step.occurrences
+                || step
+                    .text
+                    .iter()
+                    .any(|text| frames.last().is_none_or(|frame| !frame.text.contains(text)))
+                || step
+                    .absent
+                    .iter()
+                    .any(|text| frames.last().is_none_or(|frame| frame.text.contains(text)))
+        }) {
             wake.wait(Some(Duration::from_millis(1)));
             return Ok(None);
         }
-        let event = self.events.pop_front().and_then(|step| step.event);
+        let event = self.events.pop_front().and_then(|step| {
+            if let Some((text, offset, wheel)) = step.pointer_text {
+                let snapshots = self.snapshots.lock().unwrap();
+                let screen = &snapshots.last().unwrap().screen;
+                let (height, width) = screen.size();
+                let length = text.chars().count() as u16;
+                assert!(text.is_ascii() && offset < length && length <= width);
+                for y in 0..height {
+                    for x in 0..=width - length {
+                        if text.chars().enumerate().all(|(i, expected)| {
+                            screen.cell(y, x + i as u16).unwrap().contents() == expected.to_string()
+                        }) {
+                            return if let Some(delta) = wheel {
+                                let mut event = MouseEvent::new(
+                                    MouseEventKind::Wheel,
+                                    Position::cell(x + offset, y),
+                                );
+                                event.wheel = Some(reactive_tui::event::types::WheelEvent {
+                                    delta: reactive_tui::event::types::WheelDelta::Lines {
+                                        x: 0.0,
+                                        y: delta,
+                                    },
+                                    phase: reactive_tui::event::types::WheelPhase::Changed,
+                                });
+                                Some(Event::Mouse(event))
+                            } else {
+                                click(x + offset, y)
+                            };
+                        }
+                    }
+                }
+                panic!(
+                    "Click target {text:?} is not painted: {}",
+                    screen.contents()
+                );
+            }
+            step.event
+        });
         if event.is_none() {
             wake.request_stop();
         }
@@ -113,17 +188,310 @@ pub fn run(
     size: (u16, u16),
     steps: Vec<(usize, Option<Event>)>,
 ) -> Vec<Snapshot> {
+    run_steps(
+        root,
+        size,
+        steps
+            .into_iter()
+            .map(|(frame, event)| Step {
+                frame,
+                text: Vec::new(),
+                absent: Vec::new(),
+                occurrences: 1,
+                event,
+                pointer_text: None,
+                cell: None,
+                output: None,
+            })
+            .collect(),
+    )
+}
+
+/// Gate input on presented content when a worker may finish between any two frames.
+#[allow(dead_code)]
+pub fn run_when(
+    root: impl RootComponent + 'static,
+    size: (u16, u16),
+    steps: Vec<(&str, Option<Event>)>,
+) -> Vec<Snapshot> {
+    run_when_for(root, size, steps, Duration::from_secs(3))
+}
+
+#[allow(dead_code)]
+pub fn run_when_for(
+    root: impl RootComponent + 'static,
+    size: (u16, u16),
+    steps: Vec<(&str, Option<Event>)>,
+    timeout: Duration,
+) -> Vec<Snapshot> {
+    run_steps_with_images(
+        root,
+        size,
+        steps
+            .into_iter()
+            .map(|(text, event)| Step {
+                frame: 1,
+                text: vec![text.into()],
+                absent: Vec::new(),
+                occurrences: 1,
+                event,
+                pointer_text: None,
+                cell: None,
+                output: None,
+            })
+            .collect(),
+        None,
+        timeout,
+    )
+}
+
+#[allow(dead_code)]
+pub fn run_when_all(
+    root: impl RootComponent + 'static,
+    size: (u16, u16),
+    steps: Vec<(&[&str], Option<Event>)>,
+) -> Vec<Snapshot> {
+    run_steps(
+        root,
+        size,
+        steps
+            .into_iter()
+            .map(|(text, event)| Step {
+                frame: 1,
+                text: text.iter().map(|text| (*text).into()).collect(),
+                absent: Vec::new(),
+                occurrences: 1,
+                event,
+                pointer_text: None,
+                cell: None,
+                output: None,
+            })
+            .collect(),
+    )
+}
+
+/// Stop only after the dismissed content has disappeared from a presented frame.
+#[allow(dead_code)]
+pub fn run_until_hidden(
+    root: impl RootComponent + 'static,
+    size: (u16, u16),
+    steps: Vec<(&str, Option<Event>)>,
+    hidden: &str,
+) -> Vec<Snapshot> {
+    let mut steps: VecDeque<_> = steps
+        .into_iter()
+        .map(|(text, event)| Step {
+            frame: 1,
+            text: vec![text.into()],
+            absent: Vec::new(),
+            occurrences: 1,
+            event,
+            pointer_text: None,
+            cell: None,
+            output: None,
+        })
+        .collect();
+    steps.push_back(Step {
+        frame: 1,
+        text: Vec::new(),
+        absent: vec![hidden.into()],
+        occurrences: 1,
+        event: None,
+        pointer_text: None,
+        cell: None,
+        output: None,
+    });
+    run_steps(root, size, steps)
+}
+
+#[allow(dead_code)]
+pub enum Action {
+    Event(Event),
+    /// Click the given ASCII text in the current presented frame, at a cell offset.
+    ClickText(&'static str, u16),
+    /// Scroll over text in the current presented frame.
+    WheelText(&'static str, f32),
+}
+
+#[allow(dead_code)]
+pub fn run_actions_until_hidden(
+    root: impl RootComponent + 'static,
+    size: (u16, u16),
+    actions: Vec<(&str, Action)>,
+    hidden: &str,
+) -> Vec<Snapshot> {
+    let mut steps: VecDeque<_> = actions
+        .into_iter()
+        .map(|(text, action)| {
+            let (event, pointer_text) = match action {
+                Action::Event(event) => (Some(event), None),
+                Action::ClickText(text, offset) => (None, Some((text.into(), offset, None))),
+                Action::WheelText(text, delta) => (None, Some((text.into(), 0, Some(delta)))),
+            };
+            Step {
+                frame: 1,
+                text: vec![text.into()],
+                absent: Vec::new(),
+                occurrences: 1,
+                event,
+                pointer_text,
+                cell: None,
+                output: None,
+            }
+        })
+        .collect();
+    steps.push_back(Step {
+        frame: 1,
+        text: Vec::new(),
+        absent: vec![hidden.into()],
+        occurrences: 1,
+        event: None,
+        pointer_text: None,
+        cell: None,
+        output: None,
+    });
+    run_steps(root, size, steps)
+}
+
+/// Gate each event on both visible and dismissed content.
+#[allow(dead_code)]
+pub fn run_visibility(
+    root: impl RootComponent + 'static,
+    size: (u16, u16),
+    steps: Vec<(&str, Option<&str>, Option<Event>)>,
+) -> Vec<Snapshot> {
+    run_steps(
+        root,
+        size,
+        steps
+            .into_iter()
+            .map(|(text, absent, event)| Step {
+                frame: 1,
+                text: vec![text.into()],
+                absent: absent.into_iter().map(str::to_owned).collect(),
+                occurrences: 1,
+                event,
+                pointer_text: None,
+                cell: None,
+                output: None,
+            })
+            .collect(),
+    )
+}
+
+/// Wait for several actual content-bearing frames, independently of setup renders.
+#[allow(dead_code)]
+pub fn run_when_seen(
+    root: impl RootComponent + 'static,
+    size: (u16, u16),
+    text: &[&str],
+    occurrences: usize,
+) -> Vec<Snapshot> {
+    run_steps(
+        root,
+        size,
+        VecDeque::from([Step {
+            frame: 1,
+            text: text.iter().map(|text| (*text).into()).collect(),
+            absent: Vec::new(),
+            occurrences,
+            event: None,
+            pointer_text: None,
+            cell: None,
+            output: None,
+        }]),
+    )
+}
+
+/// Gate input on an independently expected cell after geometry changes.
+#[allow(dead_code)]
+pub struct CellStep {
+    pub x: u16,
+    pub y: u16,
+    pub content: &'static str,
+    pub event: Option<Event>,
+}
+#[allow(dead_code)]
+pub fn run_when_cell(
+    root: impl RootComponent + 'static,
+    size: (u16, u16),
+    steps: Vec<CellStep>,
+) -> Vec<Snapshot> {
+    run_steps(
+        root,
+        size,
+        steps
+            .into_iter()
+            .map(|step| Step {
+                frame: 1,
+                text: Vec::new(),
+                absent: Vec::new(),
+                occurrences: 1,
+                event: step.event,
+                pointer_text: None,
+                cell: Some((step.x, step.y, step.content.into())),
+                output: None,
+            })
+            .collect(),
+    )
+}
+
+fn run_steps(
+    root: impl RootComponent + 'static,
+    size: (u16, u16),
+    steps: VecDeque<Step>,
+) -> Vec<Snapshot> {
+    run_steps_with_images(root, size, steps, None, Duration::from_secs(3))
+}
+
+#[allow(dead_code)]
+pub fn run_when_output(
+    root: impl RootComponent + 'static,
+    size: (u16, u16),
+    images: reactive_tui::backend::ImageOutputOptions,
+    steps: Vec<(String, usize, Option<Event>)>,
+) -> Vec<Snapshot> {
+    run_steps_with_images(
+        root,
+        size,
+        steps
+            .into_iter()
+            .map(|(needle, count, event)| Step {
+                frame: 1,
+                text: Vec::new(),
+                absent: Vec::new(),
+                occurrences: 1,
+                event,
+                pointer_text: None,
+                cell: None,
+                output: Some((needle, count)),
+            })
+            .collect(),
+        Some(images),
+        Duration::from_secs(3),
+    )
+}
+fn run_steps_with_images(
+    root: impl RootComponent + 'static,
+    size: (u16, u16),
+    steps: VecDeque<Step>,
+    images: Option<reactive_tui::backend::ImageOutputOptions>,
+    timeout: Duration,
+) -> Vec<Snapshot> {
     let capture = Capture::default();
     let snapshots = Arc::new(Mutex::new(Vec::new()));
     let backend = InputBackend {
-        inner: SuprTuiBackend::with_writer(size.0, size.1, capture.clone()).unwrap(),
-        events: steps
-            .into_iter()
-            .map(|(frame, event)| Step { frame, event })
-            .collect(),
+        inner: match images {
+            Some(images) => {
+                SuprTuiBackend::with_writer_and_images(size.0, size.1, capture.clone(), images)
+            }
+            None => SuprTuiBackend::with_writer(size.0, size.1, capture.clone()),
+        }
+        .unwrap(),
+        events: steps,
         capture,
         snapshots: snapshots.clone(),
-        deadline: Instant::now() + Duration::from_secs(3),
+        deadline: Instant::now() + timeout,
     };
     App::builder()
         .backend(backend)

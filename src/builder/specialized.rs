@@ -28,6 +28,7 @@ pub fn image() -> ImageBuilder {
 /// Provides a fluent API for creating tree view widgets with hierarchical data display.
 pub struct TreeBuilder {
     props: TreeProps,
+    class: String,
 }
 
 impl Default for TreeBuilder {
@@ -41,6 +42,7 @@ impl TreeBuilder {
     pub fn new() -> Self {
         Self {
             props: TreeProps::default(),
+            class: String::new(),
         }
     }
 
@@ -81,45 +83,15 @@ impl TreeBuilder {
     }
 
     /// Set CSS classes for styling
-    pub fn class(self, _class: &str) -> Self {
-        // Tree component styling is handled through props
+    pub fn class(mut self, class: &str) -> Self {
+        self.class.push(' ');
+        self.class.push_str(class);
         self
     }
 
-    /// Build the Tree element
+    /// Build the Tree element.
     pub fn build(self) -> Element {
-        let selectable_text = if self.props.selectable {
-            "selectable"
-        } else {
-            "non-selectable"
-        };
-        let multi_text = if self.props.multi_select {
-            ", multi-select"
-        } else {
-            ""
-        };
-        let icons_text = if self.props.show_icons {
-            ", with icons"
-        } else {
-            ""
-        };
-        let lines_text = if self.props.show_lines {
-            ", with lines"
-        } else {
-            ""
-        };
-        let checkable_text = if self.props.checkable {
-            ", checkable"
-        } else {
-            ""
-        };
-
-        let display_text = format!(
-            "Tree ({}{}{}{}{})",
-            selectable_text, multi_text, icons_text, lines_text, checkable_text
-        );
-
-        Element::text(display_text)
+        crate::widgets::display::Tree::with_props(self.props).with_class(self.class)
     }
 }
 
@@ -137,6 +109,7 @@ pub struct ImageBuilder {
     display_mode: ImageDisplayMode,
     quality: ImageQuality,
     format: Option<ImageFormat>,
+    class: String,
 }
 
 impl Default for ImageBuilder {
@@ -153,6 +126,7 @@ impl ImageBuilder {
             display_mode: ImageDisplayMode::Auto,
             quality: ImageQuality::Balanced,
             format: None,
+            class: String::new(),
         }
     }
 
@@ -210,29 +184,25 @@ impl ImageBuilder {
     }
 
     /// Set CSS classes for styling
-    pub fn class(self, _class: &str) -> Self {
-        // Image component styling is handled through props
+    pub fn class(mut self, class: &str) -> Self {
+        self.class.push(' ');
+        self.class.push_str(class);
         self
     }
 
-    /// Build the Image element
+    /// Build a retained image control with its source, format hint and classes.
     pub fn build(self) -> Element {
-        if let Some(_source) = self.source {
-            let format_text = if let Some(format) = self.format {
-                format!(" (format: {:?})", format)
-            } else {
-                String::new()
-            };
-
-            let display_text = format!(
-                "Image (mode: {:?}, quality: {:?}{})",
-                self.display_mode, self.quality, format_text
-            );
-
-            Element::text(display_text)
-        } else {
-            Element::text("Image (no source)")
-        }
+        let image = crate::widgets::Image {
+            source: self
+                .source
+                .unwrap_or_else(|| ImageSource::FilePath(PathBuf::new())),
+            display_mode: self.display_mode,
+            quality: self.quality,
+            ..Default::default()
+        };
+        image
+            .into_element_with_hint(self.format)
+            .with_class(self.class)
     }
 }
 
@@ -251,6 +221,7 @@ pub struct RadioButtonBuilder {
     checked: bool,
     disabled: bool,
     group: Option<String>,
+    class: Option<String>,
 }
 
 impl Default for RadioButtonBuilder {
@@ -268,6 +239,7 @@ impl RadioButtonBuilder {
             checked: false,
             disabled: false,
             group: None,
+            class: None,
         }
     }
 
@@ -302,26 +274,25 @@ impl RadioButtonBuilder {
     }
 
     /// Set CSS classes for styling
-    pub fn class(self, _class: &str) -> Self {
-        // RadioButton component styling is handled through props
+    pub fn class(mut self, class: &str) -> Self {
+        self.class = Some(class.to_owned());
         self
     }
 
     /// Build the RadioButton element
     pub fn build(self) -> Element {
-        let state = if self.checked { "checked" } else { "unchecked" };
-        let disabled_text = if self.disabled { " (disabled)" } else { "" };
-
-        let display_text = if let Some(label) = &self.label {
-            format!(
-                "RadioButton ({}{}): {} = {}",
-                state, disabled_text, label, self.value
-            )
-        } else {
-            format!("RadioButton ({}{}): {}", state, disabled_text, self.value)
-        };
-
-        Element::text(display_text)
+        use crate::widgets::input::named_radio::{NamedRadio, NamedRadioProps};
+        let mut element = Element::typed::<NamedRadio>(NamedRadioProps {
+            value: self.value,
+            label: self.label,
+            checked: self.checked,
+            disabled: self.disabled,
+            group: self.group,
+        });
+        if let Some(class) = self.class {
+            element = element.with_class(class);
+        }
+        element
     }
 }
 
@@ -334,6 +305,7 @@ impl From<RadioButtonBuilder> for Element {
 /// Builder for Slider input components
 ///
 /// Provides a fluent API for creating slider widgets for numeric value selection.
+#[derive(Clone, PartialEq)]
 pub struct SliderBuilder {
     value: f64,
     min: f64,
@@ -341,6 +313,7 @@ pub struct SliderBuilder {
     step: f64,
     label: Option<String>,
     disabled: bool,
+    class: Option<String>,
 }
 
 impl Default for SliderBuilder {
@@ -359,6 +332,7 @@ impl SliderBuilder {
             step: 1.0,
             label: None,
             disabled: false,
+            class: None,
         }
     }
 
@@ -399,28 +373,74 @@ impl SliderBuilder {
     }
 
     /// Set CSS classes for styling
-    pub fn class(self, _class: &str) -> Self {
-        // Slider component styling is handled through props
+    pub fn class(mut self, class: &str) -> Self {
+        self.class = Some(class.to_owned());
         self
     }
 
     /// Build the Slider element
     pub fn build(self) -> Element {
-        let disabled_text = if self.disabled { " (disabled)" } else { "" };
+        let class = self.class.clone();
+        let mut element = Element::typed::<ConfiguredSlider>(self);
+        if let Some(class) = class {
+            element = element.with_class(class);
+        }
+        element
+    }
 
-        let display_text = if let Some(label) = &self.label {
-            format!(
-                "Slider{}: {} = {} (range: {} to {}, step: {})",
-                disabled_text, label, self.value, self.min, self.max, self.step
-            )
-        } else {
-            format!(
-                "Slider{}: {} (range: {} to {}, step: {})",
-                disabled_text, self.value, self.min, self.max, self.step
-            )
-        };
+    fn widget_props(&self) -> crate::widgets::input::SliderProps {
+        crate::widgets::input::SliderProps {
+            min: self.min,
+            max: self.max,
+            value: self.value,
+            step: self.step,
+            disabled: self.disabled,
+            ..Default::default()
+        }
+    }
+}
 
-        Element::text(display_text)
+impl crate::component::Props for SliderBuilder {
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+}
+
+struct ConfiguredSlider(crate::widgets::Slider);
+
+impl crate::component::Component for ConfiguredSlider {
+    type Props = SliderBuilder;
+    type State = crate::widgets::input::SliderState;
+    fn new(props: Self::Props) -> Self {
+        let mut inner = crate::widgets::Slider::new(props.widget_props());
+        inner.set_label(props.label);
+        Self(inner)
+    }
+    fn update(&mut self, props: &Self::Props, state: &mut Self::State) -> bool {
+        self.0.set_label(props.label.clone());
+        self.0.update(&props.widget_props(), state)
+    }
+    fn render(&self, props: &Self::Props, state: &Self::State) -> Element {
+        self.0.render(&props.widget_props(), state)
+    }
+    fn layout(
+        &mut self,
+        bounds: crate::component::LayoutInfo,
+        props: &mut Self::Props,
+        state: &mut Self::State,
+    ) -> bool {
+        self.0.layout(bounds, &mut props.widget_props(), state)
+    }
+    fn handle_event(
+        &mut self,
+        event: &crate::event::Event,
+        props: &mut Self::Props,
+        state: &mut Self::State,
+    ) -> crate::event::router::EventResult {
+        let mut inner = props.widget_props();
+        let result = self.0.handle_event(event, &mut inner, state);
+        props.value = inner.value;
+        result
     }
 }
 
@@ -435,6 +455,7 @@ impl From<SliderBuilder> for Element {
 /// Provides a fluent API for creating scrollable container widgets.
 pub struct ScrollViewBuilder {
     content: Vec<Element>,
+    class: String,
     horizontal_scroll: bool,
     vertical_scroll: bool,
     show_scrollbars: bool,
@@ -451,6 +472,7 @@ impl ScrollViewBuilder {
     pub fn new() -> Self {
         Self {
             content: Vec::new(),
+            class: String::new(),
             horizontal_scroll: false,
             vertical_scroll: true,
             show_scrollbars: true,
@@ -488,34 +510,24 @@ impl ScrollViewBuilder {
     }
 
     /// Set CSS classes for styling
-    pub fn class(self, _class: &str) -> Self {
-        // ScrollView component styling is handled through props
+    pub fn class(mut self, class: &str) -> Self {
+        self.class.push(' ');
+        self.class.push_str(class);
         self
     }
 
     /// Build the ScrollView element
     pub fn build(self) -> Element {
-        let scroll_info = match (self.horizontal_scroll, self.vertical_scroll) {
-            (true, true) => "both",
-            (true, false) => "horizontal",
-            (false, true) => "vertical",
-            (false, false) => "none",
-        };
-
-        let scrollbar_info = if self.show_scrollbars {
-            "with scrollbars"
-        } else {
-            "no scrollbars"
-        };
-
-        let display_text = format!(
-            "ScrollView ({} scroll, {}) with {} items",
-            scroll_info,
-            scrollbar_info,
-            self.content.len()
-        );
-
-        Element::text(display_text)
+        crate::widgets::layout::ScrollViewBuilder::new(
+            crate::widgets::layout::StackBuilder::vertical()
+                .children(self.content)
+                .render(),
+        )
+        .scroll_x(self.horizontal_scroll)
+        .scroll_y(self.vertical_scroll)
+        .show_scrollbars(self.show_scrollbars)
+        .render()
+        .with_class(self.class)
     }
 }
 
@@ -531,6 +543,7 @@ impl From<ScrollViewBuilder> for Element {
 /// in a single direction (horizontal or vertical).
 pub struct StackBuilder {
     children: Vec<Element>,
+    class: String,
     direction: StackDirection,
     alignment: StackAlignment,
     justify: StackJustify,
@@ -549,6 +562,7 @@ impl StackBuilder {
     pub fn new() -> Self {
         Self {
             children: Vec::new(),
+            class: String::new(),
             direction: StackDirection::Vertical,
             alignment: StackAlignment::Start,
             justify: StackJustify::Start,
@@ -600,26 +614,28 @@ impl StackBuilder {
     }
 
     /// Set CSS classes for styling
-    pub fn class(self, _class: &str) -> Self {
-        // Stack component styling is handled through props
+    pub fn class(mut self, class: &str) -> Self {
+        self.class.push(' ');
+        self.class.push_str(class);
         self
     }
 
     /// Build the Stack element
     pub fn build(self) -> Element {
-        let direction_text = match self.direction {
-            StackDirection::Horizontal => "horizontal",
-            StackDirection::Vertical => "vertical",
+        let props = crate::widgets::layout::StackProps {
+            children: self.children,
+            direction: self.direction,
+            alignment: self.alignment,
+            justify: self.justify,
+            padding: self.padding,
+            ..Default::default()
         };
-
-        let display_text = format!(
-            "Stack ({} direction, {} children, spacing: {})",
-            direction_text,
-            self.children.len(),
-            self.spacing
-        );
-
-        Element::text(display_text)
+        let mut element = crate::widgets::layout::stack::stack_element(&props, self.spacing);
+        element
+            .class
+            .get_or_insert_with(String::new)
+            .push_str(&self.class);
+        element
     }
 }
 
@@ -639,6 +655,7 @@ pub struct DialogBuilder {
     closable: bool,
     width: Option<u16>,
     height: Option<u16>,
+    class: Option<String>,
 }
 
 impl Default for DialogBuilder {
@@ -657,6 +674,7 @@ impl DialogBuilder {
             closable: true,
             width: None,
             height: None,
+            class: None,
         }
     }
 
@@ -703,43 +721,32 @@ impl DialogBuilder {
     }
 
     /// Set CSS classes for styling
-    pub fn class(self, _class: &str) -> Self {
-        // Dialog component styling is handled through props
+    pub fn class(mut self, class: &str) -> Self {
+        self.class = Some(class.to_string());
         self
     }
 
     /// Build the Dialog element
     pub fn build(self) -> Element {
-        let modal_text = if self.modal { "modal" } else { "non-modal" };
-        let closable_text = if self.closable {
-            "closable"
-        } else {
-            "non-closable"
-        };
-
-        let title_text = if let Some(title) = &self.title {
-            format!(" \"{}\"", title)
-        } else {
-            String::new()
-        };
-
-        let size_text = match (self.width, self.height) {
-            (Some(w), Some(h)) => format!(" ({}x{})", w, h),
-            (Some(w), None) => format!(" (width: {})", w),
-            (None, Some(h)) => format!(" (height: {})", h),
-            (None, None) => String::new(),
-        };
-
-        let display_text = format!(
-            "Dialog{} ({}, {}, {} items{})",
-            title_text,
-            modal_text,
-            closable_text,
-            self.content.len(),
-            size_text
-        );
-
-        Element::text(display_text)
+        use crate::widgets::display::modal::{Modal, ModalProps, ModalSize};
+        Modal::with_props(ModalProps {
+            title: self.title,
+            content: Some(
+                Element::layout(crate::component::LayoutType::Flex)
+                    .class("flex-col")
+                    .children(self.content),
+            ),
+            visible: true,
+            closable: self.closable,
+            backdrop_clickable: self.closable,
+            keyboard_navigation: self.closable,
+            focus_trap: self.modal,
+            backdrop_style: self.modal.then(|| "bg-black/50".to_string()),
+            width: self.width.map_or(ModalSize::Auto, ModalSize::Fixed),
+            height: self.height.map_or(ModalSize::Auto, ModalSize::Fixed),
+            modal_style: self.class.or_else(|| ModalProps::default().modal_style),
+            ..Default::default()
+        })
     }
 }
 
@@ -758,6 +765,7 @@ pub struct ConfirmationDialogBuilder {
     confirm_text: String,
     cancel_text: String,
     danger: bool,
+    class: Option<String>,
 }
 
 impl Default for ConfirmationDialogBuilder {
@@ -775,6 +783,7 @@ impl ConfirmationDialogBuilder {
             confirm_text: "OK".to_string(),
             cancel_text: "Cancel".to_string(),
             danger: false,
+            class: None,
         }
     }
 
@@ -809,27 +818,42 @@ impl ConfirmationDialogBuilder {
     }
 
     /// Set CSS classes for styling
-    pub fn class(self, _class: &str) -> Self {
-        // ConfirmationDialog component styling is handled through props
+    pub fn class(mut self, class: &str) -> Self {
+        self.class = Some(class.to_string());
         self
     }
 
     /// Build the ConfirmationDialog element
     pub fn build(self) -> Element {
-        let danger_text = if self.danger { " (danger)" } else { "" };
-
-        let title_text = if let Some(title) = &self.title {
-            format!(" \"{}\"", title)
-        } else {
-            String::new()
+        use crate::widgets::dialog::{
+            ButtonVariant, ConfirmationButton, ConfirmationButtons, ConfirmationDialog,
+            ConfirmationDialogOptions, DialogComponent, DialogId, DialogTheme,
         };
-
-        let display_text = format!(
-            "ConfirmationDialog{}{}: {} [{}] [{}]",
-            title_text, danger_text, self.message, self.confirm_text, self.cancel_text
-        );
-
-        Element::text(display_text)
+        let mut confirm = ConfirmationButton::ok();
+        confirm.text = self.confirm_text;
+        if self.danger {
+            confirm.variant = ButtonVariant::Danger;
+        }
+        let mut cancel = ConfirmationButton::cancel();
+        cancel.text = self.cancel_text;
+        let mut css_classes = std::collections::HashMap::new();
+        if let Some(class) = self.class {
+            css_classes.insert("dialog".to_string(), class);
+        }
+        ConfirmationDialog::new(
+            DialogId::from_u32(0),
+            ConfirmationDialogOptions {
+                title: self.title.unwrap_or_else(|| "Confirm".to_string()),
+                message: self.message,
+                buttons: ConfirmationButtons::Custom(vec![confirm, cancel]),
+                css_classes,
+                ..Default::default()
+            },
+        )
+        .render(
+            crate::core::geometry::Rect::default(),
+            &DialogTheme::default(),
+        )
     }
 }
 

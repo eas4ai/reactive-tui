@@ -4,6 +4,7 @@ command: python3 -B scripts/check-api-focus.py
 inputs:
   - .cairn/mechanisms/api-focus.md
   - Cargo.toml
+  - build.rs
   - Cargo.lock
   - src
   - reactive-tui-macros

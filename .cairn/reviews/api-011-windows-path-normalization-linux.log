@@ -1,0 +1,18 @@
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 8.65s
+     Running unittests src/lib.rs (target/debug/deps/reactive_tui-ff7f40ac5b910bef)
+
+running 10 tests
+test widgets::display::file_explorer::live::worker::tests::worker_keeps_non_unicode_filename_identities ... ok
+test widgets::display::file_explorer::live::worker::tests::worker_preserves_the_filesystems_unicode_filename_identity ... ok
+test widgets::display::file_explorer::live::worker::tests::worker_preview_bounds_bytes_and_handles_a_split_utf8_tail ... ok
+test widgets::display::file_explorer::live::worker::tests::worker_rejects_parent_traversal_and_absolute_paths_outside_root ... ok
+test widgets::display::file_explorer::live::worker::tests::worker_directory_copy_preserves_private_mode_bits ... ok
+test widgets::display::file_explorer::live::worker::tests::worker_late_destination_collision_cleans_readonly_staging_without_changing_source ... ok
+test widgets::display::file_explorer::live::worker::tests::worker_never_follows_an_external_symlink ... ok
+test widgets::display::file_explorer::live::worker::tests::worker_never_overwrites_and_failed_copy_preserves_source_and_cleans_staging ... ok
+test widgets::display::file_explorer::live::worker::tests::worker_copies_directory_contents_rejects_cycles_and_preserves_failed_move ... ok
+test widgets::display::file_explorer::live::worker::tests::worker_replaces_pending_reads_and_drop_joins_its_owner ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 944 filtered out; finished in 0.01s
+

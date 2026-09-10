@@ -20,8 +20,13 @@ mod tests {
             .checkable(false)
             .build();
 
-        // Should create a text element describing the tree configuration
-        assert!(matches!(tree.element_type, ElementType::Text(_)));
+        assert!(tree.is_component());
+        let props = tree
+            .props
+            .downcast_ref::<crate::widgets::display::TreeProps>()
+            .unwrap();
+        assert!(props.selectable && props.show_icons && props.show_lines);
+        assert!(!props.multi_select && !props.checkable);
     }
 
     #[test]
@@ -31,10 +36,12 @@ mod tests {
             .display_mode(ImageDisplayMode::Auto)
             .quality(ImageQuality::High)
             .format(ImageFormat::PNG)
+            .class("w-16 h-8")
             .build();
 
-        // Should create a text element describing the image configuration
-        assert!(matches!(image.element_type, ElementType::Text(_)));
+        assert!(image.is_component());
+        assert!(image.metadata.factory.is_some());
+        assert_eq!(image.class.as_deref().unwrap().trim(), "w-16 h-8");
     }
 
     #[test]
@@ -47,8 +54,15 @@ mod tests {
             .group("options")
             .build();
 
-        // Should create a text element describing the radio button
-        assert!(matches!(radio.element_type, ElementType::Text(_)));
+        assert!(radio.metadata.factory.is_some());
+        let props = radio
+            .props
+            .downcast_ref::<crate::widgets::input::named_radio::NamedRadioProps>()
+            .unwrap();
+        assert_eq!(props.value, "option1");
+        assert_eq!(props.label.as_deref(), Some("Option 1"));
+        assert_eq!(props.group.as_deref(), Some("options"));
+        assert!(props.checked && !props.disabled);
     }
 
     #[test]
@@ -62,8 +76,8 @@ mod tests {
             .disabled(false)
             .build();
 
-        // Should create a text element describing the slider
-        assert!(matches!(slider.element_type, ElementType::Text(_)));
+        assert!(slider.metadata.factory.is_some());
+        assert!(slider.props.downcast_ref::<SliderBuilder>().is_some());
     }
 
     #[test]
@@ -76,8 +90,21 @@ mod tests {
             .show_scrollbars(true)
             .build();
 
-        // Should create a text element describing the scroll view
-        assert!(matches!(scroll_view.element_type, ElementType::Text(_)));
+        assert!(scroll_view.metadata.factory.is_some());
+        let props = scroll_view
+            .props
+            .downcast_ref::<crate::widgets::layout::ScrollViewProps>()
+            .unwrap();
+        assert!(!props.scroll_x && props.scroll_y && props.show_scrollbars);
+        let content = props
+            .content
+            .props
+            .downcast_ref::<crate::widgets::layout::StackProps>()
+            .unwrap();
+        assert_eq!(
+            content.children,
+            vec![Element::text("Content 1"), Element::text("Content 2")]
+        );
     }
 
     #[test]
@@ -90,8 +117,11 @@ mod tests {
             .spacing(10.0)
             .build();
 
-        // Should create a text element describing the stack
-        assert!(matches!(stack.element_type, ElementType::Text(_)));
+        assert!(matches!(stack.element_type, ElementType::Layout(_)));
+        assert_eq!(
+            stack.children,
+            vec![Element::text("Child 1"), Element::text("Child 2")]
+        );
     }
 
     #[test]
@@ -105,8 +135,16 @@ mod tests {
             .height(300)
             .build();
 
-        // Should create a text element describing the dialog
-        assert!(matches!(dialog.element_type, ElementType::Text(_)));
+        assert!(dialog.is_component());
+        let props = dialog
+            .props
+            .downcast_ref::<crate::widgets::display::modal::ModalProps>()
+            .unwrap();
+        assert_eq!(props.title.as_deref(), Some("Test Dialog"));
+        assert_eq!(
+            props.content.as_ref().unwrap().children,
+            vec![Element::text("Dialog content")]
+        );
     }
 
     #[test]
@@ -119,8 +157,7 @@ mod tests {
             .danger(true)
             .build();
 
-        // Should create a text element describing the confirmation dialog
-        assert!(matches!(confirmation.element_type, ElementType::Text(_)));
+        assert!(confirmation.is_component());
     }
 
     #[test]
@@ -134,8 +171,7 @@ mod tests {
             .show_percentage(true)
             .build();
 
-        // Should create a text element describing the progress dialog
-        assert!(matches!(progress.element_type, ElementType::Text(_)));
+        assert!(progress.is_component());
     }
 
     #[test]
@@ -157,8 +193,7 @@ mod tests {
             .cancelable(true)
             .build();
 
-        // Should create a text element describing the wizard
-        assert!(matches!(wizard.element_type, ElementType::Text(_)));
+        assert!(wizard.is_component());
     }
 
     #[test]
@@ -168,8 +203,9 @@ mod tests {
         let image: Element = image().source_file("/test.png").into();
         let radio: Element = RadioButtonBuilder::new().value("test").into();
 
-        assert!(matches!(tree.element_type, ElementType::Text(_)));
-        assert!(matches!(image.element_type, ElementType::Text(_)));
-        assert!(matches!(radio.element_type, ElementType::Text(_)));
+        assert!(tree.is_component());
+        assert!(image.is_component());
+        assert!(image.metadata.factory.is_some());
+        assert!(radio.metadata.factory.is_some());
     }
 }

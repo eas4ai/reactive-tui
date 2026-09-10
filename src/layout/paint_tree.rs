@@ -57,6 +57,7 @@ pub struct NodeSpec<'a> {
 }
 
 struct NodePaint {
+    unconstrained_width: bool,
     opacity: f32,
     transform: crate::layout::motion::CellTransform,
     gradient: Option<crate::layout::css::gradients::Gradient>,
@@ -144,6 +145,8 @@ fn build_nodes<'a>(
         spec,
         map,
         &crate::layout::text::TextStyle::default(),
+        None,
+        false,
         &mut std::iter::empty(),
     )
 }
@@ -153,12 +156,17 @@ fn build_nodes_inherited(
     spec: &NodeSpec<'_>,
     map: &mut HashMap<NodeId, NodePaint>,
     inherited: &crate::layout::text::TextStyle,
+    inherited_foreground: Option<(f32, f32, f32, f32)>,
+    inherited_width: bool,
     styles: &mut dyn Iterator<Item = StyleBuilder>,
 ) -> Result<NodeId> {
     let mut sb = styles
         .next()
         .unwrap_or_else(|| apply_utility_classes(spec.class.as_ref(), StyleBuilder::new()));
     let typography = sb.text.inherit(inherited);
+    let foreground = sb.fg_rgba.or(inherited_foreground);
+    sb.fg_rgba = foreground;
+    let unconstrained_width = sb.unconstrained_width.unwrap_or(inherited_width);
     sb = sb
         .bold(typography.bold.unwrap_or(false))
         .italic(typography.italic.unwrap_or(false))
@@ -188,7 +196,15 @@ fn build_nodes_inherited(
             .map_err(|e| ReactiveError::layout(format!("Failed to create parent node: {}", e)))?;
         let mut child_ids: Vec<NodeId> = Vec::with_capacity(spec.children.len());
         for child in &spec.children {
-            let cid = build_nodes_inherited(taffy, child, map, &typography, styles)?;
+            let cid = build_nodes_inherited(
+                taffy,
+                child,
+                map,
+                &typography,
+                foreground,
+                unconstrained_width,
+                styles,
+            )?;
             child_ids.push(cid);
         }
         taffy
@@ -221,6 +237,7 @@ fn build_nodes_inherited(
     map.insert(
         id,
         NodePaint {
+            unconstrained_width,
             opacity,
             transform: sb.motion.transform,
             gradient: sb.gradient.clone(),
@@ -246,23 +263,37 @@ fn measure_text(
     use unicode_width::UnicodeWidthStr;
     let text = paint.text.as_deref().unwrap_or("");
     let natural = text.lines().map(UnicodeWidthStr::width).max().unwrap_or(0);
+    let wraps = !matches!(
+        paint.typography.whitespace.unwrap_or_default(),
+        crate::layout::text::WhiteSpace::Pre | crate::layout::text::WhiteSpace::NoWrap
+    );
     let width = known
         .width
         .map(|width| width.max(0.0) as usize)
         .unwrap_or_else(|| match available.width {
             AvailableSpace::Definite(width) => width.max(0.0) as usize,
-            AvailableSpace::MinContent => 1,
+            AvailableSpace::MinContent => {
+                if !wraps && paint.unconstrained_width {
+                    natural
+                } else {
+                    1
+                }
+            }
             AvailableSpace::MaxContent => natural,
         });
     let lines = paint.typography.lines(text, width);
     Size {
         width: known.width.unwrap_or_else(|| {
-            lines
+            let measured = lines
                 .iter()
                 .map(|line| UnicodeWidthStr::width(line.as_str()))
                 .max()
-                .unwrap_or(0)
-                .min(width) as f32
+                .unwrap_or(0);
+            if !wraps && paint.unconstrained_width {
+                measured as f32
+            } else {
+                measured.min(width) as f32
+            }
         }),
         height: known.height.unwrap_or(if lines.is_empty() {
             0.0

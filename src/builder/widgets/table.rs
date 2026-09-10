@@ -166,7 +166,7 @@ impl DataTableBuilder {
 
     /// Build the DataTable element with a custom component name
     pub fn build_with_name(self, component_name: &str) -> Element {
-        let props = DataTableProps::new(self.columns, self.rows)
+        let mut props = DataTableProps::new(self.columns, self.rows)
             .with_pagination(self.pagination_enabled, self.page_size)
             .with_virtual_scroll(
                 self.virtual_scroll_enabled,
@@ -174,6 +174,9 @@ impl DataTableBuilder {
                 self.viewport_height,
             )
             .with_features(self.searchable, self.filterable, self.exportable);
+        props.hidden_columns = self.hidden_columns;
+        props.filters = self.filters;
+        props.table_props.sortable = true;
 
         let mut element = Element::component_with_props(component_name, props);
 

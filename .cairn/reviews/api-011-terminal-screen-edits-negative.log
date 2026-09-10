@@ -1,0 +1,42 @@
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 8.33s
+     Running unittests src/lib.rs (target/debug/deps/reactive_tui-fa00cdcf48e682eb)
+
+running 4 tests
+
+thread 'terminal::screen::tests::terminal_screen_tab_stops_addressing_and_pending_wrap' (357608) panicked at src/terminal/screen/tests.rs:314:5:
+assertion `left == right` failed
+  left: (8, 0)
+ right: (4, 0)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+thread 'terminal::screen::tests::terminal_screen_character_edits_preserve_text_and_wide_boundaries' (357605) panicked at src/terminal/screen/tests.rs:260:5:
+assertion `left == right` failed
+  left: "abcdef    "
+ right: "ab  cdef  "
+
+thread 'terminal::screen::tests::terminal_screen_line_edits_and_scroll_preserve_margins' (357607) panicked at src/terminal/screen/tests.rs:290:5:
+assertion `left == right` failed
+  left: "three"
+ right: "two  "
+
+thread 'terminal::screen::tests::terminal_screen_insert_mode_preserves_combining_clusters' (357606) panicked at src/terminal/screen/tests.rs:278:5:
+assertion `left == right` failed
+  left: "ab界e\u{301}Z    "
+ right: "ab界e\u{301}Zdef "
+test terminal::screen::tests::terminal_screen_tab_stops_addressing_and_pending_wrap ... FAILED
+test terminal::screen::tests::terminal_screen_line_edits_and_scroll_preserve_margins ... FAILED
+test terminal::screen::tests::terminal_screen_insert_mode_preserves_combining_clusters ... FAILED
+test terminal::screen::tests::terminal_screen_character_edits_preserve_text_and_wide_boundaries ... FAILED
+
+failures:
+
+failures:
+    terminal::screen::tests::terminal_screen_character_edits_preserve_text_and_wide_boundaries
+    terminal::screen::tests::terminal_screen_insert_mode_preserves_combining_clusters
+    terminal::screen::tests::terminal_screen_line_edits_and_scroll_preserve_margins
+    terminal::screen::tests::terminal_screen_tab_stops_addressing_and_pending_wrap
+
+test result: FAILED. 0 passed; 4 failed; 0 ignored; 0 measured; 937 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `--lib`

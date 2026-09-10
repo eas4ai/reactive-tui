@@ -1,0 +1,83 @@
+A11Y # GNOME Terminal 3.58.0 using VTE 0.84.0 +BIDI +GNUTLS +ICU +SYSTEMD
+A11Y Orca version 50.1.2, AT-SPI2 version: 2.60.0, Session: x11 gnome
+A11Y isolated X11/Xvfb viewport 60x16
+A11Y round 1: labels, roles, focus, disabled actions, expansion, nested input and removal passed
+A11Y breadcrumb: labels, link roles, current page announcement, inert actions, assistive and keyboard focus, activation and removal passed
+A11Y CSS: reference labels, description, role, focus, pressed update, live announcement and hidden state passed
+A11Y checkbox: role, distinct label, mixed/checked/unchecked speech, focus, assistive/keyboard toggles and disabled actions passed
+A11Y slider: label, role, focus, numeric bounds, keyboard step and changed value speech passed
+A11Y radio: group/option roles, labels, focus, disabled skipping, exclusive keyboard and assistive selection passed
+A11Y named radios: roles, labels, focus and exclusive group selection passed
+A11Y select: combo/list/option roles, labels, expansion, focus, disabled skipping, single/multiple assistive and keyboard selection with selection speech passed
+A11Y menu family 1: roles, disabled actions, assistive/keyboard focus, nested activation and removal passed
+A11Y menu family 2: roles, disabled actions, assistive/keyboard focus, nested activation and removal passed
+A11Y menu family 3: roles, disabled actions, assistive/keyboard focus, nested activation and removal passed
+A11Y menu family 4: roles, disabled actions, assistive/keyboard focus, nested activation and removal passed
+A11Y round 2: simultaneous and successive App isolation, action delivery, exactly-once callbacks and adapter cleanup passed
+A11Y 08:17:41.660196 - SPEECH OUTPUT: 'Account preferences accessible label' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+A11Y 08:17:41.662680 - SPEECH OUTPUT: 'collapsed button.' {'established': False}
+A11Y 08:17:41.826369 - SPEECH OUTPUT: 'Account preferences accessible label' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+A11Y 08:17:41.869099 - SPEECH OUTPUT: 'expanded' {'established': False}
+A11Y 08:17:41.916462 - SPEECH OUTPUT: 'Nested account entry' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+A11Y 08:17:41.982769 - SPEECH OUTPUT: 'Privacy preferences accessible label' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+A11Y 08:17:41.983114 - SPEECH OUTPUT: 'collapsed button.' {'established': False}
+A11Y 08:17:42.037082 - SPEECH OUTPUT: 'expanded' {'established': False}
+A11Y 08:17:42.106339 - SPEECH OUTPUT: 'Account preferences accessible label' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+A11Y 08:17:42.106630 - SPEECH OUTPUT: 'collapsed button.' {'established': False}
+A11Y 08:17:42.137047 - SPEECH OUTPUT: 'expanded' {'established': False}
+A11Y 08:17:42.201523 - SPEECH OUTPUT: 'Breadcrumb docs accessible label' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+A11Y 08:17:42.239987 - SPEECH OUTPUT: 'Breadcrumb home accessible label' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+A11Y 08:17:42.311228 - SPEECH OUTPUT: 'Breadcrumb docs accessible label' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+A11Y 08:17:42.356711 - SPEECH OUTPUT: 'Breadcrumb current accessible label' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+A11Y 08:17:42.356969 - SPEECH OUTPUT: 'static (Current page)' {'established': False}
+A11Y 08:17:42.488310 - SPEECH OUTPUT: 'Independent App action' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+A11Y 08:17:42.661611 - SPEECH OUTPUT: 'Background calls 1' {'established': False}
+A11Y 08:17:42.669804 - SPEECH OUTPUT: 'pressed' {'established': False}
+A11Y 08:17:42.716996 - SPEECH OUTPUT: 'Notification preference' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+A11Y 08:17:42.717313 - SPEECH OUTPUT: 'check box partially checked.' {'established': False}
+A11Y 08:17:42.752343 - SPEECH OUTPUT: 'checked' {'established': False}
+A11Y 08:17:42.806510 - SPEECH OUTPUT: 'not checked' {'established': False}
+A11Y 08:17:42.862668 - SPEECH OUTPUT: 'Playback volume' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+A11Y 08:17:43.052927 - SPEECH OUTPUT: 'Standard delivery' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+A11Y 08:17:43.056203 - SPEECH OUTPUT: 'selected radio button.' {'established': False}
+A11Y 08:17:43.133677 - SPEECH OUTPUT: 'Express delivery' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+A11Y 08:17:43.135796 - SPEECH OUTPUT: 'not selected radio button.' {'established': False}
+A11Y 08:17:43.187885 - SPEECH OUTPUT: 'selected' {'established': False}
+A11Y 08:17:43.231456 - SPEECH OUTPUT: 'Standard delivery' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+A11Y 08:17:43.233579 - SPEECH OUTPUT: 'selected radio button.' {'established': False}
+A11Y 08:17:43.290121 - SPEECH OUTPUT: 'selected radio button.' {'established': False}
+A11Y 08:17:43.325826 - SPEECH OUTPUT: 'Named beta' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+A11Y 08:17:43.326112 - SPEECH OUTPUT: 'not selected radio button.' {'established': False}
+A11Y 08:17:43.953348 - SPEECH OUTPUT: 'selected' {'established': False}
+A11Y 08:17:44.130340 - SPEECH OUTPUT: 'Menu file' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+A11Y 08:17:44.203550 - SPEECH OUTPUT: 'Enable notifications' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+A11Y 08:17:44.204595 - SPEECH OUTPUT: 'check menu item not checked.' {'established': False}
+A11Y 08:17:44.286478 - SPEECH OUTPUT: 'expanded' {'established': False}
+A11Y 08:17:44.313573 - SPEECH OUTPUT: 'checked' {'established': False}
+A11Y 08:17:44.382679 - SPEECH OUTPUT: 'Recent menu' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+A11Y 08:17:44.462816 - SPEECH OUTPUT: 'Recent document.' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+A11Y 08:17:44.485539 - SPEECH OUTPUT: 'expanded' {'established': False}
+A11Y 08:17:44.651310 - SPEECH OUTPUT: 'Enable notifications' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+A11Y 08:17:44.651496 - SPEECH OUTPUT: 'check menu item not checked.' {'established': False}
+A11Y 08:17:44.743898 - SPEECH OUTPUT: 'checked' {'established': False}
+A11Y 08:17:44.795374 - SPEECH OUTPUT: 'Recent menu' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+A11Y 08:17:44.877535 - SPEECH OUTPUT: 'Recent document.' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+A11Y 08:17:44.905459 - SPEECH OUTPUT: 'expanded' {'established': False}
+A11Y 08:17:44.972067 - SPEECH OUTPUT: 'Recent menu' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+A11Y 08:17:45.088137 - SPEECH OUTPUT: 'Enable notifications' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+A11Y 08:17:45.088404 - SPEECH OUTPUT: 'check menu item not checked.' {'established': False}
+A11Y 08:17:45.176444 - SPEECH OUTPUT: 'Recent menu' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+A11Y 08:17:45.272868 - SPEECH OUTPUT: 'Recent document.' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+A11Y 08:17:45.315110 - SPEECH OUTPUT: 'expanded' {'established': False}
+A11Y 08:17:45.421633 - SPEECH OUTPUT: 'Enable notifications' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+A11Y 08:17:45.421892 - SPEECH OUTPUT: 'check menu item not checked.' {'established': False}
+A11Y 08:17:45.518913 - SPEECH OUTPUT: 'checked' {'established': False}
+A11Y 08:17:45.581587 - SPEECH OUTPUT: 'Recent menu' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+A11Y 08:17:45.660714 - SPEECH OUTPUT: 'Recent document' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+A11Y 08:17:45.663264 - SPEECH OUTPUT: 'check menu item not checked.' {'established': False}
+A11Y 08:17:45.694581 - SPEECH OUTPUT: 'expanded' {'established': False}
+A11Y 08:17:45.770082 - SPEECH OUTPUT: 'Background calls 1' {'established': False}
+A11Y 08:17:45.801431 - SPEECH OUTPUT: 'Background calls 1' {'established': False}
+A11Y 08:17:45.919540 - SPEECH OUTPUT: 'Account preferences accessible label' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+A11Y 08:17:45.920001 - SPEECH OUTPUT: 'collapsed button.' {'established': False}
+Orca diagnostic logs: /tmp/rtui-orca-5pazo79x

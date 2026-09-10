@@ -39,7 +39,7 @@ impl std::fmt::Debug for MenuAction {
 
 impl PartialEq for MenuAction {
     fn eq(&self, other: &Self) -> bool {
-        self.id == other.id
+        self.id == other.id && Arc::ptr_eq(&self.callback, &other.callback)
     }
 }
 
@@ -54,7 +54,7 @@ impl MenuAction {
 
     /// Execute the action
     pub fn execute(&self) {
-        (self.callback)();
+        super::invocation::run(None, self.callback.as_ref());
     }
 }
 
@@ -197,7 +197,9 @@ impl MenuItem {
             id: id_str,
             text: text.into(),
             item_type: MenuItemType::Checkbox { checked },
-            action: Some(MenuAction::new(callback_id, move || callback(!checked))),
+            action: Some(MenuAction::new(callback_id, move || {
+                callback(super::invocation::take_checked(!checked));
+            })),
             ..Default::default()
         }
     }
@@ -282,18 +284,20 @@ impl MenuItem {
     /// Execute the item's action if it has one
     pub fn execute(&self) {
         if let Some(action) = &self.action {
-            action.execute();
+            let checked = match self.item_type {
+                MenuItemType::Checkbox { checked } => Some(!checked),
+                _ => None,
+            };
+            super::invocation::run(checked, action.callback.as_ref());
         }
     }
 }
 
 /// Builder for creating menu items with a fluent API
-#[allow(dead_code)]
 pub struct MenuItemBuilder {
     item: MenuItem,
 }
 
-#[allow(dead_code)]
 impl MenuItemBuilder {
     /// Create a new menu item builder
     pub fn new(id: impl Into<String>, text: impl Into<String>) -> Self {
@@ -360,5 +364,74 @@ impl MenuItemBuilder {
     /// Build the menu item
     pub fn build(self) -> MenuItem {
         self.item
+    }
+}
+
+#[cfg(test)]
+mod invocation_tests {
+    use super::*;
+    use std::sync::Mutex;
+
+    #[test]
+    fn checkbox_execution_uses_current_item_value() {
+        let values = Arc::new(Mutex::new(Vec::new()));
+        let output = values.clone();
+        let mut item = MenuItem::checkbox("check", "Check", false, move |value| {
+            output.lock().unwrap().push(value);
+        });
+        item.execute();
+        item.item_type = MenuItemType::Checkbox { checked: true };
+        item.execute();
+        assert_eq!(*values.lock().unwrap(), [true, false]);
+    }
+
+    #[test]
+    fn replacement_action_is_a_prop_change() {
+        let first = MenuAction::new("same", || {});
+        assert_eq!(first, first.clone());
+        assert_ne!(first, MenuAction::new("same", || {}));
+        let first = crate::builder::widgets::menu::MenuAction::new("same", || {});
+        assert_eq!(first, first.clone());
+        assert_ne!(
+            first,
+            crate::builder::widgets::menu::MenuAction::new("same", || {})
+        );
+    }
+
+    #[test]
+    fn nested_and_direct_callbacks_do_not_inherit_an_item_value() {
+        let values = Arc::new(Mutex::new(Vec::new()));
+        let output = values.clone();
+        let nested = MenuItem::checkbox("nested", "Nested", false, move |value| {
+            output.lock().unwrap().push(("nested", value));
+        });
+        let direct = nested.action.clone().unwrap();
+        let output = values.clone();
+        let mut outer = MenuItem::checkbox("outer", "Outer", false, move |value| {
+            output.lock().unwrap().push(("outer", value));
+            nested.execute();
+            direct.execute();
+        });
+        outer.item_type = MenuItemType::Checkbox { checked: true };
+        outer.execute();
+        assert_eq!(
+            *values.lock().unwrap(),
+            [("outer", false), ("nested", true), ("nested", true)]
+        );
+    }
+
+    #[test]
+    fn cloned_actions_use_each_callers_current_state() {
+        let values = Arc::new(Mutex::new(Vec::new()));
+        let output = values.clone();
+        let first = MenuItem::checkbox("check", "Check", false, move |value| {
+            output.lock().unwrap().push(value);
+        });
+        let mut second = first.clone();
+        second.item_type = MenuItemType::Checkbox { checked: true };
+        first.execute();
+        second.execute();
+        first.execute();
+        assert_eq!(*values.lock().unwrap(), [true, false, true]);
     }
 }

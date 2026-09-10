@@ -4,7 +4,7 @@
 //! stack layouts, tabs, and other container widgets.
 
 use super::super::specialized::{ScrollViewBuilder, StackBuilder};
-use crate::component::{Element, LayoutType};
+use crate::component::Element;
 
 /// Create a Scroll View builder
 ///
@@ -117,19 +117,17 @@ impl TabsBuilder {
     /// # Returns
     /// An `Element` representing the tabs container
     pub fn build(self) -> Element {
-        let mut children = Vec::new();
-
-        // Add tab headers
-        let tab_titles: Vec<String> = self.tabs.iter().map(|(title, _)| title.clone()).collect();
-        children.push(Element::text(format!("Tabs: [{}]", tab_titles.join(", "))));
-
-        // Add active tab content
-        if let Some((title, content)) = self.tabs.get(self.active_tab) {
-            children.push(Element::text(format!("Active: {}", title)));
-            children.push(content.clone());
-        }
-
-        let mut element = Element::layout(LayoutType::Flex).children(children);
+        let props = crate::widgets::layout::TabsProps {
+            tabs: self
+                .tabs
+                .into_iter()
+                .map(|(title, content)| crate::widgets::layout::Tab::new(title, content))
+                .collect(),
+            active_tab: self.active_tab,
+            closable: self.closable,
+            ..Default::default()
+        };
+        let mut element = Element::typed::<crate::widgets::layout::Tabs>(props);
 
         if let Some(class) = self.class {
             element = element.with_class(&class);

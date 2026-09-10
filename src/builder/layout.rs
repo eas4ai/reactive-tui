@@ -30,7 +30,7 @@ pub fn sidebar() -> ElementBuilder {
 
 /// Create a content area
 pub fn content() -> ElementBuilder {
-    main().class("flex-1 p-6")
+    main().class("flex-1 p-0.5")
 }
 
 /// Create a responsive grid
@@ -84,7 +84,7 @@ pub fn label(content: &str) -> Element {
 ///
 pub fn card(children: Vec<Element>) -> Element {
     div()
-        .class("bg-white rounded-lg shadow-md border border-gray-200 p-6")
+        .class("bg-white rounded-lg shadow-md border border-gray-200 p-0.5")
         .children(children)
         .build()
 }
@@ -179,11 +179,11 @@ pub fn search_input(placeholder: &str) -> Element {
         .class("relative")
         .children(vec![
             input()
-                .class("pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500")
+                .class("pl-1 pr-0.5 py-0.25 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500")
                 .placeholder(placeholder)
                 .build(),
             div()
-                .class("absolute left-3 top-2.5 text-gray-400")
+                .class("absolute left-1 top-1 text-gray-400")
                 .text("🔍")
                 .build(),
         ])

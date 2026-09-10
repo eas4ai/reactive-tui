@@ -2,18 +2,87 @@ use std::any::Any;
 use std::fmt::Debug;
 use std::sync::Arc;
 
+pub(crate) type ElementFactory =
+    Arc<dyn Fn(&dyn Any) -> crate::error::Result<super::AnyComponentInstance> + Send + Sync>;
+pub(crate) type LayoutCallback = Arc<dyn Fn(super::LayoutInfo) -> bool + Send + Sync>;
+
+#[derive(Clone, Default)]
+pub(crate) struct AccessibilityOptions {
+    pub id: Option<String>,
+    pub keyboard_only: bool,
+    pub screen_reader_only: bool,
+    pub focus: bool,
+    pub clickable: bool,
+    pub focus_event: Option<crate::event::CustomEvent>,
+    pub click_event: Option<crate::event::CustomEvent>,
+    pub label: Option<String>,
+}
+
+impl PartialEq for AccessibilityOptions {
+    fn eq(&self, other: &Self) -> bool {
+        self.focus == other.focus
+            && self.clickable == other.clickable
+            && self.id == other.id
+            && self.keyboard_only == other.keyboard_only
+            && self.screen_reader_only == other.screen_reader_only
+            && self.label == other.label
+            && self
+                .click_event
+                .as_ref()
+                .map(|event| (&event.name, &event.data))
+                == other
+                    .click_event
+                    .as_ref()
+                    .map(|event| (&event.name, &event.data))
+            && self
+                .focus_event
+                .as_ref()
+                .map(|event| (&event.name, &event.data))
+                == other
+                    .focus_event
+                    .as_ref()
+                    .map(|event| (&event.name, &event.data))
+    }
+}
+
+/// Native cursor attached to a column of one painted text element.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct TextCursor {
+    pub column: u16,
+    pub style: ::suprtui::render::CursorStyle,
+}
+
 /// Owned behavior attached to an element independently of its component props.
 #[derive(Clone, Default)]
 pub struct ElementMetadata {
+    pub(crate) component_instances: Vec<u64>,
+    /// Retain and paint this subtree without interactive or accessible targets.
+    pub(crate) inert: bool,
+    pub(crate) image: Option<Arc<crate::widgets::display::image::paint::ImagePaint>>,
+    pub(crate) image_fallback: Option<u32>,
+    pub(crate) text_cursor: Option<TextCursor>,
+    /// Autofocus descendants and restore on removal without trapping Tab.
+    pub(crate) focus_scope: bool,
+    pub(crate) factory: Option<ElementFactory>,
+    pub(crate) events: Vec<crate::event::router::EventHandlerFn>,
+    /// Observe descendant input before its target handles activation.
+    pub(crate) capture_events: Vec<crate::event::router::EventHandlerFn>,
+    pub(crate) layout: Vec<LayoutCallback>,
     pub(crate) paint_style: Option<Arc<crate::layout::style::StyleSnapshot>>,
     /// Explicit layout and paint styles, independent of component props.
     pub styles: Option<Arc<crate::layout::style::StyleSnapshot>>,
+    /// VDOM declarations applied after utility classes, including state variants.
+    pub(crate) inline_styles: Option<String>,
     /// Cell background gradient.
     pub gradient: Option<crate::layout::css::gradients::Gradient>,
     /// Cell border gradient.
     pub gradient_border: Option<crate::layout::css::gradients::GradientBorder>,
     /// Disabled nodes do not receive focus or activation.
     pub disabled: bool,
+    /// Accessible role, label and state, independent of painted text.
+    /// App assigns node identity and children from the retained element tree.
+    pub accessibility: Option<crate::accessibility::Node>,
+    pub(crate) accessibility_options: Option<Box<AccessibilityOptions>>,
     /// Activation callbacks, invoked in registration order.
     pub on_click: Vec<Arc<dyn Fn() + Send + Sync>>,
 }
@@ -21,8 +90,40 @@ pub struct ElementMetadata {
 impl PartialEq for ElementMetadata {
     fn eq(&self, other: &Self) -> bool {
         self.disabled == other.disabled
+            && self.inert == other.inert
+            && self.image == other.image
+            && self.image_fallback == other.image_fallback
+            && self.text_cursor == other.text_cursor
+            && self.focus_scope == other.focus_scope
+            && self.component_instances == other.component_instances
+            && self.accessibility == other.accessibility
+            && self.accessibility_options == other.accessibility_options
+            && self.capture_events.len() == other.capture_events.len()
+            && self
+                .capture_events
+                .iter()
+                .zip(&other.capture_events)
+                .all(|(a, b)| Arc::ptr_eq(a, b))
+            && self.events.len() == other.events.len()
+            && self
+                .events
+                .iter()
+                .zip(&other.events)
+                .all(|(a, b)| Arc::ptr_eq(a, b))
+            && self.layout.len() == other.layout.len()
+            && self
+                .layout
+                .iter()
+                .zip(&other.layout)
+                .all(|(a, b)| Arc::ptr_eq(a, b))
+            && match (&self.factory, &other.factory) {
+                (Some(a), Some(b)) => Arc::ptr_eq(a, b),
+                (None, None) => true,
+                _ => false,
+            }
             && self.paint_style == other.paint_style
             && self.styles == other.styles
+            && self.inline_styles == other.inline_styles
             && self.gradient == other.gradient
             && self.gradient_border == other.gradient_border
             && self.on_click.len() == other.on_click.len()
@@ -113,6 +214,60 @@ impl PartialEq for Element {
 }
 
 impl Element {
+    /// An App-local ID referenced by aria-labelledby and aria-describedby styles.
+    /// IDs must be nonempty, contain no whitespace, and be unique in this App.
+    pub fn with_accessibility_id(mut self, id: impl Into<String>) -> Self {
+        self.metadata
+            .accessibility_options
+            .get_or_insert_default()
+            .id = Some(id.into());
+        self
+    }
+    /// Attach semantic role, label and state for assistive technology.
+    /// App owns the accessible node's identity and children.
+    pub fn with_accessibility(mut self, node: crate::accessibility::Node) -> Self {
+        self.metadata.accessibility = Some(node);
+        if let Some(options) = &mut self.metadata.accessibility_options {
+            options.label = None;
+        }
+        self
+    }
+
+    /// Set an accessible label without changing the painted text.
+    pub fn with_accessibility_label(mut self, label: impl Into<String>) -> Self {
+        self.metadata
+            .accessibility_options
+            .get_or_insert_default()
+            .label = Some(label.into());
+        self
+    }
+
+    /// Construct a typed component without a global registry entry.
+    /// Each App owns one instance per stable key. This also supports generic widgets.
+    pub fn typed<C: super::Component>(props: C::Props) -> Self {
+        Self::typed_with::<C>(props, C::new)
+    }
+
+    /// Construct each mounted instance with a callback/configuration factory.
+    /// The factory runs once per mount; changed props reach the retained instance.
+    pub fn typed_with<C: super::Component>(
+        props: C::Props,
+        create: impl Fn(C::Props) -> C + Send + Sync + 'static,
+    ) -> Self {
+        let mut element = Self::component_with_props(std::any::type_name::<C>(), props);
+        element.metadata.factory = Some(Arc::new(move |props| {
+            let props = props.downcast_ref::<C::Props>().ok_or_else(|| {
+                crate::error::ReactiveError::invalid_state(
+                    "typed component received incompatible props",
+                )
+            })?;
+            Ok(super::AnyComponentInstance::new(
+                super::ComponentInstance::<C>::from_component(create(props.clone()), props.clone()),
+            ))
+        }));
+        element
+    }
+
     /// Create a new component element with props
     pub fn component_with_props(
         name: impl Into<String>,

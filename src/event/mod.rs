@@ -9,6 +9,7 @@ pub mod cache;
 pub mod focus;
 /// Hit testing for mouse events and click detection
 pub mod hit;
+pub(crate) mod notifications;
 /// Event routing and dispatching to handlers
 pub mod router;
 /// Core event types (keyboard, mouse, resize, etc.)

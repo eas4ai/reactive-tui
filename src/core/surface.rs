@@ -9,6 +9,8 @@ use std::env;
 use unicode_segmentation::UnicodeSegmentation;
 use unicode_width::UnicodeWidthStr;
 
+mod image_output;
+
 // === Unicode Handling Utilities ===
 
 /// Terminal emoji handling detection
@@ -633,9 +635,9 @@ pub struct ImageCellPlacement {
     pub source_x: u16,
     /// Source Y coordinate in the image (pixels)
     pub source_y: u16,
-    /// Width of the image region to display (pixels)
+    /// Width of the image region to display (pixels); zero uses the remaining width.
     pub source_width: u16,
-    /// Height of the image region to display (pixels)
+    /// Height of the image region to display (pixels); zero uses the remaining height.
     pub source_height: u16,
     /// Z-index for layering (negative = behind text, positive = in front)
     pub z_index: i8,
@@ -731,10 +733,16 @@ pub struct ImageMetadata {
 }
 
 /// Registry for managing images referenced by cells
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct ImageRegistry {
     images: HashMap<u32, ImageData>,
     next_id: u32,
+}
+
+impl Default for ImageRegistry {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl ImageRegistry {
@@ -746,12 +754,29 @@ impl ImageRegistry {
         }
     }
 
-    /// Register a new image and return its ID
+    /// Register a new image. Returns the reserved ID zero for invalid data or
+    /// exhausted IDs. Use `try_register_image` to obtain the error.
     pub fn register_image(&mut self, image: ImageData) -> u32 {
+        self.try_register_image(image).unwrap_or(0)
+    }
+
+    /// Validate raw RGBA data before retaining it. IDs are never reused.
+    pub fn try_register_image(&mut self, image: ImageData) -> Result<u32> {
+        let expected =
+            crate::widgets::display::image::decoded::dimensions(image.width, image.height)?;
+        if image.pixels.len() != expected {
+            return Err(ReactiveError::invalid_parameter(format!(
+                "Surface image needs {expected} RGBA bytes, got {}",
+                image.pixels.len()
+            )));
+        }
         let id = self.next_id;
-        self.next_id += 1;
+        if id == 0 {
+            return Err(ReactiveError::resource("Surface image IDs exhausted"));
+        }
+        self.next_id = id.checked_add(1).unwrap_or(0);
         self.images.insert(id, image);
-        id
+        Ok(id)
     }
 
     /// Get image data by ID
@@ -772,7 +797,6 @@ impl ImageRegistry {
     /// Clear all images
     pub fn clear(&mut self) {
         self.images.clear();
-        self.next_id = 1;
     }
 
     /// Get the number of registered images
@@ -1772,9 +1796,14 @@ impl Surface {
 
     // === Image Management Methods ===
 
-    /// Register a new image and return its ID
+    /// Register a new image; zero indicates invalid data or exhausted IDs.
     pub fn register_image(&mut self, image: ImageData) -> u32 {
         self.image_registry.register_image(image)
+    }
+
+    /// Register validated raw RGBA data, reporting invalid input.
+    pub fn try_register_image(&mut self, image: ImageData) -> Result<u32> {
+        self.image_registry.try_register_image(image)
     }
 
     /// Get image data by ID
@@ -1784,12 +1813,19 @@ impl Surface {
 
     /// Remove an image from the registry
     pub fn remove_image(&mut self, id: u32) -> Option<ImageData> {
-        self.image_registry.remove_image(id)
+        let removed = self.image_registry.remove_image(id)?;
+        for cell in &mut self.buf {
+            if cell.image_id == Some(id) {
+                cell.clear_image();
+            }
+        }
+        Some(removed)
     }
 
     /// Clear all images from the registry
     pub fn clear_images(&mut self) {
         self.image_registry.clear();
+        self.clear_all_image_placements();
     }
 
     /// Get the number of registered images
@@ -1819,7 +1855,8 @@ impl Surface {
         }
     }
 
-    /// Place an image across multiple cells
+    /// Place an image across multiple cells. Invalid regions leave the surface
+    /// unchanged; use `try_place_image_region` to obtain the error.
     #[allow(clippy::too_many_arguments)]
     pub fn place_image_region(
         &mut self,
@@ -1833,23 +1870,72 @@ impl Surface {
         z_index: i8,
         opacity: f32,
     ) {
-        let pixels_per_cell_x = image_width / cell_width.max(1) as u32;
-        let pixels_per_cell_y = image_height / cell_height.max(1) as u32;
+        let _ = self.try_place_image_region(
+            start_x,
+            start_y,
+            cell_width,
+            cell_height,
+            image_id,
+            image_width,
+            image_height,
+            z_index,
+            opacity,
+        );
+    }
 
-        for cell_y in 0..cell_height {
-            for cell_x in 0..cell_width {
+    /// Place a source region across a clipped destination. Source dimensions
+    /// must fit the public placement's 16-bit coordinates and the registered image.
+    #[allow(clippy::too_many_arguments)]
+    pub fn try_place_image_region(
+        &mut self,
+        start_x: usize,
+        start_y: usize,
+        cell_width: usize,
+        cell_height: usize,
+        image_id: u32,
+        image_width: u32,
+        image_height: u32,
+        z_index: i8,
+        opacity: f32,
+    ) -> Result<()> {
+        if cell_width == 0
+            || cell_height == 0
+            || image_width == 0
+            || image_height == 0
+            || image_width > u32::from(u16::MAX)
+            || image_height > u32::from(u16::MAX)
+            || !opacity.is_finite()
+            || !(0.0..=1.0).contains(&opacity)
+            || self
+                .get_image(image_id)
+                .is_none_or(|image| image_width > image.width || image_height > image.height)
+        {
+            return Err(ReactiveError::invalid_parameter(
+                "Invalid Surface image region, image ID or opacity",
+            ));
+        }
+        // Partition the entire source, including its remainder. When upscaling,
+        // adjacent cells may sample the same pixel instead of an empty region.
+        let region = |index: usize, cells: usize, pixels: u32| {
+            let start = (index as u128 * u128::from(pixels) / cells as u128) as u16;
+            let end =
+                (((index as u128 + 1) * u128::from(pixels) / cells as u128) as u16).max(start + 1);
+            (start, end - start)
+        };
+        for cell_y in 0..cell_height.min(self.h.saturating_sub(start_y)) {
+            for cell_x in 0..cell_width.min(self.w.saturating_sub(start_x)) {
                 let x = start_x + cell_x;
                 let y = start_y + cell_y;
 
                 if x < self.w && y < self.h {
-                    let source_x = (cell_x as u32 * pixels_per_cell_x) as u16;
-                    let source_y = (cell_y as u32 * pixels_per_cell_y) as u16;
+                    let (source_x, source_width) = region(cell_x, cell_width, image_width);
+                    let (source_y, source_height) = region(cell_y, cell_height, image_height);
 
                     let placement = ImageCellPlacement {
                         source_x,
                         source_y,
-                        source_width: pixels_per_cell_x as u16,
-                        source_height: pixels_per_cell_y as u16,
+                        source_width,
+                        source_height,
                         z_index,
                         opacity,
                     };
@@ -1858,6 +1944,7 @@ impl Surface {
                 }
             }
         }
+        Ok(())
     }
 
     /// Get all cells that have image placements
@@ -1925,8 +2012,11 @@ impl Surface {
 
     /// Create a simple colored image for testing
     pub fn create_test_image(&mut self, width: u32, height: u32, r: u8, g: u8, b: u8) -> u32 {
-        let mut pixels = Vec::with_capacity((width * height * 4) as usize);
-        for _ in 0..(width * height) {
+        let Ok(bytes) = crate::widgets::display::image::decoded::dimensions(width, height) else {
+            return 0;
+        };
+        let mut pixels = Vec::with_capacity(bytes);
+        for _ in 0..bytes / 4 {
             pixels.extend_from_slice(&[r, g, b, 255]); // RGBA
         }
         self.create_image_from_rgba(width, height, pixels)
@@ -1937,8 +2027,8 @@ impl Surface {
         let placement = ImageCellPlacement {
             source_x: 0,
             source_y: 0,
-            source_width: 16, // Assume 16x16 pixel cells
-            source_height: 16,
+            source_width: 0,
+            source_height: 0,
             z_index,
             opacity: 1.0,
         };
@@ -2033,6 +2123,11 @@ pub struct DiffWriter {
     use_epsilon_comparison: bool,
     /// Whether to skip identical color changes
     skip_identical_colors: bool,
+    image_options: crate::backend::ImageOutputOptions,
+    graphics: crate::backend::suprtui::graphics::Graphics<image_output::Raster>,
+    image_ids: [u32; 2],
+    image_error: Option<String>,
+    pending_images: Option<Vec<image_output::Raster>>,
 }
 
 impl Default for DiffWriter {
@@ -2044,17 +2139,7 @@ impl Default for DiffWriter {
 impl DiffWriter {
     /// Create a new diff writer for computing terminal updates
     pub fn new() -> Self {
-        Self {
-            out: Vec::with_capacity(1 << 20),
-            cur_fg: None,
-            cur_bg: None,
-            cur_attr: Attr::empty(),
-            last_rows_changed: 0,
-            last_spans_written: 0,
-            stats: DiffStats::default(),
-            use_epsilon_comparison: true,
-            skip_identical_colors: true,
-        }
+        Self::with_options(true, true)
     }
 
     /// Create a new DiffWriter with optimization settings
@@ -2069,6 +2154,43 @@ impl DiffWriter {
             stats: DiffStats::default(),
             use_epsilon_comparison,
             skip_identical_colors,
+            image_options: crate::backend::ImageOutputOptions::default(),
+            graphics: Default::default(),
+            image_ids: std::array::from_fn(|_| {
+                crate::widgets::display::image::ProtocolRenderer::new().generate_image_id()
+            }),
+            image_error: None,
+            pending_images: None,
+        }
+    }
+
+    /// Select confirmed host graphics capabilities. The default uses decoded
+    /// half-block cells. Call `try_diff` to report malformed placements.
+    pub fn set_image_options(&mut self, options: crate::backend::ImageOutputOptions) {
+        self.image_options = options;
+    }
+
+    pub(crate) fn refresh_image_cell_pixels(&mut self) {
+        self.image_options.refresh_cell_pixels();
+    }
+
+    /// Last error from the compatibility `diff` method, which emits no output
+    /// on failure. New output owners should use `try_diff` and propagate errors.
+    pub fn image_error(&self) -> Option<&str> {
+        self.image_error.as_deref()
+    }
+
+    /// Bytes to remove every graphics ID this writer may have emitted.
+    /// The output owner must write these before relinquishing the terminal.
+    pub fn image_cleanup(&self) -> Vec<u8> {
+        self.graphics.cleanup()
+    }
+
+    /// Confirm that the latest prepared output was written and flushed.
+    /// Without acknowledgment, subsequent diffs conservatively resend images.
+    pub fn acknowledge_output(&mut self) {
+        if let Some(images) = self.pending_images.take() {
+            self.graphics.acknowledge(images);
         }
     }
 
@@ -2133,7 +2255,60 @@ impl DiffWriter {
 
     /// Compute the diff between two surfaces and generate terminal output
     pub fn diff(&mut self, cur: &Surface, next: &Surface, force: bool) {
+        if let Err(error) = self.try_diff(cur, next, force) {
+            self.image_error = Some(error.to_string());
+            self.out.clear();
+        }
+    }
+
+    /// Prepare complete output without writing it. Advance the caller's current
+    /// surface only after successful write and flush; retry with `force` after
+    /// output failure. Graphics cleanup includes possibly transmitted IDs.
+    pub fn try_diff(&mut self, cur: &Surface, next: &Surface, force: bool) -> Result<()> {
         self.out.clear();
+        self.image_error = None;
+        self.pending_images = None;
+        let planes = image_output::project(next, self.image_options, self.image_ids)?;
+        let fallback = self
+            .image_options
+            .protocol(crate::widgets::ImageDisplayMode::Auto)
+            .is_none();
+        let resolve = if fallback {
+            image_output::fallback
+        } else {
+            image_output::legacy_text
+        };
+        let resolve_cells = self
+            .image_options
+            .protocol(crate::widgets::ImageDisplayMode::Auto)
+            != Some(crate::widgets::display::image::paint::ImageProtocol::Kitty);
+        let current_cells = if resolve_cells {
+            Some(
+                (0..cur.buf.len())
+                    .map(|i| resolve(cur, i))
+                    .collect::<Result<Vec<_>>>()?,
+            )
+        } else {
+            None
+        };
+        let next_cells = if resolve_cells {
+            Some(
+                (0..next.buf.len())
+                    .map(|i| resolve(next, i))
+                    .collect::<Result<Vec<_>>>()?,
+            )
+        } else {
+            None
+        };
+        // An earlier legacy graphics image may be erased by clearing the screen;
+        // repaint text whenever graphics change. Caller owns delivery and retry.
+        let graphics = self
+            .graphics
+            .prepare(&planes, self.image_options.cell_pixels, force)?;
+        let force = force || graphics.is_some();
+        if let Some((before, _)) = &graphics {
+            self.out.extend_from_slice(before);
+        }
         self.push("\x1b[?25l");
         let (w, h) = cur.dims();
         assert_eq!((w, h), next.dims());
@@ -2152,11 +2327,16 @@ impl DiffWriter {
             let mut wrote_row = false;
             for x in 0..w {
                 let index = next.idx(x, y);
-                if next.grapheme_continuation(index) {
+                let replace_text = fallback && image_output::replaces_grapheme(next, index);
+                if next.grapheme_continuation(index) && !replace_text {
                     continue;
                 }
-                let a = cur.get(x, y);
-                let b = next.get(x, y);
+                let a = current_cells
+                    .as_ref()
+                    .map_or_else(|| cur.get(x, y), |cells| cells[index]);
+                let b = next_cells
+                    .as_ref()
+                    .map_or_else(|| next.get(x, y), |cells| cells[index]);
 
                 // Enhanced cell comparison with epsilon-based color comparison and image support
                 let cells_equal = if !force {
@@ -2257,7 +2437,11 @@ impl DiffWriter {
                 }
 
                 // Add character to current run
-                next.append_cell_text(index, &mut run_buf);
+                if replace_text || b.ch != next.buf[index].ch {
+                    run_buf.push(b.ch);
+                } else {
+                    next.append_cell_text(index, &mut run_buf);
+                }
             }
 
             // Flush any remaining run at end of line
@@ -2276,8 +2460,10 @@ impl DiffWriter {
         }
         self.push("\x1b[?25h");
 
-        // Render images after text content
-        self.render_images(next);
+        if let Some((_, after)) = graphics {
+            self.out.extend_from_slice(&after);
+        }
+        self.pending_images = Some(planes);
 
         // Finalize statistics
         self.stats.rows_changed = self.last_rows_changed;
@@ -2288,84 +2474,7 @@ impl DiffWriter {
         } else {
             0.0
         };
-    }
-
-    /// Render images placed in cells
-    fn render_images(&mut self, surface: &Surface) {
-        // Collect all image placements, grouped by image ID and z-index
-        let mut image_placements: std::collections::BTreeMap<
-            i8,
-            Vec<(usize, usize, u32, ImageCellPlacement)>,
-        > = std::collections::BTreeMap::new();
-
-        for y in 0..surface.h {
-            for x in 0..surface.w {
-                let cell = surface.get(x, y);
-                if let (Some(image_id), Some(placement)) = (cell.image_id, cell.image_placement) {
-                    image_placements
-                        .entry(placement.z_index)
-                        .or_default()
-                        .push((x, y, image_id, placement));
-                }
-            }
-        }
-
-        // Render images in z-index order (negative z-index first, then positive)
-        for (_z_index, placements) in image_placements {
-            for (x, y, image_id, placement) in placements {
-                self.render_image_at_cell(surface, x, y, image_id, &placement);
-            }
-        }
-    }
-
-    /// Render a single image placement at a specific cell
-    fn render_image_at_cell(
-        &mut self,
-        surface: &Surface,
-        x: usize,
-        y: usize,
-        image_id: u32,
-        placement: &ImageCellPlacement,
-    ) {
-        // Get the image data from the surface's registry
-        if let Some(image_data) = surface.get_image(image_id) {
-            // For now, we'll use a simple approach: render as background color
-            // In a full implementation, this would use terminal graphics protocols
-
-            // Move cursor to the cell position
-            self.push(&format!("\x1b[{};{}H", y + 1, x + 1));
-
-            // For demonstration, we'll set a background color based on the image
-            // In practice, this would use sixel, kitty graphics, or other protocols
-            if placement.opacity > 0.0 {
-                // Sample a pixel from the image at the placement coordinates
-                let pixel_offset = (placement.source_y as usize * image_data.width as usize
-                    + placement.source_x as usize)
-                    * 4;
-
-                if pixel_offset + 3 < image_data.pixels.len() {
-                    let r = image_data.pixels[pixel_offset];
-                    let g = image_data.pixels[pixel_offset + 1];
-                    let b = image_data.pixels[pixel_offset + 2];
-                    let a = image_data.pixels[pixel_offset + 3];
-
-                    // Apply opacity
-                    let alpha = (a as f32 / 255.0) * placement.opacity;
-
-                    if alpha > 0.1 {
-                        // Set background color to represent the image pixel
-                        self.push(&format!("\x1b[48;2;{};{};{}m", r, g, b));
-
-                        // If z-index is negative (behind text), we don't need to do anything special
-                        // If z-index is positive (in front of text), we might want to modify the character
-                        if placement.z_index >= 0 {
-                            // For images in front of text, we could use a special character or modify the existing one
-                            self.push("▓"); // Use a block character to represent image overlay
-                        }
-                    }
-                }
-            }
-        }
+        Ok(())
     }
 
     /// Get the generated terminal output
@@ -2605,6 +2714,60 @@ mod tests {
                 assert_eq!(placement.source_y, expected_source_y);
             }
         }
+        let last = surface.get(8, 7).image_placement.unwrap();
+        assert_eq!(u32::from(last.source_y) + u32::from(last.source_height), 64);
+    }
+
+    #[test]
+    fn api_surface_image_small_source_and_removal() {
+        let mut surface = Surface::new(4, 2);
+        let id = surface.create_test_image(1, 1, 255, 0, 0);
+        surface.place_image_region(0, 0, 4, 2, id, 1, 1, 1, 1.0);
+        for (_, _, _, placement) in surface.get_image_cells() {
+            assert_eq!(placement.source_width, 1);
+            assert_eq!(placement.source_height, 1);
+        }
+        surface.remove_image(id).unwrap();
+        assert!(surface.get_image_cells().is_empty());
+    }
+
+    #[test]
+    fn api_surface_image_validation_and_clipped_work() {
+        let mut surface = Surface::new(2, 1);
+        assert_eq!(surface.create_image_from_rgba(2, 1, vec![0; 7]), 0);
+        assert_eq!(surface.create_test_image(u32::MAX, u32::MAX, 0, 0, 0), 0);
+        assert_eq!(surface.image_count(), 0);
+        let id = surface.create_test_image(1, 1, 255, 0, 0);
+        surface
+            .try_place_image_region(0, 0, usize::MAX, usize::MAX, id, 1, 1, 1, 1.0)
+            .unwrap();
+        assert_eq!(surface.get_image_cells().len(), 2);
+        surface
+            .try_place_image_region(
+                usize::MAX,
+                usize::MAX,
+                usize::MAX,
+                usize::MAX,
+                id,
+                1,
+                1,
+                1,
+                1.0,
+            )
+            .unwrap();
+        assert!(surface
+            .try_place_image_region(0, 0, 1, 1, id, 1, 1, 1, f32::NAN)
+            .is_err());
+        surface.clear_images();
+        assert!(surface.get_image_cells().is_empty());
+        let new_id = surface.create_test_image(1, 1, 0, 255, 0);
+        assert_ne!(id, new_id);
+        let mut registry = ImageRegistry::default();
+        let data = surface.get_image(new_id).unwrap().clone();
+        assert_ne!(registry.try_register_image(data.clone()).unwrap(), 0);
+        registry.next_id = u32::MAX;
+        assert_eq!(registry.try_register_image(data.clone()).unwrap(), u32::MAX);
+        assert!(registry.try_register_image(data).is_err());
     }
 
     #[test]

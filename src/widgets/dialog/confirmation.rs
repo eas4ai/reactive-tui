@@ -3,6 +3,8 @@
 //! Provides confirmation dialogs with customizable buttons, icons, and callbacks.
 //! Supports yes/no, ok/cancel, and custom button configurations.
 
+mod live;
+
 use super::{
     BaseDialogState, DialogBounds, DialogComponent, DialogEventResult, DialogId, DialogPosition,
     DialogResult, DialogTheme, FocusableElementInfo,
@@ -51,6 +53,43 @@ pub struct ConfirmationDialogOptions {
     pub on_close: Option<Arc<dyn Fn(DialogResult) + Send + Sync>>,
 }
 
+impl PartialEq for ConfirmationDialogOptions {
+    fn eq(&self, other: &Self) -> bool {
+        use crate::widgets::display::overlay::same_callback;
+        self.title == other.title
+            && self.message == other.message
+            && self.description == other.description
+            && self.icon == other.icon
+            && self.buttons == other.buttons
+            && self.default_button == other.default_button
+            && self.size == other.size
+            && self.position == other.position
+            && self.modal == other.modal
+            && self.backdrop_closable == other.backdrop_closable
+            && self.escape_closable == other.escape_closable
+            && self.css_classes == other.css_classes
+            && same_callback(&self.on_button_click, &other.on_button_click)
+            && same_callback(&self.on_close, &other.on_close)
+    }
+}
+
+impl ConfirmationButtons {
+    fn entries(&self) -> Vec<ConfirmationButton> {
+        match self {
+            Self::Ok => vec![ConfirmationButton::ok()],
+            Self::OkCancel => vec![ConfirmationButton::ok(), ConfirmationButton::cancel()],
+            Self::YesNo => vec![ConfirmationButton::yes(), ConfirmationButton::no()],
+            Self::YesNoCancel => vec![
+                ConfirmationButton::yes(),
+                ConfirmationButton::no(),
+                ConfirmationButton::cancel(),
+            ],
+            Self::RetryCancel => vec![ConfirmationButton::retry(), ConfirmationButton::cancel()],
+            Self::Custom(buttons) => buttons.clone(),
+        }
+    }
+}
+
 impl std::fmt::Debug for ConfirmationDialogOptions {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("ConfirmationDialogOptions")
@@ -91,7 +130,7 @@ pub enum ConfirmationIcon {
 }
 
 /// Button configurations for confirmation dialogs
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum ConfirmationButtons {
     /// OK button only
     Ok,
@@ -108,7 +147,7 @@ pub enum ConfirmationButtons {
 }
 
 /// Individual button configuration
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct ConfirmationButton {
     /// Button ID
     pub id: String,
@@ -187,28 +226,33 @@ impl ConfirmationDialog {
         let mut button_states = HashMap::new();
 
         // Initialize button states
-        let buttons = match &options.buttons {
-            ConfirmationButtons::Ok => vec![ConfirmationButton::ok()],
-            ConfirmationButtons::OkCancel => {
-                vec![ConfirmationButton::ok(), ConfirmationButton::cancel()]
-            }
-            ConfirmationButtons::YesNo => vec![ConfirmationButton::yes(), ConfirmationButton::no()],
-            ConfirmationButtons::YesNoCancel => vec![
-                ConfirmationButton::yes(),
-                ConfirmationButton::no(),
-                ConfirmationButton::cancel(),
-            ],
-            ConfirmationButtons::RetryCancel => {
-                vec![ConfirmationButton::retry(), ConfirmationButton::cancel()]
-            }
-            ConfirmationButtons::Custom(buttons) => buttons.clone(),
-        };
+        let buttons = options.buttons.entries();
 
+        let focused = options
+            .default_button
+            .as_deref()
+            .filter(|id| {
+                buttons
+                    .iter()
+                    .any(|button| button.enabled && button.id == *id)
+            })
+            .or_else(|| {
+                buttons
+                    .iter()
+                    .find(|button| button.enabled && button.is_default)
+                    .map(|button| button.id.as_str())
+            })
+            .or_else(|| {
+                buttons
+                    .iter()
+                    .find(|button| button.enabled)
+                    .map(|button| button.id.as_str())
+            });
         for button in &buttons {
             button_states.insert(
                 button.id.clone(),
                 ButtonState {
-                    focused: button.is_default,
+                    focused: focused == Some(button.id.as_str()),
                     pressed: false,
                     hovered: false,
                     bounds: Rect::default(),
@@ -237,6 +281,9 @@ impl ConfirmationDialog {
 
     /// Handle button click
     fn handle_button_click(&mut self, button_id: &str) -> DialogEventResult {
+        let Some(button) = self.get_button(button_id).filter(|button| button.enabled) else {
+            return DialogEventResult::NotHandled;
+        };
         // Call button click callback if provided
         if let Some(callback) = &self.options.on_button_click {
             if !callback(button_id) {
@@ -244,107 +291,48 @@ impl ConfirmationDialog {
             }
         }
 
-        // Determine result based on button
-        let result = match button_id {
-            "ok" => DialogResult::Confirmed(None),
-            "cancel" => DialogResult::Cancelled,
-            "yes" => DialogResult::Confirmed(Some("yes".to_string())),
-            "no" => DialogResult::Confirmed(Some("no".to_string())),
-            "retry" => DialogResult::Confirmed(Some("retry".to_string())),
-            _ => DialogResult::Selected(button_id.to_string()),
-        };
-
-        DialogEventResult::Close(result)
+        DialogEventResult::Close(button.result())
     }
 
     /// Get button by ID
     fn get_button(&self, button_id: &str) -> Option<ConfirmationButton> {
-        let buttons = match &self.options.buttons {
-            ConfirmationButtons::Ok => vec![ConfirmationButton::ok()],
-            ConfirmationButtons::OkCancel => {
-                vec![ConfirmationButton::ok(), ConfirmationButton::cancel()]
-            }
-            ConfirmationButtons::YesNo => vec![ConfirmationButton::yes(), ConfirmationButton::no()],
-            ConfirmationButtons::YesNoCancel => vec![
-                ConfirmationButton::yes(),
-                ConfirmationButton::no(),
-                ConfirmationButton::cancel(),
-            ],
-            ConfirmationButtons::RetryCancel => {
-                vec![ConfirmationButton::retry(), ConfirmationButton::cancel()]
-            }
-            ConfirmationButtons::Custom(buttons) => buttons.clone(),
-        };
+        let buttons = self.options.buttons.entries();
 
         buttons.into_iter().find(|b| b.id == button_id)
     }
 
-    /// Focus next button
-    fn focus_next_button(&mut self) {
-        let button_ids: Vec<String> = self.button_states.keys().cloned().collect();
-        if button_ids.is_empty() {
+    fn move_focus(&mut self, forward: bool) {
+        let buttons: Vec<_> = self
+            .options
+            .buttons
+            .entries()
+            .into_iter()
+            .filter(|button| button.enabled)
+            .collect();
+        if buttons.is_empty() {
             return;
         }
-
-        let current_focused = button_ids.iter().position(|id| {
+        let current = buttons.iter().position(|button| {
             self.button_states
-                .get(id)
+                .get(&button.id)
                 .is_some_and(|state| state.focused)
         });
-
-        // Clear current focus
-        for state in self.button_states.values_mut() {
-            state.focused = false;
-        }
-
-        // Set next focus
-        let next_index = match current_focused {
-            Some(index) => (index + 1) % button_ids.len(),
+        let next = match current {
+            Some(index) if forward => (index + 1) % buttons.len(),
+            Some(0) | None if !forward => buttons.len() - 1,
+            Some(index) => index - 1,
             None => 0,
         };
-
-        if let Some(button_id) = button_ids.get(next_index) {
-            if let Some(state) = self.button_states.get_mut(button_id) {
-                state.focused = true;
-            }
+        for (id, state) in &mut self.button_states {
+            state.focused = *id == buttons[next].id;
         }
     }
 
-    /// Focus previous button
+    fn focus_next_button(&mut self) {
+        self.move_focus(true);
+    }
     fn focus_previous_button(&mut self) {
-        let button_ids: Vec<String> = self.button_states.keys().cloned().collect();
-        if button_ids.is_empty() {
-            return;
-        }
-
-        let current_focused = button_ids.iter().position(|id| {
-            self.button_states
-                .get(id)
-                .is_some_and(|state| state.focused)
-        });
-
-        // Clear current focus
-        for state in self.button_states.values_mut() {
-            state.focused = false;
-        }
-
-        // Set previous focus
-        let prev_index = match current_focused {
-            Some(index) => {
-                if index == 0 {
-                    button_ids.len() - 1
-                } else {
-                    index - 1
-                }
-            }
-            None => button_ids.len() - 1,
-        };
-
-        if let Some(button_id) = button_ids.get(prev_index) {
-            if let Some(state) = self.button_states.get_mut(button_id) {
-                state.focused = true;
-            }
-        }
+        self.move_focus(false);
     }
 
     /// Get currently focused button
@@ -357,6 +345,25 @@ impl ConfirmationDialog {
 }
 
 impl ConfirmationButton {
+    fn matches_shortcut(&self, code: &KeyCode) -> bool {
+        match (&self.shortcut, code) {
+            (Some(KeyCode::Char(shortcut)), KeyCode::Char(value)) => {
+                value.eq_ignore_ascii_case(shortcut)
+            }
+            (Some(shortcut), value) => shortcut == value,
+            (None, _) => false,
+        }
+    }
+
+    fn result(&self) -> DialogResult {
+        match self.id.as_str() {
+            "ok" => DialogResult::Confirmed(None),
+            "cancel" => DialogResult::Cancelled,
+            "yes" | "no" | "retry" => DialogResult::Confirmed(Some(self.id.clone())),
+            _ if self.is_cancel => DialogResult::Cancelled,
+            _ => DialogResult::Selected(self.id.clone()),
+        }
+    }
     /// Create an OK button
     pub fn ok() -> Self {
         Self {
@@ -437,70 +444,25 @@ impl DialogComponent for ConfirmationDialog {
         "confirmation"
     }
 
-    fn render(&self, _bounds: Rect, theme: &DialogTheme) -> Element {
-        use crate::builder::div;
-
-        let mut children = Vec::new();
-
-        // Title bar
-        if !self.options.title.is_empty() {
-            children.push(
-                div()
-                    .class(&format!("dialog-title {}", theme.title_style))
-                    .text(&self.options.title)
-                    .build(),
-            );
-        }
-
-        // Content area
-        let mut content_children = Vec::new();
-
-        // Message
-        content_children.push(
-            div()
-                .class("dialog-message text-lg font-medium mb-2")
-                .text(&self.options.message)
-                .build(),
-        );
-
-        // Description
-        if let Some(description) = &self.options.description {
-            content_children.push(
-                div()
-                    .class("dialog-description text-sm text-gray-600 mb-4")
-                    .text(description)
-                    .build(),
-            );
-        }
-
-        children.push(
-            div()
-                .class("dialog-content p-6")
-                .children(content_children)
-                .build(),
-        );
-
-        // Button area
-        let button_elements = self.render_buttons(theme);
-        children.push(
-            div()
-                .class("dialog-buttons flex justify-end gap-2 p-4 border-t")
-                .children(button_elements)
-                .build(),
-        );
-
-        div()
-            .class(&format!(
-                "dialog confirmation-dialog {} {}",
-                theme.dialog_bg, theme.border_style
-            ))
-            .children(children)
-            .build()
+    fn render(&self, bounds: Rect, theme: &DialogTheme) -> Element {
+        Element::typed::<live::LiveConfirmation>(live::LiveProps {
+            id: self.state.id,
+            options: self.options.clone(),
+            bounds,
+            theme: theme.clone(),
+        })
     }
 
     fn handle_event(&mut self, event: &Event) -> DialogEventResult {
         match event {
             Event::Key(key_event) => {
+                if key_event.kind == crate::event::types::KeyEventKind::Release
+                    || key_event.modifiers.ctrl
+                    || key_event.modifiers.alt
+                    || key_event.modifiers.meta
+                {
+                    return DialogEventResult::NotHandled;
+                }
                 match key_event.code {
                     KeyCode::Escape if self.options.escape_closable => {
                         DialogEventResult::Close(DialogResult::Cancelled)
@@ -520,21 +482,14 @@ impl DialogComponent for ConfirmationDialog {
                         self.focus_previous_button();
                         DialogEventResult::StateChanged
                     }
-                    KeyCode::Char(c) => {
-                        // Check for button shortcuts
-                        let button_ids: Vec<String> = self.button_states.keys().cloned().collect();
-                        for button_id in button_ids {
-                            if let Some(button) = self.get_button(&button_id) {
-                                if let Some(KeyCode::Char(shortcut)) = button.shortcut {
-                                    if c.eq_ignore_ascii_case(&shortcut) {
-                                        return self.handle_button_click(&button_id);
-                                    }
-                                }
-                            }
+                    _ => {
+                        match self.options.buttons.entries().into_iter().find(|button| {
+                            button.enabled && button.matches_shortcut(&key_event.code)
+                        }) {
+                            Some(button) => self.handle_button_click(&button.id),
+                            None => DialogEventResult::NotHandled,
                         }
-                        DialogEventResult::NotHandled
                     }
-                    _ => DialogEventResult::NotHandled,
                 }
             }
             Event::Mouse(mouse_event) => {
@@ -695,44 +650,6 @@ impl DialogComponent for ConfirmationDialog {
 
     fn as_any_mut(&mut self) -> &mut dyn Any {
         self
-    }
-}
-
-impl ConfirmationDialog {
-    /// Render dialog buttons
-    fn render_buttons(&self, theme: &DialogTheme) -> Vec<Element> {
-        let buttons = match &self.options.buttons {
-            ConfirmationButtons::Ok => vec![ConfirmationButton::ok()],
-            ConfirmationButtons::OkCancel => {
-                vec![ConfirmationButton::ok(), ConfirmationButton::cancel()]
-            }
-            ConfirmationButtons::YesNo => vec![ConfirmationButton::yes(), ConfirmationButton::no()],
-            ConfirmationButtons::YesNoCancel => vec![
-                ConfirmationButton::yes(),
-                ConfirmationButton::no(),
-                ConfirmationButton::cancel(),
-            ],
-            ConfirmationButtons::RetryCancel => {
-                vec![ConfirmationButton::retry(), ConfirmationButton::cancel()]
-            }
-            ConfirmationButtons::Custom(buttons) => buttons.clone(),
-        };
-
-        buttons
-            .into_iter()
-            .map(|button| self.render_button(&button, theme))
-            .collect()
-    }
-
-    /// Render a single button
-    fn render_button(&self, button: &ConfirmationButton, _theme: &DialogTheme) -> Element {
-        use crate::builder::div;
-
-        // Simplified button rendering using div for now
-        div()
-            .class("dialog-button btn-primary")
-            .text(&button.text)
-            .build()
     }
 }
 
