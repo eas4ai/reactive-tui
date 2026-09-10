@@ -12,6 +12,8 @@ Keep ScrollView content as an Element under a clipped viewport. Measure the cont
 
 ## Realized by
 
+- b2079c401464b25ccb33747e33b5b3373f284a90 Restore widget behavior, native terminal sessions, and image output through App
+
 Implementation: `src/widgets/layout/scroll_view.rs`, `src/layout/paint_tree.rs`.
 
 Behavior checks: `tests/api_widget_behavior/scroll.rs`.
