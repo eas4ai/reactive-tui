@@ -12,6 +12,8 @@ Preserve the public Breadcrumb unit component, props, state and builders. Render
 
 ## Realized by
 
+- b2079c401464b25ccb33747e33b5b3373f284a90 Restore widget behavior, native terminal sessions, and image output through App
+
 Implementation: `src/widgets/layout/breadcrumb`.
 
 Behavior checks: `tests/api_widget_behavior/breadcrumb.rs`, `tests/api_widget_behavior/orca.py`.
