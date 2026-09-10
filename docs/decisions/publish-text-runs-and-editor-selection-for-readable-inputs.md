@@ -12,6 +12,8 @@ Attach private grapheme selection metadata and keyed screen-reader text runs to 
 
 ## Realized by
 
+- b2079c401464b25ccb33747e33b5b3373f284a90 Restore widget behavior, native terminal sessions, and image output through App
+
 Implementation: `src/widgets/input/text_input.rs`, `src/accessibility/text.rs`.
 
 Behavior checks: `tests/api_widget_behavior/orca_tabs.py`, `tests/api_widget_behavior/input.rs`.
