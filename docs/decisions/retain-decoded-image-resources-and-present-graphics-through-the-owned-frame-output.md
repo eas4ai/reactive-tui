@@ -12,6 +12,8 @@ Make Image and ImageBuilder produce a private retained App component that owns d
 
 ## Realized by
 
+- b2079c401464b25ccb33747e33b5b3373f284a90 Restore widget behavior, native terminal sessions, and image output through App
+
 The retained worker and ImagePaint metadata now carry decoded resources through
 the existing component bridge and painter. The owned SuprTUI output supports Kitty
 transmission, masking, movement, source updates, removal, resize and shutdown;
