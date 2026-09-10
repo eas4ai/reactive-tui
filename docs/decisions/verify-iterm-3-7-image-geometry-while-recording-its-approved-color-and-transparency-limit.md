@@ -12,6 +12,8 @@ The developer approved escalation api-011-api-014-api-020. Preserve strict exact
 
 ## Realized by
 
+- b2079c401464b25ccb33747e33b5b3373f284a90 Restore widget behavior, native terminal sessions, and image output through App
+
 `scripts/check-iterm-host.py` records exact sRGB and dominant-channel geometry
 separately. The strict color diagnostic remains available through
 `--require-exact-srgb`. `scripts/check-widget-platforms.py` requires both captured
