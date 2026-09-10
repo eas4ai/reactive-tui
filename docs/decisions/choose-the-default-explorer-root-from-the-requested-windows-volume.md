@@ -12,6 +12,8 @@ When FileExplorerBuilder has no caller-specified root and receives an absolute W
 
 ## Realized by
 
+- b2079c401464b25ccb33747e33b5b3373f284a90 Restore widget behavior, native terminal sessions, and image output through App
+
 `FileExplorerBuilder` tracks whether `root_path` was supplied. On Windows,
 `current_path` derives an unconfigured boundary from the absolute path's volume
 or UNC share. Native unit cases cover drive, verbatim and UNC paths while
