@@ -13,7 +13,7 @@
     "kCGWindowName" : "",
     "kCGWindowNumber" : 42,
     "kCGWindowOwnerName" : "iTerm2",
-    "kCGWindowOwnerPID" : 14505,
+    "kCGWindowOwnerPID" : 14370,
     "kCGWindowSharingState" : 1,
     "kCGWindowStoreType" : 1
   },
@@ -28,10 +28,10 @@
     "kCGWindowIsOnscreen" : true,
     "kCGWindowLayer" : 0,
     "kCGWindowMemoryUsage" : 2176,
-    "kCGWindowName" : "RTUI-IMAGE-ecde3b4aa2f54e10a56cd82d56af2ce1",
+    "kCGWindowName" : "RTUI-IMAGE-d0e87c734a1b467196421068288cf75f",
     "kCGWindowNumber" : 41,
     "kCGWindowOwnerName" : "iTerm2",
-    "kCGWindowOwnerPID" : 14505,
+    "kCGWindowOwnerPID" : 14370,
     "kCGWindowSharingState" : 1,
     "kCGWindowStoreType" : 1
   }

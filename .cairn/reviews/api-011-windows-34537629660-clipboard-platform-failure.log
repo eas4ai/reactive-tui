@@ -1,0 +1,15 @@
+
+running 1 test
+
+thread 'clipboard_platform_roundtrip' (2404) panicked at tests\clipboard_platform.rs:25:9:
+windows copy of 13 bytes: Some("clipboard operation timed out after 15 seconds")
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test clipboard_platform_roundtrip ... FAILED
+
+failures:
+
+failures:
+    clipboard_platform_roundtrip
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 15.23s
+

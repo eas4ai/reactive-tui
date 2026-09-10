@@ -1,0 +1,4 @@
+error: failed to parse manifest at `/home/shawn/workspace2/reactive-tui/target/api011-conpty-input-uwcvupx1/Cargo.toml`
+
+Caused by:
+  can't find `diff_benchmark` bench at `benches/diff_benchmark.rs` or `benches/diff_benchmark/main.rs`. Please specify bench.path if you want to use a non-default path.

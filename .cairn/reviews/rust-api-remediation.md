@@ -3094,3 +3094,31 @@ Dependency inspection also found that the ConPTY negative-build source copy
 includes `benches`, whose presence is required by the Cargo manifest, but the
 native recorder and widget mechanism do not declare it. Add that dependency
 before the next native run; do not edit an old receipt to treat it as covered.
+
+
+The departed-App correction also passed three further complete 100x32 display
+reader workflows (`api-011-orca-disappeared-app-repeat-{1,2,3}.log`). Each retained
+its speech, child input/output and replacement/removal assertions.
+
+The ConPTY dependency declaration now includes `benches` in both its native
+recorder and the widget mechanism. A disposable copy of the exact negative-build
+inputs, initially omitting that directory, reproduces Cargo's missing
+`diff_benchmark` manifest error with `cargo build --locked --offline --example
+conpty_probe`. Restoring the benchmark sources makes that build pass. The paired
+logs are `api-011-conpty-bench-build-{negative,corrected}.log`. An initial metadata
+probe accepted the missing files and therefore did not demonstrate the build
+requirement; its diagnostic is retained separately. Native run 34537629660 checks
+the committed input union at snapshot eb453944cc27341d6b99c71f790708127bfd1711.
+No native receipt from the preceding snapshot was edited to change its digest.
+
+
+Native run 34537629660 completed the macOS job and Windows ConPTY and widget
+steps successfully. All captured native widget and ConPTY output hashes match
+the current input digests, including the corrected reader helper and benchmark
+dependency. The Windows clipboard step failed independently: its first 13-byte
+copy returned the existing 15-second timeout error; the test finished in
+15.23 seconds. The retained failure diagnostic does not explain the PowerShell
+stall. The previous same-input Windows clipboard record passed; neither it nor
+this failed run establishes the cause. The failed Windows job is being retried
+once on the unchanged snapshot to check recurrence. No timeout was extended,
+no application code changed, and the failed output remains evidence.

@@ -92,6 +92,6 @@ warning: field `parser` is never read
     |     ^^^^^^
 
 warning: `reactive-tui` (lib) generated 11 warnings (run `cargo fix --lib -p reactive-tui` to apply 4 suggestions)
-    Finished `dev` profile [unoptimized + debuginfo] target(s) in 59.65s
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 51.63s
 
 PASS 194 baseline C exports load
