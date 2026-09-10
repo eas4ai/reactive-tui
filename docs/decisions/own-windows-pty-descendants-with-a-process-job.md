@@ -12,4 +12,6 @@ Create a private Windows job with kill-on-close for each retained PTY session. L
 
 ## Realized by
 
+- b2079c401464b25ccb33747e33b5b3373f284a90 Restore widget behavior, native terminal sessions, and image output through App
+
 `src/terminal/pty/windows/job.rs` owns the private job; `native.rs` creates the child suspended, assigns it before resume and terminates the owned tree before console closure and output join. Native run 34481972388 passes all PTY behavior cases, including descendants and stable failed-launch handles. Its later negative build failed because the test source copy omitted benches; that harness correction is being rechecked.
