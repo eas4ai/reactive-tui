@@ -14,6 +14,8 @@ Use Microsoft.Windows.Console.ConPTY 1.24.260710001 instead of the leaking opera
 
 ## Realized by
 
+- b2079c401464b25ccb33747e33b5b3373f284a90 Restore widget behavior, native terminal sessions, and image output through App
+
 Implementation: `src/terminal/pty/windows.rs`, `src/terminal/pty/windows/runtime.rs`, `src/terminal/owned_pty.rs`.
 
 Behavior checks: `tests/api_widget_behavior/conpty_probe.rs`, `scripts/check-conpty-platform.py`, `tests/api_widget_behavior/terminal.rs`.
