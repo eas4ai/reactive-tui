@@ -12,4 +12,9 @@ Record soft-wrap boundaries as text is written and reflow those logical lines wh
 
 ## Realized by
 
-(none yet: recorded, not built)
+- b2079c401464b25ccb33747e33b5b3373f284a90 Restore widget behavior, native terminal sessions, and image output through App
+
+`src/terminal/screen/reflow.rs` repacks soft-wrapped main-screen rows while
+preserving cells and cursor anchors. Intermediate blank rows stay compact; the
+alternate grid uses fixed-grid resizing. The later visible-origin decision
+records how retained history selects the new viewport.
