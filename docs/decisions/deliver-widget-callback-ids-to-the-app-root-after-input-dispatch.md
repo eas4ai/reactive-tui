@@ -12,6 +12,8 @@ Preserve string callback IDs in widget props. Collect synchronous widget notific
 
 ## Realized by
 
+- b2079c401464b25ccb33747e33b5b3373f284a90 Restore widget behavior, native terminal sessions, and image output through App
+
 Implementation: `src/event/notifications.rs`, `src/app.rs`.
 
 Behavior checks: `tests/api_widget_behavior/accordion.rs`, `tests/api_widget_behavior/breadcrumb.rs`, `tests/api_widget_behavior/file_explorer.rs`.
