@@ -12,6 +12,8 @@ Give each App component runtime its own private named-radio group registry and s
 
 ## Realized by
 
+- b2079c401464b25ccb33747e33b5b3373f284a90 Restore widget behavior, native terminal sessions, and image output through App
+
 Implementation: `src/widgets/input/named_radio.rs`, `src/builder/specialized.rs`.
 
 Behavior checks: `tests/api_widget_behavior/radio.rs`, `tests/api_widget_behavior/orca.py`.
