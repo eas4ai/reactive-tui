@@ -12,6 +12,8 @@ On the developer Windows 11 machine, the first missing-executable PTY attempt ra
 
 ## Realized by
 
+- b2079c401464b25ccb33747e33b5b3373f284a90 Restore widget behavior, native terminal sessions, and image output through App
+
 `tests/api_widget_behavior/conpty_probe.rs` initializes an ordinary missing
 process launch before taking the PTY handle baseline. On Windows 11/MSVC the
 corrected probe remains at exactly 135 handles through all ten failed launches.
