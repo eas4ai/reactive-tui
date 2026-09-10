@@ -12,6 +12,8 @@ Keep the public ModalProps keyboard_navigation contract unchanged. Add a private
 
 ## Realized by
 
+- b2079c401464b25ccb33747e33b5b3373f284a90 Restore widget behavior, native terminal sessions, and image output through App
+
 Implementation: `src/widgets/display/modal.rs`, `src/widgets/dialog/confirmation/live.rs`, `src/widgets/dialog/input/live.rs`, `src/widgets/dialog/autocomplete/live.rs`.
 
 Behavior checks: `tests/api_widget_behavior/confirmation.rs`, `tests/api_widget_behavior/input.rs`.
