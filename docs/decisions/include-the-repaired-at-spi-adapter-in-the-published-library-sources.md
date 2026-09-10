@@ -12,6 +12,8 @@ Include the upstream Unix adapter and AT-SPI translation modules privately insid
 
 ## Realized by
 
+- b2079c401464b25ccb33747e33b5b3373f284a90 Restore widget behavior, native terminal sessions, and image output through App
+
 Implementation: `src/accessibility/platform`, `Cargo.toml`.
 
 Behavior checks: `src/accessibility/platform/translation/state_tests.rs`, `tests/api_widget_behavior/orca.py`.
