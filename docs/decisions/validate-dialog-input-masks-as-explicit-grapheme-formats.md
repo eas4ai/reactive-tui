@@ -12,6 +12,8 @@ Define the mask string as an exact input format: # requires one ASCII digit, A r
 
 ## Realized by
 
+- b2079c401464b25ccb33747e33b5b3373f284a90 Restore widget behavior, native terminal sessions, and image output through App
+
 Implementation: `src/widgets/dialog/input`.
 
 Behavior checks: `tests/api_widget_behavior/input.rs`, `docs/dialog-input.md`.
