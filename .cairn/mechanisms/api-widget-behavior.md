@@ -9,6 +9,7 @@ inputs:
   - src
   - reactive-tui-macros
   - tests
+  - benches
   - scripts/check-api-widget-behavior.py
   - scripts/check-dialog-http.py
   - scripts/check-widget-platforms.py
