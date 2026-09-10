@@ -12,8 +12,11 @@ Reconcile the API-011 matrix against actual public construction routes and App w
 
 ## Realized by
 
+- b2079c401464b25ccb33747e33b5b3373f284a90 Restore widget behavior, native terminal sessions, and image output through App
+
 The App rows in `docs/widget-acceptance.md` are reconciled with their behavioral
-checks. The image-host and Windows TerminalWidget rows remain pending.
+checks, including the image-host and Windows TerminalWidget rows. Their App
+coverage is reviewed; committed Cairn acceptance receipts remain required.
 API-012 engine results/stacking/lifecycle and API-014/API-016 obligations remain
 explicitly unfinished. `.cairn/reviews/rust-api-remediation.md` records the
 construction-route review and the limits of these editing results.
