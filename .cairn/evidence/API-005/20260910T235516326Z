@@ -1,0 +1,21 @@
+requirement: API-005
+requirement_digest: sha256:fe84eeeac886db98c53b20b12da24c87db664a8ec4476bb498e9fe5427c3ca36
+sequence: 13
+history_digest: sha256:7242102e39f51eec9d4ac648db23557b76d915d6a0c301540cd1e813d63d8746
+mechanism: api-event-routing.md
+commit: 1d91f9f
+inputs_digest: sha256:10c0391484478e84a9f7b4ce4e56a68a053d79884a03348f4ad28dbe16e0dd8e
+mechanism_digest: sha256:dd4c5af5f925be3c2782cced38e8bcc582d03086bb25b2201e1e95c5feffc04b
+inputs_detail: .cairn/evidence/API-005/20260910T235514472Z-1455640.inputs.json
+command: python3 -B scripts/check-api-event-routing.py
+cwd: .
+exit: 0
+output_digest: sha256:b0b47ba4b5cfa76aa1a4874cce0412f7c072571fde03e0a14abb4a411e743641
+output: .cairn/evidence/API-005/20260910T235514472Z-1455640.out
+stderr_output: .cairn/evidence/API-005/20260910T235514472Z-1455640.err
+stderr_digest: sha256:d61a8e28d482ebf420132aae647e503f3538e88bb9e74db49ab52814969fa58a
+signal: none
+execution_error: null
+result: pass
+source: exit
+recorded: 2026-09-10T23:55:16.326Z
