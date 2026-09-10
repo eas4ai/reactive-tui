@@ -12,6 +12,8 @@ Add crate-private capture handlers to owned Element metadata and register them i
 
 ## Realized by
 
+- b2079c401464b25ccb33747e33b5b3373f284a90 Restore widget behavior, native terminal sessions, and image output through App
+
 Implementation: `src/app/event_tree.rs`, `src/widgets/display/popover`.
 
 Behavior checks: `tests/api_widget_behavior/popover.rs`.
