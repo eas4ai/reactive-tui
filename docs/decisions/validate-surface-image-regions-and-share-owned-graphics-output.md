@@ -12,6 +12,8 @@ Preserve existing Surface constructors and placement signatures. Add checked alt
 
 ## Realized by
 
+- b2079c401464b25ccb33747e33b5b3373f284a90 Restore widget behavior, native terminal sessions, and image output through App
+
 Implementation: `src/platform/image`, `src/core/surface`, `src/backend/suprtui/graphics`.
 
 Behavior checks: `tests/api_widget_behavior/image.rs`, `tests/api_widget_behavior/image_host_capture.py`.
@@ -21,7 +23,6 @@ recorded in `.cairn/reviews/rust-api-remediation.md` and
 `docs/widget-acceptance.md`. These references do not replace committed Cairn
 acceptance evidence.
 
-## Realized by
 
 Surface now has checked RGBA registration and proportional/clipped region placement,
 clears removed image references, and preserves zero as the error ID. DiffWriter uses
@@ -35,4 +36,4 @@ preserve glyphs over sampled decoded image backgrounds in text cells. The behind
 host checks pass for Kitty and Xterm. An isolated /dev/full fixture verifies a failed
 buffered frame followed by successful redraw. Full editing regression passed with
 899 library tests (three ignored), 340 App tests, strict Clippy, format and diff checks.
-Implementation is not yet committed; Cairn evidence remains a later action.
+Implementation is committed above; Cairn evidence remains a later action.
