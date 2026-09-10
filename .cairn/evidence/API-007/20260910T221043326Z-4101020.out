@@ -1,0 +1,60 @@
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.88s
+     Running tests/api_editor_unicode.rs (target/debug/deps/api_editor_unicode-dc4cbd04e78ce45e)
+
+running 23 tests
+test cursor_uses_scalar_offsets_and_display_columns ... ok
+test line_index_tracks_edits_before_and_at_newlines ... ok
+test plain::clipping_keeps_wide_graphemes_whole_and_clears_old_text ... ok
+test plain::control_text_is_visible_without_becoming_terminal_commands ... ok
+test plain::edits_that_join_graphemes_leave_cursor_at_a_boundary ... ok
+test plain::forward_delete_and_crlf_are_atomic ... ok
+test plain::mixed_insertion_and_grapheme_deletion ... ok
+test plain::painted_columns_and_selection_match_text ... ok
+test plain::rendered_terminal_cells_retain_unicode_after_updates ... ok
+test plain::selection_after_syntax_runs_and_tabs_uses_text_offsets ... ok
+test plain::selection_replaces_whole_graphemes_across_lines ... ok
+test surface_grapheme_ownership_survives_copy_and_expires_on_overwrite ... ok
+test syntax::clipping_keeps_wide_graphemes_whole_and_clears_old_text ... ok
+test syntax::control_text_is_visible_without_becoming_terminal_commands ... ok
+test syntax::edits_that_join_graphemes_leave_cursor_at_a_boundary ... ok
+test syntax::forward_delete_and_crlf_are_atomic ... ok
+test syntax::mixed_insertion_and_grapheme_deletion ... ok
+test syntax::painted_columns_and_selection_match_text ... ok
+test syntax::rendered_terminal_cells_retain_unicode_after_updates ... ok
+test syntax::selection_after_syntax_runs_and_tabs_uses_text_offsets ... ok
+test syntax::selection_replaces_whole_graphemes_across_lines ... ok
+test vertical_motion_preserves_columns_across_short_and_wide_lines ... ok
+test word_movement_retains_unicode_grapheme_boundaries ... ok
+
+test result: ok. 23 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.12s
+     Running unittests src/lib.rs (target/debug/deps/reactive_tui-e9e38f93cee1f718)
+
+running 22 tests
+test editor::cursor::tests::test_cursor_basic_movement ... ok
+test editor::cursor::tests::test_cursor_selection ... ok
+test editor::cursor::tests::test_cursor_vertical_movement ... ok
+test editor::cursor::tests::test_cursor_word_movement ... ok
+test editor::gap_buffer::tests::test_cursor_movement_efficiency ... ok
+test editor::gap_buffer::tests::test_delete_char ... ok
+test editor::gap_buffer::tests::test_delete_range ... ok
+test editor::gap_buffer::tests::test_from_string ... ok
+test editor::gap_buffer::tests::test_insert_char ... ok
+test editor::gap_buffer::tests::test_insert_string ... ok
+test editor::gap_buffer::tests::test_large_insertions ... ok
+test editor::gap_buffer::tests::test_line_col_conversion ... ok
+test editor::gap_buffer::tests::test_line_operations ... ok
+test editor::gap_buffer::tests::test_new_buffer ... ok
+test editor::syntax_editor::tests::test_cache_invalidation_on_edit ... ok
+test editor::syntax_editor::tests::test_syntax_editor_auto_detect ... ok
+test editor::syntax_editor::tests::test_syntax_editor_creation ... ok
+test editor::syntax_editor::tests::test_syntax_editor_editing ... ok
+test editor::text_editor::tests::test_editor_creation ... ok
+test editor::text_editor::tests::test_editor_delete ... ok
+test editor::text_editor::tests::test_editor_insert ... ok
+test editor::text_editor::tests::test_editor_selection ... ok
+
+test result: ok. 22 passed; 0 failed; 0 ignored; 0 measured; 950 filtered out; finished in 0.03s
+
