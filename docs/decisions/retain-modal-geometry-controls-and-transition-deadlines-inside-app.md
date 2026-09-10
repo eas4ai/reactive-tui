@@ -12,6 +12,8 @@ Keep the public unit Modal and its prop helpers. Render through a private retain
 
 ## Realized by
 
+- b2079c401464b25ccb33747e33b5b3373f284a90 Restore widget behavior, native terminal sessions, and image output through App
+
 Implementation: `src/widgets/display/modal`.
 
 Behavior checks: `tests/api_widget_behavior/modal.rs`, `tests/api_widget_behavior/orca_overlays.py`.
