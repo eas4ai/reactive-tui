@@ -12,6 +12,8 @@ Use AccessKit and its Linux AT-SPI adapter for the approved GNOME Terminal and O
 
 ## Realized by
 
+- b2079c401464b25ccb33747e33b5b3373f284a90 Restore widget behavior, native terminal sessions, and image output through App
+
 Implementation: `src/accessibility/connection.rs`, `src/accessibility/platform/unix/adapter.rs`, `src/app.rs`.
 
 Behavior checks: `tests/api_widget_behavior/accessibility_probe.rs`, `tests/api_widget_behavior/orca.py`.
