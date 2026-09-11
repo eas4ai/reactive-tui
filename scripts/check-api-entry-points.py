@@ -37,7 +37,8 @@ class Terminal:
             launcher = ("import os,fcntl,termios,sys; os.setsid(); "
                         "fcntl.ioctl(0,termios.TIOCSCTTY,0); os.execv(sys.argv[1],sys.argv[1:])")
             env = {**os.environ, "TERM": "xterm-256color", "RUST_BACKTRACE": "0"}
-            for name in ("DBUS_SESSION_BUS_ADDRESS", "AT_SPI_BUS_ADDRESS", "DBUS_STARTER_ADDRESS"):
+            for name in ("DBUS_SESSION_BUS_ADDRESS", "AT_SPI_BUS_ADDRESS", "DBUS_STARTER_ADDRESS",
+                         "TERM_PROGRAM", "KITTY_WINDOW_ID", "WEZTERM_PANE", "WT_SESSION"):
                 env.pop(name, None)
             self.child = subprocess.Popen(
                 [sys.executable, "-B", "-c", launcher, *map(str, command)],
@@ -82,7 +83,16 @@ class Terminal:
     def send(self, data):
         assert os.write(self.master, data) == len(data)
 
-    def finish(self, expected_error=False, build_error=False):
+    def wait_marker(self, name):
+        marker = f"\x1b]900;{name}\x07".encode()
+        deadline = time.monotonic() + 8
+        while marker not in self.output and time.monotonic() < deadline:
+            self.read()
+            if self.child.poll() is not None:
+                break
+        assert marker in self.output, (name, bytes(self.output[-2000:]))
+
+    def finish(self, expected_error=False, build_error=False, host_modes=True):
         deadline = time.monotonic() + 8
         while self.child.poll() is None and time.monotonic() < deadline:
             self.read()
@@ -91,13 +101,14 @@ class Terminal:
             self.read(0)
         self.capture.write_bytes(self.output)
         expected = 1 if expected_error else 0
-        assert self.child.returncode == expected, bytes(self.output[-2000:])
+        assert self.child.returncode == expected, (self.child.returncode, expected, bytes(self.output[-2000:]))
         marker = (b"entry point controlled root error" if expected_error else
                   b"ENTRY_POINT_BUILD_ERROR" if build_error else b"ENTRY_POINT_CLEAN_EXIT")
         assert marker in self.output, bytes(self.output[-2000:])
         assert termios.tcgetattr(self.slave) == self.original, "entry point left raw mode active"
-        assert b"\x1b[?1049l" in self.output, "entry point did not leave alternate screen"
-        assert b"\x1b[?25h" in self.output, "entry point did not restore the cursor"
+        if host_modes:
+            assert b"\x1b[?1049l" in self.output, "entry point did not leave alternate screen"
+            assert b"\x1b[?25h" in self.output, "entry point did not restore the cursor"
 
     def close(self):
         if self.child is not None and self.child.poll() is None:
@@ -141,8 +152,8 @@ def host_workflow(binary, screen, directory, route, size, error):
           f"{'error' if error else 'exit'} and restoration", flush=True)
 
 
-def native_workflow(binary, screen, directory, size, missing_root=False):
-    mode = "missing-root" if missing_root else "app"
+def native_workflow(binary, screen, directory, size, missing_root=False, reselect=False):
+    mode = "missing-root" if missing_root else "reselect" if reselect else "app"
     terminal = Terminal([binary, mode], screen, directory / f"c-{mode}-{size[0]}.bin", size)
     try:
         if not missing_root:
@@ -158,19 +169,59 @@ def native_workflow(binary, screen, directory, size, missing_root=False):
     print(f"PASS C SuprTUI {size}: {mode}, callback ownership and restoration", flush=True)
 
 
+def manual_workflow(binary, screen, directory, route):
+    terminal = Terminal([binary, route], screen, directory / f"manual-{route}.bin", (32, 8))
+    try:
+        if route == "direct":
+            terminal.wait_marker("READY")
+            terminal.send(b"xyz")  # One native read must retain all three events.
+        elif route == "unix":
+            for index in range(2):
+                terminal.wait_marker(f"RAW{index}")
+                mode = termios.tcgetattr(terminal.slave)
+                assert not mode[3] & (termios.ICANON | termios.ECHO), "clone did not retain raw mode"
+                terminal.send(b"x")
+                terminal.wait_marker(f"CLOSED{index}")
+                assert termios.tcgetattr(terminal.slave) == terminal.original, "last clone did not restore mode"
+                terminal.send(b"\n")
+        terminal.finish(host_modes=route != "unix")
+        if route != "unix":
+            output = bytes(terminal.output)
+            def part(name):
+                return f"\x1b]900;{name}\x07".encode()
+            def segment(first, last):
+                return output.split(part(first), 1)[1].split(part(last), 1)[0]
+            def painted(name):
+                terminal.capture.write_bytes(output.split(part(name), 1)[0])
+                return subprocess.check_output([str(screen), str(terminal.capture), "8", "32"], text=True, timeout=5)
+            assert "FIRST" in painted("FIRST")
+            assert not segment("FIRST", "UNCHANGED"), "unchanged manual frame emitted output"
+            assert "SECOND" in painted("SECOND") and "FIRST" not in painted("SECOND")
+            assert not painted("REMOVED").strip(), "root removal left old cells"
+            if route == "crossterm":
+                assert not segment("BASE", "INCREMENTAL")
+                assert segment("INCREMENTAL", "FULL"), "disabled output optimization had no effect"
+                assert painted("BASE") == painted("FULL")
+                assert not segment("FULL", "INCREMENTAL_AGAIN")
+                assert "frame:" in painted("DEBUG") and "frame:" not in painted("NO_DEBUG")
+    finally:
+        terminal.close()
+    print(f"PASS manual {route}: patches/options, input batch or clone ownership, cleanup", flush=True)
+
+
 def main():
     os.chdir(ROOT)
     execute(["cargo", "build", "--locked", "--features", "ffi"])
     execute(["cargo", "test", "--locked", "--test", "suprtui_renderer", "--no-run"])
     artifacts = list((TARGET / "debug/deps").glob("libvt100-*.rlib"))
-    assert artifacts, "Cargo did not build the declared vt100 development dependency"
+    assert artifacts, "Cargo did not build the declared vt100 dependency"
     vt100 = max(artifacts, key=lambda path: path.stat().st_mtime_ns)
     captured = ROOT / ".cairn/reviews/api-entry-points" / time.strftime("%Y%m%dT%H%M%SZ", time.gmtime())
     captured.mkdir(parents=True)
     failures = []
     with tempfile.TemporaryDirectory(prefix="api-entry-points-", dir=TARGET) as temporary:
         directory = Path(temporary)
-        for name in ("legacy", "host", "screen"):
+        for name in ("legacy", "host", "manual", "screen"):
             dependency = ("vt100=" + str(vt100) if name == "screen" else
                           "reactive_tui=" + str(TARGET / "debug/libreactive_tui.rlib"))
             command = ["rustc", "--edition=2021", str(SOURCE / f"{name}.rs"), "--extern", dependency,
@@ -189,6 +240,9 @@ def main():
             for size, error in (((32, 8), False), ((48, 12), True)):
                 attempt(f"Rust {route} {size}", lambda route=route, size=size, error=error:
                         host_workflow(directory / "host", directory / "screen", captured, route, size, error))
+        for route in ("crossterm", "direct", "unix"):
+            attempt(f"manual {route}", lambda route=route:
+                    manual_workflow(directory / "manual", directory / "screen", captured, route))
         native = directory / "native"
         command = ["cc", "-std=c11", "-Wall", "-Wextra", "-Werror", "-Iinclude", str(SOURCE / "native.c"),
                    "-L" + str(TARGET / "debug"), "-Wl,-rpath," + str(TARGET / "debug"),
@@ -200,6 +254,8 @@ def main():
                         native_workflow(native, directory / "screen", captured, size))
             attempt("C missing root restores terminal", lambda:
                     native_workflow(native, directory / "screen", captured, (32, 8), missing_root=True))
+            attempt("C terminal re-selection retains ownership", lambda:
+                    native_workflow(native, directory / "screen", captured, (32, 8), reselect=True))
     print("Terminal captures:", captured, flush=True)
     if failures:
         raise SystemExit("Entry-point failures: " + ", ".join(failures))

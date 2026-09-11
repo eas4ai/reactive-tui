@@ -1,16 +1,13 @@
 use crate::error::Result;
 
 use crate::component::Element;
-use crate::core::renderer::Renderer;
 use crate::core::surface::Rgba;
-// use crate::core::render_ops::{RenderOps, RenderOpsBuilder};
-use crate::core::grapheme_cell::GraphemeSurface;
-use crate::core::span_diff::SpanDiffWriter;
 use crate::event::types as rt_event;
 use crate::render::reconcile::PatchOp;
 use crate::render::tree::{RenderNode, RenderTree};
 
 pub mod cell_frame;
+mod debug_frame;
 pub mod direct_tty;
 pub(crate) mod suprtui;
 pub use self::suprtui::{ImageOutputOptions, SuprTuiBackend};
@@ -157,263 +154,23 @@ pub fn paint_render_node_linear(
     cur_y
 }
 
-/// Crossterm-backed implementation using our double-buffered Renderer
+/// Crossterm terminal/input adapter over the complete SuprTUI frame renderer.
 pub struct CrosstermBackend {
-    renderer: Renderer,
-    /// Use grapheme-aware surface for proper Unicode support
-    grapheme_surface: GraphemeSurface,
-    /// Previous frame for diffing
-    prev_surface: Option<GraphemeSurface>,
-    /// Use RenderOps pipeline when enabled
-    use_render_ops: bool,
+    inner: SuprTuiBackend,
 }
 
 impl CrosstermBackend {
-    /// Create a new Crossterm backend
+    /// Enter the host terminal and create its complete-frame renderer.
     pub fn new() -> Result<Self> {
-        // Determine terminal size and initialize renderer buffers
-        let (cols, rows) = crossterm::terminal::size().unwrap_or((80, 24));
-
-        // Safe conversion with overflow protection
-        let width = usize::from(cols);
-        let height = usize::from(rows);
-
-        // Map cells to pixel-like surface width/height; for now treat as cells
-        let renderer =
-            Renderer::new(width, height).map_err(|e| std::io::Error::other(e.to_string()))?;
-        let grapheme_surface = GraphemeSurface::new(width, height);
         Ok(Self {
-            renderer,
-            grapheme_surface,
-            prev_surface: None,
-            use_render_ops: true, // Enable by default
+            inner: SuprTuiBackend::new()?,
         })
     }
 
-    /// Enable or disable RenderOps pipeline
+    /// Enable incremental render operations (the default), or disable them to
+    /// repaint complete frames. Both modes retain graphemes and frame geometry.
     pub fn set_use_render_ops(&mut self, enabled: bool) {
-        self.use_render_ops = enabled;
-    }
-
-    /// Present using the RenderOps pipeline with grapheme-aware diffing
-    fn present_with_render_ops(&mut self) -> Result<()> {
-        use std::io::Write;
-
-        // Copy from old Surface to GraphemeSurface
-        let (width, height) = self.renderer.dims();
-        let surface = self.renderer.surface_mut();
-
-        // Transfer content to grapheme surface
-        self.grapheme_surface.clear(Rgba {
-            r: 0.0,
-            g: 0.0,
-            b: 0.0,
-            a: 1.0,
-        });
-        for y in 0..height {
-            for x in 0..width {
-                let cell = surface.get(x, y);
-                use crate::core::grapheme_cell::CellType;
-                use crate::core::grapheme_cell::GraphemeCluster;
-
-                // Convert char to grapheme cluster
-                let mut buf = [0u8; 4];
-                let s = cell.ch.encode_utf8(&mut buf);
-                let cluster = GraphemeCluster::new(s);
-
-                self.grapheme_surface.set_cell(
-                    x,
-                    y,
-                    CellType::Glyph {
-                        grapheme: cluster,
-                        fg: cell.fg,
-                        bg: cell.bg,
-                        attr: cell.attr,
-                    },
-                );
-            }
-        }
-
-        // Generate diff if we have a previous frame
-        let mut diff_writer = SpanDiffWriter::new();
-        if let Some(ref prev) = self.prev_surface {
-            diff_writer.diff(prev, &self.grapheme_surface);
-        } else {
-            // First frame - render everything
-            let empty = GraphemeSurface::new(width, height);
-            diff_writer.diff(&empty, &self.grapheme_surface);
-        }
-
-        // Output to terminal with synchronized updates
-        let stdout = std::io::stdout();
-        let mut stdout = stdout.lock();
-
-        // Begin synchronized update
-        stdout.write_all(b"\x1b[?2026h")?;
-        stdout.write_all(b"\x1b[?25l")?; // Hide cursor
-
-        // Write the diff
-        stdout.write_all(diff_writer.output())?;
-
-        // Show cursor and end synchronized update
-        stdout.write_all(b"\x1b[?25h")?;
-        stdout.write_all(b"\x1b[?2026l")?;
-        stdout.flush()?;
-
-        // Save current surface for next frame
-        self.prev_surface = Some(self.grapheme_surface.clone());
-
-        Ok(())
-    }
-
-    /// Apply patches selectively to minimize repainting
-    fn apply_patches_selective(&mut self, patches: &[PatchOp], tree: &RenderTree) -> Result<()> {
-        for patch in patches {
-            match patch {
-                PatchOp::Insert {
-                    parent_key: _,
-                    index: _,
-                    node_key,
-                } => {
-                    #[cfg(feature = "debug_patches")]
-                    eprintln!("CrosstermBackend: INSERT {node_key:?}");
-
-                    // For inserts, we need to find the node and render it
-                    if let Some(node) = tree.find_node(node_key) {
-                        // Try to use proper layout system if Element is available
-                        if let Some(element) = node.as_element() {
-                            self.render_full(element)?;
-                        } else {
-                            self.render_node_at_position(node, 0, 0)?;
-                        }
-                    }
-                }
-
-                PatchOp::Remove { node_key: _ } => {
-                    #[cfg(feature = "debug_patches")]
-                    eprintln!("CrosstermBackend: REMOVE");
-
-                    // For removes, we need to clear the area where the node was
-                    // For now, fall back to full repaint since we don't track positions
-                    self.renderer.clear(Rgba {
-                        r: 0.0,
-                        g: 0.0,
-                        b: 0.0,
-                        a: 1.0,
-                    });
-                    if let Some(root) = tree.root() {
-                        if let Some(element) = root.as_element() {
-                            self.render_full(element)?;
-                        } else {
-                            let surface = self.renderer.surface_mut();
-                            let _end_y = paint_render_node_linear(surface, root, 0, 0);
-                        }
-                    }
-                    return Ok(());
-                }
-
-                PatchOp::Update { node_key } => {
-                    #[cfg(feature = "debug_patches")]
-                    eprintln!("CrosstermBackend: UPDATE {node_key:?}");
-
-                    // For updates, re-render the specific node
-                    if let Some(node) = tree.find_node(node_key) {
-                        self.render_node_at_position(node, 0, 0)?;
-                    }
-                }
-
-                PatchOp::Replace {
-                    old_key: _,
-                    new_key: _,
-                } => {
-                    #[cfg(feature = "debug_patches")]
-                    eprintln!("CrosstermBackend: REPLACE");
-
-                    // For replaces, fall back to full repaint for now
-                    self.renderer.clear(Rgba {
-                        r: 0.0,
-                        g: 0.0,
-                        b: 0.0,
-                        a: 1.0,
-                    });
-                    if let Some(root) = tree.root() {
-                        if let Some(element) = root.as_element() {
-                            self.render_full(element)?;
-                        } else {
-                            let surface = self.renderer.surface_mut();
-                            let _end_y = paint_render_node_linear(surface, root, 0, 0);
-                        }
-                    }
-                    return Ok(());
-                }
-
-                PatchOp::Move {
-                    node_key: _,
-                    parent_key: _,
-                    index: _,
-                } => {
-                    #[cfg(feature = "debug_patches")]
-                    eprintln!("CrosstermBackend: MOVE");
-
-                    // For moves, fall back to full repaint for now
-                    self.renderer.clear(Rgba {
-                        r: 0.0,
-                        g: 0.0,
-                        b: 0.0,
-                        a: 1.0,
-                    });
-                    if let Some(root) = tree.root() {
-                        if let Some(element) = root.as_element() {
-                            self.render_full(element)?;
-                        } else {
-                            let surface = self.renderer.surface_mut();
-                            let _end_y = paint_render_node_linear(surface, root, 0, 0);
-                        }
-                    }
-                    return Ok(());
-                }
-
-                PatchOp::ReorderChildren {
-                    parent_key: _,
-                    new_order: _,
-                } => {
-                    #[cfg(feature = "debug_patches")]
-                    eprintln!("CrosstermBackend: REORDER_CHILDREN");
-
-                    // For reorders, fall back to full repaint for now
-                    self.renderer.clear(Rgba {
-                        r: 0.0,
-                        g: 0.0,
-                        b: 0.0,
-                        a: 1.0,
-                    });
-                    if let Some(root) = tree.root() {
-                        if let Some(element) = root.as_element() {
-                            self.render_full(element)?;
-                        } else {
-                            let surface = self.renderer.surface_mut();
-                            let _end_y = paint_render_node_linear(surface, root, 0, 0);
-                        }
-                    }
-                    return Ok(());
-                }
-            }
-        }
-        Ok(())
-    }
-
-    /// Render a specific node at a given position
-    fn render_node_at_position(&mut self, node: &dyn RenderNode, x: usize, y: usize) -> Result<()> {
-        // Try to use proper layout system if Element is available
-        if let Some(element) = node.as_element() {
-            // For single nodes, still use render_full to get proper layout
-            self.render_full(element)?;
-        } else {
-            // Fallback to linear painting
-            let surface = self.renderer.surface_mut();
-            let _end_y = paint_render_node_linear(surface, node, x, y);
-        }
-        Ok(())
+        self.inner.set_full_redraw(!enabled);
     }
 
     fn map_ct_key_code(code: crossterm::event::KeyCode) -> rt_event::KeyCode {
@@ -518,147 +275,57 @@ impl CrosstermBackend {
 }
 
 impl Backend for CrosstermBackend {
+    fn is_interactive_terminal(&self) -> bool {
+        self.inner.is_interactive_terminal()
+    }
+    fn painted_nodes(&self) -> Option<&[PaintedNode]> {
+        self.inner.painted_nodes()
+    }
+    fn component_layouts(&self) -> Option<&[PresentedLayout]> {
+        self.inner.component_layouts()
+    }
+    fn render_frame(&mut self, element: &Element) -> Result<bool> {
+        self.inner.render_frame(element)
+    }
+    fn render_cells(&mut self, frame: std::sync::Arc<CellFrame>) -> Result<()> {
+        self.inner.render_cells(frame)
+    }
     fn apply_patches(&mut self, patches: &[PatchOp], tree: &RenderTree) -> Result<()> {
-        // Apply patches into the back buffer only; terminal sync happens in present()
-
         if patches.is_empty() {
-            // Nothing to update in the back buffer
             return Ok(());
         }
-
-        // For now, we'll implement a hybrid approach:
-        // - If we have many patches or complex operations, fall back to full repaint
-        // - Otherwise, apply patches selectively
-        let should_full_repaint = patches.len() > 10
-            || patches
-                .iter()
-                .any(|p| matches!(p, PatchOp::Replace { .. } | PatchOp::ReorderChildren { .. }));
-
-        if should_full_repaint {
-            // Fall back to full repaint for complex changes
-            // Use the proper layout system instead of linear painting
-            if let Some(root) = tree.root() {
-                // Get the Element from the RenderNode (if it has one)
-                if let Some(element) = root.as_element() {
-                    // Use render_full which properly handles CSS layouts with paint_tree
-                    #[cfg(feature = "debug_patches")]
-                    eprintln!("CrosstermBackend: Using paint_tree for full repaint");
-                    self.render_full(element)?;
-                } else {
-                    // Fallback to linear painting if no element available
-                    #[cfg(feature = "debug_patches")]
-                    eprintln!(
-                        "CrosstermBackend: WARNING - No element available, using linear painting"
-                    );
-                    let surface = self.renderer.surface_mut();
-                    let _end_y = paint_render_node_linear(surface, root, 0, 0);
-                }
-            } else {
-                #[cfg(feature = "debug_patches")]
-                eprintln!("CrosstermBackend: WARNING - No root in tree!");
-            }
-        } else {
-            // Apply patches selectively
-            self.apply_patches_selective(patches, tree)?;
-        }
-
-        Ok(())
+        self.inner.apply_patches(patches, tree)
     }
-
     fn clear(&mut self) -> Result<()> {
-        self.renderer.clear(Rgba {
-            r: 0.0,
-            g: 0.0,
-            b: 0.0,
-            a: 1.0,
-        });
-        Ok(())
+        self.inner.clear()
     }
-
     fn present(&mut self) -> Result<()> {
-        if self.use_render_ops {
-            // Use the new RenderOps pipeline
-            self.present_with_render_ops()
-        } else {
-            // Use the original renderer
-            self.renderer
-                .begin_frame()
-                .map_err(|e| std::io::Error::other(e.to_string()))?;
-            Ok(self
-                .renderer
-                .end_frame()
-                .map_err(|e| std::io::Error::other(e.to_string()))?)
-        }
+        self.inner.present()
     }
-
-    fn set_debug_overlay(&mut self, enabled: bool) {
-        self.renderer.set_debug_overlay(enabled);
-    }
-
-    fn resize(&mut self, width: usize, height: usize) {
-        // Resize the renderer surfaces
-        self.renderer.resize(width, height);
-
-        // Resize the grapheme surface
-        self.grapheme_surface = crate::core::grapheme_cell::GraphemeSurface::new(width, height);
-
-        // Clear previous surface to force full redraw
-        self.prev_surface = None;
-    }
-
     fn size(&self) -> (u16, u16) {
-        crossterm::terminal::size().unwrap_or((80, 24))
+        self.inner.size()
     }
-
     fn poll_event(&mut self, timeout_ms: Option<u64>) -> Result<Option<rt_event::Event>> {
-        let ev = crate::core::terminal::Terminal::poll_event(timeout_ms)?;
-        Ok(ev.and_then(Self::map_ct_event))
+        self.inner.poll_event(timeout_ms)
     }
-
+    fn poll_event_with_wake(
+        &mut self,
+        timeout: Option<std::time::Duration>,
+        wake: &crate::app::AppWaker,
+    ) -> Result<Option<rt_event::Event>> {
+        self.inner.poll_event_with_wake(timeout, wake)
+    }
+    fn set_debug_overlay(&mut self, enabled: bool) {
+        self.inner.set_debug_overlay(enabled);
+    }
+    fn resize(&mut self, width: usize, height: usize) {
+        self.inner.resize(width, height);
+    }
     fn render_full(&mut self, element: &Element) -> Result<()> {
-        // Convert Element tree to NodeSpec and paint using Taffy-based layout
-        let nodespec = crate::component::bridge::element_to_nodespec(element);
-
-        #[cfg(feature = "debug_patches")]
-        eprintln!("render_full: NodeSpec class = '{}'", nodespec.class);
-
-        // Clear the back buffer surface before painting to avoid stale cells
-        self.renderer.clear(Rgba {
-            r: 0.0,
-            g: 0.0,
-            b: 0.0,
-            a: 1.0,
-        });
-        let (width, _height) = self.renderer.dims();
-        let surface = self.renderer.surface_mut();
-        let opts = crate::layout::paint_tree::PaintOptions::default();
-        let result =
-            crate::layout::paint_tree::layout_and_paint_with(&nodespec, surface, width, &opts);
-
-        #[cfg(feature = "debug_patches")]
-        {
-            if let Err(ref e) = result {
-                eprintln!("render_full: layout_and_paint_with failed: {}", e);
-            } else {
-                // Check if anything was actually painted
-                let mut has_content = false;
-                for y in 0..5.min(_height) {
-                    for x in 0..20.min(width) {
-                        let cell = surface.get(x, y);
-                        if cell.ch != ' ' {
-                            has_content = true;
-                            break;
-                        }
-                    }
-                    if has_content {
-                        break;
-                    }
-                }
-                eprintln!("render_full: Surface has content = {}", has_content);
-            }
-        }
-
-        result
+        self.inner.render_full(element)
+    }
+    fn shutdown(&mut self) -> Result<()> {
+        self.inner.shutdown()
     }
 }
 
@@ -674,6 +341,9 @@ pub struct DebugBackend {
     patch_history: Vec<Vec<PatchOp>>,
     /// Frame counter
     frame_count: usize,
+    pending_frame: Option<debug_frame::DebugFrame>,
+    graphemes: Option<Vec<String>>,
+    geometry: Option<PresentedGeometry>,
 }
 
 impl DebugBackend {
@@ -685,6 +355,9 @@ impl DebugBackend {
             event_queue: std::collections::VecDeque::new(),
             patch_history: Vec::new(),
             frame_count: 0,
+            pending_frame: None,
+            graphemes: None,
+            geometry: None,
         }
     }
 
@@ -699,8 +372,11 @@ impl DebugBackend {
         let mut content = String::new();
         for y in 0..h {
             for x in 0..w {
-                let cell = self.virtual_screen.get(x, y);
-                content.push(cell.ch);
+                if let Some(text) = &self.graphemes {
+                    content.push_str(&text[y * w + x]);
+                } else {
+                    content.push(self.virtual_screen.get(x, y).ch);
+                }
             }
             if y < h - 1 {
                 content.push('\n');
@@ -744,6 +420,9 @@ impl DebugBackend {
 
     /// Clear the virtual screen
     pub fn clear_screen(&mut self) {
+        self.pending_frame = None;
+        self.graphemes = None;
+        self.geometry = None;
         self.virtual_screen.clear(Rgba {
             r: 0.0,
             g: 0.0,
@@ -754,7 +433,33 @@ impl DebugBackend {
 }
 
 impl Backend for DebugBackend {
+    fn render_frame(&mut self, element: &Element) -> Result<bool> {
+        self.pending_frame = Some(debug_frame::paint(element, self.size)?);
+        Ok(true)
+    }
+    fn render_cells(&mut self, frame: std::sync::Arc<CellFrame>) -> Result<()> {
+        if frame.size() != self.size {
+            return Err(crate::error::ReactiveError::invalid_parameter(
+                "cell frame and debug backend dimensions differ",
+            ));
+        }
+        self.pending_frame = Some(debug_frame::cells(&frame));
+        Ok(())
+    }
+    fn painted_nodes(&self) -> Option<&[PaintedNode]> {
+        self.geometry
+            .as_ref()
+            .map(|geometry| geometry.nodes.as_slice())
+    }
+    fn component_layouts(&self) -> Option<&[PresentedLayout]> {
+        self.geometry
+            .as_ref()
+            .map(|geometry| geometry.layouts.as_slice())
+    }
     fn apply_patches(&mut self, patches: &[PatchOp], tree: &RenderTree) -> Result<()> {
+        self.pending_frame = None;
+        self.graphemes = None;
+        self.geometry = None;
         // Store patches for debugging
         self.patch_history.push(patches.to_vec());
 
@@ -801,16 +506,16 @@ impl Backend for DebugBackend {
     }
 
     fn clear(&mut self) -> Result<()> {
-        self.virtual_screen.clear(Rgba {
-            r: 0.0,
-            g: 0.0,
-            b: 0.0,
-            a: 1.0,
-        });
+        self.clear_screen();
         Ok(())
     }
 
     fn present(&mut self) -> Result<()> {
+        if let Some(frame) = self.pending_frame.take() {
+            self.virtual_screen = frame.surface;
+            self.graphemes = Some(frame.text);
+            self.geometry = Some(frame.geometry);
+        }
         self.frame_count += 1;
 
         #[cfg(feature = "debug_patches")]
@@ -829,12 +534,18 @@ impl Backend for DebugBackend {
 
     fn resize(&mut self, width: usize, height: usize) {
         // Update virtual screen size
+        self.pending_frame = None;
+        self.graphemes = None;
+        self.geometry = None;
         self.virtual_screen = crate::core::surface::Surface::new(width, height);
         self.size = (width as u16, height as u16);
     }
 
     fn render_full(&mut self, element: &Element) -> Result<()> {
         // For debug backend, convert element to render tree and paint
+        self.pending_frame = None;
+        self.graphemes = None;
+        self.geometry = None;
         use crate::render::tree::{element_to_render_node, RenderTree};
 
         let mut tree = RenderTree::new();

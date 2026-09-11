@@ -377,7 +377,7 @@ impl Default for RenderTree {
 
 /// Convert App output without instantiating or cloning components a second time.
 pub(crate) fn resolved_element_to_render_node(element: Element) -> Box<dyn RenderNode> {
-    fn convert(mut element: Element, parent: Option<NodeKey>, index: usize) -> Box<dyn RenderNode> {
+    fn convert(element: Element, parent: Option<NodeKey>, index: usize) -> Box<dyn RenderNode> {
         let local = element
             .key
             .as_ref()
@@ -386,8 +386,13 @@ pub(crate) fn resolved_element_to_render_node(element: Element) -> Box<dyn Rende
             || local.clone(),
             |parent| NodeKey::Composite(Box::new(parent), Box::new(local.clone())),
         );
-        let children = std::mem::take(&mut element.children)
-            .into_iter()
+        // Legacy backends read the complete Element through as_element().
+        // Resolution has already removed component constructors; cloning this
+        // output cannot create another component instance.
+        let children = element
+            .children
+            .iter()
+            .cloned()
             .enumerate()
             .map(|(index, child)| convert(child, Some(key.clone()), index))
             .collect();

@@ -878,6 +878,12 @@
         "uint16_t"
       ]
     },
+    "rtui_app_builder_backend_suprtui": {
+      "result": "RTuiError",
+      "parameters": [
+        "RTuiAppBuilder *"
+      ]
+    },
     "rtui_app_builder_backend_crossterm": {
       "result": "RTuiError",
       "parameters": [

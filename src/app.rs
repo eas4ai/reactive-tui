@@ -9,7 +9,6 @@ use crate::error::Result;
 use crate::reactive::scheduler::Scheduler;
 pub use crate::reactive::wake::AppWaker;
 use crate::reactive::wake::Scope;
-use crate::render::reconcile::PatchOp;
 use crate::render::{Reconciler, RenderTree};
 use std::sync::Arc;
 use std::time::Instant;
@@ -79,7 +78,6 @@ pub struct App {
     router: EventRouter,
     event_tree: event_tree::EventTree,
     tree: RenderTree,
-    previous_tree: RenderTree,
     reconciler: Reconciler,
     fps_manager: AdaptiveFpsManager,
     animation_manager: AnimationManager,
@@ -573,59 +571,16 @@ impl App {
                 "screen-reader integration requires a complete Element frame backend",
             ));
         }
-        // Convert to RenderTree
-        let root_node = resolved_element_to_render_node(styled.clone());
-
-        // Check if this is the first render
-        if self.previous_tree.root().is_none() {
-            // First render - set up both trees
-            let mut new_tree = RenderTree::new();
-            new_tree.set_root(root_node);
-            self.tree = new_tree;
-
-            // Trigger full repaint for first render
-            if self.tree.root().is_some() {
-                // The backend's apply_patches with >10 patches triggers full repaint
-                // We can use this to our advantage for the first render
-                let dummy_patches: Vec<PatchOp> = (0..11)
-                    .map(|i| PatchOp::Insert {
-                        parent_key: None,
-                        index: 0,
-                        node_key: crate::render::tree::NodeKey::index(i),
-                    })
-                    .collect();
-                self.backend.apply_patches(&dummy_patches, &self.tree)?;
-            }
-        } else {
-            // Create temporary tree for diffing without full allocation
-            let mut temp_tree = RenderTree::new();
-            temp_tree.set_root(root_node);
-
-            // Diff against previous tree
-            let diff_result = self.reconciler.diff(&self.previous_tree, &temp_tree);
-
-            // Apply patches if there are changes
-            if !diff_result.patches.is_empty() {
-                // Apply patches to update the current tree
-                crate::render::reconcile::apply_patches(&diff_result.patches, &mut self.tree)?;
-
-                // Use incremental patch-based rendering for performance
-                self.backend
-                    .apply_patches(&diff_result.patches, &self.tree)?;
-            }
-
-            // Efficiently swap tree roots without allocating full tree structures
-            // Move current tree to previous_tree, and temp_tree to current tree
-            // This avoids the full memory swap of std::mem::replace
-            if let Some(new_root) = temp_tree.take_root() {
-                if let Some(current_root) = self.tree.replace_root(new_root) {
-                    self.previous_tree.set_root(current_root);
-                }
-            }
+        // Patch payloads name nodes in the candidate, including the first root.
+        // Keep the acknowledged tree intact until output succeeds.
+        let mut candidate = RenderTree::new();
+        candidate.set_root(resolved_element_to_render_node(styled.clone()));
+        let changes = self.reconciler.diff(&self.tree, &candidate);
+        if !changes.patches.is_empty() {
+            self.backend.apply_patches(&changes.patches, &candidate)?;
         }
-
-        // Present frame
         self.backend.present()?;
+        self.tree = candidate;
 
         self.animation_targets
             .publish(&styled, self.backend.component_layouts(), 0)?;
@@ -881,7 +836,6 @@ impl AppBuilder {
             router: EventRouter::new_with_size(width, height),
             event_tree: event_tree::EventTree::default(),
             tree: RenderTree::new(),
-            previous_tree: RenderTree::new(),
             reconciler: Reconciler::new(),
             fps_manager,
             animation_manager: AnimationManager::new(),

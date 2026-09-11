@@ -33,6 +33,14 @@ int main(int argc, char **argv) {
     assert(rtui_app_builder_backend_suprtui(NULL) == RTUI_NULL_POINTER);
     assert(rtui_app_builder_create(&builder) == RTUI_SUCCESS);
     assert(rtui_app_builder_backend_suprtui(builder) == RTUI_SUCCESS);
+    if (strcmp(argv[1], "reselect") == 0) {
+        assert(rtui_app_builder_backend_suprtui(builder) == RTUI_SUCCESS);
+        assert(rtui_app_builder_backend_crossterm(builder) == RTUI_SUCCESS);
+        assert(rtui_app_builder_backend_suprtui(builder) == RTUI_SUCCESS);
+        assert(rtui_app_builder_backend_debug(builder, 32, 8) == RTUI_SUCCESS);
+        assert(rtui_app_builder_backend_crossterm(builder) == RTUI_SUCCESS);
+        assert(rtui_app_builder_backend_suprtui(builder) == RTUI_SUCCESS);
+    }
     if (strcmp(argv[1], "missing-root") == 0) {
         assert(rtui_app_builder_build(builder, &app) != RTUI_SUCCESS);
         assert(app == NULL);

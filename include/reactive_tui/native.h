@@ -24,6 +24,17 @@ typedef struct RTuiEffect RTuiEffect;
 typedef struct RTuiHooks RTuiHooks;
 typedef struct RTuiSurface RTuiSurface;
 
+/* Signal ownership: each constructor and hook lookup returns an owning handle.
+ * Release it exactly once with either rtui_signal_destroy or
+ * rtui_signal_destroy_new. Handles are confined to their creating thread;
+ * use RTuiThreadSafeSignal only with its separate functions/destructor.
+ * Both RTuiSignal function families use the same typed allocation. String,
+ * boolean and float access interoperates; legacy int is int64_t while the
+ * improved int is C int. Wrong live types return InvalidParameter (or the
+ * documented getter default). Arbitrary/stale pointers are invalid.
+ * Owned getter strings require rtui_string_free independently of the signal.
+ */
+
 
 typedef enum RTuiError {
   R_TUI_ERROR_SUCCESS = 0,
@@ -497,6 +508,8 @@ enum RTuiError rtui_app_builder_backend_debug(RTuiAppBuilder *builder,
                                               uint16_t width,
                                               uint16_t height);
 
+enum RTuiError rtui_app_builder_backend_suprtui(RTuiAppBuilder *builder);
+
 enum RTuiError rtui_app_builder_backend_crossterm(RTuiAppBuilder *builder);
 
 enum RTuiError rtui_app_builder_root_component(RTuiAppBuilder *builder,
@@ -607,16 +620,6 @@ enum RTuiError rtui_element_get_component_name(const RTuiElement *element, char 
 
 enum RTuiError rtui_element_get_text_content(const RTuiElement *element, char **out_text);
 
-/* Signal ownership: each constructor and hook lookup returns an owning handle.
- * Release it exactly once with either rtui_signal_destroy or
- * rtui_signal_destroy_new. Handles are confined to their creating thread;
- * use RTuiThreadSafeSignal only with its separate functions/destructor.
- * Both RTuiSignal function families use the same typed allocation. String,
- * boolean and float access interoperates; legacy int is int64_t while the
- * improved int is C int. Wrong live types return InvalidParameter (or the
- * documented getter default). Arbitrary/stale pointers are invalid.
- * Owned getter strings require rtui_string_free independently of the signal.
- */
 enum RTuiError rtui_signal_string_create(const char *initial_value, RTuiSignal **out_signal);
 
 enum RTuiError rtui_signal_int_create(int64_t initial_value, RTuiSignal **out_signal);

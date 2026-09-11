@@ -74,11 +74,18 @@ impl ImageOutputOptions {
 
 type Reply = mpsc::Sender<Result<()>>;
 
+#[derive(Clone, Copy, Default)]
+struct FrameOptions {
+    full_redraw: bool,
+    debug_overlay: bool,
+}
+
 enum Command {
     Present(
         FrameContent,
         (usize, usize),
         ImageOutputOptions,
+        FrameOptions,
         mpsc::Sender<Result<super::PresentedGeometry>>,
     ),
     Shutdown(Reply),
@@ -99,6 +106,7 @@ pub struct SuprTuiBackend {
     worker: Option<JoinHandle<()>>,
     dimensions: (usize, usize),
     images: ImageOutputOptions,
+    options: FrameOptions,
     frame: Element,
     cells: Option<Arc<CellFrame>>,
     painted_nodes: Vec<super::PaintedNode>,
@@ -149,6 +157,20 @@ impl SuprTuiBackend {
         Self::start(width, height, writer, false, images)
     }
 
+    /// Own screen output while the native adapter owns raw mode and input.
+    pub(crate) fn with_terminal_writer<W: Write + Send + 'static>(
+        width: u16,
+        height: u16,
+        writer: W,
+        images: ImageOutputOptions,
+    ) -> Result<Self> {
+        Self::start(width, height, writer, true, images)
+    }
+
+    pub(crate) fn set_full_redraw(&mut self, enabled: bool) {
+        self.options.full_redraw = enabled;
+    }
+
     fn start<W: Write + Send + 'static>(
         width: u16,
         height: u16,
@@ -179,6 +201,7 @@ impl SuprTuiBackend {
             worker: Some(worker),
             dimensions,
             images,
+            options: FrameOptions::default(),
             frame: Element::empty(),
             cells: None,
             painted_nodes: Vec::new(),
@@ -259,6 +282,9 @@ impl Backend for SuprTuiBackend {
     }
 
     fn apply_patches(&mut self, _patches: &[PatchOp], tree: &RenderTree) -> Result<()> {
+        if tree.root().is_none() {
+            return self.clear();
+        }
         let element = tree
             .root()
             .and_then(|root| root.as_element())
@@ -284,6 +310,7 @@ impl Backend for SuprTuiBackend {
                 ),
                 self.dimensions,
                 self.images,
+                self.options,
                 reply,
             ))
             .map_err(|_| worker_stopped())?;
@@ -309,6 +336,10 @@ impl Backend for SuprTuiBackend {
         }
     }
 
+    fn set_debug_overlay(&mut self, enabled: bool) {
+        self.options.debug_overlay = enabled;
+    }
+
     fn poll_event(&mut self, timeout_ms: Option<u64>) -> Result<Option<Event>> {
         self.poll_event_with_wake(
             timeout_ms.map(Duration::from_millis),
@@ -323,6 +354,16 @@ impl Backend for SuprTuiBackend {
     ) -> Result<Option<Event>> {
         if self.commands.is_none() {
             return Err(worker_stopped());
+        }
+        // A resize can arrive while the first frame is being written, before
+        // the lazily created input stream has subscribed to terminal events.
+        if self.raw_mode.is_some() {
+            let (width, height) = crossterm::terminal::size()?;
+            if width > 0 && height > 0 && (width, height) != self.size() {
+                return Ok(Some(Event::Resize(crate::event::types::ResizeEvent::new(
+                    width, height,
+                ))));
+            }
         }
         let stream = self
             .input
@@ -401,7 +442,7 @@ fn run_worker<W: Write>(
     let mut graphics = graphics::Graphics::default();
     while let Ok(command) = receiver.recv() {
         match command {
-            Command::Present(spec, size, current_images, reply) => {
+            Command::Present(spec, size, current_images, options, reply) => {
                 let result = (|| {
                     if images != current_images {
                         images = current_images;
@@ -433,7 +474,37 @@ fn run_worker<W: Write>(
                         }
                     };
                     let mut geometry = geometry;
-                    let commands = graphics.prepare(&geometry.images, images.cell_pixels, force)?;
+                    if options.debug_overlay {
+                        let stats = renderer.stats();
+                        let buffer = renderer.next_buffer();
+                        let row = buffer.height() - 1;
+                        let text = format!(
+                            "frame: {} | cells: {}",
+                            stats.frame_count, stats.cells_updated
+                        );
+                        let text = format!("{text:width$}", width = buffer.width() as usize);
+                        buffer
+                            .draw_text(
+                                &text,
+                                0,
+                                row,
+                                ::suprtui::ansi::rgb_color(0, 0, 0, 255),
+                                Some(::suprtui::ansi::rgb_color(255, 255, 255, 255)),
+                                0,
+                            )
+                            .map_err(|error| {
+                                ReactiveError::resource(format!("debug overlay: {error:?}"))
+                            })?;
+                        for node in &mut geometry.nodes {
+                            node.bounds.height = node
+                                .bounds
+                                .height
+                                .min((row as f32 - node.bounds.y).max(0.0));
+                        }
+                    }
+                    let redraw = force || options.full_redraw;
+                    let commands =
+                        graphics.prepare(&geometry.images, images.cell_pixels, redraw)?;
                     let cursor = geometry
                         .cursor
                         .filter(|cursor| !graphics.covers_cell(cursor.x, cursor.y))
@@ -444,7 +515,7 @@ fn run_worker<W: Write>(
                     let graphics_changed = commands.is_some();
                     let (before, after) = commands.unwrap_or_default();
                     renderer.backend_mut().set_graphics(before, after);
-                    let status = renderer.render(force || graphics_changed);
+                    let status = renderer.render(redraw || graphics_changed);
                     if let Some(error) = renderer.backend_mut().take_error() {
                         return Err(error.into());
                     }

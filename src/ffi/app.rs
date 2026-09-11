@@ -2,10 +2,36 @@
 
 use super::*;
 use crate::app::{App, AppBuilder, RootComponent};
-use crate::backend::{CrosstermBackend, DebugBackend};
+use crate::backend::{Backend, CrosstermBackend, DebugBackend, SuprTuiBackend};
 use crate::component::Element;
 use crate::display::monitor::PerformanceMode;
 use std::boxed::Box;
+
+#[derive(Default)]
+struct NativeAppBuilder {
+    inner: AppBuilder,
+    terminal_selected: bool,
+}
+
+fn select_terminal_backend<B: Backend + 'static>(
+    builder: *mut RTuiAppBuilder,
+    create: impl FnOnce() -> crate::error::Result<B>,
+) -> ReactiveError {
+    if builder.is_null() {
+        return ReactiveError::NullPointer;
+    }
+    catch_panic(AssertUnwindSafe(|| unsafe {
+        let builder = &mut *builder.cast::<NativeAppBuilder>();
+        // Both native terminal selectors name the complete-frame route. The
+        // builder has not run it, so selecting it again retains the same owner.
+        if !builder.terminal_selected {
+            let backend = create()?;
+            builder.inner = std::mem::take(&mut builder.inner).backend(backend);
+            builder.terminal_selected = true;
+        }
+        Ok(())
+    }))
+}
 
 /// Opaque handle to an app builder
 #[repr(C)]
@@ -98,7 +124,7 @@ pub extern "C" fn rtui_app_builder_create(out_builder: *mut *mut RTuiAppBuilder)
     }
 
     catch_panic(AssertUnwindSafe(|| {
-        let builder = AppBuilder::default();
+        let builder = NativeAppBuilder::default();
         let boxed = Box::new(builder);
         unsafe {
             *out_builder = Box::into_raw(boxed) as *mut RTuiAppBuilder;
@@ -112,7 +138,7 @@ pub extern "C" fn rtui_app_builder_create(out_builder: *mut *mut RTuiAppBuilder)
 pub extern "C" fn rtui_app_builder_destroy(builder: *mut RTuiAppBuilder) {
     if !builder.is_null() {
         unsafe {
-            let _ = Box::from_raw(builder as *mut AppBuilder);
+            let _ = Box::from_raw(builder as *mut NativeAppBuilder);
         }
     }
 }
@@ -129,7 +155,7 @@ pub extern "C" fn rtui_app_builder_debug(
 
     catch_panic(AssertUnwindSafe(|| unsafe {
         // Update the value while retaining the caller-owned allocation.
-        let builder_ref = &mut *builder.cast::<AppBuilder>();
+        let builder_ref = &mut (*builder.cast::<NativeAppBuilder>()).inner;
         let new_builder = std::mem::take(builder_ref).debug(debug);
 
         // Replace the empty value; the allocation and handle remain unchanged.
@@ -150,7 +176,7 @@ pub extern "C" fn rtui_app_builder_performance_mode(
 
     catch_panic(AssertUnwindSafe(|| unsafe {
         // Update the value while retaining the caller-owned allocation.
-        let builder_ref = &mut *builder.cast::<AppBuilder>();
+        let builder_ref = &mut (*builder.cast::<NativeAppBuilder>()).inner;
         let new_builder = std::mem::take(builder_ref).performance_mode(mode.into());
 
         // Replace the empty value; the allocation and handle remain unchanged.
@@ -173,7 +199,8 @@ pub extern "C" fn rtui_app_builder_backend_debug(
     catch_panic(AssertUnwindSafe(|| unsafe {
         // Update the value while retaining the caller-owned allocation.
         let backend = DebugBackend::new(width, height);
-        let builder_ref = &mut *builder.cast::<AppBuilder>();
+        (*builder.cast::<NativeAppBuilder>()).terminal_selected = false;
+        let builder_ref = &mut (*builder.cast::<NativeAppBuilder>()).inner;
         let new_builder = std::mem::take(builder_ref).backend(backend);
 
         // Replace the empty value; the allocation and handle remain unchanged.
@@ -182,25 +209,21 @@ pub extern "C" fn rtui_app_builder_backend_debug(
     }))
 }
 
+/// Select the complete-frame SuprTUI renderer and enter its terminal session.
+/// The builder owns that session until build transfers it to the App, or the
+/// builder is destroyed. Setup errors leave the existing builder value intact.
+/// Re-selecting either native terminal route retains its current session.
+#[no_mangle]
+pub extern "C" fn rtui_app_builder_backend_suprtui(builder: *mut RTuiAppBuilder) -> ReactiveError {
+    select_terminal_backend(builder, SuprTuiBackend::new)
+}
+
 /// Set backend for app builder (creates crossterm backend)
 #[no_mangle]
 pub extern "C" fn rtui_app_builder_backend_crossterm(
     builder: *mut RTuiAppBuilder,
 ) -> ReactiveError {
-    if builder.is_null() {
-        return ReactiveError::NullPointer;
-    }
-
-    catch_panic(AssertUnwindSafe(|| unsafe {
-        // Update the value while retaining the caller-owned allocation.
-        let backend = CrosstermBackend::new()?;
-        let builder_ref = &mut *builder.cast::<AppBuilder>();
-        let new_builder = std::mem::take(builder_ref).backend(backend);
-
-        // Replace the empty value; the allocation and handle remain unchanged.
-        *builder_ref = new_builder;
-        Ok(())
-    }))
+    select_terminal_backend(builder, CrosstermBackend::new)
 }
 
 /// Set root component for app builder (safe in-place modification)
@@ -216,7 +239,7 @@ pub extern "C" fn rtui_app_builder_root_component(
 
     catch_panic(AssertUnwindSafe(|| unsafe {
         // Update the value while retaining the caller-owned allocation.
-        let builder_ref = &mut *builder.cast::<AppBuilder>();
+        let builder_ref = &mut (*builder.cast::<NativeAppBuilder>()).inner;
         let root_component = FFIRootComponent {
             callback,
             user_data,
@@ -240,8 +263,8 @@ pub extern "C" fn rtui_app_builder_build(
     }
 
     catch_panic(AssertUnwindSafe(|| unsafe {
-        let builder_box = Box::from_raw(builder as *mut AppBuilder);
-        match builder_box.build() {
+        let builder_box = Box::from_raw(builder as *mut NativeAppBuilder);
+        match builder_box.inner.build() {
             Ok(app) => {
                 *out_app = Box::into_raw(Box::new(app)) as *mut RTuiApp;
                 Ok(())

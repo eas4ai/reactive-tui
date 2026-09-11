@@ -25,9 +25,23 @@ struct LegacyBackend {
     observed: Arc<Mutex<Observed>>,
     screen: DebugBackend,
     fail: &'static str,
+    complete_frames: bool,
 }
 
 impl Backend for LegacyBackend {
+    fn render_frame(&mut self, element: &Element) -> Result<bool> {
+        if self.complete_frames {
+            self.screen.render_frame(element)
+        } else {
+            Ok(false)
+        }
+    }
+    fn painted_nodes(&self) -> Option<&[reactive_tui::backend::PaintedNode]> {
+        self.screen.painted_nodes()
+    }
+    fn component_layouts(&self) -> Option<&[reactive_tui::backend::PresentedLayout]> {
+        self.screen.component_layouts()
+    }
     fn apply_patches(&mut self, patches: &[PatchOp], tree: &RenderTree) -> Result<()> {
         if self.fail == "patch" {
             return Err(ReactiveError::terminal("entry point patch failure"));
@@ -56,8 +70,8 @@ impl Backend for LegacyBackend {
     fn size(&self) -> (u16, u16) {
         self.screen.size()
     }
-    fn poll_event(&mut self, _: Option<u64>) -> Result<Option<Event>> {
-        Ok(None)
+    fn poll_event(&mut self, timeout: Option<u64>) -> Result<Option<Event>> {
+        self.screen.poll_event(timeout)
     }
     fn shutdown(&mut self) -> Result<()> {
         self.observed.lock().unwrap().shutdowns += 1;
@@ -122,6 +136,7 @@ fn run(frames: Vec<Element>, fail: &'static str) -> (Result<()>, Arc<Mutex<Obser
             observed: observed.clone(),
             screen: DebugBackend::new(32, 8),
             fail,
+            complete_frames: false,
         })
         .root(Root {
             frames,
@@ -208,4 +223,101 @@ fn patch_present_root_and_shutdown_errors_are_returned() {
             assert!(observed.lock().unwrap().screens.is_empty());
         }
     }
+}
+
+#[test]
+fn debug_frames_preserve_graphemes_and_publish_geometry_only_after_present() {
+    let mut backend = DebugBackend::new(32, 8);
+    assert!(backend
+        .render_frame(&Element::text("e\u{301}界👩‍💻").with_class("w-full h-1"))
+        .unwrap());
+    assert!(backend.painted_nodes().is_none());
+    backend.present().unwrap();
+    assert!(backend.screen_content().contains("e\u{301}界👩‍💻"));
+    assert!(!backend.painted_nodes().unwrap().is_empty());
+    assert_eq!(backend.char_at(0, 0), Some('e'));
+    assert_eq!(backend.char_at(1, 0), Some('界'));
+    backend.resize(16, 4);
+    assert!(backend.painted_nodes().is_none());
+    assert!(backend
+        .render_frame(&Element::text("resized").with_class("w-full h-1"))
+        .unwrap());
+    backend.present().unwrap();
+    assert!(backend.screen_content().contains("resized"));
+    backend.clear_screen();
+    assert!(backend.screen_content().trim().is_empty());
+    assert!(backend.painted_nodes().is_none());
+}
+
+#[test]
+fn debug_app_routes_input_using_its_painted_component_geometry() {
+    use reactive_tui::event::types::{MouseButton, MouseEvent, MouseEventKind, Position};
+    use std::sync::atomic::{AtomicBool, Ordering};
+    struct ButtonRoot {
+        clicked: Arc<AtomicBool>,
+        observed: Arc<Mutex<Observed>>,
+        deadline: Instant,
+    }
+    impl RootComponent for ButtonRoot {
+        fn render(&self) -> Element {
+            let clicked = self.clicked.clone();
+            reactive_tui::builder::button()
+                .key("button")
+                .class("w-12 h-1 p-0")
+                .text(if clicked.load(Ordering::SeqCst) {
+                    "clicked"
+                } else {
+                    "idle"
+                })
+                .on_click(move || {
+                    clicked.store(true, Ordering::SeqCst);
+                })
+                .build()
+        }
+        fn update(&mut self) -> Result<RootUpdate> {
+            assert!(
+                Instant::now() < self.deadline,
+                "DebugBackend did not deliver component input"
+            );
+            Ok(
+                if self
+                    .observed
+                    .lock()
+                    .unwrap()
+                    .screens
+                    .last()
+                    .is_some_and(|screen| screen.contains("clicked"))
+                {
+                    RootUpdate::Exit
+                } else {
+                    RootUpdate::Unchanged
+                },
+            )
+        }
+    }
+    let observed = Arc::new(Mutex::new(Observed::default()));
+    let clicked = Arc::new(AtomicBool::new(false));
+    let mut screen = DebugBackend::new(32, 8);
+    screen.push_event(Event::Mouse(
+        MouseEvent::new(MouseEventKind::Down, Position::cell(1, 0)).with_button(MouseButton::Left),
+    ));
+    App::builder()
+        .screen_reader(false)
+        .backend(LegacyBackend {
+            observed: observed.clone(),
+            screen,
+            fail: "",
+            complete_frames: true,
+        })
+        .root(ButtonRoot {
+            clicked: clicked.clone(),
+            observed: observed.clone(),
+            deadline: Instant::now() + Duration::from_secs(3),
+        })
+        .build()
+        .unwrap()
+        .run()
+        .unwrap();
+    assert!(clicked.load(Ordering::SeqCst));
+    assert_eq!(observed.lock().unwrap().shutdowns, 1);
 }

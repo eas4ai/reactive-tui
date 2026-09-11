@@ -4106,3 +4106,80 @@ compiled consumers ran. Quality-delta exits 2 with 1577 broad gated findings,
 including unchanged reference and application paths; no production file was edited.
 It is not a passing quality gate. Python syntax and Rust consumer compilation pass.
 Formal acceptance and production repairs remain pending.
+
+
+## API-016 implementation and development evidence
+
+App now keeps the last acknowledged render tree and supplies the complete candidate
+with real initial/update/removal patches. It advances that tree only after present
+succeeds. The resolved-tree conversion retains Element children without constructing
+another component instance. Crossterm and DirectTty share complete-frame painting;
+the former retains its incremental/full-output option and debug overlay. DirectTty
+retains native input, capabilities and hyperlinks, queues every event from a read,
+and observes actual size changes. Unix clones share one descriptor/restoration owner.
+DebugBackend stages the shared painter output and publishes graphemes and geometry
+on present, allowing real component input without taking a host terminal.
+
+The C builder exposes SuprTUI and retains its opaque allocation across setters.
+A fresh negative re-selection case lost raw mode and exited on SIGINT (-2):
+api-016-native-reselection-negative.log and .bin preserve that result. A private
+builder owner now keeps repeated terminal selection idempotent; selecting Debug
+releases the terminal before a later terminal selection acquires another session.
+The corrected case passes, including resize, Ctrl-C and exact termios restoration.
+A separate early-resize failure showed input subscription could miss SIGWINCH;
+SuprTUI also compares actual terminal dimensions before waiting for input.
+
+The expanded development mechanism passed five public Rust consumer tests, eight
+Rust App PTY workflows, three manual backend/Unix workflows and four C workflows.
+It checks unchanged output, incremental/full equivalence, debug overlay removal,
+complete input batches, cloned owner survival and successive sessions. Results:
+api-016-expanded-development.log; raw captures api-entry-points/20260911T224109Z.
+The earlier adapter-only development log/captures are retained separately. These
+are editing checks; committed Cairn acceptance and dependent/native refreshes remain.
+
+## API-019 platform concerns recorded before further implementation
+
+These entries extend the residual inventory; they are not acceptance claims or
+permission to remove retained features. API-019 must reconcile them with the full
+coverage table and its other named gesture, updater, theme, Markdown and editor work.
+
+| Concern | Contract | Falsifier / required attack |
+| --- | --- | --- |
+| Unix input thread ownership | A reader cannot access a closed/reused descriptor; output and retained work are bounded; dropping its consumer/session releases work. | Drop the receiver/session while idle and under input load; reused descriptors must remain untouched and no owned reader may remain. Current reader copies a raw fd and uses an unbounded queue. |
+| Native signal callbacks | Window-size callbacks cannot deadlock in a signal handler or use released callback state; session cleanup preserves another owner's signal policy. | Deliver SIGWINCH during registration/cleanup and across successive owners. Current Unix handler locks a mutex and replaces the handler without retaining the old action. |
+| Legacy pointer/key translation | Actual button, modifiers, wheel direction and key kind reach the documented public route; split input is retained until parseable. | Right/middle/modified clicks, each wheel direction, press/repeat/release and split escape/UTF-8 sequences produce the expected event once. Current DirectTty button inference uses modifiers; advanced keys fall back to Unknown; Crossterm wheel conversion needs scrutiny. |
+| Debug dimensions and mixed rendering routes | Accepted dimensions remain consistent with allocated cells; invalid sizes fail without excessive allocation; switching full/cell/patch routes cannot expose stale state. | Zero/oversized dimensions and resize beyond u16; stage/fail/present and route-switch cases. Existing Debug resize casts usize dimensions after allocating. |
+| Multiple terminal owners | Overlapping construction and destruction cannot restore modes or close transport still required by a live owner. | Create/drop independent Rust terminal owners in both orders. API-016 proves C re-selection and Unix clones only; independent constructors need their own evidence. |
+| Public render-tree candidates | Retained root types either render their children correctly or return a documented error; conversion remains bounded for accepted input. | Fragment/custom roots and deep/broad resolved trees; no silent missing frame or repeated component construction. Complete Element children currently duplicate descendant values in render nodes. |
+| Legacy backend test reachability | Claimed key/focus/paste/resize tests execute in the test harness. | Verify registered test names and force a safe mismatch. Existing mapping tests are nested inside DebugBackend::render_full. |
+
+
+API-016 regression verification on the implemented source: the full library passed
+997 tests (two existing ignored fixtures). The selected renderer/component/hook/
+focus/animation/screen integration suites passed 69 tests. Strict default Clippy
+(--lib --tests -- -D warnings), cargo fmt --check, standalone consumer rustfmt and
+authored-source whitespace checks passed. The independent C/Rust compiler and Koffi
+ABI probe agreed on 211 exports and 13 record layouts. Six existing FFI compiler
+warnings remain; this is not a warning-free FFI build claim. Individual logs retain
+commands and outputs under api-016-*-development.log.
+
+Header regeneration initially removed the hand-added signal ownership comment and
+introduced unused opaque DialogId/Rect forward declarations. Retained the ownership
+text in cbindgen configuration and excluded those unused internal types; generation
+and --verify now pass with the guidance intact. This does not change any old ABI.
+
+Ripwire edit-check finds App, CrosstermBackend, DirectTtyBackend and DebugBackend
+contracts unchanged. The qualified UnixTty report counts an additional internal
+same-name construction site as a definition change; public Clone and constructor
+signatures remain unchanged and the external clone workflow passed. The C SuprTUI
+selector is reported as new. The initial quality delta exited 2 (1616 gated rows),
+including reference checkouts, retained public/trait methods reported dead, generic
+name-based duplication and short-horizon churn. The changed output-worker complexity
+increase is the bounded optional overlay and frame-output option; the 30 added lines
+remain in the owner that orders painting, graphics and acknowledgment. Extracting
+unrelated lifecycle methods to satisfy name-normalized clone rows would add coupling.
+The header forward-declaration findings were repaired. The final bounded report is
+api-016-static-summary.json. Test-gate exits 4 with 84 test paths and 240 unmodelled
+or untested impacted symbols; it does not establish test success. Direct consumer
+and library checks above passed; the remaining inherited and native mechanisms still
+have to run against the committed tree. No static gate is being claimed as passing.

@@ -1,0 +1,654 @@
+{
+  "quality-delta": {
+    "exit": 2,
+    "baseline": "git-HEAD",
+    "regressions": "19161",
+    "minor": "2476",
+    "acked": "0",
+    "preexisting-worse": "1629",
+    "new-symbol": "17532",
+    "gating": "1614",
+    "at": "2e0ad9c97+dirty"
+  },
+  "changed_file_findings": [
+    {
+      "kind": "api-surface",
+      "sym": "rtui_app_builder_backend_suprtui",
+      "sev": "minor",
+      "surface": "new-symbol",
+      "origin": "new-symbol",
+      "p": "include/reactive_tui/native.h:511"
+    },
+    {
+      "kind": "complexity",
+      "sym": "run_worker",
+      "was": "27",
+      "now": "37",
+      "p": "src/backend/suprtui.rs:408",
+      "gating": "1"
+    },
+    {
+      "kind": "dead-code",
+      "sym": "src/app.rs::App::waker",
+      "p": "src/app.rs:383",
+      "gating": "1"
+    },
+    {
+      "kind": "dead-code",
+      "sym": "src/backend/direct_tty.rs::DirectTtyBackend::component_layouts",
+      "origin": "new-symbol",
+      "p": "src/backend/direct_tty.rs:262"
+    },
+    {
+      "kind": "dead-code",
+      "sym": "src/backend/direct_tty.rs::DirectTtyBackend::is_interactive_terminal",
+      "origin": "new-symbol",
+      "p": "src/backend/direct_tty.rs:256"
+    },
+    {
+      "kind": "dead-code",
+      "sym": "src/backend/direct_tty.rs::DirectTtyBackend::map_terminal_event",
+      "p": "src/backend/direct_tty.rs:93",
+      "gating": "1"
+    },
+    {
+      "kind": "dead-code",
+      "sym": "src/backend/direct_tty.rs::DirectTtyBackend::painted_nodes",
+      "origin": "new-symbol",
+      "p": "src/backend/direct_tty.rs:259"
+    },
+    {
+      "kind": "dead-code",
+      "sym": "src/backend/direct_tty.rs::DirectTtyBackend::render_cells",
+      "origin": "new-symbol",
+      "p": "src/backend/direct_tty.rs:268"
+    },
+    {
+      "kind": "dead-code",
+      "sym": "src/backend/direct_tty.rs::DirectTtyBackend::render_frame",
+      "origin": "new-symbol",
+      "p": "src/backend/direct_tty.rs:265"
+    },
+    {
+      "kind": "dead-code",
+      "sym": "src/backend/direct_tty.rs::DirectTtyBackend::render_full",
+      "p": "src/backend/direct_tty.rs:292",
+      "gating": "1"
+    },
+    {
+      "kind": "dead-code",
+      "sym": "src/backend/direct_tty.rs::DirectTtyBackend::set_debug_overlay",
+      "origin": "new-symbol",
+      "p": "src/backend/direct_tty.rs:289"
+    },
+    {
+      "kind": "dead-code",
+      "sym": "src/backend/direct_tty.rs::TtyOutput::flush",
+      "origin": "new-symbol",
+      "p": "src/backend/direct_tty.rs:27"
+    },
+    {
+      "kind": "dead-code",
+      "sym": "src/backend/mod.rs::CrosstermBackend::component_layouts",
+      "origin": "new-symbol",
+      "p": "src/backend/mod.rs:284"
+    },
+    {
+      "kind": "dead-code",
+      "sym": "src/backend/mod.rs::CrosstermBackend::is_interactive_terminal",
+      "origin": "new-symbol",
+      "p": "src/backend/mod.rs:278"
+    },
+    {
+      "kind": "dead-code",
+      "sym": "src/backend/mod.rs::CrosstermBackend::painted_nodes",
+      "origin": "new-symbol",
+      "p": "src/backend/mod.rs:281"
+    },
+    {
+      "kind": "dead-code",
+      "sym": "src/backend/mod.rs::CrosstermBackend::poll_event_with_wake",
+      "origin": "new-symbol",
+      "p": "src/backend/mod.rs:311"
+    },
+    {
+      "kind": "dead-code",
+      "sym": "src/backend/mod.rs::CrosstermBackend::render_cells",
+      "origin": "new-symbol",
+      "p": "src/backend/mod.rs:290"
+    },
+    {
+      "kind": "dead-code",
+      "sym": "src/backend/mod.rs::CrosstermBackend::render_frame",
+      "origin": "new-symbol",
+      "p": "src/backend/mod.rs:287"
+    },
+    {
+      "kind": "dead-code",
+      "sym": "src/backend/mod.rs::CrosstermBackend::render_full",
+      "p": "src/backend/mod.rs:324",
+      "gating": "1"
+    },
+    {
+      "kind": "dead-code",
+      "sym": "src/backend/mod.rs::CrosstermBackend::shutdown",
+      "origin": "new-symbol",
+      "p": "src/backend/mod.rs:327"
+    },
+    {
+      "kind": "dead-code",
+      "sym": "src/backend/mod.rs::DebugBackend::component_layouts",
+      "origin": "new-symbol",
+      "p": "src/backend/mod.rs:454"
+    },
+    {
+      "kind": "dead-code",
+      "sym": "src/backend/mod.rs::DebugBackend::painted_nodes",
+      "origin": "new-symbol",
+      "p": "src/backend/mod.rs:449"
+    },
+    {
+      "kind": "dead-code",
+      "sym": "src/backend/mod.rs::DebugBackend::render_cells",
+      "origin": "new-symbol",
+      "p": "src/backend/mod.rs:440"
+    },
+    {
+      "kind": "dead-code",
+      "sym": "src/backend/mod.rs::DebugBackend::render_frame",
+      "origin": "new-symbol",
+      "p": "src/backend/mod.rs:436"
+    },
+    {
+      "kind": "dead-code",
+      "sym": "src/backend/suprtui.rs::SuprTuiBackend::set_debug_overlay",
+      "origin": "new-symbol",
+      "p": "src/backend/suprtui.rs:339"
+    },
+    {
+      "kind": "dead-code",
+      "sym": "src/platform/unix.rs::TtyState::drop",
+      "origin": "new-symbol",
+      "p": "src/platform/unix.rs:62"
+    },
+    {
+      "kind": "dead-code",
+      "sym": "src/render/tree.rs::RenderTree::replace_root",
+      "p": "src/render/tree.rs:293",
+      "gating": "1"
+    },
+    {
+      "kind": "dead-code",
+      "sym": "src/render/tree.rs::RenderTree::take_root",
+      "p": "src/render/tree.rs:286",
+      "gating": "1"
+    },
+    {
+      "kind": "dead-code",
+      "sym": "verification/api-entry-points/legacy.rs::LegacyBackend::component_layouts",
+      "origin": "new-symbol",
+      "p": "verification/api-entry-points/legacy.rs:42"
+    },
+    {
+      "kind": "dead-code",
+      "sym": "verification/api-entry-points/legacy.rs::LegacyBackend::painted_nodes",
+      "origin": "new-symbol",
+      "p": "verification/api-entry-points/legacy.rs:39"
+    },
+    {
+      "kind": "dead-code",
+      "sym": "verification/api-entry-points/legacy.rs::LegacyBackend::render_frame",
+      "origin": "new-symbol",
+      "p": "verification/api-entry-points/legacy.rs:32"
+    },
+    {
+      "kind": "dead-code",
+      "sym": "ButtonRoot",
+      "origin": "new-symbol",
+      "p": "verification/api-entry-points/legacy.rs:256"
+    },
+    {
+      "kind": "dead-code",
+      "sym": "FrameOptions",
+      "origin": "new-symbol",
+      "p": "src/backend/suprtui.rs:78"
+    },
+    {
+      "kind": "dead-code",
+      "sym": "NativeAppBuilder",
+      "origin": "new-symbol",
+      "p": "src/ffi/app.rs:11"
+    },
+    {
+      "kind": "dead-code",
+      "sym": "TtyState",
+      "origin": "new-symbol",
+      "p": "src/platform/unix.rs:38"
+    },
+    {
+      "kind": "dead-code",
+      "sym": "debug_app_routes_input_using_its_painted_component_geometry",
+      "origin": "new-symbol",
+      "p": "verification/api-entry-points/legacy.rs:253"
+    },
+    {
+      "kind": "dead-code",
+      "sym": "debug_frames_preserve_graphemes_and_publish_geometry_only_after_present",
+      "origin": "new-symbol",
+      "p": "verification/api-entry-points/legacy.rs:229"
+    },
+    {
+      "kind": "dead-code",
+      "sym": "rtui_app_builder_backend_suprtui",
+      "origin": "new-symbol",
+      "p": "src/ffi/app.rs:217"
+    },
+    {
+      "kind": "duplication",
+      "members": "src/backend/direct_tty.rs::DirectTtyBackend::apply_patches | src/backend/mod.rs::CrosstermBackend::apply_patches",
+      "tokens": "27",
+      "p": "src/backend/direct_tty.rs:271",
+      "gating": "1"
+    },
+    {
+      "kind": "duplication",
+      "members": "src/backend/direct_tty.rs::DirectTtyBackend::shutdown | src/core/renderer.rs::Renderer::restore_terminal",
+      "tokens": "105",
+      "p": "src/backend/direct_tty.rs:316",
+      "gating": "1"
+    },
+    {
+      "kind": "duplication",
+      "members": "src/backend/direct_tty.rs::DirectTtyBackend::tty | src/core/terminal.rs::Terminal::flush",
+      "tokens": "29",
+      "p": "src/backend/direct_tty.rs:73",
+      "gating": "1"
+    },
+    {
+      "kind": "duplication",
+      "members": "src/backend/direct_tty.rs::DirectTtyBackend::tty | src/hooks/animation.rs::KeyframeOwner::is_alive",
+      "tokens": "23",
+      "p": "src/backend/direct_tty.rs:73",
+      "gating": "1"
+    },
+    {
+      "kind": "duplication",
+      "members": "src/backend/direct_tty.rs::DirectTtyBackend::tty | src/widgets/input/text_input.rs::TextInput::is_read_only",
+      "tokens": "23",
+      "p": "src/backend/direct_tty.rs:73",
+      "gating": "1"
+    },
+    {
+      "kind": "duplication",
+      "members": "src/backend/direct_tty.rs::DirectTtyBackend::tty | src/widgets/terminal.rs::TerminalWidget::is_running",
+      "tokens": "23",
+      "p": "src/backend/direct_tty.rs:73",
+      "gating": "1"
+    },
+    {
+      "kind": "duplication",
+      "members": "src/backend/direct_tty.rs::DirectTtyBackend::tty | map_child_index",
+      "tokens": "28",
+      "p": "src/backend/direct_tty.rs:73",
+      "gating": "1"
+    },
+    {
+      "kind": "duplication",
+      "members": "src/backend/mod.rs::CrosstermBackend::map_ct_key_kind | selection_to_selection",
+      "tokens": "58",
+      "p": "src/backend/mod.rs:210",
+      "gating": "1"
+    },
+    {
+      "kind": "duplication",
+      "members": "src/backend/mod.rs::CrosstermBackend::map_ct_key_kind | target_to_render",
+      "tokens": "61",
+      "p": "src/backend/mod.rs:210",
+      "gating": "1"
+    },
+    {
+      "kind": "duplication",
+      "members": "src/render/tree.rs::RenderNode::has_dirty_children | is_whitespace_word",
+      "tokens": "23",
+      "p": "src/render/tree.rs:58",
+      "gating": "1"
+    },
+    {
+      "kind": "duplication",
+      "members": "src/render/tree.rs::RenderTree::take_root | into_iter",
+      "tokens": "25",
+      "p": "src/render/tree.rs:286",
+      "gating": "1"
+    },
+    {
+      "kind": "duplication",
+      "members": "rtui_app_builder_debug | rtui_element_builder_children",
+      "tokens": "77",
+      "p": "src/ffi/app.rs:148",
+      "gating": "1"
+    },
+    {
+      "kind": "duplication",
+      "members": "rtui_app_builder_debug | select_terminal_backend",
+      "tokens": "94",
+      "p": "src/ffi/app.rs:148",
+      "gating": "1"
+    },
+    {
+      "kind": "new-clone-of-reused-helper",
+      "sym": "src/backend/direct_tty.rs::DirectTtyBackend::shutdown | src/core/renderer.rs::Renderer::restore_terminal",
+      "was": "0",
+      "now": "3",
+      "p": "src/backend/direct_tty.rs:316",
+      "gating": "1"
+    },
+    {
+      "kind": "new-clone-of-reused-helper",
+      "sym": "src/backend/direct_tty.rs::DirectTtyBackend::tty | src/core/terminal.rs::Terminal::flush",
+      "was": "0",
+      "now": "6",
+      "p": "src/backend/direct_tty.rs:73",
+      "gating": "1"
+    },
+    {
+      "kind": "new-clone-of-reused-helper",
+      "sym": "src/backend/direct_tty.rs::DirectTtyBackend::tty | src/hooks/animation.rs::KeyframeOwner::is_alive",
+      "was": "0",
+      "now": "7",
+      "p": "src/backend/direct_tty.rs:73",
+      "gating": "1"
+    },
+    {
+      "kind": "new-clone-of-reused-helper",
+      "sym": "src/backend/direct_tty.rs::DirectTtyBackend::tty | src/widgets/input/text_input.rs::TextInput::is_read_only",
+      "was": "0",
+      "now": "9",
+      "p": "src/backend/direct_tty.rs:73",
+      "gating": "1"
+    },
+    {
+      "kind": "new-clone-of-reused-helper",
+      "sym": "src/backend/direct_tty.rs::DirectTtyBackend::tty | map_child_index",
+      "was": "0",
+      "now": "5",
+      "p": "src/backend/direct_tty.rs:73",
+      "gating": "1"
+    },
+    {
+      "kind": "params",
+      "sym": "native_workflow",
+      "was": "5",
+      "now": "6",
+      "sev": "minor",
+      "p": "scripts/check-api-entry-points.py:155"
+    },
+    {
+      "kind": "short-horizon-churn",
+      "sym": "src/app.rs::App::render",
+      "was": "0",
+      "now": "12",
+      "churn": "self",
+      "p": "src/app.rs:473",
+      "gating": "1"
+    },
+    {
+      "kind": "short-horizon-churn",
+      "sym": "src/app.rs::AppBuilder::build",
+      "was": "0",
+      "now": "12",
+      "sev": "minor",
+      "churn": "ambient",
+      "p": "src/app.rs:792"
+    },
+    {
+      "kind": "short-horizon-churn",
+      "sym": "src/backend/mod.rs::CrosstermBackend::apply_patches",
+      "was": "0",
+      "now": "6",
+      "churn": "self",
+      "p": "src/backend/mod.rs:293",
+      "gating": "1"
+    },
+    {
+      "kind": "short-horizon-churn",
+      "sym": "src/backend/mod.rs::CrosstermBackend::new",
+      "was": "0",
+      "now": "6",
+      "churn": "self",
+      "p": "src/backend/mod.rs:164",
+      "gating": "1"
+    },
+    {
+      "kind": "short-horizon-churn",
+      "sym": "src/backend/mod.rs::CrosstermBackend::render_full",
+      "was": "0",
+      "now": "6",
+      "churn": "self",
+      "p": "src/backend/mod.rs:324",
+      "gating": "1"
+    },
+    {
+      "kind": "short-horizon-churn",
+      "sym": "src/backend/mod.rs::DebugBackend::apply_patches",
+      "was": "0",
+      "now": "6",
+      "sev": "minor",
+      "churn": "ambient",
+      "p": "src/backend/mod.rs:459"
+    },
+    {
+      "kind": "short-horizon-churn",
+      "sym": "src/backend/mod.rs::DebugBackend::render_full",
+      "was": "0",
+      "now": "6",
+      "sev": "minor",
+      "churn": "ambient",
+      "p": "src/backend/mod.rs:544"
+    },
+    {
+      "kind": "short-horizon-churn",
+      "sym": "src/backend/suprtui.rs::SuprTuiBackend::apply_patches",
+      "was": "0",
+      "now": "6",
+      "sev": "minor",
+      "churn": "ambient",
+      "p": "src/backend/suprtui.rs:284"
+    },
+    {
+      "kind": "short-horizon-churn",
+      "sym": "src/backend/suprtui.rs::SuprTuiBackend::poll_event_with_wake",
+      "was": "0",
+      "now": "6",
+      "sev": "minor",
+      "churn": "ambient",
+      "p": "src/backend/suprtui.rs:350"
+    },
+    {
+      "kind": "short-horizon-churn",
+      "sym": "src/backend/suprtui.rs::SuprTuiBackend::present",
+      "was": "0",
+      "now": "6",
+      "sev": "minor",
+      "churn": "ambient",
+      "p": "src/backend/suprtui.rs:301"
+    },
+    {
+      "kind": "short-horizon-churn",
+      "sym": "src/backend/suprtui.rs::SuprTuiBackend::start",
+      "was": "0",
+      "now": "6",
+      "sev": "minor",
+      "churn": "ambient",
+      "p": "src/backend/suprtui.rs:174"
+    },
+    {
+      "kind": "short-horizon-churn",
+      "sym": "App",
+      "was": "0",
+      "now": "12",
+      "sev": "minor",
+      "churn": "ambient",
+      "p": "src/app.rs:71"
+    },
+    {
+      "kind": "short-horizon-churn",
+      "sym": "Command",
+      "was": "0",
+      "now": "6",
+      "sev": "minor",
+      "churn": "ambient",
+      "p": "src/backend/suprtui.rs:83"
+    },
+    {
+      "kind": "short-horizon-churn",
+      "sym": "RTuiError",
+      "was": "0",
+      "now": "2",
+      "sev": "minor",
+      "churn": "ambient",
+      "p": "include/reactive_tui/native.h:39"
+    },
+    {
+      "kind": "short-horizon-churn",
+      "sym": "SuprTuiBackend",
+      "was": "0",
+      "now": "6",
+      "sev": "minor",
+      "churn": "ambient",
+      "p": "src/backend/suprtui.rs:104"
+    },
+    {
+      "kind": "short-horizon-churn",
+      "sym": "convert",
+      "was": "0",
+      "now": "2",
+      "churn": "self",
+      "p": "src/render/tree.rs:380",
+      "gating": "1"
+    },
+    {
+      "kind": "short-horizon-churn",
+      "sym": "resolved_element_to_render_node",
+      "was": "0",
+      "now": "2",
+      "churn": "self",
+      "p": "src/render/tree.rs:379",
+      "gating": "1"
+    },
+    {
+      "kind": "short-horizon-churn",
+      "sym": "rtui_app_builder_backend_crossterm",
+      "was": "0",
+      "now": "2",
+      "churn": "self",
+      "p": "src/ffi/app.rs:223",
+      "gating": "1"
+    },
+    {
+      "kind": "short-horizon-churn",
+      "sym": "rtui_app_builder_backend_debug",
+      "was": "0",
+      "now": "2",
+      "churn": "self",
+      "p": "src/ffi/app.rs:190",
+      "gating": "1"
+    },
+    {
+      "kind": "short-horizon-churn",
+      "sym": "rtui_app_builder_debug",
+      "was": "0",
+      "now": "2",
+      "churn": "self",
+      "p": "src/ffi/app.rs:148",
+      "gating": "1"
+    },
+    {
+      "kind": "short-horizon-churn",
+      "sym": "rtui_app_builder_performance_mode",
+      "was": "0",
+      "now": "2",
+      "churn": "self",
+      "p": "src/ffi/app.rs:169",
+      "gating": "1"
+    },
+    {
+      "kind": "short-horizon-churn",
+      "sym": "rtui_app_builder_root_component",
+      "was": "0",
+      "now": "2",
+      "churn": "self",
+      "p": "src/ffi/app.rs:231",
+      "gating": "1"
+    },
+    {
+      "kind": "short-horizon-churn",
+      "sym": "run_worker",
+      "was": "0",
+      "now": "6",
+      "churn": "self",
+      "p": "src/backend/suprtui.rs:408",
+      "gating": "1"
+    },
+    {
+      "kind": "verbosity",
+      "sym": "scripts/check-api-entry-points.py::Terminal::Terminal",
+      "was": "84",
+      "now": "95",
+      "p": "scripts/check-api-entry-points.py:25",
+      "gating": "1"
+    },
+    {
+      "kind": "verbosity",
+      "sym": "src/backend/mod.rs::DebugBackend::render_full",
+      "was": "129",
+      "now": "132",
+      "sev": "minor",
+      "p": "src/backend/mod.rs:544"
+    },
+    {
+      "kind": "verbosity",
+      "sym": "NativeFunctionName",
+      "was": "211",
+      "now": "212",
+      "sev": "minor",
+      "p": "bindings/typescript/src/native-types.ts:2"
+    },
+    {
+      "kind": "verbosity",
+      "sym": "debug_app_routes_input_using_its_painted_component_geometry",
+      "was": "0",
+      "now": "71",
+      "origin": "new-symbol",
+      "p": "verification/api-entry-points/legacy.rs:253"
+    },
+    {
+      "kind": "verbosity",
+      "sym": "functions",
+      "was": "1491",
+      "now": "1497",
+      "sev": "minor",
+      "p": "bindings/typescript/src/native-api.json:154"
+    },
+    {
+      "kind": "verbosity",
+      "sym": "run_worker",
+      "was": "107",
+      "now": "137",
+      "p": "src/backend/suprtui.rs:408",
+      "gating": "1"
+    }
+  ],
+  "test-gate": {
+    "exit": 4,
+    "changed": "17",
+    "impacted": "750",
+    "tests": "84",
+    "untested": "240",
+    "shown_tests": "84",
+    "tests_capped": "0",
+    "shown_untested": "25",
+    "untested_capped": "1",
+    "script_gates_unmodelled": "0",
+    "at": "2e0ad9c97+dirty"
+  }
+}

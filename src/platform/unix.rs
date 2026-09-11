@@ -4,16 +4,17 @@
 
 use super::PlatformTty;
 use crate::error::Result;
-use std::os::unix::io::{AsRawFd, RawFd};
+use std::os::unix::io::{AsRawFd, FromRawFd, OwnedFd, RawFd};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
 use std::sync::OnceLock;
+use std::sync::{Arc, Weak};
 use std::time::Duration;
 
 static SIGNAL_HANDLERS: Mutex<Vec<SignalHandler>> = Mutex::new(Vec::new());
 static HANDLER_INSTALLED: AtomicBool = AtomicBool::new(false);
 // FIX: Use OnceLock for thread-safe initialization instead of unsafe global
-static GLOBAL_TTY: OnceLock<Mutex<Option<UnixTty>>> = OnceLock::new();
+static GLOBAL_TTY: OnceLock<Mutex<Option<Weak<TtyState>>>> = OnceLock::new();
 
 /// Signal handler for Unix systems
 pub struct SignalHandler {
@@ -31,7 +32,36 @@ pub struct UnixTty {
     /// File descriptor for /dev/tty
     fd: RawFd,
     /// Original terminal settings to restore on exit
+    state: Arc<TtyState>,
+}
+
+struct TtyState {
+    fd: OwnedFd,
     original_termios: libc::termios,
+    restored: AtomicBool,
+}
+
+impl TtyState {
+    fn restore(&self) -> Result<()> {
+        if self.restored.swap(true, Ordering::AcqRel) {
+            return Ok(());
+        }
+        let result = unsafe {
+            libc::tcsetattr(self.fd.as_raw_fd(), libc::TCSAFLUSH, &self.original_termios)
+        };
+        if result != 0 {
+            self.restored.store(false, Ordering::Release);
+            Err(std::io::Error::last_os_error().into())
+        } else {
+            Ok(())
+        }
+    }
+}
+
+impl Drop for TtyState {
+    fn drop(&mut self) {
+        let _ = self.restore();
+    }
 }
 
 impl PlatformTty for UnixTty {
@@ -59,13 +89,7 @@ impl PlatformTty for UnixTty {
     }
 
     fn restore(&self) -> Result<()> {
-        let result = unsafe { libc::tcsetattr(self.fd, libc::TCSAFLUSH, &self.original_termios) };
-
-        if result != 0 {
-            Err(std::io::Error::last_os_error().into())
-        } else {
-            Ok(())
-        }
+        self.state.restore()
     }
 }
 
@@ -73,7 +97,7 @@ impl UnixTty {
     /// Initialize TTY by opening /dev/tty and setting raw mode
     pub fn init() -> Result<Self> {
         // Open /dev/tty for direct terminal access
-        let fd = unsafe { libc::open(c"/dev/tty".as_ptr(), libc::O_RDWR) };
+        let fd = unsafe { libc::open(c"/dev/tty".as_ptr(), libc::O_RDWR | libc::O_CLOEXEC) };
 
         if fd < 0 {
             return Err(std::io::Error::last_os_error().into());
@@ -99,18 +123,20 @@ impl UnixTty {
             return Err(std::io::Error::last_os_error().into());
         }
 
-        // Install signal handlers
-        install_signal_handlers()?;
-
-        let tty = UnixTty {
-            fd,
+        // The shared owner restores raw mode and closes its descriptor once.
+        // Construct it before fallible setup so every error releases the session.
+        let state = Arc::new(TtyState {
+            fd: unsafe { OwnedFd::from_raw_fd(fd) },
             original_termios,
-        };
+            restored: AtomicBool::new(false),
+        });
+        install_signal_handlers()?;
+        let tty = UnixTty { fd, state };
 
         // Store global reference for panic recovery (thread-safe)
         let global_tty = GLOBAL_TTY.get_or_init(|| Mutex::new(None));
         if let Ok(mut guard) = global_tty.lock() {
-            *guard = Some(tty.clone());
+            *guard = Some(Arc::downgrade(&tty.state));
         }
 
         Ok(tty)
@@ -287,20 +313,7 @@ impl Clone for UnixTty {
     fn clone(&self) -> Self {
         Self {
             fd: self.fd,
-            original_termios: self.original_termios,
-        }
-    }
-}
-
-impl Drop for UnixTty {
-    fn drop(&mut self) {
-        // Restore terminal settings
-        let _ = self.restore();
-
-        // Close file descriptor (but not on macOS as it may block)
-        #[cfg(not(target_os = "macos"))]
-        unsafe {
-            libc::close(self.fd);
+            state: Arc::clone(&self.state),
         }
     }
 }
@@ -391,7 +404,7 @@ pub fn install_panic_handler() {
         // Thread-safe access to global TTY
         if let Some(global_tty) = GLOBAL_TTY.get() {
             if let Ok(guard) = global_tty.lock() {
-                if let Some(ref tty) = *guard {
+                if let Some(tty) = guard.as_ref().and_then(Weak::upgrade) {
                     let _ = tty.restore();
                 }
             }

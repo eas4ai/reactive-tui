@@ -1,170 +1,90 @@
-//! Direct TTY backend for reactive-tui
-//!
-//! This backend uses direct TTY access instead of crossterm for advanced features
+//! Native TTY input/output with the shared complete-frame SuprTUI renderer.
 
-use crate::backend::Backend;
+use crate::backend::{
+    Backend, CellFrame, ImageOutputOptions, PaintedNode, PresentedLayout, SuprTuiBackend,
+};
 use crate::component::Element;
-use crate::core::grapheme_cell::GraphemeSurface;
-use crate::core::renderer::Renderer;
-use crate::core::span_diff::SpanDiffWriter;
-
-use crate::core::surface::Rgba;
-use crate::error::Result;
+use crate::error::{ReactiveError, Result};
 use crate::event::types as rt_event;
 use crate::platform::{DirectTty, TerminalCapabilities, TerminalEvent};
-use crate::render::reconcile::PatchOp;
-use crate::render::tree::RenderTree;
+use crate::render::{PatchOp, RenderTree};
+use std::{
+    collections::VecDeque,
+    io::{self, Write},
+    sync::{Arc, Mutex, MutexGuard},
+};
 
-/// Direct TTY backend with advanced terminal features
+#[derive(Clone)]
+struct TtyOutput(Arc<Mutex<DirectTty>>);
+impl Write for TtyOutput {
+    fn write(&mut self, bytes: &[u8]) -> io::Result<usize> {
+        self.0
+            .lock()
+            .map_err(|_| io::Error::other("direct TTY lock poisoned"))?
+            .write(bytes)
+            .map_err(|error| io::Error::other(error.to_string()))
+    }
+    fn flush(&mut self) -> io::Result<()> {
+        Ok(())
+    }
+}
+
+/// Direct native TTY transport and input, sharing the complete-frame renderer.
 pub struct DirectTtyBackend {
-    /// Direct TTY interface
-    tty: DirectTty,
-    /// Renderer for drawing
-    renderer: Renderer,
-    /// Grapheme-aware surface for proper Unicode support
-    grapheme_surface: GraphemeSurface,
-    /// Previous frame for diffing
-    prev_surface: Option<GraphemeSurface>,
-    /// Terminal capabilities
+    tty: Arc<Mutex<DirectTty>>,
+    renderer: SuprTuiBackend,
     capabilities: TerminalCapabilities,
+    pending: VecDeque<rt_event::Event>,
+    observed_size: (u16, u16),
+    active: bool,
 }
 
 impl DirectTtyBackend {
-    /// Create a new direct TTY backend
+    /// Enter one native raw terminal session and start its frame renderer.
     pub fn new() -> Result<Self> {
-        // Initialize direct TTY
         let tty = DirectTty::init()?;
         let capabilities = tty.capabilities().clone();
-
-        // Get terminal size
-        let (cols, rows) = tty.size()?;
-
-        // Initialize renderer and surfaces
-        let renderer = Renderer::new(cols as usize, rows as usize)
-            .map_err(|e| std::io::Error::other(e.to_string()))?;
-        let grapheme_surface = GraphemeSurface::new(cols as usize, rows as usize);
-
-        // Enable advanced features if supported
-        let mut backend = Self {
+        let size = tty.size()?;
+        let tty = Arc::new(Mutex::new(tty));
+        let mut images = ImageOutputOptions {
+            kitty_graphics: capabilities.kitty_graphics,
+            sixel: capabilities.sixel_graphics,
+            iterm2_inline: capabilities.iterm2_images,
+            ..Default::default()
+        };
+        images.refresh_cell_pixels();
+        let renderer =
+            SuprTuiBackend::with_terminal_writer(size.0, size.1, TtyOutput(tty.clone()), images)?;
+        let backend = Self {
             tty,
             renderer,
-            grapheme_surface,
-            prev_surface: None,
             capabilities,
+            pending: VecDeque::new(),
+            observed_size: size,
+            active: true,
         };
-
-        backend.enable_advanced_features()?;
-
+        backend
+            .tty()?
+            .enable_mouse(backend.capabilities.pixel_mouse)?;
+        TtyOutput(backend.tty.clone()).write_all(b"\x1b[?2004h")?;
         Ok(backend)
     }
 
-    /// Enable advanced terminal features
-    fn enable_advanced_features(&mut self) -> Result<()> {
-        // Enable mouse reporting with pixel coordinates if supported
-        self.tty.enable_mouse(self.capabilities.pixel_mouse)?;
-
-        // Enable synchronized output for flicker-free updates
-        self.tty.enable_sync_output()?;
-
-        // Enable alternate screen
+    fn tty(&self) -> Result<MutexGuard<'_, DirectTty>> {
         self.tty
-            .write(crate::platform::sequences::ENABLE_ALT_SCREEN)?;
-
-        // Hide cursor initially
-        self.tty.write(crate::platform::sequences::HIDE_CURSOR)?;
-
-        Ok(())
+            .lock()
+            .map_err(|_| ReactiveError::invalid_state("direct TTY lock poisoned"))
     }
 
-    /// Disable advanced features and restore terminal
-    fn disable_advanced_features(&mut self) -> Result<()> {
-        // Show cursor
-        self.tty.write(crate::platform::sequences::SHOW_CURSOR)?;
-
-        // Disable alternate screen
-        self.tty
-            .write(crate::platform::sequences::DISABLE_ALT_SCREEN)?;
-
-        // Disable synchronized output
-        self.tty.disable_sync_output()?;
-
-        // Disable mouse reporting
-        self.tty.disable_mouse()?;
-
-        Ok(())
-    }
-
-    /// Present using direct TTY with advanced features
-    fn present_with_direct_tty(&mut self) -> Result<()> {
-        // Copy from renderer surface to grapheme surface
-        let (width, height) = self.renderer.dims();
-        let surface = self.renderer.surface_mut();
-
-        // Transfer content to grapheme surface
-        self.grapheme_surface.clear(Rgba {
-            r: 0.0,
-            g: 0.0,
-            b: 0.0,
-            a: 1.0,
-        });
-
-        for y in 0..height {
-            for x in 0..width {
-                let cell = surface.get(x, y);
-                use crate::core::grapheme_cell::{CellType, GraphemeCluster};
-
-                // Convert char to grapheme cluster
-                let mut buf = [0u8; 4];
-                let s = cell.ch.encode_utf8(&mut buf);
-                let cluster = GraphemeCluster::new(s);
-
-                self.grapheme_surface.set_cell(
-                    x,
-                    y,
-                    CellType::Glyph {
-                        grapheme: cluster,
-                        fg: cell.fg,
-                        bg: cell.bg,
-                        attr: cell.attr,
-                    },
-                );
-            }
-        }
-
-        // Generate diff if we have a previous frame
-        let mut diff_writer = SpanDiffWriter::new();
-        if let Some(ref prev) = self.prev_surface {
-            diff_writer.diff(prev, &self.grapheme_surface);
-        } else {
-            // First frame - render everything
-            let empty = GraphemeSurface::new(width, height);
-            diff_writer.diff(&empty, &self.grapheme_surface);
-        }
-
-        // Output to terminal with synchronized updates
-        if self.capabilities.synchronized_output {
-            self.tty.enable_sync_output()?;
-        }
-
-        // Write the diff
-        self.tty.write(diff_writer.output())?;
-
-        if self.capabilities.synchronized_output {
-            self.tty.disable_sync_output()?;
-        }
-
-        // Save current surface for next frame
-        self.prev_surface = Some(self.grapheme_surface.clone());
-
-        Ok(())
-    }
-
-    /// Write a hyperlink to the terminal
+    /// Write a hyperlink through the retained native transport.
     pub fn write_hyperlink(&mut self, uri: &str, text: &str) -> Result<()> {
-        self.tty.write_hyperlink(uri, text)
+        if !self.active {
+            return Err(ReactiveError::invalid_state("direct TTY is shut down"));
+        }
+        self.tty()?.write_hyperlink(uri, text)
     }
 
-    /// Get terminal capabilities
+    /// Return the capabilities detected for this native terminal.
     pub fn capabilities(&self) -> &TerminalCapabilities {
         &self.capabilities
     }
@@ -333,92 +253,83 @@ impl DirectTtyBackend {
 }
 
 impl Backend for DirectTtyBackend {
+    fn is_interactive_terminal(&self) -> bool {
+        self.active
+    }
+    fn painted_nodes(&self) -> Option<&[PaintedNode]> {
+        self.renderer.painted_nodes()
+    }
+    fn component_layouts(&self) -> Option<&[PresentedLayout]> {
+        self.renderer.component_layouts()
+    }
+    fn render_frame(&mut self, element: &Element) -> Result<bool> {
+        self.renderer.render_frame(element)
+    }
+    fn render_cells(&mut self, frame: Arc<CellFrame>) -> Result<()> {
+        self.renderer.render_cells(frame)
+    }
     fn apply_patches(&mut self, patches: &[PatchOp], tree: &RenderTree) -> Result<()> {
-        // For now, use the same patch application logic as crossterm backend
         if patches.is_empty() {
             return Ok(());
         }
-
-        // For complex changes, fall back to full repaint
-        let should_full_repaint = patches.len() > 10
-            || patches
-                .iter()
-                .any(|p| matches!(p, PatchOp::Replace { .. } | PatchOp::ReorderChildren { .. }));
-
-        if should_full_repaint {
-            self.renderer.clear(Rgba {
-                r: 0.0,
-                g: 0.0,
-                b: 0.0,
-                a: 1.0,
-            });
-            if let Some(root) = tree.root() {
-                // Use proper layout system instead of linear painting
-                if let Some(element) = root.as_element() {
-                    self.render_full(element)?;
-                } else {
-                    let surface = self.renderer.surface_mut();
-                    let _end_y = crate::backend::paint_render_node_linear(surface, root, 0, 0);
-                }
-            }
-        }
-
-        Ok(())
+        self.renderer.apply_patches(patches, tree)
     }
-
     fn clear(&mut self) -> Result<()> {
-        self.renderer.clear(Rgba {
-            r: 0.0,
-            g: 0.0,
-            b: 0.0,
-            a: 1.0,
-        });
-        Ok(())
+        self.renderer.clear()
     }
-
     fn present(&mut self) -> Result<()> {
-        self.present_with_direct_tty()
+        self.renderer.present()
     }
-
     fn size(&self) -> (u16, u16) {
-        self.tty.size().unwrap_or((80, 24))
+        self.renderer.size()
     }
-
-    fn poll_event(&mut self, timeout_ms: Option<u64>) -> Result<Option<rt_event::Event>> {
-        let timeout = timeout_ms.map(std::time::Duration::from_millis);
-
-        // Use actual direct TTY polling
-        let events = self.tty.poll_events(timeout)?;
-
-        // Return the first event, mapped to reactive-tui format
-        for event in events {
-            if let Some(mapped) = Self::map_terminal_event(event) {
-                return Ok(Some(mapped));
-            }
-        }
-
-        Ok(None)
+    fn resize(&mut self, width: usize, height: usize) {
+        self.renderer.resize(width, height);
     }
-
+    fn set_debug_overlay(&mut self, enabled: bool) {
+        self.renderer.set_debug_overlay(enabled);
+    }
     fn render_full(&mut self, element: &Element) -> Result<()> {
-        // Convert Element tree to NodeSpec and paint using Taffy-based layout
-        let nodespec = crate::component::bridge::element_to_nodespec(element);
-        // Clear the back buffer surface before painting to avoid stale cells
-        self.renderer.clear(Rgba {
-            r: 0.0,
-            g: 0.0,
-            b: 0.0,
-            a: 1.0,
-        });
-        let (width, _height) = self.renderer.dims();
-        let surface = self.renderer.surface_mut();
-        let opts = crate::layout::paint_tree::PaintOptions::default();
-        crate::layout::paint_tree::layout_and_paint_with(&nodespec, surface, width, &opts)
+        self.renderer.render_full(element)
+    }
+    fn poll_event(&mut self, timeout_ms: Option<u64>) -> Result<Option<rt_event::Event>> {
+        if !self.active {
+            return Err(ReactiveError::invalid_state("direct TTY is shut down"));
+        }
+        if let Some(event) = self.pending.pop_front() {
+            return Ok(Some(event));
+        }
+        let size = self.tty()?.size()?;
+        if size.0 > 0 && size.1 > 0 && size != self.observed_size {
+            self.observed_size = size;
+            return Ok(Some(rt_event::Event::Resize(rt_event::ResizeEvent::new(
+                size.0, size.1,
+            ))));
+        }
+        let events = self
+            .tty()?
+            .poll_events(timeout_ms.map(std::time::Duration::from_millis))?;
+        self.pending
+            .extend(events.into_iter().filter_map(Self::map_terminal_event));
+        Ok(self.pending.pop_front())
+    }
+    fn shutdown(&mut self) -> Result<()> {
+        if !self.active {
+            return Ok(());
+        }
+        self.active = false;
+        let output = self.renderer.shutdown();
+        let mouse = self.tty()?.disable_mouse();
+        let paste = TtyOutput(self.tty.clone())
+            .write_all(b"\x1b[?2004l")
+            .map_err(Into::into);
+        let raw = self.tty()?.restore();
+        output.and(mouse).and(paste).and(raw)
     }
 }
 
 impl Drop for DirectTtyBackend {
     fn drop(&mut self) {
-        let _ = self.disable_advanced_features();
+        let _ = self.shutdown();
     }
 }

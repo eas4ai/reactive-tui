@@ -100,6 +100,7 @@ export type NativeFunctionName =
   | 'rtui_app_builder_debug'
   | 'rtui_app_builder_performance_mode'
   | 'rtui_app_builder_backend_debug'
+  | 'rtui_app_builder_backend_suprtui'
   | 'rtui_app_builder_backend_crossterm'
   | 'rtui_app_builder_root_component'
   | 'rtui_app_builder_build'

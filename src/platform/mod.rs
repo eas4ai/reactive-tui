@@ -544,6 +544,11 @@ impl DirectTty {
         self.inner.write(data)
     }
 
+    /// Restore the native terminal mode before releasing this session.
+    pub fn restore(&self) -> Result<()> {
+        self.inner.restore()
+    }
+
     /// Write a string to terminal
     pub fn write_str(&self, s: &str) -> Result<usize> {
         self.write(s.as_bytes())
