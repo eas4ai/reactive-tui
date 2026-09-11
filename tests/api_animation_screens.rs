@@ -1,4 +1,4 @@
-//! Acceptance checks for API-013. Screen and relative-value cases remain to be added.
+//! Acceptance checks for API-013 keyframes, owner-bound targets and screens.
 use reactive_tui::animation::keyframes::{Keyframe, KeyframeAnimation, TypedKeyframe};
 use std::time::Duration;
 
@@ -367,3 +367,59 @@ fn active_screen_routes_keyboard_activation_to_its_control() {
 
 #[path = "api_animation_screens/screens.rs"]
 mod screens;
+
+#[path = "api_animation_screens/targets.rs"]
+mod targets;
+
+#[test]
+fn untyped_animation_wrapper_preserves_every_property_unit_and_alpha() {
+    use reactive_tui::animation::{
+        api::{try_animate, AnimateParams},
+        keyframes::{KeyframeSequence, KeyframeValue},
+        AnimatedValue, AnimationValue, CssValue, EasingFunction,
+    };
+    use std::collections::HashMap;
+    let frame = |offset, x| {
+        Keyframe::new(offset)
+            .number("x", x)
+            .set_property("text", KeyframeValue::String("kept".into()))
+            .set_property("flag", KeyframeValue::Boolean(true))
+            .set_property("width", KeyframeValue::Css(CssValue::Percentage(40.0)))
+            .set_property("color", KeyframeValue::Color(10, 20, 30, 128))
+    };
+    let sequence = KeyframeSequence {
+        keyframes: vec![frame(0.0, 4.0), frame(1.0, 12.0)],
+        duration: Duration::from_secs(1),
+        default_easing: EasingFunction::Linear,
+    };
+    let mut animation = try_animate(
+        "explicit-keyframes",
+        AnimateParams {
+            keyframes: Some(sequence),
+            autoplay: Some(false),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    animation.seek(0.5);
+    assert_eq!(
+        animation.get_current_values(),
+        Some(AnimatedValue::Animation(AnimationValue::Map(
+            HashMap::from([
+                ("x".into(), AnimationValue::Number(8.0)),
+                ("text".into(), AnimationValue::String("kept".into())),
+                ("flag".into(), AnimationValue::Boolean(true)),
+                ("width".into(), AnimationValue::Unit(40.0, "%".into())),
+                (
+                    "color".into(),
+                    AnimationValue::Map(HashMap::from([
+                        ("r".into(), AnimationValue::Number(10.0)),
+                        ("g".into(), AnimationValue::Number(20.0)),
+                        ("b".into(), AnimationValue::Number(30.0)),
+                        ("a".into(), AnimationValue::Number(128.0))
+                    ]))
+                )
+            ])
+        )))
+    );
+}

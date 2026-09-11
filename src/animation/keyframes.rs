@@ -335,15 +335,22 @@ impl KeyframeValue {
         }
     }
 
-    /// Convert to AnimationValue for compatibility with existing system
+    /// Convert without losing values or units. Nonopaque RGBA uses an r/g/b/a
+    /// channel map (0..=255); opaque colors keep the existing RGB variant.
     pub fn to_animation_value(&self) -> AnimationValue {
         match self {
             KeyframeValue::Number(n) => AnimationValue::Number(*n),
-            KeyframeValue::Color(r, g, b, _a) => AnimationValue::Color {
+            KeyframeValue::Color(r, g, b, 255) => AnimationValue::Color {
                 r: *r,
                 g: *g,
                 b: *b,
             },
+            KeyframeValue::Color(r, g, b, a) => AnimationValue::Map(HashMap::from([
+                ("r".into(), AnimationValue::Number(f32::from(*r))),
+                ("g".into(), AnimationValue::Number(f32::from(*g))),
+                ("b".into(), AnimationValue::Number(f32::from(*b))),
+                ("a".into(), AnimationValue::Number(f32::from(*a))),
+            ])),
             KeyframeValue::Transform(matrix) => AnimationValue::Transform(matrix.clone()),
             KeyframeValue::Css(css) => match css {
                 CssValue::Number(n) => AnimationValue::Number(*n),

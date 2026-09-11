@@ -9,6 +9,57 @@
 //! - `create_timeline()` function for complex animation sequences
 //! - Flexible parameter handling and intuitive API design
 
+//!
+//! # Current-value migration
+//!
+//! `PropertyValue::Single` and `Relative`, including `slide` and `spring_animate`,
+//! need a handle from the owning App or screen. A string ID has no owner or
+//! current state. `try_animate`, `Animation::try_play` and `Animation::try_seek`
+//! report errors; the original convenience methods panic with that error.
+//! Explicit `FromTo` and array endpoints continue to accept string IDs.
+//!
+//! ```
+//! use reactive_tui::{animation::api::{try_animate, AnimateParams, PropertyValue},
+//!     backend::SuprTuiBackend, builder::core::div, screen::{ScreenId, ScreenManager}};
+//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! let backend = SuprTuiBackend::with_writer(20, 4, std::io::sink())?;
+//! let mut screens = ScreenManager::new(Box::new(backend));
+//! screens.create_screen("main", "Main".into(),
+//!     div().id("panel").class("w-full h-full bg-white opacity-50").build())?;
+//! let target = screens.animation_target(&ScreenId::from("main"), "panel")?;
+//! let mut animation = try_animate(&target, AnimateParams {
+//!     opacity: Some(PropertyValue::Relative("+0.25".into())),
+//!     autoplay: Some(false), ..Default::default()
+//! })?;
+//! animation.try_play()?;
+//! animation.try_seek(0.5)?;
+//! screens.update()?; // Presents opacity 0.625.
+//! target.clear()?;   // Restore authored properties on the next frame.
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! For App, obtain `app.animation_targets()` before `app.run()` and capture that
+//! lookup context in callbacks. Resolve a target after its first presented frame.
+//! `app.animation_manager()` drives registered animations; standalone screen
+//! users call `Animation::update` and `ScreenManager::update` in their loop.
+//! Endpoints are captured on play and refreshed at the first sample after delay.
+//! Pause/resume keeps captured endpoints; restart reads current presented values.
+//! Samples remain visible after stop/completion until replaced or `target.clear()`.
+//! Removing a target or cleaning up its owner invalidates its handles. Reusing
+//! the same ID does not revive them; duplicate IDs within an owner are errors.
+//!
+//! Bound targets paint opacity, cell translations, uniform scale and rotation.
+//! Custom numeric values read `ElementMetadata::animation_values`; built-in names
+//! read actual styles instead. Percentage translations require presented layout.
+//! Unrepresentable uniform scale and undeclared custom values return errors.
+//! Other property families retain their explicit unbound animation APIs and are
+//! rejected by the new bound numeric API rather than accepted without effect.
+//!
+//! Untyped animation samples retain every property in `AnimationValue::Map`.
+//! Single numeric and opaque RGB samples keep their existing representation.
+//! Nonopaque RGBA uses an r/g/b/a channel map in 0..=255; CSS values retain units.
+
 use super::*;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -44,6 +95,37 @@ impl From<Vec<String>> for AnimationTargets {
 impl From<Vec<&str>> for AnimationTargets {
     fn from(ids: Vec<&str>) -> Self {
         Self::Multiple(ids.iter().map(|&s| s.to_string()).collect())
+    }
+}
+
+/// Animation construction input. Legacy serialized ID lists remain unchanged.
+#[derive(Clone, Debug)]
+pub enum AnimationTargetInput {
+    /// Explicit endpoint animations identified by the legacy ID list.
+    Ids(AnimationTargets),
+    /// One current-value target in a specific owner.
+    Bound(AnimationTarget),
+    /// Multiple targets, each with its own current values.
+    BoundMultiple(Vec<AnimationTarget>),
+}
+impl<T: Into<AnimationTargets>> From<T> for AnimationTargetInput {
+    fn from(targets: T) -> Self {
+        Self::Ids(targets.into())
+    }
+}
+impl From<AnimationTarget> for AnimationTargetInput {
+    fn from(target: AnimationTarget) -> Self {
+        Self::Bound(target)
+    }
+}
+impl From<&AnimationTarget> for AnimationTargetInput {
+    fn from(target: &AnimationTarget) -> Self {
+        Self::Bound(target.clone())
+    }
+}
+impl From<Vec<AnimationTarget>> for AnimationTargetInput {
+    fn from(targets: Vec<AnimationTarget>) -> Self {
+        Self::BoundMultiple(targets)
     }
 }
 
@@ -187,6 +269,10 @@ fn generate_id() -> String {
 
 /// Main animation creation function
 ///
+/// # Panics
+/// Panics if target or numeric value resolution fails. Use [`try_animate`] for
+/// checked errors. Current-value animations require an owner-bound target handle.
+///
 /// Creates animations with a modern, flexible API that supports property animations,
 /// keyframes, staggering, and advanced easing functions.
 ///
@@ -205,9 +291,9 @@ fn generate_id() -> String {
 ///
 /// // Complex transform animation
 /// let transform = animate("element", AnimateParams {
-///     translate_x: Some(PropertyValue::Single(100.0)),
+///     translate_x: Some(PropertyValue::FromTo{from:0.0,to:100.0}),
 ///     scale: Some(PropertyValue::FromTo { from: 0.8, to: 1.2 }),
-///     rotate: Some(PropertyValue::Single(360.0)),
+///     rotate: Some(PropertyValue::FromTo{from:0.0,to:360.0}),
 ///     duration: Some(1000.0),
 ///     easing: Some(EasingFunction::spring_wobbly()),
 ///     ..Default::default()
@@ -215,9 +301,37 @@ fn generate_id() -> String {
 /// ```
 pub fn animate<T>(targets: T, params: AnimateParams) -> Animation
 where
-    T: Into<AnimationTargets>,
+    T: Into<AnimationTargetInput>,
 {
-    let _targets = targets.into();
+    try_animate(targets, params).unwrap_or_else(|error| panic!("cannot create animation: {error}"))
+}
+
+/// Checked animation construction. Single/Relative numeric values require a live
+/// target handle. Explicit FromTo values still support string IDs.
+pub fn try_animate<T: Into<AnimationTargetInput>>(
+    targets: T,
+    params: AnimateParams,
+) -> Result<Animation, AnimationTargetError> {
+    let targets = match targets.into() {
+        AnimationTargetInput::Bound(target) => Some(vec![target]),
+        AnimationTargetInput::BoundMultiple(targets) => Some(targets),
+        AnimationTargetInput::Ids(_) => None,
+    };
+    if targets.is_none() {
+        for (name, value) in super::binding::numeric_values(&params) {
+            if matches!(value, PropertyValue::Single(_) | PropertyValue::Relative(_)) {
+                return Err(AnimationTargetError::HandleRequired(name.into()));
+            }
+            super::binding::resolve_value(name, value, &HashMap::new())?;
+        }
+    }
+    let mut binding = targets
+        .map(|targets| super::binding::TargetBinding::new(targets, params.clone()))
+        .transpose()?;
+    let bound_property = binding
+        .as_mut()
+        .map(|binding| binding.resolve())
+        .transpose()?;
     let animation_id = params.id.clone().unwrap_or_else(generate_id);
 
     let mut builder = AnimationBuilder::new(animation_id);
@@ -252,7 +366,9 @@ where
     }
 
     // Handle keyframes if provided
-    if let Some(keyframes) = params.keyframes {
+    if let Some(property) = bound_property {
+        builder = builder.animate_property(property);
+    } else if let Some(keyframes) = params.keyframes.clone() {
         builder = builder.animate_property(AnimatedProperty::Keyframes(keyframes));
     } else {
         // Extract animated properties from parameters
@@ -268,16 +384,25 @@ where
     }
 
     // Set auto-play
-    let mut animation = builder.build();
+    let mut animation = builder.auto_play(false).build();
+    animation.target_binding = binding;
     if params.autoplay.unwrap_or(true) {
-        animation.play();
+        animation.try_play()?;
     }
 
-    animation
+    Ok(animation)
+}
+
+pub(super) fn combine_properties(mut properties: Vec<AnimatedProperty>) -> AnimatedProperty {
+    if properties.len() == 1 {
+        properties.remove(0)
+    } else {
+        AnimatedProperty::Multiple(properties)
+    }
 }
 
 /// Extract animated properties from parameters
-fn extract_animated_properties(params: &AnimateParams) -> Vec<AnimatedProperty> {
+pub(super) fn extract_animated_properties(params: &AnimateParams) -> Vec<AnimatedProperty> {
     let mut properties = Vec::new();
 
     // Handle opacity
@@ -287,31 +412,21 @@ fn extract_animated_properties(params: &AnimateParams) -> Vec<AnimatedProperty> 
 
     // Handle translation
     if let Some(translate_x) = &params.translate_x {
-        properties.push(AnimatedProperty::Transform(convert_property_to_transform(
-            "translateX",
-            translate_x,
-        )));
+        properties.push(convert_transform_value("translateX", translate_x));
     }
 
     if let Some(translate_y) = &params.translate_y {
-        properties.push(AnimatedProperty::Transform(convert_property_to_transform(
-            "translateY",
-            translate_y,
-        )));
+        properties.push(convert_transform_value("translateY", translate_y));
     }
 
     // Handle scale
     if let Some(scale) = &params.scale {
-        properties.push(AnimatedProperty::Transform(convert_property_to_transform(
-            "scale", scale,
-        )));
+        properties.push(convert_transform_value("scale", scale));
     }
 
     // Handle rotation
     if let Some(rotate) = &params.rotate {
-        properties.push(AnimatedProperty::Transform(convert_property_to_transform(
-            "rotate", rotate,
-        )));
+        properties.push(convert_transform_value("rotate", rotate));
     }
 
     // Handle color
@@ -431,8 +546,9 @@ fn convert_property_value_to_animated(name: &str, value: &PropertyValue) -> Anim
             "opacity" => AnimatedProperty::Opacity(*from, *to),
             _ => AnimatedProperty::Property(name.to_string(), *from, *to),
         },
+        PropertyValue::Array(values) if values.len() > 2 => numeric_keyframes(name, values),
         PropertyValue::Array(values) => {
-            // Convert array to keyframe sequence
+            // Two explicit endpoints retain their existing representation.
             if values.len() >= 2 {
                 match name {
                     "opacity" => AnimatedProperty::Opacity(values[0], values[values.len() - 1]),
@@ -450,35 +566,34 @@ fn convert_property_value_to_animated(name: &str, value: &PropertyValue) -> Anim
                 )
             }
         }
-        PropertyValue::Relative(rel) => {
-            // Parse relative values like "+10", "-5", "*2", "/3"
-            let base_value = 0.0; // In real usage, would get current computed value
-            let target_value = match rel.chars().next() {
-                Some('+') => {
-                    let offset: f32 = rel[1..].parse().unwrap_or(0.0);
-                    base_value + offset
-                }
-                Some('-') => {
-                    let offset: f32 = rel[1..].parse().unwrap_or(0.0);
-                    base_value - offset
-                }
-                Some('*') => {
-                    let multiplier: f32 = rel[1..].parse().unwrap_or(1.0);
-                    base_value * multiplier
-                }
-                Some('/') => {
-                    let divisor: f32 = rel[1..].parse().unwrap_or(1.0);
-                    if divisor != 0.0 {
-                        base_value / divisor
-                    } else {
-                        base_value
-                    }
-                }
-                _ => rel.parse().unwrap_or(0.0), // Fallback to absolute parsing
-            };
-            AnimatedProperty::Property(name.to_string(), base_value, target_value)
+        PropertyValue::Relative(_) => {
+            unreachable!("relative values require checked target resolution")
         }
     }
+}
+
+fn numeric_keyframes(name: &str, values: &[f32]) -> AnimatedProperty {
+    AnimatedProperty::Keyframes(keyframes::KeyframeSequence {
+        keyframes: values
+            .iter()
+            .enumerate()
+            .map(|(index, value)| {
+                keyframes::Keyframe::new(index as f32 / (values.len() - 1) as f32)
+                    .set_property(name, keyframes::KeyframeValue::Number(*value))
+            })
+            .collect(),
+        duration: Duration::from_secs(1),
+        default_easing: EasingFunction::Linear,
+    })
+}
+
+fn convert_transform_value(name: &str, value: &PropertyValue) -> AnimatedProperty {
+    if let PropertyValue::Array(values) = value {
+        if values.len() > 2 {
+            return numeric_keyframes(name, values);
+        }
+    }
+    AnimatedProperty::Transform(convert_property_to_transform(name, value))
 }
 
 /// Convert PropertyValue to TransformProperty
@@ -513,33 +628,8 @@ fn convert_property_to_transform(transform_type: &str, value: &PropertyValue) ->
                 TransformProperty::TranslateX(0.0, values.first().copied().unwrap_or(0.0))
             }
         }
-        PropertyValue::Relative(rel) => {
-            // Parse relative transform values
-            let base_value = 0.0; // In real usage, would get current transform value
-            let target_value = match rel.chars().next() {
-                Some('+') => base_value + rel[1..].parse::<f32>().unwrap_or(0.0),
-                Some('-') => base_value - rel[1..].parse::<f32>().unwrap_or(0.0),
-                Some('*') => base_value * rel[1..].parse::<f32>().unwrap_or(1.0),
-                Some('/') => {
-                    let divisor: f32 = rel[1..].parse().unwrap_or(1.0);
-                    if divisor != 0.0 {
-                        base_value / divisor
-                    } else {
-                        base_value
-                    }
-                }
-                _ => rel.parse().unwrap_or(0.0),
-            };
-
-            match transform_type {
-                "translateX" => TransformProperty::TranslateX(base_value, target_value),
-                "translateY" => TransformProperty::TranslateY(base_value, target_value),
-                "scale" => TransformProperty::Scale(base_value, target_value),
-                "rotate" => {
-                    TransformProperty::Rotate(base_value.to_radians(), target_value.to_radians())
-                }
-                _ => TransformProperty::TranslateX(base_value, target_value),
-            }
+        PropertyValue::Relative(_) => {
+            unreachable!("relative transforms require checked target resolution")
         }
     }
 }
@@ -685,7 +775,7 @@ impl TimelineBuilder {
     /// Add an animation to the timeline
     pub fn add<T>(mut self, targets: T, params: AnimateParams, position: Option<&str>) -> Self
     where
-        T: Into<AnimationTargets>,
+        T: Into<AnimationTargetInput>,
     {
         let animation = animate(targets, params);
 
@@ -779,7 +869,7 @@ fn parse_timeline_position(position: &str) -> Duration {
 ///     ..Default::default()
 /// }, None)
 /// .add("element2", AnimateParams {
-///     translate_x: Some(PropertyValue::Single(100.0)),
+///     translate_x: Some(PropertyValue::FromTo{from:0.0,to:100.0}),
 ///     duration: Some(300.0),
 ///     ..Default::default()
 /// }, Some("-=200")) // Start 200ms before previous ends
@@ -803,7 +893,7 @@ pub fn create_timeline(params: Option<TimelineParams>) -> TimelineBuilder {
 /// Create a fade in animation
 pub fn fade_in<T>(targets: T, duration_ms: f32) -> Animation
 where
-    T: Into<AnimationTargets>,
+    T: Into<AnimationTargetInput>,
 {
     animate(
         targets,
@@ -819,7 +909,7 @@ where
 /// Create a fade out animation
 pub fn fade_out<T>(targets: T, duration_ms: f32) -> Animation
 where
-    T: Into<AnimationTargets>,
+    T: Into<AnimationTargetInput>,
 {
     animate(
         targets,
@@ -835,7 +925,7 @@ where
 /// Create a slide animation
 pub fn slide<T>(targets: T, x: f32, y: f32, duration_ms: f32) -> Animation
 where
-    T: Into<AnimationTargets>,
+    T: Into<AnimationTargetInput>,
 {
     animate(
         targets,
@@ -852,7 +942,7 @@ where
 /// Create a scale animation
 pub fn scale<T>(targets: T, scale_factor: f32, duration_ms: f32) -> Animation
 where
-    T: Into<AnimationTargets>,
+    T: Into<AnimationTargetInput>,
 {
     animate(
         targets,
@@ -876,7 +966,7 @@ pub fn spring_animate<T>(
     spring_config: spring::SpringConfig,
 ) -> Animation
 where
-    T: Into<AnimationTargets>,
+    T: Into<AnimationTargetInput>,
 {
     let mut custom = HashMap::new();
     custom.insert(property.to_string(), PropertyValue::Single(to_value));
@@ -894,6 +984,16 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn target() -> (crate::animation::TargetRegistry, AnimationTarget) {
+        let mut owner =
+            crate::animation::TargetRegistry::new(crate::reactive::wake::AppWaker::new());
+        owner
+            .publish(&crate::builder::core::div().id("element").build(), None, 0)
+            .unwrap();
+        let target = owner.context().target("element").unwrap();
+        (owner, target)
+    }
 
     #[test]
     fn test_animate_function() {
@@ -965,7 +1065,7 @@ mod tests {
         .add(
             "element1",
             AnimateParams {
-                opacity: Some(PropertyValue::Single(1.0)),
+                opacity: Some(PropertyValue::FromTo { from: 0.0, to: 1.0 }),
                 duration: Some(500.0),
                 ..Default::default()
             },
@@ -975,7 +1075,10 @@ mod tests {
         .add(
             "element2",
             AnimateParams {
-                translate_x: Some(PropertyValue::Single(100.0)),
+                translate_x: Some(PropertyValue::FromTo {
+                    from: 0.0,
+                    to: 100.0,
+                }),
                 duration: Some(300.0),
                 ..Default::default()
             },
@@ -989,10 +1092,11 @@ mod tests {
 
     #[test]
     fn test_convenience_functions() {
+        let (_owner, target) = target();
         let fade = fade_in("element", 500.0);
         assert_eq!(fade.config.duration, Duration::from_millis(500));
 
-        let slide_anim = slide("element", 100.0, 50.0, 750.0);
+        let slide_anim = slide(&target, 100.0, 50.0, 750.0);
         assert_eq!(slide_anim.config.duration, Duration::from_millis(750));
 
         let scale_anim = scale("element", 1.5, 400.0);
@@ -1030,12 +1134,9 @@ mod tests {
 
     #[test]
     fn test_spring_animation() {
-        let spring_anim = spring_animate(
-            "element",
-            "translateX",
-            100.0,
-            spring::SpringConfig::bouncy(),
-        );
+        let (_owner, target) = target();
+        let spring_anim =
+            spring_animate(&target, "translateX", 100.0, spring::SpringConfig::bouncy());
         assert!(spring_anim.is_playing());
     }
 }

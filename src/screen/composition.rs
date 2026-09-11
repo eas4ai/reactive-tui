@@ -60,3 +60,7 @@ pub(super) fn compose(from: Element, to: Element, kind: TransitionType, progress
         .child(layer(to, target))
         .build()
 }
+
+pub(super) fn node_count(element: &Element) -> usize {
+    1 + element.children.iter().map(node_count).sum::<usize>()
+}

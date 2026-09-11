@@ -71,6 +71,8 @@ pub struct ElementMetadata {
     pub(crate) paint_style: Option<Arc<crate::layout::style::StyleSnapshot>>,
     /// Explicit layout and paint styles, independent of component props.
     pub styles: Option<Arc<crate::layout::style::StyleSnapshot>>,
+    /// Current custom numeric animation properties, supplied from component state.
+    pub animation_values: std::collections::HashMap<String, f32>,
     /// VDOM declarations applied after utility classes, including state variants.
     pub(crate) inline_styles: Option<String>,
     /// Cell background gradient.
@@ -89,7 +91,8 @@ pub struct ElementMetadata {
 
 impl PartialEq for ElementMetadata {
     fn eq(&self, other: &Self) -> bool {
-        self.disabled == other.disabled
+        self.animation_values == other.animation_values
+            && self.disabled == other.disabled
             && self.inert == other.inert
             && self.image == other.image
             && self.image_fallback == other.image_fallback

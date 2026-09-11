@@ -3461,9 +3461,10 @@ production behavior was weakened to reduce these static counts.
 
 - Complete: refresh native clipboard records and rerun API-008 through API-012.
   All now have committed passing receipts.
-- Pending: implement the approved API-013 owner-bound animation targets.
+- Complete: implement and verify the approved API-013 owner-bound animation targets.
+- In progress: commit the target repair and refresh Cairn evidence.
 - Complete: refresh native API-008 evidence after the committed screen repair.
-- In progress: refresh API-011 native records and acceptance after the screen repair.
+- Complete: refresh API-011 native records and acceptance after the screen repair.
 
 API-001 through API-007 have fresh passing Cairn receipts committed after the
 keyframe repair. API-008 failed only at the platform-record verifier: all 13
@@ -3588,3 +3589,75 @@ ConPTY and Windows/macOS widget records from run 34598114032 after checking
 snapshot, current input digest and every recorded output hash (6, 15 and 72
 outputs respectively). Both native verifiers pass. Existing iTerm2 limitations
 and their approved exception remain recorded; no acceptance criteria changed.
+
+API-011 and API-012 now have passing receipts. The refreshed API-013 mechanism
+passes keyframe and screen tests and fails the known relative-opacity case. Cairn
+returned implement API-013. The api-013-2 approval remains binding.
+
+
+## API-013 owner-bound targets and complete samples
+
+Implemented the approved owner-bound target API. App and each screen publish
+numeric properties only after successful presentation. Weak handles identify a
+single target generation, retain no owner, and reject removed/replaced elements
+and duplicate IDs. Relative operators read those properties at play, refresh at
+the first sample after delay, retain endpoints across pause/resume, and recapture
+on restart. Numeric samples paint through existing styles and wake their owner.
+Percentage translation uses presented box dimensions and clears the percentage
+term when applying its resolved cell value. Custom numeric values are declared
+explicitly and inherited through generated component output.
+
+Checked construction/play/seek return actionable errors. Legacy convenience calls
+retain their return types and report the same errors by panic. The approved
+migration requires handles for Single/Relative values; explicit ID endpoints and
+the exhaustive serialized AnimationTargets enum remain available. Bound numeric
+handles reject other property families explicitly. A working rustdoc demonstrates
+lookup, playback, presentation and clearing overrides. Overrides persist after
+completion until replaced or cleared; this behavior is documented.
+
+Failure demonstrations and corrected behavior:
+- The original opacity-0.5 relative +0.25 case now samples 0.625 halfway and
+  presents grey 159, then grey 191 at the endpoint; clearing restores grey 128.
+- Delayed playback originally retained construction-time 0.25. The deterministic
+  test now captures the newly presented 0.5 and resolves its endpoint to 0.75.
+- Generated component output originally replaced an authored custom count of 8
+  with its internal 2. Metadata propagation now keeps 8 and samples 9.
+- The Animation wrapper originally selected one arbitrary untyped property and
+  discarded strings, units, booleans and alpha. It now preserves the complete map
+  and nonopaque channel values without adding public exhaustive-enum variants.
+- Numeric array [0, 1, 0] originally sampled zero at its midpoint. Arrays now keep
+  evenly spaced interior frames; samples and actual screen painting reach one at
+  the midpoint and one-half at three-quarter progress.
+
+App tests exercise real SuprTUI output, failed presentation, independent owners,
+cleanup, managed animation samples and percentage geometry. They run in bounded
+child processes because App publishes an existing global performance-hook context;
+sharing it with unrelated hook tests changed their defaults. The initial full
+library run exposed two such failures. The isolated cases and full library pass.
+The underlying global-context concern is captured in the API-019 backlog, not
+silently changed as part of this animation work.
+
+Reviewed ownership and locks: publication follows backend success, invalid handles
+cannot bind a reused ID, samples wake only after releasing target locks, and
+registry traversal uses stable owner-local identities. Built-in scale is applied
+before explicit axis overrides. Screen event geometry and animation layout offsets
+use the same preorder node count. No new dependencies or unsafe code were added.
+
+Ripwire qualified Animation edit-check reports unchanged contract and zero observed
+incompatible callers; its counts are lower bounds. The unqualified name was
+ambiguous and was rerun with its file selector. Quality-delta exits 2 with 1594
+broad gating findings, including ignored reference checkouts. Changed-path review
+found added validation branches, explicit target-lock checks, exercised tests and
+trait methods marked dead, small panic adapters, and normalized constructor
+matches to unrelated types. The actual duplicated screen node counter was reused.
+Test-gate exits 4, naming 99 tests and reporting 707 unmodelled symbols; it is not a
+passing gate. Targeted integration suites and inherited Cairn mechanisms provide
+behavioral verification, not a claim of complete static coverage.
+
+Development verification: full library 997 passed, two existing ignored fixtures;
+api_animation_screens 27 passed; component expansion five, hook lifecycle seven,
+and painting properties 28 passed. The migration doctest passed (three existing
+ignored examples). Strict library/test Clippy, formatting and git diff --check
+passed. The final sort cleanup was checked again with Clippy and the 27 animation
+integration tests. These are development checks; committed-tree Cairn evidence
+is still required. This is not the final commitment-wide self-audit.

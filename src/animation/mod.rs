@@ -5,6 +5,10 @@
 
 /// Animation API for creating and managing animations
 pub mod api;
+mod binding;
+mod targets;
+pub(crate) use targets::TargetRegistry;
+pub use targets::{AnimationTarget, AnimationTargetContext, AnimationTargetError};
 /// Core animation types and configuration
 pub mod core;
 /// Debug utilities for animation system
@@ -239,6 +243,7 @@ pub struct Animation {
     pub callbacks: AnimationCallbacks,
     /// Start time for delay calculations
     start_time: Option<Instant>,
+    target_binding: Option<binding::TargetBinding>,
 }
 
 impl Animation {
@@ -272,6 +277,7 @@ impl Animation {
             runtime: AnimationRuntime::default(),
             callbacks: AnimationCallbacks::default(),
             start_time: None,
+            target_binding: None,
         }
     }
 
@@ -308,6 +314,24 @@ impl Animation {
     /// Sets the animation state to playing and triggers the start callback.
     /// Records the start time for delay calculations.
     pub fn play(&mut self) {
+        self.try_play()
+            .unwrap_or_else(|error| panic!("cannot play animation: {error}"));
+    }
+
+    /// Start or resume playback, rejecting missing targets and invalid values.
+    /// A stopped/completed bound animation captures fresh presented endpoints.
+    pub fn try_play(&mut self) -> Result<(), AnimationTargetError> {
+        let resume = self.get_state() == AnimationState::Paused;
+        if let Some(binding) = &mut self.target_binding {
+            if !resume {
+                self.property = binding.resolve()?;
+                binding.capture_pending = true;
+                if let Ok(mut state) = self.state.write() {
+                    *state = AnimationRuntimeState::default();
+                }
+            }
+            binding.live()?;
+        }
         if let Ok(mut state) = self.state.write() {
             state.state = AnimationState::Playing;
         }
@@ -321,6 +345,7 @@ impl Animation {
         if let Some(callback) = &self.callbacks.on_start {
             callback(self);
         }
+        Ok(())
     }
 
     /// Pause the animation at its current position
@@ -383,6 +408,14 @@ impl Animation {
     /// # Returns
     /// `true` if the animation is still active, `false` if completed or stopped
     pub fn update(&mut self, delta_time: Duration) -> bool {
+        if self
+            .target_binding
+            .as_ref()
+            .is_some_and(|binding| binding.live().is_err())
+        {
+            self.stop();
+            return false;
+        }
         let mut state_guard = match self.state.write() {
             Ok(guard) => guard,
             Err(_) => return false,
@@ -398,6 +431,22 @@ impl Animation {
             let monotonic_now = get_monotonic_timer().base_time + get_monotonic_timer().now();
             if monotonic_now.duration_since(start_time) < self.config.delay {
                 return false;
+            }
+        }
+
+        if let Some(binding) = &mut self.target_binding {
+            if binding.capture_pending {
+                match binding.resolve() {
+                    Ok(property) => {
+                        self.property = property;
+                        binding.capture_pending = false;
+                    }
+                    Err(_) => {
+                        state.state = AnimationState::Stopped;
+                        state.current_values = None;
+                        return false;
+                    }
+                }
             }
         }
 
@@ -426,6 +475,13 @@ impl Animation {
         // Update state
         state.progress = eased_progress;
         state.current_values = Some(self.property.interpolate(eased_progress));
+        if let Some(binding) = &self.target_binding {
+            if binding.sample(eased_progress).is_err() {
+                state.state = AnimationState::Stopped;
+                state.current_values = None;
+                return false;
+            }
+        }
 
         // Trigger update callback
         if let Some(callback) = &self.callbacks.on_update {
@@ -591,7 +647,26 @@ impl Animation {
     /// # Arguments
     /// * `progress` - Target progress (0.0 to 1.0, values outside range are clamped)
     pub fn seek(&mut self, progress: f32) {
+        self.try_seek(progress)
+            .unwrap_or_else(|error| panic!("cannot seek animation: {error}"));
+    }
+
+    /// Seek a bound animation, reporting a removed target instead of updating it.
+    pub fn try_seek(&mut self, progress: f32) -> Result<(), AnimationTargetError> {
+        if !progress.is_finite() {
+            return Err(AnimationTargetError::InvalidValue(
+                "progress".into(),
+                "must be finite".into(),
+            ));
+        }
         let progress = progress.clamp(0.0, 1.0);
+        if let Some(binding) = &mut self.target_binding {
+            if binding.capture_pending {
+                self.property = binding.resolve()?;
+                binding.capture_pending = false;
+            }
+            binding.sample(progress)?;
+        }
         let target_time = Duration::from_secs_f32(self.config.duration.as_secs_f32() * progress);
 
         if let Ok(mut state) = self.state.write() {
@@ -599,6 +674,7 @@ impl Animation {
             state.progress = progress;
             state.current_values = Some(self.property.interpolate(progress));
         }
+        Ok(())
     }
 
     // Element conversion removed - incompatible with current Element struct
@@ -804,6 +880,7 @@ impl AnimationBuilder {
             runtime: AnimationRuntime::default(),
             callbacks: self.callbacks,
             start_time: None,
+            target_binding: None,
         };
 
         if animation.config.auto_play {

@@ -138,6 +138,10 @@ impl ComponentRuntime {
                 resolved.metadata.on_click.extend(element.metadata.on_click);
                 resolved.metadata.disabled |= element.metadata.disabled;
                 resolved.metadata.inert |= element.metadata.inert;
+                resolved
+                    .metadata
+                    .animation_values
+                    .extend(element.metadata.animation_values);
                 resolved.metadata.focus_scope |= element.metadata.focus_scope;
                 if let Some(accessibility) = element.metadata.accessibility {
                     resolved.metadata.accessibility = Some(accessibility);

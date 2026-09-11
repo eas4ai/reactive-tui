@@ -26,6 +26,7 @@ pub(super) struct ScreenRuntime {
     scheduler: Arc<Scheduler>,
     scope: Arc<ComponentScope>,
     wake: AppWaker,
+    pub(super) animation_targets: crate::animation::TargetRegistry,
     events: EventTree,
     focus: FocusManager,
     router: EventRouter,
@@ -35,11 +36,13 @@ pub(super) struct ScreenRuntime {
 impl ScreenRuntime {
     pub(super) fn new() -> Self {
         let scheduler = Arc::new(Scheduler::new());
+        let wake = AppWaker::new();
         Self {
             components: ComponentRuntime::default(),
             scope: ComponentScope::new(scheduler.clone()),
             scheduler,
-            wake: AppWaker::new(),
+            animation_targets: crate::animation::TargetRegistry::new(wake.clone()),
+            wake,
             events: EventTree::default(),
             focus: FocusManager::new(),
             router: EventRouter::new(),
@@ -57,6 +60,7 @@ impl ScreenRuntime {
         crate::accessibility::style::prepare(&mut element)?;
         let mut element = self.events.styled(&element, &self.router, width);
         crate::accessibility::style::prepare(&mut element)?;
+        self.animation_targets.apply(&mut element)?;
         Ok(element)
     }
 
@@ -68,6 +72,8 @@ impl ScreenRuntime {
     ) -> Result<()> {
         let element = self.prepare(element, backend.size().0)?;
         self.present(&element, backend, presented)?;
+        self.animation_targets
+            .publish(&element, backend.component_layouts(), 0)?;
         self.acknowledge(&element, backend);
         Ok(())
     }
@@ -110,10 +116,7 @@ impl ScreenRuntime {
     /// The source subtree starts after the composition root and its layer wrapper.
     /// Keep event identities local while using the actual transformed geometry.
     pub(super) fn acknowledge_layer(&mut self, element: &Element, backend: &dyn Backend) {
-        fn count(element: &Element) -> usize {
-            1 + element.children.iter().map(count).sum::<usize>()
-        }
-        let range = 2..2 + count(element);
+        let range = 2..2 + super::composition::node_count(element);
         let nodes = backend
             .painted_nodes()
             .unwrap_or_default()

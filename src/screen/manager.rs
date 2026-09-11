@@ -359,7 +359,7 @@ impl ScreenManager {
         let to = prepare(&to_id)?;
         let frame = super::composition::compose(
             from.clone(),
-            to,
+            to.clone(),
             self.transition_state.config.transition_type,
             self.transition_state.progress,
         );
@@ -372,10 +372,49 @@ impl ScreenManager {
         runtime
             .present(&frame, self.backend.as_mut(), &mut self.presented)
             .map_err(|error| error.to_string())?;
+        runtime
+            .animation_targets
+            .publish(&from, self.backend.component_layouts(), 2)
+            .map_err(|error| error.to_string())?;
         if from_id.is_some() {
             runtime.acknowledge_layer(&from, self.backend.as_ref());
         }
+        self.screens
+            .get_mut(&to_id)
+            .expect("prepared destination")
+            .runtime
+            .animation_targets
+            .publish(
+                &to,
+                self.backend.component_layouts(),
+                3 + super::composition::node_count(&from),
+            )
+            .map_err(|error| error.to_string())?;
         Ok(())
+    }
+
+    /// Look up targets in one screen, isolated from other screens with the same IDs.
+    /// The screen must have presented a frame before its targets can be resolved.
+    pub fn animation_targets(
+        &self,
+        screen: &ScreenId,
+    ) -> Result<crate::animation::AnimationTargetContext, crate::animation::AnimationTargetError>
+    {
+        self.screens
+            .get(screen)
+            .map(|screen| screen.runtime.animation_targets.context())
+            .ok_or_else(|| {
+                crate::animation::AnimationTargetError::MissingTarget(screen.as_str().into())
+            })
+    }
+
+    /// Find one uniquely keyed target in a screen's last presented tree.
+    pub fn animation_target(
+        &self,
+        screen: &ScreenId,
+        id: &str,
+    ) -> Result<crate::animation::AnimationTarget, crate::animation::AnimationTargetError> {
+        self.animation_targets(screen)?.target(id)
     }
 
     /// Get backend size

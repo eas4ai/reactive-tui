@@ -235,70 +235,37 @@ impl AnimatedProperty {
                 AnimatedValue::Animation(AnimationValue::Multiple(values))
             }
             Self::Keyframes(sequence) => {
-                // Sample the keyframe sequence at the given time
                 let sampled = sequence.sample(t);
-
-                // Convert the sampled values to AnimatedValue
-                // For simplicity, we'll take the first property if multiple exist
-                if let Some((key, value)) = sampled.iter().next() {
-                    match value {
-                        keyframes::KeyframeValue::Number(n) => {
-                            AnimatedValue::Custom(key.clone(), *n)
-                        }
-                        keyframes::KeyframeValue::Color(r, g, b, _a) => AnimatedValue::Color {
-                            r: *r,
-                            g: *g,
-                            b: *b,
-                        },
-                        keyframes::KeyframeValue::Transform(matrix) => {
-                            AnimatedValue::Animation(AnimationValue::Transform(matrix.clone()))
-                        }
-                        keyframes::KeyframeValue::Css(css_value) => {
-                            // Convert CSS value to AnimatedValue
-                            match css_value {
-                                CssValue::Number(n) => AnimatedValue::Custom(key.clone(), *n),
-                                CssValue::Percentage(p) => AnimatedValue::Custom(key.clone(), *p),
-                                CssValue::Pixels(px) => AnimatedValue::Custom(key.clone(), *px),
-                                CssValue::Em(em) => AnimatedValue::Custom(key.clone(), *em),
-                                CssValue::Rem(rem) => AnimatedValue::Custom(key.clone(), *rem),
-                                CssValue::ViewportWidth(vw) => {
-                                    AnimatedValue::Custom(key.clone(), *vw)
-                                }
-                                CssValue::ViewportHeight(vh) => {
-                                    AnimatedValue::Custom(key.clone(), *vh)
-                                }
-                                CssValue::Color { r, g, b } => AnimatedValue::Color {
+                if sampled.len() == 1 {
+                    let (key, value) = sampled.iter().next().expect("one sampled property");
+                    fn single(key: &str, value: &keyframes::KeyframeValue) -> AnimatedValue {
+                        match value {
+                            keyframes::KeyframeValue::Number(n)
+                            | keyframes::KeyframeValue::Css(CssValue::Number(n)) => {
+                                AnimatedValue::Custom(key.into(), *n)
+                            }
+                            keyframes::KeyframeValue::Color(r, g, b, 255)
+                            | keyframes::KeyframeValue::Css(CssValue::Color { r, g, b }) => {
+                                AnimatedValue::Color {
                                     r: *r,
                                     g: *g,
                                     b: *b,
-                                },
-                                CssValue::String(_) => AnimatedValue::Custom(key.clone(), 0.0),
-                            }
-                        }
-                        keyframes::KeyframeValue::String(_) => {
-                            AnimatedValue::Custom(key.clone(), 0.0) // Can't interpolate strings to float
-                        }
-                        keyframes::KeyframeValue::Boolean(_) => {
-                            AnimatedValue::Custom(key.clone(), 0.0) // Can't interpolate bools to float
-                        }
-                        keyframes::KeyframeValue::Multiple(values) => {
-                            // Handle multiple values by converting each one
-                            let mut animated_values = Vec::new();
-                            for val in values {
-                                if let keyframes::KeyframeValue::Number(n) = val {
-                                    animated_values.push(AnimatedValue::Custom(key.clone(), *n));
                                 }
                             }
-                            if animated_values.is_empty() {
-                                AnimatedValue::Custom(key.clone(), 0.0)
-                            } else {
-                                AnimatedValue::Multiple(animated_values)
-                            }
+                            keyframes::KeyframeValue::Multiple(values) => AnimatedValue::Multiple(
+                                values.iter().map(|value| single(key, value)).collect(),
+                            ),
+                            value => AnimatedValue::Animation(value.to_animation_value()),
                         }
                     }
+                    single(key, value)
                 } else {
-                    // No keyframes, return default
-                    AnimatedValue::Custom(String::from("keyframe"), 0.0)
+                    AnimatedValue::Animation(AnimationValue::Map(
+                        sampled
+                            .into_iter()
+                            .map(|(key, value)| (key, value.to_animation_value()))
+                            .collect(),
+                    ))
                 }
             }
         }

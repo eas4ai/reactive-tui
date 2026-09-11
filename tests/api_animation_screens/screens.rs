@@ -183,7 +183,9 @@ fn relative_opacity_must_start_from_the_presented_target_property() {
         )
         .unwrap();
     let mut animation = animate(
-        "relative-target",
+        screens
+            .animation_target(&ScreenId::from("main"), "relative-target")
+            .unwrap(),
         AnimateParams {
             opacity: Some(PropertyValue::Relative("+0.25".into())),
             autoplay: Some(false),

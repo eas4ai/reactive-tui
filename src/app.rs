@@ -83,6 +83,7 @@ pub struct App {
     reconciler: Reconciler,
     fps_manager: AdaptiveFpsManager,
     animation_manager: AnimationManager,
+    animation_targets: crate::animation::TargetRegistry,
     motion: motion::MotionTree,
     focus_manager: FocusManager,
     #[cfg(target_os = "linux")]
@@ -489,6 +490,7 @@ impl App {
                 .apply(&mut self.router, focus_manager::FocusPlan::default());
             self.backend.render_cells(frame)?;
             self.backend.present()?;
+            self.animation_targets.clear();
             #[cfg(target_os = "linux")]
             {
                 self.accessibility_snapshot =
@@ -513,8 +515,11 @@ impl App {
         let mut styled = state_styled.clone();
         self.motion
             .apply(&mut styled, Instant::now(), self.backend.size())?;
+        self.animation_targets.apply(&mut styled)?;
         if self.backend.render_frame(&styled)? {
             self.backend.present()?;
+            self.animation_targets
+                .publish(&styled, self.backend.component_layouts(), 0)?;
             let state = (self.router.get_focus(), self.router.hovered_node());
             if let Some(geometry) = self.backend.painted_nodes() {
                 let anchors_changed = self.components.anchors.publish(&state_styled, geometry);
@@ -569,7 +574,7 @@ impl App {
             ));
         }
         // Convert to RenderTree
-        let root_node = resolved_element_to_render_node(element.clone());
+        let root_node = resolved_element_to_render_node(styled.clone());
 
         // Check if this is the first render
         if self.previous_tree.root().is_none() {
@@ -622,6 +627,9 @@ impl App {
         // Present frame
         self.backend.present()?;
 
+        self.animation_targets
+            .publish(&styled, self.backend.component_layouts(), 0)?;
+
         // After present, update global performance context (if set)
         if let Some(req) = crate::hooks::perf_context::take_requested_performance_mode() {
             self.fps_manager.set_performance_mode(req);
@@ -672,7 +680,23 @@ impl App {
         self.resize_count
     }
 
-    /// Get access to the animation manager
+    /// Obtain a lookup context for targets in this App's presented frames.
+    pub fn animation_targets(&self) -> crate::animation::AnimationTargetContext {
+        self.animation_targets.context()
+    }
+
+    /// Look up a target from the last successfully presented Element frame.
+    pub fn animation_target(
+        &self,
+        id: &str,
+    ) -> std::result::Result<
+        crate::animation::AnimationTarget,
+        crate::animation::AnimationTargetError,
+    > {
+        self.animation_targets.context().target(id)
+    }
+
+    /// Access animations driven by this App's event loop.
     pub fn animation_manager(&mut self) -> &mut AnimationManager {
         &mut self.animation_manager
     }
@@ -690,6 +714,7 @@ impl App {
     /// Cleanup all component instances (called automatically on drop)
     pub fn cleanup(&mut self) -> crate::error::Result<usize> {
         let owned = self.components.clear();
+        self.animation_targets.clear();
         self.hook_scope.close();
         crate::component::registry::global_cleanup_all().map(|legacy| owned + legacy)
     }
@@ -852,7 +877,7 @@ impl AppBuilder {
             components: crate::component::runtime::ComponentRuntime::default(),
             hook_scope: crate::reactive::component_scope::ComponentScope::new(scheduler.clone()),
             scheduler,
-            wake,
+            wake: wake.clone(),
             router: EventRouter::new_with_size(width, height),
             event_tree: event_tree::EventTree::default(),
             tree: RenderTree::new(),
@@ -860,6 +885,7 @@ impl AppBuilder {
             reconciler: Reconciler::new(),
             fps_manager,
             animation_manager: AnimationManager::new(),
+            animation_targets: crate::animation::TargetRegistry::new(wake.clone()),
             motion: motion::MotionTree::default(),
             focus_manager: FocusManager::new(),
             #[cfg(target_os = "linux")]
@@ -971,3 +997,6 @@ mod tests {
         assert_eq!(app.animation_manager_ref().active_count(), 1);
     }
 }
+
+#[cfg(test)]
+mod animation_target_tests;
