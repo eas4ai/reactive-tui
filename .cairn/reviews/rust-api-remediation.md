@@ -3469,12 +3469,13 @@ production behavior was weakened to reduce these static counts.
 - Complete: repair and verify the default-suite keyframe cleanup assertion.
 - Done: refresh committed evidence after the test correction; the embedded rerun passed, with its unexplained intermittent timeout retained.
 - Done: declare and verify dedicated API-014 image acceptance; current receipt passed.
-- Pending: complete corrected API-015 matrix and current evidence.
+- Done: complete corrected API-015 matrix and current evidence (20260911T180926733Z).
 - Done: repair the API-011 cancellation marker and refresh native evidence; API-011/20260911T163552235Z passed.
 - Done: refresh dependent evidence; API-012, API-013 and API-014 passed.
 - Done: record the API-015 baseline; no-default compilation failed E0433.
 - Done: repair Orca image navigation and verify API-011 against current native records.
-- In progress: complete API-015 acceptance and prerequisite evidence refreshes.
+- Done: implement and verify API-015 feature configurations (receipt 20260911T180926733Z).
+- In progress: refresh inherited acceptance before API-016.
 - Complete: refresh native API-008 evidence after the committed screen repair.
 - Complete: refresh API-011 native records and acceptance after the screen repair.
 
@@ -4065,3 +4066,9 @@ verification, forced-ASCII rejection and all 25 Linux host captures. Stopped
 the two private GNOME helper process groups identified by descriptors pointing
 into this run's capture logs before committing those logs. No image code or
 pixel assertion changed. API-015 is now the next formal check.
+
+API-015/20260911T180926733Z passed all twelve feature builds and behavior rows
+plus the default and no-default App component workflows. The optional Tokio
+compatibility decision is realized by fcd24aa. Five API requirements remain:
+API-016 through API-020. Cairn now requires inherited evidence refreshes before
+it advances to those implementations.
