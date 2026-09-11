@@ -17,4 +17,4 @@ The enclosing animation still applies its selected easing to overall progress.
 
 ## Realized by
 
-(none yet: recorded, not built)
+- 96d93380f05256b3aa3124b269bf3ee39e77daed Resolve current animation values through owner-bound targets
