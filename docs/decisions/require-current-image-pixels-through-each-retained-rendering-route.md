@@ -12,8 +12,4 @@ Reuse the existing decoded-pixel, App, platform and Surface tests, then execute 
 
 ## Realized by
 
-(none yet: recorded, not built)
-
-## Realized by
-
 - 245767b94c59310e0ea302494a0f3c09fd21633f Declare image acceptance with decoded pixels and real host captures
