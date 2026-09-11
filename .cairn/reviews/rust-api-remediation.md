@@ -4199,3 +4199,9 @@ Its entire 18-path native input union exactly matches committed source
 was advanced. macOS and Windows are running; their records remain pending.
 Keep the API-008 implementation marker until the refresh has been verified and
 committed. This is not a new clipboard code change.
+
+Native run 34655618855 completed successfully on macOS. Imported its clipboard
+record after validating snapshot identity, current source digest, native system,
+executed markers and both raw-output hashes. Its widget record and 72 captured
+outputs were also validated and remain in /tmp/api-016-native-34655618855 for
+the API-011 refresh. Windows remains pending.
