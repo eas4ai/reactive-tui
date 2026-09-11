@@ -44,11 +44,11 @@ warning: field `parser` is never read
     |     ^^^^^^
 
 warning: `reactive-tui` (lib) generated 5 warnings (run `cargo fix --lib -p reactive-tui` to apply 3 suggestions)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.33s
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.34s
      Running tests\api_widget_behavior.rs (target\debug\deps\api_widget_behavior-ef5a3766d6e4dfba.exe)
 
 running 1 test
 test terminal_acceptance::terminal_widget_windows_app_routes_input_and_paints_after_resize ... ok
 
-test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 385 filtered out; finished in 6.67s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 385 filtered out; finished in 6.69s
 

@@ -3463,7 +3463,8 @@ production behavior was weakened to reduce these static counts.
   All now have committed passing receipts.
 - Complete: implement and verify the approved API-013 owner-bound animation targets.
 - Complete: commit the target repair and refresh API-001 through API-010 evidence.
-- In progress: repair and verify the native API-011 cancellation fixture.
+- Complete: repair and verify the native API-011 cancellation fixture.
+- In progress: refresh API-011 acceptance and continue Cairn verification.
 - Complete: refresh native API-008 evidence after the committed screen repair.
 - Complete: refresh API-011 native records and acceptance after the screen repair.
 
@@ -3716,3 +3717,22 @@ churn, and normalized constructors matched to unrelated reference code. The clos
 handler comparison crosses different test-root types and is not a reusable helper.
 Test-gate exits 4 with eight test paths and zero untested symbols; its static result
 is not a passing execution gate. The complete 16-case fixture suite ran.
+
+After fixture commit dc8763d, the repeated API-011 check passed local widget and
+accessibility behavior and again stopped at stale native ConPTY evidence. Native
+run 34607088497 checks snapshot c3b8e49f94d142ea9ba15d2806ee025feadac64e, whose
+complete union of declared native inputs matches committed candidate 7ee1e6e.
+No candidate inputs were changed during the local or native run. Native record
+validation and import remain outstanding.
+
+macOS completed successfully in run 34607088497, including the revised HTTP
+cancellation case. Imported its widget record and all 72 captured outputs only
+after checking the snapshot, current input digest, successful cancellation marker
+and each SHA-256 hash. The existing approved iTerm2 limitations remain intact.
+Windows native verification is still running.
+
+Windows completed successfully in native run 34607088497. Imported its six ConPTY
+and 15 widget outputs only after matching snapshot, platform, pass result, current
+input digest and every captured SHA-256 hash. Both native verifiers now pass.
+The whole native run passed on macOS and Windows. The earlier macOS failure and
+the no-close negative control remain recorded; no acceptance history was edited.

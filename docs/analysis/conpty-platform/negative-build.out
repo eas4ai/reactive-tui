@@ -12,39 +12,39 @@
    Compiling windows-targets v0.52.6
    Compiling crossbeam-utils v0.8.21
    Compiling num-traits v0.2.19
-   Compiling version_check v0.9.5
    Compiling serde_core v1.0.229
+   Compiling version_check v0.9.5
    Compiling syn v3.0.5
-   Compiling once_cell v1.21.3
    Compiling serde v1.0.229
+   Compiling once_cell v1.21.3
    Compiling serde_derive v1.0.229
    Compiling getrandom v0.3.3
    Compiling simd-adler32 v0.3.7
    Compiling arrayvec v0.7.6
    Compiling crossbeam-epoch v0.9.18
    Compiling windows-sys v0.59.0
-   Compiling rayon-core v1.13.0
    Compiling either v1.15.0
+   Compiling rayon-core v1.13.0
    Compiling crossbeam-deque v0.8.6
+   Compiling libc v0.2.189
+   Compiling crc32fast v1.5.0
    Compiling fnv v1.0.7
+   Compiling pin-project-lite v0.2.16
    Compiling bitflags v2.11.0
    Compiling smallvec v1.15.1
-   Compiling libc v0.2.189
-   Compiling adler2 v2.0.1
    Compiling strsim v0.11.1
-   Compiling crc32fast v1.5.0
-   Compiling pin-project-lite v0.2.16
+   Compiling adler2 v2.0.1
    Compiling miniz_oxide v0.8.9
    Compiling equator-macro v0.4.2
-   Compiling thiserror v1.0.69
-   Compiling itoa v1.0.15
    Compiling futures-core v0.3.31
+   Compiling itoa v1.0.15
+   Compiling thiserror v1.0.69
    Compiling equator v0.4.2
    Compiling thiserror-impl v1.0.69
    Compiling num-integer v0.1.46
+   Compiling regex-syntax v0.8.6
    Compiling shlex v1.3.0
    Compiling anyhow v1.0.99
-   Compiling regex-syntax v0.8.6
    Compiling cc v1.2.34
    Compiling num-bigint v0.4.6
    Compiling flate2 v1.1.2
@@ -54,54 +54,54 @@
    Compiling lock_api v0.4.13
    Compiling aho-corasick v1.1.3
    Compiling half v2.6.0
-   Compiling serde_json v1.0.143
+   Compiling io-lifetimes v2.0.4
+   Compiling pkg-config v0.3.32
+   Compiling paste v1.0.15
+   Compiling ident_case v1.0.1
+   Compiling windows_x86_64_gnu v0.48.5
+   Compiling parking_lot_core v0.9.11
+   Compiling utf8parse v0.2.2
+   Compiling winapi-x86_64-pc-windows-gnu v0.4.0
+   Compiling log v0.4.27
    Compiling once_cell_polyfill v1.70.1
+   Compiling serde_json v1.0.143
+   Compiling built v0.7.7
+   Compiling io-lifetimes v3.0.1
+   Compiling minimal-lexical v0.2.1
    Compiling anstyle v1.0.11
    Compiling equivalent v1.0.2
-   Compiling winapi-x86_64-pc-windows-gnu v0.4.0
-   Compiling io-lifetimes v3.0.1
-   Compiling paste v1.0.15
-   Compiling log v0.4.27
-   Compiling ident_case v1.0.1
-   Compiling io-lifetimes v2.0.4
-   Compiling parking_lot_core v0.9.11
-   Compiling pkg-config v0.3.32
-   Compiling minimal-lexical v0.2.1
-   Compiling utf8parse v0.2.2
-   Compiling windows_x86_64_gnu v0.48.5
-   Compiling built v0.7.7
-   Compiling onig_sys v69.9.1
-   Compiling anstyle-parse v0.2.7
-   Compiling rav1e v0.7.1
    Compiling nom v7.1.3
-   Compiling darling_core v0.21.3
    Compiling anstyle-wincon v3.0.10
+   Compiling rav1e v0.7.1
+   Compiling anstyle-parse v0.2.7
+   Compiling darling_core v0.21.3
+   Compiling onig_sys v69.9.1
    Compiling regex-automata v0.4.10
-   Compiling v_frame v0.3.9
    Compiling num-rational v0.4.2
+   Compiling v_frame v0.3.9
    Compiling profiling-procmacros v1.0.17
    Compiling slotmap v1.0.7
    Compiling anstyle-query v1.1.4
    Compiling winapi-util v0.1.10
-   Compiling is_terminal_polyfill v1.70.1
-   Compiling scopeguard v1.2.0
-   Compiling ryu v1.0.20
    Compiling prettyplease v0.2.37
-   Compiling rustversion v1.0.22
-   Compiling futures-sink v0.3.31
-   Compiling typenum v1.20.1
-   Compiling io-extras v0.19.0
    Compiling new_debug_unreachable v1.0.6
-   Compiling colorchoice v1.0.4
-   Compiling winapi v0.3.9
-   Compiling unicode-segmentation v1.13.3
    Compiling futures-io v0.3.31
-   Compiling windows-link v0.2.1
+   Compiling winapi v0.3.9
+   Compiling io-extras v0.19.0
+   Compiling ryu v1.0.20
+   Compiling typenum v1.20.1
    Compiling bitflags v1.3.2
    Compiling powerfmt v0.2.0
-   Compiling deranged v0.4.0
+   Compiling unicode-segmentation v1.13.3
+   Compiling colorchoice v1.0.4
+   Compiling scopeguard v1.2.0
+   Compiling windows-link v0.2.1
+   Compiling rustversion v1.0.22
+   Compiling futures-sink v0.3.31
+   Compiling is_terminal_polyfill v1.70.1
    Compiling anstream v0.6.20
    Compiling futures-channel v0.3.31
+   Compiling deranged v0.4.0
    Compiling same-file v1.0.6
    Compiling profiling v1.0.17
    Compiling av1-grain v0.2.4
@@ -109,40 +109,40 @@
    Compiling darling_macro v0.21.3
    Compiling maybe-rayon v0.1.1
    Compiling itertools v0.12.1
+   Compiling futures-macro v0.3.31
    Compiling arg_enum_proc_macro v0.3.4
    Compiling num-derive v0.4.2
-   Compiling futures-macro v0.3.31
    Compiling terminal_size v0.4.3
    Compiling simd_helpers v0.1.0
-   Compiling parking v2.2.1
-   Compiling bitstream-io v2.6.0
-   Compiling fastrand v2.3.0
-   Compiling slab v0.4.11
-   Compiling noop_proc_macro v0.3.0
-   Compiling pin-utils v0.1.0
-   Compiling imgref v1.11.0
-   Compiling zerocopy v0.8.26
-   Compiling quick-error v2.0.1
-   Compiling cap-primitives v4.0.3
    Compiling futures-task v0.3.31
-   Compiling heck v0.5.0
-   Compiling time-core v0.1.4
-   Compiling clap_lex v0.7.5
-   Compiling bit-vec v0.6.3
-   Compiling weezl v0.1.10
+   Compiling parking v2.2.1
+   Compiling imgref v1.11.0
+   Compiling noop_proc_macro v0.3.0
+   Compiling bitstream-io v2.6.0
    Compiling num-conv v0.1.0
-   Compiling hashbrown v0.17.1
+   Compiling pin-utils v0.1.0
+   Compiling heck v0.5.0
    Compiling tinyvec_macros v0.1.1
-   Compiling tinyvec v1.10.0
-   Compiling indexmap v2.14.2
-   Compiling time v0.3.41
-   Compiling bit-set v0.5.3
+   Compiling time-core v0.1.4
+   Compiling zerocopy v0.8.26
+   Compiling hashbrown v0.17.1
+   Compiling slab v0.4.11
+   Compiling fastrand v2.3.0
+   Compiling weezl v0.1.10
+   Compiling quick-error v2.0.1
+   Compiling bit-vec v0.6.3
+   Compiling clap_lex v0.7.5
+   Compiling cap-primitives v4.0.3
    Compiling clap_builder v4.5.46
-   Compiling clap_derive v4.5.45
+   Compiling bit-set v0.5.3
+   Compiling indexmap v2.14.2
    Compiling futures-util v0.3.31
+   Compiling time v0.3.41
+   Compiling clap_derive v4.5.45
+   Compiling tinyvec v1.10.0
    Compiling loop9 v0.1.5
-   Compiling windows-targets v0.48.5
    Compiling parking_lot v0.12.4
+   Compiling windows-targets v0.48.5
    Compiling fs-set-times v0.20.3
    Compiling darling v0.21.3
    Compiling walkdir v2.5.0
@@ -155,70 +155,70 @@
    Compiling zune-inflate v0.2.54
    Compiling quick-xml v0.38.3
    Compiling zune-core v0.4.12
-   Compiling rgb v0.8.52
    Compiling cap-std v4.0.3
    Compiling base64 v0.22.1
-   Compiling linked-hash-map v0.5.6
-   Compiling bit_field v0.10.3
-   Compiling lebe v0.5.2
    Compiling color_quant v1.1.0
-   Compiling byteorder-lite v0.1.0
-   Compiling ambient-authority v0.0.2
-   Compiling maybe-owned v0.3.4
-   Compiling ipnet v2.12.2
    Compiling bytemuck v1.23.2
+   Compiling rgb v0.8.52
+   Compiling ambient-authority v0.0.2
+   Compiling lebe v0.5.2
+   Compiling byteorder-lite v0.1.0
+   Compiling ipnet v2.12.2
+   Compiling linked-hash-map v0.5.6
    Compiling jpeg-decoder v0.3.2
-   Compiling qoi v0.4.1
-   Compiling tiff v0.9.1
-   Compiling image-webp v0.2.4
-   Compiling gif v0.13.3
+   Compiling bit_field v0.10.3
+   Compiling maybe-owned v0.3.4
    Compiling exr v1.73.0
+   Compiling tiff v0.9.1
    Compiling yaml-rust v0.4.5
-   Compiling plist v1.7.4
+   Compiling image-webp v0.2.4
    Compiling ravif v0.11.20
+   Compiling qoi v0.4.1
+   Compiling gif v0.13.3
+   Compiling plist v1.7.4
    Compiling zune-jpeg v0.4.20
    Compiling png v0.17.16
    Compiling derive_more-impl v2.0.1
    Compiling bon-macros v3.7.1
    Compiling windows-sys v0.48.0
    Compiling onig v6.5.1
+   Compiling unicode-normalization v0.1.24
    Compiling clap v4.5.46
    Compiling fancy-regex v0.11.0
-   Compiling unicode-normalization v0.1.24
    Compiling tempfile v3.21.0
    Compiling event-listener v5.4.2
    Compiling crypto-common v0.1.7
    Compiling block-buffer v0.10.4
    Compiling bincode v1.3.3
-   Compiling deunicode v1.6.2
-   Compiling litrs v0.4.2
-   Compiling plotters-backend v0.3.7
-   Compiling cap-fs-ext v4.0.3
    Compiling allocator-api2 v0.2.21
    Compiling option-ext v0.2.0
-   Compiling foldhash v0.1.5
-   Compiling siphasher v1.0.1
    Compiling ciborium-io v0.2.2
-   Compiling ciborium-ll v0.2.2
-   Compiling phf_shared v0.11.3
-   Compiling hashbrown v0.15.5
-   Compiling dirs-sys v0.4.1
-   Compiling document-features v0.2.11
-   Compiling plotters-svg v0.3.7
-   Compiling syntect v5.2.0
+   Compiling litrs v0.4.2
+   Compiling siphasher v1.0.1
+   Compiling foldhash v0.1.5
+   Compiling cap-fs-ext v4.0.3
+   Compiling deunicode v1.6.2
+   Compiling plotters-backend v0.3.7
    Compiling slug v0.1.6
+   Compiling plotters-svg v0.3.7
+   Compiling document-features v0.2.11
+   Compiling hashbrown v0.15.5
+   Compiling phf_shared v0.11.3
+   Compiling ciborium-ll v0.2.2
+   Compiling dirs-sys v0.4.1
+   Compiling syntect v5.2.0
    Compiling digest v0.10.7
+   Compiling ppv-lite86 v0.2.21
    Compiling event-listener-strategy v0.5.4
    Compiling caseless v0.2.2
-   Compiling ppv-lite86 v0.2.21
    Compiling bon v3.7.1
    Compiling derive_more v2.0.1
    Compiling image v0.25.6
    Compiling taffy v0.13.0
    Compiling crossterm_winapi v0.9.1
    Compiling futures-executor v0.3.31
-   Compiling socket2 v0.6.0
    Compiling mio v1.0.4
+   Compiling socket2 v0.6.0
    Compiling uuid v1.18.1
    Compiling itertools v0.10.5
    Compiling vte v0.14.1
@@ -226,56 +226,57 @@
    Compiling tokio-macros v2.5.0
    Compiling concurrent-queue v2.5.0
    Compiling unicode-properties v0.1.4
-   Compiling reactive-tui v0.0.7 (C:\Users\RUNNER~1\AppData\Local\Temp\conpty-violation-ceahng33)
-   Compiling wait-timeout v0.2.1
-   Compiling sdd v3.0.10
+   Compiling precomputed-hash v0.1.1
+   Compiling entities v1.0.1
    Compiling bytes v1.10.1
    Compiling bit-vec v0.8.0
-   Compiling cpufeatures v0.2.17
-   Compiling unicode_categories v0.1.1
-   Compiling lazy_static v1.5.0
-   Compiling cast v0.3.0
-   Compiling unicode-width v0.2.1
    Compiling shell-words v1.1.0
-   Compiling entities v1.0.1
-   Compiling quick-error v1.2.3
-   Compiling precomputed-hash v0.1.1
+   Compiling sdd v3.0.10
+   Compiling lazy_static v1.5.0
    Compiling typed-arena v2.0.2
+   Compiling unicode-width v0.2.1
    Compiling grid v0.18.0
+   Compiling cast v0.3.0
+   Compiling wait-timeout v0.2.1
+   Compiling quick-error v1.2.3
+   Compiling reactive-tui v0.0.7 (C:\Users\RUNNER~1\AppData\Local\Temp\conpty-violation-ijhsfis9)
+   Compiling unicode_categories v0.1.1
+   Compiling cpufeatures v0.2.17
    Compiling comrak v0.41.0
-   Compiling taffy v0.9.1
-   Compiling string_cache v0.8.9
-   Compiling rusty-fork v0.3.0
-   Compiling vt100 v0.16.2
-   Compiling criterion-plot v0.5.0
-   Compiling tokio v1.47.1
    Compiling sha2 v0.10.9
-   Compiling bit-set v0.8.0
+   Compiling criterion-plot v0.5.0
+   Compiling rusty-fork v0.3.0
+   Compiling taffy v0.9.1
+   Compiling vt100 v0.16.2
    Compiling scc v2.4.0
-   Compiling suprtui v0.1.0 (C:\Users\RUNNER~1\AppData\Local\Temp\conpty-violation-ceahng33\src\backend\engine)
+   Compiling tokio v1.47.1
+   Compiling bit-set v0.8.0
+   Compiling string_cache v0.8.9
+   Compiling suprtui v0.1.0 (C:\Users\RUNNER~1\AppData\Local\Temp\conpty-violation-ijhsfis9\src\backend\engine)
    Compiling async-channel v2.5.0
    Compiling accesskit v0.25.0
    Compiling futures v0.3.31
    Compiling crossterm v0.29.0
    Compiling rand_chacha v0.9.0
-   Compiling plotters v0.3.7
-   Compiling lru v0.16.0
-   Compiling dirs v5.0.1
    Compiling ciborium v0.2.2
+   Compiling dirs v5.0.1
+   Compiling lru v0.16.0
+   Compiling plotters v0.3.7
    Compiling rand_xorshift v0.4.0
    Compiling rand v0.9.2
    Compiling atty v0.2.14
    Compiling tinytemplate v1.2.1
    Compiling libloading v0.8.9
    Compiling is-terminal v0.4.16
+   Compiling reactive-tui-macros v0.1.0 (C:\Users\RUNNER~1\AppData\Local\Temp\conpty-violation-ijhsfis9\reactive-tui-macros)
    Compiling serial_test_derive v3.2.0
-   Compiling reactive-tui-macros v0.1.0 (C:\Users\RUNNER~1\AppData\Local\Temp\conpty-violation-ceahng33\reactive-tui-macros)
-   Compiling anes v0.1.6
-   Compiling unarray v0.1.4
    Compiling oorandom v11.1.5
-   Compiling criterion v0.5.1
+   Compiling unarray v0.1.4
+   Compiling anes v0.1.6
    Compiling proptest v1.7.0
+   Compiling criterion v0.5.1
    Compiling serial_test v3.2.0
+   Compiling futures-lite v2.6.1
 warning: unused import: `std::os::windows::io::AsRawHandle`
   --> src\core\capabilities.rs:12:5
    |
@@ -284,7 +285,6 @@ warning: unused import: `std::os::windows::io::AsRawHandle`
    |
    = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
 
-   Compiling futures-lite v2.6.1
 warning: variable does not need to be mutable
     --> src\platform\mod.rs:1199:13
      |
@@ -340,4 +340,4 @@ warning: field `resize` is never read
    |                ^^^^^^
 
 warning: `reactive-tui` (lib) generated 7 warnings (run `cargo fix --lib -p reactive-tui` to apply 4 suggestions)
-    Finished `dev` profile [unoptimized + debuginfo] target(s) in 4m 53s
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 4m 57s
