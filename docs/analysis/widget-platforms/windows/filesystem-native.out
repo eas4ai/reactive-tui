@@ -56,8 +56,8 @@ warning: field `parser` is never read
     |     ^^^^^^
 
 warning: `reactive-tui` (lib test) generated 7 warnings (run `cargo fix --lib -p reactive-tui --tests` to apply 5 suggestions)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.23s
-     Running unittests src\lib.rs (target\debug\deps\reactive_tui-cfcab0ff6c8832dd.exe)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.33s
+     Running unittests src\lib.rs (target\debug\deps\reactive_tui-8f430f50a806aae5.exe)
 
 running 12 tests
 test widgets::display::file_explorer::live::worker::operations::rename::tests::exclusive_rename_handles_short_names_and_never_replaces_files_or_directories ... ok
@@ -73,5 +73,5 @@ test widgets::display::file_explorer::live::worker::tests::worker_replaces_pendi
 test widgets::display::file_explorer::live::worker::tests::worker_resolves_nonverbatim_paths_inside_a_verbatim_root ... ok
 test widgets::display::file_explorer::windows_builder_tests::current_path_chooses_its_volume_without_replacing_an_explicit_root ... ok
 
-test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 921 filtered out; finished in 0.06s
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 925 filtered out; finished in 0.13s
 

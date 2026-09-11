@@ -1,8 +1,9 @@
    Compiling getrandom v0.3.3
    Compiling reactive-tui v0.0.7 (D:\a\reactive-tui\reactive-tui)
+   Compiling futures-util v0.3.31
    Compiling uuid v1.18.1
-   Compiling tempfile v3.21.0
    Compiling accesskit v0.25.0
+   Compiling tempfile v3.21.0
 warning: unused import: `std::os::windows::io::AsRawHandle`
   --> src\core\capabilities.rs:12:5
    |
@@ -92,6 +93,6 @@ warning: field `parser` is never read
     |     ^^^^^^
 
 warning: `reactive-tui` (lib) generated 11 warnings (run `cargo fix --lib -p reactive-tui` to apply 4 suggestions)
-    Finished `dev` profile [unoptimized + debuginfo] target(s) in 51.63s
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1m 06s
 
 PASS 194 baseline C exports load

@@ -2,14 +2,14 @@
   "backend": "windows",
   "system": "Windows",
   "platform": "Windows-2022Server-10.0.20348-SP0",
-  "commit": "eb453944cc27341d6b99c71f790708127bfd1711",
+  "commit": "61e65faf9c9b1c5e6bb5a0d2610e59a75012852a",
   "committed_inputs": true,
-  "inputs_digest": "7169314758c5dc5897f33edfc223a5e860db019785589371dd24b4e8f6fe1995",
+  "inputs_digest": "38f0c18e84950841ddda1f79cccf3fdef25c4452d9c8b6de8a83ff783403b089",
   "result": "pass",
   "output": "windows.out",
-  "output_digest": "b79b6d2096ea18b4fd47c9af831886cd71d3c2b4e16d390f345f7c119b10f9b9",
+  "output_digest": "9874d27b232fe3a7597cf547cc71fecc3bf3acfb868779c6f923eae97ef86383",
   "process_output": "windows.process.out",
-  "process_output_digest": "cf0714d13b9e76f67a3cd99b2fb149e25f07e9a06c00100f814e0286b309edc4",
+  "process_output_digest": "d684dd8c178ef73b59c0f214ab2671116a2e982f8bbb70d99f6fd96250473b09",
   "tools": {
     "powershell": {
       "path": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.EXE",

@@ -3213,3 +3213,29 @@ A development no-default-features check also failed at the preexisting
 `src/display/adaptive.rs` unconditional Tokio import. This is unresolved
 API-015 work, not a passing configuration or a clipboard runtime finding.
 It remains in the current commitment's required work.
+
+After the dependency correction, the default all-target build and all 25
+engine lifecycle tests passed. Linux Wayland, xsel and xclip records were
+regenerated against the corrected manifest; all round trips and child cleanup
+checks passed. Corrected native snapshot
+`61e65faf9c9b1c5e6bb5a0d2610e59a75012852a` runs as GitHub 34544666230.
+The superseded 34544351853 run was cancelled to release its concurrency slot;
+its Windows job is incomplete and is not a pass. Both earlier job logs are
+retained. No stale native output is imported as corrected evidence.
+
+The corrected macOS job passed completely. Its clipboard record matches
+the current input digest and both captured output hashes. The native widget
+record matches the current digest and all 72 captured output hashes. I also
+inspected the three App/iTerm image stages: initial placement, moved update,
+and removal. The existing approved iTerm2 3.7 color/transparency limitation
+remains explicit in host.json; this run does not expand that claim.
+Windows verification is still running.
+
+Corrected native run 34544666230 completed successfully on both macOS and
+Windows. I verified the Windows clipboard digest and two output hashes,
+all six ConPTY output hashes, and all 15 Windows widget output hashes against
+the current committed inputs before importing them. All three platform
+verifiers now pass: five clipboard backends, ConPTY, and macOS/Windows widget
+evidence. Both new engine HTTP completion/cancellation workflows also passed
+on Windows (within its 16 HTTP App cases). The failed original macOS build
+and incomplete cancelled Windows run remain in the review history.

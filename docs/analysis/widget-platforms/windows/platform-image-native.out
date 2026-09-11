@@ -56,8 +56,8 @@ warning: field `parser` is never read
     |     ^^^^^^
 
 warning: `reactive-tui` (lib test) generated 7 warnings (run `cargo fix --lib -p reactive-tui --tests` to apply 5 suggestions)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.22s
-     Running unittests src\lib.rs (target\debug\deps\reactive_tui-cfcab0ff6c8832dd.exe)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.35s
+     Running unittests src\lib.rs (target\debug\deps\reactive_tui-8f430f50a806aae5.exe)
 
 running 12 tests
 test platform::image::tests::api_image_platform_empty_clipping_and_unsupported_z_order_write_nothing ... ok
@@ -73,5 +73,5 @@ test platform::image::tests::api_image_platform_sixel_quality_handles_more_than_
 test platform::image::tests::api_image_platform_sixel_rejects_overflow_truncation_and_non_image_controls ... ok
 test platform::image::tests::api_image_platform_webp_and_sixel_files_preserve_pixels ... ok
 
-test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 921 filtered out; finished in 0.03s
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 925 filtered out; finished in 0.08s
 
