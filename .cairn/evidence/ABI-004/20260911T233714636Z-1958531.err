@@ -1,0 +1,190 @@
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+warning: ambiguous glob re-exports
+  --> src/ffi/mod.rs:85:9
+   |
+85 | pub use pointer::*;
+   |         ^^^^^^^^^^ the name `validate_pointer` in the value namespace is first re-exported here
+...
+90 | pub use types::*;
+   |         -------- but the name `validate_pointer` in the value namespace is also re-exported here
+   |
+   = note: `#[warn(ambiguous_glob_reexports)]` on by default
+
+warning: unused variable: `width`
+  --> src/ffi/lib.rs:85:14
+   |
+85 |         let (width, height) = renderer_box.dims();
+   |              ^^^^^ help: if this is intentional, prefix it with an underscore: `_width`
+   |
+   = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `validate_pointer` is never used
+   --> src/ffi/types.rs:182:15
+    |
+182 | pub(crate) fn validate_pointer<T>(ptr: *const T) -> bool {
+    |               ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `validate_mut_pointer` is never used
+   --> src/ffi/types.rs:187:15
+    |
+187 | pub(crate) fn validate_mut_pointer<T>(ptr: *mut T) -> bool {
+    |               ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `safe_cast` is never used
+   --> src/ffi/types.rs:192:22
+    |
+192 | pub(crate) unsafe fn safe_cast<T, U>(ptr: *mut T) -> Result<*mut U, ReactiveError> {
+    |                      ^^^^^^^^^
+
+warning: function `safe_cast_const` is never used
+   --> src/ffi/types.rs:206:22
+    |
+206 | pub(crate) unsafe fn safe_cast_const<T, U>(ptr: *const T) -> Result<*const U, ReactiveError> {
+    |                      ^^^^^^^^^^^^^^^
+
+warning: `reactive-tui` (lib) generated 6 warnings (run `cargo fix --lib -p reactive-tui` to apply 1 suggestion)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 15.31s
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.39s
+     Running tests/registry_cache_isolation.rs (target/debug/deps/registry_cache_isolation-650827b2330ad169)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.11s
+     Running unittests src/lib.rs (target/debug/deps/reactive_tui-0fe28f82db83e8df)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.12s
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.11s
+     Running tests/component_macro_integration.rs (target/debug/deps/component_macro_integration-781eb31e163ddf85)
+     Running tests/component_macro_test.rs (target/debug/deps/component_macro_test-74bd183df2ffc733)
+     Running tests/component_tests.rs (target/debug/deps/component_tests-41482dd572afa8ae)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.10s
+     Running unittests src/lib.rs (target/debug/deps/reactive_tui-0fe28f82db83e8df)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.10s
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.11s
+     Running tests/component_macro_integration.rs (target/debug/deps/component_macro_integration-781eb31e163ddf85)
+     Running tests/component_macro_test.rs (target/debug/deps/component_macro_test-74bd183df2ffc733)
+     Running tests/component_tests.rs (target/debug/deps/component_tests-41482dd572afa8ae)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.10s
+     Running unittests src/lib.rs (target/debug/deps/reactive_tui-0fe28f82db83e8df)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.09s
+     Running unittests src/lib.rs (target/debug/deps/reactive_tui-0fe28f82db83e8df)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.09s
+     Running tests/app_wakeups.rs (target/debug/deps/app_wakeups-680f3a2d0ac4c776)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.10s
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 17.89s
+     Running unittests src/lib.rs (target/debug/deps/reactive_tui-7b704901ebec9306)
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 15.50s
+     Running tests/embedded_terminal.rs (target/debug/deps/embedded_terminal-261aa6762703b10e)
+    Blocking waiting for file lock on package cache
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.88s
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.13s
+     Running unittests src/lib.rs (target/renderer/debug/deps/suprtui-ea85ced000f6e9fb)
+     Running tests/buffer_core.rs (target/renderer/debug/deps/buffer_core-df2720643bdaeeb4)
+     Running tests/buffer_draw.rs (target/renderer/debug/deps/buffer_draw-82bb852c82a97d83)
+     Running tests/cell_decorations.rs (target/renderer/debug/deps/cell_decorations-b4a0979123a3a626)
+     Running tests/layout_engine.rs (target/renderer/debug/deps/layout_engine-07939ad9043bd29f)
+     Running tests/link_pool.rs (target/renderer/debug/deps/link_pool-c1956ea68865b214)
+     Running tests/media_audio.rs (target/renderer/debug/deps/media_audio-ee1a3caa1238bba5)
+     Running tests/media_image.rs (target/renderer/debug/deps/media_image-e5effc2f4e502859)
+     Running tests/render_core.rs (target/renderer/debug/deps/render_core-470285abe6ba2d9e)
+     Running tests/render_stdout.rs (target/renderer/debug/deps/render_stdout-f43b87a37226c46f)
+     Running tests/render_terminal.rs (target/renderer/debug/deps/render_terminal-f970c8ce69f8f5ef)
+     Running tests/sys_clipboard.rs (target/renderer/debug/deps/sys_clipboard-c3805e253847ecbc)
+     Running tests/sys_clipboard_backends.rs (target/renderer/debug/deps/sys_clipboard_backends-4fa0387b85373ca0)
+     Running tests/sys_core.rs (target/renderer/debug/deps/sys_core-e8836bee21a1e70d)
+     Running tests/sys_small.rs (target/renderer/debug/deps/sys_small-f6314be83ca3cc5c)
+     Running tests/term_core.rs (target/renderer/debug/deps/term_core-6fc7467521aaa101)
+     Running tests/term_embedded.rs (target/renderer/debug/deps/term_embedded-f8d562fd74341d33)
+     Running tests/text_gaps.rs (target/renderer/debug/deps/text_gaps-ab410392592d0335)
+     Running tests/text_store.rs (target/renderer/debug/deps/text_store-5d569b3bb4c1c4d6)
+     Running tests/text_view.rs (target/renderer/debug/deps/text_view-d38b4bd245f76a5b)
+     Running tests/uni_pool.rs (target/renderer/debug/deps/uni_pool-3363dae9ca76f121)
+     Running tests/uni_ported.rs (target/renderer/debug/deps/uni_ported-6e2ae5985702a97d)
+     Running tests/uni_segments.rs (target/renderer/debug/deps/uni_segments-3117b188f85160ed)
+   Doc-tests suprtui
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 15.08s
+     Running tests/suprtui_renderer.rs (target/debug/deps/suprtui_renderer-2419599ab9d0badf)
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.85s
+....
+----------------------------------------------------------------------
+Ran 4 tests in 0.008s
+
+OK
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.10s
+     Running unittests src/lib.rs (target/debug/deps/reactive_tui-7b704901ebec9306)
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 15.13s
+     Running tests/embedded_terminal.rs (target/debug/deps/embedded_terminal-261aa6762703b10e)
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.88s
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.03s
+     Running unittests src/lib.rs (target/renderer/debug/deps/suprtui-ea85ced000f6e9fb)
+     Running tests/buffer_core.rs (target/renderer/debug/deps/buffer_core-df2720643bdaeeb4)
+     Running tests/buffer_draw.rs (target/renderer/debug/deps/buffer_draw-82bb852c82a97d83)
+     Running tests/cell_decorations.rs (target/renderer/debug/deps/cell_decorations-b4a0979123a3a626)
+     Running tests/layout_engine.rs (target/renderer/debug/deps/layout_engine-07939ad9043bd29f)
+     Running tests/link_pool.rs (target/renderer/debug/deps/link_pool-c1956ea68865b214)
+     Running tests/media_audio.rs (target/renderer/debug/deps/media_audio-ee1a3caa1238bba5)
+     Running tests/media_image.rs (target/renderer/debug/deps/media_image-e5effc2f4e502859)
+     Running tests/render_core.rs (target/renderer/debug/deps/render_core-470285abe6ba2d9e)
+     Running tests/render_stdout.rs (target/renderer/debug/deps/render_stdout-f43b87a37226c46f)
+     Running tests/render_terminal.rs (target/renderer/debug/deps/render_terminal-f970c8ce69f8f5ef)
+     Running tests/sys_clipboard.rs (target/renderer/debug/deps/sys_clipboard-c3805e253847ecbc)
+     Running tests/sys_clipboard_backends.rs (target/renderer/debug/deps/sys_clipboard_backends-4fa0387b85373ca0)
+     Running tests/sys_core.rs (target/renderer/debug/deps/sys_core-e8836bee21a1e70d)
+     Running tests/sys_small.rs (target/renderer/debug/deps/sys_small-f6314be83ca3cc5c)
+     Running tests/term_core.rs (target/renderer/debug/deps/term_core-6fc7467521aaa101)
+     Running tests/term_embedded.rs (target/renderer/debug/deps/term_embedded-f8d562fd74341d33)
+     Running tests/text_gaps.rs (target/renderer/debug/deps/text_gaps-ab410392592d0335)
+     Running tests/text_store.rs (target/renderer/debug/deps/text_store-5d569b3bb4c1c4d6)
+     Running tests/text_view.rs (target/renderer/debug/deps/text_view-d38b4bd245f76a5b)
+     Running tests/uni_pool.rs (target/renderer/debug/deps/uni_pool-3363dae9ca76f121)
+     Running tests/uni_ported.rs (target/renderer/debug/deps/uni_ported-6e2ae5985702a97d)
+     Running tests/uni_segments.rs (target/renderer/debug/deps/uni_segments-3117b188f85160ed)
+   Doc-tests suprtui
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 15.21s
+     Running tests/suprtui_renderer.rs (target/debug/deps/suprtui_renderer-2419599ab9d0badf)
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.83s
+....
+----------------------------------------------------------------------
+Ran 4 tests in 0.008s
+
+OK
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.03s
+     Running unittests src/lib.rs (target/renderer/debug/deps/suprtui-ea85ced000f6e9fb)
+     Running tests/buffer_core.rs (target/renderer/debug/deps/buffer_core-df2720643bdaeeb4)
+     Running tests/buffer_draw.rs (target/renderer/debug/deps/buffer_draw-82bb852c82a97d83)
+     Running tests/cell_decorations.rs (target/renderer/debug/deps/cell_decorations-b4a0979123a3a626)
+     Running tests/layout_engine.rs (target/renderer/debug/deps/layout_engine-07939ad9043bd29f)
+     Running tests/link_pool.rs (target/renderer/debug/deps/link_pool-c1956ea68865b214)
+     Running tests/media_audio.rs (target/renderer/debug/deps/media_audio-ee1a3caa1238bba5)
+     Running tests/media_image.rs (target/renderer/debug/deps/media_image-e5effc2f4e502859)
+     Running tests/render_core.rs (target/renderer/debug/deps/render_core-470285abe6ba2d9e)
+     Running tests/render_stdout.rs (target/renderer/debug/deps/render_stdout-f43b87a37226c46f)
+     Running tests/render_terminal.rs (target/renderer/debug/deps/render_terminal-f970c8ce69f8f5ef)
+     Running tests/sys_clipboard.rs (target/renderer/debug/deps/sys_clipboard-c3805e253847ecbc)
+     Running tests/sys_clipboard_backends.rs (target/renderer/debug/deps/sys_clipboard_backends-4fa0387b85373ca0)
+     Running tests/sys_core.rs (target/renderer/debug/deps/sys_core-e8836bee21a1e70d)
+     Running tests/sys_small.rs (target/renderer/debug/deps/sys_small-f6314be83ca3cc5c)
+     Running tests/term_core.rs (target/renderer/debug/deps/term_core-6fc7467521aaa101)
+     Running tests/term_embedded.rs (target/renderer/debug/deps/term_embedded-f8d562fd74341d33)
+     Running tests/text_gaps.rs (target/renderer/debug/deps/text_gaps-ab410392592d0335)
+     Running tests/text_store.rs (target/renderer/debug/deps/text_store-5d569b3bb4c1c4d6)
+     Running tests/text_view.rs (target/renderer/debug/deps/text_view-d38b4bd245f76a5b)
+     Running tests/uni_pool.rs (target/renderer/debug/deps/uni_pool-3363dae9ca76f121)
+     Running tests/uni_ported.rs (target/renderer/debug/deps/uni_ported-6e2ae5985702a97d)
+     Running tests/uni_segments.rs (target/renderer/debug/deps/uni_segments-3117b188f85160ed)
+   Doc-tests suprtui
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.10s
+     Running tests/suprtui_renderer.rs (target/debug/deps/suprtui_renderer-2419599ab9d0badf)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.10s
+....
+----------------------------------------------------------------------
+Ran 4 tests in 0.008s
+
+OK
