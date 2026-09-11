@@ -3921,3 +3921,14 @@ misattributes the local Root name to eight unrelated fixture files; that private
 Root cannot be called from those files. The complete HTTP module was executed;
 all-target Clippy compiled the other targets. Quality-delta exits 2 with 1579 broad
 findings, not a passing static gate. Native acceptance remains required.
+
+The corrected native run is 34620004744, snapshot
+a1d3d4c2eeafebfbe682a3561f8447ab1798165e. Its entire native input union exactly
+matches 694e97d54a48b1bce1c187616e2860bed4ff91c3. Obsolete run 34618800536 was
+cancelled after retaining its macOS failure. Do not import it as current evidence.
+The corrected macOS and Windows jobs are running. After completion, validate
+artifact snapshot, input digest and all output hashes before importing ConPTY
+and widget records. API-011 is the next Cairn check; API-015 implementation has
+not begun. No .cairn/in-progress marker remains. Preserve PATH containing
+/tmp/rtui-image-tools/bin for the subsequent API-014 host check and explicitly
+set CARGO_TARGET_DIR to this repository's target directory for every Cargo/check.
