@@ -1,0 +1,21 @@
+requirement: API-011
+requirement_digest: sha256:034277443f6b3809ffd1e86e1742e036a25010865c1cdc750b05de2abdc1c237
+sequence: 12
+history_digest: sha256:7db142aaaf5f7f344ee35dd6bbe07019e10600826f66efa7f9bc44204a95fe74
+mechanism: api-widget-behavior.md
+commit: 8c08e95
+inputs_digest: sha256:df92ba735207d9c86cbb40b5d487a7f5502c0da68af9725c6386b7cc233b5616
+mechanism_digest: sha256:fc2a913c89fd269a760cebe1802dc20c9555618ac852accd8457b070e7fabdcd
+inputs_detail: .cairn/evidence/API-011/20260911T134655117Z-3606097.inputs.json
+command: python3 -B scripts/check-api-widget-behavior.py
+cwd: .
+exit: 1
+output_digest: sha256:1a47069b3691db3f167fc0d15aa6f9a1e649185b03a606ea5cf09d765d67ba21
+output: .cairn/evidence/API-011/20260911T134655117Z-3606097.out
+stderr_output: .cairn/evidence/API-011/20260911T134655117Z-3606097.err
+stderr_digest: sha256:58c67fb827fc911f8cd6ebf90609fb00058c85616ca18e0474ae8fb07b27651d
+signal: none
+execution_error: null
+result: fail
+source: exit
+recorded: 2026-09-11T13:51:36.016Z
