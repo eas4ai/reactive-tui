@@ -1,0 +1,21 @@
+requirement: API-014
+requirement_digest: sha256:51c1e7f31f33991ae41b349bb18a1725868c89575e7f3bf22e4f9f03918c670f
+sequence: 2
+history_digest: sha256:5d35683ac966a32a18e73f617d925dbd732655016862489ff6bae5c6a1706f9d
+mechanism: api-images.md
+commit: 7408cbc
+inputs_digest: sha256:243d122d80e1d5e23181720545aa93d3efba00cea62af0fed08f85ef8b8f6a65
+mechanism_digest: sha256:8ac01a2bcfb3d34aff77073c3dc25695229750fe528fb5560734a0f5516f9f0d
+inputs_detail: .cairn/evidence/API-014/20260911T163721457Z-1436241.inputs.json
+command: python3 -B scripts/check-api-images.py
+cwd: .
+exit: 0
+output_digest: sha256:4733cc730af4c88670392814c6d020af60e6ee9b783f0e75d16d77c4133e76dd
+output: .cairn/evidence/API-014/20260911T163721457Z-1436241.out
+stderr_output: .cairn/evidence/API-014/20260911T163721457Z-1436241.err
+stderr_digest: sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+signal: none
+execution_error: null
+result: pass
+source: exit
+recorded: 2026-09-11T16:44:01.876Z

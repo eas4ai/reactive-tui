@@ -1,0 +1,76 @@
+[
+  {
+    "red": {
+      "count": 207240,
+      "bounds": [
+        10,
+        44,
+        409,
+        571
+      ]
+    },
+    "blue": {
+      "count": 211200,
+      "bounds": [
+        410,
+        44,
+        809,
+        571
+      ]
+    },
+    "green": {
+      "count": 0,
+      "bounds": null
+    },
+    "yellow": {
+      "count": 0,
+      "bounds": null
+    }
+  },
+  {
+    "red": {
+      "count": 0,
+      "bounds": null
+    },
+    "blue": {
+      "count": 0,
+      "bounds": null
+    },
+    "green": {
+      "count": 207240,
+      "bounds": [
+        10,
+        44,
+        409,
+        571
+      ]
+    },
+    "yellow": {
+      "count": 211200,
+      "bounds": [
+        410,
+        44,
+        809,
+        571
+      ]
+    }
+  },
+  {
+    "red": {
+      "count": 0,
+      "bounds": null
+    },
+    "blue": {
+      "count": 0,
+      "bounds": null
+    },
+    "green": {
+      "count": 0,
+      "bounds": null
+    },
+    "yellow": {
+      "count": 0,
+      "bounds": null
+    }
+  }
+]

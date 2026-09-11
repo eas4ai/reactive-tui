@@ -3469,9 +3469,10 @@ production behavior was weakened to reduce these static counts.
 - Complete: repair and verify the default-suite keyframe cleanup assertion.
 - Done: refresh committed evidence after the test correction; the embedded rerun passed, with its unexplained intermittent timeout retained.
 - Done: declare and verify dedicated API-014 image acceptance; current receipt passed.
-- Pending: verify API-015 feature configurations after inherited evidence refresh.
+- Pending: repair API-015 feature configurations after the formal baseline.
 - Done: repair the API-011 cancellation marker and refresh native evidence; API-011/20260911T163552235Z passed.
-- In progress: refresh dependent evidence before the API-015 baseline.
+- Done: refresh dependent evidence; API-012, API-013 and API-014 passed.
+- In progress: record the API-015 feature matrix baseline.
 - Complete: refresh native API-008 evidence after the committed screen repair.
 - Complete: refresh API-011 native records and acceptance after the screen repair.
 
@@ -3946,3 +3947,9 @@ Validated snapshot, current input digest and every captured-output hash for
 Imported those independently valid records without claiming the overall first
 workflow attempt passed. The corrected cancellation test passed on both hosts.
 No timeout bound or clipboard implementation changed.
+
+API-014/20260911T164401876Z passed all 89 selected tests and 25 Linux host
+captures against current native records. Stopped the identified private GNOME
+helper groups before committing their captured logs. Windows retry attempt 2
+has passed the clipboard step with the unchanged 15-second bound; its remaining
+steps and final artifact upload are still running.
