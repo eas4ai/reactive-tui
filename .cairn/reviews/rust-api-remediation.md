@@ -3468,7 +3468,8 @@ production behavior was weakened to reduce these static counts.
 - Complete: refresh ABI acceptance and maintenance checks.
 - Complete: repair and verify the default-suite keyframe cleanup assertion.
 - Done: refresh committed evidence after the test correction; the embedded rerun passed, with its unexplained intermittent timeout retained.
-- In progress: declare and verify dedicated API-014 image acceptance.
+- Done: declare and verify dedicated API-014 image acceptance; current receipt passed.
+- In progress: declare and verify API-015 feature configurations.
 - Complete: refresh native API-008 evidence after the committed screen repair.
 - Complete: refresh API-011 native records and acceptance after the screen repair.
 
@@ -3869,3 +3870,20 @@ was changed to obtain this result. A passing rerun does not explain the intermit
 Kitty blank capture. The private GNOME helpers from this run were stopped before
 committing captured logs too. The driver currently needs this explicit cleanup;
 record that harness lifecycle issue for the final mechanism review.
+
+## API-015 mechanism construction
+
+The fresh no-default baseline fails E0433 at display/adaptive.rs importing Tokio;
+its output is retained as api-015-no-default-baseline.log. The public async FPS
+methods have no Tokio-runtime-dependent work beyond their private lock. Existing
+futures-util is mandatory and can supply an executor-independent async mutex.
+The new behavior check drives the public manager with futures-lite, compares
+state/frame duration with its synchronous equivalent, and exercises color paths.
+Both default-feature tests passed before implementation changes.
+
+The mechanism checks the exact Cargo feature catalog, default/no-default, each
+non-SIMD feature independently and their combined build. SIMD alone and all
+features use nightly as already documented in Cargo.toml. Every row compiles all
+targets and must execute nonzero passing behavior tests. Existing real App
+component workflows also execute with and without defaults. This is the declared
+matrix, not a claim that the broken no-default or nightly rows already pass.
