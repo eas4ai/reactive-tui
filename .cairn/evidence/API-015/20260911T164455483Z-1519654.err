@@ -1,0 +1,44 @@
+    Checking reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 8.22s
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+error[E0433]: cannot find module or crate `tokio` in this scope
+ --> src/display/adaptive.rs:8:5
+  |
+8 | use tokio::sync::RwLock;
+  |     ^^^^^ use of unresolved module or unlinked crate `tokio`
+  |
+  = help: if you wanted to use a crate named `tokio`, use `cargo add tokio` to add it to your `Cargo.toml`
+
+warning: unused import: `ReactiveError`
+ --> src/platform/loop.rs:6:20
+  |
+6 | use crate::error::{ReactiveError, Result};
+  |                    ^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `std::time::Duration`
+   --> src/platform/loop.rs:601:9
+    |
+601 |     use std::time::Duration;
+    |         ^^^^^^^^^^^^^^^^^^^
+
+For more information about this error, try `rustc --explain E0433`.
+warning: `reactive-tui` (lib) generated 1 warning
+error: could not compile `reactive-tui` (lib) due to 1 previous error; 1 warning emitted
+warning: build failed, waiting for other jobs to finish...
+warning: `reactive-tui` (lib test) generated 2 warnings (1 duplicate)
+error: could not compile `reactive-tui` (lib test) due to 1 previous error; 2 warnings emitted
+Traceback (most recent call last):
+  File "/home/shawn/workspace2/reactive-tui/scripts/check-api-features.py", line 44, in <module>
+    main()
+    ~~~~^^
+  File "/home/shawn/workspace2/reactive-tui/scripts/check-api-features.py", line 30, in main
+    subprocess.run(cargo + ["check", "--locked", "--all-targets", *flags],
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                   env=environment, check=True, timeout=600)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/linuxbrew/.linuxbrew/Cellar/python@3.14/3.14.7/lib/python3.14/subprocess.py", line 578, in run
+    raise CalledProcessError(retcode, process.args,
+                             output=stdout, stderr=stderr)
+subprocess.CalledProcessError: Command '['cargo', 'check', '--locked', '--all-targets', '--no-default-features']' returned non-zero exit status 101.
