@@ -4183,3 +4183,19 @@ api-016-static-summary.json. Test-gate exits 4 with 84 test paths and 240 unmode
 or untested impacted symbols; it does not establish test success. Direct consumer
 and library checks above passed; the remaining inherited and native mechanisms still
 have to run against the committed tree. No static gate is being claimed as passing.
+
+
+## Native refresh after API-016 entry-point implementation
+
+API-001 through API-007 have new passing receipts after source 6f879a2.
+API-008/20260911T224832622Z passed local behavior/process checks, then rejected
+stale platform records. Wayland, xsel and xclip have now each passed five native
+round trips and two process-lifecycle tests on private desktops. Their committed
+input digest, executed markers and both raw-output hashes were verified.
+
+Native run 34655618855 uses snapshot f6effcb23d9984f0056da24af6970c3115a4c251.
+Its entire 18-path native input union exactly matches committed source
+03673543ded30b3942550f6a395bc0a42236dcca. Only the existing verification branch
+was advanced. macOS and Windows are running; their records remain pending.
+Keep the API-008 implementation marker until the refresh has been verified and
+committed. This is not a new clipboard code change.
