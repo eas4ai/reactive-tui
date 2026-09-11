@@ -3851,3 +3851,21 @@ diff whitespace check flags those output bytes. Source and authored documentatio
 pass the whitespace check. Initial development captures are a declared immutable
 archive; fresh check outputs go under .cairn/reviews/api-image-hosts so the
 mechanism cannot change its own declared inputs while running.
+
+## API-014 formal acceptance
+
+The first formal run received no receipt: a surviving GNOME portal helper wrote
+an additional libpng diagnostic into a declared development log. That run also
+failed standalone Kitty color capture. Its terminal.bin is byte-for-byte identical
+to the earlier passing standalone Kitty output; the screenshot has the stage label
+but no image. The cause remains unknown. Both outputs and screenshots are retained.
+Identified the surviving portal/key-store processes by open capture-log descriptors
+and stopped only their private fixture process groups before committing final logs.
+
+The unchanged mechanism then passed formally: API-014/20260911T153649284Z.
+All 89 selected tests, current native record verification, forced-ASCII rejection
+and all 25 Linux host captures passed. No pixel assertion or image implementation
+was changed to obtain this result. A passing rerun does not explain the intermittent
+Kitty blank capture. The private GNOME helpers from this run were stopped before
+committing captured logs too. The driver currently needs this explicit cleanup;
+record that harness lifecycle issue for the final mechanism review.
