@@ -12,4 +12,4 @@ Store the Rust AppBuilder and its native terminal-selection state in one private
 
 ## Realized by
 
-(none yet: recorded, not built)
+- 6f879a215e1726a4690f57758e534a0d4881166a Restore complete rendering through retained App entry points

@@ -12,4 +12,4 @@ Use one retained RenderTree as the last successfully presented Element frame. Bu
 
 ## Realized by
 
-(none yet: recorded, not built)
+- 6f879a215e1726a4690f57758e534a0d4881166a Restore complete rendering through retained App entry points
