@@ -3464,7 +3464,8 @@ production behavior was weakened to reduce these static counts.
 - Complete: implement and verify the approved API-013 owner-bound animation targets.
 - Complete: commit the target repair and refresh API-001 through API-010 evidence.
 - Complete: repair and verify the native API-011 cancellation fixture.
-- In progress: refresh API-011 acceptance and continue Cairn verification.
+- Complete: refresh API-011 through API-013 acceptance.
+- In progress: refresh inherited ABI and regression evidence as Cairn directs.
 - Complete: refresh native API-008 evidence after the committed screen repair.
 - Complete: refresh API-011 native records and acceptance after the screen repair.
 
@@ -3736,3 +3737,8 @@ and 15 widget outputs only after matching snapshot, platform, pass result, curre
 input digest and every captured SHA-256 hash. Both native verifiers now pass.
 The whole native run passed on macOS and Windows. The earlier macOS failure and
 the no-close negative control remain recorded; no acceptance history was edited.
+
+API-011 passed with current native records at receipt 20260911T141930550Z.
+API-012 passed at 20260911T141947972Z and API-013 passed at 20260911T141957317Z.
+Their evidence is committed. Cairn now names inherited ABI/regression freshness
+before remaining API implementation; the overall commitment remains in progress.
