@@ -2,14 +2,14 @@
   "backend": "wayland",
   "system": "Linux",
   "platform": "Linux-7.0.0-30-generic-x86_64-with-glibc2.43",
-  "commit": "349551629012995b1cdfd328620ef177078344b2",
+  "commit": "18b03b65616d737bb00b847a9617a6a58262c914",
   "committed_inputs": true,
-  "inputs_digest": "38f0c18e84950841ddda1f79cccf3fdef25c4452d9c8b6de8a83ff783403b089",
+  "inputs_digest": "87f471df54bcac23f3bed4845924b3fcc81358a2531ea8c7586d0e4d08f95a29",
   "result": "pass",
   "output": "wayland.out",
-  "output_digest": "526126678d06e27de7f5817974a3a335af3a046691a11e4029daf41885883bfb",
+  "output_digest": "8462727bbcabc4c34bf2fa4b6c7bfe634eb6c0c5a0fe70bdd7a9ef673c4596fc",
   "process_output": "wayland.process.out",
-  "process_output_digest": "f3d7e9d6395a498bcd375844f70c1045517237e875276867d71988efab41a9e7",
+  "process_output_digest": "c849a1ff16fa6d484fe7c7372a949a8478d3be49fbd81e1c9c9e716c5d0edf7a",
   "tools": {
     "wl-copy": {
       "path": "/usr/bin/wl-copy",

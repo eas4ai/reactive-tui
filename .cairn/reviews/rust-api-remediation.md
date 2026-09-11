@@ -3399,7 +3399,7 @@ remain pending. Do not use the 12-test target alone as proof of API-013.
 
 - Complete: finish retained keyframe hook ownership and verify rerender,
   completion, cancellation and unmount behavior.
-- In progress: repair and verify relative property values and active screen input
+- Pending: repair and verify relative property values and active screen input
   with visibly changing transition frames.
 - Pending: document custom keyframe migration; run formatting, lint and
   regression checks, commit implementation, and follow Cairn acceptance.
@@ -3456,3 +3456,35 @@ text-input, renderer and scheduler predicates are unrelated state ownership,
 not reusable implementations. Similar cleanup tests exercise explicit cleanup
 and last-owner drop separately. Runtime churn records the repair history. No
 production behavior was weakened to reduce these static counts.
+
+## API-008 platform refresh after keyframe repair
+
+- In progress: refresh native clipboard records and rerun the API-008 mechanism
+  named by Cairn; the remaining API-013 implementation waits for that verdict.
+
+API-001 through API-007 have fresh passing Cairn receipts committed after the
+keyframe repair. API-008 failed only at the platform-record verifier: all 13
+clipboard behavior tests and two process-lifecycle tests passed, but Wayland's
+record had the old source digest. Native Windows/macOS records also need the
+new source digest. No clipboard code or deadline has been changed.
+
+The new Wayland and xsel runs each passed five real native round trips and
+two process-lifecycle checks. The xclip run is also being refreshed. Native
+Windows/macOS GitHub run 34593782610 uses snapshot
+baeaf6ca4b65f614278296175b001bf1574676e1. Before pushing, the snapshot's full
+union of clipboard, widget and ConPTY declared inputs was compared byte-for-byte
+by Git tree entries against this candidate. The snapshot advances the existing
+verification branch without changing this working branch. Import requires
+matching input digests, executed case markers and intact output hashes.
+
+The xclip run passed too. All three Linux records were checked against the
+current committed-input digest and both captured-output hashes.
+
+The macOS job completed successfully. Imported its clipboard record only after
+checking snapshot identity, current input digest, native system, case markers
+and both output hashes. Windows remains pending.
+
+Windows completed successfully too. Imported its clipboard record after the
+same snapshot, input-digest and output-hash checks, plus the Windows adapter
+marker. The platform verifier now reports all five backends current.
+The complete native run 34593782610 passed on both platforms.
