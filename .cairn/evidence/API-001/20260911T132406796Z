@@ -1,0 +1,21 @@
+requirement: API-001
+requirement_digest: sha256:7198108441238cb14ea793b67e004fddff4b8d2180c2df00b9f5a7e1023886cb
+sequence: 20
+history_digest: sha256:12f0a31fba7e50686f0beefc9f2c4fe5f331412ace332a2c6573d62469595937
+mechanism: api-signal-ownership.md
+commit: 741d592
+inputs_digest: sha256:e15a06a8122c3529ebf63d76fae4204e491870f3afa9db1bb393346c50aaa597
+mechanism_digest: sha256:825cc0920c49e6c9734ea83257cd62dc000fb7401c77f9bb302fb3e7c8872e0f
+inputs_detail: .cairn/evidence/API-001/20260911T132316772Z-3385334.inputs.json
+command: python3 -B scripts/check-api-signal-ownership.py
+cwd: .
+exit: 0
+output_digest: sha256:9be88bc35d74085fda64f6c8fca611eca1127d8a81f097cbd74d37f80fc79780
+output: .cairn/evidence/API-001/20260911T132316772Z-3385334.out
+stderr_output: .cairn/evidence/API-001/20260911T132316772Z-3385334.err
+stderr_digest: sha256:dbfe89fcb32732d34197d14be18f4b6a80c2dab1d1d82d58afeb8e949c6ef9d5
+signal: none
+execution_error: null
+result: pass
+source: exit
+recorded: 2026-09-11T13:24:06.796Z
