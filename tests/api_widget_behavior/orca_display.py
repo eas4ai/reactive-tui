@@ -69,9 +69,12 @@ def exercise(root, keyboard, wait, named, state, click, speech, Atspi, speech_st
     keyboard.key(ord('x'))
     wait("Scrolled input editing failed", lambda: Atspi.Text.get_text(entry, 0, -1) == "draftx")
     print("A11Y ScrollView: pane role, label, scrolling, child focus, speech and editing passed", flush=True)
+    start = speech_start()
     keyboard.key(0xffc9)
     change = wait("Image action absent", lambda: named(root, "Change sample"))
     wait("Image action focus absent", lambda: state(change, Atspi.StateType.FOCUSED))
+    # The App's focus state can arrive before Orca processes its focus event.
+    wait("Orca did not announce image action", lambda: speech("Change sample", start))
     sample = named(root, "Black square sample")
     assert sample.get_role() == Atspi.Role.IMAGE
     assert sample.get_child_count() == 0, "Image fallback characters leaked to the reader"

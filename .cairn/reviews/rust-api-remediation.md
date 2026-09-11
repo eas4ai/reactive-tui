@@ -3473,7 +3473,7 @@ production behavior was weakened to reduce these static counts.
 - Done: repair the API-011 cancellation marker and refresh native evidence; API-011/20260911T163552235Z passed.
 - Done: refresh dependent evidence; API-012, API-013 and API-014 passed.
 - Done: record the API-015 baseline; no-default compilation failed E0433.
-- In progress: refresh API-008 platform evidence after the API-015 repair.
+- In progress: repair and verify Orca image navigation synchronization for API-011.
 - Complete: refresh native API-008 evidence after the committed screen repair.
 - Complete: refresh API-011 native records and acceptance after the screen repair.
 
@@ -4014,3 +4014,30 @@ hashes and executed round-trip/process markers before importing their raw bytes.
 All five clipboard platform records now pass the verifier. The same snapshot's
 widget and ConPTY artifacts are retained under
 /tmp/api-015-implemented-native-34625784358 for the API-011 refresh.
+
+## API-011 Orca image navigation synchronization
+
+API-011/20260911T172917586Z passed the local widget tests and earlier screen-reader
+workflows, then failed image speech at 100x32. The unchanged isolated workflow
+passed on rerun. The failing reader log identifies the ordering defect: at
+13:29:12.119752 Orca started next-sibling navigation from the old Report annotation
+context; it processed focus moving to Change sample at 13:29:12.131996 and spoke
+that button at 13:29:12.180032. The earlier navigation presented the enclosing
+frame, so the required Black square sample/image speech never occurred. The App's
+FOCUSED state alone does not prove the separate reader consumed the focus event.
+Raw session and reader logs are retained as the negative demonstration.
+
+Added the existing speech-acknowledgement pattern used by the chart and scroll
+cases: capture the speech position before changing catalogs and require Orca to
+announce Change sample before next-object navigation. The same image role, label,
+hidden-fallback, changed-prop speech, real terminal input/output and cleanup
+assertions remain. No timeout or production source changed. Four corrected
+workflows passed: three at 100x32 and one at 60x16.
+
+Ripwire identifies the actual orca.py inside caller and reports its signature
+unchanged with no incompatible callers. Test-gate exits 4 and names orca.py, which
+executed the four corrected workflows; this is not a passing static gate.
+Quality-delta exits 2 with 1576 major reference-tree findings and none outside
+reference. Authored-source whitespace checks passed. The native widget and ConPTY
+input declarations include all tests, so the earlier successful 34625784358
+artifacts must be refreshed for this fixture edit. Clipboard inputs are unchanged.
