@@ -12,4 +12,6 @@ Apply the approved api-013 compatibility correction. Add a public keyframe value
 
 ## Realized by
 
+- 8fbafb0200a7a49fac02a14667f2cf53388b43f5 Repair typed keyframes and retain hook playback through component lifecycle
+
 src/animation/keyframes.rs and src/animation/keyframes/typed.rs; tests/api_animation_screens.rs covers typed values, checked conversion and easing. The custom-type migration example compiles as a doctest.
