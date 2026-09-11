@@ -3845,3 +3845,9 @@ All 25 Linux host cases passed across the development runs after restoring the
 external-tool PATH, including every GIF mode. The final runner uses bounded
 process-group cleanup for the negative case too; that version rejected forced
 ASCII and passed the remaining 19 cases. Formal acceptance follows commitment.
+
+Captured command output retains its original trailing blank lines; the staged
+diff whitespace check flags those output bytes. Source and authored documentation
+pass the whitespace check. Initial development captures are a declared immutable
+archive; fresh check outputs go under .cairn/reviews/api-image-hosts so the
+mechanism cannot change its own declared inputs while running.

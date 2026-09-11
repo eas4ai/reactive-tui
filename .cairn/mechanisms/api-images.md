@@ -16,6 +16,7 @@ inputs:
   - scripts/install-conpty-runtime.py
   - .github/workflows/clipboard-platforms.yml
   - docs/analysis/widget-platforms
+  - docs/analysis/api-image-hosts
   - docs/spec/rust-api-remediation.md
   - docs/widget-acceptance.md
   - docs/image-acceptance.md

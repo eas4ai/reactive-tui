@@ -33,7 +33,7 @@ def main():
     # on timeout and retains output before reporting an error.
     execute = runpy.run_path(str(ROOT / "scripts/check-widget-platforms.py"))["execute"]
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
-    output = ROOT / "docs/analysis/api-image-hosts" / stamp
+    output = ROOT / ".cairn/reviews/api-image-hosts" / stamp
     output.mkdir(parents=True)
     for tool in ("kitty", "ghostty", "xterm", "wezterm", "gnome-terminal", "chafa", "viu", "Xvfb"):
         path = shutil.which(tool)
