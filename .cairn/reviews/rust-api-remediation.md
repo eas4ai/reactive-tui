@@ -3461,7 +3461,8 @@ production behavior was weakened to reduce these static counts.
 
 - Complete: refresh native clipboard records and rerun API-008 through API-012.
   All now have committed passing receipts.
-- In progress: repair and verify API-013 screen transitions and relative values.
+- Pending: implement the approved API-013 owner-bound animation targets.
+- In progress: refresh native API-008 evidence after the committed screen repair.
 
 API-001 through API-007 have fresh passing Cairn receipts committed after the
 keyframe repair. API-008 failed only at the platform-record verifier: all 13
@@ -3562,3 +3563,20 @@ dead, preserved legacy patch API no longer used by ScreenManager, simple writer
 fixtures, normalized constructors/cleanup incorrectly equated with unrelated
 reference methods, and short-horizon visibility churn. These are not passing gates;
 no unrelated refactors or deleted compatibility APIs were used to silence them.
+
+
+## API-013 target approval and screen-change evidence refresh
+
+The developer approved api-013-2. Approval is committed at 11c723a. Cairn first
+required fresh inherited checks. API-001 through API-007 now have passing receipts.
+API-008 behavior and process tests passed; its platform verifier failed on stale
+Wayland evidence. Native run 34598114032 verifies snapshot
+34111591c45d2077c6123b93463ca7ac512600da. The union of declared clipboard, ConPTY
+and widget inputs was compared by Git tree entries with this committed source
+before the verification branch was advanced. Target-handle implementation waits
+for Cairn to return that action; the approval will not be requested again.
+
+All five clipboard backends passed on the screen-repair candidate. Imported
+macOS and Windows records only after matching snapshot, current input digest,
+platform, execution markers and both output hashes. Native GitHub run 34598114032
+completed successfully on both platforms. The clipboard verifier passes.

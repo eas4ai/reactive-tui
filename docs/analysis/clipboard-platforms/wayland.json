@@ -2,14 +2,14 @@
   "backend": "wayland",
   "system": "Linux",
   "platform": "Linux-7.0.0-30-generic-x86_64-with-glibc2.43",
-  "commit": "18b03b65616d737bb00b847a9617a6a58262c914",
+  "commit": "2d00b1b6a7be87c5e7b65526a6437bb2aad18531",
   "committed_inputs": true,
-  "inputs_digest": "87f471df54bcac23f3bed4845924b3fcc81358a2531ea8c7586d0e4d08f95a29",
+  "inputs_digest": "ea0d44bd23eeeb8fd4e44c854499f3a2d45c234b4b84267c3a8b7668fffd6385",
   "result": "pass",
   "output": "wayland.out",
-  "output_digest": "8462727bbcabc4c34bf2fa4b6c7bfe634eb6c0c5a0fe70bdd7a9ef673c4596fc",
+  "output_digest": "a701f4d55169d2bd93d694ab1d2907f1dc47826cd0b30c2a9bbf61a1f786d1b0",
   "process_output": "wayland.process.out",
-  "process_output_digest": "c849a1ff16fa6d484fe7c7372a949a8478d3be49fbd81e1c9c9e716c5d0edf7a",
+  "process_output_digest": "c7b02f7f63cf1dbcaaca0cc2881a61a1a00323358dddc80c7a99a8469c5a618e",
   "tools": {
     "wl-copy": {
       "path": "/usr/bin/wl-copy",
