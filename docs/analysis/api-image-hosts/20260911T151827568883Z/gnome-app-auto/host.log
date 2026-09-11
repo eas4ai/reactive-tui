@@ -36,3 +36,4 @@ dbus-daemon[523000]: [session uid=1000 pid=523000 pidfd=6] Successfully activate
 A connection to the bus can't be made
 libpng error: Read Error
 libpng error: Read Error
+libpng error: Read Error
