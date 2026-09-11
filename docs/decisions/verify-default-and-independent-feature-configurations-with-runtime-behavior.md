@@ -12,4 +12,4 @@ Check the default build, no-default build, each named non-SIMD feature independe
 
 ## Realized by
 
-(none yet: recorded, not built)
+- 30c0b1cd47b7243b911c078958ca98aae00ff3f6 Declare independent feature builds and runtime acceptance
