@@ -1,0 +1,395 @@
+A11Y # GNOME Terminal 3.58.0 using VTE 0.84.0 +BIDI +GNUTLS +ICU +SYSTEMD
+dbus-daemon[1206231]: [session uid=1000 pid=1206231 pidfd=5] Activating service name='org.a11y.Bus' requested by ':1.0' (uid=1000 pid=1206270 comm="/usr/bin/python3 /usr/bin/orca --version" label="unconfined")
+dbus-daemon[1206231]: [session uid=1000 pid=1206231 pidfd=5] Successfully activated service 'org.a11y.Bus'
+dbus-daemon[1206231]: [session uid=1000 pid=1206231 pidfd=5] Activating service name='org.gtk.vfs.Daemon' requested by ':1.3' (uid=1000 pid=1206288 comm="/usr/lib/x86_64-linux-gnu/../../lib/x86_64-linux-g" label="unconfined")
+dbus-daemon[1206231]: [session uid=1000 pid=1206231 pidfd=5] Successfully activated service 'org.gtk.vfs.Daemon'
+dbus-daemon[1206281]: Activating service name='org.a11y.atspi.Registry' requested by ':1.0' (uid=1000 pid=1206270 comm="/usr/bin/python3 /usr/bin/orca --version" label="unconfined")
+dbus-daemon[1206281]: Successfully activated service 'org.a11y.atspi.Registry'
+SpiRegistry daemon is running with well-known name - org.a11y.atspi.Registry
+A11Y Orca version 50.1.2, AT-SPI2 version: 2.60.0, Session: x11 gnome
+A11Y isolated X11/Xvfb viewport 32x10
+dbus-daemon[1206231]: [session uid=1000 pid=1206231 pidfd=5] Activating service name='ca.desrt.dconf' requested by ':1.7' (uid=1000 pid=1206611 comm="/usr/bin/python3 /usr/bin/orca --debug-file /home/" label="unconfined")
+dbus-daemon[1206231]: [session uid=1000 pid=1206231 pidfd=5] Successfully activated service 'ca.desrt.dconf'
+dbus-daemon[1206231]: [session uid=1000 pid=1206231 pidfd=5] Activating service name='org.gnome.Terminal' requested by ':1.9' (uid=1000 pid=1206714 comm="gnome-terminal --display=:1 --geometry=32x10 --wai" label="unconfined")
+dbus-daemon[1206231]: [session uid=1000 pid=1206231 pidfd=5] Activating service name='org.freedesktop.portal.Desktop' requested by ':1.10' (uid=1000 pid=1206723 comm="/usr/libexec/gnome-terminal-server" label="unconfined")
+dbus-daemon[1206231]: [session uid=1000 pid=1206231 pidfd=5] Activating service name='org.freedesktop.impl.portal.PermissionStore' requested by ':1.11' (uid=1000 pid=1206731 comm="/usr/libexec/xdg-desktop-portal" label="unconfined")
+dbus-daemon[1206231]: [session uid=1000 pid=1206231 pidfd=5] Successfully activated service 'org.freedesktop.impl.portal.PermissionStore'
+dbus-daemon[1206231]: [session uid=1000 pid=1206231 pidfd=5] Activating service name='org.freedesktop.portal.Documents' requested by ':1.11' (uid=1000 pid=1206731 comm="/usr/libexec/xdg-desktop-portal" label="unconfined")
+dbus-daemon[1206231]: [session uid=1000 pid=1206231 pidfd=5] Successfully activated service 'org.freedesktop.portal.Documents'
+
+(/usr/libexec/xdg-desktop-portal:1206731): xdg-desktop-portal-WARNING **: 06:04:25.287: Choosing gnome.portal for org.freedesktop.impl.portal.Lockdown via the deprecated UseIn key
+
+(/usr/libexec/xdg-desktop-portal:1206731): xdg-desktop-portal-WARNING **: 06:04:25.287: The preferred method to match portal implementations to desktop environments is to use the portals.conf(5) configuration file
+dbus-daemon[1206231]: [session uid=1000 pid=1206231 pidfd=5] Activating service name='org.freedesktop.impl.portal.desktop.gnome' requested by ':1.11' (uid=1000 pid=1206731 comm="/usr/libexec/xdg-desktop-portal" label="unconfined")
+libEGL warning: DRI3 error: Could not get DRI3 device
+libEGL warning: Ensure your X server supports DRI3 to get accelerated rendering
+dbus-daemon[1206231]: [session uid=1000 pid=1206231 pidfd=5] Successfully activated service 'org.freedesktop.impl.portal.desktop.gnome'
+
+(/usr/libexec/xdg-desktop-portal:1206731): xdg-desktop-portal-WARNING **: 06:04:25.386: Choosing gnome.portal for org.freedesktop.impl.portal.Access via the deprecated UseIn key
+
+(/usr/libexec/xdg-desktop-portal:1206731): xdg-desktop-portal-WARNING **: 06:04:25.393: Choosing gnome.portal for org.freedesktop.impl.portal.Settings via the deprecated UseIn key
+
+(/usr/libexec/xdg-desktop-portal:1206731): xdg-desktop-portal-WARNING **: 06:04:25.393: Choosing gtk.portal for org.freedesktop.impl.portal.Settings via the deprecated UseIn key
+dbus-daemon[1206231]: [session uid=1000 pid=1206231 pidfd=5] Activating service name='org.freedesktop.impl.portal.desktop.gtk' requested by ':1.11' (uid=1000 pid=1206731 comm="/usr/libexec/xdg-desktop-portal" label="unconfined")
+dbus-daemon[1206231]: [session uid=1000 pid=1206231 pidfd=5] Successfully activated service 'org.freedesktop.impl.portal.desktop.gtk'
+
+** (xdg-desktop-portal-gtk:1206846): WARNING **: 06:04:25.408: atk-bridge: Couldn't listen on dbus server: Socket name too long
+
+
+(/usr/libexec/xdg-desktop-portal:1206731): xdg-desktop-portal-WARNING **: 06:04:25.408: Choosing gnome.portal for org.freedesktop.impl.portal.FileChooser via the deprecated UseIn key
+
+(/usr/libexec/xdg-desktop-portal:1206731): xdg-desktop-portal-WARNING **: 06:04:25.409: Choosing gnome.portal for org.freedesktop.impl.portal.AppChooser via the deprecated UseIn key
+
+(/usr/libexec/xdg-desktop-portal:1206731): xdg-desktop-portal-WARNING **: 06:04:25.409: Choosing gnome.portal for org.freedesktop.impl.portal.Print via the deprecated UseIn key
+
+(/usr/libexec/xdg-desktop-portal:1206731): xdg-desktop-portal-WARNING **: 06:04:25.410: Choosing gnome.portal for org.freedesktop.impl.portal.Notification via the deprecated UseIn key
+
+(/usr/libexec/xdg-desktop-portal:1206731): xdg-desktop-portal-WARNING **: 06:04:25.410: Choosing gtk.portal for org.freedesktop.impl.portal.Inhibit via the deprecated UseIn key
+
+(/usr/libexec/xdg-desktop-portal:1206731): xdg-desktop-portal-WARNING **: 06:04:25.411: Failed to connect to PipeWire: Couldn't connect to PipeWire
+
+(/usr/libexec/xdg-desktop-portal:1206731): xdg-desktop-portal-WARNING **: 06:04:25.411: Choosing gnome.portal for org.freedesktop.impl.portal.Screenshot via the deprecated UseIn key
+
+(/usr/libexec/xdg-desktop-portal:1206731): xdg-desktop-portal-WARNING **: 06:04:25.411: Choosing gnome.portal for org.freedesktop.impl.portal.Background via the deprecated UseIn key
+
+(/usr/libexec/xdg-desktop-portal:1206731): xdg-desktop-portal-WARNING **: 06:04:25.412: Choosing gnome.portal for org.freedesktop.impl.portal.Wallpaper via the deprecated UseIn key
+
+(/usr/libexec/xdg-desktop-portal:1206731): xdg-desktop-portal-WARNING **: 06:04:25.413: Choosing gnome.portal for org.freedesktop.impl.portal.Account via the deprecated UseIn key
+
+(/usr/libexec/xdg-desktop-portal:1206731): xdg-desktop-portal-WARNING **: 06:04:25.413: Choosing gtk.portal for org.freedesktop.impl.portal.Email via the deprecated UseIn key
+
+(/usr/libexec/xdg-desktop-portal:1206731): xdg-desktop-portal-WARNING **: 06:04:25.414: Choosing gnome-keyring.portal for org.freedesktop.impl.portal.Secret via the deprecated UseIn key
+
+(/usr/libexec/xdg-desktop-portal:1206731): xdg-desktop-portal-WARNING **: 06:04:25.414: Choosing gnome.portal for org.freedesktop.impl.portal.GlobalShortcuts via the deprecated UseIn key
+dbus-daemon[1206231]: [session uid=1000 pid=1206231 pidfd=5] Activating service name='org.freedesktop.secrets' requested by ':1.11' (uid=1000 pid=1206731 comm="/usr/libexec/xdg-desktop-portal" label="unconfined")
+
+(/usr/libexec/xdg-desktop-portal:1206731): xdg-desktop-portal-WARNING **: 06:04:25.415: Choosing gnome.portal for org.freedesktop.impl.portal.DynamicLauncher via the deprecated UseIn key
+
+(/usr/libexec/xdg-desktop-portal:1206731): xdg-desktop-portal-WARNING **: 06:04:25.415: Choosing gnome.portal for org.freedesktop.impl.portal.ScreenCast via the deprecated UseIn key
+
+(/usr/libexec/xdg-desktop-portal:1206731): xdg-desktop-portal-WARNING **: 06:04:25.416: Choosing gnome.portal for org.freedesktop.impl.portal.RemoteDesktop via the deprecated UseIn key
+
+(/usr/libexec/xdg-desktop-portal:1206731): xdg-desktop-portal-WARNING **: 06:04:25.416: Choosing gnome.portal for org.freedesktop.impl.portal.Clipboard via the deprecated UseIn key
+
+(/usr/libexec/xdg-desktop-portal:1206731): xdg-desktop-portal-WARNING **: 06:04:25.416: Choosing gnome.portal for org.freedesktop.impl.portal.InputCapture via the deprecated UseIn key
+
+(/usr/libexec/xdg-desktop-portal:1206731): xdg-desktop-portal-WARNING **: 06:04:25.416: Choosing gnome.portal for org.freedesktop.impl.portal.Usb via the deprecated UseIn key
+** Message: 06:04:25.418: couldn't access control socket: /home/shawn/workspace2/reactive-tui/target/api011-check-tmp/rtui-orca-l09y2sg4/runtime/keyring/control: No such file or directory
+discover_other_daemon: 0dbus-daemon[1206231]: [session uid=1000 pid=1206231 pidfd=5] Successfully activated service 'org.freedesktop.secrets'
+dbus-daemon[1206231]: [session uid=1000 pid=1206231 pidfd=5] Successfully activated service 'org.freedesktop.portal.Desktop'
+dbus-daemon[1206231]: [session uid=1000 pid=1206231 pidfd=5] Successfully activated service 'org.gnome.Terminal'
+
+** (org.gnome.Terminal:1206723): WARNING **: 06:04:25.470: atk-bridge: Couldn't listen on dbus server: Socket name too long
+
+dbus-daemon[1206231]: [session uid=1000 pid=1206231 pidfd=5] Activating service name='org.gtk.vfs.Metadata' requested by ':1.10' (uid=1000 pid=1206723 comm="/usr/libexec/gnome-terminal-server" label="unconfined")
+dbus-daemon[1206231]: [session uid=1000 pid=1206231 pidfd=5] Successfully activated service 'org.gtk.vfs.Metadata'
+
+(process:1206232): dbind-WARNING **: 06:04:25.694: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1206232): dbind-WARNING **: 06:04:25.694: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1206232): dbind-WARNING **: 06:04:25.694: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1206232): dbind-WARNING **: 06:04:25.694: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1206232): dbind-WARNING **: 06:04:25.728: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1206232): dbind-WARNING **: 06:04:25.728: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1206232): dbind-WARNING **: 06:04:25.728: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1206232): dbind-WARNING **: 06:04:25.728: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1206232): dbind-WARNING **: 06:04:25.728: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1206232): dbind-WARNING **: 06:04:25.728: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1206232): dbind-WARNING **: 06:04:25.728: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+A11Y table: roles, labels, keyboard selection and disabled skipping announced
+
+(process:1206232): dbind-WARNING **: 06:04:26.043: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1206232): dbind-WARNING **: 06:04:26.043: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1206232): dbind-WARNING **: 06:04:26.043: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1206232): dbind-WARNING **: 06:04:26.043: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1206232): dbind-WARNING **: 06:04:26.043: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1206232): dbind-WARNING **: 06:04:26.043: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1206232): dbind-WARNING **: 06:04:26.043: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1206232): dbind-WARNING **: 06:04:26.043: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1206232): dbind-WARNING **: 06:04:26.043: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1206232): dbind-WARNING **: 06:04:26.043: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1206232): dbind-WARNING **: 06:04:26.043: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1206232): dbind-WARNING **: 06:04:26.043: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1206232): dbind-WARNING **: 06:04:26.043: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1206232): dbind-WARNING **: 06:04:26.073: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1206232): dbind-WARNING **: 06:04:26.073: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1206232): dbind-WARNING **: 06:04:26.073: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1206232): dbind-WARNING **: 06:04:26.073: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1206232): dbind-WARNING **: 06:04:26.073: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+/home/shawn/workspace2/reactive-tui/tests/api_widget_behavior/orca.py:260: DeprecationWarning: Atspi.Action.get_action_name is deprecated
+  assert action.get_action_name(0) == "click"
+
+(process:1206232): dbind-WARNING **: 06:04:26.160: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1206232): dbind-WARNING **: 06:04:26.160: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1206232): dbind-WARNING **: 06:04:26.160: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1206232): dbind-WARNING **: 06:04:26.160: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1206232): dbind-WARNING **: 06:04:26.160: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1206232): dbind-WARNING **: 06:04:26.160: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1206232): dbind-WARNING **: 06:04:26.344: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1206232): dbind-WARNING **: 06:04:26.344: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1206232): dbind-WARNING **: 06:04:26.344: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1206232): dbind-WARNING **: 06:04:26.344: AT-SPI: Unknown signature so for RemoveAccessible
+A11Y DataTable: search entry, paging actions, disabled controls, filtered and paged cell focus announced
+
+(process:1206232): dbind-WARNING **: 06:04:26.459: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1206232): dbind-WARNING **: 06:04:26.459: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1206232): dbind-WARNING **: 06:04:26.459: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1206232): dbind-WARNING **: 06:04:26.459: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1206232): dbind-WARNING **: 06:04:26.459: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1206232): dbind-WARNING **: 06:04:26.459: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1206232): dbind-WARNING **: 06:04:26.459: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1206232): dbind-WARNING **: 06:04:26.459: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1206232): dbind-WARNING **: 06:04:26.459: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1206232): dbind-WARNING **: 06:04:26.459: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1206232): dbind-WARNING **: 06:04:26.459: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1206232): dbind-WARNING **: 06:04:26.459: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1206232): dbind-WARNING **: 06:04:26.459: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1206232): dbind-WARNING **: 06:04:26.459: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1206232): dbind-WARNING **: 06:04:26.459: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1206232): dbind-WARNING **: 06:04:26.459: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1206232): dbind-WARNING **: 06:04:26.459: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1206232): dbind-WARNING **: 06:04:26.459: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1206232): dbind-WARNING **: 06:04:26.459: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1206232): dbind-WARNING **: 06:04:26.459: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1206232): dbind-WARNING **: 06:04:26.459: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1206232): dbind-WARNING **: 06:04:26.527: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1206232): dbind-WARNING **: 06:04:26.527: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1206232): dbind-WARNING **: 06:04:26.527: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1206232): dbind-WARNING **: 06:04:26.527: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1206232): dbind-WARNING **: 06:04:26.527: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1206232): dbind-WARNING **: 06:04:26.527: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1206232): dbind-WARNING **: 06:04:26.527: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1206232): dbind-WARNING **: 06:04:26.560: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1206232): dbind-WARNING **: 06:04:26.560: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1206232): dbind-WARNING **: 06:04:26.560: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1206232): dbind-WARNING **: 06:04:27.198: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1206232): dbind-WARNING **: 06:04:27.198: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1206232): dbind-WARNING **: 06:04:27.198: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1206232): dbind-WARNING **: 06:04:27.198: AT-SPI: Unknown signature so for RemoveAccessible
+A11Y Tree: hierarchy roles, labels, expansion, child focus and disabled skipping announced
+
+(process:1206232): dbind-WARNING **: 06:04:27.248: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1206232): dbind-WARNING **: 06:04:27.248: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1206232): dbind-WARNING **: 06:04:27.248: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1206232): dbind-WARNING **: 06:04:27.248: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1206232): dbind-WARNING **: 06:04:27.248: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1206232): dbind-WARNING **: 06:04:27.248: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1206232): dbind-WARNING **: 06:04:27.248: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1206232): dbind-WARNING **: 06:04:27.248: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1206232): dbind-WARNING **: 06:04:27.248: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1206232): dbind-WARNING **: 06:04:27.248: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1206232): dbind-WARNING **: 06:04:27.248: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1206232): dbind-WARNING **: 06:04:27.248: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1206232): dbind-WARNING **: 06:04:27.248: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1206232): dbind-WARNING **: 06:04:27.248: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1206232): dbind-WARNING **: 06:04:27.248: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1206232): dbind-WARNING **: 06:04:27.248: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1206232): dbind-WARNING **: 06:04:27.248: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1206232): dbind-WARNING **: 06:04:27.248: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1206232): dbind-WARNING **: 06:04:27.248: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1206232): dbind-WARNING **: 06:04:27.248: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1206232): dbind-WARNING **: 06:04:27.248: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1206232): dbind-WARNING **: 06:04:27.248: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1206232): dbind-WARNING **: 06:04:27.248: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1206232): dbind-WARNING **: 06:04:27.254: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1206232): dbind-WARNING **: 06:04:27.254: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1206232): dbind-WARNING **: 06:04:27.254: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1206232): dbind-WARNING **: 06:04:27.254: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1206232): dbind-WARNING **: 06:04:27.254: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1206232): dbind-WARNING **: 06:04:27.286: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1206232): dbind-WARNING **: 06:04:27.286: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1206232): dbind-WARNING **: 06:04:27.286: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1206232): dbind-WARNING **: 06:04:27.409: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1206232): dbind-WARNING **: 06:04:27.410: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1206232): dbind-WARNING **: 06:04:27.410: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1206232): dbind-WARNING **: 06:04:27.410: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1206232): dbind-WARNING **: 06:04:27.410: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1206232): dbind-WARNING **: 06:04:27.410: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1206232): dbind-WARNING **: 06:04:27.410: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1206232): dbind-WARNING **: 06:04:27.410: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+Traceback (most recent call last):
+  File "/home/shawn/workspace2/reactive-tui/tests/api_widget_behavior/orca.py", line 663, in <module>
+    inside(arguments)
+    ~~~~~~^^^^^^^^^^^
+  File "/home/shawn/workspace2/reactive-tui/tests/api_widget_behavior/orca.py", line 325, in inside
+    exercise(root, keyboard, wait, named, state, click, speech, Atspi,
+    ~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+             lambda: len((run / "orca.log").read_text().splitlines()))
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/shawn/workspace2/reactive-tui/tests/api_widget_behavior/orca_data.py", line 123, in exercise
+    wait("Orca did not announce file", lambda: speech("guide.txt", start))
+    ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/shawn/workspace2/reactive-tui/tests/api_widget_behavior/orca.py", line 196, in wait
+    raise AssertionError(reason)
+AssertionError: Orca did not announce file
+A connection to the bus can't be made
