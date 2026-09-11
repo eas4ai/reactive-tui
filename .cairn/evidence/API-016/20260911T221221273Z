@@ -1,0 +1,21 @@
+requirement: API-016
+requirement_digest: sha256:7654bcfec9a8503d659a1fdf68c8b97b79c688f6add3e8a2bb04c0c38c66b04d
+sequence: 1
+history_digest: sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+mechanism: api-entry-points.md
+commit: f302418
+inputs_digest: sha256:9df85bb78c8e5977b57971cb2f9ba21bde47da097bf98987985fcd5a4ae4ea34
+mechanism_digest: sha256:d8bb6be1f7eedf88a074fec1ac071eadb94f49e8dbf0699db699ca7c4e7e3d1a
+inputs_detail: .cairn/evidence/API-016/20260911T221100210Z-652949.inputs.json
+command: python3 -B scripts/check-api-entry-points.py
+cwd: .
+exit: 1
+output_digest: sha256:cfa3ea3090bcf87c0cbb9d7e30adb2e42913e2e9e80c1c2b6ba65676c74aced4
+output: .cairn/evidence/API-016/20260911T221100210Z-652949.out
+stderr_output: .cairn/evidence/API-016/20260911T221100210Z-652949.err
+stderr_digest: sha256:a7bcf65b8c0d8c5dd247f52489e0981d706257e2bea67f1c78e59f873e8534f2
+signal: none
+execution_error: null
+result: fail
+source: exit
+recorded: 2026-09-11T22:12:21.273Z

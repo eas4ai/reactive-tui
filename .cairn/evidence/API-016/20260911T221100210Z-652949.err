@@ -1,0 +1,57 @@
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+warning: ambiguous glob re-exports
+  --> src/ffi/mod.rs:85:9
+   |
+85 | pub use pointer::*;
+   |         ^^^^^^^^^^ the name `validate_pointer` in the value namespace is first re-exported here
+...
+90 | pub use types::*;
+   |         -------- but the name `validate_pointer` in the value namespace is also re-exported here
+   |
+   = note: `#[warn(ambiguous_glob_reexports)]` on by default
+
+warning: unused variable: `width`
+  --> src/ffi/lib.rs:85:14
+   |
+85 |         let (width, height) = renderer_box.dims();
+   |              ^^^^^ help: if this is intentional, prefix it with an underscore: `_width`
+   |
+   = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `validate_pointer` is never used
+   --> src/ffi/types.rs:182:15
+    |
+182 | pub(crate) fn validate_pointer<T>(ptr: *const T) -> bool {
+    |               ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `validate_mut_pointer` is never used
+   --> src/ffi/types.rs:187:15
+    |
+187 | pub(crate) fn validate_mut_pointer<T>(ptr: *mut T) -> bool {
+    |               ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `safe_cast` is never used
+   --> src/ffi/types.rs:192:22
+    |
+192 | pub(crate) unsafe fn safe_cast<T, U>(ptr: *mut T) -> Result<*mut U, ReactiveError> {
+    |                      ^^^^^^^^^
+
+warning: function `safe_cast_const` is never used
+   --> src/ffi/types.rs:206:22
+    |
+206 | pub(crate) unsafe fn safe_cast_const<T, U>(ptr: *const T) -> Result<*const U, ReactiveError> {
+    |                      ^^^^^^^^^^^^^^^
+
+warning: `reactive-tui` (lib) generated 6 warnings (run `cargo fix --lib -p reactive-tui` to apply 1 suggestion)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 15.03s
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 15.53s
+  Executable tests/suprtui_renderer.rs (target/debug/deps/suprtui_renderer-2419599ab9d0badf)
+In file included from /home/shawn/workspace2/reactive-tui/verification/api-entry-points/native.c:3:
+/home/shawn/workspace2/reactive-tui/verification/api-entry-points/native.c: In function ‘main’:
+/home/shawn/workspace2/reactive-tui/verification/api-entry-points/native.c:33:12: error: implicit declaration of function ‘rtui_app_builder_backend_suprtui’; did you mean ‘rtui_app_builder_backend_debug’? [-Wimplicit-function-declaration]
+   33 |     assert(rtui_app_builder_backend_suprtui(NULL) == RTUI_NULL_POINTER);
+      |            ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Entry-point failures: legacy App state/errors, Rust crossterm (32, 8), Rust crossterm (48, 12), Rust crossterm-surface (32, 8), Rust crossterm-surface (48, 12), Rust direct (32, 8), Rust direct (48, 12), C SuprTUI construction compiles and links
