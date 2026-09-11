@@ -9,13 +9,13 @@ warning: method `serial` is never used
    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
 
 warning: `reactive-tui` (lib test) generated 1 warning
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.19s
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.13s
      Running unittests src/lib.rs (target/debug/deps/reactive_tui-1b74d89730bf3760)
 
 running 1 test
 test widgets::dialog::http::tests::tls_certificate_probe ... ok
 
-test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 971 filtered out; finished in 0.07s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 971 filtered out; finished in 0.09s
 
 Dialog HTTPS trusted: passed
 warning: method `serial` is never used
@@ -29,12 +29,12 @@ warning: method `serial` is never used
    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
 
 warning: `reactive-tui` (lib test) generated 1 warning
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.17s
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.14s
      Running unittests src/lib.rs (target/debug/deps/reactive_tui-1b74d89730bf3760)
 
 running 1 test
 test widgets::dialog::http::tests::tls_certificate_probe ... ok
 
-test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 971 filtered out; finished in 0.22s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 971 filtered out; finished in 0.11s
 
 Dialog HTTPS untrusted: passed

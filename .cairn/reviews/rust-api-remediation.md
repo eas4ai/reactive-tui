@@ -4041,3 +4041,20 @@ Quality-delta exits 2 with 1576 major reference-tree findings and none outside
 reference. Authored-source whitespace checks passed. The native widget and ConPTY
 input declarations include all tests, so the earlier successful 34625784358
 artifacts must be refreshed for this fixture edit. Clipboard inputs are unchanged.
+
+The full corrected local API-011 check passed all widget, library, transport,
+negative-control and screen-reader workflows, including image speech at both
+viewports and the following dialog cases. Receipt 20260911T173928786Z fails only
+because the stored ConPTY evidence is stale. Native run 34628467736 checks
+snapshot cc679c577916c70979f7365ea050f505d25b4d5a; its full input union was
+compared with b67238ef25e8770d630917979b8a59400aa77a32 before push. macOS has
+passed; Windows is still running. Do not reuse 34625784358 widget/ConPTY records
+for the changed Orca fixture. Clipboard inputs did not change. A development
+probe created one orca_display bytecode file; it was removed before this check,
+and the existing mechanism disables child-process bytecode generation.
+
+Run 34628467736 passed completely on Windows and macOS. Imported the current
+widget and ConPTY records only after matching snapshot, source digest and every
+output hash (72 macOS, 15 Windows widget outputs, six ConPTY outputs). Both
+native verifiers pass against the corrected Orca fixture. Raw Windows bytes
+were preserved. No production code, timeout or acceptance assertion changed.
