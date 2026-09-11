@@ -1,0 +1,3 @@
+{"changes":[{"expanded":true,"expanded_sections":["account"],"section_id":"account"},{"expanded":true,"expanded_sections":["privacy"],"section_id":"privacy"},{"expanded":false,"expanded_sections":[],"section_id":"privacy"},{"expanded":true,"expanded_sections":["account"],"section_id":"account"}],"css_calls":1,"menu_calls":["1:checked:true","1:document","2:checked:true","2:document","3:document","4:confirmed:notify,document"],"navigation":[{"label":"Home","path":"/","segment_id":"home"},{"label":"Docs","path":"/docs","segment_id":"docs"}],"round":1}
+{"changes":[{"expanded":true,"expanded_sections":["account"],"section_id":"account"}],"css_calls":0,"menu_calls":[],"navigation":[],"round":2}
+{"background_calls":2}

@@ -31,6 +31,12 @@ def exercise(root, keyboard, wait, named, state, click, speech, Atspi, speech_st
             start = speech_start()
             click(checkbox)
             if stage == 1:
+                # The assistive click is queued. Wait for its close and focus
+                # restoration before asking the menubar to reopen.
+                wait("menubar checkbox activation did not close the menu",
+                     lambda: named(root, "Enable notifications") is None)
+                wait("menubar focus was not restored",
+                     lambda: state(file, Atspi.StateType.FOCUSED))
                 keyboard.key(0xff54)
                 checkbox = wait("menubar did not reopen", lambda: named(root, "Enable notifications"))
             wait("menu checked state absent", lambda: state(checkbox, Atspi.StateType.CHECKED))

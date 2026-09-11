@@ -3239,3 +3239,37 @@ verifiers now pass: five clipboard backends, ConPTY, and macOS/Windows widget
 evidence. Both new engine HTTP completion/cancellation workflows also passed
 on Windows (within its 16 HTTP App cases). The failed original macOS build
 and incomplete cancelled Windows run remain in the review history.
+
+### API-011 Orca menubar reopen ordering
+
+The refreshed mechanism passed all 401 App workflows, then failed the 60x16
+reader workflow at `menu checked state absent`. The retained session and
+Orca logs are `api-012-orca-menu-checked-session.log` and
+`api-012-orca-menu-checked-orca.log`. Three unchanged repetitions passed, so
+this was not a consistently failing checkbox. The failed reader log ends its
+menu announcements at Menu file, after the menu checkbox and Recent menu.
+
+I traced assistive activation through PlatformNode::do_action to
+accessibility::connection::Actions::do_action: it enqueues an action and
+wakes App. A successful D-Bus reply does not mean App has already handled
+the click and removed the menu. The reader test sent Down immediately after
+that reply and could reuse the old checkbox before its queued close.
+
+A deterministic ordering probe executes the actual first-stage Python
+workflow with delayed click delivery. The original workflow fails at the
+same checked-state assertion; waiting for menu removal and menubar focus
+restoration before Down passes. A checkbox that never becomes checked still
+fails the corrected workflow. The probe models that scheduling boundary;
+it is not evidence of real Orca speech and does not establish the exact
+thread interleaving of the original failure. Its source and before, corrected
+and unchecked outputs are `api-012-menu-ordering-*`.
+
+The six-line fixture correction adds those two state waits, retaining the
+existing deadlines, checkbox assertion, speech assertion and remaining menu
+workflows. It changes no Rust control behavior. Four complete real Orca runs
+then passed: one at 32x10 and three at 60x16, with all four menu families and
+remaining core controls. Their session, reader and callback logs are retained
+in `api-012-orca-menu-corrected-*`; unchanged repetitions remain in
+`api-012-orca-menu-repeat-*`. Whitespace validation passed. The full committed
+mechanism still must rerun; the native recorders also declare the changed
+tests directory, so their records must be refreshed without editing receipts.

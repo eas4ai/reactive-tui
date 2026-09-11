@@ -1,0 +1,10 @@
+Traceback (most recent call last):
+  File "/home/shawn/workspace2/reactive-tui/target/api012-menu-ordering-probe.py", line 85, in <module>
+    namespace["exercise"](None, world, world.wait, world.named, world.state, world.click,
+    ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                          lambda *args: True, atspi, lambda: 0)
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "orca_menus_stage_one", line 36, in exercise
+  File "/home/shawn/workspace2/reactive-tui/target/api012-menu-ordering-probe.py", line 80, in wait
+    raise AssertionError(reason)
+AssertionError: menu checked state absent

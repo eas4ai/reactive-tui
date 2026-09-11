@@ -1,0 +1,681 @@
+A11Y # GNOME Terminal 3.58.0 using VTE 0.84.0 +BIDI +GNUTLS +ICU +SYSTEMD
+dbus-daemon[1869894]: [session uid=1000 pid=1869894 pidfd=5] Activating service name='org.a11y.Bus' requested by ':1.0' (uid=1000 pid=1869946 comm="/usr/bin/python3 /usr/bin/orca --version" label="unconfined")
+dbus-daemon[1869894]: [session uid=1000 pid=1869894 pidfd=5] Successfully activated service 'org.a11y.Bus'
+dbus-daemon[1869894]: [session uid=1000 pid=1869894 pidfd=5] Activating service name='org.gtk.vfs.Daemon' requested by ':1.3' (uid=1000 pid=1869981 comm="/usr/lib/x86_64-linux-gnu/../../lib/x86_64-linux-g" label="unconfined")
+dbus-daemon[1869894]: [session uid=1000 pid=1869894 pidfd=5] Successfully activated service 'org.gtk.vfs.Daemon'
+dbus-daemon[1869974]: Activating service name='org.a11y.atspi.Registry' requested by ':1.0' (uid=1000 pid=1869946 comm="/usr/bin/python3 /usr/bin/orca --version" label="unconfined")
+dbus-daemon[1869974]: Successfully activated service 'org.a11y.atspi.Registry'
+SpiRegistry daemon is running with well-known name - org.a11y.atspi.Registry
+A11Y Orca version 50.1.2, AT-SPI2 version: 2.60.0, Session: x11 gnome
+A11Y isolated X11/Xvfb viewport 60x16
+dbus-daemon[1869894]: [session uid=1000 pid=1869894 pidfd=5] Activating service name='ca.desrt.dconf' requested by ':1.7' (uid=1000 pid=1870593 comm="/usr/bin/python3 /usr/bin/orca --debug-file /home/" label="unconfined")
+dbus-daemon[1869894]: [session uid=1000 pid=1869894 pidfd=5] Successfully activated service 'ca.desrt.dconf'
+dbus-daemon[1869894]: [session uid=1000 pid=1869894 pidfd=5] Activating service name='org.gnome.Terminal' requested by ':1.9' (uid=1000 pid=1870779 comm="gnome-terminal --display=:1 --geometry=60x16 --wai" label="unconfined")
+dbus-daemon[1869894]: [session uid=1000 pid=1869894 pidfd=5] Activating service name='org.freedesktop.portal.Desktop' requested by ':1.10' (uid=1000 pid=1870790 comm="/usr/libexec/gnome-terminal-server" label="unconfined")
+dbus-daemon[1869894]: [session uid=1000 pid=1869894 pidfd=5] Activating service name='org.freedesktop.impl.portal.PermissionStore' requested by ':1.11' (uid=1000 pid=1870822 comm="/usr/libexec/xdg-desktop-portal" label="unconfined")
+dbus-daemon[1869894]: [session uid=1000 pid=1869894 pidfd=5] Successfully activated service 'org.freedesktop.impl.portal.PermissionStore'
+dbus-daemon[1869894]: [session uid=1000 pid=1869894 pidfd=5] Activating service name='org.freedesktop.portal.Documents' requested by ':1.11' (uid=1000 pid=1870822 comm="/usr/libexec/xdg-desktop-portal" label="unconfined")
+dbus-daemon[1869894]: [session uid=1000 pid=1869894 pidfd=5] Successfully activated service 'org.freedesktop.portal.Documents'
+
+(/usr/libexec/xdg-desktop-portal:1870822): xdg-desktop-portal-WARNING **: 20:29:47.444: Choosing gnome.portal for org.freedesktop.impl.portal.Lockdown via the deprecated UseIn key
+
+(/usr/libexec/xdg-desktop-portal:1870822): xdg-desktop-portal-WARNING **: 20:29:47.444: The preferred method to match portal implementations to desktop environments is to use the portals.conf(5) configuration file
+dbus-daemon[1869894]: [session uid=1000 pid=1869894 pidfd=5] Activating service name='org.freedesktop.impl.portal.desktop.gnome' requested by ':1.11' (uid=1000 pid=1870822 comm="/usr/libexec/xdg-desktop-portal" label="unconfined")
+libEGL warning: DRI3 error: Could not get DRI3 device
+libEGL warning: Ensure your X server supports DRI3 to get accelerated rendering
+dbus-daemon[1869894]: [session uid=1000 pid=1869894 pidfd=5] Successfully activated service 'org.freedesktop.impl.portal.desktop.gnome'
+
+(/usr/libexec/xdg-desktop-portal:1870822): xdg-desktop-portal-WARNING **: 20:29:47.548: Choosing gnome.portal for org.freedesktop.impl.portal.Access via the deprecated UseIn key
+
+(/usr/libexec/xdg-desktop-portal:1870822): xdg-desktop-portal-WARNING **: 20:29:47.558: Choosing gnome.portal for org.freedesktop.impl.portal.Settings via the deprecated UseIn key
+
+(/usr/libexec/xdg-desktop-portal:1870822): xdg-desktop-portal-WARNING **: 20:29:47.558: Choosing gtk.portal for org.freedesktop.impl.portal.Settings via the deprecated UseIn key
+dbus-daemon[1869894]: [session uid=1000 pid=1869894 pidfd=5] Activating service name='org.freedesktop.impl.portal.desktop.gtk' requested by ':1.11' (uid=1000 pid=1870822 comm="/usr/libexec/xdg-desktop-portal" label="unconfined")
+dbus-daemon[1869894]: [session uid=1000 pid=1869894 pidfd=5] Successfully activated service 'org.freedesktop.impl.portal.desktop.gtk'
+
+** (xdg-desktop-portal-gtk:1870938): WARNING **: 20:29:47.576: atk-bridge: Couldn't listen on dbus server: Socket name too long
+
+
+(/usr/libexec/xdg-desktop-portal:1870822): xdg-desktop-portal-WARNING **: 20:29:47.577: Choosing gnome.portal for org.freedesktop.impl.portal.FileChooser via the deprecated UseIn key
+
+(/usr/libexec/xdg-desktop-portal:1870822): xdg-desktop-portal-WARNING **: 20:29:47.577: Choosing gnome.portal for org.freedesktop.impl.portal.AppChooser via the deprecated UseIn key
+
+(/usr/libexec/xdg-desktop-portal:1870822): xdg-desktop-portal-WARNING **: 20:29:47.577: Choosing gnome.portal for org.freedesktop.impl.portal.Print via the deprecated UseIn key
+
+(/usr/libexec/xdg-desktop-portal:1870822): xdg-desktop-portal-WARNING **: 20:29:47.578: Choosing gnome.portal for org.freedesktop.impl.portal.Notification via the deprecated UseIn key
+
+(/usr/libexec/xdg-desktop-portal:1870822): xdg-desktop-portal-WARNING **: 20:29:47.578: Choosing gtk.portal for org.freedesktop.impl.portal.Inhibit via the deprecated UseIn key
+
+(/usr/libexec/xdg-desktop-portal:1870822): xdg-desktop-portal-WARNING **: 20:29:47.580: Failed to connect to PipeWire: Couldn't connect to PipeWire
+
+(/usr/libexec/xdg-desktop-portal:1870822): xdg-desktop-portal-WARNING **: 20:29:47.580: Choosing gnome.portal for org.freedesktop.impl.portal.Screenshot via the deprecated UseIn key
+
+(/usr/libexec/xdg-desktop-portal:1870822): xdg-desktop-portal-WARNING **: 20:29:47.581: Choosing gnome.portal for org.freedesktop.impl.portal.Background via the deprecated UseIn key
+
+(/usr/libexec/xdg-desktop-portal:1870822): xdg-desktop-portal-WARNING **: 20:29:47.581: Choosing gnome.portal for org.freedesktop.impl.portal.Wallpaper via the deprecated UseIn key
+
+(/usr/libexec/xdg-desktop-portal:1870822): xdg-desktop-portal-WARNING **: 20:29:47.582: Choosing gnome.portal for org.freedesktop.impl.portal.Account via the deprecated UseIn key
+
+(/usr/libexec/xdg-desktop-portal:1870822): xdg-desktop-portal-WARNING **: 20:29:47.582: Choosing gtk.portal for org.freedesktop.impl.portal.Email via the deprecated UseIn key
+
+(/usr/libexec/xdg-desktop-portal:1870822): xdg-desktop-portal-WARNING **: 20:29:47.582: Choosing gnome-keyring.portal for org.freedesktop.impl.portal.Secret via the deprecated UseIn key
+
+(/usr/libexec/xdg-desktop-portal:1870822): xdg-desktop-portal-WARNING **: 20:29:47.583: Choosing gnome.portal for org.freedesktop.impl.portal.GlobalShortcuts via the deprecated UseIn key
+dbus-daemon[1869894]: [session uid=1000 pid=1869894 pidfd=5] Activating service name='org.freedesktop.secrets' requested by ':1.11' (uid=1000 pid=1870822 comm="/usr/libexec/xdg-desktop-portal" label="unconfined")
+
+(/usr/libexec/xdg-desktop-portal:1870822): xdg-desktop-portal-WARNING **: 20:29:47.583: Choosing gnome.portal for org.freedesktop.impl.portal.DynamicLauncher via the deprecated UseIn key
+
+(/usr/libexec/xdg-desktop-portal:1870822): xdg-desktop-portal-WARNING **: 20:29:47.583: Choosing gnome.portal for org.freedesktop.impl.portal.ScreenCast via the deprecated UseIn key
+
+(/usr/libexec/xdg-desktop-portal:1870822): xdg-desktop-portal-WARNING **: 20:29:47.584: Choosing gnome.portal for org.freedesktop.impl.portal.RemoteDesktop via the deprecated UseIn key
+
+(/usr/libexec/xdg-desktop-portal:1870822): xdg-desktop-portal-WARNING **: 20:29:47.584: Choosing gnome.portal for org.freedesktop.impl.portal.Clipboard via the deprecated UseIn key
+
+(/usr/libexec/xdg-desktop-portal:1870822): xdg-desktop-portal-WARNING **: 20:29:47.584: Choosing gnome.portal for org.freedesktop.impl.portal.InputCapture via the deprecated UseIn key
+
+(/usr/libexec/xdg-desktop-portal:1870822): xdg-desktop-portal-WARNING **: 20:29:47.584: Choosing gnome.portal for org.freedesktop.impl.portal.Usb via the deprecated UseIn key
+** Message: 20:29:47.586: couldn't access control socket: /home/shawn/workspace2/reactive-tui/target/api011-check-tmp/rtui-orca-djjdm8x7/runtime/keyring/control: No such file or directory
+discover_other_daemon: 0dbus-daemon[1869894]: [session uid=1000 pid=1869894 pidfd=5] Successfully activated service 'org.freedesktop.secrets'
+dbus-daemon[1869894]: [session uid=1000 pid=1869894 pidfd=5] Successfully activated service 'org.freedesktop.portal.Desktop'
+dbus-daemon[1869894]: [session uid=1000 pid=1869894 pidfd=5] Successfully activated service 'org.gnome.Terminal'
+
+** (org.gnome.Terminal:1870790): WARNING **: 20:29:47.640: atk-bridge: Couldn't listen on dbus server: Socket name too long
+
+dbus-daemon[1869894]: [session uid=1000 pid=1869894 pidfd=5] Activating service name='org.gtk.vfs.Metadata' requested by ':1.10' (uid=1000 pid=1870790 comm="/usr/libexec/gnome-terminal-server" label="unconfined")
+dbus-daemon[1869894]: [session uid=1000 pid=1869894 pidfd=5] Successfully activated service 'org.gtk.vfs.Metadata'
+/home/shawn/workspace2/reactive-tui/tests/api_widget_behavior/orca.py:260: DeprecationWarning: Atspi.Action.get_action_name is deprecated
+  assert action.get_action_name(0) == "click"
+
+(process:1869895): dbind-WARNING **: 20:29:48.045: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1869895): dbind-WARNING **: 20:29:48.045: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1869895): dbind-WARNING **: 20:29:48.337: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1869895): dbind-WARNING **: 20:29:48.337: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1869895): dbind-WARNING **: 20:29:48.337: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1869895): dbind-WARNING **: 20:29:48.375: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1869895): dbind-WARNING **: 20:29:48.438: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1869895): dbind-WARNING **: 20:29:48.438: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1869895): dbind-WARNING **: 20:29:48.471: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1869895): dbind-WARNING **: 20:29:48.471: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1869895): dbind-WARNING **: 20:29:48.471: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1869895): dbind-WARNING **: 20:29:48.471: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1869895): dbind-WARNING **: 20:29:48.471: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1869895): dbind-WARNING **: 20:29:48.471: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1869895): dbind-WARNING **: 20:29:48.471: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1869895): dbind-WARNING **: 20:29:48.471: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1869895): dbind-WARNING **: 20:29:48.471: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1869895): dbind-WARNING **: 20:29:48.471: AT-SPI: Unknown signature so for RemoveAccessible
+A11Y round 1: labels, roles, focus, disabled actions, expansion, nested input and removal passed
+
+(process:1869895): dbind-WARNING **: 20:29:48.705: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1869895): dbind-WARNING **: 20:29:48.705: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1869895): dbind-WARNING **: 20:29:48.705: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1869895): dbind-WARNING **: 20:29:48.705: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1869895): dbind-WARNING **: 20:29:48.705: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1869895): dbind-WARNING **: 20:29:48.705: AT-SPI: Unknown signature so for RemoveAccessible
+A11Y breadcrumb: labels, link roles, current page announcement, inert actions, assistive and keyboard focus, activation and removal passed
+
+(process:1869895): dbind-WARNING **: 20:29:48.739: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1869895): dbind-WARNING **: 20:29:48.739: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1869895): dbind-WARNING **: 20:29:48.739: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1869895): dbind-WARNING **: 20:29:48.739: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1869895): dbind-WARNING **: 20:29:48.739: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1869895): dbind-WARNING **: 20:29:48.739: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1869895): dbind-WARNING **: 20:29:48.739: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1869895): dbind-WARNING **: 20:29:48.739: AT-SPI: Unknown signature so for RemoveAccessible
+A11Y CSS: reference labels, description, role, focus, pressed update, live announcement and hidden state passed
+
+(process:1869895): dbind-WARNING **: 20:29:49.047: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1869895): dbind-WARNING **: 20:29:49.047: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1869895): dbind-WARNING **: 20:29:49.047: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1869895): dbind-WARNING **: 20:29:49.047: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1869895): dbind-WARNING **: 20:29:49.047: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1869895): dbind-WARNING **: 20:29:49.047: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1869895): dbind-WARNING **: 20:29:49.047: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1869895): dbind-WARNING **: 20:29:49.047: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1869895): dbind-WARNING **: 20:29:49.047: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1869895): dbind-WARNING **: 20:29:49.047: AT-SPI: Unknown signature so for RemoveAccessible
+A11Y checkbox: role, distinct label, mixed/checked/unchecked speech, focus, assistive/keyboard toggles and disabled actions passed
+A11Y slider: label, role, focus, numeric bounds, keyboard step and changed value speech passed
+
+(process:1869895): dbind-WARNING **: 20:29:49.289: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1869895): dbind-WARNING **: 20:29:49.289: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1869895): dbind-WARNING **: 20:29:49.289: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1869895): dbind-WARNING **: 20:29:49.289: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1869895): dbind-WARNING **: 20:29:49.289: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1869895): dbind-WARNING **: 20:29:49.289: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1869895): dbind-WARNING **: 20:29:49.289: AT-SPI: Unknown signature so for RemoveAccessible
+A11Y radio: group/option roles, labels, focus, disabled skipping, exclusive keyboard and assistive selection passed
+
+(process:1869895): dbind-WARNING **: 20:29:49.553: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1869895): dbind-WARNING **: 20:29:49.553: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1869895): dbind-WARNING **: 20:29:49.553: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1869895): dbind-WARNING **: 20:29:49.553: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1869895): dbind-WARNING **: 20:29:49.553: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1869895): dbind-WARNING **: 20:29:49.553: AT-SPI: Unknown signature so for RemoveAccessible
+A11Y named radios: roles, labels, focus and exclusive group selection passed
+
+(process:1869895): dbind-WARNING **: 20:29:49.666: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1869895): dbind-WARNING **: 20:29:49.666: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1869895): dbind-WARNING **: 20:29:49.666: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1869895): dbind-WARNING **: 20:29:49.729: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1869895): dbind-WARNING **: 20:29:49.730: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1869895): dbind-WARNING **: 20:29:49.730: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1869895): dbind-WARNING **: 20:29:49.730: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1869895): dbind-WARNING **: 20:29:49.761: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1869895): dbind-WARNING **: 20:29:49.761: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1869895): dbind-WARNING **: 20:29:49.761: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1869895): dbind-WARNING **: 20:29:49.761: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1869895): dbind-WARNING **: 20:29:49.793: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1869895): dbind-WARNING **: 20:29:49.793: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1869895): dbind-WARNING **: 20:29:49.793: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1869895): dbind-WARNING **: 20:29:49.793: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1869895): dbind-WARNING **: 20:29:49.963: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1869895): dbind-WARNING **: 20:29:49.963: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1869895): dbind-WARNING **: 20:29:49.963: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1869895): dbind-WARNING **: 20:29:49.963: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1869895): dbind-WARNING **: 20:29:49.996: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1869895): dbind-WARNING **: 20:29:49.996: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1869895): dbind-WARNING **: 20:29:49.996: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1869895): dbind-WARNING **: 20:29:49.996: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1869895): dbind-WARNING **: 20:29:50.162: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1869895): dbind-WARNING **: 20:29:50.162: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1869895): dbind-WARNING **: 20:29:50.162: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1869895): dbind-WARNING **: 20:29:50.162: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1869895): dbind-WARNING **: 20:29:50.164: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1869895): dbind-WARNING **: 20:29:50.164: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1869895): dbind-WARNING **: 20:29:50.229: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1869895): dbind-WARNING **: 20:29:50.229: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1869895): dbind-WARNING **: 20:29:50.229: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1869895): dbind-WARNING **: 20:29:50.502: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1869895): dbind-WARNING **: 20:29:50.502: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1869895): dbind-WARNING **: 20:29:50.502: AT-SPI: Unknown signature so for RemoveAccessible
+A11Y select: combo/list/option roles, labels, expansion, focus, disabled skipping, single/multiple assistive and keyboard selection with selection speech passed
+
+(process:1869895): dbind-WARNING **: 20:29:50.535: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1869895): dbind-WARNING **: 20:29:50.535: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1869895): dbind-WARNING **: 20:29:50.535: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1869895): dbind-WARNING **: 20:29:50.535: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1869895): dbind-WARNING **: 20:29:50.535: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1869895): dbind-WARNING **: 20:29:50.575: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1869895): dbind-WARNING **: 20:29:50.575: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1869895): dbind-WARNING **: 20:29:50.575: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1869895): dbind-WARNING **: 20:29:50.575: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1869895): dbind-WARNING **: 20:29:50.575: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1869895): dbind-WARNING **: 20:29:50.575: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1869895): dbind-WARNING **: 20:29:50.575: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1869895): dbind-WARNING **: 20:29:50.575: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1869895): dbind-WARNING **: 20:29:50.827: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1869895): dbind-WARNING **: 20:29:50.827: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1869895): dbind-WARNING **: 20:29:50.827: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1869895): dbind-WARNING **: 20:29:50.928: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1869895): dbind-WARNING **: 20:29:50.928: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1869895): dbind-WARNING **: 20:29:50.928: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1869895): dbind-WARNING **: 20:29:50.928: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1869895): dbind-WARNING **: 20:29:50.928: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1869895): dbind-WARNING **: 20:29:50.928: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1869895): dbind-WARNING **: 20:29:50.928: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1869895): dbind-WARNING **: 20:29:50.928: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1869895): dbind-WARNING **: 20:29:50.928: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1869895): dbind-WARNING **: 20:29:50.928: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1869895): dbind-WARNING **: 20:29:50.928: AT-SPI: Unknown signature so for RemoveAccessible
+A11Y menu family 1: roles, disabled actions, assistive/keyboard focus, nested activation and removal passed
+
+(process:1869895): dbind-WARNING **: 20:29:50.965: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1869895): dbind-WARNING **: 20:29:50.965: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1869895): dbind-WARNING **: 20:29:50.965: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1869895): dbind-WARNING **: 20:29:50.970: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1869895): dbind-WARNING **: 20:29:50.970: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1869895): dbind-WARNING **: 20:29:50.970: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1869895): dbind-WARNING **: 20:29:50.970: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1869895): dbind-WARNING **: 20:29:50.970: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1869895): dbind-WARNING **: 20:29:50.970: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1869895): dbind-WARNING **: 20:29:50.970: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1869895): dbind-WARNING **: 20:29:50.970: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1869895): dbind-WARNING **: 20:29:50.970: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1869895): dbind-WARNING **: 20:29:51.241: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1869895): dbind-WARNING **: 20:29:51.241: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1869895): dbind-WARNING **: 20:29:51.241: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1869895): dbind-WARNING **: 20:29:51.377: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1869895): dbind-WARNING **: 20:29:51.377: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1869895): dbind-WARNING **: 20:29:51.377: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1869895): dbind-WARNING **: 20:29:51.392: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1869895): dbind-WARNING **: 20:29:51.392: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1869895): dbind-WARNING **: 20:29:51.392: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1869895): dbind-WARNING **: 20:29:51.392: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1869895): dbind-WARNING **: 20:29:51.392: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1869895): dbind-WARNING **: 20:29:51.392: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1869895): dbind-WARNING **: 20:29:51.392: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1869895): dbind-WARNING **: 20:29:51.392: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1869895): dbind-WARNING **: 20:29:51.392: AT-SPI: Unknown signature so for RemoveAccessible
+A11Y menu family 2: roles, disabled actions, assistive/keyboard focus, nested activation and removal passed
+
+(process:1869895): dbind-WARNING **: 20:29:51.459: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1869895): dbind-WARNING **: 20:29:51.459: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1869895): dbind-WARNING **: 20:29:51.459: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1869895): dbind-WARNING **: 20:29:51.459: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1869895): dbind-WARNING **: 20:29:51.459: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1869895): dbind-WARNING **: 20:29:51.459: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1869895): dbind-WARNING **: 20:29:51.459: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1869895): dbind-WARNING **: 20:29:51.459: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1869895): dbind-WARNING **: 20:29:51.459: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1869895): dbind-WARNING **: 20:29:51.596: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1869895): dbind-WARNING **: 20:29:51.596: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1869895): dbind-WARNING **: 20:29:51.596: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+A11Y menu family 3: roles, disabled actions, assistive/keyboard focus, nested activation and removal passed
+
+(process:1869895): dbind-WARNING **: 20:29:51.738: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1869895): dbind-WARNING **: 20:29:51.738: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1869895): dbind-WARNING **: 20:29:51.738: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1869895): dbind-WARNING **: 20:29:51.738: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1869895): dbind-WARNING **: 20:29:51.738: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1869895): dbind-WARNING **: 20:29:51.738: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1869895): dbind-WARNING **: 20:29:51.738: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1869895): dbind-WARNING **: 20:29:51.738: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1869895): dbind-WARNING **: 20:29:51.738: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1869895): dbind-WARNING **: 20:29:51.738: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1869895): dbind-WARNING **: 20:29:51.738: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1869895): dbind-WARNING **: 20:29:51.738: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1869895): dbind-WARNING **: 20:29:51.803: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1869895): dbind-WARNING **: 20:29:51.803: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1869895): dbind-WARNING **: 20:29:51.803: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1869895): dbind-WARNING **: 20:29:51.803: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1869895): dbind-WARNING **: 20:29:51.803: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1869895): dbind-WARNING **: 20:29:51.803: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1869895): dbind-WARNING **: 20:29:51.803: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1869895): dbind-WARNING **: 20:29:51.803: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1869895): dbind-WARNING **: 20:29:51.803: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1869895): dbind-WARNING **: 20:29:51.803: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1869895): dbind-WARNING **: 20:29:52.043: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1869895): dbind-WARNING **: 20:29:52.043: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1869895): dbind-WARNING **: 20:29:52.043: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1869895): dbind-WARNING **: 20:29:52.196: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1869895): dbind-WARNING **: 20:29:52.196: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1869895): dbind-WARNING **: 20:29:52.196: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1869895): dbind-WARNING **: 20:29:52.196: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1869895): dbind-WARNING **: 20:29:52.196: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1869895): dbind-WARNING **: 20:29:52.196: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1869895): dbind-WARNING **: 20:29:52.196: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1869895): dbind-WARNING **: 20:29:52.196: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1869895): dbind-WARNING **: 20:29:52.196: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1869895): dbind-WARNING **: 20:29:52.196: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1869895): dbind-WARNING **: 20:29:52.196: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1869895): dbind-WARNING **: 20:29:52.196: AT-SPI: Unknown signature so for RemoveAccessible
+
+(process:1869895): dbind-WARNING **: 20:29:52.196: AT-SPI: Unknown signature so for RemoveAccessible
+A11Y menu family 4: roles, disabled actions, assistive/keyboard focus, nested activation and removal passed
+
+(process:1869895): dbind-WARNING **: 20:29:52.230: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1869895): dbind-WARNING **: 20:29:52.230: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1869895): dbind-WARNING **: 20:29:52.230: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1869895): dbind-WARNING **: 20:29:52.230: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1869895): dbind-WARNING **: 20:29:52.230: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1869895): dbind-WARNING **: 20:29:52.230: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1869895): dbind-WARNING **: 20:29:52.302: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1869895): dbind-WARNING **: 20:29:52.302: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1869895): dbind-WARNING **: 20:29:52.302: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1869895): dbind-WARNING **: 20:29:52.453: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+
+(process:1869895): dbind-WARNING **: 20:29:52.453: AT-SPI: AddAccessible with unknown signature (so)(so)(so)iiassusau
+
+A11Y round 2: simultaneous and successive App isolation, action delivery, exactly-once callbacks and adapter cleanup passed
+A11Y 20:29:47.970927 - SPEECH OUTPUT: 'Account preferences accessible label' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+A11Y 20:29:47.970962 - SPEECH OUTPUT: 'collapsed button.' {'established': False}
+A11Y 20:29:48.108147 - SPEECH OUTPUT: 'Account preferences accessible label' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+A11Y 20:29:48.148878 - SPEECH OUTPUT: 'expanded' {'established': False}
+A11Y 20:29:48.210734 - SPEECH OUTPUT: 'Nested account entry' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+A11Y 20:29:48.273757 - SPEECH OUTPUT: 'Privacy preferences accessible label' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+A11Y 20:29:48.273801 - SPEECH OUTPUT: 'collapsed button.' {'established': False}
+A11Y 20:29:48.322943 - SPEECH OUTPUT: 'expanded' {'established': False}
+A11Y 20:29:48.402680 - SPEECH OUTPUT: 'Account preferences accessible label' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+A11Y 20:29:48.402729 - SPEECH OUTPUT: 'collapsed button.' {'established': False}
+A11Y 20:29:48.443445 - SPEECH OUTPUT: 'expanded' {'established': False}
+A11Y 20:29:48.523310 - SPEECH OUTPUT: 'Breadcrumb docs accessible label' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+A11Y 20:29:48.560330 - SPEECH OUTPUT: 'Breadcrumb home accessible label' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+A11Y 20:29:48.624864 - SPEECH OUTPUT: 'Breadcrumb docs accessible label' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+A11Y 20:29:48.677337 - SPEECH OUTPUT: 'Breadcrumb current accessible label' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+A11Y 20:29:48.677404 - SPEECH OUTPUT: 'static (Current page)' {'established': False}
+A11Y 20:29:48.814946 - SPEECH OUTPUT: 'Independent App action' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+A11Y 20:29:49.011248 - SPEECH OUTPUT: 'Background calls 1' {'established': False}
+A11Y 20:29:49.017712 - SPEECH OUTPUT: 'pressed' {'established': False}
+A11Y 20:29:49.079476 - SPEECH OUTPUT: 'Notification preference' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+A11Y 20:29:49.079517 - SPEECH OUTPUT: 'check box partially checked.' {'established': False}
+A11Y 20:29:49.126270 - SPEECH OUTPUT: 'checked' {'established': False}
+A11Y 20:29:49.161264 - SPEECH OUTPUT: 'not checked' {'established': False}
+A11Y 20:29:49.202561 - SPEECH OUTPUT: 'Playback volume' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+A11Y 20:29:49.359184 - SPEECH OUTPUT: 'Standard delivery' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+A11Y 20:29:49.359213 - SPEECH OUTPUT: 'selected radio button.' {'established': False}
+A11Y 20:29:49.417398 - SPEECH OUTPUT: 'Express delivery' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+A11Y 20:29:49.417421 - SPEECH OUTPUT: 'not selected radio button.' {'established': False}
+A11Y 20:29:49.476730 - SPEECH OUTPUT: 'selected' {'established': False}
+A11Y 20:29:49.528291 - SPEECH OUTPUT: 'Standard delivery' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+A11Y 20:29:49.528314 - SPEECH OUTPUT: 'selected radio button.' {'established': False}
+A11Y 20:29:49.579728 - SPEECH OUTPUT: 'selected radio button' {'established': False}
+A11Y 20:29:49.613692 - SPEECH OUTPUT: 'Named beta' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+A11Y 20:29:49.613739 - SPEECH OUTPUT: 'not selected radio button.' {'established': False}
+A11Y 20:29:50.362800 - SPEECH OUTPUT: 'selected' {'established': False}
+A11Y 20:29:50.634215 - SPEECH OUTPUT: 'Enable notifications' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+A11Y 20:29:50.634248 - SPEECH OUTPUT: 'check menu item not checked.' {'established': False}
+A11Y 20:29:50.752888 - SPEECH OUTPUT: 'checked' {'established': False}
+A11Y 20:29:50.825974 - SPEECH OUTPUT: 'Recent menu' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+A11Y 20:29:50.906629 - SPEECH OUTPUT: 'Recent document.' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+A11Y 20:29:51.053685 - SPEECH OUTPUT: 'Enable notifications' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+A11Y 20:29:51.053747 - SPEECH OUTPUT: 'check menu item not checked.' {'established': False}
+A11Y 20:29:51.164837 - SPEECH OUTPUT: 'checked' {'established': False}
+A11Y 20:29:51.238155 - SPEECH OUTPUT: 'Recent menu' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+A11Y 20:29:51.311501 - SPEECH OUTPUT: 'Recent document.' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+A11Y 20:29:51.333578 - SPEECH OUTPUT: 'expanded' {'established': False}
+A11Y 20:29:51.418441 - SPEECH OUTPUT: 'Recent menu' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+A11Y 20:29:51.523575 - SPEECH OUTPUT: 'Enable notifications' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+A11Y 20:29:51.523602 - SPEECH OUTPUT: 'check menu item not checked.' {'established': False}
+A11Y 20:29:51.609671 - SPEECH OUTPUT: 'Recent menu' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+A11Y 20:29:51.703433 - SPEECH OUTPUT: 'Recent document.' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+A11Y 20:29:51.839152 - SPEECH OUTPUT: 'Enable notifications' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+A11Y 20:29:51.839179 - SPEECH OUTPUT: 'check menu item not checked.' {'established': False}
+A11Y 20:29:51.890592 - SPEECH OUTPUT: 'Recent menu' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+A11Y 20:29:51.951530 - SPEECH OUTPUT: 'Enable notifications' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+A11Y 20:29:51.951581 - SPEECH OUTPUT: 'check menu item checked.' {'established': False}
+A11Y 20:29:52.040429 - SPEECH OUTPUT: 'Recent menu' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+A11Y 20:29:52.132426 - SPEECH OUTPUT: 'Recent document' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+A11Y 20:29:52.132451 - SPEECH OUTPUT: 'check menu item not checked.' {'established': False}
+A11Y 20:29:52.225795 - SPEECH OUTPUT: 'Background calls 1' {'established': False}
+A11Y 20:29:52.260189 - SPEECH OUTPUT: 'Background calls 1' {'established': False}
+A11Y 20:29:52.391895 - SPEECH OUTPUT: 'Account preferences accessible label' {'established': False, 'family': {'name': '', 'gender': None, 'lang': 'C', 'dialect': '', 'variant': None}}
+A11Y 20:29:52.391937 - SPEECH OUTPUT: 'collapsed button.' {'established': False}
+A connection to the bus can't be made
