@@ -4205,3 +4205,11 @@ record after validating snapshot identity, current source digest, native system,
 executed markers and both raw-output hashes. Its widget record and 72 captured
 outputs were also validated and remain in /tmp/api-016-native-34655618855 for
 the API-011 refresh. Windows remains pending.
+
+Native run 34655618855 completed successfully on Windows too, including clipboard,
+ConPTY and widget steps. Imported Windows clipboard evidence after validating the
+snapshot, current input digest, system, executed markers and both raw-output hashes.
+All five clipboard backends now pass the verifier. Validated the Windows widget
+record and 15 output hashes, plus the ConPTY record and six output hashes; they
+remain in /tmp/api-016-native-34655618855 for API-011. Captures retain their original
+bytes and line endings. No native criterion, timeout or implementation was changed.
