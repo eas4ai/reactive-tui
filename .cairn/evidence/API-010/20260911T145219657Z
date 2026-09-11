@@ -1,0 +1,21 @@
+requirement: API-010
+requirement_digest: sha256:3a0504ba2ba2e99f6cbc794a6ca1b96d05c30dcdd21723346caa968eed16c633
+sequence: 8
+history_digest: sha256:1be00b78910f904eba765f5152fd483f6297afaeb4f392cd029b24da299b6ffe
+mechanism: api-paint-properties.md
+commit: fb76e29
+inputs_digest: sha256:de2cb5d61c98db2c764181e483eef4a5a508fc8c08199a21387ac6bb8a1feca2
+mechanism_digest: sha256:96e6d13fe0fe343cd3bc3905d8559e44dd1ac747d28e53adbc996a3950ddc2c4
+inputs_detail: .cairn/evidence/API-010/20260911T145217932Z-154313.inputs.json
+command: python3 -B scripts/check-api-paint-properties.py
+cwd: .
+exit: 0
+output_digest: sha256:e7d48c1808241dffdf75d284e4296b49785f05e9293e7d9f6434fe9306ebf064
+output: .cairn/evidence/API-010/20260911T145217932Z-154313.out
+stderr_output: .cairn/evidence/API-010/20260911T145217932Z-154313.err
+stderr_digest: sha256:88e29186f58075d394e46459ccef7f3c21d71a1de56ecb93b2f5310e383f67e6
+signal: none
+execution_error: null
+result: pass
+source: exit
+recorded: 2026-09-11T14:52:19.657Z
