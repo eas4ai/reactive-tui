@@ -3661,3 +3661,28 @@ ignored examples). Strict library/test Clippy, formatting and git diff --check
 passed. The final sort cleanup was checked again with Clippy and the 27 animation
 integration tests. These are development checks; committed-tree Cairn evidence
 is still required. This is not the final commitment-wide self-audit.
+
+## API-013 target-change evidence refresh
+
+API-001 through API-007 have new committed passing receipts. API-008 passed its
+behavior and process tests, then rejected stale Wayland evidence. Native GitHub
+run 34604250701 checks snapshot 8f1e2e3cf7957844b6f21c1b489f84dbae6dc57b.
+Compared every Git tree entry in the union of clipboard, ConPTY and widget inputs
+with committed candidate 4bd206d30e396b2a54673eaca067f0d4673cf347 before pushing
+the existing verification branch. Linux platform records are being regenerated
+on private test desktops; native records will be imported only after validation.
+
+Wayland, xsel and xclip each passed five native round trips and two process checks;
+all source digests and output hashes match. The macOS clipboard step also passed
+and its record was imported after snapshot, digest, markers and hash validation.
+The macOS job as a whole FAILED: HTTP App cancellation waited for REQUESTS 1 while
+the last painted frame showed REMOVED. Fifteen other HTTP App cases passed, and
+the iTerm host cases passed. No macOS widget pass record was produced or imported.
+Failure artifacts remain in /tmp/reactive-tui-target-native-34604250701/widgets-macos
+and the job log in /tmp/reactive-tui-target-native-macos-failure.log.
+
+Windows completed successfully. Its clipboard record passed snapshot, input-digest,
+platform, behavior-marker and output-hash validation and was imported. All five
+clipboard backends now have current verified native evidence. GitHub run
+34604250701 remains failed overall because of the macOS HTTP App test; no widget
+acceptance claim is made from the clipboard refresh.
