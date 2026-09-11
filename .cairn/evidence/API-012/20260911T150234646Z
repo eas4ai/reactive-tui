@@ -1,0 +1,21 @@
+requirement: API-012
+requirement_digest: sha256:3b8fd533c5daac955e55285f054b2ef28da0562bfe4dfb3f26eb3eb4688976d1
+sequence: 7
+history_digest: sha256:d491b1b347bb73834f72e1fc20aacbbf1a978606252362cd937d05187b10d615
+mechanism: api-dialog-lifecycle.md
+commit: 91c9e01
+inputs_digest: sha256:5f1ff995b05327a3b426f0176d0d825b4f1d87c1c160f903b5d30eeb3b9d468a
+mechanism_digest: sha256:21646cda490ef5fb586eddb82d4b95fd8849b84b1dac09d69e5333c64979dd38
+inputs_detail: .cairn/evidence/API-012/20260911T150223049Z-309524.inputs.json
+command: python3 -B scripts/check-api-dialog-lifecycle.py
+cwd: .
+exit: 0
+output_digest: sha256:f15d988c8968f5315c0becf5b45603c9c06d03ed3c928484ea5e06b128a1bc8d
+output: .cairn/evidence/API-012/20260911T150223049Z-309524.out
+stderr_output: .cairn/evidence/API-012/20260911T150223049Z-309524.err
+stderr_digest: sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+signal: none
+execution_error: null
+result: pass
+source: exit
+recorded: 2026-09-11T15:02:34.646Z

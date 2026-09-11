@@ -1,0 +1,113 @@
++ cargo test --locked --test api_dialog_lifecycle
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.14s
+     Running tests/api_dialog_lifecycle.rs (target/debug/deps/api_dialog_lifecycle-d368492673b8b582)
+
+running 25 tests
+test app::dropping_the_app_cancels_sessions_even_when_a_controller_survives ... ok
+test app::custom_animation_receives_intermediate_progress_and_changes_app_frames ... ok
+test app::invalid_custom_animation_completes_with_error_instead_of_silent_success ... ok
+test app::engine_toast_expiration_delivers_completion_without_input ... ok
+test app::explicit_input_reset_replaces_edits_even_when_the_seed_value_is_unchanged ... ok
+test async_event_wakers_can_reenter_without_an_engine_lock ... ok
+test asynchronous_completion_waits_then_delivers_without_tokio ... ok
+test close_callbacks_can_reenter_and_see_the_closed_session_removed ... ok
+test close_preserves_the_actual_result_once_and_in_order ... ok
+test dialog_buffer_orders_by_z_and_replaces_existing_ids_without_duplicate_hits ... ok
+test dropping_an_unmounted_engine_cancels_waiters_and_closes_the_event_stream ... ok
+test invalid_animation_configuration_is_an_observable_rejection ... ok
+test limits_reject_without_inventing_a_live_id_or_an_open_event ... ok
+test one_panicking_close_callback_does_not_strand_other_sessions_or_waiters ... ok
+test shutdown_reentry_cannot_leave_replacement_dialogs_running ... ok
+test unread_events_are_bounded_and_every_accepted_dialog_can_still_close ... ok
+test updates_reject_wrong_types_unknown_ids_and_nonfinite_progress ... ok
+test weak_callbacks_do_not_keep_abandoned_sessions_alive ... ok
+test app::progress_updates_change_the_presented_control_and_deliver_completion ... ok
+test app::engine_escape_configuration_preserves_keyboard_cancel ... ok
+test app::engine_confirmation_callback_and_close_event_fire_once ... ok
+test app::engine_input_paints_edits_and_delivers_the_resized_pointer_result ... ok
+test app::engine_z_priority_controls_both_paint_and_pointer_target ... ok
+test app::autocomplete_selection_and_wizard_data_reach_engine_results ... ok
+test app::nested_dialogs_restore_the_underlying_control_and_then_the_background ... ok
+
+test result: ok. 25 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.05s
+
++ cargo test --locked --lib widgets::dialog::
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.10s
+     Running unittests src/lib.rs (target/debug/deps/reactive_tui-0fe28f82db83e8df)
+
+running 38 tests
+test widgets::dialog::dialog_types::tests::test_dialog_builder_confirm ... ok
+test widgets::dialog::autocomplete::tests::native_selection_without_callback_closes ... ok
+test widgets::dialog::dialog_types::tests::test_dialog_builder_autocomplete ... ok
+test widgets::dialog::autocomplete::tests::native_minimum_counts_displayed_characters ... ok
+test widgets::dialog::autocomplete::tests::native_submit_honors_selection_veto_once_without_mutation ... ok
+test widgets::dialog::dialog_types::tests::test_dialog_builder_error ... ok
+test widgets::dialog::autocomplete::live::tests::suggestions_require_a_value_and_preserve_metadata ... ok
+test widgets::dialog::autocomplete::tests::native_editing_preserves_whole_graphemes ... ok
+test widgets::dialog::dialog_types::tests::test_dialog_builder_input ... ok
+test widgets::dialog::dialog_types::tests::test_dialog_builder_ok_cancel ... ok
+test widgets::dialog::dialog_types::tests::test_dialog_builder_password ... ok
+test widgets::dialog::dialog_types::tests::test_dialog_builder_info ... ok
+test widgets::dialog::dialog_types::tests::test_dialog_utils_parse_shortcut ... ok
+test widgets::dialog::dialog_types::tests::test_dialog_builder_warning ... ok
+test widgets::dialog::dialog_types::tests::test_dialog_utils_validate_config_empty_message ... ok
+test widgets::dialog::dialog_types::tests::test_dialog_utils_validate_config_empty_title ... ok
+test widgets::dialog::dialog_types::tests::test_dialog_utils_validate_config_valid ... ok
+test widgets::dialog::dialog_types::tests::test_dialog_utils_validate_config_message_too_long ... ok
+test widgets::dialog::dialog_types::tests::test_dialog_utils_validate_config_title_too_long ... ok
+test widgets::dialog::dialog_types::tests::test_dialog_utils_calculate_size ... ok
+test widgets::dialog::engine::tests::exhausted_identifiers_never_wrap_to_zero_or_an_existing_session ... ok
+test widgets::dialog::engine::tests::shutdown_cancels_retired_dialog_deadlines_without_waiting ... ok
+test widgets::dialog::dialog_types::tests::test_dialog_utils_generate_id ... ok
+test widgets::dialog::engine::tests::closing_transition_releases_retained_content_and_its_deadline ... ok
+test widgets::dialog::http::tests::tls_certificate_probe ... ignored, invoked with a trusted/untrusted HTTPS fixture by scripts/check-dialog-http.py
+test widgets::dialog::http::tests::missing_curl_is_an_explicit_error_in_an_isolated_process ... ok
+test widgets::dialog::toast::live::tests::unmount_and_manual_close_cancel_toast_deadlines_with_retained_output ... ok
+test widgets::dialog::wizard::tests::empty_wizard_rejects_navigation_and_completion_without_panicking ... ok
+test widgets::dialog::wizard::tests::wizard_data_reaches_validator_and_completion_and_skip_is_optional ... ok
+test widgets::dialog::wizard::tests::wizard_rejects_ambiguous_step_identifiers ... ok
+test widgets::dialog::wizard::tests::wizard_validates_before_navigation_and_completion ... ok
+test widgets::dialog::autocomplete::live::tests::suggestion_highlighting_preserves_expanded_case_and_graphemes ... ok
+test widgets::dialog::dialog_types::tests::test_dialog_utils_build_css_classes ... ok
+test widgets::dialog::http::tests::chunked_response_cannot_bypass_the_size_limit ... ok
+test widgets::dialog::http::tests::request_preserves_json_escaping_and_custom_headers ... ok
+test widgets::dialog::http::tests::cancellation_joins_worker_and_closes_the_actual_connection ... ok
+test widgets::dialog::http::tests::unsafe_configuration_and_oversized_requests_fail_before_spawn ... ok
+test widgets::dialog::http::tests::a_silent_endpoint_hits_the_owned_deadline ... ok
+
+test result: ok. 37 passed; 0 failed; 1 ignored; 0 measured; 961 filtered out; finished in 0.20s
+
++ cargo test --locked --lib widgets::display::modal::
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.10s
+     Running unittests src/lib.rs (target/debug/deps/reactive_tui-0fe28f82db83e8df)
+
+running 12 tests
+test widgets::display::modal::live::tests::a_closed_owner_ignores_repeated_button_activation ... ok
+test widgets::display::modal::live::tests::transition_reverses_from_current_progress_and_releases_deadline ... ok
+test widgets::display::modal::live::tests::configured_duration_controls_opening_closing_and_zero_duration ... ok
+test widgets::display::modal::live::tests::unmount_cancels_transition_while_rendered_output_is_retained ... ok
+test widgets::display::modal::tests::test_modal_creation ... ok
+test widgets::display::modal::tests::test_button_constructors ... ok
+test widgets::display::modal::tests::test_position_calculation ... ok
+test widgets::display::modal::tests::test_dimension_calculation ... ok
+test widgets::display::modal::tests::test_component_update ... ok
+test widgets::display::modal::tests::test_modal_visibility ... ok
+test widgets::display::modal::tests::test_button_handling ... ok
+test widgets::display::modal::tests::test_builder_methods ... ok
+
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 987 filtered out; finished in 0.01s
+
++ cargo test --locked --test api_widget_behavior dialog_engine_http_
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.10s
+     Running tests/api_widget_behavior.rs (target/debug/deps/api_widget_behavior-b44de95d3adf5336)
+
+running 2 tests
+test dialog_http_acceptance::dialog_engine_http_close_cancels_a_live_request_and_does_not_submit ... ok
+test dialog_http_acceptance::dialog_engine_http_validation_delivers_an_awaitable_result ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 399 filtered out; finished in 0.58s
+
++ cargo check --locked --example dialog_engine
+    Checking reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 5.99s
