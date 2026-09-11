@@ -3349,3 +3349,20 @@ This repairs the evidence observer; no runtime or Orca behavior was changed.
 Full formal widget acceptance and fresh native records still remain pending.
 
 The final 60x16 data-control workflow also passed; its session log is retained.
+
+## Fresh native records after API-013 regression-test additions (2026-09-11)
+
+GitHub run 34587766694 passed on Windows 2022 and macOS 14 against snapshot
+33a16cc7fed82d343b212bc03325ae9cca8b604a. This snapshot matches the current
+committed union of the native mechanisms' inputs, including the keyframe tests
+and the final Orca file-speech fixture correction. The superseded run
+34587207016 was cancelled because its test inputs were obsolete.
+
+Downloaded platform-specific artifacts and compared their source commit, system,
+pass result, current declared-input digest, and every recorded output SHA-256
+before importing. Imported Windows ConPTY and Windows/macOS widget records;
+both native verification scripts pass. The macOS record includes all 72 output
+hashes and preserves the approved iTerm2 3.7 color/transparency limitation.
+Windows clipboard also passed in the fresh job; the already-current clipboard
+record from the earlier unchanged retry remains sufficient and was not replaced.
+These records still require the complete API-011 Cairn acceptance run.

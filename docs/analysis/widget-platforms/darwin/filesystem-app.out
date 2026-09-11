@@ -24,7 +24,7 @@ warning: function `change` is never used
     |    ^^^^^^
 
 warning: `reactive-tui` (test "api_widget_behavior") generated 2 warnings
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.18s
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.22s
      Running tests/api_widget_behavior.rs (target/debug/deps/api_widget_behavior-ff4000526b6b632c)
 
 running 17 tests
@@ -46,5 +46,5 @@ test file_explorer_acceptance::explorer_uses_padded_parent_layout_and_handles_re
 test file_explorer_acceptance::explorer_views_filter_hidden_files_and_render_a_real_expanded_tree ... ok
 test file_explorer_acceptance::explorer_virtual_rows_and_resize_keep_mouse_targets_on_the_painted_entries ... ok
 
-test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 382 filtered out; finished in 11.06s
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 382 filtered out; finished in 11.43s
 

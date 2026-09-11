@@ -45,4 +45,4 @@ warning: field `parser` is never read
 
 warning: `reactive-tui` (lib) generated 5 warnings (run `cargo fix --lib -p reactive-tui` to apply 3 suggestions)
    Compiling reactive-tui v0.0.7 (D:\a\reactive-tui\reactive-tui)
-    Finished `dev` profile [unoptimized + debuginfo] target(s) in 9.43s
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 6.82s
