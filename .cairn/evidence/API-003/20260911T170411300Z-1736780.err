@@ -1,0 +1,7 @@
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.84s
+     Running tests/api_hook_state.rs (target/debug/deps/api_hook_state-495bfb464b16fdcd)
+    Blocking waiting for file lock on package cache
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 20.60s
+     Running unittests src/lib.rs (target/debug/deps/reactive_tui-0fe28f82db83e8df)
