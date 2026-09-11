@@ -1,0 +1,9 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.15s
+     Running tests/registry_cache_isolation.rs (target/debug/deps/registry_cache_isolation-650827b2330ad169)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.10s
+     Running unittests src/lib.rs (target/debug/deps/reactive_tui-0fe28f82db83e8df)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.19s
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.12s
+     Running tests/component_macro_integration.rs (target/debug/deps/component_macro_integration-781eb31e163ddf85)
+     Running tests/component_macro_test.rs (target/debug/deps/component_macro_test-74bd183df2ffc733)
+     Running tests/component_tests.rs (target/debug/deps/component_tests-41482dd572afa8ae)
