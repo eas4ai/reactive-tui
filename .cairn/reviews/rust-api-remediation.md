@@ -3290,3 +3290,25 @@ record and the new failure, and requested one unchanged Windows-job retry.
 No timeout or acceptance assertion was relaxed. The retry is pending; the
 current API-011 native prerequisites are the separately passing ConPTY and
 widget records.
+
+## API-013 keyframe contract boundary (2026-09-11)
+
+Declared the animation/screen acceptance footprint. The first Cairn baseline
+failed because the dedicated test target did not yet exist; that receipt does
+not demonstrate a runtime defect. Added two public API acceptance cases and ran
+`cargo test --test api_animation_screens -- --test-threads=1`: both compiled and
+failed. Sampling typed f32 0 to 10 at 0.5 returned 0 instead of 5. Converting
+untyped x endpoints 4 and 12 returned 0 at the initial endpoint instead of 4.
+No corrected-case pass is claimed. Screen, relative-value, easing and lifecycle
+coverage remains to be built; these two tests are not complete API-013 acceptance.
+
+Examined `src/animation/keyframes.rs` (constructors and sampling),
+`src/hooks/animation.rs` (AnimatableValue and use_keyframes), the API-013
+contract, RAPI-10 and the already approved radians escalation. KeyframeAnimation
+currently accepts every Clone type for typed construction/sampling and only
+adds Default for untyped conversion. Clone supplies no interpolation or
+conversion behavior. The separate AnimatableValue trait exists, but is not a
+bound of the direct keyframe API; its scalar conversion also cannot preserve
+arbitrary colors, transforms or tuples. A proper explicit value trait changes
+the source contract for callers using their own Clone types. Escalate that
+compatibility choice before implementing it, as the commitment requires.
