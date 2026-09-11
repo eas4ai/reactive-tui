@@ -3469,10 +3469,11 @@ production behavior was weakened to reduce these static counts.
 - Complete: repair and verify the default-suite keyframe cleanup assertion.
 - Done: refresh committed evidence after the test correction; the embedded rerun passed, with its unexplained intermittent timeout retained.
 - Done: declare and verify dedicated API-014 image acceptance; current receipt passed.
-- Pending: repair API-015 feature configurations after the formal baseline.
+- Pending: complete corrected API-015 matrix and current evidence.
 - Done: repair the API-011 cancellation marker and refresh native evidence; API-011/20260911T163552235Z passed.
 - Done: refresh dependent evidence; API-012, API-013 and API-014 passed.
-- In progress: record the API-015 feature matrix baseline.
+- Done: record the API-015 baseline; no-default compilation failed E0433.
+- In progress: repair and verify API-015 feature configurations.
 - Complete: refresh native API-008 evidence after the committed screen repair.
 - Complete: refresh API-011 native records and acceptance after the screen repair.
 
@@ -3953,3 +3954,40 @@ captures against current native records. Stopped the identified private GNOME
 helper groups before committing their captured logs. Windows retry attempt 2
 has passed the clipboard step with the unchanged 15-second bound; its remaining
 steps and final artifact upload are still running.
+
+## API-015 implementation and baseline
+
+The formal baseline API-015/20260911T164511636Z passed the default build and
+behavior tests, then failed the no-default build at its unconditional Tokio
+import. Replaced only the async FPS manager's private lock with the existing
+futures-util Mutex. Public methods and optional feature names remain unchanged;
+each method acquires the lock and performs synchronous work without another
+await while holding its guard. Gated Tokio-only error and test imports. The
+existing nightly SIMD feature now activates portable_simd at the crate root.
+The full development matrix and committed acceptance are pending.
+
+Native run 34620004744 attempt 2 completed successfully on Windows; both native
+jobs now pass, including clipboard, ConPTY and widget workflows. The downloaded
+Windows clipboard record names snapshot a1d3d4c2eeafebfbe682a3561f8447ab1798165e,
+and both raw output hashes match. These are results for that earlier immutable
+candidate; the API-015 source edits need new native evidence when required.
+No timeout was widened and ConPTY is retained as the developer confirmed.
+
+All twelve feature configurations passed their all-target builds and behavior
+tests in the development matrix: 26 feature tests plus five real App component
+cases with defaults and the same five without defaults. Nightly was
+1.100.0-nightly (e71c0f1e3 2026-08-18). The Tokio-only test import was gated
+during this development run; the committed matrix must verify the final tree.
+Strict all-target Clippy passed both default and no-default configurations after
+that edit. Formatting and authored-source whitespace checks passed. The feature
+matrix retains existing FFI warnings and the newer nightly compiler's deprecation
+and float-inference warnings; this is not a warning-free all-features claim.
+
+Ripwire edit-check reports the public AsyncAdaptiveFpsManager contract unchanged.
+Quality-delta exits 2 with 1576 major rows in the ignored reference trees and no
+major rows outside them; it is not a passing gate. Test-gate exits 4: generic
+lock-method names produce 265 impacted symbols, including unrelated reference
+terminal implementations, and 212 untested edges. The seven identified test
+paths include the directly executed feature suite and platform workflows; real
+native evidence remains required independently. These static results do not
+substitute for the feature matrix or inherited checks.

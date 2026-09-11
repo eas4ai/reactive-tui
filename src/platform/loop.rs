@@ -3,7 +3,9 @@
 //! High-performance event loop with async support
 
 use super::{parser::EscapeSequenceParser, TerminalEvent};
-use crate::error::{ReactiveError, Result};
+#[cfg(feature = "tokio")]
+use crate::error::ReactiveError;
+use crate::error::Result;
 use std::io::{self, Read};
 #[allow(unused_imports)]
 use std::sync::mpsc::{self, Receiver, Sender};
@@ -598,6 +600,7 @@ unsafe impl<T> Sync for EventQueue<T> where T: Send {}
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[cfg(feature = "tokio")]
     use std::time::Duration;
 
     #[test]

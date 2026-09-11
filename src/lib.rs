@@ -38,6 +38,7 @@
 //! ```
 
 #![warn(missing_docs)]
+#![cfg_attr(feature = "simd", feature(portable_simd))]
 
 /// Accessible node semantics and the owned Linux screen-reader connection.
 pub mod accessibility;
