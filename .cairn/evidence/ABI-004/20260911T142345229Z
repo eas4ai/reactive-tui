@@ -1,0 +1,21 @@
+requirement: ABI-004
+requirement_digest: sha256:a604be64607680a9b9afe52fdb787ba1845344bb5a7ce0300d81e375c21213d6
+sequence: 18
+history_digest: sha256:9f1e94918aac11f50fb9958986ba2d4fefafaad961c1ab49c4297384034bc80b
+mechanism: binding-inherited.md
+commit: a2e70e8
+inputs_digest: sha256:07986920b0cfb84679fd0383a923567a1e79eb5a8734c6fbfac5265f507a045a
+mechanism_digest: sha256:9d212432bca08497d2a04ef01406105638991da898610dc898c1557f939f9ff2
+inputs_detail: .cairn/evidence/ABI-004/20260911T142039271Z-4011983.inputs.json
+command: python3 -B scripts/check-inherited-abi.py
+cwd: .
+exit: 0
+output_digest: sha256:f4559a707d3a399f51c08dcb5c31652f729f9b9dd7d47c2589f8367305e7b03c
+output: .cairn/evidence/ABI-004/20260911T142039271Z-4011983.out
+stderr_output: .cairn/evidence/ABI-004/20260911T142039271Z-4011983.err
+stderr_digest: sha256:9aa84b930ece8ad72149a76cbd3b4d688fb6a23aa0b3e9a8d58d93a60013740d
+signal: none
+execution_error: null
+result: pass
+source: exit
+recorded: 2026-09-11T14:23:45.229Z
