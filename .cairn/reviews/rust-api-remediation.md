@@ -3775,3 +3775,16 @@ mechanisms also produced MNT-004 and DFT-002 through DFT-004 receipts; those wer
 subsequently committed intact. Future runs stage all emitted evidence after each
 completed check. The failed default-suite receipt and successful aggregate receipt
 both remain in history.
+
+## Native refresh after the keyframe cleanup test correction
+
+API-001 through API-007 passed after 9f57a34. API-008 behavior and process tests
+passed; its verifier rejected stale platform records. Native run 34610611752
+checks snapshot f7da3e24ea58fb4418d37bfa3a81c032dc65bd7f, whose declared input
+union exactly matches candidate 679747d. Wayland, xsel and xclip each passed five
+native round trips and two process checks. macOS and Windows are still running.
+
+Native run 34610611752 passed on macOS and Windows. Both clipboard records were
+imported after snapshot, platform, current input digest, behavior markers and
+output hashes were validated. All five clipboard backends now verify against the
+committed candidate. ConPTY/widget artifacts are downloaded for their next action.

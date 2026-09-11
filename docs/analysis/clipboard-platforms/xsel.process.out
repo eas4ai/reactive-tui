@@ -1,4 +1,4 @@
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.15s
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.10s
      Running unittests src/lib.rs (target/debug/deps/reactive_tui-0fe28f82db83e8df)
 
 running 3 tests
