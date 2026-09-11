@@ -3794,3 +3794,15 @@ widget and accessibility behavior and stopped at stale ConPTY evidence. Imported
 six ConPTY, 15 Windows widget and 72 macOS widget outputs from run 34610611752
 after checking snapshot, current input digests, platform/pass results and every
 output hash. Both native verifiers now pass. Historical failures remain intact.
+
+## Embedded terminal evidence refresh: intermittent resize probe failure
+
+The first refreshed EMB check passed both worker/keyboard tests and all nine
+integration cases. Its interactive example probe then timed out waiting for
+SIZE_12_52 after the first resize; the captured screen stopped at the preceding
+shell prompt. The failure receipt and captured output remain committed.
+The unchanged standalone probe passed once and then in 30 consecutive executions,
+including input, both resizes, interrupts, normal cleanup and worker-error cleanup.
+No cause has been established and no code or acceptance criterion was changed.
+Rerunning the full mechanism distinguishes a repeatable failure from this single
+observed intermittent failure; a later pass does not explain the original timeout.
