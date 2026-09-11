@@ -1,0 +1,320 @@
+﻿2026-09-10T23:56:52.7157690Z Current runner version: '2.337.0'
+2026-09-10T23:56:52.7174600Z ##[group]Runner Image Provisioner
+2026-09-10T23:56:52.7175200Z Hosted Compute Agent
+2026-09-10T23:56:52.7175580Z Version: 20260828.587
+2026-09-10T23:56:52.7176000Z Commit: abac92662cab4cc7352de4f9f9d2e2419aad9c29
+2026-09-10T23:56:52.7176500Z Build Date: 2026-08-28T16:44:25Z
+2026-09-10T23:56:52.7176950Z Worker ID: {dda01206-0a20-407c-a2fb-5a30ecded45d}
+2026-09-10T23:56:52.7177410Z Azure Region: westus
+2026-09-10T23:56:52.7177790Z ##[endgroup]
+2026-09-10T23:56:52.7178680Z ##[group]Operating System
+2026-09-10T23:56:52.7179080Z macOS
+2026-09-10T23:56:52.7179410Z 14.8.9
+2026-09-10T23:56:52.7179740Z 23J631
+2026-09-10T23:56:52.7180080Z ##[endgroup]
+2026-09-10T23:56:52.7180430Z ##[group]Runner Image
+2026-09-10T23:56:52.7180810Z Image: macos-14-arm64
+2026-09-10T23:56:52.7181180Z Version: 20260831.0302.1
+2026-09-10T23:56:52.7182130Z Included Software: https://github.com/actions/runner-images/blob/macos-14-arm64/20260831.0302/images/macos/macos-14-arm64-Readme.md
+2026-09-10T23:56:52.7183180Z Image Release: https://github.com/actions/runner-images/releases/tag/macos-14-arm64%2F20260831.0302
+2026-09-10T23:56:52.7183850Z ##[endgroup]
+2026-09-10T23:56:52.7184590Z ##[group]GITHUB_TOKEN Permissions
+2026-09-10T23:56:52.7185910Z Contents: read
+2026-09-10T23:56:52.7186280Z Metadata: read
+2026-09-10T23:56:52.7186640Z ##[endgroup]
+2026-09-10T23:56:52.7188040Z Secret source: Actions
+2026-09-10T23:56:52.7188620Z Cache mode: write
+2026-09-10T23:56:52.7189070Z Prepare workflow directory
+2026-09-10T23:56:52.7462540Z Prepare all required actions
+2026-09-10T23:56:52.7517700Z Getting action download info
+2026-09-10T23:56:53.1436390Z Download action repository 'actions/checkout@11d5960a326750d5838078e36cf38b85af677262' (SHA:11d5960a326750d5838078e36cf38b85af677262)
+2026-09-10T23:56:53.3906900Z Download action repository 'actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02' (SHA:ea165f8d65b6e75b540449e92b4886f43607fa02)
+2026-09-10T23:56:53.5866810Z Complete job name: clipboard (macos-14, macos)
+2026-09-10T23:56:53.6508850Z Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+2026-09-10T23:56:53.6519790Z ##[group]Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+2026-09-10T23:56:53.6520620Z with:
+2026-09-10T23:56:53.6520960Z   persist-credentials: false
+2026-09-10T23:56:53.6521350Z   repository: eas4ai/reactive-tui
+2026-09-10T23:56:53.6524180Z   token: ***
+2026-09-10T23:56:53.6524680Z   ssh-strict: true
+2026-09-10T23:56:53.6525130Z   ssh-user: git
+2026-09-10T23:56:53.6525520Z   clean: true
+2026-09-10T23:56:53.6525910Z   sparse-checkout-cone-mode: true
+2026-09-10T23:56:53.6526350Z   fetch-depth: 1
+2026-09-10T23:56:53.6526740Z   fetch-tags: false
+2026-09-10T23:56:53.6527440Z   show-progress: true
+2026-09-10T23:56:53.6527980Z   lfs: false
+2026-09-10T23:56:53.6528460Z   submodules: false
+2026-09-10T23:56:53.6528900Z   set-safe-directory: true
+2026-09-10T23:56:53.6529310Z   allow-unsafe-pr-checkout: false
+2026-09-10T23:56:53.6530320Z ##[endgroup]
+2026-09-10T23:56:54.0861340Z Syncing repository: eas4ai/reactive-tui
+2026-09-10T23:56:54.0862670Z ##[group]Getting Git version info
+2026-09-10T23:56:54.0863350Z Working directory is '/Users/runner/work/reactive-tui/reactive-tui'
+2026-09-10T23:56:54.0864250Z [command]/opt/homebrew/bin/git version
+2026-09-10T23:56:54.1111330Z git version 2.55.0
+2026-09-10T23:56:54.1125010Z ##[endgroup]
+2026-09-10T23:56:54.1136470Z Copying '/Users/runner/.gitconfig' to '/Users/runner/work/_temp/d495725b-164e-42cf-a69a-2e524a3c36f3/.gitconfig'
+2026-09-10T23:56:54.1147960Z Temporarily overriding HOME='/Users/runner/work/_temp/d495725b-164e-42cf-a69a-2e524a3c36f3' before making global git config changes
+2026-09-10T23:56:54.1149040Z Adding repository directory to the temporary git global config as a safe directory
+2026-09-10T23:56:54.1152360Z [command]/opt/homebrew/bin/git config --global --add safe.directory /Users/runner/work/reactive-tui/reactive-tui
+2026-09-10T23:56:54.1268650Z Deleting the contents of '/Users/runner/work/reactive-tui/reactive-tui'
+2026-09-10T23:56:54.1271220Z ##[group]Initializing the repository
+2026-09-10T23:56:54.1275060Z [command]/opt/homebrew/bin/git init /Users/runner/work/reactive-tui/reactive-tui
+2026-09-10T23:56:54.1477160Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-09-10T23:56:54.1481360Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+2026-09-10T23:56:54.1483140Z hint: to use in all of your new repositories, which will suppress this warning,
+2026-09-10T23:56:54.1484200Z hint: call:
+2026-09-10T23:56:54.1484960Z hint:
+2026-09-10T23:56:54.1485670Z hint: 	git config --global init.defaultBranch <name>
+2026-09-10T23:56:54.1486370Z hint:
+2026-09-10T23:56:54.1488470Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-09-10T23:56:54.1489760Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-09-10T23:56:54.1490640Z hint:
+2026-09-10T23:56:54.1491120Z hint: 	git branch -m <name>
+2026-09-10T23:56:54.1492300Z hint:
+2026-09-10T23:56:54.1493700Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2026-09-10T23:56:54.1494920Z Initialized empty Git repository in /Users/runner/work/reactive-tui/reactive-tui/.git/
+2026-09-10T23:56:54.1501210Z [command]/opt/homebrew/bin/git remote add origin https://github.com/eas4ai/reactive-tui
+2026-09-10T23:56:54.1830700Z ##[endgroup]
+2026-09-10T23:56:54.1831660Z ##[group]Disabling automatic garbage collection
+2026-09-10T23:56:54.1834410Z [command]/opt/homebrew/bin/git config --local gc.auto 0
+2026-09-10T23:56:54.1908520Z ##[endgroup]
+2026-09-10T23:56:54.1909270Z ##[group]Setting up auth
+2026-09-10T23:56:54.1910220Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-09-10T23:56:54.1955190Z [command]/opt/homebrew/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-09-10T23:56:54.2700130Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-09-10T23:56:54.2751250Z [command]/opt/homebrew/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-09-10T23:56:54.3377470Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-09-10T23:56:54.3423720Z [command]/opt/homebrew/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-09-10T23:56:54.4529580Z [command]/opt/homebrew/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-09-10T23:56:54.4548570Z ##[endgroup]
+2026-09-10T23:56:54.4549370Z ##[group]Fetching the repository
+2026-09-10T23:56:54.4550950Z [command]/opt/homebrew/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +3d8242fae8c3824f70f13139015a38fc3a46d5d1:refs/remotes/origin/codex/clipboard-platform-verification
+2026-09-10T23:56:55.6779050Z From https://github.com/eas4ai/reactive-tui
+2026-09-10T23:56:55.6981720Z  * [new ref]         3d8242fae8c3824f70f13139015a38fc3a46d5d1 -> origin/codex/clipboard-platform-verification
+2026-09-10T23:56:55.7021690Z ##[endgroup]
+2026-09-10T23:56:55.7022540Z ##[group]Determining the checkout info
+2026-09-10T23:56:55.7023450Z ##[endgroup]
+2026-09-10T23:56:55.7024050Z [command]/opt/homebrew/bin/git sparse-checkout disable
+2026-09-10T23:56:55.7025740Z [command]/opt/homebrew/bin/git config --local --unset-all extensions.worktreeConfig
+2026-09-10T23:56:55.7027610Z ##[group]Checking out the ref
+2026-09-10T23:56:55.7029280Z [command]/opt/homebrew/bin/git checkout --progress --force -B codex/clipboard-platform-verification refs/remotes/origin/codex/clipboard-platform-verification
+2026-09-10T23:56:56.1614350Z Switched to a new branch 'codex/clipboard-platform-verification'
+2026-09-10T23:56:56.1623360Z branch 'codex/clipboard-platform-verification' set up to track 'origin/codex/clipboard-platform-verification'.
+2026-09-10T23:56:56.1629630Z ##[endgroup]
+2026-09-10T23:56:56.1726640Z [command]/opt/homebrew/bin/git log -1 --format=%H
+2026-09-10T23:56:56.1799290Z 3d8242fae8c3824f70f13139015a38fc3a46d5d1
+2026-09-10T23:56:56.1823040Z ##[group]Removing auth
+2026-09-10T23:56:56.1825860Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-09-10T23:56:56.1886850Z [command]/opt/homebrew/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-09-10T23:56:56.2634570Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-09-10T23:56:56.2688110Z http.https://github.com/.extraheader
+2026-09-10T23:56:56.2702000Z [command]/opt/homebrew/bin/git config --local --unset-all http.https://github.com/.extraheader
+2026-09-10T23:56:56.2770070Z [command]/opt/homebrew/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-09-10T23:56:56.3424190Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-09-10T23:56:56.3467220Z [command]/opt/homebrew/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-09-10T23:56:56.4174960Z ##[endgroup]
+2026-09-10T23:56:56.4293810Z ##[group]Run brew install autoconf automake libtool pkg-config
+2026-09-10T23:56:56.4294280Z [36;1mbrew install autoconf automake libtool pkg-config[0m
+2026-09-10T23:56:56.4294640Z [36;1mrustup toolchain install 1.95.0 --profile minimal[0m
+2026-09-10T23:56:56.4294920Z [36;1mrustup default 1.95.0[0m
+2026-09-10T23:56:56.4295190Z [36;1mpython -m venv "$RUNNER_TEMP/rtui-image-python"[0m
+2026-09-10T23:56:56.4295690Z [36;1m"$RUNNER_TEMP/rtui-image-python/bin/python" -m pip install 'Pillow==11.3.0'[0m
+2026-09-10T23:56:56.4363660Z shell: /bin/bash -e {0}
+2026-09-10T23:56:56.4364030Z ##[endgroup]
+2026-09-10T23:56:58.5463830Z [33mWarning:[0m pkgconf 3.0.6 is already installed and up-to-date.
+2026-09-10T23:56:58.5464480Z To reinstall 3.0.6, run:
+2026-09-10T23:56:58.5464690Z   brew reinstall pkgconf
+2026-09-10T23:56:59.3687410Z [32m==>[0m [1mDownloading bottle manifests[0m
+2026-09-10T23:56:59.3988060Z ✔︎ Bottle Manifest autoconf (2.73)
+2026-09-10T23:56:59.3988720Z [34m==>[0m [1mWould install 3 formulae:[0m
+2026-09-10T23:56:59.4078790Z ✔︎ Bottle Manifest automake (1.18.1_1)
+2026-09-10T23:56:59.4079360Z autoconf automake libtool
+2026-09-10T23:56:59.4141390Z ✔︎ Bottle Manifest libtool (2.6.2)
+2026-09-10T23:56:59.4600980Z [34m==>[0m [1mWould install 1 dependency for autoconf:[0m
+2026-09-10T23:56:59.4601710Z m4
+2026-09-10T23:56:59.4612070Z [34m==>[0m [1mWould install 2 dependencies for automake:[0m
+2026-09-10T23:56:59.4612660Z m4
+2026-09-10T23:56:59.4613070Z autoconf
+2026-09-10T23:56:59.4625390Z [34m==>[0m [1mWould install 1 dependency for libtool:[0m
+2026-09-10T23:56:59.4625940Z m4
+2026-09-10T23:56:59.4849290Z [32m==>[0m [1mFetching downloads for: [32mautoconf[39m, [32mautomake[39m and [32mlibtool[39m[0m
+2026-09-10T23:56:59.6906460Z ✔︎ Bottle Manifest m4 (1.4.21)
+2026-09-10T23:56:59.7252840Z ✔︎ Bottle autoconf (2.73)
+2026-09-10T23:56:59.7399660Z ✔︎ Bottle automake (1.18.1_1)
+2026-09-10T23:56:59.7811950Z ✔︎ Bottle m4 (1.4.21)
+2026-09-10T23:56:59.9816050Z ✔︎ Bottle libtool (2.6.2)
+2026-09-10T23:56:59.9845110Z [32m==>[0m [1mInstalling autoconf dependency: [32mm4[39m[0m
+2026-09-10T23:56:59.9863220Z [34m==>[0m [1mPouring m4--1.4.21.arm64_sonoma.bottle.tar.gz[0m
+2026-09-10T23:57:00.1241450Z 🍺  /opt/homebrew/Cellar/m4/1.4.21: 14 files, 814.5KB
+2026-09-10T23:57:00.1243790Z [32m==>[0m [1mInstalling [32mautoconf[39m[0m
+2026-09-10T23:57:00.1245570Z [34m==>[0m [1mPouring autoconf--2.73.arm64_sonoma.bottle.tar.gz[0m
+2026-09-10T23:57:00.1692610Z 🍺  /opt/homebrew/Cellar/autoconf/2.73: 73 files, 3.8MB
+2026-09-10T23:57:00.1736570Z [34m==>[0m [1mPouring automake--1.18.1_1.arm64_sonoma.bottle.tar.gz[0m
+2026-09-10T23:57:00.2152920Z 🍺  /opt/homebrew/Cellar/automake/1.18.1_1: 134 files, 3.6MB
+2026-09-10T23:57:00.2178260Z [34m==>[0m [1mPouring libtool--2.6.2.arm64_sonoma.bottle.tar.gz[0m
+2026-09-10T23:57:00.2596770Z 🍺  /opt/homebrew/Cellar/libtool/2.6.2: 78 files, 4.2MB
+2026-09-10T23:57:00.2600140Z [32m==>[0m [1mCaveats[0m
+2026-09-10T23:57:00.2601640Z [34m==>[0m [1mlibtool[0m
+2026-09-10T23:57:00.2602630Z All commands have been installed with the prefix "g".
+2026-09-10T23:57:00.2603990Z If you need to use these commands with their normal names, you
+2026-09-10T23:57:00.2605070Z can add a "gnubin" directory to your PATH from your bashrc like:
+2026-09-10T23:57:00.2606150Z   PATH="/opt/homebrew/opt/libtool/libexec/gnubin:$PATH"
+2026-09-10T23:57:00.3546820Z info: syncing channel updates for 1.95.0-aarch64-apple-darwin
+2026-09-10T23:57:00.4709570Z info: latest update on 2026-04-16 for version 1.95.0 (59807616e 2026-04-14)
+2026-09-10T23:57:00.4714230Z info: downloading 3 components
+2026-09-10T23:57:08.6303980Z 
+2026-09-10T23:57:08.8077230Z   1.95.0-aarch64-apple-darwin installed - rustc 1.95.0 (59807616e 2026-04-14)
+2026-09-10T23:57:08.8078540Z info: self-update is disabled for this build of rustup
+2026-09-10T23:57:08.8079040Z info: any updates to rustup will need to be fetched with your system package manager
+2026-09-10T23:57:08.8079310Z 
+2026-09-10T23:57:08.8281080Z info: using existing install for 1.95.0-aarch64-apple-darwin
+2026-09-10T23:57:08.8301300Z info: default toolchain set to 1.95.0-aarch64-apple-darwin
+2026-09-10T23:57:08.8301720Z 
+2026-09-10T23:57:08.8407750Z   1.95.0-aarch64-apple-darwin unchanged - rustc 1.95.0 (59807616e 2026-04-14)
+2026-09-10T23:57:08.8408180Z 
+2026-09-10T23:57:11.6598360Z Collecting Pillow==11.3.0
+2026-09-10T23:57:11.6943740Z   Downloading pillow-11.3.0-cp314-cp314-macosx_11_0_arm64.whl.metadata (9.0 kB)
+2026-09-10T23:57:11.7079800Z Downloading pillow-11.3.0-cp314-cp314-macosx_11_0_arm64.whl (4.7 MB)
+2026-09-10T23:57:11.7757300Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 4.7/4.7 MB 72.7 MB/s  0:00:00
+2026-09-10T23:57:11.7973780Z Installing collected packages: Pillow
+2026-09-10T23:57:12.0119390Z Successfully installed Pillow-11.3.0
+2026-09-10T23:57:12.0925320Z ##[group]Run python -B scripts/check-clipboard-platforms.py --backend macos --dedicated-desktop
+2026-09-10T23:57:12.0926020Z [36;1mpython -B scripts/check-clipboard-platforms.py --backend macos --dedicated-desktop[0m
+2026-09-10T23:57:12.1054630Z shell: /bin/bash --noprofile --norc -e -o pipefail {0}
+2026-09-10T23:57:12.1055730Z ##[endgroup]
+2026-09-10T23:58:22.2790930Z Traceback (most recent call last):
+2026-09-10T23:58:22.2809940Z   File "/Users/runner/work/reactive-tui/reactive-tui/scripts/check-clipboard-platforms.py", line 260, in <module>
+2026-09-10T23:58:22.2837300Z     run_backend(arguments)
+2026-09-10T23:58:22.2839310Z     ~~~~~~~~~~~^^^^^^^^^^^
+2026-09-10T23:58:22.2841460Z   File "/Users/runner/work/reactive-tui/reactive-tui/scripts/check-clipboard-platforms.py", line 166, in run_backend
+2026-09-10T23:58:22.2944000Z     executable = build_probe(env)
+2026-09-10T23:58:22.2979880Z   File "/Users/runner/work/reactive-tui/reactive-tui/scripts/check-clipboard-platforms.py", line 69, in build_probe
+2026-09-10T23:58:22.2986700Z     text = captured(["cargo", "test", "--locked", "--test", "clipboard_platform", "--no-run", "--message-format=json"], env, timeout=900)
+2026-09-10T23:58:22.3001990Z   File "/Users/runner/work/reactive-tui/reactive-tui/scripts/check-clipboard-platforms.py", line 64, in captured
+2026-09-10T23:58:22.3016870Z     raise RuntimeError(f"command exited {status}: {command}\n{text[-12000:]}")
+2026-09-10T23:58:22.3022900Z RuntimeError: command exited 101: ['cargo', 'test', '--locked', '--test', 'clipboard_platform', '--no-run', '--message-format=json']
+2026-09-10T23:58:22.3025780Z rates.io-1949cf8c6b5b557f/serial_test-3.2.0/Cargo.toml","target":{"kind":["lib"],"crate_types":["lib"],"name":"serial_test","src_path":"/Users/runner/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serial_test-3.2.0/src/lib.rs","edition":"2018","doc":true,"doctest":true,"test":true},"profile":{"opt_level":"0","debuginfo":2,"debug_assertions":true,"overflow_checks":true,"test":false},"features":["async","default","logging"],"filenames":["/Users/runner/work/reactive-tui/reactive-tui/target/debug/deps/libserial_test-44f83633ff060f06.rlib","/Users/runner/work/reactive-tui/reactive-tui/target/debug/deps/libserial_test-44f83633ff060f06.rmeta"],"executable":null,"fresh":false}
+2026-09-10T23:58:22.3035500Z {"reason":"compiler-artifact","package_id":"registry+https://github.com/rust-lang/crates.io-index#criterion@0.5.1","manifest_path":"/Users/runner/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/criterion-0.5.1/Cargo.toml","target":{"kind":["lib"],"crate_types":["lib"],"name":"criterion","src_path":"/Users/runner/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/criterion-0.5.1/src/lib.rs","edition":"2018","doc":true,"doctest":true,"test":true},"profile":{"opt_level":"0","debuginfo":2,"debug_assertions":true,"overflow_checks":true,"test":false},"features":["cargo_bench_support","default","plotters","rayon"],"filenames":["/Users/runner/work/reactive-tui/reactive-tui/target/debug/deps/libcriterion-2e60c1d2eec1ff84.rlib","/Users/runner/work/reactive-tui/reactive-tui/target/debug/deps/libcriterion-2e60c1d2eec1ff84.rmeta"],"executable":null,"fresh":false}
+2026-09-10T23:58:22.3053380Z {"reason":"compiler-message","package_id":"path+file:///Users/runner/work/reactive-tui/reactive-tui#0.0.7","manifest_path":"/Users/runner/work/reactive-tui/reactive-tui/Cargo.toml","target":{"kind":["rlib","cdylib"],"crate_types":["rlib","cdylib"],"name":"reactive_tui","src_path":"/Users/runner/work/reactive-tui/reactive-tui/src/lib.rs","edition":"2021","doc":true,"doctest":true,"test":true},"message":{"rendered":"error[E0433]: cannot find module or crate `async_channel` in this scope\n   --> src/widgets/dialog/engine.rs:512:42\n    |\n512 |             let (completion, receiver) = async_channel::bounded(1);\n    |                                          ^^^^^^^^^^^^^ use of unresolved module or unlinked crate `async_channel`\n    |\n    = help: if you wanted to use a crate named `async_channel`, use `cargo add async_channel` to add it to your `Cargo.toml`\n\n","$message_type":"diagnostic","children":[{"children":[],"code":null,"level":"help","message":"if you wanted to use a crate named `async_channel`, use `cargo add async_channel` to add it to your `Cargo.toml`","rendered":null,"spans":[]}],"level":"error","message":"cannot find module or crate `async_channel` in this scope","spans":[{"byte_end":19075,"byte_start":19062,"column_end":55,"column_start":42,"expansion":null,"file_name":"src/widgets/dialog/engine.rs","is_primary":true,"label":"use of unresolved module or unlinked crate `async_channel`","line_end":512,"line_start":512,"suggested_replacement":null,"suggestion_applicability":null,"text":[{"highlight_end":55,"highlight_start":42,"text":"            let (completion, receiver) = async_channel::bounded(1);"}]}],"code":{"code":"E0433","explanation":"An undeclared crate, module, or type was used.\n\nErroneous code example:\n\n```compile_fail,E0433\nlet map = HashMap::new();\n// error: failed to resolve: use of undeclared type `HashMap`\n```\n\nPlease verify you didn't misspell the type/module's name or that you didn't\nforget to import it:\n\n```\nuse std::collections::HashMap; // HashMap has been imported.\nlet map: HashMap<u32, u32> = HashMap::new(); // So it can be used!\n```\n\nIf you've expected to use a crate name:\n\n```compile_fail\nuse ferris_wheel::BigO;\n// error: failed to resolve: use of undeclared module or unlinked crate\n```\n\nMake sure the crate has been added as a dependency in `Cargo.toml`.\n\nTo use a module from your current crate, add the `crate::` prefix to the path.\n"}}}
+2026-09-10T23:58:22.3082360Z {"reason":"compiler-message","package_id":"path+file:///Users/runner/work/reactive-tui/reactive-tui#0.0.7","manifest_path":"/Users/runner/work/reactive-tui/reactive-tui/Cargo.toml","target":{"kind":["rlib","cdylib"],"crate_types":["rlib","cdylib"],"name":"reactive_tui","src_path":"/Users/runner/work/reactive-tui/reactive-tui/src/lib.rs","edition":"2021","doc":true,"doctest":true,"test":true},"message":{"rendered":"error[E0433]: cannot find module or crate `async_channel` in this scope\n  --> src/widgets/dialog/engine.rs:85:29\n   |\n85 | pub struct DialogCompletion(async_channel::Receiver<DialogResult>);\n   |                             ^^^^^^^^^^^^^ use of unresolved module or unlinked crate `async_channel`\n   |\n   = help: if you wanted to use a crate named `async_channel`, use `cargo add async_channel` to add it to your `Cargo.toml`\n\n","$message_type":"diagnostic","children":[{"children":[],"code":null,"level":"help","message":"if you wanted to use a crate named `async_channel`, use `cargo add async_channel` to add it to your `Cargo.toml`","rendered":null,"spans":[]}],"level":"error","message":"cannot find module or crate `async_channel` in this scope","spans":[{"byte_end":3383,"byte_start":3370,"column_end":42,"column_start":29,"expansion":null,"file_name":"src/widgets/dialog/engine.rs","is_primary":true,"label":"use of unresolved module or unlinked crate `async_channel`","line_end":85,"line_start":85,"suggested_replacement":null,"suggestion_applicability":null,"text":[{"highlight_end":42,"highlight_start":29,"text":"pub struct DialogCompletion(async_channel::Receiver<DialogResult>);"}]}],"code":{"code":"E0433","explanation":"An undeclared crate, module, or type was used.\n\nErroneous code example:\n\n```compile_fail,E0433\nlet map = HashMap::new();\n// error: failed to resolve: use of undeclared type `HashMap`\n```\n\nPlease verify you didn't misspell the type/module's name or that you didn't\nforget to import it:\n\n```\nuse std::collections::HashMap; // HashMap has been imported.\nlet map: HashMap<u32, u32> = HashMap::new(); // So it can be used!\n```\n\nIf you've expected to use a crate name:\n\n```compile_fail\nuse ferris_wheel::BigO;\n// error: failed to resolve: use of undeclared module or unlinked crate\n```\n\nMake sure the crate has been added as a dependency in `Cargo.toml`.\n\nTo use a module from your current crate, add the `crate::` prefix to the path.\n"}}}
+2026-09-10T23:58:22.3142580Z {"reason":"compiler-message","package_id":"path+file:///Users/runner/work/reactive-tui/reactive-tui#0.0.7","manifest_path":"/Users/runner/work/reactive-tui/reactive-tui/Cargo.toml","target":{"kind":["rlib","cdylib"],"crate_types":["rlib","cdylib"],"name":"reactive_tui","src_path":"/Users/runner/work/reactive-tui/reactive-tui/src/lib.rs","edition":"2021","doc":true,"doctest":true,"test":true},"message":{"rendered":"error[E0433]: cannot find module or crate `async_channel` in this scope\n   --> src/widgets/dialog/engine.rs:116:17\n    |\n116 |     completion: async_channel::Sender<DialogResult>,\n    |                 ^^^^^^^^^^^^^ use of unresolved module or unlinked crate `async_channel`\n    |\n    = help: if you wanted to use a crate named `async_channel`, use `cargo add async_channel` to add it to your `Cargo.toml`\n\n","$message_type":"diagnostic","children":[{"children":[],"code":null,"level":"help","message":"if you wanted to use a crate named `async_channel`, use `cargo add async_channel` to add it to your `Cargo.toml`","rendered":null,"spans":[]}],"level":"error","message":"cannot find module or crate `async_channel` in this scope","spans":[{"byte_end":4476,"byte_start":4463,"column_end":30,"column_start":17,"expansion":null,"file_name":"src/widgets/dialog/engine.rs","is_primary":true,"label":"use of unresolved module or unlinked crate `async_channel`","line_end":116,"line_start":116,"suggested_replacement":null,"suggestion_applicability":null,"text":[{"highlight_end":30,"highlight_start":17,"text":"    completion: async_channel::Sender<DialogResult>,"}]}],"code":{"code":"E0433","explanation":"An undeclared crate, module, or type was used.\n\nErroneous code example:\n\n```compile_fail,E0433\nlet map = HashMap::new();\n// error: failed to resolve: use of undeclared type `HashMap`\n```\n\nPlease verify you didn't misspell the type/module's name or that you didn't\nforget to import it:\n\n```\nuse std::collections::HashMap; // HashMap has been imported.\nlet map: HashMap<u32, u32> = HashMap::new(); // So it can be used!\n```\n\nIf you've expected to use a crate name:\n\n```compile_fail\nuse ferris_wheel::BigO;\n// error: failed to resolve: use of undeclared module or unlinked crate\n```\n\nMake sure the crate has been added as a dependency in `Cargo.toml`.\n\nTo use a module from your current crate, add the `crate::` prefix to the path.\n"}}}
+2026-09-10T23:58:22.3170330Z {"reason":"compiler-message","package_id":"path+file:///Users/runner/work/reactive-tui/reactive-tui#0.0.7","manifest_path":"/Users/runner/work/reactive-tui/reactive-tui/Cargo.toml","target":{"kind":["rlib","cdylib"],"crate_types":["rlib","cdylib"],"name":"reactive_tui","src_path":"/Users/runner/work/reactive-tui/reactive-tui/src/lib.rs","edition":"2021","doc":true,"doctest":true,"test":true},"message":{"rendered":"error[E0433]: cannot find module or crate `async_channel` in this scope\n   --> src/widgets/dialog/engine.rs:117:22\n    |\n117 |     receiver: Option<async_channel::Receiver<DialogResult>>,\n    |                      ^^^^^^^^^^^^^ use of unresolved module or unlinked crate `async_channel`\n    |\n    = help: if you wanted to use a crate named `async_channel`, use `cargo add async_channel` to add it to your `Cargo.toml`\n\n","$message_type":"diagnostic","children":[{"children":[],"code":null,"level":"help","message":"if you wanted to use a crate named `async_channel`, use `cargo add async_channel` to add it to your `Cargo.toml`","rendered":null,"spans":[]}],"level":"error","message":"cannot find module or crate `async_channel` in this scope","spans":[{"byte_end":4534,"byte_start":4521,"column_end":35,"column_start":22,"expansion":null,"file_name":"src/widgets/dialog/engine.rs","is_primary":true,"label":"use of unresolved module or unlinked crate `async_channel`","line_end":117,"line_start":117,"suggested_replacement":null,"suggestion_applicability":null,"text":[{"highlight_end":35,"highlight_start":22,"text":"    receiver: Option<async_channel::Receiver<DialogResult>>,"}]}],"code":{"code":"E0433","explanation":"An undeclared crate, module, or type was used.\n\nErroneous code example:\n\n```compile_fail,E0433\nlet map = HashMap::new();\n// error: failed to resolve: use of undeclared type `HashMap`\n```\n\nPlease verify you didn't misspell the type/module's name or that you didn't\nforget to import it:\n\n```\nuse std::collections::HashMap; // HashMap has been imported.\nlet map: HashMap<u32, u32> = HashMap::new(); // So it can be used!\n```\n\nIf you've expected to use a crate name:\n\n```compile_fail\nuse ferris_wheel::BigO;\n// error: failed to resolve: use of undeclared module or unlinked crate\n```\n\nMake sure the crate has been added as a dependency in `Cargo.toml`.\n\nTo use a module from your current crate, add the `crate::` prefix to the path.\n"}}}
+2026-09-10T23:58:22.3179740Z {"reason":"compiler-message","package_id":"path+file:///Users/runner/work/reactive-tui/reactive-tui#0.0.7","manifest_path":"/Users/runner/work/reactive-tui/reactive-tui/Cargo.toml","target":{"kind":["rlib","cdylib"],"crate_types":["rlib","cdylib"],"name":"reactive_tui","src_path":"/Users/runner/work/reactive-tui/reactive-tui/src/lib.rs","edition":"2021","doc":true,"doctest":true,"test":true},"message":{"rendered":"For more information about this error, try `rustc --explain E0433`.\n","$message_type":"diagnostic","children":[],"level":"failure-note","message":"For more information about this error, try `rustc --explain E0433`.","spans":[],"code":null}}
+2026-09-10T23:58:22.3182080Z error: could not compile `reactive-tui` (lib) due to 5 previous errors
+2026-09-10T23:58:22.3183280Z {"reason":"build-finished","success":false}
+2026-09-10T23:58:22.3183440Z 
+2026-09-10T23:58:22.3226140Z ##[error]Process completed with exit code 1.
+2026-09-10T23:58:22.3362210Z ##[group]Run if [ "$RUNNER_OS" = macOS ]; then
+2026-09-10T23:58:22.3363590Z [36;1mif [ "$RUNNER_OS" = macOS ]; then[0m
+2026-09-10T23:58:22.3364990Z [36;1m  "$RUNNER_TEMP/rtui-image-python/bin/python" -B scripts/check-widget-platforms.py --dedicated-desktop[0m
+2026-09-10T23:58:22.3366190Z [36;1melse[0m
+2026-09-10T23:58:22.3367090Z [36;1m  python -B scripts/check-widget-platforms.py --dedicated-desktop[0m
+2026-09-10T23:58:22.3367980Z [36;1mfi[0m
+2026-09-10T23:58:22.3942350Z shell: /bin/bash --noprofile --norc -e -o pipefail {0}
+2026-09-10T23:58:22.3943000Z ##[endgroup]
+2026-09-10T23:58:45.3116520Z Traceback (most recent call last):
+2026-09-10T23:58:45.3127180Z   File "/Users/runner/work/reactive-tui/reactive-tui/scripts/check-widget-platforms.py", line 169, in <module>
+2026-09-10T23:58:45.3128090Z     verify() if arguments.verify else run(arguments.dedicated_desktop)
+2026-09-10T23:58:45.3128920Z                                       ~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-09-10T23:58:45.3130630Z   File "/Users/runner/work/reactive-tui/reactive-tui/scripts/check-widget-platforms.py", line 86, in run
+2026-09-10T23:58:45.3132910Z     execute(["cargo", "test", "--locked", "--lib", "--test", "api_widget_behavior", "--no-run"],
+2026-09-10T23:58:45.3135940Z     ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-09-10T23:58:45.3137560Z             directory / "build.out", 900)
+2026-09-10T23:58:45.3139100Z             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-09-10T23:58:45.3147330Z   File "/Users/runner/work/reactive-tui/reactive-tui/scripts/check-widget-platforms.py", line 70, in execute
+2026-09-10T23:58:45.3179080Z     raise RuntimeError(f"Native widget command failed ({status}): {output}")
+2026-09-10T23:58:45.3180030Z RuntimeError: Native widget command failed (101): /Users/runner/work/reactive-tui/reactive-tui/docs/analysis/widget-platforms/darwin/build.out
+2026-09-10T23:58:45.3258100Z ##[error]Process completed with exit code 1.
+2026-09-10T23:58:45.3645470Z Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+2026-09-10T23:58:45.3647320Z ##[group]Run actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+2026-09-10T23:58:45.3647720Z with:
+2026-09-10T23:58:45.3648010Z   name: widgets-macos
+2026-09-10T23:58:45.3648260Z   path: docs/analysis/widget-platforms/**
+2026-09-10T23:58:45.3648480Z   if-no-files-found: warn
+2026-09-10T23:58:45.3648730Z   retention-days: 14
+2026-09-10T23:58:45.3648910Z   compression-level: 6
+2026-09-10T23:58:45.3649140Z   overwrite: false
+2026-09-10T23:58:45.3649370Z   include-hidden-files: false
+2026-09-10T23:58:45.3649620Z ##[endgroup]
+2026-09-10T23:58:45.8166130Z (node:19698) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-09-10T23:58:45.8167030Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-09-10T23:58:45.8213960Z With the provided path, there will be 2 files uploaded
+2026-09-10T23:58:45.8216790Z Artifact name is valid!
+2026-09-10T23:58:45.8217330Z Root directory input is valid!
+2026-09-10T23:58:46.2510720Z Beginning upload of artifact content to blob storage
+2026-09-10T23:58:46.2639520Z (node:19698) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+2026-09-10T23:58:46.5827860Z Uploaded bytes 1197
+2026-09-10T23:58:46.6709800Z Finished uploading artifact content to blob storage!
+2026-09-10T23:58:46.6713710Z SHA256 digest of uploaded artifact zip is c0d5f8ba7dbd324713bbcfe295eaa3b848f66f23d013536ab421e77378a574b0
+2026-09-10T23:58:46.6715460Z Finalizing artifact upload
+2026-09-10T23:58:46.9271910Z Artifact widgets-macos.zip successfully finalized. Artifact ID 10178498537
+2026-09-10T23:58:46.9274160Z Artifact widgets-macos has been successfully uploaded! Final size is 1197 bytes. Artifact ID is 10178498537
+2026-09-10T23:58:46.9491980Z Artifact download URL: https://github.com/eas4ai/reactive-tui/actions/runs/34544351853/artifacts/10178498537
+2026-09-10T23:58:47.0002010Z Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+2026-09-10T23:58:47.0003240Z ##[group]Run actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+2026-09-10T23:58:47.0003660Z with:
+2026-09-10T23:58:47.0003890Z   name: clipboard-macos
+2026-09-10T23:58:47.0004230Z   path: docs/analysis/clipboard-platforms/macos.*
+2026-09-10T23:58:47.0004540Z   if-no-files-found: warn
+2026-09-10T23:58:47.0004730Z   retention-days: 14
+2026-09-10T23:58:47.0004930Z   compression-level: 6
+2026-09-10T23:58:47.0005120Z   overwrite: false
+2026-09-10T23:58:47.0005300Z   include-hidden-files: false
+2026-09-10T23:58:47.0005530Z ##[endgroup]
+2026-09-10T23:58:47.2691080Z (node:19737) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-09-10T23:58:47.2793380Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-09-10T23:58:47.3132360Z With the provided path, there will be 3 files uploaded
+2026-09-10T23:58:47.3159370Z Artifact name is valid!
+2026-09-10T23:58:47.3167480Z Root directory input is valid!
+2026-09-10T23:58:47.6996730Z (node:19737) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+2026-09-10T23:58:47.7178050Z Beginning upload of artifact content to blob storage
+2026-09-10T23:58:47.9992790Z Uploaded bytes 1333
+2026-09-10T23:58:48.0938190Z Finished uploading artifact content to blob storage!
+2026-09-10T23:58:48.0942400Z SHA256 digest of uploaded artifact zip is 7271d2eaab70e54c8d9c893250689ebcb37601c0fae4acd0edab7cbd8eb6d16d
+2026-09-10T23:58:48.0944180Z Finalizing artifact upload
+2026-09-10T23:58:48.4581470Z Artifact clipboard-macos.zip successfully finalized. Artifact ID 10178499123
+2026-09-10T23:58:48.4596990Z Artifact clipboard-macos has been successfully uploaded! Final size is 1333 bytes. Artifact ID is 10178499123
+2026-09-10T23:58:48.4618660Z Artifact download URL: https://github.com/eas4ai/reactive-tui/actions/runs/34544351853/artifacts/10178499123
+2026-09-10T23:58:48.4711900Z Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+2026-09-10T23:58:48.4713410Z ##[group]Run actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+2026-09-10T23:58:48.4713790Z with:
+2026-09-10T23:58:48.4713980Z   name: clipboard-macos-diagnostics
+2026-09-10T23:58:48.4714240Z   path: target/clipboard-platform-failure.log
+2026-09-10T23:58:48.4714570Z   if-no-files-found: warn
+2026-09-10T23:58:48.4714810Z   retention-days: 14
+2026-09-10T23:58:48.4715010Z   compression-level: 6
+2026-09-10T23:58:48.4715230Z   overwrite: false
+2026-09-10T23:58:48.4715440Z   include-hidden-files: false
+2026-09-10T23:58:48.4715690Z ##[endgroup]
+2026-09-10T23:58:48.6733370Z (node:19784) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-09-10T23:58:48.6832770Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-09-10T23:58:48.7738780Z With the provided path, there will be 1 file uploaded
+2026-09-10T23:58:48.7914380Z Artifact name is valid!
+2026-09-10T23:58:48.7915200Z Root directory input is valid!
+2026-09-10T23:58:49.0614430Z Beginning upload of artifact content to blob storage
+2026-09-10T23:58:49.0950390Z (node:19784) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+2026-09-10T23:58:49.4872850Z Uploaded bytes 23706
+2026-09-10T23:58:49.6004270Z Finished uploading artifact content to blob storage!
+2026-09-10T23:58:49.6107070Z SHA256 digest of uploaded artifact zip is a2b72c27fc584e43fc2b43f5d376de9aefba62491a97629d4cfde41a019583ea
+2026-09-10T23:58:49.6211150Z Finalizing artifact upload
+2026-09-10T23:58:49.9947930Z Artifact clipboard-macos-diagnostics.zip successfully finalized. Artifact ID 10178499723
+2026-09-10T23:58:49.9952430Z Artifact clipboard-macos-diagnostics has been successfully uploaded! Final size is 23706 bytes. Artifact ID is 10178499723
+2026-09-10T23:58:49.9953760Z Artifact download URL: https://github.com/eas4ai/reactive-tui/actions/runs/34544351853/artifacts/10178499723
+2026-09-10T23:58:50.0104180Z Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+2026-09-10T23:58:50.0105630Z Post job cleanup.
+2026-09-10T23:58:50.2147300Z [command]/opt/homebrew/bin/git version
+2026-09-10T23:58:50.2332740Z git version 2.55.0
+2026-09-10T23:58:50.2356140Z Copying '/Users/runner/.gitconfig' to '/Users/runner/work/_temp/a27fc8e1-92cb-41ba-9137-cfedcb7cb3e0/.gitconfig'
+2026-09-10T23:58:50.2367660Z Temporarily overriding HOME='/Users/runner/work/_temp/a27fc8e1-92cb-41ba-9137-cfedcb7cb3e0' before making global git config changes
+2026-09-10T23:58:50.2369010Z Adding repository directory to the temporary git global config as a safe directory
+2026-09-10T23:58:50.2373420Z [command]/opt/homebrew/bin/git config --global --add safe.directory /Users/runner/work/reactive-tui/reactive-tui
+2026-09-10T23:58:50.2571580Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-09-10T23:58:50.2639060Z [command]/opt/homebrew/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-09-10T23:58:50.3661140Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-09-10T23:58:50.3729470Z [command]/opt/homebrew/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-09-10T23:58:50.5114040Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-09-10T23:58:50.5419090Z [command]/opt/homebrew/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-09-10T23:58:50.7295690Z Cleaning up orphan processes
+2026-09-10T23:58:51.4662180Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@11d5960a326750d5838078e36cf38b85af677262, actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/

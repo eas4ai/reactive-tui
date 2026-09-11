@@ -3196,3 +3196,20 @@ doctests. Ignored tests remain explicitly ignored in the captured output.
 Strict `cargo clippy --locked --all-targets -- -D warnings` also passed after
 the clock test addition. Logs are `api-012-full-suite.out` and
 `api-012-clippy.out`. Formatting and `git diff --check` passed.
+
+### API-012 native dependency correction
+
+Native run 34544351853 failed on macOS while compiling the library: the
+new platform-independent engine referenced async-channel, but Cargo declared
+that crate only under Linux. The complete failed job log is
+`api-012-macos-34544351853-job.log`. The same target restriction also applied
+to futures-util; the lifecycle tests use futures-lite. The correction promotes
+async-channel and futures-util to shared dependencies and adds futures-lite
+to development dependencies while retaining its Linux runtime declaration.
+No dependency version changes. Native verification must rerun on the corrected
+manifest; the preceding Linux records are now stale too.
+
+A development no-default-features check also failed at the preexisting
+`src/display/adaptive.rs` unconditional Tokio import. This is unresolved
+API-015 work, not a passing configuration or a clipboard runtime finding.
+It remains in the current commitment's required work.

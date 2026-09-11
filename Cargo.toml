@@ -19,10 +19,12 @@ exclude = [
 ]
 
 [dependencies]
+async-channel = "2.1.1"
 atty = "0.2"
 bitflags = "2.9.3"
 crossterm = { version = "0.29.0", features = ["event-stream"] }
 futures-core = "0.3"
+futures-util = "0.3.27"
 log = "0.4"
 serde = { version = "^1.0", features = ["derive"] }
 serde_json = "1.0"
@@ -56,14 +58,12 @@ time = "0.3"
 
 [target.'cfg(target_os = "linux")'.dependencies]
 accesskit_consumer = "0.39.0"
-async-channel = "2.1.1"
 async-io = "2.6"
 async-executor = "1.5.0"
 async-task = "4.3.0"
 atspi = { version = "0.29", features = ["proxies"], default-features = false }
 atspi-common = { version = "0.13", default-features = false }
 futures-lite = "2.3"
-futures-util = "0.3.27"
 phf = { version = "0.14.0", features = ["macros"] }
 zbus = { version = "5.19", features = ["async-io"], default-features = false }
 zvariant = { version = "5.4", default-features = false }
@@ -115,6 +115,7 @@ ffi = []
 embedded-terminal = ["dep:libghostty-vt"]
 
 [dev-dependencies]
+futures-lite = "2.3"
 criterion = "0.5"
 proptest = "1.4"
 serial_test = "3.0"
