@@ -67,5 +67,5 @@ test widgets::dialog::http::tests::request_preserves_json_escaping_and_custom_he
 test widgets::dialog::http::tests::tls_certificate_probe ... ignored, invoked with a trusted/untrusted HTTPS fixture by scripts/check-dialog-http.py
 test widgets::dialog::http::tests::unsafe_configuration_and_oversized_requests_fail_before_spawn ... ok
 
-test result: ok. 5 passed; 0 failed; 1 ignored; 0 measured; 954 filtered out; finished in 0.41s
+test result: ok. 5 passed; 0 failed; 1 ignored; 0 measured; 954 filtered out; finished in 0.47s
 

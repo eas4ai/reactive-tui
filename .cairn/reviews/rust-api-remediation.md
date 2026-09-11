@@ -3932,3 +3932,16 @@ and widget records. API-011 is the next Cairn check; API-015 implementation has
 not begun. No .cairn/in-progress marker remains. Preserve PATH containing
 /tmp/rtui-image-tools/bin for the subsequent API-014 host check and explicitly
 set CARGO_TARGET_DIR to this repository's target directory for every Cargo/check.
+
+Run 34620004744 attempt 1 passed macOS completely. Windows clipboard failed at
+its approved 15-second bound while copying 13 bytes; the later always-running
+ConPTY and widget steps passed independently. My progress update incorrectly
+inferred clipboard success from the next step starting; that was corrected.
+The timeout diagnostic is api-008-windows-15-second-timeout.out. Rerunning the
+failed Windows job unchanged (attempt 2); do not count the timeout as a pass.
+
+Validated snapshot, current input digest and every captured-output hash for
+72 macOS widget outputs, 15 Windows widget outputs and six ConPTY outputs.
+Imported those independently valid records without claiming the overall first
+workflow attempt passed. The corrected cancellation test passed on both hosts.
+No timeout bound or clipboard implementation changed.
