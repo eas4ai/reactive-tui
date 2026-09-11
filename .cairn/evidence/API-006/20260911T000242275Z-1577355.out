@@ -1,0 +1,34 @@
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.98s
+     Running tests/api_focus.rs (target/debug/deps/api_focus-6fb515f149d47990)
+
+running 12 tests
+test a_removed_opener_is_not_resurrected_when_nested_dialogs_close ... ok
+test an_empty_trap_blocks_outside_keyboard_activation_and_restores_on_close ... ok
+test an_explicit_imperative_trap_call_can_reactivate_an_existing_container ... ok
+test enabling_autofocus_requests_focus_once_on_an_existing_key ... ok
+test keyed_redraw_and_reorder_preserve_focus_without_repeat_callbacks ... ok
+test mouse_focus_stays_in_the_active_dialog ... ok
+test nested_dialogs_autofocus_wrap_and_restore_the_last_outer_target ... ok
+test positive_tab_indices_precede_default_order_and_negative_indices_are_skipped ... ok
+test public_app_focus_methods_share_the_router_focus_owner ... ok
+test removing_an_imperative_router_subtree_also_removes_its_trap ... ok
+test removing_the_outer_dialog_with_inner_open_restores_the_original_opener ... ok
+test tab_reverse_tab_and_release_follow_one_focus_order_without_a_trap ... ok
+
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.34s
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.12s
+     Running unittests src/lib.rs (target/debug/deps/reactive_tui-e9e38f93cee1f718)
+
+running 7 tests
+test event::focus::tests::test_focus_edge_cases ... ok
+test event::focus::tests::test_focus_events ... ok
+test event::focus::tests::test_focus_history ... ok
+test event::focus::tests::test_focus_system_integration ... ok
+test event::focus::tests::test_focus_traps ... ok
+test event::focus::tests::test_spatial_navigation ... ok
+test event::focus::tests::test_tab_navigation ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 969 filtered out; finished in 0.00s
+
