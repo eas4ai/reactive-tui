@@ -12,7 +12,7 @@
     "kCGWindowName" : "",
     "kCGWindowNumber" : 32,
     "kCGWindowOwnerName" : "iTerm2",
-    "kCGWindowOwnerPID" : 13121,
+    "kCGWindowOwnerPID" : 10792,
     "kCGWindowSharingState" : 1,
     "kCGWindowStoreType" : 1
   },
@@ -29,7 +29,7 @@
     "kCGWindowName" : "",
     "kCGWindowNumber" : 31,
     "kCGWindowOwnerName" : "iTerm2",
-    "kCGWindowOwnerPID" : 13121,
+    "kCGWindowOwnerPID" : 10792,
     "kCGWindowSharingState" : 1,
     "kCGWindowStoreType" : 1
   },
@@ -46,7 +46,7 @@
     "kCGWindowName" : "",
     "kCGWindowNumber" : 30,
     "kCGWindowOwnerName" : "iTerm2",
-    "kCGWindowOwnerPID" : 13121,
+    "kCGWindowOwnerPID" : 10792,
     "kCGWindowSharingState" : 1,
     "kCGWindowStoreType" : 1
   },
@@ -63,7 +63,7 @@
     "kCGWindowName" : "",
     "kCGWindowNumber" : 28,
     "kCGWindowOwnerName" : "iTerm2",
-    "kCGWindowOwnerPID" : 13121,
+    "kCGWindowOwnerPID" : 10792,
     "kCGWindowSharingState" : 1,
     "kCGWindowStoreType" : 1
   },
@@ -80,7 +80,7 @@
     "kCGWindowName" : "",
     "kCGWindowNumber" : 29,
     "kCGWindowOwnerName" : "iTerm2",
-    "kCGWindowOwnerPID" : 13121,
+    "kCGWindowOwnerPID" : 10792,
     "kCGWindowSharingState" : 1,
     "kCGWindowStoreType" : 1
   },
@@ -98,7 +98,7 @@
     "kCGWindowName" : "-bash",
     "kCGWindowNumber" : 26,
     "kCGWindowOwnerName" : "iTerm2",
-    "kCGWindowOwnerPID" : 13121,
+    "kCGWindowOwnerPID" : 10792,
     "kCGWindowSharingState" : 1,
     "kCGWindowStoreType" : 1
   },
@@ -113,10 +113,10 @@
     "kCGWindowIsOnscreen" : true,
     "kCGWindowLayer" : 0,
     "kCGWindowMemoryUsage" : 2176,
-    "kCGWindowName" : "RTUI-IMAGE-c87af026809b43b29099798b183a36a0",
+    "kCGWindowName" : "RTUI-IMAGE-234a39ecfb574790ab6b11d58a9b88dc",
     "kCGWindowNumber" : 25,
     "kCGWindowOwnerName" : "iTerm2",
-    "kCGWindowOwnerPID" : 13121,
+    "kCGWindowOwnerPID" : 10792,
     "kCGWindowSharingState" : 1,
     "kCGWindowStoreType" : 1
   }

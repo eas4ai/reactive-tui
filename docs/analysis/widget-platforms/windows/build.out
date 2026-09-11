@@ -58,6 +58,6 @@ warning: field `parser` is never read
 
 warning: `reactive-tui` (lib test) generated 7 warnings (run `cargo fix --lib -p reactive-tui --tests` to apply 5 suggestions)
 warning: `reactive-tui` (lib) generated 5 warnings (5 duplicates)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 1m 28s
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1m 19s
   Executable unittests src\lib.rs (target\debug\deps\reactive_tui-8f430f50a806aae5.exe)
   Executable tests\api_widget_behavior.rs (target\debug\deps\api_widget_behavior-ef5a3766d6e4dfba.exe)

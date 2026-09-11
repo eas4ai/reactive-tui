@@ -3462,7 +3462,8 @@ production behavior was weakened to reduce these static counts.
 - Complete: refresh native clipboard records and rerun API-008 through API-012.
   All now have committed passing receipts.
 - Pending: implement the approved API-013 owner-bound animation targets.
-- In progress: refresh native API-008 evidence after the committed screen repair.
+- Complete: refresh native API-008 evidence after the committed screen repair.
+- In progress: refresh API-011 native records and acceptance after the screen repair.
 
 API-001 through API-007 have fresh passing Cairn receipts committed after the
 keyframe repair. API-008 failed only at the platform-record verifier: all 13
@@ -3580,3 +3581,10 @@ All five clipboard backends passed on the screen-repair candidate. Imported
 macOS and Windows records only after matching snapshot, current input digest,
 platform, execution markers and both output hashes. Native GitHub run 34598114032
 completed successfully on both platforms. The clipboard verifier passes.
+
+API-008 through API-010 now have fresh passing receipts. API-011 passed local
+widget and Orca behavior, then rejected stale ConPTY evidence. Imported the new
+ConPTY and Windows/macOS widget records from run 34598114032 after checking
+snapshot, current input digest and every recorded output hash (6, 15 and 72
+outputs respectively). Both native verifiers pass. Existing iTerm2 limitations
+and their approved exception remain recorded; no acceptance criteria changed.
