@@ -32,9 +32,9 @@ warning: unused variable: `width`
    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
 
 warning: variable does not need to be mutable
-    --> src\platform\mod.rs:1199:13
+    --> src\platform\mod.rs:1204:13
      |
-1199 |         let mut buffer = [0u8; 8192];
+1204 |         let mut buffer = [0u8; 8192];
      |             ----^^^^^^
      |             |
      |             help: remove this `mut`
@@ -42,9 +42,9 @@ warning: variable does not need to be mutable
      = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
 
 warning: variable does not need to be mutable
-    --> src\platform\mod.rs:1200:13
+    --> src\platform\mod.rs:1205:13
      |
-1200 |         let mut total_read = 0;
+1205 |         let mut total_read = 0;
      |             ----^^^^^^^^^^
      |             |
      |             help: remove this `mut`
@@ -93,6 +93,6 @@ warning: field `parser` is never read
     |     ^^^^^^
 
 warning: `reactive-tui` (lib) generated 11 warnings (run `cargo fix --lib -p reactive-tui` to apply 4 suggestions)
-    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1m 02s
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1m 13s
 
 PASS 194 baseline C exports load

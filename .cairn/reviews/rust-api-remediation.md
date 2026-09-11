@@ -4213,3 +4213,15 @@ All five clipboard backends now pass the verifier. Validated the Windows widget
 record and 15 output hashes, plus the ConPTY record and six output hashes; they
 remain in /tmp/api-016-native-34655618855 for API-011. Captures retain their original
 bytes and line endings. No native criterion, timeout or implementation was changed.
+
+
+## API-011 native import after entry-point recovery
+
+API-011/20260911T231442714Z passed the complete local widget and Orca workflows,
+then rejected the old ConPTY record. Imported both native widget records and the
+ConPTY record from successful run 34655618855 after rechecking snapshot identity,
+current declared-input digest, platform/result and every captured-output hash.
+There are 72 macOS widget outputs, 15 Windows widget outputs and six ConPTY outputs.
+The native verifiers now pass, including required behavior/failure markers and
+image-host cases. Raw outputs retain their original bytes. Formal API-011 rerun
+remains required; no widget, accessibility, terminal or image code changed.

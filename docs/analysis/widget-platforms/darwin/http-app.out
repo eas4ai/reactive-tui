@@ -24,7 +24,7 @@ warning: function `change` is never used
     |    ^^^^^^
 
 warning: `reactive-tui` (test "api_widget_behavior") generated 2 warnings
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.16s
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.27s
      Running tests/api_widget_behavior.rs (target/debug/deps/api_widget_behavior-ff4000526b6b632c)
 
 running 16 tests
@@ -45,5 +45,5 @@ test dialog_http_acceptance::input_dialog_remote_rejection_can_be_corrected_and_
 test dialog_http_acceptance::input_dialog_remote_validation_posts_json_and_completes_pending_submission ... ok
 test dialog_http_acceptance::input_dialog_removal_cancels_a_live_request_without_waiting_for_the_server ... ok
 
-test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 383 filtered out; finished in 16.90s
+test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 383 filtered out; finished in 16.77s
 

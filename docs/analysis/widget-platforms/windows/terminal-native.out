@@ -19,9 +19,9 @@ warning: unused import: `std::time::Duration`
   |     ^^^^^^^^^^^^^^^^^^^
 
 warning: variable does not need to be mutable
-    --> src\platform\mod.rs:1199:13
+    --> src\platform\mod.rs:1204:13
      |
-1199 |         let mut buffer = [0u8; 8192];
+1204 |         let mut buffer = [0u8; 8192];
      |             ----^^^^^^
      |             |
      |             help: remove this `mut`
@@ -29,9 +29,9 @@ warning: variable does not need to be mutable
      = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
 
 warning: variable does not need to be mutable
-    --> src\platform\mod.rs:1200:13
+    --> src\platform\mod.rs:1205:13
      |
-1200 |         let mut total_read = 0;
+1205 |         let mut total_read = 0;
      |             ----^^^^^^^^^^
      |             |
      |             help: remove this `mut`
@@ -56,7 +56,7 @@ warning: field `parser` is never read
     |     ^^^^^^
 
 warning: `reactive-tui` (lib test) generated 7 warnings (run `cargo fix --lib -p reactive-tui --tests` to apply 5 suggestions)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.28s
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.41s
      Running unittests src\lib.rs (target\debug\deps\reactive_tui-8f430f50a806aae5.exe)
 
 running 10 tests
@@ -71,5 +71,5 @@ test terminal::terminal_impl::tests::title_keeps_semicolons_and_unicode ... ok
 test terminal::terminal_impl::tests::windows_command_shell_paints_its_prompt_and_calculated_result ... ok
 test terminal::terminal_impl::tests::windows_command_shell_resize_after_complete_prompt ... ok
 
-test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 950 filtered out; finished in 15.78s
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 950 filtered out; finished in 15.82s
 

@@ -19,9 +19,9 @@ warning: unused import: `std::time::Duration`
   |     ^^^^^^^^^^^^^^^^^^^
 
 warning: variable does not need to be mutable
-    --> src\platform\mod.rs:1199:13
+    --> src\platform\mod.rs:1204:13
      |
-1199 |         let mut buffer = [0u8; 8192];
+1204 |         let mut buffer = [0u8; 8192];
      |             ----^^^^^^
      |             |
      |             help: remove this `mut`
@@ -29,9 +29,9 @@ warning: variable does not need to be mutable
      = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
 
 warning: variable does not need to be mutable
-    --> src\platform\mod.rs:1200:13
+    --> src\platform\mod.rs:1205:13
      |
-1200 |         let mut total_read = 0;
+1205 |         let mut total_read = 0;
      |             ----^^^^^^^^^^
      |             |
      |             help: remove this `mut`
@@ -56,13 +56,13 @@ warning: field `parser` is never read
     |     ^^^^^^
 
 warning: `reactive-tui` (lib test) generated 7 warnings (run `cargo fix --lib -p reactive-tui --tests` to apply 5 suggestions)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.26s
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.37s
      Running unittests src\lib.rs (target\debug\deps\reactive_tui-8f430f50a806aae5.exe)
 
 running 1 test
 test widgets::dialog::http::tests::tls_certificate_probe ... ok
 
-test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 959 filtered out; finished in 0.31s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 959 filtered out; finished in 0.34s
 
 Dialog HTTPS trusted: passed
 warning: unused import: `std::os::windows::io::AsRawHandle`
@@ -86,9 +86,9 @@ warning: unused import: `std::time::Duration`
   |     ^^^^^^^^^^^^^^^^^^^
 
 warning: variable does not need to be mutable
-    --> src\platform\mod.rs:1199:13
+    --> src\platform\mod.rs:1204:13
      |
-1199 |         let mut buffer = [0u8; 8192];
+1204 |         let mut buffer = [0u8; 8192];
      |             ----^^^^^^
      |             |
      |             help: remove this `mut`
@@ -96,9 +96,9 @@ warning: variable does not need to be mutable
      = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
 
 warning: variable does not need to be mutable
-    --> src\platform\mod.rs:1200:13
+    --> src\platform\mod.rs:1205:13
      |
-1200 |         let mut total_read = 0;
+1205 |         let mut total_read = 0;
      |             ----^^^^^^^^^^
      |             |
      |             help: remove this `mut`
@@ -123,12 +123,12 @@ warning: field `parser` is never read
     |     ^^^^^^
 
 warning: `reactive-tui` (lib test) generated 7 warnings (run `cargo fix --lib -p reactive-tui --tests` to apply 5 suggestions)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.26s
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.39s
      Running unittests src\lib.rs (target\debug\deps\reactive_tui-8f430f50a806aae5.exe)
 
 running 1 test
 test widgets::dialog::http::tests::tls_certificate_probe ... ok
 
-test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 959 filtered out; finished in 0.24s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 959 filtered out; finished in 0.26s
 
 Dialog HTTPS untrusted: passed

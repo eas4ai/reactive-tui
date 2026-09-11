@@ -19,9 +19,9 @@ warning: unused import: `std::time::Duration`
   |     ^^^^^^^^^^^^^^^^^^^
 
 warning: variable does not need to be mutable
-    --> src\platform\mod.rs:1199:13
+    --> src\platform\mod.rs:1204:13
      |
-1199 |         let mut buffer = [0u8; 8192];
+1204 |         let mut buffer = [0u8; 8192];
      |             ----^^^^^^
      |             |
      |             help: remove this `mut`
@@ -29,9 +29,9 @@ warning: variable does not need to be mutable
      = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
 
 warning: variable does not need to be mutable
-    --> src\platform\mod.rs:1200:13
+    --> src\platform\mod.rs:1205:13
      |
-1200 |         let mut total_read = 0;
+1205 |         let mut total_read = 0;
      |             ----^^^^^^^^^^
      |             |
      |             help: remove this `mut`
@@ -56,7 +56,7 @@ warning: field `parser` is never read
     |     ^^^^^^
 
 warning: `reactive-tui` (lib test) generated 7 warnings (run `cargo fix --lib -p reactive-tui --tests` to apply 5 suggestions)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.27s
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.37s
      Running unittests src\lib.rs (target\debug\deps\reactive_tui-8f430f50a806aae5.exe)
 
 running 37 tests
@@ -98,5 +98,5 @@ test terminal::screen::tests::terminal_screen_tab_stops_addressing_and_pending_w
 test terminal::screen::tests::wide_glyph_wraps_before_last_column ... ok
 test terminal::screen::tests::wide_overwrite_clears_both_halves_and_old_links ... ok
 
-test result: ok. 37 passed; 0 failed; 0 ignored; 0 measured; 923 filtered out; finished in 0.02s
+test result: ok. 37 passed; 0 failed; 0 ignored; 0 measured; 923 filtered out; finished in 0.03s
 
