@@ -1,0 +1,21 @@
+requirement: ABI-003
+requirement_digest: sha256:a058cd1df4ebecaff6fce5db37cbba373840d905931d983a6650cdc93f9f96d4
+sequence: 17
+history_digest: sha256:0a1e79c2625e1eda6c3d2f7eb48bfc804f268850bfe608a21c6474640d64db7c
+mechanism: binding-typescript-consumer.md
+commit: df73104
+inputs_digest: sha256:f701bde9d8a38c9449a9cf0ed6fe9622e5b215121b40c253fab0979434e9fd6c
+mechanism_digest: sha256:21fb24e0c905eec47f001d18630cff61f652b5e3e9060242556708ea78cc4a1a
+inputs_detail: .cairn/evidence/ABI-003/20260911T142032251Z-4009509.inputs.json
+command: python3 -B scripts/check-typescript-abi.py
+cwd: .
+exit: 0
+output_digest: sha256:1a26ce8752e7e521123ac11b57f766006b5cb4c4304453f8cddbdbeef1f9ba49
+output: .cairn/evidence/ABI-003/20260911T142032251Z-4009509.out
+stderr_output: .cairn/evidence/ABI-003/20260911T142032251Z-4009509.err
+stderr_digest: sha256:d000dcd0d9e7c8428fddfa8d7cbcda05ffd50cfa9a01ee8a9d2deb5c746128ce
+signal: none
+execution_error: null
+result: pass
+source: exit
+recorded: 2026-09-11T14:20:36.987Z
