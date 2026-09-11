@@ -12,4 +12,6 @@ Repair the shared hook runtime dependency used by KeyframeHandle: assign monoton
 
 ## Realized by
 
+- 8fbafb0200a7a49fac02a14667f2cf53388b43f5 Repair typed keyframes and retain hook playback through component lifecycle
+
 src/hooks/animation.rs retains keyframe owners, cancels playback at cleanup and delivers callbacks outside runtime locks. Unit tests cover final delivery, ID isolation, callback/drop reentry, cancellation and aborted renders; tests/api_hook_lifecycle.rs verifies actual App frames and removal.
