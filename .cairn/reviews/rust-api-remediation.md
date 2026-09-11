@@ -3473,7 +3473,8 @@ production behavior was weakened to reduce these static counts.
 - Done: repair the API-011 cancellation marker and refresh native evidence; API-011/20260911T163552235Z passed.
 - Done: refresh dependent evidence; API-012, API-013 and API-014 passed.
 - Done: record the API-015 baseline; no-default compilation failed E0433.
-- In progress: repair and verify Orca image navigation synchronization for API-011.
+- Done: repair Orca image navigation and verify API-011 against current native records.
+- In progress: complete API-015 acceptance and prerequisite evidence refreshes.
 - Complete: refresh native API-008 evidence after the committed screen repair.
 - Complete: refresh API-011 native records and acceptance after the screen repair.
 
