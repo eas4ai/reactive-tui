@@ -3473,7 +3473,7 @@ production behavior was weakened to reduce these static counts.
 - Done: repair the API-011 cancellation marker and refresh native evidence; API-011/20260911T163552235Z passed.
 - Done: refresh dependent evidence; API-012, API-013 and API-014 passed.
 - Done: record the API-015 baseline; no-default compilation failed E0433.
-- In progress: repair and verify API-015 feature configurations.
+- In progress: refresh API-008 platform evidence after the API-015 repair.
 - Complete: refresh native API-008 evidence after the committed screen repair.
 - Complete: refresh API-011 native records and acceptance after the screen repair.
 
@@ -3991,3 +3991,26 @@ terminal implementations, and 212 untested edges. The seven identified test
 paths include the directly executed feature suite and platform workflows; real
 native evidence remains required independently. These static results do not
 substitute for the feature matrix or inherited checks.
+
+## Native refresh after API-015 implementation
+
+API-001 through API-007 passed again against the feature repair, including
+Rust/C signal ownership and Miri. API-008/20260911T170517937Z passed its local
+behavior and process cleanup tests, then rejected stale Wayland platform evidence.
+All three Linux clipboard backends have now passed their five real round trips
+and two process lifecycle checks on dedicated private desktops.
+
+Native workflow 34625784358 checks snapshot
+7f521e0740c9dde279ac0bf8b3e8fc563822570f, whose complete 18-path native input
+union exactly matches committed source f8271f6da398fd8cc5e07e64f6ca8430a86d4129.
+The Windows/macOS jobs are running. Validate their snapshot, current input digest
+and every captured output hash before import. Keep the implementation marker
+for API-008 until the refresh is committed. The API-015 development matrix passed,
+but its formal receipt remains pending the earlier evidence refreshes.
+
+Run 34625784358 completed successfully on both native platforms. Validated
+macOS and Windows clipboard record snapshots, current input digests, all output
+hashes and executed round-trip/process markers before importing their raw bytes.
+All five clipboard platform records now pass the verifier. The same snapshot's
+widget and ConPTY artifacts are retained under
+/tmp/api-015-implemented-native-34625784358 for the API-011 refresh.
