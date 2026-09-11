@@ -3467,7 +3467,8 @@ production behavior was weakened to reduce these static counts.
 - Complete: refresh API-011 through API-013 acceptance.
 - Complete: refresh ABI acceptance and maintenance checks.
 - Complete: repair and verify the default-suite keyframe cleanup assertion.
-- In progress: refresh committed evidence after the test correction.
+- Done: refresh committed evidence after the test correction; the embedded rerun passed, with its unexplained intermittent timeout retained.
+- In progress: declare and verify dedicated API-014 image acceptance.
 - Complete: refresh native API-008 evidence after the committed screen repair.
 - Complete: refresh API-011 native records and acceptance after the screen repair.
 
@@ -3806,3 +3807,41 @@ including input, both resizes, interrupts, normal cleanup and worker-error clean
 No cause has been established and no code or acceptance criterion was changed.
 Rerunning the full mechanism distinguishes a repeatable failure from this single
 observed intermittent failure; a later pass does not explain the original timeout.
+
+## API-014 mechanism construction
+
+Mapped widget decoding, platform Image, retained App images, Surface/DiffWriter,
+and SuprTUI graphics output to the existing tests and real-host capture driver.
+The dedicated runner requires nonzero passing test counts for each of five
+selectors (38 decoder/widget, 12 platform, 17 Surface, 10 graphics, 12 App), checks
+native record freshness/hashes, and runs 25 Linux host/route cases. Source formats,
+raw extents, alpha, crop/scale/offsets, placement ownership, clipping, retries,
+removal and GIF clocks are exercised through the existing implementation.
+The local URL decision and approved iTerm2 3.7 exception remain unchanged.
+
+Examined the retained protocol and fallback baselines: the old Kitty serializer
+claimed RGB for RGBA data, the inline serializer supplied an invalid byte size,
+invalid extents succeeded, and unavailable graphics returned placeholder text.
+Those historical failures are not acceptance. Current selected tests pass.
+A fresh forced-ASCII host run reaches screenshot measurements with zero exact
+fixture colors and fails the same color assertions used by real graphics cases.
+The mechanism rejects startup errors and timeouts as negative-control evidence.
+
+The initial development capture run passed Kitty/Ghostty App and Xterm/WezTerm
+App modes (including full-screen output), then failed Chafa with an image-error
+screen. Chafa was absent from this session's PATH. The existing isolated tools
+remain at /tmp/rtui-image-tools/bin (Chafa 1.18.1 and Viu 1.6.1). Added executable
+preflight and version output; restoring that PATH passes Chafa, Viu and GNOME
+Auto captures. Both failed and corrected captures are retained under
+ docs/analysis/api-image-hosts. No image runtime code changed.
+
+Python syntax and git diff --check passed. Ripwire edit-check compares the new
+private main against unrelated historical main symbols (no incompatible callers);
+quality-delta exits 2 with 1576 broad reference-tree findings, not a passing gate.
+Test-gate exits 0 with no modelled impacted tests; actual execution of this Python
+mechanism remains necessary and is not inferred from that static result.
+
+All 25 Linux host cases passed across the development runs after restoring the
+external-tool PATH, including every GIF mode. The final runner uses bounded
+process-group cleanup for the negative case too; that version rejected forced
+ASCII and passed the remaining 19 cases. Formal acceptance follows commitment.

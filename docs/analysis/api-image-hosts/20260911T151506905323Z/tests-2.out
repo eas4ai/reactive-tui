@@ -1,0 +1,24 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.10s
+     Running unittests src/lib.rs (target/debug/deps/reactive_tui-0fe28f82db83e8df)
+
+running 17 tests
+test core::surface::image_output::tests::api_surface_image_fallback_uses_source_regions_and_removes_pixels ... ok
+test core::surface::image_output::tests::api_surface_image_foreground_fallback_clears_a_whole_wide_grapheme ... ok
+test core::surface::image_output::tests::api_surface_image_projection_layer_alpha_and_checked_errors ... ok
+test core::surface::image_output::tests::api_surface_image_protocol_retry_and_removal_are_owned ... ok
+test core::surface::tests::api_surface_image_small_source_and_removal ... ok
+test core::surface::tests::api_surface_image_validation_and_clipped_work ... ok
+test core::surface::tests::diffwriter_counts_increase_on_changes ... ok
+test core::surface::tests::surface_reinit_reuses_capacity ... ok
+test core::surface::tests::test_border_chars ... ok
+test core::surface::tests::test_cell_image_placement ... ok
+test core::surface::tests::test_clear_all_image_placements ... ok
+test core::surface::tests::test_enhanced_surface_features ... ok
+test core::surface::tests::test_image_region_placement ... ok
+test core::surface::tests::test_image_registry_basic_operations ... ok
+test core::surface::tests::test_surface_copy_preserves_images ... ok
+test core::surface::tests::test_surface_image_operations ... ok
+test core::surface::tests::test_text_style ... ok
+
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 982 filtered out; finished in 0.02s
+
