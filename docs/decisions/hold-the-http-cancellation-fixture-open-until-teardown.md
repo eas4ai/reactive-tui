@@ -12,4 +12,4 @@ Keep the loopback response pending until fixture teardown for the engine cancell
 
 ## Realized by
 
-(none yet: recorded, not built)
+- dc8763df109a7f31409784e801fc5c660d64ddd0 Keep the HTTP cancellation fixture pending until close

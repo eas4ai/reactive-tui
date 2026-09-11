@@ -1,0 +1,42 @@
+
+running 1 test
+test dialog_http_acceptance::dialog_engine_http_close_cancels_a_live_request_and_does_not_submit ... FAILED
+
+failures:
+
+---- dialog_http_acceptance::dialog_engine_http_close_cancels_a_live_request_and_does_not_submit stdout ----
+
+thread 'dialog_http_acceptance::dialog_engine_http_close_cancels_a_live_request_and_does_not_submit' (3689913) panicked at tests/support/app_input.rs:102:13:
+App painted 84 frames but input needs Some((1, ["REMOVED"])) before the deadline. Last frame:
+                                                            
+                                                            
+                                                            
+                                                            
+                                                            
+                                                            
+          ┌──────────────────────────────────────┐          
+          │    ENGINE PENDING                   ✕│          
+          │Please enter a value:                 │          
+          │▶ [                              ]    │          
+          │                                      │          
+          │Validating...                         │          
+          │                             Cancel OK│          
+          └──────────────────────────────────────┘          
+                                                            
+                                                            
+                                                            
+                                                            
+                                                            
+                                                            
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    dialog_http_acceptance::dialog_engine_http_close_cancels_a_live_request_and_does_not_submit
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 400 filtered out; finished in 3.01s
+
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.51s
+     Running tests/api_widget_behavior.rs (target/debug/deps/api_widget_behavior-42d357f1e5dc828e)
+error: test failed, to rerun pass `--test api_widget_behavior`
