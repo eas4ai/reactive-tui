@@ -3273,3 +3273,20 @@ in `api-012-orca-menu-corrected-*`; unchanged repetitions remain in
 `api-012-orca-menu-repeat-*`. Whitespace validation passed. The full committed
 mechanism still must rerun; the native recorders also declare the changed
 tests directory, so their records must be refreshed without editing receipts.
+
+Native run 34546990264 verified the changed test-input directory on snapshot
+`b4b9f1fcc3230f5eb83416138b9fb3b7e2dd57ed`. macOS passed completely;
+Windows ConPTY and widget checks passed. I verified the current input digests
+and every captured output hash before importing those records. The ConPTY
+and widget verifiers pass.
+
+Windows clipboard failed its first 13-byte copy at the existing 15-second
+deadline (15.14 seconds for the test). The diagnostic is
+`api-012-windows-34546990264-clipboard-failure.log`. This repeats the earlier
+intermittent hosted-runner timeout; its cause remains unconfirmed. The
+clipboard inputs did not change with the Orca fixture, and their earlier
+34544666230 passing record still matches the current digest. I retained that
+record and the new failure, and requested one unchanged Windows-job retry.
+No timeout or acceptance assertion was relaxed. The retry is pending; the
+current API-011 native prerequisites are the separately passing ConPTY and
+widget records.

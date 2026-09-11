@@ -1,11 +1,11 @@
 
-thread 'main' (2236) panicked at tests\api_widget_behavior\conpty_probe.rs:168:28:
-called `Result::unwrap()` on an `Err` value: Pty("ConPTY runtime 1.24.260710001 at C:\\Users\\RUNNER~1\\AppData\\Local\\Temp\\conpty-runtime-errors-884aj1m_\\reactive-tui-conpty\\conpty.dll: The system cannot find the path specified. (os error 3). Install the matched runtime with scripts/install-conpty-runtime.py; see docs/windows-terminal.md")
+thread 'main' (3436) panicked at tests\api_widget_behavior\conpty_probe.rs:168:28:
+called `Result::unwrap()` on an `Err` value: Pty("ConPTY runtime 1.24.260710001 at C:\\Users\\RUNNER~1\\AppData\\Local\\Temp\\conpty-runtime-errors-bwm8fp00\\reactive-tui-conpty\\conpty.dll: The system cannot find the path specified. (os error 3). Install the matched runtime with scripts/install-conpty-runtime.py; see docs/windows-terminal.md")
 note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
 
 
-thread 'main' (5852) panicked at tests\api_widget_behavior\conpty_probe.rs:168:28:
-called `Result::unwrap()` on an `Err` value: Pty("ConPTY runtime 1.24.260710001 at C:\\Users\\RUNNER~1\\AppData\\Local\\Temp\\conpty-runtime-errors-884aj1m_\\reactive-tui-conpty\\conpty.dll: runtime file SHA-256 does not match the pinned Microsoft package. Install the matched runtime with scripts/install-conpty-runtime.py; see docs/windows-terminal.md")
+thread 'main' (2404) panicked at tests\api_widget_behavior\conpty_probe.rs:168:28:
+called `Result::unwrap()` on an `Err` value: Pty("ConPTY runtime 1.24.260710001 at C:\\Users\\RUNNER~1\\AppData\\Local\\Temp\\conpty-runtime-errors-bwm8fp00\\reactive-tui-conpty\\conpty.dll: runtime file SHA-256 does not match the pinned Microsoft package. Install the matched runtime with scripts/install-conpty-runtime.py; see docs/windows-terminal.md")
 note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
 
 PASS missing and damaged ConPTY runtime rejected
