@@ -1,0 +1,21 @@
+requirement: DFT-002
+requirement_digest: sha256:5d572df7d1ff7966419620384f09b96c249f3acbf82a45fbba546d193b7a5ea3
+sequence: 20
+history_digest: sha256:054739db4755d685cd02a8a047fb386df2040a5cdf65bedb36a15e2b64736f9e
+mechanism: default-suite-repair.md
+commit: 4664094
+inputs_digest: sha256:019c329441ea49be9074d9ba127b3fa14a287e8815accb62cca6c208be7d80d1
+mechanism_digest: sha256:e26d7e20279dd0b49d463b0fe26ec79df93fc3453d16d9cf32ff4d29eb87f0b0
+inputs_detail: .cairn/evidence/DFT-001/20260911T150620558Z-374436.inputs.json
+command: python3 scripts/check-default-suite.py
+cwd: .
+exit: 0
+output_digest: sha256:cf43ba77160e56ab554474b8e9760a3350c1736b1c487859b4e643e947a08129
+output: .cairn/evidence/DFT-001/20260911T150620558Z-374436.out
+stderr_output: .cairn/evidence/DFT-001/20260911T150620558Z-374436.err
+stderr_digest: sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+signal: none
+execution_error: null
+result: pass
+source: exit
+recorded: 2026-09-11T15:07:14.063Z
