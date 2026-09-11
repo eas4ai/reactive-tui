@@ -3470,7 +3470,8 @@ production behavior was weakened to reduce these static counts.
 - Done: refresh committed evidence after the test correction; the embedded rerun passed, with its unexplained intermittent timeout retained.
 - Done: declare and verify dedicated API-014 image acceptance; current receipt passed.
 - Pending: verify API-015 feature configurations after inherited evidence refresh.
-- In progress: repair the API-011 cancellation marker and refresh native evidence.
+- Done: repair the API-011 cancellation marker and refresh native evidence; API-011/20260911T163552235Z passed.
+- In progress: refresh dependent evidence before the API-015 baseline.
 - Complete: refresh native API-008 evidence after the committed screen repair.
 - Complete: refresh API-011 native records and acceptance after the screen repair.
 
