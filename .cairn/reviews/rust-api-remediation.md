@@ -4225,3 +4225,14 @@ There are 72 macOS widget outputs, 15 Windows widget outputs and six ConPTY outp
 The native verifiers now pass, including required behavior/failure markers and
 image-host cases. Raw outputs retain their original bytes. Formal API-011 rerun
 remains required; no widget, accessibility, terminal or image code changed.
+
+API-011/20260911T232012997Z, API-012/20260911T232030147Z and
+API-013/20260911T232036106Z passed against the current native records.
+API-014/20260911T232713530Z passed all 89 selected tests, the forced-ASCII
+negative control and all 25 Linux host workflows. Captures are retained in
+api-image-hosts/20260911T232052898840Z. After the run, inspected and stopped
+only the four leftover private GNOME portal/key-store helpers in groups
+1823591 and 1838842; their capture-log descriptors are closed. The cleanup
+record is api-016-image-helper-cleanup.json. This successful run does not
+explain the previously recorded intermittent Kitty blank capture or remove
+the documented need for explicit fixture-helper cleanup before commitment.
