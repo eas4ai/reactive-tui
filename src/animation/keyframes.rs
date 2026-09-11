@@ -8,110 +8,152 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::time::Duration;
 
-/// Animation built from keyframes with generic value type
+mod typed;
+pub use typed::{KeyframeError, KeyframeType};
+
+/// Animation built from typed keyframes.
+#[derive(Clone)]
 pub struct KeyframeAnimation<T: Clone> {
     keyframes: Vec<TypedKeyframe<T>>,
     duration: Duration,
 }
 
-/// Keyframe with typed value
+/// One typed value, with easing for the segment leading to this keyframe.
+#[derive(Clone)]
 pub struct TypedKeyframe<T: Clone> {
-    /// Time offset in animation (0.0 to 1.0)
+    /// Time offset in animation (0.0 to 1.0).
     pub offset: f32,
-    /// Value at this keyframe
+    /// Value at this keyframe.
     pub value: T,
-    /// Optional easing function for transition to this keyframe
+    /// Destination-segment easing; None means linear interpolation.
     pub easing: Option<EasingFunction>,
 }
 
 impl<T: Clone> KeyframeAnimation<T> {
-    /// Create a new keyframe animation from untyped keyframes
-    ///
-    /// # Arguments
-    /// * `keyframes` - Vector of untyped keyframes to convert
-    ///
-    /// # Returns
-    /// A new `KeyframeAnimation` with default values and 1-second duration
-    pub fn new(keyframes: Vec<Keyframe>) -> Self
-    where
-        T: Default,
-    {
-        // Convert untyped keyframes to typed ones
-        let typed_keyframes = keyframes
-            .into_iter()
-            .map(|kf| TypedKeyframe {
-                offset: kf.offset,
-                value: T::default(),
-                easing: kf.easing,
-            })
-            .collect();
-
-        Self {
-            keyframes: typed_keyframes,
-            duration: Duration::from_secs(1),
-        }
-    }
-
-    /// Create a keyframe animation from typed keyframes
-    ///
-    /// # Arguments
-    /// * `keyframes` - Vector of typed keyframes
-    /// * `duration` - Total duration of the animation
-    ///
-    /// # Returns
-    /// A new `KeyframeAnimation` with the specified keyframes and duration
-    pub fn from_typed(keyframes: Vec<TypedKeyframe<T>>, duration: Duration) -> Self {
-        Self {
-            keyframes,
-            duration,
-        }
-    }
-
-    /// Get the total duration of the animation
-    ///
-    /// # Returns
-    /// The duration of the animation
+    /// Total animation duration.
     pub fn duration(&self) -> Duration {
         self.duration
     }
+}
 
-    /// Get the interpolated value at a specific time progress
+impl<T: KeyframeType> KeyframeAnimation<T> {
+    /// Convert a single-property sequence, with a one-second duration.
     ///
-    /// # Arguments
-    /// * `progress` - Animation progress from 0.0 to 1.0
-    ///
-    /// # Returns
-    /// `Some(T)` with the interpolated value, or `None` if no keyframes exist
+    /// Every frame must name the same single property. Use `try_from_property`
+    /// for a multi-property sequence. Invalid input panics with a conversion
+    /// error; `try_new` returns that error instead. No defaults are substituted.
+    pub fn new(keyframes: Vec<Keyframe>) -> Self {
+        Self::try_new(keyframes).unwrap_or_else(|error| panic!("invalid keyframes: {error}"))
+    }
+
+    /// Checked single-property conversion. An empty sequence stays empty.
+    pub fn try_new(keyframes: Vec<Keyframe>) -> Result<Self, KeyframeError> {
+        let Some(first) = keyframes.first() else {
+            return Self::try_from_typed(Vec::new(), Duration::from_secs(1));
+        };
+        if keyframes.iter().any(|frame| frame.properties.len() != 1) {
+            return Err(KeyframeError::new(
+                "expected one property per keyframe; use try_from_property to select a property",
+            ));
+        }
+        let property = first
+            .properties
+            .keys()
+            .next()
+            .expect("one property")
+            .clone();
+        Self::try_from_property(keyframes, &property, Duration::from_secs(1))
+    }
+
+    /// Convert the named property from every frame, preserving its type and value.
+    /// Missing values and lossy conversions return an error with the frame index.
+    pub fn try_from_property(
+        keyframes: Vec<Keyframe>,
+        property: &str,
+        duration: Duration,
+    ) -> Result<Self, KeyframeError> {
+        let frames = keyframes
+            .into_iter()
+            .enumerate()
+            .map(|(index, frame)| {
+                let value = frame.properties.get(property).ok_or_else(|| {
+                    KeyframeError::new(format!("keyframe {index} has no property {property:?}"))
+                })?;
+                let value = T::from_keyframe(value).map_err(|error| {
+                    KeyframeError::new(format!("keyframe {index}, property {property:?}: {error}"))
+                })?;
+                Ok(TypedKeyframe {
+                    offset: frame.offset,
+                    value,
+                    easing: frame.easing,
+                })
+            })
+            .collect::<Result<Vec<_>, KeyframeError>>()?;
+        Self::try_from_typed(frames, duration)
+    }
+
+    /// Sort typed frames; at a duplicate offset the last authored frame wins.
+    /// Panics for nonfinite offsets or offsets outside 0..=1. Use
+    /// `try_from_typed` when invalid input should be returned to the caller.
+    pub fn from_typed(keyframes: Vec<TypedKeyframe<T>>, duration: Duration) -> Self {
+        Self::try_from_typed(keyframes, duration)
+            .unwrap_or_else(|error| panic!("invalid typed keyframes: {error}"))
+    }
+
+    /// Validate and sort typed keyframes without changing their values.
+    pub fn try_from_typed(
+        mut keyframes: Vec<TypedKeyframe<T>>,
+        duration: Duration,
+    ) -> Result<Self, KeyframeError> {
+        for (index, frame) in keyframes.iter().enumerate() {
+            if !frame.offset.is_finite() || !(0.0..=1.0).contains(&frame.offset) {
+                return Err(KeyframeError::new(format!(
+                    "keyframe {index} offset must be finite and within 0..=1"
+                )));
+            }
+        }
+        keyframes.sort_by(|a, b| a.offset.total_cmp(&b.offset));
+        let mut unique: Vec<TypedKeyframe<T>> = Vec::with_capacity(keyframes.len());
+        for frame in keyframes {
+            if let Some(previous) = unique.last_mut().filter(|last| last.offset == frame.offset) {
+                *previous = frame;
+            } else {
+                unique.push(frame);
+            }
+        }
+        Ok(Self {
+            keyframes: unique,
+            duration,
+        })
+    }
+
+    /// Sample normalized progress. Values before/after the sequence hold its
+    /// exact endpoints. Empty sequences and NaN progress return None.
     pub fn get_value_at_time(&self, progress: f32) -> Option<T> {
-        if self.keyframes.is_empty() {
+        if self.keyframes.is_empty() || progress.is_nan() {
             return None;
         }
-
         let progress = progress.clamp(0.0, 1.0);
-
-        // Find surrounding keyframes
-        let mut prev_kf = None;
-        let mut next_kf = None;
-
-        for kf in &self.keyframes {
-            if kf.offset <= progress {
-                prev_kf = Some(kf);
-            } else if next_kf.is_none() {
-                next_kf = Some(kf);
-                break;
-            }
+        let next = self
+            .keyframes
+            .partition_point(|frame| frame.offset <= progress);
+        if next == 0 {
+            return Some(self.keyframes[0].value.clone());
         }
-
-        match (prev_kf, next_kf) {
-            (Some(prev), Some(_next)) => {
-                // For now, return the previous keyframe's value
-                // Full interpolation would require T to implement an interpolation trait
-                Some(prev.value.clone())
-            }
-            (Some(prev), None) => Some(prev.value.clone()),
-            (None, Some(next)) => Some(next.value.clone()),
-            (None, None) => None,
+        let previous = &self.keyframes[next - 1];
+        let Some(next) = self.keyframes.get(next) else {
+            return Some(previous.value.clone());
+        };
+        if progress == previous.offset {
+            return Some(previous.value.clone());
         }
+        let local = (progress - previous.offset) / (next.offset - previous.offset);
+        let easing = next.easing.as_ref().unwrap_or(&EasingFunction::Linear);
+        Some(
+            previous
+                .value
+                .interpolate_keyframe(&next.value, local, easing),
+        )
     }
 }
 
@@ -382,9 +424,6 @@ impl KeyframeSequence {
             return result;
         }
 
-        // Find the two keyframes we're interpolating between
-        let (from_keyframe, to_keyframe) = self.find_keyframe_pair(t);
-
         // Collect all property names that appear in any keyframe
         let mut all_properties = std::collections::HashSet::new();
         for keyframe in &self.keyframes {
@@ -393,6 +432,7 @@ impl KeyframeSequence {
 
         // Interpolate each property
         for property in all_properties {
+            let (from_keyframe, to_keyframe) = self.find_keyframe_pair(t, property);
             if let Some(interpolated_value) =
                 self.interpolate_property(property, &from_keyframe, &to_keyframe, t)
             {
@@ -403,38 +443,23 @@ impl KeyframeSequence {
         result
     }
 
-    /// Find the keyframe pair to interpolate between for the given time
-    fn find_keyframe_pair(&self, t: f32) -> (Option<&Keyframe>, Option<&Keyframe>) {
-        if self.keyframes.is_empty() {
-            return (None, None);
-        }
-
-        // Find the keyframes before and after the current time
-        let mut from_keyframe = None;
-        let mut to_keyframe = None;
-
-        for keyframe in &self.keyframes {
-            if keyframe.offset <= t {
-                from_keyframe = Some(keyframe);
+    /// Find the surrounding frames that actually name this property.
+    fn find_keyframe_pair(&self, t: f32, property: &str) -> (Option<&Keyframe>, Option<&Keyframe>) {
+        let mut from: Option<&Keyframe> = None;
+        let mut to: Option<&Keyframe> = None;
+        for frame in self
+            .keyframes
+            .iter()
+            .filter(|frame| frame.properties.contains_key(property))
+        {
+            if frame.offset <= t && from.is_none_or(|old| frame.offset >= old.offset) {
+                from = Some(frame);
             }
-            if keyframe.offset > t && to_keyframe.is_none() {
-                to_keyframe = Some(keyframe);
-                break;
+            if frame.offset > t && to.is_none_or(|old| frame.offset <= old.offset) {
+                to = Some(frame);
             }
         }
-
-        // If we're past the last keyframe, use the last keyframe as both
-        if to_keyframe.is_none() && from_keyframe.is_some() {
-            to_keyframe = from_keyframe;
-        }
-
-        // If we're before the first keyframe, use the first keyframe as both
-        if from_keyframe.is_none() && !self.keyframes.is_empty() {
-            from_keyframe = Some(&self.keyframes[0]);
-            to_keyframe = Some(&self.keyframes[0]);
-        }
-
-        (from_keyframe, to_keyframe)
+        (from.or(to), to.or(from))
     }
 
     /// Interpolate a specific property between two keyframes
@@ -459,9 +484,7 @@ impl KeyframeSequence {
 
                         // Apply easing
                         let easing = to.easing.as_ref().unwrap_or(&self.default_easing);
-                        let eased_t = easing.apply(local_t);
-
-                        from_val.interpolate(to_val, eased_t)
+                        Some(from_val.interpolate_keyframe(to_val, local_t, easing))
                     }
                     (Some(value), None) => Some(value.clone()),
                     (None, Some(value)) => Some(value.clone()),
@@ -492,7 +515,7 @@ impl KeyframeSequence {
         }
 
         for keyframe in &self.keyframes {
-            if keyframe.offset < 0.0 || keyframe.offset > 1.0 {
+            if !keyframe.offset.is_finite() || !(0.0..=1.0).contains(&keyframe.offset) {
                 return Err(format!(
                     "Keyframe offset {} is out of range [0.0, 1.0]",
                     keyframe.offset

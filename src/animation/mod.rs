@@ -29,7 +29,7 @@ pub mod state;
 // Re-export commonly used types
 pub use core::AnimationConfig;
 pub use easing::{ease_value, EasingFunction};
-pub use keyframes::{Keyframe, KeyframeAnimation};
+pub use keyframes::{Keyframe, KeyframeAnimation, KeyframeError, KeyframeType};
 pub use properties::{
     AnimatedProperty, CssValue, PropertyAnimation, TransformMatrix, TransformProperty,
 };

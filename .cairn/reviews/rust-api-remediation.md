@@ -3366,3 +3366,93 @@ hashes and preserves the approved iTerm2 3.7 color/transparency limitation.
 Windows clipboard also passed in the fresh job; the already-current clipboard
 record from the earlier unchanged retry remains sufficient and was not replaced.
 These records still require the complete API-011 Cairn acceptance run.
+
+## API-013 implementation progress: keyframes and runtime (2026-09-11)
+
+This is development evidence, not API-013 acceptance. After the approved
+keyframe compatibility decision, seven public API tests compiled and failed
+against the old sampling/conversion code: numeric midpoint, destination easing,
+sorted/duplicate offsets, tuple conversion, numeric endpoint conversion, sparse
+property interpolation, and retained discrete properties. The expanded target
+now passes 12 tests, including exact f64 values, RGBA, CSS units, compound
+values, custom trait implementation, ambiguous/missing-property errors and
+checked lossy-conversion rejection. Command: cargo test --test
+api_animation_screens -- --test-threads=1.
+
+The keyframe hook depends on the shared hook runtime. Three new isolated unit
+tests failed before its repair: final progress was never delivered (empty list
+instead of [1.0]), an ID collided after cancellation (1 equals 1), and callback
+reentry exceeded its two-second deadline. After assigning monotonic IDs and
+delivering snapshots outside registry locks, those three passed. A fourth
+bounded test then exposed callback-capture Drop reentry under cancellation
+locks; moving disposal outside the lock made all four pass. Command: cargo
+test --lib keyframe_runtime_ -- --test-threads=1. The negative reentry runs
+used isolated test processes; a deadlocked worker was not joined after the
+assertion deadline, and the failed test process exited.
+
+The implementation is incomplete: keyframe hook ownership, relative values,
+active-screen input, transition output, App integration evidence, migration
+documentation, lint, regression verification and formal API-013 acceptance
+remain pending. Do not use the 12-test target alone as proof of API-013.
+
+## API-013 resumed work checklist
+
+- Complete: finish retained keyframe hook ownership and verify rerender,
+  completion, cancellation and unmount behavior.
+- In progress: repair and verify relative property values and active screen input
+  with visibly changing transition frames.
+- Pending: document custom keyframe migration; run formatting, lint and
+  regression checks, commit implementation, and follow Cairn acceptance.
+
+The account switch preserved the working tree at base 0448aee. Earlier test
+results above are recorded development results, not fresh acceptance receipts.
+
+## API-013 resumed keyframe ownership results
+
+The two added ownership tests first failed: cleanup left the task registered,
+and rerendering created a different animation owner. Retained storage and weak
+runtime callbacks corrected both. An aborted-render test then failed because
+the pending effect never installed cleanup. A pending cleanup guard now also
+cancels that work; unchanged renders do not own a second cancellation guard.
+Cancellation serializes with value delivery after user-defined interpolation,
+and a generation check rejects a sample that stopped/restarted playback. A
+bounded reentry test verifies interpolation can stop its own animation.
+
+Fresh development verification using this repository's target directory:
+- cargo test --lib keyframe_ -- --test-threads=1: 13 passed.
+- cargo test --test api_hook_lifecycle -- --test-threads=1: 7 passed, including
+  actual App/SuprTUI frames keyframe:2, keyframe:6, keyframe:10, then removal.
+  Escaped play/seek calls cannot update the removed component's value.
+- cargo test --test api_animation_screens -- --test-threads=1: 12 keyframe
+  cases passed; the new active-screen Enter test failed (0 callbacks, expected 1).
+- cargo clippy --lib --tests -- -D warnings: passed.
+
+CARGO_TARGET_DIR was inherited as another project's shared target directory.
+One waiting test command was terminated (exit 143), and verification resumed
+with CARGO_TARGET_DIR=/home/shawn/workspace2/reactive-tui/target. Other owners
+and their builds were left running.
+
+Ripwire edit-check reports seven callers and no incompatible arities for
+use_keyframes. Its quality-delta exits 2 with 1557 gating findings, including
+untracked reference checkouts; this is not a passing quality gate. Its test-gate
+exits 4 and lists 74 test files plus untested symbols, also including reference
+code. These broad static results do not establish runtime correctness or
+replace the requirement mechanisms. Remaining API-013 screen input, relative
+values and transitions are not repaired or accepted by these keyframe passes.
+
+The full library run passed: 984 tests, two intentionally ignored fixtures.
+The custom KeyframeType migration doctest passed. Workspace formatting passed
+after formatting the newly added screen-input test. The repaired keyframe slice
+is verified development work; the screen-input failure remains intentionally
+visible and prevents API-013 acceptance. The mechanism now includes the hook
+unit tests and the App lifecycle target as well as the keyframe/screen target.
+
+Examined the 70 Ripwire findings on changed paths. Trait implementations and
+tests marked dead are exercised by Rust dispatch and the executed test runner.
+The short infallible constructors delegate to different checked constructors;
+their shared panic-report shape does not justify another helper. Value-type
+conversions have distinct error contracts. The owner-liveness comparisons to
+text-input, renderer and scheduler predicates are unrelated state ownership,
+not reusable implementations. Similar cleanup tests exercise explicit cleanup
+and last-owner drop separately. Runtime churn records the repair history. No
+production behavior was weakened to reduce these static counts.

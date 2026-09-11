@@ -367,3 +367,56 @@ fn app_stop_cleans_up_components_that_are_still_mounted() {
     assert_eq!(scheduled, [true]);
     assert!(scheduler.next_deadline().is_none());
 }
+
+// The API-013 keyframe mechanism also runs this real App/SuprTUI workflow.
+static KEYFRAME_HANDLE: Mutex<Option<reactive_tui::hooks::animation::KeyframeHandle<f32>>> =
+    Mutex::new(None);
+
+#[component]
+fn KeyframeLeaf(hooks: &Hooks, progress: f32) -> Element {
+    use reactive_tui::{animation::Keyframe, hooks::animation::use_keyframes};
+    let handle = use_keyframes(
+        hooks,
+        2.0_f32,
+        vec![
+            Keyframe::new(0.0).number("x", 2.0),
+            Keyframe::new(1.0).number("x", 10.0),
+        ],
+    );
+    handle.seek(*progress);
+    let text = format!("keyframe:{:.0}", handle.value());
+    *KEYFRAME_HANDLE.lock().unwrap() = Some(handle);
+    Element::text(text)
+}
+impl Default for KeyframeLeafProps {
+    fn default() -> Self {
+        Self { progress: 0.0 }
+    }
+}
+
+#[test]
+#[serial_test::serial]
+fn keyframe_values_paint_through_app_and_removal_disables_the_escaped_handle() {
+    static REGISTER: Once = Once::new();
+    REGISTER.call_once(|| register_component::<KeyframeLeaf>("KeyframeLeaf").unwrap());
+    let (result, frames, _, _) = run_frames(vec![
+        KeyframeLeaf::element(0.0).key("animated"),
+        KeyframeLeaf::element(0.5).key("animated"),
+        KeyframeLeaf::element(1.0).key("animated"),
+        Element::text("removed"),
+    ]);
+    result.unwrap();
+    assert_eq!(
+        frames.iter().map(|frame| frame.trim()).collect::<Vec<_>>(),
+        ["keyframe:2", "keyframe:6", "keyframe:10", "removed"]
+    );
+    let handle = KEYFRAME_HANDLE.lock().unwrap().take().unwrap();
+    handle.play();
+    handle.seek(0.0);
+    reactive_tui::hooks::animation::update_hook_animations();
+    assert_eq!(
+        handle.value(),
+        10.0,
+        "removed component accepted animation work"
+    );
+}

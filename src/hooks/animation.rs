@@ -1,13 +1,13 @@
 //! Animation hooks for reactive components
 
-use crate::animation::keyframes::{Keyframe, KeyframeAnimation};
+use crate::animation::keyframes::{Keyframe, KeyframeAnimation, KeyframeType};
 use crate::animation::stagger::StaggerConfig;
 use crate::animation::{
     Animation, AnimationController, AnimationState, EasingFunction, LoopMode, SpringConfig,
 };
 use crate::reactive::{use_effect, use_signal, Hooks, Scheduler, ThreadSafeSignal};
 use std::fmt::Debug;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex, RwLock};
 use std::thread;
 use std::time::{Duration, Instant};
@@ -82,117 +82,116 @@ impl AnimatableValue for (f32, f32) {
     }
 }
 
-/// Shared animation runtime that manages animation frames
+/// Shared animation runtime that manages animation frames.
 struct AnimationRuntime {
-    running: Arc<AtomicBool>,
+    running: AtomicBool,
+    updating: AtomicBool,
+    next_id: AtomicUsize,
     app_subscribers: crate::reactive::wake::Subscriptions,
-    animations: Arc<RwLock<Vec<AnimationTask>>>,
-    /// Pre-computed animation updates to avoid blocking render thread
-    pending_updates: Arc<RwLock<Vec<(usize, f32)>>>,
+    animations: RwLock<Vec<AnimationTask>>,
 }
 
+#[derive(Clone)]
 struct AnimationTask {
     id: usize,
     update: Arc<dyn Fn(f32) + Send + Sync>,
+    active: Arc<AtomicBool>,
     start_time: Instant,
     duration: Duration,
+}
+
+// Concurrent Apps and callback reentry must not deliver an older frame after a
+// newer one. Reentry skips this update; adding work still wakes subscribed Apps.
+struct UpdateGuard<'a>(&'a AtomicBool);
+impl Drop for UpdateGuard<'_> {
+    fn drop(&mut self) {
+        self.0.store(false, Ordering::Release);
+    }
 }
 
 impl AnimationRuntime {
     fn new() -> Arc<Self> {
         Arc::new(Self {
-            running: Arc::new(AtomicBool::new(true)),
+            running: AtomicBool::new(true),
+            updating: AtomicBool::new(false),
+            next_id: AtomicUsize::new(0),
             app_subscribers: crate::reactive::wake::Subscriptions::default(),
-            animations: Arc::new(RwLock::new(Vec::new())),
-            pending_updates: Arc::new(RwLock::new(Vec::new())),
+            animations: RwLock::new(Vec::new()),
         })
     }
 
-    /// Compute animation progress asynchronously (can be called from background thread)
-    pub fn compute_animation_updates(&self) {
-        if !self.running.load(Ordering::Relaxed) {
-            return;
-        }
-
-        let mut updates = Vec::new();
-        let mut completed = Vec::new();
-
-        {
-            let animations = self.animations.read().unwrap();
-            for (idx, task) in animations.iter().enumerate() {
-                let elapsed = task.start_time.elapsed();
-                let progress = (elapsed.as_secs_f32() / task.duration.as_secs_f32()).min(1.0);
-                updates.push((task.id, progress));
-
-                if progress >= 1.0 {
-                    completed.push(idx);
-                }
-            }
-        }
-
-        // Store computed updates for the render thread to apply
-        if !updates.is_empty() {
-            let mut pending = self.pending_updates.write().unwrap();
-            *pending = updates;
-        }
-
-        // Remove completed animations
-        if !completed.is_empty() {
-            let mut animations = self.animations.write().unwrap();
-            for idx in completed.iter().rev() {
-                animations.remove(*idx);
-            }
-        }
-    }
-
-    /// Apply pre-computed animation updates (called from main render loop)
+    /// Deliver a coherent snapshot without holding the registry lock in callbacks.
     pub fn update_animations(&self) {
-        if !self.running.load(Ordering::Relaxed) {
+        if !self.running.load(Ordering::Acquire)
+            || self
+                .updating
+                .compare_exchange(false, true, Ordering::Acquire, Ordering::Relaxed)
+                .is_err()
+        {
             return;
         }
-
-        // First compute the updates (this could be moved to a background thread)
-        self.compute_animation_updates();
-
-        // Then apply them quickly without blocking
-        let updates = {
-            let mut pending = self.pending_updates.write().unwrap();
-            std::mem::take(&mut *pending)
-        };
-
-        // Apply updates in batch - much faster than computing inline
-        if !updates.is_empty() {
-            let animations = self.animations.read().unwrap();
-            for (id, progress) in updates {
-                // Find animation by id and apply update
-                if let Some(task) = animations.iter().find(|t| t.id == id) {
-                    (task.update)(progress);
-                }
+        let _guard = UpdateGuard(&self.updating);
+        let tasks = self.animations.read().unwrap().clone();
+        let now = Instant::now();
+        for task in tasks {
+            if !task.active.load(Ordering::Acquire) {
+                continue;
+            }
+            let progress = if task.duration.is_zero() {
+                1.0
+            } else {
+                (now.saturating_duration_since(task.start_time).as_secs_f64()
+                    / task.duration.as_secs_f64())
+                .min(1.0) as f32
+            };
+            (task.update)(progress);
+            if progress >= 1.0 {
+                self.remove_animation(task.id);
             }
         }
     }
 
     fn stop(&self) {
-        self.running.store(false, Ordering::Relaxed);
+        self.running.store(false, Ordering::Release);
+        let removed = {
+            let mut tasks = self.animations.write().unwrap();
+            for task in tasks.iter() {
+                task.active.store(false, Ordering::Release);
+            }
+            std::mem::take(&mut *tasks)
+        };
+        drop(removed);
     }
 
     fn add_animation(&self, update: Arc<dyn Fn(f32) + Send + Sync>, duration: Duration) -> usize {
-        let mut animations = self.animations.write().unwrap();
-        let id = animations.len();
-        animations.push(AnimationTask {
-            id,
-            update,
-            start_time: Instant::now(),
-            duration,
-        });
-        drop(animations);
+        let id = self
+            .next_id
+            .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |id| id.checked_add(1))
+            .expect("animation ID space exhausted");
+        let mut tasks = self.animations.write().unwrap();
+        if self.running.load(Ordering::Acquire) {
+            tasks.push(AnimationTask {
+                id,
+                update,
+                active: Arc::new(AtomicBool::new(true)),
+                start_time: Instant::now(),
+                duration,
+            });
+        }
+        drop(tasks);
         self.app_subscribers.notify();
         id
     }
 
     fn remove_animation(&self, id: usize) {
-        let mut animations = self.animations.write().unwrap();
-        animations.retain(|task| task.id != id);
+        let removed = {
+            let mut tasks = self.animations.write().unwrap();
+            tasks.iter().position(|task| task.id == id).map(|index| {
+                tasks[index].active.store(false, Ordering::Release);
+                tasks.remove(index)
+            })
+        };
+        drop(removed);
     }
 }
 
@@ -641,67 +640,142 @@ impl Default for TransitionConfig {
     }
 }
 
-/// Keyframe animation handle
-pub struct KeyframeHandle<T: AnimatableValue> {
-    value: ThreadSafeSignal<T>,
-    animation: Arc<RwLock<KeyframeAnimation<T>>>,
-    animation_id: Arc<Mutex<Option<usize>>>,
+/// Keyframe animation handle. Clones share one component-owned sequence.
+#[derive(Clone)]
+pub struct KeyframeHandle<T: AnimatableValue + KeyframeType> {
+    owner: Arc<KeyframeOwner<T>>,
 }
 
-impl<T: AnimatableValue> KeyframeHandle<T> {
-    /// Get the current animation value
-    pub fn value(&self) -> T {
-        self.value.get()
+struct KeyframeOwner<T: AnimatableValue + KeyframeType> {
+    value: ThreadSafeSignal<T>,
+    animation: KeyframeAnimation<T>,
+    animation_id: Mutex<Option<usize>>,
+    cleanup_registered: AtomicBool,
+    generation: AtomicUsize,
+    lifetime: std::sync::Weak<crate::reactive::hooks::HookResources>,
+}
+
+// Also cancels playback if a render aborts before its effect is committed.
+struct KeyframeCleanup<T: AnimatableValue + KeyframeType>(std::sync::Weak<KeyframeOwner<T>>);
+
+impl<T: AnimatableValue + KeyframeType> Drop for KeyframeCleanup<T> {
+    fn drop(&mut self) {
+        if let Some(owner) = self.0.upgrade() {
+            owner.cleanup_registered.store(false, Ordering::Release);
+            owner.stop();
+        }
+    }
+}
+
+impl<T: AnimatableValue + KeyframeType> KeyframeOwner<T> {
+    fn is_alive(&self) -> bool {
+        self.lifetime
+            .upgrade()
+            .is_some_and(|owner| owner.is_alive())
     }
 
-    /// Play the keyframe animation
-    pub fn play(&self) {
-        // Cancel current animation
-        if let Some(id) = *self.animation_id.lock().unwrap() {
+    fn stop(&self) {
+        let id = {
+            let mut current = self.animation_id.lock().unwrap();
+            self.generation.fetch_add(1, Ordering::AcqRel);
+            current.take()
+        };
+        if let Some(id) = id {
             RUNTIME.remove_animation(id);
         }
+    }
+}
 
-        let value_signal = self.value.clone();
-        let animation_ref = self.animation.clone();
+impl<T: AnimatableValue + KeyframeType> Drop for KeyframeOwner<T> {
+    fn drop(&mut self) {
+        self.stop();
+    }
+}
 
-        let update = Arc::new(move |progress: f32| {
-            let animation = animation_ref.read().unwrap();
-            if let Some(value) = animation.get_value_at_time(progress) {
-                value_signal.set(value);
-            }
-        });
-
-        let duration = self.animation.read().unwrap().duration();
-        let id = RUNTIME.add_animation(update, duration);
-        *self.animation_id.lock().unwrap() = Some(id);
+impl<T: AnimatableValue + KeyframeType> KeyframeHandle<T> {
+    /// Get the current animation value, including the final value after completion.
+    pub fn value(&self) -> T {
+        self.owner.value.get()
     }
 
-    /// Seek to a specific time in the keyframe animation
-    ///
-    /// # Arguments
-    /// * `time` - The time position to seek to (0.0 to 1.0)
+    /// Restart the retained keyframe sequence. Has no effect after owner cleanup.
+    pub fn play(&self) {
+        let mut current = self.owner.animation_id.lock().unwrap();
+        if let Some(id) = current.take() {
+            RUNTIME.remove_animation(id);
+        }
+        if !self.owner.is_alive() {
+            return;
+        }
+        let generation = self
+            .owner
+            .generation
+            .fetch_add(1, Ordering::AcqRel)
+            .wrapping_add(1);
+        let owner = Arc::downgrade(&self.owner);
+        let update = Arc::new(move |progress: f32| {
+            let Some(owner) = owner.upgrade() else { return };
+            if owner.is_alive() {
+                if let Some(value) = owner.animation.get_value_at_time(progress) {
+                    // Sampling user-defined values can stop or restart playback.
+                    // Serialize delivery with cancellation after sampling returns.
+                    let current = owner.animation_id.lock().unwrap();
+                    if current.is_some()
+                        && owner.is_alive()
+                        && owner.generation.load(Ordering::Acquire) == generation
+                    {
+                        owner.value.set(value);
+                    }
+                }
+            }
+        });
+        *current = Some(RUNTIME.add_animation(update, self.owner.animation.duration()));
+    }
+
+    /// Cancel scheduled updates, keeping the most recently delivered value.
+    pub fn stop(&self) {
+        self.owner.stop();
+    }
+
+    /// Sample a normalized time without starting playback.
+    /// Has no effect after the component or hook owner has been cleaned up.
     pub fn seek(&self, time: f32) {
-        let animation = self.animation.read().unwrap();
-        if let Some(value) = animation.get_value_at_time(time) {
-            self.value.set(value);
+        if self.owner.is_alive() {
+            if let Some(value) = self.owner.animation.get_value_at_time(time) {
+                let _current = self.owner.animation_id.lock().unwrap();
+                if self.owner.is_alive() {
+                    self.owner.value.set(value);
+                }
+            }
         }
     }
 }
 
-/// Hook for keyframe animations
-pub fn use_keyframes<T: AnimatableValue + Default>(
+/// Retain the initial keyframe sequence across renders. Cleanup cancels playback,
+/// including when a handle escapes the component. Call `play` to restart it.
+pub fn use_keyframes<T: AnimatableValue + KeyframeType>(
     hooks: &Hooks,
     initial: T,
     keyframes: Vec<Keyframe>,
 ) -> KeyframeHandle<T> {
-    let value = use_signal(hooks, initial);
-    let animation = Arc::new(RwLock::new(KeyframeAnimation::new(keyframes)));
-
-    KeyframeHandle {
-        value,
-        animation,
-        animation_id: Arc::new(Mutex::new(None)),
-    }
+    let lifetime = hooks.resource_token();
+    let storage = hooks.get_or_create_storage(crate::reactive::hooks::HookKind::Memo, || {
+        Arc::new(KeyframeOwner {
+            value: ThreadSafeSignal::new(initial),
+            animation: KeyframeAnimation::new(keyframes),
+            animation_id: Mutex::new(None),
+            cleanup_registered: AtomicBool::new(false),
+            generation: AtomicUsize::new(0),
+            lifetime,
+        })
+    });
+    let owner = storage.lock().unwrap().clone();
+    // Unchanged effects discard their incoming closure. Only the first pending
+    // effect owns cancellation; a discarded rerender must not stop playback.
+    let cleanup = (!owner.cleanup_registered.swap(true, Ordering::AcqRel))
+        .then(|| KeyframeCleanup(Arc::downgrade(&owner)));
+    crate::reactive::use_effect_with_deps(hooks, (), move || Some(Box::new(move || drop(cleanup))));
+    KeyframeHandle { owner }
 }
 
 // Clone implementations for handles
@@ -723,6 +797,273 @@ impl<T: AnimatableValue> Clone for AnimationHandle<T> {
 mod tests {
     use super::*;
     use crate::reactive::Hooks;
+
+    #[derive(Clone, Debug, Default, PartialEq)]
+    struct CancelOnSample(f32);
+    static CANCEL_ON_SAMPLE: Mutex<Option<KeyframeHandle<CancelOnSample>>> = Mutex::new(None);
+    impl AnimatableValue for CancelOnSample {
+        fn interpolate(&self, to: &Self, t: f32) -> Self {
+            Self(self.0 + (to.0 - self.0) * t)
+        }
+        fn to_f32(&self) -> f32 {
+            self.0
+        }
+        fn from_f32(value: f32) -> Self {
+            Self(value)
+        }
+    }
+    impl KeyframeType for CancelOnSample {
+        fn interpolate_keyframe(&self, _: &Self, _: f32, _: &EasingFunction) -> Self {
+            CANCEL_ON_SAMPLE.lock().unwrap().as_ref().unwrap().stop();
+            Self(999.0)
+        }
+        fn from_keyframe(
+            value: &crate::animation::keyframes::KeyframeValue,
+        ) -> Result<Self, crate::animation::KeyframeError> {
+            f32::from_keyframe(value).map(Self)
+        }
+    }
+
+    #[test]
+    fn keyframe_hook_sampling_can_cancel_without_delivering_a_stale_value() {
+        let (send, receive) = std::sync::mpsc::channel();
+        let worker = thread::spawn(move || {
+            let hooks = Hooks::new();
+            let handle = use_keyframes(
+                &hooks,
+                CancelOnSample(0.0),
+                vec![
+                    Keyframe::new(0.0).number("x", 0.0),
+                    Keyframe::new(1.0).number("x", 10.0),
+                ],
+            );
+            *CANCEL_ON_SAMPLE.lock().unwrap() = Some(handle.clone());
+            handle.play();
+            let id = handle.owner.animation_id.lock().unwrap().unwrap();
+            {
+                let mut tasks = RUNTIME.animations.write().unwrap();
+                let task = tasks.iter_mut().find(|task| task.id == id).unwrap();
+                task.duration = Duration::from_secs(100);
+                task.start_time = Instant::now() - Duration::from_secs(50);
+            }
+            RUNTIME.update_animations();
+            assert_eq!(handle.value(), CancelOnSample(0.0));
+            assert!(handle.owner.animation_id.lock().unwrap().is_none());
+            CANCEL_ON_SAMPLE.lock().unwrap().take();
+            hooks.cleanup();
+            send.send(()).unwrap();
+        });
+        receive
+            .recv_timeout(Duration::from_secs(2))
+            .expect("keyframe interpolation deadlocked during cancellation");
+        worker.join().unwrap();
+    }
+
+    #[test]
+    fn keyframe_hook_delivers_midpoint_and_completion_and_stop_is_isolated() {
+        let hooks = Hooks::new();
+        let frames = || {
+            vec![
+                Keyframe::new(0.0).number("x", 2.0),
+                Keyframe::new(1.0).number("x", 10.0),
+            ]
+        };
+        let first = use_keyframes(&hooks, 2.0_f32, frames());
+        let second = use_keyframes(&hooks, 2.0_f32, frames());
+        first.seek(0.5);
+        assert_eq!(first.value(), 6.0);
+        first.play();
+        second.play();
+        first.stop();
+        let second_id = second.owner.animation_id.lock().unwrap().unwrap();
+        {
+            let mut tasks = RUNTIME.animations.write().unwrap();
+            tasks
+                .iter_mut()
+                .find(|task| task.id == second_id)
+                .unwrap()
+                .duration = Duration::ZERO;
+        }
+        RUNTIME.update_animations();
+        assert_eq!(first.value(), 6.0);
+        assert_eq!(second.value(), 10.0);
+        assert!(!RUNTIME
+            .animations
+            .read()
+            .unwrap()
+            .iter()
+            .any(|task| task.id == second_id));
+        hooks.cleanup();
+    }
+
+    #[test]
+    fn keyframe_hook_last_context_drop_cancels_escaped_handle() {
+        let hooks = Hooks::new();
+        let handle = use_keyframes(&hooks, 0.0_f32, vec![Keyframe::new(1.0).number("x", 10.0)]);
+        handle.play();
+        drop(hooks);
+        assert!(handle.owner.animation_id.lock().unwrap().is_none());
+        handle.play();
+        handle.seek(1.0);
+        assert_eq!(handle.value(), 0.0);
+        assert!(handle.owner.animation_id.lock().unwrap().is_none());
+    }
+
+    #[test]
+    fn keyframe_hook_aborted_render_drops_pending_playback() {
+        let hooks = Hooks::new();
+        let mut escaped = None;
+        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let _render = hooks.begin_render();
+            let handle = use_keyframes(
+                &hooks,
+                0.0_f32,
+                vec![
+                    Keyframe::new(0.0).number("x", 0.0),
+                    Keyframe::new(1.0).number("x", 10.0),
+                ],
+            );
+            handle.play();
+            escaped = Some(handle);
+            panic!("deliberately aborted render");
+        }));
+        assert!(result.is_err());
+        let handle = escaped.unwrap();
+        assert!(handle.owner.animation_id.lock().unwrap().is_none());
+    }
+
+    #[test]
+    fn keyframe_hook_cleanup_removes_work_and_disables_escaped_handle() {
+        let hooks = Hooks::new();
+        let handle = use_keyframes(
+            &hooks,
+            0.0_f32,
+            vec![
+                Keyframe::new(0.0).number("x", 0.0),
+                Keyframe::new(1.0).number("x", 10.0),
+            ],
+        );
+        handle.play();
+        let id = handle.owner.animation_id.lock().unwrap().unwrap();
+        hooks.cleanup();
+        assert!(!RUNTIME
+            .animations
+            .read()
+            .unwrap()
+            .iter()
+            .any(|task| task.id == id));
+        handle.seek(1.0);
+        assert_eq!(handle.value(), 0.0);
+        handle.play();
+        assert!(handle.owner.animation_id.lock().unwrap().is_none());
+    }
+
+    #[test]
+    fn keyframe_hook_rerender_retains_the_running_sequence() {
+        let hooks = Hooks::new();
+        let frames = || {
+            vec![
+                Keyframe::new(0.0).number("x", 0.0),
+                Keyframe::new(1.0).number("x", 10.0),
+            ]
+        };
+        let first = use_keyframes(&hooks, 0.0_f32, frames());
+        first.play();
+        hooks.reset();
+        let second = use_keyframes(&hooks, 0.0_f32, frames());
+        assert!(Arc::ptr_eq(&first.owner, &second.owner));
+        assert!(
+            second.owner.animation_id.lock().unwrap().is_some(),
+            "rerender cancelled playback"
+        );
+        hooks.cleanup();
+    }
+
+    #[test]
+    fn keyframe_runtime_releases_callback_captures_outside_its_lock() {
+        struct ReenterOnDrop(Arc<AnimationRuntime>);
+        impl Drop for ReenterOnDrop {
+            fn drop(&mut self) {
+                let id = self
+                    .0
+                    .add_animation(Arc::new(|_| {}), Duration::from_secs(10));
+                self.0.remove_animation(id);
+            }
+        }
+        for stop in [false, true] {
+            let (send, receive) = std::sync::mpsc::channel();
+            let worker = thread::spawn(move || {
+                let runtime = AnimationRuntime::new();
+                let captured = ReenterOnDrop(runtime.clone());
+                let id = runtime.add_animation(
+                    Arc::new(move |_| {
+                        std::hint::black_box(&captured);
+                    }),
+                    Duration::from_secs(10),
+                );
+                if stop {
+                    runtime.stop();
+                } else {
+                    runtime.remove_animation(id);
+                }
+                send.send(()).unwrap();
+            });
+            receive
+                .recv_timeout(Duration::from_secs(2))
+                .expect("callback capture drop could not reenter the runtime");
+            worker.join().unwrap();
+        }
+    }
+
+    #[test]
+    fn keyframe_runtime_delivers_the_final_update_before_removal() {
+        let runtime = AnimationRuntime::new();
+        let delivered = Arc::new(Mutex::new(Vec::new()));
+        let output = delivered.clone();
+        runtime.add_animation(
+            Arc::new(move |progress| output.lock().unwrap().push(progress)),
+            Duration::ZERO,
+        );
+        runtime.update_animations();
+        assert_eq!(*delivered.lock().unwrap(), vec![1.0]);
+        assert!(runtime.animations.read().unwrap().is_empty());
+    }
+
+    #[test]
+    fn keyframe_runtime_ids_do_not_reuse_a_live_animation_after_cancellation() {
+        let runtime = AnimationRuntime::new();
+        let first = runtime.add_animation(Arc::new(|_| {}), Duration::from_secs(10));
+        let second = runtime.add_animation(Arc::new(|_| {}), Duration::from_secs(10));
+        runtime.remove_animation(first);
+        let third = runtime.add_animation(Arc::new(|_| {}), Duration::from_secs(10));
+        assert_ne!(second, third);
+        runtime.remove_animation(second);
+        assert_eq!(runtime.animations.read().unwrap().len(), 1);
+        assert_eq!(runtime.animations.read().unwrap()[0].id, third);
+    }
+
+    #[test]
+    fn keyframe_runtime_callback_can_start_and_cancel_an_animation() {
+        let (send, receive) = std::sync::mpsc::channel();
+        let worker = thread::spawn(move || {
+            let runtime = AnimationRuntime::new();
+            let target = runtime.clone();
+            runtime.add_animation(
+                Arc::new(move |_| {
+                    let id = target.add_animation(Arc::new(|_| {}), Duration::from_secs(10));
+                    target.remove_animation(id);
+                }),
+                Duration::from_secs(10),
+            );
+            runtime.update_animations();
+            send.send(()).unwrap();
+        });
+        // A failing isolated test process exits rather than joining a deadlocked worker.
+        receive
+            .recv_timeout(Duration::from_secs(2))
+            .expect("animation callback could not reenter the runtime");
+        worker.join().unwrap();
+    }
 
     #[test]
     fn test_animation_runs() {
