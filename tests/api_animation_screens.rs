@@ -364,3 +364,6 @@ fn active_screen_routes_keyboard_activation_to_its_control() {
         "active screen discarded keyboard input"
     );
 }
+
+#[path = "api_animation_screens/screens.rs"]
+mod screens;

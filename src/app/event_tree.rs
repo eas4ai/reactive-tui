@@ -46,7 +46,7 @@ impl Slot {
 }
 
 #[derive(Default)]
-pub(super) struct EventTree {
+pub(crate) struct EventTree {
     nodes: HashMap<Vec<Slot>, NodeId>,
 }
 
@@ -63,7 +63,7 @@ struct Registration<'a> {
 
 impl EventTree {
     /// Resolve state variants without publishing a candidate event tree.
-    pub(super) fn styled(&self, element: &Element, router: &EventRouter, width: u16) -> Element {
+    pub(crate) fn styled(&self, element: &Element, router: &EventRouter, width: u16) -> Element {
         let focus = router.get_focus().and_then(|id| self.path_for(id));
         let hover = router.hovered_node().and_then(|id| self.path_for(id));
         Self::style_node(element.clone(), Vec::new(), 0, focus, hover, width)
@@ -126,7 +126,7 @@ impl EventTree {
         element
     }
 
-    pub(super) fn sync(
+    pub(crate) fn sync(
         &mut self,
         element: &Element,
         geometry: &[PaintedNode],
@@ -230,7 +230,7 @@ impl EventTree {
         frame.keyboard_only = ancestor_keyboard_only;
     }
 
-    pub(super) fn clear(&mut self, router: &mut EventRouter) {
+    pub(crate) fn clear(&mut self, router: &mut EventRouter) {
         let nodes: Vec<_> = self.nodes.drain().map(|(_, id)| id).collect();
         router.remove_nodes(&nodes);
     }

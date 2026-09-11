@@ -14,8 +14,8 @@ use crate::render::{Reconciler, RenderTree};
 use std::sync::Arc;
 use std::time::Instant;
 
-mod event_tree;
-mod focus_manager;
+pub(crate) mod event_tree;
+pub(crate) mod focus_manager;
 mod motion;
 use focus_manager::FocusManager;
 

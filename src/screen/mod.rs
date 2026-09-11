@@ -4,8 +4,10 @@ use crate::render::reconcile::{PatchOp, Reconciler};
 use crate::render::tree::{element_to_render_node, RenderTree};
 use std::time::{Duration, Instant};
 
+mod composition;
 /// Screen management functionality
 pub mod manager;
+mod runtime;
 /// Screen transition effects and animations
 pub mod transitions;
 
@@ -80,6 +82,7 @@ pub struct Screen {
     reconciler: Reconciler,
     /// Root element of the screen
     root_element: Option<Element>,
+    runtime: runtime::ScreenRuntime,
 }
 
 impl Screen {
@@ -95,6 +98,7 @@ impl Screen {
             hooks: ScreenHooks::default(),
             reconciler: Reconciler::new(),
             root_element: None,
+            runtime: runtime::ScreenRuntime::new(),
         }
     }
 
@@ -193,9 +197,9 @@ pub enum TransitionType {
     SlideDown,
     /// Scale transition effect
     Scale,
-    /// Flip transition effect
+    /// Terminal flip: compress the source horizontally, then expand the target.
     Flip,
-    /// 3D cube rotation effect
+    /// Terminal cube approximation: adjacent horizontally compressed faces.
     Cube,
     /// Push transition effect
     Push,
@@ -661,8 +665,12 @@ impl TransitionState {
     /// Update transition progress
     ///
     /// # Returns
-    /// true if transition is still active
+    /// true when this call completes the transition
     pub fn update(&mut self) -> bool {
+        self.update_at(Instant::now())
+    }
+
+    pub(crate) fn update_at(&mut self, now: Instant) -> bool {
         if !self.is_transitioning {
             return false;
         }
@@ -671,14 +679,14 @@ impl TransitionState {
             return false;
         };
 
-        let elapsed = start_time.elapsed();
+        let elapsed = now.saturating_duration_since(start_time);
         if elapsed >= self.config.duration {
             self.is_transitioning = false;
             self.progress = 1.0;
             self.start_time = None;
             true // Transition completed
         } else {
-            let t = elapsed.as_millis() as f32 / self.config.duration.as_millis() as f32;
+            let t = elapsed.as_secs_f32() / self.config.duration.as_secs_f32();
             self.progress = self.config.easing.apply(t);
             false // Still transitioning
         }

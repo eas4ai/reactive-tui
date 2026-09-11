@@ -3459,8 +3459,9 @@ production behavior was weakened to reduce these static counts.
 
 ## API-008 platform refresh after keyframe repair
 
-- In progress: refresh native clipboard records and rerun the API-008 mechanism
-  named by Cairn; the remaining API-013 implementation waits for that verdict.
+- Complete: refresh native clipboard records and rerun API-008 through API-012.
+  All now have committed passing receipts.
+- In progress: repair and verify API-013 screen transitions and relative values.
 
 API-001 through API-007 have fresh passing Cairn receipts committed after the
 keyframe repair. API-008 failed only at the platform-record verifier: all 13
@@ -3504,3 +3505,60 @@ Native record bytes retain their produced line endings. git diff --check flagged
 CRLF on changed Windows JSON lines during the clipboard import; that check was
 not a pass. Output hashes were verified without normalizing captured evidence.
 No runtime changes or weaker acceptance criteria were used for either refresh.
+
+
+## API-013 retained screens and visible transitions
+
+ScreenManager now retains generated component instances, hooks, event routing and
+focus per screen. Input uses the active screen and acknowledged painter bounds;
+resize updates those bounds. Removed screens release retained effects once.
+Transitions prepare both trees and paint composed layers. Their source remains
+active until completion, and its preorder geometry is remapped without changing
+its local event identities. The shared backend has one previous presented tree
+for legacy patch reconciliation across switches. Immediate switches and removal
+cancel obsolete transitions. Removing the final screen presents an empty frame.
+
+Failure demonstrations: the Enter callback originally stayed at zero. The fade
+midpoint initially painted full blue (59,130,246), not the expected blend
+(149,99,157). Both now pass. Transition tests compare all nine animated kinds at
+zero, quarter, three-quarter and completion; slide additionally checks independent
+left/right colors. Tests cover source-only pointer/keyboard input, final activation,
+wide/combining text, release/repeat hotkeys, cancellation and submillisecond timing.
+Flip and cube are explicitly documented cell-placement approximations.
+
+Fresh development checks on the current source:
+- Full library: 992 passed, two intentionally ignored fixtures.
+- Eight screen-manager unit tests passed (also included in the full library).
+- api_animation_screens: 16 passed, one known relative-opacity regression failed.
+- api_hook_lifecycle: seven passed.
+- api_component_expansion: five passed; api_focus: 12 passed;
+  screen_system_tests: nine passed.
+- Strict cargo clippy --lib --tests -- -D warnings passed.
+- cargo fmt --all and git diff --check passed.
+
+The mechanism includes the screen-manager tests and keeps the relative regression
+visible. A target painted with opacity 0.5 currently yields numeric zero from
+animate(target_id, Relative("+0.25")); the required values are opacity 0.5 to 0.75.
+Inspection confirms animate discards target IDs and neither Animation nor its
+manager retains a reference to the owning App/screen or its computed properties.
+No relative-value runtime repair or public compatibility change was made here.
+This is verified screen work, not complete API-013 acceptance or a final release.
+Formal evidence and native records must be refreshed after implementation resumes.
+
+Self-audit: public constructors remain intact; Screen already had private fields.
+App event/focus changes only widen crate-internal visibility, with regression tests.
+Presentation publishes event geometry only after backend success. Screen effects
+are retained on switches and closed on removal. Source and destination clocks do
+not share component state. The callback tests and pixel-independent cell colors
+attack behavior rather than merely checking the composition implementation.
+Remaining relative semantics prevent declaring the requirement complete.
+
+Ripwire edit-check reports the ScreenManager contract unchanged and no incompatible
+callers (its zero caller count is only a lower bound). Test-gate exits 4, listing
+36 test paths and 25 untested symbols, including executed tests it did not model.
+Quality-delta exits 2 with 1585 broad gating findings, dominated by reference
+checkouts. Examined changed-path findings: exercised tests/Drop/trait methods marked
+dead, preserved legacy patch API no longer used by ScreenManager, simple writer
+fixtures, normalized constructors/cleanup incorrectly equated with unrelated
+reference methods, and short-horizon visibility churn. These are not passing gates;
+no unrelated refactors or deleted compatibility APIs were used to silence them.

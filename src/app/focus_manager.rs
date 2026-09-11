@@ -7,7 +7,7 @@ use crate::{
 use std::collections::HashSet;
 
 #[derive(Default)]
-pub(super) struct FocusManager {
+pub(crate) struct FocusManager {
     /// Creation order, retained when keyed containers move in the rendered tree.
     traps: Vec<NodeId>,
     autofocus: HashSet<NodeId>,
@@ -15,7 +15,7 @@ pub(super) struct FocusManager {
 }
 
 #[derive(Default)]
-pub(super) struct FocusPlan {
+pub(crate) struct FocusPlan {
     order: Vec<NodeId>,
     autofocus: Vec<NodeId>,
     traps: Vec<Trap>,
@@ -45,14 +45,14 @@ struct Trap {
 }
 
 impl FocusPlan {
-    pub(super) fn new(previous_focus: Option<NodeId>) -> Self {
+    pub(crate) fn new(previous_focus: Option<NodeId>) -> Self {
         Self {
             previous_focus,
             ..Self::default()
         }
     }
 
-    pub(super) fn enter(&mut self, element: &Element, id: NodeId) -> (bool, bool) {
+    pub(crate) fn enter(&mut self, element: &Element, id: NodeId) -> (bool, bool) {
         self.order.push(id);
         let focusable = !element.metadata.disabled
             && element
@@ -97,7 +97,7 @@ impl FocusPlan {
         (true, scope)
     }
 
-    pub(super) fn leave(&mut self, (trap, scope): (bool, bool)) {
+    pub(crate) fn leave(&mut self, (trap, scope): (bool, bool)) {
         if trap {
             self.ancestors.pop();
         }
@@ -108,11 +108,11 @@ impl FocusPlan {
 }
 
 impl FocusManager {
-    pub(super) fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Self::default()
     }
 
-    pub(super) fn apply(&mut self, router: &mut EventRouter, plan: FocusPlan) {
+    pub(crate) fn apply(&mut self, router: &mut EventRouter, plan: FocusPlan) {
         router.set_focus_order(&plan.order);
         let present: HashSet<_> = plan.traps.iter().map(|trap| trap.id).collect();
         for &id in self.traps.iter().rev() {
