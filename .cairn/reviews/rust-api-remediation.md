@@ -3462,7 +3462,8 @@ production behavior was weakened to reduce these static counts.
 - Complete: refresh native clipboard records and rerun API-008 through API-012.
   All now have committed passing receipts.
 - Complete: implement and verify the approved API-013 owner-bound animation targets.
-- In progress: commit the target repair and refresh Cairn evidence.
+- Complete: commit the target repair and refresh API-001 through API-010 evidence.
+- In progress: repair and verify the native API-011 cancellation fixture.
 - Complete: refresh native API-008 evidence after the committed screen repair.
 - Complete: refresh API-011 native records and acceptance after the screen repair.
 
@@ -3686,3 +3687,32 @@ platform, behavior-marker and output-hash validation and was imported. All five
 clipboard backends now have current verified native evidence. GitHub run
 34604250701 remains failed overall because of the macOS HTTP App test; no widget
 acceptance claim is made from the clipboard refresh.
+
+
+## API-011 cancellation fixture after native macOS failure
+
+The API-011 refresh passed its local widget and accessibility cases, then rejected
+stale ConPTY evidence. The completed native snapshot passed Windows but macOS
+failed the HTTP engine cancellation case: its two-second response completed before
+the input harness observed REQUESTS 1. Fifty local repetitions passed, so runner
+scheduling is a plausible cause, not a proven production defect.
+
+The revised fixture holds that response until teardown. Cancellation is still sent
+only after a painted server-observed request. Its existing one-second bound now
+measures close_dialog itself, excluding unrelated App startup and frame scheduling.
+Result, no-submission, active-count and exactly-one-request assertions remain.
+The server checks its stop flag and joins at teardown; no worker is left waiting.
+
+A deliberate no-close variant failed at the bounded frame deadline while waiting
+for REMOVED. Its output and the original macOS failure are retained alongside this
+review. Restored the close call; all 16 HTTP App integration cases passed, as did
+strict Clippy for the integration target, formatting and git diff --check. Native
+verification remains outstanding, so this is not an API-011 completion claim.
+
+Ripwire reports the fixture Server contract unchanged with lower-bound zero
+incompatible callers. Quality-delta exits 2 (1583 broad gating findings); inspected
+changed-path rows show the extra hold condition and timing measurement, historical
+churn, and normalized constructors matched to unrelated reference code. The close
+handler comparison crosses different test-root types and is not a reusable helper.
+Test-gate exits 4 with eight test paths and zero untested symbols; its static result
+is not a passing execution gate. The complete 16-case fixture suite ran.

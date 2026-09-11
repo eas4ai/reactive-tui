@@ -25,6 +25,7 @@ struct Reply {
     status: u16,
     body: String,
     delay: Duration,
+    hold_until_teardown: bool,
 }
 
 impl Reply {
@@ -33,6 +34,7 @@ impl Reply {
             status: 200,
             body: body.into(),
             delay: Duration::ZERO,
+            hold_until_teardown: false,
         }
     }
 }
@@ -92,7 +94,9 @@ impl Server {
                     };
                     request_count.set(count);
                     let until = Instant::now() + reply.delay;
-                    while Instant::now() < until && !stopped.load(Ordering::Acquire) {
+                    while (reply.hold_until_teardown || Instant::now() < until)
+                        && !stopped.load(Ordering::Acquire)
+                    {
                         thread::sleep(Duration::from_millis(1));
                     }
                     if stopped.load(Ordering::Acquire) { return }
@@ -190,6 +194,7 @@ fn dialog_engine_http_close_cancels_a_live_request_and_does_not_submit() {
         engine: DialogEngine,
         id: DialogId,
         requests: ThreadSafeSignal<usize>,
+        closed_in: Arc<Mutex<Option<Duration>>>,
     }
     impl RootComponent for Root {
         fn render(&self) -> Element {
@@ -207,7 +212,9 @@ fn dialog_engine_http_close_cancels_a_live_request_and_does_not_submit() {
         }
         fn try_handle_event(&mut self, event: &Event) -> reactive_tui::error::Result<EventResult> {
             if matches!(event, Event::Key(key) if key.code == KeyCode::F(2)) {
+                let start = Instant::now();
                 self.engine.close_dialog(self.id, DialogResult::Cancelled);
+                *self.closed_in.lock().unwrap() = Some(start.elapsed());
                 Ok(EventResult::Handled)
             } else {
                 Ok(EventResult::Ignored)
@@ -215,7 +222,7 @@ fn dialog_engine_http_close_cancels_a_live_request_and_does_not_submit() {
         }
     }
     let server = Server::new(vec![Reply {
-        delay: Duration::from_secs(2),
+        hold_until_teardown: true,
         ..Reply::json(r#"{"valid":true}"#)
     }]);
     let submissions = Arc::new(AtomicUsize::new(0));
@@ -237,12 +244,13 @@ fn dialog_engine_http_close_cancels_a_live_request_and_does_not_submit() {
         ..Default::default()
     });
     let completion = engine.completion(id).unwrap();
-    let start = Instant::now();
+    let closed_in = Arc::new(Mutex::new(None));
     let frames = app_input::run_when(
         Root {
             engine: engine.clone(),
             id,
             requests: server.count.clone(),
+            closed_in: closed_in.clone(),
         },
         (60, 20),
         vec![
@@ -251,7 +259,13 @@ fn dialog_engine_http_close_cancels_a_live_request_and_does_not_submit() {
             ("REMOVED", None),
         ],
     );
-    assert!(start.elapsed() < Duration::from_secs(1));
+    assert!(
+        closed_in
+            .lock()
+            .unwrap()
+            .expect("close event was delivered")
+            < Duration::from_secs(1)
+    );
     assert!(!frames.last().unwrap().text.contains("ENGINE PENDING"));
     assert_eq!(submissions.load(Ordering::SeqCst), 0);
     assert!(matches!(
