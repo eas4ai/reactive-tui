@@ -3465,7 +3465,9 @@ production behavior was weakened to reduce these static counts.
 - Complete: commit the target repair and refresh API-001 through API-010 evidence.
 - Complete: repair and verify the native API-011 cancellation fixture.
 - Complete: refresh API-011 through API-013 acceptance.
-- In progress: refresh inherited ABI and regression evidence as Cairn directs.
+- Complete: refresh ABI acceptance and maintenance checks.
+- Complete: repair and verify the default-suite keyframe cleanup assertion.
+- In progress: refresh committed evidence after the test correction.
 - Complete: refresh native API-008 evidence after the committed screen repair.
 - Complete: refresh API-011 native records and acceptance after the screen repair.
 
@@ -3742,3 +3744,34 @@ API-011 passed with current native records at receipt 20260911T141930550Z.
 API-012 passed at 20260911T141947972Z and API-013 passed at 20260911T141957317Z.
 Their evidence is committed. Cairn now names inherited ABI/regression freshness
 before remaining API implementation; the overall commitment remains in progress.
+
+
+## DFT-001 keyframe cleanup assertion under parallel runtime updates
+
+ABI-001 through ABI-004 passed, including the combined 30 inherited contracts.
+Standalone maintenance receipts passed too. The subsequent default-suite run
+failed one library assertion: keyframe_hook_last_context_drop_cancels_escaped_handle
+expected initial value zero but retained ten. A different test can update the
+shared runtime between play and owner drop; delivering that live frame is valid.
+The documented stop contract retains the last delivered value, not the initial one.
+
+Made the premise deterministic by seeking to the midpoint before cleanup. The old
+zero assertion failed with actual value five. The repaired test captures the value
+after cleanup, attempts play and a seek to a different endpoint, and requires the
+captured value and absent scheduled-task ID to remain unchanged. Choosing the
+opposite endpoint prevents an already-completed value from masking a live seek.
+No runtime code or synchronization was changed.
+
+Five complete parallel library executions passed after the correction: each had
+997 passes and two existing ignored fixtures. Strict library/test Clippy, formatting
+and git diff --check passed. Ripwire edit-check reports the test contract unchanged.
+Quality-delta exits 2 with 1578 broad findings; the changed test has historical churn,
+while other matched hook rows are unchanged code normalized against reference
+checkouts. Test-gate exits 4 (10 paths, 60 unmodelled symbols); no static gate pass is
+claimed. The actual full library ran repeatedly under parallel scheduling.
+
+The receipt runner initially staged only the requested requirement. Shared
+mechanisms also produced MNT-004 and DFT-002 through DFT-004 receipts; those were
+subsequently committed intact. Future runs stage all emitted evidence after each
+completed check. The failed default-suite receipt and successful aggregate receipt
+both remain in history.

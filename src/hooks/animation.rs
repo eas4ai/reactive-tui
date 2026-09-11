@@ -899,13 +899,24 @@ mod tests {
     #[test]
     fn keyframe_hook_last_context_drop_cancels_escaped_handle() {
         let hooks = Hooks::new();
-        let handle = use_keyframes(&hooks, 0.0_f32, vec![Keyframe::new(1.0).number("x", 10.0)]);
+        let handle = use_keyframes(
+            &hooks,
+            0.0_f32,
+            vec![
+                Keyframe::new(0.0).number("x", 0.0),
+                Keyframe::new(1.0).number("x", 10.0),
+            ],
+        );
         handle.play();
+        handle.seek(0.5);
         drop(hooks);
+        // Other runtime users may have delivered a frame before cleanup.
+        let retained = handle.value();
         assert!(handle.owner.animation_id.lock().unwrap().is_none());
         handle.play();
-        handle.seek(1.0);
-        assert_eq!(handle.value(), 0.0);
+        // Choose an endpoint different from the retained value to detect a live seek.
+        handle.seek(if retained == 10.0 { 0.0 } else { 1.0 });
+        assert_eq!(handle.value(), retained);
         assert!(handle.owner.animation_id.lock().unwrap().is_none());
     }
 
