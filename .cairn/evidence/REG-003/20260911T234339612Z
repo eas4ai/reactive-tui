@@ -1,0 +1,21 @@
+requirement: REG-003
+requirement_digest: sha256:f89d44f00069a66a08e52b3f3b21e761101a6851f47df6715e3e245c5f056282
+sequence: 24
+history_digest: sha256:fe5927914baa8836e3137c240befeccf3637bd314662f932dba2703b3018e476
+mechanism: registry-concurrency.md
+commit: 73e18ab
+inputs_digest: sha256:6a853d7f555c970231eb14efd81194200d13ae445537796ebcf50329e88bd9cc
+mechanism_digest: sha256:7fd7126b8bdf5c91758632e6557713ba8bb729ba243fa198b8f91295355a74df
+inputs_detail: .cairn/evidence/REG-001/20260911T234338416Z-2059382.inputs.json
+command: sh scripts/check-registry-concurrency.sh
+cwd: .
+exit: 0
+output_digest: sha256:dde170534d66c5546339a918e4295d2c7d8f5e41d442c56efee5ba57194c0cb4
+output: .cairn/evidence/REG-001/20260911T234338416Z-2059382.out
+stderr_output: .cairn/evidence/REG-001/20260911T234338416Z-2059382.err
+stderr_digest: sha256:cbb558ceaa4c6327d8683b64673e4cc3140d265d9db09ecf2966a1b6f4cce3e7
+signal: none
+execution_error: null
+result: pass
+source: exit
+recorded: 2026-09-11T23:43:39.612Z
