@@ -1,0 +1,33 @@
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 5.46s
+     Running tests/api_animation_screens.rs (target/debug/deps/api_animation_screens-a52999d3828822cd)
+
+running 2 tests
+test typed_numeric_midpoint_interpolates ... FAILED
+test untyped_conversion_preserves_numeric_endpoints ... FAILED
+
+failures:
+
+---- typed_numeric_midpoint_interpolates stdout ----
+
+thread 'typed_numeric_midpoint_interpolates' (1674580) panicked at tests/api_animation_screens.rs:22:5:
+assertion `left == right` failed
+  left: Some(0.0)
+ right: Some(5.0)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- untyped_conversion_preserves_numeric_endpoints stdout ----
+
+thread 'untyped_conversion_preserves_numeric_endpoints' (1674581) panicked at tests/api_animation_screens.rs:31:5:
+assertion `left == right` failed
+  left: Some(0.0)
+ right: Some(4.0)
+
+
+failures:
+    typed_numeric_midpoint_interpolates
+    untyped_conversion_preserves_numeric_endpoints
+
+test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `--test api_animation_screens`
