@@ -3788,3 +3788,9 @@ Native run 34610611752 passed on macOS and Windows. Both clipboard records were
 imported after snapshot, platform, current input digest, behavior markers and
 output hashes were validated. All five clipboard backends now verify against the
 committed candidate. ConPTY/widget artifacts are downloaded for their next action.
+
+API-008 through API-010 passed after the clipboard refresh. API-011 passed local
+widget and accessibility behavior and stopped at stale ConPTY evidence. Imported
+six ConPTY, 15 Windows widget and 72 macOS widget outputs from run 34610611752
+after checking snapshot, current input digests, platform/pass results and every
+output hash. Both native verifiers now pass. Historical failures remain intact.
