@@ -116,10 +116,10 @@ def exercise(root, keyboard, wait, named, state, click, speech, Atspi, speech_st
     assert docs.get_component_iface().grab_focus()
     wait("Directory focus absent", lambda: state(docs, Atspi.StateType.FOCUSED))
     wait("Orca did not announce directory", lambda: speech("Docs", start))
-    # Navigation can focus and announce the first file before the tree query returns.
     start = speech_start()
     keyboard.key(0xff0d)
     guide = wait("Directory navigation failed", lambda: named(root, "guide.txt"))
+    wait("forced fast announcement absent", lambda: speech("guide.txt"))
     assert guide.get_component_iface().grab_focus()
     wait("File focus absent", lambda: state(guide, Atspi.StateType.FOCUSED))
     wait("Orca did not announce file", lambda: speech("guide.txt", start))

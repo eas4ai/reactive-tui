@@ -3312,3 +3312,40 @@ bound of the direct keyframe API; its scalar conversion also cannot preserve
 arbitrary colors, transforms or tuples. A proper explicit value trait changes
 the source contract for callers using their own Clone types. Escalate that
 compatibility choice before implementing it, as the commitment requires.
+
+## Windows clipboard retry result (2026-09-11)
+
+GitHub run 34546990264 attempt 2 completed successfully on unchanged snapshot
+b4b9f1fcc3230f5eb83416138b9fb3b7e2dd57ed. Imported only the Windows clipboard
+record and its two captured outputs after comparing its committed-input digest
+with this candidate and checking both output SHA-256 hashes. The initial
+PowerShell clipboard timeout remains recorded in the earlier failure log; this
+retry does not establish its cause or claim a runtime fix. No deadline or
+assertion changed. Current test additions do not change the clipboard footprint.
+
+## API-011 file-announcement observation race (2026-09-11)
+
+API-011 receipt 20260911T100432988Z failed in the 32x10 data-control
+Orca workflow at "Orca did not announce file". Its retained Orca log shows
+focus moving from Docs to guide.txt and actual guide.txt speech at
+06:04:27.413342. The fixture set its speech-start marker only after querying
+the navigated tree, then requested focus on the already-focused file. It could
+therefore exclude the navigation announcement without causing another one.
+An unchanged 32x10 repeat passed; this was not an absent file announcement.
+
+Demonstrated the ordering with the real App, GNOME Terminal and Orca: inserting
+a wait for the guide.txt announcement immediately before the old marker made
+the old assertion fail. Moving the marker before Enter passed with that same
+forced ordering. Both scripts and complete session/Orca logs are retained in
+api-013-file-speech-forced-{negative,corrected}. The original failure logs are
+in api-013-file-speech-failure. Removed the artificial ordering wait from the
+final fixture. Kept the speech assertion and deadline, and added an explicit
+FOCUSED assertion. The final 32x10 data-control workflow passed.
+
+Ripwire impact/uses points to the Orca runner. edit-check reports zero
+incompatible callers; its definition-count change includes the saved proof
+copies of exercise, not a changed call signature. git diff --check passed.
+This repairs the evidence observer; no runtime or Orca behavior was changed.
+Full formal widget acceptance and fresh native records still remain pending.
+
+The final 60x16 data-control workflow also passed; its session log is retained.
