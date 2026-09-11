@@ -1,0 +1,21 @@
+requirement: RND-003
+requirement_digest: sha256:70a8ced19a930ce6431e0885430b313f8b2c96833e081a22824574b383659015
+sequence: 25
+history_digest: sha256:e09eca0f3613f245ddb6bf78de1a93bb1fabe908b76c3413d240c21edcb4b5aa
+mechanism: suprtui-renderer.md
+commit: c9cd546
+inputs_digest: sha256:b690da5ed0a9da8475caf3a1981c933dfd03b5f8012b9455da506900ddfd737c
+mechanism_digest: sha256:c4a7d77fc77bc7b2a021f616aa8d531d588d0ae5dc0815c7d464ee49dfeddd7a
+inputs_detail: .cairn/evidence/RND-001/20260911T154322054Z-833143.inputs.json
+command: sh scripts/check-renderer.sh
+cwd: .
+exit: 0
+output_digest: sha256:9a343cb9061adbff26c3255e033646b6eb35f6498d3971ca3be29445ce0edff2
+output: .cairn/evidence/RND-001/20260911T154322054Z-833143.out
+stderr_output: .cairn/evidence/RND-001/20260911T154322054Z-833143.err
+stderr_digest: sha256:16ca95732e03d3deaaac173404711006de764b1caf059d8509196384b07fcfb4
+signal: none
+execution_error: null
+result: pass
+source: exit
+recorded: 2026-09-11T15:43:23.530Z
