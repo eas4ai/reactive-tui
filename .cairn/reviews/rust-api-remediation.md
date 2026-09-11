@@ -3477,8 +3477,8 @@ production behavior was weakened to reduce these static counts.
 - Done: implement and verify API-015 feature configurations (receipt 20260911T180926733Z).
 - Done: refresh all 34 inherited requirements after API-015.
 - Done: implement and verify API-016 entry-point acceptance (receipt 20260911T233538835Z).
-- In progress: refresh inherited evidence after API-016.
-- Pending: API-017 native C/TypeScript behavior and ownership.
+- Done: refresh all 34 inherited requirements after API-016 (last receipts 20260911T234522876Z/877Z).
+- In progress: declare and verify API-017 native C/TypeScript behavior and ownership.
 - Pending: API-018 public documentation and Props validation.
 - Pending: API-019 complete residual audit contracts.
 - Pending: API-020 final regression and independent review.
@@ -4254,3 +4254,17 @@ committed failing baseline and retained native re-selection failure demonstratio
 API-001 through API-016 now have current passing receipts. Four numbered API
 requirements remain; inherited ABI and regression evidence still needs refreshing
 before Cairn advances to the remaining implementation.
+
+## API-017 acceptance declaration
+
+All 34 inherited requirements now have current passing receipts after API-016.
+The final renderer receipts are 20260911T234522876Z/877Z.
+
+Declared compiled C and TypeScript consumers for editor Unicode editing and
+styled output, real layout spacing, six native dialog families and result data,
+foreign prop/state updates, independent controllers, wrong-thread rejection,
+callback reentry, callback failures, explicit cleanup and real App restoration.
+The first run is a baseline; editor/layout/dialog modules remain excluded and
+the foreign controller is absent. The controller architecture was recorded
+before implementation. A Python syntax parse passed; consumer compilation and
+behavior are intentionally not yet claimed to pass.
