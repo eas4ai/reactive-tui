@@ -12,4 +12,4 @@ Use the async Mutex already provided by mandatory futures-util for the private A
 
 ## Realized by
 
-fcd24aa35407859fc44a14eb6bb904b5b1083b97 Restore independent no-default and nightly SIMD feature builds
+- fcd24aa35407859fc44a14eb6bb904b5b1083b97 Restore independent no-default and nightly SIMD feature builds
