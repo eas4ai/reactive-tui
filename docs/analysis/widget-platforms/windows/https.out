@@ -56,13 +56,13 @@ warning: field `parser` is never read
     |     ^^^^^^
 
 warning: `reactive-tui` (lib test) generated 7 warnings (run `cargo fix --lib -p reactive-tui --tests` to apply 5 suggestions)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.34s
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.30s
      Running unittests src\lib.rs (target\debug\deps\reactive_tui-8f430f50a806aae5.exe)
 
 running 1 test
 test widgets::dialog::http::tests::tls_certificate_probe ... ok
 
-test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 936 filtered out; finished in 0.34s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 946 filtered out; finished in 0.33s
 
 Dialog HTTPS trusted: passed
 warning: unused import: `std::os::windows::io::AsRawHandle`
@@ -123,12 +123,12 @@ warning: field `parser` is never read
     |     ^^^^^^
 
 warning: `reactive-tui` (lib test) generated 7 warnings (run `cargo fix --lib -p reactive-tui --tests` to apply 5 suggestions)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.32s
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.31s
      Running unittests src\lib.rs (target\debug\deps\reactive_tui-8f430f50a806aae5.exe)
 
 running 1 test
 test widgets::dialog::http::tests::tls_certificate_probe ... ok
 
-test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 936 filtered out; finished in 0.26s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 946 filtered out; finished in 0.25s
 
 Dialog HTTPS untrusted: passed

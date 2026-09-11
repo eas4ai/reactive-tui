@@ -3488,3 +3488,19 @@ Windows completed successfully too. Imported its clipboard record after the
 same snapshot, input-digest and output-hash checks, plus the Windows adapter
 marker. The platform verifier now reports all five backends current.
 The complete native run 34593782610 passed on both platforms.
+
+## API-011 native records after keyframe repair
+
+The fresh API-011 run passed its App widget workflows, focused behavior checks,
+and real GNOME Terminal/Orca cases. It then failed because the existing native
+ConPTY record had the previous source digest. The Windows/macOS job already
+completed successfully on snapshot baeaf6ca4b65f614278296175b001bf1574676e1
+(GitHub run 34593782610). Imported ConPTY and both widget records only after
+checking that commit, the current declared-input digest, platform, pass result
+and every recorded output hash. Both native verifiers now pass. The approved
+iTerm2 3.7 color/transparency limitation and its measurements remain intact.
+
+Native record bytes retain their produced line endings. git diff --check flagged
+CRLF on changed Windows JSON lines during the clipboard import; that check was
+not a pass. Output hashes were verified without normalizing captured evidence.
+No runtime changes or weaker acceptance criteria were used for either refresh.

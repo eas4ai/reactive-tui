@@ -24,7 +24,7 @@ warning: function `change` is never used
     |    ^^^^^^
 
 warning: `reactive-tui` (test "api_widget_behavior") generated 2 warnings
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.29s
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.36s
      Running tests/api_widget_behavior.rs (target/debug/deps/api_widget_behavior-ff4000526b6b632c)
 
 running 14 tests
@@ -43,5 +43,5 @@ test terminal_acceptance::terminal_widget_scrollbar_click_and_drag_use_measured_
 test terminal_acceptance::terminal_widget_scrolls_history_using_signed_wheel_at_two_sizes ... ok
 test terminal_acceptance::terminal_widget_uses_child_cursor_and_paste_modes ... ok
 
-test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 385 filtered out; finished in 10.44s
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 385 filtered out; finished in 10.79s
 
