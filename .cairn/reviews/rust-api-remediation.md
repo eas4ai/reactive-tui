@@ -3475,7 +3475,8 @@ production behavior was weakened to reduce these static counts.
 - Done: record the API-015 baseline; no-default compilation failed E0433.
 - Done: repair Orca image navigation and verify API-011 against current native records.
 - Done: implement and verify API-015 feature configurations (receipt 20260911T180926733Z).
-- In progress: refresh inherited acceptance before API-016.
+- Done: refresh all 34 inherited requirements after API-015.
+- In progress: declare and verify API-016 entry-point acceptance.
 - Complete: refresh native API-008 evidence after the committed screen repair.
 - Complete: refresh API-011 native records and acceptance after the screen repair.
 
@@ -4072,3 +4073,36 @@ plus the default and no-default App component workflows. The optional Tokio
 compatibility decision is realized by fcd24aa. Five API requirements remain:
 API-016 through API-020. Cairn now requires inherited evidence refreshes before
 it advances to those implementations.
+
+## API-016 entry-point mechanism construction
+
+Added separately compiled public Rust and C consumers and an entry-point inventory.
+The legacy consumer rejects the eleven fabricated initial insertions and repeated
+insertions on an unchanged frame. Its patch, presentation, root-update and shutdown
+error cases pass. The PTY control through SuprTUI passes at 32x8 and 48x12: measured
+button input, updates, reordering, removal, resize, ordinary/error exit and terminal
+restoration. The retained Crossterm, alternate Crossterm output mode and DirectTty
+App routes paint blank screens. Source inspection identifies another cause: the
+resolved tree converter removes children from the Element read by legacy backends.
+The C consumer rejects the missing SuprTUI builder declaration. These are negative
+baselines, not API-016 acceptance.
+
+The first harness run sampled partial output and used vt100 to compose a ZWJ emoji
+that this parser splits into extra cells. It also used a C callback name conflicting
+with the shipped render export. Corrected those fixture defects before the final
+baseline: wait for all relevant frame state, inspect combining/wide cells plus the
+intact emitted ZWJ sequence, and name the callback render_root. The inherited host
+rendering tests retain their visual obligations. Both original and corrected logs
+and PTY captures are retained. No production source has changed.
+
+Consumers live under verification/api-entry-points and are compiled against the
+public library and shipped headers; their files and the exact runner are declared
+inputs. This is separate from the inherited native-widget test program, whose
+source inputs did not change during mechanism construction.
+
+Ripwire edit-check identifies the new initial-frame test with no callers. The test
+gate exits 0 with no modeled impacted tests, so it does not prove these separately
+compiled consumers ran. Quality-delta exits 2 with 1577 broad gated findings,
+including unchanged reference and application paths; no production file was edited.
+It is not a passing quality gate. Python syntax and Rust consumer compilation pass.
+Formal acceptance and production repairs remain pending.
