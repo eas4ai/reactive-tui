@@ -1,0 +1,24 @@
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.39s
+     Running tests/api_widget_behavior.rs (target/debug/deps/api_widget_behavior-42d357f1e5dc828e)
+
+running 16 tests
+test dialog_http_acceptance::autocomplete_http_debounces_edits_into_one_current_query ... ok
+test dialog_http_acceptance::autocomplete_http_rejects_malformed_suggestions_and_can_cancel ... ok
+test dialog_http_acceptance::autocomplete_http_replacement_discards_the_previous_query ... ok
+test dialog_http_acceptance::autocomplete_http_sends_query_headers_and_renders_suggestion_objects ... ok
+test dialog_http_acceptance::autocomplete_removal_cancels_a_live_http_request ... ok
+test dialog_http_acceptance::dialog_engine_http_close_cancels_a_live_request_and_does_not_submit ... ok
+test dialog_http_acceptance::dialog_engine_http_validation_delivers_an_awaitable_result ... ok
+test dialog_http_acceptance::input_dialog_edit_cancels_pending_remote_submission ... ok
+test dialog_http_acceptance::input_dialog_inline_validators_do_not_cancel_a_matching_http_request_on_redraw ... ok
+test dialog_http_acceptance::input_dialog_remote_change_validation_keeps_warnings_and_reuses_the_matching_result ... ok
+test dialog_http_acceptance::input_dialog_remote_completion_preserves_the_submit_veto_and_revalidates_on_retry ... ok
+test dialog_http_acceptance::input_dialog_remote_completion_rechecks_current_local_validation ... ok
+test dialog_http_acceptance::input_dialog_remote_http_and_json_failures_remain_open ... ok
+test dialog_http_acceptance::input_dialog_remote_rejection_can_be_corrected_and_resubmitted ... ok
+test dialog_http_acceptance::input_dialog_remote_validation_posts_json_and_completes_pending_submission ... ok
+test dialog_http_acceptance::input_dialog_removal_cancels_a_live_request_without_waiting_for_the_server ... ok
+
+test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 385 filtered out; finished in 12.65s
+

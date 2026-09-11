@@ -3469,7 +3469,8 @@ production behavior was weakened to reduce these static counts.
 - Complete: repair and verify the default-suite keyframe cleanup assertion.
 - Done: refresh committed evidence after the test correction; the embedded rerun passed, with its unexplained intermittent timeout retained.
 - Done: declare and verify dedicated API-014 image acceptance; current receipt passed.
-- In progress: declare and verify API-015 feature configurations.
+- Pending: verify API-015 feature configurations after inherited evidence refresh.
+- In progress: repair the API-011 cancellation marker and refresh native evidence.
 - Complete: refresh native API-008 evidence after the committed screen repair.
 - Complete: refresh API-011 native records and acceptance after the screen repair.
 
@@ -3887,3 +3888,36 @@ features use nightly as already documented in Cargo.toml. Every row compiles all
 targets and must execute nonzero passing behavior tests. Existing real App
 component workflows also execute with and without defaults. This is the declared
 matrix, not a claim that the broken no-default or nightly rows already pass.
+
+## Native refresh after feature acceptance declaration
+
+Adding tests/api_feature_configurations.rs invalidated the broad native widget
+and ConPTY inputs. API-011 local App, library and Orca checks passed, then its
+native verifier rejected stale ConPTY records (20260911T155247167Z). No feature
+implementation has changed yet. Run 34618800536 checks snapshot
+1d416fe039c72c97031be3ba62801b7b24fa2207; its complete declared input union was
+compared byte-for-byte with committed candidate 4ae3cee before the existing
+verification branch was advanced. Both native jobs are pending completion.
+
+## API-011 cancellation marker above the backdrop
+
+Run 34618800536 failed one macOS HTTP App case: the cancellation fixture waited
+for REQUESTS 1 while the fully opened modal covered that synchronization marker.
+All other 15 HTTP App cases passed. The native diagnostic is retained in
+api-011-cancel-marker-macos-failure.out. Cancelled the still-running obsolete
+Windows job after determining the fixture must change; it is not passing evidence.
+
+Disabling the opening animation makes the same hidden-marker failure deterministic
+locally (api-011-cancel-marker-negative.log). Kept that fully open backdrop premise
+and gave the marker the existing ObservedInput fixture's explicit 16x1 size and
+maximum z-index. This is a test-only repair. It retains the actual server-request
+signal before cancellation, pending response, one-second close bound, cancelled
+completion, zero submissions, zero active dialogs and exactly one request.
+
+All 16 HTTP App tests pass after the marker correction, as does strict all-target
+Clippy. Formatting and source diff whitespace checks pass. Ripwire edit-check
+reports the cancellation test contract unchanged. Its test gate exits 4 and
+misattributes the local Root name to eight unrelated fixture files; that private
+Root cannot be called from those files. The complete HTTP module was executed;
+all-target Clippy compiled the other targets. Quality-delta exits 2 with 1579 broad
+findings, not a passing static gate. Native acceptance remains required.

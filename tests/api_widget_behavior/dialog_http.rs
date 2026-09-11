@@ -203,8 +203,17 @@ fn dialog_engine_http_close_cancels_a_live_request_and_does_not_submit() {
             } else {
                 "REMOVED".into()
             };
+            // The cancellation gate must remain visible with a fully open
+            // backdrop, not only during its opening fade.
+            let mut status = Element::text(status);
+            status.metadata.styles = Some(Arc::new(
+                reactive_tui::layout::style::StyleBuilder::new()
+                    .size_px(Some(16.0), Some(1.0))
+                    .z_index(i32::MAX)
+                    .snapshot(),
+            ));
             reactive_tui::builder::div()
-                .children(vec![Element::text(status), self.engine.render()])
+                .children(vec![status, self.engine.render()])
                 .build()
         }
         fn wake_driven(&self) -> bool {
@@ -227,7 +236,9 @@ fn dialog_engine_http_close_cancels_a_live_request_and_does_not_submit() {
     }]);
     let submissions = Arc::new(AtomicUsize::new(0));
     let submitted = submissions.clone();
-    let mut engine = DialogEngine::new();
+    let mut config = reactive_tui::widgets::dialog::DialogEngineConfig::default();
+    config.default_theme.animation = reactive_tui::widgets::dialog::DialogAnimation::None;
+    let mut engine = DialogEngine::with_config(config);
     engine.enable_async();
     let id = engine.show_input(InputDialogOptions {
         title: "ENGINE PENDING".into(),
