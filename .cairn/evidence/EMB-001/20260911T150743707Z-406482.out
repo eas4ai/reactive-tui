@@ -1,0 +1,60 @@
+Embedded terminal worker and keyboard tests
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.10s
+     Running unittests src/lib.rs (target/debug/deps/reactive_tui-1efd57254d425675)
+
+running 2 tests
+test embedded::keyboard::tests::mode_dependent_navigation_and_control_keys ... ok
+test embedded::worker::tests::pending_input_is_bounded_and_io_failure_is_not_success ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 999 filtered out; finished in 0.00s
+
+Embedded terminal integration tests
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 4.12s
+     Running tests/embedded_terminal.rs (target/debug/deps/embedded_terminal-c341eea32e9d3d13)
+
+running 9 tests
+test emb_001_real_tty_configuration_and_spawn_failure ... ok
+test emb_002_cell_frames_reject_invalid_occupancy_and_control_bytes ... ok
+test emb_002_joined_emoji_remains_one_owned_grapheme ... ok
+test emb_002_styled_graphemes_alternate_screen_and_erasure_reach_host ... ok
+test emb_003_text_enter_and_ctrl_c_reach_the_child ... ok
+test emb_004_resize_updates_pty_and_snapshot_and_ignores_zero ... ok
+test emb_005_app_observes_natural_exit_and_final_frame_without_input ... ok
+test emb_005_app_renders_background_updates_and_restores_on_errors ... ok
+test emb_005_delayed_output_exit_and_idle_shutdown_are_observable ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.42s
+
+Embedded shell example
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.84s
+Captured host screen: RTUI> echo $$ > "$RTUI_PID_FILE"; printf '\nRTUI_%s\n' INPUT
+n' INPUT
+
+RTUI_INPUT
+RTUI> sleep 0.2; printf '\nRTUI_%s\n' DELAYED
+
+RTUI_DELAYED
+RTUI>
+Traceback (most recent call last):
+  File "/home/shawn/workspace2/reactive-tui/scripts/check-embedded-terminal-pty.py", line 109, in <module>
+    probe(binary)
+    ~~~~~^^^^^^^^
+  File "/home/shawn/workspace2/reactive-tui/scripts/check-embedded-terminal-pty.py", line 77, in probe
+    command(b'set -- $(stty size); printf "SIZE_%s_%s" "$1" "$2"', f"SIZE_{rows}_{columns}".encode())
+    ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/shawn/workspace2/reactive-tui/scripts/check-embedded-terminal-pty.py", line 63, in command
+    expect(marker, offset)
+    ~~~~~~^^^^^^^^^^^^^^^^
+  File "/home/shawn/workspace2/reactive-tui/scripts/check-embedded-terminal-pty.py", line 57, in expect
+    helpers.read_until(master, process, output,
+    ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+        lambda data: len(data) > offset and marker.decode() in screen_text(data),
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        f"embedded shell did not produce {marker!r}")
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/shawn/workspace2/reactive-tui/scripts/check-renderer-pty.py", line 49, in read_until
+    assert predicate(output), f"{description}; exit={process.poll()}, tail={bytes(output[-500:])!r}"
+           ~~~~~~~~~^^^^^^^^
+AssertionError: embedded shell did not produce b'SIZE_12_52'; exit=None, tail=b';0m \x1b[12;43H\x1b[0m\x1b[38;2;255;255;255m\x1b[48;2;0;0;0m \x1b[12;44H\x1b[0m\x1b[38;2;255;255;255m\x1b[48;2;0;0;0m \x1b[12;45H\x1b[0m\x1b[38;2;255;255;255m\x1b[48;2;0;0;0m \x1b[12;46H\x1b[0m\x1b[38;2;255;255;255m\x1b[48;2;0;0;0m \x1b[12;47H\x1b[0m\x1b[38;2;255;255;255m\x1b[48;2;0;0;0m \x1b[12;48H\x1b[0m\x1b[38;2;255;255;255m\x1b[48;2;0;0;0m \x1b[12;49H\x1b[0m\x1b[38;2;255;255;255m\x1b[48;2;0;0;0m \x1b[12;50H\x1b[0m\x1b[38;2;255;255;255m\x1b[48;2;0;0;0m \x1b[12;51H\x1b[0m\x1b[38;2;255;255;255m\x1b[48;2;0;0;0m \x1b[12;52H\x1b[0m\x1b[38;2;255;255;255m\x1b[48;2;0;0;0m \x1b[0m\x1b]12;#ffffff\x07\x1b[0 q\x1b[8;7H\x1b[0m\x1b[?25h\x1b[?2026l'
