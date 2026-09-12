@@ -4616,3 +4616,12 @@ digest were checked before import. Windows is still running. Resume this run
 and import validated widget/ConPTY artifacts before cairn check API-011.
 
 Native run 34700619224 passed on macOS and Windows for snapshot 2a68a4fa53382910a1997d24d18bc6ba25e23a92. Its declared input trees exactly match local commit ee893b13f4be020d68d2918b74061d5ff935bd54. Imported the widget and ConPTY artifacts after checking job and step success, current committed input digests, system, every recorded output hash, and unchanged copied bytes. Both native verifiers passed. The earlier clipboard records remain current because their declared inputs did not change.
+
+API-011 passed with fresh native records (receipt 20260912T151908154Z).
+During read-only review of the host build notes, the description of the upstream
+qualifier warning was found inaccurate: expand_tilde temporarily writes a NUL
+through the slash pointer for ~user/path, then restores the slash. Its callers
+include configuration environment strings and PyUnicode_AsUTF8. The note called
+this read-only. Correct that description as a separate documentation change;
+these image captures do not audit that upstream path-expansion behavior. No
+source or mechanism changed during this review or the API-011 check.
