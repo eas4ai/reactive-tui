@@ -3478,7 +3478,8 @@ production behavior was weakened to reduce these static counts.
 - Done: refresh all 34 inherited requirements after API-015.
 - Done: implement and verify API-016 entry-point acceptance (receipt 20260911T233538835Z).
 - Done: refresh all 34 inherited requirements after API-016 (last receipts 20260911T234522876Z/877Z).
-- In progress: declare and verify API-017 native C/TypeScript behavior and ownership.
+- Done: API-017 native C/TypeScript behavior and ownership; formal receipt 20260912T120716719Z.
+- In progress: refresh all inherited acceptance after API-017.
 - Pending: API-018 public documentation and Props validation.
 - Pending: API-019 complete residual audit contracts.
 - Pending: API-020 final regression and independent review.
@@ -4387,3 +4388,14 @@ API-015/20260912T120355662Z passed all twelve feature configurations, 26
 feature behavior tests and ten App component tests. Also retained the 52 raw
 image host/Xvfb logs excluded by the default ignore rules in the preceding
 capture commit; their original bytes were preserved after helper cleanup.
+
+## API-017 formal acceptance
+
+.cairn/evidence/API-017/20260912T120716719Z passed. Both compiled consumers exercised native editor/layout,
+all six dialog families, foreign state and props, recursive/wrong-thread rejection,
+render and event callback errors, ownership and App restoration. The deliberately
+broken input callback failed its frame assertion and restored the terminal.
+Independent compilers and Koffi agree on 243 signatures and 13 layouts. Captures
+are retained in api-native-components/20260912T120642Z. API-001 through API-017
+now have current passing receipts. Three numbered API requirements remain;
+inherited ABI and regression evidence is being refreshed before Cairn advances.
