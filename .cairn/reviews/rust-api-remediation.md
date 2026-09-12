@@ -4360,3 +4360,14 @@ executed behavior markers and both raw-output hashes. Original bytes are preserv
 Native run 34662535829 completed successfully for windows. Imported its clipboard
 record after verifying the snapshot, current committed input digest, platform,
 executed behavior markers and both raw-output hashes. Original bytes are preserved.
+
+## API-011 native import after foreign component recovery
+
+API-011/20260912T010529017Z passed local widget and Orca workflows, then
+rejected stale ConPTY evidence. Imported successful native run 34662535829:
+72 macOS widget outputs, 15 Windows widget outputs and six ConPTY outputs.
+Rechecked the exact snapshot, current input digest, platform/result and every
+captured-output hash before copying. Both native verifiers now pass, including
+ConPTY behavior, runtime integrity and the deliberately disabled resize case.
+Native captures retain their original bytes and line endings. No behavior,
+criterion, timeout or mechanism was changed. Formal API-011 rerun is required.

@@ -56,7 +56,7 @@ warning: field `parser` is never read
     |     ^^^^^^
 
 warning: `reactive-tui` (lib test) generated 7 warnings (run `cargo fix --lib -p reactive-tui --tests` to apply 5 suggestions)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.36s
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.23s
      Running unittests src\lib.rs (target\debug\deps\reactive_tui-8f430f50a806aae5.exe)
 
 running 6 tests
@@ -67,5 +67,5 @@ test widgets::dialog::http::tests::request_preserves_json_escaping_and_custom_he
 test widgets::dialog::http::tests::tls_certificate_probe ... ignored, invoked with a trusted/untrusted HTTPS fixture by scripts/check-dialog-http.py
 test widgets::dialog::http::tests::unsafe_configuration_and_oversized_requests_fail_before_spawn ... ok
 
-test result: ok. 5 passed; 0 failed; 1 ignored; 0 measured; 954 filtered out; finished in 0.43s
+test result: ok. 5 passed; 0 failed; 1 ignored; 0 measured; 954 filtered out; finished in 0.39s
 

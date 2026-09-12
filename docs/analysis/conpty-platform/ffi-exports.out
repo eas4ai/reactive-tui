@@ -13,12 +13,12 @@ warning: unused import: `std::os::windows::io::AsRawHandle`
    = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
 
 warning: ambiguous glob re-exports
-  --> src\ffi\mod.rs:85:9
+  --> src\ffi\mod.rs:94:9
    |
-85 | pub use pointer::*;
+94 | pub use pointer::*;
    |         ^^^^^^^^^^ the name `validate_pointer` in the value namespace is first re-exported here
 ...
-90 | pub use types::*;
+99 | pub use types::*;
    |         -------- but the name `validate_pointer` in the value namespace is also re-exported here
    |
    = note: `#[warn(ambiguous_glob_reexports)]` on by default
@@ -93,6 +93,6 @@ warning: field `parser` is never read
     |     ^^^^^^
 
 warning: `reactive-tui` (lib) generated 11 warnings (run `cargo fix --lib -p reactive-tui` to apply 4 suggestions)
-    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1m 13s
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 55.08s
 
 PASS 194 baseline C exports load
