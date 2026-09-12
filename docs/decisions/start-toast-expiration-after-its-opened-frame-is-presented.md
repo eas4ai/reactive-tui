@@ -13,3 +13,5 @@ Start the App-owned toast deadline only after the modal has measured its body an
 ## Realized by
 
 (none yet: recorded, not built)
+
+- a44c078ad57cac491d0488ebd8439d154e893d22 Start toast expiration after its opened frame is presented
