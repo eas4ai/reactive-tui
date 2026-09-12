@@ -1,0 +1,21 @@
+requirement: CCH-002
+requirement_digest: sha256:61a45d99a3bea88b432b8304dc15e9b542898b51882e1ce7627a3264e927b74e
+sequence: 24
+history_digest: sha256:4e955e7916bc1d1248567a0513e633807af1affeb8645922effc06c6d717ab05
+mechanism: registry-cache-isolation.md
+commit: e98f3e05
+inputs_digest: sha256:12ccf8f10a6e7a731d1955d6a22b389e120933987d96fe1c0fd423cf1a9c6417
+mechanism_digest: sha256:1f7273adc78b40d812c5a6bb3cc972c4588388393a2f68530af4385f0b0b1624
+inputs_detail: .cairn/evidence/CCH-001/20260912T172716338Z-3668420.inputs.json
+command: sh scripts/check-registry-cache-isolation.sh
+cwd: .
+exit: 0
+output_digest: sha256:7a41c3c9f744332fadb0611a18e347ca778144cd7bf70c18d2e09ac237ac8df4
+output: .cairn/evidence/CCH-001/20260912T172716338Z-3668420.out
+stderr_output: .cairn/evidence/CCH-001/20260912T172716338Z-3668420.err
+stderr_digest: sha256:a9c43bafebe06688abcc67c1a7163d00d4fa5d4fcc31569cdb46eac84d2d63b3
+signal: none
+execution_error: null
+result: pass
+source: exit
+recorded: 2026-09-12T17:27:17.388Z
