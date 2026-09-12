@@ -12,4 +12,4 @@ Add native editor, layout-style and dialog controllers that use the recovered Ru
 
 ## Realized by
 
-0ce24afebe2ce4071b6673335ef8e2f4de039674 Expose native controllers and stateful foreign components
+- 0ce24afebe2ce4071b6673335ef8e2f4de039674 Expose native controllers and stateful foreign components
