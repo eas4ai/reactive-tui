@@ -4980,3 +4980,5 @@ Clarification of declaration whitespace verification: authored source, inventory
 declaration and review paths passed git diff --check. The staged raw Rust harness
 outputs had their original trailing whitespace and blank final lines; that broader
 check exited 2. Those captured bytes were preserved, not rewritten or called clean.
+
+Native run 34717703879 passed on macOS and Windows for snapshot fd0aed29c3366e6f8e2d7e2959eaba438fc7eaee. Its declared input trees exactly match local commit 56441c73d4202077b035931c1dcb060aee1d953b. Imported the widget and ConPTY artifacts after checking job and step success, current committed input digests, system, every recorded output hash, and unchanged copied bytes. Both native verifiers passed. The earlier clipboard records remain current because their declared inputs did not change.

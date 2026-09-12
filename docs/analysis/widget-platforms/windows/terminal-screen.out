@@ -56,7 +56,7 @@ warning: field `parser` is never read
     |     ^^^^^^
 
 warning: `reactive-tui` (lib test) generated 7 warnings (run `cargo fix --lib -p reactive-tui --tests` to apply 5 suggestions)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.34s
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.33s
      Running unittests src\lib.rs (target\debug\deps\reactive_tui-8f430f50a806aae5.exe)
 
 running 37 tests
@@ -98,5 +98,5 @@ test terminal::screen::tests::terminal_screen_tab_stops_addressing_and_pending_w
 test terminal::screen::tests::wide_glyph_wraps_before_last_column ... ok
 test terminal::screen::tests::wide_overwrite_clears_both_halves_and_old_links ... ok
 
-test result: ok. 37 passed; 0 failed; 0 ignored; 0 measured; 927 filtered out; finished in 0.05s
+test result: ok. 37 passed; 0 failed; 0 ignored; 0 measured; 927 filtered out; finished in 0.03s
 

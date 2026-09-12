@@ -73,5 +73,5 @@ test platform::image::tests::api_image_platform_sixel_quality_handles_more_than_
 test platform::image::tests::api_image_platform_sixel_rejects_overflow_truncation_and_non_image_controls ... ok
 test platform::image::tests::api_image_platform_webp_and_sixel_files_preserve_pixels ... ok
 
-test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 952 filtered out; finished in 0.07s
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 952 filtered out; finished in 0.06s
 

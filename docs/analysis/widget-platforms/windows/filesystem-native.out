@@ -73,5 +73,5 @@ test widgets::display::file_explorer::live::worker::tests::worker_replaces_pendi
 test widgets::display::file_explorer::live::worker::tests::worker_resolves_nonverbatim_paths_inside_a_verbatim_root ... ok
 test widgets::display::file_explorer::windows_builder_tests::current_path_chooses_its_volume_without_replacing_an_explicit_root ... ok
 
-test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 952 filtered out; finished in 0.17s
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 952 filtered out; finished in 0.12s
 

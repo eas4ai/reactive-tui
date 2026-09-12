@@ -71,5 +71,5 @@ test terminal::terminal_impl::tests::title_keeps_semicolons_and_unicode ... ok
 test terminal::terminal_impl::tests::windows_command_shell_paints_its_prompt_and_calculated_result ... ok
 test terminal::terminal_impl::tests::windows_command_shell_resize_after_complete_prompt ... ok
 
-test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 954 filtered out; finished in 15.81s
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 954 filtered out; finished in 15.80s
 
