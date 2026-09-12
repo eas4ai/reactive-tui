@@ -4918,3 +4918,5 @@ Native clipboard run 34714603188 passed on macOS and Windows. Before import,
 checked snapshot identity, successful jobs and the named clipboard step,
 current input digests, native platforms, execution markers and both output
 hashes. Copied original bytes. All five platform records now pass the verifier.
+
+Native run 34714603188 passed on macOS and Windows for snapshot 75f7ffe3ac89292e3c47acaeae07793416a3c926. Its declared input trees exactly match local commit 13c28444cc9b9e61a73549376a70e59feac39026. Imported the widget and ConPTY artifacts after checking job and step success, current committed input digests, system, every recorded output hash, and unchanged copied bytes. Both native verifiers passed. The earlier clipboard records remain current because their declared inputs did not change.
