@@ -4356,3 +4356,7 @@ remain pending; the API-008 action marker stays active.
 Native run 34662535829 completed successfully for macos. Imported its clipboard
 record after verifying the snapshot, current committed input digest, platform,
 executed behavior markers and both raw-output hashes. Original bytes are preserved.
+
+Native run 34662535829 completed successfully for windows. Imported its clipboard
+record after verifying the snapshot, current committed input digest, platform,
+executed behavior markers and both raw-output hashes. Original bytes are preserved.
