@@ -4744,3 +4744,8 @@ the extra combination rejection and its incorrect rejection test, and add
 regression coverage for both combined defaults. This needs no broader contract
 change. It prevents calling the Props work complete despite its targeted passes.
 No candidate source changed during the active native API-008 evidence refresh.
+
+Native clipboard run 34705931916 passed on macOS and Windows. Before import,
+checked snapshot identity, successful jobs and the named clipboard step,
+current input digests, native platforms, execution markers and both output
+hashes. Copied original bytes. All five platform records now pass the verifier.

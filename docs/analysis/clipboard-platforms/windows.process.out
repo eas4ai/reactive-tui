@@ -57,7 +57,7 @@ warning: field `parser` is never read
     |     ^^^^^^
 
 warning: `reactive-tui` (lib test) generated 7 warnings (run `cargo fix --lib -p reactive-tui --tests` to apply 5 suggestions)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 1m 07s
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1m 12s
      Running unittests src\lib.rs (target\debug\deps\reactive_tui-8f430f50a806aae5.exe)
 
 running 3 tests
@@ -115,12 +115,12 @@ warning: field `parser` is never read
 
 warning: `reactive-tui` (lib) generated 5 warnings (run `cargo fix --lib -p reactive-tui` to apply 3 suggestions)
    Compiling reactive-tui v0.0.7 (D:\a\reactive-tui\reactive-tui)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 6.91s
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 7.26s
      Running tests\windows_platform.rs (target\debug\deps\windows_platform-9eab2ea8936fda1c.exe)
 
 running 1 test
 RTUI_WINDOWS_ADAPTER_OK
 test windows_console_io_and_event_conversion ... ok
 
-test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.24s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.23s
 
