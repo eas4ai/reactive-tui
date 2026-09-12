@@ -57,6 +57,7 @@ impl ScreenRuntime {
         self.scheduler.run_ready_timers();
         crate::hooks::animation::update_hook_animations();
         let mut element = self.components.resolve(element)?;
+        crate::component::bridge::resolve_viewport_styles(&mut element, width)?;
         crate::accessibility::style::prepare(&mut element)?;
         let mut element = self.events.styled(&element, &self.router, width);
         crate::accessibility::style::prepare(&mut element)?;

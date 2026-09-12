@@ -43,6 +43,71 @@ fn fixture() -> (ScreenManager, Capture) {
         .unwrap();
     (manager, output)
 }
+
+#[test]
+fn responsive_screen_styles_follow_resize_without_replacing_content() {
+    let output = Capture::default();
+    let backend = SuprTuiBackend::with_writer(79, 4, output.clone()).unwrap();
+    let mut manager = ScreenManager::new(Box::new(backend));
+    manager
+        .create_screen(
+            "responsive",
+            "Responsive".into(),
+            div()
+                .styles(crate::responsive_css! {
+                    base: { background_color: (1.0, 0.0, 0.0, 1.0) },
+                    md: { background_color: (0.0, 1.0, 0.0, 1.0) },
+                })
+                .class("w-full h-full")
+                .child(Element::text("same screen"))
+                .build(),
+        )
+        .unwrap();
+    for width in [79, 80, 79] {
+        manager
+            .process_event(&rt_event::Event::Resize(rt_event::ResizeEvent::new(
+                width, 4,
+            )))
+            .unwrap();
+        let mut parser = vt100::Parser::new(4, width, 0);
+        parser.process(&output.0.lock().unwrap());
+        assert_eq!(
+            parser.screen().cell(0, 0).unwrap().bgcolor(),
+            if width >= 80 {
+                vt100::Color::Rgb(0, 255, 0)
+            } else {
+                vt100::Color::Rgb(255, 0, 0)
+            }
+        );
+        assert!(parser.screen().contents().contains("same screen"));
+    }
+}
+
+#[test]
+fn responsive_snapshot_rejects_nonfinite_values_even_in_inactive_profiles() {
+    for width in [20, 80] {
+        for padding in [1.0, f32::NAN, f32::INFINITY] {
+            let mut manager =
+                ScreenManager::new(Box::new(crate::backend::DebugBackend::new(width, 4)));
+            let result = manager.create_screen(
+                "profile",
+                "Profile".into(),
+                div()
+                    .styles(crate::responsive_css! {
+                        base: { padding: 0.0 },
+                        md: { padding: padding },
+                    })
+                    .child(Element::text("validation"))
+                    .build(),
+            );
+            if padding.is_finite() {
+                assert!(result.is_ok(), "{result:?}");
+            } else {
+                assert!(result.unwrap_err().contains("finite"));
+            }
+        }
+    }
+}
 #[test]
 fn screen_fade_midpoint_blends_presented_colors() {
     let (mut manager, output) = fixture();

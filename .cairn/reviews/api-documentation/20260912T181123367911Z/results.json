@@ -1,0 +1,17 @@
+[
+  {
+    "name": "checker-controls",
+    "command": [
+      "python3",
+      "-B",
+      "/home/shawn/workspace2/reactive-tui/verification/api-documentation/checker-controls.py"
+    ],
+    "log": ".cairn/reviews/api-documentation/20260912T181123367911Z/checker-controls.out",
+    "result": "pass",
+    "sha256": "a1a77c45887f52eb335dd691ba59673f7ee69bc948f8ff840e08422bcecffac4"
+  },
+  {
+    "name": "inventory",
+    "result": "pass"
+  }
+]

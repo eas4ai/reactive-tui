@@ -4803,3 +4803,87 @@ Test-gate exited 0 but reported zero changed/impacted symbols; that is no proof
 of coverage. Raw reports and actual control output are retained under
 api-018-documentation-mechanism. Full failing/corrected documentation builds remain
 required before acceptance, including public guides found outdated by inspection.
+
+### API-018 documentation baseline and repairs in progress
+
+Formal baseline receipt 20260912T175254297Z failed as required. Default/minimal
+rustdoc hid Markdown; all-feature rustdoc had an unescaped packed-selection link.
+The ordinary doctest suites each passed 48 cases while ignoring 34. The standalone
+consumer run exposed obsolete public examples, including nonexistent C signatures,
+hook arguments and CSS macro dependencies. Raw sources and compiler output remain
+in api-documentation/20260912T175017936266Z. This failure is not acceptance.
+
+The optional/default compatibility consumer now compiles and runs after removing
+the extra rejection. The 17 Props integration cases and two parser tests passed.
+An early development --only run printed the full-check success wording even though
+it ran only Props; the checker now labels section-only runs as development checks,
+and that historical output is not treated as full API-018 acceptance.
+
+The public guides and source examples now use current signatures. A second
+development example run passed all Rust groups except the CSS macros, all five
+C compilations/links, TypeScript typechecking and the explicit Python ctypes loader.
+It confirmed that responsive_css calls an absent method and discards breakpoint
+values, and that convenience macros incorrectly require the caller to depend on
+taffy. These are implementation defects, not reasons to remove the examples.
+A judged decision records the owned responsive-profile repair before construction.
+
+Four initial macro behavior cases passed. The fuller run exposed an over-specific
+test assumption: an independent wake can add a seventh acknowledged frame to a
+six-resize sequence. The test now requires the exact sequence of distinct painted
+viewport widths and checks color/padding on every frame, including duplicates; it
+does not weaken the required resize sequence. The two new ScreenManager tests
+passed, including rejection of nonfinite values in inactive responsive profiles.
+The complete updated run and violating/corrected runtime controls remain pending.
+
+The residual inventory now includes gesture wiring, reference retention/callback
+reentry, performance context isolation/mode reporting, legacy transition metadata
+and CSS property-diagnostic claims alongside the original API-019 audit concerns.
+Compiling these examples is not runtime acceptance and does not close those rows.
+
+### API-018 completed development verification
+
+The final development run at api-documentation/20260912T182059977951Z has no
+failing step: 17 Props integration cases, two macro parser cases, four public CSS
+macro/App cases and four responsive library cases (including the two new screen
+cases). The separate optional/default consumer compiled and ran. Default, minimal
+and nightly all-feature rustdoc each expose Markdown and all public submodules;
+each configuration passed 74 doctests. All 52 standalone Rust examples across
+17 source groups passed compilation/execution as declared, all five C examples
+compiled (complete programs also linked), the two TypeScript examples typechecked
+and the explicit Python ctypes loader resolved the current library symbols.
+The inventory covers all public root modules and explicitly retains pending
+API-019 work. The macro crate's facade-dependent examples are compiled externally
+by this harness, including the Props sample; they are not silently excluded by
+the macro crate's own ignored fences. Generated sources retain their locations
+and hashes. Full outputs are preserved; this remains development verification
+until a committed Cairn check records current acceptance.
+
+The responsive negative control changed only width selection to zero. The actual
+App color assertion failed with red instead of required green; restoring the exact
+source bytes made all four public macro cases pass. Raw negative and corrected
+outputs and command records are in api-018-responsive-controls. Screen tests also
+prove reverse resize and reject NaN/infinity even in inactive profiles. The
+absolute-fill helper now uses parent percentages and zero insets, tested with an
+earlier sibling and a parent smaller than the viewport. Breakpoint closures run
+once, in stable ascending width order, and only materialized data is serialized.
+App and ScreenManager resolve before accessibility/state variants, motion and
+painting. Explicit Element classes retain precedence and independent App widths
+do not share profile selection.
+
+Strict default all-target Clippy, macro library/test Clippy and workspace formatting
+passed; logs are in api-018-final-development. Ripwire profile and snapshot
+edit-checks exited 0. Quality-delta exited 2 and test-gate exited 4; neither is
+reported as a pass. Reviewed changed-path findings: the language-specific example
+collector adds Python/no-run selection; its branch count reflects explicit fence
+inventory, outside the application hot path. Reported dead code includes macro
+expansion and actual executed tests, and short matching expressions overlap
+unmodified code and archived reference trees. Snapshot/Props churn is the
+documented correction. The test gate's broad name-based reach includes archived
+host code, manual examples and retained renderer/widget paths; fresh inherited
+Cairn mechanisms and native records remain required before closure.
+
+Production review of this change found no new unsafe code, no runtime callback
+serialization, no hidden field rewriting and no new dependency. Nonresponsive
+styles keep the existing path; responsive profiles validate before rendering.
+The known residual behavior findings and image-capture timeout leak remain open
+and recorded. This is not the API-020 final review or a commitment completion claim.

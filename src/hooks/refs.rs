@@ -96,22 +96,15 @@ impl<T> LocalRef<T> {
 /// Hook for creating a mutable reference that doesn't trigger re-renders
 ///
 /// # Example
-/// ```rust, ignore
-/// fn Timer(props: &Props, state: &mut State) -> Element {
-///     let timer_id = use_ref(&hooks, None::<TimerId>);
-///     
-///     use_effect(&hooks, move || {
-///         let id = start_timer();
-///         timer_id.set_current(Some(id));
-///         
-///         Some(Box::new(move || {
-///             if let Some(id) = timer_id.current() {
-///                 cancel_timer(id);
-///             }
-///         }))
-///     });
-///     
-///     Element::text("Timer running...")
+/// ```rust,no_run
+/// use reactive_tui::hooks::use_ref;
+/// use reactive_tui::reactive::Hooks;
+///
+/// fn remember_value(hooks: &Hooks) {
+///     let value = use_ref(hooks, String::from("initial"));
+///     let shared = value.clone();
+///     shared.set_current("updated".into());
+///     assert_eq!(value.current(), "updated");
 /// }
 /// ```
 pub fn use_ref<T>(_hooks: &Hooks, initial: T) -> Ref<T>
@@ -127,18 +120,14 @@ where
 /// Use this when you don't need thread safety and want better performance.
 ///
 /// # Example
-/// ```rust, ignore
-/// fn TextInput(props: &Props, state: &mut State) -> Element {
-///     let input_ref = use_local_ref(&hooks, String::new());
-///     
-///     Element::input()
-///         .on_change(move |e| {
-///             input_ref.set_current(e.value.clone());
-///         })
-///         .on_submit(move |_| {
-///             let value = input_ref.current();
-///             submit_form(value);
-///         })
+/// ```rust,no_run
+/// use reactive_tui::hooks::use_local_ref;
+/// use reactive_tui::reactive::Hooks;
+///
+/// fn local_value(hooks: &Hooks) {
+///     let value = use_local_ref(hooks, String::new());
+///     value.set_current("draft".into());
+///     assert_eq!(value.current(), "draft");
 /// }
 /// ```
 pub fn use_local_ref<T>(_hooks: &Hooks, initial: T) -> LocalRef<T>
@@ -186,17 +175,17 @@ impl<T: Clone + Send + 'static> CallbackRef<T> {
 /// Hook for creating a callback ref
 ///
 /// # Example
-/// ```rust, ignore
-/// fn FocusableInput(props: &Props, state: &mut State) -> Element {
-///     let input_ref = use_callback_ref(&hooks, |element: Option<DomElement>| {
-///         if let Some(el) = element {
-///             el.focus();
-///         }
+/// ```rust,no_run
+/// use reactive_tui::hooks::use_callback_ref;
+/// use reactive_tui::reactive::Hooks;
+///
+/// fn selected_id(hooks: &Hooks) {
+///     let reference = use_callback_ref(hooks, |id: Option<String>| {
+///         println!("Selected: {id:?}");
 ///     });
-///     
-///     Element::input()
-///         .ref_callback(input_ref)
-///         .auto_focus(true)
+///     reference.set(Some("entry-1".into()));
+///     assert_eq!(reference.current().as_deref(), Some("entry-1"));
+///     reference.set(None);
 /// }
 /// ```
 pub fn use_callback_ref<T, F>(_hooks: &Hooks, callback: F) -> CallbackRef<T>
@@ -243,17 +232,13 @@ impl<T> ForwardedRef<T> {
 /// Hook for forwarding refs through components
 ///
 /// # Example
-/// ```rust, ignore
-/// fn FancyButton(props: &ButtonProps, state: &mut State) -> Element {
-///     let forwarded = use_forwarded_ref(&hooks, props.forward_ref.clone());
-///     
-///     Element::button()
-///         .ref_callback(move |el| {
-///             if let Some(element) = el {
-///                 forwarded.set_if_exists(element);
-///             }
-///         })
-///         .child(text!(props.label))
+/// ```rust,no_run
+/// use reactive_tui::hooks::{use_forwarded_ref, Ref};
+/// use reactive_tui::reactive::Hooks;
+///
+/// fn update_parent(hooks: &Hooks, parent: Option<Ref<String>>) {
+///     let forwarded = use_forwarded_ref(hooks, parent);
+///     forwarded.set_if_exists("child value".into());
 /// }
 /// ```
 pub fn use_forwarded_ref<T>(_hooks: &Hooks, forward_ref: Option<Ref<T>>) -> ForwardedRef<T>
@@ -315,26 +300,18 @@ impl<T: Clone> MultiRef<T> {
 /// Hook for creating multiple refs that share updates
 ///
 /// # Example
-/// ```rust, ignore
-/// fn MultiSelect(props: &Props, state: &mut State) -> Element {
-///     let selected_refs = use_multi_ref(&hooks);
-///     
-///     Element::div()
-///         .children(props.items.iter().map(|item| {
-///             let item_ref = selected_refs.add_ref(false);
-///             
-///             Element::checkbox()
-///                 .on_change(move |checked| {
-///                     item_ref.set_current(checked);
-///                 })
-///         }))
-///         .child(
-///             Element::button()
-///                 .on_click(move |_| {
-///                     selected_refs.set_all(false); // Clear all selections
-///                 })
-///                 .child(text!("Clear All"))
-///         )
+/// ```rust,no_run
+/// use reactive_tui::hooks::use_multi_ref;
+/// use reactive_tui::reactive::Hooks;
+///
+/// fn clear_selections(hooks: &Hooks) {
+///     let selected = use_multi_ref(hooks);
+///     let first = selected.add_ref(true);
+///     let second = selected.add_ref(true);
+///     selected.set_all(false);
+///     assert!(!first.current() && !second.current());
+///     selected.clear();
+///     assert_eq!(selected.count(), 0);
 /// }
 /// ```
 pub fn use_multi_ref<T>(_hooks: &Hooks) -> MultiRef<T>

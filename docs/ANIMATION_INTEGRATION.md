@@ -1,236 +1,117 @@
-# Screen Transitions + Animation System Integration
+# Screen transitions and animation
 
-This document outlines how the multi-screen system integrates with the existing animation system to provide powerful, flexible transitions with animation hooks support.
+ScreenManager retains each screen's component tree, routes input to the active
+screen and presents transitions through the complete Element painter. API-013
+checks intermediate frames, endpoints, event delivery, keyframe interpolation and
+relative values. [The mechanism](../.cairn/mechanisms/api-animation-screens.md) names
+the exact tests; [paint properties](../.cairn/mechanisms/api-paint-properties.md)
+cover gradients, keyed App animation and transformed hit bounds.
 
-## 🎯 **Integration Overview**
-
-The screen transition system has been enhanced to work seamlessly with the animation system, providing:
-
-- **Enhanced Easing Functions**: Screen-optimized easing functions that work perfectly with animation hooks
-- **Animation System Bridge**: Ready for integration with animation hooks when they're implemented
-- **Performance Optimization**: Hardware acceleration and custom properties support
-- **Debugging Tools**: Comprehensive debugging and performance analysis features
-
-## 🎨 **Enhanced Easing Functions**
-
-### Screen-Optimized Easing Functions
+## Create and switch screens
 
 ```rust
-// New screen-specific easing functions
-EasingFunction::SlideSmooth     // Perfect for screen slides with slight overshoot
-EasingFunction::SnapBounce      // Quick snap with bounce - great for scale transitions
-EasingFunction::SpringGentle    // Gentle spring motion - perfect for fades
-EasingFunction::SpringDramatic  // Dramatic spring - attention-grabbing transitions
+use reactive_tui::backend::DebugBackend;
+use reactive_tui::component::Element;
+use reactive_tui::screen::{ScreenId, ScreenManager, TransitionConfig, TransitionType};
 
-// Enhanced elastic functions
-EasingFunction::EaseInElastic
-EasingFunction::EaseOutElastic
-EasingFunction::EaseInOutElastic
-```
-
-### Easing Function Recommendations
-
-The system provides intelligent recommendations for different transition types:
-
-```rust
-// Get recommended easing functions for a transition type
-let recommendations = EasingFunction::recommended_for_transition(TransitionType::Fade);
-// Returns: [SpringGentle, EaseOutCubic, EaseInOutQuad]
-
-let slide_recommendations = EasingFunction::recommended_for_transition(TransitionType::SlideLeft);
-// Returns: [SlideSmooth, EaseOutBack, EaseInOutCubic]
-```
-
-## 🔧 **Animation System Integration**
-
-### Enhanced TransitionConfig
-
-```rust
-pub struct TransitionConfig {
-    pub transition_type: TransitionType,
-    pub duration: Duration,
-    pub easing: EasingFunction,
-    
-    // Animation system integration
-    pub animation_id: Option<String>,                    // For animation hooks
-    pub use_hardware_acceleration: bool,                 // Performance optimization
-    pub custom_properties: HashMap<String, f32>,         // Custom animation properties
+fn example() -> Result<(), String> {
+    let mut manager = ScreenManager::new(Box::new(DebugBackend::new(80, 24)));
+    manager.create_screen("home", "Home".into(), Element::text("Home"))?;
+    manager.create_screen("settings", "Settings".into(), Element::text("Settings"))?;
+    manager.switch_to_with_transition(ScreenId::new("settings"), Some(TransitionConfig {
+        transition_type: TransitionType::None,
+        ..Default::default()
+    }))?;
+    Ok(())
 }
+example().unwrap();
 ```
 
-### Preset Configurations
+For a timed transition, the caller drives `ScreenManager::update` from its event
+loop and forwards input through `process_event`. A successful switch call starts
+the transition; timing that call does not measure transition completion. The source
+screen remains active until the transition completes.
 
 ```rust
-// Optimized presets for common scenarios
-let smooth_fade = TransitionConfig::preset_smooth_fade()
-    .with_animation_id("my-fade-transition")
-    .with_custom_property("smoothness", 0.8);
+use reactive_tui::screen::{EasingFunction, ScreenId, ScreenManager, TransitionConfig, TransitionType};
+use std::time::Duration;
 
-let quick_slide = TransitionConfig::preset_quick_slide()
-    .with_hardware_acceleration()
-    .with_custom_property("slide_distance", 100.0);
-
-let bouncy_scale = TransitionConfig::preset_bouncy_scale()
-    .with_animation_id("scale-animation")
-    .with_custom_property("bounce_intensity", 1.2);
-
-let dramatic_flip = TransitionConfig::preset_dramatic_flip()
-    .with_hardware_acceleration()
-    .with_custom_property("flip_perspective", 0.8);
-```
-
-## 🎪 **Animation Hooks Integration Points**
-
-### Ready for Animation Hooks
-
-The system is designed to work seamlessly with animation hooks when they're implemented:
-
-```rust
-// Animation ID for hook registration
-let config = TransitionConfig::default()
-    .with_animation_id("screen-transition-main-to-settings");
-
-// Custom properties for animation system
-let config = config
-    .with_custom_property("spring_tension", 0.8)
-    .with_custom_property("damping_ratio", 0.6)
-    .with_custom_property("velocity_threshold", 0.01);
-
-// Hardware acceleration flag
-let config = config.with_hardware_acceleration();
-```
-
-### Animation System Bridge
-
-When animation hooks are ready, the integration will work like this:
-
-```rust
-// The screen manager will automatically register animations with the hook system
-screen_manager.switch_to_with_transition(
-    ScreenId::new("settings"),
-    Some(TransitionConfig::preset_smooth_fade()
-        .with_animation_id("main-to-settings")
-        .with_custom_property("hook_enabled", 1.0))
-)?;
-
-// Animation hooks can then:
-// 1. Listen for "main-to-settings" animation events
-// 2. Access custom properties for fine-tuning
-// 3. Provide additional animation layers
-// 4. Handle performance optimization
-```
-
-## 📊 **Performance Features**
-
-### Hardware Acceleration
-
-```rust
-let config = TransitionConfig::default()
-    .with_hardware_acceleration(); // Enable GPU acceleration when available
-```
-
-### Performance Monitoring
-
-```rust
-// Built-in performance analysis
-let start_time = std::time::Instant::now();
-screen_manager.switch_to_with_transition(screen_id, Some(config))?;
-let elapsed = start_time.elapsed();
-println!("Transition completed in: {:?}", elapsed);
-```
-
-### Custom Performance Properties
-
-```rust
-let config = TransitionConfig::default()
-    .with_custom_property("performance_mode", 1.0)
-    .with_custom_property("quality_level", 0.8)
-    .with_custom_property("frame_rate_target", 60.0);
-```
-
-## 🛠️ **Debugging Tools**
-
-### Easing Function Analysis
-
-```rust
-// Get easing function description
-let description = EasingFunction::SpringGentle.description();
-// Returns: "Spring Gentle (Screen Optimized)"
-
-// Test easing curve at different points
-let easing = EasingFunction::EaseOutBounce;
-for t in [0.0, 0.25, 0.5, 0.75, 1.0] {
-    println!("t={:.2}: {:.3}", t, easing.apply(t));
-}
-```
-
-### Transition Configuration Analysis
-
-```rust
-let config = TransitionConfig::preset_bouncy_scale();
-println!("Config: {}", config.description());
-// Output: "Scale transition with Snap Bounce (Screen Optimized) easing over 400ms"
-```
-
-## 🚀 **Usage Examples**
-
-### Basic Enhanced Transitions
-
-```rust
-// Use screen-optimized easing
-screen_manager.switch_to_with_transition(
-    ScreenId::new("settings"),
-    Some(TransitionConfig {
+fn slide_to_settings(manager: &mut ScreenManager) -> Result<(), String> {
+    manager.switch_to_with_transition(ScreenId::new("settings"), Some(TransitionConfig {
         transition_type: TransitionType::SlideLeft,
         duration: Duration::from_millis(300),
         easing: EasingFunction::SlideSmooth,
         ..Default::default()
-    })
-)?;
+    }))
+}
 ```
 
-### Advanced Animation Integration
+Fade blends cell colors. Directional slides translate layers. Scale, flip and cube
+use the approved terminal cell approximations; they do not rotate the host's glyph
+bitmaps. The [composition decision](decisions/compose-screen-transitions-through-the-complete-element-painter.md)
+records this contract and its input-geometry implications.
+
+## Presets and easing
 
 ```rust
-// Full animation system integration
-let config = TransitionConfig::preset_dramatic_flip()
-    .with_animation_id("main-menu-to-game")
-    .with_hardware_acceleration()
-    .with_custom_property("perspective_depth", 1.5)
-    .with_custom_property("rotation_axis", 1.0)
-    .with_custom_property("lighting_intensity", 0.8);
+use reactive_tui::screen::{EasingFunction, TransitionConfig, TransitionType};
 
-screen_manager.switch_to_with_transition(ScreenId::new("game"), Some(config))?;
+let presets = [
+    TransitionConfig::preset_smooth_fade(),
+    TransitionConfig::preset_quick_slide(),
+    TransitionConfig::preset_bouncy_scale(),
+    TransitionConfig::preset_dramatic_flip(),
+];
+for config in presets { println!("{}", config.description()); }
+let choices = EasingFunction::recommended_for_transition(TransitionType::Fade);
+assert!(!choices.is_empty());
+let easing = EasingFunction::EaseOutBounce;
+for fraction in [0.0, 0.25, 0.5, 0.75, 1.0] {
+    println!("{fraction}: {}", easing.apply(fraction));
+}
 ```
 
-### Performance-Optimized Transitions
+Screen easing (`screen::EasingFunction`) and property animation easing
+(`animation::EasingFunction`) are separate public types. Import the one expected
+by the configuration you are constructing.
+
+## Property keyframes
 
 ```rust
-// Optimized for mobile/low-power devices
-let mobile_config = TransitionConfig {
-    transition_type: TransitionType::Fade,
-    duration: Duration::from_millis(200),
-    easing: EasingFunction::Linear,
-    animation_id: Some("mobile-optimized".to_string()),
-    use_hardware_acceleration: true,
-    custom_properties: {
-        let mut props = HashMap::new();
-        props.insert("performance_mode".to_string(), 1.0);
-        props.insert("quality_level".to_string(), 0.6);
-        props
-    },
-};
+use reactive_tui::animation::keyframes::{KeyframeAnimation, TypedKeyframe};
+use std::time::Duration;
+
+let motion = KeyframeAnimation::from_typed(vec![
+    TypedKeyframe { offset: 0.0, value: 0.0_f32, easing: None },
+    TypedKeyframe { offset: 1.0, value: 10.0_f32, easing: None },
+], Duration::from_secs(1));
+assert_eq!(motion.get_value_at_time(0.5), Some(5.0));
 ```
 
-## 🔮 **Future Animation Hooks Integration**
+Keyframes calculate values. To affect a frame, use the retained App target/property
+path verified by API-010 and API-013; constructing a value alone does not register
+an application target. [App wakeups](app-wakeups.md) describes owned scheduling.
 
-When the animation hooks system is ready, this integration will enable:
+## Legacy transition metadata under review
 
-1. **Hook Registration**: Automatic registration of screen transitions with the animation hook system
-2. **Event Callbacks**: Animation start, progress, and completion callbacks
-3. **Property Binding**: Custom properties automatically available to animation hooks
-4. **Performance Optimization**: Hardware acceleration flags respected by the animation system
-5. **Layered Animations**: Additional animation layers can be added via hooks
-6. **Dynamic Adjustments**: Real-time animation parameter adjustments through hooks
+The public builder retains animation IDs, custom properties and a hardware
+acceleration preference:
 
-The screen transition system is fully prepared for this integration and will work seamlessly once animation hooks are implemented!
+```rust
+use reactive_tui::screen::TransitionConfig;
+
+let config = TransitionConfig::preset_smooth_fade()
+    .with_animation_id("home-to-settings")
+    .with_custom_property("smoothness", 0.8)
+    .with_hardware_acceleration();
+assert_eq!(config.animation_id.as_deref(), Some("home-to-settings"));
+assert_eq!(config.custom_properties["smoothness"], 0.8);
+assert!(config.use_hardware_acceleration);
+```
+
+The current screen renderer stores these fields but does not connect arbitrary
+custom properties or IDs to the animation hooks, and the flag does not enable a
+GPU renderer. The earlier guide promised that integration. API-019/020 must
+reconcile those claims; this compiling metadata example is not acceptance of
+them. Existing transition painting remains verified independently. No GPU window
+is part of the agreed terminal-rendering direction.

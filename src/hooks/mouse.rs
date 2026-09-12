@@ -16,16 +16,15 @@ pub struct HoverState {
 /// Tracks hover state for a component
 ///
 /// # Example
-/// ```rust, ignore
-/// fn Card(props: &Props, state: &State) -> Element {
-///     let hover = use_hover();
-///     
-///     Element::new("div")
-///         .class(if hover.is_hovered { "bg-gray-100" } else { "bg-white" })
-///         .class("p-4 rounded border")
-///         .on_mouse_enter(|_| {})
-///         .on_mouse_leave(|_| {})
-///         .child(text!("Hover over me!"))
+/// ```rust,no_run
+/// use reactive_tui::prelude::*;
+/// use reactive_tui::hooks::mouse::*;
+///
+/// #[component]
+/// fn Card(hooks: &Hooks) -> Element {
+///     let state = use_hover(hooks).get();
+///     div().class(if state.is_hovered { "bg-gray-100" } else { "bg-white" })
+///         .child(Element::text("Hover over me")).build()
 /// }
 /// ```
 pub fn use_hover(hooks: &Hooks) -> ThreadSafeSignal<HoverState> {
@@ -97,19 +96,15 @@ impl DragState {
 /// Tracks drag state for a component
 ///
 /// # Example
-/// ```rust, ignore
-/// fn DraggableItem(props: &Props, state: &mut State) -> Element {
-///     let drag = use_drag();
-///     
-///     Element::new("div")
-///         .class(if drag.is_dragging { "opacity-50" } else { "opacity-100" })
-///         .class("p-4 border rounded cursor-move")
-///         .style(format!("transform: translate({}px, {}px)",
-///                        drag.drag_delta.0, drag.drag_delta.1))
-///         .on_mouse_down(|e| {})
-///         .on_mouse_move(|e| {})
-///         .on_mouse_up(|e| {})
-///         .child(text!("Drag me around!"))
+/// ```rust,no_run
+/// use reactive_tui::prelude::*;
+/// use reactive_tui::hooks::mouse::*;
+///
+/// #[component]
+/// fn DraggableItem(hooks: &Hooks) -> Element {
+///     let drag = use_drag(hooks).get();
+///     div().class(if drag.is_dragging { "opacity-50" } else { "opacity-100" })
+///         .child(Element::text(format!("Drag delta: {:?}", drag.drag_delta))).build()
 /// }
 /// ```
 pub fn use_drag(hooks: &Hooks) -> ThreadSafeSignal<DragState> {
@@ -163,31 +158,17 @@ pub struct DragAndDropState {
 /// Advanced drag and drop with drop zone detection
 ///
 /// # Example
-/// ```rust, ignore
-/// fn DragAndDropDemo(props: &Props, state: &mut State) -> Element {
-///     let dnd = use_drag_and_drop(DragAndDropOptions {
-///         drop_zones: vec!["drop-zone-1".to_string(), "drop-zone-2".to_string()],
+/// ```rust,no_run
+/// use reactive_tui::prelude::*;
+/// use reactive_tui::hooks::mouse::*;
+///
+/// #[component]
+/// fn DragAndDropDemo(hooks: &Hooks) -> Element {
+///     let state = use_drag_and_drop(hooks, DragAndDropOptions {
+///         drop_zones: vec!["drop-zone-1".into()],
 ///         ..Default::default()
 ///     });
-///     
-///     Element::new("div")
-///         .class("p-4")
-///         .children(vec![
-///             Element::new("div")
-///                 .class("draggable p-4 bg-blue-500 text-white rounded")
-///                 .class(if dnd.drag.is_dragging { "opacity-50" } else { "" })
-///                 .child(text!("Drag me to a drop zone")),
-///             
-///             Element::new("div")
-///                 .id("drop-zone-1")
-///                 .class("drop-zone mt-4 p-8 border-2 border-dashed")
-///                 .class(if dnd.is_over_valid_drop && dnd.drop_target == Some("drop-zone-1".to_string()) {
-///                     "border-green-500 bg-green-50"
-///                 } else {
-///                     "border-gray-300"
-///                 })
-///                 .child(text!("Drop Zone 1")),
-///         ])
+///     Element::text(format!("Drop target: {:?}; allowed: {}", state.drop_target, state.can_drop))
 /// }
 /// ```
 pub fn use_drag_and_drop(hooks: &Hooks, _options: DragAndDropOptions) -> DragAndDropState {
@@ -221,13 +202,14 @@ pub struct MousePositionState {
 /// Track mouse position relative to component
 ///
 /// # Example
-/// ```rust, ignore
-/// fn MouseTracker(props: &Props, state: &State) -> Element {
-///     let mouse = use_mouse_position();
-///     
-///     Element::new("div")
-///         .class("p-4 border")
-///         .child(text!("Mouse position: {:?}", mouse.position))
+/// ```rust,no_run
+/// use reactive_tui::prelude::*;
+/// use reactive_tui::hooks::mouse::*;
+///
+/// #[component]
+/// fn MouseTracker(hooks: &Hooks) -> Element {
+///     let mouse = use_mouse_position(hooks).get();
+///     Element::text(format!("Mouse position: {:?}", mouse.position))
 /// }
 /// ```
 pub fn use_mouse_position(hooks: &Hooks) -> ThreadSafeSignal<MousePositionState> {
@@ -259,18 +241,14 @@ pub struct ClickState {
 /// Detect various click patterns
 ///
 /// # Example
-/// ```rust, ignore
-/// fn ClickableItem(props: &Props, state: &mut State) -> Element {
-///     let clicks = use_clicks();
-///     
-///     Element::new("div")
-///         .class("p-4 border cursor-pointer")
-///         .on_click(|_| {})
-///         .child(text!(
-///             "Clicks: {} {}",
-///             clicks.click_count,
-///             if clicks.is_double_click { "(double)" } else { "" }
-///         ))
+/// ```rust,no_run
+/// use reactive_tui::prelude::*;
+/// use reactive_tui::hooks::mouse::*;
+///
+/// #[component]
+/// fn ClickableItem(hooks: &Hooks) -> Element {
+///     let clicks = use_clicks(hooks).get();
+///     Element::text(format!("Clicks: {}; double: {}", clicks.click_count, clicks.is_double_click))
 /// }
 /// ```
 pub fn use_clicks(hooks: &Hooks) -> ThreadSafeSignal<ClickState> {
@@ -301,23 +279,14 @@ pub struct LongPressState {
 /// Detect long press gestures
 ///
 /// # Example
-/// ```rust, ignore
-/// fn LongPressButton(props: &Props, state: &mut State) -> Element {
-///     let long_press = use_long_press(Duration::from_millis(800));
-///     
-///     Element::new("button")
-///         .class("p-4 bg-blue-500 text-white rounded")
-///         .class(if long_press.is_pressing { "bg-blue-700" } else { "" })
-///         .on_mouse_down(|_| {})
-///         .on_mouse_up(|_| {})
-///         .child(text!(
-///             "{}",
-///             if long_press.is_long_press {
-///                 "Long press detected!"
-///             } else {
-///                 "Hold for long press"
-///             }
-///         ))
+/// ```rust,no_run
+/// use reactive_tui::prelude::*;
+/// use reactive_tui::hooks::mouse::*;
+///
+/// #[component]
+/// fn LongPressButton(hooks: &Hooks) -> Element {
+///     let press = use_long_press(hooks, std::time::Duration::from_millis(800)).get();
+///     button().child(Element::text(if press.is_long_press { "Long press" } else { "Hold" })).build()
 /// }
 /// ```
 pub fn use_long_press(hooks: &Hooks, _threshold: Duration) -> ThreadSafeSignal<LongPressState> {
@@ -385,19 +354,19 @@ pub enum SwipeDirection {
 /// Detect swipe gestures
 ///
 /// # Example
-/// ```rust, ignore
-/// fn SwipeableCard(props: &Props, state: &mut State) -> Element {
-///     let gesture = use_gesture();
-///     
-///     let message = match &gesture.gesture_type {
-///         GestureType::Swipe(SwipeDirection::Left) => "Swiped left!",
-///         GestureType::Swipe(SwipeDirection::Right) => "Swiped right!",
+/// ```rust,no_run
+/// use reactive_tui::prelude::*;
+/// use reactive_tui::hooks::mouse::*;
+///
+/// #[component]
+/// fn SwipeableCard(hooks: &Hooks) -> Element {
+///     let gesture = use_gesture(hooks).get();
+///     let message = match gesture.gesture_type {
+///         GestureType::Swipe(SwipeDirection::Left) => "Swiped left",
+///         GestureType::Swipe(SwipeDirection::Right) => "Swiped right",
 ///         _ => "Swipe me",
 ///     };
-///     
-///     Element::new("div")
-///         .class("p-8 bg-gray-100 rounded")
-///         .child(text!("{}", message))
+///     Element::text(message)
 /// }
 /// ```
 pub fn use_gesture(hooks: &Hooks) -> ThreadSafeSignal<GestureState> {
@@ -451,14 +420,14 @@ pub enum WheelDeltaMode {
 /// Track mouse wheel/scroll events
 ///
 /// # Example
-/// ```rust, ignore
-/// fn ScrollableContent(props: &Props, state: &mut State) -> Element {
-///     let wheel = use_wheel();
-///     
-///     Element::new("div")
-///         .class("overflow-hidden h-64")
-///         .style(format!("transform: translateY({}px)", -wheel.delta_y))
-///         .child(text!("Scroll content here"))
+/// ```rust,no_run
+/// use reactive_tui::prelude::*;
+/// use reactive_tui::hooks::mouse::*;
+///
+/// #[component]
+/// fn ScrollableContent(hooks: &Hooks) -> Element {
+///     let wheel = use_wheel(hooks).get();
+///     Element::text(format!("Wheel delta: {}, {}", wheel.delta_x, wheel.delta_y))
 /// }
 /// ```
 pub fn use_wheel(hooks: &Hooks) -> ThreadSafeSignal<WheelState> {

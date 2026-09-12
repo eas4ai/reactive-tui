@@ -1,151 +1,72 @@
-# Reactive-TUI C API Headers
+# Reactive-TUI C headers
 
-This directory contains the modular C API headers for Reactive-TUI, organized for maintainability and ease of use.
+Include `reactive_tui.h` for the current native interface. Modular compatibility
+headers under `reactive_tui/` include the compiler-generated `native.h`; historical
+type names in `compat.h` do not imply that a similarly named function exists.
+The generated declarations are checked against compiled exports and layouts.
 
-## 📁 Header Structure
+Current interfaces include terminal/surface/renderer, Elements/builders,
+signals/hooks, animations, App, native text editor, validated layout styles,
+dialog sessions and stateful foreign components. Read the
+[C ABI policy](../docs/FFI_ABI_POLICY.md), [native component guide](../docs/native-components.md)
+and [migration inventory](../docs/binding-abi-migration.md) before managing owners.
+The [API matrix](../docs/supported-api.md) distinguishes behavior evidence from
+platform names recognized by a loader.
 
-### Main Header
-- **`reactive_tui.h`** - Main header that includes all modules (194 lines)
-  - Include this single file to access the complete API
-  - Provides convenience macros and common constants
-  - Documents future modules to be implemented
+## Initialize and release
 
-### Modular Headers (`reactive_tui/` directory)
-
-#### Core Infrastructure
-- **`core.h`** - Core types, error handling, and library initialization
-  - Version information and library lifecycle
-  - Error codes and basic types (Position, Rect, Color, Cell)
-  - Memory management functions
-
-- **`events.h`** - Event system for input handling
-  - Event types (keyboard, mouse, resize, focus, paste)
-  - Event structures and handler callbacks
-  - Event polling functions
-
-#### Terminal & Rendering
-- **`terminal.h`** - Terminal control and management
-  - Terminal creation, configuration, and cleanup
-  - Raw mode control and cursor management
-  - Basic terminal operations (clear, write, flush)
-
-- **`surface.h`** - Surface and buffer operations
-  - Surface creation and management
-  - Cell manipulation and text operations
-  - Rectangle operations and surface copying
-
-- **`render.h`** - Rendering system and frame management
-  - Renderer creation and frame control
-  - Drawing operations (surfaces, text, rectangles)
-  - Efficient terminal output
-
-#### UI Components
-- **`dialogs.h`** - Dialog system for user interactions
-  - Dialog engine management
-  - Dialog types (confirmation, input, toast, progress)
-  - Dialog lifecycle and interaction
-
-- **`animation.h`** - Animation system with easing
-  - Animation manager and creation
-  - Easing functions and loop modes
-  - Property animation and spring physics
-
-## 🎯 Benefits of Modular Structure
-
-### For Developers
-1. **Selective Inclusion** - Include only needed modules
-2. **Clear Organization** - Easy to find specific functionality
-3. **Reduced Compile Time** - Smaller headers compile faster
-4. **Better Documentation** - Each module is self-contained
-
-### For Maintainers
-1. **Easier Updates** - Modify specific modules without affecting others
-2. **Clear Boundaries** - Well-defined module responsibilities
-3. **Scalable Growth** - Easy to add new modules
-4. **Reduced Conflicts** - Smaller files reduce merge conflicts
-
-### For Language Bindings
-1. **Granular Binding** - Generate bindings for specific modules
-2. **Incremental Support** - Implement modules progressively
-3. **Clear Dependencies** - Understand module relationships
-4. **Easier Testing** - Test individual modules in isolation
-
-## 📋 Usage Examples
-
-### Simple Usage (All Features)
 ```c
-#include <reactive_tui.h>  // Include everything
+#include <reactive_tui.h>
 
-int main() {
-    rtui_init();
-    // Use any API...
+int main(void) {
+    RTuiError status = rtui_init();
+    if (status != R_TUI_ERROR_SUCCESS) return 1;
     rtui_cleanup();
+    return 0;
 }
 ```
 
-### Selective Usage (Specific Modules)
+## An independently owned surface
+
+A surface does not require a live terminal. A renderer's surface, by contrast, is
+borrowed and must not be destroyed by the caller.
+
 ```c
 #include <reactive_tui/core.h>
-#include <reactive_tui/terminal.h>
-#include <reactive_tui/render.h>
+#include <reactive_tui/surface.h>
 
-int main() {
-    rtui_init();
-    
-    RTuiTerminal* terminal;
-    RTuiRenderer* renderer;
-    
-    rtui_terminal_create(&terminal);
-    rtui_renderer_create(terminal, &renderer);
-    
-    // Basic rendering only...
-    
-    rtui_renderer_destroy(renderer);
-    rtui_terminal_destroy(terminal);
+int main(void) {
+    RTuiSurface *surface = NULL;
+    RTuiError status = rtui_init();
+    if (status != R_TUI_ERROR_SUCCESS) return 1;
+    status = rtui_surface_create(40, 10, &surface);
+    if (status == R_TUI_ERROR_SUCCESS) {
+        status = rtui_surface_clear(surface, 15, 20, 30);
+        rtui_surface_destroy(surface);
+    }
     rtui_cleanup();
+    return status == R_TUI_ERROR_SUCCESS ? 0 : 1;
 }
 ```
 
-### Language Binding Example (Python)
+## Loading from Python
+
+This small `ctypes` example loads the current library and declares its lifecycle
+signatures. It is not a packaged Python widget binding. Set `RTUI_LIBRARY_PATH`
+to the matching shared library. Raw headers contain preprocessor directives;
+do not pass them directly to `cffi.FFI.cdef`.
+
 ```python
-# Generate bindings for specific modules
-from cffi import FFI
+import ctypes
+import os
 
-ffi = FFI()
-
-# Load only core and terminal modules
-ffi.cdef(open('reactive_tui/core.h').read())
-ffi.cdef(open('reactive_tui/terminal.h').read())
-
-lib = ffi.dlopen('libreactive_tui.so')
+lib = ctypes.CDLL(os.environ["RTUI_LIBRARY_PATH"])
+lib.rtui_init.argtypes = []
+lib.rtui_init.restype = ctypes.c_int
+lib.rtui_cleanup.argtypes = []
+lib.rtui_cleanup.restype = None
 ```
 
-## 🚀 Future Expansion
-
-The modular structure is designed to accommodate future API additions:
-
-### Planned Modules
-- `app.h` - Application framework and lifecycle
-- `builder.h` - Element builder API with CSS styling
-- `layout.h` - CSS-like layout with flexbox/grid
-- `widgets.h` - Widget library (input, display, layout)
-- `reactive.h` - Reactive system (hooks, signals)
-- `theme.h` - Theming and styling system
-- `editor.h` - Text editor components
-- `syntax.h` - Syntax highlighting
-- `markdown.h` - Markdown rendering
-- `platform.h` - Platform-specific features
-
-### Adding New Modules
-1. Create `reactive_tui/new_module.h`
-2. Add include to main `reactive_tui.h`
-3. Update this documentation
-4. Implement corresponding Rust FFI functions
-
-## 📊 Current Status
-
-**Total Lines**: ~1,400 lines (vs 1,157 lines in monolithic header)
-**Modules**: 7 implemented, 10 planned
-**Coverage**: Core functionality complete, UI framework in progress
-
-The modular structure provides a clean, maintainable foundation for the complete Reactive-TUI C API while keeping individual files manageable and focused.
+API-018 compiles and links the C examples and checks the Python loader against
+the current built library. ABI and native component mechanisms execute their
+own consumers with terminal ownership, failure and cleanup assertions.

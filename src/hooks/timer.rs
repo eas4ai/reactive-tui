@@ -9,14 +9,17 @@ use std::time::Duration;
 /// Unchanged durations preserve the deadline while callbacks refresh on render.
 ///
 /// # Example
-/// ```rust, ignore
-/// fn Counter(props: &Props, state: &mut State) -> Element {
-///     let count = use_signal(&hooks, 0);
-///     
-///     use_interval(&hooks, Duration::from_secs(1), move || {
-///         count.update(|c| *c += 1);
+/// ```rust,no_run
+/// use reactive_tui::prelude::*;
+/// use std::time::Duration;
+///
+/// #[component]
+/// fn Counter(hooks: &Hooks) -> Element {
+///     let count = use_signal(hooks, 0);
+///     let tick_count = count.clone();
+///     use_interval(hooks, Duration::from_secs(1), move || {
+///         tick_count.update(|count| *count += 1);
 ///     });
-///     
 ///     Element::text(format!("Count: {}", count.get()))
 /// }
 /// ```
@@ -34,19 +37,16 @@ where
 /// It fires once; changing duration restarts it, while redraw alone does not.
 ///
 /// # Example
-/// ```rust, ignore
-/// fn DelayedMessage(props: &Props, state: &mut State) -> Element {
-///     let show_message = use_signal(&hooks, false);
-///     
-///     use_timeout(&hooks, Duration::from_secs(3), move || {
-///         show_message.set(true);
-///     });
-///     
-///     if show_message.get() {
-///         Element::text("Time's up!")
-///     } else {
-///         Element::text("Waiting...")
-///     }
+/// ```rust,no_run
+/// use reactive_tui::prelude::*;
+/// use std::time::Duration;
+///
+/// #[component]
+/// fn DelayedMessage(hooks: &Hooks) -> Element {
+///     let visible = use_signal(hooks, false);
+///     let delayed = visible.clone();
+///     use_timeout(hooks, Duration::from_secs(3), move || delayed.set(true));
+///     Element::text(if visible.get() { "Time's up!" } else { "Waiting..." })
 /// }
 /// ```
 pub fn use_timeout<F>(hooks: &Hooks, duration: Duration, callback: F) -> TimerHandle
@@ -67,23 +67,16 @@ where
 /// Hook for creating a debounced callback that only fires after a delay of inactivity
 ///
 /// # Example
-/// ```rust, ignore
-/// fn SearchBox(props: &Props, state: &mut State) -> Element {
-///     let search_term = use_signal(&hooks, String::new());
-///     let search_results = use_signal(&hooks, Vec::<String>::new());
-///     
-///     let debounced_search = use_debounce(&hooks, Duration::from_millis(300), move |term: String| {
-///         // Perform search with the term
-///         let results = perform_search(&term);
-///         search_results.set(results);
+/// ```rust,no_run
+/// use reactive_tui::hooks::use_debounce;
+/// use reactive_tui::reactive::Hooks;
+/// use std::time::Duration;
+///
+/// fn queue_search(hooks: &Hooks, query: String) {
+///     let search = use_debounce(hooks, Duration::from_millis(300), |term: String| {
+///         println!("Search for {term}");
 ///     });
-///     
-///     Element::input()
-///         .on_change(move |e| {
-///             let new_term = e.value.clone();
-///             search_term.set(new_term.clone());
-///             debounced_search.call(new_term);
-///         })
+///     search.call(query);
 /// }
 /// ```
 pub fn use_debounce<T, F>(hooks: &Hooks, delay: Duration, callback: F) -> DebouncedFunction<T>
@@ -104,21 +97,16 @@ where
 /// Hook for creating a throttled callback that fires at most once per interval
 ///
 /// # Example
-/// ```rust, ignore
-/// fn ScrollTracker(props: &Props, state: &mut State) -> Element {
-///     let scroll_position = use_signal(&hooks, 0);
-///     
-///     let throttled_save = use_throttle(&hooks, Duration::from_millis(1000), move |pos: i32| {
-///         // Save scroll position to backend
-///         save_scroll_position(pos);
+/// ```rust,no_run
+/// use reactive_tui::hooks::use_throttle;
+/// use reactive_tui::reactive::Hooks;
+/// use std::time::Duration;
+///
+/// fn report_scroll(hooks: &Hooks, position: i32) {
+///     let report = use_throttle(hooks, Duration::from_secs(1), |position: i32| {
+///         println!("Scroll position: {position}");
 ///     });
-///     
-///     Element::scrollable()
-///         .on_scroll(move |e| {
-///             let pos = e.scroll_top;
-///             scroll_position.set(pos);
-///             throttled_save.call(pos);
-///         })
+///     report.call(position);
 /// }
 /// ```
 pub fn use_throttle<T, F>(hooks: &Hooks, interval: Duration, callback: F) -> ThrottledFunction<T>

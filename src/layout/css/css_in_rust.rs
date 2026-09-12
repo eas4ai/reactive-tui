@@ -12,7 +12,7 @@
 //! # Example
 //! ```rust
 //! use reactive_tui::css;
-//! use taffy::style::{Display, FlexDirection};
+//! use reactive_tui::prelude::{Display, FlexDirection};
 //!
 //! let styles = css! {
 //!     display: Display::Flex,
@@ -39,18 +39,19 @@ use taffy::style::{AlignItems, Display, FlexDirection, JustifyContent, Position}
 /// - `flex_direction`: FlexDirection (Row, Column, RowReverse, ColumnReverse)
 /// - `align_items`: AlignItems (Start, End, Center, Stretch, Baseline)
 /// - `justify_content`: JustifyContent (Start, End, Center, SpaceBetween, etc.)
-/// - `position`: Position (Static, Relative, Absolute, Fixed)
+/// - `position`: Position (Relative, Absolute)
 /// - `color`: (f32, f32, f32, f32) - RGBA tuple for foreground color
 /// - `background_color`: (f32, f32, f32, f32) - RGBA tuple for background color
-/// - `padding`: f32 - Padding for all sides in pixels
-/// - `margin`: f32 - Margin for all sides in pixels
+/// - `padding`: f32 - Padding for all sides in terminal cells
+/// - `margin`: f32 - Margin for all sides in terminal cells
 /// - `opacity`: f32 (0.0 to 1.0)
-/// - `width`: f32 (width in pixels)
-/// - `height`: f32 (height in pixels)
+/// - `width`: f32 (width in terminal cells)
+/// - `height`: f32 (height in terminal cells)
 ///
 /// # Example
 /// ```rust,ignore
 /// use reactive_tui::css;
+/// use reactive_tui::prelude::{Display, AlignItems, JustifyContent};
 ///
 /// let button_styles = css! {
 ///     display: Display::Flex,
@@ -272,9 +273,9 @@ impl IntoCssValue for String {
 macro_rules! flex_center {
     () => {
         $crate::css! {
-            display: taffy::style::Display::Flex,
-            align_items: taffy::style::AlignItems::Center,
-            justify_content: taffy::style::JustifyContent::Center,
+            display: $crate::prelude::Display::Flex,
+            align_items: $crate::prelude::AlignItems::Center,
+            justify_content: $crate::prelude::JustifyContent::Center,
         }
     };
 }
@@ -284,8 +285,8 @@ macro_rules! flex_center {
 macro_rules! flex_column {
     () => {
         $crate::css! {
-            display: taffy::style::Display::Flex,
-            flex_direction: taffy::style::FlexDirection::Column,
+            display: $crate::prelude::Display::Flex,
+            flex_direction: $crate::prelude::FlexDirection::Column,
         }
     };
 }
@@ -295,32 +296,46 @@ macro_rules! flex_column {
 macro_rules! absolute_fill {
     () => {
         $crate::css! {
-            position: taffy::style::Position::Absolute,
-            width: 100.0,
-            height: 100.0,
+            position: $crate::prelude::Position::Absolute,
         }
+        .width_pct(100.0)
+        .height_pct(100.0)
+        .inset_all(0.0)
     };
 }
 
 /// Macro for responsive CSS with breakpoint support
 ///
+/// App and ScreenManager select styles for their current terminal width. Minimum
+/// widths are sm=40, md=80, lg=120 and xl=160 columns. Blocks cascade in ascending
+/// width order; repeated widths keep declaration order. Each block evaluates once
+/// during construction. Only owned style data crosses the renderer boundary.
+/// Complete each configuration inside the macro. Shared Element utility classes
+/// apply afterward. Standalone callers use `.at_width(columns)` before further
+/// builder methods and `.build()`.
+///
 /// # Example
 /// ```rust,ignore
 /// use reactive_tui::responsive_css;
+/// use reactive_tui::prelude::Display;
 ///
 /// let responsive_styles = responsive_css! {
 ///     base: {
 ///         display: Display::Block,
-///         padding: BoxSpacing::all(8.0),
+///         padding: 1.0,
 ///     },
 ///     md: {
 ///         display: Display::Flex,
-///         padding: BoxSpacing::all(16.0),
+///         padding: 2.0,
 ///     },
 ///     lg: {
-///         padding: BoxSpacing::all(24.0),
+///         padding: 3.0,
 ///     },
 /// };
+/// ```
+/// Unknown breakpoint names are rejected:
+/// ```compile_fail
+/// let styles = reactive_tui::responsive_css! { base: {}, mobile: { padding: 1.0 } };
 /// ```
 #[macro_export]
 macro_rules! responsive_css {
@@ -330,27 +345,63 @@ macro_rules! responsive_css {
         $(,)?
     ) => {
         {
-            let mut sb = $crate::css! { $($base_prop: $base_val),* };
-
-            // Add breakpoint-specific styles as CSS classes
-            let mut classes = Vec::new();
-            $(
-                // Convert breakpoint styles to utility classes
-                // This would need integration with the responsive system
-                let bp_name = stringify!($breakpoint);
-                $(
-                    let prop_name = stringify!($bp_prop);
-                    // Add responsive utility class
-                    // classes.push(format!("{}:{}-{}", bp_name, prop_name, value));
-                )*
-            )*
-
-            if !classes.is_empty() {
-                sb = sb.class(&classes.join(" "));
-            }
-
-            sb
+            let base = $crate::css! { $($base_prop: $base_val),* };
+            let rules: ::std::vec::Vec<$crate::layout::css::css_in_rust::ResponsiveRule<'_>> = ::std::vec![$(
+                ($crate::responsive_breakpoint!($breakpoint), ::std::boxed::Box::new(|mut sb| {
+                    $(sb = $crate::apply_css_property(sb, stringify!($bp_prop), $bp_val);)*
+                    sb
+                }))
+            ),*];
+            $crate::layout::css::css_in_rust::responsive_style(base, rules)
         }
+    };
+}
+
+/// Construction-only responsive rule. Closures are consumed before style capture.
+#[doc(hidden)]
+pub type ResponsiveRule<'a> = (u16, Box<dyn FnOnce(StyleBuilder) -> StyleBuilder + 'a>);
+
+/// Materialize responsive macro blocks as cumulative style data.
+#[doc(hidden)]
+pub fn responsive_style(
+    mut base: StyleBuilder,
+    mut rules: Vec<ResponsiveRule<'_>>,
+) -> StyleBuilder {
+    rules.sort_by_key(|(width, _)| *width);
+    let mut current = base.clone();
+    let mut profiles = Vec::new();
+    for (width, rule) in rules {
+        current = rule(current);
+        if profiles
+            .last()
+            .is_some_and(|(previous, _)| *previous == width)
+        {
+            profiles.pop();
+        }
+        profiles.push((width, current.clone()));
+    }
+    base.responsive_profiles = profiles;
+    base
+}
+
+/// Resolve the public responsive macro's supported terminal-column breakpoints.
+#[doc(hidden)]
+#[macro_export]
+macro_rules! responsive_breakpoint {
+    (sm) => {
+        40_u16
+    };
+    (md) => {
+        80_u16
+    };
+    (lg) => {
+        120_u16
+    };
+    (xl) => {
+        160_u16
+    };
+    ($other:ident) => {
+        compile_error!("unknown responsive breakpoint; use sm, md, lg or xl")
     };
 }
 

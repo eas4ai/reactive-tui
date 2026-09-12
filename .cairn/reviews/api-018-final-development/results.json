@@ -1,0 +1,50 @@
+[
+  {
+    "name": "clippy",
+    "command": [
+      "cargo",
+      "clippy",
+      "--locked",
+      "--all-targets",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    "result": "pass"
+  },
+  {
+    "name": "macro-clippy",
+    "command": [
+      "cargo",
+      "clippy",
+      "--locked",
+      "-p",
+      "reactive-tui-macros",
+      "--lib",
+      "--tests",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    "result": "pass"
+  },
+  {
+    "name": "format",
+    "command": [
+      "cargo",
+      "fmt",
+      "--all",
+      "--check"
+    ],
+    "result": "pass"
+  },
+  {
+    "name": "documentation",
+    "command": [
+      "python3",
+      "-B",
+      "scripts/check-api-documentation.py"
+    ],
+    "result": "pass"
+  }
+]

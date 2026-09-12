@@ -52,7 +52,7 @@ def matrix_modules(text):
         found.update(names)
         if not re.search(r"(?:API|ABI|RND|EMB|WAK|REG|CCH)-\d{3}", cells[2]):
             raise AssertionError("Every matrix row needs named behavior evidence")
-        if cells[4] not in ("Verified", "Verified with limits", "API-019 review pending"):
+        if cells[4] not in ("Verified", "Verified with limits", "Covered by named checks", "API-019 review pending"):
             raise AssertionError("Matrix status must distinguish acceptance from pending review")
     return found
 
@@ -127,8 +127,10 @@ class Check:
         raise RuntimeError("Cargo did not identify the documentation consumer library")
 
     def props(self):
+        self.run("documentation-macro-behavior", ["cargo", "test", "--locked", "--test", "api_documentation_contract"], expected_tests=4)
+        self.run("documentation-screen-behavior", ["cargo", "test", "--locked", "--lib", "responsive_"], expected_tests=2)
         self.run("props-behavior", ["cargo", "test", "--locked", "--test", "api_props_contract",
-                                     "--test", "props_derive_test", "--test", "simple_props_test"], expected_tests=16)
+                                     "--test", "props_derive_test", "--test", "simple_props_test"], expected_tests=17)
         self.run("props-diagnostics", ["cargo", "test", "--locked", "-p", "reactive-tui-macros", "--lib"], expected_tests=2)
         library = self.library()
         binary = self.scratch / "props-defaults"
@@ -154,8 +156,9 @@ class Check:
                     if page.is_file():
                         destination = self.output / (name + "-" + page.parent.name + "-index.html")
                         destination.write_bytes(page.read_bytes())
-        for name, flags in (("default", []), ("minimal", ["--no-default-features"])):
-            self.run("crate-doctests-" + name, ["cargo", "test", "--locked", "--doc", *flags,
+        for name, toolchain, flags in (("default", [], []), ("minimal", [], ["--no-default-features"]),
+                                       ("all-features", ["+nightly"], ["--all-features"])):
+            self.run("crate-doctests-" + name, ["cargo", *toolchain, "test", "--locked", "--doc", *flags,
                                                  "--", "--test-threads=12"], expected_tests=1)
         self.run("cargo-examples", ["cargo", "check", "--locked", "--examples"])
 
@@ -176,7 +179,7 @@ class Check:
     def collect_examples(self):
         guides = [ROOT / "README.md", *sorted((ROOT / "docs").glob("*.md")),
                   ROOT / "include/README.md", *sorted((ROOT / "bindings/typescript").glob("*.md"))]
-        rust, c, typescript = [], [], []
+        rust, c, typescript, python = [], [], [], []
         inventory = []
         for path in guides:
             blocks = list(fences(path.read_text()))
@@ -186,7 +189,9 @@ class Check:
             for line, flags, code in blocks:
                 if flags[0] in ("c", "typescript", "ts"):
                     (c if flags[0] == "c" else typescript).append((str(path.relative_to(ROOT)), line, code))
-                if flags[0] in ("rust", "c", "typescript", "ts"):
+                if flags[0] == "python":
+                    python.append((str(path.relative_to(ROOT)), line, code))
+                if flags[0] in ("rust", "c", "typescript", "ts", "python"):
                     inventory.append({"file": str(path.relative_to(ROOT)), "line": line,
                                       "language": flags[0], "sha256": hashlib.sha256(code.encode()).hexdigest()})
         paths = sorted((ROOT / "src").rglob("*.rs")) + [ROOT / "reactive-tui-macros/src/lib.rs"]
@@ -197,7 +202,7 @@ class Check:
             selected = []
             for start, comment in rust_comments(path):
                 for line, flags, code in fences(comment):
-                    if "ignore" in flags or path.parent.parent.name == "reactive-tui-macros":
+                    if "ignore" in flags or "no_run" in flags or path.parent.parent.name == "reactive-tui-macros":
                         selected.append((start + line - 1, flags, code))
             if selected:
                 rust.append((str(path.relative_to(ROOT)), selected))
@@ -207,7 +212,7 @@ class Check:
         (self.output / "examples.json").write_text(json.dumps(inventory, indent=2) + "\n")
         if not rust or not c or not typescript:
             raise AssertionError("Missing Rust, C or TypeScript public examples")
-        return rust, c, typescript
+        return rust, c, typescript, python
 
     def c_examples(self, examples):
         self.run("ffi-library", ["cargo", "build", "--locked", "--features", "ffi"])
@@ -241,10 +246,15 @@ class Check:
                                          "--project", str(path)], 120)
 
     def examples(self):
-        rust, c, typescript = self.collect_examples()
+        rust, c, typescript, python = self.collect_examples()
         self.rust_examples(self.library(), rust)
         self.c_examples(c)
         self.typescript_examples(typescript)
+        for index, (source, line, code) in enumerate(python):
+            path = self.output / f"python-{index}.py"
+            path.write_text(code)
+            self.run(f"python-example-{index}", ["env", "RTUI_LIBRARY_PATH=" + str(TARGET / "debug/libreactive_tui.so"),
+                                               "python3", "-B", str(path)], 30)
 
     def inventory(self):
         text = MATRIX.read_text()
@@ -286,7 +296,10 @@ def main():
     print("Documentation outputs:", check.output.relative_to(ROOT), flush=True)
     if failed:
         raise SystemExit("API-018 failed: " + ", ".join(failed))
-    print("PASS API-018: Props, public rustdoc, compiled examples and supported-API matrix", flush=True)
+    if args.only:
+        print(f"PASS development section: {args.only}; full API-018 acceptance was not run", flush=True)
+    else:
+        print("PASS API-018: Props, public rustdoc, compiled examples and supported-API matrix", flush=True)
 
 
 if __name__ == "__main__":

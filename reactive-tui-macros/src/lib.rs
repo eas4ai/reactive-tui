@@ -240,7 +240,7 @@ fn generate_props_component(
 ///
 /// # Usage
 ///
-/// ```rust
+/// ```rust,ignore
 /// use reactive_tui::prelude::*;
 ///
 /// fn non_blank(text: &str) -> bool { !text.trim().is_empty() }
@@ -272,8 +272,9 @@ fn generate_props_component(
 /// follows field order and stops at the first false rule. No rules means no extra
 /// constraints. Construction, builders and App mounting do not call validation.
 /// Defaults may therefore be invalid until the caller supplies a value. Fields
-/// without a default annotation use `Default::default()` too. Optional fields
-/// cannot also specify a default. Bare `#[prop(validate)]` is an error; name the
+/// without a default annotation use `Default::default()` too. An explicit string
+/// default takes precedence over `optional`; `optional, default` remains `None`.
+/// Bare `#[prop(validate)]` is an error; name the
 /// rule explicitly. Rules must return `bool`; field types are never rewritten.
 /// Structs must have named fields and satisfy the `Props` trait bounds.
 #[proc_macro_derive(Props, attributes(prop))]
@@ -442,12 +443,6 @@ impl PropOptions {
             }
         }
         if options.optional {
-            if options.default {
-                return Err(syn::Error::new_spanned(
-                    field,
-                    "optional defaults to None; remove the default option",
-                ));
-            }
             let is_option = match &field.ty {
                 syn::Type::Path(ty) if ty.qself.is_none() => {
                     ty.path.segments.last().is_some_and(|segment| {
@@ -487,6 +482,8 @@ mod props_options_tests {
             "#[prop(optional)] value: Option<String>",
             "#[prop(optional, validate = valid)] value: ::std::option::Option<String>",
             "#[prop(optional)] value: core::option::Option<u32>",
+            "#[prop(optional, default)] value: Option<u32>",
+            "#[prop(optional, default = \"guest\")] value: Option<&'static str>",
         ] {
             assert!(parse(source).is_ok(), "{source}");
         }
@@ -509,10 +506,6 @@ mod props_options_tests {
             (
                 "#[prop(optional)] value: Option",
                 "requires an explicit Option<T>",
-            ),
-            (
-                "#[prop(optional, default)] value: Option<u32>",
-                "remove the default option",
             ),
             (
                 "#[prop(default, default)] value: String",

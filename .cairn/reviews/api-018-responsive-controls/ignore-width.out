@@ -1,0 +1,33 @@
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+warning: unused variable: `width`
+    --> src/layout/style.rs:1616:43
+     |
+1616 |     pub(crate) fn resolve_viewport(&self, width: u16) -> crate::error::Result<Option<Self>> {
+     |                                           ^^^^^ help: if this is intentional, prefix it with an underscore: `_width`
+     |
+     = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: `reactive-tui` (lib) generated 1 warning (run `cargo fix --lib -p reactive-tui` to apply 1 suggestion)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 15.26s
+     Running tests/api_documentation_contract.rs (target/debug/deps/api_documentation_contract-14f097945cb3f0b6)
+
+running 1 test
+test responsive_profiles_follow_viewport_boundaries_and_reverse_resize ... FAILED
+
+failures:
+
+---- responsive_profiles_follow_viewport_boundaries_and_reverse_resize stdout ----
+
+thread 'responsive_profiles_follow_viewport_boundaries_and_reverse_resize' (4133944) panicked at tests/api_documentation_contract.rs:57:9:
+assertion `left == right` failed
+  left: Rgb(255, 0, 0)
+ right: Rgb(0, 255, 0)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    responsive_profiles_follow_viewport_boundaries_and_reverse_resize
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.02s
+
+error: test failed, to rerun pass `--test api_documentation_contract`

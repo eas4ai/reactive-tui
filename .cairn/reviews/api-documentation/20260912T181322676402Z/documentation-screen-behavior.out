@@ -1,0 +1,12 @@
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 15.48s
+     Running unittests src/lib.rs (target/debug/deps/reactive_tui-3b9bd581c091ab71)
+
+running 4 tests
+test layout::css::variants::tests::test_responsive_variants ... ok
+test layout::grid::tests::test_responsive_by_default ... ok
+test screen::manager::tests::responsive_snapshot_rejects_nonfinite_values_even_in_inactive_profiles ... ok
+test screen::manager::tests::responsive_screen_styles_follow_resize_without_replacing_content ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 999 filtered out; finished in 0.01s
+

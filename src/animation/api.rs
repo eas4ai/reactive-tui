@@ -279,7 +279,7 @@ fn generate_id() -> String {
 /// # Examples
 ///
 /// ```rust, ignore
-/// use reactive_tui::widgets::animation::*;
+/// use reactive_tui::animation::*;
 ///
 /// // Simple fade in
 /// let fade = animate("my-element", AnimateParams {
@@ -688,7 +688,7 @@ fn convert_position_value_to_animated(position: &PositionValue) -> AnimatedPrope
 /// # Examples
 ///
 /// ```rust, ignore
-/// use reactive_tui::widgets::animation::*;
+/// use reactive_tui::animation::*;
 ///
 /// // Basic stagger with 100ms delay
 /// let stagger_config = stagger_delay(100.0, None);
@@ -856,7 +856,7 @@ fn parse_timeline_position(position: &str) -> Duration {
 /// # Examples
 ///
 /// ```rust, ignore
-/// use reactive_tui::widgets::animation::*;
+/// use reactive_tui::animation::*;
 ///
 /// let timeline = create_timeline(Some(TimelineParams {
 ///     id: Some("main-timeline".to_string()),

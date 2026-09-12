@@ -502,6 +502,7 @@ impl App {
 
         // Build element tree from root component
         let mut element = self.components.resolve(self.root.render())?;
+        crate::component::bridge::resolve_viewport_styles(&mut element, self.backend.size().0)?;
         // Base semantics establish disabled state before state variants are
         // selected. Resolve again afterward for conditional semantic styles.
         crate::accessibility::style::prepare(&mut element)?;

@@ -1,7 +1,7 @@
 # Reactive TUI TypeScript SDK
 
-The package wraps the implemented Rust terminal, surface, renderer and static
-Element APIs. It uses Koffi 3.2.1 and compiler-audited native declarations.
+The package wraps Rust terminal, surface, renderer and Element APIs, plus
+NativeApp, ForeignComponent, NativeTextEditor, NativeLayoutStyle and NativeDialogEngine. It uses Koffi 3.2.1 and compiler-audited native declarations.
 
 ## Build and verify
 
@@ -76,14 +76,14 @@ getters return owned clones. Explicitly dispose owners that are not consumed.
 Native builder `.text()` converts its result to a text Element; use `.child(text())`
 when you want a container with text children.
 
-Static trees are supported; generic JSON component state, automatic rerendering,
-interactive widget wrappers and dialogs were never implemented at this native
-boundary. They are deliberately retired in this repair. See
-[TypeScript migration](MIGRATION.md) and
-[C/native ABI migration](MIGRATION.md) for the complete
-inventory, changed call signatures, and ownership rules. The low-level `lib`
-export exposes native signatures; it requires valid pointers and caller-managed
-ownership/callback lifetimes.
+Static trees and explicit stateful controllers are supported. `ForeignComponent`
+owns JSON props/state and routed callbacks; `NativeApp` owns the retained native
+App. Editor, layout and dialog controllers expose their recovered native behavior.
+See [native components](../../docs/native-components.md) for callback lifetimes,
+consuming calls, errors and disposal order. The old widget-specific JSON wrappers
+remain deliberately retired; the new controllers do not recreate those methods.
+[TypeScript migration](MIGRATION.md) records the complete before/after inventory.
+The low-level `lib` export requires valid pointers and caller-managed ownership.
 
 The examples `hello-world.ts` and `component-demo.ts` use the supported API.
 The old animation/widget demos are retired along with their unsupported wrappers.

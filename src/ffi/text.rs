@@ -468,7 +468,7 @@ pub extern "C" fn textBufferResetSelection(tb: *mut RTuiTextBuffer) {
     text_buffer.selection_bg = None;
 }
 
-/// Get selection info as packed u64: [start:u32][end:u32]
+/// Get selection info as packed u64: `[start:u32][end:u32]`.
 /// Returns 0xFFFFFFFF_FFFFFFFF if no selection
 #[no_mangle]
 pub extern "C" fn textBufferGetSelectionInfo(tb: *const RTuiTextBuffer) -> u64 {

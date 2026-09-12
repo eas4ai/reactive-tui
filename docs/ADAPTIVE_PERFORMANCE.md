@@ -56,7 +56,7 @@ fn adaptive_enabled(hooks: &Hooks) -> bool {
 ```
 
 ### use_performance_mode
-Request a performance mode from inside a component (e.g., Gaming for a heavy view). The framework will automatically return to Auto/Balanced when appropriate.
+Request a performance mode from inside a component (e.g., Gaming for a heavy view). The cleanup callback below explicitly restores Balanced; a mode request alone does not install restoration.
 
 ```rust
 use reactive_tui::hooks::fps::use_performance_mode;
@@ -129,7 +129,7 @@ This lets you write components without worrying about wiring until you actually 
 - Use use_performance for coarse gating of effects/animations
 - Use use_adaptive_quality when you want a simple Low/Med/High mapping
 - Keep heavy work budgeted to t.target_frame_ms (from use_frame_timing) and yield if over budget
-- Prefer local provide_context for tests and stories; rely on the global context in production App
+- Use a local PerformanceContext when isolating tests. The legacy global App publication path is included in the API-019 multi-App review.
 
 ## Troubleshooting
 
@@ -137,3 +137,11 @@ This lets you write components without worrying about wiring until you actually 
 - Mode requests not sticking? Confirm that App applies take_requested_performance_mode() after present
 - Unit tests without runtime: hooks fallback should still work; for timer-dependent code, a fallback scheduler is provided
 
+
+## Acceptance limits
+
+These examples compile against the current hook signatures. App still publishes
+the legacy global performance context, and frame mode reporting and multi-App
+isolation remain under API-019 review. Local context preference is implemented;
+it does not by itself prove independent App ownership. The supported-API matrix
+keeps that runtime work pending rather than treating this guide as acceptance.

@@ -8,10 +8,14 @@
 //! - **React-like Components**: Declarative component system with hooks and lifecycle methods
 //! - **CSS Utility Classes**: Tailwind-style classes for layout and styling
 //! - **Flexbox/Grid Layouts**: Modern layout system powered by the Taffy engine
-//! - **Rich Widget Library**: Comprehensive set of production-ready widgets
+//! - **Widget Library**: Retained inputs, tables, trees, menus and dialogs
 //! - **24-bit Color Support**: Full RGB color support for modern terminals
 //! - **Image Rendering**: Multiple backends for displaying images in terminals
 //! - **FFI Support**: Multi-language bindings via stable C ABI
+//!
+//! The repository's `docs/supported-api.md` maps supported routes to behavior
+//! checks and platform limits. Catalog-wide acceptance remains subject to the
+//! current API remediation commitment; compilation alone is not runtime evidence.
 //!
 //! ## Quick Start
 //!
@@ -72,7 +76,6 @@ pub mod hooks;
 /// CSS-like layout system with flexbox and grid support
 pub mod layout;
 /// Markdown rendering and parsing for terminal display
-#[cfg(not(any(doctest, doc)))]
 pub mod markdown;
 /// Platform-specific implementations and capabilities detection
 pub mod platform;

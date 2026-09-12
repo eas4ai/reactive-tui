@@ -3,7 +3,7 @@
 The previous package did not typecheck or load the shared library. The repaired
 package uses native Element trees. API-017 adds ForeignComponent state/events,
 NativeTextEditor, NativeLayoutStyle, NativeDialogEngine and NativeApp. See
-`native-components.md` for their ownership and current acceptance contract. The following removals are deliberate; they are not compiler exclusions.
+[native components](native-components.md) for their ownership and current acceptance contract. The following removals are deliberate; they are not compiler exclusions.
 All remaining files under src are still included in TypeScript checking.
 
 The complete public before/after signatures, including class members, are recorded

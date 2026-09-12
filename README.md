@@ -1,164 +1,113 @@
 # Reactive-TUI
 
-A modern, reactive terminal user interface library for Rust with CSS-like styling and comprehensive image support.
+Reactive-TUI builds Rust terminal applications from retained components, reactive
+state and CSS-like layout. App paints complete grapheme-aware frames through the
+locally maintained SuprTUI renderer. Crossterm supplies host input and raw mode.
 
-## Current renderer and embedded terminal
+The [supported-API matrix](docs/supported-api.md) lists behavior checks, manual
+adapters and platform limits. API remediation is still in progress: documentation
+builds do not certify the remaining gesture, theme, Markdown integration and
+legacy-platform review. Historical findings remain in [the audit](docs/api-audit.md).
 
-The current checkout adds a SuprTUI backend for application rendering. Try it
-with `cargo run --locked --example suprtui_counter`; Space changes the counter,
-and Escape or Ctrl+C quits. See the [renderer guide](docs/suprtui-renderer.md)
-for integration and verification. The legacy API examples below predate this
-recovery; known failures are recorded in [recon](docs/recon.md).
+## Run the current checkout
 
-The renderer is now owned inside this repository. On Unix, run an embedded
-shell with `cargo run --locked --features embedded-terminal --example embedded_shell`.
-Child output triggers App redraws; Ctrl+C reaches the child and Ctrl+Q leaves
-the host. See [embedded sessions](docs/embedded-terminal.md) for the API,
-Zig build requirement, and verification.
+```sh
+cargo run --locked --example suprtui_counter
+```
 
-## Features
-
-- **CSS-like Layout System**: Use familiar CSS properties like `flex`, `grid`, `padding`, `margin`
-- **Utility Classes**: Tailwind-inspired classes like `p-4`, `bg-blue-500`, `text-white`
-- **Modern Terminal Support**: Requires 24-bit color terminals (wezterm, kitty, alacritty, iTerm2)
-- **Double-buffered Rendering**: Efficient diff-based updates minimize terminal output
-- **Component System**: Build reusable UI components with a React-like API
-- **Event Handling**: Mouse and keyboard event support with focus management
-- **Animation Support**: Smooth transitions and animations with spring physics
-- **Image Support**: Multi-backend image rendering with sixel, external tools, and terminal protocols
-- **Syntax Highlighting**: Built-in syntax highlighting with customizable themes
-- **Markdown Rendering**: Rich markdown support with GFM extensions
-
-## Quick Start
-
-Add to your `Cargo.toml`:
+Space changes the counter; Escape or Ctrl+C quits. For an application depending on
+this checkout, use a Cargo path dependency pointing to the repository. The source
+version is 0.0.7; these recovery changes do not establish what a published package
+contains.
 
 ```toml
 [dependencies]
-reactive-tui = "0.0.7"
+reactive-tui = { path = "../reactive-tui" }
 ```
 
-Basic example:
-
-```rust
+```rust,no_run
 use reactive_tui::prelude::*;
+use reactive_tui::app::RootComponent;
+use reactive_tui::backend::SuprTuiBackend;
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let app = App::builder()
-        .title("My App")
-        .size(80, 24)
-        .component(|| {
-            Element::new("div")
-                .class("flex items-center justify-center bg-blue-500 text-white p-4")
-                .text("Hello, Reactive-TUI!")
-        })
-        .build()?;
-    
-    app.run()
+struct Hello;
+impl RootComponent for Hello {
+    fn render(&self) -> Element {
+        div().class("p-2 bg-blue-500 text-white")
+            .child(Element::text("Hello, Reactive-TUI!"))
+            .build()
+    }
+}
+
+fn main() -> Result<()> {
+    App::builder()
+        .backend(SuprTuiBackend::new()?)
+        .root(Hello)
+        .build()?
+        .run()
 }
 ```
 
-## Image Support
+App owns component lifecycle, routed keyboard/mouse input and stable focus.
+[Application entry points](docs/application-entry-points.md) explains the retained
+backend and native routes. Use the [widget inventory](docs/widget-acceptance.md)
+for each input, table, tree, menu and dialog contract.
 
-Display images in your terminal applications:
+## Images
+
+Return an image Element from a root or component so App owns its placement,
+clipping, replacement, animation and removal:
 
 ```rust
+use reactive_tui::component::Element;
 use reactive_tui::widgets::Image;
-use reactive_tui::core::terminal::Terminal;
 
-let image = Image::from_file("photo.jpg")
-    .with_max_size(80, 24)
-    .with_preserve_aspect(true);
-
-let capabilities = Terminal::detect_image_capabilities();
-let output = image.render(&capabilities)?;
-println!("{}", output);
+fn photo() -> Element {
+    Image::from_file("photo.jpg")
+        .with_max_size(40, 12)
+        .with_preserve_aspect(true)
+        .into_element()
+}
 ```
 
-### Supported Image Backends
+Local files, encoded memory and base64 data URLs are supported source routes.
+HTTP/HTTPS image URLs return an explicit unsupported-source error. Image output
+uses the selected host protocol, Chafa/Viu or ASCII fallback. See
+[image acceptance](docs/image-acceptance.md) for the captured routes and exact limits:
 
-- **Sixel Graphics**: Native terminal graphics (xterm, wezterm, mlterm)
-- **External Tools**: chafa and viu for broad compatibility
-- **Terminal Protocols**: Kitty graphics and iTerm2 inline images
-- **ASCII Art**: Fallback with Floyd-Steinberg dithering
+- Kitty graphics acceptance requires the pinned Kitty 0.45.0 patch; this repository
+  does not repair users' stock Kitty installations.
+- Ghostty graphics, Xterm Sixel and WezTerm inline have captured Linux workflows.
+- iTerm2 3.7 has an approved color/transparency exception; placement, replacement
+  and removal remain required.
+- GNOME Terminal has fallback coverage. Screen-reader acceptance is specifically
+  Orca with GNOME Terminal, not every host or assistive tool.
 
-## CSS Utility Classes
+## Layout, animation and native access
 
-The library supports a comprehensive set of utility classes:
+Utility classes include flex/grid layout, spacing, colors and state variants.
+Terminal transforms move cells and upright glyphs; they do not rotate glyph bitmaps
+or change the host font size. [Text styling](docs/text-styling.md) and
+[animation integration](docs/ANIMATION_INTEGRATION.md) describe the supported painter.
 
-### Layout
-- `flex`, `grid`, `flex-row`, `flex-col`
-- `justify-center`, `items-center`, `place-items-center`
-- `gap-2`, `gap-4`, `gap-8`
+C headers and TypeScript expose stateful foreign components, editor/layout/dialog
+controllers and App ownership. Read the [native component guide](docs/native-components.md),
+[C ABI policy](docs/FFI_ABI_POLICY.md) and [TypeScript SDK](bindings/typescript/README.md).
+The migration records distinguish retained native functions from retired wrappers.
 
-### Spacing
-- `p-2`, `p-4`, `px-2`, `py-4` (padding)
-- `m-2`, `m-4`, `mx-2`, `my-4` (margin)
+## Embedded shells and build configurations
 
-### Sizing
-- `w-full`, `h-full`, `w-32`, `h-16`
-- `min-w-0`, `max-w-full`
-
-### Colors
-- `bg-red-500`, `text-blue-300`, `border-green-600`
-- Named colors: `bg-primary`, `text-secondary`
-
-### Typography
-- `font-bold`, `italic`, `underline`
-- `text-left`, `text-center`, `text-right`
-
-### Images
-- `image-fit-cover`, `image-fit-contain`
-- `aspect-ratio-16-9`, `aspect-ratio-4-3`
-- `image-quality-high`, `image-rendering-smooth`
-
-## Examples
-
-Run the examples to see the library in action:
-
-```bash
-# Image widget demo
-cargo run --example image_widget_demo
-
-# Animation integration
-cargo run --example animation_integration_demo
-
-# Multi-screen application
-cargo run --example multi_screen_demo
-
-# Syntax highlighting
-cargo run --example syntax_highlight
+```sh
+cargo run --locked --features embedded-terminal --example embedded_shell
+cargo doc --locked --lib --no-deps
+cargo check --locked --no-default-features
 ```
 
-## Documentation
-
-- [API Documentation](https://docs.rs/reactive-tui)
-- [Animation Integration Guide](docs/ANIMATION_INTEGRATION.md)
-- [Adaptive Performance Guide](docs/ADAPTIVE_PERFORMANCE.md)
-- [FFI ABI Policy](docs/FFI_ABI_POLICY.md)
-
-## Terminal Compatibility
-
-### Recommended Terminals
-- **WezTerm** - Full feature support including images
-- **Kitty** - Excellent performance with graphics protocol
-- **Alacritty** - Fast rendering with good color support
-- **iTerm2** - macOS with inline image support
-
-### Image Support by Terminal
-| Terminal | Sixel | Kitty Graphics | iTerm2 Inline | External Tools |
-|----------|-------|----------------|---------------|----------------|
-| WezTerm  | ✅     | ❌              | ❌             | ✅              |
-| Kitty    | ❌     | ✅              | ❌             | ✅              |
-| iTerm2   | ❌     | ❌              | ✅             | ✅              |
-| Alacritty| ❌     | ❌              | ❌             | ✅              |
-
-## Requirements
-
-- A current stable Rust toolchain (verified with Rust 1.95.0)
-- For embedded terminals: Unix and Zig 0.16.x; the bindings require Rust 1.90+
-- 24-bit color terminal
-- For images: chafa, viu, or compatible terminal
+Embedded sessions use libghostty on Unix and require the pinned Zig toolchain
+specified in [embedded sessions](docs/embedded-terminal.md). Ctrl+C reaches the
+child; Ctrl+Q exits the host. The `simd` feature requires nightly Rust. Other
+feature combinations and native platform evidence are listed in the API matrix.
+Builds and checks on this development machine use at most 12 workers per pool.
 
 ## Contributors
 
@@ -175,10 +124,9 @@ Contributions are welcome! Please read our [Contributing Guide](CONTRIBUTING.md)
 
 ## Acknowledgments
 
-- Built on [Taffy](https://github.com/DioxusLabs/taffy) for layout
-- Uses [crossterm](https://github.com/crossterm-rs/crossterm) for terminal control
-- Image support powered by [sixel-rs](https://github.com/saitoha/sixel-rs)
-- Inspired by modern web frameworks and Tailwind CSS
+- [Taffy](https://github.com/DioxusLabs/taffy) supplies layout.
+- [Crossterm](https://github.com/crossterm-rs/crossterm) supplies terminal input and control.
+- Comrak and Syntect supply Markdown parsing and syntax highlighting.
 
 ### Renderer ownership
 

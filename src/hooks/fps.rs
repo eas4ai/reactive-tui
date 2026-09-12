@@ -36,17 +36,14 @@ impl Default for FpsState {
 /// Hook for accessing FPS and performance information
 ///
 /// # Example
-/// ```rust, ignore
-/// fn StatusBar(props: &Props, state: &mut State) -> Element {
-///     let fps = use_fps(&hooks);
-///     
-///     Element::text(format!(
-///         "FPS: {:.0}/{} | Render: {:.1}ms | Mode: {:?}",
-///         fps.get().current_fps,
-///         fps.get().target_fps,
-///         fps.get().avg_render_time_ms,
-///         fps.get().mode
-///     ))
+/// ```rust,no_run
+/// use reactive_tui::prelude::*;
+///
+/// #[component]
+/// fn StatusBar(hooks: &Hooks) -> Element {
+///     let state = use_fps(hooks).get();
+///     Element::text(format!("FPS: {:.0}/{} | Render: {:.1}ms | Mode: {:?}",
+///         state.current_fps, state.target_fps, state.avg_render_time_ms, state.mode))
 /// }
 /// ```
 pub fn use_fps(hooks: &Hooks) -> ThreadSafeSignal<FpsState> {
@@ -63,20 +60,14 @@ pub fn use_fps(hooks: &Hooks) -> ThreadSafeSignal<FpsState> {
 /// Hook for monitoring performance and adapting component behavior
 ///
 /// # Example
-/// ```rust, ignore
-/// fn AnimatedComponent(props: &Props, state: &mut State) -> Element {
-///     let (performance, is_low_fps) = use_performance(&hooks);
-///     
-///     // Disable animations if FPS is low
-///     let animation_class = if is_low_fps.get() {
-///         "transition-none"
-///     } else {
-///         "transition-all duration-200"
-///     };
-///     
-///     Element::div()
-///         .class(animation_class)
-///         .child(text!("Adaptive animations"))
+/// ```rust,no_run
+/// use reactive_tui::prelude::*;
+///
+/// #[component]
+/// fn AnimatedComponent(hooks: &Hooks) -> Element {
+///     let (_performance, low_fps) = use_performance(hooks);
+///     let class = if low_fps.get() { "transition-none" } else { "transition-all duration-200" };
+///     div().class(class).child(Element::text("Adaptive animations")).build()
 /// }
 /// ```
 pub fn use_performance(
@@ -124,23 +115,18 @@ pub fn use_performance(
 /// Hook for requesting a specific performance mode
 ///
 /// # Example
-/// ```rust, ignore
-/// fn GameView(props: &Props, state: &mut State) -> Element {
-///     let set_mode = use_performance_mode(&hooks);
-///     
-///     use_effect(&hooks, move || {
-///         // Request high performance for gaming
+/// ```rust,no_run
+/// use reactive_tui::prelude::*;
+/// use reactive_tui::display::monitor::PerformanceMode;
+///
+/// #[component]
+/// fn GameView(hooks: &Hooks) -> Element {
+///     let set_mode = use_performance_mode(hooks);
+///     use_effect(hooks, move || {
 ///         set_mode(PerformanceMode::Gaming);
-///         
-///         // Cleanup: return to balanced mode
-///         Some(Box::new(move || {
-///             set_mode(PerformanceMode::Balanced);
-///         }))
+///         Some(Box::new(move || set_mode(PerformanceMode::Balanced)))
 ///     });
-///     
-///     Element::div()
-///         .class("game-container")
-///         .child(text!("High performance game"))
+///     Element::text("Game view")
 /// }
 /// ```
 pub fn use_performance_mode(hooks: &Hooks) -> Arc<dyn Fn(PerformanceMode) + Send + Sync> {
@@ -156,15 +142,14 @@ pub fn use_performance_mode(hooks: &Hooks) -> Arc<dyn Fn(PerformanceMode) + Send
 /// Hook for frame timing information
 ///
 /// # Example
-/// ```rust, ignore
-/// fn TimingDebug(props: &Props, state: &mut State) -> Element {
-///     let timing = use_frame_timing(&hooks);
-///     
-///     Element::text(format!(
-///         "Frame: {:.2}ms | Target: {:.2}ms",
-///         timing.get().last_frame_ms,
-///         timing.get().target_frame_ms
-///     ))
+/// ```rust,no_run
+/// use reactive_tui::prelude::*;
+///
+/// #[component]
+/// fn TimingDebug(hooks: &Hooks) -> Element {
+///     let timing = use_frame_timing(hooks).get();
+///     Element::text(format!("Frame: {:.2}ms | Target: {:.2}ms",
+///         timing.last_frame_ms, timing.target_frame_ms))
 /// }
 /// ```
 pub fn use_frame_timing(hooks: &Hooks) -> ThreadSafeSignal<FrameTiming> {
@@ -201,19 +186,18 @@ impl Default for FrameTiming {
 /// Hook for adaptive quality settings based on performance
 ///
 /// # Example
-/// ```rust, ignore
-/// fn AdaptiveContent(props: &Props, state: &mut State) -> Element {
-///     let quality = use_adaptive_quality(&hooks);
-///     
-///     let shadow_class = match quality.get() {
+/// ```rust,no_run
+/// use reactive_tui::prelude::*;
+/// use reactive_tui::hooks::fps::QualityLevel;
+///
+/// #[component]
+/// fn AdaptiveContent(hooks: &Hooks) -> Element {
+///     let class = match use_adaptive_quality(hooks).get() {
 ///         QualityLevel::Low => "",
 ///         QualityLevel::Medium => "shadow-sm",
 ///         QualityLevel::High => "shadow-lg",
 ///     };
-///     
-///     Element::div()
-///         .class(format!("content {}", shadow_class))
-///         .child(text!("Adaptive quality content"))
+///     div().class(class).child(Element::text("Adaptive quality")).build()
 /// }
 /// ```
 pub fn use_adaptive_quality(hooks: &Hooks) -> ThreadSafeSignal<QualityLevel> {

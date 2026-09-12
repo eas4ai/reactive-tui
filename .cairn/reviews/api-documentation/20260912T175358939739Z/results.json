@@ -1,0 +1,95 @@
+[
+  {
+    "name": "checker-controls",
+    "command": [
+      "python3",
+      "-B",
+      "/home/shawn/workspace2/reactive-tui/verification/api-documentation/checker-controls.py"
+    ],
+    "log": ".cairn/reviews/api-documentation/20260912T175358939739Z/checker-controls.out",
+    "result": "pass",
+    "sha256": "a1a77c45887f52eb335dd691ba59673f7ee69bc948f8ff840e08422bcecffac4"
+  },
+  {
+    "name": "props-behavior",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--test",
+      "api_props_contract",
+      "--test",
+      "props_derive_test",
+      "--test",
+      "simple_props_test"
+    ],
+    "log": ".cairn/reviews/api-documentation/20260912T175358939739Z/props-behavior.out",
+    "tests_passed": 17,
+    "result": "pass",
+    "sha256": "8698c56323b763eb4890a6439b61b8fd8340a2f2ad71fe034b0e6fd30e81e1b3"
+  },
+  {
+    "name": "props-diagnostics",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "-p",
+      "reactive-tui-macros",
+      "--lib"
+    ],
+    "log": ".cairn/reviews/api-documentation/20260912T175358939739Z/props-diagnostics.out",
+    "tests_passed": 2,
+    "result": "pass",
+    "sha256": "6e7437b9119281c1bfe8e73c8bb7dfd91da0799f9d400cf72a2e8c5bd2cf2960"
+  },
+  {
+    "name": "consumer-library",
+    "command": [
+      "cargo",
+      "build",
+      "--locked",
+      "--lib",
+      "--message-format=json-render-diagnostics"
+    ],
+    "log": ".cairn/reviews/api-documentation/20260912T175358939739Z/consumer-library.out",
+    "result": "pass",
+    "sha256": "a432936eefd90e0ff58ffcbbac853708b182f823a204e13c9aaeb5d66c907af6"
+  },
+  {
+    "name": "props-defaults-compile",
+    "command": [
+      "rustc",
+      "--edition=2021",
+      "--crate-name",
+      "api018_defaults",
+      "/home/shawn/workspace2/reactive-tui/verification/api-documentation/props-defaults.rs",
+      "--extern",
+      "reactive_tui=/home/shawn/workspace2/reactive-tui/target/debug/libreactive_tui.rlib",
+      "-L",
+      "dependency=/home/shawn/workspace2/reactive-tui/target/debug/deps",
+      "-C",
+      "codegen-units=12",
+      "-C",
+      "link-arg=-Wl,--threads=12",
+      "-o",
+      "/home/shawn/workspace2/reactive-tui/target/api-documentation/20260912T175358939739Z/props-defaults"
+    ],
+    "log": ".cairn/reviews/api-documentation/20260912T175358939739Z/props-defaults-compile.out",
+    "result": "pass",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "name": "props-defaults-run",
+    "command": [
+      "/home/shawn/workspace2/reactive-tui/target/api-documentation/20260912T175358939739Z/props-defaults"
+    ],
+    "log": ".cairn/reviews/api-documentation/20260912T175358939739Z/props-defaults-run.out",
+    "result": "pass",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "name": "props",
+    "result": "pass"
+  }
+]

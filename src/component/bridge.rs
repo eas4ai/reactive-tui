@@ -10,6 +10,21 @@ pub(crate) struct PaintSpec {
     pub cursors: Vec<Option<super::element::TextCursor>>,
 }
 
+pub(crate) fn resolve_viewport_styles(
+    element: &mut Element,
+    width: u16,
+) -> crate::error::Result<()> {
+    if let Some(style) = &element.metadata.styles {
+        if let Some(resolved) = style.resolve_viewport(width)? {
+            element.metadata.styles = Some(std::sync::Arc::new(resolved));
+        }
+    }
+    for child in &mut element.children {
+        resolve_viewport_styles(child, width)?;
+    }
+    Ok(())
+}
+
 pub(crate) fn element_to_paintspec(element: &Element) -> crate::error::Result<PaintSpec> {
     fn collect(
         element: &Element,

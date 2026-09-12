@@ -80,3 +80,22 @@ fn no_rules_adds_no_constraints_and_optional_builders_keep_option_types() {
     assert_eq!(props.value, Some(7));
     assert!(props.validate());
 }
+
+#[derive(Props, Clone, PartialEq)]
+struct OptionalDefaults {
+    #[prop(optional, default)]
+    absent: Option<String>,
+    #[prop(optional, default = "guest")]
+    named: Option<&'static str>,
+}
+
+#[test]
+fn optional_fields_preserve_explicit_default_precedence() {
+    let props = OptionalDefaults::new();
+    assert_eq!(props.absent, None);
+    assert_eq!(props.named, Some("guest"));
+    let props = props.with_absent(Some("provided".into())).with_named(None);
+    assert_eq!(props.absent.as_deref(), Some("provided"));
+    assert_eq!(props.named, None);
+    assert!(props.validate());
+}

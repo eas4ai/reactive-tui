@@ -3,7 +3,7 @@
 The previous package did not typecheck or load the shared library. The repaired
 package uses native Element trees. API-017 adds ForeignComponent state/events,
 NativeTextEditor, NativeLayoutStyle, NativeDialogEngine and NativeApp. See
-`native-components.md` for their ownership and current acceptance contract. The following removals are deliberate; they are not compiler exclusions.
+[native components](../../docs/native-components.md) for their ownership and current acceptance contract. The following removals are deliberate; they are not compiler exclusions.
 All remaining files under src are still included in TypeScript checking.
 
 The complete public before/after signatures, including class members, are recorded
@@ -115,7 +115,7 @@ aliases is listed. Original record fields and enum values remain recorded in
 ## Reintroduced native controllers
 
 API-017 adds editor snapshots, validated layout styles, dialog sessions and
-foreign component state/events. See `native-components.md` for ownership,
+foreign component state/events. See [native components](../../docs/native-components.md) for ownership,
 callbacks and acceptance. `rtui_dialog_engine_create` now creates a real engine.
 `rtui_dialog_engine_destroy` returns a status. `rtui_dialog_engine_update` now
 takes an engine, active ID and JSON changes; it is not the old delta-time no-op.
@@ -208,14 +208,15 @@ that arbitrary, stale or forged non-null pointers are safe.
   establishes declarations and exercises the required consumer paths; it does
   not claim every legacy native function is behaviorally complete.
 
-## Existing native signal limitation
+## Current native signal ownership
 
-The legacy rtui_signal_string_create/int_create/float_create/bool_create functions allocate
-separate Signal<T> types. rtui_signal_destroy currently assumes Signal<String>;
-do not use it for int/float/bool handles. Do not mix those handles with the newer
-rtui_signal_new_* family. Use the newer family with rtui_signal_destroy_new,
-which uses a tagged FFISignal allocation. The legacy ownership defect is recorded
-in the backlog; no mismatched or stale pointer was invoked during this audit.
+API-001 repaired the legacy signal ownership defect recorded by the original ABI
+audit. Both ordinary RTuiSignal families now allocate a typed FFISignal owner;
+either ordinary destructor releases the owner correctly. String, boolean and float
+access interoperates. Legacy integers remain int64_t and improved integers remain
+C int, so use the matching integer getter. Wrong live types return the documented
+error/default; stale or forged pointers remain invalid. RTuiThreadSafeSignal uses
+its separate functions and destructor. The original defect evidence is retained.
 
 In the TypeScript loader, rtui_signal_get_string_owned returns a JavaScript string
 (or null). Koffi calls rtui_string_free after conversion, so callers must not free

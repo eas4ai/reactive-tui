@@ -177,14 +177,16 @@ impl Default for ClipboardState {
 /// React-style clipboard hook
 ///
 /// # Example
-/// ```rust, ignore
-/// fn CopyButton(props: &Props, state: &State) -> Element {
-///     let (clipboard, copy, paste) = use_clipboard(&hooks);
-///     
-///     Element::button()
-///         .class("bg-blue-500 hover:bg-blue-700 text-white px-4 py-2")
-///         .on_click(move |_| copy("Hello, clipboard!"))
-///         .child(text!("Copy to clipboard"))
+/// ```rust,no_run
+/// use reactive_tui::prelude::*;
+///
+/// #[component]
+/// fn CopyButton(hooks: &Hooks) -> Element {
+///     let (clipboard, copy, _paste) = use_clipboard(hooks);
+///     let status = clipboard.get();
+///     button().on_click(move || copy("Hello, clipboard!"))
+///         .child(Element::text(if status.error.is_some() { "Copy failed" } else { "Copy" }))
+///         .build()
 /// }
 /// ```
 pub fn use_clipboard(
@@ -249,21 +251,16 @@ pub fn use_clipboard(
 /// Simplified clipboard hook that just returns copy and paste functions
 ///
 /// # Example
-/// ```rust, ignore
-/// fn TextEditor(props: &Props, state: &mut State) -> Element {
-///     let (copy, paste) = use_simple_clipboard(&hooks);
-///     
-///     Element::textarea()
-///         .on_key_down(move |e| {
-///             if e.modifiers.ctrl && e.code == KeyCode::Char('c') {
-///                 copy(&state.selected_text);
-///             } else if e.modifiers.ctrl && e.code == KeyCode::Char('v') {
-///                 if let Some(text) = paste() {
-///                     state.insert_text(text);
-///                 }
-///             }
-///         })
+/// ```rust,no_run
+/// use reactive_tui::hooks::use_simple_clipboard;
+/// use reactive_tui::reactive::Hooks;
+///
+/// fn copy_then_paste(hooks: &Hooks, selected: &str) -> Option<String> {
+///     let (copy, paste) = use_simple_clipboard(hooks);
+///     copy(selected);
+///     paste()
 /// }
+/// // Use use_clipboard when the caller needs the error signal as well.
 /// ```
 pub fn use_simple_clipboard(hooks: &Hooks) -> (ClipboardWriter, ClipboardReader) {
     let (_state, copy, paste) = use_clipboard(hooks);

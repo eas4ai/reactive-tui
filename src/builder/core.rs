@@ -134,9 +134,9 @@ impl ElementBuilder {
     ///
     /// let element = div()
     ///     .styles(css! {
-    ///         display: DisplayType::Flex,
-    ///         background_color: Color::Blue,
-    ///         padding: Spacing::all(16.0),
+    ///         display: Display::Flex,
+    ///         background_color: (0.0, 0.0, 1.0, 1.0),
+    ///         padding: 16.0,
     ///     })
     ///     .build();
     /// ```

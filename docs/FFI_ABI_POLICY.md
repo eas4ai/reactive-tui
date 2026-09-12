@@ -1,202 +1,121 @@
-# FFI and ABI Policy
+# C ABI and ownership
 
-## Overview
+The compatibility baseline is the compiled Rust export inventory, not the old
+handwritten declarations. Include `reactive_tui.h`, which includes the generated
+`reactive_tui/native.h` and compatibility names. Existing compiled signatures and
+layouts are preserved by ABI-001 through ABI-004; API-017 adds the owned editor,
+layout, dialog and foreign-component interfaces. Recompile callers against the
+matching headers. [ABI migration](binding-abi-migration.md) records corrected and
+retired declarations; [native components](native-components.md) defines the new
+controllers and callback contract.
 
-The reactive-tui FFI layer provides a stable C ABI for using the library from other languages while maintaining zero overhead for Rust users.
+## Build and link
 
-## ABI Versioning
+```sh
+cargo build --locked --features ffi
+cc -std=c11 -Iinclude example.c -Ltarget/debug -lreactive_tui -o example
+LD_LIBRARY_PATH="$PWD/target/debug${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" ./example
+```
 
-- **Current ABI Version**: 1
-- **Semantic Versioning**: The ABI follows semantic versioning
-  - Major: Breaking changes to existing functions/structures
-  - Minor: New functions/fields added (backward compatible)
-  - Patch: Bug fixes with no ABI changes
+The command above is for Linux. C/TypeScript ABI and consumer acceptance currently
+runs on Linux; macOS/Windows native Rust workflows are separate evidence. Loader
+recognition of a platform is not certification of every binding or host terminal.
+See the [supported-API matrix](supported-api.md).
 
-## Stability Guarantees
-
-### Stable (ABI v1)
-- All functions in `rtui.h`
-- All structures marked `#[repr(C)]`
-- Error codes will not be renumbered
-- Existing function signatures will not change
-
-### Unstable
-- Internal structures not exposed through FFI
-- Rust-only APIs
-- Debug/development features
-
-## Memory Management
-
-### Ownership Rules
-1. **Create/Destroy Pattern**: Every `rtui_*_create` has a corresponding `rtui_*_destroy`
-2. **Caller Owns Output**: Output parameters allocated by caller
-3. **Library Owns Handles**: Opaque handles must be freed via destroy functions
-4. **String Lifetime**: Strings passed to functions are copied internally
-
-### Example
 ```c
-ReactiveTerminal* terminal = NULL;
-ReactiveError err = rtui_terminal_create(&terminal);
-if (err == RTUI_SUCCESS) {
-    // Use terminal
+#include <reactive_tui.h>
+```
+
+## Errors and valid inputs
+
+Functions returning `RTuiError` use the constants in `native.h`, including
+`R_TUI_ERROR_SUCCESS` (0), invalid-parameter/null-pointer errors and
+`R_TUI_ERROR_PANIC` (-99). Other functions return pointers, booleans or void;
+check each declaration rather than interpreting all results as an error code.
+Status-returning guarded entry points convert caught panics to errors. This does
+not make arbitrary pointers safe or promise that every legacy entry point catches
+all failures.
+
+A non-null pointer must still reference the correct live allocation. Keep strings
+NUL-terminated and valid for the documented call or callback lifetime. Pass valid
+enum variants, buffer lengths and non-overlapping owners where required. Null
+checks cannot validate stale, forged or mismatched pointers.
+
+## Ownership and threading
+
+- Pair each owned handle with its matching release function. Functions that
+  consume a builder or child transfer ownership; do not reuse or free it afterward.
+- A renderer surface is borrowed. Renderer resize, shutdown or destruction ends
+  the borrow. Independently created surfaces have their own destructor.
+- Owned returned strings use `rtui_string_free`; buffer snapshots use the matching
+  `bufferRelease*` function and original count. Borrowed strings remain borrowed.
+- Both ordinary `RTuiSignal` families now share typed ownership; either ordinary
+  destructor is valid. Their integer widths differ. `RTuiThreadSafeSignal` remains
+  a separate family with its own operations and destructor.
+- Serialize calls on a handle and respect its creating-thread restrictions.
+  Retaining native APIs need stable callbacks and user data until destruction.
+  Dispose Apps before their foreign controllers. See the native guide for
+  recursive callback rejection, permitted JSON setter reentry and consumed owners.
+
+For example, initialize an output owner and release it only after successful creation:
+
+```c
+RTuiTerminal *terminal = NULL;
+RTuiError status = rtui_terminal_create(&terminal);
+if (status == R_TUI_ERROR_SUCCESS) {
     rtui_terminal_destroy(terminal);
 }
 ```
 
-## Thread Safety
+## Draw one frame
 
-### Thread-Safe Functions
-- `rtui_version()`
-- `rtui_init()` (call once before any other functions)
-- `rtui_cleanup()` (call once at program end)
+This complete example uses the retained renderer route. Run it in a terminal;
+API-018 compiles and links it without taking over the developer's desktop.
+It releases the borrowed surface through its renderer owner.
 
-### NOT Thread-Safe
-- All terminal operations must be called from the same thread
-- Surface modifications require external synchronization
-- Renderer operations must be sequential
-
-## Error Handling
-
-### Error Codes
-All functions returning `ReactiveError` follow these conventions:
-- `RTUI_SUCCESS (0)`: Operation succeeded
-- Negative values: Errors (check specific code)
-- `RTUI_ERROR_PANIC (-99)`: Internal panic caught (bug in library)
-
-### Panic Safety
-All FFI functions catch Rust panics and return `RTUI_ERROR_PANIC`. This prevents undefined behavior but indicates a bug in the library.
-
-## Platform Support
-
-### Tier 1 (Fully Supported)
-- Linux (x86_64, aarch64)
-- macOS (x86_64, aarch64)
-- Windows 10+ (x86_64)
-
-### Tier 2 (Best Effort)
-- FreeBSD
-- Other Unix-like systems
-
-## Language Bindings
-
-### Official
-- C/C++ (via header)
-- Rust (native, no FFI overhead)
-
-### Community
-- Python (via cffi)
-- Node.js (via N-API)
-- Go (via cgo)
-
-## Deprecation Policy
-
-1. **Deprecation Notice**: Functions marked deprecated in minor release
-2. **Migration Period**: Deprecated functions maintained for 2 major releases
-3. **Removal**: Only in major version with migration guide
-
-## Building with FFI
-
-### Rust Side
-```bash
-cargo build --features ffi
-```
-
-### C Side
 ```c
-#include <rtui.h>
-// Link with -lreactive_tui
-```
+#include <reactive_tui.h>
 
-### pkg-config
-```bash
-pkg-config --cflags --libs reactive-tui
-```
+int main(void) {
+    RTuiRenderer *renderer = NULL;
+    RTuiSurface *surface = NULL;
+    RTuiError status = rtui_init();
+    if (status != R_TUI_ERROR_SUCCESS) return 1;
 
-## Example Usage
+    status = rtui_renderer_create(40, 10, &renderer);
+    if (status != R_TUI_ERROR_SUCCESS) goto cleanup;
+    status = rtui_renderer_get_surface(renderer, &surface);
+    if (status != R_TUI_ERROR_SUCCESS) goto cleanup;
+    status = rtui_renderer_frame(renderer, true);
+    if (status != R_TUI_ERROR_SUCCESS) goto cleanup;
+    status = rtui_surface_clear(surface, 15, 20, 30);
+    if (status != R_TUI_ERROR_SUCCESS) goto cleanup;
+    const RTuiColor white = {255, 255, 255};
+    const RTuiColor background = {15, 20, 30};
+    status = rtui_surface_draw_text(surface, 2, 2, "Hello from C", &white, &background);
+    if (status != R_TUI_ERROR_SUCCESS) goto cleanup;
+    status = rtui_renderer_frame(renderer, false);
 
-### Basic Terminal Application (C)
-```c
-#include <rtui.h>
-#include <stdio.h>
-
-int main() {
-    ReactiveError err;
-    ReactiveTerminal* terminal = NULL;
-    RTuiRenderer* renderer = NULL;
-    RTuiSurface* surface = NULL;
-    
-    // Initialize library
-    err = rtui_init();
-    if (err != RTUI_SUCCESS) return 1;
-    
-    // Create terminal
-    err = rtui_terminal_create(&terminal);
-    if (err != RTUI_SUCCESS) goto cleanup;
-    
-    // Enter raw mode
-    err = rtui_terminal_enter_raw_mode(terminal);
-    if (err != RTUI_SUCCESS) goto cleanup;
-    
-    // Create renderer
-    err = rtui_renderer_create(terminal, &renderer);
-    if (err != RTUI_SUCCESS) goto cleanup;
-    
-    // Main loop
-    while (1) {
-        // Begin frame
-        rtui_renderer_begin_frame(renderer);
-        
-        // Get surface for drawing
-        rtui_renderer_get_surface(renderer, &surface);
-        
-        // Draw something
-        RTuiColor white = {255, 255, 255};
-        RTuiColor black = {0, 0, 0};
-        rtui_surface_draw_text(surface, 10, 10, "Hello from C!", &white, &black);
-        
-        // End frame
-        rtui_renderer_end_frame(renderer, terminal);
-        
-        // Check for exit
-        RTuiEvent event;
-        if (rtui_terminal_poll_event(terminal, 100, &event) == RTUI_SUCCESS) {
-            if (event.event_type == RTUI_EVENT_KEY && event.data.key.key_code == 27) {
-                break; // ESC pressed
-            }
-        }
-    }
-    
 cleanup:
     if (renderer) {
-        rtui_renderer_shutdown(renderer, terminal);
+        RTuiError shutdown = rtui_renderer_shutdown(renderer);
+        if (status == R_TUI_ERROR_SUCCESS) status = shutdown;
         rtui_renderer_destroy(renderer);
     }
-    if (terminal) {
-        rtui_terminal_exit_raw_mode(terminal);
-        rtui_terminal_destroy(terminal);
-    }
     rtui_cleanup();
-    
-    return err == RTUI_SUCCESS ? 0 : 1;
+    return status == R_TUI_ERROR_SUCCESS ? 0 : 1;
 }
 ```
 
-## Testing
+Use the native App route for retained components, focus and event routing.
+`rtui_terminal_poll_event` takes a timeout and output event, with no terminal
+handle argument. Old frame/terminal method names that have no native symbol are
+listed in the migration record rather than provided as successful no-ops.
 
-FFI tests are in `tests/ffi/` and can be run with:
-```bash
-cargo test --features ffi
-```
+## Verification
 
-## Security Considerations
-
-1. **Input Validation**: All inputs validated at FFI boundary
-2. **Buffer Overrun Protection**: Size parameters checked
-3. **UTF-8 Validation**: String inputs validated
-4. **Integer Overflow**: Checked arithmetic where applicable
-5. **Null Pointer Checks**: All pointer parameters validated
-
-## Contact
-
-Report FFI issues to: https://github.com/reactive-tui/reactive-tui/issues
-Tag with `ffi` label.
+ABI-001 checks compiler-derived headers; ABI-002 checks TypeScript signatures and
+layouts; ABI-003 checks native consumers. API-001 verifies typed signal ownership,
+and API-017 verifies editor/layout/dialog and foreign component workflows through
+compiled C and TypeScript consumers. These checks establish the named paths and
+failure cases, not blanket memory safety for invalid caller pointers.

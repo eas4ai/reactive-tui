@@ -217,6 +217,8 @@ impl GridAutoFlow {
 #[derive(Clone, Debug, Default, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct StyleBuilder {
     #[serde(default)]
+    pub(crate) responsive_profiles: Vec<(u16, StyleBuilder)>,
+    #[serde(default)]
     pub(crate) accessibility: std::collections::BTreeMap<String, Option<String>>,
     #[serde(default)]
     pub(crate) unconstrained_width: Option<bool>,
@@ -259,15 +261,38 @@ pub struct StyleBuilder {
 }
 
 impl StyleBuilder {
+    /// Resolve responsive macro styles for a terminal width in columns.
+    /// App and ScreenManager do this before applying utility classes. Standalone
+    /// callers can resolve explicitly before building a Taffy style.
+    pub fn at_width(mut self, width: u16) -> Self {
+        while let Some((minimum, style)) = self.responsive_profiles.pop() {
+            if width >= minimum {
+                return style;
+            }
+        }
+        self
+    }
+
     /// Capture styles as owned data that can cross the renderer worker boundary.
     pub fn snapshot(&self) -> StyleSnapshot {
+        let responsive = !self.responsive_profiles.is_empty();
         if !self.finite_numbers() {
-            return StyleSnapshot(Err("Style numbers must be finite".into()));
+            return StyleSnapshot(Err("Style numbers must be finite".into()), responsive);
         }
-        StyleSnapshot(serde_json::to_vec(self).map_err(|error| error.to_string()))
+        StyleSnapshot(
+            serde_json::to_vec(self).map_err(|error| error.to_string()),
+            responsive,
+        )
     }
 
     fn finite_numbers(&self) -> bool {
+        if self
+            .responsive_profiles
+            .iter()
+            .any(|(_, style)| !style.finite_numbers())
+        {
+            return false;
+        }
         let s = &self.style;
         let lengths = [
             s.size.width.into_raw(),
@@ -1585,9 +1610,17 @@ impl StyleBuilder {
 /// Owned style data. Taffy's tagged layout values remain local to each thread.
 /// Invalid numeric styles report an error when App prepares the frame.
 #[derive(Clone, Debug, PartialEq)]
-pub struct StyleSnapshot(std::result::Result<Vec<u8>, String>);
+pub struct StyleSnapshot(std::result::Result<Vec<u8>, String>, bool);
 
 impl StyleSnapshot {
+    pub(crate) fn resolve_viewport(&self, width: u16) -> crate::error::Result<Option<Self>> {
+        if self.1 {
+            Ok(Some(self.restore()?.at_width(width).snapshot()))
+        } else {
+            Ok(None)
+        }
+    }
+
     pub(crate) fn restore(&self) -> crate::error::Result<StyleBuilder> {
         let bytes = self.0.as_ref().map_err(|error| {
             crate::error::ReactiveError::layout(format!("Cannot capture explicit styles: {error}"))
