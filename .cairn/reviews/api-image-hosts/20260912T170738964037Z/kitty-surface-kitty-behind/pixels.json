@@ -1,0 +1,84 @@
+[
+  {
+    "red": {
+      "count": 2539,
+      "bounds": [
+        22,
+        39,
+        57,
+        110
+      ]
+    },
+    "blue": {
+      "count": 2592,
+      "bounds": [
+        58,
+        39,
+        93,
+        110
+      ]
+    },
+    "green": {
+      "count": 0,
+      "bounds": null
+    },
+    "yellow": {
+      "count": 0,
+      "bounds": null
+    },
+    "image_text": {
+      "white": 3,
+      "black": 0
+    }
+  },
+  {
+    "red": {
+      "count": 0,
+      "bounds": null
+    },
+    "blue": {
+      "count": 0,
+      "bounds": null
+    },
+    "green": {
+      "count": 2539,
+      "bounds": [
+        112,
+        111,
+        147,
+        182
+      ]
+    },
+    "yellow": {
+      "count": 2592,
+      "bounds": [
+        148,
+        111,
+        183,
+        182
+      ]
+    },
+    "image_text": {
+      "white": 3,
+      "black": 0
+    }
+  },
+  {
+    "red": {
+      "count": 0,
+      "bounds": null
+    },
+    "blue": {
+      "count": 0,
+      "bounds": null
+    },
+    "green": {
+      "count": 0,
+      "bounds": null
+    },
+    "yellow": {
+      "count": 0,
+      "bounds": null
+    }
+  }
+]

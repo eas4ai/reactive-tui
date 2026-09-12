@@ -4764,3 +4764,9 @@ Chafa 1.18.1 and Viu 1.6.1. Their observed SHA-256 values are respectively
 The check did not reach pixel acceptance and its failure is retained. Restoring
 that PATH prefix repairs the execution environment; no source or criterion
 changed. All subsequent image checks must retain this prefix after resume.
+
+Restoring the image-tool PATH passed API-014/20260912T171411905Z: all 25
+host routes, the independent Kitty sender, forced-ASCII rejection and all
+89 selected tests. The completed capture files had no open process descriptors
+before commit. This verifies normal execution; the separately recorded outer-
+timeout cleanup defect remains open for API-020.
