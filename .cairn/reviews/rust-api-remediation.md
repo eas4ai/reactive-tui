@@ -4751,3 +4751,16 @@ current input digests, native platforms, execution markers and both output
 hashes. Copied original bytes. All five platform records now pass the verifier.
 
 Native run 34705931916 passed on macOS and Windows for snapshot 0d6f176bb8a46da1859a86aec0bd79962a9652cb. Its declared input trees exactly match local commit c2eeb695beaa8222bf04dc8694d3d8861b370867. Imported the widget and ConPTY artifacts after checking job and step success, current committed input digests, system, every recorded output hash, and unchanged copied bytes. Both native verifiers passed. The earlier clipboard records remain current because their declared inputs did not change.
+
+### API-014 refresh: restore the external image-tool PATH
+
+API-011 through API-013 passed on the Props candidate, including real Orca delivery
+and the refreshed native records. API-014 then stopped in executable preflight:
+this resumed session omitted `/tmp/rtui-image-tools/bin` from PATH. The previous
+passing receipt used that directory. Both executable files still exist and report
+Chafa 1.18.1 and Viu 1.6.1. Their observed SHA-256 values are respectively
+0767691e46bb0f850dbbc23763daf62dc8a9e31db35b1bd2499c9d2de5fa4a15 and
+12ca5c02ced0a43ee728570025b752cb07837da15f7d2118b5423784268834c0.
+The check did not reach pixel acceptance and its failure is retained. Restoring
+that PATH prefix repairs the execution environment; no source or criterion
+changed. All subsequent image checks must retain this prefix after resume.
