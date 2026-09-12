@@ -34,8 +34,10 @@ through `PKG_CONFIG_PATH` and `CFLAGS`. On this machine GCC needed
 `-Wno-error=discarded-qualifiers -Wno-error=maybe-uninitialized` for two existing
 upstream diagnostics. They remain warnings; the source changes only the image
 ordering. The dotted-underline caller clamps the dot count to at least one and
-the callee initializes every gap before reading it. The qualifier warning is
-in the existing read-only path search in `expand_tilde`.
+the callee initializes every gap before reading it. The qualifier warning comes
+from `expand_tilde`, which temporarily replaces a slash while expanding
+`~user/path`, then restores it. These image checks do not audit that upstream
+path-expansion behavior; the input-ownership concern is recorded in the backlog.
 
 `build.json` records the source and patch digests, compiler, Go version, build
 command and environment, build-log digest, and every runtime file's digest.
