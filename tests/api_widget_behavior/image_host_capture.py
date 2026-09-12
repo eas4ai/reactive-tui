@@ -4,6 +4,7 @@ import json
 import os
 from pathlib import Path
 import select
+import signal
 import subprocess
 import sys
 import tempfile
@@ -13,18 +14,28 @@ from PIL import Image
 
 
 def stop(process):
-    if process is not None and process.poll() is None:
-        process.terminate()
-        try:
-            process.wait(timeout=5)
-        except subprocess.TimeoutExpired:
-            process.kill()
-            process.wait(timeout=5)
+    if process is None:
+        return
+    # Every owned host/display starts a private session. D-Bus portal helpers
+    # can survive their launcher; terminate that group even after it exits.
+    try:
+        os.killpg(process.pid, signal.SIGTERM)
+    except ProcessLookupError:
+        pass
+    try:
+        process.wait(timeout=5)
+    except subprocess.TimeoutExpired:
+        pass
+    try:
+        os.killpg(process.pid, signal.SIGKILL)
+    except ProcessLookupError:
+        pass
+    process.wait(timeout=5)
 
 
-def run(host, output, protocol=None):
+def run(host, output, protocol=None, fixture=None):
     output.mkdir(parents=True, exist_ok=True)
-    binary = Path("target/debug/examples/image_host_probe").resolve()
+    binary = Path(fixture or "target/debug/examples/image_host_probe").resolve()
     colors = {"red": (255, 0, 0), "blue": (0, 0, 255),
               "green": (0, 255, 0), "yellow": (255, 255, 0)}
     with tempfile.TemporaryDirectory(prefix="rtui-image-host-") as temp:
@@ -38,7 +49,7 @@ def run(host, output, protocol=None):
             with (output / "xvfb.log").open("wb") as log:
                 server = subprocess.Popen(
                     ["Xvfb", "-displayfd", str(writer), "-screen", "0", "1000x700x24", "-nolisten", "tcp"],
-                    pass_fds=(writer,), stdout=log, stderr=log)
+                    pass_fds=(writer,), stdout=log, stderr=log, start_new_session=True)
             os.close(writer)
             writer = None
             if not select.select([reader], [], [], 10)[0]:
@@ -74,7 +85,7 @@ def run(host, output, protocol=None):
             else:
                 raise ValueError("expected kitty, ghostty, gnome, xterm or wezterm")
             with (output / "host.log").open("wb") as log:
-                child = subprocess.Popen(args, env=env, stdout=log, stderr=log)
+                child = subprocess.Popen(args, env=env, stdout=log, stderr=log, start_new_session=True)
             results = []
             for stage in range(3):
                 pending = temp / "next"
@@ -153,4 +164,5 @@ def run(host, output, protocol=None):
 
 
 if __name__ == "__main__":
-    run(sys.argv[1], Path(sys.argv[2]), sys.argv[3] if len(sys.argv) > 3 else None)
+    run(sys.argv[1], Path(sys.argv[2]), sys.argv[3] if len(sys.argv) > 3 else None,
+        sys.argv[4] if len(sys.argv) > 4 else None)

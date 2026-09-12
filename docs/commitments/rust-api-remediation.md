@@ -39,6 +39,10 @@ old editor-rs application, adding its unrelated IDE/AI/Git features, or rewritin
 the renderer is not. The editor recovery observations may inform implementation
 choices but do not independently expand this commitment.
 
+The developer approved the narrow Kitty image-layer ordering repair on
+2026-09-12 (escalation api-014-api-020). API-014 includes its isolated pinned
+host build, independent failure demonstration and unchanged image acceptance.
+
 Done-when: all 54 requirements have current passing evidence and the final review
 reconciles every finding and subcase, tests failures and corrected behavior, checks
 ownership and integration, and records the production self-audit.

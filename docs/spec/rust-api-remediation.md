@@ -139,6 +139,16 @@ all other host requirements, including placement, update and removal. Retain
 its failing color evidence. WezTerm remains the verified inline-protocol host
 for color acceptance. This exception does not apply to other hosts or protocols.
 
+Kitty host repair (approved 2026-09-12, escalation api-014-api-020): this
+commitment includes the narrow repair that prepares image placements before
+choosing Kitty's image-layer paint path. Build and verify an isolated, pinned
+host with the existing image checks and an independent sender that exposes
+the stale placement-count decision. Preserve the failing stock-host evidence.
+The corrected host MUST show new placements without an extra repaint request
+or retransmission and retain update and removal behavior. Record the build's
+provenance and required host version/patch; do not claim that this updates
+users' unmodified Kitty installations. All other API-014 requirements remain.
+
 ## Feature configurations
 
 [API-015]

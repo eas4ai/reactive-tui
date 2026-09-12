@@ -1,0 +1,12 @@
+[
+  {
+    "check": "quality-delta",
+    "exit": 2,
+    "bytes": 4108608
+  },
+  {
+    "check": "test-gate",
+    "exit": 4,
+    "bytes": 1635
+  }
+]

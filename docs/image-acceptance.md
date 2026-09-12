@@ -20,9 +20,18 @@ GIF cases change frames without replacing their source. External renderer cases
 also enlarge the image. A forced ASCII case must fail the exact-color assertions;
 startup failures and timeouts cannot satisfy that negative control.
 
-The runner requires Kitty, Ghostty, Xterm, WezTerm, GNOME Terminal, Chafa, Viu,
+The runner uses the pinned, repaired Kitty 0.45.0 build described in
+[`scripts/kitty-host/README.md`](../scripts/kitty-host/README.md). Stock Kitty
+0.45.0 can leave a valid image invisible until another repaint. The approved
+repair prepares image placements before choosing the paint path. Acceptance
+verifies the private runtime hashes before and after capture and also runs an
+independent C sender through the same pixel assertions. This does not install a
+fix for users of stock Kitty; those users still need a corrected host build.
+
+The runner requires Ghostty, Xterm, WezTerm, GNOME Terminal, Chafa, Viu,
 Xvfb, ImageMagick's `import`, and Python Pillow on the test host. External image
 tools must be on `PATH`. It records executable paths and renderer versions.
+Linux image hosts and the Kitty builder use at most 12 workers per worker pool.
 The test binary uses this repository's `target` directory, which must also be
 the `CARGO_TARGET_DIR` when that environment variable is set. Run:
 

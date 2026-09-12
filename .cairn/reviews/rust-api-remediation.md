@@ -3479,7 +3479,7 @@ production behavior was weakened to reduce these static counts.
 - Done: implement and verify API-016 entry-point acceptance (receipt 20260911T233538835Z).
 - Done: refresh all 34 inherited requirements after API-016 (last receipts 20260911T234522876Z/877Z).
 - Done: API-017 native C/TypeScript behavior and ownership; formal receipt 20260912T120716719Z.
-- In progress: resolve the API-014 Kitty host ordering defect and refresh inherited acceptance; a host-repair scope decision is required.
+- In progress: repair and verify the approved isolated Kitty host for API-014, then refresh inherited acceptance.
 - Pending: API-018 public documentation and Props validation.
 - Pending: API-019 complete residual audit contracts.
 - Pending: API-020 final regression and independent review.
@@ -4558,3 +4558,51 @@ All diagnostic outcomes and captures are retained, with original bytes and
 provenance. Thread caps remain 8 and host runs were serial. The investigation
 action ends with the failing requirement preserved for the developer's scope
 decision; it does not claim the commitment or host repair complete.
+
+
+### Approved Kitty host repair and updated machine limits (2026-09-12)
+
+The developer answered `ok` to api-014-api-020, authorizing the narrow Kitty
+host repair and unchanged image acceptance. The specification and commitment
+now name this scope. A Judged implementation record precedes the host patch.
+The existing image APIs, protocol requirements and iTerm2 exception remain.
+
+The developer corrected the current thread limit to 12. The machine Cargo
+configuration already sets jobs, Rust test threads, nextest threads and linker
+threads to 12. New host builds and graphics pools use that limit. The observed
+machine has 71 GiB total swap (34 GiB free) and a 128 GiB /tmp (115 GiB free).
+Earlier evidence accurately retains its then-used limit of 8 and is not edited.
+
+The isolated Kitty 0.45.0 build now succeeds. Comparing every archive source
+file finds exactly one changed file, `kitty/child-monitor.c`: the image-layer
+query moved after placement preparation. The independent C sender reproduced
+the missing image in all three stock-host trials. The repaired host passed all
+three trials with 4,096 pixels of each expected color and complete removal.
+These development captures are in `.cairn/reviews/api-014-kitty-repair`;
+`final-build` records the final builder and capture-driver versions separately.
+They are failure demonstrations, not formal Cairn receipts.
+
+The builder records runtime hashes and its own source digest, rejects corrupted
+archives and changed runtime files, and checks that the selected Python really
+honors the 12-worker override. A controlled runtime edit was rejected; restoring
+the exact bytes passed. A requested limit of 13 was rejected. Compiler warnings
+from two unchanged upstream declarations required targeted warning-as-error
+exceptions, retained in the build record and explained in the build README.
+
+The image driver now owns private process groups for its hosts and X servers.
+It stops descendants even after a launcher exits. A controlled exited launcher
+with a live sleep child demonstrated the leak shape; cleanup stopped that child.
+Pixel assertions and capture intervals are unchanged. The optional fixture
+argument preserves every existing caller and enables the independent C sender.
+
+Python syntax, strict C compilation, diff whitespace and four focused Ripwire
+edit checks passed. Ripwire quality-delta exited 2, with broad reference-tree
+findings plus local duplication/churn/size observations; this is not a clean
+gate. Its local duplication is the small process-group termination sequence
+also used by the standalone Orca harness. Keeping that sequence local avoids
+coupling image capture to the 666-line reader harness. The POSIX feature macro
+is required by C headers, not dead code. The builder's cohesive orchestration
+and this script's recorded churn were examined. Ripwire test-gate exited 4 and
+named the Orca script through name-based cleanup edges; actual process ownership
+is covered by the controlled descendant test and real host captures. Complete
+reports are retained with this development evidence.

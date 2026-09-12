@@ -29,12 +29,18 @@ def main():
     os.chdir(ROOT)
     os.environ["CARGO_INCREMENTAL"] = "0"
     os.environ["PYTHONDONTWRITEBYTECODE"] = "1"
+    for name in ("LP_NUM_THREADS", "RAYON_NUM_THREADS", "PYTHON_CPU_COUNT", "GOMAXPROCS"):
+        os.environ[name] = "12"
     # Share the existing bounded process-group runner; it kills surviving children
     # on timeout and retains output before reporting an error.
     execute = runpy.run_path(str(ROOT / "scripts/check-widget-platforms.py"))["execute"]
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
     output = ROOT / ".cairn/reviews/api-image-hosts" / stamp
     output.mkdir(parents=True)
+    kitty_host = runpy.run_path(str(ROOT / "scripts/kitty-host/build.py"))
+    host_binary, host_record = kitty_host["ensure_host"]()
+    os.environ["PATH"] = str(host_binary.parent) + os.pathsep + os.environ["PATH"]
+    (output / "kitty-build.json").write_text(json.dumps(host_record, indent=2) + "\n")
     for tool in ("kitty", "ghostty", "xterm", "wezterm", "gnome-terminal", "chafa", "viu", "Xvfb"):
         path = shutil.which(tool)
         if path is None:
@@ -59,6 +65,17 @@ def main():
     print(execute(["cargo", "build", "--locked", "--example", "image_host_probe"],
                   output / "build.out", 300), flush=True)
     driver = ["/usr/bin/python3", "-B", "tests/api_widget_behavior/image_host_capture.py"]
+    reference = ROOT / "target/kitty-image-host/reference"
+    reference_source = ROOT / "scripts/kitty-host/reference.c"
+    print(execute(["cc", "-std=c11", "-O2", "-Wall", "-Wextra", "-Werror",
+                   str(reference_source), "-o", str(reference), "-lz", "-lcrypto"],
+                  output / "reference-build.out", 60), flush=True)
+    (output / "reference.json").write_text(json.dumps({
+        "source_sha256": kitty_host["digest"](reference_source),
+        "binary_sha256": kitty_host["digest"](reference),
+    }, indent=2) + "\n")
+    print(execute(driver + ["kitty", str(output / "kitty-independent"), "kitty", str(reference)],
+                  output / "kitty-independent.out", 90), flush=True)
     # A fallback-only run must reach the pixel assertions and fail them. Missing
     # hosts, failed startup and timeouts cannot satisfy this negative control.
     negative = output / "forced-ascii-negative"
@@ -80,7 +97,9 @@ def main():
         command = driver + [host, str(directory)] + ([mode] if mode else [])
         print(execute(command, output / (name + ".out"), 90), flush=True)
         print(name + " pixels: " + (directory / "pixels.json").read_text(), flush=True)
-    print("PASS API-014: decoded pixels, protocols, lifecycle and all host routes", flush=True)
+    kitty_host["ensure_host"](verify_only=True)
+    print("PASS API-014: decoded pixels, protocols, lifecycle and all host routes; "
+          "Kitty uses the recorded isolated repair", flush=True)
     print("Retained captures: " + str(output.relative_to(ROOT)), flush=True)
 
 

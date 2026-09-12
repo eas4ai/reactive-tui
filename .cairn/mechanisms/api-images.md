@@ -10,6 +10,7 @@ inputs:
   - reactive-tui-macros
   - tests
   - scripts/check-api-images.py
+  - scripts/kitty-host
   - scripts/check-widget-platforms.py
   - scripts/check-dialog-http.py
   - scripts/check-iterm-host.py

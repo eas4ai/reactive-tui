@@ -1,0 +1,237 @@
+[
+  {
+    "name": "stock-reference",
+    "command": [
+      "/usr/bin/python3",
+      "-B",
+      "tests/api_widget_behavior/image_host_capture.py",
+      "kitty",
+      "/home/shawn/workspace2/reactive-tui/.cairn/reviews/api-014-kitty-repair/final-build/stock-reference",
+      "kitty",
+      "/home/shawn/workspace2/reactive-tui/target/kitty-image-host/reference"
+    ],
+    "passed": false,
+    "expected": false,
+    "counts": [
+      {
+        "red": 4096,
+        "blue": 4096,
+        "green": 0,
+        "yellow": 0
+      },
+      {
+        "red": 0,
+        "blue": 0,
+        "green": 0,
+        "yellow": 0
+      },
+      {
+        "red": 0,
+        "blue": 0,
+        "green": 0,
+        "yellow": 0
+      }
+    ]
+  },
+  {
+    "name": "repaired-reference-0",
+    "command": [
+      "/usr/bin/python3",
+      "-B",
+      "tests/api_widget_behavior/image_host_capture.py",
+      "kitty",
+      "/home/shawn/workspace2/reactive-tui/.cairn/reviews/api-014-kitty-repair/final-build/repaired-reference-0",
+      "kitty",
+      "/home/shawn/workspace2/reactive-tui/target/kitty-image-host/reference"
+    ],
+    "passed": true,
+    "expected": true,
+    "counts": [
+      {
+        "red": 4096,
+        "blue": 4096,
+        "green": 0,
+        "yellow": 0
+      },
+      {
+        "red": 0,
+        "blue": 0,
+        "green": 4096,
+        "yellow": 4096
+      },
+      {
+        "red": 0,
+        "blue": 0,
+        "green": 0,
+        "yellow": 0
+      }
+    ]
+  },
+  {
+    "name": "repaired-reference-1",
+    "command": [
+      "/usr/bin/python3",
+      "-B",
+      "tests/api_widget_behavior/image_host_capture.py",
+      "kitty",
+      "/home/shawn/workspace2/reactive-tui/.cairn/reviews/api-014-kitty-repair/final-build/repaired-reference-1",
+      "kitty",
+      "/home/shawn/workspace2/reactive-tui/target/kitty-image-host/reference"
+    ],
+    "passed": true,
+    "expected": true,
+    "counts": [
+      {
+        "red": 4096,
+        "blue": 4096,
+        "green": 0,
+        "yellow": 0
+      },
+      {
+        "red": 0,
+        "blue": 0,
+        "green": 4096,
+        "yellow": 4096
+      },
+      {
+        "red": 0,
+        "blue": 0,
+        "green": 0,
+        "yellow": 0
+      }
+    ]
+  },
+  {
+    "name": "repaired-reference-2",
+    "command": [
+      "/usr/bin/python3",
+      "-B",
+      "tests/api_widget_behavior/image_host_capture.py",
+      "kitty",
+      "/home/shawn/workspace2/reactive-tui/.cairn/reviews/api-014-kitty-repair/final-build/repaired-reference-2",
+      "kitty",
+      "/home/shawn/workspace2/reactive-tui/target/kitty-image-host/reference"
+    ],
+    "passed": true,
+    "expected": true,
+    "counts": [
+      {
+        "red": 4096,
+        "blue": 4096,
+        "green": 0,
+        "yellow": 0
+      },
+      {
+        "red": 0,
+        "blue": 0,
+        "green": 4096,
+        "yellow": 4096
+      },
+      {
+        "red": 0,
+        "blue": 0,
+        "green": 0,
+        "yellow": 0
+      }
+    ]
+  },
+  {
+    "name": "repaired-direct",
+    "command": [
+      "/usr/bin/python3",
+      "-B",
+      "tests/api_widget_behavior/image_host_capture.py",
+      "kitty",
+      "/home/shawn/workspace2/reactive-tui/.cairn/reviews/api-014-kitty-repair/final-build/repaired-direct",
+      "kitty"
+    ],
+    "passed": true,
+    "expected": true,
+    "counts": [
+      {
+        "red": 4096,
+        "blue": 4096,
+        "green": 0,
+        "yellow": 0
+      },
+      {
+        "red": 0,
+        "blue": 0,
+        "green": 4096,
+        "yellow": 4096
+      },
+      {
+        "red": 0,
+        "blue": 0,
+        "green": 0,
+        "yellow": 0
+      }
+    ]
+  },
+  {
+    "name": "repaired-forced-ascii",
+    "command": [
+      "/usr/bin/python3",
+      "-B",
+      "tests/api_widget_behavior/image_host_capture.py",
+      "kitty",
+      "/home/shawn/workspace2/reactive-tui/.cairn/reviews/api-014-kitty-repair/final-build/repaired-forced-ascii",
+      "app-ascii"
+    ],
+    "passed": false,
+    "expected": false,
+    "counts": [
+      {
+        "red": 0,
+        "blue": 0,
+        "green": 0,
+        "yellow": 0
+      },
+      {
+        "red": 0,
+        "blue": 0,
+        "green": 0,
+        "yellow": 0
+      },
+      {
+        "red": 0,
+        "blue": 0,
+        "green": 0,
+        "yellow": 0
+      }
+    ]
+  },
+  {
+    "name": "gnome-cleanup",
+    "command": [
+      "/usr/bin/python3",
+      "-B",
+      "tests/api_widget_behavior/image_host_capture.py",
+      "gnome",
+      "/home/shawn/workspace2/reactive-tui/.cairn/reviews/api-014-kitty-repair/final-build/gnome-cleanup",
+      "app-auto"
+    ],
+    "passed": true,
+    "expected": true,
+    "counts": [
+      {
+        "red": 1296,
+        "blue": 1296,
+        "green": 0,
+        "yellow": 0
+      },
+      {
+        "red": 0,
+        "blue": 0,
+        "green": 1296,
+        "yellow": 1296
+      },
+      {
+        "red": 0,
+        "blue": 0,
+        "green": 0,
+        "yellow": 0
+      }
+    ]
+  }
+]

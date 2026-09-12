@@ -1,0 +1,152 @@
+[
+  {
+    "host": "stock",
+    "trial": 0,
+    "result": "fail",
+    "counts": [
+      {
+        "red": 4096,
+        "blue": 4096,
+        "green": 0,
+        "yellow": 0
+      },
+      {
+        "red": 0,
+        "blue": 0,
+        "green": 0,
+        "yellow": 0
+      },
+      {
+        "red": 0,
+        "blue": 0,
+        "green": 0,
+        "yellow": 0
+      }
+    ]
+  },
+  {
+    "host": "stock",
+    "trial": 1,
+    "result": "fail",
+    "counts": [
+      {
+        "red": 0,
+        "blue": 0,
+        "green": 0,
+        "yellow": 0
+      },
+      {
+        "red": 0,
+        "blue": 0,
+        "green": 0,
+        "yellow": 0
+      },
+      {
+        "red": 0,
+        "blue": 0,
+        "green": 0,
+        "yellow": 0
+      }
+    ]
+  },
+  {
+    "host": "stock",
+    "trial": 2,
+    "result": "fail",
+    "counts": [
+      {
+        "red": 4096,
+        "blue": 4096,
+        "green": 0,
+        "yellow": 0
+      },
+      {
+        "red": 0,
+        "blue": 0,
+        "green": 0,
+        "yellow": 0
+      },
+      {
+        "red": 0,
+        "blue": 0,
+        "green": 0,
+        "yellow": 0
+      }
+    ]
+  },
+  {
+    "host": "repaired",
+    "trial": 0,
+    "result": "pass",
+    "counts": [
+      {
+        "red": 4096,
+        "blue": 4096,
+        "green": 0,
+        "yellow": 0
+      },
+      {
+        "red": 0,
+        "blue": 0,
+        "green": 4096,
+        "yellow": 4096
+      },
+      {
+        "red": 0,
+        "blue": 0,
+        "green": 0,
+        "yellow": 0
+      }
+    ]
+  },
+  {
+    "host": "repaired",
+    "trial": 1,
+    "result": "pass",
+    "counts": [
+      {
+        "red": 4096,
+        "blue": 4096,
+        "green": 0,
+        "yellow": 0
+      },
+      {
+        "red": 0,
+        "blue": 0,
+        "green": 4096,
+        "yellow": 4096
+      },
+      {
+        "red": 0,
+        "blue": 0,
+        "green": 0,
+        "yellow": 0
+      }
+    ]
+  },
+  {
+    "host": "repaired",
+    "trial": 2,
+    "result": "pass",
+    "counts": [
+      {
+        "red": 4096,
+        "blue": 4096,
+        "green": 0,
+        "yellow": 0
+      },
+      {
+        "red": 0,
+        "blue": 0,
+        "green": 4096,
+        "yellow": 4096
+      },
+      {
+        "red": 0,
+        "blue": 0,
+        "green": 0,
+        "yellow": 0
+      }
+    ]
+  }
+]
