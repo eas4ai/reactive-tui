@@ -4770,3 +4770,36 @@ host routes, the independent Kitty sender, forced-ASCII rejection and all
 89 selected tests. The completed capture files had no open process descriptors
 before commit. This verifies normal execution; the separately recorded outer-
 timeout cleanup defect remains open for API-020.
+
+### API-018 documentation mechanism declaration
+
+The mechanism builds default, no-default and nightly all-feature rustdoc; requires
+Markdown in the module index and all three public submodule pages; runs default
+and minimal crate doctests, compiled Cargo examples and standalone public Rust,
+C and TypeScript documentation consumers. Ignored host/clipboard examples compile
+as no-run consumers so the check cannot seize the developer desktop. Complete C
+examples also link against the current library. The generated consumer sources,
+source locations, hashes and raw compiler outputs are retained. Standalone Rust
+examples receive only the public facade dependency, exposing macro hygiene errors.
+The matrix must cover every root public module plus macros, name behavior checks,
+link existing evidence declarations and state explicit limits and pending reviews.
+Historical receipt bytes are not inputs to their own check; Cairn validates them.
+
+Four checker control tests passed: separate fence extraction; duplicate/incomplete
+matrix rejection; missing Markdown index/submodule rejection; and rejection of
+zero executed cases and nested failures. The first control run hit a test setup
+error because its temporary output was outside the repository; the corrected setup
+uses an owned target directory. The 16 existing Props behavior tests and two macro
+parser tests passed, but the new standalone optional/default consumer failed on
+the known regression. This is a baseline failure, not API-018 acceptance. Its
+original passing behavior is independently recorded in api-018-optional-default.
+
+Ripwire edit-check found a new checker symbol with no incompatible callers. The
+quality report exited 2, including the ignored reference trees, dynamic dispatch
+and generated test dead-code findings. Its long example method was separated into
+collection, C and TypeScript compilation operations. The duplicated library build
+pattern is deliberate Cargo JSON artifact selection, not a second production API.
+Test-gate exited 0 but reported zero changed/impacted symbols; that is no proof
+of coverage. Raw reports and actual control output are retained under
+api-018-documentation-mechanism. Full failing/corrected documentation builds remain
+required before acceptance, including public guides found outdated by inspection.

@@ -1,0 +1,22 @@
+# Mechanism: api-documentation
+
+command: python3 -B scripts/check-api-documentation.py
+inputs:
+  - .cairn/mechanisms
+  - Cargo.toml
+  - Cargo.lock
+  - build.rs
+  - src
+  - reactive-tui-macros
+  - tests
+  - examples
+  - benches
+  - README.md
+  - docs
+  - include
+  - bindings/typescript
+  - scripts/check-api-documentation.py
+  - scripts/check-widget-platforms.py
+  - verification/api-documentation
+requirements:
+  - API-018
