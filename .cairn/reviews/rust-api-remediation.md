@@ -4606,3 +4606,11 @@ and this script's recorded churn were examined. Ripwire test-gate exited 4 and
 named the Orca script through name-based cleanup edges; actual process ownership
 is covered by the controlled descendant test and real host captures. Complete
 reports are retained with this development evidence.
+
+API-001 through API-010 have fresh passing receipts after the approved Kitty
+scope change. API-011 is preparing native inputs: verification-branch run
+34700619224 uses snapshot 2a68a4fa53382910a1997d24d18bc6ba25e23a92,
+with all declared native input trees equal to ee893b13f4be020d68d2918b74061d5ff935bd54.
+macOS completed successfully; its 72 recorded output hashes and current input
+digest were checked before import. Windows is still running. Resume this run
+and import validated widget/ConPTY artifacts before cairn check API-011.
