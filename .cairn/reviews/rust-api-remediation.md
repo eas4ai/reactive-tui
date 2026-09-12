@@ -4478,3 +4478,9 @@ executed behavior markers and both raw-output hashes. Original bytes are preserv
 Native run 34694702900 completed successfully for windows. Imported its clipboard
 record after verifying the snapshot, current committed input digest, platform,
 executed behavior markers and both raw-output hashes. Original bytes are preserved.
+
+Native run `34694702900` completed successfully on both macOS and Windows.
+The final clipboard verifier passed for all five backends after validating
+current committed source digests, platform identities, executed behavior markers
+and retained output hashes. The API-008 platform refresh action is complete;
+Cairn must still record its acceptance result.
