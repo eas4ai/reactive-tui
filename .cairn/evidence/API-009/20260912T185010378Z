@@ -1,0 +1,21 @@
+requirement: API-009
+requirement_digest: sha256:a28680dd46c04e28dc87608ec62cdbaf1bfe826627fb4b58e33b7e23b6ddb49d
+sequence: 16
+history_digest: sha256:3318511ca40057c644a9468e4d21609e0bbcc37d836a5535593792ab7f25d9fc
+mechanism: api-styling.md
+commit: 560a63ba
+inputs_digest: sha256:c353927f0b5b88727b546ae11b5660bc581f0b8c52497080db9d08c862e06ad5
+mechanism_digest: sha256:f4637be529a8bf306f4b767f74e96eac0e77da9d7a21758a233fbc9e29b8b48c
+inputs_detail: .cairn/evidence/API-009/20260912T185008848Z-352418.inputs.json
+command: python3 -B scripts/check-api-styling.py
+cwd: .
+exit: 0
+output_digest: sha256:8d93e681f91c7da712eb58afe9b15911adaa33fad25d5590733d2c057f13a25e
+output: .cairn/evidence/API-009/20260912T185008848Z-352418.out
+stderr_output: .cairn/evidence/API-009/20260912T185008848Z-352418.err
+stderr_digest: sha256:abe2935922b0e34add231ebdc4f7d0979a9147b9591743e4213308bb1117d637
+signal: none
+execution_error: null
+result: pass
+source: exit
+recorded: 2026-09-12T18:50:10.378Z
