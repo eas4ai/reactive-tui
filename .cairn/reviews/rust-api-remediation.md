@@ -4966,3 +4966,17 @@ actual compiler, harness output and checker controls above provide the evidence.
 
 API-019 is not complete. No reference ownership, updater, gesture, transition,
 platform or contract-narrowing decision has been made or implemented here.
+
+API-011/20260912T203756669Z completed its App, widget, transport and real Orca
+workflows, then rejected stale ConPTY evidence: tests/api_residual_refs.rs is
+inside the existing broad native input declaration. No widget assertion failed.
+Started native run 34717703879 on authorized branch
+codex/clipboard-platform-verification, snapshot fd0aed29c3366e6f8e2d7e2959eaba438fc7eaee.
+Its complete declared input tree was compared byte-for-byte with local source
+56441c73d4202077b035931c1dcb060aee1d953b before non-forced push. Metadata is in
+api-019-declaration-native/. Native import and formal refresh remain pending.
+
+Clarification of declaration whitespace verification: authored source, inventory,
+declaration and review paths passed git diff --check. The staged raw Rust harness
+outputs had their original trailing whitespace and blank final lines; that broader
+check exited 2. Those captured bytes were preserved, not rewritten or called clean.
