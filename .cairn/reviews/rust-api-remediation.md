@@ -4887,3 +4887,8 @@ serialization, no hidden field rewriting and no new dependency. Nonresponsive
 styles keep the existing path; responsive profiles validate before rendering.
 The known residual behavior findings and image-capture timeout leak remain open
 and recorded. This is not the API-020 final review or a commitment completion claim.
+
+Native clipboard run 34711569893 passed on macOS and Windows. Before import,
+checked snapshot identity, successful jobs and the named clipboard step,
+current input digests, native platforms, execution markers and both output
+hashes. Copied original bytes. All five platform records now pass the verifier.

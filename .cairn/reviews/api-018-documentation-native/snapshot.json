@@ -1,0 +1,26 @@
+{
+  "source": "ed8e19df97529178b8b005bdf222257318cd7122",
+  "snapshot": "de66089a8d536d2e6fdfbb5e2f87ac292ab7e5e9",
+  "parent": "0d6f176bb8a46da1859a86aec0bd79962a9652cb",
+  "inputs": [
+    ".github/workflows/clipboard-platforms.yml",
+    "Cargo.lock",
+    "Cargo.toml",
+    "benches",
+    "build.rs",
+    "docs/binding-abi-baseline.json",
+    "reactive-tui-macros",
+    "scripts/check-clipboard-platforms.py",
+    "scripts/check-conpty-platform.py",
+    "scripts/check-dialog-http.py",
+    "scripts/check-iterm-host.py",
+    "scripts/check-widget-platforms.py",
+    "scripts/install-conpty-runtime.py",
+    "src",
+    "tests",
+    "tests/api_clipboard.rs",
+    "tests/clipboard_platform.rs",
+    "tests/windows_platform.rs"
+  ],
+  "run": "34711569893"
+}

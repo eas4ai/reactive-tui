@@ -1,0 +1,237 @@
+{
+  "conclusion": "success",
+  "headSha": "de66089a8d536d2e6fdfbb5e2f87ac292ab7e5e9",
+  "jobs": [
+    {
+      "completedAt": "2026-09-12T18:49:35Z",
+      "conclusion": "success",
+      "databaseId": 103601161080,
+      "name": "clipboard (windows-2022, windows)",
+      "startedAt": "2026-09-12T18:33:44Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-09-12T18:33:45Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-09-12T18:33:45Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-12T18:33:55Z",
+          "conclusion": "success",
+          "name": "Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+          "number": 2,
+          "startedAt": "2026-09-12T18:33:45Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-12T18:33:55Z",
+          "conclusion": "skipped",
+          "name": "macOS build prerequisites",
+          "number": 3,
+          "startedAt": "2026-09-12T18:33:55Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-12T18:34:47Z",
+          "conclusion": "success",
+          "name": "Windows build prerequisites",
+          "number": 4,
+          "startedAt": "2026-09-12T18:33:55Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-12T18:40:44Z",
+          "conclusion": "success",
+          "name": "Native clipboard round trips and child cleanup",
+          "number": 5,
+          "startedAt": "2026-09-12T18:34:47Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-12T18:46:42Z",
+          "conclusion": "success",
+          "name": "Native ConPTY behavior and violating resize",
+          "number": 6,
+          "startedAt": "2026-09-12T18:40:44Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-12T18:49:27Z",
+          "conclusion": "success",
+          "name": "Native HTTP, FileExplorer and TerminalWidget workflows",
+          "number": 7,
+          "startedAt": "2026-09-12T18:46:42Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-12T18:49:29Z",
+          "conclusion": "success",
+          "name": "Capture native widget evidence",
+          "number": 8,
+          "startedAt": "2026-09-12T18:49:27Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-12T18:49:30Z",
+          "conclusion": "success",
+          "name": "Capture native ConPTY evidence",
+          "number": 9,
+          "startedAt": "2026-09-12T18:49:29Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-12T18:49:31Z",
+          "conclusion": "success",
+          "name": "Capture native evidence",
+          "number": 10,
+          "startedAt": "2026-09-12T18:49:30Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-12T18:49:31Z",
+          "conclusion": "skipped",
+          "name": "Capture failure diagnostics",
+          "number": 11,
+          "startedAt": "2026-09-12T18:49:31Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-12T18:49:33Z",
+          "conclusion": "success",
+          "name": "Post Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+          "number": 22,
+          "startedAt": "2026-09-12T18:49:31Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-12T18:49:33Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 23,
+          "startedAt": "2026-09-12T18:49:33Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/eas4ai/reactive-tui/actions/runs/34711569893/job/103601161080"
+    },
+    {
+      "completedAt": "2026-09-12T18:39:35Z",
+      "conclusion": "success",
+      "databaseId": 103601161190,
+      "name": "clipboard (macos-14, macos)",
+      "startedAt": "2026-09-12T18:33:49Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-09-12T18:33:50Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-09-12T18:33:49Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-12T18:33:52Z",
+          "conclusion": "success",
+          "name": "Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+          "number": 2,
+          "startedAt": "2026-09-12T18:33:50Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-12T18:34:08Z",
+          "conclusion": "success",
+          "name": "macOS build prerequisites",
+          "number": 3,
+          "startedAt": "2026-09-12T18:33:52Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-12T18:34:08Z",
+          "conclusion": "skipped",
+          "name": "Windows build prerequisites",
+          "number": 4,
+          "startedAt": "2026-09-12T18:34:08Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-12T18:36:28Z",
+          "conclusion": "success",
+          "name": "Native clipboard round trips and child cleanup",
+          "number": 5,
+          "startedAt": "2026-09-12T18:34:08Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-12T18:36:28Z",
+          "conclusion": "skipped",
+          "name": "Native ConPTY behavior and violating resize",
+          "number": 6,
+          "startedAt": "2026-09-12T18:36:28Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-12T18:39:27Z",
+          "conclusion": "success",
+          "name": "Native HTTP, FileExplorer and TerminalWidget workflows",
+          "number": 7,
+          "startedAt": "2026-09-12T18:36:28Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-12T18:39:28Z",
+          "conclusion": "success",
+          "name": "Capture native widget evidence",
+          "number": 8,
+          "startedAt": "2026-09-12T18:39:27Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-12T18:39:28Z",
+          "conclusion": "skipped",
+          "name": "Capture native ConPTY evidence",
+          "number": 9,
+          "startedAt": "2026-09-12T18:39:28Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-12T18:39:29Z",
+          "conclusion": "success",
+          "name": "Capture native evidence",
+          "number": 10,
+          "startedAt": "2026-09-12T18:39:28Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-12T18:39:30Z",
+          "conclusion": "skipped",
+          "name": "Capture failure diagnostics",
+          "number": 11,
+          "startedAt": "2026-09-12T18:39:30Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-12T18:39:30Z",
+          "conclusion": "success",
+          "name": "Post Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+          "number": 22,
+          "startedAt": "2026-09-12T18:39:30Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-12T18:39:32Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 23,
+          "startedAt": "2026-09-12T18:39:30Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/eas4ai/reactive-tui/actions/runs/34711569893/job/103601161190"
+    }
+  ],
+  "status": "completed"
+}

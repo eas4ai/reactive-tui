@@ -1,0 +1,23 @@
+[
+  {
+    "backend": "wayland",
+    "commit": "ed8e19df97529178b8b005bdf222257318cd7122",
+    "inputs_digest": "67505fa5f0b5f5637d55e6395289c3ff4814d8c59491b96bcd2b4d28bdfb6e30",
+    "output_digest": "212477c0aac0e15db1d5d0ea47daf51535c6b9a15658d514d730da4999faa74c",
+    "process_output_digest": "22be51414d9734a53e035a41296620158e86ab13db5507ea0286c7cf5060db09"
+  },
+  {
+    "backend": "xsel",
+    "commit": "ed8e19df97529178b8b005bdf222257318cd7122",
+    "inputs_digest": "67505fa5f0b5f5637d55e6395289c3ff4814d8c59491b96bcd2b4d28bdfb6e30",
+    "output_digest": "a26234e585871545138647b18a8e73f33b9c5bc65aa5a82a37fcf9a92b569c45",
+    "process_output_digest": "22be51414d9734a53e035a41296620158e86ab13db5507ea0286c7cf5060db09"
+  },
+  {
+    "backend": "xclip",
+    "commit": "ed8e19df97529178b8b005bdf222257318cd7122",
+    "inputs_digest": "67505fa5f0b5f5637d55e6395289c3ff4814d8c59491b96bcd2b4d28bdfb6e30",
+    "output_digest": "f30cf4e0c40e45d77c7be2f4f9182970431c4d28f97c24925f65054c0b6fc1ae",
+    "process_output_digest": "3028536594f9651375a56538418e280026343c0c1a936e429495c1f1944b384d"
+  }
+]
