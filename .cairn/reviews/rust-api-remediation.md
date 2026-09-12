@@ -4470,3 +4470,7 @@ match source commit `ccd9ef4e8809d2376876a9796d3e90c1d6560b6f` exactly. Only
 `codex/clipboard-platform-verification` was pushed. Snapshot provenance is retained
 in `abi-004-toast/native-snapshot.json`. macOS and Windows results remain pending;
 they are not inferred from Linux success.
+
+Native run 34694702900 completed successfully for macos. Imported its clipboard
+record after verifying the snapshot, current committed input digest, platform,
+executed behavior markers and both raw-output hashes. Original bytes are preserved.
