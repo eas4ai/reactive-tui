@@ -3479,10 +3479,11 @@ production behavior was weakened to reduce these static counts.
 - Done: implement and verify API-016 entry-point acceptance (receipt 20260911T233538835Z).
 - Done: refresh all 34 inherited requirements after API-016 (last receipts 20260911T234522876Z/877Z).
 - Done: API-017 native C/TypeScript behavior and ownership; formal receipt 20260912T120716719Z.
-- In progress: repair and verify the approved isolated Kitty host for API-014, then refresh inherited acceptance.
+- Done: repair the approved isolated Kitty host and verify all API-014 image routes (receipt 20260912T152756874Z).
+- In progress: refresh inherited acceptance after the Kitty and toast repairs.
 - Pending: API-018 public documentation and Props validation.
 - Pending: API-019 complete residual audit contracts.
-- Pending: API-020 final regression and independent review.
+- Pending: API-020 final regression and independent review, including the captured image-runner timeout cleanup defect.
 - Complete: refresh native API-008 evidence after the committed screen repair.
 - Complete: refresh API-011 native records and acceptance after the screen repair.
 
@@ -4640,3 +4641,7 @@ The retained control in .cairn/reviews/api-020-image-capture-timeout is a defect
 demonstration, not an acceptance pass. Resolve timeout ownership and prove
 normal and timeout cleanup before commitment closure. Do not deliver with this
 finding open. Pixel assertions and image-rendering acceptance remain unchanged.
+
+API-015 passed with receipt 20260912T153933584Z after rebuilding the declared
+stable, minimal, optional-feature, embedded-terminal and nightly SIMD paths.
+The feature catalog, independent builds and runtime behavior checks passed.
