@@ -12,4 +12,8 @@ Keep derive(Props), fluent builders and the inherent validate() -> bool method. 
 
 ## Realized by
 
-(none yet: recorded, not built)
+- 98fce395f0024a97adbe54d311a71b794b787fd6 Enforce approved named Props rules and explicit optional fields
+
+Behavior and diagnostics: `tests/api_props_contract.rs`, `tests/props_derive_test.rs`,
+macro option unit tests and `src/component/props.rs` rustdoc cases.
+Review: `.cairn/reviews/rust-api-remediation.md`, API-018 approved Props implementation.
