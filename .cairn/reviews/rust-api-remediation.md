@@ -4920,3 +4920,49 @@ current input digests, native platforms, execution markers and both output
 hashes. Copied original bytes. All five platform records now pass the verifier.
 
 Native run 34714603188 passed on macOS and Windows for snapshot 75f7ffe3ac89292e3c47acaeae07793416a3c926. Its declared input trees exactly match local commit 13c28444cc9b9e61a73549376a70e59feac39026. Imported the widget and ConPTY artifacts after checking job and step success, current committed input digests, system, every recorded output hash, and unchanged copied bytes. Both native verifiers passed. The earlier clipboard records remain current because their declared inputs did not change.
+
+
+## API-019 declaration and initial behavior baseline
+
+API-018 passed its expanded documentation mechanism in receipt
+20260912T201523567Z. The inherited refresh then passed all 34 requirements;
+RND-001 through RND-006 are the final receipts at 20260912T202313113Z/114Z.
+Cairn now names declare API-019. No production implementation changes here.
+
+The residual inventory now explicitly retains the legacy backend test-reachability
+concern from this review at line 4161, separately from nested event routing.
+Current source still nests all five mapping tests inside DebugBackend::render_full.
+The platform entry also preserves review of the four Windows and six FFI warnings.
+Graph discovery was attempted and returned Transport closed; focused Tilth reads
+and Ripwire provided fallback discovery.
+
+The new mechanism declares the complete dependency footprint and rejects missing
+coverage. It begins with six actual public reference tests and discovery/execution
+of the five existing backend mappings. Complete focused checks for every residual
+contract remain mandatory; the inventory gate deliberately rejects all unfinished
+coverage. It cannot be passed by editing inventory statuses or running one section.
+These initial tests do not cover the entire reference ownership contract yet.
+
+Development output: api-residual/20260912T203110244158Z. All six reference tests
+compile and are registered. Five fail assertions: shared/local/callback/multi
+references lose their retained state, and callback read/write reentry deadlocks.
+The isolated reentry child was killed and reaped at its three-second deadline.
+The forwarded-reference control passes and follows replacement parents correctly.
+The backend filter executes zero tests; both discovery and execution reject it.
+These are tests of required correct behavior, not defect-confirming acceptance.
+
+All five checker control tests pass. Safe missing/duplicate inventory rows, absent
+registered names, zero/ignored/failed tests, incomplete coverage and subprocess
+failures are rejected; corrected controls pass. Actual mapping mutation and the
+corrected reference behaviors remain to be demonstrated during implementation.
+Rustfmt and git diff --check pass. Ripwire edit checks report new test/checker
+symbols with no incompatible callers. Quality-delta exits 2 and test-gate exits 4
+(outputs in api-019-declaration); neither is a passing quality gate. Most findings
+come from unchanged reference trees or tests/dynamic dispatch classified as dead.
+Two short output/group wrappers resemble the existing documentation checker;
+this declaration reuses its process executor, keeps outputs separate, and makes
+no production abstraction change. The test gate models no executed tests; the
+actual compiler, harness output and checker controls above provide the evidence.
+
+API-019 is not complete. No reference ownership, updater, gesture, transition,
+platform or contract-narrowing decision has been made or implemented here.

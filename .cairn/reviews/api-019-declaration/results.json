@@ -1,0 +1,31 @@
+[
+  {
+    "name": "quality-delta",
+    "command": [
+      "/home/shawn/.local/bin/ripwire",
+      ".",
+      "--quality-delta"
+    ],
+    "exit": 2
+  },
+  {
+    "name": "test-gate",
+    "command": [
+      "/home/shawn/.local/bin/ripwire",
+      ".",
+      "--test-gate"
+    ],
+    "exit": 4
+  },
+  {
+    "name": "rustfmt",
+    "command": [
+      "rustfmt",
+      "--edition",
+      "2021",
+      "--check",
+      "tests/api_residual_refs.rs"
+    ],
+    "exit": 0
+  }
+]
