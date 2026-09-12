@@ -12,6 +12,8 @@ Pin Kitty 0.45.0 source by archive digest and retain a small patch that evaluate
 
 ## Realized by
 
+4f785c601704dae823422a2c7aafb16ed53dfd39 Repair isolated Kitty image ordering and verify independent pixels
+
 `scripts/kitty-host` pins, patches, builds and verifies the isolated host.
 `scripts/check-api-images.py` selects it and runs the independent sender through
 the existing capture assertions. Build records and stock/repaired captures are
