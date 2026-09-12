@@ -4474,3 +4474,7 @@ they are not inferred from Linux success.
 Native run 34694702900 completed successfully for macos. Imported its clipboard
 record after verifying the snapshot, current committed input digest, platform,
 executed behavior markers and both raw-output hashes. Original bytes are preserved.
+
+Native run 34694702900 completed successfully for windows. Imported its clipboard
+record after verifying the snapshot, current committed input digest, platform,
+executed behavior markers and both raw-output hashes. Original bytes are preserved.
