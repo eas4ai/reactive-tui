@@ -3479,7 +3479,7 @@ production behavior was weakened to reduce these static counts.
 - Done: implement and verify API-016 entry-point acceptance (receipt 20260911T233538835Z).
 - Done: refresh all 34 inherited requirements after API-016 (last receipts 20260911T234522876Z/877Z).
 - Done: API-017 native C/TypeScript behavior and ownership; formal receipt 20260912T120716719Z.
-- In progress: refresh all inherited acceptance after API-017.
+- In progress: repair ABI-004 toast presentation timing and refresh inherited acceptance after API-017.
 - Pending: API-018 public documentation and Props validation.
 - Pending: API-019 complete residual audit contracts.
 - Pending: API-020 final regression and independent review.
@@ -4399,3 +4399,59 @@ Independent compilers and Koffi agree on 243 signatures and 13 layouts. Captures
 are retained in api-native-components/20260912T120642Z. API-001 through API-017
 now have current passing receipts. Three numbered API requirements remain;
 inherited ABI and regression evidence is being refreshed before Cairn advances.
+
+
+### ABI-004 regression repair: toast deadline before presentation (2026-09-12)
+
+The formal ABI-004 receipt `20260912T121509058Z` failed after the default-suite
+command exceeded its unchanged 300-second deadline while compiling. Its earlier
+formatting, strict lint and FFI steps passed. A later cached `cargo test --no-run`
+replay completed in 1.317 seconds without changing sccache settings. This does not
+establish the cause of the compiler stall or prove it repaired. The failed receipt
+and captured output remain intact. The shared sccache server was not restarted.
+
+An unchanged developmental default-suite run then reached the tests and failed
+`engine_toast_expiration_delivers_completion_without_input`: the 60 ms toast
+completed without appearing in any captured frame. The first hypothesis, that
+only the default 200 ms fade caused the failure, was incomplete. With animation
+disabled and otherwise identical root structure, a zero-delay sibling passed; a
+100 ms constructor delay reproduced the missing toast. Source inspection shows
+that LiveToast scheduled its deadline during construction, while Modal first
+requires root and body measurement frames. App processes ready timers before
+those later frames. The delay consumed the entire lifetime before presentation.
+
+The recorded Judged decision starts expiration after the fully opened, measured
+modal body is presented. A private callback follows the existing App layout
+publication path, which runs after successful backend presentation. The toast
+retains one deadline and prevents restart after unmount, repeated presentation or
+close. Duration updates still replace an active deadline; None remains persistent.
+The public duration documentation states the App timing boundary. Public Rust
+function signatures and C/TypeScript ABI layouts are unchanged.
+
+The strengthened captured-frame regression first failed on the old implementation
+with a blank frame. The corrected code passed all four cases: zero and 60 ms
+durations, each with no animation and the normal fade, while first-frame expansion
+is delayed 100 ms. No input causes completion. Three focused lifetime tests pass
+for retained output, unmount before presentation, manual close, duration updates,
+persistent duration and repeated presentation. The complete default suite passed
+1,858 tests with zero failures and 37 pre-existing ignored tests across 71 result
+summaries. Strict default-feature all-target Clippy and workspace formatting also
+ran and passed. These are developmental checks; committed Cairn evidence still
+needs refreshing. Raw results are retained in `.cairn/reviews/abi-004-toast/`.
+
+Ripwire edit-check exited 0 and found the one changed private modal signature
+with no incompatible caller. Quality-delta exited 2 and test-gate exited 4;
+neither is called a pass. The bounded static report records all findings in the
+changed files. Manual review covered the larger existing modal render method,
+callback pointer equality, timer ownership and lock order, and retained callback
+cleanup. The small cancellation/lifecycle similarities are component-local
+resource handling, not a reusable generic timer owner: the terminal blink owner
+has different state and scheduling semantics. New tests and Lifetime are reached
+through Rust test discovery and component/callback dispatch, despite static
+dead-code reports. Churn and line-count findings are retained; no baseline or
+acceptance rule was weakened to suppress them. The full default suite covers the
+changed private call sites and all six dialog families.
+
+The developer reiterated the i9-13900K concurrency limit. Cargo jobs, Rust test
+threads, nextest threads and linker threads remain at 8 in the existing machine
+Cargo configuration; no limit was raised.

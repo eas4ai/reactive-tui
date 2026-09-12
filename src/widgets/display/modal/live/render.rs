@@ -34,6 +34,7 @@ impl Runtime {
         role: Role,
         escape_closable: bool,
         motion: Option<&Motion>,
+        on_presented: Option<&Arc<dyn Fn() + Send + Sync>>,
     ) -> Element {
         if let Some(error) = validation_error(props) {
             self.cancel();
@@ -300,6 +301,18 @@ impl Runtime {
                 }
             }));
             self.measure(&mut body, Part::Body);
+            // App invokes layout callbacks only after successful presentation.
+            // Measurement frames and entrance animation do not consume a
+            // notification's display time.
+            if visible && ready && progress == 1.0 {
+                if let Some(callback) = on_presented {
+                    let callback = callback.clone();
+                    body.metadata.layout.push(Arc::new(move |_| {
+                        callback();
+                        false
+                    }));
+                }
+            }
             children.push(body);
         }
         let mut root = node(

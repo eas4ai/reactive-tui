@@ -1,0 +1,13 @@
+{
+  "mode": "cached",
+  "command": [
+    "cargo",
+    "test",
+    "--locked",
+    "--no-fail-fast",
+    "--no-run",
+    "--verbose"
+  ],
+  "status": 0,
+  "elapsed": 1.317304448923096
+}

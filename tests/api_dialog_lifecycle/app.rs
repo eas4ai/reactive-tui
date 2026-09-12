@@ -76,10 +76,26 @@ fn engine_confirmation_callback_and_close_event_fire_once() {
 
 #[test]
 fn engine_toast_expiration_delivers_completion_without_input() {
+    struct SlowSibling;
+    impl reactive_tui::component::Component for SlowSibling {
+        type Props = reactive_tui::component::props::CommonProps;
+        type State = ();
+        fn new(_: Self::Props) -> Self {
+            // Force the first frame to take longer than the toast lifetime.
+            std::thread::sleep(std::time::Duration::from_millis(100));
+            Self
+        }
+        fn render(&self, _: &Self::Props, _: &()) -> Element {
+            Element::empty()
+        }
+    }
     struct Idle(DialogEngine);
     impl reactive_tui::app::RootComponent for Idle {
         fn render(&self) -> reactive_tui::component::Element {
-            self.0.render()
+            Element::fragment().with_children(vec![
+                self.0.render(),
+                Element::typed::<SlowSibling>(Default::default()),
+            ])
         }
         fn wake_driven(&self) -> bool {
             true
@@ -88,25 +104,42 @@ fn engine_toast_expiration_delivers_completion_without_input() {
             self.0.active_count() == 0
         }
     }
-    let mut engine = DialogEngine::new();
-    let id = engine.show_toast(ToastOptions {
-        message: "OWNED TOAST".into(),
-        duration: Some(std::time::Duration::from_millis(60)),
-        ..Default::default()
-    });
-    let frames = app_input::run_visibility(
-        Idle(engine.clone()),
-        (40, 12),
-        vec![("", Some("OWNED TOAST"), None)],
-    );
-    assert!(!frames.last().unwrap().text.contains("OWNED TOAST"));
-    assert!(frames
-        .iter()
-        .any(|frame| frame.text.contains("OWNED TOAST")));
-    assert!(matches!(engine.take_event(), Some(DialogEvent::Opened(open)) if open == id));
-    assert!(
-        matches!(engine.take_event(), Some(DialogEvent::Closed(closed, DialogResult::Confirmed(None))) if closed == id)
-    );
+    for animation in [DialogAnimation::None, DialogAnimation::Fade] {
+        for duration in [
+            std::time::Duration::ZERO,
+            std::time::Duration::from_millis(60),
+        ] {
+            let mut engine = DialogEngine::with_config(DialogEngineConfig {
+                default_theme: DialogTheme {
+                    animation: animation.clone(),
+                    ..Default::default()
+                },
+                ..Default::default()
+            });
+            let id = engine.show_toast(ToastOptions {
+                message: "OWNED TOAST".into(),
+                duration: Some(duration),
+                ..Default::default()
+            });
+            let frames = app_input::run_visibility(
+                Idle(engine.clone()),
+                (40, 12),
+                vec![("", Some("OWNED TOAST"), None)],
+            );
+            assert!(!frames.last().unwrap().text.contains("OWNED TOAST"));
+            assert!(
+                frames
+                    .iter()
+                    .any(|frame| frame.text.contains("OWNED TOAST")),
+                "toast expired without being presented: {:?}",
+                frames.iter().map(|frame| &frame.text).collect::<Vec<_>>()
+            );
+            assert!(matches!(engine.take_event(), Some(DialogEvent::Opened(open)) if open == id));
+            assert!(
+                matches!(engine.take_event(), Some(DialogEvent::Closed(closed, DialogResult::Confirmed(None))) if closed == id)
+            );
+        }
+    }
 }
 
 #[test]

@@ -1,0 +1,11 @@
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 16.67s
+     Running unittests src/lib.rs (target/debug/deps/reactive_tui-0fe28f82db83e8df)
+
+running 3 tests
+test widgets::dialog::toast::live::tests::unmount_before_presentation_cannot_start_a_retained_deadline ... ok
+test widgets::dialog::toast::live::tests::presented_toast_preserves_duration_updates_and_does_not_restart_on_redraw ... ok
+test widgets::dialog::toast::live::tests::unmount_and_manual_close_cancel_toast_deadlines_with_retained_output ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 998 filtered out; finished in 0.00s
+

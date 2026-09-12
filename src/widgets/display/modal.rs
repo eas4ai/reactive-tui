@@ -331,6 +331,7 @@ impl Modal {
         role: crate::accessibility::Role,
         escape_closable: bool,
         motion: Option<Motion>,
+        on_presented: Option<Arc<dyn Fn() + Send + Sync>>,
     ) -> Element {
         Element::typed::<live::LiveModal>(live::LiveProps {
             config: props,
@@ -338,6 +339,7 @@ impl Modal {
             role,
             escape_closable,
             motion,
+            on_presented,
         })
     }
     /// Create a Modal element with default props
@@ -507,6 +509,7 @@ impl Component for Modal {
             role: crate::accessibility::Role::Dialog,
             escape_closable: props.keyboard_navigation,
             motion: None,
+            on_presented: None,
         })
     }
 }

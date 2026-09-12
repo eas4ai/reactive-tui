@@ -27,6 +27,7 @@ pub(super) struct LiveProps {
     pub role: crate::accessibility::Role,
     pub escape_closable: bool,
     pub motion: Option<Motion>,
+    pub on_presented: Option<Arc<dyn Fn() + Send + Sync>>,
 }
 impl PartialEq for LiveProps {
     fn eq(&self, other: &Self) -> bool {
@@ -34,6 +35,7 @@ impl PartialEq for LiveProps {
             && self.role == other.role
             && self.escape_closable == other.escape_closable
             && self.motion == other.motion
+            && super::super::overlay::same_callback(&self.on_presented, &other.on_presented)
     }
 }
 impl Props for LiveProps {
@@ -62,6 +64,7 @@ impl Component for LiveModal {
             props.role,
             props.escape_closable,
             props.motion.as_ref(),
+            props.on_presented.as_ref(),
         )
     }
     fn on_lifecycle(&mut self, event: LifecycleEvent, _: &mut Self::State) {
@@ -313,6 +316,7 @@ mod tests {
                 seed: ModalState::default(),
                 role: crate::accessibility::Role::Dialog,
                 motion: None,
+                on_presented: None,
                 escape_closable: true,
             });
             let start = Instant::now();
@@ -350,6 +354,7 @@ mod tests {
             seed: ModalState::default(),
             role: crate::accessibility::Role::Dialog,
             motion: None,
+            on_presented: None,
             escape_closable: true,
         });
         let start = Instant::now();
@@ -394,6 +399,7 @@ mod tests {
             seed: ModalState::default(),
             role: crate::accessibility::Role::Dialog,
             motion: None,
+            on_presented: None,
             escape_closable: true,
         };
         let mut child = LiveModal::new(props.clone());
@@ -421,6 +427,7 @@ mod tests {
             seed: ModalState::default(),
             role: crate::accessibility::Role::Dialog,
             motion: None,
+            on_presented: None,
             escape_closable: true,
         });
         child.0.sample(&props, Instant::now());

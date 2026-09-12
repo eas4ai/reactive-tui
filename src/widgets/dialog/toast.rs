@@ -37,7 +37,8 @@ pub struct ToastOptions {
     pub message: String,
     /// Type of toast (info, warning, error, success)
     pub toast_type: ToastType,
-    /// How long to show the toast (None for persistent)
+    /// How long to show the toast (None for persistent). In App, this starts
+    /// after the fully opened toast has been presented.
     pub duration: Option<Duration>,
     /// Where to position the toast on screen
     pub position: ToastPosition,

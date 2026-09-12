@@ -40,9 +40,18 @@ pub(super) fn escape_allowed(allowed: bool) -> bool {
 }
 
 pub(super) fn modal(
+    props: ModalProps,
+    escape_closable: bool,
+    role: crate::accessibility::Role,
+) -> crate::component::Element {
+    modal_with_presented_callback(props, escape_closable, role, None)
+}
+
+pub(super) fn modal_with_presented_callback(
     mut props: ModalProps,
     escape_closable: bool,
     role: crate::accessibility::Role,
+    on_presented: Option<std::sync::Arc<dyn Fn() + Send + Sync>>,
 ) -> crate::component::Element {
     use crate::widgets::display::modal::{Modal, ModalAnimation};
     let motion = crate::reactive::component_scope::lookup::<super::engine::Presentation>().map(
@@ -59,7 +68,13 @@ pub(super) fn modal(
             presentation.motion
         },
     );
-    Modal::with_presentation(props, role, escape_allowed(escape_closable), motion)
+    Modal::with_presentation(
+        props,
+        role,
+        escape_allowed(escape_closable),
+        motion,
+        on_presented,
+    )
 }
 
 pub(super) fn position(

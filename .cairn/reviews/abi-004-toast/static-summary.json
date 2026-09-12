@@ -1,0 +1,334 @@
+{
+  "edit_check_status": 0,
+  "quality_exit": 2,
+  "test_gate_exit": 4,
+  "quality_summary": {
+    "baseline": "git-HEAD",
+    "regressions": "19134",
+    "minor": "2475",
+    "acked": "0",
+    "preexisting-worse": "1642",
+    "new-symbol": "17492",
+    "gating": "1627",
+    "at": "92286dda0+dirty"
+  },
+  "changed_file_findings": [
+    {
+      "kind": "complexity",
+      "sym": "src/widgets/display/modal/live/render.rs::Runtime::render",
+      "was": "92",
+      "now": "98",
+      "p": "src/widgets/display/modal/live/render.rs:31",
+      "gating": "1"
+    },
+    {
+      "kind": "dead-code",
+      "sym": "src/widgets/dialog/toast/live.rs::tests::presented_toast_preserves_duration_updates_and_does_not_restart_on_redraw",
+      "origin": "new-symbol",
+      "p": "src/widgets/dialog/toast/live.rs:254"
+    },
+    {
+      "kind": "dead-code",
+      "sym": "src/widgets/dialog/toast/live.rs::tests::unmount_before_presentation_cannot_start_a_retained_deadline",
+      "origin": "new-symbol",
+      "p": "src/widgets/dialog/toast/live.rs:235"
+    },
+    {
+      "kind": "dead-code",
+      "sym": "Lifetime",
+      "origin": "new-symbol",
+      "p": "src/widgets/dialog/toast/live.rs:39"
+    },
+    {
+      "kind": "duplication",
+      "members": "src/widgets/dialog/toast/live.rs::Lifetime::cancel | src/widgets/display/modal/live.rs::Runtime::cancel",
+      "tokens": "65",
+      "p": "src/widgets/dialog/toast/live.rs:55",
+      "gating": "1"
+    },
+    {
+      "kind": "duplication",
+      "members": "src/widgets/dialog/toast/live.rs::Lifetime::cancel | src/widgets/terminal/blink.rs::Blink::cancel",
+      "tokens": "67",
+      "p": "src/widgets/dialog/toast/live.rs:55",
+      "gating": "1"
+    },
+    {
+      "kind": "duplication",
+      "members": "src/widgets/dialog/toast/live.rs::LiveToast::on_lifecycle | src/widgets/display/progress_bar/live.rs::LiveProgress::on_lifecycle",
+      "tokens": "21",
+      "p": "src/widgets/dialog/toast/live.rs:189",
+      "gating": "1"
+    },
+    {
+      "kind": "duplication",
+      "members": "src/widgets/dialog/toast/live.rs::LiveToast::on_lifecycle | tests/component_tests.rs::TestComponent::on_lifecycle",
+      "tokens": "26",
+      "p": "src/widgets/dialog/toast/live.rs:189",
+      "gating": "1"
+    },
+    {
+      "kind": "duplication",
+      "members": "src/widgets/dialog/toast/live.rs::tests::unmount_before_presentation_cannot_start_a_retained_deadline | src/widgets/display/modal/live.rs::tests::unmount_cancels_transition_while_rendered_output_is_retained",
+      "tokens": "190",
+      "p": "src/widgets/dialog/toast/live.rs:235",
+      "gating": "1"
+    },
+    {
+      "kind": "duplication",
+      "members": "src/widgets/dialog/toast/live.rs::tests::unmount_before_presentation_cannot_start_a_retained_deadline | src/widgets/display/popover/live.rs::tests::mounted_child_cancels_deadlines_while_public_handle_remains_alive",
+      "tokens": "190",
+      "p": "src/widgets/dialog/toast/live.rs:235",
+      "gating": "1"
+    },
+    {
+      "kind": "duplication",
+      "members": "src/widgets/display/modal/live.rs::LiveProps::eq | src/widgets/menu/menubar_live.rs::LiveProps::eq",
+      "tokens": "63",
+      "p": "src/widgets/display/modal/live.rs:33",
+      "gating": "1"
+    },
+    {
+      "kind": "new-clone-of-reused-helper",
+      "sym": "src/widgets/dialog/toast/live.rs::Lifetime::cancel | src/widgets/terminal/blink.rs::Blink::cancel",
+      "was": "0",
+      "now": "3",
+      "p": "src/widgets/dialog/toast/live.rs:55",
+      "gating": "1"
+    },
+    {
+      "kind": "params",
+      "sym": "src/widgets/display/modal/live/render.rs::Runtime::render",
+      "was": "5",
+      "now": "6",
+      "sev": "minor",
+      "p": "src/widgets/display/modal/live/render.rs:31"
+    },
+    {
+      "kind": "short-horizon-churn",
+      "sym": "src/widgets/dialog/toast/live.rs::LiveToast::drop",
+      "was": "0",
+      "now": "2",
+      "churn": "self",
+      "p": "src/widgets/dialog/toast/live.rs:196",
+      "gating": "1"
+    },
+    {
+      "kind": "short-horizon-churn",
+      "sym": "src/widgets/dialog/toast/live.rs::LiveToast::new",
+      "was": "0",
+      "now": "2",
+      "churn": "self",
+      "p": "src/widgets/dialog/toast/live.rs:106",
+      "gating": "1"
+    },
+    {
+      "kind": "short-horizon-churn",
+      "sym": "src/widgets/dialog/toast/live.rs::LiveToast::on_lifecycle",
+      "was": "0",
+      "now": "2",
+      "churn": "self",
+      "p": "src/widgets/dialog/toast/live.rs:189",
+      "gating": "1"
+    },
+    {
+      "kind": "short-horizon-churn",
+      "sym": "src/widgets/dialog/toast/live.rs::LiveToast::render",
+      "was": "0",
+      "now": "2",
+      "churn": "self",
+      "p": "src/widgets/dialog/toast/live.rs:130",
+      "gating": "1"
+    },
+    {
+      "kind": "short-horizon-churn",
+      "sym": "src/widgets/dialog/toast/live.rs::LiveToast::schedule",
+      "was": "0",
+      "now": "2",
+      "churn": "self",
+      "p": "src/widgets/dialog/toast/live.rs:95",
+      "gating": "1"
+    },
+    {
+      "kind": "short-horizon-churn",
+      "sym": "src/widgets/dialog/toast/live.rs::tests::unmount_and_manual_close_cancel_toast_deadlines_with_retained_output",
+      "was": "0",
+      "now": "2",
+      "sev": "minor",
+      "churn": "ambient",
+      "p": "src/widgets/dialog/toast/live.rs:206"
+    },
+    {
+      "kind": "short-horizon-churn",
+      "sym": "src/widgets/display/modal.rs::Modal::render",
+      "was": "0",
+      "now": "3",
+      "sev": "minor",
+      "churn": "ambient",
+      "p": "src/widgets/display/modal.rs:505"
+    },
+    {
+      "kind": "short-horizon-churn",
+      "sym": "src/widgets/display/modal.rs::Modal::with_presentation",
+      "was": "0",
+      "now": "3",
+      "sev": "minor",
+      "churn": "ambient",
+      "p": "src/widgets/display/modal.rs:329"
+    },
+    {
+      "kind": "short-horizon-churn",
+      "sym": "src/widgets/display/modal/live.rs::LiveModal::render",
+      "was": "0",
+      "now": "2",
+      "sev": "minor",
+      "churn": "ambient",
+      "p": "src/widgets/display/modal/live.rs:61"
+    },
+    {
+      "kind": "short-horizon-churn",
+      "sym": "src/widgets/display/modal/live.rs::LiveProps::eq",
+      "was": "0",
+      "now": "2",
+      "sev": "minor",
+      "churn": "ambient",
+      "p": "src/widgets/display/modal/live.rs:33"
+    },
+    {
+      "kind": "short-horizon-churn",
+      "sym": "src/widgets/display/modal/live.rs::tests::a_closed_owner_ignores_repeated_button_activation",
+      "was": "0",
+      "now": "2",
+      "sev": "minor",
+      "churn": "ambient",
+      "p": "src/widgets/display/modal/live.rs:415"
+    },
+    {
+      "kind": "short-horizon-churn",
+      "sym": "src/widgets/display/modal/live.rs::tests::configured_duration_controls_opening_closing_and_zero_duration",
+      "was": "0",
+      "now": "2",
+      "sev": "minor",
+      "churn": "ambient",
+      "p": "src/widgets/display/modal/live.rs:305"
+    },
+    {
+      "kind": "short-horizon-churn",
+      "sym": "src/widgets/display/modal/live.rs::tests::transition_reverses_from_current_progress_and_releases_deadline",
+      "was": "0",
+      "now": "2",
+      "sev": "minor",
+      "churn": "ambient",
+      "p": "src/widgets/display/modal/live.rs:344"
+    },
+    {
+      "kind": "short-horizon-churn",
+      "sym": "src/widgets/display/modal/live.rs::tests::unmount_cancels_transition_while_rendered_output_is_retained",
+      "was": "0",
+      "now": "2",
+      "sev": "minor",
+      "churn": "ambient",
+      "p": "src/widgets/display/modal/live.rs:390"
+    },
+    {
+      "kind": "short-horizon-churn",
+      "sym": "src/widgets/display/modal/live/render.rs::Runtime::render",
+      "was": "0",
+      "now": "2",
+      "sev": "minor",
+      "churn": "ambient",
+      "p": "src/widgets/display/modal/live/render.rs:31"
+    },
+    {
+      "kind": "short-horizon-churn",
+      "sym": "LiveProps",
+      "was": "0",
+      "now": "2",
+      "sev": "minor",
+      "churn": "ambient",
+      "p": "src/widgets/display/modal/live.rs:24"
+    },
+    {
+      "kind": "short-horizon-churn",
+      "sym": "LiveToast",
+      "was": "0",
+      "now": "2",
+      "churn": "self",
+      "p": "src/widgets/dialog/toast/live.rs:26",
+      "gating": "1"
+    },
+    {
+      "kind": "short-horizon-churn",
+      "sym": "modal",
+      "was": "0",
+      "now": "2",
+      "sev": "minor",
+      "churn": "ambient",
+      "p": "src/widgets/dialog/frame.rs:42"
+    },
+    {
+      "kind": "short-horizon-churn",
+      "sym": "tests",
+      "was": "0",
+      "now": "2",
+      "sev": "minor",
+      "churn": "ambient",
+      "p": "src/widgets/dialog/toast/live.rs:202"
+    },
+    {
+      "kind": "short-horizon-churn",
+      "sym": "tests",
+      "was": "0",
+      "now": "2",
+      "sev": "minor",
+      "churn": "ambient",
+      "p": "src/widgets/display/modal/live.rs:301"
+    },
+    {
+      "kind": "verbosity",
+      "sym": "src/widgets/display/modal/live/render.rs::Runtime::render",
+      "was": "294",
+      "now": "307",
+      "p": "src/widgets/display/modal/live/render.rs:31",
+      "gating": "1"
+    },
+    {
+      "kind": "verbosity",
+      "sym": "engine_toast_expiration_delivers_completion_without_input",
+      "was": "33",
+      "now": "66",
+      "p": "tests/api_dialog_lifecycle/app.rs:78",
+      "gating": "1"
+    }
+  ],
+  "test_gate_summary": {
+    "changed": "8",
+    "impacted": "126",
+    "tests": "13",
+    "untested": "85",
+    "shown_tests": "13",
+    "tests_capped": "0",
+    "shown_untested": "25",
+    "untested_capped": "1",
+    "script_gates_unmodelled": "0",
+    "at": "92286dda0+dirty"
+  },
+  "edit_check_summary": {
+    "sym": "with_presentation",
+    "t": "method",
+    "p": "./src/widgets/display/modal.rs:329",
+    "status": "contract-change",
+    "defs": "1",
+    "params_was": "4",
+    "params_now": "5",
+    "public_was": "0",
+    "public_now": "0",
+    "defs_was": "1",
+    "defs_now": "1",
+    "change": "params",
+    "callers": "1",
+    "incompatible": "0",
+    "at": "92286dda0+dirty",
+    "counts_floor": "1"
+  }
+}

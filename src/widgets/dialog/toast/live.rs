@@ -26,9 +26,19 @@ impl Props for LiveProps {
 pub(super) struct LiveToast {
     visible: ThreadSafeSignal<bool>,
     options: Arc<Mutex<ToastOptions>>,
-    scheduler: Option<Arc<Scheduler>>,
-    timer: Mutex<Option<TimerId>>,
+    lifetime: Arc<Lifetime>,
     invalid_duration: bool,
+}
+
+struct Deadline {
+    timer: Option<TimerId>,
+    presented: bool,
+    mounted: bool,
+}
+
+struct Lifetime {
+    scheduler: Option<Arc<Scheduler>>,
+    deadline: Mutex<Deadline>,
 }
 
 fn close(visible: &ThreadSafeSignal<bool>, options: &Mutex<ToastOptions>) {
@@ -41,27 +51,52 @@ fn close(visible: &ThreadSafeSignal<bool>, options: &Mutex<ToastOptions>) {
     }
 }
 
-impl LiveToast {
-    fn cancel(&self) {
-        if let (Some(scheduler), Some(timer)) = (&self.scheduler, self.timer.lock().unwrap().take())
-        {
+impl Lifetime {
+    fn cancel(&self, unmount: bool) {
+        let mut deadline = self.deadline.lock().unwrap();
+        deadline.mounted &= !unmount;
+        if let (Some(scheduler), Some(timer)) = (&self.scheduler, deadline.timer.take()) {
             scheduler.cancel_timer(timer);
         }
     }
+    fn presented(&self, visible: &ThreadSafeSignal<bool>, options: &Arc<Mutex<ToastOptions>>) {
+        {
+            let mut deadline = self.deadline.lock().unwrap();
+            if deadline.presented || !deadline.mounted {
+                return;
+            }
+            deadline.presented = true;
+        }
+        self.schedule(visible, options);
+    }
+    fn schedule(&self, visible: &ThreadSafeSignal<bool>, options: &Arc<Mutex<ToastOptions>>) {
+        let mut deadline = self.deadline.lock().unwrap();
+        if let (Some(scheduler), Some(timer)) = (&self.scheduler, deadline.timer.take()) {
+            scheduler.cancel_timer(timer);
+        }
+        if !deadline.mounted || !deadline.presented || !visible.get() {
+            return;
+        }
+        if let (Some(scheduler), Some(duration)) =
+            (&self.scheduler, options.lock().unwrap().duration)
+        {
+            if Instant::now().checked_add(duration).is_none() {
+                return;
+            }
+            let visible = visible.clone();
+            let options = options.clone();
+            deadline.timer =
+                Some(scheduler.schedule_timeout(duration, move || close(&visible, &options)));
+        }
+    }
+}
+
+impl LiveToast {
     fn schedule(&mut self) {
-        self.cancel();
         let duration = self.options.lock().unwrap().duration;
         self.invalid_duration =
             duration.is_some_and(|duration| Instant::now().checked_add(duration).is_none());
-        if self.invalid_duration || !self.visible.get() {
-            return;
-        }
-        if let (Some(scheduler), Some(duration)) = (&self.scheduler, duration) {
-            let visible = self.visible.clone();
-            let options = self.options.clone();
-            *self.timer.lock().unwrap() =
-                Some(scheduler.schedule_timeout(duration, move || close(&visible, &options)));
-        }
+        self.lifetime.schedule(&self.visible, &self.options);
     }
 }
 
@@ -72,8 +107,14 @@ impl Component for LiveToast {
         let mut toast = Self {
             visible: ThreadSafeSignal::new(true),
             options: Arc::new(Mutex::new(props.options)),
-            scheduler: component_scope::current().map(|scope| scope.scheduler()),
-            timer: Mutex::new(None),
+            lifetime: Arc::new(Lifetime {
+                scheduler: component_scope::current().map(|scope| scope.scheduler()),
+                deadline: Mutex::new(Deadline {
+                    timer: None,
+                    presented: false,
+                    mounted: true,
+                }),
+            }),
             invalid_duration: false,
         };
         toast.schedule();
@@ -88,7 +129,7 @@ impl Component for LiveToast {
     }
     fn render(&self, props: &Self::Props, _: &()) -> Element {
         if !self.visible.get() {
-            self.cancel();
+            self.lifetime.cancel(false);
         }
         if self.invalid_duration {
             return Element::text("Toast duration exceeds the supported clock range")
@@ -111,6 +152,7 @@ impl Component for LiveToast {
         };
         let visible = self.visible.clone();
         let config = self.options.clone();
+        let lifetime = self.lifetime.clone();
         let mut modal = ModalProps {
             visible: self.visible.get(),
             content: Some(Element::text(&options.message).class(match role {
@@ -127,21 +169,32 @@ impl Component for LiveToast {
             modal_style: Some(format!("{style} {}", props.class.as_deref().unwrap_or(""))),
             animation: ModalAnimation::None,
             z_index: 2000,
-            on_close: Some(Arc::new(move |_| close(&visible, &config))),
+            on_close: Some(Arc::new(move |_| {
+                lifetime.cancel(false);
+                close(&visible, &config);
+            })),
             ..Default::default()
         };
         super::super::frame::apply_bounds(&mut modal, props.bounds);
-        super::super::frame::modal(modal, props.options.closable, role)
+        let lifetime = self.lifetime.clone();
+        let visible = self.visible.clone();
+        let options = self.options.clone();
+        super::super::frame::modal_with_presented_callback(
+            modal,
+            props.options.closable,
+            role,
+            Some(Arc::new(move || lifetime.presented(&visible, &options))),
+        )
     }
     fn on_lifecycle(&mut self, event: LifecycleEvent, _: &mut ()) {
         if event == LifecycleEvent::Unmount {
-            self.cancel();
+            self.lifetime.cancel(true);
         }
     }
 }
 impl Drop for LiveToast {
     fn drop(&mut self) {
-        self.cancel();
+        self.lifetime.cancel(true);
     }
 }
 
@@ -162,6 +215,8 @@ mod tests {
             };
             let mut toast = LiveToast::new(props.clone());
             let output = toast.render(&props, &());
+            assert!(scheduler.next_deadline().is_none());
+            toast.lifetime.presented(&toast.visible, &toast.options);
             assert!(scheduler.next_deadline().is_some());
             if unmount {
                 toast.on_lifecycle(LifecycleEvent::Unmount, &mut ());
@@ -169,9 +224,65 @@ mod tests {
                 close(&toast.visible, &toast.options);
                 toast.render(&props, &());
             }
+            toast.lifetime.presented(&toast.visible, &toast.options);
             assert!(scheduler.next_deadline().is_none());
             drop(output);
             scope.close();
         }
+    }
+
+    #[test]
+    fn unmount_before_presentation_cannot_start_a_retained_deadline() {
+        let scheduler = Arc::new(Scheduler::new());
+        let scope = component_scope::ComponentScope::new(scheduler.clone());
+        let _binding = scope.enter(true);
+        let props = LiveProps {
+            options: ToastOptions::default(),
+            class: None,
+            bounds: Rect::default(),
+        };
+        let mut toast = LiveToast::new(props.clone());
+        let output = toast.render(&props, &());
+        toast.on_lifecycle(LifecycleEvent::Unmount, &mut ());
+        toast.lifetime.presented(&toast.visible, &toast.options);
+        assert!(scheduler.next_deadline().is_none());
+        drop(output);
+        scope.close();
+    }
+
+    #[test]
+    fn presented_toast_preserves_duration_updates_and_does_not_restart_on_redraw() {
+        let scheduler = Arc::new(Scheduler::new());
+        let scope = component_scope::ComponentScope::new(scheduler.clone());
+        let _binding = scope.enter(true);
+        let mut props = LiveProps {
+            options: ToastOptions {
+                duration: None,
+                ..Default::default()
+            },
+            class: None,
+            bounds: Rect::default(),
+        };
+        let mut toast = LiveToast::new(props.clone());
+        toast.lifetime.presented(&toast.visible, &toast.options);
+        assert!(scheduler.next_deadline().is_none());
+        props.options.duration = Some(Duration::from_secs(30));
+        toast.update(&props, &mut ());
+        let initial = scheduler.next_deadline().unwrap();
+        toast.lifetime.presented(&toast.visible, &toast.options);
+        assert_eq!(scheduler.next_deadline(), Some(initial));
+        props.options.duration = Some(Duration::from_secs(60));
+        toast.update(&props, &mut ());
+        assert!(scheduler.next_deadline().unwrap() > initial);
+        props.options.duration = None;
+        toast.update(&props, &mut ());
+        assert!(scheduler.next_deadline().is_none());
+        props.options.duration = Some(Duration::ZERO);
+        toast.update(&props, &mut ());
+        assert!(scheduler.run_ready_timers());
+        assert!(!toast.visible.get());
+        toast.lifetime.presented(&toast.visible, &toast.options);
+        assert!(scheduler.next_deadline().is_none());
+        scope.close();
     }
 }
