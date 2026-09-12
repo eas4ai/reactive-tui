@@ -4455,3 +4455,18 @@ changed private call sites and all six dialog families.
 The developer reiterated the i9-13900K concurrency limit. Cargo jobs, Rust test
 threads, nextest threads and linker threads remain at 8 in the existing machine
 Cargo configuration; no limit was raised.
+
+API-001 through API-007 have fresh passing receipts after the toast repair
+(`20260912T124648564Z` through `20260912T124759800Z`). API-008 receipt
+`20260912T124812707Z` passed its 13 local behavior tests and two child-lifecycle
+tests, then rejected the old platform input digest. All three Linux desktop
+backends have now passed five real round trips and two child-lifecycle checks
+each against the committed repaired source. The runner preserved Cargo/test/link
+limits at 8 and explicitly capped Mesa software rendering and Rayon pools at 8.
+
+Authorized native verification run `34694702900` is testing snapshot
+`90343e040e2e56a0c15e2f9e128fc9f3f4d74e2d`, whose declared platform input trees
+match source commit `ccd9ef4e8809d2376876a9796d3e90c1d6560b6f` exactly. Only
+`codex/clipboard-platform-verification` was pushed. Snapshot provenance is retained
+in `abi-004-toast/native-snapshot.json`. macOS and Windows results remain pending;
+they are not inferred from Linux success.
