@@ -3479,7 +3479,7 @@ production behavior was weakened to reduce these static counts.
 - Done: implement and verify API-016 entry-point acceptance (receipt 20260911T233538835Z).
 - Done: refresh all 34 inherited requirements after API-016 (last receipts 20260911T234522876Z/877Z).
 - Done: API-017 native C/TypeScript behavior and ownership; formal receipt 20260912T120716719Z.
-- In progress: diagnose API-014 direct Kitty first-image failure and refresh inherited acceptance after the toast repair.
+- In progress: resolve the API-014 Kitty host ordering defect and refresh inherited acceptance; a host-repair scope decision is required.
 - Pending: API-018 public documentation and Props validation.
 - Pending: API-019 complete residual audit contracts.
 - Pending: API-020 final regression and independent review.
@@ -4517,3 +4517,44 @@ After check execution stopped, two private GNOME helpers still held this run's
 host log. Their complete process group and start identities were inspected,
 then only that group was terminated. No process retains a capture file. The
 inspection and cleanup result are in `abi-004-toast/image-helper-cleanup.json`.
+
+
+### API-014 Kitty host ordering defect (2026-09-12)
+
+The image investigation is retained in `api-014-kitty-layer-order/`. The
+original Rust sender emits identical complete bytes in passing and failing
+captures. Seventy parser partition cases preserve the expected decoded pixels
+and placement. Additional writer, terminal-mode and tracing controls mostly
+pass; those passing reruns do not repair the failure.
+
+An independent C sender with independently generated compressed RGBA data
+reproduces a missing image after clearing the prior placement in three runs.
+Three additional controls leave it missing after another second of waiting,
+then recover all 4,096 green and 4,096 yellow pixels after an X11 repaint,
+without another image transmission. Both missing and recovered screenshots
+are retained. Diagnostic command-syntax failures are retained separately and
+are not counted as image failures.
+
+The installed Kitty 0.45.0 library deterministically returns a stale false
+image-layer predicate before preparing its placement counts, despite a loaded
+image and a valid placement. Preparing first returns true. Its normal-window
+render preparation queries that predicate before updating those counts and
+uses the stale result to select a paint path without images. This connects
+the native-library defect to the observed repaint recovery. The focused
+self-contained diagnostic ran successfully and retains its output; this is
+failure demonstration and ordering verification, not API-014 acceptance.
+
+The proposed repair belongs to Kitty: prepare graphics counts before selecting
+the image-layer render path, then prove the full host with unchanged pixel
+checks and the independent sender. No host repair has been built. Changing the
+host's source or narrowing the mandatory host behavior needs a scope decision,
+as with the earlier iTerm2 host defect. API-014 remains failed. API-018,
+API-019, API-020 and the remaining inherited refresh work remain unfinished.
+
+Self-audit of this investigation: no production source, mechanism, threshold,
+timeout, terminal installation or historical receipt was changed. The native
+result and independent screenshot controls ran; none is relabeled acceptance.
+All diagnostic outcomes and captures are retained, with original bytes and
+provenance. Thread caps remain 8 and host runs were serial. The investigation
+action ends with the failing requirement preserved for the developer's scope
+decision; it does not claim the commitment or host repair complete.

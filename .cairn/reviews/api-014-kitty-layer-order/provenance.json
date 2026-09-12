@@ -1,0 +1,20 @@
+{
+  "source_commit": "27ea5dbfab16af678c3ba31a05ab0609920e7793",
+  "kitty_version": "kitty 0.45.0 created by Kovid Goyal",
+  "archive_url": "https://codeload.github.com/kovidgoyal/kitty/tar.gz/refs/tags/v0.45.0",
+  "files": {
+    "/usr/bin/kitty": "8733be0480d040d58e27873b08477e51bf582d6c91e00e38eda42b280ca28abe",
+    "/usr/lib/kitty/kitty/fast_data_types.so": "8759aa05da840cea4d51053dc3181cea0ef5490075e75c8e47a18279f991fe00",
+    "target/debug/examples/image_host_probe": "5d4ce60c19cacd7c203a49595dc9c486809fa847734012196a16bff53bb4e4b2",
+    "/tmp/abi-004-kitty-source/kitty-v0.45.0.tar.gz": "db67c67393ef82d58175b92af032a17da9f3bde854998bba0e541570d1756d10"
+  },
+  "thread_limits": {
+    "cargo_jobs": 8,
+    "rust_test_threads": 8,
+    "nextest_test_threads": 8,
+    "linker_threads": 8,
+    "mesa_threads": 8,
+    "rayon_threads": 8
+  },
+  "parser_partition_cases": 70
+}

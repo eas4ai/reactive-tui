@@ -1,0 +1,7 @@
+screen_set_mode 1049 1
+screen_reset_mode 25 1
+select_graphic_rendition 40
+screen_erase_in_display 2 0
+screen_cursor_position 1 1
+draw IMAGE PROTOCOL STAGE 0
+screen_cursor_position 3 3

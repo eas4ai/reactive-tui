@@ -1,0 +1,8 @@
+Traceback (most recent call last):
+  File "/tmp/abi-004-kitty-reference-control-capture.py", line 170, in <module>
+    run(sys.argv[1], Path(sys.argv[2]), sys.argv[3] if len(sys.argv) > 3 else None)
+    ~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/tmp/abi-004-kitty-reference-control-capture.py", line 143, in run
+    assert results[0]["red"]["count"] > 100 and results[0]["blue"]["count"] > 100, results[0]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: {'red': {'count': 0, 'bounds': None}, 'blue': {'count': 0, 'bounds': None}, 'green': {'count': 0, 'bounds': None}, 'yellow': {'count': 0, 'bounds': None}}
