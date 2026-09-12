@@ -1,0 +1,21 @@
+requirement: API-013
+requirement_digest: sha256:d9e847eb757552afc7255aeae9f89327427216bd3caac5b44a7ec35f7dc361e9
+sequence: 15
+history_digest: sha256:fb9672d4597dd3569cff65e2a1fcf984f35ff25b902994c22f3f687d65e0a19e
+mechanism: api-animation-screens.md
+commit: c0e24ad5
+inputs_digest: sha256:0d35a55139e995561de72d834021aa8abb9f39448fa17aee21e31afa50cbaba6
+mechanism_digest: sha256:fe091c792f8a63656ab168a1cd4b16b0ad87d63714bdbfbb78bb76e7d49fb875
+inputs_detail: .cairn/evidence/API-013/20260912T200022147Z-1189053.inputs.json
+command: sh -c 'cargo test --lib keyframe_ -- --test-threads=1 && cargo test --lib relative_ -- --test-threads=1 && cargo test --lib screen::manager::tests -- --test-threads=1 && cargo test --test api_animation_screens --test api_hook_lifecycle -- --test-threads=1'
+cwd: .
+exit: 0
+output_digest: sha256:919a076769b6a4f9fac38089aa47c0c7bc56ce02a85ca3ff54a88f6f3a0a6e1f
+output: .cairn/evidence/API-013/20260912T200022147Z-1189053.out
+stderr_output: .cairn/evidence/API-013/20260912T200022147Z-1189053.err
+stderr_digest: sha256:f7c8cd3f02563d449b4cc00a4dad63f74d7df035c25e9afe0afc2a8971ac47f3
+signal: none
+execution_error: null
+result: pass
+source: exit
+recorded: 2026-09-12T20:00:24.114Z
