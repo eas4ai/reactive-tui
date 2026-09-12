@@ -236,37 +236,58 @@ fn generate_props_component(
     TokenStream::from(expanded)
 }
 
-/// Derives the Props trait for a struct with automatic validation and defaults
+/// Derives the Props trait, defaults, builders and caller-invoked validation.
 ///
 /// # Usage
 ///
-/// ```rust,ignore
+/// ```rust
 /// use reactive_tui::prelude::*;
 ///
-/// #[derive(Props)]
+/// fn non_blank(text: &str) -> bool { !text.trim().is_empty() }
+///
+/// #[derive(Props, Clone, PartialEq)]
 /// struct ButtonProps {
+///     #[prop(validate = non_blank)]
 ///     text: String,
 ///     #[prop(default)]
 ///     disabled: bool,
 ///     #[prop(default = "primary")]
 ///     variant: String,
 ///     #[prop(optional)]
-///     on_click: Option<Box<dyn Fn()>>,
+///     icon: Option<String>,
 /// }
+/// let props = ButtonProps::new().with_text("Save".into());
+/// assert!(props.validate());
+/// assert!(!props.with_text(" ".into()).validate());
 /// ```
 ///
 /// # Attributes
 ///
 /// - `#[prop(default)]` - Use Default::default() for this field
-/// - `#[prop(default = "value")]` - Use a specific default value
-/// - `#[prop(optional)]` - Make this field optional (wrap in Option if not already)
-/// - `#[prop(validate)]` - Add validation for this field
+/// - `#[prop(default = "value")]` - Convert a string literal into the field type.
+/// - `#[prop(optional)]` - Default an explicitly written `Option<T>` field to `None`.
+/// - `#[prop(validate = rule)]` - Call a named predicate with `&self.field`.
+///
+/// `validate()` returns true only if every declared rule returns true. Evaluation
+/// follows field order and stops at the first false rule. No rules means no extra
+/// constraints. Construction, builders and App mounting do not call validation.
+/// Defaults may therefore be invalid until the caller supplies a value. Fields
+/// without a default annotation use `Default::default()` too. Optional fields
+/// cannot also specify a default. Bare `#[prop(validate)]` is an error; name the
+/// rule explicitly. Rules must return `bool`; field types are never rewritten.
+/// Structs must have named fields and satisfy the `Props` trait bounds.
 #[proc_macro_derive(Props, attributes(prop))]
 pub fn derive_props(input: TokenStream) -> TokenStream {
-    use syn::{parse_macro_input, Data, DeriveInput, Fields, Lit};
+    use syn::{parse_macro_input, Data, DeriveInput, Fields};
 
     let input = parse_macro_input!(input as DeriveInput);
     let name = &input.ident;
+
+    if let Some(attr) = input.attrs.iter().find(|attr| attr.path().is_ident("prop")) {
+        return syn::Error::new_spanned(attr, "prop attributes belong on named fields")
+            .to_compile_error()
+            .into();
+    }
 
     // Parse the struct fields
     let fields = match &input.data {
@@ -291,37 +312,18 @@ pub fn derive_props(input: TokenStream) -> TokenStream {
     // Process each field to extract prop attributes
     let mut builder_methods = Vec::new();
     let mut default_implementations = Vec::new();
+    let mut validations = Vec::new();
 
     for field in fields {
         let field_name = field.ident.as_ref().unwrap();
         let field_type = &field.ty;
 
-        // Parse prop attributes
-        let mut has_default = false;
-        let mut default_value = None;
-        let mut is_optional = false;
-
-        for attr in &field.attrs {
-            if attr.path().is_ident("prop") {
-                let _ = attr.parse_nested_meta(|meta| {
-                    if meta.path.is_ident("default") {
-                        if meta.input.peek(syn::Token![=]) {
-                            let _: syn::Token![=] = meta.input.parse()?;
-                            let value: Lit = meta.input.parse()?;
-                            if let Lit::Str(lit_str) = value {
-                                default_value = Some(lit_str.value());
-                            }
-                        }
-                        has_default = true;
-                        Ok(())
-                    } else if meta.path.is_ident("optional") {
-                        is_optional = true;
-                        Ok(())
-                    } else {
-                        Err(meta.error("unsupported prop attribute"))
-                    }
-                });
-            }
+        let options = match PropOptions::parse(field) {
+            Ok(options) => options,
+            Err(error) => return error.to_compile_error().into(),
+        };
+        if let Some(rule) = options.validate {
+            validations.push(quote! { #rule(&self.#field_name) });
         }
 
         // Generate builder method
@@ -335,24 +337,17 @@ pub fn derive_props(input: TokenStream) -> TokenStream {
         });
 
         // Generate default implementation
-        if has_default {
-            if let Some(default_val) = default_value {
-                default_implementations.push(quote! {
-                    #field_name: #default_val.into()
-                });
-            } else {
-                default_implementations.push(quote! {
-                    #field_name: Default::default()
-                });
-            }
-        } else if is_optional {
+        if let Some(default_val) = options.default_value {
             default_implementations.push(quote! {
-                #field_name: None
+                #field_name: #default_val.into()
+            });
+        } else if options.optional {
+            default_implementations.push(quote! {
+                #field_name: ::core::option::Option::None
             });
         } else {
-            // Required field - no default
             default_implementations.push(quote! {
-                #field_name: Default::default()
+                #field_name: ::core::default::Default::default()
             });
         }
     }
@@ -382,11 +377,10 @@ pub fn derive_props(input: TokenStream) -> TokenStream {
             /// Builder methods for fluent API
             #(#builder_methods)*
 
-            /// Validate all component properties
-            /// Currently performs basic validation - can be extended for specific validation rules
+            /// Evaluate declared field predicates, stopping at the first false rule.
+            /// Construction and builders do not invoke validation. No rules returns true.
             pub fn validate(&self) -> bool {
-                // Basic validation passes - extend this method for specific validation needs
-                true
+                true #(&& #validations)*
             }
         }
 
@@ -394,6 +388,163 @@ pub fn derive_props(input: TokenStream) -> TokenStream {
     };
 
     TokenStream::from(expanded)
+}
+
+#[derive(Default)]
+struct PropOptions {
+    default: bool,
+    default_value: Option<syn::LitStr>,
+    optional: bool,
+    validate: Option<syn::Path>,
+}
+
+impl PropOptions {
+    fn parse(field: &syn::Field) -> syn::Result<Self> {
+        let mut options = Self::default();
+        for attr in field
+            .attrs
+            .iter()
+            .filter(|attr| attr.path().is_ident("prop"))
+        {
+            let mut entries = 0;
+            attr.parse_nested_meta(|meta| {
+                entries += 1;
+                if meta.path.is_ident("default") {
+                    if options.default {
+                        return Err(meta.error("duplicate prop default"));
+                    }
+                    options.default = true;
+                    if meta.input.peek(syn::Token![=]) {
+                        options.default_value = Some(meta.value()?.parse()?);
+                    }
+                } else if meta.path.is_ident("optional") {
+                    if options.optional {
+                        return Err(meta.error("duplicate prop optional"));
+                    }
+                    options.optional = true;
+                } else if meta.path.is_ident("validate") {
+                    if options.validate.is_some() {
+                        return Err(meta.error("duplicate prop validate"));
+                    }
+                    if !meta.input.peek(syn::Token![=]) {
+                        return Err(meta.error("name a validation rule: #[prop(validate = rule)]"));
+                    }
+                    options.validate = Some(meta.value()?.parse()?);
+                } else {
+                    return Err(meta.error(
+                        "unsupported prop option; use default, optional or validate = rule",
+                    ));
+                }
+                Ok(())
+            })?;
+            if entries == 0 {
+                return Err(syn::Error::new_spanned(attr, "prop requires an option"));
+            }
+        }
+        if options.optional {
+            if options.default {
+                return Err(syn::Error::new_spanned(
+                    field,
+                    "optional defaults to None; remove the default option",
+                ));
+            }
+            let is_option = match &field.ty {
+                syn::Type::Path(ty) if ty.qself.is_none() => {
+                    ty.path.segments.last().is_some_and(|segment| {
+                        segment.ident == "Option"
+                            && matches!(&segment.arguments, syn::PathArguments::AngleBracketed(args)
+                                if args.args.len() == 1 && matches!(args.args.first(), Some(syn::GenericArgument::Type(_))))
+                    })
+                }
+                _ => false,
+            };
+            if !is_option {
+                return Err(syn::Error::new_spanned(
+                    &field.ty,
+                    "#[prop(optional)] requires an explicit Option<T> field",
+                ));
+            }
+        }
+        Ok(options)
+    }
+}
+
+#[cfg(test)]
+mod props_options_tests {
+    use super::PropOptions;
+    use syn::parse::Parser;
+
+    fn parse(source: &str) -> syn::Result<PropOptions> {
+        let field = syn::Field::parse_named.parse_str(source)?;
+        PropOptions::parse(&field)
+    }
+
+    #[test]
+    fn accepts_named_rules_and_explicit_option_paths() {
+        for source in [
+            "#[prop(validate = rules::valid)] value: String",
+            "#[prop(default = \"guest\", validate = valid)] value: String",
+            "#[prop(optional)] value: Option<String>",
+            "#[prop(optional, validate = valid)] value: ::std::option::Option<String>",
+            "#[prop(optional)] value: core::option::Option<u32>",
+        ] {
+            assert!(parse(source).is_ok(), "{source}");
+        }
+    }
+
+    #[test]
+    fn rejects_ignored_or_ambiguous_attributes_with_diagnostics() {
+        for (source, diagnostic) in [
+            ("#[prop(validate)] value: String", "name a validation rule"),
+            ("#[prop(unknown)] value: String", "unsupported prop option"),
+            ("#[prop()] value: String", "prop requires an option"),
+            (
+                "#[prop(default = 42)] value: u32",
+                "expected string literal",
+            ),
+            (
+                "#[prop(optional)] value: String",
+                "requires an explicit Option<T>",
+            ),
+            (
+                "#[prop(optional)] value: Option",
+                "requires an explicit Option<T>",
+            ),
+            (
+                "#[prop(optional, default)] value: Option<u32>",
+                "remove the default option",
+            ),
+            (
+                "#[prop(default, default)] value: String",
+                "duplicate prop default",
+            ),
+            (
+                "#[prop(optional)] #[prop(optional)] value: Option<u32>",
+                "duplicate prop optional",
+            ),
+            (
+                "#[prop(validate = first, validate = second)] value: String",
+                "duplicate prop validate",
+            ),
+            (
+                "#[prop(validate = \"rule\")] value: String",
+                "expected identifier",
+            ),
+            (
+                "#[prop(validate =)] value: String",
+                "unexpected end of input",
+            ),
+            (
+                "#[prop(optional = true)] value: Option<u32>",
+                "expected `,`",
+            ),
+        ] {
+            let error = parse(source)
+                .err()
+                .unwrap_or_else(|| panic!("accepted {source}"));
+            assert!(error.to_string().contains(diagnostic), "{source}: {error}");
+        }
+    }
 }
 
 // Note: Unit tests for procedural macros cannot be run in the same way as regular tests

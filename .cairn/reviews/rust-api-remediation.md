@@ -3481,7 +3481,7 @@ production behavior was weakened to reduce these static counts.
 - Done: API-017 native C/TypeScript behavior and ownership; formal receipt 20260912T120716719Z.
 - Done: repair the approved isolated Kitty host and verify all API-014 image routes (receipt 20260912T152756874Z).
 - Done: refresh API-001 through API-017 and all 34 inherited requirements after the Kitty and toast repairs (last renderer receipts 20260912T155254797Z/798Z).
-- In progress: settle the API-018 Props contract and declare its documentation/validation mechanism.
+- In progress: implement the approved API-018 Props contract and complete its documentation/validation mechanism.
 - Pending: API-019 complete residual audit contracts.
 - Pending: API-020 final regression and independent review, including the captured image-runner timeout cleanup defect.
 - Complete: refresh native API-008 evidence after the committed screen repair.
@@ -4672,3 +4672,46 @@ and explicit Option types, and rejects bare/malformed validation annotations.
 This needs the explicit narrower-contract approval required by API-018 before
 implementation or a conformance mechanism can adopt it. API-019 and API-020
 remain pending, including the known capture-timeout cleanup finding.
+
+
+### API-018 approved Props implementation (2026-09-12)
+
+The developer answered api-018-api-020 with `ok`. Approval and the consequential
+contract decision were committed before implementation. The specification now
+records caller-invoked named validation and explicitly authored Option fields.
+
+The new behavior test first failed: zero size satisfied a named positive rule
+because the generated method ignored it. After repair, all 16 targeted Props
+integration tests pass, including invalid names, sizes and present optional
+values, successful cases, defaults, builders and absence. A counter verifies
+that construction does not invoke a predicate. The existing bare validation
+annotations now name positive-size and bounded-age rules and test invalid values.
+Two macro unit tests pass; their tables exercise five accepted declarations and
+13 rejected forms with diagnostic assertions. Four compiled Props rustdoc cases
+pass, including bare annotation, wrong optional type and wrong predicate return
+type rejections. These editing checks are not formal Cairn acceptance evidence.
+
+The derive now propagates syn parse errors; rejects empty, duplicate, unknown and
+malformed options; validates optional field shape; and invokes rules in field
+order with shared references, stopping on false. Defaults and builder signatures
+are retained. No Props trait method or App validation hook was added. The macro
+usage example now supplies the trait bounds and a valid optional field. The
+public trait documentation explains caller responsibility and migration.
+
+Strict Clippy for the library, three Props integration targets and macro library/tests passed.
+Formatting and git diff --check passed. Ripwire edit-check passed; quality-delta
+(exit 2) and test-gate (exit 4) did not. Their full outputs and hashes are in
+`.cairn/reviews/api-018-props-implementation`. Reviewed the changed-path findings:
+parser complexity reflects explicit diagnostic branches for three options and
+type checking; each rejection is exercised. Dead-code findings cover executed
+macro tests, generated calls and test structs. Suggested duplicates equate short
+parsing/predicate patterns with unrelated reference code. The test gate names
+registry registration through a static name edge; API-002/registry acceptance
+will be refreshed after this committed macro change. These reports do not prove
+absence of callers or replace executable checks.
+
+API-018 documentation discovery also confirmed Markdown remains gated out of
+rustdoc, the README contains old examples and broad host claims, and several
+source examples are ignored. Those documentation repairs and the complete
+supported matrix remain required under API-018. API-019 and API-020 remain open;
+the image-capture outer-timeout ownership defect is still recorded for repair.

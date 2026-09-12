@@ -2,6 +2,62 @@ use std::any::Any;
 
 /// Trait for component properties.
 /// Props must be cloneable and comparable for efficient diffing.
+///
+/// The [`crate::Props`] derive adds `new()`, defaults, `with_<field>()` builders
+/// and an inherent `validate() -> bool`. Validation is an explicit caller action;
+/// neither this trait nor App invokes it. Predicates receive a shared reference
+/// to their field. Rules run in field order and stop at the first false result.
+/// A field without a rule imposes no extra constraint.
+///
+/// ```
+/// use reactive_tui::Props;
+/// fn non_blank(value: &str) -> bool { !value.trim().is_empty() }
+/// #[derive(Props, Clone, PartialEq)]
+/// struct GreetingProps {
+///     #[prop(default = "guest", validate = non_blank)]
+///     name: String,
+///     #[prop(optional)]
+///     subtitle: Option<String>,
+/// }
+/// let props = GreetingProps::new();
+/// assert!(props.validate());
+/// assert_eq!(props.subtitle, None);
+/// assert!(!props.with_name(" ".into()).validate());
+/// ```
+///
+/// Migrate bare validation annotations by naming a predicate:
+///
+/// ```compile_fail
+/// use reactive_tui::Props;
+/// #[derive(Props, Clone, PartialEq)]
+/// struct InvalidProps {
+///     #[prop(validate)]
+///     name: String,
+/// }
+/// ```
+///
+/// Optional fields must be written as `Option<T>`; a derive cannot rewrite them:
+///
+/// ```compile_fail
+/// use reactive_tui::Props;
+/// #[derive(Props, Clone, PartialEq)]
+/// struct InvalidProps {
+///     #[prop(optional)]
+///     name: String,
+/// }
+/// ```
+///
+/// A named rule must return `bool`:
+///
+/// ```compile_fail
+/// use reactive_tui::Props;
+/// fn invalid_rule(_: &str) -> u32 { 1 }
+/// #[derive(Props, Clone, PartialEq)]
+/// struct InvalidProps {
+///     #[prop(validate = invalid_rule)]
+///     name: String,
+/// }
+/// ```
 pub trait Props: Clone + PartialEq + Send + Sync + 'static {
     /// Create default props
     fn default_props() -> Self

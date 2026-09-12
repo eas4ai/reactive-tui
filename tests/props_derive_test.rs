@@ -5,6 +5,14 @@
 
 use reactive_tui::prelude::*;
 
+fn positive_size(value: &u32) -> bool {
+    *value > 0
+}
+
+fn plausible_age(value: &u32) -> bool {
+    *value <= 130
+}
+
 /// Basic props struct with defaults
 #[derive(Props, Clone, PartialEq, Debug)]
 struct BasicProps {
@@ -26,7 +34,7 @@ struct ButtonProps {
     variant: String,
     #[prop(optional)]
     icon: Option<String>,
-    #[prop(validate)]
+    #[prop(validate = positive_size)]
     size: u32,
 }
 
@@ -41,7 +49,7 @@ struct UserProfileProps {
     avatar_url: Option<String>,
     #[prop(default = "user")]
     role: String,
-    #[prop(validate)]
+    #[prop(validate = plausible_age)]
     age: u32,
 }
 
@@ -202,9 +210,10 @@ mod tests {
     fn test_validation() {
         let props = ButtonProps::default();
 
-        // Test validation (should pass for default values)
-        let result = props.validate();
-        assert!(result);
+        assert!(!props.validate());
+        assert!(props.with_size(16).validate());
+        assert!(UserProfileProps::new().with_age(130).validate());
+        assert!(!UserProfileProps::new().with_age(131).validate());
     }
 
     #[test]

@@ -181,6 +181,16 @@ Audit mapping: RAPI-15.
 Falsifier: readiness claims exceed evidence, docs hide public APIs, examples fail, or validation accepts every value despite promised constraints.
 Mechanism: documentation/example builds, invalid/valid Props cases and evidence-linked inventory review.
 
+Props contract (approved 2026-09-12, escalation api-018-api-020): keep
+`#[derive(Props)]`, fluent builders and caller-invoked `validate() -> bool`.
+`#[prop(validate = rule)]` names a predicate receiving a shared reference to its
+field. Validation succeeds only if every declared rule succeeds; fields without
+rules add no constraints. Construction and App mounting do not call validation.
+Reject bare or malformed validation annotations and unsupported prop options.
+`#[prop(optional)]` requires an explicitly written `Option<T>` and defaults to
+`None`; the derive does not rewrite fields. Preserve documented defaults and
+builders, and migrate existing bare validation annotations to named rules.
+
 ## Residual audit concerns
 
 [API-019]
