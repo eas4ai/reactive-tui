@@ -1,0 +1,17 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.09s
+     Running unittests src/lib.rs (target/debug/deps/reactive_tui-3b9bd581c091ab71)
+
+running 10 tests
+test backend::suprtui::graphics::tests::api_image_graphics_actual_coverage_masks_text_and_opaque_backgrounds ... ok
+test backend::suprtui::graphics::tests::api_image_graphics_cell_pixels_padding_tint_and_layer_order_follow_the_painter ... ok
+test backend::suprtui::graphics::tests::api_image_graphics_clip_and_output_failure_retry_delete_possible_placements ... ok
+test backend::suprtui::graphics::tests::api_image_graphics_failed_sixel_flush_keeps_cleanup_for_retry ... ok
+test backend::suprtui::graphics::tests::api_image_graphics_output_is_owned_cached_moved_and_removed ... ok
+test backend::suprtui::graphics::tests::api_image_graphics_refreshes_cell_metrics_and_clears_when_switching_to_cell_frames ... ok
+test backend::suprtui::graphics::tests::api_image_graphics_sixel_absolute_offsets_keep_preceding_translucent_pixels ... ok
+test backend::suprtui::graphics::tests::api_image_graphics_sixel_and_inline_keep_masks_cache_and_clear_owned_placements ... ok
+test backend::suprtui::graphics::tests::api_image_graphics_writer_requires_explicit_capability_and_valid_cell_pixels ... ok
+test backend::suprtui::graphics::tests::native_cursor_respects_image_pixels_and_retains_coverage_on_cached_frames ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 991 filtered out; finished in 0.01s
+

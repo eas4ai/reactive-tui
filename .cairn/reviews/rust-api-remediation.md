@@ -3479,7 +3479,7 @@ production behavior was weakened to reduce these static counts.
 - Done: implement and verify API-016 entry-point acceptance (receipt 20260911T233538835Z).
 - Done: refresh all 34 inherited requirements after API-016 (last receipts 20260911T234522876Z/877Z).
 - Done: API-017 native C/TypeScript behavior and ownership; formal receipt 20260912T120716719Z.
-- In progress: repair ABI-004 toast presentation timing and refresh inherited acceptance after API-017.
+- In progress: diagnose API-014 direct Kitty first-image failure and refresh inherited acceptance after the toast repair.
 - Pending: API-018 public documentation and Props validation.
 - Pending: API-019 complete residual audit contracts.
 - Pending: API-020 final regression and independent review.
@@ -4496,3 +4496,24 @@ artifacts and ConPTY success/violating/runtime-integrity markers. Original bytes
 were copied unchanged. Both native platform verifiers passed after import. The
 existing approved iTerm2 color/transparency limitation remains unchanged.
 Validation counts are retained in `abi-004-toast/native-artifact-validation.json`.
+
+API-011, API-012 and API-013 have current passing receipts after the toast
+repair: `20260912T131915182Z`, `20260912T132006826Z`, and
+`20260912T132011946Z`. Additional source inspection confirmed that Scheduler
+does not attach timeout ownership implicitly to the active component scope;
+LiveToast retains and cancels its timer handle, including after presentation.
+
+API-014 receipt `20260912T132336815Z` failed on direct Kitty after nine host
+routes passed and the forced-ASCII negative control was rejected correctly.
+All captured bytes are retained under
+`api-image-hosts/20260912T132044026958Z`. The failing stage-0 screenshot shows
+the fixture label but no red/blue image pixels. Stage 1 contains the expected
+green/yellow image and stage 2 removes it. This is an observed first-image
+failure; whole-window startup delay is not established as its cause. The
+previous intermittent image concern remains unresolved and requires diagnosis.
+No acceptance threshold, timeout, or thread limit was changed.
+
+After check execution stopped, two private GNOME helpers still held this run's
+host log. Their complete process group and start identities were inspected,
+then only that group was terminated. No process retains a capture file. The
+inspection and cleanup result are in `abi-004-toast/image-helper-cleanup.json`.
