@@ -4625,3 +4625,18 @@ include configuration environment strings and PyUnicode_AsUTF8. The note called
 this read-only. Correct that description as a separate documentation change;
 these image captures do not audit that upstream path-expansion behavior. No
 source or mechanism changed during this review or the API-011 check.
+
+API-012 and API-013 passed after the native refresh. API-014 now has a
+fresh passing receipt, 20260912T152756874Z: all 89 selected tests, current native
+records, the independent sender, the forced-ASCII rejection and all 25 host
+routes passed. The verified repaired Kitty runtime remained intact. Normal
+completion left no capture descriptors open.
+
+Open API-020 review finding: the new image driver isolates host and Xvfb
+process groups for normal cleanup, but the outer runner kills only its own
+process group on timeout. A controlled three-second outer timeout left the
+isolated groups running; all observed groups were then explicitly stopped.
+The retained control in .cairn/reviews/api-020-image-capture-timeout is a defect
+demonstration, not an acceptance pass. Resolve timeout ownership and prove
+normal and timeout cleanup before commitment closure. Do not deliver with this
+finding open. Pixel assertions and image-rendering acceptance remain unchanged.

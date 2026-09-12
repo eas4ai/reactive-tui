@@ -1,0 +1,65 @@
+{
+  "result": "timeout cleanup defect confirmed; not an acceptance pass",
+  "command": [
+    "/usr/bin/python3",
+    "-B",
+    "tests/api_widget_behavior/image_host_capture.py",
+    "kitty",
+    "/home/shawn/workspace2/reactive-tui/.cairn/reviews/api-020-image-capture-timeout/capture",
+    "kitty"
+  ],
+  "outer_timeout_seconds": 3,
+  "surviving_capture_processes": [
+    {
+      "pid": 2438856,
+      "state": "S",
+      "ppid": 6898,
+      "pgid": 2438856,
+      "sid": 2438856,
+      "started": "131130005",
+      "descriptor": "/home/shawn/workspace2/reactive-tui/.cairn/reviews/api-020-image-capture-timeout/capture/xvfb.log"
+    },
+    {
+      "pid": 2438859,
+      "state": "S",
+      "ppid": 6898,
+      "pgid": 2438859,
+      "sid": 2438859,
+      "started": "131130009",
+      "descriptor": "/home/shawn/workspace2/reactive-tui/.cairn/reviews/api-020-image-capture-timeout/capture/host.log"
+    },
+    {
+      "pid": 2438973,
+      "state": "S",
+      "ppid": 2438859,
+      "pgid": 2438859,
+      "sid": 2438859,
+      "started": "131130058",
+      "descriptor": "/home/shawn/workspace2/reactive-tui/.cairn/reviews/api-020-image-capture-timeout/capture/host.log"
+    }
+  ],
+  "owned_group_members": {
+    "2438856": {
+      "state": "S",
+      "ppid": 6898,
+      "pgid": 2438856,
+      "sid": 2438856,
+      "started": "131130005"
+    },
+    "2438859": {
+      "state": "S",
+      "ppid": 6898,
+      "pgid": 2438859,
+      "sid": 2438859,
+      "started": "131130009"
+    },
+    "2438973": {
+      "state": "S",
+      "ppid": 2438859,
+      "pgid": 2438859,
+      "sid": 2438859,
+      "started": "131130058"
+    }
+  },
+  "running_after_manual_cleanup": {}
+}
