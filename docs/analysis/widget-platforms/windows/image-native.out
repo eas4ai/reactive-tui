@@ -95,5 +95,5 @@ test widgets::display::image::sixel_renderer::tests::test_ensure_rgb888_validati
 test widgets::display::image::tests::api_image_empty_bounds_emit_no_protocol_or_placeholder ... ok
 test widgets::display::image::tests::api_image_unavailable_protocols_fall_back_to_decoded_image ... ok
 
-test result: ok. 34 passed; 0 failed; 0 ignored; 0 measured; 928 filtered out; finished in 7.16s
+test result: ok. 34 passed; 0 failed; 0 ignored; 0 measured; 928 filtered out; finished in 7.12s
 

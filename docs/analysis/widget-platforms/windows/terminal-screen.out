@@ -98,5 +98,5 @@ test terminal::screen::tests::terminal_screen_tab_stops_addressing_and_pending_w
 test terminal::screen::tests::wide_glyph_wraps_before_last_column ... ok
 test terminal::screen::tests::wide_overwrite_clears_both_halves_and_old_links ... ok
 
-test result: ok. 37 passed; 0 failed; 0 ignored; 0 measured; 925 filtered out; finished in 0.04s
+test result: ok. 37 passed; 0 failed; 0 ignored; 0 measured; 925 filtered out; finished in 0.03s
 
