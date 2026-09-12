@@ -4338,3 +4338,17 @@ inherited requirements pass. API-018 through API-020 remain pending.
 The staged whitespace check flags raw terminal CRLF and captured log formatting.
 Those evidence bytes are preserved. The source/document check excluding raw .bin
 and .log captures passed; no historical or captured output was normalized.
+
+## Native refresh after API-017 implementation
+
+API-001 through API-007 have passing receipts after 0ce24af. API-008
+passed its 13 behavior and two process-lifecycle tests, then rejected stale
+platform records. Native snapshot cf05cbc7fcd4e8baf408e9079be8172b85d09eae has the exact
+18-path input union from committed source ec2496ad7499f2cc2d458e49fdbc6405c1833d0c.
+Only the authorized verification branch was advanced. Native results are pending.
+
+Native run 34662535829 is executing the new snapshot on macOS and Windows.
+Wayland, xsel and xclip each passed five native clipboard round trips and two
+process-lifecycle checks on private desktops. Validated their committed input
+digest, platform, executed markers and both raw-output hashes. Native results
+remain pending; the API-008 action marker stays active.
