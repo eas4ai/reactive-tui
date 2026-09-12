@@ -1,0 +1,13 @@
+--- correct parent-relative macro
++++ violating fixed-cell macro
+@@ -298,8 +298,8 @@
+         $crate::css! {
+             position: $crate::prelude::Position::Absolute,
+         }
+-        .width_pct(100.0)
+-        .height_pct(100.0)
++        .width(100.0)
++        .height(100.0)
+         .inset_all(0.0)
+     };
+ }

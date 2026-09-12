@@ -1,0 +1,5 @@
+{
+  "command": "python3 -B scripts/check-inherited-abi.py",
+  "exit": 0,
+  "formal_acceptance": false
+}

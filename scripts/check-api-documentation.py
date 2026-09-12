@@ -129,6 +129,8 @@ class Check:
     def props(self):
         self.run("documentation-macro-behavior", ["cargo", "test", "--locked", "--test", "api_documentation_contract"], expected_tests=4)
         self.run("documentation-screen-behavior", ["cargo", "test", "--locked", "--lib", "responsive_"], expected_tests=2)
+        self.run("css-unit-behavior", ["cargo", "test", "--locked", "--lib", "layout::css::css_in_rust::tests"], expected_tests=5)
+        self.run("css-consumer-behavior", ["cargo", "test", "--locked", "--test", "css_in_rust_simple_test"], expected_tests=14)
         self.run("props-behavior", ["cargo", "test", "--locked", "--test", "api_props_contract",
                                      "--test", "props_derive_test", "--test", "simple_props_test"], expected_tests=17)
         self.run("props-diagnostics", ["cargo", "test", "--locked", "-p", "reactive-tui-macros", "--lib"], expected_tests=2)

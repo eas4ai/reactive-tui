@@ -109,8 +109,8 @@ fn test_convenience_macros() {
     assert_eq!(column.build().flex_direction, FlexDirection::Column);
     let fill = fill.build();
     assert_eq!(fill.position, Position::Absolute);
-    assert_eq!(fill.size.width, taffy::style::Dimension::length(100.0));
-    assert_eq!(fill.size.height, taffy::style::Dimension::length(100.0));
+    assert_eq!(fill.size.width, taffy::style::Dimension::percent(1.0));
+    assert_eq!(fill.size.height, taffy::style::Dimension::percent(1.0));
 }
 
 #[test]

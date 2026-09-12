@@ -1,0 +1,24 @@
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 16.90s
+     Running unittests src/lib.rs (target/debug/deps/reactive_tui-3b9bd581c091ab71)
+
+running 1 test
+test layout::css::css_in_rust::tests::test_convenience_macros ... FAILED
+
+failures:
+
+---- layout::css::css_in_rust::tests::test_convenience_macros stdout ----
+
+thread 'layout::css::css_in_rust::tests::test_convenience_macros' (826974) panicked at src/layout/css/css_in_rust.rs:499:9:
+assertion `left == right` failed
+  left: Dimension(CompactLength(CompactLengthInner { tagged_ptr: 0x42c8000000000001 }))
+ right: Dimension(CompactLength(CompactLengthInner { tagged_ptr: 0x3f80000000000002 }))
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    layout::css::css_in_rust::tests::test_convenience_macros
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 1002 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `--lib`

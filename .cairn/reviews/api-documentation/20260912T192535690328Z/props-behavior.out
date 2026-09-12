@@ -1,0 +1,37 @@
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.79s
+     Running tests/api_props_contract.rs (target/debug/deps/api_props_contract-a5fc9db38c5e0860)
+
+running 3 tests
+test optional_fields_preserve_explicit_default_precedence ... ok
+test no_rules_adds_no_constraints_and_optional_builders_keep_option_types ... ok
+test explicit_validation_enforces_each_field_and_preserves_construction ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/props_derive_test.rs (target/debug/deps/props_derive_test-45fbf72f8fe43a9c)
+
+running 13 tests
+test tests::test_button_props_builder ... ok
+test tests::test_basic_props_defaults ... ok
+test tests::test_basic_props_builder ... ok
+test tests::test_clone_and_partial_eq ... ok
+test tests::test_fluent_api_chaining ... ok
+test tests::test_complex_props_builder ... ok
+test tests::test_complex_props_defaults ... ok
+test tests::test_debug_implementation ... ok
+test tests::test_button_props_defaults ... ok
+test tests::test_validation ... ok
+test tests::test_integration_with_component_macro ... ok
+test tests::test_props_trait_implementation ... ok
+test tests::test_user_profile_props ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/simple_props_test.rs (target/debug/deps/simple_props_test-cac1c7e51275d723)
+
+running 1 test
+test tests::test_simple_props ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

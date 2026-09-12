@@ -496,7 +496,7 @@ mod tests {
         assert_eq!(column.build().flex_direction, FlexDirection::Column);
         let fill = fill.build();
         assert_eq!(fill.position, taffy::style::Position::Absolute);
-        assert_eq!(fill.size.width, taffy::style::Dimension::length(100.0));
-        assert_eq!(fill.size.height, taffy::style::Dimension::length(100.0));
+        assert_eq!(fill.size.width, taffy::style::Dimension::percent(1.0));
+        assert_eq!(fill.size.height, taffy::style::Dimension::percent(1.0));
     }
 }

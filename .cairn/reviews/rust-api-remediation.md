@@ -4903,3 +4903,13 @@ paragraph and rebased the native-guide link in the exact-content comparison.
 Both prose-drift and broken-link mutations still fail; the full corrected API-017
 development mechanism passed. Details, original failure and control outputs are
 in `.cairn/reviews/api-018-migration-guidance/`. Formal acceptance remains pending.
+
+## Absolute-fill assertions found by inherited verification
+
+ABI-004 caught two old tests expecting a 100-by-100-cell box after the API-018
+parent-fill repair. Updated their four dimension assertions to the documented
+parent-relative behavior and included both CSS groups in API-018 acceptance.
+A fixed-cell macro mutation failed both tests and the independent App frame test;
+restored behavior and the complete inherited development mechanism passed.
+Evidence and review: `.cairn/reviews/api-018-fill-contract/`. This is a test and
+acceptance-coverage correction; formal evidence still needs refreshing.
