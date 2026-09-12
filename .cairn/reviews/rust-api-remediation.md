@@ -4894,3 +4894,12 @@ current input digests, native platforms, execution markers and both output
 hashes. Copied original bytes. All five platform records now pass the verifier.
 
 Native run 34711569893 passed on macOS and Windows for snapshot de66089a8d536d2e6fdfbb5e2f87ac292ab7e5e9. Its declared input trees exactly match local commit ed8e19df97529178b8b005bdf222257318cd7122. Imported the widget and ConPTY artifacts after checking job and step success, current committed input digests, system, every recorded output hash, and unchanged copied bytes. Both native verifiers passed. The earlier clipboard records remain current because their declared inputs did not change.
+
+## API-017 migration guide regression during API-018 verification
+
+The new formal check caught drift between the packaged migration guide and its
+canonical sources before running native consumers. Corrected the source ownership
+paragraph and rebased the native-guide link in the exact-content comparison.
+Both prose-drift and broken-link mutations still fail; the full corrected API-017
+development mechanism passed. Details, original failure and control outputs are
+in `.cairn/reviews/api-018-migration-guidance/`. Formal acceptance remains pending.

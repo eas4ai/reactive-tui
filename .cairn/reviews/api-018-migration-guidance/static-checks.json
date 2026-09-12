@@ -1,0 +1,14 @@
+[
+  {
+    "check": "edit-check",
+    "exit": 0
+  },
+  {
+    "check": "quality-delta",
+    "exit": 2
+  },
+  {
+    "check": "test-gate",
+    "exit": 4
+  }
+]

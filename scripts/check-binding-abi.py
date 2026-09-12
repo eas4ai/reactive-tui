@@ -14,6 +14,8 @@ from abi.loader_probe import run_loader_probe
 def main():
     migration_text = (Path('docs/binding-typescript-migration.md').read_text() + '\n---\n\n'
                       + Path('docs/binding-abi-migration.md').read_text())
+    # Keep the native guide link valid from bindings/typescript/.
+    migration_text = migration_text.replace('](native-components.md)', '](../../docs/native-components.md)')
     if Path('bindings/typescript/MIGRATION.md').read_text() != migration_text:
         raise RuntimeError('Packaged migration guidance differs from the audited repository guidance')
     subprocess.run(["cargo", "build", "--locked", "--features", "ffi"], check=True, timeout=300)

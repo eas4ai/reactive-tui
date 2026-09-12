@@ -1,0 +1,35 @@
+{
+  "root": {
+    "baseline": "git-HEAD",
+    "regressions": "19096",
+    "minor": "2461",
+    "acked": "0",
+    "preexisting-worse": "1609",
+    "new-symbol": "17487",
+    "gating": "1608",
+    "at": "4a7f2b9b0+dirty"
+  },
+  "findings": [
+    {
+      "kind": "short-horizon-churn",
+      "sym": "main",
+      "was": "0",
+      "now": "2",
+      "sev": "minor",
+      "churn": "ambient",
+      "p": "scripts/check-binding-abi.py:14"
+    }
+  ],
+  "test_gate": {
+    "changed": "2",
+    "impacted": "6",
+    "tests": "0",
+    "untested": "6",
+    "shown_tests": "0",
+    "tests_capped": "0",
+    "shown_untested": "6",
+    "untested_capped": "0",
+    "script_gates_unmodelled": "0",
+    "at": "4a7f2b9b0+dirty"
+  }
+}
