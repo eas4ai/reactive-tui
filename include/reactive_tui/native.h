@@ -23,6 +23,10 @@ typedef struct RTuiThreadSafeSignal RTuiThreadSafeSignal;
 typedef struct RTuiEffect RTuiEffect;
 typedef struct RTuiHooks RTuiHooks;
 typedef struct RTuiSurface RTuiSurface;
+typedef struct RTuiTextEditor RTuiTextEditor;
+typedef struct RTuiNativeStyle RTuiNativeStyle;
+typedef struct RTuiDialogEngine RTuiDialogEngine;
+typedef struct RTuiForeignComponent RTuiForeignComponent;
 
 /* Signal ownership: each constructor and hook lookup returns an owning handle.
  * Release it exactly once with either rtui_signal_destroy or
@@ -181,6 +185,12 @@ typedef struct RTuiPerformanceMetrics {
   float drop_rate_percent;
   bool is_stable;
 } RTuiPerformanceMetrics;
+
+typedef int32_t (*RTuiForeignRenderCallback)(const char*, const char*, void*, RTuiElement**);
+
+typedef int32_t (*RTuiForeignEventCallback)(const char*, const char*, const char*, void*, bool*);
+
+typedef void (*RTuiForeignDisposeCallback)(void*);
 
 typedef void (*RTuiEffectCallback)(void *user_data);
 
@@ -495,6 +505,8 @@ enum RTuiError rtui_animation_create_spring(const char *id,
                                             float mass,
                                             RTuiAnimation **out_animation);
 
+enum RTuiError rtui_app_builder_root_element(RTuiAppBuilder *builder, RTuiElement *element);
+
 enum RTuiError rtui_app_builder_create(RTuiAppBuilder **out_builder);
 
 void rtui_app_builder_destroy(RTuiAppBuilder *builder);
@@ -619,6 +631,86 @@ enum RTuiError rtui_element_get_child(const RTuiElement *element,
 enum RTuiError rtui_element_get_component_name(const RTuiElement *element, char **out_name);
 
 enum RTuiError rtui_element_get_text_content(const RTuiElement *element, char **out_text);
+
+enum RTuiError rtui_dialog_engine_create(RTuiDialogEngine **out_engine);
+
+enum RTuiError rtui_dialog_engine_destroy(RTuiDialogEngine *engine);
+
+enum RTuiError rtui_dialog_engine_element(const RTuiDialogEngine *engine,
+                                          RTuiElement **out_element);
+
+enum RTuiError rtui_dialog_engine_open(RTuiDialogEngine *engine,
+                                       const char *options,
+                                       uint32_t *out_id);
+
+enum RTuiError rtui_dialog_engine_update(RTuiDialogEngine *engine, uint32_t id, const char *update);
+
+enum RTuiError rtui_dialog_engine_close(RTuiDialogEngine *engine, uint32_t id, const char *result);
+
+enum RTuiError rtui_dialog_engine_take_event(RTuiDialogEngine *engine, char **out_event);
+
+enum RTuiError rtui_text_editor_create(RTuiTextEditor **out_editor);
+
+enum RTuiError rtui_text_editor_destroy(RTuiTextEditor *editor);
+
+enum RTuiError rtui_text_editor_set_content(RTuiTextEditor *editor, const char *content);
+
+enum RTuiError rtui_text_editor_get_content_owned(const RTuiTextEditor *editor, char **out_content);
+
+enum RTuiError rtui_text_editor_insert_text(RTuiTextEditor *editor, const char *text);
+
+enum RTuiError rtui_text_editor_delete(RTuiTextEditor *editor, bool backward);
+
+enum RTuiError rtui_text_editor_move(RTuiTextEditor *editor, uint32_t movement, bool select);
+
+enum RTuiError rtui_text_editor_set_size(RTuiTextEditor *editor, uint32_t width, uint32_t height);
+
+enum RTuiError rtui_text_editor_set_show_line_numbers(RTuiTextEditor *editor, bool show);
+
+enum RTuiError rtui_text_editor_element(const RTuiTextEditor *editor, RTuiElement **out_element);
+
+enum RTuiError rtui_foreign_component_create(const char *props,
+                                             const char *state,
+                                             RTuiForeignRenderCallback render,
+                                             RTuiForeignEventCallback event,
+                                             RTuiForeignDisposeCallback dispose,
+                                             void *userdata,
+                                             RTuiForeignComponent **out_component);
+
+enum RTuiError rtui_foreign_component_destroy(RTuiForeignComponent *component);
+
+enum RTuiError rtui_foreign_component_element(const RTuiForeignComponent *component,
+                                              RTuiElement **out_element);
+
+enum RTuiError rtui_foreign_component_render(const RTuiForeignComponent *component,
+                                             RTuiElement **out_element);
+
+enum RTuiError rtui_foreign_component_dispatch(const RTuiForeignComponent *component,
+                                               const char *event,
+                                               bool *out_handled);
+
+enum RTuiError rtui_foreign_component_get_props(const RTuiForeignComponent *component,
+                                                char **out_value);
+
+enum RTuiError rtui_foreign_component_get_state(const RTuiForeignComponent *component,
+                                                char **out_value);
+
+enum RTuiError rtui_foreign_component_set_props(const RTuiForeignComponent *component,
+                                                const char *value);
+
+enum RTuiError rtui_foreign_component_set_state(const RTuiForeignComponent *component,
+                                                const char *value);
+
+enum RTuiError rtui_element_set_focus(RTuiElement *element, bool focusable, bool auto_focus);
+
+enum RTuiError rtui_foreign_component_last_error(const RTuiForeignComponent *component,
+                                                 int32_t *out_code);
+
+enum RTuiError rtui_native_style_create(const char *css, RTuiNativeStyle **out_style);
+
+enum RTuiError rtui_native_style_apply(const RTuiNativeStyle *style, RTuiElement *element);
+
+enum RTuiError rtui_native_style_destroy(RTuiNativeStyle *style);
 
 enum RTuiError rtui_signal_string_create(const char *initial_value, RTuiSignal **out_signal);
 

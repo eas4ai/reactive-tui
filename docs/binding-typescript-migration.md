@@ -1,8 +1,9 @@
 # TypeScript binding migration
 
 The previous package did not typecheck or load the shared library. The repaired
-package uses native Element trees. It does not add the missing dynamic widget
-runtime. The following removals are deliberate; they are not compiler exclusions.
+package uses native Element trees. API-017 adds ForeignComponent state/events,
+NativeTextEditor, NativeLayoutStyle, NativeDialogEngine and NativeApp. See
+`native-components.md` for their ownership and current acceptance contract. The following removals are deliberate; they are not compiler exclusions.
 All remaining files under src are still included in TypeScript checking.
 
 The complete public before/after signatures, including class members, are recorded
@@ -18,25 +19,25 @@ Exports: `AnimationType`, `AnimationProperty`, `AnimationOptions`, `Animation`, 
 
 ### dialog.ts
 
-No dialog symbols are exported by the compiled library. Native dialogs are unsupported in this package.
+The old classes remain retired. NativeDialogEngine now exposes the recovered native sessions, their App host and actual completion data.
 
 Exports: `DialogType`, `DialogButton`, `DialogOptions`, `DialogResult`, `Dialog`, `ProgressDialog`.
 
 ### data-table.ts
 
-Depends on nonexistent generic component JSON state/render/event functions. Interactive data-table binding is unsupported.
+The old DataTable wrapper remains retired. ForeignComponent now provides an explicit state/render/event controller; this does not restore the old nonexistent widget-specific JSON methods.
 
 Exports: `FilterType`, `ColumnFilter`, `PaginationConfig`, `TableColumn`, `TableRow`, `DataTableConfig`, `DataTable`.
 
 ### input-widgets.ts
 
-Depends on nonexistent generic component JSON state/event functions. Interactive input widget bindings are unsupported.
+The old input-widget wrappers remain retired. Use ForeignComponent for explicit state/render/event behavior; it does not invent the former widget-specific methods.
 
 Exports: `RadioOption`, `RadioButtonGroup`, `Slider`, `DatePicker`, `TimeValue`, `TimePicker`, `ColorValue`, `ColorPicker`, `FileInfo`, `FileSelector`.
 
 ### hooks.ts
 
-Depends on an unimplemented component rerender/lifecycle bridge. React-style TypeScript hooks are unsupported; the low-level native signal/hook exports are separate APIs.
+The old React-style TypeScript hook wrappers remain retired. ForeignComponent now owns explicit prop/state values and routed callbacks; the low-level native signal/hook exports remain separate APIs.
 
 Exports: `useState`, `useEffect`, `useMemo`, `useCallback`, `useRef`, `useReducer`, `Context`, `createContext`, `useContext`, `useLayoutEffect`, `useImperativeHandle`, `useDebugValue`, `useId`, `useDeferredValue`, `useTransition`, `useSyncExternalStore`.
 
@@ -49,16 +50,16 @@ Exports: `useState`, `useEffect`, `useMemo`, `useCallback`, `useRef`, `useReduce
   Multi-scalar graphemes and embedded NUL are rejected. Resize recreates empty storage.
 - `Renderer.getSurface()` returns a borrowed view. Resize and disposal invalidate views.
 - `Component` represents a native static Element. JSON state, rendering and event
-  methods have no native implementation and are removed. Use key/class setters and
-  Element tree builders. Child insertion transfers ownership; getChild returns an owned clone.
+  methods remain removed from this static class. Use the separate ForeignComponent
+  controller for state, props and callbacks, and Element tree builders for its output. Child insertion transfers ownership; getChild returns an owned clone.
 - `ComponentBuilder` uses native builder handles. build consumes the builder.
   Arbitrary props, JSON serialization and dynamic input/grid helpers are removed.
   Supported props are class, key, content, label and text.
 - Generic ListBuilder, TableBuilder and InputBuilder are removed. Static button,
-  container and text builders remain; interactive handlers and arbitrary data props
-  are unsupported. Use ComponentBuilder for native class/key/text/child configuration.
-- React-style ThemeContext/ThemeProvider/useTheme are removed because the component
-  lifecycle bridge is absent. ThemeManager and pure theme/layout/event helpers remain.
+  container and text builders remain. ForeignComponent supplies retained state and
+  routed event callbacks for their Element output. Use ComponentBuilder for native class/key/text/child configuration.
+- React-style ThemeContext/ThemeProvider/useTheme remain retired; the new foreign
+  controller does not implement these old provider/hook wrappers. ThemeManager and pure theme/layout/event helpers remain.
 - Conflicting legacy type exports are available through the `types` namespace;
   conflicting layout exports through `layout`. Direct module imports remain valid.
 - Import no longer initializes the library or installs signal/exit handlers. Call
@@ -70,3 +71,9 @@ Exports: `useState`, `useEffect`, `useMemo`, `useCallback`, `useRef`, `useReduce
 
 The animation-demo.ts and widgets-demo.ts examples are retired with their unsupported wrappers.
 Native builder text() converts the element itself to text; use child(text()) for a container.
+
+API-017 callback lifetimes are explicit: dispose the App, then its foreign controllers.
+Callbacks remain registered until native destruction succeeds; wrong-thread calls
+and recursive render/dispatch/disposal are rejected. JSON setters may reenter.
+NativeApp.run blocks the JavaScript event loop and consumes the App, including
+on error. Native event callbacks may update state during this synchronous run.

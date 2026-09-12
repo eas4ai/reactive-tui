@@ -14,7 +14,7 @@ typedef struct {
     RTuiTextEditor *editor;
     RTuiDialogEngine *dialogs;
     int rendered, events, disposed;
-    bool fail_render, fail_event;
+    bool fail_render, fail_event, missing_element;
     char result[256];
 } Context;
 
@@ -38,7 +38,7 @@ static RTuiElement *column(void) {
     return element;
 }
 
-static int32_t render(const char *props, const char *state, void *data, RTuiElement **out) {
+static int32_t foreign_render(const char *props, const char *state, void *data, RTuiElement **out) {
     Context *ctx = data;
     ctx->rendered++;
     /* Native code must not retain its state lock while invoking this callback. */
@@ -50,6 +50,7 @@ static int32_t render(const char *props, const char *state, void *data, RTuiElem
     assert(rtui_foreign_component_render(ctx->component, &recursive) == -10);
     assert(recursive == NULL);
     assert(rtui_foreign_component_destroy(ctx->component) == -10);
+    if (ctx->missing_element) return 0;
     if (ctx->fail_render) {
         *out = text("returned allocation on failure");
         return -1;
@@ -66,8 +67,11 @@ static int32_t render(const char *props, const char *state, void *data, RTuiElem
         }
     }
     char status[512];
-    snprintf(status, sizeof(status), "native %s count%s %s", props, state,
-             strstr(ctx->result, "Ada") ? "result=Ada" : "ready");
+    const char *completion = strstr(ctx->result, "\"kind\":\"confirmed\"") ? "confirmed"
+        : strstr(ctx->result, "\"kind\":\"cancelled\"") ? "cancelled"
+        : strstr(ctx->result, "\"kind\":\"selected\"") ? "selected" : "none";
+    snprintf(status, sizeof(status), "native %s count%s %s completion=%s", props, state,
+             strstr(ctx->result, "Ada") ? "result=Ada" : "ready", completion);
     RTuiElement *root = column();
     RTuiElement *label = text(status);
     OK(rtui_element_set_key(label, "status"));
@@ -103,6 +107,9 @@ static int32_t event(const char *input, const char *props, const char *state,
     if (ctx->fail_event) return -12;
     *handled = true;
     if (strstr(input, "\"key\":\"x\"") || strstr(input, "\"kind\":\"down\"")) {
+#ifdef API_NATIVE_NEGATIVE
+        return 0; /* Deliberately broken: acknowledge input without updating state. */
+#endif
         char next[32];
         snprintf(next, sizeof(next), "%d", atoi(state) + 1);
         OK(rtui_foreign_component_set_state(ctx->component, next));
@@ -126,7 +133,7 @@ static void dispose(void *data) { ((Context *)data)->disposed++; }
 
 static void create(Context *ctx) {
     memset(ctx, 0, sizeof(*ctx));
-    OK(rtui_foreign_component_create("\"alpha\"", "0", render, event, dispose, ctx, &ctx->component));
+    OK(rtui_foreign_component_create("\"alpha\"", "0", foreign_render, event, dispose, ctx, &ctx->component));
 }
 
 static void *wrong_thread(void *data) {
@@ -158,15 +165,34 @@ static void units(void) {
     OK(rtui_foreign_component_get_state(b.component, &value));
     assert(strcmp(value, "0") == 0); rtui_string_free(value);
     assert(rtui_foreign_component_set_state(a.component, "{broken") == -1);
+    a.missing_element = true;
+    paint = NULL;
+    assert(rtui_foreign_component_render(a.component, &paint) == -10);
+    assert(paint == NULL);
+    a.missing_element = false;
     a.fail_render = true;
     paint = NULL;
     assert(rtui_foreign_component_render(a.component, &paint) == -1);
     assert(paint == NULL);
     a.fail_event = true;
     assert(rtui_foreign_component_dispatch(a.component, "{}", &handled) == -12);
+    /* Clear callback failure before testing disposal, so it cannot mask a
+       broken disposed-controller guard. Direct render is an explicit retry. */
+    a.fail_render = false; a.fail_event = false;
+    OK(rtui_foreign_component_render(a.component, &paint));
+    rtui_element_destroy(paint);
     OK(rtui_foreign_component_destroy(a.component));
     assert(a.disposed == 1);
-    rtui_element_destroy(snapshot); /* snapshots do not own the caller's userdata */
+    /* A retained Element cannot invoke callbacks after explicit disposal. */
+    int before = a.rendered;
+    RTuiAppBuilder *builder = NULL;
+    RTuiApp *app = NULL;
+    OK(rtui_app_builder_create(&builder));
+    OK(rtui_app_builder_backend_debug(builder, 16, 2));
+    OK(rtui_app_builder_root_element(builder, snapshot));
+    OK(rtui_app_builder_build(builder, &app));
+    assert(rtui_app_run(app) != 0);
+    assert(a.rendered == before);
     assert(a.disposed == 1);
     OK(rtui_foreign_component_destroy(b.component));
 
@@ -224,14 +250,23 @@ static RTuiElement *root(void *data) {
 }
 
 int main(int argc, char **argv) {
-    if (argc == 1) { units(); return 0; }
+    OK(rtui_init());
+    if (argc == 1) { units(); rtui_cleanup(); return 0; }
     Context ctx; create(&ctx);
     OK(rtui_text_editor_create(&ctx.editor));
     OK(rtui_text_editor_set_size(ctx.editor, 24, 2));
     OK(rtui_text_editor_set_show_line_numbers(ctx.editor, false));
     OK(rtui_text_editor_insert_text(ctx.editor, "Edit:"));
     OK(rtui_dialog_engine_create(&ctx.dialogs));
+    if (strcmp(argv[1], "dialog") == 0) {
+        assert(argc == 3);
+        uint32_t id = 0;
+        OK(rtui_dialog_engine_open(ctx.dialogs, argv[2], &id));
+        if (strstr(argv[2], "\"kind\":\"progress\""))
+            OK(rtui_dialog_engine_update(ctx.dialogs, id, "{\"progress\":0.75}"));
+    }
     ctx.fail_render = strcmp(argv[1], "error") == 0;
+    ctx.fail_event = strcmp(argv[1], "event-error") == 0;
     RTuiAppBuilder *builder = NULL;
     RTuiApp *app = NULL;
     OK(rtui_app_builder_create(&builder));
@@ -239,11 +274,17 @@ int main(int argc, char **argv) {
     OK(rtui_app_builder_root_component(builder, root, &ctx));
     OK(rtui_app_builder_build(builder, &app));
     int result = rtui_app_run(app);
-    if (ctx.fail_render) assert(result != 0); else assert(result == 0);
+    if (ctx.fail_render || ctx.fail_event) {
+        assert(result != 0);
+        int32_t cause = 0;
+        OK(rtui_foreign_component_last_error(ctx.component, &cause));
+        assert(cause == (ctx.fail_render ? -1 : -12));
+    } else assert(result == 0);
     OK(rtui_foreign_component_destroy(ctx.component));
     assert(ctx.disposed == 1 && ctx.rendered > 0);
     rtui_dialog_engine_destroy(ctx.dialogs);
     rtui_text_editor_destroy(ctx.editor);
+    rtui_cleanup();
     puts("ENTRY_POINT_CLEAN_EXIT");
     return 0;
 }

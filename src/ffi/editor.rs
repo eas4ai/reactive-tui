@@ -1,473 +1,194 @@
-//! Text editor FFI functions
+//! Unicode editor access backed by the recovered native TextEditor.
+use super::controller::{self, Handle};
+use super::{catch_panic, RTuiElement, ReactiveError};
+use crate::component::{Element, LayoutType};
+use crate::editor::{cursor::Movement, TextEditor};
+use crate::layout::style::StyleBuilder;
+use std::ffi::c_char;
+use std::panic::AssertUnwindSafe;
+use std::sync::Arc;
 
-use super::*;
-use crate::editor::text_editor::TextEditor;
-use crate::editor::gap_buffer::TextPosition;
-use crate::widgets::input::text_input::{CursorPosition, Selection};
-use std::boxed::Box;
-use std::ffi::{CStr, CString};
-use std::os::raw::c_char;
-
-/// Opaque handle to a text editor
+/// Owning TextEditor handle; confined to its creating thread.
 #[repr(C)]
 pub struct RTuiTextEditor {
     _private: [u8; 0],
 }
 
-/// Opaque handle to editor config
-#[repr(C)]
-pub struct RTuiEditorConfig {
-    _private: [u8; 0],
+struct Editor {
+    inner: TextEditor,
+    width: u32,
+    height: u32,
 }
 
-/// Opaque handle to syntax highlighter
-#[repr(C)]
-pub struct RTuiSyntaxHighlighter {
-    _private: [u8; 0],
-}
-
-/// Simple editor mode enumeration (simplified for FFI)
-#[repr(C)]
-#[derive(Debug, Clone, Copy)]
-pub enum RTuiEditorMode {
-    Normal = 0,
-    Insert = 1,
-}
-
-/// Cursor position structure
-#[repr(C)]
-#[derive(Debug, Clone, Copy)]
-pub struct RTuiCursorPosition {
-    pub line: usize,
-    pub column: usize,
-}
-
-impl From<RTuiCursorPosition> for CursorPosition {
-    fn from(pos: RTuiCursorPosition) -> Self {
-        CursorPosition {
-            line: pos.line,
-            column: pos.column,
-        }
-    }
-}
-
-impl From<CursorPosition> for RTuiCursorPosition {
-    fn from(pos: CursorPosition) -> Self {
-        RTuiCursorPosition {
-            line: pos.line,
-            column: pos.column,
-        }
-    }
-}
-
-/// Text selection structure
-#[repr(C)]
-#[derive(Debug, Clone, Copy)]
-pub struct RTuiSelection {
-    pub start: RTuiCursorPosition,
-    pub end: RTuiCursorPosition,
-}
-
-impl From<RTuiSelection> for Selection {
-    fn from(sel: RTuiSelection) -> Self {
-        Selection {
-            start: sel.start.into(),
-            end: sel.end.into(),
-        }
-    }
-}
-
-impl From<Selection> for RTuiSelection {
-    fn from(sel: Selection) -> Self {
-        RTuiSelection {
-            start: sel.start.into(),
-            end: sel.end.into(),
-        }
-    }
-}
-
-/// Editor change callback function type
-pub type RTuiEditorChangeCallback = extern "C" fn(user_data: *mut std::ffi::c_void);
-
-/// Editor cursor move callback function type
-pub type RTuiEditorCursorMoveCallback = extern "C" fn(
-    position: RTuiCursorPosition,
-    user_data: *mut std::ffi::c_void,
-);
-
-/// Create a text editor with default settings
+/// Create an empty editor with the native default viewport and line numbers.
 #[no_mangle]
-pub extern "C" fn rtui_text_editor_create(
-    out_editor: *mut *mut RTuiTextEditor,
-) -> ReactiveError {
-    if out_editor.is_null() {
-        return ReactiveError::NullPointer;
-    }
-
-    catch_panic(AssertUnwindSafe(|| {
-        let editor = TextEditor::new();
-        unsafe {
-            *out_editor = Box::into_raw(Box::new(editor)) as *mut RTuiTextEditor;
-        }
-        Ok(())
-    }))
-}
-
-/// Destroy editor configuration
-#[no_mangle]
-pub extern "C" fn rtui_editor_config_destroy(config: *mut RTuiEditorConfig) {
-    if !config.is_null() {
-        unsafe {
-            let _ = Box::from_raw(config as *mut EditorConfig);
-        }
-    }
-}
-
-/// Set tab size in editor config
-#[no_mangle]
-pub extern "C" fn rtui_editor_config_set_tab_size(
-    config: *mut RTuiEditorConfig,
-    tab_size: usize,
-) -> ReactiveError {
-    if config.is_null() {
-        return ReactiveError::NullPointer;
-    }
-
+pub extern "C" fn rtui_text_editor_create(out_editor: *mut *mut RTuiTextEditor) -> ReactiveError {
     catch_panic(AssertUnwindSafe(|| unsafe {
-        let config_ref = &mut *(config as *mut EditorConfig);
-        config_ref.set_tab_size(tab_size);
+        controller::out(out_editor)?;
+        *out_editor = Box::into_raw(Box::new(Handle::new(Editor {
+            inner: TextEditor::new(),
+            width: 80,
+            height: 24,
+        })))
+        .cast();
         Ok(())
     }))
 }
 
-/// Set line numbers visibility in editor config
+/// Release an editor on its creating thread; null is accepted.
 #[no_mangle]
-pub extern "C" fn rtui_editor_config_set_show_line_numbers(
-    config: *mut RTuiEditorConfig,
-    show: bool,
-) -> ReactiveError {
-    if config.is_null() {
-        return ReactiveError::NullPointer;
-    }
-
+pub extern "C" fn rtui_text_editor_destroy(editor: *mut RTuiTextEditor) -> ReactiveError {
     catch_panic(AssertUnwindSafe(|| unsafe {
-        let config_ref = &mut *(config as *mut EditorConfig);
-        config_ref.set_show_line_numbers(show);
-        Ok(())
+        Handle::<Editor>::destroy(editor)
     }))
 }
 
-/// Set word wrap in editor config
-#[no_mangle]
-pub extern "C" fn rtui_editor_config_set_word_wrap(
-    config: *mut RTuiEditorConfig,
-    wrap: bool,
-) -> ReactiveError {
-    if config.is_null() {
-        return ReactiveError::NullPointer;
-    }
-
-    catch_panic(AssertUnwindSafe(|| unsafe {
-        let config_ref = &mut *(config as *mut EditorConfig);
-        config_ref.set_word_wrap(wrap);
-        Ok(())
-    }))
-}
-
-/// Create a text editor
-#[no_mangle]
-pub extern "C" fn rtui_text_editor_create(
-    config: *const RTuiEditorConfig,
-    out_editor: *mut *mut RTuiTextEditor,
-) -> ReactiveError {
-    if out_editor.is_null() {
-        return ReactiveError::NullPointer;
-    }
-
-    catch_panic(AssertUnwindSafe(|| unsafe {
-        let editor_config = if config.is_null() {
-            EditorConfig::default()
-        } else {
-            (*(config as *const EditorConfig)).clone()
-        };
-
-        let editor = TextEditor::new(editor_config);
-        *out_editor = Box::into_raw(Box::new(editor)) as *mut RTuiTextEditor;
-        Ok(())
-    }))
-}
-
-/// Destroy a text editor
-#[no_mangle]
-pub extern "C" fn rtui_text_editor_destroy(editor: *mut RTuiTextEditor) {
-    if !editor.is_null() {
-        unsafe {
-            let _ = Box::from_raw(editor as *mut TextEditor);
-        }
-    }
-}
-
-/// Set editor content
+/// Replace all text and reset cursor, selection and scroll.
 #[no_mangle]
 pub extern "C" fn rtui_text_editor_set_content(
     editor: *mut RTuiTextEditor,
     content: *const c_char,
 ) -> ReactiveError {
-    if editor.is_null() || content.is_null() {
-        return ReactiveError::NullPointer;
-    }
-
     catch_panic(AssertUnwindSafe(|| unsafe {
-        let content_str = CStr::from_ptr(content)
-            .to_str()
-            .map_err(|_| ReactiveError::InvalidUtf8)?;
-
-        let editor_ref = &mut *(editor as *mut TextEditor);
-        editor_ref.set_content(content_str);
+        let text = controller::string(content)?;
+        Handle::<Editor>::get_mut(editor)?.inner.set_content(text);
         Ok(())
     }))
 }
 
-/// Get editor content
+/// Return an owned UTF-8 copy; release it with rtui_string_free.
 #[no_mangle]
-pub extern "C" fn rtui_text_editor_get_content(
+pub extern "C" fn rtui_text_editor_get_content_owned(
     editor: *const RTuiTextEditor,
-    buffer: *mut c_char,
-    buffer_size: usize,
+    out_content: *mut *mut c_char,
 ) -> ReactiveError {
-    if editor.is_null() || buffer.is_null() {
-        return ReactiveError::NullPointer;
-    }
-
     catch_panic(AssertUnwindSafe(|| unsafe {
-        let editor_ref = &*(editor as *const TextEditor);
-        let content = editor_ref.content();
-        
-        if content.len() >= buffer_size {
-            return Err(ReactiveError::BufferTooSmall);
-        }
-
-        let c_string = CString::new(content).map_err(|_| ReactiveError::InvalidUtf8)?;
-        let bytes = c_string.as_bytes_with_nul();
-        std::ptr::copy_nonoverlapping(bytes.as_ptr(), buffer as *mut u8, bytes.len());
-        Ok(())
+        controller::out(out_content)?;
+        controller::owned_string(out_content, Handle::<Editor>::get(editor)?.inner.content())
     }))
 }
 
-/// Insert text at cursor position
+/// Insert UTF-8 text, replacing the complete selected graphemes.
 #[no_mangle]
 pub extern "C" fn rtui_text_editor_insert_text(
     editor: *mut RTuiTextEditor,
     text: *const c_char,
 ) -> ReactiveError {
-    if editor.is_null() || text.is_null() {
-        return ReactiveError::NullPointer;
-    }
-
     catch_panic(AssertUnwindSafe(|| unsafe {
-        let text_str = CStr::from_ptr(text)
-            .to_str()
-            .map_err(|_| ReactiveError::InvalidUtf8)?;
-
-        let editor_ref = &mut *(editor as *mut TextEditor);
-        editor_ref.insert_text(text_str);
+        let text = controller::string(text)?;
+        Handle::<Editor>::get_mut(editor)?.inner.insert_text(text);
         Ok(())
     }))
 }
 
-/// Delete text in selection or at cursor
+/// Delete the selection, or one preceding/following complete grapheme.
 #[no_mangle]
-pub extern "C" fn rtui_text_editor_delete_text(
+pub extern "C" fn rtui_text_editor_delete(
     editor: *mut RTuiTextEditor,
-    count: usize,
+    backward: bool,
 ) -> ReactiveError {
-    if editor.is_null() {
-        return ReactiveError::NullPointer;
-    }
-
     catch_panic(AssertUnwindSafe(|| unsafe {
-        let editor_ref = &mut *(editor as *mut TextEditor);
-        editor_ref.delete_text(count);
-        Ok(())
-    }))
-}
-
-/// Set cursor position
-#[no_mangle]
-pub extern "C" fn rtui_text_editor_set_cursor_position(
-    editor: *mut RTuiTextEditor,
-    position: RTuiCursorPosition,
-) -> ReactiveError {
-    if editor.is_null() {
-        return ReactiveError::NullPointer;
-    }
-
-    catch_panic(AssertUnwindSafe(|| unsafe {
-        let editor_ref = &mut *(editor as *mut TextEditor);
-        editor_ref.set_cursor_position(position.into());
-        Ok(())
-    }))
-}
-
-/// Get cursor position
-#[no_mangle]
-pub extern "C" fn rtui_text_editor_get_cursor_position(
-    editor: *const RTuiTextEditor,
-    out_position: *mut RTuiCursorPosition,
-) -> ReactiveError {
-    if editor.is_null() || out_position.is_null() {
-        return ReactiveError::NullPointer;
-    }
-
-    catch_panic(AssertUnwindSafe(|| unsafe {
-        let editor_ref = &*(editor as *const TextEditor);
-        let position = editor_ref.cursor_position();
-        *out_position = position.into();
-        Ok(())
-    }))
-}
-
-/// Set text selection
-#[no_mangle]
-pub extern "C" fn rtui_text_editor_set_selection(
-    editor: *mut RTuiTextEditor,
-    selection: RTuiSelection,
-) -> ReactiveError {
-    if editor.is_null() {
-        return ReactiveError::NullPointer;
-    }
-
-    catch_panic(AssertUnwindSafe(|| unsafe {
-        let editor_ref = &mut *(editor as *mut TextEditor);
-        editor_ref.set_selection(Some(selection.into()));
-        Ok(())
-    }))
-}
-
-/// Get text selection
-#[no_mangle]
-pub extern "C" fn rtui_text_editor_get_selection(
-    editor: *const RTuiTextEditor,
-    out_selection: *mut RTuiSelection,
-    out_has_selection: *mut bool,
-) -> ReactiveError {
-    if editor.is_null() || out_selection.is_null() || out_has_selection.is_null() {
-        return ReactiveError::NullPointer;
-    }
-
-    catch_panic(AssertUnwindSafe(|| unsafe {
-        let editor_ref = &*(editor as *const TextEditor);
-        if let Some(selection) = editor_ref.selection() {
-            *out_selection = selection.into();
-            *out_has_selection = true;
+        let editor = &mut Handle::<Editor>::get_mut(editor)?.inner;
+        if backward {
+            editor.delete_backward();
         } else {
-            *out_has_selection = false;
+            editor.delete_forward();
         }
         Ok(())
     }))
 }
 
-/// Set editor mode
+/// Movement codes: left/right/up/down=0..3, line start/end=4..5,
+/// document start/end=6..7, word backward/forward=8..9. Others are invalid.
 #[no_mangle]
-pub extern "C" fn rtui_text_editor_set_mode(
+pub extern "C" fn rtui_text_editor_move(
     editor: *mut RTuiTextEditor,
-    mode: RTuiEditorMode,
+    movement: u32,
+    select: bool,
 ) -> ReactiveError {
-    if editor.is_null() {
-        return ReactiveError::NullPointer;
-    }
-
     catch_panic(AssertUnwindSafe(|| unsafe {
-        let editor_ref = &mut *(editor as *mut TextEditor);
-        editor_ref.set_mode(mode.into());
-        Ok(())
-    }))
-}
-
-/// Get editor mode
-#[no_mangle]
-pub extern "C" fn rtui_text_editor_get_mode(
-    editor: *const RTuiTextEditor,
-    out_mode: *mut RTuiEditorMode,
-) -> ReactiveError {
-    if editor.is_null() || out_mode.is_null() {
-        return ReactiveError::NullPointer;
-    }
-
-    catch_panic(AssertUnwindSafe(|| unsafe {
-        let editor_ref = &*(editor as *const TextEditor);
-        let mode = editor_ref.mode();
-        *out_mode = match mode {
-            EditorMode::Normal => RTuiEditorMode::Normal,
-            EditorMode::Insert => RTuiEditorMode::Insert,
-            EditorMode::Visual => RTuiEditorMode::Visual,
-            EditorMode::Command => RTuiEditorMode::Command,
-            EditorMode::Search => RTuiEditorMode::Search,
+        let movement = match movement {
+            0 => Movement::Left,
+            1 => Movement::Right,
+            2 => Movement::Up,
+            3 => Movement::Down,
+            4 => Movement::LineStart,
+            5 => Movement::LineEnd,
+            6 => Movement::DocumentStart,
+            7 => Movement::DocumentEnd,
+            8 => Movement::WordBackward,
+            9 => Movement::WordForward,
+            _ => return Err(ReactiveError::InvalidParameter),
         };
+        Handle::<Editor>::get_mut(editor)?
+            .inner
+            .move_cursor(movement, select);
         Ok(())
     }))
 }
 
-/// Undo last operation
+/// Set a bounded viewport measured in terminal cells; invalid dimensions do not mutate it.
 #[no_mangle]
-pub extern "C" fn rtui_text_editor_undo(editor: *mut RTuiTextEditor) -> ReactiveError {
-    if editor.is_null() {
-        return ReactiveError::NullPointer;
-    }
-
-    catch_panic(AssertUnwindSafe(|| unsafe {
-        let editor_ref = &mut *(editor as *mut TextEditor);
-        editor_ref.undo();
-        Ok(())
-    }))
-}
-
-/// Redo last undone operation
-#[no_mangle]
-pub extern "C" fn rtui_text_editor_redo(editor: *mut RTuiTextEditor) -> ReactiveError {
-    if editor.is_null() {
-        return ReactiveError::NullPointer;
-    }
-
-    catch_panic(AssertUnwindSafe(|| unsafe {
-        let editor_ref = &mut *(editor as *mut TextEditor);
-        editor_ref.redo();
-        Ok(())
-    }))
-}
-
-/// Set syntax highlighter for editor
-#[no_mangle]
-pub extern "C" fn rtui_text_editor_set_syntax_highlighter(
+pub extern "C" fn rtui_text_editor_set_size(
     editor: *mut RTuiTextEditor,
-    highlighter: *mut RTuiSyntaxHighlighter,
+    width: u32,
+    height: u32,
 ) -> ReactiveError {
-    if editor.is_null() || highlighter.is_null() {
-        return ReactiveError::NullPointer;
-    }
-
     catch_panic(AssertUnwindSafe(|| unsafe {
-        let editor_ref = &mut *(editor as *mut TextEditor);
-        let highlighter_box = Box::from_raw(highlighter as *mut SyntaxHighlighter);
-        editor_ref.set_syntax_highlighter(Some(*highlighter_box));
+        if width > u16::MAX.into()
+            || height > u16::MAX.into()
+            || u64::from(width) * u64::from(height) > crate::backend::CellFrame::MAX_CELLS as u64
+        {
+            return Err(ReactiveError::InvalidParameter);
+        }
+        let editor = Handle::<Editor>::get_mut(editor)?;
+        editor.width = width;
+        editor.height = height;
+        editor.inner.set_size(width as usize, height as usize);
         Ok(())
     }))
 }
 
-/// Render editor to element
+/// Show or hide the native line-number gutter.
 #[no_mangle]
-pub extern "C" fn rtui_text_editor_render(
-    editor: *const RTuiTextEditor,
-    out_element: *mut *mut super::builder::RTuiElement,
+pub extern "C" fn rtui_text_editor_set_show_line_numbers(
+    editor: *mut RTuiTextEditor,
+    show: bool,
 ) -> ReactiveError {
-    if editor.is_null() || out_element.is_null() {
-        return ReactiveError::NullPointer;
-    }
-
     catch_panic(AssertUnwindSafe(|| unsafe {
-        let editor_ref = &*(editor as *const TextEditor);
-        let element = editor_ref.render();
-        *out_element = Box::into_raw(Box::new(element)) as *mut super::builder::RTuiElement;
+        Handle::<Editor>::get_mut(editor)?
+            .inner
+            .set_show_line_numbers(show);
+        Ok(())
+    }))
+}
+
+/// Copy the visible styled lines into an owned Element snapshot.
+#[no_mangle]
+pub extern "C" fn rtui_text_editor_element(
+    editor: *const RTuiTextEditor,
+    out_element: *mut *mut RTuiElement,
+) -> ReactiveError {
+    catch_panic(AssertUnwindSafe(|| unsafe {
+        controller::out(out_element)?;
+        let editor = Handle::<Editor>::get(editor)?;
+        let mut root = Element::layout(LayoutType::Flex).with_class(format!(
+            "flex-col w-{} h-{} shrink-0 overflow-hidden",
+            editor.width, editor.height
+        ));
+        for line in editor.inner.get_styled_lines() {
+            let mut row = Element::layout(LayoutType::Flex).with_class("flex-row h-1 shrink-0");
+            for run in line.runs {
+                let mut text = Element::text(run.text).with_class("whitespace-pre shrink-0");
+                let style = StyleBuilder::new()
+                    .text_rgba(run.fg.r, run.fg.g, run.fg.b, run.fg.a)
+                    .bg_rgba(run.bg.r, run.bg.g, run.bg.b, run.bg.a);
+                text.metadata.styles = Some(Arc::new(style.snapshot()));
+                row.children.push(text);
+            }
+            root.children.push(row);
+        }
+        *out_element = Box::into_raw(Box::new(root)).cast();
         Ok(())
     }))
 }

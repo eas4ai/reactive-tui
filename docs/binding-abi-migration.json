@@ -476,7 +476,7 @@
       "previous": "RTuiError (const char *, RTuiClickHandler, void *, RTuiElement **)",
       "status": "retired",
       "current": null,
-      "guidance": "Rust on_click does not install a callable handler. Use rtui_button for a static styled element; native click callbacks remain unsupported."
+      "guidance": "This old symbol remains absent. Use the foreign component event callback with a focusable Element for native interaction; see native-components.md."
     },
     "rtui_card": {
       "previous": "RTuiError (RTuiElement *const *, size_t, RTuiElement **)",
@@ -658,99 +658,116 @@
     },
     "rtui_dialog_engine_create": {
       "previous": "RTuiError (RTuiDialogEngine **)",
-      "status": "retired",
-      "current": null,
-      "guidance": "No dialog API is compiled into the library; unsupported."
+      "status": "reconciled",
+      "current": {
+        "result": "RTuiError",
+        "parameters": [
+          "RTuiDialogEngine **"
+        ]
+      },
+      "guidance": "Reintroduced in API-017 with the exact audited native.h signature. Updates target an active dialog ID and validated JSON changes; destruction returns a status. See native-components.md for ownership and behavior."
     },
     "rtui_dialog_engine_destroy": {
       "previous": "void (RTuiDialogEngine *)",
-      "status": "retired",
-      "current": null,
-      "guidance": "No dialog API is compiled into the library; unsupported."
+      "status": "reconciled",
+      "current": {
+        "result": "RTuiError",
+        "parameters": [
+          "RTuiDialogEngine *"
+        ]
+      },
+      "guidance": "Reintroduced in API-017 with the exact audited native.h signature. Updates target an active dialog ID and validated JSON changes; destruction returns a status. See native-components.md for ownership and behavior."
     },
     "rtui_dialog_engine_update": {
       "previous": "RTuiError (RTuiDialogEngine *)",
-      "status": "retired",
-      "current": null,
-      "guidance": "No dialog API is compiled into the library; unsupported."
+      "status": "reconciled",
+      "current": {
+        "result": "RTuiError",
+        "parameters": [
+          "RTuiDialogEngine *",
+          "uint32_t",
+          "const char *"
+        ]
+      },
+      "guidance": "Reintroduced in API-017 with the exact audited native.h signature. Updates target an active dialog ID and validated JSON changes; destruction returns a status. See native-components.md for ownership and behavior."
     },
     "rtui_dialog_engine_has_active_dialogs": {
       "previous": "RTuiError (const RTuiDialogEngine *, _Bool *)",
       "status": "retired",
       "current": null,
-      "guidance": "No dialog API is compiled into the library; unsupported."
+      "guidance": "This old declaration was never a compiled export. Use rtui_dialog_engine_open/element/update/close/take_event with the controller ownership documented in native-components.md."
     },
     "rtui_dialog_create_confirmation": {
       "previous": "RTuiError (RTuiDialogEngine *, const char *, const char *, const char *, const char *, RTuiDialog **)",
       "status": "retired",
       "current": null,
-      "guidance": "No dialog API is compiled into the library; unsupported."
+      "guidance": "This old declaration was never a compiled export. Use rtui_dialog_engine_open/element/update/close/take_event with the controller ownership documented in native-components.md."
     },
     "rtui_dialog_create_input": {
       "previous": "RTuiError (RTuiDialogEngine *, const char *, const char *, const char *, const char *, RTuiDialog **)",
       "status": "retired",
       "current": null,
-      "guidance": "No dialog API is compiled into the library; unsupported."
+      "guidance": "This old declaration was never a compiled export. Use rtui_dialog_engine_open/element/update/close/take_event with the controller ownership documented in native-components.md."
     },
     "rtui_dialog_create_toast": {
       "previous": "RTuiError (RTuiDialogEngine *, const char *, uint32_t, RTuiDialog **)",
       "status": "retired",
       "current": null,
-      "guidance": "No dialog API is compiled into the library; unsupported."
+      "guidance": "This old declaration was never a compiled export. Use rtui_dialog_engine_open/element/update/close/take_event with the controller ownership documented in native-components.md."
     },
     "rtui_dialog_create_progress": {
       "previous": "RTuiError (RTuiDialogEngine *, const char *, const char *, RTuiDialog **)",
       "status": "retired",
       "current": null,
-      "guidance": "No dialog API is compiled into the library; unsupported."
+      "guidance": "This old declaration was never a compiled export. Use rtui_dialog_engine_open/element/update/close/take_event with the controller ownership documented in native-components.md."
     },
     "rtui_dialog_show": {
       "previous": "RTuiError (RTuiDialog *)",
       "status": "retired",
       "current": null,
-      "guidance": "No dialog API is compiled into the library; unsupported."
+      "guidance": "This old declaration was never a compiled export. Use rtui_dialog_engine_open/element/update/close/take_event with the controller ownership documented in native-components.md."
     },
     "rtui_dialog_hide": {
       "previous": "RTuiError (RTuiDialog *)",
       "status": "retired",
       "current": null,
-      "guidance": "No dialog API is compiled into the library; unsupported."
+      "guidance": "This old declaration was never a compiled export. Use rtui_dialog_engine_open/element/update/close/take_event with the controller ownership documented in native-components.md."
     },
     "rtui_dialog_close": {
       "previous": "RTuiError (RTuiDialog *)",
       "status": "retired",
       "current": null,
-      "guidance": "No dialog API is compiled into the library; unsupported."
+      "guidance": "This old declaration was never a compiled export. Use rtui_dialog_engine_open/element/update/close/take_event with the controller ownership documented in native-components.md."
     },
     "rtui_dialog_is_visible": {
       "previous": "RTuiError (const RTuiDialog *, _Bool *)",
       "status": "retired",
       "current": null,
-      "guidance": "No dialog API is compiled into the library; unsupported."
+      "guidance": "This old declaration was never a compiled export. Use rtui_dialog_engine_open/element/update/close/take_event with the controller ownership documented in native-components.md."
     },
     "rtui_dialog_get_confirmation_result": {
       "previous": "RTuiError (const RTuiDialog *, _Bool *)",
       "status": "retired",
       "current": null,
-      "guidance": "No dialog API is compiled into the library; unsupported."
+      "guidance": "This old declaration was never a compiled export. Use rtui_dialog_engine_open/element/update/close/take_event with the controller ownership documented in native-components.md."
     },
     "rtui_dialog_get_input_text": {
       "previous": "RTuiError (const RTuiDialog *, char *, size_t)",
       "status": "retired",
       "current": null,
-      "guidance": "No dialog API is compiled into the library; unsupported."
+      "guidance": "This old declaration was never a compiled export. Use rtui_dialog_engine_open/element/update/close/take_event with the controller ownership documented in native-components.md."
     },
     "rtui_dialog_set_progress": {
       "previous": "RTuiError (RTuiDialog *, float)",
       "status": "retired",
       "current": null,
-      "guidance": "No dialog API is compiled into the library; unsupported."
+      "guidance": "This old declaration was never a compiled export. Use rtui_dialog_engine_open/element/update/close/take_event with the controller ownership documented in native-components.md."
     },
     "rtui_dialog_set_progress_message": {
       "previous": "RTuiError (RTuiDialog *, const char *)",
       "status": "retired",
       "current": null,
-      "guidance": "No dialog API is compiled into the library; unsupported."
+      "guidance": "This old declaration was never a compiled export. Use rtui_dialog_engine_open/element/update/close/take_event with the controller ownership documented in native-components.md."
     },
     "rtui_terminal_poll_event": {
       "previous": "RTuiError (uint32_t, RTuiEvent *)",
@@ -827,91 +844,91 @@
       "previous": "RTuiError (RTuiStyleBuilder **)",
       "status": "retired",
       "current": null,
-      "guidance": "No native style-builder API is compiled; use Element class strings."
+      "guidance": "This old declaration was never a compiled export. Use rtui_native_style_create/apply/destroy for validated inline CSS, or retained Element utility classes. See native-components.md."
     },
     "rtui_style_builder_destroy": {
       "previous": "void (RTuiStyleBuilder *)",
       "status": "retired",
       "current": null,
-      "guidance": "No native style-builder API is compiled; use Element class strings."
+      "guidance": "This old declaration was never a compiled export. Use rtui_native_style_create/apply/destroy for validated inline CSS, or retained Element utility classes. See native-components.md."
     },
     "rtui_apply_utility_classes": {
       "previous": "RTuiError (RTuiStyleBuilder *, const char *, RTuiStyleBuilder **)",
       "status": "retired",
       "current": null,
-      "guidance": "No native style-builder API is compiled; use Element class strings."
+      "guidance": "This old declaration was never a compiled export. Use rtui_native_style_create/apply/destroy for validated inline CSS, or retained Element utility classes. See native-components.md."
     },
     "rtui_style_builder_display": {
       "previous": "RTuiError (RTuiStyleBuilder *, RTuiDisplayType, RTuiStyleBuilder **)",
       "status": "retired",
       "current": null,
-      "guidance": "No native style-builder API is compiled; use Element class strings."
+      "guidance": "This old declaration was never a compiled export. Use rtui_native_style_create/apply/destroy for validated inline CSS, or retained Element utility classes. See native-components.md."
     },
     "rtui_style_builder_flex_direction": {
       "previous": "RTuiError (RTuiStyleBuilder *, RTuiFlexDirection, RTuiStyleBuilder **)",
       "status": "retired",
       "current": null,
-      "guidance": "No native style-builder API is compiled; use Element class strings."
+      "guidance": "This old declaration was never a compiled export. Use rtui_native_style_create/apply/destroy for validated inline CSS, or retained Element utility classes. See native-components.md."
     },
     "rtui_style_builder_justify_content": {
       "previous": "RTuiError (RTuiStyleBuilder *, RTuiJustifyContent, RTuiStyleBuilder **)",
       "status": "retired",
       "current": null,
-      "guidance": "No native style-builder API is compiled; use Element class strings."
+      "guidance": "This old declaration was never a compiled export. Use rtui_native_style_create/apply/destroy for validated inline CSS, or retained Element utility classes. See native-components.md."
     },
     "rtui_style_builder_align_items": {
       "previous": "RTuiError (RTuiStyleBuilder *, RTuiAlignItems, RTuiStyleBuilder **)",
       "status": "retired",
       "current": null,
-      "guidance": "No native style-builder API is compiled; use Element class strings."
+      "guidance": "This old declaration was never a compiled export. Use rtui_native_style_create/apply/destroy for validated inline CSS, or retained Element utility classes. See native-components.md."
     },
     "rtui_style_builder_width": {
       "previous": "RTuiError (RTuiStyleBuilder *, RTuiDimension, RTuiStyleBuilder **)",
       "status": "retired",
       "current": null,
-      "guidance": "No native style-builder API is compiled; use Element class strings."
+      "guidance": "This old declaration was never a compiled export. Use rtui_native_style_create/apply/destroy for validated inline CSS, or retained Element utility classes. See native-components.md."
     },
     "rtui_style_builder_height": {
       "previous": "RTuiError (RTuiStyleBuilder *, RTuiDimension, RTuiStyleBuilder **)",
       "status": "retired",
       "current": null,
-      "guidance": "No native style-builder API is compiled; use Element class strings."
+      "guidance": "This old declaration was never a compiled export. Use rtui_native_style_create/apply/destroy for validated inline CSS, or retained Element utility classes. See native-components.md."
     },
     "rtui_style_builder_padding": {
       "previous": "RTuiError (RTuiStyleBuilder *, float, RTuiStyleBuilder **)",
       "status": "retired",
       "current": null,
-      "guidance": "No native style-builder API is compiled; use Element class strings."
+      "guidance": "This old declaration was never a compiled export. Use rtui_native_style_create/apply/destroy for validated inline CSS, or retained Element utility classes. See native-components.md."
     },
     "rtui_style_builder_margin": {
       "previous": "RTuiError (RTuiStyleBuilder *, float, RTuiStyleBuilder **)",
       "status": "retired",
       "current": null,
-      "guidance": "No native style-builder API is compiled; use Element class strings."
+      "guidance": "This old declaration was never a compiled export. Use rtui_native_style_create/apply/destroy for validated inline CSS, or retained Element utility classes. See native-components.md."
     },
     "rtui_style_builder_background_color": {
       "previous": "RTuiError (RTuiStyleBuilder *, RTuiStyleColor, RTuiStyleBuilder **)",
       "status": "retired",
       "current": null,
-      "guidance": "No native style-builder API is compiled; use Element class strings."
+      "guidance": "This old declaration was never a compiled export. Use rtui_native_style_create/apply/destroy for validated inline CSS, or retained Element utility classes. See native-components.md."
     },
     "rtui_style_builder_color": {
       "previous": "RTuiError (RTuiStyleBuilder *, RTuiStyleColor, RTuiStyleBuilder **)",
       "status": "retired",
       "current": null,
-      "guidance": "No native style-builder API is compiled; use Element class strings."
+      "guidance": "This old declaration was never a compiled export. Use rtui_native_style_create/apply/destroy for validated inline CSS, or retained Element utility classes. See native-components.md."
     },
     "rtui_style_builder_build": {
       "previous": "RTuiError (RTuiStyleBuilder *, RTuiComputedStyle **)",
       "status": "retired",
       "current": null,
-      "guidance": "No native style-builder API is compiled; use Element class strings."
+      "guidance": "This old declaration was never a compiled export. Use rtui_native_style_create/apply/destroy for validated inline CSS, or retained Element utility classes. See native-components.md."
     },
     "rtui_computed_style_destroy": {
       "previous": "void (RTuiComputedStyle *)",
       "status": "retired",
       "current": null,
-      "guidance": "No native style-builder API is compiled; use Element class strings."
+      "guidance": "This old declaration was never a compiled export. Use rtui_native_style_create/apply/destroy for validated inline CSS, or retained Element utility classes. See native-components.md."
     },
     "rtui_terminal_create": {
       "previous": "RTuiError (RTuiTerminal **)",
@@ -2263,61 +2280,61 @@
     "rtui_dialog_close": {
       "status": "retired",
       "current": null,
-      "guidance": "No dialog API is compiled into the library; unsupported.",
+      "guidance": "This old declaration was never a compiled export. Use rtui_dialog_engine_open/element/update/close/take_event with the controller ownership documented in native-components.md.",
       "previous": "['int', [VoidPtr]]"
     },
     "rtui_dialog_create": {
       "status": "retired",
       "current": null,
-      "guidance": "No dialog API is compiled into the library; unsupported.",
+      "guidance": "This old declaration was never a compiled export. Use rtui_dialog_engine_open/element/update/close/take_event with the controller ownership documented in native-components.md.",
       "previous": "[VoidPtr, ['int', 'string']]"
     },
     "rtui_dialog_focus": {
       "status": "retired",
       "current": null,
-      "guidance": "No dialog API is compiled into the library; unsupported.",
+      "guidance": "This old declaration was never a compiled export. Use rtui_dialog_engine_open/element/update/close/take_event with the controller ownership documented in native-components.md.",
       "previous": "['int', [VoidPtr]]"
     },
     "rtui_dialog_free": {
       "status": "retired",
       "current": null,
-      "guidance": "No dialog API is compiled into the library; unsupported.",
+      "guidance": "This old declaration was never a compiled export. Use rtui_dialog_engine_open/element/update/close/take_event with the controller ownership documented in native-components.md.",
       "previous": "['void', [VoidPtr]]"
     },
     "rtui_dialog_get_result": {
       "status": "retired",
       "current": null,
-      "guidance": "No dialog API is compiled into the library; unsupported.",
+      "guidance": "This old declaration was never a compiled export. Use rtui_dialog_engine_open/element/update/close/take_event with the controller ownership documented in native-components.md.",
       "previous": "['string', [VoidPtr]]"
     },
     "rtui_dialog_is_visible": {
       "status": "retired",
       "current": null,
-      "guidance": "No dialog API is compiled into the library; unsupported.",
+      "guidance": "This old declaration was never a compiled export. Use rtui_dialog_engine_open/element/update/close/take_event with the controller ownership documented in native-components.md.",
       "previous": "['bool', [VoidPtr]]"
     },
     "rtui_dialog_result_free": {
       "status": "retired",
       "current": null,
-      "guidance": "No dialog API is compiled into the library; unsupported.",
+      "guidance": "This old declaration was never a compiled export. Use rtui_dialog_engine_open/element/update/close/take_event with the controller ownership documented in native-components.md.",
       "previous": "['void', [VoidPtr]]"
     },
     "rtui_dialog_show": {
       "status": "retired",
       "current": null,
-      "guidance": "No dialog API is compiled into the library; unsupported.",
+      "guidance": "This old declaration was never a compiled export. Use rtui_dialog_engine_open/element/update/close/take_event with the controller ownership documented in native-components.md.",
       "previous": "[VoidPtr, [VoidPtr]]"
     },
     "rtui_dialog_show_async": {
       "status": "retired",
       "current": null,
-      "guidance": "No dialog API is compiled into the library; unsupported.",
+      "guidance": "This old declaration was never a compiled export. Use rtui_dialog_engine_open/element/update/close/take_event with the controller ownership documented in native-components.md.",
       "previous": "[VoidPtr, [VoidPtr, 'string', 'pointer']]"
     },
     "rtui_dialog_update": {
       "status": "retired",
       "current": null,
-      "guidance": "No dialog API is compiled into the library; unsupported.",
+      "guidance": "This old declaration was never a compiled export. Use rtui_dialog_engine_open/element/update/close/take_event with the controller ownership documented in native-components.md.",
       "previous": "['int', [VoidPtr, 'string']]"
     },
     "rtui_init": {

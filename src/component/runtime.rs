@@ -118,7 +118,7 @@ impl ComponentRuntime {
                 let mut output = {
                     let mut instance = live.instance.lock().unwrap();
                     instance.update(element.props.as_ref());
-                    instance.render()
+                    instance.try_render()?
                 };
                 let (events, layout) = live.handlers();
                 let identity = live.identity;

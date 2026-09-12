@@ -4268,3 +4268,73 @@ The first run is a baseline; editor/layout/dialog modules remain excluded and
 the foreign controller is absent. The controller architecture was recorded
 before implementation. A Python syntax parse passed; consumer compilation and
 behavior are intentionally not yet claimed to pass.
+
+## API-017 implementation and development verification
+
+Implemented native editor, layout-style and dialog controllers using the recovered
+Rust implementations, with a retained foreign component controller and TypeScript
+ownership wrappers. Added compatible fallible Component rendering and a C owned-root
+entry point so callback failures leave App through its normal cleanup path. The
+existing infallible Rust methods and compiled C ABI remain available. The generated
+header, Koffi metadata, exports, migration inventories and controller contract agree.
+
+Creating-thread checks precede controller access. Foreign callbacks receive owned
+JSON snapshots without a held prop/state lock; reads and updates can reenter, while
+recursive callbacks and disposal are rejected. App retains its existing instance
+serialization mutex. Clarified that distinction in the decision: it is not a promise
+that all native locks disappear during callbacks. Errors wake the App through a
+separate failure signal and preserve a native cause through last_error. Disposed
+controllers cannot call released userdata even when old Elements remain. TypeScript
+retains registered callbacks until successful native destruction and preserves the
+original callback exception after cleanup, including an exception in disposal.
+
+Development acceptance passed as api-017-final-development.log, with captures in
+api-native-components/20260912T003627Z. Independent C/Rust compilers and Koffi agree
+on 243 signatures and 13 layouts. Strict C and real TypeScript consumers passed
+Unicode editing/selection, invalid arguments, independent state, state/prop updates,
+wrong-thread calls, recursive calls, returned allocations on failure, missing output
+on success, callback failures, explicit retry and cleanup. The retained-Element test
+clears the prior callback error first, so it specifically tests disposal protection.
+TypeScript also rejects nonfinite JSON and tests a throwing dispose callback.
+
+Both languages passed real App PTYs for layout, Unicode editor paint, foreign state
+and props, modal input and result data, restored focus, resize and terminal cleanup.
+Both exercised confirmation, timed toast, updated progress cancellation, autocomplete
+selection and a two-step wizard through their native controls. Render and event error
+PTYs exited and restored the terminal. A separately compiled violating callback
+acknowledged input without updating state: the frame assertion rejected it, then
+shutdown restored the terminal. This demonstrates that a successful native return
+code alone cannot pass the mechanism.
+
+The initial direct baseline failed missing native types/functions and TypeScript
+exports. During development independent ABI checking rejected an opaque Option
+callback declaration emitted by cbindgen; nullable callback aliases fixed it. Later
+fixture failures exposed a C callback name collision with an old export and an
+execv launcher requiring an absolute env path. Dialog probes showed actual native
+toast dismissal is Confirmed(None), and progress is displayed as 75.0%; corrected
+those expectations without changing native behavior. Failed and corrected logs and
+captures are retained. None of these development runs is a formal Cairn receipt.
+
+Focused Rust regression tests passed: component expansion 5, editor Unicode 23,
+event routing 9, focus 12 and hooks 7 (56 total). Strict default Clippy passed;
+TypeScript ESLint passed with zero warnings; cargo fmt --all --check, generated
+header --verify and git diff --check passed. The ffi build retains six existing
+warnings, not a claim of strict FFI lint success.
+
+Reviewed controller ownership, JSON bounds, callback error propagation, disposal,
+Element consumption, documented editor snapshots and blocking Node App behavior.
+Native custom dialog callbacks and custom Element wizard panels remain Rust APIs;
+this binding provides the explicitly described native options and text panels.
+Ripwire edit-check passed. Quality-delta exited 2 and test-gate 4; bounded findings
+and specific assessments are in api-017-static-summary.json. Header findings match
+previously excluded wrappers; trait/C callbacks are indirect; the reported
+ComponentBuilder.key complexity of 88 is a name-attribution error (two statements,
+no branches). Small typed ABI wrappers and opposite-direction enum conversions are
+kept explicit. Static reports are not represented as passing acceptance evidence.
+
+API-017 remains in progress until its committed formal acceptance and refreshed
+inherited requirements pass. API-018 through API-020 remain pending.
+
+The staged whitespace check flags raw terminal CRLF and captured log formatting.
+Those evidence bytes are preserved. The source/document check excluding raw .bin
+and .log captures passed; no historical or captured output was normalized.

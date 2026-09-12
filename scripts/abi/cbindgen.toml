@@ -20,6 +20,10 @@ typedef struct RTuiThreadSafeSignal RTuiThreadSafeSignal;
 typedef struct RTuiEffect RTuiEffect;
 typedef struct RTuiHooks RTuiHooks;
 typedef struct RTuiSurface RTuiSurface;
+typedef struct RTuiTextEditor RTuiTextEditor;
+typedef struct RTuiNativeStyle RTuiNativeStyle;
+typedef struct RTuiDialogEngine RTuiDialogEngine;
+typedef struct RTuiForeignComponent RTuiForeignComponent;
 
 /* Signal ownership: each constructor and hook lookup returns an owning handle.
  * Release it exactly once with either rtui_signal_destroy or
@@ -36,7 +40,7 @@ typedef struct RTuiSurface RTuiSurface;
 parse_deps = false
 [export]
 include = ["LogCallback"]
-exclude = ["RTuiRenderer", "RTuiBuffer", "RTuiTerminal", "RTuiTextBuffer", "RTuiAnimationManager", "RTuiAnimation", "RTuiAppBuilder", "RTuiElement", "RTuiApp", "RTuiElementBuilder", "RTuiSignal", "RTuiThreadSafeSignal", "RTuiEffect", "RTuiHooks", "RTuiSurface", "ReactiveTerminal", "DialogId", "Rect"]
+exclude = ["RTuiRenderer", "RTuiBuffer", "RTuiTerminal", "RTuiTextBuffer", "RTuiAnimationManager", "RTuiAnimation", "RTuiAppBuilder", "RTuiElement", "RTuiApp", "RTuiElementBuilder", "RTuiSignal", "RTuiThreadSafeSignal", "RTuiEffect", "RTuiHooks", "RTuiSurface", "ReactiveTerminal", "DialogId", "Rect", "RTuiTextEditor", "RTuiNativeStyle", "RTuiDialogEngine", "RTuiForeignComponent"]
 item_types = ["functions", "structs", "enums", "typedefs", "unions", "opaque"]
 [enum]
 prefix_with_name = true

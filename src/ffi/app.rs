@@ -97,6 +97,34 @@ struct FFIRootComponent {
     user_data: *mut std::ffi::c_void,
 }
 
+struct ElementRoot(Element);
+impl RootComponent for ElementRoot {
+    fn render(&self) -> Element {
+        self.0.clone()
+    }
+    fn wake_driven(&self) -> bool {
+        true
+    }
+}
+
+/// Retain an Element root, consuming it on success. Nested foreign components
+/// use the normal fallible component runtime without an infallible root callback.
+#[no_mangle]
+pub extern "C" fn rtui_app_builder_root_element(
+    builder: *mut RTuiAppBuilder,
+    element: *mut RTuiElement,
+) -> ReactiveError {
+    if builder.is_null() || element.is_null() {
+        return ReactiveError::NullPointer;
+    }
+    catch_panic(AssertUnwindSafe(|| unsafe {
+        let builder = &mut (*builder.cast::<NativeAppBuilder>()).inner;
+        let element = *Box::from_raw(element.cast::<Element>());
+        *builder = std::mem::take(builder).root(ElementRoot(element));
+        Ok(())
+    }))
+}
+
 unsafe impl Send for FFIRootComponent {}
 unsafe impl Sync for FFIRootComponent {}
 

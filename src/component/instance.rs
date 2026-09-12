@@ -54,6 +54,11 @@ impl<C: Component> ComponentInstance<C> {
         self.component.render(&self.props, &self.state)
     }
 
+    /// Render while preserving component errors for the application owner.
+    pub fn try_render(&self) -> crate::error::Result<Element> {
+        self.component.try_render(&self.props, &self.state)
+    }
+
     /// Deliver input to this instance without recreating its state.
     pub fn handle_event(
         &mut self,
@@ -172,6 +177,11 @@ impl AnyComponentInstance {
         self.inner.render_any()
     }
 
+    /// Render while preserving errors across type erasure.
+    pub fn try_render(&self) -> crate::error::Result<Element> {
+        self.inner.try_render_any()
+    }
+
     /// Deliver input to the retained typed instance.
     pub fn handle_event(
         &mut self,
@@ -244,6 +254,10 @@ impl<C: Component> AnyComponent for ComponentInstanceWrapper<C> {
 
     fn render_any(&self) -> Element {
         self.0.render()
+    }
+
+    fn try_render_any(&self) -> crate::error::Result<Element> {
+        self.0.try_render()
     }
 
     fn handle_event_any(

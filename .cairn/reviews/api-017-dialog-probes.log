@@ -1,0 +1,10 @@
+Focused captures: /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-native-components/dialogs-20260912T002825Z
++ cc -std=c11 -Wall -Wextra -Werror -Iinclude /home/shawn/workspace2/reactive-tui/verification/api-native-components/consumer.c -L/home/shawn/workspace2/reactive-tui/target/debug -Wl,-rpath,/home/shawn/workspace2/reactive-tui/target/debug -lreactive_tui -pthread -o /home/shawn/workspace2/reactive-tui/target/native-dialog-probes-g7mcyslr/consumer
++ /home/shawn/workspace2/reactive-tui/bindings/typescript/node_modules/.bin/tsc /home/shawn/workspace2/reactive-tui/verification/api-native-components/consumer.ts --strict --target ES2020 --module commonjs --moduleResolution node --esModuleInterop --resolveJsonModule --skipLibCheck --types node --typeRoots /home/shawn/workspace2/reactive-tui/bindings/typescript/node_modules/@types --outDir /home/shawn/workspace2/reactive-tui/target/native-dialog-probes-g7mcyslr/typescript
++ rustc --edition=2021 /home/shawn/workspace2/reactive-tui/verification/api-entry-points/screen.rs --extern vt100=/home/shawn/workspace2/reactive-tui/target/debug/deps/libvt100-da219aef7cf0116f.rlib -L dependency=/home/shawn/workspace2/reactive-tui/target/debug/deps -o /home/shawn/workspace2/reactive-tui/target/native-dialog-probes-g7mcyslr/screen
+PASS C progress native paint, interaction and actual result
+PASS C autocomplete native paint, interaction and actual result
+PASS C wizard native paint, interaction and actual result
+PASS TypeScript progress native paint, interaction and actual result
+PASS TypeScript autocomplete native paint, interaction and actual result
+PASS TypeScript wizard native paint, interaction and actual result

@@ -1,0 +1,134 @@
+warning: ambiguous glob re-exports
+  --> src/ffi/mod.rs:94:9
+   |
+94 | pub use pointer::*;
+   |         ^^^^^^^^^^ the name `validate_pointer` in the value namespace is first re-exported here
+...
+99 | pub use types::*;
+   |         -------- but the name `validate_pointer` in the value namespace is also re-exported here
+   |
+   = note: `#[warn(ambiguous_glob_reexports)]` on by default
+
+warning: unused variable: `width`
+  --> src/ffi/lib.rs:85:14
+   |
+85 |         let (width, height) = renderer_box.dims();
+   |              ^^^^^ help: if this is intentional, prefix it with an underscore: `_width`
+   |
+   = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `validate_pointer` is never used
+   --> src/ffi/types.rs:182:15
+    |
+182 | pub(crate) fn validate_pointer<T>(ptr: *const T) -> bool {
+    |               ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `validate_mut_pointer` is never used
+   --> src/ffi/types.rs:187:15
+    |
+187 | pub(crate) fn validate_mut_pointer<T>(ptr: *mut T) -> bool {
+    |               ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `safe_cast` is never used
+   --> src/ffi/types.rs:192:22
+    |
+192 | pub(crate) unsafe fn safe_cast<T, U>(ptr: *mut T) -> Result<*mut U, ReactiveError> {
+    |                      ^^^^^^^^^
+
+warning: function `safe_cast_const` is never used
+   --> src/ffi/types.rs:206:22
+    |
+206 | pub(crate) unsafe fn safe_cast_const<T, U>(ptr: *const T) -> Result<*const U, ReactiveError> {
+    |                      ^^^^^^^^^^^^^^^
+
+warning: `reactive-tui` (lib) generated 6 warnings (run `cargo fix --lib -p reactive-tui` to apply 1 suggestion)
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.66s
+     Running tests/api_component_expansion.rs (target/debug/deps/api_component_expansion-729f32f83e5ebf38)
+
+running 5 tests
+test duplicate_keys_fail_without_ambiguous_instance_reuse ... ok
+test nested_components_keep_instances_through_props_reorder_and_removal ... ok
+test recursive_expansion_fails_with_a_bounded_error ... ok
+test replacing_component_type_at_a_key_releases_old_state ... ok
+test unknown_names_keep_their_container_children_and_plain_text_control_paints ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+
+     Running tests/api_editor_unicode.rs (target/debug/deps/api_editor_unicode-179042ec260670ae)
+
+running 23 tests
+test cursor_uses_scalar_offsets_and_display_columns ... ok
+test line_index_tracks_edits_before_and_at_newlines ... ok
+test plain::clipping_keeps_wide_graphemes_whole_and_clears_old_text ... ok
+test plain::control_text_is_visible_without_becoming_terminal_commands ... ok
+test plain::edits_that_join_graphemes_leave_cursor_at_a_boundary ... ok
+test plain::forward_delete_and_crlf_are_atomic ... ok
+test plain::mixed_insertion_and_grapheme_deletion ... ok
+test plain::painted_columns_and_selection_match_text ... ok
+test plain::rendered_terminal_cells_retain_unicode_after_updates ... ok
+test plain::selection_after_syntax_runs_and_tabs_uses_text_offsets ... ok
+test plain::selection_replaces_whole_graphemes_across_lines ... ok
+test surface_grapheme_ownership_survives_copy_and_expires_on_overwrite ... ok
+test syntax::clipping_keeps_wide_graphemes_whole_and_clears_old_text ... ok
+test syntax::control_text_is_visible_without_becoming_terminal_commands ... ok
+test syntax::edits_that_join_graphemes_leave_cursor_at_a_boundary ... ok
+test syntax::forward_delete_and_crlf_are_atomic ... ok
+test syntax::mixed_insertion_and_grapheme_deletion ... ok
+test syntax::painted_columns_and_selection_match_text ... ok
+test syntax::rendered_terminal_cells_retain_unicode_after_updates ... ok
+test syntax::selection_after_syntax_runs_and_tabs_uses_text_offsets ... ok
+test syntax::selection_replaces_whole_graphemes_across_lines ... ok
+test vertical_motion_preserves_columns_across_short_and_wide_lines ... ok
+test word_movement_retains_unicode_grapheme_boundaries ... ok
+
+test result: ok. 23 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running tests/api_event_routing.rs (target/debug/deps/api_event_routing-8923e1e09cde78bc)
+
+running 9 tests
+test builder_callback_receives_keyboard_activation_once ... ok
+test capture_target_bubble_order_and_handled_result_are_preserved ... ok
+test child_activation_runs_each_registration_once_without_activating_parent ... ok
+test hit_index_uses_actual_initial_viewport_beyond_default_eighty_columns ... ok
+test mouse_bounds_follow_painted_resize_and_misses_do_not_activate_focus ... ok
+test overlap_and_ancestor_clipping_match_visible_cells ... ok
+test redraw_replaces_callback_without_duplicate_registration ... ok
+test registered_component_keeps_callers_callback_on_expanded_output ... ok
+test removed_callback_releases_its_capture_and_cannot_run_again ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+
+     Running tests/api_focus.rs (target/debug/deps/api_focus-6c63d1caa7947fa1)
+
+running 12 tests
+test a_removed_opener_is_not_resurrected_when_nested_dialogs_close ... ok
+test an_empty_trap_blocks_outside_keyboard_activation_and_restores_on_close ... ok
+test an_explicit_imperative_trap_call_can_reactivate_an_existing_container ... ok
+test enabling_autofocus_requests_focus_once_on_an_existing_key ... ok
+test keyed_redraw_and_reorder_preserve_focus_without_repeat_callbacks ... ok
+test mouse_focus_stays_in_the_active_dialog ... ok
+test nested_dialogs_autofocus_wrap_and_restore_the_last_outer_target ... ok
+test positive_tab_indices_precede_default_order_and_negative_indices_are_skipped ... ok
+test public_app_focus_methods_share_the_router_focus_owner ... ok
+test removing_an_imperative_router_subtree_also_removes_its_trap ... ok
+test removing_the_outer_dialog_with_inner_open_restores_the_original_opener ... ok
+test tab_reverse_tab_and_release_follow_one_focus_order_without_a_trap ... ok
+
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.36s
+
+     Running tests/api_hook_lifecycle.rs (target/debug/deps/api_hook_lifecycle-0e693b945bba4c71)
+
+running 7 tests
+test app_stop_cleans_up_components_that_are_still_mounted ... ok
+test app_timers_fire_and_removal_leaves_no_scheduled_work ... ok
+test effect_dependencies_skip_unchanged_renders_and_cleanup_before_replacement ... ok
+test effects_cleanup_on_rerender_and_removal_after_the_render_body ... ok
+test keyframe_values_paint_through_app_and_removal_disables_the_escaped_handle ... ok
+test providers_inherit_override_and_restore_without_leaking_to_another_app ... ok
+test standalone_effect_cleanup_waits_until_explicit_cleanup ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.21s
+

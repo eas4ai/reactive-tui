@@ -74,6 +74,16 @@ pub trait Component: Any + Send + Sync + 'static {
     /// Render the component into an Element tree
     fn render(&self, props: &Self::Props, state: &Self::State) -> Element;
 
+    /// Render with an observable failure. Existing components retain their
+    /// infallible render implementation through this compatibility default.
+    fn try_render(
+        &self,
+        props: &Self::Props,
+        state: &Self::State,
+    ) -> crate::error::Result<Element> {
+        Ok(self.render(props, state))
+    }
+
     /// Poll for async state changes.
     /// Components can implement this to handle async operations.
     fn poll_change(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<()> {
@@ -121,6 +131,11 @@ pub trait AnyComponent: Any + Send + Sync {
 
     /// Render the component
     fn render_any(&self) -> Element;
+
+    /// Fallible rendering used by the application runtime.
+    fn try_render_any(&self) -> crate::error::Result<Element> {
+        Ok(self.render_any())
+    }
 
     /// Dispatch input to the retained component state.
     fn handle_event_any(

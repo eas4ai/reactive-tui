@@ -8,6 +8,11 @@ export * from './theme';
 export * as layout from './layout';
 export * as types from './types';
 export * from './error';
+export * from './native-editor';
+export * from './native-layout';
+export * from './native-dialog';
+export * from './foreign-component';
+export * from './native-app';
 export { lib, ReactiveError } from './ffi';
 
 import { lib } from './ffi';

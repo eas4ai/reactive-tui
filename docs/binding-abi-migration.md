@@ -30,44 +30,51 @@ aliases is listed. Original record fields and enum values remain recorded in
 - getRendererSurface previously claimed RTuiBuffer*. Its replacement
   rtui_renderer_get_surface returns a borrowed RTuiSurface*, a different native type.
 
+## Reintroduced native controllers
+
+API-017 adds editor snapshots, validated layout styles, dialog sessions and
+foreign component state/events. See `native-components.md` for ownership,
+callbacks and acceptance. `rtui_dialog_engine_create` now creates a real engine.
+`rtui_dialog_engine_destroy` returns a status. `rtui_dialog_engine_update` now
+takes an engine, active ID and JSON changes; it is not the old delta-time no-op.
+These declarations had no compiled symbols in the ABI baseline. Existing compiled
+function signatures remain unchanged.
+
 ## Retired C functions
 
 - `getRendererSurface`: Use rtui_renderer_get_surface with its native signature and ownership; it is not a drop-in alias.
-- `rtui_primary_button`: Rust on_click does not install a callable handler. Use rtui_button for a static styled element; native click callbacks remain unsupported.
-- `rtui_dialog_engine_create`: No dialog API is compiled into the library; unsupported.
-- `rtui_dialog_engine_destroy`: No dialog API is compiled into the library; unsupported.
-- `rtui_dialog_engine_update`: No dialog API is compiled into the library; unsupported.
-- `rtui_dialog_engine_has_active_dialogs`: No dialog API is compiled into the library; unsupported.
-- `rtui_dialog_create_confirmation`: No dialog API is compiled into the library; unsupported.
-- `rtui_dialog_create_input`: No dialog API is compiled into the library; unsupported.
-- `rtui_dialog_create_toast`: No dialog API is compiled into the library; unsupported.
-- `rtui_dialog_create_progress`: No dialog API is compiled into the library; unsupported.
-- `rtui_dialog_show`: No dialog API is compiled into the library; unsupported.
-- `rtui_dialog_hide`: No dialog API is compiled into the library; unsupported.
-- `rtui_dialog_close`: No dialog API is compiled into the library; unsupported.
-- `rtui_dialog_is_visible`: No dialog API is compiled into the library; unsupported.
-- `rtui_dialog_get_confirmation_result`: No dialog API is compiled into the library; unsupported.
-- `rtui_dialog_get_input_text`: No dialog API is compiled into the library; unsupported.
-- `rtui_dialog_set_progress`: No dialog API is compiled into the library; unsupported.
-- `rtui_dialog_set_progress_message`: No dialog API is compiled into the library; unsupported.
+- `rtui_primary_button`: This old symbol remains absent. Use the foreign component event callback and an Element focus target for native interaction.
+- `rtui_dialog_engine_has_active_dialogs`: This old symbol remains absent; use the native dialog controller open/element/update/close/take_event operations described above.
+- `rtui_dialog_create_confirmation`: This old symbol remains absent; use the native dialog controller open/element/update/close/take_event operations described above.
+- `rtui_dialog_create_input`: This old symbol remains absent; use the native dialog controller open/element/update/close/take_event operations described above.
+- `rtui_dialog_create_toast`: This old symbol remains absent; use the native dialog controller open/element/update/close/take_event operations described above.
+- `rtui_dialog_create_progress`: This old symbol remains absent; use the native dialog controller open/element/update/close/take_event operations described above.
+- `rtui_dialog_show`: This old symbol remains absent; use the native dialog controller open/element/update/close/take_event operations described above.
+- `rtui_dialog_hide`: This old symbol remains absent; use the native dialog controller open/element/update/close/take_event operations described above.
+- `rtui_dialog_close`: This old symbol remains absent; use the native dialog controller open/element/update/close/take_event operations described above.
+- `rtui_dialog_is_visible`: This old symbol remains absent; use the native dialog controller open/element/update/close/take_event operations described above.
+- `rtui_dialog_get_confirmation_result`: This old symbol remains absent; use the native dialog controller open/element/update/close/take_event operations described above.
+- `rtui_dialog_get_input_text`: This old symbol remains absent; use the native dialog controller open/element/update/close/take_event operations described above.
+- `rtui_dialog_set_progress`: This old symbol remains absent; use the native dialog controller open/element/update/close/take_event operations described above.
+- `rtui_dialog_set_progress_message`: This old symbol remains absent; use the native dialog controller open/element/update/close/take_event operations described above.
 - `getBufferDims`: Use getBufferWidth and getBufferHeight.
 - `createRenderingContext`: No combined context export exists. Create terminal, renderer and buffers separately and release each owner.
 - `destroyRenderingContext`: No combined context export exists. Create terminal, renderer and buffers separately and release each owner.
-- `rtui_style_builder_create`: No native style-builder API is compiled; use Element class strings.
-- `rtui_style_builder_destroy`: No native style-builder API is compiled; use Element class strings.
-- `rtui_apply_utility_classes`: No native style-builder API is compiled; use Element class strings.
-- `rtui_style_builder_display`: No native style-builder API is compiled; use Element class strings.
-- `rtui_style_builder_flex_direction`: No native style-builder API is compiled; use Element class strings.
-- `rtui_style_builder_justify_content`: No native style-builder API is compiled; use Element class strings.
-- `rtui_style_builder_align_items`: No native style-builder API is compiled; use Element class strings.
-- `rtui_style_builder_width`: No native style-builder API is compiled; use Element class strings.
-- `rtui_style_builder_height`: No native style-builder API is compiled; use Element class strings.
-- `rtui_style_builder_padding`: No native style-builder API is compiled; use Element class strings.
-- `rtui_style_builder_margin`: No native style-builder API is compiled; use Element class strings.
-- `rtui_style_builder_background_color`: No native style-builder API is compiled; use Element class strings.
-- `rtui_style_builder_color`: No native style-builder API is compiled; use Element class strings.
-- `rtui_style_builder_build`: No native style-builder API is compiled; use Element class strings.
-- `rtui_computed_style_destroy`: No native style-builder API is compiled; use Element class strings.
+- `rtui_style_builder_create`: Use rtui_native_style_create/apply/destroy for validated inline CSS, or Element utility classes.
+- `rtui_style_builder_destroy`: Use rtui_native_style_create/apply/destroy for validated inline CSS, or Element utility classes.
+- `rtui_apply_utility_classes`: Use rtui_native_style_create/apply/destroy for validated inline CSS, or Element utility classes.
+- `rtui_style_builder_display`: Use rtui_native_style_create/apply/destroy for validated inline CSS, or Element utility classes.
+- `rtui_style_builder_flex_direction`: Use rtui_native_style_create/apply/destroy for validated inline CSS, or Element utility classes.
+- `rtui_style_builder_justify_content`: Use rtui_native_style_create/apply/destroy for validated inline CSS, or Element utility classes.
+- `rtui_style_builder_align_items`: Use rtui_native_style_create/apply/destroy for validated inline CSS, or Element utility classes.
+- `rtui_style_builder_width`: Use rtui_native_style_create/apply/destroy for validated inline CSS, or Element utility classes.
+- `rtui_style_builder_height`: Use rtui_native_style_create/apply/destroy for validated inline CSS, or Element utility classes.
+- `rtui_style_builder_padding`: Use rtui_native_style_create/apply/destroy for validated inline CSS, or Element utility classes.
+- `rtui_style_builder_margin`: Use rtui_native_style_create/apply/destroy for validated inline CSS, or Element utility classes.
+- `rtui_style_builder_background_color`: Use rtui_native_style_create/apply/destroy for validated inline CSS, or Element utility classes.
+- `rtui_style_builder_color`: Use rtui_native_style_create/apply/destroy for validated inline CSS, or Element utility classes.
+- `rtui_style_builder_build`: Use rtui_native_style_create/apply/destroy for validated inline CSS, or Element utility classes.
+- `rtui_computed_style_destroy`: Use rtui_native_style_create/apply/destroy for validated inline CSS, or Element utility classes.
 - `rtui_terminal_enter_raw_mode`: Use setupTerminal with its native signature and ownership; it is not a drop-in alias.
 - `rtui_terminal_exit_raw_mode`: Use destroyTerminal with its native signature and ownership; it is not a drop-in alias.
 - `rtui_terminal_clear`: No matching native export exists. Use the audited functions in native.h; no replacement with this exact behavior is provided.

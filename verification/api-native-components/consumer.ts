@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {
   NativeTextEditor, NativeLayoutStyle, NativeDialogEngine, ForeignComponent,
-  NativeApp, Component, div,
+  NativeApp, Component, div, initialize, cleanup,
 } from '../../bindings/typescript/src/index';
 
 function units(): void {
@@ -54,6 +54,8 @@ function units(): void {
   assert.equal(result.getText(), 'alpha:0'); result.dispose();
   assert.equal(component.dispatch({ type: 'custom', name: 'test', data: null }), true);
   assert.equal(component.state, 1);
+  assert.throws(() => { component.state = Infinity; });
+  assert.equal(component.state, 1);
   component.props = 'omega';
   const next = component.render();
   assert.equal(next.getText(), 'omega:1'); next.dispose();
@@ -64,15 +66,31 @@ function units(): void {
   const broken = new ForeignComponent({ props: null, state: null, render: () => { throw failure; } });
   assert.throws(() => broken.render(), error => error === failure);
   broken.dispose();
+  let cleanupCalls = 0;
+  const badCleanup = new ForeignComponent({ props: null, state: null,
+    render: () => Component.text('unused'),
+    dispose: () => { cleanupCalls++; throw new Error('intentional cleanup failure'); },
+  });
+  assert.throws(() => badCleanup.dispose(), /intentional cleanup failure/);
+  badCleanup.dispose();
+  assert.equal(cleanupCalls, 1);
   console.log('NATIVE_COMPONENT_UNITS_PASS');
 }
 
-function host(error: boolean): void {
+function host(mode: string): void {
+  const error = mode === 'error';
+  const eventError = mode === 'event-error';
   const editor = new NativeTextEditor();
   editor.setSize(24, 2); editor.showLineNumbers(false); editor.insert('Edit:');
   const dialogs = new NativeDialogEngine();
   const rowStyle = new NativeLayoutStyle('display:flex;flex-direction:row;gap:3;height:1;flex-shrink:0');
+  if (mode === 'dialog') {
+    const options = JSON.parse(process.argv[3]);
+    const id = dialogs.open(options);
+    if (options.kind === 'progress') dialogs.update(id, { progress: 0.75 });
+  }
   let result = '';
+  let completion = 'none';
   let disposed = 0;
   let component: ForeignComponent<string, number>;
   component = new ForeignComponent({
@@ -81,15 +99,16 @@ function host(error: boolean): void {
       if (error) throw new Error('intentional host callback failure');
       let next;
       while ((next = dialogs.takeEvent()) !== null) {
-        if (next.kind === 'closed') result = next.result?.data ?? '';
+        if (next.kind === 'closed') { result = next.result?.data ?? ''; completion = next.result!.kind; }
       }
-      const label = Component.text(`native "${props}" count${state} ${result ? 'result=' + result : 'ready'}`);
+      const label = Component.text(`native "${props}" count${state} ${result ? 'result=' + result : 'ready'} completion=${completion}`);
       label.update({ key: 'status' }); label.focus(true, true);
       const row = div().children(Component.text('Left'), Component.text('Right')).build();
       rowStyle.apply(row);
       return div().class('flex-col w-full h-full').children(label, row, editor.element(), dialogs.element()).build();
     },
     event: input => {
+      if (eventError && input.type === 'key' && input.key === 'x') throw new Error('intentional event callback failure');
       if (input.type === 'key' && input.key === 'x') component.state++;
       else if (input.type === 'mouse' && input.kind === 'down') component.state++;
       else if (input.type === 'key' && input.key === 'p') component.props = 'omega';
@@ -101,10 +120,15 @@ function host(error: boolean): void {
     dispose: () => { disposed++; },
   });
   const app = new NativeApp(() => component.element());
-  if (error) assert.throws(() => app.run()); else app.run();
+  if (error || eventError) {
+    assert.throws(() => app.run(), /intentional (host|event) callback failure/);
+    assert.equal(component.lastError, -12);
+  } else app.run();
   app.dispose(); component.dispose(); dialogs.dispose(); editor.dispose(); rowStyle.dispose();
   assert.equal(disposed, 1);
   console.log('ENTRY_POINT_CLEAN_EXIT');
 }
 
-if (process.argv[2]) host(process.argv[2] === 'error'); else units();
+initialize();
+if (process.argv[2]) host(process.argv[2]); else units();
+cleanup();

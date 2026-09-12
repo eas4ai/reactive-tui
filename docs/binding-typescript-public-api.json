@@ -264,6 +264,7 @@
           "static fromOwned(handle: NativeHandle): Component",
           "static text(content: string): Component",
           "update(props: ComponentProps): void",
+          "focus(focusable = true, autoFocus = false): this",
           "addChild(child: Component): this",
           "getType(): ElementType",
           "getKey(): string | null",

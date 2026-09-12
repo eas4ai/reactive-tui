@@ -1,8 +1,9 @@
 # TypeScript binding migration
 
 The previous package did not typecheck or load the shared library. The repaired
-package uses native Element trees. It does not add the missing dynamic widget
-runtime. The following removals are deliberate; they are not compiler exclusions.
+package uses native Element trees. API-017 adds ForeignComponent state/events,
+NativeTextEditor, NativeLayoutStyle, NativeDialogEngine and NativeApp. See
+`native-components.md` for their ownership and current acceptance contract. The following removals are deliberate; they are not compiler exclusions.
 All remaining files under src are still included in TypeScript checking.
 
 The complete public before/after signatures, including class members, are recorded
@@ -18,25 +19,25 @@ Exports: `AnimationType`, `AnimationProperty`, `AnimationOptions`, `Animation`, 
 
 ### dialog.ts
 
-No dialog symbols are exported by the compiled library. Native dialogs are unsupported in this package.
+The old classes remain retired. NativeDialogEngine now exposes the recovered native sessions, their App host and actual completion data.
 
 Exports: `DialogType`, `DialogButton`, `DialogOptions`, `DialogResult`, `Dialog`, `ProgressDialog`.
 
 ### data-table.ts
 
-Depends on nonexistent generic component JSON state/render/event functions. Interactive data-table binding is unsupported.
+The old DataTable wrapper remains retired. ForeignComponent now provides an explicit state/render/event controller; this does not restore the old nonexistent widget-specific JSON methods.
 
 Exports: `FilterType`, `ColumnFilter`, `PaginationConfig`, `TableColumn`, `TableRow`, `DataTableConfig`, `DataTable`.
 
 ### input-widgets.ts
 
-Depends on nonexistent generic component JSON state/event functions. Interactive input widget bindings are unsupported.
+The old input-widget wrappers remain retired. Use ForeignComponent for explicit state/render/event behavior; it does not invent the former widget-specific methods.
 
 Exports: `RadioOption`, `RadioButtonGroup`, `Slider`, `DatePicker`, `TimeValue`, `TimePicker`, `ColorValue`, `ColorPicker`, `FileInfo`, `FileSelector`.
 
 ### hooks.ts
 
-Depends on an unimplemented component rerender/lifecycle bridge. React-style TypeScript hooks are unsupported; the low-level native signal/hook exports are separate APIs.
+The old React-style TypeScript hook wrappers remain retired. ForeignComponent now owns explicit prop/state values and routed callbacks; the low-level native signal/hook exports remain separate APIs.
 
 Exports: `useState`, `useEffect`, `useMemo`, `useCallback`, `useRef`, `useReducer`, `Context`, `createContext`, `useContext`, `useLayoutEffect`, `useImperativeHandle`, `useDebugValue`, `useId`, `useDeferredValue`, `useTransition`, `useSyncExternalStore`.
 
@@ -49,16 +50,16 @@ Exports: `useState`, `useEffect`, `useMemo`, `useCallback`, `useRef`, `useReduce
   Multi-scalar graphemes and embedded NUL are rejected. Resize recreates empty storage.
 - `Renderer.getSurface()` returns a borrowed view. Resize and disposal invalidate views.
 - `Component` represents a native static Element. JSON state, rendering and event
-  methods have no native implementation and are removed. Use key/class setters and
-  Element tree builders. Child insertion transfers ownership; getChild returns an owned clone.
+  methods remain removed from this static class. Use the separate ForeignComponent
+  controller for state, props and callbacks, and Element tree builders for its output. Child insertion transfers ownership; getChild returns an owned clone.
 - `ComponentBuilder` uses native builder handles. build consumes the builder.
   Arbitrary props, JSON serialization and dynamic input/grid helpers are removed.
   Supported props are class, key, content, label and text.
 - Generic ListBuilder, TableBuilder and InputBuilder are removed. Static button,
-  container and text builders remain; interactive handlers and arbitrary data props
-  are unsupported. Use ComponentBuilder for native class/key/text/child configuration.
-- React-style ThemeContext/ThemeProvider/useTheme are removed because the component
-  lifecycle bridge is absent. ThemeManager and pure theme/layout/event helpers remain.
+  container and text builders remain. ForeignComponent supplies retained state and
+  routed event callbacks for their Element output. Use ComponentBuilder for native class/key/text/child configuration.
+- React-style ThemeContext/ThemeProvider/useTheme remain retired; the new foreign
+  controller does not implement these old provider/hook wrappers. ThemeManager and pure theme/layout/event helpers remain.
 - Conflicting legacy type exports are available through the `types` namespace;
   conflicting layout exports through `layout`. Direct module imports remain valid.
 - Import no longer initializes the library or installs signal/exit handlers. Call
@@ -70,6 +71,12 @@ Exports: `useState`, `useEffect`, `useMemo`, `useCallback`, `useRef`, `useReduce
 
 The animation-demo.ts and widgets-demo.ts examples are retired with their unsupported wrappers.
 Native builder text() converts the element itself to text; use child(text()) for a container.
+
+API-017 callback lifetimes are explicit: dispose the App, then its foreign controllers.
+Callbacks remain registered until native destruction succeeds; wrong-thread calls
+and recursive render/dispatch/disposal are rejected. JSON setters may reenter.
+NativeApp.run blocks the JavaScript event loop and consumes the App, including
+on error. Native event callbacks may update state during this synchronous run.
 
 ---
 
@@ -105,44 +112,51 @@ aliases is listed. Original record fields and enum values remain recorded in
 - getRendererSurface previously claimed RTuiBuffer*. Its replacement
   rtui_renderer_get_surface returns a borrowed RTuiSurface*, a different native type.
 
+## Reintroduced native controllers
+
+API-017 adds editor snapshots, validated layout styles, dialog sessions and
+foreign component state/events. See `native-components.md` for ownership,
+callbacks and acceptance. `rtui_dialog_engine_create` now creates a real engine.
+`rtui_dialog_engine_destroy` returns a status. `rtui_dialog_engine_update` now
+takes an engine, active ID and JSON changes; it is not the old delta-time no-op.
+These declarations had no compiled symbols in the ABI baseline. Existing compiled
+function signatures remain unchanged.
+
 ## Retired C functions
 
 - `getRendererSurface`: Use rtui_renderer_get_surface with its native signature and ownership; it is not a drop-in alias.
-- `rtui_primary_button`: Rust on_click does not install a callable handler. Use rtui_button for a static styled element; native click callbacks remain unsupported.
-- `rtui_dialog_engine_create`: No dialog API is compiled into the library; unsupported.
-- `rtui_dialog_engine_destroy`: No dialog API is compiled into the library; unsupported.
-- `rtui_dialog_engine_update`: No dialog API is compiled into the library; unsupported.
-- `rtui_dialog_engine_has_active_dialogs`: No dialog API is compiled into the library; unsupported.
-- `rtui_dialog_create_confirmation`: No dialog API is compiled into the library; unsupported.
-- `rtui_dialog_create_input`: No dialog API is compiled into the library; unsupported.
-- `rtui_dialog_create_toast`: No dialog API is compiled into the library; unsupported.
-- `rtui_dialog_create_progress`: No dialog API is compiled into the library; unsupported.
-- `rtui_dialog_show`: No dialog API is compiled into the library; unsupported.
-- `rtui_dialog_hide`: No dialog API is compiled into the library; unsupported.
-- `rtui_dialog_close`: No dialog API is compiled into the library; unsupported.
-- `rtui_dialog_is_visible`: No dialog API is compiled into the library; unsupported.
-- `rtui_dialog_get_confirmation_result`: No dialog API is compiled into the library; unsupported.
-- `rtui_dialog_get_input_text`: No dialog API is compiled into the library; unsupported.
-- `rtui_dialog_set_progress`: No dialog API is compiled into the library; unsupported.
-- `rtui_dialog_set_progress_message`: No dialog API is compiled into the library; unsupported.
+- `rtui_primary_button`: This old symbol remains absent. Use the foreign component event callback and an Element focus target for native interaction.
+- `rtui_dialog_engine_has_active_dialogs`: This old symbol remains absent; use the native dialog controller open/element/update/close/take_event operations described above.
+- `rtui_dialog_create_confirmation`: This old symbol remains absent; use the native dialog controller open/element/update/close/take_event operations described above.
+- `rtui_dialog_create_input`: This old symbol remains absent; use the native dialog controller open/element/update/close/take_event operations described above.
+- `rtui_dialog_create_toast`: This old symbol remains absent; use the native dialog controller open/element/update/close/take_event operations described above.
+- `rtui_dialog_create_progress`: This old symbol remains absent; use the native dialog controller open/element/update/close/take_event operations described above.
+- `rtui_dialog_show`: This old symbol remains absent; use the native dialog controller open/element/update/close/take_event operations described above.
+- `rtui_dialog_hide`: This old symbol remains absent; use the native dialog controller open/element/update/close/take_event operations described above.
+- `rtui_dialog_close`: This old symbol remains absent; use the native dialog controller open/element/update/close/take_event operations described above.
+- `rtui_dialog_is_visible`: This old symbol remains absent; use the native dialog controller open/element/update/close/take_event operations described above.
+- `rtui_dialog_get_confirmation_result`: This old symbol remains absent; use the native dialog controller open/element/update/close/take_event operations described above.
+- `rtui_dialog_get_input_text`: This old symbol remains absent; use the native dialog controller open/element/update/close/take_event operations described above.
+- `rtui_dialog_set_progress`: This old symbol remains absent; use the native dialog controller open/element/update/close/take_event operations described above.
+- `rtui_dialog_set_progress_message`: This old symbol remains absent; use the native dialog controller open/element/update/close/take_event operations described above.
 - `getBufferDims`: Use getBufferWidth and getBufferHeight.
 - `createRenderingContext`: No combined context export exists. Create terminal, renderer and buffers separately and release each owner.
 - `destroyRenderingContext`: No combined context export exists. Create terminal, renderer and buffers separately and release each owner.
-- `rtui_style_builder_create`: No native style-builder API is compiled; use Element class strings.
-- `rtui_style_builder_destroy`: No native style-builder API is compiled; use Element class strings.
-- `rtui_apply_utility_classes`: No native style-builder API is compiled; use Element class strings.
-- `rtui_style_builder_display`: No native style-builder API is compiled; use Element class strings.
-- `rtui_style_builder_flex_direction`: No native style-builder API is compiled; use Element class strings.
-- `rtui_style_builder_justify_content`: No native style-builder API is compiled; use Element class strings.
-- `rtui_style_builder_align_items`: No native style-builder API is compiled; use Element class strings.
-- `rtui_style_builder_width`: No native style-builder API is compiled; use Element class strings.
-- `rtui_style_builder_height`: No native style-builder API is compiled; use Element class strings.
-- `rtui_style_builder_padding`: No native style-builder API is compiled; use Element class strings.
-- `rtui_style_builder_margin`: No native style-builder API is compiled; use Element class strings.
-- `rtui_style_builder_background_color`: No native style-builder API is compiled; use Element class strings.
-- `rtui_style_builder_color`: No native style-builder API is compiled; use Element class strings.
-- `rtui_style_builder_build`: No native style-builder API is compiled; use Element class strings.
-- `rtui_computed_style_destroy`: No native style-builder API is compiled; use Element class strings.
+- `rtui_style_builder_create`: Use rtui_native_style_create/apply/destroy for validated inline CSS, or Element utility classes.
+- `rtui_style_builder_destroy`: Use rtui_native_style_create/apply/destroy for validated inline CSS, or Element utility classes.
+- `rtui_apply_utility_classes`: Use rtui_native_style_create/apply/destroy for validated inline CSS, or Element utility classes.
+- `rtui_style_builder_display`: Use rtui_native_style_create/apply/destroy for validated inline CSS, or Element utility classes.
+- `rtui_style_builder_flex_direction`: Use rtui_native_style_create/apply/destroy for validated inline CSS, or Element utility classes.
+- `rtui_style_builder_justify_content`: Use rtui_native_style_create/apply/destroy for validated inline CSS, or Element utility classes.
+- `rtui_style_builder_align_items`: Use rtui_native_style_create/apply/destroy for validated inline CSS, or Element utility classes.
+- `rtui_style_builder_width`: Use rtui_native_style_create/apply/destroy for validated inline CSS, or Element utility classes.
+- `rtui_style_builder_height`: Use rtui_native_style_create/apply/destroy for validated inline CSS, or Element utility classes.
+- `rtui_style_builder_padding`: Use rtui_native_style_create/apply/destroy for validated inline CSS, or Element utility classes.
+- `rtui_style_builder_margin`: Use rtui_native_style_create/apply/destroy for validated inline CSS, or Element utility classes.
+- `rtui_style_builder_background_color`: Use rtui_native_style_create/apply/destroy for validated inline CSS, or Element utility classes.
+- `rtui_style_builder_color`: Use rtui_native_style_create/apply/destroy for validated inline CSS, or Element utility classes.
+- `rtui_style_builder_build`: Use rtui_native_style_create/apply/destroy for validated inline CSS, or Element utility classes.
+- `rtui_computed_style_destroy`: Use rtui_native_style_create/apply/destroy for validated inline CSS, or Element utility classes.
 - `rtui_terminal_enter_raw_mode`: Use setupTerminal with its native signature and ownership; it is not a drop-in alias.
 - `rtui_terminal_exit_raw_mode`: Use destroyTerminal with its native signature and ownership; it is not a drop-in alias.
 - `rtui_terminal_clear`: No matching native export exists. Use the audited functions in native.h; no replacement with this exact behavior is provided.

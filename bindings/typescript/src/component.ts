@@ -31,6 +31,11 @@ export class Component {
     if (props.class !== undefined) checkError(lib.rtui_element_set_class(this.getNativeHandle(), nativeString(props.class)));
     if (props.key !== undefined) checkError(lib.rtui_element_set_key(this.getNativeHandle(), nativeString(props.key)));
   }
+  /** Configure the normal App keyboard focus target. */
+  focus(focusable = true, autoFocus = false): this {
+    checkError(lib.rtui_element_set_focus(this.getNativeHandle(), focusable, autoFocus));
+    return this;
+  }
   /** Transfer child ownership to this element. */
   addChild(child: Component): this {
     const parent = this.getNativeHandle();
