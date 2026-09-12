@@ -1,0 +1,3 @@
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.36s
+     Running tests/api_styling.rs (target/debug/deps/api_styling-166b0a6c69fe912d)
