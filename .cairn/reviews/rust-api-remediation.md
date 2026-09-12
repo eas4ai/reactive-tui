@@ -4913,3 +4913,8 @@ A fixed-cell macro mutation failed both tests and the independent App frame test
 restored behavior and the complete inherited development mechanism passed.
 Evidence and review: `.cairn/reviews/api-018-fill-contract/`. This is a test and
 acceptance-coverage correction; formal evidence still needs refreshing.
+
+Native clipboard run 34714603188 passed on macOS and Windows. Before import,
+checked snapshot identity, successful jobs and the named clipboard step,
+current input digests, native platforms, execution markers and both output
+hashes. Copied original bytes. All five platform records now pass the verifier.

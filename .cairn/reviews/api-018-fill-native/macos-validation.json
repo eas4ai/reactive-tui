@@ -1,0 +1,224 @@
+{
+  "snapshot": "75f7ffe3ac89292e3c47acaeae07793416a3c926",
+  "job": {
+    "completedAt": "2026-09-12T19:40:08Z",
+    "conclusion": "success",
+    "databaseId": 103609470540,
+    "name": "clipboard (macos-14, macos)",
+    "startedAt": "2026-09-12T19:35:24Z",
+    "status": "completed",
+    "steps": [
+      {
+        "completedAt": "2026-09-12T19:35:26Z",
+        "conclusion": "success",
+        "name": "Set up job",
+        "number": 1,
+        "startedAt": "2026-09-12T19:35:25Z",
+        "status": "completed"
+      },
+      {
+        "completedAt": "2026-09-12T19:35:28Z",
+        "conclusion": "success",
+        "name": "Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+        "number": 2,
+        "startedAt": "2026-09-12T19:35:26Z",
+        "status": "completed"
+      },
+      {
+        "completedAt": "2026-09-12T19:35:39Z",
+        "conclusion": "success",
+        "name": "macOS build prerequisites",
+        "number": 3,
+        "startedAt": "2026-09-12T19:35:28Z",
+        "status": "completed"
+      },
+      {
+        "completedAt": "2026-09-12T19:35:40Z",
+        "conclusion": "skipped",
+        "name": "Windows build prerequisites",
+        "number": 4,
+        "startedAt": "2026-09-12T19:35:39Z",
+        "status": "completed"
+      },
+      {
+        "completedAt": "2026-09-12T19:37:14Z",
+        "conclusion": "success",
+        "name": "Native clipboard round trips and child cleanup",
+        "number": 5,
+        "startedAt": "2026-09-12T19:35:40Z",
+        "status": "completed"
+      },
+      {
+        "completedAt": "2026-09-12T19:37:14Z",
+        "conclusion": "skipped",
+        "name": "Native ConPTY behavior and violating resize",
+        "number": 6,
+        "startedAt": "2026-09-12T19:37:14Z",
+        "status": "completed"
+      },
+      {
+        "completedAt": "2026-09-12T19:40:01Z",
+        "conclusion": "success",
+        "name": "Native HTTP, FileExplorer and TerminalWidget workflows",
+        "number": 7,
+        "startedAt": "2026-09-12T19:37:14Z",
+        "status": "completed"
+      },
+      {
+        "completedAt": "2026-09-12T19:40:03Z",
+        "conclusion": "success",
+        "name": "Capture native widget evidence",
+        "number": 8,
+        "startedAt": "2026-09-12T19:40:01Z",
+        "status": "completed"
+      },
+      {
+        "completedAt": "2026-09-12T19:40:03Z",
+        "conclusion": "skipped",
+        "name": "Capture native ConPTY evidence",
+        "number": 9,
+        "startedAt": "2026-09-12T19:40:03Z",
+        "status": "completed"
+      },
+      {
+        "completedAt": "2026-09-12T19:40:04Z",
+        "conclusion": "success",
+        "name": "Capture native evidence",
+        "number": 10,
+        "startedAt": "2026-09-12T19:40:03Z",
+        "status": "completed"
+      },
+      {
+        "completedAt": "2026-09-12T19:40:04Z",
+        "conclusion": "skipped",
+        "name": "Capture failure diagnostics",
+        "number": 11,
+        "startedAt": "2026-09-12T19:40:04Z",
+        "status": "completed"
+      },
+      {
+        "completedAt": "2026-09-12T19:40:05Z",
+        "conclusion": "success",
+        "name": "Post Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+        "number": 22,
+        "startedAt": "2026-09-12T19:40:04Z",
+        "status": "completed"
+      },
+      {
+        "completedAt": "2026-09-12T19:40:05Z",
+        "conclusion": "success",
+        "name": "Complete job",
+        "number": 23,
+        "startedAt": "2026-09-12T19:40:05Z",
+        "status": "completed"
+      }
+    ],
+    "url": "https://github.com/eas4ai/reactive-tui/actions/runs/34714603188/job/103609470540"
+  },
+  "validated": {
+    "clipboard": {
+      "backend": "macos",
+      "system": "Darwin",
+      "platform": "macOS-14.8.9-arm64-arm-64bit-Mach-O",
+      "commit": "75f7ffe3ac89292e3c47acaeae07793416a3c926",
+      "committed_inputs": true,
+      "inputs_digest": "c214bca4b25efcae839b2eb30c011483ce9607bbb50a3b953e2f09717f9d5be6",
+      "result": "pass",
+      "output": "macos.out",
+      "output_digest": "c0d234ce507fe3347b0d411ac63cc1f6ab8b7b8dab4df543cc92fcbc5d1f2fed",
+      "process_output": "macos.process.out",
+      "process_output_digest": "e2ffc2d28c6994d61d2325996710bef78609f2be045683adf2e58197034f688a",
+      "tools": {
+        "pbcopy": {
+          "path": "/usr/bin/pbcopy",
+          "sha256": "72a349d8dc4589c4c051701ede8946891e1d795f238595a42d7b19cd6fe7bc6a"
+        },
+        "pbpaste": {
+          "path": "/usr/bin/pbpaste",
+          "sha256": "64e3e07ef2a96cbed5d5c84410326b64fac3a289fd4de6a184079f692871f33d"
+        }
+      }
+    },
+    "widgets": {
+      "system": "Darwin",
+      "platform": "macOS-14.8.9-arm64-arm-64bit-Mach-O",
+      "inputs_digest": "6d3b666c5ff0be0cb85fc1264479d98ccaea58db45232d4a075ddb708fa6b88e",
+      "commit": "75f7ffe3ac89292e3c47acaeae07793416a3c926",
+      "result": "pass",
+      "outputs": {
+        "iterm-host.out": "ad6173fd2e7805d20f4f4e56749445632cfc114951cce66a5eb9718938ec930e",
+        "terminal-native.out": "451ce6def83e04dd131dee1ad4585d85c5da45c4f9900b816a171851f0678ed4",
+        "surface-native.out": "719c04ff092cd4472e65809bf15f826f31939a15aad3ccc62eead0945287f1ed",
+        "curl.out": "6c39df8d3e00d28cb6ae830d83314ba6cdbaa8a42476133c1b2b5719945f505a",
+        "https.out": "12a473788d440b06cfb32d3bc13ca9a72a39b94ed183ce5020e7f88458d896f0",
+        "terminal-app.out": "3faa2b744d7f391a7c9d0c78cf80436f7c9999e69f53533102211ee0d902bc5e",
+        "filesystem-native.out": "4c8e99c776f6b8cc0dd872f4e49b801e092f04ea86b778f184dc762a13c257e7",
+        "http-app.out": "4640cc1109e68d6775ea7c289535725fb7700b45af6dc40c2798aadceb30b28d",
+        "build.out": "21a0cf96cd60dc22615d83c7381b9b716de30b26705721a7d76e5a771323e22f",
+        "http-transport.out": "6e7f523b9263bd258dd25d2b39a2b7bdae55a7a856647d66e26dcf190c28ad70",
+        "image-native.out": "2de3e4f1456608719e132db9a865e55905ebc1abf7c64f3c7b0f6e25674de695",
+        "filesystem-app.out": "322636460d879f0346b807a5f25be135252520924c32b855b2d321fca8fd90d7",
+        "platform-image-native.out": "6ae66b040cecb52946b526a4687c28d0cd889f9de539e2a3d5944659eb2f43bd",
+        "iterm-build.out": "18114a48fdc2c9493f7a736fe79930c2c939fa7c724d7b3566db20e0c137f1f6",
+        "image-app.out": "3cde1afab58c0282b70a1450f26d85395bd05db091ebe18e95c474f3a205df54",
+        "terminal-screen.out": "38015f2036962658e82a88c76c94ac28e301b827f84f0857a2313a4fdf1da56e",
+        "iterm-host/host.json": "3f56e76f8287576b663a49ef64b73422433467903fdd9de9d82d859bc069fe2e",
+        "iterm-host/iterm/startup-windows.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "iterm-host/iterm/stage-1.png": "59e0b5a37649070e04c82e17b18383052e55dc690eeb8220834fca380b74ed8e",
+        "iterm-host/iterm/stage-0.png": "4a2fd3228d8f4d1b6117f4da4127b5a0653fde1592f1bcae5f421bf78df0c854",
+        "iterm-host/iterm/stage-2.png": "347d5d47697ddbde0fe0217a828615b1eb746390ecb7c875e07790963dc65b5d",
+        "iterm-host/iterm/geometry-pixels.json": "fca8c7d511c2c335b51fdd574298ad025f676ad21c62a9465019e94166f09ddd",
+        "iterm-host/iterm/pixels.json": "ba8570621af9b2fd3535c1c22e4f7647c9c1e01c001306eb1b7d4963083dfc28",
+        "iterm-host/iterm/fixture-exit.txt": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+        "iterm-host/iterm/terminal-size.json": "41fd893d7d08ac634b869206ef0287b825f33293cd15ddcfc90d0ab1308cef3e",
+        "iterm-host/iterm/host-settings.json": "014eab16269871fcad1db746ec8db7e9da41f3ff6717ab090c237bc0ed769605",
+        "iterm-host/iterm/startup-windows.json": "57b30d92219428d8d34e421e5b139c263af1790c852dd7512e56a54a9e1bbec2",
+        "iterm-host/iterm/host.log": "22e426dc6aaeea55a2e2d2a9b97f167eabc6c4cf2240c52b1acc69dc51af66c6",
+        "iterm-host/surface-iterm/startup-windows.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "iterm-host/surface-iterm/stage-1.png": "dac589ea0576a90e435578e1f1ea7b93e8d3e2d54760ccd3685483904328f638",
+        "iterm-host/surface-iterm/stage-0.png": "ccce7c2c0c219537cc5e0c86282ea68955088a424b12ac300fd9bb28cdd18f54",
+        "iterm-host/surface-iterm/stage-2.png": "d81c5b956bdede1a20bf69a4b9b58793062a923ac541e3a2aa7a69ecc00c358a",
+        "iterm-host/surface-iterm/geometry-pixels.json": "e04931157f7c5f0a987c8b7119ef44ab779309ba8103de07f5a56a73acddf535",
+        "iterm-host/surface-iterm/pixels.json": "ba8570621af9b2fd3535c1c22e4f7647c9c1e01c001306eb1b7d4963083dfc28",
+        "iterm-host/surface-iterm/fixture-exit.txt": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+        "iterm-host/surface-iterm/terminal-size.json": "41fd893d7d08ac634b869206ef0287b825f33293cd15ddcfc90d0ab1308cef3e",
+        "iterm-host/surface-iterm/host-settings.json": "cc77e6059dfa964deb90adbf01bd1c2b9a387b3c5c0a5b9a182a4c8cf3345a94",
+        "iterm-host/surface-iterm/startup-windows.json": "60dd626b9e30cd3150de5d8708d85f671b680d5d7c0035a2bfc5cb818589df27",
+        "iterm-host/surface-iterm/host.log": "ce5b70426ded6af388583286ee8c7b9fea8fbd19895d79a250c010d8cc15d3e0",
+        "iterm-host/app-iterm/startup-windows.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "iterm-host/app-iterm/stage-1.png": "aa1ff55af7c3b55f28cb7c6270c6d86918be1973f4e52cdbab6b402540036dea",
+        "iterm-host/app-iterm/stage-0.png": "4aa7048055ec7c0a78db0b43322d16886b0f18bf96a57743d38ca40d8084e374",
+        "iterm-host/app-iterm/stage-2.png": "044ffb3aabbc1126571fe3fe98568fb27803eae292d3079521083eb76eaf9415",
+        "iterm-host/app-iterm/geometry-pixels.json": "4b3e0cc091a8a4f37e4469b9a6f102b360596360eced1074fb130337e58b7514",
+        "iterm-host/app-iterm/pixels.json": "ba8570621af9b2fd3535c1c22e4f7647c9c1e01c001306eb1b7d4963083dfc28",
+        "iterm-host/app-iterm/fixture-exit.txt": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+        "iterm-host/app-iterm/terminal-size.json": "41fd893d7d08ac634b869206ef0287b825f33293cd15ddcfc90d0ab1308cef3e",
+        "iterm-host/app-iterm/host-settings.json": "24cf2a4cf20546f4feb5852954e0811ee66b955b3d685293bb65be898c665d77",
+        "iterm-host/app-iterm/startup-windows.json": "ef7141657046c847b811b77f8a1b7b420959e524a2bad155149e2d059823c730",
+        "iterm-host/app-iterm/host.log": "28c8bf5007cb1112467ef15b1589d86de3dd0b85f5fa0acf2054feae4f70fb31",
+        "iterm-host/app-ascii/startup-windows.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "iterm-host/app-ascii/stage-1.png": "bd8451708cc22726a75033af7bd897ecef20a0a4f90dcb528ce2eb91b04360df",
+        "iterm-host/app-ascii/stage-0.png": "7b43396037927ded4a349aa52d4489c01953bf3ffee2b093279c1e6670c62d5e",
+        "iterm-host/app-ascii/stage-2.png": "73f25b5a56bf2b1a6996185ab68523adbe79a97a845056fe39caf5d6e9eeb8b9",
+        "iterm-host/app-ascii/geometry-pixels.json": "ba8570621af9b2fd3535c1c22e4f7647c9c1e01c001306eb1b7d4963083dfc28",
+        "iterm-host/app-ascii/pixels.json": "ba8570621af9b2fd3535c1c22e4f7647c9c1e01c001306eb1b7d4963083dfc28",
+        "iterm-host/app-ascii/fixture-exit.txt": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+        "iterm-host/app-ascii/terminal-size.json": "41fd893d7d08ac634b869206ef0287b825f33293cd15ddcfc90d0ab1308cef3e",
+        "iterm-host/app-ascii/host-settings.json": "c4c8d07cf0d457fcdd74ac7cd842acd3182ccc09d301cd6c490e4930c4f22ba8",
+        "iterm-host/app-ascii/startup-windows.json": "0e4c41b88a019acb1f92e29b815c8cbee07234f0b698d0ee53616870e14af5e4",
+        "iterm-host/app-ascii/host.log": "4d33d6f9632721202414fa940f7bc41b6cdc8af737448c3b2255d37ba710c7ce",
+        "iterm-host/app-auto/startup-windows.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "iterm-host/app-auto/stage-1.png": "9569eb406e0fd7c2659a7787615ad00f76f21f4a919fc5ce81991d5e9bb1bccd",
+        "iterm-host/app-auto/stage-0.png": "90fa7f5809837afff2ee6bd504bb5f977c2818c468aff4872cc1201339e28f12",
+        "iterm-host/app-auto/stage-2.png": "ac8fc4db153ab27a27e086c9e650c4cc2ef3cb3e76e027ba4c53c34e38d945a0",
+        "iterm-host/app-auto/geometry-pixels.json": "4b3e0cc091a8a4f37e4469b9a6f102b360596360eced1074fb130337e58b7514",
+        "iterm-host/app-auto/pixels.json": "ba8570621af9b2fd3535c1c22e4f7647c9c1e01c001306eb1b7d4963083dfc28",
+        "iterm-host/app-auto/fixture-exit.txt": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+        "iterm-host/app-auto/terminal-size.json": "41fd893d7d08ac634b869206ef0287b825f33293cd15ddcfc90d0ab1308cef3e",
+        "iterm-host/app-auto/host-settings.json": "26d9dcdf97cd5ca69c9a05f05a5571aac9bb3a52441aa950097855412da8595b",
+        "iterm-host/app-auto/startup-windows.json": "b9152db3ad548ec3e35b2d488649b801afcfcff35f0ee55d8eecd4a8e384c86d",
+        "iterm-host/app-auto/host.log": "289ad87c46fa7a26bf5a1457b79af91a7c0c2b1cc99c95bdd3117e393779a713"
+      }
+    }
+  }
+}

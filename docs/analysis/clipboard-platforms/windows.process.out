@@ -57,7 +57,7 @@ warning: field `parser` is never read
     |     ^^^^^^
 
 warning: `reactive-tui` (lib test) generated 7 warnings (run `cargo fix --lib -p reactive-tui --tests` to apply 5 suggestions)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 1m 01s
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1m 11s
      Running unittests src\lib.rs (target\debug\deps\reactive_tui-8f430f50a806aae5.exe)
 
 running 3 tests
@@ -115,7 +115,7 @@ warning: field `parser` is never read
 
 warning: `reactive-tui` (lib) generated 5 warnings (run `cargo fix --lib -p reactive-tui` to apply 3 suggestions)
    Compiling reactive-tui v0.0.7 (D:\a\reactive-tui\reactive-tui)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 9.31s
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 7.02s
      Running tests\windows_platform.rs (target\debug\deps\windows_platform-9eab2ea8936fda1c.exe)
 
 running 1 test
