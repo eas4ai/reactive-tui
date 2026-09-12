@@ -4371,3 +4371,14 @@ captured-output hash before copying. Both native verifiers now pass, including
 ConPTY behavior, runtime integrity and the deliberately disabled resize case.
 Native captures retain their original bytes and line endings. No behavior,
 criterion, timeout or mechanism was changed. Formal API-011 rerun is required.
+
+API-011/20260912T114853541Z, API-012/20260912T114910947Z and
+API-013/20260912T114915729Z passed against the refreshed native records.
+API-014/20260912T115555745Z passed its selected native/image tests, the
+forced-ASCII negative control and all 25 Linux image-host workflows. Captures
+are retained in api-image-hosts/20260912T114934145409Z. Inspected all remaining
+members of private groups 3309037 and 3329299, then stopped only their four
+GNOME portal/key-store helpers. No capture descriptors remain open; see
+api-017-image-helper-cleanup.json. This pass does not explain the previously
+recorded intermittent Kitty blank capture; helper cleanup and startup timing
+remain explicit concerns for the final mechanism review.
