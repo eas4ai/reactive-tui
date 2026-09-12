@@ -1,0 +1,31 @@
+error: optional defaults to None; remove the default option
+ --> /home/shawn/workspace2/reactive-tui/target/api-018-optional-default/current.rs:4:5
+  |
+4 | /     #[prop(optional, default)]
+5 | |     absent: Option<String>,
+  | |__________________________^
+
+error[E0599]: no function or associated item named `new` found for struct `Values` in the current scope
+   --> /home/shawn/workspace2/reactive-tui/target/api-018-optional-default/current.rs:10:26
+    |
+  3 | struct Values {
+    | ------------- function or associated item `new` not found for this struct
+...
+ 10 |     let values = Values::new();
+    |                          ^^^ function or associated item not found in `Values`
+    |
+    = help: items from traits can only be used if the trait is implemented and in scope
+    = note: the following traits define an item `new`, perhaps you need to implement one of them:
+            candidate #1: `aligned_vec::Alignment`
+            candidate #2: `itertools::adaptors::coalesce::CountItem`
+            candidate #3: `parking_lot_core::thread_parker::ThreadParkerT`
+            candidate #4: `reactive_tui::component::Component`
+help: there is a method `ne` with a similar name, but with different arguments
+   --> /home/shawn/.rustup/toolchains/1.95-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/cmp.rs:264:5
+    |
+264 |     fn ne(&self, other: &Rhs) -> bool {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: aborting due to 2 previous errors
+
+For more information about this error, try `rustc --explain E0599`.

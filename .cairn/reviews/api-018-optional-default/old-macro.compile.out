@@ -1,0 +1,14 @@
+error[E0432]: unresolved import `proc_macro`
+ --> /home/shawn/workspace2/reactive-tui/target/api-018-optional-default/old-macro.rs:1:5
+  |
+1 | use proc_macro::TokenStream;
+  |     ^^^^^^^^^^ use of unresolved module or unlinked crate `proc_macro`
+  |
+help: there is a crate or module with a similar name
+  |
+1 | use proc_macro2::TokenStream;
+  |               +
+
+error: aborting due to 1 previous error
+
+For more information about this error, try `rustc --explain E0432`.

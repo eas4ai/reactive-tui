@@ -4727,3 +4727,20 @@ output hashes were checked. macOS and Windows are running in GitHub run
 The complete native-input Git trees match local source c2eeb695beaa8222bf04dc8694d3d8861b370867
 byte-for-byte. This uses the previously authorized verification branch.
 Native results remain pending; no source was changed to bypass freshness.
+
+### API-018 review finding: optional/default compatibility
+
+A further read-only review found an unintended compatibility break in the new
+PropOptions parser: it rejects `#[prop(optional, default)]` and a compatible
+explicit string default on `Option<&str>`. The approved proposal preserves
+existing defaults. Compiler probes in `.cairn/reviews/api-018-optional-default`
+confirm the original macro compiles and runs the None/Some assertions, while
+the new macro rejects the same declaration. The initial direct macro compilation
+needed Cargo's explicit proc_macro extern; that setup error is retained and is
+not the regression result. The corrected baseline uses the old source unchanged.
+
+Resolve this finding under API-018: retain explicit default precedence, remove
+the extra combination rejection and its incorrect rejection test, and add
+regression coverage for both combined defaults. This needs no broader contract
+change. It prevents calling the Props work complete despite its targeted passes.
+No candidate source changed during the active native API-008 evidence refresh.

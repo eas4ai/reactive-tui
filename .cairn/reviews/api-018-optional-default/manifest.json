@@ -1,0 +1,10 @@
+{
+  "baseline.compile.out": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "old-macro.compile.out": "2b72a0951f418020e7795a1ff4c9d26b4c1836e0c10d5a5637a7487ef2432f49",
+  "build.jsonl": "24a4a9bb8a0b49ce0895a3d93cee5ad9dc0f384f4609cb0354c844f788c79dda",
+  "current.compile.out": "3c8766f8a9e47bc37a18b43027a67914ed7d254e14497136be117592488fc4f3",
+  "fixture.rs": "f94f635f07107ba1d2eab04c619dd7b5390ec50b388f765d188383cb9423bb78",
+  "baseline.run.out": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "old-macro-with-extern.compile.out": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "results.json": "2de81b335df476ae33669fcae74a6df6e927e85dea901e303c9ab0ab2954af1c"
+}

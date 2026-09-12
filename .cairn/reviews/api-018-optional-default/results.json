@@ -1,0 +1,56 @@
+{
+  "meaning": "Compatibility observation, not acceptance",
+  "baseline_macro_commit": "ed31a768ee337d3ec42d5a5d5c4aa1ae5886b1ca",
+  "current_commit": "eb00a5a6c3772369ea742bd6dcf22d501cd756ce",
+  "results": [
+    {
+      "case": "baseline",
+      "compile_command": [
+        "rustc",
+        "--edition=2021",
+        "--crate-name",
+        "props_baseline",
+        "/home/shawn/workspace2/reactive-tui/target/api-018-optional-default/baseline.rs",
+        "--extern",
+        "reactive_tui=/home/shawn/workspace2/reactive-tui/target/debug/libreactive_tui.rlib",
+        "-L",
+        "dependency=/home/shawn/workspace2/reactive-tui/target/debug/deps",
+        "-C",
+        "codegen-units=12",
+        "-C",
+        "link-arg=-Wl,--threads=12",
+        "-o",
+        "/home/shawn/workspace2/reactive-tui/target/api-018-optional-default/baseline",
+        "--extern",
+        "baseline_props=/home/shawn/workspace2/reactive-tui/target/api-018-optional-default/libbaseline_props.so"
+      ],
+      "compile_exit": 0,
+      "run_exit": 0
+    },
+    {
+      "case": "current",
+      "compile_command": [
+        "rustc",
+        "--edition=2021",
+        "--crate-name",
+        "props_current",
+        "/home/shawn/workspace2/reactive-tui/target/api-018-optional-default/current.rs",
+        "--extern",
+        "reactive_tui=/home/shawn/workspace2/reactive-tui/target/debug/libreactive_tui.rlib",
+        "-L",
+        "dependency=/home/shawn/workspace2/reactive-tui/target/debug/deps",
+        "-C",
+        "codegen-units=12",
+        "-C",
+        "link-arg=-Wl,--threads=12",
+        "-o",
+        "/home/shawn/workspace2/reactive-tui/target/api-018-optional-default/current"
+      ],
+      "compile_exit": 1
+    }
+  ],
+  "baseline_macro_source_sha256": "edb5e032355aca118e6ef78c1575db74106ef10c1714f956fe9bd38f2b222812",
+  "compiler": "rustc 1.95.0 (59807616e 2026-04-14)",
+  "setup_note": "Initial direct compiler command omitted Cargo's --extern proc_macro flag. Retained its setup error; the corrected compilation uses the original macro source unchanged.",
+  "finding": "Regression confirmed: optional combined with default or a string default compiled and ran before the repair, but the new parser rejects it. Preserve the existing explicit-default precedence under API-018; approval did not authorize this extra incompatibility."
+}
