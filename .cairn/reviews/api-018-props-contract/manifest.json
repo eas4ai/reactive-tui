@@ -1,0 +1,16 @@
+{
+  "bare-validation.compile.out": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "bare-validation.rs": "1b2018dbcdf5b5a35a341dbac6b6dc00f1e7847ea76a3324ce7c913a43a0d9c9",
+  "bare-validation.run.out": "3ccead769e73ef3bec6b0a797df52f54b4d93eb6a7711b9f2fc5649c502bbb65",
+  "build.jsonl": "214070edb7efebe68afcdcebddbcace58fdaf249275b0e35e88e428e6e3273df",
+  "optional-explicit.compile.out": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "optional-explicit.rs": "16428993c00a24fa76e9add0b55c0d8355484f9b3c924cf724035b0b4438a385",
+  "optional-explicit.run.out": "0869a79b30707ee07cccd798e4a0448372b30b48bb8c3dbdd5a4cddd2d44f897",
+  "optional-plain.compile.out": "ba37cfa10cb99b872db67beeee97a3fbd9583e3b6939e521a1cf015820e8128a",
+  "optional-plain.rs": "c43d2327192ba0ba1dcb7ecf9be5c9190e147895cadd95d4dd41640569700d68",
+  "proposal.md": "80e1d11edf5b8e2c0d831548083f3feeed40352011c060731f05be4f5e288ea4",
+  "proposed-predicate.compile.out": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "proposed-predicate.rs": "3d49f89e794b87e7e899113790652a17ed8307e48ca1982ae16ced9672a08866",
+  "proposed-predicate.run.out": "a51d35af1b5868209808d2d0284793223fa7730cca5ba6a76e442e9b371b1dfa",
+  "results.json": "4f1e4a32807466b9f6165ea0c499965aef8e43b73ab64868582713c3502a2602"
+}

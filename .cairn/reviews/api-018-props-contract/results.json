@@ -1,0 +1,102 @@
+{
+  "source_commit": "7466f9aa76dc2e25b937a55f1bda0a24e17a4442",
+  "rustc": "rustc 1.95.0 (59807616e 2026-04-14)",
+  "rlib": "/home/shawn/workspace2/reactive-tui/target/debug/libreactive_tui.rlib",
+  "rlib_sha256": "8d77c0a5c0e1e5f908d2613da3829e88c9311a23ca68247f7d8fa5490b7f41b9",
+  "source_hashes": {
+    "reactive-tui-macros/src/lib.rs": "edb5e032355aca118e6ef78c1575db74106ef10c1714f956fe9bd38f2b222812",
+    "src/component/props.rs": "09d091cd1bb407cec24efa9fc5e8a87868041c02eb9a369d2398f91e515f379f",
+    "Cargo.toml": "c05fed36d82aed159a6615541f9fa0934c1256fd7acfc2feff188fbff29c0549",
+    "Cargo.lock": "575a9ea097fb31b922669bf97333b2f92f15061bd5a4ced1c8b23f4e2ceb2135"
+  },
+  "results": [
+    {
+      "fixture": "bare-validation",
+      "command": [
+        "rustc",
+        "--edition=2021",
+        "--crate-name",
+        "api018_bare_validation",
+        "/home/shawn/workspace2/reactive-tui/.cairn/reviews/api-018-props-contract/bare-validation.rs",
+        "--extern",
+        "reactive_tui=/home/shawn/workspace2/reactive-tui/target/debug/libreactive_tui.rlib",
+        "-L",
+        "dependency=/home/shawn/workspace2/reactive-tui/target/debug/deps",
+        "-C",
+        "codegen-units=12",
+        "-C",
+        "link-arg=-Wl,--threads=12",
+        "-o",
+        "/home/shawn/workspace2/reactive-tui/target/api-018-props-contract/bare-validation"
+      ],
+      "compile_exit": 0,
+      "run_exit": 0
+    },
+    {
+      "fixture": "optional-plain",
+      "command": [
+        "rustc",
+        "--edition=2021",
+        "--crate-name",
+        "api018_optional_plain",
+        "/home/shawn/workspace2/reactive-tui/.cairn/reviews/api-018-props-contract/optional-plain.rs",
+        "--extern",
+        "reactive_tui=/home/shawn/workspace2/reactive-tui/target/debug/libreactive_tui.rlib",
+        "-L",
+        "dependency=/home/shawn/workspace2/reactive-tui/target/debug/deps",
+        "-C",
+        "codegen-units=12",
+        "-C",
+        "link-arg=-Wl,--threads=12",
+        "-o",
+        "/home/shawn/workspace2/reactive-tui/target/api-018-props-contract/optional-plain"
+      ],
+      "compile_exit": 1
+    },
+    {
+      "fixture": "optional-explicit",
+      "command": [
+        "rustc",
+        "--edition=2021",
+        "--crate-name",
+        "api018_optional_explicit",
+        "/home/shawn/workspace2/reactive-tui/.cairn/reviews/api-018-props-contract/optional-explicit.rs",
+        "--extern",
+        "reactive_tui=/home/shawn/workspace2/reactive-tui/target/debug/libreactive_tui.rlib",
+        "-L",
+        "dependency=/home/shawn/workspace2/reactive-tui/target/debug/deps",
+        "-C",
+        "codegen-units=12",
+        "-C",
+        "link-arg=-Wl,--threads=12",
+        "-o",
+        "/home/shawn/workspace2/reactive-tui/target/api-018-props-contract/optional-explicit"
+      ],
+      "compile_exit": 0,
+      "run_exit": 0
+    },
+    {
+      "fixture": "proposed-predicate",
+      "command": [
+        "rustc",
+        "--edition=2021",
+        "--crate-name",
+        "api018_proposed_predicate",
+        "/home/shawn/workspace2/reactive-tui/.cairn/reviews/api-018-props-contract/proposed-predicate.rs",
+        "--extern",
+        "reactive_tui=/home/shawn/workspace2/reactive-tui/target/debug/libreactive_tui.rlib",
+        "-L",
+        "dependency=/home/shawn/workspace2/reactive-tui/target/debug/deps",
+        "-C",
+        "codegen-units=12",
+        "-C",
+        "link-arg=-Wl,--threads=12",
+        "-o",
+        "/home/shawn/workspace2/reactive-tui/target/api-018-props-contract/proposed-predicate"
+      ],
+      "compile_exit": 0,
+      "run_exit": 101
+    }
+  ],
+  "interpretation": "Contract probes and defect observations, not API-018 acceptance passes"
+}

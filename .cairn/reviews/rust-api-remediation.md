@@ -3480,8 +3480,8 @@ production behavior was weakened to reduce these static counts.
 - Done: refresh all 34 inherited requirements after API-016 (last receipts 20260911T234522876Z/877Z).
 - Done: API-017 native C/TypeScript behavior and ownership; formal receipt 20260912T120716719Z.
 - Done: repair the approved isolated Kitty host and verify all API-014 image routes (receipt 20260912T152756874Z).
-- In progress: refresh inherited acceptance after the Kitty and toast repairs.
-- Pending: API-018 public documentation and Props validation.
+- Done: refresh API-001 through API-017 and all 34 inherited requirements after the Kitty and toast repairs (last renderer receipts 20260912T155254797Z/798Z).
+- In progress: settle the API-018 Props contract and declare its documentation/validation mechanism.
 - Pending: API-019 complete residual audit contracts.
 - Pending: API-020 final regression and independent review, including the captured image-runner timeout cleanup defect.
 - Complete: refresh native API-008 evidence after the committed screen repair.
@@ -4645,3 +4645,30 @@ finding open. Pixel assertions and image-rendering acceptance remain unchanged.
 API-015 passed with receipt 20260912T153933584Z after rebuilding the declared
 stable, minimal, optional-feature, embedded-terminal and nightly SIMD paths.
 The feature catalog, independent builds and runtime behavior checks passed.
+
+### API-018 Props contract review (2026-09-12)
+
+All 51 implemented requirements now have current passing receipts. Cairn names
+`declare API-018`. The API-011/API-018 approval only narrows screen-reader
+support; no existing decision approves a narrower Props contract.
+
+Read the RAPI-15 audit, API-018 contract, applicable decisions, the Props trait,
+derive implementation, and existing Props tests. The bare validation flag has
+no rule, generated validate unconditionally returns true, attribute parse errors
+are discarded, and optional-field documentation promises a type rewrite that
+a derive macro cannot perform. The Rust Reference confirms derive output is
+appended alongside the input declaration.
+
+Four retained compiler probes in `.cairn/reviews/api-018-props-contract` show:
+all sampled bare-validation values accepted; a plain optional String rejected
+with E0308; an explicit Option<String> accepting absence and a supplied value;
+and a proposed named predicate compiling but being ignored, so its invalid-name
+assertion fails. Commands, compiler/library/source hashes, raw logs, fixtures,
+and a proposed contract are retained. These observations are not API-018
+acceptance passes. No public macro or library source changed during this review.
+
+The proposal keeps caller-invoked validate(), requires named field predicates
+and explicit Option types, and rejects bare/malformed validation annotations.
+This needs the explicit narrower-contract approval required by API-018 before
+implementation or a conformance mechanism can adopt it. API-019 and API-020
+remain pending, including the known capture-timeout cleanup finding.

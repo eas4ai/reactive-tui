@@ -1,0 +1,5 @@
+explicit rule: invalid=true, valid=true
+
+thread 'main' (2885640) panicked at /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-018-props-contract/proposed-predicate.rs:21:5:
+Props ignored the explicitly supplied rule
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
