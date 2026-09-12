@@ -4982,3 +4982,34 @@ outputs had their original trailing whitespace and blank final lines; that broad
 check exited 2. Those captured bytes were preserved, not rewritten or called clean.
 
 Native run 34717703879 passed on macOS and Windows for snapshot fd0aed29c3366e6f8e2d7e2959eaba438fc7eaee. Its declared input trees exactly match local commit 56441c73d4202077b035931c1dcb060aee1d953b. Imported the widget and ConPTY artifacts after checking job and step success, current committed input digests, system, every recorded output hash, and unchanged copied bytes. Both native verifiers passed. The earlier clipboard records remain current because their declared inputs did not change.
+
+## API-019 first formal baseline and Unix receiver diagnostics
+
+The native refresh and all newly stale prerequisite checks through API-018 passed.
+API-018 receipt 20260912T211452272Z precedes API-019's first formal baseline,
+20260912T211515640Z. That baseline failed: five reference assertions fail, backend
+mapping discovery finds no registered tests, and focused coverage is incomplete.
+The failed receipt and outputs are committed and are not acceptance passes.
+
+Before changing Unix input ownership, an external public-API consumer reproduced
+both idle receiver-drop leaks. A private socket reusing the released terminal
+descriptor was read by the old worker in two of three runs. Raw receiver removal
+followed by input passed its cleanup assertion. All cases used private controlling
+PTYs and were bounded and reaped. The checked-in driver reproduced the defects.
+The review at api-019-input-lifecycle/review.md retains exact runs, limitations,
+source analysis, a concrete owned-receiver proposal, and migration examples.
+
+The condensed inventory restores explicit receiver-drop wording from this review's
+earlier Unix ownership entry. Preserving the existing standard Receiver return
+types conflicts with guaranteed cleanup when an idle receiver alone is dropped:
+the pinned standard sender exposes no idle disconnection notification. The proposed
+InputReceiver return types need a developer compatibility decision before repair.
+No production input API or worker has been changed. The existing Props approval
+does not answer this choice.
+
+The diagnostic controller's normal cancellation control passed; disabling only
+its parent-death signal in a temporary copy made the control fail. All owned probes
+were reaped. Rustfmt, Python parsing and the five residual checker controls passed.
+Ripwire edit checks exited 0; quality-delta exited 2 and test-gate exited 4, reviewed
+with their actual limits in the detailed record. API-019 remains in progress;
+API-020 and the full production completion review remain pending.

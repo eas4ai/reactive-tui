@@ -1,0 +1,5 @@
+Observed 1 owned reader threads: {2228004}
+
+thread 'main' (2228003) panicked at verification/api-residual/input-lifecycle.rs:111:13:
+reader consumed bytes from a reused descriptor: Ok([80, 82, 73, 86, 65, 84, 69, 95, 82, 69, 80, 76, 65, 67, 69, 77, 69, 78, 84, 95, 73, 78, 80, 85, 84])
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace

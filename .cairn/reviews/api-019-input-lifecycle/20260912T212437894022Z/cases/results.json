@@ -1,0 +1,30 @@
+[
+  {
+    "case": "raw-receiver-idle",
+    "pid": 2227293,
+    "exit": 101,
+    "timeout": false,
+    "reaped": true
+  },
+  {
+    "case": "parsed-receiver-idle",
+    "pid": 2227654,
+    "exit": 101,
+    "timeout": false,
+    "reaped": true
+  },
+  {
+    "case": "reused-descriptor",
+    "pid": 2228003,
+    "exit": 101,
+    "timeout": false,
+    "reaped": true
+  },
+  {
+    "case": "raw-receiver-active",
+    "pid": 2228005,
+    "exit": 0,
+    "timeout": false,
+    "reaped": true
+  }
+]

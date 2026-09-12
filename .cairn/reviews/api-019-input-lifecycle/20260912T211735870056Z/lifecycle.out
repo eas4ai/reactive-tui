@@ -1,0 +1,4 @@
+{"case": "raw-receiver-idle", "exit": 101, "timeout": false, "reaped": true}
+{"case": "parsed-receiver-idle", "exit": 101, "timeout": false, "reaped": true}
+{"case": "reused-descriptor", "exit": 0, "timeout": false, "reaped": true}
+{"case": "raw-receiver-active", "exit": 0, "timeout": false, "reaped": true}

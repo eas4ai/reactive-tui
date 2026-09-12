@@ -1,0 +1,16 @@
+{
+  "header": {
+    "baseline": "git-HEAD",
+    "regressions": "19071",
+    "minor": "2460",
+    "acked": "0",
+    "preexisting-worse": "1612",
+    "new-symbol": "17459",
+    "gating": "1612",
+    "at": "ef4ce3aff+dirty"
+  },
+  "changed_diagnostic_findings": [
+    "<r kind=\"dead-code\" sym=\"private_session\" origin=\"new-symbol\" p=\"verification/api-residual/input-lifecycle.py:27\" />",
+    "<r kind=\"duplication\" members=\"require_stopped | wait_for_workers\" tokens=\"100\" origin=\"new-symbol\" p=\"verification/api-residual/input-lifecycle.rs:44\" />"
+  ]
+}

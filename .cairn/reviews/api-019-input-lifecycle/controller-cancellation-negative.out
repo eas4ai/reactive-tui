@@ -1,0 +1,5 @@
+Traceback (most recent call last):
+  File "/tmp/api019-check-probe-cleanup.py", line 36, in <module>
+    assert os.WIFSIGNALED(status) and os.WTERMSIG(status) == signal.SIGKILL, status
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 1

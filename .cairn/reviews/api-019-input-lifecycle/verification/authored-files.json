@@ -1,0 +1,8 @@
+{
+  "verification/api-residual/input-lifecycle.rs": "8684d1eb9bfed93c7a964f08f85a8388cf87363a3351ad8fda632486dc35e0af",
+  "verification/api-residual/input-lifecycle.py": "6a99f7db4dc2ea14cdd94e546ab31c2a0c1ba79197d61f5adae8d070b5f441ef",
+  "verification/api-residual/run-input-lifecycle.py": "257036de79629438ecaafbecab55d236a85ea9cba59702f74f90c23e719c46b6",
+  "verification/api-residual/check-controller-cleanup.py": "3926ad145921c98b6c14516d0097301faae0b6073608765af25ea1f2487894b8",
+  "verification/api-residual/README.md": "7fad664146b8305d7674ca2cda4a52a6af9727f459315257c30a71a5a4494fda",
+  ".cairn/reviews/api-019-input-lifecycle/review.md": "69c6d05642bdba5f3c566a4dc75554f9b414be809e6e0dcc47494391b29a403e"
+}
