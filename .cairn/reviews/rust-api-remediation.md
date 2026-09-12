@@ -4382,3 +4382,8 @@ GNOME portal/key-store helpers. No capture descriptors remain open; see
 api-017-image-helper-cleanup.json. This pass does not explain the previously
 recorded intermittent Kitty blank capture; helper cleanup and startup timing
 remain explicit concerns for the final mechanism review.
+
+API-015/20260912T120355662Z passed all twelve feature configurations, 26
+feature behavior tests and ten App component tests. Also retained the 52 raw
+image host/Xvfb logs excluded by the default ignore rules in the preceding
+capture commit; their original bytes were preserved after helper cleanup.
