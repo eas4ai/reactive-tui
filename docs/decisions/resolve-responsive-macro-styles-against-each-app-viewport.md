@@ -13,3 +13,7 @@ Keep responsive_css returning StyleBuilder. Apply breakpoint blocks in ascending
 ## Realized by
 
 (none yet: recorded, not built)
+
+## Realized by
+
+- a2a3a1fefdeaf4ce0dc2acf888457339d91b295f Repair public API documentation and responsive style macros
