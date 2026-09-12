@@ -4715,3 +4715,15 @@ rustdoc, the README contains old examples and broad host claims, and several
 source examples are ignored. Those documentation repairs and the complete
 supported matrix remain required under API-018. API-019 and API-020 remain open;
 the image-capture outer-timeout ownership defect is still recorded for repair.
+
+### API-018 Props change: platform evidence refresh
+
+API-001 through API-007 have current passing receipts. API-008 passed 13
+clipboard behavior cases and two process lifecycle cases, then rejected old
+platform input digests. The three Linux backends now each pass five native
+round trips and two lifecycle cases; their current input digests and both
+output hashes were checked. macOS and Windows are running in GitHub run
+34705931916 on snapshot 0d6f176bb8a46da1859a86aec0bd79962a9652cb.
+The complete native-input Git trees match local source c2eeb695beaa8222bf04dc8694d3d8861b370867
+byte-for-byte. This uses the previously authorized verification branch.
+Native results remain pending; no source was changed to bypass freshness.
