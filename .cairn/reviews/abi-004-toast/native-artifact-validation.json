@@ -1,0 +1,11 @@
+{
+  "Darwin": {
+    "outputs_validated": 72
+  },
+  "Windows": {
+    "outputs_validated": 15
+  },
+  "ConPTY": {
+    "outputs_validated": 6
+  }
+}

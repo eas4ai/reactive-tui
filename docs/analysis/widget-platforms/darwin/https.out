@@ -15,7 +15,7 @@ warning: `reactive-tui` (lib test) generated 1 warning
 running 1 test
 test widgets::dialog::http::tests::tls_certificate_probe ... ok
 
-test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 971 filtered out; finished in 0.09s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 973 filtered out; finished in 0.05s
 
 Dialog HTTPS trusted: passed
 warning: method `serial` is never used
@@ -35,6 +35,6 @@ warning: `reactive-tui` (lib test) generated 1 warning
 running 1 test
 test widgets::dialog::http::tests::tls_certificate_probe ... ok
 
-test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 971 filtered out; finished in 0.11s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 973 filtered out; finished in 0.09s
 
 Dialog HTTPS untrusted: passed

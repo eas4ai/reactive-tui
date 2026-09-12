@@ -4484,3 +4484,15 @@ The final clipboard verifier passed for all five backends after validating
 current committed source digests, platform identities, executed behavior markers
 and retained output hashes. The API-008 platform refresh action is complete;
 Cairn must still record its acceptance result.
+
+API-011 receipt `20260912T131336517Z` passed its local widget, library, HTTPS
+and real Orca behavior checks, including toast speech/expiry at both dialog
+viewports. It then rejected the older ConPTY input digest. Imported 96 native
+artifact files from successful run `34694702900`: 72 macOS outputs, 15 Windows
+widget outputs, six ConPTY outputs and their three records. Validation checked
+actual job and step success, the exact verification snapshot, current committed
+input digests, platform identity, every recorded raw-output hash, required image
+artifacts and ConPTY success/violating/runtime-integrity markers. Original bytes
+were copied unchanged. Both native platform verifiers passed after import. The
+existing approved iTerm2 color/transparency limitation remains unchanged.
+Validation counts are retained in `abi-004-toast/native-artifact-validation.json`.
