@@ -1,0 +1,19 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.10s
+     Running tests/api_widget_behavior.rs (target/debug/deps/api_widget_behavior-166dfc94d6f50275)
+
+running 12 tests
+test image_acceptance::image_animated_gif_advances_without_input_and_repeats_through_app ... ok
+test image_acceptance::image_builder_clips_to_its_parent_and_keeps_other_images_independent ... ok
+test image_acceptance::image_builder_loads_encoded_file_contents ... ok
+test image_acceptance::image_builder_paints_decoded_pixels_with_authored_bounds ... ok
+test image_acceptance::image_builder_presents_decoded_kitty_pixels_and_releases_updated_and_removed_resources ... ok
+test image_acceptance::image_builder_presents_sixel_and_inline_updates_and_removal ... ok
+test image_acceptance::image_builder_reports_invalid_sources_and_empty_state ... ok
+test image_acceptance::image_builder_resizes_to_its_presented_content_area ... ok
+test image_acceptance::image_builder_retains_base64_data_url_and_format_hint ... ok
+test image_acceptance::image_builder_updates_a_keyed_source_and_clears_on_removal ... ok
+test image_acceptance::image_file_and_encoded_memory_share_kitty_payloads_in_app ... ok
+test image_acceptance::image_native_element_honors_alpha_background_quality_and_text_mode ... ok
+
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 389 filtered out; finished in 1.81s
+
