@@ -4614,3 +4614,5 @@ with all declared native input trees equal to ee893b13f4be020d68d2918b74061d5ff9
 macOS completed successfully; its 72 recorded output hashes and current input
 digest were checked before import. Windows is still running. Resume this run
 and import validated widget/ConPTY artifacts before cairn check API-011.
+
+Native run 34700619224 passed on macOS and Windows for snapshot 2a68a4fa53382910a1997d24d18bc6ba25e23a92. Its declared input trees exactly match local commit ee893b13f4be020d68d2918b74061d5ff935bd54. Imported the widget and ConPTY artifacts after checking job and step success, current committed input digests, system, every recorded output hash, and unchanged copied bytes. Both native verifiers passed. The earlier clipboard records remain current because their declared inputs did not change.
