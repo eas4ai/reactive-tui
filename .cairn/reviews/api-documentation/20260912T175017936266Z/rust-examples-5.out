@@ -1,0 +1,35 @@
+
+running 1 test
+test /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260912T175017936266Z/rust-5.md - (line 3) - compile ... FAILED
+
+failures:
+
+---- /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260912T175017936266Z/rust-5.md - (line 3) stdout ----
+error[E0433]: cannot find type `DisplayType` in this scope
+ --> /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260912T175017936266Z/rust-5.md:9:18
+  |
+9 |         display: DisplayType::Flex,
+  |                  ^^^^^^^^^^^ use of undeclared type `DisplayType`
+
+error[E0433]: cannot find type `Color` in this scope
+  --> /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260912T175017936266Z/rust-5.md:10:27
+   |
+10 |         background_color: Color::Blue,
+   |                           ^^^^^ use of undeclared type `Color`
+
+error[E0433]: cannot find type `Spacing` in this scope
+  --> /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260912T175017936266Z/rust-5.md:11:18
+   |
+11 |         padding: Spacing::all(16.0),
+   |                  ^^^^^^^ use of undeclared type `Spacing`
+
+error: aborting due to 3 previous errors
+
+For more information about this error, try `rustc --explain E0433`.
+Couldn't compile the test.
+
+failures:
+    /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260912T175017936266Z/rust-5.md - (line 3)
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+

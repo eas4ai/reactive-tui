@@ -1,0 +1,25 @@
+/home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260912T175017936266Z/c-4.c: In function ‘main’:
+/home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260912T175017936266Z/c-4.c:12:26: error: passing argument 1 of ‘rtui_renderer_create’ makes integer from pointer without a cast [-Wint-conversion]
+   12 |     rtui_renderer_create(terminal, &renderer);
+      |                          ^~~~~~~~
+      |                          |
+      |                          RTuiTerminal *
+In file included from /home/shawn/workspace2/reactive-tui/include/reactive_tui/core.h:7,
+                 from /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260912T175017936266Z/c-4.c:1:
+/home/shawn/workspace2/reactive-tui/include/reactive_tui/native.h:799:46: note: expected ‘uint16_t’ {aka ‘short unsigned int’} but argument is of type ‘RTuiTerminal *’
+  799 | enum RTuiError rtui_renderer_create(uint16_t width, uint16_t height, RTuiRenderer **out_renderer);
+      |                                     ~~~~~~~~~^~~~~
+/home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260912T175017936266Z/c-4.c:12:36: error: passing argument 2 of ‘rtui_renderer_create’ makes integer from pointer without a cast [-Wint-conversion]
+   12 |     rtui_renderer_create(terminal, &renderer);
+      |                                    ^~~~~~~~~
+      |                                    |
+      |                                    RTuiRenderer **
+/home/shawn/workspace2/reactive-tui/include/reactive_tui/native.h:799:62: note: expected ‘uint16_t’ {aka ‘short unsigned int’} but argument is of type ‘RTuiRenderer **’
+  799 | enum RTuiError rtui_renderer_create(uint16_t width, uint16_t height, RTuiRenderer **out_renderer);
+      |                                                     ~~~~~~~~~^~~~~~
+/home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260912T175017936266Z/c-4.c:12:5: error: too few arguments to function ‘rtui_renderer_create’; expected 3, have 2
+   12 |     rtui_renderer_create(terminal, &renderer);
+      |     ^~~~~~~~~~~~~~~~~~~~
+/home/shawn/workspace2/reactive-tui/include/reactive_tui/native.h:799:16: note: declared here
+  799 | enum RTuiError rtui_renderer_create(uint16_t width, uint16_t height, RTuiRenderer **out_renderer);
+      |                ^~~~~~~~~~~~~~~~~~~~

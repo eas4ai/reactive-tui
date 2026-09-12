@@ -1,0 +1,404 @@
+[
+  {
+    "file": "README.md",
+    "line": 43,
+    "language": "rust",
+    "sha256": "80ce6770a44a55071b544d5d792a9eb8d32e091a976b7615412bf9ed646c77f1"
+  },
+  {
+    "file": "README.md",
+    "line": 65,
+    "language": "rust",
+    "sha256": "38919a4656290cecef7b7bd20ab50fd0ea695237e40875c9b83316f652df894c"
+  },
+  {
+    "file": "docs/ADAPTIVE_PERFORMANCE.md",
+    "line": 34,
+    "language": "rust",
+    "sha256": "5c463fa2a402dd2f63d8e4884eea453e04c3ddcb2125835bbaf5cebb1085be2a"
+  },
+  {
+    "file": "docs/ADAPTIVE_PERFORMANCE.md",
+    "line": 48,
+    "language": "rust",
+    "sha256": "ed876093f7f56e5a47f074837b30c516804cf9a77d85e0fd485377437d96e014"
+  },
+  {
+    "file": "docs/ADAPTIVE_PERFORMANCE.md",
+    "line": 61,
+    "language": "rust",
+    "sha256": "f9beb94f0fc984c1be1dce7892361b9df84d0cf80f4d539f79d2b4664bf1d73a"
+  },
+  {
+    "file": "docs/ADAPTIVE_PERFORMANCE.md",
+    "line": 78,
+    "language": "rust",
+    "sha256": "21d04c94b504ddadb5c01f18b3332fe4ffa04846fbb45deac4eea3829a4f13f0"
+  },
+  {
+    "file": "docs/ADAPTIVE_PERFORMANCE.md",
+    "line": 92,
+    "language": "rust",
+    "sha256": "0dd57e94bed85f551484e0842415d3e1f6447194aae741ea17f3b3db540e6713"
+  },
+  {
+    "file": "docs/ANIMATION_INTEGRATION.md",
+    "line": 18,
+    "language": "rust",
+    "sha256": "461f0438ba59ab32ddda85c7a6f5ca66392b3e57ae3aa1967364d5a7d0449865"
+  },
+  {
+    "file": "docs/ANIMATION_INTEGRATION.md",
+    "line": 35,
+    "language": "rust",
+    "sha256": "35002c155d3b1539428a9cc056f37d0ef960baf76237e4009110f41f27709920"
+  },
+  {
+    "file": "docs/ANIMATION_INTEGRATION.md",
+    "line": 48,
+    "language": "rust",
+    "sha256": "bd3157d38dd57dc4d0e9876758df900b37c7edc1a51c2a7271d75d9b032ab4f4"
+  },
+  {
+    "file": "docs/ANIMATION_INTEGRATION.md",
+    "line": 63,
+    "language": "rust",
+    "sha256": "e9d9a431020b64db77ff3c7e467fea184a7bf6c2ecb9d6d94aa4f29e2a9cf3f3"
+  },
+  {
+    "file": "docs/ANIMATION_INTEGRATION.md",
+    "line": 88,
+    "language": "rust",
+    "sha256": "ac1a9c5b2244a2bf93f6c740965f2ee6e241779227e4b81d88161a590d2a73b7"
+  },
+  {
+    "file": "docs/ANIMATION_INTEGRATION.md",
+    "line": 107,
+    "language": "rust",
+    "sha256": "678d177c7c8a6440d97b0ae39630c0b9bb55ef1939ca315581d0ed8be0493ac8"
+  },
+  {
+    "file": "docs/ANIMATION_INTEGRATION.md",
+    "line": 127,
+    "language": "rust",
+    "sha256": "974ba210cf7204a493a18a631e5be7cb333328267eb0acd11cd95100db30e47b"
+  },
+  {
+    "file": "docs/ANIMATION_INTEGRATION.md",
+    "line": 134,
+    "language": "rust",
+    "sha256": "eb7fbe5c9a4dd2aa58c127d63626abd4a2ab043c091d2fba81a205f2d4db86ee"
+  },
+  {
+    "file": "docs/ANIMATION_INTEGRATION.md",
+    "line": 144,
+    "language": "rust",
+    "sha256": "b8792407af916e5c99e72f69d28d109b76c7446e28a29d1b5163d1cb2bf31442"
+  },
+  {
+    "file": "docs/ANIMATION_INTEGRATION.md",
+    "line": 155,
+    "language": "rust",
+    "sha256": "f8ef4f6698f0a9afea93eb66d198aad6107c47dee35861804f7346b2e7d0c16b"
+  },
+  {
+    "file": "docs/ANIMATION_INTEGRATION.md",
+    "line": 169,
+    "language": "rust",
+    "sha256": "8ace83a79a6cc5fb3a6bcfdaffe29b630c16547a31d9323ad0cd3b89a11d5de8"
+  },
+  {
+    "file": "docs/ANIMATION_INTEGRATION.md",
+    "line": 179,
+    "language": "rust",
+    "sha256": "26421257b256086e12cba0c3e2b029a8f1c67885de2cbd288ab878b6332e4d04"
+  },
+  {
+    "file": "docs/ANIMATION_INTEGRATION.md",
+    "line": 194,
+    "language": "rust",
+    "sha256": "5b01af90edd5c7faad81c8fe3967331fa705d9ab998fb788e5320da24bb93d84"
+  },
+  {
+    "file": "docs/ANIMATION_INTEGRATION.md",
+    "line": 208,
+    "language": "rust",
+    "sha256": "f91dd007688687f96845f8adf8aa9209902a0f4325a308b513fb33f3b5dbc65c"
+  },
+  {
+    "file": "docs/FFI_ABI_POLICY.md",
+    "line": 37,
+    "language": "c",
+    "sha256": "2cb0e9e013672f2126b94f3e330153f59bc913a06444dbba2525402200a60778"
+  },
+  {
+    "file": "docs/FFI_ABI_POLICY.md",
+    "line": 105,
+    "language": "c",
+    "sha256": "73a9190c2bc9db63aebe5f31553770b9e9f77a9c780906881afa7b06c8ab1f4a"
+  },
+  {
+    "file": "docs/FFI_ABI_POLICY.md",
+    "line": 118,
+    "language": "c",
+    "sha256": "f790221fcdae97ed96e723335ef72b407962bb4320a8df437011820c28a92bf3"
+  },
+  {
+    "file": "docs/app-events.md",
+    "line": 37,
+    "language": "rust",
+    "sha256": "6f5b5792d0c11d98b5262946c3b8dc0b166a580c366c98a2b44480afce49c4bb"
+  },
+  {
+    "file": "docs/app-events.md",
+    "line": 55,
+    "language": "rust",
+    "sha256": "06c9a488efe000143fa643aa779139524cbd9bd3dd406e32b2b8dc633116b43b"
+  },
+  {
+    "file": "include/README.md",
+    "line": 76,
+    "language": "c",
+    "sha256": "656d5f5147a75fea40057b822faee2a4192ef7ff975180de1a45117c3145859d"
+  },
+  {
+    "file": "include/README.md",
+    "line": 87,
+    "language": "c",
+    "sha256": "f940329c26454ce4d631cc06df1c3bdb018c983210c4509e0e1cd51b9dccf114"
+  },
+  {
+    "file": "bindings/typescript/README.md",
+    "line": 34,
+    "language": "typescript",
+    "sha256": "63bef8392450b088844dc802c97c93ec36bef016015679ff6c02390332eb6455"
+  },
+  {
+    "file": "bindings/typescript/README.md",
+    "line": 63,
+    "language": "typescript",
+    "sha256": "36acc5d04141b8a33afa01fe71b510a339cff2e3db44645f96a7621be95c3c85"
+  },
+  {
+    "file": "src/animation/api.rs",
+    "line": 281,
+    "language": "rust",
+    "sha256": "f1e88f34f73788fdf0daf27a8d53f52445a669349d36237bdc25dc98cbc5795c"
+  },
+  {
+    "file": "src/animation/api.rs",
+    "line": 690,
+    "language": "rust",
+    "sha256": "7042e36865206b9152902b67eed052d8ae344a6d24d12ce6a1ce5178f89f293a"
+  },
+  {
+    "file": "src/animation/api.rs",
+    "line": 858,
+    "language": "rust",
+    "sha256": "22dab7e949e099e1b27e2c0c7c288c439398fe77e262615010afdc277da559b8"
+  },
+  {
+    "file": "src/builder/core.rs",
+    "line": 131,
+    "language": "rust",
+    "sha256": "db2241685d110089854bfdbdf901858f9c6f6dc84905abf54d1b9e4828136c3e"
+  },
+  {
+    "file": "src/builder/widgets/dialog.rs",
+    "line": 81,
+    "language": "rust",
+    "sha256": "2b1b8be4385ecdd602408d6185612862330c1fa6dd7d15f8a7a13246478f27e8"
+  },
+  {
+    "file": "src/builder/widgets/display.rs",
+    "line": 216,
+    "language": "rust",
+    "sha256": "ba0038ee3be44801c9b1e9cfa6c741f9205ac2e0fc8ac0aa2f02d48b39775ce5"
+  },
+  {
+    "file": "src/hooks/clipboard.rs",
+    "line": 180,
+    "language": "rust",
+    "sha256": "a05f8c6069d9663d375e99e5ccc99fd8d2b41289cd9635cbe010eac41d43aa94"
+  },
+  {
+    "file": "src/hooks/clipboard.rs",
+    "line": 252,
+    "language": "rust",
+    "sha256": "bc4392b4d057572e7e2892979ff2d7b579d22ac78c5d124bf55a17394fbd1b3f"
+  },
+  {
+    "file": "src/hooks/fps.rs",
+    "line": 39,
+    "language": "rust",
+    "sha256": "75fba5e7ffd0395a3f3cb044662c4e1be695cf863b165359e59403a6b9ee6503"
+  },
+  {
+    "file": "src/hooks/fps.rs",
+    "line": 66,
+    "language": "rust",
+    "sha256": "efd7077a7661c9a2b5bdc9b7ce22c18fdf046f7417b6e71352606ebe6868ec96"
+  },
+  {
+    "file": "src/hooks/fps.rs",
+    "line": 127,
+    "language": "rust",
+    "sha256": "0e478e724d0638c5f954735e0ebfe3623870916705bd533482bddf225202098a"
+  },
+  {
+    "file": "src/hooks/fps.rs",
+    "line": 159,
+    "language": "rust",
+    "sha256": "3be56af2ba312578760fa7e5bda19a087dff21e2cab4debf8e1096aece1297eb"
+  },
+  {
+    "file": "src/hooks/fps.rs",
+    "line": 204,
+    "language": "rust",
+    "sha256": "9baa6b22728992b216ad126c7a8f2ddafce387eef6af2c770c55a5e9a8bae405"
+  },
+  {
+    "file": "src/hooks/mouse.rs",
+    "line": 19,
+    "language": "rust",
+    "sha256": "8dd2f2a77866195cb7753c8a325c87d245682576dc9b102060ab818dd6e81fdc"
+  },
+  {
+    "file": "src/hooks/mouse.rs",
+    "line": 100,
+    "language": "rust",
+    "sha256": "2318d447feca1070725d912ae0b67cf5f05ce50f22180bb4c2ecd1ac08e55d8a"
+  },
+  {
+    "file": "src/hooks/mouse.rs",
+    "line": 166,
+    "language": "rust",
+    "sha256": "3f636b068d816dfd77ee66a89ad93ccf52b09b63b4ab7eda3f510c3a1967aa2b"
+  },
+  {
+    "file": "src/hooks/mouse.rs",
+    "line": 224,
+    "language": "rust",
+    "sha256": "99c418d5719f395ce44256f2ba93b66478767872e165d2260e7df51e3f01f159"
+  },
+  {
+    "file": "src/hooks/mouse.rs",
+    "line": 262,
+    "language": "rust",
+    "sha256": "cbcf09c9ab08c192d107ba5cf72b1beaebd471cd603face3c8be2af75a206066"
+  },
+  {
+    "file": "src/hooks/mouse.rs",
+    "line": 304,
+    "language": "rust",
+    "sha256": "fb5f068b64309071c06a0702bcfe80507b4ea7522aeee132482d5ca1eff915e9"
+  },
+  {
+    "file": "src/hooks/mouse.rs",
+    "line": 388,
+    "language": "rust",
+    "sha256": "4c17c032e7636e6d3a7e5adc01473650753d0b24852048ef7bbc89214f111b0f"
+  },
+  {
+    "file": "src/hooks/mouse.rs",
+    "line": 454,
+    "language": "rust",
+    "sha256": "fb7ece0e32f67f1eb9e6604f800ab101217fc1b38e809138a42dea7e906c7663"
+  },
+  {
+    "file": "src/hooks/refs.rs",
+    "line": 99,
+    "language": "rust",
+    "sha256": "de6e7d8a76e295e550495ffd4b4312a76da606be611171ee196743b1df3e41bd"
+  },
+  {
+    "file": "src/hooks/refs.rs",
+    "line": 130,
+    "language": "rust",
+    "sha256": "9111225f6a7841066b0e8fc284c69d813bdda7ec40f0dff39b65610574cccad5"
+  },
+  {
+    "file": "src/hooks/refs.rs",
+    "line": 189,
+    "language": "rust",
+    "sha256": "8a2810cb2d7fdde41c219e370cf8997c170d63916f41935fd5ac3faec031bea5"
+  },
+  {
+    "file": "src/hooks/refs.rs",
+    "line": 246,
+    "language": "rust",
+    "sha256": "82493baa562222addaa8edae454d2f06c7e7d0f2ed5ce11eb22e69f3d3898cb6"
+  },
+  {
+    "file": "src/hooks/refs.rs",
+    "line": 318,
+    "language": "rust",
+    "sha256": "64612db1b4c7ea78e98e3034ae7610352bf5d6de755d1456c413c1a0a37251d4"
+  },
+  {
+    "file": "src/hooks/timer.rs",
+    "line": 12,
+    "language": "rust",
+    "sha256": "4eb4ee47f47bdf3b46e62330426694d77e5fea2439c568565fc3ebedfc9ded68"
+  },
+  {
+    "file": "src/hooks/timer.rs",
+    "line": 37,
+    "language": "rust",
+    "sha256": "50b7bae09c08198830e420c2916ff8f1f94a1eec8796764b0f7417feb69ecb11"
+  },
+  {
+    "file": "src/hooks/timer.rs",
+    "line": 70,
+    "language": "rust",
+    "sha256": "667dde0cd4af89c1de8801b7c0a2a4871e8bd66dad6454bef0bc907850831104"
+  },
+  {
+    "file": "src/hooks/timer.rs",
+    "line": 107,
+    "language": "rust",
+    "sha256": "d9555de469c1f38acf85faad43f8d0d1ee11b856b919a745fd460cbcfc46cd4b"
+  },
+  {
+    "file": "src/layout/css/css_in_rust.rs",
+    "line": 52,
+    "language": "rust",
+    "sha256": "006c57646cbe89e0aea64709602b60e5e9d2db62ad9dd5d429158559d928c815"
+  },
+  {
+    "file": "src/layout/css/css_in_rust.rs",
+    "line": 264,
+    "language": "rust",
+    "sha256": "80561d57322a2559a682104eb6b7fc961a4acb77b6f2495d0bf353f2860a0da1"
+  },
+  {
+    "file": "src/layout/css/css_in_rust.rs",
+    "line": 308,
+    "language": "rust",
+    "sha256": "bceb0f292889e48c64440541d436da9500ff160d19da1c0eb091c39c32bb57ba"
+  },
+  {
+    "file": "src/theme/mod.rs",
+    "line": 30,
+    "language": "rust",
+    "sha256": "6ef31a2d22ff94009510a20655f25b70e0604c7b75a4f5069049cc0b44e524ee"
+  },
+  {
+    "file": "reactive-tui-macros/src/lib.rs",
+    "line": 9,
+    "language": "rust",
+    "sha256": "b7972f0af0ebf8a3fb3694c2f29ce2c6cbcc56e86f748aa9b1d986972a2ce8ad"
+  },
+  {
+    "file": "reactive-tui-macros/src/lib.rs",
+    "line": 22,
+    "language": "rust",
+    "sha256": "ef899fc53b92e8b77d1543349a786816e873a2b672f63043b8ecc973cb09e486"
+  },
+  {
+    "file": "reactive-tui-macros/src/lib.rs",
+    "line": 243,
+    "language": "rust",
+    "sha256": "f7a722287563d79bb4966650f52b7b2bb63d202e4570f8a1cbd594f7e6c5e937"
+  }
+]

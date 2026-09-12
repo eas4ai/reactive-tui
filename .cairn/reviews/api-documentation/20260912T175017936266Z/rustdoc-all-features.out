@@ -1,0 +1,21 @@
+   Compiling getrandom v0.3.3
+    Checking futures-util v0.3.31
+    Checking uuid v1.18.1
+    Checking tempfile v3.21.0
+    Checking zbus v5.19.0
+    Checking accesskit v0.25.0
+    Checking accesskit_consumer v0.39.0
+    Checking atspi-common v0.13.0
+    Checking atspi-proxies v0.13.0
+    Checking atspi v0.29.0
+ Documenting reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+error: unresolved link to `end:u32`
+   --> src/ffi/text.rs:471:51
+    |
+471 | /// Get selection info as packed u64: [start:u32][end:u32]
+    |                                                   ^^^^^^^ invalid path separator
+    |
+    = help: to escape `[` and `]` characters, add '\' before them like `\[` or `\]`
+    = note: requested on the command line with `-D rustdoc::broken-intra-doc-links`
+
+error: could not document `reactive-tui`

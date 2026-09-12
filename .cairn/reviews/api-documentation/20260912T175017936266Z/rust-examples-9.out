@@ -1,0 +1,290 @@
+
+running 5 tests
+test /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260912T175017936266Z/rust-9.md - (line 60) - compile ... FAILED
+test /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260912T175017936266Z/rust-9.md - (line 19) - compile ... FAILED
+test /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260912T175017936266Z/rust-9.md - (line 74) - compile ... FAILED
+test /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260912T175017936266Z/rust-9.md - (line 3) - compile ... FAILED
+test /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260912T175017936266Z/rust-9.md - (line 38) - compile ... FAILED
+
+failures:
+
+---- /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260912T175017936266Z/rust-9.md - (line 60) stdout ----
+error[E0425]: cannot find type `Props` in this scope
+  --> /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260912T175017936266Z/rust-9.md:61:24
+   |
+61 | fn TimingDebug(props: &Props, state: &mut State) -> Element {
+   |                        ^^^^^ not found in this scope
+
+error[E0425]: cannot find type `State` in this scope
+  --> /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260912T175017936266Z/rust-9.md:61:43
+   |
+61 | fn TimingDebug(props: &Props, state: &mut State) -> Element {
+   |                                           ^^^^^ not found in this scope
+
+error[E0425]: cannot find type `Element` in this scope
+  --> /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260912T175017936266Z/rust-9.md:61:53
+   |
+61 | fn TimingDebug(props: &Props, state: &mut State) -> Element {
+   |                                                     ^^^^^^^ not found in this scope
+
+error[E0425]: cannot find value `hooks` in this scope
+  --> /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260912T175017936266Z/rust-9.md:62:36
+   |
+62 |     let timing = use_frame_timing(&hooks);
+   |                                    ^^^^^ not found in this scope
+
+error[E0425]: cannot find function `use_frame_timing` in this scope
+  --> /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260912T175017936266Z/rust-9.md:62:18
+   |
+62 |     let timing = use_frame_timing(&hooks);
+   |                  ^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0433]: cannot find type `Element` in this scope
+  --> /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260912T175017936266Z/rust-9.md:64:5
+   |
+64 |     Element::text(format!(
+   |     ^^^^^^^ use of undeclared type `Element`
+
+error: aborting due to 6 previous errors
+
+Some errors have detailed explanations: E0425, E0433.
+For more information about an error, try `rustc --explain E0425`.
+Couldn't compile the test.
+---- /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260912T175017936266Z/rust-9.md - (line 19) stdout ----
+error: cannot find macro `text` in this scope
+  --> /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260912T175017936266Z/rust-9.md:32:16
+   |
+32 |         .child(text!("Adaptive animations"))
+   |                ^^^^
+
+error[E0425]: cannot find type `Props` in this scope
+  --> /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260912T175017936266Z/rust-9.md:20:30
+   |
+20 | fn AnimatedComponent(props: &Props, state: &mut State) -> Element {
+   |                              ^^^^^ not found in this scope
+
+error[E0425]: cannot find type `State` in this scope
+  --> /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260912T175017936266Z/rust-9.md:20:49
+   |
+20 | fn AnimatedComponent(props: &Props, state: &mut State) -> Element {
+   |                                                 ^^^^^ not found in this scope
+
+error[E0425]: cannot find type `Element` in this scope
+  --> /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260912T175017936266Z/rust-9.md:20:59
+   |
+20 | fn AnimatedComponent(props: &Props, state: &mut State) -> Element {
+   |                                                           ^^^^^^^ not found in this scope
+
+error[E0425]: cannot find value `hooks` in this scope
+  --> /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260912T175017936266Z/rust-9.md:21:54
+   |
+21 |     let (performance, is_low_fps) = use_performance(&hooks);
+   |                                                      ^^^^^ not found in this scope
+
+error[E0425]: cannot find function `use_performance` in this scope
+  --> /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260912T175017936266Z/rust-9.md:21:37
+   |
+21 |     let (performance, is_low_fps) = use_performance(&hooks);
+   |                                     ^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0433]: cannot find type `Element` in this scope
+  --> /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260912T175017936266Z/rust-9.md:30:5
+   |
+30 |     Element::div()
+   |     ^^^^^^^ use of undeclared type `Element`
+
+error: aborting due to 7 previous errors
+
+Some errors have detailed explanations: E0425, E0433.
+For more information about an error, try `rustc --explain E0425`.
+Couldn't compile the test.
+---- /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260912T175017936266Z/rust-9.md - (line 74) stdout ----
+error: cannot find macro `text` in this scope
+  --> /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260912T175017936266Z/rust-9.md:86:16
+   |
+86 |         .child(text!("Adaptive quality content"))
+   |                ^^^^
+
+error[E0425]: cannot find type `Props` in this scope
+  --> /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260912T175017936266Z/rust-9.md:75:28
+   |
+75 | fn AdaptiveContent(props: &Props, state: &mut State) -> Element {
+   |                            ^^^^^ not found in this scope
+
+error[E0425]: cannot find type `State` in this scope
+  --> /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260912T175017936266Z/rust-9.md:75:47
+   |
+75 | fn AdaptiveContent(props: &Props, state: &mut State) -> Element {
+   |                                               ^^^^^ not found in this scope
+
+error[E0425]: cannot find type `Element` in this scope
+  --> /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260912T175017936266Z/rust-9.md:75:57
+   |
+75 | fn AdaptiveContent(props: &Props, state: &mut State) -> Element {
+   |                                                         ^^^^^^^ not found in this scope
+
+error[E0425]: cannot find value `hooks` in this scope
+  --> /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260912T175017936266Z/rust-9.md:76:41
+   |
+76 |     let quality = use_adaptive_quality(&hooks);
+   |                                         ^^^^^ not found in this scope
+
+error[E0425]: cannot find function `use_adaptive_quality` in this scope
+  --> /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260912T175017936266Z/rust-9.md:76:19
+   |
+76 |     let quality = use_adaptive_quality(&hooks);
+   |                   ^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0433]: cannot find type `Element` in this scope
+  --> /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260912T175017936266Z/rust-9.md:84:5
+   |
+84 |     Element::div()
+   |     ^^^^^^^ use of undeclared type `Element`
+
+error[E0433]: cannot find type `QualityLevel` in this scope
+  --> /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260912T175017936266Z/rust-9.md:79:9
+   |
+79 |         QualityLevel::Low => "",
+   |         ^^^^^^^^^^^^ use of undeclared type `QualityLevel`
+
+error[E0433]: cannot find type `QualityLevel` in this scope
+  --> /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260912T175017936266Z/rust-9.md:80:9
+   |
+80 |         QualityLevel::Medium => "shadow-sm",
+   |         ^^^^^^^^^^^^ use of undeclared type `QualityLevel`
+
+error[E0433]: cannot find type `QualityLevel` in this scope
+  --> /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260912T175017936266Z/rust-9.md:81:9
+   |
+81 |         QualityLevel::High => "shadow-lg",
+   |         ^^^^^^^^^^^^ use of undeclared type `QualityLevel`
+
+error: aborting due to 10 previous errors
+
+Some errors have detailed explanations: E0425, E0433.
+For more information about an error, try `rustc --explain E0425`.
+Couldn't compile the test.
+---- /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260912T175017936266Z/rust-9.md - (line 3) stdout ----
+error[E0425]: cannot find type `Props` in this scope
+ --> /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260912T175017936266Z/rust-9.md:4:22
+  |
+4 | fn StatusBar(props: &Props, state: &mut State) -> Element {
+  |                      ^^^^^ not found in this scope
+
+error[E0425]: cannot find type `State` in this scope
+ --> /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260912T175017936266Z/rust-9.md:4:41
+  |
+4 | fn StatusBar(props: &Props, state: &mut State) -> Element {
+  |                                         ^^^^^ not found in this scope
+
+error[E0425]: cannot find type `Element` in this scope
+ --> /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260912T175017936266Z/rust-9.md:4:51
+  |
+4 | fn StatusBar(props: &Props, state: &mut State) -> Element {
+  |                                                   ^^^^^^^ not found in this scope
+
+error[E0425]: cannot find value `hooks` in this scope
+ --> /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260912T175017936266Z/rust-9.md:5:24
+  |
+5 |     let fps = use_fps(&hooks);
+  |                        ^^^^^ not found in this scope
+
+error[E0425]: cannot find function `use_fps` in this scope
+ --> /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260912T175017936266Z/rust-9.md:5:15
+  |
+5 |     let fps = use_fps(&hooks);
+  |               ^^^^^^^ not found in this scope
+
+error[E0433]: cannot find type `Element` in this scope
+ --> /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260912T175017936266Z/rust-9.md:7:5
+  |
+7 |     Element::text(format!(
+  |     ^^^^^^^ use of undeclared type `Element`
+
+error: aborting due to 6 previous errors
+
+Some errors have detailed explanations: E0425, E0433.
+For more information about an error, try `rustc --explain E0425`.
+Couldn't compile the test.
+---- /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260912T175017936266Z/rust-9.md - (line 38) stdout ----
+error: cannot find macro `text` in this scope
+  --> /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260912T175017936266Z/rust-9.md:54:16
+   |
+54 |         .child(text!("High performance game"))
+   |                ^^^^
+
+error[E0425]: cannot find type `Props` in this scope
+  --> /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260912T175017936266Z/rust-9.md:39:21
+   |
+39 | fn GameView(props: &Props, state: &mut State) -> Element {
+   |                     ^^^^^ not found in this scope
+
+error[E0425]: cannot find type `State` in this scope
+  --> /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260912T175017936266Z/rust-9.md:39:40
+   |
+39 | fn GameView(props: &Props, state: &mut State) -> Element {
+   |                                        ^^^^^ not found in this scope
+
+error[E0425]: cannot find type `Element` in this scope
+  --> /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260912T175017936266Z/rust-9.md:39:50
+   |
+39 | fn GameView(props: &Props, state: &mut State) -> Element {
+   |                                                  ^^^^^^^ not found in this scope
+
+error[E0425]: cannot find value `hooks` in this scope
+  --> /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260912T175017936266Z/rust-9.md:40:42
+   |
+40 |     let set_mode = use_performance_mode(&hooks);
+   |                                          ^^^^^ not found in this scope
+
+error[E0425]: cannot find value `hooks` in this scope
+  --> /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260912T175017936266Z/rust-9.md:42:17
+   |
+42 |     use_effect(&hooks, move || {
+   |                 ^^^^^ not found in this scope
+
+error[E0425]: cannot find function `use_performance_mode` in this scope
+  --> /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260912T175017936266Z/rust-9.md:40:20
+   |
+40 |     let set_mode = use_performance_mode(&hooks);
+   |                    ^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0433]: cannot find type `PerformanceMode` in this scope
+  --> /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260912T175017936266Z/rust-9.md:44:18
+   |
+44 |         set_mode(PerformanceMode::Gaming);
+   |                  ^^^^^^^^^^^^^^^ use of undeclared type `PerformanceMode`
+
+error[E0433]: cannot find type `PerformanceMode` in this scope
+  --> /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260912T175017936266Z/rust-9.md:48:22
+   |
+48 |             set_mode(PerformanceMode::Balanced);
+   |                      ^^^^^^^^^^^^^^^ use of undeclared type `PerformanceMode`
+
+error[E0425]: cannot find function `use_effect` in this scope
+  --> /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260912T175017936266Z/rust-9.md:42:5
+   |
+42 |     use_effect(&hooks, move || {
+   |     ^^^^^^^^^^ not found in this scope
+
+error[E0433]: cannot find type `Element` in this scope
+  --> /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260912T175017936266Z/rust-9.md:52:5
+   |
+52 |     Element::div()
+   |     ^^^^^^^ use of undeclared type `Element`
+
+error: aborting due to 11 previous errors
+
+Some errors have detailed explanations: E0425, E0433.
+For more information about an error, try `rustc --explain E0425`.
+Couldn't compile the test.
+
+failures:
+    /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260912T175017936266Z/rust-9.md - (line 19)
+    /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260912T175017936266Z/rust-9.md - (line 3)
+    /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260912T175017936266Z/rust-9.md - (line 38)
+    /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260912T175017936266Z/rust-9.md - (line 60)
+    /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260912T175017936266Z/rust-9.md - (line 74)
+
+test result: FAILED. 0 passed; 5 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+

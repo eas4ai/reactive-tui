@@ -1,0 +1,44 @@
+PASS checker-controls
+PASS props-behavior
+PASS props-diagnostics
+PASS consumer-library
+FAIL props-defaults-compile Native widget command failed (1): /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260912T175017936266Z/props-defaults-compile.out
+FAIL props A required nested check failed; see the retained outputs
+PASS rustdoc-default
+FAIL markdown-visible-default Public Markdown module is absent from the rustdoc module index
+PASS rustdoc-minimal
+FAIL markdown-visible-minimal Public Markdown module is absent from the rustdoc module index
+FAIL rustdoc-all-features Native widget command failed (101): /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260912T175017936266Z/rustdoc-all-features.out
+PASS crate-doctests-default
+PASS crate-doctests-minimal
+PASS cargo-examples
+FAIL rustdoc A required nested check failed; see the retained outputs
+PASS consumer-library
+FAIL rust-examples-0 Native widget command failed (101): /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260912T175017936266Z/rust-examples-0.out
+PASS rust-examples-1
+FAIL rust-examples-2 Native widget command failed (101): /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260912T175017936266Z/rust-examples-2.out
+PASS rust-examples-3
+FAIL rust-examples-4 Native widget command failed (101): /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260912T175017936266Z/rust-examples-4.out
+FAIL rust-examples-5 Native widget command failed (101): /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260912T175017936266Z/rust-examples-5.out
+PASS rust-examples-6
+PASS rust-examples-7
+FAIL rust-examples-8 Native widget command failed (101): /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260912T175017936266Z/rust-examples-8.out
+FAIL rust-examples-9 Native widget command failed (101): /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260912T175017936266Z/rust-examples-9.out
+FAIL rust-examples-10 Native widget command failed (101): /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260912T175017936266Z/rust-examples-10.out
+FAIL rust-examples-11 Native widget command failed (101): /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260912T175017936266Z/rust-examples-11.out
+FAIL rust-examples-12 Native widget command failed (101): /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260912T175017936266Z/rust-examples-12.out
+FAIL rust-examples-13 Native widget command failed (101): /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260912T175017936266Z/rust-examples-13.out
+FAIL rust-examples-14 Native widget command failed (101): /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260912T175017936266Z/rust-examples-14.out
+PASS rust-examples-15
+PASS ffi-library
+FAIL c-example-0 Native widget command failed (1): /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260912T175017936266Z/c-example-0.out
+FAIL c-example-1 Native widget command failed (1): /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260912T175017936266Z/c-example-1.out
+FAIL c-example-2 Native widget command failed (1): /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260912T175017936266Z/c-example-2.out
+PASS c-example-3
+FAIL c-example-4 Native widget command failed (1): /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260912T175017936266Z/c-example-4.out
+PASS typescript-dependencies
+PASS typescript-examples
+FAIL examples A required nested check failed; see the retained outputs
+FAIL inventory [Errno 2] No such file or directory: '/home/shawn/workspace2/reactive-tui/docs/supported-api.md'
+Documentation outputs: .cairn/reviews/api-documentation/20260912T175017936266Z
+API-018 failed: props-defaults-compile, props, markdown-visible-default, markdown-visible-minimal, rustdoc-all-features, rustdoc, rust-examples-0, rust-examples-2, rust-examples-4, rust-examples-5, rust-examples-8, rust-examples-9, rust-examples-10, rust-examples-11, rust-examples-12, rust-examples-13, rust-examples-14, c-example-0, c-example-1, c-example-2, c-example-4, examples, inventory
