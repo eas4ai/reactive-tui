@@ -1,0 +1,7 @@
+PASS checker-controls
+PASS input-unit-discovery
+PASS input-unit-behavior
+PASS input-lifecycle
+PASS input-controller-cancellation
+Residual outputs: .cairn/reviews/api-residual/20260913T003836861174Z
+PASS development section: unix-input; full API-019 acceptance was not run

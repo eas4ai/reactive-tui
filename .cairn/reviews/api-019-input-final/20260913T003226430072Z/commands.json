@@ -1,0 +1,94 @@
+[
+  {
+    "name": "rustfmt",
+    "command": [
+      "rustfmt",
+      "--edition=2021",
+      "--check",
+      "verification/api-residual/input-lifecycle.rs"
+    ],
+    "exit": 0
+  },
+  {
+    "name": "checker-controls",
+    "command": [
+      "/home/linuxbrew/.linuxbrew/opt/python@3.14/bin/python3.14",
+      "-B",
+      "verification/api-residual/checker-controls.py"
+    ],
+    "exit": 0
+  },
+  {
+    "name": "controller-cancellation-positive",
+    "command": [
+      "/home/linuxbrew/.linuxbrew/opt/python@3.14/bin/python3.14",
+      "-B",
+      "verification/api-residual/check-controller-cleanup.py"
+    ],
+    "exit": 0
+  },
+  {
+    "name": "controller-cancellation-negative",
+    "command": [
+      "/home/linuxbrew/.linuxbrew/opt/python@3.14/bin/python3.14",
+      "-B",
+      "verification/api-residual/check-controller-cleanup.py",
+      "/home/shawn/workspace2/scratchpads/tmp/rtui-controller-negative-c8dlwa_h/controller.py"
+    ],
+    "exit": 1
+  },
+  {
+    "name": "rust-version",
+    "command": [
+      "rustc",
+      "--version",
+      "--verbose"
+    ],
+    "exit": 0
+  },
+  {
+    "name": "edit-reader-probe",
+    "command": [
+      "ripwire",
+      ".",
+      "--edit-check=verification/api-residual/input-lifecycle.rs:main"
+    ],
+    "exit": 0
+  },
+  {
+    "name": "edit-controller",
+    "command": [
+      "ripwire",
+      ".",
+      "--edit-check=verification/api-residual/input-lifecycle.py:private_session"
+    ],
+    "exit": 0
+  },
+  {
+    "name": "edit-driver",
+    "command": [
+      "ripwire",
+      ".",
+      "--edit-check=verification/api-residual/run-input-lifecycle.py:run"
+    ],
+    "exit": 0
+  },
+  {
+    "name": "quality-delta",
+    "command": [
+      "ripwire",
+      ".",
+      "--quality-delta"
+    ],
+    "exit": 2
+  },
+  {
+    "name": "test-gate",
+    "command": [
+      "ripwire",
+      ".",
+      "--test-gate"
+    ],
+    "exit": 4
+  }
+]

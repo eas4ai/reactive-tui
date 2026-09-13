@@ -2,7 +2,7 @@
 //!
 //! Native POSIX terminal interface with signal handling
 
-use super::PlatformTty;
+use super::{input_receiver::InputWorker, InputReceiver, PlatformTty};
 use crate::error::Result;
 use std::os::unix::io::{AsRawFd, FromRawFd, OwnedFd, RawFd};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -39,6 +39,7 @@ struct TtyState {
     fd: OwnedFd,
     original_termios: libc::termios,
     restored: AtomicBool,
+    workers: Mutex<Vec<Weak<InputWorker>>>,
 }
 
 impl TtyState {
@@ -60,6 +61,19 @@ impl TtyState {
 
 impl Drop for TtyState {
     fn drop(&mut self) {
+        let workers = self
+            .workers
+            .get_mut()
+            .unwrap_or_else(|e| e.into_inner())
+            .iter()
+            .filter_map(Weak::upgrade)
+            .collect::<Vec<_>>();
+        for worker in &workers {
+            worker.cancel();
+        }
+        for worker in workers {
+            worker.stop();
+        }
         let _ = self.restore();
     }
 }
@@ -129,6 +143,7 @@ impl UnixTty {
             fd: unsafe { OwnedFd::from_raw_fd(fd) },
             original_termios,
             restored: AtomicBool::new(false),
+            workers: Mutex::new(Vec::new()),
         });
         install_signal_handlers()?;
         let tty = UnixTty { fd, state };
@@ -225,87 +240,52 @@ impl UnixTty {
         Ok(())
     }
 
-    /// Spawn a background thread for reading input
-    pub fn spawn_input_thread(&self) -> Result<std::sync::mpsc::Receiver<Vec<u8>>> {
-        use std::sync::mpsc;
-        use std::thread;
+    /// Start a bounded raw input stream with at most 64 chunks of 4096 bytes.
+    /// Dropping the receiver or final cloned terminal owner joins the reader.
+    pub fn spawn_input_thread(&self) -> Result<InputReceiver<Vec<u8>>> {
+        self.spawn_input(|bytes| vec![bytes.to_vec()])
+    }
 
-        let (tx, rx) = mpsc::channel();
-        let fd = self.fd;
-
-        thread::spawn(move || {
-            let mut buffer = [0u8; 4096];
-
-            // Set non-blocking mode for the thread
-            let flags = unsafe { libc::fcntl(fd, libc::F_GETFL) };
-            if flags >= 0 {
-                unsafe { libc::fcntl(fd, libc::F_SETFL, flags | libc::O_NONBLOCK) };
-            }
-
-            loop {
-                // Use select to wait for input with timeout
-                let mut fd_set = std::mem::MaybeUninit::<libc::fd_set>::uninit();
-                unsafe {
-                    libc::FD_ZERO(fd_set.as_mut_ptr());
-                    libc::FD_SET(fd, fd_set.as_mut_ptr());
-                }
-
-                let mut timeout = libc::timeval {
-                    tv_sec: 0,
-                    tv_usec: 100_000, // 100ms timeout
-                };
-
-                let select_result = unsafe {
-                    libc::select(
-                        fd + 1,
-                        fd_set.as_mut_ptr(),
-                        std::ptr::null_mut(),
-                        std::ptr::null_mut(),
-                        &mut timeout,
-                    )
-                };
-
-                match select_result {
-                    1 => {
-                        // Data available
-                        match unsafe {
-                            libc::read(fd, buffer.as_mut_ptr() as *mut libc::c_void, buffer.len())
-                        } {
-                            n if n > 0 => {
-                                let data = buffer[..n as usize].to_vec();
-                                if tx.send(data).is_err() {
-                                    break; // Receiver dropped
-                                }
-                            }
-                            0 => break, // EOF
-                            _ => {
-                                // Error reading
-                                if std::io::Error::last_os_error().kind()
-                                    != std::io::ErrorKind::WouldBlock
-                                {
-                                    break; // Real error
-                                }
-                            }
-                        }
-                    }
-                    0 => {
-                        // Timeout - continue loop
-                        continue;
-                    }
-                    _ => {
-                        // Error in select
-                        break;
-                    }
-                }
-            }
-
-            // Restore blocking mode
-            if flags >= 0 {
-                unsafe { libc::fcntl(fd, libc::F_SETFL, flags) };
-            }
-        });
-
-        Ok(rx)
+    pub(super) fn spawn_input<T, F>(&self, parse: F) -> Result<InputReceiver<T>>
+    where
+        T: Send + 'static,
+        F: FnMut(&[u8]) -> Vec<T> + Send + 'static,
+    {
+        // A separate open description keeps nonblocking flags private to the
+        // worker. A duplicated fd would still share flags with synchronous IO.
+        let fd = unsafe {
+            libc::open(
+                c"/dev/tty".as_ptr(),
+                libc::O_RDONLY | libc::O_CLOEXEC | libc::O_NONBLOCK | libc::O_NOCTTY,
+            )
+        };
+        if fd < 0 {
+            return Err(std::io::Error::last_os_error().into());
+        }
+        let descriptor = unsafe { OwnedFd::from_raw_fd(fd) };
+        // Reject a caller whose controlling terminal has changed since init.
+        // A session can have only one controlling terminal; compare both owned
+        // descriptors before starting a reader for this owner.
+        let session = unsafe { libc::tcgetsid(self.fd) };
+        if session < 0 {
+            return Err(std::io::Error::last_os_error().into());
+        }
+        let reader_session = unsafe { libc::tcgetsid(descriptor.as_raw_fd()) };
+        if reader_session < 0 {
+            return Err(std::io::Error::last_os_error().into());
+        }
+        if session != reader_session {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "Input reader and terminal owner belong to different controlling sessions",
+            )
+            .into());
+        }
+        let receiver = InputWorker::spawn(descriptor, parse)?;
+        let mut workers = self.state.workers.lock().unwrap_or_else(|e| e.into_inner());
+        workers.retain(|worker| worker.strong_count() != 0);
+        workers.push(InputWorker::registration(&receiver));
+        Ok(receiver)
     }
 }
 

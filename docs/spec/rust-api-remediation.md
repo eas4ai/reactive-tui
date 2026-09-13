@@ -199,6 +199,15 @@ Audit mapping: RAPI-03, RAPI-15 and coverage table.
 Falsifier: a named concern disappears from the inventory or an advertised operation remains a marker/no-op without approved contract change.
 Mechanism: focused behavior checks and final cross-reference review of the complete audit.
 
+Unix async input ownership (approved 2026-09-12, escalation api-019-api-020):
+`UnixTty::spawn_input_thread` and `DirectTty::start_async_events` return an owned
+`platform::InputReceiver<T>` instead of the standard library's concrete receiver.
+Dropping the receiver or final terminal owner MUST stop and join its input work,
+including idle and full-queue waits. Queues MUST be bounded and readers MUST NOT
+access closed or reused descriptors. Preserve ordinary receive methods and iteration
+with standard receive errors. Explicit standard receiver/iterator types require
+documented migration. This approval does not weaken other platform/input contracts.
+
 ## Regression and closure
 
 [API-020]

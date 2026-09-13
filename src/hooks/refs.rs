@@ -1,4 +1,4 @@
-use crate::reactive::hooks::Hooks;
+use crate::reactive::hooks::{HookKind, Hooks};
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
@@ -107,12 +107,13 @@ impl<T> LocalRef<T> {
 ///     assert_eq!(value.current(), "updated");
 /// }
 /// ```
-pub fn use_ref<T>(_hooks: &Hooks, initial: T) -> Ref<T>
+pub fn use_ref<T>(hooks: &Hooks, initial: T) -> Ref<T>
 where
     T: Send + Sync + 'static,
 {
-    // Refs don't need to be tracked by signals since they don't trigger re-renders
-    Ref::new(initial)
+    Ref {
+        value: hooks.get_or_create_storage(HookKind::Ref, || initial),
+    }
 }
 
 /// Hook for creating a local (non-thread-safe) mutable reference
@@ -144,8 +145,10 @@ where
 #[derive(Clone)]
 pub struct CallbackRef<T> {
     current: Arc<Mutex<Option<T>>>,
-    callback: Arc<dyn Fn(Option<T>) + Send + Sync>,
+    callback: Arc<Mutex<RefCallback<T>>>,
 }
+
+type RefCallback<T> = Arc<dyn Fn(Option<T>) + Send + Sync>;
 
 impl<T: Clone + Send + 'static> CallbackRef<T> {
     /// Create a new callback ref
@@ -155,15 +158,18 @@ impl<T: Clone + Send + 'static> CallbackRef<T> {
     {
         Self {
             current: Arc::new(Mutex::new(None)),
-            callback: Arc::new(callback),
+            callback: Arc::new(Mutex::new(Arc::new(callback))),
         }
     }
 
     /// Set the reference, calling the callback with the new value
     pub fn set(&self, value: Option<T>) {
-        let mut guard = self.current.lock().unwrap();
-        *guard = value.clone();
-        (self.callback)(value);
+        let next = value.clone();
+        let previous = std::mem::replace(&mut *self.current.lock().unwrap(), next);
+        let callback = Arc::clone(&self.callback.lock().unwrap());
+        // Both destructors and callbacks may reenter this reference.
+        drop(previous);
+        callback(value);
     }
 
     /// Get the current value
@@ -188,13 +194,20 @@ impl<T: Clone + Send + 'static> CallbackRef<T> {
 ///     reference.set(None);
 /// }
 /// ```
-pub fn use_callback_ref<T, F>(_hooks: &Hooks, callback: F) -> CallbackRef<T>
+pub fn use_callback_ref<T, F>(hooks: &Hooks, callback: F) -> CallbackRef<T>
 where
     T: Clone + Send + 'static,
     F: Fn(Option<T>) + Send + Sync + 'static,
 {
-    // Callback refs don't need to be tracked by signals since they don't trigger re-renders
-    CallbackRef::new(callback)
+    let callback: RefCallback<T> = Arc::new(callback);
+    let storage = hooks.get_or_create_storage(HookKind::CallbackRef, || CallbackRef {
+        current: Arc::new(Mutex::new(None)),
+        callback: Arc::new(Mutex::new(Arc::clone(&callback))),
+    });
+    let reference = storage.lock().unwrap().clone();
+    let previous = std::mem::replace(&mut *reference.callback.lock().unwrap(), callback);
+    drop(previous);
+    reference
 }
 
 /// A forwarded ref that can be passed through component props
@@ -314,12 +327,13 @@ impl<T: Clone> MultiRef<T> {
 ///     assert_eq!(selected.count(), 0);
 /// }
 /// ```
-pub fn use_multi_ref<T>(_hooks: &Hooks) -> MultiRef<T>
+pub fn use_multi_ref<T>(hooks: &Hooks) -> MultiRef<T>
 where
     T: Clone + Send + Sync + 'static,
 {
-    // Multi refs don't need to be tracked by signals since they don't trigger re-renders
-    MultiRef::new()
+    MultiRef {
+        refs: hooks.get_or_create_storage(HookKind::MultiRef, Vec::new),
+    }
 }
 
 #[cfg(test)]

@@ -1,0 +1,72 @@
+{
+  "source": "/home/shawn/.rustup/toolchains/1.95-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/std/src/sync/mpsc.rs",
+  "source_sha256": "aa209bdccededa8e694858466bce1c33d8e0f84f470de5a5a5ffdc12bebd3d58",
+  "documents": [
+    {
+      "type": "Sender",
+      "path": "/home/shawn/.rustup/toolchains/1.95-x86_64-unknown-linux-gnu/share/doc/rust/html/std/sync/mpsc/struct.Sender.html",
+      "sha256": "f9096877fd597cabe50d23c5aa1e8449296e7def77ad614b2118d31ba319570a",
+      "method_anchors": [
+        "send",
+        "clone",
+        "clone_from",
+        "fmt",
+        "type_id",
+        "borrow",
+        "borrow_mut",
+        "clone_to_uninit",
+        "from",
+        "into",
+        "to_owned",
+        "clone_into",
+        "try_from",
+        "try_into"
+      ]
+    },
+    {
+      "type": "SyncSender",
+      "path": "/home/shawn/.rustup/toolchains/1.95-x86_64-unknown-linux-gnu/share/doc/rust/html/std/sync/mpsc/struct.SyncSender.html",
+      "sha256": "70b530931600681c82cc0a8c5f7ecf6b0642290edc0a76449f34d025f8ddb6ac",
+      "method_anchors": [
+        "send",
+        "try_send",
+        "clone",
+        "clone_from",
+        "fmt",
+        "type_id",
+        "borrow",
+        "borrow_mut",
+        "clone_to_uninit",
+        "from",
+        "into",
+        "to_owned",
+        "clone_into",
+        "try_from",
+        "try_into"
+      ]
+    },
+    {
+      "type": "Receiver",
+      "path": "/home/shawn/.rustup/toolchains/1.95-x86_64-unknown-linux-gnu/share/doc/rust/html/std/sync/mpsc/struct.Receiver.html",
+      "sha256": "efac5be746955dfc2c6ecea428589ab494999fef933d07c71f1522480ae5e117",
+      "method_anchors": [
+        "try_recv",
+        "recv",
+        "recv_timeout",
+        "recv_deadline",
+        "iter",
+        "try_iter",
+        "fmt",
+        "into_iter",
+        "into_iter-1",
+        "type_id",
+        "borrow",
+        "borrow_mut",
+        "from",
+        "into",
+        "try_from",
+        "try_into"
+      ]
+    }
+  ]
+}

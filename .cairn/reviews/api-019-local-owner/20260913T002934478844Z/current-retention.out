@@ -1,0 +1,10 @@
+Hooks is Send + Sync; arbitrary Rc local value compiled
+Destroyed after returned handle removal: 1
+Hooks moved to and dropped on a different thread
+Destroyed after owner removal: 1
+
+thread 'main' (3934516) panicked at verification/api-residual/local-owner.rs:32:5:
+assertion `left == right` failed: local value was released before the Hooks owner
+  left: 1
+ right: 0
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace

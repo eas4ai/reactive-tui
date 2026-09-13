@@ -1,0 +1,67 @@
+[
+  {
+    "name": "checker-controls",
+    "command": [
+      "python3",
+      "-B",
+      "verification/api-residual/checker-controls.py"
+    ],
+    "log": ".cairn/reviews/api-residual/20260913T003836861174Z/checker-controls.out",
+    "result": "pass",
+    "sha256": "a066af45abe238ba1715b639a708bc4e1161728f76b0078b4fdb82e8a247d28c"
+  },
+  {
+    "name": "input-unit-discovery",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--lib",
+      "platform::input_receiver::tests",
+      "--",
+      "--list"
+    ],
+    "log": ".cairn/reviews/api-residual/20260913T003836861174Z/input-unit-discovery.out",
+    "result": "pass",
+    "sha256": "4017bcd0d97bcae2f2815344aac3c7de4941699323e19bd4d962c9dff3ba1b69"
+  },
+  {
+    "name": "input-unit-behavior",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--lib",
+      "platform::input_receiver::tests"
+    ],
+    "log": ".cairn/reviews/api-residual/20260913T003836861174Z/input-unit-behavior.out",
+    "result": "pass",
+    "sha256": "387b02a1372fa88e7fd233f9c4abde27e0e4850a07ef62d2cb94906fa038d860"
+  },
+  {
+    "name": "input-lifecycle",
+    "command": [
+      "python3",
+      "-B",
+      "verification/api-residual/run-input-lifecycle.py"
+    ],
+    "log": ".cairn/reviews/api-residual/20260913T003836861174Z/input-lifecycle.out",
+    "result": "pass",
+    "sha256": "2d995521773d23dbd6b5bbf7eaf9063d468ae0a70ae4160214c440b4fada41d7"
+  },
+  {
+    "name": "input-controller-cancellation",
+    "command": [
+      "python3",
+      "-B",
+      "verification/api-residual/check-controller-cleanup.py"
+    ],
+    "log": ".cairn/reviews/api-residual/20260913T003836861174Z/input-controller-cancellation.out",
+    "result": "pass",
+    "sha256": "f93fbed42b01aa6e3fd78621ca96ca76acb18b03989c4a9ac8a0104b85ffd55e"
+  },
+  {
+    "name": "unix-input",
+    "result": "pass"
+  }
+]

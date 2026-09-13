@@ -1,0 +1,21 @@
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 16.19s
+     Running tests/api_residual_refs.rs (target/debug/deps/api_residual_refs-16547e250586f56d)
+
+running 1 test
+
+running 1 test
+
+thread 'callback_reference_allows_read_and_write_reentry' (4009770) panicked at tests/api_residual_refs.rs:143:13:
+callback reference deadlocked during read/write reentry
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test callback_reference_allows_read_and_write_reentry ... FAILED
+
+failures:
+
+failures:
+    callback_reference_allows_read_and_write_reentry
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 9 filtered out; finished in 3.00s
+
+error: test failed, to rerun pass `--test api_residual_refs`

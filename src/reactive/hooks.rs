@@ -26,6 +26,9 @@ pub(crate) enum HookKind {
     Interval,
     Timeout,
     Debounce,
+    Ref,
+    CallbackRef,
+    MultiRef,
 }
 
 struct HookSlot {

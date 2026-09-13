@@ -50,5 +50,6 @@ if run('consumer-compile', ['rustc', '--edition=2021', 'verification/api-residua
                           '-C', 'link-arg=-Wl,--threads=12', '-o', str(binary)], 180):
     raise SystemExit('Lifecycle consumer compile failed')
 status = run('lifecycle', ['python3', '-B', 'verification/api-residual/input-lifecycle.py', str(binary), str(output / 'cases')], 60)
+print('INPUT_LIFECYCLE ' + json.dumps(json.loads((output / 'cases/results.json').read_text())), flush=True)
 print('Lifecycle diagnostics retained at', output, flush=True)
 raise SystemExit(status)

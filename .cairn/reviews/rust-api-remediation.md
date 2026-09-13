@@ -5013,3 +5013,11 @@ were reaped. Rustfmt, Python parsing and the five residual checker controls pass
 Ripwire edit checks exited 0; quality-delta exited 2 and test-gate exited 4, reviewed
 with their actual limits in the detailed record. API-019 remains in progress;
 API-020 and the full production completion review remain pending.
+
+## Owned Unix input and shared-reference checkpoint
+
+See `api-019-owned-input-and-shared-refs.md` for implementation, executed checks,
+violating controls, static report review and limits. The approved receiver
+migration and shared-reference retention are implemented. LocalRef still fails
+retention and requires the separate scope decision in `api-019-local-owner/review.md`.
+API-019 and API-020 remain incomplete; no full-catalog coverage was claimed.

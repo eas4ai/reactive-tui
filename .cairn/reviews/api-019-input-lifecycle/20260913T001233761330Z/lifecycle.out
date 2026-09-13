@@ -1,0 +1,8 @@
+{"started": "raw-receiver-idle", "pid": 3746462}
+{"case": "raw-receiver-idle", "pid": 3746462, "exit": 0, "timeout": false, "reaped": true}
+{"started": "parsed-receiver-idle", "pid": 3746464}
+{"case": "parsed-receiver-idle", "pid": 3746464, "exit": 0, "timeout": false, "reaped": true}
+{"started": "reused-descriptor", "pid": 3746555}
+{"case": "reused-descriptor", "pid": 3746555, "exit": 0, "timeout": false, "reaped": true}
+{"started": "raw-receiver-active", "pid": 3746557}
+{"case": "raw-receiver-active", "pid": 3746557, "exit": 0, "timeout": false, "reaped": true}

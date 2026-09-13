@@ -1,0 +1,45 @@
+[
+  {
+    "name": "full-library",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--lib"
+    ],
+    "error": null
+  },
+  {
+    "name": "unix-input",
+    "command": [
+      "python3",
+      "-B",
+      "scripts/check-api-residual.py",
+      "--only",
+      "unix-input"
+    ],
+    "error": null
+  },
+  {
+    "name": "clippy",
+    "command": [
+      "cargo",
+      "clippy",
+      "--locked",
+      "--all-targets",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    "error": null
+  },
+  {
+    "name": "format",
+    "command": [
+      "cargo",
+      "fmt",
+      "--check"
+    ],
+    "error": null
+  }
+]

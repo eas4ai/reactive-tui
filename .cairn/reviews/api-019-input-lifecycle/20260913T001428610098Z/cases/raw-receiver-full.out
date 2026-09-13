@@ -1,0 +1,3 @@
+Observed 1 owned reader threads: {3760229}
+Backpressure stopped input after 253440 bytes
+PASS owned reader threads stopped

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Safe positive and violating inputs for the residual acceptance checker."""
 from pathlib import Path
+import json
 import runpy
 import unittest
 
@@ -9,6 +10,20 @@ CHECK = runpy.run_path(str(ROOT / "scripts/check-api-residual.py"))
 
 
 class CheckerControls(unittest.TestCase):
+    def test_input_lifecycle_requires_every_case_and_cleanup(self):
+        rows = [{"case": case, "exit": 0, "timeout": False, "reaped": True} for case in CHECK["INPUT_CASES"]]
+        def verify(value):
+            CHECK["require_input_cases"]("INPUT_LIFECYCLE " + json.dumps(value))
+        verify(rows)
+        for violating in (rows[:-1], rows + rows[:1],
+                          [{**rows[0], "exit": 101}] + rows[1:],
+                          [{**rows[0], "timeout": True}] + rows[1:],
+                          [{**rows[0], "reaped": False}] + rows[1:]):
+            with self.assertRaises(AssertionError):
+                verify(violating)
+        with self.assertRaises(AssertionError):
+            CHECK["require_input_cases"]("No actual lifecycle execution")
+
     def test_inventory_rejects_missing_and_duplicate_concerns(self):
         text = (ROOT / "docs/residual-api-inventory.md").read_text()
         rows = CHECK["inventory_rows"](text)

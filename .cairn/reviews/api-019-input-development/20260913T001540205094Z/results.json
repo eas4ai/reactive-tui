@@ -1,0 +1,37 @@
+[
+  {
+    "name": "receiver-unit",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--lib",
+      "platform::input_receiver::tests",
+      "--",
+      "--nocapture"
+    ],
+    "error": null
+  },
+  {
+    "name": "clippy",
+    "command": [
+      "cargo",
+      "clippy",
+      "--locked",
+      "--all-targets",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    "error": null
+  },
+  {
+    "name": "format",
+    "command": [
+      "cargo",
+      "fmt",
+      "--check"
+    ],
+    "error": null
+  }
+]

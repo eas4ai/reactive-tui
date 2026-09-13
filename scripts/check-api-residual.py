@@ -26,12 +26,27 @@ REF_TESTS = (
     "multi_reference_retains_members_across_renders",
     "forwarded_reference_follows_the_current_parent",
     "callback_reference_allows_read_and_write_reentry",
+    "shared_reference_slots_and_owners_are_independent",
+    "shared_hooks_retain_state_without_returned_handles",
+    "retained_callback_handles_use_the_latest_render_capture",
+    "reference_hooks_preserve_existing_type_bounds",
 )
 MAPPING_TESTS = tuple("backend::tests::" + name for name in (
     "map_paste_event", "map_focus_gained_lost", "map_resize_event",
     "map_key_event_basic", "map_mouse_event_basic",
 ))
-GROUPS = ("refs", "mapping-tests", "inventory")
+INPUT_CASES = (
+    "raw-receiver-idle", "parsed-receiver-idle", "reused-descriptor", "raw-receiver-active",
+    "raw-receiver-full", "raw-session-full", "raw-session-idle", "parsed-receiver-full",
+    "parsed-session-full", "parsed-session-idle", "clone-owner", "independent-streams",
+    "owned-iterator", "concurrent-drop",
+)
+INPUT_TESTS = tuple("platform::input_receiver::tests::" + name for name in (
+    "dropping_owned_iterator_joins_idle_reader", "receive_and_iteration_preserve_order_and_disconnect",
+    "buffered_items_remain_after_session_shutdown", "draining_a_full_queue_wakes_the_producer",
+    "cancellation_releases_a_full_queue_producer",
+))
+GROUPS = ("refs", "mapping-tests", "unix-input", "inventory")
 
 
 def inventory_rows(text):
@@ -71,6 +86,18 @@ def require_coverage(checks):
         raise AssertionError("Focused behavior checks still required for: " + "; ".join(sorted(missing)))
 
 
+def require_input_cases(text):
+    records = [json.loads(line.removeprefix("INPUT_LIFECYCLE "))
+               for line in text.splitlines() if line.startswith("INPUT_LIFECYCLE ")]
+    if len(records) != 1:
+        raise AssertionError("Expected one complete input lifecycle result")
+    rows = records[0]
+    if sorted(row["case"] for row in rows) != sorted(INPUT_CASES):
+        raise AssertionError("Missing, extra or duplicate input lifecycle cases")
+    if any(row["exit"] != 0 or row["timeout"] or row["reaped"] is not True for row in rows):
+        raise AssertionError("Input lifecycle cases failed, timed out or were not reaped")
+
+
 class Check:
     def __init__(self):
         stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
@@ -108,10 +135,21 @@ class Check:
         self.run("mapping-behavior", ["cargo", "test", "--locked", "--lib", "backend::tests::map_", "--", "--test-threads=1"],
                  verify=lambda text: require_executed(text, MAPPING_TESTS))
 
+    def unix_input(self):
+        self.run("input-unit-discovery", ["cargo", "test", "--locked", "--lib", "platform::input_receiver::tests", "--", "--list"],
+                 verify=lambda text: require_registered(text, INPUT_TESTS))
+        self.run("input-unit-behavior", ["cargo", "test", "--locked", "--lib", "platform::input_receiver::tests"],
+                 verify=lambda text: require_executed(text, INPUT_TESTS))
+        self.run("input-lifecycle", ["python3", "-B", "verification/api-residual/run-input-lifecycle.py"],
+                 verify=require_input_cases)
+        self.run("input-controller-cancellation", ["python3", "-B", "verification/api-residual/check-controller-cleanup.py"], 30)
+
     def inventory(self):
         inventory_rows((ROOT / "docs/residual-api-inventory.md").read_text())
         # Presence alone cannot certify a concern. Add its complete behavior check
         # here only after building its positive and safe violating cases.
+        # The Unix receiver checks are integrated, but the wider legacy event-loop
+        # and native-platform concerns still need completion before coverage closes.
         require_coverage({})
 
     def inspect(self, name):

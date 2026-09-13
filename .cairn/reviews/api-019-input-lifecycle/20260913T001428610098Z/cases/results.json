@@ -1,0 +1,100 @@
+[
+  {
+    "case": "raw-receiver-idle",
+    "pid": 3760139,
+    "exit": 0,
+    "timeout": false,
+    "reaped": true
+  },
+  {
+    "case": "parsed-receiver-idle",
+    "pid": 3760141,
+    "exit": 0,
+    "timeout": false,
+    "reaped": true
+  },
+  {
+    "case": "reused-descriptor",
+    "pid": 3760224,
+    "exit": 0,
+    "timeout": false,
+    "reaped": true
+  },
+  {
+    "case": "raw-receiver-active",
+    "pid": 3760226,
+    "exit": 0,
+    "timeout": false,
+    "reaped": true
+  },
+  {
+    "case": "raw-receiver-full",
+    "pid": 3760228,
+    "exit": 0,
+    "timeout": false,
+    "reaped": true
+  },
+  {
+    "case": "raw-session-full",
+    "pid": 3760325,
+    "exit": 0,
+    "timeout": false,
+    "reaped": true
+  },
+  {
+    "case": "raw-session-idle",
+    "pid": 3760424,
+    "exit": 0,
+    "timeout": false,
+    "reaped": true
+  },
+  {
+    "case": "parsed-receiver-full",
+    "pid": 3760426,
+    "exit": 0,
+    "timeout": false,
+    "reaped": true
+  },
+  {
+    "case": "parsed-session-full",
+    "pid": 3760571,
+    "exit": 0,
+    "timeout": false,
+    "reaped": true
+  },
+  {
+    "case": "parsed-session-idle",
+    "pid": 3760711,
+    "exit": 0,
+    "timeout": false,
+    "reaped": true
+  },
+  {
+    "case": "clone-owner",
+    "pid": 3760834,
+    "exit": 0,
+    "timeout": false,
+    "reaped": true
+  },
+  {
+    "case": "independent-streams",
+    "pid": 3760836,
+    "exit": 0,
+    "timeout": false,
+    "reaped": true
+  },
+  {
+    "case": "owned-iterator",
+    "pid": 3760839,
+    "exit": 0,
+    "timeout": false,
+    "reaped": true
+  },
+  {
+    "case": "concurrent-drop",
+    "pid": 3760841,
+    "exit": 0,
+    "timeout": false,
+    "reaped": true
+  }
+]

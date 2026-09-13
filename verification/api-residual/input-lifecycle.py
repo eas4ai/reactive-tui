@@ -34,7 +34,15 @@ def private_session():
     fcntl.ioctl(0, termios.TIOCSCTTY, 0)
 
 
-for case in ("raw-receiver-idle", "parsed-receiver-idle", "reused-descriptor", "raw-receiver-active"):
+cases = ("raw-receiver-idle", "parsed-receiver-idle", "reused-descriptor", "raw-receiver-active",
+             "raw-receiver-full", "raw-session-full", "raw-session-idle", "parsed-receiver-full",
+             "parsed-session-full", "parsed-session-idle", "clone-owner", "independent-streams",
+             "owned-iterator", "concurrent-drop")
+if len(sys.argv) > 3:
+    if sys.argv[3:] != ["--controller-hold"]:
+        raise SystemExit("Unknown input controller arguments")
+    cases = ("controller-hold",)
+for case in cases:
     master, slave = pty.openpty()
     fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack("HHHH", 24, 80, 0, 0))
     environment = {**os.environ, "TERM": "xterm-256color", "RUST_TEST_THREADS": "12"}

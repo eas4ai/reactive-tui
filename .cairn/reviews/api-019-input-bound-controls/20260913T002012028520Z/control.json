@@ -1,0 +1,12 @@
+{
+  "original_sha256": "9d40511d49f12c8d194792918d18b810dcf3fddd59cedcab2819d74fe3a1fc59",
+  "mutation": "QUEUE_CAPACITY 64 -> 1024",
+  "production_restored": true,
+  "negative_error": "Native widget command failed (1): /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-019-input-bound-controls/20260913T002012028520Z/negative.out",
+  "failing_cases": [
+    "raw-receiver-full",
+    "raw-session-full",
+    "parsed-session-full"
+  ],
+  "corrected_section_passed": true
+}

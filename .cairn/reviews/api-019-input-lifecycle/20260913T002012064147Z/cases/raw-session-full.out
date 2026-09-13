@@ -1,0 +1,5 @@
+Observed 1 owned reader threads: {3806892}
+
+thread 'main' (3806889) panicked at verification/api-residual/input-lifecycle.rs:74:17:
+input failed to apply bounded backpressure
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace

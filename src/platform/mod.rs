@@ -11,6 +11,11 @@
 #[cfg(unix)]
 pub mod unix;
 
+#[cfg(unix)]
+mod input_receiver;
+#[cfg(unix)]
+pub use input_receiver::{InputIntoIter, InputIter, InputReceiver};
+
 #[cfg(windows)]
 pub mod windows;
 
@@ -514,29 +519,12 @@ impl DirectTty {
         }
     }
 
-    /// Start async event loop (Unix only)
+    /// Start a bounded async event stream (Unix only).
+    /// Dropping the receiver or this terminal joins its input worker.
     #[cfg(unix)]
-    pub fn start_async_events(&self) -> Result<std::sync::mpsc::Receiver<TerminalEvent>> {
-        use std::sync::mpsc;
-        use std::thread;
-
-        let (tx, rx) = mpsc::channel();
-        let input_rx = self.inner.spawn_input_thread()?;
-
-        thread::spawn(move || {
-            let mut parser = parser::EscapeSequenceParser::new();
-
-            while let Ok(data) = input_rx.recv() {
-                let events = parser.parse(&data);
-                for event in events {
-                    if tx.send(event).is_err() {
-                        break; // Receiver dropped
-                    }
-                }
-            }
-        });
-
-        Ok(rx)
+    pub fn start_async_events(&self) -> Result<InputReceiver<TerminalEvent>> {
+        let mut parser = parser::EscapeSequenceParser::new();
+        self.inner.spawn_input(move |data| parser.parse(data))
     }
 
     /// Write raw bytes to terminal
