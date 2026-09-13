@@ -1,0 +1,22 @@
+PASS checker-controls
+PASS refs-discovery
+PASS refs-behavior
+PASS local-discovery
+PASS local-behavior
+PASS local-consumer
+PASS mapping-discovery
+PASS mapping-behavior
+PASS input-unit-discovery
+PASS input-unit-behavior
+PASS input-lifecycle
+PASS input-controller-cancellation
+PASS performance-discovery
+PASS performance-behavior
+PASS optional_provider_changes_preserve_slots_and_recompute_quality
+PASS completed_metrics_notify_other_apps_and_preserve_owner_subscription
+PASS performance-consumer-library
+PASS performance-consumer-compile
+PASS performance-consumer-behavior
+FAIL inventory Focused behavior checks still required for: CSS property diagnostics; DebugBackend boundaries; Editor undo/selection; Full claimed native platform surface; Hover, drag, drag-and-drop, mouse position, clicks, long press, swipe and wheel hooks; Large Markdown/syntax input; Legacy backend test reachability; Legacy input parsing; Markdown/Syntect integration; Nested legacy events; Performance context; Public RenderTree; Public reference hooks; Raw-mode ownership; SIGWINCH ownership; Theme propagation; Transition integration metadata; Unix input worker; ui::Updater
+Residual outputs: .cairn/reviews/api-residual/20260913T071751020752Z
+API-019 failed: inventory
