@@ -12,4 +12,4 @@ Use distinct positional HookKind slots for shared Ref, CallbackRef and MultiRef,
 
 ## Realized by
 
-(none yet: recorded, not built)
+- 789d5c0ac4485bddf1f8769b71c930d69b1c60ac Own Unix input workers and retain shared reference hooks
