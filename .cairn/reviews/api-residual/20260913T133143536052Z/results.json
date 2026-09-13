@@ -1,0 +1,330 @@
+[
+  {
+    "name": "checker-controls",
+    "command": [
+      "python3",
+      "-B",
+      "verification/api-residual/checker-controls.py"
+    ],
+    "log": ".cairn/reviews/api-residual/20260913T133143536052Z/checker-controls.out",
+    "result": "pass",
+    "sha256": "1ae3222e4e204f55386d8df10d1890ae653982579b1176e7a6508b888d4f5a4d"
+  },
+  {
+    "name": "refs-discovery",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--test",
+      "api_residual_refs",
+      "--",
+      "--list"
+    ],
+    "log": ".cairn/reviews/api-residual/20260913T133143536052Z/refs-discovery.out",
+    "result": "pass",
+    "sha256": "1c7c6a452bcaa384f1c5ba18b74e87a63fbb74cb8490edb58f290a3af0e27ac6"
+  },
+  {
+    "name": "refs-behavior",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--test",
+      "api_residual_refs",
+      "--",
+      "--test-threads=1"
+    ],
+    "log": ".cairn/reviews/api-residual/20260913T133143536052Z/refs-behavior.out",
+    "result": "pass",
+    "sha256": "5c9609e701c4c4e4f00bd97ebb4724f73d77bb359b2083bbf24a68702b5dc015"
+  },
+  {
+    "name": "local-discovery",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--test",
+      "api_local_hooks",
+      "--",
+      "--list"
+    ],
+    "log": ".cairn/reviews/api-residual/20260913T133143536052Z/local-discovery.out",
+    "result": "pass",
+    "sha256": "ee84b35ab934371a3e3a7a074dd6f129f0de638cc0acc7a8fc2ca1bafbddf58b"
+  },
+  {
+    "name": "local-behavior",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--test",
+      "api_local_hooks",
+      "--",
+      "--test-threads=12"
+    ],
+    "log": ".cairn/reviews/api-residual/20260913T133143536052Z/local-behavior.out",
+    "result": "pass",
+    "sha256": "3e0437853659e360310fd4985f2bc23b46ecbf88db83d236c3ef04aee2dce807"
+  },
+  {
+    "name": "local-consumer",
+    "command": [
+      "python3",
+      "-B",
+      "verification/api-residual/run-local-owner.py"
+    ],
+    "log": ".cairn/reviews/api-residual/20260913T133143536052Z/local-consumer.out",
+    "result": "pass",
+    "sha256": "91c3363e38ed407da2b8522d1bc39138abec539eaa9b509868493c49c196c966"
+  },
+  {
+    "name": "refs",
+    "result": "pass"
+  },
+  {
+    "name": "mapping-discovery",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--lib",
+      "backend::tests::map_",
+      "--",
+      "--list"
+    ],
+    "log": ".cairn/reviews/api-residual/20260913T133143536052Z/mapping-discovery.out",
+    "result": "pass",
+    "sha256": "65293a7ee8061fc9a53f7af8c04d788d489e1cc20d66061d80b8e4e00f3a0da1"
+  },
+  {
+    "name": "mapping-behavior",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--lib",
+      "backend::tests::map_",
+      "--",
+      "--test-threads=1"
+    ],
+    "log": ".cairn/reviews/api-residual/20260913T133143536052Z/mapping-behavior.out",
+    "result": "pass",
+    "sha256": "cf0afd6d57619c578a0eea4c6052a50c701d7d011aeb0e98ed7983eda3f77400"
+  },
+  {
+    "name": "mapping-tests",
+    "result": "pass"
+  },
+  {
+    "name": "input-unit-discovery",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--lib",
+      "platform::input_receiver::tests",
+      "--",
+      "--list"
+    ],
+    "log": ".cairn/reviews/api-residual/20260913T133143536052Z/input-unit-discovery.out",
+    "result": "pass",
+    "sha256": "0f981a68ecc99cffe9c778077af75a8663abe21e40f6b275498ca7c688c59e7f"
+  },
+  {
+    "name": "input-unit-behavior",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--lib",
+      "platform::input_receiver::tests"
+    ],
+    "log": ".cairn/reviews/api-residual/20260913T133143536052Z/input-unit-behavior.out",
+    "result": "pass",
+    "sha256": "65b8fc0804ecdefc1f46396c1cf90d589b23610caeabf1f0865f21a59eabec46"
+  },
+  {
+    "name": "input-lifecycle",
+    "command": [
+      "python3",
+      "-B",
+      "verification/api-residual/run-input-lifecycle.py"
+    ],
+    "log": ".cairn/reviews/api-residual/20260913T133143536052Z/input-lifecycle.out",
+    "result": "pass",
+    "sha256": "09e038d67ec7126077b5b24f0bde02a4b74233d8db1c8a0a23d4b78e6b0770f5"
+  },
+  {
+    "name": "input-controller-cancellation",
+    "command": [
+      "python3",
+      "-B",
+      "verification/api-residual/check-controller-cleanup.py"
+    ],
+    "log": ".cairn/reviews/api-residual/20260913T133143536052Z/input-controller-cancellation.out",
+    "result": "pass",
+    "sha256": "87f4f570dacbeaa9e3acfac38f1d7423d14861a5cf83d49758e208c7ececc80a"
+  },
+  {
+    "name": "unix-input",
+    "result": "pass"
+  },
+  {
+    "name": "performance-discovery",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--test",
+      "api_performance_context",
+      "--",
+      "--list"
+    ],
+    "log": ".cairn/reviews/api-residual/20260913T133143536052Z/performance-discovery.out",
+    "result": "pass",
+    "sha256": "29311efe2531087dbe2998408974d2b97c38ef2bc9e9a765e77f85de6af608f3"
+  },
+  {
+    "name": "performance-behavior",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--test",
+      "api_performance_context",
+      "--",
+      "--test-threads=1"
+    ],
+    "log": ".cairn/reviews/api-residual/20260913T133143536052Z/performance-behavior.out",
+    "result": "pass",
+    "sha256": "7aeeb3bfa956c993de53a0d74fd48f9114a591837c13c9e1337b9b7f964918cb"
+  },
+  {
+    "name": "optional_provider_changes_preserve_slots_and_recompute_quality",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--lib",
+      "hooks::fps::tests::optional_provider_changes_preserve_slots_and_recompute_quality",
+      "--",
+      "--exact"
+    ],
+    "log": ".cairn/reviews/api-residual/20260913T133143536052Z/optional_provider_changes_preserve_slots_and_recompute_quality.out",
+    "result": "pass",
+    "sha256": "4b7cc6ba7e8d125dae54d73152d9f5304a766d14baefdac4480c882fe28bb45b"
+  },
+  {
+    "name": "completed_metrics_notify_other_apps_and_preserve_owner_subscription",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--lib",
+      "reactive::wake::tests::completed_metrics_notify_other_apps_and_preserve_owner_subscription",
+      "--",
+      "--exact"
+    ],
+    "log": ".cairn/reviews/api-residual/20260913T133143536052Z/completed_metrics_notify_other_apps_and_preserve_owner_subscription.out",
+    "result": "pass",
+    "sha256": "ca84cdbedd3474eae7a6c2448552a1d7fb26fe09a93ad4e19d1bbc4d4788fcad"
+  },
+  {
+    "name": "performance-consumer-library",
+    "command": [
+      "cargo",
+      "build",
+      "--locked",
+      "--lib"
+    ],
+    "log": ".cairn/reviews/api-residual/20260913T133143536052Z/performance-consumer-library.out",
+    "result": "pass",
+    "sha256": "866dcda99cc1cba78acaa154e66c973fe5905172fb55a5c55a0747d789b7f045"
+  },
+  {
+    "name": "performance-consumer-compile",
+    "command": [
+      "rustc",
+      "--edition=2021",
+      "verification/api-residual/performance-owner.rs",
+      "--extern",
+      "reactive_tui=/home/shawn/workspace2/reactive-tui/target/debug/libreactive_tui.rlib",
+      "-L",
+      "dependency=/home/shawn/workspace2/reactive-tui/target/debug/deps",
+      "-C",
+      "link-arg=-Wl,--threads=12",
+      "-o",
+      "/home/shawn/workspace2/reactive-tui/target/api019-performance-owner"
+    ],
+    "log": ".cairn/reviews/api-residual/20260913T133143536052Z/performance-consumer-compile.out",
+    "result": "pass",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "name": "performance-consumer-behavior",
+    "command": [
+      "/home/shawn/workspace2/reactive-tui/target/api019-performance-owner"
+    ],
+    "log": ".cairn/reviews/api-residual/20260913T133143536052Z/performance-consumer-behavior.out",
+    "result": "pass",
+    "sha256": "a6fabc17313f94a5e7461f70b9cd3d9f26e2fbb58c15bea6437c3cf30e48b9c4"
+  },
+  {
+    "name": "performance",
+    "result": "pass"
+  },
+  {
+    "name": "updater-discovery",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--test",
+      "api_updater",
+      "--",
+      "--list"
+    ],
+    "log": ".cairn/reviews/api-residual/20260913T133143536052Z/updater-discovery.out",
+    "result": "pass",
+    "sha256": "0829f3b40227ec79d1b163837efdb16973010ac36e4204d6baa48ab4b0ca04d0"
+  },
+  {
+    "name": "updater-behavior",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--test",
+      "api_updater"
+    ],
+    "log": ".cairn/reviews/api-residual/20260913T133143536052Z/updater-behavior.out",
+    "result": "pass",
+    "sha256": "5ce597f42f468b1930c0fc6eea45e44f8fa29cfe39aa2b8b57864ac0cd13a8a7"
+  },
+  {
+    "name": "updater-ordering",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--lib",
+      "ui::updater::tests"
+    ],
+    "log": ".cairn/reviews/api-residual/20260913T133143536052Z/updater-ordering.out",
+    "result": "pass",
+    "sha256": "6b1db996e2bdefc9c22db77c898ba22ce587146173b5a473172d8101754e6d63"
+  },
+  {
+    "name": "updaters",
+    "result": "pass"
+  },
+  {
+    "name": "inventory",
+    "result": "fail",
+    "error": "Focused behavior checks still required for: CSS property diagnostics; DebugBackend boundaries; Editor undo/selection; Full claimed native platform surface; Hover, drag, drag-and-drop, mouse position, clicks, long press, swipe and wheel hooks; Large Markdown/syntax input; Legacy backend test reachability; Legacy input parsing; Markdown/Syntect integration; Nested legacy events; Performance context; Public RenderTree; Public reference hooks; Raw-mode ownership; SIGWINCH ownership; Theme propagation; Transition integration metadata; Unix input worker; ui::Updater"
+  }
+]
