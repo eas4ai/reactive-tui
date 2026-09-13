@@ -301,11 +301,13 @@ def main():
     execute(["cargo", "test", "--locked", "--manifest-path",
              "src/backend/crossterm/Cargo.toml", "--lib", "--features",
              "event-stream", "readiness_tests", "--", "--test-threads=1"])
+    # Build default test dependencies first: a later non-FFI build replaces the
+    # shared library in debug/deps, which Darwin records as its install name.
+    execute(["cargo", "test", "--locked", "--test", "suprtui_renderer", "--no-run"])
     libraries = cargo_library_artifacts(["cargo", "build", "--locked", "--features", "ffi"])
     crossterm_artifacts = libraries.get("crossterm", set())
     assert len(crossterm_artifacts) == 1, f"expected one selected Crossterm library: {crossterm_artifacts}"
     crossterm = next(iter(crossterm_artifacts))
-    execute(["cargo", "test", "--locked", "--test", "suprtui_renderer", "--no-run"])
     artifacts = list((TARGET / "debug/deps").glob("libvt100-*.rlib"))
     assert artifacts, "Cargo did not build the declared vt100 dependency"
     vt100 = max(artifacts, key=lambda path: path.stat().st_mtime_ns)
