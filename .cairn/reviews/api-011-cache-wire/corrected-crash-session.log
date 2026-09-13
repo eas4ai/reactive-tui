@@ -1,0 +1,86 @@
+A11Y # GNOME Terminal 3.58.0 using VTE 0.84.0 +BIDI +GNUTLS +ICU +SYSTEMD
+dbus-daemon[3084998]: [session uid=1000 pid=3084998 pidfd=5] Activating service name='org.a11y.Bus' requested by ':1.0' (uid=1000 pid=3085011 comm="/usr/bin/python3 /usr/bin/orca --version" label="unconfined")
+dbus-daemon[3084998]: [session uid=1000 pid=3084998 pidfd=5] Successfully activated service 'org.a11y.Bus'
+dbus-daemon[3084998]: [session uid=1000 pid=3084998 pidfd=5] Activating service name='org.gtk.vfs.Daemon' requested by ':1.3' (uid=1000 pid=3085065 comm="/usr/lib/x86_64-linux-gnu/../../lib/x86_64-linux-g" label="unconfined")
+dbus-daemon[3084998]: [session uid=1000 pid=3084998 pidfd=5] Successfully activated service 'org.gtk.vfs.Daemon'
+dbus-daemon[3085058]: Activating service name='org.a11y.atspi.Registry' requested by ':1.0' (uid=1000 pid=3085011 comm="/usr/bin/python3 /usr/bin/orca --version" label="unconfined")
+dbus-daemon[3085058]: Successfully activated service 'org.a11y.atspi.Registry'
+SpiRegistry daemon is running with well-known name - org.a11y.atspi.Registry
+A11Y Orca version 50.1.2, AT-SPI2 version: 2.60.0, Session: x11 gnome
+A11Y isolated X11/Xvfb viewport 60x16
+dbus-daemon[3084998]: [session uid=1000 pid=3084998 pidfd=5] Activating service name='ca.desrt.dconf' requested by ':1.7' (uid=1000 pid=3085375 comm="/usr/bin/python3 /usr/bin/orca --debug-file /home/" label="unconfined")
+dbus-daemon[3084998]: [session uid=1000 pid=3084998 pidfd=5] Successfully activated service 'ca.desrt.dconf'
+dbus-daemon[3084998]: [session uid=1000 pid=3084998 pidfd=5] Activating service name='org.gnome.Terminal' requested by ':1.9' (uid=1000 pid=3085533 comm="gnome-terminal --display=:1 --geometry=60x16 --wai" label="unconfined")
+dbus-daemon[3084998]: [session uid=1000 pid=3084998 pidfd=5] Activating service name='org.freedesktop.portal.Desktop' requested by ':1.10' (uid=1000 pid=3085540 comm="/usr/libexec/gnome-terminal-server" label="unconfined")
+dbus-daemon[3084998]: [session uid=1000 pid=3084998 pidfd=5] Activating service name='org.freedesktop.impl.portal.PermissionStore' requested by ':1.11' (uid=1000 pid=3085548 comm="/usr/libexec/xdg-desktop-portal" label="unconfined")
+dbus-daemon[3084998]: [session uid=1000 pid=3084998 pidfd=5] Successfully activated service 'org.freedesktop.impl.portal.PermissionStore'
+dbus-daemon[3084998]: [session uid=1000 pid=3084998 pidfd=5] Activating service name='org.freedesktop.portal.Documents' requested by ':1.11' (uid=1000 pid=3085548 comm="/usr/libexec/xdg-desktop-portal" label="unconfined")
+dbus-daemon[3084998]: [session uid=1000 pid=3084998 pidfd=5] Successfully activated service 'org.freedesktop.portal.Documents'
+
+(/usr/libexec/xdg-desktop-portal:3085548): xdg-desktop-portal-WARNING **: 10:31:01.616: Choosing gnome.portal for org.freedesktop.impl.portal.Lockdown via the deprecated UseIn key
+
+(/usr/libexec/xdg-desktop-portal:3085548): xdg-desktop-portal-WARNING **: 10:31:01.616: The preferred method to match portal implementations to desktop environments is to use the portals.conf(5) configuration file
+dbus-daemon[3084998]: [session uid=1000 pid=3084998 pidfd=5] Activating service name='org.freedesktop.impl.portal.desktop.gnome' requested by ':1.11' (uid=1000 pid=3085548 comm="/usr/libexec/xdg-desktop-portal" label="unconfined")
+libEGL warning: DRI3 error: Could not get DRI3 device
+libEGL warning: Ensure your X server supports DRI3 to get accelerated rendering
+dbus-daemon[3084998]: [session uid=1000 pid=3084998 pidfd=5] Successfully activated service 'org.freedesktop.impl.portal.desktop.gnome'
+
+(/usr/libexec/xdg-desktop-portal:3085548): xdg-desktop-portal-WARNING **: 10:31:01.719: Choosing gnome.portal for org.freedesktop.impl.portal.Access via the deprecated UseIn key
+
+(/usr/libexec/xdg-desktop-portal:3085548): xdg-desktop-portal-WARNING **: 10:31:01.725: Choosing gnome.portal for org.freedesktop.impl.portal.Settings via the deprecated UseIn key
+
+(/usr/libexec/xdg-desktop-portal:3085548): xdg-desktop-portal-WARNING **: 10:31:01.725: Choosing gtk.portal for org.freedesktop.impl.portal.Settings via the deprecated UseIn key
+dbus-daemon[3084998]: [session uid=1000 pid=3084998 pidfd=5] Activating service name='org.freedesktop.impl.portal.desktop.gtk' requested by ':1.11' (uid=1000 pid=3085548 comm="/usr/libexec/xdg-desktop-portal" label="unconfined")
+dbus-daemon[3084998]: [session uid=1000 pid=3084998 pidfd=5] Successfully activated service 'org.freedesktop.impl.portal.desktop.gtk'
+
+(/usr/libexec/xdg-desktop-portal:3085548): xdg-desktop-portal-WARNING **: 10:31:01.745: Choosing gnome.portal for org.freedesktop.impl.portal.FileChooser via the deprecated UseIn key
+
+(/usr/libexec/xdg-desktop-portal:3085548): xdg-desktop-portal-WARNING **: 10:31:01.746: Choosing gnome.portal for org.freedesktop.impl.portal.AppChooser via the deprecated UseIn key
+
+(/usr/libexec/xdg-desktop-portal:3085548): xdg-desktop-portal-WARNING **: 10:31:01.746: Choosing gnome.portal for org.freedesktop.impl.portal.Print via the deprecated UseIn key
+
+(/usr/libexec/xdg-desktop-portal:3085548): xdg-desktop-portal-WARNING **: 10:31:01.746: Choosing gnome.portal for org.freedesktop.impl.portal.Notification via the deprecated UseIn key
+
+(/usr/libexec/xdg-desktop-portal:3085548): xdg-desktop-portal-WARNING **: 10:31:01.747: Choosing gtk.portal for org.freedesktop.impl.portal.Inhibit via the deprecated UseIn key
+
+(/usr/libexec/xdg-desktop-portal:3085548): xdg-desktop-portal-WARNING **: 10:31:01.748: Failed to connect to PipeWire: Couldn't connect to PipeWire
+
+(/usr/libexec/xdg-desktop-portal:3085548): xdg-desktop-portal-WARNING **: 10:31:01.748: Choosing gnome.portal for org.freedesktop.impl.portal.Screenshot via the deprecated UseIn key
+
+(/usr/libexec/xdg-desktop-portal:3085548): xdg-desktop-portal-WARNING **: 10:31:01.749: Choosing gnome.portal for org.freedesktop.impl.portal.Background via the deprecated UseIn key
+
+(/usr/libexec/xdg-desktop-portal:3085548): xdg-desktop-portal-WARNING **: 10:31:01.749: Choosing gnome.portal for org.freedesktop.impl.portal.Wallpaper via the deprecated UseIn key
+
+(/usr/libexec/xdg-desktop-portal:3085548): xdg-desktop-portal-WARNING **: 10:31:01.749: Choosing gnome.portal for org.freedesktop.impl.portal.Account via the deprecated UseIn key
+
+(/usr/libexec/xdg-desktop-portal:3085548): xdg-desktop-portal-WARNING **: 10:31:01.750: Choosing gtk.portal for org.freedesktop.impl.portal.Email via the deprecated UseIn key
+
+(/usr/libexec/xdg-desktop-portal:3085548): xdg-desktop-portal-WARNING **: 10:31:01.750: Choosing gnome-keyring.portal for org.freedesktop.impl.portal.Secret via the deprecated UseIn key
+
+(/usr/libexec/xdg-desktop-portal:3085548): xdg-desktop-portal-WARNING **: 10:31:01.750: Choosing gnome.portal for org.freedesktop.impl.portal.GlobalShortcuts via the deprecated UseIn key
+dbus-daemon[3084998]: [session uid=1000 pid=3084998 pidfd=5] Activating service name='org.freedesktop.secrets' requested by ':1.11' (uid=1000 pid=3085548 comm="/usr/libexec/xdg-desktop-portal" label="unconfined")
+
+(/usr/libexec/xdg-desktop-portal:3085548): xdg-desktop-portal-WARNING **: 10:31:01.750: Choosing gnome.portal for org.freedesktop.impl.portal.DynamicLauncher via the deprecated UseIn key
+
+(/usr/libexec/xdg-desktop-portal:3085548): xdg-desktop-portal-WARNING **: 10:31:01.750: Choosing gnome.portal for org.freedesktop.impl.portal.ScreenCast via the deprecated UseIn key
+
+(/usr/libexec/xdg-desktop-portal:3085548): xdg-desktop-portal-WARNING **: 10:31:01.751: Choosing gnome.portal for org.freedesktop.impl.portal.RemoteDesktop via the deprecated UseIn key
+
+(/usr/libexec/xdg-desktop-portal:3085548): xdg-desktop-portal-WARNING **: 10:31:01.751: Choosing gnome.portal for org.freedesktop.impl.portal.Clipboard via the deprecated UseIn key
+
+(/usr/libexec/xdg-desktop-portal:3085548): xdg-desktop-portal-WARNING **: 10:31:01.751: Choosing gnome.portal for org.freedesktop.impl.portal.InputCapture via the deprecated UseIn key
+
+(/usr/libexec/xdg-desktop-portal:3085548): xdg-desktop-portal-WARNING **: 10:31:01.751: Choosing gnome.portal for org.freedesktop.impl.portal.Usb via the deprecated UseIn key
+** Message: 10:31:01.752: couldn't access control socket: /home/shawn/workspace2/scratchpads/tmp/rtui-orca-iki28f9x/runtime/keyring/control: No such file or directory
+discover_other_daemon: 0dbus-daemon[3084998]: [session uid=1000 pid=3084998 pidfd=5] Successfully activated service 'org.freedesktop.secrets'
+dbus-daemon[3084998]: [session uid=1000 pid=3084998 pidfd=5] Successfully activated service 'org.freedesktop.portal.Desktop'
+dbus-daemon[3084998]: [session uid=1000 pid=3084998 pidfd=5] Successfully activated service 'org.gnome.Terminal'
+dbus-daemon[3084998]: [session uid=1000 pid=3084998 pidfd=5] Activating service name='org.gtk.vfs.Metadata' requested by ':1.10' (uid=1000 pid=3085540 comm="/usr/libexec/gnome-terminal-server" label="unconfined")
+dbus-daemon[3084998]: [session uid=1000 pid=3084998 pidfd=5] Successfully activated service 'org.gtk.vfs.Metadata'
+/home/shawn/workspace2/reactive-tui/tests/api_widget_behavior/orca.py:272: DeprecationWarning: Atspi.Action.get_action_name is deprecated
+  assert action.get_action_name(0) == "click"
+A11Y round 1: labels, roles, focus, disabled actions, expansion, nested input and removal passed
+A11Y breadcrumb: labels, link roles, current page announcement, inert actions, assistive and keyboard focus, activation and removal passed
+A11Y CSS: reference labels, description, role, focus, pressed update, live announcement and hidden state passed
+corrupted size vs. prev_size
+A connection to the bus can't be made
