@@ -51,7 +51,7 @@ pub struct DragState {
     pub drag_start: Option<Position>,
     /// Current position during drag
     pub current_position: Option<Position>,
-    /// Delta from start position (x, y)
+    /// Delta in input coordinate units, saturating at i32 limits for large pixel moves.
     pub drag_delta: (i32, i32),
     /// Mouse button used for dragging
     pub button: MouseButton,
@@ -71,25 +71,31 @@ impl Default for DragState {
 }
 
 impl DragState {
-    /// Calculate the distance dragged from start
+    /// Distance in cells for Cell input or pixels for Pixel input.
+    /// Missing positions or a change of coordinate units return zero.
     pub fn distance(&self) -> f64 {
         if let (Some(start), Some(current)) = (self.drag_start, self.current_position) {
-            match (start, current) {
-                (Position::Cell { x: x1, y: y1 }, Position::Cell { x: x2, y: y2 }) => {
-                    let dx = x2 as f64 - x1 as f64;
-                    let dy = y2 as f64 - y1 as f64;
-                    (dx * dx + dy * dy).sqrt()
-                }
-                _ => 0.0,
-            }
+            coordinate_delta(start, current).map_or(0.0, |(dx, dy)| dx.hypot(dy))
         } else {
             0.0
         }
     }
 
-    /// Check if drag threshold is met (default 5 pixels)
+    /// Check a threshold expressed in the input positions' coordinate units.
     pub fn is_drag_threshold_met(&self, threshold: f64) -> bool {
         self.distance() >= threshold
+    }
+}
+
+/// Subtract only positions with matching units, without integer overflow.
+pub(crate) fn coordinate_delta(start: Position, end: Position) -> Option<(f64, f64)> {
+    match (start, end) {
+        (Position::Cell { .. }, Position::Cell { .. })
+        | (Position::Pixel { .. }, Position::Pixel { .. }) => Some((
+            f64::from(end.x()) - f64::from(start.x()),
+            f64::from(end.y()) - f64::from(start.y()),
+        )),
+        _ => None,
     }
 }
 
@@ -121,7 +127,7 @@ pub fn use_drag(hooks: &Hooks) -> ThreadSafeSignal<DragState> {
 /// Options for use_drag_and_drop hook
 #[derive(Clone, Debug, PartialEq)]
 pub struct DragAndDropOptions {
-    /// Minimum distance to move before starting drag (in pixels)
+    /// Minimum distance before dragging: cells for Cell input, pixels for Pixel input.
     pub drag_threshold: f64,
     /// Optional CSS selector for drag handle element
     pub drag_handle_selector: Option<String>,

@@ -6,6 +6,7 @@
 
 Build and test concurrency remains capped at 12. Existing approvals remain in force.
 
-Latest API-019 checkpoint: approved local scopes and mapping-test discovery are
-implemented with positive and violating checks. Performance ownership migration is approved and being implemented; other residual
-families remain open.
+Latest API-019 checkpoint: local scopes, mapping-test discovery, performance
+ownership and Updater dispatch have focused passing checks. The approved
+gesture coordinate-unit repair passes four boundary tests and nine existing
+mouse tests; complete gesture routing and other residual families remain open.

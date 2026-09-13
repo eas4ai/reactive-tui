@@ -246,3 +246,11 @@ coalesce repeated pending requests, and dispatch in registration order before
 rendering on the App thread. Requests during callbacks run on a later turn.
 Removed registrations and closed Apps make old handles inert. Callback errors
 propagate through App cleanup. Preserve bounded pending storage per registration.
+
+## Approved gesture coordinate units
+
+Approved 2026-09-13, escalation api-019-api-020-3: preserve both Position
+variants and hook signatures. Gesture distances and thresholds MUST use cells
+for Cell input and pixels for Pixel input. Velocity MUST use the corresponding
+units per second. A threshold of 5 means five cells or five pixels. Restart
+a gesture when its coordinate units change; never subtract cells from pixels.

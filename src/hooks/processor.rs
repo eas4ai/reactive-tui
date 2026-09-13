@@ -1,5 +1,5 @@
 use super::mouse::{
-    ClickState, DragState, GestureState, GestureType, HoverState, LongPressState,
+    coordinate_delta, ClickState, DragState, GestureState, GestureType, HoverState, LongPressState,
     MousePositionState, SwipeDirection, WheelDeltaMode, WheelState,
 };
 use crate::event::types::{MouseButton, MouseEvent, MouseEventKind, Position};
@@ -156,6 +156,7 @@ impl MouseEventProcessor {
     /// Process a mouse event and update all registered hook states
     pub fn process_event(&self, event: &MouseEvent, component_id: Option<&str>) {
         let now = Instant::now();
+        self.restart_changed_units(event.position, now);
 
         match event.kind {
             MouseEventKind::Move => {
@@ -198,6 +199,51 @@ impl MouseEventProcessor {
 
             MouseEventKind::Wheel => {
                 self.handle_wheel(event, component_id);
+            }
+        }
+    }
+
+    fn restart_changed_units(&self, position: Position, now: Instant) {
+        let changed = |previous| coordinate_delta(previous, position).is_none();
+        let mut drag = self.drag_start.lock().unwrap();
+        if drag.is_some_and(|(start, _)| changed(start)) {
+            *drag = Some((position, now));
+            for signal in self.drag_states.lock().unwrap().values() {
+                signal.update(|state| {
+                    if state.drag_start.is_some() {
+                        state.is_dragging = false;
+                        state.drag_start = Some(position);
+                        state.current_position = Some(position);
+                        state.drag_delta = (0, 0);
+                    }
+                });
+            }
+        }
+        let mut press = self.press_start.lock().unwrap();
+        if press.is_some_and(|(start, _)| changed(start)) {
+            *press = Some((position, now));
+            for signal in self.press_states.lock().unwrap().values() {
+                signal.update(|state| {
+                    if state.is_pressing {
+                        state.press_start = Some(now);
+                        state.duration = Duration::ZERO;
+                        state.is_long_press = false;
+                    }
+                });
+            }
+        }
+        let mut click = self.last_click.lock().unwrap();
+        if click.is_some_and(|(previous, _, _)| changed(previous)) {
+            *click = None;
+        }
+        let mut points = self.gesture_points.lock().unwrap();
+        if points
+            .last()
+            .is_some_and(|(previous, _)| changed(*previous))
+        {
+            points.clear();
+            for signal in self.gesture_states.lock().unwrap().values() {
+                signal.set(GestureState::default());
             }
         }
     }
@@ -496,25 +542,24 @@ impl MouseEventProcessor {
         let first = points.first().unwrap().0;
         let last = points.last().unwrap().0;
 
-        let dx = last.x() as i32 - first.x() as i32;
-        let dy = last.y() as i32 - first.y() as i32;
+        let (dx, dy) = coordinate_delta(first, last)?;
 
         // Simple swipe detection based on direction and distance
-        let distance = ((dx * dx + dy * dy) as f64).sqrt();
+        let distance = dx.hypot(dy);
         if distance < 5.0 {
             return None;
         }
 
         if dx.abs() > dy.abs() {
             // Horizontal swipe
-            if dx > 0 {
+            if dx > 0.0 {
                 Some(GestureType::Swipe(SwipeDirection::Right))
             } else {
                 Some(GestureType::Swipe(SwipeDirection::Left))
             }
         } else {
             // Vertical swipe
-            if dy > 0 {
+            if dy > 0.0 {
                 Some(GestureType::Swipe(SwipeDirection::Down))
             } else {
                 Some(GestureType::Swipe(SwipeDirection::Up))
@@ -540,10 +585,11 @@ impl MouseEventProcessor {
             return Velocity::default();
         }
 
-        let dx = (p2.x() as f64 - p1.x() as f64) / dt;
-        let dy = (p2.y() as f64 - p1.y() as f64) / dt;
+        let Some((dx, dy)) = coordinate_delta(p1, p2) else {
+            return Velocity::default();
+        };
 
-        Velocity::new(dx, dy)
+        Velocity::new(dx / dt, dy / dt)
     }
 
     fn position_to_client(&self, pos: Position) -> (f64, f64) {
@@ -551,15 +597,11 @@ impl MouseEventProcessor {
     }
 
     fn positions_close(&self, p1: Position, p2: Position) -> bool {
-        let dx = (p1.x() as i32 - p2.x() as i32).abs();
-        let dy = (p1.y() as i32 - p2.y() as i32).abs();
-        dx <= 3 && dy <= 3
+        coordinate_delta(p1, p2).is_some_and(|(dx, dy)| dx.abs() <= 3.0 && dy.abs() <= 3.0)
     }
 
     fn calculate_delta(&self, start: Position, current: Position) -> (i32, i32) {
-        (
-            current.x() as i32 - start.x() as i32,
-            current.y() as i32 - start.y() as i32,
-        )
+        // Float-to-integer casts saturate at the public i32 field's limits.
+        coordinate_delta(start, current).map_or((0, 0), |(dx, dy)| (dx as i32, dy as i32))
     }
 }
