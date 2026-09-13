@@ -1,24 +1,10 @@
-warning: unnecessary parentheses around closure body
-  --> src/backend/crossterm/src/terminal/sys/unix.rs:87:50
-   |
-87 |     let file = File::open("/dev/tty").map(|file| (FileDesc::Owned(file.into())));
-   |                                                  ^                            ^
-   |
-   = note: `#[warn(unused_parens)]` (part of `#[warn(unused)]`) on by default
-help: remove these parentheses
-   |
-87 -     let file = File::open("/dev/tty").map(|file| (FileDesc::Owned(file.into())));
-87 +     let file = File::open("/dev/tty").map(|file| FileDesc::Owned(file.into()));
-   |
-
-warning: `crossterm` (lib) generated 1 warning (run `cargo fix --lib -p crossterm` to apply 1 suggestion)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.11s
-     Running unittests src/lib.rs (target/debug/deps/reactive_tui-232fdb479c0bdc67)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.10s
+     Running unittests src/lib.rs (target/debug/deps/reactive_tui-10768dd881459d97)
 
 running 3 tests
 test hooks::clipboard_process::tests::cancellation_kills_and_reaps_child ... ok
 test hooks::clipboard_process::tests::deadline_kills_and_reaps_child ... ok
 test hooks::clipboard_process::tests::sleeping_child_fixture ... ignored, child fixture invoked only by the process lifecycle tests
 
-test result: ok. 2 passed; 0 failed; 1 ignored; 0 measured; 1014 filtered out; finished in 2.01s
+test result: ok. 2 passed; 0 failed; 1 ignored; 0 measured; 1027 filtered out; finished in 2.01s
 
