@@ -1,0 +1,87 @@
+[
+  {
+    "case": "pty-raw-leak",
+    "command": [
+      "/home/linuxbrew/.linuxbrew/opt/python@3.14/bin/python3.14",
+      "-B",
+      "/home/shawn/workspace2/reactive-tui/verification/api-entry-points/harness-consumer.py",
+      "pty-raw-leak",
+      "/home/shawn/workspace2/reactive-tui/.cairn/reviews/api-entry-points/harness-20260913T155817278616Z/pty-raw-leak.bin"
+    ],
+    "timeout_seconds": 5,
+    "result": "pass",
+    "returncode": 0,
+    "files": {
+      "pty-raw-leak.out": "d84210d0fbd7f431ce8fdadf036289d1ec4ea25153306205e211189edbb5adc2",
+      "pty-raw-leak.bin": "67f4003e416b7d0372a635282cd0327377268d52ad22ed152c7073af8a780415"
+    }
+  },
+  {
+    "case": "eof",
+    "command": [
+      "/home/linuxbrew/.linuxbrew/opt/python@3.14/bin/python3.14",
+      "-B",
+      "/home/shawn/workspace2/reactive-tui/verification/api-entry-points/harness-consumer.py",
+      "eof",
+      "/home/shawn/workspace2/reactive-tui/.cairn/reviews/api-entry-points/harness-20260913T155817278616Z/eof.bin"
+    ],
+    "timeout_seconds": 5,
+    "result": "pass",
+    "returncode": 0,
+    "files": {
+      "eof.out": "3ab5d9dfc88a4c9a99490d2b9ba9dffe9fdaa33f9f50f24d7a9b8e14d0465888",
+      "eof.bin": "ad6a0ecbab291b78954082e7c144a2fbc05db18aee582ed7e81ae74576aa8669"
+    }
+  },
+  {
+    "case": "raw-leak",
+    "command": [
+      "/home/linuxbrew/.linuxbrew/opt/python@3.14/bin/python3.14",
+      "-B",
+      "/home/shawn/workspace2/reactive-tui/verification/api-entry-points/harness-consumer.py",
+      "raw-leak",
+      "/home/shawn/workspace2/reactive-tui/.cairn/reviews/api-entry-points/harness-20260913T155817278616Z/raw-leak.bin"
+    ],
+    "timeout_seconds": 5,
+    "result": "pass",
+    "returncode": 0,
+    "files": {
+      "raw-leak.out": "856e264defd068090555e9173d3ee546b83d759cb6977900c91d73cfab56c365",
+      "raw-leak.bin": "ad6a0ecbab291b78954082e7c144a2fbc05db18aee582ed7e81ae74576aa8669"
+    }
+  },
+  {
+    "case": "never-drained",
+    "command": [
+      "/home/linuxbrew/.linuxbrew/opt/python@3.14/bin/python3.14",
+      "-B",
+      "/home/shawn/workspace2/reactive-tui/verification/api-entry-points/harness-consumer.py",
+      "never-drained",
+      "/home/shawn/workspace2/reactive-tui/.cairn/reviews/api-entry-points/harness-20260913T155817278616Z/never-drained.bin"
+    ],
+    "timeout_seconds": 5,
+    "result": "pass",
+    "returncode": 0,
+    "files": {
+      "never-drained.out": "b8afeedceb8fd44a9dd6b783d1e8f107d495be6e4aa42c2f61640001cea71caa",
+      "never-drained.bin": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  {
+    "case": "pty",
+    "command": [
+      "/home/linuxbrew/.linuxbrew/opt/python@3.14/bin/python3.14",
+      "-B",
+      "/home/shawn/workspace2/reactive-tui/verification/api-entry-points/harness-consumer.py",
+      "pty",
+      "/home/shawn/workspace2/reactive-tui/.cairn/reviews/api-entry-points/harness-20260913T155817278616Z/pty.bin"
+    ],
+    "timeout_seconds": 5,
+    "result": "pass",
+    "returncode": 0,
+    "files": {
+      "pty.out": "247012d05abe8fa3b3c0ed923d0e4dc803f02ac4703d5dd6655cf68ca26e8aec",
+      "pty.bin": "67f4003e416b7d0372a635282cd0327377268d52ad22ed152c7073af8a780415"
+    }
+  }
+]
