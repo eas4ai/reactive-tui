@@ -29,7 +29,7 @@ warning: `reactive-tui` (lib test) generated 1 warning
 running 1 test
 test widgets::dialog::http::tests::tls_certificate_probe ... ok
 
-test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 987 filtered out; finished in 0.10s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 989 filtered out; finished in 0.06s
 
 Dialog HTTPS trusted: passed
 warning: unnecessary parentheses around closure body
@@ -63,6 +63,6 @@ warning: `reactive-tui` (lib test) generated 1 warning
 running 1 test
 test widgets::dialog::http::tests::tls_certificate_probe ... ok
 
-test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 987 filtered out; finished in 0.12s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 989 filtered out; finished in 0.09s
 
 Dialog HTTPS untrusted: passed

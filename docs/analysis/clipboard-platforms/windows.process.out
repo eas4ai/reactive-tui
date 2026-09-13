@@ -57,7 +57,7 @@ warning: field `parser` is never read
     |     ^^^^^^
 
 warning: `reactive-tui` (lib test) generated 7 warnings (run `cargo fix --lib -p reactive-tui --tests` to apply 5 suggestions)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 1m 12s
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1m 13s
      Running unittests src\lib.rs (target\debug\deps\reactive_tui-f739cfa96c72f391.exe)
 
 running 3 tests
@@ -65,7 +65,7 @@ test hooks::clipboard_process::tests::cancellation_kills_and_reaps_child ... ok
 test hooks::clipboard_process::tests::deadline_kills_and_reaps_child ... ok
 test hooks::clipboard_process::tests::sleeping_child_fixture ... ignored, child fixture invoked only by the process lifecycle tests
 
-test result: ok. 2 passed; 0 failed; 1 ignored; 0 measured; 968 filtered out; finished in 15.02s
+test result: ok. 2 passed; 0 failed; 1 ignored; 0 measured; 970 filtered out; finished in 15.02s
 
 
 warning: unused import: `std::os::windows::io::AsRawHandle`
@@ -115,12 +115,12 @@ warning: field `parser` is never read
 
 warning: `reactive-tui` (lib) generated 5 warnings (run `cargo fix --lib -p reactive-tui` to apply 3 suggestions)
    Compiling reactive-tui v0.0.7 (D:\a\reactive-tui\reactive-tui)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 6.69s
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 6.76s
      Running tests\windows_platform.rs (target\debug\deps\windows_platform-253d6195a6486fab.exe)
 
 running 1 test
 RTUI_WINDOWS_ADAPTER_OK
 test windows_console_io_and_event_conversion ... ok
 
-test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.26s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.25s
 

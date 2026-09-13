@@ -23,7 +23,7 @@ warning: method `serial` is never used
    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
 
 warning: `reactive-tui` (lib test) generated 1 warning
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.12s
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.13s
      Running unittests src/lib.rs (target/debug/deps/reactive_tui-6eb9d8ea35511604)
 
 running 12 tests
@@ -40,5 +40,5 @@ test platform::image::tests::api_image_platform_sixel_quality_handles_more_than_
 test platform::image::tests::api_image_platform_sixel_rejects_overflow_truncation_and_non_image_controls ... ok
 test platform::image::tests::api_image_platform_webp_and_sixel_files_preserve_pixels ... ok
 
-test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 976 filtered out; finished in 0.05s
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 978 filtered out; finished in 0.04s
 
