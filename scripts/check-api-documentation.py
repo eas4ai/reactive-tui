@@ -198,8 +198,10 @@ class Check:
                                       "language": flags[0], "sha256": hashlib.sha256(code.encode()).hexdigest()})
         paths = sorted((ROOT / "src").rglob("*.rs")) + [ROOT / "reactive-tui-macros/src/lib.rs"]
         for path in paths:
-            # The separately maintained SuprTUI crate has its own renderer checks.
-            if path.is_relative_to(ROOT / "src/backend/engine"):
+            # Dependency crates are not modules of the public Reactive-TUI facade.
+            # SuprTUI and Crossterm behavior have their own renderer/input checks.
+            if any(path.is_relative_to(ROOT / directory) for directory in
+                   ("src/backend/engine", "src/backend/crossterm")):
                 continue
             selected = []
             for start, comment in rust_comments(path):
