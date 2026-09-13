@@ -2,14 +2,14 @@
   "backend": "xclip",
   "system": "Linux",
   "platform": "Linux-7.0.0-30-generic-x86_64-with-glibc2.43",
-  "commit": "d9217659e7d98128fe6cfaeef467c232f5e2d060",
+  "commit": "18d5c8a8965eb967623d313a417c99f2d7c49994",
   "committed_inputs": true,
-  "inputs_digest": "becc12a0be74e710ac4d650707d0a4af6bf7c70bbd51e9f603ce9c45a858bf95",
+  "inputs_digest": "1d9b0ea57116af5033826eb707ac970eb60d5e8f064a7555bcea74d3a97492ca",
   "result": "pass",
   "output": "xclip.out",
   "output_digest": "25238d9c41ceb25a40bfb3efed16980c03babf859e003c2c109d6feac2019bb0",
   "process_output": "xclip.process.out",
-  "process_output_digest": "6655e84aed7a3d519c770929b1da01aebe0995b957af3d1b0f5cb16969e352f5",
+  "process_output_digest": "5fdb1f8a0de4cf76e8c259cb6765ed6695a78350360aeece699f2027da43988f",
   "tools": {
     "xclip": {
       "path": "/usr/bin/xclip",

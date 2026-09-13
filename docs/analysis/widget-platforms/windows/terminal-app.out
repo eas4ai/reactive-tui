@@ -50,5 +50,5 @@ warning: `reactive-tui` (lib) generated 5 warnings (run `cargo fix --lib -p reac
 running 1 test
 test terminal_acceptance::terminal_widget_windows_app_routes_input_and_paints_after_resize ... ok
 
-test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 385 filtered out; finished in 6.68s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 385 filtered out; finished in 6.72s
 
