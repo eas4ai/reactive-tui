@@ -1,0 +1,935 @@
+Feature configuration: default
+    Checking reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 7.11s
+
+running 2 tests
+test async_fps_preserves_state_without_a_tokio_runtime ... ok
+test fast_color_paths_preserve_scalar_results ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+    Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.75s
+     Running tests/api_feature_configurations.rs (target/debug/deps/api_feature_configurations-ba3ab5dea1160aa3)
+
+Feature configuration: --no-default-features
+    Checking reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 7.12s
+
+running 2 tests
+test fast_color_paths_preserve_scalar_results ... ok
+test async_fps_preserves_state_without_a_tokio_runtime ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+    Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 15.54s
+     Running tests/api_feature_configurations.rs (target/debug/deps/api_feature_configurations-5e055a887f6e2a61)
+
+Feature configuration: --no-default-features --features tokio
+    Checking reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 7.26s
+
+running 2 tests
+test fast_color_paths_preserve_scalar_results ... ok
+test async_fps_preserves_state_without_a_tokio_runtime ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+    Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 15.56s
+     Running tests/api_feature_configurations.rs (target/debug/deps/api_feature_configurations-ec22777e2294974d)
+
+Feature configuration: --no-default-features --features tokio-util
+    Checking reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 7.13s
+
+running 2 tests
+test fast_color_paths_preserve_scalar_results ... ok
+test async_fps_preserves_state_without_a_tokio_runtime ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+    Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 15.18s
+     Running tests/api_feature_configurations.rs (target/debug/deps/api_feature_configurations-17c803432bc2513b)
+
+Feature configuration: --no-default-features --features debug
+    Checking reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 7.26s
+
+running 2 tests
+test fast_color_paths_preserve_scalar_results ... ok
+test async_fps_preserves_state_without_a_tokio_runtime ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+    Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 15.19s
+     Running tests/api_feature_configurations.rs (target/debug/deps/api_feature_configurations-10b214f6d0fc8cd7)
+
+Feature configuration: --no-default-features --features debug_patches
+    Checking reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 7.29s
+
+running 2 tests
+test fast_color_paths_preserve_scalar_results ... ok
+test async_fps_preserves_state_without_a_tokio_runtime ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+    Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 15.39s
+     Running tests/api_feature_configurations.rs (target/debug/deps/api_feature_configurations-49c9bff6505bf04d)
+
+Feature configuration: --no-default-features --features async-capabilities
+    Checking reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 7.61s
+
+running 2 tests
+test fast_color_paths_preserve_scalar_results ... ok
+test async_fps_preserves_state_without_a_tokio_runtime ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+    Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 15.48s
+     Running tests/api_feature_configurations.rs (target/debug/deps/api_feature_configurations-63a7a1fd6b8c819b)
+
+Feature configuration: --no-default-features --features ffi
+    Checking reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+warning: ambiguous glob re-exports
+  --> src/ffi/mod.rs:94:9
+   |
+94 | pub use pointer::*;
+   |         ^^^^^^^^^^ the name `validate_pointer` in the value namespace is first re-exported here
+...
+99 | pub use types::*;
+   |         -------- but the name `validate_pointer` in the value namespace is also re-exported here
+   |
+   = note: `#[warn(ambiguous_glob_reexports)]` on by default
+
+warning: unused variable: `width`
+  --> src/ffi/lib.rs:85:14
+   |
+85 |         let (width, height) = renderer_box.dims();
+   |              ^^^^^ help: if this is intentional, prefix it with an underscore: `_width`
+   |
+   = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `validate_pointer` is never used
+   --> src/ffi/types.rs:182:15
+    |
+182 | pub(crate) fn validate_pointer<T>(ptr: *const T) -> bool {
+    |               ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `validate_mut_pointer` is never used
+   --> src/ffi/types.rs:187:15
+    |
+187 | pub(crate) fn validate_mut_pointer<T>(ptr: *mut T) -> bool {
+    |               ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `safe_cast` is never used
+   --> src/ffi/types.rs:192:22
+    |
+192 | pub(crate) unsafe fn safe_cast<T, U>(ptr: *mut T) -> Result<*mut U, ReactiveError> {
+    |                      ^^^^^^^^^
+
+warning: function `safe_cast_const` is never used
+   --> src/ffi/types.rs:206:22
+    |
+206 | pub(crate) unsafe fn safe_cast_const<T, U>(ptr: *const T) -> Result<*const U, ReactiveError> {
+    |                      ^^^^^^^^^^^^^^^
+
+warning: `reactive-tui` (lib) generated 6 warnings (run `cargo fix --lib -p reactive-tui` to apply 1 suggestion)
+warning: unnecessary `unsafe` block
+  --> tests/test_ffi_integration.rs:10:9
+   |
+10 |         unsafe {
+   |         ^^^^^^ unnecessary `unsafe` block
+   |
+   = note: `#[warn(unused_unsafe)]` (part of `#[warn(unused)]`) on by default
+
+warning: unnecessary `unsafe` block
+  --> tests/test_ffi_integration.rs:60:9
+   |
+60 |         unsafe {
+   |         ^^^^^^ unnecessary `unsafe` block
+
+warning: unnecessary `unsafe` block
+   --> tests/test_ffi_integration.rs:115:9
+    |
+115 |         unsafe {
+    |         ^^^^^^ unnecessary `unsafe` block
+
+warning: unnecessary `unsafe` block
+   --> tests/test_ffi_integration.rs:150:9
+    |
+150 |         unsafe {
+    |         ^^^^^^ unnecessary `unsafe` block
+
+warning: unnecessary `unsafe` block
+   --> tests/test_ffi_integration.rs:172:9
+    |
+172 |         unsafe {
+    |         ^^^^^^ unnecessary `unsafe` block
+
+warning: `reactive-tui` (test "test_ffi_integration") generated 5 warnings
+warning: unnecessary `unsafe` block
+  --> tests/test_ffi_core_only.rs:10:9
+   |
+10 |         unsafe {
+   |         ^^^^^^ unnecessary `unsafe` block
+   |
+   = note: `#[warn(unused_unsafe)]` (part of `#[warn(unused)]`) on by default
+
+warning: unnecessary `unsafe` block
+  --> tests/test_ffi_core_only.rs:24:9
+   |
+24 |         unsafe {
+   |         ^^^^^^ unnecessary `unsafe` block
+
+warning: unnecessary `unsafe` block
+  --> tests/test_ffi_core_only.rs:67:9
+   |
+67 |         unsafe {
+   |         ^^^^^^ unnecessary `unsafe` block
+
+warning: unnecessary `unsafe` block
+  --> tests/test_ffi_core_only.rs:94:9
+   |
+94 |         unsafe {
+   |         ^^^^^^ unnecessary `unsafe` block
+
+warning: unnecessary `unsafe` block
+   --> tests/test_ffi_core_only.rs:127:9
+    |
+127 |         unsafe {
+    |         ^^^^^^ unnecessary `unsafe` block
+
+warning: unnecessary `unsafe` block
+   --> tests/test_ffi_core_only.rs:171:9
+    |
+171 |         unsafe {
+    |         ^^^^^^ unnecessary `unsafe` block
+
+warning: unnecessary `unsafe` block
+   --> tests/test_ffi_core_only.rs:193:9
+    |
+193 |         unsafe {
+    |         ^^^^^^ unnecessary `unsafe` block
+
+warning: `reactive-tui` (test "test_ffi_core_only") generated 7 warnings
+warning: `reactive-tui` (lib test) generated 6 warnings (6 duplicates)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 7.42s
+
+running 2 tests
+test async_fps_preserves_state_without_a_tokio_runtime ... ok
+test fast_color_paths_preserve_scalar_results ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+    Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+warning: ambiguous glob re-exports
+  --> src/ffi/mod.rs:94:9
+   |
+94 | pub use pointer::*;
+   |         ^^^^^^^^^^ the name `validate_pointer` in the value namespace is first re-exported here
+...
+99 | pub use types::*;
+   |         -------- but the name `validate_pointer` in the value namespace is also re-exported here
+   |
+   = note: `#[warn(ambiguous_glob_reexports)]` on by default
+
+warning: unused variable: `width`
+  --> src/ffi/lib.rs:85:14
+   |
+85 |         let (width, height) = renderer_box.dims();
+   |              ^^^^^ help: if this is intentional, prefix it with an underscore: `_width`
+   |
+   = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `validate_pointer` is never used
+   --> src/ffi/types.rs:182:15
+    |
+182 | pub(crate) fn validate_pointer<T>(ptr: *const T) -> bool {
+    |               ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `validate_mut_pointer` is never used
+   --> src/ffi/types.rs:187:15
+    |
+187 | pub(crate) fn validate_mut_pointer<T>(ptr: *mut T) -> bool {
+    |               ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `safe_cast` is never used
+   --> src/ffi/types.rs:192:22
+    |
+192 | pub(crate) unsafe fn safe_cast<T, U>(ptr: *mut T) -> Result<*mut U, ReactiveError> {
+    |                      ^^^^^^^^^
+
+warning: function `safe_cast_const` is never used
+   --> src/ffi/types.rs:206:22
+    |
+206 | pub(crate) unsafe fn safe_cast_const<T, U>(ptr: *const T) -> Result<*const U, ReactiveError> {
+    |                      ^^^^^^^^^^^^^^^
+
+warning: `reactive-tui` (lib) generated 6 warnings (run `cargo fix --lib -p reactive-tui` to apply 1 suggestion)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 16.03s
+     Running tests/api_feature_configurations.rs (target/debug/deps/api_feature_configurations-243b829cf5c2041d)
+
+Feature configuration: --no-default-features --features embedded-terminal
+    Checking reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 7.11s
+
+running 2 tests
+test async_fps_preserves_state_without_a_tokio_runtime ... ok
+test fast_color_paths_preserve_scalar_results ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+    Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 15.22s
+     Running tests/api_feature_configurations.rs (target/debug/deps/api_feature_configurations-b8fd7e555883c9ad)
+
+Feature configuration: --no-default-features --features tokio,tokio-util,debug,debug_patches,async-capabilities,ffi,embedded-terminal
+    Checking reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+warning: ambiguous glob re-exports
+  --> src/ffi/mod.rs:94:9
+   |
+94 | pub use pointer::*;
+   |         ^^^^^^^^^^ the name `validate_pointer` in the value namespace is first re-exported here
+...
+99 | pub use types::*;
+   |         -------- but the name `validate_pointer` in the value namespace is also re-exported here
+   |
+   = note: `#[warn(ambiguous_glob_reexports)]` on by default
+
+warning: unused variable: `width`
+  --> src/ffi/lib.rs:85:14
+   |
+85 |         let (width, height) = renderer_box.dims();
+   |              ^^^^^ help: if this is intentional, prefix it with an underscore: `_width`
+   |
+   = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `validate_pointer` is never used
+   --> src/ffi/types.rs:182:15
+    |
+182 | pub(crate) fn validate_pointer<T>(ptr: *const T) -> bool {
+    |               ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `validate_mut_pointer` is never used
+   --> src/ffi/types.rs:187:15
+    |
+187 | pub(crate) fn validate_mut_pointer<T>(ptr: *mut T) -> bool {
+    |               ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `safe_cast` is never used
+   --> src/ffi/types.rs:192:22
+    |
+192 | pub(crate) unsafe fn safe_cast<T, U>(ptr: *mut T) -> Result<*mut U, ReactiveError> {
+    |                      ^^^^^^^^^
+
+warning: function `safe_cast_const` is never used
+   --> src/ffi/types.rs:206:22
+    |
+206 | pub(crate) unsafe fn safe_cast_const<T, U>(ptr: *const T) -> Result<*const U, ReactiveError> {
+    |                      ^^^^^^^^^^^^^^^
+
+warning: `reactive-tui` (lib) generated 6 warnings (run `cargo fix --lib -p reactive-tui` to apply 1 suggestion)
+warning: unnecessary `unsafe` block
+  --> tests/test_ffi_core_only.rs:10:9
+   |
+10 |         unsafe {
+   |         ^^^^^^ unnecessary `unsafe` block
+   |
+   = note: `#[warn(unused_unsafe)]` (part of `#[warn(unused)]`) on by default
+
+warning: unnecessary `unsafe` block
+  --> tests/test_ffi_core_only.rs:24:9
+   |
+24 |         unsafe {
+   |         ^^^^^^ unnecessary `unsafe` block
+
+warning: unnecessary `unsafe` block
+  --> tests/test_ffi_core_only.rs:67:9
+   |
+67 |         unsafe {
+   |         ^^^^^^ unnecessary `unsafe` block
+
+warning: unnecessary `unsafe` block
+  --> tests/test_ffi_core_only.rs:94:9
+   |
+94 |         unsafe {
+   |         ^^^^^^ unnecessary `unsafe` block
+
+warning: unnecessary `unsafe` block
+   --> tests/test_ffi_core_only.rs:127:9
+    |
+127 |         unsafe {
+    |         ^^^^^^ unnecessary `unsafe` block
+
+warning: unnecessary `unsafe` block
+   --> tests/test_ffi_core_only.rs:171:9
+    |
+171 |         unsafe {
+    |         ^^^^^^ unnecessary `unsafe` block
+
+warning: unnecessary `unsafe` block
+   --> tests/test_ffi_core_only.rs:193:9
+    |
+193 |         unsafe {
+    |         ^^^^^^ unnecessary `unsafe` block
+
+warning: `reactive-tui` (test "test_ffi_core_only") generated 7 warnings
+warning: unnecessary `unsafe` block
+  --> tests/test_ffi_integration.rs:10:9
+   |
+10 |         unsafe {
+   |         ^^^^^^ unnecessary `unsafe` block
+   |
+   = note: `#[warn(unused_unsafe)]` (part of `#[warn(unused)]`) on by default
+
+warning: unnecessary `unsafe` block
+  --> tests/test_ffi_integration.rs:60:9
+   |
+60 |         unsafe {
+   |         ^^^^^^ unnecessary `unsafe` block
+
+warning: unnecessary `unsafe` block
+   --> tests/test_ffi_integration.rs:115:9
+    |
+115 |         unsafe {
+    |         ^^^^^^ unnecessary `unsafe` block
+
+warning: unnecessary `unsafe` block
+   --> tests/test_ffi_integration.rs:150:9
+    |
+150 |         unsafe {
+    |         ^^^^^^ unnecessary `unsafe` block
+
+warning: unnecessary `unsafe` block
+   --> tests/test_ffi_integration.rs:172:9
+    |
+172 |         unsafe {
+    |         ^^^^^^ unnecessary `unsafe` block
+
+warning: `reactive-tui` (test "test_ffi_integration") generated 5 warnings
+warning: `reactive-tui` (lib test) generated 6 warnings (6 duplicates)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 7.45s
+
+running 2 tests
+test async_fps_preserves_state_without_a_tokio_runtime ... ok
+test fast_color_paths_preserve_scalar_results ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+    Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+warning: ambiguous glob re-exports
+  --> src/ffi/mod.rs:94:9
+   |
+94 | pub use pointer::*;
+   |         ^^^^^^^^^^ the name `validate_pointer` in the value namespace is first re-exported here
+...
+99 | pub use types::*;
+   |         -------- but the name `validate_pointer` in the value namespace is also re-exported here
+   |
+   = note: `#[warn(ambiguous_glob_reexports)]` on by default
+
+warning: unused variable: `width`
+  --> src/ffi/lib.rs:85:14
+   |
+85 |         let (width, height) = renderer_box.dims();
+   |              ^^^^^ help: if this is intentional, prefix it with an underscore: `_width`
+   |
+   = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `validate_pointer` is never used
+   --> src/ffi/types.rs:182:15
+    |
+182 | pub(crate) fn validate_pointer<T>(ptr: *const T) -> bool {
+    |               ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `validate_mut_pointer` is never used
+   --> src/ffi/types.rs:187:15
+    |
+187 | pub(crate) fn validate_mut_pointer<T>(ptr: *mut T) -> bool {
+    |               ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `safe_cast` is never used
+   --> src/ffi/types.rs:192:22
+    |
+192 | pub(crate) unsafe fn safe_cast<T, U>(ptr: *mut T) -> Result<*mut U, ReactiveError> {
+    |                      ^^^^^^^^^
+
+warning: function `safe_cast_const` is never used
+   --> src/ffi/types.rs:206:22
+    |
+206 | pub(crate) unsafe fn safe_cast_const<T, U>(ptr: *const T) -> Result<*const U, ReactiveError> {
+    |                      ^^^^^^^^^^^^^^^
+
+warning: `reactive-tui` (lib) generated 6 warnings (run `cargo fix --lib -p reactive-tui` to apply 1 suggestion)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 15.99s
+     Running tests/api_feature_configurations.rs (target/debug/deps/api_feature_configurations-660a6a4e8422196e)
+
+Feature configuration: +nightly --no-default-features --features simd
+    Checking reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+warning: unused attribute
+   --> src/layout/css/optimizer.rs:583:1
+    |
+583 | #[path = "optimizer_test.rs"]
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: remove this attribute
+    |
+    = note: `#[path]` is unused on this inline module
+    = note: `#[warn(unused_attributes)]` (part of `#[warn(unused)]`) on by default
+
+warning: use of deprecated method `std::sync::atomic::Atomic::<usize>::fetch_update`: renamed to `try_update` for consistency
+   --> src/hooks/animation.rs:169:14
+    |
+169 |             .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |id| id.checked_add(1))
+    |              ^^^^^^^^^^^^
+    |
+    = note: `#[warn(deprecated)]` on by default
+help: replace the use of the deprecated method
+    |
+169 -             .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |id| id.checked_add(1))
+169 +             .try_update(Ordering::Relaxed, Ordering::Relaxed, |id| id.checked_add(1))
+    |
+
+warning: falling back to `f32` as the trait bound `f32: From<f64>` is not satisfied
+    --> src/layout/style.rs:1532:83
+     |
+1532 |                 .map(|_| GridTemplateComponent::from(TrackSizingFunction::from_fr(1.0)))
+     |                                                                                   ^^^ help: explicitly specify the type as `f32`: `1.0_f32`
+     |
+     = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+     = note: for more information, see issue #154024 <https://github.com/rust-lang/rust/issues/154024>
+     = note: `#[warn(float_literal_f32_fallback)]` (part of `#[warn(future_incompatible)]`) on by default
+
+warning: falling back to `f32` as the trait bound `f32: From<f64>` is not satisfied
+    --> src/layout/style.rs:1538:83
+     |
+1538 |                 .map(|_| GridTemplateComponent::from(TrackSizingFunction::from_fr(1.0)))
+     |                                                                                   ^^^ help: explicitly specify the type as `f32`: `1.0_f32`
+     |
+     = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+     = note: for more information, see issue #154024 <https://github.com/rust-lang/rust/issues/154024>
+
+warning: use of deprecated method `std::sync::atomic::Atomic::<u32>::fetch_update`: renamed to `try_update` for consistency
+   --> src/widgets/display/image/protocol_renderer.rs:238:14
+    |
+238 |             .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |id| {
+    |              ^^^^^^^^^^^^
+    |
+help: replace the use of the deprecated method
+    |
+238 -             .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |id| {
+238 +             .try_update(Ordering::Relaxed, Ordering::Relaxed, |id| {
+    |
+
+warning: `reactive-tui` (lib) generated 4 warnings (run `cargo fix --lib -p reactive-tui` to apply 4 suggestions)
+warning: use of deprecated method `std::sync::atomic::Atomic::<usize>::fetch_update`: renamed to `try_update` for consistency
+   --> tests/api_focus.rs:216:22
+    |
+216 |                     .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |n| {
+    |                      ^^^^^^^^^^^^
+    |
+    = note: `#[warn(deprecated)]` on by default
+help: replace the use of the deprecated method
+    |
+216 -                     .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |n| {
+216 +                     .try_update(Ordering::SeqCst, Ordering::SeqCst, |n| {
+    |
+
+warning: `reactive-tui` (test "api_focus") generated 1 warning (run `cargo fix --test "api_focus" -p reactive-tui` to apply 1 suggestion)
+warning: `reactive-tui` (lib test) generated 5 warnings (4 duplicates) (run `cargo fix --lib -p reactive-tui --tests` to apply 1 suggestion)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 7.27s
+
+running 3 tests
+test simd_alpha_operations_preserve_channels ... ok
+test fast_color_paths_preserve_scalar_results ... ok
+test async_fps_preserves_state_without_a_tokio_runtime ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+    Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+warning: use of deprecated method `std::sync::atomic::Atomic::<usize>::fetch_update`: renamed to `try_update` for consistency
+   --> src/hooks/animation.rs:169:14
+    |
+169 |             .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |id| id.checked_add(1))
+    |              ^^^^^^^^^^^^
+    |
+    = note: `#[warn(deprecated)]` on by default
+help: replace the use of the deprecated method
+    |
+169 -             .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |id| id.checked_add(1))
+169 +             .try_update(Ordering::Relaxed, Ordering::Relaxed, |id| id.checked_add(1))
+    |
+
+warning: falling back to `f32` as the trait bound `f32: From<f64>` is not satisfied
+    --> src/layout/style.rs:1532:83
+     |
+1532 |                 .map(|_| GridTemplateComponent::from(TrackSizingFunction::from_fr(1.0)))
+     |                                                                                   ^^^ help: explicitly specify the type as `f32`: `1.0_f32`
+     |
+     = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+     = note: for more information, see issue #154024 <https://github.com/rust-lang/rust/issues/154024>
+     = note: `#[warn(float_literal_f32_fallback)]` (part of `#[warn(future_incompatible)]`) on by default
+
+warning: falling back to `f32` as the trait bound `f32: From<f64>` is not satisfied
+    --> src/layout/style.rs:1538:83
+     |
+1538 |                 .map(|_| GridTemplateComponent::from(TrackSizingFunction::from_fr(1.0)))
+     |                                                                                   ^^^ help: explicitly specify the type as `f32`: `1.0_f32`
+     |
+     = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+     = note: for more information, see issue #154024 <https://github.com/rust-lang/rust/issues/154024>
+
+warning: use of deprecated method `std::sync::atomic::Atomic::<u32>::fetch_update`: renamed to `try_update` for consistency
+   --> src/widgets/display/image/protocol_renderer.rs:238:14
+    |
+238 |             .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |id| {
+    |              ^^^^^^^^^^^^
+    |
+help: replace the use of the deprecated method
+    |
+238 -             .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |id| {
+238 +             .try_update(Ordering::Relaxed, Ordering::Relaxed, |id| {
+    |
+
+warning: `reactive-tui` (lib) generated 4 warnings (run `cargo fix --lib -p reactive-tui` to apply 4 suggestions)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 15.33s
+     Running tests/api_feature_configurations.rs (target/debug/build/reactive-tui/eb9ca779f070bed5/out/api_feature_configurations-eb9ca779f070bed5)
+
+Feature configuration: +nightly --all-features
+    Checking reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+warning: ambiguous glob re-exports
+  --> src/ffi/mod.rs:94:9
+   |
+94 | pub use pointer::*;
+   |         ^^^^^^^^^^ the name `validate_pointer` in the value namespace is first re-exported here
+...
+99 | pub use types::*;
+   |         -------- but the name `validate_pointer` in the value namespace is also re-exported here
+   |
+   = note: `#[warn(ambiguous_glob_reexports)]` on by default
+
+warning: unused attribute
+   --> src/layout/css/optimizer.rs:583:1
+    |
+583 | #[path = "optimizer_test.rs"]
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: remove this attribute
+    |
+    = note: `#[path]` is unused on this inline module
+    = note: `#[warn(unused_attributes)]` (part of `#[warn(unused)]`) on by default
+
+warning: use of deprecated method `std::sync::atomic::Atomic::<usize>::fetch_update`: renamed to `try_update` for consistency
+   --> src/hooks/animation.rs:169:14
+    |
+169 |             .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |id| id.checked_add(1))
+    |              ^^^^^^^^^^^^
+    |
+    = note: `#[warn(deprecated)]` on by default
+help: replace the use of the deprecated method
+    |
+169 -             .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |id| id.checked_add(1))
+169 +             .try_update(Ordering::Relaxed, Ordering::Relaxed, |id| id.checked_add(1))
+    |
+
+warning: falling back to `f32` as the trait bound `f32: From<f64>` is not satisfied
+    --> src/layout/style.rs:1532:83
+     |
+1532 |                 .map(|_| GridTemplateComponent::from(TrackSizingFunction::from_fr(1.0)))
+     |                                                                                   ^^^ help: explicitly specify the type as `f32`: `1.0_f32`
+     |
+     = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+     = note: for more information, see issue #154024 <https://github.com/rust-lang/rust/issues/154024>
+     = note: `#[warn(float_literal_f32_fallback)]` (part of `#[warn(future_incompatible)]`) on by default
+
+warning: falling back to `f32` as the trait bound `f32: From<f64>` is not satisfied
+    --> src/layout/style.rs:1538:83
+     |
+1538 |                 .map(|_| GridTemplateComponent::from(TrackSizingFunction::from_fr(1.0)))
+     |                                                                                   ^^^ help: explicitly specify the type as `f32`: `1.0_f32`
+     |
+     = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+     = note: for more information, see issue #154024 <https://github.com/rust-lang/rust/issues/154024>
+
+warning: use of deprecated method `std::sync::atomic::Atomic::<u32>::fetch_update`: renamed to `try_update` for consistency
+   --> src/widgets/display/image/protocol_renderer.rs:238:14
+    |
+238 |             .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |id| {
+    |              ^^^^^^^^^^^^
+    |
+help: replace the use of the deprecated method
+    |
+238 -             .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |id| {
+238 +             .try_update(Ordering::Relaxed, Ordering::Relaxed, |id| {
+    |
+
+warning: unused variable: `width`
+  --> src/ffi/lib.rs:85:14
+   |
+85 |         let (width, height) = renderer_box.dims();
+   |              ^^^^^ help: if this is intentional, prefix it with an underscore: `_width`
+   |
+   = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `validate_pointer` is never used
+   --> src/ffi/types.rs:182:15
+    |
+182 | pub(crate) fn validate_pointer<T>(ptr: *const T) -> bool {
+    |               ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `validate_mut_pointer` is never used
+   --> src/ffi/types.rs:187:15
+    |
+187 | pub(crate) fn validate_mut_pointer<T>(ptr: *mut T) -> bool {
+    |               ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `safe_cast` is never used
+   --> src/ffi/types.rs:192:22
+    |
+192 | pub(crate) unsafe fn safe_cast<T, U>(ptr: *mut T) -> Result<*mut U, ReactiveError> {
+    |                      ^^^^^^^^^
+
+warning: function `safe_cast_const` is never used
+   --> src/ffi/types.rs:206:22
+    |
+206 | pub(crate) unsafe fn safe_cast_const<T, U>(ptr: *const T) -> Result<*const U, ReactiveError> {
+    |                      ^^^^^^^^^^^^^^^
+
+warning: `reactive-tui` (lib) generated 10 warnings (run `cargo fix --lib -p reactive-tui` to apply 5 suggestions)
+warning: use of deprecated method `std::sync::atomic::Atomic::<usize>::fetch_update`: renamed to `try_update` for consistency
+   --> tests/api_focus.rs:216:22
+    |
+216 |                     .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |n| {
+    |                      ^^^^^^^^^^^^
+    |
+    = note: `#[warn(deprecated)]` on by default
+help: replace the use of the deprecated method
+    |
+216 -                     .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |n| {
+216 +                     .try_update(Ordering::SeqCst, Ordering::SeqCst, |n| {
+    |
+
+warning: `reactive-tui` (test "api_focus") generated 1 warning (run `cargo fix --test "api_focus" -p reactive-tui` to apply 1 suggestion)
+warning: unnecessary `unsafe` block
+  --> tests/test_ffi_core_only.rs:10:9
+   |
+10 |         unsafe {
+   |         ^^^^^^ unnecessary `unsafe` block
+   |
+   = note: `#[warn(unused_unsafe)]` (part of `#[warn(unused)]`) on by default
+
+warning: unnecessary `unsafe` block
+  --> tests/test_ffi_core_only.rs:24:9
+   |
+24 |         unsafe {
+   |         ^^^^^^ unnecessary `unsafe` block
+
+warning: unnecessary `unsafe` block
+  --> tests/test_ffi_core_only.rs:67:9
+   |
+67 |         unsafe {
+   |         ^^^^^^ unnecessary `unsafe` block
+
+warning: unnecessary `unsafe` block
+  --> tests/test_ffi_core_only.rs:94:9
+   |
+94 |         unsafe {
+   |         ^^^^^^ unnecessary `unsafe` block
+
+warning: unnecessary `unsafe` block
+   --> tests/test_ffi_core_only.rs:127:9
+    |
+127 |         unsafe {
+    |         ^^^^^^ unnecessary `unsafe` block
+
+warning: unnecessary `unsafe` block
+   --> tests/test_ffi_core_only.rs:171:9
+    |
+171 |         unsafe {
+    |         ^^^^^^ unnecessary `unsafe` block
+
+warning: unnecessary `unsafe` block
+   --> tests/test_ffi_core_only.rs:193:9
+    |
+193 |         unsafe {
+    |         ^^^^^^ unnecessary `unsafe` block
+
+warning: unnecessary `unsafe` block
+  --> tests/test_ffi_integration.rs:10:9
+   |
+10 |         unsafe {
+   |         ^^^^^^ unnecessary `unsafe` block
+   |
+   = note: `#[warn(unused_unsafe)]` (part of `#[warn(unused)]`) on by default
+
+warning: unnecessary `unsafe` block
+  --> tests/test_ffi_integration.rs:60:9
+   |
+60 |         unsafe {
+   |         ^^^^^^ unnecessary `unsafe` block
+
+warning: unnecessary `unsafe` block
+   --> tests/test_ffi_integration.rs:115:9
+    |
+115 |         unsafe {
+    |         ^^^^^^ unnecessary `unsafe` block
+
+warning: unnecessary `unsafe` block
+   --> tests/test_ffi_integration.rs:150:9
+    |
+150 |         unsafe {
+    |         ^^^^^^ unnecessary `unsafe` block
+
+warning: unnecessary `unsafe` block
+   --> tests/test_ffi_integration.rs:172:9
+    |
+172 |         unsafe {
+    |         ^^^^^^ unnecessary `unsafe` block
+
+warning: `reactive-tui` (test "test_ffi_core_only") generated 7 warnings
+warning: `reactive-tui` (test "test_ffi_integration") generated 5 warnings
+warning: `reactive-tui` (lib test) generated 11 warnings (10 duplicates) (run `cargo fix --lib -p reactive-tui --tests` to apply 1 suggestion)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 7.53s
+
+running 3 tests
+test async_fps_preserves_state_without_a_tokio_runtime ... ok
+test simd_alpha_operations_preserve_channels ... ok
+test fast_color_paths_preserve_scalar_results ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+    Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+warning: ambiguous glob re-exports
+  --> src/ffi/mod.rs:94:9
+   |
+94 | pub use pointer::*;
+   |         ^^^^^^^^^^ the name `validate_pointer` in the value namespace is first re-exported here
+...
+99 | pub use types::*;
+   |         -------- but the name `validate_pointer` in the value namespace is also re-exported here
+   |
+   = note: `#[warn(ambiguous_glob_reexports)]` on by default
+
+warning: use of deprecated method `std::sync::atomic::Atomic::<usize>::fetch_update`: renamed to `try_update` for consistency
+   --> src/hooks/animation.rs:169:14
+    |
+169 |             .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |id| id.checked_add(1))
+    |              ^^^^^^^^^^^^
+    |
+    = note: `#[warn(deprecated)]` on by default
+help: replace the use of the deprecated method
+    |
+169 -             .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |id| id.checked_add(1))
+169 +             .try_update(Ordering::Relaxed, Ordering::Relaxed, |id| id.checked_add(1))
+    |
+
+warning: falling back to `f32` as the trait bound `f32: From<f64>` is not satisfied
+    --> src/layout/style.rs:1532:83
+     |
+1532 |                 .map(|_| GridTemplateComponent::from(TrackSizingFunction::from_fr(1.0)))
+     |                                                                                   ^^^ help: explicitly specify the type as `f32`: `1.0_f32`
+     |
+     = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+     = note: for more information, see issue #154024 <https://github.com/rust-lang/rust/issues/154024>
+     = note: `#[warn(float_literal_f32_fallback)]` (part of `#[warn(future_incompatible)]`) on by default
+
+warning: falling back to `f32` as the trait bound `f32: From<f64>` is not satisfied
+    --> src/layout/style.rs:1538:83
+     |
+1538 |                 .map(|_| GridTemplateComponent::from(TrackSizingFunction::from_fr(1.0)))
+     |                                                                                   ^^^ help: explicitly specify the type as `f32`: `1.0_f32`
+     |
+     = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+     = note: for more information, see issue #154024 <https://github.com/rust-lang/rust/issues/154024>
+
+warning: use of deprecated method `std::sync::atomic::Atomic::<u32>::fetch_update`: renamed to `try_update` for consistency
+   --> src/widgets/display/image/protocol_renderer.rs:238:14
+    |
+238 |             .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |id| {
+    |              ^^^^^^^^^^^^
+    |
+help: replace the use of the deprecated method
+    |
+238 -             .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |id| {
+238 +             .try_update(Ordering::Relaxed, Ordering::Relaxed, |id| {
+    |
+
+warning: unused variable: `width`
+  --> src/ffi/lib.rs:85:14
+   |
+85 |         let (width, height) = renderer_box.dims();
+   |              ^^^^^ help: if this is intentional, prefix it with an underscore: `_width`
+   |
+   = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `validate_pointer` is never used
+   --> src/ffi/types.rs:182:15
+    |
+182 | pub(crate) fn validate_pointer<T>(ptr: *const T) -> bool {
+    |               ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `validate_mut_pointer` is never used
+   --> src/ffi/types.rs:187:15
+    |
+187 | pub(crate) fn validate_mut_pointer<T>(ptr: *mut T) -> bool {
+    |               ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `safe_cast` is never used
+   --> src/ffi/types.rs:192:22
+    |
+192 | pub(crate) unsafe fn safe_cast<T, U>(ptr: *mut T) -> Result<*mut U, ReactiveError> {
+    |                      ^^^^^^^^^
+
+warning: function `safe_cast_const` is never used
+   --> src/ffi/types.rs:206:22
+    |
+206 | pub(crate) unsafe fn safe_cast_const<T, U>(ptr: *const T) -> Result<*const U, ReactiveError> {
+    |                      ^^^^^^^^^^^^^^^
+
+warning: `reactive-tui` (lib) generated 10 warnings (run `cargo fix --lib -p reactive-tui` to apply 5 suggestions)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 16.58s
+     Running tests/api_feature_configurations.rs (target/debug/build/reactive-tui/8f58958e42c33ddf/out/api_feature_configurations-8f58958e42c33ddf)
+
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 16.11s
+     Running tests/api_component_expansion.rs (target/debug/deps/api_component_expansion-fed3c8c1e0be9b12)
+
+running 5 tests
+test duplicate_keys_fail_without_ambiguous_instance_reuse ... ok
+test replacing_component_type_at_a_key_releases_old_state ... ok
+test recursive_expansion_fails_with_a_bounded_error ... ok
+test unknown_names_keep_their_container_children_and_plain_text_control_paints ... ok
+test nested_components_keep_instances_through_props_reorder_and_removal ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 15.46s
+     Running tests/api_component_expansion.rs (target/debug/deps/api_component_expansion-958d589ffc392d4d)
+
+running 5 tests
+test unknown_names_keep_their_container_children_and_plain_text_control_paints ... ok
+test recursive_expansion_fails_with_a_bounded_error ... ok
+test nested_components_keep_instances_through_props_reorder_and_removal ... ok
+test duplicate_keys_fail_without_ambiguous_instance_reuse ... ok
+test replacing_component_type_at_a_key_releases_old_state ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+
+PASS API-015: feature catalog, independent builds and runtime behavior
