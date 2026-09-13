@@ -113,9 +113,9 @@ fn main() {
             thread::park();
         }
     }
-    let before = threads();
     if case.starts_with("parsed-") {
         let tty = DirectTty::init().unwrap();
+        let before = threads();
         // Exercise the approved concrete return type in an external consumer.
         let receiver: reactive_tui::platform::InputReceiver<reactive_tui::platform::TerminalEvent> =
             tty.start_async_events().unwrap();
@@ -149,6 +149,7 @@ fn main() {
     }
 
     let tty = UnixTty::init().unwrap();
+    let before = threads();
     let descriptor = tty.as_raw_fd();
     let flags = unsafe { libc_fcntl(descriptor, 3, 0) };
     let receiver: reactive_tui::platform::InputReceiver<Vec<u8>> =

@@ -45,7 +45,7 @@ if len(sys.argv) > 3:
 for case in cases:
     master, slave = pty.openpty()
     fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack("HHHH", 24, 80, 0, 0))
-    environment = {**os.environ, "TERM": "xterm-256color", "RUST_TEST_THREADS": "12"}
+    environment = {**os.environ, "TERM": "xterm-256color", "RUST_TEST_THREADS": "8"}
     with (output / (case + ".out")).open("wb") as log:
         child = subprocess.Popen([str(binary), case, str(master)], stdin=slave,
                                  stdout=log, stderr=subprocess.STDOUT, env=environment,

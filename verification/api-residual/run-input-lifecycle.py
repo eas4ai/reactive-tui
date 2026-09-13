@@ -13,9 +13,9 @@ stamp = datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S%fZ')
 output = root / '.cairn/reviews/api-019-input-lifecycle' / stamp
 output.mkdir(parents=True)
 environment = {**os.environ, 'CARGO_TARGET_DIR': str(root / 'target'),
-               'CARGO_INCREMENTAL': '0', 'CARGO_BUILD_JOBS': '12', 'RUST_TEST_THREADS': '12',
-               'RAYON_NUM_THREADS': '12', 'LP_NUM_THREADS': '12', 'PYTHON_CPU_COUNT': '12',
-               'GOMAXPROCS': '12', 'GOFLAGS': '-p=12'}
+               'CARGO_INCREMENTAL': '0', 'CARGO_BUILD_JOBS': '8', 'RUST_TEST_THREADS': '8',
+               'RAYON_NUM_THREADS': '8', 'LP_NUM_THREADS': '8', 'PYTHON_CPU_COUNT': '8',
+               'GOMAXPROCS': '8', 'GOFLAGS': '-p=8'}
 commands = []
 os.environ.update(environment)
 execute = runpy.run_path(str(root / 'scripts/check-widget-platforms.py'))['execute']
@@ -47,7 +47,7 @@ assert library
 binary = root / 'target/api019-input-lifecycle-probe'
 if run('consumer-compile', ['rustc', '--edition=2021', 'verification/api-residual/input-lifecycle.rs',
                           '--extern', 'reactive_tui=' + library, '-L', 'dependency=' + str(root / 'target/debug/deps'),
-                          '-C', 'link-arg=-Wl,--threads=12', '-o', str(binary)], 180):
+                          '-C', 'link-arg=-Wl,--threads=8', '-o', str(binary)], 180):
     raise SystemExit('Lifecycle consumer compile failed')
 status = run('lifecycle', ['python3', '-B', 'verification/api-residual/input-lifecycle.py', str(binary), str(output / 'cases')], 60)
 print('INPUT_LIFECYCLE ' + json.dumps(json.loads((output / 'cases/results.json').read_text())), flush=True)
