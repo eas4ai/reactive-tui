@@ -37,7 +37,9 @@ the Linux PTY result alone does not certify every Windows/macOS platform operati
 Unix input uses the locally maintained Crossterm 0.29.0 source in
 `src/backend/crossterm`. Its narrow readiness repair retains queued input
 across resize/wake events and read-buffer boundaries. The independent
-API-016 consumer queues 2,048 bytes before releasing its reader, requires
-all bytes without another input write, and checks exhausted zero-timeout
-polls and terminal restoration. Dependency provenance and changes are in
+API-016 consumer on Linux queues 2,048 bytes before releasing its reader and
+requires all bytes without another input write. Smaller Unix PTY queues stream
+the remainder after release and record the initial queued count. Every platform
+requires all 2,048 bytes, exhausted zero-timeout polls and terminal restoration.
+Dependency tests independently exercise bursts across multiple read buffers. Dependency provenance and changes are in
 `src/backend/crossterm/REACTIVE_TUI_PATCH.md`.

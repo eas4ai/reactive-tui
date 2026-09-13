@@ -1,0 +1,71 @@
+[
+  {
+    "case": "eof",
+    "command": [
+      "/Library/Frameworks/Python.framework/Versions/3.14/bin/python",
+      "-B",
+      "/Users/runner/work/reactive-tui/reactive-tui/verification/api-entry-points/harness-consumer.py",
+      "eof",
+      "/Users/runner/work/reactive-tui/reactive-tui/.cairn/reviews/api-entry-points/harness-20260913T060714624633Z/eof.bin"
+    ],
+    "timeout_seconds": 5,
+    "result": "pass",
+    "returncode": 0,
+    "files": {
+      "eof.out": "3ab5d9dfc88a4c9a99490d2b9ba9dffe9fdaa33f9f50f24d7a9b8e14d0465888",
+      "eof.bin": "ad6a0ecbab291b78954082e7c144a2fbc05db18aee582ed7e81ae74576aa8669"
+    }
+  },
+  {
+    "case": "raw-leak",
+    "command": [
+      "/Library/Frameworks/Python.framework/Versions/3.14/bin/python",
+      "-B",
+      "/Users/runner/work/reactive-tui/reactive-tui/verification/api-entry-points/harness-consumer.py",
+      "raw-leak",
+      "/Users/runner/work/reactive-tui/reactive-tui/.cairn/reviews/api-entry-points/harness-20260913T060714624633Z/raw-leak.bin"
+    ],
+    "timeout_seconds": 5,
+    "result": "pass",
+    "returncode": 0,
+    "files": {
+      "raw-leak.out": "856e264defd068090555e9173d3ee546b83d759cb6977900c91d73cfab56c365",
+      "raw-leak.bin": "ad6a0ecbab291b78954082e7c144a2fbc05db18aee582ed7e81ae74576aa8669"
+    }
+  },
+  {
+    "case": "never-drained",
+    "command": [
+      "/Library/Frameworks/Python.framework/Versions/3.14/bin/python",
+      "-B",
+      "/Users/runner/work/reactive-tui/reactive-tui/verification/api-entry-points/harness-consumer.py",
+      "never-drained",
+      "/Users/runner/work/reactive-tui/reactive-tui/.cairn/reviews/api-entry-points/harness-20260913T060714624633Z/never-drained.bin"
+    ],
+    "timeout_seconds": 5,
+    "result": "pass",
+    "returncode": 0,
+    "files": {
+      "never-drained.out": "b8afeedceb8fd44a9dd6b783d1e8f107d495be6e4aa42c2f61640001cea71caa",
+      "never-drained.bin": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  {
+    "case": "pty",
+    "command": [
+      "/Library/Frameworks/Python.framework/Versions/3.14/bin/python",
+      "-B",
+      "/Users/runner/work/reactive-tui/reactive-tui/verification/api-entry-points/harness-consumer.py",
+      "pty",
+      "/Users/runner/work/reactive-tui/reactive-tui/.cairn/reviews/api-entry-points/harness-20260913T060714624633Z/pty.bin"
+    ],
+    "timeout_seconds": 5,
+    "result": "fail",
+    "error": "consumer exited 1",
+    "returncode": 1,
+    "files": {
+      "pty.out": "0dec6ef232b35396dfd8109b1b897ac49993304016c3348656683dc1f413fca6",
+      "pty.bin": "67f4003e416b7d0372a635282cd0327377268d52ad22ed152c7073af8a780415"
+    }
+  }
+]

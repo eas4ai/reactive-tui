@@ -1,0 +1,3 @@
+BURST_DELIVERY streamed initially_queued=511 total_sent=2048
+PASS public Crossterm: 2048 bytes, exhausted zero-timeout poll and restoration
+STREAMED_SHORT_WRITES_DELIVERED_2048

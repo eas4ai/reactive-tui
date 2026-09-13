@@ -1,0 +1,108 @@
+--- a/scripts/check-api-entry-points.py
++++ b/scripts/check-api-entry-points.py
+@@ -242,19 +242,48 @@
+     print(f"PASS manual {route}: patches/options, input batch or clone ownership, cleanup", flush=True)
+ 
+ 
++def queue_input_burst(terminal, release):
++    payload = b"a" * 2048
++    try:
++        queued = os.write(terminal.master, payload)
++    except BlockingIOError:
++        queued = 0
++    if sys.platform.startswith("linux"):
++        assert queued == len(payload), f"Linux queued-burst control accepted only {queued} bytes"
++    delivery = "fully-queued" if queued == len(payload) else "streamed"
++    # Publish the initial count atomically: the consumer must not see a partial record.
++    pending = release.with_suffix(".pending")
++    pending.write_text(str(queued))
++    pending.replace(release)
++    sent = queued
++    deadline = time.monotonic() + 2
++    while sent < len(payload):
++        assert time.monotonic() < deadline, f"input producer stalled after {sent} bytes"
++        assert terminal.child.poll() is None, "burst consumer exited before all input was sent"
++        if not select.select([], [terminal.master], [], max(0, min(0.05, deadline - time.monotonic())))[1]:
++            continue
++        try:
++            sent += os.write(terminal.master, payload[sent:])
++        except BlockingIOError:
++            continue
++    print(f"BURST_DELIVERY {delivery} initially_queued={queued} total_sent={sent}", flush=True)
++    return queued, delivery
++
++
+ def input_burst_workflow(binary, screen, directory, release):
+     terminal = Terminal([binary, release], screen, directory / "crossterm-input-burst.bin", (32, 8))
+     try:
+         terminal.wait_marker("READY")
+-        # READY follows poll initialization. No more tty input is written after this burst.
+-        terminal.send(b"a" * 2048)
+-        release.write_bytes(b"consume queued input")
++        # Linux retains the strict >1024-byte queued defect probe. Smaller Unix PTYs
++        # stream the remaining bytes after release without lowering the required count.
++        queued, delivery = queue_input_burst(terminal, release)
+         terminal.finish(host_modes=False)
++        assert f"BURST_DELIVERY {delivery} initially_queued={queued}".encode() in terminal.output
+         assert b"COUNT 2048" in terminal.output, bytes(terminal.output[-2000:])
+         assert b"ZERO_POLL_US " in terminal.output, bytes(terminal.output[-2000:])
+     finally:
+         terminal.close()
+-    print("PASS public Crossterm: 2048 queued bytes, exhausted zero-timeout poll and restoration", flush=True)
++    print("PASS public Crossterm: 2048 bytes, exhausted zero-timeout poll and restoration", flush=True)
+ 
+ 
+ def main():
+--- a/verification/api-entry-points/input-burst.rs
++++ b/verification/api-entry-points/input-burst.rs
+@@ -1,4 +1,4 @@
+-//! A public Crossterm consumer; the parent queues one burst before releasing us.
++//! A public Crossterm consumer; the parent records queued versus streamed delivery.
+ use crossterm::event::{self, Event, KeyCode};
+ use std::{
+     io::{self, Write},
+@@ -29,6 +29,24 @@
+         std::thread::sleep(Duration::from_millis(1));
+     }
+ 
++    let queued: usize = std::fs::read_to_string(&release)
++        .expect("read burst release record")
++        .parse()
++        .expect("initial queued byte count");
++    assert!(queued <= 2048);
++    if cfg!(target_os = "linux") {
++        assert_eq!(
++            queued, 2048,
++            "Linux must retain the fully queued defect probe"
++        );
++    }
++    let delivery = if queued == 2048 {
++        "fully-queued"
++    } else {
++        "streamed"
++    };
++    println!("BURST_DELIVERY {delivery} initially_queued={queued}");
++
+     let deadline = Instant::now() + Duration::from_secs(2);
+     let mut count = 0;
+     while count < 2048 && Instant::now() < deadline {
+@@ -42,7 +60,7 @@
+     println!("COUNT {count}");
+     assert_eq!(
+         count, 2048,
+-        "queued bytes stalled without another terminal write"
++        "did not consume every byte of the announced burst"
+     );
+     let start = Instant::now();
+     for _ in 0..32 {
+--- a/verification/api-entry-points/run-native.py
++++ b/verification/api-entry-points/run-native.py
+@@ -34,7 +34,7 @@
+ def require_workflows(text):
+     for marker in (
+         "All public entry-point workflows passed",
+-        "PASS public Crossterm: 2048 queued bytes, exhausted zero-timeout poll and restoration",
++        "PASS public Crossterm: 2048 bytes, exhausted zero-timeout poll and restoration",
+     ):
+         if marker not in text:
+             raise AssertionError("Native entry-point output omitted " + marker)

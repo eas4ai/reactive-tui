@@ -19,15 +19,24 @@ def stop(_signal, _frame):
 signal.signal(signal.SIGTERM, stop)
 case, capture = sys.argv[1:]
 capture = Path(capture)
-if case == "pty":
+if case in ("pty", "pty-raw-leak"):
     program = ("import termios,tty; saved=termios.tcgetattr(0); tty.setraw(0); "
                "print('ENTRY_POINT_CLEAN_EXIT',flush=True); "
                "termios.tcsetattr(0,termios.TCSANOW,saved)")
+    if case == "pty-raw-leak":
+        program = program.replace("termios.tcsetattr(0,termios.TCSANOW,saved)", "pass")
     terminal = Terminal([sys.executable, "-B", "-c", program], None, capture, (32, 8))
     try:
         assert not os.get_blocking(terminal.master), "PTY master must be nonblocking"
-        terminal.finish(host_modes=False)
-        print("REAL_PTY_NONBLOCKING_EXIT_AND_RESTORATION_PASSED")
+        try:
+            terminal.finish(host_modes=False)
+        except AssertionError as error:
+            if case != "pty-raw-leak" or "left raw mode active" not in str(error):
+                raise
+            print("REAL_PTY_RAW_RESTORATION_REJECTED")
+        else:
+            assert case == "pty", "real PTY raw-mode leak unexpectedly passed"
+            print("REAL_PTY_NONBLOCKING_EXIT_AND_RESTORATION_PASSED")
     finally:
         terminal.close()
 else:

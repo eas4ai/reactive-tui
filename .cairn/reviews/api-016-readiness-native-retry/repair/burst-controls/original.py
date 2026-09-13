@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 """Compile public Rust/C consumers and exercise their real terminal sessions."""
-import errno
 import fcntl
 import json
 import os
@@ -139,15 +138,7 @@ class Terminal:
         marker = (b"entry point controlled root error" if expected_error else
                   b"ENTRY_POINT_BUILD_ERROR" if build_error else b"ENTRY_POINT_CLEAN_EXIT")
         assert marker in self.output, bytes(self.output[-2000:])
-        try:
-            restored = termios.tcgetattr(self.slave)
-        except termios.error as error:
-            if sys.platform != "darwin" or error.args[0] != errno.ENOTTY:
-                raise
-            # Darwin revokes the slave when its controlling session exits. The
-            # open master retains the same tty and its actual termios settings.
-            restored = termios.tcgetattr(self.master)
-        assert restored == self.original, "entry point left raw mode active"
+        assert termios.tcgetattr(self.slave) == self.original, "entry point left raw mode active"
         if host_modes:
             assert b"\x1b[?1049l" in self.output, "entry point did not leave alternate screen"
             assert b"\x1b[?25h" in self.output, "entry point did not restore the cursor"
@@ -251,48 +242,19 @@ def manual_workflow(binary, screen, directory, route):
     print(f"PASS manual {route}: patches/options, input batch or clone ownership, cleanup", flush=True)
 
 
-def queue_input_burst(terminal, release):
-    payload = b"a" * 2048
-    try:
-        queued = os.write(terminal.master, payload)
-    except BlockingIOError:
-        queued = 0
-    if sys.platform.startswith("linux"):
-        assert queued == len(payload), f"Linux queued-burst control accepted only {queued} bytes"
-    delivery = "fully-queued" if queued == len(payload) else "streamed"
-    # Publish the initial count atomically: the consumer must not see a partial record.
-    pending = release.with_suffix(".pending")
-    pending.write_text(str(queued))
-    pending.replace(release)
-    sent = queued
-    deadline = time.monotonic() + 2
-    while sent < len(payload):
-        assert time.monotonic() < deadline, f"input producer stalled after {sent} bytes"
-        assert terminal.child.poll() is None, "burst consumer exited before all input was sent"
-        if not select.select([], [terminal.master], [], max(0, min(0.05, deadline - time.monotonic())))[1]:
-            continue
-        try:
-            sent += os.write(terminal.master, payload[sent:])
-        except BlockingIOError:
-            continue
-    print(f"BURST_DELIVERY {delivery} initially_queued={queued} total_sent={sent}", flush=True)
-    return queued, delivery
-
-
 def input_burst_workflow(binary, screen, directory, release):
     terminal = Terminal([binary, release], screen, directory / "crossterm-input-burst.bin", (32, 8))
     try:
         terminal.wait_marker("READY")
-        # Linux retains the strict >1024-byte queued defect probe. Smaller Unix PTYs
-        # stream the remaining bytes after release without lowering the required count.
-        queued, delivery = queue_input_burst(terminal, release)
+        # READY follows poll initialization. No more tty input is written after this burst.
+        terminal.send(b"a" * 2048)
+        release.write_bytes(b"consume queued input")
         terminal.finish(host_modes=False)
-        assert f"BURST_DELIVERY {delivery} initially_queued={queued}".encode() in terminal.output
         assert b"COUNT 2048" in terminal.output, bytes(terminal.output[-2000:])
         assert b"ZERO_POLL_US " in terminal.output, bytes(terminal.output[-2000:])
     finally:
         terminal.close()
-    print("PASS public Crossterm: 2048 bytes, exhausted zero-timeout poll and restoration", flush=True)
+    print("PASS public Crossterm: 2048 queued bytes, exhausted zero-timeout poll and restoration", flush=True)
 
 
 def main():

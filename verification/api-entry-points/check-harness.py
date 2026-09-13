@@ -10,6 +10,7 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[2]
 CASES = {
+    "pty-raw-leak": "REAL_PTY_RAW_RESTORATION_REJECTED",
     "eof": "EOF_DRAIN_RETURNED_AND_RESTORATION_PASSED",
     "raw-leak": "RAW_RESTORATION_REJECTED",
     "never-drained": "DRAIN_DEADLINE_REJECTED",

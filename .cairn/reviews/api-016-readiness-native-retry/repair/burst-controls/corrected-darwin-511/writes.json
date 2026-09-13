@@ -1,0 +1,26 @@
+[
+  {
+    "released": false,
+    "bytes": 511
+  },
+  {
+    "released": true,
+    "would_block": true
+  },
+  {
+    "released": true,
+    "bytes": 511
+  },
+  {
+    "released": true,
+    "bytes": 511
+  },
+  {
+    "released": true,
+    "bytes": 511
+  },
+  {
+    "released": true,
+    "bytes": 4
+  }
+]

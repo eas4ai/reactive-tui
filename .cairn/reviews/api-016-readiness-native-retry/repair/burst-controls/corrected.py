@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 """Compile public Rust/C consumers and exercise their real terminal sessions."""
-import errno
 import fcntl
 import json
 import os
@@ -139,15 +138,7 @@ class Terminal:
         marker = (b"entry point controlled root error" if expected_error else
                   b"ENTRY_POINT_BUILD_ERROR" if build_error else b"ENTRY_POINT_CLEAN_EXIT")
         assert marker in self.output, bytes(self.output[-2000:])
-        try:
-            restored = termios.tcgetattr(self.slave)
-        except termios.error as error:
-            if sys.platform != "darwin" or error.args[0] != errno.ENOTTY:
-                raise
-            # Darwin revokes the slave when its controlling session exits. The
-            # open master retains the same tty and its actual termios settings.
-            restored = termios.tcgetattr(self.master)
-        assert restored == self.original, "entry point left raw mode active"
+        assert termios.tcgetattr(self.slave) == self.original, "entry point left raw mode active"
         if host_modes:
             assert b"\x1b[?1049l" in self.output, "entry point did not leave alternate screen"
             assert b"\x1b[?25h" in self.output, "entry point did not restore the cursor"

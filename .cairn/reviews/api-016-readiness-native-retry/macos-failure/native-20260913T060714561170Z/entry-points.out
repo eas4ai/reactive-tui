@@ -1,0 +1,21 @@
++ /Library/Frameworks/Python.framework/Versions/3.14/bin/python -B /Users/runner/work/reactive-tui/reactive-tui/verification/api-entry-points/check-harness.py
+PASS terminal harness eof
+PASS terminal harness raw-leak
+PASS terminal harness never-drained
+FAIL terminal harness pty
+Terminal harness captures: /Users/runner/work/reactive-tui/reactive-tui/.cairn/reviews/api-entry-points/harness-20260913T060714624633Z
+Terminal harness guard checks failed
+Traceback (most recent call last):
+  File "/Users/runner/work/reactive-tui/reactive-tui/scripts/check-api-entry-points.py", line 325, in <module>
+    main()
+    ~~~~^^
+  File "/Users/runner/work/reactive-tui/reactive-tui/scripts/check-api-entry-points.py", line 262, in main
+    execute([sys.executable, "-B", str(SOURCE / "check-harness.py")], timeout=35)
+    ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/runner/work/reactive-tui/reactive-tui/scripts/check-api-entry-points.py", line 23, in execute
+    subprocess.run(command, cwd=ROOT, check=True, timeout=timeout)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.14/lib/python3.14/subprocess.py", line 578, in run
+    raise CalledProcessError(retcode, process.args,
+                             output=stdout, stderr=stderr)
+subprocess.CalledProcessError: Command '['/Library/Frameworks/Python.framework/Versions/3.14/bin/python', '-B', '/Users/runner/work/reactive-tui/reactive-tui/verification/api-entry-points/check-harness.py']' returned non-zero exit status 1.
