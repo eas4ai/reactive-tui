@@ -1,0 +1,181 @@
+[
+  {
+    "name": "checker-controls",
+    "command": [
+      "python3",
+      "-B",
+      "verification/api-residual/checker-controls.py"
+    ],
+    "log": ".cairn/reviews/api-residual/20260913T040352497490Z/checker-controls.out",
+    "result": "pass",
+    "sha256": "11ef97edd7d0a38c561d36224d15c79ae5b50f685f6eea688402137670aaca8a"
+  },
+  {
+    "name": "refs-discovery",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--test",
+      "api_residual_refs",
+      "--",
+      "--list"
+    ],
+    "log": ".cairn/reviews/api-residual/20260913T040352497490Z/refs-discovery.out",
+    "result": "pass",
+    "sha256": "a179f47a6d168016fe97f43be8616eda218b866d792f598b6c8abb6ce7ca5c7e"
+  },
+  {
+    "name": "refs-behavior",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--test",
+      "api_residual_refs",
+      "--",
+      "--test-threads=1"
+    ],
+    "log": ".cairn/reviews/api-residual/20260913T040352497490Z/refs-behavior.out",
+    "result": "pass",
+    "sha256": "0bd550d59f6060e668d81af9a7bac48fe2015a4d1a5d25511dcdc1f1549e3b8f"
+  },
+  {
+    "name": "local-discovery",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--test",
+      "api_local_hooks",
+      "--",
+      "--list"
+    ],
+    "log": ".cairn/reviews/api-residual/20260913T040352497490Z/local-discovery.out",
+    "result": "pass",
+    "sha256": "b497459da87d7eb9a2de7221e3c9d7d28b6131212f7f09d9584b8fdc43982e5d"
+  },
+  {
+    "name": "local-behavior",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--test",
+      "api_local_hooks",
+      "--",
+      "--test-threads=12"
+    ],
+    "log": ".cairn/reviews/api-residual/20260913T040352497490Z/local-behavior.out",
+    "result": "pass",
+    "sha256": "48f2b5c48d4e5e5014ad0e00eb082c856211fcf57412e8575db9a825274c2cac"
+  },
+  {
+    "name": "local-consumer",
+    "command": [
+      "python3",
+      "-B",
+      "verification/api-residual/run-local-owner.py"
+    ],
+    "log": ".cairn/reviews/api-residual/20260913T040352497490Z/local-consumer.out",
+    "result": "pass",
+    "sha256": "cb8620075c0121273f1bd9aec9cedbf3a2dc7a16bff9388f6f1c5994b7344ea2"
+  },
+  {
+    "name": "refs",
+    "result": "pass"
+  },
+  {
+    "name": "mapping-discovery",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--lib",
+      "backend::tests::map_",
+      "--",
+      "--list"
+    ],
+    "log": ".cairn/reviews/api-residual/20260913T040352497490Z/mapping-discovery.out",
+    "result": "pass",
+    "sha256": "0b2d13e10e51a4934a7ec2fe347958acc36869ac31d59c9b9c38fc2aa94e430a"
+  },
+  {
+    "name": "mapping-behavior",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--lib",
+      "backend::tests::map_",
+      "--",
+      "--test-threads=1"
+    ],
+    "log": ".cairn/reviews/api-residual/20260913T040352497490Z/mapping-behavior.out",
+    "result": "pass",
+    "sha256": "1dab24786a23c56803da96edec8734b9c199362f72f91c0be54bcc33a39119e5"
+  },
+  {
+    "name": "mapping-tests",
+    "result": "pass"
+  },
+  {
+    "name": "input-unit-discovery",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--lib",
+      "platform::input_receiver::tests",
+      "--",
+      "--list"
+    ],
+    "log": ".cairn/reviews/api-residual/20260913T040352497490Z/input-unit-discovery.out",
+    "result": "pass",
+    "sha256": "67ce9a6f4d8bb307874638c00da242cfcf7ba8577c2cd0a65f7a8087ab763c3e"
+  },
+  {
+    "name": "input-unit-behavior",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--lib",
+      "platform::input_receiver::tests"
+    ],
+    "log": ".cairn/reviews/api-residual/20260913T040352497490Z/input-unit-behavior.out",
+    "result": "pass",
+    "sha256": "5d981af7776072f3bbd1533cbd6f53be9e1b5181fa5b132f40a8eec67d0c78d5"
+  },
+  {
+    "name": "input-lifecycle",
+    "command": [
+      "python3",
+      "-B",
+      "verification/api-residual/run-input-lifecycle.py"
+    ],
+    "log": ".cairn/reviews/api-residual/20260913T040352497490Z/input-lifecycle.out",
+    "result": "pass",
+    "sha256": "d3b178631c1d271fe3a8b498799b620228a2de69f1f05f91071539ac010168bb"
+  },
+  {
+    "name": "input-controller-cancellation",
+    "command": [
+      "python3",
+      "-B",
+      "verification/api-residual/check-controller-cleanup.py"
+    ],
+    "log": ".cairn/reviews/api-residual/20260913T040352497490Z/input-controller-cancellation.out",
+    "result": "pass",
+    "sha256": "9547af190e9e530684cd585f36aaae3f9ff5b5d33c5121b8e6d50caa3eb93276"
+  },
+  {
+    "name": "unix-input",
+    "result": "pass"
+  },
+  {
+    "name": "inventory",
+    "result": "fail",
+    "error": "Focused behavior checks still required for: CSS property diagnostics; DebugBackend boundaries; Editor undo/selection; Full claimed native platform surface; Hover, drag, drag-and-drop, mouse position, clicks, long press, swipe and wheel hooks; Large Markdown/syntax input; Legacy backend test reachability; Legacy input parsing; Markdown/Syntect integration; Nested legacy events; Performance context; Public RenderTree; Public reference hooks; Raw-mode ownership; SIGWINCH ownership; Theme propagation; Transition integration metadata; Unix input worker; ui::Updater"
+  }
+]

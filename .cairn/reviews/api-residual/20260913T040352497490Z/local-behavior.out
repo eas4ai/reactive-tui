@@ -1,0 +1,20 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.10s
+     Running tests/api_local_hooks.rs (target/debug/deps/api_local_hooks-b68d8bd3826113d5)
+
+running 13 tests
+test thread_safe_hooks_and_generated_state_remain_send_sync ... ok
+test cleanup_and_last_clone_drop_release_local_shares ... ok
+test cleanup_destructors_can_reenter_another_local_owner ... ok
+test inner_scope_cleanup_reclaims_outer_owner_without_closing_inner ... ok
+test local_slots_retain_without_handles_and_isolate_owners ... ok
+test local_slots_validate_kind_type_and_generated_count ... ok
+test unwinding_releases_scope_but_escaped_handles_keep_ownership ... ok
+test scopes_reject_missing_wrong_thread_and_expired_owners ... ok
+test foreign_owner_drop_defers_until_creator_sweep_or_exit ... ok
+test app_reuses_manual_scope_and_leaves_other_owners_alive ... ok
+test generated_local_component_can_move_before_its_first_render ... ok
+test app_supplies_scope_for_generated_components_and_closes_on_error_and_unwind ... ok
+test keyed_component_removal_releases_local_values_before_scope_exit ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+

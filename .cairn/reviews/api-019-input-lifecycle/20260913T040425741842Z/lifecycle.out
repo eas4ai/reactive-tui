@@ -1,0 +1,28 @@
+{"started": "raw-receiver-idle", "pid": 1991436}
+{"case": "raw-receiver-idle", "pid": 1991436, "exit": 0, "timeout": false, "reaped": true}
+{"started": "parsed-receiver-idle", "pid": 1991438}
+{"case": "parsed-receiver-idle", "pid": 1991438, "exit": 0, "timeout": false, "reaped": true}
+{"started": "reused-descriptor", "pid": 1991696}
+{"case": "reused-descriptor", "pid": 1991696, "exit": 0, "timeout": false, "reaped": true}
+{"started": "raw-receiver-active", "pid": 1991698}
+{"case": "raw-receiver-active", "pid": 1991698, "exit": 0, "timeout": false, "reaped": true}
+{"started": "raw-receiver-full", "pid": 1991700}
+{"case": "raw-receiver-full", "pid": 1991700, "exit": 0, "timeout": false, "reaped": true}
+{"started": "raw-session-full", "pid": 1991795}
+{"case": "raw-session-full", "pid": 1991795, "exit": 0, "timeout": false, "reaped": true}
+{"started": "raw-session-idle", "pid": 1991862}
+{"case": "raw-session-idle", "pid": 1991862, "exit": 0, "timeout": false, "reaped": true}
+{"started": "parsed-receiver-full", "pid": 1991864}
+{"case": "parsed-receiver-full", "pid": 1991864, "exit": 0, "timeout": false, "reaped": true}
+{"started": "parsed-session-full", "pid": 1992032}
+{"case": "parsed-session-full", "pid": 1992032, "exit": 0, "timeout": false, "reaped": true}
+{"started": "parsed-session-idle", "pid": 1992180}
+{"case": "parsed-session-idle", "pid": 1992180, "exit": 0, "timeout": false, "reaped": true}
+{"started": "clone-owner", "pid": 1992306}
+{"case": "clone-owner", "pid": 1992306, "exit": 0, "timeout": false, "reaped": true}
+{"started": "independent-streams", "pid": 1992308}
+{"case": "independent-streams", "pid": 1992308, "exit": 0, "timeout": false, "reaped": true}
+{"started": "owned-iterator", "pid": 1992311}
+{"case": "owned-iterator", "pid": 1992311, "exit": 0, "timeout": false, "reaped": true}
+{"started": "concurrent-drop", "pid": 1992313}
+{"case": "concurrent-drop", "pid": 1992313, "exit": 0, "timeout": false, "reaped": true}
