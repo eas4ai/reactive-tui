@@ -1,0 +1,12 @@
+test_fences_preserve_separate_examples_and_flags (__main__.DocumentationControls.test_fences_preserve_separate_examples_and_flags) ... ok
+test_markdown_requires_index_entry_and_all_public_submodules (__main__.DocumentationControls.test_markdown_requires_index_entry_and_all_public_submodules) ... ok
+test_matrix_rejects_missing_fields_duplicate_modules_and_unclear_status (__main__.DocumentationControls.test_matrix_rejects_missing_fields_duplicate_modules_and_unclear_status) ... ok
+test_zero_executed_tests_and_failed_nested_step_cannot_pass (__main__.DocumentationControls.test_zero_executed_tests_and_failed_nested_step_cannot_pass) ... FAIL zero-cases Expected at least 1 passing tests, observed 0
+PASS one-case
+FAIL parent A required nested check failed; see the retained outputs
+ok
+
+----------------------------------------------------------------------
+Ran 4 tests in 0.003s
+
+OK
