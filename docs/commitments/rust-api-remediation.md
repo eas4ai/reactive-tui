@@ -43,6 +43,12 @@ The developer approved the narrow Kitty image-layer ordering repair on
 2026-09-12 (escalation api-014-api-020). API-014 includes its isolated pinned
 host build, independent failure demonstration and unchanged image acceptance.
 
+The developer approved a narrow libatspi state-set lifetime repair on
+2026-09-13 (escalation api-011-api-020). API-011 includes an isolated build from
+the pinned official source, an independent memory-failure demonstration, and
+the unchanged complete Orca workflows. The installed desktop library remains
+untouched.
+
 Done-when: all 54 requirements have current passing evidence and the final review
 reconciles every finding and subcase, tests failures and corrected behavior, checks
 ownership and integration, and records the production self-audit.

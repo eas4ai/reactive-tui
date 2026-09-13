@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Require the widget matrix and real App input/frame acceptance workflows."""
 from pathlib import Path
+import json
 import os
 import subprocess
 
@@ -55,18 +56,30 @@ subprocess.run(
     ["cargo", "build", "--locked", "--example", "accessibility_probe"],
     cwd=root, env=environment, check=True, timeout=180,
 )
+# Build the pinned library twice, prove the unpatched lifetime failure, and
+# retain only the corrected build in the reader fixture environment.
+subprocess.run(
+    ["python3", "-B", "scripts/check-libatspi-lifetime.py"],
+    cwd=root, env=environment, check=True, timeout=900,
+)
+library = json.loads((root / "target/libatspi-lifetime/environment.json").read_text())
+reader_environment = environment.copy()
+reader_environment["LD_LIBRARY_PATH"] = library["library_dir"] + (
+    ":" + reader_environment["LD_LIBRARY_PATH"]
+    if reader_environment.get("LD_LIBRARY_PATH") else ""
+)
 # Orca excludes other processes owned by the same user. Keep these serial.
 probe = ["/usr/bin/python3", "tests/api_widget_behavior/orca.py", "--binary",
          "target/debug/examples/accessibility_probe"]
 subprocess.run(
     ["/usr/bin/python3", "tests/api_widget_behavior/transport_failures.py", "--binary",
      "target/debug/examples/accessibility_probe"],
-    cwd=root, env=environment, check=True, timeout=30,
+    cwd=root, env=reader_environment, check=True, timeout=30,
 )
-subprocess.run(probe + ["--negative"], cwd=root, env=environment, check=True, timeout=90)
-subprocess.run(probe + ["--negative-css"], cwd=root, env=environment, check=True, timeout=90)
+subprocess.run(probe + ["--negative"], cwd=root, env=reader_environment, check=True, timeout=90)
+subprocess.run(probe + ["--negative-css"], cwd=root, env=reader_environment, check=True, timeout=90)
 for geometry in ["32x10", "60x16"]:
-    subprocess.run(probe + ["--geometry", geometry], cwd=root, env=environment, check=True, timeout=90)
+    subprocess.run(probe + ["--geometry", geometry], cwd=root, env=reader_environment, check=True, timeout=90)
 for catalog, geometries in [
     ("tables", ["32x10", "60x16"]),
     ("tabs", ["60x16", "100x32"]),
@@ -76,7 +89,7 @@ for catalog, geometries in [
 ]:
     for geometry in geometries:
         subprocess.run(probe + ["--catalog", catalog, "--geometry", geometry],
-                       cwd=root, env=environment, check=True, timeout=90)
+                       cwd=root, env=reader_environment, check=True, timeout=90)
 
 subprocess.run(
     ["python3", "-B", "scripts/check-conpty-platform.py", "--verify"],

@@ -11,11 +11,13 @@ inputs:
   - tests
   - benches
   - scripts/check-api-widget-behavior.py
+  - scripts/check-libatspi-lifetime.py
   - scripts/check-dialog-http.py
   - scripts/check-widget-platforms.py
   - scripts/check-iterm-host.py
   - scripts/check-conpty-platform.py
   - scripts/install-conpty-runtime.py
+  - verification/libatspi
   - docs/windows-terminal.md
   - .github/workflows/clipboard-platforms.yml
   - docs/binding-abi-baseline.json

@@ -108,6 +108,18 @@ focus and state changes. Preserve public label APIs. Other terminal/screen-reade
 pairs are explicitly unverified; their existing rendering/input guarantees remain.
 Retained metadata or painted text alone is not screen-reader acceptance evidence.
 
+Reader-client lifetime guarantee (approved 2026-09-13, escalation
+api-011-api-020): the repository-owned Linux fixture MUST build the official
+libatspi 2.60.6 source archive pinned by its published SHA-256 and load the
+corrected library only inside the fixture. The installed desktop library MUST
+remain unchanged. An independent reentrant state-query reproducer MUST expose
+the original `AtspiStateSet` use-after-free under memory checking and MUST pass
+for both `contains` and `get_states` after the repair, with balanced object
+lifetime and an unchanged dynamic symbol surface. The unchanged complete Orca
+workflow matrix MUST pass with the isolated repaired library. A clean corrected
+run without the original memory failure, use of the system library by mistake,
+or a reduced reader workflow falsifies this guarantee.
+
 ## Dialog lifecycle and results
 
 [API-012]
