@@ -1,0 +1,55 @@
+[
+  {
+    "name": "library",
+    "command": [
+      "cargo",
+      "build",
+      "--locked",
+      "--lib"
+    ],
+    "error": null
+  },
+  {
+    "name": "consumer-compile",
+    "command": [
+      "rustc",
+      "--edition=2021",
+      "verification/api-residual/local-owner.rs",
+      "--extern",
+      "reactive_tui=/home/shawn/workspace2/reactive-tui/target/debug/libreactive_tui.rlib",
+      "-L",
+      "dependency=/home/shawn/workspace2/reactive-tui/target/debug/deps",
+      "-C",
+      "link-arg=-Wl,--threads=12",
+      "-o",
+      "/home/shawn/workspace2/reactive-tui/target/api019-local-owner-probe"
+    ],
+    "error": null
+  },
+  {
+    "name": "scoped-retention",
+    "command": [
+      "/home/shawn/workspace2/reactive-tui/target/api019-local-owner-probe"
+    ],
+    "error": null
+  },
+  {
+    "name": "thread-confinement",
+    "command": [
+      "rustc",
+      "--edition=2021",
+      "verification/api-residual/local-owner.rs",
+      "--extern",
+      "reactive_tui=/home/shawn/workspace2/reactive-tui/target/debug/libreactive_tui.rlib",
+      "-L",
+      "dependency=/home/shawn/workspace2/reactive-tui/target/debug/deps",
+      "-C",
+      "link-arg=-Wl,--threads=12",
+      "--cfg",
+      "send_local",
+      "-o",
+      "/home/shawn/workspace2/reactive-tui/target/api019-local-owner-forbidden"
+    ],
+    "error": "Native widget command failed (1): /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-019-local-scope-consumer/20260913T224617710053Z/thread-confinement.out"
+  }
+]

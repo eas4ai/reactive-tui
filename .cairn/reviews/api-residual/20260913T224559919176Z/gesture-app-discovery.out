@@ -1,0 +1,6 @@
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.35s
+     Running tests/api_mouse_hook_routing.rs (target/debug/deps/api_mouse_hook_routing-d6ca5f01aaa4856d)
+api019_app_routes_mouse_hooks_options_and_local_coordinates: test
+
+1 test, 0 benchmarks
