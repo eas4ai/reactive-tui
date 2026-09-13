@@ -1,0 +1,13 @@
+kitty: /home/shawn/workspace2/reactive-tui/target/kitty-image-host/684c41622674e6462bc7/kitty-0.45.0/kitty/launcher/kitty
+ghostty: /usr/bin/ghostty
+xterm: /usr/bin/xterm
+wezterm: /usr/bin/wezterm
+gnome-terminal: /usr/bin/gnome-terminal
+chafa: /home/linuxbrew/.linuxbrew/bin/chafa
+Traceback (most recent call last):
+  File "/home/shawn/workspace2/reactive-tui/scripts/check-api-images.py", line 107, in <module>
+    main()
+    ~~~~^^
+  File "/home/shawn/workspace2/reactive-tui/scripts/check-api-images.py", line 47, in main
+    raise RuntimeError("Image host acceptance requires executable on PATH: " + tool)
+RuntimeError: Image host acceptance requires executable on PATH: viu
