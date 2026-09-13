@@ -12,4 +12,4 @@ Build libatspi 2.60.6 from the official GNOME source archive with its published 
 
 ## Realized by
 
-41e680882a5cce0011954ed7b21511ead62b8272 Repair isolated libatspi state-set lifetime
+- 41e680882a5cce0011954ed7b21511ead62b8272 Repair isolated libatspi state-set lifetime
