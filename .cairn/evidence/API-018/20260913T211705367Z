@@ -1,0 +1,21 @@
+requirement: API-018
+requirement_digest: sha256:76a780ead7e5acff92c826a021896ab6b3d5bfeb7d454259579445152ecc44d3
+sequence: 15
+history_digest: sha256:af0185155a7f58aa8a0eb5bcfccbfccf37f82afbb03c70fcc8964cf9e9d32fd8
+mechanism: api-documentation.md
+commit: 24248bfc
+inputs_digest: sha256:a3aa52c2a84d6e5e758c8cf4df4f4ea868cec7afa7f62b283621a530db037b87
+mechanism_digest: sha256:5fa3148fe01c8356363cc1596562b7c10ae9446fd37b3887259fded1da08b933
+inputs_detail: .cairn/evidence/API-018/20260913T211440904Z-3847983.inputs.json
+command: python3 -B scripts/check-api-documentation.py
+cwd: .
+exit: 0
+output_digest: sha256:d93e6928bb07647343fb390296ba9dac0e3f108adff03edc95a27d4e3822d6a1
+output: .cairn/evidence/API-018/20260913T211440904Z-3847983.out
+stderr_output: .cairn/evidence/API-018/20260913T211440904Z-3847983.err
+stderr_digest: sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+signal: none
+execution_error: null
+result: pass
+source: exit
+recorded: 2026-09-13T21:17:05.367Z
