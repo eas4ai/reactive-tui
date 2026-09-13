@@ -1,0 +1,195 @@
+
+running 12 tests
+test /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260913T071026448749Z/rust-10.md - (line 3) - compile ... FAILED
+test /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260913T071026448749Z/rust-10.md - (line 93) - compile ... FAILED
+test /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260913T071026448749Z/rust-10.md - (line 120) - compile ... FAILED
+test /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260913T071026448749Z/rust-10.md - (line 134) - compile ... FAILED
+test /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260913T071026448749Z/rust-10.md - (line 44) - compile ... FAILED
+test /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260913T071026448749Z/rust-10.md - (line 106) - compile ... FAILED
+test /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260913T071026448749Z/rust-10.md - (line 202) - compile ... FAILED
+test /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260913T071026448749Z/rust-10.md - (line 155) - compile ... FAILED
+test /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260913T071026448749Z/rust-10.md - (line 213) - compile ... FAILED
+test /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260913T071026448749Z/rust-10.md - (line 180) - compile ... FAILED
+test /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260913T071026448749Z/rust-10.md - (line 191) - compile ... FAILED
+test /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260913T071026448749Z/rust-10.md - (line 224) - compile ... FAILED
+
+failures:
+
+---- /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260913T071026448749Z/rust-10.md - (line 3) stdout ----
+error[E0601]: `main` function not found in crate `rust_out`
+  --> /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260913T071026448749Z/rust-10.md:41:127
+   |
+41 | } _doctest_main__home_shawn_workspace2_reactive_tui__cairn_reviews_api_documentation_20260913T071026448749Z_rust_10_md_3_0() }
+   |                                                                                                                               ^ consider adding a `main` function to `/home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260913T071026448749Z/rust-10.md`
+
+error: aborting due to 1 previous error
+
+For more information about this error, try `rustc --explain E0601`.
+Couldn't compile the test.
+---- /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260913T071026448749Z/rust-10.md - (line 93) stdout ----
+error[E0433]: cannot find module or crate `crossterm` in this scope
+  --> /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260913T071026448749Z/rust-10.md:95:5
+   |
+95 | use crossterm::{event::poll};
+   |     ^^^^^^^^^ use of unresolved module or unlinked crate `crossterm`
+   |
+   = help: you might be missing a crate named `crossterm`
+
+error: aborting due to 1 previous error
+
+For more information about this error, try `rustc --explain E0433`.
+Couldn't compile the test.
+---- /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260913T071026448749Z/rust-10.md - (line 120) stdout ----
+error[E0433]: cannot find module or crate `crossterm` in this scope
+   --> /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260913T071026448749Z/rust-10.md:121:5
+    |
+121 | use crossterm::event::read;
+    |     ^^^^^^^^^ use of unresolved module or unlinked crate `crossterm`
+    |
+    = help: you might be missing a crate named `crossterm`
+
+error: aborting due to 1 previous error
+
+For more information about this error, try `rustc --explain E0433`.
+Couldn't compile the test.
+---- /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260913T071026448749Z/rust-10.md - (line 134) stdout ----
+error[E0433]: cannot find module or crate `crossterm` in this scope
+   --> /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260913T071026448749Z/rust-10.md:138:5
+    |
+138 | use crossterm::event::{read, poll};
+    |     ^^^^^^^^^ use of unresolved module or unlinked crate `crossterm`
+    |
+    = help: you might be missing a crate named `crossterm`
+
+error: aborting due to 1 previous error
+
+For more information about this error, try `rustc --explain E0433`.
+Couldn't compile the test.
+---- /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260913T071026448749Z/rust-10.md - (line 44) stdout ----
+error[E0601]: `main` function not found in crate `rust_out`
+  --> /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260913T071026448749Z/rust-10.md:90:128
+   |
+90 | } _doctest_main__home_shawn_workspace2_reactive_tui__cairn_reviews_api_documentation_20260913T071026448749Z_rust_10_md_44_0() }
+   |                                                                                                                                ^ consider adding a `main` function to `/home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260913T071026448749Z/rust-10.md`
+
+error: aborting due to 1 previous error
+
+For more information about this error, try `rustc --explain E0601`.
+Couldn't compile the test.
+---- /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260913T071026448749Z/rust-10.md - (line 106) stdout ----
+error[E0433]: cannot find module or crate `crossterm` in this scope
+   --> /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260913T071026448749Z/rust-10.md:109:5
+    |
+109 | use crossterm::event::poll;
+    |     ^^^^^^^^^ use of unresolved module or unlinked crate `crossterm`
+    |
+    = help: you might be missing a crate named `crossterm`
+
+error: aborting due to 1 previous error
+
+For more information about this error, try `rustc --explain E0433`.
+Couldn't compile the test.
+---- /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260913T071026448749Z/rust-10.md - (line 202) stdout ----
+error[E0432]: unresolved import `crossterm`
+   --> /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260913T071026448749Z/rust-10.md:203:5
+    |
+203 | use crossterm::event;
+    |     ^^^^^^^^^ use of unresolved module or unlinked crate `crossterm`
+    |
+    = help: you might be missing a crate named `crossterm`
+
+error: aborting due to 1 previous error
+
+For more information about this error, try `rustc --explain E0432`.
+Couldn't compile the test.
+---- /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260913T071026448749Z/rust-10.md - (line 155) stdout ----
+error[E0433]: cannot find module or crate `crossterm` in this scope
+   --> /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260913T071026448749Z/rust-10.md:158:5
+    |
+158 | use crossterm::event::{
+    |     ^^^^^^^^^ use of unresolved module or unlinked crate `crossterm`
+    |
+    = help: you might be missing a crate named `crossterm`
+
+error[E0432]: unresolved import `crossterm`
+   --> /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260913T071026448749Z/rust-10.md:157:5
+    |
+157 | use crossterm::execute;
+    |     ^^^^^^^^^ use of unresolved module or unlinked crate `crossterm`
+    |
+    = help: you might be missing a crate named `crossterm`
+
+error: aborting due to 2 previous errors
+
+Some errors have detailed explanations: E0432, E0433.
+For more information about an error, try `rustc --explain E0432`.
+Couldn't compile the test.
+---- /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260913T071026448749Z/rust-10.md - (line 213) stdout ----
+error[E0432]: unresolved import `crossterm`
+   --> /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260913T071026448749Z/rust-10.md:214:5
+    |
+214 | use crossterm::event;
+    |     ^^^^^^^^^ use of unresolved module or unlinked crate `crossterm`
+    |
+    = help: you might be missing a crate named `crossterm`
+
+error: aborting due to 1 previous error
+
+For more information about this error, try `rustc --explain E0432`.
+Couldn't compile the test.
+---- /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260913T071026448749Z/rust-10.md - (line 180) stdout ----
+error[E0432]: unresolved import `crossterm`
+   --> /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260913T071026448749Z/rust-10.md:181:5
+    |
+181 | use crossterm::event;
+    |     ^^^^^^^^^ use of unresolved module or unlinked crate `crossterm`
+    |
+    = help: you might be missing a crate named `crossterm`
+
+error: aborting due to 1 previous error
+
+For more information about this error, try `rustc --explain E0432`.
+Couldn't compile the test.
+---- /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260913T071026448749Z/rust-10.md - (line 191) stdout ----
+error[E0432]: unresolved import `crossterm`
+   --> /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260913T071026448749Z/rust-10.md:192:5
+    |
+192 | use crossterm::event;
+    |     ^^^^^^^^^ use of unresolved module or unlinked crate `crossterm`
+    |
+    = help: you might be missing a crate named `crossterm`
+
+error: aborting due to 1 previous error
+
+For more information about this error, try `rustc --explain E0432`.
+Couldn't compile the test.
+---- /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260913T071026448749Z/rust-10.md - (line 224) stdout ----
+error[E0432]: unresolved import `crossterm`
+   --> /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260913T071026448749Z/rust-10.md:225:5
+    |
+225 | use crossterm::event;
+    |     ^^^^^^^^^ use of unresolved module or unlinked crate `crossterm`
+    |
+    = help: you might be missing a crate named `crossterm`
+
+error: aborting due to 1 previous error
+
+For more information about this error, try `rustc --explain E0432`.
+Couldn't compile the test.
+
+failures:
+    /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260913T071026448749Z/rust-10.md - (line 106)
+    /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260913T071026448749Z/rust-10.md - (line 120)
+    /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260913T071026448749Z/rust-10.md - (line 134)
+    /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260913T071026448749Z/rust-10.md - (line 155)
+    /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260913T071026448749Z/rust-10.md - (line 180)
+    /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260913T071026448749Z/rust-10.md - (line 191)
+    /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260913T071026448749Z/rust-10.md - (line 202)
+    /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260913T071026448749Z/rust-10.md - (line 213)
+    /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260913T071026448749Z/rust-10.md - (line 224)
+    /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260913T071026448749Z/rust-10.md - (line 3)
+    /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260913T071026448749Z/rust-10.md - (line 44)
+    /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260913T071026448749Z/rust-10.md - (line 93)
+
+test result: FAILED. 0 passed; 12 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+

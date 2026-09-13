@@ -1,0 +1,65 @@
+PASS checker-controls
+PASS documentation-macro-behavior
+PASS documentation-screen-behavior
+PASS css-unit-behavior
+PASS css-consumer-behavior
+PASS props-behavior
+PASS props-diagnostics
+PASS consumer-library
+PASS props-defaults-compile
+PASS props-defaults-run
+PASS props
+PASS rustdoc-default
+PASS markdown-visible-default
+PASS rustdoc-minimal
+PASS markdown-visible-minimal
+PASS rustdoc-all-features
+PASS markdown-visible-all-features
+PASS crate-doctests-default
+PASS crate-doctests-minimal
+PASS crate-doctests-all-features
+PASS cargo-examples
+PASS rustdoc
+PASS consumer-library
+PASS rust-examples-0
+PASS rust-examples-1
+PASS rust-examples-2
+PASS rust-examples-3
+PASS rust-examples-4
+PASS rust-examples-5
+PASS rust-examples-6
+FAIL rust-examples-7 Native widget command failed (101): /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260913T071026448749Z/rust-examples-7.out
+FAIL rust-examples-8 Native widget command failed (101): /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260913T071026448749Z/rust-examples-8.out
+FAIL rust-examples-9 Native widget command failed (101): /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260913T071026448749Z/rust-examples-9.out
+FAIL rust-examples-10 Native widget command failed (101): /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260913T071026448749Z/rust-examples-10.out
+FAIL rust-examples-11 Native widget command failed (101): /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260913T071026448749Z/rust-examples-11.out
+FAIL rust-examples-12 Native widget command failed (101): /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260913T071026448749Z/rust-examples-12.out
+FAIL rust-examples-13 Native widget command failed (101): /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260913T071026448749Z/rust-examples-13.out
+FAIL rust-examples-14 Native widget command failed (101): /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260913T071026448749Z/rust-examples-14.out
+FAIL rust-examples-15 Native widget command failed (101): /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260913T071026448749Z/rust-examples-15.out
+FAIL rust-examples-16 Native widget command failed (101): /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260913T071026448749Z/rust-examples-16.out
+PASS rust-examples-17
+PASS rust-examples-18
+PASS rust-examples-19
+PASS rust-examples-20
+PASS rust-examples-21
+PASS rust-examples-22
+PASS rust-examples-23
+PASS rust-examples-24
+PASS rust-examples-25
+PASS rust-examples-26
+PASS rust-examples-27
+PASS rust-examples-28
+PASS ffi-library
+PASS c-example-0
+PASS c-example-1
+PASS c-example-2
+PASS c-example-3
+PASS c-example-4
+PASS typescript-dependencies
+PASS typescript-examples
+PASS python-example-0
+FAIL examples A required nested check failed; see the retained outputs
+PASS inventory
+Documentation outputs: .cairn/reviews/api-documentation/20260913T071026448749Z
+API-018 failed: rust-examples-7, rust-examples-8, rust-examples-9, rust-examples-10, rust-examples-11, rust-examples-12, rust-examples-13, rust-examples-14, rust-examples-15, rust-examples-16, examples

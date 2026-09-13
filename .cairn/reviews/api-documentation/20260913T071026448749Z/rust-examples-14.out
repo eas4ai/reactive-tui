@@ -1,0 +1,25 @@
+
+running 1 test
+test /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260913T071026448749Z/rust-14.md - (line 3) - compile ... FAILED
+
+failures:
+
+---- /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260913T071026448749Z/rust-14.md - (line 3) stdout ----
+error[E0433]: cannot find module or crate `crossterm` in this scope
+ --> /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260913T071026448749Z/rust-14.md:4:5
+  |
+4 | use crossterm::style::{Color, Colors, Colored};
+  |     ^^^^^^^^^ use of unresolved module or unlinked crate `crossterm`
+  |
+  = help: you might be missing a crate named `crossterm`
+
+error: aborting due to 1 previous error
+
+For more information about this error, try `rustc --explain E0433`.
+Couldn't compile the test.
+
+failures:
+    /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260913T071026448749Z/rust-14.md - (line 3)
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+

@@ -1,0 +1,195 @@
+warning: unnecessary parentheses around closure body
+  --> src/backend/crossterm/src/terminal/sys/unix.rs:87:50
+   |
+87 |     let file = File::open("/dev/tty").map(|file| (FileDesc::Owned(file.into())));
+   |                                                  ^                            ^
+   |
+   = note: `#[warn(unused_parens)]` (part of `#[warn(unused)]`) on by default
+help: remove these parentheses
+   |
+87 -     let file = File::open("/dev/tty").map(|file| (FileDesc::Owned(file.into())));
+87 +     let file = File::open("/dev/tty").map(|file| FileDesc::Owned(file.into()));
+   |
+
+warning: `crossterm` (lib) generated 1 warning (run `cargo fix --lib -p crossterm` to apply 1 suggestion)
+warning: ambiguous glob re-exports
+  --> src/ffi/mod.rs:94:9
+   |
+94 | pub use pointer::*;
+   |         ^^^^^^^^^^ the name `validate_pointer` in the value namespace is first re-exported here
+...
+99 | pub use types::*;
+   |         -------- but the name `validate_pointer` in the value namespace is also re-exported here
+   |
+   = note: `#[warn(ambiguous_glob_reexports)]` on by default
+
+warning: use of deprecated method `std::sync::atomic::Atomic::<usize>::fetch_update`: renamed to `try_update` for consistency
+   --> src/hooks/animation.rs:169:14
+    |
+169 |             .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |id| id.checked_add(1))
+    |              ^^^^^^^^^^^^
+    |
+    = note: `#[warn(deprecated)]` on by default
+help: replace the use of the deprecated method
+    |
+169 -             .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |id| id.checked_add(1))
+169 +             .try_update(Ordering::Relaxed, Ordering::Relaxed, |id| id.checked_add(1))
+    |
+
+warning: falling back to `f32` as the trait bound `f32: From<f64>` is not satisfied
+    --> src/layout/style.rs:1532:83
+     |
+1532 |                 .map(|_| GridTemplateComponent::from(TrackSizingFunction::from_fr(1.0)))
+     |                                                                                   ^^^ help: explicitly specify the type as `f32`: `1.0_f32`
+     |
+     = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+     = note: for more information, see issue #154024 <https://github.com/rust-lang/rust/issues/154024>
+     = note: `#[warn(float_literal_f32_fallback)]` (part of `#[warn(future_incompatible)]`) on by default
+
+warning: falling back to `f32` as the trait bound `f32: From<f64>` is not satisfied
+    --> src/layout/style.rs:1538:83
+     |
+1538 |                 .map(|_| GridTemplateComponent::from(TrackSizingFunction::from_fr(1.0)))
+     |                                                                                   ^^^ help: explicitly specify the type as `f32`: `1.0_f32`
+     |
+     = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+     = note: for more information, see issue #154024 <https://github.com/rust-lang/rust/issues/154024>
+
+warning: use of deprecated method `std::sync::atomic::Atomic::<u32>::fetch_update`: renamed to `try_update` for consistency
+   --> src/widgets/display/image/protocol_renderer.rs:238:14
+    |
+238 |             .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |id| {
+    |              ^^^^^^^^^^^^
+    |
+help: replace the use of the deprecated method
+    |
+238 -             .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |id| {
+238 +             .try_update(Ordering::Relaxed, Ordering::Relaxed, |id| {
+    |
+
+warning: unused variable: `width`
+  --> src/ffi/lib.rs:85:14
+   |
+85 |         let (width, height) = renderer_box.dims();
+   |              ^^^^^ help: if this is intentional, prefix it with an underscore: `_width`
+   |
+   = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `validate_pointer` is never used
+   --> src/ffi/types.rs:182:15
+    |
+182 | pub(crate) fn validate_pointer<T>(ptr: *const T) -> bool {
+    |               ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `validate_mut_pointer` is never used
+   --> src/ffi/types.rs:187:15
+    |
+187 | pub(crate) fn validate_mut_pointer<T>(ptr: *mut T) -> bool {
+    |               ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `safe_cast` is never used
+   --> src/ffi/types.rs:192:22
+    |
+192 | pub(crate) unsafe fn safe_cast<T, U>(ptr: *mut T) -> Result<*mut U, ReactiveError> {
+    |                      ^^^^^^^^^
+
+warning: function `safe_cast_const` is never used
+   --> src/ffi/types.rs:206:22
+    |
+206 | pub(crate) unsafe fn safe_cast_const<T, U>(ptr: *const T) -> Result<*const U, ReactiveError> {
+    |                      ^^^^^^^^^^^^^^^
+
+warning: `reactive-tui` (lib) generated 10 warnings (run `cargo fix --lib -p reactive-tui` to apply 5 suggestions)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.20s
+   Doc-tests reactive_tui
+
+running 84 tests
+test src/animation/api.rs - animation::api::animate (line 281) ... ignored
+test src/animation/api.rs - animation::api::create_timeline (line 858) ... ignored
+test src/animation/api.rs - animation::api::stagger_delay (line 690) ... ignored
+test src/builder/core.rs - builder::core::ElementBuilder::styles (line 131) ... ignored
+test src/builder/widgets/breadcrumb.rs - builder::widgets::breadcrumb::application_breadcrumb (line 146) ... ok
+test src/builder/widgets/accordion.rs - builder::widgets::accordion::settings_accordion (line 66) ... ok
+test src/builder/widgets/accordion.rs - builder::widgets::accordion::accordion (line 15) ... ok
+test src/builder/widgets/breadcrumb.rs - builder::widgets::breadcrumb::compact_breadcrumb (line 119) ... ok
+test src/builder/widgets/accordion.rs - builder::widgets::accordion::navigation_accordion (line 120) ... ok
+test src/builder/widgets/accordion.rs - builder::widgets::accordion::simple_accordion (line 40) ... ok
+test src/builder/widgets/dialog.rs - builder::widgets::dialog::ModalBuilder (line 81) ... ignored
+test src/builder/macros.rs - builder::macros::div (line 54) ... ok
+test src/animation/keyframes/typed.rs - animation::keyframes::typed::KeyframeType (line 33) ... ok
+test src/builder/macros.rs - builder::macros::el (line 9) ... ok
+test src/builder/widgets/display.rs - builder::widgets::display::PopoverBuilder (line 216) ... ignored
+test src/builder/widgets/breadcrumb.rs - builder::widgets::breadcrumb::breadcrumb (line 15) ... ok
+test src/builder/widgets/accordion.rs - builder::widgets::accordion::faq_accordion (line 94) ... ok
+test src/animation/mod.rs - animation::api (line 26) ... ok
+test src/builder/widgets/breadcrumb.rs - builder::widgets::breadcrumb::filesystem_breadcrumb (line 64) ... ok
+test src/builder/widgets/dialog.rs - builder::widgets::dialog::modal (line 17) ... ok
+test src/builder/widgets/breadcrumb.rs - builder::widgets::breadcrumb::url_breadcrumb (line 217) ... ok
+test src/builder/widgets/dialog.rs - builder::widgets::dialog::toast (line 35) ... ok
+test src/builder/widgets/breadcrumb.rs - builder::widgets::breadcrumb::simple_breadcrumb (line 37) ... ok
+test src/builder/widgets/breadcrumb.rs - builder::widgets::breadcrumb::path_breadcrumb (line 177) ... ok
+test src/builder/widgets/display.rs - builder::widgets::display::ProgressBarBuilder (line 71) ... ok
+test src/builder/widgets/file_explorer.rs - builder::widgets::file_explorer::code_project_explorer (line 61) ... ok
+test src/builder/widgets/breadcrumb.rs - builder::widgets::breadcrumb::website_breadcrumb (line 93) ... ok
+test src/builder/widgets/file_explorer.rs - builder::widgets::file_explorer::compact_file_picker (line 165) ... ok
+test src/builder/widgets/display.rs - builder::widgets::display::progress_bar (line 15) ... ok
+test src/builder/widgets/dialog.rs - builder::widgets::dialog::ToastBuilder (line 230) ... ok
+test src/builder/widgets/file_explorer.rs - builder::widgets::file_explorer::current_directory_explorer (line 220) ... ok
+test src/builder/widgets/file_explorer.rs - builder::widgets::file_explorer::document_browser (line 128) ... ok
+test src/builder/widgets/file_explorer.rs - builder::widgets::file_explorer::filtered_file_explorer (line 253) ... ok
+test src/builder/widgets/file_explorer.rs - builder::widgets::file_explorer::file_explorer (line 16) ... ok
+test src/builder/widgets/file_explorer.rs - builder::widgets::file_explorer::home_directory_explorer (line 236) ... ok
+test src/builder/widgets/file_explorer.rs - builder::widgets::file_explorer::media_gallery_explorer (line 87) ... ok
+test src/component/props.rs - component::props::Props (line 30) - compile fail ... ok
+test src/component/props.rs - component::props::Props (line 41) - compile fail ... ok
+test src/builder/widgets/input.rs - builder::widgets::input::SelectBuilder (line 419) ... ok
+test src/builder/widgets/file_explorer.rs - builder::widgets::file_explorer::simple_file_browser (line 39) ... ok
+test src/builder/widgets/file_explorer.rs - builder::widgets::file_explorer::system_file_manager (line 191) ... ok
+test src/builder/widgets/input.rs - builder::widgets::input::TextInputBuilder (line 83) ... ok
+test src/builder/widgets/input.rs - builder::widgets::input::CheckboxBuilder (line 310) ... ok
+test src/builder/widgets/input.rs - builder::widgets::input::checkbox (line 33) ... ok
+test src/hooks/clipboard.rs - hooks::clipboard::use_simple_clipboard (line 254) - compile ... ok
+test src/hooks/fps.rs - hooks::fps::use_adaptive_quality (line 157) - compile ... ok
+test src/hooks/clipboard.rs - hooks::clipboard::use_clipboard (line 180) - compile ... ok
+test src/hooks/fps.rs - hooks::fps::use_fps (line 44) - compile ... ok
+test src/hooks/fps.rs - hooks::fps::use_performance_mode (line 91) - compile ... ok
+test src/hooks/fps.rs - hooks::fps::use_frame_timing (line 118) - compile ... ok
+test src/component/props.rs - component::props::Props (line 52) - compile fail ... ok
+test src/hooks/fps.rs - hooks::fps::use_performance (line 62) - compile ... ok
+test src/hooks/mouse.rs - hooks::mouse::use_drag (line 99) - compile ... ok
+test src/hooks/mouse.rs - hooks::mouse::use_clicks (line 244) - compile ... ok
+test src/hooks/mouse.rs - hooks::mouse::use_gesture (line 357) - compile ... ok
+test src/hooks/mouse.rs - hooks::mouse::use_long_press (line 282) - compile ... ok
+test src/hooks/mouse.rs - hooks::mouse::use_hover (line 19) - compile ... ok
+test src/hooks/mouse.rs - hooks::mouse::use_drag_and_drop (line 161) - compile ... ok
+test src/hooks/mouse.rs - hooks::mouse::use_mouse_position (line 205) - compile ... ok
+test src/hooks/refs.rs - hooks::refs::use_callback_ref (line 189) - compile ... ok
+test src/hooks/mouse.rs - hooks::mouse::use_wheel (line 423) - compile ... ok
+test src/hooks/refs.rs - hooks::refs::use_forwarded_ref (line 253) - compile ... ok
+test src/hooks/refs.rs - hooks::refs::use_ref (line 99) - compile ... ok
+test src/hooks/refs.rs - hooks::refs::use_multi_ref (line 321) - compile ... ok
+test src/hooks/refs.rs - hooks::refs::use_local_ref (line 126) - compile ... ok
+test src/layout/css/css_in_rust.rs - layout::css::css_in_rust::css (line 52) ... ignored
+test src/layout/css/css_in_rust.rs - layout::css::css_in_rust::flex_center (line 265) ... ignored
+test src/layout/css/css_in_rust.rs - layout::css::css_in_rust::responsive_css (line 318) ... ignored
+test src/hooks/timer.rs - hooks::timer::use_debounce (line 70) - compile ... ok
+test src/hooks/timer.rs - hooks::timer::use_interval (line 12) - compile ... ok
+test src/hooks/timer.rs - hooks::timer::use_throttle (line 100) - compile ... ok
+test src/hooks/timer.rs - hooks::timer::use_timeout (line 40) - compile ... ok
+test src/theme/mod.rs - theme::Theme (line 30) ... ignored
+test src/layout/css/css_in_rust.rs - layout::css::css_in_rust::responsive_css (line 337) - compile fail ... ok
+test src/builder/widgets/input.rs - builder::widgets::input::select (line 58) ... ok
+test src/lib.rs - (line 22) - compile ... ok
+test src/builder/widgets/input.rs - builder::widgets::input::text_input (line 15) ... ok
+test src/builder/widgets/layout.rs - builder::widgets::layout::tabs (line 29) ... ok
+test src/builder/widgets/layout.rs - builder::widgets::layout::TabsBuilder (line 48) ... ok
+test src/component/props.rs - component::props::Props (line 12) ... ok
+test src/layout/css/focus.rs - layout::css::focus::apply_aria_attribute (line 130) ... ok
+test src/lib.rs - builder (line 72) ... ok
+test src/layout/css/css_in_rust.rs - layout::css::css_in_rust (line 13) ... ok
+test src/lib.rs - markdown (line 95) ... ok
+
+test result: ok. 74 passed; 0 failed; 10 ignored; 0 measured; 0 filtered out; finished in 6.27s
+
