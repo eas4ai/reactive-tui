@@ -12,4 +12,4 @@ Return the approved InputReceiver from both Unix async input methods. One worker
 
 ## Realized by
 
-(none yet: recorded, not built)
+789d5c0a Own Unix input workers and retain shared reference hooks
