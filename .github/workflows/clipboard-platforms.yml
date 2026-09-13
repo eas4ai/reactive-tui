@@ -71,13 +71,13 @@ jobs:
         if: always() && runner.os == 'macOS'
         shell: bash
         env:
-          CARGO_BUILD_JOBS: '12'
-          RUST_TEST_THREADS: '12'
-          RAYON_NUM_THREADS: '12'
-          LP_NUM_THREADS: '12'
-          PYTHON_CPU_COUNT: '12'
-          GOMAXPROCS: '12'
-          GOFLAGS: '-p=12'
+          CARGO_BUILD_JOBS: '8'
+          RUST_TEST_THREADS: '8'
+          RAYON_NUM_THREADS: '8'
+          LP_NUM_THREADS: '8'
+          PYTHON_CPU_COUNT: '8'
+          GOMAXPROCS: '8'
+          GOFLAGS: '-p=8'
           CARGO_INCREMENTAL: '0'
           CARGO_TARGET_DIR: ${{ github.workspace }}/target
         run: python -B verification/api-entry-points/run-native.py
