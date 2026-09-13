@@ -1,0 +1,21 @@
+requirement: API-019
+requirement_digest: sha256:1ef9d5a9f7fdb7efb3dc5bb9f4b6507a78a7abfffdc3a7a3c2a2c91c101837bd
+sequence: 9
+history_digest: sha256:8e40d6dc654569febe3daa801086eae485493c96fcbd77a486b0bba1705ff15c
+mechanism: api-residual.md
+commit: 0d8f06ac
+inputs_digest: sha256:8da8a0a4164be5d15c3b15ff21e0bc80ced65bd139b408784898c6cfa0ec7d4a
+mechanism_digest: sha256:28d2cf2adb0c095894a235afec7240106503c61294aded8910ec009ccc73f181
+inputs_detail: .cairn/evidence/API-019/20260913T211716277Z-3882542.inputs.json
+command: python3 -B scripts/check-api-residual.py
+cwd: .
+exit: 1
+output_digest: sha256:b6a3d368d3debc2a0f6a68bdd520f26745113e5984af429475008ef31e91c981
+output: .cairn/evidence/API-019/20260913T211716277Z-3882542.out
+stderr_output: .cairn/evidence/API-019/20260913T211716277Z-3882542.err
+stderr_digest: sha256:96e26155cb038b93dea688b9e001c19644c3a74c1c9a17f2b02d783d23173f0b
+signal: none
+execution_error: null
+result: fail
+source: exit
+recorded: 2026-09-13T21:19:18.425Z

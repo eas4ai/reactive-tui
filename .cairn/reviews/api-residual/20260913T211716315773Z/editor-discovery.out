@@ -1,0 +1,28 @@
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.81s
+     Running tests/api_editor_unicode.rs (target/debug/deps/api_editor_unicode-3d97ffe439a93f0c)
+cursor_uses_scalar_offsets_and_display_columns: test
+line_index_tracks_edits_before_and_at_newlines: test
+plain::clipping_keeps_wide_graphemes_whole_and_clears_old_text: test
+plain::control_text_is_visible_without_becoming_terminal_commands: test
+plain::edits_that_join_graphemes_leave_cursor_at_a_boundary: test
+plain::forward_delete_and_crlf_are_atomic: test
+plain::mixed_insertion_and_grapheme_deletion: test
+plain::painted_columns_and_selection_match_text: test
+plain::rendered_terminal_cells_retain_unicode_after_updates: test
+plain::selection_after_syntax_runs_and_tabs_uses_text_offsets: test
+plain::selection_replaces_whole_graphemes_across_lines: test
+surface_grapheme_ownership_survives_copy_and_expires_on_overwrite: test
+syntax::clipping_keeps_wide_graphemes_whole_and_clears_old_text: test
+syntax::control_text_is_visible_without_becoming_terminal_commands: test
+syntax::edits_that_join_graphemes_leave_cursor_at_a_boundary: test
+syntax::forward_delete_and_crlf_are_atomic: test
+syntax::mixed_insertion_and_grapheme_deletion: test
+syntax::painted_columns_and_selection_match_text: test
+syntax::rendered_terminal_cells_retain_unicode_after_updates: test
+syntax::selection_after_syntax_runs_and_tabs_uses_text_offsets: test
+syntax::selection_replaces_whole_graphemes_across_lines: test
+vertical_motion_preserves_columns_across_short_and_wide_lines: test
+word_movement_retains_unicode_grapheme_boundaries: test
+
+23 tests, 0 benchmarks
