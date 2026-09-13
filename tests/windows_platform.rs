@@ -1,7 +1,8 @@
 #![cfg(windows)]
 
 use reactive_tui::platform::{
-    windows::WindowsTty, KeyCode, KeyEventKind, KeyModifiers, MouseEventKind, TerminalEvent,
+    windows::WindowsTty, KeyCode, KeyEventKind, KeyModifiers, MouseButton, MouseEventKind,
+    TerminalEvent,
 };
 use std::os::windows::process::CommandExt;
 use std::process::{Child, Command, Stdio};
@@ -146,24 +147,35 @@ fn check_private_console() {
     })
     .collect::<Vec<_>>();
     assert_eq!(events, expected);
-    for (record, kind) in [
-        (mouse(MOUSE_MOVED, 0), MouseEventKind::Move),
+    for (record, kind, button) in [
+        (mouse(MOUSE_MOVED, 0), MouseEventKind::Move, None),
         (
             mouse(MOUSE_MOVED, FROM_LEFT_1ST_BUTTON_PRESSED),
             MouseEventKind::Drag,
+            Some(MouseButton::Left),
         ),
-        (mouse(0, RIGHTMOST_BUTTON_PRESSED), MouseEventKind::Down),
-        (mouse(0, 0), MouseEventKind::Up),
-        (mouse(MOUSE_WHEELED, 120 << 16), MouseEventKind::ScrollUp),
+        (
+            mouse(0, RIGHTMOST_BUTTON_PRESSED),
+            MouseEventKind::Down,
+            Some(MouseButton::Right),
+        ),
+        (mouse(0, 0), MouseEventKind::Up, None),
+        (
+            mouse(MOUSE_WHEELED, 120 << 16),
+            MouseEventKind::ScrollUp,
+            None,
+        ),
         (
             mouse(MOUSE_HWHEELED, u32::from((-120i16) as u16) << 16),
             MouseEventKind::ScrollLeft,
+            None,
         ),
     ] {
         assert_eq!(
             tty.parse_input_record(&record),
             Some(TerminalEvent::Mouse {
                 kind,
+                button,
                 column: 7,
                 row: 3,
                 pixel_x: None,
