@@ -5051,7 +5051,7 @@ Native run 34765113271 passed on macOS and Windows for snapshot 21be8f5d8e9603a0
 
 ## API-020 final commitment review
 
-Status: Finding open
+Status: Complete
 
 This review started only after Cairn reported every inherited commitment and
 API-001 through API-019 current and passing. The repository contains 54 active
@@ -5078,7 +5078,7 @@ they are not active requirements or acceptance passes.
 | RAPI-12 features | API-015 | Default, minimal, optional, embedded and nightly SIMD configurations have compiled/runtime evidence. |
 | RAPI-13 entry points | API-016, API-019 | Retained frame/patch/backend routes update and restore; platform, raw-mode and parser ownership are checked. |
 | RAPI-14 native access | API-017 | C and TypeScript consumers exercise editors, layout, dialogs and stateful foreign components with independent ABI/layout checks. |
-| RAPI-15 documentation and residual coverage | API-018, API-019, API-020 | Public docs/examples/Props validation pass; every residual inventory row has executed coverage. The stale readiness text below remains to repair. |
+| RAPI-15 documentation and residual coverage | API-018, API-019, API-020 | Public docs/examples/Props validation pass; every residual inventory row has executed coverage, and the public matrices report the completed contracts and retained limits. |
 
 This table covers API-001 through API-020 and all RAPI-01 through RAPI-15 audit
 rows. The API-019 mechanism also executes each coverage-table subcase: gestures,
@@ -5129,10 +5129,9 @@ desktop state are not part of the fixtures. The closure checker independently re
 an incomplete RAPI mapping, a mislabeled/non-violating historical control, unfinished
 work tracking and any surviving owned process group.
 
-Review finding: `docs/supported-api.md` still calls eight API-019 areas pending, and
-`docs/residual-api-inventory.md` still describes completed API-019 work as open or
-pending. This contradicts the current API-019 receipt and must be repaired before
-API-020 can pass.
+Review finding resolved: `docs/supported-api.md` now ties the eight formerly
+pending areas to API-019 behavior evidence and states their retained limits.
+`docs/residual-api-inventory.md` records every API-019 contract as verified and
+records API-020's normal and forced-timeout process ownership check.
 
-Known open findings: stale API-019 readiness text in the supported and residual API
-inventories.
+Known open findings: none
