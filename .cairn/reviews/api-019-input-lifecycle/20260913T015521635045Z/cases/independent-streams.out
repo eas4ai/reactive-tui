@@ -1,0 +1,4 @@
+Observed 1 owned reader threads: {830517}
+Observed 2 owned reader threads: {830517, 830518}
+PASS owned reader threads stopped
+PASS owned reader threads stopped
