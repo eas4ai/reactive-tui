@@ -56,8 +56,8 @@ warning: field `parser` is never read
     |     ^^^^^^
 
 warning: `reactive-tui` (lib test) generated 7 warnings (run `cargo fix --lib -p reactive-tui --tests` to apply 5 suggestions)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.35s
-     Running unittests src\lib.rs (target\debug\deps\reactive_tui-8f430f50a806aae5.exe)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.36s
+     Running unittests src\lib.rs (target\debug\deps\reactive_tui-f739cfa96c72f391.exe)
 
 running 37 tests
 test terminal::screen::reflow::tests::blank_reflow_rows_remain_compact_before_viewport_selection ... ok

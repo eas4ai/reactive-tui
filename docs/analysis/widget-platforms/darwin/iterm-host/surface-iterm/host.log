@@ -1,2 +1,2 @@
-2026-09-13 04:32:02.287 iTerm2[12034:38767] WARNING: Secure coding is automatically enabled for restorable state! However, not on all supported macOS versions of this application. Opt-in to secure coding explicitly by implementing NSApplicationDelegate.applicationSupportsSecureRestorableState:.
-2026-09-13 04:32:03.100 iTerm2[12034:38767] NSScanner: nil string argument
+2026-09-13 06:36:06.538 iTerm2[14569:46395] WARNING: Secure coding is automatically enabled for restorable state! However, not on all supported macOS versions of this application. Opt-in to secure coding explicitly by implementing NSApplicationDelegate.applicationSupportsSecureRestorableState:.
+2026-09-13 06:36:07.104 iTerm2[14569:46395] NSScanner: nil string argument
