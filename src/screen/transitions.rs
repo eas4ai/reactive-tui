@@ -98,8 +98,8 @@ impl TransitionRenderer {
     fn render_to_surface(&self, tree: &RenderTree, surface: &mut Surface) {
         if let Some(root) = tree.root() {
             // Use proper layout system instead of linear painting
-            if let Some(element) = root.as_element() {
-                let nodespec = crate::component::bridge::element_to_nodespec(element);
+            if let Some(element) = tree.root_element() {
+                let nodespec = crate::component::bridge::element_to_nodespec(&element);
                 let opts = crate::layout::paint_tree::PaintOptions::default();
                 crate::layout::paint_tree::layout_and_paint_with(
                     &nodespec, surface, self.width, &opts,

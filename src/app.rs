@@ -274,6 +274,11 @@ impl App {
             _ => {}
         }
         let state = (self.router.get_focus(), self.router.hovered_node());
+        if let Event::Mouse(mouse) = event {
+            let target = self.router.determine_target(event);
+            let component = self.event_tree.innermost_component(target);
+            self.components.process_mouse_event(component, mouse);
+        }
         let mut result = self.router.process_event(event);
         dirty |= state != (self.router.get_focus(), self.router.hovered_node());
         if result == EventResult::Ignored && self.running {

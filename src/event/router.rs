@@ -626,7 +626,7 @@ impl EventRouter {
     }
 
     /// Determine the target node for an event
-    fn determine_target(&self, event: &Event) -> NodeId {
+    pub(crate) fn determine_target(&self, event: &Event) -> NodeId {
         match event {
             Event::Mouse(mouse_event) => {
                 if !matches!(mouse_event.position, super::types::Position::Cell { .. }) {

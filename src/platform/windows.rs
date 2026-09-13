@@ -409,7 +409,7 @@ impl WindowsTty {
         &self,
         mouse_event: &MOUSE_EVENT_RECORD,
     ) -> Option<crate::platform::TerminalEvent> {
-        use crate::platform::{KeyModifiers, MouseEventKind};
+        use crate::platform::{KeyModifiers, MouseButton, MouseEventKind};
 
         let column = mouse_event.dwMousePosition.X as u16;
         let row = mouse_event.dwMousePosition.Y as u16;
@@ -453,9 +453,19 @@ impl WindowsTty {
                 }
             }
         };
+        let button = if button_state & 0x0001 != 0 {
+            Some(MouseButton::Left)
+        } else if button_state & 0x0002 != 0 {
+            Some(MouseButton::Right)
+        } else if button_state & 0x0004 != 0 {
+            Some(MouseButton::Middle)
+        } else {
+            None
+        };
 
         Some(crate::platform::TerminalEvent::Mouse {
             kind,
+            button,
             column,
             row,
             pixel_x: None,

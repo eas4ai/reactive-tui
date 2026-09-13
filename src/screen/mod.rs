@@ -214,11 +214,11 @@ pub struct TransitionConfig {
     pub duration: Duration,
     /// Easing function for the transition
     pub easing: EasingFunction,
-    /// Optional animation ID for integration with animation system hooks
+    /// Compatibility metadata retained for callers; terminal painting ignores it.
     pub animation_id: Option<String>,
-    /// Whether to use hardware acceleration if available
+    /// Compatibility preference; the terminal painter does not use a GPU.
     pub use_hardware_acceleration: bool,
-    /// Custom properties for animation system integration
+    /// Compatibility metadata retained for callers; terminal painting ignores it.
     pub custom_properties: std::collections::HashMap<String, f32>,
 }
 
@@ -236,19 +236,19 @@ impl Default for TransitionConfig {
 }
 
 impl TransitionConfig {
-    /// Create a new transition config with animation system integration
+    /// Attach an identifier as compatibility metadata.
     pub fn with_animation_id(mut self, id: impl Into<String>) -> Self {
         self.animation_id = Some(id.into());
         self
     }
 
-    /// Enable hardware acceleration if available
+    /// Record a hardware preference as compatibility metadata.
     pub fn with_hardware_acceleration(mut self) -> Self {
         self.use_hardware_acceleration = true;
         self
     }
 
-    /// Add custom properties for animation system hooks
+    /// Attach a custom property as compatibility metadata.
     pub fn with_custom_property(mut self, key: impl Into<String>, value: f32) -> Self {
         self.custom_properties.insert(key.into(), value);
         self
@@ -698,5 +698,30 @@ impl TransitionState {
     /// true if transition has finished
     pub fn is_complete(&self) -> bool {
         !self.is_transitioning && self.progress >= 1.0
+    }
+}
+
+#[cfg(test)]
+mod residual_metadata_tests {
+    use super::*;
+
+    #[test]
+    fn api019_compatibility_metadata_does_not_change_terminal_transition_progress() {
+        let destination = ScreenId::new("destination");
+        let plain = TransitionConfig::default();
+        let decorated = TransitionConfig::default()
+            .with_animation_id("legacy")
+            .with_custom_property("unused", 99.0)
+            .with_hardware_acceleration();
+        let started = Instant::now();
+        let mut left = TransitionState::default();
+        let mut right = TransitionState::default();
+        left.start_transition(None, destination.clone(), plain);
+        right.start_transition(None, destination, decorated);
+        left.start_time = Some(started);
+        right.start_time = Some(started);
+        let sample = started + Duration::from_millis(150);
+        assert_eq!(left.update_at(sample), right.update_at(sample));
+        assert_eq!(left.progress, right.progress);
     }
 }

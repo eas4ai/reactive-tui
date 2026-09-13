@@ -347,6 +347,7 @@ pub struct DebugBackend {
 }
 
 impl DebugBackend {
+    const MAX_CELLS: usize = 262_144;
     /// Create a new debug backend with specified dimensions
     pub fn new(width: u16, height: u16) -> Self {
         Self {
@@ -430,6 +431,26 @@ impl DebugBackend {
             a: 1.0,
         });
     }
+
+    /// Resize the virtual screen without truncating dimensions or making an
+    /// accidental unbounded allocation.
+    pub fn try_resize(&mut self, width: usize, height: usize) -> Result<()> {
+        let cells = width.checked_mul(height).ok_or_else(|| {
+            crate::error::ReactiveError::invalid_parameter("debug backend dimensions overflow")
+        })?;
+        if width > u16::MAX as usize || height > u16::MAX as usize || cells > Self::MAX_CELLS {
+            return Err(crate::error::ReactiveError::invalid_parameter(
+                "debug backend dimensions exceed 65535 per axis or 262144 cells",
+            ));
+        }
+        let surface = crate::core::surface::Surface::new(width, height);
+        self.pending_frame = None;
+        self.graphemes = None;
+        self.geometry = None;
+        self.virtual_screen = surface;
+        self.size = (width as u16, height as u16);
+        Ok(())
+    }
 }
 
 impl Backend for DebugBackend {
@@ -473,9 +494,9 @@ impl Backend for DebugBackend {
 
         if let Some(root) = tree.root() {
             // Use proper layout system for debug backend too
-            if let Some(element) = root.as_element() {
+            if let Some(element) = tree.root_element() {
                 // Convert Element to NodeSpec and paint with layout
-                let nodespec = crate::component::bridge::element_to_nodespec(element);
+                let nodespec = crate::component::bridge::element_to_nodespec(&element);
                 let opts = crate::layout::paint_tree::PaintOptions::default();
                 let (width, _) = (self.size.0 as usize, self.size.1 as usize);
                 crate::layout::paint_tree::layout_and_paint_with(
@@ -533,12 +554,9 @@ impl Backend for DebugBackend {
     }
 
     fn resize(&mut self, width: usize, height: usize) {
-        // Update virtual screen size
-        self.pending_frame = None;
-        self.graphemes = None;
-        self.geometry = None;
-        self.virtual_screen = crate::core::surface::Surface::new(width, height);
-        self.size = (width as u16, height as u16);
+        // The legacy trait cannot report errors. Keep the last valid screen;
+        // callers that need diagnostics can use `try_resize`.
+        let _ = self.try_resize(width, height);
     }
 
     fn render_full(&mut self, element: &Element) -> Result<()> {
@@ -562,8 +580,8 @@ impl Backend for DebugBackend {
         if let Some(root) = tree.root() {
             // This should not be using paint_render_node_linear anymore
             // Use proper layout system instead
-            if let Some(element_ref) = root.as_element() {
-                let nodespec = crate::component::bridge::element_to_nodespec(element_ref);
+            if let Some(element) = tree.root_element() {
+                let nodespec = crate::component::bridge::element_to_nodespec(&element);
                 let opts = crate::layout::paint_tree::PaintOptions::default();
                 let (width, _) = (self.size.0 as usize, self.size.1 as usize);
                 crate::layout::paint_tree::layout_and_paint_with(
@@ -586,6 +604,28 @@ impl Backend for DebugBackend {
 mod tests {
     use super::*;
     use crossterm::event::Event as CtEvent;
+
+    #[test]
+    fn api019_debug_backend_rejects_oversized_resize_without_truncation_or_allocation() {
+        let mut backend = DebugBackend::new(20, 10);
+        assert!(backend.try_resize(usize::MAX, 2).is_err());
+        assert_eq!(backend.size(), (20, 10));
+        assert!(backend.try_resize(65_535, 65_535).is_err());
+        assert_eq!(backend.size(), (20, 10));
+
+        Backend::resize(&mut backend, usize::MAX, usize::MAX);
+        assert_eq!(backend.size(), (20, 10));
+    }
+
+    #[test]
+    fn api019_debug_backend_accepts_empty_and_bounded_dimensions() {
+        let mut backend = DebugBackend::new(1, 1);
+        backend.try_resize(0, 0).unwrap();
+        assert_eq!(backend.size(), (0, 0));
+        assert_eq!(backend.screen_content(), "");
+        backend.try_resize(512, 512).unwrap();
+        assert_eq!(backend.size(), (512, 512));
+    }
 
     #[test]
     fn map_paste_event() {

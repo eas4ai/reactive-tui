@@ -18,7 +18,6 @@ pub use variables::ThemeVariables;
 
 use crate::layout::css::apply_utility_classes_with_theme;
 use crate::layout::style::StyleBuilder;
-use std::collections::HashMap;
 
 /// CSS-first theme system for reactive-tui
 ///
@@ -40,8 +39,6 @@ pub struct Theme {
     pub variables: ThemeVariables,
     /// Parent theme to inherit from
     pub extends: Option<Box<Theme>>,
-    /// Cache for resolved variables to improve performance
-    variable_cache: HashMap<String, String>,
 }
 
 impl Theme {
@@ -51,65 +48,28 @@ impl Theme {
             name: name.into(),
             variables: ThemeVariables::default(),
             extends: None,
-            variable_cache: HashMap::new(),
         }
     }
 
     /// Set the theme variables
     pub fn with_variables(mut self, variables: ThemeVariables) -> Self {
         self.variables = variables;
-        self.variable_cache.clear(); // Clear cache when variables change
         self
     }
 
     /// Extend this theme from a base theme
     pub fn extend(mut self, base: Theme) -> Self {
         self.extends = Some(Box::new(base));
-        self.variable_cache.clear(); // Clear cache when inheritance changes
         self
     }
 
     /// Resolve a variable, checking parent themes if needed
     pub fn get_variable(&self, key: &str) -> Option<String> {
-        // Check cache first
-        if let Some(cached) = self.variable_cache.get(key) {
-            return Some(cached.clone());
-        }
-
-        // Resolve from variables or parent themes
-        let value = self.variables.get(key).or_else(|| {
+        self.variables.get(key).or_else(|| {
             self.extends
                 .as_ref()
                 .and_then(|parent| parent.get_variable(key))
-        });
-
-        // Cache the result using thread-safe interior mutability
-        if let Some(ref val) = value {
-            use std::collections::HashMap;
-            use std::sync::Arc;
-
-            // Use atomic reference counting for thread-safe caching
-            thread_local! {
-                static THEME_CACHE: std::cell::RefCell<HashMap<String, Arc<String>>> =
-                    std::cell::RefCell::new(HashMap::new());
-            }
-
-            THEME_CACHE.with(|cache| {
-                let mut cache_map = cache.borrow_mut();
-                cache_map.insert(key.to_string(), Arc::new(val.clone()));
-
-                // Prevent unbounded growth - keep last 100 entries
-                if cache_map.len() > 100 {
-                    // Remove oldest entries (simple LRU approximation)
-                    let keys_to_remove: Vec<_> = cache_map.keys().take(10).cloned().collect();
-                    for old_key in keys_to_remove {
-                        cache_map.remove(&old_key);
-                    }
-                }
-            });
-        }
-
-        value
+        })
     }
 
     /// Apply CSS utility classes with theme variable resolution
@@ -123,5 +83,44 @@ impl Theme {
     /// Apply CSS utility classes to an existing StyleBuilder
     pub fn apply_classes_to(&self, classes: &str, builder: StyleBuilder) -> StyleBuilder {
         apply_utility_classes_with_theme(classes, builder, Some(self))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn api019_child_theme_inherits_and_overrides_without_cross_instance_state() {
+        let base = Theme::new("base").with_variables(
+            ThemeVariables::new()
+                .set("--color-primary", "#112233")
+                .set("--spacing-md", "4"),
+        );
+        let child = Theme::new("child")
+            .with_variables(ThemeVariables::new().set("--color-primary", "#abcdef"))
+            .extend(base);
+        let independent = Theme::new("independent")
+            .with_variables(ThemeVariables::new().set("--color-primary", "#010203"));
+
+        assert_eq!(child.get_variable("--spacing-md").as_deref(), Some("4"));
+        assert_eq!(
+            child.get_variable("--color-primary").as_deref(),
+            Some("#abcdef")
+        );
+        assert_eq!(
+            independent.get_variable("--color-primary").as_deref(),
+            Some("#010203")
+        );
+        assert_eq!(independent.get_variable("--spacing-md"), None);
+
+        assert_eq!(
+            child.apply_classes("text-primary").fg_rgba,
+            Some((171.0 / 255.0, 205.0 / 255.0, 239.0 / 255.0, 1.0))
+        );
+        assert_eq!(
+            independent.apply_classes("text-primary").fg_rgba,
+            Some((1.0 / 255.0, 2.0 / 255.0, 3.0 / 255.0, 1.0))
+        );
     }
 }

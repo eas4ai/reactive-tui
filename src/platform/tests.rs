@@ -22,10 +22,9 @@ mod tty_tests {
         }
 
         // Test mouse event parsing
-        let mouse_data = b"\x1b[M !";
-        println!("Mouse data: {:?}", mouse_data);
-        let events = parser.parse(mouse_data); // Mouse click
-        println!("Mouse events: {:?}", events);
+        let events = parser.parse(b"\x1b[M !");
+        assert!(events.is_empty(), "incomplete X10 input must stay buffered");
+        let events = parser.parse(b"!");
         assert_eq!(events.len(), 1);
         match &events[0] {
             TerminalEvent::Mouse { .. } => {}
@@ -67,18 +66,12 @@ mod tty_tests {
     fn test_parser_state_machine() {
         let mut parser = EscapeSequenceParser::new();
 
-        // Test stateless parser with buffering approach
-        // Simulate what the event loop would do
-        let mut buffer = Vec::new();
-
         // First input: incomplete sequence
-        buffer.extend_from_slice(b"\x1b[");
-        let events1 = parser.parse(&buffer);
+        let events1 = parser.parse(b"\x1b[");
         assert_eq!(events1.len(), 0); // Incomplete sequence - parser returns no events
 
         // Second input: complete the sequence
-        buffer.extend_from_slice(b"A");
-        let events2 = parser.parse(&buffer);
+        let events2 = parser.parse(b"A");
         assert_eq!(events2.len(), 1); // Complete sequence
         match &events2[0] {
             TerminalEvent::Key {

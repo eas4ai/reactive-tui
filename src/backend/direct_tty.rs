@@ -144,6 +144,7 @@ impl DirectTtyBackend {
 
             TerminalEvent::Mouse {
                 kind,
+                button,
                 column,
                 row,
                 pixel_x,
@@ -198,25 +199,19 @@ impl DirectTtyBackend {
                     meta: modifiers.meta,
                 };
 
-                // Determine button based on event kind and context
-                let button = match kind {
-                    crate::platform::MouseEventKind::ScrollUp
-                    | crate::platform::MouseEventKind::ScrollDown
-                    | crate::platform::MouseEventKind::ScrollLeft
-                    | crate::platform::MouseEventKind::ScrollRight => rt_event::MouseButton::Middle,
-                    _ => {
-                        // For regular mouse events, we need to infer the button
-                        // This is a limitation of the current platform event structure
-                        // In a full implementation, the platform layer would need to be enhanced
-                        // to include button information in the TerminalEvent::Mouse
-                        if modifiers.ctrl {
-                            rt_event::MouseButton::Right // Ctrl+click often simulates right click
-                        } else if modifiers.shift {
-                            rt_event::MouseButton::Middle // Shift+click often simulates middle click
-                        } else {
-                            rt_event::MouseButton::Left // Default to left button
+                let button = match button {
+                    Some(crate::platform::MouseButton::Left) => rt_event::MouseButton::Left,
+                    Some(crate::platform::MouseButton::Middle) => rt_event::MouseButton::Middle,
+                    Some(crate::platform::MouseButton::Right) => rt_event::MouseButton::Right,
+                    None => match kind {
+                        crate::platform::MouseEventKind::ScrollUp
+                        | crate::platform::MouseEventKind::ScrollDown
+                        | crate::platform::MouseEventKind::ScrollLeft
+                        | crate::platform::MouseEventKind::ScrollRight => {
+                            rt_event::MouseButton::Middle
                         }
-                    }
+                        _ => rt_event::MouseButton::Left,
+                    },
                 };
 
                 Some(rt_event::Event::Mouse(rt_event::MouseEvent {

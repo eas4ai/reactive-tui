@@ -59,6 +59,41 @@ INPUT_TESTS = tuple("platform::input_receiver::tests::" + name for name in (
     "buffered_items_remain_after_session_shutdown", "draining_a_full_queue_wakes_the_producer",
     "cancellation_releases_a_full_queue_producer",
 ))
+API019_LIB_TESTS = (
+    "backend::suprtui::raw_mode_tests::api019_independent_library_owners_restore_only_after_the_last_release",
+    "backend::tests::api019_debug_backend_accepts_empty_and_bounded_dimensions",
+    "backend::tests::api019_debug_backend_rejects_oversized_resize_without_truncation_or_allocation",
+    "component::runtime::tests::api019_component_removal_unregisters_owned_mouse_hooks",
+    "markdown::tests::api019_fenced_rust_code_uses_syntect_and_disabled_mode_keeps_code_style",
+    "markdown::tests::api019_markdown_and_syntax_checked_entry_points_reject_oversized_sources",
+    "platform::parser::tests::api019_incomplete_sequence_buffer_is_bounded_and_reports_overflow",
+    "platform::parser::tests::api019_sgr_mouse_preserves_buttons_modifiers_drag_and_wheel",
+    "platform::parser::tests::api019_split_utf8_escape_and_mouse_sequences_are_retained",
+    "platform::unix::tests::api019_sigwinch_dispatches_outside_signal_context_and_preserves_prior_handler",
+    "render::tree::tests::api019_public_render_tree_keeps_fragment_custom_deep_and_wide_nodes",
+    "screen::residual_metadata_tests::api019_compatibility_metadata_does_not_change_terminal_transition_progress",
+    "theme::tests::api019_child_theme_inherits_and_overrides_without_cross_instance_state",
+)
+GESTURE_TESTS = (
+    "api019_app_routes_mouse_hooks_options_and_local_coordinates",
+    "tests::api019_drag_drop_options_and_owner_cleanup_control_routed_state",
+    "tests::api019_component_click_and_gesture_history_are_isolated",
+)
+EDITOR_TESTS = (
+    "cursor_uses_scalar_offsets_and_display_columns",
+    "plain::selection_replaces_whole_graphemes_across_lines",
+    "syntax::selection_replaces_whole_graphemes_across_lines",
+    "word_movement_retains_unicode_grapheme_boundaries",
+)
+NESTED_EVENT_TESTS = (
+    "capture_target_bubble_order_and_handled_result_are_preserved",
+    "child_activation_runs_each_registration_once_without_activating_parent",
+    "removed_callback_releases_its_capture_and_cannot_run_again",
+)
+CSS_TESTS = (
+    "app::motion::tests::incompatible_css_units_keep_endpoints_and_unknown_styles_report_errors",
+    "checked_conversion_requires_a_named_property_and_rejects_value_loss",
+)
 GROUPS = ("refs", "mapping-tests", "unix-input", "performance", "updaters", "inventory")
 
 
@@ -149,7 +184,7 @@ class Check:
 
         self.run("local-discovery", ["cargo", "test", "--locked", "--test", "api_local_hooks", "--", "--list"],
                  verify=lambda text: require_registered(text, LOCAL_TESTS))
-        self.run("local-behavior", ["cargo", "test", "--locked", "--test", "api_local_hooks", "--", "--test-threads=12"],
+        self.run("local-behavior", ["cargo", "test", "--locked", "--test", "api_local_hooks", "--", "--test-threads=8"],
                  verify=lambda text: require_executed(text, LOCAL_TESTS))
 
         self.run("local-consumer", ["python3", "-B", "verification/api-residual/run-local-owner.py"])
@@ -182,7 +217,7 @@ class Check:
         binary = str(ROOT / "target/api019-performance-owner")
         self.run("performance-consumer-compile", ["rustc", "--edition=2021", "verification/api-residual/performance-owner.rs",
                  "--extern", "reactive_tui=" + str(ROOT / "target/debug/libreactive_tui.rlib"),
-                 "-L", "dependency=" + str(ROOT / "target/debug/deps"), "-C", "link-arg=-Wl,--threads=12", "-o", binary])
+                   "-L", "dependency=" + str(ROOT / "target/debug/deps"), "-C", "link-arg=-Wl,--threads=8", "-o", binary])
         self.run("performance-consumer-behavior", [binary], 10,
                  verify=lambda text: require_marker(text, "PERFORMANCE_OWNER_OK"))
 
@@ -205,11 +240,64 @@ class Check:
 
     def inventory(self):
         inventory_rows((ROOT / "docs/residual-api-inventory.md").read_text())
-        # Presence alone cannot certify a concern. Add its complete behavior check
-        # here only after building its positive and safe violating cases.
-        # The Unix receiver checks are integrated, but the wider legacy event-loop
-        # and native-platform concerns still need completion before coverage closes.
-        require_coverage({})
+        self.run("api019-lib-discovery", ["cargo", "test", "--locked", "--lib", "api019_", "--", "--list"],
+                 verify=lambda text: require_registered(text, API019_LIB_TESTS))
+        self.run("api019-lib-behavior", ["cargo", "test", "--locked", "--lib", "api019_", "--", "--test-threads=8"],
+                 verify=lambda text: require_executed(text, API019_LIB_TESTS))
+
+        self.run("gesture-app-discovery", ["cargo", "test", "--locked", "--test", "api_mouse_hook_routing", "--", "--list"],
+                 verify=lambda text: require_registered(text, GESTURE_TESTS[:1]))
+        self.run("gesture-app-behavior", ["cargo", "test", "--locked", "--test", "api_mouse_hook_routing", "--", "--test-threads=8"],
+                 verify=lambda text: require_executed(text, GESTURE_TESTS[:1]))
+        self.run("gesture-options-discovery", ["cargo", "test", "--locked", "--test", "mouse_hooks_test", "api019_", "--", "--list"],
+                 verify=lambda text: require_registered(text, GESTURE_TESTS[1:]))
+        self.run("gesture-options-behavior", ["cargo", "test", "--locked", "--test", "mouse_hooks_test", "api019_", "--", "--test-threads=8"],
+                 verify=lambda text: require_executed(text, GESTURE_TESTS[1:]))
+
+        self.run("editor-discovery", ["cargo", "test", "--locked", "--test", "api_editor_unicode", "--", "--list"],
+                 verify=lambda text: require_registered(text, EDITOR_TESTS))
+        self.run("editor-behavior", ["cargo", "test", "--locked", "--test", "api_editor_unicode", "--", "--test-threads=8"],
+                 verify=lambda text: require_executed(text, EDITOR_TESTS))
+
+        self.run("nested-events-discovery", ["cargo", "test", "--locked", "--test", "api_event_routing", "--", "--list"],
+                 verify=lambda text: require_registered(text, NESTED_EVENT_TESTS))
+        self.run("nested-events-behavior", ["cargo", "test", "--locked", "--test", "api_event_routing", "--", "--test-threads=8"],
+                 verify=lambda text: require_executed(text, NESTED_EVENT_TESTS))
+
+        self.run("css-unit-discovery", ["cargo", "test", "--locked", "--lib", CSS_TESTS[0], "--", "--list"],
+                 verify=lambda text: require_registered(text, CSS_TESTS[:1]))
+        self.run("css-unit-behavior", ["cargo", "test", "--locked", "--lib", CSS_TESTS[0], "--", "--exact"],
+                 verify=lambda text: require_executed(text, CSS_TESTS[:1]))
+        self.run("css-public-discovery", ["cargo", "test", "--locked", "--test", "api_animation_screens", CSS_TESTS[1], "--", "--list"],
+                 verify=lambda text: require_registered(text, CSS_TESTS[1:]))
+        self.run("css-public-behavior", ["cargo", "test", "--locked", "--test", "api_animation_screens", CSS_TESTS[1], "--", "--exact"],
+                 verify=lambda text: require_executed(text, CSS_TESTS[1:]))
+
+        self.run("native-platform-records", ["python3", "-B", "scripts/check-clipboard-platforms.py", "--verify"])
+
+        passed_groups = {
+            step["name"] for step in self.steps
+            if step.get("result") == "pass" and step["name"] in GROUPS
+        }
+        checks = {
+            "Hover, drag, drag-and-drop, mouse position, clicks, long press, swipe and wheel hooks",
+            "Theme propagation", "Markdown/Syntect integration", "Large Markdown/syntax input",
+            "Editor undo/selection", "SIGWINCH ownership", "Legacy input parsing",
+            "DebugBackend boundaries", "Raw-mode ownership", "Public RenderTree",
+            "Nested legacy events", "Transition integration metadata", "CSS property diagnostics",
+            "Full claimed native platform surface",
+        }
+        if "refs" in passed_groups:
+            checks.add("Public reference hooks")
+        if "mapping-tests" in passed_groups:
+            checks.add("Legacy backend test reachability")
+        if "unix-input" in passed_groups:
+            checks.add("Unix input worker")
+        if "performance" in passed_groups:
+            checks.add("Performance context")
+        if "updaters" in passed_groups:
+            checks.add("ui::Updater")
+        require_coverage(checks)
 
     def inspect(self, name):
         before = len(self.steps)
@@ -229,9 +317,9 @@ def main():
     parser.add_argument("--only", choices=GROUPS)
     args = parser.parse_args()
     os.chdir(ROOT)
-    os.environ.update(CARGO_INCREMENTAL="0", CARGO_BUILD_JOBS="12", RUST_TEST_THREADS="12",
-                      RAYON_NUM_THREADS="12", LP_NUM_THREADS="12", PYTHON_CPU_COUNT="12",
-                      GOMAXPROCS="12", GOFLAGS="-p=12", CARGO_TARGET_DIR=str(ROOT / "target"))
+    os.environ.update(CARGO_INCREMENTAL="0", CARGO_BUILD_JOBS="8", RUST_TEST_THREADS="8",
+                      RAYON_NUM_THREADS="8", LP_NUM_THREADS="8", PYTHON_CPU_COUNT="8",
+                      GOMAXPROCS="8", GOFLAGS="-p=8", CARGO_TARGET_DIR=str(ROOT / "target"))
     check = Check()
     check.run("checker-controls", ["python3", "-B", "verification/api-residual/checker-controls.py"], 30)
     for group in ((args.only,) if args.only else GROUPS):

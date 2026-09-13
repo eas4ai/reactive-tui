@@ -5,18 +5,26 @@
 use super::{input_receiver::InputWorker, InputReceiver, PlatformTty};
 use crate::error::Result;
 use std::os::unix::io::{AsRawFd, FromRawFd, OwnedFd, RawFd};
+use std::os::unix::net::UnixStream;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
 use std::sync::OnceLock;
 use std::sync::{Arc, Weak};
+use std::thread::JoinHandle;
 use std::time::Duration;
 
 static SIGNAL_HANDLERS: Mutex<Vec<SignalHandler>> = Mutex::new(Vec::new());
-static HANDLER_INSTALLED: AtomicBool = AtomicBool::new(false);
+static SIGNAL_LIFECYCLE: Mutex<SignalLifecycle> = Mutex::new(SignalLifecycle {
+    owners: 0,
+    action: None,
+    stop: None,
+    worker: None,
+});
 // FIX: Use OnceLock for thread-safe initialization instead of unsafe global
 static GLOBAL_TTY: OnceLock<Mutex<Option<Weak<TtyState>>>> = OnceLock::new();
 
 /// Signal handler for Unix systems
+#[derive(Clone, Copy)]
 pub struct SignalHandler {
     /// Context pointer passed to the callback
     pub context: *mut std::ffi::c_void,
@@ -40,6 +48,14 @@ struct TtyState {
     original_termios: libc::termios,
     restored: AtomicBool,
     workers: Mutex<Vec<Weak<InputWorker>>>,
+    signal_owner: AtomicBool,
+}
+
+struct SignalLifecycle {
+    owners: usize,
+    action: Option<signal_hook::SigId>,
+    stop: Option<UnixStream>,
+    worker: Option<JoinHandle<()>>,
 }
 
 impl TtyState {
@@ -73,6 +89,9 @@ impl Drop for TtyState {
         }
         for worker in workers {
             worker.stop();
+        }
+        if self.signal_owner.swap(false, Ordering::AcqRel) {
+            release_signal_handler();
         }
         let _ = self.restore();
     }
@@ -144,8 +163,10 @@ impl UnixTty {
             original_termios,
             restored: AtomicBool::new(false),
             workers: Mutex::new(Vec::new()),
+            signal_owner: AtomicBool::new(false),
         });
         install_signal_handlers()?;
+        state.signal_owner.store(true, Ordering::Release);
         let tty = UnixTty { fd, state };
 
         // Store global reference for panic recovery (thread-safe)
@@ -234,7 +255,7 @@ impl UnixTty {
     ) -> Result<()> {
         let handler = SignalHandler { context, callback };
 
-        let mut handlers = SIGNAL_HANDLERS.lock().unwrap();
+        let mut handlers = SIGNAL_HANDLERS.lock().unwrap_or_else(|e| e.into_inner());
         handlers.push(handler);
 
         Ok(())
@@ -304,78 +325,106 @@ impl AsRawFd for UnixTty {
     }
 }
 
-/// Install SIGWINCH handler for window resize detection
+/// Install a SIGWINCH self-pipe and dispatch callbacks outside signal context.
 fn install_signal_handlers() -> Result<()> {
-    if HANDLER_INSTALLED.load(Ordering::Relaxed) {
+    use std::io::Read;
+
+    let mut lifecycle = SIGNAL_LIFECYCLE.lock().unwrap_or_else(|e| e.into_inner());
+    if lifecycle.owners != 0 {
+        lifecycle.owners += 1;
         return Ok(());
     }
 
-    let mut action = std::mem::MaybeUninit::<libc::sigaction>::uninit();
-    unsafe {
-        let action_ptr = action.as_mut_ptr();
-        (*action_ptr).sa_sigaction = handle_winch as *const () as usize;
-
-        #[cfg(target_os = "macos")]
-        {
-            (*action_ptr).sa_mask = 0;
+    let (mut reader, writer) = UnixStream::pair()?;
+    let stop = reader.try_clone()?;
+    let action = signal_hook::low_level::pipe::register(libc::SIGWINCH, writer)?;
+    let worker = match std::thread::Builder::new()
+        .name("reactive-tui-sigwinch".into())
+        .spawn(move || {
+            let mut byte = [0_u8; 64];
+            loop {
+                match reader.read(&mut byte) {
+                    Ok(0) => break,
+                    Ok(_) => {
+                        let handlers = SIGNAL_HANDLERS
+                            .lock()
+                            .unwrap_or_else(|e| e.into_inner())
+                            .clone();
+                        for handler in handlers {
+                            (handler.callback)(handler.context);
+                        }
+                    }
+                    Err(error) if error.kind() == std::io::ErrorKind::Interrupted => continue,
+                    Err(_) => break,
+                }
+            }
+        }) {
+        Ok(worker) => worker,
+        Err(error) => {
+            signal_hook::low_level::unregister(action);
+            return Err(error.into());
         }
-        #[cfg(not(target_os = "macos"))]
-        {
-            libc::sigemptyset(&mut (*action_ptr).sa_mask);
-        }
-
-        (*action_ptr).sa_flags = libc::SA_SIGINFO;
-
-        let result = libc::sigaction(libc::SIGWINCH, action_ptr, std::ptr::null_mut());
-        if result != 0 {
-            return Err(std::io::Error::last_os_error().into());
-        }
-    }
-
-    HANDLER_INSTALLED.store(true, Ordering::Relaxed);
+    };
+    lifecycle.owners = 1;
+    lifecycle.action = Some(action);
+    lifecycle.stop = Some(stop);
+    lifecycle.worker = Some(worker);
     Ok(())
 }
 
-/// Reset signal handlers to default
-pub fn reset_signal_handlers() {
-    if !HANDLER_INSTALLED.load(Ordering::Relaxed) {
-        return;
-    }
-
-    let mut action = std::mem::MaybeUninit::<libc::sigaction>::uninit();
-    unsafe {
-        let action_ptr = action.as_mut_ptr();
-        (*action_ptr).sa_sigaction = libc::SIG_DFL;
-
-        #[cfg(target_os = "macos")]
-        {
-            (*action_ptr).sa_mask = 0;
+fn release_signal_handler() {
+    let resources = {
+        let mut lifecycle = SIGNAL_LIFECYCLE.lock().unwrap_or_else(|e| e.into_inner());
+        if lifecycle.owners == 0 {
+            return;
         }
-        #[cfg(not(target_os = "macos"))]
-        {
-            libc::sigemptyset(&mut (*action_ptr).sa_mask);
+        lifecycle.owners -= 1;
+        if lifecycle.owners != 0 {
+            return;
         }
-
-        (*action_ptr).sa_flags = 0;
-
-        let _ = libc::sigaction(libc::SIGWINCH, action_ptr, std::ptr::null_mut());
-    }
-
-    HANDLER_INSTALLED.store(false, Ordering::Relaxed);
+        (
+            lifecycle.action.take(),
+            lifecycle.stop.take(),
+            lifecycle.worker.take(),
+        )
+    };
+    stop_signal_handler(resources);
 }
 
-/// SIGWINCH signal handler
-extern "C" fn handle_winch(
-    _sig: libc::c_int,
-    _info: *mut libc::siginfo_t,
-    _context: *mut libc::c_void,
+fn stop_signal_handler(
+    (action, stop, worker): (
+        Option<signal_hook::SigId>,
+        Option<UnixStream>,
+        Option<JoinHandle<()>>,
+    ),
 ) {
-    // Call all registered handlers
-    if let Ok(handlers) = SIGNAL_HANDLERS.lock() {
-        for handler in handlers.iter() {
-            (handler.callback)(handler.context);
-        }
+    if let Some(action) = action {
+        signal_hook::low_level::unregister(action);
     }
+    if let Some(stop) = stop {
+        let _ = stop.shutdown(std::net::Shutdown::Both);
+    }
+    if let Some(worker) = worker {
+        let _ = worker.join();
+    }
+    SIGNAL_HANDLERS
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .clear();
+}
+
+/// Stop the library's resize dispatcher and release registered callbacks.
+pub fn reset_signal_handlers() {
+    let resources = {
+        let mut lifecycle = SIGNAL_LIFECYCLE.lock().unwrap_or_else(|e| e.into_inner());
+        lifecycle.owners = 0;
+        (
+            lifecycle.action.take(),
+            lifecycle.stop.take(),
+            lifecycle.worker.take(),
+        )
+    };
+    stop_signal_handler(resources);
 }
 
 /// Panic handler to restore terminal state
@@ -396,6 +445,66 @@ pub fn install_panic_handler() {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serial_test::serial;
+    use std::sync::atomic::AtomicUsize;
+
+    static CALLBACK_COUNT: AtomicUsize = AtomicUsize::new(0);
+    static PRIOR_COUNT: AtomicUsize = AtomicUsize::new(0);
+    static CALLBACK_LOCK: Mutex<()> = Mutex::new(());
+
+    extern "C" fn counted_callback(_context: *mut std::ffi::c_void) {
+        let _guard = CALLBACK_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        CALLBACK_COUNT.fetch_add(1, Ordering::SeqCst);
+    }
+
+    extern "C" fn prior_handler(_signal: libc::c_int) {
+        PRIOR_COUNT.fetch_add(1, Ordering::SeqCst);
+    }
+
+    fn wait_for(counter: &AtomicUsize, expected: usize) {
+        let deadline = std::time::Instant::now() + Duration::from_secs(2);
+        while counter.load(Ordering::SeqCst) < expected && std::time::Instant::now() < deadline {
+            std::thread::sleep(Duration::from_millis(5));
+        }
+        assert_eq!(counter.load(Ordering::SeqCst), expected);
+    }
+
+    #[test]
+    #[serial]
+    fn api019_sigwinch_dispatches_outside_signal_context_and_preserves_prior_handler() {
+        reset_signal_handlers();
+        CALLBACK_COUNT.store(0, Ordering::SeqCst);
+        PRIOR_COUNT.store(0, Ordering::SeqCst);
+
+        let mut original = std::mem::MaybeUninit::<libc::sigaction>::uninit();
+        let mut prior: libc::sigaction = unsafe { std::mem::zeroed() };
+        prior.sa_sigaction = prior_handler as *const () as usize;
+        unsafe {
+            libc::sigemptyset(&mut prior.sa_mask);
+            assert_eq!(
+                libc::sigaction(libc::SIGWINCH, &prior, original.as_mut_ptr()),
+                0
+            );
+        }
+
+        install_signal_handlers().unwrap();
+        UnixTty::register_winch_handler(std::ptr::null_mut(), counted_callback).unwrap();
+        let held = CALLBACK_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        unsafe { libc::raise(libc::SIGWINCH) };
+        wait_for(&PRIOR_COUNT, 1);
+        assert_eq!(CALLBACK_COUNT.load(Ordering::SeqCst), 0);
+        drop(held);
+        wait_for(&CALLBACK_COUNT, 1);
+
+        release_signal_handler();
+        unsafe { libc::raise(libc::SIGWINCH) };
+        wait_for(&PRIOR_COUNT, 2);
+        std::thread::sleep(Duration::from_millis(20));
+        assert_eq!(CALLBACK_COUNT.load(Ordering::SeqCst), 1);
+
+        let original = unsafe { original.assume_init() };
+        unsafe { libc::sigaction(libc::SIGWINCH, &original, std::ptr::null_mut()) };
+    }
 
     #[test]
     fn test_tty_init() {

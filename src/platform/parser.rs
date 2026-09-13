@@ -1,8 +1,10 @@
 //! Escape sequence parser for terminal input
 //!
-//! High-performance stateless parser for terminal escape sequences
+//! Bounded streaming parser for terminal escape sequences
 
-use super::{ColorScheme, KeyCode, KeyEventKind, KeyModifiers, MouseEventKind, TerminalEvent};
+use super::{
+    ColorScheme, KeyCode, KeyEventKind, KeyModifiers, MouseButton, MouseEventKind, TerminalEvent,
+};
 
 /// Key state for compatibility
 #[derive(Debug, Clone, Default)]
@@ -20,7 +22,6 @@ pub struct ParseResult {
 /// Mouse button bits for parsing
 mod mouse_bits {
     pub const MOTION: u8 = 0b00100000;
-    pub const BUTTONS: u8 = 0b11000011;
     pub const SHIFT: u8 = 0b00000100;
     pub const ALT: u8 = 0b00001000;
     pub const CTRL: u8 = 0b00010000;
@@ -53,24 +54,36 @@ pub enum ParserState {
 
 /// Escape sequence parser with comprehensive terminal support
 pub struct EscapeSequenceParser {
-    /// Buffer for temporary text storage
-    #[allow(dead_code)]
-    buf: [u8; 128],
+    pending: Vec<u8>,
 }
 
 impl EscapeSequenceParser {
     /// Create a new parser
     pub fn new() -> Self {
-        Self { buf: [0; 128] }
+        Self {
+            pending: Vec::new(),
+        }
     }
 
     /// Parse input bytes and return terminal events
     pub fn parse(&mut self, input: &[u8]) -> Vec<TerminalEvent> {
+        const MAX_PENDING: usize = 4096;
+        if self.pending.len().saturating_add(input.len()) > MAX_PENDING {
+            self.pending.clear();
+            return vec![TerminalEvent::Error(format!(
+                "terminal input sequence exceeds the {MAX_PENDING}-byte parser limit"
+            ))];
+        }
+        let mut pending = std::mem::take(&mut self.pending);
+        pending.extend_from_slice(input);
         let mut events = Vec::new();
         let mut offset = 0;
 
-        while offset < input.len() {
-            let remaining = &input[offset..];
+        while offset < pending.len() {
+            let remaining = &pending[offset..];
+            if remaining == [0x1b] {
+                break;
+            }
             let result = self.parse_single(remaining);
 
             if result.n == 0 {
@@ -84,8 +97,22 @@ impl EscapeSequenceParser {
 
             offset += result.n;
         }
-
+        self.pending.extend_from_slice(&pending[offset..]);
         events
+    }
+
+    /// Resolve an ambiguous lone Escape byte after the caller's input timeout.
+    pub fn flush_pending(&mut self) -> Vec<TerminalEvent> {
+        if self.pending == [0x1b] {
+            self.pending.clear();
+            vec![TerminalEvent::Key {
+                code: KeyCode::Escape,
+                modifiers: KeyModifiers::empty(),
+                kind: KeyEventKind::Press,
+            }]
+        } else {
+            Vec::new()
+        }
     }
 
     /// Parse the first event from the input buffer
@@ -105,7 +132,7 @@ impl EscapeSequenceParser {
                 0x58 => self.skip_until_st(input), // SOS
                 0x5B => {
                     // Check for legacy mouse format first
-                    if input.len() >= 5 && input[2] == b'M' {
+                    if input.len() >= 3 && input[2] == b'M' {
                         self.parse_mouse_legacy(input)
                     } else {
                         self.parse_csi(input)
@@ -114,20 +141,27 @@ impl EscapeSequenceParser {
                 0x5D => self.parse_osc(input),     // OSC
                 0x5E => self.skip_until_st(input), // PM
                 0x5F => self.parse_apc(input),     // APC
-                _ => {
-                    // Anything else is an "alt + <char>" keypress
-                    ParseResult {
-                        event: Some(TerminalEvent::Key {
-                            code: KeyCode::Char(input[1] as char),
-                            modifiers: KeyModifiers {
-                                alt: true,
-                                ..Default::default()
-                            },
-                            kind: KeyEventKind::Press,
-                        }),
+                _ => match std::str::from_utf8(&input[1..]) {
+                    Ok(text) => match text.chars().next() {
+                        Some(ch) => ParseResult {
+                            event: Some(TerminalEvent::Key {
+                                code: KeyCode::Char(ch),
+                                modifiers: KeyModifiers {
+                                    alt: true,
+                                    ..Default::default()
+                                },
+                                kind: KeyEventKind::Press,
+                            }),
+                            n: 1 + ch.len_utf8(),
+                        },
+                        None => ParseResult { event: None, n: 0 },
+                    },
+                    Err(error) if error.error_len().is_none() => ParseResult { event: None, n: 0 },
+                    Err(_) => ParseResult {
+                        event: Some(TerminalEvent::Error("invalid UTF-8 after Escape".into())),
                         n: 2,
-                    }
-                }
+                    },
+                },
             }
         } else {
             self.parse_ground(input)
@@ -194,19 +228,23 @@ impl EscapeSequenceParser {
             }),
             _ => {
                 // Handle UTF-8 characters
-                if let Ok(s) = std::str::from_utf8(input) {
-                    if let Some(ch) = s.chars().next() {
+                match std::str::from_utf8(input) {
+                    Ok(s) => s.chars().next().map(|ch| {
                         n = ch.len_utf8();
-                        Some(TerminalEvent::Key {
+                        TerminalEvent::Key {
                             code: KeyCode::Char(ch),
                             modifiers: KeyModifiers::empty(),
                             kind: KeyEventKind::Press,
-                        })
-                    } else {
+                        }
+                    }),
+                    Err(error) if error.error_len().is_none() => {
+                        n = 0;
                         None
                     }
-                } else {
-                    None
+                    Err(error) => {
+                        n = error.error_len().unwrap_or(1);
+                        Some(TerminalEvent::Error("invalid UTF-8 terminal input".into()))
+                    }
                 }
             }
         };
@@ -512,25 +550,42 @@ impl EscapeSequenceParser {
     fn parse_mouse_legacy(&mut self, input: &[u8]) -> ParseResult {
         // Legacy mouse format: ESC [ M <button> <x> <y>
         // Need at least 5 bytes: ESC [ M + 2 data bytes (minimum)
-        if input.len() < 5 {
+        if input.len() < 6 {
             return ParseResult { event: None, n: 0 };
         }
 
         let button = input[3];
         let x = input[4];
-        let y = if input.len() > 5 { input[5] } else { 33 }; // Default to row 0
+        let y = input[5];
 
         // Decode button (subtract 32 to get actual values)
         let button_data = button.wrapping_sub(32);
         let x_pos = (x.wrapping_sub(33)) as u16; // 1-based to 0-based
         let y_pos = (y.wrapping_sub(33)) as u16; // 1-based to 0-based
 
-        let kind = match button_data & 0x03 {
-            0 => MouseEventKind::Down, // Left button
-            1 => MouseEventKind::Down, // Middle button
-            2 => MouseEventKind::Down, // Right button
-            3 => MouseEventKind::Up,   // Button release
-            _ => MouseEventKind::Move,
+        let base = button_data & 0x03;
+        let button = match base {
+            0 => Some(MouseButton::Left),
+            1 => Some(MouseButton::Middle),
+            2 => Some(MouseButton::Right),
+            _ => None,
+        };
+        let kind = if button_data & 0x40 != 0 {
+            if base == 0 {
+                MouseEventKind::ScrollUp
+            } else {
+                MouseEventKind::ScrollDown
+            }
+        } else if button_data & mouse_bits::MOTION != 0 {
+            if button.is_some() {
+                MouseEventKind::Drag
+            } else {
+                MouseEventKind::Move
+            }
+        } else if base == 3 {
+            MouseEventKind::Up
+        } else {
+            MouseEventKind::Down
         };
 
         let modifiers = KeyModifiers {
@@ -542,6 +597,7 @@ impl EscapeSequenceParser {
 
         let event = Some(TerminalEvent::Mouse {
             kind,
+            button,
             column: x_pos,
             row: y_pos,
             pixel_x: None,
@@ -712,7 +768,7 @@ impl EscapeSequenceParser {
         let px: u16 = params[1].parse().ok()?;
         let py: u16 = params[2].parse().ok()?;
 
-        let button = button_mask & mouse_bits::BUTTONS as u16;
+        let button = button_mask & 0x03;
         let motion = (button_mask & mouse_bits::MOTION as u16) > 0;
         let shift = (button_mask & mouse_bits::SHIFT as u16) > 0;
         let alt = (button_mask & mouse_bits::ALT as u16) > 0;
@@ -725,9 +781,21 @@ impl EscapeSequenceParser {
             meta: false,
         };
 
-        let kind = if motion && button != 0 {
+        let physical_button = match button {
+            0 => Some(MouseButton::Left),
+            1 => Some(MouseButton::Middle),
+            2 => Some(MouseButton::Right),
+            _ => None,
+        };
+        let kind = if button_mask & 0x40 != 0 {
+            if button == 0 {
+                MouseEventKind::ScrollUp
+            } else {
+                MouseEventKind::ScrollDown
+            }
+        } else if motion && physical_button.is_some() {
             MouseEventKind::Drag
-        } else if motion && button == 0 {
+        } else if motion {
             MouseEventKind::Move
         } else if sequence[sequence.len() - 1] == b'm' {
             MouseEventKind::Up
@@ -737,6 +805,7 @@ impl EscapeSequenceParser {
 
         Some(TerminalEvent::Mouse {
             kind,
+            button: physical_button,
             column: px.saturating_sub(1),
             row: py.saturating_sub(1),
             pixel_x: None,
@@ -969,10 +1038,10 @@ mod tests {
     #[test]
     fn test_parser_creation() {
         let parser = EscapeSequenceParser::new();
-        assert_eq!(parser.buf.len(), 128);
+        assert!(parser.pending.is_empty());
 
         let default_parser = EscapeSequenceParser::default();
-        assert_eq!(default_parser.buf.len(), 128);
+        assert!(default_parser.pending.is_empty());
     }
 
     #[test]
@@ -1079,6 +1148,8 @@ mod tests {
 
         // Test escape
         let events = parser.parse(&[0x1B]);
+        assert!(events.is_empty());
+        let events = parser.flush_pending();
         assert_eq!(events.len(), 1);
         if let TerminalEvent::Key { code, .. } = &events[0] {
             assert_eq!(*code, KeyCode::Escape);
@@ -1177,6 +1248,86 @@ mod tests {
         if let TerminalEvent::Key { code, .. } = &events[0] {
             assert_eq!(*code, KeyCode::Char('🚀'));
         }
+    }
+
+    #[test]
+    fn api019_split_utf8_escape_and_mouse_sequences_are_retained() {
+        let mut parser = EscapeSequenceParser::new();
+        assert!(parser.parse(&"🚀".as_bytes()[..2]).is_empty());
+        let events = parser.parse(&"🚀".as_bytes()[2..]);
+        assert!(matches!(
+            events.as_slice(),
+            [TerminalEvent::Key {
+                code: KeyCode::Char('🚀'),
+                ..
+            }]
+        ));
+
+        assert!(parser.parse(b"\x1b[").is_empty());
+        assert!(matches!(
+            parser.parse(b"A").as_slice(),
+            [TerminalEvent::Key {
+                code: KeyCode::Up,
+                ..
+            }]
+        ));
+
+        assert!(parser.parse(b"\x1b[M").is_empty());
+        assert!(parser.parse(&[32 | 2, 34]).is_empty());
+        let events = parser.parse(&[35]);
+        assert!(matches!(
+            events.as_slice(),
+            [TerminalEvent::Mouse {
+                kind: MouseEventKind::Down,
+                button: Some(MouseButton::Right),
+                column: 1,
+                row: 2,
+                ..
+            }]
+        ));
+    }
+
+    #[test]
+    fn api019_sgr_mouse_preserves_buttons_modifiers_drag_and_wheel() {
+        let mut parser = EscapeSequenceParser::new();
+        let right = parser.parse(b"\x1b[<18;4;5M");
+        assert!(matches!(
+            right.as_slice(),
+            [TerminalEvent::Mouse {
+                kind: MouseEventKind::Down,
+                button: Some(MouseButton::Right),
+                modifiers: KeyModifiers { ctrl: true, .. },
+                ..
+            }]
+        ));
+        let drag = parser.parse(b"\x1b[<33;4;5M");
+        assert!(matches!(
+            drag.as_slice(),
+            [TerminalEvent::Mouse {
+                kind: MouseEventKind::Drag,
+                button: Some(MouseButton::Middle),
+                ..
+            }]
+        ));
+        let wheel = parser.parse(b"\x1b[<64;4;5M");
+        assert!(matches!(
+            wheel.as_slice(),
+            [TerminalEvent::Mouse {
+                kind: MouseEventKind::ScrollUp,
+                ..
+            }]
+        ));
+    }
+
+    #[test]
+    fn api019_incomplete_sequence_buffer_is_bounded_and_reports_overflow() {
+        let mut parser = EscapeSequenceParser::new();
+        assert!(parser.parse(b"\x1b]").is_empty());
+        let events = parser.parse(&vec![b'x'; 4095]);
+        assert!(
+            matches!(events.as_slice(), [TerminalEvent::Error(message)] if message.contains("4096-byte"))
+        );
+        assert!(parser.pending.is_empty());
     }
 
     #[test]

@@ -71,6 +71,7 @@ zvariant = { version = "5.4", default-features = false }
 # Platform-specific dependencies
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"
+signal-hook = "0.3.18"
 libghostty-vt = { git = "https://github.com/Uzaaft/libghostty-rs", rev = "5988a0b78b4aa804d1c12e66bbfe662bd97d81c0", optional = true }
 rustix = { version = "1", features = ["fs"] }
 
@@ -123,4 +124,3 @@ serial_test = "3.0"
 [[bench]]
 name = "diff_benchmark"
 harness = false
-

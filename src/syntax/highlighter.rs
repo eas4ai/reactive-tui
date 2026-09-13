@@ -4,6 +4,9 @@ use crate::core::styled_text::{StyledLine, StyledRun};
 use crate::core::surface::{Attr, Rgba};
 use crate::syntax::resources::SYNTAX_RESOURCES;
 use std::sync::Arc;
+
+/// Maximum source size accepted by the checked syntax highlighter.
+pub const MAX_SYNTAX_BYTES: usize = 1024 * 1024;
 use syntect::easy::HighlightLines;
 use syntect::highlighting::{FontStyle, Style};
 use syntect::parsing::{ParseState, SyntaxReference};
@@ -75,11 +78,26 @@ impl SyntaxHighlighter {
 
     /// Highlight a complete text
     pub fn highlight_text(&mut self, text: &str) -> Vec<HighlightedLine> {
+        self.try_highlight_text(text).unwrap_or_else(|error| {
+            vec![HighlightedLine {
+                runs: vec![StyledRun::plain(format!("Syntax highlight error: {error}"))],
+                line_number: 0,
+            }]
+        })
+    }
+
+    /// Highlight complete text with an explicit source-size error.
+    pub fn try_highlight_text(&mut self, text: &str) -> crate::error::Result<Vec<HighlightedLine>> {
+        if text.len() > MAX_SYNTAX_BYTES {
+            return Err(crate::error::ReactiveError::invalid_parameter(format!(
+                "syntax input exceeds the {MAX_SYNTAX_BYTES}-byte limit"
+            )));
+        }
         let resources = match SYNTAX_RESOURCES.read() {
             Ok(r) => r,
             Err(_) => {
                 // Lock poisoned, return unhighlighted text
-                return text
+                return Ok(text
                     .lines()
                     .enumerate()
                     .map(|(line_num, line)| HighlightedLine {
@@ -91,7 +109,7 @@ impl SyntaxHighlighter {
                         )],
                         line_number: line_num,
                     })
-                    .collect();
+                    .collect());
             }
         };
         let theme = resources.active_theme();
@@ -125,7 +143,7 @@ impl SyntaxHighlighter {
         // Cache the results
         self.cached_lines = result.iter().map(|line| Some(line.clone())).collect();
 
-        result
+        Ok(result)
     }
 
     /// Highlight only visible lines (incremental)

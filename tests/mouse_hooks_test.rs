@@ -1,11 +1,14 @@
 #[cfg(test)]
 mod tests {
-    use reactive_tui::event::types::{MouseButton, MouseEvent, MouseEventKind, Position};
+    use reactive_tui::event::types::{
+        MouseButton, MouseEvent, MouseEventKind, Position, WheelDelta, WheelEvent, WheelPhase,
+    };
     use reactive_tui::hooks::{
         use_clicks, use_drag, use_gesture, use_hover, use_long_press, use_mouse_position,
-        use_wheel, DragState, GestureType, MouseEventProcessor, SwipeDirection, WheelDeltaMode,
+        use_wheel, DragAndDropOptions, DragAndDropState, DragState, GestureType,
+        MouseEventProcessor, SwipeDirection, WheelDeltaMode,
     };
-    use reactive_tui::reactive::hooks::Hooks;
+    use reactive_tui::reactive::hooks::{Hooks, ThreadSafeSignal};
     use std::time::Duration;
 
     #[test]
@@ -145,7 +148,11 @@ mod tests {
         let long_press = use_long_press(&hooks, threshold);
 
         let processor = MouseEventProcessor::new();
-        processor.register_press("test_component".to_string(), long_press.clone());
+        processor.register_press_with_threshold(
+            "test_component".to_string(),
+            long_press.clone(),
+            Duration::ZERO,
+        );
 
         // Start press
         let down_event = MouseEvent::new(MouseEventKind::Down, Position::cell(10, 10));
@@ -158,9 +165,8 @@ mod tests {
         let up_event = MouseEvent::new(MouseEventKind::Up, Position::cell(10, 10));
         processor.process_event(&up_event, Some("test_component"));
 
-        // Note: In real usage, timing would determine if it's a long press
-        // The processor tracks actual timing
         assert!(!long_press.get().is_pressing);
+        assert!(long_press.get().is_long_press);
     }
 
     #[test]
@@ -200,11 +206,16 @@ mod tests {
         processor.register_wheel("test_component".to_string(), wheel.clone());
 
         // Simulate wheel event
-        let wheel_event = MouseEvent::new(MouseEventKind::Wheel, Position::cell(10, 10));
+        let mut wheel_event = MouseEvent::new(MouseEventKind::Wheel, Position::cell(10, 10));
+        wheel_event.wheel = Some(WheelEvent {
+            delta: WheelDelta::Lines { x: -1.0, y: 2.5 },
+            phase: WheelPhase::Changed,
+        });
         processor.process_event(&wheel_event, Some("test_component"));
 
         assert!(wheel.get().is_scrolling);
-        assert_eq!(wheel.get().delta_y, 3.0); // Default scroll amount
+        assert_eq!(wheel.get().delta_x, -1.0);
+        assert_eq!(wheel.get().delta_y, 2.5);
         assert_eq!(wheel.get().delta_mode, WheelDeltaMode::Line);
     }
 
@@ -256,5 +267,109 @@ mod tests {
         // Component 1 should be left, component 2 should be entered
         assert!(!hover1.get().is_hovered);
         assert!(hover2.get().is_hovered);
+    }
+
+    #[test]
+    fn api019_drag_drop_options_and_owner_cleanup_control_routed_state() {
+        let processor = MouseEventProcessor::new();
+        let state = ThreadSafeSignal::new(DragAndDropState::default());
+        processor.register_drag_and_drop(
+            "source".to_string(),
+            state.clone(),
+            DragAndDropOptions {
+                drag_threshold: 5.0,
+                drag_handle_selector: Some("source".to_string()),
+                drop_zones: vec!["drop".to_string()],
+                allow_drag_outside: false,
+            },
+        );
+        processor.process_event(
+            &MouseEvent::new(MouseEventKind::Down, Position::cell(1, 0))
+                .with_button(MouseButton::Left),
+            Some("source"),
+        );
+        processor.process_event(
+            &MouseEvent::new(MouseEventKind::Drag, Position::cell(3, 0))
+                .with_button(MouseButton::Left),
+            Some("drop"),
+        );
+        assert!(
+            !state.get().drag.is_dragging,
+            "threshold must delay dragging"
+        );
+
+        processor.process_event(
+            &MouseEvent::new(MouseEventKind::Drag, Position::cell(8, 0))
+                .with_button(MouseButton::Left),
+            Some("drop"),
+        );
+        assert!(state.get().drag.is_dragging);
+        assert!(state.get().is_over_valid_drop);
+        assert_eq!(state.get().drop_target.as_deref(), Some("drop"));
+        assert!(state.get().can_drop);
+
+        processor.process_event(
+            &MouseEvent::new(MouseEventKind::Drag, Position::cell(9, 0))
+                .with_button(MouseButton::Left),
+            Some("outside"),
+        );
+        assert!(!state.get().is_over_valid_drop);
+        assert!(!state.get().can_drop);
+
+        processor.unregister_component("source");
+        state.set(DragAndDropState::default());
+        processor.process_event(
+            &MouseEvent::new(MouseEventKind::Drag, Position::cell(12, 0))
+                .with_button(MouseButton::Left),
+            Some("drop"),
+        );
+        assert_eq!(state.get(), DragAndDropState::default());
+    }
+
+    #[test]
+    fn api019_component_click_and_gesture_history_are_isolated() {
+        let hooks1 = Hooks::new();
+        let hooks2 = Hooks::new();
+        let clicks1 = use_clicks(&hooks1);
+        let clicks2 = use_clicks(&hooks2);
+        let gesture1 = use_gesture(&hooks1);
+        let gesture2 = use_gesture(&hooks2);
+        let processor = MouseEventProcessor::new();
+        processor.register_clicks("component1".to_string(), clicks1.clone());
+        processor.register_clicks("component2".to_string(), clicks2.clone());
+        processor.register_gesture("component1".to_string(), gesture1.clone());
+        processor.register_gesture("component2".to_string(), gesture2.clone());
+
+        let click = MouseEvent::new(MouseEventKind::Click, Position::cell(5, 5));
+        processor.process_event(&click, Some("component1"));
+        processor.process_event(&click, Some("component2"));
+        assert_eq!(clicks1.get().click_count, 1);
+        assert_eq!(clicks2.get().click_count, 1);
+        assert!(!clicks2.get().is_double_click);
+
+        for x in [0, 4] {
+            processor.process_event(
+                &MouseEvent::new(MouseEventKind::Move, Position::cell(x, 0)),
+                Some("component1"),
+            );
+        }
+        processor.process_event(
+            &MouseEvent::new(MouseEventKind::Move, Position::cell(20, 0)),
+            Some("component2"),
+        );
+        assert_eq!(gesture1.get().gesture_type, GestureType::None);
+        assert_eq!(gesture2.get().gesture_type, GestureType::None);
+
+        for x in [24, 30] {
+            processor.process_event(
+                &MouseEvent::new(MouseEventKind::Move, Position::cell(x, 0)),
+                Some("component2"),
+            );
+        }
+        assert_eq!(
+            gesture2.get().gesture_type,
+            GestureType::Swipe(SwipeDirection::Right)
+        );
+        assert_eq!(gesture1.get().gesture_type, GestureType::None);
     }
 }

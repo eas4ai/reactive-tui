@@ -12,7 +12,7 @@ use std::cell::RefCell;
 use std::io::{self, Write};
 use std::rc::Rc;
 use std::sync::mpsc::{self, SyncSender};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
 use std::time::Duration;
 
@@ -285,13 +285,10 @@ impl Backend for SuprTuiBackend {
         if tree.root().is_none() {
             return self.clear();
         }
-        let element = tree
-            .root()
-            .and_then(|root| root.as_element())
-            .ok_or_else(|| {
-                ReactiveError::invalid_state("SuprTUI needs a complete Element frame")
-            })?;
-        self.render_full(element)
+        let element = tree.root_element().ok_or_else(|| {
+            ReactiveError::invalid_state("SuprTUI needs a complete Element frame")
+        })?;
+        self.render_full(&element)
     }
 
     fn clear(&mut self) -> Result<()> {
@@ -547,19 +544,60 @@ struct RawMode {
     active: bool,
 }
 
+#[derive(Default)]
+struct RawModeOwners {
+    count: usize,
+    enabled_by_library: bool,
+}
+
+static RAW_MODE_OWNERS: Mutex<RawModeOwners> = Mutex::new(RawModeOwners {
+    count: 0,
+    enabled_by_library: false,
+});
+
+impl RawModeOwners {
+    fn acquire(&mut self, already_raw: bool) -> bool {
+        let enable = self.count == 0 && !already_raw;
+        if self.count == 0 {
+            self.enabled_by_library = enable;
+        }
+        self.count += 1;
+        enable
+    }
+
+    fn release(&mut self) -> bool {
+        if self.count == 0 {
+            return false;
+        }
+        self.count -= 1;
+        self.count == 0 && self.enabled_by_library
+    }
+}
+
 impl RawMode {
     fn enter() -> Result<Self> {
-        // Do not take ownership of raw mode established by the caller.
-        let active = !crossterm::terminal::is_raw_mode_enabled()?;
-        if active {
-            crossterm::terminal::enable_raw_mode()?;
+        let mut owners = RAW_MODE_OWNERS.lock().unwrap_or_else(|e| e.into_inner());
+        let already_raw = owners.count != 0 || crossterm::terminal::is_raw_mode_enabled()?;
+        if owners.acquire(already_raw) {
+            if let Err(error) = crossterm::terminal::enable_raw_mode() {
+                owners.count = 0;
+                owners.enabled_by_library = false;
+                return Err(error.into());
+            }
         }
-        Ok(Self { active })
+        Ok(Self { active: true })
     }
 
     fn restore(&mut self) -> Result<()> {
         if self.active {
-            crossterm::terminal::disable_raw_mode()?;
+            let mut owners = RAW_MODE_OWNERS.lock().unwrap_or_else(|e| e.into_inner());
+            if owners.release() {
+                if let Err(error) = crossterm::terminal::disable_raw_mode() {
+                    owners.count = 1;
+                    return Err(error.into());
+                }
+                owners.enabled_by_library = false;
+            }
             self.active = false;
         }
         Ok(())
@@ -576,3 +614,23 @@ impl Drop for RawMode {
 
 #[cfg(test)]
 mod cursor_tests;
+
+#[cfg(test)]
+mod raw_mode_tests {
+    use super::RawModeOwners;
+
+    #[test]
+    fn api019_independent_library_owners_restore_only_after_the_last_release() {
+        let mut owners = RawModeOwners::default();
+        assert!(owners.acquire(false));
+        assert!(!owners.acquire(true));
+        assert!(!owners.release());
+        assert!(owners.release());
+        owners.enabled_by_library = false;
+        assert_eq!(owners.count, 0);
+
+        assert!(!owners.acquire(true));
+        assert!(!owners.release());
+        assert!(!owners.enabled_by_library);
+    }
+}

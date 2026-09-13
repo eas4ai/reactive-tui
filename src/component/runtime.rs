@@ -20,6 +20,7 @@ type Path = Vec<Segment>;
 struct LiveComponent {
     identity: u64,
     name: String,
+    route_id: String,
     instance: Arc<Mutex<AnyComponentInstance>>,
     scope: Arc<ComponentScope>,
     bounds: Arc<Mutex<Option<super::LayoutInfo>>>,
@@ -31,6 +32,7 @@ pub(crate) struct ComponentRuntime {
     instances: HashMap<Path, LiveComponent>,
     radio_groups: Arc<crate::widgets::input::named_radio::RadioGroups>,
     pub(crate) anchors: Arc<super::anchors::Anchors>,
+    mouse: crate::hooks::processor::MouseEventProcessor,
 }
 
 impl ComponentRuntime {
@@ -100,6 +102,7 @@ impl ComponentRuntime {
                         ReactiveError::invalid_state("component mount identity exhausted")
                     })?;
                     instance.on_lifecycle(LifecycleEvent::Mount);
+                    let route_id = element.key.clone().unwrap_or_else(|| name.clone());
                     self.instances.insert(
                         path.clone(),
                         LiveComponent {
@@ -108,12 +111,23 @@ impl ComponentRuntime {
                             instance: Arc::new(Mutex::new(instance)),
                             scope: scope.clone(),
                             bounds: Arc::new(Mutex::new(None)),
+                            route_id,
                         },
                     );
                 }
             }
             if let Some(live) = self.instances.get_mut(&path) {
                 let _binding = live.scope.enter(!newly_created);
+                assert!(
+                    crate::reactive::component_scope::provide(
+                        crate::hooks::processor::MouseHookContext {
+                            owner: live.mouse_owner(),
+                            processor: self.mouse.clone(),
+                        },
+                    )
+                    .is_ok(),
+                    "component mouse hooks require their resource scope"
+                );
                 seen.insert(path.clone());
                 let mut output = {
                     let mut instance = live.instance.lock().unwrap();
@@ -226,6 +240,7 @@ impl ComponentRuntime {
         let count = removed.len();
         for path in removed {
             if let Some(live) = self.instances.remove(&path) {
+                self.mouse.unregister_component(&live.mouse_owner());
                 let _binding = live.scope.enter(false);
                 live.instance
                     .lock()
@@ -241,9 +256,44 @@ impl ComponentRuntime {
     pub(crate) fn clear(&mut self) -> usize {
         self.remove_where(|_| true)
     }
+
+    pub(crate) fn process_mouse_event(
+        &self,
+        identity: Option<u64>,
+        event: &crate::event::types::MouseEvent,
+    ) {
+        let Some(live) = identity.and_then(|identity| {
+            self.instances
+                .values()
+                .find(|live| live.identity == identity)
+        }) else {
+            self.mouse.process_routed_event(event, None, None, None);
+            return;
+        };
+        let mut local = event.clone();
+        if let (crate::event::types::Position::Cell { x, y }, Some(bounds)) =
+            (event.position, *live.bounds.lock().unwrap())
+        {
+            let Some((x, y)) = bounds.local_cell(f32::from(x), f32::from(y)) else {
+                self.mouse.process_routed_event(event, None, None, None);
+                return;
+            };
+            local.position = crate::event::types::Position::cell(x, y);
+        }
+        self.mouse.process_routed_event(
+            event,
+            Some(&live.mouse_owner()),
+            Some(&live.route_id),
+            Some(local.position),
+        );
+    }
 }
 
 impl LiveComponent {
+    fn mouse_owner(&self) -> String {
+        format!("component-mount-{}", self.identity)
+    }
+
     fn handlers(
         &self,
     ) -> (
@@ -312,5 +362,51 @@ impl LiveComponent {
 impl Drop for ComponentRuntime {
     fn drop(&mut self) {
         self.clear();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{
+        component::{props::EmptyProps, Component},
+        hooks::use_hover,
+        reactive::{Hooks, Scheduler},
+    };
+
+    struct MouseOwner {
+        hooks: Hooks,
+    }
+
+    impl Component for MouseOwner {
+        type Props = EmptyProps;
+        type State = ();
+
+        fn new(_props: Self::Props) -> Self {
+            Self {
+                hooks: Hooks::new(),
+            }
+        }
+
+        fn render(&self, _props: &Self::Props, _state: &Self::State) -> Element {
+            self.hooks.reset();
+            let _hover = use_hover(&self.hooks);
+            Element::text("owner")
+        }
+    }
+
+    #[test]
+    fn api019_component_removal_unregisters_owned_mouse_hooks() {
+        let scope = ComponentScope::new(Arc::new(Scheduler::new()));
+        let _binding = scope.enter(true);
+        let mut runtime = ComponentRuntime::default();
+        runtime
+            .resolve(Element::typed::<MouseOwner>(EmptyProps))
+            .unwrap();
+        assert_eq!(runtime.mouse.registration_count(), 1);
+
+        runtime.resolve(Element::text("removed")).unwrap();
+        assert_eq!(runtime.mouse.registration_count(), 0);
+        scope.close();
     }
 }

@@ -72,6 +72,44 @@ fn test_code_block_rendering() {
 }
 
 #[test]
+fn api019_fenced_rust_code_uses_syntect_and_disabled_mode_keeps_code_style() {
+    let markdown = "```Rust\nfn main() { let answer = 42; }\n```";
+    let highlighted = MarkdownRenderer::new().render_to_styled_lines(markdown);
+    let plain = MarkdownRenderer::new()
+        .with_syntax_highlighting(false)
+        .render_to_styled_lines(markdown);
+    let highlighted_runs = highlighted
+        .iter()
+        .flat_map(|line| &line.runs)
+        .collect::<Vec<_>>();
+    let plain_runs = plain.iter().flat_map(|line| &line.runs).collect::<Vec<_>>();
+    assert!(highlighted_runs.iter().any(|run| run.text.contains("fn")));
+    assert!(highlighted_runs
+        .windows(2)
+        .any(|pair| pair[0].fg != pair[1].fg));
+    assert_ne!(highlighted_runs, plain_runs);
+}
+
+#[test]
+fn api019_markdown_and_syntax_checked_entry_points_reject_oversized_sources() {
+    let oversized = "x".repeat(MAX_MARKDOWN_BYTES + 1);
+    let renderer = MarkdownRenderer::new();
+    let error = renderer.try_render_to_styled_lines(&oversized).unwrap_err();
+    assert!(error.to_string().contains("1048576-byte"));
+    let diagnostic = renderer.render_to_styled_lines(&oversized);
+    assert!(diagnostic[0].text().contains("Markdown render error"));
+
+    let mut highlighter = crate::syntax::SyntaxHighlighter::new("Rust").unwrap();
+    let syntax_error = highlighter.try_highlight_text(&oversized).unwrap_err();
+    assert!(syntax_error.to_string().contains("1048576-byte"));
+    let diagnostic = highlighter.highlight_text(&oversized);
+    assert!(diagnostic[0]
+        .to_styled_line()
+        .text()
+        .contains("Syntax highlight error"));
+}
+
+#[test]
 fn test_empty_markdown() {
     let renderer = MarkdownRenderer::new();
     let lines = renderer.render_to_styled_lines("");

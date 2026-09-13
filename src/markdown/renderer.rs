@@ -2,6 +2,9 @@ use crate::core::styled_text::StyledLine;
 use comrak::{parse_document, Arena, ExtensionOptions, Options};
 use std::collections::HashMap;
 
+/// Maximum source size accepted by the checked Markdown renderer.
+pub const MAX_MARKDOWN_BYTES: usize = 1024 * 1024;
+
 /// Main markdown renderer that converts markdown text to StyledLine output
 pub struct MarkdownRenderer<'a> {
     options: Options<'a>,
@@ -59,12 +62,28 @@ impl<'a> MarkdownRenderer<'a> {
 
     /// Render markdown text to StyledLine vector
     pub fn render_to_styled_lines(&self, markdown: &str) -> Vec<StyledLine> {
+        self.try_render_to_styled_lines(markdown)
+            .unwrap_or_else(|error| {
+                vec![StyledLine::plain(format!("Markdown render error: {error}"))]
+            })
+    }
+
+    /// Render Markdown with an explicit source-size error.
+    pub fn try_render_to_styled_lines(
+        &self,
+        markdown: &str,
+    ) -> crate::error::Result<Vec<StyledLine>> {
+        if markdown.len() > MAX_MARKDOWN_BYTES {
+            return Err(crate::error::ReactiveError::invalid_parameter(format!(
+                "Markdown input exceeds the {MAX_MARKDOWN_BYTES}-byte limit"
+            )));
+        }
         let arena = Arena::new();
         let root = parse_document(&arena, markdown, &self.options);
 
         let walker = crate::markdown::ast_walker::AstWalker::new(self.enable_syntax_highlighting);
 
-        walker.walk_document(root)
+        Ok(walker.walk_document(root))
     }
 
     /// Render markdown with source position tracking

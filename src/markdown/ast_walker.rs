@@ -8,7 +8,6 @@ use std::collections::HashMap;
 
 /// AST walker that converts comrak AST nodes to StyledRun/StyledLine
 pub struct AstWalker {
-    #[allow(dead_code)]
     enable_syntax_highlighting: bool,
     /// Styled lines for rendering
     pub lines: Vec<StyledLine>,
@@ -160,11 +159,24 @@ impl AstWalker {
                 let code = &code_block.literal;
 
                 self.add_line_break();
-                for line in code.lines() {
-                    self.add_text("  "); // Indent
-                    let code_run = create_code_run(line);
-                    self.current_line.push(code_run);
-                    self.add_line_break();
+                let language = code_block.info.split_whitespace().next().unwrap_or("");
+                let highlighted = self
+                    .enable_syntax_highlighting
+                    .then(|| crate::syntax::SyntaxHighlighter::new(language))
+                    .flatten()
+                    .map(|mut highlighter| highlighter.highlight_text(code));
+                if let Some(lines) = highlighted {
+                    for line in lines {
+                        self.add_text("  ");
+                        self.current_line.extend(line.runs);
+                        self.add_line_break();
+                    }
+                } else {
+                    for line in code.lines() {
+                        self.add_text("  ");
+                        self.current_line.push(create_code_run(line));
+                        self.add_line_break();
+                    }
                 }
                 self.add_line_break();
             }

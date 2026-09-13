@@ -161,7 +161,7 @@ class Check:
         for name, toolchain, flags in (("default", [], []), ("minimal", [], ["--no-default-features"]),
                                        ("all-features", ["+nightly"], ["--all-features"])):
             self.run("crate-doctests-" + name, ["cargo", *toolchain, "test", "--locked", "--doc", *flags,
-                                                 "--", "--test-threads=12"], expected_tests=1)
+                                                  "--", "--test-threads=8"], expected_tests=1)
         self.run("cargo-examples", ["cargo", "check", "--locked", "--examples"])
 
     def rust_examples(self, library, sources):
@@ -176,7 +176,7 @@ class Check:
             path.write_text("\n".join(chunks))
             self.run(f"rust-examples-{index}", ["rustdoc", "--test", str(path), "--edition=2021",
                      "--extern", "reactive_tui=" + library, "-L", "dependency=" + str(TARGET / "debug/deps"),
-                      "--test-args=--test-threads=12"], 300, expected_tests=len(blocks))
+                       "--test-args=--test-threads=8"], 300, expected_tests=len(blocks))
 
     def collect_examples(self):
         guides = [ROOT / "README.md", *sorted((ROOT / "docs").glob("*.md")),
@@ -288,8 +288,8 @@ def main():
     parser.add_argument("--only", choices=SECTIONS)
     args = parser.parse_args()
     os.chdir(ROOT)
-    os.environ.update(CARGO_INCREMENTAL="0", RUST_TEST_THREADS="12", RAYON_NUM_THREADS="12",
-                      CARGO_BUILD_JOBS="12", LP_NUM_THREADS="12", PYTHON_CPU_COUNT="12", GOMAXPROCS="12", GOFLAGS="-p=12")
+    os.environ.update(CARGO_INCREMENTAL="0", RUST_TEST_THREADS="8", RAYON_NUM_THREADS="8",
+                      CARGO_BUILD_JOBS="8", LP_NUM_THREADS="8", PYTHON_CPU_COUNT="8", GOMAXPROCS="8", GOFLAGS="-p=8")
     os.environ["RUSTDOCFLAGS"] = os.environ.get("RUSTDOCFLAGS", "") + " -D rustdoc::broken_intra_doc_links"
     check = Check()
     check.run("checker-controls", ["python3", "-B", str(ROOT / "verification/api-documentation/checker-controls.py")], 30)

@@ -62,6 +62,19 @@ struct Registration<'a> {
 }
 
 impl EventTree {
+    pub(crate) fn innermost_component(&self, id: NodeId) -> Option<u64> {
+        let path = self.path_for(id)?;
+        let mut innermost = None;
+        for slot in path.iter().rev() {
+            match slot {
+                Slot::Component(identity) => innermost = Some(*identity),
+                Slot::Key(_) | Slot::Index(_) if innermost.is_some() => return innermost,
+                Slot::Key(_) | Slot::Index(_) => {}
+            }
+        }
+        innermost
+    }
+
     /// Resolve state variants without publishing a candidate event tree.
     pub(crate) fn styled(&self, element: &Element, router: &EventRouter, width: u16) -> Element {
         let focus = router.get_focus().and_then(|id| self.path_for(id));

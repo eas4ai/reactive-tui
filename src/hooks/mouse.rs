@@ -1,6 +1,10 @@
 use crate::event::types::{MouseButton, Position};
-use crate::reactive::hooks::{use_effect, use_signal, Hooks, ThreadSafeSignal};
+use crate::reactive::hooks::{use_signal, Hooks, ThreadSafeSignal};
 use std::time::{Duration, Instant};
+
+fn routing_context() -> Option<super::processor::MouseHookContext> {
+    crate::reactive::component_scope::lookup()
+}
 
 /// Hover state for use_hover hook
 #[derive(Clone, Debug, Default, PartialEq)]
@@ -29,14 +33,11 @@ pub struct HoverState {
 /// ```
 pub fn use_hover(hooks: &Hooks) -> ThreadSafeSignal<HoverState> {
     let hover_state = use_signal(hooks, HoverState::default());
-
-    // Register mouse enter/leave handlers
-    use_effect(hooks, move || {
-        // This will be connected to the component's event handlers
-        // The actual wiring happens in the component macro expansion
-        Some(Box::new(|| {}) as Box<dyn FnOnce() + Send + Sync>)
-    });
-
+    if let Some(context) = routing_context() {
+        context
+            .processor
+            .register_hover(context.owner, hover_state.clone());
+    }
     hover_state
 }
 
@@ -115,12 +116,11 @@ pub(crate) fn coordinate_delta(start: Position, end: Position) -> Option<(f64, f
 /// ```
 pub fn use_drag(hooks: &Hooks) -> ThreadSafeSignal<DragState> {
     let drag_state = use_signal(hooks, DragState::default());
-
-    use_effect(hooks, move || {
-        // Event handlers will be wired by the component system
-        Some(Box::new(|| {}) as Box<dyn FnOnce() + Send + Sync>)
-    });
-
+    if let Some(context) = routing_context() {
+        context
+            .processor
+            .register_drag(context.owner, drag_state.clone());
+    }
     drag_state
 }
 
@@ -129,9 +129,10 @@ pub fn use_drag(hooks: &Hooks) -> ThreadSafeSignal<DragState> {
 pub struct DragAndDropOptions {
     /// Minimum distance before dragging: cells for Cell input, pixels for Pixel input.
     pub drag_threshold: f64,
-    /// Optional CSS selector for drag handle element
+    /// Optional exact routed component identifier required at drag start.
+    /// Component keys are identifiers; unkeyed components use their registered name.
     pub drag_handle_selector: Option<String>,
-    /// List of valid drop zone identifiers
+    /// Valid routed component identifiers. Component keys are preferred.
     pub drop_zones: Vec<String>,
     /// Whether dragging outside drop zones is allowed
     pub allow_drag_outside: bool,
@@ -149,7 +150,7 @@ impl Default for DragAndDropOptions {
 }
 
 /// Combined drag and drop state
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct DragAndDropState {
     /// Current drag state
     pub drag: DragState,
@@ -177,21 +178,14 @@ pub struct DragAndDropState {
 ///     Element::text(format!("Drop target: {:?}; allowed: {}", state.drop_target, state.can_drop))
 /// }
 /// ```
-pub fn use_drag_and_drop(hooks: &Hooks, _options: DragAndDropOptions) -> DragAndDropState {
-    let drag_state = use_drag(hooks);
-    let is_over_valid_drop = use_signal(hooks, false);
-    let drop_target = use_signal(hooks, None::<String>);
-
-    // Check if we're over a valid drop zone
-    let drag = drag_state.get();
-    let can_drop = drag.is_dragging && is_over_valid_drop.get();
-
-    DragAndDropState {
-        drag,
-        is_over_valid_drop: is_over_valid_drop.get(),
-        drop_target: drop_target.get(),
-        can_drop,
+pub fn use_drag_and_drop(hooks: &Hooks, options: DragAndDropOptions) -> DragAndDropState {
+    let state = use_signal(hooks, DragAndDropState::default());
+    if let Some(context) = routing_context() {
+        context
+            .processor
+            .register_drag_and_drop(context.owner, state.clone(), options);
     }
+    state.get()
 }
 
 /// Mouse position tracking state
@@ -220,12 +214,11 @@ pub struct MousePositionState {
 /// ```
 pub fn use_mouse_position(hooks: &Hooks) -> ThreadSafeSignal<MousePositionState> {
     let mouse_state = use_signal(hooks, MousePositionState::default());
-
-    use_effect(hooks, move || {
-        // Wire up mouse move handler
-        Some(Box::new(|| {}) as Box<dyn FnOnce() + Send + Sync>)
-    });
-
+    if let Some(context) = routing_context() {
+        context
+            .processor
+            .register_position(context.owner, mouse_state.clone());
+    }
     mouse_state
 }
 
@@ -259,13 +252,11 @@ pub struct ClickState {
 /// ```
 pub fn use_clicks(hooks: &Hooks) -> ThreadSafeSignal<ClickState> {
     let click_state = use_signal(hooks, ClickState::default());
-    let _double_click_threshold = Duration::from_millis(500);
-
-    use_effect(hooks, move || {
-        // Click handler will check timing and update state
-        Some(Box::new(|| {}) as Box<dyn FnOnce() + Send + Sync>)
-    });
-
+    if let Some(context) = routing_context() {
+        context
+            .processor
+            .register_clicks(context.owner, click_state.clone());
+    }
     click_state
 }
 
@@ -295,17 +286,15 @@ pub struct LongPressState {
 ///     button().child(Element::text(if press.is_long_press { "Long press" } else { "Hold" })).build()
 /// }
 /// ```
-pub fn use_long_press(hooks: &Hooks, _threshold: Duration) -> ThreadSafeSignal<LongPressState> {
+pub fn use_long_press(hooks: &Hooks, threshold: Duration) -> ThreadSafeSignal<LongPressState> {
     let press_state = use_signal(hooks, LongPressState::default());
-
-    use_effect(hooks, move || {
-        // Set up timer for long press detection
-        // Timer management would be implemented here with a proper timer system
-        Some(Box::new(move || {
-            // Cleanup timer on unmount would happen here
-        }) as Box<dyn FnOnce() + Send + Sync>)
-    });
-
+    if let Some(context) = routing_context() {
+        context.processor.register_press_with_threshold(
+            context.owner,
+            press_state.clone(),
+            threshold,
+        );
+    }
     press_state
 }
 
@@ -387,15 +376,13 @@ pub fn use_gesture(hooks: &Hooks) -> ThreadSafeSignal<GestureState> {
         },
     );
 
-    use_effect(hooks, move || {
-        // Wire up gesture detection logic
-        Some(Box::new(|| {}) as Box<dyn FnOnce() + Send + Sync>)
-    });
-
+    if let Some(context) = routing_context() {
+        context
+            .processor
+            .register_gesture(context.owner, gesture_state.clone());
+    }
     gesture_state
 }
-
-// Timer handles would be implemented with a proper timer system in the future
 
 /// Mouse wheel/scroll state
 /// Mouse wheel state for scroll tracking
@@ -438,11 +425,10 @@ pub enum WheelDeltaMode {
 /// ```
 pub fn use_wheel(hooks: &Hooks) -> ThreadSafeSignal<WheelState> {
     let wheel_state = use_signal(hooks, WheelState::default());
-
-    use_effect(hooks, move || {
-        // Wire up wheel event handler
-        Some(Box::new(|| {}) as Box<dyn FnOnce() + Send + Sync>)
-    });
-
+    if let Some(context) = routing_context() {
+        context
+            .processor
+            .register_wheel(context.owner, wheel_state.clone());
+    }
     wheel_state
 }

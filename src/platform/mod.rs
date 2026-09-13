@@ -154,6 +154,8 @@ pub enum TerminalEvent {
     Mouse {
         /// Type of mouse event (click, move, scroll, etc.)
         kind: MouseEventKind,
+        /// Physical button carried by button and drag events.
+        button: Option<MouseButton>,
         /// Column position in terminal cells
         column: u16,
         /// Row position in terminal cells
@@ -346,6 +348,17 @@ pub enum MouseEventKind {
     ScrollLeft,
     /// Mouse wheel scrolled right
     ScrollRight,
+}
+
+/// Physical mouse button reported by native terminal input.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MouseButton {
+    /// Primary or left button.
+    Left,
+    /// Middle button, commonly the scroll-wheel press.
+    Middle,
+    /// Secondary or right button.
+    Right,
 }
 
 /// Color scheme preference for the application
