@@ -10,4 +10,4 @@ warning: method `serial` is never used
 
 warning: `reactive-tui` (lib) generated 1 warning
    Compiling reactive-tui v0.0.7 (/Users/runner/work/reactive-tui/reactive-tui)
-    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.85s
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.95s
