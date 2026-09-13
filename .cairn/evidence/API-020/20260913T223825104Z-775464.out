@@ -1,0 +1,10 @@
+Traceback (most recent call last):
+  File "/home/shawn/workspace2/reactive-tui/.cairn/api-closure/check.py", line 199, in <module>
+    main()
+    ~~~~^^
+  File "/home/shawn/workspace2/reactive-tui/.cairn/api-closure/check.py", line 181, in main
+    validate_review(review)
+    ~~~~~~~~~~~~~~~^^^^^^^^
+  File "/home/shawn/workspace2/reactive-tui/.cairn/api-closure/check.py", line 153, in validate_review
+    raise RuntimeError("final API-020 review is incomplete: " + ", ".join(missing))
+RuntimeError: final API-020 review is incomplete: Status: Complete, Known open findings: none, Historical defect controls are not acceptance evidence
