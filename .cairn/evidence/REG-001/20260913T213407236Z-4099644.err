@@ -1,0 +1,7 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.10s
+     Running unittests src/lib.rs (target/debug/deps/reactive_tui-10768dd881459d97)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.11s
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.11s
+     Running tests/component_macro_integration.rs (target/debug/deps/component_macro_integration-c07253964df315cd)
+     Running tests/component_macro_test.rs (target/debug/deps/component_macro_test-8213d1b084d952c6)
+     Running tests/component_tests.rs (target/debug/deps/component_tests-7d87d36868ca8a62)
