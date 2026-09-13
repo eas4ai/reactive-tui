@@ -1,0 +1,119 @@
+[
+  {
+    "case": 0,
+    "passed": true
+  },
+  {
+    "case": 1,
+    "passed": true
+  },
+  {
+    "case": 2,
+    "passed": true
+  },
+  {
+    "case": 3,
+    "passed": true
+  },
+  {
+    "case": 4,
+    "passed": true
+  },
+  {
+    "case": 5,
+    "passed": true
+  },
+  {
+    "case": 6,
+    "passed": true
+  },
+  {
+    "case": 7,
+    "passed": true
+  },
+  {
+    "case": 8,
+    "passed": true
+  },
+  {
+    "case": 9,
+    "passed": true
+  },
+  {
+    "case": 10,
+    "passed": true
+  },
+  {
+    "case": 11,
+    "passed": true
+  },
+  {
+    "case": 12,
+    "passed": true
+  },
+  {
+    "case": 13,
+    "passed": true
+  },
+  {
+    "case": 14,
+    "passed": true
+  },
+  {
+    "case": 15,
+    "passed": true
+  },
+  {
+    "case": 16,
+    "passed": true
+  },
+  {
+    "case": 17,
+    "passed": true
+  },
+  {
+    "case": 18,
+    "passed": true
+  },
+  {
+    "case": 19,
+    "passed": true
+  },
+  {
+    "case": 20,
+    "passed": true
+  },
+  {
+    "case": 21,
+    "passed": true
+  },
+  {
+    "case": 22,
+    "passed": true
+  },
+  {
+    "case": 23,
+    "passed": true
+  },
+  {
+    "case": 24,
+    "passed": true
+  },
+  {
+    "case": 25,
+    "passed": true
+  },
+  {
+    "case": 26,
+    "passed": true
+  },
+  {
+    "case": 27,
+    "passed": true
+  },
+  {
+    "case": 28,
+    "passed": false,
+    "error": "Traceback (most recent call last):\n  File \"<stdin>\", line 22, in <module>\n  File \"scripts/check-api-entry-points.py\", line 144, in host_workflow\n    painted = terminal.wait_for(\"state empty clicks1\", lambda frame:\n              ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n                                \"North\" not in frame and \"South\" not in frame and \"\u754c\" not in frame)\n                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"<stdin>\", line 7, in wait_for\n  File \"scripts/check-api-entry-points.py\", line 80, in wait_for\n    raise AssertionError(f\"entry point did not paint {text!r}; screen={self.screen()!r}; \"\n                         f\"output={bytes(self.output[-2000:])!r}\")\nAssertionError: entry point did not paint 'state empty clicks1'; screen='state reversed clicks1                          \\nActivate                                        \\nsize 48 12                                      \\ne\u0301\u754c\ud83d\udc69\\u200d                                           \\nSouth                                           \\nNorth                                           \\n                                                \\n                                                \\n                                                \\n                                                \\n                                                \\n                                                '; output=b'[48;2;0;0;0m \\x1b[12;5H\\x1b[0m\\x1b[38;2;255;255;255m\\x1b[48;2;0;0;0m \\x1b[12;6H\\x1b[0m\\x1b[38;2;255;255;255m\\x1b[48;2;0;0;0m \\x1b[12;7H\\x1b[0m\\x1b[38;2;255;255;255m\\x1b[48;2;0;0;0m \\x1b[12;8H\\x1b[0m\\x1b[38;2;255;255;255m\\x1b[48;2;0;0;0m \\x1b[12;9H\\x1b[0m\\x1b[38;2;255;255;255m\\x1b[48;2;0;0;0m \\x1b[12;10H\\x1b[0m\\x1b[38;2;255;255;255m\\x1b[48;2;0;0;0m \\x1b[12;11H\\x1b[0m\\x1b[38;2;255;255;255m\\x1b[48;2;0;0;0m \\x1b[12;12H\\x1b[0m\\x1b[38;2;255;255;255m\\x1b[48;2;0;0;0m \\x1b[12;13H\\x1b[0m\\x1b[38;2;255;255;255m\\x1b[48;2;0;0;0m \\x1b[12;14H\\x1b[0m\\x1b[38;2;255;255;255m\\x1b[48;2;0;0;0m \\x1b[12;15H\\x1b[0m\\x1b[38;2;255;255;255m\\x1b[48;2;0;0;0m \\x1b[12;16H\\x1b[0m\\x1b[38;2;255;255;255m\\x1b[48;2;0;0;0m \\x1b[12;17H\\x1b[0m\\x1b[38;2;255;255;255m\\x1b[48;2;0;0;0m \\x1b[12;18H\\x1b[0m\\x1b[38;2;255;255;255m\\x1b[48;2;0;0;0m \\x1b[12;19H\\x1b[0m\\x1b[38;2;255;255;255m\\x1b[48;2;0;0;0m \\x1b[12;20H\\x1b[0m\\x1b[38;2;255;255;255m\\x1b[48;2;0;0;0m \\x1b[12;21H\\x1b[0m\\x1b[38;2;255;255;255m\\x1b[48;2;0;0;0m \\x1b[12;22H\\x1b[0m\\x1b[38;2;255;255;255m\\x1b[48;2;0;0;0m \\x1b[12;23H\\x1b[0m\\x1b[38;2;255;255;255m\\x1b[48;2;0;0;0m \\x1b[12;24H\\x1b[0m\\x1b[38;2;255;255;255m\\x1b[48;2;0;0;0m \\x1b[12;25H\\x1b[0m\\x1b[38;2;255;255;255m\\x1b[48;2;0;0;0m \\x1b[12;26H\\x1b[0m\\x1b[38;2;255;255;255m\\x1b[48;2;0;0;0m \\x1b[12;27H\\x1b[0m\\x1b[38;2;255;255;255m\\x1b[48;2;0;0;0m \\x1b[12;28H\\x1b[0m\\x1b[38;2;255;255;255m\\x1b[48;2;0;0;0m \\x1b[12;29H\\x1b[0m\\x1b[38;2;255;255;255m\\x1b[48;2;0;0;0m \\x1b[12;30H\\x1b[0m\\x1b[38;2;255;255;255m\\x1b[48;2;0;0;0m \\x1b[12;31H\\x1b[0m\\x1b[38;2;255;255;255m\\x1b[48;2;0;0;0m \\x1b[12;32H\\x1b[0m\\x1b[38;2;255;255;255m\\x1b[48;2;0;0;0m \\x1b[12;33H\\x1b[0m\\x1b[38;2;255;255;255m\\x1b[48;2;0;0;0m \\x1b[12;34H\\x1b[0m\\x1b[38;2;255;255;255m\\x1b[48;2;0;0;0m \\x1b[12;35H\\x1b[0m\\x1b[38;2;255;255;255m\\x1b[48;2;0;0;0m \\x1b[12;36H\\x1b[0m\\x1b[38;2;255;255;255m\\x1b[48;2;0;0;0m \\x1b[12;37H\\x1b[0m\\x1b[38;2;255;255;255m\\x1b[48;2;0;0;0m \\x1b[12;38H\\x1b[0m\\x1b[38;2;255;255;255m\\x1b[48;2;0;0;0m \\x1b[12;39H\\x1b[0m\\x1b[38;2;255;255;255m\\x1b[48;2;0;0;0m \\x1b[12;40H\\x1b[0m\\x1b[38;2;255;255;255m\\x1b[48;2;0;0;0m \\x1b[12;41H\\x1b[0m\\x1b[38;2;255;255;255m\\x1b[48;2;0;0;0m \\x1b[12;42H\\x1b[0m\\x1b[38;2;255;255;255m\\x1b[48;2;0;0;0m \\x1b[12;43H\\x1b[0m\\x1b[38;2;255;255;255m\\x1b[48;2;0;0;0m \\x1b[12;44H\\x1b[0m\\x1b[38;2;255;255;255m\\x1b[48;2;0;0;0m \\x1b[12;45H\\x1b[0m\\x1b[38;2;255;255;255m\\x1b[48;2;0;0;0m \\x1b[12;46H\\x1b[0m\\x1b[38;2;255;255;255m\\x1b[48;2;0;0;0m \\x1b[12;47H\\x1b[0m\\x1b[38;2;255;255;255m\\x1b[48;2;0;0;0m \\x1b[12;48H\\x1b[0m\\x1b[38;2;255;255;255m\\x1b[48;2;0;0;0m \\x1b[0m\\x1b[?2026l'\n"
+  }
+]

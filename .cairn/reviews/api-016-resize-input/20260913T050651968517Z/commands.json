@@ -1,0 +1,28 @@
+[
+  [
+    "rustc",
+    "--edition=2021",
+    "verification/api-entry-points/host.rs",
+    "--extern",
+    "reactive_tui=/home/shawn/workspace2/reactive-tui/target/debug/libreactive_tui.rlib",
+    "-L",
+    "dependency=/home/shawn/workspace2/reactive-tui/target/debug/deps",
+    "-C",
+    "link-arg=-Wl,--threads=12",
+    "-o",
+    "/home/shawn/workspace2/reactive-tui/target/api016-resize-diagnostic/host"
+  ],
+  [
+    "rustc",
+    "--edition=2021",
+    "verification/api-entry-points/screen.rs",
+    "--extern",
+    "vt100=/home/shawn/workspace2/reactive-tui/target/debug/deps/libvt100-e7285824268f2a5d.rlib",
+    "-L",
+    "dependency=/home/shawn/workspace2/reactive-tui/target/debug/deps",
+    "-C",
+    "link-arg=-Wl,--threads=12",
+    "-o",
+    "/home/shawn/workspace2/reactive-tui/target/api016-resize-diagnostic/screen"
+  ]
+]
