@@ -2,7 +2,7 @@
 
 command: python3 -B .cairn/api-closure/check.py
 inputs:
-  - .cairn/api-closure
+  - .cairn/api-closure/check.py
   - .cairn/reviews/api-020-image-capture-timeout
   - .cairn/reviews/rust-api-remediation.md
   - docs/api-audit.md
