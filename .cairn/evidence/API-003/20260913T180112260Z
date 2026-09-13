@@ -1,0 +1,21 @@
+requirement: API-003
+requirement_digest: sha256:7fcb76d07653dd32070dd2b79d26d902a555df404e423e78ecd60185eea0a1d9
+sequence: 34
+history_digest: sha256:8d5d0e0c144e59e7e3cccb6388430a7f0a8230b96bf987fccdba929ac7a87740
+mechanism: api-hook-state.md
+commit: c9005e06
+inputs_digest: sha256:8820e41ec501c04fb2a9ddb48323a245025413d67b05aa80504504bbd751be11
+mechanism_digest: sha256:443ab941d5527cc737370ebff91b13a50095f4ae34eea2409a0943444040df9e
+inputs_detail: .cairn/evidence/API-003/20260913T180111065Z-1530068.inputs.json
+command: python3 -B scripts/check-api-hook-state.py
+cwd: .
+exit: 0
+output_digest: sha256:8b8d29c0761168c45bc246c579bf567e91566e9cdab8b6982e7a56c4dce633fe
+output: .cairn/evidence/API-003/20260913T180111065Z-1530068.out
+stderr_output: .cairn/evidence/API-003/20260913T180111065Z-1530068.err
+stderr_digest: sha256:c9a0519f4918ac45e9638d31bf99fca00ea5582f6cb95b6cbea615e09492422b
+signal: none
+execution_error: null
+result: pass
+source: exit
+recorded: 2026-09-13T18:01:12.260Z
