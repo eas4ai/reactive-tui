@@ -5021,3 +5021,5 @@ violating controls, static report review and limits. The approved receiver
 migration and shared-reference retention are implemented. LocalRef still fails
 retention and requires the separate scope decision in `api-019-local-owner/review.md`.
 API-019 and API-020 remain incomplete; no full-catalog coverage was claimed.
+
+Native run 34730119811 passed on macOS and Windows for snapshot cbfc9c884cb917ec38668a59d5f045bb4a7618de. Its declared input trees exactly match local commit 4b3f550a58992d1cd86b85f89aebc2d2a01b0f16. Imported the widget and ConPTY and clipboard artifacts after checking job and step success, current committed input digests, system, every recorded output hash, and unchanged copied bytes. Both native verifiers passed. The earlier clipboard records were also refreshed and all five clipboard backends verified.

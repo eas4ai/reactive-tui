@@ -7,9 +7,9 @@ warning: unused import: `std::os::windows::io::AsRawHandle`
    = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
 
 warning: variable does not need to be mutable
-    --> src\platform\mod.rs:1204:13
+    --> src\platform\mod.rs:1192:13
      |
-1204 |         let mut buffer = [0u8; 8192];
+1192 |         let mut buffer = [0u8; 8192];
      |             ----^^^^^^
      |             |
      |             help: remove this `mut`
@@ -17,9 +17,9 @@ warning: variable does not need to be mutable
      = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
 
 warning: variable does not need to be mutable
-    --> src\platform\mod.rs:1205:13
+    --> src\platform\mod.rs:1193:13
      |
-1205 |         let mut total_read = 0;
+1193 |         let mut total_read = 0;
      |             ----^^^^^^^^^^
      |             |
      |             help: remove this `mut`
@@ -35,20 +35,20 @@ warning: method `serial` is never used
    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
 
 warning: field `parser` is never read
-   --> src\platform\mod.rs:474:5
+   --> src\platform\mod.rs:479:5
     |
-471 | pub struct DirectTty {
+476 | pub struct DirectTty {
     |            --------- field in this struct
 ...
-474 |     parser: parser::EscapeSequenceParser,
+479 |     parser: parser::EscapeSequenceParser,
     |     ^^^^^^
 
 warning: `reactive-tui` (lib) generated 5 warnings (run `cargo fix --lib -p reactive-tui` to apply 3 suggestions)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.33s
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.27s
      Running tests\api_widget_behavior.rs (target\debug\deps\api_widget_behavior-ef5a3766d6e4dfba.exe)
 
 running 1 test
 test terminal_acceptance::terminal_widget_windows_app_routes_input_and_paints_after_resize ... ok
 
-test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 385 filtered out; finished in 6.68s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 385 filtered out; finished in 6.62s
 
