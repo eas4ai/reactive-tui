@@ -5,3 +5,7 @@
 - Pending: API-020 image-capture timeout cleanup, complete current regression evidence, adversarial review and production self-audit.
 
 Build and test concurrency remains capped at 12. Existing approvals remain in force.
+
+Latest API-019 checkpoint: approved local scopes and mapping-test discovery are
+implemented with positive and violating checks. Performance ownership still needs
+a separate compatibility choice; other residual families remain open.

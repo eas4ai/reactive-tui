@@ -1,0 +1,5 @@
+PASS checker-controls
+PASS mapping-discovery
+PASS mapping-behavior
+Residual outputs: .cairn/reviews/api-residual/20260913T021238818306Z
+PASS development section: mapping-tests; full API-019 acceptance was not run

@@ -1,0 +1,88 @@
+[
+  {
+    "name": "checker-controls",
+    "command": [
+      "python3",
+      "-B",
+      "verification/api-residual/checker-controls.py"
+    ],
+    "log": ".cairn/reviews/api-residual/20260913T021059031143Z/checker-controls.out",
+    "result": "pass",
+    "sha256": "11ef97edd7d0a38c561d36224d15c79ae5b50f685f6eea688402137670aaca8a"
+  },
+  {
+    "name": "refs-discovery",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--test",
+      "api_residual_refs",
+      "--",
+      "--list"
+    ],
+    "log": ".cairn/reviews/api-residual/20260913T021059031143Z/refs-discovery.out",
+    "result": "pass",
+    "sha256": "d98d8b6a0ab056f683abb4b22da2041412dfc58abb6399d0d02076658d7b3a91"
+  },
+  {
+    "name": "refs-behavior",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--test",
+      "api_residual_refs",
+      "--",
+      "--test-threads=1"
+    ],
+    "log": ".cairn/reviews/api-residual/20260913T021059031143Z/refs-behavior.out",
+    "result": "pass",
+    "sha256": "5d3ee8b4fcdba27fcd884a613a19415cbb5de4c8a48fd9348fd97b85d1e8a3d3"
+  },
+  {
+    "name": "local-discovery",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--test",
+      "api_local_hooks",
+      "--",
+      "--list"
+    ],
+    "log": ".cairn/reviews/api-residual/20260913T021059031143Z/local-discovery.out",
+    "result": "pass",
+    "sha256": "6e638d210f6cf45ce6fdbcb5a12f94148ccc006bdae2cf4a58c6b6216dfa0858"
+  },
+  {
+    "name": "local-behavior",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--test",
+      "api_local_hooks",
+      "--",
+      "--test-threads=12"
+    ],
+    "log": ".cairn/reviews/api-residual/20260913T021059031143Z/local-behavior.out",
+    "result": "pass",
+    "sha256": "e42057d39447f381d318fc0299d942c42122e35126f1524e59dc83c19f7978d8"
+  },
+  {
+    "name": "local-consumer",
+    "command": [
+      "python3",
+      "-B",
+      "verification/api-residual/run-local-owner.py"
+    ],
+    "log": ".cairn/reviews/api-residual/20260913T021059031143Z/local-consumer.out",
+    "result": "pass",
+    "sha256": "282637d57b131a52979a23ecbf4581ee4da0c6bb1bbe6e72d021e88d82f24e5a"
+  },
+  {
+    "name": "refs",
+    "result": "pass"
+  }
+]

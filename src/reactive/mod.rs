@@ -4,6 +4,7 @@ pub mod effect;
 mod hook_resources;
 /// React-like hooks for state management
 pub mod hooks;
+pub(crate) mod local_hooks;
 /// Reactive runtime and context management
 pub mod runtime;
 /// Reactive scheduler for batching updates

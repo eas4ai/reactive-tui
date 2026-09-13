@@ -118,25 +118,30 @@ where
 
 /// Hook for creating a local (non-thread-safe) mutable reference
 ///
-/// Use this when you don't need thread safety and want better performance.
+/// Requires a live `with_local_hooks` scope, supplied automatically by App::run.
+/// Retains arbitrary non-Send values on the creating thread. Related manual
+/// renders must use the same scope; missing, changed or expired scopes panic.
 ///
 /// # Example
 /// ```rust,no_run
-/// use reactive_tui::hooks::use_local_ref;
+/// use reactive_tui::hooks::{use_local_ref, with_local_hooks};
 /// use reactive_tui::reactive::Hooks;
 ///
-/// fn local_value(hooks: &Hooks) {
-///     let value = use_local_ref(hooks, String::new());
+/// with_local_hooks(|| {
+///     let hooks = Hooks::new();
+///     let value = use_local_ref(&hooks, String::new());
 ///     value.set_current("draft".into());
-///     assert_eq!(value.current(), "draft");
-/// }
+///     hooks.reset();
+///     assert_eq!(use_local_ref(&hooks, String::new()).current(), "draft");
+/// });
 /// ```
-pub fn use_local_ref<T>(_hooks: &Hooks, initial: T) -> LocalRef<T>
+pub fn use_local_ref<T>(hooks: &Hooks, initial: T) -> LocalRef<T>
 where
     T: 'static,
 {
-    // Local refs don't need to be tracked by signals since they don't trigger re-renders
-    LocalRef::new(initial)
+    LocalRef {
+        value: crate::reactive::local_hooks::storage(hooks, initial),
+    }
 }
 
 /// A callback ref that calls a function when the reference changes
@@ -448,16 +453,18 @@ mod tests {
 
     #[test]
     fn test_use_local_ref() {
-        let hooks = Hooks::new();
+        crate::hooks::with_local_hooks(|| {
+            let hooks = Hooks::new();
 
-        let text_ref = use_local_ref(&hooks, String::from("initial"));
-        assert_eq!(text_ref.current(), "initial");
+            let text_ref = use_local_ref(&hooks, String::from("initial"));
+            assert_eq!(text_ref.current(), "initial");
 
-        text_ref.set_current(String::from("updated"));
-        assert_eq!(text_ref.current(), "updated");
+            text_ref.set_current(String::from("updated"));
+            assert_eq!(text_ref.current(), "updated");
 
-        text_ref.update(|s| s.push_str(" text"));
-        assert_eq!(text_ref.current(), "updated text");
+            text_ref.update(|s| s.push_str(" text"));
+            assert_eq!(text_ref.current(), "updated text");
+        });
     }
 
     #[test]

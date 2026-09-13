@@ -560,99 +560,6 @@ impl Backend for DebugBackend {
         });
 
         if let Some(root) = tree.root() {
-            #[cfg(test)]
-            #[allow(dead_code)]
-            mod tests {
-                use super::*;
-                use crossterm::event::Event as CtEvent;
-
-                #[test]
-                fn map_paste_event() {
-                    let ct = CtEvent::Paste("hello".to_string());
-                    let mapped = CrosstermBackend::map_ct_event(ct).expect("mapped");
-                    match mapped {
-                        rt_event::Event::Paste(pe) => assert_eq!(pe.content, "hello"),
-                        _ => panic!("expected Paste event"),
-                    }
-                }
-
-                #[test]
-                fn map_focus_gained_lost() {
-                    let gained =
-                        CrosstermBackend::map_ct_event(CtEvent::FocusGained).expect("mapped");
-                    match gained {
-                        rt_event::Event::Focus(f) => {
-                            assert!(matches!(f.kind, rt_event::FocusEventKind::Gained))
-                        }
-                        _ => panic!("expected Focus(Gained)"),
-                    }
-                    let lost = CrosstermBackend::map_ct_event(CtEvent::FocusLost).expect("mapped");
-                    match lost {
-                        rt_event::Event::Focus(f) => {
-                            assert!(matches!(f.kind, rt_event::FocusEventKind::Lost))
-                        }
-                        _ => panic!("expected Focus(Lost)"),
-                    }
-                }
-
-                #[test]
-                fn map_resize_event() {
-                    let mapped =
-                        CrosstermBackend::map_ct_event(CtEvent::Resize(100, 40)).expect("mapped");
-                    match mapped {
-                        rt_event::Event::Resize(r) => {
-                            assert_eq!(r.width, 100);
-                            assert_eq!(r.height, 40);
-                        }
-                        _ => panic!("expected Resize"),
-                    }
-                }
-
-                #[test]
-                fn map_key_event_basic() {
-                    use crossterm::event::KeyEventState as Kes;
-                    use crossterm::event::{
-                        KeyCode as Kc, KeyEvent, KeyEventKind, KeyModifiers as Km,
-                    };
-                    let ct = CtEvent::Key(KeyEvent {
-                        code: Kc::Char('a'),
-                        modifiers: Km::CONTROL,
-                        kind: KeyEventKind::Press,
-                        state: Kes::NONE,
-                    });
-                    let mapped = CrosstermBackend::map_ct_event(ct).expect("mapped");
-                    match mapped {
-                        rt_event::Event::Key(k) => {
-                            assert!(matches!(k.code, rt_event::KeyCode::Char('a')));
-                            assert!(k.modifiers.ctrl);
-                            assert!(matches!(k.kind, rt_event::KeyEventKind::Press));
-                        }
-                        _ => panic!("expected Key"),
-                    }
-                }
-
-                #[test]
-                fn map_mouse_event_basic() {
-                    use crossterm::event::KeyModifiers as Km;
-                    use crossterm::event::{MouseButton as Mb, MouseEvent, MouseEventKind as Mk};
-                    let ct = CtEvent::Mouse(MouseEvent {
-                        kind: Mk::Down(Mb::Left),
-                        column: 10,
-                        row: 5,
-                        modifiers: Km::empty(),
-                    });
-                    let mapped = CrosstermBackend::map_ct_event(ct).expect("mapped");
-                    match mapped {
-                        rt_event::Event::Mouse(m) => {
-                            assert!(matches!(m.kind, rt_event::MouseEventKind::Down));
-                            assert_eq!(m.position, rt_event::Position::cell(10, 5));
-                            assert!(matches!(m.button, rt_event::MouseButton::Left));
-                        }
-                        _ => panic!("expected Mouse"),
-                    }
-                }
-            }
-
             // This should not be using paint_render_node_linear anymore
             // Use proper layout system instead
             if let Some(element_ref) = root.as_element() {
@@ -672,5 +579,93 @@ impl Backend for DebugBackend {
 
         self.frame_count += 1;
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crossterm::event::Event as CtEvent;
+
+    #[test]
+    fn map_paste_event() {
+        let ct = CtEvent::Paste("hello".to_string());
+        let mapped = CrosstermBackend::map_ct_event(ct).expect("mapped");
+        match mapped {
+            rt_event::Event::Paste(pe) => assert_eq!(pe.content, "hello"),
+            _ => panic!("expected Paste event"),
+        }
+    }
+
+    #[test]
+    fn map_focus_gained_lost() {
+        let gained = CrosstermBackend::map_ct_event(CtEvent::FocusGained).expect("mapped");
+        match gained {
+            rt_event::Event::Focus(f) => {
+                assert!(matches!(f.kind, rt_event::FocusEventKind::Gained))
+            }
+            _ => panic!("expected Focus(Gained)"),
+        }
+        let lost = CrosstermBackend::map_ct_event(CtEvent::FocusLost).expect("mapped");
+        match lost {
+            rt_event::Event::Focus(f) => {
+                assert!(matches!(f.kind, rt_event::FocusEventKind::Lost))
+            }
+            _ => panic!("expected Focus(Lost)"),
+        }
+    }
+
+    #[test]
+    fn map_resize_event() {
+        let mapped = CrosstermBackend::map_ct_event(CtEvent::Resize(100, 40)).expect("mapped");
+        match mapped {
+            rt_event::Event::Resize(r) => {
+                assert_eq!(r.width, 100);
+                assert_eq!(r.height, 40);
+            }
+            _ => panic!("expected Resize"),
+        }
+    }
+
+    #[test]
+    fn map_key_event_basic() {
+        use crossterm::event::KeyEventState as Kes;
+        use crossterm::event::{KeyCode as Kc, KeyEvent, KeyEventKind, KeyModifiers as Km};
+        let ct = CtEvent::Key(KeyEvent {
+            code: Kc::Char('a'),
+            modifiers: Km::CONTROL,
+            kind: KeyEventKind::Press,
+            state: Kes::NONE,
+        });
+        let mapped = CrosstermBackend::map_ct_event(ct).expect("mapped");
+        match mapped {
+            rt_event::Event::Key(k) => {
+                assert!(matches!(k.code, rt_event::KeyCode::Char('a')));
+                assert!(k.modifiers.ctrl);
+                assert!(matches!(k.kind, rt_event::KeyEventKind::Press));
+            }
+            _ => panic!("expected Key"),
+        }
+    }
+
+    #[test]
+    fn map_mouse_event_basic() {
+        use crossterm::event::KeyModifiers as Km;
+        use crossterm::event::{MouseButton as Mb, MouseEvent, MouseEventKind as Mk};
+        let ct = CtEvent::Mouse(MouseEvent {
+            kind: Mk::Down(Mb::Left),
+            column: 10,
+            row: 5,
+            modifiers: Km::empty(),
+        });
+        let mapped = CrosstermBackend::map_ct_event(ct).expect("mapped");
+        match mapped {
+            rt_event::Event::Mouse(m) => {
+                assert!(matches!(m.kind, rt_event::MouseEventKind::Down));
+                assert_eq!(m.position, rt_event::Position::cell(10, 5));
+                assert!(matches!(m.button, rt_event::MouseButton::Left));
+            }
+            _ => panic!("expected Mouse"),
+        }
     }
 }

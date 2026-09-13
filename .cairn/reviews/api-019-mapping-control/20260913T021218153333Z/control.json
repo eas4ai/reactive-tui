@@ -1,0 +1,14 @@
+{
+  "command": [
+    "cargo",
+    "test",
+    "--locked",
+    "--lib",
+    "backend::tests::map_paste_event",
+    "--",
+    "--exact"
+  ],
+  "negative": "Native widget command failed (101): /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-019-mapping-control/20260913T021218153333Z/negative.out",
+  "restored_exactly": true,
+  "corrected": "pass"
+}

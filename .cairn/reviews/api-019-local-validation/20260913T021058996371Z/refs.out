@@ -1,0 +1,8 @@
+PASS checker-controls
+PASS refs-discovery
+PASS refs-behavior
+PASS local-discovery
+PASS local-behavior
+PASS local-consumer
+Residual outputs: .cairn/reviews/api-residual/20260913T021059031143Z
+PASS development section: refs; full API-019 acceptance was not run

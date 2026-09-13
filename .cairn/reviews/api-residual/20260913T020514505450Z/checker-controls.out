@@ -1,0 +1,11 @@
+..FAIL refs-discovery controlled subprocess failure
+FAIL refs-behavior controlled subprocess failure
+FAIL local-discovery controlled subprocess failure
+FAIL local-behavior controlled subprocess failure
+FAIL local-consumer controlled subprocess failure
+FAIL refs A required nested check failed; see retained outputs
+....
+----------------------------------------------------------------------
+Ran 6 tests in 0.001s
+
+OK

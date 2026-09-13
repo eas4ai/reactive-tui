@@ -1,0 +1,47 @@
+[
+  {
+    "name": "checker-controls",
+    "command": [
+      "python3",
+      "-B",
+      "verification/api-residual/checker-controls.py"
+    ],
+    "log": ".cairn/reviews/api-residual/20260913T021238818306Z/checker-controls.out",
+    "result": "pass",
+    "sha256": "11ef97edd7d0a38c561d36224d15c79ae5b50f685f6eea688402137670aaca8a"
+  },
+  {
+    "name": "mapping-discovery",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--lib",
+      "backend::tests::map_",
+      "--",
+      "--list"
+    ],
+    "log": ".cairn/reviews/api-residual/20260913T021238818306Z/mapping-discovery.out",
+    "result": "pass",
+    "sha256": "434f2ee0df6dddb70a67ed026f89b4a69cd237069bca8e20a2a2a150f963e04c"
+  },
+  {
+    "name": "mapping-behavior",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--lib",
+      "backend::tests::map_",
+      "--",
+      "--test-threads=1"
+    ],
+    "log": ".cairn/reviews/api-residual/20260913T021238818306Z/mapping-behavior.out",
+    "result": "pass",
+    "sha256": "811df1fc7e44e03da083a98443f7e5b6c07d2ca5f554e37cb998570dc4beb1eb"
+  },
+  {
+    "name": "mapping-tests",
+    "result": "pass"
+  }
+]

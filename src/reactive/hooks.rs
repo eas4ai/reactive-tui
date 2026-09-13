@@ -29,6 +29,7 @@ pub(crate) enum HookKind {
     Ref,
     CallbackRef,
     MultiRef,
+    LocalRef,
 }
 
 struct HookSlot {
@@ -42,6 +43,7 @@ struct HookState {
     slots: Vec<HookSlot>,
     expected_count: Option<usize>,
     rendering: bool,
+    local_scope: Option<Weak<()>>,
 }
 
 /// Render boundary used by generated components.
@@ -110,6 +112,19 @@ impl Hooks {
             panic!("cannot reset hooks during a generated render");
         }
         state.index = 0;
+    }
+
+    pub(crate) fn bind_local_scope(&self, scope: &Arc<()>) {
+        let mut state = self.state.lock().expect("hook state lock poisoned");
+        if let Some(bound) = &state.local_scope {
+            let matches = bound
+                .upgrade()
+                .is_some_and(|bound| Arc::ptr_eq(&bound, scope));
+            drop(state);
+            assert!(matches, "local hook owner used on another thread, in another scope, or after its scope ended");
+        } else {
+            state.local_scope = Some(Arc::downgrade(scope));
+        }
     }
 
     pub(crate) fn get_or_create_storage<T: Send + Sync + 'static>(

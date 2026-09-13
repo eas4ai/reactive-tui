@@ -1,0 +1,9 @@
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 15.64s
+     Running tests/api_local_hooks.rs (target/debug/deps/api_local_hooks-b68d8bd3826113d5)
+
+running 1 test
+test cleanup_and_last_clone_drop_release_local_shares ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 11 filtered out; finished in 0.00s
+

@@ -43,9 +43,14 @@ The full API-019 coverage gate remains incomplete and cannot pass this group alo
 
 ## Local reference ownership
 
-`local-owner.rs` is an external consumer of the unchanged local-reference API.
-Its ordinary build asserts retained value lifetime after returned-handle removal
-and currently fails. Building with `--cfg send_local` must fail compilation because
-LocalRef cannot cross threads. Exact compiler/run commands and the ownership
-proposal are recorded in `.cairn/reviews/api-019-local-owner/`. Neither a new local
-scope API nor the proposed App integration has been implemented.
+`local-owner.rs` exercises the approved `with_local_hooks` API as an external
+consumer. Run `python3 -B verification/api-residual/run-local-owner.py` to build
+the actual library, verify retention until scope exit after foreign owner drop,
+and reject transfer of LocalRef to another thread with an E0277 compiler error.
+The original unscoped failure remains in `.cairn/reviews/api-019-local-owner/`;
+it is historical diagnostic evidence, not an acceptance pass.
+
+The reference group also requires all thirteen `api_local_hooks` tests and all ten
+`api_residual_refs` tests. These cover arbitrary non-Send values, missing/changed/
+expired scopes, same-thread and deferred cleanup, escaped handles, destructor
+reentry, generated components, App scope reuse, removal, error and unwinding.

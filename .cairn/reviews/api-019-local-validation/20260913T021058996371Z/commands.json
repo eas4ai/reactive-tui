@@ -1,0 +1,72 @@
+[
+  {
+    "name": "refs",
+    "command": [
+      "python3",
+      "-B",
+      "scripts/check-api-residual.py",
+      "--only",
+      "refs"
+    ],
+    "error": null
+  },
+  {
+    "name": "hooks-integration",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--test",
+      "api_hook_state",
+      "--test",
+      "api_hook_lifecycle"
+    ],
+    "error": null
+  },
+  {
+    "name": "full-library",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--lib"
+    ],
+    "error": null
+  },
+  {
+    "name": "clippy",
+    "command": [
+      "cargo",
+      "clippy",
+      "--locked",
+      "--all-targets",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    "error": null
+  },
+  {
+    "name": "format",
+    "command": [
+      "cargo",
+      "fmt",
+      "--check"
+    ],
+    "error": null
+  },
+  {
+    "name": "local-guide",
+    "command": [
+      "rustdoc",
+      "--edition=2021",
+      "--test",
+      "docs/local-hooks.md",
+      "--extern",
+      "reactive_tui=/home/shawn/workspace2/reactive-tui/target/debug/libreactive_tui.rlib",
+      "-L",
+      "dependency=/home/shawn/workspace2/reactive-tui/target/debug/deps"
+    ],
+    "error": null
+  }
+]

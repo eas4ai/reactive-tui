@@ -1,0 +1,27 @@
+[
+  {
+    "name": "scope",
+    "argument": "--edit-check=src/reactive/local_hooks.rs:storage",
+    "exit": 0
+  },
+  {
+    "name": "owner",
+    "argument": "--edit-check=src/reactive/hooks.rs:bind_local_scope",
+    "exit": 0
+  },
+  {
+    "name": "mapping",
+    "argument": "--edit-check=src/backend/mod.rs:map_paste_event",
+    "exit": 0
+  },
+  {
+    "name": "quality",
+    "argument": "--quality-delta",
+    "exit": 2
+  },
+  {
+    "name": "test-gate",
+    "argument": "--test-gate",
+    "exit": 4
+  }
+]

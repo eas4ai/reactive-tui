@@ -1,5 +1,6 @@
 use reactive_tui::hooks::{
-    use_callback_ref, use_forwarded_ref, use_local_ref, use_multi_ref, use_ref, CallbackRef, Ref,
+    use_callback_ref, use_forwarded_ref, use_local_ref, use_multi_ref, use_ref, with_local_hooks,
+    CallbackRef, Ref,
 };
 use reactive_tui::reactive::Hooks;
 use std::sync::{Arc, Mutex};
@@ -19,16 +20,18 @@ fn shared_reference_retains_value_and_identity_across_renders() {
 
 #[test]
 fn local_reference_retains_non_send_value_across_renders() {
-    let hooks = Hooks::new();
-    let value = std::rc::Rc::new(std::cell::Cell::new(1));
-    let first = use_local_ref(&hooks, value.clone());
-    first.current().set(7);
-    hooks.reset();
-    let second = use_local_ref(&hooks, std::rc::Rc::new(std::cell::Cell::new(99)));
-    assert!(std::rc::Rc::ptr_eq(&value, &second.current()));
-    assert_eq!(second.current().get(), 7);
-    second.current().set(11);
-    assert_eq!(first.current().get(), 11);
+    with_local_hooks(|| {
+        let hooks = Hooks::new();
+        let value = std::rc::Rc::new(std::cell::Cell::new(1));
+        let first = use_local_ref(&hooks, value.clone());
+        first.current().set(7);
+        hooks.reset();
+        let second = use_local_ref(&hooks, std::rc::Rc::new(std::cell::Cell::new(99)));
+        assert!(std::rc::Rc::ptr_eq(&value, &second.current()));
+        assert_eq!(second.current().get(), 7);
+        second.current().set(11);
+        assert_eq!(first.current().get(), 11);
+    });
 }
 
 #[test]

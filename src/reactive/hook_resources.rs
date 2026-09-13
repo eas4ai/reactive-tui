@@ -80,6 +80,7 @@ impl HookResources {
 
     pub(crate) fn close(&self) {
         if !self.closed.swap(true, Ordering::AcqRel) {
+            super::local_hooks::sweep();
             let effects = std::mem::take(&mut *self.effects.lock().unwrap());
             for effect in effects {
                 effect.dispose();

@@ -1,0 +1,19 @@
+{
+  "compile": [
+    "rustc",
+    "--edition=2021",
+    "verification/api-residual/performance-owner.rs",
+    "--extern",
+    "reactive_tui=/home/shawn/workspace2/reactive-tui/target/debug/libreactive_tui.rlib",
+    "-L",
+    "dependency=/home/shawn/workspace2/reactive-tui/target/debug/deps",
+    "-C",
+    "link-arg=-Wl,--threads=12",
+    "-o",
+    "/home/shawn/workspace2/reactive-tui/target/api019-performance-owner"
+  ],
+  "behavior": [
+    "/home/shawn/workspace2/reactive-tui/target/api019-performance-owner"
+  ],
+  "observed_failure": "Native widget command failed (101): /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-019-performance-owner/20260913T021322293642Z/behavior.out"
+}

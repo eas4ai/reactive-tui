@@ -31,6 +31,7 @@ REF_TESTS = (
     "retained_callback_handles_use_the_latest_render_capture",
     "reference_hooks_preserve_existing_type_bounds",
 )
+LOCAL_TESTS = ('local_slots_retain_without_handles_and_isolate_owners', 'cleanup_and_last_clone_drop_release_local_shares', 'foreign_owner_drop_defers_until_creator_sweep_or_exit', 'scopes_reject_missing_wrong_thread_and_expired_owners', 'local_slots_validate_kind_type_and_generated_count', 'unwinding_releases_scope_but_escaped_handles_keep_ownership', 'cleanup_destructors_can_reenter_another_local_owner', 'thread_safe_hooks_and_generated_state_remain_send_sync', 'app_supplies_scope_for_generated_components_and_closes_on_error_and_unwind', 'app_reuses_manual_scope_and_leaves_other_owners_alive', 'generated_local_component_can_move_before_its_first_render', 'keyed_component_removal_releases_local_values_before_scope_exit', 'inner_scope_cleanup_reclaims_outer_owner_without_closing_inner')
 MAPPING_TESTS = tuple("backend::tests::" + name for name in (
     "map_paste_event", "map_focus_gained_lost", "map_resize_event",
     "map_key_event_basic", "map_mouse_event_basic",
@@ -128,6 +129,13 @@ class Check:
                  verify=lambda text: require_registered(text, REF_TESTS))
         self.run("refs-behavior", ["cargo", "test", "--locked", "--test", "api_residual_refs", "--", "--test-threads=1"],
                  verify=lambda text: require_executed(text, REF_TESTS))
+
+        self.run("local-discovery", ["cargo", "test", "--locked", "--test", "api_local_hooks", "--", "--list"],
+                 verify=lambda text: require_registered(text, LOCAL_TESTS))
+        self.run("local-behavior", ["cargo", "test", "--locked", "--test", "api_local_hooks", "--", "--test-threads=12"],
+                 verify=lambda text: require_executed(text, LOCAL_TESTS))
+
+        self.run("local-consumer", ["python3", "-B", "verification/api-residual/run-local-owner.py"])
 
     def mapping_tests(self):
         self.run("mapping-discovery", ["cargo", "test", "--locked", "--lib", "backend::tests::map_", "--", "--list"],

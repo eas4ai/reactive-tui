@@ -1,5 +1,5 @@
-//! Compile and lifetime probes for the unchanged local-reference API.
-use reactive_tui::hooks::use_local_ref;
+//! External lifetime and thread-confinement checks for scoped local references.
+use reactive_tui::hooks::{use_local_ref, with_local_hooks};
 use reactive_tui::reactive::Hooks;
 use std::rc::Rc;
 
@@ -17,28 +17,38 @@ fn main() {
         }
     }
     let destroyed = Arc::new(AtomicUsize::new(0));
-    let hooks = Hooks::new();
-    let reference = use_local_ref(&hooks, Rc::new(Tracked(Arc::clone(&destroyed))));
-    drop(reference);
-    let before_owner_drop = destroyed.load(Ordering::SeqCst);
-    println!("Hooks is Send + Sync; arbitrary Rc local value compiled");
-    println!("Destroyed after returned handle removal: {before_owner_drop}");
-    std::thread::spawn(move || drop(hooks)).join().unwrap();
-    println!("Hooks moved to and dropped on a different thread");
-    println!(
-        "Destroyed after owner removal: {}",
-        destroyed.load(Ordering::SeqCst)
-    );
+    with_local_hooks(|| {
+        let hooks = Hooks::new();
+        drop(use_local_ref(
+            &hooks,
+            Rc::new(Tracked(Arc::clone(&destroyed))),
+        ));
+        assert_eq!(
+            destroyed.load(Ordering::SeqCst),
+            0,
+            "local value was released before the Hooks owner"
+        );
+        std::thread::spawn(move || drop(hooks)).join().unwrap();
+        assert_eq!(
+            destroyed.load(Ordering::SeqCst),
+            0,
+            "foreign cleanup must defer to the creator"
+        );
+    });
     assert_eq!(
-        before_owner_drop, 0,
-        "local value was released before the Hooks owner"
+        destroyed.load(Ordering::SeqCst),
+        1,
+        "scope exit must release the retained share"
     );
+    println!("LOCAL_OWNER_SCOPE_OK");
 }
 
 #[cfg(send_local)]
 fn main() {
-    let hooks = Hooks::new();
-    let local = use_local_ref(&hooks, Rc::new(1));
-    // A compile failure is required: local handles must remain thread-confined.
-    std::thread::spawn(move || drop(local)).join().unwrap();
+    with_local_hooks(|| {
+        let hooks = Hooks::new();
+        let local = use_local_ref(&hooks, Rc::new(1));
+        // A compile failure is required: local handles must remain thread-confined.
+        std::thread::spawn(move || drop(local)).join().unwrap();
+    });
 }

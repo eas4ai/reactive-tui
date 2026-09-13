@@ -107,7 +107,11 @@ impl App {
     }
 
     /// Run the application main loop
-    pub fn run(mut self) -> Result<()> {
+    pub fn run(self) -> Result<()> {
+        crate::reactive::local_hooks::with_current_scope(move || self.run_scoped())
+    }
+
+    fn run_scoped(mut self) -> Result<()> {
         let result = self.run_loop();
         #[cfg(target_os = "linux")]
         let result = match self

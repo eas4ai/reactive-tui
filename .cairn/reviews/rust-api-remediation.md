@@ -5023,3 +5023,10 @@ retention and requires the separate scope decision in `api-019-local-owner/revie
 API-019 and API-020 remain incomplete; no full-catalog coverage was claimed.
 
 Native run 34730119811 passed on macOS and Windows for snapshot cbfc9c884cb917ec38668a59d5f045bb4a7618de. Its declared input trees exactly match local commit 4b3f550a58992d1cd86b85f89aebc2d2a01b0f16. Imported the widget and ConPTY and clipboard artifacts after checking job and step success, current committed input digests, system, every recorded output hash, and unchanged copied bytes. Both native verifiers passed. The earlier clipboard records were also refreshed and all five clipboard backends verified.
+
+## Approved local scopes and mapping discovery
+
+See `api-019-local-scopes-and-mapping.md` for implementation, exact executed
+checks, negative controls and independent review. The global performance owner
+probe fails cross-App isolation; its concrete compatibility proposal is in
+`api-019-performance-owner/review.md`. API-019 and API-020 remain incomplete.

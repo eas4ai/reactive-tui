@@ -208,6 +208,17 @@ access closed or reused descriptors. Preserve ordinary receive methods and itera
 with standard receive errors. Explicit standard receiver/iterator types require
 documented migration. This approval does not weaken other platform/input contracts.
 
+Local reference scopes (approved 2026-09-13, escalation api-004-api-019-api-020):
+`hooks::with_local_hooks` MUST own retained arbitrary non-Send local values for
+related synchronous renders. `App::run` supplies a scope or reuses the caller's
+active scope. Manual renders using local hooks require the wrapper. Hooks remain
+Send + Sync and local handles remain non-Send. Local owners MUST reject missing,
+different-thread, different-scope or expired-scope use. Same-thread cleanup releases
+retained local shares; foreign-thread cleanup defers their destruction until the
+creator next uses its local scope or exits it. Scope exit, including unwinding,
+MUST release retained shares; escaped LocalRef handles retain ordinary ownership.
+App cleanup MUST finish inside its scope and MUST NOT close another owner's scope.
+
 ## Regression and closure
 
 [API-020]

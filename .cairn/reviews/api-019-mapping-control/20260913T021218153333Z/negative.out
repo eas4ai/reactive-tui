@@ -1,0 +1,22 @@
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 20.58s
+     Running unittests src/lib.rs (target/debug/deps/reactive_tui-3b9bd581c091ab71)
+
+running 1 test
+test backend::tests::map_paste_event ... FAILED
+
+failures:
+
+---- backend::tests::map_paste_event stdout ----
+
+thread 'backend::tests::map_paste_event' (1022590) panicked at src/backend/mod.rs:593:57:
+mapped
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    backend::tests::map_paste_event
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 1012 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `--lib`

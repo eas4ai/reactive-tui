@@ -21,6 +21,8 @@ pub mod refs;
 /// Timer and interval hooks
 pub mod timer;
 
+pub use crate::reactive::local_hooks::with_local_hooks;
+
 pub use clipboard::{use_clipboard, use_simple_clipboard, ClipboardState};
 
 pub use fps::{
