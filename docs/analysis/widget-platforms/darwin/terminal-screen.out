@@ -23,7 +23,7 @@ warning: method `serial` is never used
    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
 
 warning: `reactive-tui` (lib test) generated 1 warning
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.16s
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.24s
      Running unittests src/lib.rs (target/debug/deps/reactive_tui-6eb9d8ea35511604)
 
 running 37 tests

@@ -44,7 +44,7 @@ warning: field `parser` is never read
     |     ^^^^^^
 
 warning: `reactive-tui` (lib) generated 5 warnings (run `cargo fix --lib -p reactive-tui` to apply 3 suggestions)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.36s
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.38s
      Running tests\api_widget_behavior.rs (target\debug\deps\api_widget_behavior-b87ab5bdf097c41e.exe)
 
 running 12 tests
@@ -61,5 +61,5 @@ test image_acceptance::image_builder_updates_a_keyed_source_and_clears_on_remova
 test image_acceptance::image_file_and_encoded_memory_share_kitty_payloads_in_app ... ok
 test image_acceptance::image_native_element_honors_alpha_background_quality_and_text_mode ... ok
 
-test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 374 filtered out; finished in 2.54s
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 374 filtered out; finished in 2.57s
 
