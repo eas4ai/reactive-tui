@@ -1,0 +1,10 @@
+PASS checker-controls
+PASS performance-discovery
+PASS performance-behavior
+PASS optional_provider_changes_preserve_slots_and_recompute_quality
+PASS completed_metrics_notify_other_apps_and_preserve_owner_subscription
+PASS performance-consumer-library
+PASS performance-consumer-compile
+PASS performance-consumer-behavior
+Residual outputs: .cairn/reviews/api-residual/20260913T042041509117Z
+PASS development section: performance; full API-019 acceptance was not run

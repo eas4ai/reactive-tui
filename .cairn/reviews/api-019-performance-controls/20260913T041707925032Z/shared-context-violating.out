@@ -1,0 +1,22 @@
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 15.56s
+     Running tests/api_performance_context.rs (target/debug/deps/api_performance_context-092283dc47f5c0c7)
+
+running 1 test
+test sequential_apps_keep_snapshots_and_closed_setters_isolated ... FAILED
+
+failures:
+
+---- sequential_apps_keep_snapshots_and_closed_setters_isolated stdout ----
+
+thread 'sequential_apps_keep_snapshots_and_closed_setters_isolated' (2106901) panicked at tests/api_performance_context.rs:179:5:
+assertion failed: !Arc::ptr_eq(&old, &current)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    sequential_apps_keep_snapshots_and_closed_setters_isolated
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 9 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `--test api_performance_context`

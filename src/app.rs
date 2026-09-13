@@ -16,6 +16,7 @@ use std::time::Instant;
 pub(crate) mod event_tree;
 pub(crate) mod focus_manager;
 mod motion;
+mod performance;
 use focus_manager::FocusManager;
 
 /// Trait for root components that can render to an Element
@@ -80,6 +81,9 @@ pub struct App {
     tree: RenderTree,
     reconciler: Reconciler,
     fps_manager: AdaptiveFpsManager,
+    performance: performance::Owner,
+    last_render_duration: std::time::Duration,
+    last_presented: Option<Instant>,
     animation_manager: AnimationManager,
     animation_targets: crate::animation::TargetRegistry,
     motion: motion::MotionTree,
@@ -128,6 +132,8 @@ impl App {
             _ => result,
         };
         self.wake.close();
+        self.performance.close();
+        self.publish_performance_context();
         let cleanup = self.backend.shutdown();
         match (result, cleanup) {
             (Err(error), Err(cleanup)) => Err(crate::error::ReactiveError::terminal(format!(
@@ -148,6 +154,7 @@ impl App {
         }
         self.render()?;
         self.fps_manager.benchmark_if_needed(&self.tree);
+        self.publish_performance_context();
         let mut next_frame = Instant::now() + self.fps_manager.get_frame_duration();
         let mut dirty = false;
         while self.running {
@@ -156,6 +163,12 @@ impl App {
                 break;
             }
             dirty |= requests.redraw;
+            if let Some(mode) = self.performance.take_request() {
+                if mode != self.fps_manager.performance_mode() {
+                    self.fps_manager.set_performance_mode(mode);
+                    dirty = true;
+                }
+            }
             #[cfg(target_os = "linux")]
             {
                 dirty |= self.process_accessibility_actions()?;
@@ -175,14 +188,7 @@ impl App {
                 dirty = true;
             }
             if dirty && now >= next_frame {
-                let start = Instant::now();
                 self.render()?;
-                let elapsed = start.elapsed();
-                self.fps_manager.record_frame_performance(
-                    elapsed,
-                    elapsed,
-                    elapsed > self.fps_manager.get_frame_duration(),
-                );
                 self.last_frame_time = Instant::now();
                 next_frame = self.last_frame_time + self.fps_manager.get_frame_duration();
                 dirty = false;
@@ -342,45 +348,15 @@ impl App {
     }
 
     fn publish_performance_context(&self) {
-        {
-            use crate::hooks::perf_context::{
-                get_global_performance_context, set_global_performance_context, PerformanceContext,
-            };
-            use crate::reactive::hooks::ThreadSafeSignal;
-            use std::sync::Arc;
+        self.performance
+            .publish(&self.fps_manager, self.last_render_duration);
+    }
 
-            let last_ms = self.last_frame_time.elapsed().as_secs_f32() * 1000.0;
-            let metrics = self.fps_manager.get_performance_metrics();
-            let fps_state = crate::hooks::fps::FpsState {
-                target_fps: self.fps_manager.get_target_fps(),
-                current_fps: metrics.current_fps,
-                avg_render_time_ms: metrics.avg_render_time_ms,
-                drop_rate_percent: metrics.drop_rate_percent,
-                is_stable: metrics.is_stable,
-                mode: crate::display::monitor::PerformanceMode::Auto,
-            };
-            let frame_timing = crate::hooks::fps::FrameTiming {
-                last_frame_ms: last_ms,
-                target_frame_ms: self.fps_manager.get_frame_duration().as_secs_f32() * 1000.0,
-                budget_remaining_ms: 0.0,
-            };
-
-            if let Some(ctx) = get_global_performance_context() {
-                ctx.fps_state.set(fps_state);
-                ctx.metrics.set(metrics.clone());
-                ctx.frame_timing.set(frame_timing);
-            } else {
-                let ctx = PerformanceContext {
-                    fps_state: ThreadSafeSignal::new(fps_state),
-                    metrics: ThreadSafeSignal::new(metrics.clone()),
-                    frame_timing: ThreadSafeSignal::new(frame_timing),
-                    set_mode: Arc::new(|mode| {
-                        crate::hooks::perf_context::request_performance_mode(mode)
-                    }),
-                };
-                set_global_performance_context(Arc::new(ctx));
-            }
-        }
+    /// Obtain this App's performance snapshots and thread-safe mode setter.
+    /// Retained handles keep their last snapshots after exit; setters become inert.
+    /// Global performance functions serve standalone callers and do not control Apps.
+    pub fn performance_context(&self) -> Arc<crate::hooks::perf_context::PerformanceContext> {
+        self.performance.context()
     }
 
     /// Clone the handle used to request redraws or graceful stop from other threads.
@@ -461,6 +437,8 @@ impl App {
     /// Set performance mode
     pub fn set_performance_mode(&mut self, mode: PerformanceMode) {
         self.fps_manager.set_performance_mode(mode);
+        self.publish_performance_context();
+        self.wake.request_redraw();
     }
 
     /// Get current FPS
@@ -475,9 +453,39 @@ impl App {
 
     /// Render the current state
     fn render(&mut self) -> Result<()> {
+        let start = Instant::now();
+        self.render_frame()?;
+        let presented = Instant::now();
+        self.last_render_duration = presented.duration_since(start);
+        let interval = self
+            .last_presented
+            .replace(presented)
+            .map_or(self.fps_manager.get_frame_duration(), |previous| {
+                presented.duration_since(previous)
+            });
+        self.fps_manager.record_frame_performance(
+            interval,
+            self.last_render_duration,
+            self.last_render_duration > self.fps_manager.get_frame_duration(),
+        );
+        self.publish_performance_context();
+        Ok(())
+    }
+
+    fn render_frame(&mut self) -> Result<()> {
         let _scope = Scope::enter(&self.wake);
         let _hooks = self.hook_scope.enter(true);
+        if let Some(mode) = self.performance.take_request() {
+            if mode != self.fps_manager.performance_mode() {
+                self.fps_manager.set_performance_mode(mode);
+            }
+        }
+        // Publish before hooks read: this render invalidated our old subscriptions.
         self.publish_performance_context();
+        assert!(
+            crate::reactive::component_scope::provide((*self.performance.context()).clone())
+                .is_ok()
+        );
         use crate::render::tree::resolved_element_to_render_node;
 
         // Update hook-based animations as part of component lifecycle
@@ -564,9 +572,6 @@ impl App {
                 self.wake.request_redraw();
             }
             self.tree.set_root(resolved_element_to_render_node(styled));
-            if let Some(req) = crate::hooks::perf_context::take_requested_performance_mode() {
-                self.fps_manager.set_performance_mode(req);
-            }
             return Ok(());
         }
 
@@ -589,11 +594,6 @@ impl App {
 
         self.animation_targets
             .publish(&styled, self.backend.component_layouts(), 0)?;
-
-        // After present, update global performance context (if set)
-        if let Some(req) = crate::hooks::perf_context::take_requested_performance_mode() {
-            self.fps_manager.set_performance_mode(req);
-        }
 
         Ok(())
     }
@@ -685,6 +685,7 @@ impl Drop for App {
         #[cfg(target_os = "linux")]
         self.accessibility.take();
         self.wake.close();
+        self.performance.close();
         self.scheduler.clear();
         // Ensure all components are cleaned up when app is dropped
         // Log errors but don't panic in Drop (following Rust best practices)
@@ -842,6 +843,9 @@ impl AppBuilder {
             event_tree: event_tree::EventTree::default(),
             tree: RenderTree::new(),
             reconciler: Reconciler::new(),
+            performance: performance::Owner::new(&fps_manager, wake.clone()),
+            last_render_duration: std::time::Duration::ZERO,
+            last_presented: None,
             fps_manager,
             animation_manager: AnimationManager::new(),
             animation_targets: crate::animation::TargetRegistry::new(wake.clone()),

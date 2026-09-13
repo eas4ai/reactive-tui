@@ -1,0 +1,117 @@
+[
+  {
+    "name": "checker-controls",
+    "command": [
+      "python3",
+      "-B",
+      "verification/api-residual/checker-controls.py"
+    ],
+    "log": ".cairn/reviews/api-residual/20260913T042230684641Z/checker-controls.out",
+    "result": "pass",
+    "sha256": "1ae3222e4e204f55386d8df10d1890ae653982579b1176e7a6508b888d4f5a4d"
+  },
+  {
+    "name": "performance-discovery",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--test",
+      "api_performance_context",
+      "--",
+      "--list"
+    ],
+    "log": ".cairn/reviews/api-residual/20260913T042230684641Z/performance-discovery.out",
+    "result": "pass",
+    "sha256": "20ebac601ffe5bd8e5941dae374f83dab914ab48d772418af443d18a1b333a28"
+  },
+  {
+    "name": "performance-behavior",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--test",
+      "api_performance_context",
+      "--",
+      "--test-threads=1"
+    ],
+    "log": ".cairn/reviews/api-residual/20260913T042230684641Z/performance-behavior.out",
+    "result": "pass",
+    "sha256": "ee7148932e0154dd191f60607b915a86487c07e166c66071c785d88e1c461a3a"
+  },
+  {
+    "name": "optional_provider_changes_preserve_slots_and_recompute_quality",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--lib",
+      "hooks::fps::tests::optional_provider_changes_preserve_slots_and_recompute_quality",
+      "--",
+      "--exact"
+    ],
+    "log": ".cairn/reviews/api-residual/20260913T042230684641Z/optional_provider_changes_preserve_slots_and_recompute_quality.out",
+    "result": "pass",
+    "sha256": "18f374a2898133c1c7dbb52d2d19e6cb3c902892ef3ff39692d5405924ff81b4"
+  },
+  {
+    "name": "completed_metrics_notify_other_apps_and_preserve_owner_subscription",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--lib",
+      "reactive::wake::tests::completed_metrics_notify_other_apps_and_preserve_owner_subscription",
+      "--",
+      "--exact"
+    ],
+    "log": ".cairn/reviews/api-residual/20260913T042230684641Z/completed_metrics_notify_other_apps_and_preserve_owner_subscription.out",
+    "result": "pass",
+    "sha256": "7cfe874f24fc2baa371a496ca532bf0ec28f73add1e63009b2eb23315e0dff1a"
+  },
+  {
+    "name": "performance-consumer-library",
+    "command": [
+      "cargo",
+      "build",
+      "--locked",
+      "--lib"
+    ],
+    "log": ".cairn/reviews/api-residual/20260913T042230684641Z/performance-consumer-library.out",
+    "result": "pass",
+    "sha256": "c226bc76c34c9ede8c4482975737ca2bf62ddcd9c0bfab6fbe1b4092bcd2908d"
+  },
+  {
+    "name": "performance-consumer-compile",
+    "command": [
+      "rustc",
+      "--edition=2021",
+      "verification/api-residual/performance-owner.rs",
+      "--extern",
+      "reactive_tui=/home/shawn/workspace2/reactive-tui/target/debug/libreactive_tui.rlib",
+      "-L",
+      "dependency=/home/shawn/workspace2/reactive-tui/target/debug/deps",
+      "-C",
+      "link-arg=-Wl,--threads=12",
+      "-o",
+      "/home/shawn/workspace2/reactive-tui/target/api019-performance-owner"
+    ],
+    "log": ".cairn/reviews/api-residual/20260913T042230684641Z/performance-consumer-compile.out",
+    "result": "pass",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "name": "performance-consumer-behavior",
+    "command": [
+      "/home/shawn/workspace2/reactive-tui/target/api019-performance-owner"
+    ],
+    "log": ".cairn/reviews/api-residual/20260913T042230684641Z/performance-consumer-behavior.out",
+    "result": "pass",
+    "sha256": "b467b8e656842dec1535ed647f3fa30da7bd6ad1a93df2c6da946ee4bf0ee0cc"
+  },
+  {
+    "name": "performance",
+    "result": "pass"
+  }
+]

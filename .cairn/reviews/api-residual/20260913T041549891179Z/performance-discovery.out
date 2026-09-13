@@ -1,0 +1,15 @@
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 15.92s
+     Running tests/api_performance_context.rs (target/debug/deps/api_performance_context-092283dc47f5c0c7)
+actual_fps_tracks_presentation_cadence_instead_of_render_throughput: test
+concurrent_apps_route_worker_mode_requests_only_to_their_owner: test
+descendant_provider_overrides_app_performance_context: test
+errors_unwinds_and_unrun_drop_close_escaped_mode_setters: test
+mode_bursts_keep_latest_request_and_metrics_do_not_redraw_idle_apps: test
+nested_app_run_restores_outer_performance_context: test
+performance_hooks_keep_slots_when_context_appears_and_owner_closes: test
+repeated_mode_effects_and_cleanup_requests_return_to_idle: test
+sequential_apps_keep_snapshots_and_closed_setters_isolated: test
+standalone_globals_are_not_read_or_written_by_apps: test
+
+10 tests, 0 benchmarks

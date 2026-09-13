@@ -218,6 +218,14 @@ impl<T: Clone + Default> ThreadSafeSignal<T> {
     where
         T: PartialEq,
     {
+        self.set_except(value, None);
+    }
+
+    /// Publish an App's completed measurements without making it render itself.
+    pub(crate) fn set_except(&self, value: T, excluded: Option<&super::wake::AppWaker>)
+    where
+        T: PartialEq,
+    {
         let changed =
             if let (Ok(mut inner), Ok(mut version)) = (self.inner.lock(), self.version.lock()) {
                 if *inner != value {
@@ -232,7 +240,7 @@ impl<T: Clone + Default> ThreadSafeSignal<T> {
                 false
             };
         if changed {
-            self.app_subscribers.notify();
+            self.app_subscribers.notify_except(excluded);
         }
     }
 

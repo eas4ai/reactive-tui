@@ -1,0 +1,9 @@
+[
+  [
+    "cargo",
+    "test",
+    "--locked",
+    "--lib",
+    "hooks::fps::tests"
+  ]
+]

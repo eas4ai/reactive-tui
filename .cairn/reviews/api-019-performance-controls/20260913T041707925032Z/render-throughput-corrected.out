@@ -1,0 +1,9 @@
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 15.76s
+     Running tests/api_performance_context.rs (target/debug/deps/api_performance_context-092283dc47f5c0c7)
+
+running 1 test
+test actual_fps_tracks_presentation_cadence_instead_of_render_throughput ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 0.19s
+

@@ -1,4 +1,4 @@
-//! Diagnostic only: expose cross-App performance state and inaccurate mode reporting.
+//! Acceptance consumer for independent App hooks and closed mode setters.
 use reactive_tui::{
     app::{App, AppWaker, RootComponent},
     backend::SuprTuiBackend,
@@ -51,9 +51,10 @@ fn main() {
     println!("First App after second: {after:?}");
     println!("Second App: {:?}", second.get());
     set_first(PerformanceMode::Balanced);
-    println!(
-        "Escaped first-App setter feeds process queue: {:?}",
-        reactive_tui::hooks::perf_context::take_requested_performance_mode()
+    assert_eq!(
+        reactive_tui::hooks::perf_context::take_requested_performance_mode(),
+        None,
+        "closed App setter populated standalone queue"
     );
     assert_eq!(
         before, after,
@@ -64,4 +65,8 @@ fn main() {
         PerformanceMode::PowerSave,
         "reported mode disagrees with selected mode"
     );
+    assert_eq!(before.target_fps, 30);
+    assert_eq!(second.get().mode, PerformanceMode::Gaming);
+    assert_eq!(second.get().target_fps, 144);
+    println!("PERFORMANCE_OWNER_OK");
 }

@@ -175,6 +175,11 @@ impl Subscriptions {
     }
     /// Notify after releasing the value lock. No user callbacks run under locks.
     pub(crate) fn notify(&self) {
+        self.notify_except(None);
+    }
+
+    /// Publishing a completed frame must not schedule that same App again.
+    pub(crate) fn notify_except(&self, excluded: Option<&AppWaker>) {
         let mut targets = Vec::new();
         self.0.lock().unwrap().retain(|(weak, generation)| {
             let Some(shared) = weak.upgrade() else {
@@ -185,7 +190,9 @@ impl Subscriptions {
                 return false;
             }
             drop(state);
-            targets.push(AppWaker { shared });
+            if !excluded.is_some_and(|wake| Arc::ptr_eq(&wake.shared, &shared)) {
+                targets.push(AppWaker { shared });
+            }
             true
         });
         for target in targets {
@@ -284,5 +291,26 @@ mod tests {
             assert!(wake.take().redraw);
         }
         worker.join().unwrap();
+    }
+
+    #[test]
+    fn completed_metrics_notify_other_apps_and_preserve_owner_subscription() {
+        use crate::reactive::ThreadSafeSignal;
+        let owner = AppWaker::new();
+        let observer = AppWaker::new();
+        let value = ThreadSafeSignal::new(0);
+        for app in [&owner, &observer] {
+            let _scope = Scope::enter(app);
+            value.get();
+        }
+        value.set_except(1, Some(&owner));
+        assert!(!owner.is_pending());
+        assert!(observer.take().redraw);
+        value.set(2);
+        assert!(owner.take().redraw);
+        assert!(observer.take().redraw);
+        value.set_except(2, Some(&owner));
+        assert!(!owner.is_pending());
+        assert!(!observer.is_pending());
     }
 }

@@ -176,7 +176,7 @@ impl AdaptiveFpsManager {
         });
 
         // Update target FPS based on new benchmark
-        if self.config.auto_adapt {
+        if self.config.auto_adapt && self.config.mode == PerformanceMode::Auto {
             let new_recommended = self.capabilities.calculate_recommended_fps();
             self.target_fps = new_recommended.clamp(self.config.min_fps, self.config.max_fps);
         }
@@ -203,6 +203,10 @@ impl AdaptiveFpsManager {
         }
     }
 
+    pub(crate) fn performance_mode(&self) -> PerformanceMode {
+        self.config.mode
+    }
+
     /// Get current target FPS
     pub fn get_target_fps(&self) -> u32 {
         self.target_fps
@@ -223,7 +227,10 @@ impl AdaptiveFpsManager {
         self.performance_monitor
             .record_frame(frame_time, render_time, dropped);
 
-        if self.config.auto_adapt && self.performance_monitor.can_adjust() {
+        if self.config.auto_adapt
+            && self.config.mode == PerformanceMode::Auto
+            && self.performance_monitor.can_adjust()
+        {
             self.adaptive_adjustment();
         }
     }

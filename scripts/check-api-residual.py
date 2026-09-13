@@ -32,6 +32,18 @@ REF_TESTS = (
     "reference_hooks_preserve_existing_type_bounds",
 )
 LOCAL_TESTS = ('local_slots_retain_without_handles_and_isolate_owners', 'cleanup_and_last_clone_drop_release_local_shares', 'foreign_owner_drop_defers_until_creator_sweep_or_exit', 'scopes_reject_missing_wrong_thread_and_expired_owners', 'local_slots_validate_kind_type_and_generated_count', 'unwinding_releases_scope_but_escaped_handles_keep_ownership', 'cleanup_destructors_can_reenter_another_local_owner', 'thread_safe_hooks_and_generated_state_remain_send_sync', 'app_supplies_scope_for_generated_components_and_closes_on_error_and_unwind', 'app_reuses_manual_scope_and_leaves_other_owners_alive', 'generated_local_component_can_move_before_its_first_render', 'keyed_component_removal_releases_local_values_before_scope_exit', 'inner_scope_cleanup_reclaims_outer_owner_without_closing_inner')
+PERFORMANCE_TESTS = (
+    'sequential_apps_keep_snapshots_and_closed_setters_isolated',
+    'concurrent_apps_route_worker_mode_requests_only_to_their_owner',
+    'mode_bursts_keep_latest_request_and_metrics_do_not_redraw_idle_apps',
+    'descendant_provider_overrides_app_performance_context',
+    'errors_unwinds_and_unrun_drop_close_escaped_mode_setters',
+    'performance_hooks_keep_slots_when_context_appears_and_owner_closes',
+    'nested_app_run_restores_outer_performance_context',
+    'standalone_globals_are_not_read_or_written_by_apps',
+    'repeated_mode_effects_and_cleanup_requests_return_to_idle',
+    'actual_fps_tracks_presentation_cadence_instead_of_render_throughput',
+)
 MAPPING_TESTS = tuple("backend::tests::" + name for name in (
     "map_paste_event", "map_focus_gained_lost", "map_resize_event",
     "map_key_event_basic", "map_mouse_event_basic",
@@ -47,7 +59,7 @@ INPUT_TESTS = tuple("platform::input_receiver::tests::" + name for name in (
     "buffered_items_remain_after_session_shutdown", "draining_a_full_queue_wakes_the_producer",
     "cancellation_releases_a_full_queue_producer",
 ))
-GROUPS = ("refs", "mapping-tests", "unix-input", "inventory")
+GROUPS = ("refs", "mapping-tests", "unix-input", "performance", "inventory")
 
 
 def inventory_rows(text):
@@ -97,6 +109,11 @@ def require_input_cases(text):
         raise AssertionError("Missing, extra or duplicate input lifecycle cases")
     if any(row["exit"] != 0 or row["timeout"] or row["reaped"] is not True for row in rows):
         raise AssertionError("Input lifecycle cases failed, timed out or were not reaped")
+
+
+def require_marker(text, marker):
+    if marker not in text.splitlines():
+        raise AssertionError("Consumer completion marker missing: " + marker)
 
 
 class Check:
@@ -151,6 +168,23 @@ class Check:
         self.run("input-lifecycle", ["python3", "-B", "verification/api-residual/run-input-lifecycle.py"],
                  verify=require_input_cases)
         self.run("input-controller-cancellation", ["python3", "-B", "verification/api-residual/check-controller-cleanup.py"], 30)
+
+    def performance(self):
+        self.run("performance-discovery", ["cargo", "test", "--locked", "--test", "api_performance_context", "--", "--list"],
+                 verify=lambda text: require_registered(text, PERFORMANCE_TESTS))
+        self.run("performance-behavior", ["cargo", "test", "--locked", "--test", "api_performance_context", "--", "--test-threads=1"],
+                 verify=lambda text: require_executed(text, PERFORMANCE_TESTS))
+        for name in ("hooks::fps::tests::optional_provider_changes_preserve_slots_and_recompute_quality",
+                     "reactive::wake::tests::completed_metrics_notify_other_apps_and_preserve_owner_subscription"):
+            self.run(name.rsplit("::", 1)[1], ["cargo", "test", "--locked", "--lib", name, "--", "--exact"],
+                     verify=lambda text, name=name: require_executed(text, [name]))
+        self.run("performance-consumer-library", ["cargo", "build", "--locked", "--lib"])
+        binary = str(ROOT / "target/api019-performance-owner")
+        self.run("performance-consumer-compile", ["rustc", "--edition=2021", "verification/api-residual/performance-owner.rs",
+                 "--extern", "reactive_tui=" + str(ROOT / "target/debug/libreactive_tui.rlib"),
+                 "-L", "dependency=" + str(ROOT / "target/debug/deps"), "-C", "link-arg=-Wl,--threads=12", "-o", binary])
+        self.run("performance-consumer-behavior", [binary], 10,
+                 verify=lambda text: require_marker(text, "PERFORMANCE_OWNER_OK"))
 
     def inventory(self):
         inventory_rows((ROOT / "docs/residual-api-inventory.md").read_text())

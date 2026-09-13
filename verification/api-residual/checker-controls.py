@@ -56,6 +56,12 @@ class CheckerControls(unittest.TestCase):
             with self.assertRaises(AssertionError):
                 CHECK["require_coverage"](violating)
 
+    def test_consumer_requires_completion_marker(self):
+        CHECK["require_marker"]("PERFORMANCE_OWNER_OK\n", "PERFORMANCE_OWNER_OK")
+        for text in ("", "not PERFORMANCE_OWNER_OK", "PERFORMANCE_OWNER_OK missing"):
+            with self.assertRaises(AssertionError):
+                CHECK["require_marker"](text, "PERFORMANCE_OWNER_OK")
+
     def test_failed_command_propagates_through_its_group(self):
         check = CHECK["Check"].__new__(CHECK["Check"])
         check.steps = []

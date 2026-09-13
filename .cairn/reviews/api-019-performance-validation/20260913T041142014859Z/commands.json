@@ -1,0 +1,11 @@
+[
+  [
+    "cargo",
+    "test",
+    "--locked",
+    "--test",
+    "api_performance_context",
+    "--",
+    "--test-threads=12"
+  ]
+]

@@ -219,6 +219,16 @@ creator next uses its local scope or exits it. Scope exit, including unwinding,
 MUST release retained shares; escaped LocalRef handles retain ordinary ownership.
 App cleanup MUST finish inside its scope and MUST NOT close another owner's scope.
 
+App performance ownership (approved 2026-09-13, escalation
+api-004-api-016-api-019-api-020): each App MUST expose its own PerformanceContext
+handle and provide it to component hooks with scoped overrides. Mode requests
+MUST wake and affect only that App, coalesce with bounded storage, and become
+inert after App exit. Snapshots MUST report the selected mode and completed-frame
+timing. Keep the public context fields and ordinary hook call forms. Legacy
+global context and mode functions serve standalone callers only; Apps MUST NOT
+publish into or consume that state. External global callers must migrate to the
+App handle or component hooks. Optional context changes MUST preserve hook slots.
+
 ## Regression and closure
 
 [API-020]

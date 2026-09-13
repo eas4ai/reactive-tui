@@ -3,7 +3,7 @@ use crate::hooks::fps::{FpsState, FrameTiming};
 use crate::reactive::hooks::ThreadSafeSignal;
 use std::sync::{Arc, Mutex, RwLock};
 
-/// Shared performance context exposed to hooks and updated by the App
+/// Shared performance snapshots and a mode setter. App owns its own context.
 #[derive(Clone)]
 pub struct PerformanceContext {
     /// Current FPS state and statistics
@@ -19,13 +19,15 @@ pub struct PerformanceContext {
 // Global storage for the performance context
 static GLOBAL_CTX: RwLock<Option<Arc<PerformanceContext>>> = RwLock::new(None);
 
-// One-way request channel for performance mode changes from hooks -> App
+// Explicit standalone compatibility queue; Apps never consume it.
 static REQUESTED_MODE: Mutex<Option<PerformanceMode>> = Mutex::new(None);
 
-/// Set the global performance context (called by App)
+/// Set the standalone performance context. This does not affect any App.
 pub fn set_global_performance_context(ctx: Arc<PerformanceContext>) {
     if let Ok(mut guard) = GLOBAL_CTX.write() {
-        *guard = Some(ctx);
+        let previous = guard.replace(ctx);
+        drop(guard);
+        drop(previous);
     } else {
         log::error!("Global performance context lock poisoned during set");
     }
@@ -40,7 +42,7 @@ pub fn get_global_performance_context() -> Option<Arc<PerformanceContext>> {
         .and_then(|guard| guard.clone())
 }
 
-/// Request a performance mode change (called by hooks)
+/// Request a standalone performance mode change. This does not wake an App.
 pub fn request_performance_mode(mode: PerformanceMode) {
     if let Ok(mut guard) = REQUESTED_MODE.lock() {
         *guard = Some(mode);
@@ -49,7 +51,7 @@ pub fn request_performance_mode(mode: PerformanceMode) {
     }
 }
 
-/// Take any requested performance mode (called by App each frame)
+/// Take a standalone request. A standalone controller must apply it.
 pub fn take_requested_performance_mode() -> Option<PerformanceMode> {
     REQUESTED_MODE
         .lock()

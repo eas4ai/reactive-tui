@@ -1,0 +1,31 @@
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+warning: unused variable: `interval`
+   --> src/app.rs:460:13
+    |
+460 |         let interval = self
+    |             ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_interval`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: `reactive-tui` (lib) generated 1 warning (run `cargo fix --lib -p reactive-tui` to apply 1 suggestion)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 16.37s
+     Running tests/api_performance_context.rs (target/debug/deps/api_performance_context-092283dc47f5c0c7)
+
+running 1 test
+test actual_fps_tracks_presentation_cadence_instead_of_render_throughput ... FAILED
+
+failures:
+
+---- actual_fps_tracks_presentation_cadence_instead_of_render_throughput stdout ----
+
+thread 'actual_fps_tracks_presentation_cadence_instead_of_render_throughput' (2127170) panicked at tests/api_performance_context.rs:563:5:
+reported 1180.5596 FPS despite PowerSave pacing and a 100 ms idle interval
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    actual_fps_tracks_presentation_cadence_instead_of_render_throughput
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 9 filtered out; finished in 0.19s
+
+error: test failed, to rerun pass `--test api_performance_context`

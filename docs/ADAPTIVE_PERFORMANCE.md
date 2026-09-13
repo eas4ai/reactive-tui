@@ -104,16 +104,41 @@ fn quality_class(hooks: &Hooks) -> &'static str {
 
 ## How PerformanceContext is provided
 
-Currently, the App updates a global PerformanceContext each frame so hooks can access live metrics anywhere. Internally this is done by calling set_global_performance_context once and then updating its signals every frame.
+Each App owns a context from construction until exit. The root render supplies it
+to component hooks through normal context inheritance. A parent can provide a
+PerformanceContext override for its subtree. Different Apps never share a context
+unless the caller explicitly provides the same one.
 
-In a future step, we can scope this to the component tree using provide_context so you can swap or mock performance data locally for tests. Hooks already prefer a locally provided context over the global one.
+External callers obtain the handle before `run` consumes the App:
+
+```rust,no_run
+use reactive_tui::app::App;
+use reactive_tui::display::monitor::PerformanceMode;
+
+fn run(app: App) -> reactive_tui::error::Result<()> {
+    let performance = app.performance_context();
+    (performance.set_mode)(PerformanceMode::Gaming);
+    app.run()?;
+    // Read the last completed snapshot after exit. Its setter is now inert.
+    println!("{:?}", performance.fps_state.get().mode);
+    Ok(())
+}
+```
+
+Completed frames publish their render duration and actual interval since the
+previous presentation. The first frame uses the target interval until there is
+a second presentation to measure. `last_frame_ms` is render cost, excluding idle
+waiting; `budget_remaining_ms` is target duration minus that cost. Each signal is
+an individual snapshot; reading several signals is not an atomic transaction.
+Publishing metrics does not request another frame from the same App. An idle App
+keeps its last completed sample instead of drawing solely to measure itself.
 
 ## Fallback behavior
 
 If no PerformanceContext is available, hooks fall back to reasonable defaults:
 - use_fps: returns a signal initialized with FpsState::default()
 - use_performance: returns PerformanceMetrics::default() and computes low_fps=false initially
-- use_performance_mode: returns a no-op setter
+- use_performance_mode: queues a standalone request; a standalone controller must call take_requested_performance_mode and apply it
 - use_frame_timing: returns FrameTiming::default()
 
 This lets you write components without worrying about wiring until you actually integrate into an App.
@@ -121,27 +146,39 @@ This lets you write components without worrying about wiring until you actually 
 ## Requesting modes and App integration
 
 - Components call the setter returned by use_performance_mode
-- The App reads and applies requested modes after presenting a frame
-- AdaptiveFpsManager continues to adjust FPS based on real measurements while respecting explicit mode requests
+- Requests wake only the owning App; the latest pending request wins
+- The event loop applies the request before rendering; an unchanged mode needs no frame
+- Fixed modes retain their target FPS; Auto permits adaptive adjustment
+- Escaped App setters become inert at App exit, including errors and unwinding
 
 ## Best practices
 
 - Use use_performance for coarse gating of effects/animations
 - Use use_adaptive_quality when you want a simple Low/Med/High mapping
 - Keep heavy work budgeted to t.target_frame_ms (from use_frame_timing) and yield if over budget
-- Use a local PerformanceContext when isolating tests. The legacy global App publication path is included in the API-019 multi-App review.
+- Use a provided PerformanceContext when isolating a subtree or test.
 
 ## Troubleshooting
 
 - Seeing defaults? Ensure your App is running the main loop and updating PerformanceContext each frame
-- Mode requests not sticking? Confirm that App applies take_requested_performance_mode() after present
+- Mode requests not sticking? Use the owning App handle or component hook, not the standalone global queue
 - Unit tests without runtime: hooks fallback should still work; for timer-dependent code, a fallback scheduler is provided
 
 
+## Migration from global App routing
+
+The approved migration separates Apps from the legacy standalone facility.
+`set_global_performance_context` and `get_global_performance_context` still supply
+standalone hooks that lack a provider. `request_performance_mode` and
+`take_requested_performance_mode` still form their explicit standalone queue.
+Apps neither publish to those globals nor consume that queue. External code that
+previously observed or controlled an App through global functions must retain its
+`App::performance_context()` handle instead. Existing component hook calls and
+PerformanceContext struct literals are unchanged.
+
 ## Acceptance limits
 
-These examples compile against the current hook signatures. App still publishes
-the legacy global performance context, and frame mode reporting and multi-App
-isolation remain under API-019 review. Local context preference is implemented;
-it does not by itself prove independent App ownership. The supported-API matrix
-keeps that runtime work pending rather than treating this guide as acceptance.
+The complete API-019 residual inventory and native-platform review remain open.
+Focused Linux performance checks pass, including independent Apps, mode requests,
+idle behavior and safe violating cases. Native hook evidence is still pending;
+documentation alone is not behavior evidence.

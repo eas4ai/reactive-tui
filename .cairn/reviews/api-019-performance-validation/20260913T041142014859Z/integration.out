@@ -1,0 +1,35 @@
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 15.91s
+     Running tests/api_performance_context.rs (target/debug/deps/api_performance_context-092283dc47f5c0c7)
+
+running 9 tests
+
+running 1 test
+test descendant_provider_overrides_app_performance_context ... ok
+test performance_hooks_keep_slots_when_context_appears_and_disappears ... FAILED
+test errors_unwinds_and_unrun_drop_close_escaped_mode_setters ... ok
+test sequential_apps_keep_snapshots_and_closed_setters_isolated ... test standalone_globals_are_not_read_or_written_by_apps ... okok
+
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 0.00s
+
+test standalone_globals_are_not_read_or_written_by_apps ... ok
+test nested_app_run_restores_outer_performance_context ... ok
+test concurrent_apps_route_worker_mode_requests_only_to_their_owner ... ok
+test repeated_mode_effects_and_cleanup_requests_return_to_idle ... ok
+test mode_bursts_keep_latest_request_and_metrics_do_not_redraw_idle_apps ... ok
+
+failures:
+
+---- performance_hooks_keep_slots_when_context_appears_and_disappears stdout ----
+
+thread 'performance_hooks_keep_slots_when_context_appears_and_disappears' (2058476) panicked at src/reactive/hook_resources.rs:21:9:
+hook resource owner has been cleaned up
+
+
+failures:
+    performance_hooks_keep_slots_when_context_appears_and_disappears
+
+test result: FAILED. 8 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.23s
+
+error: test failed, to rerun pass `--test api_performance_context`

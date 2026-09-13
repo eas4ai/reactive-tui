@@ -5032,3 +5032,9 @@ probe fails cross-App isolation; its concrete compatibility proposal is in
 `api-019-performance-owner/review.md`. API-019 and API-020 remain incomplete.
 
 Native run 34734600070 passed on macOS and Windows for snapshot 5d1b00ca2f68b52c3c3233e78cfcd7d3d5d898a9. Its declared input trees exactly match local commit e9c5a07f651f9ea3744cadaef9812ff8eecf7696. Imported the widget and ConPTY and clipboard artifacts after checking job and step success, current committed input digests, system, every recorded output hash, and unchanged copied bytes. Both native verifiers passed. The earlier clipboard records were also refreshed and all five clipboard backends verified.
+
+## App performance ownership checkpoint
+
+Approved ownership implementation and local positive/violating checks are recorded
+in `.cairn/reviews/api-019-performance-ownership.md`. Native hook verification and
+current inherited receipts remain pending; API-019 and API-020 remain open.

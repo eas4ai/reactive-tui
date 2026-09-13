@@ -3,6 +3,11 @@ use crate::hooks::perf_context::{get_global_performance_context, PerformanceCont
 use crate::reactive::hooks::{use_context, use_effect, use_signal, Hooks, ThreadSafeSignal};
 use std::sync::Arc;
 
+fn context(hooks: &Hooks) -> Option<PerformanceContext> {
+    use_context::<PerformanceContext>(hooks)
+        .or_else(|| get_global_performance_context().map(|ctx| (*ctx).clone()))
+}
+
 /// FPS and performance state
 #[derive(Clone, Debug, PartialEq)]
 pub struct FpsState {
@@ -47,14 +52,8 @@ impl Default for FpsState {
 /// }
 /// ```
 pub fn use_fps(hooks: &Hooks) -> ThreadSafeSignal<FpsState> {
-    // Prefer a provided or global performance context; otherwise create local default
-    if let Some(ctx) = use_context::<PerformanceContext>(hooks) {
-        return ctx.fps_state;
-    }
-    if let Some(global) = get_global_performance_context() {
-        return global.fps_state.clone();
-    }
-    use_signal(hooks, FpsState::default())
+    let fallback = use_signal(hooks, FpsState::default());
+    context(hooks).map_or(fallback, |ctx| ctx.fps_state)
 }
 
 /// Hook for monitoring performance and adapting component behavior
@@ -73,40 +72,14 @@ pub fn use_fps(hooks: &Hooks) -> ThreadSafeSignal<FpsState> {
 pub fn use_performance(
     hooks: &Hooks,
 ) -> (ThreadSafeSignal<PerformanceMetrics>, ThreadSafeSignal<bool>) {
-    // Prefer live metrics from context if available
-    if let Some(ctx) = use_context::<PerformanceContext>(hooks) {
-        let metrics = ctx.metrics;
-        let is_low_fps = use_signal(hooks, false);
-        let metrics_clone = metrics.clone();
-        let is_low_fps_clone = is_low_fps.clone();
-        use_effect(hooks, move || {
-            let current = metrics_clone.get();
-            is_low_fps_clone.set(current.current_fps < 30.0 || !current.is_stable);
-            None
-        });
-        return (metrics, is_low_fps);
-    }
-    if let Some(global) = get_global_performance_context() {
-        let metrics = global.metrics.clone();
-        let is_low_fps = use_signal(hooks, false);
-        let metrics_clone = metrics.clone();
-        let is_low_fps_clone = is_low_fps.clone();
-        use_effect(hooks, move || {
-            let current = metrics_clone.get();
-            is_low_fps_clone.set(current.current_fps < 30.0 || !current.is_stable);
-            None
-        });
-        return (metrics, is_low_fps);
-    }
-
-    let metrics = use_signal(hooks, PerformanceMetrics::default());
+    let fallback = use_signal(hooks, PerformanceMetrics::default());
+    let metrics = context(hooks).map_or(fallback, |ctx| ctx.metrics);
     let is_low_fps = use_signal(hooks, false);
-    let metrics_clone = metrics.clone();
-    let is_low_fps_clone = is_low_fps.clone();
+    let observed = metrics.clone();
+    let low = is_low_fps.clone();
     use_effect(hooks, move || {
-        // Update low FPS flag based on metrics
-        let current = metrics_clone.get();
-        is_low_fps_clone.set(current.current_fps < 30.0 || !current.is_stable);
+        let current = observed.get();
+        low.set(current.current_fps < 30.0 || !current.is_stable);
         None
     });
     (metrics, is_low_fps)
@@ -130,13 +103,13 @@ pub fn use_performance(
 /// }
 /// ```
 pub fn use_performance_mode(hooks: &Hooks) -> Arc<dyn Fn(PerformanceMode) + Send + Sync> {
-    if let Some(ctx) = use_context::<PerformanceContext>(hooks) {
-        return ctx.set_mode.clone();
-    }
-    if let Some(global) = get_global_performance_context() {
-        return global.set_mode.clone();
-    }
-    Arc::new(|_mode| {})
+    context(hooks).map_or_else(
+        || {
+            Arc::new(crate::hooks::perf_context::request_performance_mode)
+                as Arc<dyn Fn(PerformanceMode) + Send + Sync>
+        },
+        |ctx| ctx.set_mode,
+    )
 }
 
 /// Hook for frame timing information
@@ -153,13 +126,8 @@ pub fn use_performance_mode(hooks: &Hooks) -> Arc<dyn Fn(PerformanceMode) + Send
 /// }
 /// ```
 pub fn use_frame_timing(hooks: &Hooks) -> ThreadSafeSignal<FrameTiming> {
-    if let Some(ctx) = use_context::<PerformanceContext>(hooks) {
-        return ctx.frame_timing;
-    }
-    if let Some(global) = get_global_performance_context() {
-        return global.frame_timing.clone();
-    }
-    use_signal(hooks, FrameTiming::default())
+    let fallback = use_signal(hooks, FrameTiming::default());
+    context(hooks).map_or(fallback, |ctx| ctx.frame_timing)
 }
 
 /// Frame timing information for performance monitoring
@@ -202,38 +170,19 @@ impl Default for FrameTiming {
 /// ```
 pub fn use_adaptive_quality(hooks: &Hooks) -> ThreadSafeSignal<QualityLevel> {
     let quality = use_signal(hooks, QualityLevel::High);
-
-    // If we have live FPS, adapt quality; otherwise leave default
-    if let Some(ctx) = use_context::<PerformanceContext>(hooks) {
-        let quality_clone = quality.clone();
-        use_effect(hooks, move || {
-            let fps_state = ctx.fps_state.get();
-            let new_quality = if fps_state.current_fps < 30.0 {
-                QualityLevel::Low
-            } else if fps_state.current_fps < 50.0 {
-                QualityLevel::Medium
-            } else {
-                QualityLevel::High
-            };
-            quality_clone.set(new_quality);
-            None
+    let ctx = context(hooks);
+    let output = quality.clone();
+    use_effect(hooks, move || {
+        let fps = ctx.map_or(60.0, |ctx| ctx.fps_state.get().current_fps);
+        output.set(if fps < 30.0 {
+            QualityLevel::Low
+        } else if fps < 50.0 {
+            QualityLevel::Medium
+        } else {
+            QualityLevel::High
         });
-    } else if let Some(global) = get_global_performance_context() {
-        let quality_clone = quality.clone();
-        use_effect(hooks, move || {
-            let fps_state = global.fps_state.get();
-            let new_quality = if fps_state.current_fps < 30.0 {
-                QualityLevel::Low
-            } else if fps_state.current_fps < 50.0 {
-                QualityLevel::Medium
-            } else {
-                QualityLevel::High
-            };
-            quality_clone.set(new_quality);
-            None
-        });
-    }
-
+        None
+    });
     quality
 }
 
@@ -295,5 +244,49 @@ mod tests {
 
         assert_eq!(timing.get().target_frame_ms, 16.67);
         assert_eq!(timing.get().last_frame_ms, 16.67);
+    }
+
+    #[test]
+    fn optional_provider_changes_preserve_slots_and_recompute_quality() {
+        use crate::reactive::{component_scope::ComponentScope, scheduler::Scheduler};
+        let scope = ComponentScope::new(Arc::new(Scheduler::new()));
+        let hooks = Hooks::new();
+        for provided in [false, true, false, true] {
+            let _scope = scope.enter(true);
+            if provided {
+                assert!(
+                    crate::reactive::component_scope::provide(PerformanceContext {
+                        fps_state: ThreadSafeSignal::new(FpsState {
+                            current_fps: 20.0,
+                            ..FpsState::default()
+                        }),
+                        metrics: ThreadSafeSignal::new(PerformanceMetrics {
+                            current_fps: 20.0,
+                            ..PerformanceMetrics::default()
+                        }),
+                        frame_timing: ThreadSafeSignal::new(FrameTiming::default()),
+                        set_mode: Arc::new(|_| {}),
+                    })
+                    .is_ok()
+                );
+            }
+            let render = hooks.begin_render();
+            let fps = use_fps(&hooks);
+            let (_, low) = use_performance(&hooks);
+            let _ = use_frame_timing(&hooks);
+            let _ = use_performance_mode(&hooks);
+            let quality = use_adaptive_quality(&hooks);
+            drop(render);
+            assert_eq!(fps.get().current_fps, if provided { 20.0 } else { 60.0 });
+            assert_eq!(low.get(), provided);
+            assert_eq!(
+                quality.get(),
+                if provided {
+                    QualityLevel::Low
+                } else {
+                    QualityLevel::High
+                }
+            );
+        }
     }
 }

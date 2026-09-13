@@ -1,0 +1,36 @@
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+warning: field `wake` is never read
+  --> src/app/performance.rs:19:5
+   |
+16 | pub(super) struct Owner {
+   |                   ----- field in this struct
+...
+19 |     wake: AppWaker,
+   |     ^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `reactive-tui` (lib) generated 1 warning
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 15.51s
+     Running tests/api_performance_context.rs (target/debug/deps/api_performance_context-092283dc47f5c0c7)
+
+running 1 test
+test mode_bursts_keep_latest_request_and_metrics_do_not_redraw_idle_apps ... FAILED
+
+failures:
+
+---- mode_bursts_keep_latest_request_and_metrics_do_not_redraw_idle_apps stdout ----
+
+thread 'mode_bursts_keep_latest_request_and_metrics_do_not_redraw_idle_apps' (2121648) panicked at tests/api_performance_context.rs:233:5:
+assertion `left == right` failed: publishing metrics fed back into redraws
+  left: 7
+ right: 3
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    mode_bursts_keep_latest_request_and_metrics_do_not_redraw_idle_apps
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 9 filtered out; finished in 0.23s
+
+error: test failed, to rerun pass `--test api_performance_context`

@@ -1,0 +1,16 @@
+[
+  [
+    "cargo",
+    "test",
+    "--locked",
+    "--lib",
+    "hooks::fps::tests"
+  ],
+  [
+    "cargo",
+    "test",
+    "--locked",
+    "--lib",
+    "reactive::wake::tests"
+  ]
+]
