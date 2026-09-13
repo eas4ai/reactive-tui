@@ -1,0 +1,7 @@
+]900;READYCOUNT 1024
+
+thread 'main' (2729720) panicked at /home/shawn/workspace2/reactive-tui/verification/api-entry-points/input-burst.rs:43:5:
+assertion `left == right` failed: queued bytes stalled without another terminal write
+  left: 1024
+ right: 2048
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Compile public Rust/C consumers and exercise their real terminal sessions."""
 import fcntl
+import json
 import os
 from pathlib import Path
 import select
@@ -20,6 +21,28 @@ TARGET = Path(os.environ.get("CARGO_TARGET_DIR", ROOT / "target")).resolve()
 def execute(command, timeout=180):
     print("+", " ".join(map(str, command)), flush=True)
     subprocess.run(command, cwd=ROOT, check=True, timeout=timeout)
+
+
+def cargo_library_artifacts(command):
+    """Use Cargo's selected artifacts, including fresh dependencies, rather than stale glob matches."""
+    command = [*command, "--message-format=json-render-diagnostics"]
+    print("+", " ".join(map(str, command)), flush=True)
+    result = subprocess.run(command, cwd=ROOT, stdout=subprocess.PIPE, text=True, timeout=180)
+    libraries = {}
+    for line in result.stdout.splitlines():
+        try:
+            message = json.loads(line)
+        except json.JSONDecodeError:
+            print(line, flush=True)
+            continue
+        if message.get("reason") == "compiler-artifact":
+            for name in message.get("filenames", []):
+                if name.endswith(".rlib"):
+                    libraries.setdefault(message["target"]["name"], set()).add(Path(name))
+        elif message.get("reason") == "compiler-message":
+            print(message["message"].get("rendered") or line, flush=True)
+    result.check_returncode()
+    return libraries
 
 
 class Terminal:
@@ -209,9 +232,30 @@ def manual_workflow(binary, screen, directory, route):
     print(f"PASS manual {route}: patches/options, input batch or clone ownership, cleanup", flush=True)
 
 
+def input_burst_workflow(binary, screen, directory, release):
+    terminal = Terminal([binary, release], screen, directory / "crossterm-input-burst.bin", (32, 8))
+    try:
+        terminal.wait_marker("READY")
+        # READY follows poll initialization. No more tty input is written after this burst.
+        terminal.send(b"a" * 2048)
+        release.write_bytes(b"consume queued input")
+        terminal.finish(host_modes=False)
+        assert b"COUNT 2048" in terminal.output, bytes(terminal.output[-2000:])
+        assert b"ZERO_POLL_US " in terminal.output, bytes(terminal.output[-2000:])
+    finally:
+        terminal.close()
+    print("PASS public Crossterm: 2048 queued bytes, exhausted zero-timeout poll and restoration", flush=True)
+
+
 def main():
     os.chdir(ROOT)
-    execute(["cargo", "build", "--locked", "--features", "ffi"])
+    execute(["cargo", "test", "--locked", "--manifest-path",
+             "src/backend/crossterm/Cargo.toml", "--lib", "--features",
+             "event-stream", "readiness_tests", "--", "--test-threads=1"])
+    libraries = cargo_library_artifacts(["cargo", "build", "--locked", "--features", "ffi"])
+    crossterm_artifacts = libraries.get("crossterm", set())
+    assert len(crossterm_artifacts) == 1, f"expected one selected Crossterm library: {crossterm_artifacts}"
+    crossterm = next(iter(crossterm_artifacts))
     execute(["cargo", "test", "--locked", "--test", "suprtui_renderer", "--no-run"])
     artifacts = list((TARGET / "debug/deps").glob("libvt100-*.rlib"))
     assert artifacts, "Cargo did not build the declared vt100 dependency"
@@ -221,8 +265,9 @@ def main():
     failures = []
     with tempfile.TemporaryDirectory(prefix="api-entry-points-", dir=TARGET) as temporary:
         directory = Path(temporary)
-        for name in ("legacy", "host", "manual", "screen"):
-            dependency = ("vt100=" + str(vt100) if name == "screen" else
+        for name in ("legacy", "host", "manual", "screen", "input-burst"):
+            dependency = ("crossterm=" + str(crossterm) if name == "input-burst" else
+                          "vt100=" + str(vt100) if name == "screen" else
                           "reactive_tui=" + str(TARGET / "debug/libreactive_tui.rlib"))
             command = ["rustc", "--edition=2021", str(SOURCE / f"{name}.rs"), "--extern", dependency,
                        "-L", "dependency=" + str(TARGET / "debug/deps"), "-o", str(directory / name)]
@@ -243,6 +288,9 @@ def main():
         for route in ("crossterm", "direct", "unix"):
             attempt(f"manual {route}", lambda route=route:
                     manual_workflow(directory / "manual", directory / "screen", captured, route))
+        attempt("public Crossterm queued input burst", lambda:
+                input_burst_workflow(directory / "input-burst", directory / "screen", captured,
+                                     directory / "release-input-burst"))
         native = directory / "native"
         command = ["cc", "-std=c11", "-Wall", "-Wextra", "-Werror", "-Iinclude", str(SOURCE / "native.c"),
                    "-L" + str(TARGET / "debug"), "-Wl,-rpath," + str(TARGET / "debug"),

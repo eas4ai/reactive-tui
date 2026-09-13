@@ -67,6 +67,29 @@ jobs:
         if: always()
         shell: bash
         run: python -B verification/api-residual/run-native-hooks.py
+      - name: Native macOS public entry points and queued input
+        if: always() && runner.os == 'macOS'
+        shell: bash
+        env:
+          CARGO_BUILD_JOBS: '12'
+          RUST_TEST_THREADS: '12'
+          RAYON_NUM_THREADS: '12'
+          LP_NUM_THREADS: '12'
+          PYTHON_CPU_COUNT: '12'
+          GOMAXPROCS: '12'
+          GOFLAGS: '-p=12'
+          CARGO_INCREMENTAL: '0'
+          CARGO_TARGET_DIR: ${{ github.workspace }}/target
+        run: python -B verification/api-entry-points/run-native.py
+      - name: Capture native macOS entry-point evidence
+        if: always() && runner.os == 'macOS'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: entry-points-macos
+          path: .cairn/reviews/api-entry-points/**
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 14
       - name: Capture native hook evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4

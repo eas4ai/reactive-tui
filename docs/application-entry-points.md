@@ -33,3 +33,11 @@ overlay, batched input, idempotent shutdown and Unix clone/drop restoration.
 The host captures in this mechanism run on Unix. Cross-platform terminal and
 widget claims also require their existing native records and the API-019 inventory;
 the Linux PTY result alone does not certify every Windows/macOS platform operation.
+
+Unix input uses the locally maintained Crossterm 0.29.0 source in
+`src/backend/crossterm`. Its narrow readiness repair retains queued input
+across resize/wake events and read-buffer boundaries. The independent
+API-016 consumer queues 2,048 bytes before releasing its reader, requires
+all bytes without another input write, and checks exhausted zero-timeout
+polls and terminal restoration. Dependency provenance and changes are in
+`src/backend/crossterm/REACTIVE_TUI_PATCH.md`.

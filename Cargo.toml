@@ -22,7 +22,7 @@ exclude = [
 async-channel = "2.1.1"
 atty = "0.2"
 bitflags = "2.9.3"
-crossterm = { version = "0.29.0", features = ["event-stream"] }
+crossterm = { path = "src/backend/crossterm", features = ["event-stream"] }
 futures-core = "0.3"
 futures-util = "0.3.27"
 log = "0.4"
@@ -123,3 +123,4 @@ serial_test = "3.0"
 [[bench]]
 name = "diff_benchmark"
 harness = false
+
