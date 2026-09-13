@@ -83,7 +83,7 @@ def isolated(args):
         if not display.isdecimal():
             raise RuntimeError("Xvfb returned an invalid display number")
         env["DISPLAY"] = ":" + display
-        command = ["dbus-run-session", "--", "/usr/bin/python3", str(Path(__file__).resolve()),
+        command = ["dbus-run-session", "--", "/tmp/api011-valgrind/root/usr/bin/valgrind", "--tool=memcheck", "--log-file=/tmp/api011-valgrind/memcheck.log", "--error-limit=no", "--track-origins=yes", "--leak-check=no", "/usr/bin/python3", str(Path(__file__).resolve()),
                    "--inside", str(run), "--binary", str(Path(args.binary).resolve()),
                    "--geometry", args.geometry]
         if args.catalog:
@@ -95,7 +95,7 @@ def isolated(args):
         with (run / "session.log").open("w") as log:
             session = subprocess.Popen(command, stdout=log, stderr=log, env=env, start_new_session=True)
         try:
-            status = session.wait(timeout=65)
+            status = session.wait(timeout=300)
         finally:
             stop_group(session)
         output = (run / "session.log").read_text()
@@ -189,7 +189,7 @@ def inside(args):
         children.append(child)
         return child
 
-    def wait(reason, predicate, timeout=5):
+    def wait(reason, predicate, timeout=30):
         deadline = time.monotonic() + timeout
         while time.monotonic() < deadline:
             while GLib.MainContext.default().pending():

@@ -10,3 +10,8 @@ Latest API-019 checkpoint: local scopes, mapping-test discovery, performance
 ownership and Updater dispatch have focused passing checks. The approved
 gesture coordinate-unit repair passes four boundary tests and nine existing
 mouse tests; complete gesture routing and other residual families remain open.
+
+Current inherited regression: API-011 reader verification exposed malformed
+cache signals (repaired with focused checks) and a remaining libatspi
+use-after-free confirmed by Valgrind. Full acceptance remains failing;
+see .cairn/reviews/api-011-cache-wire/review.md for the scope decision.
