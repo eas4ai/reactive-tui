@@ -17,14 +17,20 @@ def exercise(root, keyboard, wait, named, state, click, speech, Atspi, speech_st
         assert disabled is not None and not state(disabled, Atspi.StateType.ENABLED)
         action = disabled.get_action_iface()
         assert action is None or action.get_n_actions() == 0
-        start = speech_start()
         assert checkbox.get_component_iface().grab_focus(), "menu checkbox assistive focus unavailable"
         wait("menu checkbox focus absent", lambda: state(checkbox, Atspi.StateType.FOCUSED))
-        # If it already had focus, focus another item and return to request a new announcement.
+        # Keyboard opening can focus and announce the checkbox before this probe
+        # records its log position. Require Orca to present the intermediate focus
+        # before returning, then require a new checkbox announcement.
         group = named(root, "Recent menu")
+        group_start = speech_start()
         assert group is not None and group.get_component_iface().grab_focus()
         wait("submenu assistive focus absent", lambda: state(group, Atspi.StateType.FOCUSED))
+        wait("Orca did not announce intermediate menu focus",
+             lambda: speech("Recent menu", group_start))
+        start = speech_start()
         assert checkbox.get_component_iface().grab_focus()
+        wait("menu checkbox focus did not return", lambda: state(checkbox, Atspi.StateType.FOCUSED))
         wait("Orca did not announce menu checkbox", lambda: speech("Enable notifications", start))
         assert not state(checkbox, Atspi.StateType.CHECKED)
         if stage != 3:
