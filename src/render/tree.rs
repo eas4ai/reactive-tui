@@ -2,6 +2,7 @@ use crate::component::{AnyComponentInstance, Element};
 use std::any::Any;
 use std::collections::HashMap;
 use std::fmt::Debug;
+use std::sync::OnceLock;
 
 /// Key for stable component identity across renders
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
@@ -69,6 +70,13 @@ pub trait RenderNode: Debug + Send + Sync {
         None
     }
 
+    /// Element data used when reconstructing the render tree. Implementations
+    /// may omit children here; `as_element` retains its complete-subtree view.
+    #[doc(hidden)]
+    fn element_data(&self) -> Option<&Element> {
+        self.as_element()
+    }
+
     /// Get any associated data
     fn data(&self) -> Option<&dyn Any> {
         None
@@ -83,6 +91,7 @@ pub trait RenderNode: Debug + Send + Sync {
 pub struct ElementNode {
     key: NodeKey,
     element: Element,
+    complete_element: OnceLock<Element>,
     children: Vec<Box<dyn RenderNode>>,
     dirty: bool,
     /// Component instance for component elements (automatic memory management)
@@ -101,6 +110,7 @@ impl ElementNode {
         Self {
             key,
             element,
+            complete_element: OnceLock::new(),
             children: Vec::new(),
             dirty: true,
             component_instance: None,
@@ -109,6 +119,7 @@ impl ElementNode {
 
     /// Set the children of this node
     pub fn with_children(mut self, children: Vec<Box<dyn RenderNode>>) -> Self {
+        self.clear_complete_element();
         self.children = children;
         self
     }
@@ -142,6 +153,12 @@ impl ElementNode {
             crate::component::ElementType::Component(_)
         )
     }
+
+    fn clear_complete_element(&mut self) {
+        if let Some(element) = self.complete_element.take() {
+            drop_element_iteratively(element);
+        }
+    }
 }
 
 impl RenderNode for ElementNode {
@@ -169,6 +186,7 @@ impl RenderNode for ElementNode {
     }
 
     fn take_children(&mut self) -> Vec<Box<dyn RenderNode>> {
+        self.clear_complete_element();
         std::mem::take(&mut self.children)
     }
 
@@ -185,12 +203,22 @@ impl RenderNode for ElementNode {
     }
 
     fn as_element(&self) -> Option<&Element> {
+        if self.children.is_empty() {
+            return Some(&self.element);
+        }
+        Some(
+            self.complete_element
+                .get_or_init(|| reconstruct_element(self).unwrap_or_else(|| self.element.clone())),
+        )
+    }
+
+    fn element_data(&self) -> Option<&Element> {
         Some(&self.element)
     }
 
     fn equals(&self, other: &dyn RenderNode) -> bool {
         if let Some(other_element) = other.as_element() {
-            self.element == *other_element
+            self.as_element() == Some(other_element)
         } else {
             false
         }
@@ -199,6 +227,7 @@ impl RenderNode for ElementNode {
 
 impl Drop for ElementNode {
     fn drop(&mut self) {
+        self.clear_complete_element();
         // Automatic cleanup: unregister component instance if present
         if self.component_instance.is_some()
             && crate::component::registry::get_global_registry()
@@ -315,32 +344,7 @@ impl RenderTree {
 
     /// Rebuild the complete Element represented by element and fragment nodes.
     pub fn root_element(&self) -> Option<Element> {
-        enum Task<'a> {
-            Enter(&'a dyn RenderNode),
-            Exit(&'a dyn RenderNode, usize),
-        }
-        let mut tasks = vec![Task::Enter(self.root()?)];
-        let mut built = Vec::new();
-        while let Some(task) = tasks.pop() {
-            match task {
-                Task::Enter(node) => {
-                    if node.as_element().is_none() && node.node_type() != "Fragment" {
-                        return None;
-                    }
-                    tasks.push(Task::Exit(node, node.children().len()));
-                    for child in node.children().iter().rev() {
-                        tasks.push(Task::Enter(child.as_ref()));
-                    }
-                }
-                Task::Exit(node, child_count) => {
-                    let children = built.split_off(built.len() - child_count);
-                    let mut element = node.as_element().cloned().unwrap_or_else(Element::fragment);
-                    element.children = children;
-                    built.push(element);
-                }
-            }
-        }
-        built.pop()
+        reconstruct_element(self.root()?)
     }
 
     /// Get a mutable reference to the root
@@ -431,6 +435,48 @@ pub(crate) fn resolved_element_to_render_node(element: Element) -> Box<dyn Rende
 /// Helper to convert Element tree to RenderNode tree with automatic component instantiation
 pub fn element_to_render_node(element: Element) -> Box<dyn RenderNode> {
     convert_elements(element, false, true)
+}
+
+fn drop_element_iteratively(root: Element) {
+    let mut pending = vec![root];
+    while let Some(mut element) = pending.pop() {
+        pending.append(&mut element.children);
+    }
+}
+
+fn reconstruct_element(root: &dyn RenderNode) -> Option<Element> {
+    enum Task<'a> {
+        Enter(&'a dyn RenderNode),
+        Exit(&'a dyn RenderNode, usize),
+    }
+    let mut tasks = vec![Task::Enter(root)];
+    let mut built = Vec::new();
+    while let Some(task) = tasks.pop() {
+        match task {
+            Task::Enter(node) => {
+                if node.element_data().is_none() && node.node_type() != "Fragment" {
+                    for element in built {
+                        drop_element_iteratively(element);
+                    }
+                    return None;
+                }
+                tasks.push(Task::Exit(node, node.children().len()));
+                for child in node.children().iter().rev() {
+                    tasks.push(Task::Enter(child.as_ref()));
+                }
+            }
+            Task::Exit(node, child_count) => {
+                let children = built.split_off(built.len() - child_count);
+                let mut element = node
+                    .element_data()
+                    .cloned()
+                    .unwrap_or_else(Element::fragment);
+                element.children = children;
+                built.push(element);
+            }
+        }
+    }
+    built.pop()
 }
 
 fn convert_elements(root: Element, composite_keys: bool, instantiate: bool) -> Box<dyn RenderNode> {
@@ -599,6 +645,18 @@ mod tests {
                 .with_child(deep);
         }
         tree.set_root(element_to_render_node(deep));
+        let root = tree.root().unwrap();
+        assert!(root.element_data().unwrap().children.is_empty());
+        let snapshot = root.as_element().unwrap();
+        assert!(std::ptr::eq(snapshot, root.as_element().unwrap()));
+        let mut descendant = snapshot;
+        for _ in 0..256 {
+            descendant = descendant.children.first().unwrap();
+        }
+        assert!(matches!(
+            &descendant.element_type,
+            crate::component::ElementType::Text(text) if text == "leaf"
+        ));
         assert_eq!(
             tree.find_node(&NodeKey::named("leaf")).unwrap().node_type(),
             "Text"
@@ -612,6 +670,42 @@ mod tests {
             &cursor.element_type,
             crate::component::ElementType::Text(_)
         ));
+
+        let mut node = ElementNode::new(Element::layout(LayoutType::Flex))
+            .with_children(vec![Box::new(ElementNode::new(Element::text("old")))]);
+        assert_eq!(node.as_element().unwrap().children.len(), 1);
+        node = node.with_children(vec![Box::new(ElementNode::new(Element::text("new")))]);
+        assert!(matches!(
+            &node.as_element().unwrap().children[0].element_type,
+            crate::component::ElementType::Text(text) if text == "new"
+        ));
+        drop(node.take_children());
+        assert!(node.as_element().unwrap().children.is_empty());
+
+        // Conversion, snapshot assembly and owned snapshot destruction must
+        // not consume stack proportional to tree depth.
+        std::thread::Builder::new()
+            .stack_size(128 * 1024)
+            .spawn(|| {
+                let mut element = Element::text("bottom");
+                for _ in 0..2048 {
+                    element = Element::layout(LayoutType::Flex).with_child(element);
+                }
+                let mut tree = RenderTree::new();
+                tree.set_root(element_to_render_node(element));
+                let mut cursor = tree.root().unwrap().as_element().unwrap();
+                for _ in 0..2048 {
+                    cursor = &cursor.children[0];
+                }
+                assert!(matches!(
+                    &cursor.element_type,
+                    crate::component::ElementType::Text(text) if text == "bottom"
+                ));
+                drop(tree);
+            })
+            .unwrap()
+            .join()
+            .unwrap();
     }
 
     #[test]

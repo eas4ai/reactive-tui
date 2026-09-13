@@ -6,6 +6,17 @@
 
 Build and test concurrency is capped at 8. Existing approvals remain in force.
 
+Current repair: restore complete descendant data through `as_element()` under
+the approved API-016/API-019/API-020 decision. The unchanged five-test native
+legacy consumer and focused 2,048-level small-stack snapshot test pass locally.
+The full library and integration regression suite passed with eight jobs;
+refreshed native evidence is pending. Windows
+passed run 34775917767 on the confirmed current source; previous failed runs
+had checked out a commit preceding its fixture repair. The macOS accessor
+failure was deterministic, not a timeout. Ripwire quality-delta still reports
+reference-source findings; test-gate lists affected callers rather than an
+executable pass. Neither is counted as passing evidence.
+
 Latest API-019 checkpoint: local scopes, mapping-test discovery, performance
 ownership and Updater dispatch have focused passing checks. The approved
 gesture route now binds hooks to mounted component ownership, applies thresholds
