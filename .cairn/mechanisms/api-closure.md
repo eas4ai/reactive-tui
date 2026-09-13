@@ -11,7 +11,7 @@ inputs:
   - build.rs
   - docs/api-audit.md
   - docs/spec/rust-api-remediation.md
-  - examples/image_host_probe.rs
+  - tests/api_widget_behavior/image_host_probe.rs
   - reactive-tui-macros
   - src
   - tests/api_widget_behavior/image_host_capture.py
