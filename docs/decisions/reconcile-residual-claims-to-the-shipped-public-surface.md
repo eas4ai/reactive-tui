@@ -12,4 +12,4 @@ Verify the public Theme object's parent inheritance, child override, mutation in
 
 ## Realized by
 
-(none yet: recorded, not built)
+857f7b77 Complete residual API behavior coverage

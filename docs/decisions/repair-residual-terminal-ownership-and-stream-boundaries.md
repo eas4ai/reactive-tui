@@ -12,4 +12,4 @@ Keep the existing public terminal entry points. Deliver SIGWINCH through signal-
 
 ## Realized by
 
-(none yet: recorded, not built)
+857f7b77 Complete residual API behavior coverage
