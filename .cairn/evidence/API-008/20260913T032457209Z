@@ -1,0 +1,21 @@
+requirement: API-008
+requirement_digest: sha256:d9b919038e47eaefc1acf3629cbff4441705b3b48673c089dd7a1bb7e65c7793
+sequence: 38
+history_digest: sha256:ce5bffcb7944ed3e47455cfb77a0f7da834e4ed1116e7f75104700d8cc3936ee
+mechanism: api-clipboard.md
+commit: e5d19409
+inputs_digest: sha256:418f05947a508c31d8bd7d79a7e105fbd58f01bc21724b048e7f721bedda5e34
+mechanism_digest: sha256:4c309eb05d2bad83242b97b5c941db6e90a57bacf44b0b077ddd17ff864fd1dc
+inputs_detail: .cairn/evidence/API-008/20260913T032449569Z-1565877.inputs.json
+command: python3 -B scripts/check-api-clipboard.py
+cwd: .
+exit: 0
+output_digest: sha256:b25f7ac7bae5b5e4d3e43b3ee8f15a33b7f72153c9eeab4a55fcf4bd9c15b754
+output: .cairn/evidence/API-008/20260913T032449569Z-1565877.out
+stderr_output: .cairn/evidence/API-008/20260913T032449569Z-1565877.err
+stderr_digest: sha256:618c16d0284770d3d3da148cfab02ca36ef998ed36675849c0de64b74506fc11
+signal: none
+execution_error: null
+result: pass
+source: exit
+recorded: 2026-09-13T03:24:57.209Z
