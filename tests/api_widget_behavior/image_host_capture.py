@@ -13,24 +13,65 @@ import time
 from PIL import Image
 
 
+def guard_session(control_fd, command):
+    """Keep one owned process group tied to the capture driver's lifetime."""
+    try:
+        child = subprocess.Popen(command, close_fds=False)
+    except OSError as error:
+        print(f"cannot start guarded process: {error}", file=sys.stderr, flush=True)
+        return 127
+    while child.poll() is None:
+        if select.select([control_fd], [], [], 0.05)[0] and not os.read(control_fd, 1):
+            # The capture driver disappeared before normal cleanup. This process and
+            # the guarded command share a private group, so one signal reaps both
+            # the launcher and every descendant that retained that group.
+            os.killpg(os.getpgrp(), signal.SIGKILL)
+    return child.returncode
+
+
+def start_owned(command, **options):
+    """Start a private process group that cannot outlive this capture driver."""
+    control_reader, control_writer = os.pipe()
+    inherited = tuple(options.pop("pass_fds", ()))
+    wrapper = [sys.executable, "-B", str(Path(__file__).resolve()),
+               "--guard-session", str(control_reader), *command]
+    try:
+        process = subprocess.Popen(
+            wrapper, pass_fds=(control_reader, *inherited),
+            start_new_session=True, **options)
+    except BaseException:
+        os.close(control_reader)
+        os.close(control_writer)
+        raise
+    os.close(control_reader)
+    process.capture_guard_writer = control_writer
+    return process
+
+
 def stop(process):
     if process is None:
         return
-    # Every owned host/display starts a private session. D-Bus portal helpers
-    # can survive their launcher; terminate that group even after it exits.
+    guard_writer = getattr(process, "capture_guard_writer", None)
     try:
-        os.killpg(process.pid, signal.SIGTERM)
-    except ProcessLookupError:
-        pass
-    try:
+        # Every owned host/display starts a private session. D-Bus portal helpers
+        # can survive their launcher; terminate that group even after it exits.
+        try:
+            os.killpg(process.pid, signal.SIGTERM)
+        except ProcessLookupError:
+            pass
+        try:
+            process.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            pass
+        try:
+            os.killpg(process.pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
         process.wait(timeout=5)
-    except subprocess.TimeoutExpired:
-        pass
-    try:
-        os.killpg(process.pid, signal.SIGKILL)
-    except ProcessLookupError:
-        pass
-    process.wait(timeout=5)
+    finally:
+        if guard_writer is not None:
+            os.close(guard_writer)
+            process.capture_guard_writer = None
 
 
 def run(host, output, protocol=None, fixture=None):
@@ -47,9 +88,9 @@ def run(host, output, protocol=None, fixture=None):
         server = child = None
         try:
             with (output / "xvfb.log").open("wb") as log:
-                server = subprocess.Popen(
-                    ["Xvfb", "-displayfd", str(writer), "-screen", "0", "1000x700x24", "-nolisten", "tcp"],
-                    pass_fds=(writer,), stdout=log, stderr=log, start_new_session=True)
+                  server = start_owned(
+                      ["Xvfb", "-displayfd", str(writer), "-screen", "0", "1000x700x24", "-nolisten", "tcp"],
+                      pass_fds=(writer,), stdout=log, stderr=log)
             os.close(writer)
             writer = None
             if not select.select([reader], [], [], 10)[0]:
@@ -85,7 +126,7 @@ def run(host, output, protocol=None, fixture=None):
             else:
                 raise ValueError("expected kitty, ghostty, gnome, xterm or wezterm")
             with (output / "host.log").open("wb") as log:
-                child = subprocess.Popen(args, env=env, stdout=log, stderr=log, start_new_session=True)
+                  child = start_owned(args, env=env, stdout=log, stderr=log)
             results = []
             for stage in range(3):
                 pending = temp / "next"
@@ -164,5 +205,7 @@ def run(host, output, protocol=None, fixture=None):
 
 
 if __name__ == "__main__":
+    if len(sys.argv) > 1 and sys.argv[1] == "--guard-session":
+        raise SystemExit(guard_session(int(sys.argv[2]), sys.argv[3:]))
     run(sys.argv[1], Path(sys.argv[2]), sys.argv[3] if len(sys.argv) > 3 else None,
         sys.argv[4] if len(sys.argv) > 4 else None)

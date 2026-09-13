@@ -1,12 +1,19 @@
 # Mechanism: api-closure
 
-command: python3 -B .cairn/api-closure/check.py
+command: /usr/bin/python3 -B .cairn/api-closure/check.py
 inputs:
   - .cairn/api-closure/check.py
+  - .cairn/reviews/api-018-through-020-todo.md
   - .cairn/reviews/api-020-image-capture-timeout
   - .cairn/reviews/rust-api-remediation.md
+  - Cargo.toml
+  - Cargo.lock
+  - build.rs
   - docs/api-audit.md
   - docs/spec/rust-api-remediation.md
+  - examples/image_host_probe.rs
+  - reactive-tui-macros
+  - src
   - tests/api_widget_behavior/image_host_capture.py
 requirements:
   - API-020
