@@ -5048,3 +5048,91 @@ Native run 34757908273 passed on macOS and Windows for snapshot 891f02c8d727121b
 Native run 34761184178 passed on macOS and Windows for snapshot 188395bd12a1b6f55990c2d52bfc643da7dc1ec3. Its declared input trees exactly match local commit 18d5c8a8965eb967623d313a417c99f2d7c49994. Imported the widget and ConPTY and clipboard artifacts after checking job and step success, current committed input digests, system, every recorded output hash, and unchanged copied bytes. Both native verifiers passed. The earlier clipboard records were also refreshed and all five clipboard backends verified.
 
 Native run 34765113271 passed on macOS and Windows for snapshot 21be8f5d8e9603a0104c43264a9c84b6f5a2c207. Its declared input trees exactly match local commit 58d4f8d9cbb235960dabcb69f2790e99c0037db3 after the AT-SPI cache signal repair. Imported the widget and ConPTY and clipboard artifacts after checking job and step success, current committed input digests, system, every recorded output hash, and unchanged copied bytes. Both native verifiers passed. The earlier clipboard records were also refreshed and all five clipboard backends verified.
+
+## API-020 final commitment review
+
+Status: Finding open
+
+This review started only after Cairn reported every inherited commitment and
+API-001 through API-019 current and passing. The repository contains 54 active
+requirements: 53 have current pass receipts and API-020 has a fail-closed receipt
+whose only reported cause is this previously missing final review. OLD-001 and
+OLD-002 are observed historical defects explicitly excluded by their specification;
+they are not active requirements or acceptance passes.
+
+### Audit reconciliation
+
+| Audit finding | Requirements | Reconciled behavior and evidence |
+| --- | --- | --- |
+| RAPI-01 signal allocation ownership | API-001 | Typed Rust and C lifecycle probes use matching allocations and memory checking. |
+| RAPI-02 component expansion and identity | API-002 | Nested/keyed App components render, update props, retain identity and unmount once. |
+| RAPI-03 hooks, effects and context | API-003, API-004, API-019 | Hook slots/memoization, owned effects/timers/context, local scopes, references and App performance ownership have positive and violating cases. |
+| RAPI-04 callbacks, routing and focus | API-005, API-006 | Painted bounds drive exactly-once input; keyed focus and nested traps restore correctly. |
+| RAPI-05 Unicode editors | API-007, API-019 | Scalar positions and grapheme display boundaries cover plain/syntax edits and selection. |
+| RAPI-06 clipboard subprocesses | API-008 | Deadlines, exits, cancellation/reaping and all five claimed native backends are checked. |
+| RAPI-07 styling, gradients and animation | API-009, API-010 | Node state controls variants; text tokens and retained paint properties change frames. |
+| RAPI-08 widget and builder behavior | API-011 | The complete inventory runs through App; 401 current integration tests and the full Orca workflow pass. |
+| RAPI-09 dialog lifecycle/results | API-012 | Retained dialogs paint, route events, return results, stack, cancel and clean up. |
+| RAPI-10 keyframes and screens | API-013, API-019 | Interpolation, relative values, input, visible transitions and retained metadata contracts are checked. |
+| RAPI-11 images | API-014, API-020 | Decoding, placement, update/removal and 25 host routes pass; API-020 owns forced-timeout process cleanup. |
+| RAPI-12 features | API-015 | Default, minimal, optional, embedded and nightly SIMD configurations have compiled/runtime evidence. |
+| RAPI-13 entry points | API-016, API-019 | Retained frame/patch/backend routes update and restore; platform, raw-mode and parser ownership are checked. |
+| RAPI-14 native access | API-017 | C and TypeScript consumers exercise editors, layout, dialogs and stateful foreign components with independent ABI/layout checks. |
+| RAPI-15 documentation and residual coverage | API-018, API-019, API-020 | Public docs/examples/Props validation pass; every residual inventory row has executed coverage. The stale readiness text below remains to repair. |
+
+This table covers API-001 through API-020 and all RAPI-01 through RAPI-15 audit
+rows. The API-019 mechanism also executes each coverage-table subcase: gestures,
+Updater dispatch, theme and performance isolation, Markdown/Syntect and size bounds,
+editor selection, Unix input and SIGWINCH ownership, legacy parsing, DebugBackend,
+raw mode, RenderTree depth/width, nested events, test discovery, transition metadata,
+CSS diagnostics, and the claimed native platform surface.
+
+### Mechanism and failure-case review
+
+The original audit probes, stock-Kitty placement failure, forced-ASCII image case,
+iTerm2 color evidence, original libatspi use-after-free, and the retained
+image-capture timeout leak all assert bad behavior. Historical defect controls are
+not acceptance evidence. Current mechanisms require their corrected cases and
+reject missing tests, stale native records, changed output hashes, zero-test
+selections, incomplete inventory rows and mislabeled defect controls.
+
+The timeout control killed only the outer capture group and retained three live
+Xvfb/host/probe processes before explicit cleanup. The repair gives every private
+host session a supervisor whose control pipe is owned by the capture driver. Driver
+death closes the pipe; the supervisor then kills its complete process group. Local
+normal and forced three-second runs each observed separate Xvfb and GNOME/DBus
+descendant groups and left no live group member. API-014's complete 25-route matrix
+also passed normal cleanup. API-020 must repeat normal and forced cleanup formally.
+
+Native ConPTY and widget records were not rerun. Their native-v2 dependency scopes
+exclude Python-only Linux/Orca harnesses and retain every compiled Rust fixture and
+native helper. All 579 ConPTY inputs and all 620 widget inputs are byte-identical to
+the recorded commit; output hashes and required markers still verify. A Python-only
+control preserved validity and an untracked Rust fixture invalidated it. Cairn still
+fingerprints the checker scripts, so checking-logic changes require API-011 again.
+
+The approved limits remain visible: Orca/GNOME Terminal is the guaranteed reader
+pair; embedded sessions are Unix-only; ConPTY is the verified Windows route; exact
+Kitty acceptance uses the pinned repaired host; stock Kitty is not claimed fixed;
+iTerm2 3.7 retains its color/transparency exception; image URLs remain unsupported;
+and C/TypeScript behavior evidence does not certify arbitrary loaders or hosts.
+
+### Production self-audit
+
+The implementation changes are confined to process ownership, deterministic Orca
+speech synchronization, native evidence dependency scope and closure checking. No
+dependency or public API was added. Errors preserve failing commands and artifacts;
+timeouts and cleanup are bounded; the forced failure paths are reaped. Builds ran
+one at a time with eight jobs. Focused failure cases preceded full mechanisms, and
+receipts were recorded only from committed candidates. Secrets and persistent user
+desktop state are not part of the fixtures. The closure checker independently rejects
+an incomplete RAPI mapping, a mislabeled/non-violating historical control, unfinished
+work tracking and any surviving owned process group.
+
+Review finding: `docs/supported-api.md` still calls eight API-019 areas pending, and
+`docs/residual-api-inventory.md` still describes completed API-019 work as open or
+pending. This contradicts the current API-019 receipt and must be repaired before
+API-020 can pass.
+
+Known open findings: stale API-019 readiness text in the supported and residual API
+inventories.
