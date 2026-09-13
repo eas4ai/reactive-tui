@@ -54,7 +54,6 @@ class Terminal:
         self.screen_reader = screen_reader
         self.size = size
         try:
-            os.set_blocking(self.master, False)
             self.resize(size)
             self.original = termios.tcgetattr(self.slave)
             # A controlling terminal is required by the public DirectTty route.
@@ -80,17 +79,9 @@ class Terminal:
             os.kill(self.child.pid, signal.SIGWINCH)
 
     def read(self, timeout=0.05):
-        if not select.select([self.master], [], [], timeout)[0]:
-            return False
-        try:
-            data = os.read(self.master, 65536)
-        except BlockingIOError:
-            return False
-        if not data:
-            return False
-        self.output.extend(data)
-        assert len(self.output) < 8 * 1024 * 1024, "entry-point output exceeded 8 MiB"
-        return True
+        if select.select([self.master], [], [], timeout)[0]:
+            self.output.extend(os.read(self.master, 65536))
+            assert len(self.output) < 8 * 1024 * 1024, "entry-point output exceeded 8 MiB"
 
     def screen(self):
         self.capture.write_bytes(self.output)
@@ -129,9 +120,8 @@ class Terminal:
         while self.child.poll() is None and time.monotonic() < deadline:
             self.read()
         assert self.child.poll() is not None, "entry point did not exit"
-        drain_deadline = time.monotonic() + 2
-        while self.read(0):
-            assert time.monotonic() < drain_deadline, "entry-point output did not stop after exit"
+        while select.select([self.master], [], [], 0)[0]:
+            self.read(0)
         self.capture.write_bytes(self.output)
         expected = 1 if expected_error else 0
         assert self.child.returncode == expected, (self.child.returncode, expected, bytes(self.output[-2000:]))
@@ -259,7 +249,6 @@ def input_burst_workflow(binary, screen, directory, release):
 
 def main():
     os.chdir(ROOT)
-    execute([sys.executable, "-B", str(SOURCE / "check-harness.py")], timeout=35)
     execute(["cargo", "test", "--locked", "--manifest-path",
              "src/backend/crossterm/Cargo.toml", "--lib", "--features",
              "event-stream", "readiness_tests", "--", "--test-threads=1"])

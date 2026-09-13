@@ -1,0 +1,66 @@
+[
+  {
+    "version": "original",
+    "case": "eof",
+    "command": [
+      "/home/linuxbrew/.linuxbrew/opt/python@3.14/bin/python3.14",
+      "-B",
+      "/tmp/api016-eof-repair-53y_utem/consumer.py",
+      "/tmp/api016-eof-repair-53y_utem/original.py",
+      "eof",
+      "/tmp/api016-eof-repair-53y_utem/original-eof.bin"
+    ],
+    "timed_out": true,
+    "elapsed_seconds": 3.003953816834837,
+    "returncode": -9,
+    "output": ""
+  },
+  {
+    "version": "corrected",
+    "case": "eof",
+    "command": [
+      "/home/linuxbrew/.linuxbrew/opt/python@3.14/bin/python3.14",
+      "-B",
+      "/tmp/api016-eof-repair-53y_utem/consumer.py",
+      "/tmp/api016-eof-repair-53y_utem/corrected.py",
+      "eof",
+      "/tmp/api016-eof-repair-53y_utem/corrected-eof.bin"
+    ],
+    "timed_out": false,
+    "elapsed_seconds": 0.027825429802760482,
+    "returncode": 0,
+    "output": "EOF_DRAIN_RETURNED_AND_RESTORATION_PASSED\n"
+  },
+  {
+    "version": "corrected",
+    "case": "raw-leak",
+    "command": [
+      "/home/linuxbrew/.linuxbrew/opt/python@3.14/bin/python3.14",
+      "-B",
+      "/tmp/api016-eof-repair-53y_utem/consumer.py",
+      "/tmp/api016-eof-repair-53y_utem/corrected.py",
+      "raw-leak",
+      "/tmp/api016-eof-repair-53y_utem/corrected-raw-leak.bin"
+    ],
+    "timed_out": false,
+    "elapsed_seconds": 0.026860465994104743,
+    "returncode": 0,
+    "output": "RAW_RESTORATION_REJECTED\n"
+  },
+  {
+    "version": "corrected",
+    "case": "never-drained",
+    "command": [
+      "/home/linuxbrew/.linuxbrew/opt/python@3.14/bin/python3.14",
+      "-B",
+      "/tmp/api016-eof-repair-53y_utem/consumer.py",
+      "/tmp/api016-eof-repair-53y_utem/corrected.py",
+      "never-drained",
+      "/tmp/api016-eof-repair-53y_utem/corrected-never-drained.bin"
+    ],
+    "timed_out": false,
+    "elapsed_seconds": 2.0274335951544344,
+    "returncode": 0,
+    "output": "DRAIN_DEADLINE_REJECTED\n"
+  }
+]
