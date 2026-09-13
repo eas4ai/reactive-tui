@@ -1,0 +1,21 @@
+requirement: API-017
+requirement_digest: sha256:6acb81cde4376c54a1f9c299d417b9a96b36b31bddbd6fdaf6c3a0cab180c0e6
+sequence: 10
+history_digest: sha256:e7cd61daecc69f65b336683e6947b5095a526983b1ddc42ff290289f9ed5d0be
+mechanism: api-native-components.md
+commit: 8877e00a
+inputs_digest: sha256:8209a1234403c6cf9250b9d8846d920ec9664636240c0c7f1549a4d46b688fd4
+mechanism_digest: sha256:58884c3cc84a637221bc88c43eb6560565873f2be2980d50e528244d3aac2612
+inputs_detail: .cairn/evidence/API-017/20260913T132335410Z-2171112.inputs.json
+command: python3 -B scripts/check-api-native-components.py
+cwd: .
+exit: 0
+output_digest: sha256:0cb5e16ebe2cf13c35beb272eaa7f2ed6faba0ab14aebb8d4bd49417ba9b5368
+output: .cairn/evidence/API-017/20260913T132335410Z-2171112.out
+stderr_output: .cairn/evidence/API-017/20260913T132335410Z-2171112.err
+stderr_digest: sha256:67820175cf1a0f8216bbb1deb574f2c40b5ecb55c5aa4cd3786811342c807197
+signal: none
+execution_error: null
+result: pass
+source: exit
+recorded: 2026-09-13T13:24:12.395Z
