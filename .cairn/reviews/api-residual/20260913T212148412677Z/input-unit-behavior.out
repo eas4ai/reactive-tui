@@ -1,0 +1,12 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.10s
+     Running unittests src/lib.rs (target/debug/deps/reactive_tui-10768dd881459d97)
+
+running 5 tests
+test platform::input_receiver::tests::draining_a_full_queue_wakes_the_producer ... ok
+test platform::input_receiver::tests::buffered_items_remain_after_session_shutdown ... ok
+test platform::input_receiver::tests::dropping_owned_iterator_joins_idle_reader ... ok
+test platform::input_receiver::tests::receive_and_iteration_preserve_order_and_disconnect ... ok
+test platform::input_receiver::tests::cancellation_releases_a_full_queue_producer ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 1025 filtered out; finished in 0.02s
+

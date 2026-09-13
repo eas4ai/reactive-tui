@@ -1,0 +1,23 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.09s
+     Running tests/api_performance_context.rs (target/debug/deps/api_performance_context-0c9b31450cce8bd9)
+
+running 10 tests
+test actual_fps_tracks_presentation_cadence_instead_of_render_throughput ... ok
+test concurrent_apps_route_worker_mode_requests_only_to_their_owner ... ok
+test descendant_provider_overrides_app_performance_context ... ok
+test errors_unwinds_and_unrun_drop_close_escaped_mode_setters ... ok
+test mode_bursts_keep_latest_request_and_metrics_do_not_redraw_idle_apps ... ok
+test nested_app_run_restores_outer_performance_context ... ok
+test performance_hooks_keep_slots_when_context_appears_and_owner_closes ... ok
+test repeated_mode_effects_and_cleanup_requests_return_to_idle ... ok
+test sequential_apps_keep_snapshots_and_closed_setters_isolated ... ok
+test standalone_globals_are_not_read_or_written_by_apps ... 
+running 1 test
+test standalone_globals_are_not_read_or_written_by_apps ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 0.00s
+
+ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.70s
+
