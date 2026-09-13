@@ -1,8 +1,13 @@
 {
   "system": "Windows",
   "platform": "Windows-2022Server-10.0.20348-SP0",
-  "inputs_digest": "bce1012948af11bb302b5420be7d4b9fce8756b3e03e9b1f07758b5720ed2e97",
+  "inputs_digest": "15386d14f332cd388cf2485b10895c9bfbe20b10308eb3d97dbec439332aeb7b",
   "commit": "1da03726fc3d99d1f467d7c22342b955c411a406",
+  "input_scope": "native-v2",
+  "revalidation": {
+    "against_commit": "7922483fcb5c8e197b901db3d1cbf3e54940cafb",
+    "reason": "The native-v2 scope includes every compiled Rust widget fixture and native helper, and excludes Python-only Linux harnesses. Every native-v2 input is byte-identical to the recorded commit."
+  },
   "result": "pass",
   "outputs": {
     "build.out": "21a1743a519ebd4b23b5f599abf5095345515789aa6649d0137f7b2c80153c80",

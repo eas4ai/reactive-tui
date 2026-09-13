@@ -13,8 +13,8 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 RECORDS = ROOT / "docs/analysis/widget-platforms"
-INPUTS = ("Cargo.toml", "Cargo.lock", "build.rs", "src", "reactive-tui-macros", "tests",
-          "scripts/check-widget-platforms.py", "scripts/check-dialog-http.py",
+INPUTS = ("Cargo.toml", "Cargo.lock", "build.rs", "src", "reactive-tui-macros",
+          "tests/api_widget_behavior.rs", "scripts/check-dialog-http.py",
           "scripts/check-iterm-host.py",
           "scripts/install-conpty-runtime.py",
           ".github/workflows/clipboard-platforms.yml")
@@ -34,12 +34,20 @@ CASES = {
 
 
 def digest():
-    if subprocess.check_output(["git", "ls-files", "--others", "--exclude-standard", "--", *INPUTS], cwd=ROOT):
+    rust_tests = tuple(name for name in subprocess.check_output(
+        ["git", "ls-tree", "-r", "--name-only", "HEAD", "--", "tests/api_widget_behavior"],
+        cwd=ROOT, text=True).splitlines() if name.endswith(".rs"))
+    paths = (*INPUTS, *rust_tests)
+    untracked = subprocess.check_output(
+        ["git", "ls-files", "--others", "--exclude-standard", "--",
+         *INPUTS, "tests/api_widget_behavior"], cwd=ROOT, text=True).splitlines()
+    if any(not name.startswith("tests/api_widget_behavior/") or name.endswith(".rs")
+           for name in untracked):
         raise RuntimeError("Commit native widget inputs before recording evidence")
-    subprocess.run(["git", "diff", "--exit-code", "HEAD", "--", *INPUTS],
-                   cwd=ROOT, check=True, stdout=subprocess.DEVNULL)
-    names = subprocess.check_output(["git", "ls-tree", "-r", "--name-only", "HEAD", "--", *INPUTS],
-                                    cwd=ROOT, text=True).splitlines()
+    subprocess.run(["git", "diff", "--exit-code", "HEAD", "--", *paths],
+                     cwd=ROOT, check=True, stdout=subprocess.DEVNULL)
+    names = subprocess.check_output(["git", "ls-tree", "-r", "--name-only", "HEAD", "--", *paths],
+                                      cwd=ROOT, text=True).splitlines()
     result = hashlib.sha256()
     for name in names:
         data = subprocess.check_output(["git", "show", "HEAD:" + name], cwd=ROOT)

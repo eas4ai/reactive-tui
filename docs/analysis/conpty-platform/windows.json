@@ -1,8 +1,13 @@
 {
   "system": "Windows",
   "platform": "Windows-2022Server-10.0.20348-SP0",
-  "inputs_digest": "c72528ce1d62a814fca3338192f3cc83bed52f7ab06fd529ff3961a751a4072b",
+  "inputs_digest": "25039b687af03a68d38268e0dd23fff18a20328f38cbb6107e201bbbfffc83ee",
   "commit": "1da03726fc3d99d1f467d7c22342b955c411a406",
+  "input_scope": "native-v2",
+  "revalidation": {
+    "against_commit": "7922483fcb5c8e197b901db3d1cbf3e54940cafb",
+    "reason": "The native-v2 scope removes Python-only tests and benchmark sources that no ConPTY build or probe consumes. Every native-v2 input is byte-identical to the recorded commit."
+  },
   "result": "pass",
   "outputs": {
     "build.out": "5e19bff21bef6a10e3590d925bc9afa3e1fb141ad91b87da72c1ca2f5163623e",

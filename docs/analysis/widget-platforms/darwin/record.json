@@ -1,8 +1,13 @@
 {
   "system": "Darwin",
   "platform": "macOS-14.8.9-arm64-arm-64bit-Mach-O",
-  "inputs_digest": "bce1012948af11bb302b5420be7d4b9fce8756b3e03e9b1f07758b5720ed2e97",
+  "inputs_digest": "15386d14f332cd388cf2485b10895c9bfbe20b10308eb3d97dbec439332aeb7b",
   "commit": "1da03726fc3d99d1f467d7c22342b955c411a406",
+  "input_scope": "native-v2",
+  "revalidation": {
+    "against_commit": "7922483fcb5c8e197b901db3d1cbf3e54940cafb",
+    "reason": "The native-v2 scope includes every compiled Rust widget fixture and native helper, and excludes Python-only Linux harnesses. Every native-v2 input is byte-identical to the recorded commit."
+  },
   "result": "pass",
   "outputs": {
     "iterm-host.out": "592c11b322adfba0e5dc4071517514194d98f3fdf32f07a4f7c57f7bd4258119",

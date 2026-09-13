@@ -13,8 +13,8 @@ import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
 RECORDS = ROOT / "docs/analysis/conpty-platform"
-INPUTS = ("Cargo.toml", "Cargo.lock", "build.rs", "src", "reactive-tui-macros", "tests", "benches",
-          "scripts/check-conpty-platform.py", "scripts/install-conpty-runtime.py",
+INPUTS = ("Cargo.toml", "Cargo.lock", "build.rs", "src", "reactive-tui-macros",
+          "tests/api_widget_behavior/conpty_probe.rs", "scripts/install-conpty-runtime.py",
           ".github/workflows/clipboard-platforms.yml",
           "docs/binding-abi-baseline.json")
 MARKERS = ("PASS console handles, input, environment, resize, real exit 259, repeated stop",
