@@ -5038,3 +5038,5 @@ Native run 34734600070 passed on macOS and Windows for snapshot 5d1b00ca2f68b52c
 Approved ownership implementation and local positive/violating checks are recorded
 in `.cairn/reviews/api-019-performance-ownership.md`. Native hook verification and
 current inherited receipts remain pending; API-019 and API-020 remain open.
+
+Native run 34737918932 passed on macOS and Windows for snapshot 9f5336d21cfa0fb8c226620928c4736d741aa446. Its declared input trees exactly match local commit 78c3eca84387c3743372b54e2c8f66bc44b263d2. Imported the widget and ConPTY and clipboard artifacts after checking job and step success, current committed input digests, system, every recorded output hash, and unchanged copied bytes. Both native verifiers passed. The earlier clipboard records were also refreshed and all five clipboard backends verified.

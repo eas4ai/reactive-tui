@@ -25,5 +25,5 @@ test terminal::terminal_impl::tests::test_terminal_resize ... ok
 test terminal::terminal_impl::tests::title_helper_rejects_control_injection_without_changing_screen ... ok
 test terminal::terminal_impl::tests::title_keeps_semicolons_and_unicode ... ok
 
-test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 975 filtered out; finished in 2.63s
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 977 filtered out; finished in 1.41s
 

@@ -9,7 +9,7 @@ warning: method `serial` is never used
    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
 
 warning: `reactive-tui` (lib test) generated 1 warning
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.22s
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.24s
      Running unittests src/lib.rs (target/debug/deps/reactive_tui-1b74d89730bf3760)
 
 running 10 tests
@@ -24,5 +24,5 @@ test widgets::display::file_explorer::live::worker::tests::worker_preview_bounds
 test widgets::display::file_explorer::live::worker::tests::worker_rejects_parent_traversal_and_absolute_paths_outside_root ... ok
 test widgets::display::file_explorer::live::worker::tests::worker_replaces_pending_reads_and_drop_joins_its_owner ... ok
 
-test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 976 filtered out; finished in 0.08s
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 978 filtered out; finished in 0.04s
 

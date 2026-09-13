@@ -1,11 +1,11 @@
 [
   {
-    "kCGWindowAlpha" : 0.93405830860137939,
+    "kCGWindowAlpha" : 1,
     "kCGWindowBounds" : {
-      "Height" : 160,
-      "Width" : 410,
-      "X" : 755,
-      "Y" : 230
+      "Height" : 170,
+      "Width" : 438,
+      "X" : 741,
+      "Y" : 225
     },
     "kCGWindowIsOnscreen" : true,
     "kCGWindowLayer" : 0,
@@ -13,7 +13,7 @@
     "kCGWindowName" : "",
     "kCGWindowNumber" : 42,
     "kCGWindowOwnerName" : "iTerm2",
-    "kCGWindowOwnerPID" : 34170,
+    "kCGWindowOwnerPID" : 12923,
     "kCGWindowSharingState" : 1,
     "kCGWindowStoreType" : 1
   },
@@ -28,10 +28,10 @@
     "kCGWindowIsOnscreen" : true,
     "kCGWindowLayer" : 0,
     "kCGWindowMemoryUsage" : 2176,
-    "kCGWindowName" : "RTUI-IMAGE-3063e5971e3e44de93c22d619225f4af",
+    "kCGWindowName" : "RTUI-IMAGE-dc8f661f83964a3f8eab1450ff38baee",
     "kCGWindowNumber" : 41,
     "kCGWindowOwnerName" : "iTerm2",
-    "kCGWindowOwnerPID" : 34170,
+    "kCGWindowOwnerPID" : 12923,
     "kCGWindowSharingState" : 1,
     "kCGWindowStoreType" : 1
   }

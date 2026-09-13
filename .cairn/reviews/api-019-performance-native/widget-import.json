@@ -1,0 +1,156 @@
+[
+  {
+    "source": "/tmp/api019-performance-native-34737918932/widgets-macos/darwin",
+    "target": "/home/shawn/workspace2/reactive-tui/docs/analysis/widget-platforms/darwin",
+    "files": {
+      "build.out": "507922fc8bb23c77819c90ad4d7b0bc8a140a4b0bdaf00d94dfdbbea8545b26c",
+      "curl.out": "6c39df8d3e00d28cb6ae830d83314ba6cdbaa8a42476133c1b2b5719945f505a",
+      "filesystem-app.out": "e3a7e31bd9b21ceddb0d693e384a1bc9bf2eb5544be8c2019f863aa7b5551980",
+      "filesystem-native.out": "77bd9b82c3acba4a24fd71880765d3cd0b968ccef95aad31393129b7c301d03a",
+      "http-app.out": "a406577769ea90299d660159fb8f5a48898beb66b4a96eda155a40a75ce06af7",
+      "http-transport.out": "646723e73aa86d4a5bf8af98309aac2750afb2245d99e9bc69bef7b833e14887",
+      "https.out": "8bbce4f1eb29e382a1e7840e6b2439fc05a52a0a7d90adcb478ab9ca6f01a0fd",
+      "image-app.out": "a854e7bbfc584ba5d31000ff0608e25997827cf2e21c70dad5aa9859e0b7a4bf",
+      "image-native.out": "3759fcfd5b5f9b74793965fde2c5df84ff482e374d127dbb8abe2ca2cf3c698d",
+      "iterm-build.out": "bd40359c2dd84d9f4d85196c3f47254cb462ff616ac2ee34568d7eee719642f0",
+      "iterm-host/app-ascii/fixture-exit.txt": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+      "iterm-host/app-ascii/geometry-pixels.json": "ba8570621af9b2fd3535c1c22e4f7647c9c1e01c001306eb1b7d4963083dfc28",
+      "iterm-host/app-ascii/host-settings.json": "d9168b98e73dabda77f914d6b6e8aa22b7bfe9c921e4d2febc377fa1fc55fe03",
+      "iterm-host/app-ascii/host.log": "4485e09097eddcb6ff64ce5b5ce40fa197e538721540ad4e52d76861f97fd47d",
+      "iterm-host/app-ascii/pixels.json": "ba8570621af9b2fd3535c1c22e4f7647c9c1e01c001306eb1b7d4963083dfc28",
+      "iterm-host/app-ascii/stage-0.png": "570dc55614f13b0b69d5ffd8c764814f3c45fd7b7856fbe14436bbc789622a94",
+      "iterm-host/app-ascii/stage-1.png": "1779deb372de69a7f1d6644971e48f131dfed666649cd3afb4a316387788c0b6",
+      "iterm-host/app-ascii/stage-2.png": "1f8b6625a50a8fbd39f564e085911b7cab07ca35b91612d06de3ec628a7d0af2",
+      "iterm-host/app-ascii/startup-windows.json": "3f3d50a3b951ed99ac8d2b64886bcd22ce95d9d043686f72d6dbda6804c811d0",
+      "iterm-host/app-ascii/startup-windows.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "iterm-host/app-ascii/terminal-size.json": "41fd893d7d08ac634b869206ef0287b825f33293cd15ddcfc90d0ab1308cef3e",
+      "iterm-host/app-auto/fixture-exit.txt": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+      "iterm-host/app-auto/geometry-pixels.json": "4b3e0cc091a8a4f37e4469b9a6f102b360596360eced1074fb130337e58b7514",
+      "iterm-host/app-auto/host-settings.json": "82a675200bfd42fa586f64fd0e9e3a2d3a90c69ad82ca4dbc689ef9b8de61d71",
+      "iterm-host/app-auto/host.log": "40ef6b3f65452edaa750b0d873e4e1a221c2a02d7b70e4f4099e65d5e78cb893",
+      "iterm-host/app-auto/pixels.json": "ba8570621af9b2fd3535c1c22e4f7647c9c1e01c001306eb1b7d4963083dfc28",
+      "iterm-host/app-auto/stage-0.png": "6c70b7db77fd7b50a840238feb18281807d41d461cf95eba60e04a15d3649d7e",
+      "iterm-host/app-auto/stage-1.png": "7b7f985caab365bbf5c644781ee309990fff0d9102e0b5e08f6f507f76da63cc",
+      "iterm-host/app-auto/stage-2.png": "88c94a545dcdb4f2a2674eca9bb7d5931738cad93dd5ff9d89616a243b6c7115",
+      "iterm-host/app-auto/startup-windows.json": "6acaa2110a3e53e29f8a12e2e4769be891a8c1382c547be0c185963a62547fe3",
+      "iterm-host/app-auto/startup-windows.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "iterm-host/app-auto/terminal-size.json": "41fd893d7d08ac634b869206ef0287b825f33293cd15ddcfc90d0ab1308cef3e",
+      "iterm-host/app-iterm/fixture-exit.txt": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+      "iterm-host/app-iterm/geometry-pixels.json": "4b3e0cc091a8a4f37e4469b9a6f102b360596360eced1074fb130337e58b7514",
+      "iterm-host/app-iterm/host-settings.json": "8aed7636407c63c6e7d3ce7eceb08c6d0e1eaadb45d243b04cba97a94630383e",
+      "iterm-host/app-iterm/host.log": "da91d18564e3c5065d50583fc7bf4c8784f04fa2f9651b3c4dcc6243851488b3",
+      "iterm-host/app-iterm/pixels.json": "ba8570621af9b2fd3535c1c22e4f7647c9c1e01c001306eb1b7d4963083dfc28",
+      "iterm-host/app-iterm/stage-0.png": "0e835a83752758705b8fb27d7a2b06981445dfd730b3c68b1fa97a388dd73964",
+      "iterm-host/app-iterm/stage-1.png": "bd29b74e74866dca0ea00323e3c65620faf257c4631f5afb688081060d256af3",
+      "iterm-host/app-iterm/stage-2.png": "0ff394f3c1cbbf73dd5b07fa622e0ed72be77808fede3ef283d6b9372fe2eb31",
+      "iterm-host/app-iterm/startup-windows.json": "87a3d4ea2910adec2678db8a0c40051e7cea6b58becb53e9c9c70abd882073a1",
+      "iterm-host/app-iterm/startup-windows.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "iterm-host/app-iterm/terminal-size.json": "41fd893d7d08ac634b869206ef0287b825f33293cd15ddcfc90d0ab1308cef3e",
+      "iterm-host/host.json": "3f56e76f8287576b663a49ef64b73422433467903fdd9de9d82d859bc069fe2e",
+      "iterm-host/iterm/fixture-exit.txt": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+      "iterm-host/iterm/geometry-pixels.json": "fca8c7d511c2c335b51fdd574298ad025f676ad21c62a9465019e94166f09ddd",
+      "iterm-host/iterm/host-settings.json": "2dbafd7ff20d6c8d168a6ff5d67d86c9a8235c7048a45a33a0116ea496d15a11",
+      "iterm-host/iterm/host.log": "6dcfd6c698191a35a86f7cfc135397d5ffbc5cdfb1a078d5adfd6192bfb0d578",
+      "iterm-host/iterm/pixels.json": "ba8570621af9b2fd3535c1c22e4f7647c9c1e01c001306eb1b7d4963083dfc28",
+      "iterm-host/iterm/stage-0.png": "e6b8335a30a7f0e24a57656e056384a665e19818754105fbe728e02020b3ea8d",
+      "iterm-host/iterm/stage-1.png": "64d257a866307f78ae3045fd851adff12c6dca1322d4f583990fa8a2cc0c065a",
+      "iterm-host/iterm/stage-2.png": "83e545f00d4f0b56e7c5d51e10b57c59d660b107b06ab0285541b463c5fb9d64",
+      "iterm-host/iterm/startup-windows.json": "dba1fddf9a28e0351608eb398a0463aa24315da734561822cc0b6ccfd7fef929",
+      "iterm-host/iterm/startup-windows.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "iterm-host/iterm/terminal-size.json": "41fd893d7d08ac634b869206ef0287b825f33293cd15ddcfc90d0ab1308cef3e",
+      "iterm-host/surface-iterm/fixture-exit.txt": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+      "iterm-host/surface-iterm/geometry-pixels.json": "e04931157f7c5f0a987c8b7119ef44ab779309ba8103de07f5a56a73acddf535",
+      "iterm-host/surface-iterm/host-settings.json": "ce120f8eee8dd1b0c6a9669b0b119b00233dc09add0872461653f0f9d3d44d1f",
+      "iterm-host/surface-iterm/host.log": "4249540463b9fb4f160c2a72426197e4a022d0227904d46cfd12858201116041",
+      "iterm-host/surface-iterm/pixels.json": "ba8570621af9b2fd3535c1c22e4f7647c9c1e01c001306eb1b7d4963083dfc28",
+      "iterm-host/surface-iterm/stage-0.png": "2d355325e3cd4874584b92177559f680c365ce2a0efb68582d5b01cf673c62bc",
+      "iterm-host/surface-iterm/stage-1.png": "be33e721ecdd8c7df6e15370c373b2398e8fd82893b2b44b7bf148cbf53e02f5",
+      "iterm-host/surface-iterm/stage-2.png": "f90ab6281621275bce14bab3ec70610bbfa60074cf3151d4b1575c7142acc98e",
+      "iterm-host/surface-iterm/startup-windows.json": "1f7f31fc1c8e44df6c19e129ae6ed6544d795cb11c902b570824e897c1534a12",
+      "iterm-host/surface-iterm/startup-windows.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "iterm-host/surface-iterm/terminal-size.json": "41fd893d7d08ac634b869206ef0287b825f33293cd15ddcfc90d0ab1308cef3e",
+      "iterm-host.out": "0aff495e24fe3a7cdb88391b5fbbc49de9363465828a2127cc4d1c02cf2da8b7",
+      "platform-image-native.out": "7cae157f26e57a16d8942df174680b470df1a9c5b80720132a30757750a2eda7",
+      "record.json": "5503f10a09d20f5b454ad7163324665d7ad441b45264b3045a2e11ecbf42bcdf",
+      "surface-native.out": "02512fe04a59b20fab16bd2438a54e3e68fc3ac9b0b390e2452afd2a9c8190c9",
+      "terminal-app.out": "1b68532a69ef755f8027d0999284926e5083c50a9f88fdbd8c139fd811956f00",
+      "terminal-native.out": "9d0aee1eeddb9754cf2bbd5fa47bd8a50a1943bad94b154a6cc3657cb7b8757f",
+      "terminal-screen.out": "af2b324b1b4f03f690cdce785c58ad663ba600e88aa6f46f98ba6ef8cd98a040"
+    }
+  },
+  {
+    "source": "/tmp/api019-performance-native-34737918932/widgets-windows/windows",
+    "target": "/home/shawn/workspace2/reactive-tui/docs/analysis/widget-platforms/windows",
+    "files": {
+      "build.out": "9ad5b6f404174e4aeef4cacb96999027eefc74e9ca4f1f49106c2dbe735e0092",
+      "curl.out": "a74ef8d964e5d0f144aa5c9647d4df8d8b7f01731e3510c3e9e1f273581c5f11",
+      "filesystem-app.out": "de8a55020c3466a3a40f01b83a44d7ed07c31fac02ea34252c88d1c038da8ec3",
+      "filesystem-native.out": "ec77d5758000a8a649df0e2b009ca5ef61e29fbe9c37ea5c421c78adae061f6c",
+      "http-app.out": "99968c02f1c4e77c1e3e9437941b8da1aefd324492f388c3f4a89229bcf51253",
+      "http-transport.out": "2bffca3348849ba90a497ada6e00e2bf945e02c2c0be0b0915fa73e1349d1de4",
+      "https.out": "2cbb31912277922c766bf98cd4eaae6ea95c237f4dbc16a04bd3d4456630aa58",
+      "image-app.out": "551087c66502a18ca969b30b6a871e0f65fa57fe1240bc636542e0ae9628467a",
+      "image-native.out": "277526ceac41b69f1ae079cfb10b6f188913aa1c67d2859b5fe2bec36f073f09",
+      "platform-image-native.out": "dbebe70a8e7fd17e5cf297c4f865be82f14cdb4d0b25796d91bb05d3db7c1f42",
+      "record.json": "ebf0dfd1311e2e15bfdf6337da271c0a35ef9e060aaea94f93e72f89d506e251",
+      "runtime-install.out": "3de24694cc99b0e9527d5b8760b41a632bcc80ce3c8669c27944ea4e1a038702",
+      "surface-native.out": "ea96cfe70d92a13fdba6a54c4468cc8a030b5dbea14a6ebf503cb7292eb87fb9",
+      "terminal-app.out": "da6ab80c54edc9a2a9c25e2988bf2f86b5cacc724fdcd184bd8d2ead9f5d4d4e",
+      "terminal-native.out": "bc25f7c074c8ec4b7f2d438c4d9442d9cbc89c72223dcd4726c0b39a68c084cb",
+      "terminal-screen.out": "001abef7936b2b528ef325d7945c00ca4675cbe91c7245ff4c17c0d6055ecc02"
+    }
+  },
+  {
+    "source": "/tmp/api019-performance-native-34737918932/conpty-windows",
+    "target": "/home/shawn/workspace2/reactive-tui/docs/analysis/conpty-platform",
+    "files": {
+      "build.out": "90c4a16180bded9e4e13867c41e65fa3a1ee10289fa974e32e8f0c696ccc508f",
+      "corrected.out": "fb8b01f3c6bb21dfd532785b02bc3b578d6db09ba715697dd528431e2b43f3a1",
+      "ffi-exports.out": "c698dc241f1e5adbfe1461dffe22eb7654b25fcaea4db96994145060ecf171d5",
+      "negative-build.out": "44cfa32661e2b99844b037c2d944f42388c02a8e950b911cceaa43d04aef06ac",
+      "negative.out": "6cacc4dddc56f0f82e47b396f68cb7af3b4f7c4e0bb14c5315dc31f3806fed2c",
+      "runtime-errors.out": "e562624fb39abb57ea1cabb752abf63947d15b12d102247e8225e53ea22965ef",
+      "windows.json": "ec23c87c653a69d15e80608fef13f5716aa42b9b6ec0b96ff4493d45147d00c8"
+    }
+  },
+  {
+    "source": "/tmp/api019-performance-native-34737918932/clipboard-macos",
+    "target": "/home/shawn/workspace2/reactive-tui/docs/analysis/clipboard-platforms",
+    "files": {
+      "macos.json": "fae4949b4a2b529b0f8cd5e3b5c2d90c55a42853d4dab7e2d87c222f2db46426",
+      "macos.out": "4c4b7ef665146a5308a621bf18f2660a5614a3ae107b84e091c044bed0624363",
+      "macos.process.out": "8cc5f074dd30c2e784ab73b9793f0673069b9619d38d54d87e82696da476f7c1"
+    }
+  },
+  {
+    "source": "/tmp/api019-performance-native-34737918932/clipboard-windows",
+    "target": "/home/shawn/workspace2/reactive-tui/docs/analysis/clipboard-platforms",
+    "files": {
+      "windows.json": "784e508dcecfe0a095e3c27b1cab31b5559d5b5282b385bd9e1712f0e2392ec3",
+      "windows.out": "a1fb25a54b14a5c83209499cabd4b6023a6b22760cf2f96562071feea716d935",
+      "windows.process.out": "d6d189c4a00a2659e7c9a5477a5a747ba57d6f54e9f3dfa5c3fdd92a66861d23"
+    }
+  },
+  {
+    "source": "/tmp/api019-performance-native-34737918932/hooks-macos/20260913T043310915304Z",
+    "target": "/home/shawn/workspace2/reactive-tui/.cairn/reviews/api-019-performance-native/hooks/macos",
+    "files": {
+      "native-hooks.json": "72af670ba053876f30d1245028c60f03cd239b65ef3f5a0809e063b21b745e0b",
+      "api_local_hooks-discovery.out": "9c048196ecc8f48da41212616b7814c89d9fad417b86e7e2d4f1aef784c6cc64",
+      "api_local_hooks-behavior.out": "f078f25ebc4d46ccf19ef71eb8474dd51bfef01897b5ccb25a512d635012fcb9",
+      "api_performance_context-discovery.out": "57b56f3d5e67e4c7e5ad59572d1bc895712ce6b9cfb9047d47f4fcb312f569e4",
+      "api_performance_context-behavior.out": "33a9d4c0819be3b7d3bef1c31aeafd19a4d59b8123464e3c0731db11c2879bac"
+    }
+  },
+  {
+    "source": "/tmp/api019-performance-native-34737918932/hooks-windows/20260913T044624602559Z",
+    "target": "/home/shawn/workspace2/reactive-tui/.cairn/reviews/api-019-performance-native/hooks/windows",
+    "files": {
+      "native-hooks.json": "41b6138c261c4e982560e3bc94f99acc857fa2971e121c64abc6e1d0715827c2",
+      "api_local_hooks-discovery.out": "3afc060197a8e7c56df2adeaa873e8423a3f69d8736ea4f18ff7f3e42b4ffbd2",
+      "api_local_hooks-behavior.out": "5bf16917f1dd0cc95fcc05db03068151cf3d3d1d52aa48544df97f0ece34e628",
+      "api_performance_context-discovery.out": "f65f43e03f0215c25a38782594d43136451b61bcb5036bd9730c222c68b631ce",
+      "api_performance_context-behavior.out": "3f7270e9e609593b78540fd1c59336f07e3df17ce486adc3dce6caa405221403"
+    }
+  }
+]
