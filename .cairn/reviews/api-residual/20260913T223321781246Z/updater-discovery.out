@@ -1,0 +1,8 @@
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 16.37s
+     Running tests/api_updater.rs (target/debug/deps/api_updater-4e31dcadffae4446)
+errors_unwinds_and_unrun_drop_close_requests_and_release_updaters: test
+requests_update_only_the_registered_app_before_render_and_close_after_exit: test
+worker_request_wakes_idle_app_and_repaints_state: test
+
+3 tests, 0 benchmarks

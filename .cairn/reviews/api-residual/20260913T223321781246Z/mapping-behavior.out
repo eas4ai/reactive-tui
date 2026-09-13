@@ -1,0 +1,12 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.10s
+     Running unittests src/lib.rs (target/debug/deps/reactive_tui-10768dd881459d97)
+
+running 5 tests
+test backend::tests::map_focus_gained_lost ... ok
+test backend::tests::map_key_event_basic ... ok
+test backend::tests::map_mouse_event_basic ... ok
+test backend::tests::map_paste_event ... ok
+test backend::tests::map_resize_event ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 1025 filtered out; finished in 0.00s
+

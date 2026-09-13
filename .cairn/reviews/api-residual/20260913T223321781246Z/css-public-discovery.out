@@ -1,0 +1,6 @@
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.31s
+     Running tests/api_animation_screens.rs (target/debug/deps/api_animation_screens-b95e88a614f46391)
+checked_conversion_requires_a_named_property_and_rejects_value_loss: test
+
+1 test, 0 benchmarks
