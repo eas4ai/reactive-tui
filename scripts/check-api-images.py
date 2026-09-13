@@ -30,7 +30,7 @@ def main():
     os.environ["CARGO_INCREMENTAL"] = "0"
     os.environ["PYTHONDONTWRITEBYTECODE"] = "1"
     for name in ("LP_NUM_THREADS", "RAYON_NUM_THREADS", "PYTHON_CPU_COUNT", "GOMAXPROCS"):
-        os.environ[name] = "12"
+        os.environ[name] = "8"
     # Share the existing bounded process-group runner; it kills surviving children
     # on timeout and retains output before reporting an error.
     execute = runpy.run_path(str(ROOT / "scripts/check-widget-platforms.py"))["execute"]
