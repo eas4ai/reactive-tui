@@ -1,0 +1,10 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.12s
+     Running unittests src/lib.rs (target/debug/deps/reactive_tui-10768dd881459d97)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.09s
+     Running unittests src/lib.rs (target/debug/deps/reactive_tui-10768dd881459d97)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.09s
+     Running unittests src/lib.rs (target/debug/deps/reactive_tui-10768dd881459d97)
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.20s
+     Running tests/api_animation_screens.rs (target/debug/deps/api_animation_screens-b95e88a614f46391)
+     Running tests/api_hook_lifecycle.rs (target/debug/deps/api_hook_lifecycle-ec074c2f3dd3d068)
