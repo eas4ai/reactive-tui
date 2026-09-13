@@ -12,4 +12,4 @@ Keep node-local storage for conversion. Materialize and retain the complete Elem
 
 ## Realized by
 
-(none yet: recorded, not built)
+- 13ba4cb10379e1eb8e12684b00ac5bb03a4935ee Restore complete Element subtrees through render node accessors
