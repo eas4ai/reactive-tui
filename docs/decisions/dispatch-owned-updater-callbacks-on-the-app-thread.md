@@ -12,4 +12,4 @@ Implement the approved required update method returning Result<()>. App registra
 
 ## Realized by
 
-(none yet: recorded, not built)
+- 99c4c0f358dcb58c6e1a4010107592d42bb6f27a Dispatch owned Updater callbacks through App wake requests
