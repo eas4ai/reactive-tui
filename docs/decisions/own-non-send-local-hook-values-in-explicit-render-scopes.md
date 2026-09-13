@@ -12,4 +12,4 @@ Add hooks::with_local_hooks as a synchronous local arena owner. Retain thread-sa
 
 ## Realized by
 
-(none yet: recorded, not built)
+- cdd3e77ff16adc4e2e259c18924af147cadaf022 Own local reference scopes and restore mapping test discovery
