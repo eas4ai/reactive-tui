@@ -1,0 +1,23 @@
+warning: unnecessary parentheses around closure body
+  --> src/backend/crossterm/src/terminal/sys/unix.rs:87:50
+   |
+87 |     let file = File::open("/dev/tty").map(|file| (FileDesc::Owned(file.into())));
+   |                                                  ^                            ^
+   |
+   = note: `#[warn(unused_parens)]` (part of `#[warn(unused)]`) on by default
+help: remove these parentheses
+   |
+87 -     let file = File::open("/dev/tty").map(|file| (FileDesc::Owned(file.into())));
+87 +     let file = File::open("/dev/tty").map(|file| FileDesc::Owned(file.into()));
+   |
+
+warning: `crossterm` (lib) generated 1 warning (run `cargo fix --lib -p crossterm` to apply 1 suggestion)
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+error[E0599]: no method named `stop` found for struct `AppWaker` in the current scope
+   --> tests/api_updater.rs:180:18
+    |
+180 |             wake.stop();
+    |                  ^^^^ method not found in `AppWaker`
+
+For more information about this error, try `rustc --explain E0599`.
+error: could not compile `reactive-tui` (test "api_updater") due to 1 previous error

@@ -1,0 +1,58 @@
+[
+  {
+    "name": "checker-controls",
+    "command": [
+      "python3",
+      "-B",
+      "verification/api-residual/checker-controls.py"
+    ],
+    "log": ".cairn/reviews/api-residual/20260913T123922451543Z/checker-controls.out",
+    "result": "pass",
+    "sha256": "1ae3222e4e204f55386d8df10d1890ae653982579b1176e7a6508b888d4f5a4d"
+  },
+  {
+    "name": "updater-discovery",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--test",
+      "api_updater",
+      "--",
+      "--list"
+    ],
+    "log": ".cairn/reviews/api-residual/20260913T123922451543Z/updater-discovery.out",
+    "result": "pass",
+    "sha256": "ae7d51523b02b5c81328cec5e1959e622b78d7d3d847fed49eba01f594c226ad"
+  },
+  {
+    "name": "updater-behavior",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--test",
+      "api_updater"
+    ],
+    "log": ".cairn/reviews/api-residual/20260913T123922451543Z/updater-behavior.out",
+    "result": "pass",
+    "sha256": "0e86425d4c3b4cc0774009be1de80746c55caa6399101c4a4d42481c8e94cb0f"
+  },
+  {
+    "name": "updater-ordering",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--lib",
+      "ui::updater::tests"
+    ],
+    "log": ".cairn/reviews/api-residual/20260913T123922451543Z/updater-ordering.out",
+    "result": "pass",
+    "sha256": "3ad0e2702f0fc0ccec7b87132038b62a129213040b64d37f252c85d49b4dcdae"
+  },
+  {
+    "name": "updaters",
+    "result": "pass"
+  }
+]

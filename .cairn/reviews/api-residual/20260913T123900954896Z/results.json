@@ -1,0 +1,61 @@
+[
+  {
+    "name": "checker-controls",
+    "command": [
+      "python3",
+      "-B",
+      "verification/api-residual/checker-controls.py"
+    ],
+    "log": ".cairn/reviews/api-residual/20260913T123900954896Z/checker-controls.out",
+    "result": "pass",
+    "sha256": "1ae3222e4e204f55386d8df10d1890ae653982579b1176e7a6508b888d4f5a4d"
+  },
+  {
+    "name": "updater-discovery",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--test",
+      "api_updater",
+      "--",
+      "--list"
+    ],
+    "log": ".cairn/reviews/api-residual/20260913T123900954896Z/updater-discovery.out",
+    "result": "fail",
+    "error": "Native widget command failed (101): /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-residual/20260913T123900954896Z/updater-discovery.out",
+    "sha256": "7ad23dfb123aaf58d9f257aa7a75c7f0e0a5fd306c72600359bfa3fb9671b006"
+  },
+  {
+    "name": "updater-behavior",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--test",
+      "api_updater"
+    ],
+    "log": ".cairn/reviews/api-residual/20260913T123900954896Z/updater-behavior.out",
+    "result": "fail",
+    "error": "Native widget command failed (101): /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-residual/20260913T123900954896Z/updater-behavior.out",
+    "sha256": "7ad23dfb123aaf58d9f257aa7a75c7f0e0a5fd306c72600359bfa3fb9671b006"
+  },
+  {
+    "name": "updater-ordering",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--lib",
+      "ui::updater::tests"
+    ],
+    "log": ".cairn/reviews/api-residual/20260913T123900954896Z/updater-ordering.out",
+    "result": "pass",
+    "sha256": "6b1db996e2bdefc9c22db77c898ba22ce587146173b5a473172d8101754e6d63"
+  },
+  {
+    "name": "updaters",
+    "result": "fail",
+    "error": "A required nested check failed; see retained outputs"
+  }
+]

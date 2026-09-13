@@ -43,3 +43,19 @@ the remainder after release and record the initial queued count. Every platform
 requires all 2,048 bytes, exhausted zero-timeout polls and terminal restoration.
 Dependency tests independently exercise bursts across multiple read buffers. Dependency provenance and changes are in
 `src/backend/crossterm/REACTIVE_TUI_PATCH.md`.
+
+## Registered refresh callbacks
+
+`ui::Updater` now requires `fn update(&mut self) -> reactive_tui::error::Result<()>`.
+Replace legacy empty implementations with a method that updates the state read
+by the intended component. Register it with `App::register_updater` before `run`.
+Keep the returned `UpdateRegistration` alive and obtain cloneable request handles
+with `registration.handle()`. `handle.request()` returns false after removal or
+App shutdown. A handle does not retain the callback or App.
+
+Requests coalesce per registration. App calls pending updaters in registration
+order before its first render and on later event-loop turns, on the App thread.
+Requests inside a callback wait for the next turn. Dropping the registration
+cancels pending work; an executing callback may finish, and App drops its callback
+on the next turn. Errors propagate through App shutdown. Updaters must be
+`Send + Sync`; their method can mutate ordinary shared state used by components.

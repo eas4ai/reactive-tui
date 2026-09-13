@@ -59,7 +59,7 @@ INPUT_TESTS = tuple("platform::input_receiver::tests::" + name for name in (
     "buffered_items_remain_after_session_shutdown", "draining_a_full_queue_wakes_the_producer",
     "cancellation_releases_a_full_queue_producer",
 ))
-GROUPS = ("refs", "mapping-tests", "unix-input", "performance", "inventory")
+GROUPS = ("refs", "mapping-tests", "unix-input", "performance", "updaters", "inventory")
 
 
 def inventory_rows(text):
@@ -185,6 +185,23 @@ class Check:
                  "-L", "dependency=" + str(ROOT / "target/debug/deps"), "-C", "link-arg=-Wl,--threads=12", "-o", binary])
         self.run("performance-consumer-behavior", [binary], 10,
                  verify=lambda text: require_marker(text, "PERFORMANCE_OWNER_OK"))
+
+    def updaters(self):
+        names = (
+            "worker_request_wakes_idle_app_and_repaints_state",
+            "requests_update_only_the_registered_app_before_render_and_close_after_exit",
+            "errors_unwinds_and_unrun_drop_close_requests_and_release_updaters",
+        )
+        self.run("updater-discovery", ["cargo", "test", "--locked", "--test", "api_updater", "--", "--list"],
+                 verify=lambda text: require_registered(text, names))
+        self.run("updater-behavior", ["cargo", "test", "--locked", "--test", "api_updater"],
+                 verify=lambda text: require_executed(text, names))
+        unit_names = ["ui::updater::tests::" + name for name in (
+            "requests_coalesce_order_and_reentry_waits_for_next_batch",
+            "cancellation_and_owner_close_invalidate_escaped_handles",
+        )]
+        self.run("updater-ordering", ["cargo", "test", "--locked", "--lib", "ui::updater::tests"],
+                 verify=lambda text: require_executed(text, unit_names))
 
     def inventory(self):
         inventory_rows((ROOT / "docs/residual-api-inventory.md").read_text())

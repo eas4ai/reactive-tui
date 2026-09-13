@@ -236,3 +236,13 @@ Every inherited requirement MUST retain current passing evidence. Final review M
 Audit mapping: RAPI-01 through RAPI-15.
 Falsifier: an inherited check regresses, an audit item is silently deferred, coverage is weakened, or a defect-confirming assertion is counted as correctness.
 Mechanism: all inherited mechanisms and independent final scope/behavior review.
+
+## Approved Updater migration
+
+Approved 2026-09-13, escalation api-019-api-020-2: ui::Updater MUST require
+an update method. Existing empty implementations must implement that method.
+Each App owns its registered updaters. Request handles wake only their App,
+coalesce repeated pending requests, and dispatch in registration order before
+rendering on the App thread. Requests during callbacks run on a later turn.
+Removed registrations and closed Apps make old handles inert. Callback errors
+propagate through App cleanup. Preserve bounded pending storage per registration.

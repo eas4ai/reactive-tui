@@ -82,6 +82,7 @@ pub struct App {
     reconciler: Reconciler,
     fps_manager: AdaptiveFpsManager,
     performance: performance::Owner,
+    updaters: crate::ui::UpdateRegistry,
     last_render_duration: std::time::Duration,
     last_presented: Option<Instant>,
     animation_manager: AnimationManager,
@@ -105,6 +106,15 @@ pub struct App {
 }
 
 impl App {
+    /// Register a refresh callback owned by this App. Keep the returned token alive.
+    /// Requests coalesce and run in registration order before a subsequent render.
+    pub fn register_updater(
+        &mut self,
+        updater: impl crate::ui::Updater + 'static,
+    ) -> crate::ui::UpdateRegistration {
+        self.updaters.register(updater, self.wake.clone())
+    }
+
     /// Create a new application builder
     pub fn builder() -> AppBuilder {
         AppBuilder::default()
@@ -117,6 +127,7 @@ impl App {
 
     fn run_scoped(mut self) -> Result<()> {
         let result = self.run_loop();
+        self.updaters.close();
         #[cfg(target_os = "linux")]
         let result = match self
             .accessibility
@@ -152,6 +163,7 @@ impl App {
         if self.debug {
             self.backend.set_debug_overlay(true);
         }
+        self.updaters.dispatch()?;
         self.render()?;
         self.fps_manager.benchmark_if_needed(&self.tree);
         self.publish_performance_context();
@@ -163,6 +175,7 @@ impl App {
                 break;
             }
             dirty |= requests.redraw;
+            dirty |= self.updaters.dispatch()?;
             if let Some(mode) = self.performance.take_request() {
                 if mode != self.fps_manager.performance_mode() {
                     self.fps_manager.set_performance_mode(mode);
@@ -682,6 +695,7 @@ impl App {
 
 impl Drop for App {
     fn drop(&mut self) {
+        self.updaters.close();
         #[cfg(target_os = "linux")]
         self.accessibility.take();
         self.wake.close();
@@ -844,6 +858,7 @@ impl AppBuilder {
             tree: RenderTree::new(),
             reconciler: Reconciler::new(),
             performance: performance::Owner::new(&fps_manager, wake.clone()),
+            updaters: crate::ui::UpdateRegistry::default(),
             last_render_duration: std::time::Duration::ZERO,
             last_presented: None,
             fps_manager,

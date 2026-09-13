@@ -1,0 +1,75 @@
+warning: unnecessary parentheses around closure body
+  --> src/backend/crossterm/src/terminal/sys/unix.rs:87:50
+   |
+87 |     let file = File::open("/dev/tty").map(|file| (FileDesc::Owned(file.into())));
+   |                                                  ^                            ^
+   |
+   = note: `#[warn(unused_parens)]` (part of `#[warn(unused)]`) on by default
+help: remove these parentheses
+   |
+87 -     let file = File::open("/dev/tty").map(|file| (FileDesc::Owned(file.into())));
+87 +     let file = File::open("/dev/tty").map(|file| FileDesc::Owned(file.into()));
+   |
+
+warning: `crossterm` (lib) generated 1 warning (run `cargo fix --lib -p crossterm` to apply 1 suggestion)
+   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
+warning: field `updater` is never read
+  --> src/ui/updater.rs:73:5
+   |
+71 | struct Entry {
+   |        ----- field in this struct
+72 |     state: Arc<Mutex<State>>,
+73 |     updater: Box<dyn Updater>,
+   |     ^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: method `dispatch` is never used
+   --> src/ui/updater.rs:101:19
+    |
+ 81 | impl UpdateRegistry {
+    | ------------------- method in this implementation
+...
+101 |     pub(crate) fn dispatch(&mut self) -> Result<bool> {
+    |                   ^^^^^^^^
+
+warning: `reactive-tui` (lib) generated 2 warnings
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 15.71s
+     Running tests/api_updater.rs (target/debug/deps/api_updater-700a73f261817e1a)
+
+running 3 tests
+test errors_unwinds_and_unrun_drop_close_requests_and_release_updaters ... FAILED
+test requests_update_only_the_registered_app_before_render_and_close_after_exit ... FAILED
+test worker_request_wakes_idle_app_and_repaints_state ... FAILED
+
+failures:
+
+---- errors_unwinds_and_unrun_drop_close_requests_and_release_updaters stdout ----
+
+thread 'errors_unwinds_and_unrun_drop_close_requests_and_release_updaters' (1694665) panicked at tests/api_updater.rs:113:22:
+called `Result::unwrap_err()` on an `Ok` value: ()
+
+---- requests_update_only_the_registered_app_before_render_and_close_after_exit stdout ----
+
+thread 'requests_update_only_the_registered_app_before_render_and_close_after_exit' (1694666) panicked at tests/api_updater.rs:87:5:
+assertion `left == right` failed
+  left: [0]
+ right: [1]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- worker_request_wakes_idle_app_and_repaints_state stdout ----
+
+thread 'worker_request_wakes_idle_app_and_repaints_state' (1694667) panicked at tests/api_updater.rs:187:5:
+assertion `left == right` failed: worker request did not repaint the updated state
+  left: 1
+ right: 2
+
+
+failures:
+    errors_unwinds_and_unrun_drop_close_requests_and_release_updaters
+    requests_update_only_the_registered_app_before_render_and_close_after_exit
+    worker_request_wakes_idle_app_and_repaints_state
+
+test result: FAILED. 0 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.00s
+
+error: test failed, to rerun pass `--test api_updater`
