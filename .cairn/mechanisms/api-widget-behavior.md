@@ -18,14 +18,7 @@ inputs:
   - scripts/check-conpty-platform.py
   - scripts/install-conpty-runtime.py
   - verification/libatspi
-  - docs/windows-terminal.md
   - .github/workflows/clipboard-platforms.yml
-  - docs/binding-abi-baseline.json
-  - docs/analysis/conpty-platform
-  - docs/analysis/widget-platforms
   - docs/spec/rust-api-remediation.md
-  - docs/widget-acceptance.md
-  - docs/dialog-http.md
-  - docs/dialog-input.md
 requirements:
   - API-011
