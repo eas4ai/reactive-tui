@@ -1,0 +1,354 @@
+{
+  "historical_control": "recognized as a defect demonstration",
+  "normal_cleanup": {
+    "command": [
+      "/usr/bin/python3",
+      "-B",
+      "/home/shawn/workspace2/reactive-tui/tests/api_widget_behavior/image_host_capture.py",
+      "gnome",
+      "/home/shawn/workspace2/reactive-tui/.cairn/reviews/api-020-closure/20260914T011625545295Z/normal",
+      "app-auto"
+    ],
+    "forced_timeout": false,
+    "owned_groups": [
+      1959641,
+      1959746
+    ],
+    "observed_members": {
+      "1959641": {
+        "state": "S",
+        "ppid": 1959640,
+        "pgid": 1959641,
+        "sid": 1959641,
+        "started": "143281876"
+      },
+      "1959642": {
+        "state": "S",
+        "ppid": 1959641,
+        "pgid": 1959641,
+        "sid": 1959641,
+        "started": "143281880"
+      },
+      "1959746": {
+        "state": "S",
+        "ppid": 1959640,
+        "pgid": 1959746,
+        "sid": 1959746,
+        "started": "143281888"
+      },
+      "1959816": {
+        "state": "S",
+        "ppid": 1959746,
+        "pgid": 1959746,
+        "sid": 1959746,
+        "started": "143281892"
+      },
+      "1959817": {
+        "state": "S",
+        "ppid": 1959816,
+        "pgid": 1959746,
+        "sid": 1959746,
+        "started": "143281892"
+      },
+      "1959833": {
+        "state": "S",
+        "ppid": 1959816,
+        "pgid": 1959746,
+        "sid": 1959746,
+        "started": "143281902"
+      },
+      "1959837": {
+        "state": "S",
+        "ppid": 6898,
+        "pgid": 1959746,
+        "sid": 1959746,
+        "started": "143281907"
+      },
+      "1959853": {
+        "state": "S",
+        "ppid": 1959837,
+        "pgid": 1959746,
+        "sid": 1959746,
+        "started": "143281908"
+      },
+      "1959864": {
+        "state": "S",
+        "ppid": 1959817,
+        "pgid": 1959746,
+        "sid": 1959746,
+        "started": "143281908"
+      },
+      "1959865": {
+        "state": "S",
+        "ppid": 6898,
+        "pgid": 1959746,
+        "sid": 1959746,
+        "started": "143281908"
+      },
+      "1959871": {
+        "state": "S",
+        "ppid": 6898,
+        "pgid": 1959746,
+        "sid": 1959746,
+        "started": "143281910"
+      },
+      "1959944": {
+        "state": "S",
+        "ppid": 1959817,
+        "pgid": 1959746,
+        "sid": 1959746,
+        "started": "143281914"
+      },
+      "1959945": {
+        "state": "S",
+        "ppid": 6898,
+        "pgid": 1959746,
+        "sid": 1959746,
+        "started": "143281914"
+      },
+      "1959953": {
+        "state": "S",
+        "ppid": 6898,
+        "pgid": 1959746,
+        "sid": 1959746,
+        "started": "143281915"
+      },
+      "1959973": {
+        "state": "S",
+        "ppid": 6898,
+        "pgid": 1959746,
+        "sid": 1959746,
+        "started": "143281918"
+      },
+      "1960040": {
+        "state": "S",
+        "ppid": 6898,
+        "pgid": 1959746,
+        "sid": 1959746,
+        "started": "143281919"
+      },
+      "1960044": {
+        "state": "S",
+        "ppid": 1959817,
+        "pgid": 1959746,
+        "sid": 1959746,
+        "started": "143281920"
+      },
+      "1960045": {
+        "state": "S",
+        "ppid": 6898,
+        "pgid": 1959746,
+        "sid": 1959746,
+        "started": "143281920"
+      },
+      "1960231": {
+        "state": "S",
+        "ppid": 6898,
+        "pgid": 1959746,
+        "sid": 1959746,
+        "started": "143281941"
+      },
+      "1960388": {
+        "state": "S",
+        "ppid": 1959865,
+        "pgid": 1959746,
+        "sid": 1959746,
+        "started": "143281963"
+      },
+      "1960389": {
+        "state": "S",
+        "ppid": 1960388,
+        "pgid": 1959746,
+        "sid": 1959746,
+        "started": "143281963"
+      },
+      "1960390": {
+        "state": "S",
+        "ppid": 1960389,
+        "pgid": 1959746,
+        "sid": 1959746,
+        "started": "143281964"
+      },
+      "1960395": {
+        "state": "S",
+        "ppid": 6898,
+        "pgid": 1959746,
+        "sid": 1959746,
+        "started": "143281965"
+      }
+    },
+    "remaining": {}
+  },
+  "forced_timeout_cleanup": {
+    "command": [
+      "/usr/bin/python3",
+      "-B",
+      "/home/shawn/workspace2/reactive-tui/tests/api_widget_behavior/image_host_capture.py",
+      "gnome",
+      "/home/shawn/workspace2/reactive-tui/.cairn/reviews/api-020-closure/20260914T011625545295Z/forced-timeout",
+      "app-auto"
+    ],
+    "forced_timeout": true,
+    "owned_groups": [
+      1963371,
+      1963445
+    ],
+    "observed_members": {
+      "1963371": {
+        "state": "S",
+        "ppid": 1963367,
+        "pgid": 1963371,
+        "sid": 1963371,
+        "started": "143283328"
+      },
+      "1963375": {
+        "state": "S",
+        "ppid": 1963371,
+        "pgid": 1963371,
+        "sid": 1963371,
+        "started": "143283332"
+      },
+      "1963445": {
+        "state": "S",
+        "ppid": 1963367,
+        "pgid": 1963445,
+        "sid": 1963445,
+        "started": "143283336"
+      },
+      "1963452": {
+        "state": "S",
+        "ppid": 1963445,
+        "pgid": 1963445,
+        "sid": 1963445,
+        "started": "143283341"
+      },
+      "1963453": {
+        "state": "S",
+        "ppid": 1963452,
+        "pgid": 1963445,
+        "sid": 1963445,
+        "started": "143283341"
+      },
+      "1963454": {
+        "state": "S",
+        "ppid": 1963452,
+        "pgid": 1963445,
+        "sid": 1963445,
+        "started": "143283342"
+      },
+      "1963527": {
+        "state": "S",
+        "ppid": 6898,
+        "pgid": 1963445,
+        "sid": 1963445,
+        "started": "143283346"
+      },
+      "1963541": {
+        "state": "S",
+        "ppid": 1963527,
+        "pgid": 1963445,
+        "sid": 1963445,
+        "started": "143283346"
+      },
+      "1963547": {
+        "state": "S",
+        "ppid": 1963453,
+        "pgid": 1963445,
+        "sid": 1963445,
+        "started": "143283347"
+      },
+      "1963548": {
+        "state": "S",
+        "ppid": 6898,
+        "pgid": 1963445,
+        "sid": 1963445,
+        "started": "143283347"
+      },
+      "1963554": {
+        "state": "S",
+        "ppid": 6898,
+        "pgid": 1963445,
+        "sid": 1963445,
+        "started": "143283348"
+      },
+      "1963565": {
+        "state": "S",
+        "ppid": 1963453,
+        "pgid": 1963445,
+        "sid": 1963445,
+        "started": "143283351"
+      },
+      "1963566": {
+        "state": "S",
+        "ppid": 6898,
+        "pgid": 1963445,
+        "sid": 1963445,
+        "started": "143283351"
+      },
+      "1963572": {
+        "state": "S",
+        "ppid": 6898,
+        "pgid": 1963445,
+        "sid": 1963445,
+        "started": "143283352"
+      },
+      "1963590": {
+        "state": "S",
+        "ppid": 6898,
+        "pgid": 1963445,
+        "sid": 1963445,
+        "started": "143283355"
+      },
+      "1963601": {
+        "state": "S",
+        "ppid": 6898,
+        "pgid": 1963445,
+        "sid": 1963445,
+        "started": "143283356"
+      },
+      "1963667": {
+        "state": "S",
+        "ppid": 6898,
+        "pgid": 1963445,
+        "sid": 1963445,
+        "started": "143283358"
+      },
+      "1963847": {
+        "state": "S",
+        "ppid": 6898,
+        "pgid": 1963445,
+        "sid": 1963445,
+        "started": "143283373"
+      },
+      "1963953": {
+        "state": "S",
+        "ppid": 1963548,
+        "pgid": 1963445,
+        "sid": 1963445,
+        "started": "143283392"
+      },
+      "1963956": {
+        "state": "S",
+        "ppid": 1963953,
+        "pgid": 1963445,
+        "sid": 1963445,
+        "started": "143283392"
+      },
+      "1963958": {
+        "state": "S",
+        "ppid": 1963956,
+        "pgid": 1963445,
+        "sid": 1963445,
+        "started": "143283393"
+      },
+      "1963963": {
+        "state": "S",
+        "ppid": 6898,
+        "pgid": 1963445,
+        "sid": 1963445,
+        "started": "143283393"
+      }
+    },
+    "remaining": {}
+  }
+}
