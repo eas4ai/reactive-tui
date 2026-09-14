@@ -9,7 +9,6 @@ inputs:
   - Cargo.toml
   - Cargo.lock
   - build.rs
-  - docs/api-audit.md
   - docs/spec/rust-api-remediation.md
   - tests/api_widget_behavior/image_host_probe.rs
   - reactive-tui-macros
