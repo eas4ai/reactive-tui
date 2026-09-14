@@ -8,8 +8,7 @@ inputs:
   - src/app.rs
   - src/backend
   - src/platform
-  - tests
-  - scripts
+  - scripts/check-pre-release-terminal-lifecycle.py
 requirements:
   - TRL-001
 

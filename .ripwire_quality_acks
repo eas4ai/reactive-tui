@@ -1,0 +1,4 @@
+# ripwire quality acks v1 — written by --quality-ack; a finding stays suppressed until it worsens past its acked magnitude
+# format: ack <kind> <16-hex-key> <ackNow> <reason to end of line> — one per line, kept SORTED by (kind,key) on every write (merge-friendly)
+ack short-horizon-churn 3e6214eea6a0306e 8 TRL-001 must wrap the existing application and renderer entry points so owned terminal state drops before panic text is reprinted
+ack short-horizon-churn fee63597aeee73f8 18 TRL-001 must wrap the existing application and renderer entry points so owned terminal state drops before panic text is reprinted

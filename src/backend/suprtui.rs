@@ -89,6 +89,8 @@ enum Command {
         mpsc::Sender<Result<super::PresentedGeometry>>,
     ),
     Shutdown(Reply),
+    #[cfg(test)]
+    Panic(&'static str),
 }
 
 enum FrameContent {
@@ -194,7 +196,7 @@ impl SuprTuiBackend {
         let worker = thread::Builder::new()
             .name("suprtui-renderer".into())
             .spawn(move || {
-                run_worker(writer, terminal, dimensions, receiver, ready, images);
+                run_worker_guarded(writer, terminal, dimensions, receiver, ready, images);
             })?;
         let mut backend = Self {
             commands: Some(commands),
@@ -402,6 +404,20 @@ fn worker_stopped() -> ReactiveError {
     ReactiveError::terminal("SuprTUI renderer worker is closed or failed")
 }
 
+fn run_worker_guarded<W: Write>(
+    writer: W,
+    terminal: bool,
+    dimensions: (usize, usize),
+    receiver: mpsc::Receiver<Command>,
+    ready: Reply,
+    images: ImageOutputOptions,
+) {
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        run_worker(writer, terminal, dimensions, receiver, ready, images);
+    }));
+    crate::app::resume_caught_panic("SuprTUI renderer", result);
+}
+
 fn run_worker<W: Write>(
     writer: W,
     terminal: bool,
@@ -533,6 +549,8 @@ fn run_worker<W: Write>(
                 let _ = reply.send(cleanup.and(restored));
                 return;
             }
+            #[cfg(test)]
+            Command::Panic(marker) => panic!("{marker}"),
         }
     }
     if let Err(error) = renderer.backend_mut().finish_graphics(graphics.cleanup()) {
@@ -632,5 +650,29 @@ mod raw_mode_tests {
         assert!(!owners.acquire(true));
         assert!(!owners.release());
         assert!(!owners.enabled_by_library);
+    }
+}
+
+#[cfg(all(test, unix))]
+mod trl_001_tests {
+    use super::{Command, SuprTuiBackend};
+
+    #[test]
+    #[ignore = "invoked by the TRL-001 PTY mechanism"]
+    fn worker_panic_restores_the_owned_terminal() {
+        if std::env::var("REACTIVE_TUI_TRL_001_PROBE").as_deref() != Ok("worker") {
+            return;
+        }
+        let mut backend = SuprTuiBackend::new().expect("PTY backend must start");
+        backend
+            .commands
+            .as_ref()
+            .expect("worker command sender must exist")
+            .send(Command::Panic("TRL001_WORKER_PANIC"))
+            .expect("worker must receive panic command");
+        assert!(
+            backend.shutdown().is_err(),
+            "worker panic must close commands"
+        );
     }
 }

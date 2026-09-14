@@ -13,6 +13,21 @@ use crate::render::{Reconciler, RenderTree};
 use std::sync::Arc;
 use std::time::Instant;
 
+pub(crate) fn resume_caught_panic<T>(context: &str, result: std::thread::Result<T>) -> T {
+    match result {
+        Ok(value) => value,
+        Err(payload) => {
+            let message = payload
+                .downcast_ref::<&str>()
+                .copied()
+                .or_else(|| payload.downcast_ref::<String>().map(String::as_str))
+                .unwrap_or("non-string panic payload");
+            eprintln!("{context} panicked: {message}");
+            std::panic::resume_unwind(payload);
+        }
+    }
+}
+
 pub(crate) mod event_tree;
 pub(crate) mod focus_manager;
 mod motion;
@@ -122,7 +137,10 @@ impl App {
 
     /// Run the application main loop
     pub fn run(self) -> Result<()> {
-        crate::reactive::local_hooks::with_current_scope(move || self.run_scoped())
+        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            crate::reactive::local_hooks::with_current_scope(move || self.run_scoped())
+        }));
+        resume_caught_panic("Application", result)
     }
 
     fn run_scoped(mut self) -> Result<()> {
@@ -889,7 +907,7 @@ impl AppBuilder {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::backend::DebugBackend;
+    use crate::backend::{DebugBackend, SuprTuiBackend};
 
     struct TestComponent {
         counter: i32,
@@ -899,6 +917,33 @@ mod tests {
         fn render(&self) -> Element {
             Element::text(format!("Counter: {}", self.counter))
         }
+    }
+
+    struct PanicComponent;
+
+    impl RootComponent for PanicComponent {
+        fn render(&self) -> Element {
+            panic!("TRL001_MAIN_PANIC")
+        }
+    }
+
+    #[test]
+    #[ignore = "invoked by the TRL-001 PTY mechanism"]
+    fn main_thread_panic_restores_the_owned_terminal() {
+        if std::env::var("REACTIVE_TUI_TRL_001_PROBE").as_deref() != Ok("main") {
+            return;
+        }
+        let backend = SuprTuiBackend::new().expect("PTY backend must start");
+        let app = App::builder()
+            .backend(backend)
+            .root(PanicComponent)
+            .build()
+            .expect("panic probe app must build");
+        let panic = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| app.run()));
+        assert!(
+            panic.is_err(),
+            "main-thread panic must resume after cleanup"
+        );
     }
 
     #[test]
