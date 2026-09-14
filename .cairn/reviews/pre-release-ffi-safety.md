@@ -1,16 +1,16 @@
 # Review: pre-release-ffi-safety
 
-commit: 6fe244d8
+commit: 17e42e86
 findings:
-  - open: FFS-001 passes without the declared safe violating fixture for moved App ownership and bare nullable callback types.
+  - resolved: FFS-001 now rejects deliberate moved-App ownership and bare nullable callback fixtures while accepting the corrected representations.
 
 ## Scope examined
 
-Read the five requirements, mechanism declarations, focused C consumers,
-syntax-aware export inventory, current Rust ownership wrappers, generated C
-header, TypeScript wrapper, and the latest committed evidence. Compared each
-mechanism with its falsifier and checked whether the failure path is distinct
-from the corrected case.
+Re-read the five requirements, mechanism declarations, focused C consumers,
+Rust representation tests, current ownership wrappers, generated C header,
+TypeScript wrapper, and the latest committed evidence. Compared each mechanism
+with its falsifier and checked whether the failure path is distinct from the
+corrected case.
 
 FFS-002 has a syntax-aware fixture with one panic boundary removed. FFS-003
 exercises consumed builder and animation handles plus reentrant concurrent log
@@ -20,25 +20,27 @@ under ASan and UBSan. FFS-005 verifies regenerated declarations, independent
 Rust/C layouts and signatures, strict C and C++ consumers, the compiled header
 example, TypeScript build/lint/examples, and a native TypeScript consumer.
 
-## Finding
+## Resolved finding
 
 The FFS-001 declaration says a safe fixture with the former moved `Box<App>`
 ownership and a bare nullable function pointer must fail under a sanitizer or
-an equivalent Rust lifetime and representation assertion. The current
-`run_ffs_001` only builds and runs the corrected C consumer. That consumer
-passes null callbacks and exercises cross-thread quit, but a successful call
-does not prove the Rust callback type is `Option<extern "C" fn>`: passing null
-to a bare Rust function-pointer parameter is already undefined at the ABI
-boundary and need not trap. The mechanism also has no deliberate moved-Box
-fixture. Therefore its passing receipt does not establish the full declared
-mechanism.
+an equivalent Rust lifetime and representation assertion. FFS-001 now runs
+three Rust representation tests before the C consumer. The corrected app
+source passes an AST ownership assertion for `Mutex<Option<App>>` and the
+absence of `Box::from_raw` in `rtui_app_run`. A deliberate fixture containing
+`NativeApp { app: App }` and `Box::from_raw` produces both expected errors.
 
-Add a syntax-aware Rust representation inventory that inspects the App owner
-and nullable callback aliases structurally, accepts the corrected source, and
-rejects a safe fixture containing both former violations. Run that inventory
-as part of FFS-001 before its sanitizer-backed C consumer. Source substring
-matching alone is insufficient.
+Callback nullability uses the compiler rather than syntax matching. Type
+identity functions compile only when the exported aliases are exactly
+`Option<extern "C" fn>`. Two `compile_fail` doctests define bare callback
+aliases and attempt the same conversion; rustdoc rejects both fixtures on every
+run. The latest evidence records all three representation tests, both doctests,
+and the sanitizer-backed C consumer passing. This satisfies the declared safe
+violating case without relying on undefined behavior at the C ABI boundary.
 
-No executable code changed during this review. No other blocking finding was
-identified in the commitment footprint. The existing warnings and Linux-only
-runtime coverage remain assigned to later remediation commitments.
+Fresh FFS-002 through FFS-005 evidence also passes after the shared mechanism
+inputs changed. No new blocking finding was identified in the commitment
+footprint.
+
+No executable code changed during this review. The existing warnings and
+Linux-only runtime coverage remain assigned to later remediation commitments.
