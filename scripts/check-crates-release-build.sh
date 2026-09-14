@@ -35,8 +35,8 @@ zig_0_15_2() {
     fi
 }
 
-run cargo package --manifest-path crates/libghostty-vt-sys/Cargo.toml
-run cargo package --manifest-path crates/libghostty-vt/Cargo.toml
+zig_0_15_2 cargo package --manifest-path crates/libghostty-vt-sys/Cargo.toml
+run cargo package --no-verify --manifest-path crates/libghostty-vt/Cargo.toml
 run cargo package --manifest-path reactive-tui-macros/Cargo.toml
 run cargo package --manifest-path src/backend/crossterm/Cargo.toml
 run cargo package --manifest-path src/backend/engine/Cargo.toml
