@@ -14,4 +14,4 @@ Prepare project-owned reactive-tui-libghostty-vt and reactive-tui-libghostty-vt-
 
 ## Realized by
 
-(none yet: recorded, not built)
+- 60659879 release: preserve pinned Ghostty bindings
