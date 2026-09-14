@@ -12,6 +12,5 @@ inputs:
   - tests/suprtui_renderer.rs
   - scripts/check-api-entry-points.py
   - verification/api-entry-points
-  - docs/application-entry-points.md
 requirements:
   - API-016
