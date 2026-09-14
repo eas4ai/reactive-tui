@@ -7,6 +7,7 @@ inputs:
   - src/animation
   - src/app.rs
   - src/hooks/animation.rs
+  - src/hooks/timer.rs
   - src/reactive
   - scripts/check-pre-release-reactive-concurrency.py
 requirements:
