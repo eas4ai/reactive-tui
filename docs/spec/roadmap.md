@@ -1,7 +1,7 @@
 # Recovery roadmap
 
 Status: Agreed 2026-09-07
-Current: rust-api-remediation
+Current: documentation-retention
 
 1. `suprtui-renderer` — the first screen: styled frames, updates, Unicode,
    resize, output errors, input, and terminal restoration (RND-001 through RND-006).
@@ -34,3 +34,6 @@ the Rust API remediation commitment below.
 9. `rust-api-remediation` — remediate all 15 Rust API audit findings and named
    residual concerns, restore end-to-end native behavior and bindings, and retain
    all inherited acceptance contracts (API-001 through API-020).
+
+10. `documentation-retention` — retain only Cairn-managed specifications,
+    commitments, and decisions in the tracked documentation tree (DOC-001).
