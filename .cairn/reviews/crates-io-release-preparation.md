@@ -41,6 +41,13 @@ the staged publication order begins. The sys package command must use
 later embedded root build compiles the complete local wrapper and sys pair.
 These mismatches must be fixed before accepting the revised digest.
 
+The first attempted fix selected Zig 0.15.2 for the sys package. A targeted
+package verification ran under CPUs 0 through 7 and reached the pinned Ghostty
+build, which rejected Zig 0.15.2 and required Zig 0.16.0. The 0.15.2 constraint
+came from the incompatible crates.io package and does not describe upstream
+commit `5988a0b78b4aa804d1c12e66bbfe662bd97d81c0`. CRT-003 and its mechanism
+must use Zig 0.16.0 before this review can pass.
+
 Compared `scripts/check-crates-release-build.sh` with the revised CRT-003
 requirement and falsifier. The script validates a numeric job count from one
 through eight before invoking Cargo. Every package and feature command is a
