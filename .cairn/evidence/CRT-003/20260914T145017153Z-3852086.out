@@ -1,0 +1,128 @@
++ cargo package --manifest-path reactive-tui-macros/Cargo.toml
+   Packaging reactive-tui-macros v0.1.0 (/home/shawn/workspace2/reactive-tui/reactive-tui-macros)
+    Updating crates.io index
+    Packaged 7 files, 21.8KiB (6.5KiB compressed)
+   Verifying reactive-tui-macros v0.1.0 (/home/shawn/workspace2/reactive-tui/reactive-tui-macros)
+   Compiling reactive-tui-macros v0.1.0 (/home/shawn/workspace2/scratchpads/suprnova-target/package/reactive-tui-macros-0.1.0)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.34s
++ cargo package --manifest-path src/backend/crossterm/Cargo.toml
+   Packaging reactive-tui-crossterm v0.1.0 (/home/shawn/workspace2/reactive-tui/src/backend/crossterm)
+    Updating crates.io index
+    Packaged 54 files, 429.1KiB (89.3KiB compressed)
+   Verifying reactive-tui-crossterm v0.1.0 (/home/shawn/workspace2/reactive-tui/src/backend/crossterm)
+   Compiling reactive-tui-crossterm v0.1.0 (/home/shawn/workspace2/scratchpads/suprnova-target/package/reactive-tui-crossterm-0.1.0)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.52s
++ cargo package --manifest-path src/backend/engine/Cargo.toml
+   Packaging reactive-tui-suprtui v0.1.0 (/home/shawn/workspace2/reactive-tui/src/backend/engine)
+    Updating crates.io index
+    Packaged 51 files, 866.6KiB (179.8KiB compressed)
+   Verifying reactive-tui-suprtui v0.1.0 (/home/shawn/workspace2/reactive-tui/src/backend/engine)
+   Compiling reactive-tui-suprtui v0.1.0 (/home/shawn/workspace2/scratchpads/suprnova-target/package/reactive-tui-suprtui-0.1.0)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.72s
++ cargo +1.91.0 check --locked --jobs 8 --no-default-features
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.11s
++ cargo +1.91.0 check --locked --jobs 8
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.08s
++ cargo +1.91.0 check --locked --jobs 8 --no-default-features --features ffi
+warning: ambiguous glob re-exports
+  --> src/ffi/mod.rs:94:9
+   |
+94 | pub use pointer::*;
+   |         ^^^^^^^^^^ the name `validate_pointer` in the value namespace is first re-exported here
+...
+99 | pub use types::*;
+   |         -------- but the name `validate_pointer` in the value namespace is also re-exported here
+   |
+   = note: `#[warn(ambiguous_glob_reexports)]` on by default
+
+warning: unused variable: `width`
+  --> src/ffi/lib.rs:85:14
+   |
+85 |         let (width, height) = renderer_box.dims();
+   |              ^^^^^
+   |
+   = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+help: if this is intentional, prefix it with an underscore
+   |
+85 |         let (_width, height) = renderer_box.dims();
+   |              +
+help: you might have meant to pattern match on the similarly named constant `MAX_SCRATCH`
+   |
+85 -         let (width, height) = renderer_box.dims();
+85 +         let (widgets::display::image::sixel_encode::MAX_SCRATCH, height) = renderer_box.dims();
+   |
+
+warning: function `validate_pointer` is never used
+   --> src/ffi/types.rs:182:15
+    |
+182 | pub(crate) fn validate_pointer<T>(ptr: *const T) -> bool {
+    |               ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `validate_mut_pointer` is never used
+   --> src/ffi/types.rs:187:15
+    |
+187 | pub(crate) fn validate_mut_pointer<T>(ptr: *mut T) -> bool {
+    |               ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `safe_cast` is never used
+   --> src/ffi/types.rs:192:22
+    |
+192 | pub(crate) unsafe fn safe_cast<T, U>(ptr: *mut T) -> Result<*mut U, ReactiveError> {
+    |                      ^^^^^^^^^
+
+warning: function `safe_cast_const` is never used
+   --> src/ffi/types.rs:206:22
+    |
+206 | pub(crate) unsafe fn safe_cast_const<T, U>(ptr: *const T) -> Result<*const U, ReactiveError> {
+    |                      ^^^^^^^^^^^^^^^
+
+warning: `reactive-tui` (lib) generated 6 warnings (run `cargo fix --lib -p reactive-tui` to apply 1 suggestion)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.09s
++ mise exec zig@0.15.2 -- cargo +1.91.0 check --locked --jobs 8 --no-default-features --features embedded-terminal
+   Compiling libghostty-vt-sys v0.2.1
+error: failed to run custom build command for `libghostty-vt-sys v0.2.1`
+
+Caused by:
+  process didn't exit successfully: `/home/shawn/workspace2/scratchpads/suprnova-target/debug/build/libghostty-vt-sys-7c12732ce348a206/build-script-build` (exit status: 101)
+  --- stdout
+  cargo:rerun-if-env-changed=LIBGHOSTTY_VT_SYS_OPTIMIZE
+  cargo:rerun-if-env-changed=GHOSTTY_SOURCE_DIR
+  cargo:rerun-if-env-changed=GHOSTTY_ZIG_SYSTEM_DIR
+  cargo:rerun-if-env-changed=TARGET
+  cargo:rerun-if-env-changed=HOST
+  cargo:rerun-if-env-changed=DEBUG
+  cargo:rerun-if-env-changed=OPT_LEVEL
+  cargo:rerun-if-changed=crates/libghostty-vt-sys/build.rs
+
+  --- stderr
+  install
+  +- install ghostty-vt
+     +- compile lib ghostty-vt Debug native 1 errors
+  error: sub-compilation of libcxx failed
+      :1:1: note: clang frontend command failed with exit code 139 (use -v to see invocation)
+      :1:1: note: diagnostic msg: 
+                  ********************
+                  
+                  PLEASE ATTACH THE FOLLOWING FILES TO THE BUG REPORT:
+                  Preprocessed source(s) and associated run script(s) are located at:
+      :1:1: note: diagnostic msg: /home/shawn/workspace2/scratchpads/tmp/ios-4e8372.cpp
+      :1:1: note: diagnostic msg: /home/shawn/workspace2/scratchpads/tmp/ios-4e8372.sh
+      :1:1: note: diagnostic msg: 
+                  
+                  ********************
+  error: the following command failed with 1 compilation errors:
+  /home/shawn/.local/share/mise/installs/zig/0.15.2/zig build-lib /home/shawn/workspace2/scratchpads/suprnova-target/debug/build/libghostty-vt-sys-7bc60bef8616dbe1/out/zig-cache/o/e4f53f9aa3634fa98d3e2b614863f7c5/libsimdutf.a /home/shawn/workspace2/scratchpads/suprnova-target/debug/build/libghostty-vt-sys-7bc60bef8616dbe1/out/zig-cache/o/82acdd8e677ebdd81f6512881f12ec94/libhighway.a -cflags -DHWY_DISABLED_TARGETS=472 -std=c++17 -DHWY_NO_LIBCXX -DSIMDUTF_NO_LIBCXX -- /home/shawn/workspace2/scratchpads/suprnova-target/debug/build/libghostty-vt-sys-7bc60bef8616dbe1/out/ghostty-src/src/simd/base64.cpp /home/shawn/workspace2/scratchpads/suprnova-target/debug/build/libghostty-vt-sys-7bc60bef8616dbe1/out/ghostty-src/src/simd/codepoint_width.cpp /home/shawn/workspace2/scratchpads/suprnova-target/debug/build/libghostty-vt-sys-7bc60bef8616dbe1/out/ghostty-src/src/simd/index_of.cpp /home/shawn/workspace2/scratchpads/suprnova-target/debug/build/libghostty-vt-sys-7bc60bef8616dbe1/out/ghostty-src/src/simd/vt.cpp -fPIC -ODebug -I /home/shawn/workspace2/scratchpads/suprnova-target/debug/build/libghostty-vt-sys-7bc60bef8616dbe1/out/zig-cache/o/7072ef52cb480653061d265d53f53283 -I /home/shawn/workspace2/scratchpads/suprnova-target/debug/build/libghostty-vt-sys-7bc60bef8616dbe1/out/zig-cache/o/d48b986f79939e49c627b69d69d93f2b -I /home/shawn/workspace2/scratchpads/suprnova-target/debug/build/libghostty-vt-sys-7bc60bef8616dbe1/out/ghostty-src/src --dep build_options --dep terminal_options --dep unicode_tables --dep symbols_tables --dep uucode -Mroot=/home/shawn/workspace2/scratchpads/suprnova-target/debug/build/libghostty-vt-sys-7bc60bef8616dbe1/out/ghostty-src/src/lib_vt.zig -Mbuild_options=/home/shawn/workspace2/scratchpads/suprnova-target/debug/build/libghostty-vt-sys-7bc60bef8616dbe1/out/zig-cache/c/ee2fed9c217b05c362905871ff89677a/options.zig -Mterminal_options=/home/shawn/workspace2/scratchpads/suprnova-target/debug/build/libghostty-vt-sys-7bc60bef8616dbe1/out/zig-cache/c/b5bb7ca3e4b7118ff93c7a10714e8e60/options.zig -Municode_tables=/home/shawn/workspace2/scratchpads/suprnova-target/debug/build/libghostty-vt-sys-7bc60bef8616dbe1/out/zig-cache/o/4bf54341e25d12eba602ed5533a7c9ee/props.zig -Msymbols_tables=/home/shawn/workspace2/scratchpads/suprnova-target/debug/build/libghostty-vt-sys-7bc60bef8616dbe1/out/zig-cache/o/4bf54341e25d12eba602ed5533a7c9ee/symbols.zig -ODebug --dep types.zig --dep config.zig --dep types.x.zig --dep tables --dep get.zig -Muucode=/home/shawn/.cache/zig/p/uucode-0.2.0-ZZjBPqZVVABQepOqZHR7vV_NcaN-wats0IB6o-Exj6m9/src/root.zig -ODebug --dep config.zig --dep get.zig -Mtypes.zig=/home/shawn/.cache/zig/p/uucode-0.2.0-ZZjBPqZVVABQepOqZHR7vV_NcaN-wats0IB6o-Exj6m9/src/types.zig -ODebug --dep types.zig -Mconfig.zig=/home/shawn/.cache/zig/p/uucode-0.2.0-ZZjBPqZVVABQepOqZHR7vV_NcaN-wats0IB6o-Exj6m9/src/config.zig -ODebug --dep config.x.zig -Mtypes.x.zig=/home/shawn/.cache/zig/p/uucode-0.2.0-ZZjBPqZVVABQepOqZHR7vV_NcaN-wats0IB6o-Exj6m9/src/x/types.x.zig -ODebug --dep types.zig --dep types.x.zig --dep config.zig --dep build_config -Mtables=/home/shawn/workspace2/scratchpads/suprnova-target/debug/build/libghostty-vt-sys-7bc60bef8616dbe1/out/zig-cache/o/f4e9acb80f32608927a38d842f3b6321/tables.zig -ODebug --dep types.zig --dep tables -Mget.zig=/home/shawn/.cache/zig/p/uucode-0.2.0-ZZjBPqZVVABQepOqZHR7vV_NcaN-wats0IB6o-Exj6m9/src/get.zig -ODebug --dep types.x.zig --dep types.zig --dep config.zig -Mconfig.x.zig=/home/shawn/.cache/zig/p/uucode-0.2.0-ZZjBPqZVVABQepOqZHR7vV_NcaN-wats0IB6o-Exj6m9/src/x/config.x.zig --dep types.zig --dep config.zig --dep types.x.zig --dep config.x.zig -Mbuild_config=/home/shawn/workspace2/scratchpads/suprnova-target/debug/build/libghostty-vt-sys-7bc60bef8616dbe1/out/ghostty-src/src/build/uucode_config.zig -lc++ -lc --cache-dir /home/shawn/workspace2/scratchpads/suprnova-target/debug/build/libghostty-vt-sys-7bc60bef8616dbe1/out/zig-cache --global-cache-dir /home/shawn/.cache/zig --name ghostty-vt -dynamic --version 0.1.0-dev --zig-lib-dir /home/shawn/.local/share/mise/installs/zig/0.15.2/lib/ --listen=-
+
+  Build Summary: 20/23 steps succeeded; 1 failed
+  install transitive failure
+  +- install ghostty-vt transitive failure
+     +- compile lib ghostty-vt Debug native 1 errors
+
+  error: the following build command failed with exit code 1:
+  /home/shawn/workspace2/scratchpads/suprnova-target/debug/build/libghostty-vt-sys-7bc60bef8616dbe1/out/zig-cache/o/a466a1c44e6f78c752322257267259d5/build /home/shawn/.local/share/mise/installs/zig/0.15.2/zig /home/shawn/.local/share/mise/installs/zig/0.15.2/lib /home/shawn/workspace2/scratchpads/suprnova-target/debug/build/libghostty-vt-sys-7bc60bef8616dbe1/out/ghostty-src /home/shawn/workspace2/scratchpads/suprnova-target/debug/build/libghostty-vt-sys-7bc60bef8616dbe1/out/zig-cache /home/shawn/.cache/zig --seed 0x45b62a31 -Z7d1245d99ad468a5 -Demit-lib-vt=true -Doptimize=Debug -Demit-xcframework=false -Dapp-runtime=none --prefix /home/shawn/workspace2/scratchpads/suprnova-target/debug/build/libghostty-vt-sys-7bc60bef8616dbe1/out/ghostty-install
+
+  thread 'main' (3854618) panicked at /home/shawn/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/libghostty-vt-sys-0.2.1/build.rs:366:5:
+  zig build failed with status exit status: 1
+  note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
