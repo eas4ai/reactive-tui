@@ -1,0 +1,121 @@
+   Compiling proc-macro2 v1.0.101
+   Compiling thiserror v1.0.69
+   Compiling anyhow v1.0.99
+   Compiling quote v1.0.40
+   Compiling syn v2.0.106
+   Compiling syn v3.0.5
+   Compiling simd_helpers v0.1.0
+   Compiling darling_core v0.21.3
+   Compiling prettyplease v0.2.37
+   Compiling enumflags2_derive v0.7.12
+   Compiling serde_derive v1.0.229
+   Compiling equator-macro v0.4.2
+   Compiling thiserror-impl v1.0.69
+   Compiling profiling-procmacros v1.0.17
+   Compiling tracing-attributes v0.1.31
+   Compiling profiling v1.0.17
+   Compiling serde_repr v0.1.21
+   Compiling async-trait v0.1.92
+   Compiling equator v0.4.2
+   Compiling tracing v0.1.44
+   Compiling async-recursion v1.1.1
+   Compiling num-derive v0.4.2
+   Compiling darling_macro v0.21.3
+   Compiling arg_enum_proc_macro v0.3.4
+   Compiling darling v0.21.3
+   Compiling clap_derive v4.5.45
+   Compiling derive_more-impl v2.0.1
+   Compiling futures-macro v0.3.31
+   Compiling serde v1.0.229
+   Compiling aligned-vec v0.6.4
+   Compiling tokio-macros v2.5.0
+   Compiling derive_more v2.0.1
+   Compiling phf_macros v0.14.0
+   Compiling tokio v1.47.1
+   Compiling phf v0.14.0
+   Compiling clap v4.5.46
+   Compiling bon-macros v3.7.1
+   Compiling zvariant_utils v4.2.0
+   Compiling zcheapstr v1.1.0
+   Compiling enumflags2 v0.7.12
+   Compiling uuid v1.18.1
+   Compiling v_frame v0.3.9
+   Compiling bincode v1.3.3
+   Compiling plist v1.7.4
+   Compiling zvariant_derive v5.15.0
+   Compiling serde_json v1.0.143
+   Compiling bon v3.7.1
+   Compiling zvariant v5.15.0
+   Compiling accesskit v0.25.0
+   Compiling av1-grain v0.2.4
+   Compiling reactive-tui-crossterm v0.1.0 (/home/shawn/workspace2/reactive-tui/src/backend/crossterm)
+   Compiling taffy v0.9.1
+   Compiling syntect v5.2.0
+   Compiling string_cache v0.8.9
+   Compiling zbus_names v4.3.4
+   Compiling accesskit_consumer v0.39.0
+   Compiling futures-util v0.3.31
+   Compiling rav1e v0.7.1
+   Compiling reactive-tui-macros v0.1.0 (/home/shawn/workspace2/reactive-tui/reactive-tui-macros)
+   Compiling comrak v0.41.0
+   Compiling zbus_xml v5.2.1
+   Compiling zbus_macros v5.19.0
+   Compiling ravif v0.11.20
+   Compiling zbus-lockstep v0.5.2
+   Compiling zbus v5.19.0
+   Compiling image v0.25.6
+   Compiling zbus-lockstep-macros v0.5.2
+   Compiling reactive-tui-suprtui v0.1.0 (/home/shawn/workspace2/reactive-tui/src/backend/engine)
+   Compiling atspi-common v0.13.0
+   Compiling atspi-proxies v0.13.0
+   Compiling atspi v0.29.0
+   Compiling reactive-tui v0.1.0 (/home/shawn/workspace2/reactive-tui)
+warning: ambiguous glob re-exports
+   --> src/ffi/mod.rs:143:9
+    |
+143 | pub use pointer::*;
+    |         ^^^^^^^^^^ the name `validate_pointer` in the value namespace is first re-exported here
+...
+148 | pub use types::*;
+    |         -------- but the name `validate_pointer` in the value namespace is also re-exported here
+    |
+    = note: `#[warn(ambiguous_glob_reexports)]` on by default
+
+warning: unused variable: `width`
+   --> src/ffi/lib.rs:122:14
+    |
+122 |         let (width, height) = renderer_box.dims();
+    |              ^^^^^ help: if this is intentional, prefix it with an underscore: `_width`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `validate_pointer` is never used
+   --> src/ffi/types.rs:182:15
+    |
+182 | pub(crate) fn validate_pointer<T>(ptr: *const T) -> bool {
+    |               ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `validate_mut_pointer` is never used
+   --> src/ffi/types.rs:187:15
+    |
+187 | pub(crate) fn validate_mut_pointer<T>(ptr: *mut T) -> bool {
+    |               ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `safe_cast` is never used
+   --> src/ffi/types.rs:192:22
+    |
+192 | pub(crate) unsafe fn safe_cast<T, U>(ptr: *mut T) -> Result<*mut U, ReactiveError> {
+    |                      ^^^^^^^^^
+
+warning: function `safe_cast_const` is never used
+   --> src/ffi/types.rs:206:22
+    |
+206 | pub(crate) unsafe fn safe_cast_const<T, U>(ptr: *const T) -> Result<*const U, ReactiveError> {
+    |                      ^^^^^^^^^^^^^^^
+
+warning: `reactive-tui` (lib) generated 6 warnings (run `cargo fix --lib -p reactive-tui` to apply 1 suggestion)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 31.13s
+FFS-001 app lifetime and nullable callbacks passed
+FFS-001 focused C ABI safety checks passed
