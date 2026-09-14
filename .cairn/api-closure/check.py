@@ -173,7 +173,7 @@ def main():
     review = REVIEW.read_text()
     final_review = review.split(REVIEW_HEADING, 1)[-1]
     try:
-        validate_review(REVIEW_HEADING + final_review.replace("RAPI-15", "RAPI-final", 1))
+        validate_review(REVIEW_HEADING + final_review.replace("RAPI-15", "RAPI-final"))
     except RuntimeError:
         pass
     else:
