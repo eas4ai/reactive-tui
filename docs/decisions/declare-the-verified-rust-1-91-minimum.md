@@ -11,4 +11,8 @@ Declare Rust 1.91 as the minimum supported version for the 0.1.0 crate set. Veri
 
 ## Realized by
 
+- b9f7bc64 release: prepare crates.io 0.1.0 packages
+
+## Realized by
+
 (none yet: recorded, not built)
