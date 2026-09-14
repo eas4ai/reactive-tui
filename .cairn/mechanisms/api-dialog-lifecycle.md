@@ -13,6 +13,5 @@ inputs:
   - examples
   - scripts/check-api-dialog-lifecycle.py
   - docs/spec/rust-api-remediation.md
-  - docs/dialog-lifecycle.md
 requirements:
   - API-012
