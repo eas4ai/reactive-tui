@@ -9,7 +9,7 @@ inputs:
   - reactive-tui-macros
   - src/backend/crossterm
   - src/backend/engine
-  - scripts/check-crates-release-build.sh
+  - scripts
   - docs/spec/crates-io-release-preparation.md
   - docs/commitments/crates-io-release-preparation.md
   - .cairn/mechanisms/crates-release-build.md

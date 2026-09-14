@@ -4,6 +4,7 @@ command: python3 scripts/check-crates-release.py
 inputs:
   - Cargo.toml
   - Cargo.lock
+  - .gitignore
   - README.md
   - CHANGELOG.md
   - LICENSE
@@ -23,7 +24,7 @@ inputs:
   - src/backend/engine/LICENSE-OpenTUI
   - src/backend/engine/UPSTREAM.md
   - src/backend/engine/src
-  - scripts/check-crates-release.py
+  - scripts
   - docs/spec/crates-io-release-preparation.md
   - docs/commitments/crates-io-release-preparation.md
   - .cairn/mechanisms/crates-release-contract.md
