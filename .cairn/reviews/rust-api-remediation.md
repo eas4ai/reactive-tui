@@ -1,6 +1,8 @@
 # Review: rust-api-remediation
 
-Status: In progress
+Commit: be43d36d
+Findings: []
+Status: Complete
 
 ## API-001 mechanism construction
 
