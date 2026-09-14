@@ -5135,3 +5135,45 @@ pending areas to API-019 behavior evidence and states their retained limits.
 records API-020's normal and forced-timeout process ownership check.
 
 Known open findings: none
+
+## Post-mechanism final review
+
+Status: Complete
+
+This review examined commit `546404cd` after Cairn reported current passing
+evidence for all 54 requirements. It attacked the final mechanisms rather than
+relying on the earlier scope narrative. The API-020 incomplete-mapping mutation
+now removes every `RAPI-15` occurrence and fails with the missing row; the
+unmodified review passes. The retained timeout record still demonstrates the old
+leak and remains labeled as a defect rather than acceptance evidence.
+
+The passing API-020 run observed independent Xvfb and GNOME/DBus process groups
+and descendants during both normal completion and forced outer-driver death.
+Both recorded `remaining` maps are empty, and a later `/proc` check found neither
+former group leader alive. The complete API-014 host matrix, API-011 Orca matrix,
+native record hash checks, and all inherited ABI, maintenance, default, cache,
+registry, wakeup, embedded-terminal and renderer mechanisms also pass on the
+current declared inputs.
+
+I reviewed the session guard for descriptor inheritance, early launch failure,
+normal shutdown, forced termination and descendant group ownership. The control
+pipe gives the driver sole write ownership; guarded commands inherit only its read
+end. Driver death therefore produces EOF even while the child is alive, and the
+guard kills the private process group. Explicit cleanup retains bounded TERM/KILL
+deadlines. I found no path that turns the historical leak assertion into a pass or
+lets the tested host/Xvfb groups outlive the driver.
+
+The authored-source diff passes `git diff --check`. Ripwire edit checks report no
+contract or caller-arity change for `guard_session`, `start_owned` or
+`validate_review`, and its test gate reports zero untested impacted symbols on the
+committed tree. Ripwire quality-delta has no pinned baseline and exits 2 after
+indexing captured evidence and vendored reference trees as source; those reported
+reference/artifact findings do not describe this candidate and are not counted as
+a passing quality gate.
+
+The production self-audit found the changes scoped to the agreed contracts, with
+no new dependency or secret, bounded queues/processes/timeouts, compatible public
+interfaces except for explicitly approved migrations, synchronized docs and
+examples, and local serial checks capped at eight jobs. No CI run was requested.
+
+Known open findings: none
