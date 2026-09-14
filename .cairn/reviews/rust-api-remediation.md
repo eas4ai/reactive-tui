@@ -5091,8 +5091,8 @@ CSS diagnostics, and the claimed native platform surface.
 
 The original audit probes, stock-Kitty placement failure, forced-ASCII image case,
 iTerm2 color evidence, original libatspi use-after-free, and the retained
-image-capture timeout leak all assert bad behavior. Historical defect controls are
-not acceptance evidence. Current mechanisms require their corrected cases and
+image-capture timeout leak all assert bad behavior.
+Historical defect controls are not acceptance evidence. Current mechanisms require their corrected cases and
 reject missing tests, stale native records, changed output hashes, zero-test
 selections, incomplete inventory rows and mislabeled defect controls.
 
