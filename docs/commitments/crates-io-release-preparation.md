@@ -6,8 +6,9 @@ Requirements: CRT-001, CRT-002, CRT-003
 ## Deliverable
 
 Prepare version 0.1.0 as the first non-yanked crates.io release. Give the two
-maintained backend forks project-owned package names while preserving their
-current Rust import names. Replace the git dependency with its registry release.
+maintained backend forks and the pinned Ghostty wrapper and bindings project-owned
+package names while preserving their current Rust import names. Replace the git
+dependency with exact versioned companion crate dependencies.
 Bound every archive, add complete package metadata and legal files, write the
 release changelog, and verify the release configurations.
 

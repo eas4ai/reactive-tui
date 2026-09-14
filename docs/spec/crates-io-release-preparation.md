@@ -12,8 +12,9 @@ crate page does not ship the stale public introduction.
 The release candidate MUST have a registry-resolvable package graph. Every
 normal path dependency MUST also declare an exact version. Every package name
 MUST be owned by the project or available for first publication. The root crate
-MUST use the crates.io `libghostty-vt` release and MUST NOT contain a git
-dependency.
+MUST use project-owned packages for the exact pinned `libghostty-vt` and
+`libghostty-vt-sys` source and MUST NOT contain a git dependency. Their Rust
+library names and the terminal API used by the framework MUST remain unchanged.
 Falsifier: A normal dependency has only a path, a git source remains, a package
 name belongs to another publisher, or a dependency alias changes the Rust crate
 name used by current source.
@@ -39,7 +40,7 @@ The root source tree MUST compile with no default features, default features,
 FFI, embedded terminal support using Zig 0.15.2, and nightly SIMD. Commands
 MUST run one at a time with no more than eight Cargo jobs.
 Falsifier: Metadata is missing or stale, a package build fails, a named root
-configuration fails to compile, commands overlap, or a command requests more
-than eight jobs.
+configuration fails to compile, commands overlap, or a command or its child
+tools can use more than eight logical CPUs on Linux.
 Mechanism: `bash scripts/check-crates-release-build.sh` packages and checks each
 candidate sequentially with `CARGO_BUILD_JOBS=8`.

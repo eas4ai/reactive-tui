@@ -1,5 +1,7 @@
 # Release 0.1.0 through versioned companion crates
 
+Superseded by: publish-pinned-ghostty-bindings-as-versioned-companion-crates
+
 Level: Consequential
 Decided by: agent
 Rests on: developer release direction on 2026-09-14; crates.io ownership and name audit; Cargo package dependency rules

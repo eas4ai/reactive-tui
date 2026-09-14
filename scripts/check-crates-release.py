@@ -16,6 +16,16 @@ REPOSITORY = "https://github.com/eas4ai/reactive-tui"
 
 PACKAGES = {
     "root": (Path("Cargo.toml"), "reactive-tui", 700),
+    "ghostty-sys": (
+        Path("crates/libghostty-vt-sys/Cargo.toml"),
+        "reactive-tui-libghostty-vt-sys",
+        20,
+    ),
+    "ghostty": (
+        Path("crates/libghostty-vt/Cargo.toml"),
+        "reactive-tui-libghostty-vt",
+        50,
+    ),
     "macros": (Path("reactive-tui-macros/Cargo.toml"), "reactive-tui-macros", 20),
     "crossterm": (
         Path("src/backend/crossterm/Cargo.toml"),
@@ -31,6 +41,8 @@ PACKAGES = {
 
 REQUIRED_FILES = {
     "root": {"README.md", "CHANGELOG.md", "LICENSE", "build.rs", "src/lib.rs", "manual/README.md"},
+    "ghostty-sys": {"README.md", "LICENSE", "UPSTREAM.md", "build.rs", "src/lib.rs"},
+    "ghostty": {"README.md", "LICENSE", "UPSTREAM.md", "src/lib.rs"},
     "macros": {"README.md", "LICENSE", "src/lib.rs"},
     "crossterm": {"README.md", "LICENSE", "REACTIVE_TUI_PATCH.md", "src/lib.rs"},
     "engine": {"README.md", "LICENSE", "LICENSE-OpenTUI", "UPSTREAM.md", "src/lib.rs"},
@@ -104,8 +116,21 @@ def check_metadata() -> dict[str, dict]:
 
     unix_dependencies = manifests["root"]["target"]["cfg(unix)"]["dependencies"]
     ghostty = unix_dependencies.get("libghostty-vt")
-    if not isinstance(ghostty, dict) or ghostty.get("version") != "=0.2.1":
-        fail("root: libghostty-vt must use exact crates.io version =0.2.1")
+    if not isinstance(ghostty, dict):
+        fail("root: libghostty-vt must be a detailed dependency")
+    if ghostty.get("package") != "reactive-tui-libghostty-vt":
+        fail("root: libghostty-vt must alias reactive-tui-libghostty-vt")
+    if ghostty.get("version") != f"={VERSION}":
+        fail(f"root: libghostty-vt must use exact version ={VERSION}")
+
+    ghostty_dependencies = manifests["ghostty"]["dependencies"]
+    ghostty_sys = ghostty_dependencies.get("libghostty-vt-sys")
+    if not isinstance(ghostty_sys, dict):
+        fail("ghostty: libghostty-vt-sys must be a detailed dependency")
+    if ghostty_sys.get("package") != "reactive-tui-libghostty-vt-sys":
+        fail("ghostty: libghostty-vt-sys must alias reactive-tui-libghostty-vt-sys")
+    if ghostty_sys.get("version") != f"={VERSION}":
+        fail(f"ghostty: libghostty-vt-sys must use exact version ={VERSION}")
 
     changelog = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
     if "## [0.1.0] - 2026-09-14" not in changelog:
@@ -133,6 +158,8 @@ def allowed(key: str, path: str) -> bool:
     automatic = {".cargo_vcs_info.json", "Cargo.lock", "Cargo.toml", "Cargo.toml.orig"}
     if path in automatic or path in REQUIRED_FILES[key]:
         return True
+    if key == "root" and path.startswith(("src/backend/crossterm/", "src/backend/engine/")):
+        return False
     if path.startswith("src/"):
         return True
     if key == "root":
@@ -143,6 +170,8 @@ def allowed(key: str, path: str) -> bool:
         }
     if key == "engine":
         return path.startswith("tests/")
+    if key == "ghostty-sys":
+        return path.startswith("tools/") or path == "build.rs"
     return False
 
 
@@ -163,7 +192,7 @@ def check_archives() -> None:
 def main() -> int:
     check_metadata()
     check_archives()
-    print("publish order: reactive-tui-macros, reactive-tui-crossterm, reactive-tui-suprtui, reactive-tui")
+    print("publish order: reactive-tui-libghostty-vt-sys, reactive-tui-libghostty-vt, reactive-tui-macros, reactive-tui-crossterm, reactive-tui-suprtui, reactive-tui")
     return 0
 
 

@@ -7,6 +7,8 @@ inputs:
   - build.rs
   - src
   - reactive-tui-macros
+  - crates/libghostty-vt
+  - crates/libghostty-vt-sys
   - src/backend/crossterm
   - src/backend/engine
   - scripts
