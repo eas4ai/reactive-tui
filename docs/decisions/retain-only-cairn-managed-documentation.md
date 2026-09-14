@@ -11,4 +11,4 @@ Track documentation only under docs/spec, docs/commitments, and docs/decisions. 
 
 ## Realized by
 
-(none yet: recorded, not built)
+- 9aa6ccac Define Cairn-only documentation retention
