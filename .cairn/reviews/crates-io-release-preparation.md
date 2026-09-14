@@ -17,10 +17,12 @@ A detached worktree changed the root Ghostty source from its local path to
 `target.cfg(unix).dependencies.libghostty-vt still uses git`. The committed
 corrected case passed and reported all six packages in dependency order.
 
-The review found one mismatch. CRT-001 requires the companion Rust library names
-to remain unchanged, but the mechanism only checks package names and dependency
-aliases. It does not inspect each companion manifest's `[lib].name`. This must
-be fixed before the reviewed digest is accepted.
+The first review found one mismatch: the mechanism checked package names and
+dependency aliases but did not verify each companion crate's Rust library name.
+Commit `7ec85016` added that assertion. In a new detached worktree, changing
+the safe Ghostty wrapper's library name to `wrong_library_name` made the
+mechanism exit 1 and require `libghostty_vt`. The committed corrected case
+passed again. No requirement or falsifier mismatch remains.
 
 ## CRT-003 mechanism review
 

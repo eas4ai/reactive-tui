@@ -21,3 +21,5 @@ inputs:
 requirements:
   - CRT-001
   - CRT-002
+reviewed:
+  - CRT-001 sha256:17a7bc4335252645bebc3e40947ce789b763a3a6a8b5ab3b937b37e5996e85ac
