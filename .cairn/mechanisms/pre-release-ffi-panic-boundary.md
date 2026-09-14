@@ -5,6 +5,7 @@ inputs:
   - Cargo.toml
   - Cargo.lock
   - build.rs
+  - reactive-tui-macros
   - src/ffi
   - include
   - tests
