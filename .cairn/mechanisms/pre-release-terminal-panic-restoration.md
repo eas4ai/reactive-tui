@@ -9,6 +9,7 @@ inputs:
   - src/backend
   - src/platform
   - scripts/check-pre-release-terminal-lifecycle.py
+  - .ripwire_quality_acks
 requirements:
   - TRL-001
 
