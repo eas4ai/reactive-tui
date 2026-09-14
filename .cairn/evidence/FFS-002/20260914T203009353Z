@@ -1,0 +1,21 @@
+requirement: FFS-002
+requirement_digest: sha256:fff799efcca3633de4a26ec3192df944c39e4f4f3b65f28746e7eb6e34ba0062
+sequence: 2
+history_digest: sha256:8477cd80b5e1b985e4b7983d0abff0cfadf4aaf00120061f118d6c8421442694
+mechanism: pre-release-ffi-panic-boundary.md
+commit: c70880de
+inputs_digest: sha256:2d399b32f31b3a690e64f5610d26829c4e85521455937aba44ac2538418ccabf
+mechanism_digest: sha256:d01afbcfb14d7b0b6f27d76ecb9cea16db1fae135052f8d50d1277cd1b260b03
+inputs_detail: .cairn/evidence/FFS-002/20260914T203001554Z-2667338.inputs.json
+command: python3 -B scripts/check-pre-release-ffi-safety.py FFS-002
+cwd: .
+exit: 0
+output_digest: sha256:67b8df2694491c1d14de6921aece55785970aeefeca44f2c563e0bbd24fbcdef
+output: .cairn/evidence/FFS-002/20260914T203001554Z-2667338.out
+stderr_output: .cairn/evidence/FFS-002/20260914T203001554Z-2667338.err
+stderr_digest: sha256:39ddbd12926fffcbf9fa67f4852578d1ca9f8b4ba39700a20918ea047d53e093
+signal: none
+execution_error: null
+result: pass
+source: exit
+recorded: 2026-09-14T20:30:09.353Z
