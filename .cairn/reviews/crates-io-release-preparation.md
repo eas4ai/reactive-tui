@@ -1,9 +1,36 @@
 # crates.io release preparation review
 
-commit: pending
+commit: 95506db8
 findings:
   - resolved: publication is outside this commitment and remains blocked by the separate pre-release audit backlog.
-Status: In progress
+Status: Complete
+
+## Final commitment review
+
+Reviewed the committed 0.1.0 candidate after CRT-001 through CRT-003 passed.
+The six generated archives contain no Cairn state, specifications, release
+scripts, git dependency, or normalized path dependency. Each archive contains
+its declared license and README. The root archive contains 477 files and is
+2,779,508 bytes compressed. The five companion archives range from 6,646 to
+183,965 bytes compressed.
+
+Compared the copied Ghostty wrapper source, sys bindings, generator, and build
+script with libghostty-rs commit
+`5988a0b78b4aa804d1c12e66bbfe662bd97d81c0`. There were no differences after
+normalizing the eight trailing-space-only cleanups recorded by Git. Both
+packages include the upstream MIT notice and name the source commit. The sys
+build pins Ghostty commit `22d13172cde98a0a4dda05d3d6a3fcb0dd8ed018`.
+
+Queried crates.io on 2026-09-14 for all six exact package names; none was
+allocated. This is a point-in-time result and must be checked again immediately
+before staged publication.
+
+Cross-checked the separate 2026-09-14 pre-release audit. This commitment resolves
+its package graph, archive size, and core Rust metadata findings. It does not
+resolve the main-branch CI, public README, C ABI memory-safety, terminal panic
+restoration, animation task ownership, or dependency advisory findings. The
+repository must not be tagged or published until that backlog is completed and
+re-audited.
 
 ## CRT-001 mechanism review
 
