@@ -2,7 +2,7 @@
 
 commit: pending
 findings:
-  - pending: final release review must assess the separate pre-release audit backlog before publication.
+  - resolved: publication is outside this commitment and remains blocked by the separate pre-release audit backlog.
 Status: In progress
 
 ## CRT-001 mechanism review
