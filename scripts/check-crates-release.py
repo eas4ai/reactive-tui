@@ -48,6 +48,15 @@ REQUIRED_FILES = {
     "engine": {"README.md", "LICENSE", "LICENSE-OpenTUI", "UPSTREAM.md", "src/lib.rs"},
 }
 
+LIBRARY_NAMES = {
+    "root": "reactive_tui",
+    "ghostty-sys": "libghostty_vt_sys",
+    "ghostty": "libghostty_vt",
+    "macros": "reactive_tui_macros",
+    "crossterm": "crossterm",
+    "engine": "suprtui",
+}
+
 
 def fail(message: str) -> None:
     raise AssertionError(message)
@@ -89,6 +98,11 @@ def check_metadata() -> dict[str, dict]:
             fail(f"{key}: an explicit include boundary is required")
         if package.get("publish") is False:
             fail(f"{key}: package is still marked publish = false")
+        library_name = manifest.get("lib", {}).get(
+            "name", package["name"].replace("-", "_")
+        )
+        if library_name != LIBRARY_NAMES[key]:
+            fail(f"{key}: Rust library name must remain {LIBRARY_NAMES[key]}")
 
         for table_name, dependencies in dependency_tables(manifest):
             for name, dependency in dependencies.items():
