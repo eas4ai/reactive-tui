@@ -1,0 +1,368 @@
+{
+  "historical_control": "recognized as a defect demonstration",
+  "normal_cleanup": {
+    "command": [
+      "/usr/bin/python3",
+      "-B",
+      "/home/shawn/workspace2/reactive-tui/tests/api_widget_behavior/image_host_capture.py",
+      "gnome",
+      "/home/shawn/workspace2/reactive-tui/.cairn/reviews/api-020-closure/20260914T014530279104Z/normal",
+      "app-auto"
+    ],
+    "forced_timeout": false,
+    "owned_groups": [
+      2374234,
+      2374319
+    ],
+    "observed_members": {
+      "2374234": {
+        "state": "S",
+        "ppid": 2374216,
+        "pgid": 2374234,
+        "sid": 2374234,
+        "started": "143456350"
+      },
+      "2374310": {
+        "state": "S",
+        "ppid": 2374234,
+        "pgid": 2374234,
+        "sid": 2374234,
+        "started": "143456356"
+      },
+      "2374319": {
+        "state": "S",
+        "ppid": 2374216,
+        "pgid": 2374319,
+        "sid": 2374319,
+        "started": "143456362"
+      },
+      "2374396": {
+        "state": "S",
+        "ppid": 2374319,
+        "pgid": 2374319,
+        "sid": 2374319,
+        "started": "143456369"
+      },
+      "2374397": {
+        "state": "S",
+        "ppid": 2374396,
+        "pgid": 2374319,
+        "sid": 2374319,
+        "started": "143456369"
+      },
+      "2374403": {
+        "state": "S",
+        "ppid": 2374396,
+        "pgid": 2374319,
+        "sid": 2374319,
+        "started": "143456371"
+      },
+      "2374412": {
+        "state": "S",
+        "ppid": 6898,
+        "pgid": 2374319,
+        "sid": 2374319,
+        "started": "143456377"
+      },
+      "2374418": {
+        "state": "S",
+        "ppid": 2374412,
+        "pgid": 2374319,
+        "sid": 2374319,
+        "started": "143456377"
+      },
+      "2374424": {
+        "state": "S",
+        "ppid": 2374397,
+        "pgid": 2374319,
+        "sid": 2374319,
+        "started": "143456378"
+      },
+      "2374425": {
+        "state": "S",
+        "ppid": 6898,
+        "pgid": 2374319,
+        "sid": 2374319,
+        "started": "143456378"
+      },
+      "2374433": {
+        "state": "S",
+        "ppid": 6898,
+        "pgid": 2374319,
+        "sid": 2374319,
+        "started": "143456380"
+      },
+      "2374448": {
+        "state": "S",
+        "ppid": 2374397,
+        "pgid": 2374319,
+        "sid": 2374319,
+        "started": "143456384"
+      },
+      "2374449": {
+        "state": "S",
+        "ppid": 6898,
+        "pgid": 2374319,
+        "sid": 2374319,
+        "started": "143456384"
+      },
+      "2374456": {
+        "state": "S",
+        "ppid": 6898,
+        "pgid": 2374319,
+        "sid": 2374319,
+        "started": "143456386"
+      },
+      "2374536": {
+        "state": "S",
+        "ppid": 6898,
+        "pgid": 2374319,
+        "sid": 2374319,
+        "started": "143456389"
+      },
+      "2374547": {
+        "state": "S",
+        "ppid": 6898,
+        "pgid": 2374319,
+        "sid": 2374319,
+        "started": "143456391"
+      },
+      "2374554": {
+        "state": "S",
+        "ppid": 6898,
+        "pgid": 2374319,
+        "sid": 2374319,
+        "started": "143456393"
+      },
+      "2374663": {
+        "state": "S",
+        "ppid": 2374397,
+        "pgid": 2374319,
+        "sid": 2374319,
+        "started": "143456413"
+      },
+      "2374664": {
+        "state": "S",
+        "ppid": 6898,
+        "pgid": 2374319,
+        "sid": 2374319,
+        "started": "143456413"
+      },
+      "2374851": {
+        "state": "S",
+        "ppid": 2374425,
+        "pgid": 2374319,
+        "sid": 2374319,
+        "started": "143456439"
+      },
+      "2374852": {
+        "state": "S",
+        "ppid": 2374851,
+        "pgid": 2374319,
+        "sid": 2374319,
+        "started": "143456440"
+      },
+      "2374854": {
+        "state": "S",
+        "ppid": 2374852,
+        "pgid": 2374319,
+        "sid": 2374319,
+        "started": "143456441"
+      },
+      "2374859": {
+        "state": "S",
+        "ppid": 6898,
+        "pgid": 2374319,
+        "sid": 2374319,
+        "started": "143456441"
+      }
+    },
+    "remaining": {}
+  },
+  "forced_timeout_cleanup": {
+    "command": [
+      "/usr/bin/python3",
+      "-B",
+      "/home/shawn/workspace2/reactive-tui/tests/api_widget_behavior/image_host_capture.py",
+      "gnome",
+      "/home/shawn/workspace2/reactive-tui/.cairn/reviews/api-020-closure/20260914T014530279104Z/forced-timeout",
+      "app-auto"
+    ],
+    "forced_timeout": true,
+    "owned_groups": [
+      2378616,
+      2378696
+    ],
+    "observed_members": {
+      "2378616": {
+        "state": "S",
+        "ppid": 2378598,
+        "pgid": 2378616,
+        "sid": 2378616,
+        "started": "143457874"
+      },
+      "2378625": {
+        "state": "S",
+        "ppid": 2378616,
+        "pgid": 2378616,
+        "sid": 2378616,
+        "started": "143457878"
+      },
+      "2378696": {
+        "state": "S",
+        "ppid": 2378598,
+        "pgid": 2378696,
+        "sid": 2378696,
+        "started": "143457882"
+      },
+      "2378698": {
+        "state": "S",
+        "ppid": 2378696,
+        "pgid": 2378696,
+        "sid": 2378696,
+        "started": "143457886"
+      },
+      "2378699": {
+        "state": "S",
+        "ppid": 2378698,
+        "pgid": 2378696,
+        "sid": 2378696,
+        "started": "143457886"
+      },
+      "2378700": {
+        "state": "S",
+        "ppid": 2378698,
+        "pgid": 2378696,
+        "sid": 2378696,
+        "started": "143457886"
+      },
+      "2378703": {
+        "state": "S",
+        "ppid": 6898,
+        "pgid": 2378696,
+        "sid": 2378696,
+        "started": "143457889"
+      },
+      "2378709": {
+        "state": "S",
+        "ppid": 2378703,
+        "pgid": 2378696,
+        "sid": 2378696,
+        "started": "143457890"
+      },
+      "2378713": {
+        "state": "S",
+        "ppid": 2378699,
+        "pgid": 2378696,
+        "sid": 2378696,
+        "started": "143457890"
+      },
+      "2378714": {
+        "state": "S",
+        "ppid": 6898,
+        "pgid": 2378696,
+        "sid": 2378696,
+        "started": "143457890"
+      },
+      "2378720": {
+        "state": "S",
+        "ppid": 6898,
+        "pgid": 2378696,
+        "sid": 2378696,
+        "started": "143457892"
+      },
+      "2378793": {
+        "state": "S",
+        "ppid": 2378699,
+        "pgid": 2378696,
+        "sid": 2378696,
+        "started": "143457895"
+      },
+      "2378794": {
+        "state": "S",
+        "ppid": 6898,
+        "pgid": 2378696,
+        "sid": 2378696,
+        "started": "143457895"
+      },
+      "2378800": {
+        "state": "S",
+        "ppid": 6898,
+        "pgid": 2378696,
+        "sid": 2378696,
+        "started": "143457896"
+      },
+      "2378816": {
+        "state": "S",
+        "ppid": 6898,
+        "pgid": 2378696,
+        "sid": 2378696,
+        "started": "143457899"
+      },
+      "2378823": {
+        "state": "S",
+        "ppid": 6898,
+        "pgid": 2378696,
+        "sid": 2378696,
+        "started": "143457900"
+      },
+      "2378827": {
+        "state": "S",
+        "ppid": 2378699,
+        "pgid": 2378696,
+        "sid": 2378696,
+        "started": "143457901"
+      },
+      "2378828": {
+        "state": "S",
+        "ppid": 6898,
+        "pgid": 2378696,
+        "sid": 2378696,
+        "started": "143457901"
+      },
+      "2378917": {
+        "state": "S",
+        "ppid": 2378699,
+        "pgid": 2378696,
+        "sid": 2378696,
+        "started": "143457915"
+      },
+      "2378918": {
+        "state": "S",
+        "ppid": 6898,
+        "pgid": 2378696,
+        "sid": 2378696,
+        "started": "143457915"
+      },
+      "2379016": {
+        "state": "S",
+        "ppid": 2378714,
+        "pgid": 2378696,
+        "sid": 2378696,
+        "started": "143457932"
+      },
+      "2379017": {
+        "state": "S",
+        "ppid": 2379016,
+        "pgid": 2378696,
+        "sid": 2378696,
+        "started": "143457932"
+      },
+      "2379018": {
+        "state": "S",
+        "ppid": 2379017,
+        "pgid": 2378696,
+        "sid": 2378696,
+        "started": "143457933"
+      },
+      "2379023": {
+        "state": "S",
+        "ppid": 6898,
+        "pgid": 2378696,
+        "sid": 2378696,
+        "started": "143457933"
+      }
+    },
+    "remaining": {}
+  }
+}
