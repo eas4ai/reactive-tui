@@ -1,0 +1,4 @@
+library passed /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-019-local-scope-consumer/20260914T014332827632Z
+consumer-compile passed /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-019-local-scope-consumer/20260914T014332827632Z
+scoped-retention passed /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-019-local-scope-consumer/20260914T014332827632Z
+thread-confinement observed failure /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-019-local-scope-consumer/20260914T014332827632Z
