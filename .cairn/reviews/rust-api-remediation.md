@@ -5134,7 +5134,7 @@ pending areas to API-019 behavior evidence and states their retained limits.
 `docs/residual-api-inventory.md` records every API-019 contract as verified and
 records API-020's normal and forced-timeout process ownership check.
 
-Known open findings: none
+Known open findings before the post-mechanism review: none
 
 ## Post-mechanism final review
 
@@ -5176,4 +5176,22 @@ no new dependency or secret, bounded queues/processes/timeouts, compatible publi
 interfaces except for explicitly approved migrations, synchronized docs and
 examples, and local serial checks capped at eight jobs. No CI run was requested.
 
-Known open findings: none
+Known open findings before the post-evidence review: none
+
+## Post-evidence review finding
+
+Status: Finding open
+
+Observed: Cairn requires the commitment review to follow the latest passing
+evidence. API-020 also declares this mutable commitment review as a mechanism
+input. Recording the required post-evidence review therefore makes API-020 stale,
+and rerunning API-020 makes the review old again. No sequence can satisfy both
+freshness rules.
+
+Required repair: move the immutable audit mapping that API-020 validates into its
+own declared review artifact. Keep this commitment review outside the mechanism's
+input footprint so it can truthfully record the review after every check passes.
+The closure mechanism must still reject an incomplete RAPI/API mapping, unfinished
+work, mislabeled historical controls, and surviving capture processes.
+
+Known open findings: API-020 review freshness cycle
