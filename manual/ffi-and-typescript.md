@@ -31,7 +31,9 @@ entry points and load the matching native library.
 
 ## Behavior
 
-FFI functions validate null and tracked pointers before dereferencing them.
+Handle-based entry points check null pointers before dereferencing them.
+Surface, renderer, and terminal routes also use type-specific pointer trackers.
+Other handle families rely on their documented create and destroy pairing.
 Panic boundaries convert Rust failures into ABI error values. Functions that
 return allocated strings or arrays provide matching release functions. Foreign
 component callbacks cross a guarded boundary and preserve the last error for
