@@ -4,8 +4,8 @@ command: /usr/bin/python3 -B .cairn/api-closure/check.py
 inputs:
   - .cairn/api-closure/check.py
   - .cairn/reviews/api-018-through-020-todo.md
+  - .cairn/reviews/api-020-audit-reconciliation.md
   - .cairn/reviews/api-020-image-capture-timeout
-  - .cairn/reviews/rust-api-remediation.md
   - Cargo.toml
   - Cargo.lock
   - build.rs

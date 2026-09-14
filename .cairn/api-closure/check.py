@@ -14,7 +14,7 @@ import time
 ROOT = Path(__file__).resolve().parents[2]
 CAPTURE = ROOT / "tests/api_widget_behavior/image_host_capture.py"
 CONTROL = ROOT / ".cairn/reviews/api-020-image-capture-timeout/finding.json"
-REVIEW = ROOT / ".cairn/reviews/rust-api-remediation.md"
+REVIEW = ROOT / ".cairn/reviews/api-020-audit-reconciliation.md"
 TODO = ROOT / ".cairn/reviews/api-018-through-020-todo.md"
 REVIEW_HEADING = "## API-020 final commitment review"
 CAPTURE_PYTHON = "/usr/bin/python3"

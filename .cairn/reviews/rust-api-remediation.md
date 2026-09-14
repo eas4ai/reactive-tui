@@ -5180,7 +5180,7 @@ Known open findings before the post-evidence review: none
 
 ## Post-evidence review finding
 
-Status: Finding open
+Status: Complete
 
 Observed: Cairn requires the commitment review to follow the latest passing
 evidence. API-020 also declares this mutable commitment review as a mechanism
@@ -5188,10 +5188,11 @@ input. Recording the required post-evidence review therefore makes API-020 stale
 and rerunning API-020 makes the review old again. No sequence can satisfy both
 freshness rules.
 
-Required repair: move the immutable audit mapping that API-020 validates into its
-own declared review artifact. Keep this commitment review outside the mechanism's
-input footprint so it can truthfully record the review after every check passes.
-The closure mechanism must still reject an incomplete RAPI/API mapping, unfinished
-work, mislabeled historical controls, and surviving capture processes.
+Resolution: `.cairn/reviews/api-020-audit-reconciliation.md` now holds the
+immutable mapping that API-020 validates. This commitment review is outside the
+mechanism's input footprint, so Cairn can record it after every check passes. The
+focused validator accepted the complete mapping and rejected a copy with every
+`RAPI-15` occurrence removed. The remaining work, historical-control and process
+survival gates are unchanged.
 
-Known open findings: API-020 review freshness cycle
+Known open findings: none
