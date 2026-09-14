@@ -1,7 +1,7 @@
 # Recovery roadmap
 
 Status: Agreed 2026-09-07
-Current: crates-io-release-preparation
+Current: pre-release-ffi-safety
 
 1. `suprtui-renderer` — the first screen: styled frames, updates, Unicode,
    resize, output errors, input, and terminal restoration (RND-001 through RND-006).
@@ -42,6 +42,42 @@ the Rust API remediation commitment below.
     overview and focused pages for every public framework system (MAN-001 and
     MAN-002).
 
-12. `crates-io-release-preparation` — produce a bounded, registry-resolvable
-    0.1.0 crate set and verify each package before the public README and final
-    release are created (CRT-001 through CRT-003).
+12. `crates-io-release-preparation` — completed the provisional bounded,
+    registry-resolvable 0.1.0 package foundation (CRT-001 through CRT-003).
+    Final packages are rebuilt from the remediated tree in commitment 20.
+
+The Fable audit findings are mapped exactly once in
+`docs/spec/pre-release-audit-map.md`. Remediation work comes before final
+packaging.
+
+13. `pre-release-ffi-safety` — repair C ABI lifetime, nullability, panic,
+    ownership, concurrency, buffer, and declaration defects (FFS-001 through
+    FFS-005).
+
+14. `pre-release-terminal-lifecycle` — restore the host terminal after faults
+    and signals, filter control data, and bound terminal helpers (TRL-001
+    through TRL-004).
+
+15. `pre-release-reactive-concurrency` — give hooks stable cancellable owners,
+    release internal locks before caller code, and bound fallback timers
+    (RAC-001 through RAC-003).
+
+16. `pre-release-runtime-resilience` — make accessibility, public event loops,
+    adaptive display settings, and grid inputs degrade or fail without hangs
+    and panics (RTR-001 through RTR-004).
+
+17. `pre-release-external-input-safety` — make dialog network access explicit,
+    bound complete image memory, protect renderer arguments, and close explorer
+    identity races (XIS-001 through XIS-003).
+
+18. `pre-release-dependency-code-quality` — repair and enforce the dependency
+    graph, route diagnostics through logging, remove dead surfaces, strengthen
+    tests, and document public items (DQC-001 through DQC-005).
+
+19. `pre-release-ci-documentation` — run supported-platform CI, restore tracked
+    documentation inputs, rerun every mechanism, and clean stale repository
+    rules (RID-001 through RID-003).
+
+20. `final-release-packaging` — rebuild final registry packages and release
+    metadata, then require fresh cross-platform evidence and an adversarial
+    audit before a release decision (FRP-001 through FRP-004).

@@ -61,3 +61,23 @@ The historical scope exclusions above describe the initial recovery stages.
 including widgets, hooks, editing, clipboard, images, animation, documentation
 and native bindings. See `docs/commitments/rust-api-remediation.md` for sequencing
 and boundaries. No catalog-wide readiness claim is made before acceptance.
+
+## Pre-release remediation contract
+
+The 2026-09-14 Fable audit found 41 release findings. The authoritative mapping
+is `docs/spec/pre-release-audit-map.md`. Seven remediation commitments cover C
+ABI safety, terminal lifecycle, reactive concurrency, runtime resilience,
+external inputs, dependency and code quality, and CI and documentation. Final
+packaging is commitment 20 and begins only after those commitments pass.
+
+| Area | Specification |
+| --- | --- |
+| Audit finding ownership | `docs/spec/pre-release-audit-map.md` |
+| C ABI safety | `docs/spec/pre-release-ffi-safety.md`, prefix FFS |
+| Terminal lifecycle | `docs/spec/pre-release-terminal-lifecycle.md`, prefix TRL |
+| Reactive concurrency | `docs/spec/pre-release-reactive-concurrency.md`, prefix RAC |
+| Runtime resilience | `docs/spec/pre-release-runtime-resilience.md`, prefix RTR |
+| External input safety | `docs/spec/pre-release-external-input-safety.md`, prefix XIS |
+| Dependency and code quality | `docs/spec/pre-release-dependency-code-quality.md`, prefix DQC |
+| CI and documentation | `docs/spec/pre-release-ci-documentation.md`, prefix RID |
+| Final release packaging | `docs/spec/final-release-packaging.md`, prefix FRP |

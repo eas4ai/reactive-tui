@@ -1,7 +1,8 @@
 # Resolve the 2026-09-14 pre-release audit findings before a public release
 
-Surfaced from: unstated
+Surfaced from: Fable pre-release audit
 Captured: 2026-09-14T14:37:26.864Z
+Promoted to: `docs/spec/pre-release-audit-map.md` and roadmap commitments 13–20
 
 Read-only adversarial audit of reactive-tui 0.0.7 at commit 7489a52b found the crate not ready for a public production release: 4 blockers (cannot publish, 104 MB package, no CI on main, README links deleted docs), 6 high (three C ABI memory-safety defects, render-worker panic leaves the alternate screen, animation hooks spawn a thread per frame, vulnerable dependencies), 12 medium and 19 low. All repository checks pass on Linux; Windows and macOS were not built. The detailed findings with file and line references follow.
 
