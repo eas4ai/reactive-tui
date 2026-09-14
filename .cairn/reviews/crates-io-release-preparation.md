@@ -5,6 +5,23 @@ findings:
   - pending: final release review must assess the separate pre-release audit backlog before publication.
 Status: In progress
 
+## CRT-001 mechanism review
+
+Compared `scripts/check-crates-release.py` with CRT-001 and its falsifier. The
+mechanism reads all six release manifests, rejects git dependencies, requires
+exact versions on local path dependencies, validates the root and Ghostty
+dependency aliases, and prints the dependency-safe publication order.
+
+A detached worktree changed the root Ghostty source from its local path to
+`https://example.invalid/libghostty-vt`. The mechanism exited 1 with
+`target.cfg(unix).dependencies.libghostty-vt still uses git`. The committed
+corrected case passed and reported all six packages in dependency order.
+
+The review found one mismatch. CRT-001 requires the companion Rust library names
+to remain unchanged, but the mechanism only checks package names and dependency
+aliases. It does not inspect each companion manifest's `[lib].name`. This must
+be fixed before the reviewed digest is accepted.
+
 ## CRT-003 mechanism review
 
 Compared `scripts/check-crates-release-build.sh` with the revised CRT-003
