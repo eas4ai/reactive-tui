@@ -11,4 +11,4 @@ Create manual/README.md as the landing page. Its table of contents links to a sh
 
 ## Realized by
 
-(none yet: recorded, not built)
+- f726ed23 docs: add source-grounded framework manual
