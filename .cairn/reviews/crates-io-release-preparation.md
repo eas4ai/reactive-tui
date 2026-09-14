@@ -58,6 +58,13 @@ including the interdependent unpublished packages. The root archive was 2.7 MiB
 compressed. The mechanism should use that supported workspace operation after
 the feature build matrix, which already compiles every local companion crate.
 
+The first committed workspace packaging run assembled five archives, then
+stopped before the root archive because Cargo added 19 optional and development
+dependencies needed by the new workspace members and made `Cargo.lock` dirty.
+The mechanism correctly refused to continue without `--allow-dirty`. The
+workspace lock must be refreshed and committed as a separate implementation
+action before accepting the review digest.
+
 Compared `scripts/check-crates-release-build.sh` with the revised CRT-003
 requirement and falsifier. The script validates a numeric job count from one
 through eight before invoking Cargo. Every package and feature command is a
