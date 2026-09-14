@@ -3,7 +3,7 @@
 command: python3 scripts/check-documentation-retention.py
 inputs:
   - .gitignore
-  - .cairn
+  - .cairn/mechanisms/documentation-retention.md
   - docs
   - scripts/check-documentation-retention.py
 requirements:

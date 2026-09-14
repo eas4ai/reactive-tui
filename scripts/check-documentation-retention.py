@@ -37,7 +37,7 @@ def git(*args: str) -> subprocess.CompletedProcess[str]:
 
 def main() -> int:
     errors: list[str] = []
-    tracked_result = git("ls-files", "docs", ".cairn")
+    tracked_result = git("ls-files", "docs")
     if tracked_result.returncode != 0:
         print(tracked_result.stderr, file=sys.stderr)
         return 1
@@ -54,7 +54,12 @@ def main() -> int:
         errors.extend(f"  {path}" for path in legacy)
 
     for required in REQUIRED_PATHS:
-        if required not in tracked:
+        if required.startswith(".cairn/"):
+            result = git("ls-files", "--error-unmatch", required)
+            is_tracked = result.returncode == 0
+        else:
+            is_tracked = required in tracked
+        if not is_tracked:
             errors.append(f"required Cairn artifact is not tracked: {required}")
 
     legacy_probe = git("check-ignore", "--no-index", "docs/__retention_probe__.md")
