@@ -1,0 +1,31 @@
+# Mechanism: pre-release-terminal-signal-shutdown
+
+command: python3 -B scripts/check-pre-release-terminal-lifecycle.py TRL-002
+inputs:
+  - Cargo.toml
+  - Cargo.lock
+  - src/lib.rs
+  - src/app.rs
+  - src/backend
+  - src/platform/mod.rs
+  - src/platform/unix.rs
+  - src/platform/input_receiver.rs
+  - src/reactive
+  - scripts/check-pre-release-terminal-lifecycle.py
+requirements:
+  - TRL-002
+
+The check MUST run subprocess probes on a real PTY. After each probe enters raw
+mode and the alternate screen, the parent MUST deliver SIGTERM, SIGINT, or
+SIGHUP. Each signal MUST wake the application, complete shutdown within a fixed
+deadline, restore the PTY termios state and all owned terminal modes, and exit
+normally only after emitting a shutdown marker after restoration.
+
+A panic probe MUST install a prior hook before the framework hook, panic under
+controlled terminal ownership, and prove that the prior hook runs exactly once.
+A separate cross-thread probe MUST panic on a thread that does not own the live
+terminal and prove that the terminal remains active until its owner shuts it
+down. The validator MUST first reject safe fixtures for immediate signal exit,
+missing restoration, skipped hook chaining, cross-thread restoration, and an
+unbounded child. Source inspection or a handler that restores from signal
+context cannot pass.
