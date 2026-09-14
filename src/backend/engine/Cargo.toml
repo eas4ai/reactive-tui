@@ -7,7 +7,7 @@ description = "Reactive TUI's maintained terminal rendering engine, adapted from
 repository = "https://github.com/eas4ai/reactive-tui"
 license = "MIT"
 readme = "README.md"
-include = ["src/**", "tests/**", "README.md", "LICENSE", "LICENSE-OpenTUI", "UPSTREAM.md"]
+include = ["/src/**", "/tests/**", "/README.md", "/LICENSE", "/LICENSE-OpenTUI", "/UPSTREAM.md"]
 
 [lib]
 name = "suprtui"

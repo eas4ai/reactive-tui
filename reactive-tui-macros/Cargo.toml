@@ -7,7 +7,7 @@ description = "Procedural macros for reactive-tui"
 repository = "https://github.com/eas4ai/reactive-tui"
 license = "MIT"
 readme = "README.md"
-include = ["src/**", "README.md", "LICENSE"]
+include = ["/src/**", "/README.md", "/LICENSE"]
 
 [lib]
 proc-macro = true

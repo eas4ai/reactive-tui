@@ -11,15 +11,15 @@ keywords = ["tui", "terminal", "ui", "reactive", "css"]
 categories = ["command-line-interface", "gui", "graphics"]
 readme = "README.md"
 include = [
-    "src/**",
-    "tests/api_widget_behavior/accessibility_probe.rs",
-    "tests/api_widget_behavior/conpty_probe.rs",
-    "tests/api_widget_behavior/image_host_probe.rs",
-    "manual/**",
-    "README.md",
-    "CHANGELOG.md",
-    "LICENSE",
-    "build.rs",
+    "/src/**",
+    "/tests/api_widget_behavior/accessibility_probe.rs",
+    "/tests/api_widget_behavior/conpty_probe.rs",
+    "/tests/api_widget_behavior/image_host_probe.rs",
+    "/manual/**",
+    "/README.md",
+    "/CHANGELOG.md",
+    "/LICENSE",
+    "/build.rs",
 ]
 
 [package.metadata.docs.rs]
