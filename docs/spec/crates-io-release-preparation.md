@@ -36,8 +36,8 @@ file list and validates it against the declared boundary.
 The 0.1.0 candidate MUST declare the project repository, license, README, and a
 conservative Rust 1.91 minimum. Each companion crate MUST package successfully.
 The root source tree MUST compile with no default features, default features,
-FFI, embedded terminal support, and nightly SIMD. Commands MUST run one at a
-time with no more than eight Cargo jobs.
+FFI, embedded terminal support using Zig 0.15.2, and nightly SIMD. Commands
+MUST run one at a time with no more than eight Cargo jobs.
 Falsifier: Metadata is missing or stale, a package build fails, a named root
 configuration fails to compile, commands overlap, or a command requests more
 than eight jobs.

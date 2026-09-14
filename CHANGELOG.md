@@ -38,8 +38,8 @@ development snapshots and are not a compatibility baseline.
 
 ### Platform limits
 
-- `embedded-terminal` is available on Unix and requires the Zig toolchain used
-  by `libghostty-vt`.
+- `embedded-terminal` is available on Unix and requires Zig 0.15.2, as required
+  by `libghostty-vt` 0.2.1.
 - `simd` requires nightly Rust because it uses `portable_simd`.
 - Linux screen-reader integration requires an AT-SPI desktop session.
 - Windows PTY support uses the pinned Microsoft OpenConsole runtime included in
