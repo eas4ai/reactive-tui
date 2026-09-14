@@ -1,6 +1,6 @@
 # Framework manual review
 
-commit: b45eb9f78dc843791cf4b004aa4a99bb40fd629e
+commit: 99d5d3aa312d8d0b3c94a5437e31618e01f8ebcb
 findings:
   - resolved: MAN-002 now limits type-specific pointer tracking to surface, renderer, and terminal routes and gives other handle families explicit create/destroy ownership rules.
 Status: Complete
@@ -39,8 +39,8 @@ the implemented trackers. Commit `da8cef81` narrowed the statement: handle-based
 entry points check null pointers; surface, renderer, and terminal routes use the
 type-specific trackers visible in `src/ffi/pointer.rs`; other handle families
 depend on their matching create and destroy operations. Fresh MAN-001 and
-MAN-002 evidence at `b45eb9f7` covers the corrected page. No source contradiction
-remains.
+MAN-002 evidence at `99d5d3aa` covers the corrected page and the refreshed
+GitNexus guidance. No source contradiction remains.
 
 ## Limits
 
@@ -56,3 +56,7 @@ obligation. Quality-delta reports no gating regression; its one new-symbol row
 comes from ignored `.gitnexus/meta.json`, which is generated index metadata and
 is outside the committed manual diff. The worktree is clean apart from the
 ignored Cairn in-progress record used for this review.
+
+The final index refresh changed only the generated symbol and relationship
+counts in `AGENTS.md`. It did not change manual content, source, tests, features,
+or dependencies. The new evidence receipts pass against that indexed candidate.
