@@ -129,7 +129,7 @@ futures-lite = "2.3"
 criterion = "0.5"
 proptest = "1.4"
 serial_test = "3.0"
-syn = { version = "2.0", features = ["full"] }
+syn = { version = "2.0", features = ["full", "visit"] }
 
 [[bench]]
 name = "diff_benchmark"

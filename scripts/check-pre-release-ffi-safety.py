@@ -23,6 +23,27 @@ def build_jobs() -> str:
         return "8"
 
 
+def run_ffs_001_rust_checks(env: dict[str, str]) -> None:
+    """Prove the Rust ownership and callback representations."""
+    for target in (["--test", "ffi_app_representation"], ["--doc"]):
+        subprocess.run(
+            [
+                "cargo",
+                "test",
+                "--locked",
+                "--features",
+                "ffi",
+                *target,
+                "--jobs",
+                env["CARGO_BUILD_JOBS"],
+            ],
+            cwd=ROOT,
+            env=env,
+            check=True,
+            timeout=600,
+        )
+
+
 def run_ffs_001() -> None:
     consumer = ROOT / "tests/pre_release_ffi_app_lifetime.c"
     if not consumer.is_file():
@@ -30,6 +51,7 @@ def run_ffs_001() -> None:
 
     env = os.environ.copy()
     env["CARGO_BUILD_JOBS"] = build_jobs()
+    run_ffs_001_rust_checks(env)
     subprocess.run(
         ["cargo", "build", "--locked", "--features", "ffi", "--jobs", env["CARGO_BUILD_JOBS"]],
         cwd=ROOT,

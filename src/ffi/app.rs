@@ -93,7 +93,23 @@ pub struct RTuiPerformanceMetrics {
     pub is_stable: bool,
 }
 
-/// Root component callback function type
+/// Root component callback function type.
+///
+/// Pass `Some(callback)` to register a callback or `None` to leave it unset.
+/// A bare function pointer is not a nullable callback:
+///
+/// ```compile_fail
+/// use reactive_tui::ffi::RTuiElement;
+/// use std::ffi::c_void;
+///
+/// type BareRootCallback = extern "C" fn(*mut c_void) -> *mut RTuiElement;
+///
+/// fn nullable(
+///     callback: BareRootCallback,
+/// ) -> Option<extern "C" fn(*mut c_void) -> *mut RTuiElement> {
+///     callback
+/// }
+/// ```
 pub type RTuiRootComponentCallback =
     Option<extern "C" fn(user_data: *mut std::ffi::c_void) -> *mut super::builder::RTuiElement>;
 

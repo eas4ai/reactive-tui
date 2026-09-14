@@ -103,7 +103,22 @@ pub type RTuiSignalChangeCallback = extern "C" fn(
 /// Effect callback function type
 pub type RTuiEffectCallback = extern "C" fn(user_data: *mut std::ffi::c_void);
 
-/// Effect cleanup callback function type
+/// Effect cleanup callback function type.
+///
+/// Pass `Some(callback)` to register cleanup or `None` when no cleanup is needed.
+/// A bare function pointer is not a nullable callback:
+///
+/// ```compile_fail
+/// use std::ffi::c_void;
+///
+/// type BareCleanupCallback = extern "C" fn(*mut c_void);
+///
+/// fn nullable(
+///     callback: BareCleanupCallback,
+/// ) -> Option<extern "C" fn(*mut c_void)> {
+///     callback
+/// }
+/// ```
 pub type RTuiEffectCleanupCallback = Option<extern "C" fn(user_data: *mut std::ffi::c_void)>;
 
 /// Memo compute callback function type
