@@ -1,0 +1,21 @@
+requirement: CRT-001
+requirement_digest: sha256:abe15cb17c1d0add3abd6a37dac2e65bb979a3ffe49f92c461f51dd5f4cddcc5
+sequence: 1
+history_digest: sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+mechanism: crates-release-contract.md
+commit: c7b55c40
+inputs_digest: sha256:ed497d7706c2128285ea81ced56f5d0b8c628abdd82e1d772053cc3f556bb9d6
+mechanism_digest: sha256:02f43dd30344f16dfa4e90cce694ad976b72bacb3b9d55593528f9422a3af3de
+inputs_detail: .cairn/evidence/CRT-001/20260914T143740040Z-3732284.inputs.json
+command: python3 scripts/check-crates-release.py
+cwd: .
+exit: 1
+output_digest: sha256:aff9ad8281b3a49bf623e80a7cdd35d8808e85591f33efe811420ae692ee38f1
+output: .cairn/evidence/CRT-001/20260914T143740040Z-3732284.out
+stderr_output: .cairn/evidence/CRT-001/20260914T143740040Z-3732284.err
+stderr_digest: sha256:aff9ad8281b3a49bf623e80a7cdd35d8808e85591f33efe811420ae692ee38f1
+signal: none
+execution_error: null
+result: fail
+source: exit
+recorded: 2026-09-14T14:37:40.321Z
