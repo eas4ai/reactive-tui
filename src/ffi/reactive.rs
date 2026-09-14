@@ -104,7 +104,7 @@ pub type RTuiSignalChangeCallback = extern "C" fn(
 pub type RTuiEffectCallback = extern "C" fn(user_data: *mut std::ffi::c_void);
 
 /// Effect cleanup callback function type
-pub type RTuiEffectCleanupCallback = extern "C" fn(user_data: *mut std::ffi::c_void);
+pub type RTuiEffectCleanupCallback = Option<extern "C" fn(user_data: *mut std::ffi::c_void)>;
 
 /// Memo compute callback function type
 pub type RTuiMemoComputeCallback =
@@ -679,9 +679,8 @@ pub extern "C" fn rtui_effect_destroy(effect: *mut RTuiEffect) {
                         *mut std::ffi::c_void,
                     ),
             );
-            // Call cleanup if provided
-            if effect_data.1 as *const () != std::ptr::null() {
-                (effect_data.1)(effect_data.2);
+            if let Some(cleanup) = effect_data.1 {
+                cleanup(effect_data.2);
             }
         }
     }

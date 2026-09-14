@@ -4,7 +4,7 @@ import { Component } from './component';
 import { ForeignComponent } from './foreign-component';
 import { callbackBoundary } from './native-controller';
 
-/** A blocking native App. run consumes it, including on callback failure. */
+/** A blocking native App. This wrapper disposes its retained C handle after run. */
 export class NativeApp {
   private handle: NativeHandle | null = null;
   private root: ForeignComponent<null, null>;
@@ -32,7 +32,8 @@ export class NativeApp {
     if (this.handle === null) throw new Error('App is disposed or consumed');
     const handle = this.handle; this.handle = null;
     callbackBoundary(() => {
-      try { checkError(lib.rtui_app_run(handle)); } finally { this.root.dispose(); }
+      try { checkError(lib.rtui_app_run(handle)); }
+      finally { lib.rtui_app_destroy(handle); this.root.dispose(); }
     });
   }
   dispose(): void {

@@ -1,11 +1,12 @@
 //! Application framework FFI functions
 
 use super::*;
-use crate::app::{App, AppBuilder, RootComponent};
+use crate::app::{App, AppBuilder, AppWaker, RootComponent};
 use crate::backend::{Backend, CrosstermBackend, DebugBackend, SuprTuiBackend};
 use crate::component::Element;
 use crate::display::monitor::PerformanceMode;
 use std::boxed::Box;
+use std::sync::Mutex;
 
 #[derive(Default)]
 struct NativeAppBuilder {
@@ -89,12 +90,27 @@ pub struct RTuiPerformanceMetrics {
 
 /// Root component callback function type
 pub type RTuiRootComponentCallback =
-    extern "C" fn(user_data: *mut std::ffi::c_void) -> *mut super::builder::RTuiElement;
+    Option<extern "C" fn(user_data: *mut std::ffi::c_void) -> *mut super::builder::RTuiElement>;
 
 /// FFI-compatible root component wrapper
 struct FFIRootComponent {
     callback: RTuiRootComponentCallback,
     user_data: *mut std::ffi::c_void,
+}
+
+struct NativeApp {
+    app: Mutex<Option<App>>,
+    wake: AppWaker,
+}
+
+impl NativeApp {
+    fn new(app: App) -> Self {
+        let wake = app.waker();
+        Self {
+            app: Mutex::new(Some(app)),
+            wake,
+        }
+    }
 }
 
 struct ElementRoot(Element);
@@ -130,7 +146,10 @@ unsafe impl Sync for FFIRootComponent {}
 
 impl RootComponent for FFIRootComponent {
     fn render(&self) -> Element {
-        let element_ptr = (self.callback)(self.user_data);
+        let Some(callback) = self.callback else {
+            return Element::empty();
+        };
+        let element_ptr = callback(self.user_data);
         if element_ptr.is_null() {
             return Element::empty();
         }
@@ -294,7 +313,7 @@ pub extern "C" fn rtui_app_builder_build(
         let builder_box = Box::from_raw(builder as *mut NativeAppBuilder);
         match builder_box.inner.build() {
             Ok(app) => {
-                *out_app = Box::into_raw(Box::new(app)) as *mut RTuiApp;
+                *out_app = Box::into_raw(Box::new(NativeApp::new(app))) as *mut RTuiApp;
                 Ok(())
             }
             Err(_) => Err(ReactiveError::InternalError),
@@ -307,13 +326,14 @@ pub extern "C" fn rtui_app_builder_build(
 pub extern "C" fn rtui_app_destroy(app: *mut RTuiApp) {
     if !app.is_null() {
         unsafe {
-            let _ = Box::from_raw(app as *mut App);
+            let _ = Box::from_raw(app.cast::<NativeApp>());
         }
     }
 }
 
-/// Run the app (blocking call that consumes the app)
-/// Note: After this call, the app pointer becomes invalid
+/// Run the app as a blocking call. The handle remains valid until destroy.
+/// While this call is active, only quit is available; other app calls return
+/// InvalidState.
 #[no_mangle]
 pub extern "C" fn rtui_app_run(app: *mut RTuiApp) -> ReactiveError {
     if app.is_null() {
@@ -321,9 +341,12 @@ pub extern "C" fn rtui_app_run(app: *mut RTuiApp) -> ReactiveError {
     }
 
     catch_panic(AssertUnwindSafe(|| unsafe {
-        // This correctly consumes the app as run() takes ownership
-        let app_box = Box::from_raw(app as *mut App);
-        match app_box.run() {
+        let native = &*app.cast::<NativeApp>();
+        let owned = {
+            let mut slot = native.app.lock().map_err(|_| ReactiveError::InvalidState)?;
+            slot.take().ok_or(ReactiveError::InvalidState)?
+        };
+        match owned.run() {
             Ok(()) => Ok(()),
             Err(_) => Err(ReactiveError::InternalError),
         }
@@ -338,8 +361,8 @@ pub extern "C" fn rtui_app_quit(app: *mut RTuiApp) -> ReactiveError {
     }
 
     catch_panic(AssertUnwindSafe(|| unsafe {
-        let app_ref = &mut *(app as *mut App);
-        app_ref.quit();
+        let native = &*app.cast::<NativeApp>();
+        native.wake.request_stop();
         Ok(())
     }))
 }
@@ -355,7 +378,9 @@ pub extern "C" fn rtui_app_get_size(
     }
 
     catch_panic(AssertUnwindSafe(|| unsafe {
-        let app_ref = &*(app as *const App);
+        let native = &*app.cast::<NativeApp>();
+        let slot = native.app.lock().map_err(|_| ReactiveError::InvalidState)?;
+        let app_ref = slot.as_ref().ok_or(ReactiveError::InvalidState)?;
         let (width, height) = app_ref.size();
         *out_dimensions = RTuiDimensions { width, height };
         Ok(())
@@ -373,7 +398,9 @@ pub extern "C" fn rtui_app_set_performance_mode(
     }
 
     catch_panic(AssertUnwindSafe(|| unsafe {
-        let app_ref = &mut *(app as *mut App);
+        let native = &*app.cast::<NativeApp>();
+        let mut slot = native.app.lock().map_err(|_| ReactiveError::InvalidState)?;
+        let app_ref = slot.as_mut().ok_or(ReactiveError::InvalidState)?;
         app_ref.set_performance_mode(mode.into());
         Ok(())
     }))
@@ -390,7 +417,9 @@ pub extern "C" fn rtui_app_get_current_fps(
     }
 
     catch_panic(AssertUnwindSafe(|| unsafe {
-        let app_ref = &*(app as *const App);
+        let native = &*app.cast::<NativeApp>();
+        let slot = native.app.lock().map_err(|_| ReactiveError::InvalidState)?;
+        let app_ref = slot.as_ref().ok_or(ReactiveError::InvalidState)?;
         *out_fps = app_ref.get_current_fps();
         Ok(())
     }))
@@ -407,7 +436,9 @@ pub extern "C" fn rtui_app_get_performance_metrics(
     }
 
     catch_panic(AssertUnwindSafe(|| unsafe {
-        let app_ref = &*(app as *const App);
+        let native = &*app.cast::<NativeApp>();
+        let slot = native.app.lock().map_err(|_| ReactiveError::InvalidState)?;
+        let app_ref = slot.as_ref().ok_or(ReactiveError::InvalidState)?;
         let metrics = app_ref.get_performance_metrics();
         *out_metrics = RTuiPerformanceMetrics {
             current_fps: metrics.current_fps,
@@ -434,7 +465,7 @@ mod tests {
             element
         }
         let root = FFIRootComponent {
-            callback: render,
+            callback: Some(render),
             user_data: std::ptr::null_mut(),
         };
         assert_eq!(

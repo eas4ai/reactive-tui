@@ -532,6 +532,9 @@ enum RTuiError rtui_app_builder_build(RTuiAppBuilder *builder, RTuiApp **out_app
 
 void rtui_app_destroy(RTuiApp *app);
 
+/* Blocks until exit. The handle remains owned by the caller. During this call,
+ * another thread may call rtui_app_quit with the same handle. Destroy the
+ * handle only after rtui_app_run returns. */
 enum RTuiError rtui_app_run(RTuiApp *app);
 
 enum RTuiError rtui_app_quit(RTuiApp *app);
@@ -750,6 +753,7 @@ enum RTuiError rtui_thread_safe_signal_string_get(const RTuiThreadSafeSignal *si
 enum RTuiError rtui_thread_safe_signal_string_set(RTuiThreadSafeSignal *signal, const char *value);
 
 enum RTuiError rtui_effect_create(RTuiEffectCallback callback,
+                                  /* May be NULL. */
                                   RTuiEffectCleanupCallback cleanup,
                                   void *user_data,
                                   RTuiEffect **out_effect);

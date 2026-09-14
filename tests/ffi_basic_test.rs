@@ -176,8 +176,11 @@ mod ffi_tests {
             assert_eq!(result, ReactiveError::Success);
 
             // Set root component
-            let result =
-                rtui_app_builder_root_component(builder_ptr, test_root_callback, ptr::null_mut());
+            let result = rtui_app_builder_root_component(
+                builder_ptr,
+                Some(test_root_callback),
+                ptr::null_mut(),
+            );
             assert_eq!(result, ReactiveError::Success);
 
             // Set backend
