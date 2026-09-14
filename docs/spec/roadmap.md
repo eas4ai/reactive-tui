@@ -1,7 +1,7 @@
 # Recovery roadmap
 
 Status: Agreed 2026-09-07
-Current: documentation-retention
+Current: framework-manual
 
 1. `suprtui-renderer` — the first screen: styled frames, updates, Unicode,
    resize, output errors, input, and terminal restoration (RND-001 through RND-006).
@@ -37,3 +37,7 @@ the Rust API remediation commitment below.
 
 10. `documentation-retention` — retain only Cairn-managed specifications,
     commitments, and decisions in the tracked documentation tree (DOC-001).
+
+11. `framework-manual` — publish a source-grounded manual with a linked
+    overview and focused pages for every public framework system (MAN-001 and
+    MAN-002).
