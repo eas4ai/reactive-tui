@@ -2,7 +2,7 @@
 
 commit: 6fe244d8
 findings:
-  - unresolved: FFS-001 passes without the declared safe violating fixture for moved App ownership and bare nullable callback types.
+  - open: FFS-001 passes without the declared safe violating fixture for moved App ownership and bare nullable callback types.
 
 ## Scope examined
 
