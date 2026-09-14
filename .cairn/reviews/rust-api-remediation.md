@@ -5196,3 +5196,27 @@ focused validator accepted the complete mapping and rejected a copy with every
 survival gates are unchanged.
 
 Known open findings: none
+
+## Stable post-evidence final review
+
+Status: Complete
+
+This review follows commit `be43d36d`, where Cairn reported current passing
+evidence for API-018, API-019, API-020 and every inherited requirement. I
+rechecked the final API-020 results after the proof/review separation. The normal
+run observed groups 2374234 and 2374319; the forced-timeout run observed groups
+2378616 and 2378696. Both recorded empty `remaining` maps, and none of the four
+former group leaders exists in `/proc` now.
+
+The closure mechanism still rejects a missing RAPI mapping, an incomplete work
+list and a historical defect mislabeled as acceptance. Its immutable mapping
+covers RAPI-01 through RAPI-15 and API-001 through API-020. The mutable commitment
+review is no longer a mechanism input, so this required post-evidence record does
+not invalidate the evidence it reviews.
+
+I found no weakened contract, missing audit row, surviving owned process or stale
+public readiness claim. The prior production self-audit and Ripwire limitations
+remain accurate; this repair added no public API, dependency, unbounded work,
+secret or CI execution.
+
+Known open findings: none
