@@ -26,6 +26,21 @@ passed again. No requirement or falsifier mismatch remains.
 
 ## CRT-003 mechanism review
 
+The revised package graph added two Ghostty companion package commands and a
+Linux CPU-affinity wrapper. Every command remains a separate foreground process,
+and `taskset` applies the selected one-to-eight logical CPUs to Cargo and all
+of its children on Linux. Both direct and `mise`-provided Zig commands pass
+through that wrapper.
+
+This review found two mismatches in the new package commands. The sys package
+invokes its Zig build during Cargo's archive verification, but its command does
+not select Zig 0.15.2. The safe wrapper's normalized archive depends on the
+unpublished sys package and therefore cannot be verified from crates.io before
+the staged publication order begins. The sys package command must use
+`zig_0_15_2`; the wrapper must package without archive verification while the
+later embedded root build compiles the complete local wrapper and sys pair.
+These mismatches must be fixed before accepting the revised digest.
+
 Compared `scripts/check-crates-release-build.sh` with the revised CRT-003
 requirement and falsifier. The script validates a numeric job count from one
 through eight before invoking Cargo. Every package and feature command is a
