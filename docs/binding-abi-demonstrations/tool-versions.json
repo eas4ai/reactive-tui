@@ -1,7 +1,0 @@
-{
-  "rustc": "rustc 1.95.0 (59807616e 2026-04-14)",
-  "clang": "Homebrew clang version 22.1.8",
-  "node": "v24.1.0",
-  "npm": "11.3.0",
-  "cbindgen": "cbindgen 0.29.4"
-}

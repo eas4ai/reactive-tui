@@ -1,7 +1,0 @@
-{
-  "version": "3.7.0",
-  "archive_sha256": "14b5131e9134d0012466574fba6d69fb9ef84eee66660ee861e2da483089574a",
-  "platform": "macOS-14.8.9-arm64-arm-64bit-Mach-O",
-  "color_transparency": "unsupported; approved api-011-api-014-api-020",
-  "measurement": "dominant-channel geometry"
-}

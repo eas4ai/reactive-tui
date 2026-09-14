@@ -1,4 +1,0 @@
-
-> @reactive-tui/core@0.1.0 lint
-> eslint src/**/*.ts --max-warnings 0
-
