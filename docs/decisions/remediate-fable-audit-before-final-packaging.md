@@ -12,4 +12,4 @@ Treat every finding in the Fable audit backlog as release-blocking work. Execute
 
 ## Realized by
 
-65874222 docs: sequence pre-release audit remediation
+- 658742220ec97fa68a153182aac57910364bc779 docs: sequence pre-release audit remediation
