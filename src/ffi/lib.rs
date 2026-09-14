@@ -8,11 +8,48 @@
 
 use crate::core::renderer::Renderer;
 use crate::core::surface::{Attr, Cell, Rgba, Surface};
+use std::any::TypeId;
+use std::collections::HashMap;
+use std::sync::{Mutex, OnceLock};
 
 /// FFI Buffer handle (opaque pointer to Surface)
 #[repr(C)]
 pub struct RTuiBuffer {
     _private: [u8; 0],
+}
+
+fn optimized_buffer_tracker() -> &'static super::pointer::PointerTracker<Surface> {
+    static TRACKER: OnceLock<super::pointer::PointerTracker<Surface>> = OnceLock::new();
+    TRACKER.get_or_init(super::pointer::PointerTracker::new)
+}
+
+fn returned_allocations() -> &'static Mutex<HashMap<(usize, TypeId), usize>> {
+    static ALLOCATIONS: OnceLock<Mutex<HashMap<(usize, TypeId), usize>>> = OnceLock::new();
+    ALLOCATIONS.get_or_init(|| Mutex::new(HashMap::new()))
+}
+
+fn export_allocation<T: 'static>(values: Box<[T]>) -> *mut T {
+    let length = values.len();
+    let pointer = Box::into_raw(values) as *mut T;
+    returned_allocations()
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .insert((pointer as usize, TypeId::of::<T>()), length);
+    pointer
+}
+
+fn release_allocation<T: 'static>(pointer: *mut T) {
+    let length = returned_allocations()
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .remove(&(pointer as usize, TypeId::of::<T>()));
+    if let Some(length) = length {
+        unsafe {
+            drop(Box::from_raw(std::ptr::slice_from_raw_parts_mut(
+                pointer, length,
+            )));
+        }
+    }
 }
 
 // Re-export core types for OpenTUI-style API
@@ -159,8 +196,14 @@ pub extern "C" fn createOptimizedBuffer(
 
     // Create surface (our buffer implementation)
     let surface = Surface::new(width as usize, height as usize);
-    let boxed = Box::new(surface);
-    Box::into_raw(boxed) as *mut RTuiBuffer
+    let raw = Box::into_raw(Box::new(surface));
+    if !optimized_buffer_tracker().register(raw) {
+        unsafe {
+            drop(Box::from_raw(raw));
+        }
+        return std::ptr::null_mut();
+    }
+    raw.cast::<RTuiBuffer>()
 }
 
 /// Destroy an optimized buffer
@@ -170,9 +213,11 @@ pub extern "C" fn destroyOptimizedBuffer(buffer: *mut RTuiBuffer) {
         return;
     }
 
-    let buffer_ptr = buffer as *mut Surface;
-    unsafe {
-        let _ = Box::from_raw(buffer_ptr);
+    let buffer_ptr = buffer.cast::<Surface>();
+    if optimized_buffer_tracker().unregister(buffer_ptr) {
+        unsafe {
+            let _ = Box::from_raw(buffer_ptr);
+        }
     }
 }
 
@@ -331,7 +376,7 @@ pub extern "C" fn bufferFillRect(
 /// The array has width * height elements in row-major order.
 ///
 /// # Safety
-/// - The returned pointer is valid until the buffer is destroyed or resized
+/// - The returned pointer is valid until its matching release call
 /// - The caller must not access beyond width * height elements
 /// - Concurrent access must be synchronized by the caller
 /// - The caller must call bufferReleaseCharPtr to free the memory
@@ -346,9 +391,7 @@ pub extern "C" fn bufferGetCharPtr(buffer: *mut RTuiBuffer) -> *mut u32 {
     // Extract characters into a contiguous u32 array
     let chars: Vec<u32> = surface.cells().iter().map(|cell| cell.ch as u32).collect();
 
-    // Convert to boxed slice and leak to return stable pointer
-    let boxed = chars.into_boxed_slice();
-    Box::into_raw(boxed) as *mut u32
+    export_allocation(chars.into_boxed_slice())
 }
 
 /// Release character buffer pointer
@@ -356,15 +399,12 @@ pub extern "C" fn bufferGetCharPtr(buffer: *mut RTuiBuffer) -> *mut u32 {
 /// **REQUIRED:** Must be called for every pointer returned by bufferGetCharPtr()
 /// **SAFETY:** Only call this once per pointer, and only with pointers from bufferGetCharPtr()
 #[reactive_tui_macros::ffi_export]
-pub extern "C" fn bufferReleaseCharPtr(ptr: *mut u32, length: usize) {
+pub extern "C" fn bufferReleaseCharPtr(ptr: *mut u32, _length: usize) {
     if ptr.is_null() {
         return;
     }
 
-    unsafe {
-        // Reconstruct the Box and let it drop to free memory
-        let _boxed = Box::from_raw(std::slice::from_raw_parts_mut(ptr, length));
-    }
+    release_allocation(ptr);
 }
 
 /// Get direct pointer to foreground color buffer
@@ -373,7 +413,7 @@ pub extern "C" fn bufferReleaseCharPtr(ptr: *mut u32, length: usize) {
 /// The array has width * height * 4 elements (RGBA per cell) in row-major order.
 ///
 /// # Safety
-/// - The returned pointer is valid until the buffer is destroyed or resized
+/// - The returned pointer is valid until its matching release call
 /// - The caller must not access beyond width * height * 4 elements
 /// - The caller must call bufferReleaseFgPtr to free the memory
 #[reactive_tui_macros::ffi_export]
@@ -393,9 +433,7 @@ pub extern "C" fn bufferGetFgPtr(buffer: *mut RTuiBuffer) -> *mut f32 {
         colors.push(cell.fg.a);
     }
 
-    // Convert to boxed slice and leak to return stable pointer
-    let boxed = colors.into_boxed_slice();
-    Box::into_raw(boxed) as *mut f32
+    export_allocation(colors.into_boxed_slice())
 }
 
 /// Release foreground color buffer pointer
@@ -403,15 +441,12 @@ pub extern "C" fn bufferGetFgPtr(buffer: *mut RTuiBuffer) -> *mut f32 {
 /// **REQUIRED:** Must be called for every pointer returned by bufferGetFgPtr()
 /// **SAFETY:** Only call this once per pointer, and only with pointers from bufferGetFgPtr()
 #[reactive_tui_macros::ffi_export]
-pub extern "C" fn bufferReleaseFgPtr(ptr: *mut f32, length: usize) {
+pub extern "C" fn bufferReleaseFgPtr(ptr: *mut f32, _length: usize) {
     if ptr.is_null() {
         return;
     }
 
-    unsafe {
-        // Reconstruct the Box and let it drop to free memory
-        let _boxed = Box::from_raw(std::slice::from_raw_parts_mut(ptr, length));
-    }
+    release_allocation(ptr);
 }
 
 /// Get direct pointer to background color buffer
@@ -420,7 +455,7 @@ pub extern "C" fn bufferReleaseFgPtr(ptr: *mut f32, length: usize) {
 /// The array has width * height * 4 elements (RGBA per cell) in row-major order.
 ///
 /// # Safety
-/// - The returned pointer is valid until the buffer is destroyed or resized
+/// - The returned pointer is valid until its matching release call
 /// - The caller must not access beyond width * height * 4 elements
 /// - The caller must call bufferReleaseBgPtr to free the memory
 #[reactive_tui_macros::ffi_export]
@@ -440,9 +475,7 @@ pub extern "C" fn bufferGetBgPtr(buffer: *mut RTuiBuffer) -> *mut f32 {
         colors.push(cell.bg.a);
     }
 
-    // Convert to boxed slice and leak to return stable pointer
-    let boxed = colors.into_boxed_slice();
-    Box::into_raw(boxed) as *mut f32
+    export_allocation(colors.into_boxed_slice())
 }
 
 /// Release background color buffer pointer
@@ -450,15 +483,12 @@ pub extern "C" fn bufferGetBgPtr(buffer: *mut RTuiBuffer) -> *mut f32 {
 /// **REQUIRED:** Must be called for every pointer returned by bufferGetBgPtr()
 /// **SAFETY:** Only call this once per pointer, and only with pointers from bufferGetBgPtr()
 #[reactive_tui_macros::ffi_export]
-pub extern "C" fn bufferReleaseBgPtr(ptr: *mut f32, length: usize) {
+pub extern "C" fn bufferReleaseBgPtr(ptr: *mut f32, _length: usize) {
     if ptr.is_null() {
         return;
     }
 
-    unsafe {
-        // Reconstruct the Box and let it drop to free memory
-        let _boxed = Box::from_raw(std::slice::from_raw_parts_mut(ptr, length));
-    }
+    release_allocation(ptr);
 }
 
 /// Get direct pointer to attributes buffer
@@ -467,7 +497,7 @@ pub extern "C" fn bufferReleaseBgPtr(ptr: *mut f32, length: usize) {
 /// The array has width * height elements in row-major order.
 ///
 /// # Safety
-/// - The returned pointer is valid until the buffer is destroyed or resized
+/// - The returned pointer is valid until its matching release call
 /// - The caller must not access beyond width * height elements
 /// - The caller must call bufferReleaseAttributesPtr to free the memory
 #[reactive_tui_macros::ffi_export]
@@ -485,9 +515,7 @@ pub extern "C" fn bufferGetAttributesPtr(buffer: *mut RTuiBuffer) -> *mut u8 {
         .map(|cell| cell.attr.bits())
         .collect();
 
-    // Convert to boxed slice and leak to return stable pointer
-    let boxed = attrs.into_boxed_slice();
-    Box::into_raw(boxed) as *mut u8
+    export_allocation(attrs.into_boxed_slice())
 }
 
 /// Release attributes buffer pointer
@@ -495,15 +523,12 @@ pub extern "C" fn bufferGetAttributesPtr(buffer: *mut RTuiBuffer) -> *mut u8 {
 /// **REQUIRED:** Must be called for every pointer returned by bufferGetAttrPtr()
 /// **SAFETY:** Only call this once per pointer, and only with pointers from bufferGetAttrPtr()
 #[reactive_tui_macros::ffi_export]
-pub extern "C" fn bufferReleaseAttrPtr(ptr: *mut u8, length: usize) {
+pub extern "C" fn bufferReleaseAttrPtr(ptr: *mut u8, _length: usize) {
     if ptr.is_null() {
         return;
     }
 
-    unsafe {
-        // Reconstruct the Box and let it drop to free memory
-        let _boxed = Box::from_raw(std::slice::from_raw_parts_mut(ptr, length));
-    }
+    release_allocation(ptr);
 }
 
 /// Get buffer respect alpha setting

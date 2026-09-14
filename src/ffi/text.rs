@@ -5,6 +5,12 @@
 use super::*;
 use crate::core::surface::{Attr, Rgba, Surface};
 use crate::ffi::lib::RTuiBuffer;
+use std::sync::OnceLock;
+
+fn text_buffer_tracker() -> &'static super::pointer::PointerTracker<TextBuffer> {
+    static TRACKER: OnceLock<super::pointer::PointerTracker<TextBuffer>> = OnceLock::new();
+    TRACKER.get_or_init(super::pointer::PointerTracker::new)
+}
 
 /// Text buffer handle (opaque)
 #[repr(C)]
@@ -81,8 +87,14 @@ pub extern "C" fn createTextBuffer(length: u32, _width_method: u8) -> *mut RTuiT
     }
 
     let text_buffer = TextBuffer::new(length);
-    let boxed = Box::new(text_buffer);
-    Box::into_raw(boxed) as *mut RTuiTextBuffer
+    let raw = Box::into_raw(Box::new(text_buffer));
+    if !text_buffer_tracker().register(raw) {
+        unsafe {
+            drop(Box::from_raw(raw));
+        }
+        return std::ptr::null_mut();
+    }
+    raw.cast::<RTuiTextBuffer>()
 }
 
 /// Destroy a text buffer
@@ -92,9 +104,11 @@ pub extern "C" fn destroyTextBuffer(tb: *mut RTuiTextBuffer) {
         return;
     }
 
-    let tb_ptr = tb as *mut TextBuffer;
-    unsafe {
-        let _ = Box::from_raw(tb_ptr);
+    let tb_ptr = tb.cast::<TextBuffer>();
+    if text_buffer_tracker().unregister(tb_ptr) {
+        unsafe {
+            let _ = Box::from_raw(tb_ptr);
+        }
     }
 }
 

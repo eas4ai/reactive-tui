@@ -207,6 +207,9 @@ pub extern "C" fn rtui_element_add_child(
     if parent.is_null() || child.is_null() {
         return ReactiveError::NullPointer;
     }
+    if parent == child {
+        return ReactiveError::InvalidParameter;
+    }
 
     catch_panic(AssertUnwindSafe(|| unsafe {
         // Validate pointer alignment and basic sanity

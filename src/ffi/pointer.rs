@@ -1,7 +1,9 @@
 //! Pointer lifetime tracking for FFI safety
 //!
-//! This module provides a thread-safe system for tracking FFI pointers
-//! to prevent use-after-free vulnerabilities.
+//! Typed trackers can recognize handles that this library registered and has
+//! not removed. The general `validate_pointer` helper checks only non-null,
+//! alignment, and a broad userspace address range. It does not prove that an
+//! address is allocated, live, owned by this library, readable, or writable.
 
 use std::any::TypeId;
 use std::collections::HashMap;
@@ -106,7 +108,11 @@ impl<T> Default for PointerTracker<T> {
     }
 }
 
-/// Global validation function for type-safe FFI pointer operations
+/// Check basic pointer plausibility before a typed access.
+///
+/// This does not prove allocation, liveness, ownership, readability, or
+/// writability. An API that owns a handle must use its typed `PointerTracker`
+/// before dereferencing it.
 pub fn validate_pointer<T: 'static>(ptr: *const u8) -> bool {
     use std::sync::OnceLock;
 
@@ -125,8 +131,8 @@ pub fn validate_pointer<T: 'static>(ptr: *const u8) -> bool {
         return false;
     }
 
-    // Additional safety: check pointer is in valid memory range
-    // This is a simplified check - in production you'd want more sophisticated validation
+    // Reject addresses outside the common userspace range. This is still only
+    // a plausibility check and cannot establish that memory is mapped.
     let addr = ptr as usize;
 
     // Check if pointer is in reasonable user space (not kernel space)

@@ -289,6 +289,9 @@ void bufferFillRect(RTuiBuffer *buffer,
 
 uint32_t *bufferGetCharPtr(RTuiBuffer *buffer);
 
+/* For each bufferGet*Ptr allocation below, the library retains the allocation
+ * metadata. length is accepted for ABI compatibility and does not control
+ * deallocation. Interior, misaligned, and repeated releases are ignored. */
 void bufferReleaseCharPtr(uint32_t *ptr, size_t length);
 
 float *bufferGetFgPtr(RTuiBuffer *buffer);
