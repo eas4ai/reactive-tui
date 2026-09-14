@@ -354,7 +354,7 @@ fn install_timer(hooks: &Hooks, timer: Arc<HookTimer>, duration: Duration, repea
 }
 
 /// Get the global scheduler instance
-fn get_scheduler(hooks: &Hooks) -> Arc<Scheduler> {
+pub(crate) fn get_scheduler(hooks: &Hooks) -> Arc<Scheduler> {
     if let Some(scheduler) = hooks.resource_scheduler() {
         return scheduler;
     }

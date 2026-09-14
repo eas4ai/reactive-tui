@@ -5,11 +5,12 @@ use crate::animation::stagger::StaggerConfig;
 use crate::animation::{
     Animation, AnimationController, AnimationState, EasingFunction, LoopMode, SpringConfig,
 };
-use crate::reactive::{use_effect, use_signal, Hooks, Scheduler, ThreadSafeSignal};
+use crate::reactive::hooks::{HookKind, HookResources};
+use crate::reactive::scheduler::TimerId;
+use crate::reactive::{use_effect_with_deps, Hooks, Scheduler, ThreadSafeSignal};
 use std::fmt::Debug;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
-use std::sync::{Arc, Mutex, RwLock};
-use std::thread;
+use std::sync::{Arc, Mutex, RwLock, Weak};
 use std::time::{Duration, Instant};
 
 /// Animation value that can be animated
@@ -237,102 +238,173 @@ pub fn shutdown_animation_runtime() {
     RUNTIME.stop();
 }
 
-/// Animation handle
+/// Animation handle. Clones share one component-owned animation.
+#[derive(Clone)]
 pub struct AnimationHandle<T: AnimatableValue> {
+    owner: Arc<AnimationOwner<T>>,
+}
+
+struct AnimationOwner<T: AnimatableValue> {
     value: ThreadSafeSignal<T>,
-    controller: Arc<Mutex<AnimationController>>,
+    controller: Mutex<AnimationController>,
     state: ThreadSafeSignal<AnimationState>,
-    current_animation_id: Arc<Mutex<Option<usize>>>,
-    from_value: Arc<RwLock<T>>,
-    to_value: Arc<RwLock<T>>,
-    config: AnimationConfig,
+    current_animation_id: Mutex<Option<usize>>,
+    from_value: RwLock<T>,
+    to_value: RwLock<T>,
+    config: RwLock<AnimationConfig>,
+    scheduler: Arc<Scheduler>,
+    pending_transition: Mutex<Option<TimerId>>,
+    transition_request: Mutex<Option<(T, Duration)>>,
+    cleanup_registered: AtomicBool,
+    generation: AtomicUsize,
+    lifetime: Weak<HookResources>,
+}
+
+struct AnimationCleanup<T: AnimatableValue>(Weak<AnimationOwner<T>>);
+
+impl<T: AnimatableValue> Drop for AnimationCleanup<T> {
+    fn drop(&mut self) {
+        if let Some(owner) = self.0.upgrade() {
+            owner.cleanup_registered.store(false, Ordering::Release);
+            owner.cancel_owned_work();
+        }
+    }
+}
+
+impl<T: AnimatableValue> AnimationOwner<T> {
+    fn is_alive(&self) -> bool {
+        self.lifetime
+            .upgrade()
+            .is_some_and(|owner| owner.is_alive())
+    }
+
+    fn cancel_owned_work(&self) {
+        self.generation.fetch_add(1, Ordering::AcqRel);
+        if let Some(id) = self.current_animation_id.lock().unwrap().take() {
+            RUNTIME.remove_animation(id);
+        }
+        if let Some(id) = self.pending_transition.lock().unwrap().take() {
+            self.scheduler.cancel_timer(id);
+        }
+    }
+
+    fn start(self: &Arc<Self>, target: T) {
+        self.cancel_owned_work();
+        if !self.is_alive() {
+            return;
+        }
+        let generation = self
+            .generation
+            .fetch_add(1, Ordering::AcqRel)
+            .wrapping_add(1);
+        *self.from_value.write().unwrap() = self.value.get();
+        *self.to_value.write().unwrap() = target;
+        self.controller.lock().unwrap().start();
+        self.state.set(AnimationState::Playing);
+        let config = self.config.read().unwrap().clone();
+        let owner = Arc::downgrade(self);
+        let update = Arc::new(move |progress: f32| {
+            let Some(owner) = owner.upgrade() else { return };
+            if !owner.is_alive() || owner.generation.load(Ordering::Acquire) != generation {
+                return;
+            }
+            if !owner.controller.lock().unwrap().is_playing() {
+                return;
+            }
+            let value = owner.from_value.read().unwrap().interpolate(
+                &owner.to_value.read().unwrap(),
+                config.easing.apply(progress),
+            );
+            let current = owner.current_animation_id.lock().unwrap();
+            if owner.is_alive()
+                && owner.generation.load(Ordering::Acquire) == generation
+                && current.is_some()
+            {
+                owner.value.set(value);
+                if progress >= 1.0 {
+                    owner.controller.lock().unwrap().stop();
+                    owner.state.set(AnimationState::Stopped);
+                }
+            }
+        });
+        let id = RUNTIME.add_animation(update, config.duration);
+        *self.current_animation_id.lock().unwrap() = Some(id);
+    }
+
+    fn schedule_transition(self: &Arc<Self>, target: T, delay: Duration) {
+        let request = (target.clone(), delay);
+        let mut prior = self.transition_request.lock().unwrap();
+        if prior.as_ref() == Some(&request) {
+            return;
+        }
+        *prior = Some(request);
+        drop(prior);
+        if let Some(id) = self.pending_transition.lock().unwrap().take() {
+            self.scheduler.cancel_timer(id);
+        }
+        if !self.is_alive() || self.value.get() == target {
+            return;
+        }
+        let owner = Arc::downgrade(self);
+        let id = self.scheduler.schedule_timeout(delay, move || {
+            let Some(owner) = owner.upgrade() else { return };
+            owner.pending_transition.lock().unwrap().take();
+            if owner.is_alive() {
+                owner.start(target);
+            }
+        });
+        *self.pending_transition.lock().unwrap() = Some(id);
+    }
 }
 
 impl<T: AnimatableValue> AnimationHandle<T> {
     /// Get the current animation value
     pub fn value(&self) -> T {
-        self.value.get()
+        self.owner.value.get()
     }
 
     /// Animate to a target value
     pub fn animate_to(&self, target: T) {
-        // Cancel current animation if running
-        if let Some(id) = *self.current_animation_id.lock().unwrap() {
-            RUNTIME.remove_animation(id);
-        }
-
-        // Store animation endpoints
-        *self.from_value.write().unwrap() = self.value.get();
-        *self.to_value.write().unwrap() = target.clone();
-
-        // Start animation
-        self.controller.lock().unwrap().start();
-        self.state.set(AnimationState::Playing);
-
-        // Create animation update function
-        let value_signal = self.value.clone();
-        let from = self.from_value.clone();
-        let to = self.to_value.clone();
-        let easing = self.config.easing.clone();
-        let state_signal = self.state.clone();
-        let controller = self.controller.clone();
-
-        let update = Arc::new(move |progress: f32| {
-            // Check if animation is paused/stopped
-            let ctrl_state = controller.lock().unwrap();
-            if !ctrl_state.is_playing() {
-                return;
-            }
-            drop(ctrl_state);
-
-            let eased = easing.apply(progress);
-            let from_val = from.read().unwrap().clone();
-            let to_val = to.read().unwrap().clone();
-            let interpolated = from_val.interpolate(&to_val, eased);
-            value_signal.set(interpolated);
-
-            if progress >= 1.0 {
-                controller.lock().unwrap().stop();
-                state_signal.set(AnimationState::Stopped);
-            }
-        });
-
-        // Add to runtime
-        let id = RUNTIME.add_animation(update, self.config.duration);
-        *self.current_animation_id.lock().unwrap() = Some(id);
+        self.owner.start(target);
     }
 
     /// Pause the current animation
     pub fn pause(&self) {
-        self.controller.lock().unwrap().pause();
-        self.state.set(AnimationState::Paused);
+        if self.owner.is_alive() {
+            self.owner.controller.lock().unwrap().pause();
+            self.owner.state.set(AnimationState::Paused);
+        }
     }
 
     /// Resume a paused animation
     pub fn resume(&self) {
-        self.controller.lock().unwrap().resume();
-        self.state.set(AnimationState::Playing);
+        if self.owner.is_alive() {
+            self.owner.controller.lock().unwrap().resume();
+            self.owner.state.set(AnimationState::Playing);
+        }
     }
 
     /// Stop the current animation
     pub fn stop(&self) {
-        if let Some(id) = *self.current_animation_id.lock().unwrap() {
-            RUNTIME.remove_animation(id);
+        self.owner.cancel_owned_work();
+        self.owner.controller.lock().unwrap().stop();
+        if self.owner.is_alive() {
+            self.owner.state.set(AnimationState::Stopped);
         }
-        self.controller.lock().unwrap().stop();
-        self.state.set(AnimationState::Stopped);
     }
 
     /// Reset the animation to its initial value
     pub fn reset(&self) {
         self.stop();
-        let from = self.from_value.read().unwrap().clone();
-        self.value.set(from);
+        let from = self.owner.from_value.read().unwrap().clone();
+        if self.owner.is_alive() {
+            self.owner.value.set(from);
+        }
     }
 
     /// Get the current animation state
     pub fn state(&self) -> AnimationState {
-        self.state.get()
+        self.owner.state.get()
     }
 }
 
@@ -366,98 +438,143 @@ pub fn use_animation<T: AnimatableValue>(
     initial: T,
     config: AnimationConfig,
 ) -> AnimationHandle<T> {
-    let value = use_signal(hooks, initial.clone());
-    let state = use_signal(hooks, AnimationState::Stopped);
-    let from_value = Arc::new(RwLock::new(initial.clone()));
-    let to_value = Arc::new(RwLock::new(initial));
+    let lifetime = hooks.resource_token();
+    let scheduler = crate::hooks::timer::get_scheduler(hooks);
+    let initial_config = config.clone();
+    let storage = hooks.get_or_create_storage(HookKind::Memo, || {
+        let animation = Animation::new(
+            initial_config.duration,
+            initial_config.easing.clone(),
+            initial_config.loop_count,
+            initial_config.loop_behavior,
+        );
+        Arc::new(AnimationOwner {
+            value: ThreadSafeSignal::new(initial.clone()),
+            controller: Mutex::new(AnimationController::new(animation)),
+            state: ThreadSafeSignal::new(AnimationState::Stopped),
+            current_animation_id: Mutex::new(None),
+            from_value: RwLock::new(initial.clone()),
+            to_value: RwLock::new(initial),
+            config: RwLock::new(initial_config),
+            scheduler,
+            pending_transition: Mutex::new(None),
+            transition_request: Mutex::new(None),
+            cleanup_registered: AtomicBool::new(false),
+            generation: AtomicUsize::new(0),
+            lifetime,
+        })
+    });
+    let owner = storage.lock().unwrap().clone();
+    *owner.config.write().unwrap() = config;
+    let cleanup = (!owner.cleanup_registered.swap(true, Ordering::AcqRel))
+        .then(|| AnimationCleanup(Arc::downgrade(&owner)));
+    use_effect_with_deps(hooks, (), move || Some(Box::new(move || drop(cleanup))));
+    AnimationHandle { owner }
+}
 
-    let animation = Animation::new(
-        config.duration,
-        config.easing.clone(),
-        config.loop_count,
-        config.loop_behavior,
-    );
-    let controller = Arc::new(Mutex::new(AnimationController::new(animation)));
+/// Spring animation handle. Clones share one component-owned spring.
+#[derive(Clone)]
+pub struct SpringHandle<T: AnimatableValue> {
+    owner: Arc<SpringOwner<T>>,
+}
 
-    AnimationHandle {
-        value,
-        controller,
-        state,
-        current_animation_id: Arc::new(Mutex::new(None)),
-        from_value,
-        to_value,
-        config,
+struct SpringOwner<T: AnimatableValue> {
+    value: ThreadSafeSignal<T>,
+    velocity: RwLock<f32>,
+    target: RwLock<T>,
+    config: RwLock<SpringConfig>,
+    animation_id: Mutex<Option<usize>>,
+    cleanup_registered: AtomicBool,
+    generation: AtomicUsize,
+    lifetime: Weak<HookResources>,
+}
+
+struct SpringCleanup<T: AnimatableValue>(Weak<SpringOwner<T>>);
+
+impl<T: AnimatableValue> Drop for SpringCleanup<T> {
+    fn drop(&mut self) {
+        if let Some(owner) = self.0.upgrade() {
+            owner.cleanup_registered.store(false, Ordering::Release);
+            owner.cancel_owned_work();
+        }
     }
 }
 
-/// Spring animation handle
-pub struct SpringHandle<T: AnimatableValue> {
-    value: ThreadSafeSignal<T>,
-    velocity: Arc<RwLock<f32>>,
-    target: Arc<RwLock<T>>,
-    config: SpringConfig,
-    animation_id: Arc<Mutex<Option<usize>>>,
+impl<T: AnimatableValue> SpringOwner<T> {
+    fn is_alive(&self) -> bool {
+        self.lifetime
+            .upgrade()
+            .is_some_and(|owner| owner.is_alive())
+    }
+
+    fn cancel_owned_work(&self) {
+        self.generation.fetch_add(1, Ordering::AcqRel);
+        if let Some(id) = self.animation_id.lock().unwrap().take() {
+            RUNTIME.remove_animation(id);
+        }
+    }
 }
 
 impl<T: AnimatableValue> SpringHandle<T> {
     /// Get the current spring value
     pub fn value(&self) -> T {
-        self.value.get()
+        self.owner.value.get()
     }
 
     /// Get the current spring velocity
     pub fn velocity(&self) -> f32 {
-        *self.velocity.read().unwrap()
+        *self.owner.velocity.read().unwrap()
     }
 
     /// Apply an impulse force to the spring
     pub fn apply_impulse(&self, force: f32) {
-        let mut vel = self.velocity.write().unwrap();
+        let mut vel = self.owner.velocity.write().unwrap();
         *vel += force;
+        drop(vel);
         self.start_spring_animation();
     }
 
     /// Set a new target value for the spring to animate to
     pub fn set_target(&self, target: T) {
-        *self.target.write().unwrap() = target;
+        *self.owner.target.write().unwrap() = target;
         self.start_spring_animation();
     }
 
     fn start_spring_animation(&self) {
-        // Cancel current animation
-        if let Some(id) = *self.animation_id.lock().unwrap() {
-            RUNTIME.remove_animation(id);
+        self.owner.cancel_owned_work();
+        if !self.owner.is_alive() {
+            return;
         }
-
-        let value_signal = self.value.clone();
-        let velocity_ref = self.velocity.clone();
-        let target_ref = self.target.clone();
-        let config = self.config.clone();
-        let animation_id_ref = self.animation_id.clone();
-
+        let generation = self
+            .owner
+            .generation
+            .fetch_add(1, Ordering::AcqRel)
+            .wrapping_add(1);
+        let owner = Arc::downgrade(&self.owner);
         let update = Arc::new(move |_progress: f32| {
-            let current = value_signal.get().to_f32();
-            let target = target_ref.read().unwrap().to_f32();
-            let _velocity = *velocity_ref.read().unwrap();
-
-            // Spring physics calculation - calculate_position takes 3 params: time, from, to
+            let Some(owner) = owner.upgrade() else { return };
+            if !owner.is_alive() || owner.generation.load(Ordering::Acquire) != generation {
+                return;
+            }
+            let current = owner.value.get().to_f32();
+            let target = owner.target.read().unwrap().to_f32();
+            let config = owner.config.read().unwrap().clone();
             let position = config.calculate_position(0.016, current, target); // 60fps frame
             let new_velocity = config.calculate_velocity(0.016, current, target);
-
-            *velocity_ref.write().unwrap() = new_velocity;
-            value_signal.set(T::from_f32(position));
-
-            // Stop when settled and remove from runtime
+            let mut animation_id = owner.animation_id.lock().unwrap();
+            if !owner.is_alive() || owner.generation.load(Ordering::Acquire) != generation {
+                return;
+            }
+            *owner.velocity.write().unwrap() = new_velocity;
+            owner.value.set(T::from_f32(position));
             if (position - target).abs() < 0.001f32 && new_velocity.abs() < 0.001f32 {
-                if let Some(id) = *animation_id_ref.lock().unwrap() {
+                if let Some(id) = animation_id.take() {
                     RUNTIME.remove_animation(id);
-                    *animation_id_ref.lock().unwrap() = None;
                 }
             }
         });
-
         let id = RUNTIME.add_animation(update, Duration::from_secs(10)); // Max 10 seconds
-        *self.animation_id.lock().unwrap() = Some(id);
+        *self.owner.animation_id.lock().unwrap() = Some(id);
     }
 }
 
@@ -467,92 +584,176 @@ pub fn use_spring<T: AnimatableValue>(
     initial: T,
     config: SpringConfig,
 ) -> SpringHandle<T> {
-    let value = use_signal(hooks, initial.clone());
-    let velocity = Arc::new(RwLock::new(0.0f32));
-    let target = Arc::new(RwLock::new(initial));
+    let lifetime = hooks.resource_token();
+    let initial_config = config.clone();
+    let storage = hooks.get_or_create_storage(HookKind::Memo, || {
+        Arc::new(SpringOwner {
+            value: ThreadSafeSignal::new(initial.clone()),
+            velocity: RwLock::new(0.0),
+            target: RwLock::new(initial),
+            config: RwLock::new(initial_config),
+            animation_id: Mutex::new(None),
+            cleanup_registered: AtomicBool::new(false),
+            generation: AtomicUsize::new(0),
+            lifetime,
+        })
+    });
+    let owner = storage.lock().unwrap().clone();
+    *owner.config.write().unwrap() = config;
+    let cleanup = (!owner.cleanup_registered.swap(true, Ordering::AcqRel))
+        .then(|| SpringCleanup(Arc::downgrade(&owner)));
+    use_effect_with_deps(hooks, (), move || Some(Box::new(move || drop(cleanup))));
+    SpringHandle { owner }
+}
 
-    SpringHandle {
-        value,
-        velocity,
-        target,
-        config,
-        animation_id: Arc::new(Mutex::new(None)),
+/// Stagger animation handle. Clones share one component-owned sequence.
+#[derive(Clone)]
+pub struct StaggerHandle<T: AnimatableValue> {
+    owner: Arc<StaggerOwner<T>>,
+}
+
+struct StaggerOwner<T: AnimatableValue> {
+    items: Vec<ThreadSafeSignal<T>>,
+    delays: RwLock<Vec<Duration>>,
+    config: RwLock<StaggerConfig>,
+    animation_ids: Mutex<Vec<Option<usize>>>,
+    timer_ids: Mutex<Vec<Option<TimerId>>>,
+    scheduler: Arc<Scheduler>,
+    animation_duration: Duration,
+    cleanup_registered: AtomicBool,
+    generation: AtomicUsize,
+    lifetime: Weak<HookResources>,
+}
+
+struct StaggerCleanup<T: AnimatableValue>(Weak<StaggerOwner<T>>);
+
+impl<T: AnimatableValue> Drop for StaggerCleanup<T> {
+    fn drop(&mut self) {
+        if let Some(owner) = self.0.upgrade() {
+            owner.cleanup_registered.store(false, Ordering::Release);
+            owner.cancel_owned_work();
+        }
     }
 }
 
-/// Stagger animation handle
-pub struct StaggerHandle<T: AnimatableValue> {
-    items: Vec<ThreadSafeSignal<T>>,
-    delays: Vec<Duration>,
-    config: StaggerConfig,
-    animation_ids: Arc<Mutex<Vec<Option<usize>>>>,
-    scheduler: Arc<Scheduler>,
-    animation_duration: Duration,
+impl<T: AnimatableValue> StaggerOwner<T> {
+    fn is_alive(&self) -> bool {
+        self.lifetime
+            .upgrade()
+            .is_some_and(|owner| owner.is_alive())
+    }
+
+    fn cancel_owned_work(&self) {
+        self.generation.fetch_add(1, Ordering::AcqRel);
+        let animations = std::mem::take(&mut *self.animation_ids.lock().unwrap());
+        for id in animations.into_iter().flatten() {
+            RUNTIME.remove_animation(id);
+        }
+        let timers = std::mem::take(&mut *self.timer_ids.lock().unwrap());
+        for id in timers.into_iter().flatten() {
+            self.scheduler.cancel_timer(id);
+        }
+    }
+
+    fn start_sequence(self: &Arc<Self>, targets: Vec<T>) {
+        self.cancel_owned_work();
+        if !self.is_alive() {
+            return;
+        }
+        let generation = self
+            .generation
+            .fetch_add(1, Ordering::AcqRel)
+            .wrapping_add(1);
+        let delays = self.delays.read().unwrap().clone();
+        let easing = self
+            .config
+            .read()
+            .unwrap()
+            .ease
+            .clone()
+            .unwrap_or(EasingFunction::EaseInOut);
+        let count = self.items.len().min(targets.len());
+        *self.animation_ids.lock().unwrap() = vec![None; count];
+        *self.timer_ids.lock().unwrap() = vec![None; count];
+        for (index, target) in targets.into_iter().take(count).enumerate() {
+            self.schedule_item(index, target, delays[index], easing.clone(), generation);
+        }
+    }
+
+    fn schedule_item(
+        self: &Arc<Self>,
+        index: usize,
+        target: T,
+        delay: Duration,
+        easing: EasingFunction,
+        generation: usize,
+    ) {
+        let owner = Arc::downgrade(self);
+        let duration = self.animation_duration;
+        let timer = self.scheduler.schedule_timeout(delay, move || {
+            let Some(owner) = owner.upgrade() else { return };
+            if !owner.is_alive() || owner.generation.load(Ordering::Acquire) != generation {
+                return;
+            }
+            if let Some(timer) = owner.timer_ids.lock().unwrap().get_mut(index) {
+                *timer = None;
+            }
+            let from = owner.items[index].get();
+            let update_owner = Arc::downgrade(&owner);
+            let update = Arc::new(move |progress: f32| {
+                let Some(owner) = update_owner.upgrade() else {
+                    return;
+                };
+                if !owner.is_alive() || owner.generation.load(Ordering::Acquire) != generation {
+                    return;
+                }
+                let value = from.interpolate(&target, easing.apply(progress));
+                if owner
+                    .animation_ids
+                    .lock()
+                    .unwrap()
+                    .get(index)
+                    .is_some_and(Option::is_some)
+                {
+                    owner.items[index].set(value);
+                }
+            });
+            let id = RUNTIME.add_animation(update, duration);
+            let mut ids = owner.animation_ids.lock().unwrap();
+            if owner.is_alive() && owner.generation.load(Ordering::Acquire) == generation {
+                ids[index] = Some(id);
+            } else {
+                RUNTIME.remove_animation(id);
+            }
+        });
+        self.timer_ids.lock().unwrap()[index] = Some(timer);
+    }
 }
 
 impl<T: AnimatableValue> StaggerHandle<T> {
     /// Get current values of all items
     pub fn items(&self) -> Vec<T> {
-        self.items.iter().map(|s| s.get()).collect()
+        self.owner.items.iter().map(|s| s.get()).collect()
     }
 
     /// Get current value of item at index
     pub fn item(&self, index: usize) -> Option<T> {
-        self.items.get(index).map(|s| s.get())
+        self.owner.items.get(index).map(|s| s.get())
     }
 
     /// Get delay for item at index
     pub fn delay(&self, index: usize) -> Option<Duration> {
-        self.delays.get(index).copied()
+        self.owner.delays.read().unwrap().get(index).copied()
     }
 
     /// Process any pending timers (should be called in the render loop)
     pub fn process_timers(&self) {
-        self.scheduler.process_timers();
+        self.owner.scheduler.process_timers();
     }
 
     /// Animate all items to target values
     pub fn animate_all_to(&self, targets: Vec<T>) {
-        let mut ids = self.animation_ids.lock().unwrap();
-
-        // Cancel all current animations
-        for id in ids.iter_mut() {
-            if let Some(anim_id) = id.take() {
-                RUNTIME.remove_animation(anim_id);
-            }
-        }
-
-        // Start staggered animations using scheduler
-        for (i, (item_signal, target)) in self.items.iter().zip(targets.iter()).enumerate() {
-            if let Some(delay) = self.delays.get(i) {
-                let signal = item_signal.clone();
-                let from = signal.get();
-                let to = target.clone();
-                let easing = self
-                    .config
-                    .ease
-                    .clone()
-                    .unwrap_or(EasingFunction::EaseInOut);
-                let duration = self.animation_duration;
-                let ids_clone = self.animation_ids.clone();
-                let idx = i;
-
-                // Schedule the animation to start after delay
-                self.scheduler.schedule_timeout(*delay, move || {
-                    let update = Arc::new(move |progress: f32| {
-                        let eased = easing.apply(progress);
-                        let interpolated = from.interpolate(&to, eased);
-                        signal.set(interpolated);
-                    });
-
-                    let id = RUNTIME.add_animation(update, duration);
-                    let mut ids = ids_clone.lock().unwrap();
-                    if idx < ids.len() {
-                        ids[idx] = Some(id);
-                    }
-                });
-            }
-        }
+        self.owner.start_sequence(targets);
     }
 }
 
@@ -562,27 +763,31 @@ pub fn use_stagger<T: AnimatableValue>(
     items: Vec<T>,
     config: StaggerConfig,
 ) -> StaggerHandle<T> {
-    // Create signals for each item
-    let item_signals: Vec<ThreadSafeSignal<T>> = items
-        .iter()
-        .map(|item| use_signal(hooks, item.clone()))
-        .collect();
-
-    // Calculate delays
-    let positions: Vec<(i16, i16)> = Vec::new();
-    let delays = config.calculate_delays(items.len(), &positions);
-
-    let animation_ids = Arc::new(Mutex::new(vec![None; items.len()]));
-    let scheduler = Arc::new(Scheduler::new());
-
-    StaggerHandle {
-        items: item_signals,
-        delays,
-        config,
-        animation_ids,
-        scheduler,
-        animation_duration: Duration::from_millis(300), // Default animation duration
-    }
+    let lifetime = hooks.resource_token();
+    let scheduler = crate::hooks::timer::get_scheduler(hooks);
+    let initial_config = config.clone();
+    let item_count = items.len();
+    let storage = hooks.get_or_create_storage(HookKind::Memo, || {
+        Arc::new(StaggerOwner {
+            items: items.into_iter().map(ThreadSafeSignal::new).collect(),
+            delays: RwLock::new(initial_config.calculate_delays(item_count, &[])),
+            config: RwLock::new(initial_config),
+            animation_ids: Mutex::new(Vec::new()),
+            timer_ids: Mutex::new(Vec::new()),
+            scheduler,
+            animation_duration: Duration::from_millis(300),
+            cleanup_registered: AtomicBool::new(false),
+            generation: AtomicUsize::new(0),
+            lifetime,
+        })
+    });
+    let owner = storage.lock().unwrap().clone();
+    *owner.delays.write().unwrap() = config.calculate_delays(owner.items.len(), &[]);
+    *owner.config.write().unwrap() = config;
+    let cleanup = (!owner.cleanup_registered.swap(true, Ordering::AcqRel))
+        .then(|| StaggerCleanup(Arc::downgrade(&owner)));
+    use_effect_with_deps(hooks, (), move || Some(Box::new(move || drop(cleanup))));
+    StaggerHandle { owner }
 }
 
 /// Transition hook for automatic animations on state change
@@ -598,21 +803,11 @@ pub fn use_transition<T: AnimatableValue>(hooks: &Hooks, state: T, config: Trans
         },
     );
 
-    // Use effect to detect changes
     let handle = animated.clone();
-    let current_state = state.clone();
     let delay = config.delay;
-
-    use_effect(hooks, move || {
-        // Start animation when state changes
-        if handle.value() != current_state {
-            let handle_clone = handle.clone();
-            let target = current_state.clone();
-            thread::spawn(move || {
-                thread::sleep(delay);
-                handle_clone.animate_to(target);
-            });
-        }
+    let deps = (state.clone(), delay);
+    use_effect_with_deps(hooks, deps, move || {
+        handle.owner.schedule_transition(state, delay);
         None
     });
 
@@ -778,25 +973,308 @@ pub fn use_keyframes<T: AnimatableValue + KeyframeType>(
     KeyframeHandle { owner }
 }
 
-// Clone implementations for handles
-impl<T: AnimatableValue> Clone for AnimationHandle<T> {
-    fn clone(&self) -> Self {
-        Self {
-            value: self.value.clone(),
-            controller: self.controller.clone(),
-            state: self.state.clone(),
-            current_animation_id: self.current_animation_id.clone(),
-            from_value: self.from_value.clone(),
-            to_value: self.to_value.clone(),
-            config: self.config.clone(),
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::reactive::Hooks;
+    use std::thread;
+
+    #[derive(Clone, Copy)]
+    struct Rac001Observation {
+        owner_count: usize,
+        runtime_tasks_after_unmount: usize,
+        scheduler_timers_after_unmount: usize,
+        updates_after_unmount: usize,
+        thread_growth: usize,
+        stagger_timers_on_component_scheduler: usize,
+    }
+
+    fn validate_rac_001(observation: Rac001Observation) -> Result<(), &'static str> {
+        if observation.owner_count != 1 {
+            return Err("rerender replaced the scoped state owner");
+        }
+        if observation.runtime_tasks_after_unmount != 0 {
+            return Err("unmount left animation-runtime work active");
+        }
+        if observation.scheduler_timers_after_unmount != 0 {
+            return Err("unmount left component-scheduler work active");
+        }
+        if observation.updates_after_unmount != 0 {
+            return Err("a closed owner received an update");
+        }
+        if observation.thread_growth != 0 {
+            return Err("frame progress created operating-system threads");
+        }
+        if observation.stagger_timers_on_component_scheduler == 0 {
+            return Err("stagger work is absent from the component scheduler");
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn rac_001_validator_rejects_each_controlled_violation() {
+        let valid = Rac001Observation {
+            owner_count: 1,
+            runtime_tasks_after_unmount: 0,
+            scheduler_timers_after_unmount: 0,
+            updates_after_unmount: 0,
+            thread_growth: 0,
+            stagger_timers_on_component_scheduler: 1,
+        };
+        assert!(validate_rac_001(valid).is_ok());
+        for invalid in [
+            Rac001Observation {
+                owner_count: 2,
+                ..valid
+            },
+            Rac001Observation {
+                runtime_tasks_after_unmount: 1,
+                ..valid
+            },
+            Rac001Observation {
+                scheduler_timers_after_unmount: 1,
+                ..valid
+            },
+            Rac001Observation {
+                updates_after_unmount: 1,
+                ..valid
+            },
+            Rac001Observation {
+                thread_growth: 1,
+                ..valid
+            },
+            Rac001Observation {
+                stagger_timers_on_component_scheduler: 0,
+                ..valid
+            },
+        ] {
+            assert!(validate_rac_001(invalid).is_err());
+        }
+    }
+
+    #[test]
+    fn rac_001_hook_source_forbids_threads_and_unscoped_schedulers() {
+        use syn::visit::Visit;
+
+        struct HookCalls {
+            current: Option<String>,
+            violations: Vec<String>,
+        }
+
+        impl<'ast> Visit<'ast> for HookCalls {
+            fn visit_item_fn(&mut self, function: &'ast syn::ItemFn) {
+                let name = function.sig.ident.to_string();
+                let inspected = matches!(
+                    name.as_str(),
+                    "use_animation" | "use_spring" | "use_stagger" | "use_transition"
+                );
+                if inspected {
+                    self.current = Some(name);
+                    syn::visit::visit_block(self, &function.block);
+                    self.current = None;
+                }
+            }
+
+            fn visit_expr_call(&mut self, call: &'ast syn::ExprCall) {
+                if let (Some(hook), syn::Expr::Path(path)) = (&self.current, &*call.func) {
+                    let path = path
+                        .path
+                        .segments
+                        .iter()
+                        .map(|segment| segment.ident.to_string())
+                        .collect::<Vec<_>>()
+                        .join("::");
+                    if path.ends_with("thread::spawn") || path == "Scheduler::new" {
+                        self.violations.push(format!("{hook} calls {path}"));
+                    }
+                }
+                syn::visit::visit_expr_call(self, call);
+            }
+        }
+
+        let syntax = syn::parse_file(include_str!("animation.rs")).unwrap();
+        let mut calls = HookCalls {
+            current: None,
+            violations: Vec::new(),
+        };
+        calls.visit_file(&syntax);
+        assert!(
+            calls.violations.is_empty(),
+            "animation hooks must use retained owners and the component scheduler: {:?}",
+            calls.violations
+        );
+    }
+
+    #[test]
+    fn rac_001_animation_and_spring_retain_one_owner_and_cancel_on_unmount() {
+        let scheduler = Arc::new(Scheduler::new());
+        let scope = crate::reactive::component_scope::ComponentScope::new(scheduler);
+        let animation_hooks = Hooks::new();
+        let spring_hooks = Hooks::new();
+        let animation_config = AnimationConfig {
+            duration: Duration::from_secs(60),
+            ..AnimationConfig::default()
+        };
+
+        let animation = {
+            let _scope = scope.enter(true);
+            let _frame = animation_hooks.begin_render();
+            use_animation(&animation_hooks, 0.0_f32, animation_config.clone())
+        };
+        animation.animate_to(10.0);
+        let animation_id = animation
+            .owner
+            .current_animation_id
+            .lock()
+            .unwrap()
+            .unwrap();
+        let rerendered_animation = {
+            let _scope = scope.enter(true);
+            let _frame = animation_hooks.begin_render();
+            use_animation(&animation_hooks, 99.0_f32, animation_config)
+        };
+        assert!(Arc::ptr_eq(&animation.owner, &rerendered_animation.owner));
+        assert_eq!(
+            *rerendered_animation
+                .owner
+                .current_animation_id
+                .lock()
+                .unwrap(),
+            Some(animation_id),
+            "rerender must not replace or restart the active animation"
+        );
+
+        let spring = {
+            let _scope = scope.enter(true);
+            let _frame = spring_hooks.begin_render();
+            use_spring(&spring_hooks, 0.0_f32, SpringConfig::default())
+        };
+        spring.set_target(10.0);
+        let spring_id = spring.owner.animation_id.lock().unwrap().unwrap();
+        let rerendered_spring = {
+            let _scope = scope.enter(true);
+            let _frame = spring_hooks.begin_render();
+            use_spring(&spring_hooks, 99.0_f32, SpringConfig::default())
+        };
+        assert!(Arc::ptr_eq(&spring.owner, &rerendered_spring.owner));
+        assert_eq!(
+            *rerendered_spring.owner.animation_id.lock().unwrap(),
+            Some(spring_id),
+            "rerender must not replace or restart the active spring"
+        );
+
+        RUNTIME.update_animations();
+        let animation_value = animation.value();
+        let spring_value = spring.value();
+        scope.close();
+        let live_ids = RUNTIME
+            .animations
+            .read()
+            .unwrap()
+            .iter()
+            .map(|task| task.id)
+            .collect::<Vec<_>>();
+        assert!(!live_ids.contains(&animation_id));
+        assert!(!live_ids.contains(&spring_id));
+        RUNTIME.update_animations();
+        assert_eq!(animation.value(), animation_value);
+        assert_eq!(spring.value(), spring_value);
+        animation.animate_to(20.0);
+        spring.set_target(20.0);
+        assert!(animation
+            .owner
+            .current_animation_id
+            .lock()
+            .unwrap()
+            .is_none());
+        assert!(spring.owner.animation_id.lock().unwrap().is_none());
+    }
+
+    #[test]
+    fn rac_001_transition_reuses_one_scheduler_timer_without_thread_growth() {
+        let scheduler = Arc::new(Scheduler::new());
+        let scope = crate::reactive::component_scope::ComponentScope::new(scheduler.clone());
+        let hooks = Hooks::new();
+        let config = TransitionConfig {
+            delay: Duration::from_secs(3600),
+            ..TransitionConfig::default()
+        };
+        let render = |state| {
+            let _scope = scope.enter(true);
+            let _frame = hooks.begin_render();
+            use_transition(&hooks, state, config.clone())
+        };
+        assert_eq!(render(0.0_f32), 0.0);
+        let threads_before = std::fs::read_dir("/proc/self/task")
+            .ok()
+            .map(|entries| entries.count());
+        assert_eq!(render(10.0), 0.0);
+        let deadline = scheduler.next_deadline().expect("transition timer missing");
+        for _ in 0..32 {
+            assert_eq!(render(10.0), 0.0);
+            assert_eq!(scheduler.next_deadline(), Some(deadline));
+            RUNTIME.update_animations();
+        }
+        let thread_growth = threads_before
+            .zip(
+                std::fs::read_dir("/proc/self/task")
+                    .ok()
+                    .map(|entries| entries.count()),
+            )
+            .map_or(0, |(before, after)| after.saturating_sub(before));
+        assert!(
+            thread_growth < 8,
+            "repeated frames grew the process by {thread_growth} threads"
+        );
+        scope.close();
+        assert!(scheduler.next_deadline().is_none());
+    }
+
+    #[test]
+    fn rac_001_stagger_uses_component_scheduler_and_cancels_all_work() {
+        let scheduler = Arc::new(Scheduler::new());
+        let scope = crate::reactive::component_scope::ComponentScope::new(scheduler.clone());
+        let hooks = Hooks::new();
+        let render = || {
+            let _scope = scope.enter(true);
+            let _frame = hooks.begin_render();
+            use_stagger(&hooks, vec![0.0_f32, 1.0, 2.0], StaggerConfig::default())
+        };
+        let stagger = render();
+        stagger.animate_all_to(vec![10.0, 11.0, 12.0]);
+        let deadline = scheduler.next_deadline().expect("stagger timer missing");
+        let rerendered = render();
+        assert!(Arc::ptr_eq(&stagger.owner, &rerendered.owner));
+        assert_eq!(scheduler.next_deadline(), Some(deadline));
+        scheduler.process_timers();
+        let animation_ids = stagger
+            .owner
+            .animation_ids
+            .lock()
+            .unwrap()
+            .iter()
+            .copied()
+            .flatten()
+            .collect::<Vec<_>>();
+        assert!(!animation_ids.is_empty());
+        RUNTIME.update_animations();
+        let values = stagger.items();
+        scope.close();
+        assert!(scheduler.next_deadline().is_none());
+        let live_ids = RUNTIME
+            .animations
+            .read()
+            .unwrap()
+            .iter()
+            .map(|task| task.id)
+            .collect::<Vec<_>>();
+        assert!(animation_ids.iter().all(|id| !live_ids.contains(id)));
+        scheduler.process_timers();
+        RUNTIME.update_animations();
+        assert_eq!(stagger.items(), values);
+        stagger.animate_all_to(vec![20.0, 21.0, 22.0]);
+        assert!(scheduler.next_deadline().is_none());
+    }
 
     #[derive(Clone, Debug, Default, PartialEq)]
     struct CancelOnSample(f32);
