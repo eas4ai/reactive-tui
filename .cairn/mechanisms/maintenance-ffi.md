@@ -12,7 +12,6 @@ inputs:
   - examples
   - scripts
   - include
-  - docs/ffi-maintenance.md
 requirements:
   - MNT-003
   - MNT-004
