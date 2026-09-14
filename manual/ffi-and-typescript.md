@@ -31,13 +31,23 @@ entry points and load the matching native library.
 
 ## Behavior
 
-Handle-based entry points check null pointers before dereferencing them.
-Surface, renderer, and terminal routes also use type-specific pointer trackers.
-Other handle families rely on their documented create and destroy pairing.
+Handle-based entry points check null pointers before dereferencing them. A basic
+pointer check can reject null, misaligned, or implausible addresses. It does not
+prove that it is allocated or live, owned by the library, readable, or writable.
+Tracked handle families also require a matching live allocation before access.
+
 Panic boundaries convert Rust failures into ABI error values. Functions that
-return allocated strings or arrays provide matching release functions. Foreign
-component callbacks cross a guarded boundary and preserve the last error for
-diagnostics.
+return allocated strings or arrays provide matching release functions. Buffer
+array snapshots keep their allocation metadata inside the library. The
+caller-supplied length does not control deallocation. Interior, misaligned, and
+repeated releases are ignored. Optimized-buffer and text-buffer destruction is
+single-use; later destroy calls do not reach the allocator.
+
+Element child insertion transfers child ownership after validation.
+Self-parenting is rejected. App run borrows its retained handle while blocking,
+so another thread can request quit; destruction happens after run returns.
+Optional root and cleanup callbacks may be null. Foreign component callbacks
+cross a guarded boundary and preserve the last error for diagnostics.
 
 The TypeScript layer maps native values into typed classes and interfaces. Its
 public declarations must match the exported C ABI names, ownership, arguments,

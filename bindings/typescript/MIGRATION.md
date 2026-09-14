@@ -3,7 +3,7 @@
 The previous package did not typecheck or load the shared library. The repaired
 package uses native Element trees. API-017 adds ForeignComponent state/events,
 NativeTextEditor, NativeLayoutStyle, NativeDialogEngine and NativeApp. See
-[native components](../../docs/native-components.md) for their ownership and current acceptance contract. The following removals are deliberate; they are not compiler exclusions.
+[FFI manual](../../manual/ffi-and-typescript.md) for their ownership and current acceptance contract. The following removals are deliberate; they are not compiler exclusions.
 All remaining files under src are still included in TypeScript checking.
 
 The complete public before/after signatures, including class members, are recorded
@@ -75,8 +75,10 @@ Native builder text() converts the element itself to text; use child(text()) for
 API-017 callback lifetimes are explicit: dispose the App, then its foreign controllers.
 Callbacks remain registered until native destruction succeeds; wrong-thread calls
 and recursive render/dispatch/disposal are rejected. JSON setters may reenter.
-NativeApp.run blocks the JavaScript event loop and consumes the App, including
-on error. Native event callbacks may update state during this synchronous run.
+NativeApp.run blocks the JavaScript event loop. The native call borrows the
+retained App handle while it runs; another thread may call `rtui_app_quit`.
+The TypeScript wrapper destroys the handle after run returns, including on
+error. Native event callbacks may update state during this synchronous run.
 
 ---
 
@@ -115,7 +117,7 @@ aliases is listed. Original record fields and enum values remain recorded in
 ## Reintroduced native controllers
 
 API-017 adds editor snapshots, validated layout styles, dialog sessions and
-foreign component state/events. See [native components](../../docs/native-components.md) for ownership,
+foreign component state/events. See the [FFI manual](../../manual/ffi-and-typescript.md) for ownership,
 callbacks and acceptance. `rtui_dialog_engine_create` now creates a real engine.
 `rtui_dialog_engine_destroy` returns a status. `rtui_dialog_engine_update` now
 takes an engine, active ID and JSON changes; it is not the old delta-time no-op.
@@ -199,8 +201,13 @@ that arbitrary, stale or forged non-null pointers are safe.
 - Element getters returning strings allocate them; call rtui_string_free or
   rtui_free_string exactly once. Null means the optional value is absent.
 - rtui_element_get_child returns an owned clone, not a borrowed child.
-- bufferGetCharPtr/FgPtr/BgPtr/AttributesPtr return allocated snapshots; use the
-  corresponding bufferRelease* function with the original element count.
+- bufferGetCharPtr/FgPtr/BgPtr/AttributesPtr return allocated snapshots. Use the
+  corresponding bufferRelease* function. The library retains the allocation metadata;
+  the caller length remains in the ABI but does not control deallocation. Interior,
+  misaligned and repeated release calls are ignored.
+- Optimized buffers and text buffers are tracked owners. Their destroy calls ignore
+  null and already-destroyed handles. Element child insertion rejects self-parenting.
+- Optional root and effect-cleanup callbacks may be NULL. Required callbacks may not.
 - Callbacks retained by native APIs require an explicitly registered Koffi
   callback and caller-managed lifetime. Do not pass ephemeral JS callbacks to
   a retaining API or unregister while native code can still call it.

@@ -16,7 +16,7 @@ RECORDS = ROOT / "docs/analysis/conpty-platform"
 INPUTS = ("Cargo.toml", "Cargo.lock", "build.rs", "src", "reactive-tui-macros",
           "tests/api_widget_behavior/conpty_probe.rs", "scripts/install-conpty-runtime.py",
           ".github/workflows/clipboard-platforms.yml",
-          "docs/binding-abi-baseline.json")
+          "scripts/abi/baselines/binding-abi-baseline.json")
 MARKERS = ("PASS console handles, input, environment, resize, real exit 259, repeated stop",
            "PASS failed-launch cleanup and restart", "PASS flood backpressure and drop cleanup",
            "PASS idle backpressure and drop cleanup", "PASS attached descendant cleanup")
@@ -87,7 +87,9 @@ def run():
         raise RuntimeError("native Windows FFI build failed: " + str(ffi))
     # Load every baseline C entry point, without calling functions with arguments.
     library = ctypes.CDLL(str(ROOT / "target/debug/reactive_tui.dll"))
-    exports = json.loads((ROOT / "docs/binding-abi-baseline.json").read_text())["rust_exports"]
+    exports = json.loads(
+        (ROOT / "scripts/abi/baselines/binding-abi-baseline.json").read_text()
+    )["rust_exports"]
     for name in exports:
         getattr(library, name)
     with ffi.open("a") as output:

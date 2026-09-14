@@ -10,6 +10,7 @@ inputs:
   - include
   - bindings/typescript
   - examples
+  - manual/ffi-and-typescript.md
   - docs/spec/pre-release-ffi-safety.md
   - docs/spec/binding-abi-compatibility.md
   - docs/decisions/use-implemented-rust-exports-as-the-binding-compatibility-baseline.md

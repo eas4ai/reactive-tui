@@ -37,6 +37,19 @@ typedef struct RTuiForeignComponent RTuiForeignComponent;
  * improved int is C int. Wrong live types return InvalidParameter (or the
  * documented getter default). Arbitrary/stale pointers are invalid.
  * Owned getter strings require rtui_string_free independently of the signal.
+ *
+ * Snapshot arrays returned by bufferGet*Ptr remain owned by the library until
+ * their matching bufferRelease*Ptr call. The library retains their allocation
+ * metadata; the length argument is accepted for ABI compatibility and does not
+ * control deallocation. Interior, misaligned, and repeated releases are ignored.
+ *
+ * createOptimizedBuffer and createTextBuffer return tracked owning handles.
+ * Their destroy functions ignore NULL and already-destroyed handles. AppBuilder
+ * build consumes every non-NULL builder, including on failure. Animation-manager
+ * add consumes the animation on success. rtui_app_run borrows its retained App
+ * handle while it blocks; another thread may call rtui_app_quit, and the owner
+ * destroys the handle only after run returns. Optional root and effect-cleanup
+ * callbacks may be NULL.
  */
 
 
@@ -289,22 +302,19 @@ void bufferFillRect(RTuiBuffer *buffer,
 
 uint32_t *bufferGetCharPtr(RTuiBuffer *buffer);
 
-/* For each bufferGet*Ptr allocation below, the library retains the allocation
- * metadata. length is accepted for ABI compatibility and does not control
- * deallocation. Interior, misaligned, and repeated releases are ignored. */
-void bufferReleaseCharPtr(uint32_t *ptr, size_t length);
+void bufferReleaseCharPtr(uint32_t *ptr, size_t _length);
 
 float *bufferGetFgPtr(RTuiBuffer *buffer);
 
-void bufferReleaseFgPtr(float *ptr, size_t length);
+void bufferReleaseFgPtr(float *ptr, size_t _length);
 
 float *bufferGetBgPtr(RTuiBuffer *buffer);
 
-void bufferReleaseBgPtr(float *ptr, size_t length);
+void bufferReleaseBgPtr(float *ptr, size_t _length);
 
 uint8_t *bufferGetAttributesPtr(RTuiBuffer *buffer);
 
-void bufferReleaseAttrPtr(uint8_t *ptr, size_t length);
+void bufferReleaseAttrPtr(uint8_t *ptr, size_t _length);
 
 bool bufferGetRespectAlpha(const RTuiBuffer *buffer);
 
@@ -485,7 +495,6 @@ enum RTuiError rtui_animation_set_property(RTuiAnimation *animation,
                                            float from_value,
                                            float to_value);
 
-/* Consumes animation on success. The old animation handle becomes invalid. */
 enum RTuiError rtui_animation_manager_add(RTuiAnimationManager *manager,
                                           RTuiAnimation *animation,
                                           char **out_id);
@@ -532,14 +541,10 @@ enum RTuiError rtui_app_builder_root_component(RTuiAppBuilder *builder,
                                                RTuiRootComponentCallback callback,
                                                void *user_data);
 
-/* Consumes builder on every call with non-NULL arguments, including failure. */
 enum RTuiError rtui_app_builder_build(RTuiAppBuilder *builder, RTuiApp **out_app);
 
 void rtui_app_destroy(RTuiApp *app);
 
-/* Blocks until exit. The handle remains owned by the caller. During this call,
- * another thread may call rtui_app_quit with the same handle. Destroy the
- * handle only after rtui_app_run returns. */
 enum RTuiError rtui_app_run(RTuiApp *app);
 
 enum RTuiError rtui_app_quit(RTuiApp *app);
@@ -758,7 +763,6 @@ enum RTuiError rtui_thread_safe_signal_string_get(const RTuiThreadSafeSignal *si
 enum RTuiError rtui_thread_safe_signal_string_set(RTuiThreadSafeSignal *signal, const char *value);
 
 enum RTuiError rtui_effect_create(RTuiEffectCallback callback,
-                                  /* May be NULL. */
                                   RTuiEffectCleanupCallback cleanup,
                                   void *user_data,
                                   RTuiEffect **out_effect);

@@ -1,6 +1,6 @@
 /* Legacy type names and constants. Native call signatures live in native.h.
  * Types without a native counterpart remain C-only conveniences; see
- * docs/binding-abi-migration.md before passing data to a native function.
+ * include/README.md and bindings/typescript/MIGRATION.md before passing data to a native function.
  */
 #ifndef REACTIVE_TUI_COMPAT_H
 #define REACTIVE_TUI_COMPAT_H

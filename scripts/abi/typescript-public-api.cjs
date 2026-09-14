@@ -3,8 +3,8 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { execFileSync } = require('node:child_process');
 const ts = require(path.resolve('bindings/typescript/node_modules/typescript'));
-const revision = JSON.parse(fs.readFileSync('docs/binding-native-baseline.json', 'utf8')).revision;
-const destination = 'docs/binding-typescript-public-api.json';
+const revision = JSON.parse(fs.readFileSync('scripts/abi/baselines/binding-native-baseline.json', 'utf8')).revision;
+const destination = 'scripts/abi/baselines/binding-typescript-public-api.json';
 
 function declarations(filename, source) {
   const tree = ts.createSourceFile(filename, source, ts.ScriptTarget.Latest, true);
@@ -53,7 +53,7 @@ for (const filename of files) {
     const present = current[name] ?? null;
     const status = present === null ? 'retired' : JSON.stringify(present) === JSON.stringify(previous) ? 'retained' : 'changed';
     return [name, { previous, current: present, status,
-      guidance: status === 'retained' ? 'Declaration retained.' : 'See binding-typescript-migration.md for the supported native replacement and ownership changes.' }];
+      guidance: status === 'retained' ? 'Declaration retained.' : 'See bindings/typescript/MIGRATION.md for the supported native replacement and ownership changes.' }];
   }));
 }
 const serialized = JSON.stringify({ revision, declarations: inventory }, null, 2) + '\n';

@@ -8,10 +8,9 @@ The generated declarations are checked against compiled exports and layouts.
 Current interfaces include terminal/surface/renderer, Elements/builders,
 signals/hooks, animations, App, native text editor, validated layout styles,
 dialog sessions and stateful foreign components. Read the
-[C ABI policy](../docs/FFI_ABI_POLICY.md), [native component guide](../docs/native-components.md)
-and [migration inventory](../docs/binding-abi-migration.md) before managing owners.
-The [API matrix](../docs/supported-api.md) distinguishes behavior evidence from
-platform names recognized by a loader.
+[FFI manual](../manual/ffi-and-typescript.md),
+[C ABI safety contract](../docs/spec/pre-release-ffi-safety.md), and
+[migration guide](../bindings/typescript/MIGRATION.md) before managing owners.
 
 ## Initialize and release
 

@@ -12,14 +12,14 @@
  * ```c
  * #include <reactive_tui.h>
  *
- * int main() {
+ * int main(void) {
  *     // Create terminal and renderer using modern API
  *     RTuiTerminal* terminal = createTerminal();
  *     if (!terminal) return 1;
  *
  *     setupTerminal(terminal, true); // Use alternate screen
  *
- *     RTuiRenderer* renderer = createRenderer(80, 24, true, 0);
+ *     RTuiRenderer* renderer = createRenderer(80, 24);
  *     if (!renderer) {
  *         destroyTerminal(terminal);
  *         return 1;
@@ -27,17 +27,18 @@
  *
  *     // Create and use a text buffer
  *     RTuiTextBuffer* text = createTextBuffer(1000, 0);
- *     float green[] = {0.0f, 1.0f, 0.0f, 1.0f};
- *     float black[] = {0.0f, 0.0f, 0.0f, 1.0f};
- *     uint32_t attr = 0;
- *     textBufferAppendText(text, "Hello, Modern FFI!", 18, green, black, &attr);
+ *     const uint8_t message[] = "Hello, Modern FFI!";
+ *     const float green[] = {0.0f, 1.0f, 0.0f, 1.0f};
+ *     const float black[] = {0.0f, 0.0f, 0.0f, 1.0f};
+ *     const uint8_t attr = 0;
+ *     textBufferWriteChunk(text, message, sizeof(message) - 1, green, black, &attr);
  *
  *     // Render using integrated pipeline
  *     renderTextToTerminal(text, terminal, 10, 5, 80, 24);
  *
  *     // Cleanup
  *     destroyTextBuffer(text);
- *     destroyRenderer(renderer);
+ *     destroyRenderer(renderer, false, 0);
  *     destroyTerminal(terminal);
  *
  *     return 0;

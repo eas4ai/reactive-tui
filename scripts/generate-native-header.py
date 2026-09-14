@@ -21,7 +21,13 @@ def main():
         raise SystemExit("Usage: generate-native-header.py [--verify]")
     command = [str(tool), "--quiet", "--config", "scripts/abi/cbindgen.toml", "--crate", "reactive-tui", "--output", "include/reactive_tui/native.h"]
     command.extend(sys.argv[1:])
-    result = subprocess.call(command, timeout=120)
+    env = os.environ.copy()
+    env.setdefault("RUSTC_BOOTSTRAP", "1")
+    try:
+        env["CARGO_BUILD_JOBS"] = str(min(8, max(1, int(env.get("CARGO_BUILD_JOBS", "8")))))
+    except ValueError:
+        env["CARGO_BUILD_JOBS"] = "8"
+    result = subprocess.call(command, env=env, timeout=300)
     if result:
         return result
     ast = subprocess.check_output([

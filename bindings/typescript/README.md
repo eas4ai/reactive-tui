@@ -79,7 +79,7 @@ when you want a container with text children.
 Static trees and explicit stateful controllers are supported. `ForeignComponent`
 owns JSON props/state and routed callbacks; `NativeApp` owns the retained native
 App. Editor, layout and dialog controllers expose their recovered native behavior.
-See [native components](../../docs/native-components.md) for callback lifetimes,
+See the [FFI manual](../../manual/ffi-and-typescript.md) for callback lifetimes,
 consuming calls, errors and disposal order. The old widget-specific JSON wrappers
 remain deliberately retired; the new controllers do not recreate those methods.
 [TypeScript migration](MIGRATION.md) records the complete before/after inventory.

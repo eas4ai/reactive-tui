@@ -10,20 +10,27 @@ from abi.compiler_probe import run_probe
 from abi.typescript_schema import schema_from_ast, typescript_names
 from abi.loader_probe import run_loader_probe
 
+BASELINES = Path("scripts/abi/baselines")
+
 
 def main():
-    migration_text = (Path('docs/binding-typescript-migration.md').read_text() + '\n---\n\n'
-                      + Path('docs/binding-abi-migration.md').read_text())
-    # Keep the native guide link valid from bindings/typescript/.
-    migration_text = migration_text.replace('](native-components.md)', '](../../docs/native-components.md)')
-    if Path('bindings/typescript/MIGRATION.md').read_text() != migration_text:
-        raise RuntimeError('Packaged migration guidance differs from the audited repository guidance')
+    migration_text = Path("bindings/typescript/MIGRATION.md").read_text()
+    required_policy = (
+        "The compiled Rust exports are the compatibility baseline.",
+        "Never reuse a consumed pointer",
+        "library retains the allocation metadata",
+        "another thread may call `rtui_app_quit`",
+        "Optional root and effect-cleanup callbacks may be NULL",
+    )
+    missing_policy = [text for text in required_policy if text not in migration_text]
+    if missing_policy:
+        raise RuntimeError("Packaged ABI ownership policy is incomplete: " + repr(missing_policy))
     subprocess.run(["cargo", "build", "--locked", "--features", "ffi"], check=True, timeout=300)
     target = Path(os.environ.get("CARGO_TARGET_DIR", "target")).resolve()
     library = target / "debug/libreactive_tui.so"
     symbols = subprocess.check_output(["nm", "-D", "--defined-only", "--format=posix", str(library)], text=True)
     exports = {line.split()[0] for line in symbols.splitlines() if line.split()[1] in {"T", "W"}}
-    baseline = json.loads(Path("docs/binding-abi-baseline.json").read_text())
+    baseline = json.loads((BASELINES / "binding-abi-baseline.json").read_text())
     missing_original = set(baseline["rust_exports"]) - exports
     if missing_original:
         raise RuntimeError("Existing Rust exports removed: " + repr(missing_original))
@@ -69,7 +76,7 @@ def main():
             raise RuntimeError("TypeScript native schema differs from compiler-audited declarations")
         if Path('bindings/typescript/src/native-types.ts').read_text() != typescript_names(schema):
             raise RuntimeError('Public native function type names differ from the audited schema')
-        native_baseline = json.loads(Path("docs/binding-native-baseline.json").read_text())
+        native_baseline = json.loads((BASELINES / "binding-native-baseline.json").read_text())
         for section in ("functions", "records", "callbacks"):
             for name, definition in native_baseline["schema"][section].items():
                 if schema[section].get(name) != definition:
@@ -79,8 +86,10 @@ def main():
                 raise RuntimeError("Existing native enum changed: " + name)
         run_loader_probe(schema, audited, target, scratch)
         subprocess.run(['node', 'scripts/abi/typescript-public-api.cjs'], check=True, timeout=60)
-        migration = json.loads(Path("docs/binding-abi-migration.json").read_text())
-        previous_loader = json.loads(Path('docs/binding-typescript-native-baseline.json').read_text())
+        migration = json.loads((BASELINES / "binding-abi-migration.json").read_text())
+        previous_loader = json.loads(
+            (BASELINES / "binding-typescript-native-baseline.json").read_text()
+        )
         if set(previous_loader['functions']) != set(baseline['typescript_symbols']):
             raise RuntimeError('Original TypeScript signature inventory is incomplete')
         for name, signature in previous_loader['functions'].items():
