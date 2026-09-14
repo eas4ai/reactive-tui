@@ -10,5 +10,6 @@ readiness, zero-timeout exhaustion and application resize workflows.
 
 The original MIT license is in LICENSE.
 
-Reactive-TUI uses a direct path dependency so downstream checkouts also use
-this implementation; a root-only Cargo patch would not propagate to consumers.
+Reactive TUI publishes this implementation as `reactive-tui-crossterm` and
+aliases it to the Rust crate name `crossterm`. Downstream builds therefore use
+the repaired implementation without a root-only Cargo patch.

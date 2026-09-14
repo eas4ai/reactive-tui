@@ -807,23 +807,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d0a5c400df2834b80a4c3327b3aad3a4c4cd4de0629063962b03235697506a28"
 
 [[package]]
-name = "crossterm"
-version = "0.29.0"
-dependencies = [
- "bitflags 2.11.0",
- "crossterm_winapi",
- "derive_more",
- "document-features",
- "futures-core",
- "mio",
- "parking_lot",
- "rustix",
- "signal-hook",
- "signal-hook-mio",
- "winapi",
-]
-
-[[package]]
 name = "crossterm_winapi"
 version = "0.9.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1562,7 +1545,8 @@ dependencies = [
 [[package]]
 name = "libghostty-vt"
 version = "0.2.1"
-source = "git+https://github.com/Uzaaft/libghostty-rs?rev=5988a0b78b4aa804d1c12e66bbfe662bd97d81c0#5988a0b78b4aa804d1c12e66bbfe662bd97d81c0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6219ed1c364b3ef5815fb0fd2acc0662f792adc706dabf59b7ca89280ee6d066"
 dependencies = [
  "bitflags 2.11.0",
  "int-enum",
@@ -1572,7 +1556,8 @@ dependencies = [
 [[package]]
 name = "libghostty-vt-sys"
 version = "0.2.1"
-source = "git+https://github.com/Uzaaft/libghostty-rs?rev=5988a0b78b4aa804d1c12e66bbfe662bd97d81c0#5988a0b78b4aa804d1c12e66bbfe662bd97d81c0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "865fed12a8b2bba3507b3bccd0bef439e06ef1100e652fe6b71d132c41ee8db0"
 
 [[package]]
 name = "libloading"
@@ -2317,7 +2302,7 @@ dependencies = [
 
 [[package]]
 name = "reactive-tui"
-version = "0.0.7"
+version = "0.1.0"
 dependencies = [
  "accesskit",
  "accesskit_consumer",
@@ -2334,7 +2319,6 @@ dependencies = [
  "cap-std",
  "comrak",
  "criterion",
- "crossterm",
  "dirs",
  "futures-core",
  "futures-lite",
@@ -2350,7 +2334,9 @@ dependencies = [
  "once_cell",
  "phf",
  "proptest",
+ "reactive-tui-crossterm",
  "reactive-tui-macros",
+ "reactive-tui-suprtui",
  "regex",
  "rustix",
  "serde",
@@ -2359,7 +2345,6 @@ dependencies = [
  "sha2",
  "signal-hook",
  "string_cache",
- "suprtui",
  "syntect",
  "taffy 0.9.1",
  "tempfile",
@@ -2378,12 +2363,40 @@ dependencies = [
 ]
 
 [[package]]
+name = "reactive-tui-crossterm"
+version = "0.1.0"
+dependencies = [
+ "bitflags 2.11.0",
+ "crossterm_winapi",
+ "derive_more",
+ "document-features",
+ "futures-core",
+ "mio",
+ "parking_lot",
+ "rustix",
+ "signal-hook",
+ "signal-hook-mio",
+ "winapi",
+]
+
+[[package]]
 name = "reactive-tui-macros"
 version = "0.1.0"
 dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.106",
+]
+
+[[package]]
+name = "reactive-tui-suprtui"
+version = "0.1.0"
+dependencies = [
+ "image",
+ "taffy 0.13.0",
+ "unicode-properties",
+ "unicode-segmentation",
+ "vte 0.14.1",
 ]
 
 [[package]]
@@ -2750,17 +2763,6 @@ name = "strsim"
 version = "0.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7da8b5736845d9f2fcb837ea5d9e2628564b3b043a70948a3f0b778838c5fb4f"
-
-[[package]]
-name = "suprtui"
-version = "0.1.0"
-dependencies = [
- "image",
- "taffy 0.13.0",
- "unicode-properties",
- "unicode-segmentation",
- "vte 0.14.1",
-]
 
 [[package]]
 name = "syn"

@@ -1,7 +1,7 @@
 # Recovery roadmap
 
 Status: Agreed 2026-09-07
-Current: framework-manual
+Current: crates-io-release-preparation
 
 1. `suprtui-renderer` — the first screen: styled frames, updates, Unicode,
    resize, output errors, input, and terminal restoration (RND-001 through RND-006).
@@ -41,3 +41,7 @@ the Rust API remediation commitment below.
 11. `framework-manual` — publish a source-grounded manual with a linked
     overview and focused pages for every public framework system (MAN-001 and
     MAN-002).
+
+12. `crates-io-release-preparation` — produce a bounded, registry-resolvable
+    0.1.0 crate set and verify each package before the public README and final
+    release are created (CRT-001 through CRT-003).

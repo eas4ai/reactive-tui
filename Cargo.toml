@@ -1,28 +1,35 @@
 [package]
 name = "reactive-tui"
-version = "0.0.7"
+version = "0.1.0"
 edition = "2021"
-authors = ["Reactive-TUI Contributors"]
-description = "A modern, reactive terminal user interface library with CSS-like styling and comprehensive image support"
+rust-version = "1.91"
+description = "Reactive terminal UI framework with retained components, CSS-like layout, widgets, native rendering, and an optional C ABI"
 documentation = "https://docs.rs/reactive-tui"
-repository = "https://github.com/entrepeneur4lyf/reactive-tui"
+repository = "https://github.com/eas4ai/reactive-tui"
 license = "MIT"
 keywords = ["tui", "terminal", "ui", "reactive", "css"]
 categories = ["command-line-interface", "gui", "graphics"]
 readme = "README.md"
-exclude = [
-    "reference/",
-    "docs/analysis/",
-    "docs/reviews/",
-    "*.tmp",
-    "test_image.png"
+include = [
+    "src/**",
+    "tests/api_widget_behavior/accessibility_probe.rs",
+    "tests/api_widget_behavior/conpty_probe.rs",
+    "tests/api_widget_behavior/image_host_probe.rs",
+    "manual/**",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE",
+    "build.rs",
 ]
+
+[package.metadata.docs.rs]
+features = ["async-capabilities", "ffi"]
 
 [dependencies]
 async-channel = "2.1.1"
 atty = "0.2"
 bitflags = "2.9.3"
-crossterm = { path = "src/backend/crossterm", features = ["event-stream"] }
+crossterm = { package = "reactive-tui-crossterm", path = "src/backend/crossterm", version = "=0.1.0", features = ["event-stream"] }
 futures-core = "0.3"
 futures-util = "0.3.27"
 log = "0.4"
@@ -46,11 +53,11 @@ image = "0.25.6"
 gif = "0.13.3"
 vt100 = "0.16"
 base64 = "0.22.1"
-reactive-tui-macros = { path = "reactive-tui-macros" }
+reactive-tui-macros = { path = "reactive-tui-macros", version = "=0.1.0" }
 lru = "0.16.0"
 dirs = "5.0"
 tempfile = "3.21"
-suprtui = { path = "src/backend/engine" }
+suprtui = { package = "reactive-tui-suprtui", path = "src/backend/engine", version = "=0.1.0" }
 accesskit = "0.25.0"
 cap-std = "4.0.2"
 cap-fs-ext = "4.0.2"
@@ -72,7 +79,7 @@ zvariant = { version = "5.4", default-features = false }
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"
 signal-hook = "0.3.18"
-libghostty-vt = { git = "https://github.com/Uzaaft/libghostty-rs", rev = "5988a0b78b4aa804d1c12e66bbfe662bd97d81c0", optional = true }
+libghostty-vt = { version = "=0.2.1", optional = true }
 rustix = { version = "1", features = ["fs"] }
 
 [target.'cfg(windows)'.dependencies]

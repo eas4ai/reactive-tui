@@ -47,3 +47,4 @@ Thumbs.db
 # Cairn keeps receipts and logs; only live action state is local.
 .cairn/in-progress
 !.cairn/evidence/**/*.log
+.gitnexus
