@@ -35,14 +35,9 @@ zig_0_16_0() {
     fi
 }
 
-zig_0_16_0 cargo package --manifest-path crates/libghostty-vt-sys/Cargo.toml
-run cargo package --no-verify --manifest-path crates/libghostty-vt/Cargo.toml
-run cargo package --manifest-path reactive-tui-macros/Cargo.toml
-run cargo package --manifest-path src/backend/crossterm/Cargo.toml
-run cargo package --manifest-path src/backend/engine/Cargo.toml
 run cargo +1.91.0 check --locked --jobs "$jobs" --no-default-features
 run cargo +1.91.0 check --locked --jobs "$jobs"
 run cargo +1.91.0 check --locked --jobs "$jobs" --no-default-features --features ffi
 zig_0_16_0 cargo +1.91.0 check --locked --jobs "$jobs" --no-default-features --features embedded-terminal
 zig_0_16_0 cargo +nightly check --locked --jobs "$jobs" --all-features
-run cargo package --no-verify
+run cargo +1.91.0 package --workspace --no-verify

@@ -133,3 +133,13 @@ serial_test = "3.0"
 [[bench]]
 name = "diff_benchmark"
 harness = false
+
+[workspace]
+resolver = "2"
+members = [
+    "reactive-tui-macros",
+    "src/backend/crossterm",
+    "src/backend/engine",
+    "crates/libghostty-vt",
+    "crates/libghostty-vt-sys",
+]
