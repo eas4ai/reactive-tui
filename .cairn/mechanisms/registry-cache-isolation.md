@@ -10,7 +10,6 @@ inputs:
   - scripts
   - tests
   - examples
-  - docs/recon-evidence/cache-isolation
 requirements:
   - CCH-001
   - CCH-002
