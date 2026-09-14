@@ -1,0 +1,8 @@
+error: 1 files in the working directory contain changes that were not yet committed into git:
+
+src/backend/crossterm/Cargo.lock
+
+to proceed despite this and include the uncommitted changes, pass the `--allow-dirty` flag
+release check failed: cargo package --list failed for src/backend/crossterm/Cargo.toml
+root: 477 bounded archive files
+macros: 7 bounded archive files
