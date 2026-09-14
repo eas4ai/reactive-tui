@@ -1,0 +1,7 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.10s
+  Executable unittests src/lib.rs (/home/shawn/workspace2/scratchpads/suprnova-target/debug/deps/reactive_tui-36d66272761b33c2)
+SIGTERM probe restored termios and terminal modes before its final marker
+SIGINT probe restored termios and terminal modes before its final marker
+SIGHUP probe restored termios and terminal modes before its final marker
+hook probe restored termios and terminal modes before its final marker
+TRL-002 bounded signal shutdown and panic-hook ownership passed
