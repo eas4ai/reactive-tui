@@ -12,6 +12,5 @@ inputs:
   - examples
   - benches
   - scripts/check-api-features.py
-  - docs/feature-configurations.md
 requirements:
   - API-015
