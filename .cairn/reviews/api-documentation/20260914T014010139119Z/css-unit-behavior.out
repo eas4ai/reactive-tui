@@ -1,0 +1,12 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.11s
+     Running unittests src/lib.rs (target/debug/deps/reactive_tui-10768dd881459d97)
+
+running 5 tests
+test layout::css::css_in_rust::tests::test_basic_css_macro ... ok
+test layout::css::css_in_rust::tests::test_convenience_macros ... ok
+test layout::css::css_in_rust::tests::test_numeric_properties ... ok
+test layout::css::css_in_rust::tests::test_spacing_properties ... ok
+test layout::css::css_in_rust::tests::test_color_properties ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 1025 filtered out; finished in 0.00s
+

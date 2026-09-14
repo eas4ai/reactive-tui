@@ -1,0 +1,13 @@
+
+running 8 tests
+test /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260914T014010139119Z/rust-12.md - (line 31) - compile ... ok
+test /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260914T014010139119Z/rust-12.md - (line 17) - compile ... ok
+test /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260914T014010139119Z/rust-12.md - (line 3) - compile ... ok
+test /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260914T014010139119Z/rust-12.md - (line 47) - compile ... ok
+test /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260914T014010139119Z/rust-12.md - (line 86) - compile ... ok
+test /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260914T014010139119Z/rust-12.md - (line 104) - compile ... ok
+test /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260914T014010139119Z/rust-12.md - (line 60) - compile ... ok
+test /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260914T014010139119Z/rust-12.md - (line 73) - compile ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s
+
