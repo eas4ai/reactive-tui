@@ -181,7 +181,7 @@ pub extern "C" fn rtui_app_builder_create(out_builder: *mut *mut RTuiAppBuilder)
 }
 
 /// Destroy an app builder
-#[no_mangle]
+#[reactive_tui_macros::ffi_export]
 pub extern "C" fn rtui_app_builder_destroy(builder: *mut RTuiAppBuilder) {
     if !builder.is_null() {
         unsafe {
@@ -260,13 +260,13 @@ pub extern "C" fn rtui_app_builder_backend_debug(
 /// The builder owns that session until build transfers it to the App, or the
 /// builder is destroyed. Setup errors leave the existing builder value intact.
 /// Re-selecting either native terminal route retains its current session.
-#[no_mangle]
+#[reactive_tui_macros::ffi_export]
 pub extern "C" fn rtui_app_builder_backend_suprtui(builder: *mut RTuiAppBuilder) -> ReactiveError {
     select_terminal_backend(builder, SuprTuiBackend::new)
 }
 
 /// Set backend for app builder (creates crossterm backend)
-#[no_mangle]
+#[reactive_tui_macros::ffi_export]
 pub extern "C" fn rtui_app_builder_backend_crossterm(
     builder: *mut RTuiAppBuilder,
 ) -> ReactiveError {
@@ -322,7 +322,7 @@ pub extern "C" fn rtui_app_builder_build(
 }
 
 /// Destroy an app
-#[no_mangle]
+#[reactive_tui_macros::ffi_export]
 pub extern "C" fn rtui_app_destroy(app: *mut RTuiApp) {
     if !app.is_null() {
         unsafe {

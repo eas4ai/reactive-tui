@@ -36,7 +36,7 @@ pub(crate) fn f32_ptr_to_rgba(ptr: *const f32) -> Rgba {
 //
 
 /// Create a new renderer
-#[no_mangle]
+#[reactive_tui_macros::ffi_export]
 pub extern "C" fn createRenderer(width: u32, height: u32) -> *mut RTuiRenderer {
     if width == 0 || height == 0 {
         return std::ptr::null_mut();
@@ -58,7 +58,7 @@ pub extern "C" fn createRenderer(width: u32, height: u32) -> *mut RTuiRenderer {
 }
 
 /// Destroy a renderer
-#[no_mangle]
+#[reactive_tui_macros::ffi_export]
 pub extern "C" fn destroyRenderer(
     renderer: *mut RTuiRenderer,
     _use_alternate_screen: bool,
@@ -100,7 +100,7 @@ pub extern "C" fn destroyRenderer(
 }
 
 /// Set renderer background color
-#[no_mangle]
+#[reactive_tui_macros::ffi_export]
 pub extern "C" fn setBackgroundColor(renderer: *mut RTuiRenderer, color: *const f32) {
     if renderer.is_null() || color.is_null() {
         return;
@@ -114,7 +114,7 @@ pub extern "C" fn setBackgroundColor(renderer: *mut RTuiRenderer, color: *const 
 }
 
 /// Render the current frame
-#[no_mangle]
+#[reactive_tui_macros::ffi_export]
 pub extern "C" fn render(renderer: *mut RTuiRenderer, force: bool) {
     if renderer.is_null() {
         return;
@@ -129,7 +129,7 @@ pub extern "C" fn render(renderer: *mut RTuiRenderer, force: bool) {
 }
 
 /// Resize renderer
-#[no_mangle]
+#[reactive_tui_macros::ffi_export]
 pub extern "C" fn resizeRenderer(renderer: *mut RTuiRenderer, width: u32, height: u32) {
     if renderer.is_null() || width == 0 || height == 0 {
         return;
@@ -144,7 +144,7 @@ pub extern "C" fn resizeRenderer(renderer: *mut RTuiRenderer, width: u32, height
 //
 
 /// Create an optimized buffer
-#[no_mangle]
+#[reactive_tui_macros::ffi_export]
 pub extern "C" fn createOptimizedBuffer(
     width: u32,
     height: u32,
@@ -164,7 +164,7 @@ pub extern "C" fn createOptimizedBuffer(
 }
 
 /// Destroy an optimized buffer
-#[no_mangle]
+#[reactive_tui_macros::ffi_export]
 pub extern "C" fn destroyOptimizedBuffer(buffer: *mut RTuiBuffer) {
     if buffer.is_null() {
         return;
@@ -177,7 +177,7 @@ pub extern "C" fn destroyOptimizedBuffer(buffer: *mut RTuiBuffer) {
 }
 
 /// Get buffer width
-#[no_mangle]
+#[reactive_tui_macros::ffi_export]
 pub extern "C" fn getBufferWidth(buffer: *const RTuiBuffer) -> u32 {
     if buffer.is_null() {
         return 0;
@@ -188,7 +188,7 @@ pub extern "C" fn getBufferWidth(buffer: *const RTuiBuffer) -> u32 {
 }
 
 /// Get buffer height
-#[no_mangle]
+#[reactive_tui_macros::ffi_export]
 pub extern "C" fn getBufferHeight(buffer: *const RTuiBuffer) -> u32 {
     if buffer.is_null() {
         return 0;
@@ -199,7 +199,7 @@ pub extern "C" fn getBufferHeight(buffer: *const RTuiBuffer) -> u32 {
 }
 
 /// Clear buffer with background color
-#[no_mangle]
+#[reactive_tui_macros::ffi_export]
 pub extern "C" fn bufferClear(buffer: *mut RTuiBuffer, bg: *const f32) {
     if buffer.is_null() || bg.is_null() {
         return;
@@ -211,7 +211,7 @@ pub extern "C" fn bufferClear(buffer: *mut RTuiBuffer, bg: *const f32) {
 }
 
 /// Draw text to buffer
-#[no_mangle]
+#[reactive_tui_macros::ffi_export]
 pub extern "C" fn bufferDrawText(
     buffer: *mut RTuiBuffer,
     text: *const u8,
@@ -257,7 +257,7 @@ pub extern "C" fn bufferDrawText(
 }
 
 /// Set a single cell with alpha blending
-#[no_mangle]
+#[reactive_tui_macros::ffi_export]
 pub extern "C" fn bufferSetCellWithAlphaBlending(
     buffer: *mut RTuiBuffer,
     x: u32,
@@ -290,7 +290,7 @@ pub extern "C" fn bufferSetCellWithAlphaBlending(
 }
 
 /// Fill rectangle with background color
-#[no_mangle]
+#[reactive_tui_macros::ffi_export]
 pub extern "C" fn bufferFillRect(
     buffer: *mut RTuiBuffer,
     x: u32,
@@ -335,7 +335,7 @@ pub extern "C" fn bufferFillRect(
 /// - The caller must not access beyond width * height elements
 /// - Concurrent access must be synchronized by the caller
 /// - The caller must call bufferReleaseCharPtr to free the memory
-#[no_mangle]
+#[reactive_tui_macros::ffi_export]
 pub extern "C" fn bufferGetCharPtr(buffer: *mut RTuiBuffer) -> *mut u32 {
     if buffer.is_null() {
         return std::ptr::null_mut();
@@ -355,7 +355,7 @@ pub extern "C" fn bufferGetCharPtr(buffer: *mut RTuiBuffer) -> *mut u32 {
 ///
 /// **REQUIRED:** Must be called for every pointer returned by bufferGetCharPtr()
 /// **SAFETY:** Only call this once per pointer, and only with pointers from bufferGetCharPtr()
-#[no_mangle]
+#[reactive_tui_macros::ffi_export]
 pub extern "C" fn bufferReleaseCharPtr(ptr: *mut u32, length: usize) {
     if ptr.is_null() {
         return;
@@ -376,7 +376,7 @@ pub extern "C" fn bufferReleaseCharPtr(ptr: *mut u32, length: usize) {
 /// - The returned pointer is valid until the buffer is destroyed or resized
 /// - The caller must not access beyond width * height * 4 elements
 /// - The caller must call bufferReleaseFgPtr to free the memory
-#[no_mangle]
+#[reactive_tui_macros::ffi_export]
 pub extern "C" fn bufferGetFgPtr(buffer: *mut RTuiBuffer) -> *mut f32 {
     if buffer.is_null() {
         return std::ptr::null_mut();
@@ -402,7 +402,7 @@ pub extern "C" fn bufferGetFgPtr(buffer: *mut RTuiBuffer) -> *mut f32 {
 ///
 /// **REQUIRED:** Must be called for every pointer returned by bufferGetFgPtr()
 /// **SAFETY:** Only call this once per pointer, and only with pointers from bufferGetFgPtr()
-#[no_mangle]
+#[reactive_tui_macros::ffi_export]
 pub extern "C" fn bufferReleaseFgPtr(ptr: *mut f32, length: usize) {
     if ptr.is_null() {
         return;
@@ -423,7 +423,7 @@ pub extern "C" fn bufferReleaseFgPtr(ptr: *mut f32, length: usize) {
 /// - The returned pointer is valid until the buffer is destroyed or resized
 /// - The caller must not access beyond width * height * 4 elements
 /// - The caller must call bufferReleaseBgPtr to free the memory
-#[no_mangle]
+#[reactive_tui_macros::ffi_export]
 pub extern "C" fn bufferGetBgPtr(buffer: *mut RTuiBuffer) -> *mut f32 {
     if buffer.is_null() {
         return std::ptr::null_mut();
@@ -449,7 +449,7 @@ pub extern "C" fn bufferGetBgPtr(buffer: *mut RTuiBuffer) -> *mut f32 {
 ///
 /// **REQUIRED:** Must be called for every pointer returned by bufferGetBgPtr()
 /// **SAFETY:** Only call this once per pointer, and only with pointers from bufferGetBgPtr()
-#[no_mangle]
+#[reactive_tui_macros::ffi_export]
 pub extern "C" fn bufferReleaseBgPtr(ptr: *mut f32, length: usize) {
     if ptr.is_null() {
         return;
@@ -470,7 +470,7 @@ pub extern "C" fn bufferReleaseBgPtr(ptr: *mut f32, length: usize) {
 /// - The returned pointer is valid until the buffer is destroyed or resized
 /// - The caller must not access beyond width * height elements
 /// - The caller must call bufferReleaseAttributesPtr to free the memory
-#[no_mangle]
+#[reactive_tui_macros::ffi_export]
 pub extern "C" fn bufferGetAttributesPtr(buffer: *mut RTuiBuffer) -> *mut u8 {
     if buffer.is_null() {
         return std::ptr::null_mut();
@@ -494,7 +494,7 @@ pub extern "C" fn bufferGetAttributesPtr(buffer: *mut RTuiBuffer) -> *mut u8 {
 ///
 /// **REQUIRED:** Must be called for every pointer returned by bufferGetAttrPtr()
 /// **SAFETY:** Only call this once per pointer, and only with pointers from bufferGetAttrPtr()
-#[no_mangle]
+#[reactive_tui_macros::ffi_export]
 pub extern "C" fn bufferReleaseAttrPtr(ptr: *mut u8, length: usize) {
     if ptr.is_null() {
         return;
@@ -507,7 +507,7 @@ pub extern "C" fn bufferReleaseAttrPtr(ptr: *mut u8, length: usize) {
 }
 
 /// Get buffer respect alpha setting
-#[no_mangle]
+#[reactive_tui_macros::ffi_export]
 pub extern "C" fn bufferGetRespectAlpha(buffer: *const RTuiBuffer) -> bool {
     if buffer.is_null() {
         return false;
@@ -522,7 +522,7 @@ pub extern "C" fn bufferGetRespectAlpha(buffer: *const RTuiBuffer) -> bool {
 /// Controls whether alpha blending is respected when rendering.
 /// When enabled, transparent colors will blend with background.
 /// When disabled, alpha values are ignored and colors are rendered opaque.
-#[no_mangle]
+#[reactive_tui_macros::ffi_export]
 pub extern "C" fn bufferSetRespectAlpha(buffer: *mut RTuiBuffer, respect_alpha: bool) {
     if buffer.is_null() {
         return;
@@ -544,7 +544,7 @@ pub extern "C" fn bufferSetRespectAlpha(buffer: *mut RTuiBuffer, respect_alpha: 
 }
 
 /// Resize buffer
-#[no_mangle]
+#[reactive_tui_macros::ffi_export]
 pub extern "C" fn bufferResize(buffer: *mut RTuiBuffer, width: u32, height: u32) {
     if buffer.is_null() || width == 0 || height == 0 {
         return;
@@ -591,7 +591,7 @@ pub extern "C" fn bufferResize(buffer: *mut RTuiBuffer, width: u32, height: u32)
 /// Render surface to terminal through renderer
 ///
 /// This integrates Surface → Renderer → Terminal in a single operation
-#[no_mangle]
+#[reactive_tui_macros::ffi_export]
 pub extern "C" fn renderSurfaceToTerminal(
     surface: *const RTuiBuffer,
     terminal: *mut super::terminal::RTuiTerminal,
@@ -644,7 +644,7 @@ pub extern "C" fn renderSurfaceToTerminal(
 /// Complete rendering pipeline: TextBuffer → Surface → Renderer → Terminal
 ///
 /// This integrates all systems in a single high-level operation
-#[no_mangle]
+#[reactive_tui_macros::ffi_export]
 pub extern "C" fn renderTextToTerminal(
     text_buffer: *const super::text::RTuiTextBuffer,
     terminal: *mut super::terminal::RTuiTerminal,
@@ -690,7 +690,7 @@ pub extern "C" fn renderTextToTerminal(
 /// Integrated renderer with stats collection
 ///
 /// This combines Renderer → Terminal with automatic stats collection
-#[no_mangle]
+#[reactive_tui_macros::ffi_export]
 pub extern "C" fn renderWithStats(
     renderer: *mut super::lib::RTuiRenderer,
     terminal: *mut super::terminal::RTuiTerminal,

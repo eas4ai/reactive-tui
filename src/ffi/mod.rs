@@ -7,6 +7,55 @@ use std::ffi::CStr;
 use std::os::raw::c_char;
 use std::panic::{self, AssertUnwindSafe};
 
+pub(crate) trait FfiPanicDefault {
+    fn ffi_panic_default() -> Self;
+}
+
+pub(crate) fn ffi_panic_default<T: FfiPanicDefault>() -> T {
+    T::ffi_panic_default()
+}
+
+macro_rules! impl_ffi_panic_default {
+    ($($type:ty => $value:expr),+ $(,)?) => {
+        $(
+            impl FfiPanicDefault for $type {
+                fn ffi_panic_default() -> Self {
+                    $value
+                }
+            }
+        )+
+    };
+}
+
+impl_ffi_panic_default!(
+    () => (),
+    bool => false,
+    u8 => 0,
+    u16 => 0,
+    u32 => 0,
+    u64 => 0,
+    usize => 0,
+    i8 => 0,
+    i16 => 0,
+    i32 => 0,
+    i64 => 0,
+    isize => 0,
+    f32 => 0.0,
+    f64 => 0.0,
+);
+
+impl<T> FfiPanicDefault for *const T {
+    fn ffi_panic_default() -> Self {
+        std::ptr::null()
+    }
+}
+
+impl<T> FfiPanicDefault for *mut T {
+    fn ffi_panic_default() -> Self {
+        std::ptr::null_mut()
+    }
+}
+
 // Core modern FFI modules
 mod lib; // Main FFI interface
 mod stats;
@@ -112,8 +161,25 @@ pub struct RTuiVersion {
     pub abi_version: u32,
 }
 
+impl FfiPanicDefault for RTuiVersion {
+    fn ffi_panic_default() -> Self {
+        Self {
+            major: 0,
+            minor: 0,
+            patch: 0,
+            abi_version: 0,
+        }
+    }
+}
+
+impl FfiPanicDefault for ReactiveError {
+    fn ffi_panic_default() -> Self {
+        Self::Panic
+    }
+}
+
 /// Get the library version
-#[no_mangle]
+#[reactive_tui_macros::ffi_export]
 pub extern "C" fn rtui_version() -> RTuiVersion {
     RTuiVersion {
         major: 0,
@@ -136,14 +202,14 @@ where
 }
 
 /// Initialize the library (must be called before any other functions)
-#[no_mangle]
+#[reactive_tui_macros::ffi_export]
 pub extern "C" fn rtui_init() -> ReactiveError {
     // Initialize any global state if needed
     ReactiveError::Success
 }
 
 /// Cleanup the library
-#[no_mangle]
+#[reactive_tui_macros::ffi_export]
 pub extern "C" fn rtui_cleanup() {
     // Clear all pointer trackers to prevent stale references
     // Note: pointer tracking cleanup would go here if implemented

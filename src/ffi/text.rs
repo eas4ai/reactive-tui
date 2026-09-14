@@ -74,7 +74,7 @@ impl TextBuffer {
 //
 
 /// Create a new text buffer
-#[no_mangle]
+#[reactive_tui_macros::ffi_export]
 pub extern "C" fn createTextBuffer(length: u32, _width_method: u8) -> *mut RTuiTextBuffer {
     if length == 0 {
         return std::ptr::null_mut();
@@ -86,7 +86,7 @@ pub extern "C" fn createTextBuffer(length: u32, _width_method: u8) -> *mut RTuiT
 }
 
 /// Destroy a text buffer
-#[no_mangle]
+#[reactive_tui_macros::ffi_export]
 pub extern "C" fn destroyTextBuffer(tb: *mut RTuiTextBuffer) {
     if tb.is_null() {
         return;
@@ -99,7 +99,7 @@ pub extern "C" fn destroyTextBuffer(tb: *mut RTuiTextBuffer) {
 }
 
 /// Get direct pointer to character data
-#[no_mangle]
+#[reactive_tui_macros::ffi_export]
 pub extern "C" fn textBufferGetCharPtr(tb: *mut RTuiTextBuffer) -> *mut u32 {
     if tb.is_null() {
         return std::ptr::null_mut();
@@ -110,7 +110,7 @@ pub extern "C" fn textBufferGetCharPtr(tb: *mut RTuiTextBuffer) -> *mut u32 {
 }
 
 /// Get text buffer length
-#[no_mangle]
+#[reactive_tui_macros::ffi_export]
 pub extern "C" fn textBufferGetLength(tb: *const RTuiTextBuffer) -> u32 {
     if tb.is_null() {
         return 0;
@@ -121,7 +121,7 @@ pub extern "C" fn textBufferGetLength(tb: *const RTuiTextBuffer) -> u32 {
 }
 
 /// Get text buffer capacity
-#[no_mangle]
+#[reactive_tui_macros::ffi_export]
 pub extern "C" fn textBufferGetCapacity(tb: *const RTuiTextBuffer) -> u32 {
     if tb.is_null() {
         return 0;
@@ -132,7 +132,7 @@ pub extern "C" fn textBufferGetCapacity(tb: *const RTuiTextBuffer) -> u32 {
 }
 
 /// Resize text buffer
-#[no_mangle]
+#[reactive_tui_macros::ffi_export]
 pub extern "C" fn textBufferResize(tb: *mut RTuiTextBuffer, new_length: u32) {
     if tb.is_null() {
         return;
@@ -140,19 +140,28 @@ pub extern "C" fn textBufferResize(tb: *mut RTuiTextBuffer, new_length: u32) {
 
     let text_buffer = unsafe { &mut *(tb as *mut TextBuffer) };
 
-    text_buffer.chars.resize(new_length as usize, 0);
-    text_buffer
-        .fg_colors
-        .resize(new_length as usize, Rgba::new(1.0, 1.0, 1.0, 1.0));
-    text_buffer
-        .bg_colors
-        .resize(new_length as usize, Rgba::new(0.0, 0.0, 0.0, 1.0));
-    text_buffer.attributes.resize(new_length as usize, 0);
+    let retained = text_buffer.length.min(new_length) as usize;
+    text_buffer.chars.truncate(retained);
+    text_buffer.fg_colors.truncate(retained);
+    text_buffer.bg_colors.truncate(retained);
+    text_buffer.attributes.truncate(retained);
+    text_buffer.chars.shrink_to(new_length as usize);
+    text_buffer.fg_colors.shrink_to(new_length as usize);
+    text_buffer.bg_colors.shrink_to(new_length as usize);
+    text_buffer.attributes.shrink_to(new_length as usize);
+    if new_length as usize > retained {
+        let additional = new_length as usize - retained;
+        text_buffer.chars.reserve_exact(additional);
+        text_buffer.fg_colors.reserve_exact(additional);
+        text_buffer.bg_colors.reserve_exact(additional);
+        text_buffer.attributes.reserve_exact(additional);
+    }
+    text_buffer.length = retained as u32;
     text_buffer.capacity = new_length;
 }
 
 /// Reset text buffer
-#[no_mangle]
+#[reactive_tui_macros::ffi_export]
 pub extern "C" fn textBufferReset(tb: *mut RTuiTextBuffer) {
     if tb.is_null() {
         return;
@@ -174,7 +183,7 @@ pub extern "C" fn textBufferReset(tb: *mut RTuiTextBuffer) {
 //
 
 /// Write a chunk of text
-#[no_mangle]
+#[reactive_tui_macros::ffi_export]
 pub extern "C" fn textBufferWriteChunk(
     tb: *mut RTuiTextBuffer,
     text_bytes: *const u8,
@@ -240,7 +249,7 @@ pub extern "C" fn textBufferWriteChunk(
 //
 
 /// Set selection range
-#[no_mangle]
+#[reactive_tui_macros::ffi_export]
 pub extern "C" fn textBufferSetSelection(
     tb: *mut RTuiTextBuffer,
     start: u32,
@@ -270,7 +279,7 @@ pub extern "C" fn textBufferSetSelection(
 //
 
 /// Render text buffer to surface
-#[no_mangle]
+#[reactive_tui_macros::ffi_export]
 pub extern "C" fn renderTextBufferToSurface(
     tb: *const RTuiTextBuffer,
     buffer: *mut RTuiBuffer,
@@ -351,7 +360,7 @@ pub extern "C" fn renderTextBufferToSurface(
 }
 
 /// Render text buffer to renderer surface
-#[no_mangle]
+#[reactive_tui_macros::ffi_export]
 pub extern "C" fn renderTextBufferToRenderer(
     tb: *const RTuiTextBuffer,
     renderer: *mut RTuiRenderer,
@@ -438,7 +447,7 @@ pub extern "C" fn renderTextBufferToRenderer(
 ///
 /// Creates a temporary surface, renders text to it, then renders to terminal
 /// This provides a complete TextBuffer → Surface → Renderer → Terminal pipeline
-#[no_mangle]
+#[reactive_tui_macros::ffi_export]
 pub extern "C" fn renderTextBufferDirect(
     tb: *const RTuiTextBuffer,
     terminal: *mut super::terminal::RTuiTerminal,
@@ -456,7 +465,7 @@ pub extern "C" fn renderTextBufferDirect(
 }
 
 /// Reset selection
-#[no_mangle]
+#[reactive_tui_macros::ffi_export]
 pub extern "C" fn textBufferResetSelection(tb: *mut RTuiTextBuffer) {
     if tb.is_null() {
         return;
@@ -470,7 +479,7 @@ pub extern "C" fn textBufferResetSelection(tb: *mut RTuiTextBuffer) {
 
 /// Get selection info as packed u64: `[start:u32][end:u32]`.
 /// Returns 0xFFFFFFFF_FFFFFFFF if no selection
-#[no_mangle]
+#[reactive_tui_macros::ffi_export]
 pub extern "C" fn textBufferGetSelectionInfo(tb: *const RTuiTextBuffer) -> u64 {
     if tb.is_null() {
         return 0xFFFFFFFF_FFFFFFFF;
@@ -489,7 +498,7 @@ pub extern "C" fn textBufferGetSelectionInfo(tb: *const RTuiTextBuffer) -> u64 {
 //
 
 /// Set default foreground color
-#[no_mangle]
+#[reactive_tui_macros::ffi_export]
 pub extern "C" fn textBufferSetDefaultFg(tb: *mut RTuiTextBuffer, fg: *const f32) {
     if tb.is_null() {
         return;
@@ -505,7 +514,7 @@ pub extern "C" fn textBufferSetDefaultFg(tb: *mut RTuiTextBuffer, fg: *const f32
 }
 
 /// Set default background color
-#[no_mangle]
+#[reactive_tui_macros::ffi_export]
 pub extern "C" fn textBufferSetDefaultBg(tb: *mut RTuiTextBuffer, bg: *const f32) {
     if tb.is_null() {
         return;
@@ -521,7 +530,7 @@ pub extern "C" fn textBufferSetDefaultBg(tb: *mut RTuiTextBuffer, bg: *const f32
 }
 
 /// Set default attributes
-#[no_mangle]
+#[reactive_tui_macros::ffi_export]
 pub extern "C" fn textBufferSetDefaultAttributes(tb: *mut RTuiTextBuffer, attr: *const u8) {
     if tb.is_null() {
         return;
@@ -537,7 +546,7 @@ pub extern "C" fn textBufferSetDefaultAttributes(tb: *mut RTuiTextBuffer, attr: 
 }
 
 /// Reset all defaults
-#[no_mangle]
+#[reactive_tui_macros::ffi_export]
 pub extern "C" fn textBufferResetDefaults(tb: *mut RTuiTextBuffer) {
     if tb.is_null() {
         return;

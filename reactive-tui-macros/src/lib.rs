@@ -1,6 +1,42 @@
 use proc_macro::TokenStream;
 use quote::quote;
-use syn::{parse_macro_input, FnArg, ItemFn, Pat, Type};
+use syn::{parse_macro_input, parse_quote, FnArg, ItemFn, Pat, Type};
+
+/// Export a C ABI function with a panic boundary and a type-specific fallback.
+#[proc_macro_attribute]
+pub fn ffi_export(args: TokenStream, input: TokenStream) -> TokenStream {
+    if !args.is_empty() {
+        return syn::Error::new(
+            proc_macro2::Span::call_site(),
+            "ffi_export takes no arguments",
+        )
+        .to_compile_error()
+        .into();
+    }
+
+    let mut function = parse_macro_input!(input as ItemFn);
+    let is_c_abi = function
+        .sig
+        .abi
+        .as_ref()
+        .and_then(|abi| abi.name.as_ref())
+        .is_some_and(|name| name.value() == "C");
+    if !is_c_abi {
+        return syn::Error::new_spanned(&function.sig, "ffi_export requires extern \"C\"")
+            .to_compile_error()
+            .into();
+    }
+
+    let body = function.block;
+    function.block = Box::new(parse_quote!({
+        match ::std::panic::catch_unwind(::std::panic::AssertUnwindSafe(|| #body)) {
+            Ok(value) => value,
+            Err(_) => crate::ffi::ffi_panic_default(),
+        }
+    }));
+    function.attrs.push(parse_quote!(#[no_mangle]));
+    quote!(#function).into()
+}
 
 /// Transforms a function into a reactive-tui Component
 ///

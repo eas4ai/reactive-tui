@@ -256,7 +256,7 @@ pub extern "C" fn rtui_element_builder_build(
 }
 
 /// Destroy an element builder
-#[no_mangle]
+#[reactive_tui_macros::ffi_export]
 pub extern "C" fn rtui_element_builder_destroy(builder: *mut RTuiElementBuilder) {
     if !builder.is_null() {
         unsafe {
@@ -266,7 +266,7 @@ pub extern "C" fn rtui_element_builder_destroy(builder: *mut RTuiElementBuilder)
 }
 
 /// Destroy an element
-#[no_mangle]
+#[reactive_tui_macros::ffi_export]
 pub extern "C" fn rtui_element_destroy(element: *mut RTuiElement) {
     if !element.is_null() {
         unsafe {
@@ -278,19 +278,19 @@ pub extern "C" fn rtui_element_destroy(element: *mut RTuiElement) {
 // Compatibility names from the original C builder header. These delegate to
 // the existing implementation and retain its consuming ownership rules.
 /// Create a legacy div builder; the caller owns the returned builder.
-#[no_mangle]
+#[reactive_tui_macros::ffi_export]
 pub extern "C" fn rtui_div(out: *mut *mut RTuiElementBuilder) -> ReactiveError {
     rtui_element_builder_div(out)
 }
 
 /// Create a legacy inline span builder; the caller owns the returned builder.
-#[no_mangle]
+#[reactive_tui_macros::ffi_export]
 pub extern "C" fn rtui_span(out: *mut *mut RTuiElementBuilder) -> ReactiveError {
     rtui_element_builder_span(out)
 }
 
 /// Create a legacy styled button builder without a click callback.
-#[no_mangle]
+#[reactive_tui_macros::ffi_export]
 pub extern "C" fn rtui_button(out: *mut *mut RTuiElementBuilder) -> ReactiveError {
     rtui_element_builder_button(out)
 }
@@ -320,31 +320,31 @@ fn text_container_builder(
 }
 
 /// Create a paragraph builder using the native paragraph classes.
-#[no_mangle]
+#[reactive_tui_macros::ffi_export]
 pub extern "C" fn rtui_p(out: *mut *mut RTuiElementBuilder) -> ReactiveError {
     text_container_builder(crate::builder::p, out)
 }
 
 /// Create a level-one heading builder using the native heading classes.
-#[no_mangle]
+#[reactive_tui_macros::ffi_export]
 pub extern "C" fn rtui_h1(out: *mut *mut RTuiElementBuilder) -> ReactiveError {
     text_container_builder(crate::builder::h1, out)
 }
 
 /// Create a level-two heading builder using the native heading classes.
-#[no_mangle]
+#[reactive_tui_macros::ffi_export]
 pub extern "C" fn rtui_h2(out: *mut *mut RTuiElementBuilder) -> ReactiveError {
     text_container_builder(crate::builder::h2, out)
 }
 
 /// Create a level-three heading builder using the native heading classes.
-#[no_mangle]
+#[reactive_tui_macros::ffi_export]
 pub extern "C" fn rtui_h3(out: *mut *mut RTuiElementBuilder) -> ReactiveError {
     text_container_builder(crate::builder::h3, out)
 }
 
 /// Append classes through the legacy non-consuming builder name.
-#[no_mangle]
+#[reactive_tui_macros::ffi_export]
 pub extern "C" fn rtui_element_builder_class(
     builder: *mut RTuiElementBuilder,
     classes: *const c_char,
@@ -353,7 +353,7 @@ pub extern "C" fn rtui_element_builder_class(
 }
 
 /// Set text through the legacy non-consuming builder name.
-#[no_mangle]
+#[reactive_tui_macros::ffi_export]
 pub extern "C" fn rtui_element_builder_text(
     builder: *mut RTuiElementBuilder,
     text: *const c_char,
@@ -362,7 +362,7 @@ pub extern "C" fn rtui_element_builder_text(
 }
 
 /// Set the key through the legacy non-consuming builder name.
-#[no_mangle]
+#[reactive_tui_macros::ffi_export]
 pub extern "C" fn rtui_element_builder_key(
     builder: *mut RTuiElementBuilder,
     key: *const c_char,
@@ -371,7 +371,7 @@ pub extern "C" fn rtui_element_builder_key(
 }
 
 /// Append and consume a live child through the legacy builder name.
-#[no_mangle]
+#[reactive_tui_macros::ffi_export]
 pub extern "C" fn rtui_element_builder_child(
     builder: *mut RTuiElementBuilder,
     child: *mut RTuiElement,
@@ -430,7 +430,7 @@ pub extern "C" fn rtui_element_builder_children(
 }
 
 /// Create a caller-owned text element through the legacy name.
-#[no_mangle]
+#[reactive_tui_macros::ffi_export]
 pub extern "C" fn rtui_element_text(
     text: *const c_char,
     out: *mut *mut RTuiElement,
@@ -439,7 +439,7 @@ pub extern "C" fn rtui_element_text(
 }
 
 /// Create a caller-owned empty element through the legacy name.
-#[no_mangle]
+#[reactive_tui_macros::ffi_export]
 pub extern "C" fn rtui_element_empty(out: *mut *mut RTuiElement) -> ReactiveError {
     rtui_element_create_empty(out)
 }
@@ -466,7 +466,7 @@ pub extern "C" fn rtui_card(
 }
 
 /// Free a string allocated by native string getters; null is allowed.
-#[no_mangle]
+#[reactive_tui_macros::ffi_export]
 pub extern "C" fn rtui_free_string(string: *mut c_char) {
     rtui_string_free(string)
 }

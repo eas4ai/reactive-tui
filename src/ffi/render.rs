@@ -41,7 +41,7 @@ pub extern "C" fn rtui_renderer_create(
 }
 
 /// Destroy a renderer
-#[no_mangle]
+#[reactive_tui_macros::ffi_export]
 pub extern "C" fn rtui_renderer_destroy(renderer: *mut RTuiRenderer) {
     let raw = renderer.cast::<Renderer>();
     if !pointer::trackers::renderer_tracker().unregister(raw) {

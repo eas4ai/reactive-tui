@@ -122,7 +122,7 @@ pub extern "C" fn rtui_animation_manager_create(
 }
 
 /// Destroy an animation manager
-#[no_mangle]
+#[reactive_tui_macros::ffi_export]
 pub extern "C" fn rtui_animation_manager_destroy(manager: *mut RTuiAnimationManager) {
     if !manager.is_null() {
         unsafe {
@@ -209,7 +209,7 @@ pub extern "C" fn rtui_animation_create(
 }
 
 /// Destroy an animation
-#[no_mangle]
+#[reactive_tui_macros::ffi_export]
 pub extern "C" fn rtui_animation_destroy(animation: *mut RTuiAnimation) {
     if !animation.is_null() {
         unsafe {

@@ -33,7 +33,7 @@ pub extern "C" fn rtui_terminal_create(out_terminal: *mut *mut ReactiveTerminal)
 }
 
 /// Release a terminal handle. Null and unregistered handles are ignored.
-#[no_mangle]
+#[reactive_tui_macros::ffi_export]
 pub extern "C" fn rtui_terminal_destroy(terminal: *mut ReactiveTerminal) {
     destroyTerminal(terminal.cast());
 }

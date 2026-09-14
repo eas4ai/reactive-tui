@@ -54,7 +54,7 @@ pub enum CursorStyle {
 //
 
 /// Create terminal instance
-#[no_mangle]
+#[reactive_tui_macros::ffi_export]
 pub extern "C" fn createTerminal() -> *mut RTuiTerminal {
     match Terminal::new() {
         Ok(terminal) => {
@@ -76,7 +76,7 @@ pub extern "C" fn createTerminal() -> *mut RTuiTerminal {
 }
 
 /// Destroy terminal instance
-#[no_mangle]
+#[reactive_tui_macros::ffi_export]
 pub extern "C" fn destroyTerminal(terminal: *mut RTuiTerminal) {
     if terminal.is_null() {
         return;
@@ -93,7 +93,7 @@ pub extern "C" fn destroyTerminal(terminal: *mut RTuiTerminal) {
 }
 
 /// Setup terminal for TUI mode
-#[no_mangle]
+#[reactive_tui_macros::ffi_export]
 pub extern "C" fn setupTerminal(terminal: *mut RTuiTerminal, use_alternate_screen: bool) {
     if terminal.is_null() {
         return;
@@ -115,7 +115,7 @@ pub extern "C" fn setupTerminal(terminal: *mut RTuiTerminal, use_alternate_scree
 }
 
 /// Clear terminal
-#[no_mangle]
+#[reactive_tui_macros::ffi_export]
 pub extern "C" fn clearTerminal(terminal: *mut RTuiTerminal) {
     if terminal.is_null() {
         return;
@@ -127,7 +127,7 @@ pub extern "C" fn clearTerminal(terminal: *mut RTuiTerminal) {
 }
 
 /// Get terminal capabilities
-#[no_mangle]
+#[reactive_tui_macros::ffi_export]
 pub extern "C" fn getTerminalCapabilities(
     terminal: *const RTuiTerminal,
     caps_ptr: *mut Capabilities,
@@ -156,7 +156,7 @@ pub extern "C" fn getTerminalCapabilities(
 }
 
 /// Process capability response
-#[no_mangle]
+#[reactive_tui_macros::ffi_export]
 pub extern "C" fn processCapabilityResponse(
     terminal: *mut RTuiTerminal,
     response_ptr: *const u8,
@@ -188,7 +188,7 @@ pub extern "C" fn processCapabilityResponse(
 //
 
 /// Set cursor position
-#[no_mangle]
+#[reactive_tui_macros::ffi_export]
 pub extern "C" fn setCursorPosition(terminal: *mut RTuiTerminal, x: i32, y: i32, visible: bool) {
     if terminal.is_null() {
         return;
@@ -212,7 +212,7 @@ pub extern "C" fn setCursorPosition(terminal: *mut RTuiTerminal, x: i32, y: i32,
 }
 
 /// Set cursor style
-#[no_mangle]
+#[reactive_tui_macros::ffi_export]
 pub extern "C" fn setCursorStyle(
     terminal: *mut RTuiTerminal,
     style_ptr: *const u8,
@@ -268,7 +268,7 @@ pub extern "C" fn setCursorStyle(
 }
 
 /// Set cursor color
-#[no_mangle]
+#[reactive_tui_macros::ffi_export]
 pub extern "C" fn setCursorColor(terminal: *mut RTuiTerminal, color: *const f32) {
     if terminal.is_null() || color.is_null() {
         return;
@@ -288,7 +288,7 @@ pub extern "C" fn setCursorColor(terminal: *mut RTuiTerminal, color: *const f32)
 }
 
 /// Set terminal title
-#[no_mangle]
+#[reactive_tui_macros::ffi_export]
 pub extern "C" fn setTerminalTitle(
     terminal: *mut RTuiTerminal,
     title_ptr: *const u8,
@@ -316,7 +316,7 @@ pub extern "C" fn setTerminalTitle(
 //
 
 /// Enable mouse support
-#[no_mangle]
+#[reactive_tui_macros::ffi_export]
 pub extern "C" fn enableMouse(terminal: *mut RTuiTerminal, enable_movement: bool) {
     if terminal.is_null() {
         return;
@@ -333,7 +333,7 @@ pub extern "C" fn enableMouse(terminal: *mut RTuiTerminal, enable_movement: bool
 }
 
 /// Disable mouse support
-#[no_mangle]
+#[reactive_tui_macros::ffi_export]
 pub extern "C" fn disableMouse(terminal: *mut RTuiTerminal) {
     if terminal.is_null() {
         return;
@@ -348,7 +348,7 @@ pub extern "C" fn disableMouse(terminal: *mut RTuiTerminal) {
 }
 
 /// Enable Kitty keyboard protocol
-#[no_mangle]
+#[reactive_tui_macros::ffi_export]
 pub extern "C" fn enableKittyKeyboard(terminal: *mut RTuiTerminal, flags: u8) {
     if terminal.is_null() {
         return;
@@ -362,7 +362,7 @@ pub extern "C" fn enableKittyKeyboard(terminal: *mut RTuiTerminal, flags: u8) {
 }
 
 /// Disable Kitty keyboard protocol
-#[no_mangle]
+#[reactive_tui_macros::ffi_export]
 pub extern "C" fn disableKittyKeyboard(terminal: *mut RTuiTerminal) {
     if terminal.is_null() {
         return;

@@ -43,7 +43,7 @@ pub extern "C" fn rtui_surface_create(
 }
 
 /// Destroy a surface
-#[no_mangle]
+#[reactive_tui_macros::ffi_export]
 pub extern "C" fn rtui_surface_destroy(surface: *mut RTuiSurface) {
     if surface.is_null() {
         return;

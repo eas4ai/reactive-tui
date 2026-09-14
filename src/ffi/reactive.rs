@@ -413,7 +413,7 @@ pub extern "C" fn rtui_signal_bool_create(
 }
 
 /// Destroy a signal
-#[no_mangle]
+#[reactive_tui_macros::ffi_export]
 pub extern "C" fn rtui_signal_destroy(signal: *mut RTuiSignal) {
     rtui_signal_destroy_new(signal);
 }
@@ -586,7 +586,7 @@ pub extern "C" fn rtui_thread_safe_signal_string_create(
 }
 
 /// Destroy a thread-safe signal
-#[no_mangle]
+#[reactive_tui_macros::ffi_export]
 pub extern "C" fn rtui_thread_safe_signal_destroy(signal: *mut RTuiThreadSafeSignal) {
     if !signal.is_null() {
         unsafe {
@@ -667,7 +667,7 @@ pub extern "C" fn rtui_effect_create(
 }
 
 /// Destroy an effect
-#[no_mangle]
+#[reactive_tui_macros::ffi_export]
 pub extern "C" fn rtui_effect_destroy(effect: *mut RTuiEffect) {
     if !effect.is_null() {
         unsafe {
@@ -896,7 +896,7 @@ pub extern "C" fn rtui_signal_set_float_new(signal: *mut RTuiSignal, value: f64)
 }
 
 /// Destroy a signal (improved API with proper type safety)
-#[no_mangle]
+#[reactive_tui_macros::ffi_export]
 pub extern "C" fn rtui_signal_destroy_new(signal: *mut RTuiSignal) {
     if !signal.is_null() {
         unsafe {
@@ -906,7 +906,7 @@ pub extern "C" fn rtui_signal_destroy_new(signal: *mut RTuiSignal) {
 }
 
 /// Free a string returned by rtui_signal_get_string_owned
-#[no_mangle]
+#[reactive_tui_macros::ffi_export]
 pub extern "C" fn rtui_string_free(string: *mut c_char) {
     if !string.is_null() {
         unsafe {
@@ -975,7 +975,7 @@ pub extern "C" fn rtui_hooks_new() -> *mut RTuiHooks {
 }
 
 /// Destroy a hooks context
-#[no_mangle]
+#[reactive_tui_macros::ffi_export]
 pub extern "C" fn rtui_hooks_destroy(hooks: *mut RTuiHooks) {
     if !hooks.is_null() {
         unsafe {
