@@ -48,6 +48,16 @@ came from the incompatible crates.io package and does not describe upstream
 commit `5988a0b78b4aa804d1c12e66bbfe662bd97d81c0`. CRT-003 and its mechanism
 must use Zig 0.16.0 before this review can pass.
 
+After the Zig correction, the sys package verified successfully under CPUs 0
+through 7. Packaging the safe wrapper by itself then failed before archive
+creation because its renamed sys dependency is not published yet; Cargo applies
+this registry check even with `--no-verify`. A committed detached experiment
+made all six crates workspace members and ran `cargo package --workspace
+--no-verify`. Cargo assembled all six archives successfully in one command,
+including the interdependent unpublished packages. The root archive was 2.7 MiB
+compressed. The mechanism should use that supported workspace operation after
+the feature build matrix, which already compiles every local companion crate.
+
 Compared `scripts/check-crates-release-build.sh` with the revised CRT-003
 requirement and falsifier. The script validates a numeric job count from one
 through eight before invoking Cargo. Every package and feature command is a
