@@ -1,0 +1,21 @@
+requirement: MAN-002
+requirement_digest: sha256:3decadefb59760f120c78ab9d5af6615fa4e2a13f8989dcdc8a8eb8b9518c73e
+sequence: 2
+history_digest: sha256:00d14b8f8f06c2a4a7dc2095ec8bafbba774abf329e49194a32ed373a2526099
+mechanism: framework-manual.md
+commit: 37b797ef
+inputs_digest: sha256:663219ef7ba5fcaea428bc56085a8effb4da933ca161b12410a00ae29bc8e4dc
+mechanism_digest: sha256:ee6a248a97be230268c2c2a95d7b95ee202027132167ac1a9b4a6ba1b0568c8a
+inputs_detail: .cairn/evidence/MAN-001/20260914T140529427Z-3347062.inputs.json
+command: python3 scripts/check-framework-manual.py
+cwd: .
+exit: 0
+output_digest: sha256:60c3d51e8bbca677edd01107efa5ef158903c18cb653262d36732c31a8a15524
+output: .cairn/evidence/MAN-001/20260914T140529427Z-3347062.out
+stderr_output: .cairn/evidence/MAN-001/20260914T140529427Z-3347062.err
+stderr_digest: sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+signal: none
+execution_error: null
+result: pass
+source: exit
+recorded: 2026-09-14T14:05:29.858Z
