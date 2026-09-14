@@ -17,16 +17,21 @@ def main() -> int:
         return 2
     env = os.environ.copy()
     env["CARGO_BUILD_JOBS"] = JOBS
+    command = [
+        "cargo",
+        "test",
+        "--locked",
+        "--test",
+        "pre_release_terminal_helper_lifecycle",
+        "--jobs",
+        JOBS,
+    ]
     subprocess.run(
-        [
-            "cargo",
-            "test",
-            "--locked",
-            "--test",
-            "pre_release_terminal_helper_lifecycle",
-            "--jobs",
-            JOBS,
+        command
+        + [
+            "validator_rejects_safe_violating_fixtures",
             "--",
+            "--exact",
             "--test-threads=1",
         ],
         cwd=ROOT,
@@ -34,6 +39,20 @@ def main() -> int:
         check=True,
         timeout=600,
     )
+    subprocess.run(
+        command
+        + [
+            "--",
+            "--test-threads=1",
+            "--skip",
+            "validator_rejects_safe_violating_fixtures",
+        ],
+        cwd=ROOT,
+        env=env,
+        check=True,
+        timeout=600,
+    )
+    print("TRL-004 terminal helper lifecycle safety passed")
     return 0
 
 

@@ -6,6 +6,7 @@ use std::process::{Child, Command, ExitStatus, Stdio};
 use std::time::{Duration, Instant};
 
 const POLL: Duration = Duration::from_millis(5);
+pub(crate) const TERMINAL_HELPER_TIMEOUT: Duration = Duration::from_millis(250);
 
 #[derive(Clone, Copy)]
 pub(crate) struct Options {

@@ -380,11 +380,22 @@ impl Terminal {
 
     /// Check if an external tool is available
     fn has_external_tool(tool: &str) -> bool {
-        Command::new("which")
-            .arg(tool)
-            .output()
-            .map(|output| output.status.success())
-            .unwrap_or(false)
+        let mut command = Command::new("which");
+        command.arg(tool);
+        crate::core::owned_process::run(
+            command,
+            None,
+            crate::core::owned_process::Options {
+                purpose: "terminal tool discovery",
+                timeout: crate::core::owned_process::TERMINAL_HELPER_TIMEOUT,
+                max_input: 0,
+                max_output: 0,
+                capture_output: false,
+                allow_background_after_success: false,
+            },
+            || false,
+        )
+        .is_ok()
     }
 
     /// Set the terminal title

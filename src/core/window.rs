@@ -289,8 +289,22 @@ impl Window {
         use std::process::Command;
 
         // Try to query terminal using escape sequences
-        if let Ok(output) = Command::new("stty").arg("size").output() {
-            if let Ok(size_str) = String::from_utf8(output.stdout) {
+        let mut command = Command::new("stty");
+        command.arg("size");
+        if let Ok(output) = crate::core::owned_process::run(
+            command,
+            None,
+            crate::core::owned_process::Options {
+                purpose: "terminal character-size discovery",
+                timeout: crate::core::owned_process::TERMINAL_HELPER_TIMEOUT,
+                max_input: 0,
+                max_output: 4 * 1024,
+                capture_output: true,
+                allow_background_after_success: false,
+            },
+            || false,
+        ) {
+            if let Ok(size_str) = String::from_utf8(output) {
                 let parts: Vec<&str> = size_str.split_whitespace().collect();
                 if parts.len() >= 2 {
                     if let (Ok(rows), Ok(cols)) = (parts[0].parse::<u16>(), parts[1].parse::<u16>())
