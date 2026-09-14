@@ -11,4 +11,4 @@ Prepare Reactive TUI 0.1.0 as the first non-yanked public release. Publish the m
 
 ## Realized by
 
-(none yet: recorded, not built)
+- b9f7bc64 release: prepare crates.io 0.1.0 packages
