@@ -15,3 +15,5 @@ inputs:
   - .cairn/mechanisms/crates-release-build.md
 requirements:
   - CRT-003
+reviewed:
+  - CRT-003 sha256:aa26087cf12b195f9bfc15d3afba2f4aac611f3591b4720a54a7ea1fc04a9224
