@@ -4,6 +4,8 @@ build/
 dist/
 node_modules/
 examples-blech/
+__pycache__/
+*.py[cod]
 
 # For libraries, Cargo.lock should be committed for reproducible builds
 # Cargo.lock
