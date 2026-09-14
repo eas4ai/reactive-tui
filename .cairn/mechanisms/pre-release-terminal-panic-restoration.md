@@ -9,7 +9,7 @@ inputs:
   - src/backend
   - src/platform
   - tests
-  - scripts/check-pre-release-terminal-lifecycle.py
+  - scripts
 requirements:
   - TRL-001
 
