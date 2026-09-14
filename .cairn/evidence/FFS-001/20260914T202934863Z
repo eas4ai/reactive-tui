@@ -1,0 +1,21 @@
+requirement: FFS-001
+requirement_digest: sha256:bc413d6b3f8eb767664d274b0e20d71a28ffbde4b20a127e1a1cf95672337365
+sequence: 3
+history_digest: sha256:5d0db356996b034e340a3ffbb58110b1581cb4c56c08c2c69cd77be276b08a40
+mechanism: pre-release-ffi-app-lifetime.md
+commit: 695dda1d
+inputs_digest: sha256:a55c60fab576271ffd77125ecf35c43c75a740bb1ab717ea9993f385a0d38b32
+mechanism_digest: sha256:30ce68f635159777edc29c56dbe3ad82a67e8f6fdc24a184e787fd626ca4b446
+inputs_detail: .cairn/evidence/FFS-001/20260914T202934371Z-2662282.inputs.json
+command: python3 -B scripts/check-pre-release-ffi-safety.py FFS-001
+cwd: .
+exit: 0
+output_digest: sha256:40a31a7bd16adfde3bff15e3cc338b8f6a1248e60f0866bd260a75b32ae4077a
+output: .cairn/evidence/FFS-001/20260914T202934371Z-2662282.out
+stderr_output: .cairn/evidence/FFS-001/20260914T202934371Z-2662282.err
+stderr_digest: sha256:8035f41e0f4b581e1561f315244bfedc28f69507261bd1a6f0bb4c2bac5838ff
+signal: none
+execution_error: null
+result: pass
+source: exit
+recorded: 2026-09-14T20:29:34.862Z
