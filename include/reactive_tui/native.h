@@ -482,6 +482,7 @@ enum RTuiError rtui_animation_set_property(RTuiAnimation *animation,
                                            float from_value,
                                            float to_value);
 
+/* Consumes animation on success. The old animation handle becomes invalid. */
 enum RTuiError rtui_animation_manager_add(RTuiAnimationManager *manager,
                                           RTuiAnimation *animation,
                                           char **out_id);
@@ -528,6 +529,7 @@ enum RTuiError rtui_app_builder_root_component(RTuiAppBuilder *builder,
                                                RTuiRootComponentCallback callback,
                                                void *user_data);
 
+/* Consumes builder on every call with non-NULL arguments, including failure. */
 enum RTuiError rtui_app_builder_build(RTuiAppBuilder *builder, RTuiApp **out_app);
 
 void rtui_app_destroy(RTuiApp *app);

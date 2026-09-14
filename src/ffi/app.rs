@@ -6,12 +6,17 @@ use crate::backend::{Backend, CrosstermBackend, DebugBackend, SuprTuiBackend};
 use crate::component::Element;
 use crate::display::monitor::PerformanceMode;
 use std::boxed::Box;
-use std::sync::Mutex;
+use std::sync::{Mutex, OnceLock};
 
 #[derive(Default)]
 struct NativeAppBuilder {
     inner: AppBuilder,
     terminal_selected: bool,
+}
+
+fn app_builder_tracker() -> &'static super::pointer::PointerTracker<NativeAppBuilder> {
+    static TRACKER: OnceLock<super::pointer::PointerTracker<NativeAppBuilder>> = OnceLock::new();
+    TRACKER.get_or_init(super::pointer::PointerTracker::new)
 }
 
 fn select_terminal_backend<B: Backend + 'static>(
@@ -174,7 +179,12 @@ pub extern "C" fn rtui_app_builder_create(out_builder: *mut *mut RTuiAppBuilder)
         let builder = NativeAppBuilder::default();
         let boxed = Box::new(builder);
         unsafe {
-            *out_builder = Box::into_raw(boxed) as *mut RTuiAppBuilder;
+            let raw = Box::into_raw(boxed);
+            if !app_builder_tracker().register(raw) {
+                drop(Box::from_raw(raw));
+                return Err(ReactiveError::OutOfMemory);
+            }
+            *out_builder = raw.cast::<RTuiAppBuilder>();
         }
         Ok(())
     }))
@@ -184,8 +194,11 @@ pub extern "C" fn rtui_app_builder_create(out_builder: *mut *mut RTuiAppBuilder)
 #[reactive_tui_macros::ffi_export]
 pub extern "C" fn rtui_app_builder_destroy(builder: *mut RTuiAppBuilder) {
     if !builder.is_null() {
-        unsafe {
-            let _ = Box::from_raw(builder as *mut NativeAppBuilder);
+        let raw = builder.cast::<NativeAppBuilder>();
+        if app_builder_tracker().unregister(raw) {
+            unsafe {
+                let _ = Box::from_raw(raw);
+            }
         }
     }
 }
@@ -310,7 +323,12 @@ pub extern "C" fn rtui_app_builder_build(
     }
 
     catch_panic(AssertUnwindSafe(|| unsafe {
-        let builder_box = Box::from_raw(builder as *mut NativeAppBuilder);
+        *out_app = std::ptr::null_mut();
+        let raw = builder.cast::<NativeAppBuilder>();
+        if !app_builder_tracker().unregister(raw) {
+            return Err(ReactiveError::InvalidPointer);
+        }
+        let builder_box = Box::from_raw(raw);
         match builder_box.inner.build() {
             Ok(app) => {
                 *out_app = Box::into_raw(Box::new(NativeApp::new(app))) as *mut RTuiApp;

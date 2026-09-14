@@ -140,14 +140,83 @@ def run_ffs_002() -> None:
         )
 
 
+def run_ffs_003() -> None:
+    consumer = ROOT / "tests/pre_release_ffi_ownership.c"
+    if not consumer.is_file():
+        raise RuntimeError(f"missing focused FFS-003 consumer: {consumer.relative_to(ROOT)}")
+
+    env = os.environ.copy()
+    env["CARGO_BUILD_JOBS"] = build_jobs()
+    subprocess.run(
+        [
+            "cargo",
+            "test",
+            "--locked",
+            "--features",
+            "ffi",
+            "--lib",
+            "callback_replacement_is_synchronized_and_reentrant",
+            "--jobs",
+            env["CARGO_BUILD_JOBS"],
+        ],
+        cwd=ROOT,
+        env=env,
+        check=True,
+        timeout=600,
+    )
+    subprocess.run(
+        ["cargo", "build", "--locked", "--features", "ffi", "--jobs", env["CARGO_BUILD_JOBS"]],
+        cwd=ROOT,
+        env=env,
+        check=True,
+        timeout=600,
+    )
+
+    with tempfile.TemporaryDirectory(prefix="ffs-003-", dir=TARGET) as scratch:
+        binary = Path(scratch) / "ffi-ownership"
+        subprocess.run(
+            [
+                "clang",
+                "-std=c11",
+                "-Wall",
+                "-Wextra",
+                "-Werror",
+                "-pedantic-errors",
+                "-fsanitize=address,undefined",
+                "-fno-omit-frame-pointer",
+                "-pthread",
+                "-Iinclude",
+                str(consumer),
+                f"-L{TARGET / 'debug'}",
+                f"-Wl,-rpath,{TARGET / 'debug'}",
+                "-lreactive_tui",
+                "-o",
+                str(binary),
+            ],
+            cwd=ROOT,
+            env=env,
+            check=True,
+            timeout=60,
+        )
+        subprocess.run(
+            [str(binary)],
+            cwd=ROOT,
+            env={**env, "ASAN_OPTIONS": "detect_leaks=1:halt_on_error=1"},
+            check=True,
+            timeout=30,
+        )
+
+
 def main() -> int:
     requested = sys.argv[1:]
     if requested == ["FFS-001"]:
         run_ffs_001()
     elif requested == ["FFS-002"]:
         run_ffs_002()
+    elif requested == ["FFS-003"]:
+        run_ffs_003()
     else:
-        raise SystemExit("usage: check-pre-release-ffi-safety.py FFS-001|FFS-002")
+        raise SystemExit("usage: check-pre-release-ffi-safety.py FFS-001|FFS-002|FFS-003")
     print(f"{requested[0]} focused C ABI safety checks passed")
     return 0
 

@@ -4,6 +4,7 @@
 
 use super::*;
 use crate::core::renderer::Renderer;
+use std::sync::RwLock;
 
 //
 // PERFORMANCE MONITORING
@@ -252,7 +253,7 @@ pub extern "C" fn dumpStdoutBuffer(renderer: *mut RTuiRenderer, timestamp: i64) 
 pub type LogCallback = extern "C" fn(level: u8, msg_ptr: *const u8, msg_len: usize);
 
 /// Global log callback storage
-static mut LOG_CALLBACK: Option<LogCallback> = None;
+static LOG_CALLBACK: RwLock<Option<LogCallback>> = RwLock::new(None);
 
 /// Set log callback for debugging
 #[reactive_tui_macros::ffi_export]
@@ -260,9 +261,9 @@ pub extern "C" fn setLogCallback(
     // Spell out the nullable function type so header generation retains its ABI.
     callback: Option<extern "C" fn(level: u8, msg_ptr: *const u8, msg_len: usize)>,
 ) {
-    unsafe {
-        LOG_CALLBACK = callback;
-    }
+    *LOG_CALLBACK
+        .write()
+        .unwrap_or_else(std::sync::PoisonError::into_inner) = callback;
 }
 
 /// Log levels (matching OpenTUI)
@@ -283,14 +284,14 @@ pub enum LogLevel {
 
 /// Internal logging function
 pub(crate) fn log_message(level: LogLevel, message: &str) {
-    // Send to callback if set, otherwise use default Rust logging
-    unsafe {
-        if let Some(callback) = LOG_CALLBACK {
-            let c_str = std::ffi::CString::new(message).unwrap_or_default();
-            let bytes = c_str.as_bytes_with_nul();
-            callback(level as u8, bytes.as_ptr(), bytes.len() - 1); // Exclude null terminator from length
-            return;
-        }
+    let callback = *LOG_CALLBACK
+        .read()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    if let Some(callback) = callback {
+        let c_str = std::ffi::CString::new(message).unwrap_or_default();
+        let bytes = c_str.as_bytes_with_nul();
+        callback(level as u8, bytes.as_ptr(), bytes.len() - 1); // Exclude null terminator from length
+        return;
     }
 
     // Fallback to standard Rust logging
@@ -300,6 +301,41 @@ pub(crate) fn log_message(level: LogLevel, message: &str) {
         LogLevel::Info => log::info!("{}", message),
         LogLevel::Debug => log::debug!("{}", message),
         LogLevel::Trace => log::trace!("{}", message),
+    }
+}
+
+#[cfg(test)]
+mod callback_tests {
+    use super::*;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    static CALLS: AtomicUsize = AtomicUsize::new(0);
+
+    extern "C" fn reentrant_callback(_: u8, _: *const u8, _: usize) {
+        CALLS.fetch_add(1, Ordering::Relaxed);
+        setLogCallback(None);
+    }
+
+    #[test]
+    fn callback_replacement_is_synchronized_and_reentrant() {
+        CALLS.store(0, Ordering::Relaxed);
+        setLogCallback(Some(reentrant_callback));
+        log_message(LogLevel::Info, "reentrant");
+        assert_eq!(CALLS.load(Ordering::Relaxed), 1);
+
+        let setter = std::thread::spawn(|| {
+            for index in 0..10_000 {
+                setLogCallback((index % 2 == 0).then_some(reentrant_callback));
+            }
+        });
+        let logger = std::thread::spawn(|| {
+            for _ in 0..10_000 {
+                log_message(LogLevel::Debug, "concurrent");
+            }
+        });
+        setter.join().unwrap();
+        logger.join().unwrap();
+        setLogCallback(None);
     }
 }
 

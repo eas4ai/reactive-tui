@@ -8,7 +8,13 @@ use crate::animation::{
 use std::boxed::Box;
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
+use std::sync::OnceLock;
 use std::time::Duration;
+
+fn animation_tracker() -> &'static super::pointer::PointerTracker<Animation> {
+    static TRACKER: OnceLock<super::pointer::PointerTracker<Animation>> = OnceLock::new();
+    TRACKER.get_or_init(super::pointer::PointerTracker::new)
+}
 
 /// Opaque handle to an animation
 #[repr(C)]
@@ -202,8 +208,12 @@ pub extern "C" fn rtui_animation_create(
             .loop_mode(loop_mode_enum)
             .build();
 
-        let boxed = Box::new(animation);
-        *out_animation = Box::into_raw(boxed) as *mut RTuiAnimation;
+        let raw = Box::into_raw(Box::new(animation));
+        if !animation_tracker().register(raw) {
+            drop(Box::from_raw(raw));
+            return Err(ReactiveError::OutOfMemory);
+        }
+        *out_animation = raw.cast::<RTuiAnimation>();
         Ok(())
     }))
 }
@@ -212,8 +222,11 @@ pub extern "C" fn rtui_animation_create(
 #[reactive_tui_macros::ffi_export]
 pub extern "C" fn rtui_animation_destroy(animation: *mut RTuiAnimation) {
     if !animation.is_null() {
-        unsafe {
-            let _ = Box::from_raw(animation as *mut Animation);
+        let raw = animation.cast::<Animation>();
+        if animation_tracker().unregister(raw) {
+            unsafe {
+                let _ = Box::from_raw(raw);
+            }
         }
     }
 }
@@ -232,7 +245,7 @@ pub extern "C" fn rtui_animation_set_property(
 
     catch_panic(AssertUnwindSafe(|| unsafe {
         // Validate pointer alignment and basic sanity
-        if (animation as usize) % std::mem::align_of::<Animation>() != 0 {
+        if !animation_tracker().is_valid(animation.cast::<Animation>()) {
             return Err(ReactiveError::InvalidPointer);
         }
         let animation_ref = &mut *(animation as *mut Animation);
@@ -281,11 +294,15 @@ pub extern "C" fn rtui_animation_manager_add(
         if (manager as usize) % std::mem::align_of::<AnimationManager>() != 0 {
             return Err(ReactiveError::InvalidPointer);
         }
-        if (animation as usize) % std::mem::align_of::<Animation>() != 0 {
+        let animation_raw = animation.cast::<Animation>();
+        if !animation_tracker().is_valid(animation_raw) {
             return Err(ReactiveError::InvalidPointer);
         }
         let manager_ref = &mut *(manager as *mut AnimationManager);
-        let animation_obj = Box::from_raw(animation as *mut Animation);
+        if !animation_tracker().unregister(animation_raw) {
+            return Err(ReactiveError::InvalidPointer);
+        }
+        let animation_obj = Box::from_raw(animation_raw);
 
         let id = manager_ref.add_animation(*animation_obj);
         let c_string = CString::new(id).map_err(|_| ReactiveError::InvalidUtf8)?;
@@ -328,7 +345,7 @@ pub extern "C" fn rtui_animation_play(animation: *mut RTuiAnimation) -> Reactive
 
     catch_panic(AssertUnwindSafe(|| unsafe {
         // Validate pointer alignment and basic sanity
-        if (animation as usize) % std::mem::align_of::<Animation>() != 0 {
+        if !animation_tracker().is_valid(animation.cast::<Animation>()) {
             return Err(ReactiveError::InvalidPointer);
         }
         let animation_ref = &mut *(animation as *mut Animation);
@@ -346,7 +363,7 @@ pub extern "C" fn rtui_animation_pause(animation: *mut RTuiAnimation) -> Reactiv
 
     catch_panic(AssertUnwindSafe(|| unsafe {
         // Validate pointer alignment and basic sanity
-        if (animation as usize) % std::mem::align_of::<Animation>() != 0 {
+        if !animation_tracker().is_valid(animation.cast::<Animation>()) {
             return Err(ReactiveError::InvalidPointer);
         }
         let animation_ref = &mut *(animation as *mut Animation);
@@ -364,7 +381,7 @@ pub extern "C" fn rtui_animation_stop(animation: *mut RTuiAnimation) -> Reactive
 
     catch_panic(AssertUnwindSafe(|| unsafe {
         // Validate pointer alignment and basic sanity
-        if (animation as usize) % std::mem::align_of::<Animation>() != 0 {
+        if !animation_tracker().is_valid(animation.cast::<Animation>()) {
             return Err(ReactiveError::InvalidPointer);
         }
         let animation_ref = &mut *(animation as *mut Animation);
@@ -385,7 +402,7 @@ pub extern "C" fn rtui_animation_is_playing(
 
     catch_panic(AssertUnwindSafe(|| unsafe {
         // Validate pointer alignment and basic sanity
-        if (animation as usize) % std::mem::align_of::<Animation>() != 0 {
+        if !animation_tracker().is_valid(animation.cast::<Animation>()) {
             return Err(ReactiveError::InvalidPointer);
         }
         let animation_ref = &*(animation as *const Animation);
@@ -406,7 +423,7 @@ pub extern "C" fn rtui_animation_get_progress(
 
     catch_panic(AssertUnwindSafe(|| unsafe {
         // Validate pointer alignment and basic sanity
-        if (animation as usize) % std::mem::align_of::<Animation>() != 0 {
+        if !animation_tracker().is_valid(animation.cast::<Animation>()) {
             return Err(ReactiveError::InvalidPointer);
         }
         let animation_ref = &*(animation as *const Animation);
@@ -450,8 +467,12 @@ pub extern "C" fn rtui_animation_create_spring(
             .easing(EasingFunction::Spring(spring_config))
             .build();
 
-        let boxed = Box::new(animation);
-        *out_animation = Box::into_raw(boxed) as *mut RTuiAnimation;
+        let raw = Box::into_raw(Box::new(animation));
+        if !animation_tracker().register(raw) {
+            drop(Box::from_raw(raw));
+            return Err(ReactiveError::OutOfMemory);
+        }
+        *out_animation = raw.cast::<RTuiAnimation>();
         Ok(())
     }))
 }
