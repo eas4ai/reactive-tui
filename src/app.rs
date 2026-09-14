@@ -144,6 +144,9 @@ impl App {
     }
 
     fn run_scoped(mut self) -> Result<()> {
+        #[cfg(unix)]
+        let _termination_signals =
+            crate::platform::unix::register_termination_waker(self.wake.clone())?;
         let result = self.run_loop();
         self.updaters.close();
         #[cfg(target_os = "linux")]
@@ -927,6 +930,15 @@ mod tests {
         }
     }
 
+    struct SignalComponent;
+
+    impl RootComponent for SignalComponent {
+        fn render(&self) -> Element {
+            eprintln!("TRL002_SIGNAL_READY:{}", std::process::id());
+            Element::text("waiting for termination signal")
+        }
+    }
+
     #[test]
     #[ignore = "invoked by the TRL-001 PTY mechanism"]
     fn main_thread_panic_restores_the_owned_terminal() {
@@ -944,6 +956,24 @@ mod tests {
             panic.is_err(),
             "main-thread panic must resume after cleanup"
         );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    #[ignore = "invoked by the TRL-002 PTY mechanism"]
+    fn termination_signal_uses_the_app_wake_path() {
+        if !std::env::var("REACTIVE_TUI_TRL_002_PROBE").is_ok_and(|probe| probe.starts_with("SIG"))
+        {
+            return;
+        }
+        let backend = SuprTuiBackend::new().expect("PTY backend must start");
+        let app = App::builder()
+            .backend(backend)
+            .root(SignalComponent)
+            .build()
+            .expect("signal probe app must build");
+        app.run().expect("signal must request graceful shutdown");
+        eprintln!("TRL002_SIGNAL_SHUTDOWN");
     }
 
     #[test]

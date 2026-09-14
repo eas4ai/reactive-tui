@@ -3,12 +3,12 @@
 //! Native POSIX terminal interface with signal handling
 
 use super::{input_receiver::InputWorker, InputReceiver, PlatformTty};
+use crate::app::AppWaker;
 use crate::error::Result;
 use std::os::unix::io::{AsRawFd, FromRawFd, OwnedFd, RawFd};
 use std::os::unix::net::UnixStream;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
-use std::sync::OnceLock;
 use std::sync::{Arc, Weak};
 use std::thread::JoinHandle;
 use std::time::Duration;
@@ -21,7 +21,13 @@ static SIGNAL_LIFECYCLE: Mutex<SignalLifecycle> = Mutex::new(SignalLifecycle {
     worker: None,
 });
 // FIX: Use OnceLock for thread-safe initialization instead of unsafe global
-static GLOBAL_TTY: OnceLock<Mutex<Option<Weak<TtyState>>>> = OnceLock::new();
+static TERMINATION_LIFECYCLE: Mutex<TerminationLifecycle> = Mutex::new(TerminationLifecycle {
+    next_id: 1,
+    wakers: Vec::new(),
+    actions: Vec::new(),
+    stop: None,
+    worker: None,
+});
 
 /// Signal handler for Unix systems
 #[derive(Clone, Copy)]
@@ -56,6 +62,24 @@ struct SignalLifecycle {
     action: Option<signal_hook::SigId>,
     stop: Option<UnixStream>,
     worker: Option<JoinHandle<()>>,
+}
+
+struct TerminationLifecycle {
+    next_id: u64,
+    wakers: Vec<(u64, AppWaker)>,
+    actions: Vec<signal_hook::SigId>,
+    stop: Option<UnixStream>,
+    worker: Option<JoinHandle<()>>,
+}
+
+pub(crate) struct TerminationSignalGuard {
+    id: u64,
+}
+
+impl Drop for TerminationSignalGuard {
+    fn drop(&mut self) {
+        release_termination_waker(self.id);
+    }
 }
 
 impl TtyState {
@@ -168,12 +192,6 @@ impl UnixTty {
         install_signal_handlers()?;
         state.signal_owner.store(true, Ordering::Release);
         let tty = UnixTty { fd, state };
-
-        // Store global reference for panic recovery (thread-safe)
-        let global_tty = GLOBAL_TTY.get_or_init(|| Mutex::new(None));
-        if let Ok(mut guard) = global_tty.lock() {
-            *guard = Some(Arc::downgrade(&tty.state));
-        }
 
         Ok(tty)
     }
@@ -427,29 +445,130 @@ pub fn reset_signal_handlers() {
     stop_signal_handler(resources);
 }
 
-/// Panic handler to restore terminal state
-pub fn install_panic_handler() {
-    std::panic::set_hook(Box::new(|_| {
-        // Thread-safe access to global TTY
-        if let Some(global_tty) = GLOBAL_TTY.get() {
-            if let Ok(guard) = global_tty.lock() {
-                if let Some(tty) = guard.as_ref().and_then(Weak::upgrade) {
-                    let _ = tty.restore();
+fn start_termination_signal_worker() -> Result<(Vec<signal_hook::SigId>, UnixStream, JoinHandle<()>)>
+{
+    use std::io::Read;
+
+    let (mut reader, writer) = UnixStream::pair()?;
+    let stop = reader.try_clone()?;
+    let mut actions = Vec::new();
+    for signal in [libc::SIGTERM, libc::SIGINT, libc::SIGHUP] {
+        let output = match writer.try_clone() {
+            Ok(output) => output,
+            Err(error) => {
+                for action in actions {
+                    signal_hook::low_level::unregister(action);
                 }
+                return Err(error.into());
+            }
+        };
+        match signal_hook::low_level::pipe::register(signal, output) {
+            Ok(action) => actions.push(action),
+            Err(error) => {
+                for action in actions {
+                    signal_hook::low_level::unregister(action);
+                }
+                return Err(error.into());
             }
         }
-        reset_signal_handlers();
-    }));
+    }
+    drop(writer);
+    let worker = match std::thread::Builder::new()
+        .name("reactive-tui-termination".into())
+        .spawn(move || {
+            let mut bytes = [0_u8; 64];
+            loop {
+                match reader.read(&mut bytes) {
+                    Ok(0) => break,
+                    Ok(_) => {
+                        let wakers = TERMINATION_LIFECYCLE
+                            .lock()
+                            .unwrap_or_else(|error| error.into_inner())
+                            .wakers
+                            .iter()
+                            .map(|(_, wake)| wake.clone())
+                            .collect::<Vec<_>>();
+                        for wake in wakers {
+                            wake.request_stop();
+                        }
+                    }
+                    Err(error) if error.kind() == std::io::ErrorKind::Interrupted => continue,
+                    Err(_) => break,
+                }
+            }
+        }) {
+        Ok(worker) => worker,
+        Err(error) => {
+            for action in actions {
+                signal_hook::low_level::unregister(action);
+            }
+            return Err(error.into());
+        }
+    };
+    Ok((actions, stop, worker))
+}
+
+pub(crate) fn register_termination_waker(wake: AppWaker) -> Result<TerminationSignalGuard> {
+    let mut lifecycle = TERMINATION_LIFECYCLE
+        .lock()
+        .unwrap_or_else(|error| error.into_inner());
+    let id = lifecycle.next_id;
+    let next_id = id.checked_add(1).ok_or_else(|| {
+        crate::error::ReactiveError::invalid_state("termination signal owner IDs exhausted")
+    })?;
+    if lifecycle.worker.is_none() {
+        let (actions, stop, worker) = start_termination_signal_worker()?;
+        lifecycle.actions = actions;
+        lifecycle.stop = Some(stop);
+        lifecycle.worker = Some(worker);
+    }
+    lifecycle.next_id = next_id;
+    lifecycle.wakers.push((id, wake));
+    Ok(TerminationSignalGuard { id })
+}
+
+fn release_termination_waker(id: u64) {
+    let resources = {
+        let mut lifecycle = TERMINATION_LIFECYCLE
+            .lock()
+            .unwrap_or_else(|error| error.into_inner());
+        lifecycle.wakers.retain(|(owner, _)| *owner != id);
+        if !lifecycle.wakers.is_empty() {
+            return;
+        }
+        (
+            std::mem::take(&mut lifecycle.actions),
+            lifecycle.stop.take(),
+            lifecycle.worker.take(),
+        )
+    };
+    for action in resources.0 {
+        signal_hook::low_level::unregister(action);
+    }
+    if let Some(stop) = resources.1 {
+        let _ = stop.shutdown(std::net::Shutdown::Both);
+    }
+    if let Some(worker) = resources.2 {
+        let _ = worker.join();
+    }
+}
+
+/// Chain the current panic hook without touching terminal state.
+pub fn install_panic_handler() {
+    let previous = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |information| previous(information)));
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::backend::SuprTuiBackend;
     use serial_test::serial;
     use std::sync::atomic::AtomicUsize;
 
     static CALLBACK_COUNT: AtomicUsize = AtomicUsize::new(0);
     static PRIOR_COUNT: AtomicUsize = AtomicUsize::new(0);
+    static PANIC_HOOK_COUNT: AtomicUsize = AtomicUsize::new(0);
     static CALLBACK_LOCK: Mutex<()> = Mutex::new(());
 
     extern "C" fn counted_callback(_context: *mut std::ffi::c_void) {
@@ -467,6 +586,46 @@ mod tests {
             std::thread::sleep(Duration::from_millis(5));
         }
         assert_eq!(counter.load(Ordering::SeqCst), expected);
+    }
+
+    #[test]
+    #[ignore = "invoked by the TRL-002 PTY mechanism"]
+    fn panic_handler_chains_the_prior_hook() {
+        if std::env::var("REACTIVE_TUI_TRL_002_PROBE").as_deref() != Ok("hook") {
+            return;
+        }
+        PANIC_HOOK_COUNT.store(0, Ordering::SeqCst);
+        std::panic::set_hook(Box::new(|_| {
+            PANIC_HOOK_COUNT.fetch_add(1, Ordering::SeqCst);
+            eprintln!("TRL002_PRIOR_HOOK");
+        }));
+        install_panic_handler();
+        let backend = SuprTuiBackend::new().expect("PTY backend must start");
+        let panic = std::panic::catch_unwind(|| panic!("TRL002_HOOK_PANIC"));
+        assert!(panic.is_err(), "panic probe must unwind");
+        assert_eq!(PANIC_HOOK_COUNT.load(Ordering::SeqCst), 1);
+        drop(backend);
+        eprintln!("TRL002_HOOK_CHAINED");
+    }
+
+    #[test]
+    #[ignore = "invoked by the TRL-002 PTY mechanism"]
+    fn foreign_thread_panic_keeps_terminal_owner_active() {
+        if std::env::var("REACTIVE_TUI_TRL_002_PROBE").as_deref() != Ok("ownership") {
+            return;
+        }
+        std::panic::set_hook(Box::new(|_| {}));
+        let tty = UnixTty::init().expect("PTY TTY must start");
+        install_panic_handler();
+        let panic = std::thread::spawn(|| panic!("TRL002_FOREIGN_PANIC")).join();
+        assert!(panic.is_err(), "foreign thread must panic");
+        assert!(
+            !tty.state.restored.load(Ordering::Acquire),
+            "foreign panic restored another thread's terminal"
+        );
+        eprintln!("TRL002_OWNER_ACTIVE");
+        drop(tty);
+        eprintln!("TRL002_OWNER_DROPPED");
     }
 
     #[test]
