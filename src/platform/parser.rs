@@ -422,12 +422,7 @@ impl EscapeSequenceParser {
                     &input[semicolon_idx + 1..end - if bel_terminated { 1 } else { 2 }],
                 )
             }
-            52 => {
-                // Clipboard response
-                self.parse_clipboard_osc(
-                    &input[semicolon_idx + 1..end - if bel_terminated { 1 } else { 2 }],
-                )
-            }
+            52 => None,
             996 => {
                 // Color scheme response
                 self.parse_color_scheme_response(
@@ -471,24 +466,6 @@ impl EscapeSequenceParser {
             "color_{}:{}",
             color_type, content
         )))
-    }
-
-    /// Parse clipboard OSC response (OSC 52)
-    fn parse_clipboard_osc(&mut self, data: &[u8]) -> Option<TerminalEvent> {
-        let content = std::str::from_utf8(data).ok()?;
-        if !content.starts_with("c;") {
-            return None;
-        }
-
-        let payload = &content[2..];
-        use base64::Engine;
-        if let Ok(decoded) = base64::engine::general_purpose::STANDARD.decode(payload) {
-            if let Ok(text) = String::from_utf8(decoded) {
-                return Some(TerminalEvent::Paste(text));
-            }
-        }
-
-        None
     }
 
     /// Parse color scheme response (OSC 996)

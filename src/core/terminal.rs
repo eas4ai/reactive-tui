@@ -389,6 +389,11 @@ impl Terminal {
 
     /// Set the terminal title
     pub fn set_title(&mut self, title: &str) -> Result<()> {
+        if title.chars().any(char::is_control) {
+            return Err(ReactiveError::terminal(
+                "Terminal title must contain no control characters",
+            ));
+        }
         write!(self.stdout, "\x1b]2;{}\x07", title)
             .map_err(|e| ReactiveError::terminal(format!("Failed to set terminal title: {}", e)))?;
         self.flush()

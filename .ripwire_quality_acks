@@ -6,5 +6,6 @@ ack duplication 6716b3b98a9864cc 25 TRL-002 uses two explicit PTY lifecycle fixt
 ack duplication 887a05e230369a41 156 TRL-002 uses two explicit PTY lifecycle fixtures; a shared abstraction would be premature under the Rule of Three, and the SignalComponent match is unrelated code
 ack new-clone-of-reused-helper 6716b3b98a9864cc 5 SignalComponent render is a PTY readiness probe and only token-similar to the unrelated os_error helper
 ack short-horizon-churn 3e6214eea6a0306e 8 TRL-001 must wrap the existing application and renderer entry points so owned terminal state drops before panic text is reprinted
+ack short-horizon-churn eeda96bd625b29d3 2 TRL-003 must sanitize child-provided OSC title text at the parser boundary before both screen state and TitleChanged events consume it
 ack short-horizon-churn f0aca3a6174bda76 6 TRL-002 must remove process-global panic restoration from UnixTty initialization so one thread cannot restore another terminal owner
 ack short-horizon-churn fee63597aeee73f8 18 TRL-001 must wrap the existing application and renderer entry points so owned terminal state drops before panic text is reprinted

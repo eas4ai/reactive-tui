@@ -492,7 +492,10 @@ impl AnsiParser {
         if let Some(command) = parts.first() {
             let params = if parts.len() > 1 {
                 match *command {
-                    "0" | "1" | "2" | "7" => vec![parts[1].to_string()],
+                    "0" | "1" | "2" => {
+                        vec![super::sanitize_host_text(parts[1]).into_owned()]
+                    }
+                    "7" => vec![parts[1].to_string()],
                     "8" => parts[1].splitn(2, ';').map(str::to_string).collect(),
                     _ => parts[1].split(';').map(str::to_string).collect(),
                 }

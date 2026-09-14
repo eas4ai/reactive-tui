@@ -926,9 +926,14 @@ impl Surface {
             };
         }
     }
-    /// Set a cell at the specified coordinates
-    pub fn set(&mut self, x: usize, y: usize, cell: Cell) {
+    /// Set a cell at the specified coordinates.
+    ///
+    /// Host control characters are stored as the Unicode replacement character.
+    pub fn set(&mut self, x: usize, y: usize, mut cell: Cell) {
         if x < self.w && y < self.h {
+            if cell.ch.is_control() {
+                cell.ch = '\u{fffd}';
+            }
             let i = self.idx(x, y);
             self.clear_grapheme_at(i);
             self.buf[i] = cell;

@@ -307,7 +307,8 @@ pub mod utils {
 
     /// Generate OSC sequence for setting title
     pub fn set_title(title: &str) -> String {
-        format!("\x1b]0;{}\x07", title)
+        let title = crate::terminal::sanitize_host_text(title);
+        format!("\x1b]0;{title}\x07")
     }
 
     /// Generate OSC sequence for setting working directory

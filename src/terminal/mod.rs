@@ -23,6 +23,24 @@ pub use pty::PseudoTerminal;
 pub use screen::VirtualScreen;
 pub use terminal_impl::Terminal;
 
+pub(crate) fn sanitize_host_text(text: &str) -> std::borrow::Cow<'_, str> {
+    if text.chars().any(char::is_control) {
+        std::borrow::Cow::Owned(
+            text.chars()
+                .map(|character| {
+                    if character.is_control() {
+                        '\u{fffd}'
+                    } else {
+                        character
+                    }
+                })
+                .collect(),
+        )
+    } else {
+        std::borrow::Cow::Borrowed(text)
+    }
+}
+
 /// Terminal configuration
 #[derive(Debug, Clone, PartialEq)]
 pub struct TerminalConfig {
