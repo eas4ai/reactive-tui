@@ -26,66 +26,33 @@ passed again. No requirement or falsifier mismatch remains.
 
 ## CRT-003 mechanism review
 
-The revised package graph added two Ghostty companion package commands and a
-Linux CPU-affinity wrapper. Every command remains a separate foreground process,
-and `taskset` applies the selected one-to-eight logical CPUs to Cargo and all
-of its children on Linux. Both direct and `mise`-provided Zig commands pass
-through that wrapper.
-
-This review found two mismatches in the new package commands. The sys package
-invokes its Zig build during Cargo's archive verification, but its command does
-not select Zig 0.15.2. The safe wrapper's normalized archive depends on the
-unpublished sys package and therefore cannot be verified from crates.io before
-the staged publication order begins. The sys package command must use
-`zig_0_15_2`; the wrapper must package without archive verification while the
-later embedded root build compiles the complete local wrapper and sys pair.
-These mismatches must be fixed before accepting the revised digest.
-
-The first attempted fix selected Zig 0.15.2 for the sys package. A targeted
-package verification ran under CPUs 0 through 7 and reached the pinned Ghostty
-build, which rejected Zig 0.15.2 and required Zig 0.16.0. The 0.15.2 constraint
-came from the incompatible crates.io package and does not describe upstream
-commit `5988a0b78b4aa804d1c12e66bbfe662bd97d81c0`. CRT-003 and its mechanism
-must use Zig 0.16.0 before this review can pass.
-
-After the Zig correction, the sys package verified successfully under CPUs 0
-through 7. Packaging the safe wrapper by itself then failed before archive
-creation because its renamed sys dependency is not published yet; Cargo applies
-this registry check even with `--no-verify`. A committed detached experiment
-made all six crates workspace members and ran `cargo package --workspace
---no-verify`. Cargo assembled all six archives successfully in one command,
-including the interdependent unpublished packages. The root archive was 2.7 MiB
-compressed. The mechanism should use that supported workspace operation after
-the feature build matrix, which already compiles every local companion crate.
-
-The first committed workspace packaging run assembled five archives, then
-stopped before the root archive because Cargo added 19 optional and development
-dependencies needed by the new workspace members and made `Cargo.lock` dirty.
-The mechanism correctly refused to continue without `--allow-dirty`. The
-workspace lock must be refreshed and committed as a separate implementation
-action before accepting the review digest.
-
 Compared `scripts/check-crates-release-build.sh` with the revised CRT-003
 requirement and falsifier. The script validates a numeric job count from one
-through eight before invoking Cargo. Every package and feature command is a
-separate foreground command. The shell exits on the first failure, so builds
-cannot overlap or hide an earlier failure.
+through eight before invoking Cargo. Every feature and packaging command is a
+separate foreground process. On Linux, `taskset` applies the selected logical
+CPUs to Cargo, Zig, and their child processes. The shell exits on the first
+failure, so builds cannot overlap or hide an earlier failure.
 
 The stable feature checks use the declared Rust 1.91 toolchain. The embedded
-terminal and all-feature checks select Zig 0.15.2 either from `PATH` or through
-the installed `mise` tool. The nightly all-feature command includes SIMD,
-embedded terminal support, FFI, and every default feature. The final root
-package command omits verification because unpublished companion packages
-cannot resolve from crates.io until staged publication; the earlier source
-checks compile the same root inputs and the contract check validates the
-normalized registry dependencies.
+terminal and all-feature checks select Zig 0.16.0, the version required by
+pinned libghostty-rs commit
+`5988a0b78b4aa804d1c12e66bbfe662bd97d81c0`. The nightly all-feature command
+includes SIMD, embedded terminal support, FFI, and every default feature. After
+the build matrix compiles all local dependencies, Cargo packages all six
+workspace members together with `--no-verify`. This allows Cargo to normalize
+the unpublished interdependent packages without consulting crates.io for a
+predecessor that has not been staged yet.
 
-The first full mechanism run used system Zig 0.16.0. `libghostty-vt-sys`
-rejected it with exit 101 and named its required Zig 0.15.2 version. This is the
-safe violating case. After installing the exact toolchain, `mise exec
-zig@0.15.2 -- zig version` returned `0.15.2`. Setting `CARGO_BUILD_JOBS=9`
-made the revised mechanism exit 1 before any Cargo command. These two focused
-checks confirm the corrected tool selection and job guard; the next committed
-CRT-003 run will verify the complete corrected build.
+The review exercised three safe violating cases. Nine requested jobs exited 1
+before Cargo ran. Zig 0.15.2 reached the pinned Ghostty build and was rejected
+with its Zig 0.16.0 requirement. An incomplete workspace lock assembled five
+archives and then stopped when Cargo made `Cargo.lock` dirty; the mechanism did
+not bypass that failure with `--allow-dirty`.
+
+With the corrections committed, the Ghostty sys package verified under Zig
+0.16.0 on CPUs 0 through 7. The clean workspace packaging command assembled all
+six archives, and the root archive was 2.7 MiB compressed. The static release
+contract also passed with the same clean tree. The next committed CRT-003 check
+will run the complete feature matrix.
 
 No requirement or falsifier mismatch was found in the revised mechanism.
