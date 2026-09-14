@@ -7,7 +7,6 @@ inputs:
   - build.rs
   - Cargo.lock
   - README.md
-  - docs/app-wakeups.md
   - reactive-tui-macros
   - src
   - scripts
