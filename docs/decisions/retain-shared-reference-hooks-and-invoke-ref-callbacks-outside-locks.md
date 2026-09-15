@@ -1,5 +1,7 @@
 # Retain shared reference hooks and invoke ref callbacks outside locks
 
+Superseded by: require-cloned-snapshots-for-reentrant-ref-updates
+
 Level: Judged
 Decided by: Shawn and Codex
 Rests on: API-019 API-004
