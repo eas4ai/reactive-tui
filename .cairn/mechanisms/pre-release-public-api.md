@@ -25,7 +25,8 @@ control helper without an active retention decision. It MUST also prove that
 an exception with a missing, stale, or mismatched decision is rejected.
 
 The check MUST then run rustdoc with missing documentation denied for the
-maintained default, minimal, FFI, Markdown, and all-feature library surfaces on
+maintained default, minimal, FFI, docs.rs, embedded-terminal, and combined
+stable-feature library surfaces on
 the supported Rust toolchain. It MUST inventory exported Rust items in shipped
 source, fail when `create_test_image` or another test-only helper is reachable
 in a production build, and inspect the `*_legacy` control-sequence helpers

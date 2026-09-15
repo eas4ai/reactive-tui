@@ -2015,7 +2015,8 @@ impl Surface {
         self.register_image(image_data)
     }
 
-    /// Create a simple colored image for testing
+    /// Create a simple colored image for testing.
+    #[cfg(test)]
     pub fn create_test_image(&mut self, width: u32, height: u32, r: u8, g: u8, b: u8) -> u32 {
         let Ok(bytes) = crate::widgets::display::image::decoded::dimensions(width, height) else {
             return 0;

@@ -228,26 +228,6 @@ pub mod sgr {
     pub fn ul_rgb(r: u8, g: u8, b: u8) -> String {
         format!("\x1b[58:2:{r}:{g}:{b}m")
     }
-
-    /// Legacy color formats (semicolon-separated)
-    pub fn fg_indexed_legacy(index: u8) -> String {
-        format!("\x1b[38;5;{index}m")
-    }
-
-    /// Set background color using 256-color index (legacy format)
-    pub fn bg_indexed_legacy(index: u8) -> String {
-        format!("\x1b[48;5;{index}m")
-    }
-
-    /// Set foreground color using RGB values (legacy format)
-    pub fn fg_rgb_legacy(r: u8, g: u8, b: u8) -> String {
-        format!("\x1b[38;2;{r};{g};{b}m")
-    }
-
-    /// Set background color using RGB values (legacy format)
-    pub fn bg_rgb_legacy(r: u8, g: u8, b: u8) -> String {
-        format!("\x1b[48;2;{r};{g};{b}m")
-    }
 }
 
 /// Underline styles
