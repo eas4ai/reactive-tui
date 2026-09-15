@@ -58,6 +58,7 @@ def run_tests():
         ],
         cwd=ROOT,
         env=environment,
+        stdin=subprocess.DEVNULL,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         start_new_session=True,
