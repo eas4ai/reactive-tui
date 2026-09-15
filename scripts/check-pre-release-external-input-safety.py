@@ -140,17 +140,44 @@ def check_xis_002() -> None:
     )
 
 
+def check_xis_003() -> None:
+    run(
+        [
+            "cargo",
+            "test",
+            "--locked",
+            "--lib",
+            "widgets::display::file_explorer::live::worker::tests::xis_003_",
+            "--jobs",
+            JOBS,
+            "--",
+            "--test-threads=1",
+        ],
+        [
+            "widgets::display::file_explorer::live::worker::tests::xis_003_validator_rejects_replaced_entry_outcomes",
+            "widgets::display::file_explorer::live::worker::tests::xis_003_copy_rejects_an_entry_replaced_after_inspection",
+            "widgets::display::file_explorer::live::worker::tests::xis_003_remove_rejects_an_entry_replaced_after_inspection",
+        ],
+    )
+
+
 def main() -> int:
-    if sys.argv[1:] not in (["XIS-001"], ["XIS-002"]):
-        print(f"usage: {Path(sys.argv[0]).name} XIS-001|XIS-002", file=sys.stderr)
+    if sys.argv[1:] not in (["XIS-001"], ["XIS-002"], ["XIS-003"]):
+        print(
+            f"usage: {Path(sys.argv[0]).name} XIS-001|XIS-002|XIS-003",
+            file=sys.stderr,
+        )
         return 2
     requirement = sys.argv[1]
     if requirement == "XIS-001":
         check_xis_001()
         print("XIS-001 dialog network safety passed")
-    else:
+    elif requirement == "XIS-002":
         check_xis_002()
         print("XIS-002 image input safety passed")
+    else:
+        check_xis_003()
+        print("XIS-003 file-explorer identity safety passed")
     return 0
 
 

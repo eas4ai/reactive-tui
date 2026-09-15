@@ -1,0 +1,27 @@
+# Mechanism: pre-release-file-explorer-identity-safety
+
+command: python3 -B scripts/check-pre-release-external-input-safety.py XIS-003
+inputs:
+  - .cairn/mechanisms/pre-release-file-explorer-identity-safety.md
+  - Cargo.toml
+  - Cargo.lock
+  - src/widgets/display/file_explorer
+  - scripts/check-pre-release-external-input-safety.py
+  - manual/display-widgets.md
+  - docs/spec/pre-release-external-input-safety.md
+  - docs/commitments/pre-release-external-input-safety.md
+requirements:
+  - XIS-003
+
+The check MUST first prove its outcome validator rejects a copy that publishes
+replacement bytes and a remove that deletes the replacement while leaving the
+original identity intact. It MUST also prove that a clear error is accepted
+when both identities remain unchanged.
+
+The check MUST then replace a selected regular file immediately after its
+metadata inspection and before the next copy or remove action. Copy MUST
+publish only the inspected identity or return a clear error without publishing
+the replacement. Remove MUST delete only the inspected identity or return a
+clear error without deleting the replacement. The replacement point MUST be a
+deterministic test hook, and both operations MUST run with one test thread.
+The display-widgets manual MUST describe the entry-identity rule.

@@ -24,6 +24,88 @@ fn operation(
     )
 }
 
+fn xis_003_copy_outcome_is_safe<T>(result: &io::Result<T>, copied: Option<&[u8]>) -> bool {
+    result.is_err() || copied == Some(b"original")
+}
+
+fn xis_003_remove_outcome_is_safe<T>(
+    result: &io::Result<T>,
+    original_exists: bool,
+    replacement_exists: bool,
+) -> bool {
+    result.is_err() || (!original_exists && replacement_exists)
+}
+
+#[test]
+fn xis_003_validator_rejects_replaced_entry_outcomes() {
+    assert!(!xis_003_copy_outcome_is_safe(
+        &Ok::<(), io::Error>(()),
+        Some(b"replacement")
+    ));
+    assert!(!xis_003_remove_outcome_is_safe(
+        &Ok::<(), io::Error>(()),
+        true,
+        false
+    ));
+    assert!(xis_003_copy_outcome_is_safe(
+        &Err::<(), _>(io::Error::other("entry changed")),
+        None
+    ));
+    assert!(xis_003_remove_outcome_is_safe(
+        &Err::<(), _>(io::Error::other("entry changed")),
+        true,
+        true
+    ));
+}
+
+#[test]
+fn xis_003_copy_rejects_an_entry_replaced_after_inspection() {
+    let fixture = tempfile::tempdir().unwrap();
+    let root = fixture.path();
+    std::fs::write(root.join("source"), b"original").unwrap();
+    std::fs::write(root.join("replacement"), b"replacement").unwrap();
+    let hook_root = root.to_path_buf();
+    operations::set_identity_race_hook(move || {
+        std::fs::rename(hook_root.join("source"), hook_root.join("original-held")).unwrap();
+        std::fs::rename(hook_root.join("replacement"), hook_root.join("source")).unwrap();
+    });
+
+    let result = execute(
+        &operation(root, Operation::Copy, "source", Some("copied")),
+        &|| false,
+    );
+    let copied = std::fs::read(root.join("copied")).ok();
+    assert!(
+        xis_003_copy_outcome_is_safe(&result, copied.as_deref()),
+        "copy accepted the replacement entry"
+    );
+}
+
+#[test]
+fn xis_003_remove_rejects_an_entry_replaced_after_inspection() {
+    let fixture = tempfile::tempdir().unwrap();
+    let root = fixture.path();
+    std::fs::write(root.join("source"), b"original").unwrap();
+    std::fs::write(root.join("replacement"), b"replacement").unwrap();
+    let hook_root = root.to_path_buf();
+    operations::set_identity_race_hook(move || {
+        std::fs::rename(hook_root.join("source"), hook_root.join("original-held")).unwrap();
+        std::fs::rename(hook_root.join("replacement"), hook_root.join("source")).unwrap();
+    });
+
+    let result = execute(&operation(root, Operation::Delete, "source", None), &|| {
+        false
+    });
+    assert!(
+        xis_003_remove_outcome_is_safe(
+            &result,
+            root.join("original-held").exists(),
+            root.join("source").exists(),
+        ),
+        "remove deleted the replacement entry"
+    );
+}
+
 #[test]
 fn worker_rejects_parent_traversal_and_absolute_paths_outside_root() {
     let fixture = tempfile::tempdir().unwrap();

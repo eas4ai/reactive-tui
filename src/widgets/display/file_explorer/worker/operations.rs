@@ -11,6 +11,30 @@ mod rename;
 #[path = "operations/symlink.rs"]
 mod symlink;
 
+#[cfg(test)]
+std::thread_local! {
+    static IDENTITY_RACE_HOOK: std::cell::RefCell<Option<Box<dyn FnOnce()>>> =
+        const { std::cell::RefCell::new(None) };
+}
+
+#[cfg(test)]
+pub(super) fn set_identity_race_hook(hook: impl FnOnce() + 'static) {
+    IDENTITY_RACE_HOOK.with(|slot| {
+        assert!(slot.borrow_mut().replace(Box::new(hook)).is_none());
+    });
+}
+
+#[cfg(test)]
+fn run_identity_race_hook() {
+    let hook = IDENTITY_RACE_HOOK.with(|slot| slot.borrow_mut().take());
+    if let Some(hook) = hook {
+        hook();
+    }
+}
+
+#[cfg(not(test))]
+fn run_identity_race_hook() {}
+
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(in super::super) enum Operation {
     Copy,
@@ -271,6 +295,7 @@ fn copy_entry(
 ) -> io::Result<()> {
     visit(count, depth, cancelled)?;
     let metadata = source.symlink_metadata(name)?;
+    run_identity_race_hook();
     if metadata.file_type().is_symlink() {
         #[cfg(unix)]
         {
@@ -363,6 +388,7 @@ fn remove(
 ) -> io::Result<()> {
     visit(count, depth, cancelled)?;
     let metadata = parent.symlink_metadata(name)?;
+    run_identity_race_hook();
     #[cfg(windows)]
     {
         use cap_std::fs::MetadataExt;
