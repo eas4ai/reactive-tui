@@ -56,20 +56,31 @@ def check_xis_001() -> None:
         ],
     )
     run(
+        ["python3", "-B", "scripts/check-dialog-http.py"],
+        ["widgets::dialog::http::tests::tls_certificate_probe"],
+    )
+    run(
         [
             "cargo",
             "test",
             "--locked",
             "--test",
             "api_widget_behavior",
-            "dialog_http_acceptance::xis_001_disabled_dialog_configuration_never_spawns_curl",
+            "dialog_http_acceptance::",
             "--jobs",
             JOBS,
             "--",
-            "--exact",
             "--test-threads=1",
         ],
-        ["dialog_http_acceptance::xis_001_disabled_dialog_configuration_never_spawns_curl"],
+        [
+            "dialog_http_acceptance::xis_001_disabled_dialog_configuration_never_spawns_curl",
+            "dialog_http_acceptance::dialog_engine_http_validation_delivers_an_awaitable_result",
+            "dialog_http_acceptance::dialog_engine_http_close_cancels_a_live_request_and_does_not_submit",
+            "dialog_http_acceptance::input_dialog_remote_validation_posts_json_and_completes_pending_submission",
+            "dialog_http_acceptance::autocomplete_http_sends_query_headers_and_renders_suggestion_objects",
+            "dialog_http_acceptance::autocomplete_http_debounces_edits_into_one_current_query",
+            "dialog_http_acceptance::autocomplete_removal_cancels_a_live_http_request",
+        ],
     )
 
 

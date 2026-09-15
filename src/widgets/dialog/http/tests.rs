@@ -206,7 +206,6 @@ fn xis_001_validate_curl_captures(captures: &[serde_json::Value]) -> Result<(), 
         "-",
     ];
     let expected_environment = [
-        ("PATH", "/fixture/bin"),
         ("https_proxy", "http://proxy.invalid:8080"),
         ("NO_PROXY", "example.invalid"),
         ("CURL_CA_BUNDLE", "/fixture/ca.pem"),
@@ -224,6 +223,13 @@ fn xis_001_validate_curl_captures(captures: &[serde_json::Value]) -> Result<(), 
             if environment.contains_key(name) {
                 return Err(format!("curl inherited unrelated environment value {name}"));
             }
+        }
+        if environment
+            .get("PATH")
+            .and_then(serde_json::Value::as_str)
+            .is_none_or(str::is_empty)
+        {
+            return Err("curl lost PATH needed to locate the executable".into());
         }
         for (name, expected) in expected_environment {
             if environment.get(name).and_then(serde_json::Value::as_str) != Some(expected) {

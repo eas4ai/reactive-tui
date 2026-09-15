@@ -16,6 +16,22 @@ use std::{
 const MAX_REQUEST: usize = 1024 * 1024;
 const MAX_RESPONSE: u64 = 64 * 1024;
 const TIMEOUT: Duration = Duration::from_secs(5);
+const CURL_ENVIRONMENT: &[&str] = &[
+    "PATH",
+    "PATHEXT",
+    "SystemRoot",
+    "WINDIR",
+    "http_proxy",
+    "https_proxy",
+    "all_proxy",
+    "no_proxy",
+    "HTTPS_PROXY",
+    "ALL_PROXY",
+    "NO_PROXY",
+    "CURL_CA_BUNDLE",
+    "SSL_CERT_FILE",
+    "SSL_CERT_DIR",
+];
 
 #[cfg(test)]
 mod tests;
@@ -163,6 +179,17 @@ fn configuration(
     Ok(result)
 }
 
+fn curl_command() -> Command {
+    let mut command = Command::new("curl");
+    command.env_clear();
+    for name in CURL_ENVIRONMENT {
+        if let Some(value) = std::env::var_os(name) {
+            command.env(name, value);
+        }
+    }
+    command
+}
+
 fn request(
     configuration: &str,
     timeout: Duration,
@@ -178,7 +205,7 @@ fn request(
         capture_output: true,
         allow_background_after_success: false,
     };
-    let mut version = Command::new("curl");
+    let mut version = curl_command();
     version.args(["--disable", "--version"]);
     let version = owned_process::run(version, None, options, &cancelled)
         .map_err(|error| format!("Dialog HTTP requires curl 8.4 or newer: {error}"))?;
@@ -194,7 +221,7 @@ fn request(
     {
         return Err("Dialog HTTP requires curl 8.4 or newer".into());
     }
-    let mut command = Command::new("curl");
+    let mut command = curl_command();
     command.args([
         "--disable",
         "--globoff",

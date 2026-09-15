@@ -11,6 +11,7 @@ inputs:
   - tests/api_widget_behavior/dialog_http.rs
   - tests/support/app_input.rs
   - scripts/check-pre-release-external-input-safety.py
+  - scripts/check-dialog-http.py
   - manual/dialogs.md
   - docs/spec/pre-release-external-input-safety.md
   - docs/commitments/pre-release-external-input-safety.md
