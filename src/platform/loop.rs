@@ -666,6 +666,58 @@ mod tests {
         }
     }
 
+    #[cfg(target_os = "linux")]
+    #[test]
+    #[ignore = "run in an isolated PTY by the RTR-002 mechanism"]
+    fn rtr_002_threaded_event_loop_probe() {
+        use std::io::Write;
+        use std::time::{Duration, Instant};
+
+        fn thread_count() -> usize {
+            std::fs::read_dir("/proc/self/task").unwrap().count()
+        }
+
+        let mode = std::env::var("RTR002_MODE").expect("RTR002_MODE");
+        let baseline_threads = thread_count();
+        let mut event_loop = ThreadedEventLoop::new();
+        event_loop.start().unwrap();
+        println!("RTR002 READY {mode}");
+        std::io::stdout().flush().unwrap();
+
+        match mode.as_str() {
+            "saturation" => {
+                std::thread::sleep(Duration::from_millis(250));
+                let deadline = Instant::now() + Duration::from_secs(2);
+                for _ in 0..600 {
+                    while event_loop.try_event().is_none() {
+                        assert!(Instant::now() < deadline, "consumer made no progress");
+                        std::thread::yield_now();
+                    }
+                }
+                event_loop.stop().unwrap();
+            }
+            "idle-stop" => {
+                let started = Instant::now();
+                event_loop.stop().unwrap();
+                assert!(started.elapsed() < Duration::from_secs(2));
+            }
+            "drop" => {
+                drop(event_loop);
+                let deadline = Instant::now() + Duration::from_secs(2);
+                while thread_count() > baseline_threads && Instant::now() < deadline {
+                    std::thread::sleep(Duration::from_millis(10));
+                }
+                assert_eq!(
+                    thread_count(),
+                    baseline_threads,
+                    "input reader survived Drop"
+                );
+            }
+            _ => panic!("unknown RTR002_MODE {mode}"),
+        }
+        println!("RTR002 PASS {mode}");
+    }
+
     #[cfg(feature = "tokio")]
     #[tokio::test]
     async fn test_tokio_event_loop_creation() {
