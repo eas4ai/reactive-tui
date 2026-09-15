@@ -1,7 +1,7 @@
 # Review: pre-release-external-input-safety
 
 commitment: pre-release-external-input-safety
-commit: e7161136e939bc44cf940ac44fafc94baf2eda7c
+commit: afaa1203a41ce06ac846a550eccbb2bfb5ef654c
 findings:
   - resolved: XIS-003 now runs 32 independent replacement rounds for copy and 32 for remove.
 
@@ -61,3 +61,23 @@ project code because `onig_sys` requires the unavailable
 `x86_64-w64-mingw32-gcc` compiler. Ripwire found unchanged function contracts;
 its quality delta reported expected short-horizon churn because Cairn's
 failing declaration and repair both touch `copy_entry`.
+
+## Retained README review
+
+Reviewed retained README commit `f0297216`, its approved scope record, and the
+fresh XIS-001, XIS-002, and XIS-003 receipts. The README summarizes the tested
+network deadline and request and response limits, the static image memory
+budget, and the file-explorer identity rejection. Each statement matches the
+current requirement, implementation, manual, and passing mechanism output.
+
+Attacked the summary for claims broader than the evidence. It limits remote
+dialog work to configured HTTP or HTTPS endpoints, describes only the static
+image budget, and says copy and delete reject an identity changed after
+inspection. It links the detailed manual rules instead of implying that the
+short summary lists every image or animation limit. Platform release claims
+remain qualified as pre-release work.
+
+Checked every local README target and section anchor, compared the displayed
+version, Rust version, job limit, feature names, and example names with the
+current tree, and compiled the referenced `suprtui_counter` example. No broken
+link, unsupported safety claim, or behavior change was found.
