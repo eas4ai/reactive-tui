@@ -1,0 +1,71 @@
+   Compiling reactive-tui v0.1.0 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.77s
+     Running tests/tokio_event_loop_lifecycle.rs (/home/shawn/workspace2/scratchpads/suprnova-target/debug/deps/tokio_event_loop_lifecycle-e16016c809db7a3d)
+
+running 2 tests
+test lifecycle_routes_are_safe_in_current_thread_runtime ... 
+thread 'lifecycle_routes_are_safe_in_current_thread_runtime' (3394165) panicked at src/platform/loop.rs:612:12:
+Cannot start a runtime from within a runtime. This happens because a function (like `block_on`) attempted to block the current thread while the thread is being used to drive asynchronous tasks.
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+thread 'lifecycle_routes_are_safe_in_current_thread_runtime' (3394165) panicked at tests/tokio_event_loop_lifecycle.rs:20:10:
+sync start panicked inside an active Tokio runtime: Any { .. }
+FAILED
+test lifecycle_routes_are_safe_in_multi_thread_runtime ... 
+thread 'lifecycle_routes_are_safe_in_multi_thread_runtime' (3394166) panicked at src/platform/loop.rs:612:12:
+Cannot start a runtime from within a runtime. This happens because a function (like `block_on`) attempted to block the current thread while the thread is being used to drive asynchronous tasks.
+
+thread 'lifecycle_routes_are_safe_in_multi_thread_runtime' (3394166) panicked at tests/tokio_event_loop_lifecycle.rs:20:10:
+sync start panicked inside an active Tokio runtime: Any { .. }
+FAILED
+
+failures:
+
+failures:
+    lifecycle_routes_are_safe_in_current_thread_runtime
+    lifecycle_routes_are_safe_in_multi_thread_runtime
+
+test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `--test tokio_event_loop_lifecycle`
+Traceback (most recent call last):
+  File "/home/shawn/workspace2/reactive-tui/scripts/check-pre-release-tokio-event-loop.py", line 77, in <module>
+    run_tests()
+    ~~~~~~~~~^^
+  File "/home/shawn/workspace2/reactive-tui/scripts/check-pre-release-tokio-event-loop.py", line 73, in run_tests
+    validate(child.returncode, output, timed_out)
+    ~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/shawn/workspace2/reactive-tui/scripts/check-pre-release-tokio-event-loop.py", line 19, in validate
+    assert returncode == 0, output.decode(errors="replace")
+           ^^^^^^^^^^^^^^^
+AssertionError:    Compiling reactive-tui v0.1.0 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.77s
+     Running tests/tokio_event_loop_lifecycle.rs (/home/shawn/workspace2/scratchpads/suprnova-target/debug/deps/tokio_event_loop_lifecycle-e16016c809db7a3d)
+
+running 2 tests
+test lifecycle_routes_are_safe_in_current_thread_runtime ... 
+thread 'lifecycle_routes_are_safe_in_current_thread_runtime' (3394165) panicked at src/platform/loop.rs:612:12:
+Cannot start a runtime from within a runtime. This happens because a function (like `block_on`) attempted to block the current thread while the thread is being used to drive asynchronous tasks.
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+thread 'lifecycle_routes_are_safe_in_current_thread_runtime' (3394165) panicked at tests/tokio_event_loop_lifecycle.rs:20:10:
+sync start panicked inside an active Tokio runtime: Any { .. }
+FAILED
+test lifecycle_routes_are_safe_in_multi_thread_runtime ... 
+thread 'lifecycle_routes_are_safe_in_multi_thread_runtime' (3394166) panicked at src/platform/loop.rs:612:12:
+Cannot start a runtime from within a runtime. This happens because a function (like `block_on`) attempted to block the current thread while the thread is being used to drive asynchronous tasks.
+
+thread 'lifecycle_routes_are_safe_in_multi_thread_runtime' (3394166) panicked at tests/tokio_event_loop_lifecycle.rs:20:10:
+sync start panicked inside an active Tokio runtime: Any { .. }
+FAILED
+
+failures:
+
+failures:
+    lifecycle_routes_are_safe_in_current_thread_runtime
+    lifecycle_routes_are_safe_in_multi_thread_runtime
+
+test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `--test tokio_event_loop_lifecycle`
+
