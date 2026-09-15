@@ -468,6 +468,103 @@ fn input_with(
 }
 
 #[test]
+#[cfg(unix)]
+fn xis_001_disabled_dialog_configuration_never_spawns_curl() {
+    const CHILD: &str = "RTUI_XIS_DISABLED_CHILD";
+    const MARKER: &str = "RTUI_XIS_DISABLED_MARKER";
+    if std::env::var_os(CHILD).is_some() {
+        let marker = std::path::PathBuf::from(std::env::var_os(MARKER).unwrap());
+        let result = Arc::new(Mutex::new(None));
+        let closed = result.clone();
+        let input = InputDialog::new(
+            DialogId::from_u32(210),
+            InputDialogOptions {
+                title: "LOCAL INPUT".into(),
+                prompt: "VALUE".into(),
+                on_close: Some(Arc::new(move |value| {
+                    if let DialogResult::Confirmed(Some(value)) = value {
+                        *closed.lock().unwrap() = Some(value);
+                    }
+                })),
+                ..Default::default()
+            },
+        )
+        .render(Rect::default(), &DialogTheme::default());
+        app_input::run_until_hidden(
+            Control(input),
+            (32, 12),
+            vec![("VALUE", super::key(KeyCode::Enter))],
+            "LOCAL INPUT",
+        );
+        assert_eq!(result.lock().unwrap().as_deref(), Some(""));
+
+        use reactive_tui::widgets::dialog::{
+            AutocompleteConfig, AutocompleteDialog, AutocompleteDialogOptions,
+        };
+        let autocomplete = AutocompleteDialog::new(
+            DialogId::from_u32(211),
+            AutocompleteDialogOptions {
+                title: "LOCAL SEARCH".into(),
+                prompt: "QUERY".into(),
+                autocomplete: AutocompleteConfig {
+                    static_suggestions: vec!["local".into()],
+                    ..Default::default()
+                },
+                ..Default::default()
+            },
+        )
+        .render(Rect::default(), &DialogTheme::default());
+        app_input::run_until_hidden(
+            Control(autocomplete),
+            (32, 12),
+            vec![("LOCAL SEARCH", super::key(KeyCode::Escape))],
+            "LOCAL SEARCH",
+        );
+        assert!(
+            !marker.exists(),
+            "disabled dialog configuration started curl"
+        );
+        return;
+    }
+
+    use std::os::unix::fs::PermissionsExt;
+    let directory = tempfile::tempdir().unwrap();
+    let marker = directory.path().join("started");
+    let executable = directory.path().join("curl");
+    std::fs::write(
+        &executable,
+        format!("#!/bin/sh\n: > '{}'\nexit 99\n", marker.display()),
+    )
+    .unwrap();
+    let mut permissions = std::fs::metadata(&executable).unwrap().permissions();
+    permissions.set_mode(0o700);
+    std::fs::set_permissions(&executable, permissions).unwrap();
+    let output = std::process::Command::new(std::env::current_exe().unwrap())
+        .args([
+            "--exact",
+            "dialog_http_acceptance::xis_001_disabled_dialog_configuration_never_spawns_curl",
+            "--nocapture",
+        ])
+        .env_clear()
+        .env(CHILD, "1")
+        .env(MARKER, &marker)
+        .env("PATH", directory.path())
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(String::from_utf8_lossy(&output.stdout).contains("1 passed"));
+    assert!(
+        !marker.exists(),
+        "disabled dialog configuration started curl"
+    );
+}
+
+#[test]
 fn input_dialog_remote_validation_posts_json_and_completes_pending_submission() {
     for size in [(32, 12), (60, 20)] {
         let server = Server::new(vec![Reply::json(r#"{"valid":true}"#)]);

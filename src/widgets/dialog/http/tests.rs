@@ -181,6 +181,188 @@ fn unsafe_configuration_and_oversized_requests_fail_before_spawn() {
     .contains("1 MiB"));
 }
 
+#[cfg(unix)]
+fn xis_001_validate_curl_captures(captures: &[serde_json::Value]) -> Result<(), String> {
+    if captures.len() != 2 {
+        return Err(format!(
+            "expected two curl processes, got {}",
+            captures.len()
+        ));
+    }
+    let expected_arguments = [
+        "--disable",
+        "--globoff",
+        "--proto",
+        "=http,https",
+        "--silent",
+        "--show-error",
+        "--max-time",
+        "5",
+        "--max-filesize",
+        "65536",
+        "--write-out",
+        "\n%{http_code}",
+        "--config",
+        "-",
+    ];
+    let expected_environment = [
+        ("PATH", "/fixture/bin"),
+        ("https_proxy", "http://proxy.invalid:8080"),
+        ("NO_PROXY", "example.invalid"),
+        ("CURL_CA_BUNDLE", "/fixture/ca.pem"),
+    ];
+    for capture in captures {
+        let environment = capture["environment"]
+            .as_object()
+            .ok_or_else(|| "curl capture has no environment".to_string())?;
+        for name in [
+            "HOME",
+            "RTUI_XIS_SECRET",
+            "RTUI_XIS_CHILD",
+            "RTUI_XIS_CAPTURE",
+        ] {
+            if environment.contains_key(name) {
+                return Err(format!("curl inherited unrelated environment value {name}"));
+            }
+        }
+        for (name, expected) in expected_environment {
+            if environment.get(name).and_then(serde_json::Value::as_str) != Some(expected) {
+                return Err(format!("curl lost supported environment value {name}"));
+            }
+        }
+    }
+    if captures[0]["arguments"] != serde_json::json!(["--disable", "--version"]) {
+        return Err("curl version arguments changed".into());
+    }
+    if captures[1]["arguments"] != serde_json::json!(expected_arguments) {
+        return Err("curl request arguments changed".into());
+    }
+    let request = captures[1]["stdin"]
+        .as_str()
+        .ok_or_else(|| "request capture has no stdin".to_string())?;
+    if !request.contains("url = \"https://example.invalid/validate\"")
+        || !request.contains("data-raw = \"{\\\"value\\\":\\\"private\\\"}\"")
+    {
+        return Err("curl request configuration did not stay on private stdin".into());
+    }
+    Ok(())
+}
+
+#[test]
+#[cfg(unix)]
+fn xis_001_capture_validator_rejects_unsafe_observations() {
+    let environment = serde_json::json!({
+        "PATH": "/fixture/bin",
+        "https_proxy": "http://proxy.invalid:8080",
+        "NO_PROXY": "example.invalid",
+        "CURL_CA_BUNDLE": "/fixture/ca.pem"
+    });
+    let valid = vec![
+        serde_json::json!({
+            "arguments": ["--disable", "--version"],
+            "stdin": "",
+            "environment": environment
+        }),
+        serde_json::json!({
+            "arguments": ["--disable", "--globoff", "--proto", "=http,https", "--silent",
+                "--show-error", "--max-time", "5", "--max-filesize", "65536", "--write-out",
+                "\n%{http_code}", "--config", "-"],
+            "stdin": "url = \"https://example.invalid/validate\"\ndata-raw = \"{\\\"value\\\":\\\"private\\\"}\"\n",
+            "environment": environment
+        }),
+    ];
+    xis_001_validate_curl_captures(&valid).unwrap();
+
+    let mut inherited = valid.clone();
+    inherited[1]["environment"]["RTUI_XIS_SECRET"] = "must-not-leak".into();
+    assert!(xis_001_validate_curl_captures(&inherited).is_err());
+    let mut missing_proxy = valid.clone();
+    missing_proxy[0]["environment"]
+        .as_object_mut()
+        .unwrap()
+        .remove("https_proxy");
+    assert!(xis_001_validate_curl_captures(&missing_proxy).is_err());
+    let mut redirect = valid.clone();
+    redirect[1]["arguments"]
+        .as_array_mut()
+        .unwrap()
+        .push("--location".into());
+    assert!(xis_001_validate_curl_captures(&redirect).is_err());
+    let mut exposed = valid.clone();
+    exposed[1]["stdin"] = "".into();
+    assert!(xis_001_validate_curl_captures(&exposed).is_err());
+    assert!(xis_001_validate_curl_captures(&valid[..1]).is_err());
+}
+
+#[test]
+#[cfg(unix)]
+fn xis_001_request_process_receives_only_documented_environment() {
+    const CHILD: &str = "RTUI_XIS_CHILD";
+    const CAPTURE: &str = "RTUI_XIS_CAPTURE";
+    if std::env::var_os(CHILD).is_some() {
+        let path = std::path::PathBuf::from(std::env::var_os(CAPTURE).unwrap());
+        let configuration =
+            configuration("https://example.invalid/validate", "value", "private", None).unwrap();
+        assert_eq!(request(&configuration, TIMEOUT, || false).unwrap(), b"{}");
+        let captures = std::fs::read_to_string(path)
+            .unwrap()
+            .lines()
+            .map(|line| serde_json::from_str(line).unwrap())
+            .collect::<Vec<_>>();
+        xis_001_validate_curl_captures(&captures).unwrap();
+        return;
+    }
+
+    use std::os::unix::fs::PermissionsExt;
+    let directory = tempfile::tempdir().unwrap();
+    let capture = directory.path().join("capture.jsonl");
+    let executable = directory.path().join("curl");
+    let script = format!(
+        r#"#!/usr/bin/python3
+import json, os, sys
+capture = {{"arguments": sys.argv[1:], "stdin": "", "environment": dict(os.environ)}}
+if sys.argv[1:] != ["--disable", "--version"]:
+    capture["stdin"] = sys.stdin.read()
+with open({}, "a", encoding="utf-8") as output:
+    output.write(json.dumps(capture, sort_keys=True) + "\n")
+if sys.argv[1:] == ["--disable", "--version"]:
+    print("curl 8.4.0 fixture")
+else:
+    sys.stdout.write("{{}}\n200")
+"#,
+        serde_json::to_string(&capture.to_string_lossy()).unwrap()
+    );
+    std::fs::write(&executable, script).unwrap();
+    let mut permissions = std::fs::metadata(&executable).unwrap().permissions();
+    permissions.set_mode(0o700);
+    std::fs::set_permissions(&executable, permissions).unwrap();
+
+    let output = Command::new(std::env::current_exe().unwrap())
+        .args([
+            "--exact",
+            "widgets::dialog::http::tests::xis_001_request_process_receives_only_documented_environment",
+            "--nocapture",
+        ])
+        .env_clear()
+        .env(CHILD, "1")
+        .env(CAPTURE, &capture)
+        .env("PATH", directory.path())
+        .env("https_proxy", "http://proxy.invalid:8080")
+        .env("NO_PROXY", "example.invalid")
+        .env("CURL_CA_BUNDLE", "/fixture/ca.pem")
+        .env("HOME", "/fixture/home")
+        .env("RTUI_XIS_SECRET", "must-not-leak")
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(String::from_utf8_lossy(&output.stdout).contains("1 passed"));
+}
+
 #[test]
 #[cfg(unix)]
 fn missing_curl_is_an_explicit_error_in_an_isolated_process() {
