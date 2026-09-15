@@ -14,4 +14,8 @@ Keep synchronous task creation so sync and async start never enter a nested runt
 
 ## Realized by
 
-(none yet: recorded, not built)
+- 7b045486182c6b1357c70a453dd3d2c1b4492746 fix: require async Tokio task shutdown
+
+Implementation: Sync stop returns an error containing `stop_async` while an input task is active and preserves the handle. The public async route signals and awaits that task. The two-runtime fixture requires the sync error to remain recoverable through bounded async cleanup.
+
+Behavior check: Both current-thread and multi-thread cases reach completion and the Cargo test process exits; timeout, panic, process failure, and missing completion remain failures.
