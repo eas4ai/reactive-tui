@@ -8,8 +8,18 @@ inputs:
   - README.md
   - manual
   - docs
+  - scripts/check-api-dialog-lifecycle.py
+  - scripts/check-app-wakeups-pty.py
+  - scripts/check-app-wakeups.sh
+  - scripts/check-embedded-terminal-pty.py
+  - scripts/check-embedded-terminal.sh
   - scripts/check-example-cleanup.py
+  - scripts/check-renderer-pty.py
+  - scripts/check-renderer.sh
   - scripts/test-example-cleanup.py
+  - tests/runtime_probes/app_wakeup.rs
+  - tests/runtime_probes/embedded_terminal.rs
+  - tests/runtime_probes/suprtui_renderer.rs
 requirements:
   - EXC-001
 
