@@ -1,0 +1,21 @@
+requirement: DQC-002
+requirement_digest: sha256:a3b8a75c8eebadf00607c1363f41c08618c0bdeb7131097694602226fb11cd15
+sequence: 1
+history_digest: sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+mechanism: pre-release-dependency-maintenance.md
+commit: ca06d8bd
+inputs_digest: sha256:d7f6e33b825ffc35e150b3457c58295d675b168b9cf9f09d5b26fd06568c293e
+mechanism_digest: sha256:ebe7faaaa2bece2d0378eabd7114163c370028b57839534ec114db18dd9b0012
+inputs_detail: .cairn/evidence/DQC-002/20260915T162213191Z-4050896.inputs.json
+command: python3 -B scripts/check-pre-release-dependency-code-quality.py DQC-002
+cwd: .
+exit: 2
+output_digest: sha256:80a469490ec78f0bb451b03272f3056be67684d63229338bb697c1502994f8b1
+output: .cairn/evidence/DQC-002/20260915T162213191Z-4050896.out
+stderr_output: .cairn/evidence/DQC-002/20260915T162213191Z-4050896.err
+stderr_digest: sha256:80a469490ec78f0bb451b03272f3056be67684d63229338bb697c1502994f8b1
+signal: none
+execution_error: null
+result: fail
+source: exit
+recorded: 2026-09-15T16:22:13.428Z
