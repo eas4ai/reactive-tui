@@ -1,0 +1,20 @@
+== validator tests ==
+...........
+----------------------------------------------------------------------
+Ran 11 tests in 0.025s
+
+OK
+== cargo audit ==
+== cargo deny advisories ==
+advisories ok
+== cargo deny licenses ==
+licenses ok
+== cargo deny sources ==
+sources ok
+== cargo deny bans ==
+bans ok
+== atty reachability ==
+DQC-001 audited artifacts:
+- /home/shawn/workspace2/reactive-tui/Cargo.lock: sha256:624a2f618b0c13ed9305f837f8b1ab27dae1aee467c3147175e45b27fbcf8f9d
+- /home/shawn/workspace2/reactive-tui/deny.toml: sha256:0cbb58f7077a49642f1ea8b8ef1176381b5630ffa88287f4a8e58d2eecd20753
+DQC-001 passed: locked audit, policy checks, and atty reachability are clean.
