@@ -11,4 +11,8 @@ Make input-task creation synchronous because it only validates state and calls t
 
 ## Realized by
 
-(none yet: recorded, not built)
+- 790ebb2d2228c04f62b0cac37939a3437505e08a fix: avoid nested Tokio runtimes
+
+Implementation: Task creation is synchronous and shared by both start routes. A running-state guard clears the flag when the task completes or is aborted. Both stop routes share shutdown signaling and task ownership; sync stop aborts without blocking, while async stop awaits the task.
+
+Behavior check: The RTR-003 fixture exercises sync and async start and stop inside current-thread and multi-thread Tokio runtimes, enforces bounded completion, and fails on any panic.
