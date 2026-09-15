@@ -1,6 +1,8 @@
 use super::*;
 use std::time::{Duration, Instant};
 
+const XIS_003_REPLACEMENT_ROUNDS: usize = 32;
+
 fn request(root: &Path, job: Job) -> Request {
     Request {
         id: 1,
@@ -60,50 +62,54 @@ fn xis_003_validator_rejects_replaced_entry_outcomes() {
 
 #[test]
 fn xis_003_copy_rejects_an_entry_replaced_after_inspection() {
-    let fixture = tempfile::tempdir().unwrap();
-    let root = fixture.path();
-    std::fs::write(root.join("source"), b"original").unwrap();
-    std::fs::write(root.join("replacement"), b"replacement").unwrap();
-    let hook_root = root.to_path_buf();
-    operations::set_identity_race_hook(move || {
-        std::fs::rename(hook_root.join("source"), hook_root.join("original-held")).unwrap();
-        std::fs::rename(hook_root.join("replacement"), hook_root.join("source")).unwrap();
-    });
+    for round in 0..XIS_003_REPLACEMENT_ROUNDS {
+        let fixture = tempfile::tempdir().unwrap();
+        let root = fixture.path();
+        std::fs::write(root.join("source"), b"original").unwrap();
+        std::fs::write(root.join("replacement"), b"replacement").unwrap();
+        let hook_root = root.to_path_buf();
+        operations::set_identity_race_hook(move || {
+            std::fs::rename(hook_root.join("source"), hook_root.join("original-held")).unwrap();
+            std::fs::rename(hook_root.join("replacement"), hook_root.join("source")).unwrap();
+        });
 
-    let result = execute(
-        &operation(root, Operation::Copy, "source", Some("copied")),
-        &|| false,
-    );
-    let copied = std::fs::read(root.join("copied")).ok();
-    assert!(
-        xis_003_copy_outcome_is_safe(&result, copied.as_deref()),
-        "copy accepted the replacement entry"
-    );
+        let result = execute(
+            &operation(root, Operation::Copy, "source", Some("copied")),
+            &|| false,
+        );
+        let copied = std::fs::read(root.join("copied")).ok();
+        assert!(
+            xis_003_copy_outcome_is_safe(&result, copied.as_deref()),
+            "copy accepted the replacement entry in round {round}"
+        );
+    }
 }
 
 #[test]
 fn xis_003_remove_rejects_an_entry_replaced_after_inspection() {
-    let fixture = tempfile::tempdir().unwrap();
-    let root = fixture.path();
-    std::fs::write(root.join("source"), b"original").unwrap();
-    std::fs::write(root.join("replacement"), b"replacement").unwrap();
-    let hook_root = root.to_path_buf();
-    operations::set_identity_race_hook(move || {
-        std::fs::rename(hook_root.join("source"), hook_root.join("original-held")).unwrap();
-        std::fs::rename(hook_root.join("replacement"), hook_root.join("source")).unwrap();
-    });
+    for round in 0..XIS_003_REPLACEMENT_ROUNDS {
+        let fixture = tempfile::tempdir().unwrap();
+        let root = fixture.path();
+        std::fs::write(root.join("source"), b"original").unwrap();
+        std::fs::write(root.join("replacement"), b"replacement").unwrap();
+        let hook_root = root.to_path_buf();
+        operations::set_identity_race_hook(move || {
+            std::fs::rename(hook_root.join("source"), hook_root.join("original-held")).unwrap();
+            std::fs::rename(hook_root.join("replacement"), hook_root.join("source")).unwrap();
+        });
 
-    let result = execute(&operation(root, Operation::Delete, "source", None), &|| {
-        false
-    });
-    assert!(
-        xis_003_remove_outcome_is_safe(
-            &result,
-            root.join("original-held").exists(),
-            root.join("source").exists(),
-        ),
-        "remove deleted the replacement entry"
-    );
+        let result = execute(&operation(root, Operation::Delete, "source", None), &|| {
+            false
+        });
+        assert!(
+            xis_003_remove_outcome_is_safe(
+                &result,
+                root.join("original-held").exists(),
+                root.join("source").exists(),
+            ),
+            "remove deleted the replacement entry in round {round}"
+        );
+    }
 }
 
 #[test]
