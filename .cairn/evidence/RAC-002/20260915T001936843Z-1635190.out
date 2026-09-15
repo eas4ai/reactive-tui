@@ -1,0 +1,14 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.10s
+     Running unittests src/lib.rs (/home/shawn/workspace2/scratchpads/suprnova-target/debug/deps/reactive_tui-36d66272761b33c2)
+
+running 6 tests
+test hooks::refs::tests::rac_002_ref_update_allows_reentrant_read_and_write ... ok
+test hooks::refs::tests::rac_002_ref_update_blocks_other_threads_and_recovers_after_unwind ... ok
+test hooks::timer::tests::rac_002_throttle_and_debounce_callbacks_are_reentrant ... ok
+test reactive::hooks::tests::rac_002_thread_safe_signal_update_allows_reentrant_read_and_write ... ok
+test reactive::runtime::rac_002_tests::rac_002_runtime_effect_can_create_track_and_unregister_reentrantly ... ok
+test reactive::runtime::rac_002_tests::rac_002_source_inventory_rejects_callbacks_called_from_guard_expressions ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 1040 filtered out; finished in 0.08s
+
+RAC-002 callbacks completed re-entry and later progress without held guards
