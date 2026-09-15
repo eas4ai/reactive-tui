@@ -571,7 +571,6 @@ impl TokioEventLoop {
         if let Some(ref shutdown_tx) = self.shutdown_tx {
             let _ = shutdown_tx.send(true);
         }
-        self.is_running.store(false, Ordering::Release);
         self.input_task.take()
     }
 
