@@ -29,7 +29,6 @@ features = ["async-capabilities", "ffi"]
 
 [dependencies]
 async-channel = "2.1.1"
-atty = "0.2"
 bitflags = "2.9.3"
 crossterm = { package = "reactive-tui-crossterm", path = "src/backend/crossterm", version = "=0.1.0", features = ["event-stream"] }
 futures-core = "0.3"
@@ -56,7 +55,7 @@ gif = "0.13.3"
 vt100 = "0.16"
 base64 = "0.22.1"
 reactive-tui-macros = { path = "reactive-tui-macros", version = "=0.1.0" }
-lru = "0.16.0"
+lru = "0.18.2"
 dirs = "5.0"
 tempfile = "3.21"
 suprtui = { package = "reactive-tui-suprtui", path = "src/backend/engine", version = "=0.1.0" }

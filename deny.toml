@@ -1,0 +1,64 @@
+[graph]
+targets = [
+    "x86_64-unknown-linux-gnu",
+    "aarch64-unknown-linux-gnu",
+    "x86_64-unknown-linux-musl",
+    "aarch64-apple-darwin",
+    "x86_64-apple-darwin",
+    "x86_64-pc-windows-msvc",
+]
+all-features = true
+
+[advisories]
+unmaintained = "workspace"
+unsound = "all"
+unused-ignored-advisory = "deny"
+ignore = []
+
+[licenses]
+confidence-threshold = 0.93
+allow = [
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "BSL-1.0",
+    "CC0-1.0",
+    "ISC",
+    "MIT",
+    "MPL-2.0",
+    "Unicode-3.0",
+    "Zlib",
+]
+
+[bans]
+multiple-versions = "deny"
+wildcards = "deny"
+deny = [
+    { crate = "atty", reason = "Unused, unmaintained, and unsound; DQC-001 requires removal." },
+]
+skip = [
+    { crate = "base64@0.22.1", reason = "The public image paths use 0.22 while plist has moved to 0.23." },
+    { crate = "bitflags@1.3.2", reason = "png and syntect retain the pre-2.0 bitflags API." },
+    { crate = "io-lifetimes@2.0.4", reason = "fs-set-times has not moved to the io-lifetimes line used by cap-std." },
+    { crate = "phf_shared@0.11.3", reason = "string_cache retains phf 0.11 while the accessibility adapter uses phf 0.14." },
+    { crate = "syn@2.0.106", reason = "The proc-macro graph is transitioning independently from syn 2 to syn 3." },
+    { crate = "taffy@0.9.1", reason = "DQC-002 owns alignment with the renderer's taffy 0.13 API." },
+    { crate = "vte@0.14.1", reason = "DQC-002 owns alignment of the renderer and vt100 parser lines." },
+    { crate = "windows-sys@0.48.0", reason = "dirs retains the Windows 0.48 support crates." },
+    { crate = "windows-sys@0.59.0", reason = "The public Windows API and cap-std graph retain the 0.59 support crates." },
+    { crate = "windows-sys@0.60.2", reason = "comrak and terminal helpers retain the 0.60 support crates." },
+    { crate = "windows-targets@0.48.5", reason = "windows-sys 0.48 requires its matching generated target crates." },
+    { crate = "windows-targets@0.52.6", reason = "windows-sys 0.59 requires its matching generated target crates." },
+    { crate = "windows_x86_64_gnu@0.48.5", reason = "windows-targets 0.48 requires its matching generated target crate." },
+    { crate = "windows_x86_64_gnu@0.52.6", reason = "windows-targets 0.52 requires its matching generated target crate." },
+    { crate = "windows_x86_64_msvc@0.48.5", reason = "windows-targets 0.48 requires its matching generated target crate." },
+    { crate = "windows_x86_64_msvc@0.52.6", reason = "windows-targets 0.52 requires its matching generated target crate." },
+]
+skip-tree = []
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
+allow-git = []

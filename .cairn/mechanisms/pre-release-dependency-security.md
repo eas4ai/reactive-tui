@@ -6,6 +6,9 @@ inputs:
   - Cargo.toml
   - Cargo.lock
   - crates
+  - deny.toml
+  - scripts/check-pre-release-dependency-code-quality.py
+  - scripts/test-pre-release-dependency-code-quality.py
   - docs/spec/pre-release-dependency-code-quality.md
   - docs/commitments/pre-release-dependency-code-quality.md
   - docs/decisions
