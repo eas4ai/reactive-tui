@@ -11,8 +11,10 @@ gradient example, and remove stale tracked references to the deleted programs.
 ## Boundaries
 
 This commitment changes `examples/`, tracked documentation or manifest
-references to the removed examples, and the Cairn mechanism for EXC-001. It
-does not repair the deleted programs or build the widget catalog.
+references to the removed examples, and the Cairn mechanism for EXC-001.
+Mechanism-only programs may move under `tests/runtime_probes/` with private
+target names. It does not repair the deleted programs or build the widget
+catalog.
 
 Done-when: EXC-001 passes and final review finds no tracked invitation to run a
 removed example.

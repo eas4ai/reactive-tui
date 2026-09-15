@@ -36,7 +36,7 @@ def controlling_terminal():
 
 
 def main():
-    binary = (Path(os.environ.get("CARGO_TARGET_DIR", "target")) / "debug/examples/wake_counter").resolve()
+    binary = (Path(os.environ.get("CARGO_TARGET_DIR", "target")) / "debug/examples/app_wakeup_probe").resolve()
     master, slave = os.openpty()
     probe.resize(slave, 40, 8)
     original = termios.tcgetattr(slave)

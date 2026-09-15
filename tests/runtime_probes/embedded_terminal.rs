@@ -1,5 +1,5 @@
-//! Run with: cargo run --features embedded-terminal --example embedded_shell
-//! Ctrl+Q leaves the host; Ctrl+C and Escape belong to the child shell.
+//! Internal embedded-terminal lifecycle acceptance probe.
+
 #[cfg(all(unix, feature = "embedded-terminal"))]
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     use reactive_tui::{
@@ -9,6 +9,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         event::types::{KeyCode, KeyModifiers},
     };
     use std::process::Command;
+
     let backend = SuprTuiBackend::new()?;
     let (width, height) = backend.size();
     let mut args = std::env::args_os().skip(1);
@@ -35,6 +36,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 #[cfg(not(all(unix, feature = "embedded-terminal")))]
 fn main() {
-    eprintln!("embedded_shell requires Unix and --features embedded-terminal");
+    eprintln!("embedded terminal probe requires Unix and --features embedded-terminal");
     std::process::exit(1);
 }

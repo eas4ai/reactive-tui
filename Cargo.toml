@@ -107,6 +107,19 @@ path = "tests/api_widget_behavior/image_host_probe.rs"
 name = "conpty_probe"
 path = "tests/api_widget_behavior/conpty_probe.rs"
 
+[[example]]
+name = "suprtui_renderer_probe"
+path = "tests/runtime_probes/suprtui_renderer.rs"
+
+[[example]]
+name = "app_wakeup_probe"
+path = "tests/runtime_probes/app_wakeup.rs"
+
+[[example]]
+name = "embedded_terminal_probe"
+path = "tests/runtime_probes/embedded_terminal.rs"
+required-features = ["embedded-terminal"]
+
 [[test]]
 name = "dqc_003_captured_diagnostics"
 path = "tests/dqc_003_captured_diagnostics.rs"

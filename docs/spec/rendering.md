@@ -39,10 +39,10 @@ Mechanism: `scripts/check-renderer.sh`, RND-004 controlled writers in `tests/sup
 The terminal session MUST restore raw mode, cursor visibility, and the alternate screen on normal exit or an application error.
 The session MUST attempt restoration during Rust unwinding.
 Falsifier: the pseudo-terminal retains changed termios settings or captured output lacks restoration after exit, error, or panic.
-Mechanism: `scripts/check-renderer.sh` and `scripts/check-renderer-pty.py` using the renderer example.
+Mechanism: `scripts/check-renderer.sh` and `scripts/check-renderer-pty.py` using an internal renderer acceptance probe.
 
 [RND-006]
-The example application MUST display a state change after keyboard input through App.
-The application MUST exit cleanly on its documented quit keys.
-Falsifier: the input probe cannot observe a changed counter, the process hangs on quit, or the example fails to build.
-Mechanism: `scripts/check-renderer.sh` and `scripts/check-renderer-pty.py` using `examples/suprtui_counter.rs`.
+The renderer acceptance probe MUST display a state change after keyboard input through App.
+The probe MUST exit cleanly on its documented quit keys.
+Falsifier: the input probe cannot observe a changed counter, the process hangs on quit, or the probe fails to build.
+Mechanism: `scripts/check-renderer.sh` and `scripts/check-renderer-pty.py` using the internal renderer probe.

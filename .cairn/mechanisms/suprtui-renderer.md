@@ -10,7 +10,7 @@ inputs:
   - reactive-tui-macros
   - src
   - tests/suprtui_renderer.rs
-  - examples/suprtui_counter.rs
+  - tests/runtime_probes/suprtui_renderer.rs
   - scripts
 requirements:
   - RND-001

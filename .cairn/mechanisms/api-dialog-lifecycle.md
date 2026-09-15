@@ -10,7 +10,6 @@ inputs:
   - reactive-tui-macros
   - tests
   - benches
-  - examples
   - scripts/check-api-dialog-lifecycle.py
   - docs/spec/rust-api-remediation.md
 requirements:

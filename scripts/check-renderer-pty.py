@@ -109,7 +109,7 @@ def probe(binary, mode="", quit_key=b"\x1b"):
 
 if __name__ == "__main__":
     # Cargo's target directory can be overridden by the caller.
-    binary = Path(os.environ.get("CARGO_TARGET_DIR", "target")) / "debug/examples/suprtui_counter"
+    binary = Path(os.environ.get("CARGO_TARGET_DIR", "target")) / "debug/examples/suprtui_renderer_probe"
     binary = binary.resolve()
     probe(binary)
     probe(binary, quit_key=b"\x03")

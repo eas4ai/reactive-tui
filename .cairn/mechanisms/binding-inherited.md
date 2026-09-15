@@ -18,9 +18,6 @@ inputs:
   - benches
   - docs/spec
   - examples
-  - examples/embedded_shell.rs
-  - examples/suprtui_counter.rs
-  - examples/wake_counter.rs
   - include
   - reactive-tui-macros
   - scripts
@@ -32,6 +29,9 @@ inputs:
   - tests/component_tests.rs
   - tests/embedded_terminal.rs
   - tests/registry_concurrency.rs
+  - tests/runtime_probes/app_wakeup.rs
+  - tests/runtime_probes/embedded_terminal.rs
+  - tests/runtime_probes/suprtui_renderer.rs
   - tests/simple_performance_test.rs
   - tests/suprtui_renderer.rs
 requirements:

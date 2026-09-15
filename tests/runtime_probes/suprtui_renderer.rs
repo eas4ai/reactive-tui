@@ -1,6 +1,4 @@
-//! Run with `cargo run --locked --example suprtui_counter`.
-//! Space/+ increments, - decrements; Escape or Ctrl+C quits.
-//! `--probe-error` and `--probe-panic` exercise cleanup after Space input.
+//! Internal renderer lifecycle acceptance probe.
 
 use reactive_tui::app::{App, RootComponent};
 use reactive_tui::backend::{Backend, SuprTuiBackend};
@@ -53,7 +51,6 @@ impl RootComponent for Counter {
     }
 }
 
-// Keep fault injection in the example, outside the production backend.
 struct ExampleBackend {
     inner: SuprTuiBackend,
     probe_error: bool,

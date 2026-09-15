@@ -102,13 +102,13 @@ fn main() -> Result<()> {
 }
 ```
 
-Run the interactive counter from this repository:
+Run the supported rendering example from this repository:
 
 ```sh
-cargo run --locked --example suprtui_counter
+cargo run --locked --example gradient_blocks
 ```
 
-Space or `+` increments the counter, `-` decrements it, and Escape or Ctrl+C exits.
+This example demonstrates color gradients and block rendering.
 
 ## Framework
 
@@ -202,13 +202,7 @@ Recommended starting points:
 
 | Example | Command | Purpose |
 | --- | --- | --- |
-| SuprTUI counter | `cargo run --locked --example suprtui_counter` | Interactive application lifecycle, input, Unicode, and terminal restoration. |
-| Wake counter | `cargo run --locked --example wake_counter` | Signal updates and an application that sleeps between changes. |
-| Dialog engine | `cargo run --locked --example dialog_engine` | Input dialog lifecycle, focus restoration, and results. |
 | Gradient blocks | `cargo run --locked --example gradient_blocks` | Color gradients and block rendering. |
-| Visual effects | `cargo run --locked --example visual_effects` | Terminal visual effects. |
-| Animated patterns | `cargo run --locked --example animated_patterns` | Scheduled animation patterns. |
-| Embedded shell | `cargo run --locked --features embedded-terminal --example embedded_shell` | Owned Unix PTY session rendered through libghostty. |
 
 ## FFI and TypeScript
 

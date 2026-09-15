@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Drive the actual embedded_shell example through a controlling host PTY."""
+"""Drive the internal embedded-terminal probe through a controlling host PTY."""
 import errno
 import fcntl
 import importlib.util
@@ -105,6 +105,6 @@ def probe(binary, failure=False):
 
 
 if __name__ == "__main__":
-    binary = (Path(os.environ.get("CARGO_TARGET_DIR", "target")) / "debug/examples/embedded_shell").resolve()
+    binary = (Path(os.environ.get("CARGO_TARGET_DIR", "target")) / "debug/examples/embedded_terminal_probe").resolve()
     probe(binary)
     probe(binary, failure=True)

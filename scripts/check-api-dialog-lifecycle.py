@@ -17,7 +17,6 @@ def main():
         ["cargo", "test", "--locked", "--lib", "widgets::dialog::"],
         ["cargo", "test", "--locked", "--lib", "widgets::display::modal::"],
         ["cargo", "test", "--locked", "--test", "api_widget_behavior", "dialog_engine_http_"],
-        ["cargo", "check", "--locked", "--example", "dialog_engine"],
     ]
     for command in commands:
         print("+ " + " ".join(command), flush=True)

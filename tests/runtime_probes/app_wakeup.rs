@@ -1,4 +1,5 @@
-//! A signal-driven counter that sleeps between changes. Escape or Ctrl+C exits.
+//! Internal signal-driven application wakeup acceptance probe.
+
 use reactive_tui::{
     app::{App, RootComponent},
     backend::SuprTuiBackend,
@@ -8,14 +9,17 @@ use reactive_tui::{
 use std::time::Duration;
 
 struct Counter(ThreadSafeSignal<usize>);
+
 impl RootComponent for Counter {
     fn render(&self) -> Element {
         Element::text(format!("Wake count: {}", self.0.get()))
     }
+
     fn wake_driven(&self) -> bool {
         true
     }
 }
+
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let count = ThreadSafeSignal::new(0);
     let app = App::builder()

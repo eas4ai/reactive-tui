@@ -23,7 +23,7 @@ Mechanism: `scripts/check-embedded-terminal.sh`, terminal-state and captured-out
 
 [EMB-003]
 The application MUST forward text, Enter, navigation keys, Escape, and Ctrl+C to the child using libghostty's keyboard encoder.
-The shell example MUST reserve Ctrl+Q for leaving the host application while retaining existing App quit behavior by default.
+The internal terminal acceptance probe MUST reserve Ctrl+Q for leaving the host application while retaining existing App quit behavior by default.
 Falsifier: typed commands do not execute, navigation emits the wrong mode-dependent sequence, Ctrl+C closes the host instead of interrupting the child, or Ctrl+Q cannot quit.
 Mechanism: `scripts/check-embedded-terminal.sh`, keyboard and interactive PTY probes.
 
@@ -42,7 +42,7 @@ Falsifier: delayed output stays invisible, failures appear successful, an idle s
 Mechanism: `scripts/check-embedded-terminal.sh`, delayed output, exit, failure, and lifecycle probes.
 
 [EMB-006]
-The interactive example MUST run through App and restore the host terminal on normal exit and application errors.
+The internal terminal acceptance probe MUST run through App and restore the host terminal on normal exit and application errors.
 The existing SuprTUI renderer requirements MUST continue to pass.
-Falsifier: the shell example bypasses App, host terminal settings remain changed, or an existing renderer check fails.
-Mechanism: `scripts/check-embedded-terminal.sh`, existing renderer gate plus shell PTY checks.
+Falsifier: the probe bypasses App, host terminal settings remain changed, or an existing renderer check fails.
+Mechanism: `scripts/check-embedded-terminal.sh`, existing renderer gate plus internal PTY checks.

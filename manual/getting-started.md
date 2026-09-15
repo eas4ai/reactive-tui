@@ -67,7 +67,7 @@ libghostty-based embedded session. The two debug features add diagnostic paths.
 - Features and package metadata: [`Cargo.toml`](../Cargo.toml)
 - Application construction: [`src/app.rs`](../src/app.rs)
 - Compiling entry-point contract: [`tests/api_documentation_contract.rs`](../tests/api_documentation_contract.rs)
-- Runnable application example: [`examples/wake_counter.rs`](../examples/wake_counter.rs)
+- Runnable rendering example: [`examples/gradient_blocks.rs`](../examples/gradient_blocks.rs)
 
 ## Related chapters
 
