@@ -2,7 +2,7 @@
 
 commit: 275c8d20b9bea775475c4159ea247e418866d6ac
 findings:
-  - unresolved: RTR-003 clears its running flag before the synchronously aborted task is observed as dropped, so the sync-stop case can pass without proving task termination.
+  - open: RTR-003 clears its running flag before the synchronously aborted task is observed as dropped, so the sync-stop case can pass without proving task termination.
 
 ## Scope examined
 
