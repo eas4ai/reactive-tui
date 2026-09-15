@@ -1,6 +1,6 @@
 #![cfg(feature = "tokio")]
 
-use reactive_tui::platform::{EventLoop, TokioEventLoop};
+use reactive_tui::platform::r#loop::{EventLoop, TokioEventLoop};
 use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::time::Duration;
 
