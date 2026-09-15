@@ -1,0 +1,36 @@
+# Mechanism: pre-release-public-api
+
+command: python3 -B scripts/check-pre-release-public-api.py DQC-005
+inputs:
+  - .cairn/mechanisms/pre-release-public-api.md
+  - Cargo.toml
+  - Cargo.lock
+  - src
+  - crates
+  - reactive-tui-macros
+  - public-api-retention.toml
+  - scripts/check-pre-release-public-api.py
+  - scripts/check-pre-release-library-diagnostics.py
+  - scripts/test-pre-release-public-api.py
+  - docs/spec/pre-release-dependency-code-quality.md
+  - docs/commitments/pre-release-dependency-code-quality.md
+  - docs/decisions
+requirements:
+  - DQC-005
+
+The check MUST first prove its result validator rejects successful-looking
+fixtures containing a rustdoc missing-documentation diagnostic, a public
+test-only helper outside a test configuration, or an unreferenced legacy
+control helper without an active retention decision. It MUST also prove that
+an exception with a missing, stale, or mismatched decision is rejected.
+
+The check MUST then run rustdoc with missing documentation denied for the
+maintained default, minimal, FFI, Markdown, and all-feature library surfaces on
+the supported Rust toolchain. It MUST inventory exported Rust items in shipped
+source, fail when `create_test_image` or another test-only helper is reachable
+in a production build, and inspect the `*_legacy` control-sequence helpers
+named by the audit for real non-test references. Any retained helper MUST be
+listed in `public-api-retention.toml` and backed by an active decision that
+names the item and its supported contract. The report MUST name every rustdoc
+feature surface, the public-item count, every test-helper finding, every legacy
+helper and reference count, and every accepted retention decision.
