@@ -1,0 +1,29 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.10s
+     Running unittests src/lib.rs (/home/shawn/workspace2/scratchpads/suprnova-target/debug/deps/reactive_tui-d6b4176a64f59b0a)
+
+running 2 tests
+test widgets::display::image::external_renderer::tests::xis_002_argument_validator_rejects_unsafe_observations ... ok
+test widgets::display::image::external_renderer::tests::xis_002_external_paths_are_positional_data ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 1057 filtered out; finished in 0.04s
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.09s
+     Running unittests src/lib.rs (/home/shawn/workspace2/scratchpads/suprnova-target/debug/deps/reactive_tui-d6b4176a64f59b0a)
+
+running 1 test
+test widgets::display::image::decoded::tests::xis_002_decode_rejects_combined_storage_over_budget ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1058 filtered out; finished in 7.36s
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.09s
+     Running unittests src/lib.rs (/home/shawn/workspace2/scratchpads/suprnova-target/debug/deps/reactive_tui-d6b4176a64f59b0a)
+
+running 4 tests
+test widgets::display::image::decoded::tests::api_image_decode_all_advertised_encoded_formats ... ok
+test widgets::display::image::decoded::tests::api_image_decode_opaque_renderers_composite_alpha ... ok
+test widgets::display::image::decoded::tests::api_image_decode_rejects_malformed_and_oversized_sources ... ok
+test widgets::display::image::decoded::tests::api_image_decode_sources_preserve_pixels_and_encoded_dimensions ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 1055 filtered out; finished in 0.00s
+
+XIS-002 image input safety passed
