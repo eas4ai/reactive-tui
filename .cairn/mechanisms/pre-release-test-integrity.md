@@ -8,6 +8,7 @@ inputs:
   - src
   - tests
   - scripts/check-pre-release-test-integrity.py
+  - scripts/check-pre-release-library-diagnostics.py
   - scripts/dependency_check_test_support.py
   - scripts/test-pre-release-test-integrity.py
   - docs/spec/pre-release-dependency-code-quality.md

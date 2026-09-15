@@ -112,6 +112,46 @@ name = "dqc_003_captured_diagnostics"
 path = "tests/dqc_003_captured_diagnostics.rs"
 harness = false
 
+[[test]]
+name = "api_signal_ownership"
+path = "tests/api_signal_ownership.rs"
+required-features = ["ffi"]
+
+[[test]]
+name = "ffi_app_representation"
+path = "tests/ffi_app_representation.rs"
+required-features = ["ffi"]
+
+[[test]]
+name = "ffi_basic_test"
+path = "tests/ffi_basic_test.rs"
+required-features = ["ffi"]
+
+[[test]]
+name = "ffi_tests"
+path = "tests/ffi_tests.rs"
+required-features = ["ffi"]
+
+[[test]]
+name = "test_ffi_core_only"
+path = "tests/test_ffi_core_only.rs"
+required-features = ["ffi"]
+
+[[test]]
+name = "test_ffi_integration"
+path = "tests/test_ffi_integration.rs"
+required-features = ["ffi"]
+
+[[test]]
+name = "test_ffi_reactive_seamless"
+path = "tests/test_ffi_reactive_seamless.rs"
+required-features = ["ffi"]
+
+[[test]]
+name = "test_minimal_ffi"
+path = "tests/test_minimal_ffi.rs"
+required-features = ["ffi"]
+
 
 [features]
 default = ["tokio"]

@@ -201,28 +201,6 @@ lazy_static::lazy_static! {
     static ref RUNTIME: Arc<AnimationRuntime> = AnimationRuntime::new();
 }
 
-/// Global animation manager reference for coordination
-static mut GLOBAL_ANIMATION_MANAGER: Option<*mut crate::animation::AnimationManager> = None;
-
-/// Set the global animation manager for coordination
-/// SAFETY: This should only be called once during app initialization
-/// # Safety
-///
-/// This function is unsafe because it sets a global mutable pointer.
-/// The caller must ensure that:
-/// - The pointer is valid for the lifetime of the program
-/// - No other code is concurrently accessing the global animation manager
-/// - The pointer points to a properly initialized AnimationManager
-pub unsafe fn set_global_animation_manager(manager: *mut crate::animation::AnimationManager) {
-    GLOBAL_ANIMATION_MANAGER = Some(manager);
-}
-
-/// Get the global animation manager if available
-#[allow(dead_code)]
-fn get_global_animation_manager() -> Option<&'static mut crate::animation::AnimationManager> {
-    unsafe { GLOBAL_ANIMATION_MANAGER.and_then(|ptr| ptr.as_mut()) }
-}
-
 /// Update all hook-based animations (called from main render loop)
 pub fn update_hook_animations() {
     RUNTIME.app_subscribers.track();

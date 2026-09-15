@@ -1,15 +1,10 @@
 use reactive_tui::core::surface::{Attr, Rgba, Surface};
-use reactive_tui::layout::css::apply_utility_classes;
-use reactive_tui::layout::style::StyleBuilder;
+use reactive_tui::layout::css::parsers::parse_px;
 
 #[test]
 fn parse_px_accepts_px_suffix_and_raw() {
-    let sb1 = apply_utility_classes("p-8px", StyleBuilder::new());
-    let sb2 = apply_utility_classes("p-8", StyleBuilder::new());
-    // Indirect validation: both should yield same padding in Style (we inspect size of padding via debug build)
-    // We can't easily introspect taffy internal compact types; assume success if no panic
-    let _style1 = sb1.clone().build();
-    let _style2 = sb2.clone().build();
+    assert_eq!(parse_px("p-8px", "p-"), Some(8.0));
+    assert_eq!(parse_px("p-8", "p-"), Some(8.0));
 }
 
 #[test]

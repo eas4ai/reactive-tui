@@ -4,6 +4,8 @@ use reactive_tui::component::{
 };
 use reactive_tui::reactive::runtime::RuntimeContext;
 use reactive_tui::render::tree::element_to_render_node;
+use std::cell::Cell;
+use std::rc::Rc;
 use std::sync::Mutex;
 use std::thread;
 use std::time::Duration;
@@ -83,22 +85,32 @@ fn test_effect_cleanup() {
     // Test 2: Effect system cleanup
     let runtime = RuntimeContext::new();
 
-    // Create some effects
     let initial_effects = 5;
-    for i in 0..initial_effects {
-        runtime.create_effect(move || {
-            println!("Effect {}", i);
-            None // No cleanup
-        });
+    let runs = Rc::new(Cell::new(0));
+    let cleanups = Rc::new(Cell::new(0));
+    let effect_ids: Vec<_> = (0..initial_effects)
+        .map(|_| {
+            let runs = runs.clone();
+            let cleanups = cleanups.clone();
+            runtime.create_effect(move || {
+                runs.set(runs.get() + 1);
+                Some(Box::new(move || cleanups.set(cleanups.get() + 1)))
+            })
+        })
+        .collect();
+
+    assert_eq!(runs.get(), initial_effects, "every effect must run once");
+    for effect_id in effect_ids {
+        runtime.runtime().unregister_effect(effect_id);
     }
+    assert_eq!(
+        cleanups.get(),
+        initial_effects,
+        "unregistering effects must run every cleanup"
+    );
 
-    // Trigger cleanup
     runtime.cleanup_dead_effects();
-
-    // Verify cleanup worked (effects should be cleaned up)
     runtime.periodic_cleanup();
-
-    println!("✅ Effect cleanup test passed");
 }
 
 #[test]
