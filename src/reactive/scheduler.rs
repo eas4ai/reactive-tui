@@ -1,6 +1,6 @@
 use super::wake::AppWaker;
 use std::collections::{HashMap, VecDeque};
-use std::sync::Mutex;
+use std::sync::{Arc, Condvar, Mutex, Weak};
 use std::time::{Duration, Instant};
 
 /// Task to be executed by the scheduler.
@@ -30,11 +30,119 @@ struct Timers {
     running: HashMap<TimerId, bool>,
 }
 
+#[derive(Default)]
+struct BackgroundState {
+    generation: u64,
+    shutdown: bool,
+}
+
+#[derive(Default)]
+struct BackgroundWait {
+    state: Mutex<BackgroundState>,
+    changed: Condvar,
+    #[cfg(test)]
+    waits: std::sync::atomic::AtomicUsize,
+    #[cfg(test)]
+    wakeups: std::sync::atomic::AtomicUsize,
+    #[cfg(test)]
+    live: std::sync::atomic::AtomicBool,
+}
+
+impl BackgroundWait {
+    fn generation(&self) -> u64 {
+        self.state
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .generation
+    }
+
+    fn signal(&self) {
+        let mut state = self
+            .state
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        state.generation = state.generation.wrapping_add(1);
+        drop(state);
+        self.changed.notify_all();
+    }
+
+    fn shutdown(&self) {
+        let mut state = self
+            .state
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        state.shutdown = true;
+        state.generation = state.generation.wrapping_add(1);
+        drop(state);
+        self.changed.notify_all();
+    }
+
+    fn wait(&self, observed: u64, deadline: Option<Instant>) -> bool {
+        #[cfg(test)]
+        self.waits.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+
+        let mut state = self
+            .state
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        loop {
+            if state.shutdown {
+                return false;
+            }
+            if state.generation != observed {
+                break;
+            }
+            if let Some(deadline) = deadline {
+                let now = Instant::now();
+                if now >= deadline {
+                    break;
+                }
+                let waited = self.changed.wait_timeout(state, deadline - now);
+                state = match waited {
+                    Ok((state, _)) => state,
+                    Err(poisoned) => poisoned.into_inner().0,
+                };
+            } else {
+                state = self
+                    .changed
+                    .wait(state)
+                    .unwrap_or_else(|poisoned| poisoned.into_inner());
+            }
+        }
+
+        #[cfg(test)]
+        self.wakeups
+            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        true
+    }
+}
+
+#[cfg(test)]
+pub(crate) struct BackgroundProbe {
+    wait: Arc<BackgroundWait>,
+}
+
+#[cfg(test)]
+impl BackgroundProbe {
+    pub(crate) fn waits(&self) -> usize {
+        self.wait.waits.load(std::sync::atomic::Ordering::SeqCst)
+    }
+
+    pub(crate) fn wakeups(&self) -> usize {
+        self.wait.wakeups.load(std::sync::atomic::Ordering::SeqCst)
+    }
+
+    pub(crate) fn is_live(&self) -> bool {
+        self.wait.live.load(std::sync::atomic::Ordering::SeqCst)
+    }
+}
+
 /// Shared work queue and timers. Callbacks execute outside storage locks.
 pub struct Scheduler {
     update_queue: Mutex<VecDeque<SchedulerTask>>,
     timers: Mutex<Timers>,
     wake: Mutex<Option<AppWaker>>,
+    background: Option<Arc<BackgroundWait>>,
 }
 impl Scheduler {
     /// Create an unattached scheduler.
@@ -43,7 +151,54 @@ impl Scheduler {
             update_queue: Mutex::new(VecDeque::new()),
             timers: Mutex::new(Timers::default()),
             wake: Mutex::new(None),
+            background: None,
         }
+    }
+
+    /// Create a scheduler whose timers run on a worker that sleeps until needed.
+    pub(crate) fn new_background() -> Arc<Self> {
+        let background = Arc::new(BackgroundWait::default());
+        let scheduler = Arc::new(Self {
+            update_queue: Mutex::new(VecDeque::new()),
+            timers: Mutex::new(Timers::default()),
+            wake: Mutex::new(None),
+            background: Some(Arc::clone(&background)),
+        });
+        Self::spawn_background_worker(Arc::downgrade(&scheduler), background);
+        scheduler
+    }
+
+    fn spawn_background_worker(scheduler: Weak<Self>, wait: Arc<BackgroundWait>) {
+        std::thread::Builder::new()
+            .name("reactive-tui-fallback-timer".to_owned())
+            .spawn(move || {
+                #[cfg(test)]
+                wait.live.store(true, std::sync::atomic::Ordering::SeqCst);
+
+                loop {
+                    let observed = wait.generation();
+                    let Some(scheduler) = scheduler.upgrade() else {
+                        break;
+                    };
+                    scheduler.process_timers();
+                    let deadline = scheduler.next_deadline();
+                    drop(scheduler);
+                    if !wait.wait(observed, deadline) {
+                        break;
+                    }
+                }
+
+                #[cfg(test)]
+                wait.live.store(false, std::sync::atomic::Ordering::SeqCst);
+            })
+            .expect("failed to start fallback timer worker");
+    }
+
+    #[cfg(test)]
+    pub(crate) fn background_probe(&self) -> Option<BackgroundProbe> {
+        self.background.as_ref().map(|wait| BackgroundProbe {
+            wait: Arc::clone(wait),
+        })
     }
     /// Attach notifications to one App. Replacing a live App attachment is rejected.
     pub(crate) fn attach(&self, wake: AppWaker) -> crate::error::Result<()> {
@@ -57,6 +212,9 @@ impl Scheduler {
         Ok(())
     }
     fn notify(&self) {
+        if let Some(background) = &self.background {
+            background.signal();
+        }
         let wake = self.wake.lock().unwrap().clone();
         if let Some(wake) = wake {
             wake.wake();
@@ -209,6 +367,14 @@ impl Scheduler {
         self.notify();
     }
 }
+
+impl Drop for Scheduler {
+    fn drop(&mut self) {
+        if let Some(background) = &self.background {
+            background.shutdown();
+        }
+    }
+}
 impl Default for Scheduler {
     fn default() -> Self {
         Self::new()
@@ -303,5 +469,46 @@ mod tests {
         scheduler.process_timers();
         assert_eq!(calls.load(Ordering::Relaxed), 11);
         assert!(scheduler.next_deadline().is_none());
+    }
+
+    #[test]
+    fn rac_003_background_scheduler_sleeps_until_work_and_stops() {
+        let scheduler = Scheduler::new_background();
+        let probe = scheduler.background_probe().unwrap();
+        let startup_deadline = Instant::now() + Duration::from_millis(500);
+        while (!probe.is_live() || probe.waits() == 0) && Instant::now() < startup_deadline {
+            std::thread::yield_now();
+        }
+        assert!(probe.is_live(), "fallback worker did not start");
+        assert!(
+            probe.waits() > 0,
+            "fallback worker did not enter its idle wait"
+        );
+
+        let idle_wakeups = probe.wakeups();
+        std::thread::sleep(Duration::from_millis(20));
+        assert_eq!(
+            probe.wakeups(),
+            idle_wakeups,
+            "fallback worker woke while it had no work"
+        );
+
+        let (send, receive) = std::sync::mpsc::channel();
+        scheduler.schedule_timeout(Duration::ZERO, move || send.send(()).unwrap());
+        receive
+            .recv_timeout(Duration::from_millis(500))
+            .expect("scheduled work did not wake the fallback worker");
+
+        let weak = Arc::downgrade(&scheduler);
+        drop(scheduler);
+        let stop_deadline = Instant::now() + Duration::from_millis(500);
+        while probe.is_live() && Instant::now() < stop_deadline {
+            std::thread::yield_now();
+        }
+        assert!(!probe.is_live(), "fallback worker did not stop");
+        assert!(
+            weak.upgrade().is_none(),
+            "fallback scheduler remained owned"
+        );
     }
 }

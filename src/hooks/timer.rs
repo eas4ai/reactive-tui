@@ -366,17 +366,17 @@ pub(crate) fn get_scheduler(hooks: &Hooks) -> Arc<Scheduler> {
 }
 
 fn get_fallback_scheduler() -> Arc<Scheduler> {
-    static SCHED: OnceLock<Arc<Scheduler>> = OnceLock::new();
-    static START: OnceLock<()> = OnceLock::new();
-    let sched = SCHED.get_or_init(|| Arc::new(Scheduler::new())).clone();
-    START.get_or_init(|| {
-        let s2 = sched.clone();
-        std::thread::spawn(move || loop {
-            std::thread::sleep(Duration::from_millis(1));
-            s2.process_timers();
-        });
-    });
-    sched
+    static SCHEDULER: OnceLock<Mutex<Weak<Scheduler>>> = OnceLock::new();
+    let mut scheduler = SCHEDULER
+        .get_or_init(|| Mutex::new(Weak::new()))
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    if let Some(existing) = scheduler.upgrade() {
+        return existing;
+    }
+    let created = Scheduler::new_background();
+    *scheduler = Arc::downgrade(&created);
+    created
 }
 
 #[cfg(test)]
@@ -654,5 +654,32 @@ mod tests {
         std::thread::sleep(Duration::from_millis(60));
         throttled.call(4);
         assert_eq!(counter.load(Ordering::Relaxed), 2);
+    }
+
+    #[test]
+    fn rac_003_unscoped_hook_timer_releases_its_fallback_worker() {
+        let hooks = Hooks::new();
+        let scheduler = Scheduler::new_background();
+        let probe = scheduler.background_probe().unwrap();
+        let weak_scheduler = Arc::downgrade(&scheduler);
+        let timer = Arc::new(HookTimer::new(scheduler, hooks.resource_token()));
+        let (send, receive) = std::sync::mpsc::channel();
+        timer.replace_callback(Box::new(move || send.send(()).unwrap()));
+        timer.restart(Duration::ZERO, false, None);
+        receive
+            .recv_timeout(Duration::from_millis(500))
+            .expect("unscoped fallback timer did not fire");
+
+        drop(hooks);
+        drop(timer);
+        let stop_deadline = std::time::Instant::now() + Duration::from_millis(500);
+        while probe.is_live() && std::time::Instant::now() < stop_deadline {
+            std::thread::yield_now();
+        }
+        assert!(!probe.is_live(), "fallback worker outlived its timer owner");
+        assert!(
+            weak_scheduler.upgrade().is_none(),
+            "fallback scheduler remained owned after its timer dropped"
+        );
     }
 }
