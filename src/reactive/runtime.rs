@@ -9,10 +9,10 @@ use std::sync::Arc;
 /// The reactive runtime that manages signals and effects
 pub struct ReactiveRuntime {
     /// Map of signal IDs to their dependent effects
-    signal_effects: RefCell<HashMap<SignalId, Vec<Weak<RefCell<Effect>>>>>,
+    signal_effects: RefCell<HashMap<SignalId, Vec<Weak<Effect>>>>,
 
     /// Map of effect IDs to their effect instances
-    effects: RefCell<HashMap<EffectId, Rc<RefCell<Effect>>>>,
+    effects: RefCell<HashMap<EffectId, Rc<Effect>>>,
 
     /// Queue of effects to run
     effect_queue: RefCell<VecDeque<EffectId>>,
@@ -28,6 +28,19 @@ pub struct ReactiveRuntime {
 
     /// Cycle detection: effects currently being processed
     processing: RefCell<HashSet<EffectId>>,
+}
+
+struct RuntimeEffectGuard<'a> {
+    runtime: &'a ReactiveRuntime,
+    effect_id: EffectId,
+    previous: Option<EffectId>,
+}
+
+impl Drop for RuntimeEffectGuard<'_> {
+    fn drop(&mut self) {
+        self.runtime.current_effect.replace(self.previous);
+        self.runtime.processing.borrow_mut().remove(&self.effect_id);
+    }
 }
 
 impl ReactiveRuntime {
@@ -48,30 +61,32 @@ impl ReactiveRuntime {
     pub fn track_signal(&self, signal_id: SignalId) {
         if let Some(effect_id) = *self.current_effect.borrow() {
             // Add this signal as a dependency of the current effect
-            if let Some(effect) = self.effects.borrow().get(&effect_id) {
-                effect.borrow().add_dependency(signal_id);
+            if let Some(effect) = self.effects.borrow().get(&effect_id).cloned() {
+                effect.add_dependency(signal_id);
 
                 // Add the effect to the signal's dependent list
                 let mut signal_effects = self.signal_effects.borrow_mut();
                 signal_effects
                     .entry(signal_id)
                     .or_default()
-                    .push(Rc::downgrade(effect));
+                    .push(Rc::downgrade(&effect));
             }
         }
     }
 
     /// Notify that a signal has changed
     pub fn signal_changed(&self, signal_id: SignalId) {
-        let signal_effects = self.signal_effects.borrow();
-
-        if let Some(effects) = signal_effects.get(&signal_id) {
+        let effects = self
+            .signal_effects
+            .borrow()
+            .get(&signal_id)
+            .cloned()
+            .unwrap_or_default();
+        if !effects.is_empty() {
             let batch_depth = *self.batch_depth.borrow();
-
-            for weak_effect in effects {
+            for weak_effect in &effects {
                 if let Some(effect) = weak_effect.upgrade() {
-                    // FIX: Use the actual effect's ID instead of creating a new one
-                    let effect_id = effect.borrow().id();
+                    let effect_id = effect.id();
 
                     if batch_depth > 0 {
                         // We're in a batch, queue the effect
@@ -121,32 +136,34 @@ impl ReactiveRuntime {
 
     /// Process the effect queue
     fn flush_effects(&self) {
-        while let Some(effect_id) = self.effect_queue.borrow_mut().pop_front() {
+        loop {
+            let Some(effect_id) = self.effect_queue.borrow_mut().pop_front() else {
+                break;
+            };
             // Cycle detection
             if !self.processing.borrow_mut().insert(effect_id) {
                 // Already processing this effect - cycle detected!
                 continue;
             }
-
-            if let Some(effect) = self.effects.borrow().get(&effect_id) {
-                // Set as current effect for dependency tracking
-                *self.current_effect.borrow_mut() = Some(effect_id);
-
-                // Run the effect
-                effect.borrow().run();
-
-                // Clear current effect
-                *self.current_effect.borrow_mut() = None;
+            let effect = self.effects.borrow().get(&effect_id).cloned();
+            if let Some(effect) = effect {
+                let previous = self.current_effect.replace(Some(effect_id));
+                let _running = RuntimeEffectGuard {
+                    runtime: self,
+                    effect_id,
+                    previous,
+                };
+                effect.run();
+            } else {
+                self.processing.borrow_mut().remove(&effect_id);
             }
-
-            self.processing.borrow_mut().remove(&effect_id);
         }
     }
 
     /// Register an effect with the runtime
     pub fn register_effect(&self, effect: Effect) -> EffectId {
-        let effect_id = EffectId::new();
-        let effect_rc = Rc::new(RefCell::new(effect));
+        let effect_id = effect.id();
+        let effect_rc = Rc::new(effect);
 
         self.effects.borrow_mut().insert(effect_id, effect_rc);
 
@@ -159,8 +176,9 @@ impl ReactiveRuntime {
 
     /// Unregister an effect
     pub fn unregister_effect(&self, effect_id: EffectId) {
-        if let Some(effect) = self.effects.borrow_mut().remove(&effect_id) {
-            effect.borrow().dispose();
+        let effect = self.effects.borrow_mut().remove(&effect_id);
+        if let Some(effect) = effect {
+            effect.dispose();
         }
     }
 
@@ -184,17 +202,18 @@ impl ReactiveRuntime {
         {
             let mut effects = self.effects.borrow_mut();
             initial_effects_count = effects.len();
-
-            effects.retain(|_, effect| {
-                let strong_count = Rc::strong_count(effect);
-                if strong_count <= 1 {
-                    // Effect is only held by us, dispose it
-                    effect.borrow().dispose();
-                    false
-                } else {
-                    true
-                }
-            });
+            let stale = effects
+                .iter()
+                .filter_map(|(id, effect)| (Rc::strong_count(effect) <= 1).then_some(*id))
+                .collect::<Vec<_>>();
+            let removed = stale
+                .into_iter()
+                .filter_map(|id| effects.remove(&id))
+                .collect::<Vec<_>>();
+            drop(effects);
+            for effect in removed {
+                effect.dispose();
+            }
         }
 
         // Clean up signal_effects weak references
@@ -332,6 +351,106 @@ impl RuntimeContext {
 impl Default for RuntimeContext {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+#[cfg(test)]
+mod rac_002_tests {
+    use super::*;
+    use std::cell::Cell;
+    use std::time::Duration;
+
+    fn expression_has_guard(expression: &syn::Expr) -> bool {
+        use syn::visit::Visit;
+        struct GuardFinder(bool);
+        impl<'ast> Visit<'ast> for GuardFinder {
+            fn visit_expr_method_call(&mut self, call: &'ast syn::ExprMethodCall) {
+                if matches!(
+                    call.method.to_string().as_str(),
+                    "lock" | "borrow" | "borrow_mut"
+                ) {
+                    self.0 = true;
+                }
+                syn::visit::visit_expr_method_call(self, call);
+            }
+        }
+        let mut finder = GuardFinder(false);
+        finder.visit_expr(expression);
+        finder.0
+    }
+
+    #[test]
+    fn rac_002_source_inventory_rejects_callbacks_called_from_guard_expressions() {
+        use syn::visit::Visit;
+
+        struct Inventory {
+            violations: Vec<String>,
+        }
+        impl<'ast> Visit<'ast> for Inventory {
+            fn visit_expr_call(&mut self, call: &'ast syn::ExprCall) {
+                if expression_has_guard(&call.func) {
+                    self.violations
+                        .push("callback callee retains a mutex or RefCell guard".into());
+                }
+                syn::visit::visit_expr_call(self, call);
+            }
+
+            fn visit_expr_method_call(&mut self, call: &'ast syn::ExprMethodCall) {
+                if matches!(call.method.to_string().as_str(), "run" | "dispose")
+                    && expression_has_guard(&call.receiver)
+                {
+                    self.violations
+                        .push("effect callback receiver retains a RefCell guard".into());
+                }
+                syn::visit::visit_expr_method_call(self, call);
+            }
+        }
+
+        let sources = [
+            include_str!("runtime.rs"),
+            include_str!("hooks.rs"),
+            include_str!("../hooks/refs.rs"),
+            include_str!("../hooks/timer.rs"),
+        ];
+        let mut inventory = Inventory {
+            violations: Vec::new(),
+        };
+        for source in sources {
+            inventory.visit_file(&syn::parse_file(source).unwrap());
+        }
+        assert!(
+            inventory.violations.is_empty(),
+            "user callbacks must not be invoked through live guards: {:?}",
+            inventory.violations
+        );
+    }
+
+    #[test]
+    fn rac_002_runtime_effect_can_create_track_and_unregister_reentrantly() {
+        let (send, receive) = std::sync::mpsc::channel();
+        std::thread::spawn(move || {
+            let runtime = Rc::new(ReactiveRuntime::new());
+            let weak = Rc::downgrade(&runtime);
+            let nested_calls = Rc::new(Cell::new(0));
+            let nested_result = Rc::clone(&nested_calls);
+            let outer = Effect::new(move || {
+                let runtime = weak.upgrade().unwrap();
+                let nested_calls = Rc::clone(&nested_result);
+                let nested = runtime.register_effect(Effect::new(move || {
+                    nested_calls.set(nested_calls.get() + 1);
+                    None
+                }));
+                runtime.track_signal(SignalId::new());
+                runtime.unregister_effect(nested);
+                None
+            });
+            let outer = runtime.register_effect(outer);
+            runtime.unregister_effect(outer);
+            let later = runtime.register_effect(Effect::new(|| None));
+            runtime.unregister_effect(later);
+            send.send(nested_calls.get()).unwrap();
+        });
+        assert_eq!(receive.recv_timeout(Duration::from_millis(500)).unwrap(), 1);
     }
 }
 

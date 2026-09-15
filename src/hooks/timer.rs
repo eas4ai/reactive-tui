@@ -82,7 +82,7 @@ where
 pub fn use_debounce<T, F>(hooks: &Hooks, delay: Duration, callback: F) -> DebouncedFunction<T>
 where
     T: Send + 'static,
-    F: Fn(T) + Send + 'static,
+    F: Fn(T) + Send + Sync + 'static,
 {
     let timer = use_timer(hooks, HookKind::Debounce);
     let owned = timer.clone();
@@ -90,7 +90,7 @@ where
     DebouncedFunction {
         timer,
         delay,
-        callback: Arc::new(Mutex::new(callback)),
+        callback: Arc::new(callback),
     }
 }
 
@@ -112,10 +112,10 @@ where
 pub fn use_throttle<T, F>(hooks: &Hooks, interval: Duration, callback: F) -> ThrottledFunction<T>
 where
     T: Send + 'static,
-    F: Fn(T) + Send + 'static,
+    F: Fn(T) + Send + Sync + 'static,
 {
     let last_call = use_signal(hooks, None::<std::time::Instant>);
-    let callback = Arc::new(Mutex::new(callback));
+    let callback = Arc::new(callback);
 
     ThrottledFunction {
         owner: hooks.resource_token(),
@@ -147,7 +147,7 @@ impl TimerHandle {
 pub struct DebouncedFunction<T> {
     timer: Arc<HookTimer>,
     delay: Duration,
-    callback: Arc<Mutex<dyn Fn(T) + Send>>,
+    callback: Arc<dyn Fn(T) + Send + Sync>,
 }
 
 impl<T: Send + 'static> DebouncedFunction<T> {
@@ -160,7 +160,7 @@ impl<T: Send + 'static> DebouncedFunction<T> {
             false,
             Some(Box::new(move || {
                 if let Some(value) = value.take() {
-                    callback.lock().unwrap()(value);
+                    callback(value);
                 }
             })),
         );
@@ -177,7 +177,7 @@ pub struct ThrottledFunction<T> {
     owner: Weak<HookResources>,
     last_call: ThreadSafeSignal<Option<std::time::Instant>>,
     interval: Duration,
-    callback: Arc<Mutex<dyn Fn(T) + Send>>,
+    callback: Arc<dyn Fn(T) + Send + Sync>,
 }
 
 impl<T: Send + 'static> ThrottledFunction<T> {
@@ -194,8 +194,7 @@ impl<T: Send + 'static> ThrottledFunction<T> {
 
         if should_call {
             self.last_call.set(Some(now));
-            let cb = self.callback.lock().unwrap();
-            cb(value);
+            (self.callback)(value);
         }
     }
 
@@ -384,6 +383,70 @@ fn get_fallback_scheduler() -> Arc<Scheduler> {
 mod tests {
     use super::*;
     use std::sync::atomic::{AtomicUsize, Ordering};
+
+    #[test]
+    fn rac_002_throttle_and_debounce_callbacks_are_reentrant() {
+        let (throttle_send, throttle_receive) = std::sync::mpsc::channel();
+        std::thread::spawn(move || {
+            let hooks = Hooks::new();
+            let calls = Arc::new(AtomicUsize::new(0));
+            let shared = Arc::new(Mutex::new(None::<std::sync::Weak<ThrottledFunction<i32>>>));
+            let callback_shared = Arc::clone(&shared);
+            let callback_calls = Arc::clone(&calls);
+            let throttle = Arc::new(use_throttle(&hooks, Duration::ZERO, move |_: i32| {
+                if callback_calls.fetch_add(1, Ordering::SeqCst) == 0 {
+                    let nested = callback_shared.lock().unwrap().clone().unwrap();
+                    nested.upgrade().unwrap().call(2);
+                }
+            }));
+            *shared.lock().unwrap() = Some(Arc::downgrade(&throttle));
+            throttle.call(1);
+            throttle.reset();
+            throttle.call(3);
+            throttle_send.send(calls.load(Ordering::SeqCst)).unwrap();
+        });
+        assert_eq!(
+            throttle_receive
+                .recv_timeout(Duration::from_millis(500))
+                .unwrap(),
+            3
+        );
+
+        let (debounce_send, debounce_receive) = std::sync::mpsc::channel();
+        std::thread::spawn(move || {
+            let scheduler = Arc::new(Scheduler::new());
+            let scope = crate::reactive::component_scope::ComponentScope::new(scheduler.clone());
+            let hooks = Hooks::new();
+            let calls = Arc::new(AtomicUsize::new(0));
+            let shared = Arc::new(Mutex::new(None::<std::sync::Weak<DebouncedFunction<i32>>>));
+            let callback_shared = Arc::clone(&shared);
+            let callback_calls = Arc::clone(&calls);
+            let callback_scheduler = Arc::clone(&scheduler);
+            let debounce = {
+                let _scope = scope.enter(true);
+                let _frame = hooks.begin_render();
+                Arc::new(use_debounce(&hooks, Duration::ZERO, move |_: i32| {
+                    if callback_calls.fetch_add(1, Ordering::SeqCst) == 0 {
+                        let nested = callback_shared.lock().unwrap().clone().unwrap();
+                        nested.upgrade().unwrap().call(2);
+                        callback_scheduler.process_timers();
+                    }
+                }))
+            };
+            *shared.lock().unwrap() = Some(Arc::downgrade(&debounce));
+            debounce.call(1);
+            scheduler.process_timers();
+            debounce.call(3);
+            scheduler.process_timers();
+            debounce_send.send(calls.load(Ordering::SeqCst)).unwrap();
+        });
+        assert_eq!(
+            debounce_receive
+                .recv_timeout(Duration::from_millis(500))
+                .unwrap(),
+            3
+        );
+    }
 
     #[test]
     fn owned_interval_preserves_deadlines_and_refreshes_callbacks() {

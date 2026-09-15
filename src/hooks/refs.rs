@@ -1,7 +1,7 @@
 use crate::reactive::hooks::{HookKind, Hooks};
 use std::cell::RefCell;
 use std::rc::Rc;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Condvar, Mutex};
 
 /// A reference to a value that persists across renders but doesn't trigger re-renders
 ///
@@ -9,17 +9,98 @@ use std::sync::{Arc, Mutex};
 /// - Persists for the full lifetime of the component
 /// - Can be mutated without causing re-renders
 /// - Is useful for storing DOM references, timers, or any mutable value
-#[derive(Clone)]
 pub struct Ref<T> {
-    value: Arc<Mutex<T>>,
+    inner: Arc<RefInner<T>>,
+}
+
+impl<T> Clone for Ref<T> {
+    fn clone(&self) -> Self {
+        Self {
+            inner: Arc::clone(&self.inner),
+        }
+    }
+}
+
+struct RefInner<T> {
+    state: Mutex<RefState<T>>,
+    ready: Condvar,
+}
+
+struct RefState<T> {
+    value: Option<Box<T>>,
+    updating_thread: Option<std::thread::ThreadId>,
+    active_pointer: usize,
+}
+
+struct RefUpdateOwner<T> {
+    inner: Arc<RefInner<T>>,
+    value: Option<Box<T>>,
+}
+
+impl<T> RefUpdateOwner<T> {
+    fn new(inner: Arc<RefInner<T>>, value: Box<T>) -> Self {
+        let mut owner = Self {
+            inner,
+            value: Some(value),
+        };
+        let pointer = (&mut **owner.value.as_mut().unwrap()) as *mut T as usize;
+        owner.inner.state.lock().unwrap().active_pointer = pointer;
+        owner
+    }
+
+    fn value(&mut self) -> &mut T {
+        self.value.as_deref_mut().unwrap()
+    }
+}
+
+impl<T> Drop for RefUpdateOwner<T> {
+    fn drop(&mut self) {
+        let mut state = self.inner.state.lock().unwrap();
+        state.active_pointer = 0;
+        state.updating_thread = None;
+        state.value = self.value.take();
+        drop(state);
+        self.inner.ready.notify_all();
+    }
 }
 
 impl<T> Ref<T> {
     /// Create a new ref with an initial value
     pub fn new(initial: T) -> Self {
         Self {
-            value: Arc::new(Mutex::new(initial)),
+            inner: Arc::new(RefInner {
+                state: Mutex::new(RefState {
+                    value: Some(Box::new(initial)),
+                    updating_thread: None,
+                    active_pointer: 0,
+                }),
+                ready: Condvar::new(),
+            }),
         }
+    }
+
+    fn with_exclusive<R>(&self, operation: impl FnOnce(&mut T) -> R) -> R {
+        let thread = std::thread::current().id();
+        let mut state = self.inner.state.lock().unwrap();
+        loop {
+            if state.updating_thread.as_ref() == Some(&thread) {
+                let pointer = state.active_pointer as *mut T;
+                assert!(!pointer.is_null(), "active Ref update has no value");
+                drop(state);
+                // This is a same-thread, synchronous reborrow of the active
+                // update value. The outer callback is paused for this call.
+                return operation(unsafe { &mut *pointer });
+            }
+            if state.updating_thread.is_none() {
+                break;
+            }
+            state = self.inner.ready.wait(state).unwrap();
+        }
+        let value = state.value.take().unwrap();
+        state.updating_thread = Some(thread);
+        drop(state);
+        let mut owner = RefUpdateOwner::new(Arc::clone(&self.inner), value);
+        operation(owner.value())
     }
 
     /// Get the current value
@@ -27,12 +108,12 @@ impl<T> Ref<T> {
     where
         T: Clone,
     {
-        self.value.lock().unwrap().clone()
+        self.with_exclusive(|value| value.clone())
     }
 
     /// Set the current value
     pub fn set_current(&self, value: T) {
-        *self.value.lock().unwrap() = value;
+        self.with_exclusive(|current| *current = value);
     }
 
     /// Update the current value with a function
@@ -40,8 +121,7 @@ impl<T> Ref<T> {
     where
         F: FnOnce(&mut T) -> R,
     {
-        let mut guard = self.value.lock().unwrap();
-        f(&mut *guard)
+        self.with_exclusive(f)
     }
 
     /// Get a raw pointer to the inner value (unsafe)
@@ -52,7 +132,7 @@ impl<T> Ref<T> {
     /// The returned pointer is only valid as long as the RefHandle exists
     /// and the underlying value has not been moved.
     pub unsafe fn as_ptr(&self) -> *const T {
-        &*self.value.lock().unwrap() as *const T
+        self.with_exclusive(|value| value as *const T)
     }
 }
 
@@ -111,9 +191,11 @@ pub fn use_ref<T>(hooks: &Hooks, initial: T) -> Ref<T>
 where
     T: Send + Sync + 'static,
 {
-    Ref {
-        value: hooks.get_or_create_storage(HookKind::Ref, || initial),
-    }
+    hooks
+        .get_or_create_storage(HookKind::Ref, || Ref::new(initial))
+        .lock()
+        .unwrap()
+        .clone()
 }
 
 /// Hook for creating a local (non-thread-safe) mutable reference
@@ -344,6 +426,74 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn rac_002_ref_update_allows_reentrant_read_and_write() {
+        let (send, receive) = std::sync::mpsc::channel();
+        std::thread::spawn(move || {
+            let reference = Ref::new(1_i32);
+            let nested = reference.clone();
+            let result = reference.update(|value| {
+                assert_eq!(nested.current(), 1);
+                nested.update(|nested_value| *nested_value = 2);
+                assert_eq!(nested.current(), 2);
+                *value = 3;
+                7
+            });
+            reference.set_current(4);
+            send.send((result, reference.current())).unwrap();
+        });
+        assert_eq!(
+            receive
+                .recv_timeout(std::time::Duration::from_millis(500))
+                .unwrap(),
+            (7, 4)
+        );
+    }
+
+    #[test]
+    fn rac_002_ref_update_blocks_other_threads_and_recovers_after_unwind() {
+        let reference = Ref::new(1_i32);
+        let updater = reference.clone();
+        let (started_send, started_receive) = std::sync::mpsc::channel();
+        let (release_send, release_receive) = std::sync::mpsc::channel();
+        let worker = std::thread::spawn(move || {
+            updater.update(|value| {
+                *value = 2;
+                started_send.send(()).unwrap();
+                release_receive.recv().unwrap();
+            });
+        });
+        started_receive
+            .recv_timeout(std::time::Duration::from_millis(500))
+            .unwrap();
+        let reader = reference.clone();
+        let (read_send, read_receive) = std::sync::mpsc::channel();
+        std::thread::spawn(move || read_send.send(reader.current()).unwrap());
+        assert!(matches!(
+            read_receive.recv_timeout(std::time::Duration::from_millis(50)),
+            Err(std::sync::mpsc::RecvTimeoutError::Timeout)
+        ));
+        release_send.send(()).unwrap();
+        worker.join().unwrap();
+        assert_eq!(
+            read_receive
+                .recv_timeout(std::time::Duration::from_millis(500))
+                .unwrap(),
+            2
+        );
+
+        let panicking = reference.clone();
+        assert!(std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            panicking.update(|value| {
+                *value = 3;
+                panic!("deliberate Ref update panic");
+            });
+        }))
+        .is_err());
+        reference.set_current(4);
+        assert_eq!(reference.current(), 4);
+    }
 
     #[test]
     fn test_ref_basic() {

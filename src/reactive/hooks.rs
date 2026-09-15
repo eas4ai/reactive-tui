@@ -249,22 +249,17 @@ impl<T: Clone + Default> ThreadSafeSignal<T> {
     where
         T: PartialEq,
     {
-        let changed =
-            if let (Ok(mut inner), Ok(mut version)) = (self.inner.lock(), self.version.lock()) {
-                let old = inner.clone();
-                f(&mut *inner);
-                if *inner != old {
-                    *version += 1;
-                    true
-                } else {
-                    false
-                }
-            } else {
-                log::warn!("Signal locks poisoned during update operation");
-                false
-            };
-        if changed {
-            self.app_subscribers.notify();
+        let mut next = match self.inner.lock() {
+            Ok(inner) => inner.clone(),
+            Err(_) => {
+                log::warn!("Signal lock poisoned during update operation");
+                return;
+            }
+        };
+        let original = next.clone();
+        f(&mut next);
+        if next != original {
+            self.set(next);
         }
     }
 }
@@ -448,6 +443,29 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn rac_002_thread_safe_signal_update_allows_reentrant_read_and_write() {
+        let (send, receive) = std::sync::mpsc::channel();
+        std::thread::spawn(move || {
+            let signal = ThreadSafeSignal::new(1_i32);
+            let nested = signal.clone();
+            signal.update(|value| {
+                assert_eq!(nested.get(), 1);
+                nested.update(|nested_value| *nested_value = 2);
+                assert_eq!(nested.get(), 2);
+                *value = 3;
+            });
+            signal.set(4);
+            send.send(signal.get()).unwrap();
+        });
+        assert_eq!(
+            receive
+                .recv_timeout(std::time::Duration::from_millis(500))
+                .unwrap(),
+            4
+        );
+    }
 
     #[test]
     fn aborted_render_does_not_commit_effect_dependencies() {
