@@ -1,0 +1,21 @@
+requirement: DQC-005
+requirement_digest: sha256:1dbba4d9ef93c2edd6dfa75448e52bd66920fd0c1ab65609d64972a26849aada
+sequence: 1
+history_digest: sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+mechanism: pre-release-public-api.md
+commit: 3bbb3a16
+inputs_digest: sha256:7963f2b76fa1af2222b8a82673775709de9edad648a70b417c7ec71e0a7d1b7d
+mechanism_digest: sha256:99760bc391ae2d45c125e8493d13b49e8cdfd553dd36485bc0499a80b9d85fd8
+inputs_detail: .cairn/evidence/DQC-005/20260915T182142508Z-1360348.inputs.json
+command: python3 -B scripts/check-pre-release-public-api.py DQC-005
+cwd: .
+exit: 1
+output_digest: sha256:e90cd9f8e77773fe0dfb445deafcb7cc66ea8c0b8d1d48f37db2a0d48ec3009b
+output: .cairn/evidence/DQC-005/20260915T182142508Z-1360348.out
+stderr_output: .cairn/evidence/DQC-005/20260915T182142508Z-1360348.err
+stderr_digest: sha256:e90cd9f8e77773fe0dfb445deafcb7cc66ea8c0b8d1d48f37db2a0d48ec3009b
+signal: none
+execution_error: null
+result: fail
+source: exit
+recorded: 2026-09-15T18:21:43.021Z
