@@ -188,17 +188,22 @@ pub(crate) fn encoded_format(data: &[u8], hint: Option<image::ImageFormat>) -> R
     if let Some(format) = hint {
         reader.set_format(format);
     }
-    let mut limits = image::Limits::default();
-    limits.max_alloc = Some(MAX_RGBA);
-    reader.limits(limits);
-    let decoder = reader.into_decoder().map_err(error)?;
+    let mut decoder = reader.into_decoder().map_err(error)?;
     let (width, height) = decoder.dimensions();
-    dimensions(width, height)?;
-    if decoder.total_bytes() > MAX_RGBA {
-        return Err(error("Decoded image exceeds the 256 MiB storage limit"));
-    }
+    let rgba_bytes = dimensions(width, height)? as u64;
+    let conversion_bytes = (decoder.color_type() != image::ColorType::Rgba8).then_some(rgba_bytes);
+    let remaining = MAX_RGBA
+        .checked_sub(data.len() as u64)
+        .and_then(|bytes| bytes.checked_sub(conversion_bytes.unwrap_or(0)))
+        .filter(|bytes| decoder.total_bytes() <= *bytes)
+        .ok_or_else(|| error("Image exceeds the 256 MiB total memory budget"))?;
+    let mut limits = image::Limits::default();
+    limits.max_alloc = Some(remaining);
+    decoder
+        .set_limits(limits)
+        .map_err(|_| error("Image exceeds the 256 MiB total memory budget"))?;
     DynamicImage::from_decoder(decoder)
-        .map(|image| image.to_rgba8())
+        .map(DynamicImage::into_rgba8)
         .map_err(error)
 }
 

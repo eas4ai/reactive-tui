@@ -231,7 +231,7 @@ impl ExternalRenderer {
             cmd.arg("--bg").arg(color_hex);
         }
 
-        cmd.arg(file_path);
+        cmd.arg("--").arg(file_path);
 
         Self::run_tool_cancelled(cmd, cancelled)
     }
@@ -266,7 +266,7 @@ impl ExternalRenderer {
             }
         }
 
-        cmd.arg(file_path);
+        cmd.arg("--").arg(file_path);
 
         Self::run_tool_cancelled(cmd, cancelled)
     }

@@ -39,7 +39,12 @@ capture bounded output, and publish completion into hook state.
 ## Limits
 
 - Direct image output depends on host-terminal protocol support.
-- Image dimensions and decoded allocation are bounded by checked entry points.
+- Encoded image input is limited to 64 MiB. Static decoding has one 256 MiB
+  total memory budget for the retained encoded input, decoder allocations, and
+  any required RGBA output copy. Animated GIF storage is limited to 256 MiB and
+  4,096 frames.
+- Chafa and Viu receive `--` before the image path, so a relative path beginning
+  with a hyphen remains image data instead of becoming a command option.
 - Cell fallback has lower visual resolution than a direct protocol.
 - Clipboard tools differ by operating system and desktop session and may be
   absent.
