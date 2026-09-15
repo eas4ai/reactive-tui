@@ -1,0 +1,29 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.12s
+     Running unittests src/lib.rs (/home/shawn/workspace2/scratchpads/suprnova-target/debug/deps/reactive_tui-d6b4176a64f59b0a)
+
+running 3 tests
+test widgets::display::file_explorer::live::worker::tests::xis_003_copy_rejects_an_entry_replaced_after_inspection ... FAILED
+test widgets::display::file_explorer::live::worker::tests::xis_003_remove_rejects_an_entry_replaced_after_inspection ... FAILED
+test widgets::display::file_explorer::live::worker::tests::xis_003_validator_rejects_replaced_entry_outcomes ... ok
+
+failures:
+
+---- widgets::display::file_explorer::live::worker::tests::xis_003_copy_rejects_an_entry_replaced_after_inspection stdout ----
+
+thread 'widgets::display::file_explorer::live::worker::tests::xis_003_copy_rejects_an_entry_replaced_after_inspection' (231346) panicked at src/widgets/display/file_explorer/worker/tests.rs:78:5:
+copy accepted the replacement entry
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- widgets::display::file_explorer::live::worker::tests::xis_003_remove_rejects_an_entry_replaced_after_inspection stdout ----
+
+thread 'widgets::display::file_explorer::live::worker::tests::xis_003_remove_rejects_an_entry_replaced_after_inspection' (231348) panicked at src/widgets/display/file_explorer/worker/tests.rs:99:5:
+remove deleted the replacement entry
+
+
+failures:
+    widgets::display::file_explorer::live::worker::tests::xis_003_copy_rejects_an_entry_replaced_after_inspection
+    widgets::display::file_explorer::live::worker::tests::xis_003_remove_rejects_an_entry_replaced_after_inspection
+
+test result: FAILED. 1 passed; 2 failed; 0 ignored; 0 measured; 1056 filtered out; finished in 0.01s
+
+error: test failed, to rerun pass `--lib`
