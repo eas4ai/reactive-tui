@@ -11,4 +11,4 @@ Use syntect 5.3.0 with its fancy-regex backend and retain its transitive bincode
 
 ## Realized by
 
-(none yet: recorded, not built)
+- 90e77044b12e8b4d7c50b37d78f444faa230e6a8 fix: enforce DQC-002 dependency maintenance
