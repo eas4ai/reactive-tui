@@ -1,9 +1,9 @@
 # Review: pre-release-external-input-safety
 
 commitment: pre-release-external-input-safety
-commit: 6fc925de4
+commit: e7161136e939bc44cf940ac44fafc94baf2eda7c
 findings:
-  - open: XIS-003 replaces each selected entry once, while its agreed mechanism requires repeated replacement rounds.
+  - resolved: XIS-003 now runs 32 independent replacement rounds for copy and 32 for remove.
 
 ## Scope examined
 
@@ -37,8 +37,16 @@ can exceed 256 MiB. Smaller RGB, RGBA, grayscale, and animated cases pass.
 The XIS-003 validator rejects copied replacement bytes and deletion of a
 replacement while the original remains. The committed baseline reproduced
 both failures. The corrected copy and remove cases now return a changed-entry
-error after the forced swap. The test performs only one swap per operation,
-which does not yet satisfy the mechanism's repeated-replacement wording.
+error after every forced swap. Each operation now runs 32 independent rounds,
+which satisfies the mechanism's repeated-replacement wording and also checks
+that test-hook and staging state do not leak between operations.
+
+## Resolved finding
+
+The initial XIS-003 fixture performed one deterministic replacement for copy
+and one for remove. Commit `6a22f0cc` repeats both cases 32 times with fresh
+filesystem identities. Receipt `20260915T140628649Z` records the corrected
+mechanism passing all 64 replacement rounds and its validator.
 
 ## Other limits
 
