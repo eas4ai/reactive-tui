@@ -4,8 +4,7 @@ commit: d60e847d
 findings:
   - resolved: GitNexus reports a CRITICAL aggregate blast radius because the commitment touches central terminal and panic paths; focused context showed the direct runtime edits only reroute diagnostics and preserve control flow.
   - resolved: the DQC-003 declaration does not inventory workspace crates outside `src/`; a supplemental Tilth scan found only rustdoc examples and Cargo build-script directives, not runtime library output.
-  - limitation: rust-analyzer's workspace-symbol cache continued to list four deleted legacy helpers after reload; its current-file syntax tree, Tilth, Cargo, and rustdoc all confirm that the declarations are absent.
-  - none unresolved.
+  - resolved: rust-analyzer's workspace-symbol cache continued to list four deleted legacy helpers after reload; the review avoided that stale cache and confirmed current state with its file syntax tree, Tilth, Cargo, and rustdoc.
 
 ## Scope examined
 
