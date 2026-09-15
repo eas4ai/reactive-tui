@@ -213,9 +213,17 @@ fn reference_hooks_preserve_existing_type_bounds() {
     assert_send_sync::<Ref<std::sync::atomic::AtomicUsize>>();
     assert_send_sync::<CallbackRef<std::cell::Cell<i32>>>();
     let hooks = Hooks::new();
-    // AtomicUsize is not Clone; Cell is Send but not Sync.
+    // AtomicUsize is not Clone; shared refs still support construction and set.
     let reference = use_ref(&hooks, std::sync::atomic::AtomicUsize::new(3));
-    assert_eq!(reference.update(|value| *value.get_mut()), 3);
+    let pointer = unsafe { reference.as_ptr() };
+    reference.set_current(std::sync::atomic::AtomicUsize::new(4));
+    assert_eq!(pointer, unsafe { reference.as_ptr() });
+    // SAFETY: `reference` is alive, and no mutation overlaps this load.
+    assert_eq!(
+        unsafe { (*pointer).load(std::sync::atomic::Ordering::SeqCst) },
+        4
+    );
+    // Cell is Send but not Sync.
     let callback = use_callback_ref(&hooks, |_: Option<std::cell::Cell<i32>>| {});
     callback.set(Some(std::cell::Cell::new(4)));
     assert_eq!(callback.current().unwrap().get(), 4);

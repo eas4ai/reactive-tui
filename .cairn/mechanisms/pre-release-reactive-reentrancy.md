@@ -22,5 +22,8 @@ debounce callbacks call their own public operations.
 Every case MUST complete before its deadline without a panic. After the
 re-entrant call, a separate ordinary operation MUST still complete and expose
 the expected state so a swallowed panic or poisoned lock cannot count as a
-pass. A `syn` inventory MUST reject direct user callback invocation while an
-internal `RefCell` borrow or mutex guard remains live in these paths.
+pass. The shared `Ref` case MUST retain a borrow into the outer draft while a
+nested update reallocates its own draft. A `syn` inventory MUST reject direct
+user callback invocation while an internal `RefCell` borrow or mutex guard
+remains live in these paths and MUST reject unsafe alias construction in the
+shared `Ref` implementation.
