@@ -1,0 +1,21 @@
+requirement: DQC-004
+requirement_digest: sha256:a3c870bd75d40f4861cb438e63c06ebec52234e6bf0cb843386d25c2212e1679
+sequence: 3
+history_digest: sha256:cd592e5223d175204873aeb6ed2efa333f17c53be72d2ba5c5cfa0c7bc99b1b9
+mechanism: pre-release-test-integrity.md
+commit: 2f5b1021
+inputs_digest: sha256:925231404e9e87352c7001a5f815b5a890f0d443cad91b3fa13b1d823115f24f
+mechanism_digest: sha256:956e389ba586219864e14ac008f81dc767130ab36832ff363531812bbd504cdf
+inputs_detail: .cairn/evidence/DQC-004/20260915T183046324Z-1621739.inputs.json
+command: python3 -B scripts/check-pre-release-test-integrity.py DQC-004
+cwd: .
+exit: 0
+output_digest: sha256:218488bae9b456ef63468a0a03a102b78fcd7ce44a953d8405e4891cab159c06
+output: .cairn/evidence/DQC-004/20260915T183046324Z-1621739.out
+stderr_output: .cairn/evidence/DQC-004/20260915T183046324Z-1621739.err
+stderr_digest: sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+signal: none
+execution_error: null
+result: pass
+source: exit
+recorded: 2026-09-15T18:32:48.523Z
