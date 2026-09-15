@@ -6,12 +6,11 @@ use super::{parser::EscapeSequenceParser, TerminalEvent};
 #[cfg(feature = "tokio")]
 use crate::error::ReactiveError;
 use crate::error::Result;
-use std::io::{self, Read};
 #[allow(unused_imports)]
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::sync::{
     atomic::{AtomicBool, Ordering},
-    Arc, Mutex,
+    Arc, Condvar, Mutex,
 };
 use std::thread::{self, JoinHandle};
 use std::time::Duration;
@@ -162,16 +161,182 @@ impl<T> EventQueue<T> {
     }
 }
 
+struct ThreadedQueue<T> {
+    state: Mutex<ThreadedQueueState<T>>,
+    available: Condvar,
+    space: Condvar,
+}
+
+struct ThreadedQueueState<T> {
+    events: EventQueue<T>,
+    stopped: bool,
+}
+
+impl<T> ThreadedQueue<T> {
+    fn new(capacity: usize) -> Self {
+        Self {
+            state: Mutex::new(ThreadedQueueState {
+                events: EventQueue::new(capacity),
+                stopped: false,
+            }),
+            available: Condvar::new(),
+            space: Condvar::new(),
+        }
+    }
+
+    fn reset(&self) {
+        self.state
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .stopped = false;
+    }
+
+    fn push(&self, event: T) -> bool {
+        let mut state = self
+            .state
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        while !state.stopped && state.events.len() == state.events.capacity {
+            state = self
+                .space
+                .wait(state)
+                .unwrap_or_else(|poisoned| poisoned.into_inner());
+        }
+        if state.stopped {
+            return false;
+        }
+        let pushed = state.events.try_push(event);
+        debug_assert!(pushed);
+        self.available.notify_one();
+        pushed
+    }
+
+    fn try_push(&self, event: T) -> bool {
+        let mut state = self
+            .state
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        if state.stopped || !state.events.try_push(event) {
+            return false;
+        }
+        self.available.notify_one();
+        true
+    }
+
+    fn pop(&self) -> Option<T> {
+        let mut state = self
+            .state
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        while !state.stopped && state.events.is_empty() {
+            state = self
+                .available
+                .wait(state)
+                .unwrap_or_else(|poisoned| poisoned.into_inner());
+        }
+        let event = state.events.try_pop();
+        if event.is_some() {
+            self.space.notify_one();
+        }
+        event
+    }
+
+    fn try_pop(&self) -> Option<T> {
+        let mut state = self
+            .state
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        let event = state.events.try_pop();
+        if event.is_some() {
+            self.space.notify_one();
+        }
+        event
+    }
+
+    fn stop(&self) {
+        let mut state = self
+            .state
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        state.stopped = true;
+        self.available.notify_all();
+        self.space.notify_all();
+    }
+}
+
+#[cfg(unix)]
+fn spawn_unix_input(
+    queue: Arc<ThreadedQueue<TerminalEvent>>,
+    parser: Arc<Mutex<EscapeSequenceParser>>,
+) -> Result<(JoinHandle<()>, Arc<super::input_receiver::Cancellation>)> {
+    use std::os::fd::{FromRawFd, OwnedFd};
+    let descriptor = unsafe {
+        let fd = libc::fcntl(libc::STDIN_FILENO, libc::F_DUPFD_CLOEXEC, 0);
+        if fd < 0 {
+            return Err(std::io::Error::last_os_error().into());
+        }
+        OwnedFd::from_raw_fd(fd)
+    };
+    let cancellation = Arc::new(super::input_receiver::Cancellation::new()?);
+    let reader = Arc::clone(&cancellation);
+    let handle = thread::Builder::new()
+        .name("rtui-event-loop-input".into())
+        .spawn(move || {
+            let mut buffer = [0u8; 1024];
+            while let Ok(count) = reader.read(&descriptor, &mut buffer) {
+                if count == 0 {
+                    break;
+                }
+                let events = parser
+                    .lock()
+                    .unwrap_or_else(|poisoned| poisoned.into_inner())
+                    .parse(&buffer[..count]);
+                if events.into_iter().any(|event| !queue.push(event)) {
+                    break;
+                }
+            }
+        })?;
+    Ok((handle, cancellation))
+}
+
+#[cfg(windows)]
+fn spawn_windows_input(
+    queue: Arc<ThreadedQueue<TerminalEvent>>,
+    should_quit: Arc<AtomicBool>,
+) -> Result<JoinHandle<()>> {
+    let terminal = super::windows::WindowsTty::init()?;
+    Ok(thread::Builder::new()
+        .name("rtui-event-loop-input".into())
+        .spawn(move || {
+            while !should_quit.load(Ordering::Acquire) {
+                match terminal.read_input_events(Some(Duration::from_millis(50))) {
+                    Ok(events) => {
+                        if events.into_iter().any(|event| !queue.push(event)) {
+                            break;
+                        }
+                    }
+                    Err(error) => {
+                        log::error!("ThreadedEventLoop input failed: {error}");
+                        break;
+                    }
+                }
+            }
+        })?)
+}
+
 /// Standard threaded event loop implementation
 pub struct ThreadedEventLoop {
     /// Event queue for terminal events
-    queue: Arc<Mutex<EventQueue<TerminalEvent>>>,
+    queue: Arc<ThreadedQueue<TerminalEvent>>,
 
     /// Input thread handle
     thread: Option<JoinHandle<()>>,
 
     /// Flag to signal thread shutdown
     should_quit: Arc<AtomicBool>,
+
+    #[cfg(unix)]
+    cancellation: Option<Arc<super::input_receiver::Cancellation>>,
 
     /// Parser for escape sequences
     parser: Arc<Mutex<EscapeSequenceParser>>,
@@ -181,9 +346,11 @@ impl ThreadedEventLoop {
     /// Create new threaded event loop
     pub fn new() -> Self {
         Self {
-            queue: Arc::new(Mutex::new(EventQueue::new(512))),
+            queue: Arc::new(ThreadedQueue::new(512)),
             thread: None,
             should_quit: Arc::new(AtomicBool::new(false)),
+            #[cfg(unix)]
+            cancellation: None,
             parser: Arc::new(Mutex::new(EscapeSequenceParser::new())),
         }
     }
@@ -194,40 +361,44 @@ impl ThreadedEventLoop {
             return Ok(()); // Already started
         }
 
-        let queue = Arc::clone(&self.queue);
-        let should_quit = Arc::clone(&self.should_quit);
-        let parser = Arc::clone(&self.parser);
+        #[cfg(unix)]
+        {
+            let (handle, cancellation) =
+                spawn_unix_input(Arc::clone(&self.queue), Arc::clone(&self.parser))?;
+            self.thread = Some(handle);
+            self.cancellation = Some(cancellation);
+            Ok(())
+        }
 
-        let handle = thread::spawn(move || {
-            let mut stdin = io::stdin();
-            let mut buffer = [0u8; 1024];
+        #[cfg(windows)]
+        {
+            self.thread = Some(spawn_windows_input(
+                Arc::clone(&self.queue),
+                Arc::clone(&self.should_quit),
+            )?);
+            Ok(())
+        }
 
-            while !should_quit.load(Ordering::Acquire) {
-                match stdin.read(&mut buffer) {
-                    Ok(0) => break, // EOF
-                    Ok(n) => {
-                        // Parse input and generate events
-                        if let Ok(mut parser) = parser.lock() {
-                            let events = parser.parse(&buffer[..n]);
+        #[cfg(not(any(unix, windows)))]
+        Err(std::io::Error::new(
+            std::io::ErrorKind::Unsupported,
+            "ThreadedEventLoop input supports Unix and Windows",
+        )
+        .into())
+    }
 
-                            // Push events to queue
-                            if let Ok(mut queue) = queue.lock() {
-                                for event in events {
-                                    queue.push(event);
-                                }
-                            }
-                        }
-                    }
-                    Err(e) if e.kind() == io::ErrorKind::WouldBlock => {
-                        // No data available, sleep briefly
-                        thread::sleep(Duration::from_millis(10));
-                    }
-                    Err(_) => break, // Other error, exit thread
-                }
-            }
-        });
-
-        self.thread = Some(handle);
+    fn shutdown(&mut self) -> Result<()> {
+        self.should_quit.store(true, Ordering::Release);
+        self.queue.stop();
+        #[cfg(unix)]
+        if let Some(cancellation) = self.cancellation.take() {
+            cancellation.cancel();
+        }
+        if let Some(handle) = self.thread.take() {
+            handle
+                .join()
+                .map_err(|_| std::io::Error::other("ThreadedEventLoop input thread panicked"))?;
+        }
         Ok(())
     }
 }
@@ -240,46 +411,35 @@ impl EventLoop<TerminalEvent> for ThreadedEventLoop {
 
     fn start(&mut self) -> Result<()> {
         self.should_quit.store(false, Ordering::Release);
+        self.queue.reset();
         self.start_input_thread()
     }
 
     fn stop(&mut self) -> Result<()> {
-        self.should_quit.store(true, Ordering::Release);
-
-        if let Some(handle) = self.thread.take() {
-            // Signal the thread to quit and wait for it
-            let _ = handle.join();
-        }
-
-        Ok(())
+        self.shutdown()
     }
 
     fn next_event(&mut self) -> Option<TerminalEvent> {
-        if let Ok(mut queue) = self.queue.lock() {
-            if queue.is_empty() {
-                None
-            } else {
-                Some(queue.pop())
-            }
-        } else {
-            None
-        }
+        self.queue.pop()
     }
 
     fn try_event(&mut self) -> Option<TerminalEvent> {
-        if let Ok(mut queue) = self.queue.lock() {
-            queue.try_pop()
-        } else {
-            None
-        }
+        self.queue.try_pop()
     }
 
     fn post_event(&mut self, event: TerminalEvent) -> Result<()> {
-        if let Ok(mut queue) = self.queue.lock() {
-            queue.push(event);
+        if self.queue.try_push(event) {
             Ok(())
         } else {
-            Err(std::io::Error::other("Failed to acquire queue lock").into())
+            Err(std::io::Error::other("ThreadedEventLoop queue is full or stopped").into())
+        }
+    }
+}
+
+impl Drop for ThreadedEventLoop {
+    fn drop(&mut self) {
+        if let Err(error) = self.shutdown() {
+            log::debug!("ThreadedEventLoop shutdown after failure: {error}");
         }
     }
 }
@@ -664,6 +824,23 @@ mod tests {
         if let Some(event) = event_loop.try_event() {
             assert_eq!(event, test_event);
         }
+    }
+
+    #[test]
+    fn rtr_002_direct_post_reports_capacity_and_recovers_after_consumption() {
+        let mut event_loop = ThreadedEventLoop::new();
+        for _ in 0..512 {
+            event_loop.post_event(TerminalEvent::FocusGained).unwrap();
+        }
+        let started = std::time::Instant::now();
+        assert!(event_loop
+            .post_event(TerminalEvent::FocusLost)
+            .unwrap_err()
+            .to_string()
+            .contains("queue is full"));
+        assert!(started.elapsed() < std::time::Duration::from_secs(1));
+        assert_eq!(event_loop.try_event(), Some(TerminalEvent::FocusGained));
+        event_loop.post_event(TerminalEvent::FocusLost).unwrap();
     }
 
     #[cfg(target_os = "linux")]

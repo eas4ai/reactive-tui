@@ -136,7 +136,7 @@ impl<'a, T> IntoIterator for &'a InputReceiver<T> {
     }
 }
 
-struct Cancellation {
+pub(super) struct Cancellation {
     stopped: Mutex<bool>,
     space: Condvar,
     wake_reader: UnixStream,
@@ -144,7 +144,7 @@ struct Cancellation {
 }
 
 impl Cancellation {
-    fn new() -> io::Result<Self> {
+    pub(super) fn new() -> io::Result<Self> {
         let (wake_reader, wake_writer) = UnixStream::pair()?;
         Ok(Self {
             stopped: Mutex::new(false),
@@ -154,7 +154,7 @@ impl Cancellation {
         })
     }
 
-    fn cancel(&self) {
+    pub(super) fn cancel(&self) {
         let mut stopped = self.stopped.lock().unwrap_or_else(|e| e.into_inner());
         if !*stopped {
             *stopped = true;
@@ -185,7 +185,7 @@ impl Cancellation {
         }
     }
 
-    fn read(&self, descriptor: &OwnedFd, buffer: &mut [u8]) -> io::Result<usize> {
+    pub(super) fn read(&self, descriptor: &OwnedFd, buffer: &mut [u8]) -> io::Result<usize> {
         let mut descriptors = [
             libc::pollfd {
                 fd: descriptor.as_raw_fd(),

@@ -107,6 +107,11 @@ def check_rtr_002():
          "rtr_002_threaded_event_loop_probe", "--no-run"],
         cwd=root, env=environment, check=True, timeout=300,
     )
+    subprocess.run(
+        ["cargo", "test", "--locked", "--jobs", "8", "--lib",
+         "rtr_002_direct_post_reports_capacity_and_recovers_after_consumption"],
+        cwd=root, env=environment, check=True, timeout=60,
+    )
     for mode in ("saturation", "idle-stop", "drop"):
         run_threaded_probe(mode)
 
