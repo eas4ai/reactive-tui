@@ -11,4 +11,4 @@ Retain taffy 0.9.2 in reactive-tui and taffy 0.13.0 in reactive-tui-suprtui for 
 
 ## Realized by
 
-(none yet: recorded, not built)
+- 90e77044b12e8b4d7c50b37d78f444faa230e6a8 fix: enforce DQC-002 dependency maintenance
