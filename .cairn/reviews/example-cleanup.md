@@ -4,7 +4,7 @@ commit: e7f32ae9
 findings:
   - resolved: the public example inventory and documentation advertised six programs that the developer found broken in Kitty; those sources and invitations are removed.
   - resolved: renderer, wakeup, and embedded-terminal checks depended on three deleted app sources; their narrow programs now live under `tests/runtime_probes/` with private target names and the same PTY assertions.
-  - captured: the deterministic embedded-terminal PTY probe passes but does not reproduce or refute the reported Kitty segfault; `.cairn/backlog/reproduce-the-embedded-terminal-kitty-crash.md` records that separate framework investigation.
+  - resolved: the review found that the deterministic embedded-terminal PTY probe does not reproduce or refute the reported Kitty segfault; the unresolved crash itself is preserved in `.cairn/backlog/reproduce-the-embedded-terminal-kitty-crash.md` rather than misreported as fixed by EXC-001.
 
 ## Scope examined
 
