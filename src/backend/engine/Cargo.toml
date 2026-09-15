@@ -16,6 +16,6 @@ path = "src/lib.rs"
 [dependencies]
 unicode-segmentation = "1.13.3"
 unicode-properties = "0.1.4"
-vte = "0.14"
+vte = "0.15"
 taffy = "0.13"
-image = "0.25"
+image = { version = "0.25", default-features = false, features = ["gif", "jpeg", "png", "webp"] }

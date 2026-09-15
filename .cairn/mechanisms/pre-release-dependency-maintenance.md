@@ -1,15 +1,17 @@
 # Mechanism: pre-release-dependency-maintenance
 
-command: python3 -B scripts/check-pre-release-dependency-code-quality.py DQC-002
+command: python3 -B scripts/check-pre-release-dependency-maintenance.py DQC-002
 inputs:
   - .cairn/mechanisms/pre-release-dependency-maintenance.md
   - Cargo.toml
   - Cargo.lock
   - crates
   - src
+  - dependency-maintenance.toml
   - deny.toml
-  - scripts/check-pre-release-dependency-code-quality.py
-  - scripts/test-pre-release-dependency-code-quality.py
+  - scripts/check-pre-release-dependency-maintenance.py
+  - scripts/dependency_check_test_support.py
+  - scripts/test-pre-release-dependency-maintenance.py
   - docs/spec/pre-release-dependency-code-quality.md
   - docs/commitments/pre-release-dependency-code-quality.md
   - docs/decisions

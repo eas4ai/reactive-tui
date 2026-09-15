@@ -1,5 +1,5 @@
 use crate::core::styled_text::StyledLine;
-use comrak::{parse_document, Arena, ExtensionOptions, Options};
+use comrak::{parse_document, Arena, Options};
 use std::collections::HashMap;
 
 /// Maximum source size accepted by the checked Markdown renderer.
@@ -18,12 +18,11 @@ impl<'a> MarkdownRenderer<'a> {
 
         // Enable GFM extensions
         options.extension.strikethrough = true;
-        options.extension.tagfilter = false; // We handle our own filtering
         options.extension.table = true;
         options.extension.autolink = true;
         options.extension.tasklist = true;
         options.extension.superscript = false; // Keep simple for terminal
-        options.extension.header_ids = None;
+        options.extension.header_id_prefix = None;
         options.extension.footnotes = true;
         options.extension.description_lists = true;
         options.extension.front_matter_delimiter = None;
@@ -37,7 +36,7 @@ impl<'a> MarkdownRenderer<'a> {
         options.render.github_pre_lang = true;
         options.render.full_info_string = false;
         options.render.width = 0; // No wrapping at parser level
-        options.render.unsafe_ = false; // Safe by default
+        options.render.r#unsafe = false; // Safe by default
         options.render.escape = true;
 
         Self {
@@ -132,34 +131,13 @@ pub fn render_markdown(markdown: &str) -> Vec<StyledLine> {
 
 /// Render markdown with GFM extensions enabled
 pub fn render_markdown_gfm(markdown: &str) -> Vec<StyledLine> {
-    let options = Options {
-        extension: ExtensionOptions {
-            strikethrough: true,
-            tagfilter: false,
-            table: true,
-            autolink: true,
-            tasklist: true,
-            superscript: false,
-            header_ids: None,
-            footnotes: true,
-            description_lists: true,
-            front_matter_delimiter: None,
-            multiline_block_quotes: false,
-            math_dollars: false,
-            math_code: false,
-            wikilinks_title_after_pipe: false,
-            wikilinks_title_before_pipe: true,
-            greentext: false,
-            underline: false,
-            spoiler: false,
-            alerts: false,
-            subscript: false,
-            image_url_rewriter: None,
-            link_url_rewriter: None,
-            cjk_friendly_emphasis: false,
-        },
-        ..Default::default()
-    };
+    let mut options = Options::default();
+    options.extension.strikethrough = true;
+    options.extension.table = true;
+    options.extension.autolink = true;
+    options.extension.tasklist = true;
+    options.extension.footnotes = true;
+    options.extension.description_lists = true;
 
     let renderer = MarkdownRenderer::with_options(options);
     renderer.render_to_styled_lines(markdown)

@@ -8,6 +8,7 @@ inputs:
   - crates
   - deny.toml
   - scripts/check-pre-release-dependency-code-quality.py
+  - scripts/dependency_check_test_support.py
   - scripts/test-pre-release-dependency-code-quality.py
   - docs/spec/pre-release-dependency-code-quality.md
   - docs/commitments/pre-release-dependency-code-quality.md

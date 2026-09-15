@@ -299,7 +299,11 @@ impl AstWalker {
 
             // Task list items (GFM extension)
             NodeValue::TaskItem(checked) => {
-                let checkbox = if checked.is_some() { "[x] " } else { "[ ] " };
+                let checkbox = if checked.symbol.is_some() {
+                    "[x] "
+                } else {
+                    "[ ] "
+                };
                 self.add_text(checkbox);
                 self.walk_children(node);
             }

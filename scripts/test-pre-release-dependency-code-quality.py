@@ -1,22 +1,13 @@
 #!/usr/bin/env python3
-import importlib.util
 from pathlib import Path
 import tempfile
 import unittest
 
+from dependency_check_test_support import load_checker
+
 
 ROOT = Path(__file__).resolve().parents[1]
 CHECKER = ROOT / "scripts" / "check-pre-release-dependency-code-quality.py"
-
-
-def load_checker():
-    if not CHECKER.is_file():
-        raise AssertionError(f"dependency checker is missing: {CHECKER}")
-    spec = importlib.util.spec_from_file_location("dependency_checker", CHECKER)
-    module = importlib.util.module_from_spec(spec)
-    assert spec.loader is not None
-    spec.loader.exec_module(module)
-    return module
 
 
 def clean_observation():
@@ -34,7 +25,7 @@ def clean_observation():
 
 class ObservationValidationTests(unittest.TestCase):
     def setUp(self):
-        self.checker = load_checker()
+        self.checker = load_checker(CHECKER, "dependency_checker", "dependency checker")
 
     def assert_missing_result_rejected(self, name):
         observation = clean_observation()
@@ -76,7 +67,7 @@ class ObservationValidationTests(unittest.TestCase):
 
 class ExceptionDecisionTests(unittest.TestCase):
     def test_exception_decision_names_exact_exposure_and_mitigation(self):
-        checker = load_checker()
+        checker = load_checker(CHECKER, "dependency_checker", "dependency checker")
         exception = {
             "advisory": "RUSTSEC-2099-0001",
             "package": "example",
@@ -94,7 +85,7 @@ class ExceptionDecisionTests(unittest.TestCase):
 
 class PolicyValidationTests(unittest.TestCase):
     def setUp(self):
-        self.checker = load_checker()
+        self.checker = load_checker(CHECKER, "dependency_checker", "dependency checker")
         self.valid = {
             "advisories": {"unsound": "all", "ignore": []},
             "licenses": {"allow": ["MIT"]},
@@ -135,7 +126,7 @@ class PolicyValidationTests(unittest.TestCase):
 
 class ArtifactReportTests(unittest.TestCase):
     def test_report_identifies_each_artifact_by_path_and_digest(self):
-        checker = load_checker()
+        checker = load_checker(CHECKER, "dependency_checker", "dependency checker")
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             lockfile = root / "Cargo.lock"
