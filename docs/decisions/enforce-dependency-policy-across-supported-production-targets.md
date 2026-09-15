@@ -11,4 +11,4 @@ Check the locked dependency graph for the supported Linux, macOS, and Windows ta
 
 ## Realized by
 
-(none yet: recorded, not built)
+7ca3e155 fix: enforce DQC-001 dependency policy
