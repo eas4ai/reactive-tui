@@ -2,7 +2,7 @@
 
 commit: 4e04c7ae5c5cb67f07306c312e4493598fba0fb3
 findings:
-  - unresolved: RAC-002 makes safe `Ref::update` re-entry depend on an integer-cast raw pointer that Miri rejects for invalid mutable aliasing.
+  - open: RAC-002 makes safe `Ref::update` re-entry depend on an integer-cast raw pointer that Miri rejects for invalid mutable aliasing.
 
 ## Scope examined
 
