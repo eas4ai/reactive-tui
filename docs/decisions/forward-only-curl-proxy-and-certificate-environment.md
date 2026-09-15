@@ -11,4 +11,4 @@ Clear the environment for both the curl version probe and request. Copy PATH; lo
 
 ## Realized by
 
-(none yet: recorded, not built)
+- 4ddd7600095c966b52d3d6d8e90cf301b156d6a6 fix: restrict dialog curl environment
