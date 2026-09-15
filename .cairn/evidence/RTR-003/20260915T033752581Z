@@ -1,0 +1,21 @@
+requirement: RTR-003
+requirement_digest: sha256:41e0e931d09f28887e4efcf3e797e9c492b14fdd47cf03b8c083348facee3aae
+sequence: 5
+history_digest: sha256:f406ed6b6cf987a41627d5576c51fda2c6148e1e9840b0d3a17f0605cd8af6f3
+mechanism: pre-release-tokio-event-loop.md
+commit: 4fc5f2f6
+inputs_digest: sha256:dcc77db5389089221687bc67959f18daee6785136f521895118d6d3674cef89f
+mechanism_digest: sha256:3bf453b19ef5b77ef324de8de5337cb9481e2643718560b11bcfe06502eaac97
+inputs_detail: .cairn/evidence/RTR-003/20260915T033252331Z-3903522.inputs.json
+command: python3 -B scripts/check-pre-release-tokio-event-loop.py
+cwd: .
+exit: 1
+output_digest: sha256:951eccde306e2c19e3ffef48b1b9f5a9905243ceb31563e8b60e3b544c54659b
+output: .cairn/evidence/RTR-003/20260915T033252331Z-3903522.out
+stderr_output: .cairn/evidence/RTR-003/20260915T033252331Z-3903522.err
+stderr_digest: sha256:860ba603ebba8dcb3e72f10272390e4c86a14016fa5db6a236e163a407ac8ea2
+signal: none
+execution_error: null
+result: fail
+source: exit
+recorded: 2026-09-15T03:37:52.581Z
