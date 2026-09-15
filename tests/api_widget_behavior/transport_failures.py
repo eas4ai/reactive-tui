@@ -5,6 +5,7 @@ import fcntl
 import os
 from pathlib import Path
 import pty
+import re
 import select
 import signal
 import socket
@@ -14,12 +15,15 @@ import tempfile
 import termios
 import time
 
+CONTROL_SEQUENCE = re.compile(rb"\x1b\[[0-?]*[ -/]*[@-~]")
+
 
 def validate_probe(automatic, stalled, returncode, output, elapsed, terminal_restored):
     text = output.decode(errors="replace")
     if automatic:
         assert returncode == 0, text
-        assert b"Painted account" in output, "automatic mode did not deliver its first frame"
+        painted = CONTROL_SEQUENCE.sub(b"", output)
+        assert b"Painted account" in painted, "automatic mode did not deliver its first frame"
     else:
         assert returncode != 0, "unavailable screen-reader transport reported success"
         assert "screen-reader session-bus connection" in text, text
@@ -51,7 +55,9 @@ def prove_validator_rejects_violations():
 
 
 def probe(binary, directory, stalled, automatic=False):
-    endpoint = directory / ("stalled.sock" if stalled else "missing.sock")
+    mode = "automatic" if automatic else "explicit"
+    state = "stalled" if stalled else "missing"
+    endpoint = directory / f"{mode}-{state}.sock"
     server = socket.socket(socket.AF_UNIX) if stalled else None
     master, slave = pty.openpty()
     child = None
@@ -101,7 +107,7 @@ def probe(binary, directory, stalled, automatic=False):
             termios.tcgetattr(slave) == original,
         )
         if automatic:
-            print(f"A11Y automatic mode without desktop bus: ordinary App input and cleanup passed in {elapsed:.2f}s")
+            print(f"A11Y automatic mode with {state} bus: frame, input, and cleanup passed in {elapsed:.2f}s")
         else:
             print(f"A11Y {'stalled' if stalled else 'missing'} bus: error returned and terminal restored in {elapsed:.2f}s")
     finally:

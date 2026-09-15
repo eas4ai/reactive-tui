@@ -107,6 +107,8 @@ pub struct App {
     #[cfg(target_os = "linux")]
     accessibility: Option<crate::accessibility::Connection>,
     #[cfg(target_os = "linux")]
+    accessibility_required: bool,
+    #[cfg(target_os = "linux")]
     accessibility_snapshot: crate::accessibility::Snapshot,
     #[cfg(target_os = "linux")]
     accessibility_name: String,
@@ -155,12 +157,16 @@ impl App {
             .take()
             .map(|mut connection| connection.close())
         {
-            Some(Err(cleanup)) => match result {
+            Some(Err(cleanup)) if self.accessibility_required => match result {
                 Err(error) => Err(crate::error::ReactiveError::invalid_state(format!(
                     "{error}; screen-reader cleanup: {cleanup}"
                 ))),
                 Ok(()) => Err(cleanup),
             },
+            Some(Err(cleanup)) => {
+                log::warn!("automatically selected screen-reader integration disabled: {cleanup}");
+                result
+            }
             _ => result,
         };
         self.wake.close();
@@ -261,17 +267,17 @@ impl App {
         use crate::event::types::{Event, KeyCode, KeyEventKind};
         let notifications = crate::event::notifications::Dispatch::enter();
         #[cfg(target_os = "linux")]
-        if let Some(accessibility) = &mut self.accessibility {
+        if self.accessibility.is_some() {
             use crate::event::types::FocusEventKind;
-            match event {
-                Event::Focus(focus) if focus.kind == FocusEventKind::Lost => {
-                    accessibility.focus(false)?
-                }
-                Event::Focus(focus) if focus.kind == FocusEventKind::Gained => {
-                    accessibility.focus(true)?
-                }
-                Event::Key(_) | Event::Mouse(_) => accessibility.focus(true)?,
-                _ => {}
+            let focused = match event {
+                Event::Focus(focus) if focus.kind == FocusEventKind::Lost => Some(false),
+                Event::Focus(focus) if focus.kind == FocusEventKind::Gained => Some(true),
+                Event::Key(_) | Event::Mouse(_) => Some(true),
+                _ => None,
+            };
+            if let Some(focused) = focused {
+                let result = self.accessibility.as_mut().unwrap().focus(focused);
+                self.resolve_accessibility(result)?;
             }
         }
         let mut dirty = false;
@@ -325,13 +331,46 @@ impl App {
     }
 
     #[cfg(target_os = "linux")]
+    fn resolve_accessibility<T>(&mut self, result: Result<T>) -> Result<Option<T>> {
+        match result {
+            Ok(value) => Ok(Some(value)),
+            Err(error) if self.accessibility_required => Err(error),
+            Err(error) => {
+                log::warn!("automatically selected screen-reader integration disabled: {error}");
+                self.accessibility.take();
+                Ok(None)
+            }
+        }
+    }
+
+    #[cfg(target_os = "linux")]
+    fn publish_accessibility(&mut self) -> Result<()> {
+        let Some(result) = self
+            .accessibility
+            .as_mut()
+            .map(|connection| connection.publish(&self.accessibility_snapshot))
+        else {
+            return Ok(());
+        };
+        self.resolve_accessibility(result)?;
+        Ok(())
+    }
+
+    #[cfg(target_os = "linux")]
     fn process_accessibility_actions(&mut self) -> Result<bool> {
         use crate::event::{
             types::{MouseButton, MouseEvent, MouseEventKind, Position},
             Event,
         };
-        let actions = match &self.accessibility {
-            Some(accessibility) => accessibility.actions()?,
+        let actions = match self
+            .accessibility
+            .as_ref()
+            .map(|connection| connection.actions())
+        {
+            Some(result) => match self.resolve_accessibility(result)? {
+                Some(actions) => actions,
+                None => return Ok(false),
+            },
             None => return Ok(false),
         };
         let mut dirty = false;
@@ -544,9 +583,7 @@ impl App {
             {
                 self.accessibility_snapshot =
                     crate::accessibility::Snapshot::empty(&self.accessibility_name);
-                if let Some(accessibility) = &mut self.accessibility {
-                    accessibility.publish(&self.accessibility_snapshot)?;
-                }
+                self.publish_accessibility()?;
             }
             return Ok(());
         }
@@ -581,14 +618,14 @@ impl App {
                 );
                 self.focus_manager.apply(&mut self.router, focus);
                 #[cfg(target_os = "linux")]
-                if let Some(accessibility) = &mut self.accessibility {
+                if self.accessibility.is_some() {
                     self.accessibility_snapshot = self.event_tree.accessibility_snapshot(
                         &state_styled,
                         geometry,
                         &self.router,
                         &self.accessibility_name,
                     );
-                    accessibility.publish(&self.accessibility_snapshot)?;
+                    self.publish_accessibility()?;
                 }
                 if layout_changed || anchors_changed {
                     self.wake.request_redraw();
@@ -772,6 +809,32 @@ impl Default for AppBuilder {
     }
 }
 
+#[cfg(target_os = "linux")]
+fn build_accessibility(
+    selection: Option<bool>,
+    backend: &dyn Backend,
+    name: &str,
+    wake: AppWaker,
+) -> Result<(Option<crate::accessibility::Connection>, bool)> {
+    let required = selection == Some(true);
+    let selected = selection.unwrap_or_else(|| {
+        backend.is_interactive_terminal()
+            && std::env::var_os("DBUS_SESSION_BUS_ADDRESS")
+                .is_some_and(|address| !address.is_empty())
+    });
+    if !selected {
+        return Ok((None, required));
+    }
+    match crate::accessibility::Connection::new(name, wake) {
+        Ok(connection) => Ok((Some(connection), required)),
+        Err(error) if required => Err(error),
+        Err(error) => {
+            log::warn!("automatically selected screen-reader integration disabled: {error}");
+            Ok((None, required))
+        }
+    }
+}
+
 impl AppBuilder {
     /// Enable or disable the Linux screen-reader connection.
     /// Enabled automatically for an interactive Linux terminal with a desktop
@@ -863,15 +926,12 @@ impl AppBuilder {
             ));
         }
         #[cfg(target_os = "linux")]
-        let accessibility = self
-            .accessibility
-            .unwrap_or_else(|| {
-                backend.is_interactive_terminal()
-                    && std::env::var_os("DBUS_SESSION_BUS_ADDRESS")
-                        .is_some_and(|address| !address.is_empty())
-            })
-            .then(|| crate::accessibility::Connection::new(&self.accessibility_name, wake.clone()))
-            .transpose()?;
+        let (accessibility, accessibility_required) = build_accessibility(
+            self.accessibility,
+            backend.as_ref(),
+            &self.accessibility_name,
+            wake.clone(),
+        )?;
         Ok(App {
             backend,
             root,
@@ -894,6 +954,8 @@ impl AppBuilder {
             focus_manager: FocusManager::new(),
             #[cfg(target_os = "linux")]
             accessibility,
+            #[cfg(target_os = "linux")]
+            accessibility_required,
             #[cfg(target_os = "linux")]
             accessibility_snapshot: crate::accessibility::Snapshot::empty(&self.accessibility_name),
             #[cfg(target_os = "linux")]
