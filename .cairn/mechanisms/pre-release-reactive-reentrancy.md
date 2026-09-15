@@ -7,6 +7,7 @@ inputs:
   - src/hooks/refs.rs
   - src/hooks/timer.rs
   - src/reactive
+  - tests/api_residual_refs.rs
   - scripts/check-pre-release-reactive-concurrency.py
 requirements:
   - RAC-002
@@ -26,4 +27,6 @@ pass. The shared `Ref` case MUST retain a borrow into the outer draft while a
 nested update reallocates its own draft. A `syn` inventory MUST reject direct
 user callback invocation while an internal `RefCell` borrow or mutex guard
 remains live in these paths and MUST reject unsafe alias construction in the
-shared `Ref` implementation.
+shared `Ref` implementation. The check MUST also run the focused compatibility
+test proving non-`Clone` values still support construction and replacement, and
+the compile-fail doctest proving `update` requires a cloneable snapshot.

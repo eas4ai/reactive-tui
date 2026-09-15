@@ -103,6 +103,50 @@ def run_test(test_filter: str, *test_args: str) -> None:
     )
 
 
+def run_integration_test(test_target: str, test_filter: str) -> None:
+    env = os.environ.copy()
+    env["CARGO_BUILD_JOBS"] = JOBS
+    subprocess.run(
+        [
+            "cargo",
+            "test",
+            "--locked",
+            "--test",
+            test_target,
+            test_filter,
+            "--jobs",
+            JOBS,
+            "--",
+            "--exact",
+            "--test-threads=1",
+        ],
+        cwd=ROOT,
+        env=env,
+        check=True,
+        timeout=600,
+    )
+
+
+def run_doc_test(test_filter: str) -> None:
+    env = os.environ.copy()
+    env["CARGO_BUILD_JOBS"] = JOBS
+    subprocess.run(
+        [
+            "cargo",
+            "test",
+            "--locked",
+            "--doc",
+            test_filter,
+            "--jobs",
+            JOBS,
+        ],
+        cwd=ROOT,
+        env=env,
+        check=True,
+        timeout=600,
+    )
+
+
 def require_tests(test_filter: str, expected: int) -> None:
     env = os.environ.copy()
     env["CARGO_BUILD_JOBS"] = JOBS
@@ -145,6 +189,10 @@ def main() -> int:
     elif sys.argv[1] == "RAC-002":
         prove_reentrancy_validator()
         run_test("rac_002_")
+        run_integration_test(
+            "api_residual_refs", "reference_hooks_preserve_existing_type_bounds"
+        )
+        run_doc_test("hooks::refs::Ref")
         print("RAC-002 callbacks completed re-entry and later progress without held guards")
     else:
         prove_fallback_validator()
