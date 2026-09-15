@@ -11,4 +11,4 @@ Treat the device and file identifier pair as the entry identity. For copy, compa
 
 ## Realized by
 
-(none yet: recorded, not built)
+- 12ece746ab9d11845eafab13b4a5d3b89348b5bd fix: reject changed file-explorer identities
