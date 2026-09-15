@@ -1,5 +1,5 @@
 use super::{check_cancel, Dir, Path, PathBuf, ENTRY_LIMIT};
-use cap_std::fs::{DirBuilder, OpenOptions};
+use cap_std::fs::{DirBuilder, Metadata, OpenOptions};
 use std::{
     ffi::OsStr,
     io::{self, Read, Write},
@@ -45,6 +45,15 @@ pub(in super::super) enum Operation {
 
 fn invalid(message: &str) -> io::Error {
     io::Error::new(io::ErrorKind::InvalidInput, message)
+}
+
+fn ensure_same_entry(expected: &Metadata, actual: &Metadata) -> io::Result<()> {
+    use cap_fs_ext::MetadataExt;
+    if expected.dev() == actual.dev() && expected.ino() == actual.ino() {
+        Ok(())
+    } else {
+        Err(io::Error::other("Source entry changed during operation"))
+    }
 }
 
 /// Return an anchored parent and a single leaf name. Neither rename endpoint may
@@ -300,6 +309,7 @@ fn copy_entry(
         #[cfg(unix)]
         {
             let link = source.read_link_contents(name)?;
+            ensure_same_entry(&metadata, &source.symlink_metadata(name)?)?;
             destination.symlink_contents(link, target)?;
         }
         #[cfg(windows)]
@@ -314,12 +324,15 @@ fn copy_entry(
                     & windows_sys::Win32::Storage::FileSystem::FILE_ATTRIBUTE_DIRECTORY
                     != 0,
             )?;
+            ensure_same_entry(&metadata, &source.symlink_metadata(name)?)?;
         }
         return Ok(());
     }
     if metadata.is_dir() {
-        destination.create_dir(target)?;
         let source = source.open_dir(name)?;
+        let opened_metadata = source.dir_metadata()?;
+        ensure_same_entry(&metadata, &opened_metadata)?;
+        destination.create_dir(target)?;
         let destination = destination.open_dir(target)?;
         for entry in source.entries()? {
             let name = entry?.file_name();
@@ -334,7 +347,7 @@ fn copy_entry(
             )?;
         }
         destination
-            .set_permissions(".", metadata.permissions())
+            .set_permissions(".", opened_metadata.permissions())
             .map_err(|error| {
                 io::Error::new(
                     error.kind(),
@@ -352,7 +365,9 @@ fn copy_entry(
     let mut options = OpenOptions::new();
     options.read(true).follow(FollowSymlinks::No).nonblock(true);
     let mut input = source.open_with(name, &options)?;
-    if !input.metadata()?.is_file() {
+    let opened_metadata = input.metadata()?;
+    ensure_same_entry(&metadata, &opened_metadata)?;
+    if !opened_metadata.is_file() {
         return Err(invalid("Source is no longer a regular file"));
     }
     let mut output =
@@ -367,7 +382,7 @@ fn copy_entry(
         output.write_all(&buffer[..size])?;
     }
     output
-        .set_permissions(metadata.permissions())
+        .set_permissions(opened_metadata.permissions())
         .map_err(|error| {
             io::Error::new(
                 error.kind(),
@@ -402,12 +417,21 @@ fn remove(
     }
     if metadata.is_dir() && !metadata.file_type().is_symlink() {
         let directory = parent.open_dir(name)?;
+        ensure_same_entry(&metadata, &directory.dir_metadata()?)?;
         for entry in directory.entries()? {
             remove(&directory, &entry?.file_name(), cancelled, count, depth + 1)?;
         }
         check_cancel(cancelled)?;
         directory.remove_open_dir()
     } else {
+        if metadata.is_file() {
+            use cap_fs_ext::{FollowSymlinks, OpenOptionsFollowExt, OpenOptionsSyncExt};
+            let mut options = OpenOptions::new();
+            options.read(true).follow(FollowSymlinks::No).nonblock(true);
+            let source = parent.open_with(name, &options)?;
+            ensure_same_entry(&metadata, &source.metadata()?)?;
+        }
+        ensure_same_entry(&metadata, &parent.symlink_metadata(name)?)?;
         parent.remove_file(name)
     }
 }

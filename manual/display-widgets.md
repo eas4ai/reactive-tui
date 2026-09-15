@@ -44,6 +44,9 @@ event handling. Progress widgets can animate between values.
 - Chart resolution is limited by terminal cell geometry.
 - Virtual scrolling still requires stable row or node identity.
 - File explorer access is bounded by its capability-scoped root.
+- File explorer copy and delete operations keep the inspected entry identity.
+  If another process replaces that entry before use, the operation returns an
+  error instead of copying or deleting the replacement.
 - Overlay placement is constrained to the presented terminal rectangle.
 - Data callbacks should not block the application event loop.
 
