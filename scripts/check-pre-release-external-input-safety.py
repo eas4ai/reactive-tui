@@ -29,7 +29,7 @@ def run(command: list[str], required: list[str]) -> None:
         raise SystemExit(result.returncode)
     missing = [name for name in required if f"test {name} ... ok" not in result.stdout]
     if missing:
-        raise SystemExit(f"required XIS-001 tests did not run: {', '.join(missing)}")
+        raise SystemExit(f"required tests did not run: {', '.join(missing)}")
 
 
 def check_xis_001() -> None:
@@ -84,12 +84,73 @@ def check_xis_001() -> None:
     )
 
 
+def check_xis_002() -> None:
+    run(
+        [
+            "cargo",
+            "test",
+            "--locked",
+            "--lib",
+            "widgets::display::image::external_renderer::tests::xis_002_",
+            "--jobs",
+            JOBS,
+            "--",
+            "--test-threads=1",
+        ],
+        [
+            "widgets::display::image::external_renderer::tests::xis_002_argument_validator_rejects_unsafe_observations",
+            "widgets::display::image::external_renderer::tests::xis_002_external_paths_are_positional_data",
+        ],
+    )
+    run(
+        [
+            "cargo",
+            "test",
+            "--locked",
+            "--lib",
+            "widgets::display::image::decoded::tests::xis_002_decode_rejects_combined_storage_over_budget",
+            "--jobs",
+            JOBS,
+            "--",
+            "--exact",
+            "--test-threads=1",
+        ],
+        [
+            "widgets::display::image::decoded::tests::xis_002_decode_rejects_combined_storage_over_budget"
+        ],
+    )
+    run(
+        [
+            "cargo",
+            "test",
+            "--locked",
+            "--lib",
+            "widgets::display::image::decoded::tests::api_image_decode_",
+            "--jobs",
+            JOBS,
+            "--",
+            "--test-threads=1",
+        ],
+        [
+            "widgets::display::image::decoded::tests::api_image_decode_sources_preserve_pixels_and_encoded_dimensions",
+            "widgets::display::image::decoded::tests::api_image_decode_all_advertised_encoded_formats",
+            "widgets::display::image::decoded::tests::api_image_decode_rejects_malformed_and_oversized_sources",
+            "widgets::display::image::decoded::tests::api_image_decode_opaque_renderers_composite_alpha",
+        ],
+    )
+
+
 def main() -> int:
-    if sys.argv[1:] != ["XIS-001"]:
-        print(f"usage: {Path(sys.argv[0]).name} XIS-001", file=sys.stderr)
+    if sys.argv[1:] not in (["XIS-001"], ["XIS-002"]):
+        print(f"usage: {Path(sys.argv[0]).name} XIS-001|XIS-002", file=sys.stderr)
         return 2
-    check_xis_001()
-    print("XIS-001 dialog network safety passed")
+    requirement = sys.argv[1]
+    if requirement == "XIS-001":
+        check_xis_001()
+        print("XIS-001 dialog network safety passed")
+    else:
+        check_xis_002()
+        print("XIS-002 image input safety passed")
     return 0
 
 

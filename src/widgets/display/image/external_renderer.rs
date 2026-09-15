@@ -537,6 +537,116 @@ mod tests {
         }
     }
 
+    #[cfg(unix)]
+    fn xis_002_validate_arguments(
+        captures: &[serde_json::Value],
+    ) -> std::result::Result<(), String> {
+        if captures.len() != 2 {
+            return Err(format!(
+                "expected chafa and viu captures, got {}",
+                captures.len()
+            ));
+        }
+        for (capture, tool) in captures.iter().zip(["chafa", "viu"]) {
+            if capture["tool"] != tool {
+                return Err(format!("missing {tool} invocation"));
+            }
+            let arguments = capture["arguments"]
+                .as_array()
+                .ok_or_else(|| format!("{tool} capture has no arguments"))?;
+            let Some(path) = arguments.iter().position(|value| value == "-fixture.png") else {
+                return Err(format!("{tool} did not receive the fixture path"));
+            };
+            if path == 0 || arguments[path - 1] != "--" {
+                return Err(format!("{tool} can parse the image path as an option"));
+            }
+        }
+        Ok(())
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn xis_002_argument_validator_rejects_unsafe_observations() {
+        let valid = vec![
+            serde_json::json!({"tool":"chafa", "arguments":["--format=symbols", "--", "-fixture.png"]}),
+            serde_json::json!({"tool":"viu", "arguments":["--blocks", "--", "-fixture.png"]}),
+        ];
+        xis_002_validate_arguments(&valid).unwrap();
+        let mut missing_separator = valid.clone();
+        missing_separator[0]["arguments"]
+            .as_array_mut()
+            .unwrap()
+            .remove(1);
+        assert!(xis_002_validate_arguments(&missing_separator).is_err());
+        let mut late_separator = valid.clone();
+        late_separator[1]["arguments"] = serde_json::json!(["--blocks", "-fixture.png", "--"]);
+        assert!(xis_002_validate_arguments(&late_separator).is_err());
+        assert!(xis_002_validate_arguments(&valid[..1]).is_err());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn xis_002_external_paths_are_positional_data() {
+        const CHILD: &str = "RTUI_XIS_002_RENDER_CHILD";
+        const CAPTURE: &str = "RTUI_XIS_002_RENDER_CAPTURE";
+        if std::env::var_os(CHILD).is_some() {
+            let renderer = ExternalRenderer::new();
+            let image = Image::default().with_max_size(8, 4);
+            renderer
+                .render_chafa_file(Path::new("-fixture.png"), &image, || false)
+                .unwrap();
+            renderer
+                .render_viu_file(Path::new("-fixture.png"), &image, || false)
+                .unwrap();
+            let captures = fs::read_to_string(std::env::var_os(CAPTURE).unwrap())
+                .unwrap()
+                .lines()
+                .map(|line| serde_json::from_str(line).unwrap())
+                .collect::<Vec<_>>();
+            xis_002_validate_arguments(&captures).unwrap();
+            return;
+        }
+
+        use std::os::unix::fs::PermissionsExt;
+        let directory = tempfile::tempdir().unwrap();
+        let capture = directory.path().join("capture.jsonl");
+        for tool in ["chafa", "viu"] {
+            let executable = directory.path().join(tool);
+            let script = format!(
+                r#"#!/usr/bin/python3
+import json, sys
+with open({}, "a", encoding="utf-8") as output:
+    output.write(json.dumps({{"tool": {}, "arguments": sys.argv[1:]}}) + "\n")
+sys.stdout.write("fixture")
+"#,
+                serde_json::to_string(&capture.to_string_lossy()).unwrap(),
+                serde_json::to_string(tool).unwrap(),
+            );
+            fs::write(&executable, script).unwrap();
+            fs::set_permissions(executable, fs::Permissions::from_mode(0o700)).unwrap();
+        }
+        let output = Command::new(std::env::current_exe().unwrap())
+            .args([
+                "--exact",
+                "widgets::display::image::external_renderer::tests::xis_002_external_paths_are_positional_data",
+                "--nocapture",
+            ])
+            .current_dir(directory.path())
+            .env_clear()
+            .env(CHILD, "1")
+            .env(CAPTURE, &capture)
+            .env("PATH", directory.path())
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "{}{}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert!(String::from_utf8_lossy(&output.stdout).contains("1 passed"));
+    }
+
     #[test]
     fn test_get_display_constraints_with_size() {
         let renderer = ExternalRenderer::new();

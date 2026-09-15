@@ -402,4 +402,39 @@ mod tests {
             [128, 0, 0]
         );
     }
+
+    #[test]
+    fn xis_002_decode_rejects_combined_storage_over_budget() {
+        const SIDE: u32 = 6_300;
+        let pixels = image::RgbImage::from_pixel(SIDE, SIDE, image::Rgb([7, 11, 13]));
+        let mut encoded = Cursor::new(Vec::new());
+        pixels
+            .write_to(&mut encoded, image::ImageFormat::Png)
+            .unwrap();
+        drop(pixels);
+        let encoded = encoded.into_inner();
+        assert!(encoded.len() < MAX_ENCODED);
+
+        let decoder = ImageReader::new(Cursor::new(&encoded))
+            .with_guessed_format()
+            .unwrap()
+            .into_decoder()
+            .unwrap();
+        let decoder_storage = decoder.total_bytes();
+        let output_storage = dimensions(SIDE, SIDE).unwrap() as u64;
+        let complete_storage = encoded.len() as u64 + decoder_storage + output_storage;
+        assert!(
+            complete_storage > MAX_RGBA,
+            "fixture must exceed the total budget: {complete_storage}"
+        );
+        drop(decoder);
+
+        let error = match encoded_format(&encoded, Some(image::ImageFormat::Png)) {
+            Ok(_) => panic!(
+                "decoder accepted {complete_storage} bytes of required storage under a {MAX_RGBA}-byte budget"
+            ),
+            Err(error) => error,
+        };
+        assert!(error.to_string().contains("total memory"), "{error}");
+    }
 }
