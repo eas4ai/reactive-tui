@@ -14,4 +14,4 @@ Keep Ref and use_ref available for non-Clone values, including set_current. Requ
 
 ## Realized by
 
-(none yet: recorded, not built)
+- 49f9968e48f664a51e96ded0efc06a50bbcb76c0 fix: make reentrant Ref updates sound
