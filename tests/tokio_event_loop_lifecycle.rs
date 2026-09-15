@@ -32,9 +32,15 @@ async fn exercise_lifecycle(runtime: &str) {
         .await
         .expect("async start failed");
     wait_until(&sync_stopped, true).await;
-    catch_unwind(AssertUnwindSafe(|| EventLoop::stop(&mut sync_stopped)))
-        .expect("sync stop panicked inside an active Tokio runtime")
-        .expect("sync stop failed");
+    let stop = catch_unwind(AssertUnwindSafe(|| EventLoop::stop(&mut sync_stopped)))
+        .expect("sync stop panicked inside an active Tokio runtime");
+    if let Err(error) = stop {
+        assert!(error.to_string().contains("stop_async"));
+        tokio::time::timeout(Duration::from_secs(2), sync_stopped.stop_async())
+            .await
+            .expect("async cleanup after sync stop timed out")
+            .expect("async cleanup after sync stop failed");
+    }
     wait_until(&sync_stopped, false).await;
 
     let mut async_lifecycle = TokioEventLoop::new();

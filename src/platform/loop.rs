@@ -626,10 +626,12 @@ impl EventLoop<TerminalEvent> for TokioEventLoop {
     }
 
     fn stop(&mut self) -> Result<()> {
-        let Some(handle) = self.begin_shutdown() else {
-            return Ok(());
-        };
-        handle.abort();
+        if self.input_task.is_some() {
+            return Err(std::io::Error::other(
+                "TokioEventLoop is running; use stop_async() to await input task shutdown",
+            )
+            .into());
+        }
         Ok(())
     }
 
