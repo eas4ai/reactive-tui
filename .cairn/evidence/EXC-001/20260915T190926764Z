@@ -1,0 +1,21 @@
+requirement: EXC-001
+requirement_digest: sha256:e1ca27e066e121d1fe258a9b092591bd2e7b5f3cadf73eedd48090817c70f706
+sequence: 1
+history_digest: sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+mechanism: example-cleanup.md
+commit: d0adb454
+inputs_digest: sha256:06d3c44f01cf63c78bbc78184a7a2d04b900d2203c541a68024170e0cf2cce73
+mechanism_digest: sha256:277eb68706bf91ee16264bb00868b9c66c3117b19f9ce671601ecbd90c40153b
+inputs_detail: .cairn/evidence/EXC-001/20260915T190926606Z-2186948.inputs.json
+command: python3 -B scripts/check-example-cleanup.py
+cwd: .
+exit: 1
+output_digest: sha256:adcbd9ea5ffa83939a5bf47820f6775bf14187a8025ebf665cec60f15909e89c
+output: .cairn/evidence/EXC-001/20260915T190926606Z-2186948.out
+stderr_output: .cairn/evidence/EXC-001/20260915T190926606Z-2186948.err
+stderr_digest: sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+signal: none
+execution_error: null
+result: fail
+source: exit
+recorded: 2026-09-15T19:09:26.764Z
