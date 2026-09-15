@@ -1,8 +1,8 @@
 # Review: pre-release-runtime-resilience
 
-commit: 275c8d20b9bea775475c4159ea247e418866d6ac
+commit: 1d0c3785ff1cf85b6df6a850cd9ff355c2bf7bc9
 findings:
-  - open: RTR-003 clears its running flag before the synchronously aborted task is observed as dropped, so the sync-stop case can pass without proving task termination.
+  - resolved: RTR-003 rejects active synchronous stop and preserves the task for bounded async shutdown; the isolated fixture now observes process exit.
 
 ## Scope examined
 
@@ -47,15 +47,19 @@ zero-column divide by zero. The corrected cross-product keeps targets and frame
 durations nonzero, including u32::MAX inputs, and every zero-column grid returns
 without placed children.
 
-## Finding to resolve
+## Resolved finding
 
-TokioEventLoop::begin_shutdown stores false in is_running before returning the
-JoinHandle. The sync stop path then aborts that handle, and the test waits only
-for is_running to become false. It can therefore pass before Tokio drops the
-task future. TokioRunningGuard already owns the same flag and clears it when the
-future completes or is cancelled. Removing the early store makes the existing
-sync-stop test wait for actual future destruction and closes the proof gap
-without changing the public API.
+Removing the premature running-state write exposed that aborting the Tokio task
+could leave Tokio's blocking stdin worker alive through multi-thread runtime
+shutdown. The committed check reached both completion markers but timed out at
+300 seconds, satisfying the superseded decision's stated wrong condition.
+
+Decision `require-async-stop-for-active-tokio-input-tasks` replaces abort with
+an explicit sync-stop error while a task is active. The error names
+`stop_async`, preserves the JoinHandle, and the test must complete that async
+cleanup within two seconds. The checker also gives its Cargo child closed stdin
+so its result does not depend on whether the Cairn harness owns an open
+terminal. Both runtime cases now complete and the test process exits.
 
 ## Other limits
 
