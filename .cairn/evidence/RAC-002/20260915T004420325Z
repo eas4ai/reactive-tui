@@ -1,0 +1,21 @@
+requirement: RAC-002
+requirement_digest: sha256:c8de1e7e7fc8ae1035da2ba518dd8264b9c20a170922f96847aab7b717b40700
+sequence: 5
+history_digest: sha256:ae6dd13038210f2ff5dfc6c8cd6779e65858fbd3255b560f34c9e7f5433c3bb1
+mechanism: pre-release-reactive-reentrancy.md
+commit: 8a5be613
+inputs_digest: sha256:c0882750437f9334a711daed82b6166389a16f44943a9afefce6c2e64b6d4198
+mechanism_digest: sha256:e41ba606394ad0e7dfd9f8c4c99f7bd7bd18ae928d6242d937737c2de5d528d0
+inputs_detail: .cairn/evidence/RAC-002/20260915T004418741Z-1901742.inputs.json
+command: python3 -B scripts/check-pre-release-reactive-concurrency.py RAC-002
+cwd: .
+exit: 0
+output_digest: sha256:1bbcc0cd6120fc14b0d50e150c80dc1a7b323ebfd3f2f9c384dae73c179d3bf6
+output: .cairn/evidence/RAC-002/20260915T004418741Z-1901742.out
+stderr_output: .cairn/evidence/RAC-002/20260915T004418741Z-1901742.err
+stderr_digest: sha256:4ff3ec54b8ce29b9d2b368ac5cea710e0ac2b8218a4278a8d073de84b172fd77
+signal: none
+execution_error: null
+result: pass
+source: exit
+recorded: 2026-09-15T00:44:20.325Z
