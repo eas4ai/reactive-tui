@@ -1,7 +1,7 @@
 # Recovery roadmap
 
 Status: Agreed 2026-09-07
-Current: pre-release-dependency-code-quality
+Current: example-cleanup
 
 1. `suprtui-renderer` — the first screen: styled frames, updates, Unicode,
    resize, output errors, input, and terminal restoration (RND-001 through RND-006).
@@ -74,10 +74,14 @@ packaging.
     graph, route diagnostics through logging, remove dead surfaces, strengthen
     tests, and document public items (DQC-001 through DQC-005).
 
-19. `pre-release-ci-documentation` — run supported-platform CI, restore tracked
+19. `example-cleanup` — remove the six repository examples the developer
+    found broken in Kitty, retain the working gradient example, and remove
+    stale invitations to run the deleted programs (EXC-001).
+
+20. `pre-release-ci-documentation` — run supported-platform CI, restore tracked
     documentation inputs, rerun every mechanism, and clean stale repository
     rules (RID-001 through RID-003).
 
-20. `final-release-packaging` — rebuild final registry packages and release
+21. `final-release-packaging` — rebuild final registry packages and release
     metadata, then require fresh cross-platform evidence and an adversarial
     audit before a release decision (FRP-001 through FRP-004).
