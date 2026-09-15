@@ -59,8 +59,11 @@ impl TrackedComponentInstance {
             if let Err(e) = crate::layout::css::manager::remove_css_animations_global(&component_id)
             {
                 #[cfg(debug_assertions)]
-                eprintln!("Warning: Failed to remove CSS animations during cleanup for component '{}': {}", 
-                         component_id, e);
+                log::warn!(
+                    "Failed to remove CSS animations during cleanup for component '{}': {}",
+                    component_id,
+                    e
+                );
             }
         }
     }
@@ -73,7 +76,7 @@ impl Drop for TrackedComponentInstance {
 
         // Log cleanup for debugging
         #[cfg(debug_assertions)]
-        eprintln!(
+        log::debug!(
             "TrackedComponentInstance dropped for node {:?}",
             self.node_key
         );

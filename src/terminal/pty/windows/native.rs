@@ -295,7 +295,7 @@ impl Drop for Session {
     fn drop(&mut self) {
         if self.console.is_some() {
             if let Err(failure) = self.close() {
-                eprintln!("ConPTY cleanup: {failure}");
+                log::warn!("ConPTY cleanup: {failure}");
             }
         }
     }

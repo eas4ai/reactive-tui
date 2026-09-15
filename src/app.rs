@@ -22,7 +22,7 @@ pub(crate) fn resume_caught_panic<T>(context: &str, result: std::thread::Result<
                 .copied()
                 .or_else(|| payload.downcast_ref::<String>().map(String::as_str))
                 .unwrap_or("non-string panic payload");
-            eprintln!("{context} panicked: {message}");
+            log::error!("{context} panicked: {message}");
             std::panic::resume_unwind(payload);
         }
     }
@@ -691,9 +691,11 @@ impl App {
         self.resize_count += 1;
 
         if self.debug {
-            eprintln!(
+            log::debug!(
                 "🔄 Terminal resize #{}: {}x{}",
-                self.resize_count, width, height
+                self.resize_count,
+                width,
+                height
             );
         }
 
@@ -767,9 +769,7 @@ impl Drop for App {
         // Ensure all components are cleaned up when app is dropped
         // Log errors but don't panic in Drop (following Rust best practices)
         if let Err(e) = self.cleanup() {
-            // Use log crate if available, otherwise stderr
-            // This ensures the error is visible in both debug and release builds
-            eprintln!(
+            log::warn!(
                 "Warning: Failed to cleanup components during App drop: {}",
                 e
             );

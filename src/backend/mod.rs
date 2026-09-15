@@ -513,13 +513,13 @@ impl Backend for DebugBackend {
 
         #[cfg(feature = "debug_patches")]
         {
-            eprintln!(
+            log::debug!(
                 "DebugBackend: Applied {} patches in frame {}",
                 patches.len(),
                 self.frame_count
             );
             for (i, patch) in patches.iter().enumerate() {
-                eprintln!("  Patch {i}: {patch:?}");
+                log::debug!("  Patch {i}: {patch:?}");
             }
         }
 
@@ -540,7 +540,7 @@ impl Backend for DebugBackend {
         self.frame_count += 1;
 
         #[cfg(feature = "debug_patches")]
-        eprintln!("DebugBackend: Presented frame {}", self.frame_count);
+        log::debug!("DebugBackend: Presented frame {}", self.frame_count);
 
         Ok(())
     }

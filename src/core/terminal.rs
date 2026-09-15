@@ -81,8 +81,10 @@ impl Terminal {
 
         // Warn about limited color support but don't fail
         if !self.capabilities.color_depth.supports(256) {
-            eprintln!("⚠️  Warning: Terminal may not support 256 colors. Some features may look degraded.");
-            eprintln!("   Set REACTIVE_TUI_FORCE_ENABLE=1 to bypass this check.");
+            log::warn!(
+                "Terminal may not support 256 colors; some features may look degraded. \
+                 Set REACTIVE_TUI_FORCE_ENABLE=1 to bypass this check."
+            );
             // Continue anyway - let it degrade gracefully
         }
         Ok(())
@@ -346,19 +348,15 @@ impl Terminal {
             || term.contains("iterm");
 
         if !is_modern {
-            eprintln!(
-                "Warning: Terminal '{}' may have limited features. For best experience, use:",
-                term
-            );
-            eprintln!("  - WezTerm, Kitty, Alacritty, or iTerm2");
-            eprintln!("  - A terminal with 24-bit color support");
-            eprintln!();
-            eprintln!("Current detected capabilities:");
-            eprintln!("  - Color depth: {:?}", caps.color_depth);
-            eprintln!("  - Unicode: {}", caps.unicode);
-            eprintln!(
-                "  - Graphics: sixel={}, kitty={}, iterm2={}",
-                caps.sixel, caps.kitty_graphics, caps.iterm2_graphics
+            log::warn!(
+                "Terminal '{term}' may have limited features; use a 24-bit-color terminal such as \
+                 WezTerm, Kitty, Alacritty, or iTerm2. Detected color depth: {:?}; Unicode: {}; \
+                 graphics: sixel={}, kitty={}, iterm2={}",
+                caps.color_depth,
+                caps.unicode,
+                caps.sixel,
+                caps.kitty_graphics,
+                caps.iterm2_graphics
             );
         }
 

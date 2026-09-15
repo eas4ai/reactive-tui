@@ -107,6 +107,11 @@ path = "tests/api_widget_behavior/image_host_probe.rs"
 name = "conpty_probe"
 path = "tests/api_widget_behavior/conpty_probe.rs"
 
+[[test]]
+name = "dqc_003_captured_diagnostics"
+path = "tests/dqc_003_captured_diagnostics.rs"
+harness = false
+
 
 [features]
 default = ["tokio"]

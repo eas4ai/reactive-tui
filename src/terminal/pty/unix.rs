@@ -195,7 +195,7 @@ impl Drop for PseudoTerminal {
     fn drop(&mut self) {
         if self.worker.is_some() {
             if let Err(error) = self.kill() {
-                eprintln!("Terminal PTY cleanup: {error}");
+                log::warn!("Terminal PTY cleanup: {error}");
             }
         }
     }

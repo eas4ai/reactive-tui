@@ -580,7 +580,7 @@ impl Window {
         // Safe surface access with null pointer check
         if self.surface.is_null() {
             #[cfg(debug_assertions)]
-            eprintln!("Warning: Attempted to write to null surface");
+            log::warn!("Attempted to write to null surface");
             return;
         }
 
@@ -610,7 +610,7 @@ impl Window {
         // Safe surface access with null pointer check
         if self.surface.is_null() {
             #[cfg(debug_assertions)]
-            eprintln!("Warning: Attempted to read from null surface");
+            log::warn!("Attempted to read from null surface");
             return None;
         }
 
@@ -636,7 +636,7 @@ impl Window {
         // Safe surface access with null pointer check
         if self.surface.is_null() {
             #[cfg(debug_assertions)]
-            eprintln!("Warning: Attempted to fill null surface");
+            log::warn!("Attempted to fill null surface");
             return;
         }
 

@@ -161,7 +161,7 @@ impl PtyChild {
 impl Drop for PtyChild {
     fn drop(&mut self) {
         if let Err(error) = self.stop() {
-            eprintln!("Embedded child cleanup failed: {error}");
+            log::warn!("Embedded child cleanup failed: {error}");
         }
     }
 }

@@ -84,7 +84,10 @@ fn diff_node(
     // Stack overflow prevention: check depth limit
     if ctx.depth >= ctx.max_depth {
         #[cfg(debug_assertions)]
-        eprintln!("Warning: Maximum VDOM diff depth ({}) reached. Tree may be too deep or contain cycles.", ctx.max_depth);
+        log::warn!(
+            "Maximum VDOM diff depth ({}) reached; tree may be too deep or contain cycles",
+            ctx.max_depth
+        );
 
         // Replace entire subtree to avoid stack overflow
         patches.push(Patch::Replace {

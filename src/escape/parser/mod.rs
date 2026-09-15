@@ -186,12 +186,12 @@ impl Parser {
                             self.intermediate_bytes.push(byte);
                         } else {
                             #[cfg(debug_assertions)]
-                            eprintln!("Warning: intermediate_bytes buffer full, dropping byte");
+                            log::warn!("intermediate_bytes buffer full; dropping byte");
                         }
                     }
                 } else {
                     #[cfg(debug_assertions)]
-                    eprintln!("Warning: intermediate_bytes buffer full, dropping byte");
+                    log::warn!("intermediate_bytes buffer full; dropping byte");
                 }
                 self.state = State::EscapeIntermediate;
             }
@@ -234,7 +234,7 @@ impl Parser {
                         self.intermediate_bytes.push(byte);
                     } else {
                         #[cfg(debug_assertions)]
-                        eprintln!("Warning: intermediate_bytes buffer full, dropping byte");
+                        log::warn!("intermediate_bytes buffer full; dropping byte");
                     }
                 }
             }
@@ -258,7 +258,7 @@ impl Parser {
                     self.intermediate_bytes.push(byte);
                 } else {
                     #[cfg(debug_assertions)]
-                    eprintln!("Warning: intermediate_bytes buffer full, dropping byte");
+                    log::warn!("intermediate_bytes buffer full; dropping byte");
                 }
                 self.state = State::CSIIntermediate;
             }
@@ -282,7 +282,7 @@ impl Parser {
                     self.intermediate_bytes.push(byte);
                 } else {
                     #[cfg(debug_assertions)]
-                    eprintln!("Warning: intermediate_bytes buffer full, dropping byte");
+                    log::warn!("intermediate_bytes buffer full; dropping byte");
                 }
                 self.state = State::CSIParam;
             }
@@ -306,7 +306,7 @@ impl Parser {
                     self.intermediate_bytes.push(byte);
                 } else {
                     #[cfg(debug_assertions)]
-                    eprintln!("Warning: intermediate_bytes buffer full, dropping byte");
+                    log::warn!("intermediate_bytes buffer full; dropping byte");
                 }
                 self.state = State::CSIIntermediate;
             }
@@ -349,7 +349,7 @@ impl Parser {
                         self.intermediate_bytes.push(byte);
                     } else {
                         #[cfg(debug_assertions)]
-                        eprintln!("Warning: intermediate_bytes buffer full, dropping byte");
+                        log::warn!("intermediate_bytes buffer full; dropping byte");
                     }
                 }
             }
@@ -384,7 +384,7 @@ impl Parser {
                     self.intermediate_bytes.push(byte);
                 } else {
                     #[cfg(debug_assertions)]
-                    eprintln!("Warning: intermediate_bytes buffer full, dropping byte");
+                    log::warn!("intermediate_bytes buffer full; dropping byte");
                 }
                 self.state = State::DCSIntermediate;
             }
@@ -408,7 +408,7 @@ impl Parser {
                     self.intermediate_bytes.push(byte);
                 } else {
                     #[cfg(debug_assertions)]
-                    eprintln!("Warning: intermediate_bytes buffer full, dropping byte");
+                    log::warn!("intermediate_bytes buffer full; dropping byte");
                 }
                 self.state = State::DCSParam;
             }
@@ -431,7 +431,7 @@ impl Parser {
                     self.intermediate_bytes.push(byte);
                 } else {
                     #[cfg(debug_assertions)]
-                    eprintln!("Warning: intermediate_bytes buffer full, dropping byte");
+                    log::warn!("intermediate_bytes buffer full; dropping byte");
                 }
                 self.state = State::DCSIntermediate;
             }
@@ -469,7 +469,7 @@ impl Parser {
                         self.intermediate_bytes.push(byte);
                     } else {
                         #[cfg(debug_assertions)]
-                        eprintln!("Warning: intermediate_bytes buffer full, dropping byte");
+                        log::warn!("intermediate_bytes buffer full; dropping byte");
                     }
                 }
             }
@@ -504,7 +504,7 @@ impl Parser {
             } else {
                 // Buffer full - silently drop excess data and mark as in error state
                 #[cfg(debug_assertions)]
-                eprintln!("Warning: DCS string buffer full, dropping data");
+                log::warn!("DCS string buffer full; dropping data");
                 self.transition_to(State::DCSIgnore);
             }
         }
@@ -541,7 +541,7 @@ impl Parser {
             } else {
                 // Buffer full - silently drop excess data and terminate the sequence
                 #[cfg(debug_assertions)]
-                eprintln!("Warning: OSC string buffer full, terminating sequence");
+                log::warn!("OSC string buffer full; terminating sequence");
                 self.osc_string.clear();
                 self.transition_to(State::Ground);
             }
@@ -580,7 +580,7 @@ impl Parser {
             self.params.push(param);
         } else {
             #[cfg(debug_assertions)]
-            eprintln!("Warning: params buffer full, dropping parameter");
+            log::warn!("params buffer full; dropping parameter");
         }
         self.current_param = None;
     }

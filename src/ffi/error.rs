@@ -72,7 +72,7 @@ pub fn result_to_error<T>(result: Result<T, Box<dyn std::error::Error>>) -> Reac
         Err(e) => {
             // Log error in debug mode for better debugging
             #[cfg(debug_assertions)]
-            eprintln!("FFI Error: {}", e);
+            log::debug!("FFI Error: {}", e);
 
             // Try to map specific error types
             let error_str = e.to_string().to_lowercase();
@@ -103,7 +103,7 @@ pub fn crate_result_to_error<T>(result: crate::error::Result<T>) -> ReactiveErro
         Ok(_) => ReactiveError::Success,
         Err(e) => {
             #[cfg(debug_assertions)]
-            eprintln!("Crate Error: {}", e);
+            log::debug!("Crate Error: {}", e);
 
             // Map specific crate errors to FFI errors
             use crate::error::ReactiveError as CrateError;

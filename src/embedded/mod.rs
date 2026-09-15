@@ -207,7 +207,7 @@ impl Drop for EmbeddedSession {
     fn drop(&mut self) {
         if self.worker.is_some() {
             if let Err(error) = self.shutdown() {
-                eprintln!("Embedded session cleanup: {error}");
+                log::warn!("Embedded session cleanup: {error}");
             }
         }
     }

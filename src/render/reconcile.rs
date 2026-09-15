@@ -307,19 +307,19 @@ pub fn apply_patches(patches: &[PatchOp], tree: &mut RenderTree) -> crate::error
                 node_key: _,
             } => {
                 #[cfg(feature = "debug_patches")]
-                eprintln!("INSERT: {patch:?}");
+                log::debug!("INSERT: {patch:?}");
                 // Component instances will be created by the render system
             }
             PatchOp::Remove { node_key } => {
                 #[cfg(feature = "debug_patches")]
-                eprintln!("REMOVE: {patch:?}");
+                log::debug!("REMOVE: {patch:?}");
 
                 // Automatic component cleanup - unregister from global registry
                 // Propagate error up instead of suppressing it
                 crate::component::registry::get_global_registry()
                     .unregister_instance(node_key)
                     .map_err(|e| {
-                        eprintln!(
+                        log::error!(
                             "Error: Failed to unregister component during removal: {}",
                             e
                         );
@@ -333,14 +333,14 @@ pub fn apply_patches(patches: &[PatchOp], tree: &mut RenderTree) -> crate::error
                 new_key: _,
             } => {
                 #[cfg(feature = "debug_patches")]
-                eprintln!("REPLACE: {patch:?}");
+                log::debug!("REPLACE: {patch:?}");
 
                 // Automatic component cleanup for replaced node
                 // Propagate error up instead of suppressing it
                 crate::component::registry::get_global_registry()
                     .unregister_instance(old_key)
                     .map_err(|e| {
-                        eprintln!("Error: Failed to unregister replaced component: {}", e);
+                        log::error!("Error: Failed to unregister replaced component: {}", e);
                         e
                     })?;
 
@@ -353,12 +353,12 @@ pub fn apply_patches(patches: &[PatchOp], tree: &mut RenderTree) -> crate::error
                 index: _,
             } => {
                 #[cfg(feature = "debug_patches")]
-                eprintln!("MOVE: {patch:?}");
+                log::debug!("MOVE: {patch:?}");
                 // Component instances stay the same, just moved in tree
             }
             PatchOp::Update { node_key: _ } => {
                 #[cfg(feature = "debug_patches")]
-                eprintln!("UPDATE: {patch:?}");
+                log::debug!("UPDATE: {patch:?}");
                 // Component instances will be updated by the render system
             }
             PatchOp::ReorderChildren {
@@ -366,7 +366,7 @@ pub fn apply_patches(patches: &[PatchOp], tree: &mut RenderTree) -> crate::error
                 new_order: _,
             } => {
                 #[cfg(feature = "debug_patches")]
-                eprintln!("REORDER: {patch:?}");
+                log::debug!("REORDER: {patch:?}");
                 // Component instances stay the same, just reordered
             }
         }

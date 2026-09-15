@@ -97,7 +97,7 @@ impl FocusManager {
         if let Some(index) = tab_index {
             if !(-1000..=1000).contains(&index) {
                 #[cfg(feature = "debug")]
-                eprintln!(
+                log::warn!(
                     "Warning: Tab index {} is outside recommended range [-1000, 1000]",
                     index
                 );
@@ -154,16 +154,24 @@ impl FocusManager {
         // Validate spatial coordinates
         if !x.is_finite() || !y.is_finite() || !width.is_finite() || !height.is_finite() {
             #[cfg(feature = "debug")]
-            eprintln!("Warning: Invalid spatial coordinates for node {:?}: x={}, y={}, width={}, height={}",
-                     node_id, x, y, width, height);
+            log::warn!(
+                "Invalid spatial coordinates for node {:?}: x={}, y={}, width={}, height={}",
+                node_id,
+                x,
+                y,
+                width,
+                height
+            );
             return false;
         }
 
         if width < 0.0 || height < 0.0 {
             #[cfg(feature = "debug")]
-            eprintln!(
+            log::warn!(
                 "Warning: Negative dimensions for node {:?}: width={}, height={}",
-                node_id, width, height
+                node_id,
+                width,
+                height
             );
             return false;
         }

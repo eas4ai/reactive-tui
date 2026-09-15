@@ -297,9 +297,11 @@ impl ComponentRegistry {
             for animation_name in animations {
                 if let Err(e) = apply_css_animation_global(&component_id, &animation_name) {
                     // Log error but don't fail the registration
-                    eprintln!(
+                    log::warn!(
                         "Warning: Failed to apply CSS animation '{}' to component '{}': {}",
-                        animation_name, component_id, e
+                        animation_name,
+                        component_id,
+                        e
                     );
                 }
             }

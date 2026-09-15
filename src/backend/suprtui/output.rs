@@ -163,7 +163,7 @@ impl<W: Write> TerminalOutput<W> {
 impl<W: Write> Drop for TerminalOutput<W> {
     fn drop(&mut self) {
         if let Err(error) = self.restore() {
-            eprintln!("Terminal output cleanup failed: {error}");
+            log::warn!("Terminal output cleanup failed: {error}");
         }
     }
 }

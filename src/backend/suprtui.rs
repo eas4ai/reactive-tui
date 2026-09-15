@@ -379,7 +379,7 @@ impl Backend for SuprTuiBackend {
 impl Drop for SuprTuiBackend {
     fn drop(&mut self) {
         if let Err(error) = self.shutdown() {
-            eprintln!("SuprTUI cleanup failed: {error}");
+            log::warn!("SuprTUI cleanup failed: {error}");
         }
     }
 }
@@ -554,7 +554,7 @@ fn run_worker<W: Write>(
         }
     }
     if let Err(error) = renderer.backend_mut().finish_graphics(graphics.cleanup()) {
-        eprintln!("Image output cleanup failed: {error}");
+        log::warn!("Image output cleanup failed: {error}");
     }
 }
 
@@ -625,7 +625,7 @@ impl RawMode {
 impl Drop for RawMode {
     fn drop(&mut self) {
         if let Err(error) = self.restore() {
-            eprintln!("Raw mode cleanup failed: {error}");
+            log::warn!("Raw mode cleanup failed: {error}");
         }
     }
 }

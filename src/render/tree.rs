@@ -236,7 +236,7 @@ impl Drop for ElementNode {
         {
             // Log error in debug mode, but don't panic during drop
             #[cfg(debug_assertions)]
-            eprintln!("Warning: Failed to unregister component instance during ElementNode drop");
+            log::warn!("Failed to unregister component instance during ElementNode drop");
         }
     }
 }
@@ -544,9 +544,7 @@ fn convert_elements(root: Element, composite_keys: bool, instantiate: bool) -> B
                                 )
                             {
                                 #[cfg(debug_assertions)]
-                                eprintln!(
-                                    "Warning: Failed to register component instance: {error}"
-                                );
+                                log::warn!("Failed to register component instance: {error}");
                             } else {
                                 node = node.with_component_instance(instance);
                             }

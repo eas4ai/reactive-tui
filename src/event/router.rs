@@ -290,7 +290,7 @@ impl EventRouter {
             if !visited.insert(node_id) {
                 // Cycle detected - log error and break
                 #[cfg(debug_assertions)]
-                eprintln!(
+                log::warn!(
                     "Warning: Cycle detected in event router tree at node {:?}",
                     node_id
                 );
@@ -300,7 +300,7 @@ impl EventRouter {
             // Check for excessive depth
             if depth >= MAX_DEPTH {
                 #[cfg(debug_assertions)]
-                eprintln!(
+                log::warn!(
                     "Warning: Maximum depth {} exceeded in event router",
                     MAX_DEPTH
                 );

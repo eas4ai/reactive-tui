@@ -1100,9 +1100,10 @@ impl AnimationManager {
                 Ok(state) => *state != AnimationState::Completed,
                 Err(e) => {
                     // If we can't read the state, the lock is poisoned - remove it
-                    eprintln!(
+                    log::warn!(
                         "Warning: Removing timeline {} due to poisoned lock: {}",
-                        id, e
+                        id,
+                        e
                     );
                     false
                 }
@@ -1135,7 +1136,7 @@ impl AnimationManager {
             if !should_keep {
                 removed += 1;
                 #[cfg(debug_assertions)]
-                eprintln!("Cleaning up stale animation: {}", id);
+                log::debug!("Cleaning up stale animation: {}", id);
             }
             should_keep
         });
@@ -1152,7 +1153,7 @@ impl AnimationManager {
 
             if !should_keep {
                 #[cfg(debug_assertions)]
-                eprintln!("Cleaning up stale timeline: {}", id);
+                log::debug!("Cleaning up stale timeline: {}", id);
             }
             should_keep
         });

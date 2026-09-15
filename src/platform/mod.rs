@@ -1254,9 +1254,10 @@ impl DirectTty {
             // Debug: print what we received
             #[cfg(debug_assertions)]
             {
-                eprintln!(
+                log::debug!(
                     "Capability responses received ({} bytes): {:?}",
-                    total_read, response
+                    total_read,
+                    response
                 );
             }
         } else {

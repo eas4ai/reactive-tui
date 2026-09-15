@@ -389,8 +389,9 @@ impl MouseTracker {
     }
 
     fn send_escape_sequence(&self, sequence: &str) -> io::Result<()> {
-        print!("{}", sequence);
-        io::stdout().flush()
+        let mut stdout = io::stdout();
+        stdout.write_all(sequence.as_bytes())?;
+        stdout.flush()
     }
 }
 
@@ -399,7 +400,7 @@ impl Drop for MouseTracker {
         // Attempt graceful shutdown with error logging
         if let Err(e) = self.shutdown() {
             // Log error but don't panic during drop
-            eprintln!("Warning: MouseTracker shutdown failed: {}", e);
+            log::warn!("MouseTracker shutdown failed: {}", e);
 
             // Attempt emergency cleanup of critical terminal state
             let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {

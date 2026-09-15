@@ -732,16 +732,16 @@ impl AnimationDebugger {
                         event,
                         DebugEvent::Error { .. } | DebugEvent::PerformanceWarning { .. }
                     ) {
-                        eprintln!("[ANIMATION DEBUG] {event:?}");
+                        log::debug!("[ANIMATION DEBUG] {event:?}");
                     }
                 }
                 DebugVerbosity::Medium => {
                     if !matches!(event, DebugEvent::AnimationUpdated { .. }) {
-                        eprintln!("[ANIMATION DEBUG] {event:?}");
+                        log::debug!("[ANIMATION DEBUG] {event:?}");
                     }
                 }
                 DebugVerbosity::High | DebugVerbosity::Verbose => {
-                    eprintln!("[ANIMATION TRACE] {event:?}");
+                    log::trace!("[ANIMATION TRACE] {event:?}");
                 }
             }
         }
@@ -751,10 +751,10 @@ impl AnimationDebugger {
             // In production, only log errors and warnings
             match event {
                 DebugEvent::Error { message, .. } => {
-                    eprintln!("Animation error: {message}");
+                    log::error!("Animation error: {message}");
                 }
                 DebugEvent::PerformanceWarning { details, .. } => {
-                    eprintln!("Animation performance warning: {details}");
+                    log::warn!("Animation performance warning: {details}");
                 }
                 _ => {} // Ignore other debug events in production
             }

@@ -132,7 +132,7 @@ impl GapBuffer {
                 self.buffer[dst_start..dst_start + distance].copy_from_slice(&temp);
             } else {
                 // Invalid bounds - return early to prevent corruption
-                eprintln!("Warning: Gap buffer move_gap_to: invalid bounds for left move");
+                log::warn!("Gap buffer move_gap_to: invalid bounds for left move");
                 return;
             }
 
@@ -156,7 +156,7 @@ impl GapBuffer {
                 self.buffer[dst_start..dst_start + distance].copy_from_slice(&temp);
             } else {
                 // Invalid bounds - return early to prevent corruption
-                eprintln!("Warning: Gap buffer move_gap_to: invalid bounds for right move");
+                log::warn!("Gap buffer move_gap_to: invalid bounds for right move");
                 return;
             }
 
@@ -175,7 +175,7 @@ impl GapBuffer {
             // Check for reasonable buffer size to prevent DoS
             const MAX_BUFFER_SIZE: usize = 100_000_000; // 100MB limit for chars
             if new_len > MAX_BUFFER_SIZE {
-                eprintln!("Warning: Gap buffer size exceeds maximum allowed size, ignoring resize");
+                log::warn!("Gap buffer size exceeds maximum allowed size; ignoring resize");
                 return;
             }
 
@@ -195,7 +195,7 @@ impl GapBuffer {
                     let dst_start = self.gap_end + additional;
                     self.buffer[dst_start..dst_start + count].copy_from_slice(&temp);
                 } else {
-                    eprintln!("Warning: Gap buffer ensure_gap_capacity: invalid bounds for resize");
+                    log::warn!("Gap buffer ensure_gap_capacity: invalid bounds for resize");
                     return;
                 }
             }
