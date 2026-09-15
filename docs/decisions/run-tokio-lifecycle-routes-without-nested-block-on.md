@@ -1,5 +1,7 @@
 # Run Tokio lifecycle routes without nested block_on
 
+Superseded by: require-async-stop-for-active-tokio-input-tasks
+
 Level: Judged
 Decided by: Codex
 Rests on: RTR-003
