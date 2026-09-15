@@ -470,6 +470,16 @@ pub struct TokioEventLoop {
 }
 
 #[cfg(feature = "tokio")]
+struct TokioRunningGuard(Arc<AtomicBool>);
+
+#[cfg(feature = "tokio")]
+impl Drop for TokioRunningGuard {
+    fn drop(&mut self) {
+        self.0.store(false, Ordering::Release);
+    }
+}
+
+#[cfg(feature = "tokio")]
 impl TokioEventLoop {
     /// Create a new tokio-based event loop
     pub fn new() -> Self {
@@ -487,7 +497,7 @@ impl TokioEventLoop {
     }
 
     /// Start the async input reading task
-    async fn start_input_task(&mut self) -> Result<()> {
+    fn start_input_task(&mut self) -> Result<()> {
         if self.input_task.is_some() {
             return Ok(()); // Already started
         }
@@ -503,15 +513,15 @@ impl TokioEventLoop {
             .as_ref()
             .ok_or_else(|| ReactiveError::internal("Shutdown receiver not initialized"))?
             .clone();
-        let is_running = Arc::clone(&self.is_running);
+        self.is_running.store(true, Ordering::Release);
+        let running = TokioRunningGuard(Arc::clone(&self.is_running));
 
         let handle = tokio::spawn(async move {
             use tokio::io::{stdin, AsyncReadExt};
 
+            let _running = running;
             let mut stdin = stdin();
             let mut buffer = [0u8; 1024];
-
-            is_running.store(true, Ordering::Release);
 
             loop {
                 tokio::select! {
@@ -551,12 +561,18 @@ impl TokioEventLoop {
                     }
                 }
             }
-
-            is_running.store(false, Ordering::Release);
         });
 
         self.input_task = Some(handle);
         Ok(())
+    }
+
+    fn begin_shutdown(&mut self) -> Option<tokio::task::JoinHandle<()>> {
+        if let Some(ref shutdown_tx) = self.shutdown_tx {
+            let _ = shutdown_tx.send(true);
+        }
+        self.is_running.store(false, Ordering::Release);
+        self.input_task.take()
     }
 
     /// Check if the event loop is currently running
@@ -602,34 +618,19 @@ impl EventLoop<TerminalEvent> for TokioEventLoop {
     }
 
     fn start(&mut self) -> Result<()> {
-        // For the sync trait, we need to use a runtime
-        let rt = tokio::runtime::Handle::try_current().map_err(|_| {
+        tokio::runtime::Handle::try_current().map_err(|_| {
             std::io::Error::other(
                 "No tokio runtime found. Use start_async() instead or run within a tokio runtime.",
             )
         })?;
-
-        rt.block_on(async { self.start_async().await })
+        self.start_input_task()
     }
 
     fn stop(&mut self) -> Result<()> {
-        // Signal shutdown
-        if let Some(ref shutdown_tx) = self.shutdown_tx {
-            let _ = shutdown_tx.send(true);
-        }
-
-        // Wait for the task to complete if we have a runtime
-        if let Ok(rt) = tokio::runtime::Handle::try_current() {
-            if let Some(handle) = self.input_task.take() {
-                rt.block_on(async {
-                    let _ = handle.await;
-                });
-            }
-        } else {
-            // If no runtime, just take the handle and let it be dropped
-            self.input_task.take();
-        }
-
+        let Some(handle) = self.begin_shutdown() else {
+            return Ok(());
+        };
+        handle.abort();
         Ok(())
     }
 
@@ -661,18 +662,12 @@ impl EventLoop<TerminalEvent> for TokioEventLoop {
 impl TokioEventLoop {
     /// Async version of start - preferred when using tokio
     pub async fn start_async(&mut self) -> Result<()> {
-        self.start_input_task().await
+        self.start_input_task()
     }
 
     /// Async version of stop - preferred when using tokio
     pub async fn stop_async(&mut self) -> Result<()> {
-        // Signal shutdown
-        if let Some(ref shutdown_tx) = self.shutdown_tx {
-            let _ = shutdown_tx.send(true);
-        }
-
-        // Wait for the task to complete
-        if let Some(handle) = self.input_task.take() {
+        if let Some(handle) = self.begin_shutdown() {
             let _ = handle.await;
         }
 
