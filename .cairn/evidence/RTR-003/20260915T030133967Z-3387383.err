@@ -1,0 +1,22 @@
+Traceback (most recent call last):
+  File "/home/shawn/workspace2/reactive-tui/scripts/check-pre-release-tokio-event-loop.py", line 77, in <module>
+    run_tests()
+    ~~~~~~~~~^^
+  File "/home/shawn/workspace2/reactive-tui/scripts/check-pre-release-tokio-event-loop.py", line 73, in run_tests
+    validate(child.returncode, output, timed_out)
+    ~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/shawn/workspace2/reactive-tui/scripts/check-pre-release-tokio-event-loop.py", line 19, in validate
+    assert returncode == 0, output.decode(errors="replace")
+           ^^^^^^^^^^^^^^^
+AssertionError:    Compiling reactive-tui v0.1.0 (/home/shawn/workspace2/reactive-tui)
+error[E0432]: unresolved imports `reactive_tui::platform::EventLoop`, `reactive_tui::platform::TokioEventLoop`
+ --> tests/tokio_event_loop_lifecycle.rs:3:30
+  |
+3 | use reactive_tui::platform::{EventLoop, TokioEventLoop};
+  |                              ^^^^^^^^^  ^^^^^^^^^^^^^^ no `TokioEventLoop` in `platform`
+  |                              |
+  |                              no `EventLoop` in `platform`
+
+For more information about this error, try `rustc --explain E0432`.
+error: could not compile `reactive-tui` (test "tokio_event_loop_lifecycle") due to 1 previous error
+
