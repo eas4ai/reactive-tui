@@ -1,0 +1,11 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.09s
+     Running tests/tokio_event_loop_lifecycle.rs (/home/shawn/workspace2/scratchpads/suprnova-target/debug/deps/tokio_event_loop_lifecycle-e16016c809db7a3d)
+
+running 2 tests
+test lifecycle_routes_are_safe_in_current_thread_runtime ... RTR003 PASS current-thread
+ok
+test lifecycle_routes_are_safe_in_multi_thread_runtime ... RTR003 PASS multi-thread
+ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
