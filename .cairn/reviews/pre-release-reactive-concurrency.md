@@ -1,8 +1,8 @@
 # Review: pre-release-reactive-concurrency
 
-commit: 4e04c7ae5c5cb67f07306c312e4493598fba0fb3
+commit: c8fba575e8b3023d9cfb44d9705c323cbececf21
 findings:
-  - open: RAC-002 makes safe `Ref::update` re-entry depend on an integer-cast raw pointer that Miri rejects for invalid mutable aliasing.
+  - resolved: RAC-002 now uses cloned update drafts, rejects unsafe shared-Ref expressions, preserves non-Clone construction and replacement, and passes the former Miri aliasing case.
 
 ## Scope examined
 
@@ -32,7 +32,7 @@ baseline rejects the original one-millisecond poll loop; its validator also
 rejects idle wakeups, a missing callback, and a worker that remains alive. The
 corrected worker passes the two scheduler-local lifecycle tests.
 
-## Unresolved finding
+## Resolved finding
 
 The ordinary RAC-002 tests use integers, so they do not expose reference
 aliasing. A temporary path-dependent consumer held a string slice from the
@@ -43,12 +43,19 @@ library at `src/hooks/refs.rs:92`: creating the nested `&mut T` from the stored
 integer pointer violated the borrow stack. With strict provenance enabled,
 Miri rejected the earlier integer-to-pointer cast at line 87 as unsupported.
 
-The current mechanism can therefore pass while RAC-002 exposes undefined
-behavior through a safe public method. This must be resolved before the
-commitment is complete. The repair also has to reconcile the earlier API-019
-decision that `Ref<AtomicUsize>::update` keeps working without a `Clone` bound;
-safe synchronous mutable re-entry and that bound cannot both be provided by
-the present `FnOnce(&mut T) -> R` API.
+Decision `require-cloned-snapshots-for-reentrant-ref-updates` resolves the
+conflict. `Ref::update` now requires `T: Clone`, copies the committed value,
+runs the callback on that independent draft without a lock, and commits only
+after the callback returns. `Ref` and `use_ref` still accept non-`Clone` values;
+`set_current` still replaces them and preserves the allocation address. A
+compile-fail doctest fixes the narrower `update` contract.
+
+The RAC-002 test now holds a string slice from the outer draft while a nested
+update clears and reallocates its own draft. A syntax-aware check rejects any
+unsafe expression in the shared `Ref` implementation. The same temporary safe
+consumer that Miri rejected before the repair now passes under nightly Miri
+with strict provenance. The focused non-`Clone` compatibility test, compile-fail
+doctest, seven RAC-002 unit tests, and refreshed Cairn evidence all pass.
 
 ## Other limits
 
