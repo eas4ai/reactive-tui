@@ -11,4 +11,8 @@ Put the 512-event queue behind one mutex and condition variables. An input produ
 
 ## Realized by
 
-(none yet: recorded, not built)
+`d6ce9949` fix: make threaded event loop cancellable
+
+Implementation: The threaded loop now uses a condition-variable queue with explicit stopped state. Unix duplicates stdin and polls it with the existing socket-pair cancellation primitive. Windows reads with a 50 ms timeout. `stop` and `Drop` stop the queue, wake the reader, and join the worker.
+
+Behavior check: The RTR-002 checker fills and drains the input queue through a PTY, stops an idle reader, verifies Drop restores the process thread count, and confirms direct posting reports capacity then recovers after consumption.
