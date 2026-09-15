@@ -11,7 +11,7 @@ Put the 512-event queue behind one mutex and condition variables. An input produ
 
 ## Realized by
 
-d6ce9949f99816dd624b173c5063e39cc18dd4cb fix: make threaded event loop cancellable
+- d6ce9949f99816dd624b173c5063e39cc18dd4cb fix: make threaded event loop cancellable
 
 Implementation: The threaded loop now uses a condition-variable queue with explicit stopped state. Unix duplicates stdin and polls it with the existing socket-pair cancellation primitive. Windows reads with a 50 ms timeout. `stop` and `Drop` stop the queue, wake the reader, and join the worker.
 
