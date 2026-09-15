@@ -1,0 +1,6 @@
+.......
+----------------------------------------------------------------------
+Ran 7 tests in 0.002s
+
+OK
+DQC-003 failed: source audit and captured-output probe are not implemented
