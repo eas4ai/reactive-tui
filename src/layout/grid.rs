@@ -279,9 +279,14 @@ impl DeclarativeGrid {
         self
     }
 
-    /// Create a simple grid with automatic item placement (responsive by default)
+    /// Create a simple grid with automatic item placement (responsive by default).
+    ///
+    /// Zero columns produce an empty grid because no item has a valid column.
     pub fn auto_grid(columns: usize, rows: usize, items: Vec<crate::component::Element>) -> Self {
         let mut grid = Self::new(columns, rows).responsive(); // Responsive by default
+        if columns == 0 {
+            return grid;
+        }
 
         for (i, item) in items.iter().enumerate() {
             let row = i / columns;

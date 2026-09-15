@@ -7,6 +7,8 @@ use futures_util::lock::Mutex;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
+const MAX_FPS_WITH_NONZERO_NANOSECOND_FRAME: u32 = 1_000_000_000;
+
 /// Adaptive FPS manager that automatically adjusts refresh rate
 pub struct AdaptiveFpsManager {
     /// Current target FPS
@@ -81,8 +83,18 @@ impl AdaptiveFpsManager {
         }
     }
 
-    /// Create with custom configuration
-    pub fn with_config(config: AdaptiveConfig) -> Self {
+    /// Create with custom configuration.
+    ///
+    /// A zero minimum is raised to one. Values above one billion are lowered so
+    /// a frame still spans at least one nanosecond. A reversed maximum is raised
+    /// to the normalized minimum.
+    pub fn with_config(mut config: AdaptiveConfig) -> Self {
+        config.min_fps = config
+            .min_fps
+            .clamp(1, MAX_FPS_WITH_NONZERO_NANOSECOND_FRAME);
+        config.max_fps = config
+            .max_fps
+            .clamp(config.min_fps, MAX_FPS_WITH_NONZERO_NANOSECOND_FRAME);
         let capabilities = Self::detect_display_capabilities();
         let recommended_fps = capabilities
             .calculate_recommended_fps()
