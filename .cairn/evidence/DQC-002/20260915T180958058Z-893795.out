@@ -1,0 +1,19 @@
+== validator tests ==
+...........
+----------------------------------------------------------------------
+Ran 11 tests in 0.006s
+
+OK
+== default dependency graph ==
+== minimal dependency graph ==
+== ffi dependency graph ==
+== markdown dependency graph ==
+== cargo audit ==
+DQC-002 audited Cargo.lock: sha256:628a513e815b6b9e2598fa9f786602d453b30a2ec6c448865147e69566da278d
+- default: sha256:573c024cb23cbc0427ceb268fc457dbb7226d4c93fcbdf7c9655ef31e29faad9; packages=267
+- minimal: sha256:5e412ad73c811d43bf2639620bbe1f2df4368d369c7f3307d73a130c5eacbf9d; packages=257
+- ffi: sha256:5e412ad73c811d43bf2639620bbe1f2df4368d369c7f3307d73a130c5eacbf9d; packages=257
+- markdown: sha256:bebde85672449c6af817ed9548b5f9dfd56fb5b825018dd12d26d6c54290fb10; packages=306
+- taffy: 0.9.2, 0.13.0
+- vte: 0.15.0
+DQC-002 passed: maintenance decisions, identities, and feature graphs are clean.
