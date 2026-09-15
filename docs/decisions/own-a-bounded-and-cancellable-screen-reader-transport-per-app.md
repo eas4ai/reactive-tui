@@ -1,5 +1,7 @@
 # Own a bounded and cancellable screen-reader transport per App
 
+Superseded by: degrade-automatically-selected-accessibility-after-transport-failure
+
 Level: Judged
 Decided by: Codex
 Rests on: API-011, API-018, API-020
