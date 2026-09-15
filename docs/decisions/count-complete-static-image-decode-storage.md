@@ -11,4 +11,4 @@ Keep 256 MiB as the total static image decode budget. Count the encoded bytes al
 
 ## Realized by
 
-(none yet: recorded, not built)
+- 5be1de9622853ee3d8f5cbc11468a4b92c65fb4c fix: bound complete image decode memory
