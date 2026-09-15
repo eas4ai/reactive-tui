@@ -1,0 +1,37 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.14s
+     Running unittests src/lib.rs (/home/shawn/workspace2/scratchpads/suprnova-target/debug/deps/reactive_tui-d6b4176a64f59b0a)
+
+running 2 tests
+test widgets::display::image::external_renderer::tests::xis_002_argument_validator_rejects_unsafe_observations ... ok
+test widgets::display::image::external_renderer::tests::xis_002_external_paths_are_positional_data ... FAILED
+
+failures:
+
+---- widgets::display::image::external_renderer::tests::xis_002_external_paths_are_positional_data stdout ----
+
+thread 'widgets::display::image::external_renderer::tests::xis_002_external_paths_are_positional_data' (4034838) panicked at src/widgets/display/image/external_renderer.rs:641:9:
+
+running 1 test
+test widgets::display::image::external_renderer::tests::xis_002_external_paths_are_positional_data ... FAILED
+
+failures:
+
+failures:
+    widgets::display::image::external_renderer::tests::xis_002_external_paths_are_positional_data
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 1055 filtered out; finished in 0.05s
+
+
+thread 'widgets::display::image::external_renderer::tests::xis_002_external_paths_are_positional_data' (4034840) panicked at src/widgets/display/image/external_renderer.rs:606:51:
+called `Result::unwrap()` on an `Err` value: "chafa can parse the image path as an option"
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    widgets::display::image::external_renderer::tests::xis_002_external_paths_are_positional_data
+
+test result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 1054 filtered out; finished in 0.05s
+
+error: test failed, to rerun pass `--lib`
