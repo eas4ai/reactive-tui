@@ -14,4 +14,8 @@ Track whether accessibility was explicitly requested. If an automatically select
 
 ## Realized by
 
-(none yet: recorded, not built)
+- d985d3fe8bcd7a208f7d8a0c99dd7afdcac627b1 fix: degrade automatic accessibility failures
+
+Implementation: `src/app.rs`.
+
+Behavior check: `tests/api_widget_behavior/transport_failures.py`.
