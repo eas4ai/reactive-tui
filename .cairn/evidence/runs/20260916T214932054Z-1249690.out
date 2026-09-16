@@ -1,0 +1,10 @@
+........
+----------------------------------------------------------------------
+Ran 8 tests in 0.023s
+
+OK
+push: platform (ubuntu-24.04), platform (macos-14), platform (windows-2022)
+pull_request: platform (ubuntu-24.04), platform (macos-14), platform (windows-2022)
+schedule: advisories
+workflow_dispatch: platform (ubuntu-24.04), platform (macos-14), platform (windows-2022)
+RID-001 workflow inspection passed; this is not evidence of native CI execution.
