@@ -1,0 +1,4 @@
+FAIL CAT: PTY check did not observe two distinct cube frames
+FAIL CAT: PTY check did not prove CTRL_Q exit
+FAIL CAT: PTY check did not prove CTRL_C exit
+FAIL CAT: PTY check did not prove ESCAPE exit
