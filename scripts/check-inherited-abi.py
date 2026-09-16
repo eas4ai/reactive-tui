@@ -19,12 +19,12 @@ EXPECTED = {f"{prefix}-{number:03}" for prefix, count in
 
 def main():
     os.chdir(Path(__file__).resolve().parents[1])
-    combined = Path('.cairn/mechanisms/binding-inherited.md').read_text()
+    combined = Path('.cairn/mechanisms/binding-inherited').read_text()
     declared_inputs = set(combined.split('inputs:\n')[1].split('requirements:')[0].splitlines())
     covered = set()
     commands = []
     for name in MECHANISMS:
-        path = Path('.cairn/mechanisms') / (name + '.md')
+        path = Path('.cairn/mechanisms') / name
         text = path.read_text()
         inputs = set(text.split('inputs:\n')[1].split('requirements:')[0].splitlines())
         if not inputs <= declared_inputs or '  - ' + str(path) not in declared_inputs:

@@ -1,0 +1,25 @@
+# Mechanism: pre-release-arithmetic-boundaries
+
+command: python3 -B scripts/check-pre-release-arithmetic-boundaries.py
+inputs:
+  - .cairn/mechanisms/pre-release-arithmetic-boundaries
+  - Cargo.toml
+  - Cargo.lock
+  - src/display/adaptive.rs
+  - src/display/capabilities.rs
+  - src/display/monitor.rs
+  - src/layout/grid.rs
+  - tests/arithmetic_boundaries.rs
+  - scripts/check-pre-release-arithmetic-boundaries.py
+requirements:
+  - RTR-004
+
+The check MUST first prove its process validator rejects a timeout, a failed
+process, and missing completion. It MUST then exercise the public adaptive FPS
+manager with zero, equal, ordered, and reversed bounds. Every constructed
+manager and every manual target MUST retain a nonzero target and frame duration.
+
+The check MUST also exercise the public automatic grid with zero columns across
+multiple row and item counts. Zero-column input MUST return a grid with no
+placed children and MUST NOT panic. Both API groups MUST report explicit
+completion within the test deadline.

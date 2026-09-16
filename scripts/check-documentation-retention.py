@@ -15,7 +15,7 @@ ALLOWED_DOC_PREFIXES = (
     "docs/decisions/",
 )
 REQUIRED_PATHS = (
-    ".cairn/mechanisms/documentation-retention.md",
+    ".cairn/mechanisms/documentation-retention",
     "docs/spec/overview.md",
     "docs/spec/glossary.md",
     "docs/spec/roadmap.md",

@@ -73,3 +73,26 @@ vendored Markdown links, the legacy `.md` declarations, and tracked inputs
 ignored by local or root rules. Preserve old receipt history while migrating
 declarations. This static checker does not establish acceptance freshness;
 the complete mechanism inventory must run before the closing review.
+
+## Declaration migration verification
+
+The 62 legacy declarations now use the installed referee's extensionless
+format. Their commands and requirement lists are unchanged. Self-inputs and
+the inherited ABI runner now name the migrated paths. No historical receipt
+or captured output was edited.
+
+The inherited-runner regression first failed twice against the old paths.
+After correction, both tests pass: all nine fixture commands run, and a
+selected input omitted from the combined declaration is rejected. These
+fixtures test command selection, not the underlying acceptance behavior.
+The seven documentation fixtures, actual-tree link/input inspection, and
+documentation-retention inspection also pass locally. Existing ignored
+review logs and the tracked bundled Cargo.lock are no longer ignored.
+
+GitNexus staged analysis reports low risk, six changed indexed symbols and
+no affected indexed processes; it does not model every moved declaration.
+Ripwire's inherited-runner edit check reports a parameter change, but the
+actual function still has zero parameters on both sides of this edit. Its
+baseline merges many same-named main functions; this is not a signature
+change. Deleted document references inside checker code still need repair,
+and complete fresh acceptance evidence remains outstanding.

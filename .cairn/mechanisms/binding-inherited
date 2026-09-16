@@ -1,0 +1,38 @@
+# Mechanism: binding-inherited
+
+command: python3 -B scripts/check-inherited-abi.py
+inputs:
+  - .cairn/mechanisms/app-wakeups
+  - .cairn/mechanisms/default-suite-repair
+  - .cairn/mechanisms/embedded-terminal
+  - .cairn/mechanisms/maintenance-ffi
+  - .cairn/mechanisms/maintenance-format
+  - .cairn/mechanisms/maintenance-lint
+  - .cairn/mechanisms/registry-cache-isolation
+  - .cairn/mechanisms/registry-concurrency
+  - .cairn/mechanisms/suprtui-renderer
+  - Cargo.lock
+  - Cargo.toml
+  - build.rs
+  - README.md
+  - benches
+  - docs/spec
+  - examples
+  - include
+  - reactive-tui-macros
+  - scripts
+  - src
+  - tests
+  - tests/app_wakeups.rs
+  - tests/component_macro_integration.rs
+  - tests/component_macro_test.rs
+  - tests/component_tests.rs
+  - tests/embedded_terminal.rs
+  - tests/registry_concurrency.rs
+  - tests/runtime_probes/app_wakeup.rs
+  - tests/runtime_probes/embedded_terminal.rs
+  - tests/runtime_probes/suprtui_renderer.rs
+  - tests/simple_performance_test.rs
+  - tests/suprtui_renderer.rs
+requirements:
+  - ABI-004

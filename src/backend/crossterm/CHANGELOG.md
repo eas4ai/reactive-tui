@@ -647,7 +647,7 @@ This release is all about moving to a stabilized API for 1.0.
 
 # Version 0.3.0
 
-This version has some braking changes check [upgrade manual](UPGRADE%20Manual.md) for more information about what is changed.
+This version has breaking changes; see the [upgrade paths](https://github.com/crossterm-rs/crossterm/wiki#upgrade-paths) for migration guidance.
 I think you should not switch to version `0.3.0` if you aren't going to use the AlternateScreen feature.
 Because you will have some work to get to the new version of crossterm depending on your situation.
 

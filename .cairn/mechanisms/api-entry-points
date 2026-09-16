@@ -1,0 +1,16 @@
+# Mechanism: api-entry-points
+
+command: python3 -B scripts/check-api-entry-points.py
+inputs:
+  - .cairn/mechanisms/api-entry-points
+  - Cargo.toml
+  - Cargo.lock
+  - build.rs
+  - src
+  - reactive-tui-macros
+  - include
+  - tests/suprtui_renderer.rs
+  - scripts/check-api-entry-points.py
+  - verification/api-entry-points
+requirements:
+  - API-016
