@@ -12,4 +12,4 @@ On 2026-09-16 Shawn answered ok to escalation gpu-001-gpu-002-gpu-003-gpu-004-gp
 
 ## Realized by
 
-(none yet: recorded, not built)
+- 323ac441536677100ba01d245627f9fe4a6780ee docs: resume the approved catalog commitment after graphics verification
