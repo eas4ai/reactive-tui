@@ -119,6 +119,30 @@ paths, missing shading, and missing aspect correction. These local runs are
 not Cairn receipts. PNG inspection is not the required host-terminal capture;
 that visual obligation remains open for the integrated demo.
 
+## Subsequent integration
+
+### Task 7: Fallback and normal App ownership (GPU-004)
+
+- [ ] Declare the lifecycle mechanism, commit it, and run the missing-check baseline.
+- [ ] Write failing tests for hybrid renderer selection, truthful frame provenance,
+  and cancellation of active/pending work before adding those APIs.
+- [ ] Add a CPU shaded-cube fallback that shares elapsed-time angles and checked
+  dimensions, and document any quality difference after measurement.
+- [ ] Convert adapter initialization, device-loss, and readback errors into a
+  persistent CPU selection with a visible reason; never relabel CPU as GPU.
+- [ ] Add cancellation tokens to the owned worker. Poll readback with bounded
+  waits; shutdown clears pending work, suppresses publication, and joins.
+- [ ] Add a canvas owner attached to App's wake handle. The existing periodic
+  update path uses the deadline clock; rendering remains off the App loop.
+- [ ] Integrate only the feature-enabled Motion page. Bypass the catalog's
+  fixed-width ScrollView there and size the canvas to its available stage.
+  Other paused catalog layout work remains untouched.
+- [ ] Add explicit example CPU/fault options for reproducible checks. Run
+  existing consumers in default/enabled configurations.
+- [ ] Run isolated real PTY checks for each quit key, animation without input,
+  resize, GPU mode, forced CPU, and each injected failure. Inspect actual
+  restoration and process cleanup, then commit and record Cairn evidence.
+
 ## Source basis and review
 
 ### Task 6: Bound elapsed-time animation (GPU-003)
