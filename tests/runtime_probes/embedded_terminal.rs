@@ -1,4 +1,4 @@
-//! Internal embedded-terminal lifecycle acceptance probe.
+// Shared launcher for the internal lifecycle probe and the embedded-shell example.
 
 #[cfg(all(unix, feature = "embedded-terminal"))]
 fn main() -> Result<(), Box<dyn std::error::Error>> {

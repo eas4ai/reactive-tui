@@ -120,6 +120,11 @@ name = "embedded_terminal_probe"
 path = "tests/runtime_probes/embedded_terminal.rs"
 required-features = ["embedded-terminal"]
 
+[[example]]
+name = "embedded_shell"
+path = "examples/embedded_shell.rs"
+required-features = ["embedded-terminal"]
+
 [[test]]
 name = "dqc_003_captured_diagnostics"
 path = "tests/dqc_003_captured_diagnostics.rs"

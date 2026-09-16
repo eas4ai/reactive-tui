@@ -104,7 +104,42 @@ def probe(binary, failure=False):
             os.close(slave)
 
 
+def probe_control_text(binary):
+    """A UTF-8 C1 character in the last column must not terminate the host."""
+    master, slave = os.openpty()
+    helpers.resize(slave, 96, 24)
+    original = termios.tcgetattr(slave)
+    output = bytearray()
+    process = None
+    try:
+        code = "import os; os.write(1, bytes.fromhex('1b5b313b393648c285'))"
+        process = subprocess.Popen(
+            [str(binary), "python3", "-c", code], stdin=slave, stdout=slave,
+            stderr=slave, env={**os.environ, "TERM": "xterm-256color"},
+            preexec_fn=child_setup,
+        )
+        helpers.read_until(master, process, output,
+            lambda data: b"\x1b[?1049l" in data,
+            "control-text host did not restore its alternate screen")
+        status = process.wait(timeout=10)
+        while helpers.select.select([master], [], [], 0)[0]:
+            output.extend(os.read(master, 65536))
+        assert status == 0, f"control-text host exited {status}: {output[-500:]!r}"
+        assert "�".encode() in output, "safe replacement was not painted"
+        assert "\u0085".encode() not in output, "C1 text escaped into host output"
+        assert termios.tcgetattr(slave) == original, "host termios was not restored"
+        assert b"\x1b[?25h" in output, "host cursor was not restored"
+        print("PASS EMB App PTY: cell-95 UTF-8 C1 text + normal exit + cleanup")
+    finally:
+        if process is not None and process.poll() is None:
+            process.kill()
+            process.wait(timeout=5)
+        os.close(master)
+        os.close(slave)
+
+
 if __name__ == "__main__":
     binary = (Path(os.environ.get("CARGO_TARGET_DIR", "target")) / "debug/examples/embedded_terminal_probe").resolve()
     probe(binary)
     probe(binary, failure=True)
+    probe_control_text(binary)

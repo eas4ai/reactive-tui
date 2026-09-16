@@ -50,7 +50,16 @@ pub(super) fn capture<'a>(
                 // Allocate exactly the queried length before calling the native buffer API.
                 let mut chars = vec!['\0'; count];
                 cell.graphemes_buf(&mut chars).map_err(native_error)?;
-                text.extend(chars.into_iter().filter(|c| *c != '\0'));
+                // Ghostty may retain UTF-8 C1 controls as printable cell text.
+                // Never forward them into a host frame: replace them visibly,
+                // preserving native occupancy and the frame's control-byte ban.
+                text.extend(chars.into_iter().filter(|c| *c != '\0').map(|c| {
+                    if c.is_control() {
+                        '\u{fffd}'
+                    } else {
+                        c
+                    }
+                }));
             }
             if cell_width != 0 && text.is_empty() {
                 text.push(' ');
@@ -127,4 +136,51 @@ fn attributes(style: Style) -> u8 {
         }
     }
     bits
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn native_unicode_cells_remain_valid_at_screen_edges_and_after_resize() {
+        let mut failures = Vec::new();
+        for columns in [1, 2, 3, 8, 96] {
+            for text in [
+                "界",
+                "🙂",
+                "👩‍💻",
+                "e\u{301}",
+                "\u{301}",
+                "a\u{200d}b",
+                "❤️",
+                "🇺🇸",
+                "\u{200b}",
+                "\u{200e}",
+                "\u{200f}",
+                "\u{2060}",
+                "\u{00ad}",
+                "\u{0085}",
+                "क्‍ष",
+                "\u{2028}",
+                "\u{2029}",
+                "\u{200c}",
+            ] {
+                let mut terminal = Terminal::new(columns, 4).unwrap();
+                terminal
+                    .set_mode(libghostty_vt::terminal::Mode::GRAPHEME_CLUSTER, true)
+                    .unwrap();
+                let mut state = RenderState::new().unwrap();
+                terminal.vt_write(format!("\x1b[1;{columns}H{text}").as_bytes());
+                if let Err(error) = capture(&terminal, &mut state) {
+                    failures.push(format!("columns={columns}, text={text:?}: {error}"));
+                }
+                terminal.resize(1, 4, 0, 0).unwrap();
+                if let Err(error) = capture(&terminal, &mut state) {
+                    failures.push(format!("resized from {columns}, text={text:?}: {error}"));
+                }
+            }
+        }
+        assert!(failures.is_empty(), "{}", failures.join("\n"));
+    }
 }

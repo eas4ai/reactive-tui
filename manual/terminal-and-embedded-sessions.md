@@ -26,11 +26,24 @@ For the optional embedded path, enable `embedded-terminal`, create a
 `EmbeddedSession::spawn`. Attach the app waker, send key events, resize with the
 view, read snapshots when needed, and call `shutdown` during cleanup.
 
+Run the shell launcher with
+`cargo run --locked --features embedded-terminal --example embedded_shell`.
+It uses your configured shell; append an executable and arguments to select
+another child, for example `-- /bin/sh -i`. Ctrl+Q exits the host. Ctrl+C and
+Escape belong to the child. Always rebuild through Cargo rather than running
+an old binary left in the target directory.
+
 ## Behavior
 
 PTY output is parsed into a virtual screen. ANSI and escape sequences update
 text, cursor, modes, title, colors, scrolling regions, and alternate-screen
 state. A session snapshot copies the current stable state for rendering.
+
+The libghostty snapshot adapter replaces retained control characters with
+`�` before creating a host frame. ANSI controls still act on the child terminal;
+control characters stored as text cannot escape into host cell content. This
+prevents the reproduced cell-95 validation error without relaxing validation.
+It does not establish that the separately reported Kitty segfault is repaired.
 
 The embedded worker owns the parser and child process. Commands cross a channel
 to the worker. Output and process changes wake the application. Shutdown closes

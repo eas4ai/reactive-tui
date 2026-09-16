@@ -265,6 +265,24 @@ fn emb_002_joined_emoji_remains_one_owned_grapheme() {
 }
 
 #[test]
+fn emb_002_utf8_c1_cells_are_safe_for_the_host_frame() {
+    use reactive_tui::backend::{Backend, SuprTuiBackend};
+    let session = shell(r"printf '\033[1;96H\302\205'", 96, 4);
+    let snapshot = wait(&session, |s| s.stopped);
+    let cell = snapshot.frame.cell(95, 0).unwrap();
+    assert_eq!(cell.text, "\u{fffd}");
+    assert_eq!(cell.width, 1);
+    assert!(snapshot
+        .frame
+        .cells()
+        .iter()
+        .all(|cell| !cell.text.chars().any(char::is_control)));
+    let mut backend = SuprTuiBackend::with_writer(96, 4, std::io::sink()).unwrap();
+    backend.render_cells(snapshot.frame).unwrap();
+    backend.present().unwrap();
+}
+
+#[test]
 fn emb_002_cell_frames_reject_invalid_occupancy_and_control_bytes() {
     use reactive_tui::backend::{CellFrame, FrameCell};
     let plain = FrameCell {
