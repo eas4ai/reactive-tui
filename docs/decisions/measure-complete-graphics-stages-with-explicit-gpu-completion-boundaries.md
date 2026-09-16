@@ -11,4 +11,4 @@ Split draw and texture-copy submissions so a bounded cancellable completion wait
 
 ## Realized by
 
-a1ebe32ad27e54b1164778d0d55592d38de47257 feat: measure graphics stages and verify isolated Kitty presentation
+- a1ebe32ad27e54b1164778d0d55592d38de47257 feat: measure graphics stages and verify isolated Kitty presentation
