@@ -12,4 +12,6 @@ Shawn answered ok to escalation rid-001-rid-002-mnt-002 on 2026-09-16. Expand on
 
 ## Realized by
 
+- e8ae4d0437d17ac34956f5db659f060b2a7ff7ae docs: authorize narrow lint repairs and native CI enforcement
+
 (none yet: recorded, not built)
