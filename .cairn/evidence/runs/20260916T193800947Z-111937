@@ -1,0 +1,18 @@
+mechanism: wgpu-feature-compatibility
+commit: 1ca6b150
+inputs_digest: sha256:113df415f9964f69f678bde01f7293f37fb9af47e807739eec44488aa749c01b
+mechanism_digest: sha256:99b279243818f53a856256fa80efe3510dac88dc33b437ed2ed0ac58fa686ece
+kernel_digest: sha256:a75759bfeebcad18d5c4ede6438c2a1efc8380a27df350379634205af5b27b19
+inputs_detail: .cairn/evidence/runs/20260916T193800947Z-111937.inputs.json
+command: python3 -B scripts/check-wgpu-features.py
+cwd: .
+exit: 0
+output_digest: sha256:4cc8272927d02e6cc21517107b304a2508db6325e3caad63fd02a4cb1f384de1
+output: .cairn/evidence/runs/20260916T193800947Z-111937.out
+stderr_output: .cairn/evidence/runs/20260916T193800947Z-111937.err
+stderr_digest: sha256:383ac0163ddb4800b2e7bc71745ce95d7e0ce8d33a99630512b3b6e670aa61f6
+signal: none
+execution_error: null
+recorded: 2026-09-16T19:38:55.233Z
+results:
+  - GPU-001 pass exit sha256:e003f40f8cdbb625bfe5d44703f3c3e9810be432c3f4b9afb93ab8ff43770fab 4 sha256:0216e3ae2934e0a4bbf84109cff0cb22403d887665e1242094766216d4fdd03f
