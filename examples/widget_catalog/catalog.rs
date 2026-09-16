@@ -19,6 +19,10 @@ use reactive_tui::{
     },
 };
 use std::path::PathBuf;
+use std::time::Instant;
+#[path = "motion.rs"]
+pub mod motion;
+use motion::CubeAnimation;
 
 /// Public widget families represented by the catalog.
 pub const WIDGET_FAMILY_INVENTORY: &str = "\
@@ -96,6 +100,8 @@ pub struct Catalog {
     page: CatalogPage,
     width: u16,
     height: u16,
+    motion: CubeAnimation,
+    exit_requested: bool,
 }
 
 impl Default for Catalog {
@@ -104,6 +110,8 @@ impl Default for Catalog {
             page: CatalogPage::Overview,
             width: 100,
             height: 30,
+            motion: CubeAnimation::new(Instant::now()),
+            exit_requested: false,
         }
     }
 }
@@ -459,8 +467,8 @@ impl Catalog {
         Self::card(
             "Wireframe cube",
             div()
-                .class("w-full h-14 text-cyan-300")
-                .text("        +------+\n       /      /|\n      +------+ |\n      |      | +\n      |      |/\n      +------+")
+                .class("w-full h-16 text-cyan-300")
+                .text(self.motion.frame())
                 .build(),
         )
     }
@@ -571,6 +579,12 @@ impl RootComponent for Catalog {
         if key.kind == KeyEventKind::Release {
             return Ok(EventResult::Ignored);
         }
+        if key.code == KeyCode::Escape
+            || (key.modifiers.ctrl && matches!(key.code, KeyCode::Char('q' | 'c')))
+        {
+            self.exit_requested = true;
+            return Ok(EventResult::Handled);
+        }
         let next = match key.code {
             KeyCode::Up | KeyCode::Left => Some(self.page.offset(-1)),
             KeyCode::Down | KeyCode::Right => Some(self.page.offset(1)),
@@ -586,6 +600,12 @@ impl RootComponent for Catalog {
     }
 
     fn update(&mut self) -> reactive_tui::Result<RootUpdate> {
-        Ok(RootUpdate::Unchanged)
+        Ok(if self.exit_requested {
+            RootUpdate::Exit
+        } else if self.page == CatalogPage::Motion && self.motion.advance(Instant::now()) {
+            RootUpdate::Redraw
+        } else {
+            RootUpdate::Unchanged
+        })
     }
 }

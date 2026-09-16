@@ -1,12 +1,14 @@
 #[path = "../examples/widget_catalog/catalog.rs"]
 mod catalog;
 
+use catalog::motion::{cube_frame, CubeAnimation, FRAME_INTERVAL};
 use catalog::{Catalog, CatalogPage, NavigationLayout};
 use reactive_tui::{
     app::RootComponent,
     component::{Element, ElementType},
     event::types::{Event, KeyCode, KeyEvent},
 };
+use std::time::{Duration, Instant};
 
 fn key(code: KeyCode) -> Event {
     Event::Key(KeyEvent::new(code))
@@ -80,4 +82,65 @@ fn catalog_exposes_the_complete_page_order() {
             CatalogPage::System,
         ]
     );
+}
+
+#[test]
+fn cube_frames_are_distinct_and_bounded() {
+    let first = cube_frame(Duration::ZERO);
+    assert_ne!(first, cube_frame(FRAME_INTERVAL));
+    for second in 0..100 {
+        let frame = cube_frame(Duration::from_millis(second * 80));
+        assert_eq!(frame.lines().count(), 16);
+        assert!(frame.lines().all(|line| line.chars().count() == 40));
+    }
+}
+
+#[test]
+fn animation_waits_for_its_deadline_and_skips_missed_frames() {
+    let start = Instant::now();
+    let mut animation = CubeAnimation::new(start);
+    assert!(!animation.advance(start + FRAME_INTERVAL - Duration::from_nanos(1)));
+    assert!(animation.advance(start + FRAME_INTERVAL));
+    assert!(!animation.advance(start + FRAME_INTERVAL));
+    let late = start + Duration::from_secs(10);
+    assert!(animation.advance(late));
+    assert!(!animation.advance(late + Duration::from_millis(1)));
+}
+
+#[test]
+fn advertised_quit_keys_request_normal_app_exit() {
+    use reactive_tui::{app::RootUpdate, event::types::KeyModifiers};
+    for code in [KeyCode::Char('q'), KeyCode::Char('c'), KeyCode::Escape] {
+        let mut catalog = Catalog::default();
+        let event = Event::Key(KeyEvent::new(code).with_modifiers(KeyModifiers {
+            ctrl: true,
+            ..KeyModifiers::empty()
+        }));
+        catalog.try_handle_event(&event).unwrap();
+        assert!(matches!(catalog.update().unwrap(), RootUpdate::Exit));
+    }
+}
+
+#[test]
+fn released_quit_keys_and_plain_letters_do_not_exit() {
+    use reactive_tui::{
+        app::RootUpdate,
+        event::types::{KeyEventKind, KeyModifiers},
+    };
+    for event in [
+        key(KeyCode::Char('q')),
+        key(KeyCode::Char('c')),
+        Event::Key(
+            KeyEvent::new(KeyCode::Char('q'))
+                .with_modifiers(KeyModifiers {
+                    ctrl: true,
+                    ..KeyModifiers::empty()
+                })
+                .with_kind(KeyEventKind::Release),
+        ),
+    ] {
+        let mut catalog = Catalog::default();
+        catalog.try_handle_event(&event).unwrap();
+        assert!(matches!(catalog.update().unwrap(), RootUpdate::Unchanged));
+    }
 }
