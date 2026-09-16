@@ -83,6 +83,31 @@ wgpu-graphics = ["dep:wgpu"]
 - [ ] Read the captured output and receipt. Commit all receipt/output/input files; never edit historical evidence.
 - [ ] Remove the in-progress record after the action is committed. Run wake again and extend this plan for the next named requirement.
 
+### Task 5: Render a GPU cube offscreen
+
+- [ ] Declare and commit `.cairn/mechanisms/wgpu-rendering` before implementation.
+- [ ] Write `tests/wgpu_graphics.rs` first. It must fail because
+  `reactive_tui::graphics` does not exist. Its real-adapter test renders at
+  60x48, 144x100, and 200x120 pixel targets for the required terminal sizes,
+  records adapter identity, rejects CPU adapters, checks exact output size,
+  and requires at least 32 distinct opaque colors.
+- [ ] Add conversion tests that require one half-block cell per source column
+  and one terminal row per two pixel rows. Paint the resulting Element through
+  `DebugBackend` and assert the 60x24 frame uses the full requested bounds.
+- [ ] Implement feature-gated `src/graphics/mod.rs` with an offscreen
+  `Rgba8UnormSrgb` texture, a fullscreen-triangle WGSL ray-box shader, elapsed
+  time rotation, viewport aspect uniform, a 256-byte aligned readback buffer,
+  and checked de-padding into owned RGBA pixels.
+- [ ] Keep dimensions within 800x600 pixels and reject zero or larger targets
+  before multiplying allocation sizes.
+- [ ] Convert pairs of pixels to `▀` Elements using public `StyleBuilder::fg_rgba`
+  and `bg_rgba`. This uses the existing bridge and terminal frame path without
+  changing either paint backend.
+- [ ] Run the test red before implementation and green afterward. Build the
+  default library to prove the public graphics module remains feature-gated.
+- [ ] Commit, run `cairn check GPU-002`, inspect and commit its evidence, then
+  run wake before starting bounded scheduling.
+
 ## Source basis and review
 
 [wgpu 27.0.1's published manifest](https://docs.rs/crate/wgpu/27.0.1/source/Cargo.toml)

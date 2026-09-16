@@ -1,0 +1,25 @@
+# Mechanism: wgpu-rendering
+
+command: python3 -B scripts/check-wgpu-rendering.py
+inputs:
+  - .cairn/mechanisms
+  - Cargo.toml
+  - Cargo.lock
+  - build.rs
+  - src
+  - crates
+  - reactive-tui-macros
+  - examples
+  - tests
+  - scripts
+requirements:
+  - GPU-002
+
+The check must first prove its validator rejects a placeholder renderer, a
+window or surface presentation path, missing texture readback, fixed terminal
+dimensions, and absent cell-aspect correction. Corrected fixtures pass.
+
+A feature-gated test renders the cube on a real, non-CPU adapter, records its
+identity, requires nonuniform shaded pixels, and converts the result into the
+existing Element/frame pipeline at 60x24, 144x50, and 200x60. A software
+adapter or static CPU fixture cannot satisfy this requirement.
