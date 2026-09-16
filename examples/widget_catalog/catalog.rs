@@ -109,10 +109,12 @@ impl Default for Catalog {
 }
 
 impl Catalog {
+    #[cfg(test)]
     pub fn page(&self) -> CatalogPage {
         self.page
     }
 
+    #[cfg(test)]
     pub fn set_page(&mut self, page: CatalogPage) {
         self.page = page;
     }
