@@ -217,6 +217,8 @@ The catalog uses arrows or `1`–`8` to select pages and Tab to focus controls.
 Use F1/F2 on the menus/dialogs page to capture one overlay demo at a time.
 Mouse-wheel scrolling reveals longer widget pages.
 It switches from a sidebar to compact navigation below 80 columns. Open page
+`3` for a full-width colored column-span grid. Example cards use compact gaps
+and switch between one and two columns with the terminal width. Open page
 `7` to record the cube animation, or page `6` for the tracked project logo.
 Ctrl+Q always quits. Ctrl+C and Escape quit when the active widget does not
 consume them (for example, Escape first closes an open menu).

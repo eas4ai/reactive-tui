@@ -137,7 +137,7 @@ def main() -> int:
     )
     print(test_output, end="")
     compile_code, compile_output = run(
-        ["cargo", "+1.91.0", "check", "--locked", "--example", "widget_catalog", "--jobs", "8"]
+        ["cargo", "+1.91.0", "build", "--locked", "--example", "widget_catalog", "--jobs", "8"]
     )
     print(compile_output, end="")
     pty_code, pty_output = (0, "")
@@ -165,6 +165,11 @@ def main() -> int:
         for error in errors:
             print(f"FAIL CAT: {error}", file=sys.stderr)
         return 1
+    if requirement in ("all", "CAT-001"):
+        host_code, host_output = run([sys.executable, "-B", "scripts/check-widget-catalog-host.py"])
+        print(host_output, end="")
+        if host_code:
+            return host_code
     print(f"PASS {requirement}: catalog requirement checks passed")
     return 0
 

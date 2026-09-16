@@ -211,10 +211,15 @@ impl Catalog {
             .map(|(index, page)| {
                 let marker = if *page == self.page { "▶" } else { " " };
                 div()
-                    .class(if *page == self.page {
-                        "flex-1 min-w-0 h-1 bg-cyan-900 text-cyan-200 font-bold"
+                    .class(if compact {
+                        "flex-1 min-w-0 h-1"
                     } else {
-                        "flex-1 min-w-0 h-1 text-gray-400"
+                        "w-full shrink-0 h-1"
+                    })
+                    .class(if *page == self.page {
+                        "bg-cyan-900 text-cyan-200 font-bold"
+                    } else {
+                        "text-gray-400"
                     })
                     .text(&if compact {
                         format!("{marker}[{}]", index + 1)
@@ -238,37 +243,41 @@ impl Catalog {
     }
 
     fn card(title: &str, body: Element) -> Element {
+        let body_class = format!(
+            "{} min-w-0 whitespace-normal",
+            body.class.as_deref().unwrap_or_default()
+        );
         div()
-            .class("flex-col min-w-0 border border-gray-700 bg-gray-900 p-0.25 gap-0.25")
+            .class("flex-col min-w-0 shrink-0 border border-gray-700 bg-gray-900 p-0.25 gap-0.25")
             .child(
                 div()
-                    .class("h-1 text-cyan-300 font-bold")
+                    .class("h-1 shrink-0 text-cyan-300 font-bold")
                     .text(title)
                     .build(),
             )
-            .child(body)
+            .child(body.with_class(body_class))
             .build()
     }
 
     fn overview_page(&self) -> Element {
         div()
-            .class("flex-col gap-1")
+            .class("w-full flex-col gap-0.25")
             .child(
                 div()
-                    .class("text-white font-bold")
+                    .class("w-full shrink-0 whitespace-normal text-white font-bold")
                     .text("One small app. Every widget family. Built for capture.")
                     .build(),
             )
             .child(
                 div()
-                    .class("text-gray-400")
+                    .class("w-full shrink-0 whitespace-normal text-gray-400")
                     .text("Use arrows or the numbered shortcuts to move between focused stages.")
                     .build(),
             )
             .child(Self::card(
                 "Coverage",
                 div()
-                    .class("text-gray-300")
+                    .class("w-full whitespace-normal text-gray-300")
                     .text(WIDGET_FAMILY_INVENTORY)
                     .build(),
             ))
@@ -277,7 +286,11 @@ impl Catalog {
 
     fn input_page(&self) -> Element {
         div()
-            .class("grid grid-cols-2 gap-1")
+            .class(if self.width < 80 {
+                "w-full grid grid-cols-1 gap-0.25"
+            } else {
+                "w-full grid grid-cols-2 gap-0.25"
+            })
             .child(Self::card(
                 "TextInput",
                 text_input()
@@ -336,8 +349,12 @@ impl Catalog {
         let scroll_content = (1..=10)
             .map(|index| Element::text(format!("Scrollable row {index}")))
             .collect();
-        div()
-            .class("grid grid-cols-2 gap-1")
+        let examples = div()
+            .class(if self.width < 80 {
+                "w-full grid grid-cols-1 gap-0.25"
+            } else {
+                "w-full grid grid-cols-2 gap-0.25"
+            })
             .child(Self::card(
                 "Breadcrumb",
                 path_breadcrumb("/catalog/layout/widgets"),
@@ -373,6 +390,30 @@ impl Catalog {
                     .child(Element::text("Layer two"))
                     .build(),
             ))
+            .build();
+        let span_cell = |label: &str, classes: &str| {
+            div()
+                .class(if self.width < 80 { "h-2" } else { "h-3" })
+                .class("min-w-0 px-0.25 text-white")
+                .class(classes)
+                .text(label)
+                .build()
+        };
+        div()
+            .class("w-full flex-col gap-0.25")
+            .child(Self::card(
+                "Column spans · four-column grid",
+                div()
+                    .class("w-full grid grid-cols-4 gap-0.25")
+                    .child(span_cell("span 4", "col-span-4 bg-cyan-700"))
+                    .child(span_cell("span 2", "col-span-2 bg-violet-700"))
+                    .child(span_cell("span 1", "bg-amber-700"))
+                    .child(span_cell("span 1", "bg-emerald-700"))
+                    .child(span_cell("span 3", "col-span-3 bg-blue-700"))
+                    .child(span_cell("span 1", "bg-rose-700"))
+                    .build(),
+            ))
+            .child(examples)
             .build()
     }
 
@@ -383,7 +424,11 @@ impl Catalog {
             .add_child(TreeNode::new("manual", "manual"));
         let manual = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("manual");
         div()
-            .class("grid grid-cols-2 gap-1")
+            .class(if self.width < 80 {
+                "w-full grid grid-cols-1 gap-0.25"
+            } else {
+                "w-full grid grid-cols-2 gap-0.25"
+            })
             .child(Self::card(
                 "Chart",
                 reactive_tui::builder::chart()
@@ -551,7 +596,7 @@ impl Catalog {
     fn media_page(&self) -> Element {
         let logo = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("manual/assets/logo.jpg");
         div()
-            .class("flex-col gap-1")
+            .class("w-full flex-col gap-0.25")
             .child(Self::card(
                 "Image · project logo",
                 image()
@@ -588,7 +633,7 @@ impl Catalog {
             ..Default::default()
         };
         div()
-            .class("flex-col gap-1")
+            .class("w-full flex-col gap-0.25")
             .child(Self::card(
                 "TerminalWidget",
                 Element::typed::<TerminalWidget>(terminal),
@@ -646,21 +691,38 @@ impl Catalog {
                     .build();
             }
         }
+        let page = self.selected_page();
+        let page_class = format!(
+            "{} w-full min-w-0 shrink-0 whitespace-normal",
+            page.class.as_deref().unwrap_or_default()
+        );
         div()
             .class("flex-col flex-1 min-w-0 min-h-0 h-full p-0.25 gap-0.25 bg-black")
             .child(
                 div()
-                    .class("h-1 text-white font-bold")
+                    .class("h-1 shrink-0 text-white font-bold")
                     .text(self.page.title())
                     .build(),
             )
             .child(
-                scroll_view()
-                    .contents(vec![self.selected_page()])
-                    .vertical_scroll(true)
+                reactive_tui::widgets::layout::ScrollViewBuilder::new(page.with_class(page_class))
+                    .viewport_size(
+                        usize::from(self.width.saturating_sub(if self.width >= 80 {
+                            26
+                        } else {
+                            2
+                        })),
+                        usize::from(self.height.saturating_sub(if self.width >= 80 {
+                            8
+                        } else {
+                            11
+                        })),
+                    )
+                    .scroll_x(false)
+                    .scroll_y(true)
                     .show_scrollbars(true)
-                    .class("flex-1 min-h-0")
-                    .build(),
+                    .render()
+                    .with_class("w-full flex-1 min-h-0"),
             )
             .build()
     }

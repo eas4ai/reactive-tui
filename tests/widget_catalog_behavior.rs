@@ -89,6 +89,126 @@ fn dialogs_are_live_and_separately_reachable() {
 }
 
 #[test]
+fn page_scroll_view_uses_the_terminal_stage_not_default_dimensions() {
+    let mut catalog = Catalog::default();
+    for (width, height) in [(60, 24), (144, 50), (200, 60)] {
+        catalog.resize(width, height).unwrap();
+        let element = catalog.render();
+        let props = find_props::<reactive_tui::widgets::layout::ScrollViewProps>(&element).unwrap();
+        let sidebar = width >= 80;
+        assert_eq!(
+            props.viewport_width,
+            usize::from(width - if sidebar { 26 } else { 2 })
+        );
+        assert_eq!(
+            props.viewport_height,
+            usize::from(height - if sidebar { 8 } else { 11 })
+        );
+    }
+}
+
+#[test]
+fn overview_coverage_wraps_and_navigation_entries_do_not_stretch() {
+    let mut catalog = Catalog::default();
+    catalog.resize(144, 50).unwrap();
+    let frames = app_input::run_when(catalog, (144, 50), vec![("Coverage", None)]);
+    let frame = &frames.last().unwrap().text;
+    let rows: Vec<_> = frame.lines().collect();
+    let nav_rows: Vec<_> = (1..=8)
+        .map(|number| {
+            rows.iter()
+                .position(|row| row.contains(&format!("[{number}]")))
+                .unwrap()
+        })
+        .collect();
+    assert!(
+        nav_rows.windows(2).all(|pair| pair[1] == pair[0] + 1),
+        "{frame}"
+    );
+    assert!(
+        rows.iter()
+            .position(|row| row.contains("Coverage"))
+            .unwrap()
+            < 12,
+        "{frame}"
+    );
+    assert!(
+        frame.contains("TerminalWidget"),
+        "coverage is clipped: {frame}"
+    );
+}
+
+#[test]
+fn layout_page_mounts_a_real_four_column_span_grid() {
+    let mut catalog = Catalog::default();
+    catalog.set_page(CatalogPage::Layout);
+    let page = catalog.demo_element();
+    let output = text(&page);
+    for label in ["Column spans", "span 4", "span 3", "span 2", "span 1"] {
+        assert!(output.contains(label), "missing {label}: {output}");
+    }
+}
+
+#[test]
+fn colored_column_spans_have_native_cell_geometry_at_each_viewport() {
+    for size in [(60, 24), (144, 50), (200, 60)] {
+        let mut catalog = Catalog::default();
+        catalog.set_page(CatalogPage::Layout);
+        let frames = app_input::run_when(catalog, size, vec![("span 3", None)]);
+        let frame = frames.last().unwrap();
+        let rows: Vec<_> = frame.text.lines().collect();
+        let color_width = |label: &str| {
+            let y = rows.iter().position(|row| row.contains(label)).unwrap();
+            let x = rows[y].find(label).unwrap();
+            let color = frame.screen.cell(y as u16, x as u16).unwrap().bgcolor();
+            assert!(
+                matches!(color, vt100::Color::Rgb(..)),
+                "{size:?}: {color:?}\n{}",
+                frame.text
+            );
+            (0..size.0)
+                .filter(|x| frame.screen.cell(y as u16, *x).unwrap().bgcolor() == color)
+                .count()
+        };
+        let full = color_width("span 4");
+        let half = color_width("span 2");
+        let three = color_width("span 3");
+        assert!(
+            full >= usize::from(size.0 - if size.0 >= 80 { 30 } else { 6 }),
+            "{size:?}: span 4 width {full}\n{}",
+            frame.text
+        );
+        assert!(
+            half.abs_diff(full / 2) <= 2 && three.abs_diff(full * 3 / 4) <= 2,
+            "{size:?}: {full}/{half}/{three}\n{}",
+            frame.text
+        );
+    }
+}
+
+#[test]
+fn both_layout_example_columns_are_visible_and_compact() {
+    let mut catalog = Catalog::default();
+    catalog.set_page(CatalogPage::Layout);
+    let frames = app_input::run_when(catalog, (144, 50), vec![("Stack", None)]);
+    let frame = &frames.last().unwrap().text;
+    for label in ["Breadcrumb", "Accordion", "Tabs", "ScrollView", "Stack"] {
+        assert!(frame.contains(label), "missing {label}:\n{frame}");
+    }
+    let rows: Vec<_> = frame.lines().collect();
+    let breadcrumb = rows
+        .iter()
+        .position(|row| row.contains("Breadcrumb"))
+        .unwrap();
+    assert!(
+        rows[breadcrumb].contains("Accordion"),
+        "not two columns:\n{frame}"
+    );
+    let tabs = rows.iter().position(|row| row.contains("Tabs")).unwrap();
+    assert!(tabs - breadcrumb <= 7, "cards are stretched:\n{frame}");
+}
+
+#[test]
 fn live_dialogs_switch_through_real_app_input() {
     for size in [(100, 32), (60, 24)] {
         let mut catalog = Catalog::default();

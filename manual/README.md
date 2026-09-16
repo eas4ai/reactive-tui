@@ -45,6 +45,10 @@ The example presents focused live widget pages for screenshots and short video
 clips. Use arrows or `1`–`8` to select a page, and Tab to focus its controls.
 Navigation uses a sidebar at 80 columns or wider and a compact strip below
 that width.
+Pages use the terminal's full available width. Examples use one column below
+80 columns and two above it, with one-cell gaps instead of stretched rows.
+The Layout page includes a colored four-column grid with one-, two-, three-,
+and four-column spans.
 Use F1/F2 on the menus/dialogs page to select one live overlay demo at a time.
 Use the mouse wheel to scroll longer pages.
 
