@@ -1,0 +1,18 @@
+mechanism: wgpu-measurement
+commit: 2105472b
+inputs_digest: sha256:7f1985f6fc80cc8437ecb68b6753dfc2f40d6e7781e386c79c283ef695767160
+mechanism_digest: sha256:27c33efe3a0e225b56d3624d181747e7be0b9e89b4a1921ae04242a0520edcbd
+kernel_digest: sha256:a75759bfeebcad18d5c4ede6438c2a1efc8380a27df350379634205af5b27b19
+inputs_detail: .cairn/evidence/runs/20260916T200605656Z-453467.inputs.json
+command: python3 -B scripts/check-wgpu-measurement.py
+cwd: .
+exit: 2
+output_digest: sha256:01d4fcc08b6856e241a1622e9178ed73eef763c0afb56f56699c4b29449cc6e0
+output: .cairn/evidence/runs/20260916T200605656Z-453467.out
+stderr_output: .cairn/evidence/runs/20260916T200605656Z-453467.err
+stderr_digest: sha256:01d4fcc08b6856e241a1622e9178ed73eef763c0afb56f56699c4b29449cc6e0
+signal: none
+execution_error: null
+recorded: 2026-09-16T20:06:05.901Z
+results:
+  - GPU-005 fail exit sha256:df8318ad495b18661135425895573086c9dd2cd353648155f577f023f0ac9d16 1 sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
