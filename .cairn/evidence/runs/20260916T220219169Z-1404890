@@ -1,0 +1,18 @@
+mechanism: pre-release-documentation
+commit: 3711d13f
+inputs_digest: sha256:c2fe4ff4de64726ed566acb56f54f9b0853293fce0dd7ff505a3c6a285d960d4
+mechanism_digest: sha256:5540979362574b0b9e33103a8bc498847d83a700ac5e07b17aab5ec5ea6fecb2
+kernel_digest: sha256:a75759bfeebcad18d5c4ede6438c2a1efc8380a27df350379634205af5b27b19
+inputs_detail: .cairn/evidence/runs/20260916T220219169Z-1404890.inputs.json
+command: python3 -B scripts/check-pre-release-documentation.py RID-002
+cwd: .
+exit: 0
+output_digest: sha256:dcc1089979f7b2f41fd508b88925693ed0f3269e7a555cab2437c2f727ebdaa0
+output: .cairn/evidence/runs/20260916T220219169Z-1404890.out
+stderr_output: .cairn/evidence/runs/20260916T220219169Z-1404890.err
+stderr_digest: sha256:4389232935c2c5096423159407f3e4a3c16121165950c41b6dcc708b1972b91c
+signal: none
+execution_error: null
+recorded: 2026-09-16T22:02:25.049Z
+results:
+  - RID-002 pass exit sha256:8ffcbfef61f7073312cb9afa2716256613ed10aa9fcab261c9f159edbc9fc40e 2 sha256:ec96341c6a067571f044736dda76defa183ac4c2be7b81c15e370dde5a84fb3d
