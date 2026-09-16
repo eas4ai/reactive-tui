@@ -1,0 +1,24 @@
+{
+  "kitty": "kitty 0.45.0 created by Kovid Goyal",
+  "display": "owned Xvfb X11",
+  "font": "DejaVu Sans Mono 12 pt",
+  "host_gl": "software glyph renderer",
+  "artifacts": [
+    {
+      "path": ".cairn/evidence/captures/catalog/20260916T210709972791Z-964435/kitty-motion-60x24.png",
+      "sha256": "683e100cc1c8224636baaa8ef69994aeebd6a2e714311afac0ce739033b62633"
+    },
+    {
+      "path": ".cairn/evidence/captures/catalog/20260916T210709972791Z-964435/kitty-motion-144x50.png",
+      "sha256": "b1da73c3d34bde1a73cea503fc22fa530bcdc02f18279d82bfe57a76a01b4e30"
+    },
+    {
+      "path": ".cairn/evidence/captures/catalog/20260916T210709972791Z-964435/kitty-motion-200x60.png",
+      "sha256": "e9edcf2ebb2dddb78edaa0249c8e3929162f5404e386007036353235298cc78b"
+    },
+    {
+      "path": ".cairn/evidence/captures/catalog/20260916T210709972791Z-964435/kitty-motion-60x24-return.png",
+      "sha256": "23011d5872af304ad07f1f411197f40a1d8ab95d1f328caf895169e4d29f543e"
+    }
+  ]
+}
