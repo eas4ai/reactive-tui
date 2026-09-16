@@ -22,3 +22,8 @@ developer authority; do not claim workflow presence enforces passing checks.
 
 RID-002 and RID-003 remain pending. Do not publish packages or remove queued
 developer decisions without review.
+
+The installed Cairn only recognizes extensionless mechanism declarations
+(LOOP-106). The initial `.md` declaration was not recognized; rename this new
+declaration before checking. The older `.md` mechanism migration belongs to
+the already-agreed RID-002 complete-mechanism work, not a tool kernel edit.

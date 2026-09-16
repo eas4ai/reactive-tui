@@ -2,7 +2,7 @@
 
 command: python3 -B scripts/check-pre-release-ci.py RID-001
 inputs:
-  - .cairn/mechanisms/pre-release-ci.md
+  - .cairn/mechanisms/pre-release-ci
   - .github/workflows
   - scripts/check-pre-release-ci.py
   - scripts/test-pre-release-ci.py
