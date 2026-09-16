@@ -12,4 +12,6 @@ Shawn answered ok to escalation cat-001-cat-002-cat-003-rid-001-rid-002-rid-003-
 
 ## Realized by
 
+- bf471e5c3fb8c220b4b54f064278fef2d10d0d2e docs: activate the approved CI and documentation commitment
+
 (none yet: recorded, not built)
