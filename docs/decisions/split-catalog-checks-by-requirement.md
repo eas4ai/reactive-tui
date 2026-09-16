@@ -11,4 +11,4 @@ Shawn approved independent shell, motion, and media/documentation mechanisms. Ea
 
 ## Realized by
 
-5e0058b6dd9d02716e5cfcbe7ab0b9010f3785f4 fix: isolate catalog acceptance evidence by requirement
+- 5e0058b6dd9d02716e5cfcbe7ab0b9010f3785f4 fix: isolate catalog acceptance evidence by requirement
