@@ -50,4 +50,10 @@ Thumbs.db
 .cairn/in-progress
 !.cairn/evidence/**/*.log
 !.cairn/reviews/**/*.log
+# Preserve these existing local host diagnostics; none is tracked evidence.
+.cairn/reviews/api-020-closure/20260914T011625545295Z/**/*.log
+.cairn/reviews/api-020-closure/20260914T013605641169Z/**/*.log
+.cairn/reviews/api-020-closure/20260914T014530279104Z/**/*.log
+.cairn/reviews/api-image-hosts/20260913T205808901084Z/**/*.log
+.cairn/reviews/api-image-hosts/20260913T221919052255Z/**/*.log
 .gitnexus
