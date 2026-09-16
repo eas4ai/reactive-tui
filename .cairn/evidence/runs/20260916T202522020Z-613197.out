@@ -1,0 +1,537 @@
+test_corrected_manifest_passes (__main__.ValidatorTests.test_corrected_manifest_passes) ... ok
+test_default_alias_fails (__main__.ValidatorTests.test_default_alias_fails) ... ok
+test_default_dependency_feature_fails (__main__.ValidatorTests.test_default_dependency_feature_fails) ... ok
+test_default_tree_rejects_wgpu (__main__.ValidatorTests.test_default_tree_rejects_wgpu) ... ok
+test_implicit_defaults_fail (__main__.ValidatorTests.test_implicit_defaults_fail) ... ok
+test_missing_dependency_fails (__main__.ValidatorTests.test_missing_dependency_fails) ... ok
+test_missing_native_features_fail (__main__.ValidatorTests.test_missing_native_features_fail) ... ok
+test_missing_opt_in_fails (__main__.ValidatorTests.test_missing_opt_in_fails) ... ok
+test_nonoptional_dependency_fails (__main__.ValidatorTests.test_nonoptional_dependency_fails) ... ok
+
+----------------------------------------------------------------------
+Ran 9 tests in 0.000s
+
+OK
+RUN cargo +1.91.0 tree --locked -p reactive-tui --edges normal --prefix none
+reactive-tui v0.1.0 (/home/shawn/workspace2/reactive-tui)
+accesskit v0.25.0
+uuid v1.18.1
+getrandom v0.3.3
+cfg-if v1.0.3
+libc v0.2.189
+serde v1.0.229
+serde_core v1.0.229
+serde_derive v1.0.229 (proc-macro)
+proc-macro2 v1.0.101
+unicode-ident v1.0.18
+quote v1.0.40
+proc-macro2 v1.0.101 (*)
+syn v3.0.5
+proc-macro2 v1.0.101 (*)
+quote v1.0.40 (*)
+unicode-ident v1.0.18
+accesskit_consumer v0.39.0
+accesskit v0.25.0 (*)
+hashbrown v0.17.1
+allocator-api2 v0.2.21
+equivalent v1.0.2
+foldhash v0.2.0
+async-channel v2.5.0
+concurrent-queue v2.5.0
+crossbeam-utils v0.8.21
+event-listener-strategy v0.5.4
+event-listener v5.4.2
+parking v2.2.1
+pin-project-lite v0.2.16
+pin-project-lite v0.2.16
+futures-core v0.3.31
+pin-project-lite v0.2.16
+async-executor v1.14.0
+async-task v4.7.1
+concurrent-queue v2.5.0 (*)
+fastrand v2.3.0
+futures-lite v2.6.1
+fastrand v2.3.0
+futures-core v0.3.31
+futures-io v0.3.31
+parking v2.2.1
+pin-project-lite v0.2.16
+pin-project-lite v0.2.16
+slab v0.4.11
+async-io v2.6.0
+cfg-if v1.0.3
+concurrent-queue v2.5.0 (*)
+futures-io v0.3.31
+futures-lite v2.6.1 (*)
+parking v2.2.1
+polling v3.11.0
+cfg-if v1.0.3
+rustix v1.1.4
+bitflags v2.11.0
+linux-raw-sys v0.12.1
+rustix v1.1.4 (*)
+slab v0.4.11
+async-task v4.7.1
+atspi v0.29.0
+atspi-common v0.13.0
+enumflags2 v0.7.12
+enumflags2_derive v0.7.12 (proc-macro)
+proc-macro2 v1.0.101 (*)
+quote v1.0.40 (*)
+syn v2.0.106
+proc-macro2 v1.0.101 (*)
+quote v1.0.40 (*)
+unicode-ident v1.0.18
+serde v1.0.229 (*)
+serde v1.0.229 (*)
+static_assertions v1.1.0
+zbus v5.19.0
+async-broadcast v0.7.2
+event-listener v5.4.2 (*)
+event-listener-strategy v0.5.4 (*)
+futures-core v0.3.31
+pin-project-lite v0.2.16
+async-executor v1.14.0 (*)
+async-io v2.6.0 (*)
+async-lock v3.4.2
+event-listener v5.4.2 (*)
+event-listener-strategy v0.5.4 (*)
+pin-project-lite v0.2.16
+async-process v2.5.0
+async-channel v2.5.0 (*)
+async-io v2.6.0 (*)
+async-lock v3.4.2 (*)
+async-signal v0.2.14
+async-io v2.6.0 (*)
+cfg-if v1.0.3
+futures-core v0.3.31
+futures-io v0.3.31
+rustix v1.1.4 (*)
+signal-hook-registry v1.4.6
+libc v0.2.189
+async-task v4.7.1
+cfg-if v1.0.3
+event-listener v5.4.2 (*)
+futures-lite v2.6.1 (*)
+rustix v1.1.4 (*)
+async-recursion v1.1.1 (proc-macro)
+proc-macro2 v1.0.101 (*)
+quote v1.0.40 (*)
+syn v2.0.106 (*)
+async-task v4.7.1
+async-trait v0.1.92 (proc-macro)
+proc-macro2 v1.0.101 (*)
+quote v1.0.40 (*)
+syn v3.0.5 (*)
+blocking v1.7.0
+async-channel v2.5.0 (*)
+async-task v4.7.1
+futures-io v0.3.31
+futures-lite v2.6.1 (*)
+piper v0.2.5
+atomic-waker v1.1.2
+fastrand v2.3.0
+futures-io v0.3.31
+enumflags2 v0.7.12 (*)
+event-listener v5.4.2 (*)
+futures-core v0.3.31
+futures-lite v2.6.1 (*)
+hex v0.4.3
+libc v0.2.189
+ordered-stream v0.2.0
+futures-core v0.3.31
+pin-project-lite v0.2.16
+rustix v1.1.4 (*)
+serde v1.0.229 (*)
+serde_repr v0.1.21 (proc-macro)
+proc-macro2 v1.0.101 (*)
+quote v1.0.40 (*)
+syn v3.0.5 (*)
+tracing v0.1.44
+pin-project-lite v0.2.16
+tracing-attributes v0.1.31 (proc-macro)
+proc-macro2 v1.0.101 (*)
+quote v1.0.40 (*)
+syn v2.0.106 (*)
+tracing-core v0.1.36
+once_cell v1.21.3
+uuid v1.18.1 (*)
+winnow v1.0.4
+zbus_macros v5.19.0 (proc-macro)
+proc-macro-crate v3.5.0
+toml_edit v0.25.13+spec-1.1.0
+indexmap v2.14.2
+equivalent v1.0.2
+hashbrown v0.17.1
+toml_datetime v1.1.1+spec-1.1.0
+toml_parser v1.1.3+spec-1.1.0
+winnow v1.0.4
+winnow v1.0.4
+proc-macro2 v1.0.101 (*)
+quote v1.0.40 (*)
+syn v3.0.5 (*)
+zbus_names v4.3.4
+serde v1.0.229
+serde_core v1.0.229
+serde_derive v1.0.229 (proc-macro) (*)
+winnow v1.0.4
+zvariant v5.15.0
+endi v1.1.1
+enumflags2 v0.7.12 (*)
+serde v1.0.229 (*)
+winnow v1.0.4
+zcheapstr v1.1.0
+serde v1.0.229 (*)
+zvariant_derive v5.15.0 (proc-macro)
+proc-macro-crate v3.5.0 (*)
+proc-macro2 v1.0.101 (*)
+quote v1.0.40 (*)
+syn v3.0.5 (*)
+zvariant_utils v4.2.0
+proc-macro2 v1.0.101 (*)
+quote v1.0.40 (*)
+serde v1.0.229 (*)
+syn v3.0.5 (*)
+winnow v1.0.4
+zvariant_utils v4.2.0 (*)
+zvariant v5.15.0 (*)
+zvariant_utils v4.2.0 (*)
+zbus_names v4.3.4 (*)
+zvariant v5.15.0 (*)
+zbus-lockstep v0.5.2
+zbus_xml v5.2.1
+serde v1.0.229 (*)
+winnow v1.0.4
+zbus_names v4.3.4 (*)
+zvariant v5.15.0 (*)
+zvariant v5.15.0 (*)
+zbus-lockstep-macros v0.5.2 (proc-macro)
+proc-macro2 v1.0.101 (*)
+quote v1.0.40 (*)
+syn v2.0.106 (*)
+zbus-lockstep v0.5.2 (*)
+zbus_xml v5.2.1 (*)
+zvariant v5.15.0 (*)
+zbus_names v4.3.4 (*)
+zvariant v5.15.0 (*)
+atspi-proxies v0.13.0
+atspi-common v0.13.0 (*)
+serde v1.0.229 (*)
+zbus v5.19.0 (*)
+atspi-common v0.13.0 (*)
+base64 v0.22.1
+bitflags v2.11.0
+cap-fs-ext v4.0.3
+cap-primitives v4.0.3
+ambient-authority v0.0.2
+fs-set-times v0.20.3
+io-lifetimes v2.0.4
+rustix v1.1.4 (*)
+io-extras v0.19.0
+io-lifetimes v3.0.1
+io-lifetimes v3.0.1
+ipnet v2.12.2
+maybe-owned v0.3.4
+rustix v1.1.4 (*)
+rustix-linux-procfs v0.1.1
+once_cell v1.21.3
+rustix v1.1.4 (*)
+cap-std v4.0.3
+cap-primitives v4.0.3 (*)
+io-extras v0.19.0 (*)
+io-lifetimes v3.0.1
+rustix v1.1.4 (*)
+io-lifetimes v3.0.1
+cap-std v4.0.3 (*)
+comrak v0.55.0
+caseless v0.2.2
+unicode-normalization v0.1.25
+tinyvec v1.13.3
+finl_unicode v1.4.0
+jetscii v0.5.3
+phf v0.13.1
+phf_macros v0.13.1 (proc-macro)
+phf_generator v0.13.1
+fastrand v2.3.0
+phf_shared v0.13.1
+siphasher v1.0.1
+phf_shared v0.13.1 (*)
+proc-macro2 v1.0.101 (*)
+quote v1.0.40 (*)
+syn v2.0.106 (*)
+phf_shared v0.13.1
+siphasher v1.0.1
+rustc-hash v2.1.3
+smallvec v1.15.1
+typed-arena v2.0.2
+dirs v5.0.1
+dirs-sys v0.4.1
+libc v0.2.189
+option-ext v0.2.0
+futures-core v0.3.31
+futures-lite v2.6.1 (*)
+futures-util v0.3.31
+futures-core v0.3.31
+futures-macro v0.3.31 (proc-macro)
+proc-macro2 v1.0.101 (*)
+quote v1.0.40 (*)
+syn v2.0.106 (*)
+futures-task v0.3.31
+pin-project-lite v0.2.16
+pin-utils v0.1.0
+slab v0.4.11
+gif v0.13.3
+color_quant v1.1.0
+weezl v0.1.10
+image v0.25.6
+bytemuck v1.23.2
+byteorder-lite v0.1.0
+color_quant v1.1.0
+gif v0.13.3 (*)
+image-webp v0.2.4
+byteorder-lite v0.1.0
+quick-error v2.0.1
+num-traits v0.2.19
+png v0.17.16
+bitflags v1.3.2
+crc32fast v1.5.0
+cfg-if v1.0.3
+fdeflate v0.3.7
+simd-adler32 v0.3.7
+flate2 v1.1.2
+crc32fast v1.5.0 (*)
+miniz_oxide v0.8.9
+adler2 v2.0.1
+simd-adler32 v0.3.7
+miniz_oxide v0.8.9 (*)
+tiff v0.9.1
+flate2 v1.1.2 (*)
+jpeg-decoder v0.3.2
+weezl v0.1.10
+zune-core v0.4.12
+zune-jpeg v0.4.20
+zune-core v0.4.12
+lazy_static v1.5.0
+libc v0.2.189
+log v0.4.34
+lru v0.18.4
+hashbrown v0.17.1 (*)
+once_cell v1.21.3
+phf v0.13.1 (*)
+reactive-tui-crossterm v0.1.0 (/home/shawn/workspace2/reactive-tui/src/backend/crossterm)
+bitflags v2.11.0
+derive_more v2.0.1
+derive_more-impl v2.0.1 (proc-macro)
+convert_case v0.7.1
+unicode-segmentation v1.13.3
+proc-macro2 v1.0.101 (*)
+quote v1.0.40 (*)
+syn v2.0.106 (*)
+document-features v0.2.11 (proc-macro)
+litrs v0.4.2
+futures-core v0.3.31
+mio v1.0.4
+libc v0.2.189
+log v0.4.34
+parking_lot v0.12.4
+lock_api v0.4.13
+scopeguard v1.2.0
+parking_lot_core v0.9.11
+cfg-if v1.0.3
+libc v0.2.189
+smallvec v1.15.1
+rustix v1.1.4 (*)
+signal-hook v0.3.18
+libc v0.2.189
+signal-hook-registry v1.4.6 (*)
+signal-hook-mio v0.2.4
+libc v0.2.189
+mio v1.0.4 (*)
+signal-hook v0.3.18 (*)
+reactive-tui-macros v0.1.0 (proc-macro) (/home/shawn/workspace2/reactive-tui/reactive-tui-macros)
+proc-macro2 v1.0.101 (*)
+quote v1.0.40 (*)
+syn v2.0.106 (*)
+reactive-tui-suprtui v0.1.0 (/home/shawn/workspace2/reactive-tui/src/backend/engine)
+image v0.25.6 (*)
+taffy v0.13.0
+arrayvec v0.7.6
+slotmap v1.0.7
+smallvec v1.15.1
+unicode-properties v0.1.4
+unicode-segmentation v1.13.3
+vte v0.15.0
+arrayvec v0.7.6
+memchr v2.7.5
+regex v1.11.2
+aho-corasick v1.1.3
+memchr v2.7.5
+memchr v2.7.5
+regex-automata v0.4.10
+aho-corasick v1.1.3 (*)
+memchr v2.7.5
+regex-syntax v0.8.6
+regex-syntax v0.8.6
+rustix v1.1.4 (*)
+serde v1.0.229 (*)
+serde_json v1.0.143
+itoa v1.0.15
+memchr v2.7.5
+ryu v1.0.20
+serde v1.0.229 (*)
+signal-hook v0.3.18 (*)
+string_cache v0.8.9
+new_debug_unreachable v1.0.6
+parking_lot v0.12.4 (*)
+phf_shared v0.11.3
+siphasher v1.0.1
+precomputed-hash v0.1.1
+serde v1.0.229 (*)
+syntect v5.3.0
+bincode v1.3.3
+serde v1.0.229 (*)
+fancy-regex v0.16.2
+bit-set v0.8.0
+bit-vec v0.8.0
+regex-automata v0.4.10 (*)
+regex-syntax v0.8.6
+flate2 v1.1.2 (*)
+fnv v1.0.7
+once_cell v1.21.3
+plist v1.10.1
+base64 v0.23.1
+indexmap v2.14.2 (*)
+quick-xml v0.42.0
+memchr v2.7.5
+serde v1.0.229 (*)
+time v0.3.47
+deranged v0.5.8
+powerfmt v0.2.0
+itoa v1.0.15
+num-conv v0.2.2
+powerfmt v0.2.0
+time-core v0.1.8
+regex-syntax v0.8.6
+serde v1.0.229 (*)
+serde_derive v1.0.229 (proc-macro) (*)
+serde_json v1.0.143 (*)
+thiserror v2.0.20
+thiserror-impl v2.0.20 (proc-macro)
+proc-macro2 v1.0.101 (*)
+quote v1.0.40 (*)
+syn v3.0.5 (*)
+walkdir v2.5.0
+same-file v1.0.6
+yaml-rust v0.4.5
+linked-hash-map v0.5.6
+taffy v0.9.2
+arrayvec v0.7.6
+grid v1.0.1
+serde v1.0.229 (*)
+slotmap v1.0.7
+tempfile v3.21.0
+fastrand v2.3.0
+getrandom v0.3.3 (*)
+once_cell v1.21.3
+rustix v1.1.4 (*)
+thiserror v2.0.20 (*)
+time v0.3.47 (*)
+tokio v1.47.1
+bytes v1.11.1
+libc v0.2.189
+mio v1.0.4 (*)
+pin-project-lite v0.2.16
+socket2 v0.6.0
+libc v0.2.189
+tokio-macros v2.5.0 (proc-macro)
+proc-macro2 v1.0.101 (*)
+quote v1.0.40 (*)
+syn v2.0.106 (*)
+unicode-segmentation v1.13.3
+unicode-width v0.2.1
+uuid v1.18.1 (*)
+vt100 v0.16.2
+itoa v1.0.15
+unicode-width v0.2.1
+vte v0.15.0 (*)
+zbus v5.19.0 (*)
+zvariant v5.15.0 (*)
+
+RUN cargo +1.91.0 check --locked -p reactive-tui --lib
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.08s
+RUN cargo +1.91.0 test --locked -p reactive-tui --test api_feature_configurations --test widget_catalog_behavior
+   Compiling reactive-tui v0.1.0 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 4.42s
+     Running tests/api_feature_configurations.rs (/tmp/reactive-tui-wgpu.waMUcc/debug/deps/api_feature_configurations-9283c93505009d68)
+
+running 2 tests
+test fast_color_paths_preserve_scalar_results ... ok
+test async_fps_preserves_state_without_a_tokio_runtime ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/widget_catalog_behavior.rs (/tmp/reactive-tui-wgpu.waMUcc/debug/deps/widget_catalog_behavior-64fe297e0385f367)
+
+running 14 tests
+test catalog_exposes_the_complete_page_order ... ok
+test animation_waits_for_its_deadline_and_skips_missed_frames ... ok
+test advertised_quit_keys_request_normal_app_exit ... ok
+test number_keys_jump_to_the_displayed_page ... ok
+test navigation_changes_at_the_eighty_column_breakpoint ... ok
+test page_navigation_wraps_in_both_directions ... ok
+test released_quit_keys_and_plain_letters_do_not_exit ... ok
+test dialogs_are_live_and_separately_reachable ... ok
+test every_page_renders_a_focused_stage ... ok
+test cube_frames_are_distinct_and_bounded ... ok
+test compact_and_wide_navigation_paint_every_shortcut_after_resize ... ok
+test table_has_representative_rows_and_logo_is_decodable ... ok
+test context_and_popup_menus_are_visible_when_selected ... ok
+test live_dialogs_switch_through_real_app_input ... ok
+
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.43s
+
+
+RUN cargo +1.91.0 build --locked -p reactive-tui --example widget_catalog
+   Compiling reactive-tui v0.1.0 (/home/shawn/workspace2/reactive-tui)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.74s
+RUN cargo +1.91.0 check --locked -p reactive-tui --lib --features wgpu-graphics
+    Checking reactive-tui v0.1.0 (/home/shawn/workspace2/reactive-tui)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.92s
+RUN cargo +1.91.0 test --locked -p reactive-tui --test api_feature_configurations --test widget_catalog_behavior --features wgpu-graphics
+   Compiling reactive-tui v0.1.0 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 4.47s
+     Running tests/api_feature_configurations.rs (/tmp/reactive-tui-wgpu.waMUcc/debug/deps/api_feature_configurations-e3c67527a61eac02)
+
+running 2 tests
+test fast_color_paths_preserve_scalar_results ... ok
+test async_fps_preserves_state_without_a_tokio_runtime ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/widget_catalog_behavior.rs (/tmp/reactive-tui-wgpu.waMUcc/debug/deps/widget_catalog_behavior-1e6a57d351b4a011)
+
+running 16 tests
+test catalog_exposes_the_complete_page_order ... ok
+test animation_waits_for_its_deadline_and_skips_missed_frames ... ok
+test advertised_quit_keys_request_normal_app_exit ... ok
+test number_keys_jump_to_the_displayed_page ... ok
+test page_navigation_wraps_in_both_directions ... ok
+test dialogs_are_live_and_separately_reachable ... ok
+test navigation_changes_at_the_eighty_column_breakpoint ... ok
+test every_page_renders_a_focused_stage ... ok
+test released_quit_keys_and_plain_letters_do_not_exit ... ok
+test cube_frames_are_distinct_and_bounded ... ok
+test compact_and_wide_navigation_paint_every_shortcut_after_resize ... ok
+test compact_graphics_stage_keeps_header_navigation_and_footer_visible ... ok
+test table_has_representative_rows_and_logo_is_decodable ... ok
+test feature_enabled_motion_fills_the_available_stage ... ok
+test context_and_popup_menus_are_visible_when_selected ... ok
+test live_dialogs_switch_through_real_app_input ... ok
+
+test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.40s
+
+
+RUN cargo +1.91.0 build --locked -p reactive-tui --example widget_catalog --features wgpu-graphics
+   Compiling reactive-tui v0.1.0 (/home/shawn/workspace2/reactive-tui)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.06s
+PASS GPU-001: optional graph and existing consumers on Rust 1.91
