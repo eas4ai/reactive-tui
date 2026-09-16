@@ -11,4 +11,4 @@ Shawn explicitly directed pausing the catalog and cube fixes to implement the ap
 
 ## Realized by
 
-(none yet: recorded, not built)
+- 62f0a93a4ca5c61b8f591c160ad930eab455a6e7 docs: activate wgpu graphics and pause catalog visual repairs
