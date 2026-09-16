@@ -27,3 +27,30 @@ The installed Cairn only recognizes extensionless mechanism declarations
 (LOOP-106). The initial `.md` declaration was not recognized; rename this new
 declaration before checking. The older `.md` mechanism migration belongs to
 the already-agreed RID-002 complete-mechanism work, not a tool kernel edit.
+
+## Main workflow implementation and limits
+
+The recorded failure baseline is `20260916T214748872Z-1234535`: eight fixture
+tests pass, but the actual main workflow is missing. Adding `ci.yml` makes
+that exact inspection pass: push, pull-request, and manual events select
+Ubuntu 24.04, macOS 14, and Windows 2022; the weekly schedule selects the
+advisory job. Required Cargo commands use locked dependencies and Rust 1.91.
+Actions are pinned, checkout retains no credentials, jobs are time-bounded,
+and failure is not allowed. Windows uses the established GNU build setup.
+
+Fresh `cargo +1.91.0 fmt --all -- --check` passes. Fresh strict default-target
+Clippy fails in the unchanged bundled crossterm source: one misspelled lint
+and four `io::Error::new(ErrorKind::Other, ...)` diagnostics. No warning
+suppression was added. More diagnostics may appear after these are repaired;
+do not describe the five reported errors as an exhaustive lint inventory.
+
+Ripwire quality-delta and test-gate against the workflow-only change exit
+zero. They model no workflow symbols; the only quality row is ignored local
+GitNexus metadata. These results do not verify the new Python checker that
+was already committed. Its eight fixture tests and actual-tree inspection
+are the relevant executable checks. Git diff whitespace checking passes.
+
+No native GitHub run or actionlint run has been performed. No code in the
+framework or bundled renderer was edited. Before claiming merge enforcement,
+obtain developer approval for a remote required-status rule. Repairing the
+strict-Clippy source failures also needs an explicit boundary expansion.
