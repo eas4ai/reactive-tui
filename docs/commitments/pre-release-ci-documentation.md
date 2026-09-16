@@ -25,6 +25,14 @@ Cairn source documents, mechanism declarations, ignore rules, and stale tracked
 artifacts. Developer review controls the decision queue. It does not create
 release archives or publish anything.
 
+On 2026-09-16 Shawn approved escalation `rid-001-rid-002-mnt-002`, expanding
+these boundaries only to source repairs required by strict Clippy and pushing
+the pending catalog/graphics/CI history for native CI. After all three
+supported-platform jobs pass, add a main-only required-status ruleset while
+preserving the existing ruleset. This does not authorize package publication,
+unrelated runtime fixes, or removal of unreviewed decision queue entries.
+See [the decision](../decisions/permit-strict-lint-repairs-and-native-ci-enforcement.md).
+
 Done-when: RID-001 through RID-003 pass; push, pull-request, and scheduled event
 fixtures select the required jobs; every local link and mechanism input exists;
 all mechanisms have fresh evidence; the developer has reviewed the queued
