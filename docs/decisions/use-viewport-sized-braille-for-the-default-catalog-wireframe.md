@@ -11,4 +11,4 @@ Render the existing twelve cube edges into two-by-four Braille subcells per term
 
 ## Realized by
 
-(none yet: recorded, not built)
+- 0ad385ee0eef6e9e8f25a042172aafbbf78fce28 fix: scale catalog wireframe with Braille subpixels
