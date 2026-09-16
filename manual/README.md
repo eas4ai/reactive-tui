@@ -10,6 +10,7 @@ intent and platform limits when the source needs context.
 ## Table of contents
 
 - [Getting started](#getting-started)
+- [Widget catalog example](#widget-catalog-example)
 - [Applications and components](#applications-and-components)
 - [Elements, builders, and the virtual DOM](#elements-builders-and-the-virtual-dom)
 - [Reactive state and hooks](#reactive-state-and-hooks)
@@ -35,6 +36,22 @@ Add the crate, choose features, create a root component, select a backend, and
 build an application. The chapter also explains the prelude and error type.
 
 [Read Getting started](getting-started.md).
+
+## Widget catalog example
+
+Run `cargo run --locked --example widget_catalog` from the repository root.
+The example presents focused live widget pages for screenshots and short video
+clips. Use arrows or `1`–`8` to select a page, and Tab to focus its controls.
+Navigation uses a sidebar at 80 columns or wider and a compact strip below
+that width.
+
+Page `6` displays `manual/assets/logo.jpg` through the image widget. Page `7`
+shows the rotating wireframe cube at a bounded 80 ms frame interval. No assets
+are downloaded. Ctrl+Q is the global quit key; Ctrl+C and Escape quit when
+the focused widget leaves the key unhandled.
+
+The system page uses a bounded terminal command, not an interactive shell.
+The known Kitty embedded-shell crash remains outside this example's scope.
 
 ## Applications and components
 

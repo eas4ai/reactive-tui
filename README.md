@@ -202,7 +202,18 @@ Recommended starting points:
 
 | Example | Command | Purpose |
 | --- | --- | --- |
+| Widget catalog | `cargo run --locked --example widget_catalog` | Responsive live widget pages, local project logo, and a spinning wireframe cube for screenshots and video. |
 | Gradient blocks | `cargo run --locked --example gradient_blocks` | Color gradients and block rendering. |
+
+The catalog uses arrows or `1`–`8` to select pages and Tab to focus controls.
+It switches from a sidebar to compact navigation below 80 columns. Open page
+`7` to record the cube animation, or page `6` for the tracked project logo.
+Ctrl+Q always quits. Ctrl+C and Escape quit when the active widget does not
+consume them (for example, Escape first closes an open menu).
+
+The system page runs only a bounded command. It does not claim to fix the
+known Kitty embedded-shell crash. All catalog assets are local; no download
+is needed.
 
 ## FFI and TypeScript
 
