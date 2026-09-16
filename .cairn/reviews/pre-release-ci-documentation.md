@@ -96,3 +96,24 @@ actual function still has zero parameters on both sides of this edit. Its
 baseline merges many same-named main functions; this is not a signature
 change. Deleted document references inside checker code still need repair,
 and complete fresh acceptance evidence remains outstanding.
+
+## RID-003 mechanism construction
+
+Eight housekeeping fixtures first failed because the checker was missing.
+They now pass against real temporary Git repositories. They reject an ignored
+tracked file, removed literal paths and exceptions, removed anchored-glob
+prefixes, stale package include/exclude rules, a malformed manifest, and a
+queued decision. The rejected queue file remains untouched. Correct negative
+ignore exceptions and package-relative nested rules pass.
+
+A ninth test first rejected intentional OS noise and Cairn's live marker.
+After listing those intentional local outputs explicitly, all nine pass.
+Generic artifact globs do not by themselves prove a retained exclusion is
+useful; the closing review must inspect that intent. GitNexus reports low
+impact for the local-noise constant with no indexed processes affected.
+
+The actual tree still fails on removed example and diagnostic-log rules,
+the bundled documentation's obsolete book-output rule, and nine unreviewed
+decisions. This is the required violating-tree demonstration, not a pass.
+The developer controls queue review; source repairs and native CI execution
+remain unfinished.

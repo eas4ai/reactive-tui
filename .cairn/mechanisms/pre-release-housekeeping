@@ -1,0 +1,46 @@
+# Mechanism: pre-release-housekeeping
+
+command: python3 -B scripts/check-pre-release-housekeeping.py RID-003
+inputs:
+  - .cairn/mechanisms/pre-release-housekeeping
+  - .cairn/queue
+  - .cairn/reviews
+  - .cairn/backlog
+  - .github
+  - .gitignore
+  - Cargo.toml
+  - Cargo.lock
+  - build.rs
+  - scripts
+  - src
+  - crates
+  - reactive-tui-macros
+  - tests
+  - benches
+  - examples
+  - bindings
+  - include
+  - manual
+  - docs
+  - verification
+  - README.md
+  - AGENTS.md
+  - CHANGELOG.md
+  - LICENSE
+  - deny.toml
+  - public-api-retention.toml
+requirements:
+  - RID-003
+
+Use Git's real ignore semantics to reject ignored tracked files. Inspect every
+tracked Cargo manifest's include/exclude patterns relative to its package.
+Reject removed literal ignore paths and literal prefixes of anchored globs;
+generic build/tool/OS noise is intentional even before an output exists.
+Inspect nested ignore files too. Pattern inspection supplements, not replaces,
+the final review of whether a still-existing path belongs in the repository.
+
+Any queued decision MUST fail this check. Report its path without deleting it.
+Only the developer's review may clear that queue. Fixtures MUST demonstrate
+both acceptance of a valid tree and rejection of ignored tracked files, stale
+ignore exceptions and package exclusions, malformed manifests, and a queue
+entry that remains present after the rejection.
