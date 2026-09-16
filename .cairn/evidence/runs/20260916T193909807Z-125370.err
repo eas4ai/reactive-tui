@@ -1,0 +1,10 @@
+test_corrected_fixture (__main__.ValidatorTests.test_corrected_fixture) ... ok
+test_each_missing_operation_fails (__main__.ValidatorTests.test_each_missing_operation_fails) ... ok
+test_placeholder_fails (__main__.ValidatorTests.test_placeholder_fails) ... ok
+test_shading_and_aspect_are_required (__main__.ValidatorTests.test_shading_and_aspect_are_required) ... ok
+test_window_paths_fail (__main__.ValidatorTests.test_window_paths_fail) ... ok
+
+----------------------------------------------------------------------
+Ran 5 tests in 0.001s
+
+OK
