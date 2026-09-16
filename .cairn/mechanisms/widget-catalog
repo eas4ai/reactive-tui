@@ -2,7 +2,7 @@
 
 command: python3 -B scripts/check-widget-catalog.py
 inputs:
-  - .cairn/mechanisms/widget-catalog.md
+  - .cairn/mechanisms/widget-catalog
   - Cargo.toml
   - examples
   - manual/assets/logo.jpg
