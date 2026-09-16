@@ -1,6 +1,6 @@
 # Optional wgpu graphics
 
-Status: Draft 2026-09-16
+Status: Agreed 2026-09-16
 Prefix: GPU
 
 The next iteration adds an optional offscreen graphics canvas, demonstrated

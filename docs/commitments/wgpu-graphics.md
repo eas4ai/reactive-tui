@@ -1,6 +1,6 @@
 # Commitment: wgpu-graphics
 
-Status: Draft 2026-09-16
+Status: Agreed 2026-09-16
 Requirements: GPU-001, GPU-002, GPU-003, GPU-004, GPU-005
 
 ## Deliverable
@@ -28,11 +28,12 @@ This is a queued next-iteration commitment, not authorization to implement
 wgpu now. The current catalog remains active, including its open full-width,
 spacing, colored column-span, and wireframe-quality findings. Creating this
 record does not close those findings or reorder the existing release work.
-The developer reviews this specification before an implementation plan and
-explicit roadmap activation.
+Shawn confirmed the written specification on 2026-09-16. Implementation still
+requires an implementation plan and explicit roadmap activation.
 
 Done-when: GPU-001 through GPU-005 have fresh passing evidence, the GPU path
 has run on a real adapter, fallback and cleanup checks pass, reproducible
 measurements are recorded, and final review finds no unresolved requirement
 defect. Every mechanism must demonstrate a violating case before its pass
-counts as acceptance. No acceptance evidence is claimed by this draft.
+counts as acceptance. Specification approval does not claim implementation
+or acceptance evidence.

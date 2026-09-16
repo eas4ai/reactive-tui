@@ -94,7 +94,7 @@ packaging.
 
 `wgpu-graphics` — optional offscreen graphics presented inside the terminal,
 a viewport-sized shaded spinning cube, CPU fallback, bounded lifecycle, and
-render/readback measurements (GPU-001 through GPU-005). Draft contract:
+render/readback measurements (GPU-001 through GPU-005). Agreed contract:
 [specification](wgpu-graphics.md) and
 [commitment](../commitments/wgpu-graphics.md).
 
