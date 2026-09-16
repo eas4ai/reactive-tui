@@ -4,14 +4,12 @@ command: python3 -B scripts/check-widget-catalog.py
 inputs:
   - .cairn/mechanisms/widget-catalog.md
   - Cargo.toml
-  - examples/widget_catalog
+  - examples
   - manual/assets/logo.jpg
   - README.md
   - manual/README.md
-  - scripts/check-widget-catalog.py
-  - scripts/check-widget-catalog-pty.py
-  - scripts/test-widget-catalog.py
-  - tests/widget_catalog_behavior.rs
+  - scripts
+  - tests
 requirements:
   - CAT-001
   - CAT-002
