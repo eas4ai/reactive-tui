@@ -1,4 +1,4 @@
-commit: b6301fb0e5a993ec8c41a68e0d6810361c3ddd78
+commit: 922db00f329f7dd9b07a33cbc23896187c2391d4
 examined:
   - GPU-001 through GPU-005, the commitment, implementation plan, and measurement decision.
   - Offscreen shader, checked dimensions, frame conversion, CPU fallback, canvas ownership, and worker shutdown.
@@ -6,8 +6,9 @@ examined:
   - Kitty screenshots at 60x24, 144x50, 200x60, and shrink-back 60x24; manual commands and platform limits.
   - Public raw renderer concurrency and adapter labeling, which the serial catalog path does not exercise.
 findings:
-  - open: GPU-002 GpuCubeRenderer exposes shared-reference rendering with one mutable uniform buffer and bind group. Concurrent calls can overwrite time/aspect before another submission reads it. The owned catalog worker serializes calls, but the public raw renderer does not; give each frame immutable uniforms or serialize the complete operation without breaking the public API, and add a concurrent real-adapter regression.
-  - open: GPU-004 GraphicsMode::Gpu labels even an adapter with is_hardware=false as GPU, and its documentation says real hardware. HybridCubeRenderer correctly rejects software for the catalog and benchmark, but standalone GpuCubeRenderer can select one. Distinguish software wgpu visibly and test the label without pretending that software proves hardware acceptance.
+  - resolved: GPU-002 Commit 2cd4e131 gives each shared-reference render its own uniform buffer and bind group. Inspection confirms no frame can overwrite another frame's time/aspect; the 64-frame concurrent hardware regression passes in renewed GPU-002 evidence.
+  - resolved: GPU-004 Commit 2cd4e131 labels nonhardware adapters Software wgpu and corrects the variant documentation. The metadata-only label regression passes; hardware acceptance still rejects software adapters.
+  - open: GPU-005 The newly inspected shrink-back PNG shows Starting graphics and Preparing viewport even though the host predicate passed. A single accepted text sample can observe stale pre-resize contents after geometry changes, before the application redraw. Strengthen capture synchronization with stable accepted samples and post-capture validation, and demonstrate that a valid/loading/valid resize sequence cannot pass prematurely. GPU-002 shrink-back visual acceptance remains unproven by this artifact.
 
 ## Evidence and falsifier attacks
 
@@ -78,4 +79,22 @@ host artifacts use fresh directories, and the harness controls only its own
 display/socket/processes. Driver calls hung inside the OS cannot be safely
 preempted by a Rust thread; the documented deadlines/cancellation bound the
 ordinary poll path, not arbitrary driver hangs. No executable code changed
-during this review. The two open findings require separate implementation.
+during either review. The new capture finding requires separate implementation.
+
+## Review after raw-renderer repairs
+
+Fresh receipts are GPU-001 20260916T202522020Z-613197, GPU-002
+20260916T202819212Z-639208, GPU-003 20260916T202837684Z-642626,
+GPU-004 20260916T202854110Z-645601, and GPU-005
+20260916T202926558Z-651173. All mechanisms pass, including the two new
+public-API regressions. These passes do not resolve the capture finding.
+
+Inspected all four PNGs in
+.cairn/evidence/captures/wgpu/20260916T202928481421Z-651332/.
+The first three show bounded shaded hardware output and intact chrome.
+The fourth is a loading frame after shrinking back to 60x24, not a cube.
+This supersedes any claim that this newer artifact set proves shrink-back
+visual acceptance. The earlier set remains preserved, not edited.
+Source inspection found only one accepted geometry/text sample before a
+fixed 0.2-second delay and capture. Geometry and app redraw are asynchronous;
+the old small-frame text can satisfy the predicate during the resize.
