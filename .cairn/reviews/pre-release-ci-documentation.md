@@ -117,3 +117,10 @@ the bundled documentation's obsolete book-output rule, and nine unreviewed
 decisions. This is the required violating-tree demonstration, not a pass.
 The developer controls queue review; source repairs and native CI execution
 remain unfinished.
+
+The committed RID-003 failure baseline is
+`20260916T220625987Z-1436272`. Remove the obsolete examples-blech ignore,
+the removed diagnostic-log exception, and the bundled docs/book rule (its
+sole ignore file has no remaining producer or tracked target). Fresh fixture
+tests and real-tree inspection must still reject the unchanged decision
+queue. This repair does not claim RID-003 passes.

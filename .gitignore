@@ -3,7 +3,6 @@ target/
 build/
 dist/
 node_modules/
-examples-blech/
 __pycache__/
 *.py[cod]
 
@@ -39,7 +38,6 @@ Thumbs.db
 
 # Logs
 *.log
-!docs/recon-evidence/clippy.log
 
 # Temporary files
 *.bak
