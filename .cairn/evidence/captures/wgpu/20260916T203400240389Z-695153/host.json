@@ -1,0 +1,48 @@
+{
+  "kitty": "kitty 0.45.0 created by Kovid Goyal",
+  "display": "private Xvfb X11",
+  "host_gl": "LIBGL_ALWAYS_SOFTWARE=1 (host glyph renderer only)",
+  "font": "DejaVu Sans Mono 12 pt",
+  "artifacts": [
+    {
+      "path": ".cairn/evidence/captures/wgpu/20260916T203400240389Z-695153/kitty-gpu-60x24.png",
+      "sha256": "44851c2a0de3a9981d215c8dd40b153d8c55e51beca61301e776d79d5e0917b5"
+    },
+    {
+      "path": ".cairn/evidence/captures/wgpu/20260916T203400240389Z-695153/kitty-gpu-144x50.png",
+      "sha256": "6c90b9a9add3c4666e794d955586a652ff49c70d0728e1875866ca91a516e84f"
+    },
+    {
+      "path": ".cairn/evidence/captures/wgpu/20260916T203400240389Z-695153/kitty-gpu-200x60.png",
+      "sha256": "e49190fd7db305eddbb25dc7074dcc3488ca1e4bf52cfcfe21f6581efa784d18"
+    },
+    {
+      "path": ".cairn/evidence/captures/wgpu/20260916T203400240389Z-695153/kitty-gpu-60x24-return.png",
+      "sha256": "e808a1def21a1c651cc9ed3f8c694db8414d733413a872f04dc676fe4e5d446c"
+    },
+    {
+      "path": ".cairn/evidence/captures/wgpu/20260916T203400240389Z-695153/benchmark-gpu-60x24.json",
+      "sha256": "f2cf5687ffacd829708b8e3ffec1b70bd45f2f8e9e2a7260ce34598e742978b8"
+    },
+    {
+      "path": ".cairn/evidence/captures/wgpu/20260916T203400240389Z-695153/benchmark-cpu-60x24.json",
+      "sha256": "efa95c5c77607757308a427c60f00172f20222268e793ffc91967b6e02d36db9"
+    },
+    {
+      "path": ".cairn/evidence/captures/wgpu/20260916T203400240389Z-695153/benchmark-gpu-144x50.json",
+      "sha256": "c833a619caa87c5f6d2d7728325bfaa1048d7b9bfdd3480444c58f500ba3c52f"
+    },
+    {
+      "path": ".cairn/evidence/captures/wgpu/20260916T203400240389Z-695153/benchmark-cpu-144x50.json",
+      "sha256": "858c0ba999fd211f6bc871ed93d6e471193e11ef145e76843eada9e54c035335"
+    },
+    {
+      "path": ".cairn/evidence/captures/wgpu/20260916T203400240389Z-695153/benchmark-gpu-200x60.json",
+      "sha256": "5706b732f97036d768ea60ecc0ada039f5c0ad5d51d934701f39f0acf3d83d25"
+    },
+    {
+      "path": ".cairn/evidence/captures/wgpu/20260916T203400240389Z-695153/benchmark-cpu-200x60.json",
+      "sha256": "a163a9637c8b19e500286a71a3ac663a43c0ec8b7085cc1c49769b44f804f76c"
+    }
+  ]
+}
