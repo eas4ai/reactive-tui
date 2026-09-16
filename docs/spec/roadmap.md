@@ -1,7 +1,7 @@
 # Recovery roadmap
 
 Status: Agreed 2026-09-07
-Current: widget-catalog
+Current: wgpu-graphics
 
 1. `suprtui-renderer` — the first screen: styled frames, updates, Unicode,
    resize, output errors, input, and terminal restoration (RND-001 through RND-006).
@@ -90,7 +90,7 @@ packaging.
     metadata, then require fresh cross-platform evidence and an adversarial
     audit before a release decision (FRP-001 through FRP-004).
 
-## Queued next iteration
+## Active next iteration
 
 `wgpu-graphics` — optional offscreen graphics presented inside the terminal,
 a viewport-sized shaded spinning cube, CPU fallback, bounded lifecycle, and
@@ -98,5 +98,7 @@ render/readback measurements (GPU-001 through GPU-005). Agreed contract:
 [specification](wgpu-graphics.md) and
 [commitment](../commitments/wgpu-graphics.md).
 
-This queue entry does not activate implementation or change `Current:`.
-The catalog's open visual findings and the existing release sequence remain.
+Shawn activated this commitment on 2026-09-16 and paused the catalog visual
+repairs. Its full-width, spacing, colored column-span, and wireframe-quality
+findings remain open in `.cairn/reviews/widget-catalog.md`. Resume them after
+wgpu graphics; the existing release work remains pending.

@@ -24,12 +24,11 @@ Platform claims require evidence on the named platform and host terminal.
 
 ## Activation
 
-This is a queued next-iteration commitment, not authorization to implement
-wgpu now. The current catalog remains active, including its open full-width,
-spacing, colored column-span, and wireframe-quality findings. Creating this
-record does not close those findings or reorder the existing release work.
-Shawn confirmed the written specification on 2026-09-16. Implementation still
-requires an implementation plan and explicit roadmap activation.
+Shawn confirmed the written specification and explicitly activated this
+commitment on 2026-09-16. Implementation follows the agreed requirements and
+an implementation plan. The catalog visual repairs are paused, not completed:
+its full-width, spacing, colored column-span, and wireframe-quality findings
+remain open for resumption after wgpu. Existing release work remains pending.
 
 Done-when: GPU-001 through GPU-005 have fresh passing evidence, the GPU path
 has run on a real adapter, fallback and cleanup checks pass, reproducible

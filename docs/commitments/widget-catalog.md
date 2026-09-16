@@ -3,6 +3,14 @@
 Status: Agreed 2026-09-15
 Requirements: CAT-001, CAT-002, CAT-003
 
+## Pause
+
+Shawn paused the catalog visual repairs on 2026-09-16 to implement
+`wgpu-graphics` first. The open findings in `.cairn/reviews/widget-catalog.md`
+remain unresolved. This pause is not acceptance or completion; resume the
+full-width, spacing, colored column-span, and remaining cube-quality work
+after the graphics commitment.
+
 ## Deliverable
 
 Build one responsive `widget_catalog` example for screenshots and short video
