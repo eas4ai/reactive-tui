@@ -5,9 +5,9 @@ examined:
   - Behavior and validator tests, PTY output, and all three Cairn receipts.
   - README, manual, local logo, and mechanism dependency declarations.
 findings:
-  - CAT-001: InputDialog and AutocompleteDialog are labels, not live instances. Replace them with local interactive dialogs and make each overlay separately reachable for capture.
-  - CAT-001: The compact strip gives every entry full width and has no measured-frame assertion. Verify all numbered shortcuts remain visible after resize; fix overflow if observed.
-  - CAT-001: The Table demo has no columns or rows, and Modal is hidden with no opening control. Give them representative, reachable states.
+  - open: CAT-001 InputDialog and AutocompleteDialog are labels, not live instances. Replace them with local interactive dialogs and make each overlay separately reachable for capture.
+  - open: CAT-001 The compact strip gives every entry full width and has no measured-frame assertion. Verify all numbered shortcuts remain visible after resize; fix overflow if observed.
+  - open: CAT-001 The Table demo has no columns or rows, and Modal is hidden with no opening control. Give them representative, reachable states.
 
 ## Scope examined
 
