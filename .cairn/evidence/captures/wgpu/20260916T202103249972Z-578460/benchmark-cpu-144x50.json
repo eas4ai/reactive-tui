@@ -1,0 +1,40 @@
+{
+  "achieved_fps": 9.52686440815064,
+  "adapter": "CPU (explicit selection)",
+  "comparison_adapter": {
+    "backend": "Vulkan",
+    "hardware": true,
+    "name": "AMD Radeon AI PRO R9700 (RADV GFX1201)"
+  },
+  "frames": 10,
+  "initialization_and_quality_ms": 42.833470999999996,
+  "mean_ms": {
+    "conversion": 22.770188400000002,
+    "presentation": 77.1612274,
+    "readback": 0.0,
+    "render": 4.8751148,
+    "total": 104.81370459999998
+  },
+  "mode": "CPU",
+  "quality": {
+    "description": "Same shaded ray-box and sRGB output; measured floating-point/quantization differences, no CPU wireframe substitute.",
+    "differing_pixels": 12397,
+    "elapsed_seconds": 1,
+    "max_channel_error": 1,
+    "mean_absolute_rgb_error": 0.28703703703703703,
+    "pixels": 14400
+  },
+  "requested_seconds": 1.0,
+  "sampled_seconds": 1.049663307,
+  "schema": 1,
+  "terminal": {
+    "kitty_pid_present": true,
+    "term": "xterm-kitty",
+    "term_program": ""
+  },
+  "timing_scope": "Unpaced native backend: allocations and GPU completion; readback copy/map/depadding; styled Elements; layout/paint/ANSI writes. Excludes initialization, App reconciliation, terminal display scanout, and host acknowledgement. In-flight last frame may extend sampling past the requested duration. Demo requests are separately capped at 20 Hz.",
+  "viewport": {
+    "columns": 144,
+    "rows": 50
+  }
+}
