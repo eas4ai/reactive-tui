@@ -147,6 +147,16 @@ path = "tests/wgpu_lifecycle.rs"
 required-features = ["wgpu-graphics"]
 
 [[test]]
+name = "wgpu_measurement"
+path = "tests/wgpu_measurement.rs"
+required-features = ["wgpu-graphics"]
+
+[[example]]
+name = "wgpu_benchmark"
+path = "examples/wgpu_benchmark.rs"
+required-features = ["wgpu-graphics"]
+
+[[test]]
 name = "api_signal_ownership"
 path = "tests/api_signal_ownership.rs"
 required-features = ["ffi"]

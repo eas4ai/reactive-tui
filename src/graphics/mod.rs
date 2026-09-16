@@ -61,6 +61,15 @@ fn pixel_count(width: u32, height: u32) -> Result<usize, GraphicsError> {
         .ok_or_else(|| GraphicsError::Dimensions("pixel count overflow".into()))
 }
 
+/// Wall-clock costs through GPU completion, including allocation and submission.
+#[derive(Debug, Default, Clone, Copy)]
+pub struct GraphicsTimings {
+    /// Drawing through completion (CPU computation in fallback mode).
+    pub render: Duration,
+    /// Texture copy, mapping, and de-padding; zero for CPU rendering.
+    pub readback: Duration,
+}
+
 /// An owned, tightly packed, opaque-or-alpha RGBA image.
 #[derive(Debug, Clone)]
 pub struct GraphicsFrame {
@@ -68,6 +77,7 @@ pub struct GraphicsFrame {
     height: u32,
     pixels: Vec<[u8; 4]>,
     mode: GraphicsMode,
+    timings: GraphicsTimings,
 }
 
 impl GraphicsFrame {
@@ -83,6 +93,7 @@ impl GraphicsFrame {
             height,
             pixels,
             mode: GraphicsMode::CpuFallback("externally supplied pixels".into()),
+            timings: GraphicsTimings::default(),
         })
     }
 
@@ -102,6 +113,11 @@ impl GraphicsFrame {
     /// Provenance of these pixels, never inferred from a requested mode.
     pub fn mode(&self) -> &GraphicsMode {
         &self.mode
+    }
+
+    /// Measured stages for the renderer that actually produced these pixels.
+    pub fn timings(&self) -> GraphicsTimings {
+        self.timings
     }
 
     /// Present two vertical pixels per cell using the existing styled text path.
@@ -363,7 +379,8 @@ impl GpuCubeRenderer {
         cancellation: &GraphicsCancellation,
         inject_readback_failure: bool,
     ) -> Result<GraphicsFrame, GraphicsError> {
-        let count = pixel_count(width, height)?;
+        let render_started = std::time::Instant::now();
+        pixel_count(width, height)?;
         if cancellation.is_cancelled() {
             return Err(GraphicsError::Cancelled);
         }
@@ -397,17 +414,6 @@ impl GpuCubeRenderer {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_SRC,
             view_formats: &[],
         });
-        let row_bytes = width
-            .checked_mul(4)
-            .ok_or_else(|| GraphicsError::Dimensions("row byte overflow".into()))?;
-        let padded_row_bytes = row_bytes.div_ceil(wgpu::COPY_BYTES_PER_ROW_ALIGNMENT)
-            * wgpu::COPY_BYTES_PER_ROW_ALIGNMENT;
-        let buffer = self.device.create_buffer(&wgpu::BufferDescriptor {
-            label: Some("cube RGBA readback"),
-            size: u64::from(padded_row_bytes) * u64::from(height),
-            usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
-            mapped_at_creation: false,
-        });
         let view = texture.create_view(&Default::default());
         let mut encoder = self.device.create_command_encoder(&Default::default());
         {
@@ -430,9 +436,43 @@ impl GpuCubeRenderer {
             pass.set_bind_group(0, &self.bind_group, &[]);
             pass.draw(0..3, 0..1);
         }
+        let submission = self.queue.submit([encoder.finish()]);
+        self.wait_submission(submission, cancellation)?;
+        let render_duration = render_started.elapsed();
+        let readback_started = std::time::Instant::now();
+        let mut frame = self.readback_texture(&texture, cancellation, inject_readback_failure)?;
+        frame.mode = GraphicsMode::Gpu(self.info.clone());
+        frame.timings = GraphicsTimings {
+            render: render_duration,
+            readback: readback_started.elapsed(),
+        };
+        Ok(frame)
+    }
+
+    fn readback_texture(
+        &self,
+        texture: &wgpu::Texture,
+        cancellation: &GraphicsCancellation,
+        inject_readback_failure: bool,
+    ) -> Result<GraphicsFrame, GraphicsError> {
+        let width = texture.width();
+        let height = texture.height();
+        let count = pixel_count(width, height)?;
+        let row_bytes = width
+            .checked_mul(4)
+            .ok_or_else(|| GraphicsError::Dimensions("row byte overflow".into()))?;
+        let padded_row_bytes = row_bytes.div_ceil(wgpu::COPY_BYTES_PER_ROW_ALIGNMENT)
+            * wgpu::COPY_BYTES_PER_ROW_ALIGNMENT;
+        let buffer = self.device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("cube RGBA readback"),
+            size: u64::from(padded_row_bytes) * u64::from(height),
+            usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
+            mapped_at_creation: false,
+        });
+        let mut encoder = self.device.create_command_encoder(&Default::default());
         encoder.copy_texture_to_buffer(
             wgpu::TexelCopyTextureInfo {
-                texture: &texture,
+                texture,
                 mip_level: 0,
                 origin: wgpu::Origin3d::ZERO,
                 aspect: wgpu::TextureAspect::All,
@@ -505,8 +545,33 @@ impl GpuCubeRenderer {
         }
         drop(mapped);
         buffer.unmap();
-        let mut frame = GraphicsFrame::from_rgba(width, height, pixels)?;
-        frame.mode = GraphicsMode::Gpu(self.info.clone());
-        Ok(frame)
+        GraphicsFrame::from_rgba(width, height, pixels)
+    }
+
+    fn wait_submission(
+        &self,
+        submission: wgpu::SubmissionIndex,
+        cancellation: &GraphicsCancellation,
+    ) -> Result<(), GraphicsError> {
+        let deadline = std::time::Instant::now() + Duration::from_secs(5);
+        loop {
+            if cancellation.is_cancelled() {
+                return Err(GraphicsError::Cancelled);
+            }
+            if let Some(failure) = self.failure.lock().unwrap().clone() {
+                return Err(GraphicsError::Readback(failure));
+            }
+            match self.device.poll(wgpu::PollType::Wait {
+                submission_index: Some(submission.clone()),
+                timeout: Some(Duration::from_millis(10)),
+            }) {
+                Ok(status) if status.wait_finished() => return Ok(()),
+                Ok(_) | Err(wgpu::PollError::Timeout) => {}
+                Err(error) => return Err(GraphicsError::Readback(error.to_string())),
+            }
+            if std::time::Instant::now() >= deadline {
+                return Err(GraphicsError::Readback("render deadline exceeded".into()));
+            }
+        }
     }
 }

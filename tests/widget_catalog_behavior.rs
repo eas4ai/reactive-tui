@@ -263,6 +263,44 @@ fn released_quit_keys_and_plain_letters_do_not_exit() {
 }
 #[cfg(feature = "wgpu-graphics")]
 #[test]
+fn compact_graphics_stage_keeps_header_navigation_and_footer_visible() {
+    use reactive_tui::backend::{Backend, DebugBackend};
+    use reactive_tui::graphics::GraphicsOptions;
+    let mut catalog = Catalog::with_graphics(
+        GraphicsOptions {
+            force_cpu: true,
+            fault: None,
+        },
+        true,
+    );
+    catalog.resize(60, 24).unwrap();
+    catalog.attach_waker(reactive_tui::app::AppWaker::new());
+    let deadline = Instant::now() + Duration::from_secs(2);
+    let mut backend = DebugBackend::new(60, 24);
+    loop {
+        catalog.update().unwrap();
+        backend.render_full(&catalog.render()).unwrap();
+        let output = backend.screen_content();
+        if output.contains("CPU fallback") {
+            assert!(
+                output.lines().next().unwrap().contains("Reactive TUI"),
+                "{output}"
+            );
+            assert!(output.contains("[8]"), "{output}");
+            assert!(
+                output.lines().last().unwrap().contains("Ctrl+Q quit"),
+                "{output}"
+            );
+            assert_eq!(output.matches('▀').count(), 60 * 15, "{output}");
+            break;
+        }
+        assert!(Instant::now() < deadline);
+        std::thread::sleep(Duration::from_millis(10));
+    }
+}
+
+#[cfg(feature = "wgpu-graphics")]
+#[test]
 fn feature_enabled_motion_fills_the_available_stage() {
     use reactive_tui::backend::Backend;
     use reactive_tui::graphics::GraphicsOptions;

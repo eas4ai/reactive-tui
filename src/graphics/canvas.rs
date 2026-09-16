@@ -17,7 +17,20 @@ impl GraphicsCanvas {
     /// Attach one worker to an App's coalescing wake handle.
     /// Adapter initialization is lazy and never executes on the App loop.
     pub fn new(wake: AppWaker, options: GraphicsOptions) -> Self {
-        let mut renderer = None;
+        Self::start(wake, options, None)
+    }
+
+    /// Move a renderer initialized before terminal setup onto the owned worker.
+    /// This keeps driver startup diagnostics out of the raw terminal session.
+    pub fn with_renderer(wake: AppWaker, renderer: HybridCubeRenderer) -> Self {
+        Self::start(wake, GraphicsOptions::default(), Some(renderer))
+    }
+
+    fn start(
+        wake: AppWaker,
+        options: GraphicsOptions,
+        mut renderer: Option<HybridCubeRenderer>,
+    ) -> Self {
         let worker = GraphicsWorker::spawn_cancellable(
             move |request, cancellation| {
                 let renderer = renderer.get_or_insert_with(|| {

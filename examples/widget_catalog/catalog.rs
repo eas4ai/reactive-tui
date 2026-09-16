@@ -33,7 +33,7 @@ use std::time::Instant;
 pub mod motion;
 use motion::CubeAnimation;
 #[cfg(feature = "wgpu-graphics")]
-use reactive_tui::graphics::{GraphicsCanvas, GraphicsOptions};
+use reactive_tui::graphics::{GraphicsCanvas, GraphicsOptions, HybridCubeRenderer};
 
 /// Public widget families represented by the catalog.
 pub const WIDGET_FAMILY_INVENTORY: &str = "\
@@ -119,6 +119,8 @@ pub struct Catalog {
     #[cfg(feature = "wgpu-graphics")]
     graphics_options: GraphicsOptions,
     #[cfg(feature = "wgpu-graphics")]
+    prepared_graphics: Option<HybridCubeRenderer>,
+    #[cfg(feature = "wgpu-graphics")]
     graphics_started: Instant,
     #[cfg(feature = "wgpu-graphics")]
     graphics_error: Option<String>,
@@ -138,6 +140,8 @@ impl Default for Catalog {
             #[cfg(feature = "wgpu-graphics")]
             graphics_options: GraphicsOptions::default(),
             #[cfg(feature = "wgpu-graphics")]
+            prepared_graphics: None,
+            #[cfg(feature = "wgpu-graphics")]
             graphics_started: Instant::now(),
             #[cfg(feature = "wgpu-graphics")]
             graphics_error: None,
@@ -150,6 +154,9 @@ impl Catalog {
     pub fn with_graphics(options: GraphicsOptions, start_motion: bool) -> Self {
         Self {
             graphics_options: options,
+            // Called before SuprTuiBackend::new: driver stderr must not scroll
+            // or corrupt a raw alternate-screen session during initialization.
+            prepared_graphics: Some(HybridCubeRenderer::new(options)),
             page: if start_motion {
                 CatalogPage::Motion
             } else {
@@ -662,7 +669,10 @@ impl Catalog {
 impl RootComponent for Catalog {
     #[cfg(feature = "wgpu-graphics")]
     fn attach_waker(&mut self, wake: reactive_tui::app::AppWaker) {
-        self.graphics = Some(GraphicsCanvas::new(wake, self.graphics_options));
+        self.graphics = Some(match self.prepared_graphics.take() {
+            Some(renderer) => GraphicsCanvas::with_renderer(wake, renderer),
+            None => GraphicsCanvas::new(wake, self.graphics_options),
+        });
     }
     fn render(&self) -> Element {
         let content = match self.navigation_layout() {

@@ -45,6 +45,7 @@ Main capabilities:
 - Input, layout, display, menu, dialog, image, and terminal widgets.
 - SuprTUI, Crossterm compatibility, and in-memory debug backends.
 - Optional embedded Unix PTY sessions interpreted by libghostty.
+- Optional offscreen wgpu graphics with a shaded CPU fallback.
 - Optional C ABI and a TypeScript SDK.
 
 ## Installation
@@ -158,6 +159,7 @@ Start with the [input](manual/input-widgets.md),
 | `ffi` | Exports the C ABI and builds the native integration surface. |
 | `embedded-terminal` | Enables the libghostty-based embedded session on Unix. |
 | `simd` | Enables nightly `portable_simd` color paths. |
+| `wgpu-graphics` | Opt-in offscreen GPU canvas, with shaded CPU fallback. |
 | `debug` | Enables general diagnostic paths. |
 | `debug_patches` | Enables reconcile patch diagnostics. |
 
@@ -185,7 +187,7 @@ changes after inspection. See [Dialogs](manual/dialogs.md),
 ## Manual
 
 The [Reactive TUI manual](manual/README.md) is the main documentation entry point.
-It contains a linked overview and 19 focused chapters grounded in the exported
+It contains a linked overview and 20 focused chapters grounded in the exported
 source, Cargo features, examples, and behavior tests.
 
 Recommended starting points:
@@ -204,6 +206,12 @@ Recommended starting points:
 | --- | --- | --- |
 | Widget catalog | `cargo run --locked --example widget_catalog` | Responsive live widget pages, local project logo, and a spinning wireframe cube for screenshots and video. |
 | Gradient blocks | `cargo run --locked --example gradient_blocks` | Color gradients and block rendering. |
+
+For the optional shaded GPU cube, run
+`cargo run --locked --features wgpu-graphics --example widget_catalog -- --motion`.
+The visible mode identifies hardware rendering or CPU fallback. See
+[Offscreen graphics](manual/wgpu-graphics.md) for failure options, finite limits,
+verified host details, and reproducible GPU-versus-CPU measurements.
 
 The catalog uses arrows or `1`–`8` to select pages and Tab to focus controls.
 Use F1/F2 on the menus/dialogs page to capture one overlay demo at a time.

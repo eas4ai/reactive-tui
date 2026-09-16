@@ -156,6 +156,54 @@ Cairn receipts for this implementation remain to be recorded.
 
 ## Source basis and review
 
+### Task 8: Measure stages and verify a named host (GPU-005)
+
+- [x] Declare the measurement mechanism and record its missing-check baseline.
+- [x] Write a missing-timings RED test, then measure draw completion separately
+  from copy/map/de-padding in the same renderer path used by the catalog.
+- [x] Add a bounded native-backend benchmark with explicit CPU selection,
+  hardware-only GPU acceptance, finite sampling duration, terminal-sized
+  targets, and create-new JSON reports. Report initialization separately.
+- [x] Measure conversion, backend presentation, and total frame latency;
+  state that App reconciliation and display scanout are not measured.
+- [x] Compare fixed-time GPU and CPU pixels instead of assuming equal quality.
+- [x] Attack missing fields, software adapters, mislabeled CPU output, hidden
+  readback, nonfinite costs, and false FPS with failing/corrected fixtures.
+- [x] Run six local comparisons and inspect actual Kitty screenshots in an
+  owned Xvfb display, never the developer desktop. Expand the host predicate
+  to require intact header/footer and no stale initialization placeholders.
+- [x] Repair the newly exposed startup artifact: RADV diagnostics printed
+  during lazy initialization scrolled the raw screen. Initialize the catalog
+  renderer before terminal setup, then move it onto the owned worker. The
+  strengthened host check fails before this change and passes afterward.
+- [x] Document reproducible commands, fallback, finite limits, timing scope,
+  quality measurements, and only the verified host configuration.
+- [ ] Run final focused checks, commit, record fresh Cairn receipts and artifacts.
+- [ ] Review requirement coverage and inspect committed host captures before Done.
+
+Local debug comparisons selected AMD Radeon AI PRO R9700 / Vulkan for GPU
+frames, and explicit CPU for the other samples. At 60x24, 144x50, and 200x60,
+fixed-time pixels differed by at most one channel unit out of 255. Conversion
+and terminal presentation dominated; no end-to-end speedup guarantee follows.
+The actual Kitty 0.45.0 X11 captures show full-stage shaded cubes and intact
+chrome after the startup fix. Native Wayland and other hosts remain unverified.
+These local observations are not Cairn receipts.
+
+Final local checks passed the broader nineteen selected integration test targets
+(including 402 widget acceptance tests), formatting, both manual checks, and
+focused Clippy with the existing wizard lint allowed. Rust 1.91 Clippy hit an
+incremental metadata compiler crash once; rerunning with incremental compilation
+and the compiler wrapper disabled passed. Ripwire identified growing renderer
+complexity/length and a duplicate command wrapper: separate completion/readback
+responsibilities and inline checker commands address those findings. Its
+remaining test-discovery/dead-code findings include framework-invoked tests and
+the public feature-gated timing API. Recent-edit churn is expected in this
+increment. The owned-process shutdown pattern also appears in archived review
+scratch scripts; importing historical evidence as a production dependency would
+be inappropriate. These are reviewed limitations, not a claimed clean Ripwire
+gate. Live PTY/Kitty runs cover the example entry point and fallback API beyond
+the static test map.
+
 ### Task 6: Bound elapsed-time animation (GPU-003)
 
 - [x] Declare and commit the animation mechanism; run wake for its next action.

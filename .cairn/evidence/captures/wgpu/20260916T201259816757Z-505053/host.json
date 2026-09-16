@@ -1,0 +1,44 @@
+{
+  "kitty": "kitty 0.45.0 created by Kovid Goyal",
+  "display": "private Xvfb X11",
+  "host_gl": "LIBGL_ALWAYS_SOFTWARE=1 (host glyph renderer only)",
+  "font": "DejaVu Sans Mono 12 pt",
+  "artifacts": [
+    {
+      "path": ".cairn/evidence/captures/wgpu/20260916T201259816757Z-505053/kitty-gpu-60x24.png",
+      "sha256": "387d77fece61ad7d36598ab96bed37f8409a42dacb82c9fb656aa2bb96257ec1"
+    },
+    {
+      "path": ".cairn/evidence/captures/wgpu/20260916T201259816757Z-505053/kitty-gpu-144x50.png",
+      "sha256": "ac11fe266f5249346bfb2f83ce6a1bde46039ece35a962adcc2998ef0ee1b81a"
+    },
+    {
+      "path": ".cairn/evidence/captures/wgpu/20260916T201259816757Z-505053/kitty-gpu-200x60.png",
+      "sha256": "db70097b054fc6b5046ea00504c57c88de8d68a28c27afa68e1d190ab2d3418a"
+    },
+    {
+      "path": ".cairn/evidence/captures/wgpu/20260916T201259816757Z-505053/benchmark-gpu-60x24.json",
+      "sha256": "2eb80cc037f6d12e0458150744985941917dd2632e7060443d85e53abb50c882"
+    },
+    {
+      "path": ".cairn/evidence/captures/wgpu/20260916T201259816757Z-505053/benchmark-cpu-60x24.json",
+      "sha256": "475958f41bf7ad736a8674d4c74c389e590034fde71338891af27f6cd5642e25"
+    },
+    {
+      "path": ".cairn/evidence/captures/wgpu/20260916T201259816757Z-505053/benchmark-gpu-144x50.json",
+      "sha256": "dad2520ae0f66280633d8035e680603c7a1f8f27bd3261df25712ff78f018ea3"
+    },
+    {
+      "path": ".cairn/evidence/captures/wgpu/20260916T201259816757Z-505053/benchmark-cpu-144x50.json",
+      "sha256": "bbad08c96229717ac47b79b9a1b980ef966fb82e9c2764a71cbe968684ce6d4d"
+    },
+    {
+      "path": ".cairn/evidence/captures/wgpu/20260916T201259816757Z-505053/benchmark-gpu-200x60.json",
+      "sha256": "71e5eb440684c5ef2d566ccf5959ab341792148a24ddbc0f9d3da289e460f9e4"
+    },
+    {
+      "path": ".cairn/evidence/captures/wgpu/20260916T201259816757Z-505053/benchmark-cpu-200x60.json",
+      "sha256": "c7496f1dbb0e7c83992b38156ab2e03a7f950d4c8f4fd84b1b2b8fabd77d5287"
+    }
+  ]
+}

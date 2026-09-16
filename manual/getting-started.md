@@ -2,7 +2,7 @@
 
 Crate modules: `error`
 
-Cargo features: `default`, `debug_patches`, `debug`, `simd`, `async-capabilities`, `ffi`, `embedded-terminal`
+Cargo features: `default`, `debug_patches`, `debug`, `simd`, `async-capabilities`, `ffi`, `embedded-terminal`, `wgpu-graphics`
 
 ## Purpose
 
@@ -52,6 +52,8 @@ The default feature enables Tokio support. `async-capabilities` also enables
 Tokio. `ffi` exports the C ABI. `embedded-terminal` enables the Unix
 libghostty-based embedded session. The two debug features add diagnostic paths.
 `simd` enables nightly Rust portable SIMD code.
+`wgpu-graphics` enables the optional offscreen canvas with CPU fallback; see
+[Offscreen graphics](wgpu-graphics.md).
 
 ## Limits
 

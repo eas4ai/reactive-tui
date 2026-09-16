@@ -29,6 +29,7 @@ pub(super) fn render(
     request: FrameRequest,
     cancellation: &GraphicsCancellation,
 ) -> Result<GraphicsFrame, GraphicsError> {
+    let started = std::time::Instant::now();
     let width = request.columns();
     let height = request.rows() * 2;
     let count = pixel_count(width, height)?;
@@ -90,5 +91,7 @@ pub(super) fn render(
             ]);
         }
     }
-    GraphicsFrame::from_rgba(width, height, pixels)
+    let mut frame = GraphicsFrame::from_rgba(width, height, pixels)?;
+    frame.timings.render = started.elapsed();
+    Ok(frame)
 }
