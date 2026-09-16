@@ -1,10 +1,12 @@
-commit: 1d44eb368436d2f5176c67ee4d74c1a438c2dc64
+commit: cba3fa82400a69880adf46e708b3ef5c481751a2
 examined:
   - CAT-001 through CAT-003 and the widget-catalog commitment.
   - Catalog source, live widget inventory, navigation, cube clock, and quit lifecycle.
   - Behavior and validator tests, PTY output, and all three Cairn receipts.
   - README, manual, local logo, and mechanism dependency declarations.
 findings:
+  - open: CAT-001 The developer's 144x50 Kitty captures show unused terminal width, stretched navigation entries, clipped overview text, and excessive card spacing. The current checks do not establish full-width capture quality. The requested colored column-span demonstration is also not implemented.
+  - open: CAT-002 Animation advances and exits cleanly, but the developer's capture shows coarse wireframe strokes. The fixed-size dotted cube needs a separate visual-quality repair; changing frame hashes does not prove readable edges.
   - resolved: CAT-001 cfea6a441757f68abd0058dc6577cae535ef3afe mounts live InputDialog and AutocompleteDialog. F1/F2 selects one of twelve overlay demos. Real App input paints both dialog prompts and both menu item lists.
   - resolved: CAT-001 cfea6a441757f68abd0058dc6577cae535ef3afe fixes navigation sizing and scrolls long pages. Measured frames retain all eight shortcuts after resizing to 100, 60, 79, 80, and 40 columns.
   - resolved: CAT-001 cfea6a441757f68abd0058dc6577cae535ef3afe populates Table with two columns and two rows, starts Modal visible, and supplies a Popover button trigger. Tests inspect representative Table props and decode the mounted logo asset.
@@ -78,3 +80,26 @@ contracts stay intact, assets remain local, there are no new secrets or
 dependencies, cube work is bounded, and PTY cleanup has a deadline. Persistence,
 auth, and migrations are not introduced. No further in-scope revision was found.
 No executable code changed while this closing review was performed.
+
+## Review after embedded-shell retention approval, 2026-09-16
+
+Examined the 13 manual lines retained from da046fe3 and the developer's
+approval in loop-035-2. The launcher instructions require the optional feature
+and a Cargo rebuild, distinguish host quit from child input, and describe
+control-text replacement without weakening frame validation. The historical
+statement about an unproven Kitty segfault repair remains a limit, not evidence
+that the shell currently crashes. The developer subsequently observed a usable
+prompt and a normal GDB exit in Kitty.
+
+Read fresh captured output for CAT-001, CAT-002, and CAT-003:
+20260916T181612410Z-3434802, 20260916T181646035Z-3439519, and
+20260916T181706765Z-3443419. Each ran eleven validator tests, fourteen behavior
+tests, and a locked example build. CAT-002 additionally observed distinct cube
+frames and exit status zero for all three advertised quit sequences.
+
+Challenged what these mechanisms miss against the developer's screenshots.
+Navigation breakpoint tests do not prove the stage uses the whole width.
+Inventory and text-presence checks do not prove compact spacing or legible
+wireframe edges. The open findings above supersede the earlier conclusion that
+no further in-scope revision was needed. No executable code changed during
+this review; passing receipts do not close these visual findings.
