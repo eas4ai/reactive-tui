@@ -1,0 +1,18 @@
+mechanism: wgpu-rendering
+commit: f8b49960
+inputs_digest: sha256:f7a3f05493b5b480327173a2f962781297da2f79ae72d1fadbebff56ebf1e566
+mechanism_digest: sha256:08f491b230a061efa60068131fdd051ee6a495e621d27a844d70e41c50471b90
+kernel_digest: sha256:a75759bfeebcad18d5c4ede6438c2a1efc8380a27df350379634205af5b27b19
+inputs_detail: .cairn/evidence/runs/20260916T200437193Z-440239.inputs.json
+command: python3 -B scripts/check-wgpu-rendering.py
+cwd: .
+exit: 0
+output_digest: sha256:39fa46a732982d311d66961f131f87c5b3c4a5341a5e25fe9b962c509737e6fa
+output: .cairn/evidence/runs/20260916T200437193Z-440239.out
+stderr_output: .cairn/evidence/runs/20260916T200437193Z-440239.err
+stderr_digest: sha256:9dd11b6721b8f076d7f13b4c6ac5c6acaf2963ae329267c19bc8b24cf4a8cf53
+signal: none
+execution_error: null
+recorded: 2026-09-16T20:04:38.861Z
+results:
+  - GPU-002 pass exit sha256:3bbae25c729c5d00e73f082e24187d0f946a5259b8446f8e3325cc3971763047 4 sha256:e30a8b0cb77720a530a3ac3408d95eb03cfecbd779b59d9bc06be22d9efc1d23
