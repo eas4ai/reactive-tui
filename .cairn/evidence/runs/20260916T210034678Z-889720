@@ -1,0 +1,18 @@
+mechanism: widget-catalog-motion
+commit: 8cb80194
+inputs_digest: sha256:2c7602c884bbf0c46be2317e16ec844eb0cc0aedd41ce37a9b34d2b75da53bd2
+mechanism_digest: sha256:36de9b53ead506c0329b352ccfc672772e8803313a23c15127b6e2fc4ecd61e1
+kernel_digest: sha256:a75759bfeebcad18d5c4ede6438c2a1efc8380a27df350379634205af5b27b19
+inputs_detail: .cairn/evidence/runs/20260916T210034678Z-889720.inputs.json
+command: python3 -B scripts/check-widget-catalog.py CAT-002
+cwd: .
+exit: 0
+output_digest: sha256:49ebf29783521be3f16fbe48b22b1af288d5cbf2385bfc69266617b98c0ae0b1
+output: .cairn/evidence/runs/20260916T210034678Z-889720.out
+stderr_output: .cairn/evidence/runs/20260916T210034678Z-889720.err
+stderr_digest: sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+signal: none
+execution_error: null
+recorded: 2026-09-16T21:00:36.892Z
+results:
+  - CAT-002 pass exit sha256:3fd0ccadede4ab68d2976e50d3e88fe8aef0544c3c7f894c5ecd522cb38b53ca 12 sha256:4f6ca4bdd1dd241be7f95d9b59e0d70ebd6e064b23e2c8b467f2d5485a76b139
