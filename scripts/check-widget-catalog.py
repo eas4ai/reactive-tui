@@ -51,6 +51,14 @@ WIDGET_FAMILIES = (
     "WizardDialog",
     "TerminalWidget",
 )
+WIDGET_MOUNTS = dict(zip(WIDGET_FAMILIES, (
+    "checkbox(", "radio_button(", "select(", "slider(", "text_input(",
+    "simple_accordion(", "path_breadcrumb(", "scroll_view(", "stack(", "tabs(",
+    "builder::chart(", "Table::with_props(", "data_table(", "tree(", "file_explorer(", "progress_bar(",
+    "builder::modal(", "popover(", "image(", "menubar(", "context_menu(", "builder::popup_menu(",
+    "Element::typed::<DialogMenu>", "confirmation_dialog(", "InputDialog::new(", "AutocompleteDialog::new(",
+    "progress_dialog(", "toast(", "wizard(", "Element::typed::<TerminalWidget>",
+), strict=True))
 
 
 def validate(
@@ -70,6 +78,8 @@ def validate(
     for family in WIDGET_FAMILIES:
         if family not in source:
             errors.append(f"missing widget family: {family}")
+        if WIDGET_MOUNTS[family] not in source:
+            errors.append(f"missing live widget mount: {family}")
     if "manual/assets/logo.jpg" not in source or "http://" in source or "https://" in source:
         errors.append("catalog must use manual/assets/logo.jpg")
     if "cargo run --locked --example widget_catalog" not in readme:
@@ -89,7 +99,7 @@ def validate(
     if requirement == "all":
         return errors
     prefixes = {
-        "CAT-001": ("missing catalog page", "missing widget family"),
+        "CAT-001": ("missing catalog page", "missing widget family", "missing live widget mount"),
         "CAT-002": ("PTY check",),
         "CAT-003": ("catalog must", "README omits", "manual omits"),
     }[requirement] + ("catalog behavior tests", "locked widget_catalog compile")

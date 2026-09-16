@@ -8,12 +8,21 @@ use reactive_tui::{
         wizard,
     },
     component::Element,
+    core::geometry::Rect,
     event::{
         router::EventResult,
         types::{Event, KeyCode, KeyEventKind},
     },
     widgets::{
-        display::{image::ImageDisplayMode, tree::TreeNode, Table},
+        dialog::{
+            AutocompleteConfig, AutocompleteDialog, AutocompleteDialogOptions, DialogComponent,
+            DialogId, DialogTheme, InputDialog, InputDialogOptions,
+        },
+        display::{
+            image::ImageDisplayMode,
+            table::{Table, TableColumn, TableProps, TableRow},
+            tree::TreeNode,
+        },
         menu::DialogMenuBuilder,
         DialogMenu, TerminalProps, TerminalWidget,
     },
@@ -102,6 +111,7 @@ pub struct Catalog {
     height: u16,
     motion: CubeAnimation,
     exit_requested: bool,
+    demo: usize,
 }
 
 impl Default for Catalog {
@@ -112,6 +122,7 @@ impl Default for Catalog {
             height: 30,
             motion: CubeAnimation::new(Instant::now()),
             exit_requested: false,
+            demo: 0,
         }
     }
 }
@@ -125,6 +136,11 @@ impl Catalog {
     #[cfg(test)]
     pub fn set_page(&mut self, page: CatalogPage) {
         self.page = page;
+    }
+
+    #[cfg(test)]
+    pub fn demo_element(&self) -> Element {
+        self.selected_page()
     }
 
     pub fn navigation_layout(&self) -> NavigationLayout {
@@ -142,6 +158,7 @@ impl Catalog {
     }
 
     fn navigation(&self) -> Element {
+        let compact = self.navigation_layout() == NavigationLayout::Compact;
         let entries = CatalogPage::ALL
             .iter()
             .enumerate()
@@ -149,22 +166,26 @@ impl Catalog {
                 let marker = if *page == self.page { "▶" } else { " " };
                 div()
                     .class(if *page == self.page {
-                        "w-full h-1 bg-cyan-900 text-cyan-200 font-bold"
+                        "flex-1 min-w-0 h-1 bg-cyan-900 text-cyan-200 font-bold"
                     } else {
-                        "w-full h-1 text-gray-400"
+                        "flex-1 min-w-0 h-1 text-gray-400"
                     })
-                    .text(&format!("{marker} {} {}", index + 1, page.title()))
+                    .text(&if compact {
+                        format!("{marker}[{}]", index + 1)
+                    } else {
+                        format!("{marker}[{}] {}", index + 1, page.title())
+                    })
                     .build()
             })
             .collect::<Vec<_>>();
 
         match self.navigation_layout() {
             NavigationLayout::Sidebar => div()
-                .class("w-24 h-full flex-col border-r border-gray-700 bg-gray-950 p-1")
+                .class("w-24 shrink-0 h-full flex-col border-r border-gray-700 bg-gray-950 p-0.25")
                 .children(entries)
                 .build(),
             NavigationLayout::Compact => div()
-                .class("w-full h-3 flex-row border-b border-gray-700 bg-gray-950 px-1")
+                .class("w-full shrink-0 h-3 flex-row border-b border-gray-700 bg-gray-950 px-0.25")
                 .children(entries)
                 .build(),
         }
@@ -172,7 +193,7 @@ impl Catalog {
 
     fn card(title: &str, body: Element) -> Element {
         div()
-            .class("flex-col border border-gray-700 bg-gray-900 p-1 gap-1")
+            .class("flex-col min-w-0 border border-gray-700 bg-gray-900 p-0.25 gap-0.25")
             .child(
                 div()
                     .class("h-1 text-cyan-300 font-bold")
@@ -326,7 +347,25 @@ impl Catalog {
                     .size(32, 7)
                     .build(),
             ))
-            .child(Self::card("Table", Table::new()))
+            .child(Self::card(
+                "Table",
+                Table::with_props(TableProps {
+                    columns: vec![
+                        TableColumn::new("Widget", "widget"),
+                        TableColumn::new("State", "state"),
+                    ],
+                    rows: vec![
+                        TableRow::new("input")
+                            .with_cell("widget", "Input")
+                            .with_cell("state", "Ready"),
+                        TableRow::new("layout")
+                            .with_cell("widget", "Layout")
+                            .with_cell("state", "Ready"),
+                    ],
+                    sortable: true,
+                    ..Default::default()
+                }),
+            ))
             .child(Self::card(
                 "DataTable",
                 data_table()
@@ -366,79 +405,100 @@ impl Catalog {
             action_item("new", "New capture", || {}),
             action_item("export", "Export clip", || {}),
         ];
-        let dialog_menu = DialogMenuBuilder::confirmation()
-            .title("DialogMenu")
-            .message("Keep this capture?")
-            .build();
+        let titles = [
+            "MenuBar",
+            "ContextMenu",
+            "PopupMenu",
+            "DialogMenu",
+            "Modal",
+            "Popover",
+            "ConfirmationDialog",
+            "InputDialog",
+            "AutocompleteDialog",
+            "ProgressDialog",
+            "Toast",
+            "WizardDialog",
+        ];
+        let index = self.demo % titles.len();
+        let body = match index {
+            0 => menubar().items(menu_items).title("Catalog").build(),
+            1 => context_menu().items(menu_items).build(),
+            2 => reactive_tui::builder::popup_menu()
+                .items(menu_items)
+                .build(),
+            3 => Element::typed::<DialogMenu>(
+                DialogMenuBuilder::confirmation()
+                    .title("DialogMenu")
+                    .message("Keep this capture?")
+                    .build(),
+            ),
+            4 => reactive_tui::builder::modal()
+                .title("Modal")
+                .content(Element::text("Focused overlay · Escape closes"))
+                .visible(true)
+                .build(),
+            5 => popover()
+                .trigger(reactive_tui::builder::button().text("Open popover").build())
+                .content(Element::text("Popover content"))
+                .build(),
+            6 => confirmation_dialog()
+                .title("ConfirmationDialog")
+                .message("Ready to record?")
+                .build(),
+            7 => InputDialog::new(
+                DialogId::from_u32(7),
+                InputDialogOptions {
+                    title: "InputDialog".into(),
+                    prompt: "Capture name".into(),
+                    ..Default::default()
+                },
+            )
+            .render(Rect::default(), &DialogTheme::default()),
+            8 => AutocompleteDialog::new(
+                DialogId::from_u32(8),
+                AutocompleteDialogOptions {
+                    title: "AutocompleteDialog".into(),
+                    prompt: "Find a widget".into(),
+                    autocomplete: AutocompleteConfig {
+                        min_chars: 0,
+                        static_suggestions: vec![
+                            "Accordion".into(),
+                            "Checkbox".into(),
+                            "Slider".into(),
+                            "Tabs".into(),
+                        ],
+                        debounce_delay: std::time::Duration::ZERO,
+                        ..Default::default()
+                    },
+                    ..Default::default()
+                },
+            )
+            .render(Rect::default(), &DialogTheme::default()),
+            9 => progress_dialog()
+                .title("ProgressDialog")
+                .message("Rendering")
+                .progress(0.64)
+                .build(),
+            10 => toast()
+                .success("Toast: capture saved")
+                .duration(4_000)
+                .build(),
+            _ => wizard()
+                .title("WizardDialog")
+                .step(WizardStep::new("Compose").content(Element::text("Choose widgets")))
+                .step(WizardStep::new("Capture").content(Element::text("Record clip")))
+                .build(),
+        }
+        .with_key(format!("overlay-{}", self.demo));
         div()
-            .class("grid grid-cols-2 gap-1")
-            .child(Self::card(
-                "MenuBar",
-                menubar().items(menu_items.clone()).title("Catalog").build(),
-            ))
-            .child(Self::card(
-                "ContextMenu",
-                context_menu().items(menu_items.clone()).build(),
-            ))
-            .child(Self::card(
-                "PopupMenu",
-                reactive_tui::builder::popup_menu()
-                    .items(menu_items)
-                    .build(),
-            ))
-            .child(Self::card(
-                "DialogMenu",
-                Element::typed::<DialogMenu>(dialog_menu),
-            ))
-            .child(Self::card(
-                "Modal & Popover",
-                div()
-                    .class("flex-col gap-1")
-                    .child(
-                        reactive_tui::builder::modal()
-                            .title("Modal")
-                            .content(Element::text("Focused overlay"))
-                            .visible(false)
-                            .build(),
-                    )
-                    .child(
-                        popover()
-                            .trigger(Element::text("Popover trigger"))
-                            .content(Element::text("Popover content"))
-                            .build(),
-                    )
-                    .build(),
-            ))
-            .child(Self::card(
-                "Dialogs",
-                div()
-                    .class("flex-col gap-1")
-                    .child(
-                        confirmation_dialog()
-                            .title("ConfirmationDialog")
-                            .message("Ready to record?")
-                            .build(),
-                    )
-                    .child(
-                        progress_dialog()
-                            .title("ProgressDialog")
-                            .message("Rendering")
-                            .progress(0.64)
-                            .build(),
-                    )
-                    .child(
-                        wizard()
-                            .title("WizardDialog")
-                            .step(
-                                WizardStep::new("Compose").content(Element::text("Choose widgets")),
-                            )
-                            .step(WizardStep::new("Capture").content(Element::text("Record clip")))
-                            .build(),
-                    )
-                    .child(toast().success("Toast: saved").duration(4_000).build())
-                    .child(Element::text("InputDialog · AutocompleteDialog"))
-                    .build(),
-            ))
+            .class("flex-col gap-0.25")
+            .child(Element::text(format!(
+                "F1/F2 previous/next demo · {}/{} · {}",
+                index + 1,
+                titles.len(),
+                titles[index]
+            )))
+            .child(Self::card(titles[index], body))
             .build()
     }
 
@@ -451,7 +511,7 @@ impl Catalog {
                 image()
                     .source_file(logo)
                     .display_mode(ImageDisplayMode::Auto)
-                    .class("w-48 h-16")
+                    .class("w-full h-16")
                     .build(),
             ))
             .child(
@@ -511,14 +571,21 @@ impl Catalog {
 
     fn stage(&self) -> Element {
         div()
-            .class("flex-col flex-1 h-full p-1 gap-1 bg-black")
+            .class("flex-col flex-1 min-w-0 min-h-0 h-full p-0.25 gap-0.25 bg-black")
             .child(
                 div()
                     .class("h-1 text-white font-bold")
                     .text(self.page.title())
                     .build(),
             )
-            .child(self.selected_page())
+            .child(
+                scroll_view()
+                    .contents(vec![self.selected_page()])
+                    .vertical_scroll(true)
+                    .show_scrollbars(true)
+                    .class("flex-1 min-h-0")
+                    .build(),
+            )
             .build()
     }
 }
@@ -541,7 +608,7 @@ impl RootComponent for Catalog {
             .class("w-screen h-screen flex-col bg-black text-gray-200")
             .child(
                 div()
-                    .class("w-full h-3 flex-row px-1 bg-gray-950 border-b border-gray-700")
+                    .class("w-full shrink-0 h-3 flex-row px-0.25 bg-gray-950 border-b border-gray-700")
                     .child(
                         div()
                             .class("flex-1 text-cyan-300 font-bold")
@@ -559,8 +626,8 @@ impl RootComponent for Catalog {
             .child(content)
             .child(
                 div()
-                    .class("w-full h-1 px-1 bg-gray-950 text-gray-500")
-                    .text("↑↓/←→ navigate · 1–8 jump · Tab interact · Ctrl+Q / Ctrl+C / Esc quit")
+                    .class("w-full shrink-0 h-1 px-0.25 bg-gray-950 text-gray-500")
+                    .text(if self.width < 80 { "1–8 page · F2 demo · Ctrl+Q quit" } else { "↑↓/←→ page · 1–8 jump · F1/F2 demo · Tab interact · Ctrl+Q / Ctrl+C / Esc quit" })
                     .build(),
             )
             .build()
@@ -579,6 +646,14 @@ impl RootComponent for Catalog {
         if key.kind == KeyEventKind::Release {
             return Ok(EventResult::Ignored);
         }
+        if self.page == CatalogPage::MenusDialogs && matches!(key.code, KeyCode::F(1 | 2)) {
+            self.demo = if key.code == KeyCode::F(1) {
+                (self.demo + 11) % 12
+            } else {
+                (self.demo + 1) % 12
+            };
+            return Ok(EventResult::Handled);
+        }
         if key.code == KeyCode::Escape
             || (key.modifiers.ctrl && matches!(key.code, KeyCode::Char('q' | 'c')))
         {
@@ -593,6 +668,7 @@ impl RootComponent for Catalog {
         };
         if let Some(page) = next {
             self.page = page;
+            self.demo = 0;
             Ok(EventResult::Handled)
         } else {
             Ok(EventResult::Ignored)

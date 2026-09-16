@@ -44,6 +44,8 @@ The example presents focused live widget pages for screenshots and short video
 clips. Use arrows or `1`–`8` to select a page, and Tab to focus its controls.
 Navigation uses a sidebar at 80 columns or wider and a compact strip below
 that width.
+Use F1/F2 on the menus/dialogs page to select one live overlay demo at a time.
+Use the mouse wheel to scroll longer pages.
 
 Page `6` displays `manual/assets/logo.jpg` through the image widget. Page `7`
 shows the rotating wireframe cube at a bounded 80 ms frame interval. No assets

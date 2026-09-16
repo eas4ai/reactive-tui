@@ -34,6 +34,7 @@ GOOD_SOURCE = "\n".join(
         "TerminalWidget",
     ]
 )
+GOOD_SOURCE += "\n" + "\n".join(CHECKER.WIDGET_MOUNTS.values())
 GOOD_README = "cargo run --locked --example widget_catalog"
 GOOD_MANUAL = "widget_catalog screenshots video"
 GOOD_TEST = "test result: ok. 8 passed; 0 failed"
@@ -69,6 +70,10 @@ class WidgetCatalogValidationTests(unittest.TestCase):
     def test_rejects_missing_widget_family_page(self) -> None:
         source = GOOD_SOURCE.replace("fn data_page() {}\n", "")
         self.assertIn("missing catalog page: data_page", self.validate(source=source))
+
+    def test_rejects_inventory_label_without_a_live_mount(self) -> None:
+        source = GOOD_SOURCE.replace("InputDialog::new(", "")
+        self.assertIn("missing live widget mount: InputDialog", self.validate(requirement="CAT-001", source=source))
 
     def test_rejects_wrong_logo(self) -> None:
         source = GOOD_SOURCE.replace("manual/assets/logo.jpg", "https://example.com/logo.jpg")

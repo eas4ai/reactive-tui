@@ -1,3 +1,6 @@
+#[path = "support/app_input.rs"]
+#[allow(dead_code)]
+mod app_input;
 #[path = "../examples/widget_catalog/catalog.rs"]
 mod catalog;
 
@@ -23,6 +26,120 @@ fn text(element: &Element) -> String {
         output.push_str(&text(child));
     }
     output
+}
+
+fn component_names(element: &Element) -> String {
+    let mut names = element.component_name().unwrap_or_default().to_string();
+    for child in &element.children {
+        names.push_str(&component_names(child));
+    }
+    if let Some(props) = element.props_as::<reactive_tui::widgets::layout::ScrollViewProps>() {
+        names.push_str(&component_names(&props.content));
+    }
+    names
+}
+
+fn find_props<T: std::any::Any>(element: &Element) -> Option<&T> {
+    element
+        .props_as::<T>()
+        .or_else(|| element.children.iter().find_map(find_props::<T>))
+        .or_else(|| {
+            element
+                .props_as::<reactive_tui::widgets::layout::ScrollViewProps>()
+                .and_then(|props| find_props::<T>(&props.content))
+        })
+}
+
+#[test]
+fn compact_and_wide_navigation_paint_every_shortcut_after_resize() {
+    use reactive_tui::backend::{Backend, DebugBackend};
+    let mut catalog = Catalog::default();
+    let mut backend = DebugBackend::new(100, 32);
+    for width in [100, 60, 79, 80, 40] {
+        catalog.resize(width, 32).unwrap();
+        backend.resize(width as usize, 32);
+        backend.render_full(&catalog.render()).unwrap();
+        let frame = backend.screen_content();
+        for number in 1..=8 {
+            assert!(
+                frame.contains(&format!("[{number}]")),
+                "shortcut {number} clipped at {width}:\n{frame}"
+            );
+        }
+    }
+}
+
+#[test]
+fn dialogs_are_live_and_separately_reachable() {
+    let mut catalog = Catalog::default();
+    catalog.set_page(CatalogPage::MenusDialogs);
+    let mut names = String::new();
+    for _ in 0..12 {
+        names.push_str(&component_names(&catalog.demo_element()));
+        catalog.try_handle_event(&key(KeyCode::F(2))).unwrap();
+    }
+    assert!(
+        names.contains("LiveInput"),
+        "InputDialog is not mounted: {names}"
+    );
+    assert!(
+        names.contains("LiveAutocomplete"),
+        "AutocompleteDialog is not mounted: {names}"
+    );
+}
+
+#[test]
+fn live_dialogs_switch_through_real_app_input() {
+    for size in [(100, 32), (60, 24)] {
+        let mut catalog = Catalog::default();
+        catalog.set_page(CatalogPage::MenusDialogs);
+        for _ in 0..7 {
+            catalog.try_handle_event(&key(KeyCode::F(2))).unwrap();
+        }
+        let frames = app_input::run_when(
+            catalog,
+            size,
+            vec![
+                ("Capture name", Some(key(KeyCode::F(2)))),
+                ("Find a widget", None),
+            ],
+        );
+        assert!(frames
+            .iter()
+            .any(|frame| frame.text.contains("Capture name")));
+        assert!(frames
+            .iter()
+            .any(|frame| frame.text.contains("Find a widget")));
+    }
+}
+
+#[test]
+fn context_and_popup_menus_are_visible_when_selected() {
+    for demo in [1, 2] {
+        let mut catalog = Catalog::default();
+        catalog.set_page(CatalogPage::MenusDialogs);
+        for _ in 0..demo {
+            catalog.try_handle_event(&key(KeyCode::F(2))).unwrap();
+        }
+        let frames = app_input::run_when(catalog, (100, 32), vec![("Export clip", None)]);
+        assert!(frames
+            .iter()
+            .any(|frame| frame.text.contains("New capture")));
+    }
+}
+
+#[test]
+fn table_has_representative_rows_and_logo_is_decodable() {
+    use reactive_tui::widgets::display::table::TableProps;
+    let mut catalog = Catalog::default();
+    catalog.set_page(CatalogPage::Data);
+    let frame = catalog.demo_element();
+    let props = find_props::<TableProps>(&frame).expect("Table props are absent");
+    assert!(props.columns.len() >= 2 && props.rows.len() >= 2);
+    catalog.set_page(CatalogPage::Media);
+    assert!(component_names(&catalog.demo_element()).contains("Image"));
+    let logo = ::image::load_from_memory(include_bytes!("../manual/assets/logo.jpg")).unwrap();
+    assert!(logo.width() > 0 && logo.height() > 0);
 }
 
 #[test]
