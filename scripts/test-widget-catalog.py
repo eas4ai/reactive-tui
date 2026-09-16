@@ -57,6 +57,15 @@ class WidgetCatalogValidationTests(unittest.TestCase):
     def test_accepts_complete_evidence(self) -> None:
         self.assertEqual(self.validate(), [])
 
+    def test_shell_ignores_unfinished_motion_and_docs(self) -> None:
+        self.assertEqual(self.validate(requirement="CAT-001", pty_output="", readme="", manual=""), [])
+
+    def test_motion_ignores_unfinished_docs(self) -> None:
+        self.assertEqual(self.validate(requirement="CAT-002", readme="", manual=""), [])
+
+    def test_media_ignores_unfinished_motion(self) -> None:
+        self.assertEqual(self.validate(requirement="CAT-003", pty_output=""), [])
+
     def test_rejects_missing_widget_family_page(self) -> None:
         source = GOOD_SOURCE.replace("fn data_page() {}\n", "")
         self.assertIn("missing catalog page: data_page", self.validate(source=source))

@@ -1,0 +1,22 @@
+command: python3 -B scripts/check-widget-catalog.py CAT-002
+inputs:
+  - .cairn/mechanisms
+  - Cargo.toml
+  - Cargo.lock
+  - build.rs
+  - src
+  - crates
+  - reactive-tui-macros
+  - .cargo
+  - examples
+  - manual/assets/logo.jpg
+  - README.md
+  - manual/README.md
+  - scripts
+  - tests
+requirements:
+  - CAT-002
+
+The motion check runs deterministic behavior tests, locked example compile,
+and a real PTY check. It requires distinct cube frames, bounded redraws,
+three normal exits, restored terminal settings, and no surviving children.

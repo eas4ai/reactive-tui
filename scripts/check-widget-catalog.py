@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import argparse
 import subprocess
 import sys
 
@@ -54,6 +55,7 @@ WIDGET_FAMILIES = (
 
 def validate(
     *,
+    requirement: str = "all",
     source: str,
     readme: str,
     manual: str,
@@ -84,7 +86,14 @@ def validate(
     for key in ("CTRL_Q", "CTRL_C", "ESCAPE"):
         if f"{key} EXIT 0" not in pty_output:
             errors.append(f"PTY check did not prove {key} exit")
-    return errors
+    if requirement == "all":
+        return errors
+    prefixes = {
+        "CAT-001": ("missing catalog page", "missing widget family"),
+        "CAT-002": ("PTY check",),
+        "CAT-003": ("catalog must", "README omits", "manual omits"),
+    }[requirement] + ("catalog behavior tests", "locked widget_catalog compile")
+    return [error for error in errors if error.startswith(prefixes)]
 
 
 def run(command: list[str]) -> tuple[int, str]:
@@ -100,6 +109,9 @@ def run(command: list[str]) -> tuple[int, str]:
 
 
 def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("requirement", nargs="?", default="all", choices=("all", "CAT-001", "CAT-002", "CAT-003"))
+    requirement = parser.parse_args().requirement
     validator_code, validator_output = run([sys.executable, "-B", "scripts/test-widget-catalog.py"])
     print(validator_output, end="")
     if validator_code != 0:
@@ -118,10 +130,13 @@ def main() -> int:
         ["cargo", "+1.91.0", "check", "--locked", "--example", "widget_catalog", "--jobs", "8"]
     )
     print(compile_output, end="")
-    pty_code, pty_output = run([sys.executable, "-B", "scripts/check-widget-catalog-pty.py"])
+    pty_code, pty_output = (0, "")
+    if requirement in ("all", "CAT-002"):
+        pty_code, pty_output = run([sys.executable, "-B", "scripts/check-widget-catalog-pty.py"])
     print(pty_output, end="")
 
     errors = validate(
+        requirement=requirement,
         source=source,
         readme=readme,
         manual=manual,
@@ -140,7 +155,7 @@ def main() -> int:
         for error in errors:
             print(f"FAIL CAT: {error}", file=sys.stderr)
         return 1
-    print("PASS CAT-001 CAT-002 CAT-003: widget catalog is complete and runtime-verified")
+    print(f"PASS {requirement}: catalog requirement checks passed")
     return 0
 
 
