@@ -155,3 +155,45 @@ fn identical_half_blocks_are_batched_without_changing_output() {
     backend.render_full(&element).unwrap();
     assert_eq!(backend.screen_content().matches('▀').count(), 120 * 44);
 }
+#[test]
+fn concurrent_raw_gpu_calls_keep_their_own_time_and_viewport() {
+    use std::sync::{Arc, Barrier};
+    let gpu = Arc::new(GpuCubeRenderer::new().expect("real adapter required"));
+    assert!(gpu.adapter_info().is_hardware);
+    let barrier = Arc::new(Barrier::new(8));
+    let handles: Vec<_> = (0..8)
+        .map(|index| {
+            let (columns, rows) = [(60, 24), (144, 50), (200, 60)][index % 3];
+            let elapsed = Duration::from_secs(index as u64);
+            let expected = gpu
+                .render_terminal(columns, rows, elapsed)
+                .unwrap()
+                .pixels()
+                .to_vec();
+            let gpu = Arc::clone(&gpu);
+            let barrier = Arc::clone(&barrier);
+            std::thread::spawn(move || {
+                let mut all_correct = true;
+                for _ in 0..8 {
+                    barrier.wait();
+                    // Finish every round before reporting errors; a failed assertion
+                    // must not leave another test thread blocked on the barrier.
+                    all_correct &= gpu
+                        .render_terminal(columns, rows, elapsed)
+                        .map(|frame| frame.pixels() == expected)
+                        .unwrap_or(false);
+                    barrier.wait();
+                }
+                all_correct
+            })
+        })
+        .collect();
+    let outcomes: Vec<_> = handles
+        .into_iter()
+        .map(|handle| handle.join().unwrap())
+        .collect();
+    assert!(
+        outcomes.into_iter().all(|correct| correct),
+        "concurrent GPU calls overwrote another frame's uniforms"
+    );
+}

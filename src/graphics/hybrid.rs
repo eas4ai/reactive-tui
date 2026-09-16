@@ -7,7 +7,7 @@ use std::time::Duration;
 /// The renderer that actually produced a frame.
 #[derive(Debug, Clone)]
 pub enum GraphicsMode {
-    /// A real hardware adapter rendered the pixels.
+    /// A wgpu adapter rendered the pixels; its identity distinguishes hardware/software.
     Gpu(GraphicsAdapterInfo),
     /// CPU pixels, with the reason GPU rendering was not selected.
     CpuFallback(String),
@@ -16,7 +16,16 @@ impl GraphicsMode {
     /// Visible mode and adapter/fallback reason for the catalog and reports.
     pub fn label(&self) -> String {
         match self {
-            Self::Gpu(info) => format!("GPU · {} · {}", info.name, info.backend),
+            Self::Gpu(info) => format!(
+                "{} · {} · {}",
+                if info.is_hardware {
+                    "GPU"
+                } else {
+                    "Software wgpu"
+                },
+                info.name,
+                info.backend,
+            ),
             Self::CpuFallback(reason) => format!("CPU fallback · {reason}"),
         }
     }

@@ -5,6 +5,17 @@ use reactive_tui::graphics::{
 use std::{collections::HashSet, sync::mpsc, time::Duration};
 
 #[test]
+fn software_adapter_label_cannot_claim_hardware_gpu_mode() {
+    let mode = GraphicsMode::Gpu(reactive_tui::graphics::GraphicsAdapterInfo {
+        name: "software fixture (no rendering acceptance)".into(),
+        backend: "Vulkan".into(),
+        is_hardware: false,
+    });
+    assert!(mode.label().starts_with("Software wgpu ·"));
+    assert!(!mode.label().starts_with("GPU ·"));
+}
+
+#[test]
 fn canvas_discards_stale_viewport_output_and_owns_shutdown() {
     let wake = reactive_tui::app::AppWaker::new();
     let mut canvas = GraphicsCanvas::new(

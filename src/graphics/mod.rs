@@ -215,8 +215,7 @@ pub struct GpuCubeRenderer {
     device: wgpu::Device,
     queue: wgpu::Queue,
     pipeline: wgpu::RenderPipeline,
-    uniform: wgpu::Buffer,
-    bind_group: wgpu::BindGroup,
+    uniform_layout: wgpu::BindGroupLayout,
     info: GraphicsAdapterInfo,
     failure: Arc<Mutex<Option<String>>>,
 }
@@ -265,12 +264,6 @@ impl GpuCubeRenderer {
         device.on_uncaptured_error(Arc::new(move |error| {
             *error_failure.lock().unwrap() = Some(format!("GPU operation: {error}"));
         }));
-        let uniform = device.create_buffer(&wgpu::BufferDescriptor {
-            label: Some("cube time and viewport"),
-            size: 32,
-            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-            mapped_at_creation: false,
-        });
         let layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label: Some("cube uniform layout"),
             entries: &[wgpu::BindGroupLayoutEntry {
@@ -282,14 +275,6 @@ impl GpuCubeRenderer {
                     min_binding_size: None,
                 },
                 count: None,
-            }],
-        });
-        let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: Some("cube uniforms"),
-            layout: &layout,
-            entries: &[wgpu::BindGroupEntry {
-                binding: 0,
-                resource: uniform.as_entire_binding(),
             }],
         });
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
@@ -330,8 +315,7 @@ impl GpuCubeRenderer {
             device,
             queue,
             pipeline,
-            uniform,
-            bind_group,
+            uniform_layout: layout,
             info,
             failure,
         })
@@ -399,7 +383,23 @@ impl GpuCubeRenderer {
             0.0,
         ];
         let bytes: Vec<u8> = values.into_iter().flat_map(f32::to_ne_bytes).collect();
-        self.queue.write_buffer(&self.uniform, 0, &bytes);
+        // A shared-reference caller may render concurrently. Each submission
+        // must retain its own time/aspect instead of overwriting shared uniforms.
+        let uniform = self.device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("frame time and viewport"),
+            size: 32,
+            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+            mapped_at_creation: false,
+        });
+        self.queue.write_buffer(&uniform, 0, &bytes);
+        let bind_group = self.device.create_bind_group(&wgpu::BindGroupDescriptor {
+            label: Some("frame cube uniforms"),
+            layout: &self.uniform_layout,
+            entries: &[wgpu::BindGroupEntry {
+                binding: 0,
+                resource: uniform.as_entire_binding(),
+            }],
+        });
         let texture = self.device.create_texture(&wgpu::TextureDescriptor {
             label: Some("offscreen terminal cube"),
             size: wgpu::Extent3d {
@@ -433,7 +433,7 @@ impl GpuCubeRenderer {
                 occlusion_query_set: None,
             });
             pass.set_pipeline(&self.pipeline);
-            pass.set_bind_group(0, &self.bind_group, &[]);
+            pass.set_bind_group(0, &bind_group, &[]);
             pass.draw(0..3, 0..1);
         }
         let submission = self.queue.submit([encoder.finish()]);

@@ -156,6 +156,18 @@ Cairn receipts for this implementation remain to be recorded.
 
 ## Source basis and review
 
+### Task 9: Resolve the closing review's raw-renderer findings
+
+- [x] Record the review before changing executable code.
+- [x] Reproduce shared-uniform overwrite with eight concurrent hardware
+  callers at different viewports/times. Correct the fixture's initial barrier
+  early-exit bug, then require the actual pixel-mismatch RED failure.
+- [x] Give every raw render submission its own uniform buffer/bind group,
+  preserving public shared-reference APIs. The 64-frame concurrent test passes.
+- [x] Add a software-adapter metadata label RED fixture, then distinguish
+  Software wgpu from hardware GPU without weakening hardware acceptance.
+- [ ] Run final targeted checks, commit, refresh Cairn receipts, and review again.
+
 ### Task 8: Measure stages and verify a named host (GPU-005)
 
 - [x] Declare the measurement mechanism and record its missing-check baseline.
