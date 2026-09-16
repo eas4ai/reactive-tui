@@ -1,0 +1,18 @@
+mechanism: wgpu-animation
+commit: d27e99c3
+inputs_digest: sha256:ca8374d8d54033069bcc49b42364a871b6fddb02bc709d19f2e557f6c64f06e2
+mechanism_digest: sha256:b3cde893e66150ded4f6cc0caeffa81b46e07fbb9c7bb1ce6889b18e84923def
+kernel_digest: sha256:a75759bfeebcad18d5c4ede6438c2a1efc8380a27df350379634205af5b27b19
+inputs_detail: .cairn/evidence/runs/20260916T201957407Z-569439.inputs.json
+command: python3 -B scripts/check-wgpu-animation.py
+cwd: .
+exit: 0
+output_digest: sha256:850c600168fd94e80fade0c171e82dde90d5a9c0d43e139b4da08ba230fb51f3
+output: .cairn/evidence/runs/20260916T201957407Z-569439.out
+stderr_output: .cairn/evidence/runs/20260916T201957407Z-569439.err
+stderr_digest: sha256:c62536c6ace30616b39db6f63837dd29d4c4fa3bf6994b6e107ad930dc8cae61
+signal: none
+execution_error: null
+recorded: 2026-09-16T20:19:58.553Z
+results:
+  - GPU-003 pass exit sha256:40c03829cd534e192f450dd633f553c1f925f4ddfd0e3b2a92233aab59c58cc5 4 sha256:a4f02439daf8aa0a54265ede5c61121bafe60154343fe729b1d20763e43d3598
