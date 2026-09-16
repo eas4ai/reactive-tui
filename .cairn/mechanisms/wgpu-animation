@@ -1,0 +1,24 @@
+# Mechanism: wgpu-animation
+
+command: python3 -B scripts/check-wgpu-animation.py
+inputs:
+  - .cairn/mechanisms/wgpu-animation
+  - Cargo.toml
+  - Cargo.lock
+  - build.rs
+  - src
+  - crates
+  - reactive-tui-macros
+  - examples
+  - tests
+  - scripts
+requirements:
+  - GPU-003
+
+The validator must reject frame-count rotation, an accumulating pending queue,
+and an absent deadline gate using safe source fixtures. Corrected fixtures pass.
+The Rust tests exercise the production clock and worker with a deterministic
+elapsed-time schedule, a deliberately blocked first frame, many replacement
+requests, shutdown, and invalid dimensions. They require at most one active
+and one pending request, and no frame before its deadline.
+A hardware smoke check renders distinct elapsed-time frames without input.

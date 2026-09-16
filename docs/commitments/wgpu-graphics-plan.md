@@ -121,6 +121,29 @@ that visual obligation remains open for the integrated demo.
 
 ## Source basis and review
 
+### Task 6: Bound elapsed-time animation (GPU-003)
+
+- [ ] Declare and commit the animation mechanism; run wake for its next action.
+- [ ] Write feature-gated clock and worker tests first, then require their clean
+  missing-symbol failure before implementing them.
+- [ ] Add a 50 ms deadline clock that produces checked viewport requests using
+  elapsed time, skips missed deadlines, and never counts delivered frames.
+- [ ] Add one owned worker thread. A mutex/condition variable holds one pending
+  request and one replaceable output; replacing work cannot grow a queue.
+  The thread sleeps while no work exists and has one active render at a time.
+- [ ] Use a blocked first-render fixture to prove 1000 requests replace the
+  pending slot, then release it and require the newest elapsed request.
+- [ ] Test zero, oversized, and overflowing dimensions before submitting work.
+  Compare equal elapsed-time requests across different delivery schedules.
+- [ ] Render real GPU frames at two elapsed times and require changed pixels
+  without any keyboard event.
+- [ ] Run targeted tests and validator attacks, commit before Cairn checks,
+  then inspect and commit fresh receipts before catalog lifecycle integration.
+
+Shutdown owns and joins the worker rather than detaching it. Driver failure,
+CPU fallback, cancellable readback, mode labeling, and App integration remain
+GPU-004 work. The existing paint bridge remains unchanged.
+
 [wgpu 27.0.1's published manifest](https://docs.rs/crate/wgpu/27.0.1/source/Cargo.toml)
 declares Rust 1.88 and the selected native backend/WGSL features. Actual locked
 Rust 1.91 builds remain the proof, including transitive dependencies.
