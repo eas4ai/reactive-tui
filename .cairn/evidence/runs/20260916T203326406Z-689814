@@ -1,0 +1,18 @@
+mechanism: wgpu-lifecycle
+commit: 73ea4ebd
+inputs_digest: sha256:3717ca434da66689ee478e1e847b523ab2311a4a05ef4041f3f97b46ceba1bb6
+mechanism_digest: sha256:b35fba696af489b13621a4153137f9ec9e98ebe61325e9eb897fe90df488e7cf
+kernel_digest: sha256:a75759bfeebcad18d5c4ede6438c2a1efc8380a27df350379634205af5b27b19
+inputs_detail: .cairn/evidence/runs/20260916T203326406Z-689814.inputs.json
+command: python3 -B scripts/check-wgpu-lifecycle.py
+cwd: .
+exit: 0
+output_digest: sha256:aaee9d79b659cf393ddb3ff0dd5410f19372023b35e3632d8ce93422be9056b6
+output: .cairn/evidence/runs/20260916T203326406Z-689814.out
+stderr_output: .cairn/evidence/runs/20260916T203326406Z-689814.err
+stderr_digest: sha256:d7d0699e93fefe08be55a01fea9d2472114a8dc7284513d3cd06cba71b1b952d
+signal: none
+execution_error: null
+recorded: 2026-09-16T20:33:44.095Z
+results:
+  - GPU-004 pass exit sha256:b4b2ac28cf6c5934062bc04e5fa6c6d318eda84a943754667355594a694dd602 5 sha256:9a2a56c533d7cc0074895b4911ceaee89a11774528f36116cecef9ac252970dc
