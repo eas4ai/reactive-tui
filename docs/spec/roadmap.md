@@ -89,3 +89,14 @@ packaging.
 22. `final-release-packaging` — rebuild final registry packages and release
     metadata, then require fresh cross-platform evidence and an adversarial
     audit before a release decision (FRP-001 through FRP-004).
+
+## Queued next iteration
+
+`wgpu-graphics` — optional offscreen graphics presented inside the terminal,
+a viewport-sized shaded spinning cube, CPU fallback, bounded lifecycle, and
+render/readback measurements (GPU-001 through GPU-005). Draft contract:
+[specification](wgpu-graphics.md) and
+[commitment](../commitments/wgpu-graphics.md).
+
+This queue entry does not activate implementation or change `Current:`.
+The catalog's open visual findings and the existing release sequence remain.
