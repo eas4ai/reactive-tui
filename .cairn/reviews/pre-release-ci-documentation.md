@@ -54,3 +54,22 @@ No native GitHub run or actionlint run has been performed. No code in the
 framework or bundled renderer was edited. Before claiming merge enforcement,
 obtain developer approval for a remote required-status rule. Repairing the
 strict-Clippy source failures also needs an explicit boundary expansion.
+
+## RID-002 mechanism construction
+
+Shawn approved the narrow lint, push, and required-status expansion on
+2026-09-16. Its decision and commitment boundaries are recorded; package
+publication and unrelated source repairs remain unauthorized.
+
+Seven link/input tests first failed because the checker was missing. They now
+pass using real temporary Git repositories. Removing or leaving a link target
+untracked, deleting a heading, encoding a repository escape, missing image,
+reference, and HTML targets, missing/untracked/ignored inputs, tracked-but-
+ignored inputs, and legacy declarations all produce failures. Valid tracked
+targets pass; external links and fenced examples do not become local targets.
+
+The actual repository inspection fails as intended. It finds three broken
+vendored Markdown links, the legacy `.md` declarations, and tracked inputs
+ignored by local or root rules. Preserve old receipt history while migrating
+declarations. This static checker does not establish acceptance freshness;
+the complete mechanism inventory must run before the closing review.

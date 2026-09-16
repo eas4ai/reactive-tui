@@ -1,0 +1,35 @@
+# Mechanism: pre-release-documentation
+
+command: python3 -B scripts/check-pre-release-documentation.py RID-002
+inputs:
+  - .cairn/mechanisms
+  - .cairn/reviews
+  - .cairn/backlog
+  - docs
+  - manual
+  - include
+  - bindings
+  - src
+  - crates
+  - reactive-tui-macros
+  - verification
+  - scripts
+  - README.md
+  - AGENTS.md
+  - CHANGELOG.md
+  - .gitignore
+  - Cargo.toml
+  - Cargo.lock
+requirements:
+  - RID-002
+
+The checker MUST reject missing, untracked, or ignored mechanism inputs,
+unrecognized legacy declarations, and missing or untracked local link targets.
+Fixtures MUST cover images, reference links, HTML links, headings, encoded
+repository escapes, and tracked-but-ignored files. External URLs and fenced
+examples are not local repository targets.
+
+After this inspection passes, run every maintained mechanism against the
+committed relocated tree and commit its fresh receipts and output. Final
+review MUST verify the complete inventory and freshness; a static link-check
+pass is not proof that all acceptance checks ran.
