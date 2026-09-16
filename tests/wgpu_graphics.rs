@@ -144,3 +144,14 @@ fn graphics_dimensions_are_checked_before_allocation() {
     assert!(GraphicsFrame::from_rgba(2, 601, vec![[0; 4]; 1202]).is_err());
     assert!(GraphicsFrame::from_rgba(2, 2, vec![[0; 4]; 3]).is_err());
 }
+
+#[test]
+fn identical_half_blocks_are_batched_without_changing_output() {
+    let frame = GraphicsFrame::from_rgba(120, 88, vec![[32, 64, 96, 255]; 120 * 88]).unwrap();
+    let element = frame.to_half_block_element().unwrap();
+    assert_eq!(element.children.len(), 44);
+    assert!(element.children.iter().all(|row| row.children.len() == 1));
+    let mut backend = DebugBackend::new(120, 44);
+    backend.render_full(&element).unwrap();
+    assert_eq!(backend.screen_content().matches('▀').count(), 120 * 44);
+}

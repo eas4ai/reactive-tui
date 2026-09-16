@@ -1,12 +1,19 @@
 //! Offscreen graphics without a window or a separate terminal presentation path.
 
 mod animation;
-pub use animation::{FrameClock, FrameRequest, GraphicsWorker, WorkerOutput, WorkerStats};
+mod canvas;
+mod cpu;
+mod hybrid;
+pub use animation::{
+    FrameClock, FrameRequest, GraphicsCancellation, GraphicsWorker, WorkerOutput, WorkerStats,
+};
+pub use canvas::GraphicsCanvas;
+pub use hybrid::{GraphicsFault, GraphicsMode, GraphicsOptions, HybridCubeRenderer};
 
 use crate::{builder::div, component::Element, layout::style::StyleBuilder};
 use std::{
     future::Future,
-    sync::Arc,
+    sync::{Arc, Mutex},
     task::{Context, Poll, Wake, Waker},
     time::Duration,
 };
@@ -37,6 +44,9 @@ pub enum GraphicsError {
     /// GPU completion or readback failed.
     #[error("GPU readback failed: {0}")]
     Readback(String),
+    /// The owner cancelled work during shutdown.
+    #[error("graphics work cancelled")]
+    Cancelled,
 }
 
 fn pixel_count(width: u32, height: u32) -> Result<usize, GraphicsError> {
@@ -57,6 +67,7 @@ pub struct GraphicsFrame {
     width: u32,
     height: u32,
     pixels: Vec<[u8; 4]>,
+    mode: GraphicsMode,
 }
 
 impl GraphicsFrame {
@@ -71,6 +82,7 @@ impl GraphicsFrame {
             width,
             height,
             pixels,
+            mode: GraphicsMode::CpuFallback("externally supplied pixels".into()),
         })
     }
 
@@ -87,10 +99,15 @@ impl GraphicsFrame {
         &self.pixels
     }
 
+    /// Provenance of these pixels, never inferred from a requested mode.
+    pub fn mode(&self) -> &GraphicsMode {
+        &self.mode
+    }
+
     /// Present two vertical pixels per cell using the existing styled text path.
     /// Terminal cells are assumed to be twice as tall as they are wide.
     pub fn to_half_block_element(&self) -> Result<Element, GraphicsError> {
-        if self.height % 2 != 0 {
+        if !self.height.is_multiple_of(2) {
             return Err(GraphicsError::Dimensions(
                 "half-block height must be even".into(),
             ));
@@ -100,21 +117,30 @@ impl GraphicsFrame {
             .pixels
             .chunks_exact(width * 2)
             .map(|pair| {
-                let cells = (0..width)
-                    .map(|x| {
-                        let top = pair[x].map(|value| value as f32 / 255.0);
-                        let bottom = pair[width + x].map(|value| value as f32 / 255.0);
+                let mut cells = Vec::new();
+                let mut x = 0;
+                while x < width {
+                    let start = x;
+                    let upper_pixel = pair[x];
+                    let lower_pixel = pair[width + x];
+                    x += 1;
+                    while x < width && pair[x] == upper_pixel && pair[width + x] == lower_pixel {
+                        x += 1;
+                    }
+                    let top = upper_pixel.map(|value| value as f32 / 255.0);
+                    let bottom = lower_pixel.map(|value| value as f32 / 255.0);
+                    cells.push(
                         div()
-                            .class("w-1 h-1 shrink-0")
-                            .text("▀")
+                            .class(&format!("w-{} h-1 shrink-0", x - start))
+                            .text(&"▀".repeat(x - start))
                             .styles(
                                 StyleBuilder::new()
                                     .fg_rgba(top[0], top[1], top[2], top[3])
                                     .bg_rgba(bottom[0], bottom[1], bottom[2], bottom[3]),
                             )
-                            .build()
-                    })
-                    .collect();
+                            .build(),
+                    );
+                }
                 div().class("flex-row h-1 shrink-0").children(cells).build()
             })
             .collect();
@@ -144,14 +170,26 @@ impl Wake for ThreadWake {
 }
 
 // Native adapter/device initialization only; never execute this on the app loop.
-fn wait_future<T>(future: impl Future<Output = T>) -> T {
+fn wait_future<T>(
+    future: impl Future<Output = T>,
+    cancellation: &GraphicsCancellation,
+) -> Result<T, GraphicsError> {
     let waker = Waker::from(Arc::new(ThreadWake(std::thread::current())));
     let mut context = Context::from_waker(&waker);
     let mut future = std::pin::pin!(future);
+    let deadline = std::time::Instant::now() + Duration::from_secs(5);
     loop {
+        if cancellation.is_cancelled() {
+            return Err(GraphicsError::Cancelled);
+        }
+        if std::time::Instant::now() >= deadline {
+            return Err(GraphicsError::Initialization(
+                "initialization deadline exceeded".into(),
+            ));
+        }
         match future.as_mut().poll(&mut context) {
-            Poll::Ready(value) => return value,
-            Poll::Pending => std::thread::park(),
+            Poll::Ready(value) => return Ok(value),
+            Poll::Pending => std::thread::park_timeout(Duration::from_millis(10)),
         }
     }
 }
@@ -164,17 +202,25 @@ pub struct GpuCubeRenderer {
     uniform: wgpu::Buffer,
     bind_group: wgpu::BindGroup,
     info: GraphicsAdapterInfo,
+    failure: Arc<Mutex<Option<String>>>,
 }
 
 impl GpuCubeRenderer {
     /// Initialize a native GPU without creating a window or surface.
     pub fn new() -> Result<Self, GraphicsError> {
+        Self::new_cancellable(&GraphicsCancellation::default())
+    }
+
+    fn new_cancellable(cancellation: &GraphicsCancellation) -> Result<Self, GraphicsError> {
         let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor::default());
-        let adapter = wait_future(instance.request_adapter(&wgpu::RequestAdapterOptions {
-            power_preference: wgpu::PowerPreference::HighPerformance,
-            compatible_surface: None,
-            force_fallback_adapter: false,
-        }))
+        let adapter = wait_future(
+            instance.request_adapter(&wgpu::RequestAdapterOptions {
+                power_preference: wgpu::PowerPreference::HighPerformance,
+                compatible_surface: None,
+                force_fallback_adapter: false,
+            }),
+            cancellation,
+        )?
         .map_err(|error| GraphicsError::Initialization(error.to_string()))?;
         let adapter_info = adapter.get_info();
         let info = GraphicsAdapterInfo {
@@ -185,12 +231,24 @@ impl GpuCubeRenderer {
                 wgpu::DeviceType::DiscreteGpu | wgpu::DeviceType::IntegratedGpu
             ),
         };
-        let (device, queue) = wait_future(adapter.request_device(&wgpu::DeviceDescriptor {
-            label: Some("terminal cube device"),
-            required_limits: wgpu::Limits::downlevel_defaults(),
-            ..Default::default()
-        }))
+        let (device, queue) = wait_future(
+            adapter.request_device(&wgpu::DeviceDescriptor {
+                label: Some("terminal cube device"),
+                required_limits: wgpu::Limits::downlevel_defaults(),
+                ..Default::default()
+            }),
+            cancellation,
+        )?
         .map_err(|error| GraphicsError::Initialization(error.to_string()))?;
+        let failure = Arc::new(Mutex::new(None));
+        let lost_failure = Arc::clone(&failure);
+        device.set_device_lost_callback(move |reason, message| {
+            *lost_failure.lock().unwrap() = Some(format!("device-loss: {reason:?}: {message}"));
+        });
+        let error_failure = Arc::clone(&failure);
+        device.on_uncaptured_error(Arc::new(move |error| {
+            *error_failure.lock().unwrap() = Some(format!("GPU operation: {error}"));
+        }));
         let uniform = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("cube time and viewport"),
             size: 32,
@@ -259,6 +317,7 @@ impl GpuCubeRenderer {
             uniform,
             bind_group,
             info,
+            failure,
         })
     }
 
@@ -287,7 +346,30 @@ impl GpuCubeRenderer {
         height: u32,
         elapsed: Duration,
     ) -> Result<GraphicsFrame, GraphicsError> {
+        self.render_cancellable(
+            width,
+            height,
+            elapsed,
+            &GraphicsCancellation::default(),
+            false,
+        )
+    }
+
+    fn render_cancellable(
+        &self,
+        width: u32,
+        height: u32,
+        elapsed: Duration,
+        cancellation: &GraphicsCancellation,
+        inject_readback_failure: bool,
+    ) -> Result<GraphicsFrame, GraphicsError> {
         let count = pixel_count(width, height)?;
+        if cancellation.is_cancelled() {
+            return Err(GraphicsError::Cancelled);
+        }
+        if let Some(failure) = self.failure.lock().unwrap().clone() {
+            return Err(GraphicsError::Readback(failure));
+        }
         let [angle, angle_x] = cube_angles(elapsed);
         let values = [
             angle,
@@ -370,30 +452,61 @@ impl GpuCubeRenderer {
             },
         );
         self.queue.submit([encoder.finish()]);
+        if inject_readback_failure {
+            return Err(GraphicsError::Readback("injected readback failure".into()));
+        }
         let slice = buffer.slice(..);
         let (send, receive) = std::sync::mpsc::sync_channel(1);
         slice.map_async(wgpu::MapMode::Read, move |result| {
             let _ = send.send(result);
         });
-        self.device
-            .poll(wgpu::PollType::Wait {
+        let deadline = std::time::Instant::now() + Duration::from_secs(5);
+        loop {
+            if cancellation.is_cancelled() {
+                return Err(GraphicsError::Cancelled);
+            }
+            if let Some(failure) = self.failure.lock().unwrap().clone() {
+                return Err(GraphicsError::Readback(failure));
+            }
+            match self.device.poll(wgpu::PollType::Wait {
                 submission_index: None,
-                timeout: Some(Duration::from_secs(5)),
-            })
-            .map_err(|error| GraphicsError::Readback(error.to_string()))?;
-        receive
-            .recv_timeout(Duration::from_secs(5))
-            .map_err(|error| GraphicsError::Readback(error.to_string()))?
-            .map_err(|error| GraphicsError::Readback(error.to_string()))?;
+                timeout: Some(Duration::from_millis(10)),
+            }) {
+                Ok(_) | Err(wgpu::PollError::Timeout) => {}
+                Err(error) => return Err(GraphicsError::Readback(error.to_string())),
+            }
+            match receive.try_recv() {
+                Ok(result) => {
+                    result.map_err(|error| GraphicsError::Readback(error.to_string()))?;
+                    break;
+                }
+                Err(std::sync::mpsc::TryRecvError::Disconnected) => {
+                    return Err(GraphicsError::Readback(
+                        "readback callback disconnected".into(),
+                    ))
+                }
+                Err(std::sync::mpsc::TryRecvError::Empty) => {
+                    std::thread::park_timeout(Duration::from_millis(1))
+                }
+            }
+            if std::time::Instant::now() >= deadline {
+                return Err(GraphicsError::Readback("readback deadline exceeded".into()));
+            }
+        }
         let mapped = slice.get_mapped_range();
         let mut pixels = Vec::with_capacity(count);
         for row in mapped.chunks_exact(padded_row_bytes as usize) {
+            if cancellation.is_cancelled() {
+                return Err(GraphicsError::Cancelled);
+            }
             for pixel in row[..row_bytes as usize].chunks_exact(4) {
                 pixels.push([pixel[0], pixel[1], pixel[2], pixel[3]]);
             }
         }
         drop(mapped);
         buffer.unmap();
-        GraphicsFrame::from_rgba(width, height, pixels)
+        let mut frame = GraphicsFrame::from_rgba(width, height, pixels)?;
+        frame.mode = GraphicsMode::Gpu(self.info.clone());
+        Ok(frame)
     }
 }

@@ -1,6 +1,9 @@
 use super::{pixel_count, GraphicsError, GraphicsFrame};
 use std::{
-    sync::{Arc, Condvar, Mutex},
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc, Condvar, Mutex,
+    },
     thread::{self, JoinHandle},
     time::Duration,
 };
@@ -112,11 +115,26 @@ struct Shared {
     ready: Condvar,
 }
 
+/// Shared cancellation observed by initialization, readback, and CPU work.
+#[derive(Clone, Default)]
+pub struct GraphicsCancellation(Arc<AtomicBool>);
+impl GraphicsCancellation {
+    /// Whether the owning canvas has begun shutdown.
+    pub fn is_cancelled(&self) -> bool {
+        self.0.load(Ordering::Acquire)
+    }
+    /// Stop future work; the owner still joins its worker.
+    pub fn cancel(&self) {
+        self.0.store(true, Ordering::Release);
+    }
+}
+
 /// One owned render thread, one active render, and one replaceable pending slot.
 /// Both requests and completed results are bounded independently.
 pub struct GraphicsWorker {
     shared: Arc<Shared>,
     thread: Option<JoinHandle<()>>,
+    cancellation: GraphicsCancellation,
 }
 
 impl GraphicsWorker {
@@ -125,11 +143,23 @@ impl GraphicsWorker {
         mut render: impl FnMut(FrameRequest) -> Result<GraphicsFrame, GraphicsError> + Send + 'static,
         notify: impl Fn() + Send + 'static,
     ) -> Self {
+        Self::spawn_cancellable(move |request, _| render(request), notify)
+    }
+
+    /// Start a worker whose active render can observe shutdown cancellation.
+    pub fn spawn_cancellable(
+        mut render: impl FnMut(FrameRequest, &GraphicsCancellation) -> Result<GraphicsFrame, GraphicsError>
+            + Send
+            + 'static,
+        notify: impl Fn() + Send + 'static,
+    ) -> Self {
         let shared = Arc::new(Shared {
             mailbox: Mutex::new(Mailbox::default()),
             ready: Condvar::new(),
         });
         let owner = Arc::clone(&shared);
+        let cancellation = GraphicsCancellation::default();
+        let worker_cancellation = cancellation.clone();
         let thread = thread::spawn(move || loop {
             let request = {
                 let mut mailbox = owner.mailbox.lock().unwrap();
@@ -147,7 +177,7 @@ impl GraphicsWorker {
                 mailbox.stats.active = 1;
                 request
             };
-            let frame = render(request);
+            let frame = render(request, &worker_cancellation);
             let publish = {
                 let mut mailbox = owner.mailbox.lock().unwrap();
                 mailbox.stats.active = 0;
@@ -166,6 +196,7 @@ impl GraphicsWorker {
         Self {
             shared,
             thread: Some(thread),
+            cancellation,
         }
     }
 
@@ -196,6 +227,18 @@ impl GraphicsWorker {
     /// Cancel pending work, discard results, and join the current render.
     /// Render implementations must honor their own bounded wait/cancellation.
     pub fn shutdown(&mut self) -> Result<(), GraphicsError> {
+        self.cancel();
+        if let Some(thread) = self.thread.take() {
+            thread
+                .join()
+                .map_err(|_| GraphicsError::Readback("graphics worker panicked".into()))?;
+        }
+        Ok(())
+    }
+
+    /// Cancel active/pending work immediately, without detaching the thread.
+    pub fn cancel(&self) {
+        self.cancellation.cancel();
         {
             let mut mailbox = self.shared.mailbox.lock().unwrap();
             mailbox.stopped = true;
@@ -204,12 +247,6 @@ impl GraphicsWorker {
             mailbox.stats.pending = 0;
             self.shared.ready.notify_one();
         }
-        if let Some(thread) = self.thread.take() {
-            thread
-                .join()
-                .map_err(|_| GraphicsError::Readback("graphics worker panicked".into()))?;
-        }
-        Ok(())
     }
 }
 

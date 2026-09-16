@@ -123,25 +123,36 @@ that visual obligation remains open for the integrated demo.
 
 ### Task 7: Fallback and normal App ownership (GPU-004)
 
-- [ ] Declare the lifecycle mechanism, commit it, and run the missing-check baseline.
-- [ ] Write failing tests for hybrid renderer selection, truthful frame provenance,
+- [x] Declare the lifecycle mechanism, commit it, and run the missing-check baseline.
+- [x] Write failing tests for hybrid renderer selection, truthful frame provenance,
   and cancellation of active/pending work before adding those APIs.
-- [ ] Add a CPU shaded-cube fallback that shares elapsed-time angles and checked
+- [x] Add a CPU shaded-cube fallback that shares elapsed-time angles and checked
   dimensions, and document any quality difference after measurement.
-- [ ] Convert adapter initialization, device-loss, and readback errors into a
+- [x] Convert adapter initialization, device-loss, and readback errors into a
   persistent CPU selection with a visible reason; never relabel CPU as GPU.
-- [ ] Add cancellation tokens to the owned worker. Poll readback with bounded
+- [x] Add cancellation tokens to the owned worker. Poll readback with bounded
   waits; shutdown clears pending work, suppresses publication, and joins.
-- [ ] Add a canvas owner attached to App's wake handle. The existing periodic
+- [x] Add a canvas owner attached to App's wake handle. The existing periodic
   update path uses the deadline clock; rendering remains off the App loop.
-- [ ] Integrate only the feature-enabled Motion page. Bypass the catalog's
+- [x] Integrate only the feature-enabled Motion page. Bypass the catalog's
   fixed-width ScrollView there and size the canvas to its available stage.
   Other paused catalog layout work remains untouched.
-- [ ] Add explicit example CPU/fault options for reproducible checks. Run
+- [x] Add explicit example CPU/fault options for reproducible checks. Run
   existing consumers in default/enabled configurations.
 - [ ] Run isolated real PTY checks for each quit key, animation without input,
   resize, GPU mode, forced CPU, and each injected failure. Inspect actual
   restoration and process cleanup, then commit and record Cairn evidence.
+
+Local verification passed four lifecycle tests, fifteen feature-enabled catalog
+tests, and seven isolated PTY runs. Hardware and CPU modes animated without
+input, resized to 200x60, and restored terminal state on the advertised quit
+keys. Adapter, device-loss, and readback injections selected labeled CPU output.
+PTY captures are not named desktop-host visual acceptance. Adjacent identical
+half-blocks are batched into styled text runs; a failing structural fixture and
+exact native color comparison verified that optimization. Focused Clippy passed
+with the existing wizard lint explicitly allowed. Unrestricted strict Clippy
+still fails on existing wizard/vendor findings, captured in the backlog.
+Cairn receipts for this implementation remain to be recorded.
 
 ## Source basis and review
 
@@ -161,7 +172,7 @@ that visual obligation remains open for the integrated demo.
   Compare equal elapsed-time requests across different delivery schedules.
 - [x] Render real GPU frames at two elapsed times and require changed pixels
   without any keyboard event.
-- [ ] Run targeted tests and validator attacks, commit before Cairn checks,
+- [x] Run targeted tests and validator attacks, commit before Cairn checks,
   then inspect and commit fresh receipts before catalog lifecycle integration.
 
 Shutdown owns and joins the worker rather than detaching it. Driver failure,
@@ -175,7 +186,8 @@ second differed at 459 pixels. Two extra RED/GREEN attacks caught a 496-pixel
 jump at the original one-turn wrap and repeated requests at Duration::MAX.
 Independent axis wrapping and a checked deadline fix those cases. Four checker
 fixtures also passed their violating and corrected cases. These are local runs;
-fresh Cairn receipts are still required after the implementation commit.
+GPU-003's committed check passed before lifecycle integration; its broad inputs
+require another receipt after the GPU-004 implementation commit.
 
 [wgpu 27.0.1's published manifest](https://docs.rs/crate/wgpu/27.0.1/source/Cargo.toml)
 declares Rust 1.88 and the selected native backend/WGSL features. Actual locked

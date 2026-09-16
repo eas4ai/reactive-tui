@@ -261,3 +261,34 @@ fn released_quit_keys_and_plain_letters_do_not_exit() {
         assert!(matches!(catalog.update().unwrap(), RootUpdate::Unchanged));
     }
 }
+#[cfg(feature = "wgpu-graphics")]
+#[test]
+fn feature_enabled_motion_fills_the_available_stage() {
+    use reactive_tui::backend::Backend;
+    use reactive_tui::graphics::GraphicsOptions;
+    let mut catalog = Catalog::with_graphics(
+        GraphicsOptions {
+            force_cpu: true,
+            ..Default::default()
+        },
+        true,
+    );
+    catalog.resize(144, 50).unwrap();
+    catalog.attach_waker(reactive_tui::app::AppWaker::new());
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(2);
+    let mut backend = reactive_tui::backend::DebugBackend::new(144, 50);
+    loop {
+        catalog.update().unwrap();
+        backend.render_full(&catalog.render()).unwrap();
+        let output = backend.screen_content();
+        if output.contains("CPU fallback") {
+            assert_eq!(output.matches('▀').count(), 120 * 44);
+            break;
+        }
+        assert!(
+            std::time::Instant::now() < deadline,
+            "CPU stage never painted: {output}"
+        );
+        std::thread::sleep(std::time::Duration::from_millis(10));
+    }
+}
