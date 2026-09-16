@@ -67,28 +67,43 @@ class Host:
             raise RuntimeError(result.stderr.strip())
         return result.stdout
 
-    def wait_frame(self, columns, rows, mode):
-        deadline = time.monotonic() + 15
-        screen = ""
-        last_error = None
+    def frame_ready(self, columns, rows, mode):
+        windows = json.loads(self.remote("ls"))[0]["tabs"][0]["windows"]
+        screen = self.remote("get-text", "--extent", "screen")
         compact = columns < 80
         count = (columns if compact else columns - 24) * (rows - (9 if compact else 6))
+        lines = screen.splitlines()
+        return bool(lines and (windows[0]["columns"], windows[0]["lines"]) == (columns, rows)
+                    and mode in screen and screen.count("▀") == count
+                    and "Reactive TUI · Widget Catalog" in lines[0]
+                    and "Ctrl+Q" in lines[-1]
+                    and "Starting graphics" not in screen and "Preparing viewport" not in screen)
+
+    def wait_frame(self, columns, rows, mode):
+        deadline = time.monotonic() + 15
+        last_error = None
+        accepted = 0
         while time.monotonic() < deadline:
             if self.process.poll() is not None:
                 raise RuntimeError(f"Kitty closed before frame: {self.process.stderr.read().decode()}")
             try:
-                windows = json.loads(self.remote("ls"))[0]["tabs"][0]["windows"]
-                screen = self.remote("get-text", "--extent", "screen")
-                if ((windows[0]["columns"], windows[0]["lines"]) == (columns, rows)
-                        and mode in screen and screen.count("▀") == count
-                        and "Reactive TUI · Widget Catalog" in screen.splitlines()[0]
-                        and "Ctrl+Q" in screen.splitlines()[-1]
-                        and "Starting graphics" not in screen and "Preparing viewport" not in screen):
+                # Kitty geometry changes before the application redraws. One
+                # sample may still contain an accepted pre-resize screen.
+                accepted = accepted + 1 if self.frame_ready(columns, rows, mode) else 0
+                if accepted >= 3:
                     return
             except (RuntimeError, IndexError, KeyError, json.JSONDecodeError, subprocess.TimeoutExpired) as error:
                 last_error = error  # Startup socket/host state may not be ready yet.
+                accepted = 0
             time.sleep(0.2)
-        raise RuntimeError(f"missing full {mode} host frame at {columns}x{rows}: {screen}") from last_error
+        raise RuntimeError(f"missing stable full {mode} host frame at {columns}x{rows}") from last_error
+
+    def capture(self, columns, rows, path):
+        self.wait_frame(columns, rows, "GPU ·")
+        subprocess.run(["/usr/bin/import", "-display", self.env["DISPLAY"], "-window", "Reactive GPU acceptance", str(path)],
+                       check=True, timeout=10, env=self.env)
+        if not self.frame_ready(columns, rows, "GPU ·"):
+            raise RuntimeError("host frame became incomplete during capture; artifact is not accepted")
 
     def finish(self, quit_key=False):
         if quit_key:
@@ -126,12 +141,9 @@ def run(destination, captures_only=False):
             for index, (columns, rows) in enumerate([*SIZES, SIZES[0]]):
                 if index:
                     host.remote("resize-os-window", "--width", str(columns), "--height", str(rows), "--unit", "cells")
-                host.wait_frame(columns, rows, "GPU ·")
-                time.sleep(0.2)  # Let the owned host paint its accepted synchronized frame.
                 suffix = "-return" if index == len(SIZES) else ""
                 path = destination / f"kitty-gpu-{columns}x{rows}{suffix}.png"
-                subprocess.run(["/usr/bin/import", "-display", host.env["DISPLAY"], "-window", "Reactive GPU acceptance", str(path)],
-                               check=True, timeout=10, env=host.env)
+                host.capture(columns, rows, path)
                 metadata["artifacts"].append(artifact(path))
                 print(f"HOST CAPTURE {columns}x{rows} {json.dumps(artifact(path))}", flush=True)
             host.finish(quit_key=True)

@@ -100,6 +100,7 @@ def main():
     for text in ["--features wgpu-graphics", "--cpu", "--graphics-fault", "wgpu_benchmark", "800x600", "Xvfb", "scanout", "unverified"]:
         assert text in manual, f"documentation missing {text}"
     for command in [
+        ["python3", "-B", "scripts/test-wgpu-host.py"],
         ["cargo", "+1.91.0", "test", "--locked", "-p", "reactive-tui", "--features", "wgpu-graphics", "--test", "wgpu_measurement"],
         ["cargo", "+1.91.0", "build", "--locked", "-p", "reactive-tui", "--features", "wgpu-graphics", "--example", "wgpu_benchmark", "--example", "widget_catalog"],
     ]:
