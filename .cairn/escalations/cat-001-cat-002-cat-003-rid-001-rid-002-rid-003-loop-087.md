@@ -11,3 +11,7 @@ Reply: ok | instead | ask. If this isn't clear, ask me to explain it another way
 Concerns: CAT-001 CAT-002 CAT-003 RID-001 RID-002 RID-003 LOOP-087
 Raised: 2026-09-16T21:13:43.204Z
 Raised after: CAT-001=13 CAT-002=13 CAT-003=12 RID-001=0 RID-002=0 RID-003=0 LOOP-087=0
+Answer: ok
+Answered: 2026-09-16T21:42:43.348Z
+Answered after: CAT-001=13 CAT-002=13 CAT-003=12 RID-001=0 RID-002=0 RID-003=0 LOOP-087=0
+Answered order: 29

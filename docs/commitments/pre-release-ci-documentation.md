@@ -3,6 +3,15 @@
 Status: Agreed 2026-09-14
 Requirements: RID-001, RID-002, RID-003
 
+## Activation
+
+Shawn approved this existing roadmap commitment on 2026-09-16 by answering
+`ok` to escalation `cat-001-cat-002-cat-003-rid-001-rid-002-rid-003-loop-087`.
+The catalog requirements pass and its closing review is clean. Preserve its
+pause history and the graphics evidence. This approval does not promote
+unrelated backlog work or authorize publication.
+See [the decision](../decisions/start-the-approved-pre-release-ci-and-documentation-commitment.md).
+
 ## Deliverable
 
 Run the maintained suites on every supported operating system for main-branch

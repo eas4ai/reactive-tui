@@ -1,7 +1,7 @@
 # Recovery roadmap
 
 Status: Agreed 2026-09-07
-Current: widget-catalog
+Current: pre-release-ci-documentation
 
 1. `suprtui-renderer` — the first screen: styled frames, updates, Unicode,
    resize, output errors, input, and terminal restoration (RND-001 through RND-006).
@@ -108,3 +108,9 @@ and a clean review. Shawn answered `ok` to resuming the paused catalog
 commitment, without promoting unrelated backlog work. `widget-catalog` is
 current again; its visual findings remain open until repaired and verified.
 See [the resumption decision](../decisions/resume-approved-catalog-repairs-after-wgpu.md).
+
+On 2026-09-16 the catalog visual findings were repaired and verified. Its
+three requirements have current passing evidence and a clean closing review.
+Shawn approved the existing `pre-release-ci-documentation` commitment next.
+No unrelated backlog work is promoted, and release publication remains
+unauthorized. See [the activation decision](../decisions/start-the-approved-pre-release-ci-and-documentation-commitment.md).
