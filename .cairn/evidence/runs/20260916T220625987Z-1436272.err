@@ -1,0 +1,18 @@
+.........
+----------------------------------------------------------------------
+Ran 9 tests in 0.106s
+
+OK
+RID-003 housekeeping failed:
+.gitignore:6: stale ignore rule: examples-blech/
+.gitignore:42: stale ignore rule: !docs/recon-evidence/clippy.log
+src/backend/crossterm/docs/.gitignore:1: stale ignore rule: book
+unreviewed decision: .cairn/queue/allow-cold-windows-clipboard-startup-within-a-fifteen-second-bound
+unreviewed decision: .cairn/queue/permit-strict-lint-repairs-and-native-ci-enforcement
+unreviewed decision: .cairn/queue/publish-pinned-ghostty-bindings-as-versioned-companion-crates
+unreviewed decision: .cairn/queue/release-0-1-0-through-versioned-companion-crates
+unreviewed decision: .cairn/queue/remediate-fable-audit-before-final-packaging
+unreviewed decision: .cairn/queue/require-named-caller-invoked-props-validation-and-explicit-optional-field-types
+unreviewed decision: .cairn/queue/retain-only-cairn-managed-documentation
+unreviewed decision: .cairn/queue/use-the-pinned-microsoft-conpty-runtime-for-windows-terminal-sessions
+unreviewed decision: .cairn/queue/verify-terminal-screen-reader-support-with-orca-in-gnome-terminal
