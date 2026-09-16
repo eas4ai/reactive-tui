@@ -1,11 +1,11 @@
-commit: 9e3b52c7c12b029c64ed781770372ce8a7d94a23
+commit: 175fc950d548639532bef316a28df6f7eaea47fa
 examined:
   - CAT-001 through CAT-003 and the widget-catalog commitment.
   - Catalog source, live widget inventory, navigation, cube clock, and quit lifecycle.
   - Behavior and validator tests, PTY output, and all three Cairn receipts.
   - README, manual, local logo, and mechanism dependency declarations.
 findings:
-  - open: CAT-001 The developer's 144x50 Kitty captures show unused terminal width, stretched navigation entries, clipped overview text, and excessive card spacing. The current checks do not establish full-width capture quality. The requested colored column-span demonstration is also not implemented.
+  - resolved: CAT-001 fcb971c9bbd1b7a66cb8c8faf8898cff7ef33e2a configures full-width scrolling, compact navigation and card spacing, wrapped coverage, and colored column spans. Native background-run geometry and owned Kitty captures verify both example columns at 144x50 and 200x60 and compact layout at 60x24.
   - open: CAT-002 Animation advances and exits cleanly, but the developer's capture shows coarse wireframe strokes. The fixed-size dotted cube needs a separate visual-quality repair; changing frame hashes does not prove readable edges.
   - resolved: CAT-001 cfea6a441757f68abd0058dc6577cae535ef3afe mounts live InputDialog and AutocompleteDialog. F1/F2 selects one of twelve overlay demos. Real App input paints both dialog prompts and both menu item lists.
   - resolved: CAT-001 cfea6a441757f68abd0058dc6577cae535ef3afe fixes navigation sizing and scrolls long pages. Measured frames retain all eight shortcuts after resizing to 100, 60, 79, 80, and 40 columns.
@@ -122,3 +122,32 @@ backgrounds, one-row navigation entries, compact page spacing, and actual
 colored grid-span geometry. The default cube still rasterizes dotted edges
 into a fixed 40x16 canvas; its quality finding remains open independently of
 the opt-in shaded wgpu page. No executable code changed during this review.
+
+## CAT-001 visual repair review
+
+Examined candidate 175fc950, its source, documentation, geometry tests, and fresh
+receipts CAT-001 20260916T205954389Z-880277, CAT-002
+20260916T210034678Z-889720, and CAT-003 20260916T210051530Z-892417.
+Nineteen default tests pass. The separately executed feature-enabled suite
+passes twenty-one tests; its graphics stage remains unchanged.
+
+Attacked percentage widths inside grid tracks, class replacement, wrapped
+coverage, fixed-size scroll defaults, stretched sidebar rows, and label-only
+span checks. The regression tests failed on the old configurations and the
+intermediate mistakes before passing on the correction. Background runs prove
+the one-, two-, three-, and four-column cells have actual colored geometry.
+Both wide example columns are visible, not merely present in an element tree.
+
+Inspected the six corrected PNGs in local capture 20260916T205859937742Z-870701;
+all six formal capture SHA-256 values in 20260916T205959702219Z-881809 match
+those inspected images exactly. They show full available width, wrapped
+TerminalWidget coverage, consecutive sidebar entries, compact gaps, correct
+spans, both example columns, and intact header/footer. Longer compact pages
+scroll rather than shrinking their controls. Host acceptance is limited to
+owned Xvfb X11 Kitty 0.45, DejaVu Sans Mono 12 pt, software host glyph rendering;
+this is not a claim about every font or terminal.
+
+No framework API, dependency, or asset changed. Focused Clippy passes with the
+same single inherited wizard lint allowed; unrestricted strict lint remains a
+known limit. No executable code changed during this review. CAT-001 is closed;
+the original coarse default wireframe remains the separate open CAT-002 finding.
