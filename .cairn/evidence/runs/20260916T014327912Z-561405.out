@@ -1,0 +1,34 @@
+FAIL CAT: README omits the widget_catalog command
+FAIL CAT: manual omits the catalog capture purpose
+FAIL CAT: locked widget_catalog compile did not pass
+FAIL CAT: PTY check did not observe two distinct cube frames
+FAIL CAT: PTY check did not prove CTRL_Q exit
+FAIL CAT: PTY check did not prove CTRL_C exit
+FAIL CAT: PTY check did not prove ESCAPE exit
+.......
+----------------------------------------------------------------------
+Ran 7 tests in 0.000s
+
+OK
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.21s
+     Running tests/widget_catalog_behavior.rs (/home/shawn/workspace2/scratchpads/suprnova-target/debug/deps/widget_catalog_behavior-64fe297e0385f367)
+
+running 5 tests
+test navigation_changes_at_the_eighty_column_breakpoint ... ok
+test catalog_exposes_the_complete_page_order ... ok
+test number_keys_jump_to_the_displayed_page ... ok
+test page_navigation_wraps_in_both_directions ... ok
+test every_page_renders_a_focused_stage ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+error: no example target named `widget_catalog` in default-run packages
+help: available example targets:
+    accessibility_probe
+    app_wakeup_probe
+    conpty_probe
+    embedded_terminal_probe
+    gradient_blocks
+    image_host_probe
+    suprtui_renderer_probe
+/home/linuxbrew/.linuxbrew/opt/python@3.14/bin/python3.14: can't open file '/home/shawn/workspace2/reactive-tui/scripts/check-widget-catalog-pty.py': [Errno 2] No such file or directory
