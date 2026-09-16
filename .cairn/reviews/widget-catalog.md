@@ -1,6 +1,9 @@
-# Review: widget-catalog
-
 commit: f119ef8d16e1a870eda2564308a8dd2e0d5c86c4
+examined:
+  - CAT-001 through CAT-003 and the widget-catalog commitment.
+  - Catalog source, live widget inventory, navigation, cube clock, and quit lifecycle.
+  - Behavior and validator tests, PTY output, and all three Cairn receipts.
+  - README, manual, local logo, and mechanism dependency declarations.
 findings:
   - CAT-001: InputDialog and AutocompleteDialog are labels, not live instances. Replace them with local interactive dialogs and make each overlay separately reachable for capture.
   - CAT-001: The compact strip gives every entry full width and has no measured-frame assertion. Verify all numbered shortcuts remain visible after resize; fix overflow if observed.
