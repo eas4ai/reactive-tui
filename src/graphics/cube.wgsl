@@ -1,4 +1,4 @@
-struct Uniforms { angle: f32, aspect: f32, width: f32, height: f32 }
+struct Uniforms { angle: f32, aspect: f32, width: f32, height: f32, angle_x: vec4f }
 @group(0) @binding(0) var<uniform> scene: Uniforms;
 
 @vertex fn vertex_main(@builtin(vertex_index) index: u32) -> @builtin(position) vec4f {
@@ -8,7 +8,7 @@ struct Uniforms { angle: f32, aspect: f32, width: f32, height: f32 }
 
 fn rotate(p: vec3f) -> vec3f {
     let cy = cos(scene.angle + 0.55); let sy = sin(scene.angle + 0.55);
-    let cx = cos(scene.angle * 0.63 + 0.35); let sx = sin(scene.angle * 0.63 + 0.35);
+    let cx = cos(scene.angle_x.x + 0.35); let sx = sin(scene.angle_x.x + 0.35);
     let y = vec3f(cy * p.x - sy * p.z, p.y, sy * p.x + cy * p.z);
     return vec3f(y.x, cx * y.y - sx * y.z, sx * y.y + cx * y.z);
 }

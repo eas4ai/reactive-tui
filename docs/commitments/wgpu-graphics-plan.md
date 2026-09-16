@@ -105,7 +105,7 @@ wgpu-graphics = ["dep:wgpu"]
   changing either paint backend.
 - [x] Run the test red before implementation and green afterward. Build the
   default library to prove the public graphics module remains feature-gated.
-- [ ] Commit, run `cairn check GPU-002`, inspect and commit its evidence, then
+- [x] Commit, run `cairn check GPU-002`, inspect and commit its evidence, then
   run wake before starting bounded scheduling.
 
 Local GPU-002 verification selected AMD Radeon AI PRO R9700 (RADV GFX1201)
@@ -123,19 +123,19 @@ that visual obligation remains open for the integrated demo.
 
 ### Task 6: Bound elapsed-time animation (GPU-003)
 
-- [ ] Declare and commit the animation mechanism; run wake for its next action.
-- [ ] Write feature-gated clock and worker tests first, then require their clean
+- [x] Declare and commit the animation mechanism; run wake for its next action.
+- [x] Write feature-gated clock and worker tests first, then require their clean
   missing-symbol failure before implementing them.
-- [ ] Add a 50 ms deadline clock that produces checked viewport requests using
+- [x] Add a 50 ms deadline clock that produces checked viewport requests using
   elapsed time, skips missed deadlines, and never counts delivered frames.
-- [ ] Add one owned worker thread. A mutex/condition variable holds one pending
+- [x] Add one owned worker thread. A mutex/condition variable holds one pending
   request and one replaceable output; replacing work cannot grow a queue.
   The thread sleeps while no work exists and has one active render at a time.
-- [ ] Use a blocked first-render fixture to prove 1000 requests replace the
+- [x] Use a blocked first-render fixture to prove 1000 requests replace the
   pending slot, then release it and require the newest elapsed request.
-- [ ] Test zero, oversized, and overflowing dimensions before submitting work.
+- [x] Test zero, oversized, and overflowing dimensions before submitting work.
   Compare equal elapsed-time requests across different delivery schedules.
-- [ ] Render real GPU frames at two elapsed times and require changed pixels
+- [x] Render real GPU frames at two elapsed times and require changed pixels
   without any keyboard event.
 - [ ] Run targeted tests and validator attacks, commit before Cairn checks,
   then inspect and commit fresh receipts before catalog lifecycle integration.
@@ -143,6 +143,15 @@ that visual obligation remains open for the integrated demo.
 Shutdown owns and joins the worker rather than detaching it. Driver failure,
 CPU fallback, cancellable readback, mode labeling, and App integration remain
 GPU-004 work. The existing paint bridge remains unchanged.
+
+The clean missing-symbol RED failed only on FrameClock, FrameRequest, and
+GraphicsWorker. Four runtime tests then passed, including a blocked first
+render and 999 pending-slot replacements. Hardware frames at zero and one
+second differed at 459 pixels. Two extra RED/GREEN attacks caught a 496-pixel
+jump at the original one-turn wrap and repeated requests at Duration::MAX.
+Independent axis wrapping and a checked deadline fix those cases. Four checker
+fixtures also passed their violating and corrected cases. These are local runs;
+fresh Cairn receipts are still required after the implementation commit.
 
 [wgpu 27.0.1's published manifest](https://docs.rs/crate/wgpu/27.0.1/source/Cargo.toml)
 declares Rust 1.88 and the selected native backend/WGSL features. Actual locked

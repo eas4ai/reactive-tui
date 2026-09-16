@@ -1,5 +1,8 @@
 //! Offscreen graphics without a window or a separate terminal presentation path.
 
+mod animation;
+pub use animation::{FrameClock, FrameRequest, GraphicsWorker, WorkerOutput, WorkerStats};
+
 use crate::{builder::div, component::Element, layout::style::StyleBuilder};
 use std::{
     future::Future,
@@ -12,6 +15,15 @@ use std::{
 pub const MAX_WIDTH: u32 = 800;
 /// Maximum checked pixel height (two pixels per terminal row).
 pub const MAX_HEIGHT: u32 = 600;
+
+/// Smooth, independently wrapped Y/X rotation angles computed from elapsed time.
+pub fn cube_angles(elapsed: Duration) -> [f32; 2] {
+    let seconds = elapsed.as_secs_f64();
+    [
+        (seconds * 0.7 % std::f64::consts::TAU) as f32,
+        (seconds * (0.7 * 0.63) % std::f64::consts::TAU) as f32,
+    ]
+}
 
 /// A graphics failure that callers may replace with a CPU frame.
 #[derive(Debug, thiserror::Error)]
@@ -181,7 +193,7 @@ impl GpuCubeRenderer {
         .map_err(|error| GraphicsError::Initialization(error.to_string()))?;
         let uniform = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("cube time and viewport"),
-            size: 16,
+            size: 32,
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });
@@ -276,12 +288,16 @@ impl GpuCubeRenderer {
         elapsed: Duration,
     ) -> Result<GraphicsFrame, GraphicsError> {
         let count = pixel_count(width, height)?;
-        let angle = (elapsed.as_secs_f64() % (std::f64::consts::TAU / 0.7)) as f32 * 0.7;
+        let [angle, angle_x] = cube_angles(elapsed);
         let values = [
             angle,
             width as f32 / height as f32,
             width as f32,
             height as f32,
+            angle_x,
+            0.0,
+            0.0,
+            0.0,
         ];
         let bytes: Vec<u8> = values.into_iter().flat_map(f32::to_ne_bytes).collect();
         self.queue.write_buffer(&self.uniform, 0, &bytes);

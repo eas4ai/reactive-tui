@@ -137,6 +137,11 @@ path = "tests/wgpu_graphics.rs"
 required-features = ["wgpu-graphics"]
 
 [[test]]
+name = "wgpu_animation"
+path = "tests/wgpu_animation.rs"
+required-features = ["wgpu-graphics"]
+
+[[test]]
 name = "api_signal_ownership"
 path = "tests/api_signal_ownership.rs"
 required-features = ["ffi"]
