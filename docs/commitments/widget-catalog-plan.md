@@ -57,8 +57,8 @@ div().class("grid grid-cols-4 gap-0.25 w-full")
 
 Files: `examples/widget_catalog/motion.rs`, `examples/widget_catalog/catalog.rs`, `tests/widget_catalog_behavior.rs`, `scripts/check-widget-catalog-pty.py`.
 
-- [ ] Add a failing viewport-aware wireframe test: terminal rows/columns must match the canvas, rotation must change Braille pixels, and oversized/empty viewports must stay bounded.
-- [ ] Add `cube_frame_sized(elapsed: Duration, width: usize, height: usize) -> String`; retain `cube_frame` as the 40x16 compatibility wrapper. Clamp to finite 240x100 cells before allocating. Project into 2x4 subcells per Braille character, maintaining the physical cell aspect. Rasterize twelve edges with the existing Bresenham algorithm and pack masks into U+2800 plus the Braille mask. Use actual available Motion dimensions, leaving title and footer rows intact. Keep elapsed-time rotation and the 80 ms clock.
+- [x] Add a failing viewport-aware wireframe test: terminal rows/columns must match the canvas, rotation must change Braille pixels, and oversized/empty viewports must stay bounded.
+- [x] Add `cube_frame_sized(elapsed: Duration, width: usize, height: usize) -> String`; retain `cube_frame` as the 40x16 compatibility wrapper. Clamp to finite 240x100 cells before allocating. Project into 2x4 subcells per Braille character, maintaining the physical cell aspect. Rasterize twelve edges with the existing Bresenham algorithm and pack masks into U+2800 plus the Braille mask. Use actual available Motion dimensions, leaving title and footer rows intact. Keep elapsed-time rotation and the 80 ms clock.
 
 ```rust
 const DOTS: [[u8; 2]; 4] = [[1, 8], [2, 16], [4, 32], [64, 128]];
@@ -66,12 +66,12 @@ let cell = &mut cells[y as usize / 4][x as usize / 2];
 *cell |= DOTS[y as usize % 4][x as usize % 2];
 ```
 
-- [ ] Change the PTY cube-only hash to include Braille U+2801..U+28FF, not changing labels. Require distinct frames and clean exit for all three quit keys. Run deterministic/default/feature-enabled tests, formatting and focused lint; commit before Cairn checks.
+- [x] Change the PTY cube-only hash to include Braille U+2801..U+28FF, not changing labels. Require distinct frames and clean exit for all three quit keys. Run deterministic/default/feature-enabled tests, formatting and focused lint; commit before Cairn checks.
 
 ## Task 3: Visual acceptance and closing review
 
-- [ ] Reuse the owned Kitty/Xvfb Host harness to capture Overview, Layout, and Motion at the required sizes, including grow/shrink. Use fresh directories; never attach to the developer desktop. Inspect actual PNGs for full width, complete coverage, tight spacing, correct spans, legible edges, and intact controls. Report software host glyph rendering separately from hardware cube rendering.
-- [ ] Update runnable documentation without claiming every host or 60 FPS. Run `cairn check` only when wake names the requirement; read and commit each receipt and its output. Record final no-code review with exact candidate/evidence/artifacts, resolve only verified findings, and run wake again. New scope remains the developer's choice.
+- [x] Reuse the owned Kitty/Xvfb Host harness to capture Overview, Layout, and Motion at the required sizes, including grow/shrink. Use fresh directories; never attach to the developer desktop. Inspect actual PNGs for full width, complete coverage, tight spacing, correct spans, legible edges, and intact controls. Report software host glyph rendering separately from hardware cube rendering.
+- [x] Update runnable documentation without claiming every host or 60 FPS. Run `cairn check` only when wake names the requirement; read and commit each receipt and its output. Record final no-code review with exact candidate/evidence/artifacts, resolve only verified findings, and run wake again. New scope remains the developer's choice.
 
 Plan review: Both open findings have explicit tests and visual acceptance. CAT-003 remains unchanged and is rerun after shared-input changes. The optional GPU path, local logo, live widget inventory, public APIs, and release boundaries are preserved. No new dependency or framework subsystem is needed.
 

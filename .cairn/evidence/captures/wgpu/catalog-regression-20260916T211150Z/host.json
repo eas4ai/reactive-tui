@@ -1,0 +1,24 @@
+{
+  "kitty": "kitty 0.45.0 created by Kovid Goyal",
+  "display": "private Xvfb X11",
+  "host_gl": "LIBGL_ALWAYS_SOFTWARE=1 (host glyph renderer only)",
+  "font": "DejaVu Sans Mono 12 pt",
+  "artifacts": [
+    {
+      "path": ".cairn/evidence/captures/wgpu/catalog-regression-20260916T211150Z/kitty-gpu-60x24.png",
+      "sha256": "4b2194cb1fe0ba2998fac38ecebb9f14ded620434f6330899a03b35e0cdf6a95"
+    },
+    {
+      "path": ".cairn/evidence/captures/wgpu/catalog-regression-20260916T211150Z/kitty-gpu-144x50.png",
+      "sha256": "801af1e9dc2b414c3471e0623170c60c98ee5e46b49a3c3a20894a4046a9577b"
+    },
+    {
+      "path": ".cairn/evidence/captures/wgpu/catalog-regression-20260916T211150Z/kitty-gpu-200x60.png",
+      "sha256": "693356468a4f8405bbfbea5acfc6d1e79663dcf90db8f34dc41e92c495aabcdf"
+    },
+    {
+      "path": ".cairn/evidence/captures/wgpu/catalog-regression-20260916T211150Z/kitty-gpu-60x24-return.png",
+      "sha256": "13068d5fc9d90e2ded2a0848a511e1cee46b04cabf104df0381e02051576ea4c"
+    }
+  ]
+}

@@ -1,4 +1,4 @@
-commit: 175fc950d548639532bef316a28df6f7eaea47fa
+commit: 6f7a52d560e69b260c3b265c942e65edc8cdeb52
 examined:
   - CAT-001 through CAT-003 and the widget-catalog commitment.
   - Catalog source, live widget inventory, navigation, cube clock, and quit lifecycle.
@@ -6,7 +6,7 @@ examined:
   - README, manual, local logo, and mechanism dependency declarations.
 findings:
   - resolved: CAT-001 fcb971c9bbd1b7a66cb8c8faf8898cff7ef33e2a configures full-width scrolling, compact navigation and card spacing, wrapped coverage, and colored column spans. Native background-run geometry and owned Kitty captures verify both example columns at 144x50 and 200x60 and compact layout at 60x24.
-  - open: CAT-002 Animation advances and exits cleanly, but the developer's capture shows coarse wireframe strokes. The fixed-size dotted cube needs a separate visual-quality repair; changing frame hashes does not prove readable edges.
+  - resolved: CAT-002 0ad385ee0eef6e9e8f25a042172aafbbf78fce28 replaces fixed dotted strokes with viewport-sized Braille subpixels. Native cell counts, elapsed-time tests, distinct PTY pixel hashes, three clean quits, and inspected Kitty grow/shrink captures verify readable bounded edges. The optional shaded wgpu stage remains intact.
   - resolved: CAT-001 cfea6a441757f68abd0058dc6577cae535ef3afe mounts live InputDialog and AutocompleteDialog. F1/F2 selects one of twelve overlay demos. Real App input paints both dialog prompts and both menu item lists.
   - resolved: CAT-001 cfea6a441757f68abd0058dc6577cae535ef3afe fixes navigation sizing and scrolls long pages. Measured frames retain all eight shortcuts after resizing to 100, 60, 79, 80, and 40 columns.
   - resolved: CAT-001 cfea6a441757f68abd0058dc6577cae535ef3afe populates Table with two columns and two rows, starts Modal visible, and supplies a Popover button trigger. Tests inspect representative Table props and decode the mounted logo asset.
@@ -151,3 +151,75 @@ No framework API, dependency, or asset changed. Focused Clippy passes with the
 same single inherited wizard lint allowed; unrestricted strict lint remains a
 known limit. No executable code changed during this review. CAT-001 is closed;
 the original coarse default wireframe remains the separate open CAT-002 finding.
+
+## Closing review after the wireframe repair
+
+Examined candidate 6f7a52d5, the approved CAT-001 through CAT-003 contract,
+source, dependency declarations, documentation, and committed receipts:
+CAT-001 20260916T210951304Z-990273, CAT-002 20260916T211025481Z-997460,
+and CAT-003 20260916T211059625Z-1003895. All three pass against the same
+declared-input digest 8a0f164653b048d8b75d7cc6ab9491fd16c0f5cc6a335e60f927fb3c74117004.
+Each runs eleven validator tests, two host/pixel-selection tests, twenty-one
+default behavior tests, and a locked example build. The separately executed
+feature-enabled suite passes twenty-three tests.
+
+Attacked zero and oversized viewports, pre-clamp arithmetic, allocation bounds,
+resize without changing the timer deadline, multiline text measurement,
+label-only animation hashes, stale screens after resizing, and host diagnostic
+backpressure. The canvas clamps before allocation to 240x100. Twelve edges
+use bounded Bresenham traversal and Braille masks; the compatibility canvas
+stays 40x16. Native App observations establish full canvas cell counts; the
+limited DebugBackend multiline path is not substituted for native proof.
+The real PTY observes nonblank Braille pixel changes without input and checks
+Ctrl+Q, Ctrl+C, and Escape separately, including termios, alternate screen,
+cursor restoration, and absence of surviving owned children.
+
+Inspected all eight formal Overview/Layout PNGs in
+20260916T210952821244Z-990798 and all four formal Motion PNGs in
+20260916T211027584545Z-997978. The same owned instance grows from 60x24 to
+144x50 and 200x60, then shrinks to 60x24. Coverage wraps completely; spans
+have correct widths; both wide example columns are visible; the cube remains
+bounded with fine connected edges and intact controls. Compact long pages
+retain scrolling. These visual findings are now closed, not inferred from
+passing hashes alone.
+
+The harness regression reproduced a real child blocking on its stderr pipe
+before the fix and succeeding with a private diagnostic file afterward.
+Kitty's existing mode-change warnings remain observable in the host manifests
+and are captured in the backlog; the shared scanout warning is not claimed
+fixed. Partial and experimental capture directories are diagnostics, not
+acceptance evidence. Acceptance uses only the named committed receipts and
+their complete capture manifests.
+
+To challenge the shared Host change, built the feature-enabled example and ran
+the existing wgpu capture-only harness. Inspected all four PNGs in
+wgpu/catalog-regression-20260916T211150Z. They retain the shaded cube, full
+canvas, truthful AMD Radeon AI PRO R9700 Vulkan label, and intact controls
+through grow/shrink. This is a fresh integration smoke check, not new GPU
+benchmark evidence or a refresh of all five earlier graphics receipts.
+
+The fourteen Ripwire-named integration targets pass, as does the library suite
+(1051 passed, eight ignored). The manual checker passes with twenty pages,
+twenty-eight modules, six widget families, and eight Cargo features. Formatting,
+whitespace checks, and focused Clippy pass; the one inherited wizard lint is
+allowed explicitly. Unrestricted strict Clippy and Ripwire's quality gates are
+not claimed clean. Reviewed Ripwire's constructor-token similarity, graph-only
+test reachability, rasterizer complexity, and Cairn commit churn; no metric-only
+abstraction or unrelated framework change is warranted.
+
+GitNexus impacts were run before each existing symbol edit, including shared
+Host methods; reports are low risk with incomplete Rust-method caller coverage.
+Focused source and Ripwire inspection resolve the actual example callers, and
+all private rasterizer signature dependents were updated. Staged detection and
+file inspection confirm the approved example, tests, harnesses, records, docs,
+and evidence scope. Rust-analyzer resolves the saved CubeAnimation definition.
+No diagnostics-sweep claim is made.
+
+The fourteen-rule self-audit finds no further in-scope revision: no framework
+API or dependency changed, assets stay local, work and waits are bounded,
+diagnostics remain actionable, ownership stays private, and documentation
+matches the delivered example. No persistence, auth, or migration surface is
+introduced. Host acceptance remains Kitty 0.45 on owned Xvfb X11 with DejaVu
+Sans Mono 12 pt and software host glyph rendering; no 60 FPS or universal-host
+claim is made. Embedded-shell and release work remain outside this commitment.
+No executable code changed during this closing review.
