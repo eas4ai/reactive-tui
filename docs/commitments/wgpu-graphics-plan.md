@@ -78,35 +78,46 @@ wgpu-graphics = ["dep:wgpu"]
 
 ### Task 4: Commit and record real evidence
 
-- [ ] Run GitNexus staged change detection and diff whitespace checks. Confirm only the dependency, checker, declaration, and plan change.
-- [ ] Commit implementation before `rtk proxy cairn check GPU-001`.
-- [ ] Read the captured output and receipt. Commit all receipt/output/input files; never edit historical evidence.
-- [ ] Remove the in-progress record after the action is committed. Run wake again and extend this plan for the next named requirement.
+- [x] Run GitNexus staged change detection and diff whitespace checks. Confirm only the dependency, checker, declaration, and plan change.
+- [x] Commit implementation before `rtk proxy cairn check GPU-001`.
+- [x] Read the captured output and receipt. Commit all receipt/output/input files; never edit historical evidence.
+- [x] Remove the in-progress record after the action is committed. Run wake again and extend this plan for the next named requirement.
 
 ### Task 5: Render a GPU cube offscreen
 
-- [ ] Declare and commit `.cairn/mechanisms/wgpu-rendering` before implementation.
-- [ ] Write `tests/wgpu_graphics.rs` first. It must fail because
+- [x] Declare and commit `.cairn/mechanisms/wgpu-rendering` before implementation.
+- [x] Write `tests/wgpu_graphics.rs` first. It must fail because
   `reactive_tui::graphics` does not exist. Its real-adapter test renders at
   60x48, 144x100, and 200x120 pixel targets for the required terminal sizes,
   records adapter identity, rejects CPU adapters, checks exact output size,
   and requires at least 32 distinct opaque colors.
-- [ ] Add conversion tests that require one half-block cell per source column
+- [x] Add conversion tests that require one half-block cell per source column
   and one terminal row per two pixel rows. Paint the resulting Element through
   `DebugBackend` and assert the 60x24 frame uses the full requested bounds.
-- [ ] Implement feature-gated `src/graphics/mod.rs` with an offscreen
+- [x] Implement feature-gated `src/graphics/mod.rs` with an offscreen
   `Rgba8UnormSrgb` texture, a fullscreen-triangle WGSL ray-box shader, elapsed
   time rotation, viewport aspect uniform, a 256-byte aligned readback buffer,
   and checked de-padding into owned RGBA pixels.
-- [ ] Keep dimensions within 800x600 pixels and reject zero or larger targets
+- [x] Keep dimensions within 800x600 pixels and reject zero or larger targets
   before multiplying allocation sizes.
-- [ ] Convert pairs of pixels to `▀` Elements using public `StyleBuilder::fg_rgba`
+- [x] Convert pairs of pixels to `▀` Elements using public `StyleBuilder::fg_rgba`
   and `bg_rgba`. This uses the existing bridge and terminal frame path without
   changing either paint backend.
-- [ ] Run the test red before implementation and green afterward. Build the
+- [x] Run the test red before implementation and green afterward. Build the
   default library to prove the public graphics module remains feature-gated.
 - [ ] Commit, run `cairn check GPU-002`, inspect and commit its evidence, then
   run wake before starting bounded scheduling.
+
+Local GPU-002 verification selected AMD Radeon AI PRO R9700 (RADV GFX1201)
+through Vulkan. The three viewports produced 200, 610, and 765 distinct opaque
+colors, with unclipped pixel bounds and width/height ratios 1.036, 1.017, and
+1.042. The native SuprTUI writer capture was parsed as terminal cells; every
+half-block's foreground/background matched its two source pixels after resize.
+All three Rust tests passed on Rust 1.91. The default library check also passed.
+Five validator fixtures reject missing operations, placeholder output, window
+paths, missing shading, and missing aspect correction. These local runs are
+not Cairn receipts. PNG inspection is not the required host-terminal capture;
+that visual obligation remains open for the integrated demo.
 
 ## Source basis and review
 

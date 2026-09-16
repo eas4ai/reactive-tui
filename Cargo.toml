@@ -132,6 +132,11 @@ path = "tests/dqc_003_captured_diagnostics.rs"
 harness = false
 
 [[test]]
+name = "wgpu_graphics"
+path = "tests/wgpu_graphics.rs"
+required-features = ["wgpu-graphics"]
+
+[[test]]
 name = "api_signal_ownership"
 path = "tests/api_signal_ownership.rs"
 required-features = ["ffi"]

@@ -2,7 +2,7 @@
 
 command: python3 -B scripts/check-wgpu-rendering.py
 inputs:
-  - .cairn/mechanisms
+  - .cairn/mechanisms/wgpu-rendering
   - Cargo.toml
   - Cargo.lock
   - build.rs

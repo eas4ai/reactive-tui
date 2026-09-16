@@ -130,3 +130,7 @@ pub mod prelude {
 /// Owned Unix PTY sessions interpreted by libghostty.
 #[cfg(all(feature = "embedded-terminal", unix))]
 pub mod embedded;
+
+/// Optional offscreen GPU graphics presented as ordinary terminal cells.
+#[cfg(feature = "wgpu-graphics")]
+pub mod graphics;
