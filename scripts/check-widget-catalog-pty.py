@@ -76,7 +76,7 @@ class Screen:
         return "\n".join("".join(row) for row in self.cells)
 
     def cube(self) -> str:
-        return "\n".join("".join(char if char in "·◆" else " " for char in row) for row in self.cells)
+        return "\n".join("".join(char if "\u2801" <= char <= "\u28ff" else " " for char in row) for row in self.cells)
 
 
 def controlling_terminal() -> None:
@@ -110,7 +110,7 @@ def check_run(executable: Path, key_name: str, key: bytes) -> None:
                 os.write(master, b"7")
                 navigated = True
             cube = screen.cube()
-            if cube.count("·") > 30 and cube.count("◆") >= 4:
+            if sum("\u2801" <= char <= "\u28ff" for char in cube) > 30:
                 now = time.monotonic()
                 digest = hashlib.sha256(cube.encode()).hexdigest()
                 if first_time is None:

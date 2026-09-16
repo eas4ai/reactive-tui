@@ -12,7 +12,7 @@
 
 Files: `examples/widget_catalog/catalog.rs`, `tests/widget_catalog_behavior.rs`.
 
-- [ ] Write viewport and spacing regressions, then run them before implementation:
+- [x] Write viewport and spacing regressions, then run them before implementation:
 
 ```rust
 catalog.resize(144, 50).unwrap();
@@ -24,12 +24,13 @@ assert!(props.viewport_height > 40);
 
 Run `cargo +1.91.0 test --locked --test widget_catalog_behavior`; expect failure on the current 80x24 defaults, stretched navigation, and missing colored spans.
 
-- [ ] Configure the outer scroll viewport directly, avoiding the start-aligned convenience Stack:
+- [x] Configure the outer scroll viewport directly, avoiding the start-aligned convenience Stack:
 
 ```rust
-reactive_tui::widgets::layout::ScrollViewBuilder::new(
-    self.selected_page().with_class("w-full min-w-0 shrink-0 whitespace-normal"),
-)
+let page = self.selected_page();
+let page_class = format!("{} w-full min-w-0 shrink-0 whitespace-normal",
+                         page.class.as_deref().unwrap_or_default());
+reactive_tui::widgets::layout::ScrollViewBuilder::new(page.with_class(page_class))
 .viewport_size(usize::from(self.width.saturating_sub(if self.width >= 80 { 26 } else { 2 })),
                usize::from(self.height.saturating_sub(if self.width >= 80 { 8 } else { 11 })))
 .scroll_x(false).scroll_y(true).show_scrollbars(true).render()
@@ -38,7 +39,7 @@ reactive_tui::widgets::layout::ScrollViewBuilder::new(
 
 Use `shrink-0 h-1` sidebar entries; reserve `flex-1` for compact horizontal entries. Replace page `gap-1` with `gap-0.25` (one cell). Use one grid column below the sidebar breakpoint and two above it; all pages have `w-full`. Give card headings `h-1 shrink-0` and text explicit normal wrapping.
 
-- [ ] Add a full-width Layout card using existing grid utilities:
+- [x] Add a full-width Layout card using existing grid utilities:
 
 ```rust
 div().class("grid grid-cols-4 gap-0.25 w-full")
@@ -50,7 +51,7 @@ div().class("grid grid-cols-4 gap-0.25 w-full")
     .child(div().class("h-3 bg-rose-700 text-white").text("span 1").build()).build()
 ```
 
-- [ ] Require native terminal-cell background runs to prove spans, not just labels; check 60x24, 144x50, and 200x60. Run default and feature-enabled catalog tests and focused Clippy. Commit, then follow Cairn for refreshed evidence and review.
+- [x] Require native terminal-cell background runs to prove spans, not just labels; check 60x24, 144x50, and 200x60. Run default and feature-enabled catalog tests and focused Clippy. Commit, then follow Cairn for refreshed evidence and review.
 
 ## Task 2: Readable default wireframe (CAT-002)
 
@@ -79,3 +80,13 @@ Plan review: Both open findings have explicit tests and visual acceptance. CAT-0
 The new tests first failed on the 80x24 viewport, stretched sidebar, and absent spans. Native cell tests also rejected an intermediate class override that erased the grid classes. Screenshot inspection then found cards extending the second example column outside the viewport; the new two-column visibility test failed with missing Accordion and passed after removing percentage width from grid children. This is a failure demonstration, not a claim that constructor inventory proves visible layout.
 
 The corrected tree passed 19 default and 21 feature-enabled behavior tests, 11 validator tests, formatting, and focused Clippy with only the pre-existing wizard `collapsible_else_if` lint allowed. Owned Kitty/Xvfb captures at 60x24, 144x50, and 200x60 show wrapped coverage, compact navigation, full-width spans, and both example columns. Local diagnostic captures in `20260916T205755974203Z-860142` show the intermediate clipping; corrected captures are in `20260916T205859937742Z-870701`. Cairn evidence and final review remain separate committed actions.
+
+### CAT-002 implementation verification
+
+The viewport test first failed with no Braille canvas on the old configuration. The correction passes 21 default and 23 feature-enabled tests, including zero/oversized dimensions, elapsed-time rotation, preserved deadlines, real native App cell counts, and header/footer retention. The simpler DebugBackend paints only the first row of a multiline text node; it is used for controls, not as proof of cube pixels. PTY observations select only nonblank Braille cells and pass distinct-frame and three-quit cleanup checks. All fourteen Ripwire-named integration targets and the library suite pass (1051 passed, eight ignored). Formatting and focused Clippy pass with only the inherited wizard lint allowed.
+
+Long owned-host resize captures reproduced a separate harness deadlock: Kitty mode-change warnings filled its undrained stderr pipe. Replacing just that sink in a diagnostic run allowed the identical grow/shrink capture to pass. A real child writing 110 KB to the launcher's diagnostic sink failed before the fix and passes with a private regular file. Diagnostics remain available; the native warning itself is captured in the backlog rather than claimed repaired.
+
+The corrected host run `20260916T210812516632Z-972771` captures Overview, Layout, and Motion in one instance at 60x24, 144x50, 200x60, and back to 60x24. Actual inspected PNGs show intact controls, colored spans, and bounded readable wireframe edges after resize. Host cases are requirement-selected so CAT-001 does not depend on unfinished motion acceptance and CAT-002 does not inspect unrelated layout widgets. Fresh Cairn receipts and no-code closing review are still pending.
+
+Ripwire quality-delta exits 2 on constructor-token similarity to an unrelated image test and short-horizon Cairn commit churn; it also reports new rasterizer complexity and graph-unreached test functions. Test-gate exits 4 while naming obligations; all fourteen named integration targets were executed successfully. These graph reports are not claimed green or used to justify unrelated abstraction or scope expansion.

@@ -49,16 +49,24 @@ class Host:
     def launch(self, columns, rows, command):
         self.counter += 1
         self.socket = f"unix:{self.directory}/kitty-{self.counter}.sock"
-        self.process = subprocess.Popen(
-            ["kitty", "--config", "NONE", "--listen-on", self.socket,
-             "--title", "Reactive GPU acceptance", "-o", "allow_remote_control=socket-only",
-             "-o", "linux_display_server=x11", "-o", "remember_window_size=no",
-             "-o", f"initial_window_width={columns}c", "-o", f"initial_window_height={rows}c",
-             "-o", "window_padding_width=0", "-o", "font_family=DejaVu Sans Mono",
-             "-o", "font_size=12", *map(str, command)],
-            env=self.env, cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-            start_new_session=True,
-        )
+        self.log_path = Path(self.directory) / f"kitty-{self.counter}.stderr"
+        # Animation warnings can fill an undrained PIPE and freeze remote
+        # control. The child owns its file descriptor after this scope closes.
+        with self.log_path.open("wb") as diagnostics:
+            self.process = subprocess.Popen(
+                ["kitty", "--config", "NONE", "--listen-on", self.socket,
+                 "--title", "Reactive GPU acceptance", "-o", "allow_remote_control=socket-only",
+                 "-o", "linux_display_server=x11", "-o", "remember_window_size=no",
+                 "-o", f"initial_window_width={columns}c", "-o", f"initial_window_height={rows}c",
+                 "-o", "window_padding_width=0", "-o", "font_family=DejaVu Sans Mono",
+                 "-o", "font_size=12", *map(str, command)],
+                env=self.env, cwd=ROOT, stdout=subprocess.DEVNULL, stderr=diagnostics,
+                start_new_session=True,
+            )
+
+    def log_output(self):
+        with self.log_path.open("rb") as diagnostics:
+            return diagnostics.read(65536).decode(errors="replace")
 
     def remote(self, *args):
         result = subprocess.run(["kitty", "@", "--to", self.socket, *args],
@@ -85,7 +93,7 @@ class Host:
         accepted = 0
         while time.monotonic() < deadline:
             if self.process.poll() is not None:
-                raise RuntimeError(f"Kitty closed before frame: {self.process.stderr.read().decode()}")
+                  raise RuntimeError(f"Kitty closed before frame: {self.log_output()}")
             try:
                 # Kitty geometry changes before the application redraws. One
                 # sample may still contain an accepted pre-resize screen.
@@ -111,7 +119,7 @@ class Host:
         try:
             code = self.process.wait(timeout=30)
             if code:
-                raise RuntimeError(f"Kitty/app exit {code}: {self.process.stderr.read().decode()}")
+                raise RuntimeError(f"Kitty/app exit {code}: {self.log_output()}")
         finally:
             stop(self.process)
             self.process = None

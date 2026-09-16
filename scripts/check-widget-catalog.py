@@ -126,6 +126,10 @@ def main() -> int:
     print(validator_output, end="")
     if validator_code != 0:
         return validator_code
+    host_test_code, host_test_output = run([sys.executable, "-B", "scripts/test-widget-catalog-host.py"])
+    print(host_test_output, end="")
+    if host_test_code:
+        return host_test_code
 
     source_dir = ROOT / "examples" / "widget_catalog"
     source = "\n".join(path.read_text() for path in sorted(source_dir.glob("*.rs"))) if source_dir.is_dir() else ""
@@ -165,8 +169,8 @@ def main() -> int:
         for error in errors:
             print(f"FAIL CAT: {error}", file=sys.stderr)
         return 1
-    if requirement in ("all", "CAT-001"):
-        host_code, host_output = run([sys.executable, "-B", "scripts/check-widget-catalog-host.py"])
+    if requirement in ("all", "CAT-001", "CAT-002"):
+        host_code, host_output = run([sys.executable, "-B", "scripts/check-widget-catalog-host.py", "--requirement", requirement])
         print(host_output, end="")
         if host_code:
             return host_code

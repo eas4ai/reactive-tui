@@ -615,13 +615,27 @@ impl Catalog {
     }
 
     fn motion_page(&self) -> Element {
-        Self::card(
-            "Wireframe cube",
-            div()
-                .class("w-full h-16 text-cyan-300")
-                .text(self.motion.frame())
-                .build(),
-        )
+        div()
+            .class("w-full h-full flex-1 flex-col min-h-0")
+            .child(
+                div()
+                    .class("h-1 shrink-0 text-white font-bold")
+                    .text("Motion")
+                    .build(),
+            )
+            .child(
+                div()
+                    .class("h-1 shrink-0 text-cyan-300")
+                    .text("Wireframe cube · Braille subpixels · 80 ms")
+                    .build(),
+            )
+            .child(
+                div()
+                    .class("w-full flex-1 min-h-0 whitespace-pre text-cyan-300")
+                    .text(self.motion.frame())
+                    .build(),
+            )
+            .build()
     }
 
     fn system_page(&self) -> Element {
@@ -690,6 +704,12 @@ impl Catalog {
                     )
                     .build();
             }
+        }
+        if self.page == CatalogPage::Motion {
+            return div()
+                .class("flex-col flex-1 min-w-0 min-h-0 h-full bg-gray-900")
+                .child(self.motion_page())
+                .build();
         }
         let page = self.selected_page();
         let page_class = format!(
@@ -781,6 +801,10 @@ impl RootComponent for Catalog {
     fn resize(&mut self, width: u16, height: u16) -> reactive_tui::Result<()> {
         self.width = width;
         self.height = height;
+        self.motion.set_viewport(
+            usize::from(width.saturating_sub(if width >= 80 { 24 } else { 0 })),
+            usize::from(height.saturating_sub(if width >= 80 { 6 } else { 9 })),
+        );
         Ok(())
     }
 

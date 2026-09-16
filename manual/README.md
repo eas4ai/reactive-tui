@@ -53,7 +53,9 @@ Use F1/F2 on the menus/dialogs page to select one live overlay demo at a time.
 Use the mouse wheel to scroll longer pages.
 
 Page `6` displays `manual/assets/logo.jpg` through the image widget. Page `7`
-shows the rotating wireframe cube at a bounded 80 ms frame interval. No assets
+shows a viewport-sized rotating wireframe cube with Braille subpixel edges at
+a bounded 80 ms frame interval. The default canvas is capped at 240x100 cells;
+larger terminals retain empty space beyond that cap. No assets
 are downloaded. Ctrl+Q is the global quit key; Ctrl+C and Escape quit when
 the focused widget leaves the key unhandled.
 

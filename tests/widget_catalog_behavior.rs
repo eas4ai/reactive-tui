@@ -4,7 +4,7 @@ mod app_input;
 #[path = "../examples/widget_catalog/catalog.rs"]
 mod catalog;
 
-use catalog::motion::{cube_frame, CubeAnimation, FRAME_INTERVAL};
+use catalog::motion::{cube_frame, cube_frame_sized, CubeAnimation, FRAME_INTERVAL};
 use catalog::{Catalog, CatalogPage, NavigationLayout};
 use reactive_tui::{
     app::RootComponent,
@@ -333,6 +333,37 @@ fn cube_frames_are_distinct_and_bounded() {
 }
 
 #[test]
+fn sized_cube_frames_are_bounded_and_change_only_with_time() {
+    for (width, height) in [
+        (1, 1),
+        (60, 15),
+        (120, 44),
+        (176, 54),
+        (usize::MAX, usize::MAX),
+    ] {
+        let first = cube_frame_sized(Duration::ZERO, width, height);
+        assert_eq!(first.lines().count(), height.min(100));
+        assert!(first
+            .lines()
+            .all(|row| row.chars().count() == width.min(240)));
+        assert!(first
+            .chars()
+            .all(|ch| ch == '\n' || ('\u{2800}'..='\u{28ff}').contains(&ch)));
+        if width > 1 && height > 1 {
+            assert_ne!(first, cube_frame_sized(FRAME_INTERVAL, width, height));
+        }
+    }
+    assert!(cube_frame_sized(Duration::ZERO, 0, 24).is_empty());
+    assert!(cube_frame_sized(Duration::ZERO, 60, 0).is_empty());
+    let start = Instant::now();
+    let mut animation = CubeAnimation::new(start);
+    animation.set_viewport(120, 44);
+    assert!(!animation.advance(start + FRAME_INTERVAL - Duration::from_nanos(1)));
+    assert!(animation.advance(start + FRAME_INTERVAL));
+    assert_eq!(animation.frame(), cube_frame_sized(FRAME_INTERVAL, 120, 44));
+}
+
+#[test]
 fn animation_waits_for_its_deadline_and_skips_missed_frames() {
     let start = Instant::now();
     let mut animation = CubeAnimation::new(start);
@@ -342,6 +373,66 @@ fn animation_waits_for_its_deadline_and_skips_missed_frames() {
     let late = start + Duration::from_secs(10);
     assert!(animation.advance(late));
     assert!(!animation.advance(late + Duration::from_millis(1)));
+}
+
+#[test]
+fn default_motion_canvas_tracks_the_terminal_and_uses_subcell_strokes() {
+    use reactive_tui::backend::{Backend, DebugBackend};
+    let mut catalog = Catalog::default();
+    catalog.set_page(CatalogPage::Motion);
+    for (width, height) in [(60, 24), (144, 50), (200, 60), (60, 24)] {
+        catalog.resize(width, height).unwrap();
+        let element = catalog.render();
+        let output = text(&element);
+        let braille_rows: Vec<_> = output
+            .lines()
+            .filter(|row| row.contains('\u{2800}'))
+            .collect();
+        let canvas_width = usize::from(width - if width >= 80 { 24 } else { 0 });
+        let canvas_height = usize::from(height - if width >= 80 { 6 } else { 9 });
+        assert_eq!(braille_rows.len(), canvas_height, "{output}");
+        assert!(
+            braille_rows.iter().all(|row| row
+                .chars()
+                .filter(|ch| ('\u{2800}'..='\u{28ff}').contains(ch))
+                .count()
+                == canvas_width),
+            "{output}"
+        );
+        assert!(
+            output
+                .chars()
+                .any(|ch| ('\u{2801}'..='\u{28ff}').contains(&ch)),
+            "{output}"
+        );
+        let mut backend = DebugBackend::new(width, height);
+        backend.render_full(&element).unwrap();
+        let painted = backend.screen_content();
+        assert!(
+            painted.lines().next().unwrap().contains("Widget Catalog"),
+            "{painted}"
+        );
+        assert!(
+            painted.lines().last().unwrap().contains("Ctrl+Q"),
+            "{painted}"
+        );
+        #[cfg(not(feature = "wgpu-graphics"))]
+        {
+            let mut live = Catalog::default();
+            live.set_page(CatalogPage::Motion);
+            let frames =
+                app_input::run_when(live, (width, height), vec![("Braille subpixels", None)]);
+            let painted = &frames.last().unwrap().text;
+            assert_eq!(
+                painted
+                    .chars()
+                    .filter(|ch| ('\u{2800}'..='\u{28ff}').contains(ch))
+                    .count(),
+                canvas_width * canvas_height,
+                "{painted}"
+            );
+        }
+    }
 }
 
 #[test]
