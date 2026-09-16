@@ -7,7 +7,7 @@ import re
 import subprocess
 
 ROOT = Path(__file__).resolve().parents[1]
-FEATURES = ("tokio", "tokio-util", "debug", "debug_patches", "async-capabilities", "ffi", "embedded-terminal")
+FEATURES = ("tokio", "tokio-util", "debug", "debug_patches", "async-capabilities", "ffi", "embedded-terminal", "wgpu-graphics")
 
 
 def main():

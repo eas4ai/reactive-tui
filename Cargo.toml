@@ -63,6 +63,7 @@ accesskit = "0.25.0"
 cap-std = "4.0.2"
 cap-fs-ext = "4.0.2"
 time = "0.3"
+wgpu = { version = "=27.0.1", optional = true, default-features = false, features = ["std", "parking_lot", "vulkan", "metal", "dx12", "wgsl"] }
 
 [target.'cfg(target_os = "linux")'.dependencies]
 accesskit_consumer = "0.39.0"
@@ -185,6 +186,7 @@ async-capabilities = ["tokio"]
 # Enable FFI bindings (C ABI)
 ffi = []
 embedded-terminal = ["dep:libghostty-vt"]
+wgpu-graphics = ["dep:wgpu"]
 
 [dev-dependencies]
 futures-lite = "2.3"
