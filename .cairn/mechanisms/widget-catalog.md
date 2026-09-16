@@ -1,0 +1,27 @@
+# Mechanism: widget-catalog
+
+command: python3 -B scripts/check-widget-catalog.py
+inputs:
+  - .cairn/mechanisms/widget-catalog.md
+  - Cargo.toml
+  - examples/widget_catalog
+  - manual/assets/logo.jpg
+  - README.md
+  - manual/README.md
+  - scripts/check-widget-catalog.py
+  - scripts/check-widget-catalog-pty.py
+  - scripts/test-widget-catalog.py
+  - tests/widget_catalog_behavior.rs
+requirements:
+  - CAT-001
+  - CAT-002
+  - CAT-003
+
+The check MUST first prove its validator rejects a missing widget-family page,
+an external or wrong logo asset, compile-only evidence, identical animation
+frames, and a quit sequence that leaves the example running.
+
+The check MUST then run the catalog behavior test and locked example compile.
+It MUST launch the real example in a PTY, observe responsive catalog content
+and two distinct cube frames, send Ctrl+Q, Ctrl+C, and Escape in separate runs,
+and require each run to exit successfully without leaving a child process.

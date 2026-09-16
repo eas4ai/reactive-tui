@@ -1,7 +1,7 @@
 # Recovery roadmap
 
 Status: Agreed 2026-09-07
-Current: example-cleanup
+Current: widget-catalog
 
 1. `suprtui-renderer` — the first screen: styled frames, updates, Unicode,
    resize, output errors, input, and terminal restoration (RND-001 through RND-006).
@@ -78,10 +78,14 @@ packaging.
     found broken in Kitty, retain the working gradient example, and remove
     stale invitations to run the deleted programs (EXC-001).
 
-20. `pre-release-ci-documentation` — run supported-platform CI, restore tracked
+20. `widget-catalog` — build one responsive catalog for the public widget
+    families, the project logo, and a spinning wireframe cube, with real
+    navigation, animation, resize, and quit checks (CAT-001 through CAT-003).
+
+21. `pre-release-ci-documentation` — run supported-platform CI, restore tracked
     documentation inputs, rerun every mechanism, and clean stale repository
     rules (RID-001 through RID-003).
 
-21. `final-release-packaging` — rebuild final registry packages and release
+22. `final-release-packaging` — rebuild final registry packages and release
     metadata, then require fresh cross-platform evidence and an adversarial
     audit before a release decision (FRP-001 through FRP-004).
