@@ -139,7 +139,7 @@ that visual obligation remains open for the integrated demo.
   Other paused catalog layout work remains untouched.
 - [x] Add explicit example CPU/fault options for reproducible checks. Run
   existing consumers in default/enabled configurations.
-- [ ] Run isolated real PTY checks for each quit key, animation without input,
+- [x] Run isolated real PTY checks for each quit key, animation without input,
   resize, GPU mode, forced CPU, and each injected failure. Inspect actual
   restoration and process cleanup, then commit and record Cairn evidence.
 
@@ -152,7 +152,7 @@ half-blocks are batched into styled text runs; a failing structural fixture and
 exact native color comparison verified that optimization. Focused Clippy passed
 with the existing wizard lint explicitly allowed. Unrestricted strict Clippy
 still fails on existing wizard/vendor findings, captured in the backlog.
-Cairn receipts for this implementation remain to be recorded.
+Fresh Cairn evidence now records these runs; the closing review names the receipts.
 
 ## Source basis and review
 
@@ -166,7 +166,10 @@ Cairn receipts for this implementation remain to be recorded.
   preserving public shared-reference APIs. The 64-frame concurrent test passes.
 - [x] Add a software-adapter metadata label RED fixture, then distinguish
   Software wgpu from hardware GPU without weakening hardware acceptance.
-- [ ] Run final targeted checks, commit, refresh Cairn receipts, and review again.
+- [x] Run final targeted checks, commit, refresh Cairn receipts, and review again.
+- [x] Record the newly exposed shrink-back capture race before changing code.
+  Demonstrate stale-valid/loading/valid premature acceptance, require stable
+  samples and post-capture validation, and inspect all four fresh formal PNGs.
 
 ### Task 8: Measure stages and verify a named host (GPU-005)
 
@@ -190,8 +193,8 @@ Cairn receipts for this implementation remain to be recorded.
   strengthened host check fails before this change and passes afterward.
 - [x] Document reproducible commands, fallback, finite limits, timing scope,
   quality measurements, and only the verified host configuration.
-- [ ] Run final focused checks, commit, record fresh Cairn receipts and artifacts.
-- [ ] Review requirement coverage and inspect committed host captures before Done.
+- [x] Run final focused checks, commit, record fresh Cairn receipts and artifacts.
+- [x] Review requirement coverage and inspect committed host captures before Done.
 
 Local debug comparisons selected AMD Radeon AI PRO R9700 / Vulkan for GPU
 frames, and explicit CPU for the other samples. At 60x24, 144x50, and 200x60,
@@ -200,6 +203,13 @@ and terminal presentation dominated; no end-to-end speedup guarantee follows.
 The actual Kitty 0.45.0 X11 captures show full-stage shaded cubes and intact
 chrome after the startup fix. Native Wayland and other hosts remain unverified.
 These local observations are not Cairn receipts.
+
+Final formal evidence is recorded in `.cairn/reviews/wgpu-graphics.md`.
+All five renewed graphics checks pass, and all four fresh Kitty PNGs show
+intact controls and bounded shaded output after growing and shrinking.
+Text acceptance cannot establish coherent host pixels by itself; one local
+partially painted capture was rejected and visual inspection remains required.
+An additional final default-library run passed 1051 tests with eight ignored.
 
 Final local checks passed the broader nineteen selected integration test targets
 (including 402 widget acceptance tests), formatting, both manual checks, and
