@@ -11,6 +11,14 @@ remain unresolved. This pause is not acceptance or completion; resume the
 full-width, spacing, colored column-span, and remaining cube-quality work
 after the graphics commitment.
 
+## Resumption
+
+Shawn approved resumption on 2026-09-16 by answering `ok` to
+`gpu-001-gpu-002-gpu-003-gpu-004-gpu-005-loop-087`. The graphics requirements
+have current passing evidence and a clean review. Resume only this existing
+commitment and its recorded findings; no unrelated backlog item is promoted.
+See [the decision](../decisions/resume-approved-catalog-repairs-after-wgpu.md).
+
 ## Deliverable
 
 Build one responsive `widget_catalog` example for screenshots and short video

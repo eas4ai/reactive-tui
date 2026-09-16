@@ -1,7 +1,7 @@
 # Recovery roadmap
 
 Status: Agreed 2026-09-07
-Current: wgpu-graphics
+Current: widget-catalog
 
 1. `suprtui-renderer` — the first screen: styled frames, updates, Unicode,
    resize, output errors, input, and terminal restoration (RND-001 through RND-006).
@@ -102,3 +102,9 @@ Shawn activated this commitment on 2026-09-16 and paused the catalog visual
 repairs. Its full-width, spacing, colored column-span, and wireframe-quality
 findings remain open in `.cairn/reviews/widget-catalog.md`. Resume them after
 wgpu graphics; the existing release work remains pending.
+
+On 2026-09-16 all five graphics requirements have current passing evidence
+and a clean review. Shawn answered `ok` to resuming the paused catalog
+commitment, without promoting unrelated backlog work. `widget-catalog` is
+current again; its visual findings remain open until repaired and verified.
+See [the resumption decision](../decisions/resume-approved-catalog-repairs-after-wgpu.md).
