@@ -2,7 +2,7 @@
 
 command: python3 -B scripts/check-wgpu-features.py
 inputs:
-  - .cairn/mechanisms
+  - .cairn/mechanisms/wgpu-feature-compatibility
   - Cargo.toml
   - Cargo.lock
   - build.rs
