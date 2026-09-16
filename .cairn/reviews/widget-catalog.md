@@ -1,4 +1,4 @@
-commit: cba3fa82400a69880adf46e708b3ef5c481751a2
+commit: 9e3b52c7c12b029c64ed781770372ce8a7d94a23
 examined:
   - CAT-001 through CAT-003 and the widget-catalog commitment.
   - Catalog source, live widget inventory, navigation, cube clock, and quit lifecycle.
@@ -103,3 +103,22 @@ Inventory and text-presence checks do not prove compact spacing or legible
 wireframe edges. The open findings above supersede the earlier conclusion that
 no further in-scope revision was needed. No executable code changed during
 this review; passing receipts do not close these visual findings.
+
+## Review on approved resumption
+
+Shawn approved resumption after the graphics requirements passed and their
+review was clean. The renewed catalog baselines pass: CAT-001
+20260916T204844693Z-796920, CAT-002 20260916T204920229Z-801882,
+and CAT-003 20260916T204947423Z-806472. They do not close the existing
+visual findings. Source inspection confirms the outer convenience ScrollView
+uses its default 80x24 props and wraps pages in a start-aligned Stack.
+Sidebar entries have flex-1 despite h-1, so they grow with terminal height.
+Page gap-1 uses the four-cell CSS spacing scale. ScrollView also supplies
+whitespace-pre, so long coverage prose needs explicit wrapping.
+
+Repair the catalog configuration, not the shared spacing scale or framework
+API. Add regression checks for viewport-sized scrolling, full-width colored
+backgrounds, one-row navigation entries, compact page spacing, and actual
+colored grid-span geometry. The default cube still rasterizes dotted edges
+into a fixed 40x16 canvas; its quality finding remains open independently of
+the opt-in shaded wgpu page. No executable code changed during this review.
