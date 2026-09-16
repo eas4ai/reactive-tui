@@ -7,7 +7,6 @@ inputs:
   - src
   - crates
   - reactive-tui-macros
-  - .cargo
   - examples
   - manual/assets/logo.jpg
   - README.md
