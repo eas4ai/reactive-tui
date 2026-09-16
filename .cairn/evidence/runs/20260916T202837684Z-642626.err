@@ -1,0 +1,9 @@
+test_accumulating_queue_fails (__main__.ValidatorTests.test_accumulating_queue_fails) ... ok
+test_corrected_fixture (__main__.ValidatorTests.test_corrected_fixture) ... ok
+test_each_missing_guard_fails (__main__.ValidatorTests.test_each_missing_guard_fails) ... ok
+test_frame_count_fails (__main__.ValidatorTests.test_frame_count_fails) ... ok
+
+----------------------------------------------------------------------
+Ran 4 tests in 0.000s
+
+OK
