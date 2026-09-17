@@ -11,4 +11,4 @@ The DQC-003 logging repair removed the replay that made panic text visible after
 
 ## Realized by
 
-(none yet: recorded, not built)
+- ab8fa0c024b88db68ff0f7e17d0621cea41cab60 fix: replay terminal panics through owned output after restoration
