@@ -711,3 +711,17 @@ Ripwire's declaration-only diagnostics exit zero with no modeled test
 obligations and one ignored generated-metadata row. They compare against the
 already committed tree, so they do not supersede the earlier source-repair
 quality/test-gate exits or establish behavioral verification on their own.
+
+## API-015 local dependency footprint finding
+
+Receipt 20260917T144635335Z-1775121 passes the feature checker. Its captured
+embedded-terminal and nightly all-features builds compile both local crates
+under crates/, which the declaration omits. Changes there could incorrectly
+leave this evidence fresh. Add crates to the declared inputs, retain all
+existing inputs and checks, and rerun acceptance against the committed tree.
+The catalog logo is a runtime file path, not a compile-time included asset;
+do not add it as a compiler dependency on that assumption.
+
+This finding does not claim a compiler or framework failure. Preserved FFI
+and nightly compiler warnings are not strict-lint passes. Other recorded
+Fable findings remain unresolved.
