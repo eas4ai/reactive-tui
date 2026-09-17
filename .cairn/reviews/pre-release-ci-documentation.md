@@ -154,3 +154,22 @@ obligation sentences. The direct lint run failed; repair the writing without
 weakening any obligation before claiming the complete mechanism set passes.
 The configured macOS SSH host returned "No route to host"; native macOS
 verification is outstanding, not replaced by workflow inspection.
+
+## EMB-006 revised mechanism review, 2026-09-17
+
+Examined candidate 1caf5d16466cde20f661ca89c20e8f906c9e9089. The same example-
+to-internal-probe revision applies to EMB-006. The launcher actually invokes
+App::run, rather than directly painting a terminal. The PTY checks verify raw
+mode was entered and the original termios, visible cursor, and alternate
+screen were restored on both normal Ctrl+Q and an application worker error.
+The preceding real-probe positive cases and /usr/bin/true negative case apply
+here too: a launcher bypassing App cannot satisfy raw-mode and restoration
+assertions. No source was changed while examining these checks.
+
+The inherited renderer command runs its internal tests, integration tests,
+an actual probe build, deterministic PTY fixtures and live PTY assertions,
+then the shipped specification lint under set -eu. Running that exact lint
+confirms the twelve writing failures; the gate does not mask them. Its repair
+is separate work, not a reason to remove renderer inheritance. No mismatch
+with the revised EMB-006 requirement was found. The full acceptance run is
+still pending and must not be inferred from the three direct PTY passes.
