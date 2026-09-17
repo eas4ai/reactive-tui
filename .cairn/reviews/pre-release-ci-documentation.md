@@ -612,3 +612,22 @@ selector succeeds. Quality-delta still exits 2 for churn and generated C
 capture duplication. Test-gate exits 4 with 125 unmodeled obligations and
 no recognized tests. Neither static diagnostic is a pass. Actual full
 checker execution and ten unit controls are the verification here.
+
+## DQC-004 input declaration and local resource findings, 2026-09-17
+
+Fresh receipt 20260917T142212620Z-1368987 fails on disk quota while compiling
+the graphics graph. The two mutants also fail outside their assertions, so
+neither can count as a successful negative control. Preserve that receipt.
+The parent supplied the already nested default cache as CARGO_TARGET_DIR;
+the checker appends dqc004 and creates duplicate graphs. Those three new,
+private artifact directories use about 3.9 GiB. Remove only their rebuildable
+Cargo artifacts, leave the original graphs and user targets alone, and rerun
+with the original private cache root. This is an execution correction, not
+an assertion or feature-coverage exemption.
+
+Independent declaration inspection confirms the build reads build.rs and the
+reactive-tui-macros crate, but neither is declared. Their changes could leave
+a passing receipt falsely fresh. Add both inputs without narrowing any old
+input or changing the checker command. Confirm the next receipt inventories
+both, and require all three compile graphs and both real assertion mutants.
+No application-code or requirement change is needed for these two findings.
