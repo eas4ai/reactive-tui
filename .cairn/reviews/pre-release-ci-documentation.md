@@ -631,3 +631,18 @@ a passing receipt falsely fresh. Add both inputs without narrowing any old
 input or changing the checker command. Confirm the next receipt inventories
 both, and require all three compile graphs and both real assertion mutants.
 No application-code or requirement change is needed for these two findings.
+
+The corrected-cache run, receipt 20260917T142542197Z-1411692, passes all 85
+targets across the three graphs and both actual assertion mutants. The added
+build and proc-macro inputs are inventoried by Cairn. This establishes the
+execution correction, not a complete dependency footprint: further manifest
+inspection finds two embedded-library crates in Cargo's workspace. Their
+manifests affect metadata and locked resolution even with embedding disabled.
+Declare crates as well, retain this passing receipt unchanged, and rerun.
+
+Targeted Cargo clean removed about 3.8 GiB from the three accidentally nested
+private graphs only. These are rebuildable artifacts, not source or evidence.
+Original graphs, dependencies there, shared targets and user builds remain.
+Ripwire exits zero for the declaration-only delta and names no modeled test
+obligations; its only quality row is generated GitNexus metadata. This does
+not independently verify declaration completeness or executable behavior.
