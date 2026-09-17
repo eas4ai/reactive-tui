@@ -1,0 +1,11 @@
+    Finished `test` profile [unoptimized] target(s) in 0.12s
+     Running tests/api_documentation_contract.rs (/tmp/reactive-tui-wgpu.waMUcc/dqc004/default/debug/deps/api_documentation_contract-d58b1cac3f011a02)
+
+running 4 tests
+test responsive_blocks_evaluate_once_in_stable_breakpoint_order ... ok
+test layout_convenience_macros_use_the_facade_and_fill_the_actual_parent ... ok
+test responsive_profiles_preserve_class_precedence_and_app_isolation ... ok
+test responsive_profiles_follow_viewport_boundaries_and_reverse_resize ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
