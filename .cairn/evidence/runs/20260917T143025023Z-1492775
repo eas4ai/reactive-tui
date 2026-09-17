@@ -1,0 +1,18 @@
+mechanism: api-clipboard
+commit: f7265ee1b2d4ed92fef49122b72b22a8bcfcaec9
+inputs_digest: sha256:7b03f7b90d3bc5e1f3eccba892775ed1675a695a92df9c65ad1fe0ca3c26fdae
+mechanism_digest: sha256:160ea625af11290615625ff50df0529fdc5ae586cad2e4e275586d100ed14fcd
+kernel_digest: sha256:dcf98a392e77abb6f96ff4c1b9a44c53cbbf0102123d3f6746a356759a344a81
+inputs_detail: .cairn/evidence/runs/20260917T143025023Z-1492775.inputs.json
+command: sh -c 'python3 -B scripts/test-clipboard-platforms.py && python3 -B scripts/check-api-clipboard.py'
+cwd: .
+exit: 1
+output_digest: sha256:7df624d92e50fae36452cfec72a3a97ad5eda1a470d4eefa3c4a38d86ef155de
+output: .cairn/evidence/runs/20260917T143025023Z-1492775.out
+stderr_output: .cairn/evidence/runs/20260917T143025023Z-1492775.err
+stderr_digest: sha256:125802b719882cf90cf3f40cd52ec72fccd0b288de7781f6d04767f279ab97c9
+signal: none
+execution_error: null
+recorded: 2026-09-17T14:30:33.174Z
+results:
+  - API-008 fail exit sha256:d9b919038e47eaefc1acf3629cbff4441705b3b48673c089dd7a1bb7e65c7793 59 sha256:4834b36be117e07e3245a8d982a8561645eca39602f67f4ed2e2d1b289dd04c1
