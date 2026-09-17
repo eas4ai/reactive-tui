@@ -1,0 +1,161 @@
+   Compiling proc-macro2 v1.0.101
+   Compiling quote v1.0.40
+   Compiling syn v3.0.5
+   Compiling syn v2.0.106
+   Compiling enumflags2_derive v0.7.12
+   Compiling tracing-attributes v0.1.31
+   Compiling async-recursion v1.1.1
+   Compiling phf_macros v0.13.1
+   Compiling derive_more-impl v2.0.1
+   Compiling futures-macro v0.3.31
+   Compiling tokio-macros v2.5.0
+   Compiling reactive-tui-macros v0.1.0 (/home/shawn/workspace2/reactive-tui/reactive-tui-macros)
+   Compiling phf v0.13.1
+   Compiling comrak v0.55.0
+   Compiling derive_more v2.0.1
+   Compiling reactive-tui-crossterm v0.1.0 (/home/shawn/workspace2/reactive-tui/src/backend/crossterm)
+   Compiling tokio v1.47.1
+   Compiling serde_derive v1.0.229
+   Compiling serde_repr v0.1.21
+   Compiling async-trait v0.1.92
+   Compiling thiserror-impl v2.0.20
+   Compiling tracing v0.1.44
+   Compiling futures-util v0.3.31
+   Compiling thiserror v2.0.20
+   Compiling serde v1.0.229
+   Compiling zvariant_utils v4.2.0
+   Compiling zcheapstr v1.1.0
+   Compiling enumflags2 v0.7.12
+   Compiling uuid v1.18.1
+   Compiling serde_json v1.0.143
+   Compiling plist v1.10.1
+   Compiling bincode v1.3.3
+   Compiling string_cache v0.8.9
+   Compiling accesskit v0.25.0
+   Compiling taffy v0.9.2
+   Compiling syntect v5.3.0
+   Compiling zvariant_derive v5.15.0
+   Compiling accesskit_consumer v0.39.0
+   Compiling zvariant v5.15.0
+   Compiling zbus_names v4.3.4
+   Compiling zbus_xml v5.2.1
+   Compiling zbus_macros v5.19.0
+   Compiling zbus-lockstep v0.5.2
+   Compiling zbus-lockstep-macros v0.5.2
+   Compiling zbus v5.19.0
+   Compiling atspi-common v0.13.0
+   Compiling atspi-proxies v0.13.0
+   Compiling atspi v0.29.0
+   Compiling reactive-tui v0.1.0 (/home/shawn/workspace2/reactive-tui)
+warning: ambiguous glob re-exports
+   --> src/ffi/mod.rs:143:9
+    |
+143 | pub use pointer::*;
+    |         ^^^^^^^^^^ the name `validate_pointer` in the value namespace is first re-exported here
+...
+148 | pub use types::*;
+    |         -------- but the name `validate_pointer` in the value namespace is also re-exported here
+    |
+    = note: `#[warn(ambiguous_glob_reexports)]` on by default
+
+warning: unused variable: `width`
+   --> src/ffi/lib.rs:122:14
+    |
+122 |         let (width, height) = renderer_box.dims();
+    |              ^^^^^
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+help: if this is intentional, prefix it with an underscore
+    |
+122 |         let (_width, height) = renderer_box.dims();
+    |              +
+help: you might have meant to pattern match on the similarly named constant `MAX_SCRATCH`
+    |
+122 -         let (width, height) = renderer_box.dims();
+122 +         let (widgets::display::image::sixel_encode::MAX_SCRATCH, height) = renderer_box.dims();
+    |
+
+warning: function `validate_pointer` is never used
+   --> src/ffi/types.rs:182:15
+    |
+182 | pub(crate) fn validate_pointer<T>(ptr: *const T) -> bool {
+    |               ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `validate_mut_pointer` is never used
+   --> src/ffi/types.rs:187:15
+    |
+187 | pub(crate) fn validate_mut_pointer<T>(ptr: *mut T) -> bool {
+    |               ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `safe_cast` is never used
+   --> src/ffi/types.rs:192:22
+    |
+192 | pub(crate) unsafe fn safe_cast<T, U>(ptr: *mut T) -> Result<*mut U, ReactiveError> {
+    |                      ^^^^^^^^^
+
+warning: function `safe_cast_const` is never used
+   --> src/ffi/types.rs:206:22
+    |
+206 | pub(crate) unsafe fn safe_cast_const<T, U>(ptr: *const T) -> Result<*const U, ReactiveError> {
+    |                      ^^^^^^^^^^^^^^^
+
+warning: `reactive-tui` (lib) generated 6 warnings (run `cargo fix --lib -p reactive-tui` to apply 1 suggestion)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 26.99s
+warning: ambiguous glob re-exports
+   --> src/ffi/mod.rs:143:9
+    |
+143 | pub use pointer::*;
+    |         ^^^^^^^^^^ the name `validate_pointer` in the value namespace is first re-exported here
+...
+148 | pub use types::*;
+    |         -------- but the name `validate_pointer` in the value namespace is also re-exported here
+    |
+    = note: `#[warn(ambiguous_glob_reexports)]` on by default
+
+warning: unused variable: `width`
+   --> src/ffi/lib.rs:122:14
+    |
+122 |         let (width, height) = renderer_box.dims();
+    |              ^^^^^
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+help: if this is intentional, prefix it with an underscore
+    |
+122 |         let (_width, height) = renderer_box.dims();
+    |              +
+help: you might have meant to pattern match on the similarly named constant `MAX_SCRATCH`
+    |
+122 -         let (width, height) = renderer_box.dims();
+122 +         let (widgets::display::image::sixel_encode::MAX_SCRATCH, height) = renderer_box.dims();
+    |
+
+warning: function `validate_pointer` is never used
+   --> src/ffi/types.rs:182:15
+    |
+182 | pub(crate) fn validate_pointer<T>(ptr: *const T) -> bool {
+    |               ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `validate_mut_pointer` is never used
+   --> src/ffi/types.rs:187:15
+    |
+187 | pub(crate) fn validate_mut_pointer<T>(ptr: *mut T) -> bool {
+    |               ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `safe_cast` is never used
+   --> src/ffi/types.rs:192:22
+    |
+192 | pub(crate) unsafe fn safe_cast<T, U>(ptr: *mut T) -> Result<*mut U, ReactiveError> {
+    |                      ^^^^^^^^^
+
+warning: function `safe_cast_const` is never used
+   --> src/ffi/types.rs:206:22
+    |
+206 | pub(crate) unsafe fn safe_cast_const<T, U>(ptr: *const T) -> Result<*const U, ReactiveError> {
+    |                      ^^^^^^^^^^^^^^^
+
+warning: `reactive-tui` (lib) generated 6 warnings (run `cargo fix --lib -p reactive-tui` to apply 1 suggestion)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.10s
