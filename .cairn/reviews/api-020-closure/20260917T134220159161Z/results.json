@@ -1,0 +1,356 @@
+{
+  "historical_control": "recognized as a defect demonstration",
+  "normal_cleanup": {
+    "command": [
+      "/usr/bin/python3",
+      "-B",
+      "/home/shawn/workspace2/reactive-tui/tests/api_widget_behavior/image_host_capture.py",
+      "gnome",
+      "/home/shawn/workspace2/reactive-tui/.cairn/reviews/api-020-closure/20260917T134220159161Z/normal",
+      "app-auto",
+      "/tmp/reactive-tui-wgpu.waMUcc/dqc004/default/debug/examples/image_host_probe"
+    ],
+    "forced_timeout": false,
+    "owned_groups": [
+      602935,
+      602953
+    ],
+    "observed_members": {
+      "602935": {
+        "state": "S",
+        "ppid": 602930,
+        "pgid": 602935,
+        "sid": 602935,
+        "started": "173677341"
+      },
+      "602949": {
+        "state": "S",
+        "ppid": 602935,
+        "pgid": 602935,
+        "sid": 602935,
+        "started": "173677345"
+      },
+      "602953": {
+        "state": "S",
+        "ppid": 602930,
+        "pgid": 602953,
+        "sid": 602953,
+        "started": "173677351"
+      },
+      "602963": {
+        "state": "S",
+        "ppid": 602953,
+        "pgid": 602953,
+        "sid": 602953,
+        "started": "173677355"
+      },
+      "602967": {
+        "state": "S",
+        "ppid": 602963,
+        "pgid": 602953,
+        "sid": 602953,
+        "started": "173677355"
+      },
+      "602999": {
+        "state": "S",
+        "ppid": 602963,
+        "pgid": 602953,
+        "sid": 602953,
+        "started": "173677366"
+      },
+      "603002": {
+        "state": "S",
+        "ppid": 6898,
+        "pgid": 602953,
+        "sid": 602953,
+        "started": "173677369"
+      },
+      "603008": {
+        "state": "S",
+        "ppid": 603002,
+        "pgid": 602953,
+        "sid": 602953,
+        "started": "173677370"
+      },
+      "603012": {
+        "state": "S",
+        "ppid": 602967,
+        "pgid": 602953,
+        "sid": 602953,
+        "started": "173677370"
+      },
+      "603013": {
+        "state": "S",
+        "ppid": 6898,
+        "pgid": 602953,
+        "sid": 602953,
+        "started": "173677370"
+      },
+      "603019": {
+        "state": "S",
+        "ppid": 6898,
+        "pgid": 602953,
+        "sid": 602953,
+        "started": "173677372"
+      },
+      "603028": {
+        "state": "S",
+        "ppid": 602967,
+        "pgid": 602953,
+        "sid": 602953,
+        "started": "173677383"
+      },
+      "603029": {
+        "state": "S",
+        "ppid": 6898,
+        "pgid": 602953,
+        "sid": 602953,
+        "started": "173677383"
+      },
+      "603035": {
+        "state": "S",
+        "ppid": 6898,
+        "pgid": 602953,
+        "sid": 602953,
+        "started": "173677384"
+      },
+      "603053": {
+        "state": "S",
+        "ppid": 6898,
+        "pgid": 602953,
+        "sid": 602953,
+        "started": "173677387"
+      },
+      "603060": {
+        "state": "S",
+        "ppid": 6898,
+        "pgid": 602953,
+        "sid": 602953,
+        "started": "173677388"
+      },
+      "603065": {
+        "state": "S",
+        "ppid": 6898,
+        "pgid": 602953,
+        "sid": 602953,
+        "started": "173677389"
+      },
+      "603223": {
+        "state": "S",
+        "ppid": 602967,
+        "pgid": 602953,
+        "sid": 602953,
+        "started": "173677407"
+      },
+      "603224": {
+        "state": "S",
+        "ppid": 6898,
+        "pgid": 602953,
+        "sid": 602953,
+        "started": "173677407"
+      },
+      "603320": {
+        "state": "S",
+        "ppid": 603013,
+        "pgid": 602953,
+        "sid": 602953,
+        "started": "173677424"
+      },
+      "603321": {
+        "state": "S",
+        "ppid": 603320,
+        "pgid": 602953,
+        "sid": 602953,
+        "started": "173677424"
+      },
+      "603325": {
+        "state": "S",
+        "ppid": 603321,
+        "pgid": 602953,
+        "sid": 602953,
+        "started": "173677426"
+      },
+      "603330": {
+        "state": "S",
+        "ppid": 6898,
+        "pgid": 602953,
+        "sid": 602953,
+        "started": "173677426"
+      }
+    },
+    "remaining": {}
+  },
+  "forced_timeout_cleanup": {
+    "command": [
+      "/usr/bin/python3",
+      "-B",
+      "/home/shawn/workspace2/reactive-tui/tests/api_widget_behavior/image_host_capture.py",
+      "gnome",
+      "/home/shawn/workspace2/reactive-tui/.cairn/reviews/api-020-closure/20260917T134220159161Z/forced-timeout",
+      "app-auto",
+      "/tmp/reactive-tui-wgpu.waMUcc/dqc004/default/debug/examples/image_host_probe"
+    ],
+    "forced_timeout": true,
+    "owned_groups": [
+      604716,
+      604778
+    ],
+    "observed_members": {
+      "604716": {
+        "state": "S",
+        "ppid": 604696,
+        "pgid": 604716,
+        "sid": 604716,
+        "started": "173678809"
+      },
+      "604725": {
+        "state": "S",
+        "ppid": 604716,
+        "pgid": 604716,
+        "sid": 604716,
+        "started": "173678814"
+      },
+      "604778": {
+        "state": "S",
+        "ppid": 604696,
+        "pgid": 604778,
+        "sid": 604778,
+        "started": "173678818"
+      },
+      "604804": {
+        "state": "S",
+        "ppid": 604778,
+        "pgid": 604778,
+        "sid": 604778,
+        "started": "173678822"
+      },
+      "604805": {
+        "state": "S",
+        "ppid": 604804,
+        "pgid": 604778,
+        "sid": 604778,
+        "started": "173678823"
+      },
+      "604840": {
+        "state": "S",
+        "ppid": 604804,
+        "pgid": 604778,
+        "sid": 604778,
+        "started": "173678823"
+      },
+      "605258": {
+        "state": "S",
+        "ppid": 6898,
+        "pgid": 604778,
+        "sid": 604778,
+        "started": "173678827"
+      },
+      "605264": {
+        "state": "S",
+        "ppid": 605258,
+        "pgid": 604778,
+        "sid": 604778,
+        "started": "173678828"
+      },
+      "605268": {
+        "state": "S",
+        "ppid": 604805,
+        "pgid": 604778,
+        "sid": 604778,
+        "started": "173678828"
+      },
+      "605269": {
+        "state": "S",
+        "ppid": 6898,
+        "pgid": 604778,
+        "sid": 604778,
+        "started": "173678828"
+      },
+      "605275": {
+        "state": "S",
+        "ppid": 6898,
+        "pgid": 604778,
+        "sid": 604778,
+        "started": "173678830"
+      },
+      "605286": {
+        "state": "S",
+        "ppid": 6898,
+        "pgid": 604778,
+        "sid": 604778,
+        "started": "173678833"
+      },
+      "605295": {
+        "state": "S",
+        "ppid": 6898,
+        "pgid": 604778,
+        "sid": 604778,
+        "started": "173678834"
+      },
+      "605311": {
+        "state": "S",
+        "ppid": 6898,
+        "pgid": 604778,
+        "sid": 604778,
+        "started": "173678836"
+      },
+      "605318": {
+        "state": "S",
+        "ppid": 6898,
+        "pgid": 604778,
+        "sid": 604778,
+        "started": "173678837"
+      },
+      "605323": {
+        "state": "S",
+        "ppid": 6898,
+        "pgid": 604778,
+        "sid": 604778,
+        "started": "173678838"
+      },
+      "605405": {
+        "state": "S",
+        "ppid": 604805,
+        "pgid": 604778,
+        "sid": 604778,
+        "started": "173678854"
+      },
+      "605406": {
+        "state": "S",
+        "ppid": 6898,
+        "pgid": 604778,
+        "sid": 604778,
+        "started": "173678854"
+      },
+      "605482": {
+        "state": "S",
+        "ppid": 605269,
+        "pgid": 604778,
+        "sid": 604778,
+        "started": "173678873"
+      },
+      "605483": {
+        "state": "S",
+        "ppid": 605482,
+        "pgid": 604778,
+        "sid": 604778,
+        "started": "173678873"
+      },
+      "605484": {
+        "state": "S",
+        "ppid": 605483,
+        "pgid": 604778,
+        "sid": 604778,
+        "started": "173678874"
+      },
+      "605489": {
+        "state": "S",
+        "ppid": 6898,
+        "pgid": 604778,
+        "sid": 604778,
+        "started": "173678874"
+      }
+    },
+    "remaining": {}
+  }
+}

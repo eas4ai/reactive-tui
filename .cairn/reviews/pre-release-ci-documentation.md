@@ -517,3 +517,30 @@ this finding before repair. Preserve the failed capture and receipt unchanged.
 Have the closure runner select the exact example executable Cargo reports and
 pass it explicitly to both normal and forced-timeout captures. Neither a
 successful build nor a serial test pass replaces actual process-cleanup proof.
+
+### Probe-path repair verification
+
+The runner now selects Cargo's compiler-artifact executable for the named
+example and passes it to both captures. The original runner failed three of
+four regression tests; the repaired runner passes all four, including paths
+with spaces, wrong artifacts, missing executable and build failure.
+
+The real editing check passed at
+api-020-closure/20260917T134220159161Z. Both commands use the private target's
+executable. Normal capture verifies image update, movement and removal.
+Normal and forced-timeout results both report no remaining owned processes.
+These diagnostics precede committed acceptance evidence, not replace it.
+Preserve captured logs and screenshots byte for byte.
+
+Fresh read-only reviewer /root/api020_launch_review returned ship with no
+blocking findings. It read current full sources and the structural diff;
+the parent supplied the original changed lines. It ran no checks. Native
+cleanup is established by the parent's real run, not mocked unit results.
+
+Ripwire's qualified edit checks found no incompatible callers. Its quality
+delta exits 2 for churn and test-fixture findings; test-gate exits 4 because
+it does not recognize unittest discovery. Neither static gate is reported
+as passing. Actual unit tests and native cleanup passed. GitNexus cannot
+index this hidden helper and the primary graph transport is closed; source
+inspection and Ripwire found main's two calls. No production Rust changes.
+Wider Fable findings remain open.

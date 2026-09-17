@@ -1,8 +1,10 @@
 # Mechanism: api-closure
 
-command: /usr/bin/python3 -B .cairn/api-closure/check.py
+command: sh -c '/usr/bin/python3 -B scripts/test-api-closure.py && /usr/bin/python3 -B .cairn/api-closure/check.py'
 inputs:
+  - .cairn/mechanisms/api-closure
   - .cairn/api-closure/check.py
+  - scripts/test-api-closure.py
   - .cairn/reviews/api-018-through-020-todo.md
   - .cairn/reviews/api-020-audit-reconciliation.md
   - .cairn/reviews/api-020-image-capture-timeout

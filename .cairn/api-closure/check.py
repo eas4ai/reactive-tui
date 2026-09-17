@@ -76,11 +76,11 @@ def kill_groups(groups):
             pass
 
 
-def run_capture(name, root, force_timeout):
+def run_capture(name, root, force_timeout, executable):
     output = root / name
     output.mkdir()
     log_path = root / f"{name}.out"
-    command = [CAPTURE_PYTHON, "-B", str(CAPTURE), "gnome", str(output), "app-auto"]
+    command = [CAPTURE_PYTHON, "-B", str(CAPTURE), "gnome", str(output), "app-auto", executable]
     environment = {**os.environ, "PYTHONDONTWRITEBYTECODE": "1"}
     owned_groups = set()
     observed_members = {}
@@ -158,6 +158,24 @@ def validate_todo(text):
         raise RuntimeError("API-020 work list is not complete")
 
 
+def build_probe():
+    result = subprocess.run(
+        ["cargo", "build", "--locked", "--example", "image_host_probe",
+         "--jobs", "8", "--message-format=json"],
+        cwd=ROOT, check=True, timeout=600, stdout=subprocess.PIPE, text=True)
+    for line in result.stdout.splitlines():
+        try:
+            message = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if (isinstance(message, dict) and message.get("reason") == "compiler-artifact"
+                and message.get("target", {}).get("name") == "image_host_probe"
+                and "example" in message.get("target", {}).get("kind", [])
+                and message.get("executable")):
+            return message["executable"]
+    raise RuntimeError("Cargo did not report the image-host example executable")
+
+
 def main():
     if not sys.platform.startswith("linux") or not Path("/proc").is_dir():
         raise RuntimeError("API-020 process ownership check requires Linux /proc")
@@ -181,15 +199,14 @@ def main():
     validate_review(review)
     validate_todo(TODO.read_text())
 
-    subprocess.run(["cargo", "build", "--locked", "--example", "image_host_probe",
-                    "--jobs", "8"], cwd=ROOT, check=True, timeout=600)
+    executable = build_probe()
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
     output = ROOT / ".cairn/reviews/api-020-closure" / stamp
     output.mkdir(parents=True)
     results = {
         "historical_control": "recognized as a defect demonstration",
-        "normal_cleanup": run_capture("normal", output, False),
-        "forced_timeout_cleanup": run_capture("forced-timeout", output, True),
+        "normal_cleanup": run_capture("normal", output, False, executable),
+        "forced_timeout_cleanup": run_capture("forced-timeout", output, True, executable),
     }
     (output / "results.json").write_text(json.dumps(results, indent=2) + "\n")
     print("API-020 closure: audit mapping, negative controls, normal cleanup and forced-timeout cleanup PASS")
