@@ -11,4 +11,4 @@ Shawn directed technical remediation FIRST on 2026-09-17. List the existing tech
 
 ## Realized by
 
-c160765bcb9f160ef30e31bafc147bbe98c344bd docs: prioritize Fable technical verification before queue review
+- c160765bcb9f160ef30e31bafc147bbe98c344bd docs: prioritize Fable technical verification before queue review
