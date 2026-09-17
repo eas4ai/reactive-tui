@@ -1,0 +1,18 @@
+mechanism: pre-release-file-explorer-identity-safety
+commit: 2eb9b70b3384df4c57f2c75bd17294b637fee168
+inputs_digest: sha256:434587c566634a3989e7c94e5bdf23f6a9331ff721897e4421305b70ad676814
+mechanism_digest: sha256:653d0e065dc3fd77721d7f3637ecd803f796c586fb3efb7a2a1607cf6e691890
+kernel_digest: sha256:dcf98a392e77abb6f96ff4c1b9a44c53cbbf0102123d3f6746a356759a344a81
+inputs_detail: .cairn/evidence/runs/20260917T141745373Z-1317825.inputs.json
+command: python3 -B scripts/check-pre-release-external-input-safety.py XIS-003
+cwd: .
+exit: 0
+output_digest: sha256:2029ac7cdc745ebd6fe366f97c0c9c3047efe983dc0cedc8faa09a29d0545926
+output: .cairn/evidence/runs/20260917T141745373Z-1317825.out
+stderr_output: .cairn/evidence/runs/20260917T141745373Z-1317825.err
+stderr_digest: sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+signal: none
+execution_error: null
+recorded: 2026-09-17T14:17:58.884Z
+results:
+  - XIS-003 pass exit sha256:fc8b3b94b4e2e7c7bc5747435903271351372e5030b7616aa94f376e162746a1 7 sha256:8f05cca04e555925a6ccf6c22679b3c3aa56733e1c75c7074de250c71c1ea24d
