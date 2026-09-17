@@ -13,7 +13,7 @@
 //! - **Image Rendering**: Multiple backends for displaying images in terminals
 //! - **FFI Support**: Multi-language bindings via stable C ABI
 //!
-//! The repository's `docs/supported-api.md` maps supported routes to behavior
+//! The repository's `manual/supported-api.md` maps supported routes to behavior
 //! checks and platform limits. Catalog-wide acceptance remains subject to the
 //! current API remediation commitment; compilation alone is not runtime evidence.
 //!

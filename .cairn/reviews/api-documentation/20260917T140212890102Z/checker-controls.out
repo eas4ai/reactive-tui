@@ -1,0 +1,18 @@
+test_consumer_library_captures_keep_separate_matching_hashes (__main__.ConsumerCaptureControls.test_consumer_library_captures_keep_separate_matching_hashes) ... ok
+test_fences_preserve_separate_examples_and_flags (__main__.DocumentationControls.test_fences_preserve_separate_examples_and_flags) ... ok
+test_markdown_requires_index_entry_and_all_public_submodules (__main__.DocumentationControls.test_markdown_requires_index_entry_and_all_public_submodules) ... ok
+test_matrix_rejects_missing_fields_duplicate_modules_and_unclear_status (__main__.DocumentationControls.test_matrix_rejects_missing_fields_duplicate_modules_and_unclear_status) ... ok
+test_zero_executed_tests_and_failed_nested_step_cannot_pass (__main__.DocumentationControls.test_zero_executed_tests_and_failed_nested_step_cannot_pass) ... FAIL zero-cases Expected at least 1 passing tests, observed 0
+PASS one-case
+FAIL parent A required nested check failed; see the retained outputs
+ok
+test_inventory_rejects_missing_modules_and_missing_linked_evidence (__main__.RetainedDocumentationControls.test_inventory_rejects_missing_modules_and_missing_linked_evidence) ... ok
+test_manual_is_a_declared_documentation_input (__main__.RetainedDocumentationControls.test_manual_is_a_declared_documentation_input) ... ok
+test_matrix_accepts_graphics_behavior_requirements_but_not_unknown_names (__main__.RetainedDocumentationControls.test_matrix_accepts_graphics_behavior_requirements_but_not_unknown_names) ... ok
+test_matrix_uses_the_retained_manual_path (__main__.RetainedDocumentationControls.test_matrix_uses_the_retained_manual_path) ... ok
+test_nested_manual_examples_enter_the_compilation_inventory (__main__.RetainedDocumentationControls.test_nested_manual_examples_enter_the_compilation_inventory) ... ok
+
+----------------------------------------------------------------------
+Ran 10 tests in 0.006s
+
+OK

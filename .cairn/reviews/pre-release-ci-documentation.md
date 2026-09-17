@@ -576,3 +576,39 @@ first. The earlier JSON entry can no longer be checked against its output.
 Retain the historical outputs unchanged. Give the two phases distinct log
 names, prove both captured hashes match separate retained files, and rerun
 the complete checker. This is a capture-integrity repair, not new API scope.
+
+### Retained-documentation repair verification
+
+The matrix now lives in manual/supported-api.md and covers all root public
+modules plus macros. README, the manual index and the crate introduction
+point there. The checker recursively collects manual examples and declares
+manual as an input. GPU requirement names are accepted for graphics while
+unknown names remain rejected. Props and examples use distinct library logs.
+
+The original retention controls fail three assertions. After correction,
+the new GPU control exposes the old prefix omission before passing. The
+capture control exposes the missing phase-name argument before repair;
+its first corrected run also exposes a temporary fixture-root error. Fix
+that isolated fixture. All ten controls then pass. Synthetic output stays
+in temporary directories and proves validators, not native acceptance.
+
+The final complete editing run at 20260917T140212890102Z passes all 47
+steps. Independent byte-hash verification finds 40 distinct captured log
+paths and all 40 SHA-256 values match. Two manual examples enter the
+inventory and compile; one also runs. Formatting and handwritten whitespace
+checks pass. Earlier editing runs, including the intermediate passing run
+with colliding logs, remain diagnostics only. Preserve every output byte.
+
+Fresh read-only reviewer /root/api018_retention_review returns ship with no
+blocking findings. It checks complete module coverage and approved Props,
+Orca/GNOME, patched-Kitty and iTerm2 limits. It runs no checks or mutations.
+These results precede formal committed acceptance; they do not close Fable.
+
+GitNexus reports low impact for the changed checker methods and original
+control class. Both library callers use the new name argument. Ripwire's
+edit checks find no incompatible callers. The first absolute-path library
+selector fails to locate its relative indexed path; the corrected relative
+selector succeeds. Quality-delta still exits 2 for churn and generated C
+capture duplication. Test-gate exits 4 with 125 unmodeled obligations and
+no recognized tests. Neither static diagnostic is a pass. Actual full
+checker execution and ten unit controls are the verification here.

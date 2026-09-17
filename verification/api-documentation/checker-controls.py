@@ -1,11 +1,97 @@
 """Safe negative and positive controls for the API documentation mechanism."""
 from pathlib import Path
+import hashlib
+import inspect
+import io
+import json
 import runpy
 import tempfile
 import unittest
+from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[2]
 CHECK = runpy.run_path(str(ROOT / "scripts/check-api-documentation.py"))
+
+
+class ConsumerCaptureControls(unittest.TestCase):
+    def test_consumer_library_captures_keep_separate_matching_hashes(self):
+        self.assertIn("name", inspect.signature(CHECK["Check"].library).parameters)
+        with tempfile.TemporaryDirectory() as temporary:
+            check = CHECK["Check"].__new__(CHECK["Check"])
+            check.output, check.steps = Path(temporary), []
+            outputs = iter(json.dumps({"reason": "compiler-artifact",
+                "target": {"name": "reactive_tui"}, "filenames": [name + ".rlib"]})
+                for name in ("props", "examples"))
+            def execute(command, log, timeout):
+                output = next(outputs)
+                log.write_text(output)
+                return output
+            check.execute = execute
+            with patch("sys.stdout", new=io.StringIO()), \
+                    patch.dict(CHECK["Check"].run.__globals__, ROOT=check.output):
+                self.assertEqual(check.library("props-consumer-library"), "props.rlib")
+                self.assertEqual(check.library("examples-consumer-library"), "examples.rlib")
+            self.assertNotEqual(check.steps[0]["log"], check.steps[1]["log"])
+            for step in check.steps:
+                self.assertEqual(step["sha256"], hashlib.sha256(
+                    (check.output / step["log"]).read_bytes()).hexdigest())
+
+
+class RetainedDocumentationControls(unittest.TestCase):
+    def test_matrix_uses_the_retained_manual_path(self):
+        self.assertEqual(CHECK["MATRIX"], ROOT / "manual/supported-api.md")
+
+    def test_matrix_accepts_graphics_behavior_requirements_but_not_unknown_names(self):
+        row = "| `graphics` | Offscreen canvas | GPU-001 | Opt-in | Covered by named checks |\n"
+        self.assertEqual(CHECK["matrix_modules"](row), {"graphics"})
+        with self.assertRaises(AssertionError):
+            CHECK["matrix_modules"](row.replace("GPU-001", "UNKNOWN-001"))
+
+    def test_manual_is_a_declared_documentation_input(self):
+        declaration = (ROOT / ".cairn/mechanisms/api-documentation").read_text()
+        self.assertIn("  - manual\n", declaration)
+
+    def test_nested_manual_examples_enter_the_compilation_inventory(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            for directory in ("manual/nested", "include", "bindings/typescript", "src", "reactive-tui-macros/src", "output"):
+                (root / directory).mkdir(parents=True, exist_ok=True)
+            (root / "README.md").write_text("```rust,no_run\nlet value = 1;\n```\n")
+            (root / "include/README.md").write_text("```c\nint main(void) { return 0; }\n```\n")
+            (root / "bindings/typescript/README.md").write_text("```typescript\nconst value = 1;\n```\n")
+            (root / "reactive-tui-macros/src/lib.rs").write_text("")
+            manual = root / "manual/nested/example.md"
+            manual.write_text("# Example\n```rust,no_run\nlet nested = 2;\n```\n\n```python\nassert True\n```\n")
+            check = CHECK["Check"].__new__(CHECK["Check"])
+            check.output = root / "output"
+            with patch.dict(CHECK["Check"].collect_examples.__globals__, ROOT=root):
+                rust, _, _, python = check.collect_examples()
+            self.assertIn("manual/nested/example.md", [name for name, _ in rust])
+            self.assertIn("manual/nested/example.md", [name for name, _, _ in python])
+            inventory = json.loads((check.output / "examples.json").read_text())
+            self.assertEqual([entry["language"] for entry in inventory
+                              if entry["file"] == "manual/nested/example.md"], ["rust", "python"])
+
+    def test_inventory_rejects_missing_modules_and_missing_linked_evidence(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / "src").mkdir()
+            (root / "manual").mkdir()
+            (root / "src/lib.rs").write_text("pub mod markdown;\n")
+            matrix = root / "manual/supported-api.md"
+            limits = "Orca GNOME Terminal iTerm2 3.7 Kitty patch validate Option<T>\n"
+            rows = "| `markdown` | Conversion | API-018 | Host limits | Covered by named checks |\n"
+            rows += "| `macros` | Props | API-018 | Explicit validation | Covered by named checks |\n"
+            matrix.write_text(limits + rows)
+            check = CHECK["Check"].__new__(CHECK["Check"])
+            with patch.dict(CHECK["Check"].inventory.__globals__, ROOT=root, MATRIX=matrix):
+                check.inventory()
+                matrix.write_text(limits + rows.splitlines()[0] + "\n")
+                with self.assertRaisesRegex(AssertionError, "missing"):
+                    check.inventory()
+                matrix.write_text(limits + rows + "[Evidence](../missing.rs)\n")
+                with self.assertRaisesRegex(AssertionError, "Broken.*link"):
+                    check.inventory()
 
 
 class DocumentationControls(unittest.TestCase):

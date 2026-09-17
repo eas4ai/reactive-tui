@@ -13,6 +13,7 @@ inputs:
   - benches
   - README.md
   - docs
+  - manual
   - include
   - bindings/typescript
   - scripts/check-api-documentation.py

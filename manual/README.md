@@ -10,6 +10,7 @@ intent and platform limits when the source needs context.
 ## Table of contents
 
 - [Getting started](#getting-started)
+- [Supported API and verification limits](supported-api.md)
 - [Widget catalog example](#widget-catalog-example)
 - [Applications and components](#applications-and-components)
 - [Elements, builders, and the virtual DOM](#elements-builders-and-the-virtual-dom)

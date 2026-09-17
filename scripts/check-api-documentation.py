@@ -11,7 +11,7 @@ import runpy
 
 ROOT = Path(__file__).resolve().parents[1]
 TARGET = Path(os.environ.get("CARGO_TARGET_DIR", ROOT / "target")).resolve()
-MATRIX = ROOT / "docs/supported-api.md"
+MATRIX = ROOT / "manual/supported-api.md"
 SECTIONS = ("props", "rustdoc", "examples", "inventory")
 
 
@@ -50,7 +50,7 @@ def matrix_modules(text):
         if not names or found.intersection(names):
             raise AssertionError("Missing or duplicate API matrix module")
         found.update(names)
-        if not re.search(r"(?:API|ABI|RND|EMB|WAK|REG|CCH)-\d{3}", cells[2]):
+        if not re.search(r"(?:API|ABI|RND|EMB|WAK|REG|CCH|GPU)-\d{3}", cells[2]):
             raise AssertionError("Every matrix row needs named behavior evidence")
         if cells[4] not in ("Verified", "Verified with limits", "Covered by named checks", "API-019 review pending"):
             raise AssertionError("Matrix status must distinguish acceptance from pending review")
@@ -111,8 +111,8 @@ class Check:
             self.steps.append({"name": name, "result": "pass"})
             print("PASS", name, flush=True)
 
-    def library(self):
-        output = self.run("consumer-library", ["cargo", "build", "--locked", "--lib",
+    def library(self, name):
+        output = self.run(name, ["cargo", "build", "--locked", "--lib",
                                                "--message-format=json-render-diagnostics"])
         if output is None:
             raise RuntimeError("Could not build the facade used by documentation consumers")
@@ -134,7 +134,7 @@ class Check:
         self.run("props-behavior", ["cargo", "test", "--locked", "--test", "api_props_contract",
                                      "--test", "props_derive_test", "--test", "simple_props_test"], expected_tests=17)
         self.run("props-diagnostics", ["cargo", "test", "--locked", "-p", "reactive-tui-macros", "--lib"], expected_tests=2)
-        library = self.library()
+        library = self.library("props-consumer-library")
         binary = self.scratch / "props-defaults"
         source = ROOT / "verification/api-documentation/props-defaults.rs"
         command = ["rustc", "--edition=2021", "--crate-name", "api018_defaults", str(source),
@@ -180,6 +180,7 @@ class Check:
 
     def collect_examples(self):
         guides = [ROOT / "README.md", *sorted((ROOT / "docs").glob("*.md")),
+                  *sorted((ROOT / "manual").rglob("*.md")),
                   ROOT / "include/README.md", *sorted((ROOT / "bindings/typescript").glob("*.md"))]
         rust, c, typescript, python = [], [], [], []
         inventory = []
@@ -251,7 +252,7 @@ class Check:
 
     def examples(self):
         rust, c, typescript, python = self.collect_examples()
-        self.rust_examples(self.library(), rust)
+        self.rust_examples(self.library("examples-consumer-library"), rust)
         self.c_examples(c)
         self.typescript_examples(typescript)
         for index, (source, line, code) in enumerate(python):

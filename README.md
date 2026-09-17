@@ -187,6 +187,8 @@ changes after inspection. See [Dialogs](manual/dialogs.md),
 ## Manual
 
 The [Reactive TUI manual](manual/README.md) is the main documentation entry point.
+The [supported-API matrix](manual/supported-api.md) maps every public crate module
+to its supported route, behavior checks, and verification limits.
 It contains a linked overview and 20 focused chapters grounded in the exported
 source, Cargo features, examples, and behavior tests.
 

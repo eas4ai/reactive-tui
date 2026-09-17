@@ -1,0 +1,18 @@
+[
+  {
+    "name": "checker-controls",
+    "command": [
+      "python3",
+      "-B",
+      "/home/shawn/workspace2/reactive-tui/verification/api-documentation/checker-controls.py"
+    ],
+    "log": ".cairn/reviews/api-documentation/20260917T135810945070Z/checker-controls.out",
+    "result": "pass",
+    "sha256": "2ce5822bc33c2ecfef6aab2c084b9b49e619a3e4dfaa5eb51ef98623f20fd0d4"
+  },
+  {
+    "name": "inventory",
+    "result": "fail",
+    "error": "Every matrix row needs named behavior evidence"
+  }
+]
