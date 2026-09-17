@@ -8,6 +8,7 @@ inputs:
   - build.rs
   - src
   - reactive-tui-macros
+  - crates
   - tests
   - examples
   - benches
