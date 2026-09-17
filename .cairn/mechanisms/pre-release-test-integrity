@@ -5,6 +5,8 @@ inputs:
   - .cairn/mechanisms/pre-release-test-integrity
   - Cargo.toml
   - Cargo.lock
+  - build.rs
+  - reactive-tui-macros
   - src
   - tests
   - scripts/check-pre-release-test-integrity.py
