@@ -1,9 +1,14 @@
 #!/usr/bin/env python3
 import importlib.util
+import io
+import json
+import os
+from contextlib import redirect_stderr
 from pathlib import Path
 import subprocess
 import tempfile
 import unittest
+from unittest.mock import patch
 
 
 def load_checker():
@@ -26,6 +31,7 @@ def clean_observation() -> dict:
         "missing_targets": [],
         "disconnected_tests": [],
         "ffi_modules": ["src/ffi/mod.rs"],
+        "ffi_exports": [{"path": "src/ffi/mod.rs", "line": 1, "name": "observable_export"}],
         "unreachable_ffi_modules": [],
         "unsafe_hooks": [],
         "mutations": [
@@ -42,6 +48,9 @@ def clean_observation() -> dict:
 
 
 class ValidatorTests(unittest.TestCase):
+    def test_empty_export_inventory_is_rejected(self):
+        self.assert_rejected("ffi_exports", [], "FFI export inventory is empty")
+
     def assert_rejected(self, key, value, message):
         observation = clean_observation()
         observation[key] = value
@@ -105,6 +114,130 @@ class ValidatorTests(unittest.TestCase):
 
 
 class SourceAnalysisTests(unittest.TestCase):
+    def test_production_cfg_evaluation_keeps_unknown_atoms_conservative(self):
+        cases = {"test": False, "not(test)": True, "feature = ffi": None,
+                 "any(test, feature = ffi)": None, "all(test, feature = ffi)": False,
+                 "not(any(test, feature = ffi))": None,
+                 "any(test, not(test))": True, "all()": True, "any()": False,
+                 "all(any(test, not(test)), feature = ffi)": None}
+        for expression, expected in cases.items():
+            with self.subTest(expression=expression):
+                self.assertIs(CHECKER.production_cfg_value(expression), expected)
+
+    def test_export_inventory_rejects_comment_crossings_and_accepts_declaration_trivia(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "ffi.rs"
+            source.write_text(
+                'fn ordinary_call() {}\nfn wrapper() {\n'
+                ' // extern "C" fn\n ordinary_call();\n}\n'
+                'pub extern /* ABI comment */ "C" /* declaration */ fn real_export() {}\n'
+                'pub extern /* "C" */ "Rust" fn rust_abi() {}\n'
+                'pub extern // "Rust"\n "C" fn line_comment_export() {}\n'
+                'const RAW: &str = r#"extern /* fake */ "C" fn raw_export() {}"#;\n'
+            )
+            exports = CHECKER.ffi_export_inventory({source}, root=root)
+            self.assertEqual([item["name"] for item in exports],
+                             ["real_export", "line_comment_export"])
+
+    def test_export_inventory_retains_production_cfg_alternatives(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "ffi.rs"
+            source.write_text(
+                '#[cfg(not(test))] pub extern "C" fn non_test_export() {}\n'
+                '#[cfg(any(test, feature = "ffi"))] pub extern "C" fn ffi_export() {}\n'
+                '#[cfg(test)] pub extern "C" fn test_export() {}\n'
+                '#[cfg(all(test, feature = "ffi"))] pub extern "C" fn test_feature_export() {}\n'
+            )
+            exports = CHECKER.ffi_export_inventory({source}, root=root)
+            self.assertEqual([item["name"] for item in exports],
+                             ["non_test_export", "ffi_export"])
+
+    def test_export_inventory_retains_abi_literals_and_excludes_nonproduction_text(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "ffi.rs"
+            source.write_text(
+                '#[no_mangle]\npub extern "C" fn real_export() {}\n'
+                '// pub extern "C" fn comment_export() {}\n'
+                'const EXAMPLE: &str = r#"pub extern "C" fn string_export() {}"#;\n'
+                '#[cfg(test)] mod tests { pub extern "C" fn test_callback() {} }\n'
+            )
+            self.assertEqual(CHECKER.ffi_export_inventory({source}, root=root),
+                             [{"path": "ffi.rs", "line": 2, "name": "real_export"}])
+
+    def test_feature_graphs_require_their_targets_and_do_not_hide_missing_tests(self):
+        targets = [
+            {"name": "base", "kind": ["test"], "src_path": str(CHECKER.ROOT / "tests/utility_paint_tests.rs")},
+            {"name": "ffi", "kind": ["test"], "src_path": str(CHECKER.ROOT / "tests/ffi_tests.rs"),
+             "required-features": ["ffi"]},
+            {"name": "gpu", "kind": ["test"], "src_path": str(CHECKER.ROOT / "tests/wgpu_graphics.rs"),
+             "required-features": ["wgpu-graphics"]},
+        ]
+        metadata = {"packages": [{"name": "reactive-tui", "targets": targets}]}
+        passed = subprocess.CompletedProcess([], 0, "", "")
+        failed_assertion = subprocess.CompletedProcess([], 101, "assertion `left != right` failed", "")
+
+        for omitted in (None, "base", "ffi", "gpu"):
+            def compile_result(command, **kwargs):
+                features = command[command.index("--features") + 1] if "--features" in command else None
+                if "--no-run" in command:
+                    self.assertEqual(kwargs["target_dir"], CHECKER.TARGET / (features or "default"))
+                names = {"base"} | ({"ffi"} if features == "ffi" else {"gpu"} if features == "wgpu-graphics" else set())
+                output = "\n".join(json.dumps({"reason": "compiler-artifact", "target": {"kind": ["test"], "name": name}})
+                                   for name in names if name != omitted)
+                return subprocess.CompletedProcess(command, 0, output, "")
+
+            with self.subTest(omitted=omitted), patch.object(CHECKER, "cargo_metadata", return_value=metadata), \
+                 patch.object(CHECKER, "run", side_effect=compile_result), \
+                 patch.object(CHECKER, "run_original", return_value=passed), \
+                 patch.object(CHECKER, "run_mutant", return_value=failed_assertion):
+                observation, results = CHECKER.make_observation()
+            self.assertEqual(observation["missing_targets"], [] if omitted is None else [omitted])
+            self.assertIn("graphics test compile", results)
+
+    def test_command_environment_bounds_symbols_but_preserves_checks(self):
+        parent = {"DQC004_PARENT_SETTING": "kept", "CARGO_TARGET_DIR": "parent-build",
+                  "CARGO_PROFILE_TEST_DEBUG": "2",
+                  "CARGO_PROFILE_TEST_DEBUG_ASSERTIONS": "false"}
+        with patch.dict(os.environ, parent, clear=True), patch.object(
+            CHECKER.subprocess, "run", return_value=subprocess.CompletedProcess([], 0)
+        ) as execute:
+            CHECKER.run(["simulated-command"], target_dir=CHECKER.TARGET / "default")
+            self.assertEqual(dict(os.environ), parent)
+        environment = execute.call_args.kwargs["env"]
+        self.assertEqual(environment["DQC004_PARENT_SETTING"], "kept")
+        self.assertEqual(environment["CARGO_TARGET_DIR"], str(CHECKER.TARGET / "default"))
+        self.assertEqual(environment["CARGO_INCREMENTAL"], "0")
+        for profile in ("DEV", "TEST"):
+            self.assertEqual(environment[f"CARGO_PROFILE_{profile}_DEBUG"], "0")
+            self.assertEqual(environment[f"CARGO_PROFILE_{profile}_DEBUG_ASSERTIONS"], "true")
+            self.assertEqual(environment[f"CARGO_PROFILE_{profile}_OVERFLOW_CHECKS"], "true")
+        self.assertEqual(parent["CARGO_PROFILE_TEST_DEBUG"], "2")
+
+    def test_original_and_mutant_builds_use_separate_target_directories(self):
+        passed = subprocess.CompletedProcess([], 0, "", "")
+        with patch.object(CHECKER, "run", return_value=passed) as execute:
+            CHECKER.run_original(CHECKER.SAMPLES[0])
+            original = execute.call_args.kwargs["target_dir"]
+            CHECKER.run_mutant(CHECKER.SAMPLES[0])
+            mutant = execute.call_args.kwargs["target_dir"]
+        self.assertEqual(original, CHECKER.TARGET / "default")
+        self.assertEqual(mutant, CHECKER.TARGET / "mutants")
+        self.assertNotEqual(original, mutant)
+
+    def test_failure_report_retains_cargo_json_primary_diagnostics(self):
+        message = "error[E0000]: observable compiler failure"
+        output = "not json\nnull\n[]\n" + json.dumps({"reason": "compiler-message",
+                  "message": {"rendered": message}}) + "\n"
+        result = subprocess.CompletedProcess([], 101, output, "could not compile")
+        capture = io.StringIO()
+        with redirect_stderr(capture):
+            CHECKER.report({}, ["command failed"], {"default test compile": result})
+        self.assertIn(message, capture.getvalue())
+        self.assertIn("could not compile", capture.getvalue())
+
     def test_root_package_accepts_no_deps_metadata(self):
         package = {"id": "reactive-tui 0.1.0", "name": "reactive-tui"}
         self.assertIs(CHECKER.root_package({"packages": [package], "resolve": None}), package)
@@ -175,6 +308,18 @@ class SourceAnalysisTests(unittest.TestCase):
             )
             findings = CHECKER.unsafe_test_hooks([source], root)
             self.assertEqual([finding["name"] for finding in findings], ["SHIPPED"])
+
+    def test_unsafe_hook_scan_does_not_hide_production_cfg_alternatives(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "lib.rs"
+            source.write_text(
+                '#[cfg(not(test))] mod production { static mut NON_TEST: usize = 0; }\n'
+                '#[cfg(any(test, feature = "ffi"))] mod alternate { static mut ALTERNATE: usize = 0; }\n'
+                '#[cfg(all(test, feature = "ffi"))] mod tests { static mut TEST_ONLY: usize = 0; }\n'
+            )
+            findings = CHECKER.unsafe_test_hooks([source], root)
+            self.assertEqual([item["name"] for item in findings], ["NON_TEST", "ALTERNATE"])
 
     def test_assertion_count_is_scoped_to_named_test(self):
         with tempfile.TemporaryDirectory() as directory:

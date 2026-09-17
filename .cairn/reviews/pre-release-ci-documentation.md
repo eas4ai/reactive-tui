@@ -318,3 +318,93 @@ destructors do not panic. The preexisting writer-panic-during-unwind restoration
 hazard is not claimed repaired. The separate parallel animation-test failure,
 native verification, remaining audit repairs, and fresh committed receipts are
 still outstanding; this review does not accept the complete Fable remediation.
+
+## DQC-004 mechanism repair findings, 2026-09-17
+
+Receipt 20260917T122035754Z-2213988 fails after the private build target reaches
+its quota. Cargo's primary JSON diagnostics were omitted from its report.
+Symbol-light dev/test profiles retain explicit debug assertions and overflow
+checks. The first two fixtures fail before that implementation and pass after.
+The former inventory also assumes graphics targets can compile in the FFI
+graph. Separate required-feature graphs retain every intended target rather
+than exempting the four optional graphics tests. A positive feature fixture
+fails before correction and passes after; missing default/FFI/graphics targets
+remain failures. The first graphics command incorrectly used dependency name
+wgpu, not approved feature wgpu-graphics; this agent mistake is corrected.
+
+A warm shared-output run also fails a Taffy type identity check despite both
+types reporting version 0.9.2. The facade's unhashed rlib can be overwritten
+by a build with different dependency features. A cold run using separate
+default, FFI, graphics and mutant output directories passes without changing
+the Rust test or dependencies. This supports artifact mixing rather than a
+source-type defect; the underlying Cargo behavior is not proven fixed.
+
+Read-only inspection of that passing report finds another mechanism hole:
+ffi_export_inventory searches masked code for extern "C", but its lexer masks
+the ABI string too. It reports no exports, and the validator accepts the empty
+list. Correct the scanner and require a nonempty export inventory before this
+repair is accepted. Preserve rejection of comments, strings and test helpers.
+
+The corrected full diagnostic run passes: 85 intended integration targets
+compile across the three isolated graphs, and the source inventory names 243
+C-ABI functions. Both sampled originals pass and their isolated equality
+mutants fail at the assertions. An empty-export fixture fails against the old
+validator and passes after correction. The scanner fixture initially fails on
+its new root argument, then exposes an attribute-line/function-line mismatch;
+the corrected fixture passes and excludes comments, raw strings and test-only
+callbacks. Do not describe its initial argument error as a lexer failure.
+Fresh whitespace checking passes. These are editing-time results, not a fresh
+committed DQC-004 receipt. The separate parallel animation failure remains open.
+
+Ripwire's earlier quality-delta exits two with three gating rows: a same-name
+report complexity row attributed to an unchanged Swift file, recent churn and
+the expanded validator class. Test-gate exits four with 144 statically untested
+symbols and no recognized Python unittest roots. Executed fixtures and the
+full checker establish coverage; these static diagnostics are not claimed clean.
+
+Independent reviewer test_integrity_review returns fix-first. Matching only a
+masked identifier allows a commented extern declaration to cross a newline and
+invent an export from a live function call. The borrowed test-only range helper
+also excludes cfg(not(test)) and cfg(any(test, feature = "ffi")), which can ship
+in production. These source-established findings are recorded before correction;
+the reviewer ran no tests or builds. Add regression cases for comment crossings,
+declaration trivia and production cfg alternatives before accepting the repair.
+
+Both new export regression tests reproduce the actual defects before correction:
+ordinary_call is falsely counted and both production-gated exports are missing.
+The corrected scanner restores C ABI tokens only after live extern keywords and
+skips comment trivia. Test-only exclusion evaluates test as false and leaves
+other platform/feature atoms unknown; not(test) and any(test, feature) remain
+possible production declarations while all(test, feature) is excluded. Nested
+cfg truth-table cases, comments between declaration tokens and a Rust ABI with
+a commented C example pass. The full 27-test validator suite passes, and the
+full checker again passes with 85 targets, 243 C-ABI functions and both assertion
+mutants rejected. These remain editing-time results, not committed evidence.
+
+Final Ripwire quality-delta exits two with 11 gating rows, including conservative
+scanner/other-audit-loop duplication, test-fixture duplication, recent churn and
+class length. Its same-name report row still points at unchanged Swift source;
+the new cfg evaluator has complexity 22. Test-gate exits four with no recognized
+unittest roots. These diagnostics are disclosed, not characterized as clean.
+
+Parent inspection finds the same cfg-range problem also affects unsafe_test_hooks:
+production mutable globals under not(test) or any(test, feature) can be ignored.
+This is within DQC-004's shipped-hook obligation. Record and demonstrate this
+separate finding before reusing the conservative cfg filter for that audit.
+
+The unsafe-hook production-cfg fixture actually fails with an empty finding list
+before correction and passes after, retaining detection of both production
+globals and exclusion of the all(test, feature) helper. The full checker passes
+again, including its 28-test validator invocation, all 85 compiled targets,
+243 named C-ABI functions and the two rejected assertion mutants. Whitespace
+checking passes. No production Rust source or dependency is changed here.
+
+Fresh independent reviewer test_integrity_fresh_review returns ship for this
+bounded repair. Its read-only inspection and five nested cfg cases plus a
+mocked-source nested-comment/exclusion probe pass; it reruns no builds or full
+suite. Parent separately reruns all 28 validator tests: pass, 24.935 seconds.
+The source inventory is not a binary-export proof; mutation is sampled; future
+implied/default required-feature gates need feature-closure handling. Current
+Cargo target gates are direct ffi/wgpu-graphics and compile completely. Failed
+static diagnostics and wider audit/native findings remain open. Requested
+reviewer Sol/high settings and token usage are not runtime-observable.

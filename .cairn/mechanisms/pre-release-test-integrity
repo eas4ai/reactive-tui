@@ -23,8 +23,10 @@ or a readiness test with no observable assertion. The validator tests MUST
 also prove that a sampled assertion mutation is rejected.
 
 The check MUST then enumerate Cargo integration targets and compiled test
-artifacts on the supported Rust toolchain for the maintained default and FFI
-feature sets. It MUST trace every Rust source below `tests/` either to a Cargo
+artifacts on the supported Rust toolchain for the maintained default, FFI, and
+wgpu-graphics feature sets. Each graph MUST compile its expected targets, and the combined
+inventory MUST contain every intended integration target. It MUST trace every
+Rust source below `tests/` either to a Cargo
 test target or to a module reachable from one, and MUST fail if an intended
 test source is disconnected or its target does not compile.
 

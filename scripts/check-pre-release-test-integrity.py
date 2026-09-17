@@ -2,6 +2,7 @@
 from dataclasses import asdict, dataclass
 import importlib.util
 import json
+import os
 from pathlib import Path
 import re
 import subprocess
@@ -10,6 +11,7 @@ import tempfile
 
 
 ROOT = Path(__file__).resolve().parents[1]
+TARGET = Path(os.environ.get("CARGO_TARGET_DIR", ROOT / "target")).resolve() / "dqc004"
 
 
 def load_source_tools():
@@ -68,10 +70,19 @@ def cargo_command(features: str | None = None) -> list[str]:
     return command
 
 
-def run(command: list[str], *, cwd: Path = ROOT, timeout: int = 900):
+def run(command: list[str], *, cwd: Path = ROOT, timeout: int = 900, target_dir: Path | None = None):
+    environment = {**os.environ, "CARGO_INCREMENTAL": "0"}
+    if target_dir is not None:
+        environment["CARGO_TARGET_DIR"] = str(target_dir)
+    # Full target inventories need assertions, not multi-gigabyte debug symbols.
+    for profile in ("DEV", "TEST"):
+        environment[f"CARGO_PROFILE_{profile}_DEBUG"] = "0"
+        environment[f"CARGO_PROFILE_{profile}_DEBUG_ASSERTIONS"] = "true"
+        environment[f"CARGO_PROFILE_{profile}_OVERFLOW_CHECKS"] = "true"
     return subprocess.run(
         command,
         cwd=cwd,
+        env=environment,
         text=True,
         capture_output=True,
         timeout=timeout,
@@ -170,15 +181,77 @@ def rust_source_inventory(root: Path) -> set[Path]:
     return {path.resolve() for path in root.rglob("*.rs")}
 
 
-def ffi_export_inventory(paths: set[Path]) -> list[dict[str, object]]:
+def ffi_declaration_code(source: str) -> str:
+    code = SOURCE_TOOLS.mask_non_code(source)
+    masked = list(code)
+    # Restore only an actual ABI token after a live extern keyword. Comments
+    # may separate the tokens, but their quoted examples are never ABI tokens.
+    for match in re.finditer(r"\bextern\b", code):
+        index = match.end()
+        while index < len(source):
+            if source.startswith("//", index):
+                index = SOURCE_TOOLS.consume_line_comment(source, masked, index)
+            elif source.startswith("/*", index):
+                index = SOURCE_TOOLS.consume_block_comment(source, masked, index)
+            elif source[index].isspace():
+                index += 1
+            else:
+                break
+        if source.startswith('"C"', index):
+            masked[index:index + 3] = '"C"'
+    return "".join(masked)
+
+
+def production_cfg_value(expression: str) -> bool | None:
+    expression = expression.strip()
+    if expression == "test":
+        return False
+    combination = re.fullmatch(r"(all|any|not)\s*\((.*)\)", expression, re.DOTALL)
+    if combination is None:
+        return None  # Other cfg atoms vary by production platform/features.
+    operator, arguments = combination.groups()
+    parts = []
+    depth = 0
+    start = 0
+    for index, character in enumerate(arguments):
+        if character == "(":
+            depth += 1
+        elif character == ")":
+            depth -= 1
+        elif character == "," and depth == 0:
+            parts.append(arguments[start:index])
+            start = index + 1
+    if arguments[start:].strip():
+        parts.append(arguments[start:])
+    values = [production_cfg_value(part) for part in parts]
+    if operator == "not":
+        return None if len(values) != 1 or values[0] is None else not values[0]
+    if operator == "all":
+        return False if False in values else (None if None in values else True)
+    return True if True in values else (None if None in values else False)
+
+
+def ffi_test_only_ranges(code: str) -> list[tuple[int, int]]:
+    gates = {match.start(): production_cfg_value(match.group(1))
+             for match in re.finditer(r"#\s*\[\s*cfg\s*\(([^\]]*)\)\s*\]", code)}
+    return [(start, end) for start, end in SOURCE_TOOLS.test_only_ranges(code)
+            if gates.get(start) is False]
+
+
+def ffi_export_inventory(paths: set[Path], root: Path = ROOT) -> list[dict[str, object]]:
     exports = []
     for path in sorted(paths):
-        code = SOURCE_TOOLS.mask_non_code(path.read_text())
+        source = path.read_text()
+        code = ffi_declaration_code(source)
+        ignored = ffi_test_only_ranges(code)
         for match in EXPORTED_C_FN.finditer(code):
+            start, end = match.span(1)
+            if any(left <= start < right for left, right in ignored):
+                continue
             exports.append(
                 {
-                    "path": str(path.relative_to(ROOT)),
-                    "line": code.count("\n", 0, match.start()) + 1,
+                    "path": str(path.relative_to(root)),
+                    "line": code.count("\n", 0, start) + 1,
                     "name": match.group(1),
                 }
             )
@@ -189,7 +262,7 @@ def unsafe_test_hooks(paths: list[Path], root: Path = ROOT) -> list[dict[str, ob
     findings = []
     for path in paths:
         code = SOURCE_TOOLS.mask_non_code(path.read_text())
-        ignored = SOURCE_TOOLS.test_only_ranges(code)
+        ignored = ffi_test_only_ranges(code)
         for kind, pattern in (("mutable global", STATIC_MUT), ("raw-pointer hook", RAW_HOOK)):
             for match in pattern.finditer(code):
                 if any(start <= match.start() < end for start, end in ignored):
@@ -244,7 +317,8 @@ def run_original(sample: MutationSample) -> subprocess.CompletedProcess:
             sample.function,
             "--",
             "--exact",
-        ]
+        ],
+        target_dir=TARGET / "default",
     )
 
 
@@ -274,6 +348,7 @@ def run_mutant(sample: MutationSample) -> subprocess.CompletedProcess:
         return run(
             ["cargo", "+1.91.0", "test", "--offline", "--test", "sample", sample.function, "--", "--exact"],
             cwd=mutant_root,
+            target_dir=TARGET / "mutants",
         )
 
 
@@ -299,6 +374,8 @@ def validate_observation(observation: dict) -> list[str]:
         errors.append("compiled target inventory is empty")
     if not observation.get("ffi_modules"):
         errors.append("FFI module inventory is empty")
+    if not observation.get("ffi_exports"):
+        errors.append("FFI export inventory is empty")
     for sample in observation.get("mutations", []):
         label = f"{sample['target']}::{sample['function']}"
         if sample.get("assertions", 0) < 1:
@@ -317,28 +394,31 @@ def make_observation() -> tuple[dict, dict[str, subprocess.CompletedProcess]]:
     package = root_package(metadata)
     targets = integration_targets(package)
     source_targets = source_targets_below_tests(package)
-    default = run(cargo_command())
-    ffi = run(cargo_command("ffi"))
-    default_names = compiled_artifacts(default.stdout)
-    ffi_names = compiled_artifacts(ffi.stdout)
-    required = {
-        name
-        for name, target in targets.items()
-        if not target.get("required-features", target.get("required_features", []))
-    }
+    feature_graphs = {"default test compile": None, "FFI test compile": "ffi",
+                      "graphics test compile": "wgpu-graphics"}
+    # The facade emits an unhashed rlib alongside its cdylib. Keep graph and
+    # mutant builds separate so a different dependency graph cannot replace it.
+    builds = {name: run(cargo_command(features), target_dir=TARGET / (features or "default"))
+              for name, features in feature_graphs.items()}
+    compiled = {name: compiled_artifacts(result.stdout) for name, result in builds.items()}
+    all_names = set().union(*compiled.values())
+    required_features = {name: set(target.get("required-features", target.get("required_features", [])))
+                         for name, target in targets.items()}
+    missing = set(targets) - all_names
+    for graph, features in feature_graphs.items():
+        enabled = {features} if features else set()
+        expected = {name for name, required in required_features.items() if required <= enabled}
+        missing.update(expected - compiled[graph])
     roots = [Path(target["src_path"]) for target in source_targets.values()]
     reached_tests = reachable_modules(roots)
     all_tests = rust_source_inventory(ROOT / "tests")
     reached_ffi = reachable_modules([ROOT / "src" / "ffi" / "mod.rs"])
     all_ffi = rust_source_inventory(ROOT / "src" / "ffi")
     unit = run([sys.executable, "-B", "scripts/test-pre-release-test-integrity.py"])
-    commands = {
-        "validator tests": unit.returncode == 0,
-        "default test compile": default.returncode == 0,
-        "FFI test compile": ffi.returncode == 0,
-    }
+    commands = {"validator tests": unit.returncode == 0,
+                **{name: result.returncode == 0 for name, result in builds.items()}}
     mutations = []
-    results = {"validator tests": unit, "default test compile": default, "FFI test compile": ffi}
+    results = {"validator tests": unit, **builds}
     for sample in SAMPLES:
         original = run_original(sample)
         mutant = run_mutant(sample)
@@ -353,11 +433,10 @@ def make_observation() -> tuple[dict, dict[str, subprocess.CompletedProcess]]:
                 "assertion_failed": assertion_failure(mutant),
             }
         )
-    missing = sorted((required - default_names) | (set(targets) - ffi_names))
     observation = {
         "commands": commands,
-        "compiled_targets": sorted(default_names | ffi_names),
-        "missing_targets": missing,
+        "compiled_targets": sorted(all_names),
+        "missing_targets": sorted(missing),
         "test_sources": sorted(str(path.relative_to(ROOT)) for path in all_tests),
         "disconnected_tests": sorted(str(path.relative_to(ROOT)) for path in all_tests - reached_tests),
         "ffi_modules": sorted(str(path.relative_to(ROOT)) for path in reached_ffi),
@@ -369,6 +448,19 @@ def make_observation() -> tuple[dict, dict[str, subprocess.CompletedProcess]]:
     return observation, results
 
 
+def rendered_diagnostics(output: str):
+    for line in output.splitlines():
+        try:
+            item = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if not isinstance(item, dict) or item.get("reason") != "compiler-message":
+            continue
+        message = item.get("message")
+        if isinstance(message, dict) and isinstance(message.get("rendered"), str):
+            yield message["rendered"]
+
+
 def report(observation: dict, errors: list[str], results: dict[str, subprocess.CompletedProcess]) -> None:
     if errors:
         print("DQC-004 failed:", file=sys.stderr)
@@ -376,6 +468,8 @@ def report(observation: dict, errors: list[str], results: dict[str, subprocess.C
             print(f"- {error}", file=sys.stderr)
         for name, result in results.items():
             if result.returncode != 0 and not name.startswith("mutant "):
+                for diagnostic in rendered_diagnostics(result.stdout):
+                    print(diagnostic, file=sys.stderr)
                 print(f"--- {name} stderr ---", file=sys.stderr)
                 print(result.stderr[-4000:], file=sys.stderr)
         return
