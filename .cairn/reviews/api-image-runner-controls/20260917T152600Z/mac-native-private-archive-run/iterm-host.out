@@ -1,0 +1,8 @@
+Traceback (most recent call last):
+  File "/private/tmp/reactive-tui-fable.r6I4LP/repo/scripts/check-iterm-host.py", line 266, in <module>
+    run(parser.parse_args())
+  File "/private/tmp/reactive-tui-fable.r6I4LP/repo/scripts/check-iterm-host.py", line 238, in run
+    exact, geometry = capture(app, output / mode, mode, executable)
+  File "/private/tmp/reactive-tui-fable.r6I4LP/repo/scripts/check-iterm-host.py", line 150, in capture
+    raise RuntimeError("Expected exactly one owned iTerm2 window with the probe title")
+RuntimeError: Expected exactly one owned iTerm2 window with the probe title

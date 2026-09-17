@@ -1,0 +1,29 @@
+warning: method `serial` is never used
+  --> src/event/router.rs:84:19
+   |
+83 | impl NodeId {
+   | ----------- method in this implementation
+84 |     pub(crate) fn serial(self) -> usize {
+   |                   ^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `reactive-tui` (lib test) generated 1 warning
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.10s
+     Running unittests src/lib.rs (/tmp/reactive-tui-fable.r6I4LP/repo/target/debug/deps/reactive_tui-c4813ac1fcc4c60b)
+
+running 11 tests
+test terminal::terminal_impl::tests::cursor_helper_clamps_extreme_coordinates ... ok
+test terminal::terminal_impl::tests::named_keys_follow_application_cursor_mode_over_pty ... ok
+test terminal::terminal_impl::tests::oversized_resize_preserves_pty_screen_and_revision ... ok
+test terminal::terminal_impl::tests::repeated_resizes_apply_backpressure_until_output_events_are_polled ... ok
+test terminal::terminal_impl::tests::resize_consumes_queued_output_at_old_height_and_preserves_events ... ok
+test terminal::terminal_impl::tests::test_key_sequences ... ok
+test terminal::terminal_impl::tests::test_terminal_creation ... ok
+test terminal::terminal_impl::tests::test_terminal_invalid_resize ... ok
+test terminal::terminal_impl::tests::test_terminal_resize ... ok
+test terminal::terminal_impl::tests::title_helper_rejects_control_injection_without_changing_screen ... ok
+test terminal::terminal_impl::tests::title_keeps_semicolons_and_unicode ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 1025 filtered out; finished in 1.58s
+

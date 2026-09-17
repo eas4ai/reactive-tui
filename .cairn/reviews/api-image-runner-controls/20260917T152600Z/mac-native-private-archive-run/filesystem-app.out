@@ -1,0 +1,50 @@
+warning: method `serial` is never used
+  --> src/event/router.rs:84:19
+   |
+83 | impl NodeId {
+   | ----------- method in this implementation
+84 |     pub(crate) fn serial(self) -> usize {
+   |                   ^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `reactive-tui` (lib) generated 1 warning
+warning: struct `ChangingTerminal` is never constructed
+   --> tests/api_widget_behavior/terminal.rs:267:8
+    |
+267 | struct ChangingTerminal {
+    |        ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `change` is never used
+   --> tests/api_widget_behavior/terminal.rs:306:4
+    |
+306 | fn change(name: &str) -> Option<Event> {
+    |    ^^^^^^
+
+warning: `reactive-tui` (test "api_widget_behavior") generated 2 warnings
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.10s
+     Running tests/api_widget_behavior.rs (/tmp/reactive-tui-fable.r6I4LP/repo/target/debug/deps/api_widget_behavior-27861e694c2e441c)
+
+running 17 tests
+test file_explorer_acceptance::explorer_all_sort_criteria_and_orders_use_real_metadata ... ok
+test file_explorer_acceptance::explorer_breadcrumbs_respect_root_and_notify_new_location ... ok
+test file_explorer_acceptance::explorer_changed_props_replace_location_but_keep_user_view_and_remeasure_input ... ok
+test file_explorer_acceptance::explorer_convenience_builders_produce_browsable_controls ... ok
+test file_explorer_acceptance::explorer_copy_rename_move_and_confirmed_delete_change_real_files ... ok
+test file_explorer_acceptance::explorer_disabled_empty_and_no_selection_modes_are_inert_where_requested ... ok
+test file_explorer_acceptance::explorer_grid_limits_keep_the_last_item_reachable_after_column_changes ... ok
+test file_explorer_acceptance::explorer_loads_real_directory_and_navigates_with_app_input ... ok
+test file_explorer_acceptance::explorer_multiple_selection_uses_paths_and_emits_callbacks_once ... ok
+test file_explorer_acceptance::explorer_native_callbacks_are_lossless_and_rename_uses_the_native_path ... ok
+test file_explorer_acceptance::explorer_preview_wakes_an_idle_app ... ok
+test file_explorer_acceptance::explorer_reports_invalid_paths_limits_and_overwrite_errors ... ok
+test file_explorer_acceptance::explorer_signed_wheels_and_release_events_preserve_selection_until_activation ... ok
+test file_explorer_acceptance::explorer_typed_construction_and_public_seed_state_render_through_app ... ok
+test file_explorer_acceptance::explorer_uses_padded_parent_layout_and_handles_resize ... ok
+test file_explorer_acceptance::explorer_views_filter_hidden_files_and_render_a_real_expanded_tree ... ok
+test file_explorer_acceptance::explorer_virtual_rows_and_resize_keep_mouse_targets_on_the_painted_entries ... ok
+
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 383 filtered out; finished in 8.41s
+

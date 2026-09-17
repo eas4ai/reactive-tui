@@ -1,0 +1,47 @@
+warning: method `serial` is never used
+  --> src/event/router.rs:84:19
+   |
+83 | impl NodeId {
+   | ----------- method in this implementation
+84 |     pub(crate) fn serial(self) -> usize {
+   |                   ^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `reactive-tui` (lib) generated 1 warning
+warning: struct `ChangingTerminal` is never constructed
+   --> tests/api_widget_behavior/terminal.rs:267:8
+    |
+267 | struct ChangingTerminal {
+    |        ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `change` is never used
+   --> tests/api_widget_behavior/terminal.rs:306:4
+    |
+306 | fn change(name: &str) -> Option<Event> {
+    |    ^^^^^^
+
+warning: `reactive-tui` (test "api_widget_behavior") generated 2 warnings
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.10s
+     Running tests/api_widget_behavior.rs (/tmp/reactive-tui-fable.r6I4LP/repo/target/debug/deps/api_widget_behavior-27861e694c2e441c)
+
+running 14 tests
+test terminal_acceptance::terminal_widget_blinks_native_shapes_while_child_is_silent ... ok
+test terminal_acceptance::terminal_widget_blinks_without_child_output_or_input ... ok
+test terminal_acceptance::terminal_widget_input_uses_focus_and_ignores_release_events ... ok
+test terminal_acceptance::terminal_widget_keeps_old_history_text_readable_after_narrowing ... ok
+test terminal_acceptance::terminal_widget_launch_failure_is_visible ... ok
+test terminal_acceptance::terminal_widget_paints_child_character_line_and_scroll_edits ... ok
+test terminal_acceptance::terminal_widget_paints_cursor_on_wide_continuation ... ok
+test terminal_acceptance::terminal_widget_paints_extended_colors_unicode_and_hidden_text ... ok
+test terminal_acceptance::terminal_widget_preserves_text_under_bar_and_underline_cursors ... ok
+test terminal_acceptance::terminal_widget_recovers_invalid_initial_size_before_launching_measured_child ... ok
+test terminal_acceptance::terminal_widget_restores_main_screen_after_alternate_screen ... ok
+test terminal_acceptance::terminal_widget_scrollbar_click_and_drag_use_measured_padded_bounds ... ok
+test terminal_acceptance::terminal_widget_scrolls_history_using_signed_wheel_at_two_sizes ... ok
+test terminal_acceptance::terminal_widget_uses_child_cursor_and_paste_modes ... ok
+
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 386 filtered out; finished in 13.22s
+

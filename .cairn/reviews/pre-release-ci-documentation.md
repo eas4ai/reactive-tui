@@ -856,3 +856,20 @@ Ripwire edit-check confuses calls to subprocess.run with these script run
 functions (including a false iTerm arity 6-to-1 change). The actual iTerm run
 signature remains one args parameter; the native runner adds a defaulted
 optional archive parameter. Explicit regression controls exercise both forms.
+
+At 57db4829 the Windows native producer passes again. Independent verification
+confirms its current committed-input digest and every retained output hash;
+ConPTY is installed beside the actual test artifacts. This does not establish
+macOS image acceptance or the full API-014 host matrix.
+
+The Mac's second run uses the transferred pinned archive and private Pillow
+environment, passes Rust/HTTPS, and reaches the private iTerm probe. It cannot
+identify the titled window: CoreGraphics omits both owned window names and both
+owned-window screenshot attempts report "could not create image from window".
+A read-only CGPreflightScreenCaptureAccess check returns false. Retain the
+complete failed run and diagnostics; do not fabricate a pass record or relax
+window identity/pixels. No iTerm process remains after cleanup. caffeinate PID
+69598 remains active with its original 86400-second limit. The existing Mac
+clipboard approval does not authorize bypassing or editing privacy settings.
+Request developer-controlled Screen Recording consent before continuing this
+native image requirement. Other Fable findings remain open.

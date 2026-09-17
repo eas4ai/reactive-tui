@@ -1,0 +1,24 @@
+{
+  "system": "Windows",
+  "platform": "Windows-11-10.0.26200-SP0",
+  "inputs_digest": "12100881341a4e06d03d6d1443a687a0e921113fcdb91ad1335aa67116befba2",
+  "commit": "57db482923e08a9566638dd67a8c7325e0627d70",
+  "result": "pass",
+  "outputs": {
+    "build.out": "d45e87af98153d73feaf305ea86c9eb93a1ff0b98c889c9888726423e80102e0",
+    "curl.out": "1c8b0cf7e2b131145f6b109be11a224efaa43e5560d9a23b4bc6162cb8aa9f44",
+    "filesystem-app.out": "93ca7bbfe6935ac8c60470ce619503603b9359173090212684f441d66b0da6f5",
+    "filesystem-native.out": "d06d1f7adfcf7a415f2674bcbf899b53ba54376d14ab691b45270a3d6c08dfe9",
+    "http-app.out": "afd976569e80656516e803c51e7189e42efd26785429a106577ad47a088d254b",
+    "http-transport.out": "698e0af5dc7504eda3ce2d8028983c8316960d1966d0846beecaf95b38eef2b3",
+    "https.out": "1cb5b8a965a0dfca10c3341b6d057d4e7d083b87ad7cc33ea3d7c807c674122f",
+    "image-app.out": "b646687c1d4f426b6330fd46df22e56c5e7d95e1d2d87dc280ba5c0690969905",
+    "image-native.out": "abf0e655522e477b4413c4ed18ec877190b8b67107e871f9dbef736cf5b73026",
+    "platform-image-native.out": "3f0b5922abda98d00714ab7adbd0eb447fdae916e8df3cfc95e2899c592bb185",
+    "runtime-install.out": "25b956daf189611d11cc244688e67b7b2a5ed124ebbdd709693065ee19bbb4e1",
+    "surface-native.out": "ea13ae3621e2b92737f1f393c4f5f0c058f20f9e003ba9e47da64c7b2c137ed7",
+    "terminal-app.out": "9ee026a25a46e08101bdd61f8a053ea0c0e9bfa0378c344b7a35895e2a61645d",
+    "terminal-native.out": "29b91771823e83721b4f6d484e6ea9e509328970a00292bb1d6fdac1003afc1c",
+    "terminal-screen.out": "a54542d83fcd058cc2d901ac331cffb6291aeab5f904914df4bc156f065af3dd"
+  }
+}
