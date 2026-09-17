@@ -1,0 +1,18 @@
+mechanism: pre-release-terminal-input-safety
+commit: 6966235d242d3aa7806398a010adbad8a2165891
+inputs_digest: sha256:6f58ee6ce604cf747b3447cbd4d7dc3c68d73390ebc9fa65ced97cf157a28135
+mechanism_digest: sha256:9599875bdd3cf50d0cb1eb09a9847562d6f195da63452bc8043cf3619b709927
+kernel_digest: sha256:dcf98a392e77abb6f96ff4c1b9a44c53cbbf0102123d3f6746a356759a344a81
+inputs_detail: .cairn/evidence/runs/20260917T142128332Z-1359752.inputs.json
+command: python3 -B scripts/check-pre-release-terminal-input-safety.py TRL-003
+cwd: .
+exit: 0
+output_digest: sha256:a6c5b220403777c6d51ceef7cc283323b1d08663061d402a1de7e0729bdb3150
+output: .cairn/evidence/runs/20260917T142128332Z-1359752.out
+stderr_output: .cairn/evidence/runs/20260917T142128332Z-1359752.err
+stderr_digest: sha256:c3c8d10129cb3be30405aa651111ce51d6403fd67970189357db0dfe51519a44
+signal: none
+execution_error: null
+recorded: 2026-09-17T14:21:30.954Z
+results:
+  - TRL-003 pass exit sha256:b054830fef92c9bb78b68b30718219faa14e09e913d68325b546f6227e1f86cb 7 sha256:2f3813282a2dd994c1273324e4913c585a04d329b93c44c475c691f9a0513301
