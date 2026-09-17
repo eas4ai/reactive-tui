@@ -1,6 +1,8 @@
 # Mechanism: embedded-terminal
 
 command: sh scripts/check-embedded-terminal.sh
+reviewed:
+  - EMB-003 sha256:e11761eb67f1acaf9b5be8285178dc63120ec18bda9abddfed0dc2d65239d6a4
 inputs:
   - docs/spec
   - Cargo.toml
