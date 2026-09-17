@@ -646,3 +646,10 @@ Original graphs, dependencies there, shared targets and user builds remain.
 Ripwire exits zero for the declaration-only delta and names no modeled test
 obligations; its only quality row is generated GitNexus metadata. This does
 not independently verify declaration completeness or executable behavior.
+
+The final declaration passes receipt 20260917T142821947Z-1451137: all 85
+targets, the FFI inventory, and both original/mutated assertion pairs pass.
+An independent jq assertion confirms the receipt contains build.rs, macro
+source and manifest, both renderer manifests, and both embedded workspace
+manifests. All existing inputs remain. This resolves the recorded DQC-004
+dependency-footprint finding; other Fable findings are still open.
