@@ -1,6 +1,6 @@
 # Mechanism: api-images
 
-command: python3 -B scripts/check-api-images.py
+command: sh -c 'python3 -B scripts/test-api-images.py && python3 -B scripts/test-widget-platforms.py && python3 -B scripts/check-api-images.py'
 inputs:
   - .cairn/mechanisms/api-images
   - Cargo.toml
@@ -8,10 +8,15 @@ inputs:
   - build.rs
   - src
   - reactive-tui-macros
+  - crates
   - tests
   - scripts/check-api-images.py
+  - scripts/test-api-images.py
+  - scripts/test-widget-platforms.py
+  - .cairn/api-closure/check.py
   - scripts/kitty-host
   - scripts/check-widget-platforms.py
+  - .cairn/reviews/widget-platforms
   - scripts/check-dialog-http.py
   - scripts/check-iterm-host.py
   - scripts/install-conpty-runtime.py

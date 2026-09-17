@@ -1,0 +1,14 @@
+........E...
+======================================================================
+ERROR: test_probe_build_uses_outer_process_group_deadline (__main__.NativeWidgetControls.test_probe_build_uses_outer_process_group_deadline)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/shawn/workspace2/reactive-tui/scripts/test-widget-platforms.py", line 126, in test_probe_build_uses_outer_process_group_deadline
+    self.assertEqual(CHECK.build_probe(self.root / "build.out"), self.probe)
+                     ^^^^^^^^^^^^^^^^^
+AttributeError: module 'widget_platforms' has no attribute 'build_probe'
+
+----------------------------------------------------------------------
+Ran 12 tests in 0.095s
+
+FAILED (errors=1)

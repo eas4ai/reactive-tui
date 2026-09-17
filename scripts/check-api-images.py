@@ -33,7 +33,8 @@ def main():
         os.environ[name] = "8"
     # Share the existing bounded process-group runner; it kills surviving children
     # on timeout and retains output before reporting an error.
-    execute = runpy.run_path(str(ROOT / "scripts/check-widget-platforms.py"))["execute"]
+    native = runpy.run_path(str(ROOT / "scripts/check-widget-platforms.py"))
+    execute = native["execute"]
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
     output = ROOT / ".cairn/reviews/api-image-hosts" / stamp
     output.mkdir(parents=True)
@@ -62,8 +63,8 @@ def main():
             raise RuntimeError("Image selector did not execute passing tests: " + str(arguments))
     print(execute(["python3", "-B", "scripts/check-widget-platforms.py", "--verify"],
                   output / "native-records.out", 180), flush=True)
-    print(execute(["cargo", "build", "--locked", "--example", "image_host_probe"],
-                  output / "build.out", 300), flush=True)
+    probe = native["build_probe"](output / "build.out")
+    (output / "probe-executable.json").write_text(json.dumps({"executable": probe}, indent=2) + "\n")
     driver = ["/usr/bin/python3", "-B", "tests/api_widget_behavior/image_host_capture.py"]
     reference = ROOT / "target/kitty-image-host/reference"
     reference_source = ROOT / "scripts/kitty-host/reference.c"
@@ -81,7 +82,7 @@ def main():
     negative = output / "forced-ascii-negative"
     rejected = False
     try:
-        execute(driver + ["kitty", str(negative), "app-ascii"], output / "negative.out", 90)
+        execute(driver + ["kitty", str(negative), "app-ascii", probe], output / "negative.out", 90)
     except RuntimeError:
         rejected = True
     diagnostic = (output / "negative.out").read_text()
@@ -94,7 +95,7 @@ def main():
     for host, mode in HOSTS:
         name = host + "-" + (mode or "app-auto")
         directory = output / name
-        command = driver + [host, str(directory)] + ([mode] if mode else [])
+        command = driver + [host, str(directory), mode or "app-auto", probe]
         print(execute(command, output / (name + ".out"), 90), flush=True)
         print(name + " pixels: " + (directory / "pixels.json").read_text(), flush=True)
     kitty_host["ensure_host"](verify_only=True)

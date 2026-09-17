@@ -12,9 +12,10 @@ import subprocess
 import sys
 
 ROOT = Path(__file__).resolve().parents[1]
-RECORDS = ROOT / "docs/analysis/widget-platforms"
+RECORDS = ROOT / ".cairn/reviews/widget-platforms"
 INPUTS = ("Cargo.toml", "Cargo.lock", "build.rs", "src", "reactive-tui-macros",
-          "tests/api_widget_behavior.rs", "scripts/check-dialog-http.py",
+          "crates", "tests", "scripts/check-widget-platforms.py",
+          ".cairn/api-closure/check.py", "scripts/check-dialog-http.py",
           "scripts/check-iterm-host.py",
           "scripts/install-conpty-runtime.py",
           ".github/workflows/clipboard-platforms.yml")
@@ -34,19 +35,14 @@ CASES = {
 
 
 def digest():
-    rust_tests = tuple(name for name in subprocess.check_output(
-        ["git", "ls-tree", "-r", "--name-only", "HEAD", "--", "tests/api_widget_behavior"],
-        cwd=ROOT, text=True).splitlines() if name.endswith(".rs"))
-    paths = (*INPUTS, *rust_tests)
     untracked = subprocess.check_output(
         ["git", "ls-files", "--others", "--exclude-standard", "--",
-         *INPUTS, "tests/api_widget_behavior"], cwd=ROOT, text=True).splitlines()
-    if any(not name.startswith("tests/api_widget_behavior/") or name.endswith(".rs")
-           for name in untracked):
+         *INPUTS], cwd=ROOT, text=True).splitlines()
+    if untracked:
         raise RuntimeError("Commit native widget inputs before recording evidence")
-    subprocess.run(["git", "diff", "--exit-code", "HEAD", "--", *paths],
+    subprocess.run(["git", "diff", "--exit-code", "HEAD", "--", *INPUTS],
                      cwd=ROOT, check=True, stdout=subprocess.DEVNULL)
-    names = subprocess.check_output(["git", "ls-tree", "-r", "--name-only", "HEAD", "--", *paths],
+    names = subprocess.check_output(["git", "ls-tree", "-r", "--name-only", "HEAD", "--", *INPUTS],
                                       cwd=ROOT, text=True).splitlines()
     result = hashlib.sha256()
     for name in names:
@@ -79,6 +75,41 @@ def execute(command, output, timeout):
     return output.read_text(errors="replace")
 
 
+def build_probe(output):
+    """Keep Cargo and compiler children in the bounded runner's owned group."""
+    build = execute([sys.executable, "-B", "-c",
+        'import json, runpy; print(json.dumps(runpy.run_path(".cairn/api-closure/check.py")["build_probe"]()))'],
+        output, 590)
+    lines = build.splitlines()
+    probe = json.loads(lines[-1]) if lines else None
+    if not isinstance(probe, str) or not probe:
+        raise RuntimeError("Missing native Cargo image probe executable")
+    return probe
+
+
+def install_runtime(build, directory):
+    """Install alongside the two actual Cargo test executables, never a guessed target."""
+    artifacts = {}
+    for line in build.splitlines():
+        try:
+            message = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if not isinstance(message, dict):
+            continue
+        name = message.get("target", {}).get("name")
+        executable = message.get("executable")
+        if (message.get("reason") == "compiler-artifact"
+                and message.get("profile", {}).get("test") is True
+                and name in ("reactive_tui", "api_widget_behavior") and executable):
+            artifacts.setdefault(name, set()).add(Path(executable).parent)
+    parents = {parent for values in artifacts.values() for parent in values}
+    if set(artifacts) != {"reactive_tui", "api_widget_behavior"} or len(parents) != 1:
+        raise RuntimeError("Missing or ambiguous native Cargo test executable directories")
+    execute([sys.executable, "-B", "scripts/install-conpty-runtime.py",
+             str(parents.pop()), "--arch", "x64"], directory / "runtime-install.out", 120)
+
+
 def run(dedicated_desktop=False):
     system = platform.system()
     if system not in ("Linux", "Darwin", "Windows"):
@@ -91,14 +122,13 @@ def run(dedicated_desktop=False):
     (directory / "record.json").unlink(missing_ok=True)
     execute(["curl", "--version"], directory / "curl.out", 10)
     # Compile separately so case deadlines measure execution, not cold builds.
-    execute(["cargo", "test", "--locked", "--lib", "--test", "api_widget_behavior", "--no-run"],
+    build = execute(["cargo", "test", "--locked", "--lib", "--test", "api_widget_behavior",
+                     "--no-run", "--message-format=json"],
             directory / "build.out", 900)
     failures = []
     if system == "Windows":
         try:
-            execute([sys.executable, "-B", "scripts/install-conpty-runtime.py",
-                     str(ROOT / "target/debug/deps"), "--arch", "x64"],
-                    directory / "runtime-install.out", 120)
+            install_runtime(build, directory)
         except (RuntimeError, subprocess.TimeoutExpired) as error:
             failures.append(str(error))
     for name, arguments in CASES.items():
@@ -119,9 +149,9 @@ def run(dedicated_desktop=False):
         failures.append(str(error))
     if system == "Darwin":
         try:
-            execute(["cargo", "build", "--locked", "--example", "image_host_probe"],
-                    directory / "iterm-build.out", 300)
-            execute([sys.executable, "-B", "scripts/check-iterm-host.py", "--dedicated-desktop"],
+            probe = build_probe(directory / "iterm-build.out")
+            execute([sys.executable, "-B", "scripts/check-iterm-host.py", "--dedicated-desktop",
+                     "--executable", probe, "--output", str(directory / "iterm-host")],
                     directory / "iterm-host.out", 240)
         except (RuntimeError, subprocess.TimeoutExpired) as error:
             failures.append(str(error))
@@ -158,7 +188,20 @@ def verify():
             data = (directory / (name + ".out")).read_bytes()
             if hashlib.sha256(data).hexdigest() != record.get("outputs", {}).get(name + ".out"):
                 raise RuntimeError("Damaged native widget evidence: " + system + "/" + name)
+        for name in CASES:
+            output = (directory / (name + ".out")).read_text(errors="replace")
+            if not re.search(r"test result: ok\. [1-9][0-9]* passed; 0 failed;", output):
+                raise RuntimeError("Native widget case did not execute tests: " + system + "/" + name)
+        https = (directory / "https.out").read_text(errors="replace")
+        if not all(f"Dialog HTTPS {trust}: passed" in https for trust in ("trusted", "untrusted")):
+            raise RuntimeError("Missing native HTTPS trust checks: " + system)
         if system == "Darwin":
+            output = (directory / "iterm-host.out").read_text(errors="replace")
+            markers = [f"iTerm2 {mode}: image presence, update, movement and removal passed"
+                       for mode in ("app-iterm", "app-auto", "surface-iterm", "iterm")]
+            markers.append("iTerm2: ASCII violating image case rejected")
+            if not all(marker in output for marker in markers):
+                raise RuntimeError("Missing native iTerm image or negative checks")
             required = ["iterm-host/host.json"]
             for mode in ("app-iterm", "app-auto", "surface-iterm", "iterm", "app-ascii"):
                 required.extend(f"iterm-host/{mode}/{name}" for name in

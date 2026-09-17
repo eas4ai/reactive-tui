@@ -9,6 +9,7 @@ import hashlib
 import io
 import json
 import platform
+import runpy
 from pathlib import Path
 import shlex
 import subprocess
@@ -84,7 +85,7 @@ def startup_diagnostics(pid, directory):
             (directory / f"startup-{window_id}.stderr").write_bytes(result.stderr)
 
 
-def capture(app, directory, mode):
+def capture(app, directory, mode, executable):
     directory.mkdir(parents=True, exist_ok=True)
     existing = subprocess.run(["pgrep", "-x", "iTerm2"], capture_output=True)
     if existing.returncode != 1:
@@ -109,7 +110,7 @@ def capture(app, directory, mode):
             "while not stage.exists():\n"
             "    if time.monotonic() > deadline: raise RuntimeError('driver did not start')\n"
             "    time.sleep(.05)\n"
-            f"result = subprocess.run({[str(ROOT / 'target/debug/examples/image_host_probe'), str(stage), mode]!r}, timeout=50)\n"
+            f"result = subprocess.run({[str(executable), str(stage), mode]!r}, timeout=50)\n"
             f"pathlib.Path({str(status)!r}).write_text(str(result.returncode))\n"
         )
         wrapper = work / "run.sh"
@@ -203,6 +204,7 @@ def run(args):
         raise RuntimeError("Requires macOS and --dedicated-desktop")
     output = Path(args.output).resolve()
     output.mkdir(parents=True, exist_ok=True)
+    executable = args.executable or runpy.run_path(str(ROOT / "scripts/check-widget-platforms.py"))["build_probe"](output / "build.out")
     with tempfile.TemporaryDirectory(prefix="rtui-iterm-install-") as work:
         work = Path(work)
         path = work / "iterm.zip"
@@ -219,7 +221,7 @@ def run(args):
         subprocess.run(["ditto", "-x", "-k", str(path), str(applications)], check=True, timeout=30)
         app = applications / "iTerm.app"
         for mode in ["app-iterm", "app-auto", "surface-iterm", "iterm", "app-ascii"]:
-            exact, geometry = capture(app, output / mode, mode)
+            exact, geometry = capture(app, output / mode, mode, executable)
             results = exact if args.require_exact_srgb else geometry
             if mode == "app-ascii":
                 try:
@@ -244,5 +246,6 @@ if __name__ == "__main__":
     parser.add_argument("--dedicated-desktop", action="store_true")
     parser.add_argument("--require-exact-srgb", action="store_true",
                         help="Run the retained strict color diagnostic; iTerm 3.7 is known to fail")
-    parser.add_argument("--output", default="docs/analysis/widget-platforms/darwin/iterm-host")
+    parser.add_argument("--executable", type=Path, help="Cargo-reported image_host_probe executable")
+    parser.add_argument("--output", default=".cairn/reviews/widget-platforms/darwin/iterm-host")
     run(parser.parse_args())

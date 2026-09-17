@@ -104,8 +104,9 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: widgets-${{ matrix.backend }}
-          path: docs/analysis/widget-platforms/**
-          if-no-files-found: warn
+          path: .cairn/reviews/widget-platforms/**
+          include-hidden-files: true
+          if-no-files-found: error
           retention-days: 14
       - name: Capture native ConPTY evidence
         if: always() && runner.os == 'Windows'

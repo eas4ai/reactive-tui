@@ -1,0 +1,42 @@
+F.F.F
+======================================================================
+FAIL: test_all_rust_routes_forward_selected_probe_as_one_argument (__main__.ImageProbeLaunchTests.test_all_rust_routes_forward_selected_probe_as_one_argument)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/shawn/workspace2/reactive-tui/scripts/test-api-images.py", line 65, in test_all_rust_routes_forward_selected_probe_as_one_argument
+    self.assertEqual(rust[0][3:4] + rust[0][5:], ["kitty", "app-ascii", self.probe])
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Lists differ: ['kitty', 'app-ascii'] != ['kitty', 'app-ascii', '/home/shawn/workspace2/scratchpads/tmp[41 chars]obe']
+
+Second list contains 1 additional elements.
+First extra element 2:
+'/home/shawn/workspace2/scratchpads/tmp/tmp578zltze/private target/image_host_probe'
+
+- ['kitty', 'app-ascii']
++ ['kitty',
++  'app-ascii',
++  '/home/shawn/workspace2/scratchpads/tmp/tmp578zltze/private '
++  'target/image_host_probe']
+
+======================================================================
+FAIL: test_cargo_failure_is_not_masked (__main__.ImageProbeLaunchTests.test_cargo_failure_is_not_masked)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/shawn/workspace2/reactive-tui/scripts/test-api-images.py", line 79, in test_cargo_failure_is_not_masked
+    with self.assertRaises(subprocess.CalledProcessError):
+         ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: CalledProcessError not raised
+
+======================================================================
+FAIL: test_missing_cargo_artifact_stops_before_pixel_capture (__main__.ImageProbeLaunchTests.test_missing_cargo_artifact_stops_before_pixel_capture)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/shawn/workspace2/reactive-tui/scripts/test-api-images.py", line 73, in test_missing_cargo_artifact_stops_before_pixel_capture
+    with self.assertRaisesRegex(RuntimeError, "Cargo.*executable"):
+         ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: RuntimeError not raised
+
+----------------------------------------------------------------------
+Ran 5 tests in 0.022s
+
+FAILED (failures=3)

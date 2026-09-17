@@ -773,3 +773,53 @@ The primary code graph is unavailable (Transport closed). GitNexus MCP remains
 its empty UNKNOWN impact as safety. The refreshed CLI reports LOW impact for
 the image main function: its script entry point is the one direct caller and
 no indexed process is reported. No framework Rust symbol is changed here.
+
+The native controls reproduce six failures and preserve two passing controls
+before repair (native-red.out). Matching hashes do not make a zero-test log
+valid: verify currently accepts one. Windows installs ConPTY into a guessed
+target/debug/deps instead of the compiler-reported test directory. Darwin
+similarly launches a guessed example path. The digest omits crates, complete
+test sources and its own runner. Repair these without weakening the native
+workflow, image assertions or committed-input guards. The refreshed CLI reports
+LOW impact for digest (two direct callers), verify (one), native run (three),
+iTerm capture (one) and iTerm run (four); some run edges are fuzzy matches and
+no indexed processes are reported. Controlled fixtures are not native evidence.
+
+Fresh review reproduced a cleanup regression in the direct shared Cargo selector:
+its inner timeout kills Cargo but can leave a compiler descendant alive. The
+reviewer used an owned short-lived child (PID 2630836) and killed it immediately.
+Keep the existing selector, but call it through the bounded process-group runner
+with an outer deadline shorter than its 600-second inner deadline. Apply that
+same guard to native and standalone iTerm builds, retaining compiler output.
+
+Fresh review also found that the workflow upload still points at the deleted
+native widget record directory and merely warns when proof is absent. Update
+only that upload path, explicitly include hidden files and fail on missing
+evidence. Do not dispatch a GitHub workflow. This workflow is a native digest
+dependency, so both hosts must use the repaired committed version.
+
+Local controls now pass: 5 image launch cases, 13 native runner/digest cases
+and 4 existing API-020 launcher cases. The native controls include real Git
+dirty/untracked/committed dependency changes and an actual owned parent/child
+timeout with retained output. cargo fmt --all --check and git diff --check pass.
+These controls do not replace either native host run or full image acceptance.
+
+Ripwire quality-delta exits 2, with eight gating findings; test-gate exits 4
+with 96 untested name-based matches and no mapped tests. Do not report either
+as passed. Its scope-less verify/digest/main names conflate different scripts
+(including unchanged clipboard and ConPTY files). Churn findings cover the
+deliberate path/digest repairs. Test classes are executed by unittest discovery,
+not unreachable code. The two test fixtures intentionally remain separate;
+do not create a shared abstraction just to remove their similar setup. The
+owned-process cleanup catches ProcessLookupError only when the child is gone;
+other cleanup errors propagate. Keep these tool limitations visible, do not
+blanket-ack them, and rely on the explicit controls plus fresh review and
+actual native/image acceptance for the behavior they cannot model.
+
+Fresh read-only api014_native_checker_review returns SHIP for this bounded
+checker repair after independently running native 13/13 and image 5/5 controls.
+Its original timeout-leak and upload-path findings are resolved. It explicitly
+does not claim native producers, Windows timeout cleanup or formal pixels pass.
+No reviewer edits, commits or native host commands were performed. The restored
+Kitty build log hash matches its retained recipe; runtime verification checks
+1,119 files. Preserve the private build's compiler warnings as warnings.
