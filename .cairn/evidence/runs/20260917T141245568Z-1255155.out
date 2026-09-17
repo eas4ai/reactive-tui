@@ -1,0 +1,12 @@
+   Compiling reactive-tui v0.1.0 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized] target(s) in 0.53s
+     Running tests/arithmetic_boundaries.rs (/tmp/reactive-tui-wgpu.waMUcc/dqc004/default/debug/deps/arithmetic_boundaries-2a0b1ff282286960)
+
+running 2 tests
+test adaptive_fps_bounds_never_reach_zero_or_panic ... RTR004 PASS adaptive
+ok
+test zero_column_auto_grid_is_always_empty_and_safe ... RTR004 PASS grid
+ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

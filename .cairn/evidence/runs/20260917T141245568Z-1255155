@@ -1,0 +1,18 @@
+mechanism: pre-release-arithmetic-boundaries
+commit: dd378b604cc18f67903a2ae7c582367dd936fe3c
+inputs_digest: sha256:4392388b2ddb8fafd8fc73f710bc16dd2e4fc04b3f29d4806231a1f9a8148bb1
+mechanism_digest: sha256:086ccc4d526233670e1271e998c3519df05f1827534e0d576f5d21e0316118c9
+kernel_digest: sha256:dcf98a392e77abb6f96ff4c1b9a44c53cbbf0102123d3f6746a356759a344a81
+inputs_detail: .cairn/evidence/runs/20260917T141245568Z-1255155.inputs.json
+command: python3 -B scripts/check-pre-release-arithmetic-boundaries.py
+cwd: .
+exit: 0
+output_digest: sha256:843995cc44849a553fa8de859e205a51e0c238862d1c642cd5769f58ff2f8f98
+output: .cairn/evidence/runs/20260917T141245568Z-1255155.out
+stderr_output: .cairn/evidence/runs/20260917T141245568Z-1255155.err
+stderr_digest: sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+signal: none
+execution_error: null
+recorded: 2026-09-17T14:12:46.351Z
+results:
+  - RTR-004 pass exit sha256:bc5ccf533a20bb8cd3d45a567968847b3bee28ca33af4d20789441a5a29d6f27 5 sha256:a6a2513036109d57623fe48422419a1b240e0b30cacaeaac9666d40607a0734a
