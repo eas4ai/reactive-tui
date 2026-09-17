@@ -823,3 +823,36 @@ does not claim native producers, Windows timeout cleanup or formal pixels pass.
 No reviewer edits, commits or native host commands were performed. The restored
 Kitty build log hash matches its retained recipe; runtime verification checks
 1,119 files. Preserve the private build's compiler warnings as warnings.
+
+The real Windows producer passes at 28286e97. The first Mac producer passes
+its Rust and HTTPS cases but fails before image captures: the pinned 55.2 MiB
+iTerm archive reaches only 87 percent before curl's 60-second deadline. Keep
+that captured failure. System Python also lacks Pillow; a private virtual
+environment now has Pillow 11.3.0, with no global package replacement. Add an
+optional supplied-archive path, verify the same pinned SHA-256 and size bound,
+and retain the default download limits. Transfer identical verified bytes
+instead of relaxing the timeout or changing hosts/pixel assertions. Refreshed
+GitNexus reports LOW for native run (three direct callers) and iTerm run (four),
+with no indexed processes; fuzzy matches remain analyzer limits.
+
+Before finalizing the supplied-archive helper, its stale-stat control fails:
+read_bytes is unbounded if a file grows between stat and reading. Bound the
+actual read to 80 MiB plus one byte and reject overflow before hashing. The
+new helper is not indexed yet; its source establishes the one iTerm run caller,
+not a falsely safe zero-caller graph result.
+
+The archive follow-up review identifies a second ownership gap: ditto reopens
+the supplied path after hashing. The private-copy control fails before repair.
+Copy the exact bounded, verified bytes into the already private extraction
+workspace and unpack that copy, preserving the supplied source unchanged.
+
+The fresh archive review independently runs all 18 controls and returns SHIP
+for this checker-only repair. Bounded reads and exact-byte private extraction
+are verified; the default download limits and pinned SHA remain unchanged.
+The completed Linux download matches 14b5131e9134d0012466574fba6d69fb9ef84eee66660ee861e2da483089574a
+before transfer. Both native hosts still require digest-current records after
+this source commit; the earlier Windows pass is retained as historical output.
+Ripwire edit-check confuses calls to subprocess.run with these script run
+functions (including a false iTerm arity 6-to-1 change). The actual iTerm run
+signature remains one args parameter; the native runner adds a defaulted
+optional archive parameter. Explicit regression controls exercise both forms.

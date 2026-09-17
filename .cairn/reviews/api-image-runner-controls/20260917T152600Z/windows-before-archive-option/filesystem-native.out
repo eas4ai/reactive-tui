@@ -1,0 +1,104 @@
+warning: unused import: `std::os::windows::io::AsRawHandle`
+  --> src\core\capabilities.rs:12:5
+   |
+12 | use std::os::windows::io::AsRawHandle;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `crate::terminal::TerminalConfig`
+ --> src\terminal\pty\tests.rs:2:5
+  |
+2 | use crate::terminal::TerminalConfig;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `std::time::Duration`
+ --> src\terminal\pty\tests.rs:3:5
+  |
+3 | use std::time::Duration;
+  |     ^^^^^^^^^^^^^^^^^^^
+
+warning: variable does not need to be mutable
+    --> src\platform\mod.rs:1205:13
+     |
+1205 |         let mut buffer = [0u8; 8192];
+     |             ----^^^^^^
+     |             |
+     |             help: remove this `mut`
+     |
+     = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: variable does not need to be mutable
+    --> src\platform\mod.rs:1206:13
+     |
+1206 |         let mut total_read = 0;
+     |             ----^^^^^^^^^^
+     |             |
+     |             help: remove this `mut`
+
+warning: struct `SignalComponent` is never constructed
+    --> src\app.rs:1015:12
+     |
+1015 |     struct SignalComponent;
+     |            ^^^^^^^^^^^^^^^
+     |
+     = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: variant `Panic` is never constructed
+  --> src\backend\suprtui.rs:93:5
+   |
+83 | enum Command {
+   |      ------- variant in this enum
+...
+93 |     Panic(&'static str),
+   |     ^^^^^
+
+warning: method `serial` is never used
+  --> src\event\router.rs:84:19
+   |
+83 | impl NodeId {
+   | ----------- method in this implementation
+84 |     pub(crate) fn serial(self) -> usize {
+   |                   ^^^^^^
+
+warning: field `parser` is never read
+   --> src\platform\mod.rs:492:5
+    |
+489 | pub struct DirectTty {
+    |            --------- field in this struct
+...
+492 |     parser: parser::EscapeSequenceParser,
+    |     ^^^^^^
+
+warning: field `parser` is never read
+   --> src\platform\loop.rs:342:5
+    |
+328 | pub struct ThreadedEventLoop {
+    |            ----------------- field in this struct
+...
+342 |     parser: Arc<Mutex<EscapeSequenceParser>>,
+    |     ^^^^^^
+
+warning: `reactive-tui` (lib test) generated 10 warnings (run `cargo fix --lib -p reactive-tui --tests` to apply 5 suggestions)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.24s
+     Running unittests src\lib.rs (target\debug\deps\reactive_tui-71e5c1ac3a027292.exe)
+
+running 15 tests
+test widgets::display::file_explorer::live::worker::operations::rename::tests::exclusive_rename_handles_short_names_and_never_replaces_files_or_directories ... ok
+test widgets::display::file_explorer::live::worker::tests::worker_copies_directory_contents_rejects_cycles_and_preserves_failed_move ... ok
+test widgets::display::file_explorer::live::worker::tests::worker_copies_directory_symlinks_without_traversing_their_targets ... ok
+test widgets::display::file_explorer::live::worker::tests::worker_keeps_non_unicode_filename_identities ... ok
+test widgets::display::file_explorer::live::worker::tests::worker_never_follows_an_external_symlink ... ok
+test widgets::display::file_explorer::live::worker::tests::worker_never_overwrites_and_failed_copy_preserves_source_and_cleans_staging ... ok
+test widgets::display::file_explorer::live::worker::tests::worker_preserves_the_filesystems_unicode_filename_identity ... ok
+test widgets::display::file_explorer::live::worker::tests::worker_preview_bounds_bytes_and_handles_a_split_utf8_tail ... ok
+test widgets::display::file_explorer::live::worker::tests::worker_rejects_parent_traversal_and_absolute_paths_outside_root ... ok
+test widgets::display::file_explorer::live::worker::tests::worker_replaces_pending_reads_and_drop_joins_its_owner ... ok
+test widgets::display::file_explorer::live::worker::tests::worker_resolves_nonverbatim_paths_inside_a_verbatim_root ... ok
+test widgets::display::file_explorer::live::worker::tests::xis_003_copy_rejects_an_entry_replaced_after_inspection ... ok
+test widgets::display::file_explorer::live::worker::tests::xis_003_remove_rejects_an_entry_replaced_after_inspection ... ok
+test widgets::display::file_explorer::live::worker::tests::xis_003_validator_rejects_replaced_entry_outcomes ... ok
+test widgets::display::file_explorer::windows_builder_tests::current_path_chooses_its_volume_without_replacing_an_explicit_root ... ok
+
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 990 filtered out; finished in 0.73s
+

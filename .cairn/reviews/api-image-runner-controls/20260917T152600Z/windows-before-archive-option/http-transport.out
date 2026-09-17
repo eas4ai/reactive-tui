@@ -1,0 +1,95 @@
+warning: unused import: `std::os::windows::io::AsRawHandle`
+  --> src\core\capabilities.rs:12:5
+   |
+12 | use std::os::windows::io::AsRawHandle;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `crate::terminal::TerminalConfig`
+ --> src\terminal\pty\tests.rs:2:5
+  |
+2 | use crate::terminal::TerminalConfig;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `std::time::Duration`
+ --> src\terminal\pty\tests.rs:3:5
+  |
+3 | use std::time::Duration;
+  |     ^^^^^^^^^^^^^^^^^^^
+
+warning: variable does not need to be mutable
+    --> src\platform\mod.rs:1205:13
+     |
+1205 |         let mut buffer = [0u8; 8192];
+     |             ----^^^^^^
+     |             |
+     |             help: remove this `mut`
+     |
+     = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: variable does not need to be mutable
+    --> src\platform\mod.rs:1206:13
+     |
+1206 |         let mut total_read = 0;
+     |             ----^^^^^^^^^^
+     |             |
+     |             help: remove this `mut`
+
+warning: struct `SignalComponent` is never constructed
+    --> src\app.rs:1015:12
+     |
+1015 |     struct SignalComponent;
+     |            ^^^^^^^^^^^^^^^
+     |
+     = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: variant `Panic` is never constructed
+  --> src\backend\suprtui.rs:93:5
+   |
+83 | enum Command {
+   |      ------- variant in this enum
+...
+93 |     Panic(&'static str),
+   |     ^^^^^
+
+warning: method `serial` is never used
+  --> src\event\router.rs:84:19
+   |
+83 | impl NodeId {
+   | ----------- method in this implementation
+84 |     pub(crate) fn serial(self) -> usize {
+   |                   ^^^^^^
+
+warning: field `parser` is never read
+   --> src\platform\mod.rs:492:5
+    |
+489 | pub struct DirectTty {
+    |            --------- field in this struct
+...
+492 |     parser: parser::EscapeSequenceParser,
+    |     ^^^^^^
+
+warning: field `parser` is never read
+   --> src\platform\loop.rs:342:5
+    |
+328 | pub struct ThreadedEventLoop {
+    |            ----------------- field in this struct
+...
+342 |     parser: Arc<Mutex<EscapeSequenceParser>>,
+    |     ^^^^^^
+
+warning: `reactive-tui` (lib test) generated 10 warnings (run `cargo fix --lib -p reactive-tui --tests` to apply 5 suggestions)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.21s
+     Running unittests src\lib.rs (target\debug\deps\reactive_tui-71e5c1ac3a027292.exe)
+
+running 6 tests
+test widgets::dialog::http::tests::a_silent_endpoint_hits_the_owned_deadline ... ok
+test widgets::dialog::http::tests::cancellation_joins_worker_and_closes_the_actual_connection ... ok
+test widgets::dialog::http::tests::chunked_response_cannot_bypass_the_size_limit ... ok
+test widgets::dialog::http::tests::request_preserves_json_escaping_and_custom_headers ... ok
+test widgets::dialog::http::tests::tls_certificate_probe ... ignored, invoked with a trusted/untrusted HTTPS fixture by scripts/check-dialog-http.py
+test widgets::dialog::http::tests::unsafe_configuration_and_oversized_requests_fail_before_spawn ... ok
+
+test result: ok. 5 passed; 0 failed; 1 ignored; 0 measured; 999 filtered out; finished in 0.32s
+

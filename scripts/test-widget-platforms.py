@@ -124,6 +124,14 @@ class NativeWidgetControls(unittest.TestCase):
         self.assertIn("--executable", captures[0])
         self.assertEqual(captures[0][captures[0].index("--executable") + 1], self.probe)
 
+    def test_darwin_forwards_optional_pinned_archive(self):
+        archive = self.root / "private archive.zip"
+        with patch.object(CHECK.platform, "system", return_value="Darwin"), \
+                patch.object(CHECK, "execute", side_effect=self.execute):
+            CHECK.run(True, archive)
+        capture = next(command for command in self.commands if "scripts/check-iterm-host.py" in command)
+        self.assertEqual(capture[capture.index("--archive") + 1], str(archive))
+
     def test_probe_build_uses_outer_process_group_deadline(self):
         with patch.object(CHECK, "execute", side_effect=self.execute) as execute:
             self.assertEqual(CHECK.build_probe(self.root / "build.out"), self.probe)
@@ -152,6 +160,57 @@ class NativeWidgetControls(unittest.TestCase):
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
         self.assertIn("executable", inspect.signature(module.capture).parameters)
+
+
+class ITermArchiveControls(unittest.TestCase):
+    def setUp(self):
+        spec = importlib.util.spec_from_file_location("iterm_archive", ROOT / "scripts/check-iterm-host.py")
+        self.check = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(self.check)
+
+    def test_supplied_pinned_archive_avoids_download_and_preserves_bytes(self):
+        with tempfile.TemporaryDirectory() as scratch:
+            archive = Path(scratch) / "fixture.zip"
+            data = b"Controlled archive bytes, not an iTerm installation"
+            archive.write_bytes(data)
+            with patch.object(self.check, "ARCHIVE_SHA256", hashlib.sha256(data).hexdigest()), \
+                    patch.object(self.check.subprocess, "run") as run:
+                checked = self.check.prepare_archive(Path(scratch), archive)
+                self.assertEqual(checked, Path(scratch) / "iterm.zip")
+                self.assertEqual(checked.read_bytes(), data)
+            run.assert_not_called()
+            self.assertEqual(archive.read_bytes(), data)
+
+    def test_supplied_wrong_digest_is_rejected_before_installation(self):
+        with tempfile.TemporaryDirectory() as scratch:
+            archive = Path(scratch) / "fixture.zip"
+            archive.write_bytes(b"Controlled wrong archive")
+            with self.assertRaisesRegex(RuntimeError, "digest mismatch"):
+                self.check.prepare_archive(Path(scratch), archive)
+
+    def test_supplied_oversized_archive_is_rejected_before_reading(self):
+        from types import SimpleNamespace
+        archive = unittest.mock.Mock(spec=Path)
+        archive.resolve.return_value = archive
+        archive.stat.return_value = SimpleNamespace(st_size=80 * 1024 * 1024 + 1)
+        with self.assertRaisesRegex(RuntimeError, "size limit"):
+            self.check.prepare_archive(Path("unused-controlled-directory"), archive)
+        archive.read_bytes.assert_not_called()
+
+    def test_archive_read_is_bounded_even_if_stat_becomes_stale(self):
+        from types import SimpleNamespace
+        archive = unittest.mock.Mock(spec=Path)
+        archive.resolve.return_value = archive
+        archive.stat.return_value = SimpleNamespace(st_size=1)
+        stream = unittest.mock.MagicMock()
+        stream.read.return_value = b"Controlled bounded archive fixture"
+        archive.open.return_value = unittest.mock.MagicMock()
+        archive.open.return_value.__enter__.return_value = stream
+        archive.read_bytes.return_value = stream.read.return_value
+        with tempfile.TemporaryDirectory() as scratch, \
+                patch.object(self.check, "ARCHIVE_SHA256", hashlib.sha256(stream.read.return_value).hexdigest()):
+            self.check.prepare_archive(Path(scratch), archive)
+        stream.read.assert_called_once_with(80 * 1024 * 1024 + 1)
 
 
 class NativeDigestControls(unittest.TestCase):

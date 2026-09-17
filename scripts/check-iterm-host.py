@@ -199,6 +199,26 @@ for name in [suite, suite + ".private"] {
             subprocess.run(["swift", "-e", cleanup, suite], check=True, timeout=30)
 
 
+def prepare_archive(work, supplied=None):
+    path = supplied.resolve() if supplied else work / "iterm.zip"
+    if not supplied:
+        subprocess.run(["curl", "--fail", "--location", "--max-time", "60",
+                        "--max-filesize", str(80 * 1024 * 1024), "--output", str(path),
+                        ARCHIVE_URL], check=True, timeout=65)
+    if path.stat().st_size > 80 * 1024 * 1024:
+        raise RuntimeError("iTerm2 archive exceeds size limit")
+    with path.open("rb") as stream:
+        archive = stream.read(80 * 1024 * 1024 + 1)
+    if len(archive) > 80 * 1024 * 1024:
+        raise RuntimeError("iTerm2 archive exceeds size limit")
+    if hashlib.sha256(archive).hexdigest() != ARCHIVE_SHA256:
+        raise RuntimeError("iTerm2 archive digest mismatch")
+    if supplied:
+        path = work / "iterm.zip"
+        path.write_bytes(archive)
+    return path
+
+
 def run(args):
     if platform.system() != "Darwin" or not args.dedicated_desktop:
         raise RuntimeError("Requires macOS and --dedicated-desktop")
@@ -207,13 +227,7 @@ def run(args):
     executable = args.executable or runpy.run_path(str(ROOT / "scripts/check-widget-platforms.py"))["build_probe"](output / "build.out")
     with tempfile.TemporaryDirectory(prefix="rtui-iterm-install-") as work:
         work = Path(work)
-        path = work / "iterm.zip"
-        subprocess.run(["curl", "--fail", "--location", "--max-time", "60",
-                        "--max-filesize", str(80 * 1024 * 1024), "--output", str(path),
-                        ARCHIVE_URL], check=True, timeout=65)
-        archive = path.read_bytes()
-        if hashlib.sha256(archive).hexdigest() != ARCHIVE_SHA256:
-            raise RuntimeError("iTerm2 archive digest mismatch")
+        path = prepare_archive(work, args.archive)
         # iTerm 3.7.0's LetsMove accepts an Applications path component. Keep the
         # bundle private while avoiding its first-launch relocation dialog.
         applications = work / "Applications"
@@ -247,5 +261,6 @@ if __name__ == "__main__":
     parser.add_argument("--require-exact-srgb", action="store_true",
                         help="Run the retained strict color diagnostic; iTerm 3.7 is known to fail")
     parser.add_argument("--executable", type=Path, help="Cargo-reported image_host_probe executable")
+    parser.add_argument("--archive", type=Path, help="Optional local archive; pinned SHA-256 is always required")
     parser.add_argument("--output", default=".cairn/reviews/widget-platforms/darwin/iterm-host")
     run(parser.parse_args())

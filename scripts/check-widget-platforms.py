@@ -110,7 +110,7 @@ def install_runtime(build, directory):
              str(parents.pop()), "--arch", "x64"], directory / "runtime-install.out", 120)
 
 
-def run(dedicated_desktop=False):
+def run(dedicated_desktop=False, iterm_archive=None):
     system = platform.system()
     if system not in ("Linux", "Darwin", "Windows"):
         raise RuntimeError("No native widget platform contract for " + system)
@@ -151,7 +151,8 @@ def run(dedicated_desktop=False):
         try:
             probe = build_probe(directory / "iterm-build.out")
             execute([sys.executable, "-B", "scripts/check-iterm-host.py", "--dedicated-desktop",
-                     "--executable", probe, "--output", str(directory / "iterm-host")],
+                     "--executable", probe, "--output", str(directory / "iterm-host")]
+                     + (["--archive", str(iterm_archive)] if iterm_archive else []),
                     directory / "iterm-host.out", 240)
         except (RuntimeError, subprocess.TimeoutExpired) as error:
             failures.append(str(error))
@@ -216,5 +217,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--verify", action="store_true")
     parser.add_argument("--dedicated-desktop", action="store_true")
+    parser.add_argument("--iterm-archive", type=Path, help="Optional pinned iTerm archive, checked by SHA-256")
     arguments = parser.parse_args()
-    verify() if arguments.verify else run(arguments.dedicated_desktop)
+    verify() if arguments.verify else run(arguments.dedicated_desktop, arguments.iterm_archive)
