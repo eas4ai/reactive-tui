@@ -1,0 +1,11 @@
+   Compiling syn v2.0.106
+   Compiling reactive-tui-macros v0.1.0 (/home/shawn/workspace2/reactive-tui/reactive-tui-macros)
+    Finished `test` profile [unoptimized] target(s) in 1.45s
+     Running unittests src/lib.rs (/tmp/reactive-tui-wgpu.waMUcc/dqc004/default/debug/deps/reactive_tui_macros-b8c2da0156518b70)
+
+running 2 tests
+test props_options_tests::rejects_ignored_or_ambiguous_attributes_with_diagnostics ... ok
+test props_options_tests::accepts_named_rules_and_explicit_option_paths ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
