@@ -1,0 +1,18 @@
+mechanism: pre-release-dependency-security
+commit: 9338bda2
+inputs_digest: sha256:7a87fb94a5bb0f1a2c82e20ab8c6fc54d2728baf8bafcb307802eb382927c42c
+mechanism_digest: sha256:a7bf08fff974e02770ae5e6d7103391241d7e04b8cc420ae338c17968e575047
+kernel_digest: sha256:a75759bfeebcad18d5c4ede6438c2a1efc8380a27df350379634205af5b27b19
+inputs_detail: .cairn/evidence/runs/20260917T113752918Z-971432.inputs.json
+command: python3 -B scripts/check-pre-release-dependency-code-quality.py DQC-001
+cwd: .
+exit: 1
+output_digest: sha256:391d80e0220f74030ef78e12f70525ee97dc72c50c17be585ecdbc9dc78b653a
+output: .cairn/evidence/runs/20260917T113752918Z-971432.out
+stderr_output: .cairn/evidence/runs/20260917T113752918Z-971432.err
+stderr_digest: sha256:67da1e4ca5fd46527d00ac89931145869f2366975786d5777da14f40b2b12843
+signal: none
+execution_error: null
+recorded: 2026-09-17T11:37:55.971Z
+results:
+  - DQC-001 fail exit sha256:7e723f2a8ee5b4e4bd55722d179d12ad352600ee15c0301b03899c0a33c57d64 6 sha256:f8ce506279fb8f514773768359c07606571c3bdf1c7bb3246735ef67525bffbb
