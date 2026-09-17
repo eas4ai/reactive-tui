@@ -1,6 +1,8 @@
 # Mechanism: suprtui-renderer
 
 command: sh scripts/check-renderer.sh
+reviewed:
+  - RND-005 sha256:62285ac2c38f565b5d79e3b391def6e115c9ad61c8fa4479e1651beb9cff685a
 inputs:
   - docs/spec
   - README.md

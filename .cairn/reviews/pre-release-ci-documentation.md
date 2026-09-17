@@ -173,3 +173,23 @@ confirms the twelve writing failures; the gate does not mask them. Its repair
 is separate work, not a reason to remove renderer inheritance. No mismatch
 with the revised EMB-006 requirement was found. The full acceptance run is
 still pending and must not be inferred from the three direct PTY passes.
+
+## RND-005 revised mechanism review, 2026-09-17
+
+Examined candidate 2268947559f408366389113f5a1eb42a3d482333: previous and
+current RND-005, the renderer declaration and shell gate, the App-based
+internal renderer launcher, and both PTY scripts. The revision names the
+internal probe instead of the removed example; restoration obligations and
+falsifier are unchanged. The script builds that probe and tests normal
+Escape and Ctrl+C, a real controlled input error, and a real Rust panic.
+It requires changed termios during execution, exact restoration afterward,
+cursor restoration before alternate-screen exit, expected diagnostic text,
+and the correct exit status. It does not accept merely emitting quit bytes.
+
+The safe /usr/bin/true case is rejected with "initial counter frame missing;
+exit=0". The actual current probe built with Rust 1.91.0 passes all four live
+PTY cases; four predicate fixtures also pass and reject partial escapes,
+unfinished updates, wrong dimensions, stale counters and cleared screens.
+These are direct diagnostics, not full-mechanism acceptance receipts. The
+separately recorded specification-lint failures still block that full gate.
+No RND-005 mechanism mismatch was found; no source was changed during review.
