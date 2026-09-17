@@ -911,3 +911,18 @@ managed directory. Previous evidence remains recoverable from Git history;
 remote widget captures were moved to task-owned history before checkout.
 Native Windows warnings are retained, not represented as strict lint success.
 This refresh does not establish Mac image capture or finish the Fable audit.
+
+API-008 now passes formal receipt 20260917T164633753Z-3730253. The full
+API-018 refresh also passes receipt 20260917T164656028Z-3740999: 47 steps,
+40 unique logs, all raw hashes verified and all 69 output files retained.
+API-014 receipt 20260917T165003587Z-3969444 passes 23 checker controls and
+92 Rust tests, then correctly refuses missing Darwin record.json. It does not
+reach the independent host-pixel matrix and is not an image acceptance pass.
+After the developer's approval was recorded, fresh macOS preflight still
+returns false. The normal consent request returned false earlier; the Screen
+Recording settings pane is open. The one-day caffeinate process remains alive.
+The captured permission preflight is retained in
+api-image-runner-controls/20260917T165130Z/mac-permission-after-approval.out.
+No mechanism-input change can grant that external OS permission. Request the
+developer's settings action rather than rerun blocked capture, bypass privacy
+controls, or substitute Windows evidence. Fable remediation remains incomplete.
