@@ -1,0 +1,632 @@
+[
+  {
+    "name": "checker-controls",
+    "command": [
+      "python3",
+      "-B",
+      "/home/shawn/workspace2/reactive-tui/verification/api-documentation/checker-controls.py"
+    ],
+    "log": ".cairn/reviews/api-documentation/20260917T135150777341Z/checker-controls.out",
+    "result": "pass",
+    "sha256": "1b47b0c7e57b35f8292676702217b9a53e0c7c3283d0af4e1c660e4418594ff5"
+  },
+  {
+    "name": "documentation-macro-behavior",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--test",
+      "api_documentation_contract"
+    ],
+    "log": ".cairn/reviews/api-documentation/20260917T135150777341Z/documentation-macro-behavior.out",
+    "tests_passed": 4,
+    "result": "pass",
+    "sha256": "6e25c76b652ff72e2109aca23f64eaf34b6f82e7885b103c8c0d9bca8c7d6598"
+  },
+  {
+    "name": "documentation-screen-behavior",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--lib",
+      "responsive_"
+    ],
+    "log": ".cairn/reviews/api-documentation/20260917T135150777341Z/documentation-screen-behavior.out",
+    "tests_passed": 4,
+    "result": "pass",
+    "sha256": "f81f6b65b5c4e8101a8cf96174f46ea08b0788454958150f3e14cf8c837bfc2a"
+  },
+  {
+    "name": "css-unit-behavior",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--lib",
+      "layout::css::css_in_rust::tests"
+    ],
+    "log": ".cairn/reviews/api-documentation/20260917T135150777341Z/css-unit-behavior.out",
+    "tests_passed": 5,
+    "result": "pass",
+    "sha256": "497e0a1fa801f488641999b42e5a006733de287129e6d81709eb81a8719f0977"
+  },
+  {
+    "name": "css-consumer-behavior",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--test",
+      "css_in_rust_simple_test"
+    ],
+    "log": ".cairn/reviews/api-documentation/20260917T135150777341Z/css-consumer-behavior.out",
+    "tests_passed": 14,
+    "result": "pass",
+    "sha256": "b74f992e494aa0c44eee4332a6b6b26081fbc0f069326983e969a45b1621ec6f"
+  },
+  {
+    "name": "props-behavior",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--test",
+      "api_props_contract",
+      "--test",
+      "props_derive_test",
+      "--test",
+      "simple_props_test"
+    ],
+    "log": ".cairn/reviews/api-documentation/20260917T135150777341Z/props-behavior.out",
+    "tests_passed": 17,
+    "result": "pass",
+    "sha256": "c63fb2aa4649fa3759ceca93a205f676501184e3da457cc9e4b42c958bf4abec"
+  },
+  {
+    "name": "props-diagnostics",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "-p",
+      "reactive-tui-macros",
+      "--lib"
+    ],
+    "log": ".cairn/reviews/api-documentation/20260917T135150777341Z/props-diagnostics.out",
+    "tests_passed": 2,
+    "result": "pass",
+    "sha256": "743d89e6305eb109f3577a468317d1794aecd70320c2d0d61862789579cea8cc"
+  },
+  {
+    "name": "consumer-library",
+    "command": [
+      "cargo",
+      "build",
+      "--locked",
+      "--lib",
+      "--message-format=json-render-diagnostics"
+    ],
+    "log": ".cairn/reviews/api-documentation/20260917T135150777341Z/consumer-library.out",
+    "result": "pass",
+    "sha256": "ac785d6286a1101e2d17e2c0276e0bfb113a7d93687c2bc7ef1119a7411369a4"
+  },
+  {
+    "name": "props-defaults-compile",
+    "command": [
+      "rustc",
+      "--edition=2021",
+      "--crate-name",
+      "api018_defaults",
+      "/home/shawn/workspace2/reactive-tui/verification/api-documentation/props-defaults.rs",
+      "--extern",
+      "reactive_tui=/tmp/reactive-tui-wgpu.waMUcc/dqc004/default/debug/libreactive_tui.rlib",
+      "-L",
+      "dependency=/tmp/reactive-tui-wgpu.waMUcc/dqc004/default/debug/deps",
+      "-C",
+      "codegen-units=12",
+      "-C",
+      "link-arg=-Wl,--threads=12",
+      "-o",
+      "/tmp/reactive-tui-wgpu.waMUcc/dqc004/default/api-documentation/20260917T135150777341Z/props-defaults"
+    ],
+    "log": ".cairn/reviews/api-documentation/20260917T135150777341Z/props-defaults-compile.out",
+    "result": "pass",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "name": "props-defaults-run",
+    "command": [
+      "/tmp/reactive-tui-wgpu.waMUcc/dqc004/default/api-documentation/20260917T135150777341Z/props-defaults"
+    ],
+    "log": ".cairn/reviews/api-documentation/20260917T135150777341Z/props-defaults-run.out",
+    "result": "pass",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "name": "props",
+    "result": "pass"
+  },
+  {
+    "name": "rustdoc-default",
+    "command": [
+      "cargo",
+      "doc",
+      "--locked",
+      "--lib",
+      "--no-deps"
+    ],
+    "log": ".cairn/reviews/api-documentation/20260917T135150777341Z/rustdoc-default.out",
+    "result": "pass",
+    "sha256": "aa284c2b2b6fcfb179d14c1a345e4ac5abfa61923fc17b0e266fb7435a72cbd2"
+  },
+  {
+    "name": "markdown-visible-default",
+    "result": "pass"
+  },
+  {
+    "name": "rustdoc-minimal",
+    "command": [
+      "cargo",
+      "doc",
+      "--locked",
+      "--lib",
+      "--no-deps",
+      "--no-default-features"
+    ],
+    "log": ".cairn/reviews/api-documentation/20260917T135150777341Z/rustdoc-minimal.out",
+    "result": "pass",
+    "sha256": "ada4db746bd6af8fd4c0164e372a486dbc3e5b4645f121b83a33b5c5a47135e5"
+  },
+  {
+    "name": "markdown-visible-minimal",
+    "result": "pass"
+  },
+  {
+    "name": "rustdoc-all-features",
+    "command": [
+      "cargo",
+      "+nightly",
+      "doc",
+      "--locked",
+      "--lib",
+      "--no-deps",
+      "--all-features"
+    ],
+    "log": ".cairn/reviews/api-documentation/20260917T135150777341Z/rustdoc-all-features.out",
+    "result": "pass",
+    "sha256": "327e60d249957d74788fa9e5693f99f0a01a98b225758dfa3f02d874507a83a3"
+  },
+  {
+    "name": "markdown-visible-all-features",
+    "result": "pass"
+  },
+  {
+    "name": "crate-doctests-default",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--doc",
+      "--",
+      "--test-threads=8"
+    ],
+    "log": ".cairn/reviews/api-documentation/20260917T135150777341Z/crate-doctests-default.out",
+    "tests_passed": 75,
+    "result": "pass",
+    "sha256": "1062985a1ae42c9ec0b7b92c729fca6a435b2382d2e0d8e73050929a669aec4b"
+  },
+  {
+    "name": "crate-doctests-minimal",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--doc",
+      "--no-default-features",
+      "--",
+      "--test-threads=8"
+    ],
+    "log": ".cairn/reviews/api-documentation/20260917T135150777341Z/crate-doctests-minimal.out",
+    "tests_passed": 75,
+    "result": "pass",
+    "sha256": "7c13fe5a58a9a746887663c7105a870b948e75227ae0bf37fbfbb0c9b1b7048c"
+  },
+  {
+    "name": "crate-doctests-all-features",
+    "command": [
+      "cargo",
+      "+nightly",
+      "test",
+      "--locked",
+      "--doc",
+      "--all-features",
+      "--",
+      "--test-threads=8"
+    ],
+    "log": ".cairn/reviews/api-documentation/20260917T135150777341Z/crate-doctests-all-features.out",
+    "tests_passed": 77,
+    "result": "pass",
+    "sha256": "c1867f7adfbf7a4780de9fb4e77be8de8727e71d8d779bd8b65035d3aafc9f34"
+  },
+  {
+    "name": "cargo-examples",
+    "command": [
+      "cargo",
+      "check",
+      "--locked",
+      "--examples"
+    ],
+    "log": ".cairn/reviews/api-documentation/20260917T135150777341Z/cargo-examples.out",
+    "result": "pass",
+    "sha256": "9a27679e01b0c28e8e23e9891840580a317058e1faad7b8c8ac6eb167c0846b5"
+  },
+  {
+    "name": "rustdoc",
+    "result": "pass"
+  },
+  {
+    "name": "consumer-library",
+    "command": [
+      "cargo",
+      "build",
+      "--locked",
+      "--lib",
+      "--message-format=json-render-diagnostics"
+    ],
+    "log": ".cairn/reviews/api-documentation/20260917T135150777341Z/consumer-library.out",
+    "result": "pass",
+    "sha256": "12f7c701a4b811c976bebd9368ab721ff77e66636c4e3adb19e3587bebc9244c"
+  },
+  {
+    "name": "rust-examples-0",
+    "command": [
+      "rustdoc",
+      "--test",
+      "/home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260917T135150777341Z/rust-0.md",
+      "--edition=2021",
+      "--extern",
+      "reactive_tui=/tmp/reactive-tui-wgpu.waMUcc/dqc004/default/debug/libreactive_tui.rlib",
+      "-L",
+      "dependency=/tmp/reactive-tui-wgpu.waMUcc/dqc004/default/debug/deps",
+      "--test-args=--test-threads=8"
+    ],
+    "log": ".cairn/reviews/api-documentation/20260917T135150777341Z/rust-examples-0.out",
+    "tests_passed": 1,
+    "result": "pass",
+    "sha256": "a624b807e9a3de0e0b22c81bcfdf46c62d694f2c7db169c75bbc63f19ce98842"
+  },
+  {
+    "name": "rust-examples-1",
+    "command": [
+      "rustdoc",
+      "--test",
+      "/home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260917T135150777341Z/rust-1.md",
+      "--edition=2021",
+      "--extern",
+      "reactive_tui=/tmp/reactive-tui-wgpu.waMUcc/dqc004/default/debug/libreactive_tui.rlib",
+      "-L",
+      "dependency=/tmp/reactive-tui-wgpu.waMUcc/dqc004/default/debug/deps",
+      "--test-args=--test-threads=8"
+    ],
+    "log": ".cairn/reviews/api-documentation/20260917T135150777341Z/rust-examples-1.out",
+    "tests_passed": 3,
+    "result": "pass",
+    "sha256": "9fbbea683fd62644d0d88678259f2907f648c868dd60e7114d13d12551c9a588"
+  },
+  {
+    "name": "rust-examples-2",
+    "command": [
+      "rustdoc",
+      "--test",
+      "/home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260917T135150777341Z/rust-2.md",
+      "--edition=2021",
+      "--extern",
+      "reactive_tui=/tmp/reactive-tui-wgpu.waMUcc/dqc004/default/debug/libreactive_tui.rlib",
+      "-L",
+      "dependency=/tmp/reactive-tui-wgpu.waMUcc/dqc004/default/debug/deps",
+      "--test-args=--test-threads=8"
+    ],
+    "log": ".cairn/reviews/api-documentation/20260917T135150777341Z/rust-examples-2.out",
+    "tests_passed": 1,
+    "result": "pass",
+    "sha256": "77d1d3791a1148c7651f51fe826d2bf4a4480891b16b970d86292e9ae52ae8f8"
+  },
+  {
+    "name": "rust-examples-3",
+    "command": [
+      "rustdoc",
+      "--test",
+      "/home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260917T135150777341Z/rust-3.md",
+      "--edition=2021",
+      "--extern",
+      "reactive_tui=/tmp/reactive-tui-wgpu.waMUcc/dqc004/default/debug/libreactive_tui.rlib",
+      "-L",
+      "dependency=/tmp/reactive-tui-wgpu.waMUcc/dqc004/default/debug/deps",
+      "--test-args=--test-threads=8"
+    ],
+    "log": ".cairn/reviews/api-documentation/20260917T135150777341Z/rust-examples-3.out",
+    "tests_passed": 1,
+    "result": "pass",
+    "sha256": "236c40dff2e10286a882e6cc914d67244401c413d71f516b1e72e27ee8dafa2d"
+  },
+  {
+    "name": "rust-examples-4",
+    "command": [
+      "rustdoc",
+      "--test",
+      "/home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260917T135150777341Z/rust-4.md",
+      "--edition=2021",
+      "--extern",
+      "reactive_tui=/tmp/reactive-tui-wgpu.waMUcc/dqc004/default/debug/libreactive_tui.rlib",
+      "-L",
+      "dependency=/tmp/reactive-tui-wgpu.waMUcc/dqc004/default/debug/deps",
+      "--test-args=--test-threads=8"
+    ],
+    "log": ".cairn/reviews/api-documentation/20260917T135150777341Z/rust-examples-4.out",
+    "tests_passed": 1,
+    "result": "pass",
+    "sha256": "e99905983a087bef544998401a1e8926ec132014307b5353ec3f5a5e26ede9e6"
+  },
+  {
+    "name": "rust-examples-5",
+    "command": [
+      "rustdoc",
+      "--test",
+      "/home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260917T135150777341Z/rust-5.md",
+      "--edition=2021",
+      "--extern",
+      "reactive_tui=/tmp/reactive-tui-wgpu.waMUcc/dqc004/default/debug/libreactive_tui.rlib",
+      "-L",
+      "dependency=/tmp/reactive-tui-wgpu.waMUcc/dqc004/default/debug/deps",
+      "--test-args=--test-threads=8"
+    ],
+    "log": ".cairn/reviews/api-documentation/20260917T135150777341Z/rust-examples-5.out",
+    "tests_passed": 2,
+    "result": "pass",
+    "sha256": "92c0d68d657d43679e1f504c022cbc6128c02b51a3bd7f8731b3246579b7ea99"
+  },
+  {
+    "name": "rust-examples-6",
+    "command": [
+      "rustdoc",
+      "--test",
+      "/home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260917T135150777341Z/rust-6.md",
+      "--edition=2021",
+      "--extern",
+      "reactive_tui=/tmp/reactive-tui-wgpu.waMUcc/dqc004/default/debug/libreactive_tui.rlib",
+      "-L",
+      "dependency=/tmp/reactive-tui-wgpu.waMUcc/dqc004/default/debug/deps",
+      "--test-args=--test-threads=8"
+    ],
+    "log": ".cairn/reviews/api-documentation/20260917T135150777341Z/rust-examples-6.out",
+    "tests_passed": 5,
+    "result": "pass",
+    "sha256": "f60206ca400498aa7891288d70a5bb8577426e569db8a14bf196716a548914fb"
+  },
+  {
+    "name": "rust-examples-7",
+    "command": [
+      "rustdoc",
+      "--test",
+      "/home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260917T135150777341Z/rust-7.md",
+      "--edition=2021",
+      "--extern",
+      "reactive_tui=/tmp/reactive-tui-wgpu.waMUcc/dqc004/default/debug/libreactive_tui.rlib",
+      "-L",
+      "dependency=/tmp/reactive-tui-wgpu.waMUcc/dqc004/default/debug/deps",
+      "--test-args=--test-threads=8"
+    ],
+    "log": ".cairn/reviews/api-documentation/20260917T135150777341Z/rust-examples-7.out",
+    "tests_passed": 8,
+    "result": "pass",
+    "sha256": "5651f919b03c2de9e515b9c9d8696831e90b1f72c8ed5e7b39abfb941956d061"
+  },
+  {
+    "name": "rust-examples-8",
+    "command": [
+      "rustdoc",
+      "--test",
+      "/home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260917T135150777341Z/rust-8.md",
+      "--edition=2021",
+      "--extern",
+      "reactive_tui=/tmp/reactive-tui-wgpu.waMUcc/dqc004/default/debug/libreactive_tui.rlib",
+      "-L",
+      "dependency=/tmp/reactive-tui-wgpu.waMUcc/dqc004/default/debug/deps",
+      "--test-args=--test-threads=8"
+    ],
+    "log": ".cairn/reviews/api-documentation/20260917T135150777341Z/rust-examples-8.out",
+    "tests_passed": 5,
+    "result": "pass",
+    "sha256": "ee766915393273c737d51f59d0bbc906cd842371facc4b73e0f4268043be922c"
+  },
+  {
+    "name": "rust-examples-9",
+    "command": [
+      "rustdoc",
+      "--test",
+      "/home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260917T135150777341Z/rust-9.md",
+      "--edition=2021",
+      "--extern",
+      "reactive_tui=/tmp/reactive-tui-wgpu.waMUcc/dqc004/default/debug/libreactive_tui.rlib",
+      "-L",
+      "dependency=/tmp/reactive-tui-wgpu.waMUcc/dqc004/default/debug/deps",
+      "--test-args=--test-threads=8"
+    ],
+    "log": ".cairn/reviews/api-documentation/20260917T135150777341Z/rust-examples-9.out",
+    "tests_passed": 4,
+    "result": "pass",
+    "sha256": "9d55a7bf0a906bafa21da35ef816e44aea81b7a197491e1be3fd90f96d84ba69"
+  },
+  {
+    "name": "rust-examples-10",
+    "command": [
+      "rustdoc",
+      "--test",
+      "/home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260917T135150777341Z/rust-10.md",
+      "--edition=2021",
+      "--extern",
+      "reactive_tui=/tmp/reactive-tui-wgpu.waMUcc/dqc004/default/debug/libreactive_tui.rlib",
+      "-L",
+      "dependency=/tmp/reactive-tui-wgpu.waMUcc/dqc004/default/debug/deps",
+      "--test-args=--test-threads=8"
+    ],
+    "log": ".cairn/reviews/api-documentation/20260917T135150777341Z/rust-examples-10.out",
+    "tests_passed": 3,
+    "result": "pass",
+    "sha256": "3da18a57e44b1b93025baff4b777d62cbd28ab2807cf8bb993cfe8040abfdf4f"
+  },
+  {
+    "name": "rust-examples-11",
+    "command": [
+      "rustdoc",
+      "--test",
+      "/home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260917T135150777341Z/rust-11.md",
+      "--edition=2021",
+      "--extern",
+      "reactive_tui=/tmp/reactive-tui-wgpu.waMUcc/dqc004/default/debug/libreactive_tui.rlib",
+      "-L",
+      "dependency=/tmp/reactive-tui-wgpu.waMUcc/dqc004/default/debug/deps",
+      "--test-args=--test-threads=8"
+    ],
+    "log": ".cairn/reviews/api-documentation/20260917T135150777341Z/rust-examples-11.out",
+    "tests_passed": 1,
+    "result": "pass",
+    "sha256": "b40b36e02bd29b99ca1e043e693d83cfd71d2f99aef1d98131b20f58eecf2f62"
+  },
+  {
+    "name": "rust-examples-12",
+    "command": [
+      "rustdoc",
+      "--test",
+      "/home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260917T135150777341Z/rust-12.md",
+      "--edition=2021",
+      "--extern",
+      "reactive_tui=/tmp/reactive-tui-wgpu.waMUcc/dqc004/default/debug/libreactive_tui.rlib",
+      "-L",
+      "dependency=/tmp/reactive-tui-wgpu.waMUcc/dqc004/default/debug/deps",
+      "--test-args=--test-threads=8"
+    ],
+    "log": ".cairn/reviews/api-documentation/20260917T135150777341Z/rust-examples-12.out",
+    "tests_passed": 1,
+    "result": "pass",
+    "sha256": "cd07e1bbb6bf096ebbe9cdebda34b2eb8ae62994c0de38b96548ec058e757423"
+  },
+  {
+    "name": "rust-examples-13",
+    "command": [
+      "rustdoc",
+      "--test",
+      "/home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260917T135150777341Z/rust-13.md",
+      "--edition=2021",
+      "--extern",
+      "reactive_tui=/tmp/reactive-tui-wgpu.waMUcc/dqc004/default/debug/libreactive_tui.rlib",
+      "-L",
+      "dependency=/tmp/reactive-tui-wgpu.waMUcc/dqc004/default/debug/deps",
+      "--test-args=--test-threads=8"
+    ],
+    "log": ".cairn/reviews/api-documentation/20260917T135150777341Z/rust-examples-13.out",
+    "tests_passed": 3,
+    "result": "pass",
+    "sha256": "044141ffadeb3803aa9456f5efc55d24e46691b5b5e702132ea35792e7e297fd"
+  },
+  {
+    "name": "ffi-library",
+    "command": [
+      "cargo",
+      "build",
+      "--locked",
+      "--features",
+      "ffi"
+    ],
+    "log": ".cairn/reviews/api-documentation/20260917T135150777341Z/ffi-library.out",
+    "result": "pass",
+    "sha256": "78f500c694398bdcdc097acdba21920a476a6a933c2fa35ad827bb582f72216b"
+  },
+  {
+    "name": "c-example-0",
+    "command": [
+      "cc",
+      "-std=c11",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-I/home/shawn/workspace2/reactive-tui/include",
+      "/home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260917T135150777341Z/c-0.c",
+      "-L/tmp/reactive-tui-wgpu.waMUcc/dqc004/default/debug",
+      "-lreactive_tui",
+      "-o",
+      "/tmp/reactive-tui-wgpu.waMUcc/dqc004/default/api-documentation/20260917T135150777341Z/c-0"
+    ],
+    "log": ".cairn/reviews/api-documentation/20260917T135150777341Z/c-example-0.out",
+    "result": "pass",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "name": "c-example-1",
+    "command": [
+      "cc",
+      "-std=c11",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-I/home/shawn/workspace2/reactive-tui/include",
+      "/home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260917T135150777341Z/c-1.c",
+      "-L/tmp/reactive-tui-wgpu.waMUcc/dqc004/default/debug",
+      "-lreactive_tui",
+      "-o",
+      "/tmp/reactive-tui-wgpu.waMUcc/dqc004/default/api-documentation/20260917T135150777341Z/c-1"
+    ],
+    "log": ".cairn/reviews/api-documentation/20260917T135150777341Z/c-example-1.out",
+    "result": "pass",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "name": "typescript-dependencies",
+    "command": [
+      "npm",
+      "--prefix",
+      "/home/shawn/workspace2/reactive-tui/bindings/typescript",
+      "ci",
+      "--ignore-scripts"
+    ],
+    "log": ".cairn/reviews/api-documentation/20260917T135150777341Z/typescript-dependencies.out",
+    "result": "pass",
+    "sha256": "5846695d9e06e3f2492ecf46b5eb5ff686ac7137c8486418c475d289af1975a7"
+  },
+  {
+    "name": "typescript-examples",
+    "command": [
+      "node",
+      "/home/shawn/workspace2/reactive-tui/bindings/typescript/node_modules/typescript/bin/tsc",
+      "--project",
+      "/tmp/reactive-tui-wgpu.waMUcc/dqc004/default/api-documentation/20260917T135150777341Z/tsconfig.json"
+    ],
+    "log": ".cairn/reviews/api-documentation/20260917T135150777341Z/typescript-examples.out",
+    "result": "pass",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "name": "python-example-0",
+    "command": [
+      "env",
+      "RTUI_LIBRARY_PATH=/tmp/reactive-tui-wgpu.waMUcc/dqc004/default/debug/libreactive_tui.so",
+      "python3",
+      "-B",
+      "/home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260917T135150777341Z/python-0.py"
+    ],
+    "log": ".cairn/reviews/api-documentation/20260917T135150777341Z/python-example-0.out",
+    "result": "pass",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "name": "examples",
+    "result": "pass"
+  },
+  {
+    "name": "inventory",
+    "result": "fail",
+    "error": "[Errno 2] No such file or directory: '/home/shawn/workspace2/reactive-tui/docs/supported-api.md'"
+  }
+]
