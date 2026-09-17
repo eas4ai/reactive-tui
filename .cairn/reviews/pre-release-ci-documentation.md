@@ -235,3 +235,20 @@ incompatible callers. Ripwire quality-delta exits two for recent churn in
 the keyboard-status helper; test-gate exits four with sixty suggested tests
 and 260 statically untested symbols. These are not passing tests or proof of
 new behavior regressions. Full maintained-suite reruns remain outstanding.
+
+## Dependency policy repair diagnostics, 2026-09-17
+
+Receipt 20260917T113752918Z-971432 rejects the optional wgpu dependency graph:
+hexf-parse 0.2.1 has a disallowed license and six older dependency versions
+produce five duplicate-package groups. The recorded Judged decision keeps
+the approved graph and scopes each exception to an exact package version;
+advisory denial, global license rules, duplicate denial and source checks
+remain enforced. Windows GNU is included in the policy target graph.
+
+The new policy regression fails before configuration repair and passes
+afterward. All twelve validator tests pass. The actual corrected DQC-001
+command passes cargo audit, all four cargo-deny checks and atty reachability.
+These are editing-time diagnostics; a fresh committed acceptance receipt is
+still required. GitNexus finds no indexed inbound callers or execution flows
+for the changed test class (low risk); Ripwire reports an unchanged class
+contract and no incompatible callers. Cargo.lock is unchanged.

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from pathlib import Path
 import tempfile
+import tomllib
 import unittest
 
 from dependency_check_test_support import load_checker
@@ -84,6 +85,28 @@ class ExceptionDecisionTests(unittest.TestCase):
 
 
 class PolicyValidationTests(unittest.TestCase):
+    def test_graphics_exceptions_are_exact_and_keep_the_global_gates(self):
+        with (ROOT / "deny.toml").open("rb") as handle:
+            policy = tomllib.load(handle)
+        self.assertIn("x86_64-pc-windows-gnu", policy["graph"]["targets"])
+        self.assertNotIn("CC0-1.0", policy["licenses"]["allow"])
+        self.assertEqual(
+            policy["licenses"].get("exceptions"),
+            [{"crate": "hexf-parse@=0.2.1", "allow": ["CC0-1.0"]}],
+        )
+        self.assertEqual(policy["bans"]["multiple-versions"], "deny")
+        self.assertEqual(policy["bans"]["skip-tree"], [])
+        self.assertEqual(policy["advisories"]["ignore"], [])
+        decision = "retain-reviewed-wgpu-27-transitive-policy-exceptions"
+        graphics_skips = {
+            item["crate"] for item in policy["bans"]["skip"]
+            if f"decision: {decision};" in item.get("reason", "")
+        }
+        self.assertEqual(graphics_skips, {
+            "foldhash@=0.1.5", "hashbrown@=0.15.5", "hashbrown@=0.16.1",
+            "rustc-hash@=1.1.0", "thiserror@=1.0.69", "thiserror-impl@=1.0.69",
+        })
+
     def setUp(self):
         self.checker = load_checker(CHECKER, "dependency_checker", "dependency checker")
         self.valid = {
