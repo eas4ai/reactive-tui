@@ -9,6 +9,7 @@ inputs:
   - Cargo.lock
   - src
   - reactive-tui-macros
+  - crates
   - tests/api_clipboard.rs
   - tests/clipboard_platform.rs
   - tests/windows_platform.rs

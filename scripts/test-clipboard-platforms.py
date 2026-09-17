@@ -6,6 +6,7 @@ import io
 import json
 from contextlib import redirect_stdout
 from pathlib import Path
+import subprocess
 import tempfile
 from types import SimpleNamespace
 import unittest
@@ -119,6 +120,37 @@ class EvidenceTests(unittest.TestCase):
         self.alter("windows", process_output_digest=hashlib.sha256(output).hexdigest())
         with self.assertRaisesRegex(RuntimeError, "Windows adapter checks"):
             self.verify()
+
+
+class InputFootprintTests(unittest.TestCase):
+    def test_local_workspace_changes_invalidate_real_committed_digest(self):
+        with tempfile.TemporaryDirectory() as scratch:
+            root = Path(scratch)
+            def git(*arguments):
+                return subprocess.run(["git", "-c", "user.name=Controlled fixture",
+                    "-c", "user.email=fixture@example.invalid", *arguments], cwd=root,
+                    check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            git("init")
+            (root / "Cargo.toml").write_text("Controlled manifest fixture\n")
+            member = root / "crates/member/Cargo.toml"
+            member.parent.mkdir(parents=True)
+            member.write_text("Controlled workspace member\n")
+            git("add", ".")
+            git("commit", "-m", "Controlled input baseline")
+            with patch.object(CHECKER, "ROOT", root):
+                self.assertTrue(CHECKER.committed_inputs())
+                baseline = CHECKER.input_digest(True)
+                member.write_text("Controlled changed member\n")
+                self.assertFalse(CHECKER.committed_inputs())
+                git("add", ".")
+                git("commit", "-m", "Controlled workspace change")
+                self.assertNotEqual(CHECKER.input_digest(True), baseline)
+                (member.parent / "untracked.rs").write_text("Controlled new source\n")
+                self.assertFalse(CHECKER.committed_inputs())
+
+    def test_mechanism_declares_local_workspace_inputs(self):
+        declaration = (CHECKER.ROOT / ".cairn/mechanisms/api-clipboard").read_text()
+        self.assertIn("  - crates\n", declaration)
 
 
 if __name__ == "__main__":

@@ -1,0 +1,23 @@
+............FF
+======================================================================
+FAIL: test_local_workspace_changes_invalidate_real_committed_digest (__main__.InputFootprintTests.test_local_workspace_changes_invalidate_real_committed_digest)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/shawn/workspace2/reactive-tui/scripts/test-clipboard-platforms.py", line 144, in test_local_workspace_changes_invalidate_real_committed_digest
+    self.assertFalse(CHECKER.committed_inputs())
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: True is not false
+
+======================================================================
+FAIL: test_mechanism_declares_local_workspace_inputs (__main__.InputFootprintTests.test_mechanism_declares_local_workspace_inputs)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/shawn/workspace2/reactive-tui/scripts/test-clipboard-platforms.py", line 153, in test_mechanism_declares_local_workspace_inputs
+    self.assertIn("  - crates\n", declaration)
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: '  - crates\n' not found in "# Mechanism: api-clipboard\n\ncommand: sh -c 'python3 -B scripts/test-clipboard-platforms.py && python3 -B scripts/check-api-clipboard.py'\ninputs:\n  - .cairn/mechanisms/api-clipboard\n  - .cairn/reviews/clipboard-platforms\n  - Cargo.toml\n  - build.rs\n  - Cargo.lock\n  - src\n  - reactive-tui-macros\n  - tests/api_clipboard.rs\n  - tests/clipboard_platform.rs\n  - tests/windows_platform.rs\n  - scripts/check-api-clipboard.py\n  - scripts/check-clipboard-platforms.py\n  - scripts/test-clipboard-platforms.py\n  - .github/workflows/clipboard-platforms.yml\n  - docs/spec/rust-api-remediation.md\nrequirements:\n  - API-008\n"
+
+----------------------------------------------------------------------
+Ran 14 tests in 0.026s
+
+FAILED (failures=2)

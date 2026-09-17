@@ -873,3 +873,29 @@ window identity/pixels. No iTerm process remains after cleanup. caffeinate PID
 clipboard approval does not authorize bypassing or editing privacy settings.
 Request developer-controlled Screen Recording consent before continuing this
 native image requirement. Other Fable findings remain open.
+
+## API-008 workspace footprint repair
+
+Receipt 20260917T163549205Z-3225745 passes 12 validator cases, 13 clipboard
+API cases and both owned-process cases, then rejects stale native records after
+the workflow path repair. It is a failure, not clipboard behavior regression.
+The previously recorded crates omission also remains in both the producer
+INPUTS and declaration. Two new controls fail before repair: changing a real
+Git workspace member leaves committed_inputs true, and the declaration has
+no crates input. Add the same broad crates input to both without removing any
+existing dependency or changing native test semantics. Preserve the failure;
+then regenerate all five source-current native backend records locally.
+Primary graph transport remains closed. GitNexus's variable impact resolves
+no callers; source directly establishes committed_inputs and input_digest as
+consumers, not a falsely safe zero-caller result. No Rust API changes are made.
+
+The corrected control run passes all 14 tests; red.out and green.out retain
+the actual results in api-clipboard-input-controls/20260917T164100Z. Ripwire
+quality-delta exits 2: two test-fixture clone groups and INPUTS short-horizon
+churn gate. Keep the independent real-Git fixture and simple declaration
+assertion rather than coupling unrelated acceptance suites to a shared helper;
+the literal dependency correction necessarily touches INPUTS again. No blanket
+acknowledgement is added. The new unittest methods execute despite static
+dead-code labels. Test-gate exits 4 with 116 unmodeled symbols and no discovered
+tests, not a green coverage claim. committed_inputs edit-check reports unchanged
+signature and zero incompatible callers. Native records still need refreshing.
