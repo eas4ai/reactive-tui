@@ -544,3 +544,25 @@ as passing. Actual unit tests and native cleanup passed. GitNexus cannot
 index this hidden helper and the primary graph transport is closed; source
 inspection and Ripwire found main's two calls. No production Rust changes.
 Wider Fable findings remain open.
+
+## API-018 retained-documentation finding, 2026-09-17
+
+Formal receipt 20260917T135150727Z-910875 fails only inventory: the checker
+opens deleted docs/supported-api.md. Retained results show all selected
+Props/CSS tests, three rustdoc builds, three doctest configurations, Cargo
+examples, and Rust/C/TypeScript/Python examples pass. This is not an API-018
+acceptance pass. Preserve the failed receipt and 64 output files unchanged.
+
+Source inspection also finds collect_examples searches README, docs root,
+include and TypeScript guides but omits manual chapters. Its captured
+examples.json confirms no manual files. The mechanism omits manual from its
+inputs. A broken example in the maintained manual could therefore escape
+the check. The crate's introduction still names the deleted matrix.
+
+Repair these findings separately: publish a source-grounded supported-module
+matrix in manual, link it from the manual and README, point the checker and
+crate introduction there, collect maintained manual examples, and declare
+all affected inputs. Use isolated regression fixtures to prove a missing
+module or missing linked evidence fails and nested manual examples enter
+the compilation inventory. Do not infer fresh native or release readiness
+from module coverage or compilation. Retain approved host/protocol limits.
