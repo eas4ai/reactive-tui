@@ -697,3 +697,17 @@ omit these workspace manifests. Default Cargo metadata and locked resolution
 read them even with embedding disabled. Record this separate finding for its
 own implementation and extend the dependency audit to other compile checks;
 do not call the whole Fable remediation complete on these current passes.
+
+Final API-018 receipt 20260917T144114897Z-1625216 passes all 47 steps with
+crates declared. Independent jq assertions confirm 40 distinct captured logs,
+every passing result, and both embedded manifests plus safe/sys build sources
+in the receipt. sha256sum validates all 40 output hashes. The captured ten
+unit controls pass, including their expected zero-case and failed-child
+rejections. Commit all generated outputs byte for byte with the receipt.
+This resolves the recorded API-018 retention, capture and dependency findings;
+the separate API-008 footprint, other checker gaps and Fable findings remain.
+
+Ripwire's declaration-only diagnostics exit zero with no modeled test
+obligations and one ignored generated-metadata row. They compare against the
+already committed tree, so they do not supersede the earlier source-repair
+quality/test-gate exits or establish behavioral verification on their own.
