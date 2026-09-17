@@ -444,3 +444,41 @@ Requested reviewer settings are Terra/high then Sol/medium; runtime settings
 and usage are unobservable. Parent Ripwire quality-delta exits two with one
 gating RECORDS churn row; test-gate exits four with no recognized unittest
 roots. These are not clean static-check claims or five-native-backend passes.
+
+## API-008 local native evidence, 2026-09-17
+
+The committed source snapshot 06d9dedfded5c51451aa8fe08d729e6ab5b68542
+passes five real clipboard round trips and both process-cleanup tests on each
+private Linux desktop: Wayland, xsel and xclip. WinBoat passes the same native
+round trips and process tests, plus its Windows console adapter test. All four
+producer records have input digest
+14ae7807cc5b0a47cca534a72c0a61bced20267f76acca25cc30408dd4bd10bf.
+The parent reads every record and captured output and confirms their output
+SHA-256 hashes. No synthetic fixture enters the acceptance directory.
+
+WinBoat uses an isolated clone of that exact committed Git bundle. Its first
+build fails because dlltool.exe is unavailable on PATH. Adding Rust's bundled
+tool directory exposes a second failure: dlltool cannot start its assembler.
+The parent installs the repository's GNU build prerequisite in this task's
+private VM directory, without changing system PATH or Rust's default toolchain.
+The MSYS2 20260611 portable archive matches its published SHA-256 checksum and
+Windows validates its Authenticode signature before extraction. Signed pacman
+updates and the mingw-w64-x86_64-gcc installation pass. The native producer then
+exits zero. These tooling failures are not counted as passing source tests.
+
+The Windows captures also contain unused-import, unused-mut and dead-code
+warnings. This native clipboard pass is not a strict Windows lint pass. Keep
+those diagnostics for the supported-platform gate; do not suppress them here.
+
+The configured Mac briefly answers sw_vers with 26.6.1 and reports Rust 1.97.1,
+then subsequent SSH requests time out or return No route to host. No macOS
+clipboard probe runs. The parent asks whether its clipboard may be replaced
+by test values; that answer is still pending. Current real macOS evidence is
+required before API-008 can pass. Do not use hosted CI, alter host networking,
+weaken native coverage or clear developer queue markers to bypass this limit.
+
+The real verifier now rejects missing Darwin evidence, rather than missing
+Linux evidence. Full staged whitespace checking reports native JSON CRLF and
+captured test-output blank lines at EOF. Preserve those producer bytes and
+their recorded hashes; do not edit captured evidence to satisfy formatting.
+The handwritten review passes its separate staged whitespace check.
