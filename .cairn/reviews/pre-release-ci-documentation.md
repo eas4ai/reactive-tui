@@ -730,3 +730,14 @@ Final API-015 receipt 20260917T145446992Z-1926894 passes with crates declared.
 An independent jq assertion confirms both embedded manifests, the sys build
 script and safe wrapper source are captured inputs. The declaration repair
 is verified; it does not resolve the separate open Fable findings.
+
+## Additional compile-mechanism audit findings
+
+API-006 receipt 20260917T145856024Z-2234909 passes its real focus tests.
+Its declaration has the same undeclared local workspace manifests identified
+in API-008: crates/ is missing although locked Cargo resolution reads them.
+Its two subprocess runners also accept an exit-zero, zero-test child. Record
+both gaps for the complete mechanism audit; this observed behavioral pass
+does not resolve freshness or vacuous-success integrity. Do not call the
+Fable remediation finished before the recorded compile mechanisms and
+zero-test runners have been audited and repaired.
