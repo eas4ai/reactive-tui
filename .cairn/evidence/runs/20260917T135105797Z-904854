@@ -1,0 +1,18 @@
+mechanism: api-dialog-lifecycle
+commit: 5691a9a45b034060aa2f0e0da8340ac3f944077c
+inputs_digest: sha256:82b46ea4c50c08ea7d9b195ff05594b2cf61bdc4ec349a784a035a711d9fc22c
+mechanism_digest: sha256:2d8209d4c05d43e011ab4cf3179949f84fd7a5fff2aadd832270e15945c9b9eb
+kernel_digest: sha256:0b589f38f188952e161d794856610452338642e7ae1fcf01e548a3ef74765f31
+inputs_detail: .cairn/evidence/runs/20260917T135105797Z-904854.inputs.json
+command: python3 -B scripts/check-api-dialog-lifecycle.py
+cwd: .
+exit: 0
+output_digest: sha256:99cba485ed133d73a605a0cded81c199fc74f5b63ec8edf3a0ba5a63ff4996a1
+output: .cairn/evidence/runs/20260917T135105797Z-904854.out
+stderr_output: .cairn/evidence/runs/20260917T135105797Z-904854.err
+stderr_digest: sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+signal: none
+execution_error: null
+recorded: 2026-09-17T13:51:28.035Z
+results:
+  - API-012 pass exit sha256:3b8fd533c5daac955e55285f054b2ef28da0562bfe4dfb3f26eb3eb4688976d1 27 sha256:60a22bf78937f1ff4460f708f6adf4f1585a1ed800f3a78348955d7937f60dce
