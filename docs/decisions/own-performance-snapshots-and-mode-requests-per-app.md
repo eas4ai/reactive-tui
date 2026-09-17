@@ -13,5 +13,3 @@ Construct a private performance owner with each App and expose its existing publ
 ## Realized by
 
 - 2adc2cdcbc84603891a5459be811c94b15401907 Own App performance contexts and publish accurate frame snapshots
-
-(none yet: recorded, not built)
