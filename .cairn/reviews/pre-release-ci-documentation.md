@@ -725,3 +725,8 @@ do not add it as a compiler dependency on that assumption.
 This finding does not claim a compiler or framework failure. Preserved FFI
 and nightly compiler warnings are not strict-lint passes. Other recorded
 Fable findings remain unresolved.
+
+Final API-015 receipt 20260917T145446992Z-1926894 passes with crates declared.
+An independent jq assertion confirms both embedded manifests, the sys build
+script and safe wrapper source are captured inputs. The declaration repair
+is verified; it does not resolve the separate open Fable findings.
