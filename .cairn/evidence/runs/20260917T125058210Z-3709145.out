@@ -1,0 +1,19 @@
+    Checking uuid v1.18.1
+   Compiling reactive-tui v0.1.0 (/home/shawn/workspace2/reactive-tui)
+    Checking syntect v5.3.0
+    Checking ciborium v0.2.2
+    Checking reactive-tui-crossterm v0.1.0 (/home/shawn/workspace2/reactive-tui/src/backend/crossterm)
+    Checking futures-executor v0.3.31
+    Checking tinytemplate v1.2.1
+   Compiling serial_test_derive v3.5.0
+   Compiling reactive-tui-macros v0.1.0 (/home/shawn/workspace2/reactive-tui/reactive-tui-macros)
+    Checking syn v2.0.106
+    Checking zbus v5.19.0
+    Checking accesskit v0.25.0
+    Checking serial_test v3.5.0
+    Checking criterion v0.5.1
+    Checking accesskit_consumer v0.39.0
+    Checking atspi-common v0.13.0
+    Checking atspi-proxies v0.13.0
+    Checking atspi v0.29.0
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 19.88s
