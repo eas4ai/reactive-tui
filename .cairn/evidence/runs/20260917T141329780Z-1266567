@@ -1,0 +1,18 @@
+mechanism: pre-release-dialog-network-safety
+commit: eefd2b369d62fab0669350fef5dd6f194210efa6
+inputs_digest: sha256:8f515575c0085c95d1720f5841b0579898046bd33c19e0a331451a8909aca84b
+mechanism_digest: sha256:6cd7b309010fe6bd91a9bc46ffac61b222b382aa0effcb9b762088e5a036a5ac
+kernel_digest: sha256:dcf98a392e77abb6f96ff4c1b9a44c53cbbf0102123d3f6746a356759a344a81
+inputs_detail: .cairn/evidence/runs/20260917T141329780Z-1266567.inputs.json
+command: python3 -B scripts/check-pre-release-external-input-safety.py XIS-001
+cwd: .
+exit: 0
+output_digest: sha256:6cdb465aae652277a1b26fe0c703d7c03dfe9f4df88b48c9815a253e51297b31
+output: .cairn/evidence/runs/20260917T141329780Z-1266567.out
+stderr_output: .cairn/evidence/runs/20260917T141329780Z-1266567.err
+stderr_digest: sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+signal: none
+execution_error: null
+recorded: 2026-09-17T14:13:47.328Z
+results:
+  - XIS-001 pass exit sha256:614d3cd27b68e1b1731b626295fe16e24e7f13e6c7ece28818e1b3aca05352f7 8 sha256:666c359702dff593f9d7ade18089c6a4f40e8aa7bc74dc629f1670bc073fec62
