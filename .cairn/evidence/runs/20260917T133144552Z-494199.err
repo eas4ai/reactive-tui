@@ -1,0 +1,30 @@
+............
+----------------------------------------------------------------------
+Ran 12 tests in 0.014s
+
+OK
+    Finished `test` profile [unoptimized] target(s) in 0.16s
+     Running tests/api_clipboard.rs (/tmp/reactive-tui-wgpu.waMUcc/dqc004/default/debug/deps/api_clipboard-b0c9637e99af5b8f)
+    Finished `test` profile [unoptimized] target(s) in 0.12s
+     Running unittests src/lib.rs (/tmp/reactive-tui-wgpu.waMUcc/dqc004/default/debug/deps/reactive_tui-ee3dccb78368cb88)
+Traceback (most recent call last):
+  File "/home/shawn/workspace2/reactive-tui/scripts/check-clipboard-platforms.py", line 258, in <module>
+    verify()
+    ~~~~~~^^
+  File "/home/shawn/workspace2/reactive-tui/scripts/check-clipboard-platforms.py", line 229, in verify
+    raise RuntimeError(f"missing real {system} clipboard evidence for {backend}")
+RuntimeError: missing real Darwin clipboard evidence for macos
+Traceback (most recent call last):
+  File "/home/shawn/workspace2/reactive-tui/scripts/check-api-clipboard.py", line 14, in <module>
+    subprocess.run(
+    ~~~~~~~~~~~~~~^
+        ["python3", "-B", "scripts/check-clipboard-platforms.py", "--verify"],
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        cwd=Path(__file__).resolve().parents[1], check=True, timeout=30,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/home/linuxbrew/.linuxbrew/Cellar/python@3.14/3.14.7/lib/python3.14/subprocess.py", line 578, in run
+    raise CalledProcessError(retcode, process.args,
+                             output=stdout, stderr=stderr)
+subprocess.CalledProcessError: Command '['python3', '-B', 'scripts/check-clipboard-platforms.py', '--verify']' returned non-zero exit status 1.
