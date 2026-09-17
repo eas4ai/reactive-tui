@@ -81,8 +81,8 @@ warning: field `parser` is never read
     |     ^^^^^^
 
 warning: `reactive-tui` (lib test) generated 10 warnings (run `cargo fix --lib -p reactive-tui --tests` to apply 5 suggestions)
-    Finished `test` profile [unoptimized] target(s) in 23.64s
-     Running unittests src\lib.rs (target\debug\deps\reactive_tui-7caa306f357c8529.exe)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 32.43s
+     Running unittests src\lib.rs (target\debug\deps\reactive_tui-71e5c1ac3a027292.exe)
 
 running 3 tests
 test hooks::clipboard_process::tests::cancellation_kills_and_reaps_child ... ok
@@ -148,8 +148,8 @@ warning: field `parser` is never read
 
 warning: `reactive-tui` (lib) generated 6 warnings (run `cargo fix --lib -p reactive-tui` to apply 3 suggestions)
    Compiling reactive-tui v0.1.0 (C:\Users\shawn\reactive-tui-fable-06d9dedf\repo)
-    Finished `test` profile [unoptimized] target(s) in 1.93s
-     Running tests\windows_platform.rs (target\debug\deps\windows_platform-a679cc65f3d4b52f.exe)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.69s
+     Running tests\windows_platform.rs (target\debug\deps\windows_platform-c606a571a19dbc27.exe)
 
 running 1 test
 RTUI_WINDOWS_ADAPTER_OK

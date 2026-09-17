@@ -653,3 +653,28 @@ An independent jq assertion confirms the receipt contains build.rs, macro
 source and manifest, both renderer manifests, and both embedded workspace
 manifests. All existing inputs remain. This resolves the recorded DQC-004
 dependency-footprint finding; other Fable findings are still open.
+
+## API-008 native evidence refresh after documentation repair
+
+Receipt 20260917T143025023Z-1492775 passes twelve validator tests, thirteen
+clipboard API tests and both process-cleanup tests, then correctly rejects
+stale native records. The crate's documentation-path edit changes the compiled
+input digest. Earlier native passes remain valid history, not current evidence.
+
+Run all five producers again against committed source 12650e23bd1dbede24e76c5ec6afa321034b098b.
+Linux uses private Wayland and X11 fixtures. WinBoat and the approved Mac use
+their existing private clones and Rust 1.91.0; an incremental Git bundle pins
+the same source. Move the clones' previous untracked producer outputs into
+private history directories before checkout. No source is discarded, host
+networking changed, or GitHub workflow dispatched. The existing Mac caffeinate
+process remains active; its clipboard replacement authority is unchanged.
+
+Each backend passes five actual native round trips and both process-cleanup
+tests. Windows also passes its native console adapter test. Retrieved native
+captures retain their producer bytes, including Windows JSON CRLF. The real
+verifier passes: every record has digest
+1054f455932060f52388b3ecf7f019924d47311bec98cc3631d44029b85d1d60
+and both captured output hashes match. Mac retains one dead-code warning;
+Windows retains six library and ten library-test warnings. Do not describe
+these behavioral passes as native strict-lint passes. Formal acceptance follows
+after these refreshed records are committed; remaining Fable work stays open.
