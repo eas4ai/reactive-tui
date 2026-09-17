@@ -500,3 +500,20 @@ confirms their SHA-256 hashes. The unchanged five-backend verifier now passes.
 The Mac capture contains a dead-code warning for NodeId::serial; this clipboard
 pass is not a strict macOS lint pass. Fresh formal API-008 acceptance and the
 remaining Fable gates still need to run. Historical captures remain unchanged.
+
+## API-020 probe-path finding, 2026-09-17
+
+Formal API-008 receipt 20260917T133856696Z-565850 passes all 12 validator tests,
+13 clipboard API tests, both process-cleanup tests and the five-native-backend
+verifier. Its committed native records include the developer-approved Mac run.
+
+The next formal gate, API-020 receipt 20260917T133928714Z-578610, builds the
+image_host_probe successfully in the configured private CARGO_TARGET_DIR, then
+fails normal capture. The retained host log proves GNOME Terminal tries to
+execute the missing repository target/debug/examples/image_host_probe instead.
+The capture driver's default path ignores the binary just built by the closure
+runner. A stale binary at that path could also test the wrong source. Record
+this finding before repair. Preserve the failed capture and receipt unchanged.
+Have the closure runner select the exact example executable Cargo reports and
+pass it explicitly to both normal and forced-timeout captures. Neither a
+successful build nor a serial test pass replaces actual process-cleanup proof.
