@@ -17,4 +17,4 @@ and [duplicate-version skips](https://embarkstudios.github.io/cargo-deny/checks/
 
 ## Realized by
 
-(none yet: recorded, not built)
+- a4371d50706af5fa9fbebf55f69204ff55d89814 fix: scope optional graphics dependency policy exceptions
