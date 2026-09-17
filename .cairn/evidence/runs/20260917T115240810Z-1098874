@@ -1,0 +1,18 @@
+mechanism: pre-release-terminal-helper-lifecycle
+commit: 982db91e
+inputs_digest: sha256:21a5199a76802bd3a8729d976c20151072d8b32ec786bacf486a80102d7a34b5
+mechanism_digest: sha256:c4feb2182a5607374f40aba7aba31ff4a91d7a3feff6833d7d133ed2c2c6a057
+kernel_digest: sha256:a75759bfeebcad18d5c4ede6438c2a1efc8380a27df350379634205af5b27b19
+inputs_detail: .cairn/evidence/runs/20260917T115240810Z-1098874.inputs.json
+command: python3 -B scripts/check-pre-release-terminal-helper-lifecycle.py TRL-004
+cwd: .
+exit: 0
+output_digest: sha256:03b06805f644776b05087cb7cc7fe3c1be5f491ff0258f35250f8dc121f8aa31
+output: .cairn/evidence/runs/20260917T115240810Z-1098874.out
+stderr_output: .cairn/evidence/runs/20260917T115240810Z-1098874.err
+stderr_digest: sha256:a817e9e30aad437429c9ac6e6a69fb1953ef6a8445d51a7d44c9635313ede072
+signal: none
+execution_error: null
+recorded: 2026-09-17T11:52:42.804Z
+results:
+  - TRL-004 pass exit sha256:52bfb5d1d52eee56773fb0a457246bb0e697308dc946b8d404767a5b3ea13747 3 sha256:6ed45d36bab33547b96095d74b3a55bc40b1db41b80aec716d3dcd44d71f28e5
