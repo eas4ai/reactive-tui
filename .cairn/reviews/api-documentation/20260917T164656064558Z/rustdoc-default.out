@@ -1,0 +1,35 @@
+    Checking serde v1.0.229
+    Checking proc-macro2 v1.0.101
+    Checking tracing v0.1.44
+    Checking thiserror v2.0.20
+    Checking phf v0.13.1
+    Checking derive_more v2.0.1
+    Checking futures-util v0.3.31
+    Checking tokio v1.47.1
+    Checking reactive-tui-crossterm v0.1.0 (/home/shawn/workspace2/reactive-tui/src/backend/crossterm)
+    Checking comrak v0.55.0
+    Checking quote v1.0.40
+    Checking zcheapstr v1.1.0
+    Checking enumflags2 v0.7.12
+    Checking uuid v1.18.1
+    Checking syn v3.0.5
+    Checking plist v1.10.1
+    Checking serde_json v1.0.143
+    Checking bincode v1.3.3
+    Checking accesskit v0.25.0
+    Checking string_cache v0.8.9
+    Checking taffy v0.9.2
+    Checking accesskit_consumer v0.39.0
+    Checking syntect v5.3.0
+    Checking zvariant_utils v4.2.0
+    Checking zvariant v5.15.0
+    Checking zbus_names v4.3.4
+    Checking zbus_xml v5.2.1
+    Checking zbus v5.19.0
+    Checking zbus-lockstep v0.5.2
+    Checking atspi-common v0.13.0
+    Checking atspi-proxies v0.13.0
+    Checking atspi v0.29.0
+ Documenting reactive-tui v0.1.0 (/home/shawn/workspace2/reactive-tui)
+    Finished `dev` profile [unoptimized] target(s) in 9.39s
+   Generated /tmp/reactive-tui-wgpu.waMUcc/dqc004/default/doc/reactive_tui/index.html
