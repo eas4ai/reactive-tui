@@ -1,0 +1,18 @@
+mechanism: pre-release-public-api
+commit: 5fa188832cc91b6b06c0dc9e24d552f9c401a76a
+inputs_digest: sha256:77376f78e7e03c8a637065ac72f62d428eba9e6455cbb0057471224b71bc2c9d
+mechanism_digest: sha256:f735e11ac8250941c7c3e9b160a7ed27e56c1edbb3186ab2c0fe14c05b080e22
+kernel_digest: sha256:0b589f38f188952e161d794856610452338642e7ae1fcf01e548a3ef74765f31
+inputs_detail: .cairn/evidence/runs/20260917T131407300Z-4191648.inputs.json
+command: python3 -B scripts/check-pre-release-public-api.py DQC-005
+cwd: .
+exit: 0
+output_digest: sha256:613ecbf25b1ebdc86dda3589531a9b77c59be443045cfb00e581771b99abf485
+output: .cairn/evidence/runs/20260917T131407300Z-4191648.out
+stderr_output: .cairn/evidence/runs/20260917T131407300Z-4191648.err
+stderr_digest: sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+signal: none
+execution_error: null
+recorded: 2026-09-17T13:14:54.364Z
+results:
+  - DQC-005 pass exit sha256:1dbba4d9ef93c2edd6dfa75448e52bd66920fd0c1ab65609d64972a26849aada 5 sha256:67a9a9973820f81b80b61ac927609651d954618f6bd678e24411907cfac0fef7
