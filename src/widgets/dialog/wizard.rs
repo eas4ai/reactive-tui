@@ -288,12 +288,10 @@ impl WizardDialog {
                 // Move to next step or finish
                 if self.current_step + 1 >= self.options.steps.len() {
                     self.finish_wizard()
+                } else if self.next_step() {
+                    DialogEventResult::Handled
                 } else {
-                    if self.next_step() {
-                        DialogEventResult::Handled
-                    } else {
-                        DialogEventResult::NotHandled
-                    }
+                    DialogEventResult::NotHandled
                 }
             }
             KeyCode::Escape => {

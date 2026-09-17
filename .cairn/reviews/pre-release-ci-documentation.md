@@ -206,3 +206,32 @@ both Escape and Ctrl+C. The no-frame /usr/bin/true case fails, the actual
 probe passes both normal input/quit cases, and the four predicate fixtures
 reject stale or incomplete counter updates. No mismatch was found and no
 source was changed while reviewing. Full committed acceptance is pending.
+
+## Strict lint repair diagnostics, 2026-09-17
+
+Receipt 20260917T113050161Z-909848 reproduces five bundled-crossterm errors
+on Rust 1.91.0. Correct the existing misspelled unnecessary_wraps lint name
+and use Error::other with unchanged Other kinds and messages. The next local
+strict run identifies a duplicate optimizer test-module attribute and the
+wizard's nested else-if; remove the stale commented external-test-module
+attributes and flatten that equivalent branch. No lint gate is relaxed.
+
+Editing-time checks: strict all-target Clippy passes, formatting passes,
+library tests pass (1051 passed, 8 ignored), bundled crossterm tests pass
+(94 passed, 7 ignored), and wizard integration tests pass (12 passed).
+The first wizard build failed with Disk quota exceeded in the isolated
+temporary target. Cargo clean removed only this task's generated root-crate
+artifacts there (24.9 GiB, rebuildable); the subsequent build and tests pass.
+The user's shared target and running builds were not changed. New acceptance
+receipts still require a committed candidate.
+
+GitNexus impact: parser-error helper medium, eleven direct parser callers;
+cursor and keyboard-status helpers low, two direct callers each; poll/reset
+and test module have no indexed inbound callers. No indexed processes are
+affected. Rust-analyzer and Ripwire additionally identify the wizard event
+handler's call, which GitNexus misses. Edit checks for the parser helper,
+cursor helper and wizard method report unchanged contracts and no
+incompatible callers. Ripwire quality-delta exits two for recent churn in
+the keyboard-status helper; test-gate exits four with sixty suggested tests
+and 260 statically untested symbols. These are not passing tests or proof of
+new behavior regressions. Full maintained-suite reruns remain outstanding.

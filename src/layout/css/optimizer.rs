@@ -580,9 +580,6 @@ fn parse_spacing_value(value: &str) -> Option<f32> {
 }
 
 #[cfg(test)]
-#[path = "optimizer_test.rs"]
-// mod focused_tests; // TODO: Add focused tests
-#[cfg(test)]
 mod tests {
     use super::*;
     use crate::layout::style::StyleBuilder;
