@@ -566,3 +566,13 @@ all affected inputs. Use isolated regression fixtures to prove a missing
 module or missing linked evidence fails and nested manual examples enter
 the compilation inventory. Do not infer fresh native or release readiness
 from module coverage or compilation. Retain approved host/protocol limits.
+
+### Documentation capture collision
+
+Review of the preserved baseline results finds two consumer-library entries
+with different SHA-256 values but the same consumer-library.out path. Props
+and examples each rebuild the facade; the second capture overwrites the
+first. The earlier JSON entry can no longer be checked against its output.
+Retain the historical outputs unchanged. Give the two phases distinct log
+names, prove both captured hashes match separate retained files, and rerun
+the complete checker. This is a capture-integrity repair, not new API scope.
