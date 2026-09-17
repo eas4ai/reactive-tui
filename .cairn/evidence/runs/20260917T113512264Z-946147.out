@@ -1,0 +1,3 @@
+   Compiling reactive-tui v0.1.0 (/home/shawn/workspace2/reactive-tui)
+    Checking reactive-tui-crossterm v0.1.0 (/home/shawn/workspace2/reactive-tui/src/backend/crossterm)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 11.41s
