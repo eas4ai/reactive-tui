@@ -1,0 +1,4 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.23s
+  Executable unittests src/lib.rs (/tmp/reactive-tui-wgpu.waMUcc/debug/deps/reactive_tui-034904c07b860795)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.21s
+     Running unittests src/lib.rs (/tmp/reactive-tui-wgpu.waMUcc/debug/deps/reactive_tui-034904c07b860795)
