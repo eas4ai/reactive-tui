@@ -13,5 +13,3 @@ Maintain Crossterm 0.29.0 as a narrowly patched local dependency under src/backe
 ## Realized by
 
 - 4cd4a4bc98ad6f665a840a90247431dfbf5fc6b1 Preserve queued Crossterm input across readiness returns
-
-(none yet: recorded, not built)
