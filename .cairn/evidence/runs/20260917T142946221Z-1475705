@@ -1,0 +1,18 @@
+mechanism: pre-release-tokio-event-loop
+commit: 5c0493c80266715acd5f22790fec9fe2e43f80af
+inputs_digest: sha256:aea7f120c55f2dddf43b66a9da943042d1c7a81000d26bd6c39b68036fc3cef4
+mechanism_digest: sha256:516b51fa32b04ae0e8b4ae7d42e66c9fc091eee838b3c7ce4fad273416d2d1e5
+kernel_digest: sha256:dcf98a392e77abb6f96ff4c1b9a44c53cbbf0102123d3f6746a356759a344a81
+inputs_detail: .cairn/evidence/runs/20260917T142946221Z-1475705.inputs.json
+command: python3 -B scripts/check-pre-release-tokio-event-loop.py
+cwd: .
+exit: 0
+output_digest: sha256:d3397b7ad1af9723c3d339d0f9fa4445f4ea3798f266ed22e6c3c0e8621f203a
+output: .cairn/evidence/runs/20260917T142946221Z-1475705.out
+stderr_output: .cairn/evidence/runs/20260917T142946221Z-1475705.err
+stderr_digest: sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+signal: none
+execution_error: null
+recorded: 2026-09-17T14:29:46.517Z
+results:
+  - RTR-003 pass exit sha256:41e0e931d09f28887e4efcf3e797e9c492b14fdd47cf03b8c083348facee3aae 9 sha256:324fac5a56888846cbb5b58849cb5f29e457d84208f5a60710dd40f40f810cd3
