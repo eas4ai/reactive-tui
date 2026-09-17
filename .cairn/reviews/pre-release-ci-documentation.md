@@ -753,3 +753,23 @@ repository. Recreate only private build prerequisites, without installing or
 replacing the user's terminal or global packages. Retain the failing log and
 verify the original pixel checks; this prerequisite failure is not an image
 rendering failure or a passing negative control.
+
+Private prerequisite restoration succeeds without a global installation.
+The three downloaded archive SHA-256 values match apt's package metadata;
+the rebuilt host verifies 1,119 runtime files. Its output and recipe remain
+diagnostic build evidence, not passing image acceptance.
+
+Source inspection finds two further API-014 defects before rerunning it:
+the image runner builds into the selected Cargo target but omits that binary
+from its ordinary and negative capture commands, so the driver defaults to
+target/debug. Reuse the already tested API-020 Cargo-artifact selector and
+forward its result to every Rust probe capture, preserving the independent
+C reference and pixel assertions. Native widget verification also still reads
+deleted docs/analysis/widget-platforms records; its producer and iTerm output
+must use the managed review directory and include their real dependencies.
+
+The primary code graph is unavailable (Transport closed). GitNexus MCP remains
+298 commits stale after a successful incremental CLI refresh; do not treat
+its empty UNKNOWN impact as safety. The refreshed CLI reports LOW impact for
+the image main function: its script entry point is the one direct caller and
+no indexed process is reported. No framework Rust symbol is changed here.
