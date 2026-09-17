@@ -899,3 +899,15 @@ acknowledgement is added. The new unittest methods execute despite static
 dead-code labels. Test-gate exits 4 with 116 unmodeled symbols and no discovered
 tests, not a green coverage claim. committed_inputs edit-check reports unchanged
 signature and zero incompatible callers. Native records still need refreshing.
+
+All five native backends were regenerated on committed f0b6b664 inputs, digest
+2a071b7344511fe05cd5a95029a8a19f6e856d42276938c030c9c0c9786d78ab.
+Linux used isolated Wayland and X11 desktops; macOS used the already approved
+clipboard; Windows used the existing WinBoat desktop. Every backend executes
+five round trips and both owned-process checks. Windows also executes its
+native console adapter check. The verifier accepts all five current records
+and their raw output hashes before copying those exact captured bytes to the
+managed directory. Previous evidence remains recoverable from Git history;
+remote widget captures were moved to task-owned history before checkout.
+Native Windows warnings are retained, not represented as strict lint success.
+This refresh does not establish Mac image capture or finish the Fable audit.
