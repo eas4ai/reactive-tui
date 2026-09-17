@@ -1,0 +1,18 @@
+mechanism: pre-release-accessibility-fallback
+commit: 74e29f59
+inputs_digest: sha256:696969eaf77805d5a9911305f43eafe85c9f565aaccda7d48894b10e2151169f
+mechanism_digest: sha256:b23f586cb1e0104e049661d956623871efa154e3d6b4c1983fb74f96729cd2c5
+kernel_digest: sha256:a75759bfeebcad18d5c4ede6438c2a1efc8380a27df350379634205af5b27b19
+inputs_detail: .cairn/evidence/runs/20260917T113547108Z-951927.inputs.json
+command: python3 -B scripts/check-pre-release-runtime-resilience.py RTR-001
+cwd: .
+exit: 0
+output_digest: sha256:31ccaf4f83ee788c31983fbf796f7723108f43cf53335b48c6bcc78fa53d39e7
+output: .cairn/evidence/runs/20260917T113547108Z-951927.out
+stderr_output: .cairn/evidence/runs/20260917T113547108Z-951927.err
+stderr_digest: sha256:992240e6a44b76f96bb855cb5f96ef89723d8edb5e7f892304c43c573f6d4a6e
+signal: none
+execution_error: null
+recorded: 2026-09-17T11:35:55.829Z
+results:
+  - RTR-001 pass exit sha256:81b18247f226a1f9e92cd07f399bce5f1ba3f8d60392ec6b83e28235e199e9f0 5 sha256:c5639c8acb91d5803f35a93b11f9f9e93649610ad7d2f5dc2de5a36471567571
