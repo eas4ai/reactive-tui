@@ -193,3 +193,16 @@ unfinished updates, wrong dimensions, stale counters and cleared screens.
 These are direct diagnostics, not full-mechanism acceptance receipts. The
 separately recorded specification-lint failures still block that full gate.
 No RND-005 mechanism mismatch was found; no source was changed during review.
+
+## RND-006 revised mechanism review, 2026-09-17
+
+Examined candidate c2f99b013fef7efd4b55b66dccf15df7f167728f using the sources
+and live comparisons recorded immediately above. RND-006 now names the
+internal acceptance probe; it still requires an App-routed counter change
+and working documented quit keys. The harness sends Space and requires a
+new completed frame with Count: 1; the source counter updates through
+RootComponent::handle_event. It requires successful, bounded exit after
+both Escape and Ctrl+C. The no-frame /usr/bin/true case fails, the actual
+probe passes both normal input/quit cases, and the four predicate fixtures
+reject stale or incomplete counter updates. No mismatch was found and no
+source was changed while reviewing. Full committed acceptance is pending.
