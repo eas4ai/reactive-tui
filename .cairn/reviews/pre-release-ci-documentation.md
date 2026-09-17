@@ -124,3 +124,33 @@ the removed diagnostic-log exception, and the bundled docs/book rule (its
 sole ignore file has no remaining producer or tracked target). Fresh fixture
 tests and real-tree inspection must still reject the unchanged decision
 queue. This repair does not claim RID-003 passes.
+
+## EMB-003 revised mechanism review, 2026-09-17
+
+Examined candidate 3356ca4c8202e7d75d4c9a0ee793cc17aff6d23d without changing
+source: the old and current EMB-003 contract, embedded-terminal declaration,
+check-embedded-terminal.sh, check-embedded-terminal-pty.py, the internal
+runtime probe, the child-input integration test, and the keyboard-mode test.
+The revision replaces the removed shell example with the internal acceptance
+probe. The script builds and drives that exact App-based probe; its quit key
+is Ctrl+Q. Integration checks require text/Enter and child Ctrl+C delivery;
+the keyboard test distinguishes normal and application cursor mode and checks
+Escape, Enter, Unicode text, and Ctrl+C against actual encoded bytes.
+
+Safe violating case: driving /usr/bin/true with the real PTY harness exits
+one with "embedded shell did not produce b'RTUI>'; exit=0". A successful
+noninteractive process cannot satisfy the prompt assertion. Corrected case:
+build the current internal probe using Rust 1.91.0 and an isolated target,
+then run the unchanged PTY harness. All three cases pass: interactive input,
+background output, two resizes, child interruption, host Ctrl+Q, terminal
+restoration and child reaping; bounded-input worker-error cleanup; and the
+cell-95 C1-text regression. These editing-time diagnostics are not Cairn
+acceptance receipts. The full mechanism still needs its committed-tree run.
+
+No mismatch was found between the revised EMB-003 contract and its checks.
+Separate open technical finding: the inherited renderer gate runs the shipped
+specification lint, which currently reports twelve pre-existing multi-
+obligation sentences. The direct lint run failed; repair the writing without
+weakening any obligation before claiming the complete mechanism set passes.
+The configured macOS SSH host returned "No route to host"; native macOS
+verification is outstanding, not replaced by workflow inspection.
