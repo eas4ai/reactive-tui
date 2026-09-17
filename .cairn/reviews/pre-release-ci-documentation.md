@@ -678,3 +678,22 @@ and both captured output hashes match. Mac retains one dead-code warning;
 Windows retains six library and ten library-test warnings. Do not describe
 these behavioral passes as native strict-lint passes. Formal acceptance follows
 after these refreshed records are committed; remaining Fable work stays open.
+
+## API-018 local dependency footprint finding
+
+Formal receipt 20260917T143752786Z-1585249 passes all 47 steps. Independent
+jq and sha256sum checks confirm exactly 40 unique logs and all their captured
+hashes. Retain the receipt and its 69 generated output files unchanged.
+
+Declaration inspection finds an additional omission: all-features rustdoc and
+doctests enable embedded-terminal and compile crates/libghostty-vt and its
+local sys crate, but crates is not declared. Their future changes could leave
+this observed pass falsely fresh. Add crates without removing any existing
+input or weakening a check, then run formal acceptance again. This is a
+dependency-footprint repair, not a change to the documentation contract.
+
+Cross-mechanism review also finds API-008's producer digest and declaration
+omit these workspace manifests. Default Cargo metadata and locked resolution
+read them even with embedding disabled. Record this separate finding for its
+own implementation and extend the dependency audit to other compile checks;
+do not call the whole Fable remediation complete on these current passes.
