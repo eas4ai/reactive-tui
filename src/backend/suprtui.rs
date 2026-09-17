@@ -88,7 +88,7 @@ enum Command {
         FrameOptions,
         mpsc::Sender<Result<super::PresentedGeometry>>,
     ),
-    Shutdown(Reply),
+    Shutdown(Reply, Option<String>),
     #[cfg(test)]
     Panic(&'static str),
 }
@@ -226,11 +226,20 @@ impl SuprTuiBackend {
 
     /// Restore the session and join the worker. Safe to call more than once.
     pub fn shutdown(&mut self) -> Result<()> {
+        self.shutdown_with_panic(None)
+    }
+
+    fn shutdown_with_panic(&mut self, message: Option<&str>) -> Result<()> {
         self.input.take();
+        let early_raw = if message.is_some() {
+            self.raw_mode.as_mut().map_or(Ok(()), RawMode::restore)
+        } else {
+            Ok(())
+        };
         let output_result = if let Some(commands) = self.commands.take() {
             let (reply, result) = mpsc::channel();
             commands
-                .send(Command::Shutdown(reply))
+                .send(Command::Shutdown(reply, message.map(str::to_owned)))
                 .map_err(|_| worker_stopped())
                 .and_then(|()| result.recv().map_err(|_| worker_stopped()))
                 .and_then(|result| result)
@@ -242,11 +251,17 @@ impl SuprTuiBackend {
             .take()
             .map_or(Ok(()), |worker| worker.join().map_err(|_| worker_stopped()));
         let raw_result = self.raw_mode.as_mut().map_or(Ok(()), RawMode::restore);
-        output_result.and(join_result).and(raw_result)
+        output_result
+            .and(join_result)
+            .and(early_raw)
+            .and(raw_result)
     }
 }
 
 impl Backend for SuprTuiBackend {
+    fn shutdown_after_panic(&mut self, message: &str) -> Result<()> {
+        self.shutdown_with_panic(Some(message))
+    }
     fn is_interactive_terminal(&self) -> bool {
         self.raw_mode.is_some()
     }
@@ -412,21 +427,36 @@ fn run_worker_guarded<W: Write>(
     ready: Reply,
     images: ImageOutputOptions,
 ) {
+    let writer = Rc::new(RefCell::new(writer));
     let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-        run_worker(writer, terminal, dimensions, receiver, ready, images);
+        run_worker(
+            Rc::clone(&writer),
+            terminal,
+            dimensions,
+            receiver,
+            ready,
+            images,
+        );
     }));
+    if let Err(payload) = &result {
+        crate::app::cleanup_after_panic("Renderer output", || {
+            super::write_panic(
+                &mut *writer.borrow_mut(),
+                crate::app::panic_message(payload.as_ref()),
+            )
+        });
+    }
     crate::app::resume_caught_panic("SuprTUI renderer", result);
 }
 
 fn run_worker<W: Write>(
-    writer: W,
+    writer: Rc<RefCell<W>>,
     terminal: bool,
     mut dimensions: (usize, usize),
     receiver: mpsc::Receiver<Command>,
     ready: Reply,
     mut images: ImageOutputOptions,
 ) {
-    let writer = Rc::new(RefCell::new(writer));
     let mut session = TerminalOutput::new(Rc::clone(&writer), terminal);
     let pool = Rc::new(RefCell::new(GraphemePool::new()));
     let make_renderer = |(width, height): (usize, usize)| {
@@ -543,9 +573,9 @@ fn run_worker<W: Write>(
                 force = result.is_err();
                 let _ = reply.send(result);
             }
-            Command::Shutdown(reply) => {
+            Command::Shutdown(reply, message) => {
                 let cleanup = renderer.backend_mut().finish_graphics(graphics.cleanup());
-                let restored = session.restore();
+                let restored = session.restore_with_panic(message.as_deref());
                 let _ = reply.send(cleanup.and(restored));
                 return;
             }
@@ -656,6 +686,162 @@ mod raw_mode_tests {
 #[cfg(all(test, unix))]
 mod trl_001_tests {
     use super::{Command, SuprTuiBackend};
+
+    #[derive(Clone, Default)]
+    struct Capture(std::sync::Arc<std::sync::Mutex<Vec<u8>>>);
+
+    impl std::io::Write for Capture {
+        fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+            self.0.lock().unwrap().extend_from_slice(bytes);
+            Ok(bytes.len())
+        }
+
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn worker_panic_replays_through_the_owned_writer_after_restoration() {
+        let capture = Capture::default();
+        let mut backend = SuprTuiBackend::with_terminal_writer(
+            20,
+            8,
+            capture.clone(),
+            super::ImageOutputOptions::default(),
+        )
+        .unwrap();
+        backend
+            .commands
+            .as_ref()
+            .unwrap()
+            .send(Command::Panic("OWNED_WORKER_PANIC"))
+            .unwrap();
+        assert!(backend.shutdown().is_err());
+        let bytes = capture.0.lock().unwrap();
+        let output = String::from_utf8_lossy(&bytes);
+        let restored = output.rfind("\x1b[?1049l").unwrap();
+        let message = output.rfind("OWNED_WORKER_PANIC").unwrap();
+        assert!(message > restored, "{output:?}");
+    }
+
+    #[test]
+    fn app_panic_preserves_payload_and_replays_after_restoration() {
+        use crate::{app::RootComponent, component::Element};
+        struct Panics;
+        impl RootComponent for Panics {
+            fn render(&self) -> Element {
+                std::panic::panic_any(117_u32);
+            }
+        }
+        let capture = Capture::default();
+        let backend = SuprTuiBackend::with_terminal_writer(
+            20,
+            8,
+            capture.clone(),
+            super::ImageOutputOptions::default(),
+        )
+        .unwrap();
+        let app = crate::app::App::builder()
+            .backend(backend)
+            .root(Panics)
+            .build()
+            .unwrap();
+        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| app.run()));
+        assert_eq!(result.unwrap_err().downcast_ref::<u32>(), Some(&117));
+        let bytes = capture.0.lock().unwrap();
+        let output = String::from_utf8_lossy(&bytes);
+        let restored = output.rfind("\x1b[?1049l").unwrap();
+        let message = output.rfind("non-string panic payload").unwrap();
+        assert!(message > restored, "{output:?}");
+    }
+
+    #[test]
+    fn panic_reporting_failure_preserves_the_original_worker_payload() {
+        struct FailsReport(Capture);
+        impl std::io::Write for FailsReport {
+            fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+                if bytes.starts_with(b"Framework panicked: ") {
+                    panic!("REPORT_WRITER_FAILED");
+                }
+                std::io::Write::write(&mut self.0, bytes)
+            }
+
+            fn flush(&mut self) -> std::io::Result<()> {
+                Ok(())
+            }
+        }
+        let (commands, receiver) = std::sync::mpsc::channel();
+        commands
+            .send(Command::Panic("ORIGINAL_WORKER_PANIC"))
+            .unwrap();
+        let (ready, _initialized) = std::sync::mpsc::channel();
+        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            super::run_worker_guarded(
+                FailsReport(Capture::default()),
+                true,
+                (20, 8),
+                receiver,
+                ready,
+                super::ImageOutputOptions::default(),
+            );
+        }));
+        let payload = result.unwrap_err();
+        assert_eq!(
+            crate::app::panic_message(payload.as_ref()),
+            "ORIGINAL_WORKER_PANIC"
+        );
+    }
+
+    #[test]
+    fn panic_output_encodes_controls_and_bounds_the_message() {
+        let mut bytes = Vec::new();
+        crate::backend::write_panic(&mut bytes, "a\x1b[31m\n\u{009f}b").unwrap();
+        assert_eq!(bytes, b"Framework panicked: a [31m  b\r\n");
+        bytes.clear();
+        crate::backend::write_panic(&mut bytes, &"e".repeat(9000)).unwrap();
+        assert_eq!(bytes.len(), b"Framework panicked: ".len() + 8192 + 2);
+    }
+
+    #[test]
+    fn app_teardown_retains_the_local_hook_scope() {
+        use crate::{app::RootComponent, component::Element, reactive::Hooks};
+        struct LocalRoot {
+            wake: Option<crate::app::AppWaker>,
+            finished: std::sync::Arc<std::sync::atomic::AtomicBool>,
+        }
+        impl RootComponent for LocalRoot {
+            fn attach_waker(&mut self, wake: crate::app::AppWaker) {
+                self.wake = Some(wake);
+            }
+            fn render(&self) -> Element {
+                self.wake.as_ref().unwrap().request_stop();
+                Element::text("local teardown")
+            }
+        }
+        impl Drop for LocalRoot {
+            fn drop(&mut self) {
+                let hooks = Hooks::new();
+                assert_eq!(crate::hooks::use_local_ref(&hooks, 99_u32).current(), 99);
+                self.finished
+                    .store(true, std::sync::atomic::Ordering::SeqCst);
+            }
+        }
+        let finished = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let root = LocalRoot {
+            wake: None,
+            finished: finished.clone(),
+        };
+        let backend = SuprTuiBackend::with_writer(20, 8, std::io::sink()).unwrap();
+        crate::app::App::builder()
+            .backend(backend)
+            .root(root)
+            .build()
+            .unwrap()
+            .run()
+            .unwrap();
+        assert!(finished.load(std::sync::atomic::Ordering::SeqCst));
+    }
 
     #[test]
     #[ignore = "invoked by the TRL-001 PTY mechanism"]

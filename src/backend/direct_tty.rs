@@ -248,6 +248,11 @@ impl DirectTtyBackend {
 }
 
 impl Backend for DirectTtyBackend {
+    fn shutdown_after_panic(&mut self, message: &str) -> Result<()> {
+        let restored = self.shutdown();
+        let reported = super::write_panic(&mut TtyOutput(self.tty.clone()), message);
+        restored.and(reported)
+    }
     fn is_interactive_terminal(&self) -> bool {
         self.active
     }

@@ -252,3 +252,69 @@ These are editing-time diagnostics; a fresh committed acceptance receipt is
 still required. GitNexus finds no indexed inbound callers or execution flows
 for the changed test class (low risk); Ripwire reports an unchanged class
 contract and no incompatible callers. Cargo.lock is unchanged.
+
+## Panic replay repair review and diagnostics, 2026-09-17
+
+Receipt 20260917T115325551Z-1107399 shows a real TRL-001 regression: the
+DQC-003 logging change removed the panic replay after screen restoration.
+The new candidate reports failure-only panic text through backend-owned
+writers, keeps normal diagnostics in logging and resumes the original payload.
+Four new focused regressions pass; the original worker/main PTY cases pass,
+and the signal/prior-hook/foreign-owner cases and DQC-003 diagnostics pass.
+Strict all-target Clippy and formatting pass. Performance-context integration
+tests pass (10), and hook lifecycle integration tests pass (7).
+
+The serial library suite passes (1055 passed, 8 ignored). The parallel suite
+fails one animation-cancellation assertion (1054 passed, 1 failed, 8 ignored).
+An animation-only parallel run also fails a midpoint/completion assertion
+(18 passed, 1 failed), without executing the new panic tests. Those existing
+tests share RUNTIME and immediately expect an update even though its atomic
+update guard can return when another update owns the runtime. This outstanding
+test-integrity finding is not resolved by a serial-only passing run.
+
+Fresh read-only reviewer panic_cleanup_review returns fix-first. The review
+finds a P1 introduced teardown-order regression: App::run ends the implicit
+local-hook scope before dropping App. Component unmount callbacks then lose
+their local arena. Source inspection confirms Scope::drop removes its binding
+before App::drop clears mounted components. Preserve the prior teardown scope
+and demonstrate the corrected normal-exit behavior before accepting this repair.
+The reviewer changed no files and ran no builds. Its requested model/effort
+was gpt-5.6-sol/high; realized settings and token usage are unobservable.
+
+Ripwire quality-delta exits two: worker complexity increases 37 to 41, shared
+panic-cleanup branches are duplicated, capture writers duplicate existing test
+patterns, recent-churn indicators fire, and name-based dead-code results miss
+new trait dispatch and executed tests. The code-quality corrections must keep
+restoration/reporting together and remove shared cleanup duplication. Test-gate
+exits four: 64 suggested test files and 139 statically untested impacted symbols;
+this is not a passing test result. Complete maintained-suite checks remain pending.
+
+### Corrected candidate and fresh review
+
+App teardown now remains inside the same implicit local-hook scope as its run.
+The first teardown fixture incorrectly reused hook resources already cleared
+by App cleanup; that fixture did not establish a valid red/green result. The
+replacement creates a fresh Hooks owner during root destruction and verifies
+that the local arena is still bound. All five focused tests pass, with the
+actual-PTY fixture ignored only because the separate mechanism invokes it.
+Local-hook integration tests pass (13). The latest serial library suite passes
+(1056 passed, 8 ignored). Fresh strict all-target Clippy, formatting, whitespace,
+hook-lifecycle tests (7), and performance-context tests (10) pass.
+
+The shared cleanup helper removes the duplicated panic-cleanup branches, and
+TerminalOutput owns restoration plus replay; worker complexity returns to its
+prior value. The latest Ripwire quality-delta still exits two (35 diagnostic
+rows, 17 gating): tiny test-fixture duplicates, recent churn, a larger test
+module, and dispatch/test dead-code misses remain. These diagnostics are not
+reported as a clean quality gate. No production abstraction is added merely to
+eliminate tiny capture-writer or text-element fixture matches.
+
+Fresh read-only reviewer panic_cleanup_fresh_review returns ship for this
+bounded repair, with no blocking findings. The parent inspected the complete
+diff and ran the checks above. Requested reviewer settings are gpt-5.6-sol/high;
+runtime settings and token usage are unobservable. No reviewer changed files
+or ran builds. Original payload preservation still assumes later owned-resource
+destructors do not panic. The preexisting writer-panic-during-unwind restoration
+hazard is not claimed repaired. The separate parallel animation-test failure,
+native verification, remaining audit repairs, and fresh committed receipts are
+still outstanding; this review does not accept the complete Fable remediation.

@@ -42,6 +42,12 @@ The backend owns host terminal setup and restoration. Capability detection
 selects color, synchronized output, keyboard, mouse, Unicode, and image behavior.
 Performance monitors measure frame work and can lower adaptive quality.
 
+After an App or renderer panic, built-in terminal backends restore their owned
+screen state and replay a bounded, control-encoded panic message through their
+output writer. The original panic payload still propagates. Normal diagnostics
+use logging. Backend wrappers should forward `shutdown_after_panic`; custom
+backends default to shutdown and logging rather than writing to process streams.
+
 ## Limits
 
 - A backend must keep its reported size consistent with submitted cell frames.

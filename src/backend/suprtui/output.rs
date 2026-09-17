@@ -158,6 +158,14 @@ impl<W: Write> TerminalOutput<W> {
         }
         Ok(())
     }
+
+    pub(super) fn restore_with_panic(&mut self, message: Option<&str>) -> Result<()> {
+        self.restore()?;
+        if let Some(message) = message {
+            super::super::write_panic(&mut *self.writer.borrow_mut(), message)?;
+        }
+        Ok(())
+    }
 }
 
 impl<W: Write> Drop for TerminalOutput<W> {

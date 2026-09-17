@@ -17,14 +17,26 @@ pub(crate) fn resume_caught_panic<T>(context: &str, result: std::thread::Result<
     match result {
         Ok(value) => value,
         Err(payload) => {
-            let message = payload
-                .downcast_ref::<&str>()
-                .copied()
-                .or_else(|| payload.downcast_ref::<String>().map(String::as_str))
-                .unwrap_or("non-string panic payload");
+            let message = panic_message(payload.as_ref());
             log::error!("{context} panicked: {message}");
             std::panic::resume_unwind(payload);
         }
+    }
+}
+
+pub(crate) fn panic_message(payload: &(dyn std::any::Any + Send)) -> &str {
+    payload
+        .downcast_ref::<&str>()
+        .copied()
+        .or_else(|| payload.downcast_ref::<String>().map(String::as_str))
+        .unwrap_or("non-string panic payload")
+}
+
+pub(crate) fn cleanup_after_panic(context: &str, cleanup: impl FnOnce() -> Result<()>) {
+    match std::panic::catch_unwind(std::panic::AssertUnwindSafe(cleanup)) {
+        Ok(Ok(())) => {}
+        Ok(Err(error)) => log::warn!("{context} panic cleanup failed: {error}"),
+        Err(_) => log::warn!("{context} cleanup panicked while handling the original failure"),
     }
 }
 
@@ -138,14 +150,22 @@ impl App {
     }
 
     /// Run the application main loop
-    pub fn run(self) -> Result<()> {
-        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            crate::reactive::local_hooks::with_current_scope(move || self.run_scoped())
-        }));
-        resume_caught_panic("Application", result)
+    pub fn run(mut self) -> Result<()> {
+        crate::reactive::local_hooks::with_current_scope(move || {
+            let result =
+                std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| self.run_scoped()));
+            if let Err(payload) = &result {
+                cleanup_after_panic("Terminal", || {
+                    self.backend
+                        .shutdown_after_panic(panic_message(payload.as_ref()))
+                });
+            }
+            drop(self);
+            resume_caught_panic("Application", result)
+        })
     }
 
-    fn run_scoped(mut self) -> Result<()> {
+    fn run_scoped(&mut self) -> Result<()> {
         #[cfg(unix)]
         let _termination_signals =
             crate::platform::unix::register_termination_waker(self.wake.clone())?;
