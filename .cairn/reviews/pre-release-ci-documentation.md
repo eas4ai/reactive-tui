@@ -741,3 +741,15 @@ both gaps for the complete mechanism audit; this observed behavioral pass
 does not resolve freshness or vacuous-success integrity. Do not call the
 Fable remediation finished before the recorded compile mechanisms and
 zero-test runners have been audited and repaired.
+
+## API-014 isolated host prerequisite failure
+
+Baseline receipt 20260917T151925063Z-2504710 fails before image tests:
+the isolated Kitty build cannot resolve libxxhash. Both pkg-config executables
+fail, and the system has no libxxhash-dev, libcanberra-dev or libsimde-dev.
+The previously recorded private prefix no longer exists. The historical build
+records identify the same three versions currently offered by apt's configured
+repository. Recreate only private build prerequisites, without installing or
+replacing the user's terminal or global packages. Retain the failing log and
+verify the original pixel checks; this prerequisite failure is not an image
+rendering failure or a passing negative control.
