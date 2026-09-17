@@ -120,7 +120,8 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: clipboard-${{ matrix.backend }}
-          path: docs/analysis/clipboard-platforms/${{ matrix.backend }}.*
+          path: .cairn/reviews/clipboard-platforms/${{ matrix.backend }}.*
+          include-hidden-files: true
           if-no-files-found: warn
           retention-days: 14
       - name: Capture failure diagnostics

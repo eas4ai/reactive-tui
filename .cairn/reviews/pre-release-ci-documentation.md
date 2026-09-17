@@ -408,3 +408,39 @@ implied/default required-feature gates need feature-closure handling. Current
 Cargo target gates are direct ffi/wgpu-graphics and compile completely. Failed
 static diagnostics and wider audit/native findings remain open. Requested
 reviewer Sol/high settings and token usage are not runtime-observable.
+
+## API-008 evidence-retention repair, 2026-09-17
+
+Receipt 20260917T125556374Z-3885772 runs all 13 clipboard API tests and both
+process-cleanup tests successfully, then fails because the verifier still reads
+deleted docs/analysis/clipboard-platforms records. Preserve the five-native-
+backend requirement; relocate producer, verifier and workflow artifact capture
+to retained .cairn/reviews/clipboard-platforms and declare that evidence input.
+The output-directory regression fixture fails against the old path and passes
+after correction. All 12 synthetic validator tests pass, rejecting absent,
+stale, dirty, wrong-platform, damaged, nonlocal and markerless evidence. The
+native disposable-desktop guard rejects both Windows and macOS before builds
+or clipboard access. Synthetic unit records never enter the acceptance folder.
+
+The full editing-time API checker reruns all 13 behavior tests and both lifecycle
+tests successfully, then correctly rejects uncommitted native source inputs.
+Fresh native acceptance remains unverified until source is committed and real
+backend records are regenerated. No historical output or receipt is rewritten.
+Whitespace checking passes. WinBoat answers SSH with Windows 10.0.26200.8037.
+The configured macOS host 10.66.231.181 still returns No route to host; ping
+fails despite a route via ztkti3lasa. Tailscale is not installed, and read-only
+ZeroTier peer inspection needs unavailable interactive sudo authentication.
+Do not install/reconfigure networking or substitute hosted CI to bypass that
+external host condition. All wider audit findings remain open.
+
+Reviewer clipboard_retention_review stops after wake because it misinterprets
+the parent's marker as a separate reconciliation task; it examines no code.
+Clarify that read-only review helps finish the same parent-owned API-008 action
+without clearing its marker. Fresh reviewer clipboard_retention_fresh_review
+returns ship for the bounded path repair only. It independently runs all 12
+validator tests, reproduces the old-path failure with an in-memory override,
+and passes whitespace checking without editing source or running native builds.
+Requested reviewer settings are Terra/high then Sol/medium; runtime settings
+and usage are unobservable. Parent Ripwire quality-delta exits two with one
+gating RECORDS churn row; test-gate exits four with no recognized unittest
+roots. These are not clean static-check claims or five-native-backend passes.

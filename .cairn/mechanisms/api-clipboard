@@ -1,8 +1,9 @@
 # Mechanism: api-clipboard
 
-command: python3 -B scripts/check-api-clipboard.py
+command: sh -c 'python3 -B scripts/test-clipboard-platforms.py && python3 -B scripts/check-api-clipboard.py'
 inputs:
   - .cairn/mechanisms/api-clipboard
+  - .cairn/reviews/clipboard-platforms
   - Cargo.toml
   - build.rs
   - Cargo.lock
@@ -13,6 +14,7 @@ inputs:
   - tests/windows_platform.rs
   - scripts/check-api-clipboard.py
   - scripts/check-clipboard-platforms.py
+  - scripts/test-clipboard-platforms.py
   - .github/workflows/clipboard-platforms.yml
   - docs/spec/rust-api-remediation.md
 requirements:
