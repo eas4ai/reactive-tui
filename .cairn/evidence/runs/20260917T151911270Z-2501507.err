@@ -1,0 +1,5 @@
+   Compiling reactive-tui v0.1.0 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized] target(s) in 0.45s
+     Running tests/api_hook_state.rs (/tmp/reactive-tui-wgpu.waMUcc/dqc004/default/debug/deps/api_hook_state-6dfa8c051c872f11)
+    Finished `test` profile [unoptimized] target(s) in 0.12s
+     Running unittests src/lib.rs (/tmp/reactive-tui-wgpu.waMUcc/dqc004/default/debug/deps/reactive_tui-ee3dccb78368cb88)
