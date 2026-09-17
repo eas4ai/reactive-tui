@@ -1,0 +1,18 @@
+mechanism: maintenance-lint
+commit: d8db58f4db7737863b5add325038a510a1fe9e8c
+inputs_digest: sha256:1f990fd78abaf08e7dd085a3bd272b1fe5c69e8a298ac2da629552e1d7980181
+mechanism_digest: sha256:ce03cc898c5a6d6fa16111d67db7a3a9e83f07d7ae74effd38d7706c96a642d2
+kernel_digest: sha256:dcf98a392e77abb6f96ff4c1b9a44c53cbbf0102123d3f6746a356759a344a81
+inputs_detail: .cairn/evidence/runs/20260917T141107975Z-1232328.inputs.json
+command: python3 scripts/check-maintenance.py lint
+cwd: .
+exit: 0
+output_digest: sha256:6a1bea1880242b1a08e9814e3aab60398b38fdf90c09ac0d172ac059a366ce04
+output: .cairn/evidence/runs/20260917T141107975Z-1232328.out
+stderr_output: .cairn/evidence/runs/20260917T141107975Z-1232328.err
+stderr_digest: sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+signal: none
+execution_error: null
+recorded: 2026-09-17T14:11:21.277Z
+results:
+  - MNT-002 pass exit sha256:12aa3298b0412fde2509fdc76f38631c0e395e5440eefd8226086df0a63315d9 38 sha256:f8c1a21911eb04915437a7603bb928ab18ec78ff66a6d96d0a5e85ea6cde7a3e

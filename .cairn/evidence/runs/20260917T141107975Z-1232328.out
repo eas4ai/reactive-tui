@@ -1,0 +1,4 @@
+    Checking reactive-tui-crossterm v0.1.0 (/home/shawn/workspace2/reactive-tui/src/backend/crossterm)
+   Compiling reactive-tui-macros v0.1.0 (/home/shawn/workspace2/reactive-tui/reactive-tui-macros)
+    Checking reactive-tui v0.1.0 (/home/shawn/workspace2/reactive-tui)
+    Finished `dev` profile [unoptimized] target(s) in 12.84s
