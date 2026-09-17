@@ -1,0 +1,7 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.11s
+     Running unittests src/lib.rs (/tmp/reactive-tui-wgpu.waMUcc/debug/deps/reactive_tui-034904c07b860795)
+   Compiling reactive-tui v0.1.0 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 16.41s
+     Running tests/api_residual_refs.rs (/tmp/reactive-tui-wgpu.waMUcc/debug/deps/api_residual_refs-8a60ebb4a0f2d1da)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.11s
+   Doc-tests reactive_tui
