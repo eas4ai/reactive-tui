@@ -482,3 +482,21 @@ Linux evidence. Full staged whitespace checking reports native JSON CRLF and
 captured test-output blank lines at EOF. Preserve those producer bytes and
 their recorded hashes; do not edit captured evidence to satisfy formatting.
 The handwritten review passes its separate staged whitespace check.
+
+### Native macOS completion after developer approval
+
+Shawn supplies shawnmcallister@10.66.231.181, approves replacing the Mac's
+clipboard without restoring it, and requests a 24-hour caffeinate process.
+That process remains running during native verification. The parent installs
+Rust 1.91.0 alongside existing toolchains, without changing the default. Rustup
+also performs its automatic self-update from 1.29.0 to 1.29.1. No host networking
+is changed and no hosted CI is used.
+
+An isolated Mac clone of the same committed Git bundle passes five real pbcopy/
+pbpaste round trips and both process-cleanup tests on macOS 26.6.1 arm64. Its
+producer exits zero. The source digest matches all four earlier backend records.
+The parent retrieves and reads the native JSON and both captured outputs, then
+confirms their SHA-256 hashes. The unchanged five-backend verifier now passes.
+The Mac capture contains a dead-code warning for NodeId::serial; this clipboard
+pass is not a strict macOS lint pass. Fresh formal API-008 acceptance and the
+remaining Fable gates still need to run. Historical captures remain unchanged.

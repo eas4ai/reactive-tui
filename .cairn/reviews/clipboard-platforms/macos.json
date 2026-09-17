@@ -1,0 +1,23 @@
+{
+  "backend": "macos",
+  "system": "Darwin",
+  "platform": "macOS-26.6.1-arm64-arm-64bit",
+  "commit": "06d9dedfded5c51451aa8fe08d729e6ab5b68542",
+  "committed_inputs": true,
+  "inputs_digest": "14ae7807cc5b0a47cca534a72c0a61bced20267f76acca25cc30408dd4bd10bf",
+  "result": "pass",
+  "output": "macos.out",
+  "output_digest": "63e663044cea88e67cf23ce58bbf83d61ba4a3b033d36625ede2b620eb849bf6",
+  "process_output": "macos.process.out",
+  "process_output_digest": "9618fd7fd38e916841d2b62ec47db66116d482571af40a2ce951a31976bfec82",
+  "tools": {
+    "pbcopy": {
+      "path": "/usr/bin/pbcopy",
+      "sha256": "d51ab923b39771c8c6a19d861c7f4add4ebda4f24384d2e52af24479abe78818"
+    },
+    "pbpaste": {
+      "path": "/usr/bin/pbpaste",
+      "sha256": "8813ee02de427f20117d485f03cab9581dc4820625e876eaef6a810922ef36b1"
+    }
+  }
+}
