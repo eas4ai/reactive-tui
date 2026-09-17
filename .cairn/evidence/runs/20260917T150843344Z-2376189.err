@@ -1,0 +1,9 @@
+    Finished `test` profile [unoptimized] target(s) in 0.12s
+     Running unittests src/lib.rs (/tmp/reactive-tui-wgpu.waMUcc/dqc004/default/debug/deps/reactive_tui-ee3dccb78368cb88)
+    Finished `test` profile [unoptimized] target(s) in 0.11s
+     Running unittests src/lib.rs (/tmp/reactive-tui-wgpu.waMUcc/dqc004/default/debug/deps/reactive_tui-ee3dccb78368cb88)
+    Finished `test` profile [unoptimized] target(s) in 0.16s
+     Running unittests src/lib.rs (/tmp/reactive-tui-wgpu.waMUcc/dqc004/default/debug/deps/reactive_tui-ee3dccb78368cb88)
+    Finished `test` profile [unoptimized] target(s) in 0.13s
+     Running tests/api_animation_screens.rs (/tmp/reactive-tui-wgpu.waMUcc/dqc004/default/debug/deps/api_animation_screens-d5f7163aa4d5f49f)
+     Running tests/api_hook_lifecycle.rs (/tmp/reactive-tui-wgpu.waMUcc/dqc004/default/debug/deps/api_hook_lifecycle-e167e15535dcde13)
