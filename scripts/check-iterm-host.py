@@ -24,11 +24,12 @@ ARCHIVE_SHA256 = "14b5131e9134d0012466574fba6d69fb9ef84eee66660ee861e2da48308957
 COLORS = {"red": (255, 0, 0), "blue": (0, 0, 255),
           "green": (0, 255, 0), "yellow": (255, 255, 0)}
 
-# Title-bar chrome (traffic lights) in points, calibrated from the pinned
-# iTerm 3.7.0 capture iterm-run-terminal/app-iterm/stage-0.png: buttons end at
-# row 121 and the image starts at row 214 in a 1364 px shot of a 570 pt
-# window, so 167 px ~= 70 pt sits between them.
-CHROME_POINTS = 70
+# Title-bar chrome (traffic lights) in points. The shadowless (-o) capture puts
+# the ~28 pt iTerm title bar at the top of the shot; cropping just the bar is
+# a safe underestimate because the rows between it and the image (padding and
+# the white stage label) hold no dominant-channel colors. Calibrated against
+# the -o captures; the guard in chrome_rows fails loudly if geometry shifts.
+CHROME_POINTS = 28
 
 
 def chrome_rows(screenshot, bounds):
@@ -137,8 +138,7 @@ def capture(app, directory, mode, executable):
             "while not stage.exists():\n"
             "    if time.monotonic() > deadline: raise RuntimeError('driver did not start')\n"
             "    time.sleep(.05)\n"
-            f"result = subprocess.run({[str(executable), str(stage), mode]!r}, capture_output=True, timeout=50)\n"
-            f"pathlib.Path({str(directory / 'fixture-stdout.txt')!r}).write_bytes(result.stdout)\n"
+            f"result = subprocess.run({[str(executable), str(stage), mode]!r}, stderr=subprocess.PIPE, timeout=50)\n"
             f"pathlib.Path({str(directory / 'fixture-stderr.txt')!r}).write_bytes(result.stderr)\n"
             f"pathlib.Path({str(status)!r}).write_text(str(result.returncode))\n"
         )
