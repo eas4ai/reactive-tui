@@ -1,0 +1,50 @@
+warning: falling back to `f32` as the trait bound `f32: From<f64>` is not satisfied
+    --> src/layout/style.rs:1532:83
+     |
+1532 |                 .map(|_| GridTemplateComponent::from(TrackSizingFunction::from_fr(1.0)))
+     |                                                                                   ^^^ help: explicitly specify the type as `f32`: `1.0_f32`
+     |
+     = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+     = note: for more information, see issue #154024 <https://github.com/rust-lang/rust/issues/154024>
+     = note: `#[warn(float_literal_f32_fallback)]` (part of `#[warn(future_incompatible)]`) on by default
+
+warning: falling back to `f32` as the trait bound `f32: From<f64>` is not satisfied
+    --> src/layout/style.rs:1538:83
+     |
+1538 |                 .map(|_| GridTemplateComponent::from(TrackSizingFunction::from_fr(1.0)))
+     |                                                                                   ^^^ help: explicitly specify the type as `f32`: `1.0_f32`
+     |
+     = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+     = note: for more information, see issue #154024 <https://github.com/rust-lang/rust/issues/154024>
+
+warning: method `serial` is never used
+  --> src/event/router.rs:84:19
+   |
+83 | impl NodeId {
+   | ----------- method in this implementation
+84 |     pub(crate) fn serial(self) -> usize {
+   |                   ^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `reactive-tui` (lib test) generated 3 warnings (run `cargo fix --lib -p reactive-tui --tests` to apply 2 suggestions)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.12s
+     Running unittests src/lib.rs (target/debug/deps/reactive_tui-91b57db0b7188a6a)
+
+running 13 tests
+test widgets::display::file_explorer::live::worker::tests::worker_copies_directory_contents_rejects_cycles_and_preserves_failed_move ... ok
+test widgets::display::file_explorer::live::worker::tests::worker_copies_directory_symlinks_without_traversing_their_targets ... ok
+test widgets::display::file_explorer::live::worker::tests::worker_directory_copy_preserves_private_mode_bits ... ok
+test widgets::display::file_explorer::live::worker::tests::worker_late_destination_collision_cleans_readonly_staging_without_changing_source ... ok
+test widgets::display::file_explorer::live::worker::tests::worker_never_follows_an_external_symlink ... ok
+test widgets::display::file_explorer::live::worker::tests::worker_never_overwrites_and_failed_copy_preserves_source_and_cleans_staging ... ok
+test widgets::display::file_explorer::live::worker::tests::worker_preserves_the_filesystems_unicode_filename_identity ... ok
+test widgets::display::file_explorer::live::worker::tests::worker_preview_bounds_bytes_and_handles_a_split_utf8_tail ... ok
+test widgets::display::file_explorer::live::worker::tests::worker_rejects_parent_traversal_and_absolute_paths_outside_root ... ok
+test widgets::display::file_explorer::live::worker::tests::worker_replaces_pending_reads_and_drop_joins_its_owner ... ok
+test widgets::display::file_explorer::live::worker::tests::xis_003_copy_rejects_an_entry_replaced_after_inspection ... ok
+test widgets::display::file_explorer::live::worker::tests::xis_003_remove_rejects_an_entry_replaced_after_inspection ... ok
+test widgets::display::file_explorer::live::worker::tests::xis_003_validator_rejects_replaced_entry_outcomes ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 1023 filtered out; finished in 0.09s
+

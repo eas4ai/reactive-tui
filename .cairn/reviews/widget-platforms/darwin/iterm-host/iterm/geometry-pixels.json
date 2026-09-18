@@ -1,0 +1,76 @@
+[
+  {
+    "red": {
+      "count": 4096,
+      "bounds": [
+        38,
+        82,
+        101,
+        145
+      ]
+    },
+    "blue": {
+      "count": 4096,
+      "bounds": [
+        102,
+        82,
+        165,
+        145
+      ]
+    },
+    "green": {
+      "count": 0,
+      "bounds": null
+    },
+    "yellow": {
+      "count": 0,
+      "bounds": null
+    }
+  },
+  {
+    "red": {
+      "count": 0,
+      "bounds": null
+    },
+    "blue": {
+      "count": 0,
+      "bounds": null
+    },
+    "green": {
+      "count": 4096,
+      "bounds": [
+        346,
+        286,
+        409,
+        349
+      ]
+    },
+    "yellow": {
+      "count": 4096,
+      "bounds": [
+        410,
+        286,
+        473,
+        349
+      ]
+    }
+  },
+  {
+    "red": {
+      "count": 0,
+      "bounds": null
+    },
+    "blue": {
+      "count": 0,
+      "bounds": null
+    },
+    "green": {
+      "count": 0,
+      "bounds": null
+    },
+    "yellow": {
+      "count": 0,
+      "bounds": null
+    }
+  }
+]
