@@ -239,3 +239,20 @@ Failure demonstration: ran the mechanism's validator suite
 (`scripts/test-widget-catalog.py`), which feeds violating fixtures and
 corrected cases. All 11 tests pass: violating cases are rejected and corrected
 cases accepted. No mismatch found. No code changed during this review.
+
+## CAT-002 rewording review (spec lint repair)
+
+Re-read revised CAT-002 and its falsifier against mechanism
+`widget-catalog-motion`. The revision splits one two-obligation sentence into
+two sentences with identical meaning: animation advances without keyboard
+input, and it requests redraws at a bounded cadence. The falsifier is
+unchanged in meaning. The mechanism runs deterministic behavior tests, locked
+example compile, and a real PTY check requiring distinct cube frames, bounded
+redraws, three normal exits, restored settings, and no surviving children —
+so both revised obligations remain covered.
+
+Failure demonstration: the shared catalog validator suite
+(`scripts/test-widget-catalog.py`, also run for CAT-001) feeds violating
+fixtures and corrected cases; all 11 tests pass with violating cases rejected
+and corrected cases accepted. No mismatch found. No code changed during this
+review.

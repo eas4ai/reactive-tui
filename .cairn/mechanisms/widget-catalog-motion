@@ -19,3 +19,5 @@ requirements:
 The motion check runs deterministic behavior tests, locked example compile,
 and a real PTY check. It requires distinct cube frames, bounded redraws,
 three normal exits, restored terminal settings, and no surviving children.
+reviewed:
+  - CAT-002 sha256:b8287807cfbf226771407b069da6e6d44cb42c57fe83261033301d394fc6b8f1
