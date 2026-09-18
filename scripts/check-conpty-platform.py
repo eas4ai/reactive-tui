@@ -98,7 +98,8 @@ def run():
     # Work on an isolated source copy. Never mutate the candidate being measured.
     with tempfile.TemporaryDirectory(prefix="conpty-violation-") as scratch:
         candidate = Path(scratch)
-        for name in ("Cargo.toml", "Cargo.lock", "build.rs", "src", "reactive-tui-macros", "tests", "benches"):
+        for name in ("Cargo.toml", "Cargo.lock", "build.rs", "src", "reactive-tui-macros", "tests", "benches",
+                       "crates", "examples"):
             source = ROOT / name
             if source.is_dir():
                 shutil.copytree(source, candidate / name, ignore=shutil.ignore_patterns("target", "__pycache__"))
