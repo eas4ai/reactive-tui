@@ -1,0 +1,18 @@
+mechanism: pre-release-ffi-buffer-ownership
+commit: cb46f794fdb79e2b0f2ad3e3c2bec7e25371366d
+inputs_digest: sha256:18320114bf30bfce3061400beb4deafeffe2563e7ad508d658b692814bbf510c
+mechanism_digest: sha256:0828f9f0de06baf2e9274f3a611a9fce2b38dc733aec2f4a0054a99688bdd60b
+kernel_digest: sha256:24ec9309c12d7ddb5b8693ffc74f3aad4a3ea660e4a42980c57ad2031d6f6f05
+inputs_detail: .cairn/evidence/runs/20260918T171936830Z-2237982.inputs.json
+command: python3 -B scripts/check-pre-release-ffi-safety.py FFS-004
+cwd: .
+exit: 0
+output_digest: sha256:4503034a3fd12a775dd657a5a604fdd451185c29d155dd1087cc298d4d63d2cf
+output: .cairn/evidence/runs/20260918T171936830Z-2237982.out
+stderr_output: .cairn/evidence/runs/20260918T171936830Z-2237982.err
+stderr_digest: sha256:6a8d71c23a889466606f4fcaf342ab11912f89bab58417c75a8c75d752720c8c
+signal: none
+execution_error: null
+recorded: 2026-09-18T17:19:37.307Z
+results:
+  - FFS-004 pass exit sha256:915db91cb2c1273b614e14cc71edcbe49869e3bd3bb9e71d747f27019c0b106d 9 sha256:a1a0e080f2685a1538f7436ea631ae70995dd5e4eb893ba99a313c47db281bf1
