@@ -1,0 +1,22 @@
+Install the header tool: cargo install cbindgen --version 0.29.4 --locked --root target/abi-tools
+Traceback (most recent call last):
+  File "/home/shawn/workspace2/reactive-tui/scripts/check-pre-release-ffi-safety.py", line 386, in <module>
+    raise SystemExit(main())
+                     ~~~~^^
+  File "/home/shawn/workspace2/reactive-tui/scripts/check-pre-release-ffi-safety.py", line 375, in main
+    run_ffs_005()
+    ~~~~~~~~~~~^^
+  File "/home/shawn/workspace2/reactive-tui/scripts/check-pre-release-ffi-safety.py", line 292, in run_ffs_005
+    subprocess.run(
+    ~~~~~~~~~~~~~~^
+        ["python3", "-B", "scripts/generate-native-header.py", "--verify"],
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+        timeout=600,
+        ^^^^^^^^^^^^
+    )
+    ^
+  File "/home/linuxbrew/.linuxbrew/Cellar/python@3.14/3.14.7/lib/python3.14/subprocess.py", line 578, in run
+    raise CalledProcessError(retcode, process.args,
+                             output=stdout, stderr=stderr)
+subprocess.CalledProcessError: Command '['python3', '-B', 'scripts/generate-native-header.py', '--verify']' returned non-zero exit status 1.
