@@ -40,6 +40,8 @@ Inspect nested ignore files too. Pattern inspection supplements, not replaces,
 the final review of whether a still-existing path belongs in the repository.
 
 Any queued decision MUST fail this check. Report its path without deleting it.
+reviewed:
+  - RID-003 sha256:91166eba7bc758325bed8e975c29409aa09bbc293ef62757553cb5bebcf61667
 Only the developer's review may clear that queue. Fixtures MUST demonstrate
 both acceptance of a valid tree and rejection of ignored tracked files, stale
 ignore exceptions and package exclusions, malformed manifests, and a queue

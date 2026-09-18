@@ -926,3 +926,20 @@ api-image-runner-controls/20260917T165130Z/mac-permission-after-approval.out.
 No mechanism-input change can grant that external OS permission. Request the
 developer's settings action rather than rerun blocked capture, bypass privacy
 controls, or substitute Windows evidence. Fable remediation remains incomplete.
+
+## RID-003 rewording review (spec lint repair)
+
+Re-read revised RID-003 and its falsifier against mechanism
+`pre-release-housekeeping`. The revision splits one two-obligation sentence
+into two sentences with identical meaning: stale exclusions and exceptions are
+removed, and no unreviewed decision remains queued at release review. The
+falsifier is unchanged in meaning. The mechanism rejects ignored tracked
+files, stale ignore/package exclusions, malformed manifests, and any queued
+decision, with fixtures demonstrating both acceptance and rejection — so both
+revised obligations remain covered.
+
+Failure demonstration: ran the mechanism's validator suite
+(`scripts/test-pre-release-housekeeping.py`), which feeds violating fixtures
+and corrected cases. All 9 tests pass: violating cases are rejected and
+corrected cases accepted. No mismatch found. No code changed during this
+review.
