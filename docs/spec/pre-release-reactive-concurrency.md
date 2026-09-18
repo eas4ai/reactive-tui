@@ -24,8 +24,8 @@ Mechanism: Re-entrant tests call create, unregister, read, and update operations
 from inside each callback and require bounded completion.
 
 [RAC-003]
-Fallback timer infrastructure MUST sleep until scheduled work or shutdown and
-MUST stop when its last owner is gone.
+Fallback timer infrastructure MUST sleep until scheduled work or shutdown.
+The infrastructure MUST stop when its last owner is gone.
 Falsifier: One unscoped timer creates a permanent one-millisecond wake loop or
 leaves a live thread after all timer owners drop.
 Mechanism: Clock and thread-lifecycle tests measure idle wakeups and require

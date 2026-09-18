@@ -36,7 +36,7 @@ concurrent logging under Miri or a sanitizer where supported.
 [FFS-004]
 Returned buffer allocations MUST be released with allocator metadata owned by
 the library. Element trees MUST reject self-parenting. Pointer validation docs
-MUST state what is actually proven, and tracked handles MUST reject repeated
+MUST state what is actually proven. Tracked handles MUST reject repeated
 destruction.
 Falsifier: A caller-supplied length controls deallocation layout, an element can
 adopt itself, documentation claims arbitrary pointer validity, or a second

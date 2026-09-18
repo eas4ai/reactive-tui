@@ -42,7 +42,7 @@ the named examples and native artifacts exist in the final packages.
 [FRP-004]
 The release candidate MUST pass the complete Cairn mechanism set, default and
 maintenance suites on Linux, macOS, and Windows, dependency policy checks, and
-a fresh adversarial audit. No Blocker or High finding MAY remain; every
+a fresh adversarial audit. No Blocker or High finding MAY remain. Every
 remaining lower-severity exception MUST have a developer-approved decision.
 Falsifier: A required platform or mechanism is missing, a check is stale, the
 fresh audit reports an unresolved Blocker or High, or an exception lacks a

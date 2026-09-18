@@ -17,8 +17,8 @@ terminal byte sequence, restored termios state, and visible panic text.
 
 [TRL-002]
 SIGTERM, SIGINT, and SIGHUP MUST request bounded shutdown through the existing
-wake path. Panic-hook installation MUST chain the prior hook and MUST NOT tear
-down terminal state owned by another thread.
+wake path. Panic-hook installation MUST chain the prior hook. The installation MUST NOT
+tear down terminal state owned by another thread.
 Falsifier: A supported signal exits without restoration, shutdown blocks, a
 prior hook is skipped, or one thread restores terminal state owned elsewhere.
 Mechanism: Subprocess tests deliver each signal and controlled panics, then

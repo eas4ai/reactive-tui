@@ -15,7 +15,7 @@ and system widgets. The pages MUST mount representative live instances of
 every public widget family listed by the manual. Navigation MUST use a sidebar
 at widths of at least 80 columns and a compact horizontal page strip below
 that width. Arrow keys and the number keys shown by the catalog MUST select
-pages, and resize events MUST change the navigation layout without restarting
+pages. Resize events MUST change the navigation layout without restarting
 the application.
 Falsifier: The example is missing; a manual-listed widget family has no live
 catalog instance; a displayed navigation key does not change pages; or the
@@ -26,8 +26,8 @@ breakpoint, and inspect the resulting frames.
 
 [CAT-002]
 The motion page MUST show a continuously rotating wireframe cube. Animation
-MUST advance without keyboard input and MUST request redraws at a bounded
-cadence. Ctrl+Q, Ctrl+C, and Escape MUST all exit through the normal App
+MUST advance without keyboard input. Animation MUST request redraws at a
+bounded cadence. Ctrl+Q, Ctrl+C, and Escape MUST all exit through the normal App
 lifecycle and restore the host terminal.
 Falsifier: Two animation samples separated by at least one frame interval are
 identical; the example busy-spins; any displayed quit key fails to exit; or a

@@ -16,7 +16,7 @@ verify frame delivery and error reporting.
 
 [RTR-002]
 ThreadedEventLoop queues MUST provide bounded backpressure without holding the
-consumer lock, and stop or Drop MUST cancel and join a blocked input reader.
+consumer lock. Stop or Drop MUST cancel and join a blocked input reader.
 Falsifier: A full queue livelocks, stop blocks on stdin, or a reader thread
 survives Drop.
 Mechanism: Saturation and blocked-read tests require consumer progress and

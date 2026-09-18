@@ -20,8 +20,8 @@ feature graph and compare every exception with its decision record.
 
 [DQC-002]
 Maintained replacements MUST be used for unmaintained production dependencies
-when available. Duplicate taffy and vte versions MUST be aligned or justified,
-the maintained crossterm fork MUST keep a distinct package identity, and the
+when available. Duplicate taffy and vte versions MUST be aligned or justified.
+The maintained crossterm fork MUST keep a distinct package identity. The
 default Markdown feature set MUST NOT require oniguruma.
 Falsifier: The locked graph contains an unexplained unmaintained package, an
 unapproved taffy or vte duplicate, an ambiguous crossterm package name, or
@@ -50,7 +50,7 @@ of sampled assertions prove that the intended tests compile and can fail.
 
 [DQC-005]
 Every supported public item MUST have useful API documentation. Test-only
-helpers MUST be gated from production builds, and unreferenced legacy public
+helpers MUST be gated from production builds. Unreferenced legacy public
 helpers MUST be removed or explicitly retained.
 Falsifier: rustdoc reports a missing supported item, `create_test_image` ships
 as production API without a contract, or an unreferenced legacy control helper

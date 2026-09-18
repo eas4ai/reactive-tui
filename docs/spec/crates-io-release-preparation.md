@@ -13,7 +13,7 @@ The release candidate MUST have a registry-resolvable package graph. Every
 normal path dependency MUST also declare an exact version. Every package name
 MUST be owned by the project or available for first publication. The root crate
 MUST use project-owned packages for the exact pinned `libghostty-vt` and
-`libghostty-vt-sys` source and MUST NOT contain a git dependency. Their Rust
+`libghostty-vt-sys` source. The root crate MUST NOT contain a git dependency. Their Rust
 library names and the terminal API used by the framework MUST remain unchanged.
 Falsifier: A normal dependency has only a path, a git source remains, a package
 name belongs to another publisher, or a dependency alias changes the Rust crate

@@ -30,7 +30,7 @@ requirements are checked against the committed tree.
 
 [RID-003]
 Tracked files and ignore rules MUST describe the repository that is intended to
-remain. Stale exclusions and exceptions MUST be removed, and no unreviewed
+remain. Stale exclusions and exceptions MUST be removed. No unreviewed
 decision MAY remain queued at release review.
 Falsifier: A tracked file unintentionally matches an ignore rule, an ignore or
 package exclusion names a removed path, or `.cairn/queue` contains an

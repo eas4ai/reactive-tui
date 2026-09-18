@@ -24,7 +24,7 @@ The manual MUST account for every public top-level module exported by
 `src/lib.rs`, every public widget family exported by `src/widgets/mod.rs`, and
 every Cargo feature. Each focused page MUST name the crate modules it covers and
 link to tracked implementation source and confirming tests. Claims MUST follow
-the current source and tests; retained specifications and decisions may explain
+the current source and tests. Retained specifications and decisions may explain
 intent or platform limits but MUST NOT override observed implementation.
 Falsifier: A public module, widget family, or Cargo feature is absent; a page
 names a module the crate does not export; a source or test link is missing or
