@@ -1,0 +1,1099 @@
+    Checking cfg-if v1.0.3
+    Checking pin-project-lite v0.2.16
+   Compiling winnow v1.0.4
+   Compiling proc-macro2 v1.0.101
+   Compiling equivalent v1.0.2
+    Checking libc v0.2.189
+    Checking serde_core v1.0.229
+    Checking linux-raw-sys v0.12.1
+    Checking bitflags v2.11.0
+    Checking futures-core v0.3.31
+    Checking once_cell v1.21.3
+    Checking crossbeam-utils v0.8.21
+    Checking parking v2.2.1
+   Compiling quote v1.0.40
+   Compiling indexmap v2.14.2
+    Checking fastrand v2.3.0
+    Checking unicode-ident v1.0.18
+    Checking memchr v2.7.5
+    Checking slab v0.4.11
+    Checking futures-io v0.3.31
+   Compiling syn v3.0.5
+   Compiling syn v2.0.106
+    Checking event-listener v5.4.2
+    Checking concurrent-queue v2.5.0
+    Checking rustix v1.1.4
+    Checking getrandom v0.3.3
+   Compiling toml_parser v1.1.3+spec-1.1.0
+   Compiling endi v1.1.1
+    Checking futures-lite v2.6.1
+    Checking signal-hook-registry v1.4.6
+    Checking event-listener-strategy v0.5.4
+   Compiling enumflags2_derive v0.7.12
+    Checking smallvec v1.15.1
+   Compiling siphasher v1.0.1
+    Checking simd-adler32 v0.3.7
+    Checking async-task v4.7.1
+   Compiling toml_edit v0.25.13+spec-1.1.0
+   Compiling serde_derive v1.0.229
+   Compiling phf_shared v0.13.1
+    Checking adler2 v2.0.1
+    Checking itoa v1.0.15
+    Checking async-channel v2.5.0
+    Checking crc32fast v1.5.0
+    Checking allocator-api2 v0.2.21
+    Checking atomic-waker v1.1.2
+    Checking foldhash v0.2.0
+    Checking serde v1.0.229
+    Checking regex-syntax v0.8.6
+    Checking num-traits v0.2.19
+    Checking miniz_oxide v0.8.9
+    Checking zvariant_utils v4.2.0
+    Checking enumflags2 v0.7.12
+    Checking zcheapstr v1.1.0
+    Checking polling v3.11.0
+   Compiling phf_generator v0.13.1
+    Checking uuid v1.18.1
+    Checking hashbrown v0.17.1
+   Compiling proc-macro-crate v3.5.0
+    Checking piper v0.2.5
+    Checking async-lock v3.4.2
+   Compiling tracing-attributes v0.1.31
+    Checking async-io v2.6.0
+    Checking aho-corasick v1.1.3
+    Checking flate2 v1.1.2
+    Checking tracing-core v0.1.36
+    Checking arrayvec v0.7.6
+    Checking scopeguard v1.2.0
+   Compiling zvariant_derive v5.15.0
+    Checking log v0.4.34
+   Compiling zvariant v5.15.0
+    Checking async-signal v0.2.14
+    Checking blocking v1.7.0
+    Checking io-lifetimes v2.0.4
+    Checking io-lifetimes v3.0.1
+    Checking lock_api v0.4.13
+    Checking tracing v0.1.44
+    Checking parking_lot_core v0.9.11
+    Checking async-executor v1.14.0
+    Checking regex-automata v0.4.10
+   Compiling zbus_names v4.3.4
+    Checking async-process v2.5.0
+    Checking async-broadcast v0.7.2
+   Compiling serde_repr v0.1.21
+   Compiling async-trait v0.1.92
+   Compiling async-recursion v1.1.1
+    Checking ordered-stream v0.2.0
+    Checking hex v0.4.3
+    Checking powerfmt v0.2.0
+    Checking weezl v0.1.10
+    Checking ryu v1.0.20
+   Compiling zbus_xml v5.2.1
+   Compiling zbus_macros v5.19.0
+    Checking bit-vec v0.8.0
+    Checking parking_lot v0.12.4
+    Checking fs-set-times v0.20.3
+   Compiling zbus-lockstep v0.5.2
+    Checking io-extras v0.19.0
+    Checking mio v1.0.4
+    Checking serde_json v1.0.143
+    Checking bit-set v0.8.0
+    Checking deranged v0.5.8
+    Checking slotmap v1.0.7
+    Checking crossbeam-epoch v0.9.20
+   Compiling phf_codegen v0.13.1
+    Checking rustix-linux-procfs v0.1.1
+   Compiling zbus-lockstep-macros v0.5.2
+    Checking zbus v5.19.0
+    Checking fdeflate v0.3.7
+    Checking rand_core v0.9.3
+   Compiling futures-macro v0.3.31
+    Checking pin-utils v0.1.0
+    Checking same-file v1.0.6
+    Checking byteorder-lite v0.1.0
+    Checking jpeg-decoder v0.3.2
+    Checking maybe-owned v0.3.4
+    Checking ipnet v2.12.2
+    Checking futures-task v0.3.31
+    Checking fnv v1.0.7
+    Checking ambient-authority v0.0.2
+    Checking color_quant v1.1.0
+    Checking bitflags v1.3.2
+    Checking static_assertions v1.1.0
+    Checking quick-error v2.0.1
+    Checking tinyvec v1.13.3
+    Checking num-conv v0.2.2
+    Checking zune-core v0.4.12
+    Checking time-core v0.1.8
+    Checking either v1.15.0
+    Checking futures-util v0.3.31
+    Checking tiff v0.9.1
+    Checking cap-primitives v4.0.3
+    Checking png v0.17.16
+    Checking atspi-common v0.13.0
+    Checking gif v0.13.3
+    Checking image-webp v0.2.4
+    Checking walkdir v2.5.0
+    Checking zune-jpeg v0.4.20
+    Checking time v0.3.47
+   Compiling comrak v0.55.0
+    Checking crossbeam-deque v0.8.6
+    Checking signal-hook v0.3.18
+    Checking unicode-normalization v0.1.25
+   Compiling derive_more-impl v2.0.1
+    Checking zerocopy v0.8.26
+    Checking vte v0.15.0
+   Compiling phf_macros v0.13.1
+    Checking tempfile v3.21.0
+   Compiling thiserror-impl v2.0.20
+    Checking quick-xml v0.42.0
+    Checking half v2.6.0
+    Checking linked-hash-map v0.5.6
+    Checking option-ext v0.2.0
+    Checking plotters-backend v0.3.7
+    Checking bytemuck v1.23.2
+    Checking clap_lex v0.7.5
+    Checking anstyle v1.0.11
+    Checking base64 v0.23.1
+    Checking ciborium-io v0.2.2
+    Checking yaml-rust v0.4.5
+    Checking dirs-sys v0.4.1
+    Checking caseless v0.2.2
+    Checking phf v0.13.1
+    Checking plotters-svg v0.3.7
+    Checking ppv-lite86 v0.2.21
+    Checking thiserror v2.0.20
+    Checking image v0.25.6
+    Checking signal-hook-mio v0.2.4
+    Checking clap_builder v4.5.46
+    Checking rayon-core v1.13.0
+    Checking cap-std v4.0.3
+    Checking derive_more v2.0.1
+    Checking atspi-proxies v0.13.0
+    Checking ciborium-ll v0.2.2
+    Checking plist v1.10.1
+    Checking jetscii v0.5.3
+    Checking itertools v0.10.5
+    Checking taffy v0.13.0
+    Checking fancy-regex v0.16.2
+    Checking regex v1.11.2
+    Checking phf_shared v0.11.3
+    Checking accesskit v0.25.0
+    Checking bincode v1.3.3
+   Compiling tokio-macros v2.5.0
+    Checking wait-timeout v0.2.1
+    Checking socket2 v0.6.0
+    Checking unicode-properties v0.1.4
+    Checking precomputed-hash v0.1.1
+    Checking new_debug_unreachable v1.0.6
+    Checking grid v1.0.1
+    Checking cast v0.3.0
+    Checking bytes v1.11.1
+    Checking lazy_static v1.5.0
+   Compiling reactive-tui v0.1.0 (/home/shawn/workspace2/reactive-tui)
+    Checking unicode-width v0.2.1
+    Checking rustc-hash v2.1.3
+    Checking unicode-segmentation v1.13.3
+    Checking quick-error v1.2.3
+    Checking finl_unicode v1.4.0
+    Checking typed-arena v2.0.2
+    Checking taffy v0.9.2
+    Checking string_cache v0.8.9
+    Checking criterion-plot v0.5.0
+    Checking clap v4.5.46
+    Checking syntect v5.3.0
+    Checking accesskit_consumer v0.39.0
+    Checking vt100 v0.16.2
+    Checking rusty-fork v0.3.0
+    Checking cap-fs-ext v4.0.3
+    Checking ciborium v0.2.2
+    Checking rayon v1.11.0
+    Checking reactive-tui-suprtui v0.1.0 (/home/shawn/workspace2/reactive-tui/src/backend/engine)
+    Checking atspi v0.29.0
+    Checking reactive-tui-crossterm v0.1.0 (/home/shawn/workspace2/reactive-tui/src/backend/crossterm)
+    Checking rand_chacha v0.9.0
+    Checking plotters v0.3.7
+    Checking tokio v1.47.1
+    Checking dirs v5.0.1
+    Checking futures-executor v0.3.31
+    Checking rand_xorshift v0.4.0
+    Checking rand v0.9.3
+    Checking tinytemplate v1.2.1
+    Checking lru v0.18.4
+   Compiling reactive-tui-macros v0.1.0 (/home/shawn/workspace2/reactive-tui/reactive-tui-macros)
+   Compiling serial_test_derive v3.5.0
+    Checking is-terminal v0.4.16
+    Checking unarray v0.1.4
+    Checking base64 v0.22.1
+    Checking oorandom v11.1.5
+    Checking anes v0.1.6
+    Checking serial_test v3.5.0
+    Checking proptest v1.7.0
+    Checking criterion v0.5.1
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 31.54s
+   Compiling reactive-tui v0.1.0 (/home/shawn/workspace2/reactive-tui)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 7.68s
+   Compiling reactive-tui v0.1.0 (/home/shawn/workspace2/reactive-tui)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 8.69s
+    Checking tokio v1.47.1
+    Checking futures-sink v0.3.31
+   Compiling reactive-tui v0.1.0 (/home/shawn/workspace2/reactive-tui)
+    Checking tokio-util v0.7.16
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 10.04s
+   Compiling reactive-tui v0.1.0 (/home/shawn/workspace2/reactive-tui)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 7.42s
+   Compiling reactive-tui v0.1.0 (/home/shawn/workspace2/reactive-tui)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 7.32s
+   Compiling reactive-tui v0.1.0 (/home/shawn/workspace2/reactive-tui)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 7.23s
+   Compiling reactive-tui v0.1.0 (/home/shawn/workspace2/reactive-tui)
+warning: ambiguous glob re-exports
+   --> src/ffi/mod.rs:143:9
+    |
+143 | pub use pointer::*;
+    |         ^^^^^^^^^^ the name `validate_pointer` in the value namespace is first re-exported here
+...
+148 | pub use types::*;
+    |         -------- but the name `validate_pointer` in the value namespace is also re-exported here
+    |
+    = note: `#[warn(ambiguous_glob_reexports)]` on by default
+
+warning: unused variable: `width`
+   --> src/ffi/lib.rs:122:14
+    |
+122 |         let (width, height) = renderer_box.dims();
+    |              ^^^^^ help: if this is intentional, prefix it with an underscore: `_width`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `validate_pointer` is never used
+   --> src/ffi/types.rs:182:15
+    |
+182 | pub(crate) fn validate_pointer<T>(ptr: *const T) -> bool {
+    |               ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `validate_mut_pointer` is never used
+   --> src/ffi/types.rs:187:15
+    |
+187 | pub(crate) fn validate_mut_pointer<T>(ptr: *mut T) -> bool {
+    |               ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `safe_cast` is never used
+   --> src/ffi/types.rs:192:22
+    |
+192 | pub(crate) unsafe fn safe_cast<T, U>(ptr: *mut T) -> Result<*mut U, ReactiveError> {
+    |                      ^^^^^^^^^
+
+warning: function `safe_cast_const` is never used
+   --> src/ffi/types.rs:206:22
+    |
+206 | pub(crate) unsafe fn safe_cast_const<T, U>(ptr: *const T) -> Result<*const U, ReactiveError> {
+    |                      ^^^^^^^^^^^^^^^
+
+warning: `reactive-tui` (lib) generated 6 warnings (run `cargo fix --lib -p reactive-tui` to apply 1 suggestion)
+warning: unnecessary `unsafe` block
+  --> tests/test_ffi_core_only.rs:10:9
+   |
+10 |         unsafe {
+   |         ^^^^^^ unnecessary `unsafe` block
+   |
+   = note: `#[warn(unused_unsafe)]` (part of `#[warn(unused)]`) on by default
+
+warning: unnecessary `unsafe` block
+  --> tests/test_ffi_core_only.rs:24:9
+   |
+24 |         unsafe {
+   |         ^^^^^^ unnecessary `unsafe` block
+
+warning: unnecessary `unsafe` block
+  --> tests/test_ffi_core_only.rs:67:9
+   |
+67 |         unsafe {
+   |         ^^^^^^ unnecessary `unsafe` block
+
+warning: unnecessary `unsafe` block
+  --> tests/test_ffi_core_only.rs:94:9
+   |
+94 |         unsafe {
+   |         ^^^^^^ unnecessary `unsafe` block
+
+warning: unnecessary `unsafe` block
+   --> tests/test_ffi_core_only.rs:127:9
+    |
+127 |         unsafe {
+    |         ^^^^^^ unnecessary `unsafe` block
+
+warning: unnecessary `unsafe` block
+   --> tests/test_ffi_core_only.rs:171:9
+    |
+171 |         unsafe {
+    |         ^^^^^^ unnecessary `unsafe` block
+
+warning: unnecessary `unsafe` block
+   --> tests/test_ffi_core_only.rs:193:9
+    |
+193 |         unsafe {
+    |         ^^^^^^ unnecessary `unsafe` block
+
+warning: `reactive-tui` (test "test_ffi_core_only") generated 7 warnings
+warning: unnecessary `unsafe` block
+  --> tests/test_ffi_integration.rs:10:9
+   |
+10 |         unsafe {
+   |         ^^^^^^ unnecessary `unsafe` block
+   |
+   = note: `#[warn(unused_unsafe)]` (part of `#[warn(unused)]`) on by default
+
+warning: unnecessary `unsafe` block
+  --> tests/test_ffi_integration.rs:60:9
+   |
+60 |         unsafe {
+   |         ^^^^^^ unnecessary `unsafe` block
+
+warning: unnecessary `unsafe` block
+   --> tests/test_ffi_integration.rs:115:9
+    |
+115 |         unsafe {
+    |         ^^^^^^ unnecessary `unsafe` block
+
+warning: unnecessary `unsafe` block
+   --> tests/test_ffi_integration.rs:150:9
+    |
+150 |         unsafe {
+    |         ^^^^^^ unnecessary `unsafe` block
+
+warning: unnecessary `unsafe` block
+   --> tests/test_ffi_integration.rs:172:9
+    |
+172 |         unsafe {
+    |         ^^^^^^ unnecessary `unsafe` block
+
+warning: `reactive-tui` (test "test_ffi_integration") generated 5 warnings
+warning: `reactive-tui` (lib test) generated 6 warnings (6 duplicates)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 8.01s
+   Compiling proc-macro2-diagnostics v0.10.1
+   Compiling reactive-tui-libghostty-vt-sys v0.1.0 (/home/shawn/workspace2/reactive-tui/crates/libghostty-vt-sys)
+   Compiling reactive-tui v0.1.0 (/home/shawn/workspace2/reactive-tui)
+   Compiling int-enum v1.2.0
+    Checking reactive-tui-libghostty-vt v0.1.0 (/home/shawn/workspace2/reactive-tui/crates/libghostty-vt)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 38.13s
+   Compiling libm v0.2.16
+   Compiling num-traits v0.2.19
+   Compiling cfg_aliases v0.2.2
+    Checking smallvec v1.15.1
+   Compiling bytemuck_derive v1.12.1
+    Checking foldhash v0.1.5
+   Compiling ash v0.38.0+1.3.281
+    Checking codespan-reporting v0.12.0
+    Checking hashbrown v0.16.1
+    Checking spirv v0.3.0+sdk-1.3.268.0
+    Checking gpu-alloc-types v0.3.1
+    Checking gpu-descriptor-types v0.2.0
+    Checking libloading v0.8.9
+    Checking hexf-parse v0.2.1
+    Checking bytemuck v1.23.2
+    Checking parking_lot_core v0.9.11
+   Compiling naga v27.0.3
+   Compiling wgpu-hal v27.0.4
+    Checking rustc-hash v1.1.0
+    Checking gpu-alloc v0.6.2
+    Checking hashbrown v0.15.5
+    Checking raw-window-handle v0.6.2
+    Checking renderdoc-sys v1.1.0
+    Checking profiling v1.0.18
+   Compiling wgpu-core v27.0.3
+   Compiling wgpu v27.0.1
+    Checking taffy v0.13.0
+    Checking wgpu-types v27.0.1
+   Compiling reactive-tui v0.1.0 (/home/shawn/workspace2/reactive-tui)
+    Checking comrak v0.55.0
+    Checking parking_lot v0.12.4
+    Checking gpu-descriptor v0.3.2
+    Checking string_cache v0.8.9
+    Checking reactive-tui-crossterm v0.1.0 (/home/shawn/workspace2/reactive-tui/src/backend/crossterm)
+    Checking serial_test v3.5.0
+    Checking half v2.6.0
+    Checking ordered-float v5.5.0
+    Checking image v0.25.6
+    Checking plotters v0.3.7
+    Checking proptest v1.7.0
+    Checking ciborium-ll v0.2.2
+    Checking ciborium v0.2.2
+    Checking reactive-tui-suprtui v0.1.0 (/home/shawn/workspace2/reactive-tui/src/backend/engine)
+    Checking criterion v0.5.1
+    Checking wgpu-core-deps-windows-linux-android v27.0.0
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 21.88s
+   Compiling reactive-tui-libghostty-vt-sys v0.1.0 (/home/shawn/workspace2/reactive-tui/crates/libghostty-vt-sys)
+   Compiling reactive-tui v0.1.0 (/home/shawn/workspace2/reactive-tui)
+    Checking tokio-util v0.7.16
+    Checking reactive-tui-libghostty-vt v0.1.0 (/home/shawn/workspace2/reactive-tui/crates/libghostty-vt)
+warning: ambiguous glob re-exports
+   --> src/ffi/mod.rs:143:9
+    |
+143 | pub use pointer::*;
+    |         ^^^^^^^^^^ the name `validate_pointer` in the value namespace is first re-exported here
+...
+148 | pub use types::*;
+    |         -------- but the name `validate_pointer` in the value namespace is also re-exported here
+    |
+    = note: `#[warn(ambiguous_glob_reexports)]` on by default
+
+warning: unused variable: `width`
+   --> src/ffi/lib.rs:122:14
+    |
+122 |         let (width, height) = renderer_box.dims();
+    |              ^^^^^ help: if this is intentional, prefix it with an underscore: `_width`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `validate_pointer` is never used
+   --> src/ffi/types.rs:182:15
+    |
+182 | pub(crate) fn validate_pointer<T>(ptr: *const T) -> bool {
+    |               ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `validate_mut_pointer` is never used
+   --> src/ffi/types.rs:187:15
+    |
+187 | pub(crate) fn validate_mut_pointer<T>(ptr: *mut T) -> bool {
+    |               ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `safe_cast` is never used
+   --> src/ffi/types.rs:192:22
+    |
+192 | pub(crate) unsafe fn safe_cast<T, U>(ptr: *mut T) -> Result<*mut U, ReactiveError> {
+    |                      ^^^^^^^^^
+
+warning: function `safe_cast_const` is never used
+   --> src/ffi/types.rs:206:22
+    |
+206 | pub(crate) unsafe fn safe_cast_const<T, U>(ptr: *const T) -> Result<*const U, ReactiveError> {
+    |                      ^^^^^^^^^^^^^^^
+
+warning: `reactive-tui` (lib) generated 6 warnings (run `cargo fix --lib -p reactive-tui` to apply 1 suggestion)
+warning: unnecessary `unsafe` block
+  --> tests/test_ffi_integration.rs:10:9
+   |
+10 |         unsafe {
+   |         ^^^^^^ unnecessary `unsafe` block
+   |
+   = note: `#[warn(unused_unsafe)]` (part of `#[warn(unused)]`) on by default
+
+warning: unnecessary `unsafe` block
+  --> tests/test_ffi_integration.rs:60:9
+   |
+60 |         unsafe {
+   |         ^^^^^^ unnecessary `unsafe` block
+
+warning: unnecessary `unsafe` block
+   --> tests/test_ffi_integration.rs:115:9
+    |
+115 |         unsafe {
+    |         ^^^^^^ unnecessary `unsafe` block
+
+warning: unnecessary `unsafe` block
+   --> tests/test_ffi_integration.rs:150:9
+    |
+150 |         unsafe {
+    |         ^^^^^^ unnecessary `unsafe` block
+
+warning: unnecessary `unsafe` block
+   --> tests/test_ffi_integration.rs:172:9
+    |
+172 |         unsafe {
+    |         ^^^^^^ unnecessary `unsafe` block
+
+warning: `reactive-tui` (test "test_ffi_integration") generated 5 warnings
+warning: unnecessary `unsafe` block
+  --> tests/test_ffi_core_only.rs:10:9
+   |
+10 |         unsafe {
+   |         ^^^^^^ unnecessary `unsafe` block
+   |
+   = note: `#[warn(unused_unsafe)]` (part of `#[warn(unused)]`) on by default
+
+warning: unnecessary `unsafe` block
+  --> tests/test_ffi_core_only.rs:24:9
+   |
+24 |         unsafe {
+   |         ^^^^^^ unnecessary `unsafe` block
+
+warning: unnecessary `unsafe` block
+  --> tests/test_ffi_core_only.rs:67:9
+   |
+67 |         unsafe {
+   |         ^^^^^^ unnecessary `unsafe` block
+
+warning: unnecessary `unsafe` block
+  --> tests/test_ffi_core_only.rs:94:9
+   |
+94 |         unsafe {
+   |         ^^^^^^ unnecessary `unsafe` block
+
+warning: unnecessary `unsafe` block
+   --> tests/test_ffi_core_only.rs:127:9
+    |
+127 |         unsafe {
+    |         ^^^^^^ unnecessary `unsafe` block
+
+warning: unnecessary `unsafe` block
+   --> tests/test_ffi_core_only.rs:171:9
+    |
+171 |         unsafe {
+    |         ^^^^^^ unnecessary `unsafe` block
+
+warning: unnecessary `unsafe` block
+   --> tests/test_ffi_core_only.rs:193:9
+    |
+193 |         unsafe {
+    |         ^^^^^^ unnecessary `unsafe` block
+
+warning: `reactive-tui` (test "test_ffi_core_only") generated 7 warnings
+warning: `reactive-tui` (lib test) generated 6 warnings (6 duplicates)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 10.90s
+   Compiling proc-macro2 v1.0.101
+   Compiling unicode-ident v1.0.18
+    Checking cfg-if v1.0.3
+   Compiling libc v0.2.189
+   Compiling serde_core v1.0.229
+   Compiling serde v1.0.229
+   Compiling autocfg v1.5.0
+    Checking pin-project-lite v0.2.16
+   Compiling winnow v1.0.4
+   Compiling rustix v1.1.4
+    Checking linux-raw-sys v0.12.1
+   Compiling equivalent v1.0.2
+   Compiling crossbeam-utils v0.8.21
+   Compiling hashbrown v0.17.1
+    Checking bitflags v2.11.0
+    Checking futures-core v0.3.31
+   Compiling toml_datetime v1.1.1+spec-1.1.0
+    Checking once_cell v1.21.3
+   Compiling getrandom v0.3.3
+    Checking parking v2.2.1
+    Checking fastrand v2.3.0
+   Compiling indexmap v2.14.2
+    Checking memchr v2.7.5
+    Checking futures-io v0.3.31
+   Compiling toml_parser v1.1.3+spec-1.1.0
+   Compiling quote v1.0.40
+    Checking slab v0.4.11
+    Checking concurrent-queue v2.5.0
+   Compiling endi v1.1.1
+    Checking signal-hook-registry v1.4.6
+    Checking event-listener v5.4.2
+    Checking futures-lite v2.6.1
+   Compiling async-io v2.6.0
+   Compiling siphasher v1.0.1
+   Compiling syn v3.0.5
+   Compiling syn v2.0.106
+    Checking event-listener-strategy v0.5.4
+    Checking simd-adler32 v0.3.7
+   Compiling crc32fast v1.5.0
+    Checking smallvec v1.15.1
+    Checking polling v3.11.0
+   Compiling toml_edit v0.25.13+spec-1.1.0
+   Compiling num-traits v0.2.19
+    Checking adler2 v2.0.1
+    Checking async-task v4.7.1
+   Compiling phf_shared v0.13.1
+    Checking itoa v1.0.15
+   Compiling enumflags2_derive v0.7.12
+    Checking async-channel v2.5.0
+   Compiling proc-macro-crate v3.5.0
+   Compiling lock_api v0.4.13
+    Checking miniz_oxide v0.8.9
+   Compiling serde_derive v1.0.229
+   Compiling version_check v0.9.5
+   Compiling parking_lot_core v0.9.11
+    Checking regex-syntax v0.8.6
+    Checking foldhash v0.2.0
+   Compiling io-lifetimes v2.0.4
+   Compiling io-lifetimes v3.0.1
+    Checking atomic-waker v1.1.2
+    Checking allocator-api2 v0.2.21
+    Checking async-signal v0.2.14
+   Compiling phf_generator v0.13.1
+   Compiling slotmap v1.0.7
+   Compiling tracing-attributes v0.1.31
+    Checking async-lock v3.4.2
+    Checking aho-corasick v1.1.3
+    Checking tracing-core v0.1.36
+    Checking flate2 v1.1.2
+    Checking piper v0.2.5
+   Compiling io-extras v0.19.0
+   Compiling crossbeam-epoch v0.9.20
+   Compiling serde_json v1.0.143
+    Checking arrayvec v0.7.6
+    Checking scopeguard v1.2.0
+    Checking tracing v0.1.44
+    Checking regex-automata v0.4.10
+    Checking blocking v1.7.0
+    Checking async-process v2.5.0
+    Checking zvariant_utils v4.2.0
+   Compiling zcheapstr v1.1.0
+   Compiling enumflags2 v0.7.12
+    Checking uuid v1.18.1
+    Checking async-executor v1.14.0
+   Compiling serde_repr v0.1.21
+   Compiling async-trait v0.1.92
+   Compiling async-recursion v1.1.1
+   Compiling zvariant_derive v5.15.0
+    Checking async-broadcast v0.7.2
+    Checking ordered-stream v0.2.0
+   Compiling zerocopy v0.8.26
+   Compiling zvariant v5.15.0
+    Checking powerfmt v0.2.0
+   Compiling cap-primitives v4.0.3
+    Checking bit-vec v0.8.0
+   Compiling signal-hook v0.3.18
+    Checking weezl v0.1.10
+    Checking ryu v1.0.20
+    Checking hex v0.4.3
+    Checking log v0.4.34
+   Compiling unicode-segmentation v1.13.3
+    Checking parking_lot v0.12.4
+    Checking fs-set-times v0.20.3
+   Compiling zbus_names v4.3.4
+    Checking deranged v0.5.8
+   Compiling convert_case v0.7.1
+   Compiling phf_codegen v0.13.1
+   Compiling futures-macro v0.3.31
+    Checking bit-set v0.8.0
+    Checking fdeflate v0.3.7
+    Checking rustix-linux-procfs v0.1.1
+    Checking rand_core v0.9.3
+    Checking futures-task v0.3.31
+   Compiling zbus_xml v5.2.1
+   Compiling zbus_macros v5.19.0
+   Compiling jetscii v0.5.3
+    Checking num-conv v0.2.2
+    Checking jpeg-decoder v0.3.2
+   Compiling entities v1.0.1
+    Checking same-file v1.0.6
+    Checking tinyvec v1.13.3
+    Checking pin-utils v0.1.0
+    Checking ipnet v2.12.2
+    Checking zune-core v0.4.12
+   Compiling zbus-lockstep v0.5.2
+    Checking time-core v0.1.8
+   Compiling thiserror v2.0.20
+    Checking zbus v5.19.0
+    Checking fnv v1.0.7
+   Compiling cap-std v4.0.3
+    Checking byteorder-lite v0.1.0
+    Checking bitflags v1.3.2
+    Checking static_assertions v1.1.0
+    Checking either v1.15.0
+    Checking color_quant v1.1.0
+    Checking quick-error v2.0.1
+    Checking maybe-owned v0.3.4
+   Compiling zbus-lockstep-macros v0.5.2
+   Compiling rayon-core v1.13.0
+    Checking ambient-authority v0.0.2
+    Checking time v0.3.47
+    Checking png v0.17.16
+    Checking gif v0.13.3
+    Checking zune-jpeg v0.4.20
+   Compiling comrak v0.55.0
+    Checking unicode-normalization v0.1.25
+    Checking futures-util v0.3.31
+    Checking image-webp v0.2.4
+    Checking tiff v0.9.1
+    Checking walkdir v2.5.0
+   Compiling derive_more-impl v2.0.1
+    Checking crossbeam-deque v0.8.6
+    Checking mio v1.0.4
+    Checking vte v0.15.0
+   Compiling phf_macros v0.13.1
+   Compiling thiserror-impl v2.0.20
+    Checking tempfile v3.21.0
+    Checking quick-xml v0.42.0
+    Checking half v2.6.0
+    Checking linked-hash-map v0.5.6
+    Checking ciborium-io v0.2.2
+    Checking clap_lex v0.7.5
+    Checking plotters-backend v0.3.7
+    Checking bytemuck v1.23.2
+    Checking option-ext v0.2.0
+   Compiling cap-fs-ext v4.0.3
+    Checking anstyle v1.0.11
+    Checking base64 v0.23.1
+   Compiling litrs v0.4.2
+    Checking dirs-sys v0.4.1
+    Checking yaml-rust v0.4.5
+    Checking phf v0.13.1
+    Checking ciborium-ll v0.2.2
+    Checking plotters-svg v0.3.7
+    Checking image v0.25.6
+    Checking plist v1.10.1
+   Compiling document-features v0.2.11
+    Checking atspi-common v0.13.0
+    Checking signal-hook-mio v0.2.4
+    Checking clap_builder v4.5.46
+    Checking derive_more v2.0.1
+    Checking ppv-lite86 v0.2.21
+    Checking caseless v0.2.2
+    Checking itertools v0.10.5
+    Checking fancy-regex v0.16.2
+    Checking taffy v0.13.0
+    Checking accesskit v0.25.0
+    Checking regex v1.11.2
+    Checking phf_shared v0.11.3
+    Checking bincode v1.3.3
+    Checking wait-timeout v0.2.1
+    Checking unicode-width v0.2.1
+    Checking unicode-properties v0.1.4
+    Checking new_debug_unreachable v1.0.6
+    Checking precomputed-hash v0.1.1
+    Checking rustc-hash v2.1.3
+    Checking cast v0.3.0
+    Checking typed-arena v2.0.2
+    Checking lazy_static v1.5.0
+    Checking grid v1.0.1
+    Checking finl_unicode v1.4.0
+    Checking quick-error v1.2.3
+   Compiling reactive-tui v0.1.0 (/home/shawn/workspace2/reactive-tui)
+    Checking string_cache v0.8.9
+    Checking vt100 v0.16.2
+    Checking reactive-tui-suprtui v0.1.0 (/home/shawn/workspace2/reactive-tui/src/backend/engine)
+    Checking syntect v5.3.0
+    Checking accesskit_consumer v0.39.0
+    Checking clap v4.5.46
+    Checking taffy v0.9.2
+    Checking criterion-plot v0.5.0
+    Checking rand_chacha v0.9.0
+    Checking reactive-tui-crossterm v0.1.0 (/home/shawn/workspace2/reactive-tui/src/backend/crossterm)
+    Checking atspi-proxies v0.13.0
+    Checking rusty-fork v0.3.0
+    Checking plotters v0.3.7
+    Checking rayon v1.11.0
+    Checking ciborium v0.2.2
+    Checking dirs v5.0.1
+    Checking futures-executor v0.3.31
+    Checking rand v0.9.3
+    Checking rand_xorshift v0.4.0
+    Checking tinytemplate v1.2.1
+    Checking lru v0.18.4
+   Compiling serial_test_derive v3.5.0
+   Compiling reactive-tui-macros v0.1.0 (/home/shawn/workspace2/reactive-tui/reactive-tui-macros)
+    Checking is-terminal v0.4.16
+    Checking anes v0.1.6
+    Checking unarray v0.1.4
+    Checking oorandom v11.1.5
+    Checking atspi v0.29.0
+    Checking base64 v0.22.1
+    Checking serial_test v3.5.0
+    Checking proptest v1.7.0
+    Checking criterion v0.5.1
+warning: use of deprecated method `std::sync::atomic::Atomic::<usize>::fetch_update`: renamed to `try_update` for consistency
+   --> src/hooks/animation.rs:170:14
+    |
+170 |             .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |id| id.checked_add(1))
+    |              ^^^^^^^^^^^^
+    |
+    = note: `#[warn(deprecated)]` on by default
+help: replace the use of the deprecated method
+    |
+170 -             .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |id| id.checked_add(1))
+170 +             .try_update(Ordering::Relaxed, Ordering::Relaxed, |id| id.checked_add(1))
+    |
+
+warning: falling back to `f32` as the trait bound `f32: From<f64>` is not satisfied
+    --> src/layout/style.rs:1532:83
+     |
+1532 |                 .map(|_| GridTemplateComponent::from(TrackSizingFunction::from_fr(1.0)))
+     |                                                                                   ^^^ help: explicitly specify the type as `f32`: `1.0_f32`
+     |
+     = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+     = note: for more information, see issue #154024 <https://github.com/rust-lang/rust/issues/154024>
+     = note: `#[warn(float_literal_f32_fallback)]` (part of `#[warn(future_incompatible)]`) on by default
+
+warning: falling back to `f32` as the trait bound `f32: From<f64>` is not satisfied
+    --> src/layout/style.rs:1538:83
+     |
+1538 |                 .map(|_| GridTemplateComponent::from(TrackSizingFunction::from_fr(1.0)))
+     |                                                                                   ^^^ help: explicitly specify the type as `f32`: `1.0_f32`
+     |
+     = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+     = note: for more information, see issue #154024 <https://github.com/rust-lang/rust/issues/154024>
+
+warning: use of deprecated method `std::sync::atomic::Atomic::<u32>::fetch_update`: renamed to `try_update` for consistency
+   --> src/widgets/display/image/protocol_renderer.rs:238:14
+    |
+238 |             .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |id| {
+    |              ^^^^^^^^^^^^
+    |
+help: replace the use of the deprecated method
+    |
+238 -             .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |id| {
+238 +             .try_update(Ordering::Relaxed, Ordering::Relaxed, |id| {
+    |
+
+warning: `reactive-tui` (lib) generated 4 warnings (run `cargo fix --lib -p reactive-tui` to apply 4 suggestions)
+warning: use of deprecated method `std::sync::atomic::Atomic::<usize>::fetch_update`: renamed to `try_update` for consistency
+   --> tests/api_focus.rs:216:22
+    |
+216 |                     .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |n| {
+    |                      ^^^^^^^^^^^^
+    |
+    = note: `#[warn(deprecated)]` on by default
+help: replace the use of the deprecated method
+    |
+216 -                     .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |n| {
+216 +                     .try_update(Ordering::SeqCst, Ordering::SeqCst, |n| {
+    |
+
+warning: `reactive-tui` (test "api_focus") generated 1 warning (run `cargo fix --test "api_focus" -p reactive-tui` to apply 1 suggestion)
+warning: `reactive-tui` (lib test) generated 4 warnings (4 duplicates)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 29.29s
+    Blocking waiting for file lock on package cache
+   Compiling libm v0.2.16
+   Compiling num-traits v0.2.19
+   Compiling cfg_aliases v0.2.2
+    Checking smallvec v1.15.1
+   Compiling bytemuck_derive v1.12.1
+   Compiling ash v0.38.0+1.3.281
+    Checking foldhash v0.1.5
+    Checking codespan-reporting v0.12.0
+    Checking hashbrown v0.16.1
+    Checking spirv v0.3.0+sdk-1.3.268.0
+    Checking libloading v0.8.9
+    Checking gpu-descriptor-types v0.2.0
+    Checking gpu-alloc-types v0.3.1
+    Checking hexf-parse v0.2.1
+    Checking bytemuck v1.23.2
+   Compiling naga v27.0.3
+   Compiling wgpu-hal v27.0.4
+    Checking rustc-hash v1.1.0
+    Checking parking_lot_core v0.9.11
+   Compiling proc-macro2-diagnostics v0.10.1
+    Checking profiling v1.0.18
+    Checking renderdoc-sys v1.1.0
+    Checking raw-window-handle v0.6.2
+   Compiling wgpu-core v27.0.3
+   Compiling reactive-tui-libghostty-vt-sys v0.1.0 (/home/shawn/workspace2/reactive-tui/crates/libghostty-vt-sys)
+    Checking gpu-alloc v0.6.2
+    Checking wgpu-types v27.0.1
+    Checking hashbrown v0.15.5
+   Compiling wgpu v27.0.1
+   Compiling tokio-macros v2.5.0
+    Checking socket2 v0.6.0
+    Checking bytes v1.11.1
+    Checking taffy v0.13.0
+    Checking parking_lot v0.12.4
+    Checking half v2.6.0
+    Checking ordered-float v5.5.0
+   Compiling int-enum v1.2.0
+    Checking image v0.25.6
+    Checking futures-sink v0.3.31
+   Compiling reactive-tui v0.1.0 (/home/shawn/workspace2/reactive-tui)
+    Checking gpu-descriptor v0.3.2
+    Checking comrak v0.55.0
+    Checking reactive-tui-crossterm v0.1.0 (/home/shawn/workspace2/reactive-tui/src/backend/crossterm)
+    Checking string_cache v0.8.9
+    Checking tokio v1.47.1
+    Checking plotters v0.3.7
+    Checking proptest v1.7.0
+    Checking ciborium-ll v0.2.2
+    Checking reactive-tui-suprtui v0.1.0 (/home/shawn/workspace2/reactive-tui/src/backend/engine)
+    Checking serial_test v3.5.0
+    Checking ciborium v0.2.2
+    Checking tokio-util v0.7.16
+    Checking criterion v0.5.1
+    Checking wgpu-core-deps-windows-linux-android v27.0.0
+    Checking reactive-tui-libghostty-vt v0.1.0 (/home/shawn/workspace2/reactive-tui/crates/libghostty-vt)
+warning: ambiguous glob re-exports
+   --> src/ffi/mod.rs:143:9
+    |
+143 | pub use pointer::*;
+    |         ^^^^^^^^^^ the name `validate_pointer` in the value namespace is first re-exported here
+...
+148 | pub use types::*;
+    |         -------- but the name `validate_pointer` in the value namespace is also re-exported here
+    |
+    = note: `#[warn(ambiguous_glob_reexports)]` on by default
+
+warning: use of deprecated method `std::sync::atomic::Atomic::<usize>::fetch_update`: renamed to `try_update` for consistency
+   --> src/hooks/animation.rs:170:14
+    |
+170 |             .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |id| id.checked_add(1))
+    |              ^^^^^^^^^^^^
+    |
+    = note: `#[warn(deprecated)]` on by default
+help: replace the use of the deprecated method
+    |
+170 -             .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |id| id.checked_add(1))
+170 +             .try_update(Ordering::Relaxed, Ordering::Relaxed, |id| id.checked_add(1))
+    |
+
+warning: falling back to `f32` as the trait bound `f32: From<f64>` is not satisfied
+    --> src/layout/style.rs:1532:83
+     |
+1532 |                 .map(|_| GridTemplateComponent::from(TrackSizingFunction::from_fr(1.0)))
+     |                                                                                   ^^^ help: explicitly specify the type as `f32`: `1.0_f32`
+     |
+     = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+     = note: for more information, see issue #154024 <https://github.com/rust-lang/rust/issues/154024>
+     = note: `#[warn(float_literal_f32_fallback)]` (part of `#[warn(future_incompatible)]`) on by default
+
+warning: falling back to `f32` as the trait bound `f32: From<f64>` is not satisfied
+    --> src/layout/style.rs:1538:83
+     |
+1538 |                 .map(|_| GridTemplateComponent::from(TrackSizingFunction::from_fr(1.0)))
+     |                                                                                   ^^^ help: explicitly specify the type as `f32`: `1.0_f32`
+     |
+     = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+     = note: for more information, see issue #154024 <https://github.com/rust-lang/rust/issues/154024>
+
+warning: use of deprecated method `std::sync::atomic::Atomic::<u32>::fetch_update`: renamed to `try_update` for consistency
+   --> src/widgets/display/image/protocol_renderer.rs:238:14
+    |
+238 |             .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |id| {
+    |              ^^^^^^^^^^^^
+    |
+help: replace the use of the deprecated method
+    |
+238 -             .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |id| {
+238 +             .try_update(Ordering::Relaxed, Ordering::Relaxed, |id| {
+    |
+
+warning: unused variable: `width`
+   --> src/ffi/lib.rs:122:14
+    |
+122 |         let (width, height) = renderer_box.dims();
+    |              ^^^^^ help: if this is intentional, prefix it with an underscore: `_width`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `validate_pointer` is never used
+   --> src/ffi/types.rs:182:15
+    |
+182 | pub(crate) fn validate_pointer<T>(ptr: *const T) -> bool {
+    |               ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `validate_mut_pointer` is never used
+   --> src/ffi/types.rs:187:15
+    |
+187 | pub(crate) fn validate_mut_pointer<T>(ptr: *mut T) -> bool {
+    |               ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `safe_cast` is never used
+   --> src/ffi/types.rs:192:22
+    |
+192 | pub(crate) unsafe fn safe_cast<T, U>(ptr: *mut T) -> Result<*mut U, ReactiveError> {
+    |                      ^^^^^^^^^
+
+warning: function `safe_cast_const` is never used
+   --> src/ffi/types.rs:206:22
+    |
+206 | pub(crate) unsafe fn safe_cast_const<T, U>(ptr: *const T) -> Result<*const U, ReactiveError> {
+    |                      ^^^^^^^^^^^^^^^
+
+warning: `reactive-tui` (lib) generated 10 warnings (run `cargo fix --lib -p reactive-tui` to apply 5 suggestions)
+warning: unnecessary `unsafe` block
+  --> tests/test_ffi_core_only.rs:10:9
+   |
+10 |         unsafe {
+   |         ^^^^^^ unnecessary `unsafe` block
+   |
+   = note: `#[warn(unused_unsafe)]` (part of `#[warn(unused)]`) on by default
+
+warning: unnecessary `unsafe` block
+  --> tests/test_ffi_core_only.rs:24:9
+   |
+24 |         unsafe {
+   |         ^^^^^^ unnecessary `unsafe` block
+
+warning: unnecessary `unsafe` block
+  --> tests/test_ffi_core_only.rs:67:9
+   |
+67 |         unsafe {
+   |         ^^^^^^ unnecessary `unsafe` block
+
+warning: unnecessary `unsafe` block
+  --> tests/test_ffi_core_only.rs:94:9
+   |
+94 |         unsafe {
+   |         ^^^^^^ unnecessary `unsafe` block
+
+warning: unnecessary `unsafe` block
+   --> tests/test_ffi_core_only.rs:127:9
+    |
+127 |         unsafe {
+    |         ^^^^^^ unnecessary `unsafe` block
+
+warning: unnecessary `unsafe` block
+   --> tests/test_ffi_core_only.rs:171:9
+    |
+171 |         unsafe {
+    |         ^^^^^^ unnecessary `unsafe` block
+
+warning: unnecessary `unsafe` block
+   --> tests/test_ffi_core_only.rs:193:9
+    |
+193 |         unsafe {
+    |         ^^^^^^ unnecessary `unsafe` block
+
+warning: `reactive-tui` (test "test_ffi_core_only") generated 7 warnings
+warning: unnecessary `unsafe` block
+  --> tests/test_ffi_integration.rs:10:9
+   |
+10 |         unsafe {
+   |         ^^^^^^ unnecessary `unsafe` block
+   |
+   = note: `#[warn(unused_unsafe)]` (part of `#[warn(unused)]`) on by default
+
+warning: unnecessary `unsafe` block
+  --> tests/test_ffi_integration.rs:60:9
+   |
+60 |         unsafe {
+   |         ^^^^^^ unnecessary `unsafe` block
+
+warning: unnecessary `unsafe` block
+   --> tests/test_ffi_integration.rs:115:9
+    |
+115 |         unsafe {
+    |         ^^^^^^ unnecessary `unsafe` block
+
+warning: unnecessary `unsafe` block
+   --> tests/test_ffi_integration.rs:150:9
+    |
+150 |         unsafe {
+    |         ^^^^^^ unnecessary `unsafe` block
+
+warning: unnecessary `unsafe` block
+   --> tests/test_ffi_integration.rs:172:9
+    |
+172 |         unsafe {
+    |         ^^^^^^ unnecessary `unsafe` block
+
+warning: `reactive-tui` (test "test_ffi_integration") generated 5 warnings
+warning: use of deprecated method `std::sync::atomic::Atomic::<usize>::fetch_update`: renamed to `try_update` for consistency
+   --> tests/api_focus.rs:216:22
+    |
+216 |                     .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |n| {
+    |                      ^^^^^^^^^^^^
+    |
+    = note: `#[warn(deprecated)]` on by default
+help: replace the use of the deprecated method
+    |
+216 -                     .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |n| {
+216 +                     .try_update(Ordering::SeqCst, Ordering::SeqCst, |n| {
+    |
+
+warning: `reactive-tui` (test "api_focus") generated 1 warning (run `cargo fix --test "api_focus" -p reactive-tui` to apply 1 suggestion)
+warning: `reactive-tui` (lib test) generated 10 warnings (10 duplicates)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 34.93s
+   Compiling reactive-tui v0.1.0 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 16.93s
+     Running tests/api_component_expansion.rs (target/debug/deps/api_component_expansion-9cdf15016a06f4fe)
+   Compiling reactive-tui v0.1.0 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 16.11s
+     Running tests/api_component_expansion.rs (target/debug/deps/api_component_expansion-7b17cbf7924864c9)
