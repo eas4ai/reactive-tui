@@ -24,3 +24,5 @@ frames, and a quit sequence that leaves the example running.
 
 The shell check runs the catalog behavior tests and locked example compile.
 Motion and media failures belong to their own mechanisms, not this result.
+reviewed:
+  - CAT-001 sha256:2ac77d4fd53d888d1a01845e319cc225865f949834652e4b4501c5aa1f34b8a9

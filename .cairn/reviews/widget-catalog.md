@@ -223,3 +223,19 @@ introduced. Host acceptance remains Kitty 0.45 on owned Xvfb X11 with DejaVu
 Sans Mono 12 pt and software host glyph rendering; no 60 FPS or universal-host
 claim is made. Embedded-shell and release work remain outside this commitment.
 No executable code changed during this closing review.
+
+## CAT-001 rewording review (spec lint repair)
+
+Re-read revised CAT-001 and its falsifier against mechanism `widget-catalog`.
+The revision splits one two-obligation sentence into two sentences with
+identical meaning: catalog keys select pages, and resize events change the
+navigation layout without restarting. The falsifier is unchanged in meaning.
+The mechanism proves its validator rejects missing pages, bad assets,
+compile-only evidence, identical frames, and lingering quit sequences, then
+runs catalog behavior tests and locked example compile — so both revised
+obligations remain covered.
+
+Failure demonstration: ran the mechanism's validator suite
+(`scripts/test-widget-catalog.py`), which feeds violating fixtures and
+corrected cases. All 11 tests pass: violating cases are rejected and corrected
+cases accepted. No mismatch found. No code changed during this review.
