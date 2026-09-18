@@ -25,7 +25,7 @@ class CheckerControls(unittest.TestCase):
             CHECK["require_input_cases"]("No actual lifecycle execution")
 
     def test_inventory_rejects_missing_and_duplicate_concerns(self):
-        text = (ROOT / "docs/residual-api-inventory.md").read_text()
+        text = CHECK["inventory_text"]()
         rows = CHECK["inventory_rows"](text)
         self.assertEqual(len(rows), len(CHECK["CONCERNS"]) + 1)
         line = next(line for line in text.splitlines() if line.startswith("| Legacy backend test reachability |"))
