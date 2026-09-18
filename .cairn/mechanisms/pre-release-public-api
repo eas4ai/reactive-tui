@@ -35,3 +35,5 @@ listed in `public-api-retention.toml` and backed by an active decision that
 names the item and its supported contract. The report MUST name every rustdoc
 feature surface, the public-item count, every test-helper finding, every legacy
 helper and reference count, and every accepted retention decision.
+reviewed:
+  - DQC-005 sha256:cdfb00e3a36a9b1cbd391a120fd40cc7b61cef3840392f5991079b0fceede036

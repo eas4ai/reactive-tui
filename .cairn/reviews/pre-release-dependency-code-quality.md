@@ -100,3 +100,22 @@ crossterm identity, default `onig_sys`, incomplete graphs) and the corrected
 clean observation. All 11 tests pass: violating cases are rejected and the
 corrected case accepted. No mismatch found. No code changed during this
 review.
+
+## DQC-005 rewording review (spec lint repair)
+
+Re-read revised DQC-005 and its falsifier against mechanism
+`pre-release-public-api`. The revision splits one two-obligation sentence into
+two sentences with identical meaning: test-only helpers stay out of production
+builds, and unreferenced legacy public helpers are removed or explicitly
+retained. The falsifier is unchanged in meaning. The mechanism denies
+missing-docs rustdoc across six feature surfaces, fails when `create_test_image`
+or another test-only helper is reachable in production, and requires retained
+legacy helpers to be listed with an active decision — so both revised
+obligations remain covered.
+
+Failure demonstration: ran the mechanism's validator suite
+(`scripts/test-pre-release-public-api.py`), which feeds violating fixtures
+(missing-docs diagnostic, public test-only helper, unretained legacy helper,
+stale/mismatched retention decision) and corrected cases. All 11 tests pass:
+violating cases are rejected and corrected cases accepted. No mismatch found.
+No code changed during this review.
