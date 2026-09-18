@@ -80,3 +80,23 @@ confirmation.
 
 No unresolved in-scope finding was identified. No executable code changed
 during this review.
+
+## DQC-002 rewording review (spec lint repair)
+
+Re-read revised DQC-002 and its falsifier against mechanism
+`pre-release-dependency-maintenance`. The revision splits one three-obligation
+sentence into three single-obligation sentences with identical meaning:
+aligned-or-justified taffy/vte duplicates, distinct maintained-crossterm-fork
+identity, and no oniguruma in the default Markdown feature set. The falsifier
+is unchanged in meaning. The mechanism inspects locked default, minimal, FFI,
+and Markdown graphs and fails on unapproved duplicates, ambiguous fork
+identity, or default `onig_sys`, so every revised obligation remains covered;
+no declaration change is needed beyond the reviewed digest entry.
+
+Failure demonstration: ran the mechanism's own validator suite
+(`scripts/test-pre-release-dependency-maintenance.py`), which feeds violating
+fixtures (unmaintained package, unapproved taffy/vte duplicate, ambiguous
+crossterm identity, default `onig_sys`, incomplete graphs) and the corrected
+clean observation. All 11 tests pass: violating cases are rejected and the
+corrected case accepted. No mismatch found. No code changed during this
+review.

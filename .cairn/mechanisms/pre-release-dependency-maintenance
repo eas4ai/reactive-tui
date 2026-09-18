@@ -30,3 +30,5 @@ incomplete graph output, any unexplained maintenance advisory, a duplicate
 reason, any package named `crossterm` that resolves to the maintained fork, or
 `onig_sys` in the default graph. The report MUST identify every inspected
 feature graph and the audited lockfile.
+reviewed:
+  - DQC-002 sha256:d4e396c124e7bbb8d2a0a3c5230876cc4223a77e2fe6ddb140d35402b190789e
