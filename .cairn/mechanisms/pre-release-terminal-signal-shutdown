@@ -29,3 +29,5 @@ down. The validator MUST first reject safe fixtures for immediate signal exit,
 missing restoration, skipped hook chaining, cross-thread restoration, and an
 unbounded child. Source inspection or a handler that restores from signal
 context cannot pass.
+reviewed:
+  - TRL-002 sha256:510b5c59e63344bab0e8edf386a73fdc552ee4aa77bb5600a3b66f5a05594d2b

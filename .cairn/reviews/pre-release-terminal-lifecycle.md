@@ -96,3 +96,21 @@ No unresolved finding remains inside this commitment. The work adds no
 dependency, persistence format, network boundary, secret handling, or public
 API. It uses the existing App wake path, Surface boundary, parser boundary, and
 owned-process lifecycle primitive.
+
+## TRL-002 rewording review (spec lint repair)
+
+Re-read revised TRL-002 and its falsifier against mechanism
+`pre-release-terminal-signal-shutdown`. The revision splits one two-obligation
+sentence into two sentences with identical meaning: panic-hook installation
+chains the prior hook, and the installation tears down no terminal state owned
+by another thread. The falsifier is unchanged in meaning. The mechanism probes
+SIGTERM/SIGINT/SIGHUP shutdown with PTY termios restoration, proves the prior
+hook runs exactly once, and proves a cross-thread panic leaves the terminal
+active until its owner shuts it down — so both revised obligations remain
+covered.
+
+Failure demonstration: a throwaway probe (`/tmp/trl002-review-probe.py`, not
+committed) ran the check's own `prove_validator()`, which feeds corrected PTY
+observations (accepted) and violating ones — immediate signal exit, missing
+restoration, skipped hook chaining, cross-thread restoration, unbounded child
+(rejected). No mismatch found. No code changed during this review.
