@@ -1,0 +1,9 @@
+   Compiling reactive-tui v0.1.0 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.45s
+     Running tests/api_hook_lifecycle.rs (target/debug/deps/api_hook_lifecycle-e33c6f4df0f1eed1)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running unittests src/lib.rs (target/debug/deps/reactive_tui-cf396ad3e1c2165f)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running unittests src/lib.rs (target/debug/deps/reactive_tui-cf396ad3e1c2165f)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.09s
+     Running unittests src/lib.rs (target/debug/deps/reactive_tui-cf396ad3e1c2165f)
