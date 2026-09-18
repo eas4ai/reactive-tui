@@ -24,8 +24,33 @@ ARCHIVE_SHA256 = "14b5131e9134d0012466574fba6d69fb9ef84eee66660ee861e2da48308957
 COLORS = {"red": (255, 0, 0), "blue": (0, 0, 255),
           "green": (0, 255, 0), "yellow": (255, 255, 0)}
 
+# Title-bar chrome (traffic lights) in points, calibrated from the pinned
+# iTerm 3.7.0 capture iterm-run-terminal/app-iterm/stage-0.png: buttons end at
+# row 121 and the image starts at row 214 in a 1364 px shot of a 570 pt
+# window, so 167 px ~= 70 pt sits between them.
+CHROME_POINTS = 70
 
-def measurements(screenshot, *, exact_srgb=True):
+
+def chrome_rows(screenshot, bounds):
+    """Top rows to skip so traffic lights never enter the measurement."""
+    from PIL import Image
+    with Image.open(screenshot) as source:
+        width, height = source.size
+    try:
+        scale = width / float((bounds or {}).get("Width", 0) or 0)
+    except (TypeError, ValueError):
+        scale = 0
+    if not scale > 0:
+        raise RuntimeError(
+            f"Cannot scale title-bar chrome without window width: {bounds!r}")
+    chrome = round(CHROME_POINTS * scale)
+    if not 0 < chrome < height // 3:
+        raise RuntimeError(
+            f"Title-bar chrome {chrome} implausible for {width}x{height}: {bounds!r}")
+    return chrome
+
+
+def measurements(screenshot, *, exact_srgb=True, chrome=0):
     # Dominant-channel regions verify geometry only. The developer approved
     # iTerm 3.7's color/transparency exclusion; exact measurements stay recorded.
     from PIL import Image, ImageCms
@@ -35,6 +60,8 @@ def measurements(screenshot, *, exact_srgb=True):
             pixels = ImageCms.profileToProfile(pixels,
                 ImageCms.ImageCmsProfile(io.BytesIO(source.info["icc_profile"])),
                 ImageCms.createProfile("sRGB"), outputMode="RGB")
+        if chrome:
+            pixels = pixels.crop((0, chrome, pixels.width, pixels.height))
         result = {}
         for name, color in COLORS.items():
             points = [(x, y) for y in range(pixels.height) for x in range(pixels.width)
@@ -110,7 +137,9 @@ def capture(app, directory, mode, executable):
             "while not stage.exists():\n"
             "    if time.monotonic() > deadline: raise RuntimeError('driver did not start')\n"
             "    time.sleep(.05)\n"
-            f"result = subprocess.run({[str(executable), str(stage), mode]!r}, timeout=50)\n"
+            f"result = subprocess.run({[str(executable), str(stage), mode]!r}, capture_output=True, timeout=50)\n"
+            f"pathlib.Path({str(directory / 'fixture-stdout.txt')!r}).write_bytes(result.stdout)\n"
+            f"pathlib.Path({str(directory / 'fixture-stderr.txt')!r}).write_bytes(result.stderr)\n"
             f"pathlib.Path({str(status)!r}).write_text(str(result.returncode))\n"
         )
         wrapper = work / "run.sh"
@@ -149,11 +178,11 @@ def capture(app, directory, mode, executable):
                     startup_diagnostics(child.pid, directory)
                     raise RuntimeError("Expected exactly one owned iTerm2 window with the probe title")
                 time.sleep(.1)
-            window_id = str(windows[0]["kCGWindowNumber"])
+            window = windows[0]
+            window_id = str(window.get("kCGWindowNumber"))
             if not window_id.isdecimal():
                 raise RuntimeError("Invalid iTerm2 window ID")
-            results = []
-            geometry = []
+            shots = []
             for number in range(3):
                 pending = work / "next"
                 pending.write_text(str(number))
@@ -162,12 +191,9 @@ def capture(app, directory, mode, executable):
                 if child.poll() is not None or status.exists():
                     raise RuntimeError("iTerm2 or image fixture exited before capture")
                 screenshot = directory / f"stage-{number}.png"
-                subprocess.run(["/usr/sbin/screencapture", "-x", "-l", window_id, str(screenshot)],
+                subprocess.run(["/usr/sbin/screencapture", "-x", "-o", "-l", window_id, str(screenshot)],
                                check=True, timeout=10)
-                results.append(measurements(screenshot))
-                geometry.append(measurements(screenshot, exact_srgb=False))
-            (directory / "pixels.json").write_text(json.dumps(results, indent=2) + "\n")
-            (directory / "geometry-pixels.json").write_text(json.dumps(geometry, indent=2) + "\n")
+                shots.append(screenshot)
             pending = work / "next"
             pending.write_text("3")
             pending.replace(stage)
@@ -180,6 +206,17 @@ def capture(app, directory, mode, executable):
             (directory / "fixture-exit.txt").write_text(code)
             if code != "0":
                 raise RuntimeError("Image fixture failed: " + code)
+            # Pixel analysis runs after the fixture exits so its cost never
+            # burns the probe's 45 s watchdog, and skips the title-bar chrome
+            # (traffic lights) that screencapture -l includes.
+            bounds = window.get("kCGWindowBounds", {})
+            chrome = chrome_rows(shots[0], bounds)
+            (directory / "chrome.json").write_text(json.dumps(
+                {"chrome_rows": chrome, "window_bounds": bounds}) + "\n")
+            results = [measurements(shot, chrome=chrome) for shot in shots]
+            geometry = [measurements(shot, exact_srgb=False, chrome=chrome) for shot in shots]
+            (directory / "pixels.json").write_text(json.dumps(results, indent=2) + "\n")
+            (directory / "geometry-pixels.json").write_text(json.dumps(geometry, indent=2) + "\n")
             return results, geometry
         finally:
             if child is not None and child.poll() is None:
