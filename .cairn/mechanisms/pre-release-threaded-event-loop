@@ -22,3 +22,5 @@ case MUST call `stop` while the input reader is blocked with no input. The Drop
 case MUST release a running loop and require the process thread count to return
 to its baseline. Every case MUST finish within its deadline and report explicit
 completion; killing a timed-out fixture is a failure.
+reviewed:
+  - RTR-002 sha256:b65e8f0e6bb0048fac6a5fb55e201d65163f93165cd6060e64539e5ab53e44d4

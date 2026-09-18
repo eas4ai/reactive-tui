@@ -74,3 +74,21 @@ The full default-feature library suite passed with 1,043 tests and 8 mechanism
 fixtures intentionally ignored. Focused checks and no-dependency library
 Clippy passed with eight build jobs. Ripwire reported no gating quality
 regression for the final RTR-003 or RTR-004 source changes.
+
+## RTR-002 rewording review (spec lint repair)
+
+Re-read revised RTR-002 and its falsifier against mechanism
+`pre-release-threaded-event-loop`. The revision splits one two-obligation
+sentence into two sentences with identical meaning: queues provide bounded
+backpressure without holding the consumer lock, and stop/Drop cancels and
+joins a blocked input reader. The falsifier is unchanged in meaning. The
+mechanism runs saturation, idle-stop, and Drop cases on a real PTY with
+deadlines and explicit completion markers, so both revised obligations remain
+covered.
+
+Failure demonstration: a throwaway probe (`/tmp/rtr002-review-probe.py`, not
+committed) exec'd the check's own validator functions and ran
+`prove_threaded_validator_rejects_violations`: the corrected observation is
+accepted and three violating observations — missing completion, failed
+process, exceeded deadline — are rejected. No mismatch found. No code changed
+during this review.
