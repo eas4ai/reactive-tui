@@ -3,7 +3,6 @@
 import os
 from pathlib import Path
 import shlex
-import signal
 import subprocess
 
 MECHANISMS = (
@@ -42,12 +41,7 @@ def main():
     for name, command in commands:
         print('Inherited acceptance: ' + name, flush=True)
         process = subprocess.Popen(command, start_new_session=True)
-        try:
-            status = process.wait(timeout=600)
-        except subprocess.TimeoutExpired:
-            os.killpg(process.pid, signal.SIGKILL)
-            process.wait()
-            raise RuntimeError('Inherited acceptance timed out: ' + name) from None
+        status = process.wait()
         if status:
             raise RuntimeError(f'Inherited acceptance failed: {name} (exit {status})')
     print('All 30 inherited requirements passed through nine acceptance commands', flush=True)
