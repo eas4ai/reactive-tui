@@ -1,0 +1,4 @@
+First App before second: FpsState { target_fps: 30, current_fps: 30.000002, avg_render_time_ms: 0.912686, drop_rate_percent: 0.0, is_stable: true, mode: PowerSave }
+First App after second: FpsState { target_fps: 30, current_fps: 30.000002, avg_render_time_ms: 0.912686, drop_rate_percent: 0.0, is_stable: true, mode: PowerSave }
+Second App: FpsState { target_fps: 144, current_fps: 144.00002, avg_render_time_ms: 0.46330002, drop_rate_percent: 0.0, is_stable: true, mode: Gaming }
+PERFORMANCE_OWNER_OK

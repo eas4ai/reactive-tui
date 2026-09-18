@@ -1,0 +1,7 @@
+Traceback (most recent call last):
+  File "/home/shawn/workspace2/reactive-tui/scripts/check-widget-platforms.py", line 224, in <module>
+    verify() if arguments.verify else run(arguments.dedicated_desktop, arguments.iterm_archive)
+    ~~~~~~^^
+  File "/home/shawn/workspace2/reactive-tui/scripts/check-widget-platforms.py", line 184, in verify
+    raise RuntimeError("Stale or invalid native widget evidence: " + system)
+RuntimeError: Stale or invalid native widget evidence: Windows

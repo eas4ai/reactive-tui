@@ -1,0 +1,78 @@
+    Blocking waiting for file lock on artifact directory
+   Compiling serde_core v1.0.229
+   Compiling serde v1.0.229
+   Compiling serde_json v1.0.143
+   Compiling zvariant_utils v4.2.0
+   Compiling enumflags2 v0.7.12
+   Compiling zcheapstr v1.1.0
+   Compiling uuid v1.18.1
+   Compiling bincode v1.3.3
+   Compiling ciborium v0.2.2
+   Compiling plist v1.10.1
+   Compiling string_cache v0.8.9
+   Compiling taffy v0.9.2
+   Compiling accesskit v0.25.0
+   Compiling zvariant_derive v5.15.0
+   Compiling tinytemplate v1.2.1
+   Compiling syntect v5.3.0
+   Compiling accesskit_consumer v0.39.0
+   Compiling criterion v0.5.1
+   Compiling zvariant v5.15.0
+   Compiling zbus_names v4.3.4
+   Compiling zbus_xml v5.2.1
+   Compiling zbus_macros v5.19.0
+   Compiling zbus-lockstep v0.5.2
+   Compiling zbus-lockstep-macros v0.5.2
+   Compiling zbus v5.19.0
+   Compiling atspi-common v0.13.0
+   Compiling atspi-proxies v0.13.0
+   Compiling atspi v0.29.0
+   Compiling reactive-tui v0.1.0 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1m 49s
+     Running unittests src/lib.rs (/home/shawn/workspace2/scratchpads/suprnova-target/debug/deps/reactive_tui-e6259c94dd2cfe8d)
+
+running 41 tests
+test widgets::display::image::decoded::tests::api_image_decode_all_advertised_encoded_formats ... ok
+test widgets::display::image::decoded::tests::api_image_decode_opaque_renderers_composite_alpha ... ok
+test widgets::display::image::decoded::tests::api_image_decode_rejects_malformed_and_oversized_sources ... ok
+test widgets::display::image::decoded::tests::api_image_decode_sources_preserve_pixels_and_encoded_dimensions ... ok
+test widgets::display::image::decoded::tests::xis_002_decode_rejects_combined_storage_over_budget ... ok
+test widgets::display::image::external_renderer::tests::api_image_external_commands_bound_resources ... ok
+test widgets::display::image::external_renderer::tests::api_image_external_raw_pixels_are_encoded_as_png ... ok
+test widgets::display::image::external_renderer::tests::api_image_external_render_preserves_caller_file ... ok
+test widgets::display::image::external_renderer::tests::api_image_temporary_files_are_independent_and_owned ... ok
+test widgets::display::image::external_renderer::tests::api_image_viu_prepares_aspect_background_and_stretched_pixels ... ok
+test widgets::display::image::external_renderer::tests::test_get_display_constraints_default ... ok
+test widgets::display::image::external_renderer::tests::test_get_display_constraints_with_size ... ok
+test widgets::display::image::external_renderer::tests::test_write_temp_file ... ok
+test widgets::display::image::external_renderer::tests::xis_002_argument_validator_rejects_unsafe_observations ... ok
+test widgets::display::image::external_renderer::tests::xis_002_external_paths_are_positional_data ... ok
+test widgets::display::image::image_processor::tests::api_image_ascii_obeys_both_dimensions_and_uses_decoded_pixels ... ok
+test widgets::display::image::image_processor::tests::api_image_grayscale_preserves_neutral_channels ... ok
+test widgets::display::image::image_processor::tests::test_ascii_config_default ... ok
+test widgets::display::image::image_processor::tests::test_floyd_steinberg_dithering ... ok
+test widgets::display::image::image_processor::tests::test_rgb_to_grayscale_conversion ... ok
+test widgets::display::image::live::animation::tests::api_image_gif_bounds_zero_delay_and_rejects_excess_tiny_frames ... ok
+test widgets::display::image::live::animation::tests::api_image_gif_composites_disposal_and_obeys_finite_and_infinite_timing ... ok
+test widgets::display::image::live::animation::tests::api_image_gif_rejects_cumulative_storage_before_allocating_frames_and_cancels ... ok
+test widgets::display::image::live::cells::tests::api_image_external_cells_preserve_first_row_colors_and_ignore_host_commands ... ok
+test widgets::display::image::live::worker::external_tests::api_image_external_auto_keeps_graphics_priority_and_falls_back_between_tools ... ok
+test widgets::display::image::live::worker::external_tests::api_image_external_worker_reuses_decoded_source_and_cancels_owned_child ... ok
+test widgets::display::image::live::worker::tests::api_image_gif_worker_stops_finite_playback_and_replaces_infinite_source ... ok
+test widgets::display::image::live::worker::tests::api_image_worker_publishes_latest_source_and_releases_ownership ... ok
+test widgets::display::image::live::worker::tests::api_image_worker_reports_current_errors_and_joins_pending_work ... ok
+test widgets::display::image::protocol_renderer::tests::api_image_protocol_background_and_fast_resize_reach_encoded_pixels ... ok
+test widgets::display::image::protocol_renderer::tests::api_image_protocol_iterm_encodes_an_image_file_with_byte_size ... ok
+test widgets::display::image::protocol_renderer::tests::api_image_protocol_kitty_transmits_one_chunked_rgba_image ... ok
+test widgets::display::image::protocol_renderer::tests::api_image_protocol_rejects_invalid_raw_extents ... ok
+test widgets::display::image::protocol_renderer::tests::test_calculate_display_size_preserve_aspect ... ok
+test widgets::display::image::protocol_renderer::tests::test_generate_image_id ... ok
+test widgets::display::image::protocol_renderer::tests::test_process_raw_bytes_rgb_to_rgba ... ok
+test widgets::display::image::sixel_renderer::tests::test_calculate_display_size_no_upscale ... ok
+test widgets::display::image::sixel_renderer::tests::test_calculate_display_size_preserve_aspect ... ok
+test widgets::display::image::sixel_renderer::tests::test_ensure_rgb888_validation ... ok
+test widgets::display::image::tests::api_image_empty_bounds_emit_no_protocol_or_placeholder ... ok
+test widgets::display::image::tests::api_image_unavailable_protocols_fall_back_to_decoded_image ... ok
+
+test result: ok. 41 passed; 0 failed; 0 ignored; 0 measured; 1023 filtered out; finished in 15.98s
+
