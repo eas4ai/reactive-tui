@@ -150,10 +150,12 @@ def run(dedicated_desktop=False, iterm_archive=None):
     if system == "Darwin":
         try:
             probe = build_probe(directory / "iterm-build.out")
+            # Five modes at ~60 s each: window launch, staged captures, then
+            # six post-exit pixel scans per mode.
             execute([sys.executable, "-B", "scripts/check-iterm-host.py", "--dedicated-desktop",
                      "--executable", probe, "--output", str(directory / "iterm-host")]
                      + (["--archive", str(iterm_archive)] if iterm_archive else []),
-                    directory / "iterm-host.out", 240)
+                    directory / "iterm-host.out", 900)
         except (RuntimeError, subprocess.TimeoutExpired) as error:
             failures.append(str(error))
     if failures:
