@@ -1,0 +1,89 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.09s
+     Running unittests src/lib.rs (target/debug/deps/reactive_tui-cf396ad3e1c2165f)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.09s
+     Running unittests src/lib.rs (target/debug/deps/reactive_tui-cf396ad3e1c2165f)
+   Compiling reactive-tui v0.1.0 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.96s
+     Running tests/app_wakeups.rs (target/debug/deps/app_wakeups-6a62c644b52b95db)
+   Compiling reactive-tui v0.1.0 (/home/shawn/workspace2/reactive-tui)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.89s
+   Compiling reactive-tui-libghostty-vt-sys v0.1.0 (/home/shawn/workspace2/reactive-tui/crates/libghostty-vt-sys)
+   Compiling reactive-tui v0.1.0 (/home/shawn/workspace2/reactive-tui)
+   Compiling reactive-tui-libghostty-vt v0.1.0 (/home/shawn/workspace2/reactive-tui/crates/libghostty-vt)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 50.88s
+     Running unittests src/lib.rs (target/debug/deps/reactive_tui-2a34340922e0257e)
+   Compiling reactive-tui-libghostty-vt-sys v0.1.0 (/home/shawn/workspace2/reactive-tui/crates/libghostty-vt-sys)
+   Compiling reactive-tui-libghostty-vt v0.1.0 (/home/shawn/workspace2/reactive-tui/crates/libghostty-vt)
+   Compiling reactive-tui v0.1.0 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 21.83s
+     Running tests/embedded_terminal.rs (target/debug/deps/embedded_terminal-146dce829b3eb1d4)
+   Compiling reactive-tui-libghostty-vt-sys v0.1.0 (/home/shawn/workspace2/reactive-tui/crates/libghostty-vt-sys)
+   Compiling reactive-tui-libghostty-vt v0.1.0 (/home/shawn/workspace2/reactive-tui/crates/libghostty-vt)
+   Compiling reactive-tui v0.1.0 (/home/shawn/workspace2/reactive-tui)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 6.75s
+   Compiling simd-adler32 v0.3.7
+   Compiling crc32fast v1.5.0
+   Compiling cfg-if v1.0.3
+   Compiling version_check v0.9.5
+   Compiling adler2 v2.0.1
+   Compiling autocfg v1.5.0
+   Compiling quick-error v2.0.1
+   Compiling color_quant v1.1.0
+   Compiling byteorder-lite v0.1.0
+   Compiling bitflags v1.3.2
+   Compiling arrayvec v0.7.6
+   Compiling weezl v0.1.10
+   Compiling zune-core v0.4.12
+   Compiling memchr v2.7.5
+   Compiling num-traits v0.2.19
+   Compiling zune-jpeg v0.4.20
+   Compiling slotmap v1.0.7
+   Compiling smallvec v1.15.1
+   Compiling bytemuck v1.23.2
+   Compiling image-webp v0.2.4
+   Compiling unicode-properties v0.1.4
+   Compiling gif v0.13.3
+   Compiling unicode-segmentation v1.13.3
+   Compiling miniz_oxide v0.8.9
+   Compiling fdeflate v0.3.7
+   Compiling taffy v0.13.0
+   Compiling vte v0.15.0
+   Compiling flate2 v1.1.2
+   Compiling png v0.17.16
+   Compiling image v0.25.6
+   Compiling reactive-tui-suprtui v0.1.0 (/home/shawn/workspace2/reactive-tui/src/backend/engine)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 6.69s
+     Running unittests src/lib.rs (target/renderer/debug/deps/suprtui-73072d51366a902e)
+     Running tests/buffer_core.rs (target/renderer/debug/deps/buffer_core-8b5f7745800557bb)
+     Running tests/buffer_draw.rs (target/renderer/debug/deps/buffer_draw-6e2d80fbd202c644)
+     Running tests/cell_decorations.rs (target/renderer/debug/deps/cell_decorations-d8a6796d6e6aa263)
+     Running tests/layout_engine.rs (target/renderer/debug/deps/layout_engine-6af01c5c76da2a15)
+     Running tests/link_pool.rs (target/renderer/debug/deps/link_pool-d2adfc30f54fbd94)
+     Running tests/media_audio.rs (target/renderer/debug/deps/media_audio-f8c7a006552b4d28)
+     Running tests/media_image.rs (target/renderer/debug/deps/media_image-2dfe9d9e33fb6c32)
+     Running tests/render_core.rs (target/renderer/debug/deps/render_core-dbc6d1e63454dc41)
+     Running tests/render_stdout.rs (target/renderer/debug/deps/render_stdout-f42ae1246d80bc31)
+     Running tests/render_terminal.rs (target/renderer/debug/deps/render_terminal-460c877d116d1e7e)
+     Running tests/sys_clipboard.rs (target/renderer/debug/deps/sys_clipboard-5ba3a88243c4fc93)
+     Running tests/sys_clipboard_backends.rs (target/renderer/debug/deps/sys_clipboard_backends-8fdd34243a29de4d)
+     Running tests/sys_core.rs (target/renderer/debug/deps/sys_core-6854873142f7e5fa)
+     Running tests/sys_small.rs (target/renderer/debug/deps/sys_small-a5809482f868ae72)
+     Running tests/term_core.rs (target/renderer/debug/deps/term_core-362455d9156b6b12)
+     Running tests/term_embedded.rs (target/renderer/debug/deps/term_embedded-8f86a74aebcbbea7)
+     Running tests/text_gaps.rs (target/renderer/debug/deps/text_gaps-2fff26681e7a8238)
+     Running tests/text_store.rs (target/renderer/debug/deps/text_store-210798e99e0db89e)
+     Running tests/text_view.rs (target/renderer/debug/deps/text_view-f545e5846cb561b0)
+     Running tests/uni_pool.rs (target/renderer/debug/deps/uni_pool-edd51ed015faf3d9)
+     Running tests/uni_ported.rs (target/renderer/debug/deps/uni_ported-b9804e7bcf4328f5)
+     Running tests/uni_segments.rs (target/renderer/debug/deps/uni_segments-e2699785e69765dd)
+   Doc-tests suprtui
+   Compiling reactive-tui v0.1.0 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 5.59s
+     Running tests/suprtui_renderer.rs (target/debug/deps/suprtui_renderer-6df15f8c75abb413)
+   Compiling reactive-tui v0.1.0 (/home/shawn/workspace2/reactive-tui)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.86s
+....
+----------------------------------------------------------------------
+Ran 4 tests in 0.012s
+
+OK

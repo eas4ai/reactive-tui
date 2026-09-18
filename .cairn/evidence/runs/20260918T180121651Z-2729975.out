@@ -1,0 +1,24 @@
+.....
+----------------------------------------------------------------------
+Ran 5 tests in 0.011s
+
+OK
+..................
+----------------------------------------------------------------------
+Ran 18 tests in 0.818s
+
+OK
+Building isolated Kitty; log: /home/shawn/workspace2/reactive-tui/target/kitty-image-host/684c41622674e6462bc7/build-20260918T180122678189Z.out
+Traceback (most recent call last):
+  File "/home/shawn/workspace2/reactive-tui/scripts/check-api-images.py", line 108, in <module>
+    main()
+    ~~~~^^
+  File "/home/shawn/workspace2/reactive-tui/scripts/check-api-images.py", line 42, in main
+    host_binary, host_record = kitty_host["ensure_host"]()
+                               ~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "/home/shawn/workspace2/reactive-tui/scripts/kitty-host/build.py", line 138, in ensure_host
+    execute(command, build_log, 1200)
+    ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/shawn/workspace2/reactive-tui/scripts/check-widget-platforms.py", line 74, in execute
+    raise RuntimeError(f"Native widget command failed ({status}): {output}")
+RuntimeError: Native widget command failed (1): /home/shawn/workspace2/reactive-tui/target/kitty-image-host/684c41622674e6462bc7/build-20260918T180122678189Z.out
