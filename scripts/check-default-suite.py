@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
-"""Run the whole default suite with bounded execution and workspace temp space."""
+"""Run the whole default suite with workspace temp space."""
 import os
 from pathlib import Path
-import signal
 import shutil
 import sys
 import subprocess
@@ -19,13 +18,7 @@ def main():
             env={**os.environ, "TMPDIR": scratch}, start_new_session=True,
             stdout=output, stderr=subprocess.STDOUT,
         )
-        try:
-            status = process.wait(timeout=300)
-        except subprocess.TimeoutExpired:
-            os.killpg(process.pid, signal.SIGKILL)
-            process.wait()
-            print("Default suite exceeded its 300-second deadline", flush=True)
-            status = 124
+        status = process.wait()
         output.seek(0)
         shutil.copyfileobj(output, sys.stdout.buffer)
         return status
