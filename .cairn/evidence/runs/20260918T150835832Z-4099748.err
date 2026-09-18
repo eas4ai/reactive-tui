@@ -1,0 +1,7 @@
+    Blocking waiting for file lock on artifact directory
+   Compiling reactive-tui v0.1.0 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1m 02s
+     Running unittests src/lib.rs (/home/shawn/workspace2/scratchpads/suprnova-target/debug/deps/reactive_tui-cf396ad3e1c2165f)
+   Compiling reactive-tui v0.1.0 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 18.95s
+     Running tests/api_paint_properties.rs (/home/shawn/workspace2/scratchpads/suprnova-target/debug/deps/api_paint_properties-e624ff765df11a2f)
