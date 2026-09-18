@@ -1,0 +1,7 @@
+............
+----------------------------------------------------------------------
+Ran 12 tests in 0.010s
+
+OK
+warning: directory /home/shawn/.cargo/advisory-db is locked, waiting for up to 300 seconds for it to become available
+    Blocking waiting for file lock on package cache
