@@ -1,0 +1,18 @@
+mechanism: pre-release-animation-hook-ownership
+commit: 097b792ba1adada75c19c4044859d56b6651de41
+inputs_digest: sha256:474ca31e65075aa3ca2d7e6dae113052fe8fbbbfcb2a3990056fb9e26732028a
+mechanism_digest: sha256:c026413f611b13cac95d69dcf42620220f9ec55579e17ff8b6a3f0b6ca3c31fe
+kernel_digest: sha256:24ec9309c12d7ddb5b8693ffc74f3aad4a3ea660e4a42980c57ad2031d6f6f05
+inputs_detail: .cairn/evidence/runs/20260918T171752204Z-2216999.inputs.json
+command: python3 -B scripts/check-pre-release-reactive-concurrency.py RAC-001
+cwd: .
+exit: 0
+output_digest: sha256:11dbd5738cef1cdc12d8d7675ba50aed8b4ca79594ed0c5a1065f520ba8fcc91
+output: .cairn/evidence/runs/20260918T171752204Z-2216999.out
+stderr_output: .cairn/evidence/runs/20260918T171752204Z-2216999.err
+stderr_digest: sha256:f53f57dafd7bc4abb14a3a66ff3abecad928d7b74a02a6854f3f88f1796e4070
+signal: none
+execution_error: null
+recorded: 2026-09-18T17:17:52.824Z
+results:
+  - RAC-001 pass exit sha256:b8e4ed21c11655e8459ba8bab8aa94e2beade73ddd1d57f936724252f7d55362 12 sha256:b7068c7077c056d442141778cbe6d5f882ea09a45e6e8c29dae45fe35432b9f2
