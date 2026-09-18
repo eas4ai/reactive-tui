@@ -21,3 +21,5 @@ the worker and fires, and require the worker to stop within a bounded deadline
 after the hook storage and final timer handle are dropped. The observation MUST
 use state owned by that fallback scheduler so unrelated test workers cannot
 satisfy or invalidate the result.
+reviewed:
+  - RAC-003 sha256:e04c348564c723560b295f17b1ff5be4093bf390710f12693ea12644c5d58484

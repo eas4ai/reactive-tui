@@ -68,3 +68,21 @@ no-dependency library Clippy passed with eight build jobs. Full default
 integration discovery remains affected by the repository's existing
 feature-gating failure in `ffi_app_representation`; that is outside this
 commitment and was not treated as passing evidence.
+
+## RAC-003 rewording review (spec lint repair)
+
+Re-read revised RAC-003 and its falsifier against mechanism
+`pre-release-fallback-timer-lifecycle`. The revision splits one two-obligation
+sentence into two sentences with identical meaning: the fallback worker sleeps
+until scheduled work or shutdown, and it stops when its last owner is gone.
+The falsifier is unchanged in meaning. The mechanism's validator rejects idle
+wakeups, unfired timers, and surviving workers, rejects the former 1ms poll
+loop by source shape, and runs the focused `rac_003_` tests serially, so both
+revised obligations remain covered.
+
+Failure demonstration: a throwaway probe (`/tmp/rac003-review-probe.py`, not
+committed) called the check's own `validate_fallback_timer` with the corrected
+observation (accepted) and three violating observations — idle wakeup, unfired
+timer, surviving worker — each rejected; `reject_permanent_fallback_polling`
+also passes against current `src/hooks/timer.rs`. No mismatch found. No code
+changed during this review.
