@@ -1,0 +1,18 @@
+mechanism: api-images
+commit: b441bc1a903221c9882cafece881016e26e04170
+inputs_digest: sha256:1d6888d2a23e72000762fc922e6cd4a5595d0dd756ee7a8906277e719b7e5f2b
+mechanism_digest: sha256:98bb9f4816d5b40fd79f55f50bf8a9109ca65e1c091b0b746469346deba7589a
+kernel_digest: sha256:160c9a5b8ec13386549cffdd26241209b59c4eb8645da1fe5f13eff7bb81e37c
+inputs_detail: .cairn/evidence/runs/20260918T135941337Z-1528281.inputs.json
+command: sh -c 'python3 -B scripts/test-api-images.py && python3 -B scripts/test-widget-platforms.py && python3 -B scripts/check-api-images.py'
+cwd: .
+exit: 1
+output_digest: sha256:65b0395d1a98dcf353807516f17bec0855d0d51d11fe6d14b8424aa9b11fafbd
+output: .cairn/evidence/runs/20260918T135941337Z-1528281.out
+stderr_output: .cairn/evidence/runs/20260918T135941337Z-1528281.err
+stderr_digest: sha256:f79c3af1183418ee5caa830167b794f13f97240afcfcedb9800b93d484804038
+signal: none
+execution_error: null
+recorded: 2026-09-18T14:02:09.585Z
+results:
+  - API-014 fail exit sha256:51c1e7f31f33991ae41b349bb18a1725868c89575e7f3bf22e4f9f03918c670f 26 sha256:fe147f36774acb3da5cf97c9fa2f1a89d6b48c8a67ba7381e09a62ce487c8a5a
