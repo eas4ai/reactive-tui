@@ -60,3 +60,20 @@ ignored Cairn in-progress record used for this review.
 The final index refresh changed only the generated symbol and relationship
 counts in `AGENTS.md`. It did not change manual content, source, tests, features,
 or dependencies. The new evidence receipts pass against that indexed candidate.
+
+## MAN-002 rewording review (spec lint repair)
+
+Re-read revised MAN-002 and its falsifier against mechanism `framework-manual`.
+The revision splits one two-obligation sentence into two sentences with
+identical meaning: claims follow the current source and tests, and retained
+specifications/decisions explain intent or limits without overriding observed
+implementation. The falsifier is unchanged in meaning. The mechanism requires
+every public module, widget family, and Cargo feature to be covered by focused
+pages with module lines and tracked source/test links, so the revised
+obligations remain covered.
+
+Failure demonstration: a throwaway probe (`/tmp/man002-review-probe.py`, not
+committed) used the check's own `exported_modules` and `fail`: the true
+`src/lib.rs` module set passes the coverage comparison, while a set missing
+one module (`builder`) is rejected with the check's own mismatch error. No
+mismatch found. No code changed during this review.
