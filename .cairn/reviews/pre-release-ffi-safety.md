@@ -44,3 +44,21 @@ footprint.
 
 No executable code changed during this review. The existing warnings and
 Linux-only runtime coverage remain assigned to later remediation commitments.
+
+## FFS-004 rewording review (spec lint repair)
+
+Re-read revised FFS-004 and its falsifier against mechanism
+`pre-release-ffi-buffer-ownership`. The revision splits one two-obligation
+sentence into two sentences with identical meaning: pointer validation docs
+state what is actually proven, and tracked handles reject repeated
+destruction. The falsifier is unchanged in meaning. The mechanism runs a
+sanitizer-backed C consumer covering wrong-length release, double release,
+double destroy, and self-parenting, and requires the pointer contract to state
+that plausibility checks do not prove allocation, liveness, ownership, or
+readability — so both revised obligations remain covered.
+
+Failure demonstration: a throwaway probe (`/tmp/ffs004-review-probe.py`, not
+committed) applied the check's own limit-phrase predicate to the current
+`src/ffi/pointer.rs` (accepted) and to an in-memory copy with the "liveness"
+limit removed (rejected). No mismatch found. No code changed during this
+review.

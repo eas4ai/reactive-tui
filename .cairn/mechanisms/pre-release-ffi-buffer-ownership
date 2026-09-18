@@ -22,3 +22,5 @@ and text buffers twice, and attempts to add an element as its own child. All
 cases MUST complete with documented results and no invalid memory access. The
 check MUST also require the pointer-validation contract to say that plausibility
 checks do not prove allocation, liveness, ownership, or readability.
+reviewed:
+  - FFS-004 sha256:ea362c9e525808ab764c557fb5d34b514b22df6ae3d85028b620dc271d6dec55
