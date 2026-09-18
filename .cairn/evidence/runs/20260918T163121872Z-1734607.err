@@ -1,0 +1,9 @@
+   Compiling reactive-tui-suprtui v0.1.0 (/home/shawn/workspace2/reactive-tui/src/backend/engine)
+   Compiling reactive-tui-crossterm v0.1.0 (/home/shawn/workspace2/reactive-tui/src/backend/crossterm)
+   Compiling reactive-tui-macros v0.1.0 (/home/shawn/workspace2/reactive-tui/reactive-tui-macros)
+   Compiling reactive-tui v0.1.0 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 27.67s
+     Running tests/api_focus.rs (target/debug/deps/api_focus-0432e3d8d960dc21)
+   Compiling reactive-tui v0.1.0 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 22.78s
+     Running unittests src/lib.rs (target/debug/deps/reactive_tui-cf396ad3e1c2165f)
