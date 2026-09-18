@@ -1,0 +1,7 @@
+    Blocking waiting for file lock on artifact directory
+   Compiling reactive-tui v0.1.0 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 46.27s
+     Running tests/api_editor_unicode.rs (/home/shawn/workspace2/scratchpads/suprnova-target/debug/deps/api_editor_unicode-15488437352deca2)
+    Blocking waiting for file lock on artifact directory
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 29.27s
+     Running unittests src/lib.rs (/home/shawn/workspace2/scratchpads/suprnova-target/debug/deps/reactive_tui-cf396ad3e1c2165f)
