@@ -1,0 +1,557 @@
+Inherited acceptance: maintenance-format
+Inherited acceptance: maintenance-lint
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.89s
+Inherited acceptance: maintenance-ffi
+   Compiling reactive-tui v0.1.0 (/home/shawn/workspace2/reactive-tui)
+warning: ambiguous glob re-exports
+   --> src/ffi/mod.rs:143:9
+    |
+143 | pub use pointer::*;
+    |         ^^^^^^^^^^ the name `validate_pointer` in the value namespace is first re-exported here
+...
+148 | pub use types::*;
+    |         -------- but the name `validate_pointer` in the value namespace is also re-exported here
+    |
+    = note: `#[warn(ambiguous_glob_reexports)]` on by default
+
+warning: unused variable: `width`
+   --> src/ffi/lib.rs:122:14
+    |
+122 |         let (width, height) = renderer_box.dims();
+    |              ^^^^^ help: if this is intentional, prefix it with an underscore: `_width`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `validate_pointer` is never used
+   --> src/ffi/types.rs:182:15
+    |
+182 | pub(crate) fn validate_pointer<T>(ptr: *const T) -> bool {
+    |               ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `validate_mut_pointer` is never used
+   --> src/ffi/types.rs:187:15
+    |
+187 | pub(crate) fn validate_mut_pointer<T>(ptr: *mut T) -> bool {
+    |               ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `safe_cast` is never used
+   --> src/ffi/types.rs:192:22
+    |
+192 | pub(crate) unsafe fn safe_cast<T, U>(ptr: *mut T) -> Result<*mut U, ReactiveError> {
+    |                      ^^^^^^^^^
+
+warning: function `safe_cast_const` is never used
+   --> src/ffi/types.rs:206:22
+    |
+206 | pub(crate) unsafe fn safe_cast_const<T, U>(ptr: *const T) -> Result<*const U, ReactiveError> {
+    |                      ^^^^^^^^^^^^^^^
+
+warning: `reactive-tui` (lib test) generated 6 warnings (run `cargo fix --lib -p reactive-tui --tests` to apply 1 suggestion)
+warning: `reactive-tui` (lib) generated 6 warnings (6 duplicates)
+warning: unnecessary `unsafe` block
+  --> tests/test_ffi_core_only.rs:10:9
+   |
+10 |         unsafe {
+   |         ^^^^^^ unnecessary `unsafe` block
+   |
+   = note: `#[warn(unused_unsafe)]` (part of `#[warn(unused)]`) on by default
+
+warning: unnecessary `unsafe` block
+  --> tests/test_ffi_core_only.rs:24:9
+   |
+24 |         unsafe {
+   |         ^^^^^^ unnecessary `unsafe` block
+
+warning: unnecessary `unsafe` block
+  --> tests/test_ffi_core_only.rs:67:9
+   |
+67 |         unsafe {
+   |         ^^^^^^ unnecessary `unsafe` block
+
+warning: unnecessary `unsafe` block
+  --> tests/test_ffi_core_only.rs:94:9
+   |
+94 |         unsafe {
+   |         ^^^^^^ unnecessary `unsafe` block
+
+warning: unnecessary `unsafe` block
+   --> tests/test_ffi_core_only.rs:127:9
+    |
+127 |         unsafe {
+    |         ^^^^^^ unnecessary `unsafe` block
+
+warning: unnecessary `unsafe` block
+   --> tests/test_ffi_core_only.rs:171:9
+    |
+171 |         unsafe {
+    |         ^^^^^^ unnecessary `unsafe` block
+
+warning: unnecessary `unsafe` block
+   --> tests/test_ffi_core_only.rs:193:9
+    |
+193 |         unsafe {
+    |         ^^^^^^ unnecessary `unsafe` block
+
+warning: `reactive-tui` (test "test_ffi_core_only") generated 7 warnings
+warning: unnecessary `unsafe` block
+  --> tests/test_ffi_integration.rs:10:9
+   |
+10 |         unsafe {
+   |         ^^^^^^ unnecessary `unsafe` block
+   |
+   = note: `#[warn(unused_unsafe)]` (part of `#[warn(unused)]`) on by default
+
+warning: unnecessary `unsafe` block
+  --> tests/test_ffi_integration.rs:60:9
+   |
+60 |         unsafe {
+   |         ^^^^^^ unnecessary `unsafe` block
+
+warning: unnecessary `unsafe` block
+   --> tests/test_ffi_integration.rs:115:9
+    |
+115 |         unsafe {
+    |         ^^^^^^ unnecessary `unsafe` block
+
+warning: unnecessary `unsafe` block
+   --> tests/test_ffi_integration.rs:150:9
+    |
+150 |         unsafe {
+    |         ^^^^^^ unnecessary `unsafe` block
+
+warning: unnecessary `unsafe` block
+   --> tests/test_ffi_integration.rs:172:9
+    |
+172 |         unsafe {
+    |         ^^^^^^ unnecessary `unsafe` block
+
+warning: `reactive-tui` (test "test_ffi_integration") generated 5 warnings
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 43.43s
+  Executable unittests src/lib.rs (target/debug/deps/reactive_tui-fc4cf5b4641a961e)
+  Executable tests/advanced_table_test.rs (target/debug/deps/advanced_table_test-6454a3c599728017)
+  Executable tests/alignment_strict_tests.rs (target/debug/deps/alignment_strict_tests-e516ecdb97c2a0fe)
+  Executable tests/alignment_utility_tests.rs (target/debug/deps/alignment_utility_tests-e1e8adcf28abd67a)
+  Executable tests/animations_integration.rs (target/debug/deps/animations_integration-8d3060fb1b453892)
+  Executable tests/api_animation_screens.rs (target/debug/deps/api_animation_screens-bbcafd4d9247e75a)
+  Executable tests/api_clipboard.rs (target/debug/deps/api_clipboard-61b75f8faca21151)
+  Executable tests/api_component_expansion.rs (target/debug/deps/api_component_expansion-52f1a93d5988e957)
+  Executable tests/api_dialog_lifecycle.rs (target/debug/deps/api_dialog_lifecycle-a16b519166ee2758)
+  Executable tests/api_documentation_contract.rs (target/debug/deps/api_documentation_contract-983db4d7af220340)
+  Executable tests/api_editor_unicode.rs (target/debug/deps/api_editor_unicode-d22cc3a3916cce6c)
+  Executable tests/api_event_routing.rs (target/debug/deps/api_event_routing-8f0caed0455e8d40)
+  Executable tests/api_feature_configurations.rs (target/debug/deps/api_feature_configurations-86f725099a7d5bbd)
+  Executable tests/api_focus.rs (target/debug/deps/api_focus-e0fa70a260791dda)
+  Executable tests/api_gesture_coordinates.rs (target/debug/deps/api_gesture_coordinates-339b564743ea1a24)
+  Executable tests/api_hook_lifecycle.rs (target/debug/deps/api_hook_lifecycle-35580a599eddc35a)
+  Executable tests/api_hook_state.rs (target/debug/deps/api_hook_state-7dc25b08f9ff9535)
+  Executable tests/api_local_hooks.rs (target/debug/deps/api_local_hooks-bab937033ca7143f)
+  Executable tests/api_mouse_hook_routing.rs (target/debug/deps/api_mouse_hook_routing-2ecf664de21929bc)
+  Executable tests/api_paint_properties.rs (target/debug/deps/api_paint_properties-f2dd46e9b6afa571)
+  Executable tests/api_performance_context.rs (target/debug/deps/api_performance_context-868770db4a6e5d31)
+  Executable tests/api_props_contract.rs (target/debug/deps/api_props_contract-b9ff6b8d12c69406)
+  Executable tests/api_residual_refs.rs (target/debug/deps/api_residual_refs-8bcc830b8f3704b8)
+  Executable tests/api_signal_ownership.rs (target/debug/deps/api_signal_ownership-4e4a673a4e902db9)
+  Executable tests/api_styling.rs (target/debug/deps/api_styling-2f3a737eeb743452)
+  Executable tests/api_updater.rs (target/debug/deps/api_updater-14076c730e3f6e32)
+  Executable tests/api_widget_behavior.rs (target/debug/deps/api_widget_behavior-722a0934ff3a2bff)
+  Executable tests/app_wakeups.rs (target/debug/deps/app_wakeups-dad7cd7ad922d924)
+  Executable tests/arithmetic_boundaries.rs (target/debug/deps/arithmetic_boundaries-783ff92a46f75aea)
+  Executable tests/automatic_memory_management_tests.rs (target/debug/deps/automatic_memory_management_tests-9154d640f33fea91)
+  Executable tests/charts_test.rs (target/debug/deps/charts_test-34a67cf17c192c35)
+  Executable tests/clipboard_platform.rs (target/debug/deps/clipboard_platform-6853cb8cc8ffb791)
+  Executable tests/color_more_shades_tests.rs (target/debug/deps/color_more_shades_tests-dfa358e653ca06f6)
+  Executable tests/color_shades_tests.rs (target/debug/deps/color_shades_tests-c2c740fc8d553350)
+  Executable tests/color_utility_tests.rs (target/debug/deps/color_utility_tests-3abcba03bea5773f)
+  Executable tests/component_macro_integration.rs (target/debug/deps/component_macro_integration-e8fcd0a5d3d4c69a)
+  Executable tests/component_macro_test.rs (target/debug/deps/component_macro_test-35bab72c3a7e05e7)
+  Executable tests/component_tests.rs (target/debug/deps/component_tests-a2461b08957fe087)
+  Executable tests/css_animation_integration_test.rs (target/debug/deps/css_animation_integration_test-e2fb0183cc5172a9)
+  Executable tests/css_in_rust_simple_test.rs (target/debug/deps/css_in_rust_simple_test-f25fe2f95736be6d)
+  Executable tests/debug_animate_none.rs (target/debug/deps/debug_animate_none-4fabcb1606820d82)
+  Executable tests/dqc_003_captured_diagnostics.rs (target/debug/deps/dqc_003_captured_diagnostics-e7d26f8cb45642fd)
+  Executable tests/element_bridge_tests.rs (target/debug/deps/element_bridge_tests-38d18c25c7091e86)
+  Executable tests/embedded_terminal.rs (target/debug/deps/embedded_terminal-2d57272f56ea1f6d)
+  Executable tests/ffi_app_representation.rs (target/debug/deps/ffi_app_representation-cf99409288de94e2)
+  Executable tests/ffi_basic_test.rs (target/debug/deps/ffi_basic_test-9565c5449032ba10)
+  Executable tests/ffi_export_inventory.rs (target/debug/deps/ffi_export_inventory-fb7f7b882e52c666)
+  Executable tests/ffi_tests.rs (target/debug/deps/ffi_tests-52f09ad47e6c1854)
+  Executable tests/full_pipeline_integration.rs (target/debug/deps/full_pipeline_integration-c99e2df2f42af068)
+  Executable tests/layout_paint_tests.rs (target/debug/deps/layout_paint_tests-d1330c80a538b1ab)
+  Executable tests/mouse_hooks_test.rs (target/debug/deps/mouse_hooks_test-8dd39982d0a8a795)
+  Executable tests/opacity_tests.rs (target/debug/deps/opacity_tests-136475871edd202a)
+  Executable tests/performance_monitoring_test.rs (target/debug/deps/performance_monitoring_test-7d4765f726c3d29a)
+  Executable tests/pre_release_terminal_helper_lifecycle.rs (target/debug/deps/pre_release_terminal_helper_lifecycle-480d112090f04f2d)
+  Executable tests/pre_release_terminal_input_safety.rs (target/debug/deps/pre_release_terminal_input_safety-697e03b3f38ad978)
+  Executable tests/production_readiness_test.rs (target/debug/deps/production_readiness_test-3a20d19683540d8d)
+  Executable tests/property_tests.rs (target/debug/deps/property_tests-5a6af6d3b0b512c6)
+  Executable tests/props_derive_test.rs (target/debug/deps/props_derive_test-c3481f14244f56d1)
+  Executable tests/registry_cache_isolation.rs (target/debug/deps/registry_cache_isolation-7b8ff5210e3ab8f6)
+  Executable tests/registry_concurrency.rs (target/debug/deps/registry_concurrency-2e90a7e5381b99b9)
+  Executable tests/render_ops_snapshots.rs (target/debug/deps/render_ops_snapshots-8ce8396f1b3cf757)
+  Executable tests/screen_system_tests.rs (target/debug/deps/screen_system_tests-2f5cd33829eb707f)
+  Executable tests/simple_css_animation_test.rs (target/debug/deps/simple_css_animation_test-528aba92ee613bec)
+  Executable tests/simple_performance_test.rs (target/debug/deps/simple_performance_test-130dd9d364850a27)
+  Executable tests/simple_props_test.rs (target/debug/deps/simple_props_test-428037c951bedeed)
+  Executable tests/suprtui_renderer.rs (target/debug/deps/suprtui_renderer-fa53efcf19d21a3b)
+  Executable tests/surface_integration.rs (target/debug/deps/surface_integration-450d9ae52b36064c)
+  Executable tests/syntax_highlighting_integration.rs (target/debug/deps/syntax_highlighting_integration-0ac80f3498bbd0b3)
+  Executable tests/test_absolute_debug.rs (target/debug/deps/test_absolute_debug-65929b519a30b37e)
+  Executable tests/test_absolute_paint.rs (target/debug/deps/test_absolute_paint-d405c13fcc0a9134)
+  Executable tests/test_animation_api.rs (target/debug/deps/test_animation_api-ac797a765e76bb07)
+  Executable tests/test_app_layout.rs (target/debug/deps/test_app_layout-589677e5a689329b)
+  Executable tests/test_ffi_core_only.rs (target/debug/deps/test_ffi_core_only-cf7a36871ffb13ee)
+  Executable tests/test_ffi_integration.rs (target/debug/deps/test_ffi_integration-8823a1c79c4da508)
+  Executable tests/test_ffi_reactive_seamless.rs (target/debug/deps/test_ffi_reactive_seamless-3da5344bdd3b5cbc)
+  Executable tests/test_flex_layout.rs (target/debug/deps/test_flex_layout-b20360d075936d13)
+  Executable tests/test_minimal_ffi.rs (target/debug/deps/test_minimal_ffi-f8f8cb8333e2cfd1)
+  Executable tests/tokio_event_loop_lifecycle.rs (target/debug/deps/tokio_event_loop_lifecycle-1cc9be6616b2c907)
+  Executable tests/utility_paint_tests.rs (target/debug/deps/utility_paint_tests-70125f0692a14cd4)
+  Executable tests/widget_catalog_behavior.rs (target/debug/deps/widget_catalog_behavior-bbce47bc43f903e2)
+  Executable tests/windows_platform.rs (target/debug/deps/windows_platform-b9298ff544b5889a)
+  Executable tests/z_index_tests.rs (target/debug/deps/z_index_tests-96445e190aaa965d)
+   Compiling reactive-tui v0.1.0 (/home/shawn/workspace2/reactive-tui)
+warning: ambiguous glob re-exports
+   --> src/ffi/mod.rs:143:9
+    |
+143 | pub use pointer::*;
+    |         ^^^^^^^^^^ the name `validate_pointer` in the value namespace is first re-exported here
+...
+148 | pub use types::*;
+    |         -------- but the name `validate_pointer` in the value namespace is also re-exported here
+    |
+    = note: `#[warn(ambiguous_glob_reexports)]` on by default
+
+warning: unused variable: `width`
+   --> src/ffi/lib.rs:122:14
+    |
+122 |         let (width, height) = renderer_box.dims();
+    |              ^^^^^ help: if this is intentional, prefix it with an underscore: `_width`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `validate_pointer` is never used
+   --> src/ffi/types.rs:182:15
+    |
+182 | pub(crate) fn validate_pointer<T>(ptr: *const T) -> bool {
+    |               ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `validate_mut_pointer` is never used
+   --> src/ffi/types.rs:187:15
+    |
+187 | pub(crate) fn validate_mut_pointer<T>(ptr: *mut T) -> bool {
+    |               ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `safe_cast` is never used
+   --> src/ffi/types.rs:192:22
+    |
+192 | pub(crate) unsafe fn safe_cast<T, U>(ptr: *mut T) -> Result<*mut U, ReactiveError> {
+    |                      ^^^^^^^^^
+
+warning: function `safe_cast_const` is never used
+   --> src/ffi/types.rs:206:22
+    |
+206 | pub(crate) unsafe fn safe_cast_const<T, U>(ptr: *const T) -> Result<*const U, ReactiveError> {
+    |                      ^^^^^^^^^^^^^^^
+
+warning: `reactive-tui` (lib) generated 6 warnings (run `cargo fix --lib -p reactive-tui` to apply 1 suggestion)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 20.38s
+[?2026h[?2026l[?25h[?1006l[?1015l[?1003l[?1002l[?1000lC terminal ABI smoke passed
+[1m[33mwarning[0m[1m: ambiguous glob re-exports[0m
+   [1m[94m--> [0msrc/ffi/mod.rs:143:9
+    [1m[94m|[0m
+[1m[94m143[0m [1m[94m|[0m pub use pointer::*;
+    [1m[94m|[0m         [1m[33m^^^^^^^^^^[0m [1m[33mthe name `validate_pointer` in the value namespace is first re-exported here[0m
+[1m[94m...[0m
+[1m[94m148[0m [1m[94m|[0m pub use types::*;
+    [1m[94m|[0m         [1m[94m--------[0m [1m[94mbut the name `validate_pointer` in the value namespace is also re-exported here[0m
+    [1m[94m|[0m
+    [1m[94m= [0m[1mnote[0m: `#[warn(ambiguous_glob_reexports)]` on by default
+
+[1m[33mwarning[0m[1m: unused variable: `width`[0m
+   [1m[94m--> [0msrc/ffi/lib.rs:122:14
+    [1m[94m|[0m
+[1m[94m122[0m [1m[94m|[0m         let (width, height) = renderer_box.dims();
+    [1m[94m|[0m              [1m[33m^^^^^[0m [1m[33mhelp: if this is intentional, prefix it with an underscore: `_width`[0m
+    [1m[94m|[0m
+    [1m[94m= [0m[1mnote[0m: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+[1m[33mwarning[0m[1m: function `validate_pointer` is never used[0m
+   [1m[94m--> [0msrc/ffi/types.rs:182:15
+    [1m[94m|[0m
+[1m[94m182[0m [1m[94m|[0m pub(crate) fn validate_pointer<T>(ptr: *const T) -> bool {
+    [1m[94m|[0m               [1m[33m^^^^^^^^^^^^^^^^[0m
+    [1m[94m|[0m
+    [1m[94m= [0m[1mnote[0m: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+[1m[33mwarning[0m[1m: function `validate_mut_pointer` is never used[0m
+   [1m[94m--> [0msrc/ffi/types.rs:187:15
+    [1m[94m|[0m
+[1m[94m187[0m [1m[94m|[0m pub(crate) fn validate_mut_pointer<T>(ptr: *mut T) -> bool {
+    [1m[94m|[0m               [1m[33m^^^^^^^^^^^^^^^^^^^^[0m
+
+[1m[33mwarning[0m[1m: function `safe_cast` is never used[0m
+   [1m[94m--> [0msrc/ffi/types.rs:192:22
+    [1m[94m|[0m
+[1m[94m192[0m [1m[94m|[0m pub(crate) unsafe fn safe_cast<T, U>(ptr: *mut T) -> Result<*mut U, ReactiveError> {
+    [1m[94m|[0m                      [1m[33m^^^^^^^^^[0m
+
+[1m[33mwarning[0m[1m: function `safe_cast_const` is never used[0m
+   [1m[94m--> [0msrc/ffi/types.rs:206:22
+    [1m[94m|[0m
+[1m[94m206[0m [1m[94m|[0m pub(crate) unsafe fn safe_cast_const<T, U>(ptr: *const T) -> Result<*const U, ReactiveError> {
+    [1m[94m|[0m                      [1m[33m^^^^^^^^^^^^^^^[0m
+
+[1m[33mwarning[0m: `reactive-tui` (lib test) generated 6 warnings (run `cargo fix --lib -p reactive-tui --tests` to apply 1 suggestion)
+[1m[92m    Finished[0m ]8;;https://doc.rust-lang.org/cargo/reference/profiles.html#default-profiles\`test` profile [unoptimized + debuginfo]]8;;\ target(s) in 0.13s
+[1m[92m     Running[0m unittests src/lib.rs (target/debug/deps/reactive_tui-fc4cf5b4641a961e)
+
+running 8 tests
+test ffi::app::tests::root_callback_transfers_the_ffi_element_wrapper ... [32mok(B[m
+test ffi::pointer::tests::test_multiple_pointers ... [32mok(B[m
+test ffi::pointer::tests::test_null_pointer_handling ... [32mok(B[m
+test ffi::pointer::tests::test_pointer_tracking ... [32mok(B[m
+test ffi::stats::callback_tests::callback_replacement_is_synchronized_and_reentrant ... [32mok(B[m
+test ffi::terminal_legacy::tests::event_translation_preserves_resize_and_mouse_data ... [32mok(B[m
+test ffi::terminal_legacy::tests::event_translation_preserves_unicode_and_modifier_bits ... [32mok(B[m
+test ffi::terminal_legacy::tests::unsupported_event_payloads_return_an_error ... [32mok(B[m
+
+test result: [32mok(B[m. 8 passed; 0 failed; 0 ignored; 0 measured; 1065 filtered out; finished in 0.06s
+
+[1m[92m   Compiling[0m reactive-tui v0.1.0 (/home/shawn/workspace2/reactive-tui)
+[1m[96m    Building[0m [=======================> ] 313/320: reactive-tui                [K[1m[33mwarning[0m[1m: ambiguous glob re-exports[0m
+   [1m[94m--> [0msrc/ffi/mod.rs:143:9
+    [1m[94m|[0m
+[1m[94m143[0m [1m[94m|[0m pub use pointer::*;
+    [1m[94m|[0m         [1m[33m^^^^^^^^^^[0m [1m[33mthe name `validate_pointer` in the value namespace is first re-exported here[0m
+[1m[94m...[0m
+[1m[94m148[0m [1m[94m|[0m pub use types::*;
+    [1m[94m|[0m         [1m[94m--------[0m [1m[94mbut the name `validate_pointer` in the value namespace is also re-exported here[0m
+    [1m[94m|[0m
+    [1m[94m= [0m[1mnote[0m: `#[warn(ambiguous_glob_reexports)]` on by default
+
+[1m[96m    Building[0m [=======================> ] 313/320: reactive-tui                [K[1m[33mwarning[0m[1m: unused variable: `width`[0m
+   [1m[94m--> [0msrc/ffi/lib.rs:122:14
+    [1m[94m|[0m
+[1m[94m122[0m [1m[94m|[0m         let (width, height) = renderer_box.dims();
+    [1m[94m|[0m              [1m[33m^^^^^[0m [1m[33mhelp: if this is intentional, prefix it with an underscore: `_width`[0m
+    [1m[94m|[0m
+    [1m[94m= [0m[1mnote[0m: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+[1m[96m    Building[0m [=======================> ] 313/320: reactive-tui                [K[1m[33mwarning[0m[1m: function `validate_pointer` is never used[0m
+   [1m[94m--> [0msrc/ffi/types.rs:182:15
+    [1m[94m|[0m
+[1m[94m182[0m [1m[94m|[0m pub(crate) fn validate_pointer<T>(ptr: *const T) -> bool {
+    [1m[94m|[0m               [1m[33m^^^^^^^^^^^^^^^^[0m
+    [1m[94m|[0m
+    [1m[94m= [0m[1mnote[0m: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+[1m[96m    Building[0m [=======================> ] 313/320: reactive-tui                [K[1m[33mwarning[0m[1m: function `validate_mut_pointer` is never used[0m
+   [1m[94m--> [0msrc/ffi/types.rs:187:15
+    [1m[94m|[0m
+[1m[94m187[0m [1m[94m|[0m pub(crate) fn validate_mut_pointer<T>(ptr: *mut T) -> bool {
+    [1m[94m|[0m               [1m[33m^^^^^^^^^^^^^^^^^^^^[0m
+
+[1m[96m    Building[0m [=======================> ] 313/320: reactive-tui                [K[1m[33mwarning[0m[1m: function `safe_cast` is never used[0m
+   [1m[94m--> [0msrc/ffi/types.rs:192:22
+    [1m[94m|[0m
+[1m[94m192[0m [1m[94m|[0m pub(crate) unsafe fn safe_cast<T, U>(ptr: *mut T) -> Result<*mut U, Rea[1m[94m...[0m
+    [1m[94m|[0m                      [1m[33m^^^^^^^^^[0m
+
+[1m[96m    Building[0m [=======================> ] 313/320: reactive-tui                [K[1m[33mwarning[0m[1m: function `safe_cast_const` is never used[0m
+   [1m[94m--> [0msrc/ffi/types.rs:206:22
+    [1m[94m|[0m
+[1m[94m206[0m [1m[94m|[0m pub(crate) unsafe fn safe_cast_const<T, U>(ptr: *const T) -> Result<*co[1m[94m...[0m
+    [1m[94m|[0m                      [1m[33m^^^^^^^^^^^^^^^[0m
+
+[1m[96m    Building[0m [=======================> ] 313/320: reactive-tui                [K[1m[33mwarning[0m: `reactive-tui` (lib) generated 6 warnings (run `cargo fix --lib -p reactive-tui` to apply 1 suggestion)
+[1m[96m    Building[0m [=======================> ] 314/320: test_ffi_core_only(test), t…[K[1m[33mwarning[0m[1m: unnecessary `unsafe` block[0m
+  [1m[94m--> [0mtests/test_ffi_integration.rs:10:9
+   [1m[94m|[0m
+[1m[94m10[0m [1m[94m|[0m         unsafe {
+   [1m[94m|[0m         [1m[33m^^^^^^[0m [1m[33munnecessary `unsafe` block[0m
+   [1m[94m|[0m
+   [1m[94m= [0m[1mnote[0m: `#[warn(unused_unsafe)]` (part of `#[warn(unused)]`) on by default
+
+[1m[96m    Building[0m [=======================> ] 314/320: test_ffi_core_only(test), t…[K[1m[33mwarning[0m[1m: unnecessary `unsafe` block[0m
+  [1m[94m--> [0mtests/test_ffi_integration.rs:60:9
+   [1m[94m|[0m
+[1m[94m60[0m [1m[94m|[0m         unsafe {
+   [1m[94m|[0m         [1m[33m^^^^^^[0m [1m[33munnecessary `unsafe` block[0m
+
+[1m[96m    Building[0m [=======================> ] 314/320: test_ffi_core_only(test), t…[K[1m[33mwarning[0m[1m: unnecessary `unsafe` block[0m
+   [1m[94m--> [0mtests/test_ffi_integration.rs:115:9
+    [1m[94m|[0m
+[1m[94m115[0m [1m[94m|[0m         unsafe {
+    [1m[94m|[0m         [1m[33m^^^^^^[0m [1m[33munnecessary `unsafe` block[0m
+
+[1m[96m    Building[0m [=======================> ] 314/320: test_ffi_core_only(test), t…[K[1m[33mwarning[0m[1m: unnecessary `unsafe` block[0m
+   [1m[94m--> [0mtests/test_ffi_integration.rs:150:9
+    [1m[94m|[0m
+[1m[94m150[0m [1m[94m|[0m         unsafe {
+    [1m[94m|[0m         [1m[33m^^^^^^[0m [1m[33munnecessary `unsafe` block[0m
+
+[1m[96m    Building[0m [=======================> ] 314/320: test_ffi_core_only(test), t…[K[1m[33mwarning[0m[1m: unnecessary `unsafe` block[0m
+   [1m[94m--> [0mtests/test_ffi_integration.rs:172:9
+    [1m[94m|[0m
+[1m[94m172[0m [1m[94m|[0m         unsafe {
+    [1m[94m|[0m         [1m[33m^^^^^^[0m [1m[33munnecessary `unsafe` block[0m
+
+[1m[96m    Building[0m [=======================> ] 314/320: test_ffi_core_only(test), t…[K[1m[33mwarning[0m[1m: unnecessary `unsafe` block[0m
+  [1m[94m--> [0mtests/test_ffi_core_only.rs:10:9
+   [1m[94m|[0m
+[1m[94m10[0m [1m[94m|[0m         unsafe {
+   [1m[94m|[0m         [1m[33m^^^^^^[0m [1m[33munnecessary `unsafe` block[0m
+   [1m[94m|[0m
+   [1m[94m= [0m[1mnote[0m: `#[warn(unused_unsafe)]` (part of `#[warn(unused)]`) on by default
+
+[1m[96m    Building[0m [=======================> ] 314/320: test_ffi_core_only(test), t…[K[1m[33mwarning[0m[1m: unnecessary `unsafe` block[0m
+  [1m[94m--> [0mtests/test_ffi_core_only.rs:24:9
+   [1m[94m|[0m
+[1m[94m24[0m [1m[94m|[0m         unsafe {
+   [1m[94m|[0m         [1m[33m^^^^^^[0m [1m[33munnecessary `unsafe` block[0m
+
+[1m[96m    Building[0m [=======================> ] 314/320: test_ffi_core_only(test), t…[K[1m[33mwarning[0m[1m: unnecessary `unsafe` block[0m
+  [1m[94m--> [0mtests/test_ffi_core_only.rs:67:9
+   [1m[94m|[0m
+[1m[94m67[0m [1m[94m|[0m         unsafe {
+   [1m[94m|[0m         [1m[33m^^^^^^[0m [1m[33munnecessary `unsafe` block[0m
+
+[1m[96m    Building[0m [=======================> ] 314/320: test_ffi_core_only(test), t…[K[1m[33mwarning[0m[1m: unnecessary `unsafe` block[0m
+  [1m[94m--> [0mtests/test_ffi_core_only.rs:94:9
+   [1m[94m|[0m
+[1m[94m94[0m [1m[94m|[0m         unsafe {
+   [1m[94m|[0m         [1m[33m^^^^^^[0m [1m[33munnecessary `unsafe` block[0m
+
+[1m[96m    Building[0m [=======================> ] 314/320: test_ffi_core_only(test), t…[K[1m[33mwarning[0m[1m: unnecessary `unsafe` block[0m
+   [1m[94m--> [0mtests/test_ffi_core_only.rs:127:9
+    [1m[94m|[0m
+[1m[94m127[0m [1m[94m|[0m         unsafe {
+    [1m[94m|[0m         [1m[33m^^^^^^[0m [1m[33munnecessary `unsafe` block[0m
+
+[1m[96m    Building[0m [=======================> ] 314/320: test_ffi_core_only(test), t…[K[1m[33mwarning[0m[1m: unnecessary `unsafe` block[0m
+   [1m[94m--> [0mtests/test_ffi_core_only.rs:171:9
+    [1m[94m|[0m
+[1m[94m171[0m [1m[94m|[0m         unsafe {
+    [1m[94m|[0m         [1m[33m^^^^^^[0m [1m[33munnecessary `unsafe` block[0m
+
+[1m[96m    Building[0m [=======================> ] 314/320: test_ffi_core_only(test), t…[K[1m[33mwarning[0m[1m: unnecessary `unsafe` block[0m
+   [1m[94m--> [0mtests/test_ffi_core_only.rs:193:9
+    [1m[94m|[0m
+[1m[94m193[0m [1m[94m|[0m         unsafe {
+    [1m[94m|[0m         [1m[33m^^^^^^[0m [1m[33munnecessary `unsafe` block[0m
+
+[1m[96m    Building[0m [=======================> ] 314/320: test_ffi_core_only(test), t…[1m[96m    Building[0m [=======================> ] 315/320: test_ffi_core_only(test), t…[K[1m[33mwarning[0m: `reactive-tui` (test "test_ffi_core_only") generated 7 warnings
+[1m[96m    Building[0m [=======================> ] 316/320: test_ffi_integration(test),…[K[1m[33mwarning[0m: `reactive-tui` (test "test_ffi_integration") generated 5 warnings
+[1m[96m    Building[0m [=======================> ] 317/320: ffi_tests(test), ffi_basic_…[1m[96m    Building[0m [=======================> ] 318/320: ffi_tests(test), ffi_basic_…[1m[96m    Building[0m [=======================> ] 319/320: ffi_basic_test(test)        [K[1m[92m    Finished[0m ]8;;https://doc.rust-lang.org/cargo/reference/profiles.html#default-profiles\`test` profile [unoptimized + debuginfo]]8;;\ target(s) in 21.32s
+[1m[92m     Running[0m tests/ffi_basic_test.rs (target/debug/deps/ffi_basic_test-9565c5449032ba10)
+
+running 8 tests
+test ffi_tests::test_app_builder_creation_and_modification ... [32mok(B[m
+test ffi_tests::test_button_creation ... [32mok(B[m
+test ffi_tests::test_checkbox_creation ... [32mok(B[m
+test ffi_tests::test_element_builder_creation_and_modification ... [32mok(B[m
+test ffi_tests::test_null_pointer_safety ... [32mok(B[m
+test ffi_tests::test_progress_bar_creation ... [32mok(B[m
+test ffi_tests::test_root_component_functionality ... [32mok(B[m
+test ffi_tests::test_widget_creation ... [32mok(B[m
+
+test result: [32mok(B[m. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+[1m[92m     Running[0m tests/ffi_tests.rs (target/debug/deps/ffi_tests-52f09ad47e6c1854)
+
+running 30 tests
+test error_handling_tests::test_error_codes ... [32mok(B[m
+test error_handling_tests::test_error_is_success ... [32mok(B[m
+test error_handling_tests::test_null_pointer_checks ... [32mok(B[m
+test memory_safety_tests::test_bounds_checking ... [32mok(B[m
+test memory_safety_tests::test_double_destroy_safety ... [?25h[?1006l[?1015l[?1003l[?1002l[?1000l[32mok(B[m
+test memory_safety_tests::test_string_handling ... [32mok(B[m
+test memory_safety_tests::test_use_after_free_protection ... [32mok(B[m
+test renderer_tests::test_renderer_create_destroy ... [?1049h[?2004h[?1000h[?1002h[?1003h[?1015h[?1006h[?1006l[?1015l[?1003l[?1002l[?1000l[?2004l[?1049l[?25h[?1006l[?1015l[?1003l[?1002l[?1000l[?25h[?1006l[?1015l[?1003l[?1002l[?1000l[32mok(B[m
+test renderer_tests::test_renderer_force_redraw ... [?1049h[?2004h[?1000h[?1002h[?1003h[?1015h[?1006h[?1006l[?1015l[?1003l[?1002l[?1000l[?2004l[?1049l[?25h[?1006l[?1015l[?1003l[?1002l[?1000l[?25h[?1006l[?1015l[?1003l[?1002l[?1000l[32mok(B[m
+test renderer_tests::test_renderer_frame_operations ... [?1049h[?2004h[?1000h[?1002h[?1003h[?1015h[?1006h[?2026h[?25l[38;2;0;0;0m[48;2;0;0;0m[1;1H                                                                                [2;1H                                                                                [3;1H                                                                                [4;1H                                                                                [5;1H                                                                                [6;1H                                                                                [7;1H                                                                                [8;1H                                                                                [9;1H                                                                                [10;1H                                                                                [11;1H                                                                                [12;1H                                                                                [13;1H                                                                                [14;1H                                                                                [15;1H                                                                                [16;1H                                                                                [17;1H                                                                                [18;1H                                                                                [19;1H                                                                                [20;1H                                                                                [21;1H                                                                                [22;1H                                                                                [23;1H                                                                                [24;1H                                                                                [?25h[?2026l[?1006l[?1015l[?1003l[?1002l[?1000l[?2004l[?1049l[?25h[?1006l[?1015l[?1003l[?1002l[?1000l[?25h[?1006l[?1015l[?1003l[?1002l[?1000l[32mok(B[m
+test renderer_tests::test_renderer_get_surface ... [?1049h[?2004h[?1000h[?1002h[?1003h[?1015h[?1006h[?2026h[?25l[38;2;255;255;255m[48;2;0;0;0m[1;1HRenderer Test[38;2;0;0;0m[48;2;0;0;0m[1;14H                                                                   [2;1H                                                                                [3;1H                                                                                [4;1H                                                                                [5;1H                                                                                [6;1H                                                                                [7;1H                                                                                [8;1H                                                                                [9;1H                                                                                [10;1H                                                                                [11;1H                                                                                [12;1H                                                                                [13;1H                                                                                [14;1H                                                                                [15;1H                                                                                [16;1H                                                                                [17;1H                                                                                [18;1H                                                                                [19;1H                                                                                [20;1H                                                                                [21;1H                                                                                [22;1H                                                                                [23;1H                                                                                [24;1H                                                                                [?25h[?2026l[?1006l[?1015l[?1003l[?1002l[?1000l[?2004l[?1049l[?25h[?1006l[?1015l[?1003l[?1002l[?1000l[?25h[?1006l[?1015l[?1003l[?1002l[?1000l[32mok(B[m
+test renderer_tests::test_renderer_null_output ... [32mok(B[m
+test renderer_tests::test_renderer_resize ... [?1049h[?2004h[?1000h[?1002h[?1003h[?1015h[?1006h[?1006l[?1015l[?1003l[?1002l[?1000l[?2004l[?1049l[?25h[?1006l[?1015l[?1003l[?1002l[?1000l[?25h[?1006l[?1015l[?1003l[?1002l[?1000l[32mok(B[m
+test renderer_tests::test_renderer_shutdown ... [?1049h[?2004h[?1000h[?1002h[?1003h[?1015h[?1006h[?1006l[?1015l[?1003l[?1002l[?1000l[?2004l[?1049l[?25h[?1006l[?1015l[?1003l[?1002l[?1000l[?25h[?1006l[?1015l[?1003l[?1002l[?1000l[32mok(B[m
+test surface_tests::test_surface_clear ... [32mok(B[m
+test surface_tests::test_surface_create_destroy ... [32mok(B[m
+test surface_tests::test_surface_dimensions ... [32mok(B[m
+test surface_tests::test_surface_draw_text ... [32mok(B[m
+test surface_tests::test_surface_fill_rect ... [32mok(B[m
+test surface_tests::test_surface_invalid_dimensions ... [32mok(B[m
+test surface_tests::test_surface_set_get_cell ... [32mok(B[m
+test terminal_tests::test_terminal_create_destroy ... [?25h[?1006l[?1015l[?1003l[?1002l[?1000l[32mok(B[m
+test terminal_tests::test_terminal_dimensions ... [?25h[?1006l[?1015l[?1003l[?1002l[?1000l[32mok(B[m
+test terminal_tests::test_terminal_dimensions_null ... [?25h[?1006l[?1015l[?1003l[?1002l[?1000l[32mok(B[m
+test terminal_tests::test_terminal_null_pointer ... [32mok(B[m
+test terminal_tests::test_terminal_poll_event_timeout ... [?25h[?1006l[?1015l[?1003l[?1002l[?1000l[32mok(B[m
+test terminal_tests::test_terminal_sync_operations ... [?2026h[?2026l[?25h[?1006l[?1015l[?1003l[?1002l[?1000l[32mok(B[m
+test test_full_integration ... [?1049h[?2004h[?1000h[?1002h[?1003h[?1015h[?1006h[?2026h[?25l[38;2;0;0;0m[48;2;0;0;0m[1;1H                                                                                [2;1H                                                                                [3;1H                                                                                [4;1H                                                                                [5;1H                                                                                [6;1H                                                                                [7;1H                                                                                [8;1H                                                                                [9;1H                                                                                [10;1H                                                                                [11;1H          [38;2;255;255;255m[48;2;0;0;128m[11;11HFrame 0[38;2;0;0;0m[48;2;0;0;0m[11;18H                                                               [12;1H                                                                                [13;1H                                                                                [14;1H                                                                                [15;1H                                                                                [16;1H                                                                                [17;1H                                                                                [18;1H                                                                                [19;1H                                                                                [20;1H                                                                                [21;1H                                                                                [22;1H                                                                                [23;1H                                                                                [24;1H                                                                                [?25h[?2026l[?2026h[?25l[38;2;255;255;255m[48;2;0;0;128m[11;17H1[?25h[?2026l[?2026h[?25l[38;2;255;255;255m[48;2;0;0;128m[11;17H2[?25h[?2026l[?1006l[?1015l[?1003l[?1002l[?1000l[?2004l[?1049l[?25h[?1006l[?1015l[?1003l[?1002l[?1000l[?25h[?1006l[?1015l[?1003l[?1002l[?1000l[32mok(B[m
+test test_init_cleanup ... [32mok(B[m
+test test_version ... [32mok(B[m
+
+test result: [32mok(B[m. 30 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+[1m[92m     Running[0m tests/test_ffi_core_only.rs (target/debug/deps/test_ffi_core_only-cf7a36871ffb13ee)
+
+running 7 tests
+test ffi_core_tests::test_ffi_builder_build ... [32mok(B[m
+test ffi_core_tests::test_ffi_builder_creation ... [32mok(B[m
+test ffi_core_tests::test_ffi_builder_in_place_modification ... [32mok(B[m
+test ffi_core_tests::test_ffi_builder_with_children ... [32mok(B[m
+test ffi_core_tests::test_ffi_memory_management ... [32mok(B[m
+test ffi_core_tests::test_ffi_null_pointer_safety ... [32mok(B[m
+test ffi_core_tests::test_ffi_widget_creation ... [32mok(B[m
+
+test result: [32mok(B[m. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+[1m[92m     Running[0m tests/test_ffi_integration.rs (target/debug/deps/test_ffi_integration-8823a1c79c4da508)
+
+running 5 tests
+test ffi_integration_tests::test_builder_with_children ... [32mok(B[m
+test ffi_integration_tests::test_memory_management ... [32mok(B[m
+test ffi_integration_tests::test_null_pointer_safety ... [32mok(B[m
+test ffi_integration_tests::test_proper_builder_pattern ... [32mok(B[m
+test ffi_integration_tests::test_widget_creation ... [32mok(B[m
+
+test result: [32mok(B[m. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+[1m[92m     Running[0m tests/test_ffi_reactive_seamless.rs (target/debug/deps/test_ffi_reactive_seamless-3da5344bdd3b5cbc)
+
+running 11 tests
+test ffi_reactive_tests::test_hooks_boolean_signals ... [32mok(B[m
+test ffi_reactive_tests::test_hooks_persistence ... [32mok(B[m
+test ffi_reactive_tests::test_hooks_string_signals ... [32mok(B[m
+test ffi_reactive_tests::test_hooks_system ... [32mok(B[m
+test ffi_reactive_tests::test_memory_management ... [32mok(B[m
+test ffi_reactive_tests::test_null_pointer_safety ... [32mok(B[m
+test ffi_reactive_tests::test_seamless_boolean_signals ... [32mok(B[m
+test ffi_reactive_tests::test_seamless_float_signals ... [32mok(B[m
+test ffi_reactive_tests::test_seamless_signal_creation ... [32mok(B[m
+test ffi_reactive_tests::test_seamless_string_signals ... [32mok(B[m
+test ffi_reactive_tests::test_type_safety ... [32mok(B[m
+
+test result: [32mok(B[m. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+[1m[92m     Running[0m tests/test_minimal_ffi.rs (target/debug/deps/test_minimal_ffi-f8f8cb8333e2cfd1)
+
+running 2 tests
+test minimal_ffi_tests::test_minimal_builder_functionality ... [32mok(B[m
+test minimal_ffi_tests::test_null_pointer_handling ... [32mok(B[m
+
+test result: [32mok(B[m. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+FFI compile, C ABI and Rust lifecycle checks passed
+Inherited acceptance: default-suite-repair
+Traceback (most recent call last):
+  File "/home/shawn/workspace2/reactive-tui/scripts/check-inherited-abi.py", line 57, in <module>
+    main()
+    ~~~~^^
+  File "/home/shawn/workspace2/reactive-tui/scripts/check-inherited-abi.py", line 50, in main
+    raise RuntimeError('Inherited acceptance timed out: ' + name) from None
+RuntimeError: Inherited acceptance timed out: default-suite-repair
