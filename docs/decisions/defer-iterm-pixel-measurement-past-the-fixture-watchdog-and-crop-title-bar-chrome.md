@@ -12,5 +12,5 @@ Opus diagnosed the app-iterm exit-1 as the probe's own 45 s watchdog starved by 
 
 ## Realized by
 
-155d2632 Repair iTerm host capture: defer measurement past fixture watchdog, crop title-bar chrome, keep fixture output
-3d524a78 Keep fixture stdout on its pty and crop the shadowless title bar
+- 155d2632b906f60d3d73d553338b2e7a8a6ec36a Repair iTerm host capture: defer measurement past fixture watchdog, crop title-bar chrome, keep fixture output
+- 3d524a784052a3e4987263a842ee7076aa473300 Keep fixture stdout on its pty and crop the shadowless title bar
