@@ -166,37 +166,9 @@ pub fn parse_hex_cached(hex: &str) -> Option<ColorTuple> {
         return Some(color);
     }
 
-    // Parse hex color
-    let hex = hex.strip_prefix('#').unwrap_or(hex);
-    let (r, g, b, a) = match hex.len() {
-        3 => {
-            let r = u8::from_str_radix(&hex[0..1], 16).ok()? * 17;
-            let g = u8::from_str_radix(&hex[1..2], 16).ok()? * 17;
-            let b = u8::from_str_radix(&hex[2..3], 16).ok()? * 17;
-            (r, g, b, 1.0)
-        }
-        4 => {
-            let r = u8::from_str_radix(&hex[0..1], 16).ok()? * 17;
-            let g = u8::from_str_radix(&hex[1..2], 16).ok()? * 17;
-            let b = u8::from_str_radix(&hex[2..3], 16).ok()? * 17;
-            let a = u8::from_str_radix(&hex[3..4], 16).ok()? * 17;
-            (r, g, b, a as f32 / 255.0)
-        }
-        6 => {
-            let r = u8::from_str_radix(&hex[0..2], 16).ok()?;
-            let g = u8::from_str_radix(&hex[2..4], 16).ok()?;
-            let b = u8::from_str_radix(&hex[4..6], 16).ok()?;
-            (r, g, b, 1.0)
-        }
-        8 => {
-            let r = u8::from_str_radix(&hex[0..2], 16).ok()?;
-            let g = u8::from_str_radix(&hex[2..4], 16).ok()?;
-            let b = u8::from_str_radix(&hex[4..6], 16).ok()?;
-            let a = u8::from_str_radix(&hex[6..8], 16).ok()?;
-            (r, g, b, a as f32 / 255.0)
-        }
-        _ => return None,
-    };
+    // Parse hex color through the canonical parser; the cache only stores.
+    let (r, g, b, a) = crate::layout::colors::parse_hex_bytes(hex)?;
+    let (r, g, b, a) = (r, g, b, a as f32 / 255.0);
 
     let color = (r, g, b, a);
     cache_color(hex.to_string(), color);

@@ -141,14 +141,21 @@ fn syntect_color_to_hex(color: SyntectColor) -> String {
     format!("#{:02x}{:02x}{:02x}", color.r, color.g, color.b)
 }
 
-/// Convert hex color string to Rgba
-pub fn hex_to_rgba(hex: &str) -> Rgba {
-    let hex = hex.trim_start_matches('#');
-    let r = u8::from_str_radix(&hex[0..2], 16).unwrap_or(0) as f32 / 255.0;
-    let g = u8::from_str_radix(&hex[2..4], 16).unwrap_or(0) as f32 / 255.0;
-    let b = u8::from_str_radix(&hex[4..6], 16).unwrap_or(0) as f32 / 255.0;
-
-    Rgba { r, g, b, a: 1.0 }
+/// Convert hex color string to Rgba. Delegates to the canonical parser in
+/// `crate::layout::colors`, so `#rgb`, `#rgba` and `#rrggbbaa` work here
+/// exactly as everywhere else.
+///
+/// Breaking change in 0.1.0: returns `None` on malformed input. The old
+/// version panicked on short input and silently returned black on bad
+/// digits; callers must fall back explicitly (see `get_syntax_color`).
+pub fn hex_to_rgba(hex: &str) -> Option<Rgba> {
+    let (r, g, b, a) = crate::layout::colors::parse_hex_bytes(hex)?;
+    Some(Rgba {
+        r: r as f32 / 255.0,
+        g: g as f32 / 255.0,
+        b: b as f32 / 255.0,
+        a: a as f32 / 255.0,
+    })
 }
 
 /// Theme-aware syntax style resolver
@@ -186,9 +193,12 @@ impl ThemedSyntaxStyle {
         };
 
         if let Some(color) = self.theme.get_variable(var_name) {
-            hex_to_rgba(&color)
-        } else {
-            // Fallback colors
+            if let Some(rgba) = hex_to_rgba(&color) {
+                return rgba;
+            }
+        }
+        // Fallback colors
+        {
             match element_type {
                 SyntaxElement::Keyword => Rgba {
                     r: 0.8,
@@ -325,15 +335,24 @@ mod tests {
 
     #[test]
     fn test_hex_to_rgba() {
-        let color = hex_to_rgba("#ff0000");
+        let color = hex_to_rgba("#ff0000").expect("valid hex");
         assert_eq!(color.r, 1.0);
         assert_eq!(color.g, 0.0);
         assert_eq!(color.b, 0.0);
 
-        let color = hex_to_rgba("#00ff00");
+        let color = hex_to_rgba("#00ff00").expect("valid hex");
         assert_eq!(color.r, 0.0);
         assert_eq!(color.g, 1.0);
         assert_eq!(color.b, 0.0);
+    }
+
+    #[test]
+    fn test_hex_to_rgba_rejects_malformed() {
+        // Short input panicked and bad digits silently returned black
+        // before the canonical-parser migration.
+        for bad in ["", "#", "#ff", "#gg0000", "#ff0000 ", "red"] {
+            assert_eq!(hex_to_rgba(bad), None, "input: {bad:?}");
+        }
     }
 
     #[test]

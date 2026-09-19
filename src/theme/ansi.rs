@@ -97,30 +97,26 @@ pub fn rgb_to_ansi16(r: u8, g: u8, b: u8) -> u8 {
     }
 }
 
-/// Convert hex to RGB
+/// Convert hex to RGB. Accepts `#rgb` and `#rrggbb`; anything else
+/// (including `#rgba`/`#rrggbbaa`) is `None`. Delegates to the canonical
+/// parser in `crate::layout::colors`.
 pub fn hex_to_rgb(hex: &str) -> Option<(u8, u8, u8)> {
-    let hex = hex.trim_start_matches('#');
-
-    // Handle 3-char hex (e.g., #FFF -> #FFFFFF)
-    let hex = if hex.len() == 3 {
-        let chars: Vec<char> = hex.chars().collect();
-        format!(
-            "{}{}{}{}{}{}",
-            chars[0], chars[0], chars[1], chars[1], chars[2], chars[2]
-        )
+    // Historical contract (see test_hex_to_rgb): a missing '#' is tolerated.
+    let owned;
+    let hex = if hex.starts_with('#') {
+        hex
     } else {
-        hex.to_string()
+        owned = format!("#{hex}");
+        &owned
     };
-
-    if hex.len() != 6 {
-        return None;
+    let digits = hex.trim_start_matches('#');
+    match digits.len() {
+        3 | 6 => {
+            let (r, g, b, _) = crate::layout::colors::parse_hex_bytes(hex)?;
+            Some((r, g, b))
+        }
+        _ => None,
     }
-
-    let r = u8::from_str_radix(&hex[0..2], 16).ok()?;
-    let g = u8::from_str_radix(&hex[2..4], 16).ok()?;
-    let b = u8::from_str_radix(&hex[4..6], 16).ok()?;
-
-    Some((r, g, b))
 }
 
 /// ANSI 256 color to RGB approximation
@@ -257,5 +253,26 @@ mod tests {
         assert_eq!(rgb_to_ansi16(0, 128, 0), 2); // Green
         assert_eq!(rgb_to_ansi16(0, 0, 0), 0); // Black
         assert_eq!(rgb_to_ansi16(255, 255, 255), 15); // White
+    }
+
+    #[test]
+    fn test_hex_to_rgb_rejects_without_panicking() {
+        // Widths outside #rgb/#rrggbb stay None, even though the
+        // canonical parser understands #rgba/#rrggbbaa.
+        for bad in [
+            "",
+            "#",
+            "#ff",
+            "#ffff",
+            "#ff0000ff",
+            "#gg0000",
+            "#ff0000 ",
+            "red",
+            "#é",
+            // 3 bytes but 2 chars: indexed chars[2] and panicked before.
+            "#éx",
+        ] {
+            assert_eq!(hex_to_rgb(bad), None, "input: {bad:?}");
+        }
     }
 }

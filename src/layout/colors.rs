@@ -2,38 +2,34 @@
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Rgba(pub f32, pub f32, pub f32, pub f32);
 
-fn hex_to_rgba(s: &str) -> Option<Rgba> {
+/// Canonical hex color parser: `#rgb`, `#rgba`, `#rrggbb`, `#rrggbbaa`.
+///
+/// Returns byte components so every caller converts to its own color type
+/// without float round-trips. Malformed input is `None` — never a panic,
+/// never a silent fallback color.
+pub(crate) fn parse_hex_bytes(s: &str) -> Option<(u8, u8, u8, u8)> {
     let s = s.strip_prefix('#')?;
     if !s.bytes().all(|byte| byte.is_ascii_hexdigit()) {
         return None;
     }
+    let hex = |range: std::ops::Range<usize>| u8::from_str_radix(&s[range], 16).ok();
     let (r, g, b, a) = match s.len() {
-        3 => (
-            u8::from_str_radix(&s[0..1], 16).ok()? * 17,
-            u8::from_str_radix(&s[1..2], 16).ok()? * 17,
-            u8::from_str_radix(&s[2..3], 16).ok()? * 17,
-            255,
-        ),
+        3 => (hex(0..1)? * 17, hex(1..2)? * 17, hex(2..3)? * 17, 255),
         4 => (
-            u8::from_str_radix(&s[0..1], 16).ok()? * 17,
-            u8::from_str_radix(&s[1..2], 16).ok()? * 17,
-            u8::from_str_radix(&s[2..3], 16).ok()? * 17,
-            u8::from_str_radix(&s[3..4], 16).ok()? * 17,
+            hex(0..1)? * 17,
+            hex(1..2)? * 17,
+            hex(2..3)? * 17,
+            hex(3..4)? * 17,
         ),
-        6 => (
-            u8::from_str_radix(&s[0..2], 16).ok()?,
-            u8::from_str_radix(&s[2..4], 16).ok()?,
-            u8::from_str_radix(&s[4..6], 16).ok()?,
-            255,
-        ),
-        8 => (
-            u8::from_str_radix(&s[0..2], 16).ok()?,
-            u8::from_str_radix(&s[2..4], 16).ok()?,
-            u8::from_str_radix(&s[4..6], 16).ok()?,
-            u8::from_str_radix(&s[6..8], 16).ok()?,
-        ),
+        6 => (hex(0..2)?, hex(2..4)?, hex(4..6)?, 255),
+        8 => (hex(0..2)?, hex(2..4)?, hex(4..6)?, hex(6..8)?),
         _ => return None,
     };
+    Some((r, g, b, a))
+}
+
+fn hex_to_rgba(s: &str) -> Option<Rgba> {
+    let (r, g, b, a) = parse_hex_bytes(s)?;
     Some(Rgba(
         r as f32 / 255.0,
         g as f32 / 255.0,
@@ -391,4 +387,35 @@ pub fn parse_color_token(token: &str) -> Option<(f32, f32, f32, f32)> {
     }
 
     None
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn canonical_parser_accepts_all_widths() {
+        assert_eq!(parse_hex_bytes("#ff0000"), Some((255, 0, 0, 255)));
+        assert_eq!(parse_hex_bytes("#f00"), Some((255, 0, 0, 255)));
+        assert_eq!(parse_hex_bytes("#f008"), Some((255, 0, 0, 136)));
+        assert_eq!(parse_hex_bytes("#ff000080"), Some((255, 0, 0, 128)));
+        assert_eq!(parse_hex_bytes("00ff00"), None);
+    }
+
+    #[test]
+    fn canonical_parser_rejects_malformed_without_panicking() {
+        for bad in [
+            "",
+            "#",
+            "#ff",
+            "#fffff",
+            "#fffffff",
+            "#gg0000",
+            "#ff0000 ",
+            "red",
+            "#ff00000000",
+        ] {
+            assert_eq!(parse_hex_bytes(bad), None, "input: {bad:?}");
+        }
+    }
 }

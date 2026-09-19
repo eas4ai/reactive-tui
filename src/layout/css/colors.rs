@@ -280,30 +280,10 @@ fn parse_dynamic_color(color_str: &str) -> Option<(f32, f32, f32, f32)> {
     None
 }
 
-/// Parse hex color string to RGBA floats
+/// Parse hex color string to RGBA floats. Delegates to the canonical
+/// parser, so `#rgba` is accepted here exactly as everywhere else.
 fn parse_hex_to_rgba(hex: &str) -> Option<(f32, f32, f32, f32)> {
-    let hex = hex.trim_start_matches('#');
-    let (r, g, b, a) = match hex.len() {
-        3 => (
-            u8::from_str_radix(&hex[0..1], 16).ok()? * 17,
-            u8::from_str_radix(&hex[1..2], 16).ok()? * 17,
-            u8::from_str_radix(&hex[2..3], 16).ok()? * 17,
-            255,
-        ),
-        6 => (
-            u8::from_str_radix(&hex[0..2], 16).ok()?,
-            u8::from_str_radix(&hex[2..4], 16).ok()?,
-            u8::from_str_radix(&hex[4..6], 16).ok()?,
-            255,
-        ),
-        8 => (
-            u8::from_str_radix(&hex[0..2], 16).ok()?,
-            u8::from_str_radix(&hex[2..4], 16).ok()?,
-            u8::from_str_radix(&hex[4..6], 16).ok()?,
-            u8::from_str_radix(&hex[6..8], 16).ok()?,
-        ),
-        _ => return None,
-    };
+    let (r, g, b, a) = crate::layout::colors::parse_hex_bytes(hex)?;
 
     Some((
         r as f32 / 255.0,
