@@ -1,0 +1,77 @@
+Inherited acceptance: maintenance-format
+Inherited acceptance: maintenance-lint
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.62s
+Inherited acceptance: maintenance-ffi
+   Compiling reactive-tui v0.1.0 (/home/shawn/workspace2/reactive-tui)
+warning: ambiguous glob re-exports
+   --> src/ffi/mod.rs:143:9
+    |
+143 | pub use pointer::*;
+    |         ^^^^^^^^^^ the name `validate_pointer` in the value namespace is first re-exported here
+...
+148 | pub use types::*;
+    |         -------- but the name `validate_pointer` in the value namespace is also re-exported here
+    |
+    = note: `#[warn(ambiguous_glob_reexports)]` on by default
+
+warning: unused variable: `width`
+   --> src/ffi/lib.rs:122:14
+    |
+122 |         let (width, height) = renderer_box.dims();
+    |              ^^^^^ help: if this is intentional, prefix it with an underscore: `_width`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `validate_pointer` is never used
+   --> src/ffi/types.rs:182:15
+    |
+182 | pub(crate) fn validate_pointer<T>(ptr: *const T) -> bool {
+    |               ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `validate_mut_pointer` is never used
+   --> src/ffi/types.rs:187:15
+    |
+187 | pub(crate) fn validate_mut_pointer<T>(ptr: *mut T) -> bool {
+    |               ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `safe_cast` is never used
+   --> src/ffi/types.rs:192:22
+    |
+192 | pub(crate) unsafe fn safe_cast<T, U>(ptr: *mut T) -> Result<*mut U, ReactiveError> {
+    |                      ^^^^^^^^^
+
+warning: function `safe_cast_const` is never used
+   --> src/ffi/types.rs:206:22
+    |
+206 | pub(crate) unsafe fn safe_cast_const<T, U>(ptr: *const T) -> Result<*const U, ReactiveError> {
+    |                      ^^^^^^^^^^^^^^^
+
+warning: `reactive-tui` (lib) generated 6 warnings (run `cargo fix --lib -p reactive-tui` to apply 1 suggestion)
+error: linking with `cc` failed: exit status: 1
+  |
+  = note:  "cc" "-m64" "/home/shawn/workspace2/scratchpads/suprnova-target/debug/deps/rustc7VtD15/symbols.o" "<6 object files omitted>" "-Wl,--as-needed" "-Wl,-Bstatic" "<sysroot>/lib/rustlib/x86_64-unknown-linux-gnu/lib/{libtest-*,libgetopts-*,librustc_std_workspace_std-*}.rlib" "/home/shawn/workspace2/scratchpads/suprnova-target/debug/deps/{libreactive_tui,libvt100-6a011eddd1160140,libregex-f97e08c9cf9a64d9,libtempfile-89db61790eb624c5,liblazy_static-878527967bf864f7,libcap_fs_ext-82679977873a2c98,libcap_std-457e7a9813d68862,libcap_primitives-8a7c5228c6f1c82c,libfs_set_times-1a79fdf41a443358,libio_lifetimes-0f06b6feb74cc6a7,libipnet-bc88dd2ed66b9164,libmaybe_owned-53b7788be720cab0,librustix_linux_procfs-33ec35e0636428ad,libio_extras-b50b5879b91b2aa4,libio_lifetimes-41514c33908be3ec,libambient_authority-f3610eb1adf23c2a,libsyntect-00fd096a8561caa9,libfancy_regex-060a8316ceaccc4c,libbit_set-c74b450f37b5324e,libbit_vec-446eddc15a2cdc12,libregex_automata-b74c9021b74165a1,libaho_corasick-c06793af793c8eb5,libwalkdir-a58e71a8e06767eb,libsame_file-9e4d6b2ca076040c,libyaml_rust-8bd859969057c02d,liblinked_hash_map-f4c4f4d990758dd9,libregex_syntax-cd34320a6bd29324,libfnv-9d33fa96777e0f8f,libplist-dd90979aac8ab325,libtime-6f112ced84bf03cd,libtime_core-f7f65c6e341c78e2,libnum_conv-c991c488ecd04a59,libderanged-2e6429a3b967935f,libpowerfmt-1687cd196fde8c74,libquick_xml-841e6cb1268444e0,libbase64-4d42bfd8e0a80fef,libindexmap-882b01158a3283c8,libbincode-d8c281874a386861,libbase64-55e9028768dfb595,libtokio-35687c347849beae,libsocket2-5a941b9c00182906,libbytes-fc19be0715428d04,libcomrak-7b30d071d2471671,libcaseless-d3b202e132a76a26,libunicode_normalization-311e555cf9ade0e3,libtinyvec-92ac9cee4789e74f,libtyped_arena-ddcc117543e16269,libjetscii-e5511aeb52820b4e,librustc_hash-9a907c3aef4c78ff,libfinl_unicode-6690d5330d1c09d5,libtaffy-ae20c18952f86122,libgrid-ff66f7468f1f2bbb,libserde_json-423fc05b49fc16d8,libitoa-cc2904b36094979c,libryu-08269ef775a8f883,libthiserror-76ecf41f929e6679,libunicode_width-95f5a345550af8d9,libstring_cache-416a2e52567d5039,libprecomputed_hash-1c73892b2b8186e4,libphf_shared-10d8437f366503e5,libdebug_unreachable-31137a66aa2cde17,liblru-86cc16d393673416,libcrossterm-ae5d1a2b4b0e01a0,libparking_lot-b4bfeb61a0cba922,libparking_lot_core-bb87efe5948bbbca,liblock_api-d6739199b98bc703,libscopeguard-6cf3f29179e6b53b,libderive_more-7135ee3868d68eee,libsignal_hook_mio-2cf591be7314eb33,libsignal_hook-63af51dbf3c517b0,libmio-99a462f99f40be22,liblog-03fce3c76a50a16b,libsuprtui-972254a7d9058ad1,libunicode_properties-1e48601ca7c2cb63,libvte-53c13a2dd937b276,libmemchr-150f54df543a3f99,libimage-41a78f22bab698e7,libimage_webp-54e7f7a1ed8c7aaa,libquick_error-0632e9b4b6471a7c,libbytemuck-2573416b3347fddd,libpng-43d37f6385687428,libbitflags-a573266a252d7b4d,libfdeflate-12b4dbd4769251f4,libzune_jpeg-1a0df0414568da60,libzune_core-a5862d68722fd974,libgif-e6d693246f2cca32,libcolor_quant-d9f2761d370436fd,libbyteorder_lite-03ad08ab25f8f3ca,libnum_traits-2ce83eacd22b6d59,libtiff-6e326b66a24d187e,libflate2-db93e66f50d88fc7,libminiz_oxide-383c82c48e1fa9ff,libsimd_adler32-8cad0d0409285e2e,libcrc32fast-85358486af9f3da0,libweezl-e48922ceb49a5c10,libjpeg_decoder-1d1fff93e5259c86,libtaffy-f97b81255dff68b4,libslotmap-29a73e7ffa843c94,libsmallvec-33d35fa1352608f2,libfutures_util-250351a2f6dc4c52,libfutures_task-5e8db9a1957be253,libpin_utils-d037da3d039fe40e,libatspi-d9c3eddaab05dfe5,libatspi_proxies-06a0fb758c4d45ca,libphf-88fcf2d05c706b67,libphf_shared-a81ebb302d448f0c,libsiphasher-0e0becd9742e6ec1,libatspi_common-bb8035e34d77128e,libzbus-030f5f85cd8d1c75,libblocking-37c08844d229c5a6,libpiper-9a18cb6ff8beb4de,libatomic_waker-8ad936e065149005,libhex-cc85664222fbec66,libasync_executor-6f8245028a2d5203,libasync_process-aa19ae08da7e3669,libasync_signal-e865f4ec2f39d775,libsignal_hook_registry-059da1439deb7837,libasync_lock-26eb5735028d744c,libasync_task-477161b8f79858b8,libasync_channel-81970f7f3b5a32e2,libordered_stream-1c97d177cd755eec,libtracing-d320d92eeca1d51d,libtracing_core-3db7d830095d219d,libonce_cell-40fbad00cd2a81c5,libasync_broadcast-b9dcb2f2aa434aa6,libevent_listener_strategy-f4571f5be8ad0f47,libevent_listener-2d286ac5e14be42a,libasync_io-2ae6f9a586eed26b,libslab-fd542beb062cf01b,libpolling-6c65406bfa009eeb,libconcurrent_queue-8bbd87eeda0b8232,libcrossbeam_utils-9a4c2c744b8fe652,librustix-11c68858c613edfc,libbitflags-295e76217b9d2a69,liblinux_raw_sys-5e27a3c836943770,libfutures_lite-ce0404c9741018e9,libfutures_core-250a4d1cf0e837d8,libparking-927aebf1d63bee1e,libpin_project_lite-c737cb5152347b30,libfastrand-575344bde10ef0c2,libfutures_io-8ac9fe8ceca861af,libzbus_names-c148b1aa50f39abd,libstatic_assertions-8fae9405c6754f24,libaccesskit_consumer-af76561ce362905c,libhashbrown-50b164afecb09331,libequivalent-ec82481c2974e326,libfoldhash-c95072a0e14f427e,liballocator_api2-7d551d584e2d6488,libzvariant-5bbe51daa268164c,libenumflags2-c1e58caaa15a56e0,libendi-baeae30d46d49879,libzcheapstr-286e81d38d31c1fc,libzvariant_utils-5d2d80c8c381825c,libwinnow-828360bcdf1f6234,libsyn-20fe284d2ba8a9b2,libquote-2074858fe102cf28,libproc_macro2-19c342315da725e3,libunicode_ident-9234dcaf69c56b08}.rlib" "<sysroot>/lib/rustlib/x86_64-unknown-linux-gnu/lib/{libproc_macro-*,librustc_literal_escaper-*}.rlib" "/home/shawn/workspace2/scratchpads/suprnova-target/debug/deps/{libunicode_segmentation-a7c4af4955764ce7,libaccesskit-bb18ef857161cb79,libuuid-db180b2b3b7544a7,libgetrandom-f97c05c141fb3ec1,liblibc-11f440d1e345d07d,libcfg_if-2157ddae314c999e,libserde-d563007a4759cf8f,libserde_core-7d1147e393c1462e}.rlib" "<sysroot>/lib/rustlib/x86_64-unknown-linux-gnu/lib/{libstd-*,libpanic_unwind-*,libobject-*,libmemchr-*,libaddr2line-*,libgimli-*,libcfg_if-*,librustc_demangle-*,libstd_detect-*,libhashbrown-*,librustc_std_workspace_alloc-*,libminiz_oxide-*,libadler2-*,libunwind-*,liblibc-*,librustc_std_workspace_core-*,liballoc-*,libcore-*,libcompiler_builtins-*}.rlib" "-Wl,-Bdynamic" "-lgcc_s" "-lutil" "-lrt" "-lpthread" "-lm" "-ldl" "-lc" "-L" "/home/shawn/workspace2/scratchpads/suprnova-target/debug/deps/rustc7VtD15/raw-dylibs" "-B<sysroot>/lib/rustlib/x86_64-unknown-linux-gnu/bin/gcc-ld" "-fuse-ld=lld" "-Wl,--eh-frame-hdr" "-Wl,-z,noexecstack" "-L" "<sysroot>/lib/rustlib/x86_64-unknown-linux-gnu/lib" "-o" "/home/shawn/workspace2/scratchpads/suprnova-target/debug/deps/api_documentation_contract-983db4d7af220340" "-Wl,--gc-sections" "-pie" "-Wl,-z,relro,-z,now" "-nodefaultlibs" "-Wl,--threads=12"
+  = note: some arguments are omitted. use `--verbose` to show all linker arguments
+  = note: rust-lld: error: undefined symbol: _ZN1
+          >>> referenced by instance.rs:309 (src/component/instance.rs:309)
+          >>>               reactive_tui.reactive_tui.e18dff79cad39bdd-cgu.10.rcgu.o:(_$LT$reactive_tui..component..instance..ComponentInstanceWrapper$LT$C$GT$$u20$as$u20$reactive_tui..component..AnyComponent$GT$::poll_change_any::h22014a02e72304f5) in archive /home/shawn/workspace2/scratchpads/suprnova-target/debug/deps/libreactive_tui.rlib
+          
+          rust-lld: error: undefined symbol: _ZN4
+          >>> referenced by sync.rs:2121 (/home/shawn/.rustup/toolchains/1.95-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/alloc/src/sync.rs:2121)
+          >>>               reactive_tui.reactive_tui.e18dff79cad39bdd-cgu.05.rcgu.o:(alloc::sync::Arc$LT$T$C$A$GT$::drop_slow::hcfc636460de873b0) in archive /home/shawn/workspace2/scratchpads/suprnova-target/debug/deps/libreactive_tui.rlib
+          >>> referenced by sync.rs:2121 (/home/shawn/.rustup/toolchains/1.95-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/alloc/src/sync.rs:2121)
+          >>>               reactive_tui.reactive_tui.e18dff79cad39bdd-cgu.05.rcgu.o:(alloc::sync::Arc$LT$T$C$A$GT$::drop_slow::hcfc636460de873b0) in archive /home/shawn/workspace2/scratchpads/suprnova-target/debug/deps/libreactive_tui.rlib
+          collect2: error: ld returned 1 exit status
+          
+
+error: could not compile `reactive-tui` (test "api_documentation_contract") due to 1 previous error
+warning: build failed, waiting for other jobs to finish...
+warning: `reactive-tui` (lib test) generated 6 warnings (6 duplicates)
+Traceback (most recent call last):
+  File "/home/shawn/workspace2/reactive-tui/scripts/check-inherited-abi.py", line 51, in <module>
+    main()
+    ~~~~^^
+  File "/home/shawn/workspace2/reactive-tui/scripts/check-inherited-abi.py", line 46, in main
+    raise RuntimeError(f'Inherited acceptance failed: {name} (exit {status})')
+RuntimeError: Inherited acceptance failed: maintenance-ffi (exit 101)
