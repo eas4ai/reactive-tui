@@ -52,6 +52,17 @@ impl GraphicsFault {
     }
 }
 
+/// Rendered effect. The shaded cube is the default; the torus powers the
+/// animation showcase's shader page on the same worker pipeline.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub enum GraphicsEffect {
+    /// Raymarched shaded cube.
+    #[default]
+    Cube,
+    /// Raymarched torus with rim lighting.
+    Torus,
+}
+
 /// Selection options; faults are opt-in and never read from global environment.
 #[derive(Debug, Default, Clone, Copy)]
 pub struct GraphicsOptions {
@@ -59,6 +70,8 @@ pub struct GraphicsOptions {
     pub force_cpu: bool,
     /// Inject one named failure through the normal fallback path.
     pub fault: Option<GraphicsFault>,
+    /// Rendered effect; shared by the GPU shader and the CPU fallback.
+    pub effect: GraphicsEffect,
 }
 
 /// Hardware rendering with a persistent, truthfully labeled CPU fallback.
@@ -66,6 +79,7 @@ pub struct HybridCubeRenderer {
     gpu: Option<GpuCubeRenderer>,
     mode: GraphicsMode,
     fault: Option<GraphicsFault>,
+    effect: GraphicsEffect,
 }
 impl HybridCubeRenderer {
     /// Initialize outside the App loop; failures retain a usable CPU renderer.
@@ -93,16 +107,19 @@ impl HybridCubeRenderer {
                 mode: GraphicsMode::Gpu(gpu.info.clone()),
                 gpu: Some(gpu),
                 fault: options.fault,
+                effect: options.effect,
             },
             Ok(gpu) => Self {
                 gpu: None,
                 mode: GraphicsMode::CpuFallback(format!("software adapter {}", gpu.info.name)),
                 fault: None,
+                effect: options.effect,
             },
             Err(error) => Self {
                 gpu: None,
                 mode: GraphicsMode::CpuFallback(error.to_string()),
                 fault: None,
+                effect: options.effect,
             },
         }
     }
@@ -140,6 +157,7 @@ impl HybridCubeRenderer {
                 request.elapsed(),
                 cancellation,
                 fault == Some(GraphicsFault::Readback),
+                self.effect,
             ) {
                 Ok(frame) => return Ok(frame),
                 Err(GraphicsError::Cancelled) => return Err(GraphicsError::Cancelled),
@@ -149,7 +167,7 @@ impl HybridCubeRenderer {
                 }
             }
         }
-        let mut frame = cpu::render(request, cancellation)?;
+        let mut frame = cpu::render(request, cancellation, self.effect)?;
         frame.mode = self.mode.clone();
         Ok(frame)
     }

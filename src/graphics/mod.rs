@@ -8,7 +8,9 @@ pub use animation::{
     FrameClock, FrameRequest, GraphicsCancellation, GraphicsWorker, WorkerOutput, WorkerStats,
 };
 pub use canvas::GraphicsCanvas;
-pub use hybrid::{GraphicsFault, GraphicsMode, GraphicsOptions, HybridCubeRenderer};
+pub use hybrid::{
+    GraphicsEffect, GraphicsFault, GraphicsMode, GraphicsOptions, HybridCubeRenderer,
+};
 
 use crate::{builder::div, component::Element, layout::style::StyleBuilder};
 use std::{
@@ -210,14 +212,54 @@ fn wait_future<T>(
     }
 }
 
-/// A shaded cube rendered to an offscreen wgpu texture, then read back as RGBA.
+/// Offscreen effect renderer: fullscreen raymarched shaders read back as RGBA.
+/// The original shaded cube remains the default effect.
 pub struct GpuCubeRenderer {
     device: wgpu::Device,
     queue: wgpu::Queue,
     pipeline: wgpu::RenderPipeline,
+    torus_pipeline: wgpu::RenderPipeline,
     uniform_layout: wgpu::BindGroupLayout,
     info: GraphicsAdapterInfo,
     failure: Arc<Mutex<Option<String>>>,
+}
+
+fn fullscreen_pipeline(
+    device: &wgpu::Device,
+    layout: &wgpu::BindGroupLayout,
+    module: &wgpu::ShaderModule,
+    label: &str,
+) -> wgpu::RenderPipeline {
+    let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+        label: Some(label),
+        bind_group_layouts: &[layout],
+        push_constant_ranges: &[],
+    });
+    device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+        label: Some(label),
+        layout: Some(&pipeline_layout),
+        vertex: wgpu::VertexState {
+            module,
+            entry_point: Some("vertex_main"),
+            compilation_options: Default::default(),
+            buffers: &[],
+        },
+        fragment: Some(wgpu::FragmentState {
+            module,
+            entry_point: Some("fragment_main"),
+            compilation_options: Default::default(),
+            targets: &[Some(wgpu::ColorTargetState {
+                format: wgpu::TextureFormat::Rgba8UnormSrgb,
+                blend: None,
+                write_mask: wgpu::ColorWrites::ALL,
+            })],
+        }),
+        primitive: Default::default(),
+        depth_stencil: None,
+        multisample: Default::default(),
+        multiview: None,
+        cache: None,
+    })
 }
 
 impl GpuCubeRenderer {
@@ -277,44 +319,21 @@ impl GpuCubeRenderer {
                 count: None,
             }],
         });
-        let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+        let cube = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("shaded cube"),
             source: wgpu::ShaderSource::Wgsl(include_str!("cube.wgsl").into()),
         });
-        let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-            label: Some("cube pipeline layout"),
-            bind_group_layouts: &[&layout],
-            push_constant_ranges: &[],
+        let torus = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+            label: Some("raymarched torus"),
+            source: wgpu::ShaderSource::Wgsl(include_str!("torus.wgsl").into()),
         });
-        let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: Some("offscreen cube"),
-            layout: Some(&pipeline_layout),
-            vertex: wgpu::VertexState {
-                module: &shader,
-                entry_point: Some("vertex_main"),
-                compilation_options: Default::default(),
-                buffers: &[],
-            },
-            fragment: Some(wgpu::FragmentState {
-                module: &shader,
-                entry_point: Some("fragment_main"),
-                compilation_options: Default::default(),
-                targets: &[Some(wgpu::ColorTargetState {
-                    format: wgpu::TextureFormat::Rgba8UnormSrgb,
-                    blend: None,
-                    write_mask: wgpu::ColorWrites::ALL,
-                })],
-            }),
-            primitive: Default::default(),
-            depth_stencil: None,
-            multisample: Default::default(),
-            multiview: None,
-            cache: None,
-        });
+        let pipeline = fullscreen_pipeline(&device, &layout, &cube, "offscreen cube");
+        let torus_pipeline = fullscreen_pipeline(&device, &layout, &torus, "offscreen torus");
         Ok(Self {
             device,
             queue,
             pipeline,
+            torus_pipeline,
             uniform_layout: layout,
             info,
             failure,
@@ -333,10 +352,21 @@ impl GpuCubeRenderer {
         rows: u32,
         elapsed: Duration,
     ) -> Result<GraphicsFrame, GraphicsError> {
+        self.render_terminal_with_effect(columns, rows, elapsed, GraphicsEffect::Cube)
+    }
+
+    /// Render the selected effect at the terminal viewport size.
+    pub fn render_terminal_with_effect(
+        &self,
+        columns: u32,
+        rows: u32,
+        elapsed: Duration,
+        effect: GraphicsEffect,
+    ) -> Result<GraphicsFrame, GraphicsError> {
         let height = rows
             .checked_mul(2)
             .ok_or_else(|| GraphicsError::Dimensions("row overflow".into()))?;
-        self.render_pixels(columns, height, elapsed)
+        self.render_pixels_with_effect(columns, height, elapsed, effect)
     }
 
     /// Render checked pixel dimensions; target and readback allocation follow each resize.
@@ -346,12 +376,24 @@ impl GpuCubeRenderer {
         height: u32,
         elapsed: Duration,
     ) -> Result<GraphicsFrame, GraphicsError> {
+        self.render_pixels_with_effect(width, height, elapsed, GraphicsEffect::Cube)
+    }
+
+    /// Render checked pixel dimensions with the selected effect.
+    pub fn render_pixels_with_effect(
+        &self,
+        width: u32,
+        height: u32,
+        elapsed: Duration,
+        effect: GraphicsEffect,
+    ) -> Result<GraphicsFrame, GraphicsError> {
         self.render_cancellable(
             width,
             height,
             elapsed,
             &GraphicsCancellation::default(),
             false,
+            effect,
         )
     }
 
@@ -362,6 +404,7 @@ impl GpuCubeRenderer {
         elapsed: Duration,
         cancellation: &GraphicsCancellation,
         inject_readback_failure: bool,
+        effect: GraphicsEffect,
     ) -> Result<GraphicsFrame, GraphicsError> {
         let render_started = std::time::Instant::now();
         pixel_count(width, height)?;
@@ -417,8 +460,12 @@ impl GpuCubeRenderer {
         let view = texture.create_view(&Default::default());
         let mut encoder = self.device.create_command_encoder(&Default::default());
         {
+            let (pipeline, pass_label) = match effect {
+                GraphicsEffect::Cube => (&self.pipeline, "cube render"),
+                GraphicsEffect::Torus => (&self.torus_pipeline, "torus render"),
+            };
             let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: Some("cube render"),
+                label: Some(pass_label),
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                     view: &view,
                     resolve_target: None,
@@ -432,7 +479,7 @@ impl GpuCubeRenderer {
                 timestamp_writes: None,
                 occlusion_query_set: None,
             });
-            pass.set_pipeline(&self.pipeline);
+            pass.set_pipeline(pipeline);
             pass.set_bind_group(0, &bind_group, &[]);
             pass.draw(0..3, 0..1);
         }

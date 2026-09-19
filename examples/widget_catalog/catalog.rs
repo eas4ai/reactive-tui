@@ -197,6 +197,35 @@ impl Catalog {
         }
     }
 
+    /// Card-grid columns track the measured terminal width so wide
+    /// viewports fill instead of stretching two narrow columns.
+    fn card_grid_class(width: u16) -> &'static str {
+        if width < 80 {
+            "w-full grid grid-cols-1 gap-0.25"
+        } else if width < 150 {
+            "w-full grid grid-cols-2 gap-0.25"
+        } else if width < 200 {
+            "w-full grid grid-cols-3 gap-0.25"
+        } else {
+            "w-full grid grid-cols-4 gap-0.25"
+        }
+    }
+
+    /// Footer hints name only keys that work on the current page: the
+    /// F1/F2 demo switcher lives on the Menus & dialogs page.
+    fn footer_text(&self) -> &'static str {
+        match (self.navigation_layout(), self.page) {
+            (NavigationLayout::Compact, CatalogPage::MenusDialogs) => {
+                "1–8 page · F2 demo · Ctrl+Q quit"
+            }
+            (NavigationLayout::Compact, _) => "1–8 page · Ctrl+Q quit",
+            (_, CatalogPage::MenusDialogs) => {
+                "↑↓/←→ page · 1–8 jump · F1/F2 demo · Tab interact · Ctrl+Q / Ctrl+C / Esc quit"
+            }
+            (_, _) => "↑↓/←→ page · 1–8 jump · Tab interact · Ctrl+Q / Ctrl+C / Esc quit",
+        }
+    }
+
     fn page_for_number(ch: char) -> Option<CatalogPage> {
         ch.to_digit(10)
             .and_then(|number| number.checked_sub(1))
@@ -286,11 +315,7 @@ impl Catalog {
 
     fn input_page(&self) -> Element {
         div()
-            .class(if self.width < 80 {
-                "w-full grid grid-cols-1 gap-0.25"
-            } else {
-                "w-full grid grid-cols-2 gap-0.25"
-            })
+            .class(Self::card_grid_class(self.width))
             .child(Self::card(
                 "TextInput",
                 text_input()
@@ -350,11 +375,7 @@ impl Catalog {
             .map(|index| Element::text(format!("Scrollable row {index}")))
             .collect();
         let examples = div()
-            .class(if self.width < 80 {
-                "w-full grid grid-cols-1 gap-0.25"
-            } else {
-                "w-full grid grid-cols-2 gap-0.25"
-            })
+            .class(Self::card_grid_class(self.width))
             .child(Self::card(
                 "Breadcrumb",
                 path_breadcrumb("/catalog/layout/widgets"),
@@ -424,11 +445,7 @@ impl Catalog {
             .add_child(TreeNode::new("manual", "manual"));
         let manual = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("manual");
         div()
-            .class(if self.width < 80 {
-                "w-full grid grid-cols-1 gap-0.25"
-            } else {
-                "w-full grid grid-cols-2 gap-0.25"
-            })
+            .class(Self::card_grid_class(self.width))
             .child(Self::card(
                 "Chart",
                 reactive_tui::builder::chart()
@@ -626,7 +643,7 @@ impl Catalog {
             .child(
                 div()
                     .class("h-1 shrink-0 text-cyan-300")
-                    .text("Wireframe cube · Braille subpixels · 80 ms")
+                    .text("Wireframe cube · Braille subpixels · 50 ms")
                     .build(),
             )
             .child(
@@ -773,7 +790,9 @@ impl RootComponent for Catalog {
             .class("w-screen h-screen flex-col bg-black text-gray-200")
             .child(
                 div()
-                    .class("w-full shrink-0 h-3 flex-row px-0.25 bg-gray-950 border-b border-gray-700")
+                    .class(
+                        "w-full shrink-0 h-3 flex-row px-0.25 bg-gray-950 border-b border-gray-700",
+                    )
                     .child(
                         div()
                             .class("flex-1 text-cyan-300 font-bold")
@@ -792,7 +811,7 @@ impl RootComponent for Catalog {
             .child(
                 div()
                     .class("w-full shrink-0 h-1 px-0.25 bg-gray-950 text-gray-500")
-                    .text(if self.width < 80 { "1–8 page · F2 demo · Ctrl+Q quit" } else { "↑↓/←→ page · 1–8 jump · F1/F2 demo · Tab interact · Ctrl+Q / Ctrl+C / Esc quit" })
+                    .text(self.footer_text())
                     .build(),
             )
             .build()

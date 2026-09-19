@@ -1,6 +1,7 @@
 use std::time::{Duration, Instant};
 
-pub const FRAME_INTERVAL: Duration = Duration::from_millis(80);
+/// Bounded redraw cadence shared with the wgpu cube clock (20 fps).
+pub const FRAME_INTERVAL: Duration = Duration::from_millis(50);
 const WIDTH: usize = 40;
 const HEIGHT: usize = 16;
 
@@ -102,7 +103,15 @@ pub fn cube_frame_sized(elapsed: Duration, width: usize, height: usize) -> Strin
         .iter()
         .map(|row| {
             row.iter()
-                .map(|mask| char::from_u32(0x2800 + u32::from(*mask)).unwrap())
+                .map(|mask| {
+                    if *mask == 0 {
+                        // Blank cells stay spaces: U+2800 renders as dotted
+                        // tofu in terminals without Braille coverage.
+                        ' '
+                    } else {
+                        char::from_u32(0x2800 + u32::from(*mask)).unwrap()
+                    }
+                })
                 .collect::<String>()
         })
         .collect::<Vec<_>>()

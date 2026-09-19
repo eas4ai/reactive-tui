@@ -86,7 +86,10 @@ impl<W: Write> ByteBackend for CheckedOutput<W> {
             let mut writer = self.writer.borrow_mut();
             // Establish a frame boundary even after a partial write followed
             // by resize (which replaces the renderer and its byte sink).
-            writer.write_all(b"\x18\x1b[?2026l\x1b[0m")?;
+            // ESC \ (ST) aborts a partial sequence like CAN would, but CAN
+            // prints a visible glyph on Konsole-lineage terminals while a
+            // bare ST is a no-op everywhere.
+            writer.write_all(b"\x1b\\\x1b[?2026l\x1b[0m")?;
             if self.before_cells.is_empty() && self.after_cells.is_empty() {
                 writer.write_all(&self.frame)?;
             } else {
@@ -150,8 +153,9 @@ impl<W: Write> TerminalOutput<W> {
     pub(super) fn restore(&mut self) -> Result<()> {
         if self.active {
             let mut writer = self.writer.borrow_mut();
+            // ST instead of CAN here too: CAN paints a glyph on some terminals.
             writer.write_all(
-                b"\x18\x1b[?2026l\x1b[0m\x1b[?1004l\x1b[0 q\x1b]112\x07\x1b[?25h\x1b[?1049l",
+                b"\x1b\\\x1b[?2026l\x1b[0m\x1b[?1004l\x1b[0 q\x1b]112\x07\x1b[?25h\x1b[?1049l",
             )?;
             writer.flush()?;
             self.active = false;
@@ -173,5 +177,36 @@ impl<W: Write> Drop for TerminalOutput<W> {
         if let Err(error) = self.restore() {
             log::warn!("Terminal output cleanup failed: {error}");
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use ::suprtui::render::WriteStatus;
+
+    #[test]
+    fn frame_boundary_emits_st_not_can() {
+        let writer = Rc::new(RefCell::new(Vec::<u8>::new()));
+        let mut output = CheckedOutput::new(Rc::clone(&writer));
+        output.begin_frame();
+        output.write_bytes(b"\x1b[?2026hA\x1b[?2026l");
+        assert!(matches!(output.end_frame(), WriteStatus::Ok));
+        let bytes = writer.borrow();
+        assert!(
+            !bytes.contains(&0x18),
+            "CAN paints a visible glyph on some terminals"
+        );
+        assert!(bytes.starts_with(b"\x1b\\\x1b[?2026l\x1b[0m"));
+    }
+
+    #[test]
+    fn restore_emits_no_can_byte() {
+        let writer = Rc::new(RefCell::new(Vec::<u8>::new()));
+        let mut terminal = TerminalOutput::new(Rc::clone(&writer), true);
+        terminal.enter().unwrap();
+        writer.borrow_mut().clear();
+        terminal.restore().unwrap();
+        assert!(!writer.borrow().contains(&0x18));
     }
 }

@@ -384,12 +384,12 @@ fn default_motion_canvas_tracks_the_terminal_and_uses_subcell_strokes() {
         catalog.resize(width, height).unwrap();
         let element = catalog.render();
         let output = text(&element);
+        let canvas_width = usize::from(width - if width >= 80 { 24 } else { 0 });
+        let canvas_height = usize::from(height - if width >= 80 { 6 } else { 9 });
         let braille_rows: Vec<_> = output
             .lines()
             .filter(|row| row.contains('\u{2800}'))
             .collect();
-        let canvas_width = usize::from(width - if width >= 80 { 24 } else { 0 });
-        let canvas_height = usize::from(height - if width >= 80 { 6 } else { 9 });
         assert_eq!(braille_rows.len(), canvas_height, "{output}");
         assert!(
             braille_rows.iter().all(|row| row
@@ -481,6 +481,7 @@ fn compact_graphics_stage_keeps_header_navigation_and_footer_visible() {
         GraphicsOptions {
             force_cpu: true,
             fault: None,
+            ..Default::default()
         },
         true,
     );

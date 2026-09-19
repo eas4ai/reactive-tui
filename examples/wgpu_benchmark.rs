@@ -50,10 +50,12 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut renderer = HybridCubeRenderer::new(GraphicsOptions {
         force_cpu: cpu,
         fault: None,
+        ..Default::default()
     });
     let mut cpu_reference = HybridCubeRenderer::new(GraphicsOptions {
         force_cpu: true,
         fault: None,
+        ..Default::default()
     });
     let fixed = Duration::from_secs(1);
     let gpu_pixels = reference.render_terminal(columns, rows, fixed)?;

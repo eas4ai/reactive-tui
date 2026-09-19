@@ -8,6 +8,7 @@ fn stage_timings_include_gpu_completion_and_cpu_has_no_readback() {
     let mut cpu = HybridCubeRenderer::new(GraphicsOptions {
         force_cpu: true,
         fault: None,
+        ..Default::default()
     });
     for (columns, rows) in [(60, 24), (144, 50), (200, 60)] {
         let hardware = gpu

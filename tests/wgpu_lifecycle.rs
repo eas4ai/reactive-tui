@@ -1,6 +1,6 @@
 use reactive_tui::graphics::{
-    FrameRequest, GraphicsCanvas, GraphicsError, GraphicsFault, GraphicsMode, GraphicsOptions,
-    GraphicsWorker, HybridCubeRenderer,
+    FrameRequest, GraphicsCanvas, GraphicsEffect, GraphicsError, GraphicsFault, GraphicsMode,
+    GraphicsOptions, GraphicsWorker, HybridCubeRenderer,
 };
 use std::{collections::HashSet, sync::mpsc, time::Duration};
 
@@ -135,4 +135,52 @@ fn shutdown_cancels_active_and_pending_work_without_publication() {
         notify_receive.try_recv().is_err(),
         "cancelled result was published"
     );
+}
+
+#[test]
+fn torus_effect_renders_shaded_animated_cpu_pixels() {
+    let mut renderer = HybridCubeRenderer::new(GraphicsOptions {
+        force_cpu: true,
+        effect: GraphicsEffect::Torus,
+        ..Default::default()
+    });
+    let first = renderer.render_terminal(60, 24, Duration::ZERO).unwrap();
+    let second = renderer
+        .render_terminal(60, 24, Duration::from_secs(1))
+        .unwrap();
+    assert!(matches!(first.mode(), GraphicsMode::CpuFallback(_)));
+    assert!(first.mode().label().starts_with("CPU fallback"));
+    let colors = first.pixels().iter().copied().collect::<HashSet<_>>();
+    assert!(colors.len() >= 16, "torus output is not shaded");
+    let background = first.pixels()[0];
+    assert!(
+        first.pixels().iter().any(|pixel| *pixel != background),
+        "torus painted only background"
+    );
+    assert_ne!(first.pixels(), second.pixels());
+}
+
+#[test]
+fn cube_and_torus_effects_disagree_on_cpu() {
+    let mut cube = HybridCubeRenderer::new(GraphicsOptions {
+        force_cpu: true,
+        ..Default::default()
+    });
+    let mut torus = HybridCubeRenderer::new(GraphicsOptions {
+        force_cpu: true,
+        effect: GraphicsEffect::Torus,
+        ..Default::default()
+    });
+    let cube_frame = cube
+        .render_terminal(60, 24, Duration::from_millis(375))
+        .unwrap();
+    let torus_frame = torus
+        .render_terminal(60, 24, Duration::from_millis(375))
+        .unwrap();
+    assert_ne!(cube_frame.pixels(), torus_frame.pixels());
+}
+
+#[test]
+fn default_effect_remains_the_shaded_cube() {
+    assert_eq!(GraphicsOptions::default().effect, GraphicsEffect::Cube);
 }
