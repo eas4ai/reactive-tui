@@ -103,15 +103,7 @@ pub fn cube_frame_sized(elapsed: Duration, width: usize, height: usize) -> Strin
         .iter()
         .map(|row| {
             row.iter()
-                .map(|mask| {
-                    if *mask == 0 {
-                        // Blank cells stay spaces: U+2800 renders as dotted
-                        // tofu in terminals without Braille coverage.
-                        ' '
-                    } else {
-                        char::from_u32(0x2800 + u32::from(*mask)).unwrap()
-                    }
-                })
+                .map(|mask| char::from_u32(0x2800 + u32::from(*mask)).unwrap())
                 .collect::<String>()
         })
         .collect::<Vec<_>>()
