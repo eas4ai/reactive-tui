@@ -508,14 +508,19 @@ impl TokioEventLoop {
             .ok_or_else(|| ReactiveError::internal("Sender not initialized"))?
             .clone();
         let parser = Arc::clone(&self.parser);
-        let mut shutdown_rx = self
+        let shutdown_rx = self
             .shutdown_rx
             .as_ref()
             .ok_or_else(|| ReactiveError::internal("Shutdown receiver not initialized"))?
             .clone();
+        #[cfg(not(unix))]
+        let mut shutdown_rx = shutdown_rx;
         self.is_running.store(true, Ordering::Release);
         let running = TokioRunningGuard(Arc::clone(&self.is_running));
 
+        #[cfg(unix)]
+        let handle = Self::start_cancellable_unix_input(sender, parser, shutdown_rx, running)?;
+        #[cfg(not(unix))]
         let handle = tokio::spawn(async move {
             use tokio::io::{stdin, AsyncReadExt};
 
@@ -565,6 +570,92 @@ impl TokioEventLoop {
 
         self.input_task = Some(handle);
         Ok(())
+    }
+
+    /// Unix input reader that stops promptly while blocked with no input.
+    ///
+    /// `tokio::io::stdin` parks a runtime blocking-pool thread in `read`
+    /// until bytes or EOF arrive, so awaiting the reader is not enough to
+    /// let the runtime shut down. This mirrors the threaded loop: a private
+    /// stdin descriptor woken through `Cancellation`, read on a blocking
+    /// thread the supervisor joins after signalling shutdown.
+    #[cfg(unix)]
+    fn start_cancellable_unix_input(
+        sender: tokio::sync::mpsc::UnboundedSender<TerminalEvent>,
+        parser: Arc<Mutex<EscapeSequenceParser>>,
+        mut shutdown_rx: tokio::sync::watch::Receiver<bool>,
+        running: TokioRunningGuard,
+    ) -> Result<tokio::task::JoinHandle<()>> {
+        use std::os::fd::{FromRawFd, OwnedFd};
+
+        let descriptor = unsafe {
+            let fd = libc::fcntl(libc::STDIN_FILENO, libc::F_DUPFD_CLOEXEC, 0);
+            if fd < 0 {
+                return Err(std::io::Error::last_os_error().into());
+            }
+            OwnedFd::from_raw_fd(fd)
+        };
+        let flags = unsafe { libc::fcntl(descriptor.as_raw_fd(), libc::F_GETFL) };
+        if flags < 0 {
+            return Err(std::io::Error::last_os_error().into());
+        }
+        if unsafe {
+            libc::fcntl(
+                descriptor.as_raw_fd(),
+                libc::F_SETFL,
+                flags | libc::O_NONBLOCK,
+            )
+        } < 0
+        {
+            return Err(std::io::Error::last_os_error().into());
+        }
+        use std::os::fd::AsRawFd as _;
+        let cancellation = Arc::new(super::input_receiver::Cancellation::new()?);
+        let reader_cancellation = Arc::clone(&cancellation);
+        let reader = tokio::task::spawn_blocking(move || {
+            let mut buffer = [0u8; 1024];
+            loop {
+                match reader_cancellation.read(&descriptor, &mut buffer) {
+                    Ok(0) => break, // EOF or cancellation wake
+                    Ok(n) => {
+                        // Parse input and generate events
+                        if let Ok(mut parser) = parser.lock() {
+                            let events = parser.parse(&buffer[..n]);
+
+                            // Send events through the channel
+                            let mut closed = false;
+                            for event in events {
+                                if sender.send(event).is_err() {
+                                    // Channel closed, exit
+                                    closed = true;
+                                    break;
+                                }
+                            }
+                            if closed {
+                                break;
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        // Send error event
+                        let error_event = TerminalEvent::Error(format!("Input error: {}", e));
+                        if sender.send(error_event).is_err() {
+                            break;
+                        }
+                        break;
+                    }
+                }
+            }
+        });
+
+        Ok(tokio::spawn(async move {
+            let _running = running;
+            // Wait for the stop signal (or owner teardown), then wake the
+            // blocked read so the joined reader cannot park a runtime thread.
+            let _ = shutdown_rx.changed().await;
+            cancellation.cancel();
+            let _ = reader.await;
+        }))
     }
 
     fn begin_shutdown(&mut self) -> Option<tokio::task::JoinHandle<()>> {
