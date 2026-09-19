@@ -1,7 +1,0 @@
-Traceback (most recent call last):
-  File "/home/shawn/workspace2/reactive-tui/scripts/check-binding-abi.py", line 116, in <module>
-    raise SystemExit(main())
-                     ~~~~^^
-  File "/home/shawn/workspace2/reactive-tui/scripts/check-binding-abi.py", line 20, in main
-    raise RuntimeError('Packaged migration guidance differs from the audited repository guidance')
-RuntimeError: Packaged migration guidance differs from the audited repository guidance

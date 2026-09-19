@@ -1,7 +1,0 @@
-........
-----------------------------------------------------------------------
-Ran 8 tests in 0.024s
-
-OK
-RID-001 failed:
-- cannot inspect .github/workflows/ci.yml: [Errno 2] No such file or directory: '/home/shawn/workspace2/reactive-tui/.github/workflows/ci.yml'

@@ -1,2 +1,0 @@
-2026-09-10 19:11:06.465 iTerm2[6619:21866] Quiet launch
-2026-09-10 19:11:21.514 iTerm2[6619:21866] WARNING: Secure coding is automatically enabled for restorable state! However, not on all supported macOS versions of this application. Opt-in to secure coding explicitly by implementing NSApplicationDelegate.applicationSupportsSecureRestorableState:.

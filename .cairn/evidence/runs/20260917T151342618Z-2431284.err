@@ -1,6 +1,0 @@
-    Blocking waiting for file lock on package cache
-    Blocking waiting for file lock on package cache
-    Blocking waiting for file lock on package cache
-   Compiling reactive-tui v0.1.0 (/home/shawn/workspace2/reactive-tui)
-    Finished `test` profile [unoptimized] target(s) in 11.96s
-     Running tests/api_event_routing.rs (/tmp/reactive-tui-wgpu.waMUcc/dqc004/default/debug/deps/api_event_routing-1243e112771ef036)

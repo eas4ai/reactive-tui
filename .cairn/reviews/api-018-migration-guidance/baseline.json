@@ -1,9 +1,0 @@
-{
-  "result": "fail",
-  "receipt": "API-017/20260912T190647647Z",
-  "cause": [
-    "packaged guide corrected current signal ownership while source C ABI guide retained the old defect warning",
-    "relative native-component links need rebasing from docs to the package directory"
-  ],
-  "scope": "Documentation consistency; native runtime checks had not run in the failing attempt."
-}

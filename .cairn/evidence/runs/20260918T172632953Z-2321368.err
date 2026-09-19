@@ -1,5 +1,0 @@
-   Compiling reactive-tui v0.1.0 (/home/shawn/workspace2/reactive-tui)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.08s
-     Running tests/pre_release_terminal_input_safety.rs (target/debug/deps/pre_release_terminal_input_safety-c728fe5d691ccdfb)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.09s
-     Running tests/pre_release_terminal_input_safety.rs (target/debug/deps/pre_release_terminal_input_safety-c728fe5d691ccdfb)

@@ -1,4 +1,0 @@
-error: failed to parse manifest at `C:\Users\RUNNER~1\AppData\Local\Temp\conpty-violation-5igztpbq\Cargo.toml`
-
-Caused by:
-  can't find `diff_benchmark` bench at `benches\diff_benchmark.rs` or `benches\diff_benchmark\main.rs`. Please specify bench.path if you want to use a non-default path.

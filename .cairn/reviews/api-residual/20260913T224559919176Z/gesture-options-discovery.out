@@ -1,7 +1,0 @@
-   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.05s
-     Running tests/mouse_hooks_test.rs (target/debug/deps/mouse_hooks_test-da282368f2b5137e)
-tests::api019_component_click_and_gesture_history_are_isolated: test
-tests::api019_drag_drop_options_and_owner_cleanup_control_routed_state: test
-
-2 tests, 0 benchmarks

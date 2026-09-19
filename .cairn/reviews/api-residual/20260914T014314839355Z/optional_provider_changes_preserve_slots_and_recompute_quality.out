@@ -1,8 +1,0 @@
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.14s
-     Running unittests src/lib.rs (target/debug/deps/reactive_tui-10768dd881459d97)
-
-running 1 test
-test hooks::fps::tests::optional_provider_changes_preserve_slots_and_recompute_quality ... ok
-
-test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1029 filtered out; finished in 0.00s
-

@@ -1,9 +1,0 @@
-   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.29s
-     Running tests/api011_history_property_probe.rs (target/debug/deps/api011_history_property_probe-664f5b72337c244f)
-
-running 1 test
-test reflow_round_trips_mixed_graphemes_and_continued_input ... ok
-
-test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
-

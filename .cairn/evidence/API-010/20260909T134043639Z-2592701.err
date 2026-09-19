@@ -1,4 +1,0 @@
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.47s
-     Running unittests src/lib.rs (target/debug/deps/reactive_tui-3964df08ee016e91)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.09s
-     Running tests/api_paint_properties.rs (target/debug/deps/api_paint_properties-fbc391f4c1d1aa8f)

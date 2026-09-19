@@ -1,3 +1,0 @@
-PASS removed-node observation retries until the required replacement appears
-PASS permanent disappearance still fails within the unchanged deadline
-PASS unrelated remote errors propagate immediately

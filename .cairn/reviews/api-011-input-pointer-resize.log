@@ -1,9 +1,0 @@
-   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 3.31s
-     Running tests/api_widget_behavior.rs (target/debug/deps/api_widget_behavior-591f6bff9f7c0602)
-
-running 1 test
-test dialog_acceptance::input_dialog_pointer_edits_and_submits_at_the_resized_painted_coordinates ... ok
-
-test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 295 filtered out; finished in 0.69s
-

@@ -1,5 +1,0 @@
-   Compiling reactive-tui v0.1.0 (/home/shawn/workspace2/reactive-tui)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 18.19s
-     Running unittests src/lib.rs (/tmp/reactive-tui-wgpu.waMUcc/debug/deps/reactive_tui-034904c07b860795)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.10s
-     Running unittests src/lib.rs (/tmp/reactive-tui-wgpu.waMUcc/debug/deps/reactive_tui-034904c07b860795)

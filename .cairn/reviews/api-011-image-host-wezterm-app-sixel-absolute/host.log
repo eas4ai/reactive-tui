@@ -1,5 +1,0 @@
-03:36:00.909  ERROR  window::os::x11::connection > error fetching window manager name: empty list of windows
-03:36:00.935  WARN   wezterm_term::terminalstate > save/restore dec mode SixelDisplayMode unimplemented
-03:36:00.935  WARN   wezterm_term::terminalstate > save/restore dec mode SixelDisplayMode unimplemented
-03:36:05.536  WARN   wezterm_term::terminalstate > save/restore dec mode SixelDisplayMode unimplemented
-03:36:05.537  WARN   wezterm_term::terminalstate > save/restore dec mode SixelDisplayMode unimplemented

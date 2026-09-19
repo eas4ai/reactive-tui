@@ -1,8 +1,0 @@
-    Blocking waiting for file lock on package cache
-    Blocking waiting for file lock on package cache
-    Blocking waiting for file lock on package cache
-   Compiling reactive-tui-libghostty-vt-sys v0.1.0 (/home/shawn/workspace2/reactive-tui/crates/libghostty-vt-sys)
-    Checking reactive-tui-libghostty-vt v0.1.0 (/home/shawn/workspace2/reactive-tui/crates/libghostty-vt)
- Documenting reactive-tui v0.1.0 (/home/shawn/workspace2/reactive-tui)
-    Finished `dev` profile [unoptimized + debuginfo] target(s) in 8.23s
-   Generated /home/shawn/workspace2/scratchpads/suprnova-target/doc/reactive_tui/index.html

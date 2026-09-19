@@ -1,7 +1,0 @@
-
-running 2 tests
-test /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260913T223023211866Z/rust-3.md - (line 20) ... ok
-test /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260913T223023211866Z/rust-3.md - (line 3) ... ok
-
-test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.68s
-

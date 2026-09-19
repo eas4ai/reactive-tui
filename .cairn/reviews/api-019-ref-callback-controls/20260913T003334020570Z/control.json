@@ -1,7 +1,0 @@
-{
-  "original_sha256": "fb80e3a22e99ebf13af5578f1e98353b2cd33d0d9869a8559736ff3c39fcf39c",
-  "mutation": "Hold current-value mutex across callback invocation",
-  "negative_error": "Native widget command failed (101): /home/shawn/workspace2/reactive-tui/.cairn/reviews/api-019-ref-callback-controls/20260913T003334020570Z/negative.out",
-  "production_restored": true,
-  "corrected_shared_cases_passed": 9
-}

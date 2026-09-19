@@ -1,9 +1,0 @@
-Observed 1 owned reader threads: {3807384}
-Backpressure stopped input after 17920 bytes
-PASS owned reader threads stopped
-
-thread 'main' (3807290) panicked at verification/api-residual/input-lifecycle.rs:131:13:
-assertion `left == right` failed
-  left: 1024
- right: 64
-note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace

@@ -1,3 +1,0 @@
-     Locking 1 package to latest compatible version
-      Adding crossterm v0.29.0 (/home/shawn/workspace2/reactive-tui/src/backend/crossterm)
-error: package `crossterm` cannot be tested because it requires dev-dependencies and is not a member of the workspace

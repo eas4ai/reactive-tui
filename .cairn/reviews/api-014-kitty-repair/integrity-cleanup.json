@@ -1,9 +1,0 @@
-[
-  "Kitty source archive digest mismatch: /home/shawn/workspace2/scratchpads/tmp/kitty-integrity-ss6sa3xg/cache/source.download",
-  "Kitty build jobs must be between 1 and 12",
-  "Kitty runtime integrity mismatch: /home/shawn/workspace2/reactive-tui/target/kitty-image-host/65cfdc31dc3c3eb780da",
-  "Restored complete runtime passed verification",
-  "Exited launcher descendant stopped: gone",
-  "Reference rejects completion before placement/removal stages",
-  "Only archive source change: kitty-0.45.0/kitty/child-monitor.c"
-]

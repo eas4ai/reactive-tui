@@ -1,5 +1,0 @@
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.09s
-     Running unittests src/lib.rs (target/debug/deps/reactive_tui-e9e38f93cee1f718)
-   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.92s
-     Running tests/api_paint_properties.rs (target/debug/deps/api_paint_properties-f669aac5084c4120)

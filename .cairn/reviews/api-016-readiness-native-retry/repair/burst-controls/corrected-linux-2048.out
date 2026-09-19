@@ -1,3 +1,0 @@
-BURST_DELIVERY fully-queued initially_queued=2048 total_sent=2048
-PASS public Crossterm: 2048 bytes, exhausted zero-timeout poll and restoration
-LINUX_SINGLE_WRITE_2048_RETAINED

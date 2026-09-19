@@ -1,4 +1,0 @@
-Get:1 http://us.archive.ubuntu.com/ubuntu resolute/main amd64 libcanberra-dev amd64 0.30-18ubuntu3 [6858 B]
-Get:2 http://us.archive.ubuntu.com/ubuntu resolute/main amd64 libxxhash-dev amd64 0.8.3-2build1 [78.8 kB]
-Get:3 http://us.archive.ubuntu.com/ubuntu resolute/universe amd64 libsimde-dev all 0.8.2-3 [469 kB]
-Fetched 554 kB in 1s (381 kB/s)

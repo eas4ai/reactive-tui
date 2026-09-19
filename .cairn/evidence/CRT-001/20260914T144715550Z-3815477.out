@@ -1,5 +1,0 @@
-root: 477 bounded archive files
-macros: 7 bounded archive files
-crossterm: 54 bounded archive files
-engine: 51 bounded archive files
-publish order: reactive-tui-macros, reactive-tui-crossterm, reactive-tui-suprtui, reactive-tui

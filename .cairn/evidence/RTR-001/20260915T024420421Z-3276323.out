@@ -1,6 +1,0 @@
-   Compiling reactive-tui v0.1.0 (/home/shawn/workspace2/reactive-tui)
-    Finished `dev` profile [unoptimized + debuginfo] target(s) in 14.95s
-A11Y missing bus: error returned and terminal restored in 0.06s
-A11Y stalled bus: error returned and terminal restored in 3.06s
-A11Y automatic mode with missing bus: frame, input, and cleanup passed in 0.52s
-A11Y automatic mode with stalled bus: frame, input, and cleanup passed in 3.83s

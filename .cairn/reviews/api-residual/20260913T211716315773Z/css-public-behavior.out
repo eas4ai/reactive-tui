@@ -1,8 +1,0 @@
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.12s
-     Running tests/api_animation_screens.rs (target/debug/deps/api_animation_screens-b95e88a614f46391)
-
-running 1 test
-test checked_conversion_requires_a_named_property_and_rejects_value_loss ... ok
-
-test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 26 filtered out; finished in 0.00s
-

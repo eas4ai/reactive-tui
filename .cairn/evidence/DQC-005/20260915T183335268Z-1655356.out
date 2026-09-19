@@ -1,6 +1,0 @@
-DQC-005 rustdoc surfaces: default, minimal, ffi, docs.rs, embedded-terminal, stable-combined
-DQC-005 inventoried 6558 shipped public declarations
-DQC-005 production test helpers: none
-DQC-005 legacy helpers: none
-DQC-005 retention decisions: none
-DQC-005 passed: supported public API is documented and production helpers are intentional.

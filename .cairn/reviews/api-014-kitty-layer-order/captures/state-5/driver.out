@@ -1,8 +1,0 @@
-Traceback (most recent call last):
-  File "/tmp/abi-004-kitty-state-capture.py", line 161, in <module>
-    run(sys.argv[1], Path(sys.argv[2]), sys.argv[3] if len(sys.argv) > 3 else None)
-    ~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/tmp/abi-004-kitty-state-capture.py", line 92, in run
-    assert state.returncode == 0, state.stderr
-           ^^^^^^^^^^^^^^^^^^^^^
-AssertionError: b'Available builtin kittens:\ntransfer\npager\nquick_access_terminal\nchoose_fonts\nshow_key\nthemes\ndiff\ndesktop_ui\nssh\nremote_file\nresize_window\nnotify\nunicode_input\nquery_terminal\nask\nchoose_files\nbroadcast\nhyperlinked_grep\nicat\npanel\nclipboard\nhints\nNo kitten named @\n'

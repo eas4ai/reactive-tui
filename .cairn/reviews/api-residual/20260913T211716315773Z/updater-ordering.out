@@ -1,9 +1,0 @@
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.09s
-     Running unittests src/lib.rs (target/debug/deps/reactive_tui-10768dd881459d97)
-
-running 2 tests
-test ui::updater::tests::cancellation_and_owner_close_invalidate_escaped_handles ... ok
-test ui::updater::tests::requests_coalesce_order_and_reentry_waits_for_next_batch ... ok
-
-test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 1028 filtered out; finished in 0.00s
-

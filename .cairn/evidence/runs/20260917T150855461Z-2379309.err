@@ -1,9 +1,0 @@
-............
-----------------------------------------------------------------------
-Ran 12 tests in 0.020s
-
-OK
-    Finished `test` profile [unoptimized] target(s) in 0.12s
-     Running tests/api_clipboard.rs (/tmp/reactive-tui-wgpu.waMUcc/dqc004/default/debug/deps/api_clipboard-b0c9637e99af5b8f)
-    Finished `test` profile [unoptimized] target(s) in 0.14s
-     Running unittests src/lib.rs (/tmp/reactive-tui-wgpu.waMUcc/dqc004/default/debug/deps/reactive_tui-ee3dccb78368cb88)

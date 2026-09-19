@@ -1,4 +1,0 @@
-   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 5.46s
-     Running tests/api_animation_screens.rs (target/debug/deps/api_animation_screens-a52999d3828822cd)
-error: test failed, to rerun pass `--test api_animation_screens`

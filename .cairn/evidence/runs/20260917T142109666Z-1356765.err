@@ -1,5 +1,0 @@
-   Compiling reactive-tui v0.1.0 (/home/shawn/workspace2/reactive-tui)
-    Finished `test` profile [unoptimized] target(s) in 0.52s
-     Running tests/pre_release_terminal_helper_lifecycle.rs (/tmp/reactive-tui-wgpu.waMUcc/dqc004/default/debug/deps/pre_release_terminal_helper_lifecycle-6fe2f8d8754981d1)
-    Finished `test` profile [unoptimized] target(s) in 0.11s
-     Running tests/pre_release_terminal_helper_lifecycle.rs (/tmp/reactive-tui-wgpu.waMUcc/dqc004/default/debug/deps/pre_release_terminal_helper_lifecycle-6fe2f8d8754981d1)

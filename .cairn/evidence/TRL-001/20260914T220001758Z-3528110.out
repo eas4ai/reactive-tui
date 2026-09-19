@@ -1,5 +1,0 @@
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.19s
-  Executable unittests src/lib.rs (/home/shawn/workspace2/scratchpads/suprnova-target/debug/deps/reactive_tui-36d66272761b33c2)
-worker panic probe restored termios and terminal modes before visible panic text
-main panic probe restored termios and terminal modes before visible panic text
-TRL-001 terminal restoration after worker and main-thread panics passed

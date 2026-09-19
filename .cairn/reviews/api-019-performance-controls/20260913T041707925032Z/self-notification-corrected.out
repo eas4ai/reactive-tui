@@ -1,9 +1,0 @@
-   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 15.85s
-     Running tests/api_performance_context.rs (target/debug/deps/api_performance_context-092283dc47f5c0c7)
-
-running 1 test
-test mode_bursts_keep_latest_request_and_metrics_do_not_redraw_idle_apps ... ok
-
-test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 0.22s
-

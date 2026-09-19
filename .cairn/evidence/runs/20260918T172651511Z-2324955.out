@@ -1,5 +1,0 @@
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
-  Executable unittests src/lib.rs (target/debug/deps/reactive_tui-cf396ad3e1c2165f)
-worker probe restored termios and terminal modes before its final marker
-main probe restored termios and terminal modes before its final marker
-TRL-001 terminal restoration after worker and main-thread panics passed

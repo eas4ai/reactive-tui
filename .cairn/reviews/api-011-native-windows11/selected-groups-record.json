@@ -1,6 +1,0 @@
-﻿{
-    "result":  "selected groups passed; ConPTY handle probe remains failed",
-    "commit":  "ceff3560cc7f097a8d97128557582af0b36672ac",
-    "os":  "Microsoft Windows NT 10.0.26200.0",
-    "compiler":  "rustc 1.98.0 (88d9e12ae 2026-08-18)"
-}

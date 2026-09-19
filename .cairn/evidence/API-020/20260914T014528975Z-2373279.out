@@ -1,3 +1,0 @@
-   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
-    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.23s
-API-020 closure: audit mapping, negative controls, normal cleanup and forced-timeout cleanup PASS

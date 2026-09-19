@@ -1,72 +1,0 @@
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.27s
-     Running tests/api_widget_behavior.rs (target/debug/deps/api_widget_behavior-9f2f4c66b59c1dac)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.10s
-     Running unittests src/lib.rs (target/debug/deps/reactive_tui-e6259c94dd2cfe8d)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.09s
-     Running unittests src/lib.rs (target/debug/deps/reactive_tui-e6259c94dd2cfe8d)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.09s
-     Running unittests src/lib.rs (target/debug/deps/reactive_tui-e6259c94dd2cfe8d)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.09s
-     Running unittests src/lib.rs (target/debug/deps/reactive_tui-e6259c94dd2cfe8d)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.09s
-     Running unittests src/lib.rs (target/debug/deps/reactive_tui-e6259c94dd2cfe8d)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.09s
-     Running unittests src/lib.rs (target/debug/deps/reactive_tui-e6259c94dd2cfe8d)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.09s
-     Running unittests src/lib.rs (target/debug/deps/reactive_tui-e6259c94dd2cfe8d)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.09s
-     Running unittests src/lib.rs (target/debug/deps/reactive_tui-e6259c94dd2cfe8d)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.09s
-     Running unittests src/lib.rs (target/debug/deps/reactive_tui-e6259c94dd2cfe8d)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.09s
-     Running unittests src/lib.rs (target/debug/deps/reactive_tui-e6259c94dd2cfe8d)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.09s
-     Running unittests src/lib.rs (target/debug/deps/reactive_tui-e6259c94dd2cfe8d)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
-     Running unittests src/lib.rs (target/debug/deps/reactive_tui-e6259c94dd2cfe8d)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.10s
-     Running unittests src/lib.rs (target/debug/deps/reactive_tui-e6259c94dd2cfe8d)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.09s
-     Running unittests src/lib.rs (target/debug/deps/reactive_tui-e6259c94dd2cfe8d)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
-     Running unittests src/lib.rs (target/debug/deps/reactive_tui-e6259c94dd2cfe8d)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
-     Running unittests src/lib.rs (target/debug/deps/reactive_tui-e6259c94dd2cfe8d)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.09s
-     Running unittests src/lib.rs (target/debug/deps/reactive_tui-e6259c94dd2cfe8d)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.09s
-     Running unittests src/lib.rs (target/debug/deps/reactive_tui-e6259c94dd2cfe8d)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
-     Running unittests src/lib.rs (target/debug/deps/reactive_tui-e6259c94dd2cfe8d)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.13s
-     Running unittests src/lib.rs (target/debug/deps/reactive_tui-e6259c94dd2cfe8d)
-   Compiling reactive-tui v0.1.0 (/home/shawn/workspace2/reactive-tui)
-    Finished `dev` profile [unoptimized + debuginfo] target(s) in 2.49s
-Generating targets:   0%|          | 0/138 eta ?                                                Writing build.ninja:   0%|          | 0/327 eta ?                                                 Generating targets:   0%|          | 0/138 eta ?                                                Writing build.ninja:   0%|          | 0/327 eta ?                                                 Generating targets:   0%|          | 0/138 eta ?                                                Writing build.ninja:   0%|          | 0/327 eta ?                                                 Traceback (most recent call last):
-  File "/home/shawn/workspace2/reactive-tui/scripts/check-conpty-platform.py", line 153, in <module>
-    verify() if args.verify else run()
-    ~~~~~~^^
-  File "/home/shawn/workspace2/reactive-tui/scripts/check-conpty-platform.py", line 133, in verify
-    record = json.loads((RECORDS / "windows.json").read_text())
-                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
-  File "/home/linuxbrew/.linuxbrew/Cellar/python@3.14/3.14.7/lib/python3.14/pathlib/__init__.py", line 787, in read_text
-    with self.open(mode='r', encoding=encoding, errors=errors, newline=newline) as f:
-         ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/linuxbrew/.linuxbrew/Cellar/python@3.14/3.14.7/lib/python3.14/pathlib/__init__.py", line 771, in open
-    return io.open(self, mode, buffering, encoding, errors, newline)
-           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-FileNotFoundError: [Errno 2] No such file or directory: '/home/shawn/workspace2/reactive-tui/docs/analysis/conpty-platform/windows.json'
-Traceback (most recent call last):
-  File "/home/shawn/workspace2/reactive-tui/scripts/check-api-widget-behavior.py", line 103, in <module>
-    subprocess.run(
-    ~~~~~~~~~~~~~~^
-        ["python3", "-B", "scripts/check-conpty-platform.py", "--verify"],
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-        cwd=root, env=environment, check=True, timeout=180,
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    )
-    ^
-  File "/home/linuxbrew/.linuxbrew/Cellar/python@3.14/3.14.7/lib/python3.14/subprocess.py", line 578, in run
-    raise CalledProcessError(retcode, process.args,
-                             output=stdout, stderr=stderr)
-subprocess.CalledProcessError: Command '['python3', '-B', 'scripts/check-conpty-platform.py', '--verify']' returned non-zero exit status 1.

@@ -1,8 +1,0 @@
-Traceback (most recent call last):
-  File "/Users/runner/work/reactive-tui/reactive-tui/verification/api-entry-points/harness-consumer.py", line 29, in <module>
-    terminal.finish(host_modes=False)
-    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
-  File "/Users/runner/work/reactive-tui/reactive-tui/scripts/check-api-entry-points.py", line 141, in finish
-    assert termios.tcgetattr(self.slave) == self.original, "entry point left raw mode active"
-           ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^
-termios.error: (25, 'Inappropriate ioctl for device')

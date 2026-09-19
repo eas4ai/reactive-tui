@@ -1,7 +1,0 @@
-CELL_DISTANCE=5 PIXEL_DISTANCE=0
-
-thread 'main' (2368551) panicked at .cairn/reviews/api-019-gesture-units/distance.rs:7:5:
-assertion `left == right` failed: pixel drag distance was discarded
-  left: 0.0
- right: 5.0
-note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace

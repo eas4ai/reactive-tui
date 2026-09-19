@@ -1,5 +1,0 @@
-Package libxxhash was not found in the pkg-config search path.
-Perhaps you should add the directory containing `libxxhash.pc'
-to the PKG_CONFIG_PATH environment variable
-Package 'libxxhash' not found
-The package libxxhash was not found on your system

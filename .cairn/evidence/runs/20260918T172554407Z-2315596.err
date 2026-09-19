@@ -1,8 +1,0 @@
-   Compiling reactive-tui v0.1.0 (/home/shawn/workspace2/reactive-tui)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 5.02s
-     Running unittests src/lib.rs (target/debug/deps/reactive_tui-cf396ad3e1c2165f)
-   Compiling reactive-tui v0.1.0 (/home/shawn/workspace2/reactive-tui)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 5.96s
-     Running tests/api_residual_refs.rs (target/debug/deps/api_residual_refs-9db56dda05fa344b)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.15s
-   Doc-tests reactive_tui

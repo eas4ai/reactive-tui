@@ -1,5 +1,0 @@
-PASS console handles, input, environment, resize, real exit 259, repeated stop
-
-thread 'main' (2392) panicked at tests\api_widget_behavior\conpty_probe.rs:211:9:
-failed launches leaked handles
-note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace

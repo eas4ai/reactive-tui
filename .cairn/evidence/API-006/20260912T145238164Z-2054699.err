@@ -1,5 +1,0 @@
-   Compiling reactive-tui v0.0.7 (/home/shawn/workspace2/reactive-tui)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.27s
-     Running tests/api_focus.rs (target/debug/deps/api_focus-1e1e398e5ac842b4)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.13s
-     Running unittests src/lib.rs (target/debug/deps/reactive_tui-3b9bd581c091ab71)

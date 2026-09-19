@@ -1,4 +1,0 @@
-/home/shawn/workspace2/reactive-tui/.cairn/reviews/api-documentation/20260912T175017936266Z/c-2.c:1:10: fatal error: rtui.h: No such file or directory
-    1 | #include <rtui.h>
-      |          ^~~~~~~~
-compilation terminated.

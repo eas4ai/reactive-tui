@@ -1,4 +1,0 @@
-
-thread 'main' (3894225) panicked at verification/api-residual/input-lifecycle.rs:36:9:
-reader threads did not start: {3894226, 3894326}
-note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace

@@ -1,9 +1,0 @@
-{
-  "receipt": "ABI-004/20260912T191940318Z",
-  "result": "fail",
-  "failed_tests": [
-    "layout::css::css_in_rust::tests::test_convenience_macros",
-    "css_in_rust_simple_test::test_convenience_macros"
-  ],
-  "cause": "Old assertions require a fixed 100-cell box, contradicting the documented fills-its-container contract and the repaired parent-relative macro."
-}

@@ -1,5 +1,0 @@
-Observed 1 owned reader threads: {2269652}
-
-thread 'main' (2269650) panicked at verification/api-residual/input-lifecycle.rs:52:9:
-owned reader threads survived receiver drop: [2269652]
-note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace

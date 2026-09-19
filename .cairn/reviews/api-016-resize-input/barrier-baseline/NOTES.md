@@ -1,5 +1,0 @@
-# Barrier fixture baseline
-
-The exact public `verification/api-entry-points/input-burst.rs` fixture failed against cached registry Crossterm 0.29.0: `COUNT 1024`, expected 2048, exit 101. The parent queued all 2048 bytes after READY and released the file barrier without another terminal write. The child reached its two-second input deadline; the workflow reaped it and preserved the terminal capture. The expected exit-code failure occurs before the workflow restoration assertion, so this baseline run does not certify restoration.
-
-`provenance.json` records the Rust compilation command, exact rlib and fixture hashes. `registry-crossterm.d` establishes the cached dependency's registry source. `compile.log` records successful compilation. Run the compilation command from provenance, then `python3 -B .cairn/reviews/api-016-resize-input/barrier-baseline/run-baseline.py` from the repository root to reproduce. `run.log` and `crossterm-input-burst.bin` retain the observed assertion failure. The temporary executable was removed after the run.

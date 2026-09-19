@@ -1,9 +1,0 @@
-test_corrected_fixture (__main__.ValidatorTests.test_corrected_fixture) ... ok
-test_detached_thread_fails (__main__.ValidatorTests.test_detached_thread_fails) ... ok
-test_each_missing_guard_fails (__main__.ValidatorTests.test_each_missing_guard_fails) ... ok
-test_mislabeled_cpu_fails (__main__.ValidatorTests.test_mislabeled_cpu_fails) ... ok
-
-----------------------------------------------------------------------
-Ran 4 tests in 0.000s
-
-OK

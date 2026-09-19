@@ -1,5 +1,0 @@
-    Finished `test` profile [unoptimized] target(s) in 0.11s
-  Executable unittests src/lib.rs (/tmp/reactive-tui-wgpu.waMUcc/dqc004/default/debug/deps/reactive_tui-ee3dccb78368cb88)
-worker probe restored termios and terminal modes before its final marker
-main probe restored termios and terminal modes before its final marker
-TRL-001 terminal restoration after worker and main-thread panics passed

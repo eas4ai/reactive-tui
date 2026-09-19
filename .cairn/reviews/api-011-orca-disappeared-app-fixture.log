@@ -1,7 +1,0 @@
-PASS baseline rejects disappearing App during name
-PASS corrected discovery finds replacement after name failure
-PASS baseline rejects disappearing App during count
-PASS corrected discovery finds replacement after count failure
-PASS unrelated error propagates: atspi_error/0/connection refused
-PASS unrelated error propagates: different-domain/0/The application no longer exists
-PASS unrelated error propagates: atspi_error/1/The application no longer exists
