@@ -1,0 +1,18 @@
+mechanism: binding-inherited
+commit: b1df6448c71ec8f615770c30785f02aa6b3022b3
+inputs_digest: sha256:639154afd990836e08640b8393e9438a2c8a0ea18eb75aebdf743d92c91c655c
+mechanism_digest: sha256:e7c8fdc2bc47da5aa14abf397695c106fc0ff381af9c19b9b1d2cf6ca7220f6c
+kernel_digest: sha256:24ec9309c12d7ddb5b8693ffc74f3aad4a3ea660e4a42980c57ad2031d6f6f05
+inputs_detail: .cairn/evidence/runs/20260919T111554310Z-3657486.inputs.json
+command: python3 -B scripts/check-inherited-abi.py
+cwd: .
+exit: 0
+output_digest: sha256:e4b37a068e039172c4860eb450f0db5306864fd1c402ef91cf1ef934a68aed68
+output: .cairn/evidence/runs/20260919T111554310Z-3657486.out
+stderr_output: .cairn/evidence/runs/20260919T111554310Z-3657486.err
+stderr_digest: sha256:dda58dca024ebd706a5c89c77a3a21c81d62ff3cc9f96844a0597c7e679bee01
+signal: none
+execution_error: null
+recorded: 2026-09-19T11:20:44.748Z
+results:
+  - ABI-004 pass exit sha256:a604be64607680a9b9afe52fdb787ba1845344bb5a7ce0300d81e375c21213d6 39 sha256:5b4ec73a018e647c0ffdc86a5d5dec129dc58f96da464af7c1e7e65310df711f
