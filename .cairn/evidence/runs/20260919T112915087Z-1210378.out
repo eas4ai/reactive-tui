@@ -1,0 +1,12 @@
+   Compiling reactive-tui v0.1.0 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 21.62s
+     Running tests/tokio_event_loop_lifecycle.rs (target/debug/deps/tokio_event_loop_lifecycle-7283c3969b58f7b6)
+
+running 2 tests
+test lifecycle_routes_are_safe_in_current_thread_runtime ... RTR003 PASS current-thread
+ok
+test lifecycle_routes_are_safe_in_multi_thread_runtime ... RTR003 PASS multi-thread
+ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
