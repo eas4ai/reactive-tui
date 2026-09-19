@@ -1,0 +1,7 @@
+   Compiling reactive-tui-crossterm v0.1.0 (/home/shawn/workspace2/reactive-tui/src/backend/crossterm)
+   Compiling reactive-tui-macros v0.1.0 (/home/shawn/workspace2/reactive-tui/reactive-tui-macros)
+   Compiling reactive-tui v0.1.0 (/home/shawn/workspace2/reactive-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 25.70s
+  Executable unittests src/lib.rs (target/debug/deps/reactive_tui-e6259c94dd2cfe8d)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.15s
+     Running unittests src/lib.rs (target/debug/deps/reactive_tui-e6259c94dd2cfe8d)
