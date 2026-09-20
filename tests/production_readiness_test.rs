@@ -6,13 +6,14 @@ use reactive_tui::reactive::runtime::RuntimeContext;
 use reactive_tui::render::tree::element_to_render_node;
 use std::cell::Cell;
 use std::rc::Rc;
-use std::sync::Mutex;
 use std::thread;
 use std::time::Duration;
 
-// Test isolation: ensure only one test runs at a time when accessing global state
-static TEST_MUTEX: Mutex<()> = Mutex::new(());
-
+// Test isolation: these tests assert on the process-global component
+// registry, which the render path pins via get_global_registry().
+// True de-serialization needs registry injection into the render path
+// (a production API change); until then they run serialized with the
+// repo-standard attribute instead of a hand-rolled mutex.
 #[derive(Clone, PartialEq, Default)]
 struct TestProps {
     value: i32,
@@ -40,9 +41,8 @@ impl Component for TestComponent {
 }
 
 #[test]
+#[serial_test::serial]
 fn test_thread_safety_fixes() {
-    let _guard = TEST_MUTEX.lock().unwrap_or_else(|p| p.into_inner());
-
     global_cleanup_all().unwrap();
 
     // Enable strict registration mode for this test
@@ -77,9 +77,8 @@ fn test_thread_safety_fixes() {
 }
 
 #[test]
+#[serial_test::serial]
 fn test_effect_cleanup() {
-    let _guard = TEST_MUTEX.lock().unwrap_or_else(|p| p.into_inner());
-
     global_cleanup_all().unwrap();
 
     // Test 2: Effect system cleanup
@@ -114,9 +113,8 @@ fn test_effect_cleanup() {
 }
 
 #[test]
+#[serial_test::serial]
 fn test_memory_bounds() {
-    let _guard = TEST_MUTEX.lock().unwrap_or_else(|p| p.into_inner());
-
     global_cleanup_all().unwrap();
 
     // Test 3: Bounded collections in render stats
@@ -146,9 +144,8 @@ fn test_memory_bounds() {
 }
 
 #[test]
+#[serial_test::serial]
 fn test_component_lifecycle_safety() {
-    let _guard = TEST_MUTEX.lock().unwrap_or_else(|p| p.into_inner());
-
     global_cleanup_all().unwrap();
 
     // Use unique component name with process ID
@@ -198,9 +195,8 @@ fn test_component_lifecycle_safety() {
 }
 
 #[test]
+#[serial_test::serial]
 fn test_stress_component_creation() {
-    let _guard = TEST_MUTEX.lock().unwrap_or_else(|p| p.into_inner());
-
     global_cleanup_all().unwrap();
 
     // Use unique component name with process ID
@@ -248,9 +244,8 @@ fn test_stress_component_creation() {
 }
 
 #[test]
+#[serial_test::serial]
 fn test_panic_recovery() {
-    let _guard = TEST_MUTEX.lock().unwrap_or_else(|p| p.into_inner());
-
     global_cleanup_all().unwrap();
 
     // Test 6: Panic recovery in hooks (this tests our try_lock improvements)
@@ -272,9 +267,8 @@ fn test_panic_recovery() {
 }
 
 #[test]
+#[serial_test::serial]
 fn test_production_scenario() {
-    let _guard = TEST_MUTEX.lock().unwrap_or_else(|p| p.into_inner());
-
     global_cleanup_all().unwrap();
 
     // Use unique component name
@@ -324,9 +318,8 @@ fn test_production_scenario() {
 }
 
 #[test]
+#[serial_test::serial]
 fn test_all_fixes_integration() {
-    let _guard = TEST_MUTEX.lock().unwrap_or_else(|p| p.into_inner());
-
     global_cleanup_all().unwrap();
 
     println!("🚀 Running comprehensive production readiness test...");
