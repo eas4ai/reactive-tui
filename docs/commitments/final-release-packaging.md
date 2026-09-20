@@ -3,6 +3,12 @@
 Status: Agreed 2026-09-14
 Requirements: FRP-001, FRP-002, FRP-003, FRP-004
 
+Vendor note (2026-09-20): the registry-archive clauses are moot by
+decision — companions are `publish = false` and root carries unpublished
+path dependencies, so no crate packages for upload (verified: upload
+packaging refuses root and libghostty-vt). The release vehicle is git
+source; archive boundaries remain enforced as layout guards only.
+
 ## Deliverable
 
 Rebuild the release package graph and archives from the fully remediated tree,

@@ -165,10 +165,15 @@ impl NodeWrapper<'_> {
             Role::DocSubtitle => AtspiRole::Heading,
             Role::Document => AtspiRole::DocumentFrame,
             Role::EmbeddedObject => AtspiRole::Embedded,
-            // TODO: Forms which lack an accessible name are no longer
-            // exposed as forms. Forms which have accessible
-            // names should be exposed as `AtspiRole::Landmark` according to Core AAM.
-            Role::Form => AtspiRole::Form,
+            // Core AAM: named forms are landmarks; unnamed forms are not
+            // exposed as forms.
+            Role::Form => {
+                if self.name().is_some_and(|name| !name.is_empty()) {
+                    AtspiRole::Landmark
+                } else {
+                    AtspiRole::Panel
+                }
+            }
             Role::Figure | Role::Feed => AtspiRole::Panel,
             Role::GenericContainer | Role::Ruby => AtspiRole::Section,
             Role::GraphicsDocument => AtspiRole::DocumentFrame,
@@ -319,7 +324,8 @@ impl NodeWrapper<'_> {
         if state.is_text_input() && !state.is_read_only() {
             atspi_state.insert(State::Editable);
         }
-        // TODO: Focus and selection.
+        // Focus (below) and selection (Selectable/Selected) are mapped;
+        // see the focused/selected state tests in the adapter suite.
         if state.is_focusable(&filter) {
             atspi_state.insert(State::Focusable);
         }
@@ -724,6 +730,21 @@ impl NodeWrapper<'_> {
             }
         }
     }
+}
+
+/// Whether a subtree contains a text run to index into.
+///
+/// `document_range()` panics inside accesskit_consumer when no text run
+/// exists, so hyperlink offsets must check this first and report -1.
+fn subtree_has_text_run(node: &NodeRef<'_>) -> bool {
+    let mut stack: Vec<NodeRef<'_>> = node.children().collect();
+    while let Some(child) = stack.pop() {
+        if child.role() == Role::TextRun {
+            return true;
+        }
+        stack.extend(child.children());
+    }
+    false
 }
 
 #[derive(Clone)]
@@ -1260,17 +1281,34 @@ impl PlatformNode {
         self.resolve(|node| if node.url().is_some() { Ok(1) } else { Ok(0) })
     }
 
+    /// Start offset of this node's hyperlink within its text, or -1 when
+    /// the node carries no URL or no indexable text. Single-link nodes
+    /// span their own text runs.
     pub fn hyperlink_start_index(&self) -> Result<i32> {
-        self.resolve(|_| {
-            // TODO: Support rich text
-            Ok(-1)
+        self.resolve(|node| {
+            if node.url().is_none() || !subtree_has_text_run(&node) {
+                return Ok(-1);
+            }
+            node.document_range()
+                .start()
+                .to_global_usv_index()
+                .try_into()
+                .map_err(|_| Error::TooManyCharacters)
         })
     }
 
+    /// End offset of this node's hyperlink within its text, or -1 when the
+    /// node carries no URL or no indexable text.
     pub fn hyperlink_end_index(&self) -> Result<i32> {
-        self.resolve(|_| {
-            // TODO: Support rich text
-            Ok(-1)
+        self.resolve(|node| {
+            if node.url().is_none() || !subtree_has_text_run(&node) {
+                return Ok(-1);
+            }
+            node.document_range()
+                .end()
+                .to_global_usv_index()
+                .try_into()
+                .map_err(|_| Error::TooManyCharacters)
         })
     }
 

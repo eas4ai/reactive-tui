@@ -823,4 +823,64 @@ mod tests {
         assert_eq!(ops.len(), 1);
         assert!(matches!(ops[0], CacheOp::Removed(_)));
     }
+
+    fn linked_tree(linked: Node, extra: Vec<(NodeId, Node)>) -> (Adapter, FullNodeId) {
+        let mut nodes = vec![
+            (NodeId(0), with_children(Role::Window, &[NodeId(1)])),
+            (NodeId(1), linked),
+        ];
+        nodes.extend(extra);
+        let adapter = build(TreeUpdate {
+            nodes,
+            tree: Some(TreeInfo::new(NodeId(0))),
+            tree_id: TreeId::ROOT,
+            focus: NodeId(0),
+        })
+        .0;
+        let root = adapter.root_id();
+        let child = adapter
+            .platform_node(root)
+            .child_at_index(0)
+            .unwrap()
+            .unwrap();
+        (adapter, child)
+    }
+
+    fn text_run(text: &str) -> Node {
+        let mut run = Node::new(Role::TextRun);
+        run.set_value(text);
+        run.set_character_lengths(vec![1u8; text.chars().count()]);
+        run.set_text_direction(accesskit::TextDirection::LeftToRight);
+        run
+    }
+
+    #[test]
+    fn hyperlink_indices_span_linked_text() {
+        let mut link = Node::new(Role::Link);
+        link.set_url("https://example.com");
+        link.set_children(vec![NodeId(2)]);
+        let (adapter, child) = linked_tree(link, vec![(NodeId(2), text_run("click here"))]);
+        let node = adapter.platform_node(child);
+        let start = node.hyperlink_start_index().unwrap();
+        let end = node.hyperlink_end_index().unwrap();
+        assert!(start >= 0, "link start must resolve, got {start}");
+        assert_eq!(end - start, 10, "link must span its ten characters");
+    }
+
+    #[test]
+    fn hyperlink_indices_are_unknown_without_url_or_text() {
+        let (adapter, child) = linked_tree(Node::new(Role::Link), vec![]);
+        let node = adapter.platform_node(child);
+        assert_eq!(node.hyperlink_start_index().unwrap(), -1);
+        assert_eq!(node.hyperlink_end_index().unwrap(), -1);
+
+        // A URL without indexable text still reports unknown, and must
+        // never panic inside the text model.
+        let mut bare = Node::new(Role::Link);
+        bare.set_url("https://example.com");
+        let (adapter, child) = linked_tree(bare, vec![]);
+        let node = adapter.platform_node(child);
+        assert_eq!(node.hyperlink_start_index().unwrap(), -1);
+        assert_eq!(node.hyperlink_end_index().unwrap(), -1);
+    }
 }

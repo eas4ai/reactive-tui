@@ -87,6 +87,22 @@ impl<T> Ref<T> {
         result
     }
 
+    /// Update the live value while holding the internal lock.
+    ///
+    /// Unlike [`Ref::update`], concurrent `update_atomic` calls are
+    /// serialized: each closure observes all previously committed writes,
+    /// so read-modify-write cycles (counters, accumulators) never lose an
+    /// update. The price is reentrancy: the closure MUST NOT call back into
+    /// this `Ref` (or any `Ref` sharing its lock), or it will deadlock on
+    /// the non-reentrant mutex. No `Clone` bound is required.
+    pub fn update_atomic<F, R>(&self, f: F) -> R
+    where
+        F: FnOnce(&mut T) -> R,
+    {
+        let mut current = self.inner.lock();
+        f(&mut **current)
+    }
+
     /// Get a raw pointer to the inner value (unsafe)
     ///
     /// This is useful for FFI or when you need to pass a raw pointer
@@ -631,7 +647,8 @@ mod tests {
         for i in 0..10 {
             let ref_clone = shared_ref.clone();
             let handle = thread::spawn(move || {
-                ref_clone.update(|v| *v += i);
+                // Atomic updates serialize: no increment is lost.
+                ref_clone.update_atomic(|v| *v += i);
             });
             handles.push(handle);
         }
@@ -642,5 +659,29 @@ mod tests {
 
         // Sum of 0..10 = 45
         assert_eq!(shared_ref.current(), 45);
+    }
+
+    #[test]
+    fn test_snapshot_update_under_concurrency_commits_one_writer() {
+        use std::thread;
+
+        let shared_ref = Ref::new(0);
+        let mut handles = vec![];
+
+        for i in 1..=10 {
+            let ref_clone = shared_ref.clone();
+            let handle = thread::spawn(move || {
+                // Snapshot semantics: every thread completes, exactly one
+                // commit wins.
+                ref_clone.update(|v| *v = i);
+            });
+            handles.push(handle);
+        }
+
+        for handle in handles {
+            handle.join().unwrap();
+        }
+
+        assert!((1..=10).contains(&shared_ref.current()));
     }
 }

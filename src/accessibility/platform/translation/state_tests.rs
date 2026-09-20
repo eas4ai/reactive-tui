@@ -1,7 +1,7 @@
 use super::node::NodeWrapper;
 use accesskit::{Action, AriaCurrent, Node, NodeId, Role, TreeId, TreeInfo, TreeUpdate};
 use accesskit_consumer::Tree;
-use atspi_common::{Interface, State, StateSet};
+use atspi_common::{Interface, Role as AtspiRole, State, StateSet};
 
 fn translated_state(node: Node) -> StateSet {
     let id = NodeId(1);
@@ -15,6 +15,20 @@ fn translated_state(node: Node) -> StateSet {
         true,
     );
     NodeWrapper(&tree.state().root()).state(true)
+}
+
+fn translated_role(node: Node) -> AtspiRole {
+    let id = NodeId(1);
+    let tree = Tree::new(
+        TreeUpdate {
+            nodes: vec![(id, node)],
+            tree: Some(TreeInfo::new(id)),
+            tree_id: TreeId::ROOT,
+            focus: id,
+        },
+        true,
+    );
+    NodeWrapper(&tree.state().root()).role()
 }
 
 #[test]
@@ -100,6 +114,52 @@ fn read_only_text_remains_enabled_without_becoming_editable() {
     let states = translated_state(node);
     assert!(states.contains(State::ReadOnly | State::Enabled | State::Sensitive));
     assert!(!states.contains(State::Editable));
+}
+
+#[test]
+fn focused_node_reports_focused_while_siblings_do_not() {
+    let mut root = Node::new(Role::Window);
+    root.set_children([NodeId(2)]);
+    let button = Node::new(Role::Button);
+    let tree = Tree::new(
+        TreeUpdate {
+            nodes: vec![(NodeId(1), root), (NodeId(2), button)],
+            tree: Some(TreeInfo::new(NodeId(1))),
+            tree_id: TreeId::ROOT,
+            focus: NodeId(2),
+        },
+        true,
+    );
+    let root_ref = tree.state().root();
+    let child = root_ref.children().next().unwrap();
+    assert!(NodeWrapper(&child).state(true).contains(State::Focused));
+    assert!(!NodeWrapper(&root_ref).state(true).contains(State::Focused));
+}
+
+#[test]
+fn selection_states_follow_is_selected() {
+    let mut selected = Node::new(Role::ListBoxOption);
+    selected.set_selected(true);
+    let states = translated_state(selected);
+    assert!(states.contains(State::Selectable | State::Selected));
+
+    let mut unselected = Node::new(Role::ListBoxOption);
+    unselected.set_selected(false);
+    let states = translated_state(unselected);
+    assert!(states.contains(State::Selectable));
+    assert!(!states.contains(State::Selected));
+
+    let plain = translated_state(Node::new(Role::ListBoxOption));
+    assert!(!plain.contains(State::Selectable | State::Selected));
+}
+
+#[test]
+fn named_forms_are_landmarks_unnamed_forms_are_panels() {
+    let mut named = Node::new(Role::Form);
+    named.set_label("Search");
+    assert_eq!(translated_role(named), AtspiRole::Landmark);
+
+    assert_eq!(translated_role(Node::new(Role::Form)), AtspiRole::Panel);
 }
 
 #[test]
