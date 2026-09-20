@@ -952,6 +952,10 @@ pub fn use_keyframes<T: AnimatableValue + KeyframeType>(
 }
 
 #[cfg(test)]
+// Every test here shares the global animation RUNTIME, whose update
+// guard silently skips updates under contention. Running them in
+// parallel makes exact post-unmount assertions flaky, so each test is
+// serialized with the repo-standard `serial_test::serial` attribute.
 mod tests {
     use super::*;
     use crate::reactive::Hooks;
@@ -990,6 +994,7 @@ mod tests {
     }
 
     #[test]
+    #[serial_test::serial]
     fn rac_001_validator_rejects_each_controlled_violation() {
         let valid = Rac001Observation {
             owner_count: 1,
@@ -1031,6 +1036,7 @@ mod tests {
     }
 
     #[test]
+    #[serial_test::serial]
     fn rac_001_hook_source_forbids_threads_and_unscoped_schedulers() {
         use syn::visit::Visit;
 
@@ -1084,6 +1090,7 @@ mod tests {
     }
 
     #[test]
+    #[serial_test::serial]
     fn rac_001_animation_and_spring_retain_one_owner_and_cancel_on_unmount() {
         let scheduler = Arc::new(Scheduler::new());
         let scope = crate::reactive::component_scope::ComponentScope::new(scheduler);
@@ -1169,6 +1176,7 @@ mod tests {
     }
 
     #[test]
+    #[serial_test::serial]
     fn rac_001_transition_reuses_one_scheduler_timer_without_thread_growth() {
         let scheduler = Arc::new(Scheduler::new());
         let scope = crate::reactive::component_scope::ComponentScope::new(scheduler.clone());
@@ -1209,6 +1217,7 @@ mod tests {
     }
 
     #[test]
+    #[serial_test::serial]
     fn rac_001_stagger_uses_component_scheduler_and_cancels_all_work() {
         let scheduler = Arc::new(Scheduler::new());
         let scope = crate::reactive::component_scope::ComponentScope::new(scheduler.clone());
@@ -1281,6 +1290,7 @@ mod tests {
     }
 
     #[test]
+    #[serial_test::serial]
     fn keyframe_hook_sampling_can_cancel_without_delivering_a_stale_value() {
         let (send, receive) = std::sync::mpsc::channel();
         let worker = thread::spawn(move || {
@@ -1316,6 +1326,7 @@ mod tests {
     }
 
     #[test]
+    #[serial_test::serial]
     fn keyframe_hook_delivers_midpoint_and_completion_and_stop_is_isolated() {
         let hooks = Hooks::new();
         let frames = || {
@@ -1353,6 +1364,7 @@ mod tests {
     }
 
     #[test]
+    #[serial_test::serial]
     fn keyframe_hook_last_context_drop_cancels_escaped_handle() {
         let hooks = Hooks::new();
         let handle = use_keyframes(
@@ -1377,6 +1389,7 @@ mod tests {
     }
 
     #[test]
+    #[serial_test::serial]
     fn keyframe_hook_aborted_render_drops_pending_playback() {
         let hooks = Hooks::new();
         let mut escaped = None;
@@ -1400,6 +1413,7 @@ mod tests {
     }
 
     #[test]
+    #[serial_test::serial]
     fn keyframe_hook_cleanup_removes_work_and_disables_escaped_handle() {
         let hooks = Hooks::new();
         let handle = use_keyframes(
@@ -1426,6 +1440,7 @@ mod tests {
     }
 
     #[test]
+    #[serial_test::serial]
     fn keyframe_hook_rerender_retains_the_running_sequence() {
         let hooks = Hooks::new();
         let frames = || {
@@ -1447,6 +1462,7 @@ mod tests {
     }
 
     #[test]
+    #[serial_test::serial]
     fn keyframe_runtime_releases_callback_captures_outside_its_lock() {
         struct ReenterOnDrop(Arc<AnimationRuntime>);
         impl Drop for ReenterOnDrop {
@@ -1483,6 +1499,7 @@ mod tests {
     }
 
     #[test]
+    #[serial_test::serial]
     fn keyframe_runtime_delivers_the_final_update_before_removal() {
         let runtime = AnimationRuntime::new();
         let delivered = Arc::new(Mutex::new(Vec::new()));
@@ -1497,6 +1514,7 @@ mod tests {
     }
 
     #[test]
+    #[serial_test::serial]
     fn keyframe_runtime_ids_do_not_reuse_a_live_animation_after_cancellation() {
         let runtime = AnimationRuntime::new();
         let first = runtime.add_animation(Arc::new(|_| {}), Duration::from_secs(10));
@@ -1510,6 +1528,7 @@ mod tests {
     }
 
     #[test]
+    #[serial_test::serial]
     fn keyframe_runtime_callback_can_start_and_cancel_an_animation() {
         let (send, receive) = std::sync::mpsc::channel();
         let worker = thread::spawn(move || {
@@ -1533,6 +1552,7 @@ mod tests {
     }
 
     #[test]
+    #[serial_test::serial]
     fn test_animation_runs() {
         let hooks = Hooks::new();
         let handle = use_animation(&hooks, 0.0f32, AnimationConfig::default());
@@ -1554,6 +1574,7 @@ mod tests {
     }
 
     #[test]
+    #[serial_test::serial]
     fn test_spring_physics() {
         let hooks = Hooks::new();
         let spring = use_spring(&hooks, 0.0f32, SpringConfig::default());
@@ -1569,6 +1590,7 @@ mod tests {
     }
 
     #[test]
+    #[serial_test::serial]
     fn test_transition_detects_changes() {
         let hooks = Hooks::new();
         let config = TransitionConfig::default();
@@ -1578,6 +1600,7 @@ mod tests {
     }
 
     #[test]
+    #[serial_test::serial]
     fn test_stagger_delays() {
         let hooks = Hooks::new();
         let items = vec![0.0f32, 1.0, 2.0];

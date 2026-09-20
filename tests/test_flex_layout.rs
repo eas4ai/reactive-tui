@@ -8,7 +8,7 @@ fn region_text(surface: &Surface, x0: usize, y0: usize, x1: usize, y1: usize) ->
     (y0..y1)
         .map(|y| {
             (x0..x1)
-                .map(|x| surface.get_at(Point::new(x, y)).ch.clone())
+                .map(|x| surface.get_at(Point::new(x, y)).ch)
                 .collect::<String>()
         })
         .collect()
