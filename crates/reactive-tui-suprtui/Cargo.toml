@@ -1,6 +1,6 @@
 [package]
 name = "reactive-tui-suprtui"
-version = "0.1.0"
+version = "1.0.0"
 edition = "2024"
 rust-version = "1.91"
 description = "Reactive TUI's maintained terminal rendering engine, adapted from SuprTUI"

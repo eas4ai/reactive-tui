@@ -15,7 +15,7 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-VERSION = "0.1.0"
+VERSION = "1.0.0"
 RUST_VERSION = "1.91"
 REPOSITORY = "https://github.com/eas4ai/reactive-tui"
 
@@ -169,6 +169,8 @@ def check_metadata() -> dict[str, dict]:
     changelog = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
     if "## [0.1.0] - 2026-09-14" not in changelog:
         fail("CHANGELOG.md needs the dated 0.1.0 release entry")
+    if "## [1.0.0]" not in changelog:
+        fail("CHANGELOG.md needs the 1.0.0 release entry")
     return manifests
 
 

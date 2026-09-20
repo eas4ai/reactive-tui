@@ -2435,7 +2435,7 @@ dependencies = [
 
 [[package]]
 name = "reactive-tui"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "accesskit",
  "accesskit_consumer",
@@ -2498,7 +2498,7 @@ dependencies = [
 
 [[package]]
 name = "reactive-tui-crossterm"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "async-std",
  "base64",
@@ -2526,7 +2526,7 @@ dependencies = [
 
 [[package]]
 name = "reactive-tui-libghostty-vt"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "allocator-api2 0.4.0",
  "bitflags 2.11.0",
@@ -2539,7 +2539,7 @@ dependencies = [
 
 [[package]]
 name = "reactive-tui-libghostty-vt-sys"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "bindgen",
  "heck",
@@ -2549,7 +2549,7 @@ dependencies = [
 
 [[package]]
 name = "reactive-tui-macros"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2558,7 +2558,7 @@ dependencies = [
 
 [[package]]
 name = "reactive-tui-suprtui"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "image",
  "taffy 0.13.0",

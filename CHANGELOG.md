@@ -5,6 +5,19 @@ This file records user-visible changes to Reactive TUI. The project follows
 
 ## [Unreleased]
 
+## [1.0.0] - Unreleased
+
+- Vendored the companion crates under `crates/` as path-only workspace
+  members and marked them `publish = false`: no companion publishes.
+- Replaced syntect 5.3.0 with lumis 0.13.1 for syntax highlighting;
+  bincode 1.3.3 and yaml-rust 0.4.5 leave the dependency graph.
+- Added `Ref::update_atomic` for linearizable read-modify-write while
+  keeping the spec'd reentrant snapshot semantics of `Ref::update`.
+- Mapped named forms to Landmark and unnamed forms to Panel, resolved
+  hyperlink start/end offsets through the text model, and pinned
+  focused/selected states with adapter tests; screen-reader output
+  verified against Orca speech.
+
 ## [0.1.0] - 2026-09-14
 
 This is the first supported, non-yanked release. Earlier 0.0.x packages were

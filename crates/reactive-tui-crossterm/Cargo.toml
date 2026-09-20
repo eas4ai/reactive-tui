@@ -1,6 +1,6 @@
 [package]
 name = "reactive-tui-crossterm"
-version = "0.1.0"
+version = "1.0.0"
 edition = "2021"
 rust-version = "1.91"
 description = "Reactive TUI's maintained Crossterm fork with Unix input readiness fixes"
