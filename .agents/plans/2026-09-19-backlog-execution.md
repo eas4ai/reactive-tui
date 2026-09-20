@@ -66,9 +66,10 @@ throughout because it protects the headline claim.
 - **Goldens over print-only.** Render tests assert against checked-in
   golden output; anything that cannot is labeled `smoke_` and excluded
   from the correctness gate by name, not by silence.
-- **Publish path decided by user (open).** Options: publish companion
-  crates first, vendor, or drop the Ghostty dependency. Phase 3 starts
-  only after this call.
+- **Publish path decided by user (decided 2026-09-20): vendor.** The
+  forked crates stay in-repo under `crates/` as path-only workspace
+  members; no companion publishes on crates.io. Phase 3 is re-scoped
+  around this call (see Phase 3 and Open Question 1).
 
 ## Recommended Approach
 
@@ -110,12 +111,21 @@ proof per unit: the failing-before test, then the fix.
   `tests/production_readiness_test.rs` by eliminating the shared global
   state it protects.
 
-### Phase 3 — Release (units 3.1–3.2, blocked on Open Question 1)
+### Phase 3 — Release (units 3.1–3.2; path decision recorded, vetoed publish)
 
-- **3.1 Publish path [L].** Resolve path dependencies for crates.io;
-  `cargo publish --dry-run` clean for the package set.
-- **3.2 Syntect chain [M].** Re-run the RUSTSEC check; either upgrade past
-  the flagged bincode/yaml-rust or record a fresh verdict with expiry.
+- **3.1 Vendored layout [L] (done 2026-09-20).** Companions carry
+  `publish = false` in all five manifests; `scripts/check-crates-release.py`
+  enforces the veto plus exact workspace membership, version pins, and
+  archive boundaries. Proof: checker logic green on all six crates plus
+  `cargo package --list` per crate; durable guard in
+  `tests/crates_vendored.rs`. (Checker runs clean only on a committed tree;
+  its `cargo package --list` dirty-guard predates this work.)
+- **3.2 Syntect chain [M] (done 2026-09-20 via removal).** Swapped
+  syntect 5.3.0 for lumis 0.13.1 instead of re-verdicting: bincode 1.3.3
+  and yaml-rust 0.4.5 left the locked graph, their
+  `dependency-maintenance.toml` exceptions were dropped, and DQC-002
+  (including `cargo audit`) passes. Decision:
+  `docs/decisions/highlight-with-lumis-tree-sitter-backend.md`.
 
 ### Track A — Screen-reader evidence (alongside, claim-critical)
 
@@ -138,7 +148,7 @@ proof per unit: the failing-before test, then the fix.
   warnings`, `cargo fmt --check` — all green, quoted in the report.
 - Phase 2 proof: full suite green on this headless box (no GPU, no
   display); GPU-gated tests report their skip reason visibly.
-- Phase 3 proof: `cargo publish --dry-run` output per published crate.
+- Phase 3 proof: reworked release checker green plus `cargo package --list` per crate (vendored, no publishes).
 - Track A proof: orca probe assertions passing, TODO count reduced
   (count quoted before/after).
 
@@ -157,8 +167,9 @@ proof per unit: the failing-before test, then the fix.
 
 ## Open Questions
 
-1. **Publish path (blocks Phase 3):** companion crates first, vendor the
-   Ghostty dependency, or drop it? Recommendation: publish companions
-   (keeps the embedded-terminal story intact for launch).
+1. **Publish path (decided 2026-09-20, vetoed publish):** vendor the
+   forked crates in-repo under `crates/`; no companion crates.io
+   publishes. The embedded-terminal story stays intact via path
+   dependencies.
 2. **Syntect verdict:** accept an upgrade PR if clean, else who signs the
    fresh trusted-dumps-only verdict and with what expiry?

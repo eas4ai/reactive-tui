@@ -27,9 +27,9 @@ development snapshots and are not a compatibility baseline.
 
 ### Changed
 
-- Published the maintained Crossterm and SuprTUI implementations as versioned
-  companion crates while preserving the `crossterm` and `suprtui` Rust import
-  names inside Reactive TUI.
+- Vendored the maintained Crossterm and SuprTUI implementations as in-repo
+  companion crates under `crates/` (never published) while preserving the
+  `crossterm` and `suprtui` Rust import names inside Reactive TUI.
 - Replaced the pinned `libghostty-vt` git dependency with crates.io version
   0.2.1.
 - Limited crate archives to public source, legal notices, the manual, and

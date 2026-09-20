@@ -54,12 +54,12 @@ class RetainedDocumentationControls(unittest.TestCase):
     def test_nested_manual_examples_enter_the_compilation_inventory(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
-            for directory in ("manual/nested", "include", "bindings/typescript", "src", "reactive-tui-macros/src", "output"):
+            for directory in ("manual/nested", "include", "bindings/typescript", "src", "crates/reactive-tui-macros/src", "output"):
                 (root / directory).mkdir(parents=True, exist_ok=True)
             (root / "README.md").write_text("```rust,no_run\nlet value = 1;\n```\n")
             (root / "include/README.md").write_text("```c\nint main(void) { return 0; }\n```\n")
             (root / "bindings/typescript/README.md").write_text("```typescript\nconst value = 1;\n```\n")
-            (root / "reactive-tui-macros/src/lib.rs").write_text("")
+            (root / "crates/reactive-tui-macros/src/lib.rs").write_text("")
             manual = root / "manual/nested/example.md"
             manual.write_text("# Example\n```rust,no_run\nlet nested = 2;\n```\n\n```python\nassert True\n```\n")
             check = CHECK["Check"].__new__(CHECK["Check"])

@@ -1,4 +1,4 @@
-//! Syntax highlighting integration with syntect
+//! Syntax highlighting integration with Lumis (tree-sitter)
 //!
 //! Provides efficient syntax highlighting for code blocks with caching,
 //! incremental updates, and custom theme support.

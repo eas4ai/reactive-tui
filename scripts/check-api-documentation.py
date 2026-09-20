@@ -197,12 +197,12 @@ class Check:
                 if flags[0] in ("rust", "c", "typescript", "ts", "python"):
                     inventory.append({"file": str(path.relative_to(ROOT)), "line": line,
                                       "language": flags[0], "sha256": hashlib.sha256(code.encode()).hexdigest()})
-        paths = sorted((ROOT / "src").rglob("*.rs")) + [ROOT / "reactive-tui-macros/src/lib.rs"]
+        paths = sorted((ROOT / "src").rglob("*.rs")) + [ROOT / "crates/reactive-tui-macros/src/lib.rs"]
         for path in paths:
             # Dependency crates are not modules of the public Reactive-TUI facade.
             # SuprTUI and Crossterm behavior have their own renderer/input checks.
             if any(path.is_relative_to(ROOT / directory) for directory in
-                   ("src/backend/engine", "src/backend/crossterm")):
+                   ("crates/reactive-tui-suprtui", "crates/reactive-tui-crossterm")):
                 continue
             selected = []
             for start, comment in rust_comments(path):

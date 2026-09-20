@@ -137,7 +137,7 @@ def main() -> int:
                 if fragment not in available:
                     fail(f"broken heading link in {page.relative_to(ROOT)}: {raw}")
             relative = target.relative_to(ROOT).as_posix()
-            source_links += relative.startswith(("src/", "reactive-tui-macros/", "bindings/"))
+            source_links += relative.startswith(("src/", "crates/", "bindings/"))
             test_links += relative.startswith(("tests/", "examples/", "verification/"))
         if source_links == 0 or test_links == 0:
             fail(f"{page.relative_to(ROOT)} needs tracked source and confirming test links")

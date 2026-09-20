@@ -285,7 +285,9 @@ fn collect_rust_sources(directory: &Path, sources: &mut Vec<PathBuf>) {
     for entry in std::fs::read_dir(directory).unwrap() {
         let path = entry.unwrap().path();
         if path.is_dir() {
-            if !path.ends_with("src/backend/crossterm") && !path.ends_with("src/backend/engine") {
+            if !path.ends_with("crates/reactive-tui-crossterm")
+                && !path.ends_with("crates/reactive-tui-suprtui")
+            {
                 collect_rust_sources(&path, sources);
             }
         } else if path.extension().is_some_and(|extension| extension == "rs") {

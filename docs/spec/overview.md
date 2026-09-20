@@ -49,7 +49,7 @@ choices and the dependency pin live in `docs/decisions/`.
 
 Verification commands are owned by `.cairn/mechanisms/suprtui-renderer.md`
 and `.cairn/mechanisms/embedded-terminal.md`. The renderer is maintained in
-`src/backend/engine`; the embedded-session API is documented in
+`crates/reactive-tui-suprtui`; the embedded-session API is documented in
 `docs/embedded-terminal.md`.
 The initial project-wide failures are evidence in `docs/recon-evidence/`;
 this commitment does not declare the entire legacy library production-ready.

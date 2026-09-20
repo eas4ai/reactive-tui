@@ -10,7 +10,7 @@ ROOT = Path(__file__).resolve().parents[2]
 os.chdir(ROOT)
 os.environ.update(CARGO_BUILD_JOBS="8", RUST_TEST_THREADS="1", CARGO_INCREMENTAL="0",
                   CARGO_TARGET_DIR=str(ROOT / "target"), RAYON_NUM_THREADS="8")
-INPUTS = ("src", "tests", "reactive-tui-macros", "scripts", "verification",
+INPUTS = ("src", "tests", "crates/reactive-tui-macros", "scripts", "verification",
           "Cargo.toml", "Cargo.lock", "build.rs", ".github/workflows/clipboard-platforms.yml")
 
 def snapshot():

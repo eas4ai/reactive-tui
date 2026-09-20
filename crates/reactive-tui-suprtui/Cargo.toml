@@ -6,6 +6,7 @@ rust-version = "1.91"
 description = "Reactive TUI's maintained terminal rendering engine, adapted from SuprTUI"
 repository = "https://github.com/eas4ai/reactive-tui"
 license = "MIT"
+publish = false
 readme = "README.md"
 include = ["/src/**", "/tests/**", "/README.md", "/LICENSE", "/LICENSE-OpenTUI", "/UPSTREAM.md"]
 

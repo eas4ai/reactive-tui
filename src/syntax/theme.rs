@@ -1,12 +1,13 @@
-//! Bridge between syntect themes and CSS-based theme system
+//! Bridge between Lumis themes and CSS-based theme system
 //!
 //! Provides seamless integration between syntax highlighting themes
 //! and the reactive-tui CSS theme system.
 
 use crate::core::surface::Rgba;
 use crate::theme::{Theme, ThemeVariables};
+use lumis::highlight::Style as LumisStyle;
+use lumis::themes::Theme as LumisTheme;
 use std::collections::HashMap;
-use syntect::highlighting::{Color as SyntectColor, Style, Theme as SyntectTheme};
 
 /// Syntax theme variables that extend the CSS theme system
 pub struct SyntaxThemeVariables {
@@ -15,53 +16,36 @@ pub struct SyntaxThemeVariables {
 }
 
 impl SyntaxThemeVariables {
-    /// Create syntax theme variables from a syntect theme
-    pub fn from_syntect_theme(theme: &SyntectTheme) -> Self {
+    /// Create syntax theme variables from a Lumis theme.
+    ///
+    /// Every scope in the theme's highlight map becomes `--syntax-<path>`
+    /// variables (dotted scope paths map to dashed names, case-insensitively
+    /// so `@`-prefixed captures and capitalized groups land alike). The
+    /// `normal` scope additionally feeds `--syntax-text`/`--syntax-background`.
+    pub fn from_lumis_theme(theme: &LumisTheme) -> Self {
         let mut scope_map = HashMap::new();
 
-        // Map common syntax scopes to CSS variables
-        if let Some(fg) = theme.settings.foreground {
-            scope_map.insert("--syntax-text".to_string(), syntect_color_to_hex(fg));
-        }
-
-        if let Some(bg) = theme.settings.background {
-            scope_map.insert("--syntax-background".to_string(), syntect_color_to_hex(bg));
-        }
-
-        if let Some(caret) = theme.settings.caret {
-            scope_map.insert("--syntax-cursor".to_string(), syntect_color_to_hex(caret));
-        }
-
-        if let Some(selection) = theme.settings.selection {
-            scope_map.insert(
-                "--syntax-selection".to_string(),
-                syntect_color_to_hex(selection),
-            );
-        }
-
-        if let Some(line_highlight) = theme.settings.line_highlight {
-            scope_map.insert(
-                "--syntax-line-highlight".to_string(),
-                syntect_color_to_hex(line_highlight),
-            );
+        // Lumis themes use lowercase tree-sitter scopes; `normal` is the
+        // base-text scope (there are no Normal/Cursor/Visual groups).
+        if let Some(normal) = theme.highlights.get("normal") {
+            if let Some(fg) = normal.fg.as_deref() {
+                scope_map.insert("--syntax-text".to_string(), fg.to_string());
+            }
+            if let Some(bg) = normal.bg.as_deref() {
+                scope_map.insert("--syntax-background".to_string(), bg.to_string());
+            }
         }
 
         // Process scope styles
-        for item in &theme.scopes {
-            // Use the first selector as the scope name
-            let scope_name = if !item.scope.selectors.is_empty() {
-                item.scope.selectors[0].path.to_string()
-            } else {
-                continue;
-            };
-            let css_var_name = scope_to_css_variable(&scope_name);
+        for (scope_name, style) in &theme.highlights {
+            let css_var_name = scope_to_css_variable(scope_name);
 
-            if let Some(fg) = item.style.foreground {
-                scope_map.insert(format!("{}-fg", css_var_name), syntect_color_to_hex(fg));
+            if let Some(fg) = style.fg.as_deref() {
+                scope_map.insert(format!("{css_var_name}-fg"), fg.to_string());
             }
 
-            if let Some(bg) = item.style.background {
-                scope_map.insert(format!("{}-bg", css_var_name), syntect_color_to_hex(bg));
+            if let Some(bg) = style.bg.as_deref() {
+                scope_map.insert(format!("{css_var_name}-bg"), bg.to_string());
             }
         }
 
@@ -86,12 +70,20 @@ impl SyntaxThemeVariables {
         }
 
         // Types and classes
-        if let Some(type_color) = self.scope_map.get("--syntax-entity-name-type-fg") {
+        if let Some(type_color) = self
+            .scope_map
+            .get("--syntax-type-fg")
+            .or_else(|| self.scope_map.get("--syntax-entity-name-type-fg"))
+        {
             *variables = variables.clone().set("--syntax-type", type_color);
         }
 
         // Functions and methods
-        if let Some(func_color) = self.scope_map.get("--syntax-entity-name-function-fg") {
+        if let Some(func_color) = self
+            .scope_map
+            .get("--syntax-function-fg")
+            .or_else(|| self.scope_map.get("--syntax-entity-name-function-fg"))
+        {
             *variables = variables.clone().set("--syntax-function", func_color);
         }
 
@@ -111,34 +103,43 @@ impl SyntaxThemeVariables {
         }
 
         // Numbers and constants
-        if let Some(constant_color) = self.scope_map.get("--syntax-constant-numeric-fg") {
+        if let Some(constant_color) = self
+            .scope_map
+            .get("--syntax-number-fg")
+            .or_else(|| self.scope_map.get("--syntax-constant-numeric-fg"))
+            .or_else(|| self.scope_map.get("--syntax-constant-fg"))
+        {
             *variables = variables.clone().set("--syntax-number", constant_color);
             *variables = variables.clone().set("--syntax-constant", constant_color);
         }
 
         // Operators
-        if let Some(operator_color) = self.scope_map.get("--syntax-keyword-operator-fg") {
+        if let Some(operator_color) = self
+            .scope_map
+            .get("--syntax-operator-fg")
+            .or_else(|| self.scope_map.get("--syntax-keyword-operator-fg"))
+        {
             *variables = variables.clone().set("--syntax-operator", operator_color);
         }
     }
 }
 
-/// Convert a syntect scope selector to a CSS variable name
+/// Convert a highlight scope selector to a CSS variable name.
+///
+/// Accepts dotted paths (`keyword.control`), `@`-prefixed tree-sitter
+/// captures (`@keyword`), and capitalized Neovim groups (`Keyword`);
+/// all map case-insensitively with underscores flattened to dashes.
 fn scope_to_css_variable(scope: &str) -> String {
+    let scope = scope.strip_prefix('@').unwrap_or(scope);
     let parts: Vec<&str> = scope.split('.').collect();
     let mut var_name = "--syntax".to_string();
 
     for part in parts {
         var_name.push('-');
-        var_name.push_str(&part.replace('_', "-"));
+        var_name.push_str(&part.replace('_', "-").to_lowercase());
     }
 
     var_name
-}
-
-/// Convert syntect Color to hex string
-fn syntect_color_to_hex(color: SyntectColor) -> String {
-    format!("#{:02x}{:02x}{:02x}", color.r, color.g, color.b)
 }
 
 /// Convert hex color string to Rgba. Delegates to the canonical parser in
@@ -169,11 +170,22 @@ impl ThemedSyntaxStyle {
         Self { theme }
     }
 
-    /// Resolve a syntect style using theme variables
-    pub fn resolve_style(&self, style: Style) -> (Rgba, Rgba) {
-        let fg = { syntect_color_to_rgba(style.foreground) };
+    /// Resolve a Lumis style using theme variables.
+    ///
+    /// A missing foreground falls back to white and a missing background
+    /// to transparent, matching the highlighter's run convention.
+    pub fn resolve_style(&self, style: &LumisStyle) -> (Rgba, Rgba) {
+        let fg = style
+            .fg
+            .as_deref()
+            .and_then(hex_to_rgba)
+            .unwrap_or(Rgba::white());
 
-        let bg = { syntect_color_to_rgba(style.background) };
+        let bg = style
+            .bg
+            .as_deref()
+            .and_then(hex_to_rgba)
+            .unwrap_or(Rgba::transparent());
 
         (fg, bg)
     }
@@ -282,27 +294,17 @@ pub enum SyntaxElement {
     Constant,
 }
 
-/// Convert syntect Color to Rgba
-fn syntect_color_to_rgba(color: SyntectColor) -> Rgba {
-    Rgba {
-        r: color.r as f32 / 255.0,
-        g: color.g as f32 / 255.0,
-        b: color.b as f32 / 255.0,
-        a: color.a as f32 / 255.0,
-    }
-}
-
 /// Create a CSS theme with syntax highlighting support
-pub fn create_syntax_theme(base_theme: Theme, syntect_theme_name: &str) -> Theme {
+pub fn create_syntax_theme(base_theme: Theme, theme_name: &str) -> Theme {
     use crate::syntax::resources::SYNTAX_RESOURCES;
 
     let mut theme = base_theme;
 
-    // Load syntect theme and convert to CSS variables
+    // Load Lumis theme and convert to CSS variables
     match SYNTAX_RESOURCES.read() {
         Ok(resources) => {
-            if let Some(syntect_theme) = resources.theme_set.get(syntect_theme_name) {
-                let syntax_vars = SyntaxThemeVariables::from_syntect_theme(syntect_theme);
+            if let Some(lumis_theme) = resources.theme_by_name(theme_name) {
+                let syntax_vars = SyntaxThemeVariables::from_lumis_theme(&lumis_theme);
                 syntax_vars.apply_to_theme(&mut theme);
             }
         }
@@ -331,6 +333,8 @@ mod tests {
             scope_to_css_variable("entity.name.function"),
             "--syntax-entity-name-function"
         );
+        assert_eq!(scope_to_css_variable("@keyword"), "--syntax-keyword");
+        assert_eq!(scope_to_css_variable("Keyword"), "--syntax-keyword");
     }
 
     #[test]
@@ -360,7 +364,7 @@ mod tests {
         let theme = dark_theme();
         let styled = ThemedSyntaxStyle::new(theme);
 
-        // Should return theme colors even without syntect style
+        // Should return theme colors even without a Lumis style
         let keyword_color = styled.get_syntax_color(SyntaxElement::Keyword);
         assert!(keyword_color.r > 0.0 || keyword_color.g > 0.0 || keyword_color.b > 0.0);
     }
@@ -368,7 +372,7 @@ mod tests {
     #[test]
     fn test_create_syntax_theme() {
         let base = dark_theme();
-        let theme = create_syntax_theme(base, "base16-ocean.dark");
+        let theme = create_syntax_theme(base, "onedark");
 
         // Should have syntax variables added
         assert!(

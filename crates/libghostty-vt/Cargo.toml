@@ -6,6 +6,7 @@ rust-version = "1.91"
 description = "Reactive TUI's pinned safe Rust API for the Ghostty terminal emulation library"
 repository = "https://github.com/eas4ai/reactive-tui"
 license = "MIT"
+publish = false
 readme = "README.md"
 include = ["/src/**", "/README.md", "/LICENSE", "/UPSTREAM.md"]
 

@@ -13,7 +13,7 @@ import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
 RECORDS = ROOT / "docs/analysis/conpty-platform"
-INPUTS = ("Cargo.toml", "Cargo.lock", "build.rs", "src", "reactive-tui-macros",
+INPUTS = ("Cargo.toml", "Cargo.lock", "build.rs", "src",
           "tests/api_widget_behavior/conpty_probe.rs", "scripts/install-conpty-runtime.py",
           ".github/workflows/clipboard-platforms.yml",
           "scripts/abi/baselines/binding-abi-baseline.json")
@@ -98,7 +98,7 @@ def run():
     # Work on an isolated source copy. Never mutate the candidate being measured.
     with tempfile.TemporaryDirectory(prefix="conpty-violation-") as scratch:
         candidate = Path(scratch)
-        for name in ("Cargo.toml", "Cargo.lock", "build.rs", "src", "reactive-tui-macros", "tests", "benches",
+        for name in ("Cargo.toml", "Cargo.lock", "build.rs", "src", "tests", "benches",
                        "crates", "examples"):
             source = ROOT / name
             if source.is_dir():

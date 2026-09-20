@@ -72,7 +72,7 @@ fn test_code_block_rendering() {
 }
 
 #[test]
-fn api019_fenced_rust_code_uses_syntect_and_disabled_mode_keeps_code_style() {
+fn api019_fenced_rust_code_uses_lumis_and_disabled_mode_keeps_code_style() {
     let markdown = "```Rust\nfn main() { let answer = 42; }\n```";
     let highlighted = MarkdownRenderer::new().render_to_styled_lines(markdown);
     let plain = MarkdownRenderer::new()

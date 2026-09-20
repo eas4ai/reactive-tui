@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
-"""Validate the crates.io package graph and archive boundaries."""
+"""Validate the vendored crate layout and archive boundaries.
+
+Companion crates live in-repo under ``crates/`` as path-only workspace
+members and must never publish (user veto). This checker enforces the veto
+(``publish = false``), the exact version pins, workspace membership, and the
+per-crate archive include boundaries."""
 
 from __future__ import annotations
 
@@ -26,14 +31,14 @@ PACKAGES = {
         "reactive-tui-libghostty-vt",
         50,
     ),
-    "macros": (Path("reactive-tui-macros/Cargo.toml"), "reactive-tui-macros", 20),
+    "macros": (Path("crates/reactive-tui-macros/Cargo.toml"), "reactive-tui-macros", 20),
     "crossterm": (
-        Path("src/backend/crossterm/Cargo.toml"),
+        Path("crates/reactive-tui-crossterm/Cargo.toml"),
         "reactive-tui-crossterm",
         120,
     ),
     "engine": (
-        Path("src/backend/engine/Cargo.toml"),
+        Path("crates/reactive-tui-suprtui/Cargo.toml"),
         "reactive-tui-suprtui",
         120,
     ),
@@ -55,6 +60,18 @@ LIBRARY_NAMES = {
     "macros": "reactive_tui_macros",
     "crossterm": "crossterm",
     "engine": "suprtui",
+}
+
+# Companion crates: vendored path-only members that must never publish.
+VENDORED = {"ghostty-sys", "ghostty", "macros", "crossterm", "engine"}
+
+# Exact workspace membership: no stale src/backend entries, no bare names.
+WORKSPACE_MEMBERS = {
+    "crates/reactive-tui-macros",
+    "crates/reactive-tui-crossterm",
+    "crates/reactive-tui-suprtui",
+    "crates/libghostty-vt",
+    "crates/libghostty-vt-sys",
 }
 
 
@@ -96,7 +113,10 @@ def check_metadata() -> dict[str, dict]:
             fail(f"{key}: license metadata is required")
         if not package.get("include"):
             fail(f"{key}: an explicit include boundary is required")
-        if package.get("publish") is False:
+        if key in VENDORED:
+            if package.get("publish") is not False:
+                fail(f"{key}: vendored companion must be marked publish = false")
+        elif package.get("publish") is False:
             fail(f"{key}: package is still marked publish = false")
         library_name = manifest.get("lib", {}).get(
             "name", package["name"].replace("-", "_")
@@ -152,6 +172,22 @@ def check_metadata() -> dict[str, dict]:
     return manifests
 
 
+def check_workspace(manifests: dict[str, dict]) -> None:
+    members = set(manifests["root"].get("workspace", {}).get("members", []))
+    if members != WORKSPACE_MEMBERS:
+        fail(
+            "root: workspace members must be exactly the vendored crates/ set; "
+            f"extra={sorted(members - WORKSPACE_MEMBERS)} "
+            f"missing={sorted(WORKSPACE_MEMBERS - members)}"
+        )
+    for key, (manifest_path, _, _) in PACKAGES.items():
+        if key == "root":
+            continue
+        parent = str(manifest_path.parent)
+        if parent not in WORKSPACE_MEMBERS:
+            fail(f"{key}: {parent} is not a declared workspace member")
+
+
 def archive_files(manifest_path: Path) -> set[str]:
     command = [
         "cargo",
@@ -172,7 +208,7 @@ def allowed(key: str, path: str) -> bool:
     automatic = {".cargo_vcs_info.json", "Cargo.lock", "Cargo.toml", "Cargo.toml.orig"}
     if path in automatic or path in REQUIRED_FILES[key]:
         return True
-    if key == "root" and path.startswith(("src/backend/crossterm/", "src/backend/engine/")):
+    if key == "root" and path.startswith(("crates/reactive-tui-crossterm/", "crates/reactive-tui-suprtui/")):
         return False
     if path.startswith("src/"):
         return True
@@ -204,9 +240,10 @@ def check_archives() -> None:
 
 
 def main() -> int:
-    check_metadata()
+    manifests = check_metadata()
+    check_workspace(manifests)
     check_archives()
-    print("publish order: reactive-tui-libghostty-vt-sys, reactive-tui-libghostty-vt, reactive-tui-macros, reactive-tui-crossterm, reactive-tui-suprtui, reactive-tui")
+    print("vendored: 5 path-only companions under crates/, publish veto enforced")
     return 0
 
 

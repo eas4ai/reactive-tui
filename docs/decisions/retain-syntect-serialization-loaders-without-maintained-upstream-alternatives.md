@@ -1,5 +1,7 @@
 # retain syntect serialization loaders without maintained upstream alternatives
 
+Superseded by: highlight-with-lumis-tree-sitter-backend (2026-09-20, user vetoed companion publishes; syntect removed, RUSTSEC exceptions dropped)
+
 Level: Judged
 Decided by: Codex
 Rests on: DQC-002

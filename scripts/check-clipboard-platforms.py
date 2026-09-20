@@ -19,7 +19,7 @@ ROOT = Path(__file__).resolve().parents[1]
 RECORDS = ROOT / ".cairn/reviews/clipboard-platforms"
 PLATFORMS = {"wayland": "Linux", "xsel": "Linux", "xclip": "Linux", "macos": "Darwin", "windows": "Windows"}
 INPUTS = (
-    "Cargo.toml", "Cargo.lock", "build.rs", "src", "reactive-tui-macros", "crates", "tests/api_clipboard.rs",
+    "Cargo.toml", "Cargo.lock", "build.rs", "src", "crates", "tests/api_clipboard.rs",
     "tests/clipboard_platform.rs", "tests/windows_platform.rs", "scripts/check-clipboard-platforms.py",
     ".github/workflows/clipboard-platforms.yml",
 )

@@ -12,7 +12,7 @@ os.chdir(ROOT)
 os.environ.update(CARGO_BUILD_JOBS="8", RUST_TEST_THREADS="8", CARGO_INCREMENTAL="0",
                   CARGO_TARGET_DIR=str(ROOT / "target"), RAYON_NUM_THREADS="8",
                   LP_NUM_THREADS="8", PYTHON_CPU_COUNT="8", GOMAXPROCS="8", GOFLAGS="-p=8")
-INPUTS = ("src", "tests", "reactive-tui-macros", "vendor", "include", ".cargo",
+INPUTS = ("src", "tests", "crates/reactive-tui-macros", "vendor", "include", ".cargo",
           "scripts", "verification", "Cargo.toml", "Cargo.lock", "build.rs",
           "docs/application-entry-points.md", ".cairn/mechanisms/api-entry-points.md",
           ".github/workflows/clipboard-platforms.yml")

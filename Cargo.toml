@@ -12,8 +12,7 @@ categories = ["command-line-interface", "gui", "graphics"]
 readme = "README.md"
 include = [
     "/src/**",
-    "!/src/backend/crossterm/**",
-    "!/src/backend/engine/**",
+    "!/crates/**",
     "/tests/api_widget_behavior/accessibility_probe.rs",
     "/tests/api_widget_behavior/conpty_probe.rs",
     "/tests/api_widget_behavior/image_host_probe.rs",
@@ -30,7 +29,7 @@ features = ["async-capabilities", "ffi"]
 [dependencies]
 async-channel = "2.1.1"
 bitflags = "2.9.3"
-crossterm = { package = "reactive-tui-crossterm", path = "src/backend/crossterm", version = "=0.1.0", features = ["event-stream"] }
+crossterm = { package = "reactive-tui-crossterm", path = "crates/reactive-tui-crossterm", version = "=0.1.0", features = ["event-stream"] }
 futures-core = "0.3"
 futures-util = "0.3.27"
 log = "0.4"
@@ -45,7 +44,7 @@ unicode-width = "0.2.1"
 unicode-segmentation = "1.12"
 lazy_static = "1.4"
 once_cell = "1.19"
-syntect = { version = "5.3", default-features = false, features = ["default-fancy", "yaml-load", "plist-load"] }
+lumis = { version = "0.13", default-features = false, features = ["lang-rust", "lang-python", "lang-javascript", "lang-typescript", "lang-bash", "lang-c", "lang-cpp", "lang-go", "lang-java", "lang-json", "lang-toml", "lang-yaml", "lang-html", "lang-css", "lang-markdown"] }
 comrak = { version = "0.55", default-features = false }
 thiserror = "2.0"
 string_cache = "0.8"
@@ -54,11 +53,11 @@ image = { version = "0.25.6", default-features = false, features = ["bmp", "gif"
 gif = "0.13.3"
 vt100 = "0.16"
 base64 = "0.22.1"
-reactive-tui-macros = { path = "reactive-tui-macros", version = "=0.1.0" }
+reactive-tui-macros = { path = "crates/reactive-tui-macros", version = "=0.1.0" }
 lru = "0.18.2"
 dirs = "5.0"
 tempfile = "3.21"
-suprtui = { package = "reactive-tui-suprtui", path = "src/backend/engine", version = "=0.1.0" }
+suprtui = { package = "reactive-tui-suprtui", path = "crates/reactive-tui-suprtui", version = "=0.1.0" }
 accesskit = "0.25.0"
 cap-std = "4.0.2"
 cap-fs-ext = "4.0.2"
@@ -227,9 +226,9 @@ harness = false
 [workspace]
 resolver = "2"
 members = [
-    "reactive-tui-macros",
-    "src/backend/crossterm",
-    "src/backend/engine",
+    "crates/reactive-tui-macros",
+    "crates/reactive-tui-crossterm",
+    "crates/reactive-tui-suprtui",
     "crates/libghostty-vt",
     "crates/libghostty-vt-sys",
 ]

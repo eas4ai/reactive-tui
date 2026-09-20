@@ -299,7 +299,7 @@ def main():
     os.chdir(ROOT)
     execute([sys.executable, "-B", str(SOURCE / "check-harness.py")], timeout=35)
     execute(["cargo", "test", "--locked", "--manifest-path",
-             "src/backend/crossterm/Cargo.toml", "--lib", "--features",
+             "crates/reactive-tui-crossterm/Cargo.toml", "--lib", "--features",
              "event-stream", "readiness_tests", "--", "--test-threads=1"])
     # Build default test dependencies first: a later non-FFI build replaces the
     # shared library in debug/deps, which Darwin records as its install name.

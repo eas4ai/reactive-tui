@@ -13,7 +13,7 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 RECORDS = ROOT / ".cairn/reviews/widget-platforms"
-INPUTS = ("Cargo.toml", "Cargo.lock", "build.rs", "src", "reactive-tui-macros",
+INPUTS = ("Cargo.toml", "Cargo.lock", "build.rs", "src",
           "crates", "tests", "scripts/check-widget-platforms.py",
           ".cairn/api-closure/check.py", "scripts/check-dialog-http.py",
           "scripts/check-iterm-host.py",

@@ -22,7 +22,7 @@ def inventory_text():
 CONCERNS = (
     "Hover, drag, drag-and-drop, mouse position, clicks, long press, swipe and wheel hooks",
     "Public reference hooks", "ui::Updater", "Theme propagation", "Performance context",
-    "Markdown/Syntect integration", "Large Markdown/syntax input", "Editor undo/selection",
+    "Markdown/Lumis integration", "Large Markdown/syntax input", "Editor undo/selection",
     "Unix input worker", "SIGWINCH ownership", "Legacy input parsing",
     "DebugBackend boundaries", "Raw-mode ownership", "Public RenderTree",
     "Nested legacy events", "Legacy backend test reachability", "Transition integration metadata",
@@ -73,7 +73,7 @@ API019_LIB_TESTS = (
     "backend::tests::api019_debug_backend_accepts_empty_and_bounded_dimensions",
     "backend::tests::api019_debug_backend_rejects_oversized_resize_without_truncation_or_allocation",
     "component::runtime::tests::api019_component_removal_unregisters_owned_mouse_hooks",
-    "markdown::tests::api019_fenced_rust_code_uses_syntect_and_disabled_mode_keeps_code_style",
+    "markdown::tests::api019_fenced_rust_code_uses_lumis_and_disabled_mode_keeps_code_style",
     "markdown::tests::api019_markdown_and_syntax_checked_entry_points_reject_oversized_sources",
     "platform::parser::tests::api019_incomplete_sequence_buffer_is_bounded_and_reports_overflow",
     "platform::parser::tests::api019_sgr_mouse_preserves_buttons_modifiers_drag_and_wheel",
@@ -290,7 +290,7 @@ class Check:
         }
         checks = {
             "Hover, drag, drag-and-drop, mouse position, clicks, long press, swipe and wheel hooks",
-            "Theme propagation", "Markdown/Syntect integration", "Large Markdown/syntax input",
+            "Theme propagation", "Markdown/Lumis integration", "Large Markdown/syntax input",
             "Editor undo/selection", "SIGWINCH ownership", "Legacy input parsing",
             "DebugBackend boundaries", "Raw-mode ownership", "Public RenderTree",
             "Nested legacy events", "Transition integration metadata", "CSS property diagnostics",

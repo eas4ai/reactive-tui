@@ -1,15 +1,20 @@
 //! Syntax highlighter with incremental updates and styled text conversion
+//!
+//! Tree-sitter highlighting through Lumis. The public surface of this
+//! module is backend-agnostic: callers work with [`HighlightedLine`] and
+//! [`StyledRun`] and never see Lumis types.
 
 use crate::core::styled_text::{StyledLine, StyledRun};
 use crate::core::surface::{Attr, Rgba};
 use crate::syntax::resources::SYNTAX_RESOURCES;
+use crate::syntax::theme::hex_to_rgba;
+use lumis::highlight::{Highlighter, Style, UnderlineStyle};
+use lumis::languages::Language;
+use lumis::themes::Appearance;
 use std::sync::Arc;
 
 /// Maximum source size accepted by the checked syntax highlighter.
 pub const MAX_SYNTAX_BYTES: usize = 1024 * 1024;
-use syntect::easy::HighlightLines;
-use syntect::highlighting::{FontStyle, Style};
-use syntect::parsing::{ParseState, SyntaxReference};
 
 /// A highlighted line with style information
 #[derive(Debug, Clone)]
@@ -33,46 +38,33 @@ impl HighlightedLine {
 
 /// Syntax highlighter for code
 pub struct SyntaxHighlighter {
-    syntax: Arc<SyntaxReference>,
-    _parse_state: ParseState,
-    _highlight_state: Option<HighlightLines<'static>>,
+    language: Language,
+    language_name: String,
     cached_lines: Vec<Option<HighlightedLine>>,
-    language: String,
 }
 
 impl SyntaxHighlighter {
     /// Create a new highlighter for a language
     pub fn new(language: &str) -> Option<Self> {
         let resources = SYNTAX_RESOURCES.read().ok()?;
-        let syntax = resources.find_syntax_by_name(language)?;
-
-        // Clone the syntax reference
-        let syntax = Arc::new(syntax.clone());
-        let parse_state = ParseState::new(syntax.as_ref());
+        let found = resources.find_language_by_name(language)?;
 
         Some(Self {
-            syntax: syntax.clone(),
-            _parse_state: parse_state,
-            _highlight_state: None,
+            language: found,
+            language_name: found.name().to_string(),
             cached_lines: Vec::new(),
-            language: language.to_string(),
         })
     }
 
     /// Create a highlighter from file extension
     pub fn from_extension(extension: &str) -> Option<Self> {
         let resources = SYNTAX_RESOURCES.read().ok()?;
-        let syntax = resources.find_syntax(extension)?;
-
-        let syntax = Arc::new(syntax.clone());
-        let parse_state = ParseState::new(syntax.as_ref());
+        let found = resources.find_language_for_file(extension);
 
         Some(Self {
-            syntax: syntax.clone(),
-            _parse_state: parse_state,
-            _highlight_state: None,
+            language: found,
+            language_name: found.name().to_string(),
             cached_lines: Vec::new(),
-            language: syntax.name.clone(),
         })
     }
 
@@ -93,52 +85,31 @@ impl SyntaxHighlighter {
                 "syntax input exceeds the {MAX_SYNTAX_BYTES}-byte limit"
             )));
         }
-        let resources = match SYNTAX_RESOURCES.read() {
-            Ok(r) => r,
+        let (theme, default_fg) = match SYNTAX_RESOURCES.read() {
+            Ok(resources) => {
+                let theme = resources.active_theme();
+                let default_fg = theme
+                    .as_ref()
+                    .map(Self::default_foreground)
+                    .unwrap_or(Rgba::black());
+                (theme, default_fg)
+            }
             Err(_) => {
                 // Lock poisoned, return unhighlighted text
-                return Ok(text
-                    .lines()
-                    .enumerate()
-                    .map(|(line_num, line)| HighlightedLine {
-                        runs: vec![StyledRun::new(
-                            line.to_string(),
-                            Rgba::black(),
-                            Rgba::transparent(),
-                            Attr::empty(),
-                        )],
-                        line_number: line_num,
-                    })
-                    .collect());
+                return Ok(unhighlighted_lines(text));
             }
         };
-        let theme = resources.active_theme();
+        let Some(theme) = theme else {
+            return Ok(unhighlighted_lines(text));
+        };
 
-        let mut highlighter = HighlightLines::new(self.syntax.as_ref(), theme);
-        let mut result = Vec::new();
+        let highlighter = Highlighter::new(self.language, Some(theme));
+        let segments = match highlighter.highlight(text) {
+            Ok(segments) => segments,
+            Err(_) => return Ok(unhighlighted_lines(text)),
+        };
 
-        for (line_num, line) in text.lines().enumerate() {
-            let highlighted = highlighter
-                .highlight_line(line, &resources.syntax_set)
-                .unwrap_or_else(|_| vec![(Style::default(), line)]);
-
-            let runs = highlighted
-                .into_iter()
-                .map(|(style, text)| {
-                    StyledRun::new(
-                        text.to_string(),
-                        syntect_style_to_rgba(style.foreground),
-                        Rgba::transparent(),
-                        syntect_font_to_attr(style.font_style),
-                    )
-                })
-                .collect();
-
-            result.push(HighlightedLine {
-                runs,
-                line_number: line_num,
-            });
-        }
+        let result = distribute_segments(text, &segments, default_fg);
 
         // Cache the results
         self.cached_lines = result.iter().map(|line| Some(line.clone())).collect();
@@ -160,62 +131,55 @@ impl SyntaxHighlighter {
             self.cached_lines.resize(lines.len(), None);
         }
 
-        let resources = match SYNTAX_RESOURCES.read() {
-            Ok(r) => r,
+        let (theme, default_fg) = match SYNTAX_RESOURCES.read() {
+            Ok(resources) => {
+                let theme = resources.active_theme();
+                let default_fg = theme
+                    .as_ref()
+                    .map(Self::default_foreground)
+                    .unwrap_or(Rgba::black());
+                (theme, default_fg)
+            }
             Err(_) => {
                 // Lock poisoned, return fallback for visible range
-                return (start_line..end_line.min(lines.len()))
-                    .map(|line_num| HighlightedLine {
-                        runs: vec![StyledRun::new(
-                            lines.get(line_num).unwrap_or(&"").to_string(),
-                            Rgba::black(),
-                            Rgba::transparent(),
-                            Attr::empty(),
-                        )],
-                        line_number: line_num,
-                    })
-                    .collect();
+                return fallback_range(&lines, start_line, end_line);
             }
         };
-        let theme = resources.active_theme();
-        let mut highlighter = HighlightLines::new(self.syntax.as_ref(), theme);
+        let Some(theme) = theme else {
+            return fallback_range(&lines, start_line, end_line);
+        };
+
+        // Tree-sitter needs whole-document context, so highlight everything
+        // once and serve the requested range (from cache when warm).
+        let highlighter = Highlighter::new(self.language, Some(theme));
+        if let Ok(segments) = highlighter.highlight(text) {
+            let full = distribute_segments(text, &segments, default_fg);
+            for (line_num, line) in full.into_iter().enumerate() {
+                if line_num < self.cached_lines.len() {
+                    self.cached_lines[line_num] = Some(line);
+                }
+            }
+        }
 
         let mut result = Vec::new();
-
-        #[allow(clippy::needless_range_loop)]
-        for line_num in start_line..end_line.min(lines.len()) {
+        let end = end_line.min(lines.len());
+        for (line_num, _) in lines.iter().enumerate().take(end).skip(start_line) {
             // Check cache first
             if let Some(cached) = &self.cached_lines[line_num] {
                 result.push(cached.clone());
                 continue;
             }
 
-            // Highlight the line
-            let line = lines[line_num];
-            let highlighted = highlighter
-                .highlight_line(line, &resources.syntax_set)
-                .unwrap_or_else(|_| vec![(Style::default(), line)]);
-
-            let runs = highlighted
-                .into_iter()
-                .map(|(style, text)| {
-                    StyledRun::new(
-                        text.to_string(),
-                        syntect_style_to_rgba(style.foreground),
-                        Rgba::transparent(),
-                        syntect_font_to_attr(style.font_style),
-                    )
-                })
-                .collect();
-
-            let highlighted_line = HighlightedLine {
-                runs,
+            // Not cached (highlight failed above): plain fallback line.
+            result.push(HighlightedLine {
+                runs: vec![StyledRun::new(
+                    lines[line_num].to_string(),
+                    Rgba::black(),
+                    Rgba::transparent(),
+                    Attr::empty(),
+                )],
                 line_number: line_num,
-            };
-
-            // Cache the result
-            self.cached_lines[line_num] = Some(highlighted_line.clone());
-            result.push(highlighted_line);
+            });
         }
 
         result
@@ -235,51 +199,42 @@ impl SyntaxHighlighter {
 
     /// Get the language name
     pub fn language(&self) -> &str {
-        &self.language
+        &self.language_name
     }
 
     /// Re-highlight a single line after edit
     pub fn rehighlight_line(&mut self, line_text: &str, line_num: usize) -> HighlightedLine {
-        let resources = match SYNTAX_RESOURCES.read() {
-            Ok(r) => r,
+        let (theme, default_fg) = match SYNTAX_RESOURCES.read() {
+            Ok(resources) => {
+                let theme = resources.active_theme();
+                let default_fg = theme
+                    .as_ref()
+                    .map(Self::default_foreground)
+                    .unwrap_or(Rgba::black());
+                (theme, default_fg)
+            }
             Err(_) => {
                 // Lock poisoned, return unhighlighted line
-                return HighlightedLine {
-                    runs: vec![StyledRun::new(
-                        line_text.to_string(),
-                        Rgba::black(),
-                        Rgba::transparent(),
-                        Attr::empty(),
-                    )],
-                    line_number: line_num,
-                };
+                return plain_line(line_text, line_num);
             }
         };
-        let theme = resources.active_theme();
-
-        // Need to maintain state for proper context
-        let mut highlighter = HighlightLines::new(self.syntax.as_ref(), theme);
-
-        let highlighted = highlighter
-            .highlight_line(line_text, &resources.syntax_set)
-            .unwrap_or_else(|_| vec![(Style::default(), line_text)]);
-
-        let runs = highlighted
-            .into_iter()
-            .map(|(style, text)| {
-                StyledRun::new(
-                    text.to_string(),
-                    syntect_style_to_rgba(style.foreground),
-                    Rgba::transparent(),
-                    syntect_font_to_attr(style.font_style),
-                )
-            })
-            .collect();
-
-        let highlighted_line = HighlightedLine {
-            runs,
-            line_number: line_num,
+        let Some(theme) = theme else {
+            return plain_line(line_text, line_num);
         };
+
+        let highlighter = Highlighter::new(self.language, Some(theme));
+        let highlighted_line = match highlighter.highlight(line_text) {
+            Ok(segments) => {
+                let mut distributed = distribute_segments(line_text, &segments, default_fg);
+                distributed
+                    .pop()
+                    .unwrap_or_else(|| plain_line(line_text, line_num))
+            }
+            Err(_) => plain_line(line_text, line_num),
+        };
+
+        let mut highlighted_line = highlighted_line;
+        highlighted_line.line_number = line_num;
 
         // Update cache
         if line_num < self.cached_lines.len() {
@@ -288,33 +243,124 @@ impl SyntaxHighlighter {
 
         highlighted_line
     }
-}
 
-/// Convert syntect Color to Rgba
-fn syntect_style_to_rgba(color: syntect::highlighting::Color) -> Rgba {
-    Rgba {
-        r: color.r as f32 / 255.0,
-        g: color.g as f32 / 255.0,
-        b: color.b as f32 / 255.0,
-        a: color.a as f32 / 255.0,
+    /// Default foreground for unstyled tokens under a theme.
+    fn default_foreground(theme: &lumis::themes::Theme) -> Rgba {
+        if let Some(normal) = theme.highlights.get("normal") {
+            if let Some(fg) = normal.fg.as_deref() {
+                if let Some(rgba) = hex_to_rgba(fg) {
+                    return rgba;
+                }
+            }
+        }
+        if matches!(theme.appearance, Appearance::Light) {
+            Rgba::black()
+        } else {
+            Rgba::white()
+        }
     }
 }
 
-/// Convert syntect FontStyle to Attr
-fn syntect_font_to_attr(style: FontStyle) -> Attr {
-    let mut attr = Attr::empty();
+/// Split whole-text Lumis segments into per-source-line runs.
+///
+/// Segment text may span newlines; pieces are distributed to their source
+/// lines so the result has exactly `text.lines().count()` entries.
+fn distribute_segments(
+    text: &str,
+    segments: &[(Arc<Style>, &str)],
+    default_fg: Rgba,
+) -> Vec<HighlightedLine> {
+    let line_count = text.lines().count();
+    if line_count == 0 {
+        return Vec::new();
+    }
+    let mut lines: Vec<Vec<StyledRun>> = vec![Vec::new(); line_count];
+    let mut line_num = 0;
+    for (style, segment) in segments {
+        let (fg, attr) = style_to_run(style, default_fg);
+        for (index, piece) in segment.split('\n').enumerate() {
+            if index > 0 && line_num + 1 < line_count {
+                line_num += 1;
+            }
+            if !piece.is_empty() {
+                lines[line_num].push(StyledRun::new(
+                    piece.to_string(),
+                    fg,
+                    Rgba::transparent(),
+                    attr,
+                ));
+            }
+        }
+    }
+    lines
+        .into_iter()
+        .enumerate()
+        .map(|(line_number, runs)| HighlightedLine { runs, line_number })
+        .collect()
+}
 
-    if style.contains(FontStyle::BOLD) {
+/// Convert a Lumis style to a foreground color and text attributes.
+fn style_to_run(style: &Style, default_fg: Rgba) -> (Rgba, Attr) {
+    let fg = style
+        .fg
+        .as_deref()
+        .and_then(hex_to_rgba)
+        .unwrap_or(default_fg);
+    let mut attr = Attr::empty();
+    if style.bold {
         attr |= Attr::BOLD;
     }
-    if style.contains(FontStyle::ITALIC) {
+    if style.italic {
         attr |= Attr::ITALIC;
     }
-    if style.contains(FontStyle::UNDERLINE) {
+    if style.text_decoration.underline != UnderlineStyle::None {
         attr |= Attr::UNDERLINE;
     }
+    (fg, attr)
+}
 
-    attr
+/// Plain single line used for lock-poisoned and unresolvable fallbacks.
+fn plain_line(line_text: &str, line_num: usize) -> HighlightedLine {
+    HighlightedLine {
+        runs: vec![StyledRun::new(
+            line_text.to_string(),
+            Rgba::black(),
+            Rgba::transparent(),
+            Attr::empty(),
+        )],
+        line_number: line_num,
+    }
+}
+
+/// Unstyled lines for a whole text (fallback path).
+fn unhighlighted_lines(text: &str) -> Vec<HighlightedLine> {
+    text.lines()
+        .enumerate()
+        .map(|(line_num, line)| HighlightedLine {
+            runs: vec![StyledRun::new(
+                line.to_string(),
+                Rgba::black(),
+                Rgba::transparent(),
+                Attr::empty(),
+            )],
+            line_number: line_num,
+        })
+        .collect()
+}
+
+/// Plain lines for a visible range (fallback path).
+fn fallback_range(lines: &[&str], start_line: usize, end_line: usize) -> Vec<HighlightedLine> {
+    (start_line..end_line.min(lines.len()))
+        .map(|line_num| HighlightedLine {
+            runs: vec![StyledRun::new(
+                lines.get(line_num).unwrap_or(&"").to_string(),
+                Rgba::black(),
+                Rgba::transparent(),
+                Attr::empty(),
+            )],
+            line_number: line_num,
+        })
+        .collect()
 }
 
 #[cfg(test)]

@@ -388,7 +388,7 @@ mod tests {
         fn new(events: &[InternalEvent]) -> FakeSource {
             FakeSource {
                 events: events.to_vec().into(),
-                error: Some(io::Error::new(io::ErrorKind::Other, "")),
+                error: Some(io::Error::other("")),
             }
         }
 

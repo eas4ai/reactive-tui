@@ -6,6 +6,7 @@ rust-version = "1.91"
 description = "Reactive TUI's pinned raw FFI bindings for the Ghostty terminal emulation library"
 repository = "https://github.com/eas4ai/reactive-tui"
 license = "MIT"
+publish = false
 readme = "README.md"
 include = ["/src/**", "/tools/**", "/build.rs", "/README.md", "/LICENSE", "/UPSTREAM.md"]
 links = "ghostty-vt"
