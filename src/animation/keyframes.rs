@@ -56,11 +56,14 @@ impl<T: KeyframeType> KeyframeAnimation<T> {
                 "expected one property per keyframe; use try_from_property to select a property",
             ));
         }
+        // Every frame passed the single-property check above, so the
+        // first frame names exactly one property; the error arm is
+        // unreachable but keeps this fallible constructor total.
         let property = first
             .properties
             .keys()
             .next()
-            .expect("one property")
+            .ok_or_else(|| KeyframeError::new("first keyframe names no property"))?
             .clone();
         Self::try_from_property(keyframes, &property, Duration::from_secs(1))
     }

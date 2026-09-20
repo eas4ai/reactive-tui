@@ -43,14 +43,26 @@ impl Default for LayoutEngine {
 impl LayoutEngine {
     /// Create a new layout engine with a default root node
     ///
+    /// A fresh tree always has room for its first node, so this cannot
+    /// fail in practice; use `try_new` when even that needs proving.
+    ///
     /// # Returns
     /// A new `LayoutEngine` with an empty layout tree
     pub fn new() -> Self {
+        Self::try_new().expect("fresh layout tree accepts its root node")
+    }
+
+    /// Fallible construction, mapping allocator failures into
+    /// `ReactiveError` like every other tree operation here.
+    ///
+    /// # Returns
+    /// A new `LayoutEngine`, or an error if the root node cannot be created
+    pub fn try_new() -> Result<Self> {
         let mut tree = TaffyTree::new();
         let root = tree
             .new_leaf_with_context(Style::default(), ())
-            .expect("root");
-        Self { tree, root }
+            .map_err(|e| ReactiveError::layout(format!("Failed to create root: {e}")))?;
+        Ok(Self { tree, root })
     }
 
     /// Get the root node ID of the layout tree
@@ -115,5 +127,20 @@ impl LayoutEngine {
         self.tree
             .compute_layout(self.root, size)
             .map_err(|e| ReactiveError::layout(format!("Failed to compute layout: {}", e)))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn fallible_construction_yields_a_usable_root() {
+        let engine = LayoutEngine::try_new().expect("fresh tree");
+        // The root accepts style updates, proving it is a live node.
+        let mut engine = engine;
+        engine
+            .set_style(engine.root(), Style::default())
+            .expect("root style");
     }
 }

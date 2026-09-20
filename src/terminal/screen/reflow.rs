@@ -38,11 +38,11 @@ impl Anchor {
 
     fn viewport_position(&self, top: usize, width: u16, height: u16) -> (u16, u16) {
         (
-            self.target.column.min(usize::from(width - 1)) as u16,
+            self.target.column.min(usize::from(width).saturating_sub(1)) as u16,
             self.target
                 .row
                 .saturating_sub(top)
-                .min(usize::from(height - 1)) as u16,
+                .min(usize::from(height).saturating_sub(1)) as u16,
         )
     }
 }
@@ -72,7 +72,11 @@ impl VirtualScreen {
             .chain(std::mem::take(&mut self.main_buffer))
             .collect();
         let rows = reflow_rows(source, usize::from(width), &mut anchors);
-        let origin = anchors.pop().unwrap();
+        // The origin anchor is pushed unconditionally above and
+        // `reflow_rows` only mutates anchors in place, so this is always
+        // present; an empty stack degrades to the screen origin instead of
+        // panicking.
+        let origin = anchors.pop().unwrap_or(Anchor::new(0, 0, false));
         let visible_origin = origin.target.row + usize::from(origin.target.column != 0);
         let top = visible_origin.min(anchors[0].target.row).max(
             anchors[0]
@@ -174,18 +178,22 @@ fn pack_line(
                     .offset
                     .is_some_and(|point| (offset..offset + cells).contains(&point))
                 {
-                    anchor.place(
-                        output.last().unwrap().len().min(width - 1),
-                        output.len() - 1,
-                        false,
-                    );
+                    // `output` always holds the row pushed above; a missing
+                    // row degrades to column zero, and the saturating
+                    // subtraction keeps zero-width reflows panic-free.
+                    let column = output
+                        .last()
+                        .map(|row| row.len())
+                        .unwrap_or(0)
+                        .min(width.saturating_sub(1));
+                    anchor.place(column, output.len() - 1, false);
                 }
             }
             offset += cells;
             continue;
         }
-        if output.last().unwrap().len() + cells > width {
-            if let Some(last) = output.last_mut().unwrap().last_mut() {
+        if output.last().map(|row| row.len()).unwrap_or(0) + cells > width {
+            if let Some(last) = output.last_mut().and_then(|row| row.last_mut()) {
                 last.wrapped = true;
             }
             output.push(Vec::new());
@@ -260,6 +268,15 @@ mod tests {
         let mut anchors = [Anchor::new(0, 0, false)];
         let rows = reflow_rows(rows, 1000, &mut anchors);
         assert_eq!(rows.len(), 1000);
+        assert!(rows.iter().all(Vec::is_empty));
+    }
+
+    #[test]
+    fn zero_width_reflow_never_panics() {
+        // `width - 1` used to underflow on a zero-width viewport.
+        let rows = vec![vec![TerminalCell::with_char('x'); 2]; 2];
+        let mut anchors = [Anchor::new(0, 0, false)];
+        let rows = reflow_rows(rows, 0, &mut anchors);
         assert!(rows.iter().all(Vec::is_empty));
     }
 }
