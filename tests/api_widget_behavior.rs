@@ -12,8 +12,8 @@ use std::sync::{Arc, Mutex};
 mod accessibility_styles;
 #[path = "api_widget_behavior/accordion.rs"]
 mod accordion_acceptance;
-#[path = "support/app_input.rs"]
-mod app_input;
+mod common;
+use common::app_input;
 #[path = "api_widget_behavior/autocomplete.rs"]
 mod autocomplete_acceptance;
 #[path = "api_widget_behavior/breadcrumb.rs"]

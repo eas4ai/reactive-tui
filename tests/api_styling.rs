@@ -5,9 +5,9 @@ use reactive_tui::{
     event::types::{Event, KeyCode, MouseEvent, MouseEventKind, Position},
 };
 
-#[path = "support/app_input.rs"]
-mod app_input;
+mod common;
 use app_input::{click, key, run, Snapshot};
+use common::app_input;
 use reactive_tui::event::router::EventResult;
 use std::sync::{
     atomic::{AtomicBool, AtomicUsize, Ordering},

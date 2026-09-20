@@ -1,6 +1,6 @@
-#[path = "support/app_input.rs"]
 #[allow(dead_code)]
-mod app_input;
+mod common;
+use common::app_input;
 #[path = "../examples/widget_catalog/catalog.rs"]
 mod catalog;
 

@@ -9,9 +9,9 @@ use std::sync::{
     atomic::{AtomicUsize, Ordering},
     Arc, Mutex,
 };
-#[path = "support/app_input.rs"]
-mod app_input;
+mod common;
 use app_input::{click, key, run};
+use common::app_input;
 
 struct ClickRoot(Arc<AtomicUsize>);
 impl RootComponent for ClickRoot {

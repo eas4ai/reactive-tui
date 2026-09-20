@@ -3,8 +3,8 @@ use reactive_tui::event::types::{Event, ResizeEvent};
 use reactive_tui::{app::RootComponent, component::Element, prelude::*, responsive_css};
 
 #[allow(dead_code)]
-#[path = "support/app_input.rs"]
-mod app_input;
+mod common;
+use common::app_input;
 
 struct Root(Element);
 impl RootComponent for Root {

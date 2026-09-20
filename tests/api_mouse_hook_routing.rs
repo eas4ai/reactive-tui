@@ -14,10 +14,10 @@ use reactive_tui::{
 };
 use std::time::Duration;
 
-#[path = "support/app_input.rs"]
 #[allow(dead_code)]
-mod app_input;
+mod common;
 use app_input::run;
+use common::app_input;
 
 #[component]
 fn HookSource(hooks: &reactive_tui::reactive::Hooks) -> Element {

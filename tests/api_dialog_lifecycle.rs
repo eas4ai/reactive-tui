@@ -10,8 +10,8 @@ use std::{
 
 #[path = "api_dialog_lifecycle/app.rs"]
 mod app;
-#[path = "support/app_input.rs"]
-mod app_input;
+mod common;
+use common::app_input;
 
 #[test]
 fn close_preserves_the_actual_result_once_and_in_order() {

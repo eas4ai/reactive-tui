@@ -12,9 +12,9 @@ use std::sync::{
     Arc, Mutex,
 };
 
-#[path = "support/app_input.rs"]
-mod app_input;
+mod common;
 use app_input::{click, key, run};
+use common::app_input;
 
 type Log = Arc<Mutex<Vec<String>>>;
 fn control(label: &'static str, auto_focus: bool, calls: &Log, focus: &Log) -> Element {

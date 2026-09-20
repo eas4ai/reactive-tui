@@ -7,9 +7,9 @@ use reactive_tui::{
 use std::{any::Any, sync::Once};
 
 #[allow(dead_code)]
-#[path = "support/app_input.rs"]
-mod app_input;
+mod common;
 use app_input::{run, Snapshot};
+use common::app_input;
 
 struct Tree(Element);
 impl RootComponent for Tree {
