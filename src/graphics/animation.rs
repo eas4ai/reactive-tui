@@ -90,7 +90,7 @@ pub struct WorkerOutput {
 }
 
 /// Current queue bounds and cumulative worker progress.
-#[derive(Debug, Default, Clone, Copy)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub struct WorkerStats {
     /// Zero or one render in progress.
     pub active: usize,
@@ -160,26 +160,44 @@ impl GraphicsWorker {
         let owner = Arc::clone(&shared);
         let cancellation = GraphicsCancellation::default();
         let worker_cancellation = cancellation.clone();
-        let thread = thread::spawn(move || loop {
+        let thread = thread::spawn(move || 'worker: loop {
             let request = {
-                let mut mailbox = owner.mailbox.lock().unwrap();
+                let mut mailbox = match owner.mailbox.lock() {
+                    Ok(mailbox) => mailbox,
+                    // Poisoned by a panicked holder: queue state is
+                    // untrustworthy, so the worker exits instead of
+                    // panicking with it.
+                    Err(_) => break 'worker,
+                };
                 while !mailbox.stopped && mailbox.pending.is_none() {
-                    mailbox = owner.ready.wait(mailbox).unwrap();
+                    mailbox = match owner.ready.wait(mailbox) {
+                        Ok(mailbox) => mailbox,
+                        // Poisoned while parked: wait() consumed the
+                        // guard with it, so there is nothing to
+                        // re-check. Exit the worker outright.
+                        Err(_) => break 'worker,
+                    };
                 }
                 if mailbox.stopped {
-                    break;
+                    break 'worker;
                 }
-                let request = mailbox
-                    .pending
-                    .take()
-                    .expect("pending request after condition wait");
+                let request = match mailbox.pending.take() {
+                    Some(request) => request,
+                    // Unreachable: the wait loop above only exits with a
+                    // pending request or a stop, both checked. Loop back
+                    // to waiting rather than panic on the impossible.
+                    None => continue,
+                };
                 mailbox.stats.pending = 0;
                 mailbox.stats.active = 1;
                 request
             };
             let frame = render(request, &worker_cancellation);
             let publish = {
-                let mut mailbox = owner.mailbox.lock().unwrap();
+                let mut mailbox = match owner.mailbox.lock() {
+                    Ok(mailbox) => mailbox,
+                    Err(_) => break,
+                };
                 mailbox.stats.active = 0;
                 mailbox.stats.completed = mailbox.stats.completed.saturating_add(1);
                 if mailbox.stopped {
@@ -200,9 +218,13 @@ impl GraphicsWorker {
         }
     }
 
-    /// Replace the single pending request; false means shutdown has begun.
+    /// Replace the single pending request; false means shutdown has begun
+    /// or the queue was poisoned by a panicked holder.
     pub fn request(&self, request: FrameRequest) -> bool {
-        let mut mailbox = self.shared.mailbox.lock().unwrap();
+        let mut mailbox = match self.shared.mailbox.lock() {
+            Ok(mailbox) => mailbox,
+            Err(_) => return false,
+        };
         if mailbox.stopped {
             return false;
         }
@@ -215,13 +237,23 @@ impl GraphicsWorker {
     }
 
     /// Take the newest result, discarding older results when rendering outruns UI.
+    /// A poisoned queue yields no result instead of panicking.
     pub fn take_latest(&self) -> Option<WorkerOutput> {
-        self.shared.mailbox.lock().unwrap().output.take()
+        self.shared
+            .mailbox
+            .lock()
+            .map(|mut mailbox| mailbox.output.take())
+            .unwrap_or(None)
     }
 
     /// Read queue bounds without waiting for rendering.
+    /// A poisoned queue reports zeroed stats instead of panicking.
     pub fn stats(&self) -> WorkerStats {
-        self.shared.mailbox.lock().unwrap().stats
+        self.shared
+            .mailbox
+            .lock()
+            .map(|mailbox| mailbox.stats)
+            .unwrap_or_default()
     }
 
     /// Cancel pending work, discard results, and join the current render.
@@ -239,8 +271,7 @@ impl GraphicsWorker {
     /// Cancel active/pending work immediately, without detaching the thread.
     pub fn cancel(&self) {
         self.cancellation.cancel();
-        {
-            let mut mailbox = self.shared.mailbox.lock().unwrap();
+        if let Ok(mut mailbox) = self.shared.mailbox.lock() {
             mailbox.stopped = true;
             mailbox.pending = None;
             mailbox.output = None;
@@ -255,5 +286,38 @@ impl Drop for GraphicsWorker {
         if let Err(error) = self.shutdown() {
             log::error!("{error}");
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn poisoned_worker() -> GraphicsWorker {
+        let shared = Arc::new(Shared {
+            mailbox: Mutex::new(Mailbox::default()),
+            ready: Condvar::new(),
+        });
+        let victim = Arc::clone(&shared);
+        let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(move || {
+            let _guard = victim.mailbox.lock().unwrap();
+            panic!("poison the mailbox");
+        }));
+        assert!(shared.mailbox.is_poisoned());
+        GraphicsWorker {
+            shared,
+            thread: None,
+            cancellation: GraphicsCancellation::default(),
+        }
+    }
+
+    #[test]
+    fn poisoned_mailbox_degrades_instead_of_panicking() {
+        let worker = poisoned_worker();
+        let request = FrameRequest::new(80, 24, Duration::from_millis(16)).expect("valid request");
+        assert!(!worker.request(request));
+        assert!(worker.take_latest().is_none());
+        assert_eq!(worker.stats(), WorkerStats::default());
+        worker.cancel();
     }
 }

@@ -85,7 +85,11 @@ impl ComponentRuntime {
             if newly_created {
                 let scope = ComponentScope::child(
                     crate::reactive::component_scope::current()
-                        .expect("App component expansion requires its resource scope")
+                        .ok_or_else(|| {
+                            ReactiveError::invalid_state(
+                                "App component expansion requires its resource scope",
+                            )
+                        })?
                         .scheduler(),
                 );
                 let _binding = scope.enter(true);
@@ -130,7 +134,9 @@ impl ComponentRuntime {
                 );
                 seen.insert(path.clone());
                 let mut output = {
-                    let mut instance = live.instance.lock().unwrap();
+                    let mut instance = live.instance.lock().map_err(|_| {
+                        ReactiveError::invalid_state("component instance lock poisoned")
+                    })?;
                     instance.update(element.props.as_ref());
                     instance.try_render()?
                 };
@@ -271,8 +277,11 @@ impl ComponentRuntime {
             return;
         };
         let mut local = event.clone();
+        // A poisoned bounds lock degrades to "no bounds", exactly like a
+        // component that has not been measured yet.
+        let cached = live.bounds.lock().map(|guard| *guard).unwrap_or(None);
         if let (crate::event::types::Position::Cell { x, y }, Some(bounds)) =
-            (event.position, *live.bounds.lock().unwrap())
+            (event.position, cached)
         {
             let Some((x, y)) = bounds.local_cell(f32::from(x), f32::from(y)) else {
                 self.mouse.process_routed_event(event, None, None, None);
@@ -316,9 +325,8 @@ impl LiveComponent {
             };
             let mut local = event.clone();
             if let Event::Mouse(mouse) = &mut local {
-                if let (Position::Cell { x, y }, Some(bounds)) =
-                    (mouse.position, *bounds.lock().unwrap())
-                {
+                let cached = bounds.lock().map(|guard| *guard).unwrap_or(None);
+                if let (Position::Cell { x, y }, Some(bounds)) = (mouse.position, cached) {
                     let (x, y) = match bounds.local_cell(f32::from(x), f32::from(y)) {
                         Some(position) => position,
                         // A boundary leave necessarily lies outside the component.
@@ -332,19 +340,20 @@ impl LiveComponent {
                 }
             }
             let _binding = scope.enter(false);
-            let result = instance.lock().unwrap().handle_event(&local);
-            result
+            instance
+                .lock()
+                .map(|mut instance| instance.handle_event(&local))
+                .unwrap_or(EventResult::Ignored)
         });
         let weak = Arc::downgrade(&self.instance);
         let scope = self.scope.clone();
         let bounds = self.bounds.clone();
         let layout_handler = Arc::new(move |new_bounds| {
-            let changed = {
-                let mut previous = bounds.lock().unwrap();
-                let changed = *previous != Some(new_bounds);
-                *previous = Some(new_bounds);
-                changed
+            let Ok(mut previous) = bounds.lock() else {
+                return false;
             };
+            let changed = *previous != Some(new_bounds);
+            *previous = Some(new_bounds);
             if !changed {
                 return false;
             }
@@ -352,8 +361,10 @@ impl LiveComponent {
                 return false;
             };
             let _binding = scope.enter(false);
-            let changed = instance.lock().unwrap().layout(new_bounds);
-            changed
+            instance
+                .lock()
+                .map(|mut instance| instance.layout(new_bounds))
+                .unwrap_or(false)
         });
         (event_handler, layout_handler)
     }
