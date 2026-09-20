@@ -3,13 +3,17 @@ use reactive_tui::core::styled_text::{styled_line_to_render_ops, StyledLineBuild
 use reactive_tui::core::surface::{Attr, Rgba};
 use reactive_tui::core::writer::render_ops_to_ansi;
 
+/// Goldens live in `tests/snapshots/render_ops/<name>.ansi`, reviewed as a
+/// diff like any other source file. Run with `REGENERATE=1` to refresh
+/// them after an intentional rendering change — then review the diff
+/// before committing.
+fn snapshots_dir() -> std::path::PathBuf {
+    std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/snapshots/render_ops")
+}
+
 /// Helper to create a snapshot test
 fn assert_snapshot(name: &str, ops: &RenderOps) {
     let output = render_ops_to_ansi(ops);
-    let output_str = String::from_utf8_lossy(&output);
-
-    // For now, we'll use simple assertions. In production, use insta or similar
-    println!("Snapshot '{}': {:?}", name, output_str);
 
     // Ensure output is not empty for non-empty ops
     if !ops.is_empty() {
@@ -19,6 +23,20 @@ fn assert_snapshot(name: &str, ops: &RenderOps) {
             name
         );
     }
+
+    let path = snapshots_dir().join(format!("{name}.ansi"));
+    if std::env::var("REGENERATE").as_deref() == Ok("1") {
+        std::fs::create_dir_all(snapshots_dir()).expect("snapshot dir");
+        std::fs::write(&path, &output).expect("write golden");
+        return;
+    }
+    let expected = std::fs::read(&path).unwrap_or_else(|_| {
+        panic!("missing golden {path:?}; run with REGENERATE=1 to create it, review the diff, then commit it")
+    });
+    assert_eq!(
+        output, expected,
+        "golden mismatch for {name}; if the rendering change is intentional, run with REGENERATE=1, review the diff, and commit it"
+    );
 }
 
 #[test]
