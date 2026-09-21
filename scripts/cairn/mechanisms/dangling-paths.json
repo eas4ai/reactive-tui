@@ -1,18 +1,14 @@
 {
   "command": "python3 -B scripts/cairn/dangling_paths.py",
   "inputs": [
-    "docs",
     "manual",
-    "scripts",
-    "tests",
-    "src",
     "include",
-    "examples",
     "README.md",
     "CONTRIBUTING.md",
     "CHANGELOG.md",
+    "tests",
+    "src",
     "Cargo.toml",
-    "Cargo.lock",
     "scripts/cairn"
   ],
   "requirements": [
