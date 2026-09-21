@@ -1,0 +1,18 @@
+{
+  "command": "python3 -B scripts/cairn/charts_builders.py",
+  "inputs": [
+    "src/widgets/display/charts.rs",
+    "src/widgets/display/charts",
+    "src/builder/widgets/chart.rs",
+    "src/theme",
+    "src/layout/colors.rs",
+    "tests/common",
+    "Cargo.toml",
+    "Cargo.lock",
+    "scripts/cairn"
+  ],
+  "requirements": [
+    "CHT-020"
+  ],
+  "results": "per-requirement"
+}

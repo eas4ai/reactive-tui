@@ -1,0 +1,61 @@
+#!/usr/bin/env python3
+"""CHT-020: the chart builder mirrors the gpui-kit method names per chart type.
+
+Prints `cairn: CHT-020: pass|fail`.
+"""
+
+import re
+import sys
+
+from _common import finish, rust_sources, strip_test_modules
+
+# method -> chart types that must expose it (gpui-kit 0.6.6 crates/component/src/chart)
+REQUIRED = {
+    "x": ["line", "area"], "y": ["line", "area"], "stroke": ["line", "area"], "fill": ["area", "bar"],
+    "natural": ["line", "area"], "linear": ["line", "area"], "step_after": ["line", "area"], "dot": ["line"],
+    "tick_margin": ["line", "area", "bar", "candlestick"], "grid": ["line", "area", "bar", "candlestick"],
+    "band": ["bar"], "value": ["bar"], "alignment": ["bar"], "label": ["bar"],
+    "open": ["candlestick"], "high": ["candlestick"], "low": ["candlestick"], "close": ["candlestick"],
+    "inner_radius": ["pie"], "outer_radius": ["pie"], "pad_angle": ["pie"],
+    "max_value": ["radar"], "grid_levels": ["radar"],
+}
+FIRST_CUT = {"line", "area", "bar", "candlestick"}
+
+
+def builder_methods(text: str) -> dict[str, set[str]]:
+    """Map builder type name -> set of pub method names."""
+    found: dict[str, set[str]] = {}
+    for m in re.finditer(r"impl(?:<[^>]*>)?\s+([A-Za-z_][A-Za-z0-9_]*)(?:<[^>]*>)?\s*\{", text):
+        name = m.group(1)
+        depth, j = 1, m.end()
+        while j < len(text) and depth:
+            depth += text[j] == "{"
+            depth -= text[j] == "}"
+            j += 1
+        body = text[m.end(): j]
+        found.setdefault(name, set()).update(re.findall(r"\bpub fn\s+([A-Za-z_][A-Za-z0-9_]*)\s*[<(]", body))
+    return found
+
+
+def main() -> int:
+    text = "\n".join(strip_test_modules(f.read_text(errors="replace")) for f in rust_sources(
+        "src/widgets/display/charts.rs", "src/widgets/display/charts", "src/builder/widgets/chart.rs"))
+    methods = builder_methods(text)
+    lower = {k.lower(): v for k, v in methods.items()}
+    missing = []
+    for method, kinds in REQUIRED.items():
+        for kind in kinds:
+            if kind not in FIRST_CUT:
+                continue
+            owners = [n for n in lower if kind in n and ("chart" in n or "builder" in n)] or [n for n in lower if "chart" in n or "builder" in n]
+            if not owners:
+                missing.append(f"no chart builder type found")
+                continue
+            if not any(method in lower[o] for o in owners):
+                missing.append(f"{kind}: .{method}() missing")
+    missing = sorted(set(missing))
+    return finish({"CHT-020": (not missing, "; ".join(missing[:8]) + (f" (+{len(missing)-8})" if len(missing) > 8 else "") if missing else "all first-cut methods present")})
+
+
+if __name__ == "__main__":
+    sys.exit(main())

@@ -1,0 +1,28 @@
+{
+  "command": "python3 -B scripts/cairn/charts_goldens.py",
+  "inputs": [
+    "src/widgets/display/charts.rs",
+    "src/widgets/display/charts",
+    "src/builder/widgets/chart.rs",
+    "src/theme",
+    "src/layout/colors.rs",
+    "tests/common",
+    "tests/charts_goldens.rs",
+    "tests/snapshots/charts",
+    "examples/widget_catalog",
+    "manual/display-widgets.md",
+    "Cargo.toml",
+    "Cargo.lock",
+    "scripts/cairn"
+  ],
+  "requirements": [
+    "BAR-004",
+    "CHT-012",
+    "CHT-013",
+    "CHT-014",
+    "CHT-023",
+    "CHT-024",
+    "CHT-025"
+  ],
+  "results": "per-requirement"
+}

@@ -1,0 +1,19 @@
+{
+  "command": "python3 -B scripts/cairn/plot_layer.py",
+  "inputs": [
+    "src/widgets/display/charts.rs",
+    "src/widgets/display/charts",
+    "src/builder/widgets/chart.rs",
+    "src/theme",
+    "src/layout/colors.rs",
+    "tests/common",
+    "Cargo.toml",
+    "Cargo.lock",
+    "scripts/cairn"
+  ],
+  "requirements": [
+    "CHT-010",
+    "CHT-011"
+  ],
+  "results": "per-requirement"
+}

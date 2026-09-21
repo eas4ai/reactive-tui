@@ -1,0 +1,84 @@
+"""Shared helpers for the Cairn mechanism scripts under scripts/cairn/."""
+
+from __future__ import annotations
+
+import os
+import re
+import subprocess
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[2]
+JOBS = os.environ.get("CARGO_BUILD_JOBS", "8")
+
+
+def run(cmd: list[str], timeout: int = 1800, env: dict | None = None) -> subprocess.CompletedProcess:
+    merged = os.environ.copy()
+    merged["CARGO_BUILD_JOBS"] = JOBS
+    if env:
+        merged.update(env)
+    print("$", " ".join(cmd), flush=True)
+    return subprocess.run(cmd, cwd=ROOT, env=merged, text=True, capture_output=True, timeout=timeout)
+
+
+def tracked_files() -> set[str]:
+    out = subprocess.run(["git", "ls-files", "-z"], cwd=ROOT, capture_output=True, check=True).stdout
+    return {p.decode() for p in out.split(b"\0") if p}
+
+
+def report(req: str, ok: bool, why: str = "") -> bool:
+    print(f"cairn: {req}: {'pass' if ok else 'fail'}" + (f"  # {why}" if why else ""), flush=True)
+    return ok
+
+
+def rust_sources(*dirs: str) -> list[Path]:
+    files: list[Path] = []
+    for d in dirs:
+        p = ROOT / d
+        if p.is_file():
+            files.append(p)
+        elif p.is_dir():
+            files.extend(sorted(p.rglob("*.rs")))
+    return files
+
+
+def strip_test_modules(text: str) -> str:
+    """Drop `#[cfg(test)] mod ... { ... }` bodies so probes see production code only."""
+    out = []
+    i = 0
+    pat = re.compile(r"#\[cfg\(test\)\]\s*mod\s+\w+\s*\{")
+    while True:
+        m = pat.search(text, i)
+        if not m:
+            out.append(text[i:])
+            break
+        out.append(text[i:m.start()])
+        depth, j = 1, m.end()
+        while j < len(text) and depth:
+            depth += text[j] == "{"
+            depth -= text[j] == "}"
+            j += 1
+        i = j
+    return "".join(out)
+
+
+def cargo_test_filtered(binary: str, substring: str, features: list[str] | None = None) -> tuple[bool, str]:
+    cmd = ["cargo", "test", "--locked", "--jobs", JOBS, "--test", binary]
+    if features:
+        cmd += ["--features", ",".join(features)]
+    cmd += ["--", substring]
+    r = run(cmd)
+    tail = "\n".join((r.stdout + r.stderr).splitlines()[-25:])
+    ran = re.search(r"test result: \w+\. (\d+) passed; (\d+) failed", r.stdout)
+    if not ran:
+        return False, f"{binary} did not run: {tail}"
+    passed, failed = int(ran.group(1)), int(ran.group(2))
+    if passed + failed == 0:
+        return False, f"no test matched {substring!r} in {binary}"
+    return failed == 0 and r.returncode == 0, tail if failed else f"{passed} passed"
+
+
+def finish(results: dict[str, tuple[bool, str]]) -> int:
+    ok_all = True
+    for req, (ok, why) in results.items():
+        ok_all &= report(req, ok, why)
+    return 0 if ok_all else 1

@@ -1,0 +1,22 @@
+{
+  "command": "python3 -B scripts/cairn/charts_contract.py interaction",
+  "inputs": [
+    "src/widgets/display/charts.rs",
+    "src/widgets/display/charts",
+    "src/builder/widgets/chart.rs",
+    "src/theme",
+    "src/layout/colors.rs",
+    "tests/common",
+    "tests/charts_contract.rs",
+    "src/hooks",
+    "src/event",
+    "Cargo.toml",
+    "Cargo.lock",
+    "scripts/cairn"
+  ],
+  "requirements": [
+    "CHT-018",
+    "CHT-019"
+  ],
+  "results": "per-requirement"
+}
