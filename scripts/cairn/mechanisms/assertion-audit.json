@@ -1,0 +1,14 @@
+{
+  "command": "python3 -B scripts/cairn/assertion_audit.py",
+  "inputs": [
+    "src",
+    "tests",
+    "crates/reactive-tui-suprtui",
+    "Cargo.toml",
+    "Cargo.lock",
+    "scripts/cairn"
+  ],
+  "requirements": [
+    "BAR-002"
+  ]
+}

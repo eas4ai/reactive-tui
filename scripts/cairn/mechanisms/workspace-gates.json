@@ -1,0 +1,17 @@
+{
+  "command": "python3 -B scripts/cairn/workspace_gates.py",
+  "inputs": [
+    "src",
+    "crates",
+    "tests",
+    "examples",
+    "benches",
+    "build.rs",
+    "Cargo.toml",
+    "Cargo.lock",
+    "scripts/cairn"
+  ],
+  "requirements": [
+    "BAR-001"
+  ]
+}

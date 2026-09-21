@@ -1,0 +1,19 @@
+{
+  "command": "python3 -B scripts/cairn/charts_palette.py",
+  "inputs": [
+    "src/widgets/display/charts.rs",
+    "src/widgets/display/charts",
+    "src/builder/widgets/chart.rs",
+    "src/theme",
+    "src/layout/colors.rs",
+    "tests/common",
+    "tests/charts_contract.rs",
+    "Cargo.toml",
+    "Cargo.lock",
+    "scripts/cairn"
+  ],
+  "requirements": [
+    "CHT-017"
+  ],
+  "results": "per-requirement"
+}

@@ -1,0 +1,23 @@
+{
+  "command": "python3 -B scripts/cairn/charts_contract.py frame-budget",
+  "inputs": [
+    "src/widgets/display/charts.rs",
+    "src/widgets/display/charts",
+    "src/builder/widgets/chart.rs",
+    "src/theme",
+    "src/layout/colors.rs",
+    "tests/common",
+    "tests/charts_contract.rs",
+    "src/app.rs",
+    "src/backend",
+    "src/reactive",
+    "Cargo.toml",
+    "Cargo.lock",
+    "scripts/cairn"
+  ],
+  "requirements": [
+    "BAR-005",
+    "CHT-021"
+  ],
+  "results": "per-requirement"
+}
