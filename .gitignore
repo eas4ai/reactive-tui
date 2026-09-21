@@ -11,6 +11,7 @@ __pycache__/
 
 # Reference materials (keep local only)
 reference/
+.superpowers/
 docs/*
 !docs/spec/
 !docs/commitments/

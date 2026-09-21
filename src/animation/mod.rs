@@ -1119,7 +1119,7 @@ impl AnimationManager {
         let mut removed = 0;
 
         // Remove animations that are completed or haven't updated recently
-        self.animations.retain(|id, animation| {
+        self.animations.retain(|_id, animation| {
             let should_keep = if animation.is_completed() {
                 false
             } else if let Some(start_time) = animation.start_time {
@@ -1136,13 +1136,13 @@ impl AnimationManager {
             if !should_keep {
                 removed += 1;
                 #[cfg(debug_assertions)]
-                log::debug!("Cleaning up stale animation: {}", id);
+                log::debug!("Cleaning up stale animation: {}", _id);
             }
             should_keep
         });
 
         // Remove stale timelines
-        self.timelines.retain(|id, timeline| {
+        self.timelines.retain(|_id, timeline| {
             let should_keep = match timeline.state.read() {
                 Ok(state) => *state != AnimationState::Completed,
                 Err(_) => {
@@ -1153,7 +1153,7 @@ impl AnimationManager {
 
             if !should_keep {
                 #[cfg(debug_assertions)]
-                log::debug!("Cleaning up stale timeline: {}", id);
+                log::debug!("Cleaning up stale timeline: {}", _id);
             }
             should_keep
         });

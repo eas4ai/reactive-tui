@@ -536,7 +536,7 @@ fn convert_elements(root: Element, composite_keys: bool, instantiate: bool) -> B
                             crate::component::registry::get_global_registry()
                                 .create_by_name(&component_name, element.props.as_ref())
                         {
-                            if let Err(error) = crate::component::registry::get_global_registry()
+                            if let Err(_error) = crate::component::registry::get_global_registry()
                                 .register_instance_with_element(
                                     node.key().clone(),
                                     instance.clone(),
@@ -544,7 +544,7 @@ fn convert_elements(root: Element, composite_keys: bool, instantiate: bool) -> B
                                 )
                             {
                                 #[cfg(debug_assertions)]
-                                log::warn!("Failed to register component instance: {error}");
+                                log::warn!("Failed to register component instance: {_error}");
                             } else {
                                 node = node.with_component_instance(instance);
                             }
