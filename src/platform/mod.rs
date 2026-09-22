@@ -389,6 +389,19 @@ pub mod sequences {
     pub const SYNC_QUERY: &[u8] = b"\x1b[?2026$p";
     /// Query Unicode support
     pub const UNICODE_QUERY: &[u8] = b"\x1b[?2027$p";
+
+    /// The capability queries sent at startup, ten milliseconds apart. The
+    /// mode 2027 (unicode) answer is the glyph capability report the charts
+    /// follow (CHT-028).
+    pub const STARTUP_QUERIES: &[&[u8]] = &[
+        PRIMARY_DEVICE_ATTRS,
+        SECONDARY_DEVICE_ATTRS,
+        KITTY_GRAPHICS_QUERY,
+        SYNC_QUERY,
+        UNICODE_QUERY,
+        PIXEL_MOUSE_QUERY,
+        ENHANCED_KEYBOARD_QUERY,
+    ];
     /// Query pixel-level mouse support
     pub const PIXEL_MOUSE_QUERY: &[u8] = b"\x1b[?1016$p";
     /// Query enhanced keyboard protocol support
@@ -1176,19 +1189,11 @@ impl DirectTty {
             self.inner.set_nonblocking(true)?;
         }
 
-        // Send all capability queries at once
-        self.write(sequences::PRIMARY_DEVICE_ATTRS)?;
-        std::thread::sleep(Duration::from_millis(10));
-        self.write(sequences::SECONDARY_DEVICE_ATTRS)?;
-        std::thread::sleep(Duration::from_millis(10));
-        self.write(sequences::KITTY_GRAPHICS_QUERY)?;
-        std::thread::sleep(Duration::from_millis(10));
-        self.write(sequences::SYNC_QUERY)?;
-        std::thread::sleep(Duration::from_millis(10));
-        self.write(sequences::PIXEL_MOUSE_QUERY)?;
-        std::thread::sleep(Duration::from_millis(10));
-        self.write(sequences::ENHANCED_KEYBOARD_QUERY)?;
-        std::thread::sleep(Duration::from_millis(10));
+        // Send every startup capability query, ten milliseconds apart.
+        for query in sequences::STARTUP_QUERIES {
+            self.write(query)?;
+            std::thread::sleep(Duration::from_millis(10));
+        }
 
         // Additional queries for more capabilities
         self.write(b"\x1b[?1;2c")?; // Request terminal ID
@@ -1416,6 +1421,21 @@ impl DirectTty {
                             2026 => {
                                 // Synchronized output
                                 self.capabilities.synchronized_output = value == 1 || value == 2;
+                            }
+                            2027 => {
+                                // Unicode core: the terminal's answer is the
+                                // glyph capability report the charts follow
+                                // (CHT-028); set keeps braille and blocks,
+                                // reset switches charts to ASCII.
+                                match value {
+                                    1 | 3 => {
+                                        crate::widgets::display::charts::report_glyph_support(true)
+                                    }
+                                    2 | 4 => {
+                                        crate::widgets::display::charts::report_glyph_support(false)
+                                    }
+                                    _ => {}
+                                }
                             }
                             1016 => {
                                 // Pixel mouse

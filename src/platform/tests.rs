@@ -210,3 +210,15 @@ mod tty_tests {
         }
     }
 }
+
+/// CHT-028: startup detection asks the terminal for mode 2027, so the
+/// charts receive a glyph capability report from a real answer.
+#[test]
+fn startup_queries_ask_the_terminal_for_unicode_mode() {
+    use super::sequences::{STARTUP_QUERIES, UNICODE_QUERY};
+    assert!(
+        STARTUP_QUERIES.contains(&UNICODE_QUERY),
+        "the startup queries must include the mode 2027 query"
+    );
+    assert_eq!(UNICODE_QUERY, b"\x1b[?2027$p");
+}
