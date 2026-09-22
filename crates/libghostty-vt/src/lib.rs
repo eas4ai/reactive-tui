@@ -84,6 +84,11 @@
     reason = "underlying C API may return any error outside of expected and
     mitigated situations, and it is not feasible to document them all"
 )]
+#![allow(
+    clippy::needless_pass_by_value,
+    reason = "option builders and grid references are consumed by design, mirroring
+    the upstream C API which takes them by value"
+)]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
 pub use libghostty_vt_sys as ffi;
