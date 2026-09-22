@@ -26,7 +26,11 @@ def tracked_files() -> set[str]:
 
 
 def report(req: str, ok: bool, why: str = "") -> bool:
-    print(f"cairn: {req}: {'pass' if ok else 'fail'}" + (f"  # {why}" if why else ""), flush=True)
+    """Print the exact result line Cairn parses, then the reason on its own line."""
+    print(f"cairn: {req}: {'pass' if ok else 'fail'}", flush=True)
+    why = " ".join(why.split())
+    if why:
+        print(f"  {req} reason: {why[:400]}", flush=True)
     return ok
 
 
@@ -67,14 +71,20 @@ def cargo_test_filtered(binary: str, substring: str, features: list[str] | None 
         cmd += ["--features", ",".join(features)]
     cmd += ["--", substring]
     r = run(cmd)
-    tail = "\n".join((r.stdout + r.stderr).splitlines()[-25:])
+    out = r.stdout + r.stderr
     ran = re.search(r"test result: \w+\. (\d+) passed; (\d+) failed", r.stdout)
     if not ran:
-        return False, f"{binary} did not run: {tail}"
+        err = [l for l in out.splitlines() if l.startswith("error")]
+        return False, f"{binary} did not run: " + ("; ".join(err[:3]) or out.splitlines()[-1:][0] if out.strip() else "no output")
     passed, failed = int(ran.group(1)), int(ran.group(2))
     if passed + failed == 0:
         return False, f"no test matched {substring!r} in {binary}"
-    return failed == 0 and r.returncode == 0, tail if failed else f"{passed} passed"
+    if failed == 0 and r.returncode == 0:
+        return True, f"{passed} passed"
+    # The stated violation is the panic message: the line after each "panicked at".
+    lines = out.splitlines()
+    messages = [lines[i + 1].strip() for i, l in enumerate(lines) if "panicked at" in l and i + 1 < len(lines)]
+    return False, "; ".join(m for m in messages if m)[:400] or f"{failed} failed"
 
 
 def finish(results: dict[str, tuple[bool, str]]) -> int:
