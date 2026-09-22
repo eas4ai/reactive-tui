@@ -262,7 +262,7 @@ fn relative_dialog_tracks_changed_parent_layout_and_viewport_resize() {
         }
     }
     for (size, resized) in [((32, 12), (60, 20)), ((60, 20), (32, 12))] {
-        app_input::run_when_cell(
+        let frames = app_input::run_when_cell(
             Moving(AtomicBool::new(false)),
             size,
             vec![
@@ -285,6 +285,14 @@ fn relative_dialog_tracks_changed_parent_layout_and_viewport_resize() {
                     event: None,
                 },
             ],
+        );
+        let last = frames.last().expect("a frame after the resize");
+        assert!(
+            last.screen
+                .cell(2, resized.0 / 2 - 7)
+                .is_some_and(|c| c.contents() == "┌"),
+            "the dialog must sit at the new center after resizing to {resized:?}:\n{}",
+            last.text
         );
     }
 }

@@ -2,9 +2,11 @@
 """BAR-002: every #[test] asserts an observable outcome or is named smoke_*.
 
 Scans tests/**/*.rs and src/**/*.rs. A test body counts as asserting when it
-contains an assert macro, panic!, unreachable!, matches! in an assert, a
-#[should_panic] attribute, `.expect(`, `.unwrap()`, `.unwrap_err(`, or a `?`
-propagation. Files with `harness = false` in Cargo.toml are skipped.
+contains an assert macro (assert!, assert_eq!, assert_ne!, debug_assert*),
+panic! or unreachable!, or the test carries #[should_panic]. A bare
+matches! does not count; .expect() and .unwrap() do not count. A #[test]
+attribute with no fn after it is itself reported. Files with
+`harness = false` in Cargo.toml are skipped.
 
 `--fixture PATH` audits one file only (used to demonstrate the failing case).
 """
@@ -17,7 +19,7 @@ from _common import ROOT, rust_sources
 
 TEST_ATTR = re.compile(r"#\[(?:tokio::)?test[^\]]*\]")
 FN = re.compile(r"\bfn\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(")
-MARKERS = re.compile(r"\bassert(?:_eq|_ne)?!|\bpanic!|\bunreachable!|debug_assert|\bmatches!")
+MARKERS = re.compile(r"\bassert(?:_eq|_ne)?!|\bpanic!|\bunreachable!|debug_assert")
 HARDWARE = re.compile(r"is_hardware|adapter|GPU|wgpu|Xvfb|DISPLAY")
 NO_HARNESS = {"dqc_003_captured_diagnostics"}
 
@@ -47,10 +49,18 @@ def audit(path: Path) -> list[str]:
     text = path.read_text(errors="replace")
     bad = []
     for m in TEST_ATTR.finditer(text):
-        window = text[m.end(): m.end() + 400]
+        # An attribute quoted inside a comment line is prose, not a test.
+        line_start = text.rfind("\n", 0, m.start()) + 1
+        if text[line_start:m.start()].lstrip().startswith("//"):
+            continue
+        # Doc comments and other attributes may sit between #[test] and fn;
+        # search past them, comment text excluded, and report a miss.
+        raw = text[m.end(): m.end() + 4000]
+        window = "\n".join("" if line.lstrip().startswith("//") else line for line in raw.splitlines())
         should_panic = "#[should_panic" in text[max(0, m.start() - 120): m.end() + 120]
         fn = FN.search(window)
         if not fn:
+            bad.append(f"{rel(path)}: #[test] at offset {m.start()} with no fn after it")
             continue
         name = fn.group(1)
         if name.startswith("smoke_") or should_panic:
