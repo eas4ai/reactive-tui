@@ -288,7 +288,7 @@ pub(super) fn draw(job: &Job) -> Picture {
     }
     let visible = visible(props);
     if visible.iter().all(|(_, s)| s.data.is_empty()) {
-        text.text(area.x, area.y, area.w, "", None);
+        text.text(area.x, area.y, area.w, "No data to display", None);
         return compose(picture, &mask, &text, glyphs);
     }
     let legend = legend_area(props, &visible, class, &mut area);
