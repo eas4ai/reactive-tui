@@ -468,7 +468,13 @@ pub(super) fn cartesian(
                 };
                 picture.anchors.insert((s, i), tip);
                 if value_labels {
-                    let label = format_tick(point.value);
+                    // A builder-supplied label (typed `.label(..)`) replaces
+                    // the formatted value (CHT-020, CHT-013).
+                    let label = point
+                        .metadata
+                        .get("label")
+                        .cloned()
+                        .unwrap_or_else(|| format_tick(point.value));
                     let width = text_width(&label);
                     if horizontal {
                         let x = if growth == BarGrowth::Left {
