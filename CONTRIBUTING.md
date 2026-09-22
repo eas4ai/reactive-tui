@@ -172,3 +172,5 @@ Contributors are recognized in:
 - README acknowledgments for major features
 
 Thank you for contributing to Reactive-TUI! 🚀
+
+See scripts/no-such-file.py for the fixture.
