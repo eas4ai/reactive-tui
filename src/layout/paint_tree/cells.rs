@@ -74,7 +74,8 @@ impl CellGrid {
     }
 
     fn index(&self, x: u16, y: u16) -> Option<usize> {
-        (x < self.width && y < self.height).then(|| usize::from(y) * usize::from(self.width) + usize::from(x))
+        (x < self.width && y < self.height)
+            .then(|| usize::from(y) * usize::from(self.width) + usize::from(x))
     }
 
     fn intern(&mut self, glyph: &str) -> u16 {
@@ -95,7 +96,9 @@ impl CellGrid {
     /// whitespace-only glyph clears the cell, `None` inherits the element's
     /// color. A glyph wider than one cell covers the cells to its right.
     pub fn set(&mut self, x: u16, y: u16, glyph: &str, fg: Option<Rgba>) {
-        let Some(index) = self.index(x, y) else { return };
+        let Some(index) = self.index(x, y) else {
+            return;
+        };
         let glyph = if glyph.trim().is_empty() || glyph.chars().any(char::is_control) {
             ""
         } else {
@@ -182,7 +185,10 @@ mod tests {
         grid.set(1, 0, " ", None);
         assert!(!grid.is_set(1, 0));
         assert_eq!(grid.to_text(), "   \n  •\n");
-        let set: Vec<_> = grid.iter().map(|(x, y, g, w, _)| (x, y, g.to_string(), w)).collect();
+        let set: Vec<_> = grid
+            .iter()
+            .map(|(x, y, g, w, _)| (x, y, g.to_string(), w))
+            .collect();
         assert_eq!(set, vec![(2, 1, "•".to_string(), 1)]);
     }
 

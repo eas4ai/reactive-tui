@@ -22,13 +22,21 @@ mod canvas;
 mod motion;
 mod worker;
 
-use canvas::Picture;
 use crate::layout::paint_tree::cells::CellGrid;
+use canvas::Picture;
 
-#[derive(Clone, PartialEq)]
+#[derive(Clone)]
 pub(super) struct LiveProps {
     pub config: Arc<ChartProps>,
     pub seed: ChartState,
+}
+
+impl PartialEq for LiveProps {
+    fn eq(&self, other: &Self) -> bool {
+        // The same shared props need no point-by-point comparison.
+        self.seed == other.seed
+            && (Arc::ptr_eq(&self.config, &other.config) || *self.config == *other.config)
+    }
 }
 impl Props for LiveProps {
     fn as_any(&self) -> &dyn std::any::Any {
@@ -551,7 +559,14 @@ fn nearest_index(positions: &[f64], at: f64) -> Option<usize> {
 fn overlay_grid(picture: &Picture, overlay: &Overlay) -> CellGrid {
     struct Sink<'a>(&'a mut CellGrid);
     impl plot::TextSink for Sink<'_> {
-        fn text(&mut self, x: usize, y: usize, width: usize, text: &str, color: Option<plot::Rgba>) {
+        fn text(
+            &mut self,
+            x: usize,
+            y: usize,
+            width: usize,
+            text: &str,
+            color: Option<plot::Rgba>,
+        ) {
             use unicode_segmentation::UnicodeSegmentation;
             for (offset, grapheme) in text.graphemes(true).enumerate() {
                 if offset >= width {
@@ -589,9 +604,11 @@ fn overlay_grid(picture: &Picture, overlay: &Overlay) -> CellGrid {
             sink.under(col, row, "─", None);
         }
     }
-    overlay
-        .boxed
-        .draw(&mut sink, overlay.at, Rect::sized(picture.width, picture.height), None);
+    overlay.boxed.draw(
+        &mut sink,
+        overlay.at,
+        Rect::sized(picture.width, picture.height),
+        None,
+    );
     grid
 }
-

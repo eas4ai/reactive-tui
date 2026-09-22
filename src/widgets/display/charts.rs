@@ -677,10 +677,10 @@ pub struct ChartState {
 
 /// Chart component for data visualization
 pub struct Chart {
-    /// The last props handed down, shared with the live chart so a frame
-    /// that changes nothing costs a comparison rather than a copy of every
-    /// data point.
-    shared: std::sync::Mutex<Option<std::sync::Arc<ChartProps>>>,
+    /// The props as last handed down, shared with the live chart. The
+    /// runtime only calls `update` when props change, so a frame that
+    /// changes nothing costs neither a comparison nor a copy of every point.
+    shared: std::sync::Arc<ChartProps>,
 }
 
 mod live;
@@ -697,24 +697,20 @@ impl Component for Chart {
     type Props = ChartProps;
     type State = ChartState;
 
-    fn new(_props: Self::Props) -> Self {
+    fn new(props: Self::Props) -> Self {
         Self {
-            shared: std::sync::Mutex::new(None),
+            shared: std::sync::Arc::new(props),
         }
     }
 
-    fn render(&self, props: &Self::Props, state: &Self::State) -> Element {
-        let mut shared = self.shared.lock().unwrap_or_else(|e| e.into_inner());
-        let config = match shared.as_ref() {
-            Some(current) if **current == *props => current.clone(),
-            _ => {
-                let fresh = std::sync::Arc::new(props.clone());
-                *shared = Some(fresh.clone());
-                fresh
-            }
-        };
+    fn update(&mut self, props: &Self::Props, _state: &mut Self::State) -> bool {
+        self.shared = std::sync::Arc::new(props.clone());
+        true
+    }
+
+    fn render(&self, _props: &Self::Props, state: &Self::State) -> Element {
         Element::typed::<live::LiveChart>(live::LiveProps {
-            config,
+            config: self.shared.clone(),
             seed: state.clone(),
         })
     }

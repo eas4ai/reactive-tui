@@ -201,13 +201,19 @@ mod tests {
         let result = apply_centering("mx-auto", sb.clone()).expect("mx-auto class should be valid");
         let style = result.build();
         assert_eq!((style.margin.left, style.margin.right), (auto, auto));
-        assert_ne!(style.margin.top, auto, "mx-auto leaves vertical margins alone");
+        assert_ne!(
+            style.margin.top, auto,
+            "mx-auto leaves vertical margins alone"
+        );
 
         // Test vertical centering
         let result = apply_centering("my-auto", sb.clone()).expect("my-auto class should be valid");
         let style = result.build();
         assert_eq!((style.margin.top, style.margin.bottom), (auto, auto));
-        assert_ne!(style.margin.left, auto, "my-auto leaves horizontal margins alone");
+        assert_ne!(
+            style.margin.left, auto,
+            "my-auto leaves horizontal margins alone"
+        );
 
         // Test full centering
         let result = apply_centering("m-auto", sb.clone()).expect("m-auto class should be valid");

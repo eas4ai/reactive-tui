@@ -117,7 +117,14 @@ pub(crate) fn paint_frame(
                 spec.cursors[node.element_index],
             )?;
             if let Some(grid) = &spec.cells[node.element_index] {
-                paint_cells(target, &paints[&node.id], &node, grid, &mut images, &mut cursor)?;
+                paint_cells(
+                    target,
+                    &paints[&node.id],
+                    &node,
+                    grid,
+                    &mut images,
+                    &mut cursor,
+                )?;
             }
             if let Some(image) = &spec.images[node.element_index] {
                 if selected.contains(&image.id) {
@@ -641,14 +648,22 @@ fn paint_cells(
         {
             continue;
         }
-        if !(0..width).all(|offset| {
-            inside_masks(&node.mask, paint_x.saturating_add(offset as i32), paint_y)
-        }) {
+        if !(0..width)
+            .all(|offset| inside_masks(&node.mask, paint_x.saturating_add(offset as i32), paint_y))
+        {
             continue;
         }
         for offset in 0..width {
-            cursor.cover(paint_x + offset as i32, paint_y, ansi::rgb_color(0, 0, 0, 255));
-            images.cover(paint_x + offset as i32, paint_y, ansi::rgb_color(0, 0, 0, 255));
+            cursor.cover(
+                paint_x + offset as i32,
+                paint_y,
+                ansi::rgb_color(0, 0, 0, 255),
+            );
+            images.cover(
+                paint_x + offset as i32,
+                paint_y,
+                ansi::rgb_color(0, 0, 0, 255),
+            );
         }
         let bg = target
             .get(paint_x as u32, paint_y as u32)
@@ -659,8 +674,8 @@ fn paint_cells(
             }
             None => node_fg,
         };
-        let width = u8::try_from(width)
-            .map_err(|_| ReactiveError::layout("grapheme exceeds 255 cells"))?;
+        let width =
+            u8::try_from(width).map_err(|_| ReactiveError::layout("grapheme exceeds 255 cells"))?;
         target
             .draw_grapheme(
                 glyph.as_bytes(),

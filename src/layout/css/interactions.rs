@@ -61,7 +61,11 @@ mod tests {
 
         let result = apply_interaction_utilities("select-all", sb.clone())
             .expect("CSS interactions test should succeed");
-        assert_eq!(result.text.bold, Some(true), "select-all emboldens the text");
+        assert_eq!(
+            result.text.bold,
+            Some(true),
+            "select-all emboldens the text"
+        );
     }
 
     #[test]
@@ -70,7 +74,11 @@ mod tests {
 
         let result = apply_interaction_utilities("cursor-pointer", sb.clone())
             .expect("CSS interactions test should succeed");
-        assert_eq!(result.text.underline, Some(true), "cursor-pointer underlines");
+        assert_eq!(
+            result.text.underline,
+            Some(true),
+            "cursor-pointer underlines"
+        );
 
         let result = apply_interaction_utilities("cursor-not-allowed", sb.clone())
             .expect("CSS interactions test should succeed");

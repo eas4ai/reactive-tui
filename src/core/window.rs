@@ -1267,7 +1267,10 @@ mod tests {
         assert_eq!(row_text(0), "Row 2");
         assert_eq!(row_text(1), "Row 3");
         assert_eq!(row_text(2), "Row 4");
-        let blank = Cell::default().ch;
+        // The surface stores the cleared cell's control character as U+FFFD,
+        // so compare the rows against that uniform blank rather than text.
+        let blank = window.read_cell(0, 3).unwrap().ch;
+        assert!(!blank.is_alphanumeric(), "cleared cell holds no text");
         assert!(
             (3..5).all(|row| (0..10).all(|col| window.read_cell(col, row).unwrap().ch == blank)),
             "the last two rows are cleared"

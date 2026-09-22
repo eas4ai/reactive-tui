@@ -43,10 +43,23 @@ fn test_absolute_positioning_debug() {
     // Each absolutely positioned child paints at its left/top offset
     let text_at = |content: &str| {
         paint_ops.iter().find_map(|op| match op {
-            PaintOp::Text { x, y, content: text, .. } if text == content => Some((*x, *y)),
+            PaintOp::Text {
+                x,
+                y,
+                content: text,
+                ..
+            } if text == content => Some((*x, *y)),
             _ => None,
         })
     };
-    assert_eq!(text_at("A"), Some((10, 5)), "child1 paints at left-10 top-5");
-    assert_eq!(text_at("B"), Some((20, 10)), "child2 paints at left-20 top-10");
+    assert_eq!(
+        text_at("A"),
+        Some((10, 5)),
+        "child1 paints at left-10 top-5"
+    );
+    assert_eq!(
+        text_at("B"),
+        Some((20, 10)),
+        "child2 paints at left-20 top-10"
+    );
 }

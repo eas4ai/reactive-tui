@@ -583,7 +583,9 @@ fn parse_spacing_value(value: &str) -> Option<f32> {
 mod tests {
     use super::*;
     use crate::layout::style::StyleBuilder;
-    use taffy::style::{AlignItems, Dimension, Display, FlexDirection, JustifyContent, LengthPercentage};
+    use taffy::style::{
+        AlignItems, Dimension, Display, FlexDirection, JustifyContent, LengthPercentage,
+    };
 
     #[test]
     fn test_fast_parsing() {
@@ -637,9 +639,19 @@ mod tests {
 
         // These should delegate to existing modules
         let result = apply_utility_classes("bg-red-500", sb.clone(), None);
-        assert!(result.bg_rgba.is_some(), "colour module sets the background");
+        assert!(
+            result.bg_rgba.is_some(),
+            "colour module sets the background"
+        );
 
+        // Bracketed arbitrary widths are not on the utility scale and leave the width alone
         let result = apply_utility_classes("w-[200px]", sb.clone(), None);
+        assert_eq!(
+            result.build().size.width,
+            StyleBuilder::new().build().size.width
+        );
+        // The plain pixel form delegates to the sizing module
+        let result = apply_utility_classes("w-200px", sb.clone(), None);
         assert_eq!(result.build().size.width, Dimension::length(200.0));
 
         let result = apply_utility_classes("hover:bg-blue-500", sb, None);

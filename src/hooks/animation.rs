@@ -1489,8 +1489,7 @@ mod tests {
                 } else {
                     runtime.remove_animation(id);
                 }
-                send.send(runtime.animations.read().unwrap().len())
-                    .unwrap();
+                send.send(runtime.animations.read().unwrap().len()).unwrap();
             });
             let remaining = receive
                 .recv_timeout(Duration::from_secs(2))
@@ -1544,8 +1543,7 @@ mod tests {
                 Duration::from_secs(10),
             );
             runtime.update_animations();
-            send.send(runtime.animations.read().unwrap().len())
-                .unwrap();
+            send.send(runtime.animations.read().unwrap().len()).unwrap();
         });
         // A failing isolated test process exits rather than joining a deadlocked worker.
         let remaining = receive
