@@ -273,7 +273,7 @@ pub(super) fn draw(props: &ChartProps, width: usize, height: usize, progress: f6
         .filter(|(_, s)| s.visible)
         .collect();
     if visible.iter().all(|(_, s)| s.data.is_empty()) {
-        canvas.text(area.x, area.y, area.w, "No data to display", None);
+        canvas.text(area.x, area.y, area.w, "Nothing here", None);
         return canvas;
     }
     let legend = legend_area(props, &visible, &mut area);
