@@ -923,11 +923,20 @@ impl EscapeSequenceParser {
                 }
             }
             2027 => {
-                // Unicode Core
-                if pm != 0 && pm != 4 {
-                    Some(TerminalEvent::CapabilityResponse("unicode".to_string()))
-                } else {
-                    None
+                // Unicode Core. The terminal's answer is the glyph capability
+                // report the charts follow (CHT-028): set (1, 3) keeps braille
+                // and block glyphs, reset (2, 4) switches them to ASCII, and
+                // "not recognized" (0) reports nothing.
+                match pm {
+                    1 | 3 => {
+                        crate::widgets::display::charts::report_glyph_support(true);
+                        Some(TerminalEvent::CapabilityResponse("unicode".to_string()))
+                    }
+                    2 | 4 => {
+                        crate::widgets::display::charts::report_glyph_support(false);
+                        None
+                    }
+                    _ => None,
                 }
             }
             2031 => {
@@ -1019,6 +1028,29 @@ mod tests {
 
         let default_parser = EscapeSequenceParser::default();
         assert!(default_parser.pending.is_empty());
+    }
+
+    /// CHT-028: the mode 2027 reply reaches the charts' glyph report; a
+    /// reset reply turns glyph support off, a set reply turns it on.
+    #[test]
+    fn unicode_mode_reply_drives_the_chart_glyph_report() {
+        use crate::widgets::display::charts::{glyph_support, report_glyph_support};
+        let mut parser = EscapeSequenceParser::new();
+        let reset = parser.parse(b"\x1b[?2027;2$y");
+        let after_reset = glyph_support();
+        let set = parser.parse(b"\x1b[?2027;1$y");
+        let after_set = glyph_support();
+        report_glyph_support(true);
+        assert!(
+            reset.is_empty(),
+            "a reset reply is not a capability: {reset:?}"
+        );
+        assert!(!after_reset, "a reset reply must report glyphs unavailable");
+        assert!(
+            matches!(set.as_slice(), [TerminalEvent::CapabilityResponse(name)] if name == "unicode"),
+            "a set reply is the unicode capability: {set:?}"
+        );
+        assert!(after_set, "a set reply must report glyphs available");
     }
 
     #[test]
