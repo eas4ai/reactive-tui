@@ -1034,7 +1034,12 @@ mod tests {
     /// reset reply turns glyph support off, a set reply turns it on.
     #[test]
     fn unicode_mode_reply_drives_the_chart_glyph_report() {
-        use crate::widgets::display::charts::{glyph_support, report_glyph_support};
+        use crate::widgets::display::charts::{
+            glyph_support, report_glyph_support, GLYPH_REPORT_TEST_LOCK,
+        };
+        let _serial = GLYPH_REPORT_TEST_LOCK
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         let mut parser = EscapeSequenceParser::new();
         let reset = parser.parse(b"\x1b[?2027;2$y");
         let after_reset = glyph_support();

@@ -568,7 +568,12 @@ mod tests {
     /// charts, and a reply of set reports them available again.
     #[test]
     fn a_unicode_mode_reset_reply_reports_no_glyph_support_to_charts() {
-        use crate::widgets::display::charts::{glyph_support, report_glyph_support};
+        use crate::widgets::display::charts::{
+            glyph_support, report_glyph_support, GLYPH_REPORT_TEST_LOCK,
+        };
+        let _serial = GLYPH_REPORT_TEST_LOCK
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         let query = TerminalQuery::new();
         let mut caps = TerminalCapabilities::default();
         query.parse_response_buffer(b"\x1b[?2027;2$y", &mut caps);
