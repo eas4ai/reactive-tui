@@ -13,6 +13,23 @@ use std::collections::HashMap;
 pub use mask::GlyphSet;
 pub use plot::{Curve, SizeClass};
 
+/// Whether the terminal draws braille and block glyphs, as reported by the
+/// backend's capability query; charts fall back to ASCII when it is false
+/// (CHT-028). Unreported means available.
+static GLYPH_SUPPORT: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(true);
+
+/// Record the terminal capability report for braille and block glyphs.
+/// Backends call this once their query has answered; `false` makes every
+/// chart resolve cells with `#`, `|`, `-` and `.` instead.
+pub fn report_glyph_support(available: bool) {
+    GLYPH_SUPPORT.store(available, std::sync::atomic::Ordering::Relaxed);
+}
+
+/// The last reported glyph support (see [`report_glyph_support`]).
+pub fn glyph_support() -> bool {
+    GLYPH_SUPPORT.load(std::sync::atomic::Ordering::Relaxed)
+}
+
 /// Builder for creating Chart components with a fluent API
 #[derive(Clone, Debug)]
 pub struct ChartsBuilder {

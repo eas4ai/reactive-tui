@@ -372,12 +372,18 @@ impl TerminalQuery {
         // Format: CSI ? Pm ; Ps $ y
         // Ps = 0: not recognized, 1: set, 2: reset, 3: permanently set, 4: permanently reset
 
-        // Check for Unicode support response
+        // Check for Unicode support response. The terminal's own answer is
+        // the capability report charts follow (CHT-028): set (1, 3) keeps
+        // braille and block glyphs, reset (2, 4) makes charts draw ASCII.
         if let Some(pos) = find_sequence(buffer, b"\x1b[?2027;") {
             if let Some(end) = find_byte(&buffer[pos + 8..], b'$') {
                 let status = &buffer[pos + 8..pos + 8 + end];
                 if status.starts_with(b"1") || status.starts_with(b"3") {
                     caps.unicode = true;
+                    crate::widgets::display::charts::report_glyph_support(true);
+                } else if status.starts_with(b"2") || status.starts_with(b"4") {
+                    caps.unicode = false;
+                    crate::widgets::display::charts::report_glyph_support(false);
                 }
             }
         }
@@ -556,6 +562,22 @@ mod tests {
         query.parse_da1_response(response, &mut caps);
         assert!(caps.sixel);
         assert_eq!(caps.color_depth, ColorDepth::Colors256);
+    }
+
+    /// CHT-028: a mode 2027 reply of reset reports glyphs unavailable to the
+    /// charts, and a reply of set reports them available again.
+    #[test]
+    fn a_unicode_mode_reset_reply_reports_no_glyph_support_to_charts() {
+        use crate::widgets::display::charts::{glyph_support, report_glyph_support};
+        let query = TerminalQuery::new();
+        let mut caps = TerminalCapabilities::default();
+        query.parse_response_buffer(b"\x1b[?2027;2$y", &mut caps);
+        let after_reset = glyph_support();
+        query.parse_response_buffer(b"\x1b[?2027;1$y", &mut caps);
+        let after_set = glyph_support();
+        report_glyph_support(true);
+        assert!(!after_reset, "a reset reply must report glyphs unavailable");
+        assert!(after_set && caps.unicode, "a set reply must report glyphs available");
     }
 
     #[test]
