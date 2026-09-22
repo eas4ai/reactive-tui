@@ -154,9 +154,20 @@ impl fmt::Display for Colored {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::{Mutex, MutexGuard};
+
     use crate::style::{Color, Colored};
 
+    /// The colour-disabled flag and `NO_COLOR` are process-wide state, so
+    /// every test that writes or formats through them runs under this lock.
+    static COLOR_STATE: Mutex<()> = Mutex::new(());
+
+    fn color_state() -> MutexGuard<'static, ()> {
+        COLOR_STATE.lock().unwrap_or_else(|e| e.into_inner())
+    }
+
     fn check_format_color(colored: Colored, expected: &str) {
+        let _guard = color_state();
         Colored::set_ansi_color_disabled(true);
         assert_eq!(colored.to_string(), "");
         Colored::set_ansi_color_disabled(false);
@@ -211,6 +222,7 @@ mod tests {
 
     /// Used for test_parse_ansi_fg and test_parse_ansi_bg
     fn test_parse_ansi(bg_or_fg: impl Fn(Color) -> Colored) {
+        let _guard = color_state();
         /// Formats a re-parses `color` to check the result.
         macro_rules! test {
             ($color:expr) => {
@@ -308,6 +320,7 @@ mod tests {
 
     #[test]
     fn test_no_color() {
+        let _guard = color_state();
         std::env::set_var("NO_COLOR", "1");
         assert!(Colored::ansi_color_disabled());
         std::env::set_var("NO_COLOR", "XXX");
