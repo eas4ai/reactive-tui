@@ -135,6 +135,10 @@ pub struct AnyComponentInstance {
     inner: Box<dyn AnyComponent>,
     /// Factory function that can recreate this component with the same props
     factory: Arc<dyn Fn() -> Box<dyn AnyComponent> + Send + Sync>,
+    /// The props allocation last applied, so a frame that hands the same
+    /// allocation down again (a parent that re-renders an unchanged element)
+    /// skips the value comparison.
+    last_props: Option<Arc<dyn Any + Send + Sync>>,
 }
 
 impl std::fmt::Debug for AnyComponentInstance {
@@ -164,12 +168,29 @@ impl AnyComponentInstance {
         Self {
             inner: Box::new(ComponentInstanceWrapper(instance)),
             factory,
+            last_props: None,
         }
     }
 
     /// Update with type-erased props
     pub fn update(&mut self, props: &dyn Any) -> bool {
+        self.last_props = None;
         self.inner.update_any(props)
+    }
+
+    /// Update with the shared props allocation an element carries; the same
+    /// allocation as last time is known unchanged without comparing values.
+    pub fn update_shared(&mut self, props: &Arc<dyn Any + Send + Sync>) -> bool {
+        if self
+            .last_props
+            .as_ref()
+            .is_some_and(|last| Arc::ptr_eq(last, props))
+        {
+            return false;
+        }
+        let changed = self.inner.update_any(props.as_ref());
+        self.last_props = Some(props.clone());
+        changed
     }
 
     /// Render the component
@@ -226,6 +247,7 @@ impl Clone for AnyComponentInstance {
         Self {
             inner: (self.factory)(),
             factory: self.factory.clone(),
+            last_props: None,
         }
     }
 }

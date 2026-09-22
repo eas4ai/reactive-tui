@@ -137,7 +137,7 @@ impl ComponentRuntime {
                     let mut instance = live.instance.lock().map_err(|_| {
                         ReactiveError::invalid_state("component instance lock poisoned")
                     })?;
-                    instance.update(element.props.as_ref());
+                    instance.update_shared(&element.props);
                     instance.try_render()?
                 };
                 let (events, layout) = live.handlers();
