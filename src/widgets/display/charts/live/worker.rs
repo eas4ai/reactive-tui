@@ -148,6 +148,7 @@ fn run(shared: Arc<Shared>) {
             height: job.height,
             values: &job.values,
             progress: job.progress,
+            unicode_glyphs: crate::widgets::display::charts::glyph_support(),
         });
         let mut slots = shared.slots.lock().unwrap_or_else(|e| e.into_inner());
         slots.response = Some((job.id, Arc::new(picture)));

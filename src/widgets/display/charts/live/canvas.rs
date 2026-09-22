@@ -250,6 +250,9 @@ pub(super) struct Job<'a> {
     pub values: &'a [Vec<f64>],
     /// Reveal progress, 0 to 1.
     pub progress: f64,
+    /// Whether the terminal draws braille and block glyphs (the capability
+    /// report); false resolves cells with ASCII (CHT-028).
+    pub unicode_glyphs: bool,
 }
 
 /// The size class for `props` in a `width` by `height` rectangle.
@@ -266,7 +269,7 @@ pub(super) fn draw(job: &Job) -> Picture {
     let height = height.min(1_000_000 / width.max(1));
     let mut text = TextLayer::new(width, height);
     let mut mask = MaskCanvas::new(width, height);
-    let glyphs = if props.ascii {
+    let glyphs = if props.ascii || !job.unicode_glyphs {
         GlyphSet::Ascii
     } else {
         GlyphSet::Unicode
@@ -494,6 +497,7 @@ mod tests {
             height: 12,
             values: &values,
             progress: 1.0,
+            unicode_glyphs: true,
         });
         let text = text_of(&picture);
         assert!(text.contains('█'), "{text}");
@@ -506,6 +510,7 @@ mod tests {
             height: 12,
             values: &[],
             progress: 1.0,
+            unicode_glyphs: true,
         });
         assert!(
             text_of(&picture).contains("No data"),
@@ -513,4 +518,29 @@ mod tests {
             text_of(&picture)
         );
     }
+    /// CHT-028: a capability report without braille or block glyphs makes
+    /// the canvas resolve with ASCII, whatever the builder says.
+    #[test]
+    fn a_terminal_without_glyph_support_gets_ascii_shapes() {
+        let props = props(ChartType::Line, &[1.0, 8.0, 2.0, 9.0]);
+        let values = vec![vec![1.0, 8.0, 2.0, 9.0]];
+        let picture = draw(&Job {
+            props: &props,
+            width: 30,
+            height: 10,
+            values: &values,
+            progress: 1.0,
+            unicode_glyphs: false,
+        });
+        let text = text_of(&picture);
+        assert!(
+            !text.chars().any(|c| ('\u{2800}'..='\u{28FF}').contains(&c) || "▁▂▃▄▅▆▇█".contains(c)),
+            "no braille or block glyph without glyph support:\n{text}"
+        );
+        assert!(
+            text.chars().any(|c| "#|-.".contains(c)),
+            "ASCII shapes expected:\n{text}"
+        );
+    }
+
 }

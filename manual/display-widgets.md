@@ -47,7 +47,9 @@ scales, ticks, axes, grid, legend, tooltip, curve interpolation and min/max
 decimation) and one mask canvas at two by four dots per cell. The canvas
 resolves each cell to a full block, an eighth block where a rectangle edge
 crosses the cell, a marker, or braille, and to `#`, `|`, `-` and `.` when the
-builder forces ASCII with `.ascii(true)`. Rasterization runs on a named
+builder forces ASCII with `.ascii(true)` or the terminal capability report
+says braille and block glyphs are unavailable (the backend passes its query
+result to `charts::report_glyph_support`). Rasterization runs on a named
 `rtui-chart-*` worker thread; the main thread copies the latest snapshot into
 the frame. A chart whose width or height is unset fills its rectangle.
 
