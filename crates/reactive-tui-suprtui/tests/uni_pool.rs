@@ -1,6 +1,6 @@
 //! Ported vectors for `grapheme.zig` pool + tracker (UNI-008, `uni-pool`).
 //!
-//! One `#[test]` per reference case in `tests/grapheme_test.zig`, named
+//! One `#[test]` per reference case in the upstream `grapheme_test.zig` suite, named
 //! `req_008_<slug>`. The three global-pool cases are NOT ported: UNI-008
 //! forbids process-global pools, and isolation is covered by
 //! `req_008_pool_isolation` plus the `uni::pool_isolation` unit test.

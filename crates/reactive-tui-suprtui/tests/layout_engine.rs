@@ -1,5 +1,5 @@
 //! layout-engine commitment tests (LAY-001 … LAY-004), ported from
-//! `tests/yoga_test.zig` plus feature vectors for the LAY-001 surface.
+//! the upstream `yoga_test.zig` suite plus feature vectors for the LAY-001 surface.
 
 use suprtui::layout::{
     Align, FlexDirectionName, FlexStyle, Justify, LayoutTree, LengthValue, MeasureTarget, NodeId,

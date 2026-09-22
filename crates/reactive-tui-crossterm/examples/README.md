@@ -14,7 +14,7 @@ The examples are compatible with the latest release.
 ```
 | File Name                   | Description                    | Topics                                    |
 |:----------------------------|:-------------------------------|:------------------------------------------|
-| `examples/interactive-test` | interactive, walk through, demo | cursor, style, event                      |
+| `interactive-test` (upstream crossterm) | interactive, walk through, demo | cursor, style, event                      |
 | `event-*`                   | event reading demos            | (async) event reading                     |
 | `stderr`                    | crossterm over stderr demo     | raw mode, alternate screen, custom output |
 | `is_tty`                    | Is this instance a tty ?       | tty                                       |
@@ -25,7 +25,7 @@ The examples are compatible with the latest release.
 $ cargo run --example [file name]
 ```
 
-To run the interactive-demo go into the folder `examples/interactive-demo` and run `cargo run`.
+To run the interactive-demo use the upstream crossterm `interactive-demo` folder and run `cargo run`.
 
 ## License
 

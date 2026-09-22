@@ -1,5 +1,5 @@
 //! media-audio commitment tests (MED-003 … MED-007), ported from
-//! `tests/audio_test.zig` against the deterministic test backend.
+//! the upstream `audio_test.zig` suite against the deterministic test backend.
 
 use suprtui::audio::{
     AudioEngine, AudioError, DEFAULT_GROUP, EngineOptions, PlayOptions, StreamOptions, TestBackend,
