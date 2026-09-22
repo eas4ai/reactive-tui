@@ -272,6 +272,31 @@ fn cht_013_bar_tip_resolves_to_an_eighth_block_and_large_bars_carry_value_labels
     );
 }
 
+/// CHT-020, CHT-013: a typed bar builder's `.label(..)` text is what the
+/// large class draws beside each bar.
+#[test]
+fn cht_020_typed_bar_label_accessor_is_drawn() {
+    use reactive_tui::widgets::display::charts::typed::BarChartBuilder;
+    let rows = vec![("a", 3.0), ("b", 7.0), ("c", 5.0)];
+    let mut p = BarChartBuilder::new(rows)
+        .band(|r| r.0)
+        .value(|r| r.1)
+        .label(|r| format!("L{}", r.0))
+        .size(200, 40)
+        .build();
+    p.animated = false;
+    let large = app_input::run_when_painted(Root(Element::typed::<Chart>(p)), (200, 40), 2)
+        .pop()
+        .unwrap();
+    for label in ["La", "Lb", "Lc"] {
+        assert!(
+            large.text.contains(label),
+            "the builder label {label} must be drawn:\n{}",
+            &large.text[..large.text.len().min(1500)]
+        );
+    }
+}
+
 /// CHT-024: size classes chosen from the allotted rectangle, switching on resize.
 #[test]
 fn cht_024_size_classes_follow_the_rectangle_and_switch_on_resize() {
