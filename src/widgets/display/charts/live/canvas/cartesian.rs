@@ -547,14 +547,30 @@ pub(super) fn cartesian(
     }
 
     // Line, area and scatter.
-    let mut stack = vec![0.0f64; count];
+    // Stacked areas stack at every index before decimation, so an upper
+    // series' kept samples read the lower series' top at the same index
+    // whichever indices each series keeps (CHT-012).
+    let stacked_area = props.stacked && props.chart_type == ChartType::Area;
+    let mut tops: Vec<Vec<f64>> = Vec::new();
+    if stacked_area {
+        let mut acc = vec![0.0f64; count];
+        for &s in &vis {
+            if let Some(values) = job.values.get(s) {
+                for (a, v) in acc.iter_mut().zip(values) {
+                    *a += v;
+                }
+            }
+            tops.push(acc.clone());
+        }
+    }
     picture.kept = vec![Vec::new(); props.series.len()];
-    for &s in &vis {
+    for (position, &s) in vis.iter().enumerate() {
         let series = &props.series[s];
         let Some(values) = job.values.get(s) else {
             continue;
         };
-        let samples: Vec<_> = decimate_min_max(values, inner.w)
+        let stacked_values = if stacked_area { &tops[position] } else { values };
+        let samples: Vec<_> = decimate_min_max(stacked_values, inner.w)
             .into_iter()
             .filter(|k| index_visible(k.index))
             .collect();
@@ -563,17 +579,13 @@ pub(super) fn cartesian(
         let mut dots: Vec<(f64, f64)> = Vec::with_capacity(samples.len());
         let mut bases: Vec<f64> = Vec::with_capacity(samples.len());
         for sample in &samples {
-            let base = if props.stacked && props.chart_type == ChartType::Area {
-                stack[sample.index]
-            } else {
-                0.0
+            let base = match (stacked_area, position) {
+                (true, p) if p > 0 => tops[p - 1][sample.index],
+                _ => 0.0,
             };
             let x = points.map(sample.index);
-            dots.push((x, value_scale.map(base + sample.value)));
+            dots.push((x, value_scale.map(sample.value)));
             bases.push(value_scale.map(base));
-            if props.stacked && props.chart_type == ChartType::Area {
-                stack[sample.index] = base + sample.value;
-            }
         }
         if props.chart_type == ChartType::Area && series.fill_style != FillStyle::None {
             let dense = polyline(&dots, props.curve, 1.0);

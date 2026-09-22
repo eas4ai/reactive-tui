@@ -199,6 +199,49 @@ fn cht_012_diagonal_line_has_no_detached_dashes_and_scatter_marks_cells() {
     );
 }
 
+/// CHT-012: a stacked area's upper series starts at the lower series' top at
+/// every column, decimated (1000 points in 80 columns) or not.
+#[test]
+fn cht_012_stacked_area_stays_on_the_lower_series_under_decimation() {
+    let stacked = |n: usize| {
+        let lower: Vec<f64> = (0..n)
+            .map(|i| match i % 5 {
+                1 => 4.0,
+                2 => 6.0,
+                _ => 5.0,
+            })
+            .collect();
+        let upper = vec![3.0; n];
+        let mut p = props(ChartType::Area, (80, 24), &lower, 10.0);
+        p.series.push(series(&upper));
+        p.stacked = true;
+        app_input::run_when_painted(Root(Element::typed::<Chart>(p)), (80, 24), 2)
+            .pop()
+            .unwrap()
+    };
+    let painted_columns = |frame: &Snapshot, row: usize| {
+        frame
+            .text
+            .lines()
+            .nth(row)
+            .map_or(0, |line| line.chars().filter(|c| !c.is_whitespace()).count())
+    };
+    let plain = stacked(100);
+    let decimated = stacked(1000);
+    // Row 8 lies inside the upper series' fill (values 7 to 9 of 10 over 24 rows).
+    let (a, b) = (painted_columns(&plain, 8), painted_columns(&decimated, 8));
+    assert_eq!(
+        a, 80,
+        "the undecimated stacked area must fill every column of row 8:\n{}",
+        plain.text
+    );
+    assert_eq!(
+        b, a,
+        "the decimated stacked area must fill the same columns as the undecimated one:\n{}",
+        decimated.text
+    );
+}
+
 /// CHT-013: a bar tip resolves to an eighth block, so 3.5 differs from 3 and 4,
 /// and the large class labels bars with their values.
 #[test]
