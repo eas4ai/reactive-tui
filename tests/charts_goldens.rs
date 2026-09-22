@@ -315,6 +315,69 @@ fn cht_020_typed_bar_label_accessor_is_drawn() {
     }
 }
 
+/// CHT-024: the medium class draws axes and ticks but no grid; the grid is
+/// the large class's, and an axis can still turn it off there.
+#[test]
+fn cht_024_medium_charts_draw_no_grid_and_large_charts_can_turn_theirs_off() {
+    let with_grid = |size: (u16, u16), grid: bool| {
+        let mut p = props(ChartType::Line, size, &[2.0, 8.0, 5.0, 7.0], 10.0);
+        p.x_axis = ChartAxis {
+            show_grid: grid,
+            ..Default::default()
+        };
+        p.y_axis = ChartAxis {
+            min: Some(0.0),
+            max: Some(10.0),
+            show_grid: grid,
+            ..Default::default()
+        };
+        app_input::run_when_painted(Root(Element::typed::<Chart>(p)), size, 2)
+            .pop()
+            .unwrap()
+    };
+    let grid_dots = |f: &Snapshot| count(f, |c| c == '·' || c == '┈');
+    let medium = with_grid((80, 24), true);
+    assert_eq!(
+        grid_dots(&medium),
+        0,
+        "80 by 24 is the medium class: no grid:\n{}",
+        medium.text
+    );
+    let large = with_grid((200, 40), true);
+    assert!(
+        grid_dots(&large) > 50,
+        "200 by 40 is the large class: grid expected:\n{}",
+        &large.text[..large.text.len().min(2000)]
+    );
+    let large_off = with_grid((200, 40), false);
+    assert_eq!(
+        grid_dots(&large_off),
+        0,
+        "an axis with show_grid false draws no grid at the large class:\n{}",
+        &large_off.text[..large_off.text.len().min(2000)]
+    );
+}
+
+/// CHT-010: pie slices take their angles from the plot layer's linear scale,
+/// so two equal values split the circle into mirror halves.
+#[test]
+fn cht_010_pie_slices_split_the_circle_through_the_linear_scale() {
+    let pie = last(ChartType::Pie, (40, 20), &[1.0, 1.0], 2.0);
+    let shape = |c: char| is_braille(c) || "▁▂▃▄▅▆▇█▏▎▍▌▋▊▉".contains(c);
+    let (mut left, mut right) = (0usize, 0usize);
+    for line in pie.text.lines() {
+        let chars: Vec<char> = line.chars().collect();
+        let half = chars.len() / 2;
+        left += chars[..half].iter().filter(|c| shape(**c)).count();
+        right += chars[half..].iter().filter(|c| shape(**c)).count();
+    }
+    assert!(
+        left > 0 && (left as i64 - right as i64).abs() <= 2,
+        "two equal slices must cover mirror halves (left {left}, right {right}):\n{}",
+        pie.text
+    );
+}
+
 /// CHT-024: size classes chosen from the allotted rectangle, switching on resize.
 #[test]
 fn cht_024_size_classes_follow_the_rectangle_and_switch_on_resize() {
@@ -354,9 +417,13 @@ fn cht_024_size_classes_follow_the_rectangle_and_switch_on_resize() {
         "200 by 40 is the large class: grid expected:\n{}",
         &large.text[..large.text.len().min(2000)]
     );
-    // Resize across the medium/large boundary must switch class.
+    // Resize across the medium/large boundary must switch class; the chart
+    // fills its terminal (size unset) so the resize reaches it.
+    let mut filling = full_axes((80, 24));
+    filling.width = 0;
+    filling.height = 0;
     let frames = app_input::run(
-        Root(Element::typed::<Chart>(full_axes((80, 24)))),
+        Root(Element::typed::<Chart>(filling)),
         (80, 24),
         vec![
             (2, Some(Event::Resize(ResizeEvent::new(200, 40)))),
