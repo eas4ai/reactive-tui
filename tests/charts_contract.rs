@@ -288,13 +288,9 @@ fn cht_018_mini_chart_keeps_its_shapes_and_speaks_the_hovered_value() {
                 .map(|(i, v)| DataPoint::with_label(*v, format!("q{i}")))
                 .collect(),
         ));
-        let plain = app_input::run_when_painted(
-            Root(Element::typed::<Chart>(p.clone())),
-            size,
-            2,
-        )
-        .pop()
-        .unwrap();
+        let plain = app_input::run_when_painted(Root(Element::typed::<Chart>(p.clone())), size, 2)
+            .pop()
+            .unwrap();
         let hovered = app_input::run(
             Root(Element::typed::<Chart>(p)),
             size,
@@ -543,7 +539,11 @@ impl RootComponent for Staged {
 fn cht_022_recovery_from_nan_data_keeps_every_bar_through_the_transition() {
     let size = (30u16, 12u16);
     let settled = app_input::run_when_painted(
-        Root(Element::typed::<Chart>(props(ChartType::BarVertical, size, &[5.0, 5.0]))),
+        Root(Element::typed::<Chart>(props(
+            ChartType::BarVertical,
+            size,
+            &[5.0, 5.0],
+        ))),
         size,
         2,
     )
@@ -574,7 +574,11 @@ fn cht_022_recovery_from_nan_data_keeps_every_bar_through_the_transition() {
         .find(|(r, c)| cell_is(&invalid, *r, *c, "C"))
         .expect("the NaN chart shows its message");
     let target = app_input::run_when_painted(
-        Root(Element::typed::<Chart>(props(ChartType::BarVertical, size, &[7.0, 7.0]))),
+        Root(Element::typed::<Chart>(props(
+            ChartType::BarVertical,
+            size,
+            &[7.0, 7.0],
+        ))),
         size,
         2,
     )

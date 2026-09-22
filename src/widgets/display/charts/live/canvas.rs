@@ -534,7 +534,9 @@ mod tests {
         });
         let text = text_of(&picture);
         assert!(
-            !text.chars().any(|c| ('\u{2800}'..='\u{28FF}').contains(&c) || "▁▂▃▄▅▆▇█".contains(c)),
+            !text
+                .chars()
+                .any(|c| ('\u{2800}'..='\u{28FF}').contains(&c) || "▁▂▃▄▅▆▇█".contains(c)),
             "no braille or block glyph without glyph support:\n{text}"
         );
         assert!(
@@ -542,5 +544,4 @@ mod tests {
             "ASCII shapes expected:\n{text}"
         );
     }
-
 }
