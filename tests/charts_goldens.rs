@@ -285,7 +285,7 @@ fn cht_023_goldens_at_three_size_classes() {
     }
 }
 
-/// CHT-026: empty and NaN input show a message, paint no shapes, never panic.
+/// CHT-026 (Observed): empty and NaN input show a message, paint no shapes, never panic.
 #[test]
 fn cht_026_empty_and_nan_input_show_a_message_and_no_shapes() {
     let size = (40u16, 12u16);
