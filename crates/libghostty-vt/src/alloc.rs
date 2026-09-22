@@ -368,6 +368,10 @@ unsafe fn get_allocator<'a, A: alloc::Allocator>(ptr: *mut c_void) -> Option<&'a
 }
 
 #[cfg(test)]
+#[expect(
+    clippy::used_underscore_items,
+    reason = "the exported allocator hooks keep their upstream underscore names"
+)]
 mod tests {
     use std::ptr::NonNull;
 
@@ -394,7 +398,7 @@ mod tests {
                 len,
                 alignment_log2,
                 0,
-            )
+            );
         };
     }
 
@@ -409,7 +413,7 @@ mod tests {
 
         let initial = unsafe { std::slice::from_raw_parts_mut(mem.as_ptr(), initial_len) };
         for (index, byte) in initial.iter_mut().enumerate() {
-            *byte = index as u8;
+            *byte = u8::try_from(index).expect("index fits in u8");
         }
 
         let raw = unsafe {
@@ -426,7 +430,7 @@ mod tests {
 
         let grown = unsafe { std::slice::from_raw_parts(mem.as_ptr(), new_len) };
         for (index, byte) in grown[..initial_len].iter().copied().enumerate() {
-            assert_eq!(byte, index as u8);
+            assert_eq!(byte, u8::try_from(index).expect("index fits in u8"));
         }
 
         unsafe {
@@ -436,7 +440,7 @@ mod tests {
                 new_len,
                 alignment_log2,
                 0,
-            )
+            );
         };
     }
 }
