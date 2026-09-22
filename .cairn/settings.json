@@ -11,8 +11,8 @@
   "developer": "present",
   "harness": {},
   "typesafeai": {
-    "enabled": false,
-    "model": null,
+    "enabled": true,
+    "model": "jev-1.13.0",
     "weights": {
       "evidence": 0.2,
       "reach": 0.2,
