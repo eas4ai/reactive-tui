@@ -272,6 +272,24 @@ fn cht_013_bar_tip_resolves_to_an_eighth_block_and_large_bars_carry_value_labels
     );
 }
 
+/// CHT-013: the tallest bar keeps its value label when the automatic axis puts
+/// its tip on the plot's top row.
+#[test]
+fn cht_013_tallest_bar_on_the_top_row_keeps_its_value_label() {
+    let mut p = props(ChartType::BarVertical, (200, 40), &[3.0, 7.5, 5.0], 8.0);
+    p.y_axis.max = None;
+    let large = app_input::run_when_painted(Root(Element::typed::<Chart>(p)), (200, 40), 2)
+        .pop()
+        .unwrap();
+    for label in ["3", "7.5", "5"] {
+        assert!(
+            large.text.contains(label),
+            "large class must label every bar, {label} missing:\n{}",
+            &large.text[..large.text.len().min(1500)]
+        );
+    }
+}
+
 /// CHT-020, CHT-013: a typed bar builder's `.label(..)` text is what the
 /// large class draws beside each bar.
 #[test]
