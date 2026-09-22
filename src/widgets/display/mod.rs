@@ -18,9 +18,11 @@ pub mod table;
 /// Tree view components
 pub mod tree;
 
+pub use charts::plot;
 pub use charts::{
-    Chart, ChartAxis, ChartLegend, ChartProps, ChartState, ChartType, ChartsBuilder, DataPoint,
-    DataSeries, FillStyle, LegendPosition, LineStyle,
+    BarGrowth, Candle, Chart, ChartAxis, ChartLegend, ChartProps, ChartState, ChartType,
+    ChartsBuilder, Curve, DataPoint, DataSeries, FillStyle, GlyphSet, LegendPosition, LineStyle,
+    SizeClass,
 };
 pub use data_table::{
     ColumnFilter, DataTable, DataTableProps, DataTableState, FilterType, PaginationConfig,

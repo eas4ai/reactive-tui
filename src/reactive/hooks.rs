@@ -440,6 +440,12 @@ where
     signal
 }
 
+/// The active [`crate::theme::Theme`], as the application set it. Chart and
+/// widget colors resolve through it (CHT-017).
+pub fn use_theme() -> std::sync::Arc<crate::theme::Theme> {
+    crate::theme::Theme::active()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

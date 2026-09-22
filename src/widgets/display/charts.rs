@@ -10,6 +10,9 @@
 use crate::component::{Component, Element, Props};
 use std::collections::HashMap;
 
+pub use mask::GlyphSet;
+pub use plot::{Curve, SizeClass};
+
 /// Builder for creating Chart components with a fluent API
 #[derive(Clone, Debug)]
 pub struct ChartsBuilder {
@@ -26,6 +29,15 @@ pub struct ChartsBuilder {
     animation_duration: u64,
     show_tooltips: bool,
     class: Option<String>,
+    growth: BarGrowth,
+    stacked: bool,
+    curve: Curve,
+    dots: bool,
+    size_class: Option<SizeClass>,
+    ascii: bool,
+    tick_margin: usize,
+    transition_duration: u64,
+    value_labels: Option<bool>,
 }
 
 impl ChartsBuilder {
@@ -67,6 +79,12 @@ impl ChartsBuilder {
     /// Create a scatter plot
     pub fn scatter() -> Self {
         Self::new().chart_type(ChartType::Scatter)
+    }
+
+    /// Create a candlestick chart; each point carries open, high, low and
+    /// close through [`DataPoint::candle`].
+    pub fn candlestick() -> Self {
+        Self::new().chart_type(ChartType::Candlestick)
     }
 
     /// Set the chart type
@@ -166,6 +184,62 @@ impl ChartsBuilder {
         self
     }
 
+    /// Which edge bars grow from: Bottom or Top for vertical bars, Left or
+    /// Right for horizontal ones.
+    pub fn growth(mut self, growth: BarGrowth) -> Self {
+        self.growth = growth;
+        self
+    }
+
+    /// Stack series instead of grouping them side by side (bars) or
+    /// overlaying them (areas).
+    pub fn stacked(mut self, stacked: bool) -> Self {
+        self.stacked = stacked;
+        self
+    }
+
+    /// Curve style for line and area strokes.
+    pub fn curve(mut self, curve: Curve) -> Self {
+        self.curve = curve;
+        self
+    }
+
+    /// Draw a dot at every line-chart point.
+    pub fn dots(mut self, dots: bool) -> Self {
+        self.dots = dots;
+        self
+    }
+
+    /// Force a size class regardless of the rectangle the chart gets.
+    pub fn size_class(mut self, class: SizeClass) -> Self {
+        self.size_class = Some(class);
+        self
+    }
+
+    /// Render with ASCII glyphs only.
+    pub fn ascii(mut self, ascii: bool) -> Self {
+        self.ascii = ascii;
+        self
+    }
+
+    /// Show every n-th axis label; 0 chooses a stride that avoids overlap.
+    pub fn tick_margin(mut self, margin: usize) -> Self {
+        self.tick_margin = margin;
+        self
+    }
+
+    /// Duration of the animation from old values to new ones, in ms.
+    pub fn transition_duration(mut self, ms: u64) -> Self {
+        self.transition_duration = ms;
+        self
+    }
+
+    /// Force value labels on or off; unset follows the size class.
+    pub fn value_labels(mut self, on: bool) -> Self {
+        self.value_labels = Some(on);
+        self
+    }
+
     /// Build the ChartProps
     pub fn build(self) -> ChartProps {
         ChartProps {
@@ -182,6 +256,15 @@ impl ChartsBuilder {
             animation_duration: self.animation_duration,
             show_tooltips: self.show_tooltips,
             class: self.class,
+            growth: self.growth,
+            stacked: self.stacked,
+            curve: self.curve,
+            dots: self.dots,
+            size_class: self.size_class,
+            ascii: self.ascii,
+            tick_margin: self.tick_margin,
+            transition_duration: self.transition_duration,
+            value_labels: self.value_labels,
         }
     }
 
@@ -193,30 +276,72 @@ impl ChartsBuilder {
 
 impl Default for ChartsBuilder {
     fn default() -> Self {
+        let props = ChartProps::default();
         Self {
-            chart_type: ChartType::BarVertical,
-            series: Vec::new(),
-            title: None,
-            width: 80,
-            height: 20,
-            x_axis: ChartAxis::default(),
-            y_axis: ChartAxis::default(),
-            legend: ChartLegend::default(),
-            color_palette: vec![
-                "#3b82f6".to_string(),
-                "#ef4444".to_string(),
-                "#10b981".to_string(),
-                "#f59e0b".to_string(),
-                "#8b5cf6".to_string(),
-                "#06b6d4".to_string(),
-                "#f97316".to_string(),
-                "#84cc16".to_string(),
-            ],
-            animated: false,
-            animation_duration: 1000,
-            show_tooltips: true,
-            class: None,
+            chart_type: props.chart_type,
+            series: props.series,
+            title: props.title,
+            width: props.width,
+            height: props.height,
+            x_axis: props.x_axis,
+            y_axis: props.y_axis,
+            legend: props.legend,
+            color_palette: props.color_palette,
+            animated: props.animated,
+            animation_duration: props.animation_duration,
+            show_tooltips: props.show_tooltips,
+            class: props.class,
+            growth: props.growth,
+            stacked: props.stacked,
+            curve: props.curve,
+            dots: props.dots,
+            size_class: props.size_class,
+            ascii: props.ascii,
+            tick_margin: props.tick_margin,
+            transition_duration: props.transition_duration,
+            value_labels: props.value_labels,
         }
+    }
+}
+
+/// The edge a bar grows from.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum BarGrowth {
+    /// Vertical bars rising from the bottom.
+    #[default]
+    Bottom,
+    /// Vertical bars hanging from the top.
+    Top,
+    /// Horizontal bars growing rightward from the left.
+    Left,
+    /// Horizontal bars growing leftward from the right.
+    Right,
+}
+
+impl BarGrowth {
+    /// Whether bars run horizontally.
+    pub fn is_horizontal(self) -> bool {
+        matches!(self, Self::Left | Self::Right)
+    }
+}
+
+/// Open, high, low and close values of one candlestick.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Candle {
+    /// Opening value.
+    pub open: f64,
+    /// Highest value.
+    pub high: f64,
+    /// Lowest value.
+    pub low: f64,
+    /// Closing value.
+    pub close: f64,
+}
+
+impl Candle {
+    /// Whether the candle closed above its open.
+    pub fn is_bullish(&self) -> bool {
+        self.close > self.open
     }
 }
 
@@ -300,6 +425,9 @@ pub struct DataPoint {
     pub color: Option<String>,
     /// Optional metadata for tooltips/interactions
     pub metadata: HashMap<String, String>,
+    /// Open, high, low and close for candlestick charts; `value` holds the
+    /// close so the point still works in every other chart type.
+    pub candle: Option<Candle>,
 }
 
 impl DataPoint {
@@ -310,6 +438,7 @@ impl DataPoint {
             label: None,
             color: None,
             metadata: HashMap::new(),
+            candle: None,
         }
     }
 
@@ -320,6 +449,23 @@ impl DataPoint {
             label: Some(label.into()),
             color: None,
             metadata: HashMap::new(),
+            candle: None,
+        }
+    }
+
+    /// Create a candlestick point from open, high, low and close.
+    pub fn candle(open: f64, high: f64, low: f64, close: f64) -> Self {
+        Self {
+            value: close,
+            label: None,
+            color: None,
+            metadata: HashMap::new(),
+            candle: Some(Candle {
+                open,
+                high,
+                low,
+                close,
+            }),
         }
     }
 
@@ -428,6 +574,8 @@ pub enum ChartType {
     Donut,
     /// Scatter plot
     Scatter,
+    /// Candlestick chart: wick from low to high, body from open to close
+    Candlestick,
 }
 
 /// Props for the Chart component
@@ -439,9 +587,9 @@ pub struct ChartProps {
     pub series: Vec<DataSeries>,
     /// Chart title
     pub title: Option<String>,
-    /// Chart width in characters
+    /// Chart width in cells; 0 fills the allotted rectangle (CHT-021)
     pub width: u16,
-    /// Chart height in characters
+    /// Chart height in cells; 0 fills the allotted rectangle (CHT-021)
     pub height: u16,
     /// X-axis configuration
     pub x_axis: ChartAxis,
@@ -459,6 +607,24 @@ pub struct ChartProps {
     pub show_tooltips: bool,
     /// Custom CSS classes
     pub class: Option<String>,
+    /// The edge bars grow from
+    pub growth: BarGrowth,
+    /// Stack series (bars end to end, areas on top of each other)
+    pub stacked: bool,
+    /// Curve style for line and area strokes
+    pub curve: Curve,
+    /// Draw a dot at each line-chart point
+    pub dots: bool,
+    /// Forced size class; `None` chooses from the rectangle (CHT-024)
+    pub size_class: Option<SizeClass>,
+    /// Render with ASCII glyphs only (CHT-028)
+    pub ascii: bool,
+    /// Show every n-th axis label; 0 picks a stride that avoids overlap
+    pub tick_margin: usize,
+    /// Milliseconds a data change takes to animate (CHT-022)
+    pub transition_duration: u64,
+    /// Value labels on bars; `None` follows the size class
+    pub value_labels: Option<bool>,
 }
 
 impl Props for ChartProps {
@@ -473,25 +639,25 @@ impl Default for ChartProps {
             chart_type: ChartType::BarVertical,
             series: Vec::new(),
             title: None,
-            width: 80,
-            height: 20,
+            width: 0,
+            height: 0,
             x_axis: ChartAxis::default(),
             y_axis: ChartAxis::default(),
             legend: ChartLegend::default(),
-            color_palette: vec![
-                "#3b82f6".to_string(), // blue
-                "#ef4444".to_string(), // red
-                "#10b981".to_string(), // green
-                "#f59e0b".to_string(), // yellow
-                "#8b5cf6".to_string(), // purple
-                "#06b6d4".to_string(), // cyan
-                "#f97316".to_string(), // orange
-                "#84cc16".to_string(), // lime
-            ],
+            color_palette: (1..=5).map(|i| format!("chart-{i}")).collect(),
             animated: false,
             animation_duration: 1000,
             show_tooltips: true,
             class: None,
+            growth: BarGrowth::Bottom,
+            stacked: false,
+            curve: Curve::Natural,
+            dots: true,
+            size_class: None,
+            ascii: false,
+            tick_margin: 0,
+            transition_duration: 200,
+            value_labels: None,
         }
     }
 }
@@ -513,6 +679,8 @@ pub struct ChartState {
 pub struct Chart;
 
 mod live;
+pub mod mask;
+pub mod plot;
 
 impl Component for Chart {
     type Props = ChartProps;

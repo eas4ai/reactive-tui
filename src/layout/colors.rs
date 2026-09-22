@@ -353,8 +353,15 @@ fn named(token: &str) -> Option<Rgba> {
     ))
 }
 
-/// Parse a color token from hex or named color to RGBA components
+/// Parse a color token: hex, a palette name, or a variable of the active
+/// theme such as `primary` or `chart-1`. Theme results are never cached, so
+/// switching the theme takes effect at once.
 pub fn parse_color_token(token: &str) -> Option<(f32, f32, f32, f32)> {
+    parse_color_literal(token).or_else(|| crate::theme::Theme::active().resolve_variable(token))
+}
+
+/// Parse a hex or palette-name color; theme variables are not consulted.
+pub fn parse_color_literal(token: &str) -> Option<(f32, f32, f32, f32)> {
     // First check the color cache for O(1) lookup
     if let Some((r, g, b, a)) = crate::layout::css::cache::get_cached_color(token) {
         return Some((r as f32 / 255.0, g as f32 / 255.0, b as f32 / 255.0, a));

@@ -20,9 +20,29 @@ impl RootComponent for Root {
     fn render(&self) -> Element {
         self.0.clone()
     }
+    fn update(&mut self) -> reactive_tui::error::Result<RootUpdate> {
+        note_chart_workers();
+        Ok(RootUpdate::Unchanged)
+    }
     fn wake_driven(&self) -> bool {
         true
     }
+}
+
+/// Whether an `rtui-chart-*` thread was seen alive during any frame of the
+/// current test; the worker is joined when the App drops, so the check has
+/// to happen while the App runs.
+static CHART_WORKER_SEEN: AtomicBool = AtomicBool::new(false);
+
+fn note_chart_workers() {
+    #[cfg(target_os = "linux")]
+    if !chart_worker_threads().is_empty() {
+        CHART_WORKER_SEEN.store(true, Ordering::SeqCst);
+    }
+}
+
+fn chart_worker_seen() -> bool {
+    CHART_WORKER_SEEN.load(Ordering::SeqCst)
 }
 
 fn series(values: &[f64]) -> DataSeries {
@@ -217,13 +237,20 @@ fn cht_018_tooltip_is_a_box_with_swatch_rows_and_a_crosshair_that_flips_at_the_e
         let line = f.text.lines().nth(r as usize).unwrap_or("");
         line.contains('┌') || line.contains('└') || line.contains('╭') || line.contains('╰')
     };
-    let crosshair = (0..rows)
-        .filter(|r| !is_box_row(*r))
-        .filter(|r| cell_is(f, *r, 20, "│"))
-        .count();
+    // The crosshair marks the selected index's column, which is the data
+    // column nearest the pointer, so it sits within one cell of the hover.
+    let crosshair = (19..=21)
+        .map(|col| {
+            (0..rows)
+                .filter(|r| !is_box_row(*r))
+                .filter(|r| cell_is(f, *r, col, "│"))
+                .count()
+        })
+        .max()
+        .unwrap_or(0);
     assert!(
         crosshair >= 2,
-        "crosshair column expected at the hovered x outside the box:\n{}",
+        "crosshair column expected at the hovered index outside the box:\n{}",
         f.text
     );
     // Edge flip: hovering near the right edge keeps the box inside the chart.
@@ -373,8 +400,13 @@ fn cht_022_value_transition_moves_from_the_old_values_to_the_target() {
     let settled_row = (0..size.1)
         .find(|r| cell_is(&settled, *r, 0, "\u{2588}"))
         .expect("settled column 0");
-    let target_row = (0..size.1)
-        .find(|r| cell_is(&target, *r, 0, "\u{2588}"))
+    // The transition's end is the target's tip cell (its topmost painted
+    // cell in column 0), which no intermediate frame shows.
+    let (target_row, target_tip) = (0..size.1)
+        .find_map(|r| {
+            let content = target.screen.cell(r, 0)?.contents();
+            (!content.trim().is_empty()).then_some((r, content))
+        })
         .expect("target column 0");
     let root = Switching {
         switched: AtomicBool::new(false),
@@ -396,7 +428,7 @@ fn cht_022_value_transition_moves_from_the_old_values_to_the_target() {
             app_input::CellStep {
                 x: 0,
                 y: target_row,
-                content: "\u{2588}",
+                content: Box::leak(target_tip.to_string().into_boxed_str()),
                 event: None,
             },
         ],
@@ -455,8 +487,8 @@ fn cht_021_chart_fills_its_parent_and_rasterizes_on_a_worker() {
     );
     #[cfg(target_os = "linux")]
     assert!(
-        !chart_worker_threads().is_empty(),
-        "no rtui-chart worker thread exists after rendering: rasterization runs on the main thread"
+        chart_worker_seen(),
+        "no rtui-chart worker thread existed while rendering: rasterization runs on the main thread"
     );
 }
 
@@ -499,7 +531,7 @@ fn bar_005_animating_chart_stays_under_the_frame_budget_at_700_by_200() {
     );
     #[cfg(target_os = "linux")]
     assert!(
-        !chart_worker_threads().is_empty(),
+        chart_worker_seen(),
         "no rtui-chart worker thread observed during the run"
     );
 }

@@ -18,6 +18,12 @@ pub use variables::ThemeVariables;
 
 use crate::layout::css::apply_utility_classes_with_theme;
 use crate::layout::style::StyleBuilder;
+use std::sync::{Arc, OnceLock, RwLock};
+
+fn active_slot() -> &'static RwLock<Arc<Theme>> {
+    static ACTIVE: OnceLock<RwLock<Arc<Theme>>> = OnceLock::new();
+    ACTIVE.get_or_init(|| RwLock::new(Arc::new(presets::dark_theme())))
+}
 
 /// CSS-first theme system for reactive-tui
 ///
@@ -32,6 +38,7 @@ use crate::layout::style::StyleBuilder;
 /// let theme = dark_theme();
 /// let style = theme.apply_classes("bg-primary text-secondary p-4");
 /// ```
+#[derive(Debug, Clone)]
 pub struct Theme {
     /// Name of the theme
     pub name: String,
@@ -70,6 +77,53 @@ impl Theme {
                 .as_ref()
                 .and_then(|parent| parent.get_variable(key))
         })
+    }
+
+    /// The theme the application currently uses. Components read it through
+    /// [`crate::reactive::hooks::use_theme`]; the dark preset applies until
+    /// [`Theme::set_active`] or [`crate::app::App::set_theme`] replaces it.
+    pub fn active() -> Arc<Theme> {
+        active_slot()
+            .read()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
+    }
+
+    /// Make `theme` the active theme for every component and utility class.
+    pub fn set_active(theme: Theme) -> Arc<Theme> {
+        let theme = Arc::new(theme);
+        *active_slot().write().unwrap_or_else(|e| e.into_inner()) = theme.clone();
+        crate::layout::css::cache::clear_color_cache();
+        theme
+    }
+
+    /// The variable name a color token refers to: `primary` and
+    /// `--color-primary` both name `--color-primary`; `muted` names
+    /// `--color-text-muted`.
+    pub fn color_variable(token: &str) -> String {
+        match token {
+            "muted" => "--color-text-muted".to_string(),
+            t if t.starts_with("--") => t.to_string(),
+            t => format!("--color-{t}"),
+        }
+    }
+
+    /// Resolve a token that names one of this theme's color variables.
+    pub fn resolve_variable(&self, token: &str) -> Option<(f32, f32, f32, f32)> {
+        let value = self.get_variable(&Self::color_variable(token))?;
+        crate::layout::colors::parse_color_literal(&value).or_else(|| {
+            (value != token)
+                .then(|| self.resolve_variable(&value))
+                .flatten()
+        })
+    }
+
+    /// The one color resolver (CHT-017): a theme variable name such as
+    /// `primary` or `chart-1`, a palette name such as `blue-500`, or hex.
+    /// Utility classes and chart colors both resolve through here.
+    pub fn resolve_color(&self, token: &str) -> Option<(f32, f32, f32, f32)> {
+        self.resolve_variable(token)
+            .or_else(|| crate::layout::colors::parse_color_literal(token))
     }
 
     /// Apply CSS utility classes with theme variable resolution

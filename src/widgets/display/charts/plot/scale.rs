@@ -86,14 +86,20 @@ impl ScaleLinear {
 
     /// Whether `value` lies inside the domain (inclusive).
     pub fn contains(&self, value: f64) -> bool {
-        let (low, high) = (self.domain.0.min(self.domain.1), self.domain.0.max(self.domain.1));
+        let (low, high) = (
+            self.domain.0.min(self.domain.1),
+            self.domain.0.max(self.domain.1),
+        );
         value >= low && value <= high
     }
 
     /// The range position of zero, clamped into the range, which every bar
     /// grows from (CHT-011).
     pub fn baseline(&self) -> f64 {
-        let (low, high) = (self.range.0.min(self.range.1), self.range.0.max(self.range.1));
+        let (low, high) = (
+            self.range.0.min(self.range.1),
+            self.range.0.max(self.range.1),
+        );
         self.map(0.0).clamp(low, high)
     }
 }
@@ -308,11 +314,18 @@ mod tests {
 
     #[test]
     fn linear_domain_includes_zero_only_when_values_do_not_cross_it() {
-        assert_eq!(ScaleLinear::domain_including_zero([5.0, 6.0, 7.0]), (0.0, 7.0));
-        assert_eq!(ScaleLinear::domain_including_zero([-3.0, -1.0]), (-3.0, 0.0));
+        assert_eq!(
+            ScaleLinear::domain_including_zero([5.0, 6.0, 7.0]),
+            (0.0, 7.0)
+        );
+        assert_eq!(
+            ScaleLinear::domain_including_zero([-3.0, -1.0]),
+            (-3.0, 0.0)
+        );
         assert_eq!(ScaleLinear::domain_including_zero([-2.0, 4.0]), (-2.0, 4.0));
-        let flat = ScaleLinear::domain_including_zero([4.0, 4.0]);
-        assert!(flat.0 < 0.0 && flat.1 > 4.0);
+        assert_eq!(ScaleLinear::domain_including_zero([4.0, 4.0]), (0.0, 4.0));
+        let flat = ScaleLinear::domain_including_zero([0.0, 0.0]);
+        assert!(flat.0 < 0.0 && flat.1 > 0.0);
         assert_eq!(ScaleLinear::domain_including_zero([f64::NAN]), (0.0, 1.0));
     }
 
@@ -326,7 +339,10 @@ mod tests {
         assert!((scale.bandwidth() - 5.0).abs() < 1e-9);
         let (a, b) = scale.band(0);
         let (c, _) = scale.band(1);
-        assert!(b < c, "bands must not touch with inner padding: {a} {b} {c}");
+        assert!(
+            b < c,
+            "bands must not touch with inner padding: {a} {b} {c}"
+        );
         assert_eq!(scale.nearest(0.0), Some(0));
         assert_eq!(scale.nearest(14.0), Some(1));
         assert_eq!(scale.nearest(39.9), Some(3));

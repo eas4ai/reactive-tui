@@ -76,14 +76,16 @@ impl Backend for InputBackend {
     }
     fn present(&mut self) -> Result<()> {
         self.inner.present()?;
-        let (width, height) = self.inner.size();
-        let mut parser = vt100::Parser::new(height, width, 0);
-        parser.process(&self.capture.0.lock().unwrap());
+        // Main-loop work ends when the backend has presented; parsing the
+        // captured output below is the harness's own cost, not the App's.
         let work_ms = self
             .wait_returned
             .lock()
             .unwrap()
             .map_or(0.0, |t| t.elapsed().as_secs_f64() * 1000.0);
+        let (width, height) = self.inner.size();
+        let mut parser = vt100::Parser::new(height, width, 0);
+        parser.process(&self.capture.0.lock().unwrap());
         self.snapshots.lock().unwrap().push(Snapshot {
             work_ms,
             output: self.capture.0.lock().unwrap().clone(),
