@@ -17,7 +17,7 @@ pub(super) fn pie(canvas: &mut Canvas, props: &ChartProps, area: Rect, progress:
         .collect();
     let scale = points.iter().map(|(_, _, v)| *v).fold(0.0, f64::max);
     if scale == 0.0 {
-        canvas.text(area.x, area.y, area.w, "Nothing here", None);
+        canvas.text(area.x, area.y, area.w, "No data to display", None);
         return;
     }
     let total: f64 = points.iter().map(|(_, _, v)| v / scale).sum();
