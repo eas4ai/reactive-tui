@@ -11,7 +11,9 @@ import sys
 
 from _common import ROOT, cargo_test_filtered, finish, rust_sources, strip_test_modules
 
-HEX = re.compile(r'"#[0-9a-fA-F]{3,8}"|0x[0-9a-fA-F]{6}\b|Rgba?::new\(\s*\d|Rgba?\(\s*\d')
+NUM = r"\d+(?:\.\d+)?(?:f32|f64)?"
+# Hex strings, packed ints, Rgba constructors and bare four-number tuples.
+HEX = re.compile(rf'"#[0-9a-fA-F]{{3,8}}"|0x[0-9a-fA-F]{{6}}\b|Rgba?::new\(\s*\d|Rgba?\(\s*\d|\(\s*{NUM}\s*,\s*{NUM}\s*,\s*{NUM}\s*,\s*{NUM}\s*\)')
 CHART_DIRS = ("src/widgets/display/charts.rs", "src/widgets/display/charts", "src/builder/widgets/chart.rs")
 THEME_VARS = ["--color-chart-1", "--color-chart-2", "--color-chart-3", "--color-chart-4", "--color-chart-5",
               "--color-chart-bullish", "--color-chart-bearish"]

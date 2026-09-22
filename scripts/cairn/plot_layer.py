@@ -13,7 +13,9 @@ from _common import ROOT, cargo_test_filtered, finish, rust_sources, strip_test_
 PLOT_DIRS = ["src/widgets/display/charts/plot"]
 REQUIRED_ITEMS = ["ScaleLinear", "ScaleBand", "ScalePoint", "ScaleOrdinal", "Tick", "Axis", "Grid", "Legend", "Tooltip"]
 RENDERERS = ["src/widgets/display/charts/live"]
-LOCAL_SCALE = re.compile(r"\)\s*/\s*\(|/\s*\(\s*\w+\.1\s*-\s*\w+\.0\s*\)|/\s*range\b|/\s*span\b|\bmapped\s*\(")
+LOCAL_SCALE = re.compile(
+    r"\)\s*/\s*\(|/\s*\(\s*\w+\.1\s*-\s*\w+\.0\s*\)|/\s*range\b|/\s*span\b|\bmapped\s*\("
+    r"|\*\s*\w*(?:per_unit|per_cell|per_dot|per_value|step_dots|inv_span|scale_factor)\b|\.mul_add\(")
 
 
 def main() -> int:
