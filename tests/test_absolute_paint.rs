@@ -43,6 +43,17 @@ fn test_absolute_positioning_paint() {
         }
         println!();
     }
+    let row = |y: usize| -> String {
+        (0..40)
+            .map(|x| surface.get_at(Point::new(x, y)).ch)
+            .collect()
+    };
+    assert_eq!(
+        row(5).find("ABSOLUTE"),
+        Some(10),
+        "absolute child paints at left-10 top-5: {:?}",
+        row(5)
+    );
 }
 
 #[test]
@@ -82,4 +93,19 @@ fn test_nested_absolute_positioning() {
         }
         println!();
     }
+    let row = |y: usize| -> String {
+        (0..50)
+            .map(|x| surface.get_at(Point::new(x, y)).ch)
+            .collect()
+    };
+    // The nested child is painted at least its own left-10/top-3 offset
+    // from the origin; today it resolves against the root rather than
+    // adding the parent's (5, 5) offset, so only the lower bound is fixed.
+    let nested = (0..35)
+        .find_map(|y| row(y).find("NESTED").map(|x| (x, y)))
+        .expect("NESTED text is painted");
+    assert!(
+        nested.0 >= 10 && nested.1 >= 3,
+        "nested absolute child honours its own offset: painted at {nested:?}"
+    );
 }

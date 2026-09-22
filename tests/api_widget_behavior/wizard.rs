@@ -74,7 +74,7 @@ fn wizard_validation_blocks_next_but_optional_skip_advances() {
             steps: vec![first, step("SECOND")],
             ..Default::default()
         });
-        app_input::run_actions_until_hidden(
+        let frames = app_input::run_actions_until_hidden(
             Control(element),
             size,
             vec![
@@ -83,6 +83,11 @@ fn wizard_validation_blocks_next_but_optional_skip_advances() {
                 ("CONTENT-SECOND", Action::ClickText("Finish", 1)),
             ],
             "WIZARD",
+        );
+        let last = &frames.last().unwrap().text;
+        assert!(
+            !last.contains("WIZARD") && !last.contains("CONTENT-SECOND"),
+            "finishing after a skip closes the wizard at {size:?}:\n{last}"
         );
     }
 }
@@ -131,11 +136,16 @@ fn empty_wizard_displays_error_and_can_cancel() {
             title: "WIZARD".into(),
             ..Default::default()
         });
-        app_input::run_until_hidden(
+        let frames = app_input::run_until_hidden(
             Control(element),
             size,
             vec![("Wizard has no steps", app_input::key(KeyCode::Escape))],
             "WIZARD",
+        );
+        let last = &frames.last().unwrap().text;
+        assert!(
+            !last.contains("WIZARD") && !last.contains("Wizard has no steps"),
+            "escape closes the empty wizard at {size:?}:\n{last}"
         );
     }
 }
@@ -255,7 +265,7 @@ fn noncancelable_wizard_keeps_keyboard_finish_available() {
             .step(BuilderStep::new("ONLY"))
             .cancelable(false)
             .build();
-        app_input::run_until_hidden(
+        let frames = app_input::run_until_hidden(
             Control(element),
             size,
             vec![
@@ -263,6 +273,11 @@ fn noncancelable_wizard_keeps_keyboard_finish_available() {
                 ("ONLY", app_input::key(KeyCode::Enter)),
             ],
             "KEYBOARD WIZARD",
+        );
+        let last = &frames.last().unwrap().text;
+        assert!(
+            !last.contains("KEYBOARD WIZARD") && !last.contains("ONLY"),
+            "enter finishes the non-cancelable wizard at {size:?}:\n{last}"
         );
     }
 }
@@ -347,7 +362,7 @@ fn wizard_retains_edited_child_on_back() {
             steps: vec![first, step("SECOND")],
             ..Default::default()
         });
-        app_input::run_actions_until_hidden(
+        let frames = app_input::run_actions_until_hidden(
             Control(element),
             size,
             vec![
@@ -362,6 +377,11 @@ fn wizard_retains_edited_child_on_back() {
                 ("seedX", Action::ClickText("Cancel", 1)),
             ],
             "WIZARD",
+        );
+        let last = &frames.last().unwrap().text;
+        assert!(
+            !last.contains("WIZARD") && !last.contains("seedX"),
+            "cancel closes the wizard with its edited child at {size:?}:\n{last}"
         );
     }
 }

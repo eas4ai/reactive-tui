@@ -676,7 +676,12 @@ pub struct ChartState {
 }
 
 /// Chart component for data visualization
-pub struct Chart;
+pub struct Chart {
+    /// The last props handed down, shared with the live chart so a frame
+    /// that changes nothing costs a comparison rather than a copy of every
+    /// data point.
+    shared: std::sync::Mutex<Option<std::sync::Arc<ChartProps>>>,
+}
 
 mod live;
 pub mod mask;
@@ -693,12 +698,23 @@ impl Component for Chart {
     type State = ChartState;
 
     fn new(_props: Self::Props) -> Self {
-        Self
+        Self {
+            shared: std::sync::Mutex::new(None),
+        }
     }
 
     fn render(&self, props: &Self::Props, state: &Self::State) -> Element {
+        let mut shared = self.shared.lock().unwrap_or_else(|e| e.into_inner());
+        let config = match shared.as_ref() {
+            Some(current) if **current == *props => current.clone(),
+            _ => {
+                let fresh = std::sync::Arc::new(props.clone());
+                *shared = Some(fresh.clone());
+                fresh
+            }
+        };
         Element::typed::<live::LiveChart>(live::LiveProps {
-            config: props.clone(),
+            config,
             seed: state.clone(),
         })
     }

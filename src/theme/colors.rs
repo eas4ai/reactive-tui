@@ -1077,9 +1077,16 @@ mod tests {
             Colors::ROSE_950,
         ];
 
-        for (r, g, b) in &all_colors {
-            // u8 values are always in valid range (0-255), just verify they're accessible
-            let _ = (*r, *g, *b); // Consume the values to verify they're accessible
-        }
+        // Every sampled palette entry is a distinct colour
+        let distinct: std::collections::HashSet<_> = all_colors.iter().collect();
+        assert_eq!(
+            distinct.len(),
+            all_colors.len(),
+            "palette samples repeat a colour"
+        );
+        // Lighter shades (50) sum brighter than the darkest shades (950)
+        let brightness = |(r, g, b): (u8, u8, u8)| u16::from(r) + u16::from(g) + u16::from(b);
+        assert!(brightness(Colors::SLATE_50) > brightness(Colors::GREEN_950));
+        assert!(brightness(Colors::EMERALD_50) > brightness(Colors::ROSE_950));
     }
 }

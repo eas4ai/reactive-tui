@@ -10,7 +10,7 @@ proptest! {
         height in 1usize..=100
     ) {
         let surface = Surface::new(width, height);
-        prop_assert_eq!(surface.dims(), (width, height));
+        assert_eq!(surface.dims(), (width, height));
     }
 
     #[test]
@@ -29,7 +29,7 @@ proptest! {
             surface.write_str(x, y, &text, Rgba::white(), Rgba::black(), Attr::empty());
 
             // Surface dimensions should remain unchanged
-            prop_assert_eq!(surface.dims(), (width, height));
+            assert_eq!(surface.dims(), (width, height));
         }
     }
 
@@ -46,7 +46,7 @@ proptest! {
         let bg = Rgba { r, g, b, a };
         surface.clear(bg);
 
-        prop_assert_eq!(surface.dims(), (width, height));
+        assert_eq!(surface.dims(), (width, height));
     }
 
     #[test]
@@ -55,8 +55,8 @@ proptest! {
         y in 0usize..1000
     ) {
         let point = Point::new(x, y);
-        prop_assert_eq!(point.x, x);
-        prop_assert_eq!(point.y, y);
+        assert_eq!(point.x, x);
+        assert_eq!(point.y, y);
     }
 
     #[test]
@@ -65,8 +65,8 @@ proptest! {
         h in 1usize..1000
     ) {
         let size = Size::new(w, h);
-        prop_assert_eq!(size.width, w);
-        prop_assert_eq!(size.height, h);
+        assert_eq!(size.width, w);
+        assert_eq!(size.height, h);
     }
 
     #[test]
@@ -80,8 +80,8 @@ proptest! {
         let size = Size::new(w, h);
         let rect = Rect::new(point, size);
 
-        prop_assert_eq!(rect.origin, point);
-        prop_assert_eq!(rect.size, size);
+        assert_eq!(rect.origin, point);
+        assert_eq!(rect.size, size);
     }
 
     #[test]
@@ -89,9 +89,10 @@ proptest! {
         width in 1u16..100,
         height in 1u16..100
     ) {
-        let _router = EventRouter::new_with_size(width, height);
-        // EventRouter creation should not panic
-        prop_assert!(true);
+        let router = EventRouter::new_with_size(width, height);
+        // A fresh router has no root and nothing focused
+        assert_eq!(router.root(), None);
+        assert_eq!(router.get_focus(), None);
     }
 
     #[test]
@@ -103,10 +104,10 @@ proptest! {
     ) {
         let color = Rgba { r, g, b, a };
 
-        prop_assert_eq!(color.r, r);
-        prop_assert_eq!(color.g, g);
-        prop_assert_eq!(color.b, b);
-        prop_assert_eq!(color.a, a);
+        assert_eq!(color.r, r);
+        assert_eq!(color.g, g);
+        assert_eq!(color.b, b);
+        assert_eq!(color.a, a);
     }
 
     #[test]
@@ -118,10 +119,10 @@ proptest! {
     ) {
         let color = Rgba { r, g, b, a };
 
-        prop_assert!(color.r >= 0.0 && color.r <= 1.0);
-        prop_assert!(color.g >= 0.0 && color.g <= 1.0);
-        prop_assert!(color.b >= 0.0 && color.b <= 1.0);
-        prop_assert!(color.a >= 0.0 && color.a <= 1.0);
+        assert!(color.r >= 0.0 && color.r <= 1.0);
+        assert!(color.g >= 0.0 && color.g <= 1.0);
+        assert!(color.b >= 0.0 && color.b <= 1.0);
+        assert!(color.a >= 0.0 && color.a <= 1.0);
     }
 
     #[test]
@@ -131,13 +132,13 @@ proptest! {
         let attr = Attr::from_bits_truncate(bits);
 
         // Bitflag operations should be consistent
-        prop_assert_eq!(attr.bits() & bits, attr.bits());
+        assert_eq!(attr.bits() & bits, attr.bits());
 
         // Combining with empty should be identity
-        prop_assert_eq!(attr | Attr::empty(), attr);
+        assert_eq!(attr | Attr::empty(), attr);
 
         // Intersecting with self should be identity
-        prop_assert_eq!(attr & attr, attr);
+        assert_eq!(attr & attr, attr);
     }
 
     #[test]
@@ -150,15 +151,14 @@ proptest! {
         router.set_root(root);
 
         // Adding focusable should work
-        router.add_focusable(root, None);
+        assert!(router.add_focusable(root, None));
 
-        // Focus operations should not panic
-        router.focus_next();
-        router.focus_prev();
+        // With a single focusable node, focus cycles back to it
+        assert_eq!(router.focus_next(), Some(root));
+        assert_eq!(router.focus_prev(), Some(root));
 
-        // Focus should remain consistent
-        let focus = router.get_focus();
-        prop_assert!(focus.is_some() || focus.is_none());
+        // Focus should remain on the only node
+        assert_eq!(router.get_focus(), Some(root));
     }
 
     #[test]
@@ -167,10 +167,10 @@ proptest! {
     ) {
         // String operations should never panic
         let formatted = format!("Text: {}", text);
-        prop_assert!(formatted.starts_with("Text: "));
+        assert!(formatted.starts_with("Text: "));
 
         let len = text.len();
-        prop_assert!(len <= 1000); // Reasonable upper bound for test strings
+        assert!(len <= 1000); // Reasonable upper bound for test strings
     }
 
     #[test]
@@ -179,11 +179,11 @@ proptest! {
         b in 0u32..1000
     ) {
         // Basic mathematical properties should hold
-        prop_assert_eq!(a + b, b + a); // Addition is commutative
-        prop_assert_eq!(a * b, b * a); // Multiplication is commutative
+        assert_eq!(a + b, b + a); // Addition is commutative
+        assert_eq!(a * b, b * a); // Multiplication is commutative
 
         if let Some(quotient) = a.checked_div(b) {
-            prop_assert_eq!(quotient * b + a % b, a); // Division property
+            assert_eq!(quotient * b + a % b, a); // Division property
         }
     }
 
@@ -196,12 +196,12 @@ proptest! {
             vec.push(i);
         }
 
-        prop_assert_eq!(vec.len(), size);
-        prop_assert!(vec.capacity() >= size);
+        assert_eq!(vec.len(), size);
+        assert!(vec.capacity() >= size);
 
         if !vec.is_empty() {
-            prop_assert_eq!(vec[0], 0);
-            prop_assert_eq!(vec[vec.len() - 1], size - 1);
+            assert_eq!(vec[0], 0);
+            assert_eq!(vec[vec.len() - 1], size - 1);
         }
     }
 }

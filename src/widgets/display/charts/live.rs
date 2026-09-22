@@ -27,7 +27,7 @@ use crate::layout::paint_tree::cells::CellGrid;
 
 #[derive(Clone, PartialEq)]
 pub(super) struct LiveProps {
-    pub config: ChartProps,
+    pub config: Arc<ChartProps>,
     pub seed: ChartState,
 }
 impl Props for LiveProps {
@@ -81,7 +81,7 @@ impl Component for LiveChart {
     fn new(props: Self::Props) -> Self {
         Self {
             viewport: None,
-            config: Arc::new(props.config),
+            config: props.config,
             version: 0,
             seed: props.seed,
             worker: worker::Worker::new().ok(),
@@ -103,7 +103,7 @@ impl Component for LiveChart {
             *state = props.seed.clone();
             self.seed = props.seed.clone();
         }
-        if *self.config != props.config {
+        if !Arc::ptr_eq(&self.config, &props.config) && *self.config != *props.config {
             let shape_changed = self.config.series.len() != props.config.series.len()
                 || self
                     .config
@@ -116,7 +116,7 @@ impl Component for LiveChart {
                 state.hovered_point = None;
                 state.tooltip = None;
             }
-            self.config = Arc::new(props.config.clone());
+            self.config = props.config.clone();
             self.version += 1;
         }
         true
@@ -576,6 +576,7 @@ fn overlay_grid(picture: &Picture, overlay: &Overlay) -> CellGrid {
             }
         }
     }
+    use plot::TextSink as _;
     let mut grid = (*picture.grid).clone();
     let mut sink = Sink(&mut grid);
     if let Some((col, top, bottom)) = overlay.crosshair {
@@ -593,3 +594,4 @@ fn overlay_grid(picture: &Picture, overlay: &Overlay) -> CellGrid {
         .draw(&mut sink, overlay.at, Rect::sized(picture.width, picture.height), None);
     grid
 }
+

@@ -363,7 +363,7 @@ fn api_image_platform_sixel_offsets_preserve_transparent_pixels() {
 
 proptest::proptest! {
     #[test]
-    fn api_image_platform_sixel_malformed_bodies_do_not_panic(body in proptest::collection::vec(0u8..=127, 0..256)) {
+    fn smoke_api_image_platform_sixel_malformed_bodies_do_not_panic(body in proptest::collection::vec(0u8..=127, 0..256)) {
         let mut bytes = b"\x1bP0;1q".to_vec();
         bytes.extend(body);
         bytes.extend_from_slice(b"\x1b\\");

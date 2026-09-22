@@ -472,18 +472,31 @@ mod tests {
     #[test]
     fn windows_command_shell_paints_its_prompt_and_calculated_result() {
         for _ in 0..4 {
-            windows_command_shell_resize(false, (31, 7), (35, 9));
+            assert_eq!(
+                windows_command_shell_resize(false, (31, 7), (35, 9)),
+                (35, 9),
+                "terminal reports the resized dimensions"
+            );
         }
     }
 
     #[cfg(windows)]
     #[test]
     fn windows_command_shell_resize_after_complete_prompt() {
-        windows_command_shell_resize(true, (43, 11), (47, 13));
+        assert_eq!(
+            windows_command_shell_resize(true, (43, 11), (47, 13)),
+            (47, 13),
+            "terminal reports the resized dimensions"
+        );
     }
 
     #[cfg(windows)]
-    fn windows_command_shell_resize(wait_for_prompt: bool, size: (u16, u16), resized: (u16, u16)) {
+    /// Drive the command shell through a resize and return the terminal's final size.
+    fn windows_command_shell_resize(
+        wait_for_prompt: bool,
+        size: (u16, u16),
+        resized: (u16, u16),
+    ) -> (u16, u16) {
         let directory = tempfile::tempdir().unwrap();
         let mut terminal = Terminal::new(TerminalConfig {
             shell: Some(std::env::var("COMSPEC").unwrap()),
@@ -553,7 +566,9 @@ mod tests {
                 terminal.write_string(input).unwrap();
             }
         }
+        let final_size = terminal.size();
         terminal.stop().unwrap();
+        final_size
     }
 
     #[test]

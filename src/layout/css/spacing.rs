@@ -141,19 +141,38 @@ mod tests {
     fn test_padding_utilities() {
         let sb = StyleBuilder::new();
 
-        // Test all-sides padding
+        use taffy::style::LengthPercentage;
+        let sides = |style: &taffy::style::Style| {
+            (
+                style.padding.left,
+                style.padding.right,
+                style.padding.top,
+                style.padding.bottom,
+            )
+        };
+        let cells = LengthPercentage::length;
+
+        // Test all-sides padding (p-4 is 16 cells on the utility scale)
         let result = apply_padding("p-4", sb).expect("CSS spacing test should succeed");
-        let _style = result.build();
-        // Can't easily test exact values due to Taffy internals, but verify it doesn't panic
+        assert_eq!(
+            sides(&result.build()),
+            (cells(16.0), cells(16.0), cells(16.0), cells(16.0))
+        );
 
         // Test directional padding
         let sb = StyleBuilder::new();
         let result = apply_padding("px-2", sb).expect("CSS spacing test should succeed");
-        let _style = result.build();
+        assert_eq!(
+            sides(&result.build()),
+            (cells(8.0), cells(8.0), cells(0.0), cells(0.0))
+        );
 
         let sb = StyleBuilder::new();
         let result = apply_padding("py-8", sb).expect("CSS spacing test should succeed");
-        let _style = result.build();
+        assert_eq!(
+            sides(&result.build()),
+            (cells(0.0), cells(0.0), cells(32.0), cells(32.0))
+        );
     }
 
     #[test]
@@ -178,18 +197,22 @@ mod tests {
     fn test_gap_utilities() {
         let sb = StyleBuilder::new();
 
+        use taffy::style::LengthPercentage;
+        let gap = |style: &taffy::style::Style| (style.gap.width, style.gap.height);
+        let cells = LengthPercentage::length;
+
         // Test gap
         let result = apply_gap("gap-4", sb).expect("CSS spacing test should succeed");
-        let _style = result.build();
+        assert_eq!(gap(&result.build()), (cells(16.0), cells(16.0)));
 
         // Test directional gap
         let sb = StyleBuilder::new();
         let result = apply_gap("gap-x-2", sb).expect("CSS spacing test should succeed");
-        let _style = result.build();
+        assert_eq!(gap(&result.build()), (cells(8.0), cells(0.0)));
 
         let sb = StyleBuilder::new();
         let result = apply_gap("gap-y-8", sb).expect("CSS spacing test should succeed");
-        let _style = result.build();
+        assert_eq!(gap(&result.build()), (cells(0.0), cells(32.0)));
     }
 
     #[test]

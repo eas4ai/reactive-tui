@@ -36,7 +36,7 @@ mod tests {
 
     #[test]
     #[ignore = "child fixture invoked only by the process lifecycle tests"]
-    fn sleeping_child_fixture() {
+    fn smoke_sleeping_child_fixture() {
         let Some(path) = std::env::var_os("RTUI_PID_PATH") else {
             return;
         };
@@ -44,7 +44,8 @@ mod tests {
         std::thread::sleep(Duration::from_secs(30));
     }
 
-    fn exercise_stop(cancel: bool) {
+    /// Stop a sleeping child by deadline or cancellation and return the error text.
+    fn exercise_stop(cancel: bool) -> String {
         let directory = tempfile::tempdir().unwrap();
         let pid_path = directory.path().join("pid");
         // A native child isolates process ownership from shell startup latency.
@@ -52,7 +53,7 @@ mod tests {
         command.args([
             "--ignored",
             "--exact",
-            "hooks::clipboard_process::tests::sleeping_child_fixture",
+            "hooks::clipboard_process::tests::smoke_sleeping_child_fixture",
         ]);
         #[cfg(windows)]
         let process = std::cell::RefCell::new(None::<std::os::windows::io::OwnedHandle>);
@@ -90,10 +91,6 @@ mod tests {
             cancel && ready.is_some()
         })
         .unwrap_err();
-        assert!(
-            error.contains(if cancel { "cancelled" } else { "timed out" }),
-            "{error}"
-        );
         #[cfg(unix)]
         assert!(start.elapsed() < Duration::from_secs(3));
         #[cfg(windows)]
@@ -128,15 +125,18 @@ mod tests {
                 "owned Windows process must have exited"
             );
         }
+        error
     }
 
     #[test]
     fn deadline_kills_and_reaps_child() {
-        exercise_stop(false);
+        let error = exercise_stop(false);
+        assert!(error.contains("timed out"), "{error}");
     }
 
     #[test]
     fn cancellation_kills_and_reaps_child() {
-        exercise_stop(true);
+        let error = exercise_stop(true);
+        assert!(error.contains("cancelled"), "{error}");
     }
 }

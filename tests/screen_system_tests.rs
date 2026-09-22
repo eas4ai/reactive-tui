@@ -258,8 +258,13 @@ fn test_transition_types() {
         let mut tree = reactive_tui::render::tree::RenderTree::new();
         tree.set_root(root_node);
 
-        // Should be able to render transition without panic
-        let _result = renderer.render_transition(None, &tree, transition_type, 0.5);
+        // Every transition type composes a surface of the renderer's size
+        let result = renderer.render_transition(None, &tree, transition_type, 0.5);
+        assert_eq!(
+            result.dims(),
+            (80, 24),
+            "{transition_type:?} composed a surface of the wrong size"
+        );
     }
 }
 

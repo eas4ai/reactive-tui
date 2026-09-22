@@ -281,25 +281,27 @@ mod tests {
     fn test_min_max_utilities() {
         let sb = StyleBuilder::new();
 
+        use taffy::style::Dimension;
+
         // Test min-width
         let result =
             apply_min_width("min-w-0", sb.clone()).expect("CSS sizing test should succeed");
-        let _style = result.build();
+        assert_eq!(result.build().min_size.width, Dimension::length(0.0));
 
         // Test max-width
         let result =
             apply_max_width("max-w-full", sb.clone()).expect("CSS sizing test should succeed");
-        let _style = result.build();
+        assert_eq!(result.build().max_size.width, Dimension::percent(1.0));
 
         // Test min-height
         let result =
             apply_min_height("min-h-screen", sb.clone()).expect("CSS sizing test should succeed");
-        let _style = result.build();
+        assert_eq!(result.build().min_size.height, Dimension::percent(1.0));
 
         // Test max-height
         let result =
             apply_max_height("max-h-none", sb.clone()).expect("CSS sizing test should succeed");
-        let _style = result.build();
+        assert_eq!(result.build().max_size.height, Dimension::auto());
     }
 
     #[test]

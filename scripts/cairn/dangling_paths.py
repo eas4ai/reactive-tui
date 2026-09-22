@@ -36,6 +36,23 @@ def changed_files(base: str) -> list[str]:
     return sorted({l.strip() for l in out.splitlines() if l.strip()})
 
 
+def package_roots(path: Path, tracked: set[str]) -> list[str]:
+    """Directories above `path` that hold a package manifest; a reference in a
+    file under a package resolves against that package too, the way its own
+    tooling reads it (a package.json script names its build script relative
+    to the package, not the repository)."""
+    roots = []
+    for parent in Path(rel(path)).parents:
+        for manifest in ("package.json", "Cargo.toml", "pyproject.toml"):
+            if str(parent / manifest) in tracked and str(parent) != ".":
+                roots.append(str(parent))
+    return roots
+
+
+def exists(ref: str, tracked: set[str], dirs: set[str]) -> bool:
+    return ref in tracked or ref in dirs or any(t.startswith(ref + ".") for t in tracked)
+
+
 def dangling(path: Path, tracked: set[str], dirs: set[str]) -> list[str]:
     if not path.is_file() or path.suffix in SKIP_SUFFIX:
         return []
@@ -43,12 +60,13 @@ def dangling(path: Path, tracked: set[str], dirs: set[str]) -> list[str]:
         text = path.read_text(errors="replace")
     except OSError:
         return []
+    roots = package_roots(path, tracked)
     bad = []
     for m in PATH_RE.finditer(text):
         ref = m.group(1).rstrip(".,:;)")
         if "*" in ref or "{" in ref or ref.endswith("/"):
             continue
-        if ref in tracked or ref in dirs or any(t.startswith(ref + ".") for t in tracked):
+        if exists(ref, tracked, dirs) or any(exists(f"{root}/{ref}", tracked, dirs) for root in roots):
             continue
         bad.append(f"{rel(path)}: {ref}")
     return bad

@@ -690,16 +690,31 @@ mod tests {
 
     #[test]
     fn test_button_handling() {
+        use std::sync::{Arc, Mutex};
         let modal = Modal;
         let button = ModalButton::new("test", "Test", ModalButtonAction::Close);
+        let clicked = Arc::new(Mutex::new(Vec::new()));
+        let closed = Arc::new(Mutex::new(Vec::new()));
         let props = ModalProps {
             buttons: vec![button.clone()],
+            on_button_click: Some(Arc::new({
+                let clicked = Arc::clone(&clicked);
+                move |id| clicked.lock().unwrap().push(id)
+            })),
+            on_close: Some(Arc::new({
+                let closed = Arc::clone(&closed);
+                move |reason| closed.lock().unwrap().push(reason)
+            })),
             ..Default::default()
         };
 
-        // Test button click
+        // A close button reports its click and then closes the modal
         modal.handle_button_click(&props, &button);
-        // Would trigger callback in real usage
+        assert_eq!(*clicked.lock().unwrap(), vec!["test".to_string()]);
+        assert_eq!(
+            *closed.lock().unwrap(),
+            vec![ModalCloseReason::ButtonClick("test".into())]
+        );
     }
 
     #[test]

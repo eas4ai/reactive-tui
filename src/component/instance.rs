@@ -246,6 +246,11 @@ struct ComponentInstanceWrapper<C: Component>(ComponentInstance<C>);
 impl<C: Component> AnyComponent for ComponentInstanceWrapper<C> {
     fn update_any(&mut self, props: &dyn Any) -> bool {
         if let Some(typed_props) = props.downcast_ref::<C::Props>() {
+            // Compare before copying: a frame that changes nothing costs a
+            // comparison, not a copy of the props (a chart's every point).
+            if self.0.supplied_props == *typed_props {
+                return false;
+            }
             self.0.update_props(typed_props.clone())
         } else {
             false

@@ -504,6 +504,11 @@ mod tests {
         let _counter = Rc::new(Cell::new(0));
 
         runtime.batch(|| {
+            assert_eq!(
+                *runtime.batch_depth.borrow(),
+                1,
+                "batch depth tracks the open batch"
+            );
             // Multiple signal changes in a batch
             for _ in 0..5 {
                 // Would trigger effects, but they're batched
@@ -511,7 +516,10 @@ mod tests {
             }
         });
 
-        // Effects would run after batch completes
+        // The batch closed and left no queued work behind
+        assert_eq!(*runtime.batch_depth.borrow(), 0);
+        assert!(runtime.pending_effects.borrow().is_empty());
+        assert!(runtime.effect_queue.borrow().is_empty());
     }
 
     #[test]

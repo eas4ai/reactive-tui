@@ -1060,7 +1060,11 @@ mod tests {
             .root(SignalComponent)
             .build()
             .expect("signal probe app must build");
-        app.run().expect("signal must request graceful shutdown");
+        let outcome = app.run();
+        assert!(
+            outcome.is_ok(),
+            "signal must request graceful shutdown: {outcome:?}"
+        );
         eprintln!("TRL002_SIGNAL_SHUTDOWN");
     }
 

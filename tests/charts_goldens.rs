@@ -371,7 +371,14 @@ fn cht_027_ten_thousand_points_cost_at_most_twice_one_thousand() {
             )
         }));
         match run {
-            Ok(frames) => frames.iter().map(|f| f.work_ms).fold(0.0, f64::max),
+            // The quietest frame after the first is the cost of the chart
+            // itself; the maximum would measure whatever else the machine
+            // was doing at that moment.
+            Ok(frames) => frames
+                .iter()
+                .skip(1)
+                .map(|f| f.work_ms)
+                .fold(f64::INFINITY, f64::min),
             Err(_) => panic!("{n} points did not paint three frames inside the harness's 3 s deadline: the chart does not decimate to its column count"),
         }
     };

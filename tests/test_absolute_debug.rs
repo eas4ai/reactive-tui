@@ -1,4 +1,4 @@
-use reactive_tui::layout::manager::LayoutManager;
+use reactive_tui::layout::manager::{LayoutManager, PaintOp};
 use reactive_tui::prelude::Element;
 
 #[test]
@@ -36,7 +36,17 @@ fn test_absolute_positioning_debug() {
     let paint_ops = manager.generate_paint_ops().unwrap();
 
     println!("\n=== Paint Operations ===");
-    for op in paint_ops {
+    for op in &paint_ops {
         println!("{:?}", op);
     }
+
+    // Each absolutely positioned child paints at its left/top offset
+    let text_at = |content: &str| {
+        paint_ops.iter().find_map(|op| match op {
+            PaintOp::Text { x, y, content: text, .. } if text == content => Some((*x, *y)),
+            _ => None,
+        })
+    };
+    assert_eq!(text_at("A"), Some((10, 5)), "child1 paints at left-10 top-5");
+    assert_eq!(text_at("B"), Some((20, 10)), "child2 paints at left-20 top-10");
 }

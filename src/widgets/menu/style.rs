@@ -324,8 +324,14 @@ mod tests {
         let selected_builder = style.apply_selected_style(None);
         let focused_builder = style.apply_focused_style(None);
 
-        // Should not panic and should return valid StyleBuilders
-        let _base_style = base_builder.build();
+        // The base style carries the menu padding; selected and focused rows are bold
+        assert!(base_builder.bg_rgba.is_some(), "base classes set a background");
+        assert_eq!(selected_builder.text.bold, Some(true));
+        assert_eq!(focused_builder.text.bold, Some(true));
+        let padding = taffy::style::LengthPercentage::length(f32::from(style.padding));
+        let base_style = base_builder.build();
+        assert_eq!(base_style.padding.left, padding);
+        assert_eq!(base_style.padding.top, padding);
         let _selected_style = selected_builder.build();
         let _focused_style = focused_builder.build();
     }

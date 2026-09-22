@@ -170,61 +170,78 @@ pub fn apply_responsive_container(token: &str, sb: StyleBuilder) -> Option<Style
 #[cfg(test)]
 mod tests {
     use super::*;
+    use taffy::style::{Dimension, LengthPercentageAuto};
 
     #[test]
     fn test_container_utilities() {
         let sb = StyleBuilder::new();
 
-        // Test basic container
+        // Test basic container: full width
         let result =
             apply_container("container", sb.clone()).expect("container class should be valid");
-        let _style = result.build();
+        assert_eq!(result.build().size.width, Dimension::percent(1.0));
 
-        // Test sized containers
+        // Test sized containers: fixed cell widths
         let result = apply_container("container-sm", sb.clone())
             .expect("container-sm class should be valid");
-        let _style = result.build();
+        assert_eq!(result.build().size.width, Dimension::length(80.0));
 
         let result = apply_container("container-lg", sb.clone())
             .expect("container-lg class should be valid");
-        let _style = result.build();
+        assert_eq!(result.build().size.width, Dimension::length(128.0));
     }
 
     #[test]
     fn test_centering_utilities() {
         let sb = StyleBuilder::new();
 
+        let auto = LengthPercentageAuto::auto();
+
         // Test horizontal centering
         let result = apply_centering("mx-auto", sb.clone()).expect("mx-auto class should be valid");
-        let _style = result.build();
+        let style = result.build();
+        assert_eq!((style.margin.left, style.margin.right), (auto, auto));
+        assert_ne!(style.margin.top, auto, "mx-auto leaves vertical margins alone");
 
         // Test vertical centering
         let result = apply_centering("my-auto", sb.clone()).expect("my-auto class should be valid");
-        let _style = result.build();
+        let style = result.build();
+        assert_eq!((style.margin.top, style.margin.bottom), (auto, auto));
+        assert_ne!(style.margin.left, auto, "my-auto leaves horizontal margins alone");
 
         // Test full centering
         let result = apply_centering("m-auto", sb.clone()).expect("m-auto class should be valid");
-        let _style = result.build();
+        let style = result.build();
+        assert_eq!(
+            (
+                style.margin.left,
+                style.margin.right,
+                style.margin.top,
+                style.margin.bottom
+            ),
+            (auto, auto, auto, auto)
+        );
     }
 
     #[test]
     fn test_aspect_ratio_utilities() {
         let sb = StyleBuilder::new();
 
+        // Ratios are halved horizontally because a cell is about twice as tall as wide
         // Test square aspect ratio
         let result = apply_aspect_ratio("aspect-square", sb.clone())
             .expect("aspect-square class should be valid");
-        let _style = result.build();
+        assert_eq!(result.build().aspect_ratio, Some(0.5));
 
         // Test video aspect ratio
         let result = apply_aspect_ratio("aspect-video", sb.clone())
             .expect("aspect-video class should be valid");
-        let _style = result.build();
+        assert_eq!(result.build().aspect_ratio, Some(16.0_f32 * 0.5 / 9.0));
 
         // Test custom aspect ratio
         let result = apply_aspect_ratio("aspect-[4/3]", sb.clone())
             .expect("aspect-[4/3] class should be valid");
-        let _style = result.build();
+        assert_eq!(result.build().aspect_ratio, Some(4.0_f32 * 0.5 / 3.0));
     }
 
     #[test]

@@ -483,12 +483,12 @@ mod tests {
         }
         let mut renderer = renderer_result.unwrap();
 
-        // Debug overlay should be disabled by default
+        // Debug overlay is disabled by default and follows the toggle
+        assert!(!renderer.debug_overlay);
         renderer.set_debug_overlay(true);
-        // No direct way to test this without rendering, but ensure it doesn't panic
-
+        assert!(renderer.debug_overlay);
         renderer.set_debug_overlay(false);
-        // Should not panic
+        assert!(!renderer.debug_overlay);
     }
 
     #[test]
@@ -501,12 +501,12 @@ mod tests {
         }
         let mut renderer = renderer_result.unwrap();
 
-        // Test enabling detailed stats
+        // Detailed stats are off by default and follow the toggle
+        assert!(!renderer.detailed_stats_enabled);
         renderer.enable_detailed_stats();
-        // No direct way to verify without rendering, but ensure it doesn't panic
-
+        assert!(renderer.detailed_stats_enabled);
         renderer.disable_detailed_stats();
-        // Should not panic
+        assert!(!renderer.detailed_stats_enabled);
     }
 
     #[test]
@@ -553,8 +553,10 @@ mod tests {
         let red = Rgba::new(1.0, 0.0, 0.0, 1.0);
 
         renderer.clear(red);
-        // Surface should be cleared (no direct way to verify color without accessing internals)
-        // But the operation should not panic
+        // Every back-buffer cell takes the clear colour
+        let (width, height) = renderer.dims();
+        assert_eq!(renderer.surface().get(0, 0).bg, red);
+        assert_eq!(renderer.surface().get(width - 1, height - 1).bg, red);
     }
 
     #[test]
