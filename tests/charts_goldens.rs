@@ -290,6 +290,29 @@ fn cht_013_tallest_bar_on_the_top_row_keeps_its_value_label() {
     }
 }
 
+/// CHT-013, CHT-025: every bar tip is a block or an eighth block, never a
+/// braille cap, whatever fraction of a cell the value lands on.
+#[test]
+fn cht_013_every_bar_tip_is_an_eighth_block_not_a_braille_cap() {
+    let bars = last(
+        ChartType::BarVertical,
+        (40, 24),
+        &[2.0, 8.0, 5.0, 9.0, 3.0, 7.0, 4.3, 6.7],
+        10.0,
+    );
+    assert_eq!(
+        count(&bars, is_braille),
+        0,
+        "bar tips must resolve to eighth blocks, not braille:\n{}",
+        bars.text
+    );
+    assert!(
+        count(&bars, |c| EIGHTHS.contains(&c)) > 0,
+        "fractional tips must show an eighth block:\n{}",
+        bars.text
+    );
+}
+
 /// CHT-020, CHT-013: a typed bar builder's `.label(..)` text is what the
 /// large class draws beside each bar.
 #[test]
