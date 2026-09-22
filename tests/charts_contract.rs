@@ -117,7 +117,8 @@ fn cht_018_tooltip_is_a_box_with_swatch_rows_and_a_crosshair() {
 }
 
 /// CHT-019: mouse selects the nearest data index; two positions inside the
-/// same band select the same point.
+/// same band select the same point, and an empty cell between two points
+/// still selects the nearer one.
 #[test]
 fn cht_019_mouse_selects_nearest_index_within_a_band() {
     let size = (40u16, 12u16);
@@ -144,6 +145,38 @@ fn cht_019_mouse_selects_nearest_index_within_a_band() {
         a.text.contains("p1"),
         "nearest point label expected in tooltip:\n{}",
         a.text
+    );
+    // Scatter points sit on isolated cells; hovering the empty cell beside one
+    // must still select the nearest index instead of nothing.
+    let scatter = props(ChartType::Scatter, size, &[2.0, 8.0, 5.0, 7.0]);
+    let plain = app_input::run(
+        Root(Element::typed::<Chart>(scatter.clone())),
+        size,
+        vec![(2, None)],
+    )
+    .pop()
+    .unwrap();
+    let (row, col) = (0..size.1)
+        .flat_map(|r| (0..size.0).map(move |c| (r, c)))
+        .find(|(r, c)| {
+            plain
+                .screen
+                .cell(*r, *c)
+                .map(|cell| cell.contents() == "\u{2022}")
+                .unwrap_or(false)
+        })
+        .expect("scatter paints a point");
+    let beside = app_input::run(
+        Root(Element::typed::<Chart>(scatter)),
+        size,
+        vec![(2, hover(col + 1, row + 1)), (3, None)],
+    )
+    .pop()
+    .unwrap();
+    assert!(
+        beside.text.contains("p"),
+        "hovering the empty cell next to a point must select the nearest index, got:\n{}",
+        beside.text
     );
 }
 
