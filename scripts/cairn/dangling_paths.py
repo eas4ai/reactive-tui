@@ -1,10 +1,8 @@
 #!/usr/bin/env python3
-"""BAR-007: no file added or changed in the commitment range references a path
-that `git ls-files` does not list.
-
-Range: files changed between BASE and HEAD plus staged and unstaged changes.
-BASE is `--base REF`, else $CAIRN_BASE, else the tag v1.0.0.
-`--fixture PATH` scans one file (used to demonstrate the failing case).
+"""BAR-007: no tracked file references a repository path that `git ls-files`
+does not list. Whole tree: deleting a target strands references in files that
+did not change. `--range` limits the scan to files changed since --base/$CAIRN_BASE
+(default tag v1.0.0); `--fixture PATH` scans one file.
 """
 
 import os
@@ -16,7 +14,11 @@ from pathlib import Path
 from _common import ROOT, tracked_files
 
 TOP = "docs|scripts|tests|src|manual|include|examples|crates|verification|benches|bindings|\\.github"
-PATH_RE = re.compile(rf"(?<![A-Za-z0-9_./-])((?:{TOP})/[A-Za-z0-9_./-]+)")
+PATH_RE = re.compile(rf"(?<![A-Za-z0-9_./-])(?:\.\./|\./)*((?:{TOP})/[A-Za-z0-9_./-]+)")
+# Dated reports cite paths as they were, and the contract names paths it
+# requires to exist later; neither is a live link.
+DATED = ("docs/recon.md",)
+CONTRACT_PREFIX = "docs/spec/"
 SKIP_SUFFIX = (".lock",)
 
 
@@ -58,9 +60,12 @@ def main() -> int:
     dirs |= {d for p in tracked for d in map(str, Path(p).parents)}
     if len(sys.argv) > 2 and sys.argv[1] == "--fixture":
         targets = [Path(sys.argv[2]).resolve()]
-    else:
+    elif "--range" in sys.argv:
         base = sys.argv[sys.argv.index("--base") + 1] if "--base" in sys.argv else os.environ.get("CAIRN_BASE", "v1.0.0")
         targets = [ROOT / f for f in changed_files(base)]
+    else:
+        targets = [ROOT / f for f in sorted(tracked) if f not in DATED and not f.startswith(CONTRACT_PREFIX) and f.endswith((".md", ".py", ".sh", ".rs", ".toml", ".yml", ".yaml", ".json", ".mjs", ".ts", ".c", ".h"))
+                   and not f.startswith(("crates/", ".github/"))]
     bad = [b for t in targets for b in dangling(t, tracked, dirs)]
     if bad:
         print("BAR-007 violated: references to paths git does not track:")

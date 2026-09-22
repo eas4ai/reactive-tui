@@ -17,7 +17,8 @@ from _common import ROOT, rust_sources
 
 TEST_ATTR = re.compile(r"#\[(?:tokio::)?test[^\]]*\]")
 FN = re.compile(r"\bfn\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(")
-MARKERS = re.compile(r"\bassert(?:_eq|_ne)?!|\bpanic!|\bunreachable!|\.expect\(|\.unwrap\(\)|\.unwrap_err\(|\?\s*;|\?\s*\)|\?\s*\}|debug_assert")
+MARKERS = re.compile(r"\bassert(?:_eq|_ne)?!|\bpanic!|\bunreachable!|debug_assert|\bmatches!")
+HARDWARE = re.compile(r"is_hardware|adapter|GPU|wgpu|Xvfb|DISPLAY")
 NO_HARNESS = {"dqc_003_captured_diagnostics"}
 
 
@@ -57,6 +58,8 @@ def audit(path: Path) -> list[str]:
         body = body_after(text, m.end() + fn.end())
         if not MARKERS.search(body):
             bad.append(f"{rel(path)}::{name}")
+        elif HARDWARE.search(body) and re.search(r"\breturn\b", body) and "SKIP" not in body:
+            bad.append(f"{rel(path)}::{name} (hardware-gated early return without printing SKIP)")
     return bad
 
 

@@ -12,7 +12,7 @@ import sys
 
 from _common import ROOT, rust_sources, strip_test_modules
 
-CHART_TYPES = ["line", "area", "bar", "candlestick"]
+CHART_TYPES = ["line", "area", "scatter", "bar", "candlestick"]
 CATALOG = ROOT / "examples/widget_catalog/catalog.rs"
 MANUAL = ROOT / "manual/display-widgets.md"
 
@@ -30,10 +30,12 @@ def chart_docs_problems() -> list[str]:
     for kind in CHART_TYPES:
         if f"{kind} chart" not in catalog and f"{kind}_chart" not in catalog:
             problems.append(f"catalog has no {kind} chart page")
-        if not re.search(rf"^#+ .*{kind}", manual, re.I | re.M) and f"{kind} chart" not in manual.lower():
-            problems.append(f"manual has no {kind} chart section")
+        if not re.search(rf"^#+ .*\b{kind}\b", manual, re.I | re.M):
+            problems.append(f"manual has no heading for the {kind} chart")
+    if not re.search(r"^#+ .*size class", manual, re.I | re.M):
+        problems.append("manual has no size-class heading")
     for cls in ("mini", "medium", "large"):
-        if cls not in manual.lower():
+        if not re.search(rf"\b{cls}\b", manual, re.I):
             problems.append(f"manual does not describe the {cls} size class")
     methods = code_methods()
     cited = set(re.findall(r"`\.?([a-z_][a-z0-9_]*)\(", manual))
