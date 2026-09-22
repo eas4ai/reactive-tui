@@ -128,11 +128,15 @@ fn test_focus_management_api() {
 
     // Test focus management API
     let node_id = NodeId::new();
-    framework.app.register_focusable(node_id, Some(0));
-    framework.app.set_initial_focus(node_id);
-
-    // Focus management should work without errors
-    // (We can't test the internal state due to private fields, but we can test the API)
+    assert!(
+        framework.app.register_focusable(node_id, Some(0)),
+        "node registers as focusable"
+    );
+    assert!(
+        framework.app.set_initial_focus(node_id),
+        "initial focus lands on the node"
+    );
+    assert_eq!(framework.app.current_focus(), Some(&node_id));
 }
 
 #[test]
@@ -250,18 +254,19 @@ fn test_focus_management_multiple_nodes() {
     let node2 = NodeId::new();
     let node3 = NodeId::new();
 
-    framework.app.register_focusable(node1, Some(0));
-    framework.app.register_focusable(node2, Some(1));
-    framework.app.register_focusable(node3, Some(2));
+    assert!(framework.app.register_focusable(node1, Some(0)));
+    assert!(framework.app.register_focusable(node2, Some(1)));
+    assert!(framework.app.register_focusable(node3, Some(2)));
 
     // Set initial focus
-    framework.app.set_initial_focus(node1);
+    assert!(framework.app.set_initial_focus(node1));
+    assert_eq!(framework.app.current_focus(), Some(&node1));
 
-    // Test that focus management doesn't crash with multiple nodes
-    framework.app.set_initial_focus(node2);
-    framework.app.set_initial_focus(node3);
-
-    // All operations should complete without errors
+    // Focus moves to each later node in turn
+    assert!(framework.app.set_initial_focus(node2));
+    assert_eq!(framework.app.current_focus(), Some(&node2));
+    assert!(framework.app.set_initial_focus(node3));
+    assert_eq!(framework.app.current_focus(), Some(&node3));
 }
 
 #[test]

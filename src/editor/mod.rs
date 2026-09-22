@@ -2,7 +2,7 @@
 //!
 //! This module provides text editing capabilities using a scalar gap buffer. Positions count Unicode scalars; editor movement
 //! and deletion use complete graphemes, while vertical movement uses terminal
-//! columns. See `docs/editor-positions.md` for the conversion and rendering rules.
+//! columns. See `manual/text-editing-markdown-and-syntax.md` for the conversion and rendering rules.
 
 pub mod cursor;
 pub mod gap_buffer;

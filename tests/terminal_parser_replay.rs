@@ -14,8 +14,8 @@
 //!
 //! What it explicitly does NOT cover: font glyph coverage. Whether U+2800
 //! renders blank or as dotted tofu is a font property, invisible to every
-//! parser. That risk is tracked per terminal in
-//! `docs/spec/terminal-compatibility.md`.
+//! parser. That risk was tracked per terminal in the retired
+//! terminal-compatibility contract, not in this test.
 //!
 //! Parser models: `vt100` (always) and Ghostty's real VT parser
 //! (`embedded-terminal` feature, via `crates/libghostty-vt`).

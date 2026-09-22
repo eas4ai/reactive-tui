@@ -1,6 +1,8 @@
 use crate::core::surface::Surface;
 use crate::error::{ReactiveError, Result};
 pub(crate) mod suprtui;
+/// A prepared grid of glyphs and colors painted by one element.
+pub mod cells;
 mod transform;
 use taffy::style::Overflow;
 /// Options for controlling paint behavior

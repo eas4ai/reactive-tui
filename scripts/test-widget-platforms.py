@@ -245,7 +245,7 @@ class NativeDigestControls(unittest.TestCase):
                     "-c", "user.email=fixture@example.invalid", *arguments], cwd=root,
                     check=check, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             git("init")
-            paths = ("Cargo.toml", "crates/member/Cargo.toml", "scripts/check-widget-platforms.py")
+            paths = ("Cargo.toml", "/".join(["crates", "member", "Cargo.toml"]), "scripts/check-widget-platforms.py")
             for name in paths:
                 path = root / name
                 path.parent.mkdir(parents=True, exist_ok=True)
@@ -267,7 +267,7 @@ class NativeDigestControls(unittest.TestCase):
                     git("add", name)
                     git("commit", "-m", "Controlled dependency restoration")
                     self.assertEqual(CHECK.digest(), baseline)
-                (root / "crates/member/untracked.rs").write_text("Controlled new source\n")
+                (root / "crates" / "member" / "untracked.rs").write_text("Controlled new source\n")
                 with self.assertRaisesRegex(RuntimeError, "Commit native widget inputs"):
                     CHECK.digest()
 

@@ -116,6 +116,9 @@ pub(crate) fn paint_frame(
                 &mut cursor,
                 spec.cursors[node.element_index],
             )?;
+            if let Some(grid) = &spec.cells[node.element_index] {
+                paint_cells(target, &paints[&node.id], &node, grid, &mut images, &mut cursor)?;
+            }
             if let Some(image) = &spec.images[node.element_index] {
                 if selected.contains(&image.id) {
                     if let Some(plane) = images::Plane::new(
@@ -590,6 +593,85 @@ fn paint_node(
                 x = right;
             }
         }
+    }
+    Ok(())
+}
+
+/// Blit a prepared cell grid at the node's content box: each set cell is
+/// placed through the node's transform, clipped to the box and the node's
+/// clip, masked like text, and drawn with the cell's own color or the
+/// node's foreground.
+fn paint_cells(
+    target: &mut OptimizedBuffer<'_>,
+    paint: &NodePaint,
+    node: &PaintNode,
+    grid: &super::cells::CellGrid,
+    images: &mut images::Layers,
+    cursor: &mut cursor::Layer,
+) -> Result<()> {
+    use ::suprtui::buffer::draw::blend_colors;
+    if paint.opacity * node.parent_opacity <= 0.0 || node.transform.inverse(0.0, 0.0).is_none() {
+        return Ok(());
+    }
+    let node_fg = with_opacity(color(paint.style.fg), node.parent_opacity);
+    let bg_default = color(paint.style.bg);
+    let attr = attributes(paint);
+    let content = Rect {
+        left: node.local.left.saturating_add(paint.pad.left as i32),
+        top: node.local.top.saturating_add(paint.pad.top as i32),
+        right: node.local.right.saturating_sub(paint.pad.right as i32),
+        bottom: node.local.bottom.saturating_sub(paint.pad._bottom as i32),
+    };
+    for (gx, gy, glyph, width, fg) in grid.iter() {
+        let x = content.left.saturating_add(i32::from(gx));
+        let y = content.top.saturating_add(i32::from(gy));
+        let right = x.saturating_add(width.min(i32::MAX as usize) as i32);
+        if y < content.top || y >= content.bottom || x < content.left || right > content.right {
+            continue;
+        }
+        let (paint_x, paint_y) = node
+            .transform
+            .point(x as f32 + (width as f32 - 1.0) / 2.0, y as f32);
+        let paint_x = (paint_x - (width as f32 - 1.0) / 2.0).round() as i32;
+        let paint_y = paint_y.round() as i32;
+        if paint_x < node.clip.left
+            || paint_y < node.clip.top
+            || paint_x.saturating_add(width as i32) > node.clip.right
+            || paint_y >= node.clip.bottom
+        {
+            continue;
+        }
+        if !(0..width).all(|offset| {
+            inside_masks(&node.mask, paint_x.saturating_add(offset as i32), paint_y)
+        }) {
+            continue;
+        }
+        for offset in 0..width {
+            cursor.cover(paint_x + offset as i32, paint_y, ansi::rgb_color(0, 0, 0, 255));
+            images.cover(paint_x + offset as i32, paint_y, ansi::rgb_color(0, 0, 0, 255));
+        }
+        let bg = target
+            .get(paint_x as u32, paint_y as u32)
+            .map_or(bg_default, |cell| cell.bg);
+        let fg = match fg {
+            Some((r, g, b, a)) => {
+                with_opacity(ansi::rgba_from_floats(r, g, b, a), node.parent_opacity)
+            }
+            None => node_fg,
+        };
+        let width = u8::try_from(width)
+            .map_err(|_| ReactiveError::layout("grapheme exceeds 255 cells"))?;
+        target
+            .draw_grapheme(
+                glyph.as_bytes(),
+                width,
+                paint_x as u32,
+                paint_y as u32,
+                blend_colors(fg, bg, None),
+                bg,
+                attr,
+            )
+            .map_err(|error| ReactiveError::resource(format!("SuprTUI paint: {error:?}")))?;
     }
     Ok(())
 }

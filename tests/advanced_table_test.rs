@@ -162,11 +162,18 @@ fn test_advanced_table_creation() {
         .with_virtual_scroll(false, 32, 400)
         .with_features(true, true, true);
 
+    assert!(props.pagination.enabled, "pagination is enabled");
+    assert_eq!(props.pagination.page_size, 5, "page size is retained");
+    assert!(props.show_pagination, "pagination controls are shown");
+
     // Create the element
     let element = Element::component_with_props("DataTable", props);
-    let _render_node = element_to_render_node(element);
-
-    println!("✅ Advanced Table created successfully");
+    let render_node = element_to_render_node(element);
+    assert_eq!(
+        render_node.node_type(),
+        "DataTable",
+        "render node keeps the component name"
+    );
 }
 
 #[test]

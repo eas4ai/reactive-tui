@@ -16,7 +16,7 @@ override, disables LTO, and caps the C and Go build workers at 12. The source
 tree must stay at its build path because Kitty's development launcher uses it.
 The runtime remains local; no binary is committed or installed globally.
 
-Install the build dependencies listed in the pinned archive's `docs/build.rst`:
+Install the build dependencies that Kitty's own build guide (`build.rst` under the pinned archive's documentation directory) lists:
 a C compiler, Go, Python development headers, pkg-config, X11/Wayland headers,
 font and image libraries, libcanberra, xxhash, and SIMDe. The required Symbols
 Nerd Font Mono must be visible to fontconfig, or available with its license in

@@ -60,6 +60,8 @@ pub struct ElementMetadata {
     pub(crate) inert: bool,
     pub(crate) image: Option<Arc<crate::widgets::display::image::paint::ImagePaint>>,
     pub(crate) image_fallback: Option<u32>,
+    /// A prepared cell grid this element paints in one step.
+    pub(crate) cells: Option<Arc<crate::layout::paint_tree::cells::CellGrid>>,
     pub(crate) text_cursor: Option<TextCursor>,
     /// Autofocus descendants and restore on removal without trapping Tab.
     pub(crate) focus_scope: bool,
@@ -95,6 +97,11 @@ impl PartialEq for ElementMetadata {
             && self.disabled == other.disabled
             && self.inert == other.inert
             && self.image == other.image
+            && match (&self.cells, &other.cells) {
+                (Some(a), Some(b)) => Arc::ptr_eq(a, b) || a == b,
+                (None, None) => true,
+                _ => false,
+            }
             && self.image_fallback == other.image_fallback
             && self.text_cursor == other.text_cursor
             && self.focus_scope == other.focus_scope
@@ -269,6 +276,19 @@ impl Element {
             ))
         }));
         element
+    }
+
+    /// Paint `grid` at this element's content box in one step. The element
+    /// keeps its own size from its styles; the grid is clipped to the box,
+    /// and its per-cell colors override the element's foreground where set.
+    pub fn with_cells(mut self, grid: Arc<crate::layout::paint_tree::cells::CellGrid>) -> Self {
+        self.metadata.cells = Some(grid);
+        self
+    }
+
+    /// The cell grid this element paints, if any.
+    pub fn cells(&self) -> Option<&Arc<crate::layout::paint_tree::cells::CellGrid>> {
+        self.metadata.cells.as_ref()
     }
 
     /// Create a new component element with props

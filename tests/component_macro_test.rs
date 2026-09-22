@@ -168,7 +168,12 @@ mod tests {
 
         // No props component
         let hello = HelloWorld::new(EmptyProps);
-        let _element = hello.render(&EmptyProps, &());
+        let element = hello.render(&EmptyProps, &());
+        assert!(
+            matches!(&element.element_type, ElementType::Text(text) if text == "Hello from a macro component!"),
+            "unexpected no-props element: {:?}",
+            element.element_type
+        );
 
         // Props component
         let greeting_props = GreetingProps {
@@ -176,7 +181,12 @@ mod tests {
             age: Some(30),
         };
         let greeting = Greeting::new(greeting_props.clone());
-        let _element = greeting.render(&greeting_props, &());
+        let element = greeting.render(&greeting_props, &());
+        assert!(
+            matches!(&element.element_type, ElementType::Text(text) if text == "Hello Charlie, you are 30 years old!"),
+            "unexpected props element: {:?}",
+            element.element_type
+        );
     }
 
     #[test]

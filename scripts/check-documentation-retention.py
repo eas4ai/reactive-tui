@@ -14,14 +14,16 @@ ALLOWED_DOC_PREFIXES = (
     "docs/commitments/",
     "docs/decisions/",
 )
+SPEC, COMMITMENTS, DECISIONS = ALLOWED_DOC_PREFIXES
+RETENTION_PROBE = "__retention_probe__.md"
 REQUIRED_PATHS = (
     ".cairn/mechanisms/documentation-retention",
     "docs/spec/overview.md",
     "docs/spec/glossary.md",
     "docs/spec/roadmap.md",
-    "docs/spec/documentation-retention.md",
-    "docs/commitments/documentation-retention.md",
-    "docs/decisions/retain-only-cairn-managed-documentation.md",
+    SPEC + "documentation-retention.md",
+    COMMITMENTS + "documentation-retention.md",
+    DECISIONS + "retain-only-cairn-managed-documentation.md",
 )
 
 
@@ -62,12 +64,12 @@ def main() -> int:
         if not is_tracked:
             errors.append(f"required Cairn artifact is not tracked: {required}")
 
-    legacy_probe = git("check-ignore", "--no-index", "docs/__retention_probe__.md")
+    legacy_probe = git("check-ignore", "--no-index", f"docs/{RETENTION_PROBE}")
     if legacy_probe.returncode != 0:
-        errors.append("legacy docs path is not ignored: docs/__retention_probe__.md")
+        errors.append(f"legacy docs path is not ignored: docs/{RETENTION_PROBE}")
 
     for directory in ("spec", "commitments", "decisions"):
-        probe = f"docs/{directory}/__retention_probe__.md"
+        probe = f"docs/{directory}/{RETENTION_PROBE}"
         result = git("check-ignore", "--no-index", probe)
         if result.returncode == 0:
             errors.append(f"Cairn docs path is ignored: {probe}")

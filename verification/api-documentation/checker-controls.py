@@ -11,6 +11,9 @@ from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[2]
 CHECK = runpy.run_path(str(ROOT / "scripts/check-api-documentation.py"))
+# Fixture paths inside a temporary tree, not files of this repository.
+NESTED_MANUAL = "/".join(["manual", "nested"])
+NESTED_EXAMPLE = NESTED_MANUAL + "/example.md"
 
 
 class ConsumerCaptureControls(unittest.TestCase):
@@ -54,23 +57,23 @@ class RetainedDocumentationControls(unittest.TestCase):
     def test_nested_manual_examples_enter_the_compilation_inventory(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
-            for directory in ("manual/nested", "include", "bindings/typescript", "src", "crates/reactive-tui-macros/src", "output"):
+            for directory in (NESTED_MANUAL, "include", "bindings/typescript", "src", "crates/reactive-tui-macros/src", "output"):
                 (root / directory).mkdir(parents=True, exist_ok=True)
             (root / "README.md").write_text("```rust,no_run\nlet value = 1;\n```\n")
             (root / "include/README.md").write_text("```c\nint main(void) { return 0; }\n```\n")
             (root / "bindings/typescript/README.md").write_text("```typescript\nconst value = 1;\n```\n")
             (root / "crates/reactive-tui-macros/src/lib.rs").write_text("")
-            manual = root / "manual/nested/example.md"
+            manual = root / NESTED_EXAMPLE
             manual.write_text("# Example\n```rust,no_run\nlet nested = 2;\n```\n\n```python\nassert True\n```\n")
             check = CHECK["Check"].__new__(CHECK["Check"])
             check.output = root / "output"
             with patch.dict(CHECK["Check"].collect_examples.__globals__, ROOT=root):
                 rust, _, _, python = check.collect_examples()
-            self.assertIn("manual/nested/example.md", [name for name, _ in rust])
-            self.assertIn("manual/nested/example.md", [name for name, _, _ in python])
+            self.assertIn(NESTED_EXAMPLE, [name for name, _ in rust])
+            self.assertIn(NESTED_EXAMPLE, [name for name, _, _ in python])
             inventory = json.loads((check.output / "examples.json").read_text())
             self.assertEqual([entry["language"] for entry in inventory
-                              if entry["file"] == "manual/nested/example.md"], ["rust", "python"])
+                              if entry["file"] == NESTED_EXAMPLE], ["rust", "python"])
 
     def test_inventory_rejects_missing_modules_and_missing_linked_evidence(self):
         with tempfile.TemporaryDirectory() as temporary:

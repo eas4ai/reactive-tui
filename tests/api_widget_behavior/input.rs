@@ -488,7 +488,7 @@ fn empty_and_zero_width_selects_handle_navigation_without_panics() {
             ..Default::default()
         })
         .auto_focus();
-        run(
+        let frames = run(
             Control(control),
             size,
             vec![
@@ -498,6 +498,11 @@ fn empty_and_zero_width_selects_handle_navigation_without_panics() {
                 (1, key(KeyCode::Escape)),
                 (2, None),
             ],
+        );
+        assert!(
+            frames.len() >= 2,
+            "empty select keeps painting after navigation keys at {size:?}: {} frames",
+            frames.len()
         );
     }
 }

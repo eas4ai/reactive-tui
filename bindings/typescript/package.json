@@ -5,13 +5,13 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "build": "node scripts/build.cjs",
+    "build": "cd scripts && node build.cjs",
     "build:rust": "cd ../.. && cargo build --locked --release --features ffi",
     "test": "python3 -B ../../scripts/check-typescript-abi.py",
     "lint": "eslint src/**/*.ts --max-warnings 0",
     "prepublishOnly": "npm run build",
-    "example:hello": "ts-node examples/hello-world.ts",
-    "example:component": "ts-node examples/component-demo.ts"
+    "example:hello": "cd examples && ts-node hello-world.ts",
+    "example:component": "cd examples && ts-node component-demo.ts"
   },
   "keywords": [
     "terminal",

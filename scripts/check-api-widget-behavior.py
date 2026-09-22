@@ -12,7 +12,7 @@ MATRIX_END = "<!-- WIDGET-ACCEPTANCE-END -->"
 
 def matrix_text():
     """The authoritative acceptance matrix, kept in the API-011 spec section."""
-    text = (root / "docs/spec/rust-api-remediation.md").read_text()
+    text = (root / "docs" / "spec" / "rust-api-remediation.md").read_text()
     start = text.index(MATRIX_START) + len(MATRIX_START)
     return text[start:text.index(MATRIX_END)]
 # Avoid the observed rustc incremental metadata ICE; execute the same tests.

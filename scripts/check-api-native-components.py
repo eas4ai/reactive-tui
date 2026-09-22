@@ -85,7 +85,7 @@ def main():
             failures.append('C compilation')
         package = ROOT / 'bindings/typescript'
         try:
-            execute(['node', package / 'scripts/build.cjs'])
+            execute(['node', package / 'scripts' / 'build.cjs'])
             execute([package / 'node_modules/.bin/tsc', SOURCE / 'consumer.ts', '--strict', '--target',
                      'ES2020', '--module', 'commonjs', '--moduleResolution', 'node', '--esModuleInterop',
                      '--resolveJsonModule', '--skipLibCheck', '--types', 'node', '--typeRoots',

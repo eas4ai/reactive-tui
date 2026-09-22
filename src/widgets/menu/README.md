@@ -298,7 +298,7 @@ impl Component for MyApp {
 
 ## Examples
 
-See `examples/menu_demo.rs` for a complete example demonstrating all menu types and features.
+See the [menus manual chapter](../../../manual/menus.md) for complete examples of all menu types and features.
 
 ## Future Enhancements
 

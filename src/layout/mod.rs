@@ -17,6 +17,7 @@ pub mod manager;
 pub(crate) mod motion;
 /// Paint tree for rendering layout results to terminal
 pub mod paint_tree;
+pub use paint_tree::cells::CellGrid;
 /// Layout renderer for painting to surfaces
 pub mod renderer;
 /// Style builder and management utilities

@@ -5,43 +5,22 @@
 use super::super::mask::{GlyphSet, MaskCanvas};
 use super::super::plot::{self, Legend, LegendEntry, Rect, Rgba, SizeClass, TextSink};
 use super::super::{ChartAxis, ChartProps, ChartType, DataPoint, DataSeries, LegendPosition};
-use crate::builder::ElementBuilder;
-use crate::component::{Element, ElementType};
-use crate::layout::style::StyleBuilder;
+use crate::layout::paint_tree::cells::CellGrid;
 use std::collections::HashMap;
+use std::sync::Arc;
 use unicode_segmentation::UnicodeSegmentation;
 use unicode_width::UnicodeWidthStr;
 
 mod cartesian;
 mod pie;
 
-/// One finished cell.
-#[derive(Clone, Debug, Default, PartialEq)]
-pub(super) struct Cell {
-    /// Glyph, or empty for a blank cell (or a wide glyph's continuation).
-    pub text: String,
-    pub color: Option<Rgba>,
-    /// The (series, point) drawn here, for pointer hit testing.
-    pub owner: Option<(usize, usize)>,
-}
-
-/// A run of adjacent cells sharing one color on one row.
-#[derive(Clone, Debug, PartialEq)]
-pub(super) struct Run {
-    pub y: usize,
-    pub x: usize,
-    pub width: usize,
-    pub text: String,
-    pub color: Option<Rgba>,
-}
-
 /// The rasterized chart plus what the main thread needs for interaction.
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug)]
 pub(super) struct Picture {
     pub width: usize,
     pub height: usize,
-    pub cells: Vec<Cell>,
-    pub runs: Vec<Run>,
+    /// The finished cells, painted by one element (CHT-021, BAR-005).
+    pub grid: Arc<CellGrid>,
     /// The size class the picture was drawn at.
     pub class: Option<SizeClass>,
     /// The plot rectangle.
@@ -56,6 +35,26 @@ pub(super) struct Picture {
     pub scatter: bool,
     /// Kept samples per series after decimation: (original index, value).
     pub kept: Vec<Vec<usize>>,
+}
+
+impl Picture {
+    fn blank(width: usize, height: usize) -> Self {
+        Self {
+            width,
+            height,
+            grid: Arc::new(CellGrid::new(
+                u16::try_from(width).unwrap_or(u16::MAX),
+                u16::try_from(height).unwrap_or(u16::MAX),
+            )),
+            class: None,
+            plot: Rect::default(),
+            index_columns: Vec::new(),
+            index_rows: Vec::new(),
+            anchors: HashMap::new(),
+            scatter: false,
+            kept: Vec::new(),
+        }
+    }
 }
 
 /// The text layers: `under` shows where the mask is empty, `over` covers it.
@@ -272,11 +271,7 @@ pub(super) fn draw(job: &Job) -> Picture {
     } else {
         GlyphSet::Unicode
     };
-    let mut picture = Picture {
-        width,
-        height,
-        ..Default::default()
-    };
+    let mut picture = Picture::blank(width, height);
     if width == 0 || height == 0 {
         return picture;
     }
@@ -407,117 +402,33 @@ fn legend_area(
     }
 }
 
-/// Merge the mask and the text layers into cells and color runs.
+/// Merge the mask and the text layers into the cell grid one element paints.
 fn compose(mut picture: Picture, mask: &MaskCanvas, text: &TextLayer, glyphs: GlyphSet) -> Picture {
     let (width, height) = (picture.width, picture.height);
-    let mut cells = vec![Cell::default(); width * height];
-    for y in 0..height {
-        for x in 0..width {
+    let mut grid = CellGrid::new(
+        u16::try_from(width).unwrap_or(u16::MAX),
+        u16::try_from(height).unwrap_or(u16::MAX),
+    );
+    for y in 0..height.min(usize::from(u16::MAX)) {
+        for x in 0..width.min(usize::from(u16::MAX)) {
             let i = y * width + x;
-            let resolved = mask.resolve(x, y, glyphs);
-            let cell = if let Some((t, c)) = &text.over[i] {
-                Cell {
-                    text: t.clone(),
-                    color: *c,
-                    owner: resolved.owner,
-                }
-            } else if let Some(glyph) = resolved.glyph {
-                Cell {
-                    text: glyph.to_string(),
-                    color: resolved.color,
-                    owner: resolved.owner,
-                }
-            } else if let Some((t, c)) = &text.under[i] {
-                Cell {
-                    text: t.clone(),
-                    color: *c,
-                    owner: None,
-                }
+            let (glyph, color): (&str, Option<Rgba>) = if let Some((t, c)) = &text.over[i] {
+                (t.as_str(), *c)
             } else {
-                Cell::default()
+                let resolved = mask.resolve(x, y, glyphs);
+                match resolved.glyph {
+                    Some(glyph) => (glyph, resolved.color),
+                    None => match &text.under[i] {
+                        Some((t, c)) => (t.as_str(), *c),
+                        None => continue,
+                    },
+                }
             };
-            cells[i] = cell;
+            grid.set(x as u16, y as u16, glyph, color);
         }
     }
-    picture.runs = runs(&cells, width, height);
-    picture.cells = cells;
+    picture.grid = Arc::new(grid);
     picture
-}
-
-/// Run-length encode `cells` by row: a run keeps one color and continues
-/// over blank cells, ending only where a visible cell of another color
-/// starts. Every element the App lays out costs the same, so a row with one
-/// series stroke is one element however often the stroke crosses it.
-pub(super) fn runs(cells: &[Cell], width: usize, height: usize) -> Vec<Run> {
-    let mut runs = Vec::new();
-    let visible = |cell: &Cell| !cell.text.trim().is_empty();
-    for y in 0..height {
-        let row = &cells[y * width..(y + 1) * width];
-        let mut x = 0;
-        while x < width {
-            // Skip leading blanks.
-            while x < width && !visible(&row[x]) {
-                x += 1;
-            }
-            if x >= width {
-                break;
-            }
-            let start = x;
-            let color = row[x].color;
-            let mut text = String::new();
-            let mut end = x;
-            while x < width {
-                let cell = &row[x];
-                if visible(cell) && cell.color != color {
-                    break;
-                }
-                if cell.text.is_empty() {
-                    if x == 0 || UnicodeWidthStr::width(row[x - 1].text.as_str()) < 2 {
-                        text.push(' ');
-                    }
-                } else {
-                    text.push_str(&cell.text);
-                }
-                if visible(cell) {
-                    end = x + 1;
-                }
-                x += 1;
-            }
-            // Drop trailing blanks so the next run can start there.
-            let keep: String = text.graphemes(true).take(end - start).collect();
-            x = end;
-            runs.push(Run {
-                y,
-                x: start,
-                width: end - start,
-                text: keep,
-                color,
-            });
-        }
-    }
-    runs
-}
-
-/// Absolutely positioned text elements for `runs`.
-pub(super) fn elements(runs: &[Run]) -> Vec<Element> {
-    runs.iter()
-        .map(|run| {
-            let mut style = StyleBuilder::new()
-                .position_absolute()
-                .inset_left(run.x as f32)
-                .inset_top(run.y as f32)
-                .width_px(run.width as f32)
-                .height_px(1.0)
-                .overflow_hidden();
-            if let Some((r, g, b, a)) = run.color {
-                style = style.fg_rgba(r, g, b, a);
-            }
-            ElementBuilder::new(ElementType::Text(run.text.clone()))
-                .styles(style)
-                .class("whitespace-pre")
-                .build()
-        })
-        .collect()
 }
 
 /// The label for a point in the tooltip: `label: value; key=value`.
@@ -570,15 +481,7 @@ mod tests {
     }
 
     fn text_of(picture: &Picture) -> String {
-        let mut out = String::new();
-        for y in 0..picture.height {
-            for x in 0..picture.width {
-                let t = &picture.cells[y * picture.width + x].text;
-                out.push_str(if t.is_empty() { " " } else { t });
-            }
-            out.push('\n');
-        }
-        out
+        picture.grid.to_text()
     }
 
     #[test]
@@ -594,7 +497,7 @@ mod tests {
         });
         let text = text_of(&picture);
         assert!(text.contains('█'), "{text}");
-        assert!(!picture.runs.is_empty());
+        assert!(picture.grid.iter().count() > 0);
         let mut empty = props.clone();
         empty.series.clear();
         let picture = draw(&Job {

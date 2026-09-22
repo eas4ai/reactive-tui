@@ -132,7 +132,7 @@ class InputFootprintTests(unittest.TestCase):
                     check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             git("init")
             (root / "Cargo.toml").write_text("Controlled manifest fixture\n")
-            member = root / "crates/member/Cargo.toml"
+            member = root / "crates" / "member" / "Cargo.toml"
             member.parent.mkdir(parents=True)
             member.write_text("Controlled workspace member\n")
             git("add", ".")
