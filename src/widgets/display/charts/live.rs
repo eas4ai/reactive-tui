@@ -45,13 +45,30 @@ impl Props for LiveProps {
 }
 
 /// What the last submitted job was drawn from, to avoid resubmitting.
-#[derive(Clone, PartialEq)]
+#[derive(Clone)]
 struct JobKey {
     version: u64,
     width: usize,
     height: usize,
     values: Arc<Vec<Vec<f64>>>,
     progress: f64,
+}
+
+impl PartialEq for JobKey {
+    /// Values compare by bit pattern, so a NaN equals itself and a chart
+    /// holding invalid data does not resubmit a job every frame.
+    fn eq(&self, other: &Self) -> bool {
+        self.version == other.version
+            && self.width == other.width
+            && self.height == other.height
+            && self.progress.to_bits() == other.progress.to_bits()
+            && (Arc::ptr_eq(&self.values, &other.values)
+                || (self.values.len() == other.values.len()
+                    && self.values.iter().zip(other.values.iter()).all(|(a, b)| {
+                        a.len() == b.len()
+                            && a.iter().zip(b).all(|(x, y)| x.to_bits() == y.to_bits())
+                    })))
+    }
 }
 
 struct Latest {
@@ -617,4 +634,36 @@ fn overlay_grid(picture: &Picture, overlay: &Overlay) -> CellGrid {
         );
     }
     grid
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// A NaN value equals itself in the job key, so a chart holding invalid
+    /// data does not resubmit a worker job every frame.
+    #[test]
+    fn a_job_key_with_nan_equals_its_clone() {
+        let key = JobKey {
+            version: 1,
+            width: 30,
+            height: 12,
+            values: Arc::new(vec![vec![f64::NAN, 5.0]]),
+            progress: 1.0,
+        };
+        let same = JobKey {
+            values: Arc::new(vec![vec![f64::NAN, 5.0]]),
+            ..key.clone()
+        };
+        let other = JobKey {
+            values: Arc::new(vec![vec![4.0, 5.0]]),
+            ..key.clone()
+        };
+        assert!(key == key.clone(), "the same allocation compares equal");
+        assert!(
+            key == same,
+            "equal bit patterns compare equal across allocations"
+        );
+        assert!(key != other, "different values differ");
+    }
 }
