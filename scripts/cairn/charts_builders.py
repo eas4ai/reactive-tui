@@ -45,12 +45,14 @@ def main() -> int:
         for kind in kinds:
             if kind not in FIRST_CUT:
                 continue
-            owners = [n for n in lower if n.endswith("builder") and n not in ("chartaxis", "chartprops", "chartlegend")]
-            if not owners:
-                missing.append(f"no chart builder type found")
+            # The method must exist on that chart type's own builder
+            # (LineChartBuilder for line, ...), not on any builder.
+            owner = f"{kind}chartbuilder"
+            if owner not in lower:
+                missing.append(f"{kind}: no {kind.capitalize()}ChartBuilder type found")
                 continue
-            if not any(method in lower[o] for o in owners):
-                missing.append(f"{kind}: .{method}() missing")
+            if method not in lower[owner]:
+                missing.append(f"{kind}: .{method}() missing on {kind.capitalize()}ChartBuilder")
     closures = re.findall(r"Box<dyn Fn|Arc<dyn Fn|Rc<dyn Fn", "\n".join(strip_test_modules(f.read_text(errors="replace")) for f in rust_sources("src/widgets/display/charts.rs")))
     if closures:
         missing.append(f"{len(closures)} closure fields stored in chart props (must be evaluated at build)")
