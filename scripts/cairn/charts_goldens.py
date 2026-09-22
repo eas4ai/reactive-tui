@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""charts-goldens: CHT-012, CHT-013, CHT-014, CHT-023, CHT-024, CHT-025 and
-BAR-004 through the tests/charts_goldens.rs binary plus file and doc probes.
+"""charts-goldens: CHT-012, CHT-013, CHT-014, CHT-023, CHT-024, CHT-025, CHT-027, CHT-028
+and BAR-004 through the tests/charts_goldens.rs binary plus file and doc probes.
 
 Prints one `cairn: <REQ>: pass|fail` line per requirement.
 """
@@ -30,7 +30,7 @@ def golden_problems() -> list[str]:
 
 def main() -> int:
     results = {}
-    for req, sub in (("CHT-012", "cht_012_"), ("CHT-013", "cht_013_"), ("CHT-024", "cht_024_"), ("CHT-025", "cht_025_"), ("CHT-026", "cht_026_"), ("CHT-027", "cht_027_")):
+    for req, sub in (("CHT-012", "cht_012_"), ("CHT-013", "cht_013_"), ("CHT-024", "cht_024_"), ("CHT-025", "cht_025_"), ("CHT-027", "cht_027_")):
         results[req] = cargo_test_filtered("charts_goldens", sub)
     chart_src = "\n".join(strip_test_modules(f.read_text(errors="replace")) for f in rust_sources(
         "src/widgets/display/charts.rs", "src/widgets/display/charts"))

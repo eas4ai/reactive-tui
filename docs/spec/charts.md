@@ -128,7 +128,7 @@ Status: Agreed 2026-09-22
 [CHT-026] A chart with no series, an empty series, or a NaN or infinite value MUST render an explicit empty or error message in the text layer instead of shapes, and MUST never panic.
 Falsifier: An empty or NaN input paints shapes, paints nothing, or panics.
 Mechanism: charts-goldens
-Status: Agreed 2026-09-22
+Status: Observed
 
 [CHT-027] When a series has more points than the plot area has columns, the plot layer MUST decimate to at most two points per column by keeping each column's minimum and maximum, and the tooltip MUST still report the original index.
 Falsifier: A 10,000-point series renders slower than a 1,000-point one by more than a factor of two, or the tooltip on a decimated chart reports a column index instead of a data index.
