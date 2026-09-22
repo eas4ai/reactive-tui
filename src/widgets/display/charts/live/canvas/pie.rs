@@ -32,7 +32,7 @@ pub(super) fn pie(
     }
     let total: f64 = slices.iter().map(|(_, _, v)| *v).sum();
     if total <= 0.0 {
-        text.text(area.x, area.y, area.w, "No data to display", None);
+        text.text(area.x, area.y, area.w, "", None);
         return;
     }
     picture.plot = area;
