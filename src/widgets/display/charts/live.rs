@@ -152,11 +152,12 @@ impl Component for LiveChart {
         let target = target_values(&config);
         let (values, _transitioning) = self.transition.values(&config, &target);
         let mut latest = self.latest.lock().unwrap_or_else(|e| e.into_inner());
+        // The reveal plays once, when valid data first shows; data that
+        // returns after an invalid frame transitions from the last valid
+        // rendering instead of revealing again (CHT-022).
         if valid && !latest.shown {
             self.reveal.restart();
             latest.shown = true;
-        } else if !valid {
-            latest.shown = false;
         }
         let progress = self.reveal.fraction(&config, valid);
         let values: Vec<Vec<f64>> = if progress < 1.0 {
