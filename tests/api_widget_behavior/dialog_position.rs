@@ -80,7 +80,7 @@ fn confirmation_positions_follow_viewport_resize_and_explicit_bounds() {
                 .and_then(|frame| frame.screen.cell(after.1, after.0))
                 .map(|cell| cell.contents());
             assert_eq!(
-                corner.as_deref(),
+                corner,
                 Some("┌"),
                 "dialog corner for mode {mode} sits at {after:?} after resizing {initial:?} to {resized:?}"
             );

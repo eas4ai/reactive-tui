@@ -42,6 +42,16 @@ The backend owns host terminal setup and restoration. Capability detection
 selects color, synchronized output, keyboard, mouse, Unicode, and image behavior.
 Performance monitors measure frame work and can lower adaptive quality.
 
+A widget that rasterizes off the main thread hands the painter a prepared
+grid instead of one text node per colored run: it fills a `CellGrid`
+(`reactive_tui::layout::CellGrid`) with `.set(x, y, glyph, color)` and
+attaches it to one element with `.with_cells(grid)`. The element keeps its
+size from its styles; the painter blits the grid at the element's content
+box, through the element's transform, clip and masks, using each cell's
+color or the element's foreground. The App's cost per element is then paid
+once for the whole grid, which is how a 700 by 200 chart stays under the
+frame budget. The charts widget is the first user.
+
 After an App or renderer panic, built-in terminal backends restore their owned
 screen state and replay a bounded, control-encoded panic message through their
 output writer. The original panic payload still propagates. Normal diagnostics
@@ -58,8 +68,12 @@ backends default to shutdown and logging rather than writing to process streams.
   total cells.
 - Capability detection can be incomplete in redirected, remote, or unusual
   terminal environments.
+- A cell grid paints through the SuprTUI frame painter; the legacy surface
+  painter used by the debug backend ignores it, as it ignores images.
 
 ## Source map
+
+- Cell grid: [`src/layout/paint_tree/cells.rs`](../src/layout/paint_tree/cells.rs)
 
 - Backend contract and implementations: [`src/backend/mod.rs`](../src/backend/mod.rs)
 - SuprTUI backend: [`src/backend/suprtui.rs`](../src/backend/suprtui.rs)
