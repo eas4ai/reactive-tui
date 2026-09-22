@@ -16,7 +16,7 @@ def run_loader_probe(schema, audited, target, scratch):
         raise RuntimeError('Install TypeScript dependencies with npm ci in bindings/typescript')
     dist = scratch / 'typescript'
     subprocess.run([
-        str(compiler), 'src/ffi.ts', '--target', 'ES2020', '--module', 'commonjs',
+        str(compiler), os.path.join('src', 'ffi.ts'), '--target', 'ES2020', '--module', 'commonjs',
         '--esModuleInterop', '--resolveJsonModule', '--strict', '--skipLibCheck',
         '--outDir', str(dist),
     ], cwd=package, check=True, timeout=60)

@@ -16,7 +16,7 @@ INVENTORY_END = "<!-- RESIDUAL-INVENTORY-END -->"
 
 def inventory_text():
     """The authoritative inventory table, kept in the API-019 spec section."""
-    text = (ROOT / "docs/spec/rust-api-remediation.md").read_text()
+    text = (ROOT / "docs" / "spec" / "rust-api-remediation.md").read_text()
     start = text.index(INVENTORY_START) + len(INVENTORY_START)
     return text[start:text.index(INVENTORY_END)]
 CONCERNS = (

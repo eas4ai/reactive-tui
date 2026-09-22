@@ -19,8 +19,6 @@ REMOVED_EXAMPLES = (
     "wake_counter",
 )
 REFERENCE_EXCLUSIONS = {
-    Path("docs/commitments/example-cleanup.md"),
-    Path("docs/spec/example-cleanup.md"),
     Path("scripts/check-example-cleanup.py"),
     Path("scripts/test-example-cleanup.py"),
 }

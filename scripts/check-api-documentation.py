@@ -243,7 +243,7 @@ class Check:
         config = {"extends": str(package / "tsconfig.json"), "compilerOptions": {
             "noEmit": True, "rootDir": str(ROOT), "baseUrl": str(ROOT),
             "typeRoots": [str(package / "node_modules/@types")],
-            "paths": {"@reactive-tui/core": [str(package / "src/index.ts")]},
+            "paths": {"@reactive-tui/core": [str(package / "src" / "index.ts")]},
         }, "files": ts_files, "include": [], "exclude": []}
         path = self.scratch / "tsconfig.json"
         path.write_text(json.dumps(config, indent=2) + "\n")

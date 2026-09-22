@@ -114,7 +114,7 @@ fn verify(path: &Path, manifest: &Manifest, name: &str) -> TerminalResult<File> 
         .ok_or_else(|| error(format!("Compiled ConPTY manifest omits {name}")))?;
     let context = |failure: &dyn std::fmt::Display| {
         error(format!(
-        "ConPTY runtime {} at {}: {failure}. Install the matched runtime with scripts/install-conpty-runtime.py; see docs/windows-terminal.md",
+        "ConPTY runtime {} at {}: {failure}. Install the matched runtime with scripts/install-conpty-runtime.py; see manual/terminal-and-embedded-sessions.md",
         manifest.version, path.display(),
     ))
     };

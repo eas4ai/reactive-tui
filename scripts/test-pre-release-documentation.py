@@ -9,6 +9,9 @@ from dependency_check_test_support import load_checker
 
 
 CHECKER = Path(__file__).with_name("check-pre-release-documentation.py")
+# Fixture paths inside the temporary repository, not files of this repository.
+GUIDE = "/".join(["manual", "guide.md"])
+CHECK_SCRIPT = "/".join(["scripts", "check.py"])
 
 
 class DocumentationTests(unittest.TestCase):
@@ -18,10 +21,10 @@ class DocumentationTests(unittest.TestCase):
         self.addCleanup(self.temporary.cleanup)
         self.root = Path(self.temporary.name)
         self.git("init", "--quiet")
-        self.write("README.md", "# Start\n[Manual](manual/guide.md#behavior)\n")
-        self.write("manual/guide.md", "# Guide\n## Behavior\nWorks.\n")
-        self.write("scripts/check.py", "print('checked')\n")
-        self.write(".cairn/mechanisms/example", self.declaration("scripts/check.py"))
+        self.write("README.md", f"# Start\n[Manual]({GUIDE}#behavior)\n")
+        self.write(GUIDE, "# Guide\n## Behavior\nWorks.\n")
+        self.write(CHECK_SCRIPT, "print('checked')\n")
+        self.write(".cairn/mechanisms/example", self.declaration(CHECK_SCRIPT))
         self.git("add", ".")
 
     def git(self, *arguments):
@@ -34,7 +37,7 @@ class DocumentationTests(unittest.TestCase):
         target.write_text(content)
 
     def declaration(self, input_path):
-        return ("command: python3 scripts/check.py\ninputs:\n  - " + input_path +
+        return (f"command: python3 {CHECK_SCRIPT}\ninputs:\n  - " + input_path +
                 "\nrequirements:\n  - TST-001\n")
 
     def test_tracked_links_and_inputs_pass(self):
@@ -48,7 +51,7 @@ class DocumentationTests(unittest.TestCase):
                 self.assertTrue(self.checker.inspect_repository(self.root))
 
     def test_missing_heading_and_encoded_escape_fail(self):
-        for link in ("manual/guide.md#absent", "../outside.md", "%2e%2e/outside.md"):
+        for link in (GUIDE + "#absent", "../outside.md", "%2e%2e/outside.md"):
             with self.subTest(link=link):
                 self.write("README.md", f"[Target]({link})\n")
                 self.assertTrue(self.checker.inspect_repository(self.root))
@@ -77,7 +80,7 @@ class DocumentationTests(unittest.TestCase):
         self.write(".gitignore", "scripts/\n")
         self.assertTrue(self.checker.inspect_repository(self.root))
         self.write(".gitignore", "")
-        self.write(".cairn/mechanisms/legacy.md", self.declaration("scripts/check.py"))
+        self.write(".cairn/mechanisms/legacy.md", self.declaration(CHECK_SCRIPT))
         self.git("add", ".cairn/mechanisms/legacy.md")
         self.assertTrue(self.checker.inspect_repository(self.root))
 

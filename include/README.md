@@ -8,8 +8,7 @@ The generated declarations are checked against compiled exports and layouts.
 Current interfaces include terminal/surface/renderer, Elements/builders,
 signals/hooks, animations, App, native text editor, validated layout styles,
 dialog sessions and stateful foreign components. Read the
-[FFI manual](../manual/ffi-and-typescript.md),
-[C ABI safety contract](../docs/spec/pre-release-ffi-safety.md), and
+[FFI manual](../manual/ffi-and-typescript.md) and
 [migration guide](../bindings/typescript/MIGRATION.md) before managing owners.
 
 ## Initialize and release

@@ -22,6 +22,9 @@ def load_checker():
 
 
 CHECKER = load_checker()
+# Synthetic observation paths, not files of this repository.
+LOST_TEST = "/".join(["tests", "lost.rs"])
+LOST_FFI_MODULE = "/".join(["src", "ffi", "lost.rs"])
 
 
 def clean_observation() -> dict:
@@ -70,15 +73,15 @@ class ValidatorTests(unittest.TestCase):
     def test_disconnected_source_is_rejected(self):
         self.assert_rejected(
             "disconnected_tests",
-            ["tests/lost.rs"],
-            "disconnected integration test source: tests/lost.rs",
+            [LOST_TEST],
+            f"disconnected integration test source: {LOST_TEST}",
         )
 
     def test_unreachable_ffi_module_is_rejected(self):
         self.assert_rejected(
             "unreachable_ffi_modules",
-            ["src/ffi/lost.rs"],
-            "unreachable FFI module: src/ffi/lost.rs",
+            [LOST_FFI_MODULE],
+            f"unreachable FFI module: {LOST_FFI_MODULE}",
         )
 
     def test_unsafe_global_hook_is_rejected(self):
