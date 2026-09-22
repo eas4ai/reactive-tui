@@ -577,7 +577,10 @@ mod tests {
         let after_set = glyph_support();
         report_glyph_support(true);
         assert!(!after_reset, "a reset reply must report glyphs unavailable");
-        assert!(after_set && caps.unicode, "a set reply must report glyphs available");
+        assert!(
+            after_set && caps.unicode,
+            "a set reply must report glyphs available"
+        );
     }
 
     #[test]

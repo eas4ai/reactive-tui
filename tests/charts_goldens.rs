@@ -220,11 +220,9 @@ fn cht_012_stacked_area_stays_on_the_lower_series_under_decimation() {
             .unwrap()
     };
     let painted_columns = |frame: &Snapshot, row: usize| {
-        frame
-            .text
-            .lines()
-            .nth(row)
-            .map_or(0, |line| line.chars().filter(|c| !c.is_whitespace()).count())
+        frame.text.lines().nth(row).map_or(0, |line| {
+            line.chars().filter(|c| !c.is_whitespace()).count()
+        })
     };
     let plain = stacked(100);
     let decimated = stacked(1000);

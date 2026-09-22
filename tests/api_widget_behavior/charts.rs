@@ -156,13 +156,15 @@ fn charts_use_exact_values_colors_and_point_overrides() {
 
 #[test]
 fn chart_tooltips_follow_painted_points_and_keyboard_and_can_be_disabled() {
-    for size in [(32, 12), (60, 16)] {
-        let config = props(ChartType::Scatter, (24, 10));
+    // A 44 by 12 chart is the medium class, which draws the tooltip box;
+    // the mini class keeps its shapes and speaks the value instead (CHT-024).
+    for size in [(48, 14), (64, 16)] {
+        let config = props(ChartType::Scatter, (44, 12));
         let frames = run(
             Control(Element::typed::<Chart>(config.clone()).auto_focus()),
             size,
             vec![
-                (2, hover(23, 2)),
+                (2, hover(43, 2)),
                 (3, key(KeyCode::Home)),
                 (4, key(KeyCode::End)),
                 (5, key(KeyCode::Escape)),
@@ -232,7 +234,9 @@ fn charts_display_axis_titles_grid_custom_ticks_and_all_legend_positions() {
                     frame.text
                 );
             }
-            assert!(count(&frame, '·') > 0, "{}", frame.text);
+            // The grid belongs to the large class; medium draws axes,
+            // ticks and the legend only (CHT-024).
+            assert_eq!(count(&frame, '·'), 0, "{}", frame.text);
         }
     }
 }
@@ -437,12 +441,15 @@ fn charts_update_props_and_resize_inside_a_padded_parent() {
         Updating {
             config: std::sync::Mutex::new(props(ChartType::Scatter, (80, 20))),
         },
-        (32, 12),
+        // Both terminal sizes keep the padded chart in the medium class,
+        // which draws the tooltip box (CHT-024). A scatter hover selects the
+        // nearest point, so any cell in the right half picks the high point.
+        (48, 14),
         vec![
-            (2, hover(29, 3)),
+            (2, hover(45, 3)),
             (3, key(KeyCode::Char('u'))),
-            (4, Some(Event::Resize(ResizeEvent::new(24, 10)))),
-            (6, hover(21, 4)),
+            (4, Some(Event::Resize(ResizeEvent::new(44, 12)))),
+            (6, hover(41, 5)),
             (7, None),
         ],
     );
@@ -686,8 +693,9 @@ fn chart_bars_keep_signed_values_and_do_not_paint_values_outside_the_scale() {
 
 #[test]
 fn chart_own_padding_positions_plot_and_tooltips_in_the_content_box() {
-    for size in [(32, 12), (60, 18)] {
-        let mut config = props(ChartType::Scatter, (24, 10));
+    // A 44 by 12 chart is the medium class, which draws the tooltip box.
+    for size in [(48, 14), (60, 18)] {
+        let mut config = props(ChartType::Scatter, (44, 12));
         config.class = Some("p-0.5".into());
         let plain = last(Element::typed::<Chart>(config.clone()), size);
         let marks = cells_with(&plain, "•");

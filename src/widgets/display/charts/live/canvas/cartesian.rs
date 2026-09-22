@@ -585,7 +585,11 @@ pub(super) fn cartesian(
         let Some(values) = job.values.get(s) else {
             continue;
         };
-        let stacked_values = if stacked_area { &tops[position] } else { values };
+        let stacked_values = if stacked_area {
+            &tops[position]
+        } else {
+            values
+        };
         let samples: Vec<_> = decimate_min_max(stacked_values, inner.w)
             .into_iter()
             .filter(|k| index_visible(k.index))
