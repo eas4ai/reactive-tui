@@ -21,8 +21,19 @@ def run(cmd: list[str], timeout: int = 1800, env: dict | None = None) -> subproc
 
 
 def tracked_files() -> set[str]:
-    out = subprocess.run(["git", "ls-files", "-z"], cwd=ROOT, capture_output=True, check=True).stdout
-    return {p.decode() for p in out.split(b"\0") if p}
+    """Paths git tracks; without a repository (an adversary projection has no
+    .git) every file in the tree except build output and ignored caches."""
+    out = subprocess.run(["git", "ls-files", "-z"], cwd=ROOT, capture_output=True)
+    if out.returncode == 0:
+        return {p.decode() for p in out.stdout.split(b"\0") if p}
+    skip = {".git", "target", "node_modules", "__pycache__", ".cairn"}
+    found = set()
+    for path in ROOT.rglob("*"):
+        rel = path.relative_to(ROOT)
+        if not path.is_file() or any(part in skip for part in rel.parts):
+            continue
+        found.add(str(rel))
+    return found
 
 
 def report(req: str, ok: bool, why: str = "") -> bool:

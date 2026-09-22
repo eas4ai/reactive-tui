@@ -78,7 +78,7 @@ fn main() {
 
     let bindings = builder
         .generate()
-        .expect("failed to generate bindings from include/ghostty/vt.h");
+        .expect("failed to generate bindings from the vendored ghostty vt header");
 
     bindings
         .write_to_file(&out)

@@ -1,4 +1,4 @@
-//! Ported reference vectors — see docs/commitments/uni-segments.md.
+//! Ported reference vectors — from the retired uni-segments commitment notes.
 use suprtui::uni::segments::{
     grapheme_pos_by_width, pos_by_width, prev_grapheme_start, wrap_pos_by_width,
     wrap_pos_grapheme_safe,

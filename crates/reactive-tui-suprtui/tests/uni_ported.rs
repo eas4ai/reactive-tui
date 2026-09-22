@@ -1,4 +1,4 @@
-//! Ported reference vectors — see docs/commitments/uni-width.md.
+//! Ported reference vectors — from the retired uni-width commitment notes.
 use suprtui::uni::{
     WidthMethod, calculate_text_width, cell_width, is_ascii_only, render_clusters, width_at,
 };

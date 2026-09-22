@@ -1,5 +1,5 @@
 //! media-image commitment tests (MED-001, MED-002) with fixtures
-//! ported from `tests/image_test.zig` (base64 literals) and the PNG
+//! ported from the upstream `image_test.zig` suite (base64 literals) and the PNG
 //! reference fixtures.
 
 use suprtui::media::{MediaError, decode};
