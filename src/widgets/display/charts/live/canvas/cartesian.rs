@@ -484,15 +484,18 @@ pub(super) fn cartesian(
                         };
                         text.text(x, tip.1, width, &label, tint);
                     } else {
-                        let y = if (growth == BarGrowth::Bottom) == (value >= 0.0) {
+                        let outward = if (growth == BarGrowth::Bottom) == (value >= 0.0) {
                             tip.1.checked_sub(1)
                         } else {
                             Some(tip.1 + 1)
                         };
-                        if let Some(y) = y.filter(|y| plot.contains(tip.0, *y)) {
-                            let x = (tip.0 + 1).saturating_sub(width.div_ceil(2)).max(plot.x);
-                            text.text(x, y, width, &label, tint);
-                        }
+                        // A bar whose tip is the plot's edge row keeps its
+                        // label, drawn on the tip row itself (CHT-013).
+                        let y = outward
+                            .filter(|y| plot.contains(tip.0, *y))
+                            .unwrap_or(tip.1);
+                        let x = (tip.0 + 1).saturating_sub(width.div_ceil(2)).max(plot.x);
+                        text.text(x, y, width, &label, tint);
                     }
                 }
             }
