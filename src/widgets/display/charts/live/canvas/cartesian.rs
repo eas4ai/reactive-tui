@@ -249,7 +249,9 @@ pub(super) fn cartesian(
         } else {
             1
         };
-        let show_grid = |axis: &ChartAxis| axis.show_grid;
+        // Grid lines belong to the large class; medium draws axes and ticks
+        // only (CHT-024). An axis can still turn its grid off at large.
+        let show_grid = |axis: &ChartAxis| axis.show_grid && class.has_grid();
         let category_ticks: Vec<plot::Tick> = {
             let labels: Vec<Option<String>> = (0..count)
                 .map(|i| category_label(job, category_axis, i))
