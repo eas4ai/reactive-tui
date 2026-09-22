@@ -30,8 +30,10 @@ def golden_problems() -> list[str]:
 
 def main() -> int:
     results = {}
-    for req, sub in (("CHT-012", "cht_012_"), ("CHT-013", "cht_013_"), ("CHT-024", "cht_024_"), ("CHT-025", "cht_025_"), ("CHT-026", "cht_026_"), ("CHT-027", "cht_027_")):
+    for req, sub in (("CHT-012", "cht_012_"), ("CHT-013", "cht_013_"), ("CHT-024", "cht_024_"), ("CHT-025", "cht_025_"), ("CHT-026", "cht_026_")):
         results[req] = cargo_test_filtered("charts_goldens", sub)
+    # The decimation cost ratio is a property of the optimized build.
+    results["CHT-027"] = cargo_test_filtered("charts_goldens", "cht_027_", release=True)
     chart_src = "\n".join(strip_test_modules(f.read_text(errors="replace")) for f in rust_sources(
         "src/widgets/display/charts.rs", "src/widgets/display/charts"))
     if not re.search(r"enum ChartType\s*\{[^}]*\bCandlestick\b", chart_src, re.S):

@@ -676,7 +676,12 @@ pub struct ChartState {
 }
 
 /// Chart component for data visualization
-pub struct Chart;
+pub struct Chart {
+    /// The props as last handed down, shared with the live chart. The
+    /// runtime only calls `update` when props change, so a frame that
+    /// changes nothing costs neither a comparison nor a copy of every point.
+    shared: std::sync::Arc<ChartProps>,
+}
 
 mod live;
 pub mod mask;
@@ -692,13 +697,20 @@ impl Component for Chart {
     type Props = ChartProps;
     type State = ChartState;
 
-    fn new(_props: Self::Props) -> Self {
-        Self
+    fn new(props: Self::Props) -> Self {
+        Self {
+            shared: std::sync::Arc::new(props),
+        }
     }
 
-    fn render(&self, props: &Self::Props, state: &Self::State) -> Element {
+    fn update(&mut self, props: &Self::Props, _state: &mut Self::State) -> bool {
+        self.shared = std::sync::Arc::new(props.clone());
+        true
+    }
+
+    fn render(&self, _props: &Self::Props, state: &Self::State) -> Element {
         Element::typed::<live::LiveChart>(live::LiveProps {
-            config: props.clone(),
+            config: self.shared.clone(),
             seed: state.clone(),
         })
     }

@@ -8,6 +8,7 @@ pub(crate) struct PaintSpec {
     pub images: Vec<Option<std::sync::Arc<crate::widgets::display::image::paint::ImagePaint>>>,
     pub image_fallbacks: Vec<Option<u32>>,
     pub cursors: Vec<Option<super::element::TextCursor>>,
+    pub cells: Vec<Option<std::sync::Arc<crate::layout::paint_tree::cells::CellGrid>>>,
 }
 
 pub(crate) fn resolve_viewport_styles(
@@ -33,17 +34,19 @@ pub(crate) fn element_to_paintspec(element: &Element) -> crate::error::Result<Pa
         fallbacks: &mut Vec<Option<u32>>,
         fallback: Option<u32>,
         cursors: &mut Vec<Option<super::element::TextCursor>>,
+        cells: &mut Vec<Option<std::sync::Arc<crate::layout::paint_tree::cells::CellGrid>>>,
     ) -> crate::error::Result<()> {
         let fallback = element.metadata.image_fallback.or(fallback);
         images.push(element.metadata.image.clone());
         fallbacks.push(fallback);
         cursors.push(element.metadata.text_cursor);
+        cells.push(element.metadata.cells.clone());
         styles.push(match &element.metadata.paint_style {
             Some(style) => style.restore()?,
             None => element_style(element)?,
         });
         for child in &element.children {
-            collect(child, styles, images, fallbacks, fallback, cursors)?;
+            collect(child, styles, images, fallbacks, fallback, cursors, cells)?;
         }
         Ok(())
     }
@@ -51,6 +54,7 @@ pub(crate) fn element_to_paintspec(element: &Element) -> crate::error::Result<Pa
     let mut images = Vec::new();
     let mut image_fallbacks = Vec::new();
     let mut cursors = Vec::new();
+    let mut cells = Vec::new();
     collect(
         element,
         &mut styles,
@@ -58,6 +62,7 @@ pub(crate) fn element_to_paintspec(element: &Element) -> crate::error::Result<Pa
         &mut image_fallbacks,
         None,
         &mut cursors,
+        &mut cells,
     )?;
     Ok(PaintSpec {
         root: element_to_nodespec(element),
@@ -65,6 +70,7 @@ pub(crate) fn element_to_paintspec(element: &Element) -> crate::error::Result<Pa
         images,
         image_fallbacks,
         cursors,
+        cells,
     })
 }
 

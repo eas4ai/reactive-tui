@@ -17,6 +17,7 @@ pub mod manager;
 pub(crate) mod motion;
 /// Paint tree for rendering layout results to terminal
 pub mod paint_tree;
+pub use paint_tree::cells::CellGrid;
 /// Layout renderer for painting to surfaces
 pub mod renderer;
 /// Style builder and management utilities
@@ -139,8 +140,8 @@ mod tests {
         let engine = LayoutEngine::try_new().expect("fresh tree");
         // The root accepts style updates, proving it is a live node.
         let mut engine = engine;
-        engine
-            .set_style(engine.root(), Style::default())
-            .expect("root style");
+        let root = engine.root();
+        let updated = engine.set_style(root, Style::default());
+        assert!(updated.is_ok(), "root style: {updated:?}");
     }
 }

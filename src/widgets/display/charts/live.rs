@@ -22,12 +22,21 @@ mod canvas;
 mod motion;
 mod worker;
 
-use canvas::{Cell, Picture, Run};
+use crate::layout::paint_tree::cells::CellGrid;
+use canvas::Picture;
 
-#[derive(Clone, PartialEq)]
+#[derive(Clone)]
 pub(super) struct LiveProps {
-    pub config: ChartProps,
+    pub config: Arc<ChartProps>,
     pub seed: ChartState,
+}
+
+impl PartialEq for LiveProps {
+    fn eq(&self, other: &Self) -> bool {
+        // The same shared props need no point-by-point comparison.
+        self.seed == other.seed
+            && (Arc::ptr_eq(&self.config, &other.config) || *self.config == *other.config)
+    }
 }
 impl Props for LiveProps {
     fn as_any(&self) -> &dyn std::any::Any {
@@ -80,7 +89,7 @@ impl Component for LiveChart {
     fn new(props: Self::Props) -> Self {
         Self {
             viewport: None,
-            config: Arc::new(props.config),
+            config: props.config,
             version: 0,
             seed: props.seed,
             worker: worker::Worker::new().ok(),
@@ -102,7 +111,7 @@ impl Component for LiveChart {
             *state = props.seed.clone();
             self.seed = props.seed.clone();
         }
-        if *self.config != props.config {
+        if !Arc::ptr_eq(&self.config, &props.config) && *self.config != *props.config {
             let shape_changed = self.config.series.len() != props.config.series.len()
                 || self
                     .config
@@ -115,7 +124,7 @@ impl Component for LiveChart {
                 state.hovered_point = None;
                 state.tooltip = None;
             }
-            self.config = Arc::new(props.config.clone());
+            self.config = props.config.clone();
             self.version += 1;
         }
         true
@@ -202,18 +211,14 @@ impl Component for LiveChart {
             .zip(hovered)
             .map(|(picture, (series, index))| self.tooltip(&config, picture, series, index))
             .unwrap_or((None, String::new()));
-        let mut children = picture
-            .as_ref()
-            .map(|picture| {
-                let runs = match &tooltip {
-                    Some(overlay) => overlay_runs(picture, overlay),
-                    None => picture.runs.clone(),
-                };
-                canvas::elements(&runs)
-            })
-            .unwrap_or_default();
+        // The whole picture is one element: the painter blits its cell grid
+        // (BAR-005). The tooltip and crosshair are patched into a copy.
+        let grid = picture.as_ref().map(|picture| match &tooltip {
+            Some(overlay) => Arc::new(overlay_grid(picture, overlay)),
+            None => picture.grid.clone(),
+        });
         let insets = self.viewport.map_or([0.0; 4], |v| v.insets);
-        let content = ElementBuilder::new(ElementType::Layout(LayoutType::Flex))
+        let mut content = ElementBuilder::new(ElementType::Text(String::new()))
             .styles(
                 StyleBuilder::new()
                     .position_absolute()
@@ -223,8 +228,11 @@ impl Component for LiveChart {
                     .height_px(height as f32)
                     .overflow_hidden(),
             )
-            .children(std::mem::take(&mut children))
+            .class("whitespace-pre")
             .build();
+        if let Some(grid) = grid {
+            content = content.with_cells(grid);
+        }
         let mut sizing = StyleBuilder::new()
             .display_flex()
             .max_width_percent(100.0)
@@ -546,14 +554,10 @@ fn nearest_index(positions: &[f64], at: f64) -> Option<usize> {
         .map(|(i, _)| i)
 }
 
-/// The picture's runs with the tooltip box, crosshair and band drawn over
-/// the rows they touch; untouched rows reuse the worker's runs.
-fn overlay_runs(picture: &Picture, overlay: &Overlay) -> Vec<Run> {
-    struct Sink<'a> {
-        cells: &'a mut [Cell],
-        width: usize,
-        height: usize,
-    }
+/// A copy of the picture's grid with the tooltip box, crosshair and band
+/// drawn over it.
+fn overlay_grid(picture: &Picture, overlay: &Overlay) -> CellGrid {
+    struct Sink<'a>(&'a mut CellGrid);
     impl plot::TextSink for Sink<'_> {
         fn text(
             &mut self,
@@ -565,33 +569,31 @@ fn overlay_runs(picture: &Picture, overlay: &Overlay) -> Vec<Run> {
         ) {
             use unicode_segmentation::UnicodeSegmentation;
             for (offset, grapheme) in text.graphemes(true).enumerate() {
-                if offset >= width || x + offset >= self.width || y >= self.height {
+                if offset >= width {
                     break;
                 }
-                self.cells[y * self.width + x + offset] = Cell {
-                    text: grapheme.to_string(),
-                    color,
-                    owner: None,
+                let (Ok(x), Ok(y)) = (u16::try_from(x + offset), u16::try_from(y)) else {
+                    break;
                 };
+                self.0.set(x, y, grapheme, color);
             }
         }
         fn under(&mut self, x: usize, y: usize, glyph: &str, color: Option<plot::Rgba>) {
-            if x < self.width && y < self.height {
-                let cell = &mut self.cells[y * self.width + x];
-                if cell.text.trim().is_empty() || cell.text == "·" {
-                    cell.text = glyph.to_string();
-                    cell.color = color;
-                }
+            let (Ok(x), Ok(y)) = (u16::try_from(x), u16::try_from(y)) else {
+                return;
+            };
+            let free = self
+                .0
+                .get(x, y)
+                .is_some_and(|(current, _)| current.is_empty() || current == "·");
+            if free {
+                self.0.set(x, y, glyph, color);
             }
         }
     }
     use plot::TextSink as _;
-    let mut cells = picture.cells.clone();
-    let mut sink = Sink {
-        cells: &mut cells,
-        width: picture.width,
-        height: picture.height,
-    };
+    let mut grid = (*picture.grid).clone();
+    let mut sink = Sink(&mut grid);
     if let Some((col, top, bottom)) = overlay.crosshair {
         for row in top..bottom {
             sink.under(col, row, "│", None);
@@ -608,5 +610,5 @@ fn overlay_runs(picture: &Picture, overlay: &Overlay) -> Vec<Run> {
         Rect::sized(picture.width, picture.height),
         None,
     );
-    canvas::runs(&cells, picture.width, picture.height)
+    grid
 }
