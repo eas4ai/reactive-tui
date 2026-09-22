@@ -4,7 +4,7 @@
 //! space, so a full circle is as wide as it is tall on screen.
 
 use super::super::super::mask::{MaskCanvas, DOTS_X, DOTS_Y};
-use super::super::super::plot::{Rect, TextSink};
+use super::super::super::plot::{Rect, ScaleLinear, TextSink};
 use super::super::super::ChartType;
 use super::{Job, Picture, TextLayer};
 
@@ -51,10 +51,15 @@ pub(super) fn pie(
     } else {
         0.0
     };
+    // Angles come from the plot layer: a linear scale from the cumulative
+    // value share to the revealed sweep (CHT-010).
     let sweep = std::f64::consts::TAU * job.progress.clamp(0.0, 1.0);
+    let angle = ScaleLinear::new((0.0, total), (0.0, sweep));
     let mut start = 0.0;
+    let mut cumulative = 0.0;
     for (index, (s, i, value)) in slices.iter().enumerate() {
-        let end = start + sweep * value / total;
+        cumulative += value;
+        let end = angle.map(cumulative);
         // A slice takes its point's color, then its series color, then the
         // palette entry for the slice (not the series) so slices differ.
         let series = &props.series[*s];
