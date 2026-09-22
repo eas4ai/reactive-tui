@@ -180,14 +180,10 @@ impl Component for LiveChart {
                 // A picture at a new size is worth a short wait so the chart
                 // never paints empty or stale for long; frames at the same
                 // size (animation, hover) copy whatever is finished.
-                let wait = if latest
-                    .picture
-                    .as_ref()
-                    .is_none_or(|p| (p.width, p.height) != (width, height))
-                {
-                    Duration::from_millis(60)
-                } else {
-                    Duration::ZERO
+                let wait = match latest.picture.as_ref() {
+                    None => Duration::from_millis(200),
+                    Some(p) if (p.width, p.height) != (width, height) => Duration::from_millis(60),
+                    Some(_) => Duration::ZERO,
                 };
                 if let Some((_, picture)) = worker.wait_for(id, wait) {
                     latest.picture = Some(picture);

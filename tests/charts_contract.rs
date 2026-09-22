@@ -506,6 +506,23 @@ fn max_work_ms(root: impl RootComponent + 'static, size: (u16, u16), frames: usi
 /// 200 on the debug backend, and rasterizes on a worker.
 #[test]
 fn bar_005_animating_chart_stays_under_the_frame_budget_at_700_by_200() {
+    if cfg!(debug_assertions) {
+        // The App's per-element cost is about ten times higher without
+        // optimization, so the budget is only meaningful on the optimized
+        // build, which is what the frame-budget mechanism runs.
+        eprintln!("SKIP: the frame budget is measured on the optimized build");
+        // Still observe the worker at a size a debug build handles.
+        let small = props(ChartType::Line, (80, 24), &[1.0, 3.0, 2.0]);
+        let frames = app_input::run(
+            Root(Element::typed::<Chart>(small)),
+            (80, 24),
+            vec![(3, None)],
+        );
+        assert!(frames.len() >= 3);
+        #[cfg(target_os = "linux")]
+        assert!(chart_worker_seen(), "no rtui-chart worker thread observed");
+        return;
+    }
     let size = (700u16, 200u16);
     let mut p = props(
         ChartType::Line,

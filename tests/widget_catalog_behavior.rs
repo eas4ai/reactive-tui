@@ -277,8 +277,10 @@ fn page_navigation_wraps_in_both_directions() {
 #[test]
 fn number_keys_jump_to_the_displayed_page() {
     let mut catalog = Catalog::default();
-    catalog.try_handle_event(&key(KeyCode::Char('7'))).unwrap();
+    catalog.try_handle_event(&key(KeyCode::Char('8'))).unwrap();
     assert_eq!(catalog.page(), CatalogPage::Motion);
+    catalog.try_handle_event(&key(KeyCode::Char('5'))).unwrap();
+    assert_eq!(catalog.page(), CatalogPage::Charts);
 }
 
 #[test]
@@ -313,6 +315,7 @@ fn catalog_exposes_the_complete_page_order() {
             CatalogPage::Input,
             CatalogPage::Layout,
             CatalogPage::Data,
+            CatalogPage::Charts,
             CatalogPage::MenusDialogs,
             CatalogPage::Media,
             CatalogPage::Motion,

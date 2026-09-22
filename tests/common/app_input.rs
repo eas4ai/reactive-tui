@@ -45,6 +45,8 @@ struct Step {
     pointer_text: Option<(String, u16, Option<f32>)>,
     cell: Option<(u16, u16, String)>,
     output: Option<(String, usize)>,
+    /// Wait until the latest frame holds any visible text.
+    painted: bool,
 }
 
 struct InputBackend {
@@ -146,6 +148,10 @@ impl Backend for InputBackend {
                     .absent
                     .iter()
                     .any(|text| frames.last().is_none_or(|frame| frame.text.contains(text)))
+                || (step.painted
+                    && frames
+                        .last()
+                        .is_none_or(|frame| frame.text.trim().is_empty()))
         }) {
             wake.wait(Some(Duration::from_millis(1)));
             *self.wait_returned.lock().unwrap() = Some(Instant::now());
@@ -216,8 +222,35 @@ pub fn run(
                 pointer_text: None,
                 cell: None,
                 output: None,
+                painted: false,
             })
             .collect(),
+    )
+}
+
+/// Paint at least `frames` frames and stop at the first one after that
+/// which holds visible text, so a widget whose worker finishes between two
+/// frames is observed painted rather than blank.
+#[allow(dead_code)]
+pub fn run_when_painted(
+    root: impl RootComponent + 'static,
+    size: (u16, u16),
+    frames: usize,
+) -> Vec<Snapshot> {
+    run_steps(
+        root,
+        size,
+        VecDeque::from(vec![Step {
+            frame: frames,
+            text: Vec::new(),
+            absent: Vec::new(),
+            occurrences: 1,
+            event: None,
+            pointer_text: None,
+            cell: None,
+            output: None,
+            painted: true,
+        }]),
     )
 }
 
@@ -252,6 +285,7 @@ pub fn run_when_for(
                 pointer_text: None,
                 cell: None,
                 output: None,
+                painted: false,
             })
             .collect(),
         None,
@@ -279,6 +313,7 @@ pub fn run_when_all(
                 pointer_text: None,
                 cell: None,
                 output: None,
+                painted: false,
             })
             .collect(),
     )
@@ -303,6 +338,7 @@ pub fn run_until_hidden(
             pointer_text: None,
             cell: None,
             output: None,
+            painted: false,
         })
         .collect();
     steps.push_back(Step {
@@ -314,6 +350,7 @@ pub fn run_until_hidden(
         pointer_text: None,
         cell: None,
         output: None,
+        painted: false,
     });
     run_steps(root, size, steps)
 }
@@ -351,6 +388,7 @@ pub fn run_actions_until_hidden(
                 pointer_text,
                 cell: None,
                 output: None,
+                painted: false,
             }
         })
         .collect();
@@ -363,6 +401,7 @@ pub fn run_actions_until_hidden(
         pointer_text: None,
         cell: None,
         output: None,
+        painted: false,
     });
     run_steps(root, size, steps)
 }
@@ -388,6 +427,7 @@ pub fn run_visibility(
                 pointer_text: None,
                 cell: None,
                 output: None,
+                painted: false,
             })
             .collect(),
     )
@@ -413,6 +453,7 @@ pub fn run_when_seen(
             pointer_text: None,
             cell: None,
             output: None,
+            painted: false,
         }]),
     )
 }
@@ -445,6 +486,7 @@ pub fn run_when_cell(
                 pointer_text: None,
                 cell: Some((step.x, step.y, step.content.into())),
                 output: None,
+                painted: false,
             })
             .collect(),
     )
@@ -479,6 +521,7 @@ pub fn run_when_output(
                 pointer_text: None,
                 cell: None,
                 output: Some((needle, count)),
+                painted: false,
             })
             .collect(),
         Some(images),

@@ -389,6 +389,11 @@ pub(super) fn cartesian(
     let value_labels = props
         .value_labels
         .unwrap_or_else(|| class.has_value_labels());
+    // Explicit limits on the category axis clip by index.
+    let index_visible = |i: usize| {
+        category_axis.min.is_none_or(|m| i as f64 >= m)
+            && category_axis.max.is_none_or(|m| i as f64 <= m)
+    };
     let cell_of = |x: f64, y: f64| -> (usize, usize) {
         (
             (x / DOTS_X as f64).floor().max(0.0) as usize,
@@ -402,6 +407,9 @@ pub(super) fn cartesian(
         for (slot, &s) in vis.iter().enumerate() {
             let series = &props.series[s];
             for (i, point) in series.data.iter().enumerate() {
+                if !index_visible(i) {
+                    continue;
+                }
                 let Some(value) = job.values.get(s).and_then(|v| v.get(i)).copied() else {
                     continue;
                 };
@@ -492,6 +500,9 @@ pub(super) fn cartesian(
         for &s in &vis {
             let series = &props.series[s];
             for (i, point) in series.data.iter().enumerate() {
+                if !index_visible(i) {
+                    continue;
+                }
                 let Some(candle) = point.candle else { continue };
                 let tint = point
                     .color
@@ -504,6 +515,11 @@ pub(super) fn cartesian(
                         bearish
                     });
                 let (a, b) = band.band(i);
+                // Bodies sit on cell boundaries like bars; the wick is one
+                // dot wide at the band's centre.
+                let unit = DOTS_X as f64;
+                let a = (a / unit).round() * unit;
+                let b = ((b / unit).round() * unit).max(a + unit);
                 let center = (a + b) / 2.0;
                 let (wick_top, wick_bottom) =
                     (value_scale.map(candle.high), value_scale.map(candle.low));
@@ -538,7 +554,10 @@ pub(super) fn cartesian(
         let Some(values) = job.values.get(s) else {
             continue;
         };
-        let samples = decimate_min_max(values, inner.w);
+        let samples: Vec<_> = decimate_min_max(values, inner.w)
+            .into_iter()
+            .filter(|k| index_visible(k.index))
+            .collect();
         picture.kept[s] = samples.iter().map(|k| k.index).collect();
         let tint = point_color(props, s, 0);
         let mut dots: Vec<(f64, f64)> = Vec::with_capacity(samples.len());
@@ -690,7 +709,8 @@ fn fill_between(
         while y <= last {
             let shade = match style {
                 FillStyle::Gradient => {
-                    let t = ((y as f64 - near) / (far - near).max(1.0)).clamp(0.0, 1.0);
+                    let extent = (far - near).max(1.0);
+                    let t = ((y as f64 - near) / extent).clamp(0.0, 1.0);
                     let k = (0.45 + 0.55 * t) as f32;
                     tint.map(|(r, g, bl, al)| (r * k, g * k, bl * k, al))
                 }
@@ -712,10 +732,11 @@ fn fill_between(
 fn interpolate_at(line: &[(f64, f64)], i: usize, x: f64) -> f64 {
     let a = line[i];
     let Some(b) = line.get(i + 1) else { return a.1 };
-    if (b.0 - a.0).abs() < 1e-9 {
+    let dx = b.0 - a.0;
+    if dx.abs() < 1e-9 {
         return b.1;
     }
-    let t = ((x - a.0) / (b.0 - a.0)).clamp(0.0, 1.0);
+    let t = ((x - a.0) / dx).clamp(0.0, 1.0);
     a.1 + t * (b.1 - a.1)
 }
 

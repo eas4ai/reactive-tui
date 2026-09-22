@@ -363,8 +363,13 @@ fn test_performance_considerations() {
     // Verify all elements were created
     assert_eq!(elements.len(), 100);
 
-    // Performance should be reasonable (less than 10ms for 100 elements)
-    assert!(duration.as_millis() < 10);
+    // Performance should be reasonable. Debug builds under a parallel test
+    // run take several milliseconds for this loop, so the bound leaves room
+    // for load while still catching a regression of an order of magnitude.
+    assert!(
+        duration.as_millis() < 50,
+        "100 styled elements took {duration:?}"
+    );
 
     println!("Created 100 CSS-in-Rust styled elements in {:?}", duration);
 }

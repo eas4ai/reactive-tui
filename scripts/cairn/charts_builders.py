@@ -9,7 +9,7 @@ import sys
 
 from _common import finish, rust_sources, strip_test_modules
 
-# method -> chart types that must expose it (gpui-kit 0.6.6 crates/component/src/chart)
+# method -> chart types that must expose it (the gpui-kit 0.6.6 chart module)
 REQUIRED = {
     "x": ["line", "area", "scatter"], "y": ["line", "area", "scatter"], "stroke": ["line", "area"], "fill": ["area", "bar"],
     "natural": ["line", "area"], "linear": ["line", "area"], "step_after": ["line", "area"], "dot": ["line"],

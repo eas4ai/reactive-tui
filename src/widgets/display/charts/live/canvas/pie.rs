@@ -6,7 +6,7 @@
 use super::super::super::mask::{MaskCanvas, DOTS_X, DOTS_Y};
 use super::super::super::plot::{Rect, TextSink};
 use super::super::super::ChartType;
-use super::{point_color, Job, Picture, TextLayer};
+use super::{Job, Picture, TextLayer};
 
 pub(super) fn pie(
     mask: &mut MaskCanvas,
@@ -55,12 +55,20 @@ pub(super) fn pie(
     let mut start = 0.0;
     for (index, (s, i, value)) in slices.iter().enumerate() {
         let end = start + sweep * value / total;
-        let tint = point_color(props, *s, *i).or_else(|| {
-            props
-                .color_palette
-                .get(index % props.color_palette.len().max(1))
-                .and_then(|t| super::color(t))
-        });
+        // A slice takes its point's color, then its series color, then the
+        // palette entry for the slice (not the series) so slices differ.
+        let series = &props.series[*s];
+        let tint = series.data[*i]
+            .color
+            .as_deref()
+            .or(series.color.as_deref())
+            .or_else(|| {
+                props
+                    .color_palette
+                    .get(index % props.color_palette.len().max(1))
+                    .map(String::as_str)
+            })
+            .and_then(super::color);
         mask.sector(cx, cy, inner, radius, start, end, tint, Some((*s, *i)));
         let mid = (start + end) / 2.0;
         let r = (inner + radius) / 2.0;

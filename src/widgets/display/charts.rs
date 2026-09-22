@@ -579,7 +579,7 @@ pub enum ChartType {
 }
 
 /// Props for the Chart component
-#[derive(Clone, PartialEq)]
+#[derive(Clone, PartialEq, Debug)]
 pub struct ChartProps {
     /// Type of chart to render
     pub chart_type: ChartType,
@@ -681,6 +681,12 @@ pub struct Chart;
 mod live;
 pub mod mask;
 pub mod plot;
+pub mod typed;
+
+pub use typed::{
+    AreaChartBuilder, BarChartBuilder, CandlestickChartBuilder, LineChartBuilder,
+    ScatterChartBuilder,
+};
 
 impl Component for Chart {
     type Props = ChartProps;
