@@ -225,7 +225,7 @@ fn resolve_theme_color(token: &str, theme: &crate::theme::Theme) -> Option<(f32,
 }
 
 /// Parse dynamic color values like rgb(255,0,0), rgba(255,0,0,0.5), #ff0000
-fn parse_dynamic_color(color_str: &str) -> Option<(f32, f32, f32, f32)> {
+pub(crate) fn parse_dynamic_color(color_str: &str) -> Option<(f32, f32, f32, f32)> {
     // Parse rgb(r,g,b) format
     if let Some(inner) = color_str
         .strip_prefix("rgb(")
