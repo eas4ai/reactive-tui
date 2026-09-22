@@ -13,7 +13,7 @@ from _common import ROOT, cargo_test_filtered, finish, rust_sources, strip_test_
 PLOT_DIRS = ["src/widgets/display/charts/plot", "src/plot"]
 REQUIRED_ITEMS = ["ScaleLinear", "ScaleBand", "ScalePoint", "ScaleOrdinal", "Tick", "Axis", "Grid", "Legend", "Tooltip"]
 RENDERERS = ["src/widgets/display/charts/live"]
-LOCAL_SCALE = re.compile(r"\(\s*max\w*\s*-\s*min\w*\s*\)|/\s*range\b|\*\s*\(?\s*\w*height\w*\s*-\s*1\s*\)?\s*/")
+LOCAL_SCALE = re.compile(r"\)\s*/\s*\(|/\s*\(\s*\w+\.1\s*-\s*\w+\.0\s*\)|/\s*range\b|/\s*span\b|\bmapped\s*\(")
 
 
 def main() -> int:
@@ -33,10 +33,12 @@ def main() -> int:
         text = strip_test_modules(f.read_text(errors="replace"))
         if plot and str(plot) in str(f):
             continue
+        if plot and "plot::" not in text and "plot/" not in str(f) and f.name in ("cartesian.rs", "pie.rs", "canvas.rs"):
+            problems_010.append(f"{f.relative_to(ROOT)} does not use the plot layer")
         for m in LOCAL_SCALE.finditer(text):
             line = text[: m.start()].count("\n") + 1
             problems_010.append(f"local scale arithmetic at {f.relative_to(ROOT)}:{line}")
-    ok, why = cargo_test_filtered("plot_layer_contract", "cht_011_")
+    ok, why = cargo_test_filtered("charts_contract", "cht_011_")
     if not ok:
         problems_011.append(why.splitlines()[-1] if why else "scale unit tests failed")
     return finish({

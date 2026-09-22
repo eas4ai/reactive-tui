@@ -12,7 +12,7 @@ from _common import ROOT, cargo_test_filtered, finish, rust_sources, strip_test_
 from catalog_manual import chart_docs_problems
 
 SNAP = ROOT / "tests/snapshots/charts"
-TYPES = ["line", "area", "bar", "candlestick"]
+TYPES = ["line", "area", "scatter", "bar", "candlestick"]
 SIZES = {"mini": (20, 5), "medium": (80, 24), "large": (600, 160)}
 
 
@@ -30,14 +30,18 @@ def golden_problems() -> list[str]:
 
 def main() -> int:
     results = {}
-    for req, sub in (("CHT-012", "cht_012_"), ("CHT-013", "cht_013_"), ("CHT-024", "cht_024_"), ("CHT-025", "cht_025_")):
+    for req, sub in (("CHT-012", "cht_012_"), ("CHT-013", "cht_013_"), ("CHT-024", "cht_024_"), ("CHT-025", "cht_025_"), ("CHT-026", "cht_026_"), ("CHT-027", "cht_027_")):
         results[req] = cargo_test_filtered("charts_goldens", sub)
     chart_src = "\n".join(strip_test_modules(f.read_text(errors="replace")) for f in rust_sources(
         "src/widgets/display/charts.rs", "src/widgets/display/charts"))
-    if "Candlestick" not in chart_src:
+    if not re.search(r"enum ChartType\s*\{[^}]*\bCandlestick\b", chart_src, re.S):
         results["CHT-014"] = (False, "no candlestick chart type in chart code")
     else:
         results["CHT-014"] = cargo_test_filtered("charts_goldens", "cht_014_")
+    if re.search(r"\b(GlyphSet|ascii_fallback|Ascii)\b", chart_src):
+        results["CHT-028"] = cargo_test_filtered("charts_goldens", "cht_028_")
+    else:
+        results["CHT-028"] = (False, "no ASCII glyph fallback in the chart code")
     g = golden_problems()
     d = chart_docs_problems()
     ok_023, why_023 = cargo_test_filtered("charts_goldens", "cht_023_")

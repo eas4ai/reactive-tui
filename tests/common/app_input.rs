@@ -27,6 +27,9 @@ impl Write for Capture {
 pub struct Snapshot {
     #[allow(dead_code)]
     pub output: Vec<u8>,
+    /// Main-loop work for this frame: from the input wait returning to present.
+    #[allow(dead_code)]
+    pub work_ms: f64,
     pub text: String,
     #[allow(dead_code)]
     pub screen: vt100::Screen,
@@ -50,6 +53,7 @@ struct InputBackend {
     capture: Capture,
     snapshots: Arc<Mutex<Vec<Snapshot>>>,
     deadline: Instant,
+    wait_returned: std::sync::Mutex<Option<Instant>>,
 }
 impl Backend for InputBackend {
     fn painted_nodes(&self) -> Option<&[reactive_tui::backend::PaintedNode]> {
@@ -75,7 +79,13 @@ impl Backend for InputBackend {
         let (width, height) = self.inner.size();
         let mut parser = vt100::Parser::new(height, width, 0);
         parser.process(&self.capture.0.lock().unwrap());
+        let work_ms = self
+            .wait_returned
+            .lock()
+            .unwrap()
+            .map_or(0.0, |t| t.elapsed().as_secs_f64() * 1000.0);
         self.snapshots.lock().unwrap().push(Snapshot {
+            work_ms,
             output: self.capture.0.lock().unwrap().clone(),
             text: parser.screen().contents(),
             screen: parser.screen().clone(),
@@ -136,6 +146,7 @@ impl Backend for InputBackend {
                     .any(|text| frames.last().is_none_or(|frame| frame.text.contains(text)))
         }) {
             wake.wait(Some(Duration::from_millis(1)));
+            *self.wait_returned.lock().unwrap() = Some(Instant::now());
             return Ok(None);
         }
         let event = self.events.pop_front().and_then(|step| {
@@ -179,6 +190,7 @@ impl Backend for InputBackend {
         if event.is_none() {
             wake.request_stop();
         }
+        *self.wait_returned.lock().unwrap() = Some(Instant::now());
         Ok(event)
     }
 }
@@ -492,6 +504,7 @@ fn run_steps_with_images(
         capture,
         snapshots: snapshots.clone(),
         deadline: Instant::now() + timeout,
+        wait_returned: std::sync::Mutex::new(None),
     };
     App::builder()
         .backend(backend)
@@ -506,9 +519,11 @@ fn run_steps_with_images(
         .into_inner()
         .unwrap()
 }
+#[allow(dead_code)]
 pub fn key(code: KeyCode) -> Option<Event> {
     Some(Event::Key(KeyEvent::new(code)))
 }
+#[allow(dead_code)]
 pub fn click(x: u16, y: u16) -> Option<Event> {
     Some(Event::Mouse(
         MouseEvent::new(MouseEventKind::Down, Position::cell(x, y)).with_button(MouseButton::Left),

@@ -9,10 +9,10 @@ The quality bar (BAR) applies to every commitment.
 
 ## charts-plot-layer
 
-Requirements: BAR-001, BAR-002, BAR-003, BAR-004, BAR-005, BAR-006, BAR-007, CHT-010, CHT-025, CHT-011, CHT-012, CHT-013, CHT-014, CHT-017, CHT-018, CHT-019, CHT-020, CHT-021, CHT-022, CHT-023, CHT-024
+Requirements: BAR-001, BAR-002, BAR-003, BAR-004, BAR-005, BAR-006, BAR-007, CHT-010, CHT-025, CHT-011, CHT-012, CHT-013, CHT-014, CHT-017, CHT-018, CHT-019, CHT-020, CHT-021, CHT-022, CHT-023, CHT-024, CHT-026, CHT-027, CHT-028
 
 Deliver the shared plot layer and the cartesian charts on it: line, area,
-bar and candlestick, with braille and eighth-block rasterization on a
+scatter, bar (vertical and horizontal) and candlestick, with braille and eighth-block rasterization on a
 worker, theme colors, the swatch-row tooltip with crosshair, mouse and
 keyboard selection, value transitions, fill-parent sizing with mini, medium
 and large size classes, goldens at three sizes, a catalog page and a manual section per type.
