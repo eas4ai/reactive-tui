@@ -1,6 +1,6 @@
 //! Typed chart builders over `Vec<T>` with accessor closures, mirroring the
 //! reference's method names (CHT-020): `x`, `y`, `band`, `value`, `stroke`,
-//! `fill`, `natural`, `linear`, `stepped`, `dot`, `tick_margin`,
+//! `fill`, `natural`, `linear`, `step_after`, `dot`, `tick_margin`,
 //! `alignment`, `label`, `grid`, and for candlesticks `open`, `high`, `low`
 //! and `close`. The closures run once at `build()`; the resulting
 //! [`ChartProps`] hold plain data points and stay comparable.
@@ -211,7 +211,7 @@ impl<T> LineChartBuilder<T> {
     }
 
     /// Step strokes holding each value until the next point.
-    pub fn stepped(mut self) -> Self {
+    pub fn step_after(mut self) -> Self {
         self.common.base = self.common.base.curve(Curve::StepAfter);
         self
     }
@@ -324,7 +324,7 @@ impl<T> AreaChartBuilder<T> {
     }
 
     /// Step strokes.
-    pub fn stepped(mut self) -> Self {
+    pub fn step_after(mut self) -> Self {
         self.common.base = self.common.base.curve(Curve::StepAfter);
         self
     }
@@ -691,7 +691,7 @@ mod tests {
             .fill("chart-1")
             .y(|r| r.close)
             .stacked(true)
-            .stepped()
+            .step_after()
             .build();
         assert_eq!(area.series.len(), 2);
         assert_eq!(area.series[0].color.as_deref(), Some("chart-1"));
