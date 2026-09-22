@@ -381,8 +381,10 @@ fn first_series_with(props: &ChartProps, index: usize) -> Option<usize> {
 }
 
 /// A laid-out tooltip with its crosshair column, ready to draw over cells.
+/// The mini class has no box (shapes only, CHT-024); the hovered value is
+/// still spoken through the description (CHT-018).
 struct Overlay {
-    boxed: plot::TooltipBox,
+    boxed: Option<plot::TooltipBox>,
     at: (usize, usize),
     crosshair: Option<(usize, usize, usize)>,
     band: Option<(usize, usize, usize)>,
@@ -504,6 +506,7 @@ impl LiveChart {
             .unwrap_or((picture.plot.x, picture.plot.y));
         let boxed = tooltip.layout(area);
         let at = boxed.place(anchor, area);
+        let boxed = (picture.class != Some(plot::SizeClass::Mini)).then_some(boxed);
         let crosshair = (!picture.scatter
             && picture.index_rows.is_empty()
             && !picture.index_columns.is_empty())
@@ -604,11 +607,13 @@ fn overlay_grid(picture: &Picture, overlay: &Overlay) -> CellGrid {
             sink.under(col, row, "─", None);
         }
     }
-    overlay.boxed.draw(
-        &mut sink,
-        overlay.at,
-        Rect::sized(picture.width, picture.height),
-        None,
-    );
+    if let Some(boxed) = &overlay.boxed {
+        boxed.draw(
+            &mut sink,
+            overlay.at,
+            Rect::sized(picture.width, picture.height),
+            None,
+        );
+    }
     grid
 }

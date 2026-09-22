@@ -273,6 +273,50 @@ fn cht_018_tooltip_is_a_box_with_swatch_rows_and_a_crosshair_that_flips_at_the_e
 /// CHT-019: nearest index on x; two hovers inside one band select the same
 /// point and leave the frame unchanged; an empty cell beside a scatter point
 /// still selects it.
+/// CHT-018, CHT-024: a mini chart hovered keeps its shapes and draws no box;
+/// the hovered value still reaches the accessibility description.
+#[test]
+fn cht_018_mini_chart_keeps_its_shapes_and_speaks_the_hovered_value() {
+    let is_shape = |c: char| ('\u{2800}'..='\u{28FF}').contains(&c) || "▁▂▃▄▅▆▇█".contains(c);
+    for size in [(8u16, 2u16), (20u16, 5u16)] {
+        let mut p = props(ChartType::Line, size, &[2.0, 8.0, 5.0, 7.0]);
+        p.series.push(DataSeries::new(
+            "second",
+            [1.0, 4.0, 9.0, 3.0]
+                .iter()
+                .enumerate()
+                .map(|(i, v)| DataPoint::with_label(*v, format!("q{i}")))
+                .collect(),
+        ));
+        let plain = app_input::run_when_painted(
+            Root(Element::typed::<Chart>(p.clone())),
+            size,
+            2,
+        )
+        .pop()
+        .unwrap();
+        let hovered = app_input::run(
+            Root(Element::typed::<Chart>(p)),
+            size,
+            vec![(2, hover(size.0 / 2, size.1 / 2)), (3, None)],
+        )
+        .pop()
+        .unwrap();
+        assert_eq!(
+            count(&hovered, |c| "┌╭┏└╰┗".contains(c)),
+            0,
+            "a mini chart draws no tooltip box at {size:?}:\n{}",
+            hovered.text
+        );
+        assert!(
+            count(&hovered, is_shape) * 2 >= count(&plain, is_shape),
+            "hovering a mini chart must keep its shapes at {size:?}:\nbefore\n{}\nafter\n{}",
+            plain.text,
+            hovered.text
+        );
+    }
+}
+
 #[test]
 fn cht_019_mouse_selects_nearest_index() {
     let size = (40u16, 12u16);
