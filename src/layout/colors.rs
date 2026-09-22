@@ -360,11 +360,15 @@ pub fn parse_color_token(token: &str) -> Option<(f32, f32, f32, f32)> {
     parse_color_literal(token).or_else(|| crate::theme::Theme::active().resolve_variable(token))
 }
 
-/// Parse a hex or palette-name color; theme variables are not consulted.
+/// Parse a hex, `rgb()`, `rgba()` or palette-name color; theme variables
+/// are not consulted. Utility classes and charts share this parser (CHT-017).
 pub fn parse_color_literal(token: &str) -> Option<(f32, f32, f32, f32)> {
     // First check the color cache for O(1) lookup
     if let Some((r, g, b, a)) = crate::layout::css::cache::get_cached_color(token) {
         return Some((r as f32 / 255.0, g as f32 / 255.0, b as f32 / 255.0, a));
+    }
+    if let Some(c) = crate::layout::css::colors::parse_dynamic_color(token) {
+        return Some(c);
     }
 
     // Try parsing as hex

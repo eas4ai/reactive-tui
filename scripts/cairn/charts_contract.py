@@ -17,7 +17,8 @@ GROUPS = {
     "frame-budget": [("CHT-021", "cht_021_"), ("BAR-005", "bar_005_")],
     "widget-bar": [("BAR-003", "bar_003_")],
 }
-HEX = re.compile(r'"#[0-9a-fA-F]{3,8}"')
+NUM = r"\d+(?:\.\d+)?(?:f32|f64)?"
+HEX = re.compile(rf'"#[0-9a-fA-F]{{3,8}}"|\(\s*{NUM}\s*,\s*{NUM}\s*,\s*{NUM}\s*,\s*{NUM}\s*\)')
 
 
 def main() -> int:

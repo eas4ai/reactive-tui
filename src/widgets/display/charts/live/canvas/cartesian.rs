@@ -448,7 +448,12 @@ pub(super) fn cartesian(
                         stack_neg[i] = top;
                     }
                 }
-                let (from, to) = (value_scale.map(base), value_scale.map(top));
+                // Bar edges snap to eighths of a cell so every tip resolves
+                // to an eighth block (CHT-013) while 3.5 of 8 still differs
+                // from 3 and 4.
+                let dots = if horizontal { DOTS_X } else { DOTS_Y } as f64;
+                let snap = |v: f64| (v * 8.0 / dots).round() * dots / 8.0;
+                let (from, to) = (snap(value_scale.map(base)), snap(value_scale.map(top)));
                 if (from - to).abs() < 1e-9 {
                     continue;
                 }

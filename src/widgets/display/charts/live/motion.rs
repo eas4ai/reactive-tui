@@ -163,6 +163,13 @@ impl Transition {
     }
 
     fn at(&self, props: &ChartProps, target: &[Vec<f64>], now: Instant) -> (Vec<Vec<f64>>, bool) {
+        // A target with a NaN or infinite value is shown as the error
+        // message, not animated, and leaves the last valid rendering as the
+        // start of the next transition (CHT-022, CHT-026).
+        if target.iter().flatten().any(|v| !v.is_finite()) {
+            self.ticker.drive(false, now);
+            return (target.to_vec(), false);
+        }
         let mut state = self.state.lock().unwrap_or_else(|e| e.into_inner());
         let same_shape = state.current.len() == target.len()
             && state

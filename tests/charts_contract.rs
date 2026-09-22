@@ -505,6 +505,133 @@ fn cht_022_value_transition_moves_from_the_old_values_to_the_target() {
     }
 }
 
+/// CHT-022, CHT-026: after an invalid (NaN) data frame, the next valid data
+/// animates from the last valid rendering, so no bar vanishes mid-transition.
+struct Staged {
+    stage: std::sync::atomic::AtomicUsize,
+    redraw: AtomicBool,
+    size: (u16, u16),
+    stages: Vec<Vec<f64>>,
+}
+impl RootComponent for Staged {
+    fn render(&self) -> Element {
+        let i = self.stage.load(Ordering::SeqCst).min(self.stages.len() - 1);
+        let mut p = props(ChartType::BarVertical, self.size, &self.stages[i]);
+        p.animated = i > 0;
+        p.animation_duration = 200;
+        p.transition_duration = 200;
+        Element::typed::<Chart>(p)
+    }
+    fn handle_event(&self, _event: &Event) -> reactive_tui::event::router::EventResult {
+        self.stage.fetch_add(1, Ordering::SeqCst);
+        self.redraw.store(true, Ordering::SeqCst);
+        reactive_tui::event::router::EventResult::Handled
+    }
+    fn update(&mut self) -> reactive_tui::error::Result<RootUpdate> {
+        Ok(if self.redraw.swap(false, Ordering::SeqCst) {
+            RootUpdate::Redraw
+        } else {
+            RootUpdate::Unchanged
+        })
+    }
+    fn wake_driven(&self) -> bool {
+        true
+    }
+}
+
+#[test]
+fn cht_022_recovery_from_nan_data_keeps_every_bar_through_the_transition() {
+    let size = (30u16, 12u16);
+    let settled = app_input::run_when_painted(
+        Root(Element::typed::<Chart>(props(ChartType::BarVertical, size, &[5.0, 5.0]))),
+        size,
+        2,
+    )
+    .pop()
+    .unwrap();
+    let block_columns = |f: &Snapshot| {
+        (0..size.0)
+            .filter(|c| column_has(f, *c, "\u{2588}") > 0)
+            .count()
+    };
+    let settled_columns = block_columns(&settled);
+    let settled_row = (0..size.1)
+        .find(|r| cell_is(&settled, *r, 0, "\u{2588}"))
+        .expect("settled bars start at column 0");
+    let invalid = app_input::run_when_painted(
+        Root(Element::typed::<Chart>(props(
+            ChartType::BarVertical,
+            size,
+            &[f64::NAN, 5.0],
+        ))),
+        size,
+        2,
+    )
+    .pop()
+    .unwrap();
+    let (msg_row, msg_col) = (0..size.1)
+        .flat_map(|r| (0..size.0).map(move |c| (r, c)))
+        .find(|(r, c)| cell_is(&invalid, *r, *c, "C"))
+        .expect("the NaN chart shows its message");
+    let target = app_input::run_when_painted(
+        Root(Element::typed::<Chart>(props(ChartType::BarVertical, size, &[7.0, 7.0]))),
+        size,
+        2,
+    )
+    .pop()
+    .unwrap();
+    let (target_row, target_tip) = (0..size.1)
+        .find_map(|r| {
+            let content = target.screen.cell(r, 0)?.contents();
+            (!content.trim().is_empty()).then_some((r, content))
+        })
+        .expect("target column 0");
+    let root = Staged {
+        stage: std::sync::atomic::AtomicUsize::new(0),
+        redraw: AtomicBool::new(false),
+        size,
+        stages: vec![vec![5.0, 5.0], vec![f64::NAN, 5.0], vec![7.0, 7.0]],
+    };
+    let frames = app_input::run_when_cell(
+        root,
+        size,
+        vec![
+            app_input::CellStep {
+                x: 0,
+                y: settled_row,
+                content: "\u{2588}",
+                event: app_input::key(KeyCode::Char('n')),
+            },
+            app_input::CellStep {
+                x: msg_col,
+                y: msg_row,
+                content: "C",
+                event: app_input::key(KeyCode::Char('v')),
+            },
+            app_input::CellStep {
+                x: 0,
+                y: target_row,
+                content: Box::leak(target_tip.to_string().into_boxed_str()),
+                event: None,
+            },
+        ],
+    );
+    let last_message = frames
+        .iter()
+        .rposition(|f| f.text.contains("finite"))
+        .expect("the NaN frame was shown");
+    let counts: Vec<usize> = frames.iter().map(block_columns).collect();
+    eprintln!("block columns per frame: {counts:?} (message last shown at {last_message})");
+    for (i, f) in frames.iter().enumerate().skip(last_message + 1) {
+        assert!(
+            block_columns(f) >= settled_columns,
+            "frame {i} after the NaN recovery lost a bar (columns {} < {settled_columns}):\n{}",
+            block_columns(f),
+            f.text
+        );
+    }
+}
+
 /// CHT-021: a chart with unset size fills its parent, and rasterization runs
 /// on a named worker thread.
 #[test]
@@ -646,7 +773,7 @@ fn bar_003_chart_selection_is_keyboard_reachable() {
 fn cht_017_utility_color_tokens_resolve_identically_in_charts() {
     use reactive_tui::layout::colors::parse_color_token;
     let size = (30u16, 10u16);
-    for token in ["blue-500", "primary"] {
+    for token in ["blue-500", "primary", "rgb(255,0,0)"] {
         let utility = parse_color_token(token)
             .unwrap_or_else(|| panic!("no single resolver handles the token {token}: theme variables and palette names must resolve through one path"));
         let mut p = props(ChartType::BarVertical, size, &[10.0]);

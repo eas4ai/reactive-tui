@@ -11,8 +11,15 @@ ROOT = Path(__file__).resolve().parents[2]
 JOBS = os.environ.get("CARGO_BUILD_JOBS", "8")
 
 
+# The environment a mechanism sees: enough to find the toolchain and the
+# target directory, nothing that changes what a check means (REGENERATE,
+# RUSTFLAGS and the CARGO_* build knobs are dropped on purpose).
+ENV_KEEP = ("PATH", "HOME", "USER", "LOGNAME", "SHELL", "LANG", "LC_ALL", "LC_CTYPE", "TERM", "TMPDIR",
+            "CARGO_HOME", "RUSTUP_HOME", "RUSTUP_TOOLCHAIN", "CARGO_TARGET_DIR", "SSL_CERT_FILE", "SSL_CERT_DIR")
+
+
 def run(cmd: list[str], timeout: int = 1800, env: dict | None = None) -> subprocess.CompletedProcess:
-    merged = os.environ.copy()
+    merged = {k: v for k, v in os.environ.items() if k in ENV_KEEP}
     merged["CARGO_BUILD_JOBS"] = JOBS
     if env:
         merged.update(env)
