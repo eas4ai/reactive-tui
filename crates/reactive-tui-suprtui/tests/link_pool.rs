@@ -13,7 +13,7 @@ fn shared_pool() -> Rc<RefCell<LinkPool>> {
 }
 
 #[test]
-fn link_pool_init() {
+fn smoke_link_pool_init() {
     // ported: LinkPool - can initialize and cleanup
     let pool = LinkPool::new();
     drop(pool);

@@ -340,7 +340,7 @@ mod tests {
     }
 
     #[test]
-    fn test_props_send_sync() {
+    fn smoke_test_props_send_sync() {
         // Test that props can be sent across threads
         fn assert_send<T: Send>() {}
         fn assert_sync<T: Sync>() {}

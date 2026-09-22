@@ -1489,11 +1489,12 @@ mod tests {
                 } else {
                     runtime.remove_animation(id);
                 }
-                send.send(()).unwrap();
+                send.send(runtime.animations.read().unwrap().len()).unwrap();
             });
-            receive
+            let remaining = receive
                 .recv_timeout(Duration::from_secs(2))
                 .expect("callback capture drop could not reenter the runtime");
+            assert_eq!(remaining, 0, "no animation survives with stop={stop}");
             worker.join().unwrap();
         }
     }
@@ -1542,12 +1543,16 @@ mod tests {
                 Duration::from_secs(10),
             );
             runtime.update_animations();
-            send.send(()).unwrap();
+            send.send(runtime.animations.read().unwrap().len()).unwrap();
         });
         // A failing isolated test process exits rather than joining a deadlocked worker.
-        receive
+        let remaining = receive
             .recv_timeout(Duration::from_secs(2))
             .expect("animation callback could not reenter the runtime");
+        assert_eq!(
+            remaining, 1,
+            "the outer animation stays registered after its callback added and cancelled another"
+        );
         worker.join().unwrap();
     }
 

@@ -698,7 +698,9 @@ mod tests {
             },
         ];
 
-        // Should not panic when applying patches
-        let _result = apply_patches(&patches, &mut tree);
+        // Patches naming unknown keys apply cleanly and leave the tree empty
+        let result = apply_patches(&patches, &mut tree);
+        assert!(result.is_ok(), "apply_patches failed: {result:?}");
+        assert!(tree.root().is_none(), "no node was inserted into the tree");
     }
 }

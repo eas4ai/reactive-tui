@@ -193,7 +193,11 @@ fn terminal_helper_inventory_requires_the_owned_runner() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR"));
     let terminal = fs::read_to_string(root.join("src/core/terminal.rs")).unwrap();
     let window = fs::read_to_string(root.join("src/core/window.rs")).unwrap();
-    audit_sources(&[("terminal.rs", &terminal), ("window.rs", &window)]).unwrap();
+    assert_eq!(
+        audit_sources(&[("terminal.rs", &terminal), ("window.rs", &window)]),
+        Ok(()),
+        "the checked-in terminal helper inventory matches the expected set"
+    );
 }
 
 struct Fixture {

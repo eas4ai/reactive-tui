@@ -117,36 +117,42 @@ fn write_surface(path: SurfaceWriter, text: &str) -> Surface {
     surface
 }
 
-fn assert_surface_has_no_host_controls(
+/// Report the first way a painted surface leaks host control bytes, or `Ok(())`.
+fn surface_host_controls(
     path: SurfaceWriter,
     surface: &Surface,
     attacker_text: &str,
-) {
+) -> Result<(), String> {
     let blank = Surface::new(surface.dims().0, surface.dims().1);
     for y in 0..surface.dims().1 {
         for x in 0..surface.dims().0 {
             if surface.get(x, y) == blank.get(x, y) {
                 continue;
             }
-            assert!(
-                surface
-                    .grapheme(x, y)
-                    .chars()
-                    .all(|character| !character.is_control()),
-                "{path:?} retained a host control from {attacker_text:?}"
-            );
+            if surface
+                .grapheme(x, y)
+                .chars()
+                .any(|character| character.is_control())
+            {
+                return Err(format!(
+                    "{path:?} retained a host control from {attacker_text:?}"
+                ));
+            }
         }
     }
 
     let mut diff = DiffWriter::new();
     diff.try_diff(&blank, surface, true).unwrap();
-    assert!(
-        !diff
-            .output()
-            .windows(attacker_text.len())
-            .any(|window| window == attacker_text.as_bytes()),
-        "{path:?} emitted attacker-controlled bytes from {attacker_text:?}"
-    );
+    if diff
+        .output()
+        .windows(attacker_text.len())
+        .any(|window| window == attacker_text.as_bytes())
+    {
+        return Err(format!(
+            "{path:?} emitted attacker-controlled bytes from {attacker_text:?}"
+        ));
+    }
+    Ok(())
 }
 
 fn contains_paste(events: &[InputEvent]) -> bool {
@@ -175,7 +181,10 @@ proptest! {
         let attacker_text = format!("left{control}right");
         for path in SURFACE_WRITERS {
             let surface = write_surface(*path, &attacker_text);
-            assert_surface_has_no_host_controls(*path, &surface, &attacker_text);
+            assert_eq!(
+                surface_host_controls(*path, &surface, &attacker_text),
+                Ok(())
+            );
         }
     }
 
@@ -184,22 +193,22 @@ proptest! {
         let attacker_title = format!("title{control}payload");
 
         let mut host = ManuallyDrop::new(HostTerminal::new().unwrap());
-        prop_assert!(host.set_title(&attacker_title).is_err());
+        assert!(host.set_title(&attacker_title).is_err());
 
         let mut terminal = Terminal::new(TerminalConfig::default());
-        prop_assert!(terminal.set_title(&attacker_title).is_err());
+        assert!(terminal.set_title(&attacker_title).is_err());
 
         let sequence = utils::set_title(&attacker_title);
         let payload = sequence.trim_start_matches("\u{1b}]0;").trim_end_matches('\u{7}');
-        prop_assert!(payload.chars().all(|character| !character.is_control()));
+        assert!(payload.chars().all(|character| !character.is_control()));
 
         let child_sequence = format!("\u{1b}]0;{attacker_title}\u{7}");
         for event in terminal.process_output(child_sequence.as_bytes()) {
             if let TerminalEvent::TitleChanged(title) = event {
-                prop_assert!(title.chars().all(|character| !character.is_control()));
+                assert!(title.chars().all(|character| !character.is_control()));
             }
         }
-        prop_assert!(terminal.title().chars().all(|character| !character.is_control()));
+        assert!(terminal.title().chars().all(|character| !character.is_control()));
     }
 
     #[test]
@@ -211,7 +220,7 @@ proptest! {
         let terminator = if use_st { "\u{1b}\\" } else { "\u{7}" };
         let input = format!("\u{1b}]52;c;{encoded}{terminator}");
         let events = EscapeSequenceParser::new().parse(input.as_bytes());
-        prop_assert!(!contains_paste(&events));
+        assert!(!contains_paste(&events), "OSC 52 became a paste: {events:?}");
     }
 }
 
@@ -219,10 +228,9 @@ proptest! {
 fn explicit_osc_and_csi_injection_is_not_retained() {
     for attacker_text in ["left\u{1b}[2Jright", "left\u{1b}]52;c;SGVsbG8=\u{7}right"] {
         for path in SURFACE_WRITERS {
-            assert_surface_has_no_host_controls(
-                *path,
-                &write_surface(*path, attacker_text),
-                attacker_text,
+            assert_eq!(
+                surface_host_controls(*path, &write_surface(*path, attacker_text), attacker_text),
+                Ok(())
             );
         }
     }

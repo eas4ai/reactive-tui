@@ -14,7 +14,8 @@ async fn wait_until(event_loop: &TokioEventLoop, running: bool) {
     .expect("TokioEventLoop did not reach the expected running state");
 }
 
-async fn exercise_lifecycle(runtime: &str) {
+/// Drive every lifecycle route and return whether the final loop is still running.
+async fn exercise_lifecycle(runtime: &str) -> bool {
     let mut sync_started = TokioEventLoop::new();
     let start = catch_unwind(AssertUnwindSafe(|| EventLoop::start(&mut sync_started)))
         .expect("sync start panicked inside an active Tokio runtime");
@@ -53,17 +54,24 @@ async fn exercise_lifecycle(runtime: &str) {
         .await
         .expect("async stop timed out")
         .expect("async stop failed");
-    assert!(!async_lifecycle.is_running());
+    let running = async_lifecycle.is_running();
 
     println!("RTR003 PASS {runtime}");
+    running
 }
 
 #[tokio::test(flavor = "current_thread")]
 async fn lifecycle_routes_are_safe_in_current_thread_runtime() {
-    exercise_lifecycle("current-thread").await;
+    assert!(
+        !exercise_lifecycle("current-thread").await,
+        "event loop still running after stop_async"
+    );
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn lifecycle_routes_are_safe_in_multi_thread_runtime() {
-    exercise_lifecycle("multi-thread").await;
+    assert!(
+        !exercise_lifecycle("multi-thread").await,
+        "event loop still running after stop_async"
+    );
 }

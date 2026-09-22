@@ -138,10 +138,19 @@ fn constructors_can_register_components() {
     });
 }
 
-fn cleanup_case(operation: fn(&ComponentRegistry, &NodeKey)) {
+/// Run `operation` against a registered probe and return the probe's final
+/// `(unmounts, drops)` counters once the registry has been cleaned up.
+fn cleanup_case(operation: fn(&ComponentRegistry, &NodeKey)) -> (usize, usize) {
+    let unmounts = Arc::new(AtomicUsize::new(0));
+    let drops = Arc::new(AtomicUsize::new(0));
+    let counters = (Arc::clone(&unmounts), Arc::clone(&drops));
     bounded(move || {
         let registry = Arc::new(ComponentRegistry::new());
-        let props = probe_props(&registry);
+        let props = ProbeProps {
+            unmounts: counters.0,
+            drops: counters.1,
+            ..probe_props(&registry)
+        };
         let key = NodeKey::named("probe");
         registry
             .register_instance(key.clone(), probe(props.clone()))
@@ -154,21 +163,37 @@ fn cleanup_case(operation: fn(&ComponentRegistry, &NodeKey)) {
         assert_eq!(registry.active_count().unwrap(), 0);
         assert_eq!(props.unmounts.load(Ordering::SeqCst), 1);
     });
+    (
+        unmounts.load(Ordering::SeqCst),
+        drops.load(Ordering::SeqCst),
+    )
 }
 #[test]
 fn unregister_allows_callback_reentry() {
-    cleanup_case(|r, k| r.unregister_instance(k).unwrap());
+    assert_eq!(
+        cleanup_case(|r, k| r.unregister_instance(k).unwrap()),
+        (1, 1),
+        "probe unmounted and dropped exactly once"
+    );
 }
 #[test]
 fn replacement_allows_callback_reentry() {
-    cleanup_case(|r, k| r.register_instance(k.clone(), plain()).unwrap());
+    assert_eq!(
+        cleanup_case(|r, k| r.register_instance(k.clone(), plain()).unwrap()),
+        (1, 1),
+        "replaced probe unmounted and dropped exactly once"
+    );
 }
 #[test]
 fn element_replacement_allows_callback_reentry() {
-    cleanup_case(|r, k| {
-        r.register_instance_with_element(k.clone(), plain(), &Element::text("replacement"))
-            .unwrap()
-    });
+    assert_eq!(
+        cleanup_case(|r, k| {
+            r.register_instance_with_element(k.clone(), plain(), &Element::text("replacement"))
+                .unwrap()
+        }),
+        (1, 1),
+        "element-replaced probe unmounted and dropped exactly once"
+    );
 }
 #[test]
 fn orphan_cleanup_allows_callback_reentry() {
@@ -185,11 +210,19 @@ fn bulk_cleanup_allows_callback_reentry() {
 }
 #[test]
 fn clear_allows_callback_reentry() {
-    cleanup_case(|r, _| r.clear().unwrap());
+    assert_eq!(
+        cleanup_case(|r, _| r.clear().unwrap()),
+        (1, 1),
+        "cleared probe unmounted and dropped exactly once"
+    );
 }
 #[test]
 fn clear_all_allows_callback_reentry() {
-    cleanup_case(|r, _| r.clear_all().unwrap());
+    assert_eq!(
+        cleanup_case(|r, _| r.clear_all().unwrap()),
+        (1, 1),
+        "clear_all probe unmounted and dropped exactly once"
+    );
 }
 #[test]
 fn registry_drop_releases_owned_instances() {

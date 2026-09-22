@@ -57,7 +57,7 @@ fn confirmation_positions_follow_viewport_resize_and_explicit_bounds() {
             );
             let before = origin(mode, initial);
             let after = origin(mode, resized);
-            app_input::run_when_cell(
+            let frames = app_input::run_when_cell(
                 Control(element),
                 initial,
                 vec![
@@ -74,6 +74,15 @@ fn confirmation_positions_follow_viewport_resize_and_explicit_bounds() {
                         event: None,
                     },
                 ],
+            );
+            let corner = frames
+                .last()
+                .and_then(|frame| frame.screen.cell(after.1, after.0))
+                .map(|cell| cell.contents());
+            assert_eq!(
+                corner,
+                Some("┌"),
+                "dialog corner for mode {mode} sits at {after:?} after resizing {initial:?} to {resized:?}"
             );
         }
     }

@@ -37,7 +37,7 @@ fn input_macros_build_editable_controls() {
             reactive_tui::text_input![value: "seed"],
             reactive_tui::text_input![value: "seed", placeholder: "TYPE"],
         ] {
-            app_input::run_when(
+            let frames = app_input::run_when(
                 Control(element.auto_focus()),
                 size,
                 vec![
@@ -45,6 +45,11 @@ fn input_macros_build_editable_controls() {
                     ("", app_input::key(KeyCode::Char('X'))),
                     ("X", None),
                 ],
+            );
+            let last = &frames.last().unwrap().text;
+            assert!(
+                last.contains('X'),
+                "input macro control accepts typed text at {size:?}:\n{last}"
             );
         }
     }
@@ -149,7 +154,12 @@ fn display_macros_paint_actual_values() {
                 "Ada",
             ),
         ] {
-            app_input::run_when(Control(element), size, vec![(expected, None)]);
+            let frames = app_input::run_when(Control(element), size, vec![(expected, None)]);
+            let last = &frames.last().unwrap().text;
+            assert!(
+                last.contains(expected),
+                "display macro paints {expected:?} at {size:?}:\n{last}"
+            );
         }
     }
 }

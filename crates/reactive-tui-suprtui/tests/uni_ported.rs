@@ -1391,7 +1391,8 @@ fn req_002_calculatetextwidth_musical_symbols() {
     // ported: calculateTextWidth: musical symbols
     let music = "𝄞𝄢𝅘𝅥𝅮";
     let width = calculate_text_width(music, 4, false, WidthMethod::Unicode);
-    let _ = width; // reference asserts crash-freedom only
+    // Three spacing symbols; the two combining note parts add no columns.
+    assert_eq!(width, 3, "musical symbols width");
 }
 
 #[test]
@@ -1446,7 +1447,8 @@ fn req_002_calculatetextwidth_only_combining_marks_invalid_but_should_not_crash(
     // ported: calculateTextWidth: only combining marks (invalid but should not crash)
     let text = "\u{0301}\u{0302}\u{0303}";
     let width = calculate_text_width(text, 4, false, WidthMethod::Unicode);
-    let _ = width; // reference asserts crash-freedom only
+    // Combining marks without a base take no columns.
+    assert_eq!(width, 0, "combining-only width");
 }
 
 #[test]

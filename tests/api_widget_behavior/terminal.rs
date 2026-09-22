@@ -233,7 +233,7 @@ printf 'INPUT-PASS\r\n'
 while IFS= read -r value; do :; done
 "#,
         );
-        app_input::run_when(
+        let frames = app_input::run_when(
             Control(Element::typed::<TerminalWidget>(props)),
             size,
             vec![
@@ -259,6 +259,11 @@ while IFS= read -r value; do :; done
                 ),
                 ("INPUT-PASS", None),
             ],
+        );
+        let last = &frames.last().unwrap().text;
+        assert!(
+            last.contains("INPUT-PASS"),
+            "child shell verified every cursor and paste mode at {size:?}:\n{last}"
         );
     }
 }

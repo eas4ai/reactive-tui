@@ -372,7 +372,18 @@ mod tests {
     #[test]
     fn test_clipboard_backend_detection() {
         let backend = ClipboardBackend::detect();
-        // Detection is read-only, including an unavailable desktop.
+        // Detection is read-only, including an unavailable desktop, so it is stable.
+        assert_eq!(backend, ClipboardBackend::detect());
+        let has_display = ["WAYLAND_DISPLAY", "DISPLAY"]
+            .iter()
+            .any(|name| std::env::var_os(name).is_some_and(|value| !value.is_empty()));
+        if !has_display && !cfg!(any(target_os = "macos", target_os = "windows")) {
+            assert_eq!(
+                backend,
+                ClipboardBackend::Unavailable,
+                "no desktop session means no clipboard backend"
+            );
+        }
         println!("Detected clipboard backend: {backend:?}");
     }
 

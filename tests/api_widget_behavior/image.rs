@@ -84,7 +84,7 @@ fn image_builder_retains_base64_data_url_and_format_hint() {
                 .source_raw_bytes(vec![0, 0, 0, 255], 1, 1, ImageFormat::RGB888)
                 .format(ImageFormat::RGBA8888),
         ] {
-            app_input::run_when(
+            let frames = app_input::run_when(
                 Control(
                     image
                         .display_mode(ImageDisplayMode::AsciiArt)
@@ -94,6 +94,11 @@ fn image_builder_retains_base64_data_url_and_format_hint() {
                 ),
                 size,
                 vec![("@@@@", None)],
+            );
+            let last = &frames.last().unwrap().text;
+            assert!(
+                last.contains("@@@@") && !last.contains("Image error"),
+                "black image paints as ASCII art at {size:?}:\n{last}"
             );
         }
     }
@@ -110,16 +115,26 @@ fn image_builder_reports_invalid_sources_and_empty_state() {
                 .source_raw_bytes(black_png(), 1, 1, ImageFormat::PNG)
                 .format(ImageFormat::JPEG),
         ] {
-            app_input::run_when(
+            let frames = app_input::run_when(
                 Control(image.class("w-full h-3").build()),
                 size,
                 vec![("Image error:", None)],
             );
+            let last = &frames.last().unwrap().text;
+            assert!(
+                last.contains("Image error:"),
+                "invalid source reports an error at {size:?}:\n{last}"
+            );
         }
-        app_input::run_when(
+        let frames = app_input::run_when(
             Control(builder::image().class("w-full h-2").build()),
             size,
             vec![("Image has no source", None)],
+        );
+        let last = &frames.last().unwrap().text;
+        assert!(
+            last.contains("Image has no source") && !last.contains("Image error"),
+            "empty image reports its empty state at {size:?}:\n{last}"
         );
     }
 }
@@ -265,10 +280,15 @@ fn image_native_element_honors_alpha_background_quality_and_text_mode() {
             })
             .with_display_mode(ImageDisplayMode::AsciiArt)
             .with_quality(ImageQuality::Fast);
-        app_input::run_when(
+        let frames = app_input::run_when(
             Control(image.into_element().with_class("w-4 h-2")),
             size,
             vec![("----", None)],
+        );
+        let last = &frames.last().unwrap().text;
+        assert!(
+            last.contains("----"),
+            "transparent pixel over a grey background paints mid-tone at {size:?}:\n{last}"
         );
         let detailed = builder::image()
             .source_raw_bytes(vec![0; 3], 1, 1, ImageFormat::RGB888)
@@ -276,15 +296,25 @@ fn image_native_element_honors_alpha_background_quality_and_text_mode() {
             .quality(ImageQuality::High)
             .class("w-4 h-2")
             .build();
-        app_input::run_when(Control(detailed), size, vec![("$$$$", None)]);
+        let frames = app_input::run_when(Control(detailed), size, vec![("$$$$", None)]);
+        let last = &frames.last().unwrap().text;
+        assert!(
+            last.contains("$$$$"),
+            "high quality black pixel paints the densest glyph at {size:?}:\n{last}"
+        );
         let text: reactive_tui::component::Element = Image::default()
             .with_display_mode(ImageDisplayMode::Fallback)
             .with_fallback_text("CUSTOM IMAGE")
             .into();
-        app_input::run_when(
+        let frames = app_input::run_when(
             Control(text.with_class("w-full h-2")),
             size,
             vec![("CUSTOM IMAGE", None)],
+        );
+        let last = &frames.last().unwrap().text;
+        assert!(
+            last.contains("CUSTOM IMAGE"),
+            "fallback text mode paints the custom text at {size:?}:\n{last}"
         );
     }
 }

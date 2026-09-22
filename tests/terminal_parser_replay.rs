@@ -151,7 +151,8 @@ mod ghostty {
     /// Both models must agree character-for-character on plain text.
     /// Agreement is asserted only where VT semantics are unambiguous;
     /// control/edge cases get per-model no-leak assertions instead.
-    fn assert_models_agree(bytes: &[u8]) {
+    /// Normalised screen text from the vt100 model and the ghostty model.
+    fn model_texts(bytes: &[u8]) -> (String, String) {
         let vt: Vec<String> = super::vt100_text(bytes)
             .lines()
             .map(|l| l.trim_end().to_string())
@@ -160,19 +161,26 @@ mod ghostty {
             .iter()
             .map(|l| l.trim_end().to_string())
             .collect();
-        let vt = vt.join("\n").trim().to_string();
-        let ghost = ghost.join("\n").trim().to_string();
-        assert_eq!(vt, ghost, "parser models disagree on {bytes:?}");
+        (
+            vt.join("\n").trim().to_string(),
+            ghost.join("\n").trim().to_string(),
+        )
     }
 
     #[test]
     fn models_agree_on_styled_text() {
-        assert_models_agree(b"Hello, \x1b[1;32mworld\x1b[0m!");
+        let bytes = b"Hello, \x1b[1;32mworld\x1b[0m!";
+        let (vt, ghost) = model_texts(bytes);
+        assert_eq!(vt, ghost, "parser models disagree on {bytes:?}");
+        assert_eq!(vt, "Hello, world!");
     }
 
     #[test]
     fn models_agree_on_braille() {
-        assert_models_agree("donut \u{28ff} blank \u{2800} end".as_bytes());
+        let bytes = "donut \u{28ff} blank \u{2800} end".as_bytes();
+        let (vt, ghost) = model_texts(bytes);
+        assert_eq!(vt, ghost, "parser models disagree on {bytes:?}");
+        assert_eq!(vt, "donut \u{28ff} blank \u{2800} end");
     }
 
     #[test]

@@ -67,7 +67,11 @@ mod tests {
     fn test_apply_utility_classes_empty() {
         let sb = StyleBuilder::new();
         let result = apply_utility_classes("", sb);
-        let _style = result.build();
+        assert_eq!(
+            result.build(),
+            StyleBuilder::new().build(),
+            "an empty class list leaves the default style"
+        );
     }
 
     #[test]
@@ -220,8 +224,8 @@ mod tests {
     fn test_apply_utility_classes_invalid() {
         let sb = StyleBuilder::new();
         let result = apply_utility_classes("invalid-class unknown-utility", sb);
-        let _style = result.build();
-        // Should not panic, just ignore invalid classes
+        // Invalid classes are ignored and leave the default style
+        assert_eq!(result.build(), StyleBuilder::new().build());
     }
 
     #[test]

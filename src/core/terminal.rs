@@ -454,8 +454,13 @@ mod tests {
 
     #[test]
     fn test_size_detection() {
-        // In a test environment this might fail, so we just check it doesn't panic
-        let _ = Terminal::get_size();
+        // In a test environment this may fail; either way detection is stable
+        let first = Terminal::get_size().ok();
+        let second = Terminal::get_size().ok();
+        assert_eq!(
+            first, second,
+            "terminal size detection is stable across calls"
+        );
     }
 }
 

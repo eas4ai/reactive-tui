@@ -84,7 +84,7 @@ fn styled_input_helpers_are_visible_and_editable_at_terminal_sizes() {
             builder::styled_input("TYPE HERE").build(),
             builder::search_input("TYPE HERE"),
         ] {
-            app_input::run_when(
+            let frames = app_input::run_when(
                 Control(element),
                 size,
                 vec![
@@ -92,6 +92,11 @@ fn styled_input_helpers_are_visible_and_editable_at_terminal_sizes() {
                     ("TYPE HERE", app_input::key(KeyCode::Char('Z'))),
                     ("Z", None),
                 ],
+            );
+            let last = &frames.last().unwrap().text;
+            assert!(
+                last.contains('Z') && !last.contains("TYPE HERE"),
+                "typed text replaces the placeholder at {size:?}:\n{last}"
             );
         }
     }
@@ -278,7 +283,7 @@ fn core_input_text_is_an_editable_seed() {
             .class("w-20 h-3 p-0")
             .build()
             .auto_focus();
-        app_input::run_when(
+        let frames = app_input::run_when(
             Control(input),
             size,
             vec![
@@ -286,6 +291,11 @@ fn core_input_text_is_an_editable_seed() {
                 ("seed", app_input::key(KeyCode::Char('X'))),
                 ("seedX", None),
             ],
+        );
+        let last = &frames.last().unwrap().text;
+        assert!(
+            last.contains("seedX"),
+            "seed text accepts an appended character at {size:?}:\n{last}"
         );
     }
 }

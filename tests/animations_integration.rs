@@ -296,16 +296,28 @@ mod tests {
         println!("🎬 Animation & Transitions Demo Results:");
         println!("========================================");
 
+        let mut rendered = String::new();
         for y in 0..30 {
             for x in 0..80 {
                 let cell = surface.get(x, y);
                 if cell.ch != ' ' && cell.ch != '\0' {
                     print!("{}", cell.ch);
+                    rendered.push(cell.ch);
                 } else {
                     print!(" ");
+                    rendered.push(' ');
                 }
             }
             println!();
+            rendered.push('\n');
+        }
+        // The 30-row surface shows the header and the first section label;
+        // the gap-2 column pushes the later sections below the viewport.
+        for expected in ["Animation &", "Transition Examples:"] {
+            assert!(
+                rendered.contains(expected),
+                "painted surface is missing {expected:?}:\n{rendered}"
+            );
         }
 
         println!("\n✅ Animation & Transition utilities are working!");

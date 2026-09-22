@@ -57,11 +57,15 @@ mod tests {
 
         let result = apply_interaction_utilities("select-none", sb.clone())
             .expect("CSS interactions test should succeed");
-        let _style = result.build();
+        assert_eq!(result.opacity, Some(0.7), "select-none dims the text");
 
         let result = apply_interaction_utilities("select-all", sb.clone())
             .expect("CSS interactions test should succeed");
-        let _style = result.build();
+        assert_eq!(
+            result.text.bold,
+            Some(true),
+            "select-all emboldens the text"
+        );
     }
 
     #[test]
@@ -70,11 +74,16 @@ mod tests {
 
         let result = apply_interaction_utilities("cursor-pointer", sb.clone())
             .expect("CSS interactions test should succeed");
-        let _style = result.build();
+        assert_eq!(
+            result.text.underline,
+            Some(true),
+            "cursor-pointer underlines"
+        );
 
         let result = apply_interaction_utilities("cursor-not-allowed", sb.clone())
             .expect("CSS interactions test should succeed");
-        let _style = result.build();
+        assert_eq!(result.opacity, Some(0.5), "cursor-not-allowed dims");
+        assert!(result.get_strike(), "cursor-not-allowed strikes through");
     }
 
     #[test]
@@ -83,10 +92,10 @@ mod tests {
 
         let result = apply_interaction_utilities("pointer-events-none", sb.clone())
             .expect("CSS interactions test should succeed");
-        let _style = result.build();
+        assert_eq!(result.opacity, Some(0.3), "pointer-events-none fades");
 
         let result = apply_interaction_utilities("pointer-events-auto", sb.clone())
             .expect("CSS interactions test should succeed");
-        let _style = result.build();
+        assert_eq!(result.opacity, Some(1.0), "pointer-events-auto is opaque");
     }
 }

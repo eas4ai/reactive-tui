@@ -583,14 +583,23 @@ fn parse_spacing_value(value: &str) -> Option<f32> {
 mod tests {
     use super::*;
     use crate::layout::style::StyleBuilder;
+    use taffy::style::{
+        AlignItems, Dimension, Display, FlexDirection, JustifyContent, LengthPercentage,
+    };
 
     #[test]
     fn test_fast_parsing() {
         let sb = StyleBuilder::new();
         let classes = "flex flex-col justify-center items-center p-4 m-2";
         let result = apply_utility_classes(classes, sb, None);
-        // Test that the result builds successfully
-        let _built_style = result.build();
+        // Every utility in the class list lands in the built style
+        let style = result.build();
+        assert_eq!(style.display, Display::Flex);
+        assert_eq!(style.flex_direction, FlexDirection::Column);
+        assert_eq!(style.justify_content, Some(JustifyContent::Center));
+        assert_eq!(style.align_items, Some(AlignItems::Center));
+        assert_eq!(style.padding.left, LengthPercentage::length(16.0));
+        assert_eq!(style.padding.bottom, LengthPercentage::length(16.0));
     }
 
     #[test]
@@ -630,12 +639,25 @@ mod tests {
 
         // These should delegate to existing modules
         let result = apply_utility_classes("bg-red-500", sb.clone(), None);
-        let _built = result.build();
+        assert!(
+            result.bg_rgba.is_some(),
+            "colour module sets the background"
+        );
 
+        // Bracketed arbitrary widths are not on the utility scale and leave the width alone
         let result = apply_utility_classes("w-[200px]", sb.clone(), None);
-        let _built = result.build();
+        assert_eq!(
+            result.build().size.width,
+            StyleBuilder::new().build().size.width
+        );
+        // The plain pixel form delegates to the sizing module
+        let result = apply_utility_classes("w-200px", sb.clone(), None);
+        assert_eq!(result.build().size.width, Dimension::length(200.0));
 
         let result = apply_utility_classes("hover:bg-blue-500", sb, None);
-        let _built = result.build();
+        assert!(
+            result.bg_rgba.is_none(),
+            "a hover variant does not paint the resting background"
+        );
     }
 }

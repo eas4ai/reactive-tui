@@ -1355,7 +1355,7 @@ fn context_menu_long_press_opens_without_another_mouse_event() {
             long_press_duration: 20,
             ..Default::default()
         });
-        app_input::run_when(
+        let frames = app_input::run_when(
             Control(menu),
             size,
             vec![
@@ -1368,6 +1368,11 @@ fn context_menu_long_press_opens_without_another_mouse_event() {
                 ),
                 ("COPY", None),
             ],
+        );
+        let last = &frames.last().unwrap().text;
+        assert!(
+            last.contains("COPY"),
+            "long press opens the context menu at {size:?}:\n{last}"
         );
     }
 }
@@ -1746,7 +1751,7 @@ fn popup_and_dialog_menu_outside_click_ignores_closed_submenu_bounds() {
                 .find(|(_, line)| line.contains("OPEN"))
                 .unwrap();
             let x = line[..line.find("OPEN").unwrap()].chars().count();
-            app_input::run_until_hidden(
+            let frames = app_input::run_until_hidden(
                 Control(menu),
                 size,
                 vec![
@@ -1755,6 +1760,11 @@ fn popup_and_dialog_menu_outside_click_ignores_closed_submenu_bounds() {
                     ("RECENT", super::click(x as u16, y as u16)),
                 ],
                 "RECENT",
+            );
+            let last = &frames.last().unwrap().text;
+            assert!(
+                !last.contains("RECENT") && !last.contains("OPEN"),
+                "click on the closed submenu's old cell dismisses the menu (dialog={dialog}) at {size:?}:\n{last}"
             );
         }
     }

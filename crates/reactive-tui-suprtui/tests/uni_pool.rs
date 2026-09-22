@@ -24,7 +24,7 @@ fn shared_pool() -> Rc<RefCell<GraphemePool<'static>>> {
 }
 
 #[test]
-fn req_008_pool_init_and_cleanup() {
+fn smoke_req_008_pool_init_and_cleanup() {
     // ported: GraphemePool - can initialize and cleanup
     let pool = GraphemePool::new();
     drop(pool);

@@ -57,10 +57,13 @@ fn test_chart_creation() {
         .with_title("Quarterly Performance")
         .with_size(80, 20);
 
-    let element = Element::component_with_props("Chart", bar_props);
-    let _render_node = element_to_render_node(element);
+    assert_eq!(bar_props.chart_type, ChartType::BarVertical);
+    assert_eq!(bar_props.title.as_deref(), Some("Quarterly Performance"));
+    assert_eq!((bar_props.width, bar_props.height), (80, 20));
 
-    println!("✅ Bar chart created successfully");
+    let element = Element::component_with_props("Chart", bar_props);
+    let render_node = element_to_render_node(element);
+    assert_eq!(render_node.node_type(), "Chart");
 }
 
 #[test]
@@ -162,14 +165,20 @@ fn test_chart_types() {
     };
 
     // Create elements for each chart type
-    let _bar_v_element = Element::component_with_props("ChartTypes", bar_vertical);
-    let _bar_h_element = Element::component_with_props("ChartTypes", bar_horizontal);
-    let _line_element = Element::component_with_props("ChartTypes", line_chart);
-    let _pie_element = Element::component_with_props("ChartTypes", pie_chart);
-    let _area_element = Element::component_with_props("ChartTypes", area_chart);
-    let _scatter_element = Element::component_with_props("ChartTypes", scatter_plot);
-
-    println!("✅ All chart types created successfully");
+    let charts = [
+        (bar_vertical, ChartType::BarVertical),
+        (bar_horizontal, ChartType::BarHorizontal),
+        (line_chart, ChartType::Line),
+        (pie_chart, ChartType::Pie),
+        (area_chart, ChartType::Area),
+        (scatter_plot, ChartType::Scatter),
+    ];
+    for (props, expected) in charts {
+        assert_eq!(props.chart_type, expected);
+        assert!(!props.series.is_empty(), "sample series are retained");
+        let element = Element::component_with_props("ChartTypes", props);
+        assert_eq!(element_to_render_node(element).node_type(), "ChartTypes");
+    }
 }
 
 #[test]

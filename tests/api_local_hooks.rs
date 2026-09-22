@@ -179,7 +179,7 @@ fn cleanup_destructors_can_reenter_another_local_owner() {
 }
 
 #[test]
-fn thread_safe_hooks_and_generated_state_remain_send_sync() {
+fn smoke_thread_safe_hooks_and_generated_state_remain_send_sync() {
     fn require<T: Send + Sync>() {}
     require::<Hooks>();
 }
