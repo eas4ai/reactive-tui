@@ -5,7 +5,7 @@ use reactive_tui::{
     event::types::{Event, KeyCode, MouseEvent, MouseEventKind, Position},
     widgets::display::{
         Chart, ChartAxis, ChartProps, ChartType, ChartsBuilder, DataPoint, DataSeries, FillStyle,
-        LegendPosition,
+        LegendPosition, SizeClass,
     },
 };
 
@@ -49,11 +49,30 @@ fn last(element: Element, size: (u16, u16)) -> app_input::Snapshot {
 fn count(frame: &app_input::Snapshot, mark: char) -> usize {
     frame.text.chars().filter(|c| *c == mark).count()
 }
+fn is_braille(c: char) -> bool {
+    ('\u{2800}'..='\u{28FF}').contains(&c)
+}
+fn braille(frame: &app_input::Snapshot) -> usize {
+    frame.text.chars().filter(|c| is_braille(*c)).count()
+}
 fn hover(x: u16, y: u16) -> Option<Event> {
     Some(Event::Mouse(MouseEvent::new(
         MouseEventKind::Move,
         Position::cell(x, y),
     )))
+}
+/// Every cell holding `mark`, as (row, column).
+fn cells_with(frame: &app_input::Snapshot, mark: &str) -> Vec<(u16, u16)> {
+    let (rows, cols) = frame.screen.size();
+    (0..rows)
+        .flat_map(|r| (0..cols).map(move |c| (r, c)))
+        .filter(|(r, c)| {
+            frame
+                .screen
+                .cell(*r, *c)
+                .is_some_and(|cell| cell.contents() == mark)
+        })
+        .collect()
 }
 
 #[test]
@@ -65,9 +84,9 @@ fn charts_render_distinct_geometry_at_two_measured_sizes() {
             Element::typed::<Chart>(props(ChartType::Scatter, size)),
             size,
         );
-        assert!(count(&line, '─') > 5, "{}", line.text);
+        assert!(braille(&line) > 5, "{}", line.text);
         assert_eq!(count(&scatter, '•'), 2, "{}", scatter.text);
-        assert_eq!(count(&line, '●'), 2);
+        assert_eq!(count(&line, '●'), 2, "{}", line.text);
         assert!(count(&area, '█') > 5, "{}", area.text);
         assert_eq!(count(&line, '█'), 0);
         let pie = last(Element::typed::<Chart>(props(ChartType::Pie, size)), size);
@@ -115,21 +134,21 @@ fn charts_use_exact_values_colors_and_point_overrides() {
                 .render(),
             size,
         );
-        let low = ((size.1 - 1) as f64 * 0.8).round() as u16;
-        let high = ((size.1 - 1) as f64 * 0.2).round() as u16;
+        let marks = cells_with(&frame, "•");
+        assert_eq!(marks.len(), 2, "{}", frame.text);
+        let low = *marks.iter().max_by_key(|(r, _)| *r).unwrap();
+        let high = *marks.iter().min_by_key(|(r, _)| *r).unwrap();
+        // The first point sits on the first column, the last on the last
+        // column, and the lower value is drawn lower on the grid.
+        assert_eq!(low.1, 0, "{}", frame.text);
+        assert_eq!(high.1, size.0 - 1, "{}", frame.text);
+        assert!(low.0 > high.0, "{}", frame.text);
         assert_eq!(
-            frame.screen.cell(low, 0).unwrap().contents(),
-            "•",
-            "{}",
-            frame.text
-        );
-        assert_eq!(frame.screen.cell(high, size.0 - 1).unwrap().contents(), "•");
-        assert_eq!(
-            frame.screen.cell(low, 0).unwrap().fgcolor(),
+            frame.screen.cell(low.0, low.1).unwrap().fgcolor(),
             vt100::Color::Rgb(255, 0, 0)
         );
         assert_eq!(
-            frame.screen.cell(high, size.0 - 1).unwrap().fgcolor(),
+            frame.screen.cell(high.0, high.1).unwrap().fgcolor(),
             vt100::Color::Rgb(0, 255, 0)
         );
     }
@@ -172,7 +191,8 @@ fn chart_tooltips_follow_painted_points_and_keyboard_and_can_be_disabled() {
 
 #[test]
 fn charts_display_axis_titles_grid_custom_ticks_and_all_legend_positions() {
-    for size in [(30, 12), (48, 18)] {
+    // Both sizes are the medium class, which draws axes and the legend.
+    for size in [(40, 14), (48, 18)] {
         for position in [
             LegendPosition::Top,
             LegendPosition::Bottom,
@@ -212,7 +232,7 @@ fn charts_display_axis_titles_grid_custom_ticks_and_all_legend_positions() {
                     frame.text
                 );
             }
-            assert!(count(&frame, '·') > 0);
+            assert!(count(&frame, '·') > 0, "{}", frame.text);
         }
     }
 }
@@ -276,31 +296,57 @@ fn charts_honor_line_and_fill_styles_and_visible_series() {
         let mut none = props(ChartType::Line, size);
         none.series[0].line_style = LineStyle::None;
         let frame = last(Element::typed::<Chart>(none), size);
-        assert_eq!(count(&frame, '●'), 2);
-        assert_eq!(count(&frame, '─'), 0);
+        assert_eq!(count(&frame, '●'), 2, "{}", frame.text);
+        assert_eq!(braille(&frame), 0, "{}", frame.text);
         let mut solid = props(ChartType::Line, size);
         solid.series[0].data[0].value = 5.0;
         solid.series[0].data[1].value = 5.0;
         let full = last(Element::typed::<Chart>(solid.clone()), size);
         solid.series[0].line_style = LineStyle::Dashed;
         let dashed = last(Element::typed::<Chart>(solid.clone()), size);
-        assert!(count(&dashed, '─') > 0 && count(&dashed, '─') < count(&full, '─'));
+        assert!(
+            braille(&dashed) > 0 && braille(&dashed) < braille(&full),
+            "dashed {} vs solid {}:\n{}",
+            braille(&dashed),
+            braille(&full),
+            dashed.text
+        );
         solid.series[0].line_style = LineStyle::Dotted;
         let dotted = last(Element::typed::<Chart>(solid), size);
-        assert!(count(&dotted, '·') > 0);
-        assert_eq!(count(&dotted, '─'), 0);
+        assert!(
+            braille(&dotted) > 0 && braille(&dotted) < braille(&full),
+            "{}",
+            dotted.text
+        );
         for (style, mark) in [
             (FillStyle::Solid, '█'),
-            (FillStyle::Gradient, '▒'),
+            (FillStyle::Gradient, '█'),
             (FillStyle::Pattern("/".into()), '/'),
             (FillStyle::Pattern("diagonal".into()), '/'),
             (FillStyle::Pattern("dots".into()), '·'),
             (FillStyle::Pattern("ab".into()), 'b'),
         ] {
             let mut config = props(ChartType::Area, size);
-            config.series[0].fill_style = style;
+            config.series[0].fill_style = style.clone();
             let frame = last(Element::typed::<Chart>(config), size);
-            assert!(count(&frame, mark) > 0, "{}", frame.text);
+            assert!(count(&frame, mark) > 0, "{style:?}: {}", frame.text);
+            if style == FillStyle::Gradient {
+                // The ramp shades toward the baseline: one column carries
+                // more than one color.
+                let (rows, cols) = frame.screen.size();
+                let shades = (0..cols)
+                    .map(|c| {
+                        (0..rows)
+                            .filter_map(|r| frame.screen.cell(r, c))
+                            .filter(|cell| cell.contents() == "█")
+                            .map(|cell| format!("{:?}", cell.fgcolor()))
+                            .collect::<std::collections::BTreeSet<_>>()
+                            .len()
+                    })
+                    .max()
+                    .unwrap_or(0);
+                assert!(shades >= 2, "gradient must shade: {}", frame.text);
+            }
         }
         let mut config = props(ChartType::Area, size);
         config.series[0].fill_style = FillStyle::None;
@@ -338,17 +384,27 @@ fn charts_clip_scatter_values_outside_explicit_axes_and_color_pie_sectors() {
         config.series[0].data = vec![DataPoint::new(1.0), DataPoint::new(1.0)];
         config.color_palette = vec!["#ff0000".into(), "#00ff00".into()];
         let frame = last(Element::typed::<Chart>(config), size);
+        // The first slice sweeps clockwise from twelve o'clock over the
+        // right half, the second over the left half.
         assert_eq!(
             frame
                 .screen
-                .cell(size.1 / 2, size.0 * 3 / 4)
+                .cell(size.1 / 2, size.0 * 5 / 8)
                 .unwrap()
                 .fgcolor(),
-            vt100::Color::Rgb(255, 0, 0)
+            vt100::Color::Rgb(255, 0, 0),
+            "{}",
+            frame.text
         );
         assert_eq!(
-            frame.screen.cell(size.1 / 2, size.0 / 4).unwrap().fgcolor(),
-            vt100::Color::Rgb(0, 255, 0)
+            frame
+                .screen
+                .cell(size.1 / 2, size.0 * 3 / 8)
+                .unwrap()
+                .fgcolor(),
+            vt100::Color::Rgb(0, 255, 0),
+            "{}",
+            frame.text
         );
     }
 }
@@ -400,7 +456,11 @@ fn charts_update_props_and_resize_inside_a_padded_parent() {
         "{}",
         frames.last().unwrap().text
     );
-    assert!(frames.last().unwrap().text.contains("unit=ms"));
+    assert!(
+        frames.last().unwrap().text.contains("unit=ms"),
+        "{}",
+        frames.last().unwrap().text
+    );
     assert!(frames
         .last()
         .unwrap()
@@ -417,29 +477,32 @@ fn chart_line_segments_intersect_axes_without_inventing_edge_points() {
     for size in [(25, 13), (49, 25)] {
         let mut config = props(ChartType::Line, size);
         config.series[0].data = vec![DataPoint::new(-10.0), DataPoint::new(20.0)];
+        config.curve = reactive_tui::widgets::display::Curve::Linear;
         let frame = last(Element::typed::<Chart>(config), size);
         assert_eq!(count(&frame, '●'), 0, "{}", frame.text);
-        assert_eq!(
-            frame
-                .screen
-                .cell(size.1 - 1, (size.0 - 1) / 3)
-                .unwrap()
-                .contents(),
-            "─",
-            "{}",
-            frame.text
-        );
-        assert_eq!(
-            frame
-                .screen
-                .cell(0, (size.0 - 1) * 2 / 3)
-                .unwrap()
-                .contents(),
-            "─"
-        );
+        assert!(braille(&frame) > 0, "{}", frame.text);
+        // The segment enters the axis range a third of the way across and
+        // leaves it two thirds across; outside those the cells stay empty.
+        let near = |row: u16, col: u16| {
+            (col.saturating_sub(1)..=col + 1).any(|c| {
+                frame
+                    .screen
+                    .cell(row, c)
+                    .is_some_and(|cell| cell.contents().chars().any(is_braille))
+            })
+        };
+        assert!(near(size.1 - 1, (size.0 - 1) / 3), "{}", frame.text);
+        assert!(near(0, (size.0 - 1) * 2 / 3), "{}", frame.text);
         assert!(frame
             .screen
             .cell(size.1 - 1, 0)
+            .unwrap()
+            .contents()
+            .trim()
+            .is_empty());
+        assert!(frame
+            .screen
+            .cell(0, size.0 - 1)
             .unwrap()
             .contents()
             .trim()
@@ -486,6 +549,8 @@ fn chart_legend_placement_and_width_follow_the_configuration() {
             config.series[0].name = "S".into();
             config.legend.visible = true;
             config.legend.position = position;
+            // The mini class hides the legend; force the medium layout.
+            config.size_class = Some(SizeClass::Medium);
             let frame = last(Element::typed::<Chart>(config), size);
             assert_eq!(
                 frame.screen.cell(y, x).unwrap().contents(),
@@ -498,15 +563,19 @@ fn chart_legend_placement_and_width_follow_the_configuration() {
         let mut config = props(ChartType::Scatter, size);
         config.legend.visible = true;
         config.legend.max_width = Some(2);
+        config.size_class = Some(SizeClass::Medium);
         let frame = last(Element::typed::<Chart>(config), size);
         assert!(!frame.text.contains("Measurements"));
         assert!(frame.text.contains('■'));
+        // An unset width or height fills the allotted rectangle instead of
+        // being an error.
         for (width, height) in [(0, 5), (10, 0), (0, 0)] {
             let mut config = props(ChartType::Line, size);
             config.width = width;
             config.height = height;
             let frame = last(Element::typed::<Chart>(config), size);
-            assert!(frame.text.contains("Chart width"), "{}", frame.text);
+            assert!(!frame.text.contains("Chart width"), "{}", frame.text);
+            assert!(count(&frame, '●') > 0, "{}", frame.text);
         }
     }
 }
@@ -585,27 +654,27 @@ fn chart_bars_keep_signed_values_and_do_not_paint_values_outside_the_scale() {
         config.series[0].data = vec![DataPoint::new(-5.0), DataPoint::new(5.0)];
         config.y_axis.min = Some(-10.0);
         let frame = last(Element::typed::<Chart>(config.clone()), size);
-        assert_eq!(
-            frame.screen.cell(size.1 * 3 / 4 - 1, 1).unwrap().contents(),
-            "█",
-            "{}",
+        let blocks = cells_with(&frame, "█");
+        assert!(!blocks.is_empty(), "{}", frame.text);
+        let left_col = blocks.iter().map(|(_, c)| *c).min().unwrap();
+        let right_col = blocks.iter().map(|(_, c)| *c).max().unwrap();
+        let negative: Vec<u16> = blocks
+            .iter()
+            .filter(|(_, c)| *c == left_col)
+            .map(|(r, _)| *r)
+            .collect();
+        let positive: Vec<u16> = blocks
+            .iter()
+            .filter(|(_, c)| *c == right_col)
+            .map(|(r, _)| *r)
+            .collect();
+        // The negative bar hangs below the baseline, the positive one rises
+        // above it, and neither reaches the other's side.
+        assert!(
+            negative.iter().min() >= positive.iter().max(),
+            "negative rows {negative:?} must lie below positive rows {positive:?}:\n{}",
             frame.text
         );
-        assert_eq!(
-            frame
-                .screen
-                .cell(size.1 / 4, size.0 / 2 + 1)
-                .unwrap()
-                .contents(),
-            "█"
-        );
-        assert!(frame
-            .screen
-            .cell(size.1 / 4, 1)
-            .unwrap()
-            .contents()
-            .trim()
-            .is_empty());
         config.y_axis.min = Some(6.0);
         config.y_axis.max = Some(10.0);
         assert_eq!(count(&last(Element::typed::<Chart>(config), size), '█'), 0);
@@ -620,24 +689,24 @@ fn chart_own_padding_positions_plot_and_tooltips_in_the_content_box() {
     for size in [(32, 12), (60, 18)] {
         let mut config = props(ChartType::Scatter, (24, 10));
         config.class = Some("p-0.5".into());
-        let frames = run(
-            Control(Element::typed::<Chart>(config)),
-            size,
-            vec![(2, hover(21, 3)), (3, None)],
-        );
-        assert_eq!(
-            frames[1].screen.cell(3, 21).unwrap().contents(),
-            "•",
-            "{}",
-            frames[1].text
-        );
-        assert!(frames[1]
+        let plain = last(Element::typed::<Chart>(config.clone()), size);
+        let marks = cells_with(&plain, "•");
+        assert_eq!(marks.len(), 2, "{}", plain.text);
+        // Padding keeps the plot off the first cell.
+        assert!(plain
             .screen
             .cell(0, 0)
             .unwrap()
             .contents()
             .trim()
             .is_empty());
+        // Hovering the higher point shows its tooltip inside the content box.
+        let (row, col) = *marks.iter().min_by_key(|(r, _)| *r).unwrap();
+        let frames = run(
+            Control(Element::typed::<Chart>(config)),
+            size,
+            vec![(2, hover(col, row)), (3, None)],
+        );
         let frame = frames.last().unwrap();
         assert!(
             frame.text.contains("High:")

@@ -57,10 +57,17 @@ impl Tooltip {
             self.rows.len()
         };
         for row in &self.rows[..shown] {
-            let value = fit_label(&row.value, inner_max.saturating_sub(4));
+            // The swatch takes two cells; the value is kept whole and the
+            // name is cut first, then dropped when fewer than two cells
+            // remain for it.
+            let value = fit_label(&row.value, inner_max.saturating_sub(2));
             let room = inner_max.saturating_sub(2 + 1 + text_width(&value));
-            let name = fit_label(&row.name, room.max(1));
-            lines.push((row.color, format!("{name} {value}")));
+            let text = if room >= 2 {
+                format!("{} {value}", fit_label(&row.name, room))
+            } else {
+                value
+            };
+            lines.push((row.color, text));
         }
         if self.rows.len() > shown {
             let rest = self.rows.len() - shown;

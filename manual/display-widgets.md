@@ -11,8 +11,9 @@ Image behavior is described in its own chapter.
 
 ## Main API
 
-- `Chart` supports series, axes, legends, chart types, line styles, and fill
-  styles.
+- `Chart` draws line, area, scatter, bar, candlestick, pie and donut charts
+  from series, with axes, legends, tooltips, curve and fill styles, at three
+  size classes.
 - `Table` presents direct rows and columns.
 - `DataTable` adds sorting, filtering, pagination, selection, and virtual
   scrolling.
@@ -39,9 +40,97 @@ owned worker and publishes results back to the application.
 Modal and popover widgets maintain their own open state, placement, focus, and
 event handling. Progress widgets can animate between values.
 
+## Charts
+
+Charts draw through one plot layer (`reactive_tui::widgets::display::plot`:
+scales, ticks, axes, grid, legend, tooltip, curve interpolation and min/max
+decimation) and one mask canvas at two by four dots per cell. The canvas
+resolves each cell to a full block, an eighth block where a rectangle edge
+crosses the cell, a marker, or braille, and to `#`, `|`, `-` and `.` when the
+builder forces ASCII with `.ascii(true)`. Rasterization runs on a named
+`rtui-chart-*` worker thread; the main thread copies the latest snapshot into
+the frame. A chart whose width or height is unset fills its rectangle.
+
+Colors are tokens: a palette name such as `blue-500`, a theme variable such
+as `primary` or `chart-1`, or hex. Every token resolves through
+`Theme::resolve_color`, the resolver the utility classes use. Each preset
+defines `--color-chart-1` to `--color-chart-5`, `--color-chart-bullish` and
+`--color-chart-bearish`.
+
+The typed builders take a `Vec<T>` and accessor closures that run once at
+`.build()`, so the resulting props hold plain points and stay comparable.
+`ChartsBuilder` and `builder::chart()` remain for series built by hand.
+
+### Line chart
+
+`LineChartBuilder::new(rows).x(|r| r.day).y(|r| r.close).name("close")`
+draws one series per `.y(` call. `.stroke("chart-2")` colors the series
+added last. `.natural()`, `.linear()` and `.step_after()` choose the curve;
+`.dot()` marks every point. Series longer than the plot is wide are
+decimated to each column's minimum and maximum, and the tooltip still
+reports the original index.
+
+### Area chart
+
+`AreaChartBuilder` adds `.fill(` for the series added last and
+`.stacked(true)` to stack series. `FillStyle::Gradient` on a series shades
+the fill toward the baseline; `FillStyle::Pattern` tiles glyphs over it.
+
+### Scatter chart
+
+`ScatterChartBuilder` places a `•` marker on every point. The pointer selects
+the point nearest in both axes.
+
+### Bar chart
+
+`BarChartBuilder::new(rows).band(|r| r.day).value(|r| r.total)` draws
+vertical bars; `.alignment(BarGrowth::Left)` or `Right` turns them
+horizontal, `Top` hangs them from the top. Several `.value(` calls group
+bars; `.stacked(true)` stacks them. A bar tip resolves to an eighth block,
+so 3.5 of 8 differs from 3 and 4. `.label(|r| ..)` and the large size class
+show value labels in the text layer.
+
+### Candlestick chart
+
+`CandlestickChartBuilder::new(rows).x(..).open(..).high(..).low(..).close(..)`
+draws a wick from low to high and a body from open to close. Candles that
+close above their open use the theme's bullish color, the rest the bearish
+color; `.bullish(` and `.bearish(` override the tokens.
+
+### Pie and donut
+
+`ChartsBuilder::pie()` and `ChartsBuilder::donut()` draw each slice as a
+sector of the mask canvas, corrected for the 2:1 cell aspect ratio.
+
+### Size classes
+
+Every chart picks a size class from its rectangle, and `.size_class(` forces
+one:
+
+- mini, under 40 columns or under 8 rows: shapes only, no axes or legend,
+  usable down to 8 by 2 as a sparkline;
+- medium: axes, ticks, a single-row legend and the tooltip;
+- large, at least 200 by 40: grid, full labels, a multi-row legend and value
+  labels.
+
+A resize that crosses a boundary switches class. The tooltip is a box beside
+the selected index with a swatch, name and value per series, at most eight
+rows before it summarizes, and a crosshair marks the index. Left, Right,
+Home and End move the selection; Escape clears it; the selection is announced
+through a live region and the accessibility description at every class.
+
+Data changes animate from the shown values to the new ones over
+`.transition_duration(` milliseconds (200 by default); the reveal from zero
+runs once when data first appears with `.animated(true)`; the
+`reduced-motion` class skips both.
+
 ## Limits
 
-- Chart resolution is limited by terminal cell geometry.
+- Chart resolution is limited by terminal cell geometry: two by four dots per
+  cell for shapes, one eighth of a cell for rectangle edges.
+- The App lays out one element per colored run per row, so a 700-column
+  chart with a grid costs more per frame than one without; the frame budget
+  is measured on the optimized build.
 - Virtual scrolling still requires stable row or node identity.
 - File explorer access is bounded by its capability-scoped root.
 - File explorer copy and delete operations keep the inspected entry identity.
@@ -53,6 +142,12 @@ event handling. Progress widgets can animate between values.
 ## Source map
 
 - Display exports: [`src/widgets/display/mod.rs`](../src/widgets/display/mod.rs)
+- Chart props and builders: [`src/widgets/display/charts.rs`](../src/widgets/display/charts.rs)
+- Typed chart builders: [`src/widgets/display/charts/typed.rs`](../src/widgets/display/charts/typed.rs)
+- Plot layer: [`src/widgets/display/charts/plot/mod.rs`](../src/widgets/display/charts/plot/mod.rs)
+- Mask canvas: [`src/widgets/display/charts/mask.rs`](../src/widgets/display/charts/mask.rs)
+- Chart goldens: [`tests/charts_goldens.rs`](../tests/charts_goldens.rs)
+- Chart contract tests: [`tests/charts_contract.rs`](../tests/charts_contract.rs)
 - Data table: [`src/widgets/display/data_table.rs`](../src/widgets/display/data_table.rs)
 - File explorer: [`src/widgets/display/file_explorer.rs`](../src/widgets/display/file_explorer.rs)
 - Display API probe: [`tests/api_widget_behavior/display_probe.rs`](../tests/api_widget_behavior/display_probe.rs)

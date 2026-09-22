@@ -10,7 +10,7 @@ import sys
 
 from _common import ROOT, cargo_test_filtered, finish, rust_sources, strip_test_modules
 
-PLOT_DIRS = ["src/widgets/display/charts/plot", "src/plot"]
+PLOT_DIRS = ["src/widgets/display/charts/plot"]
 REQUIRED_ITEMS = ["ScaleLinear", "ScaleBand", "ScalePoint", "ScaleOrdinal", "Tick", "Axis", "Grid", "Legend", "Tooltip"]
 RENDERERS = ["src/widgets/display/charts/live"]
 LOCAL_SCALE = re.compile(r"\)\s*/\s*\(|/\s*\(\s*\w+\.1\s*-\s*\w+\.0\s*\)|/\s*range\b|/\s*span\b|\bmapped\s*\(")
@@ -20,7 +20,7 @@ def main() -> int:
     plot = next((ROOT / d for d in PLOT_DIRS if (ROOT / d).is_dir()), None)
     problems_010, problems_011 = [], []
     if plot is None:
-        problems_010.append("no plot layer directory (" + " or ".join(PLOT_DIRS) + ")")
+        problems_010.append("no plot layer directory (" + ", ".join(PLOT_DIRS) + ")")
         problems_011.append("no ScaleBand with padding_inner/padding_outer")
     else:
         text = "\n".join(strip_test_modules(f.read_text(errors="replace")) for f in plot.rglob("*.rs"))

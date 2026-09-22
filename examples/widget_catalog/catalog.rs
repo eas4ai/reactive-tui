@@ -22,6 +22,8 @@ use reactive_tui::{
             image::ImageDisplayMode,
             table::{Table, TableColumn, TableProps, TableRow},
             tree::TreeNode,
+            AreaChartBuilder, BarChartBuilder, CandlestickChartBuilder, LineChartBuilder,
+            ScatterChartBuilder, SizeClass,
         },
         menu::DialogMenuBuilder,
         DialogMenu, TerminalProps, TerminalWidget,
@@ -56,6 +58,7 @@ pub enum CatalogPage {
     Input,
     Layout,
     Data,
+    Charts,
     MenusDialogs,
     Media,
     Motion,
@@ -63,11 +66,12 @@ pub enum CatalogPage {
 }
 
 impl CatalogPage {
-    pub const ALL: [Self; 8] = [
+    pub const ALL: [Self; 9] = [
         Self::Overview,
         Self::Input,
         Self::Layout,
         Self::Data,
+        Self::Charts,
         Self::MenusDialogs,
         Self::Media,
         Self::Motion,
@@ -80,6 +84,7 @@ impl CatalogPage {
             Self::Input => "Input widgets",
             Self::Layout => "Layout widgets",
             Self::Data => "Data display",
+            Self::Charts => "Charts",
             Self::MenusDialogs => "Menus & dialogs",
             Self::Media => "Media",
             Self::Motion => "Motion",
@@ -93,10 +98,11 @@ impl CatalogPage {
             Self::Input => 1,
             Self::Layout => 2,
             Self::Data => 3,
-            Self::MenusDialogs => 4,
-            Self::Media => 5,
-            Self::Motion => 6,
-            Self::System => 7,
+            Self::Charts => 4,
+            Self::MenusDialogs => 5,
+            Self::Media => 6,
+            Self::Motion => 7,
+            Self::System => 8,
         }
     }
 
@@ -216,13 +222,13 @@ impl Catalog {
     fn footer_text(&self) -> &'static str {
         match (self.navigation_layout(), self.page) {
             (NavigationLayout::Compact, CatalogPage::MenusDialogs) => {
-                "1–8 page · F2 demo · Ctrl+Q quit"
+                "1–9 page · F2 demo · Ctrl+Q quit"
             }
-            (NavigationLayout::Compact, _) => "1–8 page · Ctrl+Q quit",
+            (NavigationLayout::Compact, _) => "1–9 page · Ctrl+Q quit",
             (_, CatalogPage::MenusDialogs) => {
-                "↑↓/←→ page · 1–8 jump · F1/F2 demo · Tab interact · Ctrl+Q / Ctrl+C / Esc quit"
+                "↑↓/←→ page · 1–9 jump · F1/F2 demo · Tab interact · Ctrl+Q / Ctrl+C / Esc quit"
             }
-            (_, _) => "↑↓/←→ page · 1–8 jump · Tab interact · Ctrl+Q / Ctrl+C / Esc quit",
+            (_, _) => "↑↓/←→ page · 1–9 jump · Tab interact · Ctrl+Q / Ctrl+C / Esc quit",
         }
     }
 
@@ -435,6 +441,132 @@ impl Catalog {
                     .build(),
             ))
             .child(examples)
+            .build()
+    }
+
+    /// Every chart type at its three size classes: a mini sparkline, a
+    /// medium panel and a large layout forced through the builder.
+    fn charts_page(&self) -> Element {
+        struct Sample {
+            label: &'static str,
+            value: f64,
+            open: f64,
+            close: f64,
+        }
+        fn samples() -> Vec<Sample> {
+            let labels = ["mon", "tue", "wed", "thu", "fri", "sat"];
+            let values = [2.0, 8.0, 5.0, 9.0, 3.0, 7.0];
+            labels
+                .iter()
+                .zip(values)
+                .enumerate()
+                .map(|(i, (label, value))| Sample {
+                    label,
+                    value,
+                    open: if i == 0 { value } else { values[i - 1] },
+                    close: value,
+                })
+                .collect()
+        }
+        let classes = [
+            (SizeClass::Mini, 20u16, 5u16),
+            (SizeClass::Medium, 60, 12),
+            (SizeClass::Large, 60, 14),
+        ];
+        let stack = |charts: Vec<Element>| {
+            let mut column = div().class("flex-col gap-0.25");
+            for chart in charts {
+                column = column.child(chart);
+            }
+            column.build()
+        };
+        let line = stack(
+            classes
+                .iter()
+                .map(|(class, w, h)| {
+                    LineChartBuilder::new(samples())
+                        .x(|s| s.label)
+                        .y(|s| s.value)
+                        .name("value")
+                        .natural()
+                        .dot()
+                        .size(*w, *h)
+                        .size_class(*class)
+                        .render()
+                })
+                .collect(),
+        );
+        let area = stack(
+            classes
+                .iter()
+                .map(|(class, w, h)| {
+                    AreaChartBuilder::new(samples())
+                        .x(|s| s.label)
+                        .y(|s| s.value)
+                        .name("value")
+                        .fill("chart-2")
+                        .step_after()
+                        .size(*w, *h)
+                        .size_class(*class)
+                        .render()
+                })
+                .collect(),
+        );
+        let scatter = stack(
+            classes
+                .iter()
+                .map(|(class, w, h)| {
+                    ScatterChartBuilder::new(samples())
+                        .x(|s| s.label)
+                        .y(|s| s.value)
+                        .name("value")
+                        .size(*w, *h)
+                        .size_class(*class)
+                        .render()
+                })
+                .collect(),
+        );
+        let bar = stack(
+            classes
+                .iter()
+                .map(|(class, w, h)| {
+                    BarChartBuilder::new(samples())
+                        .band(|s| s.label)
+                        .value(|s| s.value)
+                        .name("value")
+                        .fill("chart-3")
+                        .size(*w, *h)
+                        .size_class(*class)
+                        .render()
+                })
+                .collect(),
+        );
+        let candlestick = stack(
+            classes
+                .iter()
+                .map(|(class, w, h)| {
+                    CandlestickChartBuilder::new(samples())
+                        .x(|s| s.label)
+                        .open(|s| s.open)
+                        .close(|s| s.close)
+                        .high(|s| s.open.max(s.close) + 1.0)
+                        .low(|s| s.open.min(s.close) - 1.0)
+                        .size(*w, *h)
+                        .size_class(*class)
+                        .render()
+                })
+                .collect(),
+        );
+        div()
+            .class(Self::card_grid_class(self.width))
+            .child(Self::card("Line chart: mini, medium, large", line))
+            .child(Self::card("Area chart: mini, medium, large", area))
+            .child(Self::card("Scatter chart: mini, medium, large", scatter))
+            .child(Self::card("Bar chart: mini, medium, large", bar))
+            .child(Self::card(
+                "Candlestick chart: mini, medium, large",
+                candlestick,
+            ))
             .build()
     }
 
@@ -684,6 +816,7 @@ impl Catalog {
             CatalogPage::Input => self.input_page(),
             CatalogPage::Layout => self.layout_page(),
             CatalogPage::Data => self.data_page(),
+            CatalogPage::Charts => self.charts_page(),
             CatalogPage::MenusDialogs => self.menus_dialogs_page(),
             CatalogPage::Media => self.media_page(),
             CatalogPage::Motion => self.motion_page(),

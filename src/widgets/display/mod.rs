@@ -20,6 +20,10 @@ pub mod tree;
 
 pub use charts::plot;
 pub use charts::{
+    AreaChartBuilder, BarChartBuilder, CandlestickChartBuilder, LineChartBuilder,
+    ScatterChartBuilder,
+};
+pub use charts::{
     BarGrowth, Candle, Chart, ChartAxis, ChartLegend, ChartProps, ChartState, ChartType,
     ChartsBuilder, Curve, DataPoint, DataSeries, FillStyle, GlyphSet, LegendPosition, LineStyle,
     SizeClass,

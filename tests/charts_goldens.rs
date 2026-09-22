@@ -1,5 +1,5 @@
-//! charts-goldens mechanism: CHT-012, CHT-013, CHT-023, CHT-024, CHT-025,
-//! CHT-026, CHT-027 and BAR-004.
+//! charts-goldens mechanism: CHT-012, CHT-013, CHT-014, CHT-023, CHT-024,
+//! CHT-025, CHT-026, CHT-027, CHT-028 and BAR-004.
 //!
 //! Goldens live in `tests/snapshots/charts/<type>_<class>.ansi` and hold the
 //! text grid followed by a digest of every cell's colors, so a diff is
@@ -66,11 +66,32 @@ fn props(kind: ChartType, size: (u16, u16), values: &[f64], max: f64) -> ChartPr
     }
 }
 
+/// A candlestick series whose closes are `values`, each candle opening at
+/// the previous close with a wick one unit past the body on both sides.
+fn candles(values: &[f64]) -> DataSeries {
+    let mut previous = values.first().copied().unwrap_or(0.0);
+    DataSeries::new(
+        "candles",
+        values
+            .iter()
+            .enumerate()
+            .map(|(i, close)| {
+                let open = previous;
+                previous = *close;
+                let (low, high) = (open.min(*close) - 1.0, open.max(*close) + 1.0);
+                let mut point = DataPoint::candle(open, high, low, *close);
+                point.label = Some(format!("p{i}"));
+                point
+            })
+            .collect(),
+    )
+}
+
 fn last(kind: ChartType, size: (u16, u16), values: &[f64], max: f64) -> Snapshot {
-    app_input::run(
+    app_input::run_when_painted(
         Root(Element::typed::<Chart>(props(kind, size, values, max))),
         size,
-        vec![(2, None)],
+        2,
     )
     .pop()
     .unwrap()
@@ -273,13 +294,26 @@ fn cht_023_goldens_at_three_size_classes() {
         (ChartType::Area, "area"),
         (ChartType::Scatter, "scatter"),
         (ChartType::BarVertical, "bar"),
+        (ChartType::Candlestick, "candlestick"),
     ] {
         for (cls, size) in [
             ("mini", (20u16, 5u16)),
             ("medium", (80, 24)),
             ("large", (600, 160)),
         ] {
-            let frame = last(kind.clone(), size, &data, 10.0);
+            let mut p = props(kind.clone(), size, &data, 10.0);
+            if kind == ChartType::Candlestick {
+                p.series = vec![candles(&data)];
+                p.y_axis.min = Some(0.0);
+                p.y_axis.max = Some(11.0);
+            }
+            let frame = app_input::run_when_painted(Root(Element::typed::<Chart>(p)), size, 2)
+                .pop()
+                .unwrap();
+            assert!(
+                !frame.text.trim().is_empty(),
+                "{name} at {cls} must paint something"
+            );
             assert_golden(&format!("{name}_{cls}"), &frame);
         }
     }
@@ -346,5 +380,141 @@ fn cht_027_ten_thousand_points_cost_at_most_twice_one_thousand() {
     assert!(
         big <= small * 2.0,
         "10,000 points took {big:.1} ms per frame against {small:.1} ms for 1,000: no decimation"
+    );
+}
+
+/// CHT-014: a candle that closes below its open uses the bearish color, one
+/// that closes above uses the bullish color, and the wick spans low to high.
+#[test]
+fn cht_014_candles_take_theme_colors_by_direction_and_wicks_span_low_to_high() {
+    use reactive_tui::layout::colors::parse_color_token;
+    let size = (40u16, 12u16);
+    let mut p = props(ChartType::Candlestick, size, &[], 10.0);
+    // Bullish: opens at 2, closes at 8; bearish: opens at 8, closes at 2.
+    p.series = vec![DataSeries::new(
+        "candles",
+        vec![
+            DataPoint::candle(2.0, 9.5, 0.5, 8.0),
+            DataPoint::candle(8.0, 9.5, 0.5, 2.0),
+        ],
+    )];
+    p.y_axis.min = Some(0.0);
+    p.y_axis.max = Some(10.0);
+    let frame = app_input::run(Root(Element::typed::<Chart>(p)), size, vec![(2, None)])
+        .pop()
+        .unwrap();
+    let rgb = |token: &str| {
+        let (r, g, b, _) = parse_color_token(token).expect("theme defines the chart colors");
+        vt100::Color::Rgb(
+            (r * 255.0).round() as u8,
+            (g * 255.0).round() as u8,
+            (b * 255.0).round() as u8,
+        )
+    };
+    let (bullish, bearish) = (rgb("chart-bullish"), rgb("chart-bearish"));
+    assert_ne!(
+        bullish, bearish,
+        "presets must distinguish bullish from bearish"
+    );
+    let painted = |col: u16| -> Vec<(u16, vt100::Color)> {
+        (0..size.1)
+            .filter_map(|r| {
+                let cell = frame.screen.cell(r, col)?;
+                (!cell.contents().trim().is_empty()).then(|| (r, cell.fgcolor()))
+            })
+            .collect()
+    };
+    let column_of = |half: u16| {
+        (half..half + size.0 / 2)
+            .max_by_key(|c| painted(*c).len())
+            .expect("a painted column in each half")
+    };
+    let (left, right) = (column_of(0), column_of(size.0 / 2));
+    let first = painted(left);
+    let second = painted(right);
+    assert!(
+        first.iter().all(|(_, c)| *c == bullish),
+        "the candle that closes above its open must use the bullish color:\n{}",
+        frame.text
+    );
+    assert!(
+        second.iter().all(|(_, c)| *c == bearish),
+        "the candle that closes below its open must use the bearish color:\n{}",
+        frame.text
+    );
+    // The wick from 0.5 to 9.5 of 10 spans at least ten of the twelve rows.
+    let span = |cells: &[(u16, vt100::Color)]| {
+        cells.iter().map(|(r, _)| *r).max().unwrap_or(0) + 1
+            - cells.iter().map(|(r, _)| *r).min().unwrap_or(0)
+    };
+    assert!(
+        span(&first) >= 10 && span(&second) >= 10,
+        "wicks must span low to high: {} and {} rows\n{}",
+        span(&first),
+        span(&second),
+        frame.text
+    );
+}
+
+/// CHT-028: with ASCII forced, the same geometry renders with `#`, `|`, `-`
+/// and `.` and never a braille or block glyph.
+#[test]
+fn cht_028_ascii_fallback_keeps_the_geometry_without_unicode_glyphs() {
+    let size = (40u16, 12u16);
+    let unicode = last(ChartType::BarVertical, size, &[3.5, 8.0, 5.0], 10.0);
+    let mut p = props(ChartType::BarVertical, size, &[3.5, 8.0, 5.0], 10.0);
+    p.ascii = true;
+    let ascii = app_input::run(Root(Element::typed::<Chart>(p)), size, vec![(2, None)])
+        .pop()
+        .unwrap();
+    let is_block = |c: char| c == '█' || EIGHTHS.contains(&c) || is_braille(c);
+    assert!(count(&unicode, is_block) > 0, "control chart paints blocks");
+    assert_eq!(
+        count(&ascii, is_block),
+        0,
+        "ASCII mode must not emit braille or block glyphs:\n{}",
+        ascii.text
+    );
+    assert!(
+        count(&ascii, |c| c == '#') > 0,
+        "ASCII bars use #:\n{}",
+        ascii.text
+    );
+    // Same geometry: every cell painted in unicode is painted in ASCII.
+    let painted = |f: &Snapshot| {
+        (0..size.1)
+            .flat_map(|r| (0..size.0).map(move |c| (r, c)))
+            .filter(|(r, c)| {
+                f.screen
+                    .cell(*r, *c)
+                    .is_some_and(|cell| !cell.contents().trim().is_empty())
+            })
+            .count()
+    };
+    assert_eq!(
+        painted(&unicode),
+        painted(&ascii),
+        "ASCII keeps the same cells painted"
+    );
+    let mut line = props(ChartType::Line, size, &[0.0, 9.0, 1.0, 10.0, 2.0], 10.0);
+    line.ascii = true;
+    let line = app_input::run(Root(Element::typed::<Chart>(line)), size, vec![(2, None)])
+        .pop()
+        .unwrap();
+    assert_eq!(
+        count(&line, is_braille),
+        0,
+        "ASCII lines use no braille:\n{}",
+        line.text
+    );
+    assert!(
+        count(&line, |c| c == '.'
+            || c == '|'
+            || c == '-'
+            || c == '#'
+            || c == 'o')
+            > 0,
+        "ASCII lines use the ASCII set:\n{}",
+        line.text
     );
 }

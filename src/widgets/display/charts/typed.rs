@@ -33,7 +33,11 @@ impl Common {
     }
 
     fn finish(self, series: Vec<DataSeries>) -> ChartProps {
-        let mut props = self.base.with_series(series).tick_margin(self.tick_margin).build();
+        let mut props = self
+            .base
+            .with_series(series)
+            .tick_margin(self.tick_margin)
+            .build();
         props.x_axis = ChartAxis {
             show_grid: self.grid,
             show_labels: self.x_axis,
@@ -64,18 +68,6 @@ macro_rules! common_methods {
         /// Force a size class.
         pub fn size_class(mut self, class: SizeClass) -> Self {
             self.common.base = self.common.base.size_class(class);
-            self
-        }
-
-        /// Show every n-th axis label; 0 avoids overlap automatically.
-        pub fn tick_margin(mut self, margin: usize) -> Self {
-            self.common.tick_margin = margin;
-            self
-        }
-
-        /// Draw grid lines.
-        pub fn grid(mut self, grid: bool) -> Self {
-            self.common.grid = grid;
             self
         }
 
@@ -129,7 +121,9 @@ fn series<T>(data: &[T], label: Option<&Label<T>>, specs: &[SeriesSpec<T>]) -> V
         .enumerate()
         .map(|(i, spec)| {
             let mut series = DataSeries::new(
-                spec.name.clone().unwrap_or_else(|| format!("series {}", i + 1)),
+                spec.name
+                    .clone()
+                    .unwrap_or_else(|| format!("series {}", i + 1)),
                 points(data, label, &spec.value),
             );
             series.color = spec.color.clone();
@@ -158,6 +152,18 @@ impl<T> LineChartBuilder<T> {
     }
 
     common_methods!();
+
+    /// Show every n-th axis label; 0 avoids overlap automatically.
+    pub fn tick_margin(mut self, margin: usize) -> Self {
+        self.common.tick_margin = margin;
+        self
+    }
+
+    /// Draw grid lines.
+    pub fn grid(mut self, grid: bool) -> Self {
+        self.common.grid = grid;
+        self
+    }
 
     /// Category label accessor.
     pub fn x<S: Into<String>>(mut self, x: impl Fn(&T) -> S + 'static) -> Self {
@@ -245,6 +251,18 @@ impl<T> AreaChartBuilder<T> {
     }
 
     common_methods!();
+
+    /// Show every n-th axis label; 0 avoids overlap automatically.
+    pub fn tick_margin(mut self, margin: usize) -> Self {
+        self.common.tick_margin = margin;
+        self
+    }
+
+    /// Draw grid lines.
+    pub fn grid(mut self, grid: bool) -> Self {
+        self.common.grid = grid;
+        self
+    }
 
     /// Category label accessor.
     pub fn x<S: Into<String>>(mut self, x: impl Fn(&T) -> S + 'static) -> Self {
@@ -344,6 +362,18 @@ impl<T> ScatterChartBuilder<T> {
 
     common_methods!();
 
+    /// Show every n-th axis label; 0 avoids overlap automatically.
+    pub fn tick_margin(mut self, margin: usize) -> Self {
+        self.common.tick_margin = margin;
+        self
+    }
+
+    /// Draw grid lines.
+    pub fn grid(mut self, grid: bool) -> Self {
+        self.common.grid = grid;
+        self
+    }
+
     /// Category label accessor.
     pub fn x<S: Into<String>>(mut self, x: impl Fn(&T) -> S + 'static) -> Self {
         self.x = Some(Box::new(move |d| x(d).into()));
@@ -405,6 +435,18 @@ impl<T> BarChartBuilder<T> {
     }
 
     common_methods!();
+
+    /// Show every n-th axis label; 0 avoids overlap automatically.
+    pub fn tick_margin(mut self, margin: usize) -> Self {
+        self.common.tick_margin = margin;
+        self
+    }
+
+    /// Draw grid lines.
+    pub fn grid(mut self, grid: bool) -> Self {
+        self.common.grid = grid;
+        self
+    }
 
     /// Category (band) label accessor.
     pub fn band<S: Into<String>>(mut self, band: impl Fn(&T) -> S + 'static) -> Self {
@@ -501,6 +543,18 @@ impl<T> CandlestickChartBuilder<T> {
     }
 
     common_methods!();
+
+    /// Show every n-th axis label; 0 avoids overlap automatically.
+    pub fn tick_margin(mut self, margin: usize) -> Self {
+        self.common.tick_margin = margin;
+        self
+    }
+
+    /// Draw grid lines.
+    pub fn grid(mut self, grid: bool) -> Self {
+        self.common.grid = grid;
+        self
+    }
 
     /// Category label accessor.
     pub fn x<S: Into<String>>(mut self, x: impl Fn(&T) -> S + 'static) -> Self {

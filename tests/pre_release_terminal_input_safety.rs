@@ -46,6 +46,7 @@ const EXPECTED_STRING_PATHS: &[&str] = &[
     "src/widgets/dialog/wizard.rs::WizardStep::title",
     "src/widgets/display/charts.rs::ChartProps::with_title",
     "src/widgets/display/charts.rs::ChartsBuilder::title",
+    "src/widgets/display/charts/plot/axis.rs::Axis::with_title",
     "src/widgets/display/modal.rs::Modal::with_title",
     "src/widgets/display/table.rs::TableColumn::title",
     "src/widgets/layout/accordion.rs::AccordionSection::title",
