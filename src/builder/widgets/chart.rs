@@ -35,19 +35,12 @@ impl ChartBuilder {
             chart_type: ChartType::BarVertical,
             series: Vec::new(),
             title: None,
-            width: 80,
-            height: 20,
+            width: 0,
+            height: 0,
             x_axis: ChartAxis::default(),
             y_axis: ChartAxis::default(),
             legend: ChartLegend::default(),
-            color_palette: vec![
-                "#3b82f6".to_string(),
-                "#ef4444".to_string(),
-                "#10b981".to_string(),
-                "#f59e0b".to_string(),
-                "#8b5cf6".to_string(),
-                "#06b6d4".to_string(),
-            ],
+            color_palette: ChartProps::default().color_palette,
             animated: false,
             animation_duration: 1000,
             class: None,
@@ -192,6 +185,7 @@ impl ChartBuilder {
             animation_duration: self.animation_duration,
             show_tooltips: true,
             class: self.class.clone(),
+            ..ChartProps::default()
         };
 
         let mut element = Element::component_with_props(component_name, props);

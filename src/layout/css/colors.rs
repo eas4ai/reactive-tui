@@ -221,24 +221,7 @@ pub fn apply_color_utilities_with_theme(
 
 /// Resolve a color token to theme variable if possible
 fn resolve_theme_color(token: &str, theme: &crate::theme::Theme) -> Option<(f32, f32, f32, f32)> {
-    let var_name = match token {
-        "primary" => "--color-primary",
-        "secondary" => "--color-secondary",
-        "accent" => "--color-accent",
-        "muted" => "--color-text-muted",
-        "success" => "--color-success",
-        "warning" => "--color-warning",
-        "error" => "--color-error",
-        "info" => "--color-info",
-        "background" => "--color-background",
-        "foreground" => "--color-foreground",
-        "border" => "--color-border",
-        _ => return None,
-    };
-
-    theme
-        .get_variable(var_name)
-        .and_then(|hex| parse_hex_to_rgba(&hex))
+    theme.resolve_variable(token)
 }
 
 /// Parse dynamic color values like rgb(255,0,0), rgba(255,0,0,0.5), #ff0000

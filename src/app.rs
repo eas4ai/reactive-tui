@@ -135,6 +135,12 @@ pub struct App {
 }
 
 impl App {
+    /// Make `theme` the active theme for every component, utility class and
+    /// chart drawn by this application.
+    pub fn set_theme(&mut self, theme: crate::theme::Theme) {
+        crate::theme::Theme::set_active(theme);
+    }
+
     /// Register a refresh callback owned by this App. Keep the returned token alive.
     /// Requests coalesce and run in registration order before a subsequent render.
     pub fn register_updater(

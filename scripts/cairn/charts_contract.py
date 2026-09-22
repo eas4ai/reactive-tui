@@ -25,7 +25,10 @@ def main() -> int:
     if group not in GROUPS:
         print(__doc__)
         return 2
-    results = {req: cargo_test_filtered("charts_contract", sub) for req, sub in GROUPS[group]}
+    # The frame budget is a property of the optimized build; the other
+    # groups observe behavior and run the default profile.
+    release = group == "frame-budget"
+    results = {req: cargo_test_filtered("charts_contract", sub, release=release) for req, sub in GROUPS[group]}
     if group == "widget-bar":
         text = "\n".join(strip_test_modules(f.read_text(errors="replace")) for f in rust_sources(
             "src/widgets/display/charts.rs", "src/widgets/display/charts"))

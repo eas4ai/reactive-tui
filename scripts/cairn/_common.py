@@ -65,8 +65,10 @@ def strip_test_modules(text: str) -> str:
     return "".join(out)
 
 
-def cargo_test_filtered(binary: str, substring: str, features: list[str] | None = None) -> tuple[bool, str]:
+def cargo_test_filtered(binary: str, substring: str, features: list[str] | None = None, release: bool = False) -> tuple[bool, str]:
     cmd = ["cargo", "test", "--locked", "--jobs", JOBS, "--test", binary]
+    if release:
+        cmd.append("--release")
     if features:
         cmd += ["--features", ",".join(features)]
     cmd += ["--", substring]

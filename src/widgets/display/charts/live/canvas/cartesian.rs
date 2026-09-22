@@ -1,8 +1,46 @@
-use super::*;
+//! Bar, line, area, scatter and candlestick rendering through the plot layer
+//! (scales, ticks, axes, grid) and the shared mask canvas. Every cell or dot
+//! position comes from a scale; nothing here maps a value itself.
 
-fn range(axis: &ChartAxis, min: f64, max: f64) -> Result<(f64, f64), &'static str> {
-    let mut low = axis.min.unwrap_or(min);
-    let mut high = axis.max.unwrap_or(max);
+use super::super::super::mask::{Marker, MaskCanvas, DOTS_X, DOTS_Y};
+use super::super::super::plot::{
+    self, band_ticks, decimate_min_max, fit_label, format_tick, label_skip, labeled_ticks,
+    linear_ticks, point_ticks, polyline, text_width, Axis, Grid, Rect, Rgba, ScaleBand,
+    ScaleLinear, ScalePoint, SizeClass, TextSink,
+};
+use super::super::super::{BarGrowth, ChartAxis, ChartType, FillStyle, LineStyle};
+use super::{color, point_color, tick_count, Job, Picture, TextLayer};
+
+const BULLISH: &str = "chart-bullish";
+const BEARISH: &str = "chart-bearish";
+
+/// Value-axis domain from the target data, honoring explicit limits.
+fn value_domain(axis: &ChartAxis, job: &Job, candles: bool) -> Result<(f64, f64), &'static str> {
+    let props = job.props;
+    let values = props.series.iter().filter(|s| s.visible).flat_map(|s| {
+        s.data.iter().flat_map(move |p| match (candles, p.candle) {
+            (true, Some(c)) => vec![c.low, c.high],
+            _ => vec![p.value],
+        })
+    });
+    let auto = if candles {
+        let (mut low, mut high) = (f64::INFINITY, f64::NEG_INFINITY);
+        for v in values {
+            low = low.min(v);
+            high = high.max(v);
+        }
+        if low > high {
+            (0.0, 1.0)
+        } else if low == high {
+            (low - 1.0, high + 1.0)
+        } else {
+            (low, high)
+        }
+    } else {
+        ScaleLinear::domain_including_zero(values)
+    };
+    let mut low = axis.min.unwrap_or(auto.0);
+    let mut high = axis.max.unwrap_or(auto.1);
     if low == high {
         let pad = low.abs().max(1.0) * 0.1;
         if axis.min.is_none() {
@@ -17,457 +55,676 @@ fn range(axis: &ChartAxis, min: f64, max: f64) -> Result<(f64, f64), &'static st
     }
     Ok((low, high))
 }
-fn mapped(value: f64, limits: (f64, f64), cells: usize) -> usize {
-    (((value - limits.0) / (limits.1 - limits.0)).clamp(0.0, 1.0) * cells.saturating_sub(1) as f64)
-        .round() as usize
-}
-fn tick(axis: &ChartAxis, index: usize, value: f64) -> String {
-    axis.custom_labels.get(index).cloned().unwrap_or_else(|| {
-        if value.abs() >= 1e6 || (value != 0.0 && value.abs() < 0.001) {
-            format!("{value:.1e}")
-        } else {
-            format!("{value:.1}")
-        }
+
+/// The label of category `index`: a custom axis label, else the first point
+/// label any visible series carries at that index.
+fn category_label(job: &Job, axis: &ChartAxis, index: usize) -> Option<String> {
+    axis.custom_labels.get(index).cloned().or_else(|| {
+        job.props
+            .series
+            .iter()
+            .filter(|s| s.visible)
+            .find_map(|s| s.data.get(index).and_then(|p| p.label.clone()))
     })
 }
 
 pub(super) fn cartesian(
-    canvas: &mut Canvas,
-    props: &ChartProps,
+    mask: &mut MaskCanvas,
+    text: &mut TextLayer,
+    picture: &mut Picture,
+    job: &Job,
     mut area: Rect,
-    progress: f64,
+    class: SizeClass,
 ) -> Result<(), &'static str> {
-    let points: Vec<_> = props
-        .series
-        .iter()
-        .enumerate()
-        .filter(|(_, s)| s.visible)
-        .flat_map(|(s, series)| {
-            series
-                .data
-                .iter()
-                .enumerate()
-                .map(move |(p, v)| (s, p, v.value))
-        })
-        .collect();
-    let low = points.iter().map(|(_, _, v)| *v).fold(0.0, f64::min);
-    let high = points.iter().map(|(_, _, v)| *v).fold(0.0, f64::max);
-    let count = props
-        .series
-        .iter()
-        .filter(|s| s.visible)
-        .map(|s| s.data.len())
-        .max()
-        .unwrap_or(1);
-    let horizontal = props.chart_type == ChartType::BarHorizontal;
-    let (xr, yr) = if horizontal {
-        (
-            range(&props.x_axis, low, high)?,
-            range(
-                &props.y_axis,
-                0.0,
-                points.len().saturating_sub(1).max(1) as f64,
-            )?,
-        )
-    } else {
-        (
-            range(&props.x_axis, 0.0, count.saturating_sub(1).max(1) as f64)?,
-            range(&props.y_axis, low, high)?,
-        )
-    };
-    if let Some(title) = &props.y_axis.title {
-        canvas.text(area.x, area.y, area.w, title, None);
-        area.y += 1;
-        area.h = area.h.saturating_sub(1);
-    }
-    if let Some(title) = &props.x_axis.title {
-        if area.h > 0 {
-            canvas.text(area.x, area.y + area.h - 1, area.w, title, None);
-            area.h -= 1;
-        }
-    }
-    let mut label_width = if props.y_axis.show_labels && props.y_axis.tick_count > 0 {
-        (0..props.y_axis.tick_count.min(area.h))
-            .map(|i| {
-                let fraction = i as f64 / props.y_axis.tick_count.saturating_sub(1).max(1) as f64;
-                UnicodeWidthStr::width(
-                    tick(&props.y_axis, i, yr.1 - (yr.1 - yr.0) * fraction).as_str(),
-                ) + 1
-            })
-            .max()
-            .unwrap_or(0)
-            .min(area.w / 3)
-    } else {
-        0
-    };
-    if horizontal && props.y_axis.show_labels && props.y_axis.tick_count > 0 {
-        label_width = label_width.max(
-            points
-                .iter()
-                .map(|(s, p, _)| {
-                    UnicodeWidthStr::width(
-                        props.series[*s].data[*p]
-                            .label
-                            .as_deref()
-                            .unwrap_or(&props.series[*s].name),
-                    ) + 1
-                })
-                .max()
-                .unwrap_or(0)
-                .min(area.w / 3),
-        );
-    }
-    let xlabels = usize::from(props.x_axis.show_labels && props.x_axis.tick_count > 0);
-    let plot = Rect {
-        x: area.x + label_width,
-        y: area.y,
-        w: area.w.saturating_sub(label_width),
-        h: area.h.saturating_sub(xlabels),
-    };
-    if plot.w == 0 || plot.h == 0 {
-        return Ok(());
-    }
-    let yticks =
-        props
-            .y_axis
-            .tick_count
-            .min(plot.h)
-            .min(if horizontal { points.len() } else { usize::MAX });
-    for i in 0..yticks {
-        let y = i * plot.h.saturating_sub(1) / yticks.saturating_sub(1).max(1);
-        let fraction = i as f64 / yticks.saturating_sub(1).max(1) as f64;
-        let value = if horizontal {
-            yr.0 + (yr.1 - yr.0) * fraction
-        } else {
-            yr.1 - (yr.1 - yr.0) * fraction
-        };
-        let label = if horizontal
-            && props.y_axis.custom_labels.is_empty()
-            && value.fract().abs() < f64::EPSILON
-        {
-            points
-                .get(value as usize)
-                .map(|(s, p, _)| {
-                    props.series[*s].data[*p]
-                        .label
-                        .as_deref()
-                        .unwrap_or(&props.series[*s].name)
-                        .to_string()
-                })
-                .unwrap_or_else(|| tick(&props.y_axis, i, value))
-        } else {
-            tick(&props.y_axis, i, value)
-        };
-        if props.y_axis.show_labels {
-            canvas.text(
-                area.x,
-                plot.y + y,
-                label_width.saturating_sub(1),
-                &label,
-                None,
-            );
-        }
-        if props.y_axis.show_grid {
-            for x in 0..plot.w {
-                canvas.put(plot.x + x, plot.y + y, "·", None, None);
-            }
-        }
-    }
-    let xticks = props.x_axis.tick_count.min(plot.w);
-    let mut label_end = 0;
-    for i in 0..xticks {
-        let x = i * plot.w.saturating_sub(1) / xticks.saturating_sub(1).max(1);
-        if props.x_axis.show_grid {
-            for y in 0..plot.h {
-                canvas.put(plot.x + x, plot.y + y, "·", None, None);
-            }
-        }
-        if props.x_axis.show_labels {
-            let value = xr.0 + (xr.1 - xr.0) * i as f64 / xticks.saturating_sub(1).max(1) as f64;
-            let label = if !horizontal
-                && props.x_axis.custom_labels.is_empty()
-                && value.fract().abs() < f64::EPSILON
-            {
-                props
-                    .series
-                    .iter()
-                    .filter(|s| s.visible)
-                    .find_map(|s| s.data.get(value as usize).and_then(|p| p.label.clone()))
-                    .unwrap_or_else(|| tick(&props.x_axis, i, value))
-            } else {
-                tick(&props.x_axis, i, value)
-            };
-            let start = x.min(
-                plot.w
-                    .saturating_sub(UnicodeWidthStr::width(label.as_str())),
-            );
-            if start >= label_end {
-                canvas.text(
-                    plot.x + start,
-                    plot.y + plot.h,
-                    plot.w - start,
-                    &label,
-                    None,
-                );
-                label_end = start + UnicodeWidthStr::width(label.as_str()) + 1;
-            }
-        }
-    }
-    let visible: Vec<_> = props
+    let props = job.props;
+    let vis: Vec<usize> = props
         .series
         .iter()
         .enumerate()
         .filter(|(_, s)| s.visible)
         .map(|(i, _)| i)
         .collect();
-    if matches!(props.chart_type, ChartType::Line | ChartType::Area) {
-        lines(canvas, props, plot, xr, yr, progress);
+    let count = vis
+        .iter()
+        .map(|s| props.series[*s].data.len())
+        .max()
+        .unwrap_or(0);
+    let bars = matches!(
+        props.chart_type,
+        ChartType::BarVertical | ChartType::BarHorizontal
+    );
+    let candles = props.chart_type == ChartType::Candlestick;
+    let horizontal =
+        props.chart_type == ChartType::BarHorizontal || (bars && props.growth.is_horizontal());
+    let growth = if horizontal && !props.growth.is_horizontal() {
+        BarGrowth::Left
+    } else if !horizontal && props.growth.is_horizontal() {
+        BarGrowth::Bottom
+    } else {
+        props.growth
+    };
+    // The value axis is `y_axis` for vertical charts and `x_axis` for
+    // horizontal bars; the other axis carries the categories.
+    let (value_axis, category_axis) = if horizontal {
+        (&props.x_axis, &props.y_axis)
+    } else {
+        (&props.y_axis, &props.x_axis)
+    };
+    let domain = value_domain(value_axis, job, candles)?;
+    let axes = class.has_axes();
+    if let Some(title) = &props.y_axis.title {
+        if axes {
+            let strip = area.take_top(1);
+            text.text(strip.x, strip.y, strip.w, title, None);
+        }
+    }
+    // Tentative plot rectangle to measure ticks against.
+    let value_cells = if horizontal { area.w } else { area.h };
+    let value_ticks = |scale: &ScaleLinear| {
+        if value_axis.custom_labels.is_empty() {
+            linear_ticks(scale, tick_count(value_axis, value_cells))
+        } else {
+            labeled_ticks(scale, &value_axis.custom_labels)
+        }
+    };
+    let mut label_width = 0;
+    let mut x_rows = 0;
+    if axes {
+        if !horizontal && value_axis.show_labels && value_axis.tick_count > 0 {
+            let probe = ScaleLinear::new(domain, (0.0, 1.0));
+            label_width = value_ticks(&probe)
+                .iter()
+                .map(|t| text_width(&t.label))
+                .max()
+                .unwrap_or(0)
+                .min(area.w / 3)
+                + 1;
+        }
+        if horizontal && category_axis.show_labels {
+            label_width = (0..count)
+                .filter_map(|i| category_label(job, category_axis, i))
+                .map(|l| text_width(&l))
+                .max()
+                .unwrap_or(0)
+                .min(area.w / 3)
+                + 1;
+        }
+        let bottom_axis = if horizontal {
+            value_axis
+        } else {
+            category_axis
+        };
+        if bottom_axis.show_labels && (horizontal || count > 0) {
+            x_rows = 1 + usize::from(props.x_axis.title.is_some());
+        } else if props.x_axis.title.is_some() {
+            x_rows = 1;
+        }
+    }
+    let label_rect = area.take_left(label_width.min(area.w.saturating_sub(1)));
+    let x_rect = area.take_bottom(x_rows.min(area.h.saturating_sub(1)));
+    let plot = area;
+    if plot.is_empty() {
         return Ok(());
     }
-    for (ordinal, &(s, p, value)) in points.iter().enumerate() {
-        let tint = point_color(props, s, p);
-        let point = Some((s, p));
+    // Shapes keep off the axis line cells at the plot's left and bottom.
+    let left_line = axes
+        && if horizontal {
+            category_axis.show_labels
+        } else {
+            value_axis.show_labels
+        };
+    let bottom_line = axes
+        && (if horizontal {
+            value_axis.show_labels
+        } else {
+            category_axis.show_labels
+        } || props.x_axis.title.is_some());
+    let inner = Rect {
+        x: plot.x + usize::from(left_line),
+        y: plot.y,
+        w: plot.w.saturating_sub(usize::from(left_line)),
+        h: plot.h.saturating_sub(usize::from(bottom_line)),
+    };
+    if inner.is_empty() {
+        return Ok(());
+    }
+    mask.set_clip_cells(inner.x, inner.y, inner.w, inner.h);
+    picture.plot = plot;
+    picture.scatter = props.chart_type == ChartType::Scatter;
+
+    // Scales in dot units.
+    let x_dots = ((inner.x * DOTS_X) as f64, (inner.right() * DOTS_X) as f64);
+    let y_dots = ((inner.y * DOTS_Y) as f64, (inner.bottom() * DOTS_Y) as f64);
+    let (y_dots, x_dots) = if bars || candles {
+        (y_dots, x_dots)
+    } else {
+        // Strokes and markers land on dots, so the range ends on the last
+        // dot inside the plot rather than on its far edge.
+        ((y_dots.0, (y_dots.1 - 1.0).max(y_dots.0)), x_dots)
+    };
+    let value_scale = match growth {
+        BarGrowth::Bottom => ScaleLinear::new(domain, (y_dots.1, y_dots.0)),
+        BarGrowth::Top => ScaleLinear::new(domain, (y_dots.0, y_dots.1)),
+        BarGrowth::Left => ScaleLinear::new(domain, (x_dots.0, x_dots.1)),
+        BarGrowth::Right => ScaleLinear::new(domain, (x_dots.1, x_dots.0)),
+    };
+    let category_range = if horizontal { y_dots } else { x_dots };
+    let band = ScaleBand::new(count, category_range)
+        .padding_inner(if vis.len() > 1 && !props.stacked {
+            0.3
+        } else {
+            0.4
+        })
+        .padding_outer(if class == SizeClass::Mini { 0.0 } else { 0.2 });
+    let points = ScalePoint::new(
+        count,
+        (
+            category_range.0,
+            (category_range.1 - 1.0).max(category_range.0),
+        ),
+    );
+    let use_band = bars || candles;
+    let category_center = |i: usize| -> f64 {
+        if use_band {
+            band.center(i)
+        } else {
+            points.map(i)
+        }
+    };
+    if horizontal {
+        picture.index_rows = (0..count)
+            .map(|i| category_center(i) / DOTS_Y as f64)
+            .collect();
+    } else {
+        picture.index_columns = (0..count)
+            .map(|i| category_center(i) / DOTS_X as f64)
+            .collect();
+    }
+
+    // Grid, axes and labels.
+    if axes {
+        let ticks = value_ticks(&value_scale);
+        let stride = if props.tick_margin > 0 {
+            props.tick_margin
+        } else {
+            1
+        };
+        let show_grid = |axis: &ChartAxis| axis.show_grid;
+        let category_ticks: Vec<plot::Tick> = {
+            let labels: Vec<Option<String>> = (0..count)
+                .map(|i| category_label(job, category_axis, i))
+                .collect();
+            if use_band {
+                band_ticks(&band, &labels)
+            } else {
+                point_ticks(&points, &labels)
+            }
+        };
         if horizontal {
-            let category = ordinal as f64;
-            if category < yr.0 || category > yr.1 {
-                continue;
+            let mut vertical = Axis::vertical(
+                category_ticks
+                    .iter()
+                    .map(|t| plot::Tick {
+                        value: t.value,
+                        position: t.position / DOTS_Y as f64 - plot.y as f64,
+                        label: t.label.clone(),
+                    })
+                    .collect(),
+            );
+            vertical.line = category_axis.show_labels;
+            let horizontal_axis = Axis::horizontal(
+                ticks
+                    .iter()
+                    .map(|t| plot::Tick {
+                        value: t.value,
+                        position: t.position / DOTS_X as f64 - plot.x as f64,
+                        label: t.label.clone(),
+                    })
+                    .collect(),
+            )
+            .with_title(props.x_axis.title.clone());
+            let skip = if props.tick_margin > 0 {
+                stride
+            } else {
+                label_skip(
+                    &horizontal_axis
+                        .ticks
+                        .iter()
+                        .map(|t| t.position)
+                        .collect::<Vec<_>>(),
+                    &horizontal_axis
+                        .ticks
+                        .iter()
+                        .map(|t| text_width(&t.label))
+                        .collect::<Vec<_>>(),
+                    1,
+                )
+            };
+            let horizontal_axis = horizontal_axis.with_skip(skip);
+            if show_grid(value_axis) {
+                let columns = horizontal_axis
+                    .shown()
+                    .filter_map(|t| (t.position >= 0.0).then_some(t.position.round() as usize))
+                    .collect();
+                Grid::new(columns, Vec::new()).draw(text, plot, "·", None);
             }
-            if value == 0.0
-                || progress == 0.0
-                || (value * progress).max(0.0) <= xr.0
-                || (value * progress).min(0.0) >= xr.1
-            {
-                continue;
+            if show_grid(category_axis) {
+                let rows = vertical
+                    .ticks
+                    .iter()
+                    .filter_map(|t| (t.position >= 0.0).then_some(t.position.round() as usize))
+                    .collect();
+                Grid::new(Vec::new(), rows).draw(text, plot, "·", None);
             }
-            let y = mapped(category, yr, plot.h);
-            let zero = mapped(0.0, xr, plot.w);
-            let end = mapped(value * progress, xr, plot.w);
-            for x in zero.min(end)..=zero.max(end) {
-                canvas.put(plot.x + x, plot.y + y, "█", tint, point);
+            if category_axis.show_labels {
+                vertical.draw(text, label_rect, plot, None);
+            }
+            if value_axis.show_labels || props.x_axis.title.is_some() {
+                horizontal_axis.draw(text, x_rect, plot, None);
             }
         } else {
-            if (p as f64) < xr.0 || (p as f64) > xr.1 {
-                continue;
+            let vertical = Axis::vertical(
+                ticks
+                    .iter()
+                    .map(|t| plot::Tick {
+                        value: t.value,
+                        position: t.position / DOTS_Y as f64 - plot.y as f64,
+                        label: t.label.clone(),
+                    })
+                    .collect(),
+            )
+            .with_skip(stride);
+            let horizontal_axis = Axis::horizontal(
+                category_ticks
+                    .iter()
+                    .map(|t| plot::Tick {
+                        value: t.value,
+                        position: t.position / DOTS_X as f64 - plot.x as f64,
+                        label: t.label.clone(),
+                    })
+                    .collect(),
+            )
+            .with_title(props.x_axis.title.clone());
+            let skip = if props.tick_margin > 0 {
+                stride
+            } else {
+                label_skip(
+                    &horizontal_axis
+                        .ticks
+                        .iter()
+                        .map(|t| t.position)
+                        .collect::<Vec<_>>(),
+                    &horizontal_axis
+                        .ticks
+                        .iter()
+                        .map(|t| text_width(&t.label))
+                        .collect::<Vec<_>>(),
+                    1,
+                )
+            };
+            let horizontal_axis = horizontal_axis.with_skip(skip);
+            if show_grid(value_axis) {
+                let rows = vertical
+                    .shown()
+                    .filter_map(|t| (t.position >= 0.0).then_some(t.position.round() as usize))
+                    .collect();
+                Grid::new(Vec::new(), rows).draw(text, plot, "·", None);
             }
-            let x = mapped(p as f64, xr, plot.w);
-            let y = plot.h - 1 - mapped(value * progress, yr, plot.h);
-            let zero = plot.h - 1 - mapped(0.0, yr, plot.h);
-            match props.chart_type {
-                ChartType::BarVertical => {
-                    if value == 0.0
-                        || progress == 0.0
-                        || (value * progress).max(0.0) <= yr.0
-                        || (value * progress).min(0.0) >= yr.1
-                    {
-                        continue;
+            if show_grid(category_axis) {
+                let columns = horizontal_axis
+                    .shown()
+                    .filter_map(|t| (t.position >= 0.0).then_some(t.position.round() as usize))
+                    .collect();
+                Grid::new(columns, Vec::new()).draw(text, plot, "·", None);
+            }
+            if value_axis.show_labels {
+                vertical.draw(text, label_rect, plot, None);
+            }
+            if category_axis.show_labels || props.x_axis.title.is_some() {
+                horizontal_axis.draw(text, x_rect, plot, None);
+            }
+        }
+    }
+
+    let value_labels = props
+        .value_labels
+        .unwrap_or_else(|| class.has_value_labels());
+    let cell_of = |x: f64, y: f64| -> (usize, usize) {
+        (
+            (x / DOTS_X as f64).floor().max(0.0) as usize,
+            (y / DOTS_Y as f64).floor().max(0.0) as usize,
+        )
+    };
+
+    if bars {
+        let mut stack_pos = vec![0.0f64; count];
+        let mut stack_neg = vec![0.0f64; count];
+        for (slot, &s) in vis.iter().enumerate() {
+            let series = &props.series[s];
+            for (i, point) in series.data.iter().enumerate() {
+                let Some(value) = job.values.get(s).and_then(|v| v.get(i)).copied() else {
+                    continue;
+                };
+                let tint = point_color(props, s, i);
+                let (lane_start, lane_end) = {
+                    let (a, b) = band.band(i);
+                    let (a, b) = if props.stacked || vis.len() < 2 {
+                        (a, b)
+                    } else {
+                        let lanes = ScaleBand::new(vis.len(), (a, b)).padding_inner(0.15);
+                        lanes.band(slot)
+                    };
+                    // Bar sides sit on cell boundaries so only the tip is
+                    // fractional; a lane always keeps at least one cell.
+                    let unit = if horizontal { DOTS_Y } else { DOTS_X } as f64;
+                    let start = (a / unit).round() * unit;
+                    let end = ((b / unit).round() * unit).max(start + unit);
+                    (start, end)
+                };
+                let base = if props.stacked {
+                    if value >= 0.0 {
+                        stack_pos[i]
+                    } else {
+                        stack_neg[i]
                     }
-                    let group = ((plot.w as f64 / (xr.1 - xr.0 + 1.0)).floor() as usize).max(1);
-                    let bar_width = (group / visible.len().max(1)).max(1);
-                    let series = visible.iter().position(|index| *index == s).unwrap_or(0);
-                    let start =
-                        ((((p as f64 - xr.0) / (xr.1 - xr.0 + 1.0)) * plot.w as f64).floor()
-                            as usize
-                            + series * bar_width)
-                            .min(plot.w - 1);
-                    for dx in 0..bar_width.min(plot.w - start) {
-                        for dy in zero.min(y)..=zero.max(y) {
-                            canvas.put(plot.x + start + dx, plot.y + dy, "█", tint, point);
+                } else {
+                    0.0
+                };
+                let top = base + value;
+                if props.stacked {
+                    if value >= 0.0 {
+                        stack_pos[i] = top;
+                    } else {
+                        stack_neg[i] = top;
+                    }
+                }
+                let (from, to) = (value_scale.map(base), value_scale.map(top));
+                if (from - to).abs() < 1e-9 {
+                    continue;
+                }
+                if horizontal {
+                    mask.rect(from, lane_start, to, lane_end, tint, Some((s, i)));
+                } else {
+                    mask.rect(lane_start, from, lane_end, to, tint, Some((s, i)));
+                }
+                let tip = if horizontal {
+                    cell_of(
+                        to - if to > from { 0.01 } else { -0.01 },
+                        (lane_start + lane_end) / 2.0,
+                    )
+                } else {
+                    cell_of(
+                        (lane_start + lane_end) / 2.0,
+                        to - if to > from { 0.01 } else { -0.01 },
+                    )
+                };
+                picture.anchors.insert((s, i), tip);
+                if value_labels {
+                    let label = format_tick(point.value);
+                    let width = text_width(&label);
+                    if horizontal {
+                        let x = if growth == BarGrowth::Left {
+                            tip.0 + 1
+                        } else {
+                            tip.0.saturating_sub(width)
+                        };
+                        text.text(x, tip.1, width, &label, tint);
+                    } else {
+                        let y = if (growth == BarGrowth::Bottom) == (value >= 0.0) {
+                            tip.1.checked_sub(1)
+                        } else {
+                            Some(tip.1 + 1)
+                        };
+                        if let Some(y) = y.filter(|y| plot.contains(tip.0, *y)) {
+                            let x = (tip.0 + 1).saturating_sub(width.div_ceil(2)).max(plot.x);
+                            text.text(x, y, width, &label, tint);
                         }
                     }
                 }
-                ChartType::Scatter if value * progress >= yr.0 && value * progress <= yr.1 => {
-                    canvas.put(plot.x + x, plot.y + y, "•", tint, point);
+            }
+        }
+        return Ok(());
+    }
+
+    if candles {
+        let bullish = color(BULLISH);
+        let bearish = color(BEARISH);
+        for &s in &vis {
+            let series = &props.series[s];
+            for (i, point) in series.data.iter().enumerate() {
+                let Some(candle) = point.candle else { continue };
+                let tint = point
+                    .color
+                    .as_deref()
+                    .or(series.color.as_deref())
+                    .and_then(color)
+                    .or(if candle.is_bullish() {
+                        bullish
+                    } else {
+                        bearish
+                    });
+                let (a, b) = band.band(i);
+                let center = (a + b) / 2.0;
+                let (wick_top, wick_bottom) =
+                    (value_scale.map(candle.high), value_scale.map(candle.low));
+                mask.rect(
+                    center - 0.5,
+                    wick_top,
+                    center + 0.5,
+                    wick_bottom,
+                    tint,
+                    Some((s, i)),
+                );
+                let (mut open, mut close) =
+                    (value_scale.map(candle.open), value_scale.map(candle.close));
+                if (open - close).abs() < 0.5 {
+                    open -= 0.25;
+                    close += 0.25;
                 }
-                _ => {}
+                mask.rect(a, open, b, close, tint, Some((s, i)));
+                picture
+                    .anchors
+                    .insert((s, i), cell_of(center, open.min(close)));
+            }
+        }
+        return Ok(());
+    }
+
+    // Line, area and scatter.
+    let mut stack = vec![0.0f64; count];
+    picture.kept = vec![Vec::new(); props.series.len()];
+    for &s in &vis {
+        let series = &props.series[s];
+        let Some(values) = job.values.get(s) else {
+            continue;
+        };
+        let samples = decimate_min_max(values, inner.w);
+        picture.kept[s] = samples.iter().map(|k| k.index).collect();
+        let tint = point_color(props, s, 0);
+        let mut dots: Vec<(f64, f64)> = Vec::with_capacity(samples.len());
+        let mut bases: Vec<f64> = Vec::with_capacity(samples.len());
+        for sample in &samples {
+            let base = if props.stacked && props.chart_type == ChartType::Area {
+                stack[sample.index]
+            } else {
+                0.0
+            };
+            let x = points.map(sample.index);
+            dots.push((x, value_scale.map(base + sample.value)));
+            bases.push(value_scale.map(base));
+            if props.stacked && props.chart_type == ChartType::Area {
+                stack[sample.index] = base + sample.value;
+            }
+        }
+        if props.chart_type == ChartType::Area && series.fill_style != FillStyle::None {
+            let dense = polyline(&dots, props.curve, 1.0);
+            let base_line: Vec<(f64, f64)> =
+                dots.iter().zip(&bases).map(|(d, b)| (d.0, *b)).collect();
+            let dense_base = polyline(&base_line, props.curve, 1.0);
+            let mut covered: Vec<(usize, usize)> = Vec::new();
+            fill_between(
+                mask,
+                &dense,
+                &dense_base,
+                tint,
+                &series.fill_style,
+                Some((s, 0)),
+                &mut covered,
+                value_scale.range(),
+            );
+            if let FillStyle::Pattern(pattern) = &series.fill_style {
+                let tiles: Vec<&str> = pattern
+                    .split("")
+                    .filter(|g| {
+                        !g.is_empty() && text_width(g) == 1 && !g.chars().any(char::is_control)
+                    })
+                    .collect();
+                for (col, row) in covered {
+                    let mark = match pattern.as_str() {
+                        "diagonal" => {
+                            if (col + row) % 3 == 0 {
+                                "/"
+                            } else {
+                                " "
+                            }
+                        }
+                        "dots" => {
+                            if (col + row) % 2 == 0 {
+                                "·"
+                            } else {
+                                " "
+                            }
+                        }
+                        _ => tiles
+                            .get((col + row) % tiles.len().max(1))
+                            .copied()
+                            .unwrap_or("▒"),
+                    };
+                    text.text(col, row, 1, mark, tint);
+                }
+            }
+        }
+        if props.chart_type != ChartType::Scatter && series.line_style != LineStyle::None {
+            let dense = polyline(&dots, props.curve, 1.0);
+            match series.line_style {
+                LineStyle::Solid => mask.polyline(&dense, tint, Some((s, 0))),
+                LineStyle::Dashed => {
+                    for (k, pair) in dense.windows(2).enumerate() {
+                        if k % 8 < 4 {
+                            mask.line(pair[0], pair[1], tint, Some((s, 0)));
+                        }
+                    }
+                }
+                LineStyle::Dotted => {
+                    for (k, p) in dense.iter().enumerate() {
+                        if k % 3 == 0 {
+                            mask.dot(p.0.round() as i64, p.1.round() as i64, tint, Some((s, 0)));
+                        }
+                    }
+                }
+                LineStyle::None => {}
+            }
+        }
+        let marker = match props.chart_type {
+            ChartType::Scatter => Some(Marker::Dot),
+            _ if props.dots && samples.len() == values.len() => Some(Marker::Disc),
+            _ => None,
+        };
+        for (sample, dot) in samples.iter().zip(&dots) {
+            let owner = Some((s, sample.index));
+            let cell = cell_of(dot.0, dot.1);
+            if !inner.contains(cell.0, cell.1) {
+                continue;
+            }
+            picture.anchors.insert((s, sample.index), cell);
+            if let Some(marker) = marker {
+                mask.marker(
+                    dot.0,
+                    dot.1,
+                    marker,
+                    point_color(props, s, sample.index),
+                    owner,
+                );
             }
         }
     }
     Ok(())
 }
-fn interpolate(a: f64, b: f64, fraction: f64) -> f64 {
-    a * (1.0 - fraction) + b * fraction
-}
 
-// Clip in data space before converting to cell coordinates. Clamping each
-// endpoint independently would invent edge points and alter crossing slopes.
-fn clipped(
-    a: (f64, f64),
-    b: (f64, f64),
-    xr: (f64, f64),
-    yr: (f64, f64),
-) -> Option<((f64, f64), (f64, f64))> {
-    let mut begin: f64 = 0.0;
-    let mut end: f64 = 1.0;
-    for (first, last, (low, high)) in [(a.0, b.0, xr), (a.1, b.1, yr)] {
-        if first.min(last) > high || first.max(last) < low {
-            return None;
-        }
-        let fraction = |value: f64| {
-            let scale = first.abs().max(last.abs()).max(value.abs()).max(1.0);
-            (value / scale - first / scale) / (last / scale - first / scale)
-        };
-        if first < low {
-            begin = begin.max(fraction(low));
-        }
-        if first > high {
-            begin = begin.max(fraction(high));
-        }
-        if last < low {
-            end = end.min(fraction(low));
-        }
-        if last > high {
-            end = end.min(fraction(high));
-        }
-    }
-    if begin > end {
-        return None;
-    }
-    Some((
-        (interpolate(a.0, b.0, begin), interpolate(a.1, b.1, begin)),
-        (interpolate(a.0, b.0, end), interpolate(a.1, b.1, end)),
-    ))
-}
-
-fn lines(
-    canvas: &mut Canvas,
-    props: &ChartProps,
-    plot: Rect,
-    xr: (f64, f64),
-    yr: (f64, f64),
-    progress: f64,
-) {
-    let zero = plot.h - 1 - mapped(0.0, yr, plot.h);
-    for (series_index, series) in props.series.iter().enumerate().filter(|(_, s)| s.visible) {
-        for (point_index, pair) in series.data.windows(2).enumerate() {
-            let a = (point_index as f64, pair[0].value * progress);
-            let b = ((point_index + 1) as f64, pair[1].value * progress);
-            let tint = point_color(props, series_index, point_index + 1);
-            let point = Some((series_index, point_index + 1));
-            if props.chart_type == ChartType::Area {
-                if let Some((a, b)) = clipped(a, b, xr, (f64::NEG_INFINITY, f64::INFINITY)) {
-                    let (left, right) = (mapped(a.0, xr, plot.w), mapped(b.0, xr, plot.w));
-                    for column in left..=right {
-                        let t = (column - left) as f64 / right.saturating_sub(left).max(1) as f64;
-                        let y = plot.h - 1 - mapped(interpolate(a.1, b.1, t), yr, plot.h);
-                        fill(
-                            canvas,
-                            plot,
-                            (column, y, zero),
-                            &series.fill_style,
-                            tint,
-                            point,
-                        );
-                    }
-                }
-            }
-            if let Some((a, b)) = clipped(a, b, xr, yr) {
-                let (ax, ay) = (
-                    mapped(a.0, xr, plot.w),
-                    plot.h - 1 - mapped(a.1, yr, plot.h),
-                );
-                let (bx, by) = (
-                    mapped(b.0, xr, plot.w),
-                    plot.h - 1 - mapped(b.1, yr, plot.h),
-                );
-                let steps = ax.abs_diff(bx).max(ay.abs_diff(by)).max(1);
-                for step in 0..=steps {
-                    let t = step as f64 / steps as f64;
-                    let x = interpolate(ax as f64, bx as f64, t).round() as usize;
-                    let y = interpolate(ay as f64, by as f64, t).round() as usize;
-                    let mark = match series.line_style {
-                        LineStyle::Solid => Some("─"),
-                        LineStyle::Dashed if step % 4 < 2 => Some("─"),
-                        LineStyle::Dotted if step % 2 == 0 => Some("·"),
-                        _ => None,
-                    };
-                    if let Some(mark) = mark {
-                        canvas.put(plot.x + x, plot.y + y, mark, tint, point);
-                    }
-                }
-            }
-        }
-    }
-    // Markers are painted after connecting lines and fills so shared endpoints
-    // remain visible and keep their own tooltip identity and color.
-    for (s, series) in props.series.iter().enumerate().filter(|(_, s)| s.visible) {
-        for (p, point) in series.data.iter().enumerate() {
-            let value = point.value * progress;
-            if (p as f64) < xr.0 || (p as f64) > xr.1 || value < yr.0 || value > yr.1 {
-                continue;
-            }
-            let x = mapped(p as f64, xr, plot.w);
-            let y = plot.h - 1 - mapped(value, yr, plot.h);
-            if series.data.len() == 1 && props.chart_type == ChartType::Area {
-                fill(
-                    canvas,
-                    plot,
-                    (x, y, zero),
-                    &series.fill_style,
-                    point_color(props, s, p),
-                    Some((s, p)),
-                );
-            }
-            canvas.put(
-                plot.x + x,
-                plot.y + y,
-                "●",
-                point_color(props, s, p),
-                Some((s, p)),
-            );
-        }
-    }
-}
-
-fn fill(
-    canvas: &mut Canvas,
-    plot: Rect,
-    (x, y, zero): (usize, usize, usize),
+/// Fill the dots between `top` and `bottom` polylines column by column,
+/// shading toward the baseline for a gradient fill.
+#[allow(clippy::too_many_arguments)]
+fn fill_between(
+    mask: &mut MaskCanvas,
+    top: &[(f64, f64)],
+    bottom: &[(f64, f64)],
+    tint: Option<Rgba>,
     style: &FillStyle,
-    color: Option<Color>,
-    point: Option<Point>,
+    owner: Option<(usize, usize)>,
+    covered: &mut Vec<(usize, usize)>,
+    range: (f64, f64),
 ) {
-    if *style == FillStyle::None {
+    if top.is_empty() || bottom.is_empty() {
         return;
     }
-    let tiles: Vec<_> = match style {
-        FillStyle::Pattern(pattern) => pattern
-            .graphemes(true)
-            .filter(|s| UnicodeWidthStr::width(*s) == 1 && !s.chars().any(char::is_control))
-            .take(plot.w + plot.h)
-            .collect(),
-        _ => Vec::new(),
-    };
-    for row in y.min(zero)..=y.max(zero) {
-        let mark = match style {
-            FillStyle::Gradient => {
-                if row.abs_diff(zero) * 3 < y.abs_diff(zero) {
-                    "░"
-                } else if row.abs_diff(zero) * 3 < y.abs_diff(zero) * 2 {
-                    "▒"
-                } else {
-                    "▓"
+    let (x0, x1) = (top.first().unwrap().0, top.last().unwrap().0);
+    let mut x = x0.round() as i64;
+    let end = x1.round() as i64;
+    let mut ti = 0;
+    let mut bi = 0;
+    let far = range.0.max(range.1);
+    let near = range.0.min(range.1);
+    while x <= end {
+        let xf = x as f64;
+        while ti + 1 < top.len() && top[ti + 1].0 < xf {
+            ti += 1;
+        }
+        while bi + 1 < bottom.len() && bottom[bi + 1].0 < xf {
+            bi += 1;
+        }
+        let y_top = interpolate_at(top, ti, xf);
+        let y_bottom = interpolate_at(bottom, bi, xf);
+        let (a, b) = (y_top.min(y_bottom), y_top.max(y_bottom));
+        let mut y = a.round() as i64;
+        let last = b.round() as i64;
+        while y <= last {
+            let shade = match style {
+                FillStyle::Gradient => {
+                    let t = ((y as f64 - near) / (far - near).max(1.0)).clamp(0.0, 1.0);
+                    let k = (0.45 + 0.55 * t) as f32;
+                    tint.map(|(r, g, bl, al)| (r * k, g * k, bl * k, al))
                 }
+                _ => tint,
+            };
+            mask.dot(x, y, shade, owner);
+            let cell = ((x.max(0) as usize) / DOTS_X, (y.max(0) as usize) / DOTS_Y);
+            if covered.last() != Some(&cell) {
+                covered.push(cell);
             }
-            FillStyle::Pattern(pattern) if pattern == "diagonal" => {
-                if (x + row) % 3 == 0 {
-                    "/"
-                } else {
-                    " "
-                }
-            }
-            FillStyle::Pattern(pattern) if pattern == "dots" => {
-                if (x + row) % 2 == 0 {
-                    "·"
-                } else {
-                    " "
-                }
-            }
-            FillStyle::Pattern(_) => tiles
-                .get((x + row) % tiles.len().max(1))
-                .copied()
-                .unwrap_or("▒"),
-            _ => "█",
-        };
-        canvas.put(plot.x + x, plot.y + row, mark, color, point);
+            y += 1;
+        }
+        x += 1;
     }
+    covered.sort_unstable();
+    covered.dedup();
 }
+
+fn interpolate_at(line: &[(f64, f64)], i: usize, x: f64) -> f64 {
+    let a = line[i];
+    let Some(b) = line.get(i + 1) else { return a.1 };
+    if (b.0 - a.0).abs() < 1e-9 {
+        return b.1;
+    }
+    let t = ((x - a.0) / (b.0 - a.0)).clamp(0.0, 1.0);
+    a.1 + t * (b.1 - a.1)
+}
+
+/// Fit a label into a width for callers in this module.
+#[allow(dead_code)]
+fn fit(label: &str, width: usize) -> String {
+    fit_label(label, width)
+}
+
+/// Keep the text sink trait in scope for `text.text` calls above.
+#[allow(dead_code)]
+fn _sink(_: &dyn TextSink) {}

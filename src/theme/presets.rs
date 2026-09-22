@@ -21,6 +21,14 @@ pub fn dark_theme() -> Theme {
         .set("--color-warning", "#f59e0b") // Amber-500
         .set("--color-error", "#ef4444") // Red-500
         .set("--color-info", "#3b82f6") // Blue-500
+        // Chart series colors: a color-blind-safe set (CHT-017)
+        .set("--color-chart-1", "#56b4e9")
+        .set("--color-chart-2", "#e69f00")
+        .set("--color-chart-3", "#009e73")
+        .set("--color-chart-4", "#cc79a7")
+        .set("--color-chart-5", "#f0e442")
+        .set("--color-chart-bullish", "#009e73")
+        .set("--color-chart-bearish", "#d55e00")
         // Spacing scale (in terminal cells)
         .set("--spacing-xs", "1")
         .set("--spacing-sm", "2")
@@ -53,6 +61,14 @@ pub fn light_theme() -> Theme {
         .set("--color-warning", "#d97706") // Amber-600
         .set("--color-error", "#dc2626") // Red-600
         .set("--color-info", "#2563eb") // Blue-600
+        // Chart series colors: a color-blind-safe set (CHT-017)
+        .set("--color-chart-1", "#0072b2")
+        .set("--color-chart-2", "#e69f00")
+        .set("--color-chart-3", "#009e73")
+        .set("--color-chart-4", "#cc79a7")
+        .set("--color-chart-5", "#d55e00")
+        .set("--color-chart-bullish", "#009e73")
+        .set("--color-chart-bearish", "#d55e00")
         // Spacing scale (in terminal cells)
         .set("--spacing-xs", "1")
         .set("--spacing-sm", "2")
@@ -85,6 +101,14 @@ pub fn high_contrast_theme() -> Theme {
         .set("--color-warning", "#ffff00") // Bright yellow
         .set("--color-error", "#ff0000") // Bright red
         .set("--color-info", "#00ffff") // Bright cyan
+        // Chart series colors: a color-blind-safe set (CHT-017)
+        .set("--color-chart-1", "#00d7ff")
+        .set("--color-chart-2", "#ffaf00")
+        .set("--color-chart-3", "#00ff87")
+        .set("--color-chart-4", "#ff5fff")
+        .set("--color-chart-5", "#ffff00")
+        .set("--color-chart-bullish", "#00ff87")
+        .set("--color-chart-bearish", "#ff5f5f")
         // Spacing scale (same as other themes)
         .set("--spacing-xs", "1")
         .set("--spacing-sm", "2")
@@ -117,6 +141,14 @@ pub fn solarized_dark_theme() -> Theme {
         .set("--color-warning", "#b58900") // Yellow
         .set("--color-error", "#d30102") // Red
         .set("--color-info", "#2aa198") // Cyan
+        // Chart series colors: a color-blind-safe set (CHT-017)
+        .set("--color-chart-1", "#268bd2")
+        .set("--color-chart-2", "#cb4b16")
+        .set("--color-chart-3", "#859900")
+        .set("--color-chart-4", "#d33682")
+        .set("--color-chart-5", "#b58900")
+        .set("--color-chart-bullish", "#859900")
+        .set("--color-chart-bearish", "#dc322f")
         // Spacing scale
         .set("--spacing-xs", "1")
         .set("--spacing-sm", "2")
@@ -149,6 +181,14 @@ pub fn gruvbox_dark_theme() -> Theme {
         .set("--color-warning", "#fabd2f") // Yellow
         .set("--color-error", "#fb4934") // Red
         .set("--color-info", "#83a598") // Blue
+        // Chart series colors: a color-blind-safe set (CHT-017)
+        .set("--color-chart-1", "#83a598")
+        .set("--color-chart-2", "#fe8019")
+        .set("--color-chart-3", "#b8bb26")
+        .set("--color-chart-4", "#d3869b")
+        .set("--color-chart-5", "#fabd2f")
+        .set("--color-chart-bullish", "#b8bb26")
+        .set("--color-chart-bearish", "#fb4934")
         // Spacing scale
         .set("--spacing-xs", "1")
         .set("--spacing-sm", "2")
