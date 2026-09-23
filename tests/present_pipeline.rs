@@ -205,3 +205,49 @@ fn pip_002_flush_failure_is_reported_next_and_forces_a_full_repaint() {
         "shutdown must report the unreported flush failure"
     );
 }
+
+/// PIP-002: a flush failure that `sync` reports falls back to the last
+/// acknowledged frame's geometry, as a failure the next present reports
+/// does; the frame that failed never becomes the fallback for a later
+/// failure.
+#[test]
+fn pip_002_a_failure_reported_by_sync_restores_the_acknowledged_geometry() {
+    let out = Writer::default();
+    let mut backend = SuprTuiBackend::with_writer(16, 4, out.clone()).unwrap();
+    show(&mut backend, &frame("first"));
+    backend.sync().unwrap();
+    let first = format!("{:?}", backend.painted_nodes().unwrap());
+    let flushed = out.flushes();
+
+    out.set_fail_flush(true);
+    show(&mut backend, &narrow_frame("second"));
+    out.wait_for_flushes(flushed + 1);
+    out.set_fail_flush(false);
+    let second = format!("{:?}", backend.painted_nodes().unwrap());
+    assert_ne!(first, second, "the frames must differ");
+    let error = backend.sync().unwrap_err();
+    assert!(
+        error.to_string().contains("controlled flush failure"),
+        "{error:?}"
+    );
+    assert_eq!(
+        format!("{:?}", backend.painted_nodes().unwrap()),
+        first,
+        "after sync reports the failure the geometry is the acknowledged frame's"
+    );
+
+    // The next frame presents; its own flush fails, and the next present
+    // reports that. The fallback is still the first frame, the last one
+    // whose flush succeeded, never the failed second frame.
+    out.set_fail_flush(true);
+    show(&mut backend, &narrow_frame("third"));
+    out.wait_for_flushes(flushed + 2);
+    out.set_fail_flush(false);
+    backend.render_frame(&frame("fourth")).unwrap();
+    backend.present().unwrap_err();
+    assert_eq!(
+        format!("{:?}", backend.painted_nodes().unwrap()),
+        first,
+        "the fallback must be the last frame whose flush was acknowledged"
+    );
+}

@@ -72,10 +72,12 @@ backends default to shutdown and logging rather than writing to process streams.
 - Wide graphemes occupy a lead cell and a continuation cell.
 - `present` returns a frame's geometry as soon as layout and painting finish;
   the render worker writes and flushes the bytes afterwards, with at most one
-  frame in flight. A write or flush failure is reported by the next `present`
-  or by `shutdown` and forces a full repaint; the app keeps the geometry of
-  the last frame whose flush was acknowledged until the next present reports
-  the previous frame's failure.
+  frame in flight. A write or flush failure is reported by the next
+  `present`, by `sync` or by `shutdown`, and forces a full repaint. Until the
+  failure is reported, the backend reports the newest presented frame's
+  geometry; from then on it reports the geometry of the last frame whose
+  flush was acknowledged, so the failed frame is never used as the fallback
+  for a later failure.
 - Debug backend dimensions are limited to 65,535 cells per axis and 262,144
   total cells.
 - Capability detection can be incomplete in redirected, remote, or unusual
