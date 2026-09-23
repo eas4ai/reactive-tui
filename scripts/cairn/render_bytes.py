@@ -17,8 +17,16 @@ BINARY = "render_bytes"
 
 def main() -> int:
     results = {}
-    for req, sub in (("RAS-001", "ras_001_"), ("RAS-002", "ras_002_"), ("RAS-008", "ras_008_")):
+    for req, sub in (("RAS-001", "ras_001_"), ("RAS-002", "ras_002_")):
         results[req] = cargo_test_filtered(BINARY, sub, package=CRATE)
+    # RAS-008: the byte stream shows a change in any array is found, and the
+    # crate's unit test counts the cells the compare builds (none), which
+    # only a build with cfg(test) can observe.
+    stream = cargo_test_filtered(BINARY, "ras_008_", package=CRATE)
+    compare = cargo_test_filtered(None, "ras_008_", package=CRATE)
+    results["RAS-008"] = (stream[0] and compare[0], "; ".join(
+        f"{name}: {why}" for name, (ok, why) in (("stream", stream), ("compare", compare)) if not ok)
+        or f"stream {stream[1]}; compare {compare[1]}")
     # RAS-005 is best of three runs: the bench is memory-bound, so a run under
     # load from another build can miss the bound while the renderer meets it.
     for attempt in range(1, 4):

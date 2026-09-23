@@ -98,12 +98,31 @@ impl Cell {
 
 /// Build a cell with no extended decoration.
 pub fn make_cell(char: u32, fg: Rgba, bg: Rgba, attributes: u32) -> Cell {
+    #[cfg(test)]
+    ras_008_tests::count_cell();
     Cell {
         char,
         fg,
         bg,
         attributes,
         decoration: CellDecoration::default(),
+    }
+}
+
+/// Columns the row compare checks per step (RAS-008): a fixed-size block the
+/// compiler compares with vector instructions, with no call per block, so an
+/// unchanged row costs no more than whole-row comparisons (RAS-005).
+const COMPARE_BLOCK: usize = 32;
+
+/// Whether two `COMPARE_BLOCK`-long slices hold equal values.
+#[inline(always)]
+fn same_block<T: PartialEq>(a: &[T], b: &[T]) -> bool {
+    match (
+        <&[T; COMPARE_BLOCK]>::try_from(a),
+        <&[T; COMPARE_BLOCK]>::try_from(b),
+    ) {
+        (Ok(a), Ok(b)) => a == b,
+        _ => a == b,
     }
 }
 
@@ -581,6 +600,8 @@ impl<'a> OptimizedBuffer<'a> {
             return None;
         }
         let index = self.coords_to_index(x, y);
+        #[cfg(test)]
+        ras_008_tests::count_cell();
         Some(Cell {
             char: self.chars[index],
             fg: self.fgs[index],
@@ -640,21 +661,29 @@ impl<'a> OptimizedBuffer<'a> {
     }
 
     /// The first column of row `y` whose cell differs between the two
-    /// buffers, or `None` when the row is identical. One pass over the
-    /// row's column arrays; no `Cell` is built (RAS-008).
+    /// buffers, or `None` when the row is identical. One pass over the row,
+    /// left to right: the five column arrays are compared a block of
+    /// columns at a time, and the first block that differs is searched
+    /// column by column, so no column before the change is read twice. No
+    /// `Cell` is built (RAS-008).
     pub fn row_first_change(&self, other: &Self, y: u32) -> Option<u32> {
         let width = self.width as usize;
         let start = y as usize * width;
         let end = start + width;
-        let same = self.chars[start..end] == other.chars[start..end]
-            && self.fgs[start..end] == other.fgs[start..end]
-            && self.bgs[start..end] == other.bgs[start..end]
-            && self.attributes[start..end] == other.attributes[start..end]
-            && self.decorations[start..end] == other.decorations[start..end];
-        if same {
-            return None;
+        let mut from = start;
+        while from + COMPARE_BLOCK <= end {
+            let to = from + COMPARE_BLOCK;
+            let same = same_block(&self.chars[from..to], &other.chars[from..to])
+                && same_block(&self.fgs[from..to], &other.fgs[from..to])
+                && same_block(&self.bgs[from..to], &other.bgs[from..to])
+                && same_block(&self.attributes[from..to], &other.attributes[from..to])
+                && same_block(&self.decorations[from..to], &other.decorations[from..to]);
+            if !same {
+                break;
+            }
+            from = to;
         }
-        (start..end)
+        (from..end)
             .find(|&i| !self.cell_eq_at(other, i))
             .map(|i| (i - start) as u32)
     }
@@ -942,4 +971,83 @@ fn clear() {
     // Caller-supplied clear char.
     buf.clear(bg, Some(0x2E));
     assert_eq!(0x2E, buf.get(1, 1).unwrap().char);
+}
+
+/// RAS-008: the row compare finds the first differing column in any of the
+/// five column arrays and builds no `Cell` doing it. `get` and `make_cell`
+/// count the cells they build on this thread while unit tests run.
+#[cfg(test)]
+mod ras_008_tests {
+    use super::{InitOptions, OptimizedBuffer, make_cell};
+    use crate::ansi;
+    use crate::uni::pool::GraphemePool;
+    use std::cell::{Cell, RefCell};
+    use std::rc::Rc;
+
+    thread_local! {
+        static CELLS_BUILT: Cell<usize> = const { Cell::new(0) };
+    }
+
+    pub(super) fn count_cell() {
+        CELLS_BUILT.with(|n| n.set(n.get() + 1));
+    }
+
+    fn cells_built() -> usize {
+        CELLS_BUILT.with(Cell::get)
+    }
+
+    fn buffer(width: u32, pool: &Rc<RefCell<GraphemePool<'static>>>) -> OptimizedBuffer<'static> {
+        let mut buffer = OptimizedBuffer::new(width, 2, InitOptions::new(pool.clone())).unwrap();
+        for y in 0..2 {
+            for x in 0..width {
+                let color = ansi::rgb_color(x as u8, y as u8, 7, 255);
+                buffer.set(x, y, make_cell(u32::from(b'a'), color, color, 0));
+            }
+        }
+        buffer
+    }
+
+    #[test]
+    fn ras_008_row_compare_finds_the_first_change_in_every_array_without_building_cells() {
+        let pool = Rc::new(RefCell::new(GraphemePool::new()));
+        let width = 200;
+        let same = buffer(width, &pool);
+        let base = buffer(width, &pool);
+        let before = cells_built();
+        assert_eq!(same.row_first_change(&base, 0), None);
+        assert_eq!(same.row_first_change(&base, 1), None);
+        assert_eq!(cells_built(), before, "an unchanged row built cells");
+
+        // A change in each array, at chunk edges and inside a chunk.
+        for column in [0, 1, 63, 64, 65, 127, 128, width - 1] {
+            for array in 0..5 {
+                let mut changed = buffer(width, &pool);
+                let mut cell = changed.get(column, 1).unwrap();
+                match array {
+                    0 => cell.char = u32::from(b'b'),
+                    1 => cell.fg = ansi::rgb_color(255, 0, 0, 255),
+                    2 => cell.bg = ansi::rgb_color(0, 255, 0, 255),
+                    3 => cell.attributes = 1,
+                    _ => cell.decoration.overline = true,
+                }
+                changed.set(column, 1, cell);
+                let before = cells_built();
+                assert_eq!(
+                    changed.row_first_change(&base, 1),
+                    Some(column),
+                    "array {array}, column {column}"
+                );
+                assert_eq!(
+                    changed.row_first_change(&base, 0),
+                    None,
+                    "array {array}, column {column}: the other row is unchanged"
+                );
+                assert_eq!(
+                    cells_built(),
+                    before,
+                    "the compare built cells (array {array}, column {column})"
+                );
+            }
+        }
+    }
 }
