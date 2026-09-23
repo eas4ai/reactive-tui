@@ -512,13 +512,15 @@ impl LayoutTree {
         self.calls.get(&node.0).copied().unwrap_or(0)
     }
 
-    /// Lay out the subtree. `None` axes are unbounded (Yoga NaN).
+    /// Lay out the subtree. `None` axes are unbounded (Yoga NaN). A removed
+    /// root fails with `InvalidNode`.
     pub fn compute(
         &mut self,
         root: NodeId,
         width: Option<f32>,
         height: Option<f32>,
     ) -> Result<(), LayoutError> {
+        let root = self.check(root)?;
         let space = Size {
             width: width.map_or(AvailableSpace::MaxContent, AvailableSpace::Definite),
             height: height.map_or(AvailableSpace::MaxContent, AvailableSpace::Definite),
@@ -527,22 +529,18 @@ impl LayoutTree {
         let measures = &mut self.measures;
         let calls = &mut self.calls;
         taffy
-            .compute_layout_with_measure(
-                root.0,
-                space,
-                |known, _available, id, _context, _style| {
-                    if let Some(target) = measures.get_mut(&id) {
-                        *calls.entry(id).or_insert(0) += 1;
-                        let (w, h) = target.measure(known.width, known.height);
-                        Size {
-                            width: w,
-                            height: h,
-                        }
-                    } else {
-                        Size::ZERO
+            .compute_layout_with_measure(root, space, |known, _available, id, _context, _style| {
+                if let Some(target) = measures.get_mut(&id) {
+                    *calls.entry(id).or_insert(0) += 1;
+                    let (w, h) = target.measure(known.width, known.height);
+                    Size {
+                        width: w,
+                        height: h,
                     }
-                },
-            )
+                } else {
+                    Size::ZERO
+                }
+            })
             .map_err(|_| LayoutError::InvalidNode)
     }
 

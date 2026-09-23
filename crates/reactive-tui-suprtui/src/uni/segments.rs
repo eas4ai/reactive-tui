@@ -17,7 +17,10 @@ use super::{WidthMethod, WidthState, char_width, cluster_ranges, walk};
 pub struct WidthSpan {
     /// Byte offset where the search stopped.
     pub byte_offset: u32,
-    /// Graphemes the search counted before it stopped.
+    /// Graphemes the search counted before it stopped. On the cluster walk
+    /// (the Unicode and no-ZWJ methods) the count grows only when
+    /// `include_start_before` is set, as in the reference `findPosByWidth`;
+    /// otherwise it stays 0. The ASCII and Wcwidth paths always count.
     pub grapheme_count: u32,
     /// Columns taken by the text before the stop.
     pub columns_used: u32,

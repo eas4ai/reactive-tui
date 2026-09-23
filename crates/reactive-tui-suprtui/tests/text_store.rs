@@ -77,3 +77,15 @@ fn req_004_view_dirty_tracking() {
     assert_eq!("", buf.content());
     assert_eq!("", tail.content());
 }
+
+/// Releasing a view twice frees its id once: two later views never share it.
+#[test]
+fn a_view_released_twice_is_reused_once() {
+    let mut buf = TextBuffer::from_text("x");
+    let view = buf.register_view();
+    buf.unregister_view(view);
+    buf.unregister_view(view);
+    let first = buf.register_view();
+    let second = buf.register_view();
+    assert_ne!(first, second, "two live views got the same id");
+}

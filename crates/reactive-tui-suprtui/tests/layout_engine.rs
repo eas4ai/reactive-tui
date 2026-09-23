@@ -338,3 +338,16 @@ fn req_004_computed_positions() {
     tree.remove(doomed).unwrap();
     assert!(tree.computed(doomed).is_err());
 }
+
+/// A removed root is refused like any other stale node, instead of reaching
+/// taffy with a freed id.
+#[test]
+fn compute_refuses_a_removed_root() {
+    let mut tree = LayoutTree::new();
+    let root = leaf(&mut tree, &fixed(10.0, 10.0));
+    tree.remove(root).unwrap();
+    assert_eq!(
+        tree.compute(root, Some(10.0), Some(10.0)),
+        Err(suprtui::layout::LayoutError::InvalidNode)
+    );
+}

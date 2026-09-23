@@ -352,12 +352,13 @@ impl LinkTracker {
         }
     }
 
-    /// Whether the tracker holds any id.
+    /// Whether the tracker holds any id, counting ids the pool rejected.
     pub fn has_any(&self) -> bool {
         !self.used_ids.is_empty()
     }
 
-    /// Number of distinct ids the tracker holds.
+    /// Number of distinct ids the tracker holds, counting ids the pool
+    /// rejected, which it keeps with a cell count of zero.
     pub fn link_count(&self) -> u32 {
         self.used_ids.len() as u32
     }

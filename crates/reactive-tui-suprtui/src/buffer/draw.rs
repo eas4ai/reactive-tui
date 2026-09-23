@@ -909,11 +909,6 @@ impl<'a> OptimizedBuffer<'a> {
 
     // ---- compositing ----
 
-    /// Composite a source grid onto this one with clipping, alpha, and
-    /// scissor exactly as direct drawing. Reference `drawFrameBuffer`.
-    /// Cluster bytes resolve through the SOURCE grid's pool (BUF-013).
-    /// Placement geometry is clipped and copied; decoded image pixels
-    /// stay source-owned until the media commitment.
     /// Translate a source packed char for a foreign pool: resolve the
     /// cluster bytes through the source grid's pool and intern them in
     /// this grid's pool, preserving extents. Reference behavior for
@@ -955,8 +950,11 @@ impl<'a> OptimizedBuffer<'a> {
     }
 
     /// Composite a region of `frame_buffer` onto this grid at (`dest_x`,
-    /// `dest_y`). `None` source bounds cover the whole source; output clips to
-    /// this grid and the active scissor.
+    /// `dest_y`), with clipping, alpha and scissor exactly as direct drawing.
+    /// `None` source bounds cover the whole source; output clips to this grid
+    /// and the active scissor. Cluster bytes resolve through the source grid's
+    /// pool (BUF-013). Placement geometry is clipped and copied; decoded image
+    /// pixels stay owned by the source. Reference `drawFrameBuffer`.
     #[allow(clippy::too_many_arguments)]
     pub fn draw_frame_buffer(
         &mut self,

@@ -297,9 +297,9 @@ impl TextBuffer {
     }
 
     /// Release a view id for reuse; it then reads clean.
-    /// Unknown ids are ignored.
+    /// Unknown and already released ids are ignored, so an id is reused once.
     pub fn unregister_view(&mut self, view: ViewId) {
-        if view.0 < self.views.len() {
+        if view.0 < self.views.len() && !self.free_views.contains(&view.0) {
             self.views[view.0] = false;
             self.free_views.push(view.0);
         }
@@ -758,9 +758,9 @@ impl TextView {
 
     // ---- gesture and viewport selection (TXT-011, TXT-012) ----
 
-    /// How a pressed cell expands. `Cell` keeps raw offsets, `Word`
-    /// and `Line` expand each endpoint through the word unit or the
-    /// logical line, as in the reference selection behaviors.
+    /// How a selection covers its later endpoint: `Cell` includes the
+    /// grapheme under it, `Boundary` keeps the half-open range. How a
+    /// pressed cell expands is the gesture's [`GestureBehavior`].
     pub fn set_gesture_occupancy(&mut self, occupancy: SelectionOccupancy) {
         self.occupancy = occupancy;
     }
@@ -1834,7 +1834,8 @@ impl EditorView {
     }
 
     /// Set a cell-space selection with a behavior; with cursor
-    /// follow, the cursor syncs to the focus.
+    /// follow, the cursor moves to the selection's end, whichever way
+    /// the selection was made.
     pub fn set_local_selection(
         &mut self,
         anchor_row: usize,
@@ -1848,7 +1849,7 @@ impl EditorView {
         self.anchor_cell = Some((anchor_row, anchor_col));
         self.anchor_behavior = behavior;
         if self.follow_cursor {
-            self.sync_cursor_to_focus();
+            self.sync_cursor_to_selection_end();
         }
         Ok(())
     }
@@ -1864,7 +1865,7 @@ impl EditorView {
             .gesture_press(anchor_row, anchor_col, self.anchor_behavior)?;
         self.view.gesture_move(focus_row, focus_col)?;
         if self.follow_cursor {
-            self.sync_cursor_to_focus();
+            self.sync_cursor_to_selection_end();
         }
         Ok(())
     }
@@ -1887,7 +1888,7 @@ impl EditorView {
         self.view.set_gesture_occupancy(occupancy);
     }
 
-    fn sync_cursor_to_focus(&mut self) {
+    fn sync_cursor_to_selection_end(&mut self) {
         if let Some((_, end)) = self.view.selection() {
             let _ = self.view.set_cursor(end);
         }

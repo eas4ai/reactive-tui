@@ -175,12 +175,6 @@ pub enum BufferError {
     OutOfMemory,
     /// A width or height was zero.
     InvalidDimensions,
-    /// Invalid Unicode input. Kept for reference parity; nothing in this crate
-    /// returns it.
-    InvalidUnicode,
-    /// Buffer too small for the request. Kept for reference parity; nothing in
-    /// this crate returns it.
-    BufferTooSmall,
 }
 
 /// Construction options. Reference `OptimizedBuffer.InitOptions`. Pools
