@@ -8,8 +8,6 @@
 
 mod common;
 
-use std::hash::{Hash, Hasher};
-
 use common::app_input::{self, Snapshot};
 use reactive_tui::app::RootComponent;
 use reactive_tui::component::Element;
@@ -114,11 +112,11 @@ fn snapshots_dir() -> std::path::PathBuf {
 /// Text grid plus a color digest: readable in a diff, sensitive to color changes.
 fn golden_bytes(frame: &Snapshot) -> Vec<u8> {
     let (rows, cols) = frame.screen.size();
-    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    let mut hasher = common::digest::Digest::default();
     for r in 0..rows {
         for c in 0..cols {
             if let Some(cell) = frame.screen.cell(r, c) {
-                format!("{:?}{:?}", cell.fgcolor(), cell.bgcolor()).hash(&mut hasher);
+                hasher.field(format!("{:?}{:?}", cell.fgcolor(), cell.bgcolor()).as_bytes());
             }
         }
     }

@@ -9,7 +9,6 @@
 
 mod common;
 
-use std::hash::{Hash, Hasher};
 use std::sync::{Arc, Mutex};
 
 use common::app_input::{self, click};
@@ -96,20 +95,22 @@ fn vt100_section(bytes: &[u8], size: (u16, u16)) -> String {
     let mut parser = vt100::Parser::new(size.1, size.0, 0);
     parser.process(bytes);
     let screen = parser.screen();
-    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    let mut hasher = common::digest::Digest::default();
     for r in 0..size.1 {
         for c in 0..size.0 {
             if let Some(cell) = screen.cell(r, c) {
-                format!(
-                    "{:?}{:?}{}{}{}{}",
-                    cell.fgcolor(),
-                    cell.bgcolor(),
-                    cell.bold(),
-                    cell.italic(),
-                    cell.underline(),
-                    cell.inverse()
-                )
-                .hash(&mut hasher);
+                hasher.field(
+                    format!(
+                        "{:?}{:?}{}{}{}{}",
+                        cell.fgcolor(),
+                        cell.bgcolor(),
+                        cell.bold(),
+                        cell.italic(),
+                        cell.underline(),
+                        cell.inverse()
+                    )
+                    .as_bytes(),
+                );
             }
         }
     }

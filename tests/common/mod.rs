@@ -6,3 +6,5 @@
 //! `use common::app_input;` at each use site.
 
 pub mod app_input;
+#[allow(dead_code)]
+pub mod digest;
