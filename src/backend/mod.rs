@@ -37,6 +37,11 @@ pub(crate) struct PresentedGeometry {
     pub layouts: Vec<PresentedLayout>,
     pub images: Vec<crate::layout::paint_tree::suprtui::images::Plane>,
     pub cursor: Option<::suprtui::render::CursorState>,
+    /// Element index plus one at each cell, row-major, from the renderer's
+    /// committed hit grid; empty when no frame wrote one (PNT-002).
+    pub hits: Vec<u32>,
+    /// Whether the frame painted from the previous layout (PNT-004).
+    pub layout_reused: bool,
 }
 
 /// Minimal, patch-driven backend abstraction
@@ -55,6 +60,12 @@ pub trait Backend: Send + Sync {
     /// Original component layout from the acknowledged frame. Wrappers should
     /// forward this with painted_nodes so clipped controls retain local coordinates.
     fn component_layouts(&self) -> Option<&[PresentedLayout]> {
+        None
+    }
+    /// The element index plus one painted at each cell of the last presented
+    /// frame, row-major at `size().0` columns, when the backend keeps a hit
+    /// grid; the event layer prefers it over painted bounds (PNT-002).
+    fn hit_cells(&self) -> Option<&[u32]> {
         None
     }
     /// Stage a complete application frame. Return false to use legacy patches.

@@ -29,6 +29,17 @@ impl Affine {
     pub(super) fn coefficients(self) -> [f32; 6] {
         [self.a, self.b, self.c, self.d, self.x, self.y]
     }
+    /// Whether the placement only translates: no rotation, scale or skew.
+    /// For such a placement `inverse` is an exact subtraction of `offset`
+    /// and `point` an exact addition, which the painter's fast path uses.
+    pub(super) fn is_translation(self) -> bool {
+        self.a == 1.0 && self.b == 0.0 && self.c == 0.0 && self.d == 1.0
+    }
+
+    pub(super) fn offset(self) -> (f32, f32) {
+        (self.x, self.y)
+    }
+
     pub(super) fn point(self, x: f32, y: f32) -> (f32, f32) {
         (
             self.a * x + self.c * y + self.x,

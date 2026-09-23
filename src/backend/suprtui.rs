@@ -74,6 +74,14 @@ impl ImageOutputOptions {
 
 type Reply = mpsc::Sender<Result<()>>;
 
+/// Geometry of the last acknowledged frame (PIP-002).
+#[derive(Default)]
+struct Acknowledged {
+    nodes: Vec<super::PaintedNode>,
+    layouts: Vec<super::PresentedLayout>,
+    hits: Vec<u32>,
+}
+
 #[derive(Clone, Copy, Default)]
 struct FrameOptions {
     full_redraw: bool,
@@ -96,7 +104,7 @@ enum Command {
 }
 
 enum FrameContent {
-    Element(Box<Element>),
+    Element(Arc<Element>),
     Cells(Arc<CellFrame>),
 }
 
@@ -111,13 +119,17 @@ pub struct SuprTuiBackend {
     dimensions: (usize, usize),
     images: ImageOutputOptions,
     options: FrameOptions,
-    frame: Element,
+    /// The frame to present, shared with the worker without a copy (PNT-003).
+    frame: Arc<Element>,
     cells: Option<Arc<CellFrame>>,
     painted_nodes: Vec<super::PaintedNode>,
     component_layouts: Vec<super::PresentedLayout>,
+    /// Element index plus one per cell of the presented frame (PNT-002).
+    hits: Vec<u32>,
+    layout_reused: bool,
     /// Geometry of the last frame whose flush the worker acknowledged; the
     /// fallback when a present reports the previous frame's failure (PIP-002).
-    acknowledged: (Vec<super::PaintedNode>, Vec<super::PresentedLayout>),
+    acknowledged: Acknowledged,
     raw_mode: Option<RawMode>,
     input: Option<crossterm::event::EventStream>,
 }
@@ -209,11 +221,13 @@ impl SuprTuiBackend {
             dimensions,
             images,
             options: FrameOptions::default(),
-            frame: Element::empty(),
+            frame: Arc::new(Element::empty()),
             cells: None,
             painted_nodes: Vec::new(),
             component_layouts: Vec::new(),
-            acknowledged: (Vec::new(), Vec::new()),
+            hits: Vec::new(),
+            layout_reused: false,
+            acknowledged: Acknowledged::default(),
             raw_mode: None,
             input: None,
         };
@@ -228,6 +242,12 @@ impl SuprTuiBackend {
                 Err(error)
             }
         }
+    }
+
+    /// Whether the last presented frame painted from the previous frame's
+    /// layout because its layout inputs were unchanged (PNT-004).
+    pub fn layout_reused(&self) -> bool {
+        self.layout_reused
     }
 
     /// Wait until every frame presented so far has been written and flushed.
@@ -288,6 +308,9 @@ impl Backend for SuprTuiBackend {
     fn painted_nodes(&self) -> Option<&[super::PaintedNode]> {
         Some(&self.painted_nodes)
     }
+    fn hit_cells(&self) -> Option<&[u32]> {
+        (!self.hits.is_empty()).then_some(self.hits.as_slice())
+    }
     fn component_layouts(&self) -> Option<&[super::PresentedLayout]> {
         Some(&self.component_layouts)
     }
@@ -296,7 +319,8 @@ impl Backend for SuprTuiBackend {
             return Err(worker_stopped());
         }
         self.cells = None;
-        self.frame = element.clone();
+        // The one copy per present: the worker receives this handle.
+        self.frame = Arc::new(element.clone());
         Ok(true)
     }
 
@@ -338,7 +362,7 @@ impl Backend for SuprTuiBackend {
         commands
             .send(Command::Present(
                 self.cells.as_ref().map_or_else(
-                    || FrameContent::Element(Box::new(self.frame.clone())),
+                    || FrameContent::Element(Arc::clone(&self.frame)),
                     |cells| FrameContent::Cells(Arc::clone(cells)),
                 ),
                 self.dimensions,
@@ -355,15 +379,18 @@ impl Backend for SuprTuiBackend {
         // (PIP-002).
         match result.recv().map_err(|_| worker_stopped())? {
             Ok(geometry) => {
-                self.acknowledged = (
-                    std::mem::replace(&mut self.painted_nodes, geometry.nodes),
-                    std::mem::replace(&mut self.component_layouts, geometry.layouts),
-                );
+                self.acknowledged = Acknowledged {
+                    nodes: std::mem::replace(&mut self.painted_nodes, geometry.nodes),
+                    layouts: std::mem::replace(&mut self.component_layouts, geometry.layouts),
+                    hits: std::mem::replace(&mut self.hits, geometry.hits),
+                };
+                self.layout_reused = geometry.layout_reused;
                 Ok(())
             }
             Err(error) => {
-                self.painted_nodes = self.acknowledged.0.clone();
-                self.component_layouts = self.acknowledged.1.clone();
+                self.painted_nodes = self.acknowledged.nodes.clone();
+                self.component_layouts = self.acknowledged.layouts.clone();
+                self.hits = self.acknowledged.hits.clone();
                 Err(error)
             }
         }
@@ -518,6 +545,7 @@ fn run_worker<W: Write>(
     }
     let mut force = true;
     let mut graphics = graphics::Graphics::default();
+    let mut layout_cache = crate::layout::paint_tree::suprtui::LayoutCache::default();
     // A flush failure from the previous frame, reported by the next present
     // or by shutdown (PIP-002).
     let mut deferred: Option<ReactiveError> = None;
@@ -543,7 +571,9 @@ fn run_worker<W: Write>(
                         FrameContent::Element(spec) => {
                             let started = std::time::Instant::now();
                             let spec = element_to_paintspec(&spec)?;
-                            let geometry = paint_frame(&spec, renderer.next_buffer(), images)?;
+                            let (buffer, hits) = renderer.next_buffer_and_hit_grid();
+                            let geometry =
+                                paint_frame(spec, buffer, hits, &mut layout_cache, images)?;
                             renderer.set_layout_ns(started.elapsed().as_nanos() as u64);
                             geometry
                         }
@@ -630,6 +660,7 @@ fn run_worker<W: Write>(
                         ));
                     }
                     graphics.acknowledge(std::mem::take(&mut geometry.images));
+                    geometry.hits = renderer.committed_hit_grid().to_vec();
                     Ok(geometry)
                 })();
                 force = result.is_err();

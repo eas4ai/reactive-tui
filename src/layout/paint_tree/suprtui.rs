@@ -3,6 +3,7 @@
 mod cursor;
 pub(crate) mod images;
 
+use super::NodeSpec;
 use super::{build_nodes_inherited, transform::Affine, NodePaint};
 use crate::core::surface::{Attr, Rgba};
 use crate::error::{ReactiveError, Result};
@@ -45,54 +46,150 @@ struct PaintNode {
     z: i32,
 }
 
+/// Layout results kept across frames: the spec they came from, the Taffy
+/// tree, the paint records and the placed nodes. A frame whose layout inputs
+/// match the cached spec at the same size paints from them without laying
+/// out again (PNT-004).
+#[derive(Default)]
+pub(crate) struct LayoutCache {
+    spec: Option<crate::component::bridge::PaintSpec>,
+    size: (u32, u32),
+    tree: TaffyTree<()>,
+    paints: HashMap<NodeId, NodePaint>,
+    nodes: Vec<PaintNode>,
+}
+
+/// Whether two specs lay out the same: the same node tree with the same
+/// classes and text, the same styles, images and cell grids by identity.
+/// Text cursors do not affect layout.
+fn same_layout_inputs(
+    a: &crate::component::bridge::PaintSpec,
+    b: &crate::component::bridge::PaintSpec,
+) -> bool {
+    fn same_node(a: &NodeSpec<'_>, b: &NodeSpec<'_>) -> bool {
+        a.class == b.class
+            && a.text == b.text
+            && a.children.len() == b.children.len()
+            && a.children
+                .iter()
+                .zip(&b.children)
+                .all(|(x, y)| same_node(x, y))
+    }
+    fn same_handles<T>(a: &[Option<Arc<T>>], b: &[Option<Arc<T>>]) -> bool {
+        a.len() == b.len()
+            && a.iter().zip(b).all(|(x, y)| match (x, y) {
+                (Some(x), Some(y)) => Arc::ptr_eq(x, y),
+                (None, None) => true,
+                _ => false,
+            })
+    }
+    same_node(&a.root, &b.root)
+        && a.styles == b.styles
+        && a.image_fallbacks == b.image_fallbacks
+        && same_handles(&a.images, &b.images)
+        && same_handles(&a.cells, &b.cells)
+}
+
+/// Write a node's element index plus one into every cell it occupies:
+/// its bounds within its clip, exact under masks and transforms, in paint
+/// order so a later (higher) node overwrites a lower one (PNT-002).
+fn mark_hits(hits: &mut [u32], width: u32, node: &PaintNode) {
+    let id = node.element_index as u32 + 1;
+    let visible = node.bounds.intersect(node.clip);
+    let plain = node.transform.is_translation() && node.mask.is_none();
+    for y in visible.top.max(0)..visible.bottom {
+        for x in visible.left.max(0)..visible.right {
+            if x as u32 >= width {
+                break;
+            }
+            let Some(cell) = hits.get_mut(y as usize * width as usize + x as usize) else {
+                return;
+            };
+            if !plain {
+                if !inside_masks(&node.mask, x, y) {
+                    continue;
+                }
+                let Some((local_x, local_y)) = node.transform.inverse(x as f32, y as f32) else {
+                    continue;
+                };
+                let (local_x, local_y) = (local_x.round() as i32, local_y.round() as i32);
+                if local_x < 0
+                    || local_x >= node.local.right
+                    || local_y < 0
+                    || local_y >= node.local.bottom
+                {
+                    continue;
+                }
+            }
+            *cell = id;
+        }
+    }
+}
+
 pub(crate) fn paint_frame(
-    root: &crate::component::bridge::PaintSpec,
+    spec: crate::component::bridge::PaintSpec,
     target: &mut OptimizedBuffer<'_>,
+    hits: &mut [u32],
+    cache: &mut LayoutCache,
     image_options: crate::backend::ImageOutputOptions,
 ) -> Result<crate::backend::PresentedGeometry> {
     target.clear(ansi::rgb_color(0, 0, 0, 255), None);
-    let mut tree = TaffyTree::new();
-    let mut paints = HashMap::new();
-    let spec = root;
-    let root = build_nodes_inherited(
-        &mut tree,
-        &root.root,
-        &mut paints,
-        &crate::layout::text::TextStyle::default(),
-        None,
-        false,
-        &mut root.styles.iter().cloned(),
-    )?;
-    let available = Size {
-        width: AvailableSpace::Definite(target.width() as f32),
-        height: AvailableSpace::Definite(target.height() as f32),
-    };
-    tree.compute_layout_with_measure(root, available, |known, available, id, _, _| {
-        super::measure_text(&paints[&id], known, available)
-    })
-    .map_err(|error| ReactiveError::layout(format!("SuprTUI layout: {error}")))?;
-    let screen = Rect {
-        left: 0,
-        top: 0,
-        right: target.width() as i32,
-        bottom: target.height() as i32,
-    };
-    let mut nodes = Vec::new();
-    collect(
-        &tree,
-        &paints,
-        root,
-        Placement {
-            mask: None,
-            transform: Affine::default(),
-            clip: screen,
-            layer: i32::MIN,
-            opacity: 1.0,
-        },
-        &mut nodes,
-    )?;
-    // Stable sorting preserves parent-before-child and sibling paint order.
-    nodes.sort_by_key(|node| node.z);
+    let size = (target.width(), target.height());
+    let reused = cache.size == size
+        && cache
+            .spec
+            .as_ref()
+            .is_some_and(|previous| same_layout_inputs(previous, &spec));
+    if !reused {
+        let mut tree = TaffyTree::new();
+        let mut paints = HashMap::new();
+        let root = build_nodes_inherited(
+            &mut tree,
+            &spec.root,
+            &mut paints,
+            &crate::layout::text::TextStyle::default(),
+            None,
+            false,
+            &mut spec.styles.iter().cloned(),
+        )?;
+        let available = Size {
+            width: AvailableSpace::Definite(size.0 as f32),
+            height: AvailableSpace::Definite(size.1 as f32),
+        };
+        tree.compute_layout_with_measure(root, available, |known, available, id, _, _| {
+            super::measure_text(&paints[&id], known, available)
+        })
+        .map_err(|error| ReactiveError::layout(format!("SuprTUI layout: {error}")))?;
+        let screen = Rect {
+            left: 0,
+            top: 0,
+            right: size.0 as i32,
+            bottom: size.1 as i32,
+        };
+        let mut nodes = Vec::new();
+        collect(
+            &tree,
+            &paints,
+            root,
+            Placement {
+                mask: None,
+                transform: Affine::default(),
+                clip: screen,
+                layer: i32::MIN,
+                opacity: 1.0,
+            },
+            &mut nodes,
+        )?;
+        // Stable sorting preserves parent-before-child and sibling paint order.
+        nodes.sort_by_key(|node| node.z);
+        cache.tree = tree;
+        cache.paints = paints;
+        cache.nodes = nodes;
+        cache.size = size;
+    }
+    cache.spec = Some(spec);
+    let spec = cache.spec.as_ref().expect("spec stored above");
+    let (tree, paints, nodes) = (&cache.tree, &cache.paints, &cache.nodes);
     let mut geometry = Vec::with_capacity(nodes.len());
     let mut layouts = Vec::with_capacity(nodes.len());
     let selected: std::collections::HashSet<u32> = spec
@@ -111,7 +208,7 @@ pub(crate) fn paint_frame(
             paint_node(
                 target,
                 &paints[&node.id],
-                &node,
+                node,
                 &mut images,
                 &mut cursor,
                 spec.cursors[node.element_index],
@@ -120,7 +217,7 @@ pub(crate) fn paint_frame(
                 paint_cells(
                     target,
                     &paints[&node.id],
-                    &node,
+                    node,
                     grid,
                     &mut images,
                     &mut cursor,
@@ -131,7 +228,7 @@ pub(crate) fn paint_frame(
                     if let Some(plane) = images::Plane::new(
                         image.clone(),
                         &paints[&node.id],
-                        &node,
+                        node,
                         target,
                         image_options
                             .protocol(image.mode)
@@ -142,7 +239,8 @@ pub(crate) fn paint_frame(
                 }
             }
         }
-        let visible = hit_bounds(&node);
+        mark_hits(hits, size.0, node);
+        let visible = node.bounds.intersect(node.clip);
         let layout = tree
             .layout(node.id)
             .map_err(|error| ReactiveError::layout(error.to_string()))?;
@@ -181,33 +279,9 @@ pub(crate) fn paint_frame(
         layouts,
         images: images.into_planes(),
         cursor: cursor.state,
+        hits: Vec::new(),
+        layout_reused: reused,
     })
-}
-
-fn hit_bounds(node: &PaintNode) -> Rect {
-    let visible = node.bounds.intersect(node.clip);
-    if node.mask.is_none() {
-        return visible;
-    }
-    // The public event API uses rectangles. Bound the cells that survive local
-    // ancestor clipping, rather than registering an entirely clipped child.
-    let mut bounds = Rect {
-        left: visible.right,
-        right: visible.left,
-        top: visible.bottom,
-        bottom: visible.top,
-    };
-    for y in visible.top..visible.bottom {
-        for x in visible.left..visible.right {
-            if inside_masks(&node.mask, x, y) {
-                bounds.left = bounds.left.min(x);
-                bounds.right = bounds.right.max(x + 1);
-                bounds.top = bounds.top.min(y);
-                bounds.bottom = bounds.bottom.max(y + 1);
-            }
-        }
-    }
-    bounds
 }
 
 struct ClipMask {
@@ -448,15 +522,25 @@ fn paint_node(
     let bg = color(paint.style.bg);
     let attr = attributes(paint);
     let visible = node.bounds.intersect(node.clip);
+    // A node that is only translated and not masked maps cells by plain
+    // subtraction and addition, the same values the general path computes,
+    // without the per-cell inverse and mask walk (PNT-001).
+    let plain = node.transform.is_translation() && node.mask.is_none();
+    let (offset_x, offset_y) = node.transform.offset();
     // Fill the complete box, including padding, when a background is supplied.
     if paint.gradient.is_some() || paint.gradient_border.is_some() || paint.background_specified {
         for y in visible.top..visible.bottom {
             for x in visible.left..visible.right {
-                if !inside_masks(&node.mask, x, y) {
-                    continue;
-                }
-                let Some((local_x, local_y)) = node.transform.inverse(x as f32, y as f32) else {
-                    continue;
+                let (local_x, local_y) = if plain {
+                    (x as f32 - offset_x, y as f32 - offset_y)
+                } else {
+                    if !inside_masks(&node.mask, x, y) {
+                        continue;
+                    }
+                    let Some(local) = node.transform.inverse(x as f32, y as f32) else {
+                        continue;
+                    };
+                    local
                 };
                 let local_x = local_x.round() as i32;
                 let local_y = local_y.round() as i32;
@@ -540,10 +624,13 @@ fn paint_node(
                     break;
                 }
                 if x >= clip.left {
-                    let (paint_x, paint_y) = node
-                        .transform
-                        .point(x as f32 + (width as f32 - 1.0) / 2.0, y as f32);
-                    let paint_x = (paint_x - (width as f32 - 1.0) / 2.0).round() as i32;
+                    let half = (width as f32 - 1.0) / 2.0;
+                    let (paint_x, paint_y) = if plain {
+                        (x as f32 + half + offset_x, y as f32 + offset_y)
+                    } else {
+                        node.transform.point(x as f32 + half, y as f32)
+                    };
+                    let paint_x = (paint_x - half).round() as i32;
                     let paint_y = paint_y.round() as i32;
                     if paint_x < node.clip.left
                         || paint_y < node.clip.top
@@ -553,9 +640,11 @@ fn paint_node(
                         x = right;
                         continue;
                     }
-                    if !(0..width).all(|offset| {
-                        inside_masks(&node.mask, paint_x.saturating_add(offset as i32), paint_y)
-                    }) {
+                    if !plain
+                        && !(0..width).all(|offset| {
+                            inside_masks(&node.mask, paint_x.saturating_add(offset as i32), paint_y)
+                        })
+                    {
                         x = right;
                         continue;
                     }

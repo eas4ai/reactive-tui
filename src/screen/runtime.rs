@@ -100,10 +100,12 @@ impl ScreenRuntime {
         let _wake = Scope::enter(&self.wake);
         if let Some(nodes) = backend.painted_nodes() {
             self.components.anchors.publish(element, nodes);
+            let cell_hits = backend.hit_cells().map(|hits| (hits, backend.size().0));
             let (focus, _) = self.events.sync(
                 element,
                 nodes,
                 backend.component_layouts(),
+                cell_hits,
                 &mut self.router,
             );
             self.focus.apply(&mut self.router, focus);
@@ -142,9 +144,9 @@ impl ScreenRuntime {
         });
         let _wake = Scope::enter(&self.wake);
         self.components.anchors.publish(element, &nodes);
-        let (focus, _) = self
-            .events
-            .sync(element, &nodes, layouts.as_deref(), &mut self.router);
+        let (focus, _) =
+            self.events
+                .sync(element, &nodes, layouts.as_deref(), None, &mut self.router);
         self.focus.apply(&mut self.router, focus);
     }
 

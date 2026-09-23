@@ -61,9 +61,13 @@ pub(super) fn paint(element: &Element, size: (u16, u16)) -> Result<DebugFrame> {
         InitOptions::new(pool.clone()),
     )
     .map_err(|error| ReactiveError::resource(format!("debug frame allocation: {error:?}")))?;
+    let mut hits = vec![0; usize::from(size.0) * usize::from(size.1)];
+    let mut cache = crate::layout::paint_tree::suprtui::LayoutCache::default();
     let geometry = crate::layout::paint_tree::suprtui::paint_frame(
-        &element_to_paintspec(element)?,
+        element_to_paintspec(element)?,
         &mut buffer,
+        &mut hits,
+        &mut cache,
         ImageOutputOptions::default(),
     )?;
     let mut surface = Surface::new(usize::from(size.0), usize::from(size.1));

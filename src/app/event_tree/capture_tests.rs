@@ -26,7 +26,7 @@ fn component_expansion_preserves_capture_before_activation() {
     let output = runtime.resolve(element).unwrap();
     let mut tree = EventTree::default();
     let mut router = EventRouter::new();
-    tree.sync(&output, &[], None, &mut router);
+    tree.sync(&output, &[], None, None, &mut router);
     let id = *tree
         .nodes
         .iter()
@@ -67,7 +67,7 @@ fn capture_observes_consuming_child_once_and_redraw_replaces_handlers() {
             callback.lock().unwrap().push("child");
         }));
         root.children.push(child);
-        tree.sync(&root, &[], None, &mut router);
+        tree.sync(&root, &[], None, None, &mut router);
         assert_eq!(
             router.route_event(&Event::Key(KeyEvent::new(KeyCode::Enter)), target(&tree)),
             EventResult::Consumed
@@ -94,14 +94,14 @@ fn disabled_and_inert_capture_handlers_do_not_run_and_removal_releases_capture()
     for (disabled, inert) in [(true, false), (false, true)] {
         root.metadata.disabled = disabled;
         root.metadata.inert = inert;
-        tree.sync(&root, &[], None, &mut router);
+        tree.sync(&root, &[], None, None, &mut router);
         assert_eq!(
             router.route_event(&Event::Key(KeyEvent::new(KeyCode::Enter)), target(&tree)),
             EventResult::Ignored
         );
     }
     root.metadata.inert = false;
-    tree.sync(&root, &[], None, &mut router);
+    tree.sync(&root, &[], None, None, &mut router);
     drop(root);
     assert!(weak.upgrade().is_some());
     tree.clear(&mut router);
