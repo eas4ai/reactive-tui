@@ -37,6 +37,9 @@ pub(super) struct LiveImage {
 struct View {
     worker: Option<worker::Worker>,
     request: Option<u64>,
+    /// Whether the worker has not answered the latest request yet: the
+    /// image is still being prepared (BAR-003).
+    pending: bool,
     pixels: Option<Arc<image::RgbaImage>>,
     error: Option<String>,
     layout: Option<LayoutInfo>,
@@ -50,6 +53,7 @@ impl View {
     fn submit(&mut self, props: &LiveProps, reuse_pixels: bool) {
         let pixels = reuse_pixels.then(|| self.pixels.clone()).flatten();
         self.request = None;
+        self.pending = false;
         self.pixels = pixels.clone();
         self.error = None;
         self.ascii = None;
@@ -68,6 +72,7 @@ impl View {
                 }
             }
         }
+        self.pending = self.worker.is_some();
         self.request = self.worker.as_ref().map(|worker| {
             worker.submit_at(
                 props.image.clone(),
@@ -80,11 +85,25 @@ impl View {
             )
         });
     }
+    /// The image's state as a screen reader announces it: what failed, its
+    /// size once decoded, or that it is still loading.
+    fn describe(&self) -> String {
+        if let Some(error) = &self.error {
+            format!("Image error: {error}")
+        } else if let Some(pixels) = &self.pixels {
+            format!("{} by {} pixels", pixels.width(), pixels.height())
+        } else if self.pending {
+            "Loading image".into()
+        } else {
+            "Image has no source".into()
+        }
+    }
     fn receive(&mut self) {
         if let Some(worker) = &self.worker {
             worker.observe();
             if let Some(response) = worker.take() {
                 if self.request == Some(response.id) {
+                    self.pending = false;
                     self.ascii = None;
                     self.cells = response.cells;
                     match response.result {
@@ -109,6 +128,7 @@ impl Component for LiveImage {
         let mut view = View {
             worker: None,
             request: None,
+            pending: false,
             pixels: None,
             error: None,
             layout: None,
@@ -218,6 +238,10 @@ impl Component for LiveImage {
             .build();
         let mut accessible = crate::accessibility::Node::new(crate::accessibility::Role::Image);
         accessible.set_label(props.image.fallback_text.as_deref().unwrap_or("Image"));
+        accessible.set_description(view.describe());
+        if view.pending {
+            accessible.set_busy();
+        }
         root.metadata.accessibility = Some(accessible);
         if let Some(pixels) = &view.pixels {
             root.metadata.image = Some(Arc::new(super::paint::ImagePaint::new(
@@ -236,6 +260,7 @@ impl Component for LiveImage {
             view.cells = None;
             view.ascii = None;
             view.request = None;
+            view.pending = false;
         }
     }
 }

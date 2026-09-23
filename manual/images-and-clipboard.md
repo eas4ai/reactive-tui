@@ -28,6 +28,26 @@ Use an image-enabled backend for direct protocols. Use clipboard hooks inside a
 component hook scope and handle unavailable clipboard programs as an operation
 error.
 
+## Image widget
+
+`image()` builds the image widget. `.source_file(path)`,
+`.source_raw_bytes(bytes, width, height, format)`, `.source_base64(data)` or
+`.source_url(url)` gives it pixels; `.display_mode(mode)`, `.quality(quality)`,
+`.format(format)` and `.class(classes)` configure it before `.build()`.
+
+- It fills the rectangle its parent allots unless its classes size it, and
+  fits the picture inside that rectangle with its aspect ratio kept.
+- After a resize it draws the picture again at the new size. Until the image
+  worker has the new cells, it shows a text rendering made at the new size,
+  never the cells drawn for the old one.
+- Its screen-reader node has the image role, the label `Image`, and a
+  description of its state: `Loading image` while the worker prepares it,
+  which also marks the node busy; its size in pixels once decoded; or the
+  error when loading failed.
+- It has no pointer actions of its own: its content is inert, so it needs no
+  keyboard equivalent.
+- The only colors it draws are the picture's own.
+
 ## Behavior
 
 Image work runs through an owned worker. The processor decodes frames, applies
@@ -36,7 +56,9 @@ protocol output or cell painting from detected capabilities and configuration.
 Animated images schedule frame changes and wake the application.
 
 In `Auto` mode without a direct protocol, an image falls back to an installed
-Chafa, then Viu, and otherwise to block glyphs. Each cell shows the split of
+Chafa, then Viu, and otherwise to block glyphs. When the application or the
+`REACTIVE_TUI_BLITTER` environment variable names a blitter, `Auto` draws with
+that blitter instead of an external tool, which would ignore the choice. Each cell shows the split of
 its pixels into two colors with the least color error, and a transparent pixel
 keeps what is below the cell. The blitter is chosen by tier: ASCII when the
 terminal answers that it has no Unicode, octant on kitty, Ghostty and foot,

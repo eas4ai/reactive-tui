@@ -314,7 +314,12 @@ fn run(shared: Arc<Shared>) {
 /// itself, which the worker draws with the renderer's blitters. A host
 /// with a pixel protocol gets the blitters too: the backend remains the
 /// authority for the graphics and the fallback shows where it does not.
+/// A blitter the application or the environment named also means the
+/// blitters: an external tool would ignore the choice (BLT-002).
 fn automatic_mode(cancelled: impl Fn() -> bool) -> ImageDisplayMode {
+    if super::super::named_blitter().is_some() {
+        return ImageDisplayMode::Auto;
+    }
     let caps = crate::core::capabilities::TerminalQuery::detect_from_env();
     if caps.sixel || caps.kitty_graphics || caps.iterm2_graphics {
         return ImageDisplayMode::Auto;
@@ -652,6 +657,59 @@ mod external_tests {
             Some((0.0, 200.0 / 255.0, 0.0, 1.0)),
             "a uniform block is its color as background"
         );
+    }
+
+    /// BLT-002: a blitter the environment or the application named wins over
+    /// an installed chafa or viu, which would ignore it. Each case runs in a
+    /// child process whose PATH holds working fake tools.
+    #[test]
+    fn blt_002_a_named_blitter_wins_over_an_installed_tool() {
+        const CHILD: &str = "REACTIVE_IMAGE_NAMED_BLITTER_CHILD";
+        if let Ok(case) = std::env::var(CHILD) {
+            if case == "application" {
+                crate::widgets::display::set_image_blitter(Some(
+                    crate::widgets::display::Blitter::Braille,
+                ));
+            }
+            assert_eq!(
+                automatic_mode(|| false),
+                if case == "none" {
+                    ImageDisplayMode::Chafa
+                } else {
+                    ImageDisplayMode::Auto
+                },
+                "{case}"
+            );
+            return;
+        }
+        let temp = tempfile::tempdir().unwrap();
+        for name in ["chafa", "viu"] {
+            let program = temp.path().join(name);
+            fs::write(&program, "#!/bin/sh\nprintf 'version 1'\n").unwrap();
+            fs::set_permissions(program, fs::Permissions::from_mode(0o700)).unwrap();
+        }
+        for case in ["none", "environment", "application"] {
+            let mut child = Command::new(std::env::current_exe().unwrap());
+            child
+                .args(["--exact", "widgets::display::image::live::worker::external_tests::blt_002_a_named_blitter_wins_over_an_installed_tool", "--nocapture"])
+                .env(CHILD, case)
+                .env("PATH", temp.path())
+                .env("TERM", "dumb")
+                .env("TERM_PROGRAM", "")
+                .env_remove("KITTY_WINDOW_ID")
+                .env_remove("ITERM_SESSION_ID")
+                .env_remove(::suprtui::blit::BLITTER_ENV);
+            if case == "environment" {
+                child.env(::suprtui::blit::BLITTER_ENV, "braille");
+            }
+            let output = child.output().unwrap();
+            assert!(
+                output.status.success(),
+                "{case}: {}{}",
+                String::from_utf8_lossy(&output.stdout),
+                String::from_utf8_lossy(&output.stderr)
+            );
+        }
     }
 
     #[test]
