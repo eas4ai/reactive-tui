@@ -3,6 +3,7 @@
 
 pub mod ansi;
 pub mod audio;
+pub mod blit;
 pub mod buffer;
 pub mod clipboard;
 pub mod layout;

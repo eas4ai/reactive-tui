@@ -18,7 +18,7 @@ struct Request {
 }
 pub(super) struct Response {
     pub id: u64,
-    pub cells: Option<Arc<vt100::Screen>>,
+    pub cells: Option<super::Cells>,
     pub result: Result<Arc<image::RgbaImage>, String>,
 }
 #[derive(Default)]
@@ -198,14 +198,33 @@ fn render_cells(
     active: &Active,
     pixels: &image::RgbaImage,
     shared: &Shared,
-) -> Result<Option<Arc<vt100::Screen>>, String> {
-    if !matches!(active.mode, ImageDisplayMode::Chafa | ImageDisplayMode::Viu) {
-        return Ok(None);
-    }
+) -> Result<Option<super::Cells>, String> {
     let request = &active.request;
     let Some((width, height)) = request.size.filter(|(w, h)| *w > 0 && *h > 0) else {
         return Ok(None);
     };
+    match active.mode {
+        ImageDisplayMode::Chafa | ImageDisplayMode::Viu => {}
+        // Auto without an installed tool draws with the renderer's
+        // blitters, chosen by tier (BLT-002).
+        ImageDisplayMode::Auto => {
+            let (width, height) = request
+                .image
+                .size_constraints
+                .map_or((width, height), |(w, h)| (w.min(width), h.min(height)));
+            if width == 0 || height == 0 {
+                return Ok(None);
+            }
+            let grid = super::blocks::grid(
+                pixels,
+                &request.image,
+                (width, height),
+                super::super::image_blitter(),
+            )?;
+            return Ok(Some(super::Cells::Blitted(Arc::new(grid))));
+        }
+        _ => return Ok(None),
+    }
     let config = Image {
         source: super::super::super::ImageSource::FilePath(Default::default()),
         display_mode: active.mode,
@@ -224,7 +243,9 @@ fn render_cells(
     let output = ExternalRenderer::new()
         .render_pixels(pixels, &config, || cancelled(shared, request.id))
         .map_err(|error| error.to_string())?;
-    Ok(Some(Arc::new(super::cells::parse(&output, width, height)?)))
+    Ok(Some(super::Cells::Captured(Arc::new(super::cells::parse(
+        &output, width, height,
+    )?))))
 }
 fn run(shared: Arc<Shared>) {
     let mut automatic = None;
@@ -289,18 +310,21 @@ fn run(shared: Arc<Shared>) {
     }
 }
 
+/// Auto's fallback: an installed chafa, then viu, and otherwise `Auto`
+/// itself, which the worker draws with the renderer's blitters. A host
+/// with a pixel protocol gets the blitters too: the backend remains the
+/// authority for the graphics and the fallback shows where it does not.
 fn automatic_mode(cancelled: impl Fn() -> bool) -> ImageDisplayMode {
     let caps = crate::core::capabilities::TerminalQuery::detect_from_env();
     if caps.sixel || caps.kitty_graphics || caps.iterm2_graphics {
-        // The backend remains the authority for actual graphics transmission.
-        return ImageDisplayMode::AsciiArt;
+        return ImageDisplayMode::Auto;
     }
     if ExternalRenderer::available("chafa", &cancelled) {
         ImageDisplayMode::Chafa
     } else if !cancelled() && ExternalRenderer::available("viu", cancelled) {
         ImageDisplayMode::Viu
     } else {
-        ImageDisplayMode::AsciiArt
+        ImageDisplayMode::Auto
     }
 }
 
@@ -488,6 +512,51 @@ mod external_tests {
     }
 
     #[test]
+    fn blt_001_auto_without_a_tool_draws_blitted_cells() {
+        let pixels = Arc::new(image::RgbaImage::from_pixel(
+            8,
+            8,
+            image::Rgba([0, 200, 0, 255]),
+        ));
+        let shared = Shared {
+            slots: Mutex::default(),
+            ready: Condvar::new(),
+            closed: AtomicBool::new(false),
+            generation: AtomicU64::new(1),
+            changed: ThreadSafeSignal::new(0),
+        };
+        let image = Image {
+            display_mode: ImageDisplayMode::Auto,
+            ..Image::default()
+        };
+        let active = Active {
+            request: Request {
+                id: 1,
+                image: Arc::new(image),
+                format: None,
+                size: Some((6, 3)),
+                pixels: Some(pixels.clone()),
+            },
+            animation: Arc::new(Animation::still(pixels.clone())),
+            started: Instant::now(),
+            deadline: None,
+            index: None,
+            mode: ImageDisplayMode::Auto,
+        };
+        let Some(super::super::Cells::Blitted(grid)) =
+            render_cells(&active, &pixels, &shared).unwrap()
+        else {
+            panic!("Auto without a tool must draw with the blitters");
+        };
+        assert!(grid.width() > 0 && grid.width() <= 6 && grid.height() <= 3);
+        assert_eq!(
+            grid.background(0, 0),
+            Some((0.0, 200.0 / 255.0, 0.0, 1.0)),
+            "a uniform block is its color as background"
+        );
+    }
+
+    #[test]
     fn api_image_external_auto_keeps_graphics_priority_and_falls_back_between_tools() {
         const CHILD: &str = "REACTIVE_IMAGE_AUTO_CHILD";
         if let Ok(mode) = std::env::var(CHILD) {
@@ -496,7 +565,7 @@ mod external_tests {
                 match mode.as_str() {
                     "chafa" => ImageDisplayMode::Chafa,
                     "viu" => ImageDisplayMode::Viu,
-                    _ => ImageDisplayMode::AsciiArt,
+                    _ => ImageDisplayMode::Auto,
                 }
             );
             return;
@@ -567,7 +636,10 @@ mod external_tests {
             });
             let response = response.unwrap();
             assert_eq!(response.id, id);
-            assert_eq!(response.cells.unwrap().cell(0, 0).unwrap().contents(), "R");
+            let Some(super::super::Cells::Captured(screen)) = response.cells else {
+                panic!("chafa output was not captured");
+            };
+            assert_eq!(screen.cell(0, 0).unwrap().contents(), "R");
             let pixels = response.result.unwrap();
             source.close().unwrap();
             let id = worker.submit_at(config, None, Some((8, 3)), Some(pixels));
@@ -582,7 +654,10 @@ mod external_tests {
                 response.result.is_ok(),
                 "resize reloaded the deleted source"
             );
-            assert_eq!(response.cells.unwrap().size(), (4, 8));
+            let Some(super::super::Cells::Captured(screen)) = response.cells else {
+                panic!("chafa output was not captured");
+            };
+            assert_eq!(screen.size(), (4, 8));
             return;
         }
         for mode in ["render", "cancel"] {

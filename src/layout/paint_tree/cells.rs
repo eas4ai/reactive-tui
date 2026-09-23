@@ -12,16 +12,20 @@ use unicode_width::UnicodeWidthStr;
 /// A color as red, green, blue and alpha in `0.0..=1.0`.
 pub type Rgba = (f32, f32, f32, f32);
 
-/// One cell of a [`CellGrid`]: an interned glyph and a packed foreground.
+/// One cell of a [`CellGrid`]: an interned glyph, a packed foreground and
+/// a packed background.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 struct GridCell {
     /// Index into the glyph table; 0 is the blank cell.
     glyph: u16,
     /// Foreground as `0xRRGGBBAA`; alpha 0 inherits the element's color.
     fg: u32,
+    /// Background as `0xRRGGBBAA`; alpha 0 keeps what is below the cell.
+    bg: u32,
 }
 
-/// A width by height grid of glyphs with per-cell foreground colors.
+/// A width by height grid of glyphs with per-cell foreground colors and
+/// optional per-cell backgrounds.
 #[derive(Clone, Debug)]
 pub struct CellGrid {
     width: u16,
@@ -108,7 +112,32 @@ impl CellGrid {
         self.cells[index] = GridCell {
             glyph: id,
             fg: fg.map_or(0, pack),
+            bg: 0,
         };
+    }
+
+    /// Put `glyph` at (`x`, `y`) as [`CellGrid::set`] does, over `bg`: a
+    /// background paints the cell even under a blank glyph, and `None`
+    /// keeps what is below it.
+    pub fn set_with_background(
+        &mut self,
+        x: u16,
+        y: u16,
+        glyph: &str,
+        fg: Option<Rgba>,
+        bg: Option<Rgba>,
+    ) {
+        self.set(x, y, glyph, fg);
+        if let Some(index) = self.index(x, y) {
+            self.cells[index].bg = bg.map_or(0, pack);
+        }
+    }
+
+    /// The background at (`x`, `y`); `None` outside the grid and where the
+    /// cell keeps what is below it.
+    pub fn background(&self, x: u16, y: u16) -> Option<Rgba> {
+        let cell = self.cells[self.index(x, y)?];
+        (cell.bg & 0xFF != 0).then(|| unpack(cell.bg))
     }
 
     /// Clear the cell at (`x`, `y`).
@@ -153,6 +182,29 @@ impl CellGrid {
         })
     }
 
+    /// Every cell that paints, with a glyph, a background or both, as
+    /// (`x`, `y`, glyph, cell width, foreground, background) in row order;
+    /// a blank glyph is empty.
+    #[allow(clippy::type_complexity)]
+    pub(crate) fn painted(
+        &self,
+    ) -> impl Iterator<Item = (u16, u16, &str, usize, Option<Rgba>, Option<Rgba>)> + '_ {
+        self.cells.iter().enumerate().filter_map(move |(i, cell)| {
+            if cell.glyph == 0 && cell.bg & 0xFF == 0 {
+                return None;
+            }
+            let glyph: &str = &self.glyphs[usize::from(cell.glyph)];
+            Some((
+                (i % usize::from(self.width)) as u16,
+                (i / usize::from(self.width)) as u16,
+                glyph,
+                UnicodeWidthStr::width(glyph).max(1),
+                (cell.fg & 0xFF != 0).then(|| unpack(cell.fg)),
+                (cell.bg & 0xFF != 0).then(|| unpack(cell.bg)),
+            ))
+        })
+    }
+
     /// The grid as text, one line per row, for tests and diagnostics.
     pub fn to_text(&self) -> String {
         let mut out = String::new();
@@ -190,6 +242,35 @@ mod tests {
             .map(|(x, y, g, w, _)| (x, y, g.to_string(), w))
             .collect();
         assert_eq!(set, vec![(2, 1, "•".to_string(), 1)]);
+    }
+
+    #[test]
+    fn blt_001_backgrounds_paint_blank_cells_and_none_keeps_what_is_below() {
+        let red = (1.0, 0.0, 0.0, 1.0);
+        let blue = (0.0, 0.0, 1.0, 1.0);
+        let mut grid = CellGrid::new(3, 1);
+        grid.set_with_background(0, 0, " ", None, Some(red));
+        grid.set_with_background(1, 0, "▐", Some(blue), Some(red));
+        grid.set_with_background(2, 0, "▀", Some(blue), None);
+        assert_eq!(grid.background(0, 0), Some(red));
+        assert_eq!(grid.background(2, 0), None);
+        assert_eq!(grid.background(3, 0), None);
+        assert!(!grid.is_set(0, 0), "a blank glyph stays blank");
+        let painted: Vec<_> = grid
+            .painted()
+            .map(|(x, _, glyph, _, fg, bg)| (x, glyph.to_string(), fg, bg))
+            .collect();
+        assert_eq!(
+            painted,
+            vec![
+                (0, String::new(), None, Some(red)),
+                (1, "▐".into(), Some(blue), Some(red)),
+                (2, "▀".into(), Some(blue), None),
+            ]
+        );
+        assert_eq!(grid.iter().count(), 2, "iter lists glyph cells only");
+        grid.set(1, 0, "x", None);
+        assert_eq!(grid.background(1, 0), None, "set replaces the background");
     }
 
     #[test]

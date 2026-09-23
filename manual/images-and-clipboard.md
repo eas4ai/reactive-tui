@@ -14,6 +14,8 @@ Clipboard hooks copy and read text through platform clipboard commands.
 - `ImageProcessor` decodes and resizes image frames.
 - Protocol and Sixel renderers encode host-terminal output.
 - Cell painting provides a fallback when a direct image protocol is not used.
+- `Blitter`, `set_image_blitter` and `image_blitter` choose the block glyphs
+  that cell fallback draws an image with.
 - `SuprTuiBackend::new_with_images` enables terminal image output options.
 - `use_clipboard` and `use_simple_clipboard` expose clipboard state and
   operations through hooks.
@@ -33,6 +35,17 @@ size and quality settings, and publishes results. The renderer selects direct
 protocol output or cell painting from detected capabilities and configuration.
 Animated images schedule frame changes and wake the application.
 
+In `Auto` mode without a direct protocol, an image falls back to an installed
+Chafa, then Viu, and otherwise to block glyphs. Each cell shows the split of
+its pixels into two colors with the least color error, and a transparent pixel
+keeps what is below the cell. The blitter is chosen by tier: ASCII when the
+terminal answers that it has no Unicode, octant on kitty, Ghostty and foot,
+quadrant on Apple Terminal and VS Code, half blocks on the Linux console, and
+sextant on any other terminal. `set_image_blitter` and the
+`REACTIVE_TUI_BLITTER` environment variable (`braille`, `octant`, `sextant`,
+`quadrant`, `half-block` or `ascii`) replace that choice; the environment
+variable wins. `AsciiArt` keeps the character ramp.
+
 Clipboard operations select a platform command, run it as an owned process,
 capture bounded output, and publish completion into hook state.
 
@@ -46,6 +59,9 @@ capture bounded output, and publish completion into hook state.
 - Chafa and Viu receive `--` before the image path, so a relative path beginning
   with a hyphen remains image data instead of becoming a command option.
 - Cell fallback has lower visual resolution than a direct protocol.
+- No terminal reports which block glyphs its font draws. The per-terminal
+  table is a judgment from each terminal's identity; a font without the chosen
+  glyphs shows empty boxes until `REACTIVE_TUI_BLITTER` names a lower tier.
 - Clipboard tools differ by operating system and desktop session and may be
   absent.
 - Clipboard and image operations can fail after the UI has requested them.
@@ -54,6 +70,7 @@ capture bounded output, and publish completion into hook state.
 
 - Image widget exports: [`src/widgets/display/image/mod.rs`](../src/widgets/display/image/mod.rs)
 - Image worker: [`src/widgets/display/image/live/worker.rs`](../src/widgets/display/image/live/worker.rs)
+- Block fallback blitters: [`crates/reactive-tui-suprtui/src/blit.rs`](../crates/reactive-tui-suprtui/src/blit.rs)
 - Clipboard hooks: [`src/hooks/clipboard.rs`](../src/hooks/clipboard.rs)
 - Platform image support: [`src/platform/image.rs`](../src/platform/image.rs)
 - Image behavior tests: [`tests/api_widget_behavior/image.rs`](../tests/api_widget_behavior/image.rs)
