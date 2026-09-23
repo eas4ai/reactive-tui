@@ -1,0 +1,21 @@
+{
+  "command": "python3 -B scripts/cairn/render_bytes.py",
+  "inputs": [
+    "crates/reactive-tui-suprtui/src",
+    "crates/reactive-tui-suprtui/tests",
+    "crates/reactive-tui-suprtui/Cargo.toml",
+    "src/backend",
+    "tests/suprtui_renderer.rs",
+    "Cargo.toml",
+    "Cargo.lock",
+    "scripts/cairn"
+  ],
+  "requirements": [
+    "RAS-001",
+    "RAS-002",
+    "RAS-005",
+    "RAS-006",
+    "RAS-008"
+  ],
+  "results": "per-requirement"
+}

@@ -1,0 +1,25 @@
+{
+  "command": "python3 -B scripts/cairn/painter_goldens.py",
+  "inputs": [
+    "crates/reactive-tui-suprtui/src",
+    "crates/reactive-tui-suprtui/tests",
+    "crates/reactive-tui-suprtui/Cargo.toml",
+    "src/backend",
+    "src/layout/paint_tree",
+    "src/event",
+    "src/app.rs",
+    "src/screen",
+    "tests/common",
+    "tests/painter_hit.rs",
+    "tests/snapshots/charts",
+    "Cargo.toml",
+    "Cargo.lock",
+    "scripts/cairn"
+  ],
+  "requirements": [
+    "PNT-001",
+    "PNT-002",
+    "PNT-004"
+  ],
+  "results": "per-requirement"
+}

@@ -1,0 +1,19 @@
+{
+  "command": "python3 -B scripts/cairn/blitters.py",
+  "inputs": [
+    "crates/reactive-tui-suprtui/src",
+    "crates/reactive-tui-suprtui/tests",
+    "crates/reactive-tui-suprtui/Cargo.toml",
+    "crates/reactive-tui-suprtui/UPSTREAM.md",
+    "src/widgets/display/image",
+    "src/core/capabilities.rs",
+    "Cargo.toml",
+    "Cargo.lock",
+    "scripts/cairn"
+  ],
+  "requirements": [
+    "BLT-001",
+    "BLT-002"
+  ],
+  "results": "per-requirement"
+}

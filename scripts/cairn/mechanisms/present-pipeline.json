@@ -1,0 +1,21 @@
+{
+  "command": "python3 -B scripts/cairn/present_pipeline.py",
+  "inputs": [
+    "crates/reactive-tui-suprtui/src",
+    "crates/reactive-tui-suprtui/tests",
+    "crates/reactive-tui-suprtui/Cargo.toml",
+    "src/backend",
+    "src/app.rs",
+    "tests/common",
+    "tests/present_pipeline.rs",
+    "manual/rendering-and-backends.md",
+    "Cargo.toml",
+    "Cargo.lock",
+    "scripts/cairn"
+  ],
+  "requirements": [
+    "PIP-001",
+    "PIP-002"
+  ],
+  "results": "per-requirement"
+}

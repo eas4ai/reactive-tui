@@ -1,0 +1,19 @@
+{
+  "command": "python3 -B scripts/cairn/render_alloc.py",
+  "inputs": [
+    "crates/reactive-tui-suprtui/src",
+    "crates/reactive-tui-suprtui/tests",
+    "crates/reactive-tui-suprtui/Cargo.toml",
+    "src/backend",
+    "tests/suprtui_renderer.rs",
+    "Cargo.toml",
+    "Cargo.lock",
+    "scripts/cairn"
+  ],
+  "requirements": [
+    "RAS-003",
+    "RAS-007",
+    "PNT-003"
+  ],
+  "results": "per-requirement"
+}

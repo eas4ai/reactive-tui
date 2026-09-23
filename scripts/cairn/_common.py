@@ -83,8 +83,12 @@ def strip_test_modules(text: str) -> str:
     return "".join(out)
 
 
-def cargo_test_filtered(binary: str, substring: str, features: list[str] | None = None, release: bool = False) -> tuple[bool, str]:
-    cmd = ["cargo", "test", "--locked", "--jobs", JOBS, "--test", binary]
+def cargo_test_filtered(binary: str, substring: str, features: list[str] | None = None, release: bool = False,
+                        package: str | None = None) -> tuple[bool, str]:
+    cmd = ["cargo", "test", "--locked", "--jobs", JOBS]
+    if package:
+        cmd += ["-p", package]
+    cmd += ["--test", binary]
     if release:
         cmd.append("--release")
     if features:
