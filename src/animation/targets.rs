@@ -45,7 +45,7 @@ fn identity(element: &Element) -> Identity {
         std::mem::discriminant(&element.element_type),
     )
 }
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 struct PresentedTarget {
     values: HashMap<String, f32>,
     identity: Identity,
@@ -158,6 +158,16 @@ impl AnimationTargetContext {
     }
 }
 
+/// The targets one presented frame publishes, collected without publishing
+/// them. App keeps the acknowledged frame's copy, so a present that reports
+/// a flush failure republishes it without keeping that frame's tree, and the
+/// handlers in it, alive (PIP-002).
+#[derive(Clone, Debug, Default)]
+pub(crate) struct PresentedTargets {
+    values: HashMap<String, PresentedTarget>,
+    ambiguous: HashSet<String>,
+}
+
 pub(crate) struct TargetRegistry {
     state: Arc<Mutex<RegistryState>>,
     wake: AppWaker,
@@ -191,7 +201,17 @@ impl TargetRegistry {
         layouts: Option<&[crate::backend::PresentedLayout]>,
         offset: usize,
     ) -> crate::error::Result<()> {
-        fn collect(
+        let targets = Self::collect(element, layouts, offset)?;
+        self.publish_targets(targets).map(drop)
+    }
+    /// The targets `element` presents with `layouts`, numbering elements in
+    /// preorder from `offset`.
+    pub(crate) fn collect(
+        element: &Element,
+        layouts: Option<&[crate::backend::PresentedLayout]>,
+        offset: usize,
+    ) -> crate::error::Result<PresentedTargets> {
+        fn visit(
             element: &Element,
             index: &mut usize,
             sizes: &HashMap<usize, (f32, f32)>,
@@ -248,7 +268,7 @@ impl TargetRegistry {
                 }
             }
             for child in &element.children {
-                collect(child, index, sizes, values, ambiguous)?;
+                visit(child, index, sizes, values, ambiguous)?;
             }
             Ok(())
         }
@@ -260,25 +280,31 @@ impl TargetRegistry {
             .map(|layout| (layout.element_index, layout.layout.size))
             .collect();
         let mut index = offset;
-        collect(element, &mut index, &sizes, &mut values, &mut ambiguous)?;
+        visit(element, &mut index, &sizes, &mut values, &mut ambiguous)?;
+        Ok(PresentedTargets { values, ambiguous })
+    }
+    /// Publish targets collected from a presented frame and return the ones
+    /// they replace, which are those of the frame published before it. The
+    /// replaced values move out of their slots, so keeping them costs no
+    /// copy on the frame path.
+    pub(crate) fn publish_targets(
+        &mut self,
+        targets: PresentedTargets,
+    ) -> crate::error::Result<PresentedTargets> {
+        let PresentedTargets { values, ambiguous } = targets;
         let mut state = self.state.lock().map_err(|_| {
             crate::error::ReactiveError::invalid_state("animation target registry lock poisoned")
         })?;
+        let mut replaced = HashMap::new();
         state.targets.retain(|id, slot| {
-            let keep = values.get(id).is_some_and(|value| {
-                value.identity
-                    == slot
-                        .state
-                        .lock()
-                        .unwrap_or_else(|error| error.into_inner())
-                        .current
-                        .identity
-            }) && !ambiguous.contains(id);
+            let mut slot = slot.state.lock().unwrap_or_else(|error| error.into_inner());
+            let keep = values
+                .get(id)
+                .is_some_and(|value| value.identity == slot.current.identity)
+                && !ambiguous.contains(id);
             if !keep {
-                slot.state
-                    .lock()
-                    .unwrap_or_else(|error| error.into_inner())
-                    .live = false;
+                slot.live = false;
+                replaced.insert(id.clone(), slot.current.clone());
             }
             keep
         });
@@ -286,28 +312,36 @@ impl TargetRegistry {
             if ambiguous.contains(&id) {
                 continue;
             }
-            let slot = state.targets.entry(id).or_insert_with(|| {
-                Arc::new(TargetSlot {
+            if let Some(slot) = state.targets.get(&id) {
+                let previous = std::mem::replace(
+                    &mut slot
+                        .state
+                        .lock()
+                        .map_err(|_| {
+                            crate::error::ReactiveError::invalid_state(
+                                "animation target lock poisoned",
+                            )
+                        })?
+                        .current,
+                    current,
+                );
+                replaced.insert(id, previous);
+            } else {
+                let slot = Arc::new(TargetSlot {
                     state: Mutex::new(TargetState {
                         live: true,
-                        current: PresentedTarget {
-                            values: HashMap::new(),
-                            identity: current.identity.clone(),
-                        },
+                        current,
                         samples: HashMap::new(),
                     }),
                     wake: self.wake.clone(),
-                })
-            });
-            slot.state
-                .lock()
-                .map_err(|_| {
-                    crate::error::ReactiveError::invalid_state("animation target lock poisoned")
-                })?
-                .current = current;
+                });
+                state.targets.insert(id, slot);
+            }
         }
-        state.ambiguous = ambiguous;
-        Ok(())
+        Ok(PresentedTargets {
+            values: replaced,
+            ambiguous: std::mem::replace(&mut state.ambiguous, ambiguous),
+        })
     }
     pub(crate) fn apply(&self, element: &mut Element) -> crate::error::Result<()> {
         let samples = {

@@ -64,6 +64,9 @@ impl Backend for InputBackend {
     fn component_layouts(&self) -> Option<&[reactive_tui::backend::PresentedLayout]> {
         self.inner.component_layouts()
     }
+    fn hit_cells(&self) -> Option<&[u32]> {
+        self.inner.hit_cells()
+    }
     fn render_frame(&mut self, element: &Element) -> Result<bool> {
         self.inner.render_frame(element)
     }

@@ -87,6 +87,7 @@ fn relative_app_target_context_and_managed_samples_use_the_owner_and_paint() {
         .unwrap();
     app.render().unwrap();
     let mut parser = vt100::Parser::new(4, 20, 0);
+    app.backend.sync().unwrap();
     parser.process(&output.bytes.lock().unwrap());
     assert_eq!(
         parser.screen().cell(2, 10).unwrap().bgcolor(),
@@ -103,6 +104,7 @@ fn relative_app_target_keeps_last_presented_properties_after_backend_failure() {
     }
     let (mut app, root, output) = app(0.5);
     app.render().unwrap();
+    app.backend.sync().unwrap();
     let target = app.animation_target("target").unwrap();
     *root.lock().unwrap() = element(0.1);
     output.fail.store(true, Ordering::SeqCst);
@@ -164,6 +166,7 @@ fn relative_app_target_percentage_translation_uses_presented_size() {
     animation.try_seek(1.0).unwrap();
     app.render().unwrap();
     let mut parser = vt100::Parser::new(4, 20, 0);
+    app.backend.sync().unwrap();
     parser.process(&output.bytes.lock().unwrap());
     assert!(parser.screen().contents().starts_with("     TARGET"));
 }

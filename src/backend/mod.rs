@@ -107,6 +107,13 @@ pub trait Backend: Send + Sync {
     fn clear(&mut self) -> Result<()>;
     /// Present current frame
     fn present(&mut self) -> Result<()>;
+    /// Wait until every frame presented so far has been written. A backend
+    /// that writes inside `present` has nothing to wait for; one that
+    /// writes after `present` returns (PIP-001) waits here and reports a
+    /// write failure as the next present would.
+    fn sync(&mut self) -> Result<()> {
+        Ok(())
+    }
     /// Return (cols, rows) if available
     fn size(&self) -> (u16, u16);
     /// Poll next high-level Event (converted from crossterm), with optional timeout in ms

@@ -23,6 +23,12 @@ impl Capture {
         p.screen().clone()
     }
 }
+/// The capture once every presented frame has been written (PIP-001).
+fn synced<'a>(manager: &mut ScreenManager, output: &'a Capture) -> &'a Capture {
+    manager.sync().unwrap();
+    output
+}
+
 fn fixture() -> (ScreenManager, Capture) {
     let output = Capture::default();
     let backend = SuprTuiBackend::with_writer(20, 4, output.clone()).unwrap();
@@ -70,7 +76,7 @@ fn responsive_screen_styles_follow_resize_without_replacing_content() {
             )))
             .unwrap();
         let mut parser = vt100::Parser::new(4, width, 0);
-        parser.process(&output.0.lock().unwrap());
+        parser.process(&synced(&mut manager, &output).0.lock().unwrap());
         assert_eq!(
             parser.screen().cell(0, 0).unwrap().bgcolor(),
             if width >= 80 {
@@ -125,7 +131,11 @@ fn screen_fade_midpoint_blends_presented_colors() {
     manager.transition_state.progress = 0.5;
     manager.render_transition().unwrap();
     assert_eq!(
-        output.screen().cell(2, 10).unwrap().bgcolor(),
+        synced(&mut manager, &output)
+            .screen()
+            .cell(2, 10)
+            .unwrap()
+            .bgcolor(),
         vt100::Color::Rgb(149, 99, 157)
     );
 }
@@ -157,27 +167,31 @@ fn screen_transitions_have_distinct_intermediate_frames_and_exact_endpoints() {
         TransitionType::Push,
     ] {
         let (mut manager, output) = fixture();
-        let initial = output.screen().contents_formatted();
+        let initial = synced(&mut manager, &output).screen().contents_formatted();
         start(&mut manager, kind);
         manager.transition_state.progress = 0.0;
         manager.render_transition().unwrap();
         assert_eq!(
-            output.screen().contents_formatted(),
+            synced(&mut manager, &output).screen().contents_formatted(),
             initial,
             "{kind:?} start"
         );
         manager.transition_state.progress = 0.25;
         manager.render_transition().unwrap();
-        let quarter = output.screen().contents_formatted();
+        let quarter = synced(&mut manager, &output).screen().contents_formatted();
         manager.transition_state.progress = 0.75;
         manager.render_transition().unwrap();
-        let later = output.screen().contents_formatted();
+        let later = synced(&mut manager, &output).screen().contents_formatted();
         assert_ne!(quarter, later, "{kind:?} progress");
         manager.transition_state.progress = 1.0;
         manager.render_transition().unwrap();
-        let end = output.screen().contents_formatted();
+        let end = synced(&mut manager, &output).screen().contents_formatted();
         manager.complete_transition().unwrap();
-        assert_eq!(output.screen().contents_formatted(), end, "{kind:?} end");
+        assert_eq!(
+            synced(&mut manager, &output).screen().contents_formatted(),
+            end,
+            "{kind:?} end"
+        );
         assert_eq!(manager.get_active_screen(), Some(&ScreenId::from("to")));
         assert!(!manager.is_transitioning());
     }
@@ -188,7 +202,7 @@ fn screen_slide_has_source_left_and_target_right() {
     start(&mut manager, TransitionType::SlideLeft);
     manager.transition_state.progress = 0.5;
     manager.render_transition().unwrap();
-    let frame = output.screen();
+    let frame = synced(&mut manager, &output).screen();
     assert_eq!(
         frame.cell(2, 5).unwrap().bgcolor(),
         vt100::Color::Rgb(239, 68, 68)
@@ -272,13 +286,20 @@ fn screen_removal_and_immediate_switch_cancel_pending_transition() {
     start(&mut manager, TransitionType::Fade);
     manager.remove_screen(&ScreenId::from("to")).unwrap();
     assert!(!manager.is_transitioning());
-    assert!(output.screen().contents().contains("FROM"));
+    assert!(synced(&mut manager, &output)
+        .screen()
+        .contents()
+        .contains("FROM"));
     manager.remove_screen(&ScreenId::from("from")).unwrap();
     assert_eq!(manager.get_active_screen(), None);
     assert!(
-        output.screen().contents().trim().is_empty(),
+        synced(&mut manager, &output)
+            .screen()
+            .contents()
+            .trim()
+            .is_empty(),
         "{:?}",
-        output.screen().contents()
+        synced(&mut manager, &output).screen().contents()
     );
     let (mut manager, _) = fixture();
     start(&mut manager, TransitionType::Fade);
@@ -325,7 +346,13 @@ fn screen_fade_preserves_wide_and_combining_text_at_completion() {
     start(&mut manager, TransitionType::Fade);
     manager.transition_state.progress = 0.5;
     manager.render_transition().unwrap();
-    assert!(output.screen().contents().contains("界🙂e\u{301}"));
+    assert!(synced(&mut manager, &output)
+        .screen()
+        .contents()
+        .contains("界🙂e\u{301}"));
     manager.complete_transition().unwrap();
-    assert!(output.screen().contents().contains("界🙂e\u{301}"));
+    assert!(synced(&mut manager, &output)
+        .screen()
+        .contents()
+        .contains("界🙂e\u{301}"));
 }
