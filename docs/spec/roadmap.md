@@ -48,6 +48,26 @@ Done when every named requirement passes, the manual sentence in PIP-002
 is updated, and the review finds no per-cell allocation or per-cell reset
 on the render path.
 
+## suprtui
+
+Requirements: BAR-001, BAR-002, BAR-003, BAR-004, BAR-005, BAR-006, BAR-007, RAS-001, RAS-002, RAS-003, RAS-004, RAS-005, RAS-006, RAS-007, RAS-008, PNT-001, PNT-002, PNT-003, PNT-004, PIP-001, PIP-002, BLT-001, BLT-002
+
+Supersedes suprtui-renderer by the developer's ruling on 2026-09-23. The
+developer raised RAS-005's unchanged-frame bound to 1 millisecond while
+suprtui-renderer was open, and a started commitment's frozen contract is
+not amended, so this commitment freezes the revised text. Its
+requirements and done-when are those of suprtui-renderer, and the
+rasterizer, presentation, painter and blitter work delivered under it
+carries over unchanged.
+
+Deliver the SuprTUI renderer plan already landed under suprtui-renderer:
+check every requirement on the current code, record each mechanism's
+review against the frozen text, and close with the commitment review.
+
+Done when every named requirement passes, the manual sentence in PIP-002
+is updated, and the review finds no per-cell allocation or per-cell reset
+on the render path.
+
 ## charts-radial-and-flow
 
 Requirements: CHT-015, CHT-016 plus the quality bar

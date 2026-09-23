@@ -7,11 +7,10 @@ The pre-release CI documentation commitment
 requires fresh evidence for every inherited requirement before completion.
 Compilation and an older acceptance pass do not prove current native behavior.
 
-Check declarations live in [.cairn/mechanisms](../.cairn/mechanisms).
-Committed receipts and captured output live in
-`.cairn/evidence`; native diagnostics and review limits live
-in [.cairn/reviews](../.cairn/reviews). Check a receipt's candidate and freshness
-with Cairn rather than treating a named test as a current pass.
+Check declarations live in [.sudus/mechanisms](../.sudus/mechanisms).
+Each check's receipts are Sudus records on `refs/sudus/log`, and the output
+a run printed is kept in `.sudus/output`. Check a receipt's candidate and
+freshness with Sudus rather than treating a named test as a current pass.
 
 ## Public module matrix
 
@@ -63,9 +62,10 @@ See the approved Rust API remediation contract.
   is the approved inline-protocol color acceptance host. GNOME Terminal Sixel
   and cell fallback retain their own image requirements.
 - Clipboard verification covers Linux Wayland, xclip and xsel, Windows native
-  PowerShell, and macOS pbcopy/pbpaste. The retained
-  [native records](../.cairn/reviews/clipboard-platforms) record source digest,
-  host, output and cleanup. Synthetic fixtures are not desktop acceptance.
+  PowerShell, and macOS pbcopy/pbpaste. The native records of those runs,
+  with source digest, host, output and cleanup, were removed with the old
+  `.cairn` records on 2026-09-19 (commit 7fd91fc7) and remain in Git
+  history. Synthetic fixtures are not desktop acceptance.
 - Minimal/default and optional-feature build contracts remain under API-015.
   SIMD requires nightly. Native Windows/ConPTY and macOS checks cannot be
   inferred from Linux compilation or cross-compilation.

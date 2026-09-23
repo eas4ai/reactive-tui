@@ -19,9 +19,10 @@ PATH_RE = re.compile(rf"(?<![A-Za-z0-9_./-])(?:\.\./|\./)*((?:{TOP})/[A-Za-z0-9_
 # baselines list retired modules on purpose), and the contract names paths it
 # requires to exist later; none of these is a live link.
 DATED = ("docs/recon.md",)
-# Cairn's ledger outputs and briefs record what a run printed, including the
-# missing paths a violating example names on purpose.
-LEDGER_PREFIX = ".cairn/"
+# The Sudus ledger's outputs and briefs record what a run printed, including
+# the missing paths a violating example names on purpose; .cairn/ is the
+# layout's former name.
+LEDGER_PREFIXES = (".sudus/", ".cairn/")
 # A vendored crate's changelog records that crate's own history.
 DATED_NAMES = ("CHANGELOG.md",)
 DATED_PREFIXES = ("scripts/abi/baselines/",)
@@ -89,7 +90,7 @@ def main() -> int:
         base = sys.argv[sys.argv.index("--base") + 1] if "--base" in sys.argv else os.environ.get("CAIRN_BASE", "v1.0.0")
         targets = [ROOT / f for f in changed_files(base)]
     else:
-        targets = [ROOT / f for f in sorted(tracked) if f not in DATED and not f.startswith(DATED_PREFIXES) and not (f.startswith("crates/") and f.endswith(DATED_NAMES)) and not f.startswith(CONTRACT_PREFIX) and not f.startswith(LEDGER_PREFIX) and f.endswith((".md", ".py", ".sh", ".rs", ".toml", ".yml", ".yaml", ".json", ".mjs", ".ts", ".c", ".h"))
+        targets = [ROOT / f for f in sorted(tracked) if f not in DATED and not f.startswith(DATED_PREFIXES) and not (f.startswith("crates/") and f.endswith(DATED_NAMES)) and not f.startswith(CONTRACT_PREFIX) and not f.startswith(LEDGER_PREFIXES) and f.endswith((".md", ".py", ".sh", ".rs", ".toml", ".yml", ".yaml", ".json", ".mjs", ".ts", ".c", ".h"))
                    and not f.startswith(".github/")]
     bad = [b for t in targets for b in dangling(t, tracked, dirs)]
     if bad:
