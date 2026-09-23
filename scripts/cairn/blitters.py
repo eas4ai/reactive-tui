@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""blitters: BLT-001 and BLT-002 through the crate's tests/blitters.rs binary
+"""blitters: BLT-001 and BLT-002 through the `blitters` test binary in
+crates/reactive-tui-suprtui/tests
 (exhaustive two-partition check over fixed blocks, transparency, tier choice by
 capability, table and override). Borrowed algorithms must be credited in the
 crate's UPSTREAM.md.

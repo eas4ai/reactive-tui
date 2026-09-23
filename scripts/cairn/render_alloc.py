@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""render-alloc: RAS-003 and RAS-007 through the crate's tests/render_alloc.rs
+"""render-alloc: RAS-003 and RAS-007 through crates/reactive-tui-suprtui/tests/render_alloc.rs
 binary (a counting global allocator), PNT-003 through a probe of the backend:
 the frame is held and sent as a shared handle, never cloned per present.
 
