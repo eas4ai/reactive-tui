@@ -15,6 +15,9 @@ from catalog_manual import chart_docs_problems
 SNAP = ROOT / "tests/snapshots/charts"
 TYPES = ["line", "area", "scatter", "bar", "candlestick"]
 SIZES = {"mini": (20, 5), "medium": (80, 24), "large": (600, 160)}
+# The image widget, reworked to draw its block fallback through the
+# blitters: a medium golden and a wide one of at least 400 columns.
+IMAGE_GOLDENS = ("image_medium", "image_wide")
 
 
 def golden_problems() -> list[str]:
@@ -36,8 +39,9 @@ def display_width(line: str) -> int:
 
 
 def wide_problems() -> list[str]:
-    """BAR-004: each chart type's wide golden, measured from its text grid, is
-    at least 400 columns, and the golden test renders on the debug backend."""
+    """BAR-004: each chart type's and the image widget's wide golden, measured
+    from its text grid, is at least 400 columns, and every golden test renders
+    on the debug backend and regenerates only under REGENERATE=1."""
     problems = []
     for kind in TYPES:
         path = SNAP / f"{kind}_large.ansi"
@@ -48,11 +52,27 @@ def wide_problems() -> list[str]:
         columns = max((display_width(row) for row in grid.split("\n")), default=0)
         if columns < 400:
             problems.append(f"{kind}_large.ansi is {columns} columns wide, under 400")
-    src = ROOT / "tests/charts_goldens.rs"
-    text = src.read_text(errors="replace") if src.is_file() else ""
-    body = re.search(r"fn cht_023_\w*\(\)\s*\{(.*?)\n\}", text, re.S)
-    if body is None or "on_debug(" not in body.group(1):
-        problems.append("the golden test does not render on the debug backend")
+    for name in IMAGE_GOLDENS:
+        path = ROOT / "tests/snapshots/image" / f"{name}.ansi"
+        if not path.is_file():
+            problems.append(f"missing image golden {name}.ansi")
+    wide = ROOT / "tests/snapshots/image/image_wide.ansi"
+    if wide.is_file():
+        grid = wide.read_text(errors="replace").rsplit("\ncolors: ", 1)[0]
+        columns = max((display_width(row) for row in grid.split("\n")), default=0)
+        if columns < 400:
+            problems.append(f"image_wide.ansi is {columns} columns wide, under 400")
+    for src, test in (("tests/charts_goldens.rs", "cht_023_"),
+                      ("tests/api_widget_behavior/image.rs", "bar_004_")):
+        path = ROOT / src
+        text = path.read_text(errors="replace") if path.is_file() else ""
+        body = re.search(rf"fn {test}\w*\(\)\s*\{{(.*?)\n\}}", text, re.S)
+        if body is None:
+            problems.append(f"no {test} golden test in {src}")
+        elif "on_debug(" not in body.group(1):
+            problems.append(f"the {test} golden test does not render on the debug backend")
+        elif not re.search(r'REGENERATE.*==\s*Ok\("1"\)', body.group(1) + text):
+            problems.append(f"the {test} golden test lacks the REGENERATE=1 opt-in guard")
     return problems
 
 
@@ -80,8 +100,10 @@ def main() -> int:
     # which regenerates only under REGENERATE=1), none is missing, and each
     # type's wide golden is at least 400 columns on the debug backend.
     w = wide_problems()
-    problems_004 = g + w + ([] if ok_023 else [f"golden comparison failed: {why_023}"])
-    results["BAR-004"] = (not problems_004, "; ".join(problems_004[:4]) or "goldens at three sizes on the debug backend compare equal; wide ones 400+ columns")
+    ok_image, why_image = cargo_test_filtered("api_widget_behavior", "bar_004_")
+    problems_004 = g + w + ([] if ok_023 else [f"golden comparison failed: {why_023}"]) + (
+        [] if ok_image else [f"image golden comparison failed: {why_image}"])
+    results["BAR-004"] = (not problems_004, "; ".join(problems_004[:4]) or "chart and image goldens on the debug backend compare equal; wide ones 400+ columns")
     return finish(results)
 
 
