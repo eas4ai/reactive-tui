@@ -34,6 +34,21 @@ pub fn set_image_blitter(blitter: Option<Blitter>) {
     BLITTER_OVERRIDE.store(value, std::sync::atomic::Ordering::Relaxed);
 }
 
+/// The blitter the environment or the application named, if either did,
+/// the `REACTIVE_TUI_BLITTER` environment variable first. With one named,
+/// `Auto` draws with the renderer's blitters instead of an installed
+/// external tool, which would ignore the choice (BLT-002).
+pub(crate) fn named_blitter() -> Option<Blitter> {
+    let application = match BLITTER_OVERRIDE.load(std::sync::atomic::Ordering::Relaxed) {
+        0 => None,
+        value => Blitter::TIERS.get(usize::from(value) - 1).copied(),
+    };
+    ::suprtui::blit::environment_override()
+        .ok()
+        .flatten()
+        .or(application)
+}
+
 /// The blitter image cell fallback draws with: the `REACTIVE_TUI_BLITTER`
 /// environment variable, then [`set_image_blitter`], and otherwise by
 /// tier: ASCII when the terminal answered that it has no unicode, the
