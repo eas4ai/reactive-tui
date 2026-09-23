@@ -1,8 +1,0 @@
-[unmaintained]
-exceptions = [
-]
-
-[duplicates]
-exceptions = [
-    { package = "taffy", versions = ["0.9.2", "0.13.0"], decision = "retain-isolated-taffy-lines-across-layout-engines" },
-]

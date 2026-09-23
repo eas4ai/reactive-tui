@@ -21,6 +21,12 @@ ENV_KEEP = ("PATH", "HOME", "USER", "LOGNAME", "SHELL", "LANG", "LC_ALL", "LC_CT
 def run(cmd: list[str], timeout: int = 1800, env: dict | None = None) -> subprocess.CompletedProcess:
     merged = {k: v for k, v in os.environ.items() if k in ENV_KEEP}
     merged["CARGO_BUILD_JOBS"] = JOBS
+    # Incremental compilation off: rustc 1.95 intermittently panics with
+    # "uninterned StableCrateId: StableCrateId(0)" reading metadata in
+    # incremental builds (rust-lang/rust#149697, rust-clippy#14572), which
+    # failed BAR-001 four times on 2026-09-23 with no code at fault. It does
+    # not change what a check means; release builds are not incremental.
+    merged["CARGO_INCREMENTAL"] = "0"
     if env:
         merged.update(env)
     print("$", " ".join(cmd), flush=True)
