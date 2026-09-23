@@ -96,6 +96,12 @@ enum Command {
         FrameOptions,
         mpsc::Sender<Result<super::PresentedGeometry>>,
     ),
+    /// Lay a frame out at a size without painting or writing it.
+    Layout(
+        Arc<Element>,
+        (usize, usize),
+        mpsc::Sender<Result<super::FrameLayout>>,
+    ),
     Shutdown(Reply, Option<String>),
     /// Reply once every earlier frame has been written and flushed.
     Sync(Reply),
@@ -322,6 +328,16 @@ impl Backend for SuprTuiBackend {
         // The one copy per present: the worker receives this handle.
         self.frame = Arc::new(element.clone());
         Ok(true)
+    }
+
+    fn layout_frame(&mut self, element: Arc<Element>) -> Result<Option<super::FrameLayout>> {
+        validate_size(self.dimensions)?;
+        let commands = self.commands.as_ref().ok_or_else(worker_stopped)?;
+        let (reply, result) = mpsc::channel();
+        commands
+            .send(Command::Layout(element, self.dimensions, reply))
+            .map_err(|_| worker_stopped())?;
+        result.recv().map_err(|_| worker_stopped())?.map(Some)
     }
 
     fn render_cells(&mut self, frame: Arc<CellFrame>) -> Result<()> {
@@ -676,6 +692,16 @@ fn run_worker<W: Write>(
                     renderer.flush_failed();
                     force = true;
                 }
+            }
+            Command::Layout(element, (width, height), reply) => {
+                // A flush failure stays deferred for the next present.
+                let _ = reply.send(element_to_paintspec(&element).and_then(|spec| {
+                    crate::layout::paint_tree::suprtui::layout_frame(
+                        spec,
+                        (width as u32, height as u32),
+                        &mut layout_cache,
+                    )
+                }));
             }
             Command::Sync(reply) => {
                 let outcome = match deferred.take() {

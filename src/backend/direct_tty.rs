@@ -1,7 +1,8 @@
 //! Native TTY input/output with the shared complete-frame SuprTUI renderer.
 
 use crate::backend::{
-    Backend, CellFrame, ImageOutputOptions, PaintedNode, PresentedLayout, SuprTuiBackend,
+    Backend, CellFrame, FrameLayout, ImageOutputOptions, PaintedNode, PresentedLayout,
+    SuprTuiBackend,
 };
 use crate::component::Element;
 use crate::error::{ReactiveError, Result};
@@ -264,6 +265,9 @@ impl Backend for DirectTtyBackend {
     }
     fn render_frame(&mut self, element: &Element) -> Result<bool> {
         self.renderer.render_frame(element)
+    }
+    fn layout_frame(&mut self, element: Arc<Element>) -> Result<Option<FrameLayout>> {
+        self.renderer.layout_frame(element)
     }
     fn render_cells(&mut self, frame: Arc<CellFrame>) -> Result<()> {
         self.renderer.render_cells(frame)

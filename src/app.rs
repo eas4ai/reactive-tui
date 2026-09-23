@@ -132,6 +132,9 @@ pub struct App {
     debug: bool,
     last_frame_time: Instant,
     resize_count: usize,
+    /// Whether the last presented frame came from the root's cell frame
+    /// rather than its element tree; such a root has no layout to prepare.
+    presents_cells: bool,
     quit_key: Option<(
         crate::event::types::KeyCode,
         crate::event::types::KeyModifiers,
@@ -324,6 +327,7 @@ impl App {
             Event::Resize(size) => {
                 self.handle_resize(size.width, size.height)?;
                 if size.width > 0 && size.height > 0 {
+                    self.lay_out_after_resize()?;
                     self.render()?;
                 }
                 dirty = true;
@@ -589,9 +593,29 @@ impl App {
         Ok(())
     }
 
-    fn render_frame(&mut self) -> Result<()> {
+    /// Lay the frame out at the new size before the first frame at that
+    /// size is presented, and give each component its new layout and each
+    /// anchor its new bounds, so nothing paints the geometry it had before
+    /// the resize (BAR-003). A backend that cannot lay out ahead of a
+    /// present skips this.
+    fn lay_out_after_resize(&mut self) -> Result<()> {
+        if self.presents_cells {
+            return Ok(());
+        }
         let _scope = Scope::enter(&self.wake);
         let _hooks = self.hook_scope.enter(true);
+        self.begin_frame();
+        let (state_styled, styled) = self.styled_frame()?;
+        if let Some(frame) = self.backend.layout_frame(std::sync::Arc::new(styled))? {
+            event_tree::EventTree::publish_layouts(&state_styled, &frame.layouts);
+            self.components.anchors.publish(&state_styled, &frame.nodes);
+        }
+        Ok(())
+    }
+
+    /// Apply a pending performance mode, publish the performance context
+    /// and advance hook animations before the root renders.
+    fn begin_frame(&mut self) {
         if let Some(mode) = self.performance.take_request() {
             if mode != self.fps_manager.performance_mode() {
                 self.fps_manager.set_performance_mode(mode);
@@ -603,13 +627,41 @@ impl App {
             crate::reactive::component_scope::provide((*self.performance.context()).clone())
                 .is_ok()
         );
-        use crate::render::tree::resolved_element_to_render_node;
 
         // Update hook-based animations as part of component lifecycle
         // This ensures hooks are synchronized with component rendering
         crate::hooks::animation::update_hook_animations();
+    }
+
+    /// The frame's element tree twice: with interaction-state styles, as
+    /// events and accessibility read it, and with motion and animation
+    /// targets applied, as the backend paints it.
+    fn styled_frame(&mut self) -> Result<(Element, Element)> {
+        let mut element = self.components.resolve(self.root.render())?;
+        crate::component::bridge::resolve_viewport_styles(&mut element, self.backend.size().0)?;
+        // Base semantics establish disabled state before state variants are
+        // selected. Resolve again afterward for conditional semantic styles.
+        crate::accessibility::style::prepare(&mut element)?;
+
+        let mut state_styled =
+            self.event_tree
+                .styled(&element, &self.router, self.backend.size().0);
+        crate::accessibility::style::prepare(&mut state_styled)?;
+        let mut styled = state_styled.clone();
+        self.motion
+            .apply(&mut styled, Instant::now(), self.backend.size())?;
+        self.animation_targets.apply(&mut styled)?;
+        Ok((state_styled, styled))
+    }
+
+    fn render_frame(&mut self) -> Result<()> {
+        let _scope = Scope::enter(&self.wake);
+        let _hooks = self.hook_scope.enter(true);
+        self.begin_frame();
+        use crate::render::tree::resolved_element_to_render_node;
 
         if let Some(frame) = self.root.cell_frame()? {
+            self.presents_cells = true;
             self.motion.clear();
             self.components.clear();
             self.event_tree.clear(&mut self.router);
@@ -627,21 +679,8 @@ impl App {
             return Ok(());
         }
 
-        // Build element tree from root component
-        let mut element = self.components.resolve(self.root.render())?;
-        crate::component::bridge::resolve_viewport_styles(&mut element, self.backend.size().0)?;
-        // Base semantics establish disabled state before state variants are
-        // selected. Resolve again afterward for conditional semantic styles.
-        crate::accessibility::style::prepare(&mut element)?;
-
-        let mut state_styled =
-            self.event_tree
-                .styled(&element, &self.router, self.backend.size().0);
-        crate::accessibility::style::prepare(&mut state_styled)?;
-        let mut styled = state_styled.clone();
-        self.motion
-            .apply(&mut styled, Instant::now(), self.backend.size())?;
-        self.animation_targets.apply(&mut styled)?;
+        self.presents_cells = false;
+        let (state_styled, styled) = self.styled_frame()?;
         if self.backend.render_frame(&styled)? {
             if let Err(error) = self.backend.present() {
                 self.fall_back_to_acknowledged_frame()?;
@@ -1001,6 +1040,7 @@ impl AppBuilder {
             last_render_duration: std::time::Duration::ZERO,
             last_presented: None,
             acknowledged_targets: Default::default(),
+            presents_cells: false,
             fps_manager,
             animation_manager: AnimationManager::new(),
             animation_targets: crate::animation::TargetRegistry::new(wake.clone()),

@@ -10,7 +10,9 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use common::app_input::{self, Snapshot};
 use reactive_tui::app::{RootComponent, RootUpdate};
 use reactive_tui::component::Element;
-use reactive_tui::event::types::{Event, KeyCode, MouseEvent, MouseEventKind, Position};
+use reactive_tui::event::types::{
+    Event, KeyCode, MouseEvent, MouseEventKind, Position, ResizeEvent,
+};
 use reactive_tui::widgets::display::{
     Chart, ChartAxis, ChartLegend, ChartProps, ChartType, DataPoint, DataSeries,
 };
@@ -762,6 +764,85 @@ fn bar_005_fixture_slow_root_is_rejected() {
         ms >= 16.6,
         "fixture must exceed the budget so the mechanism can fail, measured {ms:.2} ms"
     );
+}
+
+/// The (right, bottom) edge of the painted cells, exclusive; (0, 0) when
+/// nothing is painted.
+fn ink_extent(frame: &Snapshot) -> (usize, usize) {
+    frame
+        .text
+        .lines()
+        .enumerate()
+        .flat_map(|(y, line)| {
+            line.chars()
+                .enumerate()
+                .filter(|(_, c)| !c.is_whitespace())
+                .map(move |(x, _)| (x + 1, y + 1))
+        })
+        .fold((0, 0), |(right, bottom), (x, y)| {
+            (right.max(x), bottom.max(y))
+        })
+}
+
+/// BAR-003: after a resize the chart never paints the picture it drew for
+/// the old size. Each frame at the new size is busy with an empty chart
+/// area while the worker draws, or paints past the old rectangle. At 700 by
+/// 200 the worker takes longer than any wait the chart makes.
+#[test]
+fn bar_003_a_resized_chart_never_paints_the_picture_drawn_for_the_old_size() {
+    let old = (40u16, 12u16);
+    let new = (700u16, 200u16);
+    let mut p = props(ChartType::BarVertical, old, &[2.0, 8.0, 5.0, 7.0]);
+    p.width = 0;
+    p.height = 0;
+    let frames = app_input::run(
+        Root(Element::typed::<Chart>(p)),
+        old,
+        vec![
+            (2, Some(Event::Resize(ResizeEvent::new(new.0, new.1)))),
+            (3, None),
+        ],
+    );
+    let before = frames
+        .iter()
+        .rfind(|f| f.screen.size() == (old.1, old.0))
+        .expect("a frame at the old size");
+    let (right, bottom) = ink_extent(before);
+    assert!(
+        right > 0 && right <= usize::from(old.0) && bottom <= usize::from(old.1),
+        "the chart must paint inside {old:?} before the resize, painted to {right}x{bottom}"
+    );
+    let resized: Vec<&Snapshot> = frames
+        .iter()
+        .filter(|f| f.screen.size() == (new.1, new.0))
+        .collect();
+    let states: Vec<String> = resized
+        .iter()
+        .map(|f| {
+            let (right, bottom) = ink_extent(f);
+            format!("busy={} ink={right}x{bottom}", f.busy)
+        })
+        .collect();
+    eprintln!("frames at the new size: {states:?}");
+    assert!(
+        resized.iter().any(|f| !f.busy),
+        "no finished frame at the new size: {states:?}"
+    );
+    for (i, frame) in resized.iter().enumerate() {
+        let (right, bottom) = ink_extent(frame);
+        if frame.busy {
+            assert_eq!(
+                (right, bottom),
+                (0, 0),
+                "frame {i} at the new size is busy but paints cells: {states:?}"
+            );
+        } else {
+            assert!(
+                right > usize::from(old.0) || bottom > usize::from(old.1),
+                "frame {i} at the new size paints only inside the old {old:?} rectangle, the picture drawn for the old size: {states:?}"
+            );
+        }
+    }
 }
 
 /// BAR-003: every pointer action is reachable by keyboard: two Right presses

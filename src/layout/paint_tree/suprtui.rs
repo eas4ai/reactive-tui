@@ -126,15 +126,13 @@ fn mark_hits(hits: &mut [u32], width: u32, node: &PaintNode) {
     }
 }
 
-pub(crate) fn paint_frame(
+/// Lay `spec` out at `size` into `cache`, reusing the cached layout when
+/// its inputs are unchanged (PNT-004). Returns whether it was reused.
+fn lay_out(
     spec: crate::component::bridge::PaintSpec,
-    target: &mut OptimizedBuffer<'_>,
-    hits: &mut [u32],
+    size: (u32, u32),
     cache: &mut LayoutCache,
-    image_options: crate::backend::ImageOutputOptions,
-) -> Result<crate::backend::PresentedGeometry> {
-    target.clear(ansi::rgb_color(0, 0, 0, 255), None);
-    let size = (target.width(), target.height());
+) -> Result<bool> {
     let reused = cache.size == size
         && cache
             .spec
@@ -188,7 +186,86 @@ pub(crate) fn paint_frame(
         cache.size = size;
     }
     cache.spec = Some(spec);
-    let spec = cache.spec.as_ref().expect("spec stored above");
+    Ok(reused)
+}
+
+/// The layout a component receives for `node`: its size, content extent,
+/// clip, transform and insets.
+fn presented_layout(
+    tree: &TaffyTree<()>,
+    node: &PaintNode,
+) -> Result<crate::backend::PresentedLayout> {
+    let layout = tree
+        .layout(node.id)
+        .map_err(|error| ReactiveError::layout(error.to_string()))?;
+    Ok(crate::backend::PresentedLayout {
+        element_index: node.element_index,
+        layout: crate::component::LayoutInfo {
+            size: (node.local.right as f32, node.local.bottom as f32),
+            content_extent: (layout.content_size.width, layout.content_size.height),
+            clip: crate::event::hit::Bounds::new(
+                node.clip.left as f32,
+                node.clip.top as f32,
+                (node.clip.right - node.clip.left).max(0) as f32,
+                (node.clip.bottom - node.clip.top).max(0) as f32,
+            ),
+            transform: node.transform.coefficients(),
+            insets: [
+                layout.padding.left + layout.border.left,
+                layout.padding.top + layout.border.top,
+                layout.padding.right + layout.border.right,
+                layout.padding.bottom + layout.border.bottom,
+            ],
+        },
+    })
+}
+
+/// The bounds of `node` that remain visible after its clip.
+fn painted_node(node: &PaintNode) -> crate::backend::PaintedNode {
+    let visible = node.bounds.intersect(node.clip);
+    crate::backend::PaintedNode {
+        element_index: node.element_index,
+        bounds: crate::event::hit::Bounds::new(
+            visible.left as f32,
+            visible.top as f32,
+            (visible.right - visible.left).max(0) as f32,
+            (visible.bottom - visible.top).max(0) as f32,
+        ),
+    }
+}
+
+/// Lay `spec` out at `size` without painting and return each node's
+/// visible bounds and each component's layout, as a present of the same
+/// spec would report them. The App uses it after a resize so components
+/// and anchored overlays take their new geometry before the first frame at
+/// the new size is painted; a present of the same spec reuses the layout.
+pub(crate) fn layout_frame(
+    spec: crate::component::bridge::PaintSpec,
+    size: (u32, u32),
+    cache: &mut LayoutCache,
+) -> Result<crate::backend::FrameLayout> {
+    lay_out(spec, size, cache)?;
+    Ok(crate::backend::FrameLayout {
+        nodes: cache.nodes.iter().map(painted_node).collect(),
+        layouts: cache
+            .nodes
+            .iter()
+            .map(|node| presented_layout(&cache.tree, node))
+            .collect::<Result<_>>()?,
+    })
+}
+
+pub(crate) fn paint_frame(
+    spec: crate::component::bridge::PaintSpec,
+    target: &mut OptimizedBuffer<'_>,
+    hits: &mut [u32],
+    cache: &mut LayoutCache,
+    image_options: crate::backend::ImageOutputOptions,
+) -> Result<crate::backend::PresentedGeometry> {
+    target.clear(ansi::rgb_color(0, 0, 0, 255), None);
+    let size = (target.width(), target.height());
+    let reused = lay_out(spec, size, cache)?;
+    let spec = cache.spec.as_ref().expect("lay_out stores the spec");
     let (tree, paints, nodes) = (&cache.tree, &cache.paints, &cache.nodes);
     let mut geometry = Vec::with_capacity(nodes.len());
     let mut layouts = Vec::with_capacity(nodes.len());
@@ -240,39 +317,8 @@ pub(crate) fn paint_frame(
             }
         }
         mark_hits(hits, size.0, node);
-        let visible = node.bounds.intersect(node.clip);
-        let layout = tree
-            .layout(node.id)
-            .map_err(|error| ReactiveError::layout(error.to_string()))?;
-        layouts.push(crate::backend::PresentedLayout {
-            element_index: node.element_index,
-            layout: crate::component::LayoutInfo {
-                size: (node.local.right as f32, node.local.bottom as f32),
-                content_extent: (layout.content_size.width, layout.content_size.height),
-                clip: crate::event::hit::Bounds::new(
-                    node.clip.left as f32,
-                    node.clip.top as f32,
-                    (node.clip.right - node.clip.left).max(0) as f32,
-                    (node.clip.bottom - node.clip.top).max(0) as f32,
-                ),
-                transform: node.transform.coefficients(),
-                insets: [
-                    layout.padding.left + layout.border.left,
-                    layout.padding.top + layout.border.top,
-                    layout.padding.right + layout.border.right,
-                    layout.padding.bottom + layout.border.bottom,
-                ],
-            },
-        });
-        geometry.push(crate::backend::PaintedNode {
-            element_index: node.element_index,
-            bounds: crate::event::hit::Bounds::new(
-                visible.left as f32,
-                visible.top as f32,
-                (visible.right - visible.left).max(0) as f32,
-                (visible.bottom - visible.top).max(0) as f32,
-            ),
-        });
+        layouts.push(presented_layout(tree, node)?);
+        geometry.push(painted_node(node));
     }
     Ok(crate::backend::PresentedGeometry {
         nodes: geometry,

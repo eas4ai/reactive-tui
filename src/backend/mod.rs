@@ -22,6 +22,17 @@ pub struct PaintedNode {
     pub bounds: crate::event::hit::Bounds,
 }
 
+/// A frame laid out but not painted, as [`Backend::layout_frame`] returns it.
+#[derive(Clone, Debug, Default)]
+pub struct FrameLayout {
+    /// Each node's visible bounds, as [`Backend::painted_nodes`] would
+    /// report them after presenting the frame.
+    pub nodes: Vec<PaintedNode>,
+    /// Each component's layout, as [`Backend::component_layouts`] would
+    /// report it after presenting the frame.
+    pub layouts: Vec<PresentedLayout>,
+}
+
 /// Original layout for a node in the presented Element tree.
 #[derive(Clone, Copy, Debug)]
 pub struct PresentedLayout {
@@ -82,6 +93,14 @@ pub trait Backend: Send + Sync {
     /// Stage a complete application frame. Return false to use legacy patches.
     fn render_frame(&mut self, _element: &Element) -> Result<bool> {
         Ok(false)
+    }
+    /// Lay `element` out at the current size without painting or writing
+    /// it. The App calls this after a resize, so components and anchored
+    /// overlays learn their new geometry before the first frame at that
+    /// size is presented. `None` means the backend cannot lay out ahead of
+    /// a present; wrappers should forward it.
+    fn layout_frame(&mut self, _element: std::sync::Arc<Element>) -> Result<Option<FrameLayout>> {
+        Ok(None)
     }
     /// Stage a complete owned cell screen. Unsupported backends fail explicitly.
     fn render_cells(&mut self, _frame: std::sync::Arc<CellFrame>) -> Result<()> {
@@ -341,6 +360,9 @@ impl Backend for CrosstermBackend {
     fn render_frame(&mut self, element: &Element) -> Result<bool> {
         self.inner.render_frame(element)
     }
+    fn layout_frame(&mut self, element: std::sync::Arc<Element>) -> Result<Option<FrameLayout>> {
+        self.inner.layout_frame(element)
+    }
     fn render_cells(&mut self, frame: std::sync::Arc<CellFrame>) -> Result<()> {
         self.inner.render_cells(frame)
     }
@@ -514,6 +536,14 @@ impl Backend for DebugBackend {
     fn render_frame(&mut self, element: &Element) -> Result<bool> {
         self.pending_frame = Some(debug_frame::paint(element, self.size)?);
         Ok(true)
+    }
+    fn layout_frame(&mut self, element: std::sync::Arc<Element>) -> Result<Option<FrameLayout>> {
+        crate::layout::paint_tree::suprtui::layout_frame(
+            crate::component::bridge::element_to_paintspec(&element)?,
+            (u32::from(self.size.0), u32::from(self.size.1)),
+            &mut crate::layout::paint_tree::suprtui::LayoutCache::default(),
+        )
+        .map(Some)
     }
     fn render_cells(&mut self, frame: std::sync::Arc<CellFrame>) -> Result<()> {
         if frame.size() != self.size {
