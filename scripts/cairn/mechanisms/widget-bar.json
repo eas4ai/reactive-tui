@@ -1,19 +1,29 @@
 {
   "command": "python3 -B scripts/cairn/charts_contract.py widget-bar",
   "inputs": [
-    "src/widgets/display/charts.rs",
-    "src/widgets/display/charts",
-    "src/builder/widgets/chart.rs",
-    "src/theme",
-    "src/layout/colors.rs",
-    "tests/common",
-    "tests/charts_contract.rs",
-    "Cargo.toml",
     "Cargo.lock",
-    "scripts/cairn"
+    "Cargo.toml",
+    "build.rs",
+    "crates",
+    "scripts/cairn",
+    "src",
+    "tests/api_widget_behavior",
+    "tests/api_widget_behavior.rs",
+    "tests/charts_contract.rs",
+    "tests/common"
   ],
   "requirements": [
     "BAR-003"
   ],
-  "results": "per-requirement"
+  "results": "per-requirement",
+  "identity": {
+    "tools": {
+      "rustc": "rustc --version",
+      "cargo": "cargo --version"
+    },
+    "env": [
+      "TERM"
+    ],
+    "image": null
+  }
 }

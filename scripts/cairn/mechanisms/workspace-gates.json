@@ -1,17 +1,30 @@
 {
   "command": "python3 -B scripts/cairn/workspace_gates.py",
   "inputs": [
-    "src",
-    "crates",
-    "tests",
-    "examples",
+    "Cargo.lock",
+    "Cargo.toml",
     "benches",
     "build.rs",
-    "Cargo.toml",
-    "Cargo.lock",
-    "scripts/cairn"
+    "crates",
+    "examples",
+    "manual",
+    "scripts/cairn",
+    "src",
+    "tests"
   ],
   "requirements": [
     "BAR-001"
-  ]
+  ],
+  "identity": {
+    "tools": {
+      "rustc": "rustc --version",
+      "cargo": "cargo --version",
+      "zig": "zig version",
+      "git": "git --version"
+    },
+    "env": [
+      "TERM"
+    ],
+    "image": null
+  }
 }

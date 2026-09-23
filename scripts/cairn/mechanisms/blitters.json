@@ -1,23 +1,27 @@
 {
   "command": "python3 -B scripts/cairn/blitters.py",
   "inputs": [
-    "crates/reactive-tui-suprtui/src",
-    "crates/reactive-tui-suprtui/tests",
-    "crates/reactive-tui-suprtui/Cargo.toml",
-    "crates/reactive-tui-suprtui/UPSTREAM.md",
-    "src/widgets/display/image",
-    "src/core/capabilities.rs",
-    "src/layout/paint_tree/cells.rs",
-    "src/layout/paint_tree/suprtui.rs",
-    "src/widgets/display/mod.rs",
-    "manual/images-and-clipboard.md",
-    "Cargo.toml",
     "Cargo.lock",
-    "scripts/cairn"
+    "Cargo.toml",
+    "build.rs",
+    "crates",
+    "manual/images-and-clipboard.md",
+    "scripts/cairn",
+    "src"
   ],
   "requirements": [
     "BLT-001",
     "BLT-002"
   ],
-  "results": "per-requirement"
+  "results": "per-requirement",
+  "identity": {
+    "tools": {
+      "rustc": "rustc --version",
+      "cargo": "cargo --version"
+    },
+    "env": [
+      "TERM"
+    ],
+    "image": null
+  }
 }

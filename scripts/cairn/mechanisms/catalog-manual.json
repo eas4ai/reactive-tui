@@ -1,19 +1,18 @@
 {
   "command": "python3 -B scripts/cairn/catalog_manual.py",
   "inputs": [
-    "src/widgets/display/charts.rs",
-    "src/widgets/display/charts",
-    "src/builder/widgets/chart.rs",
-    "src/theme",
-    "src/layout/colors.rs",
-    "tests/common",
     "examples/widget_catalog",
     "manual/display-widgets.md",
-    "Cargo.toml",
-    "Cargo.lock",
-    "scripts/cairn"
+    "manual/images-and-clipboard.md",
+    "scripts/cairn",
+    "src"
   ],
   "requirements": [
     "BAR-006"
-  ]
+  ],
+  "identity": {
+    "tools": {},
+    "env": [],
+    "image": null
+  }
 }

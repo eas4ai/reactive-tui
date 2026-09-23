@@ -159,7 +159,7 @@
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         
-vt100 colors: e2907ed854d4012d
+vt100 colors: 990ebce8a0753ebf
 == ghostty
 
 
@@ -321,4 +321,4 @@ vt100 colors: e2907ed854d4012d
 
 
 
-ghostty colors: 83a77f71f0725e9a
+ghostty colors: ec63ec42752ea877

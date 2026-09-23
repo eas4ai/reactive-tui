@@ -10,8 +10,6 @@
 
 mod common;
 
-use std::hash::{Hash, Hasher};
-
 use common::app_input;
 use reactive_tui::app::RootComponent;
 use reactive_tui::component::{Element, LayoutType};
@@ -192,20 +190,22 @@ fn vt100_section(bytes: &[u8], size: (u16, u16)) -> String {
     let mut parser = vt100::Parser::new(size.1, size.0, 0);
     parser.process(bytes);
     let screen = parser.screen();
-    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    let mut hasher = common::digest::Digest::default();
     for r in 0..size.1 {
         for c in 0..size.0 {
             if let Some(cell) = screen.cell(r, c) {
-                format!(
-                    "{:?}{:?}{}{}{}{}",
-                    cell.fgcolor(),
-                    cell.bgcolor(),
-                    cell.bold(),
-                    cell.italic(),
-                    cell.underline(),
-                    cell.inverse()
-                )
-                .hash(&mut hasher);
+                hasher.field(
+                    format!(
+                        "{:?}{:?}{}{}{}{}",
+                        cell.fgcolor(),
+                        cell.bgcolor(),
+                        cell.bold(),
+                        cell.italic(),
+                        cell.underline(),
+                        cell.inverse()
+                    )
+                    .as_bytes(),
+                );
             }
         }
     }
@@ -239,7 +239,7 @@ fn ghostty_section(bytes: &[u8], size: (u16, u16)) -> String {
     let mut rows = RowIterator::new().expect("row iterator");
     let mut cells = CellIterator::new().expect("cell iterator");
     let mut row_iter = rows.update(&snapshot).expect("row update");
-    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    let mut hasher = common::digest::Digest::default();
     let mut lines = Vec::new();
     while let Some(row) = row_iter.next() {
         let mut line = String::new();
@@ -253,7 +253,7 @@ fn ghostty_section(bytes: &[u8], size: (u16, u16)) -> String {
             }
             let fg = cell.fg_color().expect("fg").map(|c| (c.r, c.g, c.b));
             let bg = cell.bg_color().expect("bg").map(|c| (c.r, c.g, c.b));
-            (fg, bg).hash(&mut hasher);
+            hasher.field(format!("{fg:?}{bg:?}").as_bytes());
         }
         lines.push(line.trim_end().to_string());
     }

@@ -1,25 +1,28 @@
 {
   "command": "python3 -B scripts/cairn/present_pipeline.py",
   "inputs": [
-    "crates/reactive-tui-suprtui/src",
-    "crates/reactive-tui-suprtui/tests",
-    "crates/reactive-tui-suprtui/Cargo.toml",
-    "src/backend",
-    "src/app.rs",
-    "tests/common",
-    "tests/suprtui_renderer.rs",
-    "tests/api_component_expansion.rs",
-    "tests/api_hook_lifecycle.rs",
-    "tests/embedded_terminal.rs",
-    "tests/present_pipeline.rs",
-    "manual/rendering-and-backends.md",
-    "Cargo.toml",
     "Cargo.lock",
-    "scripts/cairn"
+    "Cargo.toml",
+    "build.rs",
+    "crates",
+    "manual/rendering-and-backends.md",
+    "scripts/cairn",
+    "src",
+    "tests/present_pipeline.rs"
   ],
   "requirements": [
     "PIP-001",
     "PIP-002"
   ],
-  "results": "per-requirement"
+  "results": "per-requirement",
+  "identity": {
+    "tools": {
+      "rustc": "rustc --version",
+      "cargo": "cargo --version"
+    },
+    "env": [
+      "TERM"
+    ],
+    "image": null
+  }
 }

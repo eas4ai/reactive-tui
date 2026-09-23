@@ -654,20 +654,18 @@ fn bar_003_a_resized_image_never_shows_the_cells_drawn_for_the_old_size() {
     assert_eq!(widths.last(), Some(&new.0), "{widths:?}");
 }
 
-/// Text grid plus a stable digest of every cell's colors (FNV-1a, 64 bit).
+/// Text grid plus a stable digest of every cell's colors.
 fn golden_bytes(frame: &super::common::app_input::Snapshot) -> Vec<u8> {
     let (rows, columns) = frame.screen.size();
-    let mut hash: u64 = 0xcbf2_9ce4_8422_2325;
+    let mut hasher = super::common::digest::Digest::default();
     for row in 0..rows {
         for column in 0..columns {
             if let Some(cell) = frame.screen.cell(row, column) {
-                for byte in format!("{:?}{:?}", cell.fgcolor(), cell.bgcolor()).bytes() {
-                    hash = (hash ^ u64::from(byte)).wrapping_mul(0x0000_0100_0000_01b3);
-                }
+                hasher.field(format!("{:?}{:?}", cell.fgcolor(), cell.bgcolor()).as_bytes());
             }
         }
     }
-    format!("{}\ncolors: {hash:016x}\n", frame.text).into_bytes()
+    format!("{}\ncolors: {:016x}\n", frame.text, hasher.finish()).into_bytes()
 }
 
 /// BAR-004: the image widget renders on the debug backend to checked-in
