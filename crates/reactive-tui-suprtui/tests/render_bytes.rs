@@ -282,6 +282,34 @@ fn fill_text<B: Backend>(r: &mut Renderer<'static, B>, width: u32, height: u32, 
     }
 }
 
+/// Text in style runs, as a highlighted listing or a log view draws it: the
+/// foreground changes every eight cells and every other run is bold.
+fn fill_styled_text<B: Backend>(r: &mut Renderer<'static, B>, width: u32, height: u32) {
+    for y in 0..height {
+        for run in 0..width.div_ceil(8) {
+            let x = run * 8;
+            let text: String = (x..(x + 8).min(width))
+                .map(|column| char::from(b'a' + (column % 26) as u8))
+                .collect();
+            let shade = ((run * 37 + y * 11) % 200) as u8;
+            r.next_buffer()
+                .draw_text(
+                    &text,
+                    x,
+                    y,
+                    ansi::rgb_color(55 + shade, 200 - shade / 2, 120, 255),
+                    Some(ansi::rgb_color(10, 10, 30, 255)),
+                    if run % 2 == 0 {
+                        0
+                    } else {
+                        u32::from(TextAttributes::BOLD)
+                    },
+                )
+                .unwrap();
+        }
+    }
+}
+
 /// RAS-005's bound on the render call for an unchanged full-size frame.
 const UNCHANGED_BOUND_US: u64 = 1000;
 
@@ -289,22 +317,31 @@ fn best_of_three(mut run: impl FnMut() -> Duration) -> Duration {
     (0..3).map(|_| run()).min().unwrap()
 }
 
-/// RAS-005: a full 200 by 50 text repaint is at most 12 bytes per cell; an
-/// unchanged 262,144-cell frame costs at most 300 microseconds and a full
-/// repaint of it at most 15 milliseconds, best of three, in a release
-/// build. A debug build checks the byte bound and a scaled time bound.
+/// RAS-005: a full 200 by 50 text repaint is at most 12 bytes per cell, in
+/// one style and in style runs; an unchanged 262,144-cell frame costs at
+/// most 1 millisecond and a full repaint of it at most 15 milliseconds, the
+/// best of three runs, in a release build. A debug build checks the byte
+/// bound and a scaled time bound. The mechanism runs this test once, so a
+/// time bound fails when all three runs miss it.
 #[test]
 fn ras_005_byte_and_time_bounds_hold_best_of_three() {
     let scale: u32 = if cfg!(debug_assertions) { 40 } else { 1 };
-    let mut r = sink_renderer(200, 50);
-    fill_text(&mut r, 200, 50, 0);
-    assert_eq!(RenderStatus::Rendered, r.render(true));
-    let bytes = r.backend().bytes.len();
-    let per_cell = bytes as f64 / (200.0 * 50.0);
-    assert!(
-        per_cell <= 12.0,
-        "200x50 text repaint emitted {bytes} bytes, {per_cell:.2} per cell"
-    );
+    for (workload, styled) in [("one-style", false), ("styled", true)] {
+        let mut r = sink_renderer(200, 50);
+        if styled {
+            fill_styled_text(&mut r, 200, 50);
+        } else {
+            fill_text(&mut r, 200, 50, 0);
+        }
+        assert_eq!(RenderStatus::Rendered, r.render(true));
+        let bytes = r.backend().bytes.len();
+        let per_cell = bytes as f64 / (200.0 * 50.0);
+        eprintln!("{workload} 200x50 text repaint: {bytes} bytes, {per_cell:.2} per cell");
+        assert!(
+            per_cell <= 12.0,
+            "{workload} 200x50 text repaint emitted {bytes} bytes, {per_cell:.2} per cell"
+        );
+    }
 
     let mut big = sink_renderer(512, 512);
     fill_text(&mut big, 512, 512, 3);
@@ -320,6 +357,7 @@ fn ras_005_byte_and_time_bounds_hold_best_of_three() {
         assert_eq!(RenderStatus::Skipped, status);
         took
     });
+    eprintln!("unchanged 512x512 frame, best of three: {unchanged:?}");
     assert!(
         unchanged <= Duration::from_micros(UNCHANGED_BOUND_US * u64::from(scale)),
         "unchanged 512x512 frame took {unchanged:?}"
@@ -332,6 +370,7 @@ fn ras_005_byte_and_time_bounds_hold_best_of_three() {
         assert_eq!(RenderStatus::Rendered, status);
         took
     });
+    eprintln!("full 512x512 repaint, best of three: {repaint:?}");
     assert!(
         repaint <= Duration::from_millis(15 * u64::from(scale)),
         "full 512x512 repaint took {repaint:?}"
