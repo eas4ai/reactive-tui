@@ -1,0 +1,15 @@
+$ cargo test --locked --jobs 8 -p reactive-tui-suprtui --test render_bytes -- ras_001_
+$ cargo test --locked --jobs 8 -p reactive-tui-suprtui --test render_bytes -- ras_002_
+$ cargo test --locked --jobs 8 -p reactive-tui-suprtui --test render_bytes -- ras_008_
+$ cargo test --locked --jobs 8 -p reactive-tui-suprtui --test render_bytes --release -- ras_005_
+$ cargo test --locked --jobs 8 --test suprtui_renderer -- ras_006_
+cairn: RAS-001: pass
+  RAS-001 reason: 2 passed
+cairn: RAS-002: pass
+  RAS-002 reason: 1 passed
+cairn: RAS-008: pass
+  RAS-008 reason: 1 passed
+cairn: RAS-005: fail
+  RAS-005 reason: unchanged 512x512 frame took 633.127µs
+cairn: RAS-006: pass
+  RAS-006 reason: 1 passed

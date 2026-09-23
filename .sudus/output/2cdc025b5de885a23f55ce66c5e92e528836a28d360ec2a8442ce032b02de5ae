@@ -1,0 +1,9 @@
+$ cargo test --locked --jobs 8 --test painter_hit -- pnt_001_
+$ cargo test --locked --jobs 8 --test painter_hit -- pnt_004_
+$ cargo test --locked --jobs 8 --test painter_hit -- pnt_002_
+cairn: PNT-001: fail
+  PNT-001 reason: painter_hit did not run: error: test failed, to rerun pass `--test painter_hit`
+cairn: PNT-004: fail
+  PNT-004 reason: painter_hit did not run: error: test failed, to rerun pass `--test painter_hit`
+cairn: PNT-002: fail
+  PNT-002 reason: painter_hit did not run: error: test failed, to rerun pass `--test painter_hit`

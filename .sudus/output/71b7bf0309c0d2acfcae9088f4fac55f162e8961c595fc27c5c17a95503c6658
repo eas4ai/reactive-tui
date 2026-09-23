@@ -1,0 +1,9 @@
+$ cargo test --locked --jobs 8 -p reactive-tui-suprtui --test render_alloc -- ras_003_
+$ cargo test --locked --jobs 8 -p reactive-tui-suprtui --test render_alloc -- ras_007_
+$ cargo test --locked --jobs 8 --test suprtui_renderer -- pnt_003_
+cairn: RAS-003: pass
+  RAS-003 reason: 1 passed
+cairn: RAS-007: pass
+  RAS-007 reason: 1 passed
+cairn: PNT-003: fail
+  PNT-003 reason: assertion `left == right` failed: present must send the stored handle, not a second copy

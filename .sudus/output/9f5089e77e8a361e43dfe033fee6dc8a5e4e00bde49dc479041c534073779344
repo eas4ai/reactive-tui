@@ -1,0 +1,60 @@
+$ cargo build --locked --workspace --jobs 8
+$ cargo fmt --all -- --check
+$ cargo clippy --locked --workspace --all-targets --jobs 8 -- -D warnings
+$ cargo doc --locked --workspace --no-deps --jobs 8
+$ cargo test --locked --workspace --no-fail-fast --jobs 8
+test app::motion::tests::incompatible_css_units_keep_endpoints_and_unknown_styles_report_errors ... ok
+test backend::suprtui::cursor_tests::native_cursor_follows_painted_text_clipping_and_coverage ... FAILED
+test core::surface::image_output::tests::api_surface_image_projection_layer_alpha_and_checked_errors ... ok
+test error::tests::test_error_creation ... ok
+test error::tests::test_io_error_conversion ... ok
+test error::tests::test_macros ... ok
+test reactive::signal::tests::test_memo_basic ... ok
+test reactive::signal::tests::test_signal_basic ... ok
+test reactive::signal::tests::test_signal_update ... ok
+test reactive::signal::tests::test_signal_split ... ok
+test widgets::dialog::dialog_types::tests::test_dialog_builder_error ... ok
+test widgets::dialog::http::tests::missing_curl_is_an_explicit_error_in_an_isolated_process ... ok
+test widgets::display::image::live::worker::tests::api_image_worker_reports_current_errors_and_joins_pending_work ... ok
+failures:
+thread 'backend::suprtui::cursor_tests::native_cursor_follows_painted_text_clipping_and_coverage' (430467) panicked at src/backend/suprtui/cursor_tests.rs:55:5:
+failures:
+test result: FAILED. 1114 passed; 1 failed; 8 ignored; 0 measured; 0 filtered out; finished in 7.70s
+test invalid_offsets_return_errors_and_empty_sampling_stays_empty ... ok
+test copy_nonzero_is_error ... ok
+test invalid_utf8_is_error ... ok
+test paste_nonzero_is_error ... ok
+test missing_backend_is_error ... ok
+test oversized_output_is_error ... ok
+test recursive_expansion_fails_with_a_bounded_error ... ok
+test app::invalid_custom_animation_completes_with_error_instead_of_silent_success ... ok
+test app_supplies_scope_for_generated_components_and_closes_on_error_and_unwind ... ok
+test errors_unwinds_and_unrun_drop_close_escaped_mode_setters ... ok
+test errors_unwinds_and_unrun_drop_close_requests_and_release_updaters ... ok
+test data_table_acceptance::data_table_invalid_filter_edits_report_errors_without_replacing_valid_filter ... ok
+test file_explorer_acceptance::explorer_reports_invalid_paths_limits_and_overwrite_errors ... ok
+test input_acceptance::regex_validation_changes_visible_error_and_recovers ... ok
+test popover_acceptance::invalid_popover_constraints_report_errors_without_open_callbacks ... ok
+test vdom_acceptance::invalid_inline_declarations_return_app_errors ... ok
+test wizard_acceptance::empty_wizard_displays_error_and_can_cancel ... ok
+test app_error_closes_wake_handle_and_restores_backend ... ok
+test test_error_handling_in_builder ... ok
+test event::read::tests::test_poll_propagates_error ... ok
+test event::read::tests::test_read_continues_after_error ... ok
+test event::read::tests::test_poll_continues_after_error ... ok
+test event::read::tests::test_read_propagates_error ... ok
+test buffer::resize_errors ... ok
+test req_008_error_discipline ... ok
+error: test failed, to rerun pass `-p reactive-tui --lib`
+error: 1 target failed:
+     Running tests/uni_pool.rs (target/debug/deps/uni_pool-00c0f6851d68b83f)
+     Running tests/uni_ported.rs (target/debug/deps/uni_ported-7ecda6be67e815f0)
+     Running tests/uni_segments.rs (target/debug/deps/uni_segments-67f855a04824a61e)
+   Doc-tests reactive_tui
+   Doc-tests crossterm
+   Doc-tests libghostty_vt
+   Doc-tests reactive_tui_macros
+   Doc-tests suprtui
+error: 1 target failed:
+    `-p reactive-tui --lib`
+BAR-001 violated: gates failing: cargo test --locked

@@ -1,0 +1,9 @@
+BAR-007 violated: references to paths git does not track:
+  .cairn/output/brief-9350be76f2d4ffa9c2ba2203b2d3d9a4e28b148ffbfd45c04c8250541ea13c74.md: scripts/no-such-file.py
+  .cairn/output/brief-9350be76f2d4ffa9c2ba2203b2d3d9a4e28b148ffbfd45c04c8250541ea13c74.md: scripts/no-such-file.py
+  .cairn/output/brief-9350be76f2d4ffa9c2ba2203b2d3d9a4e28b148ffbfd45c04c8250541ea13c74.md: src/plot
+  .cairn/output/brief-9350be76f2d4ffa9c2ba2203b2d3d9a4e28b148ffbfd45c04c8250541ea13c74.md: crates/reactive-tui-libghostty-vt
+  .cairn/output/brief-9350be76f2d4ffa9c2ba2203b2d3d9a4e28b148ffbfd45c04c8250541ea13c74.md: crates/reactive-tui-libghostty-vt
+  scripts/cairn/blitters.py: tests/blitters.rs
+  scripts/cairn/render_alloc.py: tests/render_alloc.rs
+  scripts/cairn/render_bytes.py: tests/render_bytes.rs

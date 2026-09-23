@@ -1,0 +1,3 @@
+$ cargo test --locked --jobs 8 --test charts_contract -- bar_003_
+cairn: BAR-003: pass
+  BAR-003 reason: 2 passed

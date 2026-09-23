@@ -1,0 +1,3 @@
+$ cargo test --locked --jobs 8 --test renderer_replay --features embedded-terminal -- ras_004_
+cairn: RAS-004: pass
+  RAS-004 reason: 22 recordings; 2 passed
