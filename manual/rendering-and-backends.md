@@ -38,6 +38,14 @@ grapheme-aware cell frame. SuprTUI compares frames and writes the required ANSI
 output. Presentation makes the frame geometry available to focus, events,
 animation targets, and accessibility.
 
+Components learn their layout after a frame is presented. After a terminal
+resize the App first lays the frame out at the new size without painting it
+(`Backend::layout_frame`), gives each component its new layout and each
+dialog anchor its new bounds, and only then renders and presents, so the
+first frame at the new size shows nothing at its old size. A backend that
+cannot lay out ahead of a present returns `None` and keeps the old order;
+backend wrappers should forward `layout_frame`.
+
 The backend owns host terminal setup and restoration. Capability detection
 selects color, synchronized output, keyboard, mouse, Unicode, and image behavior.
 Performance monitors measure frame work and can lower adaptive quality.

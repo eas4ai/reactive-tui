@@ -12,7 +12,9 @@ relationships for assistive technology.
 - `accessibility::Node` wraps public AccessKit semantics used by elements.
 - Re-exported `Role`, `Live`, and `Toggled` values describe common semantics.
 - Node setters define labels, descriptions, expanded and selected state,
-  toggles, disabled, hidden, read-only, value, live regions, and click actions.
+  toggles, disabled, hidden, read-only, value, live regions, click actions,
+  and busy state: `set_busy` marks content that is still being prepared, as
+  ARIA `aria-busy` does, and `is_busy` reads it.
 - `Element::with_accessibility`, `with_accessibility_label`, and
   `with_accessibility_id` attach semantics.
 - `AppBuilder::screen_reader` and `accessibility_name` configure publication.

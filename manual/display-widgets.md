@@ -51,7 +51,12 @@ builder forces ASCII with `.ascii(true)` or the terminal capability report
 says braille and block glyphs are unavailable (the backend passes its query
 result to `charts::report_glyph_support`). Rasterization runs on a named
 `rtui-chart-*` worker thread; the main thread copies the latest snapshot into
-the frame. A chart whose width or height is unset fills its rectangle.
+the frame. When a chart first appears or changes size, the main thread waits
+at most 4 ms for the picture at that size. If the picture is not ready, that
+frame shows the chart area empty, the chart's accessibility node is marked
+busy, and the worker's finish redraws the chart. A picture drawn for another
+size is never painted. A chart whose width or height is unset fills its
+rectangle.
 
 Colors are tokens: a palette name such as `blue-500`, a theme variable such
 as `primary` or `chart-1`, or hex. Every token resolves through
