@@ -511,6 +511,104 @@ mod external_tests {
         }
     }
 
+    /// Draw `pixels` through the widget's block fallback into 12 by 6 cells.
+    fn blitted(pixels: Arc<image::RgbaImage>) -> Arc<crate::layout::paint_tree::cells::CellGrid> {
+        let shared = Shared {
+            slots: Mutex::default(),
+            ready: Condvar::new(),
+            closed: AtomicBool::new(false),
+            generation: AtomicU64::new(1),
+            changed: ThreadSafeSignal::new(0),
+        };
+        let image = Image {
+            display_mode: ImageDisplayMode::Auto,
+            // Nearest scaling keeps the edge sharp, so partial blocks remain.
+            quality: crate::widgets::display::image::ImageQuality::Fast,
+            ..Image::default()
+        };
+        let active = Active {
+            request: Request {
+                id: 1,
+                image: Arc::new(image),
+                format: None,
+                size: Some((12, 6)),
+                pixels: Some(pixels.clone()),
+            },
+            animation: Arc::new(Animation::still(pixels.clone())),
+            started: Instant::now(),
+            deadline: None,
+            index: None,
+            mode: ImageDisplayMode::Auto,
+        };
+        let Some(super::super::Cells::Blitted(grid)) =
+            render_cells(&active, &pixels, &shared).unwrap()
+        else {
+            panic!("Auto without a tool must draw with the blitters");
+        };
+        grid
+    }
+
+    /// BLT-002 where images are drawn: the widget's block fallback draws with
+    /// the blitter the application chose. A diagonal two-color split leaves
+    /// partial blocks along the edge, which each tier draws with its own
+    /// glyphs, so an ignored override shows in the cells.
+    #[test]
+    fn blt_002_the_widget_draws_with_the_blitter_the_application_chose() {
+        let _serial = crate::widgets::display::charts::GLYPH_REPORT_TEST_LOCK
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        if std::env::var_os(::suprtui::blit::BLITTER_ENV).is_some() {
+            eprintln!("SKIP: the environment override wins over the application's");
+            return;
+        }
+        /// Clears the override even if an assertion fails.
+        struct Cleared;
+        impl Drop for Cleared {
+            fn drop(&mut self) {
+                crate::widgets::display::set_image_blitter(None);
+            }
+        }
+        let _cleared = Cleared;
+        let pixels = Arc::new(image::RgbaImage::from_fn(96, 96, |x, y| {
+            image::Rgba(if x > y {
+                [220, 30, 30, 255]
+            } else {
+                [30, 30, 220, 255]
+            })
+        }));
+        let within = |glyph: &str, low: u32, high: u32| {
+            glyph
+                .chars()
+                .next()
+                .is_some_and(|c| (low..=high).contains(&u32::from(c)))
+        };
+        for tier in crate::widgets::display::Blitter::TIERS {
+            crate::widgets::display::set_image_blitter(Some(tier));
+            let grid = blitted(pixels.clone());
+            let glyphs: Vec<String> = grid
+                .iter()
+                .map(|(_, _, glyph, _, _)| glyph.to_string())
+                .filter(|glyph| !glyph.trim().is_empty())
+                .collect();
+            use crate::widgets::display::Blitter::*;
+            let drawn_with_the_tier = match tier {
+                Braille => !glyphs.is_empty() && glyphs.iter().all(|g| within(g, 0x2800, 0x28FF)),
+                Octant => glyphs.iter().any(|g| within(g, 0x1CD00, 0x1CDE5)),
+                Sextant => glyphs.iter().any(|g| within(g, 0x1FB00, 0x1FB3B)),
+                Quadrant => glyphs.iter().any(|g| within(g, 0x2596, 0x259F)),
+                HalfBlock => {
+                    glyphs.iter().any(|g| g == "▀" || g == "▄")
+                        && glyphs.iter().all(|g| ["▀", "▄", "█"].contains(&g.as_str()))
+                }
+                Ascii => glyphs.iter().all(|g| g.is_ascii()),
+            };
+            assert!(
+                drawn_with_the_tier,
+                "{tier:?} chosen, the widget drew: {glyphs:?}"
+            );
+        }
+    }
+
     #[test]
     fn blt_001_auto_without_a_tool_draws_blitted_cells() {
         let pixels = Arc::new(image::RgbaImage::from_pixel(
