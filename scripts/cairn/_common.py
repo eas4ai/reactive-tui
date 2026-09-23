@@ -39,7 +39,7 @@ def tracked_files() -> set[str]:
     out = subprocess.run(["git", "ls-files", "-z"], cwd=ROOT, capture_output=True)
     if out.returncode == 0:
         return {p.decode() for p in out.stdout.split(b"\0") if p}
-    skip = {".git", "target", "node_modules", "__pycache__", ".cairn"}
+    skip = {".git", "target", "node_modules", "__pycache__", ".sudus", ".cairn"}
     found = set()
     for path in ROOT.rglob("*"):
         rel = path.relative_to(ROOT)

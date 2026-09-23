@@ -113,8 +113,8 @@ python3 -B scripts/check-wgpu-host.py --output /tmp/reactive-wgpu-captures-NEW
 Use a new directory each time. `CARGO_TARGET_DIR` is honored. The harness
 creates and stops only its own display and Kitty processes. It records six
 JSON measurements, three viewport screenshots plus a shrink-back capture, host details, and
-artifact hashes. Cairn's `GPU-005` check runs this harness and preserves
-artifacts beneath `.cairn/evidence/captures/wgpu/`. Inspect the screenshots;
+artifact hashes. It preserves artifacts beneath
+`.cairn/evidence/captures/wgpu/`. Inspect the screenshots;
 passing report validation alone cannot establish visual quality.
 
 ## Source map
