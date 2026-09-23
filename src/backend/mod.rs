@@ -428,7 +428,7 @@ pub struct DebugBackend {
     /// Frame counter
     frame_count: usize,
     pending_frame: Option<debug_frame::DebugFrame>,
-    graphemes: Option<Vec<String>>,
+    graphemes: Option<debug_frame::FrameText>,
     geometry: Option<PresentedGeometry>,
 }
 
@@ -460,7 +460,7 @@ impl DebugBackend {
         for y in 0..h {
             for x in 0..w {
                 if let Some(text) = &self.graphemes {
-                    content.push_str(&text[y * w + x]);
+                    content.push_str(text.get(y * w + x).unwrap_or_default());
                 } else {
                     content.push(self.virtual_screen.get(x, y).ch);
                 }
@@ -488,7 +488,7 @@ impl DebugBackend {
         if x >= w || y >= h {
             return None;
         }
-        self.graphemes.as_ref().map(|text| text[y * w + x].as_str())
+        self.graphemes.as_ref().and_then(|text| text.get(y * w + x))
     }
 
     /// Get a specific character at position (x, y)
