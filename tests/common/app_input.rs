@@ -30,6 +30,10 @@ pub struct Snapshot {
     /// Main-loop work for this frame: from the input wait returning to present.
     #[allow(dead_code)]
     pub work_ms: f64,
+    /// Of `work_ms`, the time the backend's present took: the worker's
+    /// layout and paint. The rest is the App's own work.
+    #[allow(dead_code)]
+    pub present_ms: f64,
     pub text: String,
     #[allow(dead_code)]
     pub screen: vt100::Screen,
@@ -68,6 +72,9 @@ impl Backend for InputBackend {
         self.inner.hit_cells()
     }
     fn render_frame(&mut self, element: &Element) -> Result<bool> {
+        if let Some(t) = *self.wait_returned.lock().unwrap() {
+            eprintln!("DIAG build {:.2}", t.elapsed().as_secs_f64() * 1000.0);
+        }
         self.inner.render_frame(element)
     }
     fn apply_patches(&mut self, _: &[PatchOp], _: &RenderTree) -> Result<()> {
@@ -80,7 +87,9 @@ impl Backend for InputBackend {
         self.inner.size()
     }
     fn present(&mut self) -> Result<()> {
+        let started = Instant::now();
         self.inner.present()?;
+        let present_ms = started.elapsed().as_secs_f64() * 1000.0;
         // Main-loop work ends when the backend has presented; parsing the
         // captured output below is the harness's own cost, not the App's.
         let work_ms = self
@@ -96,6 +105,7 @@ impl Backend for InputBackend {
         parser.process(&self.capture.0.lock().unwrap());
         self.snapshots.lock().unwrap().push(Snapshot {
             work_ms,
+            present_ms,
             output: self.capture.0.lock().unwrap().clone(),
             text: parser.screen().contents(),
             screen: parser.screen().clone(),

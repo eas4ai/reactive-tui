@@ -674,6 +674,12 @@ fn max_work_ms(root: impl RootComponent + 'static, size: (u16, u16), frames: usi
         "harness painted {} of {frames} frames",
         out.len()
     );
+    let frames: Vec<String> = out
+        .iter()
+        .skip(1)
+        .map(|f| format!("{:.2}/{:.2}", f.work_ms, f.present_ms))
+        .collect();
+    eprintln!("work/present ms per frame: {}", frames.join(" "));
     out.iter().skip(1).map(|f| f.work_ms).fold(0.0, f64::max)
 }
 
