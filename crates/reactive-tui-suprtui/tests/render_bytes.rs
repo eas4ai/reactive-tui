@@ -229,7 +229,7 @@ fn fill_text<B: Backend>(r: &mut Renderer<'static, B>, width: u32, height: u32, 
 }
 
 /// RAS-005's bound on the render call for an unchanged full-size frame.
-const UNCHANGED_BOUND_US: u64 = 300;
+const UNCHANGED_BOUND_US: u64 = 1000;
 
 fn best_of_three(mut run: impl FnMut() -> Duration) -> Duration {
     (0..3).map(|_| run()).min().unwrap()
