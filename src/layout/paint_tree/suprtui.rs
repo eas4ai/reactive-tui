@@ -57,6 +57,9 @@ pub(crate) struct LayoutCache {
     tree: TaffyTree<()>,
     paints: HashMap<NodeId, NodePaint>,
     nodes: Vec<PaintNode>,
+    /// Layouts computed with this cache: counted where Taffy runs, so a
+    /// test observes the layout work itself, not the reuse decision.
+    runs: u64,
 }
 
 /// Whether two specs lay out the same: the same node tree with the same
@@ -159,6 +162,7 @@ fn lay_out(
             super::measure_text(&paints[&id], known, available)
         })
         .map_err(|error| ReactiveError::layout(format!("SuprTUI layout: {error}")))?;
+        cache.runs += 1;
         let screen = Rect {
             left: 0,
             top: 0,
@@ -330,6 +334,7 @@ pub(crate) fn paint_frame(
         cursor: cursor.state,
         hits: Vec::new(),
         layout_reused: reused,
+        layout_runs: cache.runs,
         inverse_cells,
     })
 }
