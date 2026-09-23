@@ -1,8 +1,48 @@
 use reactive_tui::backend::{Backend, SuprTuiBackend};
 use reactive_tui::component::{Element, LayoutType};
 use reactive_tui::error::ReactiveError;
+use std::alloc::{GlobalAlloc, Layout, System};
+use std::cell::Cell;
 use std::io::{self, Write};
 use std::sync::{Arc, Mutex};
+
+/// Counts allocations per thread, so a test can measure what the calling
+/// thread allocates while the render worker paints on its own thread and
+/// other tests run in parallel (PNT-003).
+struct Counting;
+
+thread_local! {
+    static ALLOCATIONS: Cell<usize> = const { Cell::new(0) };
+}
+
+fn count_allocation() {
+    // `try_with` fails only while the thread is being torn down.
+    let _ = ALLOCATIONS.try_with(|n| n.set(n.get() + 1));
+}
+
+unsafe impl GlobalAlloc for Counting {
+    unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
+        count_allocation();
+        unsafe { System.alloc(layout) }
+    }
+    unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
+        unsafe { System.dealloc(ptr, layout) }
+    }
+    unsafe fn realloc(&self, ptr: *mut u8, layout: Layout, new_size: usize) -> *mut u8 {
+        count_allocation();
+        unsafe { System.realloc(ptr, layout, new_size) }
+    }
+}
+
+#[global_allocator]
+static GLOBAL: Counting = Counting;
+
+/// Allocations this thread makes while `work` runs.
+fn allocations_during(work: impl FnOnce()) -> usize {
+    let before = ALLOCATIONS.with(Cell::get);
+    work();
+    ALLOCATIONS.with(Cell::get) - before
+}
 
 #[derive(Default)]
 struct Output {
@@ -372,8 +412,47 @@ fn ras_007_a_smaller_frame_leaves_no_stale_cells() {
 /// PNT-003: one copy of the frame element per present. A cell grid the test
 /// holds a handle to gains one handle when the frame is staged; presenting
 /// adds at most the painter's retained layout spec (PNT-004), and repeated
-/// presents of the staged frame add nothing. The render-alloc probe checks
-/// that present sends the stored handle rather than cloning the element.
+/// presents of the staged frame add nothing. The copy count itself is
+/// measured by `pnt_003_staging_and_presenting_copy_the_element_once`.
+/// PNT-003: staging a frame copies the element once and presenting sends
+/// the stored handle. A deep copy allocates for every node of the tree, so
+/// the calling thread's allocations are compared with one copy's: staging
+/// makes one copy, and presenting makes none, whatever the worker does on
+/// its own thread.
+#[test]
+fn pnt_003_staging_and_presenting_copy_the_element_once() {
+    let out = Capture::default();
+    let mut backend = SuprTuiBackend::with_writer(40, 24, out.clone()).unwrap();
+    let element = Element::layout(LayoutType::Flex)
+        .with_class("flex flex-col w-full h-full")
+        .with_children(
+            (0..400)
+                .map(|row| Element::text(format!("row {row}")).with_class("w-full h-1"))
+                .collect(),
+        );
+    // One present first, so the backend's own buffers already exist.
+    assert!(backend.render_frame(&element).unwrap());
+    backend.present().unwrap();
+    backend.sync().unwrap();
+
+    let one_copy = allocations_during(|| drop(element.clone()));
+    assert!(
+        one_copy >= 400,
+        "a deep copy allocates per node: {one_copy}"
+    );
+    let staging = allocations_during(|| assert!(backend.render_frame(&element).unwrap()));
+    let presenting = allocations_during(|| backend.present().unwrap());
+    backend.sync().unwrap();
+    assert!(
+        staging <= one_copy + 8,
+        "staging made more than one copy: {staging} allocations; one copy is {one_copy}"
+    );
+    assert!(
+        presenting < one_copy / 10,
+        "present copied the element: {presenting} allocations; one copy is {one_copy}"
+    );
+}
+
 #[test]
 fn pnt_003_present_sends_the_stored_frame_without_a_second_copy() {
     use reactive_tui::layout::paint_tree::cells::CellGrid;
