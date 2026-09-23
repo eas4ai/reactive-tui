@@ -13,10 +13,48 @@ mod protocol_renderer;
 mod sixel_encode;
 mod sixel_renderer;
 
+pub use ::suprtui::blit::Blitter;
 pub use external_renderer::ExternalRenderer;
 pub use image_processor::ImageProcessor;
 pub use protocol_renderer::ProtocolRenderer;
 pub use sixel_renderer::SixelRenderer;
+
+/// The application's blitter override: 0 for none, otherwise one more than
+/// the blitter's place in [`Blitter::TIERS`].
+static BLITTER_OVERRIDE: std::sync::atomic::AtomicU8 = std::sync::atomic::AtomicU8::new(0);
+
+/// Choose the blitter image cell fallback draws with, or return to the
+/// choice by tier with `None` (docs/spec/blitters.md, BLT-002). The
+/// `REACTIVE_TUI_BLITTER` environment variable still wins, so a user can
+/// correct a terminal the per-terminal table gets wrong.
+pub fn set_image_blitter(blitter: Option<Blitter>) {
+    let value = blitter
+        .and_then(|blitter| Blitter::TIERS.iter().position(|tier| *tier == blitter))
+        .map_or(0, |index| index as u8 + 1);
+    BLITTER_OVERRIDE.store(value, std::sync::atomic::Ordering::Relaxed);
+}
+
+/// The blitter image cell fallback draws with: the `REACTIVE_TUI_BLITTER`
+/// environment variable, then [`set_image_blitter`], and otherwise by
+/// tier: ASCII when the terminal answered that it has no unicode, the
+/// per-terminal table's entry for the host's identity, or sextant.
+pub fn image_blitter() -> Blitter {
+    let application = match BLITTER_OVERRIDE.load(std::sync::atomic::Ordering::Relaxed) {
+        0 => None,
+        value => Blitter::TIERS.get(usize::from(value) - 1).copied(),
+    };
+    let environment = ::suprtui::blit::environment_override().unwrap_or_else(|message| {
+        static WARNED: std::sync::Once = std::sync::Once::new();
+        WARNED.call_once(|| log::warn!("{message}; the blitter is chosen by tier"));
+        None
+    });
+    ::suprtui::blit::choose(
+        crate::widgets::display::charts::glyph_support(),
+        crate::core::capabilities::TerminalQuery::host_identity().as_deref(),
+        application,
+        environment,
+    )
+}
 
 use crate::core::surface::Rgba;
 use crate::error::Result;
@@ -342,6 +380,29 @@ impl ImageFormat {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn blt_002_the_application_override_replaces_the_choice_until_cleared() {
+        if std::env::var_os(::suprtui::blit::BLITTER_ENV).is_some() {
+            eprintln!("SKIP: the environment override wins over the application's");
+            return;
+        }
+        for tier in super::Blitter::TIERS {
+            super::set_image_blitter(Some(tier));
+            assert_eq!(super::image_blitter(), tier);
+        }
+        super::set_image_blitter(None);
+        assert_eq!(
+            super::image_blitter(),
+            ::suprtui::blit::choose(
+                crate::widgets::display::charts::glyph_support(),
+                crate::core::capabilities::TerminalQuery::host_identity().as_deref(),
+                None,
+                None,
+            ),
+            "clearing returns to the choice by tier"
+        );
+    }
+
     use super::*;
 
     fn capabilities(available: bool) -> ImageCapabilities {

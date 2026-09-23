@@ -35,6 +35,21 @@ fn color(value: vt100::Color, fallback: (u8, u8, u8)) -> (f32, f32, f32) {
     (r as f32 / 255.0, g as f32 / 255.0, b as f32 / 255.0)
 }
 
+/// One element that paints a blitted grid from the content box's top left.
+pub(super) fn grid_element(
+    grid: std::sync::Arc<crate::layout::paint_tree::cells::CellGrid>,
+) -> Element {
+    ElementBuilder::new(ElementType::Layout(LayoutType::Absolute))
+        .styles(
+            StyleBuilder::new()
+                .width_percent(100.0)
+                .height_percent(100.0)
+                .overflow_hidden(),
+        )
+        .build()
+        .with_cells(grid)
+}
+
 pub(super) fn element(screen: &vt100::Screen) -> Element {
     let (rows, columns) = screen.size();
     let mut root = ElementBuilder::new(ElementType::Layout(LayoutType::Absolute)).styles(

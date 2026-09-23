@@ -6,8 +6,17 @@ use crate::{
 };
 use std::sync::{Arc, Mutex};
 mod animation;
+mod blocks;
 mod cells;
 mod worker;
+
+/// Cells the worker drew for an image: a tool's captured output, or the
+/// renderer's blitters.
+#[derive(Clone)]
+pub(super) enum Cells {
+    Captured(Arc<vt100::Screen>),
+    Blitted(Arc<crate::layout::paint_tree::cells::CellGrid>),
+}
 
 #[derive(Clone, PartialEq)]
 pub(super) struct LiveProps {
@@ -32,7 +41,7 @@ struct View {
     error: Option<String>,
     layout: Option<LayoutInfo>,
     ascii: Option<String>,
-    cells: Option<Arc<vt100::Screen>>,
+    cells: Option<Cells>,
 }
 impl View {
     fn request(&mut self, props: &LiveProps) {
@@ -147,7 +156,7 @@ impl Component for LiveImage {
             let (width, height) = layout.content_size();
             (width.max(0.0) as u32, height.max(0.0) as u32)
         });
-        if view.ascii.is_none() {
+        if view.ascii.is_none() && view.cells.is_none() {
             let text = if props.image.display_mode == ImageDisplayMode::Fallback {
                 props
                     .image
@@ -187,13 +196,12 @@ impl Component for LiveImage {
                     .height_px(height as f32)
                     .overflow_hidden(),
             )
-            .child(view.cells.as_ref().map_or_else(
-                || {
-                    Element::text(view.ascii.as_deref().unwrap_or_default())
-                        .with_class("whitespace-pre")
-                },
-                |screen| cells::element(screen),
-            ))
+            .child(match &view.cells {
+                Some(Cells::Captured(screen)) => cells::element(screen),
+                Some(Cells::Blitted(grid)) => cells::grid_element(grid.clone()),
+                None => Element::text(view.ascii.as_deref().unwrap_or_default())
+                    .with_class("whitespace-pre"),
+            })
             .build();
         child.metadata.image_fallback = Some(self.image_id);
         child.metadata.inert = true;

@@ -693,10 +693,10 @@ fn paint_node(
     Ok(())
 }
 
-/// Blit a prepared cell grid at the node's content box: each set cell is
-/// placed through the node's transform, clipped to the box and the node's
-/// clip, masked like text, and drawn with the cell's own color or the
-/// node's foreground.
+/// Blit a prepared cell grid at the node's content box: each painted cell
+/// is placed through the node's transform, clipped to the box and the
+/// node's clip, masked like text, and drawn with the cell's own color or
+/// the node's foreground, over the cell's own background where it has one.
 fn paint_cells(
     target: &mut OptimizedBuffer<'_>,
     paint: &NodePaint,
@@ -718,7 +718,7 @@ fn paint_cells(
         right: node.local.right.saturating_sub(paint.pad.right as i32),
         bottom: node.local.bottom.saturating_sub(paint.pad._bottom as i32),
     };
-    for (gx, gy, glyph, width, fg) in grid.iter() {
+    for (gx, gy, glyph, width, fg, cell_bg) in grid.painted() {
         let x = content.left.saturating_add(i32::from(gx));
         let y = content.top.saturating_add(i32::from(gy));
         let right = x.saturating_add(width.min(i32::MAX as usize) as i32);
@@ -754,9 +754,18 @@ fn paint_cells(
                 ansi::rgb_color(0, 0, 0, 255),
             );
         }
-        let bg = target
+        let below = target
             .get(paint_x as u32, paint_y as u32)
             .map_or(bg_default, |cell| cell.bg);
+        let bg = match cell_bg {
+            Some((r, g, b, a)) => blend_colors(
+                with_opacity(ansi::rgba_from_floats(r, g, b, a), node.parent_opacity),
+                below,
+                None,
+            ),
+            None => below,
+        };
+        let glyph = if glyph.is_empty() { " " } else { glyph };
         let fg = match fg {
             Some((r, g, b, a)) => {
                 with_opacity(ansi::rgba_from_floats(r, g, b, a), node.parent_opacity)

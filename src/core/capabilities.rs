@@ -39,6 +39,14 @@ pub struct TerminalCapabilities {
     pub synchronized_output: bool,
 }
 
+/// The first of `TERM_PROGRAM` and `TERM` that holds more than space.
+fn identity_from(term_program: Option<String>, term: Option<String>) -> Option<String> {
+    [term_program, term]
+        .into_iter()
+        .flatten()
+        .find(|value| !value.trim().is_empty())
+}
+
 /// Terminal color depth capabilities
 ///
 /// Represents the color support level of the terminal, from monochrome
@@ -160,6 +168,17 @@ impl TerminalQuery {
         let query = Self::new();
         query.apply_env_fallbacks(&mut caps);
         caps
+    }
+
+    /// The host terminal's identity from the environment: `TERM_PROGRAM`,
+    /// or `TERM` when that is unset or empty. No terminal reports which
+    /// glyphs its font draws, so image fallback looks this identity up in
+    /// a per-terminal table (docs/spec/blitters.md, BLT-002).
+    pub fn host_identity() -> Option<String> {
+        identity_from(
+            std::env::var("TERM_PROGRAM").ok(),
+            std::env::var("TERM").ok(),
+        )
     }
 
     #[cfg(unix)]
@@ -604,6 +623,22 @@ mod tests {
         let buffer = b"\x1b_Gi=31;OK\x1b\\";
         query.parse_response_buffer(buffer, &mut caps);
         assert!(caps.kitty_graphics);
+    }
+
+    #[test]
+    fn blt_002_host_identity_prefers_term_program_and_skips_empty_values() {
+        let some = |value: &str| Some(value.to_string());
+        assert_eq!(
+            identity_from(some("ghostty"), some("xterm-ghostty")),
+            some("ghostty")
+        );
+        assert_eq!(
+            identity_from(some(""), some("xterm-kitty")),
+            some("xterm-kitty")
+        );
+        assert_eq!(identity_from(None, some("linux")), some("linux"));
+        assert_eq!(identity_from(some(" "), None), None);
+        assert_eq!(identity_from(None, None), None);
     }
 
     #[test]

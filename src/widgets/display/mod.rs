@@ -37,7 +37,8 @@ pub use file_explorer::{
     SelectionMode, SortCriteria, SortOrder, ViewMode,
 };
 pub use image::{
-    Image, ImageCapabilities, ImageDisplayMode, ImageFormat, ImageQuality, ImageSource,
+    image_blitter, set_image_blitter, Blitter, Image, ImageCapabilities, ImageDisplayMode,
+    ImageFormat, ImageQuality, ImageSource,
 };
 pub use modal::Modal;
 pub use popover::Popover;

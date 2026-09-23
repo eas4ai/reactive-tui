@@ -23,7 +23,7 @@ use std::rc::Rc;
 /// `quadrantChars`.
 pub const QUADRANT_CHARS: [u32; 16] = [
     32,     // 0000
-    0x2591, // 0001 BR
+    0x2597, // 0001 BR
     0x2596, // 0010 BL
     0x2584, // 0011 Lower Half Block
     0x259D, // 0100 TR
