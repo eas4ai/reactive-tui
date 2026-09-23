@@ -19,10 +19,12 @@ def main() -> int:
     for req, sub in (("RAS-003", "ras_003_"), ("RAS-007", "ras_007_")):
         results[req] = cargo_test_filtered("render_alloc", sub, package=CRATE)
     backend = strip_test_modules((ROOT / "src/backend/suprtui.rs").read_text(errors="replace"))
-    clones = [m.group(0) for m in re.finditer(r"(self\.frame|element)\.clone\(\)", backend)]
+    # The frame is held as a shared handle and present sends that handle; the
+    # one copy is made when the frame is staged from a borrowed element.
+    resent = re.search(r"self\.frame\.clone\(\)", backend) is not None
     shared = re.search(r"frame:\s*Arc<Element>", backend) is not None
-    if clones or not shared:
-        why = ("frame element cloned per present: " + ", ".join(clones)) if clones else "frame is not held as Arc<Element>"
+    if resent or not shared:
+        why = "present clones the frame element" if resent else "frame is not held as Arc<Element>"
         results["PNT-003"] = (False, why)
     else:
         results["PNT-003"] = cargo_test_filtered("suprtui_renderer", "pnt_003_")

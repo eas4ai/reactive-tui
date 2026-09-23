@@ -657,10 +657,15 @@ impl App {
             let state = (self.router.get_focus(), self.router.hovered_node());
             if let Some(geometry) = self.backend.painted_nodes() {
                 let anchors_changed = self.components.anchors.publish(&state_styled, geometry);
+                let cell_hits = self
+                    .backend
+                    .hit_cells()
+                    .map(|hits| (hits, self.backend.size().0));
                 let (focus, layout_changed) = self.event_tree.sync(
                     &state_styled,
                     geometry,
                     self.backend.component_layouts(),
+                    cell_hits,
                     &mut self.router,
                 );
                 self.focus_manager.apply(&mut self.router, focus);

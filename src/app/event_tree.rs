@@ -144,6 +144,7 @@ impl EventTree {
         element: &Element,
         geometry: &[PaintedNode],
         layouts: Option<&[crate::backend::PresentedLayout]>,
+        cell_hits: Option<(&[u32], u16)>,
         router: &mut EventRouter,
     ) -> (super::focus_manager::FocusPlan, bool) {
         let previous_focus = router.get_focus();
@@ -201,6 +202,14 @@ impl EventTree {
                 }
             }
         }
+        // Element index to node for the backend's per-cell hit grid; an inert
+        // element maps to nothing so the bounds tree answers there (PNT-002).
+        let nodes = frame
+            .preorder
+            .iter()
+            .map(|id| (!frame.inert_nodes.contains(id)).then_some(*id))
+            .collect();
+        frame.router.set_cell_hits(cell_hits, nodes);
         layout_changed |= frame.router.refresh_hover();
         (frame.focus, layout_changed)
     }

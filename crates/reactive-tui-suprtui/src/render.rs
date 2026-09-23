@@ -758,6 +758,20 @@ impl<'a, B: Backend> Renderer<'a, B> {
         }
     }
 
+    /// The next frame's buffer and its hit grid together, for a painter that
+    /// fills both as it paints; the grid is allocated on this first request
+    /// (RAS-007) and cleared once per frame by the renderer.
+    pub fn next_buffer_and_hit_grid(&mut self) -> (&mut OptimizedBuffer<'a>, &mut [u32]) {
+        self.ensure_hit_grid();
+        (&mut self.next, &mut self.next_hit)
+    }
+
+    /// The committed hit grid, row-major at the renderer's width; empty when
+    /// no frame wrote one.
+    pub fn committed_hit_grid(&self) -> &[u32] {
+        &self.current_hit
+    }
+
     /// Whether any frame has written the hit grid; the grid is allocated on
     /// its first write (RAS-007).
     pub fn hit_grid_allocated(&self) -> bool {

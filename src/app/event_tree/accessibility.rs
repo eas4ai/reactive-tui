@@ -301,7 +301,7 @@ mod tests {
                 }];
                 let mut events = EventTree::default();
                 let mut router = EventRouter::new();
-                events.sync(&element, &geometry, None, &mut router);
+                events.sync(&element, &geometry, None, None, &mut router);
                 let snapshot = events.accessibility_snapshot(&element, &geometry, &router, "test");
                 let tree = accesskit_consumer::Tree::new(snapshot.update, true);
                 let tree_state = tree.state();

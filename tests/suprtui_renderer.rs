@@ -368,3 +368,34 @@ fn ras_007_a_smaller_frame_leaves_no_stale_cells() {
         terminal.screen().contents()
     );
 }
+
+/// PNT-003: one copy of the frame element per present. A cell grid the test
+/// holds a handle to is cloned once when the frame is staged and never again
+/// when presented.
+#[test]
+fn pnt_003_present_sends_the_stored_frame_without_a_second_copy() {
+    use reactive_tui::layout::paint_tree::cells::CellGrid;
+    use std::sync::Arc;
+    let out = Capture::default();
+    let mut backend = SuprTuiBackend::with_writer(12, 4, out.clone()).unwrap();
+    let grid = Arc::new(CellGrid::new(4, 1));
+    let element = Element::layout(LayoutType::Flex)
+        .with_class("w-full h-full")
+        .with_children(vec![Element::layout(LayoutType::Flex)
+            .with_class("w-4 h-1")
+            .with_cells(Arc::clone(&grid))]);
+    let before = Arc::strong_count(&grid);
+    assert!(backend.render_frame(&element).unwrap());
+    let staged = Arc::strong_count(&grid);
+    assert_eq!(staged, before + 1, "staging the frame is the one copy");
+    backend.present().unwrap();
+    backend.sync().unwrap();
+    assert_eq!(
+        Arc::strong_count(&grid),
+        staged,
+        "present must send the stored handle, not a second copy"
+    );
+    backend.present().unwrap();
+    backend.sync().unwrap();
+    assert_eq!(Arc::strong_count(&grid), staged);
+}

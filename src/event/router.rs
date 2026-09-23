@@ -92,12 +92,22 @@ impl NodeId {
     }
 }
 
+/// Element index plus one per cell of the presented frame and the node each
+/// element maps to (PNT-002).
+struct CellHits {
+    cells: Vec<u32>,
+    width: usize,
+    nodes: Vec<Option<NodeId>>,
+}
+
 /// Event router managing event propagation through component tree
 pub struct EventRouter {
     nodes: HashMap<NodeId, EventNode>,
     root: Option<NodeId>,
     focus_manager: FocusManager,
     hit_test: HitTest,
+    /// Per-cell hit ids of the presented frame, preferred over the bounds tree.
+    cell_hits: Option<CellHits>,
     pointer: Option<super::hit::Point>,
     hover_path: Vec<NodeId>,
     /// Path cache for event routing optimization
@@ -112,6 +122,7 @@ impl EventRouter {
             root: None,
             focus_manager: FocusManager::new(),
             hit_test: HitTest::new(80.0, 24.0), // Default terminal size
+            cell_hits: None,
             pointer: None,
             hover_path: Vec::new(),
             path_cache: None,
@@ -125,6 +136,7 @@ impl EventRouter {
             root: None,
             focus_manager: FocusManager::new(),
             hit_test: HitTest::new(width as f32, height as f32),
+            cell_hits: None,
             pointer: None,
             hover_path: Vec::new(),
             path_cache: None,
@@ -471,7 +483,43 @@ impl EventRouter {
 
     /// Hover follows the last cell position against acknowledged frame bounds.
     pub(crate) fn hovered_node(&self) -> Option<NodeId> {
-        self.pointer.and_then(|point| self.hit_test.hit_test(point))
+        self.pointer.and_then(|point| self.resolve_hit(point))
+    }
+
+    /// Per-cell hit ids from the backend for the presented frame, with the
+    /// node each element index maps to (None for an inert element); `None`
+    /// clears them so hit testing falls back to painted bounds (PNT-002).
+    pub(crate) fn set_cell_hits(
+        &mut self,
+        hits: Option<(&[u32], u16)>,
+        nodes: Vec<Option<NodeId>>,
+    ) {
+        self.cell_hits = hits.map(|(cells, width)| CellHits {
+            cells: cells.to_vec(),
+            width: usize::from(width),
+            nodes,
+        });
+    }
+
+    /// The node under a point: the per-cell grid when the backend offers one,
+    /// the painted bounds tree otherwise or when the cell's element is inert.
+    fn resolve_hit(&self, point: super::hit::Point) -> Option<NodeId> {
+        if let Some(hits) = &self.cell_hits {
+            if point.x >= 0.0 && point.y >= 0.0 {
+                let (x, y) = (point.x as usize, point.y as usize);
+                if x < hits.width {
+                    if let Some(&cell) = hits.cells.get(y * hits.width + x) {
+                        if cell == 0 {
+                            return None;
+                        }
+                        if let Some(Some(id)) = hits.nodes.get(cell as usize - 1) {
+                            return Some(*id);
+                        }
+                    }
+                }
+            }
+        }
+        self.hit_test.hit_test(point)
     }
 
     /// Deliver boundary events only to nodes whose own hover membership changed.
@@ -639,7 +687,7 @@ impl EventRouter {
                 );
 
                 // A miss must not activate the focused element or the root.
-                self.hit_test.hit_test(point).unwrap_or_default()
+                self.resolve_hit(point).unwrap_or_default()
             }
             _ => {
                 // For keyboard and other events, use focused node or root
