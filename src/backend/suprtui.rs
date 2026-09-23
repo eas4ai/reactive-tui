@@ -498,12 +498,16 @@ fn run_worker<W: Write>(
                     }
                     let geometry = match spec {
                         FrameContent::Element(spec) => {
+                            let started = std::time::Instant::now();
                             let spec = element_to_paintspec(&spec)?;
                             let geometry = paint_frame(&spec, renderer.next_buffer(), images)?;
+                            renderer.set_layout_ns(started.elapsed().as_nanos() as u64);
                             geometry
                         }
                         FrameContent::Cells(frame) => {
+                            let started = std::time::Instant::now();
                             frame.paint(renderer.next_buffer())?;
+                            renderer.set_layout_ns(started.elapsed().as_nanos() as u64);
                             let (x, y) = frame.cursor().unwrap_or((0, 0));
                             super::PresentedGeometry {
                                 cursor: frame.cursor().map(|_| ::suprtui::render::CursorState {
@@ -521,9 +525,24 @@ fn run_worker<W: Write>(
                         let stats = renderer.stats();
                         let buffer = renderer.next_buffer();
                         let row = buffer.height() - 1;
+                        let us = |ns: u64| ns / 1000;
                         let text = format!(
-                            "frame: {} | cells: {}",
-                            stats.frame_count, stats.cells_updated
+                            "frame: {} | cells: {} | bytes: {} | moves: {}/{} | fg: {}/{} | bg: {}/{} | attr: {}/{} | layout: {}us | diff: {}us | emit: {}us | write: {}us",
+                            stats.frame_count,
+                            stats.cells_updated,
+                            stats.bytes_emitted,
+                            stats.moves_emitted,
+                            stats.moves_elided,
+                            stats.fg_emitted,
+                            stats.fg_elided,
+                            stats.bg_emitted,
+                            stats.bg_elided,
+                            stats.attr_emitted,
+                            stats.attr_elided,
+                            us(stats.layout_ns),
+                            us(stats.diff_ns),
+                            us(stats.emit_ns),
+                            us(stats.write_ns)
                         );
                         let text = format!("{text:width$}", width = buffer.width() as usize);
                         buffer

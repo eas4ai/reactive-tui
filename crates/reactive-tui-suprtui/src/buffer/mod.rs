@@ -10,7 +10,7 @@
 //! pixels stay with the media commitment. `clear` drops placement
 //! geometry, so no placement survives it.
 
-use crate::ansi::{self, CellDecoration, Rgba, TextAttributes};
+use crate::ansi::{self, CellDecoration, Rgba, TextAttributes, UnderlineStyle};
 use crate::link::{LinkPool, LinkTracker};
 use crate::uni::WidthMethod;
 use crate::uni::pool::{GraphemePool, GraphemeTracker};
@@ -25,6 +25,50 @@ pub mod draw;
 
 pub const DEFAULT_SPACE_CHAR: u32 = 32;
 pub const MAX_UNICODE_CODEPOINT: u32 = 0x10FFFF;
+
+/// A `CellDecoration` packed into one word so the column array compares
+/// as bytes (RAS-008): bits 0-2 underline style, bit 3 overline, bit 4
+/// whether an underline color is set, bits 8-31 that color.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[repr(transparent)]
+pub struct PackedDecoration(u32);
+
+impl From<CellDecoration> for PackedDecoration {
+    fn from(d: CellDecoration) -> Self {
+        let mut word = u32::from(d.underline as u8) & 0x7;
+        if d.overline {
+            word |= 1 << 3;
+        }
+        if let Some([r, g, b]) = d.underline_color {
+            word |= 1 << 4;
+            word |= (u32::from(r) << 8) | (u32::from(g) << 16) | (u32::from(b) << 24);
+        }
+        PackedDecoration(word)
+    }
+}
+
+impl From<PackedDecoration> for CellDecoration {
+    fn from(p: PackedDecoration) -> Self {
+        let word = p.0;
+        let underline = match word & 0x7 {
+            1 => UnderlineStyle::Single,
+            2 => UnderlineStyle::Double,
+            3 => UnderlineStyle::Curly,
+            4 => UnderlineStyle::Dotted,
+            5 => UnderlineStyle::Dashed,
+            _ => UnderlineStyle::None,
+        };
+        CellDecoration {
+            underline,
+            underline_color: (word & (1 << 4) != 0).then_some([
+                ((word >> 8) & 0xFF) as u8,
+                ((word >> 16) & 0xFF) as u8,
+                ((word >> 24) & 0xFF) as u8,
+            ]),
+            overline: word & (1 << 3) != 0,
+        }
+    }
+}
 
 /// One grid cell: packed char, colors, attribute word. Reference `Cell`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -132,7 +176,7 @@ pub struct OptimizedBuffer<'a> {
     fgs: Vec<Rgba>,
     bgs: Vec<Rgba>,
     attributes: Vec<u32>,
-    decorations: Vec<CellDecoration>,
+    decorations: Vec<PackedDecoration>,
     width: u32,
     height: u32,
     respect_alpha: bool,
@@ -162,7 +206,7 @@ impl<'a> OptimizedBuffer<'a> {
             fgs: vec![ansi::rgb_color(0, 0, 0, 0); size],
             bgs: vec![ansi::rgb_color(0, 0, 0, 0); size],
             attributes: vec![0; size],
-            decorations: vec![CellDecoration::default(); size],
+            decorations: vec![PackedDecoration::default(); size],
             width,
             height,
             respect_alpha: options.respect_alpha,
@@ -244,7 +288,7 @@ impl<'a> OptimizedBuffer<'a> {
         self.fgs.resize(size, ansi::rgb_color(0, 0, 0, 0));
         self.bgs.resize(size, ansi::rgb_color(0, 0, 0, 0));
         self.attributes.resize(size, 0);
-        self.decorations.resize(size, CellDecoration::default());
+        self.decorations.resize(size, PackedDecoration::default());
         self.width = width;
         self.height = height;
         // Always clear after resize: new cells would be garbage and
@@ -260,7 +304,7 @@ impl<'a> OptimizedBuffer<'a> {
         self.placements.clear();
         self.chars.fill(cell_char);
         self.attributes.fill(0);
-        self.decorations.fill(CellDecoration::default());
+        self.decorations.fill(PackedDecoration::default());
         self.fgs.fill(ansi::rgb_color(255, 255, 255, 255));
         self.bgs.fill(bg);
     }
@@ -364,7 +408,7 @@ impl<'a> OptimizedBuffer<'a> {
                     }
                     self.chars[span_i] = DEFAULT_SPACE_CHAR;
                     self.attributes[span_i] = 0;
-                    self.decorations[span_i] = CellDecoration::default();
+                    self.decorations[span_i] = PackedDecoration::default();
                 }
                 span_i += 1;
             }
@@ -386,7 +430,7 @@ impl<'a> OptimizedBuffer<'a> {
                 }
                 self.chars[index..end_of_line].fill(DEFAULT_SPACE_CHAR);
                 self.attributes[index..end_of_line].fill(cell.attributes);
-                self.decorations[index..end_of_line].fill(cell.decoration);
+                self.decorations[index..end_of_line].fill(cell.decoration.into());
                 self.fgs[index..end_of_line].fill(cell.fg);
                 self.bgs[index..end_of_line].fill(cell.bg);
                 let new_link_id = TextAttributes::link_id(cell.attributes);
@@ -402,7 +446,7 @@ impl<'a> OptimizedBuffer<'a> {
             self.fgs[index] = cell.fg;
             self.bgs[index] = cell.bg;
             self.attributes[index] = cell.attributes;
-            self.decorations[index] = cell.decoration;
+            self.decorations[index] = cell.decoration.into();
 
             let id = grapheme_id_from_char(cell.char);
             let is_same_grapheme_start = is_grapheme_char(prev_char) && prev_char == cell.char;
@@ -433,7 +477,7 @@ impl<'a> OptimizedBuffer<'a> {
                     self.fgs[index + 1..index + 1 + max_right].fill(cell.fg);
                     self.bgs[index + 1..index + 1 + max_right].fill(cell.bg);
                     self.attributes[index + 1..index + 1 + max_right].fill(cell.attributes);
-                    self.decorations[index + 1..index + 1 + max_right].fill(cell.decoration);
+                    self.decorations[index + 1..index + 1 + max_right].fill(cell.decoration.into());
                     let mut k = 1;
                     while k <= max_right {
                         let cont = pack_continuation(k as u32, (max_right - k) as u32, id);
@@ -458,7 +502,7 @@ impl<'a> OptimizedBuffer<'a> {
         self.fgs[index] = cell.fg;
         self.bgs[index] = cell.bg;
         self.attributes[index] = cell.attributes;
-        self.decorations[index] = cell.decoration;
+        self.decorations[index] = cell.decoration.into();
         if prev_link_id != 0 && prev_link_id != new_link_id {
             self.link_tracker.remove_cell_ref(prev_link_id);
         }
@@ -479,8 +523,72 @@ impl<'a> OptimizedBuffer<'a> {
             fg: self.fgs[index],
             bg: self.bgs[index],
             attributes: self.attributes[index],
-            decoration: self.decorations[index],
+            decoration: self.decorations[index].into(),
         })
+    }
+
+    // ---- index-based access for the rasterizer (RAS-003, RAS-008) ----
+
+    /// Cell index of a coordinate pair; the caller keeps it in range.
+    #[inline]
+    pub fn index_of(&self, x: u32, y: u32) -> usize {
+        self.coords_to_index(x, y)
+    }
+
+    #[inline]
+    pub fn char_at(&self, index: usize) -> u32 {
+        self.chars[index]
+    }
+
+    #[inline]
+    pub fn fg_at(&self, index: usize) -> Rgba {
+        self.fgs[index]
+    }
+
+    #[inline]
+    pub fn bg_at(&self, index: usize) -> Rgba {
+        self.bgs[index]
+    }
+
+    #[inline]
+    pub fn attributes_at(&self, index: usize) -> u32 {
+        self.attributes[index]
+    }
+
+    #[inline]
+    pub fn decoration_at(&self, index: usize) -> CellDecoration {
+        self.decorations[index].into()
+    }
+
+    /// Whether the cell at `index` holds the same value in both buffers,
+    /// read from the column arrays without building a `Cell`.
+    #[inline]
+    pub fn cell_eq_at(&self, other: &Self, index: usize) -> bool {
+        self.chars[index] == other.chars[index]
+            && self.fgs[index] == other.fgs[index]
+            && self.bgs[index] == other.bgs[index]
+            && self.attributes[index] == other.attributes[index]
+            && self.decorations[index] == other.decorations[index]
+    }
+
+    /// The first column of row `y` whose cell differs between the two
+    /// buffers, or `None` when the row is identical. One pass over the
+    /// row's column arrays; no `Cell` is built (RAS-008).
+    pub fn row_first_change(&self, other: &Self, y: u32) -> Option<u32> {
+        let width = self.width as usize;
+        let start = y as usize * width;
+        let end = start + width;
+        let same = self.chars[start..end] == other.chars[start..end]
+            && self.fgs[start..end] == other.fgs[start..end]
+            && self.bgs[start..end] == other.bgs[start..end]
+            && self.attributes[start..end] == other.attributes[start..end]
+            && self.decorations[start..end] == other.decorations[start..end];
+        if same {
+            return None;
+        }
+        (start..end)
+            .find(|&i| !self.cell_eq_at(other, i))
+            .map(|i| (i - start) as u32)
     }
 
     // ---- tiny reference accessors ----

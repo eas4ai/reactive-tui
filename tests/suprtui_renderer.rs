@@ -297,3 +297,68 @@ fn rnd_001_explicit_black_background_covers_lower_content() {
         vt100::Color::Rgb(59, 130, 246)
     );
 }
+
+/// RAS-006: the debug overlay shows bytes, elisions and the four times.
+#[test]
+fn ras_006_debug_overlay_shows_bytes_elisions_and_times() {
+    let out = Capture::default();
+    let mut backend = SuprTuiBackend::with_writer(160, 6, out.clone()).unwrap();
+    backend.set_debug_overlay(true);
+    let mut terminal = vt100::Parser::new(6, 160, 0);
+    show(&mut backend, &frame("first"));
+    terminal.process(&out.take());
+    show(&mut backend, &frame("second"));
+    terminal.process(&out.take());
+    let overlay: String = (0..160)
+        .map(|x| {
+            terminal
+                .screen()
+                .cell(5, x)
+                .map(|c| c.contents())
+                .unwrap_or_default()
+        })
+        .collect::<Vec<_>>()
+        .join("");
+    for needle in [
+        "bytes:", "moves:", "fg:", "bg:", "attr:", "layout:", "diff:", "emit:", "write:",
+    ] {
+        assert!(
+            overlay.contains(needle),
+            "overlay lacks {needle}: {overlay:?}"
+        );
+    }
+    let bytes: usize = overlay
+        .split("bytes: ")
+        .nth(1)
+        .and_then(|rest| rest.split(' ').next())
+        .and_then(|n| n.parse().ok())
+        .expect("bytes figure");
+    assert!(
+        bytes > 0,
+        "a rendered frame reported zero bytes: {overlay:?}"
+    );
+}
+
+/// RAS-007: the painter clears the next buffer once per frame, so a smaller
+/// root after a larger one leaves no stale cells.
+#[test]
+fn ras_007_a_smaller_frame_leaves_no_stale_cells() {
+    let out = Capture::default();
+    let mut backend = SuprTuiBackend::with_writer(12, 4, out.clone()).unwrap();
+    let mut terminal = vt100::Parser::new(4, 12, 0);
+    show(
+        &mut backend,
+        &Element::text("wide wide wi").with_class("w-full h-1"),
+    );
+    terminal.process(&out.take());
+    assert_eq!(terminal.screen().cell(0, 11).unwrap().contents(), "i");
+    show(&mut backend, &Element::text("ab").with_class("w-2 h-1"));
+    terminal.process(&out.take());
+    assert_eq!(terminal.screen().cell(0, 0).unwrap().contents(), "a");
+    assert_eq!(
+        terminal.screen().cell(0, 11).unwrap().contents(),
+        " ",
+        "stale cell survived: {:?}",
+        terminal.screen().contents()
+    );
+}
