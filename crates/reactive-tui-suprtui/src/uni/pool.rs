@@ -334,6 +334,15 @@ fn decode_id(id: IdPayload) -> Result<(usize, u32, u32), GraphemePoolError> {
     Ok((class_id, slot_index, generation))
 }
 
+/// Remove `bytes` from the intern map when it still names `expected_id`.
+/// A free function over the map alone, so a caller can pass a key borrowed
+/// from the pool's slots without copying it.
+fn remove_interned(map: &mut HashMap<Vec<u8>, IdPayload>, bytes: &[u8], expected_id: IdPayload) {
+    if map.get(bytes) == Some(&expected_id) {
+        map.remove(bytes);
+    }
+}
+
 /// Caller-owned slab pool for grapheme-cluster bytes. Reference `GraphemePool`.
 #[derive(Debug)]
 pub struct GraphemePool<'a> {
@@ -370,10 +379,22 @@ impl<'a> GraphemePool<'a> {
     }
 
     fn remove_interned_live_id(&mut self, bytes: &[u8], expected_id: IdPayload) {
-        if self.interned_live_ids.get(bytes) != Some(&expected_id) {
-            return;
-        }
-        self.interned_live_ids.remove(bytes);
+        remove_interned(&mut self.interned_live_ids, bytes, expected_id);
+    }
+
+    /// Remove the interned entry for the owned slot `id` when it names that
+    /// slot. The key is borrowed from the slot itself: releasing a cluster
+    /// runs on the render path (RAS-003) and must not copy its bytes.
+    fn unintern_owned(
+        &mut self,
+        class_id: usize,
+        slot_index: u32,
+        generation: u32,
+        id: IdPayload,
+    ) -> Result<(), GraphemePoolError> {
+        let key = self.classes[class_id].get(slot_index, generation)?;
+        remove_interned(&mut self.interned_live_ids, key, id);
+        Ok(())
     }
 
     fn lookup_or_invalidate(&mut self, bytes: &[u8]) -> Option<IdPayload> {
@@ -461,8 +482,7 @@ impl<'a> GraphemePool<'a> {
         let (class_id, slot_index, generation) = decode_id(id)?;
         let old_refcount = self.classes[class_id].get_refcount(slot_index, generation)?;
         if old_refcount == 1 && self.classes[class_id].is_owned(slot_index, generation)? {
-            let key = self.classes[class_id].get(slot_index, generation)?.to_vec();
-            self.remove_interned_live_id(&key, id);
+            self.unintern_owned(class_id, slot_index, generation, id)?;
         }
         self.classes[class_id].decref(slot_index, generation)?;
         if old_refcount > 1 {
@@ -489,8 +509,7 @@ impl<'a> GraphemePool<'a> {
     pub fn free_unreferenced(&mut self, id: IdPayload) -> Result<(), GraphemePoolError> {
         let (class_id, slot_index, generation) = decode_id(id)?;
         if self.classes[class_id].is_owned(slot_index, generation)? {
-            let key = self.classes[class_id].get(slot_index, generation)?.to_vec();
-            self.remove_interned_live_id(&key, id);
+            self.unintern_owned(class_id, slot_index, generation, id)?;
         }
         self.classes[class_id].free_unreferenced(slot_index, generation)
     }
