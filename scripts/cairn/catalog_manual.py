@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """BAR-006: a delivered widget has a catalog page and a manual section whose
-builder methods exist in the code. Scope for this commitment: the chart
-family (line, area, bar, candlestick).
+builder methods exist in the code. Scope: the chart family (line, area,
+scatter, bar, candlestick) and the image widget, reworked to draw its block
+fallback through the renderer's blitters.
 
 Also exposes `chart_docs_problems()` for the charts-goldens mechanism, which
 owns CHT-023.
@@ -64,14 +65,43 @@ def chart_docs_problems() -> list[str]:
     return problems
 
 
+IMAGE_MANUAL = ROOT / "manual/images-and-clipboard.md"
+IMAGE_BUILDER = ROOT / "src/builder/specialized.rs"
+
+
+def image_docs_problems() -> list[str]:
+    """The image widget: a catalog page built with `image()`, a manual section
+    headed "Image widget", and every builder method that section cites is a
+    pub fn on ImageBuilder."""
+    problems = []
+    catalog = CATALOG.read_text(errors="replace") if CATALOG.exists() else ""
+    if not re.search(r"\bimage\(\)", catalog) or "Image" not in catalog:
+        problems.append("catalog has no image page")
+    manual = IMAGE_MANUAL.read_text(errors="replace") if IMAGE_MANUAL.exists() else ""
+    section = re.search(r"^## Image widget\n(.*?)(?=^## )", manual, re.M | re.S)
+    if section is None:
+        problems.append("manual has no Image widget heading")
+        return problems
+    builder = IMAGE_BUILDER.read_text(errors="replace") if IMAGE_BUILDER.exists() else ""
+    body = re.search(r"impl ImageBuilder\s*\{(.*?)\n\}", builder, re.S)
+    methods = set(re.findall(r"\bpub fn\s+([a-z_][a-z0-9_]*)", body.group(1))) if body else set()
+    if not methods:
+        problems.append("no ImageBuilder impl found")
+    for span in re.findall(r"`([^`]*)`", section.group(1)):
+        for name in re.findall(r"\.([a-z_][a-z0-9_]*)\(", span):
+            if name not in methods:
+                problems.append(f"manual cites .{name}() which is not a pub fn on ImageBuilder")
+    return problems
+
+
 def main() -> int:
-    problems = chart_docs_problems()
+    problems = chart_docs_problems() + image_docs_problems()
     if problems:
         print("BAR-006 violated:")
         for p in problems:
             print("  " + p)
         return 1
-    print("BAR-006 holds for the chart family")
+    print("BAR-006 holds for the chart family and the image widget")
     return 0
 
 

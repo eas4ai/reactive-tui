@@ -264,3 +264,77 @@ impl Component for LiveImage {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn props() -> LiveProps {
+        LiveProps {
+            image: Arc::new(Image {
+                display_mode: ImageDisplayMode::AsciiArt,
+                ..Image::default()
+            }),
+            format: None,
+        }
+    }
+
+    /// A live image in a given state, with no worker, so rendering reads that
+    /// state instead of a worker's answer.
+    fn in_state(pending: bool, pixels: Option<(u32, u32)>, error: Option<&str>) -> LiveImage {
+        LiveImage {
+            previous: props(),
+            image_id: 1,
+            view: Mutex::new(View {
+                worker: None,
+                request: pending.then_some(1),
+                pending,
+                pixels: pixels.map(|(w, h)| Arc::new(image::RgbaImage::new(w, h))),
+                error: error.map(str::to_owned),
+                layout: None,
+                ascii: None,
+                cells: None,
+            }),
+        }
+    }
+
+    /// BAR-003: the image's screen-reader node describes its state, marks
+    /// it busy while the worker prepares it, and its drawn content is inert,
+    /// so it has no pointer action that would need a keyboard equivalent.
+    #[test]
+    fn bar_003_the_image_describes_its_state_to_the_screen_reader() {
+        for (image, description, busy) in [
+            (in_state(true, None, None), "Loading image", true),
+            (
+                in_state(false, Some((96, 32)), None),
+                "96 by 32 pixels",
+                false,
+            ),
+            (
+                in_state(false, None, Some("not a PNG")),
+                "Image error: not a PNG",
+                false,
+            ),
+            (in_state(false, None, None), "Image has no source", false),
+        ] {
+            let root = image.render(&props(), &());
+            let node = root
+                .metadata
+                .accessibility
+                .as_ref()
+                .expect("an accessibility node");
+            assert_eq!(node.inner.role(), crate::accessibility::Role::Image);
+            // The label is the image's fallback text.
+            assert_eq!(
+                node.inner.label(),
+                props().image.fallback_text.as_deref().or(Some("Image"))
+            );
+            assert_eq!(node.inner.description(), Some(description));
+            assert_eq!(node.is_busy(), busy, "{description}");
+            assert!(
+                root.children.iter().all(|child| child.metadata.inert),
+                "the drawn content must be inert"
+            );
+        }
+    }
+}
