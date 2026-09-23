@@ -61,6 +61,11 @@ impl<W: Write> CheckedOutput<W> {
     /// worker after it has replied with the frame's geometry (PIP-001); a
     /// failure is returned to the worker, which reports it with the next
     /// present or at shutdown (PIP-002).
+    /// Whether a rendered frame waits for `flush_pending`.
+    pub(super) fn has_pending(&self) -> bool {
+        !self.pending.is_empty()
+    }
+
     pub(super) fn flush_pending(&mut self) -> io::Result<()> {
         if self.pending.is_empty() {
             return Ok(());

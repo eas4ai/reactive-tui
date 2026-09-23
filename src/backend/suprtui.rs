@@ -720,7 +720,15 @@ fn run_worker<W: Write>(
                 let _ = reply.send(result);
                 // Write and flush after the reply (PIP-001); the next present
                 // waits on the rendezvous until this returns.
-                if let Err(error) = renderer.backend_mut().flush_pending() {
+                // The write is timed here, where it happens, and counted in
+                // the frame's stats that the next overlay shows (RAS-006).
+                let pending = renderer.backend().has_pending();
+                let started = std::time::Instant::now();
+                let flushed = renderer.backend_mut().flush_pending();
+                if pending {
+                    renderer.add_write_ns(started.elapsed().as_nanos() as u64);
+                }
+                if let Err(error) = flushed {
                     deferred = Some(error.into());
                     renderer.flush_failed();
                     force = true;

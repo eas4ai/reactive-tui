@@ -50,6 +50,8 @@ struct Output {
     flushes: usize,
     remaining: Option<usize>,
     fail_flush: bool,
+    /// How long each flush takes, like a slow terminal.
+    flush_delay: std::time::Duration,
 }
 
 #[derive(Clone, Default)]
@@ -73,6 +75,8 @@ impl Write for Capture {
     }
 
     fn flush(&mut self) -> io::Result<()> {
+        let delay = self.0.lock().unwrap().flush_delay;
+        std::thread::sleep(delay);
         let mut out = self.0.lock().unwrap();
         out.flushes += 1;
         if out.fail_flush {
@@ -382,6 +386,48 @@ fn ras_006_debug_overlay_shows_bytes_elisions_and_times() {
     assert!(
         bytes > 0,
         "a rendered frame reported zero bytes: {overlay:?}"
+    );
+}
+
+/// The debug overlay's text on the bottom row of a 160-column screen.
+fn overlay_row(terminal: &vt100::Parser) -> String {
+    (0..160)
+        .map(|x| {
+            terminal
+                .screen()
+                .cell(5, x)
+                .map(|c| c.contents())
+                .unwrap_or_default()
+        })
+        .collect::<Vec<_>>()
+        .join("")
+}
+
+/// RAS-006: the write time the overlay shows covers the terminal write.
+/// Since PIP-001 the worker writes and flushes after `render` returns; with a
+/// flush that takes 40 ms, the next frame's overlay must report at least
+/// that for the frame before it.
+#[test]
+fn ras_006_the_overlay_write_time_includes_the_deferred_terminal_write() {
+    let out = Capture::default();
+    out.0.lock().unwrap().flush_delay = std::time::Duration::from_millis(40);
+    let mut backend = SuprTuiBackend::with_writer(160, 6, out.clone()).unwrap();
+    backend.set_debug_overlay(true);
+    let mut terminal = vt100::Parser::new(6, 160, 0);
+    for text in ["one", "two", "three"] {
+        show(&mut backend, &frame(text));
+        terminal.process(&out.take());
+    }
+    let overlay = overlay_row(&terminal);
+    let write_us: u64 = overlay
+        .split("write: ")
+        .nth(1)
+        .and_then(|rest| rest.split("us").next())
+        .and_then(|n| n.trim().parse().ok())
+        .unwrap_or_else(|| panic!("no write figure: {overlay:?}"));
+    assert!(
+        write_us >= 40_000,
+        "a 40 ms write reported as {write_us} us: {overlay:?}"
     );
 }
 

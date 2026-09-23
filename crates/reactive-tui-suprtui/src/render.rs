@@ -1044,6 +1044,14 @@ impl<'a, B: Backend> Renderer<'a, B> {
         RenderStatus::Failed
     }
 
+    /// Add the time a backend spent writing and flushing the last rendered
+    /// frame after `render` returned, for a backend that defers the terminal
+    /// write (PIP-001): the frame's write time then covers the whole write,
+    /// and the debug overlay drawn on the next frame shows it (RAS-006).
+    pub fn add_write_ns(&mut self, nanoseconds: u64) {
+        self.stats.write_ns = self.stats.write_ns.saturating_add(nanoseconds);
+    }
+
     /// The backend's deferred write of the last rendered frame failed after
     /// `render` returned: the terminal never received it. The next render
     /// repaints fully and re-emits the cursor state, as a failed frame does.
