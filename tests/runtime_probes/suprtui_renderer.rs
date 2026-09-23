@@ -60,6 +60,12 @@ impl Backend for ExampleBackend {
     fn render_frame(&mut self, element: &Element) -> Result<bool> {
         self.inner.render_frame(element)
     }
+    fn layout_frame(
+        &mut self,
+        element: std::sync::Arc<Element>,
+    ) -> Result<Option<reactive_tui::backend::FrameLayout>> {
+        self.inner.layout_frame(element)
+    }
     fn apply_patches(&mut self, patches: &[PatchOp], tree: &RenderTree) -> Result<()> {
         self.inner.apply_patches(patches, tree)
     }

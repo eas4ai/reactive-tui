@@ -92,6 +92,12 @@ impl Backend for InputBackend {
         self.busy = busy(element);
         self.inner.render_frame(element)
     }
+    fn layout_frame(
+        &mut self,
+        element: Arc<Element>,
+    ) -> Result<Option<reactive_tui::backend::FrameLayout>> {
+        self.inner.layout_frame(element)
+    }
     fn apply_patches(&mut self, _: &[PatchOp], _: &RenderTree) -> Result<()> {
         panic!("complete frame required")
     }

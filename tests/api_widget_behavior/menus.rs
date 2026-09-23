@@ -517,8 +517,8 @@ fn menu_bar_resize_moves_open_dropdown_and_pointer_targets() {
             size,
             vec![
                 (3, Some(Event::Resize(ResizeEvent::new(20, 8)))),
-                (6, super::click(10, 3)),
-                (7, None),
+                (5, super::click(10, 3)),
+                (6, None),
             ],
         );
         assert_eq!(
@@ -527,11 +527,12 @@ fn menu_bar_resize_moves_open_dropdown_and_pointer_targets() {
             "{}",
             frames[2].text
         );
+        // The first frame after the resize already shows the new position.
         assert_eq!(
-            frames[5].screen.cell(2, 10).unwrap().contents(),
+            frames[3].screen.cell(2, 10).unwrap().contents(),
             "F",
             "{}",
-            frames[5].text
+            frames[3].text
         );
         assert_eq!(*calls.lock().unwrap(), ["second"]);
         assert!(!frames.last().unwrap().text.contains("SECOND"));
@@ -2406,8 +2407,8 @@ fn menu_overlay_resize_repositions_paint_and_mouse_targets() {
             size,
             vec![
                 (3, Some(Event::Resize(ResizeEvent::new(20, 8)))),
-                (6, super::click(13, 7)),
-                (7, None),
+                (5, super::click(13, 7)),
+                (6, None),
             ],
         );
         assert_eq!(
@@ -2418,11 +2419,12 @@ fn menu_overlay_resize_repositions_paint_and_mouse_targets() {
                 .contents(),
             "F"
         );
+        // The first frame after the resize already shows the new position.
         assert_eq!(
-            frames[5].screen.cell(6, 13).unwrap().contents(),
+            frames[3].screen.cell(6, 13).unwrap().contents(),
             "F",
             "{}",
-            frames[5].text
+            frames[3].text
         );
         assert_eq!(*calls.lock().unwrap(), ["second"]);
         assert!(!frames.last().unwrap().text.contains("SECOND"));

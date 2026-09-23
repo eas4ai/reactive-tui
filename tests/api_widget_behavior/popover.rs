@@ -767,7 +767,7 @@ fn popover_reports_measured_position_and_repositions_after_resize() {
     let frames = run(
         Control(tree),
         (32, 12),
-        vec![(3, Some(Event::Resize(ResizeEvent::new(20, 8)))), (6, None)],
+        vec![(3, Some(Event::Resize(ResizeEvent::new(20, 8)))), (5, None)],
     );
     assert_eq!(*positions.lock().unwrap(), [PopoverPosition::LeftStart]);
     assert_eq!(
@@ -775,6 +775,13 @@ fn popover_reports_measured_position_and_repositions_after_resize() {
         "B",
         "{}",
         frames[2].text
+    );
+    // The first frame after the resize already shows the new position.
+    assert_eq!(
+        frames[3].screen.cell(2, 6).unwrap().contents(),
+        "B",
+        "{}",
+        frames[3].text
     );
     assert_eq!(
         frames.last().unwrap().screen.cell(2, 6).unwrap().contents(),

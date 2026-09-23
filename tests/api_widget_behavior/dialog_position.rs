@@ -294,5 +294,19 @@ fn relative_dialog_tracks_changed_parent_layout_and_viewport_resize() {
             "the dialog must sit at the new center after resizing to {resized:?}:\n{}",
             last.text
         );
+        // The anchor is refreshed before the first frame at the new size is
+        // presented, so that frame already places the dialog.
+        let first = frames
+            .iter()
+            .find(|frame| frame.screen.size() == (resized.1, resized.0))
+            .expect("a frame at the new size");
+        assert!(
+            first
+                .screen
+                .cell(2, resized.0 / 2 - 7)
+                .is_some_and(|c| c.contents() == "┌"),
+            "the first frame after resizing to {resized:?} must place the dialog at the new anchor:\n{}",
+            first.text
+        );
     }
 }

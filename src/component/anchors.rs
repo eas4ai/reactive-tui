@@ -1,4 +1,5 @@
-//! Named geometry owned by one App, replaced after acknowledged presentation.
+//! Named geometry owned by one App, replaced after acknowledged presentation
+//! and, after a resize, from the layout the App prepares before presenting.
 
 use super::Element;
 use crate::{backend::PaintedNode, event::hit::Bounds};

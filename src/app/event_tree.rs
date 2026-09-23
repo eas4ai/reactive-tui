@@ -252,6 +252,39 @@ impl EventTree {
         frame.keyboard_only = ancestor_keyboard_only;
     }
 
+    /// Hand each element's layout callbacks its layout from a frame that
+    /// was laid out but not presented, indexed in the preorder `sync` uses,
+    /// so each component sizes itself before that frame is painted. Hit
+    /// targets and focus wait for the presented frame. Returns whether any
+    /// component's layout changed.
+    pub(crate) fn publish_layouts(
+        element: &Element,
+        layouts: &[crate::backend::PresentedLayout],
+    ) -> bool {
+        fn preorder<'a>(
+            element: &'a Element,
+            callbacks: &mut Vec<&'a [crate::component::element::LayoutCallback]>,
+        ) {
+            callbacks.push(&element.metadata.layout);
+            for child in &element.children {
+                preorder(child, callbacks);
+            }
+        }
+        let mut callbacks = Vec::new();
+        preorder(element, &mut callbacks);
+        let mut changed = false;
+        for presented in layouts {
+            for callback in callbacks
+                .get(presented.element_index)
+                .copied()
+                .unwrap_or_default()
+            {
+                changed |= callback(presented.layout);
+            }
+        }
+        changed
+    }
+
     pub(crate) fn clear(&mut self, router: &mut EventRouter) {
         let nodes: Vec<_> = self.nodes.drain().map(|(_, id)| id).collect();
         router.remove_nodes(&nodes);

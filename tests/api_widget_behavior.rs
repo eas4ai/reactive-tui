@@ -247,6 +247,63 @@ impl Component for GeometryProbe {
     }
 }
 
+/// Shows the content width its last layout gave it.
+#[derive(Default)]
+struct WidthProbe {
+    width: Option<f32>,
+}
+impl Component for WidthProbe {
+    type Props = reactive_tui::component::props::EmptyProps;
+    type State = ();
+    fn new(_: Self::Props) -> Self {
+        Self::default()
+    }
+    fn render(&self, _: &Self::Props, _: &()) -> Element {
+        Element::text(format!(
+            "width={}",
+            self.width.map_or("none".into(), |w| w.to_string())
+        ))
+    }
+    fn layout(&mut self, layout: LayoutInfo, _: &mut Self::Props, _: &mut ()) -> bool {
+        let width = Some(layout.content_size().0);
+        let changed = self.width != width;
+        self.width = width;
+        changed
+    }
+}
+
+/// The App lays a resized frame out before presenting it, so the first
+/// frame at the new size already shows the size each component was given
+/// (BAR-003: no stale geometry after a resize).
+#[test]
+fn the_first_frame_after_a_resize_shows_components_their_new_size() {
+    let frames = run(
+        Control(
+            Element::typed::<WidthProbe>(reactive_tui::component::props::EmptyProps)
+                .class("w-full"),
+        ),
+        (24, 6),
+        vec![
+            (2, Some(Event::Resize(ResizeEvent::new(48, 12)))),
+            (3, None),
+        ],
+    );
+    let before = frames
+        .iter()
+        .rfind(|frame| frame.screen.size() == (6, 24))
+        .expect("a frame at 24 by 6");
+    assert!(before.text.contains("width=24"), "{}", before.text);
+    let first = frames
+        .iter()
+        .find(|frame| frame.screen.size() == (12, 48))
+        .expect("a frame at 48 by 12");
+    assert!(
+        first.text.contains("width=48"),
+        "the first frame at 48 by 12 must show the new width, not the old one:\n{}",
+        first.text
+    );
+}
+
 #[test]
 fn an_unhandled_tab_reaches_a_component_only_once() {
     let log = GeometryLog::default();
