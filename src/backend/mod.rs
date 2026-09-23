@@ -472,6 +472,25 @@ impl DebugBackend {
         content
     }
 
+    /// The presented cell at position (x, y): its colors and attributes as
+    /// the painter wrote them. Its text is [`DebugBackend::cell_text`].
+    pub fn cell(&self, x: usize, y: usize) -> Option<crate::core::surface::Cell> {
+        let (w, h) = self.virtual_screen.dims();
+        (x < w && y < h).then(|| self.virtual_screen.get(x, y))
+    }
+
+    /// The text of the presented cell at position (x, y): a whole grapheme
+    /// cluster, or an empty string for the second cell of a wide one. `None`
+    /// outside the screen or before a frame painted through the SuprTUI
+    /// painter has been presented.
+    pub fn cell_text(&self, x: usize, y: usize) -> Option<&str> {
+        let (w, h) = self.virtual_screen.dims();
+        if x >= w || y >= h {
+            return None;
+        }
+        self.graphemes.as_ref().map(|text| text[y * w + x].as_str())
+    }
+
     /// Get a specific character at position (x, y)
     pub fn char_at(&self, x: usize, y: usize) -> Option<char> {
         let (w, h) = self.virtual_screen.dims();
