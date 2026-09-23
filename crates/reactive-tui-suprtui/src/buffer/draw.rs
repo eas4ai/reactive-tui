@@ -1142,7 +1142,8 @@ impl<'a> OptimizedBuffer<'a> {
                 let src_fg = frame_buffer.fgs[src_index];
                 let src_bg = frame_buffer.bgs[src_index];
                 let src_attr = frame_buffer.attributes[src_index];
-                let src_decoration = frame_buffer.decorations[src_index];
+                let src_decoration: ansi::CellDecoration =
+                    frame_buffer.decorations[src_index].into();
                 let transparent_cell = ansi::alpha(src_bg) == 0 && ansi::alpha(src_fg) == 0;
                 if transparent_cell
                     && is_image_char(src_char)

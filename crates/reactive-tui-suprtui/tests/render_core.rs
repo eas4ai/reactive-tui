@@ -105,7 +105,7 @@ fn req_005_memory_backend_exact() {
     draw(&mut renderer, "Q", 0, 0);
     assert_eq!(RenderStatus::Rendered, renderer.render(false));
     assert_eq!(1, renderer.backend().frames().len());
-    let hand = "\x1b[?2026h\x1b[?25l\x1b[1;1H\x1b[0m\x1b[38;2;255;255;255m\x1b[48;2;0;0;0mQ\x1b[0m\x1b[?2026l";
+    let hand = "\x1b[?2026h\x1b[?25l\x1b[0m\x1b[1;1H\x1b[38;2;255;255;255m\x1b[48;2;0;0;0mQ\x1b[0m\x1b[?2026l";
     assert_eq!(hand.as_bytes(), renderer.backend().frames()[0].as_slice());
     // A second identical frame skips and appends nothing.
     draw(&mut renderer, "Q", 0, 0);

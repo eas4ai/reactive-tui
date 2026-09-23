@@ -11,26 +11,31 @@
 //! sequences (REN-007), hit testing with scissor (REN-008), render
 //! offsets with a footer surface (REN-009), and image fallback
 //! materialization (REN-010). Capability queries, mode toggles, and
-//! Kitty transmit belong to later domains. Style-run coalescing is
-//! omitted on purpose: every changed cell carries its own move plus
-//! `cell_ansi` bytes, which is correct output at the cost of redundant
-//! sequences; the reference's run tracking is an optimization, not a
-//! requirement.
+//! Kitty transmit belong to later domains. The rasterizer tracks the
+//! terminal cursor and the emitted style within a frame, so a changed cell
+//! emits a move only when the cursor is elsewhere and a style part only
+//! when it differs from the last emitted cell, and builds the frame's bytes
+//! in one reused buffer (docs/spec/rasterizer.md).
 
-use crate::ansi::{self, Rgba};
+use crate::ansi::{self, Rgba, TextAttributes};
 use crate::buffer::{BufferError, ClipRect, InitOptions, OptimizedBuffer};
 use crate::uni::pool::GraphemePool;
 use std::cell::RefCell;
 use std::rc::Rc;
+use std::time::Instant;
 
 // ---- frame envelope sequences (reference `ansi.ANSI`) ----
 
-const SYNC_SET: &str = "\x1b[?2026h";
-const SYNC_RESET: &str = "\x1b[?2026l";
-const HIDE_CURSOR: &str = "\x1b[?25l";
-const SHOW_CURSOR: &str = "\x1b[?25h";
-const RESET: &str = "\x1b[0m";
-const DEFAULT_CURSOR_STYLE: &str = "\x1b[0 q";
+const SYNC_SET: &[u8] = b"\x1b[?2026h";
+const SYNC_RESET: &[u8] = b"\x1b[?2026l";
+const HIDE_CURSOR: &[u8] = b"\x1b[?25l";
+const SHOW_CURSOR: &[u8] = b"\x1b[?25h";
+const RESET: &[u8] = b"\x1b[0m";
+const DEFAULT_CURSOR_STYLE: &[u8] = b"\x1b[0 q";
+const SHOW_CURSOR_STR: &str = "\x1b[?25h";
+const RESET_STR: &str = "\x1b[0m";
+const HIDE_CURSOR_STR: &str = "\x1b[?25l";
+const DEFAULT_CURSOR_STYLE_STR: &str = "\x1b[0 q";
 
 // ---- terminal lifecycle sequences (reference `ansi.ANSI`) ----
 
@@ -370,6 +375,21 @@ impl Default for CursorState {
 pub struct RenderStats {
     pub frame_count: u64,
     pub cells_updated: u32,
+    /// Bytes handed to the backend for the frame.
+    pub bytes_emitted: usize,
+    pub moves_emitted: u32,
+    pub moves_elided: u32,
+    pub fg_emitted: u32,
+    pub fg_elided: u32,
+    pub bg_emitted: u32,
+    pub bg_elided: u32,
+    pub attr_emitted: u32,
+    pub attr_elided: u32,
+    /// Layout and paint time the caller reported through `set_layout_ns`.
+    pub layout_ns: u64,
+    pub diff_ns: u64,
+    pub emit_ns: u64,
+    pub write_ns: u64,
 }
 
 /// Double-buffered frame renderer over a caller-owned backend.
@@ -403,7 +423,11 @@ pub struct Renderer<'a, B: Backend> {
     committed_images: Vec<u32>,
     pending_images: Vec<u32>,
     stats: RenderStats,
-    emitted: usize,
+    pending_layout_ns: u64,
+    /// The frame's bytes, reused across frames.
+    frame: Vec<u8>,
+    /// Changed rows and their first changed column, reused across frames.
+    changed_rows: Vec<(u32, u32)>,
 }
 
 impl<'a, B: Backend> Renderer<'a, B> {
@@ -422,7 +446,6 @@ impl<'a, B: Backend> Renderer<'a, B> {
         current.clear(background, None);
         next.clear(background, None);
         footer.clear(background, None);
-        let size = width as usize * height as usize;
         Ok(Renderer {
             backend,
             current,
@@ -446,12 +469,14 @@ impl<'a, B: Backend> Renderer<'a, B> {
             last_y: None,
             last_visible: None,
             force_full_repaint: false,
-            current_hit: vec![0; size],
-            next_hit: vec![0; size],
+            current_hit: Vec::new(),
+            next_hit: Vec::new(),
             committed_images: Vec::new(),
             pending_images: Vec::new(),
             stats: RenderStats::default(),
-            emitted: 0,
+            pending_layout_ns: 0,
+            frame: Vec::new(),
+            changed_rows: Vec::with_capacity(height as usize),
         })
     }
 
@@ -508,6 +533,7 @@ impl<'a, B: Backend> Renderer<'a, B> {
     /// this observes commit versus rollback only.
     pub fn set_next_hit(&mut self, x: u32, y: u32, id: u32) {
         if x < self.width && y < self.height {
+            self.ensure_hit_grid();
             self.next_hit[(y * self.width + x) as usize] = id;
         }
     }
@@ -515,7 +541,7 @@ impl<'a, B: Backend> Renderer<'a, B> {
     /// Last committed hit-grid id. Test hook for REN-004; `check_hit`
     /// semantics arrive with render-terminal.
     pub fn committed_hit(&self, x: u32, y: u32) -> u32 {
-        if x < self.width && y < self.height {
+        if x < self.width && y < self.height && !self.current_hit.is_empty() {
             self.current_hit[(y * self.width + x) as usize]
         } else {
             0
@@ -553,7 +579,7 @@ impl<'a, B: Backend> Renderer<'a, B> {
             }
         }
         seq.push_str(&format!("\x1b[{};{}H", 1, 1));
-        seq.push_str(HIDE_CURSOR);
+        seq.push_str(HIDE_CURSOR_STR);
         self.backend.write_out(seq.as_bytes());
     }
 
@@ -567,8 +593,8 @@ impl<'a, B: Backend> Renderer<'a, B> {
     }
 
     fn emit_shutdown(&mut self) {
-        let mut seq = String::from(SHOW_CURSOR);
-        seq.push_str(RESET);
+        let mut seq = String::from(SHOW_CURSOR_STR);
+        seq.push_str(RESET_STR);
         if self.use_alt_screen {
             seq.push_str(ALT_EXIT);
         } else if self.clear_on_shutdown && self.render_offset == 0 {
@@ -578,9 +604,9 @@ impl<'a, B: Backend> Renderer<'a, B> {
         }
         seq.push_str(RESET_CURSOR_COLOR_FALLBACK);
         seq.push_str(RESET_CURSOR_COLOR);
-        seq.push_str(DEFAULT_CURSOR_STYLE);
-        seq.push_str(SHOW_CURSOR);
-        seq.push_str(SHOW_CURSOR);
+        seq.push_str(DEFAULT_CURSOR_STYLE_STR);
+        seq.push_str(SHOW_CURSOR_STR);
+        seq.push_str(SHOW_CURSOR_STR);
         self.backend.write_out(seq.as_bytes());
     }
 
@@ -688,6 +714,7 @@ impl<'a, B: Backend> Renderer<'a, B> {
         if sw == 0 || sh == 0 {
             return;
         }
+        self.ensure_hit_grid();
         let start_x = sx.max(0) as u32;
         let start_y = sy.max(0) as u32;
         let end_x = sx.saturating_add(sw as i32).max(0).min(self.width as i32) as u32;
@@ -704,7 +731,7 @@ impl<'a, B: Backend> Renderer<'a, B> {
     /// out of bounds. Reads the last committed grid: staged ids publish
     /// only on a successful render. Reference `checkHit`.
     pub fn check_hit(&self, x: u32, y: u32) -> u32 {
-        if x >= self.width || y >= self.height {
+        if x >= self.width || y >= self.height || self.current_hit.is_empty() {
             return 0;
         }
         self.current_hit[(y * self.width + x) as usize]
@@ -725,115 +752,128 @@ impl<'a, B: Backend> Renderer<'a, B> {
         self.kitty_supported
     }
 
-    fn emit(&mut self, bytes: &[u8]) {
-        if !bytes.is_empty() {
-            self.emitted += bytes.len();
-            self.backend.write_bytes(bytes);
+    fn ensure_hit_grid(&mut self) {
+        if self.next_hit.is_empty() {
+            self.next_hit = vec![0; self.width as usize * self.height as usize];
         }
     }
 
-    fn emit_str(&mut self, s: &str) {
-        self.emit(s.as_bytes());
+    /// Whether any frame has written the hit grid; the grid is allocated on
+    /// its first write (RAS-007).
+    pub fn hit_grid_allocated(&self) -> bool {
+        !self.next_hit.is_empty() || !self.current_hit.is_empty()
     }
 
-    /// Open the frame envelope lazily: sync set plus cursor hide.
-    /// Reference `beginRenderFrame`. Frames that never start stay
-    /// byte-empty, which is the no-op suppression mechanism.
-    fn start_frame(&mut self, started: &mut bool) {
-        if !*started {
-            self.emit_str(SYNC_SET);
-            self.emit_str(HIDE_CURSOR);
-            *started = true;
+    /// Time the caller spent laying out and painting the frame it is about to
+    /// render; reported in the next rendered frame's stats (RAS-006).
+    pub fn set_layout_ns(&mut self, nanoseconds: u64) {
+        self.pending_layout_ns = nanoseconds;
+    }
+
+    /// Open the frame envelope lazily: sync set, cursor hide and one style
+    /// reset, after which the emitted style is the terminal default
+    /// (RAS-002). Frames that never start stay byte-empty, which is the
+    /// no-op suppression mechanism. Reference `beginRenderFrame`.
+    fn start_frame(frame: &mut Vec<u8>, state: &mut EmitState) {
+        if !state.started {
+            frame.extend_from_slice(SYNC_SET);
+            frame.extend_from_slice(HIDE_CURSOR);
+            frame.extend_from_slice(RESET);
+            state.started = true;
+            state.fg = KEY_DEFAULT;
+            state.bg = KEY_DEFAULT;
+            state.attrs = 0;
+            state.underline = 0;
+            state.underline_color = None;
+            state.overline = false;
         }
     }
 
-    fn cells_equal(a: &crate::buffer::Cell, b: &crate::buffer::Cell) -> bool {
-        a == b
-    }
-
-    fn row_equal(&self, y: u32) -> bool {
-        for x in 0..self.width {
-            let current = self.current.get(x, y);
-            let next = self.next.get(x, y);
-            match (current, next) {
-                (Some(a), Some(b)) => {
-                    if !Self::cells_equal(&a, &b) {
-                        return false;
-                    }
-                }
-                _ => return false,
+    /// Find the rows that changed and the first changed column of each, in
+    /// one pass over the buffers' column arrays (RAS-008). Under `force`
+    /// every row is listed from column zero.
+    fn plan_rows(&mut self, force: bool) {
+        self.changed_rows.clear();
+        for y in 0..self.height {
+            if force {
+                self.changed_rows.push((y, 0));
+            } else if let Some(x) = self.next.row_first_change(&self.current, y) {
+                self.changed_rows.push((y, x));
             }
         }
-        true
     }
 
-    /// Diff the next buffer against the current one and publish changed
-    /// cells, syncing each published cell into the current buffer with
+    /// Emit every changed cell of the planned rows, tracking the cursor and
+    /// the emitted style so moves and style sequences are elided (RAS-001,
+    /// RAS-002), and sync each published cell into the current buffer with
     /// `sync_cell`: no span cleanup, so continuation cells written by an
     /// earlier column of this same left-to-right pass survive (reference
     /// #723). Returns the cell count for stats.
-    fn diff_buffers(&mut self, force: bool, started: &mut bool) -> u32 {
-        use crate::uni::segments::{is_continuation_char, is_image_char};
+    fn emit_rows(&mut self, force: bool, state: &mut EmitState, stats: &mut RenderStats) -> u32 {
+        use crate::uni::segments::is_continuation_char;
         let mut cells_updated = 0;
-        // Row-equality fast path, disabled under force: a fully rewritten
-        // row disables it for the rows after it (reference behavior).
-        let mut use_row_equality = !force;
-        for y in 0..self.height {
-            if use_row_equality && self.row_equal(y) {
-                continue;
-            }
-            let row_before = cells_updated;
-            for x in 0..self.width {
-                let (Some(current_cell), Some(next_cell)) =
-                    (self.current.get(x, y), self.next.get(x, y))
-                else {
-                    continue;
-                };
-                if !force && Self::cells_equal(&current_cell, &next_cell) {
-                    continue;
-                }
-                if is_continuation_char(next_cell.char) {
-                    // Continuations carry no bytes; syncing alone keeps
-                    // the next diff correct without starting a frame.
-                    self.current.sync_cell(x, y, next_cell);
-                    cells_updated += 1;
+        let width = self.width;
+        let row_offset = self.render_offset;
+        let kitty = self.kitty_supported;
+        for k in 0..self.changed_rows.len() {
+            let (y, first) = self.changed_rows[k];
+            for x in first..width {
+                let index = self.next.index_of(x, y);
+                let ch = self.next.char_at(index);
+                if is_continuation_char(ch) {
+                    // The lead glyph moved the terminal cursor past this
+                    // cell; follow it. Continuations carry no bytes, so
+                    // syncing alone keeps the next diff correct.
+                    if state.cursor == Some((x, y)) {
+                        state.cursor = Some((x + 1, y));
+                    }
+                    if force || !self.next.cell_eq_at(&self.current, index) {
+                        let cell = self.next.get(x, y).expect("in range");
+                        self.current.sync_cell(x, y, cell);
+                        cells_updated += 1;
+                    }
                     continue;
                 }
-                self.start_frame(started);
-                let move_to = format!("\x1b[{};{}H", y + 1 + self.render_offset, x + 1);
-                self.emit_str(&move_to);
-                // Every changed cell carries a complete style, including cleared flags.
-                self.emit_str(RESET);
-                // Truecolor assumed; capability-gated emission arrives
-                // with later term work.
-                if is_image_char(next_cell.char) && self.kitty_supported {
-                    // Reserved graphics cells display as cleared space;
-                    // the pixels are server-side under Kitty support.
-                    // Without support they materialize through the
-                    // quadrant fallback below (REN-010).
-                    self.emit_str(" ");
-                } else if let Some(ansi) = self.next.cell_ansi(x, y, true, true) {
-                    self.emit_str(&ansi);
+                if !force && self.next.cell_eq_at(&self.current, index) {
+                    continue;
                 }
-                self.current.sync_cell(x, y, next_cell);
+                Self::start_frame(&mut self.frame, state);
+                let advance = emit_cell(
+                    &mut self.frame,
+                    &self.next,
+                    index,
+                    x,
+                    y,
+                    row_offset,
+                    kitty,
+                    state,
+                    stats,
+                );
+                state.cursor = Some((
+                    if advance == COLUMN_UNKNOWN {
+                        COLUMN_UNKNOWN
+                    } else {
+                        x + advance
+                    },
+                    y,
+                ));
+                let cell = self.next.get(x, y).expect("in range");
+                self.current.sync_cell(x, y, cell);
                 cells_updated += 1;
-            }
-            if cells_updated - row_before == self.width {
-                use_row_equality = false;
             }
         }
         cells_updated
     }
 
-    fn cursor_style_code(style: CursorStyle, blinking: bool) -> &'static str {
+    fn cursor_style_code(style: CursorStyle, blinking: bool) -> &'static [u8] {
         match (style, blinking) {
             (CursorStyle::Default, _) => DEFAULT_CURSOR_STYLE,
-            (CursorStyle::Block, true) => "\x1b[1 q",
-            (CursorStyle::Block, false) => "\x1b[2 q",
-            (CursorStyle::Line, true) => "\x1b[5 q",
-            (CursorStyle::Line, false) => "\x1b[6 q",
-            (CursorStyle::Underline, true) => "\x1b[3 q",
-            (CursorStyle::Underline, false) => "\x1b[4 q",
+            (CursorStyle::Block, true) => b"\x1b[1 q",
+            (CursorStyle::Block, false) => b"\x1b[2 q",
+            (CursorStyle::Line, true) => b"\x1b[5 q",
+            (CursorStyle::Line, false) => b"\x1b[6 q",
+            (CursorStyle::Underline, true) => b"\x1b[3 q",
+            (CursorStyle::Underline, false) => b"\x1b[4 q",
         }
     }
 
@@ -849,7 +889,7 @@ impl<'a, B: Backend> Renderer<'a, B> {
     /// Emit cursor moves and style changes exactly when they change
     /// between frames (REN-003). When the frame already produced visual
     /// output, position and visibility are restored unconditionally.
-    fn emit_cursor(&mut self, started: &mut bool) {
+    fn emit_cursor(&mut self, state: &mut EmitState) {
         let cursor = self.cursor;
         if cursor.visible {
             let style_tag = Self::style_tag(cursor.style);
@@ -863,36 +903,42 @@ impl<'a, B: Backend> Renderer<'a, B> {
             let color_changed = self.last_color != Some(color);
             let position_changed = self.last_x != Some(cursor.x) || self.last_y != Some(cursor.y);
             let visibility_changed = self.last_visible != Some(true);
-            if *started || style_changed || color_changed || position_changed || visibility_changed
+            if state.started
+                || style_changed
+                || color_changed
+                || position_changed
+                || visibility_changed
             {
-                self.start_frame(started);
+                Self::start_frame(&mut self.frame, state);
                 if color_changed {
-                    let seq = format!("\x1b]12;#{:02x}{:02x}{:02x}\x07", color.0, color.1, color.2);
-                    self.emit_str(&seq);
+                    self.frame.extend_from_slice(b"\x1b]12;#");
+                    push_hex2(&mut self.frame, color.0);
+                    push_hex2(&mut self.frame, color.1);
+                    push_hex2(&mut self.frame, color.2);
+                    self.frame.push(0x07);
                     self.last_color = Some(color);
                 }
                 if style_changed {
-                    self.emit_str(Self::cursor_style_code(cursor.style, cursor.blinking));
+                    self.frame
+                        .extend_from_slice(Self::cursor_style_code(cursor.style, cursor.blinking));
                     self.last_style_tag = Some(style_tag);
                     self.last_blinking = Some(cursor.blinking);
                 }
-                let move_to = format!(
-                    "\x1b[{};{}H",
+                push_cup(
+                    &mut self.frame,
                     cursor.y + 1 + self.render_offset,
-                    cursor.x + 1
+                    cursor.x + 1,
                 );
-                self.emit_str(&move_to);
-                // Every changed cell carries a complete style, including cleared flags.
-                self.emit_str(RESET);
-                self.emit_str(SHOW_CURSOR);
+                state.cursor = None;
+                self.frame.extend_from_slice(SHOW_CURSOR);
             }
             self.last_x = Some(cursor.x);
             self.last_y = Some(cursor.y);
             self.last_visible = Some(true);
         } else {
-            if !*started && self.last_visible != Some(false) {
-                self.start_frame(started);
-                self.emit_str(HIDE_CURSOR);
+            if !state.started && self.last_visible != Some(false) {
+                Self::start_frame(&mut self.frame, state);
+                self.frame.extend_from_slice(HIDE_CURSOR);
             }
             self.last_style_tag = None;
             self.last_blinking = None;
@@ -903,15 +949,14 @@ impl<'a, B: Backend> Renderer<'a, B> {
         }
     }
 
-    fn clear_frame_state(&mut self) {
-        self.next.clear(self.background, None);
-        self.next_hit.fill(0);
-        self.pending_images.clear();
-    }
-
-    /// Skipped frames clear the next buffer without publishing (REN-002).
+    /// Skipped frames publish nothing and drop staged state (REN-002). The
+    /// next buffer keeps what the caller drew: the painter clears it before
+    /// the next frame, so it is cleared once per frame (RAS-007).
     fn finish_skipped(&mut self) -> RenderStatus {
-        self.clear_frame_state();
+        if !self.next_hit.is_empty() {
+            self.next_hit.fill(0);
+        }
+        self.pending_images.clear();
         RenderStatus::Skipped
     }
 
@@ -919,7 +964,9 @@ impl<'a, B: Backend> Renderer<'a, B> {
     /// dropped, staged images never commit, the cursor cache resets, and
     /// the next render repaints fully (REN-004).
     fn finish_failed(&mut self) -> RenderStatus {
-        self.next_hit.fill(0);
+        if !self.next_hit.is_empty() {
+            self.next_hit.fill(0);
+        }
         self.pending_images.clear();
         self.force_full_repaint = true;
         self.last_style_tag = None;
@@ -931,49 +978,383 @@ impl<'a, B: Backend> Renderer<'a, B> {
         RenderStatus::Failed
     }
 
-    fn finish_rendered(&mut self, cells_updated: u32) -> RenderStatus {
-        std::mem::swap(&mut self.current_hit, &mut self.next_hit);
-        self.next_hit.fill(0);
+    fn finish_rendered(&mut self, cells_updated: u32, mut stats: RenderStats) -> RenderStatus {
+        if !self.next_hit.is_empty() {
+            std::mem::swap(&mut self.current_hit, &mut self.next_hit);
+            if !self.next_hit.is_empty() {
+                self.next_hit.fill(0);
+            }
+        }
         self.committed_images.append(&mut self.pending_images);
         self.force_full_repaint = false;
-        self.next.clear(self.background, None);
-        self.stats.frame_count += 1;
-        self.stats.cells_updated = cells_updated;
+        stats.frame_count = self.stats.frame_count + 1;
+        stats.cells_updated = cells_updated;
+        self.stats = stats;
         RenderStatus::Rendered
     }
 
     /// Diff the next frame against the current one and publish the
-    /// difference (REN-001). `force` repaints every cell.
+    /// difference (REN-001). `force` repaints every cell. The frame's bytes
+    /// are built in one reused buffer and handed to the backend in one
+    /// write (RAS-003).
     pub fn render(&mut self, force: bool) -> RenderStatus {
         // Backpressure: a refused backend skips before any byte exists.
         if self.backend.prepare_frame() != WriteStatus::Ok {
             return self.finish_skipped();
         }
         self.backend.begin_frame();
-        self.emitted = 0;
+        self.frame.clear();
+        let mut state = EmitState::default();
+        let mut stats = RenderStats {
+            layout_ns: self.pending_layout_ns,
+            ..RenderStats::default()
+        };
+        self.pending_layout_ns = 0;
         let should_force = force || self.force_full_repaint;
-        let mut started = false;
-        let cells_updated = self.diff_buffers(should_force, &mut started);
-        if started {
-            self.emit_str(RESET);
+        let started = Instant::now();
+        self.plan_rows(should_force);
+        let planned = Instant::now();
+        stats.diff_ns = elapsed_ns(started, planned);
+        let cells_updated = self.emit_rows(should_force, &mut state, &mut stats);
+        self.emit_cursor(&mut state);
+        if state.started {
+            self.frame.extend_from_slice(RESET);
+            self.frame.extend_from_slice(SYNC_RESET);
         }
-        self.emit_cursor(&mut started);
-        if started {
-            self.emit_str(SYNC_RESET);
-        }
-        if self.emitted == 0 {
+        let emitted = Instant::now();
+        stats.emit_ns = elapsed_ns(planned, emitted);
+        stats.bytes_emitted = self.frame.len();
+        if self.frame.is_empty() {
             // True no-op: the backend holds an empty frame the memory
             // backend never records, so nothing is published.
             self.backend.end_frame();
             return self.finish_skipped();
         }
-        match self.backend.end_frame() {
-            WriteStatus::Ok => self.finish_rendered(cells_updated),
+        self.backend.write_bytes(&self.frame);
+        let status = self.backend.end_frame();
+        stats.write_ns = elapsed_ns(emitted, Instant::now());
+        match status {
+            WriteStatus::Ok => self.finish_rendered(cells_updated, stats),
             WriteStatus::Failed => self.finish_failed(),
             // Defensive: only the memory backend is wired here and it
             // never reports Skipped; a skipped backend frame publishes
             // nothing, so treat it as a skipped render.
             WriteStatus::Skipped => self.finish_skipped(),
+        }
+    }
+}
+
+// ---- emission state and byte helpers (no allocation on the render path) ----
+
+/// The tracked column after a glyph whose advance depends on the host: a
+/// multi-codepoint cluster is two columns on a terminal that clusters
+/// graphemes (mode 2027) and the sum of its codepoints' widths elsewhere.
+/// The next cell on that row moves with CHA; the row stays known.
+const COLUMN_UNKNOWN: u32 = u32::MAX;
+
+/// A color as the sequence it would emit: default, indexed slot, or RGB.
+const KEY_DEFAULT: u32 = 0xFF00_0000;
+const KEY_INDEXED: u32 = 0xFE00_0000;
+
+fn fg_key(color: Rgba) -> u32 {
+    match ansi::intent(color) {
+        ansi::ColorIntent::Default => KEY_DEFAULT,
+        ansi::ColorIntent::Indexed => KEY_INDEXED | u32::from(ansi::slot(color)),
+        ansi::ColorIntent::Rgb => {
+            (u32::from(ansi::red(color)) << 16)
+                | (u32::from(ansi::green(color)) << 8)
+                | u32::from(ansi::blue(color))
+        }
+    }
+}
+
+fn bg_key(color: Rgba) -> u32 {
+    if ansi::alpha(color) == 0 {
+        KEY_DEFAULT
+    } else {
+        fg_key(color)
+    }
+}
+
+/// Underline as one code: 0 none, 1 plain (SGR 4), 16 + style for `4:N`.
+fn underline_code(attributes: u8, decoration: ansi::CellDecoration) -> u8 {
+    if decoration.underline != ansi::UnderlineStyle::None {
+        16 + decoration.underline as u8
+    } else if attributes & TextAttributes::UNDERLINE != 0 {
+        1
+    } else {
+        0
+    }
+}
+
+/// What the terminal holds after the bytes emitted so far in a frame.
+#[derive(Clone, Copy, Debug, Default)]
+struct EmitState {
+    started: bool,
+    /// Where the terminal cursor is after the last emitted glyph, when known.
+    cursor: Option<(u32, u32)>,
+    fg: u32,
+    bg: u32,
+    attrs: u8,
+    underline: u8,
+    underline_color: Option<[u8; 3]>,
+    overline: bool,
+}
+
+/// The one codepoint a UTF-8 cluster holds, if it holds exactly one.
+fn single_codepoint(bytes: &[u8]) -> Option<u32> {
+    let text = core::str::from_utf8(bytes).ok()?;
+    let mut chars = text.chars();
+    let first = chars.next()?;
+    chars.next().is_none().then_some(u32::from(first))
+}
+
+fn elapsed_ns(from: Instant, to: Instant) -> u64 {
+    to.duration_since(from).as_nanos().min(u128::from(u64::MAX)) as u64
+}
+
+fn push_u32(out: &mut Vec<u8>, mut value: u32) {
+    let mut digits = [0u8; 10];
+    let mut i = digits.len();
+    if value == 0 {
+        out.push(b'0');
+        return;
+    }
+    while value > 0 {
+        i -= 1;
+        digits[i] = b'0' + (value % 10) as u8;
+        value /= 10;
+    }
+    out.extend_from_slice(&digits[i..]);
+}
+
+fn push_hex2(out: &mut Vec<u8>, value: u8) {
+    const HEX: &[u8; 16] = b"0123456789abcdef";
+    out.push(HEX[usize::from(value >> 4)]);
+    out.push(HEX[usize::from(value & 0xF)]);
+}
+
+fn push_codepoint(out: &mut Vec<u8>, cp: u32) {
+    let mut utf8 = [0u8; 4];
+    let ch = char::from_u32(cp).unwrap_or(' ');
+    out.extend_from_slice(ch.encode_utf8(&mut utf8).as_bytes());
+}
+
+fn push_sgr(out: &mut Vec<u8>, code: u32) {
+    out.extend_from_slice(b"\x1b[");
+    push_u32(out, code);
+    out.push(b'm');
+}
+
+/// CUP: absolute move to a one-based row and column.
+fn push_cup(out: &mut Vec<u8>, row: u32, column: u32) {
+    out.extend_from_slice(b"\x1b[");
+    push_u32(out, row);
+    out.push(b';');
+    push_u32(out, column);
+    out.push(b'H');
+}
+
+/// CHA: move within the current row to a one-based column.
+fn push_cha(out: &mut Vec<u8>, column: u32) {
+    out.extend_from_slice(b"\x1b[");
+    push_u32(out, column);
+    out.push(b'G');
+}
+
+fn push_color(out: &mut Vec<u8>, key: u32, background: bool) {
+    let base = if background { 40 } else { 30 };
+    if key == KEY_DEFAULT {
+        push_sgr(out, base + 9);
+    } else if key & KEY_INDEXED == KEY_INDEXED {
+        out.extend_from_slice(b"\x1b[");
+        push_u32(out, base + 8);
+        out.extend_from_slice(b";5;");
+        push_u32(out, key & 0xFF);
+        out.push(b'm');
+    } else {
+        out.extend_from_slice(b"\x1b[");
+        push_u32(out, base + 8);
+        out.extend_from_slice(b";2;");
+        push_u32(out, (key >> 16) & 0xFF);
+        out.push(b';');
+        push_u32(out, (key >> 8) & 0xFF);
+        out.push(b';');
+        push_u32(out, key & 0xFF);
+        out.push(b'm');
+    }
+}
+
+/// Emit the attribute changes from the emitted state to the wanted cell
+/// style: off codes for attributes that end, on codes for those that begin
+/// (RAS-002). Returns whether any byte was written.
+fn push_attributes(
+    out: &mut Vec<u8>,
+    state: &mut EmitState,
+    want: u8,
+    decoration: ansi::CellDecoration,
+) -> bool {
+    let before = out.len();
+    let mut have = state.attrs;
+    // SGR 22 ends bold and dim together; whichever stays on is re-emitted.
+    if have & (TextAttributes::BOLD | TextAttributes::DIM) & !want != 0 {
+        push_sgr(out, 22);
+        have &= !(TextAttributes::BOLD | TextAttributes::DIM);
+    }
+    for (flag, off) in [
+        (TextAttributes::ITALIC, 23),
+        (TextAttributes::BLINK, 25),
+        (TextAttributes::INVERSE, 27),
+        (TextAttributes::HIDDEN, 28),
+        (TextAttributes::STRIKETHROUGH, 29),
+    ] {
+        if have & flag != 0 && want & flag == 0 {
+            push_sgr(out, off);
+            have &= !flag;
+        }
+    }
+    for (flag, on) in [
+        (TextAttributes::BOLD, 1),
+        (TextAttributes::DIM, 2),
+        (TextAttributes::ITALIC, 3),
+        (TextAttributes::BLINK, 5),
+        (TextAttributes::INVERSE, 7),
+        (TextAttributes::HIDDEN, 8),
+        (TextAttributes::STRIKETHROUGH, 9),
+    ] {
+        if want & flag != 0 && have & flag == 0 {
+            push_sgr(out, on);
+        }
+    }
+    state.attrs = want & !TextAttributes::UNDERLINE;
+    let underline = underline_code(want, decoration);
+    if underline != state.underline {
+        match underline {
+            0 => push_sgr(out, 24),
+            1 => push_sgr(out, 4),
+            style => {
+                out.extend_from_slice(b"\x1b[4:");
+                push_u32(out, u32::from(style - 16));
+                out.push(b'm');
+            }
+        }
+        state.underline = underline;
+    }
+    if decoration.overline != state.overline {
+        push_sgr(out, if decoration.overline { 53 } else { 55 });
+        state.overline = decoration.overline;
+    }
+    if decoration.underline_color != state.underline_color {
+        match decoration.underline_color {
+            Some([r, g, b]) => {
+                out.extend_from_slice(b"\x1b[58:2::");
+                push_u32(out, u32::from(r));
+                out.push(b':');
+                push_u32(out, u32::from(g));
+                out.push(b':');
+                push_u32(out, u32::from(b));
+                out.push(b'm');
+            }
+            None => push_sgr(out, 59),
+        }
+        state.underline_color = decoration.underline_color;
+    }
+    out.len() != before
+}
+
+/// Emit one changed cell: the cursor move it needs, the style parts that
+/// differ from the emitted state, then the glyph bytes; grapheme bytes
+/// resolve through the buffer's pool, image cells use the quadrant fallback
+/// unless Kitty owns the pixels. Returns how many columns the terminal
+/// cursor advanced, or `COLUMN_UNKNOWN` after a grapheme cluster.
+#[allow(clippy::too_many_arguments)]
+fn emit_cell(
+    out: &mut Vec<u8>,
+    next: &OptimizedBuffer<'_>,
+    index: usize,
+    x: u32,
+    y: u32,
+    row_offset: u32,
+    kitty: bool,
+    state: &mut EmitState,
+    stats: &mut RenderStats,
+) -> u32 {
+    use crate::buffer::draw::QUADRANT_CHARS;
+    use crate::uni::segments::{
+        grapheme_id_from_char, image_fallback_from_char, is_grapheme_char, is_image_char,
+    };
+    match state.cursor {
+        Some((cx, cy)) if cx == x && cy == y => stats.moves_elided += 1,
+        Some((_, cy)) if cy == y => {
+            push_cha(out, x + 1);
+            stats.moves_emitted += 1;
+        }
+        _ => {
+            push_cup(out, y + 1 + row_offset, x + 1);
+            stats.moves_emitted += 1;
+        }
+    }
+    let fg = fg_key(next.fg_at(index));
+    if fg != state.fg {
+        push_color(out, fg, false);
+        state.fg = fg;
+        stats.fg_emitted += 1;
+    } else {
+        stats.fg_elided += 1;
+    }
+    let bg = bg_key(next.bg_at(index));
+    if bg != state.bg {
+        push_color(out, bg, true);
+        state.bg = bg;
+        stats.bg_emitted += 1;
+    } else {
+        stats.bg_elided += 1;
+    }
+    let attributes = TextAttributes::base_attributes(next.attributes_at(index));
+    if push_attributes(out, state, attributes, next.decoration_at(index)) {
+        stats.attr_emitted += 1;
+    } else {
+        stats.attr_elided += 1;
+    }
+    let ch = next.char_at(index);
+    if ch == 0 {
+        out.push(b' ');
+        1
+    } else if is_image_char(ch) {
+        if kitty {
+            // Reserved graphics cells display as cleared space; the pixels
+            // are server-side under Kitty support (REN-010).
+            out.push(b' ');
+        } else {
+            push_codepoint(out, QUADRANT_CHARS[image_fallback_from_char(ch) as usize]);
+        }
+        1
+    } else if is_grapheme_char(ch) {
+        match next.pool.borrow().get(grapheme_id_from_char(ch)) {
+            Ok(bytes) if !bytes.is_empty() => {
+                out.extend_from_slice(bytes);
+                // A single codepoint advances by its width. How far a
+                // multi-codepoint cluster moves the cursor depends on whether
+                // the host clusters graphemes; only the row is known then.
+                match single_codepoint(bytes) {
+                    Some(cp) => crate::uni::cell_width(cp, next.width_method).max(1),
+                    None => COLUMN_UNKNOWN,
+                }
+            }
+            _ => {
+                out.push(b' ');
+                1
+            }
+        }
+    } else if ch > crate::buffer::MAX_UNICODE_CODEPOINT {
+        out.push(b' ');
+        1
+    } else {
+        push_codepoint(out, ch);
+        if ch >= 0x80 {
+            crate::uni::cell_width(ch, next.width_method).max(1)
+        } else {
+            1
         }
     }
 }
@@ -1169,7 +1550,7 @@ fn memory_backend_exact() {
     assert_eq!(1, mem_renderer.backend().frames().len());
     assert_eq!(tee_a, mem_renderer.backend().frames()[0]);
     // A 2x1 frame with one drawn cell is byte-exact by hand.
-    let hand = "\x1b[?2026h\x1b[?25l\x1b[1;1H\x1b[0m\x1b[38;2;255;255;255m\x1b[48;2;0;0;0mZ\x1b[0m\x1b[?2026l";
+    let hand = "\x1b[?2026h\x1b[?25l\x1b[0m\x1b[1;1H\x1b[38;2;255;255;255m\x1b[48;2;0;0;0mZ\x1b[0m\x1b[?2026l";
     assert_eq!(
         hand.as_bytes(),
         mem_renderer.backend().frames()[0].as_slice()
