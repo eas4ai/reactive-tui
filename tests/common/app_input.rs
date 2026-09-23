@@ -85,6 +85,9 @@ impl Backend for InputBackend {
             .lock()
             .unwrap()
             .map_or(0.0, |t| t.elapsed().as_secs_f64() * 1000.0);
+        // The bytes land after present returns (PIP-001); wait for them
+        // before reading the capture.
+        self.inner.sync()?;
         let (width, height) = self.inner.size();
         let mut parser = vt100::Parser::new(height, width, 0);
         parser.process(&self.capture.0.lock().unwrap());

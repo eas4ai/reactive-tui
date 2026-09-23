@@ -106,6 +106,9 @@ fn relative_app_target_keeps_last_presented_properties_after_backend_failure() {
     let target = app.animation_target("target").unwrap();
     *root.lock().unwrap() = element(0.1);
     output.fail.store(true, Ordering::SeqCst);
+    // The write fails after the present returned; the next render reports it
+    // and the targets fall back to the last acknowledged frame (PIP-002).
+    app.render().unwrap();
     assert!(app.render().is_err());
     let animation = try_animate(&target, params()).unwrap();
     assert_eq!(animation.property, AnimatedProperty::Opacity(0.5, 0.75));

@@ -202,6 +202,7 @@ os.write(1, b'\x1b[H\x1b[2J')
     let mut host = vt100::Parser::new(5, 20, 0);
     backend.render_cells(Arc::clone(&initial.frame)).unwrap();
     backend.present().unwrap();
+    backend.sync().unwrap();
     let bytes = std::mem::take(&mut *out.0.lock().unwrap());
     host.process(&bytes);
     let emitted = String::from_utf8_lossy(&bytes);
@@ -222,6 +223,7 @@ os.write(1, b'\x1b[H\x1b[2J')
     let alternate = wait(&session, |s| text(s).starts_with("ALT"));
     backend.render_cells(Arc::clone(&alternate.frame)).unwrap();
     backend.present().unwrap();
+    backend.sync().unwrap();
     host.process(&std::mem::take(&mut *out.0.lock().unwrap()));
     assert!(host.screen().contents().starts_with("ALT"));
     assert!(!host.screen().hide_cursor());
@@ -230,12 +232,14 @@ os.write(1, b'\x1b[H\x1b[2J')
     let restored = wait(&session, |s| s.frame.cell(0, 0).unwrap().text == "e\u{301}");
     backend.render_cells(Arc::clone(&restored.frame)).unwrap();
     backend.present().unwrap();
+    backend.sync().unwrap();
     host.process(&std::mem::take(&mut *out.0.lock().unwrap()));
     assert_eq!(host.screen().cell(0, 1).unwrap().contents(), "界");
     session.send_key(KeyEvent::new(KeyCode::Enter)).unwrap();
     let erased = wait(&session, |s| s.stopped);
     backend.render_cells(Arc::clone(&erased.frame)).unwrap();
     backend.present().unwrap();
+    backend.sync().unwrap();
     host.process(&std::mem::take(&mut *out.0.lock().unwrap()));
     assert!(
         host.screen().contents().trim().is_empty(),
@@ -247,6 +251,7 @@ os.write(1, b'\x1b[H\x1b[2J')
         .render_frame(&reactive_tui::component::Element::text("root"))
         .unwrap();
     backend.present().unwrap();
+    backend.sync().unwrap();
     host.process(&std::mem::take(&mut *out.0.lock().unwrap()));
     assert!(host.screen().contents().starts_with("root"));
     assert!(host.screen().hide_cursor());
@@ -280,6 +285,7 @@ fn emb_002_utf8_c1_cells_are_safe_for_the_host_frame() {
     let mut backend = SuprTuiBackend::with_writer(96, 4, std::io::sink()).unwrap();
     backend.render_cells(snapshot.frame).unwrap();
     backend.present().unwrap();
+    backend.sync().unwrap();
 }
 
 #[test]

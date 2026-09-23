@@ -145,6 +145,7 @@ impl Backend for ProbeBackend {
     }
     fn present(&mut self) -> Result<()> {
         self.inner.present()?;
+        self.inner.sync()?;
         self.scheduled
             .lock()
             .unwrap()
