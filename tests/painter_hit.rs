@@ -172,6 +172,13 @@ fn pnt_002_hit_grid_is_exact_under_masks_and_z_order() {
         ]);
     let hits = hits_after((12, 3), &masked);
     let at = |x: usize, y: usize| hits[y * 12 + x];
+    let mut backend = SuprTuiBackend::with_writer(12, 3, Sink::default()).unwrap();
+    assert!(backend.render_frame(&masked).unwrap());
+    backend.present().unwrap();
+    backend.sync().unwrap();
+    assert_eq!(backend.hit_at(1, 0), Some(3), "the per-cell query agrees");
+    assert_eq!(backend.hit_at(5, 0), Some(1));
+    assert_eq!(backend.hit_at(12, 0), None, "outside the grid");
     assert_eq!(at(1, 0), 3, "inside the mask the child is hit");
     assert_ne!(
         at(5, 0),

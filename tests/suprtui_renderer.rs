@@ -370,8 +370,10 @@ fn ras_007_a_smaller_frame_leaves_no_stale_cells() {
 }
 
 /// PNT-003: one copy of the frame element per present. A cell grid the test
-/// holds a handle to is cloned once when the frame is staged and never again
-/// when presented.
+/// holds a handle to gains one handle when the frame is staged; presenting
+/// adds at most the painter's retained layout spec (PNT-004), and repeated
+/// presents of the staged frame add nothing. The render-alloc probe checks
+/// that present sends the stored handle rather than cloning the element.
 #[test]
 fn pnt_003_present_sends_the_stored_frame_without_a_second_copy() {
     use reactive_tui::layout::paint_tree::cells::CellGrid;
@@ -390,12 +392,19 @@ fn pnt_003_present_sends_the_stored_frame_without_a_second_copy() {
     assert_eq!(staged, before + 1, "staging the frame is the one copy");
     backend.present().unwrap();
     backend.sync().unwrap();
-    assert_eq!(
-        Arc::strong_count(&grid),
-        staged,
-        "present must send the stored handle, not a second copy"
+    let presented = Arc::strong_count(&grid);
+    assert!(
+        presented <= staged + 1,
+        "present kept {} handles beyond the staged frame and the layout spec",
+        presented - staged
     );
-    backend.present().unwrap();
-    backend.sync().unwrap();
-    assert_eq!(Arc::strong_count(&grid), staged);
+    for _ in 0..3 {
+        backend.present().unwrap();
+        backend.sync().unwrap();
+        assert_eq!(
+            Arc::strong_count(&grid),
+            presented,
+            "a repeated present must not keep another copy of the frame"
+        );
+    }
 }

@@ -68,6 +68,17 @@ pub trait Backend: Send + Sync {
     fn hit_cells(&self) -> Option<&[u32]> {
         None
     }
+    /// The element index plus one painted at one cell of the last presented
+    /// frame, 0 where nothing was painted; `None` when the backend keeps no
+    /// hit grid or the cell is outside it (PNT-002).
+    fn hit_at(&self, x: u16, y: u16) -> Option<u32> {
+        let cells = self.hit_cells()?;
+        let width = usize::from(self.size().0);
+        if usize::from(x) >= width {
+            return None;
+        }
+        cells.get(usize::from(y) * width + usize::from(x)).copied()
+    }
     /// Stage a complete application frame. Return false to use legacy patches.
     fn render_frame(&mut self, _element: &Element) -> Result<bool> {
         Ok(false)
