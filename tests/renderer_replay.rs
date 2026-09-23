@@ -243,7 +243,7 @@ fn ghostty_section(bytes: &[u8], size: (u16, u16)) -> String {
     let mut lines = Vec::new();
     while let Some(row) = row_iter.next() {
         let mut line = String::new();
-        let mut cell_iter = cells.update(&row).expect("cell update");
+        let mut cell_iter = cells.update(row).expect("cell update");
         while let Some(cell) = cell_iter.next() {
             let graphemes = cell.graphemes().expect("graphemes");
             if graphemes.is_empty() {
