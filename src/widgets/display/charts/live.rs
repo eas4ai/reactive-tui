@@ -25,6 +25,19 @@ mod worker;
 use crate::layout::paint_tree::cells::CellGrid;
 use canvas::Picture;
 
+/// How long a chart that has just appeared or changed size waits for its
+/// picture before the frame goes out without one. The wait is main-thread
+/// time inside the App's frame (BAR-005). Charts up to 200 by 40 cells
+/// draw in under 1 ms and appear painted; a larger one paints an empty
+/// area for one frame, and the worker's finish signal redraws it.
+const NEW_SIZE_WAIT: Duration = Duration::from_millis(4);
+
+/// `picture` if it was drawn at `size`: a picture drawn for another size is
+/// stale geometry (BAR-003), neither painted nor used for hit testing.
+fn at_size(picture: Option<&Arc<Picture>>, size: (usize, usize)) -> Option<&Arc<Picture>> {
+    picture.filter(|picture| (picture.width, picture.height) == size)
+}
+
 #[derive(Clone)]
 pub(super) struct LiveProps {
     pub config: Arc<ChartProps>,
@@ -192,7 +205,9 @@ impl Component for LiveChart {
             values: Arc::new(values),
             progress,
         };
-        if latest.key.as_ref() != Some(&key) {
+        // Before its first layout the chart has no size and nothing to draw.
+        let drawable = width > 0 && height > 0;
+        if drawable && latest.key.as_ref() != Some(&key) {
             latest.next_id += 1;
             let id = latest.next_id;
             if let Some(worker) = &self.worker {
@@ -204,23 +219,28 @@ impl Component for LiveChart {
                     values: key.values.clone(),
                     progress,
                 });
-                // A picture at a new size is worth a short wait so the chart
-                // never paints empty or stale for long; frames at the same
-                // size (animation, hover) copy whatever is finished.
-                let wait = match latest.picture.as_ref() {
-                    None => Duration::from_millis(200),
-                    Some(p) if (p.width, p.height) != (width, height) => Duration::from_millis(60),
-                    Some(_) => Duration::ZERO,
+                // A picture at a new size is worth a short wait so a small
+                // chart never paints empty; frames at the same size
+                // (animation, hover) copy whatever is finished.
+                let wait = if at_size(latest.picture.as_ref(), (width, height)).is_some() {
+                    Duration::ZERO
+                } else {
+                    NEW_SIZE_WAIT
                 };
                 if let Some((_, picture)) = worker.wait_for(id, wait) {
                     latest.picture = Some(picture);
                 }
             }
             latest.key = Some(key);
-        } else if let Some((_, picture)) = self.worker.as_ref().and_then(|w| w.latest()) {
+        } else if let Some((_, picture)) = self
+            .worker
+            .as_ref()
+            .filter(|_| drawable)
+            .and_then(|w| w.latest())
+        {
             latest.picture = Some(picture);
         }
-        let picture = latest.picture.clone();
+        let picture = at_size(latest.picture.as_ref(), (width, height)).cloned();
         drop(latest);
 
         let hovered = state.hovered_point.filter(|_| config.show_tooltips);
@@ -275,6 +295,11 @@ impl Component for LiveChart {
         element.focus = Some(FocusProps::button());
         let mut node = crate::accessibility::Node::new(crate::accessibility::Role::Image);
         node.set_label(self.description(&config, &announcement));
+        // The worker is still drawing the picture for this size; its finish
+        // signal redraws the chart.
+        if picture.is_none() && drawable && self.worker.is_some() {
+            node.set_busy();
+        }
         element.metadata.accessibility = Some(node);
         if config.show_tooltips && !announcement.is_empty() {
             element = element.with_child(
@@ -432,7 +457,7 @@ impl LiveChart {
     /// category axis, or in both axes for scatter charts (CHT-019).
     fn nearest(&self, props: &ChartProps, x: usize, y: usize) -> Option<(usize, usize)> {
         let latest = self.latest.lock().unwrap_or_else(|e| e.into_inner());
-        let picture = latest.picture.as_ref()?;
+        let picture = at_size(latest.picture.as_ref(), self.size())?;
         if !picture.plot.contains(x, y) && picture.anchors.is_empty() {
             return None;
         }

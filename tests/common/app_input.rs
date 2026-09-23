@@ -39,6 +39,21 @@ pub struct Snapshot {
     pub screen: vt100::Screen,
     #[allow(dead_code)]
     pub geometry: Vec<PaintedNode>,
+    /// Whether an element in this frame was marked busy: a widget such as a
+    /// chart was still preparing its content. Every step waits for a frame
+    /// that is not busy, and a step's frame count counts only such frames.
+    #[allow(dead_code)]
+    pub busy: bool,
+}
+
+/// Whether `element` or a descendant is marked busy.
+fn busy(element: &Element) -> bool {
+    element
+        .metadata
+        .accessibility
+        .as_ref()
+        .is_some_and(|node| node.is_busy())
+        || element.children.iter().any(busy)
 }
 struct Step {
     frame: usize,
@@ -60,6 +75,8 @@ struct InputBackend {
     snapshots: Arc<Mutex<Vec<Snapshot>>>,
     deadline: Instant,
     wait_returned: std::sync::Mutex<Option<Instant>>,
+    /// Whether the element tree of the frame being rendered is busy.
+    busy: bool,
 }
 impl Backend for InputBackend {
     fn painted_nodes(&self) -> Option<&[reactive_tui::backend::PaintedNode]> {
@@ -72,9 +89,7 @@ impl Backend for InputBackend {
         self.inner.hit_cells()
     }
     fn render_frame(&mut self, element: &Element) -> Result<bool> {
-        if let Some(t) = *self.wait_returned.lock().unwrap() {
-            eprintln!("DIAG build {:.2}", t.elapsed().as_secs_f64() * 1000.0);
-        }
+        self.busy = busy(element);
         self.inner.render_frame(element)
     }
     fn apply_patches(&mut self, _: &[PatchOp], _: &RenderTree) -> Result<()> {
@@ -110,6 +125,7 @@ impl Backend for InputBackend {
             text: parser.screen().contents(),
             screen: parser.screen().clone(),
             geometry: self.inner.painted_nodes().unwrap().to_vec(),
+            busy: self.busy,
         });
         Ok(())
     }
@@ -130,27 +146,31 @@ impl Backend for InputBackend {
         if Instant::now() >= self.deadline {
             let snapshots = self.snapshots.lock().unwrap();
             panic!(
-                "App painted {} frames but input needs {:?} before the deadline. Last frame:\n{}",
+                "App painted {} frames but input needs {:?} before the deadline (last frame busy: {}). Last frame:\n{}",
                 snapshots.len(),
                 self.events.front().map(|step| (step.frame, &step.text)),
+                snapshots.last().is_some_and(|frame| frame.busy),
                 snapshots.last().map_or("", |frame| frame.text.as_str())
             );
         }
         if self.events.front().is_some_and(|step| {
             let frames = self.snapshots.lock().unwrap();
-            step.output.as_ref().is_some_and(|(needle, count)| {
-                frames.last().is_none_or(|frame| {
-                    String::from_utf8_lossy(&frame.output)
-                        .matches(needle.as_str())
-                        .count()
-                        < *count
+            frames.last().is_some_and(|frame| frame.busy)
+                || step.output.as_ref().is_some_and(|(needle, count)| {
+                    frames.last().is_none_or(|frame| {
+                        String::from_utf8_lossy(&frame.output)
+                            .matches(needle.as_str())
+                            .count()
+                            < *count
+                    })
                 })
-            }) || step.cell.as_ref().is_some_and(|(x, y, content)| {
-                frames
-                    .last()
-                    .and_then(|frame| frame.screen.cell(*y, *x))
-                    .is_none_or(|cell| cell.contents() != *content)
-            }) || step.frame > frames.len()
+                || step.cell.as_ref().is_some_and(|(x, y, content)| {
+                    frames
+                        .last()
+                        .and_then(|frame| frame.screen.cell(*y, *x))
+                        .is_none_or(|cell| cell.contents() != *content)
+                })
+                || step.frame > frames.iter().filter(|frame| !frame.busy).count()
                 || frames
                     .iter()
                     .filter(|frame| step.text.iter().all(|text| frame.text.contains(text)))
@@ -566,6 +586,7 @@ fn run_steps_with_images(
         snapshots: snapshots.clone(),
         deadline: Instant::now() + timeout,
         wait_returned: std::sync::Mutex::new(None),
+        busy: false,
     };
     App::builder()
         .backend(backend)

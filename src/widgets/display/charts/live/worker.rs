@@ -142,7 +142,6 @@ fn run(shared: Arc<Shared>) {
                 slots = shared.ready.wait(slots).unwrap_or_else(|e| e.into_inner());
             }
         };
-        let diag = Instant::now();
         let picture = canvas::draw(&canvas::Job {
             props: &job.props,
             width: job.width,
@@ -151,7 +150,6 @@ fn run(shared: Arc<Shared>) {
             progress: job.progress,
             unicode_glyphs: crate::widgets::display::charts::glyph_support(),
         });
-        eprintln!("DIAG raster {}x{} {:.2}", job.width, job.height, diag.elapsed().as_secs_f64() * 1000.0);
         let mut slots = shared.slots.lock().unwrap_or_else(|e| e.into_inner());
         slots.response = Some((job.id, Arc::new(picture)));
         drop(slots);

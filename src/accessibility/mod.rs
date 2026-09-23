@@ -70,6 +70,15 @@ impl Node {
     pub fn set_clickable(&mut self) {
         self.inner.add_action(accesskit::Action::Click);
     }
+    /// Mark the content as still being prepared, as ARIA `aria-busy` does:
+    /// assistive technology waits for it before reading it.
+    pub fn set_busy(&mut self) {
+        self.inner.set_busy();
+    }
+    /// Whether [`Node::set_busy`] marked the content as still being prepared.
+    pub fn is_busy(&self) -> bool {
+        self.inner.is_busy()
+    }
 }
 
 #[cfg(target_os = "linux")]

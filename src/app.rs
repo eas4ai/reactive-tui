@@ -607,9 +607,7 @@ impl App {
 
         // Update hook-based animations as part of component lifecycle
         // This ensures hooks are synchronized with component rendering
-        let diag = Instant::now();
         crate::hooks::animation::update_hook_animations();
-        eprintln!("DIAG hooks {:.2}", diag.elapsed().as_secs_f64() * 1000.0);
 
         if let Some(frame) = self.root.cell_frame()? {
             self.motion.clear();
@@ -630,13 +628,7 @@ impl App {
         }
 
         // Build element tree from root component
-        let diag = Instant::now();
-        let rendered = self.root.render();
-        eprintln!("DIAG root.render {:.2}", diag.elapsed().as_secs_f64() * 1000.0);
-        let diag = Instant::now();
-        let mut element = self.components.resolve(rendered)?;
-        eprintln!("DIAG resolve {:.2}", diag.elapsed().as_secs_f64() * 1000.0);
-        let diag = Instant::now();
+        let mut element = self.components.resolve(self.root.render())?;
         crate::component::bridge::resolve_viewport_styles(&mut element, self.backend.size().0)?;
         // Base semantics establish disabled state before state variants are
         // selected. Resolve again afterward for conditional semantic styles.
@@ -646,13 +638,10 @@ impl App {
             self.event_tree
                 .styled(&element, &self.router, self.backend.size().0);
         crate::accessibility::style::prepare(&mut state_styled)?;
-        eprintln!("DIAG style {:.2}", diag.elapsed().as_secs_f64() * 1000.0);
-        let diag = Instant::now();
         let mut styled = state_styled.clone();
         self.motion
             .apply(&mut styled, Instant::now(), self.backend.size())?;
         self.animation_targets.apply(&mut styled)?;
-        eprintln!("DIAG motion {:.2}", diag.elapsed().as_secs_f64() * 1000.0);
         if self.backend.render_frame(&styled)? {
             if let Err(error) = self.backend.present() {
                 self.fall_back_to_acknowledged_frame()?;
