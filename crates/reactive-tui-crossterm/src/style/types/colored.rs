@@ -220,7 +220,7 @@ mod tests {
 
     #[test]
     fn test_parse_ansi_bg() {
-        test_parse_ansi(Colored::ForegroundColor)
+        test_parse_ansi(Colored::BackgroundColor)
     }
 
     /// Used for test_parse_ansi_fg and test_parse_ansi_bg

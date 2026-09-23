@@ -2266,11 +2266,14 @@ mod tests {
     fn glyph_protocol_enabled_setting_updates() {
         let mut terminal = Terminal::new(80, 24).expect("terminal should initialize");
 
-        terminal
-            .set_glyph_protocol_enabled(false)
-            .expect("glyph protocol should disable")
-            .set_glyph_protocol_enabled(true)
-            .expect("glyph protocol should enable");
+        assert!(
+            terminal.set_glyph_protocol_enabled(false).is_ok(),
+            "glyph protocol should disable"
+        );
+        assert!(
+            terminal.set_glyph_protocol_enabled(true).is_ok(),
+            "glyph protocol should enable"
+        );
     }
 
     /// Explicitly relocate the Terminal into distinct storage, then verify the
