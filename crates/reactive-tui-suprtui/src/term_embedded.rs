@@ -32,21 +32,31 @@ pub enum EmbeddedError {
 /// Viewport coordinate.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct Point {
+    /// Column, from 0.
     pub x: u16,
+    /// Row, from 0.
     pub y: u16,
 }
 
 /// Reported cursor state. Mirrors `main.zig`'s `Cursor`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct CursorState {
+    /// Cursor column on the screen grid, from 0.
     pub x: u16,
+    /// Cursor row on the screen grid, from 0.
     pub y: u16,
+    /// Whether at least one frame has been composed.
     pub has_value: bool,
+    /// Whether the cursor is shown. The engine does not track the hide
+    /// mode, so this is always `true`.
     pub visible: bool,
+    /// Whether the cursor blinks, as set by `CSI Ps SP q`.
     pub blinking: bool,
+    /// Whether the cursor sits on the second cell of a wide character.
     pub wide_tail: bool,
     /// 0 = bar, 1 = block, 2 = underline, 3 = hollow.
     pub style: u8,
+    /// Cursor color as `[r, g, b]`: the default foreground, white.
     pub color: [u8; 3],
 }
 
@@ -701,12 +711,18 @@ impl Perform for Engine {
 /// Construction options. Mirrors `main.zig`'s `Options`.
 #[derive(Debug, Clone, Copy)]
 pub struct EmbeddedOptions {
+    /// Grid width in columns.
     pub cols: u16,
+    /// Grid height in rows.
     pub rows: u16,
+    /// Scrollback limit in bytes of cell text. The oldest lines drop first
+    /// when it is exceeded.
     pub max_scrollback: usize,
 }
 
 impl EmbeddedOptions {
+    /// Options for a `cols` by `rows` grid with a 10,000-byte scrollback
+    /// limit.
     pub fn new(cols: u16, rows: u16) -> Self {
         Self {
             cols,
@@ -723,6 +739,8 @@ pub struct EmbeddedTerminal {
 }
 
 impl EmbeddedTerminal {
+    /// Create a blank terminal. Fails with [`EmbeddedError::InvalidValue`]
+    /// when either dimension is zero.
     pub fn new(options: EmbeddedOptions) -> Result<Self, EmbeddedError> {
         if options.cols == 0 || options.rows == 0 {
             return Err(EmbeddedError::InvalidValue);
@@ -737,10 +755,12 @@ impl EmbeddedTerminal {
         })
     }
 
+    /// Grid width in columns.
     pub fn cols(&self) -> u16 {
         self.inner.cols as u16
     }
 
+    /// Grid height in rows.
     pub fn rows(&self) -> u16 {
         self.inner.rows as u16
     }
@@ -854,6 +874,7 @@ impl EmbeddedTerminal {
         Ok(())
     }
 
+    /// Drop the selection.
     pub fn clear_selection(&mut self) {
         self.inner.selection = None;
     }

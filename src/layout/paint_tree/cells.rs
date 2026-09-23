@@ -1,6 +1,6 @@
 //! A prepared grid of glyphs and colors that one element paints in a single
 //! step. Widgets that rasterize off the main thread (charts, canvases) fill
-//! a [`CellGrid`] on their worker and attach it to one element with
+//! a [`CellGrid`](crate::layout::CellGrid) on their worker and attach it to one element with
 //! [`crate::component::Element::with_cells`]; the frame painter then blits
 //! the grid at the element's position instead of laying out one text node
 //! per colored run.

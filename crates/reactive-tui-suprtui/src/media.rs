@@ -10,8 +10,11 @@ use std::io::Cursor;
 /// Decoded image: dimensions with row-major RGBA pixels.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DecodedImage {
+    /// Width in pixels.
     pub width: u32,
+    /// Height in pixels.
     pub height: u32,
+    /// RGBA bytes, four per pixel, row by row from the top.
     pub pixels: Vec<u8>,
 }
 

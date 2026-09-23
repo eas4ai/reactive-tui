@@ -15,23 +15,34 @@ use super::{WidthMethod, WidthState, char_width, cluster_ranges, walk};
 /// `PosByWidthResult`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct WidthSpan {
+    /// Byte offset where the search stopped.
     pub byte_offset: u32,
+    /// Graphemes the search counted before it stopped. On the cluster walk
+    /// (the Unicode and no-ZWJ methods) the count grows only when
+    /// `include_start_before` is set, as in the reference `findPosByWidth`;
+    /// otherwise it stays 0. The ASCII and Wcwidth paths always count.
     pub grapheme_count: u32,
+    /// Columns taken by the text before the stop.
     pub columns_used: u32,
 }
 
 /// Previous-grapheme lookup result. Mirrors `PrevGraphemeResult`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct PrevGrapheme {
+    /// Byte offset where the previous grapheme starts.
     pub start_offset: usize,
+    /// Width of that grapheme in cells.
     pub width: u32,
 }
 
 /// Line-break kind. Mirrors `LineBreakKind`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum LineBreakKind {
+    /// A lone `\n`.
     Lf,
+    /// A lone `\r`.
     Cr,
+    /// A `\r\n` pair.
     Crlf,
 }
 
@@ -39,7 +50,9 @@ pub enum LineBreakKind {
 /// the `\n`. Mirrors `LineBreak`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct LineBreak {
+    /// Byte offset of the break. For CRLF this is the `\n`.
     pub pos: usize,
+    /// Which break sequence was found.
     pub kind: LineBreakKind,
 }
 
@@ -520,12 +533,19 @@ pub fn tab_stops(text: &str) -> Vec<usize> {
 /// Strict UTF-8 decoding failure.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum DecodeError {
+    /// The position is past the end of the bytes.
     OutOfBounds,
+    /// The sequence is cut off by the end of the bytes.
     UnexpectedEnd,
+    /// The first byte cannot start a UTF-8 sequence.
     InvalidStart,
+    /// A continuation byte does not have the `10xxxxxx` form.
     InvalidContinuation,
+    /// The sequence uses more bytes than its code point needs.
     Overlong,
+    /// The code point is a UTF-16 surrogate (U+D800 to U+DFFF).
     Surrogate,
+    /// The code point is above U+10FFFF.
     TooLarge,
 }
 
@@ -587,6 +607,7 @@ pub struct TextWidthCursor<'a> {
 }
 
 impl<'a> TextWidthCursor<'a> {
+    /// Create a cursor at byte 0 and column 0 over `text`.
     pub fn new(text: &'a str, tab_width: u8, method: WidthMethod) -> TextWidthCursor<'a> {
         TextWidthCursor {
             text,
@@ -597,10 +618,12 @@ impl<'a> TextWidthCursor<'a> {
         }
     }
 
+    /// Return the byte offset reached so far.
     pub fn byte_offset(&self) -> usize {
         self.byte_offset
     }
 
+    /// Return the columns consumed so far.
     pub fn columns(&self) -> u32 {
         self.columns
     }
@@ -673,19 +696,29 @@ impl<'a> TextWidthCursor<'a> {
 /// Word class for wrap and word-motion decisions. Mirrors `WordClass`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum WordClass {
+    /// ASCII letter, digit, or underscore.
     AsciiWord,
+    /// CJK ideograph, kana, or Hangul code point.
     CjkWord,
+    /// Any other code point.
     Other,
 }
 
 /// Wrap-break kind. Mirrors `LayoutWrapBreakKind`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum LayoutWrapBreakKind {
+    /// Not a break.
     None,
+    /// A whitespace cluster, such as a space, tab, or Unicode space.
     Whitespace,
+    /// A cluster that joins whitespace with other code points, such as a space plus a
+    /// combining mark.
     PreservedWhitespace,
+    /// A punctuation or hyphen break, such as `-`, `/`, `,`, or `、`.
     Punctuation,
+    /// A switch between ASCII word and CJK word characters.
     ScriptTransition,
+    /// A break between two CJK word characters. It breaks a line but does not end a word.
     CjkIntercharacter,
 }
 
@@ -707,18 +740,25 @@ impl LayoutWrapBreakKind {
 /// byte and column metadata. Mirrors `LayoutWrapBreak`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct LayoutWrapBreak {
+    /// Byte offset of the grapheme that creates the break.
     pub byte_start: u32,
+    /// Column where that grapheme starts.
     pub col_start: u32,
+    /// Grapheme length in bytes.
     pub byte_len: u32,
+    /// Grapheme width in cells.
     pub width_cols: u32,
+    /// Kind of break.
     pub kind: LayoutWrapBreakKind,
 }
 
 impl LayoutWrapBreak {
+    /// Return the column just past the grapheme.
     pub fn col_end(self) -> u32 {
         self.col_start + self.width_cols
     }
 
+    /// Return the byte offset just past the grapheme.
     pub fn byte_end(self) -> u32 {
         self.byte_start + self.byte_len
     }
@@ -727,9 +767,14 @@ impl LayoutWrapBreak {
 /// Chunk endpoint metadata. Mirrors `WordClassEdges`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct WordClassEdges {
+    /// Word class of the chunk's first code point.
     pub first: WordClass,
+    /// Word class at the chunk's end.
     pub last: WordClass,
+    /// Last code point of the chunk; `None` for empty text.
     pub last_cp: Option<u32>,
+    /// Whether the scan found a break between two CJK word characters. Word-only layout sets
+    /// it even though it omits those breaks.
     pub has_cjk_breaks: bool,
 }
 

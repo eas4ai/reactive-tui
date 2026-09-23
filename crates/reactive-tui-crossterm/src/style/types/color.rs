@@ -84,7 +84,14 @@ pub enum Color {
     ///
     /// Most UNIX terminals and Windows 10 supported only.
     /// See [Platform-specific notes](enum.Color.html#platform-specific-notes) for more info.
-    Rgb { r: u8, g: u8, b: u8 },
+    Rgb {
+        /// Red, 0 to 255.
+        r: u8,
+        /// Green, 0 to 255.
+        g: u8,
+        /// Blue, 0 to 255.
+        b: u8,
+    },
 
     /// An ANSI color. See [256 colors - cheat sheet](https://jonasjacek.github.io/colors/) for more info.
     ///

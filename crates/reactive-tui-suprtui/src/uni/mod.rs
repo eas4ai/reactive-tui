@@ -21,9 +21,14 @@ use unicode_segmentation::UnicodeSegmentation;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u8)]
 pub enum WidthMethod {
+    /// Sum the width of every code point, like `wcwidth`.
     Wcwidth = 0,
+    /// Measure whole grapheme clusters with the Unicode width rules.
     Unicode = 1,
+    /// Like `Unicode`, but split clusters after a zero-width joiner.
     NoZwj = 2,
+    /// Like `Unicode`, but a cluster with a second nonzero-width code point is at least
+    /// 2 cells wide.
     UnicodeWide = 3,
 }
 
@@ -31,9 +36,13 @@ pub enum WidthMethod {
 /// starting column. Mirrors `RenderClusterInfo`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct RenderCluster {
+    /// Byte offset where the cluster starts.
     pub byte_start: u32,
+    /// Cluster length in bytes.
     pub byte_len: u32,
+    /// Cluster width in cells.
     pub width_cols: u32,
+    /// Column where the cluster starts.
     pub col_start: u32,
 }
 

@@ -37,41 +37,57 @@ pub struct NodeId(TaffyId);
 /// Main-axis direction.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum FlexDirectionName {
+    /// Main axis runs left to right.
     Row,
     /// Classical Yoga default (not the web default).
     #[default]
     Column,
+    /// Main axis runs right to left.
     RowReverse,
+    /// Main axis runs bottom to top.
     ColumnReverse,
 }
 
 /// Wrapping behavior.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum Wrap {
+    /// Keep all items on one line.
     #[default]
     NoWrap,
+    /// Wrap items onto new lines.
     Wrap,
+    /// Wrap items onto new lines in reverse cross-axis order.
     WrapReverse,
 }
 
 /// Main-axis distribution.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum Justify {
+    /// Pack items at the main-axis start.
     #[default]
     Start,
+    /// Center items on the main axis.
     Center,
+    /// Pack items at the main-axis end.
     End,
+    /// Equal space between items and none at the edges.
     SpaceBetween,
+    /// Equal space around each item, so edge gaps are half the inner gaps.
     SpaceAround,
+    /// Equal space between items and at both edges.
     SpaceEvenly,
 }
 
 /// Cross-axis alignment.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum Align {
+    /// Align items to the cross-axis start.
     Start,
+    /// Center items on the cross axis.
     Center,
+    /// Align items to the cross-axis end.
     End,
+    /// Stretch items to fill the cross axis.
     #[default]
     Stretch,
 }
@@ -79,54 +95,76 @@ pub enum Align {
 /// Per-item cross-axis override.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum AlignSelfName {
+    /// Use the parent's `align_items`.
     #[default]
     Auto,
+    /// Align this item to the cross-axis start.
     Start,
+    /// Center this item on the cross axis.
     Center,
+    /// Align this item to the cross-axis end.
     End,
+    /// Stretch this item to fill the cross axis.
     Stretch,
 }
 
 /// Multi-line cross-axis distribution.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum AlignContentName {
+    /// Pack lines at the cross-axis start.
     #[default]
     Start,
+    /// Center lines on the cross axis.
     Center,
+    /// Pack lines at the cross-axis end.
     End,
+    /// Stretch lines to fill the cross axis.
     Stretch,
+    /// Equal space between lines and none at the edges.
     SpaceBetween,
+    /// Equal space around each line.
     SpaceAround,
 }
 
 /// Auto, points, or percent of the parent axis.
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub enum SizeValue {
+    /// Size from content and flex rules.
     #[default]
     Auto,
+    /// Fixed size in points.
     Points(f32),
+    /// Percent of the parent axis, where `50.0` is half.
     Percent(f32),
 }
 
 /// Points or percent of the parent axis.
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub enum LengthValue {
+    /// No length.
     #[default]
     Zero,
+    /// Fixed length in points.
     Points(f32),
+    /// Percent of the parent axis, where `50.0` is half.
     Percent(f32),
 }
 
 /// Edges in left/right/top/bottom order.
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub struct Edges<T> {
+    /// Left edge.
     pub left: T,
+    /// Right edge.
     pub right: T,
+    /// Top edge.
     pub top: T,
+    /// Bottom edge.
     pub bottom: T,
 }
 
 impl<T: Default> Edges<T> {
+    /// Use one value for all four edges.
     pub fn uniform(value: T) -> Self
     where
         T: Clone,
@@ -144,20 +182,35 @@ impl<T: Default> Edges<T> {
 /// zero grow/shrink, auto sizes. Mirrors the fixed OpenTUI config.
 #[derive(Debug, Clone, PartialEq)]
 pub struct FlexStyle {
+    /// Main-axis direction.
     pub direction: FlexDirectionName,
+    /// Whether items wrap onto new lines.
     pub wrap: Wrap,
+    /// Main-axis distribution of children.
     pub justify: Justify,
+    /// Cross-axis alignment of children.
     pub align_items: Align,
+    /// Cross-axis alignment of this node, overriding the parent.
     pub align_self: AlignSelfName,
+    /// Cross-axis distribution of wrapped lines.
     pub align_content: AlignContentName,
+    /// Share of free main-axis space this node takes.
     pub grow: f32,
+    /// Share of overflow this node gives up; `0.0` never shrinks.
     pub shrink: f32,
+    /// Main-axis size before grow and shrink apply.
     pub basis: SizeValue,
+    /// Width and height.
     pub size: (SizeValue, SizeValue),
+    /// Minimum width and height.
     pub min_size: (SizeValue, SizeValue),
+    /// Maximum width and height.
     pub max_size: (SizeValue, SizeValue),
+    /// Outer spacing per edge.
     pub margin: Edges<LengthValue>,
+    /// Inner spacing per edge.
     pub padding: Edges<LengthValue>,
+    /// Space between children as (horizontal, vertical).
     pub gap: (LengthValue, LengthValue),
 }
 
@@ -303,9 +356,13 @@ pub trait MeasureTarget {
 /// Absolute computed geometry for one node (LAY-004).
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct ComputedLayout {
+    /// Left edge, including all ancestor offsets.
     pub x: f32,
+    /// Top edge, including all ancestor offsets.
     pub y: f32,
+    /// Computed width.
     pub width: f32,
+    /// Computed height.
     pub height: f32,
 }
 
@@ -354,6 +411,7 @@ impl LayoutTree {
         1.0
     }
 
+    /// Create a node with no children.
     pub fn new_leaf(&mut self, style: &FlexStyle) -> Result<NodeId, LayoutError> {
         let id = self
             .taffy
@@ -363,6 +421,8 @@ impl LayoutTree {
         Ok(NodeId(id))
     }
 
+    /// Create a node that owns `children` in the given order.
+    /// Fails with [`LayoutError::InvalidNode`] when a child id is not live.
     pub fn new_parent(
         &mut self,
         style: &FlexStyle,
@@ -380,6 +440,7 @@ impl LayoutTree {
         Ok(NodeId(id))
     }
 
+    /// Replace the node's style.
     pub fn set_style(&mut self, node: NodeId, style: &FlexStyle) -> Result<(), LayoutError> {
         let id = self.check(node)?;
         self.taffy
@@ -387,6 +448,7 @@ impl LayoutTree {
             .map_err(|_| LayoutError::InvalidNode)
     }
 
+    /// Append `child` to the end of `parent`'s children.
     pub fn add_child(&mut self, parent: NodeId, child: NodeId) -> Result<(), LayoutError> {
         let parent = self.check(parent)?;
         let child = self.check(child)?;
@@ -395,6 +457,8 @@ impl LayoutTree {
             .map_err(|_| LayoutError::InvalidNode)
     }
 
+    /// Remove the node and drop its measure target.
+    /// Its children stay in the tree, detached from any parent.
     pub fn remove(&mut self, node: NodeId) -> Result<(), LayoutError> {
         let id = self.check(node)?;
         self.measures.remove(&id);
@@ -406,6 +470,7 @@ impl LayoutTree {
             .map_err(|_| LayoutError::InvalidNode)
     }
 
+    /// Mark the node and its ancestors for relayout.
     pub fn mark_dirty(&mut self, node: NodeId) -> Result<(), LayoutError> {
         let id = self.check(node)?;
         self.taffy
@@ -447,13 +512,15 @@ impl LayoutTree {
         self.calls.get(&node.0).copied().unwrap_or(0)
     }
 
-    /// Lay out the subtree. `None` axes are unbounded (Yoga NaN).
+    /// Lay out the subtree. `None` axes are unbounded (Yoga NaN). A removed
+    /// root fails with `InvalidNode`.
     pub fn compute(
         &mut self,
         root: NodeId,
         width: Option<f32>,
         height: Option<f32>,
     ) -> Result<(), LayoutError> {
+        let root = self.check(root)?;
         let space = Size {
             width: width.map_or(AvailableSpace::MaxContent, AvailableSpace::Definite),
             height: height.map_or(AvailableSpace::MaxContent, AvailableSpace::Definite),
@@ -462,22 +529,18 @@ impl LayoutTree {
         let measures = &mut self.measures;
         let calls = &mut self.calls;
         taffy
-            .compute_layout_with_measure(
-                root.0,
-                space,
-                |known, _available, id, _context, _style| {
-                    if let Some(target) = measures.get_mut(&id) {
-                        *calls.entry(id).or_insert(0) += 1;
-                        let (w, h) = target.measure(known.width, known.height);
-                        Size {
-                            width: w,
-                            height: h,
-                        }
-                    } else {
-                        Size::ZERO
+            .compute_layout_with_measure(root, space, |known, _available, id, _context, _style| {
+                if let Some(target) = measures.get_mut(&id) {
+                    *calls.entry(id).or_insert(0) += 1;
+                    let (w, h) = target.measure(known.width, known.height);
+                    Size {
+                        width: w,
+                        height: h,
                     }
-                },
-            )
+                } else {
+                    Size::ZERO
+                }
+            })
             .map_err(|_| LayoutError::InvalidNode)
     }
 

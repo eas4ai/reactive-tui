@@ -84,23 +84,41 @@ pub enum WidthMethod {
 /// explicit vscode downgrade handled by [`EnvCaps`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Capabilities {
+    /// Kitty keyboard protocol. Set by a `CSI ? <flags> u` reply.
     pub kitty_keyboard: bool,
+    /// Kitty graphics protocol.
     pub kitty_graphics: bool,
+    /// 24-bit RGB color.
     pub rgb: bool,
+    /// 256-color palette.
     pub ansi256: bool,
+    /// Unicode width strategy. A tmux reply switches it to [`WidthMethod::Wcwidth`].
     pub unicode: WidthMethod,
+    /// SGR pixel mouse coordinates.
     pub sgr_pixels: bool,
+    /// Color-scheme update notifications (`?2031`).
     pub color_scheme_updates: bool,
+    /// Explicit-width text sizing.
     pub explicit_width: bool,
+    /// Scaled text sizing.
     pub scaled_text: bool,
+    /// Sixel graphics.
     pub sixel: bool,
+    /// Focus event tracking (`?1004`).
     pub focus_tracking: bool,
+    /// Synchronized output.
     pub sync: bool,
+    /// Bracketed paste (`?2004`).
     pub bracketed_paste: bool,
+    /// OSC 8 hyperlinks. Set when a reply names a known hyperlink terminal.
     pub hyperlinks: bool,
+    /// OSC 52 clipboard writes. Set when a reply names a known OSC 52 terminal.
     pub osc52: bool,
+    /// Desktop notifications.
     pub notifications: bool,
+    /// The terminal needs explicit cursor moves. Set by tmux and Alacritty replies.
     pub explicit_cursor_positioning: bool,
+    /// The session runs on a remote host.
     pub remote: bool,
 }
 
@@ -133,9 +151,12 @@ impl Default for Capabilities {
 /// inconclusive capability response must not block clipboard emission.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum Osc52Support {
+    /// No answer yet, or an inconclusive one. Writes stay allowed.
     #[default]
     Unknown,
+    /// The terminal proved OSC 52 support.
     Supported,
+    /// The terminal refused OSC 52. Writes are blocked.
     Unsupported,
 }
 
@@ -273,16 +294,24 @@ impl Capabilities {
 /// repeated call emits nothing.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct TermModes {
+    /// Mouse tracking is on.
     pub mouse: bool,
     /// Retained across disable (mirrors `terminal.zig`, which never clears
     /// it): records the last active motion shape for diagnostics.
     pub mouse_movement: bool,
+    /// Bracketed paste is on.
     pub bracketed_paste: bool,
+    /// Focus event tracking is on.
     pub focus_tracking: bool,
+    /// A kitty keyboard entry is pushed on the terminal's stack.
     pub kitty_keyboard: bool,
+    /// Flags of the pushed kitty keyboard entry; 0 when none is pushed.
     pub kitty_keyboard_flags: u8,
+    /// xterm `modifyOtherKeys` is on.
     pub modify_other_keys: bool,
+    /// Color-scheme update notifications are on.
     pub color_scheme_updates: bool,
+    /// The alternate screen is active.
     pub alt_screen: bool,
 }
 
@@ -472,19 +501,26 @@ pub fn shutdown(sink: &mut Vec<u8>, modes: &mut TermModes) {
 /// Detected multiplexer from xtversion or `TERM_PROGRAM`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum Multiplexer {
+    /// No multiplexer detected.
     #[default]
     None,
+    /// Running inside tmux.
     Tmux,
+    /// Running inside Zellij.
     Zellij,
 }
 
 /// Configured image protocol (`OPENTUI_IMAGE_PROTOCOL` / explicit request).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum ImageProtocol {
+    /// No explicit choice. [`resolve_image_protocol`] decides from configuration and probes.
     #[default]
     Auto,
+    /// Kitty graphics protocol.
     Kitty,
+    /// Sixel graphics.
     Sixel,
+    /// Block-cell fallback rendering.
     Blocks,
 }
 
@@ -503,7 +539,9 @@ pub struct EnvFacts<'a> {
     /// Response-derived seeds the environment stage folds into: OSC 52
     /// proof, hyperlink proof, and width strategy from query replies.
     pub osc52: bool,
+    /// Hyperlink proof from query replies.
     pub hyperlinks: bool,
+    /// Width strategy from query replies.
     pub unicode: WidthMethod,
     /// Whether the terminal is foot (from xtversion).
     pub is_foot: bool,
@@ -527,18 +565,29 @@ fn is_false_value(v: &str) -> bool {
 /// `checkEnvironmentOverrides` (TRM-008).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EnvCaps {
+    /// OSC 52 clipboard writes are expected to work.
     pub osc52: bool,
+    /// OSC 8 hyperlinks are expected to work.
     pub hyperlinks: bool,
+    /// Multiplexer from the facts, or tmux from `TERM_PROGRAM`.
     pub multiplexer: Multiplexer,
+    /// The session runs over SSH or mosh: `SSH_CONNECTION`, `SSH_CLIENT`, `SSH_TTY`, or
+    /// `MOSH_CONNECTION` is set.
     pub remote: bool,
+    /// Width strategy from the facts, `OPENTUI_FORCE_*` overrides, and terminal quirks.
     pub unicode: WidthMethod,
+    /// The terminal needs explicit cursor moves (tmux or Alacritty).
     pub explicit_cursor_positioning: bool,
+    /// Image graphics are allowed. `OPENTUI_GRAPHICS=false` or `0` turns this off.
     pub graphics_enabled: bool,
+    /// Protocol from `OPENTUI_IMAGE_PROTOCOL`; `Auto` when unset or unrecognized.
     pub image_protocol: ImageProtocol,
     /// `OPENTUI_FORCE_EXPLICIT_WIDTH` override when present.
     pub explicit_width: Option<bool>,
 }
 
+/// Infer capability facts from environment variables and xtversion facts (TRM-008).
+/// Reads only `facts`; it never touches the process environment.
 pub fn detect_from_env(facts: &EnvFacts<'_>) -> EnvCaps {
     let vars = facts.vars;
     let mut caps = EnvCaps {
@@ -699,14 +748,19 @@ fn is_in_screen(vars: &[(&str, &str)]) -> bool {
 /// OSC 52 selection target (`52;<c>;<base64>`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum ClipboardTarget {
+    /// System clipboard (`c`).
     #[default]
     Clipboard,
+    /// Primary selection (`p`).
     Primary,
+    /// Select buffer (`s`).
     Select,
+    /// Secondary selection (`q`).
     Secondary,
 }
 
 impl ClipboardTarget {
+    /// Return the OSC 52 selection character for this target.
     pub fn to_char(self) -> u8 {
         match self {
             ClipboardTarget::Clipboard => b'c',
@@ -873,7 +927,9 @@ pub fn write_clipboard(
 /// Rendering backend selected for image placements.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum ResolvedProtocol {
+    /// Kitty graphics protocol.
     Kitty,
+    /// Sixel graphics.
     Sixel,
     /// Block-cell fallback rendering.
     #[default]
