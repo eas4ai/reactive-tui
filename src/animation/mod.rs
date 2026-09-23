@@ -7,8 +7,8 @@
 pub mod api;
 mod binding;
 mod targets;
-pub(crate) use targets::TargetRegistry;
 pub use targets::{AnimationTarget, AnimationTargetContext, AnimationTargetError};
+pub(crate) use targets::{PresentedTargets, TargetRegistry};
 /// Core animation types and configuration
 pub mod core;
 /// Debug utilities for animation system

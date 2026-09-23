@@ -102,6 +102,12 @@ impl Capture {
     }
 }
 
+/// The capture once every presented frame has been written (PIP-001).
+fn synced<'a>(manager: &mut ScreenManager, output: &'a Capture) -> &'a Capture {
+    manager.sync().unwrap();
+    output
+}
+
 static SCREEN_CLEANUPS: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
 
 #[reactive_tui::component]
@@ -138,13 +144,13 @@ fn screens_retain_registered_components_and_remove_their_effects_once() {
     screens
         .create_screen("counter", "Counter".into(), element())
         .unwrap();
-    assert_eq!(output.text().trim(), "count:0");
+    assert_eq!(synced(&mut screens, &output).text().trim(), "count:0");
     screens.process_event(&key(KeyCode::Enter)).unwrap();
-    assert_eq!(output.text().trim(), "count:1");
+    assert_eq!(synced(&mut screens, &output).text().trim(), "count:1");
     screens
         .update_screen(&ScreenId::from("counter"), element())
         .unwrap();
-    assert_eq!(output.text().trim(), "count:1");
+    assert_eq!(synced(&mut screens, &output).text().trim(), "count:1");
     screens
         .create_screen("other", "Other".into(), Element::text("other"))
         .unwrap();
@@ -156,7 +162,7 @@ fn screens_retain_registered_components_and_remove_their_effects_once() {
         .switch_to_immediate(ScreenId::from("counter"))
         .unwrap();
     screens.process_event(&key(KeyCode::Enter)).unwrap();
-    assert_eq!(output.text().trim(), "count:2");
+    assert_eq!(synced(&mut screens, &output).text().trim(), "count:2");
     assert_eq!(SCREEN_CLEANUPS.load(Ordering::SeqCst), 0);
     screens.remove_screen(&ScreenId::from("counter")).unwrap();
     assert_eq!(SCREEN_CLEANUPS.load(Ordering::SeqCst), 1);

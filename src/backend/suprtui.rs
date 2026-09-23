@@ -396,6 +396,10 @@ impl Backend for SuprTuiBackend {
         }
     }
 
+    fn sync(&mut self) -> Result<()> {
+        SuprTuiBackend::sync(self)
+    }
+
     fn size(&self) -> (u16, u16) {
         (
             self.dimensions.0.min(u16::MAX as usize) as u16,

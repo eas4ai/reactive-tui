@@ -282,6 +282,14 @@ impl ScreenManager {
         Ok(())
     }
 
+    /// Wait until every frame this manager presented has been written. An
+    /// operation returns once its frame is submitted and the backend may
+    /// write it afterwards (PIP-001); a caller that reads the output, such
+    /// as a test, calls this first.
+    pub fn sync(&mut self) -> Result<(), String> {
+        self.backend.sync().map_err(|error| error.to_string())
+    }
+
     /// Complete the current transition
     fn complete_transition(&mut self) -> Result<(), String> {
         if let Some(to_screen) = self.transition_state.to_screen.clone() {

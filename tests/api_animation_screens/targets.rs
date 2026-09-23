@@ -42,6 +42,12 @@ fn element(id: &str, css: &str) -> Element {
             .child(VNode::text("TARGET")),
     ))
 }
+/// The capture once every presented frame has been written (PIP-001).
+fn synced<'a>(manager: &mut ScreenManager, output: &'a Capture) -> &'a Capture {
+    manager.sync().unwrap();
+    output
+}
+
 fn fixture(root: Element) -> (ScreenManager, Capture) {
     let output = Capture::default();
     let mut manager = ScreenManager::new(Box::new(
@@ -70,7 +76,11 @@ fn relative_target_samples_paint_and_clear_restores_authored_values() {
     animation.try_seek(0.5).unwrap();
     manager.update().unwrap();
     assert_eq!(
-        output.screen().cell(2, 10).unwrap().bgcolor(),
+        synced(&mut manager, &output)
+            .screen()
+            .cell(2, 10)
+            .unwrap()
+            .bgcolor(),
         vt100::Color::Rgb(159, 159, 159)
     );
     assert_eq!(
@@ -80,13 +90,21 @@ fn relative_target_samples_paint_and_clear_restores_authored_values() {
     animation.try_seek(1.0).unwrap();
     manager.update().unwrap();
     assert_eq!(
-        output.screen().cell(2, 10).unwrap().bgcolor(),
+        synced(&mut manager, &output)
+            .screen()
+            .cell(2, 10)
+            .unwrap()
+            .bgcolor(),
         vt100::Color::Rgb(191, 191, 191)
     );
     target.clear().unwrap();
     manager.update().unwrap();
     assert_eq!(
-        output.screen().cell(2, 10).unwrap().bgcolor(),
+        synced(&mut manager, &output)
+            .screen()
+            .cell(2, 10)
+            .unwrap()
+            .bgcolor(),
         vt100::Color::Rgb(128, 128, 128)
     );
 }
@@ -113,13 +131,21 @@ fn numeric_array_keyframes_keep_middle_values_in_samples_and_presented_frames() 
         if bound {
             manager.update().unwrap();
             assert_eq!(
-                output.screen().cell(2, 10).unwrap().bgcolor(),
+                synced(&mut manager, &output)
+                    .screen()
+                    .cell(2, 10)
+                    .unwrap()
+                    .bgcolor(),
                 vt100::Color::Rgb(255, 255, 255)
             );
             animation.try_seek(0.75).unwrap();
             manager.update().unwrap();
             assert_eq!(
-                output.screen().cell(2, 10).unwrap().bgcolor(),
+                synced(&mut manager, &output)
+                    .screen()
+                    .cell(2, 10)
+                    .unwrap()
+                    .bgcolor(),
                 vt100::Color::Rgb(128, 128, 128)
             );
         }

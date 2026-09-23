@@ -158,6 +158,7 @@ fn pip_002_flush_failure_is_reported_next_and_forces_a_full_repaint() {
     let out = Writer::default();
     let mut backend = SuprTuiBackend::with_writer(16, 4, out.clone()).unwrap();
     show(&mut backend, &frame("first"));
+    backend.sync().unwrap();
     let first_flushes = out.flushes();
     let first_geometry = format!("{:?}", backend.painted_nodes().unwrap());
 
