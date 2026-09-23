@@ -218,6 +218,16 @@ fn vt100_section(bytes: &[u8], size: (u16, u16)) -> String {
 
 /// Ghostty's real parser as the second model, only with the crate built.
 #[cfg(feature = "embedded-terminal")]
+fn ghostty_model(bytes: &[u8], size: (u16, u16)) -> String {
+    ghostty_section(bytes, size)
+}
+
+#[cfg(not(feature = "embedded-terminal"))]
+fn ghostty_model(_: &[u8], _: (u16, u16)) -> String {
+    unreachable!("the ghostty model needs the embedded-terminal feature")
+}
+
+#[cfg(feature = "embedded-terminal")]
 fn ghostty_section(bytes: &[u8], size: (u16, u16)) -> String {
     use libghostty_vt::render::{CellIterator, RowIterator};
     use libghostty_vt::{RenderState, Terminal};
@@ -269,10 +279,10 @@ fn sections(text: &str) -> Vec<(String, String)> {
 }
 
 fn check_recording(name: &str, bytes: &[u8], size: (u16, u16)) {
-    #[cfg_attr(not(feature = "embedded-terminal"), allow(unused_mut))]
     let mut produced = vec![vt100_section(bytes, size)];
-    #[cfg(feature = "embedded-terminal")]
-    produced.push(ghostty_section(bytes, size));
+    if cfg!(feature = "embedded-terminal") {
+        produced.push(ghostty_model(bytes, size));
+    }
     let path = snapshots_dir().join(format!("{name}.screen"));
     if std::env::var("REGENERATE").as_deref() == Ok("1") {
         std::fs::create_dir_all(snapshots_dir()).expect("snapshot dir");
