@@ -1,4 +1,6 @@
 #![deny(unused_imports, unused_must_use)]
+#![warn(missing_docs)]
+#![deny(rustdoc::broken_intra_doc_links)]
 
 //! # Cross-platform Terminal Manipulation Library
 //!

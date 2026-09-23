@@ -838,12 +838,19 @@ bitflags! {
     #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize), serde(transparent))]
     #[derive(Debug, PartialOrd, PartialEq, Eq, Clone, Copy, Hash)]
     pub struct KeyModifiers: u8 {
+        /// A Shift key was held.
         const SHIFT = 0b0000_0001;
+        /// A Control key was held.
         const CONTROL = 0b0000_0010;
+        /// An Alt key (Option on macOS) was held.
         const ALT = 0b0000_0100;
+        /// A Super key (Command on macOS, Windows key elsewhere) was held.
         const SUPER = 0b0000_1000;
+        /// A Hyper key was held.
         const HYPER = 0b0001_0000;
+        /// A Meta key was held.
         const META = 0b0010_0000;
+        /// No modifier was held.
         const NONE = 0b0000_0000;
     }
 }
@@ -903,8 +910,11 @@ impl Display for KeyModifiers {
 #[cfg_attr(feature = "derive-more", derive(IsVariant))]
 #[derive(Debug, PartialOrd, PartialEq, Eq, Clone, Copy, Hash)]
 pub enum KeyEventKind {
+    /// The key went down.
     Press,
+    /// The key is held and the terminal repeats it.
     Repeat,
+    /// The key came up.
     Release,
 }
 
@@ -927,6 +937,7 @@ bitflags! {
         ///
         /// **Note:** this is set for the initial press of Num Lock itself.
         const NUM_LOCK = 0b0000_0100;
+        /// No extra state.
         const NONE = 0b0000_0000;
     }
 }
@@ -953,6 +964,7 @@ pub struct KeyEvent {
 }
 
 impl KeyEvent {
+    /// A key press with no extra state.
     pub const fn new(code: KeyCode, modifiers: KeyModifiers) -> KeyEvent {
         KeyEvent {
             code,
@@ -962,6 +974,7 @@ impl KeyEvent {
         }
     }
 
+    /// A key event of the given kind with no extra state.
     pub const fn new_with_kind(
         code: KeyCode,
         modifiers: KeyModifiers,
@@ -975,6 +988,7 @@ impl KeyEvent {
         }
     }
 
+    /// A key event of the given kind and state.
     pub const fn new_with_kind_and_state(
         code: KeyCode,
         modifiers: KeyModifiers,

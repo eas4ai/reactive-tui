@@ -75,6 +75,7 @@
 )]
 #![warn(clippy::pedantic)]
 #![warn(missing_docs)]
+#![deny(rustdoc::broken_intra_doc_links)]
 #![warn(missing_debug_implementations)]
 #![warn(missing_copy_implementations)]
 #![warn(clippy::allow_attributes)]

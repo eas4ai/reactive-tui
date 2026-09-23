@@ -161,10 +161,12 @@ impl<'a> OptimizedBuffer<'a> {
         self.opacity_stack.push(effective);
     }
 
+    /// Remove the top opacity level.
     pub fn pop_opacity(&mut self) {
         self.opacity_stack.pop();
     }
 
+    /// Remove every opacity level, so the current opacity is 1.0 again.
     pub fn clear_opacity(&mut self) {
         self.opacity_stack.clear();
     }
@@ -952,6 +954,9 @@ impl<'a> OptimizedBuffer<'a> {
         src_char
     }
 
+    /// Composite a region of `frame_buffer` onto this grid at (`dest_x`,
+    /// `dest_y`). `None` source bounds cover the whole source; output clips to
+    /// this grid and the active scissor.
     #[allow(clippy::too_many_arguments)]
     pub fn draw_frame_buffer(
         &mut self,

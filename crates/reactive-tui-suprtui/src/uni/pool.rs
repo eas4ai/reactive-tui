@@ -28,11 +28,17 @@ use std::rc::Rc;
 /// Pool id payload: `[class (3 bits) | generation (7 bits) | slot (16 bits)]`.
 pub type IdPayload = u32;
 
+/// Bits of an id that hold the size class.
 pub const CLASS_BITS: u32 = 3;
+/// Bits of an id that hold the slot generation.
 pub const GENERATION_BITS: u32 = 7;
+/// Bits of an id that hold the slot index.
 pub const SLOT_BITS: u32 = 16;
+/// Mask for the class field after it is shifted down.
 pub const CLASS_MASK: u32 = (1 << CLASS_BITS) - 1;
+/// Mask for the generation field after it is shifted down.
 pub const GENERATION_MASK: u32 = (1 << GENERATION_BITS) - 1;
+/// Mask for the slot index in the low bits of an id.
 pub const SLOT_MASK: u32 = (1 << SLOT_BITS) - 1;
 
 const MAX_CLASSES: usize = 5;
@@ -42,9 +48,13 @@ const DEFAULT_SLOTS_PER_PAGE: [u32; MAX_CLASSES] = [256, 128, 64, 16, 8];
 /// Reference `GraphemePoolError`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum GraphemePoolError {
+    /// A size class has no slot index left to grow into.
     OutOfMemory,
+    /// The bytes exceed the storage bound: 128 bytes owned, `u16::MAX` bytes unowned.
     GraphemeTooLong,
+    /// The id names no allocated slot, or its reference count does not allow the operation.
     InvalidId,
+    /// The id's generation does not match the slot, so the id is stale.
     WrongGeneration,
 }
 
@@ -338,10 +348,13 @@ impl<'a> Default for GraphemePool<'a> {
 }
 
 impl<'a> GraphemePool<'a> {
+    /// Create an empty pool with the default page sizes.
     pub fn new() -> Self {
         Self::with_options(InitOptions::default())
     }
 
+    /// Create an empty pool with the given page sizes.
+    /// Panics when any `slots_per_page` entry is 0.
     pub fn with_options(options: InitOptions) -> Self {
         let slots_per_page = options.slots_per_page.unwrap_or(DEFAULT_SLOTS_PER_PAGE);
         let classes = std::array::from_fn(|i| {
@@ -420,6 +433,8 @@ impl<'a> GraphemePool<'a> {
         Ok(id)
     }
 
+    /// Add one reference to `id`. The first reference to an owned entry interns its bytes, so
+    /// [`GraphemePool::alloc`] with the same bytes returns this id while it stays live.
     pub fn incref(&mut self, id: IdPayload) -> Result<(), GraphemePoolError> {
         let (class_id, slot_index, generation) = decode_id(id)?;
         let old_refcount = self.classes[class_id].get_refcount(slot_index, generation)?;
@@ -440,6 +455,8 @@ impl<'a> GraphemePool<'a> {
         Ok(())
     }
 
+    /// Drop one reference to `id`. The last reference frees the slot and removes its interned
+    /// entry. Fails when `id` is invalid, stale, or has no references.
     pub fn decref(&mut self, id: IdPayload) -> Result<(), GraphemePoolError> {
         let (class_id, slot_index, generation) = decode_id(id)?;
         let old_refcount = self.classes[class_id].get_refcount(slot_index, generation)?;
@@ -478,11 +495,14 @@ impl<'a> GraphemePool<'a> {
         self.classes[class_id].free_unreferenced(slot_index, generation)
     }
 
+    /// Return the bytes stored under `id`. For an unowned id this is the caller's slice.
+    /// Fails when `id` is invalid or stale.
     pub fn get(&self, id: IdPayload) -> Result<&[u8], GraphemePoolError> {
         let (class_id, slot_index, generation) = decode_id(id)?;
         self.classes[class_id].get(slot_index, generation)
     }
 
+    /// Return the reference count of `id`. Fails when `id` is invalid or stale.
     pub fn get_refcount(&self, id: IdPayload) -> Result<u32, GraphemePoolError> {
         let (class_id, slot_index, generation) = decode_id(id)?;
         self.classes[class_id].get_refcount(slot_index, generation)
@@ -504,6 +524,7 @@ pub struct GraphemeTracker<'a> {
 }
 
 impl<'a> GraphemeTracker<'a> {
+    /// Create an empty tracker over a shared pool.
     pub fn new(pool: Rc<RefCell<GraphemePool<'a>>>) -> Self {
         GraphemeTracker {
             pool,
@@ -523,11 +544,14 @@ impl<'a> GraphemeTracker<'a> {
         }
     }
 
+    /// Release the pool reference for every tracked id and forget them all.
     pub fn clear(&mut self) {
         self.decref_all();
         self.used_ids.clear();
     }
 
+    /// Count one more cell that uses `id`. The first cell takes a pool reference.
+    /// Panics when the pool rejects `id`.
     pub fn add(&mut self, id: IdPayload) {
         match self.used_ids.get_mut(&id) {
             Some(count) => {
@@ -546,6 +570,8 @@ impl<'a> GraphemeTracker<'a> {
         debug_assert!(self.used_ids[&id] > 0);
     }
 
+    /// Count one fewer cell that uses `id`. The last cell releases the pool reference.
+    /// Untracked ids are ignored. Panics when the pool rejects `id`.
     pub fn remove(&mut self, id: IdPayload) {
         let count = match self.used_ids.get_mut(&id) {
             None => return,
@@ -564,6 +590,8 @@ impl<'a> GraphemeTracker<'a> {
             .unwrap_or_else(|err| panic!("GraphemeTracker.remove decref failed: {err}"));
     }
 
+    /// Move one cell from `old_id` to `new_id`, adding the new id before removing the old one.
+    /// Equal ids do nothing.
     pub fn replace(&mut self, old_id: Option<IdPayload>, new_id: Option<IdPayload>) {
         if old_id.is_some() && old_id == new_id {
             return;
@@ -576,18 +604,22 @@ impl<'a> GraphemeTracker<'a> {
         }
     }
 
+    /// Return whether `id` is tracked.
     pub fn contains(&self, id: IdPayload) -> bool {
         self.used_ids.contains_key(&id)
     }
 
+    /// Return whether any id is tracked.
     pub fn has_any(&self) -> bool {
         !self.used_ids.is_empty()
     }
 
+    /// Return the number of distinct tracked ids.
     pub fn grapheme_count(&self) -> u32 {
         self.used_ids.len() as u32
     }
 
+    /// Return the total cell count across all tracked ids.
     pub fn cell_count(&self) -> u32 {
         let mut total: u32 = 0;
         for count in self.used_ids.values() {
@@ -598,6 +630,8 @@ impl<'a> GraphemeTracker<'a> {
         total
     }
 
+    /// Return the sum of each tracked id's byte length times its cell count.
+    /// Panics when the pool rejects a tracked id.
     pub fn total_bytes(&self) -> u32 {
         let pool = self.pool.borrow();
         let mut total_bytes: u32 = 0;

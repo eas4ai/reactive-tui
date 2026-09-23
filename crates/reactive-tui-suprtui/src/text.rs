@@ -15,8 +15,11 @@
 /// style id. Syntax styles attach meaning to ids in text-view.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Span {
+    /// Start byte offset.
     pub start: usize,
+    /// End byte offset, exclusive.
     pub end: usize,
+    /// Caller-defined style id.
     pub style: u32,
 }
 
@@ -34,8 +37,12 @@ struct Snapshot {
 /// inside a character return errors; nothing here panics on input.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum TextError {
+    /// Offset past the content end, or a range whose start follows its end.
+    /// Also returned when there is no open gesture or stored anchor to extend.
     OutOfRange,
+    /// Offset falls inside a UTF-8 character.
     NotCharBoundary,
+    /// Logical or virtual line index past the last line.
     LineOutOfRange,
 }
 
@@ -53,6 +60,7 @@ pub struct TextBuffer {
 }
 
 impl TextBuffer {
+    /// Empty buffer with no spans, history, or views.
     pub fn new() -> Self {
         TextBuffer {
             text: String::new(),
@@ -65,6 +73,7 @@ impl TextBuffer {
         }
     }
 
+    /// Buffer holding `text`, with no spans and no undo history.
     pub fn from_text(text: &str) -> Self {
         let mut buffer = TextBuffer::new();
         buffer.text.push_str(text);
@@ -76,14 +85,17 @@ impl TextBuffer {
         &self.text
     }
 
+    /// Content length in bytes.
     pub fn len(&self) -> usize {
         self.text.len()
     }
 
+    /// Whether the content is empty.
     pub fn is_empty(&self) -> bool {
         self.text.is_empty()
     }
 
+    /// Style spans in the order they were added.
     pub fn spans(&self) -> &[Span] {
         &self.spans
     }
@@ -228,10 +240,12 @@ impl TextBuffer {
         Ok(())
     }
 
+    /// Whether an undo step exists.
     pub fn can_undo(&self) -> bool {
         !self.history.is_empty()
     }
 
+    /// Whether a redo step exists.
     pub fn can_redo(&self) -> bool {
         !self.future.is_empty()
     }
@@ -282,6 +296,8 @@ impl TextBuffer {
         }
     }
 
+    /// Release a view id for reuse; it then reads clean.
+    /// Unknown ids are ignored.
     pub fn unregister_view(&mut self, view: ViewId) {
         if view.0 < self.views.len() {
             self.views[view.0] = false;
@@ -289,10 +305,13 @@ impl TextBuffer {
         }
     }
 
+    /// Whether content changed since the view last cleared its flag.
+    /// Unknown ids read clean.
     pub fn view_dirty(&self, view: ViewId) -> bool {
         self.views.get(view.0).copied().unwrap_or(false)
     }
 
+    /// Mark the view clean. Unknown ids are ignored.
     pub fn clear_view_dirty(&mut self, view: ViewId) {
         if let Some(dirty) = self.views.get_mut(view.0) {
             *dirty = false;
@@ -317,8 +336,11 @@ impl Default for TextBuffer {
 /// combining sequences and zero-width joiners travel together.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Cluster<'a> {
+    /// Cluster text.
     pub text: &'a str,
+    /// Start byte offset in the buffer.
     pub start: usize,
+    /// End byte offset in the buffer, exclusive.
     pub end: usize,
 }
 
@@ -413,8 +435,11 @@ pub enum WrapMode {
 /// terminator, plus its logical line index.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct VirtualLine {
+    /// Logical line index.
     pub line: usize,
+    /// Start byte offset in the buffer.
     pub start: usize,
+    /// End byte offset in the buffer, exclusive.
     pub end: usize,
 }
 
@@ -422,7 +447,9 @@ pub struct VirtualLine {
 /// reference id for exact removal.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Highlight {
+    /// Reference id used for removal.
     pub id: u32,
+    /// Overlay spans under this id.
     pub spans: Vec<Span>,
 }
 
@@ -430,8 +457,11 @@ pub struct Highlight {
 /// the style id.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SyntaxStyle {
+    /// Caller-given name.
     pub name: String,
+    /// Substring to match.
     pub pattern: String,
+    /// Style id given to each match.
     pub style: u32,
 }
 
@@ -470,6 +500,8 @@ pub struct TextView {
 }
 
 impl TextView {
+    /// View over `buffer` with width 80, no wrapping, the cursor at 0,
+    /// and boundary occupancy.
     pub fn new(buffer: TextBuffer) -> Self {
         TextView {
             buffer,
@@ -489,18 +521,23 @@ impl TextView {
         }
     }
 
+    /// The viewed buffer.
     pub fn buffer(&self) -> &TextBuffer {
         &self.buffer
     }
 
+    /// Mutable access to the buffer. Direct edits do not move the cursor
+    /// or the selection; both clamp to the content when read.
     pub fn buffer_mut(&mut self) -> &mut TextBuffer {
         &mut self.buffer
     }
 
+    /// Set the wrap width in display columns. Zero acts as one.
     pub fn set_width(&mut self, width: u32) {
         self.width = width;
     }
 
+    /// Set how lines wrap.
     pub fn set_wrap_mode(&mut self, wrap: WrapMode) {
         self.wrap = wrap;
     }
@@ -608,6 +645,7 @@ impl TextView {
         &self.cached_lines
     }
 
+    /// Number of laid-out rows.
     pub fn virtual_line_count(&mut self) -> usize {
         self.refresh_cache();
         self.cached_lines.len()
@@ -661,6 +699,7 @@ impl TextView {
         self.selection.map(|(a, f)| (a.min(f), a.max(f)))
     }
 
+    /// Select from `anchor` to `focus` byte offsets, in either order.
     pub fn set_selection(&mut self, anchor: usize, focus: usize) -> Result<(), TextError> {
         self.check_offset(anchor)?;
         self.check_offset(focus)?;
@@ -668,6 +707,7 @@ impl TextView {
         Ok(())
     }
 
+    /// Drop the selection.
     pub fn clear_selection(&mut self) {
         self.selection = None;
     }
@@ -725,6 +765,7 @@ impl TextView {
         self.occupancy = occupancy;
     }
 
+    /// Current selection occupancy.
     pub fn gesture_occupancy(&self) -> SelectionOccupancy {
         self.occupancy
     }
@@ -887,6 +928,7 @@ impl TextView {
         self.selection()
     }
 
+    /// Whether a press gesture is open.
     pub fn gesture_active(&self) -> bool {
         self.gesture.is_some()
     }
@@ -945,6 +987,8 @@ impl TextView {
         self.cursor.min(self.buffer.len())
     }
 
+    /// Place the cursor at a byte offset. The offset is not snapped to a
+    /// cluster start.
     pub fn set_cursor(&mut self, offset: usize) -> Result<(), TextError> {
         self.check_offset(offset)?;
         self.cursor = offset;
@@ -1034,6 +1078,9 @@ impl TextView {
         self.move_vertical(-1)
     }
 
+    /// Move to the same character column in the next logical line,
+    /// clamped and snapped to a cluster start. On the last line, moves to
+    /// the content end.
     pub fn move_down(&mut self) -> usize {
         self.move_vertical(1)
     }
@@ -1065,6 +1112,7 @@ impl TextView {
         self.cursor
     }
 
+    /// Move to the start of the cursor's logical line and return it.
     pub fn move_home(&mut self) -> usize {
         let cursor = self.cursor();
         let (line, _) = self.offset_to_line_col(cursor).unwrap_or((0, 0));
@@ -1073,6 +1121,7 @@ impl TextView {
         start
     }
 
+    /// Move to the end of the cursor's logical line and return it.
     pub fn move_end(&mut self) -> usize {
         let cursor = self.cursor();
         let (line, _) = self.offset_to_line_col(cursor).unwrap_or((0, 0));
@@ -1159,6 +1208,7 @@ impl TextView {
         Ok(())
     }
 
+    /// Highlight overlays, in the order each id was first added.
     pub fn highlights(&self) -> &[Highlight] {
         &self.highlights
     }
@@ -1219,6 +1269,7 @@ impl TextView {
         Ok(count)
     }
 
+    /// Attached syntax styles, in attach order.
     pub fn syntax_styles(&self) -> &[SyntaxStyle] {
         &self.syntax_styles
     }
@@ -1569,8 +1620,11 @@ fn view_dirty_tracking() {
 /// `word` and `line` expand each endpoint.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum GestureBehavior {
+    /// Keep the raw offset under each cell.
     Cell,
+    /// Expand each endpoint to its word unit.
     Word,
+    /// Expand each endpoint to its logical line.
     Line,
 }
 
@@ -1580,7 +1634,9 @@ pub enum GestureBehavior {
 /// reference `SelectionOccupancy`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum SelectionOccupancy {
+    /// Include the grapheme under the max endpoint.
     Cell,
+    /// Half-open range `[min, max)`.
     Boundary,
 }
 
@@ -1588,11 +1644,14 @@ pub enum SelectionOccupancy {
 /// `first_row`, display columns from `left_col`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Viewport {
+    /// First virtual line shown.
     pub first_row: usize,
+    /// First display column shown.
     pub left_col: u32,
 }
 
 impl Viewport {
+    /// Window starting at `first_row` and `left_col`.
     pub fn new(first_row: usize, left_col: u32) -> Self {
         Viewport {
             first_row,
@@ -1650,6 +1709,7 @@ pub struct EditorView {
 }
 
 impl EditorView {
+    /// Editor over `buffer` with an 80x24 window at the top left.
     pub fn new(buffer: TextBuffer) -> Self {
         EditorView {
             view: TextView::new(buffer),
@@ -1663,10 +1723,12 @@ impl EditorView {
         }
     }
 
+    /// The underlying text view.
     pub fn text_view(&self) -> &TextView {
         &self.view
     }
 
+    /// Mutable access to the underlying text view.
     pub fn text_view_mut(&mut self) -> &mut TextView {
         &mut self.view
     }
@@ -1678,19 +1740,24 @@ impl EditorView {
         self.view.set_width(cols);
     }
 
+    /// Window size as `(cols, rows)`.
     pub fn viewport_size(&self) -> (u32, u32) {
         (self.viewport_cols, self.viewport_rows)
     }
 
+    /// Move the window's top-left corner to `first_row` and `left_col`.
     pub fn scroll_to(&mut self, first_row: usize, left_col: u32) {
         self.first_row = first_row;
         self.left_col = left_col;
     }
 
+    /// Current window origin.
     pub fn viewport(&self) -> Viewport {
         Viewport::new(self.first_row, self.left_col)
     }
 
+    /// When `enabled`, move the cursor to the selection end after each
+    /// local selection change.
     pub fn set_selection_follow_cursor(&mut self, enabled: bool) {
         self.follow_cursor = enabled;
     }
@@ -1802,16 +1869,20 @@ impl EditorView {
         Ok(())
     }
 
+    /// Clear the selection, close any gesture, and forget the stored anchor.
     pub fn reset_local_selection(&mut self) {
         self.view.clear_selection();
         self.view.gesture_release();
         self.anchor_cell = None;
     }
 
+    /// If a selection exists, switch to cell occupancy and re-express the
+    /// selection under it.
     pub fn convert_selection_to_cell(&mut self) {
         self.view.gesture_convert_to_cell();
     }
 
+    /// Set how later selections occupy cells.
     pub fn set_selection_occupancy(&mut self, occupancy: SelectionOccupancy) {
         self.view.set_gesture_occupancy(occupancy);
     }

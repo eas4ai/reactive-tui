@@ -51,16 +51,23 @@ const RESET_CURSOR_COLOR: &str = "\x1b]112\x07";
 /// Per-frame write outcome. Reference `output.WriteStatus`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum WriteStatus {
+    /// The backend accepted the frame or committed its bytes.
     Ok,
+    /// The backend skipped the frame; nothing was written.
     Skipped,
+    /// The frame failed; its bytes were dropped.
     Failed,
 }
 
 /// Per-frame render outcome. Reference `RenderStatus`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum RenderStatus {
+    /// The frame's changes were published.
     Rendered,
+    /// Nothing was published: no cell changed, or the backend refused the frame.
     Skipped,
+    /// The backend failed the frame; nothing was published and staged state
+    /// rolled back.
     Failed,
 }
 
@@ -100,6 +107,7 @@ pub struct MemoryBackend {
 }
 
 impl MemoryBackend {
+    /// Empty backend with no recorded frames.
     pub fn new() -> Self {
         MemoryBackend {
             frames: Vec::new(),
@@ -185,6 +193,7 @@ impl StdoutBackend<std::io::Stdout> {
 }
 
 impl<W: std::io::Write> StdoutBackend<W> {
+    /// Backend over any writer.
     pub fn new(writer: W) -> Self {
         StdoutBackend {
             writer,
@@ -265,6 +274,7 @@ pub struct ThreadedBackend<B: Backend + Send + 'static> {
 }
 
 impl<B: Backend + Send + 'static> ThreadedBackend<B> {
+    /// Spawn a worker thread that owns `inner`.
     pub fn new(inner: B) -> Self {
         let (tx_msg, rx_msg) = std::sync::mpsc::channel::<ThreadMsg<B>>();
         let worker = std::thread::spawn(move || {
@@ -338,9 +348,13 @@ impl<B: Backend + Send + 'static> Backend for ThreadedBackend<B> {
 /// domain, which owns mode toggles (spec mapping).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum CursorStyle {
+    /// The terminal's default shape.
     Default,
+    /// Block cursor.
     Block,
+    /// Vertical bar cursor.
     Line,
+    /// Underline cursor.
     Underline,
 }
 
@@ -348,11 +362,17 @@ pub enum CursorStyle {
 /// cells; emission adds one, matching the cell convention.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct CursorState {
+    /// Column, 0-based.
     pub x: u32,
+    /// Row, 0-based.
     pub y: u32,
+    /// Whether the cursor is shown.
     pub visible: bool,
+    /// Cursor shape.
     pub style: CursorStyle,
+    /// Whether the cursor blinks.
     pub blinking: bool,
+    /// Cursor color; only the RGB channels are emitted.
     pub color: Rgba,
 }
 
@@ -373,22 +393,36 @@ impl Default for CursorState {
 /// skipped and failed frames never touch it (REN-011).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct RenderStats {
+    /// Rendered frames since the renderer was created.
     pub frame_count: u64,
+    /// Cells synced into the current buffer during the frame.
     pub cells_updated: u32,
     /// Bytes handed to the backend for the frame.
     pub bytes_emitted: usize,
+    /// Cursor moves (CUP or CHA) the frame wrote before cells.
     pub moves_emitted: u32,
+    /// Cell writes that needed no move because the cursor was already there.
     pub moves_elided: u32,
+    /// Foreground color sequences the frame wrote.
     pub fg_emitted: u32,
+    /// Cells whose foreground matched the last emitted one.
     pub fg_elided: u32,
+    /// Background color sequences the frame wrote.
     pub bg_emitted: u32,
+    /// Cells whose background matched the last emitted one.
     pub bg_elided: u32,
+    /// Cells that needed attribute or decoration sequences.
     pub attr_emitted: u32,
+    /// Cells whose attributes and decoration matched the emitted state.
     pub attr_elided: u32,
     /// Layout and paint time the caller reported through `set_layout_ns`.
     pub layout_ns: u64,
+    /// Time spent finding changed rows, in nanoseconds.
     pub diff_ns: u64,
+    /// Time spent building the frame's bytes, in nanoseconds.
     pub emit_ns: u64,
+    /// Time spent handing the frame to the backend and committing it, in
+    /// nanoseconds.
     pub write_ns: u64,
 }
 
@@ -490,10 +524,12 @@ impl<'a, B: Backend> Renderer<'a, B> {
         &self.current
     }
 
+    /// Shared access to the backend.
     pub fn backend(&self) -> &B {
         &self.backend
     }
 
+    /// Mutable access to the backend.
     pub fn backend_mut(&mut self) -> &mut B {
         &mut self.backend
     }
@@ -503,17 +539,20 @@ impl<'a, B: Backend> Renderer<'a, B> {
         self.backend
     }
 
+    /// Set the cursor position (0-based cells) and visibility for the next frame.
     pub fn set_cursor(&mut self, x: u32, y: u32, visible: bool) {
         self.cursor.x = x;
         self.cursor.y = y;
         self.cursor.visible = visible;
     }
 
+    /// Set the cursor shape and blinking for the next frame.
     pub fn set_cursor_style(&mut self, style: CursorStyle, blinking: bool) {
         self.cursor.style = style;
         self.cursor.blinking = blinking;
     }
 
+    /// Set the cursor color for the next frame.
     pub fn set_cursor_color(&mut self, color: Rgba) {
         self.cursor.color = color;
     }
@@ -548,6 +587,8 @@ impl<'a, B: Backend> Renderer<'a, B> {
         }
     }
 
+    /// Statistics from the last rendered frame. `frame_count` counts every
+    /// rendered frame.
     pub fn stats(&self) -> RenderStats {
         self.stats
     }
@@ -561,10 +602,13 @@ impl<'a, B: Backend> Renderer<'a, B> {
     // host timing workaround with no byte meaning, so only the bytes
     // are ported.
 
+    /// Set whether shutdown outside the alternate screen clears the rendered area.
     pub fn set_clear_on_shutdown(&mut self, clear: bool) {
         self.clear_on_shutdown = clear;
     }
 
+    /// Whether the terminal is shut down or suspended and not yet set up or
+    /// resumed.
     pub fn suspended(&self) -> bool {
         self.suspended
     }
@@ -644,6 +688,7 @@ impl<'a, B: Backend> Renderer<'a, B> {
 
     // ---- render offset and footer surface (REN-009) ----
 
+    /// Rows added to every emitted row address, for cells and the cursor.
     pub fn render_offset(&self) -> u32 {
         self.render_offset
     }
@@ -654,6 +699,7 @@ impl<'a, B: Backend> Renderer<'a, B> {
         &self.footer
     }
 
+    /// Mutable footer surface for the offset region.
     pub fn footer_buffer_mut(&mut self) -> &mut OptimizedBuffer<'a> {
         &mut self.footer
     }
@@ -683,14 +729,17 @@ impl<'a, B: Backend> Renderer<'a, B> {
 
     // ---- hit testing (REN-008) ----
 
+    /// Push a clip rectangle that `add_to_hit_grid` applies until it is popped.
     pub fn push_hit_scissor(&mut self, rect: ClipRect) {
         self.hit_scissor.push(rect);
     }
 
+    /// Remove the top hit-grid clip rectangle.
     pub fn pop_hit_scissor(&mut self) {
         self.hit_scissor.pop();
     }
 
+    /// Remove every hit-grid clip rectangle.
     pub fn clear_hit_scissors(&mut self) {
         self.hit_scissor.clear();
     }
@@ -748,6 +797,7 @@ impl<'a, B: Backend> Renderer<'a, B> {
         self.kitty_supported = supported;
     }
 
+    /// Whether Kitty graphics support is set; see `set_kitty_supported`.
     pub fn kitty_supported(&self) -> bool {
         self.kitty_supported
     }

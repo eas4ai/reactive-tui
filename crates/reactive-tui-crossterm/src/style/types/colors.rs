@@ -28,7 +28,9 @@ use crate::style::{Color, Colored};
 /// See [Color](enum.Color.html).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Colors {
+    /// The foreground color; `None` leaves it unchanged.
     pub foreground: Option<Color>,
+    /// The background color; `None` leaves it unchanged.
     pub background: Option<Color>,
 }
 
@@ -44,6 +46,7 @@ impl Colors {
 }
 
 impl Colors {
+    /// Both colors set.
     pub fn new(foreground: Color, background: Color) -> Colors {
         Colors {
             foreground: Some(foreground),

@@ -20,24 +20,38 @@ use std::time::{Duration, Instant};
 /// service does not hold, as in the reference.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum OperationStatus {
+    /// The operation has not finished; poll again.
     Pending,
+    /// A read finished with data.
     Read,
+    /// A read finished and the clipboard held nothing.
     Empty,
+    /// A write finished.
     Written,
+    /// A clear finished.
     Cleared,
+    /// The backend has no usable clipboard.
     Unsupported,
+    /// The operation was cancelled and delivers no result.
     Cancelled,
+    /// The timeout passed before the backend finished.
     TimedOut,
+    /// The backend reported data larger than the operation's `max_bytes`.
     LimitExceeded,
+    /// The backend reported a failure.
     Failed,
+    /// The service holds no operation with this id.
     InvalidHandle,
 }
 
 /// Outcome of [`Service::cancel`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CancelOutcome {
+    /// The operation is now cancelled.
     Requested,
+    /// The operation had already finished; nothing changed.
     AlreadyTerminal,
+    /// The service holds no operation with this id.
     InvalidHandle,
 }
 
@@ -45,43 +59,63 @@ pub enum CancelOutcome {
 /// is refused (`NotReady`); cancel first, as in the reference.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DestroyOutcome {
+    /// The operation was removed from the service.
     Destroyed,
+    /// The operation is still pending and was kept.
     NotReady,
+    /// The service holds no operation with this id.
     InvalidHandle,
 }
 
 /// Why [`Service::start`] refused an operation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum StartError {
+    /// [`Service::shutdown`] was called.
     ShuttingDown,
+    /// The service already holds its maximum number of operations.
     LimitExceeded,
+    /// `max_bytes` in the options is zero.
     InvalidArgument,
 }
 
 /// Why [`Service::result`] has no bytes to hand out.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ResultError {
+    /// The service holds no operation with this id.
     InvalidHandle,
+    /// The operation is still pending.
     NotReady,
+    /// The operation was cancelled.
     Cancelled,
+    /// The operation ended without data, for example `TimedOut` or
+    /// `Unsupported`. Holds that status.
     Failed(OperationStatus),
 }
 
 /// Why [`Service::copy_into`] refused the copy.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CopyError {
+    /// The buffer is shorter than the result.
     BufferTooSmall,
+    /// The service holds no operation with this id.
     InvalidHandle,
+    /// The operation is still pending.
     NotReady,
+    /// The operation was cancelled.
     Cancelled,
+    /// The operation ended without data, for example `TimedOut` or
+    /// `Unsupported`. Holds that status.
     Failed(OperationStatus),
 }
 
 /// What to read, write, or clear.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum OperationKind {
+    /// Read the clipboard contents.
     Read,
+    /// Replace the clipboard contents with the payload.
     Write,
+    /// Empty the clipboard.
     Clear,
 }
 
@@ -92,8 +126,11 @@ pub enum OperationKind {
 /// What the backend was asked to do.
 #[derive(Debug, Clone)]
 pub struct BackendRequest {
+    /// What to do.
     pub kind: OperationKind,
+    /// Bytes passed to [`Service::start`]; the data a write stores.
     pub payload: Vec<u8>,
+    /// Byte cap from [`StartOptions`].
     pub max_bytes: usize,
 }
 
@@ -102,19 +139,28 @@ pub struct BackendRequest {
 /// early.
 #[derive(Debug, Clone)]
 pub enum BackendStep {
+    /// Still working; the service polls again later.
     Pending,
+    /// Finished with this outcome.
     Complete(BackendOutcome),
 }
 
 /// A finished backend step.
 #[derive(Debug, Clone)]
 pub enum BackendOutcome {
+    /// A read returned these bytes.
     Read(Vec<u8>),
+    /// A read found the clipboard empty.
     Empty,
+    /// A write stored the payload.
     Written,
+    /// A clear emptied the clipboard.
     Cleared,
+    /// No clipboard is available.
     Unsupported,
+    /// The data is larger than the request's `max_bytes`.
     LimitExceeded,
+    /// The clipboard operation failed.
     Failed,
 }
 
@@ -122,6 +168,8 @@ pub enum BackendOutcome {
 /// callable headless when tests need them; the suite uses
 /// [`LoopbackBackend`].
 pub trait Backend {
+    /// Advance `request` by one step. `polls` counts calls for this
+    /// operation, starting at 1.
     fn step(&mut self, request: &BackendRequest, polls: u64) -> BackendStep;
 }
 
@@ -134,10 +182,12 @@ pub struct LoopbackBackend {
 }
 
 impl LoopbackBackend {
+    /// Create a loopback backend with an empty store.
     pub fn new() -> Self {
         Self::default()
     }
 
+    /// Create a loopback backend whose store starts as `seed`.
     pub fn with_seed(seed: &[u8]) -> Self {
         Self {
             store: seed.to_vec(),
@@ -189,7 +239,10 @@ impl Backend for UnsupportedBackend {
 /// Per-start options.
 #[derive(Debug, Clone, Copy)]
 pub struct StartOptions {
+    /// Time allowed before [`Service::poll`] reports `TimedOut`. `None`
+    /// never times out.
     pub timeout: Option<Duration>,
+    /// Byte cap handed to the backend. Must be non-zero. Defaults to 1 MiB.
     pub max_bytes: usize,
 }
 
@@ -225,10 +278,13 @@ pub struct Service<B: Backend> {
 }
 
 impl<B: Backend> Service<B> {
+    /// Create a service that holds up to 64 operations at once.
     pub fn new(backend: B) -> Self {
         Self::with_capacity(backend, 64)
     }
 
+    /// Create a service that holds up to `max_operations` operations at
+    /// once. Further starts fail until [`Service::destroy`] frees one.
     pub fn with_capacity(backend: B, max_operations: usize) -> Self {
         Self {
             backend,
@@ -427,12 +483,16 @@ pub mod platform {
     /// display variables must be non-empty.
     #[derive(Debug, Clone, Copy, PartialEq, Eq)]
     pub struct Environment {
+        /// Running under WSL: `WSL_DISTRO_NAME` or `WSL_INTEROP` is set.
         pub is_wsl: bool,
+        /// `WAYLAND_DISPLAY` or `WAYLAND_SOCKET` is non-empty.
         pub has_wayland_display: bool,
+        /// `DISPLAY` is non-empty.
         pub has_x11_display: bool,
     }
 
     impl Environment {
+        /// Read the environment from a variable map instead of the live process.
         pub fn from_map(vars: &HashMap<String, String>) -> Self {
             let present = |key: &str| vars.contains_key(key);
             let non_empty = |key: &str| vars.get(key).is_some_and(|value| !value.is_empty());
@@ -470,15 +530,20 @@ pub mod platform {
     /// WSL flag passes through untouched.
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
     pub struct SelectedBackends {
+        /// A Wayland display is present and its helpers are available.
         pub wayland: bool,
+        /// An X11 display is present and its helpers are available.
         pub x11: bool,
+        /// Copied from [`Environment::is_wsl`].
         pub is_wsl: bool,
     }
 
     /// Helper family under test or construction.
     #[derive(Debug, Clone, Copy, PartialEq, Eq)]
     pub enum HelperSet {
+        /// The `wl-copy` and `wl-paste` helpers.
         Wayland,
+        /// The `xclip` and `xsel` helpers.
         X11,
     }
 
@@ -499,13 +564,18 @@ pub mod platform {
     /// Operating system underfoot.
     #[derive(Debug, Clone, Copy, PartialEq, Eq)]
     pub enum OsKind {
+        /// Linux, including WSL.
         Linux,
+        /// macOS.
         MacOs,
+        /// Windows.
         Windows,
+        /// Any other operating system.
         Other,
     }
 
     impl OsKind {
+        /// The operating system this binary was built for.
         pub fn current() -> Self {
             match std::env::consts::OS {
                 "linux" => Self::Linux,
@@ -521,10 +591,15 @@ pub mod platform {
     /// reference.
     #[derive(Debug, Clone, Copy, PartialEq, Eq)]
     pub enum Route {
+        /// Read with `wl-paste`, write with `wl-copy`.
         Wayland,
+        /// Read with `xclip`, write with `xclip` or `xsel` as a fallback.
         X11,
+        /// Read with PowerShell `Get-Clipboard`, write with `clip`.
         WindowsClipboard,
+        /// Read with `pbpaste`, write with `pbcopy`.
         MacOsClipboard,
+        /// No helper; every operation reports `Unsupported`.
         Unsupported,
     }
 
@@ -551,7 +626,9 @@ pub mod platform {
     /// One helper invocation.
     #[derive(Debug, Clone, PartialEq, Eq)]
     pub struct CommandSpec {
+        /// Program name or path to run.
         pub program: String,
+        /// Arguments passed to the program.
         pub args: Vec<String>,
     }
 
@@ -567,7 +644,10 @@ pub mod platform {
     /// A finished helper invocation.
     #[derive(Debug, Clone, PartialEq, Eq)]
     pub struct CommandOutput {
+        /// Exit code. [`ProcessRunner`] reports -1 when the process ended
+        /// without one.
         pub status: i32,
+        /// Bytes the helper wrote to standard output.
         pub stdout: Vec<u8>,
     }
 
@@ -576,6 +656,7 @@ pub mod platform {
     /// here.
     #[derive(Debug, Clone, PartialEq, Eq)]
     pub enum RunnerError {
+        /// The helper did not start or its pipes failed. Holds the error text.
         SpawnFailed(String),
     }
 
@@ -583,6 +664,7 @@ pub mod platform {
     /// tests script expectations with a fake, so routing and
     /// command construction run headless.
     pub trait CommandRunner {
+        /// Run `spec` with `stdin` on its standard input and wait for it to exit.
         fn run(&mut self, spec: &CommandSpec, stdin: &[u8]) -> Result<CommandOutput, RunnerError>;
     }
 
@@ -625,6 +707,7 @@ pub mod platform {
     }
 
     impl<R: CommandRunner> ProcessBackend<R> {
+        /// Create a backend that uses a fixed route and runner.
         pub fn with_route(route: Route, runner: R) -> Self {
             Self { route, runner }
         }

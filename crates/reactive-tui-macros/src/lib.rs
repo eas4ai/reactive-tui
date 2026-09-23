@@ -1,3 +1,11 @@
+//! Procedural macros for reactive-tui: `#[component]` turns a function into
+//! a component, `#[derive(Props)]` builds a props type with its defaults and
+//! validation, and `#[ffi_export]` exports a C ABI function behind a panic
+//! boundary. The main crate re-exports `component` and `Props`; its C ABI
+//! uses `ffi_export`.
+#![warn(missing_docs)]
+#![deny(rustdoc::broken_intra_doc_links)]
+
 use proc_macro::TokenStream;
 use quote::quote;
 use syn::{parse_macro_input, parse_quote, FnArg, ItemFn, Pat, Type};

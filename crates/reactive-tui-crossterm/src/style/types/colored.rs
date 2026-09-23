@@ -78,6 +78,8 @@ impl Colored {
             .is_empty()
     }
 
+    /// Whether ANSI colors are disabled, reading `NO_COLOR` once per process
+    /// unless [`Colored::set_ansi_color_disabled`] replaced the answer.
     pub fn ansi_color_disabled_memoized() -> bool {
         INITIALIZER.call_once(|| {
             ANSI_COLOR_DISABLED.store(Self::ansi_color_disabled(), Ordering::SeqCst);
@@ -86,6 +88,7 @@ impl Colored {
         ANSI_COLOR_DISABLED.load(Ordering::SeqCst)
     }
 
+    /// Replace the memoized answer of [`Colored::ansi_color_disabled_memoized`].
     pub fn set_ansi_color_disabled(val: bool) {
         // Force the one-time initializer to run.
         _ = Self::ansi_color_disabled_memoized();

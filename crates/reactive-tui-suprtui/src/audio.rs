@@ -51,7 +51,9 @@ pub const MAX_VOLUME: f32 = 4.0;
 /// Engine construction options.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct EngineOptions {
+    /// Sample rate in Hz. Must be non-zero.
     pub sample_rate: u32,
+    /// Playback channel count. Must be non-zero.
     pub playback_channels: u8,
 }
 
@@ -67,7 +69,9 @@ impl Default for EngineOptions {
 /// One listed device.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DeviceInfo {
+    /// Device name as the backend reports it.
     pub name: String,
+    /// Whether this is the backend's default device.
     pub default_device: bool,
 }
 
@@ -154,10 +158,15 @@ struct Stream {
 /// Capture ring statistics (MED-006).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct CaptureStats {
+    /// Frames delivered to the buffer, including dropped ones.
     pub frames_received: u64,
+    /// Frames the caller has read out.
     pub frames_read: u64,
+    /// Frames dropped because the buffer was full.
     pub frames_dropped: u64,
+    /// Frames held now and not yet read.
     pub buffered_frames: u32,
+    /// Most frames the buffer can hold.
     pub capacity_frames: u32,
 }
 
@@ -239,26 +248,37 @@ impl CaptureBuffer {
 /// Engine-wide counters.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct EngineStats {
+    /// Sounds currently loaded.
     pub sounds_loaded: u32,
+    /// Voices currently playing.
     pub voices_active: u32,
+    /// Streams not yet closed.
     pub streams_open: u32,
+    /// Total frames produced by [`AudioEngine::mix_to_buffer`].
     pub frames_mixed: u64,
 }
 
 /// Per-stream counters (MED-004).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct StreamStats {
+    /// Frames accepted by [`AudioEngine::write_stream`].
     pub frames_written: u64,
+    /// Frames the mixer has taken from the queue.
     pub frames_consumed: u64,
+    /// Frames queued and not yet mixed.
     pub buffered_frames: u32,
 }
 
 /// Voice launch options.
 #[derive(Debug, Clone, PartialEq)]
 pub struct PlayOptions {
+    /// Voice volume, clamped to 0.0..=[`MAX_VOLUME`].
     pub volume: f32,
+    /// Stereo pan from -1.0 (left) to 1.0 (right); values outside are clamped.
     pub pan: f32,
+    /// Mix group. It must exist, or [`AudioEngine::play`] fails.
     pub group: GroupId,
+    /// Whether the voice restarts from the beginning when the sound ends.
     pub looping: bool,
 }
 
@@ -276,9 +296,13 @@ impl Default for PlayOptions {
 /// Stream construction options.
 #[derive(Debug, Clone, PartialEq)]
 pub struct StreamOptions {
+    /// Interleaved channels per frame, 1 to 8.
     pub channels: u8,
+    /// Stream volume, clamped to 0.0..=[`MAX_VOLUME`].
     pub volume: f32,
+    /// Stereo pan from -1.0 (left) to 1.0 (right); values outside are clamped.
     pub pan: f32,
+    /// Mix group. It must exist, or [`AudioEngine::create_stream`] fails.
     pub group: GroupId,
 }
 
@@ -377,18 +401,22 @@ impl AudioEngine {
         })
     }
 
+    /// Sample rate in Hz given at construction.
     pub fn sample_rate(&self) -> u32 {
         self.sample_rate
     }
 
+    /// Playback channel count given at construction.
     pub fn output_channels(&self) -> u8 {
         self.output_channels
     }
 
+    /// Whether `start` or `start_mixer` ran and `stop` has not run since.
     pub fn is_started(&self) -> bool {
         self.started
     }
 
+    /// Whether playback runs on a device. False after `start_mixer` or `stop`.
     pub fn has_device(&self) -> bool {
         self.has_device
     }
@@ -446,14 +474,18 @@ impl AudioEngine {
         Ok(())
     }
 
+    /// Playback devices the backend lists.
     pub fn playback_devices(&self) -> &[DeviceInfo] {
         &self.backend.playback
     }
 
+    /// Capture devices the backend lists.
     pub fn capture_devices(&self) -> &[DeviceInfo] {
         &self.backend.capture
     }
 
+    /// Select the playback device at `index` in [`AudioEngine::playback_devices`].
+    /// Fails with `InvalidArgument` when `index` is out of range.
     pub fn select_playback(&mut self, index: usize) -> Result<(), AudioError> {
         if index >= self.backend.playback.len() {
             return Err(AudioError::InvalidArgument);
@@ -462,14 +494,18 @@ impl AudioEngine {
         Ok(())
     }
 
+    /// Clear the playback device selection.
     pub fn clear_playback_selection(&mut self) {
         self.selected_playback = None;
     }
 
+    /// Index of the selected playback device, if any.
     pub fn selected_playback(&self) -> Option<usize> {
         self.selected_playback
     }
 
+    /// Select the capture device at `index` in [`AudioEngine::capture_devices`].
+    /// Fails with `InvalidArgument` when `index` is out of range.
     pub fn select_capture(&mut self, index: usize) -> Result<(), AudioError> {
         if index >= self.backend.capture.len() {
             return Err(AudioError::InvalidArgument);
@@ -478,10 +514,12 @@ impl AudioEngine {
         Ok(())
     }
 
+    /// Clear the capture device selection.
     pub fn clear_capture_selection(&mut self) {
         self.selected_capture = None;
     }
 
+    /// Index of the selected capture device, if any.
     pub fn selected_capture(&self) -> Option<usize> {
         self.selected_capture
     }
@@ -523,6 +561,7 @@ impl AudioEngine {
         Ok(())
     }
 
+    /// Number of loaded sounds.
     pub fn sound_count(&self) -> usize {
         self.sounds.len()
     }
@@ -618,10 +657,13 @@ impl AudioEngine {
         self.master_volume = clamp_volume(volume);
     }
 
+    /// Master volume after clamping.
     pub fn master_volume(&self) -> f32 {
         self.master_volume
     }
 
+    /// Volume of `group`, or `None` for an unknown group. The default group
+    /// reads 1.0 until it is set.
     pub fn group_volume(&self, group: GroupId) -> Option<f32> {
         if group == DEFAULT_GROUP {
             Some(
@@ -691,6 +733,7 @@ impl AudioEngine {
         Ok(())
     }
 
+    /// Counters for one stream. Fails with `UnknownId` for an unknown stream.
     pub fn stream_stats(&self, id: StreamId) -> Result<StreamStats, AudioError> {
         let stream = self.streams.get(&id).ok_or(AudioError::UnknownId)?;
         Ok(StreamStats {
@@ -700,6 +743,7 @@ impl AudioEngine {
         })
     }
 
+    /// Whether a stream is closed. Fails with `UnknownId` for an unknown stream.
     pub fn stream_closed(&self, id: StreamId) -> Result<bool, AudioError> {
         self.streams
             .get(&id)
@@ -888,6 +932,7 @@ impl AudioEngine {
         Ok(frames)
     }
 
+    /// Engine-wide counters.
     pub fn engine_stats(&self) -> EngineStats {
         EngineStats {
             sounds_loaded: self.sounds.len() as u32,
@@ -929,10 +974,13 @@ impl AudioEngine {
         Ok(())
     }
 
+    /// Whether capture is open and not stopped.
     pub fn capture_running(&self) -> bool {
         self.capture_running
     }
 
+    /// Capture buffer counters. Fails with `InvalidArgument` before
+    /// [`AudioEngine::open_capture`].
     pub fn capture_stats(&self) -> Result<CaptureStats, AudioError> {
         self.capture
             .as_ref()

@@ -19,19 +19,28 @@ use std::rc::Rc;
 /// ID layout within 24 bits: `[generation (8 bits) | slot (16 bits)]`.
 pub type IdPayload = u32;
 
+/// Number of id bits that hold the slot generation.
 pub const GEN_BITS: u32 = 8;
+/// Number of id bits that hold the slot index.
 pub const SLOT_BITS: u32 = 16;
+/// Mask for the generation after shifting an id right by [`SLOT_BITS`].
 pub const GEN_MASK: u32 = (1 << GEN_BITS) - 1;
+/// Mask for the slot index in the low bits of an id.
 pub const SLOT_MASK: u32 = (1 << SLOT_BITS) - 1;
+/// Longest URL a pool slot stores, in bytes.
 pub const MAX_URL_LENGTH: usize = 512;
 const RETIRED_GENERATION: u32 = GEN_MASK + 1;
 
 /// Reference `LinkPoolError`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum LinkPoolError {
+    /// The pool cannot grow past 65,536 slots.
     OutOfMemory,
+    /// The id's slot does not exist, or `decref` found no reference to drop.
     InvalidId,
+    /// The id's generation does not match its slot, so the id is stale.
     WrongGeneration,
+    /// The URL is longer than [`MAX_URL_LENGTH`] bytes.
     UrlTooLong,
 }
 
@@ -85,6 +94,7 @@ impl Default for LinkPool {
 }
 
 impl LinkPool {
+    /// Create an empty pool. It adds slots 64 at a time as needed.
     pub fn new() -> Self {
         LinkPool {
             slot_capacity: MAX_URL_LENGTH as u32,
@@ -144,6 +154,9 @@ impl LinkPool {
         self.interned_live_ids.insert(url.to_vec(), id);
     }
 
+    /// Store `url` and return its id with a refcount of zero.
+    /// A URL that already has a referenced id returns that id instead.
+    /// Fails with `UrlTooLong` or `OutOfMemory`.
     pub fn alloc(&mut self, url: &[u8]) -> Result<IdPayload, LinkPoolError> {
         if url.len() > self.slot_capacity as usize {
             return Err(LinkPoolError::UrlTooLong);
@@ -166,6 +179,8 @@ impl LinkPool {
         pack_id(slot_index, slot.generation)
     }
 
+    /// Add one reference to `id`. The first reference makes `id` the one
+    /// [`LinkPool::alloc`] returns for its URL. Fails for an unknown or stale id.
     pub fn incref(&mut self, id: IdPayload) -> Result<(), LinkPoolError> {
         let (slot_index, generation) = unpack_id(id);
         if slot_index >= self.num_slots() {
@@ -184,6 +199,9 @@ impl LinkPool {
         Ok(())
     }
 
+    /// Drop one reference from `id`. At zero references the slot is freed
+    /// for reuse, or retired for good at generation 255. Fails for an
+    /// unknown or stale id, or one with no references.
     pub fn decref(&mut self, id: IdPayload) -> Result<(), LinkPoolError> {
         let (slot_index, generation) = unpack_id(id);
         if slot_index >= self.num_slots() {
@@ -216,6 +234,7 @@ impl LinkPool {
         Ok(())
     }
 
+    /// Return the URL bytes stored for `id`. Fails for an unknown or stale id.
     pub fn get(&self, id: IdPayload) -> Result<&[u8], LinkPoolError> {
         let (slot_index, generation) = unpack_id(id);
         if slot_index >= self.num_slots() {
@@ -228,6 +247,7 @@ impl LinkPool {
         Ok(slot.data.as_slice())
     }
 
+    /// Return the reference count of `id`. Fails for an unknown or stale id.
     pub fn get_refcount(&self, id: IdPayload) -> Result<u32, LinkPoolError> {
         let (slot_index, generation) = unpack_id(id);
         if slot_index >= self.num_slots() {
@@ -240,14 +260,17 @@ impl LinkPool {
         Ok(slot.refcount)
     }
 
+    /// Number of slots the pool has created, in use or not.
     pub fn total_slots(&self) -> u64 {
         u64::from(self.num_slots())
     }
 
+    /// Number of slots ready for reuse.
     pub fn free_slot_count(&self) -> u64 {
         self.free_list.len() as u64
     }
 
+    /// Number of slots that are neither free nor retired.
     pub fn live_slot_count(&self) -> u64 {
         u64::from(self.num_slots())
             - self.free_list.len() as u64
@@ -267,6 +290,7 @@ pub struct LinkTracker {
 }
 
 impl LinkTracker {
+    /// Create an empty tracker that takes its references in `pool`.
     pub fn new(pool: Rc<RefCell<LinkPool>>) -> Self {
         LinkTracker {
             pool,
@@ -281,11 +305,14 @@ impl LinkTracker {
         }
     }
 
+    /// Forget every tracked id and release the tracker's pool references.
     pub fn clear(&mut self) {
         self.decref_all();
         self.used_ids.clear();
     }
 
+    /// Count one more cell that uses `id`. The first cell for an id takes one
+    /// pool reference; an id the pool rejects is tracked with a count of zero.
     pub fn add_cell_ref(&mut self, id: IdPayload) {
         use std::collections::hash_map::Entry;
         match self.used_ids.entry(id) {
@@ -306,6 +333,8 @@ impl LinkTracker {
         }
     }
 
+    /// Count one fewer cell that uses `id`. At zero the tracker drops the id
+    /// and releases its pool reference. Unknown ids and zero counts are ignored.
     pub fn remove_cell_ref(&mut self, id: IdPayload) {
         let remove = match self.used_ids.get_mut(&id) {
             None => return,
@@ -323,10 +352,12 @@ impl LinkTracker {
         }
     }
 
+    /// Whether the tracker holds any id.
     pub fn has_any(&self) -> bool {
         !self.used_ids.is_empty()
     }
 
+    /// Number of distinct ids the tracker holds.
     pub fn link_count(&self) -> u32 {
         self.used_ids.len() as u32
     }

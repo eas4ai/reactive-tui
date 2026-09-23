@@ -137,11 +137,16 @@ pub fn size() -> io::Result<(u16, u16)> {
     sys::size()
 }
 
+/// The terminal's size in cells and, where the platform reports it, pixels.
 #[derive(Debug)]
 pub struct WindowSize {
+    /// Height in rows.
     pub rows: u16,
+    /// Width in columns.
     pub columns: u16,
+    /// Width in pixels; 0 where the platform does not report it.
     pub width: u16,
+    /// Height in pixels; 0 where the platform does not report it.
     pub height: u16,
 }
 

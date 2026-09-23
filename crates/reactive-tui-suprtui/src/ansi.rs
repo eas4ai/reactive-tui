@@ -20,8 +20,11 @@ pub type Rgba = [u16; 4];
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u8)]
 pub enum ColorIntent {
+    /// Literal RGB channels.
     Rgb = 0,
+    /// ANSI palette slot, with an RGB snapshot for blending.
     Indexed = 1,
+    /// Terminal default color, emitted as SGR 39 or 49.
     Default = 2,
 }
 
@@ -78,34 +81,42 @@ pub fn pack_rgba8(r: u8, g: u8, b: u8, a: u8, meta: u32) -> Rgba {
     ]
 }
 
+/// Red channel byte.
 pub fn red(c: Rgba) -> u8 {
     (c[0] & 0xFF) as u8
 }
 
+/// Green channel byte.
 pub fn green(c: Rgba) -> u8 {
     (c[1] & 0xFF) as u8
 }
 
+/// Blue channel byte.
 pub fn blue(c: Rgba) -> u8 {
     (c[2] & 0xFF) as u8
 }
 
+/// Alpha channel byte: 0 is transparent, 255 is opaque.
 pub fn alpha(c: Rgba) -> u8 {
     (c[3] & 0xFF) as u8
 }
 
+/// Red channel as a 0.0-1.0 float.
 pub fn red_f(c: Rgba) -> f32 {
     u8_to_component(red(c))
 }
 
+/// Green channel as a 0.0-1.0 float.
 pub fn green_f(c: Rgba) -> f32 {
     u8_to_component(green(c))
 }
 
+/// Blue channel as a 0.0-1.0 float.
 pub fn blue_f(c: Rgba) -> f32 {
     u8_to_component(blue(c))
 }
 
+/// Alpha channel as a 0.0-1.0 float.
 pub fn alpha_f(c: Rgba) -> f32 {
     u8_to_component(alpha(c))
 }
@@ -191,21 +202,36 @@ pub fn fallback_ansi256_color(index: usize) -> Rgba {
 pub struct TextAttributes;
 
 impl TextAttributes {
+    /// No style flags.
     pub const NONE: u8 = 0;
+    /// Bold text (SGR 1).
     pub const BOLD: u8 = 1 << 0;
+    /// Dim text (SGR 2).
     pub const DIM: u8 = 1 << 1;
+    /// Italic text (SGR 3).
     pub const ITALIC: u8 = 1 << 2;
+    /// Plain underline (SGR 4).
     pub const UNDERLINE: u8 = 1 << 3;
+    /// Blinking text (SGR 5).
     pub const BLINK: u8 = 1 << 4;
+    /// Swapped foreground and background (SGR 7).
     pub const INVERSE: u8 = 1 << 5;
+    /// Hidden text (SGR 8).
     pub const HIDDEN: u8 = 1 << 6;
+    /// Strikethrough text (SGR 9).
     pub const STRIKETHROUGH: u8 = 1 << 7;
 
+    /// Width of the style-flag field, in bits.
     pub const ATTRIBUTE_BASE_BITS: u32 = 8;
+    /// Mask for the style-flag field, bits 0-7.
     pub const ATTRIBUTE_BASE_MASK: u32 = 0xFF;
+    /// Width of the link-id field, in bits.
     pub const LINK_ID_BITS: u32 = 24;
+    /// First bit of the link-id field.
     pub const LINK_ID_SHIFT: u32 = Self::ATTRIBUTE_BASE_BITS;
+    /// Mask for a link id before it is shifted into place.
     pub const LINK_ID_PAYLOAD_MASK: u32 = (1 << Self::LINK_ID_BITS) - 1;
+    /// Mask for the link-id field in place, bits 8-31.
     pub const LINK_ID_MASK: u32 = Self::LINK_ID_PAYLOAD_MASK << Self::LINK_ID_SHIFT;
 
     /// Low 8 style bits of an attribute word.
@@ -233,20 +259,29 @@ impl TextAttributes {
 /// Extended decorations carried separately from the legacy style/link word.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct CellDecoration {
+    /// Styled underline; `None` falls back to the plain `UNDERLINE` flag.
     pub underline: UnderlineStyle,
     /// Resolved RGB underline color; None follows the foreground color.
     pub underline_color: Option<[u8; 3]>,
+    /// Whether to draw an overline (SGR 53).
     pub overline: bool,
 }
 
+/// Underline style, emitted as SGR `4:N` where N is the discriminant.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[repr(u8)]
 pub enum UnderlineStyle {
+    /// No styled underline.
     #[default]
     None = 0,
+    /// One straight line.
     Single = 1,
+    /// Two straight lines.
     Double = 2,
+    /// Wavy line.
     Curly = 3,
+    /// Dotted line.
     Dotted = 4,
+    /// Dashed line.
     Dashed = 5,
 }

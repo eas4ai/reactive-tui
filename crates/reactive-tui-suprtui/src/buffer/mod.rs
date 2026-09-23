@@ -23,7 +23,9 @@ use std::rc::Rc;
 
 pub mod draw;
 
+/// Space codepoint that fills cleared cells.
 pub const DEFAULT_SPACE_CHAR: u32 = 32;
+/// Largest Unicode codepoint. Emitters write a space for a plain char above it.
 pub const MAX_UNICODE_CODEPOINT: u32 = 0x10FFFF;
 
 /// A `CellDecoration` packed into one word so the column array compares
@@ -73,20 +75,28 @@ impl From<PackedDecoration> for CellDecoration {
 /// One grid cell: packed char, colors, attribute word. Reference `Cell`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Cell {
+    /// Packed character: a plain codepoint, or a grapheme, continuation, or
+    /// image code flagged in bits 31-30.
     pub char: u32,
+    /// Foreground color.
     pub fg: Rgba,
+    /// Background color.
     pub bg: Rgba,
+    /// Attribute word: style flags in bits 0-7, link id in bits 8-31.
     pub attributes: u32,
+    /// Extended underline and overline decoration.
     pub decoration: CellDecoration,
 }
 
 impl Cell {
+    /// Return the cell with `decoration` in place of its own.
     pub fn with_decoration(mut self, decoration: CellDecoration) -> Self {
         self.decoration = decoration;
         self
     }
 }
 
+/// Build a cell with no extended decoration.
 pub fn make_cell(char: u32, fg: Rgba, bg: Rgba, attributes: u32) -> Cell {
     Cell {
         char,
@@ -100,9 +110,13 @@ pub fn make_cell(char: u32, fg: Rgba, bg: Rgba, attributes: u32) -> Cell {
 /// Clipping rectangle for the scissor stack. Reference `ClipRect`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct ClipRect {
+    /// Left column; may be negative.
     pub x: i32,
+    /// Top row; may be negative.
     pub y: i32,
+    /// Width in cells.
     pub width: u32,
+    /// Height in cells.
     pub height: u32,
 }
 
@@ -110,9 +124,13 @@ pub struct ClipRect {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u32)]
 pub enum ImageProtocol {
+    /// Choose from the terminal's detected capabilities.
     Auto = 0,
+    /// Kitty graphics protocol.
     Kitty = 1,
+    /// Sixel graphics.
     Sixel = 2,
+    /// Unicode block characters drawn in cells.
     Blocks = 3,
 }
 
@@ -120,28 +138,48 @@ pub enum ImageProtocol {
 /// commitment; the buffer only tracks and drops the placement entry.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct ImagePlacement {
+    /// Placement id; compositing renumbers merged placements from 1.
     pub placement_id: u32,
+    /// Handle of the decoded image to show.
     pub image_handle: u32,
+    /// Left column, in cells.
     pub x: i32,
+    /// Top row, in cells.
     pub y: i32,
+    /// Width in cells.
     pub width: u32,
+    /// Height in cells.
     pub height: u32,
+    /// Width in pixels. Compositing scales it to the visible part and keeps 0 as 0.
     pub pixel_width: u32,
+    /// Height in pixels. Compositing scales it to the visible part and keeps 0 as 0.
     pub pixel_height: u32,
+    /// Left edge of the shown source-image region, in image pixels.
     pub source_x: u32,
+    /// Top edge of the shown source-image region, in image pixels.
     pub source_y: u32,
+    /// Width of the shown source-image region, in image pixels.
     pub source_width: u32,
+    /// Height of the shown source-image region, in image pixels.
     pub source_height: u32,
+    /// Opacity from 0 (transparent) to 255 (opaque).
     pub opacity: u8,
+    /// Image protocol requested for this placement.
     pub protocol: ImageProtocol,
 }
 
 /// Reference `BufferError`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum BufferError {
+    /// The grapheme pool refused an allocation.
     OutOfMemory,
+    /// A width or height was zero.
     InvalidDimensions,
+    /// Invalid Unicode input. Kept for reference parity; nothing in this crate
+    /// returns it.
     InvalidUnicode,
+    /// Buffer too small for the request. Kept for reference parity; nothing in
+    /// this crate returns it.
     BufferTooSmall,
 }
 
@@ -149,15 +187,24 @@ pub enum BufferError {
 /// are caller-owned handles; a missing link pool becomes a fresh owned
 /// pool (never a process-global one).
 pub struct InitOptions<'a> {
+    /// Starting value for `OptimizedBuffer::respect_alpha`.
     pub respect_alpha: bool,
+    /// Starting value for `OptimizedBuffer::blend_backdrop`.
     pub blend_backdrop: Option<Rgba>,
+    /// Grapheme pool for cluster bytes.
     pub pool: Rc<RefCell<GraphemePool<'a>>>,
+    /// Link pool to share; `None` creates a fresh one.
     pub link_pool: Option<Rc<RefCell<LinkPool>>>,
+    /// How the buffer measures character widths.
     pub width_method: WidthMethod,
+    /// Buffer name, returned by `OptimizedBuffer::id`.
     pub id: String,
 }
 
 impl<'a> InitOptions<'a> {
+    /// Options over `pool` with defaults. Alpha blending is off, there is no
+    /// backdrop, the link pool is fresh, widths use `WidthMethod::Unicode`, and
+    /// the id is `"unnamed buffer"`.
     pub fn new(pool: Rc<RefCell<GraphemePool<'a>>>) -> Self {
         InitOptions {
             respect_alpha: false,
@@ -181,10 +228,15 @@ pub struct OptimizedBuffer<'a> {
     height: u32,
     respect_alpha: bool,
     blend_backdrop: Option<Rgba>,
+    /// Grapheme pool that holds this grid's cluster bytes.
     pub pool: Rc<RefCell<GraphemePool<'a>>>,
+    /// Link pool that holds this grid's link URLs.
     pub link_pool: Rc<RefCell<LinkPool>>,
+    /// Counts this grid's cell references to each grapheme id.
     pub grapheme_tracker: GraphemeTracker<'a>,
+    /// Counts this grid's cell references to each link id.
     pub link_tracker: LinkTracker,
+    /// How this grid measures character widths.
     pub width_method: WidthMethod,
     id: String,
     scissor_stack: Vec<ClipRect>,
@@ -193,6 +245,8 @@ pub struct OptimizedBuffer<'a> {
 }
 
 impl<'a> OptimizedBuffer<'a> {
+    /// Create a `width` by `height` grid of zeroed cells: char 0 and transparent
+    /// black colors. Fails with `InvalidDimensions` when either side is zero.
     pub fn new(width: u32, height: u32, options: InitOptions<'a>) -> Result<Self, BufferError> {
         if width == 0 || height == 0 {
             return Err(BufferError::InvalidDimensions);
@@ -223,22 +277,27 @@ impl<'a> OptimizedBuffer<'a> {
         })
     }
 
+    /// Grid width in cells.
     pub fn width(&self) -> u32 {
         self.width
     }
 
+    /// Grid height in cells.
     pub fn height(&self) -> u32 {
         self.height
     }
 
+    /// Buffer name from `InitOptions::id`.
     pub fn id(&self) -> &str {
         &self.id
     }
 
+    /// Image placements recorded in this grid.
     pub fn placements(&self) -> &[ImagePlacement] {
         &self.placements
     }
 
+    /// Record an image placement; `clear` drops it.
     pub fn push_placement(&mut self, placement: ImagePlacement) {
         self.placements.push(placement);
     }
@@ -249,10 +308,12 @@ impl<'a> OptimizedBuffer<'a> {
 
     // ---- scissor point checks (rect ops arrive with buffer-draw) ----
 
+    /// Top of the scissor stack, or `None` when the stack is empty.
     pub fn current_scissor(&self) -> Option<ClipRect> {
         self.scissor_stack.last().copied()
     }
 
+    /// Whether a point lies inside the top scissor; true when no scissor is set.
     pub fn point_in_scissor(&self, x: i32, y: i32) -> bool {
         match self.current_scissor() {
             None => true,
@@ -262,20 +323,25 @@ impl<'a> OptimizedBuffer<'a> {
         }
     }
 
+    /// Push a scissor as given, without intersecting it with the current one.
     pub fn push_scissor(&mut self, rect: ClipRect) {
         self.scissor_stack.push(rect);
     }
 
+    /// Remove the top scissor.
     pub fn pop_scissor(&mut self) {
         self.scissor_stack.pop();
     }
 
+    /// Remove every scissor.
     pub fn clear_scissors(&mut self) {
         self.scissor_stack.clear();
     }
 
     // ---- core entry points ----
 
+    /// Resize the grid and clear it to spaces on opaque black. A same-size call
+    /// does nothing; a zero side fails with `InvalidDimensions`.
     pub fn resize(&mut self, width: u32, height: u32) -> Result<(), BufferError> {
         if self.width == width && self.height == height {
             return Ok(());
@@ -297,6 +363,9 @@ impl<'a> OptimizedBuffer<'a> {
         Ok(())
     }
 
+    /// Reset every cell to `char` (space when `None`) with a white foreground,
+    /// `bg`, and no attributes. Also drops links, grapheme references, and image
+    /// placements.
     pub fn clear(&mut self, bg: Rgba, char: Option<u32>) {
         let cell_char = char.unwrap_or(DEFAULT_SPACE_CHAR);
         self.link_tracker.clear();
@@ -535,26 +604,31 @@ impl<'a> OptimizedBuffer<'a> {
         self.coords_to_index(x, y)
     }
 
+    /// Packed character at a cell index; panics when out of range.
     #[inline]
     pub fn char_at(&self, index: usize) -> u32 {
         self.chars[index]
     }
 
+    /// Foreground color at a cell index; panics when out of range.
     #[inline]
     pub fn fg_at(&self, index: usize) -> Rgba {
         self.fgs[index]
     }
 
+    /// Background color at a cell index; panics when out of range.
     #[inline]
     pub fn bg_at(&self, index: usize) -> Rgba {
         self.bgs[index]
     }
 
+    /// Attribute word at a cell index; panics when out of range.
     #[inline]
     pub fn attributes_at(&self, index: usize) -> u32 {
         self.attributes[index]
     }
 
+    /// Decoration at a cell index; panics when out of range.
     #[inline]
     pub fn decoration_at(&self, index: usize) -> CellDecoration {
         self.decorations[index].into()
@@ -593,18 +667,23 @@ impl<'a> OptimizedBuffer<'a> {
 
     // ---- tiny reference accessors ----
 
+    /// Whether compositing this buffer always alpha-blends its cells instead of
+    /// copying them.
     pub fn respect_alpha(&self) -> bool {
         self.respect_alpha
     }
 
+    /// Set whether compositing this buffer always alpha-blends its cells.
     pub fn set_respect_alpha(&mut self, respect_alpha: bool) {
         self.respect_alpha = respect_alpha;
     }
 
+    /// Color that blending uses in place of a fully transparent destination.
     pub fn blend_backdrop(&self) -> Option<Rgba> {
         self.blend_backdrop
     }
 
+    /// Set the blend backdrop; `None` blends over a transparent destination as is.
     pub fn set_blend_backdrop(&mut self, color: Option<Rgba>) {
         self.blend_backdrop = color;
     }

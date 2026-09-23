@@ -42,6 +42,7 @@
 //! ```
 
 #![warn(missing_docs)]
+#![deny(rustdoc::broken_intra_doc_links)]
 #![cfg_attr(feature = "simd", feature(portable_simd))]
 
 /// Accessible node semantics and the owned Linux screen-reader connection.

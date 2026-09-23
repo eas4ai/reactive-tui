@@ -23,6 +23,7 @@ pub struct EventSink {
 }
 
 impl EventSink {
+    /// Create a live sink that passes each event to `callback`.
     pub fn new(callback: impl FnMut(&str, &[u8]) + 'static) -> Self {
         Self {
             callback: Some(Box::new(callback)),
@@ -34,6 +35,7 @@ impl EventSink {
         self.callback = None;
     }
 
+    /// Return whether the sink still has a callback.
     pub fn is_alive(&self) -> bool {
         self.callback.is_some()
     }
@@ -57,10 +59,14 @@ pub fn emit(sink: Option<&mut EventSink>, name: &str, data: &[u8]) {
 /// delivered only when its level is at or below the logger's level.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default)]
 pub enum LogLevel {
+    /// Errors only. The default level.
     #[default]
     Err = 0,
+    /// Warnings and errors.
     Warn = 1,
+    /// Informational messages, warnings, and errors.
     Info = 2,
+    /// Every message, including debug output.
     Debug = 3,
 }
 
@@ -75,26 +81,32 @@ pub struct Logger {
 }
 
 impl Logger {
+    /// Create a logger at `level` with no sink.
     pub fn new(level: LogLevel) -> Self {
         Self { level, sink: None }
     }
 
+    /// Set the most verbose level the logger delivers.
     pub fn set_level(&mut self, level: LogLevel) {
         self.level = level;
     }
 
+    /// Return the current level.
     pub fn level(&self) -> LogLevel {
         self.level
     }
 
+    /// Install the callback that receives delivered messages. It replaces any earlier sink.
     pub fn set_sink(&mut self, sink: impl FnMut(LogLevel, &str) + 'static) {
         self.sink = Some(Box::new(sink));
     }
 
+    /// Remove the sink. Later messages drop silently.
     pub fn clear_sink(&mut self) {
         self.sink = None;
     }
 
+    /// Send `message` to the sink when `level` is at or below the logger's level.
     pub fn log(&mut self, level: LogLevel, message: &str) {
         if level > self.level {
             return;
@@ -104,18 +116,22 @@ impl Logger {
         }
     }
 
+    /// Log `message` at [`LogLevel::Err`].
     pub fn err(&mut self, message: &str) {
         self.log(LogLevel::Err, message);
     }
 
+    /// Log `message` at [`LogLevel::Warn`].
     pub fn warn(&mut self, message: &str) {
         self.log(LogLevel::Warn, message);
     }
 
+    /// Log `message` at [`LogLevel::Info`].
     pub fn info(&mut self, message: &str) {
         self.log(LogLevel::Info, message);
     }
 
+    /// Log `message` at [`LogLevel::Debug`].
     pub fn debug(&mut self, message: &str) {
         self.log(LogLevel::Debug, message);
     }
@@ -130,16 +146,20 @@ impl Logger {
 /// scrolls consume published rows, and newlines/columns grow them.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct SplitScrollback {
+    /// Rows published to scrollback so far.
     pub published_rows: u32,
+    /// Columns used on the last published row.
     pub tail_column: u32,
 }
 
 impl SplitScrollback {
+    /// Start over with `seed_rows` published rows and the tail at column 0.
     pub fn reset(&mut self, seed_rows: u32) {
         self.published_rows = seed_rows;
         self.tail_column = 0;
     }
 
+    /// Return `surface_offset` clamped to the published row count.
     pub fn render_offset(&self, surface_offset: u32) -> u32 {
         if surface_offset == 0 {
             return 0;
@@ -147,6 +167,8 @@ impl SplitScrollback {
         self.published_rows.min(surface_offset)
     }
 
+    /// Record a viewport scroll of `lines` rows. Each scrolled row consumes one published row;
+    /// the tail column resets when none remain.
     pub fn note_viewport_scroll(&mut self, lines: u32) {
         self.published_rows = self
             .published_rows
@@ -156,6 +178,8 @@ impl SplitScrollback {
         }
     }
 
+    /// Record a newline: add one row and move the tail to column 0. On empty scrollback the
+    /// first newline also counts the row it ends.
     pub fn note_newline(&mut self) {
         if self.published_rows == 0 {
             self.published_rows = 1;
@@ -164,6 +188,9 @@ impl SplitScrollback {
         self.tail_column = 0;
     }
 
+    /// Publish `row_count` rows of `row_columns` columns each, wrapping at `terminal_width`.
+    /// Every row but the last ends with a newline; the last does only when `trailing_newline`
+    /// is set.
     pub fn publish_snapshot_rows(
         &mut self,
         row_count: u32,
@@ -180,6 +207,8 @@ impl SplitScrollback {
         }
     }
 
+    /// Publish one row of `columns` columns, wrapping at `width`, then a newline when
+    /// `trailing_newline` is set. A zero `width` counts as 1.
     pub fn publish_row(&mut self, columns: u32, width: u32, trailing_newline: bool) {
         self.publish_columns(columns, width);
         if trailing_newline {
@@ -233,23 +262,32 @@ pub enum SpanError {
 /// One drained span: contiguous bytes in publish order.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Span {
+    /// The span's bytes.
     pub data: Vec<u8>,
 }
 
 /// Feed counters.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct SpanStats {
+    /// Total bytes accepted by writes.
     pub bytes_written: u64,
+    /// Spans published so far.
     pub spans_published: u64,
+    /// Spans removed by [`SpanFeed::drain`] so far.
     pub spans_drained: u64,
+    /// Bytes written but not yet published.
     pub pending_bytes: usize,
+    /// Published spans waiting to be drained.
     pub pending_spans: usize,
 }
 
 /// Feed construction options.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct SpanFeedOptions {
+    /// Maximum bytes in one pending chunk. Must be nonzero. Defaults to 4096.
     pub chunk_size: usize,
+    /// Publish each chunk as it fills, so writes never fail with
+    /// [`SpanError::NoSpace`]. Defaults to `false`.
     pub auto_commit: bool,
 }
 
@@ -279,6 +317,7 @@ pub struct SpanFeed {
 }
 
 impl SpanFeed {
+    /// Create an empty feed. Fails with [`SpanError::InvalidArgument`] when `chunk_size` is 0.
     pub fn new(options: SpanFeedOptions) -> Result<Self, SpanError> {
         if options.chunk_size == 0 {
             return Err(SpanError::InvalidArgument);
@@ -403,6 +442,7 @@ impl SpanFeed {
         Ok(())
     }
 
+    /// Return whether [`SpanFeed::close`] was called.
     pub fn is_closed(&self) -> bool {
         self.closed
     }
@@ -415,10 +455,12 @@ impl SpanFeed {
         self.spans.drain(..count).collect()
     }
 
+    /// Return whether any bytes are pending or any published span waits to be drained.
     pub fn has_pending(&self) -> bool {
         !self.pending.is_empty() || !self.spans.is_empty()
     }
 
+    /// Return a snapshot of the feed counters.
     pub fn stats(&self) -> SpanStats {
         SpanStats {
             bytes_written: self.bytes_written,
@@ -454,6 +496,7 @@ pub struct EventEmitter {
 }
 
 impl EventEmitter {
+    /// Create an emitter with no listeners.
     pub fn new() -> Self {
         Self::default()
     }
@@ -510,6 +553,7 @@ impl EventEmitter {
 /// What went wrong appending a log line. Returned, never panicked.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum FileLogError {
+    /// The file could not be opened or written. Holds the I/O error text.
     Io(String),
 }
 
@@ -522,6 +566,8 @@ pub struct FileLogger {
 }
 
 impl FileLogger {
+    /// Create a logger that appends to `path` at `level`. The file is not opened here; each
+    /// write opens it in append mode and creates it when missing.
     pub fn new(path: &std::path::Path, level: LogLevel) -> Self {
         Self {
             level,
@@ -529,10 +575,12 @@ impl FileLogger {
         }
     }
 
+    /// Set the most verbose level the logger writes.
     pub fn set_level(&mut self, level: LogLevel) {
         self.level = level;
     }
 
+    /// Return the current level.
     pub fn level(&self) -> LogLevel {
         self.level
     }
@@ -555,18 +603,22 @@ impl FileLogger {
             .map_err(|err| FileLogError::Io(err.to_string()))
     }
 
+    /// Append `message` at [`LogLevel::Err`]. Fails when the file cannot be opened or written.
     pub fn err(&self, message: &str) -> Result<(), FileLogError> {
         self.append(LogLevel::Err, message)
     }
 
+    /// Append `message` at [`LogLevel::Warn`] when the level allows it. Fails on I/O errors.
     pub fn warn(&self, message: &str) -> Result<(), FileLogError> {
         self.append(LogLevel::Warn, message)
     }
 
+    /// Append `message` at [`LogLevel::Info`] when the level allows it. Fails on I/O errors.
     pub fn info(&self, message: &str) -> Result<(), FileLogError> {
         self.append(LogLevel::Info, message)
     }
 
+    /// Append `message` at [`LogLevel::Debug`] when the level allows it. Fails on I/O errors.
     pub fn debug(&self, message: &str) -> Result<(), FileLogError> {
         self.append(LogLevel::Debug, message)
     }
