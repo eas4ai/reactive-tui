@@ -1,0 +1,27 @@
+$ cargo test --locked --jobs 8 --test charts_goldens -- cht_012_
+$ cargo test --locked --jobs 8 --test charts_goldens -- cht_013_
+$ cargo test --locked --jobs 8 --test charts_goldens -- cht_024_
+$ cargo test --locked --jobs 8 --test charts_goldens -- cht_025_
+$ cargo test --locked --jobs 8 --test charts_goldens -- cht_026_
+$ cargo test --locked --jobs 8 --test charts_goldens -- cht_027_
+$ cargo test --locked --jobs 8 --test charts_goldens -- cht_023_
+cairn: CHT-012: fail
+  CHT-012 reason: diagonals must be braille strokes, not stepped dashes (dashes 27, braille 0):
+cairn: CHT-013: fail
+  CHT-013 reason: tip must be an eighth block:
+cairn: CHT-024: fail
+  CHT-024 reason: assertion `left == right` failed: 39 columns is the mini class: no axis or legend:
+cairn: CHT-025: fail
+  CHT-025 reason: a steep diagonal must produce braille cells, got:
+cairn: CHT-026: pass
+  CHT-026 reason: 1 passed
+cairn: CHT-027: fail
+  CHT-027 reason: App painted 2 frames but input needs Some((3, [])) before the deadline. Last frame:; 1000 points did not paint three frames inside the harness's 3 s deadline: the chart does not decimate to its column count
+cairn: CHT-014: fail
+  CHT-014 reason: no candlestick chart type in chart code
+cairn: CHT-028: fail
+  CHT-028 reason: no ASCII glyph fallback in the chart code
+cairn: CHT-023: fail
+  CHT-023 reason: missing golden line_mini.ansi; missing golden line_medium.ansi; missing golden line_large.ansi; missing golden area_mini.ansi; missing golden area_medium.ansi; missing golden area_large.ansi
+cairn: BAR-004: fail
+  BAR-004 reason: no checked-in wide golden

@@ -1,0 +1,5 @@
+$ cargo test --locked --jobs 8 --test charts_contract -- cht_011_
+cairn: CHT-010: fail
+  CHT-010 reason: no plot layer directory (src/widgets/display/charts/plot or src/plot); local scale arithmetic at src/widgets/display/charts/live/canvas/cartesian.rs:20; local scale arithmetic at src/widgets/display/charts/live/canvas/cartesian.rs:21; local scale arithmetic at src/widgets/display/charts/live/canvas/cartesian.rs:242; local scale arithmetic at src/widgets/display/charts/live/canvas/cartesian.rs:243
+cairn: CHT-011: fail
+  CHT-011 reason: no ScaleBand with padding_inner/padding_outer; assertion `left == right` failed: four padded bars expected on the top row:

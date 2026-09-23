@@ -1,0 +1,48 @@
+$ cargo test --locked --jobs 8 --test charts_contract -- cht_021_
+$ cargo test --locked --jobs 8 --test charts_contract -- bar_005_
+cairn: CHT-021: fail  # 
+running 1 test
+test cht_021_chart_fills_its_parent_and_rasterizes_on_a_worker ... FAILED
+
+failures:
+
+---- cht_021_chart_fills_its_parent_and_rasterizes_on_a_worker stdout ----
+
+thread 'cht_021_chart_fills_its_parent_and_rasterizes_on_a_worker' (1699418) panicked at tests/charts_contract.rs:321:5:
+a chart with no explicit size must fill a 140-column parent, painted 80 columns
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    cht_021_chart_fills_its_parent_and_rasterizes_on_a_worker
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 7 filtered out; finished in 0.07s
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.09s
+     Running tests/charts_contract.rs (target/debug/deps/charts_contract-f606c435283a3ba5)
+error: test failed, to rerun pass `--test charts_contract`
+cairn: BAR-005: fail  #  ─                                                                                                 ─ ─                                                                                                 ─ ─                                                                                                 ─ ─                                                                                                ─ ─                                                                                                 ─ ─                                                                                                 ─ ─                                                                                                 ─ 
+ ─                                                                                                 ─ ─                                                                                                 ─ ─                                                                                                 ─ ─                                                                                                ─ ─                                                                                                 ─ ─                                                                                                 ─ ─                                                                                                 ─ 
+ ─                                                                                                 ─ ─                                                                                                 ─ ─                                                                                                 ─ ─                                                                                                ─ ─                                                                                                 ─ ─                                                                                                 ──                                                                                                   ─
+ ─                                                                                                 ─ ─                                                                                                 ─ ─                                                                                                 ──                                                                                                 ─ ─                                                                                                  ─                                                                                                   ─                                                                                                   ─
+ ─                                                                                                 ─ ─                                                                                                 ─ ─                                                                                                  ─                                                                                                  ─                                                                                                   ─                                                                                                   ─                                                                                                   ●
+ ─                                                                                                 ─ ─                                                                                                  ─                                                                                                   ─                                                                                                  ─                                                                                                   ─                                                                                                   ●                                                                                                    
+ ─                                                                                                  ─                                                                                                   ─                                                                                                   ─                                                                                                  ─                                                                                                   ●                                                                                                                                                                                                        
+─                                                                                                   ─                                                                                                   ─                                                                                                   ●                                                                                                  ●                                                                                                                                                                                                                                                                                                            
+─                                                                                                   ─                                                                                                   ●                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   
+─                                                                                                   ●                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       
+●                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+thread 'bar_005_animating_chart_stays_under_the_frame_budget_at_700_by_200' (1699432) panicked at tests/charts_contract.rs:363:19:
+fewer than 12 frames painted inside the harness's 3 s deadline at 700x200: main-loop frame time exceeds 16.6 ms by more than an order of magnitude
+
+
+failures:
+    bar_005_animating_chart_stays_under_the_frame_budget_at_700_by_200
+
+test result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 6 filtered out; finished in 4.14s
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.09s
+     Running tests/charts_contract.rs (target/debug/deps/charts_contract-f606c435283a3ba5)
+error: test failed, to rerun pass `--test charts_contract`

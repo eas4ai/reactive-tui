@@ -1,0 +1,14 @@
+BAR-006 violated:
+  manual has no heading for the line chart
+  catalog has no area chart page
+  manual has no heading for the area chart
+  catalog has no scatter chart page
+  manual has no heading for the scatter chart
+  catalog has no bar chart page
+  manual has no heading for the bar chart
+  catalog has no candlestick chart page
+  manual has no heading for the candlestick chart
+  manual has no size-class heading
+  manual does not describe the mini size class
+  manual does not describe the medium size class
+  manual does not describe the large size class

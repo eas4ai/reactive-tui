@@ -1,0 +1,29 @@
+$ cargo test --locked --jobs 8 --test charts_goldens -- cht_012_
+$ cargo test --locked --jobs 8 --test charts_goldens -- cht_013_
+$ cargo test --locked --jobs 8 --test charts_goldens -- cht_024_
+$ cargo test --locked --jobs 8 --test charts_goldens -- cht_025_
+$ cargo test --locked --jobs 8 --test charts_goldens -- cht_026_
+$ cargo test --locked --jobs 8 --test charts_goldens --release -- cht_027_
+$ cargo test --locked --jobs 8 --test charts_goldens -- cht_014_
+$ cargo test --locked --jobs 8 --test charts_goldens -- cht_028_
+$ cargo test --locked --jobs 8 --test charts_goldens -- cht_023_
+cairn: CHT-012: pass
+  CHT-012 reason: 2 passed
+cairn: CHT-013: pass
+  CHT-013 reason: 3 passed
+cairn: CHT-024: pass
+  CHT-024 reason: 2 passed
+cairn: CHT-025: pass
+  CHT-025 reason: 1 passed
+cairn: CHT-026: pass
+  CHT-026 reason: 1 passed
+cairn: CHT-027: pass
+  CHT-027 reason: 1 passed
+cairn: CHT-014: pass
+  CHT-014 reason: 1 passed
+cairn: CHT-028: pass
+  CHT-028 reason: 1 passed
+cairn: CHT-023: pass
+  CHT-023 reason: 1 passed
+cairn: BAR-004: pass
+  BAR-004 reason: goldens at two sizes, wide one 600 columns

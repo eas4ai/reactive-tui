@@ -1,0 +1,8 @@
+$ cargo test --locked --jobs 8 --test painter_hit -- pnt_001_
+$ cargo test --locked --jobs 8 --test painter_hit -- pnt_004_
+cairn: PNT-001: fail
+  PNT-001 reason: painter_hit did not run: error: no test target named `painter_hit` in default-run packages
+cairn: PNT-004: fail
+  PNT-004 reason: painter_hit did not run: error: no test target named `painter_hit` in default-run packages
+cairn: PNT-002: fail
+  PNT-002 reason: hit_bounds still scans cells through inside_masks

@@ -1,0 +1,6 @@
+$ cargo test --locked --jobs 8 --test charts_contract -- cht_018_
+$ cargo test --locked --jobs 8 --test charts_contract -- cht_019_
+cairn: CHT-018: fail
+  CHT-018 reason: tooltip must be a box, got:
+cairn: CHT-019: fail
+  CHT-019 reason: hovering the empty cell next to a point must select the nearest index, got:

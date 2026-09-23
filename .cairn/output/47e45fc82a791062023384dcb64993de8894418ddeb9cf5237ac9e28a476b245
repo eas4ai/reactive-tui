@@ -1,0 +1,3 @@
+$ cargo test --locked --jobs 8 --test charts_contract -- cht_017_
+cairn: CHT-017: pass
+  CHT-017 reason: no hex literals, theme chart variables present, token parity holds

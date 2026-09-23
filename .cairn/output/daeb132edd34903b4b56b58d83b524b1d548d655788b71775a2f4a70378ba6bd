@@ -1,0 +1,2 @@
+cairn: CHT-020: fail
+  CHT-020 reason: area: .fill() missing; area: .grid() missing; area: .linear() missing; area: .natural() missing; area: .step_after() missing; area: .stroke() missing; area: .tick_margin() missing; area: .x() missing (+27)

@@ -1,0 +1,2 @@
+cairn: CHT-020: fail
+  CHT-020 reason: area: .step_after() missing; line: .step_after() missing

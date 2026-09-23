@@ -1,0 +1,8 @@
+$ cargo test --locked --jobs 8 -p reactive-tui-suprtui --test render_alloc -- ras_003_
+$ cargo test --locked --jobs 8 -p reactive-tui-suprtui --test render_alloc -- ras_007_
+cairn: RAS-003: fail
+  RAS-003 reason: render_alloc did not run: error: no test target named `render_alloc` in `reactive-tui-suprtui` package
+cairn: RAS-007: fail
+  RAS-007 reason: render_alloc did not run: error: no test target named `render_alloc` in `reactive-tui-suprtui` package
+cairn: PNT-003: fail
+  PNT-003 reason: frame element cloned per present: element.clone(), self.frame.clone()

@@ -1,0 +1,46 @@
+$ cargo build --locked --workspace --jobs 8
+$ cargo fmt --all -- --check
+$ cargo clippy --locked --workspace --all-targets --jobs 8 -- -D warnings
+$ cargo doc --locked --workspace --no-deps --jobs 8
+$ cargo test --locked --workspace --no-fail-fast --jobs 8
+     Running tests/windows_platform.rs (target/debug/deps/windows_platform-eb2da52f91688cc6)
+     Running tests/z_index_tests.rs (target/debug/deps/z_index_tests-e1b66e5e2f8687f4)
+error: test failed, to rerun pass `-p reactive-tui --test z_index_tests`
+
+Caused by:
+  process didn't exit successfully: `/home/shawn/workspace2/reactive-tui/target/debug/deps/z_index_tests-e1b66e5e2f8687f4` (signal: 11, SIGSEGV: invalid memory reference)
+     Running unittests src/lib.rs (target/debug/deps/crossterm-a40f93f7f3684238)
+     Running unittests src/lib.rs (target/debug/deps/libghostty_vt-510334bf63d715cf)
+     Running unittests src/lib.rs (target/debug/deps/libghostty_vt_sys-164f885bd3991036)
+     Running unittests src/lib.rs (target/debug/deps/reactive_tui_macros-c683b7628888bf2c)
+     Running unittests src/lib.rs (target/debug/deps/suprtui-b45d85a57ed59588)
+     Running tests/buffer_core.rs (target/debug/deps/buffer_core-8751aafd4b5a179a)
+     Running tests/buffer_draw.rs (target/debug/deps/buffer_draw-c617e4c32bfda73a)
+     Running tests/cell_decorations.rs (target/debug/deps/cell_decorations-eca1844eaa4a8fa7)
+     Running tests/layout_engine.rs (target/debug/deps/layout_engine-fbcf0560b2397a70)
+     Running tests/link_pool.rs (target/debug/deps/link_pool-b9fc48b36ba6175c)
+     Running tests/media_audio.rs (target/debug/deps/media_audio-0390f0817739aeb9)
+     Running tests/media_image.rs (target/debug/deps/media_image-8e470accc7a5820f)
+     Running tests/render_core.rs (target/debug/deps/render_core-f992ca01f7d60819)
+     Running tests/render_stdout.rs (target/debug/deps/render_stdout-9e1a01771e8f694b)
+     Running tests/render_terminal.rs (target/debug/deps/render_terminal-ec8f2c25b2e29581)
+     Running tests/sys_clipboard.rs (target/debug/deps/sys_clipboard-bd361dd118e89f4d)
+     Running tests/sys_clipboard_backends.rs (target/debug/deps/sys_clipboard_backends-9d8402f2e1b3e77d)
+     Running tests/sys_core.rs (target/debug/deps/sys_core-5721100697703377)
+     Running tests/sys_small.rs (target/debug/deps/sys_small-8c4a68e0b6089f5f)
+     Running tests/term_core.rs (target/debug/deps/term_core-eeface818e55d4d1)
+     Running tests/term_embedded.rs (target/debug/deps/term_embedded-103ba50b35593fa8)
+     Running tests/text_gaps.rs (target/debug/deps/text_gaps-9a8fc93b7958c4b2)
+     Running tests/text_store.rs (target/debug/deps/text_store-524ce54bb948b501)
+     Running tests/text_view.rs (target/debug/deps/text_view-976b8729447015c1)
+     Running tests/uni_pool.rs (target/debug/deps/uni_pool-00c0f6851d68b83f)
+     Running tests/uni_ported.rs (target/debug/deps/uni_ported-7ecda6be67e815f0)
+     Running tests/uni_segments.rs (target/debug/deps/uni_segments-67f855a04824a61e)
+   Doc-tests reactive_tui
+   Doc-tests crossterm
+   Doc-tests libghostty_vt
+   Doc-tests reactive_tui_macros
+   Doc-tests suprtui
+error: 1 target failed:
+    `-p reactive-tui --test z_index_tests`
+BAR-001 violated: gates failing: cargo test --locked

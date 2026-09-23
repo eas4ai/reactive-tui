@@ -1,0 +1,3 @@
+$ cargo test --locked --jobs 8 --test charts_contract -- bar_003_
+cairn: BAR-003: fail
+  BAR-003 reason: 16 hard-coded colors in chart code; 1 passed

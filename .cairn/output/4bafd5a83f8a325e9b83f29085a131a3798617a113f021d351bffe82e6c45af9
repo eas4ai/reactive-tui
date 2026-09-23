@@ -1,0 +1,3 @@
+$ cargo test --locked --jobs 8 --test charts_contract -- cht_017_
+cairn: CHT-017: fail
+  CHT-017 reason: hex literal "#3b82f6" at src/widgets/display/charts.rs:206; hex literal "#ef4444" at src/widgets/display/charts.rs:207; hex literal "#10b981" at src/widgets/display/charts.rs:208; hex literal "#f59e0b" at src/widgets/display/charts.rs:209; hex literal "#8b5cf6" at src/widgets/display/charts.rs:210; hex literal "#06b6d4" at src/widgets/display/charts.rs:211

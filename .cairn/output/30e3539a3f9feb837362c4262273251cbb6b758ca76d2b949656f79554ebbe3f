@@ -1,0 +1,2 @@
+cairn: RAS-004: fail
+  RAS-004 reason: no recorded screens under tests/snapshots/renderer
