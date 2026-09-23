@@ -35,7 +35,7 @@ fn renderer_frames() -> Vec<(&'static str, (u16, u16), Element)> {
         Element::layout(LayoutType::Flex)
             .with_class("flex flex-col w-full h-full p-0.5 bg-blue-500")
             .with_children(vec![
-                Element::text(text).with_class("w-full h-1 text-red-500 font-bold"),
+                Element::text(text).with_class("w-full h-1 text-red-500 font-bold")
             ])
     };
     vec![
@@ -53,7 +53,7 @@ fn renderer_frames() -> Vec<(&'static str, (u16, u16), Element)> {
                 .with_children(vec![Element::layout(LayoutType::Flex)
                     .with_class("relative w-3 h-1 overflow-hidden")
                     .with_children(vec![
-                        Element::text("ab界").with_class("absolute top-0 left-0 w-4 h-1"),
+                        Element::text("ab界").with_class("absolute top-0 left-0 w-4 h-1")
                     ])]),
         ),
         (
@@ -88,7 +88,7 @@ fn renderer_frames() -> Vec<(&'static str, (u16, u16), Element)> {
             Element::layout(LayoutType::Flex)
                 .with_class("flex flex-col w-full h-full bg-blue-500")
                 .with_children(vec![
-                    Element::layout(LayoutType::Flex).with_class("w-4 h-2 bg-black"),
+                    Element::layout(LayoutType::Flex).with_class("w-4 h-2 bg-black")
                 ]),
         ),
     ]
@@ -132,7 +132,11 @@ fn chart_props(kind: ChartType, size: (u16, u16)) -> ChartProps {
         chart_type: kind,
         width: size.0,
         height: size.1,
-        series: vec![if candle { candles(&data) } else { series(&data) }],
+        series: vec![if candle {
+            candles(&data)
+        } else {
+            series(&data)
+        }],
         x_axis: ChartAxis {
             show_labels: false,
             show_grid: false,
@@ -276,7 +280,9 @@ fn check_recording(name: &str, bytes: &[u8], size: (u16, u16)) {
         return;
     }
     let recorded = std::fs::read_to_string(&path).unwrap_or_else(|_| {
-        panic!("no recording {path:?}; RAS-004 needs a screen recorded before the rasterizer changed")
+        panic!(
+            "no recording {path:?}; RAS-004 needs a screen recorded before the rasterizer changed"
+        )
     });
     let recorded = sections(&recorded);
     for section in sections(&produced.concat()) {
