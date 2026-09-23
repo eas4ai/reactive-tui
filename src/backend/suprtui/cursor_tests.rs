@@ -52,7 +52,7 @@ fn native_cursor_follows_painted_text_clipping_and_coverage() {
     present(&mut backend, &frame(vec![cursor.clone()]));
     let output = capture.take();
     assert!(output.contains("\x1b[6 q"));
-    assert!(output.contains("\x1b[2;4H\x1b[0m\x1b[?25h"));
+    assert!(output.contains("\x1b[2;4H\x1b[?25h"));
     for cover in [
         Element::text("X").with_class("absolute left-3 top-1 w-1 h-1"),
         ElementBuilder::new(ElementType::Layout(LayoutType::Absolute))
