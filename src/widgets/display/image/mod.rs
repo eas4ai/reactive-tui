@@ -382,6 +382,11 @@ impl ImageFormat {
 mod tests {
     #[test]
     fn blt_002_the_application_override_replaces_the_choice_until_cleared() {
+        // The override, the glyph report and the host identity are all
+        // process-wide; other tests change them under this lock.
+        let _serial = crate::widgets::display::charts::GLYPH_REPORT_TEST_LOCK
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         if std::env::var_os(::suprtui::blit::BLITTER_ENV).is_some() {
             eprintln!("SKIP: the environment override wins over the application's");
             return;

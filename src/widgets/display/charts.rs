@@ -30,8 +30,10 @@ pub fn glyph_support() -> bool {
     GLYPH_SUPPORT.load(std::sync::atomic::Ordering::Relaxed)
 }
 
-/// Tests that change the process-wide glyph report hold this lock, so they
-/// cannot race one another under parallel test threads.
+/// Tests that change or depend on a process-wide terminal choice hold this
+/// lock, so they cannot race one another under parallel test threads: the
+/// glyph report, the application's image blitter, and the terminal
+/// environment variables the capability and host-identity probes read.
 #[cfg(test)]
 pub(crate) static GLYPH_REPORT_TEST_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 

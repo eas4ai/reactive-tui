@@ -641,29 +641,56 @@ mod tests {
         assert_eq!(identity_from(None, None), None);
     }
 
-    #[test]
-    fn test_env_fallback_colorterm() {
-        unsafe {
-            std::env::set_var("COLORTERM", "truecolor");
+    /// Sets an environment variable for one test while holding the lock that
+    /// serializes tests of process-wide terminal choices, and restores the
+    /// variable's earlier value when dropped, even if the test panics.
+    struct EnvGuard {
+        name: &'static str,
+        previous: Option<std::ffi::OsString>,
+        _serial: std::sync::MutexGuard<'static, ()>,
+    }
+
+    impl EnvGuard {
+        fn set(name: &'static str, value: &str) -> Self {
+            let serial = crate::widgets::display::charts::GLYPH_REPORT_TEST_LOCK
+                .lock()
+                .unwrap_or_else(|e| e.into_inner());
+            let previous = std::env::var_os(name);
+            unsafe {
+                std::env::set_var(name, value);
+            }
+            Self {
+                name,
+                previous,
+                _serial: serial,
+            }
         }
-        let caps = TerminalQuery::detect_from_env();
-        assert_eq!(caps.color_depth, ColorDepth::TrueColor);
-        unsafe {
-            std::env::remove_var("COLORTERM");
+    }
+
+    impl Drop for EnvGuard {
+        fn drop(&mut self) {
+            unsafe {
+                match &self.previous {
+                    Some(value) => std::env::set_var(self.name, value),
+                    None => std::env::remove_var(self.name),
+                }
+            }
         }
     }
 
     #[test]
+    fn test_env_fallback_colorterm() {
+        let _env = EnvGuard::set("COLORTERM", "truecolor");
+        let caps = TerminalQuery::detect_from_env();
+        assert_eq!(caps.color_depth, ColorDepth::TrueColor);
+    }
+
+    #[test]
     fn test_env_fallback_term_program() {
-        unsafe {
-            std::env::set_var("TERM_PROGRAM", "kitty");
-        }
+        let _env = EnvGuard::set("TERM_PROGRAM", "kitty");
         let caps = TerminalQuery::detect_from_env();
         assert!(caps.kitty_graphics);
         assert!(caps.enhanced_keyboard);
         assert_eq!(caps.color_depth, ColorDepth::TrueColor);
-        unsafe {
-            std::env::remove_var("TERM_PROGRAM");
-        }
     }
 }
