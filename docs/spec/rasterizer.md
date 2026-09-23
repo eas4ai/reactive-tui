@@ -38,9 +38,10 @@ Falsifier: A replay differs from its recording in a cell's text or color, or a f
 Mechanism: render-replay
 Status: Agreed 2026-09-22
 
-[RAS-005] In a release build on the development host, best of three runs, a full 200 by 50 text repaint MUST emit at most 12 bytes per cell, an unchanged 262,144-cell frame MUST cost at most 300 microseconds and a full repaint of it at most 15 milliseconds.
+[RAS-005] In a release build on the development host, best of three runs, a full 200 by 50 text repaint MUST emit at most 12 bytes per cell, an unchanged 262,144-cell frame MUST cost at most 1 millisecond and a full repaint of it at most 15 milliseconds.
 Falsifier: The bench exceeds any bound on all three runs.
 Mechanism: render-bytes
+Rationale: The unchanged bound was 300 microseconds; the diff reads both 8 MB buffers and measures 530 to 700 microseconds after the painter's repaint, so the developer ruled 1 millisecond on 2026-09-22 (escalation a648dc31).
 Status: Agreed 2026-09-22
 
 [RAS-006] `RenderStats` MUST report bytes emitted, cursor moves emitted and elided, foreground, background and attribute emissions and elisions, and layout, diff, emit and write times per frame; the debug overlay MUST show bytes, elisions and the four times.
