@@ -7,6 +7,10 @@
     "crates/reactive-tui-suprtui/UPSTREAM.md",
     "src/widgets/display/image",
     "src/core/capabilities.rs",
+    "src/layout/paint_tree/cells.rs",
+    "src/layout/paint_tree/suprtui.rs",
+    "src/widgets/display/mod.rs",
+    "manual/images-and-clipboard.md",
     "Cargo.toml",
     "Cargo.lock",
     "scripts/cairn"

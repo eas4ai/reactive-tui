@@ -83,12 +83,14 @@ def strip_test_modules(text: str) -> str:
     return "".join(out)
 
 
-def cargo_test_filtered(binary: str, substring: str, features: list[str] | None = None, release: bool = False,
+def cargo_test_filtered(binary: str | None, substring: str, features: list[str] | None = None, release: bool = False,
                         package: str | None = None) -> tuple[bool, str]:
+    """Run the tests whose names contain `substring` in one test binary, or
+    in the package's library unit tests when `binary` is None."""
     cmd = ["cargo", "test", "--locked", "--jobs", JOBS]
     if package:
         cmd += ["-p", package]
-    cmd += ["--test", binary]
+    cmd += ["--test", binary] if binary else ["--lib"]
     if release:
         cmd.append("--release")
     if features:
@@ -99,10 +101,10 @@ def cargo_test_filtered(binary: str, substring: str, features: list[str] | None 
     ran = re.search(r"test result: \w+\. (\d+) passed; (\d+) failed", r.stdout)
     if not ran:
         err = [l for l in out.splitlines() if l.startswith("error")]
-        return False, f"{binary} did not run: " + ("; ".join(err[:3]) or out.splitlines()[-1:][0] if out.strip() else "no output")
+        return False, f"{binary or 'the library tests'} did not run: " + ("; ".join(err[:3]) or out.splitlines()[-1:][0] if out.strip() else "no output")
     passed, failed = int(ran.group(1)), int(ran.group(2))
     if passed + failed == 0:
-        return False, f"no test matched {substring!r} in {binary}"
+        return False, f"no test matched {substring!r} in {binary or 'the library tests'}"
     if failed == 0 and r.returncode == 0:
         return True, f"{passed} passed"
     # The stated violation is the panic message: the line after each "panicked at".
