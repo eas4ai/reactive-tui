@@ -133,6 +133,7 @@ pub struct SuprTuiBackend {
     /// Element index plus one per cell of the presented frame (PNT-002).
     hits: Vec<u32>,
     layout_reused: bool,
+    inverse_cells: u64,
     /// Geometry of the last frame whose flush the worker acknowledged; the
     /// fallback when a present reports the previous frame's failure (PIP-002).
     acknowledged: Acknowledged,
@@ -233,6 +234,7 @@ impl SuprTuiBackend {
             component_layouts: Vec::new(),
             hits: Vec::new(),
             layout_reused: false,
+            inverse_cells: 0,
             acknowledged: Acknowledged::default(),
             raw_mode: None,
             input: None,
@@ -254,6 +256,13 @@ impl SuprTuiBackend {
     /// layout because its layout inputs were unchanged (PNT-004).
     pub fn layout_reused(&self) -> bool {
         self.layout_reused
+    }
+
+    /// Cells the last presented frame's painter mapped through a node's
+    /// inverse transform. Nodes that are only translated and not masked map
+    /// cells by subtraction and add none (PNT-001).
+    pub fn inverse_transformed_cells(&self) -> u64 {
+        self.inverse_cells
     }
 
     /// Wait until every frame presented so far has been written and flushed.
@@ -416,6 +425,7 @@ impl Backend for SuprTuiBackend {
                     hits: std::mem::replace(&mut self.hits, geometry.hits),
                 };
                 self.layout_reused = geometry.layout_reused;
+                self.inverse_cells = geometry.inverse_cells;
                 Ok(())
             }
             Err(error) => {

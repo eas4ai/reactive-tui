@@ -53,6 +53,16 @@ impl Layers {
             self.planes[index].cover(x, y, source);
         }
     }
+    /// `cover` for the cells `left..right` of row `y`; returns at once when
+    /// the frame has no image plane.
+    pub fn cover_span(&mut self, y: i32, left: i32, right: i32, source: ansi::Rgba) {
+        if self.cells.is_none() {
+            return;
+        }
+        for x in left..right {
+            self.cover(x, y, source);
+        }
+    }
     pub fn into_planes(self) -> Vec<Plane> {
         self.planes
     }
