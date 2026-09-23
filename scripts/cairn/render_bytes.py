@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """render-bytes: RAS-001, RAS-002, RAS-005, RAS-006 and RAS-008 through the
-crate's tests/render_bytes.rs binary (one `ras_NNN_` test group per requirement),
+crates/reactive-tui-suprtui/tests/render_bytes.rs binary (one `ras_NNN_` test group per requirement),
 RAS-005 in the optimized build with a best-of-three inside the test.
 
 Prints one `cairn: <REQ>: pass|fail` line per requirement.
