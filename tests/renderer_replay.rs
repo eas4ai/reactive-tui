@@ -265,6 +265,7 @@ fn sections(text: &str) -> Vec<(String, String)> {
 }
 
 fn check_recording(name: &str, bytes: &[u8], size: (u16, u16)) {
+    #[cfg_attr(not(feature = "embedded-terminal"), allow(unused_mut))]
     let mut produced = vec![vt100_section(bytes, size)];
     #[cfg(feature = "embedded-terminal")]
     produced.push(ghostty_section(bytes, size));
@@ -295,7 +296,7 @@ fn last_bytes(element: Element, size: (u16, u16), painted: bool) -> Vec<u8> {
     let frames = if painted {
         app_input::run_when_painted(Root(element), size, 2)
     } else {
-        app_input::run(Root(element), size, vec![(2, None)])
+        app_input::run(Root(element), size, vec![(1, None)])
     };
     frames.last().expect("a presented frame").output.clone()
 }

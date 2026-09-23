@@ -20,7 +20,11 @@ def main() -> int:
         r = run(cmd, timeout=3600)
         if r.returncode != 0:
             failed.append(" ".join(cmd[:3]))
-            print("\n".join((r.stdout + r.stderr).splitlines()[-40:]))
+            lines = (r.stdout + r.stderr).splitlines()
+            # Name the failure: failed tests, panics, signals and errors, then the tail.
+            marks = ("FAILED", "panicked at", "signal:", "error", "failures:", "warning: unused")
+            hits = [l for l in lines if any(m in l for m in marks)]
+            print("\n".join(hits[:60] + lines[-10:]))
     if failed:
         print(f"BAR-001 violated: gates failing: {', '.join(failed)}")
         return 1
