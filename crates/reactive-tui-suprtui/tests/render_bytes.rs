@@ -170,6 +170,60 @@ fn ras_002_style_is_emitted_once_per_run_and_reset_at_most_twice_per_frame() {
     assert_eq!(1, count(&frame, b"\x1b[55m"), "{frame:?}");
 }
 
+/// RAS-002: every attribute that ends between two adjacent cells turns off
+/// with its own SGR code, emitted once, and the frame holds no reset beyond
+/// the one after its sync-set and the one before its sync-reset.
+#[test]
+fn ras_002_every_attribute_turns_off_with_its_own_code() {
+    for (name, attribute, on, off) in [
+        (
+            "bold",
+            TextAttributes::BOLD,
+            &b"\x1b[1m"[..],
+            &b"\x1b[22m"[..],
+        ),
+        ("dim", TextAttributes::DIM, b"\x1b[2m", b"\x1b[22m"),
+        ("italic", TextAttributes::ITALIC, b"\x1b[3m", b"\x1b[23m"),
+        (
+            "underline",
+            TextAttributes::UNDERLINE,
+            b"\x1b[4m",
+            b"\x1b[24m",
+        ),
+        ("blink", TextAttributes::BLINK, b"\x1b[5m", b"\x1b[25m"),
+        ("inverse", TextAttributes::INVERSE, b"\x1b[7m", b"\x1b[27m"),
+        ("hidden", TextAttributes::HIDDEN, b"\x1b[8m", b"\x1b[28m"),
+        (
+            "strikethrough",
+            TextAttributes::STRIKETHROUGH,
+            b"\x1b[9m",
+            b"\x1b[29m",
+        ),
+    ] {
+        let mut r = renderer(12, 1);
+        r.next_buffer()
+            .draw_text(
+                "on",
+                0,
+                0,
+                ansi::rgb_color(255, 255, 255, 255),
+                Some(ansi::rgb_color(0, 0, 0, 255)),
+                u32::from(attribute),
+            )
+            .unwrap();
+        draw(&mut r, "off", 2, 0);
+        assert_eq!(RenderStatus::Rendered, r.render(false));
+        let frame = last_frame(&r);
+        assert_eq!(1, count(&frame, on), "{name} on: {frame:?}");
+        assert_eq!(1, count(&frame, off), "{name} off: {frame:?}");
+        assert_eq!(
+            2,
+            count(&frame, b"\x1b[0m"),
+            "{name}: a reset beyond the frame's two: {frame:?}"
+        );
+    }
+}
+
 /// A backend that keeps every frame's bytes in one reused buffer.
 struct Sink {
     bytes: Vec<u8>,
