@@ -749,7 +749,10 @@ fn run_steps_on(
         capture,
         snapshots: snapshots.clone(),
         deadline: Instant::now() + timeout,
-        wait_returned: std::sync::Mutex::new(None),
+        // The first frame has no input wait before it: its work is measured
+        // from the App's start, so the frame where a widget first appears
+        // and starts animating counts like every other (BAR-005).
+        wait_returned: std::sync::Mutex::new(Some(Instant::now())),
         busy: false,
     };
     App::builder()

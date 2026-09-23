@@ -16,8 +16,45 @@ use std::{cell::RefCell, rc::Rc};
 
 pub(super) struct DebugFrame {
     pub surface: Surface,
-    pub text: Vec<String>,
+    pub text: FrameText,
     pub geometry: PresentedGeometry,
+}
+
+/// The text of every cell of a presented frame in one buffer, so a frame
+/// costs no allocation per cell: a whole grapheme cluster, or an empty
+/// string for the second cell of a wide one.
+pub(super) struct FrameText {
+    text: String,
+    /// The end offset in `text` of each cell's text, row-major.
+    ends: Vec<u32>,
+}
+
+impl FrameText {
+    fn with_capacity(cells: usize) -> Self {
+        Self {
+            text: String::with_capacity(cells),
+            ends: Vec::with_capacity(cells),
+        }
+    }
+
+    fn push(&mut self, content: &str) {
+        self.text.push_str(content);
+        self.ends.push(self.text.len() as u32);
+    }
+
+    fn push_char(&mut self, content: char) {
+        self.text.push(content);
+        self.ends.push(self.text.len() as u32);
+    }
+
+    /// The text of the cell at row-major `index`.
+    pub fn get(&self, index: usize) -> Option<&str> {
+        let end = *self.ends.get(index)? as usize;
+        let start = index
+            .checked_sub(1)
+            .map_or(0, |previous| self.ends[previous] as usize);
+        Some(&self.text[start..end])
+    }
 }
 
 fn color(value: ansi::Rgba) -> Rgba {
@@ -71,41 +108,46 @@ pub(super) fn paint(element: &Element, size: (u16, u16)) -> Result<DebugFrame> {
         ImageOutputOptions::default(),
     )?;
     let mut surface = Surface::new(usize::from(size.0), usize::from(size.1));
-    let mut text = Vec::with_capacity(usize::from(size.0) * usize::from(size.1));
+    let mut text = FrameText::with_capacity(usize::from(size.0) * usize::from(size.1));
+    let graphemes = pool.borrow();
     for y in 0..u32::from(size.1) {
         for x in 0..u32::from(size.0) {
             let cell = buffer
                 .get(x, y)
                 .expect("coordinates are within the allocated frame");
-            let content = if is_continuation_char(cell.char) {
-                String::new()
+            let first = if is_continuation_char(cell.char) {
+                text.push("");
+                ' '
             } else if is_grapheme_char(cell.char) {
-                let pool = pool.borrow();
-                let bytes = pool
+                let bytes = graphemes
                     .get(grapheme_id_from_char(cell.char))
                     .map_err(|error| {
                         ReactiveError::resource(format!("debug frame grapheme: {error:?}"))
                     })?;
-                std::str::from_utf8(bytes)
-                    .map_err(|error| ReactiveError::resource(format!("debug frame text: {error}")))?
-                    .to_owned()
+                let content = std::str::from_utf8(bytes).map_err(|error| {
+                    ReactiveError::resource(format!("debug frame text: {error}"))
+                })?;
+                text.push(content);
+                content.chars().next().unwrap_or(' ')
             } else {
-                char::from_u32(cell.char).unwrap_or(' ').to_string()
+                let content = char::from_u32(cell.char).unwrap_or(' ');
+                text.push_char(content);
+                content
             };
             surface.set(
                 x as usize,
                 y as usize,
                 Cell {
-                    ch: content.chars().next().unwrap_or(' '),
+                    ch: first,
                     fg: color(cell.fg),
                     bg: color(cell.bg),
                     attr: attributes(cell.attributes),
                     ..Default::default()
                 },
             );
-            text.push(content);
         }
     }
+    drop(graphemes);
     Ok(DebugFrame {
         surface,
         text,
@@ -122,7 +164,7 @@ pub(super) fn cells(frame: &CellFrame) -> DebugFrame {
         b: f32::from(b) / 255.0,
         a: 1.0,
     };
-    let mut text = Vec::with_capacity(frame.cells().len());
+    let mut text = FrameText::with_capacity(frame.cells().len());
     for (
         index,
         FrameCell {
@@ -145,7 +187,7 @@ pub(super) fn cells(frame: &CellFrame) -> DebugFrame {
                 ..Default::default()
             },
         );
-        text.push(content.clone());
+        text.push(content);
     }
     DebugFrame {
         surface,

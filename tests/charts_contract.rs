@@ -677,7 +677,10 @@ fn max_work_ms(
     size: (u16, u16),
     frames: usize,
 ) -> (f64, String) {
-    let out = app_input::run(root, size, vec![(frames, None)]);
+    // BAR-005 measures on the debug backend, which lays out and paints on
+    // the App's thread in render_frame, so that work counts in full. Every
+    // frame counts, the first included.
+    let out = app_input::run_on_debug(root, size, vec![(frames, None)]);
     assert!(
         out.len() >= frames,
         "harness painted {} of {frames} frames",
@@ -685,11 +688,10 @@ fn max_work_ms(
     );
     let split: Vec<String> = out
         .iter()
-        .skip(1)
         .map(|f| format!("{:.2}/{:.2}", f.work_ms, f.present_ms))
         .collect();
     (
-        out.iter().skip(1).map(|f| f.work_ms).fold(0.0, f64::max),
+        out.iter().map(|f| f.work_ms).fold(0.0, f64::max),
         split.join(" "),
     )
 }
