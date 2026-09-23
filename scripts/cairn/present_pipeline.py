@@ -12,16 +12,29 @@ import sys
 from _common import ROOT, cargo_test_filtered, finish
 
 MANUAL = ROOT / "manual/rendering-and-backends.md"
-OLD = "until a frame is presented successfully"
-NEW = "until the next present reports the previous frame's failure"
+# The sentences before this commitment: the first predates the pipeline, the
+# second named only present and shutdown and said the App kept the
+# acknowledged geometry before the failure was reported.
+STALE = ("until a frame is presented successfully",
+         "until the next present reports the previous frame's failure")
+# What the manual must say: every call that reports a failure, the geometry
+# before and after the report, and that a failed frame is never the fallback.
+NEW = ("reported by the next `present`, by `sync` or by `shutdown`",
+       "Until the failure is reported, the backend reports the newest presented frame's geometry",
+       "the geometry of the last frame whose flush was acknowledged",
+       "the failed frame is never used as the fallback")
 
 
 def main() -> int:
     results = {}
     results["PIP-001"] = cargo_test_filtered("present_pipeline", "pip_001_")
     text = " ".join(MANUAL.read_text(errors="replace").split()) if MANUAL.is_file() else ""
-    if OLD in text or NEW not in text:
-        results["PIP-002"] = (False, "manual still says the App keeps geometry " + OLD if OLD in text else "manual lacks the sentence: " + NEW)
+    stale = [s for s in STALE if s in text]
+    missing = [s for s in NEW if s not in text]
+    if stale:
+        results["PIP-002"] = (False, "manual still says: " + stale[0])
+    elif missing:
+        results["PIP-002"] = (False, "manual lacks: " + missing[0])
     else:
         results["PIP-002"] = cargo_test_filtered("present_pipeline", "pip_002_")
     return finish(results)

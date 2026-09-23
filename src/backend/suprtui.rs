@@ -259,14 +259,29 @@ impl SuprTuiBackend {
     /// Wait until every frame presented so far has been written and flushed.
     /// `present` returns before its frame's write (PIP-001); a caller that
     /// reads the output afterwards, such as a test, calls this first. A flush
-    /// failure is reported here as it would be by the next present.
+    /// failure is reported here as it would be by the next present, and the
+    /// geometry falls back the same way (PIP-002).
     pub fn sync(&mut self) -> Result<()> {
         let commands = self.commands.as_ref().ok_or_else(worker_stopped)?;
         let (reply, result) = mpsc::channel();
         commands
             .send(Command::Sync(reply))
             .map_err(|_| worker_stopped())?;
-        result.recv().map_err(|_| worker_stopped())?
+        let outcome = result.recv().map_err(|_| worker_stopped())?;
+        if outcome.is_err() {
+            self.fall_back_to_acknowledged();
+        }
+        outcome
+    }
+
+    /// Report the geometry of the last frame whose flush was acknowledged,
+    /// after a failure shows the newest frame never reached the terminal.
+    /// The next successful present then records that frame, not the failed
+    /// one, as acknowledged (PIP-002).
+    fn fall_back_to_acknowledged(&mut self) {
+        self.painted_nodes = self.acknowledged.nodes.clone();
+        self.component_layouts = self.acknowledged.layouts.clone();
+        self.hits = self.acknowledged.hits.clone();
     }
 
     /// Restore the session and join the worker. Safe to call more than once.
@@ -404,9 +419,7 @@ impl Backend for SuprTuiBackend {
                 Ok(())
             }
             Err(error) => {
-                self.painted_nodes = self.acknowledged.nodes.clone();
-                self.component_layouts = self.acknowledged.layouts.clone();
-                self.hits = self.acknowledged.hits.clone();
+                self.fall_back_to_acknowledged();
                 Err(error)
             }
         }
