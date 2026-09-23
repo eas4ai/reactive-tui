@@ -40,10 +40,10 @@ error.
 - After a resize it draws the picture again at the new size. Until the image
   worker has the new cells, it shows a text rendering made at the new size,
   never the cells drawn for the old one.
-- Its screen-reader node has the image role, the label `Image`, and a
-  description of its state: `Loading image` while the worker prepares it,
-  which also marks the node busy; its size in pixels once decoded; or the
-  error when loading failed.
+- Its screen-reader node has the image role, the image's fallback text as
+  its label, and a description of its state: `Loading image` while the
+  worker prepares it, which also marks the node busy; its size in pixels once
+  decoded; or the error when loading failed.
 - It has no pointer actions of its own: its content is inert, so it needs no
   keyboard equivalent.
 - The only colors it draws are the picture's own.
