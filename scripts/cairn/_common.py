@@ -100,8 +100,13 @@ def cargo_test_filtered(binary: str | None, substring: str, features: list[str] 
     out = r.stdout + r.stderr
     ran = re.search(r"test result: \w+\. (\d+) passed; (\d+) failed", r.stdout)
     if not ran:
-        err = [l for l in out.splitlines() if l.startswith("error")]
-        return False, f"{binary or 'the library tests'} did not run: " + ("; ".join(err[:3]) or out.splitlines()[-1:][0] if out.strip() else "no output")
+        # Say why no summary printed: cargo's error, what caused it (a signal,
+        # a binary that could not start) and the last lines of output.
+        lines = [l.strip() for l in out.splitlines() if l.strip()]
+        why = [l for l in lines if l.startswith(("error", "Caused by")) or "signal" in l or "overflowed" in l]
+        tail = [l for l in lines[-4:] if l not in why]
+        detail = "; ".join(why[:4] + tail) or "no output"
+        return False, f"{binary or 'the library tests'} did not run: {detail}"[:600]
     passed, failed = int(ran.group(1)), int(ran.group(2))
     if passed + failed == 0:
         return False, f"no test matched {substring!r} in {binary or 'the library tests'}"
