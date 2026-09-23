@@ -148,6 +148,35 @@ fn pnt_001_fast_path_paints_the_recorded_cells() {
     }
 }
 
+/// PNT-001: identity nodes map no cell through an inverse transform, for
+/// their backgrounds or their hit cells; a rotated node does, so the count
+/// observes which path each node took.
+#[test]
+fn pnt_001_identity_nodes_map_no_cell_through_an_inverse_transform() {
+    for (name, size, element) in recorded_frames() {
+        let mut backend = SuprTuiBackend::with_writer(size.0, size.1, Sink::default()).unwrap();
+        assert!(backend.render_frame(&element).unwrap());
+        backend.present().unwrap();
+        assert_eq!(
+            backend.inverse_transformed_cells(),
+            0,
+            "{name}: an identity node took the per-cell inverse path"
+        );
+    }
+    let rotated = Element::layout(LayoutType::Flex)
+        .with_class("relative w-full h-full")
+        .with_children(vec![
+            Element::text("ABC").with_class("w-3 h-3 rotate-90 bg-green-500")
+        ]);
+    let mut backend = SuprTuiBackend::with_writer(6, 5, Sink::default()).unwrap();
+    assert!(backend.render_frame(&rotated).unwrap());
+    backend.present().unwrap();
+    assert!(
+        backend.inverse_transformed_cells() > 0,
+        "a rotated node must take the general path"
+    );
+}
+
 fn hits_after(size: (u16, u16), element: &Element) -> Vec<u32> {
     let mut backend = SuprTuiBackend::with_writer(size.0, size.1, Sink::default()).unwrap();
     assert!(backend.render_frame(element).unwrap());

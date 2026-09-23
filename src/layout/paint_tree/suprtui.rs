@@ -93,7 +93,7 @@ fn same_layout_inputs(
 /// Write a node's element index plus one into every cell it occupies:
 /// its bounds within its clip, exact under masks and transforms, in paint
 /// order so a later (higher) node overwrites a lower one (PNT-002).
-fn mark_hits(hits: &mut [u32], width: u32, node: &PaintNode) {
+fn mark_hits(hits: &mut [u32], width: u32, node: &PaintNode, inverse_cells: &mut u64) {
     let id = node.element_index as u32 + 1;
     let visible = node.bounds.intersect(node.clip);
     let plain = node.transform.is_translation() && node.mask.is_none();
@@ -109,6 +109,7 @@ fn mark_hits(hits: &mut [u32], width: u32, node: &PaintNode) {
                 if !inside_masks(&node.mask, x, y) {
                     continue;
                 }
+                *inverse_cells += 1;
                 let Some((local_x, local_y)) = node.transform.inverse(x as f32, y as f32) else {
                     continue;
                 };
@@ -278,6 +279,7 @@ pub(crate) fn paint_frame(
         .collect();
     let mut images = images::Layers::new(target.width() as usize, target.height() as usize);
     let mut cursor = cursor::Layer::default();
+    let mut inverse_cells = 0;
     for node in nodes {
         let fallback =
             spec.image_fallbacks[node.element_index].is_some_and(|id| selected.contains(&id));
@@ -289,6 +291,7 @@ pub(crate) fn paint_frame(
                 &mut images,
                 &mut cursor,
                 spec.cursors[node.element_index],
+                &mut inverse_cells,
             )?;
             if let Some(grid) = &spec.cells[node.element_index] {
                 paint_cells(
@@ -316,7 +319,7 @@ pub(crate) fn paint_frame(
                 }
             }
         }
-        mark_hits(hits, size.0, node);
+        mark_hits(hits, size.0, node, &mut inverse_cells);
         layouts.push(presented_layout(tree, node)?);
         geometry.push(painted_node(node));
     }
@@ -327,6 +330,7 @@ pub(crate) fn paint_frame(
         cursor: cursor.state,
         hits: Vec::new(),
         layout_reused: reused,
+        inverse_cells,
     })
 }
 
@@ -549,6 +553,131 @@ fn background(paint: &NodePaint, bounds: Rect, x: i32, y: i32) -> Option<ansi::R
         .or_else(|| paint.background_specified.then(|| color(paint.style.bg)))
 }
 
+/// Paint one background cell at screen `(x, y)`, which maps to `(local_x,
+/// local_y)` in the node's box: the node's background color there over the
+/// cell below, covering images and the cursor beneath it.
+#[allow(clippy::too_many_arguments)]
+fn paint_background_cell(
+    target: &mut OptimizedBuffer<'_>,
+    paint: &NodePaint,
+    node: &PaintNode,
+    (x, y): (i32, i32),
+    (local_x, local_y): (i32, i32),
+    fg: ansi::Rgba,
+    attr: u32,
+    images: &mut images::Layers,
+    cursor: &mut cursor::Layer,
+) -> Result<()> {
+    use ::suprtui::buffer::draw::blend_colors;
+    let Some(source) = background(paint, node.local, local_x, local_y) else {
+        return Ok(());
+    };
+    let source = with_opacity(source, node.parent_opacity);
+    if ansi::alpha(source) == 0 {
+        return Ok(());
+    }
+    images.cover(x, y, source);
+    cursor.cover(x, y, source);
+    let below = target
+        .get(x as u32, y as u32)
+        .expect("visible cell is in the target");
+    let background = blend_colors(source, below.bg, None);
+    if ansi::alpha(source) < 255 {
+        // Preserve the underlying grapheme span while tinting its colors.
+        // Character and link ownership do not change on this path.
+        let mut cell = below;
+        cell.bg = background;
+        cell.fg = blend_colors(source, below.fg, None);
+        target.set_raw(x as u32, y as u32, cell);
+        return Ok(());
+    }
+    target
+        .draw_grapheme(
+            b" ",
+            1,
+            x as u32,
+            y as u32,
+            blend_colors(fg, background, None),
+            background,
+            attr,
+        )
+        .map_err(|error| ReactiveError::resource(format!("SuprTUI paint: {error:?}")))
+}
+
+/// Fill the background of a node that is only translated and not masked, by
+/// row (PNT-001). Each row's cells inside the node's box form one span, found
+/// by subtracting the offset. A solid opaque color, the common case, is
+/// written across the span with one buffer call; a gradient or a translucent
+/// color needs each cell's color or the cell below, so it is painted per
+/// cell, still without an inverse transform.
+#[allow(clippy::too_many_arguments)]
+fn fill_plain_background(
+    target: &mut OptimizedBuffer<'_>,
+    paint: &NodePaint,
+    node: &PaintNode,
+    visible: Rect,
+    fg: ansi::Rgba,
+    attr: u32,
+    images: &mut images::Layers,
+    cursor: &mut cursor::Layer,
+) -> Result<()> {
+    use ::suprtui::buffer::draw::blend_colors;
+    let (offset_x, offset_y) = node.transform.offset();
+    let local = |screen: i32, offset: f32| (screen as f32 - offset).round() as i32;
+    let solid = (paint.gradient.is_none() && paint.gradient_border.is_none())
+        .then(|| with_opacity(color(paint.style.bg), node.parent_opacity));
+    for y in visible.top..visible.bottom {
+        let local_y = local(y, offset_y);
+        if local_y < 0 || local_y >= node.local.bottom {
+            continue;
+        }
+        // Rounding is monotonic, so the row's cells inside the box are one
+        // span; these loops only step over cells outside it.
+        let mut left = visible.left;
+        while left < visible.right && local(left, offset_x) < 0 {
+            left += 1;
+        }
+        let mut right = visible.right;
+        while right > left && local(right - 1, offset_x) >= node.local.right {
+            right -= 1;
+        }
+        if left >= right {
+            continue;
+        }
+        match solid {
+            Some(source) if ansi::alpha(source) == 0 => {}
+            Some(source) if ansi::alpha(source) == 255 => {
+                images.cover_span(y, left, right, source);
+                cursor.cover_span(y, left, right, source);
+                target.fill_span(
+                    left as u32,
+                    y as u32,
+                    (right - left) as u32,
+                    blend_colors(fg, source, None),
+                    source,
+                    attr,
+                );
+            }
+            _ => {
+                for x in left..right {
+                    paint_background_cell(
+                        target,
+                        paint,
+                        node,
+                        (x, y),
+                        (local(x, offset_x), local_y),
+                        fg,
+                        attr,
+                        images,
+                        cursor,
+                    )?;
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
 fn paint_node(
     target: &mut OptimizedBuffer<'_>,
     paint: &NodePaint,
@@ -556,6 +685,7 @@ fn paint_node(
     images: &mut images::Layers,
     cursor: &mut cursor::Layer,
     request: Option<crate::component::element::TextCursor>,
+    inverse_cells: &mut u64,
 ) -> Result<()> {
     use ::suprtui::buffer::draw::blend_colors;
     if paint.opacity * node.parent_opacity <= 0.0 {
@@ -575,63 +705,39 @@ fn paint_node(
     let (offset_x, offset_y) = node.transform.offset();
     // Fill the complete box, including padding, when a background is supplied.
     if paint.gradient.is_some() || paint.gradient_border.is_some() || paint.background_specified {
-        for y in visible.top..visible.bottom {
-            for x in visible.left..visible.right {
-                let (local_x, local_y) = if plain {
-                    (x as f32 - offset_x, y as f32 - offset_y)
-                } else {
+        if plain {
+            fill_plain_background(target, paint, node, visible, fg, attr, images, cursor)?;
+        } else {
+            for y in visible.top..visible.bottom {
+                for x in visible.left..visible.right {
                     if !inside_masks(&node.mask, x, y) {
                         continue;
                     }
-                    let Some(local) = node.transform.inverse(x as f32, y as f32) else {
+                    *inverse_cells += 1;
+                    let Some((local_x, local_y)) = node.transform.inverse(x as f32, y as f32)
+                    else {
                         continue;
                     };
-                    local
-                };
-                let local_x = local_x.round() as i32;
-                let local_y = local_y.round() as i32;
-                if local_x < 0
-                    || local_x >= node.local.right
-                    || local_y < 0
-                    || local_y >= node.local.bottom
-                {
-                    continue;
-                }
-                let Some(source) = background(paint, node.local, local_x, local_y) else {
-                    continue;
-                };
-                let source = with_opacity(source, node.parent_opacity);
-                if ansi::alpha(source) == 0 {
-                    continue;
-                }
-                images.cover(x, y, source);
-                cursor.cover(x, y, source);
-                let below = target
-                    .get(x as u32, y as u32)
-                    .expect("visible cell is in the target");
-                let background = blend_colors(source, below.bg, None);
-                if ansi::alpha(source) < 255 {
-                    // Preserve the underlying grapheme span while tinting its colors.
-                    // Character and link ownership do not change on this path.
-                    let mut cell = below;
-                    cell.bg = background;
-                    cell.fg = blend_colors(source, below.fg, None);
-                    target.set_raw(x as u32, y as u32, cell);
-                    continue;
-                }
-                target
-                    .draw_grapheme(
-                        b" ",
-                        1,
-                        x as u32,
-                        y as u32,
-                        blend_colors(fg, background, None),
-                        background,
+                    let (local_x, local_y) = (local_x.round() as i32, local_y.round() as i32);
+                    if local_x < 0
+                        || local_x >= node.local.right
+                        || local_y < 0
+                        || local_y >= node.local.bottom
+                    {
+                        continue;
+                    }
+                    paint_background_cell(
+                        target,
+                        paint,
+                        node,
+                        (x, y),
+                        (local_x, local_y),
+                        fg,
                         attr,
-                    )
-                    .map_err(|error| {
-                        ReactiveError::resource(format!("SuprTUI paint: {error:?}"))
-                    })?;
+                        images,
+                        cursor,
+                    )?;
+                }
             }
         }
     }

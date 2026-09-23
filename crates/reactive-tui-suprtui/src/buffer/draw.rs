@@ -757,6 +757,26 @@ impl<'a> OptimizedBuffer<'a> {
         Ok(())
     }
 
+    /// Write a space with the given colors and attributes into `width`
+    /// cells of row `y` from `x`: the cells `draw_grapheme(b" ", 1, ..)`
+    /// would write one at a time, clipped to the buffer and skipping cells
+    /// outside the scissor. A painter fills a solid background row with one
+    /// call instead of one per cell.
+    pub fn fill_span(&mut self, x: u32, y: u32, width: u32, fg: Rgba, bg: Rgba, attributes: u32) {
+        if y >= self.height || x >= self.width {
+            return;
+        }
+        let end = x.saturating_add(width).min(self.width);
+        let cell = make_cell(u32::from(b' '), fg, bg, attributes);
+        let scissored = self.current_scissor().is_some();
+        for column in x..end {
+            if scissored && !self.point_in_scissor(column as i32, y as i32) {
+                continue;
+            }
+            self.set(column, y, cell);
+        }
+    }
+
     fn draw_visible_text(
         &mut self,
         text: &str,

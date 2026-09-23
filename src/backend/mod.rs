@@ -53,6 +53,10 @@ pub(crate) struct PresentedGeometry {
     pub hits: Vec<u32>,
     /// Whether the frame painted from the previous layout (PNT-004).
     pub layout_reused: bool,
+    /// Cells the painter mapped through a node's inverse transform, for its
+    /// background or its hit cells. Untransformed, unmasked nodes map cells
+    /// by subtraction and add none (PNT-001).
+    pub inverse_cells: u64,
 }
 
 /// Minimal, patch-driven backend abstraction

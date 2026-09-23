@@ -20,6 +20,16 @@ impl Layer {
             cursor.color = ::suprtui::buffer::draw::blend_colors(source, cursor.color, None);
         }
     }
+    /// `cover` for the cells `left..right` of row `y`.
+    pub fn cover_span(&mut self, y: i32, left: i32, right: i32, source: ansi::Rgba) {
+        let Some(cursor) = self.state.as_ref() else {
+            return;
+        };
+        let (x, row) = (cursor.x as i32, cursor.y as i32);
+        if row == y && (left..right).contains(&x) {
+            self.cover(x, y, source);
+        }
+    }
     pub fn paint(
         &mut self,
         request: Option<TextCursor>,
