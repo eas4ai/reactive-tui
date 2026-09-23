@@ -83,6 +83,12 @@ Falsifier: A radar polygon vertex lands off its axis spoke, or a sankey link's w
 Mechanism: charts-goldens
 Status: Draft
 
+[CHT-029] The pie, donut, radar and sankey builders MUST mirror the reference's method names for each delivered type over `Vec<T>` with accessor closures evaluated once at `build()` into data points, so chart props stay comparable: pie and donut `value`, `label`, `color`, `inner_radius`, `outer_radius`, `pad_angle` and `label_gap`; radar `value`, `label`, `stroke`, `fill`, `dot`, `grid`, `grid_levels`, `max_value` and `outer_radius`; sankey `value`, `value_scale`, `node_align`, `iterations`, `node_width`, `node_padding`, `node_label`, `value_label`, `labels`, `link_opacity` and `min_link_width`; arguments take the terminal equivalents of the reference types.
+Falsifier: A listed method is absent for a delivered type that supports the feature, or a builder stores a closure in the props instead of the evaluated points.
+Mechanism: charts-builders
+Rationale: CHT-020 names the cartesian methods only; the radial and flow types take the reference's own names.
+Status: Draft
+
 [CHT-017] Every chart color, whether a series stroke, fill, bar, slice, axis, grid or tooltip swatch, MUST accept the tokens the layout utility classes accept (palette names such as `blue-500`, theme variables such as `primary`, and hex) and MUST resolve them through one resolver, `Theme::resolve_color`, that the layout's utility classes also use; the App holds the active Theme and components read it through the hook scope; default series colors MUST come from theme variables `--color-chart-1` to `--color-chart-5` plus `--color-chart-bullish` and `--color-chart-bearish`, defined in every preset with a color-blind-safe default set, with no color literal in the chart code.
 Falsifier: A token that resolves in a `bg-` utility class is rejected or resolves differently in a chart, a preset lacks a chart variable, a chart renders a color not derivable from the active Theme, or a color literal appears under src/widgets/display/charts.
 Mechanism: charts-palette

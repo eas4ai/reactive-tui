@@ -50,6 +50,10 @@ component library as closely as a cell grid allows.
 |---|---|---|
 | quality-bar.md | BAR | the bar every commitment must clear: gates, assertions, widget behavior, goldens, frame budget, docs, dangling paths |
 | charts.md | CHT | the plot layer and the chart widget family modeled on gpui-kit |
+| rasterizer.md | RAS | the SuprTUI rasterizer: cursor and style elision, allocation-free emission, replay equivalence, byte and time bounds |
+| painter.md | PNT | the frame painter's fast path, the per-cell hit grid, one element copy per present, layout reuse |
+| presentation.md | PIP | pipelined presentation: geometry returned before the terminal write, one frame in flight, flush failure reporting |
+| blitters.md | BLT | image fallback to block glyphs: half, quadrant, sextant, octant and braille blitters and their tier choice |
 
 Vocabulary is in glossary.md; the commitment order is in roadmap.md.
 
@@ -59,15 +63,15 @@ These areas exist in the code and are outside the current radius. Each
 becomes a domain file when a commitment reaches it. Until then, nothing here
 is contract.
 
-- Application loop, backends, terminal restoration on panic and signals
-  (src/app.rs, src/backend). Orphaned runners for panic and signal fixtures,
+- Application loop, terminal restoration on panic and signals (src/app.rs,
+  src/backend other than presentation). Orphaned runners for panic and signal fixtures,
   docs/recon.md section 8.
 - Components, elements, hooks, signals, scheduler, wake (src/component,
   src/reactive).
 - Layout, utility classes, themes (src/layout, src/theme).
 - Widgets other than charts (src/widgets).
-- Images and terminal capability detection (src/widgets/display/image,
-  src/core/capabilities).
+- Image protocols and terminal capability detection (src/widgets/display/image
+  other than fallback, src/core/capabilities).
 - Embedded terminal and PTY, Windows ConPTY (src/embedded, src/terminal).
 - Accessibility (src/accessibility).
 - Graphics canvas over wgpu (src/graphics), planned as the commitment after

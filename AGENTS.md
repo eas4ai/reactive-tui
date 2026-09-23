@@ -7,7 +7,7 @@ This repository runs under Cairn. `docs/spec/` is the contract, the roadmap name
 Run `cairn wake` first, every session, and act on the verdict only. With hooks the verdict is printed before every turn; this agreement holds without them.
 
 - Resolvable: do the one action named until its predicate holds, leave the required trace (branch commit, snapshot or log record), then run `cairn wake` again.
-- Waiting: an escalation is unanswered and wake printed its five fields verbatim. Add nothing and stop; the developer answers.
+- Waiting: an escalation is unanswered and wake printed its five fields verbatim. Add nothing to the work. Put the escalation to the developer as "The developer" below says, ending with `ok | instead | ask`, and when they answer, record it yourself with `cairn answer`. Never hand them a command to run.
 - Done: a done record exists and nothing waits. Report it and stop. Backlog waiting: wake names `promote` instead.
 
 Before changing a declared input: `cairn begin <action> <target>` (`--touch <path>` declares a new file); it prints the lease sha. After the commit: `cairn end --lease <sha>` with that sha, so a stale end never closes another session's lease. Commit before `cairn check`; an uncommitted declared input makes wake name `commit` or `record` before anything else. Push with `cairn push`: it pushes the branch and both durable refs atomically where the remote allows and in the safe order otherwise. Never push `refs/cairn/*` with plain `git push`.
@@ -19,7 +19,9 @@ The move for each action wake can name:
 - `reconcile ACTION`: finish the leased action and `cairn end`, or abandon it with `cairn end --abandon`; a lease left by a dead session needs no `--lease`.
 - `scope PATH`: restore the path to its allowed base and run `cairn scope <breach> restore`, or ask the developer to keep it with `cairn escalate` and, after `ok`, `cairn scope <breach> keep`.
 - `fix ITEM`: write a test that fails, make it pass, commit, check, then `cairn fix <item>`.
-- `record PATH` and `commit PATH`: put the change under a lease with `cairn begin`, commit it, or revert it.
+- `record PATH` and `commit PATH`: PATH is a declared input with uncommitted changes. Lease the action that changes it (`cairn begin <action> <target>`, with `--touch PATH` when PATH is new; `record` is a verdict, not a begin action), then commit; or revert it. An untracked build artifact under a declared input (a Python cache, a build output) is gitignored instead.
+- A tool that rewrites `AGENTS.md` or `docs/spec/` on its own (an indexer that keeps a block in `AGENTS.md`, for example GitNexus) breaks the protected contract mid-commitment and shows up as a scope breach on that file. Run such tools with their skip option (`gitnexus analyze --skip-agents-md`, or `--index-only`) while a commitment is open, or restore the file; a tool-managed block never belongs in the working agreement.
+- `docs/decisions.jsonl` is appended by `cairn decide`, `cairn answer`, `cairn realize` and `cairn decisions --read` and is not committed by them: commit it with your next commit (`git add -f` when `docs/` is ignored). A declaration does not go through while a path it would cover has uncommitted changes: commit that path or lease it with `cairn begin <action> <target> --touch <path>` first.
 - `declare REQ`: `cairn declare` a mechanism naming REQ; show it fail on a violating example before trusting it.
 - `run REQ`: `cairn check REQ`.
 - `implement REQ`: read the latest receipt and its output, change the code under a lease, commit, `cairn end`, `cairn check REQ`.
@@ -43,7 +45,7 @@ A Consequential decision -- one with real options and a recommendation, tied to 
 
 ## The developer
 
-Answer an escalation with `cairn answer <slug> ok | instead <text> | ask <text>`. Read the queue with `cairn decisions` and mark each with `cairn decisions --read <id>`. Run `cairn authorize` after changing `docs/spec/`, `AGENTS.md` or `.cairn/settings.json` between commitments. After Done, open the next work with `/next-feature`.
+The developer is never asked to run a command. When an escalation waits, the prompt is the escalation itself in plain prose, in this order: the problem (its question and because); `ok`, what the recommendation does; `instead`, what it costs if the recommendation is wrong and the alternative; `ask`, if the developer does not understand or wants to discuss it further. End with `ok | instead | ask` and wait. Record the answer in the developer's own words: `cairn answer <slug> ok | instead | ask --quote "<their words>"`. Read the queue with `cairn decisions`; after the developer has read a decision with you, record it with `cairn decisions --read <id> --quote "<their words>"`. After changing `docs/spec/`, `AGENTS.md` or `.cairn/settings.json` between commitments, state what changed and what would be bound, end with `ok | instead | ask`, and on ok run `cairn authorize --quote "<their words>"`; a change request or a question is `cairn authorize instead | ask --quote "<their words>"`, which binds nothing. Never use a choice widget for these questions; the prose and `ok | instead | ask` is the prompt. After Done, open the next work with `/next-feature`.
 
 ## Writing for the developer
 
@@ -74,124 +76,3 @@ and progress reports.
 
 For example: "Should the app save unfinished drafts so users can reopen
 them later?" names the behavior the developer is deciding about.
-
-<!-- gitnexus:start -->
-# GitNexus — Code Intelligence
-
-This project is indexed by GitNexus as **reactive-tui** (22846 symbols, 58671 relationships, 300 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
-
-> If any GitNexus tool warns the index is stale, run `npx gitnexus analyze` in terminal first.
-
-## Always Do
-
-- **MUST run impact analysis before editing any symbol.** Before modifying a function, class, or method, run `gitnexus_impact({target: "symbolName", direction: "upstream"})` and report the blast radius (direct callers, affected processes, risk level) to the user.
-- **MUST run `gitnexus_detect_changes()` before committing** to verify your changes only affect expected symbols and execution flows.
-- **MUST warn the user** if impact analysis returns HIGH or CRITICAL risk before proceeding with edits.
-- When exploring unfamiliar code, use `gitnexus_query({query: "concept"})` to find execution flows instead of grepping. It returns process-grouped results ranked by relevance.
-- When you need full context on a specific symbol — callers, callees, which execution flows it participates in — use `gitnexus_context({name: "symbolName"})`.
-
-## When Debugging
-
-1. `gitnexus_query({query: "<error or symptom>"})` — find execution flows related to the issue
-2. `gitnexus_context({name: "<suspect function>"})` — see all callers, callees, and process participation
-3. `READ gitnexus://repo/reactive-tui/process/{processName}` — trace the full execution flow step by step
-4. For regressions: `gitnexus_detect_changes({scope: "compare", base_ref: "main"})` — see what your branch changed
-
-## When Refactoring
-
-- **Renaming**: MUST use `gitnexus_rename({symbol_name: "old", new_name: "new", dry_run: true})` first. Review the preview — graph edits are safe, text_search edits need manual review. Then run with `dry_run: false`.
-- **Extracting/Splitting**: MUST run `gitnexus_context({name: "target"})` to see all incoming/outgoing refs, then `gitnexus_impact({target: "target", direction: "upstream"})` to find all external callers before moving code.
-- After any refactor: run `gitnexus_detect_changes({scope: "all"})` to verify only expected files changed.
-
-## Never Do
-
-- NEVER edit a function, class, or method without first running `gitnexus_impact` on it.
-- NEVER ignore HIGH or CRITICAL risk warnings from impact analysis.
-- NEVER rename symbols with find-and-replace — use `gitnexus_rename` which understands the call graph.
-- NEVER commit changes without running `gitnexus_detect_changes()` to check affected scope.
-
-## Tools Quick Reference
-
-| Tool | When to use | Command |
-|------|-------------|---------|
-| `query` | Find code by concept | `gitnexus_query({query: "auth validation"})` |
-| `context` | 360-degree view of one symbol | `gitnexus_context({name: "validateUser"})` |
-| `impact` | Blast radius before editing | `gitnexus_impact({target: "X", direction: "upstream"})` |
-| `detect_changes` | Pre-commit scope check | `gitnexus_detect_changes({scope: "staged"})` |
-| `rename` | Safe multi-file rename | `gitnexus_rename({symbol_name: "old", new_name: "new", dry_run: true})` |
-| `cypher` | Custom graph queries | `gitnexus_cypher({query: "MATCH ..."})` |
-
-## Impact Risk Levels
-
-| Depth | Meaning | Action |
-|-------|---------|--------|
-| d=1 | WILL BREAK — direct callers/importers | MUST update these |
-| d=2 | LIKELY AFFECTED — indirect deps | Should test |
-| d=3 | MAY NEED TESTING — transitive | Test if critical path |
-
-## Resources
-
-| Resource | Use for |
-|----------|---------|
-| `gitnexus://repo/reactive-tui/context` | Codebase overview, check index freshness |
-| `gitnexus://repo/reactive-tui/clusters` | All functional areas |
-| `gitnexus://repo/reactive-tui/processes` | All execution flows |
-| `gitnexus://repo/reactive-tui/process/{name}` | Step-by-step execution trace |
-
-## Self-Check Before Finishing
-
-Before completing any code modification task, verify:
-1. `gitnexus_impact` was run for all modified symbols
-2. No HIGH/CRITICAL risk warnings were ignored
-3. `gitnexus_detect_changes()` confirms changes match expected scope
-4. All d=1 (WILL BREAK) dependents were updated
-
-## Keeping the Index Fresh
-
-After committing code changes, the GitNexus index becomes stale. Re-run analyze to update it:
-
-```bash
-npx gitnexus analyze
-```
-
-If the index previously included embeddings, preserve them by adding `--embeddings`:
-
-```bash
-npx gitnexus analyze --embeddings
-```
-
-To check whether embeddings exist, inspect `.gitnexus/meta.json` — the `stats.embeddings` field shows the count (0 means no embeddings). **Running analyze without `--embeddings` will delete any previously generated embeddings.**
-
-> Claude Code users: A PostToolUse hook handles this automatically after `git commit` and `git merge`.
-
-## CLI
-
-| Task | Read this skill file |
-|------|---------------------|
-| Understand architecture / "How does X work?" | `.claude/skills/gitnexus/gitnexus-exploring/SKILL.md` |
-| Blast radius / "What breaks if I change X?" | `.claude/skills/gitnexus/gitnexus-impact-analysis/SKILL.md` |
-| Trace bugs / "Why is X failing?" | `.claude/skills/gitnexus/gitnexus-debugging/SKILL.md` |
-| Rename / extract / split / refactor | `.claude/skills/gitnexus/gitnexus-refactoring/SKILL.md` |
-| Tools, resources, schema reference | `.claude/skills/gitnexus/gitnexus-guide/SKILL.md` |
-| Index, status, clean, wiki CLI commands | `.claude/skills/gitnexus/gitnexus-cli/SKILL.md` |
-
-## Commands
-
-- `cargo test --locked --no-fail-fast` - run the full test suite
-- `cargo fmt --all -- --check` - run the format task
-- `cargo clippy --locked --all-targets -- -D warnings` - run the lint task
-
-## Code Map
-
-- `src` - application source
-- `tests` - automated tests
-- `docs` - project documentation
-- `.github` - project configuration
-
-## Conventions
-
-- Declare child modules with `pub mod` and re-export with `pub use`.
-- Import first-party code with `use crate::...`.
-- Use `.rs` for Rust source files.
-
-<!-- gitnexus:end -->

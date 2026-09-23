@@ -1,11 +1,13 @@
 # Roadmap
 
-Current: charts-plot-layer
+Current: suprtui-renderer
 
 Order agreed with the developer on 2026-09-21: charts first on a cell canvas,
 then a general graphics canvas over wgpu that replaces the rasterizer
 underneath, then the remaining widget families measured against gpui-kit.
-The quality bar (BAR) applies to every commitment.
+The quality bar (BAR) applies to every commitment. On 2026-09-22 the
+developer ruled that the SuprTUI renderer plan lands before the radial
+charts, so filled shapes are drawn once on the new blitters.
 
 ## charts-plot-layer
 
@@ -21,6 +23,30 @@ Done when every named requirement passes, each mechanism has recorded a
 failing violating example before its passing receipt, the five workspace
 gates pass, and the review finds no chart type mapping data outside the
 plot layer.
+
+## suprtui-renderer
+
+Requirements: BAR-001, BAR-002, BAR-003, BAR-004, BAR-005, BAR-006, BAR-007, RAS-001, RAS-002, RAS-003, RAS-004, RAS-005, RAS-006, RAS-007, RAS-008, PNT-001, PNT-002, PNT-003, PNT-004, PIP-001, PIP-002, BLT-001, BLT-002
+
+Deliver the SuprTUI renderer plan captured from charts-plot-layer: a
+rasterizer that tracks the cursor and the last emitted style and writes
+bytes without per-cell allocation, a row diff over the column arrays,
+statistics and an overlay for them, replay equivalence against recorded
+screens, pipelined presentation with one frame in flight and flush
+failures reported, a painter fast path for untransformed nodes, a per-cell
+hit grid that the event layer prefers, one element copy per present,
+layout reuse for an unchanged spec, and image fallback through half-block,
+quadrant, sextant, octant and braille blitters chosen by tier.
+
+Order: rasterizer (RAS), presentation (PIP), painter and hit testing (PNT),
+image fallback (BLT). Each phase lands with its mechanism recording a
+failing violating example before its passing receipt; the charts goldens
+and the frame-budget mechanism (BAR-005, CHT-021) stay green throughout;
+every borrowed algorithm is credited in the crate's UPSTREAM.md.
+
+Done when every named requirement passes, the manual sentence in PIP-002
+is updated, and the review finds no per-cell allocation or per-cell reset
+on the render path.
 
 ## charts-radial-and-flow
 
