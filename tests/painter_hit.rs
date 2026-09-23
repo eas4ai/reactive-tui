@@ -231,6 +231,113 @@ fn pnt_002_clicks_dispatch_by_the_painted_cell() {
     );
 }
 
+fn layered(with_high: bool) -> Element {
+    let mut children = vec![Element::text("X").with_class("absolute top-0 left-0 w-1 h-1 z-10")];
+    if with_high {
+        children.push(Element::text("X").with_class("absolute top-0 left-0 w-1 h-1 z-20"));
+    }
+    Element::layout(LayoutType::Flex)
+        .with_class("relative w-full h-full")
+        .with_children(children)
+}
+
+fn present_hits(backend: &mut SuprTuiBackend, element: &Element) -> Vec<u32> {
+    assert!(backend.render_frame(element).unwrap());
+    backend.present().unwrap();
+    backend.sync().unwrap();
+    backend.hit_cells().expect("a hit grid").to_vec()
+}
+
+/// PNT-002: a frame whose cells equal the previous frame's still commits
+/// its own hit grid. Here a higher sibling starts covering a cell with the
+/// same glyph, so no cell changes and the renderer skips the frame's bytes;
+/// the grid must still name the higher sibling, as a fresh backend does.
+#[test]
+fn pnt_002_a_frame_with_unchanged_cells_commits_its_hit_grid() {
+    let mut fresh = SuprTuiBackend::with_writer(8, 2, Sink::default()).unwrap();
+    let expected = present_hits(&mut fresh, &layered(true))[0];
+    assert_eq!(
+        expected, 3,
+        "grid values are preorder index + 1; the higher sibling is 2"
+    );
+
+    let out = Sink::default();
+    let mut backend = SuprTuiBackend::with_writer(8, 2, out.clone()).unwrap();
+    assert_eq!(present_hits(&mut backend, &layered(false))[0], 2);
+    let written = out.0.lock().unwrap().len();
+    let second = present_hits(&mut backend, &layered(true))[0];
+    assert_eq!(
+        out.0.lock().unwrap().len(),
+        written,
+        "the second frame changes no cell, so it writes nothing"
+    );
+    assert_eq!(
+        second, expected,
+        "the cell painted by the higher sibling must hit it"
+    );
+    assert_eq!(backend.hit_at(0, 0), Some(expected), "the query agrees");
+}
+
+/// A root whose second render inserts two zero-size elements before a
+/// button: element indices shift, but no painted cell changes.
+struct Shifting {
+    renders: std::sync::atomic::AtomicUsize,
+    calls: Arc<Mutex<Vec<&'static str>>>,
+}
+impl RootComponent for Shifting {
+    fn render(&self) -> Element {
+        let n = self
+            .renders
+            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        let calls = self.calls.clone();
+        let target = builder::button()
+            .text("target")
+            .class("absolute left-0 top-1 w-6 h-1 p-0")
+            .on_click(move || calls.lock().unwrap().push("target"))
+            .build();
+        let spacers = if n == 0 {
+            Vec::new()
+        } else {
+            (0..2)
+                .map(|_| {
+                    Element::layout(LayoutType::Flex).with_class("absolute left-0 top-0 w-0 h-0")
+                })
+                .collect()
+        };
+        Element::layout(LayoutType::Flex)
+            .with_class("relative w-full h-full")
+            .with_children(vec![
+                Element::layout(LayoutType::Flex)
+                    .with_class("absolute left-0 top-0 w-0 h-0")
+                    .with_children(spacers),
+                target,
+            ])
+    }
+    fn update(&mut self) -> reactive_tui::error::Result<reactive_tui::app::RootUpdate> {
+        Ok(reactive_tui::app::RootUpdate::Redraw)
+    }
+}
+
+/// PNT-002 at the App: after a frame whose element indices shifted but
+/// whose cells did not change, a click on the button reaches the button.
+#[test]
+fn pnt_002_a_click_after_a_frame_with_unchanged_cells_reaches_its_element() {
+    let calls = Arc::new(Mutex::new(Vec::new()));
+    app_input::run(
+        Shifting {
+            renders: std::sync::atomic::AtomicUsize::new(0),
+            calls: calls.clone(),
+        },
+        (12, 3),
+        vec![(4, click(2, 1)), (6, None)],
+    );
+    assert_eq!(
+        calls.lock().unwrap().clone(),
+        vec!["target"],
+        "a click on the button's text must reach it"
+    );
+}
+
 /// PNT-004: presenting an unchanged spec paints from the previous layout;
 /// a changed spec lays out again.
 #[test]

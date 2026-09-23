@@ -1013,9 +1013,11 @@ impl<'a, B: Backend> Renderer<'a, B> {
         }
     }
 
-    /// Skipped frames publish nothing and drop staged state (REN-002). The
-    /// next buffer keeps what the caller drew: the painter clears it before
-    /// the next frame, so it is cleared once per frame (RAS-007).
+    /// Skipped frames publish no bytes and drop staged images (REN-002); a
+    /// frame skipped because no cell changed has already committed its hit
+    /// grid, and this zeroes whatever staged grid remains. The next buffer
+    /// keeps what the caller drew: the painter clears it before the next
+    /// frame, so it is cleared once per frame (RAS-007).
     fn finish_skipped(&mut self) -> RenderStatus {
         if !self.next_hit.is_empty() {
             self.next_hit.fill(0);
@@ -1055,13 +1057,21 @@ impl<'a, B: Backend> Renderer<'a, B> {
         self.last_visible = None;
     }
 
-    fn finish_rendered(&mut self, cells_updated: u32, mut stats: RenderStats) -> RenderStatus {
+    /// Publish the staged hit grid and zero the next one. Called for a frame
+    /// whose cells are on screen: a rendered frame, or one skipped because
+    /// no cell changed. A frame the terminal never received keeps the
+    /// committed grid.
+    fn commit_hit_grid(&mut self) {
         if !self.next_hit.is_empty() {
             std::mem::swap(&mut self.current_hit, &mut self.next_hit);
             if !self.next_hit.is_empty() {
                 self.next_hit.fill(0);
             }
         }
+    }
+
+    fn finish_rendered(&mut self, cells_updated: u32, mut stats: RenderStats) -> RenderStatus {
+        self.commit_hit_grid();
         self.committed_images.append(&mut self.pending_images);
         self.force_full_repaint = false;
         stats.frame_count = self.stats.frame_count + 1;
@@ -1103,8 +1113,11 @@ impl<'a, B: Backend> Renderer<'a, B> {
         stats.bytes_emitted = self.frame.len();
         if self.frame.is_empty() {
             // True no-op: the backend holds an empty frame the memory
-            // backend never records, so nothing is published.
+            // backend never records, so nothing is published. The screen
+            // already shows these cells, so the frame's hit grid is the
+            // one that describes it (PNT-002).
             self.backend.end_frame();
+            self.commit_hit_grid();
             return self.finish_skipped();
         }
         self.backend.write_bytes(&self.frame);
@@ -1766,7 +1779,7 @@ fn hit_grid() {
     renderer.add_to_hit_grid(1, 1, 3, 2, 5);
     renderer.add_to_hit_grid(2, 1, 2, 1, 9);
     // No cell is drawn in this test, so frames are forced: hit staging
-    // alone starts no frame, and skipped frames drop staged hits.
+    // alone starts no frame.
     assert_eq!(RenderStatus::Rendered, renderer.render(true));
     assert_eq!(9, renderer.check_hit(2, 1));
     assert_eq!(5, renderer.check_hit(1, 1));
@@ -1794,6 +1807,53 @@ fn hit_grid() {
     renderer.add_to_hit_grid(0, 0, 8, 4, 11);
     assert_eq!(RenderStatus::Rendered, renderer.render(true));
     assert_eq!(11, renderer.check_hit(1, 1));
+}
+
+/// PNT-002: a frame skipped because no cell changed is on screen, so its
+/// hit grid commits; a failed frame and a frame the backend refused never
+/// reached the terminal, so the committed grid stays.
+#[cfg(test)]
+#[test]
+fn unchanged_frame_commits_its_hit_grid() {
+    let mut renderer = test_renderer(6, 2);
+    white_on_black(&mut renderer, "AB", 0, 0);
+    renderer.add_to_hit_grid(0, 0, 1, 1, 5);
+    assert_eq!(RenderStatus::Rendered, renderer.render(false));
+    assert_eq!(5, renderer.check_hit(0, 0));
+
+    white_on_black(&mut renderer, "AB", 0, 0);
+    renderer.add_to_hit_grid(0, 0, 1, 1, 9);
+    assert_eq!(RenderStatus::Skipped, renderer.render(false));
+    assert_eq!(9, renderer.check_hit(0, 0), "the unchanged frame's grid");
+
+    white_on_black(&mut renderer, "CD", 0, 0);
+    renderer.add_to_hit_grid(0, 0, 1, 1, 3);
+    renderer.backend_mut().set_fail_next(true);
+    assert_eq!(RenderStatus::Failed, renderer.render(false));
+    assert_eq!(9, renderer.check_hit(0, 0), "a failed frame rolls back");
+
+    struct Refusing;
+    impl Backend for Refusing {
+        fn prepare_frame(&mut self) -> WriteStatus {
+            WriteStatus::Skipped
+        }
+        fn begin_frame(&mut self) {}
+        fn write_bytes(&mut self, _: &[u8]) {}
+        fn write_out(&mut self, _: &[u8]) {}
+        fn fail_frame(&mut self) {}
+        fn end_frame(&mut self) -> WriteStatus {
+            WriteStatus::Ok
+        }
+    }
+    let pool = TestRc::new(TestRefCell::new(GraphemePool::new()));
+    let mut refused = Renderer::new(6, 2, pool, Refusing).unwrap();
+    refused.add_to_hit_grid(0, 0, 1, 1, 4);
+    assert_eq!(RenderStatus::Skipped, refused.render(true));
+    assert_eq!(
+        0,
+        refused.check_hit(0, 0),
+        "a refused frame commits nothing"
+    );
 }
 
 /// REN-009 falsifier: the cursor lands on the unshifted row while an
