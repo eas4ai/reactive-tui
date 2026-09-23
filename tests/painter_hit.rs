@@ -377,25 +377,35 @@ fn pnt_004_unchanged_spec_reuses_the_layout() {
             .with_class("flex flex-col w-full h-full p-0.5")
             .with_children(vec![Element::text(text).with_class("w-full h-1")])
     };
+    // Each present reports whether it reused the layout and how many
+    // layouts have run: the count is taken where the layout engine runs,
+    // so it observes the work, not only the reuse decision.
     let show = |backend: &mut SuprTuiBackend, element: &Element| {
         assert!(backend.render_frame(element).unwrap());
         backend.present().unwrap();
         backend.sync().unwrap();
-        backend.layout_reused()
+        (backend.layout_reused(), backend.layout_runs())
     };
-    assert!(!show(&mut backend, &frame("one")), "a first frame lays out");
-    assert!(
+    assert_eq!(
         show(&mut backend, &frame("one")),
-        "an unchanged spec must reuse the layout"
+        (false, 1),
+        "a first frame lays out"
     );
-    assert!(
-        !show(&mut backend, &frame("two")),
+    assert_eq!(
+        show(&mut backend, &frame("one")),
+        (true, 1),
+        "an unchanged spec must reuse the layout and run none"
+    );
+    assert_eq!(
+        show(&mut backend, &frame("two")),
+        (false, 2),
         "changed text must lay out again"
     );
-    assert!(show(&mut backend, &frame("two")));
+    assert_eq!(show(&mut backend, &frame("two")), (true, 2));
     backend.resize(20, 4);
-    assert!(
-        !show(&mut backend, &frame("two")),
+    assert_eq!(
+        show(&mut backend, &frame("two")),
+        (false, 3),
         "a new size must lay out again"
     );
 }
