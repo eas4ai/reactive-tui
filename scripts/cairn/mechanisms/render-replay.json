@@ -1,0 +1,24 @@
+{
+  "command": "python3 -B scripts/cairn/render_replay.py",
+  "inputs": [
+    "crates/reactive-tui-suprtui/src",
+    "crates/reactive-tui-suprtui/tests",
+    "crates/reactive-tui-suprtui/Cargo.toml",
+    "src/backend",
+    "src/layout/paint_tree",
+    "src/widgets/display/charts.rs",
+    "src/widgets/display/charts",
+    "tests/common",
+    "tests/renderer_replay.rs",
+    "tests/snapshots/renderer",
+    "tests/snapshots/charts",
+    "crates/libghostty-vt",
+    "Cargo.toml",
+    "Cargo.lock",
+    "scripts/cairn"
+  ],
+  "requirements": [
+    "RAS-004"
+  ],
+  "results": "per-requirement"
+}
