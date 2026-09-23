@@ -1,28 +1,30 @@
 {
   "command": "python3 -B scripts/cairn/painter_goldens.py",
   "inputs": [
-    "crates/reactive-tui-suprtui/src",
-    "crates/reactive-tui-suprtui/tests",
-    "crates/reactive-tui-suprtui/Cargo.toml",
-    "src/backend",
-    "src/layout/paint_tree",
-    "src/event",
-    "src/app.rs",
-    "src/screen",
-    "src/app",
-    "src/component/bridge.rs",
-    "tests/snapshots/renderer",
+    "Cargo.lock",
+    "Cargo.toml",
+    "build.rs",
+    "crates",
+    "scripts/cairn",
+    "src",
     "tests/common",
     "tests/painter_hit.rs",
-    "tests/snapshots/charts",
-    "Cargo.toml",
-    "Cargo.lock",
-    "scripts/cairn"
+    "tests/snapshots/renderer"
   ],
   "requirements": [
     "PNT-001",
     "PNT-002",
     "PNT-004"
   ],
-  "results": "per-requirement"
+  "results": "per-requirement",
+  "identity": {
+    "tools": {
+      "rustc": "rustc --version",
+      "cargo": "cargo --version"
+    },
+    "env": [
+      "TERM"
+    ],
+    "image": null
+  }
 }

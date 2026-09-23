@@ -1,14 +1,13 @@
 {
   "command": "python3 -B scripts/cairn/render_bytes.py",
   "inputs": [
-    "crates/reactive-tui-suprtui/src",
-    "crates/reactive-tui-suprtui/tests",
-    "crates/reactive-tui-suprtui/Cargo.toml",
-    "src/backend",
-    "tests/suprtui_renderer.rs",
-    "Cargo.toml",
     "Cargo.lock",
-    "scripts/cairn"
+    "Cargo.toml",
+    "build.rs",
+    "crates",
+    "scripts/cairn",
+    "src",
+    "tests/suprtui_renderer.rs"
   ],
   "requirements": [
     "RAS-001",
@@ -17,5 +16,15 @@
     "RAS-006",
     "RAS-008"
   ],
-  "results": "per-requirement"
+  "results": "per-requirement",
+  "identity": {
+    "tools": {
+      "rustc": "rustc --version",
+      "cargo": "cargo --version"
+    },
+    "env": [
+      "TERM"
+    ],
+    "image": null
+  }
 }

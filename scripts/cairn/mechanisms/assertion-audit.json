@@ -1,14 +1,17 @@
 {
   "command": "python3 -B scripts/cairn/assertion_audit.py",
   "inputs": [
+    "crates",
+    "scripts/cairn",
     "src",
-    "tests",
-    "crates/reactive-tui-suprtui",
-    "Cargo.toml",
-    "Cargo.lock",
-    "scripts/cairn"
+    "tests"
   ],
   "requirements": [
     "BAR-002"
-  ]
+  ],
+  "identity": {
+    "tools": {},
+    "env": [],
+    "image": null
+  }
 }

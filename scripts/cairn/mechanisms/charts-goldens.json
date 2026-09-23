@@ -1,19 +1,20 @@
 {
   "command": "python3 -B scripts/cairn/charts_goldens.py",
   "inputs": [
-    "src/widgets/display/charts.rs",
-    "src/widgets/display/charts",
-    "src/builder/widgets/chart.rs",
-    "src/theme",
-    "src/layout/colors.rs",
-    "tests/common",
-    "tests/charts_goldens.rs",
-    "tests/snapshots/charts",
+    "Cargo.lock",
+    "Cargo.toml",
+    "build.rs",
+    "crates",
     "examples/widget_catalog",
     "manual/display-widgets.md",
-    "Cargo.toml",
-    "Cargo.lock",
-    "scripts/cairn"
+    "scripts/cairn",
+    "src",
+    "tests/api_widget_behavior",
+    "tests/api_widget_behavior.rs",
+    "tests/charts_goldens.rs",
+    "tests/common",
+    "tests/snapshots/charts",
+    "tests/snapshots/image"
   ],
   "requirements": [
     "BAR-004",
@@ -27,5 +28,15 @@
     "CHT-027",
     "CHT-028"
   ],
-  "results": "per-requirement"
+  "results": "per-requirement",
+  "identity": {
+    "tools": {
+      "rustc": "rustc --version",
+      "cargo": "cargo --version"
+    },
+    "env": [
+      "TERM"
+    ],
+    "image": null
+  }
 }

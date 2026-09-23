@@ -1,16 +1,27 @@
 {
   "command": "python3 -B scripts/cairn/dangling_paths.py",
   "inputs": [
+    ".github",
+    ".gitignore",
+    ".ripwire_quality_acks",
     "CHANGELOG.md",
     "CONTRIBUTING.md",
+    "Cargo.lock",
     "Cargo.toml",
+    "LICENSE",
     "README.md",
     "benches",
     "bindings",
+    "build.rs",
+    "crates",
+    "deny.toml",
+    "dependency-maintenance.toml",
     "docs",
     "examples",
     "include",
     "manual",
+    "public-api-retention.toml",
+    "references",
     "scripts",
     "src",
     "tests",
@@ -18,5 +29,10 @@
   ],
   "requirements": [
     "BAR-007"
-  ]
+  ],
+  "identity": {
+    "tools": {},
+    "env": [],
+    "image": null
+  }
 }
