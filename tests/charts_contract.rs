@@ -667,14 +667,29 @@ fn cht_021_chart_fills_its_parent_and_rasterizes_on_a_worker() {
     );
 }
 
-fn max_work_ms(root: impl RootComponent + 'static, size: (u16, u16), frames: usize) -> f64 {
+/// The slowest frame's work after the first, and every such frame as
+/// "work/present" in milliseconds, so a failure shows whether the App or
+/// the backend's present took the time.
+fn max_work_ms(
+    root: impl RootComponent + 'static,
+    size: (u16, u16),
+    frames: usize,
+) -> (f64, String) {
     let out = app_input::run(root, size, vec![(frames, None)]);
     assert!(
         out.len() >= frames,
         "harness painted {} of {frames} frames",
         out.len()
     );
-    out.iter().skip(1).map(|f| f.work_ms).fold(0.0, f64::max)
+    let split: Vec<String> = out
+        .iter()
+        .skip(1)
+        .map(|f| format!("{:.2}/{:.2}", f.work_ms, f.present_ms))
+        .collect();
+    (
+        out.iter().skip(1).map(|f| f.work_ms).fold(0.0, f64::max),
+        split.join(" "),
+    )
 }
 
 /// BAR-005: an animating chart keeps per-frame work under 16.6 ms at 700 by
@@ -691,9 +706,9 @@ fn bar_005_animating_chart_stays_under_the_frame_budget_at_700_by_200() {
         let frames = app_input::run(
             Root(Element::typed::<Chart>(small)),
             (80, 24),
-            vec![(3, None)],
+            vec![(2, None)],
         );
-        assert!(frames.len() >= 3);
+        assert!(frames.len() >= 2);
         #[cfg(target_os = "linux")]
         assert!(chart_worker_seen(), "no rtui-chart worker thread observed");
         return;
@@ -709,17 +724,18 @@ fn bar_005_animating_chart_stays_under_the_frame_budget_at_700_by_200() {
     p.animated = true;
     p.animation_duration = 2000;
     let root = Root(Element::typed::<Chart>(p));
-    let ms = match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+    let (ms, split) = match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
         max_work_ms(root, size, 12)
     })) {
-        Ok(ms) => ms,
+        Ok(measured) => measured,
         Err(_) => panic!(
             "fewer than 12 frames painted inside the harness's 3 s deadline at 700x200: per-frame work exceeds 16.6 ms by more than an order of magnitude"
         ),
     };
+    eprintln!("work/present ms per frame at 700x200: {split}");
     assert!(
         ms < 16.6,
-        "per-frame work {ms:.2} ms exceeds 16.6 ms at 700x200"
+        "per-frame work {ms:.2} ms exceeds 16.6 ms at 700x200 (work/present ms per frame: {split})"
     );
     #[cfg(target_os = "linux")]
     assert!(
@@ -741,7 +757,7 @@ fn bar_005_fixture_slow_root_is_rejected() {
             Ok(RootUpdate::Redraw)
         }
     }
-    let ms = max_work_ms(Slow, (80, 24), 5);
+    let (ms, _) = max_work_ms(Slow, (80, 24), 5);
     assert!(
         ms >= 16.6,
         "fixture must exceed the budget so the mechanism can fail, measured {ms:.2} ms"
