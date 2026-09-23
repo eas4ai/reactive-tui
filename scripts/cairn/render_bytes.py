@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """render-bytes: RAS-001, RAS-002, RAS-005, RAS-006 and RAS-008 through the
 crates/reactive-tui-suprtui/tests/render_bytes.rs binary (one `ras_NNN_` test group per requirement),
-RAS-005 in the optimized build with a best-of-three inside the test.
+RAS-005 once in the optimized build, with the best of three runs inside the test.
 
 Prints one `cairn: <REQ>: pass|fail` line per requirement.
 """
@@ -27,14 +27,10 @@ def main() -> int:
     results["RAS-008"] = (stream[0] and compare[0], "; ".join(
         f"{name}: {why}" for name, (ok, why) in (("stream", stream), ("compare", compare)) if not ok)
         or f"stream {stream[1]}; compare {compare[1]}")
-    # RAS-005 is best of three runs: the bench is memory-bound, so a run under
-    # load from another build can miss the bound while the renderer meets it.
-    for attempt in range(1, 4):
-        ok, why = cargo_test_filtered(BINARY, "ras_005_", package=CRATE, release=True)
-        if ok:
-            why = f"run {attempt} of 3: {why}"
-            break
-    results["RAS-005"] = (ok, why)
+    # RAS-005 is the best of three runs, and the test times three runs of
+    # each bound and keeps the fastest, so it runs once here: a retry would
+    # make it the best of nine.
+    results["RAS-005"] = cargo_test_filtered(BINARY, "ras_005_", package=CRATE, release=True)
     render = "\n".join(strip_test_modules(f.read_text(errors="replace"))
                        for f in rust_sources("crates/reactive-tui-suprtui/src/render.rs"))
     stats = re.search(r"pub struct RenderStats\s*\{([^}]*)\}", render, re.S)
