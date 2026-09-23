@@ -459,7 +459,8 @@ fn cht_024_size_classes_follow_the_rectangle_and_switch_on_resize() {
     );
 }
 
-/// CHT-023 and BAR-004: goldens at mini, medium and large for each delivered type.
+/// CHT-023 and BAR-004: goldens at mini, medium and large for each delivered
+/// type, rendered on the debug backend.
 #[test]
 fn cht_023_goldens_at_three_size_classes() {
     let data = [2.0, 8.0, 5.0, 9.0, 3.0, 7.0];
@@ -481,9 +482,11 @@ fn cht_023_goldens_at_three_size_classes() {
                 p.y_axis.min = Some(0.0);
                 p.y_axis.max = Some(11.0);
             }
-            let frame = app_input::run_when_painted(Root(Element::typed::<Chart>(p)), size, 2)
-                .pop()
-                .unwrap();
+            // Goldens render on the debug backend (CHT-023, BAR-004).
+            let frame =
+                app_input::run_when_painted_on_debug(Root(Element::typed::<Chart>(p)), size, 2)
+                    .pop()
+                    .unwrap();
             assert!(
                 !frame.text.trim().is_empty(),
                 "{name} at {cls} must paint something"

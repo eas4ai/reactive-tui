@@ -7,6 +7,7 @@ Prints one `cairn: <REQ>: pass|fail` line per requirement.
 
 import re
 import sys
+import unicodedata
 
 from _common import ROOT, cargo_test_filtered, finish, rust_sources, strip_test_modules
 from catalog_manual import chart_docs_problems
@@ -25,6 +26,33 @@ def golden_problems() -> list[str]:
     src = (ROOT / "tests/charts_goldens.rs")
     if src.is_file() and re.search(r'REGENERATE.*==\s*Ok\("1"\)', src.read_text()) is None:
         problems.append("golden test lacks the REGENERATE=1 opt-in guard")
+    return problems
+
+
+def display_width(line: str) -> int:
+    """Terminal columns of one golden row: wide characters take two, marks none."""
+    return sum(0 if unicodedata.combining(ch) else 2 if unicodedata.east_asian_width(ch) in "WF" else 1
+               for ch in line)
+
+
+def wide_problems() -> list[str]:
+    """BAR-004: each chart type's wide golden, measured from its text grid, is
+    at least 400 columns, and the golden test renders on the debug backend."""
+    problems = []
+    for kind in TYPES:
+        path = SNAP / f"{kind}_large.ansi"
+        if not path.is_file():
+            problems.append(f"no wide golden for {kind}")
+            continue
+        grid = path.read_text(errors="replace").rsplit("\ncolors: ", 1)[0]
+        columns = max((display_width(row) for row in grid.split("\n")), default=0)
+        if columns < 400:
+            problems.append(f"{kind}_large.ansi is {columns} columns wide, under 400")
+    src = ROOT / "tests/charts_goldens.rs"
+    text = src.read_text(errors="replace") if src.is_file() else ""
+    body = re.search(r"fn cht_023_\w*\(\)\s*\{(.*?)\n\}", text, re.S)
+    if body is None or "on_debug(" not in body.group(1):
+        problems.append("the golden test does not render on the debug backend")
     return problems
 
 
@@ -48,8 +76,12 @@ def main() -> int:
     d = chart_docs_problems()
     ok_023, why_023 = cargo_test_filtered("charts_goldens", "cht_023_")
     results["CHT-023"] = (ok_023 and not g and not d, "; ".join((g + d)[:6]) or why_023)
-    wide = [p for p in SNAP.glob("*_large.ansi")] if SNAP.is_dir() else []
-    results["BAR-004"] = (bool(wide) and not g, "no checked-in wide golden" if not wide else ("; ".join(g[:4]) or "goldens at two sizes, wide one 600 columns"))
+    # BAR-004 holds only when every golden compares equal (the cht_023_ test,
+    # which regenerates only under REGENERATE=1), none is missing, and each
+    # type's wide golden is at least 400 columns on the debug backend.
+    w = wide_problems()
+    problems_004 = g + w + ([] if ok_023 else [f"golden comparison failed: {why_023}"])
+    results["BAR-004"] = (not problems_004, "; ".join(problems_004[:4]) or "goldens at three sizes on the debug backend compare equal; wide ones 400+ columns")
     return finish(results)
 
 
