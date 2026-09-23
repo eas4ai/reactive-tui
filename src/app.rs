@@ -112,6 +112,10 @@ pub struct App {
     updaters: crate::ui::UpdateRegistry,
     last_render_duration: std::time::Duration,
     last_presented: Option<Instant>,
+    /// The frame before `tree`: the last one whose flush a present
+    /// acknowledged, for the fallback when a present reports a failure
+    /// (PIP-002).
+    acknowledged_tree: RenderTree,
     animation_manager: AnimationManager,
     animation_targets: crate::animation::TargetRegistry,
     motion: motion::MotionTree,
@@ -556,6 +560,20 @@ impl App {
     }
 
     /// Render the current state
+    /// The backend reported the previous frame's flush failure and fell back
+    /// to the last acknowledged geometry; the animation targets follow it
+    /// (PIP-002). The element is rebuilt from the acknowledged tree on this
+    /// path only, out of line so the render frame stays small: component
+    /// expansion recurses 128 levels on the same stack.
+    #[inline(never)]
+    fn fall_back_to_acknowledged_frame(&mut self) -> Result<()> {
+        if let Some(acknowledged) = self.acknowledged_tree.root_element() {
+            self.animation_targets
+                .publish(&acknowledged, self.backend.component_layouts(), 0)?;
+        }
+        Ok(())
+    }
+
     fn render(&mut self) -> Result<()> {
         let start = Instant::now();
         self.render_frame()?;
@@ -630,7 +648,10 @@ impl App {
             .apply(&mut styled, Instant::now(), self.backend.size())?;
         self.animation_targets.apply(&mut styled)?;
         if self.backend.render_frame(&styled)? {
-            self.backend.present()?;
+            if let Err(error) = self.backend.present() {
+                self.fall_back_to_acknowledged_frame()?;
+                return Err(error);
+            }
             self.animation_targets
                 .publish(&styled, self.backend.component_layouts(), 0)?;
             let state = (self.router.get_focus(), self.router.hovered_node());
@@ -673,7 +694,9 @@ impl App {
             if state != (self.router.get_focus(), self.router.hovered_node()) {
                 self.wake.request_redraw();
             }
-            self.tree.set_root(resolved_element_to_render_node(styled));
+            let mut presented = RenderTree::new();
+            presented.set_root(resolved_element_to_render_node(styled));
+            self.acknowledged_tree = std::mem::replace(&mut self.tree, presented);
             return Ok(());
         }
 
@@ -973,6 +996,7 @@ impl AppBuilder {
             updaters: crate::ui::UpdateRegistry::default(),
             last_render_duration: std::time::Duration::ZERO,
             last_presented: None,
+            acknowledged_tree: RenderTree::new(),
             fps_manager,
             animation_manager: AnimationManager::new(),
             animation_targets: crate::animation::TargetRegistry::new(wake.clone()),

@@ -8,6 +8,8 @@ use std::rc::Rc;
 pub(super) struct CheckedOutput<W: Write> {
     writer: Rc<RefCell<W>>,
     frame: Vec<u8>,
+    /// The assembled frame waiting for `flush_pending` (PIP-001).
+    pending: Vec<u8>,
     error: Option<io::Error>,
     failed: bool,
     before_cells: Vec<u8>,
@@ -19,6 +21,7 @@ impl<W: Write> CheckedOutput<W> {
         Self {
             writer,
             frame: Vec::new(),
+            pending: Vec::new(),
             error: None,
             failed: false,
             before_cells: Vec::new(),
@@ -47,11 +50,29 @@ impl<W: Write> CheckedOutput<W> {
                 .unwrap_or_else(|| io::Error::other("image cleanup failed"))
                 .into());
         }
-        Ok(())
+        self.flush_pending().map_err(Into::into)
     }
 
     pub(super) fn take_error(&mut self) -> Option<io::Error> {
         self.error.take()
+    }
+
+    /// Write and flush the frame `end_frame` assembled. Called by the
+    /// worker after it has replied with the frame's geometry (PIP-001); a
+    /// failure is returned to the worker, which reports it with the next
+    /// present or at shutdown (PIP-002).
+    pub(super) fn flush_pending(&mut self) -> io::Result<()> {
+        if self.pending.is_empty() {
+            return Ok(());
+        }
+        let result = {
+            let mut writer = self.writer.borrow_mut();
+            writer
+                .write_all(&self.pending)
+                .and_then(|()| writer.flush())
+        };
+        self.pending.clear();
+        result
     }
 }
 
@@ -82,44 +103,39 @@ impl<W: Write> ByteBackend for CheckedOutput<W> {
         if self.frame.is_empty() {
             return WriteStatus::Ok;
         }
-        let result = (|| {
-            let mut writer = self.writer.borrow_mut();
-            // Establish a frame boundary even after a partial write followed
-            // by resize (which replaces the renderer and its byte sink).
-            // ESC \ (ST) aborts a partial sequence like CAN would, but CAN
-            // prints a visible glyph on Konsole-lineage terminals while a
-            // bare ST is a no-op everywhere.
-            writer.write_all(b"\x1b\\\x1b[?2026l\x1b[0m")?;
-            if self.before_cells.is_empty() && self.after_cells.is_empty() {
-                writer.write_all(&self.frame)?;
-            } else {
-                // Keep image deletion, cells and new placements in the engine's
-                // single synchronized update. Never append after its closing marker.
-                let body = self
-                    .frame
-                    .strip_prefix(b"\x1b[?2026h")
-                    .and_then(|bytes| bytes.strip_suffix(b"\x1b[?2026l"))
-                    .ok_or_else(|| {
-                        io::Error::new(
-                            io::ErrorKind::InvalidData,
-                            "SuprTUI frame has no synchronized-update envelope",
-                        )
-                    })?;
-                writer.write_all(b"\x1b[?2026h")?;
-                writer.write_all(&self.before_cells)?;
-                writer.write_all(body)?;
-                writer.write_all(&self.after_cells)?;
-                writer.write_all(b"\x1b[?2026l")?;
-            }
-            writer.flush()
-        })();
-        match result {
-            Ok(()) => WriteStatus::Ok,
-            Err(error) => {
-                self.error = Some(error);
-                WriteStatus::Failed
-            }
+        // Assemble the bytes now; the write and flush happen in
+        // `flush_pending` after the worker has replied (PIP-001).
+        self.pending.clear();
+        // Establish a frame boundary even after a partial write followed
+        // by resize (which replaces the renderer and its byte sink).
+        // ESC \ (ST) aborts a partial sequence like CAN would, but CAN
+        // prints a visible glyph on Konsole-lineage terminals while a
+        // bare ST is a no-op everywhere.
+        self.pending.extend_from_slice(b"\x1b\\\x1b[?2026l\x1b[0m");
+        if self.before_cells.is_empty() && self.after_cells.is_empty() {
+            self.pending.extend_from_slice(&self.frame);
+            return WriteStatus::Ok;
         }
+        // Keep image deletion, cells and new placements in the engine's
+        // single synchronized update. Never append after its closing marker.
+        let Some(body) = self
+            .frame
+            .strip_prefix(b"\x1b[?2026h")
+            .and_then(|bytes| bytes.strip_suffix(b"\x1b[?2026l"))
+        else {
+            self.pending.clear();
+            self.error = Some(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "SuprTUI frame has no synchronized-update envelope",
+            ));
+            return WriteStatus::Failed;
+        };
+        self.pending.extend_from_slice(b"\x1b[?2026h");
+        self.pending.extend_from_slice(&self.before_cells);
+        self.pending.extend_from_slice(body);
+        self.pending.extend_from_slice(&self.after_cells);
+        self.pending.extend_from_slice(b"\x1b[?2026l");
+        WriteStatus::Ok
     }
 }
 
@@ -192,6 +208,7 @@ mod tests {
         output.begin_frame();
         output.write_bytes(b"\x1b[?2026hA\x1b[?2026l");
         assert!(matches!(output.end_frame(), WriteStatus::Ok));
+        output.flush_pending().unwrap();
         let bytes = writer.borrow();
         assert!(
             !bytes.contains(&0x18),

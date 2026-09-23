@@ -122,6 +122,7 @@ impl Backend for ProbeBackend {
     }
     fn present(&mut self) -> Result<()> {
         self.inner.present()?;
+        self.inner.sync()?;
         let mut parser = vt100::Parser::new(6, 32, 0);
         parser.process(&self.output.0.lock().unwrap());
         self.frames.lock().unwrap().push(parser.screen().contents());

@@ -103,6 +103,7 @@ fn payloads(output: &str) -> Vec<(String, Vec<u8>)> {
 fn present(backend: &mut SuprTuiBackend, root: &Element) {
     backend.render_frame(root).unwrap();
     backend.present().unwrap();
+    backend.sync().unwrap();
 }
 
 fn protocol_picture(id: u32, color: [u8; 4], class: &str, mode: ImageDisplayMode) -> Element {
@@ -302,7 +303,8 @@ fn api_image_graphics_failed_sixel_flush_keeps_cleanup_for_retry() {
     )]);
     capture.0.lock().unwrap().fail = true;
     backend.render_frame(&root).unwrap();
-    assert!(backend.present().is_err());
+    backend.present().unwrap();
+    assert!(backend.sync().is_err());
     capture.take();
     present(&mut backend, &root);
     let output = capture.take();
@@ -367,10 +369,12 @@ fn api_image_graphics_clip_and_output_failure_retry_delete_possible_placements()
     let image = picture(43, [0, 255, 0, 255], "absolute left-6 top-3 w-4 h-2");
     capture.0.lock().unwrap().fail = true;
     backend.render_frame(&frame(vec![image])).unwrap();
-    assert!(backend.present().is_err());
+    backend.present().unwrap();
+    assert!(backend.sync().is_err());
     let failed = payloads(&capture.take());
     assert_eq!(failed[0].1, [0, 255, 0, 255].repeat(2));
     backend.present().unwrap();
+    backend.sync().unwrap();
     let retry = capture.take();
     assert!(retry.contains("a=d,d=I,i=43"));
     assert_eq!(payloads(&retry)[0].1, failed[0].1);
@@ -503,6 +507,7 @@ fn api_image_graphics_refreshes_cell_metrics_and_clears_when_switching_to_cell_f
         ))
         .unwrap();
     backend.present().unwrap();
+    backend.sync().unwrap();
     let output = capture.take();
     assert!(output.contains("a=d,d=I,i=46"));
     assert!(payloads(&output).is_empty());

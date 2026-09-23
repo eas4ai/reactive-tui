@@ -43,6 +43,7 @@ fn frame(children: Vec<Element>) -> Element {
 fn present(backend: &mut SuprTuiBackend, root: &Element) {
     backend.render_frame(root).unwrap();
     backend.present().unwrap();
+    backend.sync().unwrap();
 }
 #[test]
 fn native_cursor_follows_painted_text_clipping_and_coverage() {
@@ -85,7 +86,11 @@ fn native_cursor_retries_failed_output_and_does_not_leak_into_cell_frames() {
     let root = frame(vec![caret("absolute left-0 top-0 w-3 h-1 whitespace-pre")]);
     backend.render_frame(&root).unwrap();
     capture.0.lock().unwrap().1 = true;
-    assert!(backend.present().is_err());
+    // The write fails after present returned; the sync, like the next
+    // present, reports it.
+    backend.present().unwrap();
+    assert!(backend.sync().is_err());
+    capture.0.lock().unwrap().1 = false;
     capture.take();
     present(&mut backend, &root);
     let output = capture.take();
@@ -112,6 +117,7 @@ fn native_cursor_retries_failed_output_and_does_not_leak_into_cell_frames() {
         ))
         .unwrap();
     backend.present().unwrap();
+    backend.sync().unwrap();
     let output = capture.take();
     assert!(!output.contains("\x1b[6 q"));
     assert!(

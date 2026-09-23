@@ -59,6 +59,8 @@ fn frame(text: &str) -> Element {
 fn show(backend: &mut SuprTuiBackend, element: &Element) {
     assert!(backend.render_frame(element).unwrap());
     backend.present().unwrap();
+    // The bytes land after present returns (PIP-001); wait for them.
+    backend.sync().unwrap();
 }
 
 #[test]
@@ -217,6 +219,9 @@ fn rnd_004_flushes_and_repaints_after_partial_write_or_flush_failure() {
             state.remaining = if fail_flush { None } else { Some(73) };
         }
         backend.render_frame(&frame("new")).unwrap();
+        // The write happens after present returns; the next present reports
+        // its failure (PIP-002).
+        backend.present().unwrap();
         let error = backend.present().unwrap_err();
         assert!(matches!(error, ReactiveError::Io(_)), "{error:?}");
         assert!(error.to_string().contains(if fail_flush {
@@ -231,6 +236,7 @@ fn rnd_004_flushes_and_repaints_after_partial_write_or_flush_failure() {
             state.remaining = None;
         }
         backend.present().unwrap();
+        backend.sync().unwrap();
         let retry = out.take();
         assert!(!retry.is_empty(), "retry was incorrectly skipped");
         terminal.process(&retry);

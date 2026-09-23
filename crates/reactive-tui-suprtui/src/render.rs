@@ -978,6 +978,19 @@ impl<'a, B: Backend> Renderer<'a, B> {
         RenderStatus::Failed
     }
 
+    /// The backend's deferred write of the last rendered frame failed after
+    /// `render` returned: the terminal never received it. The next render
+    /// repaints fully and re-emits the cursor state, as a failed frame does.
+    pub fn flush_failed(&mut self) {
+        self.force_full_repaint = true;
+        self.last_style_tag = None;
+        self.last_blinking = None;
+        self.last_color = None;
+        self.last_x = None;
+        self.last_y = None;
+        self.last_visible = None;
+    }
+
     fn finish_rendered(&mut self, cells_updated: u32, mut stats: RenderStats) -> RenderStatus {
         if !self.next_hit.is_empty() {
             std::mem::swap(&mut self.current_hit, &mut self.next_hit);

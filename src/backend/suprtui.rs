@@ -89,6 +89,8 @@ enum Command {
         mpsc::Sender<Result<super::PresentedGeometry>>,
     ),
     Shutdown(Reply, Option<String>),
+    /// Reply once every earlier frame has been written and flushed.
+    Sync(Reply),
     #[cfg(test)]
     Panic(&'static str),
 }
@@ -113,6 +115,9 @@ pub struct SuprTuiBackend {
     cells: Option<Arc<CellFrame>>,
     painted_nodes: Vec<super::PaintedNode>,
     component_layouts: Vec<super::PresentedLayout>,
+    /// Geometry of the last frame whose flush the worker acknowledged; the
+    /// fallback when a present reports the previous frame's failure (PIP-002).
+    acknowledged: (Vec<super::PaintedNode>, Vec<super::PresentedLayout>),
     raw_mode: Option<RawMode>,
     input: Option<crossterm::event::EventStream>,
 }
@@ -208,6 +213,7 @@ impl SuprTuiBackend {
             cells: None,
             painted_nodes: Vec::new(),
             component_layouts: Vec::new(),
+            acknowledged: (Vec::new(), Vec::new()),
             raw_mode: None,
             input: None,
         };
@@ -222,6 +228,19 @@ impl SuprTuiBackend {
                 Err(error)
             }
         }
+    }
+
+    /// Wait until every frame presented so far has been written and flushed.
+    /// `present` returns before its frame's write (PIP-001); a caller that
+    /// reads the output afterwards, such as a test, calls this first. A flush
+    /// failure is reported here as it would be by the next present.
+    pub fn sync(&mut self) -> Result<()> {
+        let commands = self.commands.as_ref().ok_or_else(worker_stopped)?;
+        let (reply, result) = mpsc::channel();
+        commands
+            .send(Command::Sync(reply))
+            .map_err(|_| worker_stopped())?;
+        result.recv().map_err(|_| worker_stopped())?
     }
 
     /// Restore the session and join the worker. Safe to call more than once.
@@ -328,10 +347,26 @@ impl Backend for SuprTuiBackend {
                 reply,
             ))
             .map_err(|_| worker_stopped())?;
-        let geometry = result.recv().map_err(|_| worker_stopped())??;
-        self.painted_nodes = geometry.nodes;
-        self.component_layouts = geometry.layouts;
-        Ok(())
+        // The worker replies as soon as layout and paint finish and writes
+        // the bytes afterwards; the rendezvous channel makes the next present
+        // wait for that flush, so one frame is in flight (PIP-001). An Ok
+        // reply acknowledges the previous frame's flush; an Err reports its
+        // failure and the geometry falls back to the last acknowledged frame
+        // (PIP-002).
+        match result.recv().map_err(|_| worker_stopped())? {
+            Ok(geometry) => {
+                self.acknowledged = (
+                    std::mem::replace(&mut self.painted_nodes, geometry.nodes),
+                    std::mem::replace(&mut self.component_layouts, geometry.layouts),
+                );
+                Ok(())
+            }
+            Err(error) => {
+                self.painted_nodes = self.acknowledged.0.clone();
+                self.component_layouts = self.acknowledged.1.clone();
+                Err(error)
+            }
+        }
     }
 
     fn size(&self) -> (u16, u16) {
@@ -483,9 +518,17 @@ fn run_worker<W: Write>(
     }
     let mut force = true;
     let mut graphics = graphics::Graphics::default();
+    // A flush failure from the previous frame, reported by the next present
+    // or by shutdown (PIP-002).
+    let mut deferred: Option<ReactiveError> = None;
     while let Ok(command) = receiver.recv() {
         match command {
             Command::Present(spec, size, current_images, options, reply) => {
+                if let Some(error) = deferred.take() {
+                    force = true;
+                    let _ = reply.send(Err(error));
+                    continue;
+                }
                 let result = (|| {
                     if images != current_images {
                         images = current_images;
@@ -591,11 +634,32 @@ fn run_worker<W: Write>(
                 })();
                 force = result.is_err();
                 let _ = reply.send(result);
+                // Write and flush after the reply (PIP-001); the next present
+                // waits on the rendezvous until this returns.
+                if let Err(error) = renderer.backend_mut().flush_pending() {
+                    deferred = Some(error.into());
+                    renderer.flush_failed();
+                    force = true;
+                }
+            }
+            Command::Sync(reply) => {
+                let outcome = match deferred.take() {
+                    Some(error) => {
+                        force = true;
+                        Err(error)
+                    }
+                    None => Ok(()),
+                };
+                let _ = reply.send(outcome);
             }
             Command::Shutdown(reply, message) => {
                 let cleanup = renderer.backend_mut().finish_graphics(graphics.cleanup());
                 let restored = session.restore_with_panic(message.as_deref());
-                let _ = reply.send(cleanup.and(restored));
+                let outcome = match deferred.take() {
+                    Some(error) => Err(error),
+                    None => cleanup.and(restored),
+                };
+                let _ = reply.send(outcome);
                 return;
             }
             #[cfg(test)]
