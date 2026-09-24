@@ -621,7 +621,7 @@ fn bar_003_an_image_fills_the_rectangle_its_parent_allots() {
 
 /// BAR-003: after a resize the image draws at the new size and never shows
 /// the cells it drew for the old one; while the worker draws, the frame
-/// holds a text rendering made at the new size.
+/// shows the image area empty.
 #[test]
 fn bar_003_a_resized_image_never_shows_the_cells_drawn_for_the_old_size() {
     use reactive_tui::event::types::{Event, ResizeEvent};

@@ -38,15 +38,19 @@ error.
 - It fills the rectangle its parent allots unless its classes size it, and
   fits the picture inside that rectangle with its aspect ratio kept.
 - After a resize it draws the picture again at the new size. Until the image
-  worker has the new cells, it shows a text rendering made at the new size,
-  never the cells drawn for the old one.
+  worker has drawn it, the image area is empty and its node is marked busy;
+  it never shows the cells drawn for the old size. The worker draws every
+  form of the picture, ASCII art included, so none of that work runs on the
+  App's thread.
 - Its screen-reader node has the image role, the image's fallback text as
   its label, and a description of its state: `Loading image` while the
   worker prepares it, which also marks the node busy; its size in pixels once
   decoded; or the error when loading failed.
 - It has no pointer actions of its own: its content is inert, so it needs no
   keyboard equivalent.
-- The only colors it draws are the picture's own.
+- The only colors it draws are the picture's own. Where a chafa or viu
+  rendering leaves the terminal's default color, the cell takes the active
+  theme's foreground or background.
 
 ## Behavior
 
