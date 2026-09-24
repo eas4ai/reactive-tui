@@ -154,7 +154,7 @@ def only_doctests_crashed(output: str) -> bool:
             continue
         listed = FAILURE_LIST.findall(text)
         names = [line.strip() for line in listed[-1].splitlines()] if listed else []
-        if len(names) != failed or not all(crash_in(captured(text, name)) for name in names):
+        if len(names) != failed or not all(compile_crash(captured(text, name)) for name in names):
             return False
         crashed_any = True
     return crashed_any
@@ -173,6 +173,14 @@ def captured(output: str, name: str) -> str:
 def crash_in(text: str) -> bool:
     """Whether `text` shows the toolchain killed by a signal."""
     return any(pattern.search(text) for pattern in TOOLCHAIN_CRASH)
+
+
+def compile_crash(text: str) -> bool:
+    """Whether a doc-test's captured output shows rustdoc failing to compile
+    it because the toolchain was killed: the crash, rustdoc's own "Couldn't
+    compile the test." and no run of the test. A doc-test that compiled,
+    ran and printed crash-like text still fails."""
+    return crash_in(text) and "Couldn't compile the test." in text and "Test executable failed" not in text
 
 
 def no_harness_targets() -> set[str]:
