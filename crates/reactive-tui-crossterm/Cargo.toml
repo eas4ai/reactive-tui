@@ -63,3 +63,7 @@ serde_json = "1.0"
 serial_test = "3.0.0"
 temp-env = "0.3.6"
 tokio = { version = "1.44", features = ["full"] }
+
+# The raw mode test runs on a pseudo-terminal of its own.
+[target.'cfg(unix)'.dev-dependencies]
+rustix = { version = "1", default-features = false, features = ["std", "pty", "process"] }

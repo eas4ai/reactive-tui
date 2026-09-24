@@ -542,32 +542,100 @@ mod tests {
         assert_eq!((width, height), size().unwrap());
     }
 
+    /// Runs `body` with a controlling terminal. On Unix the test binary runs
+    /// `test` alone with a new pseudo-terminal as its standard input and
+    /// controlling terminal, so the test runs the same way with or without a
+    /// terminal and never changes the mode of the one that started `cargo
+    /// test`; this call panics with the copy's output unless it passed.
+    /// Elsewhere `body` runs in this process.
+    #[cfg(unix)]
+    fn on_terminal(test: &str, body: impl FnOnce()) {
+        use rustix::pty::{grantpt, openpt, ptsname, unlockpt, OpenptFlags};
+        use std::os::unix::ffi::OsStrExt;
+        use std::os::unix::process::CommandExt;
+        use std::process::{Command, Stdio};
+
+        const ON_PTY: &str = "REACTIVE_TUI_CROSSTERM_TEST_ON_PTY";
+        if std::env::var_os(ON_PTY).is_some_and(|name| name == test) {
+            return body();
+        }
+        let master = openpt(OpenptFlags::RDWR | OpenptFlags::NOCTTY | OpenptFlags::CLOEXEC)
+            .expect("a pseudo-terminal");
+        grantpt(&master).unwrap();
+        unlockpt(&master).unwrap();
+        let name = ptsname(&master, Vec::new()).unwrap();
+        // This process leads no session, so opening the slave cannot make it
+        // this process's controlling terminal.
+        let slave = std::fs::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .open(std::ffi::OsStr::from_bytes(name.as_bytes()))
+            .unwrap();
+        let mut command = Command::new(std::env::current_exe().unwrap());
+        command
+            .args([
+                test,
+                "--exact",
+                "--nocapture",
+                "--test-threads=1",
+                "--color=never",
+            ])
+            .env(ON_PTY, test)
+            .stdin(Stdio::from(slave))
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped());
+        // SAFETY: the closure makes two system calls and neither allocates nor
+        // takes a lock; std has installed the slave on descriptor 0.
+        unsafe {
+            command.pre_exec(|| {
+                rustix::process::setsid()?;
+                rustix::process::ioctl_tiocsctty(rustix::stdio::stdin())?;
+                Ok(())
+            });
+        }
+        let output = command.output().expect("the copy of the test binary");
+        drop(master);
+        let text = format!(
+            "{}{}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert!(
+            output.status.success() && text.contains("test result: ok. 1 passed"),
+            "{test} failed on a pseudo-terminal ({}):\n{text}",
+            output.status
+        );
+    }
+
+    #[cfg(not(unix))]
+    fn on_terminal(_test: &str, body: impl FnOnce()) {
+        body()
+    }
+
     #[test]
     fn test_raw_mode() {
-        // check we start from normal mode (may fail on some test harnesses)
-        assert!(!is_raw_mode_enabled().unwrap());
+        on_terminal("terminal::tests::test_raw_mode", || {
+            // check we start from normal mode
+            assert!(!is_raw_mode_enabled().unwrap());
 
-        // enable the raw mode
-        if enable_raw_mode().is_err() {
-            // Enabling raw mode doesn't work on the ci
-            // So we just ignore it
-            return;
-        }
+            // enable the raw mode
+            enable_raw_mode().unwrap();
 
-        // check it worked (on unix it doesn't really check the underlying
-        // tty but rather check that the code is consistent)
-        assert!(is_raw_mode_enabled().unwrap());
+            // check it worked (on unix it doesn't really check the underlying
+            // tty but rather check that the code is consistent)
+            assert!(is_raw_mode_enabled().unwrap());
 
-        // enable it again, this should not change anything
-        enable_raw_mode().unwrap();
+            // enable it again, this should not change anything
+            enable_raw_mode().unwrap();
 
-        // check we're still in raw mode
-        assert!(is_raw_mode_enabled().unwrap());
+            // check we're still in raw mode
+            assert!(is_raw_mode_enabled().unwrap());
 
-        // now let's disable it
-        disable_raw_mode().unwrap();
+            // now let's disable it
+            disable_raw_mode().unwrap();
 
-        // check we're back to normal mode
-        assert!(!is_raw_mode_enabled().unwrap());
+            // check we're back to normal mode
+            assert!(!is_raw_mode_enabled().unwrap());
+        });
     }
 }

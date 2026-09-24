@@ -338,14 +338,13 @@ mod readiness_tests {
         source.waker.wake().unwrap();
         // At most one already retained TTY buffer may precede the new wake.
         // No additional input edge is supplied to rescue the poller.
-        for _ in 0..=TTY_BUFFER_SIZE {
-            match source.try_read(Some(Duration::ZERO)) {
-                Err(error) if error.kind() == io::ErrorKind::Interrupted => return,
-                Ok(Some(InternalEvent::Event(Event::Key(_)))) => {}
-                other => panic!("unexpected result before wake: {other:?}"),
-            }
-        }
-        panic!("new wake starved behind retained TTY readiness");
+        // The wake reads as an interrupted poll.
+        let woke = (0..=TTY_BUFFER_SIZE).any(|_| match source.try_read(Some(Duration::ZERO)) {
+            Err(error) if error.kind() == io::ErrorKind::Interrupted => true,
+            Ok(Some(InternalEvent::Event(Event::Key(_)))) => false,
+            other => panic!("unexpected result before wake: {other:?}"),
+        });
+        assert!(woke, "new wake starved behind retained TTY readiness");
     }
 
     #[cfg(feature = "event-stream")]

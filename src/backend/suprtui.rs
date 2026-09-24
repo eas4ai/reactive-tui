@@ -1033,6 +1033,9 @@ mod trl_001_tests {
     #[ignore = "invoked by the TRL-001 PTY mechanism"]
     fn worker_panic_restores_the_owned_terminal() {
         if std::env::var("REACTIVE_TUI_TRL_001_PROBE").as_deref() != Ok("worker") {
+            eprintln!(
+                "SKIP: run by the TRL-001 PTY mechanism with REACTIVE_TUI_TRL_001_PROBE=worker"
+            );
             return;
         }
         let mut backend = SuprTuiBackend::new().expect("PTY backend must start");

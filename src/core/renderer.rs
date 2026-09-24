@@ -377,18 +377,14 @@ impl Renderer {
 mod tests {
     use super::*;
     use crate::core::surface::{Attr, Rgba};
+    use crate::terminal::test_terminal::on_terminal;
 
     #[test]
     fn test_renderer_creation() {
-        // Skip if no TTY available (CI/test environment)
-        if Renderer::new(80, 24).is_err() {
-            eprintln!("Skipping test_renderer_creation: No TTY available");
-            return;
-        }
-
-        // Test valid dimensions
-        let renderer = Renderer::new(80, 24).unwrap();
-        assert_eq!(renderer.dims(), (80, 24));
+        on_terminal("core::renderer::tests::test_renderer_creation", || {
+            let renderer = Renderer::new(80, 24).unwrap();
+            assert_eq!(renderer.dims(), (80, 24));
+        });
     }
 
     #[test]
@@ -408,224 +404,170 @@ mod tests {
 
     #[test]
     fn test_renderer_with_size() {
-        let size = Size::new(100, 30);
-        let renderer = Renderer::with_size(size);
-
-        // Skip if no TTY available (CI/test environment)
-        if renderer.is_err() {
-            eprintln!("Skipping test_renderer_with_size: No TTY available");
-            return;
-        }
-
-        let renderer = renderer.unwrap();
-        assert_eq!(renderer.dims(), (100, 30));
+        on_terminal("core::renderer::tests::test_renderer_with_size", || {
+            let renderer = Renderer::with_size(Size::new(100, 30)).unwrap();
+            assert_eq!(renderer.dims(), (100, 30));
+        });
     }
 
     #[test]
     fn test_renderer_resize() {
-        // Skip if no TTY available (CI/test environment)
-        let renderer_result = Renderer::new(80, 24);
-        if renderer_result.is_err() {
-            eprintln!("Skipping test_renderer_resize: No TTY available");
-            return;
-        }
-        let mut renderer = renderer_result.unwrap();
-        assert_eq!(renderer.dims(), (80, 24));
+        on_terminal("core::renderer::tests::test_renderer_resize", || {
+            let mut renderer = Renderer::new(80, 24).unwrap();
+            assert_eq!(renderer.dims(), (80, 24));
 
-        renderer.resize(120, 40);
-        assert_eq!(renderer.dims(), (120, 40));
+            renderer.resize(120, 40);
+            assert_eq!(renderer.dims(), (120, 40));
 
-        // Test resize to smaller dimensions
-        renderer.resize(60, 20);
-        assert_eq!(renderer.dims(), (60, 20));
+            // Test resize to smaller dimensions
+            renderer.resize(60, 20);
+            assert_eq!(renderer.dims(), (60, 20));
+        });
     }
 
     #[test]
     fn test_renderer_resize_to() {
-        // Skip if no TTY available (CI/test environment)
-        let renderer_result = Renderer::new(80, 24);
-        if renderer_result.is_err() {
-            eprintln!("Skipping test_renderer_resize_to: No TTY available");
-            return;
-        }
-        let mut renderer = renderer_result.unwrap();
-        let new_size = Size::new(100, 50);
-
-        renderer.resize_to(new_size);
-        assert_eq!(renderer.dims(), (100, 50));
+        on_terminal("core::renderer::tests::test_renderer_resize_to", || {
+            let mut renderer = Renderer::new(80, 24).unwrap();
+            renderer.resize_to(Size::new(100, 50));
+            assert_eq!(renderer.dims(), (100, 50));
+        });
     }
 
     #[test]
     fn test_frame_stats_initialization() {
-        // Skip if no TTY available (CI/test environment)
-        let renderer_result = Renderer::new(80, 24);
-        if renderer_result.is_err() {
-            eprintln!("Skipping test_frame_stats_initialization: No TTY available");
-            return;
-        }
-        let renderer = renderer_result.unwrap();
-        let stats = renderer.frame_stats();
+        on_terminal(
+            "core::renderer::tests::test_frame_stats_initialization",
+            || {
+                let renderer = Renderer::new(80, 24).unwrap();
+                let stats = renderer.frame_stats();
 
-        // Initial stats should be zero
-        assert_eq!(stats.bytes_written, 0);
-        assert_eq!(stats.spans_written, 0);
-        assert_eq!(stats.rows_changed, 0);
-        assert_eq!(stats.frame_ms, 0.0);
+                // Initial stats should be zero
+                assert_eq!(stats.bytes_written, 0);
+                assert_eq!(stats.spans_written, 0);
+                assert_eq!(stats.rows_changed, 0);
+                assert_eq!(stats.frame_ms, 0.0);
+            },
+        );
     }
 
     #[test]
     fn test_debug_overlay_toggle() {
-        // Skip if no TTY available (CI/test environment)
-        let renderer_result = Renderer::new(80, 24);
-        if renderer_result.is_err() {
-            eprintln!("Skipping test_debug_overlay_toggle: No TTY available");
-            return;
-        }
-        let mut renderer = renderer_result.unwrap();
+        on_terminal("core::renderer::tests::test_debug_overlay_toggle", || {
+            let mut renderer = Renderer::new(80, 24).unwrap();
 
-        // Debug overlay is disabled by default and follows the toggle
-        assert!(!renderer.debug_overlay);
-        renderer.set_debug_overlay(true);
-        assert!(renderer.debug_overlay);
-        renderer.set_debug_overlay(false);
-        assert!(!renderer.debug_overlay);
+            // Debug overlay is disabled by default and follows the toggle
+            assert!(!renderer.debug_overlay);
+            renderer.set_debug_overlay(true);
+            assert!(renderer.debug_overlay);
+            renderer.set_debug_overlay(false);
+            assert!(!renderer.debug_overlay);
+        });
     }
 
     #[test]
     fn test_detailed_stats_toggle() {
-        // Skip if no TTY available (CI/test environment)
-        let renderer_result = Renderer::new(80, 24);
-        if renderer_result.is_err() {
-            eprintln!("Skipping test_detailed_stats_toggle: No TTY available");
-            return;
-        }
-        let mut renderer = renderer_result.unwrap();
+        on_terminal("core::renderer::tests::test_detailed_stats_toggle", || {
+            let mut renderer = Renderer::new(80, 24).unwrap();
 
-        // Detailed stats are off by default and follow the toggle
-        assert!(!renderer.detailed_stats_enabled);
-        renderer.enable_detailed_stats();
-        assert!(renderer.detailed_stats_enabled);
-        renderer.disable_detailed_stats();
-        assert!(!renderer.detailed_stats_enabled);
+            // Detailed stats are off by default and follow the toggle
+            assert!(!renderer.detailed_stats_enabled);
+            renderer.enable_detailed_stats();
+            assert!(renderer.detailed_stats_enabled);
+            renderer.disable_detailed_stats();
+            assert!(!renderer.detailed_stats_enabled);
+        });
     }
 
     #[test]
     fn test_performance_metrics() {
-        // Skip if no TTY available (CI/test environment)
-        let renderer_result = Renderer::new(80, 24);
-        if renderer_result.is_err() {
-            eprintln!("Skipping test_performance_metrics: No TTY available");
-            return;
-        }
-        let renderer = renderer_result.unwrap();
+        on_terminal("core::renderer::tests::test_performance_metrics", || {
+            let renderer = Renderer::new(80, 24).unwrap();
 
-        // Should be able to get metrics even without any frames
-        let metrics = renderer.performance_metrics();
-        assert!(metrics.fps >= 0.0);
-        assert!(metrics.efficiency_ratio >= 0.0);
-        assert!(metrics.efficiency_ratio <= 1.0);
+            // Should be able to get metrics even without any frames
+            let metrics = renderer.performance_metrics();
+            assert!(metrics.fps >= 0.0);
+            assert!(metrics.efficiency_ratio >= 0.0);
+            assert!(metrics.efficiency_ratio <= 1.0);
+        });
     }
 
     #[test]
     fn test_performance_grade() {
-        // Skip if no TTY available (CI/test environment)
-        let renderer_result = Renderer::new(80, 24);
-        if renderer_result.is_err() {
-            eprintln!("Skipping test_performance_grade: No TTY available");
-            return;
-        }
-        let renderer = renderer_result.unwrap();
+        on_terminal("core::renderer::tests::test_performance_grade", || {
+            let renderer = Renderer::new(80, 24).unwrap();
 
-        let grade = renderer.performance_grade();
-        // Should be a valid grade letter
-        assert!("ABCDEF".contains(grade));
+            let grade = renderer.performance_grade();
+            // Should be a valid grade letter
+            assert!("ABCDEF".contains(grade));
+        });
     }
 
     #[test]
     fn test_clear_surface() {
-        // Skip if no TTY available (CI/test environment)
-        let renderer_result = Renderer::new(80, 24);
-        if renderer_result.is_err() {
-            eprintln!("Skipping test_clear_surface: No TTY available");
-            return;
-        }
-        let mut renderer = renderer_result.unwrap();
-        let red = Rgba::new(1.0, 0.0, 0.0, 1.0);
+        on_terminal("core::renderer::tests::test_clear_surface", || {
+            let mut renderer = Renderer::new(80, 24).unwrap();
+            let red = Rgba::new(1.0, 0.0, 0.0, 1.0);
 
-        renderer.clear(red);
-        // Every back-buffer cell takes the clear colour
-        let (width, height) = renderer.dims();
-        assert_eq!(renderer.surface().get(0, 0).bg, red);
-        assert_eq!(renderer.surface().get(width - 1, height - 1).bg, red);
+            renderer.clear(red);
+            // Every back-buffer cell takes the clear colour
+            let (width, height) = renderer.dims();
+            assert_eq!(renderer.surface().get(0, 0).bg, red);
+            assert_eq!(renderer.surface().get(width - 1, height - 1).bg, red);
+        });
     }
 
     #[test]
     fn test_surface_access() {
-        // Skip if no TTY available (CI/test environment)
-        let renderer_result = Renderer::new(80, 24);
-        if renderer_result.is_err() {
-            eprintln!("Skipping test_surface_access: No TTY available");
-            return;
-        }
-        let mut renderer = renderer_result.unwrap();
+        on_terminal("core::renderer::tests::test_surface_access", || {
+            let mut renderer = Renderer::new(80, 24).unwrap();
 
-        // Test immutable access
-        let surface = renderer.surface();
-        assert_eq!(surface.dims(), (80, 24));
+            // Test immutable access
+            let surface = renderer.surface();
+            assert_eq!(surface.dims(), (80, 24));
 
-        // Test mutable access
-        let surface_mut = renderer.surface_mut();
-        assert_eq!(surface_mut.dims(), (80, 24));
+            // Test mutable access
+            let surface_mut = renderer.surface_mut();
+            assert_eq!(surface_mut.dims(), (80, 24));
 
-        // Write something to the surface
-        surface_mut.write_str(0, 0, "Test", Rgba::white(), Rgba::black(), Attr::empty());
+            // A write through the mutable surface is what the next frame shows
+            surface_mut.write_str(0, 0, "Test", Rgba::white(), Rgba::black(), Attr::empty());
+            assert_eq!(renderer.surface().get(3, 0).ch, 't');
+        });
     }
 
     #[test]
     fn test_stats_management() {
-        // Skip if no TTY available (CI/test environment)
-        let renderer_result = Renderer::new(80, 24);
-        if renderer_result.is_err() {
-            eprintln!("Skipping test_stats_management: No TTY available");
-            return;
-        }
-        let mut renderer = renderer_result.unwrap();
+        on_terminal("core::renderer::tests::test_stats_management", || {
+            let mut renderer = Renderer::new(80, 24).unwrap();
 
-        // Test clearing stats
-        renderer.clear_stats();
+            // Test clearing stats
+            renderer.clear_stats();
 
-        // Test performance check
-        assert!(
-            !renderer.is_performance_good(),
-            "Cleared stats have no measured frame rate"
-        );
+            // Test performance check
+            assert!(
+                !renderer.is_performance_good(),
+                "Cleared stats have no measured frame rate"
+            );
 
-        // Test latest detailed stats (should be None initially)
-        let latest = renderer.latest_detailed_stats();
-        assert!(latest.is_none());
+            // Test latest detailed stats (should be None initially)
+            let latest = renderer.latest_detailed_stats();
+            assert!(latest.is_none());
+        });
     }
 
     #[test]
     fn test_memory_estimation() {
-        // Skip if no TTY available (CI/test environment)
-        let renderer_result = Renderer::new(80, 24);
-        if renderer_result.is_err() {
-            eprintln!("Skipping test_memory_estimation: No TTY available");
-            return;
-        }
-        let renderer = renderer_result.unwrap();
+        on_terminal("core::renderer::tests::test_memory_estimation", || {
+            let renderer = Renderer::new(80, 24).unwrap();
 
-        // Memory usage should be reasonable for the given dimensions
-        let memory = renderer.estimate_memory_usage();
-        assert!(memory > 0);
+            // Memory usage should be reasonable for the given dimensions
+            let memory = renderer.estimate_memory_usage();
+            assert!(memory > 0);
 
-        // Larger renderer should use more memory
-        let large_renderer_result = Renderer::new(200, 100);
-        if large_renderer_result.is_err() {
-            return; // Already tested basic memory estimation
-        }
-        let large_renderer = large_renderer_result.unwrap();
-        let large_memory = large_renderer.estimate_memory_usage();
-        assert!(large_memory > memory);
+            // Larger renderer should use more memory
+            let large_renderer = Renderer::new(200, 100).unwrap();
+            assert!(large_renderer.estimate_memory_usage() > memory);
+        });
     }
 }

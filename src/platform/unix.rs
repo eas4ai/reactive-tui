@@ -563,6 +563,7 @@ pub fn install_panic_handler() {
 mod tests {
     use super::*;
     use crate::backend::SuprTuiBackend;
+    use crate::terminal::test_terminal::{on_terminal, COLUMNS, CURSOR_REPORT, ROWS};
     use serial_test::serial;
     use std::sync::atomic::AtomicUsize;
 
@@ -592,6 +593,9 @@ mod tests {
     #[ignore = "invoked by the TRL-002 PTY mechanism"]
     fn panic_handler_chains_the_prior_hook() {
         if std::env::var("REACTIVE_TUI_TRL_002_PROBE").as_deref() != Ok("hook") {
+            eprintln!(
+                "SKIP: run by the TRL-002 PTY mechanism with REACTIVE_TUI_TRL_002_PROBE=hook"
+            );
             return;
         }
         PANIC_HOOK_COUNT.store(0, Ordering::SeqCst);
@@ -612,6 +616,9 @@ mod tests {
     #[ignore = "invoked by the TRL-002 PTY mechanism"]
     fn foreign_thread_panic_keeps_terminal_owner_active() {
         if std::env::var("REACTIVE_TUI_TRL_002_PROBE").as_deref() != Ok("ownership") {
+            eprintln!(
+                "SKIP: run by the TRL-002 PTY mechanism with REACTIVE_TUI_TRL_002_PROBE=ownership"
+            );
             return;
         }
         std::panic::set_hook(Box::new(|_| {}));
@@ -667,57 +674,28 @@ mod tests {
 
     #[test]
     fn test_tty_init() {
-        // Skip test if no controlling terminal is available
-        let tty = match UnixTty::init() {
-            Ok(tty) => tty,
-            Err(_) => {
-                eprintln!("Skipping test_tty_init: No controlling terminal available");
-                return;
-            }
-        };
-        // Test terminal size - skip if not available
-        let (width, height) = match tty.size() {
-            Ok(size) => size,
-            Err(_) => {
-                eprintln!("Skipping terminal size test: Terminal operations not available");
-                return;
-            }
-        };
-        assert!(width > 0);
-        assert!(height > 0);
+        on_terminal("platform::unix::tests::test_tty_init", || {
+            let tty = UnixTty::init().unwrap();
+            assert_eq!(tty.size().unwrap(), (COLUMNS, ROWS));
+        });
     }
 
     #[test]
     fn test_write_read() {
-        // Skip test if no controlling terminal is available
-        let tty = match UnixTty::init() {
-            Ok(tty) => tty,
-            Err(_) => {
-                eprintln!("Skipping test_write_read: No controlling terminal available");
-                return;
+        on_terminal("platform::unix::tests::test_write_read", || {
+            let tty = UnixTty::init().unwrap();
+            // Ask where the cursor is; the terminal's report is the reply.
+            assert_eq!(tty.write(b"\x1b[6n").unwrap(), 4);
+            let mut reply = Vec::new();
+            let deadline = std::time::Instant::now() + Duration::from_secs(30);
+            while !reply.ends_with(b"R") && std::time::Instant::now() < deadline {
+                let mut buf = [0u8; 32];
+                let read = tty
+                    .read(&mut buf, Some(Duration::from_millis(100)))
+                    .unwrap();
+                reply.extend_from_slice(&buf[..read]);
             }
-        };
-
-        // Write a simple escape sequence - skip if not available
-        let written = match tty.write(b"\x1b[6n") {
-            Ok(n) => n,
-            Err(_) => {
-                eprintln!("Skipping write test: Terminal write operations not available");
-                return;
-            }
-        };
-        assert_eq!(written, 4);
-
-        // Try to read response (cursor position report) - skip if not available
-        let mut buf = [0u8; 32];
-        let timeout = Duration::from_millis(100);
-        let _read = match tty.read(&mut buf, Some(timeout)) {
-            Ok(n) => n,
-            Err(_) => {
-                eprintln!("Skipping read test: Terminal read operations not available");
-                return;
-            }
-        };
-        // Note: This might timeout if terminal doesn't support cursor position report
+            assert_eq!(reply, CURSOR_REPORT);
+        });
     }
 }

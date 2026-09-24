@@ -59,13 +59,15 @@ def report(req: str, ok: bool, why: str = "") -> bool:
 
 
 def rust_sources(*dirs: str) -> list[Path]:
+    """Regular .rs files under `dirs`; a directory named *.rs or a symlink
+    that points nowhere is not a source."""
     files: list[Path] = []
     for d in dirs:
         p = ROOT / d
         if p.is_file():
             files.append(p)
         elif p.is_dir():
-            files.extend(sorted(p.rglob("*.rs")))
+            files.extend(sorted(f for f in p.rglob("*.rs") if f.is_file()))
     return files
 
 

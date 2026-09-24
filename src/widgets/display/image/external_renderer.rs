@@ -603,7 +603,9 @@ mod tests {
                 .lines()
                 .map(|line| serde_json::from_str(line).unwrap())
                 .collect::<Vec<_>>();
-            xis_002_validate_arguments(&captures).unwrap();
+            if let Err(error) = xis_002_validate_arguments(&captures) {
+                panic!("{error}");
+            }
             return;
         }
 
