@@ -1029,11 +1029,10 @@ impl<'a, B: Backend> Renderer<'a, B> {
         }
     }
 
-    /// Skipped frames publish no bytes and drop staged images (REN-002); a
-    /// frame skipped because no cell changed has already committed its hit
-    /// grid, and this zeroes whatever staged grid remains. The next buffer
-    /// keeps what the caller drew: the painter clears it before the next
-    /// frame, so it is cleared once per frame (RAS-007).
+    /// Skipped frames publish no bytes, zero the staged hit grid and drop
+    /// staged images (REN-002). The next buffer keeps what the caller drew:
+    /// the painter clears it before the next frame, so it is cleared once
+    /// per frame (RAS-007).
     fn finish_skipped(&mut self) -> RenderStatus {
         if !self.next_hit.is_empty() {
             self.next_hit.fill(0);
@@ -1139,10 +1138,12 @@ impl<'a, B: Backend> Renderer<'a, B> {
             // True no-op: the backend holds an empty frame the memory
             // backend never records, so nothing is published. The screen
             // already shows these cells, so the frame's hit grid is the
-            // one that describes it (PNT-002).
+            // one that describes it (PNT-002). Committing zeroes the next
+            // grid, so only the staged images are left to drop.
             self.backend.end_frame();
             self.commit_hit_grid();
-            return self.finish_skipped();
+            self.pending_images.clear();
+            return RenderStatus::Skipped;
         }
         self.backend.write_bytes(&self.frame);
         let status = self.backend.end_frame();
