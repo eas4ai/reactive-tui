@@ -1350,14 +1350,16 @@ mod tests {
                 ],
             );
             *CANCEL_ON_SAMPLE.lock().unwrap() = Some(handle.clone());
-            handle.play();
-            let id = handle.owner.animation_id.lock().unwrap().unwrap();
-            {
+            // Another thread's pass would sample before the task is moved
+            // to its midpoint, and cancel it before `find` sees it.
+            without_other_passes(|| {
+                handle.play();
+                let id = handle.owner.animation_id.lock().unwrap().unwrap();
                 let mut tasks = RUNTIME.animations.write().unwrap();
                 let task = tasks.iter_mut().find(|task| task.id == id).unwrap();
                 task.duration = Duration::from_secs(100);
                 task.start_time = Instant::now() - Duration::from_secs(50);
-            }
+            });
             run_pass();
             assert_eq!(handle.value(), CancelOnSample(0.0));
             assert!(handle.owner.animation_id.lock().unwrap().is_none());
@@ -1385,21 +1387,21 @@ mod tests {
         let second = use_keyframes(&hooks, 2.0_f32, frames());
         first.seek(0.5);
         assert_eq!(first.value(), 6.0);
-        // No pass may deliver a frame to `first` between play and stop.
-        without_other_passes(|| {
+        // No pass may deliver a frame to `first` between play and stop, or
+        // to `second` before its duration is cut to zero.
+        let second_id = without_other_passes(|| {
             first.play();
             second.play();
             first.stop();
-        });
-        let second_id = second.owner.animation_id.lock().unwrap().unwrap();
-        {
+            let second_id = second.owner.animation_id.lock().unwrap().unwrap();
             let mut tasks = RUNTIME.animations.write().unwrap();
             tasks
                 .iter_mut()
                 .find(|task| task.id == second_id)
                 .unwrap()
                 .duration = Duration::ZERO;
-        }
+            second_id
+        });
         run_pass();
         assert_eq!(first.value(), 6.0);
         assert_eq!(second.value(), 10.0);
@@ -1424,10 +1426,13 @@ mod tests {
                 Keyframe::new(1.0).number("x", 10.0),
             ],
         );
-        handle.play();
-        handle.seek(0.5);
-        drop(hooks);
-        // Other runtime users may have delivered a frame before cleanup.
+        // No other thread's pass may deliver a frame between play and the
+        // drop, or after it from a pass begun before it.
+        without_other_passes(|| {
+            handle.play();
+            handle.seek(0.5);
+            drop(hooks);
+        });
         let retained = handle.value();
         assert!(handle.owner.animation_id.lock().unwrap().is_none());
         handle.play();
@@ -1473,9 +1478,14 @@ mod tests {
                 Keyframe::new(1.0).number("x", 10.0),
             ],
         );
-        handle.play();
-        let id = handle.owner.animation_id.lock().unwrap().unwrap();
-        hooks.cleanup();
+        // No other thread's pass may deliver a frame between play and
+        // cleanup, or after it from a pass begun before it.
+        let id = without_other_passes(|| {
+            handle.play();
+            let id = handle.owner.animation_id.lock().unwrap().unwrap();
+            hooks.cleanup();
+            id
+        });
         assert!(!RUNTIME
             .animations
             .read()
