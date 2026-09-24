@@ -190,11 +190,13 @@ mod tests {
             processor.process_event(&move_event, Some("test_component"));
         }
 
+        // Four points over 15 cells within 500 ms: the processor detects a
+        // swipe from 3 points and 5 cells of travel.
         let state = gesture.get();
-        // Gesture detection requires sufficient movement
-        if let GestureType::Swipe(direction) = state.gesture_type {
-            assert_eq!(direction, SwipeDirection::Right);
-        }
+        assert_eq!(
+            state.gesture_type,
+            GestureType::Swipe(SwipeDirection::Right)
+        );
     }
 
     #[test]

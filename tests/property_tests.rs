@@ -23,14 +23,13 @@ proptest! {
     ) {
         let mut surface = Surface::new(width, height);
 
-        // Only test within bounds
-        if x < width && y < height {
-            // Writing within bounds should never panic
-            surface.write_str(x, y, &text, Rgba::white(), Rgba::black(), Attr::empty());
+        // Only positions within bounds; proptest draws others again.
+        prop_assume!(x < width && y < height);
+        // Writing within bounds should never panic
+        surface.write_str(x, y, &text, Rgba::white(), Rgba::black(), Attr::empty());
 
-            // Surface dimensions should remain unchanged
-            assert_eq!(surface.dims(), (width, height));
-        }
+        // Surface dimensions should remain unchanged
+        assert_eq!(surface.dims(), (width, height));
     }
 
     #[test]

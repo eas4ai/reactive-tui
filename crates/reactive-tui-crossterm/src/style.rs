@@ -545,6 +545,7 @@ mod tests {
             #[cfg(windows)]
             {
                 if crate::ansi_support::supports_ansi() {
+                    eprintln!("SKIP: this Windows console supports ANSI, which ignores TERM and COLORTERM");
                     return;
                 }
             }
@@ -558,7 +559,9 @@ mod tests {
         // but downlevel Windows clients and other terminals may fail `cargo test` otherwise.
         if crate::ansi_support::supports_ansi() {
             assert_eq!(u16::MAX, available_color_count());
-        };
+        } else {
+            eprintln!("SKIP: this Windows console does not support ANSI");
+        }
     }
 
     #[test]
