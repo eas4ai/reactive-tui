@@ -100,6 +100,9 @@ pub mod vdom;
 /// Comprehensive widget library including dialogs, inputs, and displays
 pub mod widgets;
 
+#[cfg(test)]
+mod gate_proof;
+
 // Re-export commonly used types
 pub use error::{ReactiveError, Result};
 
