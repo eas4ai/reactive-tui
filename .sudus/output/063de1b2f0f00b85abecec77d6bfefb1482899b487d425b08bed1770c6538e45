@@ -1,5 +1,0 @@
-$ cargo test --locked --jobs 8 --test present_pipeline -- pip_001_
-cairn: PIP-001: fail
-  PIP-001 reason: present_pipeline did not run: error: no test target named `present_pipeline` in default-run packages
-cairn: PIP-002: fail
-  PIP-002 reason: manual still says the App keeps geometry until a frame is presented successfully

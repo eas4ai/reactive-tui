@@ -1,5 +1,0 @@
-$ cargo test --locked --jobs 8 --test charts_contract -- cht_011_
-cairn: CHT-010: pass
-  CHT-010 reason: plot layer present and used by every renderer
-cairn: CHT-011: pass
-  CHT-011 reason: band padding, zero inclusion and zero baseline hold

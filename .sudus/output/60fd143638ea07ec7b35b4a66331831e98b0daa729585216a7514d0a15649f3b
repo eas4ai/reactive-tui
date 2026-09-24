@@ -1,6 +1,0 @@
-$ cargo test --locked --jobs 8 --test charts_contract -- cht_021_
-$ cargo test --locked --jobs 8 --test charts_contract -- bar_005_
-cairn: CHT-021: fail
-  CHT-021 reason: a chart with no explicit size must fill a 140-column parent, painted 80 columns
-cairn: BAR-005: fail
-  BAR-005 reason: App painted 4 frames but input needs Some((12, [])) before the deadline. Last frame:; fewer than 12 frames painted inside the harness's 3 s deadline at 700x200: main-loop frame time exceeds 16.6 ms by more than an order of magnitude

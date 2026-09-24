@@ -1,3 +1,0 @@
-$ cargo test --locked --jobs 8 --test charts_contract -- cht_022_
-cairn: CHT-022: fail
-  CHT-022 reason: frame 2 dropped to 0 blocks, below the previous rendering (210): the transition restarted from zero instead of moving from the old values

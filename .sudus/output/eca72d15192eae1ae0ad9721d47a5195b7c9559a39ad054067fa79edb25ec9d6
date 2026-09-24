@@ -1,9 +1,0 @@
-$ cargo test --locked --jobs 8 --test painter_hit -- pnt_001_
-$ cargo test --locked --jobs 8 --test painter_hit -- pnt_004_
-$ cargo test --locked --jobs 8 --test painter_hit -- pnt_002_
-cairn: PNT-001: pass
-  PNT-001 reason: 2 passed
-cairn: PNT-004: pass
-  PNT-004 reason: 1 passed
-cairn: PNT-002: pass
-  PNT-002 reason: 4 passed

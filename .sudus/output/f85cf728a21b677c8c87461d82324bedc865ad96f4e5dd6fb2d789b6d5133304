@@ -1,9 +1,0 @@
-$ cargo test --locked --jobs 8 --test painter_hit -- pnt_001_
-$ cargo test --locked --jobs 8 --test painter_hit -- pnt_004_
-$ cargo test --locked --jobs 8 --test painter_hit -- pnt_002_
-cairn: PNT-001: fail
-  PNT-001 reason: assertion `left == right` failed: styled_layout: an identity node took the per-cell inverse path
-cairn: PNT-004: fail
-  PNT-004 reason: assertion `left == right` failed: an unchanged spec must reuse the layout and run none
-cairn: PNT-002: fail
-  PNT-002 reason: assertion `left == right` failed: the cell painted by the higher sibling must hit it; assertion `left == right` failed: a click on the button's text must reach it

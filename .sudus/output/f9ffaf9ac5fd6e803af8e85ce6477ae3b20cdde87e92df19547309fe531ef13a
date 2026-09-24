@@ -1,2 +1,0 @@
-BAR-007 violated: references to paths git does not track:
-  manual/images-and-clipboard.md: ../src/missing.rs (resolves to src/missing.rs)

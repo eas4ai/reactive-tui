@@ -1,6 +1,0 @@
-$ cargo build --locked --workspace --jobs 8
-$ cargo fmt --all -- --check
-$ cargo clippy --locked --workspace --all-targets --jobs 8 -- -D warnings
-$ cargo doc --locked --workspace --no-deps --jobs 8
-$ cargo test --locked --workspace --no-fail-fast --jobs 8
-BAR-001 holds: all five gates pass

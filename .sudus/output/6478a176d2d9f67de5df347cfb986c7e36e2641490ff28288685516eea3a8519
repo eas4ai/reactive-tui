@@ -1,5 +1,0 @@
-$ cargo test --locked --jobs 8 --test plot_layer_contract -- cht_011_
-cairn: CHT-010: fail
-  CHT-010 reason: no plot layer directory (src/widgets/display/charts/plot or src/plot); local scale arithmetic at src/widgets/display/charts/live/canvas.rs:193
-cairn: CHT-011: fail
-  CHT-011 reason: no ScaleBand with padding_inner/padding_outer; plot_layer_contract did not run: error: no test target named `plot_layer_contract` in default-run packages

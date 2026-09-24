@@ -1,3 +1,0 @@
-$ cargo test --locked --jobs 8 --test charts_contract -- cht_022_
-cairn: CHT-022: pass
-  CHT-022 reason: 1 passed

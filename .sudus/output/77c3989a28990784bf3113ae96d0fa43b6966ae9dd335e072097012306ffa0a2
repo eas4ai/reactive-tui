@@ -1,7 +1,0 @@
-$ cargo test --locked --jobs 8 -p reactive-tui-suprtui --test blitters -- blt_001_
-$ cargo test --locked --jobs 8 -p reactive-tui-suprtui --test blitters -- blt_002_
-$ cargo test --locked --jobs 8 -p reactive-tui --lib -- blt_002_
-cairn: BLT-001: fail
-  BLT-001 reason: crate: assertion `left == right` failed: Octant; Braille [[255, 0, 0, 255], [0, 0, 255, 255], [255, 0, 0, 255], [0, 0, 255, 255], [255, 0, 0, 255], [0, 0, 255, 255], [255, 0, 0, 255], [0, 0, 255, 255]]: chose 0b0 with error 260100, a split has 0
-cairn: BLT-002: fail
-  BLT-002 reason: crate: 3 passed; application: Braille chosen, the widget drew: []

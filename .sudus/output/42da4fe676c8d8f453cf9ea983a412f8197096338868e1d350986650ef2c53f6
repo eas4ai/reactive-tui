@@ -1,6 +1,0 @@
-$ cargo test --locked --jobs 8 --test charts_contract --release -- cht_021_
-$ cargo test --locked --jobs 8 --test charts_contract --release -- bar_005_
-cairn: CHT-021: pass
-  CHT-021 reason: 1 passed
-cairn: BAR-005: pass
-  BAR-005 reason: 2 passed

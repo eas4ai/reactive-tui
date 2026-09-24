@@ -1,2 +1,0 @@
-BAR-007 violated: references to paths git does not track:
-  CONTRIBUTING.md: scripts/no-such-file.py

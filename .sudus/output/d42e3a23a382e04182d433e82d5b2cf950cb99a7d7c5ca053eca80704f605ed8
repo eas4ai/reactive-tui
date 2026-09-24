@@ -1,5 +1,0 @@
-$ cargo test --locked --jobs 8 --test charts_contract -- bar_003_
-$ cargo test --locked --jobs 8 --test api_widget_behavior -- bar_003_
-$ cargo test --locked --jobs 8 -p reactive-tui --lib -- bar_003_
-cairn: BAR-003: pass
-  BAR-003 reason: charts and image: 2 passed
