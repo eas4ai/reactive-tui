@@ -1043,9 +1043,11 @@ mod tests {
 
         popover.set_trigger_rect(rect);
 
-        if let Ok(state) = popover.state.lock() {
-            assert_eq!(state.trigger_rect, rect);
-        };
+        let state = popover
+            .state
+            .lock()
+            .expect("the popover state lock is not poisoned");
+        assert_eq!(state.trigger_rect, rect);
     }
 
     #[test]
