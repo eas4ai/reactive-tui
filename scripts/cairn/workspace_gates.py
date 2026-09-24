@@ -10,7 +10,9 @@ exits zero actually ran:
   print any result, or a replacement or wrapper for rustc or rustdoc.
   Cargo reads .cargo/config.toml (and .cargo/config) in the checkout, in
   every directory above it and in CARGO_HOME; the mechanism's identity
-  hashes the same files. The environment the gates run in keeps none of
+  hashes the same files. A file that includes another (`include`) is
+  refused too, since cargo would apply settings from a file neither this
+  check nor the identity reads. The environment the gates run in keeps none of
   the variables that set these (see _common.ENV_KEEP).
 - cargo test must print a result for every test binary and doc-test run it
   starts (the harness = false targets in Cargo.toml print their own
@@ -135,7 +137,8 @@ def cargo_config_files() -> list[Path]:
 
 def substitutes(files: list[Path]) -> list[str]:
     """The settings in `files` that let something other than cargo's own
-    build and test stand in for them."""
+    build and test stand in for them, or that load settings from a file
+    not in `files`."""
     found = []
     for path in files:
         try:
@@ -149,6 +152,8 @@ def substitutes(files: list[Path]) -> list[str]:
                 found.append(f"{path} sets target.{name}.runner")
         build = config.get("build") if isinstance(config.get("build"), dict) else {}
         found += [f"{path} sets build.{key}" for key in SUBSTITUTE_BUILD_KEYS if build.get(key)]
+        if "include" in config:
+            found.append(f"{path} sets include, which applies settings from files this check does not read")
     return found
 
 
