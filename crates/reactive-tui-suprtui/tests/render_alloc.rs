@@ -194,6 +194,17 @@ fn ras_007_hit_grid_is_lazy_and_the_next_buffer_is_cleared_once() {
     assert!(!r.hit_grid_allocated(), "no hit write, yet a grid exists");
     assert_eq!(0, r.check_hit(1, 1));
 
+    // The renderer never clears the next buffer; the painter does, once
+    // per frame, before it paints.
+    let clears = r.next_buffer().clear_count();
+    fill(&mut r, 40, 10, 2);
+    assert_eq!(RenderStatus::Rendered, r.render(false));
+    assert_eq!(
+        clears,
+        r.next_buffer().clear_count(),
+        "render cleared the next buffer"
+    );
+
     let before = allocations();
     r.add_to_hit_grid(0, 0, 4, 2, 7);
     assert!(

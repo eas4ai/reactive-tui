@@ -149,3 +149,30 @@ impl CellFrame {
         Ok(())
     }
 }
+
+/// RAS-007: painting a cell frame clears the next buffer exactly once.
+#[cfg(test)]
+mod ras_007_tests {
+    use super::*;
+    use ::suprtui::{buffer::InitOptions, uni::pool::GraphemePool};
+    use std::{cell::RefCell, rc::Rc};
+
+    #[test]
+    fn ras_007_painting_a_cell_frame_clears_the_next_buffer_once() {
+        let cell = |text: &str| FrameCell {
+            text: text.into(),
+            width: 1,
+            foreground: [200, 200, 200],
+            background: [0, 0, 40],
+            attributes: 0,
+            decoration: CellDecoration::default(),
+        };
+        let frame = CellFrame::new(2, 1, vec![cell("a"), cell("b")], None).unwrap();
+        let pool = Rc::new(RefCell::new(GraphemePool::new()));
+        let mut buffer = OptimizedBuffer::new(2, 1, InitOptions::new(pool)).unwrap();
+        for painted in 1..=2 {
+            frame.paint(&mut buffer).unwrap();
+            assert_eq!(buffer.clear_count(), painted);
+        }
+    }
+}

@@ -945,3 +945,32 @@ fn paint_cells(
     }
     Ok(())
 }
+
+/// RAS-007: painting a frame clears the next buffer exactly once, whether
+/// the layout is computed or reused.
+#[cfg(test)]
+mod ras_007_tests {
+    use super::*;
+    use ::suprtui::{buffer::InitOptions, uni::pool::GraphemePool};
+    use std::{cell::RefCell, rc::Rc};
+
+    #[test]
+    fn ras_007_painting_a_frame_clears_the_next_buffer_once() {
+        let pool = Rc::new(RefCell::new(GraphemePool::new()));
+        let mut buffer = OptimizedBuffer::new(20, 4, InitOptions::new(pool)).unwrap();
+        let mut hits = vec![0; 20 * 4];
+        let mut cache = LayoutCache::default();
+        let element = crate::component::Element::text("painted").with_class("w-full h-1");
+        for frame in 1..=3 {
+            paint_frame(
+                crate::component::bridge::element_to_paintspec(&element).unwrap(),
+                &mut buffer,
+                &mut hits,
+                &mut cache,
+                crate::backend::ImageOutputOptions::default(),
+            )
+            .unwrap();
+            assert_eq!(buffer.clear_count(), frame, "frame {frame}");
+        }
+    }
+}
