@@ -291,6 +291,50 @@ fn recursive_expansion_fails_with_a_bounded_error() {
     );
 }
 
+/// The depth bound is reached within a 1.5 MiB stack, well under a test
+/// thread's 2 MiB: each expansion level stays small enough that a build with
+/// larger elements, such as one with the embedded-terminal feature, still
+/// fits. The expansion runs in a child process, so a stack overflow, which
+/// aborts the process, fails this test instead of ending the whole run.
+#[test]
+fn recursive_expansion_reaches_its_bound_within_a_small_stack() {
+    const CHILD: &str = "RTUI_EXPANSION_STACK_CHILD";
+    const NAME: &str = "recursive_expansion_reaches_its_bound_within_a_small_stack";
+    if std::env::var_os(CHILD).is_some() {
+        let bounded = std::thread::Builder::new()
+            .stack_size(1536 * 1024)
+            .spawn(|| {
+                register();
+                run_frames(vec![Element::component("ApiExpansionRecursive")])
+                    .0
+                    .is_err()
+            })
+            .unwrap()
+            .join()
+            .unwrap();
+        assert!(bounded, "recursive component output must be bounded");
+        return;
+    }
+    let output = std::process::Command::new(std::env::current_exe().unwrap())
+        .args(["--exact", NAME, "--nocapture", "--test-threads=1"])
+        .env(CHILD, "1")
+        .output()
+        .unwrap();
+    let text = format!(
+        "{}{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(
+        output.status.success(),
+        "expansion to its depth bound does not fit a 1.5 MiB stack: {text}"
+    );
+    assert!(
+        text.contains("1 passed"),
+        "the child ran no expansion: {text}"
+    );
+}
+
 #[test]
 #[serial_test::serial]
 fn replacing_component_type_at_a_key_releases_old_state() {
