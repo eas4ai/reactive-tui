@@ -9,7 +9,8 @@ import re
 import sys
 import unicodedata
 
-from _common import ROOT, cargo_test_filtered, finish, rust_sources, strip_test_modules
+from _common import (ROOT, cargo_test_filtered, enclosing_block, finish, mask, matching, rust_sources,
+                     statement_start, strip_test_modules)
 from catalog_manual import chart_docs_problems
 
 SNAP = ROOT / "tests/snapshots/charts"
@@ -20,15 +21,55 @@ SIZES = {"mini": (20, 5), "medium": (80, 24), "large": (600, 160)}
 IMAGE_GOLDENS = ("image_medium", "image_wide")
 
 
+GOLDEN_TESTS = ("tests/charts_goldens.rs", "tests/api_widget_behavior/image.rs")
+# A write of a golden file, and the one condition allowed to guard it.
+WRITE = re.compile(r"\b(?:fs::write|File::create|OpenOptions::new)\b")
+GUARD = re.compile(r'^\s*if\s+(?:std::)?env::var\(\s*"REGENERATE"\s*\)\s*\.as_deref\(\)\s*==\s*Ok\(\s*"1"\s*\)\s*$')
+ASSERTS = re.compile(r"\bassert(?:_eq|_ne)?!|\bpanic!")
+FN = re.compile(r"\bfn\s+\w+")
+
+
+def regeneration_problems(src: str) -> list[str]:
+    """BAR-004: the golden test in `src` compares unless REGENERATE=1 is
+    set. Read as code, with comments removed, every write of a file sits in
+    a block guarded by exactly `if std::env::var("REGENERATE").as_deref() ==
+    Ok("1")`, and the function that writes also asserts outside that block.
+    A guard quoted in a comment, or a condition that adds `|| true`, does
+    not count."""
+    path = ROOT / src
+    if not path.is_file():
+        return [f"no golden test file {src}"]
+    text = path.read_text(errors="replace")
+    code, prose = mask(text)
+    problems = []
+    writes = list(WRITE.finditer(code))
+    if not writes:
+        return [f"{src} writes no golden, so REGENERATE=1 cannot refresh one"]
+    for write in writes:
+        line = code.count("\n", 0, write.start()) + 1
+        block = enclosing_block(code, write.start())
+        start = statement_start(code, block)
+        if not GUARD.match(prose[start:block]):
+            problems.append(f"{src}:{line} writes a golden outside a REGENERATE == \"1\" guard")
+            continue
+        fn = [m for m in FN.finditer(code, 0, start)]
+        opening = code.find("{", fn[-1].end()) if fn else -1
+        if opening < 0:
+            problems.append(f"{src}:{line} writes a golden outside a function")
+            continue
+        outside = code[opening:start] + code[matching(code, block):matching(code, opening)]
+        if not ASSERTS.search(outside):
+            problems.append(f"{src}:{line} regenerates in a function that compares nothing")
+    return problems
+
+
 def golden_problems() -> list[str]:
     problems = []
     for kind in TYPES:
         for cls in SIZES:
             if not (SNAP / f"{kind}_{cls}.ansi").is_file():
                 problems.append(f"missing golden {kind}_{cls}.ansi")
-    src = (ROOT / "tests/charts_goldens.rs")
-    if src.is_file() and re.search(r'REGENERATE.*==\s*Ok\("1"\)', src.read_text()) is None:
-        problems.append("golden test lacks the REGENERATE=1 opt-in guard")
+    problems.extend(regeneration_problems("tests/charts_goldens.rs"))
     return problems
 
 
@@ -71,8 +112,7 @@ def wide_problems() -> list[str]:
             problems.append(f"no {test} golden test in {src}")
         elif "on_debug(" not in body.group(1):
             problems.append(f"the {test} golden test does not render on the debug backend")
-        elif not re.search(r'REGENERATE.*==\s*Ok\("1"\)', body.group(1) + text):
-            problems.append(f"the {test} golden test lacks the REGENERATE=1 opt-in guard")
+    problems.extend(regeneration_problems("tests/api_widget_behavior/image.rs"))
     return problems
 
 

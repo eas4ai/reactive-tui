@@ -153,6 +153,35 @@ def matching(code: str, i: int) -> int:
     return j
 
 
+def enclosing_block(body: str, at: int) -> int:
+    """Offset of the `{` of the innermost block of `body` that contains `at`."""
+    depth = 0
+    for k in range(at - 1, -1, -1):
+        if body[k] == "}":
+            depth += 1
+        elif body[k] == "{":
+            if depth == 0:
+                return k
+            depth -= 1
+    return 0
+
+
+def statement_start(body: str, block: int) -> int:
+    """Offset where the statement that owns the `{` at `block` begins: its
+    `if`, `match` arm, `let ... else` or `else`, so a gate's condition is read
+    with the block it guards."""
+    depth = 0
+    for k in range(block - 1, -1, -1):
+        c = body[k]
+        if depth == 0 and c in ";}{([":
+            return k + 1
+        if c in ")]}":
+            depth += 1
+        elif c in "([{":
+            depth -= 1
+    return 0
+
+
 def strip_test_modules(text: str) -> str:
     """Blank every item under #[cfg(test)] or #[cfg(all(test, ...))], a
     module, function, impl or use, so probes see production code only.
