@@ -268,6 +268,7 @@ pub(crate) fn paint_frame(
     image_options: crate::backend::ImageOutputOptions,
 ) -> Result<crate::backend::PresentedGeometry> {
     target.clear(ansi::rgb_color(0, 0, 0, 255), None);
+    target.clear(ansi::rgb_color(0, 0, 0, 255), None);
     let size = (target.width(), target.height());
     let reused = lay_out(spec, size, cache)?;
     let spec = cache.spec.as_ref().expect("lay_out stores the spec");

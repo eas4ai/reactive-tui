@@ -219,7 +219,7 @@ fn render_cells(
                 pixels,
                 &request.image,
                 (width, height),
-                super::super::image_blitter(),
+                crate::widgets::display::Blitter::Quadrant,
             )?;
             return Ok(Some(super::Cells::Blitted(Arc::new(grid))));
         }
