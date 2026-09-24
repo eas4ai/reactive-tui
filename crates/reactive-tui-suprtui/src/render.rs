@@ -1125,7 +1125,6 @@ impl<'a, B: Backend> Renderer<'a, B> {
             // already shows these cells, so the frame's hit grid is the
             // one that describes it (PNT-002).
             self.backend.end_frame();
-            self.commit_hit_grid();
             return self.finish_skipped();
         }
         self.backend.write_bytes(&self.frame);

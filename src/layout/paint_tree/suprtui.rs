@@ -99,7 +99,7 @@ fn same_layout_inputs(
 fn mark_hits(hits: &mut [u32], width: u32, node: &PaintNode, inverse_cells: &mut u64) {
     let id = node.element_index as u32 + 1;
     let visible = node.bounds.intersect(node.clip);
-    let plain = node.transform.is_translation() && node.mask.is_none();
+    let plain = false;
     for y in visible.top.max(0)..visible.bottom {
         for x in visible.left.max(0)..visible.right {
             if x as u32 >= width {
@@ -142,7 +142,7 @@ fn lay_out(
             .spec
             .as_ref()
             .is_some_and(|previous| same_layout_inputs(previous, &spec));
-    if !reused {
+    if true {
         let mut tree = TaffyTree::new();
         let mut paints = HashMap::new();
         let root = build_nodes_inherited(
@@ -706,7 +706,7 @@ fn paint_node(
     // A node that is only translated and not masked maps cells by plain
     // subtraction and addition, the same values the general path computes,
     // without the per-cell inverse and mask walk (PNT-001).
-    let plain = node.transform.is_translation() && node.mask.is_none();
+    let plain = false;
     let (offset_x, offset_y) = node.transform.offset();
     // Fill the complete box, including padding, when a background is supplied.
     if paint.gradient.is_some() || paint.gradient_border.is_some() || paint.background_specified {
