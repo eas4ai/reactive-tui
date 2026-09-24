@@ -6,6 +6,7 @@ did not change. `--range` limits the scan to files changed since --base/$CAIRN_B
 """
 
 import os
+import posixpath
 import re
 import subprocess
 import sys
@@ -14,7 +15,10 @@ from pathlib import Path
 from _common import ROOT, tracked_files
 
 TOP = "docs|scripts|tests|src|manual|include|examples|crates|verification|benches|bindings|\\.github"
-PATH_RE = re.compile(rf"(?<![A-Za-z0-9_./-])(?:\.\./|\./)*((?:{TOP})/[A-Za-z0-9_./-]+)")
+# The leading ./ and ../ segments are captured: a reference that climbs out
+# of its file's directory is resolved from that directory, as a markdown
+# link or an include path is, so a link of the wrong depth is caught.
+PATH_RE = re.compile(rf"(?<![A-Za-z0-9_./-])((?:\.\./|\./)*)((?:{TOP})/[A-Za-z0-9_./-]+)")
 # Dated reports and recorded inventories cite paths as they were (the ABI
 # baselines list retired modules on purpose), and the contract names paths it
 # requires to exist later; none of these is a live link.
@@ -71,8 +75,14 @@ def dangling(path: Path, tracked: set[str], dirs: set[str]) -> list[str]:
     roots = package_roots(path, tracked)
     bad = []
     for m in PATH_RE.finditer(text):
-        ref = m.group(1).rstrip(".,:;)")
+        climb, ref = m.group(1), m.group(2).rstrip(".,:;)")
         if "*" in ref or "{" in ref or ref.endswith("/"):
+            continue
+        if "../" in climb:
+            target = posixpath.normpath(posixpath.join(posixpath.dirname(rel(path)), climb + ref))
+            if not target.startswith("../") and exists(target, tracked, dirs):
+                continue
+            bad.append(f"{rel(path)}: {climb}{ref} (resolves to {target})")
             continue
         if exists(ref, tracked, dirs) or any(exists(f"{root}/{ref}", tracked, dirs) for root in roots):
             continue
@@ -98,7 +108,7 @@ def main() -> int:
         for b in bad:
             print("  " + b)
         return 1
-    print(f"BAR-007 holds: {len(targets)} changed files scanned")
+    print(f"BAR-007 holds: {len(targets)} files scanned")
     return 0
 
 
