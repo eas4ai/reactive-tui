@@ -192,9 +192,14 @@ fn pip_002_flush_failure_is_reported_next_and_forces_a_full_repaint() {
         4,
         "the frame after a failure must repaint every row: {text:?}"
     );
+    // The repainted frame's geometry is the one a fresh backend reports for
+    // the same frame.
+    let mut fresh = SuprTuiBackend::with_writer(16, 4, Writer::default()).unwrap();
+    show(&mut fresh, &frame("third"));
     assert_eq!(
-        format!("{:?}", backend.painted_nodes().unwrap()).contains("third"),
-        format!("{:?}", backend.painted_nodes().unwrap()).contains("third")
+        format!("{:?}", backend.painted_nodes().unwrap()),
+        format!("{:?}", fresh.painted_nodes().unwrap()),
+        "after the repaint the geometry is the repainted frame's"
     );
 
     out.set_fail_flush(true);
