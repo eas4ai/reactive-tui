@@ -163,7 +163,7 @@ def require_marker(text, marker):
 class Check:
     def __init__(self):
         stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
-        self.output = ROOT / ".cairn/reviews/api-residual" / stamp
+        self.output = ROOT / "target/evidence/api-residual" / stamp
         self.output.mkdir(parents=True)
         self.execute = runpy.run_path(str(ROOT / "scripts/check-widget-platforms.py"))["execute"]
         self.steps = []

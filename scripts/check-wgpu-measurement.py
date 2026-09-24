@@ -107,7 +107,7 @@ def main():
         print("RUN", " ".join(command), flush=True)
         subprocess.run(command, cwd=ROOT, check=True, timeout=1200)
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
-    destination = ROOT / ".cairn/evidence/captures/wgpu" / f"{stamp}-{os.getpid()}"
+    destination = ROOT / "target/evidence/captures/wgpu" / f"{stamp}-{os.getpid()}"
     spec = importlib.util.spec_from_file_location("wgpu_host", ROOT / "scripts/check-wgpu-host.py")
     host = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(host)

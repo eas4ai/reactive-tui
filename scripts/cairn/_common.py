@@ -39,9 +39,12 @@ def run(cmd: list[str], timeout: int = 1800, env: dict | None = None, *, interle
 
 def tracked_files() -> set[str]:
     """Paths git tracks; without a repository (an adversary projection has no
-    .git) every file in the tree except build output and ignored caches. A
-    repository with no git on PATH ends the check with a message: its
-    tracked files cannot be told from untracked ones."""
+    .git) every file in the tree except build output, ignored caches and the
+    Sudus run output, which a repository ignores (through the output
+    directory's own tracked .gitignore) while it tracks the mechanism
+    definitions beside it. A repository with no git on PATH ends
+    the check with a message: its tracked files cannot be told from
+    untracked ones."""
     try:
         out = subprocess.run(["git", "ls-files", "-z"], cwd=ROOT, capture_output=True)
     except FileNotFoundError:
@@ -50,11 +53,13 @@ def tracked_files() -> set[str]:
         out = None
     if out is not None and out.returncode == 0:
         return {p.decode() for p in out.stdout.split(b"\0") if p}
-    skip = {".git", "target", "node_modules", "__pycache__", ".sudus", ".cairn"}
+    skip = {".git", "target", "node_modules", "__pycache__"}
+    run_output = (".sudus/output/", ".cairn/output/")
     found = set()
     for path in ROOT.rglob("*"):
         rel = path.relative_to(ROOT)
-        if not path.is_file() or any(part in skip for part in rel.parts):
+        if (not path.is_file() or any(part in skip for part in rel.parts)
+                or (rel.as_posix().startswith(run_output) and path.name != ".gitignore")):
             continue
         found.add(str(rel))
     return found

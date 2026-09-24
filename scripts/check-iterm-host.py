@@ -299,5 +299,5 @@ if __name__ == "__main__":
                         help="Run the retained strict color diagnostic; iTerm 3.7 is known to fail")
     parser.add_argument("--executable", type=Path, help="Cargo-reported image_host_probe executable")
     parser.add_argument("--archive", type=Path, help="Optional local archive; pinned SHA-256 is always required")
-    parser.add_argument("--output", default=".cairn/reviews/widget-platforms/darwin/iterm-host")
+    parser.add_argument("--output", default="target/evidence/widget-platforms/darwin/iterm-host")
     run(parser.parse_args())

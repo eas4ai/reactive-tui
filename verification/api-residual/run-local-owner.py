@@ -7,7 +7,7 @@ import runpy
 root = Path(__file__).resolve().parents[2]
 os.chdir(root)
 os.environ.update(CARGO_BUILD_JOBS='12', RUST_TEST_THREADS='12', CARGO_TARGET_DIR=str(root / 'target'))
-output = root / '.cairn/reviews/api-019-local-scope-consumer' / datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S%fZ')
+output = root / 'target/evidence/api-019-local-scope-consumer' / datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S%fZ')
 output.mkdir(parents=True)
 execute = runpy.run_path(str(root / 'scripts/check-widget-platforms.py'))['execute']
 command = ['rustc', '--edition=2021', 'verification/api-residual/local-owner.rs',

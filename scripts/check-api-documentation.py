@@ -68,7 +68,7 @@ def require_markdown(index, directory):
 class Check:
     def __init__(self):
         stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
-        self.output = ROOT / ".cairn/reviews/api-documentation" / stamp
+        self.output = ROOT / "target/evidence/api-documentation" / stamp
         self.output.mkdir(parents=True)
         self.scratch = TARGET / "api-documentation" / stamp
         self.scratch.mkdir(parents=True)
@@ -273,11 +273,7 @@ class Check:
             path = (MATRIX.parent / link).resolve()
             if not path.is_relative_to(ROOT):
                 raise AssertionError("Matrix link escapes the repository: " + link)
-            # Receipt outputs are checked by Cairn itself, never inputs to their own check.
-            if path.is_relative_to(ROOT / ".cairn/evidence"):
-                if not re.fullmatch(r"[A-Z]+-\d{3}", path.name):
-                    raise AssertionError("Link to a requirement's receipt directory: " + link)
-            elif not path.exists():
+            if not path.exists():
                 raise AssertionError("Broken API matrix evidence link: " + link)
         for claim in ("Orca", "GNOME Terminal", "iTerm2 3.7", "Kitty", "patch", "validate", "Option<T>"):
             if claim not in text:

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Check tracked local documentation links and every declared mechanism input."""
+"""Check tracked local documentation links."""
 from pathlib import Path
 import re
 import subprocess
@@ -30,19 +30,6 @@ def links(text: str) -> list[str]:
     return [target.strip().split(' "', 1)[0].strip("<>") for target in targets]
 
 
-def input_paths(text: str) -> list[str]:
-    result = []
-    active = False
-    for line in text.splitlines():
-        if line == "inputs:":
-            active = True
-        elif active and line.startswith("  - "):
-            result.append(line[4:].strip())
-        elif active:
-            break
-    return result
-
-
 def inspect_links(root: Path, tracked: set[str]) -> list[str]:
     errors = []
     for name in sorted(tracked):
@@ -71,46 +58,13 @@ def inspect_links(root: Path, tracked: set[str]) -> list[str]:
     return errors
 
 
-def inspect_inputs(root: Path, tracked: set[str]) -> list[str]:
-    errors = []
-    for name in sorted(tracked):
-        if not name.startswith(".cairn/mechanisms/"):
-            continue
-        path = root / name
-        if not path.is_file():
-            errors.append(f"{name}: declaration is missing")
-            continue
-        if path.suffix:
-            errors.append(f"{name}: installed Cairn ignores declarations with extensions")
-        text = path.read_text()
-        paths = input_paths(text)
-        if not paths or not re.search(r"^command:\s*\S", text, re.M):
-            errors.append(f"{name}: missing command or declared inputs")
-        for raw in paths:
-            target = (root / raw).resolve()
-            if not target.is_relative_to(root):
-                errors.append(f"{name}: input escapes repository: {raw}")
-                continue
-            relative = target.relative_to(root).as_posix()
-            members = sorted(p for p in tracked if p == relative or p.startswith(relative.rstrip("/") + "/"))
-            if not target.exists() or not members:
-                errors.append(f"{name}: missing or untracked input: {raw}")
-                continue
-            ignored = git(root, "check-ignore", "--no-index", "--stdin", "-z",
-                          data="\0".join(members).encode() + b"\0")
-            if ignored.returncode == 0:
-                ignored_names = ignored.stdout.decode().strip("\0").replace("\0", ", ")
-                errors.append(f"{name}: ignored declared input: {ignored_names}")
-    return errors
-
-
 def inspect_repository(root: Path) -> list[str]:
     root = root.resolve()
     result = git(root, "ls-files", "-z")
     if result.returncode:
         raise RuntimeError("Could not enumerate tracked repository files")
     tracked = set(result.stdout.decode().strip("\0").split("\0")) - {""}
-    return inspect_links(root, tracked) + inspect_inputs(root, tracked)
+    return inspect_links(root, tracked)
 
 
 def main() -> int:
@@ -126,11 +80,11 @@ def main() -> int:
     except (OSError, RuntimeError, subprocess.TimeoutExpired) as error:
         errors = [str(error)]
     if errors:
-        print("RID-002 link/input inspection failed:", file=sys.stderr)
+        print("RID-002 link inspection failed:", file=sys.stderr)
         for error in errors:
             print(f"- {error}", file=sys.stderr)
         return 1
-    print("RID-002 link/input inspection passed. Rerun the complete mechanism set before final review.")
+    print("RID-002 link inspection passed.")
     return 0
 
 

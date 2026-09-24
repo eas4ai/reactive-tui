@@ -17,7 +17,7 @@ CASES = {
     "pty": "REAL_PTY_NONBLOCKING_EXIT_AND_RESTORATION_PASSED",
 }
 stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
-output = ROOT / ".cairn/reviews/api-entry-points" / ("harness-" + stamp)
+output = ROOT / "target/evidence/api-entry-points" / ("harness-" + stamp)
 output.mkdir(parents=True)
 results = []
 for case, marker in CASES.items():

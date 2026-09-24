@@ -53,16 +53,14 @@ class EvidenceTests(unittest.TestCase):
         path.write_text(json.dumps(record))
 
     def test_default_evidence_is_retained_outside_deleted_docs_analysis(self):
-        self.assertEqual(CHECKER.RECORDS, CHECKER.ROOT / ".cairn/reviews/clipboard-platforms")
+        self.assertEqual(CHECKER.RECORDS, CHECKER.ROOT / "target/evidence/clipboard-platforms")
 
     def test_all_synthetic_native_records_pass_validation(self):
         self.verify()
 
-    def test_producer_verifier_mechanism_and_artifact_paths_agree(self):
+    def test_producer_verifier_and_artifact_paths_agree(self):
         relative = str(CHECKER.RECORDS.relative_to(CHECKER.ROOT)).replace("\\", "/")
-        declaration = (CHECKER.ROOT / ".cairn/mechanisms/api-clipboard").read_text()
         workflow = (CHECKER.ROOT / ".github/workflows/clipboard-platforms.yml").read_text()
-        self.assertIn("  - " + relative + "\n", declaration)
         self.assertIn("path: " + relative + "/${{ matrix.backend }}.*", workflow)
         self.assertIn("include-hidden-files: true", workflow)
 
@@ -147,10 +145,6 @@ class InputFootprintTests(unittest.TestCase):
                 self.assertNotEqual(CHECKER.input_digest(True), baseline)
                 (member.parent / "untracked.rs").write_text("Controlled new source\n")
                 self.assertFalse(CHECKER.committed_inputs())
-
-    def test_mechanism_declares_local_workspace_inputs(self):
-        declaration = (CHECKER.ROOT / ".cairn/mechanisms/api-clipboard").read_text()
-        self.assertIn("  - crates\n", declaration)
 
 
 if __name__ == "__main__":

@@ -10,7 +10,7 @@ if sys.platform != 'linux':
     raise SystemExit('This diagnostic requires Linux /proc and private PTYs')
 os.chdir(root)
 stamp = datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S%fZ')
-output = root / '.cairn/reviews/api-019-input-lifecycle' / stamp
+output = root / 'target/evidence/api-019-input-lifecycle' / stamp
 output.mkdir(parents=True)
 environment = {**os.environ, 'CARGO_TARGET_DIR': str(root / 'target'),
                'CARGO_INCREMENTAL': '0', 'CARGO_BUILD_JOBS': '8', 'RUST_TEST_THREADS': '8',
