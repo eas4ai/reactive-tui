@@ -4,6 +4,7 @@ use reactive_tui::error::ReactiveError;
 use std::alloc::{GlobalAlloc, Layout, System};
 use std::cell::Cell;
 use std::io::{self, Write};
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 
 /// Counts allocations per thread, so a test can measure what the calling
@@ -15,21 +16,33 @@ thread_local! {
     static ALLOCATIONS: Cell<usize> = const { Cell::new(0) };
 }
 
-fn count_allocation() {
+/// Length of every key in `pnt_003_a_present_copies_each_key_once_on_any_thread`.
+/// Nothing else here allocates a block of exactly this many bytes.
+const KEY_LEN: usize = 3_217;
+
+/// Blocks of `KEY_LEN` bytes allocated on any thread. A deep copy of an
+/// `Element` copies each key and painting never reads one, so this counts
+/// the copies the render worker makes as well as the caller's (PNT-003).
+static KEY_COPIES: AtomicUsize = AtomicUsize::new(0);
+
+fn count_allocation(size: usize) {
     // `try_with` fails only while the thread is being torn down.
     let _ = ALLOCATIONS.try_with(|n| n.set(n.get() + 1));
+    if size == KEY_LEN {
+        KEY_COPIES.fetch_add(1, Ordering::SeqCst);
+    }
 }
 
 unsafe impl GlobalAlloc for Counting {
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
-        count_allocation();
+        count_allocation(layout.size());
         unsafe { System.alloc(layout) }
     }
     unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
         unsafe { System.dealloc(ptr, layout) }
     }
     unsafe fn realloc(&self, ptr: *mut u8, layout: Layout, new_size: usize) -> *mut u8 {
-        count_allocation();
+        count_allocation(new_size);
         unsafe { System.realloc(ptr, layout, new_size) }
     }
 }
@@ -470,16 +483,11 @@ fn ras_007_a_smaller_frame_leaves_no_stale_cells() {
     );
 }
 
-/// PNT-003: one copy of the frame element per present. A cell grid the test
-/// holds a handle to gains one handle when the frame is staged; presenting
-/// adds at most the painter's retained layout spec (PNT-004), and repeated
-/// presents of the staged frame add nothing. The copy count itself is
-/// measured by `pnt_003_staging_and_presenting_copy_the_element_once`.
 /// PNT-003: staging a frame copies the element once and presenting sends
 /// the stored handle. A deep copy allocates for every node of the tree, so
 /// the calling thread's allocations are compared with one copy's: staging
-/// makes one copy, and presenting makes none, whatever the worker does on
-/// its own thread.
+/// makes one copy, and presenting makes none on the calling thread.
+/// `pnt_003_a_present_copies_each_key_once_on_any_thread` covers the worker.
 #[test]
 fn pnt_003_staging_and_presenting_copy_the_element_once() {
     let out = Capture::default();
@@ -514,6 +522,45 @@ fn pnt_003_staging_and_presenting_copy_the_element_once() {
     );
 }
 
+/// PNT-003 on every thread: each of 20 nodes carries a key of `KEY_LEN`
+/// bytes, so one deep copy of the frame allocates 20 such blocks wherever
+/// it is made. Staging and presenting one frame, render worker included,
+/// must make exactly one copy.
+#[test]
+fn pnt_003_a_present_copies_each_key_once_on_any_thread() {
+    let out = Capture::default();
+    let mut backend = SuprTuiBackend::with_writer(40, 24, out.clone()).unwrap();
+    let element = Element::layout(LayoutType::Flex)
+        .with_class("flex flex-col w-full h-full")
+        .with_children(
+            (0..20)
+                .map(|row| {
+                    Element::text(format!("row {row}"))
+                        .with_class("w-full h-1")
+                        .with_key(format!("{row:0>KEY_LEN$}"))
+                })
+                .collect(),
+        );
+    // One present first, so the backend's own buffers already exist.
+    assert!(backend.render_frame(&element).unwrap());
+    backend.present().unwrap();
+    backend.sync().unwrap();
+
+    let before = KEY_COPIES.load(Ordering::SeqCst);
+    assert!(backend.render_frame(&element).unwrap());
+    backend.present().unwrap();
+    backend.sync().unwrap();
+    let copies = KEY_COPIES.load(Ordering::SeqCst) - before;
+    assert_eq!(
+        20, copies,
+        "staging and presenting one frame made {copies} key copies; one Element copy makes 20"
+    );
+}
+
+/// PNT-003: one copy of the frame element per present. A cell grid the test
+/// holds a handle to gains one handle when the frame is staged; presenting
+/// adds at most the painter's retained layout spec (PNT-004), and repeated
+/// presents of the staged frame add nothing.
 #[test]
 fn pnt_003_present_sends_the_stored_frame_without_a_second_copy() {
     use reactive_tui::layout::paint_tree::cells::CellGrid;
