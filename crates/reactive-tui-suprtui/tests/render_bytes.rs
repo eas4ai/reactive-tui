@@ -317,51 +317,13 @@ fn best_of_three(mut run: impl FnMut() -> Duration) -> Duration {
     (0..3).map(|_| run()).min().unwrap()
 }
 
-/// Move the calling thread to the host's performance cores when it names
-/// them, as a hybrid Intel CPU does in `/sys/devices/cpu_core/cpus`, and
-/// say where it runs. RAS-005 bounds what a render costs; a thread placed
-/// on an efficiency core while other builds fill the performance cores
-/// measures that core instead. On the development host at load average 4.7
-/// an unchanged frame took 293 to 554 microseconds on the performance cores
-/// and 430 microseconds to 1.14 milliseconds on the efficiency cores. The
-/// frame is bound by memory reads, so no core choice shields it from other
-/// work's memory traffic: with eight memory-copy loops on the performance
-/// cores it took 4.4 milliseconds. A failure therefore names the load.
-#[cfg(target_os = "linux")]
-fn on_performance_cores() -> String {
-    unsafe extern "C" {
-        fn sched_setaffinity(pid: i32, size: usize, mask: *const u64) -> i32;
-    }
-    let Ok(list) = std::fs::read_to_string("/sys/devices/cpu_core/cpus") else {
-        return "any core".to_string();
-    };
-    let list = list.trim();
-    // A 1024-bit cpu_set_t, the size glibc and the kernel use.
-    let mut mask = [0u64; 16];
-    for part in list.split(',') {
-        let (first, last) = part.split_once('-').unwrap_or((part, part));
-        let (Ok(first), Ok(last)) = (first.parse::<usize>(), last.parse::<usize>()) else {
-            return "any core".to_string();
-        };
-        for cpu in first..=last.min(1023) {
-            mask[cpu / 64] |= 1 << (cpu % 64);
-        }
-    }
-    // SAFETY: `mask` is a live cpu_set_t of the size passed; pid 0 names
-    // the calling thread, and the call only reads the mask.
-    if unsafe { sched_setaffinity(0, std::mem::size_of_val(&mask), mask.as_ptr()) } == 0 {
-        format!("cores {list}")
-    } else {
-        "any core".to_string()
-    }
-}
-
-#[cfg(not(target_os = "linux"))]
-fn on_performance_cores() -> String {
-    "any core".to_string()
-}
-
 /// The host's one-minute load average, for a timing failure's message.
+/// The unchanged frame is bound by memory reads, so other builds on the
+/// host slow it: at load average 4.7 it took 293 to 554 microseconds on
+/// this host's performance cores and up to 1.14 milliseconds on its
+/// efficiency cores, and with eight memory-copy loops running it took
+/// 4.4 milliseconds. The test runs wherever the scheduler puts it, as the
+/// render worker does.
 fn load_average() -> String {
     std::fs::read_to_string("/proc/loadavg")
         .ok()
@@ -374,9 +336,8 @@ fn load_average() -> String {
 /// most 1 millisecond and a full repaint of it at most 15 milliseconds, the
 /// best of three runs, in a release build. A debug build checks the byte
 /// bound and a scaled time bound. The mechanism runs this test once, so a
-/// time bound fails when all three runs miss it. The timed runs use the
-/// host's performance cores when it has them, and a failure names the
-/// cores and the load average.
+/// time bound fails when all three runs miss it, and a failure names the
+/// load average.
 #[test]
 fn ras_005_byte_and_time_bounds_hold_best_of_three() {
     let scale: u32 = if cfg!(debug_assertions) { 40 } else { 1 };
@@ -397,7 +358,6 @@ fn ras_005_byte_and_time_bounds_hold_best_of_three() {
         );
     }
 
-    let cores = on_performance_cores();
     let mut big = sink_renderer(512, 512);
     fill_text(&mut big, 512, 512, 3);
     assert_eq!(RenderStatus::Rendered, big.render(true));
@@ -412,10 +372,10 @@ fn ras_005_byte_and_time_bounds_hold_best_of_three() {
         assert_eq!(RenderStatus::Skipped, status);
         took
     });
-    eprintln!("unchanged 512x512 frame, best of three: {unchanged:?} on {cores}");
+    eprintln!("unchanged 512x512 frame, best of three: {unchanged:?}");
     assert!(
         unchanged <= Duration::from_micros(UNCHANGED_BOUND_US * u64::from(scale)),
-        "unchanged 512x512 frame took {unchanged:?} on {cores} at load average {}",
+        "unchanged 512x512 frame took {unchanged:?} at load average {}",
         load_average()
     );
     let repaint = best_of_three(|| {
@@ -426,10 +386,10 @@ fn ras_005_byte_and_time_bounds_hold_best_of_three() {
         assert_eq!(RenderStatus::Rendered, status);
         took
     });
-    eprintln!("full 512x512 repaint, best of three: {repaint:?} on {cores}");
+    eprintln!("full 512x512 repaint, best of three: {repaint:?}");
     assert!(
         repaint <= Duration::from_millis(15 * u64::from(scale)),
-        "full 512x512 repaint took {repaint:?} on {cores} at load average {}",
+        "full 512x512 repaint took {repaint:?} at load average {}",
         load_average()
     );
 }
