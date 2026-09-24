@@ -614,7 +614,10 @@ fn cht_027_ten_thousand_points_cost_at_most_twice_one_thousand() {
                 .skip(1)
                 .map(|f| f.work_ms)
                 .fold(f64::INFINITY, f64::min),
-            Err(_) => panic!("{n} points did not paint three frames inside the harness's 3 s deadline: the chart does not decimate to its column count"),
+            Err(_) => panic!(
+                "{n} points did not paint three frames inside the harness's {:?} hang guard: the chart does not decimate to its column count",
+                app_input::HANG_GUARD
+            ),
         }
     };
     let small = work(1_000).max(0.5);
