@@ -18,9 +18,12 @@ exits zero actually ran:
   particular linker (`-fuse-ld=` with a path, `--ld-path=`, `-B<dir>`);
   `-fuse-ld=mold`, a linker named by the toolchain, is allowed. A
   `--runtool` in `rustdocflags`, which would run the doc-tests, is refused.
-- The run prints which cargo, rustc and mbx are on PATH, with each file's
-  hash, so a wrapper such as mbx's cargo shim shows in the output; the
-  mechanism's identity records the cargo program and mbx's version. The environment the gates run in keeps none of
+- The run prints which cargo, rustc, mbx and cc are on PATH and every
+  linker cc would run (its own ld, and ld.<name> for each -fuse-ld=<name>
+  the configurations set, as `cc -print-prog-name` finds them), with each
+  file's path and hash, so a wrapper such as mbx's cargo shim, or a
+  replaced ld.mold, shows in the output. `--programs` prints only that
+  list; the mechanism's identity records it. The environment the gates run in keeps none of
   the variables that set these (see _common.ENV_KEEP).
 - cargo test must print a result for every test binary and doc-test run it
   starts (the harness = false targets in Cargo.toml print their own
@@ -182,6 +185,18 @@ def runtools(rustdocflags) -> list[str]:
     return [token for token in tokens if token.startswith(("--runtool", "--test-runtool"))]
 
 
+def config_tables(config: dict) -> list[tuple[str, dict]]:
+    """The tables of a cargo configuration that can hold rustflags or a
+    linker: build, host and each target, with their names."""
+    tables = [("build", config["build"])] if isinstance(config.get("build"), dict) else [("build", {})]
+    if isinstance(config.get("host"), dict):
+        tables.append(("host", config["host"]))
+    targets = config.get("target")
+    tables += [(f"target.{name}", table) for name, table in (targets.items() if isinstance(targets, dict) else ())
+               if isinstance(table, dict)]
+    return tables
+
+
 def substitutes(files: list[Path]) -> list[str]:
     """The settings in `files` that let something other than cargo's own
     build and test stand in for them, or that load settings from a file
@@ -199,10 +214,7 @@ def substitutes(files: list[Path]) -> list[str]:
                 found.append(f"{path} sets target.{name}.runner")
         build = config.get("build") if isinstance(config.get("build"), dict) else {}
         found += [f"{path} sets build.{key}" for key in SUBSTITUTE_BUILD_KEYS if build.get(key)]
-        tables = [("build", build)] + ([("host", config["host"])] if isinstance(config.get("host"), dict) else [])
-        tables += [(f"target.{name}", table) for name, table in (targets.items() if isinstance(targets, dict) else ())
-                   if isinstance(table, dict)]
-        for label, table in tables:
+        for label, table in config_tables(config):
             if label != "build" and "linker" in table:
                 found.append(f"{path} sets {label}.linker")
             found += [f"{path} sets {choice} in {label}.rustflags" for choice in linker_choices(table.get("rustflags"))]
@@ -242,31 +254,60 @@ def silent_rustfmt_dirs() -> list[str]:
     return silent
 
 
-def programs() -> list[str]:
-    """Which cargo, rustc and mbx the gates find on PATH, and each file's
-    hash: a wrapper that stands in front of cargo shows here."""
-    lines = []
-    for name in ("cargo", "rustc", "mbx"):
-        found = shutil.which(name)
-        if not found:
-            lines.append(f"{name}: not on PATH")
-            continue
-        real = os.path.realpath(found)
+def linker_names(files: list[Path]) -> list[str]:
+    """The linker programs cc may run for these configurations: its own ld,
+    and ld.<name> for each -fuse-ld=<name> they set."""
+    names = ["ld"]
+    for path in files:
         try:
-            data = Path(real).read_bytes()
-        except OSError as error:
-            lines.append(f"{name}: {found} cannot be read ({error})")
+            config = tomllib.loads(path.read_text())
+        except (OSError, UnicodeDecodeError, tomllib.TOMLDecodeError):
             continue
-        kind = "script" if data.startswith(b"#!") else "program"
-        target = f" -> {real}" if real != found else ""
-        lines.append(f"{name}: {found}{target} ({kind}, sha256 {hashlib.sha256(data).hexdigest()})")
+        for _, table in config_tables(config):
+            for option in codegen_options(table.get("rustflags")):
+                key, _, value = option.partition("=")
+                if key in ("link-arg", "link-args"):
+                    names += [f"ld.{arg.split('=', 1)[1]}" for arg in value.split()
+                              if arg.startswith("-fuse-ld=") and "/" not in arg]
+    return list(dict.fromkeys(names))
+
+
+def describe(name: str, found: str | None) -> str:
+    """`name: path [-> real path] (script|program, sha256 ...)`."""
+    if not found:
+        return f"{name}: not found"
+    real = os.path.realpath(found)
+    try:
+        data = Path(real).read_bytes()
+    except OSError as error:
+        return f"{name}: {found} cannot be read ({error})"
+    kind = "script" if data.startswith(b"#!") else "program"
+    target = f" -> {real}" if real != found else ""
+    return f"{name}: {found}{target} ({kind}, sha256 {hashlib.sha256(data).hexdigest()})"
+
+
+def programs(configs: list[Path]) -> list[str]:
+    """Which cargo, rustc, mbx and cc the gates find on PATH, and the linkers
+    cc would run, with each file's hash: a wrapper in front of cargo, or a
+    replaced linker, shows here."""
+    lines = [describe(name, shutil.which(name)) for name in ("cargo", "rustc", "mbx", "cc")]
+    for name in linker_names(configs):
+        try:
+            given = subprocess.run(["cc", f"-print-prog-name={name}"], capture_output=True, text=True,
+                                   timeout=30).stdout.strip()
+        except (OSError, subprocess.TimeoutExpired):
+            given = ""
+        found = given if os.path.isabs(given) and os.path.isfile(given) else shutil.which(given or name)
+        lines.append(describe(f"linker {name}", found))
     return lines
 
 
 def main() -> int:
-    for line in programs():
-        print(line)
     configs = cargo_config_files()
+    for line in programs(configs):
+        print(line)
+    if "--programs" in sys.argv[1:]:
+        return 0
     print("cargo configuration read:", ", ".join(map(str, configs)) or "none")
     standins = substitutes(configs)
     if standins:
