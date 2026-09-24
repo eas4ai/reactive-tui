@@ -26,7 +26,8 @@ IMAGE_GOLDENS = ("image_medium", "image_wide")
 
 GOLDEN_TESTS = ("tests/charts_goldens.rs", "tests/api_widget_behavior/image.rs")
 # A write of a golden file, and the one condition allowed to guard it.
-WRITE = re.compile(r"\b(?:fs::(?:write|copy|rename|hard_link)|File::(?:create|create_new|options)|OpenOptions::new)\b")
+WRITE = re.compile(r"\b(?:fs::(?:write|copy|rename|hard_link)|File::(?:create|create_new|options)|OpenOptions::new)\b"
+                   r"|\.persist(?:_noclobber)?\b")
 GUARD = re.compile(r'^\s*if\s+(?:std::)?env::var\(\s*"REGENERATE"\s*\)\s*\.as_deref\(\)\s*==\s*Ok\(\s*"1"\s*\)\s*$')
 ASSERTS = re.compile(r"\bassert(?:_eq|_ne)?!|\bpanic!")
 FN = re.compile(r"\bfn\s+\w+")
@@ -69,9 +70,14 @@ def regeneration_problems(src: str) -> list[str]:
 SNAPSHOTS = ROOT / "tests/snapshots"
 # The variable both golden tests read their snapshot directory from.
 SNAPSHOTS_ENV = "REACTIVE_TUI_SNAPSHOTS"
-# (test binary, test name prefix, snapshot family, the golden changed in the copy)
-ALTERED = (("charts_goldens", "cht_023_", "charts", "line_mini"),
-           ("api_widget_behavior", "bar_004_", "image", "image_medium"))
+# (test binary, test name prefix, snapshot family): the test that compares
+# every golden of the family.
+GOLDEN_RUNS = (("charts_goldens", "cht_023_", "charts"), ("api_widget_behavior", "bar_004_", "image"))
+
+
+def checked_in() -> dict[Path, bytes]:
+    """Every file of the golden families as it is now."""
+    return {p: p.read_bytes() for family in ("charts", "image") for p in (SNAPSHOTS / family).rglob("*") if p.is_file()}
 
 
 def alter(golden: bytes) -> bytes:
@@ -84,32 +90,42 @@ def alter(golden: bytes) -> bytes:
     return golden[:end] + flipped + golden[end + 1:]
 
 
-def altered_golden_problems() -> list[str]:
-    """BAR-004, by behavior: each golden test compares its frame with the
-    golden and never rewrites it, whatever call it writes with. Every golden
-    of a family is copied to a scratch directory and one is changed there;
-    the test, pointed at the copy, must fail naming that golden and leave the
-    changed copy as it was, and no checked-in golden may change."""
+def altered_golden_problems(before: dict[Path, bytes]) -> list[str]:
+    """BAR-004, by behavior: each golden test compares its frame with every
+    golden and never rewrites one, whatever call it writes with. For each
+    golden of a family in turn, the family as it was before any test ran is
+    copied to a scratch directory and that one golden is changed there; the
+    test, pointed at the copy, must fail naming it and leave every file of
+    the copy as it was."""
     problems = []
-    before = {p: p.read_bytes() for family in ("charts", "image") for p in (SNAPSHOTS / family).rglob("*") if p.is_file()}
-    for binary, test, family, name in ALTERED:
-        with tempfile.TemporaryDirectory(prefix="goldens-") as scratch:
-            copy = Path(scratch) / family
-            shutil.copytree(SNAPSHOTS / family, copy)
-            golden = copy / f"{name}.ansi"
-            changed = alter(golden.read_bytes())
-            golden.write_bytes(changed)
-            ok, why = cargo_test_filtered(binary, test, env={SNAPSHOTS_ENV: scratch})
-            if ok:
-                problems.append(f"{binary} {test} passed with {family}/{name}.ansi changed, so it does not compare it")
-            elif f"golden mismatch for {name}" not in why:
-                problems.append(f"{binary} {test} failed for another reason than the changed {name}.ansi: {why[:200]}")
-            if golden.read_bytes() != changed:
-                problems.append(f"{binary} {test} rewrote the changed {family}/{name}.ansi instead of comparing it")
-    after = {p: p.read_bytes() for family in ("charts", "image") for p in (SNAPSHOTS / family).rglob("*") if p.is_file()}
-    rewritten = sorted(str(p.relative_to(ROOT)) for p in before.keys() | after.keys() if before.get(p) != after.get(p))
-    if rewritten:
-        problems.append(f"a golden test changed checked-in goldens: {', '.join(rewritten[:4])}")
+    for binary, test, family in GOLDEN_RUNS:
+        files = {p.relative_to(SNAPSHOTS / family): data for p, data in before.items()
+                 if p.is_relative_to(SNAPSHOTS / family)}
+        names = sorted(str(r)[:-len(".ansi")] for r in files if r.suffix == ".ansi")
+        if not names:
+            problems.append(f"no {family} goldens to compare")
+        for name in names:
+            with tempfile.TemporaryDirectory(prefix="goldens-") as scratch:
+                copy = Path(scratch) / family
+                for rel, data in files.items():
+                    (copy / rel).parent.mkdir(parents=True, exist_ok=True)
+                    (copy / rel).write_bytes(data)
+                golden = copy / f"{name}.ansi"
+                golden.write_bytes(alter(golden.read_bytes()))
+                expected = {p: p.read_bytes() for p in copy.rglob("*") if p.is_file()}
+                ok, why = cargo_test_filtered(binary, test, env={SNAPSHOTS_ENV: scratch})
+                if ok:
+                    problems.append(f"{binary} {test} passed with {family}/{name}.ansi changed, so it does not compare it")
+                elif f"golden mismatch for {name}" not in why:
+                    problems.append(f"{binary} {test} failed for another reason than the changed {name}.ansi: {why[:200]}")
+                now = {p: p.read_bytes() for p in copy.rglob("*") if p.is_file()}
+                rewritten = sorted(str(p.relative_to(copy)) for p in expected.keys() | now.keys()
+                                   if expected.get(p) != now.get(p))
+                if rewritten:
+                    problems.append(f"{binary} {test} rewrote {family}/{', '.join(rewritten[:4])} in the copy "
+                                    f"instead of comparing (changed: {name}.ansi)")
+            if problems:
+                return problems
     return problems
 
 
@@ -167,6 +183,9 @@ def wide_problems() -> list[str]:
 
 
 def main() -> int:
+    # The goldens as checked in, before any test runs: a test that rewrites
+    # them must not leave them looking unchanged to a later snapshot.
+    before = checked_in()
     results = {}
     for req, sub in (("CHT-012", "cht_012_"), ("CHT-013", "cht_013_"), ("CHT-024", "cht_024_"), ("CHT-025", "cht_025_"), ("CHT-026", "cht_026_")):
         results[req] = cargo_test_filtered("charts_goldens", sub)
@@ -194,7 +213,11 @@ def main() -> int:
     problems_004 = g + w + ([] if ok_023 else [f"golden comparison failed: {why_023}"]) + (
         [] if ok_image else [f"image golden comparison failed: {why_image}"])
     if ok_023 and ok_image:
-        problems_004 += altered_golden_problems()
+        problems_004 += altered_golden_problems(before)
+    after = checked_in()
+    rewritten = sorted(str(p.relative_to(ROOT)) for p in before.keys() | after.keys() if before.get(p) != after.get(p))
+    if rewritten:
+        problems_004.append(f"a test run changed checked-in goldens: {', '.join(rewritten[:4])}")
     results["BAR-004"] = (not problems_004, "; ".join(problems_004[:4]) or "chart and image goldens on the debug backend compare equal; wide ones 400+ columns")
     return finish(results)
 
