@@ -857,7 +857,6 @@ impl<'a, B: Backend> Renderer<'a, B> {
     /// one pass over the buffers' column arrays (RAS-008). Under `force`
     /// every row is listed from column zero.
     fn plan_rows(&mut self, force: bool) {
-        std::thread::sleep(std::time::Duration::from_millis(2));
         self.changed_rows.clear();
         for y in 0..self.height {
             if force {
@@ -1301,7 +1300,7 @@ fn push_attributes(
         have &= !(TextAttributes::BOLD | TextAttributes::DIM);
     }
     for (flag, off) in [
-        (TextAttributes::ITALIC, 0),
+        (TextAttributes::ITALIC, 23),
         (TextAttributes::BLINK, 25),
         (TextAttributes::INVERSE, 27),
         (TextAttributes::HIDDEN, 28),
@@ -1385,7 +1384,7 @@ fn emit_cell(
     match state.cursor {
         Some((cx, cy)) if cx == x && cy == y => stats.moves_elided += 1,
         Some((_, cy)) if cy == y => {
-            push_cup(out, y + 1 + row_offset, x + 1);
+            push_cha(out, x + 1);
             stats.moves_emitted += 1;
         }
         _ => {

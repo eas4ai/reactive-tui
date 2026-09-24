@@ -694,8 +694,9 @@ impl<'a> OptimizedBuffer<'a> {
             }
             from = to;
         }
-        let _ = from;
-        (0..self.width).find(|&x| self.get(x, y) != other.get(x, y))
+        (from..end)
+            .find(|&i| !self.cell_eq_at(other, i))
+            .map(|i| (i - start) as u32)
     }
 
     // ---- tiny reference accessors ----
