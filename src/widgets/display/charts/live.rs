@@ -167,7 +167,6 @@ impl Component for LiveChart {
         changed
     }
     fn render(&self, _props: &Self::Props, state: &Self::State) -> Element {
-        std::thread::sleep(std::time::Duration::from_millis(20));
         let config = self.config.clone();
         if let Some(worker) = &self.worker {
             worker.observe();
