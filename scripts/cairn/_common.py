@@ -222,9 +222,10 @@ def strip_test_modules(text: str) -> str:
 
 
 def cargo_test_filtered(binary: str | None, substring: str, features: list[str] | None = None, release: bool = False,
-                        package: str | None = None) -> tuple[bool, str]:
+                        package: str | None = None, env: dict | None = None) -> tuple[bool, str]:
     """Run the tests whose names contain `substring` in one test binary, or
-    in the package's library unit tests when `binary` is None."""
+    in the package's library unit tests when `binary` is None, with `env`
+    added to the mechanism environment."""
     cmd = ["cargo", "test", "--locked", "--jobs", JOBS]
     if package:
         cmd += ["-p", package]
@@ -234,7 +235,7 @@ def cargo_test_filtered(binary: str | None, substring: str, features: list[str] 
     if features:
         cmd += ["--features", ",".join(features)]
     cmd += ["--", substring]
-    r = run(cmd)
+    r = run(cmd, env=env)
     out = r.stdout + r.stderr
     ran = re.search(r"test result: \w+\. (\d+) passed; (\d+) failed", r.stdout)
     if not ran:
