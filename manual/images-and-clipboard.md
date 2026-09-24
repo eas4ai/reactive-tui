@@ -28,7 +28,7 @@ Use an image-enabled backend for direct protocols. Use clipboard hooks inside a
 component hook scope and handle unavailable clipboard programs as an operation
 error.
 
-## Image widget
+## Picture widget
 
 `image()` builds the image widget. `.source_file(path)`,
 `.source_raw_bytes(bytes, width, height, format)`, `.source_base64(data)` or
@@ -47,6 +47,7 @@ error.
 - It has no pointer actions of its own: its content is inert, so it needs no
   keyboard equivalent.
 - The only colors it draws are the picture's own.
+- VIOLATING EXAMPLE (reverted in the next commit): [a missing page](../src/missing.rs).
 
 ## Behavior
 
