@@ -17,6 +17,24 @@ enum Segment {
 
 type Path = Vec<Segment>;
 
+/// A component's rendered output waiting to expand, with what the component
+/// element contributes to the result. It stays boxed while the output
+/// expands, so each level of a deep component chain holds a pointer rather
+/// than several `Element`s: a debug build gives every `Element` temporary
+/// its own stack slot, and 128 levels of them overflowed a test thread's
+/// 2 MB stack with the embedded-terminal feature.
+struct Rendered {
+    /// Keeps the component's scope entered while its output expands, so its
+    /// descendants see the contexts it provides.
+    _binding: crate::reactive::component_scope::ScopeGuard,
+    caller: Element,
+    output: Option<Element>,
+    output_path: Path,
+    identity: u64,
+    events: crate::event::router::EventHandlerFn,
+    layout: super::element::LayoutCallback,
+}
+
 struct LiveComponent {
     identity: u64,
     name: String,
@@ -62,7 +80,7 @@ impl ComponentRuntime {
 
     fn expand(
         &mut self,
-        mut element: Element,
+        element: Element,
         path: Path,
         seen: &mut HashSet<Path>,
         depth: usize,
@@ -72,149 +90,235 @@ impl ComponentRuntime {
                 "component tree exceeds expansion depth 128",
             ));
         }
-        if let ElementType::Component(name) = &element.element_type {
-            let name = name.clone();
-            if self
-                .instances
-                .get(&path)
-                .is_some_and(|live| live.name != name)
-            {
-                self.remove_where(|candidate| candidate.starts_with(&path));
-            }
-            let newly_created = !self.instances.contains_key(&path);
-            if newly_created {
-                let scope = ComponentScope::child(
-                    crate::reactive::component_scope::current()
-                        .ok_or_else(|| {
-                            ReactiveError::invalid_state(
-                                "App component expansion requires its resource scope",
-                            )
-                        })?
-                        .scheduler(),
-                );
-                let _binding = scope.enter(true);
-                // create_by_name releases registry locks before calling user code.
-                let instance = if let Some(factory) = &element.metadata.factory {
-                    Some(factory(element.props.as_ref())?)
-                } else {
-                    get_global_registry()
-                        .create_by_name(&name, element.props.as_ref())?
-                        .or_else(|| super::builtin::create(&name, element.props.as_ref()))
-                };
-                if let Some(mut instance) = instance {
-                    self.next_identity = self.next_identity.checked_add(1).ok_or_else(|| {
-                        ReactiveError::invalid_state("component mount identity exhausted")
-                    })?;
-                    instance.on_lifecycle(LifecycleEvent::Mount);
-                    let route_id = element.key.clone().unwrap_or_else(|| name.clone());
-                    self.instances.insert(
-                        path.clone(),
-                        LiveComponent {
-                            identity: self.next_identity,
-                            name: name.clone(),
-                            instance: Arc::new(Mutex::new(instance)),
-                            scope: scope.clone(),
-                            bounds: Arc::new(Mutex::new(None)),
-                            route_id,
-                        },
-                    );
-                }
-            }
-            if let Some(live) = self.instances.get_mut(&path) {
-                let _binding = live.scope.enter(!newly_created);
-                assert!(
-                    crate::reactive::component_scope::provide(
-                        crate::hooks::processor::MouseHookContext {
-                            owner: live.mouse_owner(),
-                            processor: self.mouse.clone(),
-                        },
-                    )
-                    .is_ok(),
-                    "component mouse hooks require their resource scope"
-                );
-                seen.insert(path.clone());
-                let mut output = {
-                    let mut instance = live.instance.lock().map_err(|_| {
-                        ReactiveError::invalid_state("component instance lock poisoned")
-                    })?;
-                    instance.update_shared(&element.props);
-                    instance.try_render()?
-                };
-                let (events, layout) = live.handlers();
-                let identity = live.identity;
-                output.children.append(&mut element.children);
-                let mut output_path = path;
-                output_path.push(Segment::Output(name));
-                output_path.push(Self::slot(&output, 0));
-                let mut resolved = self.expand(output, output_path, seen, depth + 1)?;
-                resolved.metadata.component_instances.push(identity);
-                resolved.metadata.events.push(events);
-                resolved.metadata.events.extend(element.metadata.events);
-                resolved
-                    .metadata
-                    .capture_events
-                    .extend(element.metadata.capture_events);
-                resolved.metadata.layout.push(layout);
-                resolved.metadata.on_click.extend(element.metadata.on_click);
-                resolved.metadata.disabled |= element.metadata.disabled;
-                resolved.metadata.inert |= element.metadata.inert;
-                resolved
-                    .metadata
-                    .animation_values
-                    .extend(element.metadata.animation_values);
-                resolved.metadata.focus_scope |= element.metadata.focus_scope;
-                if let Some(accessibility) = element.metadata.accessibility {
-                    resolved.metadata.accessibility = Some(accessibility);
-                }
-                if let Some(options) = element.metadata.accessibility_options {
-                    let target = resolved
-                        .metadata
-                        .accessibility_options
-                        .get_or_insert_default();
-                    target.focus |= options.focus;
-                    target.clickable |= options.clickable;
-                    if options.focus_event.is_some() {
-                        target.focus_event = options.focus_event;
-                    }
-                    if options.click_event.is_some() {
-                        target.click_event = options.click_event;
-                    }
-                    if options.label.is_some() {
-                        target.label = options.label;
-                    }
-                }
-                if element.metadata.styles.is_some() {
-                    resolved.metadata.styles = element.metadata.styles;
-                }
-                if let Some(outer) = element.metadata.inline_styles {
-                    resolved.metadata.inline_styles = Some(match resolved.metadata.inline_styles {
-                        Some(inner) => format!("{inner};{outer}"),
-                        None => outer,
-                    });
-                }
-                if element.metadata.gradient.is_some() {
-                    resolved.metadata.gradient = element.metadata.gradient;
-                }
-                if element.metadata.gradient_border.is_some() {
-                    resolved.metadata.gradient_border = element.metadata.gradient_border;
-                }
-                // Caller styling belongs to the rendered root and takes precedence.
-                if let Some(class) = element.class {
-                    resolved.class = Some(match resolved.class {
-                        Some(inner) => format!("{inner} {class}"),
-                        None => class,
-                    });
-                }
-                if element.focus.is_some() {
-                    resolved.focus = element.focus;
-                }
-                if element.key.is_some() {
-                    resolved.key = element.key;
-                }
-                return Ok(resolved);
-            }
-            // Unknown names retain the existing container behavior.
+        // Each level of a deep tree keeps only this frame and a small one
+        // below it on the stack: mounting, rendering and merging run in
+        // their own frames, which end before the next level begins.
+        if let Some(newly_created) = self.mount(&element, &path)? {
+            let rendered = self.render_mounted(element, path, newly_created, seen)?;
+            return self.expand_rendered(rendered, seen, depth);
         }
+        self.expand_children(element, path, seen, depth)
+    }
+
+    /// Mounts the component `element` names at `path`, replacing one of
+    /// another type there, and says whether an instance now lives there
+    /// and whether it was just created. `None` for an element that is not
+    /// a component or names one nothing can create: it expands as a
+    /// container.
+    #[inline(never)]
+    fn mount(&mut self, element: &Element, path: &Path) -> Result<Option<bool>> {
+        let ElementType::Component(name) = &element.element_type else {
+            return Ok(None);
+        };
+        if self
+            .instances
+            .get(path)
+            .is_some_and(|live| &live.name != name)
+        {
+            self.remove_where(|candidate| candidate.starts_with(path));
+        }
+        let newly_created = !self.instances.contains_key(path);
+        if newly_created {
+            let scope = ComponentScope::child(
+                crate::reactive::component_scope::current()
+                    .ok_or_else(|| {
+                        ReactiveError::invalid_state(
+                            "App component expansion requires its resource scope",
+                        )
+                    })?
+                    .scheduler(),
+            );
+            let _binding = scope.enter(true);
+            // create_by_name releases registry locks before calling user code.
+            let instance = if let Some(factory) = &element.metadata.factory {
+                Some(factory(element.props.as_ref())?)
+            } else {
+                get_global_registry()
+                    .create_by_name(name, element.props.as_ref())?
+                    .or_else(|| super::builtin::create(name, element.props.as_ref()))
+            };
+            if let Some(mut instance) = instance {
+                self.next_identity = self.next_identity.checked_add(1).ok_or_else(|| {
+                    ReactiveError::invalid_state("component mount identity exhausted")
+                })?;
+                instance.on_lifecycle(LifecycleEvent::Mount);
+                let route_id = element.key.clone().unwrap_or_else(|| name.clone());
+                self.instances.insert(
+                    path.clone(),
+                    LiveComponent {
+                        identity: self.next_identity,
+                        name: name.clone(),
+                        instance: Arc::new(Mutex::new(instance)),
+                        scope: scope.clone(),
+                        bounds: Arc::new(Mutex::new(None)),
+                        route_id,
+                    },
+                );
+            }
+        }
+        // Unknown names retain the existing container behavior.
+        Ok(self.instances.contains_key(path).then_some(newly_created))
+    }
+
+    /// Renders the mounted component at `path` inside its scope and boxes
+    /// the output with what `element` contributes to the expanded result.
+    #[inline(never)]
+    fn render_mounted(
+        &mut self,
+        mut element: Element,
+        path: Path,
+        newly_created: bool,
+        seen: &mut HashSet<Path>,
+    ) -> Result<Box<Rendered>> {
+        let live = self.instances.get_mut(&path).ok_or_else(|| {
+            ReactiveError::invalid_state("component instance left between mount and render")
+        })?;
+        let binding = live.scope.enter(!newly_created);
+        assert!(
+            crate::reactive::component_scope::provide(crate::hooks::processor::MouseHookContext {
+                owner: live.mouse_owner(),
+                processor: self.mouse.clone(),
+            },)
+            .is_ok(),
+            "component mouse hooks require their resource scope"
+        );
+        seen.insert(path.clone());
+        let mut output = {
+            let mut instance = live
+                .instance
+                .lock()
+                .map_err(|_| ReactiveError::invalid_state("component instance lock poisoned"))?;
+            instance.update_shared(&element.props);
+            instance.try_render()?
+        };
+        let (events, layout) = live.handlers();
+        let identity = live.identity;
+        let ElementType::Component(name) = &element.element_type else {
+            return Err(ReactiveError::invalid_state(
+                "a mounted component element lost its component type",
+            ));
+        };
+        let name = name.clone();
+        output.children.append(&mut element.children);
+        let mut output_path = path;
+        output_path.push(Segment::Output(name));
+        output_path.push(Self::slot(&output, 0));
+        Ok(Box::new(Rendered {
+            _binding: binding,
+            caller: element,
+            output: Some(output),
+            output_path,
+            identity,
+            events,
+            layout,
+        }))
+    }
+
+    /// Expands a component's rendered output with the component's scope
+    /// still entered, then merges in what the component element carries.
+    fn expand_rendered(
+        &mut self,
+        mut rendered: Box<Rendered>,
+        seen: &mut HashSet<Path>,
+        depth: usize,
+    ) -> Result<Element> {
+        let output = rendered
+            .output
+            .take()
+            .ok_or_else(|| ReactiveError::invalid_state("component output expanded twice"))?;
+        let path = std::mem::take(&mut rendered.output_path);
+        let resolved = self.expand(output, path, seen, depth + 1)?;
+        Ok(Self::merge(resolved, rendered))
+    }
+
+    /// The expanded output of a component, carrying the component element's
+    /// handlers, flags, styles, class, focus and key; the caller's styling
+    /// belongs to the rendered root and takes precedence.
+    #[inline(never)]
+    fn merge(mut resolved: Element, rendered: Box<Rendered>) -> Element {
+        let Rendered {
+            _binding,
+            caller: element,
+            identity,
+            events,
+            layout,
+            ..
+        } = *rendered;
+        resolved.metadata.component_instances.push(identity);
+        resolved.metadata.events.push(events);
+        resolved.metadata.events.extend(element.metadata.events);
+        resolved
+            .metadata
+            .capture_events
+            .extend(element.metadata.capture_events);
+        resolved.metadata.layout.push(layout);
+        resolved.metadata.on_click.extend(element.metadata.on_click);
+        resolved.metadata.disabled |= element.metadata.disabled;
+        resolved.metadata.inert |= element.metadata.inert;
+        resolved
+            .metadata
+            .animation_values
+            .extend(element.metadata.animation_values);
+        resolved.metadata.focus_scope |= element.metadata.focus_scope;
+        if let Some(accessibility) = element.metadata.accessibility {
+            resolved.metadata.accessibility = Some(accessibility);
+        }
+        if let Some(options) = element.metadata.accessibility_options {
+            let target = resolved
+                .metadata
+                .accessibility_options
+                .get_or_insert_default();
+            target.focus |= options.focus;
+            target.clickable |= options.clickable;
+            if options.focus_event.is_some() {
+                target.focus_event = options.focus_event;
+            }
+            if options.click_event.is_some() {
+                target.click_event = options.click_event;
+            }
+            if options.label.is_some() {
+                target.label = options.label;
+            }
+        }
+        if element.metadata.styles.is_some() {
+            resolved.metadata.styles = element.metadata.styles;
+        }
+        if let Some(outer) = element.metadata.inline_styles {
+            resolved.metadata.inline_styles = Some(match resolved.metadata.inline_styles {
+                Some(inner) => format!("{inner};{outer}"),
+                None => outer,
+            });
+        }
+        if element.metadata.gradient.is_some() {
+            resolved.metadata.gradient = element.metadata.gradient;
+        }
+        if element.metadata.gradient_border.is_some() {
+            resolved.metadata.gradient_border = element.metadata.gradient_border;
+        }
+        // Caller styling belongs to the rendered root and takes precedence.
+        if let Some(class) = element.class {
+            resolved.class = Some(match resolved.class {
+                Some(inner) => format!("{inner} {class}"),
+                None => class,
+            });
+        }
+        if element.focus.is_some() {
+            resolved.focus = element.focus;
+        }
+        if element.key.is_some() {
+            resolved.key = element.key;
+        }
+        resolved
+    }
+
+    /// Expands each child of a container element in order.
+    fn expand_children(
+        &mut self,
+        mut element: Element,
+        path: Path,
+        seen: &mut HashSet<Path>,
+        depth: usize,
+    ) -> Result<Element> {
         let mut keys = HashSet::new();
         let children = std::mem::take(&mut element.children);
         for (index, child) in children.into_iter().enumerate() {
