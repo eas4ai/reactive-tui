@@ -17,8 +17,14 @@ BINARY = "render_bytes"
 
 def main() -> int:
     results = {}
-    for req, sub in (("RAS-001", "ras_001_"), ("RAS-002", "ras_002_")):
-        results[req] = cargo_test_filtered(BINARY, sub, package=CRATE)
+    results["RAS-001"] = cargo_test_filtered(BINARY, "ras_001_", package=CRATE)
+    # RAS-002: the renderer's byte stream, and every frame the App's backend
+    # writes, which adds its own frame boundary around the renderer's bytes.
+    stream = cargo_test_filtered(BINARY, "ras_002_", package=CRATE)
+    written = cargo_test_filtered("suprtui_renderer", "ras_002_")
+    results["RAS-002"] = (stream[0] and written[0], "; ".join(
+        f"{name}: {why}" for name, (ok, why) in (("stream", stream), ("backend", written)) if not ok)
+        or f"stream {stream[1]}; backend {written[1]}")
     # RAS-008: the byte stream shows a change in any array is found, and the
     # crate's unit test counts the cells the compare builds (none), which
     # only a build with cfg(test) can observe.

@@ -389,6 +389,21 @@ fn ras_006_debug_overlay_shows_bytes_elisions_and_times() {
     );
 }
 
+/// RAS-002 through the App's backend: every frame it writes holds exactly
+/// two style resets, the one after its sync-set and the one before its
+/// sync-reset, whether it is a first frame or a diff.
+#[test]
+fn ras_002_every_frame_the_backend_writes_holds_two_resets() {
+    let out = Capture::default();
+    let mut backend = SuprTuiBackend::with_writer(40, 6, out.clone()).unwrap();
+    for text in ["first", "second", "third"] {
+        show(&mut backend, &frame(text));
+        let bytes = out.take();
+        let resets = bytes.windows(4).filter(|w| *w == b"\x1b[0m").count();
+        assert_eq!(resets, 2, "{text}: {:?}", String::from_utf8_lossy(&bytes));
+    }
+}
+
 /// The debug overlay's text on the bottom row of a 160-column screen.
 fn overlay_row(terminal: &vt100::Parser) -> String {
     (0..160)
