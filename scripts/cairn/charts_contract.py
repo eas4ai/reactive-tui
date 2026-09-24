@@ -19,9 +19,12 @@ or eight-digit hex integer, a color type built from numbers (Color::Rgb(..),
 Rgba { a: .., r: .. } in any field order, ColorDefinition::rgb(..),
 fg_rgba(..)) and a named constructor (Color::Red, Rgba::white()). The
 builder code is found by type, wherever it is under src/builder: every
-struct, impl and function whose header names ChartBuilder or ImageBuilder.
-A pixel computed from image data, or the all-zero pixel `[0; 4]`, is not a
-literal.
+struct, impl and function whose header names ChartBuilder or ImageBuilder,
+and the consts, statics and free functions of the same file those items
+name, followed through the helpers they name in turn. A channel may be
+written in decimal or hex (`[0xff, 0x00, 0x00, 0xff]`), and a pixel as three
+or four 0-1 floats in an array as in a tuple. A pixel computed from image
+data, or the all-zero pixel `[0; 4]`, is not a literal.
 """
 
 import re
@@ -36,7 +39,7 @@ GROUPS = {
     "widget-bar": [("BAR-003", "bar_003_")],
 }
 NAMED = "red|green|blue|black|white|yellow|cyan|magenta|gray|grey|orange|purple|pink|brown|navy|teal|lime|maroon|olive|silver"
-CHANNEL = r"(?:25[0-5]|2[0-4]\d|1?\d?\d)(?:_?u8)?"
+CHANNEL = r"(?:0x[0-9a-fA-F]{1,2}|25[0-5]|2[0-4]\d|1?\d?\d)(?:_?u8)?"
 UNIT = r"(?:0?\.\d+|1\.0*|0\.0*)(?:_?f32|_?f64)?"
 NUM = r"-?\d+(?:\.\d+)?(?:_?(?:f32|f64|u8|u16|u32))?"
 COLOR_TYPE = r"(?:Rgba?|Colou?r|ColorDefinition|Rgba8|Hsla?)"
@@ -48,6 +51,7 @@ COLOR_LITERALS = {
     "channel tuple": (re.compile(rf"(?<![\w\]])\(\s*{CHANNEL}\s*,\s*{CHANNEL}\s*,\s*{CHANNEL}\s*(?:,\s*{CHANNEL}\s*)?\)"), False),
     "channel array": (re.compile(rf"(?<![\w\])])\[\s*{CHANNEL}\s*,\s*{CHANNEL}\s*,\s*{CHANNEL}\s*(?:,\s*{CHANNEL}\s*)?,?\s*\]"), False),
     "unit tuple": (re.compile(rf"(?<![\w\]])\(\s*{UNIT}\s*,\s*{UNIT}\s*,\s*{UNIT}\s*(?:,\s*{UNIT}\s*)?\)"), False),
+    "unit array": (re.compile(rf"(?<![\w\])])\[\s*{UNIT}\s*,\s*{UNIT}\s*,\s*{UNIT}\s*(?:,\s*{UNIT}\s*)?,?\s*\]"), False),
     "hex integer": (re.compile(r"\b0x(?:[0-9a-fA-F]{6}|[0-9a-fA-F]{8})\b"), False),
     "color built from numbers": (re.compile(rf"\b{COLOR_TYPE}\s*(?:::\s*\w+\s*)?(?:\(\s*\[?|\{{\s*(?:r|g|b|a|red|green|blue|alpha)\s*:)\s*{NUM}(?!\s*;)"), False),
     "rgb setter": (re.compile(rf"\b(?:\w+_)?rgba?\s*\(\s*{NUM}"), False),
@@ -69,6 +73,44 @@ def builder_spans(code: str, types: str) -> list[tuple[int, int]]:
     function's parameter or return type)."""
     head = re.compile(rf"\b(?:(?:struct|enum)\s+(?:{types})\b|(?:impl|fn)\b[^{{;]*\b(?:{types})\b)[^{{;]*\{{")
     return [(m.start(), matching(code, m.end() - 1)) for m in head.finditer(code)]
+
+
+ITEM = re.compile(r"^[ \t]*(?:pub(?:\([^)]*\))?\s+)?(?:(?:const|static)\s+(?:mut\s+)?([A-Za-z_]\w*)\s*:"
+                  r"|(?:(?:const|async|unsafe)\s+|extern\s+\"[^\"]*\"\s+)*fn\s+([A-Za-z_]\w*))", re.M)
+
+
+def item_end(code: str, m: re.Match) -> int:
+    """Offset just past the const, static or fn item that `m` starts."""
+    if m.group(1):
+        depth, k = 0, m.end()
+        while k < len(code):
+            depth += code[k] in "([{"
+            depth -= code[k] in ")]}"
+            if code[k] == ";" and depth == 0:
+                return k + 1
+            k += 1
+        return k
+    brace, semi = code.find("{", m.end()), code.find(";", m.end())
+    return matching(code, brace) if brace >= 0 and (semi < 0 or brace < semi) else semi + 1
+
+
+def used_items(code: str, spans: list[tuple[int, int]]) -> list[tuple[int, int]]:
+    """The consts, statics and free functions of `code` that the items in
+    `spans` name, and the ones those name in turn: the colors a builder
+    keeps beside itself are the builder's."""
+    items = {}
+    for m in ITEM.finditer(code):
+        span = (m.start(), item_end(code, m))
+        if not any(a <= span[0] < b for a, b in spans):
+            items.setdefault(m.group(1) or m.group(2), []).append(span)
+    found, queue = [], list(spans)
+    while queue:
+        a, b = queue.pop()
+        for name in set(re.findall(r"\b[A-Za-z_]\w*\b", code[a:b])):
+            for span in items.pop(name, []):
+                found.append(span)
+                queue.append(span)
+    return found
 
 
 def literals_in(path, text: str, spans: list[tuple[int, int]] | None = None) -> list[str]:
@@ -95,9 +137,10 @@ def color_literals(family: tuple[tuple[str, ...], str]) -> list[str]:
         if f in whole:
             continue
         text = strip_test_modules(f.read_text(errors="replace"))
-        spans = builder_spans(mask(text)[0], types)
+        code = mask(text)[0]
+        spans = builder_spans(code, types)
         if spans:
-            found += literals_in(f, text, spans)
+            found += literals_in(f, text, spans + used_items(code, spans))
     return found
 
 
