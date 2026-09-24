@@ -39,7 +39,10 @@ exits zero actually ran:
 When a gate fails only because rustc, rustdoc, clippy-driver or the linker
 was killed by a signal, the run prints no result line, so Sudus records it
 as unverified: it shows nothing about the code, and a rerun decides. A
-compiler that overflows its stack is the code's doing and still fails.
+compiler that overflows its stack is the code's doing and still fails. A
+doc-test counts as failed by the crash when rustdoc could not compile it
+because the compiler was killed, as its captured output shows; any other
+failed test in the run still fails the gate.
 """
 
 import hashlib
@@ -74,8 +77,13 @@ TOOLCHAIN_CRASH = [
 SIGNALLED = re.compile(r"process didn't exit successfully: `([^`]*)` \(signal: \d+, (SIG[A-Z]+)")
 # An error line that a toolchain crash does not explain: a compile error, a
 # lint, a failed test, a formatting diff.
-OWN_ERROR = re.compile(r"^error(?:\[E\d+\])?: (?!could not compile|linking with|build failed|"
-                       rf"{TOOLCHAIN} interrupted by|test failed, to rerun)")
+OWN_ERROR = re.compile(r"^error(?:\[E\d+\])?: (?!could not compile|could not document|linking with|build failed|"
+                       rf"{TOOLCHAIN} interrupted by|(?:doc)?test failed, to rerun|\d+ targets? failed)")
+# libtest's line for a failed test, the header of its captured output, and
+# the name rustdoc gives a doc-test.
+FAILED_TEST = re.compile(r"^test (.+?) \.\.\. FAILED$", re.M)
+CAPTURED = re.compile(r"^---- (.+?) stdout ----$", re.M)
+DOCTEST_NAME = re.compile(r" - .* \(line \d+\)$")
 STACK_OVERFLOW = "overflowed its stack"
 BINARY_START = re.compile(r"^\s+(Running|Doc-tests) (\S+)(?: \((\S+)\))?")
 RESULT = re.compile(r"^test result: \w+\. (\d+) passed; (\d+) failed")
@@ -101,10 +109,31 @@ def toolchain_crashes(output: str) -> list[str]:
             return []  # a test binary or build script died: that is the code's result
         crashes.add(f"{program} killed by {m.group(2)}")
     lines = output.splitlines()
-    if (STACK_OVERFLOW in output or "test result: FAILED" in output or "Diff in " in output
+    failed = FAILED_TEST.findall(output)
+    # A doc-test fails when rustdoc cannot compile it, so a compiler killed
+    # while compiling one fails the doc-test: that failure is the crash's,
+    # when its captured output shows the crash.
+    crashed = [name for name in failed if DOCTEST_NAME.search(name) and crash_in(captured(output, name))]
+    tests_failed = "test result: FAILED" in output and len(crashed) < len(failed or [None])
+    if (STACK_OVERFLOW in output or tests_failed or "Diff in " in output
             or any(OWN_ERROR.match(line) for line in lines)):
         return []
     return sorted(crashes)
+
+
+def captured(output: str, name: str) -> str:
+    """The output libtest captured for the failed test `name`: from its
+    `---- name stdout ----` header to the next header or `failures:` list."""
+    for m in CAPTURED.finditer(output):
+        if m.group(1) == name:
+            end = re.compile(r"^(?:---- .+ stdout ----|failures:)$", re.M).search(output, m.end())
+            return output[m.end():end.start() if end else len(output)]
+    return ""
+
+
+def crash_in(text: str) -> bool:
+    """Whether `text` shows the toolchain killed by a signal."""
+    return any(pattern.search(text) for pattern in TOOLCHAIN_CRASH)
 
 
 def no_harness_targets() -> set[str]:
