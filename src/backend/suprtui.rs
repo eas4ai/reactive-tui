@@ -285,11 +285,7 @@ impl SuprTuiBackend {
         commands
             .send(Command::Sync(reply))
             .map_err(|_| worker_stopped())?;
-        let outcome = result.recv().map_err(|_| worker_stopped())?;
-        if outcome.is_err() {
-            self.fall_back_to_acknowledged();
-        }
-        outcome
+        result.recv().map_err(|_| worker_stopped())?
     }
 
     /// Report the geometry of the last frame whose flush was acknowledged,
@@ -411,7 +407,7 @@ impl Backend for SuprTuiBackend {
         commands
             .send(Command::Present(
                 self.cells.as_ref().map_or_else(
-                    || FrameContent::Element(Arc::clone(&self.frame)),
+                    || FrameContent::Element(Arc::new(Element::clone(&self.frame))),
                     |cells| FrameContent::Cells(Arc::clone(cells)),
                 ),
                 self.dimensions,
@@ -653,7 +649,7 @@ fn run_worker<W: Write>(
                         let row = buffer.height() - 1;
                         let us = |ns: u64| ns / 1000;
                         let text = format!(
-                            "frame: {} | cells: {} | bytes: {} | moves: {}/{} | fg: {}/{} | bg: {}/{} | attr: {}/{} | layout: {}us | diff: {}us | emit: {}us | write: {}us",
+                            "frame: {} | cells: {} | bytes: {} | moves: {}/{} | fg: {}/{} | bg: {}/{} | attr: {}/{} | layout: {}us | diff: {}us | emit: {}us",
                             stats.frame_count,
                             stats.cells_updated,
                             stats.bytes_emitted,
@@ -668,7 +664,6 @@ fn run_worker<W: Write>(
                             us(stats.layout_ns),
                             us(stats.diff_ns),
                             us(stats.emit_ns),
-                            us(stats.write_ns)
                         );
                         let text = format!("{text:width$}", width = buffer.width() as usize);
                         buffer
@@ -717,6 +712,7 @@ fn run_worker<W: Write>(
                     Ok(geometry)
                 })();
                 force = result.is_err();
+                let _ = renderer.backend_mut().flush_pending();
                 let _ = reply.send(result);
                 // Write and flush after the reply (PIP-001); the next present
                 // waits on the rendezvous until this returns.

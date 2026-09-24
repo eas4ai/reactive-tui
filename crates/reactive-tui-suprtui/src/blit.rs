@@ -187,7 +187,7 @@ fn best_split(block: &[[u8; 4]]) -> u8 {
         let n0 = count - n1;
         let numerator = norm(set) * n0 + norm(clear) * n1;
         let denominator = n1 * n0;
-        if numerator * best.2 > best.1 * denominator {
+        if numerator * best.2 < best.1 * denominator {
             best = (pattern, numerator, denominator);
         }
     }

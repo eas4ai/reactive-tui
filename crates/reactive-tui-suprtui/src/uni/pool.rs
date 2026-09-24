@@ -392,8 +392,8 @@ impl<'a> GraphemePool<'a> {
         generation: u32,
         id: IdPayload,
     ) -> Result<(), GraphemePoolError> {
-        let key = self.classes[class_id].get(slot_index, generation)?;
-        remove_interned(&mut self.interned_live_ids, key, id);
+        let key = self.classes[class_id].get(slot_index, generation)?.to_vec();
+        remove_interned(&mut self.interned_live_ids, &key, id);
         Ok(())
     }
 
