@@ -12,7 +12,15 @@ exits zero actually ran:
   every directory above it and in CARGO_HOME; the mechanism's identity
   hashes the same files. A file that includes another (`include`) is
   refused too, since cargo would apply settings from a file neither this
-  check nor the identity reads. The environment the gates run in keeps none of
+  check nor the identity reads. So is a setting that picks the program that
+  links: a target's or the host's `linker`, or in `rustflags` a
+  `-C linker=`, or a link argument that points the C compiler at a
+  particular linker (`-fuse-ld=` with a path, `--ld-path=`, `-B<dir>`);
+  `-fuse-ld=mold`, a linker named by the toolchain, is allowed. A
+  `--runtool` in `rustdocflags`, which would run the doc-tests, is refused.
+- The run prints which cargo, rustc and mbx are on PATH, with each file's
+  hash, so a wrapper such as mbx's cargo shim shows in the output; the
+  mechanism's identity records the cargo program and mbx's version. The environment the gates run in keeps none of
   the variables that set these (see _common.ENV_KEEP).
 - cargo test must print a result for every test binary and doc-test run it
   starts (the harness = false targets in Cargo.toml print their own
@@ -31,6 +39,7 @@ as unverified: it shows nothing about the code, and a rerun decides. A
 compiler that overflows its stack is the code's doing and still fails.
 """
 
+import hashlib
 import os
 import re
 import secrets
@@ -80,9 +89,12 @@ def toolchain_crashes(output: str) -> list[str]:
     crashes = {f"{m.group(1)} killed by {m.group(2)}" for pattern in TOOLCHAIN_CRASH for m in pattern.finditer(output)}
     for m in SIGNALLED.finditer(output):
         # The program's own name, not its path: a test binary under a
-        # directory named rustc-out is still a test binary.
-        program = m.group(1).split(" ", 1)[0].rsplit("/", 1)[-1]
-        if not re.fullmatch(rf"{TOOLCHAIN}(?:\.exe)?", program):
+        # directory named rustc-out is still a test binary. A compiler
+        # wrapper runs the tool given as its first argument
+        # (`mbx-rustc /.../rustc ...`, as cargo runs RUSTC_WRAPPER).
+        names = [word.rsplit("/", 1)[-1] for word in m.group(1).split()[:2]]
+        program = next((n for n in names if re.fullmatch(rf"{TOOLCHAIN}(?:\.exe)?", n)), None)
+        if program is None:
             return []  # a test binary or build script died: that is the code's result
         crashes.add(f"{program} killed by {m.group(2)}")
     lines = output.splitlines()
@@ -135,6 +147,41 @@ def cargo_config_files() -> list[Path]:
     return found
 
 
+def codegen_options(value) -> list[str]:
+    """The -C (--codegen) options in a rustflags setting, written as one
+    string or as a list."""
+    tokens = value.split() if isinstance(value, str) else [str(v) for v in value] if isinstance(value, list) else []
+    found = []
+    for i, token in enumerate(tokens):
+        following = tokens[i + 1] if i + 1 < len(tokens) else ""
+        if token in ("-C", "--codegen"):
+            found.append(following)
+        elif token.startswith("--codegen="):
+            found.append(token.split("=", 1)[1])
+        elif token.startswith("-C"):
+            found.append(token[2:])
+    return [option for option in found if option]
+
+
+def linker_choices(rustflags) -> list[str]:
+    """The options in `rustflags` that pick the program that links."""
+    found = []
+    for option in codegen_options(rustflags):
+        key, _, value = option.partition("=")
+        if key == "linker":
+            found.append(f"-C {option}")
+        elif key in ("link-arg", "link-args"):
+            found += [f"-C {key}={arg}" for arg in value.split()
+                      if arg.startswith(("-B", "--ld-path")) or (arg.startswith("-fuse-ld=") and "/" in arg)]
+    return found
+
+
+def runtools(rustdocflags) -> list[str]:
+    """The options in `rustdocflags` that run doc-tests through another program."""
+    tokens = rustdocflags.split() if isinstance(rustdocflags, str) else [str(v) for v in rustdocflags] if isinstance(rustdocflags, list) else []
+    return [token for token in tokens if token.startswith(("--runtool", "--test-runtool"))]
+
+
 def substitutes(files: list[Path]) -> list[str]:
     """The settings in `files` that let something other than cargo's own
     build and test stand in for them, or that load settings from a file
@@ -152,6 +199,14 @@ def substitutes(files: list[Path]) -> list[str]:
                 found.append(f"{path} sets target.{name}.runner")
         build = config.get("build") if isinstance(config.get("build"), dict) else {}
         found += [f"{path} sets build.{key}" for key in SUBSTITUTE_BUILD_KEYS if build.get(key)]
+        tables = [("build", build)] + ([("host", config["host"])] if isinstance(config.get("host"), dict) else [])
+        tables += [(f"target.{name}", table) for name, table in (targets.items() if isinstance(targets, dict) else ())
+                   if isinstance(table, dict)]
+        for label, table in tables:
+            if label != "build" and "linker" in table:
+                found.append(f"{path} sets {label}.linker")
+            found += [f"{path} sets {choice} in {label}.rustflags" for choice in linker_choices(table.get("rustflags"))]
+            found += [f"{path} sets {tool} in {label}.rustdocflags" for tool in runtools(table.get("rustdocflags"))]
         if "include" in config:
             found.append(f"{path} sets include, which applies settings from files this check does not read")
     return found
@@ -187,7 +242,30 @@ def silent_rustfmt_dirs() -> list[str]:
     return silent
 
 
+def programs() -> list[str]:
+    """Which cargo, rustc and mbx the gates find on PATH, and each file's
+    hash: a wrapper that stands in front of cargo shows here."""
+    lines = []
+    for name in ("cargo", "rustc", "mbx"):
+        found = shutil.which(name)
+        if not found:
+            lines.append(f"{name}: not on PATH")
+            continue
+        real = os.path.realpath(found)
+        try:
+            data = Path(real).read_bytes()
+        except OSError as error:
+            lines.append(f"{name}: {found} cannot be read ({error})")
+            continue
+        kind = "script" if data.startswith(b"#!") else "program"
+        target = f" -> {real}" if real != found else ""
+        lines.append(f"{name}: {found}{target} ({kind}, sha256 {hashlib.sha256(data).hexdigest()})")
+    return lines
+
+
 def main() -> int:
+    for line in programs():
+        print(line)
     configs = cargo_config_files()
     print("cargo configuration read:", ", ".join(map(str, configs)) or "none")
     standins = substitutes(configs)
