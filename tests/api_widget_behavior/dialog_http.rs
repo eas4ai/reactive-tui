@@ -769,8 +769,11 @@ fn autocomplete_http_replacement_discards_the_previous_query() {
 #[test]
 fn autocomplete_removal_cancels_a_live_http_request() {
     for size in [(32, 12), (60, 20)] {
+        // The reply waits 30 s; finishing well inside that shows removal did
+        // not wait for it, with room for a busy machine. Dropping the server
+        // ends the wait at once.
         let server = Server::new(vec![Reply {
-            delay: Duration::from_secs(2),
+            delay: Duration::from_secs(30),
             ..Reply::json(r#"["Late result"]"#)
         }]);
         let results = Arc::new(Mutex::new(Vec::new()));
@@ -785,7 +788,7 @@ fn autocomplete_removal_cancels_a_live_http_request() {
             size,
             vec![("REQUESTS 1", super::key(KeyCode::F(2))), ("REMOVED", None)],
         );
-        assert!(started.elapsed() < Duration::from_secs(1));
+        assert!(started.elapsed() < Duration::from_secs(10));
         assert!(results.lock().unwrap().is_empty());
         assert_eq!(server.requests.lock().unwrap().len(), 1);
     }
@@ -856,8 +859,11 @@ fn input_dialog_edit_cancels_pending_remote_submission() {
 
 #[test]
 fn input_dialog_removal_cancels_a_live_request_without_waiting_for_the_server() {
+    // The reply waits 30 s; finishing well inside that shows removal did not
+    // wait for it, with room for a busy machine. Dropping the server ends
+    // the wait at once.
     let server = Server::new(vec![Reply {
-        delay: Duration::from_secs(2),
+        delay: Duration::from_secs(30),
         ..Reply::json(r#"{"valid":true}"#)
     }]);
     let result = Arc::new(Mutex::new(None));
@@ -876,7 +882,7 @@ fn input_dialog_removal_cancels_a_live_request_without_waiting_for_the_server() 
             ("REMOVED", None),
         ],
     );
-    assert!(started.elapsed() < Duration::from_secs(1));
+    assert!(started.elapsed() < Duration::from_secs(10));
     assert!(result.lock().unwrap().is_none());
     assert!(!frames.last().unwrap().text.contains("REMOTE"));
     assert_eq!(server.requests.lock().unwrap().len(), 1);
