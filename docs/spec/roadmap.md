@@ -68,6 +68,26 @@ Done when every named requirement passes, the manual sentence in PIP-002
 is updated, and the review finds no per-cell allocation or per-cell reset
 on the render path.
 
+## z-index-tests-segfault
+
+Requirements: BAR-001
+
+Promoted from backlog item 51085de3. tests/z_index_tests.rs crashed with
+SIGSEGV once in the full workspace test run on 2026-09-22 (receipt
+dba7b94c) and passed every standalone rerun. The tests use only
+apply_utility_classes and StyleBuilder, with no unsafe code. The host's
+memory overclock, the cause of the other crashes seen then, was turned
+off on 2026-09-23.
+
+Run the z_index_tests binary in a loop beside a full workspace test run,
+with backtraces and core dumps on. A crash that turns up is fixed at its
+cause, with a test that reproduces it; if none turns up, the item closes
+as the host's fault.
+
+Done when every quality-bar requirement passes and the z_index_tests
+binary passes 1,000 runs under that load without a signal, or a crash
+found in those runs is fixed and the test that reproduces it passes.
+
 ## charts-radial-and-flow
 
 Requirements: CHT-015, CHT-016 plus the quality bar
