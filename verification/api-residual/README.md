@@ -31,8 +31,8 @@ the replacement socket actually reused the descriptor.
 
 Every case asserts correct behavior. The command exits nonzero while the defects
 remain; a failed diagnostic is not an acceptance pass. Timestamped command records,
-per-case outputs, exit statuses and reap results are retained under
-`.cairn/reviews/api-019-input-lifecycle/`. The build driver's `exit` values normalize
+per-case outputs, exit statuses and reap results are written under
+`target/evidence/api-019-input-lifecycle/`, which `cargo clean` removes. The build driver's `exit` values normalize
 success/failure to 0/1; `cases/results.json` retains actual child exit statuses.
 
 All 14 cases are included in `scripts/check-api-residual.py --only unix-input`,
@@ -47,8 +47,9 @@ The full API-019 coverage gate remains incomplete and cannot pass this group alo
 consumer. Run `python3 -B verification/api-residual/run-local-owner.py` to build
 the actual library, verify retention until scope exit after foreign owner drop,
 and reject transfer of LocalRef to another thread with an E0277 compiler error.
-The original unscoped failure remains in `.cairn/reviews/api-019-local-owner/`;
-it is historical diagnostic evidence, not an acceptance pass.
+The original unscoped failure was a Cairn 1.x review record, removed from the
+tree on 2026-09-19 in commit 7fd91fc7; git history keeps it in its parent. It
+was diagnostic evidence, not an acceptance pass.
 
 The reference group also requires all thirteen `api_local_hooks` tests and all ten
 `api_residual_refs` tests. These cover arbitrary non-Send values, missing/changed/

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Reject ignored tracked files, stale repository rules, and queued decisions."""
+"""Reject ignored tracked files and stale repository rules."""
 from pathlib import Path
 import fnmatch
 import re
@@ -13,7 +13,6 @@ LOCAL_NOISE = {
     "target", "build", "dist", "node_modules", "__pycache__", "reference",
     ".idea", ".vscode", ".nova", ".zencoder", ".agent-os", ".claude",
     ".gitnexus", "CLAUDE.md", "test_image.png", ".DS_Store", "Thumbs.db",
-    ".cairn/in-progress",
 }
 
 
@@ -83,10 +82,6 @@ def inspect_repository(root: Path) -> list[str]:
     errors = [f"tracked file is ignored: {name}" for name in
               ignored.stdout.decode().strip("\0").split("\0") if name]
     errors += stale_ignore_rules(root, tracked) + stale_package_rules(root, tracked)
-    queue = root / ".cairn/queue"
-    if queue.exists():
-        errors += [f"unreviewed decision: {path.relative_to(root)}"
-                   for path in sorted(queue.rglob("*")) if path.is_file()]
     return errors
 
 

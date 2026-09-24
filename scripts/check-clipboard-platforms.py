@@ -16,7 +16,7 @@ import time
 import uuid
 
 ROOT = Path(__file__).resolve().parents[1]
-RECORDS = ROOT / ".cairn/reviews/clipboard-platforms"
+RECORDS = ROOT / "target/evidence/clipboard-platforms"
 PLATFORMS = {"wayland": "Linux", "xsel": "Linux", "xclip": "Linux", "macos": "Darwin", "windows": "Windows"}
 INPUTS = (
     "Cargo.toml", "Cargo.lock", "build.rs", "src", "crates", "tests/api_clipboard.rs",

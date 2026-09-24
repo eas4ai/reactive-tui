@@ -41,8 +41,6 @@ class ImageProbeLaunchTests(unittest.TestCase):
             return {"execute": self.execute, "build_probe": self.bounded_probe}
         if str(path).endswith("scripts/kitty-host/build.py"):
             return {"ensure_host": self.ensure_host, "digest": lambda path: "a" * 64}
-        if str(path).endswith(".cairn/api-closure/check.py"):
-            return {"build_probe": self.build_probe}
         raise AssertionError("Unexpected runner dependency: " + str(path))
 
     def bounded_probe(self, output):

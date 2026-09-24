@@ -36,7 +36,7 @@ def main():
     native = runpy.run_path(str(ROOT / "scripts/check-widget-platforms.py"))
     execute = native["execute"]
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
-    output = ROOT / ".cairn/reviews/api-image-hosts" / stamp
+    output = ROOT / "target/evidence/api-image-hosts" / stamp
     output.mkdir(parents=True)
     kitty_host = runpy.run_path(str(ROOT / "scripts/kitty-host/build.py"))
     host_binary, host_record = kitty_host["ensure_host"]()

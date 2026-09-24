@@ -311,7 +311,7 @@ def main():
     artifacts = list((TARGET / "debug/deps").glob("libvt100-*.rlib"))
     assert artifacts, "Cargo did not build the declared vt100 dependency"
     vt100 = max(artifacts, key=lambda path: path.stat().st_mtime_ns)
-    captured = ROOT / ".cairn/reviews/api-entry-points" / time.strftime("%Y%m%dT%H%M%SZ", time.gmtime())
+    captured = ROOT / "target/evidence/api-entry-points" / time.strftime("%Y%m%dT%H%M%SZ", time.gmtime())
     captured.mkdir(parents=True)
     failures = []
     with tempfile.TemporaryDirectory(prefix="api-entry-points-", dir=TARGET) as temporary:

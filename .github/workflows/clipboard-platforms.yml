@@ -86,7 +86,7 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: entry-points-macos
-          path: .cairn/reviews/api-entry-points/**
+          path: target/evidence/api-entry-points/**
           include-hidden-files: true
           if-no-files-found: error
           retention-days: 14
@@ -95,7 +95,7 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: hooks-${{ matrix.backend }}
-          path: .cairn/reviews/api-residual/**
+          path: target/evidence/api-residual/**
           include-hidden-files: true
           if-no-files-found: error
           retention-days: 14
@@ -104,7 +104,7 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: widgets-${{ matrix.backend }}
-          path: .cairn/reviews/widget-platforms/**
+          path: target/evidence/widget-platforms/**
           include-hidden-files: true
           if-no-files-found: error
           retention-days: 14
@@ -121,7 +121,7 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: clipboard-${{ matrix.backend }}
-          path: .cairn/reviews/clipboard-platforms/${{ matrix.backend }}.*
+          path: target/evidence/clipboard-platforms/${{ matrix.backend }}.*
           include-hidden-files: true
           if-no-files-found: warn
           retention-days: 14

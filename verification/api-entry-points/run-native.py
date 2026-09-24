@@ -14,7 +14,6 @@ os.environ.update(CARGO_BUILD_JOBS="8", RUST_TEST_THREADS="8", CARGO_INCREMENTAL
                   LP_NUM_THREADS="8", PYTHON_CPU_COUNT="8", GOMAXPROCS="8", GOFLAGS="-p=8")
 INPUTS = ("src", "tests", "crates/reactive-tui-macros", "vendor", "include", ".cargo",
           "scripts", "verification", "Cargo.toml", "Cargo.lock", "build.rs",
-          ".cairn/mechanisms/api-entry-points.md",
           ".github/workflows/clipboard-platforms.yml")
 
 
@@ -45,7 +44,7 @@ if platform.system() not in ("Darwin", "Linux"):
 before = snapshot()
 check_module = runpy.run_path(str(ROOT / "scripts/check-api-residual.py"))
 check = check_module["Check"]()
-check.output = ROOT / ".cairn/reviews/api-entry-points" / ("native-" + check.output.name)
+check.output = ROOT / "target/evidence/api-entry-points" / ("native-" + check.output.name)
 check.output.mkdir(parents=True)
 check.run("entry-points", [sys.executable, "-B", "scripts/check-api-entry-points.py"],
           timeout=1200, verify=require_workflows)

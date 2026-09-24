@@ -12,10 +12,10 @@ import subprocess
 import sys
 
 ROOT = Path(__file__).resolve().parents[1]
-RECORDS = ROOT / ".cairn/reviews/widget-platforms"
+RECORDS = ROOT / "target/evidence/widget-platforms"
 INPUTS = ("Cargo.toml", "Cargo.lock", "build.rs", "src",
           "crates", "tests", "scripts/check-widget-platforms.py",
-          ".cairn/api-closure/check.py", "scripts/check-dialog-http.py",
+          "scripts/build-image-probe.py", "scripts/check-dialog-http.py",
           "scripts/check-iterm-host.py",
           "scripts/install-conpty-runtime.py",
           ".github/workflows/clipboard-platforms.yml")
@@ -77,9 +77,7 @@ def execute(command, output, timeout):
 
 def build_probe(output):
     """Keep Cargo and compiler children in the bounded runner's owned group."""
-    build = execute([sys.executable, "-B", "-c",
-        'import json, runpy; print(json.dumps(runpy.run_path(".cairn/api-closure/check.py")["build_probe"]()))'],
-        output, 590)
+    build = execute([sys.executable, "-B", str(ROOT / "scripts/build-image-probe.py")], output, 590)
     lines = build.splitlines()
     probe = json.loads(lines[-1]) if lines else None
     if not isinstance(probe, str) or not probe:

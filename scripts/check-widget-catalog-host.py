@@ -52,7 +52,7 @@ def run():
     parser.add_argument("--requirement", choices=["all", "CAT-001", "CAT-002"], default="all")
     args = parser.parse_args()
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
-    destination = args.output or ROOT / ".cairn/evidence/captures/catalog" / f"{stamp}-{os.getpid()}"
+    destination = args.output or ROOT / "target/evidence/captures/catalog" / f"{stamp}-{os.getpid()}"
     destination.mkdir(parents=True, exist_ok=False)
     target = Path(os.environ.get("CARGO_TARGET_DIR", ROOT / "target"))
     artifacts = []

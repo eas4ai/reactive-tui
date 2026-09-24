@@ -52,6 +52,6 @@ There is no repaint request, retransmission, or Rust image encoder in this
 reference path. Compile it with `cc -std=c11 -O2 -Wall -Wextra -Werror
 reference.c -lz -lcrypto -o reference` from this directory.
 
-The before/after investigation and build evidence are retained in
-`.cairn/reviews/api-014-kitty-repair`; the earlier independent repaint controls
-remain in `.cairn/reviews/api-014-kitty-layer-order`.
+The before/after investigation, its build evidence and the earlier independent
+repaint controls were Cairn 1.x review records. They were removed from the tree
+on 2026-09-19 in commit 7fd91fc7; git history keeps them in its parent.

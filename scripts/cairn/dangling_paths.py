@@ -5,13 +5,20 @@ did not change. `--range` limits the scan to files changed since --base/$CAIRN_B
 (default tag v1.0.0); `--fixture PATH` scans one file.
 
 Every tracked text file is read, the CI workflows and the specification
-included, except the records that cite paths as they were (below). Three
+included, except the records that cite paths as they were (below). Four
 forms of reference are checked:
 
-- a path under any top-level directory the tree has, with any leading
-  `./` and `../` resolved from the file's own directory; in Markdown a
-  trailing slash names a directory that must exist, while in code it is a
-  prefix and names nothing;
+- a path under any top-level directory the tree has or once had, with any
+  leading `./` and `../` resolved from the file's own directory; in
+  Markdown a trailing slash names a directory that must exist, while in
+  code it is a prefix and names nothing. A directory the tree once had is
+  one git history deleted a file from, or one a mechanism declares as an
+  input, so deleting a whole directory is caught in the files that still
+  point into it, with or without a repository;
+- in code, a file name joined to the repository root (`ROOT / "name"`),
+  and in CI workflows, shell scripts and manifests, a file an interpreter
+  or a `--config`-style option is given, or a `./name` a step runs; each
+  is read from the root, and names under `target/` are build output;
 - in Markdown, every link target that is not a URL or an anchor, resolved
   from the file's directory, so a top-level file such as a README is
   checked too;
@@ -20,6 +27,7 @@ forms of reference are checked:
   gives no directory, anywhere in the tree.
 """
 
+import json
 import os
 import posixpath
 import re
@@ -56,6 +64,17 @@ EXTERNAL = {
 }
 # Installed at build time, never tracked.
 INSTALLED = "/node_modules/"
+# A file name as a script or a CI step gives it: no leading slash, variable
+# or home directory, and an extension.
+FILE_NAME = r"[A-Za-z0-9_][A-Za-z0-9_./-]*\.[A-Za-z0-9]+"
+ROOTED = re.compile(rf"""\b(?:ROOT|REPO|REPO_ROOT|repo_root)\s*(?:/\s*|\.joinpath\(\s*)["']({FILE_NAME})["']""")
+RUN_WORD = re.compile(
+    rf"""(?:(?:^[ \t]*|[;&|(]\s*|\brun:\s*|\s)(?:python3?|bash|sh|node|pwsh|ruby|perl)(?:\s+-[A-Za-z]+)*\s+"""
+    rf"""|--(?:config|manifest-path|file|config-file)[=\s]+"""
+    rf"""|(?:^[ \t]*|[;&|]\s*|\brun:\s*)\./)({FILE_NAME})(?![A-Za-z0-9_/.-])""", re.M)
+COMMAND_SUFFIXES = (".sh", ".yml", ".yaml", ".toml", ".json")
+COMMAND_NAMES = ("Makefile", "justfile")
+BUILD_OUTPUT = "target/"
 LINK = re.compile(r"\[[^\]\n]*\]\(\s*<?([^)\s>]+)>?(?:\s+\"[^\"]*\")?\s*\)")
 BARE_NAME = re.compile(r"(?<![A-Za-z0-9_./-])([A-Z][A-Z0-9_-]*\.md)\b")
 
@@ -91,10 +110,37 @@ def exists(ref: str, tracked: set[str], dirs: set[str]) -> bool:
     return ref in tracked or ref in dirs or any(t.startswith(ref + ".") for t in tracked)
 
 
-def path_pattern(tracked: set[str]) -> re.Pattern:
-    """A path under any top-level directory of the tree; the leading ./ and
-    ../ segments are captured, so a link of the wrong depth is caught."""
-    top = sorted({p.split("/", 1)[0] for p in tracked if "/" in p})
+def former_directories(tracked: set[str]) -> set[str]:
+    """Top-level directories the tree may no longer have: every one git
+    history deleted a file from (a move counts as a deletion), and every
+    top-level input a mechanism declares, which is all an adversary
+    projection without history can know."""
+    found = set()
+    try:
+        out = subprocess.run(["git", "log", "--format=", "--name-only", "--no-renames", "--diff-filter=D", "-z"],
+                             cwd=ROOT, capture_output=True)
+    except FileNotFoundError:
+        out = None
+    if out is not None and out.returncode == 0:
+        found |= {p.strip().split("/", 1)[0] for p in out.stdout.decode(errors="replace").split("\0") if "/" in p}
+    for layout in (".sudus", ".cairn"):
+        for declaration in sorted((ROOT / layout / "mechanisms").glob("*.json")):
+            try:
+                inputs = json.loads(declaration.read_text())["definition"]["inputs"]
+            except (OSError, ValueError, KeyError, TypeError):
+                continue
+            for entry in inputs:
+                top = entry.split("/", 1)[0]
+                if "/" in entry or ("." not in top and top not in tracked):
+                    found.add(top)
+    return {d for d in found if d and d not in (".", "..")}
+
+
+def path_pattern(tracked: set[str], former: set[str] = frozenset()) -> re.Pattern:
+    """A path under any top-level directory the tree has or once had; the
+    leading ./ and ../ segments are captured, so a link of the wrong depth
+    is caught."""
+    top = sorted({p.split("/", 1)[0] for p in tracked if "/" in p} | set(former))
     names = "|".join(re.escape(t) for t in top)
     return re.compile(rf"(?<![A-Za-z0-9_./-])((?:\.\./|\./)*)((?:{names})/[A-Za-z0-9_./-]*)")
 
@@ -148,6 +194,15 @@ def dangling(path: Path, tracked: set[str], dirs: set[str], pattern: re.Pattern 
             bare = m.group(1)
             if not (here(posixpath.join(base, bare)) or here(bare) or bare in basenames):
                 bad.append(f"{name}: {bare}")
+    named = [m.group(1) for m in ROOTED.finditer(text)]
+    if name.startswith(".github/") or path.suffix in COMMAND_SUFFIXES or path.name in COMMAND_NAMES:
+        named += [m.group(1) for m in RUN_WORD.finditer(text)]
+    for ref in dict.fromkeys(named):
+        target = posixpath.normpath(ref)
+        if target.startswith(BUILD_OUTPUT) or (name, target) in EXTERNAL:
+            continue
+        if not (here(target) or exists(posixpath.join(base, target), tracked, dirs)):
+            bad.append(f"{name}: {ref} (a file the root has no copy of)")
     return bad
 
 
@@ -168,7 +223,7 @@ def main() -> int:
         targets = [ROOT / f for f in changed_files(base)]
     else:
         targets = [ROOT / f for f in sorted(tracked) if scanned(f)]
-    pattern = path_pattern(tracked)
+    pattern = path_pattern(tracked, former_directories(tracked))
     bad = [b for t in targets for b in dangling(t, tracked, dirs, pattern)]
     if bad:
         print("BAR-007 violated: references to paths git does not track:")

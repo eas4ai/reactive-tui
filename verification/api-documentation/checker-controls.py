@@ -50,10 +50,6 @@ class RetainedDocumentationControls(unittest.TestCase):
         with self.assertRaises(AssertionError):
             CHECK["matrix_modules"](row.replace("GPU-001", "UNKNOWN-001"))
 
-    def test_manual_is_a_declared_documentation_input(self):
-        declaration = (ROOT / ".cairn/mechanisms/api-documentation").read_text()
-        self.assertIn("  - manual\n", declaration)
-
     def test_nested_manual_examples_enter_the_compilation_inventory(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)

@@ -33,8 +33,8 @@ class HousekeepingTests(unittest.TestCase):
     def test_valid_repository_with_future_build_noise_passes(self):
         self.assertEqual(self.checker.inspect_repository(self.root), [])
 
-    def test_os_noise_and_live_cairn_state_remain_local(self):
-        self.write(".gitignore", ".DS_Store\nThumbs.db\n.cairn/in-progress\n")
+    def test_os_noise_remains_local(self):
+        self.write(".gitignore", ".DS_Store\nThumbs.db\n")
         self.assertEqual(self.checker.inspect_repository(self.root), [])
 
     def test_tracked_ignored_file_is_rejected(self):
@@ -66,12 +66,6 @@ class HousekeepingTests(unittest.TestCase):
         self.write("nested/Cargo.toml", '[package]\nname="nested"\nversion="0.1.0"\ninclude=["/src/**"]\n')
         self.git("add", "nested")
         self.assertEqual(self.checker.inspect_repository(self.root), [])
-
-    def test_queued_decision_blocks_release_review_without_deleting_it(self):
-        self.write(".cairn/queue/decision", "Review this decision.\n")
-        self.assertTrue(any("unreviewed decision" in error
-                            for error in self.checker.inspect_repository(self.root)))
-        self.assertTrue((self.root / ".cairn/queue/decision").is_file())
 
     def test_malformed_package_document_is_reported(self):
         self.write("Cargo.toml", "[package\n")

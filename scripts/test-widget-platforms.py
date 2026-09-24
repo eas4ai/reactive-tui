@@ -45,7 +45,7 @@ class NativeWidgetControls(unittest.TestCase):
             text = "\n".join(json.dumps({"reason": "compiler-artifact", "profile": {"test": True},
                 "target": {"name": name}, "executable": str(self.test_directory / name)})
                 for name in ("reactive_tui", "api_widget_behavior"))
-        elif "-c" in command:
+        elif command[-1].endswith("scripts/build-image-probe.py"):
             text = "Controlled compiler diagnostic\n" + json.dumps(self.probe)
         elif "scripts/check-dialog-http.py" in command:
             text = "Dialog HTTPS trusted: passed\nDialog HTTPS untrusted: passed"
@@ -86,11 +86,11 @@ class NativeWidgetControls(unittest.TestCase):
         self.assertEqual(str(spec.loader.path).replace("scripts/check-widget-platforms.py", ""), str(ROOT) + "/")
         actual = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(actual)
-        self.assertEqual(actual.RECORDS, ROOT / ".cairn/reviews/widget-platforms")
+        self.assertEqual(actual.RECORDS, ROOT / "target/evidence/widget-platforms")
 
     def test_digest_declares_workspace_and_runner_dependencies(self):
         self.assertTrue({"crates", "tests", "scripts/check-widget-platforms.py",
-                         ".cairn/api-closure/check.py"}.issubset(CHECK.INPUTS))
+                         "scripts/build-image-probe.py"}.issubset(CHECK.INPUTS))
 
     def test_windows_runtime_uses_actual_test_artifact_directory(self):
         with patch.object(CHECK.platform, "system", return_value="Windows"), \
@@ -137,8 +137,7 @@ class NativeWidgetControls(unittest.TestCase):
             self.assertEqual(CHECK.build_probe(self.root / "build.out"), self.probe)
         self.assertLess(execute.call_args.args[2], 600)
         command = execute.call_args.args[0]
-        self.assertIn("-c", command)
-        self.assertIn(".cairn/api-closure/check.py", command[-1])
+        self.assertEqual(command[-1], str(CHECK.ROOT / "scripts/build-image-probe.py"))
 
     def test_zero_case_rejected_even_when_hash_matches(self):
         self.records(zero=True)

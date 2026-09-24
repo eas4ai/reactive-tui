@@ -69,7 +69,7 @@ def main():
     spec = importlib.util.spec_from_file_location('entry_points', ROOT / 'scripts/check-api-entry-points.py')
     entry_points = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(entry_points)
-    captures = ROOT / '.cairn/reviews/api-native-components' / time.strftime('%Y%m%dT%H%M%SZ', time.gmtime())
+    captures = ROOT / 'target/evidence/api-native-components' / time.strftime('%Y%m%dT%H%M%SZ', time.gmtime())
     captures.mkdir(parents=True)
     print('Captures:', captures, flush=True)
     failures = []
