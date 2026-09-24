@@ -280,44 +280,21 @@ fn duplicate_keys_fail_without_ambiguous_instance_reuse() {
     assert!(result.is_err(), "duplicate sibling keys must fail");
 }
 
-#[test]
-#[serial_test::serial]
-fn recursive_expansion_fails_with_a_bounded_error() {
-    register();
-    let (result, _) = run_frames(vec![Element::component("ApiExpansionRecursive")]);
-    assert!(
-        result.is_err(),
-        "recursive component output must be bounded"
-    );
-}
+/// The error that stops expansion one level past its depth bound.
+const DEPTH_ERROR: &str = "component tree exceeds expansion depth 128";
 
-/// The depth bound is reached within a 1.5 MiB stack, well under a test
-/// thread's 2 MiB: each expansion level stays small enough that a build with
-/// larger elements, such as one with the embedded-terminal feature, still
-/// fits. The expansion runs in a child process, so a stack overflow, which
-/// aborts the process, fails this test instead of ending the whole run.
-#[test]
-fn recursive_expansion_reaches_its_bound_within_a_small_stack() {
-    const CHILD: &str = "RTUI_EXPANSION_STACK_CHILD";
-    const NAME: &str = "recursive_expansion_reaches_its_bound_within_a_small_stack";
-    if std::env::var_os(CHILD).is_some() {
-        let bounded = std::thread::Builder::new()
-            .stack_size(1536 * 1024)
-            .spawn(|| {
-                register();
-                run_frames(vec![Element::component("ApiExpansionRecursive")])
-                    .0
-                    .is_err()
-            })
-            .unwrap()
-            .join()
-            .unwrap();
-        assert!(bounded, "recursive component output must be bounded");
-        return;
-    }
+/// Set in the child process that `run_in_child` starts.
+const CHILD: &str = "RTUI_EXPANSION_STACK_CHILD";
+
+/// Runs the test `name` again in a child process with `env` added to its
+/// environment, and returns whether the child exited successfully and its
+/// output. A stack overflow aborts the process it happens in, so in the
+/// child it fails the calling test instead of ending the whole run.
+fn run_in_child(name: &str, env: &[(&str, &str)]) -> (bool, String) {
     let output = std::process::Command::new(std::env::current_exe().unwrap())
-        .args(["--exact", NAME, "--nocapture", "--test-threads=1"])
+        .args(["--exact", name, "--nocapture", "--test-threads=1"])
         .env(CHILD, "1")
+        .envs(env.iter().copied())
         .output()
         .unwrap();
     let text = format!(
@@ -325,14 +302,124 @@ fn recursive_expansion_reaches_its_bound_within_a_small_stack() {
         String::from_utf8_lossy(&output.stdout),
         String::from_utf8_lossy(&output.stderr)
     );
+    (output.status.success(), text)
+}
+
+/// Whether this process is the child `run_in_child` started. The child
+/// writes no core file when it aborts, so each failing run does not leave
+/// one behind.
+fn in_child() -> bool {
+    if std::env::var_os(CHILD).is_none() {
+        return false;
+    }
+    #[cfg(unix)]
+    {
+        let none = libc::rlimit {
+            rlim_cur: 0,
+            rlim_max: 0,
+        };
+        // SAFETY: setrlimit only reads `none` during the call.
+        assert_eq!(unsafe { libc::setrlimit(libc::RLIMIT_CORE, &none) }, 0);
+    }
+    true
+}
+
+/// Nests `depth` flex columns around a text, so the text sits at that depth.
+fn nested(depth: usize) -> Element {
+    (0..depth).fold(Element::text("deepest"), |inner, _| column(vec![inner]))
+}
+
+#[test]
+#[serial_test::serial]
+fn recursive_expansion_fails_with_a_bounded_error() {
+    register();
+    let (result, _) = run_frames(vec![Element::component("ApiExpansionRecursive")]);
+    let error = result.expect_err("recursive component output must be bounded");
     assert!(
-        output.status.success(),
+        error.to_string().contains(DEPTH_ERROR),
+        "unexpected error: {error}"
+    );
+}
+
+#[test]
+#[serial_test::serial]
+fn expansion_refuses_a_tree_one_level_past_its_bound() {
+    let (result, _) = run_frames(vec![nested(129)]);
+    let error = result.expect_err("a tree deeper than the bound must fail");
+    assert!(
+        error.to_string().contains(DEPTH_ERROR),
+        "unexpected error: {error}"
+    );
+}
+
+/// The depth bound is reached within a 1.5 MiB stack, well under a test
+/// thread's 2 MiB. Each expansion level stays small enough that a build
+/// whose libraries keep more thread-local storage still fits: glibc takes a
+/// thread's static thread-local storage out of its stack, and the
+/// embedded-terminal feature's terminal library keeps 256 KiB of it.
+#[test]
+fn recursive_expansion_reaches_its_bound_within_a_small_stack() {
+    const NAME: &str = "recursive_expansion_reaches_its_bound_within_a_small_stack";
+    if in_child() {
+        let error = std::thread::Builder::new()
+            .stack_size(1536 * 1024)
+            .spawn(|| {
+                register();
+                run_frames(vec![Element::component("ApiExpansionRecursive")])
+                    .0
+                    .err()
+                    .map(|error| error.to_string())
+            })
+            .unwrap()
+            .join()
+            .unwrap();
+        let error = error.expect("recursive component output must be bounded");
+        assert!(error.contains(DEPTH_ERROR), "unexpected error: {error}");
+        return;
+    }
+    let (passed, text) = run_in_child(NAME, &[]);
+    assert!(
+        passed,
         "expansion to its depth bound does not fit a 1.5 MiB stack: {text}"
     );
     assert!(
         text.contains("1 passed"),
         "the child ran no expansion: {text}"
     );
+}
+
+/// The deepest tree expansion accepts also draws. The renderer's worker
+/// recurses once per element level, so it must not rely on the default
+/// thread stack, which RUST_MIN_STACK or a library's thread-local storage
+/// can shrink. The child's default stack is 1 MiB, less than the renderer
+/// needs at this depth, and its App runs on a thread with room to spare, so
+/// only the renderer's own stack decides the result.
+#[test]
+fn the_deepest_accepted_tree_draws_whatever_the_default_thread_stack() {
+    const NAME: &str = "the_deepest_accepted_tree_draws_whatever_the_default_thread_stack";
+    if in_child() {
+        let (result, frames) = std::thread::Builder::new()
+            .stack_size(8 << 20)
+            .spawn(|| {
+                let (result, frames) = run_frames(vec![nested(128)]);
+                (result.map_err(|error| error.to_string()), frames)
+            })
+            .unwrap()
+            .join()
+            .unwrap();
+        result.unwrap();
+        assert!(
+            frames[0].contains("deepest"),
+            "the innermost text was not drawn: {frames:?}"
+        );
+        return;
+    }
+    let (passed, text) = run_in_child(NAME, &[("RUST_MIN_STACK", "1048576")]);
+    assert!(
+        passed,
+        "the deepest accepted tree does not draw with a 1 MiB default thread stack: {text}"
+    );
+    assert!(text.contains("1 passed"), "the child drew nothing: {text}");
 }
 
 #[test]
