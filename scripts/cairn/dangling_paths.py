@@ -161,6 +161,7 @@ def dangling(path: Path, tracked: set[str], dirs: set[str], pattern: re.Pattern 
     roots = package_roots(path, tracked)
     here = lambda ref: exists(ref, tracked, dirs) or any(exists(f"{root}/{ref}", tracked, dirs) for root in roots)
     bad = []
+    seen = set()
     for m in pattern.finditer(text):
         climb, ref = m.group(1), m.group(2).rstrip(".,:;)`'\"")
         if "*" in ref or "{" in ref or "<" in ref or "$" in ref or INSTALLED in f"/{ref}":
@@ -170,6 +171,7 @@ def dangling(path: Path, tracked: set[str], dirs: set[str], pattern: re.Pattern 
         if ref.endswith("/") and not markdown:
             continue
         target = ref.rstrip("/")
+        seen.add(target)
         if "../" in climb:
             target = posixpath.normpath(posixpath.join(base, climb + target))
             if not target.startswith("../") and exists(target, tracked, dirs):
@@ -199,7 +201,8 @@ def dangling(path: Path, tracked: set[str], dirs: set[str], pattern: re.Pattern 
         named += [m.group(1) for m in RUN_WORD.finditer(text)]
     for ref in dict.fromkeys(named):
         target = posixpath.normpath(ref)
-        if target.startswith(BUILD_OUTPUT) or (name, target) in EXTERNAL:
+        # A path under a known directory was read above.
+        if target in seen or target.startswith(BUILD_OUTPUT) or (name, target) in EXTERNAL:
             continue
         if not (here(target) or exists(posixpath.join(base, target), tracked, dirs)):
             bad.append(f"{name}: {ref} (a file the root has no copy of)")
