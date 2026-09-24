@@ -233,7 +233,3 @@ fn side_offsets_do_not_implicitly_choose_a_position_or_layer() {
         assert_eq!(sb.build().position, StyleBuilder::new().build().position);
     }
 }
-
-// VIOLATING EXAMPLE (reverted in the next commit): BAR-001 formatting.
-#[allow(dead_code)]
-fn   badly_formatted() {}
