@@ -168,13 +168,14 @@ fn worker_request_wakes_idle_app_and_repaints_state() {
     let (done, wait) = std::sync::mpsc::channel();
     let observer = painted.clone();
     let worker = std::thread::spawn(move || {
-        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(3);
+        // Both waits are a hang guard, not a timing check: generous so a busy machine cannot fail a correct test.
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
         while observer.load(Ordering::SeqCst) == 0 && std::time::Instant::now() < deadline {
             std::thread::sleep(std::time::Duration::from_millis(1));
         }
         handle.request();
         if wait
-            .recv_timeout(std::time::Duration::from_secs(3))
+            .recv_timeout(std::time::Duration::from_secs(30))
             .is_err()
         {
             wake.request_stop();

@@ -131,7 +131,8 @@ fn callback_reference_allows_read_and_write_reentry() {
         .env(CHILD, "1")
         .spawn()
         .unwrap();
-    let deadline = Instant::now() + Duration::from_secs(3);
+    // a hang guard, not a timing check: generous so a busy machine cannot fail a correct test.
+    let deadline = Instant::now() + Duration::from_secs(30);
     loop {
         if let Some(status) = child.try_wait().unwrap() {
             assert!(
