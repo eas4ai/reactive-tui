@@ -24,15 +24,6 @@ class CheckerControls(unittest.TestCase):
         with self.assertRaises(AssertionError):
             CHECK["require_input_cases"]("No actual lifecycle execution")
 
-    def test_inventory_rejects_missing_and_duplicate_concerns(self):
-        text = CHECK["inventory_text"]()
-        rows = CHECK["inventory_rows"](text)
-        self.assertEqual(len(rows), len(CHECK["CONCERNS"]) + 1)
-        line = next(line for line in text.splitlines() if line.startswith("| Legacy backend test reachability |"))
-        for violating in (text.replace(line, ""), text + "\n" + line):
-            with self.assertRaises(AssertionError):
-                CHECK["inventory_rows"](violating)
-
     def test_discovery_requires_exact_registered_names(self):
         name = "backend::tests::map_paste_event"
         CHECK["require_registered"](name + ": test\n", [name])

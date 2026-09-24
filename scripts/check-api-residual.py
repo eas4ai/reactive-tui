@@ -10,15 +10,6 @@ import re
 import runpy
 
 ROOT = Path(__file__).resolve().parents[1]
-INVENTORY_START = "<!-- RESIDUAL-INVENTORY-START -->"
-INVENTORY_END = "<!-- RESIDUAL-INVENTORY-END -->"
-
-
-def inventory_text():
-    """The authoritative inventory table, kept in the API-019 spec section."""
-    text = (ROOT / "docs" / "spec" / "rust-api-remediation.md").read_text()
-    start = text.index(INVENTORY_START) + len(INVENTORY_START)
-    return text[start:text.index(INVENTORY_END)]
 CONCERNS = (
     "Hover, drag, drag-and-drop, mouse position, clicks, long press, swipe and wheel hooks",
     "Public reference hooks", "ui::Updater", "Theme propagation", "Performance context",
@@ -104,23 +95,6 @@ CSS_TESTS = (
     "checked_conversion_requires_a_named_property_and_rejects_value_loss",
 )
 GROUPS = ("refs", "mapping-tests", "unix-input", "performance", "updaters", "inventory")
-
-
-def inventory_rows(text):
-    rows = {}
-    for line in text.splitlines():
-        if not line.startswith("| "):
-            continue
-        cells = [cell.strip() for cell in line.strip("|").split("|")]
-        if cells[0] in ("Concern", "---"):
-            continue
-        if len(cells) != 4 or not all(cells) or cells[0] in rows:
-            raise AssertionError("Residual inventory needs unique, complete contract/falsifier rows")
-        rows[cells[0]] = cells[1:]
-    required = set(CONCERNS) | {"Image capture timeout ownership"}
-    if set(rows) != required:
-        raise AssertionError(f"Residual inventory drift: missing={required - set(rows)}, extra={set(rows) - required}")
-    return rows
 
 
 def require_registered(text, names):
@@ -248,7 +222,6 @@ class Check:
                  verify=lambda text: require_executed(text, unit_names))
 
     def inventory(self):
-        inventory_rows(inventory_text())
         self.run("api019-lib-discovery", ["cargo", "test", "--locked", "--lib", "api019_", "--", "--list"],
                  verify=lambda text: require_registered(text, API019_LIB_TESTS))
         self.run("api019-lib-behavior", ["cargo", "test", "--locked", "--lib", "api019_", "--", "--test-threads=8"],

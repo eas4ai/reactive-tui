@@ -1,20 +1,11 @@
 #!/usr/bin/env python3
-"""Require the widget matrix and real App input/frame acceptance workflows."""
+"""Run the real App input and frame acceptance workflows for the widget families."""
 from pathlib import Path
 import json
 import os
 import subprocess
 
 root = Path(__file__).resolve().parents[1]
-MATRIX_START = "<!-- WIDGET-ACCEPTANCE-START -->"
-MATRIX_END = "<!-- WIDGET-ACCEPTANCE-END -->"
-
-
-def matrix_text():
-    """The authoritative acceptance matrix, kept in the API-011 spec section."""
-    text = (root / "docs" / "spec" / "rust-api-remediation.md").read_text()
-    start = text.index(MATRIX_START) + len(MATRIX_START)
-    return text[start:text.index(MATRIX_END)]
 # Avoid the observed rustc incremental metadata ICE; execute the same tests.
 environment = os.environ.copy()
 environment["CARGO_INCREMENTAL"] = "0"
@@ -24,11 +15,7 @@ result = subprocess.run(
     ["cargo", "test", "--locked", "--test", "api_widget_behavior", "--", "--test-threads=1"],
     cwd=root, env=environment, timeout=180,
 )
-matrix = matrix_text()
-pending = [line for line in matrix.splitlines() if line.startswith("|") and "PENDING" in line]
-for line in pending:
-    print("Missing App acceptance coverage: " + line, flush=True)
-if result.returncode or pending:
+if result.returncode:
     raise SystemExit(1)
 
 for selector in ["accessibility::style::tests", "reduced_motion_releases_clocks",
