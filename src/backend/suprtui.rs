@@ -21,6 +21,14 @@ mod input;
 mod output;
 use output::{CheckedOutput, TerminalOutput};
 
+/// The renderer worker's stack. Converting and painting a frame recurses once
+/// per element level, about 14 KiB a level in a debug build, so the deepest
+/// tree component expansion accepts (128 levels) needs about 1.8 MiB. The
+/// default thread stack is 2 MiB less the static thread-local storage of the
+/// linked libraries (256 KiB with the embedded-terminal feature), and
+/// RUST_MIN_STACK can lower it further, so the worker sets its own.
+const RENDERER_STACK: usize = 8 << 20;
+
 /// Host graphics settings for an owned writer. Cell dimensions are physical pixels.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct ImageOutputOptions {
@@ -220,6 +228,7 @@ impl SuprTuiBackend {
         let (ready, initialized) = mpsc::channel();
         let worker = thread::Builder::new()
             .name("suprtui-renderer".into())
+            .stack_size(RENDERER_STACK)
             .spawn(move || {
                 run_worker_guarded(writer, terminal, dimensions, receiver, ready, images);
             })?;

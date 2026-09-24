@@ -21,8 +21,9 @@ type Path = Vec<Segment>;
 /// element contributes to the result. It stays boxed while the output
 /// expands, so each level of a deep component chain holds a pointer rather
 /// than several `Element`s: a debug build gives every `Element` temporary
-/// its own stack slot, and 128 levels of them overflowed a test thread's
-/// 2 MB stack with the embedded-terminal feature.
+/// its own stack slot, and 128 levels of them needed about 2 MiB. That
+/// overflowed a 2 MiB test thread once the embedded-terminal feature's
+/// terminal library took 256 KiB of its stack for thread-local storage.
 struct Rendered {
     /// Keeps the component's scope entered while its output expands, so its
     /// descendants see the contexts it provides.
