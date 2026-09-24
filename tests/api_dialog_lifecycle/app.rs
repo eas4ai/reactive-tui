@@ -407,7 +407,10 @@ fn custom_animation_receives_intermediate_progress_and_changes_app_frames() {
         }
     }
     let mut engine = DialogEngine::with_config(DialogEngineConfig {
-        animation_duration: std::time::Duration::from_millis(120),
+        // Long enough that a machine-wide stall (memory reclaim can pause
+        // every task for more than 120 ms) cannot skip every intermediate
+        // frame; the test ends when the animation does.
+        animation_duration: std::time::Duration::from_millis(1000),
         default_theme: DialogTheme {
             animation: DialogAnimation::Custom("test-motion".into()),
             ..Default::default()
