@@ -31,6 +31,9 @@ pub struct CellGrid {
     width: u16,
     height: u16,
     glyphs: Vec<Arc<str>>,
+    /// The cell width of each entry of `glyphs`, at least 1, measured once
+    /// when the glyph is interned rather than for every cell painted.
+    widths: Vec<usize>,
     intern: HashMap<Arc<str>, u16>,
     cells: Vec<GridCell>,
 }
@@ -62,6 +65,7 @@ impl CellGrid {
             width,
             height,
             glyphs: vec![blank.clone()],
+            widths: vec![1],
             intern: HashMap::from([(blank, 0)]),
             cells: vec![GridCell::default(); usize::from(width) * usize::from(height)],
         }
@@ -91,6 +95,7 @@ impl CellGrid {
             return 0;
         }
         let glyph: Arc<str> = Arc::from(glyph);
+        self.widths.push(UnicodeWidthStr::width(&*glyph).max(1));
         self.glyphs.push(glyph.clone());
         self.intern.insert(glyph, index);
         index
@@ -176,7 +181,7 @@ impl CellGrid {
                 x,
                 y,
                 glyph,
-                UnicodeWidthStr::width(glyph).max(1),
+                self.widths[usize::from(cell.glyph)],
                 (cell.fg & 0xFF != 0).then(|| unpack(cell.fg)),
             ))
         })
@@ -184,23 +189,23 @@ impl CellGrid {
 
     /// Every cell that paints, with a glyph, a background or both, as
     /// (`x`, `y`, glyph, cell width, foreground, background) in row order;
-    /// a blank glyph is empty.
+    /// a blank glyph is empty. Colors stay packed as `0xRRGGBBAA`, the form
+    /// the painter writes, so a frame converts no color through floats.
     #[allow(clippy::type_complexity)]
     pub(crate) fn painted(
         &self,
-    ) -> impl Iterator<Item = (u16, u16, &str, usize, Option<Rgba>, Option<Rgba>)> + '_ {
+    ) -> impl Iterator<Item = (u16, u16, &str, usize, Option<u32>, Option<u32>)> + '_ {
         self.cells.iter().enumerate().filter_map(move |(i, cell)| {
             if cell.glyph == 0 && cell.bg & 0xFF == 0 {
                 return None;
             }
-            let glyph: &str = &self.glyphs[usize::from(cell.glyph)];
             Some((
                 (i % usize::from(self.width)) as u16,
                 (i / usize::from(self.width)) as u16,
-                glyph,
-                UnicodeWidthStr::width(glyph).max(1),
-                (cell.fg & 0xFF != 0).then(|| unpack(cell.fg)),
-                (cell.bg & 0xFF != 0).then(|| unpack(cell.bg)),
+                &*self.glyphs[usize::from(cell.glyph)],
+                self.widths[usize::from(cell.glyph)],
+                (cell.fg & 0xFF != 0).then_some(cell.fg),
+                (cell.bg & 0xFF != 0).then_some(cell.bg),
             ))
         })
     }
@@ -260,6 +265,7 @@ mod tests {
             .painted()
             .map(|(x, _, glyph, _, fg, bg)| (x, glyph.to_string(), fg, bg))
             .collect();
+        let (red, blue) = (pack(red), pack(blue));
         assert_eq!(
             painted,
             vec![

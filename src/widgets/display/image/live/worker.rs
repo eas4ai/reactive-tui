@@ -1,5 +1,5 @@
 //! One active decode and one replaceable pending source per retained image.
-use super::super::{ExternalRenderer, Image, ImageDisplayMode, ImageFormat};
+use super::super::{ExternalRenderer, Image, ImageDisplayMode, ImageFormat, ImageProcessor};
 use super::animation::{self, Animation};
 use crate::reactive::ThreadSafeSignal;
 use std::sync::{
@@ -223,7 +223,9 @@ fn render_cells(
             )?;
             return Ok(Some(super::Cells::Blitted(Arc::new(grid))));
         }
-        _ => return Ok(None),
+        // The fallback text is fixed; the widget shows it without pixels.
+        ImageDisplayMode::Fallback => return Ok(None),
+        _ => return ascii(pixels, request, (width, height)).map(Some),
     }
     let config = Image {
         source: super::super::super::ImageSource::FilePath(Default::default()),
@@ -246,6 +248,28 @@ fn render_cells(
     Ok(Some(super::Cells::Captured(Arc::new(super::cells::parse(
         &output, width, height,
     )?))))
+}
+/// ASCII art of `pixels` filling `size` cells: the picture in AsciiArt mode,
+/// and the text a pixel protocol falls back to where the host cannot show
+/// it.
+fn ascii(
+    pixels: &image::RgbaImage,
+    request: &Request,
+    size: (u32, u32),
+) -> Result<super::Cells, String> {
+    let config = Image {
+        source: super::super::super::ImageSource::FilePath(Default::default()),
+        display_mode: ImageDisplayMode::AsciiArt,
+        size_constraints: Some(size),
+        preserve_aspect: request.image.preserve_aspect,
+        background_color: request.image.background_color,
+        quality: request.image.quality,
+        ..Image::default()
+    };
+    ImageProcessor::new()
+        .ascii_from_pixels(pixels, &config)
+        .map(|text| super::Cells::Text(Arc::from(text)))
+        .map_err(|error| error.to_string())
 }
 fn run(shared: Arc<Shared>) {
     let mut automatic = None;

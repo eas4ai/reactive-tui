@@ -846,6 +846,28 @@ impl Surface {
         }
     }
 
+    /// A `w` by `h` surface holding `cells` in row-major order, written once
+    /// rather than defaulted and then set. The caller stores U+FFFD for a
+    /// control character, as [`Surface::set`] does. Panics when the cell
+    /// count is not `w * h`.
+    pub(crate) fn from_cells(w: usize, h: usize, cells: Vec<Cell>) -> Self {
+        assert_eq!(cells.len(), w * h, "a surface holds exactly w * h cells");
+        debug_assert!(cells.iter().all(|cell| !cell.ch.is_control()));
+        Self {
+            w,
+            h,
+            buf: cells,
+            image_registry: ImageRegistry::new(),
+            graphemes: Default::default(),
+        }
+    }
+
+    /// The surface's cells, row-major, so their allocation can hold the
+    /// next frame.
+    pub(crate) fn into_cells(self) -> Vec<Cell> {
+        self.buf
+    }
+
     /// Create a new surface with validation
     pub fn new_validated(w: usize, h: usize) -> Result<Self> {
         if w == 0 || h == 0 {
