@@ -704,3 +704,13 @@ fn bar_004_image_goldens_at_two_sizes_on_the_debug_backend() {
         );
     }
 }
+
+// VIOLATING EXAMPLE (reverted in the next commit): BAR-001 formatting and
+// BAR-002 a test that asserts nothing.
+#[allow(dead_code)]
+fn   badly_formatted() {}
+
+#[test]
+fn a_test_that_asserts_nothing() {
+    let _ = 1 + 1;
+}
