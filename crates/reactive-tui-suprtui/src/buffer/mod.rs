@@ -255,6 +255,8 @@ pub struct OptimizedBuffer<'a> {
     scissor_stack: Vec<ClipRect>,
     opacity_stack: Vec<f32>,
     placements: Vec<ImagePlacement>,
+    /// Times `clear` has run on this grid (RAS-007).
+    clears: u64,
 }
 
 impl<'a> OptimizedBuffer<'a> {
@@ -287,7 +289,15 @@ impl<'a> OptimizedBuffer<'a> {
             scissor_stack: Vec::new(),
             opacity_stack: Vec::new(),
             placements: Vec::new(),
+            clears: 0,
         })
+    }
+
+    /// Times [`OptimizedBuffer::clear`] has run on this grid. A painter
+    /// clears the next frame's grid once per frame and the renderer never
+    /// does (RAS-007).
+    pub fn clear_count(&self) -> u64 {
+        self.clears
     }
 
     /// Grid width in cells.
@@ -380,6 +390,7 @@ impl<'a> OptimizedBuffer<'a> {
     /// `bg`, and no attributes. Also drops links, grapheme references, and image
     /// placements.
     pub fn clear(&mut self, bg: Rgba, char: Option<u32>) {
+        self.clears += 1;
         let cell_char = char.unwrap_or(DEFAULT_SPACE_CHAR);
         self.link_tracker.clear();
         self.grapheme_tracker.clear();
