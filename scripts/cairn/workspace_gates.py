@@ -52,9 +52,9 @@ GATES = [
 TOOLCHAIN = r"(?:rustc|rustdoc|clippy-driver)"
 TOOLCHAIN_CRASH = [
     # rustc: error: rustc interrupted by SIGSEGV, printing backtrace
-    re.compile(rf"\b({TOOLCHAIN}) interrupted by (SIG[A-Z]+)"),
+    re.compile(rf"^error: ({TOOLCHAIN}) interrupted by (SIG[A-Z]+)", re.M),
     # gcc driving the linker: collect2: fatal error: ld terminated with signal 11 [Segmentation fault]
-    re.compile(r"\b(ld|collect2)\b[^\n]*terminated with signal \d+ \[([^\]]+)\]"),
+    re.compile(r"^\s*(?:= note: )?(?:\S*/)?collect2(?:\.exe)?: fatal error: (\S+) terminated with signal \d+ \[([^\]]+)\]", re.M),
 ]
 # cargo: process didn't exit successfully: `<command>` (signal: 11, SIGSEGV: invalid memory reference)
 SIGNALLED = re.compile(r"process didn't exit successfully: `([^`]*)` \(signal: \d+, (SIG[A-Z]+)")
@@ -77,9 +77,12 @@ def toolchain_crashes(output: str) -> list[str]:
     wrong; empty when the code has a failure of its own or none crashed."""
     crashes = {f"{m.group(1)} killed by {m.group(2)}" for pattern in TOOLCHAIN_CRASH for m in pattern.finditer(output)}
     for m in SIGNALLED.finditer(output):
-        if not re.search(rf"\b{TOOLCHAIN}\b", m.group(1).split(" ", 1)[0]):
+        # The program's own name, not its path: a test binary under a
+        # directory named rustc-out is still a test binary.
+        program = m.group(1).split(" ", 1)[0].rsplit("/", 1)[-1]
+        if not re.fullmatch(rf"{TOOLCHAIN}(?:\.exe)?", program):
             return []  # a test binary or build script died: that is the code's result
-        crashes.add(f"{m.group(1).split(' ', 1)[0].rsplit('/', 1)[-1]} killed by {m.group(2)}")
+        crashes.add(f"{program} killed by {m.group(2)}")
     lines = output.splitlines()
     if (STACK_OVERFLOW in output or "test result: FAILED" in output or "Diff in " in output
             or any(OWN_ERROR.match(line) for line in lines)):
