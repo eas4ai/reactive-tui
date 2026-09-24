@@ -110,14 +110,16 @@ fn isolated(name: &str) -> bool {
             .spawn()
             .unwrap(),
     );
-    let deadline = Instant::now() + Duration::from_secs(5);
+    // A hang guard, not a timing check: generous so a busy machine cannot
+    // fail a correct test by running it slowly.
+    let deadline = Instant::now() + Duration::from_secs(30);
     let status = loop {
         if let Some(status) = fixture.child.as_mut().unwrap().try_wait().unwrap() {
             break status;
         }
         assert!(
             Instant::now() < deadline,
-            "{name}: clipboard call exceeded outer five-second safety deadline"
+            "{name}: clipboard call exceeded the outer 30-second safety deadline"
         );
         std::thread::sleep(Duration::from_millis(10));
     };
@@ -242,14 +244,25 @@ fn cleanup_cancels_owned_child() {
     let hooks = Hooks::new();
     let (state, copy, _) = use_clipboard(&hooks);
     let cleanup = hooks.clone();
+    let pid_file = PathBuf::from(std::env::var("RTUI_CLIPBOARD_PID").unwrap());
     let task = std::thread::spawn(move || {
-        std::thread::sleep(Duration::from_millis(100));
+        // Cancel once the owned child has started (it writes its pid first),
+        // not after a fixed delay that a busy machine can overrun.
+        let deadline = Instant::now() + Duration::from_secs(30);
+        while Instant::now() < deadline
+            && !fs::read_to_string(&pid_file)
+                .is_ok_and(|pids| pids.lines().any(|pid| pid.trim().parse::<i32>().is_ok()))
+        {
+            std::thread::sleep(Duration::from_millis(5));
+        }
+        let cancelled = Instant::now();
         cleanup.cleanup();
+        cancelled
     });
-    let start = Instant::now();
     copy("payload");
-    task.join().unwrap();
-    assert!(start.elapsed() < Duration::from_secs(1));
+    let cancelled = task.join().unwrap();
+    // Cleanup ends the pending copy promptly.
+    assert!(cancelled.elapsed() < Duration::from_secs(1));
     assert!(state
         .get()
         .error
@@ -274,7 +287,9 @@ fn detection_does_not_spawn_which() {
         Some("quote ' 界 e\u{301} 🙂\nsecond line\n".into())
     );
     assert!(state.get().error.is_none());
-    assert!(start.elapsed() < Duration::from_secs(1));
+    // The `which` fixture sleeps 30 s: finishing well inside that shows it
+    // never ran, with room for a busy machine.
+    assert!(start.elapsed() < Duration::from_secs(10));
 }
 
 #[test]
