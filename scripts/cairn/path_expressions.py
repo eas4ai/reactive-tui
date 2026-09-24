@@ -44,7 +44,6 @@ INTERPRETERS = {"python", "python3", "bash", "sh", "zsh", "node", "pwsh", "ruby"
 OPTION_FILES = ("--config", "--manifest-path", "--file", "--config-file")
 CARGO_TARGET_OPTIONS = {"--example": "example", "--test": "test", "--bench": "bench", "--bin": "bin"}
 PROBES = {"exists", "is_file", "is_dir", "is_symlink", "lexists", "isfile", "isdir", "islink"}
-WRITERS = {"write_text", "write_bytes", "mkdir", "touch"}
 PATTERN = set("*?[]{}<>$")
 TRY = (ast.Try, ast.TryStar) if hasattr(ast, "TryStar") else (ast.Try,)
 # A file an interpreter or an option is given: a name with an extension.
@@ -253,6 +252,7 @@ class Reader:
         for name, ref in self.pending:
             if name not in self.probed:
                 self.found.append(ref)
+        self.found.sort(key=lambda r: r.line)
 
     def block(self, statements: list[ast.stmt], env: dict, docstring: bool = False) -> None:
         functions = []
@@ -391,6 +391,16 @@ class Reader:
             return node.attr == "parent"
         return isinstance(node, ast.Subscript) and isinstance(node.value, ast.Attribute) and node.value.attr == "parents"
 
+    def wraps(self, node: ast.AST) -> bool:
+        """Whether `node` only passes on the path it is given (str(), resolve(),
+        parent and the like), so the path is reported where it was built."""
+        if isinstance(node, ast.Call):
+            name = dotted(node.func)
+            return name in ("str", "os.fspath", "os.path.abspath", "os.path.realpath", "os.path.normpath",
+                            "os.path.dirname") or (isinstance(node.func, ast.Attribute)
+                                                   and node.func.attr in ("resolve", "absolute", "expanduser"))
+        return isinstance(node, (ast.Attribute, ast.Subscript))
+
     def scan(self, node: ast.AST, env: dict, holder: str = "", inner: bool = False, probe: bool = False) -> None:
         if isinstance(node, (ast.ListComp, ast.SetComp, ast.GeneratorExp, ast.DictComp)):
             local = dict(env)
@@ -427,12 +437,13 @@ class Reader:
         if isinstance(node, (ast.List, ast.Tuple)):
             self.command(node, env)
         building = self.builds(node)
+        wrapper = building and self.wraps(node)
         value = self.value(node, env) if building else None
-        if isinstance(value, Place) and not inner and not probe and value.literal:
+        if isinstance(value, Place) and not inner and not probe and value.literal and not wrapper:
             self.report(node, value, holder)
         # The operands of a chain whose value is known are part of it and
         # are not reported again; an unknown chain's operands are read alone.
-        quiet = building and isinstance(value, Place)
+        quiet = building and isinstance(value, Place) and not wrapper
         for child in ast.iter_child_nodes(node):
             if not isinstance(child, ast.expr):
                 continue
@@ -445,7 +456,7 @@ class Reader:
                 self.probe(child)
                 self.scan(child, env, probe=True)
                 continue
-            self.scan(child, env, inner=quiet, probe=probe and quiet)
+            self.scan(child, env, inner=quiet, probe=probe and (quiet or wrapper))
 
     def probing(self, node: ast.Call) -> bool:
         name = dotted(node.func)

@@ -27,11 +27,11 @@ be sent to any application calling yours.
 
 For example, assuming you build this example with
 
-    cargo build --bin stderr
+    cargo build --example stderr
 
 and then you run it with
 
-    cd "$(target/debug/stderr)"
+    cd "$(target/debug/examples/stderr)"
 
 what the application prints on stdout is used as argument to cd.
 
