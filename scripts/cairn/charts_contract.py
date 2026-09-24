@@ -5,6 +5,12 @@ per-requirement lines. Usage: charts_contract.py <group>
 groups: interaction (CHT-018, CHT-019), motion (CHT-022),
         frame-budget (CHT-021, BAR-005), widget-bar (BAR-003)
 
+frame-budget runs on the performance cores only, where the kernel names
+them (/sys/devices/cpu_core/cpus on a hybrid CPU), so another program's
+build pushing the test onto the slower efficiency cores does not decide the
+16.6 ms budget; on a CPU with one core type nothing changes (developer's
+answer to escalation 5c777a6a).
+
 widget-bar covers the widgets this work delivered or reworked: the chart
 family (tests/charts_contract.rs) and the image widget, whose block fallback
 now draws through the renderer's blitters (tests/api_widget_behavior/image.rs
@@ -27,8 +33,10 @@ or four 0-1 floats in an array as in a tuple. A pixel computed from image
 data, or the all-zero pixel `[0; 4]`, is not a literal.
 """
 
+import os
 import re
 import sys
+from pathlib import Path
 
 from _common import ROOT, cargo_test_filtered, finish, mask, matching, rust_sources, strip_test_modules
 
@@ -65,6 +73,22 @@ WIDGET_CODE = {
     "image": (("src/widgets/display/image", "src/builder/widgets/display.rs"), r"ImageBuilder"),
 }
 BUILDERS = "src/builder"
+# The kernel's list of performance cores on a hybrid CPU.
+PERFORMANCE_CORES = Path("/sys/devices/cpu_core/cpus")
+
+
+def performance_cpus() -> set[int] | None:
+    """The CPUs the kernel names as performance cores, or None when it names
+    none (one core type, or no hybrid topology to read)."""
+    try:
+        text = PERFORMANCE_CORES.read_text().strip()
+    except OSError:
+        return None
+    cpus = set()
+    for part in filter(None, text.split(",")):
+        low, _, high = part.partition("-")
+        cpus.update(range(int(low), int(high or low) + 1))
+    return cpus or None
 
 
 def builder_spans(code: str, types: str) -> list[tuple[int, int]]:
@@ -152,6 +176,13 @@ def main() -> int:
     # The frame budget is a property of the optimized build; the other
     # groups observe behavior and run the default profile.
     release = group == "frame-budget"
+    if release:
+        cpus = (performance_cpus() or set()) & os.sched_getaffinity(0)
+        if cpus:
+            # Children inherit the affinity: the build and the test run there.
+            os.sched_setaffinity(0, cpus)
+        print("frame budget measured on CPUs", ",".join(map(str, sorted(os.sched_getaffinity(0)))),
+              "(performance cores)" if cpus else "(no performance cores named: any core)", flush=True)
     results = {req: cargo_test_filtered("charts_contract", sub, release=release) for req, sub in GROUPS[group]}
     if group == "widget-bar":
         ok, why = results["BAR-003"]
