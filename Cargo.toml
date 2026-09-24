@@ -1,0 +1,234 @@
+[package]
+name = "reactive-tui"
+version = "1.0.0"
+edition = "2021"
+rust-version = "1.91"
+description = "Reactive terminal UI framework with retained components, CSS-like layout, widgets, native rendering, and an optional C ABI"
+documentation = "https://docs.rs/reactive-tui"
+repository = "https://github.com/eas4ai/reactive-tui"
+license = "MIT"
+keywords = ["tui", "terminal", "ui", "reactive", "css"]
+categories = ["command-line-interface", "gui", "graphics"]
+readme = "README.md"
+include = [
+    "/src/**",
+    "!/crates/**",
+    "/tests/api_widget_behavior/accessibility_probe.rs",
+    "/tests/api_widget_behavior/conpty_probe.rs",
+    "/tests/api_widget_behavior/image_host_probe.rs",
+    "/manual/**",
+    "/README.md",
+    "/CHANGELOG.md",
+    "/LICENSE",
+    "/build.rs",
+]
+
+[package.metadata.docs.rs]
+features = ["async-capabilities", "ffi"]
+
+[dependencies]
+async-channel = "2.1.1"
+bitflags = "2.9.3"
+crossterm = { package = "reactive-tui-crossterm", path = "crates/reactive-tui-crossterm", version = "=1.0.0", features = ["event-stream"] }
+futures-core = "0.3"
+futures-util = "0.3.27"
+log = "0.4"
+serde = { version = "^1.0", features = ["derive"] }
+serde_json = "1.0"
+uuid = { version = "1.0", features = ["v4"] }
+regex = "1.10"
+taffy = { version = "0.9.1", features = ["serde"] }
+tokio = { version = "1.45", features = ["sync", "time", "rt", "rt-multi-thread", "io-util", "io-std", "net", "fs", "macros"], optional = true }
+tokio-util = { version = "0.7", optional = true }
+unicode-width = "0.2.1"
+unicode-segmentation = "1.12"
+lazy_static = "1.4"
+once_cell = "1.19"
+lumis = { version = "0.13", default-features = false, features = ["lang-rust", "lang-python", "lang-javascript", "lang-typescript", "lang-bash", "lang-c", "lang-cpp", "lang-go", "lang-java", "lang-json", "lang-toml", "lang-yaml", "lang-html", "lang-css", "lang-markdown"] }
+comrak = { version = "0.55", default-features = false }
+thiserror = "2.0"
+string_cache = "0.8"
+# Image support dependencies (enabled by default)
+image = { version = "0.25.6", default-features = false, features = ["bmp", "gif", "jpeg", "png", "tiff", "webp"] }
+gif = "0.13.3"
+vt100 = "0.16"
+base64 = "0.22.1"
+reactive-tui-macros = { path = "crates/reactive-tui-macros", version = "=1.0.0" }
+lru = "0.18.2"
+dirs = "5.0"
+tempfile = "3.21"
+suprtui = { package = "reactive-tui-suprtui", path = "crates/reactive-tui-suprtui", version = "=1.0.0" }
+accesskit = "0.25.0"
+cap-std = "4.0.2"
+cap-fs-ext = "4.0.2"
+time = "0.3"
+wgpu = { version = "=27.0.1", optional = true, default-features = false, features = ["std", "parking_lot", "vulkan", "metal", "dx12", "wgsl"] }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+accesskit_consumer = "0.39.0"
+async-io = "2.6"
+async-executor = "1.5.0"
+async-task = "4.3.0"
+atspi = { version = "0.29", features = ["proxies"], default-features = false }
+atspi-common = { version = "0.13", default-features = false }
+futures-lite = "2.3"
+phf = { version = "0.13", features = ["macros"] }
+zbus = { version = "5.19", features = ["async-io"], default-features = false }
+zvariant = { version = "5.4", default-features = false }
+
+# Platform-specific dependencies
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+signal-hook = "0.3.18"
+libghostty-vt = { package = "reactive-tui-libghostty-vt", path = "crates/libghostty-vt", version = "=1.0.0", optional = true }
+rustix = { version = "1", features = ["fs"] }
+
+[target.'cfg(windows)'.dependencies]
+libloading = "0.8.9"
+sha2 = "0.10.9"
+winapi = { version = "0.3", features = ["consoleapi", "commapi", "fileapi", "handleapi", "processenv", "winbase"] }
+windows-sys = { version = "0.59", features = ["Wdk_Storage_FileSystem", "Win32_Foundation", "Win32_System_Console", "Win32_Storage_FileSystem", "Win32_System_IO", "Win32_System_Ioctl", "Win32_System_SystemServices", "Win32_System_Threading", "Win32_System_JobObjects", "Win32_System_Pipes", "Win32_Security", "Win32_Globalization", "Win32_UI_Input_KeyboardAndMouse"] }
+
+
+[lib]
+name = "reactive_tui"
+path = "src/lib.rs"
+crate-type = ["rlib", "cdylib"]
+
+[[example]]
+name = "accessibility_probe"
+path = "tests/api_widget_behavior/accessibility_probe.rs"
+
+[[example]]
+name = "image_host_probe"
+path = "tests/api_widget_behavior/image_host_probe.rs"
+
+[[example]]
+name = "conpty_probe"
+path = "tests/api_widget_behavior/conpty_probe.rs"
+
+[[example]]
+name = "suprtui_renderer_probe"
+path = "tests/runtime_probes/suprtui_renderer.rs"
+
+[[example]]
+name = "app_wakeup_probe"
+path = "tests/runtime_probes/app_wakeup.rs"
+
+[[example]]
+name = "embedded_terminal_probe"
+path = "tests/runtime_probes/embedded_terminal.rs"
+required-features = ["embedded-terminal"]
+
+[[example]]
+name = "embedded_shell"
+path = "examples/embedded_shell.rs"
+required-features = ["embedded-terminal"]
+
+[[test]]
+name = "dqc_003_captured_diagnostics"
+path = "tests/dqc_003_captured_diagnostics.rs"
+harness = false
+
+[[test]]
+name = "wgpu_graphics"
+path = "tests/wgpu_graphics.rs"
+required-features = ["wgpu-graphics"]
+
+[[test]]
+name = "wgpu_animation"
+path = "tests/wgpu_animation.rs"
+required-features = ["wgpu-graphics"]
+
+[[test]]
+name = "wgpu_lifecycle"
+path = "tests/wgpu_lifecycle.rs"
+required-features = ["wgpu-graphics"]
+
+[[test]]
+name = "wgpu_measurement"
+path = "tests/wgpu_measurement.rs"
+required-features = ["wgpu-graphics"]
+
+[[example]]
+name = "wgpu_benchmark"
+path = "examples/wgpu_benchmark.rs"
+required-features = ["wgpu-graphics"]
+
+[[test]]
+name = "api_signal_ownership"
+path = "tests/api_signal_ownership.rs"
+required-features = ["ffi"]
+
+[[test]]
+name = "ffi_app_representation"
+path = "tests/ffi_app_representation.rs"
+required-features = ["ffi"]
+
+[[test]]
+name = "ffi_basic_test"
+path = "tests/ffi_basic_test.rs"
+required-features = ["ffi"]
+
+[[test]]
+name = "ffi_tests"
+path = "tests/ffi_tests.rs"
+required-features = ["ffi"]
+
+[[test]]
+name = "test_ffi_core_only"
+path = "tests/test_ffi_core_only.rs"
+required-features = ["ffi"]
+
+[[test]]
+name = "test_ffi_integration"
+path = "tests/test_ffi_integration.rs"
+required-features = ["ffi"]
+
+[[test]]
+name = "test_ffi_reactive_seamless"
+path = "tests/test_ffi_reactive_seamless.rs"
+required-features = ["ffi"]
+
+[[test]]
+name = "test_minimal_ffi"
+path = "tests/test_minimal_ffi.rs"
+required-features = ["ffi"]
+
+
+[features]
+default = ["tokio"]
+# Enable debug logging in reconcile apply_patches
+debug_patches = []
+# Animation and general debug logging toggle used by src/animation/debug.rs
+# Keeping empty feature to satisfy cfg checks without changing behavior
+debug = []
+# Enable SIMD optimizations for color operations (requires nightly Rust)
+simd = []
+# Enable async capability detection
+async-capabilities = ["tokio"]
+# Enable FFI bindings (C ABI)
+ffi = []
+embedded-terminal = ["dep:libghostty-vt"]
+wgpu-graphics = ["dep:wgpu"]
+
+[dev-dependencies]
+futures-lite = "2.3"
+criterion = "0.5"
+proptest = "1.4"
+serial_test = "3.0"
+syn = { version = "2.0", features = ["full", "visit"] }
+
+[[bench]]
+name = "diff_benchmark"
+harness = false
+
+[workspace]
+resolver = "2"
+members = [
+    "crates/reactive-tui-macros",
+    "crates/reactive-tui-crossterm",
+    "crates/reactive-tui-suprtui",
+    "crates/libghostty-vt",
+    "crates/libghostty-vt-sys",
+]
