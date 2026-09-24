@@ -152,6 +152,11 @@ impl<'a> ClassPool<'a> {
         self.slots
             .extend((0..self.slots_per_page).map(|_| Slot::fresh()));
         self.free_list.extend(base..base + self.slots_per_page);
+        // A slot is on the free list at most once, so a list that can hold
+        // every slot never grows when a release pushes one back. Releases
+        // run on the render path (RAS-003); growth happens here, on write.
+        self.free_list
+            .reserve(self.slots.len() - self.free_list.len());
         Ok(())
     }
 
@@ -554,8 +559,8 @@ impl<'a> GraphemeTracker<'a> {
     fn decref_all(&mut self) {
         // Pool refs are tracked per id (first/last cell transition), so
         // decref once per tracked id, not once per per-buffer cell count.
-        let ids: Vec<IdPayload> = self.used_ids.keys().copied().collect();
-        for id in ids {
+        // Draining keeps the map's capacity and copies no id list.
+        for (id, _) in self.used_ids.drain() {
             self.pool
                 .borrow_mut()
                 .decref(id)
@@ -566,7 +571,19 @@ impl<'a> GraphemeTracker<'a> {
     /// Release the pool reference for every tracked id and forget them all.
     pub fn clear(&mut self) {
         self.decref_all();
-        self.used_ids.clear();
+    }
+
+    /// Make room to track `ids` distinct ids with no further allocation,
+    /// whatever the order of adds and removes. The renderer reserves its
+    /// current buffer's tracker for one id per cell, since `render` syncs
+    /// cells into that buffer (RAS-003).
+    pub fn reserve(&mut self, ids: usize) {
+        // Twice the ids: the standard map reuses the slots removed entries
+        // leave by rehashing in place, which it does only while at most
+        // half full; past that it moves to a larger table.
+        let wanted = ids.saturating_mul(2).saturating_add(2);
+        self.used_ids
+            .reserve(wanted.saturating_sub(self.used_ids.len()));
     }
 
     /// Count one more cell that uses `id`. The first cell takes a pool reference.

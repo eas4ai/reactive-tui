@@ -122,6 +122,11 @@ impl LinkPool {
             data: Vec::new(),
         }));
         self.free_list.extend(base..base + self.slots_per_page);
+        // A slot is on the free list at most once, so a list that can hold
+        // every slot never grows when a release pushes one back. Releases
+        // run on the render path (RAS-003); growth happens here, on write.
+        self.free_list
+            .reserve(self.slots.len() - self.free_list.len());
         Ok(())
     }
 
@@ -218,8 +223,12 @@ impl LinkPool {
             return Err(LinkPoolError::WrongGeneration);
         }
         if refcount == 1 {
-            let url = self.slots[slot_index as usize].data.clone();
-            self.remove_interned_live_id(&url, id);
+            // Borrow the key from the slot: releasing a link runs on the
+            // render path (RAS-003) and must not copy its URL.
+            let url = self.slots[slot_index as usize].data.as_slice();
+            if self.interned_live_ids.get(url) == Some(&id) {
+                self.interned_live_ids.remove(url);
+            }
         }
         let slot = &mut self.slots[slot_index as usize];
         slot.refcount -= 1;
@@ -299,8 +308,8 @@ impl LinkTracker {
     }
 
     fn decref_all(&mut self) {
-        let ids: Vec<IdPayload> = self.used_ids.keys().copied().collect();
-        for id in ids {
+        // Draining keeps the map's capacity and copies no id list.
+        for (id, _) in self.used_ids.drain() {
             let _ = self.pool.borrow_mut().decref(id);
         }
     }
@@ -308,7 +317,19 @@ impl LinkTracker {
     /// Forget every tracked id and release the tracker's pool references.
     pub fn clear(&mut self) {
         self.decref_all();
-        self.used_ids.clear();
+    }
+
+    /// Make room to track `ids` distinct ids with no further allocation,
+    /// whatever the order of adds and removes. The renderer reserves its
+    /// current buffer's tracker for one id per cell, since `render` syncs
+    /// cells into that buffer (RAS-003).
+    pub fn reserve(&mut self, ids: usize) {
+        // Twice the ids: the standard map reuses the slots removed entries
+        // leave by rehashing in place, which it does only while at most
+        // half full; past that it moves to a larger table.
+        let wanted = ids.saturating_mul(2).saturating_add(2);
+        self.used_ids
+            .reserve(wanted.saturating_sub(self.used_ids.len()));
     }
 
     /// Count one more cell that uses `id`. The first cell for an id takes one
