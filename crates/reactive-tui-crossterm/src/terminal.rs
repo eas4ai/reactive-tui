@@ -564,13 +564,15 @@ mod tests {
         grantpt(&master).unwrap();
         unlockpt(&master).unwrap();
         let name = ptsname(&master, Vec::new()).unwrap();
-        // This process leads no session, so opening the slave cannot make it
-        // this process's controlling terminal.
-        let slave = std::fs::OpenOptions::new()
-            .read(true)
-            .write(true)
-            .open(std::ffi::OsStr::from_bytes(name.as_bytes()))
-            .unwrap();
+        // O_NOCTTY: a test binary that leads its own session with no
+        // controlling terminal would otherwise take the slave as its own,
+        // and dropping the master below would hang it up.
+        let slave = rustix::fs::open(
+            std::ffi::OsStr::from_bytes(name.as_bytes()),
+            rustix::fs::OFlags::RDWR | rustix::fs::OFlags::NOCTTY | rustix::fs::OFlags::CLOEXEC,
+            rustix::fs::Mode::empty(),
+        )
+        .unwrap();
         let mut command = Command::new(std::env::current_exe().unwrap());
         command
             .args([
@@ -610,6 +612,48 @@ mod tests {
     #[cfg(not(unix))]
     fn on_terminal(_test: &str, body: impl FnOnce()) {
         body()
+    }
+
+    /// A test binary that leads its own session and has no controlling
+    /// terminal, as a runner or sandbox that starts it with setsid leaves it,
+    /// still runs its terminal tests: opening the pseudo-terminal must not
+    /// make it this process's controlling terminal, or dropping the master
+    /// would hang it up.
+    #[cfg(unix)]
+    #[test]
+    fn on_terminal_works_in_a_session_leader() {
+        use std::os::unix::process::CommandExt;
+        use std::process::{Command, Stdio};
+
+        let mut command = Command::new(std::env::current_exe().unwrap());
+        command
+            .args([
+                "terminal::tests::test_raw_mode",
+                "--exact",
+                "--test-threads=1",
+                "--color=never",
+            ])
+            .stdin(Stdio::null())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped());
+        // SAFETY: setsid is one system call; it neither allocates nor locks.
+        unsafe {
+            command.pre_exec(|| {
+                rustix::process::setsid()?;
+                Ok(())
+            });
+        }
+        let output = command.output().expect("the copy of the test binary");
+        let text = format!(
+            "{}{}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert!(
+            output.status.success() && text.contains("test result: ok. 1 passed"),
+            "test_raw_mode failed in a session leader ({}):\n{text}",
+            output.status
+        );
     }
 
     #[test]

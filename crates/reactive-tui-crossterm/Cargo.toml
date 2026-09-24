@@ -66,4 +66,4 @@ tokio = { version = "1.44", features = ["full"] }
 
 # The raw mode test runs on a pseudo-terminal of its own.
 [target.'cfg(unix)'.dev-dependencies]
-rustix = { version = "1", default-features = false, features = ["std", "pty", "process"] }
+rustix = { version = "1", default-features = false, features = ["std", "fs", "pty", "process"] }
