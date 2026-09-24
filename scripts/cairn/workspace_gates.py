@@ -2,16 +2,26 @@
 """BAR-001: the five workspace gates pass on Linux.
 
 Prints `cairn: BAR-001: pass` when all five commands exit zero and
-`cairn: BAR-001: fail` when one does not. Two checks make sure a gate that
+`cairn: BAR-001: fail` when one does not. These checks make sure a gate that
 exits zero actually ran:
 
+- No cargo configuration this checkout reads may stand in for cargo's own
+  build and test: a target runner, which runs each test binary and can
+  print any result, or a replacement or wrapper for rustc or rustdoc.
+  Cargo reads .cargo/config.toml (and .cargo/config) in the checkout, in
+  every directory above it and in CARGO_HOME; the mechanism's identity
+  hashes the same files. The environment the gates run in keeps none of
+  the variables that set these (see _common.ENV_KEEP).
 - cargo test must print a result for every test binary and doc-test run it
   starts (the harness = false targets in Cargo.toml print their own
-  output), and run at least one test. A runner that swallows the binaries,
-  such as `runner = "true"` in a .cargo/config.toml, prints none.
+  output), run at least one test, and leave the proof that
+  src/gate_proof.rs writes: a value the gate chose, which only running the
+  unit test binary can put in the file.
 - rustfmt must still report a badly formatted snippet under the
-  repository's configuration. A rustfmt.toml with disable_all_formatting
-  would make the fmt gate pass on any code.
+  configuration of the root and of every directory with its own
+  rustfmt.toml or .rustfmt.toml, since rustfmt reads the nearest one for
+  each file. Such a file with disable_all_formatting would make the fmt
+  gate pass on any code below it.
 
 When a gate fails only because rustc, rustdoc, clippy-driver or the linker
 was killed by a signal, the run prints no result line, so Sudus records it
@@ -19,9 +29,15 @@ as unverified: it shows nothing about the code, and a rerun decides. A
 compiler that overflows its stack is the code's doing and still fails.
 """
 
+import os
 import re
+import secrets
+import shutil
+import subprocess
 import sys
+import tempfile
 import tomllib
+from pathlib import Path
 
 from _common import JOBS, ROOT, report, run
 
@@ -50,6 +66,10 @@ STACK_OVERFLOW = "overflowed its stack"
 BINARY_START = re.compile(r"^\s+(Running|Doc-tests) (\S+)(?: \((\S+)\))?")
 RESULT = re.compile(r"^test result: \w+\. (\d+) passed; (\d+) failed")
 CANARY = "fn   badly_formatted() {}\n"
+RUSTFMT_CONFIGS = ("rustfmt.toml", ".rustfmt.toml")
+# Build settings that replace the compiler or documentation tool, or wrap it.
+SUBSTITUTE_BUILD_KEYS = ("rustc", "rustc-wrapper", "rustc-workspace-wrapper", "rustdoc")
+PROOF, NONCE = "REACTIVE_TUI_GATE_PROOF", "REACTIVE_TUI_GATE_NONCE"
 
 
 def toolchain_crashes(output: str) -> list[str]:
@@ -96,17 +116,83 @@ def unreported_binaries(output: str) -> tuple[list[str], int]:
     return silent, tests
 
 
-def fmt_can_fail() -> bool:
-    """rustfmt, reading stdin at the repository root, still reports a diff."""
-    r = run(["rustfmt", "--check", "--edition", "2021"], timeout=120, interleave=True, stdin=CANARY)
-    return "Diff in <stdin>" in r.stdout
+def cargo_config_files() -> list[Path]:
+    """Every configuration file cargo reads for this checkout, nearest first:
+    .cargo/config.toml and .cargo/config in the checkout and each directory
+    above it, then in CARGO_HOME."""
+    home = Path(os.environ.get("CARGO_HOME") or Path.home() / ".cargo")
+    found = []
+    for directory in [*(d / ".cargo" for d in (ROOT, *ROOT.parents)), home]:
+        for name in ("config.toml", "config"):
+            path = directory / name
+            if path.is_file() and path.resolve() not in {f.resolve() for f in found}:
+                found.append(path)
+    return found
+
+
+def substitutes(files: list[Path]) -> list[str]:
+    """The settings in `files` that let something other than cargo's own
+    build and test stand in for them."""
+    found = []
+    for path in files:
+        try:
+            config = tomllib.loads(path.read_text())
+        except (OSError, UnicodeDecodeError, tomllib.TOMLDecodeError) as error:
+            found.append(f"{path} cannot be read ({error})")
+            continue
+        targets = config.get("target")
+        for name, table in (targets.items() if isinstance(targets, dict) else ()):
+            if isinstance(table, dict) and "runner" in table:
+                found.append(f"{path} sets target.{name}.runner")
+        build = config.get("build") if isinstance(config.get("build"), dict) else {}
+        found += [f"{path} sets build.{key}" for key in SUBSTITUTE_BUILD_KEYS if build.get(key)]
+    return found
+
+
+def rustfmt_config_dirs() -> list[Path]:
+    """The repository root and every directory in the tree with its own
+    rustfmt configuration, tracked or not."""
+    try:
+        out = subprocess.run(["git", "ls-files", "-z", "--cached", "--others", "--exclude-standard"],
+                             cwd=ROOT, capture_output=True)
+        names = [p.decode() for p in out.stdout.split(b"\0") if p] if out.returncode == 0 else None
+    except FileNotFoundError:
+        names = None
+    if names is None:
+        skip = {".git", "target", "node_modules"}
+        names = [str(p.relative_to(ROOT)) for p in ROOT.rglob("*rustfmt.toml")
+                 if not skip & set(p.relative_to(ROOT).parts)]
+    dirs = {ROOT} | {(ROOT / n).parent for n in names if Path(n).name in RUSTFMT_CONFIGS}
+    return sorted(dirs)
+
+
+def silent_rustfmt_dirs() -> list[str]:
+    """Directories where rustfmt, reading stdin there, reports no diff for a
+    badly formatted snippet: under their configuration the check cannot
+    fail."""
+    silent = []
+    for directory in rustfmt_config_dirs():
+        r = run(["rustfmt", "--check", "--edition", "2021"], timeout=120, interleave=True,
+                stdin=CANARY, cwd=directory)
+        if "Diff in <stdin>" not in r.stdout:
+            silent.append(str(directory.relative_to(ROOT)) or ".")
+    return silent
 
 
 def main() -> int:
+    configs = cargo_config_files()
+    print("cargo configuration read:", ", ".join(map(str, configs)) or "none")
+    standins = substitutes(configs)
+    if standins:
+        report("BAR-001", False, "a cargo setting could stand in for the build or the tests, so a passing "
+                                 f"gate would prove nothing: {'; '.join(standins)}")
+        return 1
     failed, crashed = [], []
+    proof = Path(tempfile.mkdtemp(prefix="workspace-gates-")) / "proof"
+    nonce = secrets.token_hex(16)
     for cmd in GATES:
         test = cmd[1] == "test"
-        r = run(cmd, timeout=3600, interleave=test)
+        r = run(cmd, timeout=3600, interleave=test, env={PROOF: str(proof), NONCE: nonce} if test else None)
         output = r.stdout + (r.stderr or "")
         name = " ".join(cmd[:3])
         if r.returncode != 0:
@@ -126,9 +212,16 @@ def main() -> int:
             if silent or tests == 0:
                 failed.append(f"{name} printed no test result for {len(silent)} test binaries "
                               f"({', '.join(silent[:5])}) and ran {tests} tests")
-        if cmd[1] == "fmt" and not fmt_can_fail():
-            failed.append(f"{name}: rustfmt reports no diff for a badly formatted snippet under this "
-                          "repository's configuration, so the check cannot fail")
+            written = proof.read_text() if proof.is_file() else None
+            shutil.rmtree(proof.parent, ignore_errors=True)
+            if written != nonce:
+                failed.append(f"{name} did not run the unit tests: src/gate_proof.rs left "
+                              f"{'no proof file' if written is None else 'a different value'}")
+        if cmd[1] == "fmt":
+            silent_dirs = silent_rustfmt_dirs()
+            if silent_dirs:
+                failed.append(f"{name}: rustfmt reports no diff for a badly formatted snippet under the "
+                              f"configuration in {', '.join(silent_dirs)}, so the check cannot fail there")
     if failed:
         report("BAR-001", False, f"gates failing: {', '.join(failed)}")
         return 1
