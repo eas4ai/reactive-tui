@@ -132,6 +132,11 @@ impl AnimationRuntime {
             return;
         }
         let _guard = UpdateGuard(&self.updating);
+        self.deliver();
+    }
+
+    /// One pass over a snapshot of the tasks. The caller holds `updating`.
+    fn deliver(&self) {
         let tasks = self.animations.read().unwrap().clone();
         let now = Instant::now();
         for task in tasks {
@@ -956,10 +961,45 @@ pub fn use_keyframes<T: AnimatableValue + KeyframeType>(
 // guard silently skips updates under contention. Running them in
 // parallel makes exact post-unmount assertions flaky, so each test is
 // serialized with the repo-standard `serial_test::serial` attribute.
+// Apps in other modules' tests also run passes on RUNTIME, so these
+// tests update it with `run_pass`, never `update_animations`.
 mod tests {
     use super::*;
     use crate::reactive::Hooks;
     use std::thread;
+
+    /// Run one update pass on RUNTIME and return when it has delivered.
+    /// `update_animations` skips its pass while another thread's runs;
+    /// this waits for the runtime instead, so every pass begun before the
+    /// call has ended when this one delivers.
+    fn run_pass() {
+        without_other_passes(|| {
+            if RUNTIME.running.load(Ordering::Acquire) {
+                RUNTIME.deliver();
+            }
+        });
+    }
+
+    /// Run `work` while no other thread can run a pass on RUNTIME: wait for
+    /// a running pass to end, then hold the update guard, so passes other
+    /// threads start meanwhile are skipped. `work` must not update RUNTIME
+    /// itself except through `RUNTIME.deliver`.
+    fn without_other_passes<R>(work: impl FnOnce() -> R) -> R {
+        let deadline = Instant::now() + Duration::from_secs(5);
+        while RUNTIME
+            .updating
+            .compare_exchange(false, true, Ordering::Acquire, Ordering::Relaxed)
+            .is_err()
+        {
+            assert!(
+                Instant::now() < deadline,
+                "an animation update pass never ended"
+            );
+            thread::yield_now();
+        }
+        let _guard = UpdateGuard(&RUNTIME.updating);
+        work()
+    }
 
     #[derive(Clone, Copy)]
     struct Rac001Observation {
@@ -1148,9 +1188,7 @@ mod tests {
             "rerender must not replace or restart the active spring"
         );
 
-        RUNTIME.update_animations();
-        let animation_value = animation.value();
-        let spring_value = spring.value();
+        run_pass();
         scope.close();
         let live_ids = RUNTIME
             .animations
@@ -1161,7 +1199,12 @@ mod tests {
             .collect::<Vec<_>>();
         assert!(!live_ids.contains(&animation_id));
         assert!(!live_ids.contains(&spring_id));
-        RUNTIME.update_animations();
+        // A pass another test began before `close` may still deliver the
+        // frame it took; once this pass runs, that one has ended.
+        run_pass();
+        let animation_value = animation.value();
+        let spring_value = spring.value();
+        run_pass();
         assert_eq!(animation.value(), animation_value);
         assert_eq!(spring.value(), spring_value);
         animation.animate_to(20.0);
@@ -1199,7 +1242,7 @@ mod tests {
         for _ in 0..32 {
             assert_eq!(render(10.0), 0.0);
             assert_eq!(scheduler.next_deadline(), Some(deadline));
-            RUNTIME.update_animations();
+            run_pass();
         }
         let thread_growth = threads_before
             .zip(
@@ -1244,8 +1287,7 @@ mod tests {
             .flatten()
             .collect::<Vec<_>>();
         assert!(!animation_ids.is_empty());
-        RUNTIME.update_animations();
-        let values = stagger.items();
+        run_pass();
         scope.close();
         assert!(scheduler.next_deadline().is_none());
         let live_ids = RUNTIME
@@ -1256,8 +1298,12 @@ mod tests {
             .map(|task| task.id)
             .collect::<Vec<_>>();
         assert!(animation_ids.iter().all(|id| !live_ids.contains(id)));
+        // A pass another test began before `close` may still deliver the
+        // frame it took; once this pass runs, that one has ended.
+        run_pass();
+        let values = stagger.items();
         scheduler.process_timers();
-        RUNTIME.update_animations();
+        run_pass();
         assert_eq!(stagger.items(), values);
         stagger.animate_all_to(vec![20.0, 21.0, 22.0]);
         assert!(scheduler.next_deadline().is_none());
@@ -1312,7 +1358,7 @@ mod tests {
                 task.duration = Duration::from_secs(100);
                 task.start_time = Instant::now() - Duration::from_secs(50);
             }
-            RUNTIME.update_animations();
+            run_pass();
             assert_eq!(handle.value(), CancelOnSample(0.0));
             assert!(handle.owner.animation_id.lock().unwrap().is_none());
             CANCEL_ON_SAMPLE.lock().unwrap().take();
@@ -1339,9 +1385,12 @@ mod tests {
         let second = use_keyframes(&hooks, 2.0_f32, frames());
         first.seek(0.5);
         assert_eq!(first.value(), 6.0);
-        first.play();
-        second.play();
-        first.stop();
+        // No pass may deliver a frame to `first` between play and stop.
+        without_other_passes(|| {
+            first.play();
+            second.play();
+            first.stop();
+        });
         let second_id = second.owner.animation_id.lock().unwrap().unwrap();
         {
             let mut tasks = RUNTIME.animations.write().unwrap();
@@ -1351,7 +1400,7 @@ mod tests {
                 .unwrap()
                 .duration = Duration::ZERO;
         }
-        RUNTIME.update_animations();
+        run_pass();
         assert_eq!(first.value(), 6.0);
         assert_eq!(second.value(), 10.0);
         assert!(!RUNTIME
@@ -1572,7 +1621,7 @@ mod tests {
         thread::sleep(Duration::from_millis(50));
 
         // In tests, we need to manually update animations since there's no render loop
-        RUNTIME.update_animations();
+        run_pass();
 
         let value = handle.value();
         assert!(value > 0.0 && value <= 1.0);
@@ -1588,7 +1637,7 @@ mod tests {
         thread::sleep(Duration::from_millis(100));
 
         // In tests, we need to manually update animations since there's no render loop
-        RUNTIME.update_animations();
+        run_pass();
 
         let value = spring.value();
         assert!(value > 0.0); // Should have moved toward target
