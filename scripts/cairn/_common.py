@@ -18,7 +18,10 @@ ENV_KEEP = ("PATH", "HOME", "USER", "LOGNAME", "SHELL", "LANG", "LC_ALL", "LC_CT
             "CARGO_HOME", "RUSTUP_HOME", "RUSTUP_TOOLCHAIN", "CARGO_TARGET_DIR", "SSL_CERT_FILE", "SSL_CERT_DIR")
 
 
-def run(cmd: list[str], timeout: int = 1800, env: dict | None = None) -> subprocess.CompletedProcess:
+def run(cmd: list[str], timeout: int = 1800, env: dict | None = None, *, interleave: bool = False,
+        stdin: str | None = None) -> subprocess.CompletedProcess:
+    """Run `cmd` at the repository root in the mechanism environment. With
+    `interleave`, stderr joins stdout in one stream, in the order written."""
     merged = {k: v for k, v in os.environ.items() if k in ENV_KEEP}
     merged["CARGO_BUILD_JOBS"] = JOBS
     # Incremental compilation off: rustc 1.95 intermittently panics with
@@ -30,7 +33,8 @@ def run(cmd: list[str], timeout: int = 1800, env: dict | None = None) -> subproc
     if env:
         merged.update(env)
     print("$", " ".join(cmd), flush=True)
-    return subprocess.run(cmd, cwd=ROOT, env=merged, text=True, capture_output=True, timeout=timeout)
+    return subprocess.run(cmd, cwd=ROOT, env=merged, text=True, input=stdin, stdout=subprocess.PIPE,
+                          stderr=subprocess.STDOUT if interleave else subprocess.PIPE, timeout=timeout)
 
 
 def tracked_files() -> set[str]:
