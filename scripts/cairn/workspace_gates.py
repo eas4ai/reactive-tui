@@ -79,14 +79,17 @@ SIGNALLED = re.compile(r"process didn't exit successfully: `([^`]*)` \(signal: \
 # lint, a failed test, a formatting diff.
 OWN_ERROR = re.compile(r"^error(?:\[E\d+\])?: (?!could not compile|could not document|linking with|build failed|"
                        rf"aborting due to|{TOOLCHAIN} interrupted by|(?:doc)?test failed, to rerun|\d+ targets? failed)")
-# libtest's line for a failed test, the header of its captured output, and
-# the name rustdoc gives a doc-test.
-FAILED_TEST = re.compile(r"^test (.+?) \.\.\. FAILED$", re.M)
+# The header of a failed test's captured output, libtest's closing list of
+# failed tests, and cargo's lines naming the targets that failed.
 CAPTURED = re.compile(r"^---- (.+?) stdout ----$", re.M)
-DOCTEST_NAME = re.compile(r" - .* \(line \d+\)$")
+FAILURE_LIST = re.compile(r"^failures:\n((?: {4}\S.*\n)+)\s*test result:", re.M)
+NON_DOC_FAILED = re.compile(r"^error: test failed, to rerun pass", re.M)
+FAILED_TARGETS = re.compile(r"^error: \d+ targets? failed:\n((?: {4}.+\n?)+)", re.M)
 STACK_OVERFLOW = "overflowed its stack"
 BINARY_START = re.compile(r"^\s+(Running|Doc-tests) (\S+)(?: \((\S+)\))?")
 RESULT = re.compile(r"^test result: \w+\. (\d+) passed; (\d+) failed")
+RESULT_LINES = re.compile(RESULT.pattern, re.M)
+BINARY_HEADERS = re.compile(r"^[ \t]+(Running|Doc-tests) (\S+)", re.M)
 CANARY = "fn   badly_formatted() {}\n"
 RUSTFMT_CONFIGS = ("rustfmt.toml", ".rustfmt.toml")
 # Build settings that replace the compiler or documentation tool, or wrap it.
@@ -109,16 +112,52 @@ def toolchain_crashes(output: str) -> list[str]:
             return []  # a test binary or build script died: that is the code's result
         crashes.add(f"{program} killed by {m.group(2)}")
     lines = output.splitlines()
-    failed = FAILED_TEST.findall(output)
-    # A doc-test fails when rustdoc cannot compile it, so a compiler killed
-    # while compiling one fails the doc-test: that failure is the crash's,
-    # when its captured output shows the crash.
-    crashed = [name for name in failed if DOCTEST_NAME.search(name) and crash_in(captured(output, name))]
-    tests_failed = "test result: FAILED" in output and len(crashed) < len(failed or [None])
+    tests_failed = "test result: FAILED" in output and not only_doctests_crashed(output)
     if (STACK_OVERFLOW in output or tests_failed or "Diff in " in output
             or any(OWN_ERROR.match(line) for line in lines)):
         return []
     return sorted(crashes)
+
+
+def sections(output: str) -> list[tuple[str, str]]:
+    """(kind, text) for each test binary and doc-test run in `output`, kind
+    being "Running" or "Doc-tests", split at cargo's header lines."""
+    starts = list(BINARY_HEADERS.finditer(output))
+    return [(m.group(1), output[m.start():starts[i + 1].start() if i + 1 < len(starts) else len(output)])
+            for i, m in enumerate(starts)]
+
+
+def only_doctests_crashed(output: str) -> bool:
+    """Whether the run's only failed tests are doc-tests the compiler's crash
+    failed. A doc-test fails when rustdoc cannot compile it, so a compiler
+    killed while compiling one fails it. This is decided from what cargo and
+    libtest report, not from a test's own progress line, which another
+    process writing to the same output can garble: no non-doc target may
+    have failed, every target cargo lists as failed must be a doc-test run,
+    and in each failed doc-test run the closing list of failed tests must
+    hold as many names as its result line counts, each with the crash in
+    its captured output."""
+    if NON_DOC_FAILED.search(output):
+        return False
+    for listed in FAILED_TARGETS.finditer(output):
+        if any("--doc" not in target for target in listed.group(1).splitlines() if target.strip()):
+            return False
+    crashed_any = False
+    for kind, text in sections(output):
+        results = RESULT_LINES.findall(text)
+        failed = sum(int(count) for _, count in results)
+        if kind != "Doc-tests":
+            if failed or "test result: FAILED" in text:
+                return False
+            continue
+        if not failed:
+            continue
+        listed = FAILURE_LIST.findall(text)
+        names = [line.strip() for line in listed[-1].splitlines()] if listed else []
+        if len(names) != failed or not all(crash_in(captured(text, name)) for name in names):
+            return False
+        crashed_any = True
+    return crashed_any
 
 
 def captured(output: str, name: str) -> str:
