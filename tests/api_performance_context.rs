@@ -125,7 +125,8 @@ impl Running {
         let deadline_wake = wake.clone();
         let (cancel, cancelled) = mpsc::channel();
         let watchdog = thread::spawn(move || {
-            if cancelled.recv_timeout(Duration::from_secs(3)).is_err() {
+            // a hang guard, not a timing check: generous so a busy machine cannot fail a correct test.
+            if cancelled.recv_timeout(Duration::from_secs(30)).is_err() {
                 deadline_wake.request_stop();
             }
         });

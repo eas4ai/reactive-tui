@@ -182,7 +182,8 @@ fn run_frames(elements: Vec<Element>) -> (Result<()>, Vec<String>) {
         inner: SuprTuiBackend::with_writer(32, 6, output.clone()).unwrap(),
         output,
         frames: frames.clone(),
-        deadline: Instant::now() + Duration::from_secs(3),
+        // a hang guard, not a timing check: generous so a busy machine cannot fail a correct test.
+        deadline: Instant::now() + Duration::from_secs(30),
     };
     let result = App::builder()
         .backend(backend)

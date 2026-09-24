@@ -336,7 +336,8 @@ fn run_local_root(root: impl RootComponent + 'static) -> Result<()> {
     App::builder()
         .backend(LocalBackend {
             inner: SuprTuiBackend::with_writer(20, 4, std::io::sink()).unwrap(),
-            deadline: Instant::now() + Duration::from_secs(3),
+            // a hang guard, not a timing check: generous so a busy machine cannot fail a correct test.
+            deadline: Instant::now() + Duration::from_secs(30),
         })
         .root(root)
         .build()

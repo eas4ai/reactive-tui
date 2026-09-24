@@ -328,6 +328,12 @@ impl Backend for InputBackend {
     }
 }
 
+/// How long an App run may take to reach every step before it fails instead
+/// of hanging. It is a hang guard, not a timing check: frame work is
+/// measured separately (BAR-005), and a busy machine must not fail a correct
+/// test by running it slowly.
+const HANG_GUARD: Duration = Duration::from_secs(30);
+
 pub fn run(
     root: impl RootComponent + 'static,
     size: (u16, u16),
@@ -386,7 +392,7 @@ pub fn run_when(
     size: (u16, u16),
     steps: Vec<(&str, Option<Event>)>,
 ) -> Vec<Snapshot> {
-    run_when_for(root, size, steps, Duration::from_secs(3))
+    run_when_for(root, size, steps, HANG_GUARD)
 }
 
 #[allow(dead_code)]
@@ -622,7 +628,7 @@ fn run_steps(
     size: (u16, u16),
     steps: VecDeque<Step>,
 ) -> Vec<Snapshot> {
-    run_steps_with_images(root, size, steps, None, Duration::from_secs(3))
+    run_steps_with_images(root, size, steps, None, HANG_GUARD)
 }
 
 /// `run` on the debug backend, which paints into memory with the SuprTUI
@@ -651,7 +657,7 @@ pub fn run_on_debug(
             })
             .collect(),
         Target::Debug,
-        Duration::from_secs(3),
+        HANG_GUARD,
     )
 }
 
@@ -677,7 +683,7 @@ pub fn run_when_painted_on_debug(
             painted: true,
         }]),
         Target::Debug,
-        Duration::from_secs(3),
+        HANG_GUARD,
     )
 }
 
@@ -712,7 +718,7 @@ pub fn run_when_output(
             })
             .collect(),
         Some(images),
-        Duration::from_secs(3),
+        HANG_GUARD,
     )
 }
 fn run_steps_with_images(
