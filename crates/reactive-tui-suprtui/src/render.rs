@@ -19,6 +19,7 @@
 
 use crate::ansi::{self, Rgba, TextAttributes};
 use crate::buffer::{BufferError, ClipRect, InitOptions, OptimizedBuffer};
+use crate::link::LinkPool;
 use crate::uni::pool::GraphemePool;
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -474,9 +475,24 @@ impl<'a, B: Backend> Renderer<'a, B> {
         backend: B,
     ) -> Result<Self, BufferError> {
         let background = ansi::rgb_color(0, 0, 0, 255);
-        let mut current = OptimizedBuffer::new(width, height, InitOptions::new(Rc::clone(&pool)))?;
-        let mut next = OptimizedBuffer::new(width, height, InitOptions::new(Rc::clone(&pool)))?;
-        let mut footer = OptimizedBuffer::new(width, height, InitOptions::new(pool))?;
+        // One link pool for all three buffers, as one grapheme pool: a link
+        // id written to the next buffer must name the same URL once `render`
+        // syncs it into the current buffer.
+        let link_pool = Rc::new(RefCell::new(LinkPool::new()));
+        let options = |pool: Rc<RefCell<GraphemePool<'a>>>| {
+            let mut options = InitOptions::new(pool);
+            options.link_pool = Some(Rc::clone(&link_pool));
+            options
+        };
+        let mut current = OptimizedBuffer::new(width, height, options(Rc::clone(&pool)))?;
+        let mut next = OptimizedBuffer::new(width, height, options(Rc::clone(&pool)))?;
+        let mut footer = OptimizedBuffer::new(width, height, options(pool))?;
+        // `render` syncs changed cells into the current buffer, so its
+        // trackers are sized now for a distinct id in every cell: no frame
+        // grows them during `render` (RAS-003).
+        let cells = width as usize * height as usize;
+        current.grapheme_tracker.reserve(cells);
+        current.link_tracker.reserve(cells);
         current.clear(background, None);
         next.clear(background, None);
         footer.clear(background, None);

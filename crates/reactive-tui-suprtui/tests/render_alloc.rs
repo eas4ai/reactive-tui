@@ -7,7 +7,7 @@ use std::alloc::{GlobalAlloc, Layout, System};
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
-use suprtui::ansi;
+use suprtui::ansi::{self, TextAttributes};
 use suprtui::render::{Backend, RenderStatus, Renderer, WriteStatus};
 use suprtui::uni::pool::GraphemePool;
 
@@ -128,16 +128,37 @@ fn ras_003_render_allocates_nothing_once_the_frame_buffer_has_capacity() {
     assert_eq!(0, during, "diffed render allocated {during} times");
 }
 
+/// Draw a new foreground and background color in each of 10,000 cells.
+/// The frame costs more bytes per cell than any frame drawn after it.
+fn fill_colors(r: &mut Renderer<'static, Sink>) {
+    for y in 0..100u32 {
+        for x in 0..100u32 {
+            let (a, b) = (x as u8, y as u8);
+            r.next_buffer()
+                .draw_text(
+                    "c",
+                    x,
+                    y,
+                    ansi::rgb_color(a, b, 200, 255),
+                    Some(ansi::rgb_color(b, a, 40, 255)),
+                    0,
+                )
+                .unwrap();
+        }
+    }
+}
+
 /// Draw 10,000 grapheme clusters, a Latin letter plus a combining mark,
 /// every one distinct: each lives in the grapheme pool, not in the cell.
-fn fill_clusters(r: &mut Renderer<'static, Sink>) {
+/// Each `set` uses its own 30 marks, so no two sets share a cluster.
+fn fill_clusters(r: &mut Renderer<'static, Sink>, set: u32) {
     for y in 0..100u32 {
         let line: String = (0..100u32)
             .flat_map(|x| {
                 let i = y * 100 + x;
                 [
                     char::from_u32(0x0100 + i % 336).unwrap(),
-                    char::from_u32(0x0300 + i / 336).unwrap(),
+                    char::from_u32(0x0300 + set * 30 + i / 336).unwrap(),
                 ]
             })
             .collect();
@@ -154,32 +175,74 @@ fn fill_clusters(r: &mut Renderer<'static, Sink>) {
     }
 }
 
-/// RAS-003 for text held in the grapheme pool: rendering a frame that
-/// replaces 10,000 clusters, and one that brings them back, allocates
-/// nothing once the buffers have reached capacity. Releasing a cluster's
-/// last reference must not copy its bytes.
-#[test]
-fn ras_003_replacing_grapheme_clusters_allocates_nothing() {
-    let mut r = renderer(100, 100);
-    // One cycle grows the frame buffer and the trackers to capacity.
-    fill(&mut r, 100, 100, 0);
-    assert_eq!(RenderStatus::Rendered, r.render(true));
-    fill_clusters(&mut r);
-    assert_eq!(RenderStatus::Rendered, r.render(false));
-    fill(&mut r, 100, 100, 0);
-    assert_eq!(RenderStatus::Rendered, r.render(false));
-
-    for (label, clusters) in [("clusters", true), ("text over clusters", false)] {
-        if clusters {
-            fill_clusters(&mut r);
-        } else {
-            fill(&mut r, 100, 100, 0);
+/// Link each of 10,000 cells to its own URL in the renderer's link pool.
+fn fill_links(r: &mut Renderer<'static, Sink>, set: u32) {
+    for y in 0..100u32 {
+        for x in 0..100u32 {
+            let url = format!("https://example.com/{set}/{y}/{x}");
+            let buffer = r.next_buffer();
+            let id = buffer.link_pool.borrow_mut().alloc(url.as_bytes()).unwrap();
+            buffer
+                .draw_text(
+                    "l",
+                    x,
+                    y,
+                    ansi::rgb_color(200, 200, 200, 255),
+                    Some(ansi::rgb_color(0, 0, 40, 255)),
+                    TextAttributes::set_link_id(0, id),
+                )
+                .unwrap();
         }
-        let before = allocations();
-        let status = r.render(false);
-        let during = allocations() - before;
-        assert_eq!(RenderStatus::Rendered, status);
-        assert_eq!(0, during, "{label} render allocated {during} times");
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+enum Frame {
+    Text,
+    Clusters(u32),
+    Links(u32),
+}
+
+/// RAS-003 for text held in the grapheme and link pools. Only the frame
+/// buffer is grown first; after that no render allocates: not the first
+/// frame of 10,000 distinct clusters or links, not the frame that releases
+/// them, and not any later frame that swaps one set for another. Releasing
+/// a last reference must not copy its bytes, and the trackers `render`
+/// updates must not grow.
+#[test]
+fn ras_003_frames_of_clusters_and_links_allocate_nothing() {
+    let mut r = renderer(100, 100);
+    fill_colors(&mut r);
+    assert_eq!(RenderStatus::Rendered, r.render(true));
+
+    let cycle = [
+        Frame::Clusters(0),
+        Frame::Text,
+        Frame::Clusters(1),
+        Frame::Clusters(2),
+        Frame::Links(0),
+        Frame::Clusters(0),
+        Frame::Links(1),
+        Frame::Links(2),
+        Frame::Text,
+    ];
+    for round in 0..6 {
+        for (k, frame) in cycle.into_iter().enumerate() {
+            r.next_buffer().clear(ansi::rgb_color(0, 0, 0, 255), None);
+            match frame {
+                Frame::Text => fill(&mut r, 100, 100, 0),
+                Frame::Clusters(set) => fill_clusters(&mut r, set),
+                Frame::Links(set) => fill_links(&mut r, set + 3 * round),
+            }
+            let before = allocations();
+            let status = r.render(false);
+            let during = allocations() - before;
+            assert_eq!(RenderStatus::Rendered, status, "frame {k}, {frame:?}");
+            assert_eq!(
+                0, during,
+                "frame {k}, {frame:?}, in round {round} allocated {during} times"
+            );
+        }
     }
 }
 
