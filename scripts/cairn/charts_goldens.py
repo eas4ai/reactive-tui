@@ -6,8 +6,11 @@ Prints one `cairn: <REQ>: pass|fail` line per requirement.
 """
 
 import re
+import shutil
 import sys
+import tempfile
 import unicodedata
+from pathlib import Path
 
 from _common import (ROOT, cargo_test_filtered, enclosing_block, finish, mask, matching, rust_sources,
                      statement_start, strip_test_modules)
@@ -23,7 +26,7 @@ IMAGE_GOLDENS = ("image_medium", "image_wide")
 
 GOLDEN_TESTS = ("tests/charts_goldens.rs", "tests/api_widget_behavior/image.rs")
 # A write of a golden file, and the one condition allowed to guard it.
-WRITE = re.compile(r"\b(?:fs::write|File::create|OpenOptions::new)\b")
+WRITE = re.compile(r"\b(?:fs::(?:write|copy|rename|hard_link)|File::(?:create|create_new|options)|OpenOptions::new)\b")
 GUARD = re.compile(r'^\s*if\s+(?:std::)?env::var\(\s*"REGENERATE"\s*\)\s*\.as_deref\(\)\s*==\s*Ok\(\s*"1"\s*\)\s*$')
 ASSERTS = re.compile(r"\bassert(?:_eq|_ne)?!|\bpanic!")
 FN = re.compile(r"\bfn\s+\w+")
@@ -60,6 +63,53 @@ def regeneration_problems(src: str) -> list[str]:
         outside = code[opening:start] + code[matching(code, block):matching(code, opening)]
         if not ASSERTS.search(outside):
             problems.append(f"{src}:{line} regenerates in a function that compares nothing")
+    return problems
+
+
+SNAPSHOTS = ROOT / "tests/snapshots"
+# The variable both golden tests read their snapshot directory from.
+SNAPSHOTS_ENV = "REACTIVE_TUI_SNAPSHOTS"
+# (test binary, test name prefix, snapshot family, the golden changed in the copy)
+ALTERED = (("charts_goldens", "cht_023_", "charts", "line_mini"),
+           ("api_widget_behavior", "bar_004_", "image", "image_medium"))
+
+
+def alter(golden: bytes) -> bytes:
+    """`golden` with the last digit of its color digest changed."""
+    at = golden.rstrip(b"\n").rfind(b"colors: ")
+    if at < 0:
+        raise ValueError("golden has no color digest")
+    end = len(golden.rstrip(b"\n")) - 1
+    flipped = b"0" if golden[end:end + 1] != b"0" else b"1"
+    return golden[:end] + flipped + golden[end + 1:]
+
+
+def altered_golden_problems() -> list[str]:
+    """BAR-004, by behavior: each golden test compares its frame with the
+    golden and never rewrites it, whatever call it writes with. Every golden
+    of a family is copied to a scratch directory and one is changed there;
+    the test, pointed at the copy, must fail naming that golden and leave the
+    changed copy as it was, and no checked-in golden may change."""
+    problems = []
+    before = {p: p.read_bytes() for family in ("charts", "image") for p in (SNAPSHOTS / family).rglob("*") if p.is_file()}
+    for binary, test, family, name in ALTERED:
+        with tempfile.TemporaryDirectory(prefix="goldens-") as scratch:
+            copy = Path(scratch) / family
+            shutil.copytree(SNAPSHOTS / family, copy)
+            golden = copy / f"{name}.ansi"
+            changed = alter(golden.read_bytes())
+            golden.write_bytes(changed)
+            ok, why = cargo_test_filtered(binary, test, env={SNAPSHOTS_ENV: scratch})
+            if ok:
+                problems.append(f"{binary} {test} passed with {family}/{name}.ansi changed, so it does not compare it")
+            elif f"golden mismatch for {name}" not in why:
+                problems.append(f"{binary} {test} failed for another reason than the changed {name}.ansi: {why[:200]}")
+            if golden.read_bytes() != changed:
+                problems.append(f"{binary} {test} rewrote the changed {family}/{name}.ansi instead of comparing it")
+    after = {p: p.read_bytes() for family in ("charts", "image") for p in (SNAPSHOTS / family).rglob("*") if p.is_file()}
+    rewritten = sorted(str(p.relative_to(ROOT)) for p in before.keys() | after.keys() if before.get(p) != after.get(p))
+    if rewritten:
+        problems.append(f"a golden test changed checked-in goldens: {', '.join(rewritten[:4])}")
     return problems
 
 
@@ -143,6 +193,8 @@ def main() -> int:
     ok_image, why_image = cargo_test_filtered("api_widget_behavior", "bar_004_")
     problems_004 = g + w + ([] if ok_023 else [f"golden comparison failed: {why_023}"]) + (
         [] if ok_image else [f"image golden comparison failed: {why_image}"])
+    if ok_023 and ok_image:
+        problems_004 += altered_golden_problems()
     results["BAR-004"] = (not problems_004, "; ".join(problems_004[:4]) or "chart and image goldens on the debug backend compare equal; wide ones 400+ columns")
     return finish(results)
 

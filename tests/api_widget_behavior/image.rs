@@ -676,7 +676,14 @@ fn bar_004_image_goldens_at_two_sizes_on_the_debug_backend() {
     if !pin_sextant() {
         return;
     }
-    let dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/snapshots/image");
+    // REACTIVE_TUI_SNAPSHOTS: the charts-goldens check points it at a copy
+    // with one golden changed, and this test must then fail.
+    let dir = std::env::var_os("REACTIVE_TUI_SNAPSHOTS")
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|| {
+            std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/snapshots")
+        })
+        .join("image");
     for (name, size) in [("image_medium", (80u16, 24u16)), ("image_wide", (400, 100))] {
         let root = builder::div()
             .class("w-full h-full")

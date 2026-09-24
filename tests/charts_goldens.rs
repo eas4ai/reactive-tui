@@ -105,8 +105,16 @@ const EIGHTHS: &[char] = &[
     '▁', '▂', '▃', '▄', '▅', '▆', '▇', '▏', '▎', '▍', '▌', '▋', '▊', '▉',
 ];
 
+/// `tests/snapshots/charts`, or `charts` under `REACTIVE_TUI_SNAPSHOTS`: the
+/// charts-goldens check points that at a copy with one golden changed, and
+/// this test must then fail.
 fn snapshots_dir() -> std::path::PathBuf {
-    std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/snapshots/charts")
+    std::env::var_os("REACTIVE_TUI_SNAPSHOTS")
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|| {
+            std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/snapshots")
+        })
+        .join("charts")
 }
 
 /// Text grid plus a color digest: readable in a diff, sensitive to color changes.
