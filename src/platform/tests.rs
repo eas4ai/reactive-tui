@@ -156,35 +156,13 @@ mod tty_tests {
     fn test_unix_tty_basic() {
         use crate::platform::unix::UnixTty;
         use crate::platform::PlatformTty;
+        use crate::terminal::test_terminal::{on_terminal, COLUMNS, ROWS};
 
-        // Skip test if no controlling terminal is available
-        let tty = match UnixTty::init() {
-            Ok(tty) => tty,
-            Err(_) => {
-                eprintln!("Skipping test_unix_tty_basic: No controlling terminal available");
-                return;
-            }
-        };
-
-        // Test basic operations - skip if not available
-        let (width, height) = match tty.size() {
-            Ok(size) => size,
-            Err(_) => {
-                eprintln!("Skipping terminal size test: Terminal operations not available");
-                return;
-            }
-        };
-        assert!(width > 0 && height > 0);
-
-        // Test writing - skip if not available
-        let written = match tty.write(b"test") {
-            Ok(n) => n,
-            Err(_) => {
-                eprintln!("Skipping write test: Terminal write operations not available");
-                return;
-            }
-        };
-        assert_eq!(written, 4);
+        on_terminal("platform::tests::tty_tests::test_unix_tty_basic", || {
+            let tty = UnixTty::init().unwrap();
+            assert_eq!(tty.size().unwrap(), (COLUMNS, ROWS));
+            assert_eq!(tty.write(b"test").unwrap(), 4);
+        });
     }
 
     #[test]

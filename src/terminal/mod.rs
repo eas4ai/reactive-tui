@@ -12,6 +12,8 @@ pub mod parser;
 pub mod pty;
 pub mod screen;
 pub mod terminal_impl;
+#[cfg(test)]
+pub(crate) mod test_terminal;
 
 pub use ansi::colors;
 pub use ansi::sequences;

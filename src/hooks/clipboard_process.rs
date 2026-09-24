@@ -38,6 +38,7 @@ mod tests {
     #[ignore = "child fixture invoked only by the process lifecycle tests"]
     fn smoke_sleeping_child_fixture() {
         let Some(path) = std::env::var_os("RTUI_PID_PATH") else {
+            eprintln!("SKIP: a fixture the process lifecycle tests run with RTUI_PID_PATH set");
             return;
         };
         std::fs::write(path, std::process::id().to_string()).unwrap();

@@ -1099,6 +1099,9 @@ mod tests {
     #[ignore = "invoked by the TRL-001 PTY mechanism"]
     fn main_thread_panic_restores_the_owned_terminal() {
         if std::env::var("REACTIVE_TUI_TRL_001_PROBE").as_deref() != Ok("main") {
+            eprintln!(
+                "SKIP: run by the TRL-001 PTY mechanism with REACTIVE_TUI_TRL_001_PROBE=main"
+            );
             return;
         }
         let backend = SuprTuiBackend::new().expect("PTY backend must start");
@@ -1120,6 +1123,9 @@ mod tests {
     fn termination_signal_uses_the_app_wake_path() {
         if !std::env::var("REACTIVE_TUI_TRL_002_PROBE").is_ok_and(|probe| probe.starts_with("SIG"))
         {
+            eprintln!(
+                "SKIP: run by the TRL-002 PTY mechanism with REACTIVE_TUI_TRL_002_PROBE=SIG..."
+            );
             return;
         }
         let backend = SuprTuiBackend::new().expect("PTY backend must start");
