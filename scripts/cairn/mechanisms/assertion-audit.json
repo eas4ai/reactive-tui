@@ -1,7 +1,9 @@
 {
   "command": "python3 -B scripts/cairn/assertion_audit.py",
   "inputs": [
+    "benches",
     "crates",
+    "examples",
     "scripts/cairn",
     "src",
     "tests"

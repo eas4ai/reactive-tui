@@ -66,8 +66,10 @@ def asserting_helpers(text: str) -> set[str]:
 
 
 def calls_helper(body: str, helpers: set[str]) -> bool:
-    """Whether `body` calls one of `helpers`, as a function or a macro."""
-    return any(re.search(rf"\b{re.escape(h)}\s*!?\s*[(\[{{]", body) for h in helpers)
+    """Whether `body` calls one of `helpers`, as a function or a macro. A
+    method call or a path call (`x.check(`, `Other::check(`) may name
+    another type's function, so only a bare call counts."""
+    return any(re.search(rf"(?<![.:\w]){re.escape(h)}\s*!?\s*[(\[{{]", body) for h in helpers)
 
 
 def audit(path: Path) -> list[str]:
