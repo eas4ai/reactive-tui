@@ -217,7 +217,9 @@ impl Component for LiveImage {
                     .overflow_hidden(),
             )
             .child(match &view.cells {
-                Some(Cells::Captured(screen)) => cells::element(screen),
+                Some(Cells::Captured(screen)) => {
+                    cells::element(screen, &crate::theme::Theme::active())
+                }
                 Some(Cells::Blitted(grid)) => cells::grid_element(grid.clone()),
                 None => Element::text(view.ascii.as_deref().unwrap_or_default())
                     .with_class("whitespace-pre"),

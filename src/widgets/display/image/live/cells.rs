@@ -26,13 +26,16 @@ pub(super) fn parse(output: &str, width: u32, height: u32) -> Result<vt100::Scre
     Ok(parser.screen().clone())
 }
 
-fn color(value: vt100::Color, fallback: (u8, u8, u8)) -> (f32, f32, f32) {
+/// A cell's color: the tool's own, or for the terminal default the theme
+/// color `default` (BAR-003). None when the theme has no such color, so the
+/// cell inherits its parent's.
+fn color(value: vt100::Color, default: Option<(f32, f32, f32, f32)>) -> Option<(f32, f32, f32)> {
     let (r, g, b) = match value {
-        vt100::Color::Default => fallback,
+        vt100::Color::Default => return default.map(|(r, g, b, _)| (r, g, b)),
         vt100::Color::Idx(index) => crate::theme::ansi::ansi256_to_rgb(index),
         vt100::Color::Rgb(r, g, b) => (r, g, b),
     };
-    (r as f32 / 255.0, g as f32 / 255.0, b as f32 / 255.0)
+    Some((r as f32 / 255.0, g as f32 / 255.0, b as f32 / 255.0))
 }
 
 /// One element that paints a blitted grid from the content box's top left.
@@ -50,7 +53,13 @@ pub(super) fn grid_element(
         .with_cells(grid)
 }
 
-pub(super) fn element(screen: &vt100::Screen) -> Element {
+/// The captured screen as positioned text runs. The terminal's default
+/// foreground and background are `theme`'s foreground and background.
+pub(super) fn element(screen: &vt100::Screen, theme: &crate::theme::Theme) -> Element {
+    let defaults = (
+        theme.resolve_color("foreground"),
+        theme.resolve_color("background"),
+    );
     let (rows, columns) = screen.size();
     let mut root = ElementBuilder::new(ElementType::Layout(LayoutType::Absolute)).styles(
         StyleBuilder::new()
@@ -89,28 +98,31 @@ pub(super) fn element(screen: &vt100::Screen) -> Element {
                 column += 1;
             }
             let (mut fg, mut bg) = (
-                color(first.fgcolor(), (255, 255, 255)),
-                color(first.bgcolor(), (0, 0, 0)),
+                color(first.fgcolor(), defaults.0),
+                color(first.bgcolor(), defaults.1),
             );
             if first.inverse() {
                 std::mem::swap(&mut fg, &mut bg);
             }
+            let mut style = StyleBuilder::new()
+                .position_absolute()
+                .inset_left(start as f32)
+                .inset_top(row as f32)
+                .width_px((column - start) as f32)
+                .height_px(1.0)
+                .bold(first.bold())
+                .italic(first.italic())
+                .underline(first.underline())
+                .overflow_hidden();
+            if let Some((r, g, b)) = fg {
+                style = style.fg_rgba(r, g, b, 1.0);
+            }
+            if let Some((r, g, b)) = bg {
+                style = style.bg_rgba(r, g, b, 1.0);
+            }
             root = root.child(
                 ElementBuilder::new(ElementType::Layout(LayoutType::Absolute))
-                    .styles(
-                        StyleBuilder::new()
-                            .position_absolute()
-                            .inset_left(start as f32)
-                            .inset_top(row as f32)
-                            .width_px((column - start) as f32)
-                            .height_px(1.0)
-                            .fg_rgba(fg.0, fg.1, fg.2, 1.0)
-                            .bg_rgba(bg.0, bg.1, bg.2, 1.0)
-                            .bold(first.bold())
-                            .italic(first.italic())
-                            .underline(first.underline())
-                            .overflow_hidden(),
-                    )
+                    .styles(style)
                     .child(Element::text(text).with_class("whitespace-pre"))
                     .build(),
             );
@@ -140,5 +152,50 @@ mod tests {
         assert!(parse("", u32::MAX, 1).is_err());
         assert!(parse("", 1024, 1024).is_err());
         assert!(parse("", 0, 0).is_err());
+    }
+
+    type Rgba = (f32, f32, f32, f32);
+
+    /// The foreground and background of the first run of `screen` drawn
+    /// with `theme`.
+    fn run_colors(
+        screen: &vt100::Screen,
+        theme: &crate::theme::Theme,
+    ) -> (Option<Rgba>, Option<Rgba>) {
+        let root = element(screen, theme);
+        let style = root.children[0]
+            .metadata
+            .styles
+            .as_ref()
+            .unwrap()
+            .restore()
+            .unwrap();
+        (style.fg_rgba, style.bg_rgba)
+    }
+
+    #[test]
+    fn bar_003_default_terminal_colors_come_from_the_theme() {
+        use crate::theme::{Theme, ThemeVariables};
+        let theme = Theme::new("cells").with_variables(
+            ThemeVariables::new()
+                .set("--color-foreground", "#336699")
+                .set("--color-background", "#102030"),
+        );
+        let foreground = theme.resolve_color("foreground").unwrap();
+        let background = theme.resolve_color("background").unwrap();
+        assert_eq!(
+            run_colors(&parse("AB\n", 2, 1).unwrap(), &theme),
+            (Some(foreground), Some(background))
+        );
+        // Inverse video swaps the theme's two colors, as a terminal would.
+        assert_eq!(
+            run_colors(&parse("\x1b[7mAB\n", 2, 1).unwrap(), &theme),
+            (Some(background), Some(foreground))
+        );
+        // A theme without them leaves the run to inherit its parent's colors.
+        assert_eq!(
+            run_colors(&parse("AB\n", 2, 1).unwrap(), &Theme::new("bare")),
+            (None, None)
+        );
     }
 }
