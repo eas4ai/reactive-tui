@@ -735,7 +735,8 @@ fn run_worker<W: Write>(
                 }
             }
             Command::Layout(element, (width, height), reply) => {
-                // A flush failure stays deferred for the next present.
+                // A flush failure stays deferred for the next present, sync
+                // or shutdown.
                 let _ = reply.send(element_to_paintspec(&element).and_then(|spec| {
                     crate::layout::paint_tree::suprtui::layout_frame(
                         spec,
