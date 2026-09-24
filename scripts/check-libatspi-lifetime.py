@@ -19,7 +19,8 @@ ROOT = Path(__file__).resolve().parents[1]
 FIXTURE = ROOT / "verification" / "libatspi"
 TARGET = ROOT / "target" / "libatspi-lifetime"
 METADATA = json.loads((FIXTURE / "source.json").read_text())
-JOBS = min(12, max(1, int(os.environ.get("CARGO_BUILD_JOBS", "12"))))
+# At most 8 parallel jobs: the build shares the machine with other work.
+JOBS = min(8, max(1, int(os.environ.get("CARGO_BUILD_JOBS", "8"))))
 
 
 def sha256(path: Path) -> str:
@@ -251,7 +252,7 @@ def verify_lifetime(record_review: bool) -> None:
     }
     (TARGET / "environment.json").write_text(json.dumps(environment_record, indent=2) + "\n")
     if record_review:
-        review = ROOT / ".cairn" / "reviews" / "api-011-libatspi-lifetime"
+        review = ROOT / "target" / "evidence" / "libatspi-lifetime"
         review.mkdir(parents=True, exist_ok=True)
         (review / "result.json").write_text(json.dumps({
             "source": METADATA,

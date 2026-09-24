@@ -1,7 +1,8 @@
 # Residual API diagnostics
 
-The complete acceptance command is `cairn check API-019`, on committed inputs.
-These focused diagnostics do not replace it or establish complete API-019 coverage.
+The complete check is `python3 -B scripts/check-api-residual.py`, run from the
+repository root on committed inputs; `--only <group>` runs one group. The focused
+diagnostics below do not replace it.
 
 ## Unix input lifetime
 

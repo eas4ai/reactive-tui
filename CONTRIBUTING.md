@@ -34,7 +34,7 @@ This project adheres to a code of conduct that we expect all contributors to fol
 
 4. Run examples to see the library in action:
    ```bash
-   cargo run --example image_widget_demo
+   cargo run --example widget_catalog
    ```
 
 ## Development Workflow
