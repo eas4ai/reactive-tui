@@ -5,8 +5,6 @@ use crate::{
     layout::style::StyleBuilder,
 };
 use std::sync::{Arc, Mutex};
-/// VIOLATING EXAMPLE (reverted in the next commit): BAR-003 a color literal.
-const _SWATCH: &str = "#ff0000";
 mod animation;
 mod blocks;
 mod cells;
