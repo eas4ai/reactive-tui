@@ -746,8 +746,10 @@ fn frame_budget(root: impl RootComponent + 'static, size: (u16, u16)) -> (f64, S
     })) {
         Ok(measured) => measured,
         Err(_) => panic!(
-            "fewer than 12 frames painted inside the harness's 3 s deadline at {size:?} at load average {}: per-frame work exceeds 16.6 ms by more than an order of magnitude",
-            load_average()
+            "fewer than 12 frames painted inside the harness's {:?} hang guard at {size:?} at load average {}: per-frame work was over {:.0} ms",
+            app_input::HANG_GUARD,
+            load_average(),
+            app_input::HANG_GUARD.as_secs_f64() * 1000.0 / 12.0
         ),
     }
 }

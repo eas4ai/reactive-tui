@@ -332,7 +332,8 @@ impl Backend for InputBackend {
 /// of hanging. It is a hang guard, not a timing check: frame work is
 /// measured separately (BAR-005), and a busy machine must not fail a correct
 /// test by running it slowly.
-const HANG_GUARD: Duration = Duration::from_secs(30);
+#[allow(dead_code)]
+pub const HANG_GUARD: Duration = Duration::from_secs(30);
 
 pub fn run(
     root: impl RootComponent + 'static,
