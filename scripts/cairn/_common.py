@@ -75,23 +75,107 @@ def rust_sources(*dirs: str) -> list[Path]:
     return files
 
 
+RAW_STRING = re.compile(r"[bc]?r(#*)\"")
+CHAR = re.compile(r"'(?:\\(?:x[0-9A-Fa-f]{2}|u\{[0-9A-Fa-f]{1,6}\}|.)|[^\\'\n])'")
+TEST_CFG = re.compile(r"#\[cfg\(\s*(?:test|all\(\s*test\b[^\]]*)\)\]")
+
+
+def mask(text: str) -> tuple[str, str]:
+    """Return (code, prose): `code` has comments removed and literal contents
+    blanked; `prose` has comments removed and literals kept. Both keep every
+    offset and newline of `text`."""
+    code, prose = list(text), list(text)
+
+    def blank(buf: list[str], start: int, end: int) -> None:
+        for k in range(start, min(end, len(buf))):
+            if buf[k] != "\n":
+                buf[k] = " "
+
+    def after_ident(i: int) -> bool:
+        return i > 0 and (text[i - 1].isalnum() or text[i - 1] == "_")
+
+    i, n = 0, len(text)
+    while i < n:
+        if text.startswith("//", i):
+            end = text.find("\n", i)
+            end = n if end < 0 else end
+            blank(code, i, end)
+            blank(prose, i, end)
+            i = end
+            continue
+        if text.startswith("/*", i):
+            depth, j = 1, i + 2
+            while j < n and depth:
+                if text.startswith("/*", j):
+                    depth, j = depth + 1, j + 2
+                elif text.startswith("*/", j):
+                    depth, j = depth - 1, j + 2
+                else:
+                    j += 1
+            blank(code, i, j)
+            blank(prose, i, j)
+            i = j
+            continue
+        raw = RAW_STRING.match(text, i)
+        if raw and not after_ident(i):
+            close = '"' + raw.group(1)
+            end = text.find(close, raw.end())
+            end = n if end < 0 else end
+            blank(code, raw.end(), end)
+            i = end + len(close)
+            continue
+        if text[i] == '"' or (text[i] in "bc" and text.startswith('"', i + 1) and not after_ident(i)):
+            j = start = i + (1 if text[i] == '"' else 2)
+            while j < n and text[j] != '"':
+                j += 2 if text[j] == "\\" else 1
+            blank(code, start, j)
+            i = j + 1
+            continue
+        if text[i] == "'":
+            char = CHAR.match(text, i)
+            if char:
+                blank(code, i + 1, char.end() - 1)
+                i = char.end()
+                continue
+        i += 1
+    return "".join(code), "".join(prose)
+
+
+def matching(code: str, i: int) -> int:
+    """Index just past the bracket that closes the one at code[i]."""
+    pairs = {"{": "}", "[": "]", "(": ")"}
+    opening, closing = code[i], pairs[code[i]]
+    depth, j = 1, i + 1
+    while j < len(code) and depth:
+        depth += code[j] == opening
+        depth -= code[j] == closing
+        j += 1
+    return j
+
+
 def strip_test_modules(text: str) -> str:
-    """Drop `#[cfg(test)] mod ... { ... }` bodies so probes see production code only."""
-    out = []
+    """Blank every item under #[cfg(test)] or #[cfg(all(test, ...))], a
+    module, function, impl or use, so probes see production code only.
+    Braces are matched with comments and literals masked; the rest of the
+    text, its offsets and its newlines are kept."""
+    code, _ = mask(text)
+    out = list(text)
     i = 0
-    pat = re.compile(r"#\[cfg\(test\)\]\s*mod\s+\w+\s*\{")
-    while True:
-        m = pat.search(text, i)
-        if not m:
-            out.append(text[i:])
-            break
-        out.append(text[i:m.start()])
-        depth, j = 1, m.end()
-        while j < len(text) and depth:
-            depth += text[j] == "{"
-            depth -= text[j] == "}"
-            j += 1
-        i = j
+    while m := TEST_CFG.search(code, i):
+        j = m.end()
+        while True:
+            k = j
+            while k < len(code) and code[k].isspace():
+                k += 1
+            if not code.startswith("#[", k):
+                break
+            j = matching(code, k + 1)
+        brace, semi = code.find("{", j), code.find(";", j)
+        end = matching(code, brace) if brace >= 0 and (semi < 0 or brace < semi) else (semi + 1 if semi >= 0 else len(code))
+        for p in range(m.start(), end):
+            if out[p] != "\n":
+                out[p] = " "
+        i = end
     return "".join(out)
 
 
