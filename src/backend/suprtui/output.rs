@@ -115,8 +115,11 @@ impl<W: Write> ByteBackend for CheckedOutput<W> {
         // by resize (which replaces the renderer and its byte sink).
         // ESC \ (ST) aborts a partial sequence like CAN would, but CAN
         // prints a visible glyph on Konsole-lineage terminals while a
-        // bare ST is a no-op everywhere.
-        self.pending.extend_from_slice(b"\x1b\\\x1b[?2026l\x1b[0m");
+        // bare ST is a no-op everywhere; ESC [?2026l ends a synchronized
+        // update a partial write left open. The frame resets the style
+        // itself right after its sync-set, so no reset is added here:
+        // RAS-002 allows that one and the one before the sync-reset.
+        self.pending.extend_from_slice(b"\x1b\\\x1b[?2026l");
         if self.before_cells.is_empty() && self.after_cells.is_empty() {
             self.pending.extend_from_slice(&self.frame);
             return WriteStatus::Ok;
@@ -219,7 +222,7 @@ mod tests {
             !bytes.contains(&0x18),
             "CAN paints a visible glyph on some terminals"
         );
-        assert!(bytes.starts_with(b"\x1b\\\x1b[?2026l\x1b[0m"));
+        assert!(bytes.starts_with(b"\x1b\\\x1b[?2026l\x1b[?2026hA"));
     }
 
     #[test]
