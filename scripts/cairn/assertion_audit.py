@@ -31,7 +31,7 @@ import re
 import sys
 from pathlib import Path
 
-from _common import ROOT, mask, matching, rust_sources
+from _common import ROOT, enclosing_block, mask, matching, rust_sources, statement_start
 
 TEST_ATTR = re.compile(r"#\[\s*(?:[A-Za-z_][A-Za-z0-9_]*::)*test\s*[\](]")
 ITEM_FN = re.compile(
@@ -88,35 +88,6 @@ def calls_helper(body: str, helpers: set[str]) -> bool:
     method call or a path call (`x.check(`, `Other::check(`) may name
     another type's function, so only a bare call counts."""
     return any(re.search(rf"(?<![.:\w]){re.escape(h)}\s*!?\s*[(\[{{]", body) for h in helpers)
-
-
-def enclosing_block(body: str, at: int) -> int:
-    """Offset of the `{` of the innermost block of `body` that contains `at`."""
-    depth = 0
-    for k in range(at - 1, -1, -1):
-        if body[k] == "}":
-            depth += 1
-        elif body[k] == "{":
-            if depth == 0:
-                return k
-            depth -= 1
-    return 0
-
-
-def statement_start(body: str, block: int) -> int:
-    """Offset where the statement that owns the `{` at `block` begins: its
-    `if`, `match` arm, `let ... else` or `else`, so a gate's condition is read
-    with the block it guards."""
-    depth = 0
-    for k in range(block - 1, -1, -1):
-        c = body[k]
-        if depth == 0 and c in ";}{([":
-            return k + 1
-        if c in ")]}":
-            depth += 1
-        elif c in "([{":
-            depth -= 1
-    return 0
 
 
 def attribute_runs(code: str):
