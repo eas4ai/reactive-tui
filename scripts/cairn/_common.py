@@ -39,9 +39,16 @@ def run(cmd: list[str], timeout: int = 1800, env: dict | None = None, *, interle
 
 def tracked_files() -> set[str]:
     """Paths git tracks; without a repository (an adversary projection has no
-    .git) every file in the tree except build output and ignored caches."""
-    out = subprocess.run(["git", "ls-files", "-z"], cwd=ROOT, capture_output=True)
-    if out.returncode == 0:
+    .git) every file in the tree except build output and ignored caches. A
+    repository with no git on PATH ends the check with a message: its
+    tracked files cannot be told from untracked ones."""
+    try:
+        out = subprocess.run(["git", "ls-files", "-z"], cwd=ROOT, capture_output=True)
+    except FileNotFoundError:
+        if (ROOT / ".git").exists():
+            raise SystemExit("git is not on PATH, so the files this repository tracks cannot be listed")
+        out = None
+    if out is not None and out.returncode == 0:
         return {p.decode() for p in out.stdout.split(b"\0") if p}
     skip = {".git", "target", "node_modules", "__pycache__", ".sudus", ".cairn"}
     found = set()
