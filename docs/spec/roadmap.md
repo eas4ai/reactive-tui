@@ -88,6 +88,23 @@ Done when every quality-bar requirement passes and the z_index_tests
 binary passes 1,000 runs under that load without a signal, or a crash
 found in those runs is fixed and the test that reproduces it passes.
 
+## expansion-depth-stack
+
+Requirements: BAR-001
+
+Promoted from backlog item e9a86157. With the embedded-terminal feature,
+the test recursive_expansion_fails_with_a_bounded_error in
+tests/api_component_expansion.rs overflows the 2 MB test-thread stack. The
+component runtime stops expansion at depth 128 (src/component/runtime.rs),
+and in a debug build each level's frame in expand is large enough that 128
+levels fill the stack. With default features the test passes.
+
+Recursive expansion returns its bounded error at depth 128 within the
+default test-thread stack whatever features are enabled: each level's frame
+shrinks, or expansion stops recursing. A regression test that the
+default-feature gates run fails before the fix and passes after it, and it
+reports a stack overflow as a failure instead of aborting the test run.
+
 ## charts-radial-and-flow
 
 Requirements: CHT-015, CHT-016 plus the quality bar
