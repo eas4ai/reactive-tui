@@ -78,7 +78,7 @@ SIGNALLED = re.compile(r"process didn't exit successfully: `([^`]*)` \(signal: \
 # An error line that a toolchain crash does not explain: a compile error, a
 # lint, a failed test, a formatting diff.
 OWN_ERROR = re.compile(r"^error(?:\[E\d+\])?: (?!could not compile|could not document|linking with|build failed|"
-                       rf"{TOOLCHAIN} interrupted by|(?:doc)?test failed, to rerun|\d+ targets? failed)")
+                       rf"aborting due to|{TOOLCHAIN} interrupted by|(?:doc)?test failed, to rerun|\d+ targets? failed)")
 # libtest's line for a failed test, the header of its captured output, and
 # the name rustdoc gives a doc-test.
 FAILED_TEST = re.compile(r"^test (.+?) \.\.\. FAILED$", re.M)
