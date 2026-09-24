@@ -854,6 +854,16 @@ fn paint_node(
 /// is placed through the node's transform, clipped to the box and the
 /// node's clip, masked like text, and drawn with the cell's own color or
 /// the node's foreground, over the cell's own background where it has one.
+/// A color packed as `0xRRGGBBAA` in a [`super::cells::CellGrid`].
+fn packed(value: u32) -> ansi::Rgba {
+    ansi::rgb_color(
+        (value >> 24) as u8,
+        (value >> 16) as u8,
+        (value >> 8) as u8,
+        value as u8,
+    )
+}
+
 fn paint_cells(
     target: &mut OptimizedBuffer<'_>,
     paint: &NodePaint,
@@ -875,6 +885,24 @@ fn paint_cells(
         right: node.local.right.saturating_sub(paint.pad.right as i32),
         bottom: node.local.bottom.saturating_sub(paint.pad._bottom as i32),
     };
+    // A node that is only translated and not masked maps a cell by plain
+    // addition, the value the general path computes, without the transform
+    // and the mask walk (PNT-001). At full opacity an opaque color is
+    // written as it is, with no blend and no read of the cell below.
+    let plain = node.transform.is_translation() && node.mask.is_none();
+    let (offset_x, offset_y) = node.transform.offset();
+    let full = node.parent_opacity >= 1.0;
+    // Nothing in this node adds a cursor or an image plane, and what paints
+    // later lies above it, so with neither present a cover changes nothing.
+    let covers = cursor.state.is_some() || images.has_planes();
+    let black = ansi::rgb_color(0, 0, 0, 255);
+    let opacity = |value: u32| {
+        if full {
+            packed(value)
+        } else {
+            with_opacity(packed(value), node.parent_opacity)
+        }
+    };
     for (gx, gy, glyph, width, fg, cell_bg) in grid.painted() {
         let x = content.left.saturating_add(i32::from(gx));
         let y = content.top.saturating_add(i32::from(gy));
@@ -882,10 +910,13 @@ fn paint_cells(
         if y < content.top || y >= content.bottom || x < content.left || right > content.right {
             continue;
         }
-        let (paint_x, paint_y) = node
-            .transform
-            .point(x as f32 + (width as f32 - 1.0) / 2.0, y as f32);
-        let paint_x = (paint_x - (width as f32 - 1.0) / 2.0).round() as i32;
+        let center = (width as f32 - 1.0) / 2.0;
+        let (paint_x, paint_y) = if plain {
+            (x as f32 + center + offset_x, y as f32 + offset_y)
+        } else {
+            node.transform.point(x as f32 + center, y as f32)
+        };
+        let paint_x = (paint_x - center).round() as i32;
         let paint_y = paint_y.round() as i32;
         if paint_x < node.clip.left
             || paint_y < node.clip.top
@@ -894,40 +925,35 @@ fn paint_cells(
         {
             continue;
         }
-        if !(0..width)
-            .all(|offset| inside_masks(&node.mask, paint_x.saturating_add(offset as i32), paint_y))
+        if !plain
+            && !(0..width).all(|offset| {
+                inside_masks(&node.mask, paint_x.saturating_add(offset as i32), paint_y)
+            })
         {
             continue;
         }
-        for offset in 0..width {
-            cursor.cover(
-                paint_x + offset as i32,
-                paint_y,
-                ansi::rgb_color(0, 0, 0, 255),
-            );
-            images.cover(
-                paint_x + offset as i32,
-                paint_y,
-                ansi::rgb_color(0, 0, 0, 255),
-            );
+        if covers {
+            for offset in 0..width {
+                cursor.cover(paint_x + offset as i32, paint_y, black);
+                images.cover(paint_x + offset as i32, paint_y, black);
+            }
         }
-        let below = target
-            .get(paint_x as u32, paint_y as u32)
-            .map_or(bg_default, |cell| cell.bg);
+        let below = || {
+            target
+                .get(paint_x as u32, paint_y as u32)
+                .map_or(bg_default, |cell| cell.bg)
+        };
         let bg = match cell_bg {
-            Some((r, g, b, a)) => blend_colors(
-                with_opacity(ansi::rgba_from_floats(r, g, b, a), node.parent_opacity),
-                below,
-                None,
-            ),
-            None => below,
+            Some(value) if full && value & 0xFF == 0xFF => packed(value),
+            Some(value) => blend_colors(opacity(value), below(), None),
+            None => below(),
         };
         let glyph = if glyph.is_empty() { " " } else { glyph };
-        let fg = match fg {
-            Some((r, g, b, a)) => {
-                with_opacity(ansi::rgba_from_floats(r, g, b, a), node.parent_opacity)
-            }
-            None => node_fg,
+        let fg = fg.map_or(node_fg, opacity);
+        let fg = if ansi::alpha(fg) == 255 {
+            fg
+        } else {
+            blend_colors(fg, bg, None)
         };
         let width =
             u8::try_from(width).map_err(|_| ReactiveError::layout("grapheme exceeds 255 cells"))?;
@@ -937,7 +963,7 @@ fn paint_cells(
                 width,
                 paint_x as u32,
                 paint_y as u32,
-                blend_colors(fg, bg, None),
+                fg,
                 bg,
                 attr,
             )

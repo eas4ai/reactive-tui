@@ -1,4 +1,4 @@
-use super::{Image, ImageDisplayMode, ImageFormat, ImageProcessor, ImageSource};
+use super::{Image, ImageDisplayMode, ImageFormat, ImageSource};
 use crate::{
     builder::ElementBuilder,
     component::{Component, Element, ElementType, LayoutInfo, LayoutType, LifecycleEvent, Props},
@@ -10,12 +10,16 @@ mod blocks;
 mod cells;
 mod worker;
 
-/// Cells the worker drew for an image: a tool's captured output, or the
-/// renderer's blitters.
+/// Cells the worker drew for an image: a tool's captured output, the
+/// renderer's blitters, or ASCII art, which is the picture in its own mode
+/// and the text a pixel protocol falls back to where the host cannot show
+/// it. Each costs work in proportion to the image's area, so none of them
+/// is drawn on the App's thread (BAR-005).
 #[derive(Clone)]
 pub(super) enum Cells {
     Captured(Arc<vt100::Screen>),
     Blitted(Arc<crate::layout::paint_tree::cells::CellGrid>),
+    Text(Arc<str>),
 }
 
 #[derive(Clone, PartialEq)]
@@ -185,19 +189,11 @@ impl Component for LiveImage {
                     .unwrap_or_else(|| "Image".into())
             } else if let Some(error) = &view.error {
                 format!("Image error: {error}")
-            } else if let Some(pixels) = &view.pixels {
-                let mut config = Image {
-                    source: ImageSource::FilePath(Default::default()),
-                    display_mode: ImageDisplayMode::AsciiArt,
-                    preserve_aspect: props.image.preserve_aspect,
-                    background_color: props.image.background_color,
-                    quality: props.image.quality,
-                    ..Image::default()
-                };
-                config.size_constraints = Some((width, height));
-                ImageProcessor::new()
-                    .ascii_from_pixels(pixels, &config)
-                    .unwrap_or_else(|error| format!("Image error: {error}"))
+            } else if view.pixels.is_some() {
+                // The worker is drawing the picture at this size; until it
+                // answers the frame shows nothing, never the cells drawn for
+                // another size (BAR-003).
+                String::new()
             } else if view.request.is_some() {
                 "Loading image…".into()
             } else {
@@ -221,6 +217,9 @@ impl Component for LiveImage {
                     cells::element(screen, &crate::theme::Theme::active())
                 }
                 Some(Cells::Blitted(grid)) => cells::grid_element(grid.clone()),
+                Some(Cells::Text(text)) => {
+                    Element::text(text.to_string()).with_class("whitespace-pre")
+                }
                 None => Element::text(view.ascii.as_deref().unwrap_or_default())
                     .with_class("whitespace-pre"),
             })

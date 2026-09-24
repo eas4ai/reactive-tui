@@ -35,11 +35,19 @@ impl RootComponent for Root {
 /// current test; the worker is joined when the App drops, so the check has
 /// to happen while the App runs.
 static CHART_WORKER_SEEN: AtomicBool = AtomicBool::new(false);
+/// Whether the image widget's `image-loader` worker, which draws each GIF
+/// frame through the blitters, was seen alive during any frame.
+static IMAGE_WORKER_SEEN: AtomicBool = AtomicBool::new(false);
 
 fn note_chart_workers() {
     #[cfg(target_os = "linux")]
-    if !chart_worker_threads().is_empty() {
-        CHART_WORKER_SEEN.store(true, Ordering::SeqCst);
+    {
+        if !chart_worker_threads().is_empty() {
+            CHART_WORKER_SEEN.store(true, Ordering::SeqCst);
+        }
+        if !threads_named("image-loader").is_empty() {
+            IMAGE_WORKER_SEEN.store(true, Ordering::SeqCst);
+        }
     }
 }
 
@@ -54,6 +62,26 @@ fn series(values: &[f64]) -> DataSeries {
             .iter()
             .enumerate()
             .map(|(i, v)| DataPoint::with_label(*v, format!("p{i}")))
+            .collect(),
+    )
+}
+
+/// Candles whose closes are `values`, each opening at the previous close.
+fn candles(values: &[f64]) -> DataSeries {
+    let mut previous = values.first().copied().unwrap_or(0.0);
+    DataSeries::new(
+        "candles",
+        values
+            .iter()
+            .enumerate()
+            .map(|(i, close)| {
+                let open = previous;
+                previous = *close;
+                let (low, high) = (open.min(*close) - 1.0, open.max(*close) + 1.0);
+                let mut point = DataPoint::candle(open, high, low, *close);
+                point.label = Some(format!("p{i}"));
+                point
+            })
             .collect(),
     )
 }
@@ -111,10 +139,15 @@ fn column_has(frame: &Snapshot, col: u16, glyph: &str) -> usize {
 
 #[cfg(target_os = "linux")]
 fn chart_worker_threads() -> Vec<String> {
+    threads_named("rtui-chart")
+}
+
+#[cfg(target_os = "linux")]
+fn threads_named(prefix: &str) -> Vec<String> {
     std::fs::read_dir("/proc/self/task")
         .unwrap()
         .filter_map(|t| std::fs::read_to_string(t.ok()?.path().join("comm")).ok())
-        .filter(|n| n.starts_with("rtui-chart"))
+        .filter(|n| n.starts_with(prefix))
         .collect()
 }
 
@@ -696,10 +729,34 @@ fn max_work_ms(
     )
 }
 
-/// BAR-005: an animating chart keeps per-frame work under 16.6 ms at 700 by
-/// 200 on the debug backend, and rasterizes on a worker.
+/// The load average, which a failed time bound reports: other work on the
+/// host lengthens every frame measured in wall time.
+fn load_average() -> String {
+    std::fs::read_to_string("/proc/loadavg")
+        .ok()
+        .and_then(|text| text.split_whitespace().next().map(str::to_owned))
+        .unwrap_or_else(|| "unknown".to_string())
+}
+
+/// `max_work_ms` over 12 frames, with a readable failure when the harness
+/// cannot even paint that many inside its deadline.
+fn frame_budget(root: impl RootComponent + 'static, size: (u16, u16)) -> (f64, String) {
+    match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        max_work_ms(root, size, 12)
+    })) {
+        Ok(measured) => measured,
+        Err(_) => panic!(
+            "fewer than 12 frames painted inside the harness's 3 s deadline at {size:?} at load average {}: per-frame work exceeds 16.6 ms by more than an order of magnitude",
+            load_average()
+        ),
+    }
+}
+
+/// BAR-005: every cartesian chart type, animating, keeps per-frame work
+/// under 16.6 ms at 700 by 200 on the debug backend, and rasterizes on a
+/// worker.
 #[test]
-fn bar_005_animating_chart_stays_under_the_frame_budget_at_700_by_200() {
+fn bar_005_animating_charts_stay_under_the_frame_budget_at_700_by_200() {
     if cfg!(debug_assertions) {
         // The App's per-element cost is about ten times higher without
         // optimization, so the budget is only meaningful on the optimized
@@ -718,33 +775,116 @@ fn bar_005_animating_chart_stays_under_the_frame_budget_at_700_by_200() {
         return;
     }
     let size = (700u16, 200u16);
-    let mut p = props(
+    let values: Vec<f64> = (0..120)
+        .map(|i| ((i as f64) * 0.37).sin().abs() * 10.0)
+        .collect();
+    let mut over = Vec::new();
+    for kind in [
         ChartType::Line,
-        size,
-        &(0..120)
-            .map(|i| ((i as f64) * 0.37).sin().abs() * 10.0)
-            .collect::<Vec<_>>(),
-    );
-    p.animated = true;
-    p.animation_duration = 2000;
-    let root = Root(Element::typed::<Chart>(p));
-    let (ms, split) = match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-        max_work_ms(root, size, 12)
-    })) {
-        Ok(measured) => measured,
-        Err(_) => panic!(
-            "fewer than 12 frames painted inside the harness's 3 s deadline at 700x200: per-frame work exceeds 16.6 ms by more than an order of magnitude"
-        ),
-    };
-    eprintln!("work/present ms per frame at 700x200: {split}");
+        ChartType::Area,
+        ChartType::Scatter,
+        ChartType::BarVertical,
+        ChartType::BarHorizontal,
+        ChartType::Candlestick,
+    ] {
+        let mut p = props(kind.clone(), size, &values);
+        if kind == ChartType::Candlestick {
+            p.series = vec![candles(&values)];
+            p.y_axis.max = Some(11.0);
+        }
+        p.animated = true;
+        p.animation_duration = 2000;
+        let (ms, split) = frame_budget(Root(Element::typed::<Chart>(p)), size);
+        eprintln!("{kind:?} work/present ms per frame at 700x200: {split}");
+        if ms >= 16.6 {
+            over.push(format!("{kind:?} {ms:.2} ms ({split})"));
+        }
+    }
     assert!(
-        ms < 16.6,
-        "per-frame work {ms:.2} ms exceeds 16.6 ms at 700x200 (work/present ms per frame: {split})"
+        over.is_empty(),
+        "per-frame work exceeds 16.6 ms at 700x200 at load average {}: {}",
+        load_average(),
+        over.join("; ")
     );
     #[cfg(target_os = "linux")]
     assert!(
         chart_worker_seen(),
         "no rtui-chart worker thread observed during the run"
+    );
+}
+
+/// An endlessly repeating GIF of `frames` frames, 20 ms each, whose content
+/// changes on every frame.
+fn gif(width: u32, height: u32, frames: u32) -> Vec<u8> {
+    use image::{
+        codecs::gif::{GifEncoder, Repeat},
+        Delay, Frame,
+    };
+    let mut bytes = Vec::new();
+    {
+        let mut encoder = GifEncoder::new(&mut bytes);
+        encoder.set_repeat(Repeat::Infinite).unwrap();
+        for f in 0..frames {
+            let pixels = image::RgbaImage::from_fn(width, height, |x, y| {
+                image::Rgba([
+                    ((x + f * 40) % 256) as u8,
+                    ((y * 2 + f * 20) % 256) as u8,
+                    ((f * 60) % 256) as u8,
+                    255,
+                ])
+            });
+            encoder
+                .encode_frame(Frame::from_parts(
+                    pixels,
+                    0,
+                    0,
+                    Delay::from_numer_denom_ms(20, 1),
+                ))
+                .unwrap();
+        }
+    }
+    bytes
+}
+
+/// BAR-005: the image widget playing a GIF that fills 700 by 200 keeps
+/// per-frame work under 16.6 ms on the debug backend, and its image-loader
+/// worker, not the App's thread, draws each frame through the blitters.
+#[test]
+fn bar_005_playing_gif_stays_under_the_frame_budget_at_700_by_200() {
+    use reactive_tui::widgets::{
+        display::{set_image_blitter, Blitter},
+        ImageFormat,
+    };
+    if cfg!(debug_assertions) {
+        eprintln!("SKIP: the frame budget is measured on the optimized build");
+        assert!(!gif(4, 2, 2).is_empty());
+        return;
+    }
+    // A named blitter wins over an installed chafa or viu (BLT-002), so the
+    // picture is drawn the same way on every host.
+    set_image_blitter(Some(Blitter::Sextant));
+    let size = (700u16, 200u16);
+    let picture = reactive_tui::builder::image()
+        .source_raw_bytes(gif(280, 120, 4), 0, 0, ImageFormat::GIF)
+        .build();
+    let root = Root(
+        reactive_tui::builder::div()
+            .class("w-full h-full")
+            .child(picture)
+            .build(),
+    );
+    let (ms, split) = frame_budget(root, size);
+    set_image_blitter(None);
+    eprintln!("GIF work/present ms per frame at 700x200: {split}");
+    assert!(
+        ms < 16.6,
+        "per-frame work {ms:.2} ms exceeds 16.6 ms at 700x200 while a GIF plays, at load average {} (work/present ms per frame: {split})",
+        load_average()
+    );
+    #[cfg(target_os = "linux")]
+    assert!(
+        IMAGE_WORKER_SEEN.load(Ordering::SeqCst),
+        "no image-loader worker thread observed while the GIF played"
     );
 }
 

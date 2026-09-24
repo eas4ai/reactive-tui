@@ -45,6 +45,10 @@ impl Layers {
         self.planes.push(plane);
         Ok(())
     }
+    /// Whether the frame has an image plane for painted cells to cover.
+    pub fn has_planes(&self) -> bool {
+        self.cells.is_some()
+    }
     pub fn cover(&mut self, x: i32, y: i32, source: ansi::Rgba) {
         let Some(cells) = &self.cells else {
             return;

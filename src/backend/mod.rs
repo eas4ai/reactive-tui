@@ -646,8 +646,9 @@ impl Backend for DebugBackend {
 
     fn present(&mut self) -> Result<()> {
         if let Some(frame) = self.pending_frame.take() {
-            self.virtual_screen = frame.surface;
-            self.graphemes = Some(frame.text);
+            let surface = std::mem::replace(&mut self.virtual_screen, frame.surface);
+            let text = self.graphemes.replace(frame.text);
+            debug_frame::recycle(surface, text);
             self.geometry = Some(frame.geometry);
         }
         self.frame_count += 1;

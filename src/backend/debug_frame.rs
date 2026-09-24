@@ -30,6 +30,15 @@ pub(super) struct FrameText {
 }
 
 impl FrameText {
+    /// Empty the text, keeping its allocation for `cells` more cells.
+    fn reuse(mut self, cells: usize) -> Self {
+        self.text.clear();
+        self.ends.clear();
+        self.text.reserve(cells);
+        self.ends.reserve(cells);
+        self
+    }
+
     fn with_capacity(cells: usize) -> Self {
         Self {
             text: String::with_capacity(cells),
@@ -82,6 +91,70 @@ fn attributes(bits: u32) -> Attr {
     value
 }
 
+/// The buffer, grapheme pool, hit grid and layout cache the debug backend
+/// paints with, kept while the frame size holds, as the SuprTUI renderer
+/// keeps its own: a frame allocates and first-touches none of them again,
+/// and an unchanged layout is reused (PNT-004). A buffer shares its pool
+/// through an `Rc`, which a `Send` backend cannot hold, so each painting
+/// thread keeps one.
+struct Canvas {
+    size: (u16, u16),
+    pool: Rc<RefCell<GraphemePool<'static>>>,
+    buffer: OptimizedBuffer<'static>,
+    hits: Vec<u32>,
+    cache: crate::layout::paint_tree::suprtui::LayoutCache,
+    /// The cells and text of the frame this one replaced on screen, whose
+    /// memory the next frame writes into instead of fresh pages.
+    spare: Option<(Vec<Cell>, FrameText)>,
+}
+
+/// Hand the cells and text of a frame that left the screen back to this
+/// thread's canvas, for the next frame painted at its size to reuse.
+pub(super) fn recycle(surface: Surface, text: Option<FrameText>) {
+    let Some(text) = text else {
+        return;
+    };
+    CANVAS.with_borrow_mut(|slot| {
+        if let Some(canvas) = slot {
+            let cells = surface.into_cells();
+            if cells.len() == usize::from(canvas.size.0) * usize::from(canvas.size.1) {
+                canvas.spare = Some((cells, text));
+            }
+        }
+    });
+}
+
+thread_local! {
+    static CANVAS: RefCell<Option<Canvas>> = const { RefCell::new(None) };
+}
+
+/// The last input and output of a conversion, so a run of equal inputs
+/// converts once.
+struct Memo<I, O> {
+    convert: fn(I) -> O,
+    last: Option<(I, O)>,
+}
+
+impl<I: Copy + PartialEq, O: Copy> Memo<I, O> {
+    fn new(convert: fn(I) -> O) -> Self {
+        Self {
+            convert,
+            last: None,
+        }
+    }
+
+    fn get(&mut self, input: I) -> O {
+        match self.last {
+            Some((last, output)) if last == input => output,
+            _ => {
+                let output = (self.convert)(input);
+                self.last = Some((input, output));
+                output
+            }
+        }
+    }
+}
+
 pub(super) fn paint(element: &Element, size: (u16, u16)) -> Result<DebugFrame> {
     if size.0 == 0
         || size.1 == 0
@@ -91,36 +164,74 @@ pub(super) fn paint(element: &Element, size: (u16, u16)) -> Result<DebugFrame> {
             "debug frame dimensions are invalid",
         ));
     }
-    let pool = Rc::new(RefCell::new(GraphemePool::new()));
-    let mut buffer = OptimizedBuffer::new(
-        u32::from(size.0),
-        u32::from(size.1),
-        InitOptions::new(pool.clone()),
-    )
-    .map_err(|error| ReactiveError::resource(format!("debug frame allocation: {error:?}")))?;
-    let mut hits = vec![0; usize::from(size.0) * usize::from(size.1)];
-    let mut cache = crate::layout::paint_tree::suprtui::LayoutCache::default();
-    let geometry = crate::layout::paint_tree::suprtui::paint_frame(
-        element_to_paintspec(element)?,
-        &mut buffer,
-        &mut hits,
-        &mut cache,
-        ImageOutputOptions::default(),
-    )?;
-    let mut surface = Surface::new(usize::from(size.0), usize::from(size.1));
-    let mut text = FrameText::with_capacity(usize::from(size.0) * usize::from(size.1));
-    let graphemes = pool.borrow();
-    for y in 0..u32::from(size.1) {
-        for x in 0..u32::from(size.0) {
-            let cell = buffer
-                .get(x, y)
-                .expect("coordinates are within the allocated frame");
-            let first = if is_continuation_char(cell.char) {
+    CANVAS.with_borrow_mut(|slot| {
+        if slot.as_ref().is_none_or(|canvas| canvas.size != size) {
+            *slot = Some(Canvas::new(size)?);
+        }
+        let canvas = slot.as_mut().expect("the canvas was just made");
+        let frame = canvas.paint(element);
+        if frame.is_err() {
+            // A failed paint may leave the layout cache half updated.
+            *slot = None;
+        }
+        frame
+    })
+}
+
+impl Canvas {
+    fn new(size: (u16, u16)) -> Result<Self> {
+        let pool = Rc::new(RefCell::new(GraphemePool::new()));
+        let buffer = OptimizedBuffer::new(
+            u32::from(size.0),
+            u32::from(size.1),
+            InitOptions::new(pool.clone()),
+        )
+        .map_err(|error| ReactiveError::resource(format!("debug frame allocation: {error:?}")))?;
+        Ok(Self {
+            size,
+            pool,
+            buffer,
+            hits: vec![0; usize::from(size.0) * usize::from(size.1)],
+            cache: crate::layout::paint_tree::suprtui::LayoutCache::default(),
+            spare: None,
+        })
+    }
+
+    fn paint(&mut self, element: &Element) -> Result<DebugFrame> {
+        let size = self.size;
+        self.hits.fill(0);
+        let geometry = crate::layout::paint_tree::suprtui::paint_frame(
+            element_to_paintspec(element)?,
+            &mut self.buffer,
+            &mut self.hits,
+            &mut self.cache,
+            ImageOutputOptions::default(),
+        )?;
+        let (width, height) = (usize::from(size.0), usize::from(size.1));
+        let (mut cells, mut text) = match self.spare.take() {
+            Some((mut cells, text)) => {
+                cells.clear();
+                (cells, text.reuse(width * height))
+            }
+            None => (
+                Vec::with_capacity(width * height),
+                FrameText::with_capacity(width * height),
+            ),
+        };
+        let graphemes = self.pool.borrow();
+        // Neighbouring cells usually share colors and attributes, so each is
+        // converted when it changes, not once per cell.
+        let mut fg = Memo::new(color);
+        let mut bg = Memo::new(color);
+        let mut attr = Memo::new(attributes);
+        for index in 0..width * height {
+            let char = self.buffer.char_at(index);
+            let first = if is_continuation_char(char) {
                 text.push("");
                 ' '
-            } else if is_grapheme_char(cell.char) {
+            } else if is_grapheme_char(char) {
                 let bytes = graphemes
-                    .get(grapheme_id_from_char(cell.char))
+                    .get(grapheme_id_from_char(char))
                     .map_err(|error| {
                         ReactiveError::resource(format!("debug frame grapheme: {error:?}"))
                     })?;
@@ -130,29 +241,32 @@ pub(super) fn paint(element: &Element, size: (u16, u16)) -> Result<DebugFrame> {
                 text.push(content);
                 content.chars().next().unwrap_or(' ')
             } else {
-                let content = char::from_u32(cell.char).unwrap_or(' ');
+                let content = char::from_u32(char).unwrap_or(' ');
                 text.push_char(content);
                 content
             };
-            surface.set(
-                x as usize,
-                y as usize,
-                Cell {
-                    ch: first,
-                    fg: color(cell.fg),
-                    bg: color(cell.bg),
-                    attr: attributes(cell.attributes),
-                    ..Default::default()
-                },
-            );
+            // A control character is stored as U+FFFD, as Surface::set stores it.
+            let first = if first.is_control() {
+                '\u{fffd}'
+            } else {
+                first
+            };
+            cells.push(Cell {
+                ch: first,
+                fg: fg.get(self.buffer.fg_at(index)),
+                bg: bg.get(self.buffer.bg_at(index)),
+                attr: attr.get(self.buffer.attributes_at(index)),
+                ..Default::default()
+            });
         }
+        let surface = Surface::from_cells(width, height, cells);
+        drop(graphemes);
+        Ok(DebugFrame {
+            surface,
+            text,
+            geometry,
+        })
     }
-    drop(graphemes);
-    Ok(DebugFrame {
-        surface,
-        text,
-        geometry,
-    })
 }
 
 pub(super) fn cells(frame: &CellFrame) -> DebugFrame {
