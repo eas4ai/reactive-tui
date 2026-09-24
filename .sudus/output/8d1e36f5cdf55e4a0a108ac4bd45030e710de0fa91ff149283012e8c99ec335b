@@ -1,0 +1,8 @@
+$ cargo test --locked --jobs 8 -p reactive-tui-suprtui --test blitters -- blt_001_
+$ cargo test --locked --jobs 8 -p reactive-tui --lib -- blt_001_
+$ cargo test --locked --jobs 8 -p reactive-tui-suprtui --test blitters -- blt_002_
+$ cargo test --locked --jobs 8 -p reactive-tui --lib -- blt_002_
+cairn: BLT-001: pass
+  BLT-001 reason: crate: 6 passed; application: 6 passed
+cairn: BLT-002: pass
+  BLT-002 reason: crate: 3 passed; application: 4 passed

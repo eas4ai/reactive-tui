@@ -1,0 +1,6 @@
+$ cargo test --locked --jobs 8 --test present_pipeline -- pip_001_
+$ cargo test --locked --jobs 8 --test present_pipeline -- pip_002_
+cairn: PIP-001: fail
+  PIP-001 reason: present waited for its own flush: 83.143824ms with a 80ms flush
+cairn: PIP-002: fail
+  PIP-002 reason: called `Result::unwrap_err()` on an `Ok` value: (); called `Result::unwrap_err()` on an `Ok` value: ()

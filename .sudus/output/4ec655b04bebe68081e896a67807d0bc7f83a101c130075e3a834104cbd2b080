@@ -1,0 +1,15 @@
+$ cargo build --locked --workspace --jobs 8
+$ cargo fmt --all -- --check
+Diff in /home/shawn/workspace2/reactive-tui/tests/api_widget_behavior/image.rs:708:
+ // VIOLATING EXAMPLE (reverted in the next commit): BAR-001 formatting and
+ // BAR-002 a test that asserts nothing.
+ #[allow(dead_code)]
+[31m-fn   badly_formatted() {}
+(B[m[32m+fn badly_formatted() {}
+(B[m 
+ #[test]
+ fn a_test_that_asserts_nothing() {
+$ cargo clippy --locked --workspace --all-targets --jobs 8 -- -D warnings
+$ cargo doc --locked --workspace --no-deps --jobs 8
+$ cargo test --locked --workspace --no-fail-fast --jobs 8
+BAR-001 violated: gates failing: cargo fmt --all

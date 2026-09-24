@@ -1,0 +1,5 @@
+$ cargo test --locked --jobs 8 --test charts_contract -- bar_003_
+$ cargo test --locked --jobs 8 --test api_widget_behavior -- bar_003_
+$ cargo test --locked --jobs 8 -p reactive-tui --lib -- bar_003_
+cairn: BAR-003: fail
+  BAR-003 reason: 1 hard-coded colors in image code

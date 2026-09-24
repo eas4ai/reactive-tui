@@ -1,0 +1,6 @@
+$ cargo test --locked --jobs 8 --test present_pipeline -- pip_001_
+$ cargo test --locked --jobs 8 --test present_pipeline -- pip_002_
+cairn: PIP-001: pass
+  PIP-001 reason: 1 passed
+cairn: PIP-002: pass
+  PIP-002 reason: 2 passed

@@ -1,0 +1,17 @@
+$ cargo test --locked --jobs 8 -p reactive-tui-suprtui --test render_bytes -- ras_001_
+$ cargo test --locked --jobs 8 -p reactive-tui-suprtui --test render_bytes -- ras_002_
+$ cargo test --locked --jobs 8 --test suprtui_renderer -- ras_002_
+$ cargo test --locked --jobs 8 -p reactive-tui-suprtui --test render_bytes -- ras_008_
+$ cargo test --locked --jobs 8 -p reactive-tui-suprtui --lib -- ras_008_
+$ cargo test --locked --jobs 8 -p reactive-tui-suprtui --test render_bytes --release -- ras_005_
+$ cargo test --locked --jobs 8 --test suprtui_renderer -- ras_006_
+cairn: RAS-001: fail
+  RAS-001 reason: assertion `left == right` failed: same-row jump must be CHA: [27, 91, 63, 50, 48, 50, 54, 104, 27, 91, 63, 50, 53, 108, 27, 91, 48, 109, 27, 91, 50, 59, 51, 72, 27, 91, 51, 56, 59, 50, 59, 50, 53, 53, 59, 50, 53, 53, 59, 50, 53, 53, 109, 27, 91, 52, 56, 59, 50, 59, 48, 59, 48, 59, 48, 109, 99, 27, 91, 50, 59, 49, 48, 72, 100, 27, 91, 48, 109, 27, 91, 63, 50, 48, 50, 54, 108]
+cairn: RAS-002: fail
+  RAS-002 reason: stream: assertion `left == right` failed: italic off: [27, 91, 63, 50, 48, 50, 54, 104, 27, 91, 63, 50, 53, 108, 27, 91, 48, 109, 27, 91, 49, 59, 49, 72, 27, 91, 51, 56, 59, 50, 59, 50, 53, 53, 59, 50, 53, 53, 59, 50, 53, 53, 109, 27, 91, 52, 56, 59, 50, 59, 48, 59, 48, 59, 48, 109, 27, 91, 51, 109, 111, 110, 27, 91, 48, 109, 111, 102, 102, 27, 91, 48, 109, 27, 91, 63, 50, 48, 50, 54, 108]
+cairn: RAS-008: fail
+  RAS-008 reason: compare: assertion `left == right` failed: an unchanged row built cells
+cairn: RAS-005: fail
+  RAS-005 reason: unchanged 512x512 frame took 3.838549ms
+cairn: RAS-006: fail
+  RAS-006 reason: overlay lacks write:: "frame: 1 | cells: 960 | bytes: 1140 | moves: 6/954 | fg: 4/956 | bg: 2/958 | attr: 2/958 | layout: 764us | diff: 2057us | emit: 469us "; no write figure: "frame: 2 | cells: 114 | bytes: 277 | moves: 8/106 | fg: 2/112 | bg: 2/112 | attr: 2/112 | layout: 262us | diff: 2109us | emit: 48us "

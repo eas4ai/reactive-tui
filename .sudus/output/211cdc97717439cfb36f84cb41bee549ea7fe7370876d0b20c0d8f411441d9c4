@@ -1,0 +1,6 @@
+$ cargo test --locked --jobs 8 --test charts_contract --release -- cht_021_
+$ cargo test --locked --jobs 8 --test charts_contract --release -- bar_005_
+cairn: CHT-021: pass
+  CHT-021 reason: 1 passed
+cairn: BAR-005: fail
+  BAR-005 reason: per-frame work 30.78 ms exceeds 16.6 ms at 700x200 (work/present ms per frame: 26.46/0.43 30.78/0.48 30.02/0.00 26.32/0.00 26.41/0.00 26.45/0.00 26.49/0.00 27.19/0.00 26.80/0.00 26.83/0.00 26.63/0.00 26.82/0.00 26.67/0.00)

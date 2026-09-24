@@ -1,0 +1,2 @@
+BAR-002 violated: tests without an assertion and not named smoke_:
+  tests/api_widget_behavior/image.rs::a_test_that_asserts_nothing

@@ -1,0 +1,2 @@
+BAR-002 violated: tests without an assertion and not named smoke_:
+  examples/embedded_shell.rs::bar_002_violating_example_in_examples

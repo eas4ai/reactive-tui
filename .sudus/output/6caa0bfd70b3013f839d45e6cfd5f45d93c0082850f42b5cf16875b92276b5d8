@@ -1,0 +1,11 @@
+$ cargo test --locked --jobs 8 -p reactive-tui-suprtui --test render_alloc -- ras_003_
+$ cargo test --locked --jobs 8 -p reactive-tui-suprtui --test render_alloc -- ras_007_
+$ cargo test --locked --jobs 8 -p reactive-tui --lib -- ras_007_
+$ cargo test --locked --jobs 8 --test suprtui_renderer -- ras_007_
+$ cargo test --locked --jobs 8 --test suprtui_renderer -- pnt_003_
+cairn: RAS-003: pass
+  RAS-003 reason: 2 passed
+cairn: RAS-007: pass
+  RAS-007 reason: renderer: 1 passed; painter: 2 passed; backend: 1 passed
+cairn: PNT-003: pass
+  PNT-003 reason: 2 passed
