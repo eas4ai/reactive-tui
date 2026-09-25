@@ -91,6 +91,9 @@ pub(super) struct Picture {
     pub radial: Option<RadialHit>,
     /// Node geometry of a Sankey chart.
     pub sankey: Option<SankeyHit>,
+    /// The selection the shapes were drawn with (a Sankey chart's faded
+    /// links, CHT-032).
+    pub selected: Option<(usize, usize)>,
 }
 
 impl Picture {
@@ -111,6 +114,7 @@ impl Picture {
             kept: Vec::new(),
             radial: None,
             sankey: None,
+            selected: None,
         }
     }
 }
@@ -396,6 +400,7 @@ pub(super) fn draw(job: &Job) -> Picture {
         GlyphSet::Unicode => crate::widgets::display::image::image_blitter(),
     });
     let mut picture = Picture::blank(width, height);
+    picture.selected = job.selected;
     if width == 0 || height == 0 {
         return picture;
     }
