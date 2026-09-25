@@ -380,15 +380,19 @@ impl Component for LiveChart {
                     return EventResult::Consumed;
                 }
                 // A pie or donut steps through its drawn slices in order,
-                // across series and past points that draw no slice.
-                let slices: Option<Vec<(usize, usize)>> = {
-                    let latest = self.latest.lock().unwrap_or_else(|e| e.into_inner());
-                    at_size(latest.picture.as_ref(), self.size())
-                        .and_then(|picture| picture.radial.as_ref())
-                        .filter(|radial| !radial.slices.is_empty())
-                        .map(|radial| radial.slices.iter().map(|s| s.key).collect())
-                };
-                if let Some(keys) = slices {
+                // across series and past points that draw no slice; one that
+                // draws no slice has nothing to select.
+                if matches!(props.config.chart_type, ChartType::Pie | ChartType::Donut) {
+                    let keys: Vec<(usize, usize)> = {
+                        let latest = self.latest.lock().unwrap_or_else(|e| e.into_inner());
+                        at_size(latest.picture.as_ref(), self.size())
+                            .and_then(|picture| picture.radial.as_ref())
+                            .map(|radial| radial.slices.iter().map(|s| s.key).collect())
+                            .unwrap_or_default()
+                    };
+                    if keys.is_empty() {
+                        return EventResult::Ignored;
+                    }
                     let current = state
                         .hovered_point
                         .and_then(|hovered| keys.iter().position(|key| *key == hovered));
