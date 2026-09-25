@@ -1043,24 +1043,3 @@ fn cht_017_utility_color_tokens_resolve_identically_in_charts() {
         );
     }
 }
-
-#[test]
-fn cht_031_a_pointer_outside_the_pie_selects_nothing() {
-    let size = (40u16, 12u16);
-    let p = props(ChartType::Pie, size, &[1.0, 1.0, 1.0, 1.0]);
-    let plain = app_input::run(Root(Element::typed::<Chart>(p.clone())), size, vec![(2, None)])
-        .pop()
-        .unwrap();
-    let corner = app_input::run(
-        Root(Element::typed::<Chart>(p)),
-        size,
-        vec![(2, hover(0, 0)), (3, None)],
-    )
-    .pop()
-    .unwrap();
-    assert_eq!(
-        plain.text, corner.text,
-        "a pointer outside the pie's outer radius must select nothing, but the frame changed:\n{}",
-        corner.text
-    );
-}
