@@ -206,14 +206,12 @@ pub fn use_clipboard(
         .clone();
     let state_copy = state.clone();
     let state_paste = state.clone();
-    let copy_owner = hooks.resource_token();
+    let copy_owner = hooks.liveness();
     let paste_owner = copy_owner.clone();
 
     let copy = Arc::new(move |text: &str| {
         let backend = state_copy.get().backend;
-        let result = backend.copy(text, || {
-            !copy_owner.upgrade().is_some_and(|owner| owner.is_alive())
-        });
+        let result = backend.copy(text, || !copy_owner.is_alive());
         if result.is_err() {
             // Keep copied text and tool output out of logs. The full hook exposes
             // its error signal; the simple hook retains its void copy callback.
@@ -230,7 +228,7 @@ pub fn use_clipboard(
 
     let paste = Arc::new(move || -> Option<String> {
         let backend = state_paste.get().backend;
-        match backend.paste(|| !paste_owner.upgrade().is_some_and(|owner| owner.is_alive())) {
+        match backend.paste(|| !paste_owner.is_alive()) {
             Ok(text) => {
                 state_paste.update(|current| {
                     current.content = Some(text.clone());

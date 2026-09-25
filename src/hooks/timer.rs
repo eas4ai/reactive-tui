@@ -1,5 +1,5 @@
 use crate::reactive::hooks::{
-    use_effect_with_deps, use_signal, HookKind, HookResources, Hooks, ThreadSafeSignal,
+    use_effect_with_deps, use_signal, HookKind, Hooks, Liveness, ThreadSafeSignal,
 };
 use crate::reactive::scheduler::{Scheduler, TimerId};
 use std::sync::{Arc, Mutex, OnceLock, Weak};
@@ -118,7 +118,7 @@ where
     let callback = Arc::new(callback);
 
     ThrottledFunction {
-        owner: hooks.resource_token(),
+        owner: hooks.liveness(),
         last_call,
         interval,
         callback,
@@ -174,7 +174,7 @@ impl<T: Send + 'static> DebouncedFunction<T> {
 
 /// A throttled function that limits execution to once per interval
 pub struct ThrottledFunction<T> {
-    owner: Weak<HookResources>,
+    owner: Liveness,
     last_call: ThreadSafeSignal<Option<std::time::Instant>>,
     interval: Duration,
     callback: Arc<dyn Fn(T) + Send + Sync>,
@@ -183,7 +183,7 @@ pub struct ThrottledFunction<T> {
 impl<T: Send + 'static> ThrottledFunction<T> {
     /// Call the throttled function
     pub fn call(&self, value: T) {
-        if !self.owner.upgrade().is_some_and(|owner| owner.is_alive()) {
+        if !self.owner.is_alive() {
             return;
         }
         let now = std::time::Instant::now();
@@ -221,14 +221,14 @@ struct CallbackState {
 
 struct HookTimer {
     scheduler: Arc<Scheduler>,
-    owner: Weak<HookResources>,
+    owner: Liveness,
     state: Mutex<TimerState>,
     callback: Mutex<CallbackState>,
     active: ThreadSafeSignal<bool>,
 }
 
 impl HookTimer {
-    fn new(scheduler: Arc<Scheduler>, owner: Weak<HookResources>) -> Self {
+    fn new(scheduler: Arc<Scheduler>, owner: Liveness) -> Self {
         Self {
             scheduler,
             owner,
@@ -252,7 +252,7 @@ impl HookTimer {
 
     fn restart(self: &Arc<Self>, duration: Duration, repeat: bool, callback: Option<Callback>) {
         let mut state = self.state.lock().unwrap();
-        if state.closed || !self.owner.upgrade().is_some_and(|owner| owner.is_alive()) {
+        if state.closed || !self.owner.is_alive() {
             return;
         }
         if let Some(id) = state.id.take() {
@@ -279,10 +279,7 @@ impl HookTimer {
 
     fn fire(&self, generation: u64, repeat: bool) {
         let mut state = self.state.lock().unwrap();
-        if state.closed
-            || state.generation != generation
-            || !self.owner.upgrade().is_some_and(|owner| owner.is_alive())
-        {
+        if state.closed || state.generation != generation || !self.owner.is_alive() {
             return;
         }
         if !repeat {
@@ -333,7 +330,7 @@ impl Drop for HookTimer {
 
 fn use_timer(hooks: &Hooks, kind: HookKind) -> Arc<HookTimer> {
     let storage = hooks.get_or_create_storage(kind, || {
-        Arc::new(HookTimer::new(get_scheduler(hooks), hooks.resource_token()))
+        Arc::new(HookTimer::new(get_scheduler(hooks), hooks.liveness()))
     });
     let timer = storage.lock().unwrap().clone();
     timer
@@ -343,7 +340,7 @@ fn install_timer(hooks: &Hooks, timer: Arc<HookTimer>, duration: Duration, repea
     use_effect_with_deps(hooks, duration, move || {
         timer.restart(duration, repeat, None);
         Some(Box::new(move || {
-            if timer.owner.upgrade().is_some_and(|owner| owner.is_alive()) {
+            if timer.owner.is_alive() {
                 timer.cancel();
             } else {
                 timer.close();
@@ -662,7 +659,7 @@ mod tests {
         let scheduler = Scheduler::new_background();
         let probe = scheduler.background_probe().unwrap();
         let weak_scheduler = Arc::downgrade(&scheduler);
-        let timer = Arc::new(HookTimer::new(scheduler, hooks.resource_token()));
+        let timer = Arc::new(HookTimer::new(scheduler, hooks.liveness()));
         let (send, receive) = std::sync::mpsc::channel();
         timer.replace_callback(Box::new(move || send.send(()).unwrap()));
         timer.restart(Duration::ZERO, false, None);
@@ -681,5 +678,78 @@ mod tests {
             weak_scheduler.upgrade().is_none(),
             "fallback scheduler remained owned after its timer dropped"
         );
+    }
+
+    /// Dropping the last Hooks clone closes its owner on the dropping thread,
+    /// never on a thread that is restarting or firing a timer or calling a
+    /// throttle: those check liveness without holding the owner, so none of
+    /// them can run the owner's cleanup, which closes the timers, while it
+    /// holds a timer's state lock. Each attempt restarts a debounce, fires an
+    /// interval or calls a throttle in a loop on another thread, and drops the
+    /// last Hooks clone meanwhile; a thread that ran the cleanup under the
+    /// state lock would never finish.
+    #[test]
+    fn dropping_the_last_hooks_while_timers_restart_and_fire_never_hangs() {
+        use std::sync::atomic::AtomicBool;
+
+        let kinds = ["a debounce restart", "an interval fire", "a throttle call"];
+        let dropping_thread = std::thread::current().id();
+        let scheduler = Arc::new(Scheduler::new());
+        let scope = crate::reactive::component_scope::ComponentScope::new(scheduler.clone());
+        for attempt in 0..6000 {
+            let kind = attempt % kinds.len();
+            let hooks = Hooks::new();
+            let closed_on = Arc::new(Mutex::new(None));
+            let (debounce, interval, throttle) = {
+                let _scope = scope.enter(true);
+                let _frame = hooks.begin_render();
+                let closed_on = closed_on.clone();
+                use_effect_with_deps(&hooks, (), move || {
+                    Some(Box::new(move || {
+                        *closed_on.lock().unwrap() = Some(std::thread::current().id());
+                    }))
+                });
+                (
+                    use_debounce(&hooks, Duration::ZERO, |_: i32| {}),
+                    use_interval(&hooks, Duration::ZERO, || {}),
+                    use_throttle(&hooks, Duration::ZERO, |_: i32| {}),
+                )
+            };
+            assert!(interval.is_active(), "the interval did not start");
+
+            let stop = Arc::new(AtomicBool::new(false));
+            let passes = Arc::new(AtomicUsize::new(0));
+            let (done, done_receiver) = std::sync::mpsc::channel();
+            {
+                let (stop, passes, scheduler) = (stop.clone(), passes.clone(), scheduler.clone());
+                std::thread::spawn(move || {
+                    while !stop.load(Ordering::Acquire) {
+                        match kind {
+                            0 => debounce.call(0),
+                            1 => scheduler.process_timers(),
+                            _ => throttle.call(0),
+                        }
+                        passes.fetch_add(1, Ordering::AcqRel);
+                    }
+                    done.send(()).unwrap();
+                });
+            }
+            while passes.load(Ordering::Acquire) < 20 {
+                std::thread::yield_now();
+            }
+            drop(hooks);
+            stop.store(true, Ordering::Release);
+            assert!(
+                done_receiver.recv_timeout(Duration::from_secs(30)).is_ok(),
+                "{} hung when the last Hooks clone dropped (attempt {attempt})",
+                kinds[kind]
+            );
+            assert_eq!(
+                *closed_on.lock().unwrap(),
+                Some(dropping_thread),
+                "{} closed the owner on its own thread (attempt {attempt})",
+                kinds[kind]
+            );
+        }
     }
 }
