@@ -197,6 +197,13 @@ pub(super) fn sankey(
         h: area.h.saturating_sub(above),
     };
     if plot.w <= 2 * usize::from(options.node_width.max(1)) || plot.h == 0 {
+        text.text(
+            area.x,
+            area.y,
+            area.w,
+            "Sankey nodes do not fit the chart",
+            None,
+        );
         return;
     }
     let graph = generator

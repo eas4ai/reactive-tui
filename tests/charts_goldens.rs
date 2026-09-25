@@ -2059,6 +2059,13 @@ fn cht_026_sankey_bad_or_empty_input_shows_a_message() {
             frame.text
         );
     }
+    // Nodes too wide for the chart say so instead of leaving it blank.
+    let wide = sankey_frame(sankey_builder(size).node_width(40).build(), size);
+    assert!(
+        wide.text.contains("do not fit") && !wide.text.chars().any(is_fill_glyph),
+        "a Sankey chart whose nodes do not fit must say so:\n{}",
+        wide.text
+    );
 }
 
 /// CHT-024: a Sankey chart follows its forced size class: the large class
