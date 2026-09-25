@@ -187,13 +187,18 @@ pub(super) fn pie(
             ((start + end) / 2.0, (start + end) / 2.0)
         };
         let tint = slice_color(props, order, slices.len(), *s, *i);
-        mask.fill_sector(cx, cy, inner, outer, from, to, tint, Some((*s, *i)));
-        hit.slices.push(RadialSlice {
-            start,
-            end,
-            key: (*s, *i),
-            color: tint,
-        });
+        // A slice is drawn when its fill set a sample; the keys, the pointer
+        // and the labels reach drawn slices alone (CHT-031), over the angles
+        // the fill took.
+        let drawn = mask.fill_sector(cx, cy, inner, outer, from, to, tint, Some((*s, *i))) > 0;
+        if drawn {
+            hit.slices.push(RadialSlice {
+                start: from,
+                end: to,
+                key: (*s, *i),
+                color: tint,
+            });
+        }
         let mid = (start + end) / 2.0;
         let r = (inner + outer) / 2.0;
         picture.anchors.insert(
@@ -203,7 +208,7 @@ pub(super) fn pie(
                 ((cy - mid.cos() * r) / DOTS_Y as f64) as usize,
             ),
         );
-        if labelled && to > from {
+        if labelled && drawn {
             labels.push((mid, label_text(*s, *i), tint));
         }
         start = end;

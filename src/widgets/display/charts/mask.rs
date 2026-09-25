@@ -514,20 +514,21 @@ impl MaskCanvas {
     /// Fill every sample inside the dot-space box (`x0`, `y0`) to (`x1`,
     /// `y1`) for which `inside` holds at the sample's center, in dot units.
     /// A later fill covers an earlier one where both hold. A fill needs a
-    /// color to split on, so a fill with none draws nothing.
+    /// color to split on, so a fill with none draws nothing. Returns the
+    /// number of samples it set.
     pub fn fill_where(
         &mut self,
         (x0, y0, x1, y1): (f64, f64, f64, f64),
         color: Option<Rgba>,
         owner: Option<(usize, usize)>,
         inside: impl Fn(f64, f64) -> bool,
-    ) {
+    ) -> usize {
         if color.is_none()
             || [x0, y0, x1, y1].iter().any(|v| v.is_nan())
             || self.cols == 0
             || self.rows == 0
         {
-            return;
+            return 0;
         }
         let (left, top, right, bottom) = (
             self.clip.0 as f64,
@@ -538,7 +539,7 @@ impl MaskCanvas {
         let (x0, x1) = (x0.max(left), x1.min(right));
         let (y0, y1) = (y0.max(top), y1.min(bottom));
         if x1 <= x0 || y1 <= y0 {
-            return;
+            return 0;
         }
         if self.fills.is_empty() {
             self.fills = vec![[0; 8]; self.cols * self.rows];
@@ -550,6 +551,7 @@ impl MaskCanvas {
         let c1 = ((x1 / DOTS_X as f64).ceil() as usize).min(self.cols);
         let r0 = (y0 / DOTS_Y as f64).floor().max(0.0) as usize;
         let r1 = ((y1 / DOTS_Y as f64).ceil() as usize).min(self.rows);
+        let mut set = 0;
         for row in r0..r1 {
             for col in c0..c1 {
                 for py in 0..ph {
@@ -561,17 +563,21 @@ impl MaskCanvas {
                         let x = (col as f64 + (px as f64 + 0.5) / pw as f64) * DOTS_X as f64;
                         if x >= left && x < right && inside(x, y) {
                             self.fills[row * self.cols + col][py * pw + px] = index;
+                            set += 1;
                         }
                     }
                 }
             }
         }
+        set
     }
 
     /// Fill the annular sector centred on (`cx`, `cy`) between the `inner`
     /// and `outer` radii and the angles `start` to `end` in radians,
     /// clockwise from twelve o'clock. Everything is in dot units, and a dot
     /// is as wide as it is tall on screen, so a full sector is a circle.
+    /// Returns the number of samples it set, 0 when the sector covers no
+    /// sample's center.
     #[allow(clippy::too_many_arguments)]
     pub fn fill_sector(
         &mut self,
@@ -583,9 +589,9 @@ impl MaskCanvas {
         end: f64,
         color: Option<Rgba>,
         owner: Option<(usize, usize)>,
-    ) {
+    ) -> usize {
         if (end - start).is_nan() || end <= start || outer <= 0.0 {
-            return;
+            return 0;
         }
         self.fill_where(
             (cx - outer, cy - outer, cx + outer, cy + outer),
@@ -600,7 +606,7 @@ impl MaskCanvas {
                 let angle = dx.atan2(-dy).rem_euclid(std::f64::consts::TAU);
                 angle >= start && angle < end
             },
-        );
+        )
     }
 
     /// Fill the polygon `points` (dot units) by the even-odd rule.

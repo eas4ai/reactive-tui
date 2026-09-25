@@ -15,10 +15,10 @@ mod cartesian;
 mod pie;
 mod radar;
 
-/// One drawn slice of a pie or donut.
+/// One drawn slice of a pie or donut: a slice whose fill set a sample.
 #[derive(Clone, Debug)]
 pub(super) struct RadialSlice {
-    /// Where the slice's angle range starts, before any pad.
+    /// Where the slice's drawn angle range starts, after its pad.
     pub start: f64,
     /// Where it ends.
     pub end: f64,
