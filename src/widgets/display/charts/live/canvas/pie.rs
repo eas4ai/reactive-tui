@@ -4,8 +4,9 @@
 //! wide as it is tall on screen, so the circle needs no aspect factor: it
 //! spans twice as many columns as rows. At the medium and large size classes
 //! each slice's label sits beside the circle, joined to its slice by a leader
-//! line in the text layer; a label with no free row is left out, and its
-//! slice stays in the legend.
+//! line in the text layer that crosses no slice, label or other leader; a
+//! label with no row where that fits is left out, and its slice stays in
+//! the legend.
 
 use super::super::super::mask::{MaskCanvas, DOTS_X, DOTS_Y};
 use super::super::super::plot::{
@@ -13,6 +14,7 @@ use super::super::super::plot::{
 };
 use super::super::super::{ChartProps, ChartType};
 use super::{Job, Picture, RadialHit, RadialSlice, TextLayer};
+use std::collections::HashSet;
 use std::f64::consts::{PI, TAU};
 use unicode_width::UnicodeWidthStr;
 
@@ -230,9 +232,10 @@ pub(super) fn pie(
 
 /// Place each slice's label beside the circle on the side its middle angle
 /// faces, cut to the columns left there, on the row of the slice's outer
-/// edge or the nearest free row whose leader crosses no painted cell, and
-/// join it to the slice with a leader line that starts past the slice's
-/// last painted cell on its row.
+/// edge or the nearest free row whose leader crosses no painted cell and no
+/// label or leader placed before it, and join it to the slice with a leader
+/// line that starts past the slice's last painted cell on its row. A label
+/// with no such row is left out.
 #[allow(clippy::too_many_arguments)]
 fn place_labels(
     text: &mut TextLayer,
@@ -266,6 +269,8 @@ fn place_labels(
         (((cx + outer) / DOTS_X as f64).ceil() as usize).min(col_end),
     );
     let mut taken = [Vec::new(), Vec::new()];
+    // The cells of the labels and leaders placed so far.
+    let mut placed: HashSet<(usize, usize)> = HashSet::new();
     for (mid, label, color) in labels {
         let right = mid < PI;
         let side = usize::from(right);
@@ -293,31 +298,39 @@ fn place_labels(
         };
         let from = edge(anchor_row, right);
         // The nearest free row to the anchor, alternating below and above,
-        // whose leader crosses no slice.
+        // whose label and leader cross no slice and nothing placed before.
         let Some((row, path)) = (0..area.h)
             .flat_map(|d| [anchor_row + d, anchor_row.wrapping_sub(d)])
             .filter(|row| (area.y..row_end).contains(row) && !taken[side].contains(row))
+            .filter(|row| !(column..column + width).any(|x| placed.contains(&(x, *row))))
             .find_map(|row| {
-                leader(mask, from, right, anchor_row, row, column, width).map(|path| (row, path))
+                leader(mask, &placed, from, right, anchor_row, row, column, width)
+                    .map(|path| (row, path))
             })
         else {
             continue;
         };
         taken[side].push(row);
         text.text(column, row, width, &shown, color);
+        placed.extend((column..column + width).map(|x| (x, row)));
         for (x, y, glyph) in path {
             text.put(x, y, glyph, None);
+            placed.insert((x, y));
         }
     }
 }
 
 /// The cells of the leader from `edge`, the first unpainted column past the
 /// slice on `anchor_row`, to the label at `column` on `row`: a horizontal
-/// run, and a bend down or up when the label moved rows. The run is empty
-/// when the label touches the slice. `None` when a cell would cover a
-/// painted cell, so a leader never draws over a slice or its own label.
+/// run, and a bend down or up when the label moved rows. `None` when the
+/// leader would have no cell, because the label touches its slice, or a
+/// cell would cover a painted cell, its own label, or a cell in `placed`:
+/// so every placed label has a leader, and no leader draws over a slice,
+/// a label or another leader.
+#[allow(clippy::too_many_arguments)]
 fn leader(
     mask: &MaskCanvas,
+    placed: &HashSet<(usize, usize)>,
     edge: usize,
     right: bool,
     anchor_row: usize,
@@ -366,9 +379,12 @@ fn leader(
         path.push((near, row, "─"));
     }
     let label = column..column + width;
-    if path
-        .iter()
-        .any(|(x, y, _)| mask.is_painted(*x, *y) || (*y == row && label.contains(x)))
+    if path.is_empty()
+        || path.iter().any(|(x, y, _)| {
+            mask.is_painted(*x, *y)
+                || (*y == row && label.contains(x))
+                || placed.contains(&(*x, *y))
+        })
     {
         return None;
     }
