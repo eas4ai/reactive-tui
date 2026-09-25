@@ -14,7 +14,7 @@ use reactive_tui::component::Element;
 use reactive_tui::event::types::{Event, ResizeEvent};
 use reactive_tui::widgets::display::{
     Chart, ChartAxis, ChartLegend, ChartProps, ChartType, DataPoint, DataSeries,
-    SankeyChartBuilder, SankeyLink, SizeClass,
+    SankeyChartBuilder, SankeyLabel, SankeyLink, SizeClass,
 };
 
 struct Root(Element);
@@ -1927,6 +1927,42 @@ fn cht_030_labels_sit_beside_their_nodes() {
         "power must sit above its node:\n{}",
         frame.text
     );
+    // A middle node whose top the layout leaves a rounding error above the
+    // plot keeps its label, and a two-line label keeps both lines.
+    let chain = sankey_links(&[(0, 1, 4.0), (1, 2, 1.0)]);
+    let chained = sankey_frame(
+        SankeyChartBuilder::new(["a", "b", "c"], chain.clone())
+            .node_label(|n: &&str| *n)
+            .size(size.0, size.1)
+            .build(),
+        size,
+    );
+    let rows: Vec<&str> = chained.text.lines().collect();
+    assert!(
+        rows.iter()
+            .any(|row| row.split_whitespace().any(|word| word == "b")),
+        "the middle node b must be labeled:\n{}",
+        chained.text
+    );
+    let lined = sankey_frame(
+        SankeyChartBuilder::new(["a", "b", "c"], chain)
+            .labels(|n: &&str, v| {
+                vec![
+                    SankeyLabel::new(format!("{n}-name")),
+                    SankeyLabel::new(format!("{n}-flow {v}")),
+                ]
+            })
+            .size(size.0, size.1)
+            .build(),
+        size,
+    );
+    for line in ["b-name", "b-flow 4"] {
+        assert!(
+            lined.text.contains(line),
+            "a middle node's two-line label keeps its line {line}:\n{}",
+            lined.text
+        );
+    }
     let size = (200u16, 40u16);
     let large = sankey_frame(sankey_builder(size).build(), size);
     for label in ["coal 4", "power 9", "industry 5", "loss 1"] {

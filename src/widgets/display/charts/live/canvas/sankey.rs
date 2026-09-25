@@ -327,7 +327,10 @@ pub(super) fn sankey(
                 (row, start, area.right().saturating_sub(start))
             };
             let width = full.min(room);
-            if width < 2 || !(area.y..area.bottom()).contains(&row) {
+            // A label that fits is drawn whole, however short; one cut to a
+            // single column says nothing and is left out.
+            let cut_to_nothing = width == 0 || (width < full && width < 2);
+            if cut_to_nothing || !(area.y..area.bottom()).contains(&row) {
                 continue;
             }
             text.text(start, row, width, &fit_label(line, width), *color);
