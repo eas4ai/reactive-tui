@@ -139,6 +139,9 @@ fn req_001_decode() {
     let mut bad = vec![137, 80, 78, 71, 13, 10, 26, 10];
     bad.extend([0u8; 64]);
     assert!(decode(&bad).is_err());
+    // A partial PNG signature, and bytes that are all zero.
+    assert!(decode(b"\x89PNG trailing junk without structure").is_err());
+    assert!(decode(&[0u8; 128]).is_err());
     // Truncated JPEG (first quarter of the baseline fixture).
     let jpeg = decode_base64(
         "/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAMCAgMCAgMDAwMEAwMEBQgFBQQEBQoHBwYIDAoMDAsKCwsNDhIQDQ4RDgsLEBYQERMUFRUVDA8XGBYUGBIUFRT/2wBDAQMEBAUEBQkFBQkUDQsNFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBT/wAARCAACAAMDAREAAhEBAxEB/8QAFAABAAAAAAAAAAAAAAAAAAAACP/EABQQAQAAAAAAAAAAAAAAAAAAAAD/xAAVAQEBAAAAAAAAAAAAAAAAAAAHCf/EABQRAQAAAAAAAAAAAAAAAAAAAAD/2gAMAwEAAhEDEQA/ADoDFU3/2Q==",

@@ -1,12 +1,11 @@
 //! Ported vectors for `link.zig` (`LinkPool`, `LinkTracker`).
 //!
-//! The link pool is delivered with `buffer-core` as its dependency; the
-//! terminal link behavior it serves arrives with `sys-core`. Global-pool
+//! The link pool is delivered with `buffer-core` as its dependency. Global-pool
 //! cases are excluded by the same caller-ownership rule as UNI-008.
 
 use std::cell::RefCell;
 use std::rc::Rc;
-use suprtui::link::{GEN_MASK, LinkPool, LinkPoolError, LinkTracker};
+use suprtui::link::{GEN_MASK, LinkPool, LinkPoolError, LinkTracker, MAX_URL_LENGTH};
 
 fn shared_pool() -> Rc<RefCell<LinkPool>> {
     Rc::new(RefCell::new(LinkPool::new()))
@@ -203,4 +202,35 @@ fn link_pool_intern_live() {
     let id4 = pool.alloc(b"https://example.com/stable").unwrap();
     assert_eq!(id3, id4);
     pool.decref(id3).unwrap();
+}
+
+#[test]
+fn link_pool_limits_urls_counts_holders_and_scopes_ids() {
+    let mut pool = LinkPool::new();
+
+    // Exactly 512 bytes intern; 513 are rejected.
+    let max_url = vec![b'u'; MAX_URL_LENGTH];
+    assert_eq!(MAX_URL_LENGTH, 512);
+    let id = pool.alloc(&max_url).unwrap();
+    assert_eq!(pool.get(id).unwrap(), max_url.as_slice());
+    let long_url = vec![b'u'; MAX_URL_LENGTH + 1];
+    assert!(pool.alloc(&long_url).is_err());
+    assert!(pool.get(0x00FF_FFFF).is_err());
+
+    // Reference counting tracks holders.
+    pool.incref(id).unwrap();
+    pool.incref(id).unwrap();
+    assert_eq!(pool.get_refcount(id).unwrap(), 2);
+    pool.decref(id).unwrap();
+    assert_eq!(pool.get_refcount(id).unwrap(), 1);
+
+    // Re-allocating a live URL returns the same id.
+    let same = pool.alloc(&max_url).unwrap();
+    assert_eq!(same, id);
+
+    // Ids never resolve in another pool.
+    let mut other = LinkPool::new();
+    assert!(other.get(id).is_err());
+    assert!(other.incref(id).is_err());
+    assert!(other.decref(id).is_err());
 }
