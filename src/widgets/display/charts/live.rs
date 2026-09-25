@@ -737,6 +737,10 @@ impl LiveChart {
             .as_ref()
             .filter(|hit| series == 0 && index < hit.nodes.len())
             .and_then(|hit| canvas::sankey_node_text(props, index).map(|text| (hit, text)));
+        // A Sankey node spans columns, so its box goes beside the whole node.
+        let node_left = node
+            .as_ref()
+            .map(|(hit, _)| (hit.nodes[index].0 / super::mask::DOTS_X as f64) as usize);
         let (tooltip, spoken) = match (node, slice) {
             (Some((hit, (name, value))), _) => {
                 let spoken = format!("{name} / {value}");
@@ -788,7 +792,10 @@ impl LiveChart {
             })
             .unwrap_or((picture.plot.x, picture.plot.y));
         let boxed = tooltip.layout(area);
-        let at = boxed.place(anchor, area);
+        let at = match node_left {
+            Some(left) => boxed.place_beside((left, anchor.0), anchor.1, area),
+            None => boxed.place(anchor, area),
+        };
         let boxed = (picture.class != Some(plot::SizeClass::Mini)).then_some(boxed);
         let crosshair = (!picture.scatter
             && picture.index_rows.is_empty()
