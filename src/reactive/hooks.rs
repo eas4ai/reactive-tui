@@ -226,9 +226,36 @@ impl<T: Clone + Default> ThreadSafeSignal<T> {
     where
         T: PartialEq,
     {
+        self.store(value, || true, excluded);
+    }
+
+    /// Set a new value only if `holds` returns true. `holds` runs while the
+    /// signal's store is locked, so once it would return false and `settle`
+    /// has returned, no call begun earlier stores anything. Subscribers are
+    /// notified after the lock is released.
+    pub(crate) fn set_if(&self, value: T, holds: impl FnOnce() -> bool)
+    where
+        T: PartialEq,
+    {
+        self.store(value, holds, None);
+    }
+
+    /// Wait until a store under way has finished.
+    pub(crate) fn settle(&self) {
+        drop(self.inner.lock());
+    }
+
+    fn store(
+        &self,
+        value: T,
+        holds: impl FnOnce() -> bool,
+        excluded: Option<&super::wake::AppWaker>,
+    ) where
+        T: PartialEq,
+    {
         let changed =
             if let (Ok(mut inner), Ok(mut version)) = (self.inner.lock(), self.version.lock()) {
-                if *inner != value {
+                if *inner != value && holds() {
                     *inner = value;
                     *version += 1;
                     true
