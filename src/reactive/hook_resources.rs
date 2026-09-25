@@ -200,3 +200,85 @@ impl Drop for OwnedEffect {
         self.dispose();
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use syn::visit::Visit;
+
+    /// The animation, timer, throttle and clipboard hooks check their owner
+    /// through `Liveness`. Getting a `Weak<HookResources>` needs
+    /// `Hooks::resource_token` or the type's name, so a hook that goes back
+    /// to upgrading its owner shows up here on every run, where the race
+    /// tests catch it only when a drop lands inside the check.
+    #[test]
+    fn hooks_check_their_owner_through_liveness_never_a_weak_upgrade() {
+        struct OwnerUpgrades<'a> {
+            file: &'a str,
+            violations: Vec<String>,
+        }
+        impl<'ast> Visit<'ast> for OwnerUpgrades<'_> {
+            fn visit_type_path(&mut self, path: &'ast syn::TypePath) {
+                let last = path.path.segments.last();
+                if let Some(syn::PathSegment {
+                    ident,
+                    arguments: syn::PathArguments::AngleBracketed(arguments),
+                }) = last
+                {
+                    let names_resources = arguments.args.iter().any(|argument| match argument {
+                        syn::GenericArgument::Type(syn::Type::Path(inner)) => inner
+                            .path
+                            .segments
+                            .last()
+                            .is_some_and(|segment| segment.ident == "HookResources"),
+                        _ => false,
+                    });
+                    if ident == "Weak" && names_resources {
+                        self.violations
+                            .push(format!("{} holds a Weak<HookResources>", self.file));
+                    }
+                }
+                syn::visit::visit_type_path(self, path);
+            }
+
+            fn visit_expr_method_call(&mut self, call: &'ast syn::ExprMethodCall) {
+                if call.method == "resource_token" {
+                    self.violations
+                        .push(format!("{} calls resource_token", self.file));
+                }
+                syn::visit::visit_expr_method_call(self, call);
+            }
+
+            fn visit_expr_path(&mut self, path: &'ast syn::ExprPath) {
+                if path
+                    .path
+                    .segments
+                    .last()
+                    .is_some_and(|segment| segment.ident == "resource_token")
+                {
+                    self.violations
+                        .push(format!("{} names resource_token", self.file));
+                }
+                syn::visit::visit_expr_path(self, path);
+            }
+        }
+
+        let sources = [
+            ("hooks/animation.rs", include_str!("../hooks/animation.rs")),
+            ("hooks/timer.rs", include_str!("../hooks/timer.rs")),
+            ("hooks/clipboard.rs", include_str!("../hooks/clipboard.rs")),
+        ];
+        let mut upgrades = OwnerUpgrades {
+            file: "",
+            violations: Vec::new(),
+        };
+        for (file, source) in sources {
+            upgrades.file = file;
+            upgrades.visit_file(&syn::parse_file(source).unwrap());
+        }
+        assert!(
+            upgrades.violations.is_empty(),
+            "hooks must check their owner through Liveness, not a Weak upgrade: {:?}",
+            upgrades.violations
+        );
+    }
+}
