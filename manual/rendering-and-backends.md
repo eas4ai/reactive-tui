@@ -30,6 +30,15 @@ Use `SuprTuiBackend` for a real terminal application. Use `DebugBackend` when a
 test needs to inspect text, cells, frame count, or patches without controlling a
 terminal. Implement `Backend` only when another host owns output and input.
 
+`SuprTuiBackend`, and `CrosstermBackend` and `DirectTtyBackend`, which are
+built on it, lay out and paint on their own renderer thread. That thread's
+stack is large enough for the deepest tree the app accepts (128 levels).
+`DebugBackend` lays out and paints on the thread that runs the app. In a debug
+build, a tree 128 levels deep takes about 1.8 MiB of that thread's stack. That
+is close to the 2 MiB a test thread has, and with the `embedded-terminal`
+feature it is more than such a thread has left. Run a test that draws a tree
+that deep through `DebugBackend` on a thread with a larger stack.
+
 ## Behavior
 
 The app expands components and reconciles a render tree. The component bridge
