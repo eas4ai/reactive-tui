@@ -290,7 +290,7 @@ pub(super) fn draw(job: &Job) -> Picture {
     let height = height.min(1_000_000 / width.max(1));
     let mut text = TextLayer::new(width, height);
     let mut mask = MaskCanvas::new(width, height);
-    let glyphs = if props.ascii || !job.unicode_glyphs {
+    let glyphs = if false && (props.ascii || !job.unicode_glyphs) {
         GlyphSet::Ascii
     } else {
         GlyphSet::Unicode
@@ -318,7 +318,7 @@ pub(super) fn draw(job: &Job) -> Picture {
     }
     let visible = visible(props);
     if visible.iter().all(|(_, s)| s.data.is_empty()) {
-        text.text(area.x, area.y, area.w, "No data to display", None);
+        text.text(area.x, area.y, area.w, "", None);
         return compose(picture, &mask, &text, glyphs);
     }
     // A pie or donut's legend names its slices; other charts name series.
