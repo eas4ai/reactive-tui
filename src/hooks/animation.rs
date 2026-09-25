@@ -5,7 +5,7 @@ use crate::animation::stagger::StaggerConfig;
 use crate::animation::{
     Animation, AnimationController, AnimationState, EasingFunction, LoopMode, SpringConfig,
 };
-use crate::reactive::hooks::{HookKind, HookResources};
+use crate::reactive::hooks::{HookKind, Liveness};
 use crate::reactive::scheduler::TimerId;
 use crate::reactive::{use_effect_with_deps, Hooks, Scheduler, ThreadSafeSignal};
 use std::fmt::Debug;
@@ -240,7 +240,7 @@ struct AnimationOwner<T: AnimatableValue> {
     transition_request: Mutex<Option<(T, Duration)>>,
     cleanup_registered: AtomicBool,
     generation: AtomicUsize,
-    lifetime: Weak<HookResources>,
+    lifetime: Liveness,
 }
 
 struct AnimationCleanup<T: AnimatableValue>(Weak<AnimationOwner<T>>);
@@ -256,9 +256,7 @@ impl<T: AnimatableValue> Drop for AnimationCleanup<T> {
 
 impl<T: AnimatableValue> AnimationOwner<T> {
     fn is_alive(&self) -> bool {
-        self.lifetime
-            .upgrade()
-            .is_some_and(|owner| owner.is_alive())
+        self.lifetime.is_alive()
     }
 
     fn cancel_owned_work(&self) {
@@ -421,7 +419,7 @@ pub fn use_animation<T: AnimatableValue>(
     initial: T,
     config: AnimationConfig,
 ) -> AnimationHandle<T> {
-    let lifetime = hooks.resource_token();
+    let lifetime = hooks.liveness();
     let scheduler = crate::hooks::timer::get_scheduler(hooks);
     let initial_config = config.clone();
     let storage = hooks.get_or_create_storage(HookKind::Memo, || {
@@ -469,7 +467,7 @@ struct SpringOwner<T: AnimatableValue> {
     animation_id: Mutex<Option<usize>>,
     cleanup_registered: AtomicBool,
     generation: AtomicUsize,
-    lifetime: Weak<HookResources>,
+    lifetime: Liveness,
 }
 
 struct SpringCleanup<T: AnimatableValue>(Weak<SpringOwner<T>>);
@@ -485,9 +483,7 @@ impl<T: AnimatableValue> Drop for SpringCleanup<T> {
 
 impl<T: AnimatableValue> SpringOwner<T> {
     fn is_alive(&self) -> bool {
-        self.lifetime
-            .upgrade()
-            .is_some_and(|owner| owner.is_alive())
+        self.lifetime.is_alive()
     }
 
     fn cancel_owned_work(&self) {
@@ -567,7 +563,7 @@ pub fn use_spring<T: AnimatableValue>(
     initial: T,
     config: SpringConfig,
 ) -> SpringHandle<T> {
-    let lifetime = hooks.resource_token();
+    let lifetime = hooks.liveness();
     let initial_config = config.clone();
     let storage = hooks.get_or_create_storage(HookKind::Memo, || {
         Arc::new(SpringOwner {
@@ -605,7 +601,7 @@ struct StaggerOwner<T: AnimatableValue> {
     animation_duration: Duration,
     cleanup_registered: AtomicBool,
     generation: AtomicUsize,
-    lifetime: Weak<HookResources>,
+    lifetime: Liveness,
 }
 
 struct StaggerCleanup<T: AnimatableValue>(Weak<StaggerOwner<T>>);
@@ -621,9 +617,7 @@ impl<T: AnimatableValue> Drop for StaggerCleanup<T> {
 
 impl<T: AnimatableValue> StaggerOwner<T> {
     fn is_alive(&self) -> bool {
-        self.lifetime
-            .upgrade()
-            .is_some_and(|owner| owner.is_alive())
+        self.lifetime.is_alive()
     }
 
     fn cancel_owned_work(&self) {
@@ -696,22 +690,19 @@ impl<T: AnimatableValue> StaggerOwner<T> {
                     return;
                 }
                 let value = from.interpolate(&target, easing.apply(progress));
-                if owner
-                    .animation_ids
-                    .lock()
-                    .unwrap()
-                    .get(index)
-                    .is_some_and(Option::is_some)
-                {
-                    // The lock above is released before the store, so the
-                    // generation is checked again inside it; cancel_owned_work
-                    // settles every item after raising the generation, so a
-                    // pass past these checks stores before cancellation
-                    // returns or not at all.
-                    owner.items[index].set_if(value, || {
-                        owner.is_alive() && owner.generation.load(Ordering::Acquire) == generation
-                    });
-                }
+                // The checks run again inside the store. cancel_owned_work
+                // settles every item after raising the generation, so a pass
+                // stores before cancellation returns or not at all.
+                owner.items[index].set_if(value, || {
+                    owner.is_alive()
+                        && owner.generation.load(Ordering::Acquire) == generation
+                        && owner
+                            .animation_ids
+                            .lock()
+                            .unwrap()
+                            .get(index)
+                            .is_some_and(Option::is_some)
+                });
             });
             let id = RUNTIME.add_animation(update, duration);
             let mut ids = owner.animation_ids.lock().unwrap();
@@ -758,7 +749,7 @@ pub fn use_stagger<T: AnimatableValue>(
     items: Vec<T>,
     config: StaggerConfig,
 ) -> StaggerHandle<T> {
-    let lifetime = hooks.resource_token();
+    let lifetime = hooks.liveness();
     let scheduler = crate::hooks::timer::get_scheduler(hooks);
     let initial_config = config.clone();
     let item_count = items.len();
@@ -842,7 +833,7 @@ struct KeyframeOwner<T: AnimatableValue + KeyframeType> {
     animation_id: Mutex<Option<usize>>,
     cleanup_registered: AtomicBool,
     generation: AtomicUsize,
-    lifetime: std::sync::Weak<crate::reactive::hooks::HookResources>,
+    lifetime: Liveness,
 }
 
 // Also cancels playback if a render aborts before its effect is committed.
@@ -859,9 +850,7 @@ impl<T: AnimatableValue + KeyframeType> Drop for KeyframeCleanup<T> {
 
 impl<T: AnimatableValue + KeyframeType> KeyframeOwner<T> {
     fn is_alive(&self) -> bool {
-        self.lifetime
-            .upgrade()
-            .is_some_and(|owner| owner.is_alive())
+        self.lifetime.is_alive()
     }
 
     fn stop(&self) {
@@ -948,7 +937,7 @@ pub fn use_keyframes<T: AnimatableValue + KeyframeType>(
     initial: T,
     keyframes: Vec<Keyframe>,
 ) -> KeyframeHandle<T> {
-    let lifetime = hooks.resource_token();
+    let lifetime = hooks.liveness();
     let storage = hooks.get_or_create_storage(crate::reactive::hooks::HookKind::Memo, || {
         Arc::new(KeyframeOwner {
             value: ThreadSafeSignal::new(initial),
@@ -1319,28 +1308,34 @@ mod tests {
         assert!(scheduler.next_deadline().is_none());
     }
 
-    /// A value whose comparison can hold the thread making it. When the gate
-    /// is armed, the next comparison reports that it began and waits to be
-    /// let go. ThreadSafeSignal::set compares inside its store, so an armed
-    /// Gated holds an update pass after every check it makes and before the
-    /// store happens.
+    /// A value whose interpolation or comparison can hold the thread making
+    /// it. When a gate is armed, the next call of its kind reports that it
+    /// began and waits to be let go. The stagger interpolates after its first
+    /// generation check and before its store, and ThreadSafeSignal compares
+    /// inside the store after the store's own check, so the two gates hold an
+    /// update pass before its store or inside it.
     #[derive(Clone, Debug, Default)]
     struct Gated(f32);
     type Gate = (std::sync::mpsc::Sender<()>, std::sync::mpsc::Receiver<()>);
-    static GATE: Mutex<Option<Gate>> = Mutex::new(None);
+    static INTERPOLATE_GATE: Mutex<Option<Gate>> = Mutex::new(None);
+    static COMPARE_GATE: Mutex<Option<Gate>> = Mutex::new(None);
+    fn pass_gate(gate: &Mutex<Option<Gate>>) {
+        let gate = gate.lock().unwrap().take();
+        if let Some((began, go)) = gate {
+            began.send(()).unwrap();
+            go.recv_timeout(Duration::from_secs(30))
+                .expect("the test never let the held call go");
+        }
+    }
     impl PartialEq for Gated {
         fn eq(&self, other: &Self) -> bool {
-            let gate = GATE.lock().unwrap().take();
-            if let Some((began, go)) = gate {
-                began.send(()).unwrap();
-                go.recv_timeout(Duration::from_secs(30))
-                    .expect("the test never let the held comparison go");
-            }
+            pass_gate(&COMPARE_GATE);
             self.0 == other.0
         }
     }
     impl AnimatableValue for Gated {
         fn interpolate(&self, to: &Self, _: f32) -> Self {
+            pass_gate(&INTERPOLATE_GATE);
             to.clone()
         }
         fn to_f32(&self) -> f32 {
@@ -1351,15 +1346,17 @@ mod tests {
         }
     }
 
-    /// An update pass another thread began before its owner closes sets no
-    /// value after close() returns. The pass is held inside the stagger
-    /// item's store, past the generation and animation checks, while
-    /// another thread closes the owner. If close() returns while the pass is
-    /// held, letting the pass go must leave the value as it was; close() may
-    /// instead wait for the held store to finish.
-    #[test]
-    #[serial_test::serial]
-    fn stagger_pass_in_flight_at_close_sets_no_value_after_close_returns() {
+    /// A stagger of one Gated item animating from 0 to 10, and an update pass
+    /// on another thread held at `gate`.
+    struct HeldPass {
+        scope: Arc<crate::reactive::component_scope::ComponentScope>,
+        _hooks: Hooks,
+        stagger: StaggerHandle<Gated>,
+        pass: thread::JoinHandle<()>,
+        go: std::sync::mpsc::Sender<()>,
+    }
+
+    fn hold_pass_at(gate: &'static Mutex<Option<Gate>>) -> HeldPass {
         let scheduler = Arc::new(Scheduler::new());
         let scope = crate::reactive::component_scope::ComponentScope::new(scheduler.clone());
         let hooks = Hooks::new();
@@ -1376,14 +1373,50 @@ mod tests {
         );
         let (began, began_receiver) = std::sync::mpsc::channel();
         let (go, go_receiver) = std::sync::mpsc::channel();
-        *GATE.lock().unwrap() = Some((began, go_receiver));
+        *gate.lock().unwrap() = Some((began, go_receiver));
         let pass = thread::spawn(run_pass);
         began_receiver
             .recv_timeout(Duration::from_secs(30))
-            .expect("the update pass never reached the item's store");
+            .expect("the update pass never reached the gate");
+        HeldPass {
+            scope,
+            _hooks: hooks,
+            stagger,
+            pass,
+            go,
+        }
+    }
+
+    /// An update pass past the stagger's first checks, but not yet storing,
+    /// when its owner closes stores nothing after close() returns: the store
+    /// checks again. The pass is held in the value's interpolation until
+    /// close() has returned.
+    #[test]
+    #[serial_test::serial]
+    fn stagger_pass_not_yet_storing_at_close_stores_nothing_after_it() {
+        let held = hold_pass_at(&INTERPOLATE_GATE);
+        held.scope.close();
+        held.go.send(()).unwrap();
+        held.pass.join().unwrap();
+        assert_eq!(
+            held.stagger.item(0).unwrap(),
+            Gated(0.0),
+            "an update pass set the item after close() returned"
+        );
+    }
+
+    /// An update pass already inside the item's store when its owner closes
+    /// finishes before close() returns. The pass is held in the store's
+    /// comparison while another thread closes the owner. If close() returns
+    /// while the pass is held, letting the pass go must leave the value as it
+    /// was.
+    #[test]
+    #[serial_test::serial]
+    fn stagger_pass_storing_at_close_finishes_before_close_returns() {
+        let held = hold_pass_at(&COMPARE_GATE);
         let (closed, closed_receiver) = std::sync::mpsc::channel();
         let closer = {
-            let scope = scope.clone();
+            let scope = held.scope.clone();
             thread::spawn(move || {
                 scope.close();
                 closed.send(()).unwrap();
@@ -1394,20 +1427,119 @@ mod tests {
         let returned_while_held = closed_receiver
             .recv_timeout(Duration::from_millis(500))
             .is_ok();
-        go.send(()).unwrap();
-        pass.join().unwrap();
+        held.go.send(()).unwrap();
+        held.pass.join().unwrap();
         closer.join().unwrap();
-        let after = stagger.item(0).unwrap();
+        let after = held.stagger.item(0).unwrap();
         assert!(
             !returned_while_held || after == Gated(0.0),
             "an update pass set the item to {after:?} after close() returned"
         );
         run_pass();
         assert_eq!(
-            stagger.item(0).unwrap(),
+            held.stagger.item(0).unwrap(),
             after,
             "the item changed after close()"
         );
+    }
+
+    /// The update closure RUNTIME holds for the animation `id`.
+    fn task_update(id: usize) -> Arc<dyn Fn(f32) + Send + Sync> {
+        RUNTIME
+            .animations
+            .read()
+            .unwrap()
+            .iter()
+            .find(|task| task.id == id)
+            .expect("the animation is not registered")
+            .update
+            .clone()
+    }
+
+    /// Whether dropping `hooks`, the last clone, while another thread calls
+    /// `update` in a loop leaves that thread unable to finish.
+    fn drop_during_updates_hangs(update: Arc<dyn Fn(f32) + Send + Sync>, hooks: Hooks) -> bool {
+        let stop = Arc::new(AtomicBool::new(false));
+        let calls = Arc::new(AtomicUsize::new(0));
+        let (done, done_receiver) = std::sync::mpsc::channel();
+        {
+            let (stop, calls) = (stop.clone(), calls.clone());
+            thread::spawn(move || {
+                let mut progress = 0.0_f32;
+                while !stop.load(Ordering::Acquire) {
+                    progress = (progress + 0.001) % 0.99;
+                    update(progress);
+                    calls.fetch_add(1, Ordering::AcqRel);
+                }
+                done.send(()).unwrap();
+            });
+        }
+        while calls.load(Ordering::Acquire) < 20 {
+            thread::yield_now();
+        }
+        drop(hooks);
+        stop.store(true, Ordering::Release);
+        done_receiver.recv_timeout(Duration::from_secs(30)).is_err()
+    }
+
+    /// Dropping the last Hooks clone closes its owner on the dropping thread,
+    /// never on an update pass: a pass checks liveness without holding the
+    /// owner, so it cannot run the owner's cleanup while it holds a lock the
+    /// cleanup takes. Each attempt calls an animation's update in a loop on
+    /// another thread and drops the last Hooks clone meanwhile; a pass that
+    /// ran the cleanup would never finish.
+    #[test]
+    #[serial_test::serial]
+    fn dropping_the_last_hooks_during_update_passes_never_hangs() {
+        let scheduler = Arc::new(Scheduler::new());
+        let scope = crate::reactive::component_scope::ComponentScope::new(scheduler.clone());
+        for attempt in 0..200 {
+            let hooks = Hooks::new();
+            let (stagger, tween, spring, keyframes) = {
+                let _scope = scope.enter(true);
+                let _frame = hooks.begin_render();
+                (
+                    use_stagger(&hooks, vec![0.0_f32], StaggerConfig::default()),
+                    use_animation(
+                        &hooks,
+                        0.0_f32,
+                        AnimationConfig {
+                            duration: Duration::from_secs(60),
+                            ..AnimationConfig::default()
+                        },
+                    ),
+                    use_spring(&hooks, 0.0_f32, SpringConfig::default()),
+                    use_keyframes(
+                        &hooks,
+                        0.0_f32,
+                        vec![
+                            Keyframe::new(0.0).number("x", 0.0),
+                            Keyframe::new(1.0).number("x", 10.0),
+                        ],
+                    ),
+                )
+            };
+            stagger.animate_all_to(vec![1000.0]);
+            scheduler.process_timers();
+            tween.animate_to(1000.0);
+            spring.set_target(1000.0);
+            keyframes.play();
+            let updates = [
+                ("stagger", stagger.owner.animation_ids.lock().unwrap()[0]),
+                ("tween", *tween.owner.current_animation_id.lock().unwrap()),
+                ("spring", *spring.owner.animation_id.lock().unwrap()),
+                ("keyframes", *keyframes.owner.animation_id.lock().unwrap()),
+            ]
+            .map(|(kind, id)| (kind, task_update(id.expect("the animation did not start"))));
+            // Each kind in turn gets the final drop; the others' updates are
+            // released first so that drop is the last one.
+            let (kind, update) = updates[attempt % 4].clone();
+            drop(updates);
+            assert!(
+                !drop_during_updates_hangs(update, hooks),
+                "a {kind} update pass hung when the last Hooks clone dropped (attempt {attempt})"
+            );
+        }
     }
 
     #[derive(Clone, Debug, Default, PartialEq)]

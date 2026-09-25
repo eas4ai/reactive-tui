@@ -11,7 +11,7 @@ type EffectBody = Box<dyn FnOnce() -> Option<Cleanup> + Send + Sync>;
 
 #[derive(Default)]
 pub(crate) struct HookResources {
-    closed: AtomicBool,
+    closed: Arc<AtomicBool>,
     owner: Mutex<Option<Weak<component_scope::ComponentScope>>>,
     effects: Mutex<Vec<Arc<OwnedEffect>>>,
 }
@@ -47,6 +47,11 @@ impl HookResources {
 
     pub(crate) fn is_alive(&self) -> bool {
         !self.closed.load(Ordering::Acquire)
+    }
+
+    /// A handle that says whether these resources are still open.
+    pub(crate) fn liveness(&self) -> Liveness {
+        Liveness(Arc::clone(&self.closed))
     }
 
     pub(crate) fn track(&self, effect: &Arc<OwnedEffect>) {
@@ -86,6 +91,19 @@ impl HookResources {
                 effect.dispose();
             }
         }
+    }
+}
+
+/// Whether a hook owner is still open, read without holding the owner. A
+/// check through a `Weak<HookResources>` holds a strong reference while it
+/// runs; if that is the last one, dropping it closes the owner on the
+/// checking thread, whose cleanup may then wait for a lock that thread holds.
+#[derive(Clone)]
+pub(crate) struct Liveness(Arc<AtomicBool>);
+
+impl Liveness {
+    pub(crate) fn is_alive(&self) -> bool {
+        !self.0.load(Ordering::Acquire)
     }
 }
 

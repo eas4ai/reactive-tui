@@ -1,5 +1,5 @@
 use super::effect::EffectId;
-pub(crate) use super::hook_resources::{HookResources, OwnedEffect};
+pub(crate) use super::hook_resources::{HookResources, Liveness, OwnedEffect};
 use std::any::{Any, TypeId};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, Weak};
@@ -174,6 +174,13 @@ impl Hooks {
         self.resources.bind();
         Arc::downgrade(&self.resources)
     }
+
+    /// Bind the resources to the rendering component, like `resource_token`,
+    /// and return a handle that reads whether they are still open.
+    pub(crate) fn liveness(&self) -> Liveness {
+        self.resources.bind();
+        self.resources.liveness()
+    }
 }
 
 impl Default for Hooks {
@@ -229,10 +236,10 @@ impl<T: Clone + Default> ThreadSafeSignal<T> {
         self.store(value, || true, excluded);
     }
 
-    /// Set a new value only if `holds` returns true. `holds` runs while the
-    /// signal's store is locked, so once it would return false and `settle`
-    /// has returned, no call begun earlier stores anything. Subscribers are
-    /// notified after the lock is released.
+    /// Set a new value only if `holds` returns true. `holds` runs first,
+    /// while the signal's store is locked, so once it would return false and
+    /// `settle` has returned, no call begun earlier stores anything.
+    /// Subscribers are notified after the lock is released.
     pub(crate) fn set_if(&self, value: T, holds: impl FnOnce() -> bool)
     where
         T: PartialEq,
@@ -255,7 +262,7 @@ impl<T: Clone + Default> ThreadSafeSignal<T> {
     {
         let changed =
             if let (Ok(mut inner), Ok(mut version)) = (self.inner.lock(), self.version.lock()) {
-                if *inner != value && holds() {
+                if holds() && *inner != value {
                     *inner = value;
                     *version += 1;
                     true
