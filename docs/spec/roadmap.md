@@ -125,6 +125,29 @@ regression test that the default-feature gates run makes the race
 deterministic, for example by holding an update pass between its
 generation check and its set, and fails before the fix and passes after it.
 
+## hook-liveness-without-owner
+
+Requirements: BAR-001
+
+Promoted from backlog item 251656c1. The timer, throttle and clipboard
+hooks check that their hook owner is open by upgrading a
+Weak<HookResources>, as the animation owners did before cb91d5e5.
+HookTimer::restart and HookTimer::fire do this while holding the timer's
+state lock (src/hooks/timer.rs). If another thread drops the last Hooks
+clone meanwhile, the upgraded reference is the last one, and dropping it
+runs HookResources::close on this thread; the timer's cleanup then calls
+HookTimer::close, which waits for the state lock this thread holds.
+ThrottledFunction::call, install_timer's cleanup and the clipboard hook's
+copy and paste callbacks (src/hooks/clipboard.rs) upgrade the same way
+without holding a lock.
+
+No timer, throttle or clipboard path takes a strong reference to its hook
+owner to check that it is open; each checks through Liveness
+(Hooks::liveness), as the animation owners do. A regression test that the
+default-feature gates run drops the last Hooks clone while timer restarts
+and fires run on other threads, hangs (stopped by a time limit) with the
+Weak upgrade, and passes with the fix.
+
 ## charts-radial-and-flow
 
 Requirements: CHT-015, CHT-016 plus the quality bar
