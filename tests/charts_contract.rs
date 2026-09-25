@@ -1639,6 +1639,37 @@ fn cht_032_the_untyped_builder_announces_the_throughput() {
     }
 }
 
+/// CHT-032: the tooltip sits beside the selected node, right of it or, at
+/// the right edge, left of it, and never over the node itself.
+#[test]
+fn cht_032_the_tooltip_sits_beside_its_node_not_over_it() {
+    let size = (80u16, 24u16);
+    let plain = radial_run(sankey_chart(size), size, vec![(2, None)])
+        .pop()
+        .unwrap();
+    for (index, name) in SANKEY_NAMES.iter().enumerate() {
+        let rgb = node_rgb(index);
+        let cells: Vec<(u16, u16)> = (0..size.1)
+            .flat_map(|r| (0..size.0).map(move |c| (r, c)))
+            .filter(|(r, c)| shows_rgb(&plain, *r, *c, rgb))
+            .collect();
+        let (r, c) = node_cells(&plain, index)[0];
+        let frame = radial_run(sankey_chart(size), size, vec![(2, hover(c, r)), (3, None)])
+            .pop()
+            .unwrap();
+        assert_eq!(announced(&frame), Some(index));
+        let covered: Vec<&(u16, u16)> = cells
+            .iter()
+            .filter(|(r, c)| !shows_rgb(&frame, *r, *c, rgb))
+            .collect();
+        assert!(
+            covered.is_empty(),
+            "the tooltip of {name} must not cover its node: {covered:?}\n{}",
+            frame.text
+        );
+    }
+}
+
 /// CHT-032: Left, Right, Home and End step through the nodes column by
 /// column and, within a column, from top to bottom.
 #[test]

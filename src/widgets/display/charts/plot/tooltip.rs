@@ -110,10 +110,24 @@ impl TooltipBox {
     /// `area`: right of the anchor, or left when it would cross the right
     /// edge; below the anchor row, or above when it would cross the bottom.
     pub fn place(&self, anchor: (usize, usize), area: Rect) -> (usize, usize) {
-        let x = if anchor.0 + 2 + self.width <= area.right() {
-            anchor.0 + 2
-        } else if anchor.0 > area.x + self.width {
-            anchor.0 - 1 - self.width
+        self.place_beside((anchor.0, anchor.0), anchor.1, area)
+    }
+
+    /// Top-left cell for a box beside a shape that spans columns `left` to
+    /// `right` on row `row` inside `area`: right of `right`, or left of
+    /// `left` when it would cross the right edge, so the box never covers
+    /// the shape; below the row, or above when it would cross the bottom.
+    pub fn place_beside(
+        &self,
+        (left, right): (usize, usize),
+        row: usize,
+        area: Rect,
+    ) -> (usize, usize) {
+        let anchor = (right, row);
+        let x = if right + 2 + self.width <= area.right() {
+            right + 2
+        } else if left > area.x + self.width {
+            left - 1 - self.width
         } else {
             area.right().saturating_sub(self.width).max(area.x)
         };
