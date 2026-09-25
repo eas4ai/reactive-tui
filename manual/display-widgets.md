@@ -49,7 +49,13 @@ resolves each cell to a full block, an eighth block where a rectangle edge
 crosses the cell, a marker, or braille, and to `#`, `|`, `-` and `.` when the
 builder forces ASCII with `.ascii(true)` or the terminal capability report
 says braille and block glyphs are unavailable (the backend passes its query
-result to `charts::report_glyph_support`). Rasterization runs on a named
+result to `charts::report_glyph_support`). Filled shapes (pie and donut
+slices, radar fills) are sampled at the pixel grid of the blitter image
+fallback uses, chosen by the same rule and overrides (`set_image_blitter`,
+the `REACTIVE_TUI_BLITTER` variable; see images-and-clipboard.md). A cell
+that holds only fill takes that blitter's glyph with the two colors that
+best split its samples, so where two slices meet one cell shows both; lines,
+outlines and bar tips keep braille and eighth blocks. Rasterization runs on a named
 `rtui-chart-*` worker thread; the main thread copies the latest snapshot into
 the frame. When a chart first appears or changes size, the main thread waits
 at most 4 ms for the picture at that size. If the picture is not ready, that
@@ -104,10 +110,39 @@ draws a wick from low to high and a body from open to close. Candles that
 close above their open use the theme's bullish color, the rest the bearish
 color; `.bullish(` and `.bearish(` override the tokens.
 
-### Pie and donut
+### Pie chart
 
-`ChartsBuilder::pie()` and `ChartsBuilder::donut()` draw each slice as a
-sector of the mask canvas, corrected for the 2:1 cell aspect ratio.
+`PieChartBuilder::new(rows).value(|r| r.share).label(|r| r.name)` draws one
+slice per row, clockwise from twelve o'clock, as filled sectors. The circle
+spans twice as many columns as rows, because a cell is twice as tall as it
+is wide. `.color(|r| ..)` gives each slice a color token; unset slices take
+the palette in order. `.outer_radius(0.8)` shrinks the circle to a fraction
+of the largest that fits, and `.pad_angle(0.05)` leaves a gap in radians
+between slices. At the medium and large size classes each slice's label
+sits beside the circle, joined to it by a leader line, `.label_gap(3)`
+columns from the edge; a label that has no free row is left out, and the
+legend still lists its slice. The pointer selects the slice under it and
+nothing outside the circle; Left, Right, Home and End step through the
+slices.
+
+### Donut chart
+
+`DonutChartBuilder` takes the pie builder's methods and draws a hole half
+the radius wide; `.inner_radius(0.6)` sets the hole as a fraction of the
+outer radius. The pointer selects nothing in the hole.
+
+### Radar chart
+
+`RadarChartBuilder::new(rows).label(|r| r.skill).value(|r| r.score)` puts one
+spoke per row, clockwise from twelve o'clock, and one polygon per `.value(`
+call, whose vertex on each spoke lies at the value's distance from the
+center, from zero to the largest value or `.max_value(10.0)`. `.stroke(` and
+`.fill(` color the series added last, and `.fill("none")` leaves it
+unfilled; a later series lies over an earlier one. `.dot()` marks every
+vertex. At the medium and large size classes `.grid_levels(4)` concentric
+polygons and the spokes are drawn under the shapes, `.grid(false)` hides
+them, and each spoke's label sits at its end. The pointer selects the
+category of the nearest spoke and nothing outside the outer radius.
 
 ### Size classes
 

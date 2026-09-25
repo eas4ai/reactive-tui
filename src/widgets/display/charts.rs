@@ -62,6 +62,7 @@ pub struct ChartsBuilder {
     tick_margin: usize,
     transition_duration: u64,
     value_labels: Option<bool>,
+    radial: RadialOptions,
 }
 
 impl ChartsBuilder {
@@ -98,6 +99,12 @@ impl ChartsBuilder {
     /// Create a donut chart
     pub fn donut() -> Self {
         Self::new().chart_type(ChartType::Donut)
+    }
+
+    /// Create a radar chart: one spoke per point index, one polygon per
+    /// series.
+    pub fn radar() -> Self {
+        Self::new().chart_type(ChartType::Radar)
     }
 
     /// Create a scatter plot
@@ -259,6 +266,13 @@ impl ChartsBuilder {
     }
 
     /// Force value labels on or off; unset follows the size class.
+    /// Pie, donut and radar geometry (CHT-015, CHT-016).
+    pub fn radial(mut self, radial: RadialOptions) -> Self {
+        self.radial = radial;
+        self
+    }
+
+    /// Turn value labels on or off; unset follows the size class.
     pub fn value_labels(mut self, on: bool) -> Self {
         self.value_labels = Some(on);
         self
@@ -289,6 +303,7 @@ impl ChartsBuilder {
             tick_margin: self.tick_margin,
             transition_duration: self.transition_duration,
             value_labels: self.value_labels,
+            radial: self.radial,
         }
     }
 
@@ -324,6 +339,7 @@ impl Default for ChartsBuilder {
             tick_margin: props.tick_margin,
             transition_duration: props.transition_duration,
             value_labels: props.value_labels,
+            radial: props.radial,
         }
     }
 }
@@ -600,6 +616,49 @@ pub enum ChartType {
     Scatter,
     /// Candlestick chart: wick from low to high, body from open to close
     Candlestick,
+    /// Radar chart: one spoke per category, one polygon per series
+    Radar,
+}
+
+/// Geometry of pie, donut and radar charts. Radii are fractions of the
+/// largest circle the plot area holds, so they keep their proportions at
+/// every size class.
+#[derive(Debug, Clone, PartialEq)]
+pub struct RadialOptions {
+    /// Inner radius as a fraction of the outer one; `None` is 0 for a pie
+    /// and 0.5 for a donut (CHT-015).
+    pub inner_radius: Option<f64>,
+    /// Outer radius as a fraction of the largest circle that fits.
+    pub outer_radius: f64,
+    /// Gap between adjacent slices, in radians.
+    pub pad_angle: f64,
+    /// Columns between the circle and its side labels.
+    pub label_gap: u16,
+    /// Radar grid levels: concentric polygons at equal steps (CHT-016).
+    pub grid_levels: usize,
+    /// Radar grid drawn at the medium and large size classes.
+    pub grid: bool,
+    /// The radar scale's maximum; `None` uses the largest value.
+    pub max_value: Option<f64>,
+    /// Radar fill color token per series (indexed like the series); a
+    /// missing entry fills with the series color, `"none"` leaves the
+    /// polygon unfilled.
+    pub fills: Vec<Option<String>>,
+}
+
+impl Default for RadialOptions {
+    fn default() -> Self {
+        Self {
+            inner_radius: None,
+            outer_radius: 1.0,
+            pad_angle: 0.0,
+            label_gap: 2,
+            grid_levels: 4,
+            grid: true,
+            max_value: None,
+            fills: Vec::new(),
+        }
+    }
 }
 
 /// Props for the Chart component
@@ -649,6 +708,8 @@ pub struct ChartProps {
     pub transition_duration: u64,
     /// Value labels on bars; `None` follows the size class
     pub value_labels: Option<bool>,
+    /// Pie, donut and radar geometry
+    pub radial: RadialOptions,
 }
 
 impl Props for ChartProps {
@@ -682,6 +743,7 @@ impl Default for ChartProps {
             tick_margin: 0,
             transition_duration: 200,
             value_labels: None,
+            radial: RadialOptions::default(),
         }
     }
 }
@@ -713,8 +775,8 @@ pub mod plot;
 pub mod typed;
 
 pub use typed::{
-    AreaChartBuilder, BarChartBuilder, CandlestickChartBuilder, LineChartBuilder,
-    ScatterChartBuilder,
+    AreaChartBuilder, BarChartBuilder, CandlestickChartBuilder, DonutChartBuilder,
+    LineChartBuilder, PieChartBuilder, RadarChartBuilder, ScatterChartBuilder,
 };
 
 impl Component for Chart {

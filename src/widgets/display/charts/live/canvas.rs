@@ -13,6 +13,24 @@ use unicode_width::UnicodeWidthStr;
 
 mod cartesian;
 mod pie;
+mod radar;
+
+/// Where a radial chart's slices or spokes lie, for pointer selection
+/// (CHT-031). Everything is in dot units; angles are radians clockwise from
+/// twelve o'clock.
+#[derive(Clone, Debug, Default)]
+pub(super) struct RadialHit {
+    /// The circle's center.
+    pub center: (f64, f64),
+    /// Inner radius: the donut hole.
+    pub inner: f64,
+    /// Outer radius.
+    pub outer: f64,
+    /// Pie and donut: each slice's angle range and (series, index).
+    pub slices: Vec<(f64, f64, (usize, usize))>,
+    /// Radar: each category's spoke angle.
+    pub spokes: Vec<f64>,
+}
 
 /// The rasterized chart plus what the main thread needs for interaction.
 #[derive(Clone, Debug)]
@@ -35,6 +53,8 @@ pub(super) struct Picture {
     pub scatter: bool,
     /// Kept samples per series after decimation: (original index, value).
     pub kept: Vec<Vec<usize>>,
+    /// Slice and spoke geometry of a pie, donut or radar chart.
+    pub radial: Option<RadialHit>,
 }
 
 impl Picture {
@@ -53,6 +73,7 @@ impl Picture {
             anchors: HashMap::new(),
             scatter: false,
             kept: Vec::new(),
+            radial: None,
         }
     }
 }
@@ -274,6 +295,12 @@ pub(super) fn draw(job: &Job) -> Picture {
     } else {
         GlyphSet::Unicode
     };
+    // Filled shapes resolve through the blitter image fallback uses, with
+    // its overrides (CHT-025, BLT-002); ASCII samples the dot grid instead.
+    mask.set_fill_blitter(match glyphs {
+        GlyphSet::Ascii => ::suprtui::blit::Blitter::Braille,
+        GlyphSet::Unicode => crate::widgets::display::image::image_blitter(),
+    });
     let mut picture = Picture::blank(width, height);
     if width == 0 || height == 0 {
         return picture;
@@ -294,10 +321,25 @@ pub(super) fn draw(job: &Job) -> Picture {
         text.text(area.x, area.y, area.w, "No data to display", None);
         return compose(picture, &mask, &text, glyphs);
     }
-    let legend = legend_area(props, &visible, class, &mut area);
+    // A pie or donut's legend names its slices; other charts name series.
+    let entries: Vec<LegendEntry> = if matches!(props.chart_type, ChartType::Pie | ChartType::Donut)
+    {
+        pie::legend_entries(job)
+    } else {
+        visible
+            .iter()
+            .map(|(index, series)| LegendEntry {
+                name: series.name.clone(),
+                color: series_color(props, *index),
+            })
+            .collect()
+    };
+    let legend = legend_area(props, &entries, class, &mut area);
     if !area.is_empty() {
         if matches!(props.chart_type, ChartType::Pie | ChartType::Donut) {
-            pie::pie(&mut mask, &mut text, &mut picture, job, area);
+            pie::pie(&mut mask, &mut text, &mut picture, job, area, class);
+        } else if props.chart_type == ChartType::Radar {
+            radar::radar(&mut mask, &mut text, &mut picture, job, area, class);
         } else if let Err(error) =
             cartesian::cartesian(&mut mask, &mut text, &mut picture, job, area, class)
         {
@@ -305,15 +347,7 @@ pub(super) fn draw(job: &Job) -> Picture {
         }
     }
     if let Some((rect, flowed)) = legend {
-        let legend = Legend::new(
-            visible
-                .iter()
-                .map(|(index, series)| LegendEntry {
-                    name: series.name.clone(),
-                    color: series_color(props, *index),
-                })
-                .collect(),
-        );
+        let legend = Legend::new(entries);
         if flowed {
             legend.draw_flowed(
                 &mut text,
@@ -332,22 +366,14 @@ pub(super) fn draw(job: &Job) -> Picture {
 /// rows (top or bottom) or stacks one entry per row (sides and floating).
 fn legend_area(
     props: &ChartProps,
-    visible: &[(usize, &DataSeries)],
+    entries: &[LegendEntry],
     class: SizeClass,
     area: &mut Rect,
 ) -> Option<(Rect, bool)> {
-    if !props.legend.visible || visible.is_empty() || !class.has_legend() {
+    if !props.legend.visible || entries.is_empty() || !class.has_legend() {
         return None;
     }
-    let entries = Legend::new(
-        visible
-            .iter()
-            .map(|(_, s)| LegendEntry {
-                name: s.name.clone(),
-                color: None,
-            })
-            .collect(),
-    );
+    let entries = Legend::new(entries.to_vec());
     let max_name = props
         .legend
         .max_width
@@ -415,19 +441,25 @@ fn compose(mut picture: Picture, mask: &MaskCanvas, text: &TextLayer, glyphs: Gl
     for y in 0..height.min(usize::from(u16::MAX)) {
         for x in 0..width.min(usize::from(u16::MAX)) {
             let i = y * width + x;
-            let (glyph, color): (&str, Option<Rgba>) = if let Some((t, c)) = &text.over[i] {
-                (t.as_str(), *c)
-            } else {
-                let resolved = mask.resolve(x, y, glyphs);
-                match resolved.glyph {
-                    Some(glyph) => (glyph, resolved.color),
-                    None => match &text.under[i] {
-                        Some((t, c)) => (t.as_str(), *c),
-                        None => continue,
-                    },
+            let (glyph, color, background): (&str, Option<Rgba>, Option<Rgba>) =
+                if let Some((t, c)) = &text.over[i] {
+                    (t.as_str(), *c, None)
+                } else {
+                    let resolved = mask.resolve(x, y, glyphs);
+                    match resolved.glyph {
+                        Some(glyph) => (glyph, resolved.color, resolved.background),
+                        None => match &text.under[i] {
+                            Some((t, c)) => (t.as_str(), *c, None),
+                            None => continue,
+                        },
+                    }
+                };
+            match background {
+                Some(background) => {
+                    grid.set_with_background(x as u16, y as u16, glyph, color, Some(background))
                 }
-            };
-            grid.set(x as u16, y as u16, glyph, color);
+                None => grid.set(x as u16, y as u16, glyph, color),
+            }
         }
     }
     picture.grid = Arc::new(grid);

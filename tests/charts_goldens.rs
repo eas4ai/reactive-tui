@@ -389,14 +389,15 @@ fn cht_024_medium_charts_draw_no_grid_and_large_charts_can_turn_theirs_off() {
 /// so two equal values split the circle into mirror halves.
 #[test]
 fn cht_010_pie_slices_split_the_circle_through_the_linear_scale() {
-    let pie = last(ChartType::Pie, (40, 20), &[1.0, 1.0], 2.0);
-    let shape = |c: char| is_braille(c) || "▁▂▃▄▅▆▇█▏▎▍▌▋▊▉".contains(c);
+    let size = (40u16, 20u16);
+    let pie = radial_frame(radial_props(ChartType::Pie, size, &[1.0, 1.0]), size);
     let (mut left, mut right) = (0usize, 0usize);
-    for line in pie.text.lines() {
-        let chars: Vec<char> = line.chars().collect();
-        let half = chars.len() / 2;
-        left += chars[..half].iter().filter(|c| shape(**c)).count();
-        right += chars[half..].iter().filter(|c| shape(**c)).count();
+    for (_, c) in cells_showing(&pie, &palette(2)) {
+        if c < size.0 / 2 {
+            left += 1;
+        } else {
+            right += 1;
+        }
     }
     assert!(
         left > 0 && (left as i64 - right as i64).abs() <= 2,
@@ -470,12 +471,19 @@ fn cht_024_size_classes_follow_the_rectangle_and_switch_on_resize() {
 #[test]
 fn cht_023_goldens_at_three_size_classes() {
     let data = [2.0, 8.0, 5.0, 9.0, 3.0, 7.0];
+    // Radial fills draw through the image blitter; the goldens fix the tier.
+    reactive_tui::widgets::display::set_image_blitter(Some(
+        reactive_tui::widgets::display::Blitter::Sextant,
+    ));
     for (kind, name) in [
         (ChartType::Line, "line"),
         (ChartType::Area, "area"),
         (ChartType::Scatter, "scatter"),
         (ChartType::BarVertical, "bar"),
         (ChartType::Candlestick, "candlestick"),
+        (ChartType::Pie, "pie"),
+        (ChartType::Donut, "donut"),
+        (ChartType::Radar, "radar"),
     ] {
         for (cls, size) in [
             ("mini", (20u16, 5u16)),
@@ -530,6 +538,36 @@ fn cht_026_empty_and_nan_input_show_a_message_and_no_shapes() {
         "NaN input must render a message and no shapes:\n{}",
         nan.text
     );
+    // The radial types: no series, an empty series, and a NaN or infinite
+    // value each show a message and paint no slice or polygon.
+    for kind in [ChartType::Pie, ChartType::Donut, ChartType::Radar] {
+        let mut none = radial_props(kind.clone(), size, &[]);
+        none.series.clear();
+        for (case, p) in [
+            ("no series", none),
+            ("an empty series", radial_props(kind.clone(), size, &[])),
+            (
+                "a NaN value",
+                radial_props(kind.clone(), size, &[1.0, f64::NAN, 3.0]),
+            ),
+            (
+                "an infinite value",
+                radial_props(kind.clone(), size, &[1.0, f64::INFINITY]),
+            ),
+        ] {
+            let frame = radial_frame(p, size);
+            assert!(
+                !frame.text.trim().is_empty() && cells_showing(&frame, &palette(5)).is_empty(),
+                "{kind:?} with {case} must show a message and no shapes:\n{}",
+                frame.text
+            );
+        }
+        let drawn = radial_frame(radial_props(kind.clone(), size, &[1.0, 2.0, 3.0]), size);
+        assert!(
+            !cells_showing(&drawn, &palette(5)).is_empty(),
+            "control: {kind:?} with data draws shapes"
+        );
+    }
 }
 
 /// CHT-027: 10,000 points cost at most twice what 1,000 cost, because the
@@ -761,5 +799,437 @@ fn cht_028_ascii_fallback_keeps_the_geometry_without_unicode_glyphs() {
             > 0,
         "ASCII lines use the ASCII set:\n{}",
         line.text
+    );
+    // The radial types keep their geometry in ASCII: no braille, block,
+    // sextant or octant glyph, the fill drawn with `#`, and the same cells
+    // painted as with unicode glyphs.
+    let is_unicode_shape = |c: char| {
+        c == '█'
+            || EIGHTHS.contains(&c)
+            || is_braille(c)
+            || ('\u{1FB00}'..='\u{1FB3B}').contains(&c)
+            || ('\u{1CD00}'..='\u{1CDE5}').contains(&c)
+            || "▀▄▌▐▖▗▘▙▚▛▜▝▞▟".contains(c)
+    };
+    for kind in [ChartType::Pie, ChartType::Donut, ChartType::Radar] {
+        let unicode = radial_frame(
+            radial_props(kind.clone(), size, &[3.0, 5.0, 2.0, 4.0]),
+            size,
+        );
+        let mut p = radial_props(kind.clone(), size, &[3.0, 5.0, 2.0, 4.0]);
+        p.ascii = true;
+        let ascii = radial_frame(p, size);
+        assert_eq!(
+            count(&ascii, is_unicode_shape),
+            0,
+            "{kind:?} in ASCII must emit no block, braille, sextant or octant glyph:\n{}",
+            ascii.text
+        );
+        assert!(
+            count(&ascii, |c| c == '#') > 0,
+            "{kind:?} in ASCII fills with #:\n{}",
+            ascii.text
+        );
+        let shaped = |f: &Snapshot| cells_showing(f, &palette(4)).len();
+        assert!(
+            shaped(&unicode).abs_diff(shaped(&ascii)) <= shaped(&unicode) / 10 + 2,
+            "{kind:?} in ASCII keeps its geometry ({} unicode cells, {} ASCII cells)",
+            shaped(&unicode),
+            shaped(&ascii)
+        );
+    }
+}
+
+/// Radial charts draw their fills through the image blitter; these tests fix
+/// the tier at sextant so the frames do not depend on the host.
+fn radial_frame(p: ChartProps, size: (u16, u16)) -> Snapshot {
+    reactive_tui::widgets::display::set_image_blitter(Some(
+        reactive_tui::widgets::display::Blitter::Sextant,
+    ));
+    app_input::run_when_painted_on_debug(Root(Element::typed::<Chart>(p)), size, 2)
+        .pop()
+        .unwrap()
+}
+
+/// A theme token as the terminal color it renders to.
+fn theme_color(token: &str) -> (u8, u8, u8) {
+    let (r, g, b, _) = reactive_tui::theme::Theme::active()
+        .resolve_color(token)
+        .expect("theme color");
+    let c = |v: f32| (v.clamp(0.0, 1.0) * 255.0).round() as u8;
+    (c(r), c(g), c(b))
+}
+
+/// Whether a terminal color is `rgb`, allowing one rounding step.
+fn near(color: vt100::Color, rgb: (u8, u8, u8)) -> bool {
+    match color {
+        vt100::Color::Rgb(r, g, b) => {
+            r.abs_diff(rgb.0) <= 2 && g.abs_diff(rgb.1) <= 2 && b.abs_diff(rgb.2) <= 2
+        }
+        _ => false,
+    }
+}
+
+/// Whether the cell at (`r`, `c`) shows `rgb` as a shape: as its background,
+/// or as the color of a shape glyph. Label text in a slice's color is not a
+/// shape.
+fn shows(frame: &Snapshot, r: u16, c: u16, rgb: (u8, u8, u8)) -> bool {
+    frame.screen.cell(r, c).is_some_and(|cell| {
+        let text = cell.contents();
+        let glyph = !text.trim().is_empty() && !text.chars().any(char::is_alphanumeric);
+        near(cell.bgcolor(), rgb) || (near(cell.fgcolor(), rgb) && glyph)
+    })
+}
+
+/// The cells showing any of `colors`, as (row, column).
+fn cells_showing(frame: &Snapshot, colors: &[(u8, u8, u8)]) -> Vec<(u16, u16)> {
+    let (rows, cols) = frame.screen.size();
+    (0..rows)
+        .flat_map(|r| (0..cols).map(move |c| (r, c)))
+        .filter(|(r, c)| colors.iter().any(|rgb| shows(frame, *r, *c, *rgb)))
+        .collect()
+}
+
+fn palette(n: usize) -> Vec<(u8, u8, u8)> {
+    (1..=n)
+        .map(|i| theme_color(&format!("chart-{i}")))
+        .collect()
+}
+
+fn radial_props(kind: ChartType, size: (u16, u16), values: &[f64]) -> ChartProps {
+    let mut p = props(kind, size, values, 10.0);
+    p.legend.visible = false;
+    p
+}
+
+/// CHT-025: a fill-only cell resolves to the chosen blitter's glyph with
+/// the two-color split `blit_block` gives for its samples; an uncovered
+/// sample leaves the background transparent; a stroke over fill keeps
+/// braille; and a pie boundary cell between two slices shows both colors.
+#[test]
+fn cht_025_fill_only_cells_take_the_blitters_two_color_split() {
+    use reactive_tui::widgets::display::charts::mask::{GlyphSet, MaskCanvas};
+    use reactive_tui::widgets::display::Blitter;
+    let (red, blue) = ((0.8, 0.1, 0.1, 1.0), (0.1, 0.2, 0.9, 1.0));
+    let px = |(r, g, b, _): (f32, f32, f32, f32)| {
+        let c = |v: f32| (v * 255.0).round() as u8;
+        [c(r), c(g), c(b), 255]
+    };
+    for blitter in [Blitter::Sextant, Blitter::Octant, Blitter::Quadrant] {
+        let mut canvas = MaskCanvas::new(3, 1);
+        canvas.set_fill_blitter(blitter);
+        // Cell 0: left column red, right column blue.
+        canvas.fill_polygon(
+            &[(0.0, 0.0), (1.0, 0.0), (1.0, 4.0), (0.0, 4.0)],
+            Some(red),
+            None,
+        );
+        canvas.fill_polygon(
+            &[(1.0, 0.0), (2.0, 0.0), (2.0, 4.0), (1.0, 4.0)],
+            Some(blue),
+            None,
+        );
+        // Cell 1: left column red, right column uncovered.
+        canvas.fill_polygon(
+            &[(2.0, 0.0), (3.0, 0.0), (3.0, 4.0), (2.0, 4.0)],
+            Some(red),
+            None,
+        );
+        // Cell 2: filled red, with one stroke dot on top.
+        canvas.fill_polygon(
+            &[(4.0, 0.0), (6.0, 0.0), (6.0, 4.0), (4.0, 4.0)],
+            Some(red),
+            None,
+        );
+        canvas.dot(4, 0, Some(blue), None);
+        let (cols, rows) = blitter.cell_pixels();
+        let pixels: Vec<[u8; 4]> = (0..cols * rows)
+            .map(|i| if i % cols == 0 { px(red) } else { px(blue) })
+            .collect();
+        let expected = suprtui::blit::blit_block(blitter, &pixels);
+        let two = canvas.resolve(0, 0, GlyphSet::Unicode);
+        assert_eq!(
+            two.glyph.and_then(|g| g.chars().next()),
+            Some(expected.glyph),
+            "{blitter:?}: a two-color fill cell must take blit_block's glyph"
+        );
+        let to_u8 = |c: Option<(f32, f32, f32, f32)>| {
+            c.map(|c| {
+                let p = px(c);
+                [p[0], p[1], p[2]]
+            })
+        };
+        assert_eq!(
+            (to_u8(two.color), to_u8(two.background)),
+            (expected.fg, expected.bg),
+            "{blitter:?}: the cell's colors must be blit_block's split"
+        );
+        let mut shown = [to_u8(two.color), to_u8(two.background)];
+        shown.sort();
+        let mut wanted = [
+            Some([px(red)[0], px(red)[1], px(red)[2]]),
+            Some([px(blue)[0], px(blue)[1], px(blue)[2]]),
+        ];
+        wanted.sort();
+        assert_eq!(
+            shown, wanted,
+            "{blitter:?}: a cell holding two slice colors shows both"
+        );
+        let half = canvas.resolve(1, 0, GlyphSet::Unicode);
+        assert!(
+            half.background.is_none(),
+            "{blitter:?}: an uncovered sample keeps the background transparent"
+        );
+        assert_eq!(
+            to_u8(half.color),
+            Some([px(red)[0], px(red)[1], px(red)[2]])
+        );
+        let stroked = canvas.resolve(2, 0, GlyphSet::Unicode);
+        assert!(
+            stroked
+                .glyph
+                .is_some_and(|g| g.chars().all(|c| ('\u{2800}'..='\u{28FF}').contains(&c))),
+            "{blitter:?}: a stroke over fill resolves to braille, got {:?}",
+            stroked.glyph
+        );
+    }
+    // A pie of two equal slices, centered on an odd width: the column on
+    // the vertical boundary shows both slice colors in one cell.
+    let size = (81u16, 25u16);
+    let frame = radial_frame(radial_props(ChartType::Pie, size, &[1.0, 1.0]), size);
+    let colors = palette(2);
+    let (rows, _) = frame.screen.size();
+    let boundary = (0..rows)
+        .filter(|r| shows(&frame, *r, 40, colors[0]) && shows(&frame, *r, 40, colors[1]))
+        .count();
+    assert!(
+        boundary >= 8,
+        "the boundary column of a two-slice pie must show both colors in its cells ({boundary} rows):\n{}",
+        frame.text
+    );
+}
+
+/// CHT-015: every sample inside a slice takes that slice's color, a full
+/// pie is twice as wide in columns as it is tall in rows, a pad angle
+/// leaves a gap, labels sit beside the circle joined by leader lines and
+/// never overlap, and a mini pie draws no labels.
+#[test]
+fn cht_015_pie_slices_aspect_pad_and_labels() {
+    // Four equal slices, clockwise from twelve o'clock.
+    let size = (81u16, 25u16);
+    let frame = radial_frame(
+        radial_props(ChartType::Pie, size, &[1.0, 1.0, 1.0, 1.0]),
+        size,
+    );
+    let colors = palette(4);
+    let painted = cells_showing(&frame, &colors);
+    let (top, bottom) = (
+        painted.iter().map(|p| p.0).min().unwrap(),
+        painted.iter().map(|p| p.0).max().unwrap(),
+    );
+    let (left, right) = (
+        painted.iter().map(|p| p.1).min().unwrap(),
+        painted.iter().map(|p| p.1).max().unwrap(),
+    );
+    let (height, width) = (i32::from(bottom - top) + 1, i32::from(right - left) + 1);
+    assert!(
+        (width - 2 * height).abs() <= 1,
+        "a full pie must be twice as wide as tall: {width} columns by {height} rows\n{}",
+        frame.text
+    );
+    let (cr, cc) = ((top + bottom) / 2, (left + right) / 2);
+    let quarter = (height / 4) as u16;
+    for (k, (r, c)) in [
+        (cr - quarter, cc + 2 * quarter),
+        (cr + quarter, cc + 2 * quarter),
+        (cr + quarter, cc - 2 * quarter),
+        (cr - quarter, cc - 2 * quarter),
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        assert!(
+            shows(&frame, r, c, colors[k]) && !colors.iter().enumerate().any(|(j, rgb)| j != k && shows(&frame, r, c, *rgb)),
+            "slice {k} (clockwise from twelve) must paint its interior cell ({r}, {c}) in its own color alone\n{}",
+            frame.text
+        );
+    }
+    // A pad angle leaves an unpainted gap on the boundary above the center.
+    let two = palette(2);
+    let size = (81u16, 25u16);
+    let joined = radial_frame(radial_props(ChartType::Pie, size, &[1.0, 1.0]), size);
+    let mut padded = radial_props(ChartType::Pie, size, &[1.0, 1.0]);
+    padded.radial.pad_angle = 0.4;
+    let padded = radial_frame(padded, size);
+    let above: Vec<u16> = (3..10).collect();
+    assert!(
+        above
+            .iter()
+            .all(|r| shows(&joined, *r, 40, two[0]) || shows(&joined, *r, 40, two[1])),
+        "control: without a pad angle the boundary above the center is painted\n{}",
+        joined.text
+    );
+    assert!(
+        above
+            .iter()
+            .all(|r| !shows(&padded, *r, 40, two[0]) && !shows(&padded, *r, 40, two[1])),
+        "a pad angle must leave an unpainted gap between the slices\n{}",
+        padded.text
+    );
+    // Labels beside the circle, each joined by a leader, none overlapping.
+    let names = [
+        "alpha", "beta", "gamma", "delta", "epsilon", "zeta", "eta", "theta",
+    ];
+    let size = (80u16, 24u16);
+    let mut labelled = radial_props(
+        ChartType::Pie,
+        size,
+        &[3.0, 1.0, 2.0, 1.0, 4.0, 1.0, 2.0, 1.0],
+    );
+    for (point, name) in labelled.series[0].data.iter_mut().zip(names) {
+        point.label = Some(name.to_string());
+    }
+    let frame = radial_frame(labelled, size);
+    let lines: Vec<String> = frame.text.lines().map(str::to_string).collect();
+    let mut placed = 0;
+    for name in names {
+        let found: Vec<(usize, usize)> = lines
+            .iter()
+            .enumerate()
+            .flat_map(|(r, line)| {
+                let chars: Vec<char> = line.chars().collect();
+                let target: Vec<char> = name.chars().collect();
+                (0..chars.len().saturating_sub(target.len() - 1))
+                    .filter(move |c| {
+                        chars[*c..*c + target.len()] == target[..]
+                            && !chars
+                                .get(c + target.len())
+                                .is_some_and(|n| n.is_alphabetic())
+                            && !(*c > 0 && chars[c - 1].is_alphabetic())
+                    })
+                    .map(move |c| (r, c))
+                    .collect::<Vec<_>>()
+            })
+            .collect();
+        assert!(
+            found.len() <= 1,
+            "label {name} drawn more than once:\n{}",
+            frame.text
+        );
+        let Some((r, c)) = found.first().copied() else {
+            continue;
+        };
+        placed += 1;
+        let chars: Vec<char> = lines[r].chars().collect();
+        let before = c.checked_sub(1).map(|i| chars[i]);
+        let after = chars.get(c + name.chars().count()).copied();
+        assert!(
+            [before, after]
+                .iter()
+                .any(|g| g.is_some_and(|g| "─╮╯╭╰│".contains(g))),
+            "label {name} must be joined to its slice by a leader line:\n{}",
+            frame.text
+        );
+    }
+    assert!(
+        placed >= 4,
+        "most labels must be placed ({placed} of 8):\n{}",
+        frame.text
+    );
+    // A mini pie draws shapes only.
+    let size = (20u16, 5u16);
+    let mut mini = radial_props(ChartType::Pie, size, &[1.0, 2.0]);
+    mini.series[0].data[0].label = Some("alpha".into());
+    let mini = radial_frame(mini, size);
+    assert!(
+        !mini.text.contains("alpha"),
+        "a mini pie draws no labels:\n{}",
+        mini.text
+    );
+    assert!(
+        !cells_showing(&mini, &palette(2)).is_empty(),
+        "a mini pie still draws its slices"
+    );
+}
+
+/// CHT-016: each vertex lies on its spoke at its value's distance, the grid
+/// shows the configured number of levels, and a later series lies over an
+/// earlier one.
+#[test]
+fn cht_016_radar_vertices_grid_levels_and_series_order() {
+    let size = (81u16, 25u16);
+    let mut p = radial_props(ChartType::Radar, size, &[8.0, 4.0, 8.0, 4.0]);
+    p.dots = true;
+    p.radial.grid = false;
+    p.radial.fills = vec![Some("none".into())];
+    let frame = radial_frame(p, size);
+    let lines: Vec<Vec<char>> = frame.text.lines().map(|l| l.chars().collect()).collect();
+    let markers: Vec<(i32, i32)> = lines
+        .iter()
+        .enumerate()
+        .flat_map(|(r, l)| {
+            l.iter()
+                .enumerate()
+                .filter(|(_, c)| **c == '•')
+                .map(move |(c, _)| (r as i32, c as i32))
+        })
+        .collect();
+    assert_eq!(
+        markers.len(),
+        4,
+        "one vertex dot per category:\n{}",
+        frame.text
+    );
+    let top = *markers.iter().min_by_key(|m| m.0).unwrap();
+    let bottom = *markers.iter().max_by_key(|m| m.0).unwrap();
+    let left = *markers.iter().min_by_key(|m| m.1).unwrap();
+    let right = *markers.iter().max_by_key(|m| m.1).unwrap();
+    let center = ((top.0 + bottom.0) / 2, top.1);
+    assert!(
+        (top.1 - bottom.1).abs() <= 1 && (left.0 - center.0).abs() <= 1 && (right.0 - center.0).abs() <= 1,
+        "vertices must lie on their spokes: top {top:?} right {right:?} bottom {bottom:?} left {left:?}\n{}",
+        frame.text
+    );
+    // In dots a row is four and a column two: the value-8 vertex is twice
+    // as far out as the value-4 one.
+    let (up, across) = ((center.0 - top.0) * 4, (right.1 - center.1) * 2);
+    assert!(
+        (up - 2 * across).abs() <= 4,
+        "vertex distances must follow the values (8 at {up} dots, 4 at {across} dots)\n{}",
+        frame.text
+    );
+    // Grid levels: rings crossed walking right along the row two above the
+    // center, which misses the spokes.
+    let mut p = radial_props(ChartType::Radar, size, &[0.01, 0.01, 0.01, 0.01]);
+    p.radial.max_value = Some(10.0);
+    p.radial.grid_levels = 3;
+    let grid = radial_frame(p, size);
+    let lines: Vec<Vec<char>> = grid.text.lines().map(|l| l.chars().collect()).collect();
+    let row = &lines[(center.0 - 2) as usize];
+    let (mut rings, mut on) = (0, false);
+    for glyph in &row[(center.1 + 1) as usize..] {
+        let dot = *glyph == '·';
+        if dot && !on {
+            rings += 1;
+        }
+        on = dot;
+    }
+    assert_eq!(rings, 3, "the grid must show three levels:\n{}", grid.text);
+    // A later, larger series covers an earlier one: none of the earlier
+    // series' color shows.
+    let mut p = radial_props(ChartType::Radar, size, &[4.0, 4.0, 4.0, 4.0]);
+    let mut outer = series(&[8.0, 8.0, 8.0, 8.0]);
+    outer.name = "outer".into();
+    p.series.push(outer);
+    let layered = radial_frame(p, size);
+    let colors = palette(2);
+    assert!(
+        cells_showing(&layered, &colors[..1]).is_empty(),
+        "the earlier series must lie under the later one:\n{}",
+        layered.text
+    );
+    assert!(
+        !cells_showing(&layered, &colors[1..]).is_empty(),
+        "the later series draws"
     );
 }

@@ -23,7 +23,7 @@ mod motion;
 mod worker;
 
 use crate::layout::paint_tree::cells::CellGrid;
-use canvas::Picture;
+use canvas::{Picture, RadialHit};
 
 /// How long a chart that has just appeared or changed size waits for its
 /// picture before the frame goes out without one. The wait is main-thread
@@ -414,6 +414,44 @@ impl Component for LiveChart {
 }
 
 /// The first visible series that has a point at `index`.
+/// The (series, index) a pointer at cell (`x`, `y`) selects on a radial
+/// chart (CHT-031): the slice it is inside for a pie or donut, the category
+/// of the nearest spoke for a radar, and nothing outside the outer radius
+/// or in a donut's hole.
+fn radial_pick(
+    radial: &RadialHit,
+    props: &ChartProps,
+    x: usize,
+    y: usize,
+) -> Option<(usize, usize)> {
+    use super::mask::{DOTS_X, DOTS_Y};
+    use std::f64::consts::TAU;
+    let dx = (x as f64 + 0.5) * DOTS_X as f64 - radial.center.0;
+    let dy = (y as f64 + 0.5) * DOTS_Y as f64 - radial.center.1;
+    let r = dx.hypot(dy);
+    if r > radial.outer {
+        return None;
+    }
+    let angle = dx.atan2(-dy).rem_euclid(TAU);
+    if !radial.slices.is_empty() {
+        if r < radial.inner {
+            return None;
+        }
+        return radial
+            .slices
+            .iter()
+            .find(|(start, end, _)| angle >= *start && angle < *end)
+            .map(|(_, _, key)| *key);
+    }
+    let gap = |spoke: f64| {
+        let d = (spoke - angle).rem_euclid(TAU);
+        d.min(TAU - d)
+    };
+    let index = (0..radial.spokes.len())
+        .min_by(|a, b| gap(radial.spokes[*a]).total_cmp(&gap(radial.spokes[*b])))?;
+    Some((first_series_with(props, index)?, index))
+}
+
 fn first_series_with(props: &ChartProps, index: usize) -> Option<usize> {
     props
         .series
@@ -458,6 +496,9 @@ impl LiveChart {
     fn nearest(&self, props: &ChartProps, x: usize, y: usize) -> Option<(usize, usize)> {
         let latest = self.latest.lock().unwrap_or_else(|e| e.into_inner());
         let picture = at_size(latest.picture.as_ref(), self.size())?;
+        if let Some(radial) = &picture.radial {
+            return radial_pick(radial, props, x, y);
+        }
         if !picture.plot.contains(x, y) && picture.anchors.is_empty() {
             return None;
         }

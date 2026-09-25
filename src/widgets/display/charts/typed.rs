@@ -2,12 +2,16 @@
 //! reference's method names (CHT-020): `x`, `y`, `band`, `value`, `stroke`,
 //! `fill`, `natural`, `linear`, `step_after`, `dot`, `tick_margin`,
 //! `alignment`, `label`, `grid`, and for candlesticks `open`, `high`, `low`
-//! and `close`. The closures run once at `build()`; the resulting
-//! [`ChartProps`] hold plain data points and stay comparable.
+//! and `close`. The pie, donut and radar builders take the reference's own
+//! names (CHT-029): `value`, `label`, `color`, `inner_radius`,
+//! `outer_radius`, `pad_angle` and `label_gap`, and for radar `stroke`,
+//! `fill`, `dot`, `grid`, `grid_levels` and `max_value`. The closures run
+//! once at `build()`; the resulting [`ChartProps`] hold plain data points and
+//! stay comparable.
 
 use super::{
     BarGrowth, ChartAxis, ChartProps, ChartType, ChartsBuilder, Curve, DataPoint, DataSeries,
-    SizeClass,
+    RadialOptions, SizeClass,
 };
 use crate::component::Element;
 
@@ -625,6 +629,335 @@ impl<T> CandlestickChartBuilder<T> {
     }
 }
 
+/// A pie chart over `Vec<T>`: one slice per item.
+pub struct PieChartBuilder<T> {
+    common: Common,
+    data: Vec<T>,
+    name: Option<String>,
+    value: Option<Value<T>>,
+    label: Option<Label<T>>,
+    color: Option<Label<T>>,
+    radial: RadialOptions,
+}
+
+impl<T> PieChartBuilder<T> {
+    /// A pie chart over `data`, one slice per item.
+    pub fn new(data: impl IntoIterator<Item = T>) -> Self {
+        Self {
+            common: Common::new(ChartType::Pie),
+            data: data.into_iter().collect(),
+            name: None,
+            value: None,
+            label: None,
+            color: None,
+            radial: RadialOptions::default(),
+        }
+    }
+
+    common_methods!();
+
+    /// Slice value accessor.
+    pub fn value(mut self, value: impl Fn(&T) -> f64 + 'static) -> Self {
+        self.value = Some(Box::new(value));
+        self
+    }
+
+    /// Slice label accessor, shown beside the chart and in the legend.
+    pub fn label<S: Into<String>>(mut self, label: impl Fn(&T) -> S + 'static) -> Self {
+        self.label = Some(Box::new(move |d| label(d).into()));
+        self
+    }
+
+    /// Slice color token accessor.
+    pub fn color<S: Into<String>>(mut self, color: impl Fn(&T) -> S + 'static) -> Self {
+        self.color = Some(Box::new(move |d| color(d).into()));
+        self
+    }
+
+    /// Name of the series, shown in the tooltip.
+    pub fn name(mut self, name: impl Into<String>) -> Self {
+        self.name = Some(name.into());
+        self
+    }
+
+    /// Inner radius as a fraction of the outer one: 0 draws a pie.
+    pub fn inner_radius(mut self, fraction: f64) -> Self {
+        self.radial.inner_radius = Some(fraction);
+        self
+    }
+
+    /// Outer radius as a fraction of the largest circle that fits.
+    pub fn outer_radius(mut self, fraction: f64) -> Self {
+        self.radial.outer_radius = fraction;
+        self
+    }
+
+    /// Gap between adjacent slices, in radians.
+    pub fn pad_angle(mut self, radians: f64) -> Self {
+        self.radial.pad_angle = radians;
+        self
+    }
+
+    /// Columns between the circle and its side labels.
+    pub fn label_gap(mut self, columns: u16) -> Self {
+        self.radial.label_gap = columns;
+        self
+    }
+
+    /// Evaluate the accessors into props.
+    pub fn build(self) -> ChartProps {
+        let value = self.value.as_ref();
+        let data = self
+            .data
+            .iter()
+            .enumerate()
+            .map(|(i, d)| {
+                let mut point = DataPoint::new(value.map_or(0.0, |f| f(d)));
+                point.label = Some(self.label.as_ref().map_or_else(|| i.to_string(), |f| f(d)));
+                point.color = self.color.as_ref().map(|f| f(d));
+                point
+            })
+            .collect();
+        let series = DataSeries::new(self.name.unwrap_or_else(|| "series 1".into()), data);
+        let mut common = self.common;
+        common.x_axis = false;
+        let mut props = common.finish(vec![series]);
+        props.radial = self.radial;
+        props
+    }
+}
+
+/// A donut chart over `Vec<T>`: a pie with a hole, half the radius unless
+/// `inner_radius` says otherwise.
+pub struct DonutChartBuilder<T> {
+    pie: PieChartBuilder<T>,
+}
+
+impl<T> DonutChartBuilder<T> {
+    /// A donut chart over `data`, one slice per item.
+    pub fn new(data: impl IntoIterator<Item = T>) -> Self {
+        let mut pie = PieChartBuilder::new(data);
+        pie.common = Common::new(ChartType::Donut);
+        Self { pie }
+    }
+
+    /// Chart title.
+    pub fn title(self, title: impl Into<String>) -> Self {
+        Self {
+            pie: self.pie.title(title),
+        }
+    }
+
+    /// Fixed size in cells; unset fills the allotted rectangle.
+    pub fn size(self, width: u16, height: u16) -> Self {
+        Self {
+            pie: self.pie.size(width, height),
+        }
+    }
+
+    /// Force a size class.
+    pub fn size_class(self, class: SizeClass) -> Self {
+        Self {
+            pie: self.pie.size_class(class),
+        }
+    }
+
+    /// Render with ASCII glyphs only.
+    pub fn ascii(self, ascii: bool) -> Self {
+        Self {
+            pie: self.pie.ascii(ascii),
+        }
+    }
+
+    /// Add CSS classes such as `reduced-motion`.
+    pub fn class(self, class: impl Into<String>) -> Self {
+        Self {
+            pie: self.pie.class(class),
+        }
+    }
+
+    /// Slice value accessor.
+    pub fn value(self, value: impl Fn(&T) -> f64 + 'static) -> Self {
+        Self {
+            pie: self.pie.value(value),
+        }
+    }
+
+    /// Slice label accessor, shown beside the chart and in the legend.
+    pub fn label<S: Into<String>>(self, label: impl Fn(&T) -> S + 'static) -> Self {
+        Self {
+            pie: self.pie.label(label),
+        }
+    }
+
+    /// Slice color token accessor.
+    pub fn color<S: Into<String>>(self, color: impl Fn(&T) -> S + 'static) -> Self {
+        Self {
+            pie: self.pie.color(color),
+        }
+    }
+
+    /// Name of the series, shown in the tooltip.
+    pub fn name(self, name: impl Into<String>) -> Self {
+        Self {
+            pie: self.pie.name(name),
+        }
+    }
+
+    /// Inner radius as a fraction of the outer one.
+    pub fn inner_radius(self, fraction: f64) -> Self {
+        Self {
+            pie: self.pie.inner_radius(fraction),
+        }
+    }
+
+    /// Outer radius as a fraction of the largest circle that fits.
+    pub fn outer_radius(self, fraction: f64) -> Self {
+        Self {
+            pie: self.pie.outer_radius(fraction),
+        }
+    }
+
+    /// Gap between adjacent slices, in radians.
+    pub fn pad_angle(self, radians: f64) -> Self {
+        Self {
+            pie: self.pie.pad_angle(radians),
+        }
+    }
+
+    /// Columns between the circle and its side labels.
+    pub fn label_gap(self, columns: u16) -> Self {
+        Self {
+            pie: self.pie.label_gap(columns),
+        }
+    }
+
+    /// Evaluate the accessors into props.
+    pub fn build(self) -> ChartProps {
+        self.pie.build()
+    }
+
+    /// Build and render as an element.
+    pub fn render(self) -> Element {
+        self.pie.render()
+    }
+}
+
+/// A radar chart over `Vec<T>`: one spoke per item, one polygon per
+/// `value` accessor.
+pub struct RadarChartBuilder<T> {
+    common: Common,
+    data: Vec<T>,
+    label: Option<Label<T>>,
+    series: Vec<SeriesSpec<T>>,
+    fills: Vec<Option<String>>,
+    dots: bool,
+    radial: RadialOptions,
+}
+
+impl<T> RadarChartBuilder<T> {
+    /// A radar chart over `data`, one category per item.
+    pub fn new(data: impl IntoIterator<Item = T>) -> Self {
+        Self {
+            common: Common::new(ChartType::Radar),
+            data: data.into_iter().collect(),
+            label: None,
+            series: Vec::new(),
+            fills: Vec::new(),
+            dots: false,
+            radial: RadialOptions::default(),
+        }
+    }
+
+    common_methods!();
+
+    /// Category label accessor, shown at the end of each spoke.
+    pub fn label<S: Into<String>>(mut self, label: impl Fn(&T) -> S + 'static) -> Self {
+        self.label = Some(Box::new(move |d| label(d).into()));
+        self
+    }
+
+    /// Value accessor; each call adds a series.
+    pub fn value(mut self, value: impl Fn(&T) -> f64 + 'static) -> Self {
+        self.series.push(SeriesSpec {
+            name: None,
+            value: Box::new(value),
+            color: None,
+        });
+        self.fills.push(None);
+        self
+    }
+
+    /// Name of the series added last.
+    pub fn name(mut self, name: impl Into<String>) -> Self {
+        if let Some(last) = self.series.last_mut() {
+            last.name = Some(name.into());
+        }
+        self
+    }
+
+    /// Outline color token of the series added last.
+    pub fn stroke(mut self, token: impl Into<String>) -> Self {
+        if let Some(last) = self.series.last_mut() {
+            last.color = Some(token.into());
+        }
+        self
+    }
+
+    /// Fill color token of the series added last; `"none"` leaves it
+    /// unfilled. Unset fills with the outline color.
+    pub fn fill(mut self, token: impl Into<String>) -> Self {
+        if let Some(last) = self.fills.last_mut() {
+            *last = Some(token.into());
+        }
+        self
+    }
+
+    /// Draw a dot at each vertex.
+    pub fn dot(mut self) -> Self {
+        self.dots = true;
+        self
+    }
+
+    /// Draw the grid levels and spokes.
+    pub fn grid(mut self, grid: bool) -> Self {
+        self.radial.grid = grid;
+        self
+    }
+
+    /// Number of grid levels.
+    pub fn grid_levels(mut self, levels: usize) -> Self {
+        self.radial.grid_levels = levels;
+        self
+    }
+
+    /// The scale's maximum; unset uses the largest value.
+    pub fn max_value(mut self, max: f64) -> Self {
+        self.radial.max_value = Some(max);
+        self
+    }
+
+    /// Outer radius as a fraction of the largest circle that fits.
+    pub fn outer_radius(mut self, fraction: f64) -> Self {
+        self.radial.outer_radius = fraction;
+        self
+    }
+
+    /// Evaluate the accessors into props.
+    pub fn build(self) -> ChartProps {
+        let series = series(&self.data, self.label.as_ref(), &self.series);
+        let mut common = self.common;
+        common.x_axis = false;
+        let mut props = common.finish(series);
+        props.dots = self.dots;
+        props.radial = RadialOptions {
+            fills: self.fills,
+            ..self.radial
+        };
+        props
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -709,5 +1042,71 @@ mod tests {
         assert!(candle.is_bullish());
         assert_eq!(candle.high, 2.5);
         assert!(!candles.series[0].data[1].candle.unwrap().is_bullish());
+    }
+
+    #[test]
+    fn pie_donut_and_radar_builders_evaluate_their_accessors() {
+        let pie = PieChartBuilder::new(rows())
+            .value(|r| r.close)
+            .label(|r| r.day)
+            .color(|r| {
+                if r.close > r.open {
+                    "chart-1"
+                } else {
+                    "chart-2"
+                }
+            })
+            .name("close")
+            .inner_radius(0.3)
+            .outer_radius(0.9)
+            .pad_angle(0.05)
+            .label_gap(3)
+            .build();
+        assert_eq!(pie.chart_type, ChartType::Pie);
+        assert_eq!(pie.series[0].name, "close");
+        assert_eq!(pie.series[0].data[1].label.as_deref(), Some("tue"));
+        assert_eq!(pie.series[0].data[1].value, 1.5);
+        assert_eq!(pie.series[0].data[0].color.as_deref(), Some("chart-1"));
+        assert_eq!(pie.series[0].data[1].color.as_deref(), Some("chart-2"));
+        assert_eq!(
+            (
+                pie.radial.inner_radius,
+                pie.radial.outer_radius,
+                pie.radial.pad_angle,
+                pie.radial.label_gap
+            ),
+            (Some(0.3), 0.9, 0.05, 3)
+        );
+        let donut = DonutChartBuilder::new(rows()).value(|r| r.open).build();
+        assert_eq!(donut.chart_type, ChartType::Donut);
+        assert_eq!(donut.series[0].data[0].label.as_deref(), Some("0"));
+        let radar = RadarChartBuilder::new(rows())
+            .label(|r| r.day)
+            .value(|r| r.open)
+            .name("open")
+            .stroke("chart-3")
+            .fill("none")
+            .value(|r| r.close)
+            .dot()
+            .grid(false)
+            .grid_levels(5)
+            .max_value(4.0)
+            .outer_radius(0.8)
+            .build();
+        assert_eq!(radar.chart_type, ChartType::Radar);
+        assert_eq!(radar.series.len(), 2);
+        assert_eq!(radar.series[0].color.as_deref(), Some("chart-3"));
+        assert_eq!(radar.series[1].data[0].label.as_deref(), Some("mon"));
+        assert_eq!(radar.radial.fills, vec![Some("none".to_string()), None]);
+        assert!(radar.dots && !radar.radial.grid);
+        assert_eq!(
+            (
+                radar.radial.grid_levels,
+                radar.radial.max_value,
+                radar.radial.outer_radius
+            ),
+            (5, Some(4.0), 0.8)
+        );
+        assert_eq!(radar.clone(), radar, "props stay comparable");
     }
 }

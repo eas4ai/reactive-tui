@@ -11,10 +11,19 @@
 //! - a marker glyph when the cell holds only a marker,
 //! - braille otherwise.
 //!
+//! Filled shapes (pie and donut sectors, radar fills) are sampled instead at
+//! the pixel grid of the blitter the canvas was given, each sample keeping
+//! its own color. A cell that holds fill and no dot, edge or marker resolves
+//! to that blitter's glyph with the two-color split `blit_block` chooses
+//! (docs/spec/blitters.md, BLT-001), an uncovered sample counting as
+//! transparent.
+//!
 //! With the ASCII glyph set (CHT-028) the same coverage resolves to `#`, `|`,
-//! `-` and `.` instead, with the same geometry.
+//! `-` and `.` instead, with the same geometry; fills then sample the two by
+//! four dot grid and resolve the same way.
 
 use super::plot::Rgba;
+use ::suprtui::blit::{blit_block, Blitter};
 
 /// Dots per cell horizontally.
 pub const DOTS_X: usize = 2;
@@ -73,9 +82,19 @@ pub struct Resolved {
     pub glyph: Option<&'static str>,
     /// The glyph color.
     pub color: Option<Rgba>,
+    /// The background under the glyph: a fill cell's second color, or
+    /// `None` to show what is below the chart.
+    pub background: Option<Rgba>,
     /// The (series, point) that painted the cell.
     pub owner: Option<(usize, usize)>,
 }
+
+/// One cell's fill samples: an index into the canvas's fill palette for each
+/// pixel of the fill blitter's grid in reading order, 0 where uncovered.
+type FillSamples = [u16; 8];
+
+/// A fill palette entry: the fill's color and the (series, point) it draws.
+type FillEntry = (Option<Rgba>, Option<(usize, usize)>);
 
 /// The mask canvas over a `cols` by `rows` cell grid.
 #[derive(Debug, Clone)]
@@ -85,6 +104,48 @@ pub struct MaskCanvas {
     cells: Vec<Cell>,
     /// Dot-space clip: (left, top, right, bottom), exclusive on the far side.
     clip: (i64, i64, i64, i64),
+    /// The blitter fill-only cells resolve through (CHT-025).
+    fill_blitter: Blitter,
+    /// Fill samples per cell, allocated at the first fill.
+    fills: Vec<FillSamples>,
+    /// The color and owner of each fill palette index, from index 1.
+    fill_palette: Vec<FillEntry>,
+}
+
+/// A fill sample's color as an opaque pixel for the blitter.
+fn fill_pixel((r, g, b, _): Rgba) -> [u8; 4] {
+    let channel = |v: f32| (v.clamp(0.0, 1.0) * 255.0).round() as u8;
+    [channel(r), channel(g), channel(b), u8::MAX]
+}
+
+fn pixel_color(pixel: [u8; 3]) -> Rgba {
+    let channel = |v: u8| f32::from(v) / 255.0;
+    (channel(pixel[0]), channel(pixel[1]), channel(pixel[2]), 1.0)
+}
+
+/// The glyph a blitter draws for a pattern, as a static string.
+fn blit_glyph(blitter: Blitter, pattern: u8) -> &'static str {
+    use std::sync::OnceLock;
+    static TABLES: OnceLock<Vec<Vec<&'static str>>> = OnceLock::new();
+    let tables = TABLES.get_or_init(|| {
+        Blitter::TIERS
+            .iter()
+            .map(|tier| {
+                (0..=255u8)
+                    .map(|pattern| {
+                        let glyph: &'static str =
+                            Box::leak(tier.glyph(pattern).to_string().into_boxed_str());
+                        glyph
+                    })
+                    .collect()
+            })
+            .collect()
+    });
+    let tier = Blitter::TIERS
+        .iter()
+        .position(|tier| *tier == blitter)
+        .unwrap_or(0);
+    tables[tier][usize::from(pattern)]
 }
 
 const BRAILLE_BITS: [[u8; DOTS_X]; DOTS_Y] =
@@ -134,7 +195,22 @@ impl MaskCanvas {
             rows,
             cells: vec![Cell::default(); cols.saturating_mul(rows)],
             clip: (0, 0, (cols * DOTS_X) as i64, (rows * DOTS_Y) as i64),
+            fill_blitter: Blitter::Sextant,
+            fills: Vec::new(),
+            fill_palette: Vec::new(),
         }
+    }
+
+    /// Resolve fill-only cells through `blitter` and sample later fills at
+    /// its pixel grid (CHT-025). Fills already written keep their samples,
+    /// so set this before the first fill.
+    pub fn set_fill_blitter(&mut self, blitter: Blitter) {
+        self.fill_blitter = blitter;
+    }
+
+    /// The blitter fill-only cells resolve through.
+    pub fn fill_blitter(&self) -> Blitter {
+        self.fill_blitter
     }
 
     /// Restrict every later shape to the cell rectangle from (`col`, `row`)
@@ -421,6 +497,256 @@ impl MaskCanvas {
         }
     }
 
+    fn fill_index(&mut self, color: Option<Rgba>, owner: Option<(usize, usize)>) -> u16 {
+        if let Some(i) = self
+            .fill_palette
+            .iter()
+            .position(|entry| *entry == (color, owner))
+        {
+            return (i + 1) as u16;
+        }
+        if self.fill_palette.len() >= usize::from(u16::MAX) - 1 {
+            return u16::MAX - 1;
+        }
+        self.fill_palette.push((color, owner));
+        self.fill_palette.len() as u16
+    }
+
+    /// Fill every sample inside the dot-space box (`x0`, `y0`) to (`x1`,
+    /// `y1`) for which `inside` holds at the sample's center, in dot units.
+    /// A later fill covers an earlier one where both hold. A fill needs a
+    /// color to split on, so a fill with none draws nothing.
+    pub fn fill_where(
+        &mut self,
+        (x0, y0, x1, y1): (f64, f64, f64, f64),
+        color: Option<Rgba>,
+        owner: Option<(usize, usize)>,
+        inside: impl Fn(f64, f64) -> bool,
+    ) {
+        if color.is_none()
+            || [x0, y0, x1, y1].iter().any(|v| v.is_nan())
+            || self.cols == 0
+            || self.rows == 0
+        {
+            return;
+        }
+        let (left, top, right, bottom) = (
+            self.clip.0 as f64,
+            self.clip.1 as f64,
+            self.clip.2 as f64,
+            self.clip.3 as f64,
+        );
+        let (x0, x1) = (x0.max(left), x1.min(right));
+        let (y0, y1) = (y0.max(top), y1.min(bottom));
+        if x1 <= x0 || y1 <= y0 {
+            return;
+        }
+        if self.fills.is_empty() {
+            self.fills = vec![[0; 8]; self.cols * self.rows];
+        }
+        let index = self.fill_index(color, owner);
+        let (pw, ph) = self.fill_blitter.cell_pixels();
+        let (pw, ph) = (pw as usize, ph as usize);
+        let c0 = (x0 / DOTS_X as f64).floor().max(0.0) as usize;
+        let c1 = ((x1 / DOTS_X as f64).ceil() as usize).min(self.cols);
+        let r0 = (y0 / DOTS_Y as f64).floor().max(0.0) as usize;
+        let r1 = ((y1 / DOTS_Y as f64).ceil() as usize).min(self.rows);
+        for row in r0..r1 {
+            for col in c0..c1 {
+                for py in 0..ph {
+                    let y = (row as f64 + (py as f64 + 0.5) / ph as f64) * DOTS_Y as f64;
+                    if y < top || y >= bottom {
+                        continue;
+                    }
+                    for px in 0..pw {
+                        let x = (col as f64 + (px as f64 + 0.5) / pw as f64) * DOTS_X as f64;
+                        if x >= left && x < right && inside(x, y) {
+                            self.fills[row * self.cols + col][py * pw + px] = index;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /// Fill the annular sector centred on (`cx`, `cy`) between the `inner`
+    /// and `outer` radii and the angles `start` to `end` in radians,
+    /// clockwise from twelve o'clock. Everything is in dot units, and a dot
+    /// is as wide as it is tall on screen, so a full sector is a circle.
+    #[allow(clippy::too_many_arguments)]
+    pub fn fill_sector(
+        &mut self,
+        cx: f64,
+        cy: f64,
+        inner: f64,
+        outer: f64,
+        start: f64,
+        end: f64,
+        color: Option<Rgba>,
+        owner: Option<(usize, usize)>,
+    ) {
+        if (end - start).is_nan() || end <= start || outer <= 0.0 {
+            return;
+        }
+        self.fill_where(
+            (cx - outer, cy - outer, cx + outer, cy + outer),
+            color,
+            owner,
+            |x, y| {
+                let (dx, dy) = (x - cx, y - cy);
+                let r = dx.hypot(dy);
+                if r > outer || r < inner {
+                    return false;
+                }
+                let angle = dx.atan2(-dy).rem_euclid(std::f64::consts::TAU);
+                angle >= start && angle < end
+            },
+        );
+    }
+
+    /// Fill the polygon `points` (dot units) by the even-odd rule.
+    pub fn fill_polygon(
+        &mut self,
+        points: &[(f64, f64)],
+        color: Option<Rgba>,
+        owner: Option<(usize, usize)>,
+    ) {
+        if points.len() < 3 {
+            return;
+        }
+        let bound = |f: fn(f64, f64) -> f64, init: f64, pick: fn(&(f64, f64)) -> f64| {
+            points.iter().map(pick).fold(init, f)
+        };
+        let bounds = (
+            bound(f64::min, f64::INFINITY, |p| p.0),
+            bound(f64::min, f64::INFINITY, |p| p.1),
+            bound(f64::max, f64::NEG_INFINITY, |p| p.0),
+            bound(f64::max, f64::NEG_INFINITY, |p| p.1),
+        );
+        self.fill_where(bounds, color, owner, |x, y| inside_polygon(points, x, y));
+    }
+
+    /// Clear the stroke dots, and the markers of cells, whose centers lie
+    /// inside the polygon `points` (dot units), so a shape drawn next lies
+    /// over the strokes before it.
+    pub fn clear_dots_inside(&mut self, points: &[(f64, f64)]) {
+        if points.len() < 3 {
+            return;
+        }
+        let (mut x0, mut y0, mut x1, mut y1) = (
+            f64::INFINITY,
+            f64::INFINITY,
+            f64::NEG_INFINITY,
+            f64::NEG_INFINITY,
+        );
+        for p in points {
+            x0 = x0.min(p.0);
+            y0 = y0.min(p.1);
+            x1 = x1.max(p.0);
+            y1 = y1.max(p.1);
+        }
+        if [x0, y0, x1, y1].iter().any(|v| !v.is_finite()) {
+            return;
+        }
+        let x0 = x0.floor().max(0.0) as usize;
+        let y0 = y0.floor().max(0.0) as usize;
+        let x1 = (x1.ceil().max(0.0) as usize).min(self.cols * DOTS_X);
+        let y1 = (y1.ceil().max(0.0) as usize).min(self.rows * DOTS_Y);
+        for y in y0..y1 {
+            for x in x0..x1 {
+                if !inside_polygon(points, x as f64 + 0.5, y as f64 + 0.5) {
+                    continue;
+                }
+                let (col, row) = (x / DOTS_X, y / DOTS_Y);
+                let cell_center = (
+                    (col as f64 + 0.5) * DOTS_X as f64,
+                    (row as f64 + 0.5) * DOTS_Y as f64,
+                );
+                let marker_covered = inside_polygon(points, cell_center.0, cell_center.1);
+                if let Some(cell) = self.cell_mut(col, row) {
+                    cell.dots &= !(1u8 << ((y % DOTS_Y) * DOTS_X + x % DOTS_X));
+                    if marker_covered {
+                        cell.marker = None;
+                    }
+                    if cell.dots == 0 && cell.marker.is_none() && cell.edge.is_none() {
+                        cell.color = None;
+                        cell.owner = None;
+                    }
+                }
+            }
+        }
+    }
+
+    /// The fill samples of the cell at (`col`, `row`), when any is covered.
+    fn fill_at(&self, col: usize, row: usize) -> Option<&FillSamples> {
+        self.fills
+            .get(row * self.cols + col)
+            .filter(|samples| samples.iter().any(|index| *index != 0))
+    }
+
+    /// The fill palette index covering most samples of `samples`.
+    fn main_fill(samples: &FillSamples) -> u16 {
+        let mut best = (0u16, 0usize);
+        for index in samples.iter().copied().filter(|index| *index != 0) {
+            let count = samples.iter().filter(|other| **other == index).count();
+            if count > best.1 {
+                best = (index, count);
+            }
+        }
+        best.0
+    }
+
+    fn fill_entry(&self, index: u16) -> FillEntry {
+        usize::from(index)
+            .checked_sub(1)
+            .and_then(|i| self.fill_palette.get(i))
+            .copied()
+            .unwrap_or((None, None))
+    }
+
+    /// Resolve a fill-only cell: the blitter's glyph with its two-color
+    /// split, or with ASCII glyphs the dot rule over the samples.
+    fn resolve_fill(&self, samples: &FillSamples, glyphs: GlyphSet) -> Resolved {
+        let owner = self.fill_entry(Self::main_fill(samples)).1;
+        let (pw, ph) = self.fill_blitter.cell_pixels();
+        let count = (pw * ph) as usize;
+        if glyphs == GlyphSet::Ascii {
+            let mut dots = 0u8;
+            if (pw, ph) == (DOTS_X as u32, DOTS_Y as u32) {
+                for (i, index) in samples.iter().take(count).enumerate() {
+                    if *index != 0 {
+                        dots |= 1 << i;
+                    }
+                }
+            } else {
+                dots = FULL_DOTS;
+            }
+            return Resolved {
+                glyph: Some(if dots == FULL_DOTS {
+                    "#"
+                } else {
+                    ascii_for(dots)
+                }),
+                color: self.fill_entry(Self::main_fill(samples)).0,
+                background: None,
+                owner,
+            };
+        }
+        let mut pixels = [[0u8; 4]; 8];
+        for (pixel, index) in pixels.iter_mut().zip(samples.iter()).take(count) {
+            if let Some(color) = self.fill_entry(*index).0.filter(|_| *index != 0) {
+                *pixel = fill_pixel(color);
+            }
+        }
+        let cell = blit_block(self.fill_blitter, &pixels[..count]);
+        Resolved {
+            glyph: Some(blit_glyph(self.fill_blitter, cell.pattern)),
+            color: cell.fg.map(pixel_color),
+            background: cell.bg.map(pixel_color),
+            owner,
+        }
+    }
+
     /// Place a marker in the cell containing dot (`x`, `y`).
     pub fn marker(
         &mut self,
@@ -443,17 +769,24 @@ impl MaskCanvas {
 
     /// Whether the cell at (`col`, `row`) holds any shape.
     pub fn is_painted(&self, col: usize, row: usize) -> bool {
-        self.cells
-            .get(row * self.cols + col)
-            .is_some_and(|c| c.dots != 0 || c.marker.is_some())
+        col < self.cols
+            && (self
+                .cells
+                .get(row * self.cols + col)
+                .is_some_and(|c| c.dots != 0 || c.marker.is_some())
+                || self.fill_at(col, row).is_some())
     }
 
-    /// The (series, point) that painted the cell, if any.
+    /// The (series, point) that painted the cell, if any: a stroke's or
+    /// marker's owner, else the owner of most of the cell's fill.
     pub fn owner_at(&self, col: usize, row: usize) -> Option<(usize, usize)> {
         if col >= self.cols || row >= self.rows {
             return None;
         }
-        self.cells[row * self.cols + col].owner
+        self.cells[row * self.cols + col].owner.or_else(|| {
+            self.fill_at(col, row)
+                .and_then(|samples| self.fill_entry(Self::main_fill(samples)).1)
+        })
     }
 
     /// Resolve the cell at (`col`, `row`) to a glyph and color.
@@ -464,9 +797,17 @@ impl MaskCanvas {
             return Resolved {
                 glyph: None,
                 color: None,
+                background: None,
                 owner: None,
             };
         };
+        // A stroke, marker or bar edge draws over fill; a cell with fill
+        // alone takes the blitter's split (CHT-025).
+        if cell.dots == 0 && cell.edge.is_none() && cell.marker.is_none() {
+            if let Some(samples) = self.fill_at(col, row) {
+                return self.resolve_fill(samples, glyphs);
+            }
+        }
         let glyph = if cell.dots == FULL_DOTS {
             Some(match glyphs {
                 GlyphSet::Unicode => FULL,
@@ -503,9 +844,22 @@ impl MaskCanvas {
         Resolved {
             glyph,
             color: cell.color,
+            background: None,
             owner: cell.owner,
         }
     }
+}
+
+/// Whether (`x`, `y`) lies inside the polygon `points` by the even-odd rule.
+fn inside_polygon(points: &[(f64, f64)], x: f64, y: f64) -> bool {
+    let mut inside = false;
+    for i in 0..points.len() {
+        let (a, b) = (points[i], points[(i + 1) % points.len()]);
+        if (a.1 > y) != (b.1 > y) && x < a.0 + (y - a.1) / (b.1 - a.1) * (b.0 - a.0) {
+            inside = !inside;
+        }
+    }
+    inside
 }
 
 /// ASCII stand-in for a partial dot pattern: a column of dots is `|`, a row

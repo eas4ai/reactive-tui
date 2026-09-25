@@ -20,13 +20,13 @@ pub mod tree;
 
 pub use charts::plot;
 pub use charts::{
-    AreaChartBuilder, BarChartBuilder, CandlestickChartBuilder, LineChartBuilder,
-    ScatterChartBuilder,
+    AreaChartBuilder, BarChartBuilder, CandlestickChartBuilder, DonutChartBuilder,
+    LineChartBuilder, PieChartBuilder, RadarChartBuilder, ScatterChartBuilder,
 };
 pub use charts::{
     BarGrowth, Candle, Chart, ChartAxis, ChartLegend, ChartProps, ChartState, ChartType,
     ChartsBuilder, Curve, DataPoint, DataSeries, FillStyle, GlyphSet, LegendPosition, LineStyle,
-    SizeClass,
+    RadialOptions, SizeClass,
 };
 pub use data_table::{
     ColumnFilter, DataTable, DataTableProps, DataTableState, FilterType, PaginationConfig,
