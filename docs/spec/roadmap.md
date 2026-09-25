@@ -105,6 +105,26 @@ shrinks, or expansion stops recursing. A regression test that the
 default-feature gates run fails before the fix and passes after it, and it
 reports a stack overflow as a failure instead of aborting the test run.
 
+## animation-close-inflight-pass
+
+Requirements: BAR-001
+
+Promoted from backlog item 1a7574c9. An animation update pass that another
+thread began before a hook owner closes can still set one value after
+close() returns. update_animations delivers each task outside the registry
+lock, and the stagger, spring and keyframe update closures check the
+owner's generation and then set the value without holding the lock that
+cancel_owned_work takes (src/hooks/animation.rs), so a pass already past the
+check sets the item once more. The tests wait for such a pass; the library
+does not.
+
+After a hook owner's close() returns, no animation value it owns changes
+again, whichever thread runs an update pass. The fix holds no lock across
+ThreadSafeSignal::set, whose subscribers may start or cancel animations. A
+regression test that the default-feature gates run makes the race
+deterministic, for example by holding an update pass between its
+generation check and its set, and fails before the fix and passes after it.
+
 ## charts-radial-and-flow
 
 Requirements: CHT-015, CHT-016 plus the quality bar
