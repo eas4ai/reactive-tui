@@ -1981,6 +1981,38 @@ fn cht_030_labels_sit_beside_their_nodes() {
     );
 }
 
+/// CHT-030: through the untyped ChartsBuilder, whose node points carry no
+/// throughput, the large class still labels each node with the larger of its
+/// incoming and outgoing totals.
+#[test]
+fn cht_030_the_untyped_builder_shows_each_nodes_throughput() {
+    use reactive_tui::widgets::display::{ChartsBuilder, SankeyOptions};
+    let size = (200u16, 40u16);
+    let nodes = DataSeries::new(
+        "nodes",
+        SANKEY_NODES
+            .iter()
+            .map(|name| DataPoint::with_label(0.0, *name))
+            .collect(),
+    );
+    let props = ChartsBuilder::sankey()
+        .series(nodes)
+        .sankey_options(SankeyOptions {
+            links: sankey_links(&SANKEY_LINKS),
+            ..SankeyOptions::default()
+        })
+        .size(size.0, size.1)
+        .build();
+    let frame = sankey_frame(props, size);
+    for label in ["coal 4", "power 9", "industry 5", "loss 1"] {
+        assert!(
+            frame.text.contains(label),
+            "the untyped chart labels each node with its throughput ({label}):\n{}",
+            frame.text
+        );
+    }
+}
+
 /// CHT-030: a link naming a missing node, or links forming a cycle, show a
 /// message instead of shapes.
 #[test]

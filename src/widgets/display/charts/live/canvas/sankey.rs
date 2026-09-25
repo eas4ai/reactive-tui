@@ -44,6 +44,22 @@ pub(super) fn node_color(props: &ChartProps, index: usize) -> Option<Rgba> {
         .and_then(super::color)
 }
 
+/// A node's throughput: the larger of its raw incoming and outgoing totals,
+/// from the links (the reference's raw throughput), whatever its point's
+/// value says.
+fn throughput(props: &ChartProps, index: usize) -> f64 {
+    let (mut incoming, mut outgoing) = (0.0, 0.0);
+    for link in &props.sankey.links {
+        if link.source == index {
+            outgoing += link.value;
+        }
+        if link.target == index {
+            incoming += link.value;
+        }
+    }
+    f64::max(incoming, outgoing)
+}
+
 /// A node's name and throughput text, as the tooltip and the large labels
 /// show them.
 pub(in super::super) fn node_text(props: &ChartProps, index: usize) -> (String, String) {
@@ -54,7 +70,7 @@ pub(in super::super) fn node_text(props: &ChartProps, index: usize) -> (String, 
         .value_labels
         .get(index)
         .cloned()
-        .unwrap_or_else(|| point.value.to_string());
+        .unwrap_or_else(|| throughput(props, index).to_string());
     (name, value)
 }
 
