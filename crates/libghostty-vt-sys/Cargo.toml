@@ -1,0 +1,38 @@
+[package]
+name = "reactive-tui-libghostty-vt-sys"
+version = "1.0.0"
+edition = "2024"
+rust-version = "1.91"
+description = "Reactive TUI's pinned raw FFI bindings for the Ghostty terminal emulation library"
+repository = "https://github.com/eas4ai/reactive-tui"
+license = "MIT"
+publish = false
+readme = "README.md"
+include = ["/src/**", "/tools/**", "/build.rs", "/README.md", "/LICENSE", "/UPSTREAM.md"]
+links = "ghostty-vt"
+build = "build.rs"
+
+[lib]
+name = "libghostty_vt_sys"
+doctest = false
+
+[features]
+default = ["vendored"]
+vendored = []
+pkg-config = ["dep:pkg-config"]
+link-dynamic = []
+bindgen-tool = ["dep:bindgen", "dep:libc", "dep:heck"]
+kitty-graphics = []
+
+[dependencies]
+bindgen = { version = "0.72.1", optional = true }
+libc = { version = "0.2", optional = true }
+heck = { version = "0.5", optional = true }
+
+[build-dependencies]
+pkg-config = { version = "0.3", optional = true }
+
+[[bin]]
+name = "gen-bindings"
+path = "tools/gen_bindings.rs"
+required-features = ["bindgen-tool"]
