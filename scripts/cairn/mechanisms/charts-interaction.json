@@ -10,6 +10,7 @@
   "inputs": [
     "Cargo.lock",
     "Cargo.toml",
+    "crates/reactive-tui-suprtui",
     "scripts/cairn",
     "src/builder/widgets/chart.rs",
     "src/event",
@@ -18,6 +19,7 @@
     "src/theme",
     "src/widgets/display/charts",
     "src/widgets/display/charts.rs",
+    "src/widgets/display/image",
     "tests/charts_contract.rs",
     "tests/common"
   ],
