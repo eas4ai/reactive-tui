@@ -1,6 +1,6 @@
 # Roadmap
 
-Current: charts-radial
+Current: charts-flow
 
 Order agreed with the developer on 2026-09-21: charts first on a cell canvas,
 then a general graphics canvas over wgpu that replaces the rasterizer
@@ -195,10 +195,26 @@ colors outside the canvas.
 
 ## charts-flow
 
-Requirements: CHT-030, CHT-029 plus the quality bar
+Requirements: BAR-001, BAR-002, BAR-003, BAR-004, BAR-005, BAR-006, BAR-007, CHT-010, CHT-017, CHT-018, CHT-019, CHT-021, CHT-023, CHT-024, CHT-025, CHT-026, CHT-028, CHT-029, CHT-030, CHT-032
 
-Sankey on the same plot layer and canvas, with links as blitter-drawn
-ribbons, after charts-radial.
+Deliver the Sankey chart on the plot layer and the shared mask canvas, as
+CHT-030 and CHT-032 were agreed on 2026-09-25: a chart of nodes and links
+laid out in columns by a port of the reference's d3-sankey layout, which
+lives in the plot layer; nodes as filled rectangles and links as ribbons
+drawn through the blitters, each ribbon shaded from its source node's color
+to its target's at the link opacity; node labels beside the nodes; node
+selection by pointer and keys, which keeps the selected node's links and
+fades the rest, with the tooltip; an error message for a missing node or a
+cycle. The builder takes nodes and links with the reference's method names
+(CHT-029 as revised on 2026-09-25). The chart gets theme colors, fill-parent
+sizing with the three size classes, goldens at three sizes on a fixed
+blitter tier, a catalog page and a manual section.
+
+Done when every named requirement passes, each extended mechanism has
+recorded a failing violating example before its passing receipt, the five
+workspace gates pass, the line, bar, area, scatter, candlestick, pie, donut
+and radar goldens stay unchanged, and the review finds no chart type writing
+glyphs or colors outside the canvas.
 
 ## graphics-canvas
 
