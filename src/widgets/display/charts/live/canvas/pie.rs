@@ -1,24 +1,33 @@
-//! Pie and donut slices drawn as sectors into the shared mask canvas. Angles
-//! come from the values' share of the total through an ordinal position on
-//! the circle; the mask tests each dot's polar coordinates in cell-square
-//! space, so a full circle is as wide as it is tall on screen.
+//! Pie and donut slices drawn as filled sectors of the shared mask canvas
+//! (CHT-015, CHT-025). Angles come from each value's share of the total
+//! through a linear scale on the plot layer (CHT-010). A canvas dot is as
+//! wide as it is tall on screen, so the circle needs no aspect factor: it
+//! spans twice as many columns as rows. At the medium and large size classes
+//! each slice's label sits beside the circle, joined to its slice by a leader
+//! line in the text layer; a label with no free row is left out, and its
+//! slice stays in the legend.
 
 use super::super::super::mask::{MaskCanvas, DOTS_X, DOTS_Y};
-use super::super::super::plot::{Rect, ScaleLinear, TextSink};
-use super::super::super::ChartType;
-use super::{Job, Picture, TextLayer};
+use super::super::super::plot::{LegendEntry, Rect, Rgba, ScaleLinear, SizeClass, TextSink};
+use super::super::super::{ChartProps, ChartType};
+use super::{Job, Picture, RadialHit, TextLayer};
+use std::f64::consts::{PI, TAU};
+use unicode_width::UnicodeWidthStr;
 
-pub(super) fn pie(
-    mask: &mut MaskCanvas,
-    text: &mut TextLayer,
-    picture: &mut Picture,
-    job: &Job,
-    area: Rect,
-) {
-    let props = job.props;
-    let mut slices: Vec<(usize, usize, f64)> = Vec::new();
-    for (s, series) in props.series.iter().enumerate().filter(|(_, s)| s.visible) {
-        for (i, _) in series.data.iter().enumerate() {
+/// The widest a side label may be, in columns.
+const LABEL_WIDTH: usize = 16;
+
+/// The visible slices with a positive value: (series, index, value).
+pub(super) fn slices(job: &Job) -> Vec<(usize, usize, f64)> {
+    let mut slices = Vec::new();
+    for (s, series) in job
+        .props
+        .series
+        .iter()
+        .enumerate()
+        .filter(|(_, s)| s.visible)
+    {
+        for i in 0..series.data.len() {
             let value = job
                 .values
                 .get(s)
@@ -30,59 +39,250 @@ pub(super) fn pie(
             }
         }
     }
+    slices
+}
+
+/// A slice's color: its point's color, then its series color, then the
+/// palette entry for its place among the `count` slices, so slices differ.
+/// When the palette wraps so the last slice would take the first slice's
+/// color, and the two touch, the last one takes the next entry instead.
+pub(super) fn slice_color(
+    props: &ChartProps,
+    order: usize,
+    count: usize,
+    s: usize,
+    i: usize,
+) -> Option<Rgba> {
+    let series = &props.series[s];
+    let colors = props.color_palette.len().max(1);
+    let entry = if count > 1 && order + 1 == count && order.is_multiple_of(colors) && colors > 1 {
+        1
+    } else {
+        order % colors
+    };
+    series.data[i]
+        .color
+        .as_deref()
+        .or(series.color.as_deref())
+        .or_else(|| props.color_palette.get(entry).map(String::as_str))
+        .and_then(super::color)
+}
+
+/// A slice's label: its point's label, else its index.
+pub(super) fn slice_label(props: &ChartProps, s: usize, i: usize) -> String {
+    props.series[s].data[i]
+        .label
+        .clone()
+        .unwrap_or_else(|| i.to_string())
+}
+
+/// The legend of a pie or donut: one entry per slice.
+pub(super) fn legend_entries(job: &Job) -> Vec<LegendEntry> {
+    let slices = slices(job);
+    slices
+        .iter()
+        .enumerate()
+        .map(|(order, (s, i, _))| LegendEntry {
+            name: slice_label(job.props, *s, *i),
+            color: slice_color(job.props, order, slices.len(), *s, *i),
+        })
+        .collect()
+}
+
+pub(super) fn pie(
+    mask: &mut MaskCanvas,
+    text: &mut TextLayer,
+    picture: &mut Picture,
+    job: &Job,
+    area: Rect,
+    class: SizeClass,
+) {
+    let props = job.props;
+    let slices = slices(job);
     let total: f64 = slices.iter().map(|(_, _, v)| *v).sum();
     if total <= 0.0 {
         text.text(area.x, area.y, area.w, "No data to display", None);
         return;
     }
-    picture.plot = area;
-    mask.set_clip_cells(area.x, area.y, area.w, area.h);
-    // Radius in dot rows; a cell is twice as tall as wide, so the horizontal
-    // reach in dot columns is half the vertical reach in dot rows.
-    let aspect = DOTS_Y as f64 / DOTS_X as f64;
-    let radius = ((area.h * DOTS_Y) as f64 / 2.0).min((area.w * DOTS_X) as f64 * aspect / 2.0);
-    if radius <= 0.0 {
+    let labelled = class != SizeClass::Mini;
+    let gap = usize::from(props.radial.label_gap);
+    // Columns kept free on each side for labels and their leaders.
+    let reserve = if labelled {
+        let widest = slices
+            .iter()
+            .map(|(s, i, _)| UnicodeWidthStr::width(slice_label(props, *s, *i).as_str()))
+            .max()
+            .unwrap_or(0)
+            .min(LABEL_WIDTH);
+        (widest + gap + 1).min(area.w / 4)
+    } else {
+        0
+    };
+    let circle_w = area.w.saturating_sub(2 * reserve);
+    let fit = ((area.h * DOTS_Y) as f64 / 2.0).min((circle_w * DOTS_X) as f64 / 2.0);
+    let outer = fit * props.radial.outer_radius.clamp(0.0, 1.0);
+    if outer <= 0.0 {
         return;
     }
+    let inner_fraction =
+        props
+            .radial
+            .inner_radius
+            .unwrap_or(if props.chart_type == ChartType::Donut {
+                0.5
+            } else {
+                0.0
+            });
+    let inner = outer * inner_fraction.clamp(0.0, 0.95);
+    picture.plot = area;
+    mask.set_clip_cells(area.x, area.y, area.w, area.h);
     let cx = (area.x * DOTS_X) as f64 + (area.w * DOTS_X) as f64 / 2.0;
     let cy = (area.y * DOTS_Y) as f64 + (area.h * DOTS_Y) as f64 / 2.0;
-    let inner = if props.chart_type == ChartType::Donut {
-        radius * 0.5
-    } else {
-        0.0
-    };
     // Angles come from the plot layer: a linear scale from the cumulative
     // value share to the revealed sweep (CHT-010).
-    let sweep = std::f64::consts::TAU * job.progress.clamp(0.0, 1.0);
+    let sweep = TAU * job.progress.clamp(0.0, 1.0);
     let angle = ScaleLinear::new((0.0, total), (0.0, sweep));
-    let mut start = 0.0;
-    let mut cumulative = 0.0;
-    for (index, (s, i, value)) in slices.iter().enumerate() {
+    let pad = props.radial.pad_angle.max(0.0);
+    let mut hit = RadialHit {
+        center: (cx, cy),
+        inner,
+        outer,
+        ..RadialHit::default()
+    };
+    let mut labels = Vec::new();
+    let (mut start, mut cumulative) = (0.0, 0.0);
+    for (order, (s, i, value)) in slices.iter().enumerate() {
         cumulative += value;
         let end = angle.map(cumulative);
-        // A slice takes its point's color, then its series color, then the
-        // palette entry for the slice (not the series) so slices differ.
-        let series = &props.series[*s];
-        let tint = series.data[*i]
-            .color
-            .as_deref()
-            .or(series.color.as_deref())
-            .or_else(|| {
-                props
-                    .color_palette
-                    .get(index % props.color_palette.len().max(1))
-                    .map(String::as_str)
-            })
-            .and_then(super::color);
-        mask.sector(cx, cy, inner, radius, start, end, tint, Some((*s, *i)));
+        let (from, to) = if end - start > pad {
+            (start + pad / 2.0, end - pad / 2.0)
+        } else {
+            ((start + end) / 2.0, (start + end) / 2.0)
+        };
+        let tint = slice_color(props, order, slices.len(), *s, *i);
+        mask.fill_sector(cx, cy, inner, outer, from, to, tint, Some((*s, *i)));
+        hit.slices.push((start, end, (*s, *i)));
         let mid = (start + end) / 2.0;
-        let r = (inner + radius) / 2.0;
-        let ax = cx + mid.sin() * r / aspect;
-        let ay = cy - mid.cos() * r;
+        let r = (inner + outer) / 2.0;
         picture.anchors.insert(
             (*s, *i),
-            ((ax / DOTS_X as f64) as usize, (ay / DOTS_Y as f64) as usize),
+            (
+                ((cx + mid.sin() * r) / DOTS_X as f64) as usize,
+                ((cy - mid.cos() * r) / DOTS_Y as f64) as usize,
+            ),
         );
+        if labelled && to > from {
+            labels.push((mid, slice_label(props, *s, *i), tint));
+        }
         start = end;
     }
+    picture.radial = Some(hit);
+    if labelled {
+        place_labels(text, area, (cx, cy), outer, gap, labels);
+    }
+}
+
+/// Place each slice's label beside the circle on the side its middle angle
+/// faces, on the row of the slice's outer edge or the nearest free row, and
+/// join it to the slice with a leader line.
+fn place_labels(
+    text: &mut TextLayer,
+    area: Rect,
+    (cx, cy): (f64, f64),
+    outer: f64,
+    gap: usize,
+    labels: Vec<(f64, String, Option<Rgba>)>,
+) {
+    let (left_edge, right_edge) = (
+        ((cx - outer) / DOTS_X as f64).floor().max(area.x as f64) as usize,
+        (((cx + outer) / DOTS_X as f64).ceil() as usize).min(area.x + area.w),
+    );
+    let mut taken = [Vec::new(), Vec::new()];
+    for (mid, label, color) in labels {
+        let right = mid < PI;
+        let side = usize::from(right);
+        let anchor_row = ((cy - mid.cos() * outer) / DOTS_Y as f64)
+            .floor()
+            .clamp(area.y as f64, (area.y + area.h).saturating_sub(1) as f64)
+            as usize;
+        let width = UnicodeWidthStr::width(label.as_str()).min(LABEL_WIDTH);
+        let column = if right {
+            right_edge + gap
+        } else {
+            left_edge.saturating_sub(gap + width)
+        };
+        if width == 0
+            || (right && column + width > area.x + area.w)
+            || (!right && (left_edge < gap + width || column < area.x))
+        {
+            continue;
+        }
+        // The nearest free row to the anchor, alternating below and above.
+        let Some(row) = (0..area.h)
+            .flat_map(|d| [anchor_row + d, anchor_row.wrapping_sub(d)])
+            .find(|row| (area.y..area.y + area.h).contains(row) && !taken[side].contains(row))
+        else {
+            continue;
+        };
+        taken[side].push(row);
+        text.text(column, row, width, &label, color);
+        leader(text, (cx, cy), outer, right, anchor_row, row, column, width);
+    }
+}
+
+/// The leader from the circle's edge on `anchor_row` to the label on `row`:
+/// a horizontal run, and a bend down or up when the label moved rows.
+#[allow(clippy::too_many_arguments)]
+fn leader(
+    text: &mut TextLayer,
+    (cx, cy): (f64, f64),
+    outer: f64,
+    right: bool,
+    anchor_row: usize,
+    row: usize,
+    column: usize,
+    width: usize,
+) {
+    // The first column outside the circle on the anchor row, on the
+    // label's side.
+    let dy = (anchor_row as f64 + 0.5) * DOTS_Y as f64 - cy;
+    let half = (outer * outer - dy * dy).max(0.0).sqrt();
+    let edge = if right {
+        ((cx + half) / DOTS_X as f64).floor() as usize + 1
+    } else {
+        ((cx - half) / DOTS_X as f64).ceil().max(1.0) as usize - 1
+    };
+    let near = if right {
+        column.saturating_sub(1)
+    } else {
+        column + width
+    };
+    let bend = if right {
+        near.saturating_sub(1)
+    } else {
+        near + 1
+    };
+    let horizontal = |text: &mut TextLayer, from: usize, to: usize, y: usize| {
+        for x in from.min(to)..=from.max(to) {
+            text.put(x, y, "─", None);
+        }
+    };
+    if row == anchor_row {
+        horizontal(text, edge, near, row);
+        return;
+    }
+    horizontal(text, edge, bend, anchor_row);
+    let down = row > anchor_row;
+    for y in anchor_row.min(row) + 1..anchor_row.max(row) {
+        text.put(bend, y, "│", None);
+    }
+    let (turn, corner) = match (right, down) {
+        (true, true) => ("╮", "╰"),
+        (true, false) => ("╯", "╭"),
+        (false, true) => ("╭", "╯"),
+        (false, false) => ("╰", "╮"),
+    };
+    text.put(bend, anchor_row, turn, None);
+    text.put(bend, row, corner, None);
+    text.put(near, row, "─", None);
 }

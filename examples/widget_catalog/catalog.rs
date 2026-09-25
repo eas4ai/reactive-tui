@@ -22,8 +22,8 @@ use reactive_tui::{
             image::ImageDisplayMode,
             table::{Table, TableColumn, TableProps, TableRow},
             tree::TreeNode,
-            AreaChartBuilder, BarChartBuilder, CandlestickChartBuilder, LineChartBuilder,
-            ScatterChartBuilder, SizeClass,
+            AreaChartBuilder, BarChartBuilder, CandlestickChartBuilder, DonutChartBuilder,
+            LineChartBuilder, PieChartBuilder, RadarChartBuilder, ScatterChartBuilder, SizeClass,
         },
         menu::DialogMenuBuilder,
         DialogMenu, TerminalProps, TerminalWidget,
@@ -557,6 +557,58 @@ impl Catalog {
                 })
                 .collect(),
         );
+        let pie = stack(
+            classes
+                .iter()
+                .map(|(class, w, h)| {
+                    PieChartBuilder::new(samples())
+                        .value(|s| s.value)
+                        .label(|s| s.label)
+                        .name("value")
+                        .size(*w, *h)
+                        .size_class(*class)
+                        .render()
+                })
+                .collect(),
+        );
+        let donut = stack(
+            classes
+                .iter()
+                .map(|(class, w, h)| {
+                    DonutChartBuilder::new(samples())
+                        .value(|s| s.value)
+                        .label(|s| s.label)
+                        .name("value")
+                        .inner_radius(0.55)
+                        .pad_angle(0.06)
+                        .size(*w, *h)
+                        .size_class(*class)
+                        .render()
+                })
+                .collect(),
+        );
+        let radar = stack(
+            classes
+                .iter()
+                .map(|(class, w, h)| {
+                    RadarChartBuilder::new(samples())
+                        .label(|s| s.label)
+                        .value(|s| s.open)
+                        .name("open")
+                        .stroke("chart-1")
+                        .value(|s| s.close)
+                        .name("close")
+                        .stroke("chart-2")
+                        .fill("none")
+                        .dot()
+                        .grid_levels(4)
+                        .max_value(10.0)
+                        .size(*w, *h)
+                        .size_class(*class)
+                        .render()
+                })
+                .collect(),
+        );
         div()
             .class(Self::card_grid_class(self.width))
             .child(Self::card("Line chart: mini, medium, large", line))
@@ -567,6 +619,9 @@ impl Catalog {
                 "Candlestick chart: mini, medium, large",
                 candlestick,
             ))
+            .child(Self::card("Pie chart: mini, medium, large", pie))
+            .child(Self::card("Donut chart: mini, medium, large", donut))
+            .child(Self::card("Radar chart: mini, medium, large", radar))
             .build()
     }
 
