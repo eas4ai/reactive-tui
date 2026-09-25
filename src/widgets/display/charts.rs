@@ -265,7 +265,6 @@ impl ChartsBuilder {
         self
     }
 
-    /// Force value labels on or off; unset follows the size class.
     /// Pie, donut and radar geometry (CHT-015, CHT-016).
     pub fn radial(mut self, radial: RadialOptions) -> Self {
         self.radial = radial;

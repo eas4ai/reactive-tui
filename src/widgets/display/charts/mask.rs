@@ -455,11 +455,12 @@ impl MaskCanvas {
         }
     }
 
-    /// Fill the annular sector centred on (`cx`, `cy`) in dot units between
-    /// `inner` and `outer` radii (in dot rows) and the angles `start` to
-    /// `end` in radians measured clockwise from twelve o'clock. Dots are
-    /// tested against the sector in a space where one cell is square, so a
-    /// full circle comes out as wide as it is tall on screen (CHT-015).
+    /// Cover the dots of the annular sector centred on (`cx`, `cy`) between
+    /// the `inner` and `outer` radii and the angles `start` to `end` in
+    /// radians, clockwise from twelve o'clock, all in dot units. A dot is as
+    /// wide as it is tall on screen, so a full sector is a circle twice as
+    /// many columns wide as it is rows tall. Charts fill sectors with
+    /// [`MaskCanvas::fill_sector`]; this covers dots like a stroke.
     #[allow(clippy::too_many_arguments)]
     pub fn sector(
         &mut self,
@@ -475,15 +476,13 @@ impl MaskCanvas {
         if (end - start).is_nan() || end <= start || outer <= 0.0 {
             return;
         }
-        let aspect = DOTS_Y as f64 / DOTS_X as f64;
-        let reach_x = outer / aspect + 1.0;
-        let x0 = ((cx - reach_x).floor().max(0.0)) as i64;
-        let x1 = ((cx + reach_x).ceil().min(self.width())) as i64;
+        let x0 = ((cx - outer).floor().max(0.0)) as i64;
+        let x1 = ((cx + outer).ceil().min(self.width())) as i64;
         let y0 = ((cy - outer).floor().max(0.0)) as i64;
         let y1 = ((cy + outer).ceil().min(self.height())) as i64;
         for y in y0..y1 {
             for x in x0..x1 {
-                let dx = (x as f64 + 0.5 - cx) * aspect;
+                let dx = x as f64 + 0.5 - cx;
                 let dy = y as f64 + 0.5 - cy;
                 let r = (dx * dx + dy * dy).sqrt();
                 if r > outer || r < inner {
@@ -743,7 +742,8 @@ impl MaskCanvas {
         // samples. `blit_block` leaves them clear and paints the background;
         // the set pattern draws the same cell as the blitter's full glyph in
         // the foreground, as a fully covered stroke or bar cell is drawn.
-        if cell.pattern == 0 && cell.bg.is_some() {
+        // The ASCII tier's full glyph is a space, so it keeps the background.
+        if cell.pattern == 0 && cell.bg.is_some() && self.fill_blitter != Blitter::Ascii {
             let full = if count == 8 {
                 u8::MAX
             } else {

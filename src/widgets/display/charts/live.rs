@@ -379,6 +379,30 @@ impl Component for LiveChart {
                     state.tooltip = None;
                     return EventResult::Consumed;
                 }
+                // A pie or donut steps through its drawn slices in order,
+                // across series and past points that draw no slice.
+                let slices: Option<Vec<(usize, usize)>> = {
+                    let latest = self.latest.lock().unwrap_or_else(|e| e.into_inner());
+                    at_size(latest.picture.as_ref(), self.size())
+                        .and_then(|picture| picture.radial.as_ref())
+                        .filter(|radial| !radial.slices.is_empty())
+                        .map(|radial| radial.slices.iter().map(|s| s.key).collect())
+                };
+                if let Some(keys) = slices {
+                    let current = state
+                        .hovered_point
+                        .and_then(|hovered| keys.iter().position(|key| *key == hovered));
+                    let last = keys.len() - 1;
+                    let at = match key.code {
+                        KeyCode::Home => 0,
+                        KeyCode::End => last,
+                        KeyCode::Left => current.unwrap_or(1).saturating_sub(1),
+                        _ => current.map_or(0, |i| (i + 1).min(last)),
+                    };
+                    state.hovered_point = Some(keys[at]);
+                    state.tooltip = None;
+                    return EventResult::Consumed;
+                }
                 let count = props
                     .config
                     .series
@@ -415,9 +439,11 @@ impl Component for LiveChart {
 
 /// The first visible series that has a point at `index`.
 /// The (series, index) a pointer at cell (`x`, `y`) selects on a radial
-/// chart (CHT-031): the slice it is inside for a pie or donut, the category
-/// of the nearest spoke for a radar, and nothing outside the outer radius
-/// or in a donut's hole.
+/// chart (CHT-031): for a pie or donut, the slice covering most of the
+/// cell's samples, taken where the fill took them, so a cell that shows a
+/// slice selects it; for a radar, the category of the spoke nearest the
+/// cell's angle. A cell with no sample inside the outer radius, or only
+/// samples in a donut's hole, selects nothing.
 fn radial_pick(
     radial: &RadialHit,
     props: &ChartProps,
@@ -426,23 +452,53 @@ fn radial_pick(
 ) -> Option<(usize, usize)> {
     use super::mask::{DOTS_X, DOTS_Y};
     use std::f64::consts::TAU;
-    let dx = (x as f64 + 0.5) * DOTS_X as f64 - radial.center.0;
-    let dy = (y as f64 + 0.5) * DOTS_Y as f64 - radial.center.1;
-    let r = dx.hypot(dy);
-    if r > radial.outer {
+    let (pw, ph) = (
+        radial.samples.0.max(1) as usize,
+        radial.samples.1.max(1) as usize,
+    );
+    let polar = |px: f64, py: f64| {
+        let (dx, dy) = (px - radial.center.0, py - radial.center.1);
+        (dx.hypot(dy), dx.atan2(-dy).rem_euclid(TAU))
+    };
+    let samples: Vec<(f64, f64)> = (0..ph)
+        .flat_map(|sy| {
+            (0..pw).map(move |sx| {
+                polar(
+                    (x as f64 + (sx as f64 + 0.5) / pw as f64) * DOTS_X as f64,
+                    (y as f64 + (sy as f64 + 0.5) / ph as f64) * DOTS_Y as f64,
+                )
+            })
+        })
+        .collect();
+    if !radial.slices.is_empty() {
+        let mut counts: Vec<((usize, usize), usize)> = Vec::new();
+        for (r, angle) in &samples {
+            if *r > radial.outer || *r < radial.inner {
+                continue;
+            }
+            if let Some(slice) = radial
+                .slices
+                .iter()
+                .find(|s| *angle >= s.start && *angle < s.end)
+            {
+                match counts.iter_mut().find(|(key, _)| *key == slice.key) {
+                    Some((_, n)) => *n += 1,
+                    None => counts.push((slice.key, 1)),
+                }
+            }
+        }
+        return counts
+            .into_iter()
+            .max_by_key(|(_, n)| *n)
+            .map(|(key, _)| key);
+    }
+    if !samples.iter().any(|(r, _)| *r <= radial.outer) {
         return None;
     }
-    let angle = dx.atan2(-dy).rem_euclid(TAU);
-    if !radial.slices.is_empty() {
-        if r < radial.inner {
-            return None;
-        }
-        return radial
-            .slices
-            .iter()
-            .find(|(start, end, _)| angle >= *start && angle < *end)
-            .map(|(_, _, key)| *key);
-    }
+    let (_, angle) = polar(
+        (x as f64 + 0.5) * DOTS_X as f64,
+        (y as f64 + 0.5) * DOTS_Y as f64,
+    );
     let gap = |spoke: f64| {
         let d = (spoke - angle).rem_euclid(TAU);
         d.min(TAU - d)
@@ -450,6 +506,39 @@ fn radial_pick(
     let index = (0..radial.spokes.len())
         .min_by(|a, b| gap(radial.spokes[*a]).total_cmp(&gap(radial.spokes[*b])))?;
     Some((first_series_with(props, index)?, index))
+}
+
+/// The cells of the ray that marks a radial selection outside the tooltip
+/// (CHT-018, CHT-031): from the inner radius to the outer one along the
+/// selected slice's middle angle, or along the selected radar spoke.
+fn radial_ray(radial: &RadialHit, selected: (usize, usize)) -> Vec<(usize, usize)> {
+    use super::mask::{DOTS_X, DOTS_Y};
+    let angle = if radial.slices.is_empty() {
+        radial.spokes.get(selected.1).copied()
+    } else {
+        radial
+            .slices
+            .iter()
+            .find(|s| s.key == selected)
+            .map(|s| (s.start + s.end) / 2.0)
+    };
+    let Some(angle) = angle else {
+        return Vec::new();
+    };
+    let mut cells = Vec::new();
+    let mut r = radial.inner;
+    while r <= radial.outer {
+        let x = radial.center.0 + angle.sin() * r;
+        let y = radial.center.1 - angle.cos() * r;
+        if x >= 0.0 && y >= 0.0 {
+            let cell = ((x / DOTS_X as f64) as usize, (y / DOTS_Y as f64) as usize);
+            if cells.last() != Some(&cell) {
+                cells.push(cell);
+            }
+        }
+        r += 1.0;
+    }
+    cells
 }
 
 fn first_series_with(props: &ChartProps, index: usize) -> Option<usize> {
@@ -469,6 +558,8 @@ struct Overlay {
     at: (usize, usize),
     crosshair: Option<(usize, usize, usize)>,
     band: Option<(usize, usize, usize)>,
+    /// A radial selection's ray from the center, in cells.
+    ray: Vec<(usize, usize)>,
 }
 
 impl LiveChart {
@@ -572,7 +663,31 @@ impl LiveChart {
         series: usize,
         index: usize,
     ) -> (Option<Overlay>, String) {
-        let (tooltip, spoken) = self.tooltip_rows(props, index);
+        // A pie or donut's tooltip names the selected slice alone, in its
+        // own color; other charts list every series at the index.
+        let slice = picture
+            .radial
+            .as_ref()
+            .and_then(|radial| radial.slices.iter().find(|s| s.key == (series, index)));
+        let (tooltip, spoken) = match slice {
+            Some(slice) => {
+                let point = &props.series[series].data[index];
+                let value = canvas::point_text(point, index);
+                let spoken = format!("{} / {value}", props.series[series].name);
+                (
+                    Tooltip {
+                        title: None,
+                        rows: vec![TooltipRow {
+                            color: slice.color,
+                            name: props.series[series].name.clone(),
+                            value,
+                        }],
+                    },
+                    spoken,
+                )
+            }
+            None => self.tooltip_rows(props, index),
+        };
         if tooltip.rows.is_empty() {
             return (None, spoken);
         }
@@ -597,12 +712,17 @@ impl LiveChart {
         .then(|| (anchor.0, picture.plot.y, picture.plot.bottom()));
         let band = (!picture.index_rows.is_empty())
             .then(|| (anchor.1, picture.plot.x, picture.plot.right()));
+        let ray = picture
+            .radial
+            .as_ref()
+            .map_or_else(Vec::new, |radial| radial_ray(radial, (series, index)));
         (
             Some(Overlay {
                 boxed,
                 at,
                 crosshair,
                 band,
+                ray,
             }),
             spoken,
         )
@@ -690,6 +810,10 @@ fn overlay_grid(picture: &Picture, overlay: &Overlay) -> CellGrid {
         for col in left..right {
             sink.under(col, row, "─", None);
         }
+    }
+    // A radial selection's ray is drawn over the shapes it crosses.
+    for (col, row) in &overlay.ray {
+        sink.text(*col, *row, 1, "·", None);
     }
     if let Some(boxed) = &overlay.boxed {
         boxed.draw(

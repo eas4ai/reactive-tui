@@ -12,6 +12,7 @@ pub mod curve;
 pub mod decimate;
 pub mod layout;
 pub mod legend;
+pub mod polar;
 pub mod scale;
 pub mod tick;
 pub mod tooltip;
@@ -21,6 +22,7 @@ pub use curve::{polyline, Curve};
 pub use decimate::{decimate_min_max, Sample};
 pub use layout::{Rect, SizeClass};
 pub use legend::{Legend, LegendEntry, SWATCH};
+pub use polar::{spoke_angles, PolarGrid};
 pub use scale::{ScaleBand, ScaleLinear, ScaleOrdinal, ScalePoint};
 pub use tick::{
     band_ticks, format_tick, label_skip, labeled_ticks, linear_ticks, nice_step, point_ticks, Tick,

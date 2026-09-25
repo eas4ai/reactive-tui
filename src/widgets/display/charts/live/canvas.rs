@@ -15,6 +15,19 @@ mod cartesian;
 mod pie;
 mod radar;
 
+/// One drawn slice of a pie or donut.
+#[derive(Clone, Debug)]
+pub(super) struct RadialSlice {
+    /// Where the slice's angle range starts, before any pad.
+    pub start: f64,
+    /// Where it ends.
+    pub end: f64,
+    /// The (series, index) the slice draws.
+    pub key: (usize, usize),
+    /// The slice's color, for its tooltip swatch.
+    pub color: Option<Rgba>,
+}
+
 /// Where a radial chart's slices or spokes lie, for pointer selection
 /// (CHT-031). Everything is in dot units; angles are radians clockwise from
 /// twelve o'clock.
@@ -26,10 +39,13 @@ pub(super) struct RadialHit {
     pub inner: f64,
     /// Outer radius.
     pub outer: f64,
-    /// Pie and donut: each slice's angle range and (series, index).
-    pub slices: Vec<(f64, f64, (usize, usize))>,
+    /// Pie and donut: each drawn slice, in order around the circle.
+    pub slices: Vec<RadialSlice>,
     /// Radar: each category's spoke angle.
     pub spokes: Vec<f64>,
+    /// The fill blitter's pixels per cell (columns, rows), so the pointer
+    /// samples a cell where the fill did.
+    pub samples: (u32, u32),
 }
 
 /// The rasterized chart plus what the main thread needs for interaction.
@@ -248,6 +264,27 @@ pub(super) fn validate(props: &ChartProps) -> Result<(), &'static str> {
     }
     if props.color_palette.iter().any(|s| color(s).is_none()) {
         return Err("Invalid palette color");
+    }
+    if matches!(
+        props.chart_type,
+        ChartType::Pie | ChartType::Donut | ChartType::Radar
+    ) {
+        let radial = &props.radial;
+        if !radial.outer_radius.is_finite()
+            || !radial.pad_angle.is_finite()
+            || radial.inner_radius.is_some_and(|r| !r.is_finite())
+            || radial.max_value.is_some_and(|m| !m.is_finite())
+        {
+            return Err("Radial options must be finite");
+        }
+        if radial
+            .fills
+            .iter()
+            .flatten()
+            .any(|token| token != "none" && color(token).is_none())
+        {
+            return Err("Invalid radar fill color");
+        }
     }
     Ok(())
 }

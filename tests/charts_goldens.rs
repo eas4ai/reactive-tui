@@ -406,6 +406,37 @@ fn cht_010_pie_slices_split_the_circle_through_the_linear_scale() {
     );
 }
 
+/// CHT-024: a radial chart forced to the large class differs from the
+/// medium one at the same size: the radar gains its grid and the pie its
+/// value labels.
+#[test]
+fn cht_024_radial_charts_follow_their_forced_size_class() {
+    use reactive_tui::widgets::display::SizeClass;
+    let size = (80u16, 24u16);
+    for kind in [ChartType::Pie, ChartType::Donut, ChartType::Radar] {
+        let forced = |class: SizeClass| {
+            let mut p = radial_props(kind.clone(), size, &[3.0, 1.0, 2.0, 4.0]);
+            p.size_class = Some(class);
+            radial_frame(p, size).text
+        };
+        let (medium, large) = (forced(SizeClass::Medium), forced(SizeClass::Large));
+        assert_ne!(
+            medium, large,
+            "{kind:?}: forcing the large class must change the layout"
+        );
+        if kind == ChartType::Radar {
+            assert!(
+                !medium.contains('·'),
+                "a medium radar draws no grid:\n{medium}"
+            );
+            assert!(
+                large.contains('·'),
+                "a large radar draws its grid:\n{large}"
+            );
+        }
+    }
+}
+
 /// CHT-024: size classes chosen from the allotted rectangle, switching on resize.
 #[test]
 fn cht_024_size_classes_follow_the_rectangle_and_switch_on_resize() {
@@ -472,9 +503,7 @@ fn cht_024_size_classes_follow_the_rectangle_and_switch_on_resize() {
 fn cht_023_goldens_at_three_size_classes() {
     let data = [2.0, 8.0, 5.0, 9.0, 3.0, 7.0];
     // Radial fills draw through the image blitter; the goldens fix the tier.
-    reactive_tui::widgets::display::set_image_blitter(Some(
-        reactive_tui::widgets::display::Blitter::Sextant,
-    ));
+    fix_blitter();
     for (kind, name) in [
         (ChartType::Line, "line"),
         (ChartType::Area, "area"),
@@ -540,6 +569,15 @@ fn cht_026_empty_and_nan_input_show_a_message_and_no_shapes() {
     );
     // The radial types: no series, an empty series, and a NaN or infinite
     // value each show a message and paint no slice or polygon.
+    let mut bad_fill = radial_props(ChartType::Radar, size, &[1.0, 2.0, 3.0]);
+    bad_fill.radial.fills = vec![Some("not-a-color".into())];
+    let bad_fill = radial_frame(bad_fill, size);
+    assert!(
+        bad_fill.text.to_lowercase().contains("fill")
+            && cells_showing(&bad_fill, &palette(5)).is_empty(),
+        "an invalid radar fill token must show a message, not fall back:\n{}",
+        bad_fill.text
+    );
     for kind in [ChartType::Pie, ChartType::Donut, ChartType::Radar] {
         let mut none = radial_props(kind.clone(), size, &[]);
         none.series.clear();
@@ -559,6 +597,26 @@ fn cht_026_empty_and_nan_input_show_a_message_and_no_shapes() {
             assert!(
                 !frame.text.trim().is_empty() && cells_showing(&frame, &palette(5)).is_empty(),
                 "{kind:?} with {case} must show a message and no shapes:\n{}",
+                frame.text
+            );
+        }
+        // Values whose total overflows, and non-finite options.
+        let mut radius = radial_props(kind.clone(), size, &[1.0, 2.0]);
+        radius.radial.outer_radius = f64::NAN;
+        for (case, p) in [
+            (
+                "an overflowing total",
+                radial_props(kind.clone(), size, &[1e308, 1e308]),
+            ),
+            ("a NaN outer radius", radius),
+        ] {
+            if case == "an overflowing total" && kind == ChartType::Radar {
+                continue;
+            }
+            let frame = radial_frame(p, size);
+            assert!(
+                frame.text.contains("finite") && cells_showing(&frame, &palette(5)).is_empty(),
+                "{kind:?} with {case} must say the values must be finite and draw no shapes:\n{}",
                 frame.text
             );
         }
@@ -841,11 +899,19 @@ fn cht_028_ascii_fallback_keeps_the_geometry_without_unicode_glyphs() {
 }
 
 /// Radial charts draw their fills through the image blitter; these tests fix
-/// the tier at sextant so the frames do not depend on the host.
-fn radial_frame(p: ChartProps, size: (u16, u16)) -> Snapshot {
+/// the tier at sextant so the frames do not depend on the host. The
+/// `REACTIVE_TUI_BLITTER` override outranks the application's choice, so it
+/// is cleared first.
+fn fix_blitter() {
+    static CLEARED: std::sync::Once = std::sync::Once::new();
+    CLEARED.call_once(|| std::env::remove_var("REACTIVE_TUI_BLITTER"));
     reactive_tui::widgets::display::set_image_blitter(Some(
         reactive_tui::widgets::display::Blitter::Sextant,
     ));
+}
+
+fn radial_frame(p: ChartProps, size: (u16, u16)) -> Snapshot {
+    fix_blitter();
     app_input::run_when_painted_on_debug(Root(Element::typed::<Chart>(p)), size, 2)
         .pop()
         .unwrap()
@@ -993,6 +1059,21 @@ fn cht_025_fill_only_cells_take_the_blitters_two_color_split() {
             stroked.glyph
         );
     }
+    // The ASCII tier draws one pixel per cell as a space on its color, so a
+    // filled cell keeps its background there and stays visible.
+    let mut ascii = MaskCanvas::new(1, 1);
+    ascii.set_fill_blitter(Blitter::Ascii);
+    ascii.fill_polygon(
+        &[(0.0, 0.0), (2.0, 0.0), (2.0, 4.0), (0.0, 4.0)],
+        Some(red),
+        None,
+    );
+    let cell = ascii.resolve(0, 0, GlyphSet::Unicode);
+    assert_eq!(cell.glyph, Some(" "), "the ASCII tier draws a space");
+    assert!(
+        cell.background.is_some(),
+        "an ASCII-tier fill cell must keep its color as the background, or the fill disappears"
+    );
     // A pie of two equal slices, centered on an odd width: the column on
     // the vertical boundary shows both slice colors in one cell.
     let size = (81u16, 25u16);
@@ -1136,6 +1217,71 @@ fn cht_015_pie_slices_aspect_pad_and_labels() {
         "most labels must be placed ({placed} of 8):\n{}",
         frame.text
     );
+    // Leaders stay off the slices: every cell a slice paints without labels
+    // still shows a slice color with them, and each leader touches a slice.
+    // Empty labels with a wider gap keep the circle the same size.
+    let mut bare = radial_props(
+        ChartType::Pie,
+        size,
+        &[3.0, 1.0, 2.0, 1.0, 4.0, 1.0, 2.0, 1.0],
+    );
+    for point in &mut bare.series[0].data {
+        point.label = Some(String::new());
+    }
+    bare.radial.label_gap = 2 + "epsilon".len() as u16;
+    let bare = radial_frame(bare, size);
+    let colors = palette(5);
+    let covered: Vec<(u16, u16)> = cells_showing(&bare, &colors)
+        .into_iter()
+        .filter(|(r, c)| !colors.iter().any(|rgb| shows(&frame, *r, *c, *rgb)))
+        .collect();
+    assert!(
+        covered.is_empty(),
+        "leader lines must not draw over slice cells: {covered:?}\n{}",
+        frame.text
+    );
+    let glyph_at = |r: usize, c: usize| lines.get(r).and_then(|l| l.chars().nth(c));
+    let touching = (0..lines.len())
+        .flat_map(|r| (0..lines[r].chars().count()).map(move |c| (r, c)))
+        .filter(|(r, c)| glyph_at(*r, *c).is_some_and(|g| "─╮╯╭╰".contains(g)))
+        .filter(|(r, c)| {
+            [c.wrapping_sub(1), c + 1].iter().any(|n| {
+                colors
+                    .iter()
+                    .any(|rgb| shows(&frame, *r as u16, *n as u16, *rgb))
+            })
+        })
+        .count();
+    assert!(
+        touching >= placed,
+        "each placed label's leader must reach its slice ({touching} of {placed}):\n{}",
+        frame.text
+    );
+    // A label too long for the room beside the circle is cut, not dropped.
+    let mut long = radial_props(ChartType::Pie, size, &[3.0, 1.0, 2.0]);
+    long.legend.visible = true;
+    for point in &mut long.series[0].data {
+        point.label = Some(format!(
+            "{}-a-rather-long-name",
+            point.label.clone().unwrap()
+        ));
+    }
+    let long = radial_frame(long, size);
+    assert!(
+        long.text.contains('…'),
+        "a long label must be cut to fit, not dropped:\n{}",
+        long.text
+    );
+    // The large class shows each label in full with its value.
+    let size = (200u16, 40u16);
+    let large = radial_frame(radial_props(ChartType::Pie, size, &[3.0, 1.0, 2.0]), size);
+    for label in ["p0 3", "p1 1", "p2 2"] {
+        assert!(
+            large.text.contains(label),
+            "a large pie labels each slice with its value ({label}):\n{}",
+            large.text
+        );
+    }
     // A mini pie draws shapes only.
     let size = (20u16, 5u16);
     let mut mini = radial_props(ChartType::Pie, size, &[1.0, 2.0]);
@@ -1198,23 +1344,42 @@ fn cht_016_radar_vertices_grid_levels_and_series_order() {
         "vertex distances must follow the values (8 at {up} dots, 4 at {across} dots)\n{}",
         frame.text
     );
-    // Grid levels: rings crossed walking right along the row two above the
-    // center, which misses the spokes.
-    let mut p = radial_props(ChartType::Radar, size, &[0.01, 0.01, 0.01, 0.01]);
-    p.radial.max_value = Some(10.0);
-    p.radial.grid_levels = 3;
-    let grid = radial_frame(p, size);
-    let lines: Vec<Vec<char>> = grid.text.lines().map(|l| l.chars().collect()).collect();
-    let row = &lines[(center.0 - 2) as usize];
-    let (mut rings, mut on) = (0, false);
-    for glyph in &row[(center.1 + 1) as usize..] {
-        let dot = *glyph == '·';
-        if dot && !on {
-            rings += 1;
+    // Grid levels, drawn at the large class: rings crossed walking right
+    // along the row two above the center, which misses the spokes.
+    let rings = |levels: usize| {
+        let size = (201u16, 41u16);
+        let mut p = radial_props(ChartType::Radar, size, &[0.01, 0.01, 0.01, 0.01]);
+        p.radial.max_value = Some(10.0);
+        p.radial.grid_levels = levels;
+        let grid = radial_frame(p, size);
+        let lines: Vec<Vec<char>> = grid.text.lines().map(|l| l.chars().collect()).collect();
+        let row = &lines[(size.1 / 2 - 2) as usize];
+        let (mut rings, mut on) = (0, false);
+        for glyph in &row[(size.0 / 2 + 1) as usize..] {
+            let dot = *glyph == '·';
+            if dot && !on {
+                rings += 1;
+            }
+            on = dot;
         }
-        on = dot;
-    }
-    assert_eq!(rings, 3, "the grid must show three levels:\n{}", grid.text);
+        (rings, grid.text)
+    };
+    let (three, text) = rings(3);
+    assert_eq!(three, 3, "the grid must show three levels:\n{text}");
+    let (none, text) = rings(0);
+    assert_eq!(none, 0, "zero grid levels draw no level polygon:\n{text}");
+    // An unfilled later series lies over nothing: the earlier outline stays.
+    let mut p = radial_props(ChartType::Radar, size, &[4.0, 4.0, 4.0, 4.0]);
+    let mut outer = series(&[8.0, 8.0, 8.0, 8.0]);
+    outer.name = "outer".into();
+    p.series.push(outer);
+    p.radial.fills = vec![Some("none".into()), Some("none".into())];
+    let unfilled = radial_frame(p, size);
+    assert!(
+        !cells_showing(&unfilled, &palette(1)).is_empty(),
+        "an unfilled later series must leave the earlier outline:\n{}",
+        unfilled.text
+    );
     // A later, larger series covers an earlier one: none of the earlier
     // series' color shows.
     let mut p = radial_props(ChartType::Radar, size, &[4.0, 4.0, 4.0, 4.0]);
