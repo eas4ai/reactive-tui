@@ -5,13 +5,15 @@
 //! series' fill is a filled shape of the shared mask canvas (CHT-025) and
 //! its outline a stroke. Series are drawn in order: before a series fills,
 //! the earlier series' strokes inside its polygon are cleared, so a later
-//! series lies over an earlier one. The grid levels and spokes are drawn in
-//! the text layer under the shapes, at the medium and large size classes.
+//! filled series lies over an earlier one. The plot layer places the spokes
+//! and draws the grid levels in the text layer under the shapes, at the
+//! large size class, as the cartesian grid is drawn.
 
 use super::super::super::mask::{Marker, MaskCanvas, DOTS_X, DOTS_Y};
-use super::super::super::plot::{Rect, ScaleLinear, SizeClass, TextSink};
+use super::super::super::plot::{
+    polar, spoke_angles, PolarGrid, Rect, ScaleLinear, SizeClass, TextSink,
+};
 use super::{series_color, visible, Job, Picture, RadialHit, TextLayer};
-use std::f64::consts::TAU;
 use unicode_width::UnicodeWidthStr;
 
 /// The widest a category label may be, in columns.
@@ -41,13 +43,19 @@ pub(super) fn radar(
         })
         .collect();
     let labelled = class != SizeClass::Mini;
+    // The large class shows category labels in full.
+    let widest_allowed = if class == SizeClass::Large {
+        usize::MAX
+    } else {
+        LABEL_WIDTH
+    };
     let (margin_x, margin_y) = if labelled {
         let widest = labels
             .iter()
             .map(|l| UnicodeWidthStr::width(l.as_str()))
             .max()
             .unwrap_or(0)
-            .min(LABEL_WIDTH);
+            .min(widest_allowed);
         ((widest + 1).min(area.w / 4), 1.min(area.h / 4))
     } else {
         (0, 0)
@@ -85,21 +93,17 @@ pub(super) fn radar(
     // The radial scale comes from the plot layer (CHT-010), and the reveal
     // grows the polygons from the center.
     let scale = ScaleLinear::new((0.0, max), (0.0, radius * job.progress.clamp(0.0, 1.0)));
-    let spokes: Vec<f64> = (0..categories)
-        .map(|k| k as f64 * TAU / categories as f64)
-        .collect();
-    let at = |angle: f64, r: f64| (cx + angle.sin() * r, cy - angle.cos() * r);
-    if labelled && props.radial.grid {
-        let levels = props.radial.grid_levels.max(1);
-        for level in 1..=levels {
-            let r = radius * level as f64 / levels as f64;
-            for k in 0..categories {
-                grid_segment(text, at(spokes[k], r), at(spokes[(k + 1) % categories], r));
-            }
+    let spokes = spoke_angles(categories);
+    let at = |angle: f64, r: f64| polar::at((cx, cy), angle, r);
+    // The grid belongs to the large size class (CHT-024).
+    if class.has_grid() && props.radial.grid {
+        PolarGrid {
+            center: (cx, cy),
+            radius,
+            spokes: spokes.clone(),
+            levels: props.radial.grid_levels,
         }
-        for angle in &spokes {
-            grid_segment(text, (cx, cy), at(*angle, radius));
-        }
+        .draw(text, "·");
     }
     for (order, (s, data)) in series.iter().enumerate() {
         let vertices: Vec<(f64, f64)> = (0..categories)
@@ -122,7 +126,8 @@ pub(super) fn radar(
             Some(token) => Some(super::color(token).or(color)),
             None => Some(color),
         };
-        if order > 0 {
+        // Only a series that fills lies over the strokes before it.
+        if order > 0 && fill.is_some() {
             mask.clear_dots_inside(&vertices);
         }
         if let Some(fill) = fill {
@@ -150,7 +155,7 @@ pub(super) fn radar(
         for (k, label) in labels.iter().enumerate() {
             let (x, y) = at(spokes[k], radius + DOTS_Y as f64);
             let (col, row) = ((x / DOTS_X as f64) as usize, (y / DOTS_Y as f64) as usize);
-            let width = UnicodeWidthStr::width(label.as_str()).min(LABEL_WIDTH);
+            let width = UnicodeWidthStr::width(label.as_str()).min(widest_allowed);
             let sin = spokes[k].sin();
             let start = if sin > 0.2 {
                 col
@@ -171,25 +176,6 @@ pub(super) fn radar(
         outer: radius,
         slices: Vec::new(),
         spokes,
+        samples: mask.fill_blitter().cell_pixels(),
     });
-}
-
-/// Mark the cells a grid segment (dot units) crosses with the grid glyph,
-/// under the shapes.
-fn grid_segment(text: &mut TextLayer, a: (f64, f64), b: (f64, f64)) {
-    let steps = ((b.0 - a.0).abs().max((b.1 - a.1).abs()) * 2.0)
-        .ceil()
-        .max(1.0) as usize;
-    for step in 0..=steps {
-        let t = step as f64 / steps as f64;
-        let (x, y) = (a.0 + (b.0 - a.0) * t, a.1 + (b.1 - a.1) * t);
-        if x >= 0.0 && y >= 0.0 {
-            text.under(
-                (x / DOTS_X as f64) as usize,
-                (y / DOTS_Y as f64) as usize,
-                "·",
-                None,
-            );
-        }
-    }
 }

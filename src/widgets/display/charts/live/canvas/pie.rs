@@ -8,9 +8,11 @@
 //! slice stays in the legend.
 
 use super::super::super::mask::{MaskCanvas, DOTS_X, DOTS_Y};
-use super::super::super::plot::{LegendEntry, Rect, Rgba, ScaleLinear, SizeClass, TextSink};
+use super::super::super::plot::{
+    fit_label, LegendEntry, Rect, Rgba, ScaleLinear, SizeClass, TextSink,
+};
 use super::super::super::{ChartProps, ChartType};
-use super::{Job, Picture, RadialHit, TextLayer};
+use super::{Job, Picture, RadialHit, RadialSlice, TextLayer};
 use std::f64::consts::{PI, TAU};
 use unicode_width::UnicodeWidthStr;
 
@@ -100,20 +102,44 @@ pub(super) fn pie(
     let props = job.props;
     let slices = slices(job);
     let total: f64 = slices.iter().map(|(_, _, v)| *v).sum();
+    if !total.is_finite() {
+        text.text(
+            area.x,
+            area.y,
+            area.w,
+            "Pie values must have a finite total",
+            None,
+        );
+        return;
+    }
     if total <= 0.0 {
         text.text(area.x, area.y, area.w, "No data to display", None);
         return;
     }
     let labelled = class != SizeClass::Mini;
+    // The large class shows each label in full with its value.
+    let label_text = |s: usize, i: usize| {
+        let label = slice_label(props, s, i);
+        if class == SizeClass::Large {
+            format!("{label} {}", props.series[s].data[i].value)
+        } else {
+            label
+        }
+    };
+    let widest_allowed = if class == SizeClass::Large {
+        usize::MAX
+    } else {
+        LABEL_WIDTH
+    };
     let gap = usize::from(props.radial.label_gap);
     // Columns kept free on each side for labels and their leaders.
     let reserve = if labelled {
         let widest = slices
             .iter()
-            .map(|(s, i, _)| UnicodeWidthStr::width(slice_label(props, *s, *i).as_str()))
+            .map(|(s, i, _)| UnicodeWidthStr::width(label_text(*s, *i).as_str()))
             .max()
             .unwrap_or(0)
-            .min(LABEL_WIDTH);
+            .min(widest_allowed);
         (widest + gap + 1).min(area.w / 4)
     } else {
         0
@@ -147,6 +173,7 @@ pub(super) fn pie(
         center: (cx, cy),
         inner,
         outer,
+        samples: mask.fill_blitter().cell_pixels(),
         ..RadialHit::default()
     };
     let mut labels = Vec::new();
@@ -161,7 +188,12 @@ pub(super) fn pie(
         };
         let tint = slice_color(props, order, slices.len(), *s, *i);
         mask.fill_sector(cx, cy, inner, outer, from, to, tint, Some((*s, *i)));
-        hit.slices.push((start, end, (*s, *i)));
+        hit.slices.push(RadialSlice {
+            start,
+            end,
+            key: (*s, *i),
+            color: tint,
+        });
         let mid = (start + end) / 2.0;
         let r = (inner + outer) / 2.0;
         picture.anchors.insert(
@@ -172,30 +204,60 @@ pub(super) fn pie(
             ),
         );
         if labelled && to > from {
-            labels.push((mid, slice_label(props, *s, *i), tint));
+            labels.push((mid, label_text(*s, *i), tint));
         }
         start = end;
     }
     picture.radial = Some(hit);
     if labelled {
-        place_labels(text, area, (cx, cy), outer, gap, labels);
+        place_labels(
+            text,
+            mask,
+            area,
+            (cx, cy),
+            outer,
+            gap,
+            widest_allowed,
+            labels,
+        );
     }
 }
 
 /// Place each slice's label beside the circle on the side its middle angle
-/// faces, on the row of the slice's outer edge or the nearest free row, and
-/// join it to the slice with a leader line.
+/// faces, on the row of the slice's outer edge or the nearest free row, cut
+/// to the columns left there, and join it to the slice with a leader line
+/// that starts past the slice's last painted cell on its row.
+#[allow(clippy::too_many_arguments)]
 fn place_labels(
     text: &mut TextLayer,
+    mask: &MaskCanvas,
     area: Rect,
     (cx, cy): (f64, f64),
     outer: f64,
     gap: usize,
+    widest_allowed: usize,
     labels: Vec<(f64, String, Option<Rgba>)>,
 ) {
+    let row_end = area.y + area.h;
+    let col_end = area.x + area.w;
+    let center_col = ((cx / DOTS_X as f64) as usize).clamp(area.x, col_end.saturating_sub(1));
+    // The first column past the painted cells on `row`, outward from the
+    // center on the label's side.
+    let edge = |row: usize, right: bool| -> usize {
+        if right {
+            (center_col..col_end)
+                .rev()
+                .find(|c| mask.is_painted(*c, row))
+                .map_or(center_col, |c| c + 1)
+        } else {
+            (area.x..=center_col)
+                .find(|c| mask.is_painted(*c, row))
+                .map_or(center_col, |c| c.saturating_sub(1))
+        }
+    };
     let (left_edge, right_edge) = (
         ((cx - outer) / DOTS_X as f64).floor().max(area.x as f64) as usize,
-        (((cx + outer) / DOTS_X as f64).ceil() as usize).min(area.x + area.w),
+        (((cx + outer) / DOTS_X as f64).ceil() as usize).min(col_end),
     );
     let mut taken = [Vec::new(), Vec::new()];
     for (mid, label, color) in labels {
@@ -203,55 +265,59 @@ fn place_labels(
         let side = usize::from(right);
         let anchor_row = ((cy - mid.cos() * outer) / DOTS_Y as f64)
             .floor()
-            .clamp(area.y as f64, (area.y + area.h).saturating_sub(1) as f64)
+            .clamp(area.y as f64, row_end.saturating_sub(1) as f64)
             as usize;
-        let width = UnicodeWidthStr::width(label.as_str()).min(LABEL_WIDTH);
-        let column = if right {
-            right_edge + gap
-        } else {
-            left_edge.saturating_sub(gap + width)
-        };
-        if width == 0
-            || (right && column + width > area.x + area.w)
-            || (!right && (left_edge < gap + width || column < area.x))
-        {
-            continue;
-        }
         // The nearest free row to the anchor, alternating below and above.
         let Some(row) = (0..area.h)
             .flat_map(|d| [anchor_row + d, anchor_row.wrapping_sub(d)])
-            .find(|row| (area.y..area.y + area.h).contains(row) && !taken[side].contains(row))
+            .find(|row| (area.y..row_end).contains(row) && !taken[side].contains(row))
         else {
             continue;
         };
+        // The label starts `gap` columns past the circle and takes what is
+        // left of the row on its side, cut with an ellipsis when too long.
+        let room = if right {
+            col_end.saturating_sub(right_edge + gap)
+        } else {
+            left_edge.saturating_sub(area.x + gap)
+        };
+        let full = UnicodeWidthStr::width(label.as_str()).min(widest_allowed);
+        let width = full.min(room);
+        if width < 2 {
+            continue;
+        }
+        let shown = fit_label(&label, width);
+        let column = if right {
+            right_edge + gap
+        } else {
+            left_edge - gap - width
+        };
         taken[side].push(row);
-        text.text(column, row, width, &label, color);
-        leader(text, (cx, cy), outer, right, anchor_row, row, column, width);
+        text.text(column, row, width, &shown, color);
+        leader(
+            text,
+            edge(anchor_row, right),
+            right,
+            anchor_row,
+            row,
+            column,
+            width,
+        );
     }
 }
 
-/// The leader from the circle's edge on `anchor_row` to the label on `row`:
-/// a horizontal run, and a bend down or up when the label moved rows.
-#[allow(clippy::too_many_arguments)]
+/// The leader from `edge`, the first unpainted column past the slice on
+/// `anchor_row`, to the label on `row`: a horizontal run, and a bend down
+/// or up when the label moved rows.
 fn leader(
     text: &mut TextLayer,
-    (cx, cy): (f64, f64),
-    outer: f64,
+    edge: usize,
     right: bool,
     anchor_row: usize,
     row: usize,
     column: usize,
     width: usize,
 ) {
-    // The first column outside the circle on the anchor row, on the
-    // label's side.
-    let dy = (anchor_row as f64 + 0.5) * DOTS_Y as f64 - cy;
-    let half = (outer * outer - dy * dy).max(0.0).sqrt();
-    let edge = if right {
-        ((cx + half) / DOTS_X as f64).floor() as usize + 1
-    } else {
-        ((cx - half) / DOTS_X as f64).ceil().max(1.0) as usize - 1
-    };
     let near = if right {
         column.saturating_sub(1)
     } else {
