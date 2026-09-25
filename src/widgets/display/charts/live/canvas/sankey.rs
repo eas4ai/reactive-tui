@@ -284,15 +284,24 @@ pub(super) fn sankey(
         colors: colors.clone(),
         samples: (pw, ph),
     };
+    // Only a node whose fill set a sample is drawn: the pointer, the keys
+    // and the labels reach drawn nodes alone, so the reveal's hidden nodes
+    // are neither selectable nor labeled (CHT-032).
+    let mut drawn = vec![false; count];
     for node in &graph.nodes {
         // A node too small for one fill pixel keeps one.
         let bottom = node.y1.max(node.y0 + pixel);
-        mask.fill_where(
+        drawn[node.index] = mask.fill_where(
             (node.x0, node.y0, node.x1, bottom),
             colors[node.index],
             Some((0, node.index)),
             |_, _| true,
-        );
+        ) > 0;
+        if !drawn[node.index] {
+            // An empty rectangle, so the pointer never lands on it.
+            hit.nodes.push((node.x0, node.y0, node.x0, node.y0));
+            continue;
+        }
         hit.nodes.push((node.x0, node.y0, node.x1, bottom));
         picture.anchors.insert(
             (0, node.index),
@@ -302,7 +311,7 @@ pub(super) fn sankey(
             ),
         );
     }
-    hit.order = (0..count).collect();
+    hit.order = (0..count).filter(|index| drawn[*index]).collect();
     hit.order.sort_by(|a, b| {
         let (na, nb) = (&graph.nodes[*a], &graph.nodes[*b]);
         na.layer.cmp(&nb.layer).then(na.y0.total_cmp(&nb.y0))
@@ -310,7 +319,7 @@ pub(super) fn sankey(
     picture.sankey = Some(hit);
     for node in &graph.nodes {
         let lines = &lines[node.index];
-        if lines.is_empty() {
+        if lines.is_empty() || !drawn[node.index] {
             continue;
         }
         let (left_col, right_col) = (
