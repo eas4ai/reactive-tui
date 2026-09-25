@@ -1670,6 +1670,41 @@ fn cht_032_the_tooltip_sits_beside_its_node_not_over_it() {
     }
 }
 
+/// CHT-032: while the reveal has not drawn a node yet, neither a key nor
+/// the pointer selects it, and its label does not show.
+#[test]
+fn cht_032_nodes_the_reveal_has_not_drawn_are_not_selectable() {
+    let size = (80u16, 24u16);
+    let plain = radial_run(sankey_chart(size), size, vec![(2, None)])
+        .pop()
+        .unwrap();
+    // A ten-minute reveal draws nothing in the frames the test sees.
+    let revealing = || {
+        let mut p = sankey_chart(size);
+        p.animated = true;
+        p.animation_duration = 600_000;
+        p
+    };
+    let (r, c) = node_cells(&plain, 3)[0];
+    for (how, events) in [
+        ("End", vec![(2, app_input::key(KeyCode::End)), (3, None)]),
+        ("the pointer", vec![(2, hover(c, r)), (3, None)]),
+    ] {
+        let frame = radial_run(revealing(), size, events).pop().unwrap();
+        assert_eq!(
+            announced(&frame),
+            None,
+            "{how} must not select a node the reveal has not drawn:\n{}",
+            frame.text
+        );
+        assert!(
+            !SANKEY_NAMES.iter().any(|name| frame.text.contains(name)),
+            "no label shows before its node is drawn:\n{}",
+            frame.text
+        );
+    }
+}
+
 /// CHT-032: Left, Right, Home and End step through the nodes column by
 /// column and, within a column, from top to bottom.
 #[test]
