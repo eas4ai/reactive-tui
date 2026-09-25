@@ -1044,13 +1044,183 @@ fn cht_017_utility_color_tokens_resolve_identically_in_charts() {
     }
 }
 
-/// Frames of a radial chart after `events`, focused so keys reach it.
+/// Frames of a radial chart after `events`, focused so keys reach it, with
+/// the fill blitter fixed at sextant so the frames do not depend on the host.
 fn radial_run(
     p: ChartProps,
     size: (u16, u16),
     events: Vec<(usize, Option<Event>)>,
 ) -> Vec<Snapshot> {
+    static CLEARED: std::sync::Once = std::sync::Once::new();
+    CLEARED.call_once(|| std::env::remove_var("REACTIVE_TUI_BLITTER"));
+    reactive_tui::widgets::display::set_image_blitter(Some(
+        reactive_tui::widgets::display::Blitter::Sextant,
+    ));
     app_input::run(Root(Element::typed::<Chart>(p).auto_focus()), size, events)
+}
+
+/// Whether a cell shows a radial shape: a block, sextant or octant glyph.
+fn is_fill(frame: &Snapshot, row: u16, col: u16) -> bool {
+    frame.screen.cell(row, col).is_some_and(|cell| {
+        cell.contents().chars().next().is_some_and(|c| {
+            "█▌▐▀▄▖▗▘▝▙▚▛▜▞▟".contains(c)
+                || ('\u{1FB00}'..='\u{1FB3B}').contains(&c)
+                || ('\u{1CD00}'..='\u{1CDE5}').contains(&c)
+        })
+    })
+}
+
+/// CHT-031: keys step through every drawn slice of a pie in order, across
+/// series and past a point whose zero value draws no slice.
+#[test]
+fn cht_031_keys_reach_every_drawn_slice_across_series() {
+    let size = (40u16, 12u16);
+    let named = |name: &str, values: &[f64], prefix: &str| {
+        DataSeries::new(
+            name,
+            values
+                .iter()
+                .enumerate()
+                .map(|(i, v)| DataPoint::with_label(*v, format!("{prefix}{i}")))
+                .collect(),
+        )
+    };
+    let mut p = props(ChartType::Pie, size, &[]);
+    p.series = vec![
+        named("a", &[3.0, 0.0, 2.0], "a"),
+        named("b", &[1.0, 2.0], "b"),
+    ];
+    let selected = |keys: &[KeyCode]| {
+        let mut events: Vec<(usize, Option<Event>)> = keys
+            .iter()
+            .enumerate()
+            .map(|(i, k)| (i + 2, app_input::key(k.clone())))
+            .collect();
+        events.push((keys.len() + 2, None));
+        let frame = radial_run(p.clone(), size, events).pop().unwrap();
+        ["a0", "a1", "a2", "b0", "b1"]
+            .into_iter()
+            .filter(|label| frame.text.contains(&format!("{label}:")))
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(
+        selected(&[KeyCode::Right]),
+        vec!["a0"],
+        "Right selects the first slice"
+    );
+    assert_eq!(
+        selected(&[KeyCode::Right, KeyCode::Right]),
+        vec!["a2"],
+        "Right skips a point whose zero value draws no slice"
+    );
+    assert_eq!(
+        selected(&[KeyCode::Right, KeyCode::Right, KeyCode::Right]),
+        vec!["b0"],
+        "Right moves on into the next series"
+    );
+    assert_eq!(
+        selected(&[KeyCode::End]),
+        vec!["b1"],
+        "End selects the last slice of the last series"
+    );
+}
+
+/// CHT-031 and CHT-018: a pie's tooltip names the selected slice alone with
+/// a swatch in that slice's color, and the selection is marked on the chart
+/// outside the tooltip box.
+#[test]
+fn cht_031_the_selected_slice_is_marked_and_its_swatch_takes_its_color() {
+    let size = (40u16, 12u16);
+    let p = props(ChartType::Pie, size, &[1.0, 1.0, 1.0, 1.0]);
+    let plain = radial_run(p.clone(), size, vec![(2, None)]).pop().unwrap();
+    let frame = radial_run(p, size, vec![(2, hover(14, 9)), (3, None)])
+        .pop()
+        .unwrap();
+    let (r, g, b, _) = reactive_tui::theme::Theme::active()
+        .resolve_color("chart-3")
+        .unwrap();
+    let rgb = |v: f32| (v * 255.0).round() as u8;
+    let swatch = (0..size.1)
+        .flat_map(|row| (0..size.0).map(move |col| (row, col)))
+        .find(|(row, col)| cell_is(&frame, *row, *col, "■"))
+        .expect("the tooltip draws a swatch");
+    match frame.screen.cell(swatch.0, swatch.1).unwrap().fgcolor() {
+        vt100::Color::Rgb(sr, sg, sb) => assert!(
+            sr.abs_diff(rgb(r)) <= 2 && sg.abs_diff(rgb(g)) <= 2 && sb.abs_diff(rgb(b)) <= 2,
+            "the swatch must take slice 2's color, chart-3, got ({sr}, {sg}, {sb})"
+        ),
+        other => panic!("the swatch has no color: {other:?}"),
+    }
+    assert!(
+        !frame.text.contains("p0:") && !frame.text.contains("p1:") && !frame.text.contains("p3:"),
+        "the tooltip names only the selected slice:\n{}",
+        frame.text
+    );
+    let marked = |f: &Snapshot| {
+        (0..size.1)
+            .flat_map(|row| (0..size.0).map(move |col| (row, col)))
+            .filter(|(row, col)| cell_is(f, *row, *col, "·"))
+            .count()
+    };
+    assert!(
+        marked(&frame) > marked(&plain),
+        "a selected slice must be marked on the chart outside the tooltip:\n{}",
+        frame.text
+    );
+}
+
+/// CHT-031: every cell that shows a slice at the circle's rim selects a
+/// slice, and a pointer just outside the circle, inside its bounding
+/// square, or near the rim of a donut's hole, selects nothing.
+#[test]
+fn cht_031_rim_cells_select_and_the_bounding_square_and_hole_do_not() {
+    let size = (40u16, 12u16);
+    let p = props(ChartType::Pie, size, &[1.0, 1.0, 1.0, 1.0]);
+    let plain = radial_run(p.clone(), size, vec![(2, None)]).pop().unwrap();
+    let rim: Vec<(u16, u16)> = (0..size.1)
+        .flat_map(|row| (0..size.0).map(move |col| (row, col)))
+        .filter(|(row, col)| is_fill(&plain, *row, *col))
+        .filter(|(row, col)| {
+            [
+                (row.wrapping_sub(1), *col),
+                (row + 1, *col),
+                (*row, col.wrapping_sub(1)),
+                (*row, col + 1),
+            ]
+            .iter()
+            .any(|(r, c)| !is_fill(&plain, *r, *c))
+        })
+        .collect();
+    assert!(rim.len() > 10, "the pie has a rim:\n{}", plain.text);
+    for (row, col) in rim {
+        let frame = radial_run(p.clone(), size, vec![(2, hover(col, row)), (3, None)])
+            .pop()
+            .unwrap();
+        assert!(
+            (0..4).any(|i| frame.text.contains(&format!("p{i}:"))),
+            "the painted rim cell ({col}, {row}) must select its slice:\n{}",
+            frame.text
+        );
+    }
+    // Inside the circle's bounding square but outside the circle, and near
+    // the inner rim of a donut's hole (half the radius).
+    for (kind, col, row) in [
+        (ChartType::Pie, 9u16, 1u16),
+        (ChartType::Pie, 30, 10),
+        (ChartType::Donut, 15, 5),
+        (ChartType::Donut, 23, 6),
+    ] {
+        let p = props(kind.clone(), size, &[1.0, 1.0, 1.0, 1.0]);
+        let plain = radial_run(p.clone(), size, vec![(2, None)]).pop().unwrap();
+        let pointed = radial_run(p, size, vec![(2, hover(col, row)), (3, None)])
+            .pop()
+            .unwrap();
+        assert_eq!(
+            plain.text, pointed.text,
+            "{kind:?}: a pointer at ({col}, {row}) must select nothing:\n{}",
+            pointed.text
+        );
+    }
 }
 
 /// CHT-031: a pointer inside a pie slice selects that slice, clockwise from
