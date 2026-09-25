@@ -107,7 +107,13 @@ impl View {
             worker.observe();
             if let Some(response) = worker.take() {
                 if self.request == Some(response.id) {
-                    self.pending = false;
+                    // A request sent before the image knew its size decodes
+                    // the pixels but draws no cells, so the area stays empty
+                    // until the request its first layout sends is answered
+                    // (BAR-003).
+                    self.pending = self.layout.is_none()
+                        && response.cells.is_none()
+                        && response.result.is_ok();
                     self.ascii = None;
                     self.cells = response.cells;
                     match response.result {
@@ -297,6 +303,72 @@ mod tests {
                 cells: None,
             }),
         }
+    }
+
+    /// Whether the image's rendered root is marked busy.
+    fn busy(image: &LiveImage, props: &LiveProps) -> bool {
+        image
+            .render(props, &())
+            .metadata
+            .accessibility
+            .as_ref()
+            .is_some_and(|node| node.is_busy())
+    }
+
+    /// Calls `receive` until `done` holds for the view, failing after a hang
+    /// guard rather than a timing bound.
+    fn receive_until(image: &mut LiveImage, done: impl Fn(&View) -> bool) {
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
+        let view = image.view.get_mut().unwrap();
+        view.receive();
+        while !done(view) {
+            assert!(
+                std::time::Instant::now() < deadline,
+                "the image worker did not answer"
+            );
+            std::thread::sleep(std::time::Duration::from_millis(1));
+            view.receive();
+        }
+    }
+
+    /// BAR-003: until the worker has drawn the picture at the image's size,
+    /// the area is empty and the node is busy. The first request goes out
+    /// before the image knows its size, so its answer decodes the pixels
+    /// but draws no cells; the image stays busy until its first layout's
+    /// request is answered, and only then is a frame that is not busy one
+    /// that shows the picture.
+    #[test]
+    fn bar_003_an_image_decoded_before_its_first_layout_stays_busy_until_drawn() {
+        let mut props = LiveProps {
+            image: Arc::new(Image {
+                source: ImageSource::RawBytes {
+                    data: [[220u8, 40, 40], [40, 40, 220]].repeat(8).concat(),
+                    width: 4,
+                    height: 4,
+                    format: ImageFormat::RGB888,
+                },
+                display_mode: ImageDisplayMode::AsciiArt,
+                ..Image::default()
+            }),
+            format: None,
+        };
+        let mut image = LiveImage::new(props.clone());
+        receive_until(&mut image, |view| view.pixels.is_some());
+        assert!(
+            image.view.get_mut().unwrap().cells.is_none(),
+            "no cells are drawn before the image knows its size"
+        );
+        assert!(
+            busy(&image, &props),
+            "an image with nothing drawn yet must be busy"
+        );
+        let bounds = crate::event::hit::Bounds::new(0.0, 0.0, 8.0, 4.0);
+        image.layout(LayoutInfo::from_bounds(bounds), &mut props, &mut ());
+        receive_until(&mut image, |view| view.cells.is_some());
+        assert!(
+            !busy(&image, &props),
+            "the image drew its picture, so it is no longer busy"
+        );
     }
 
     /// BAR-003: the image's screen-reader node describes its state, marks
