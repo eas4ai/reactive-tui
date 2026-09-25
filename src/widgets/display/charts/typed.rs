@@ -4,19 +4,27 @@
 //! `alignment`, `label`, `grid`, and for candlesticks `open`, `high`, `low`
 //! and `close`. The pie, donut and radar builders take the reference's own
 //! names (CHT-029): `value`, `label`, `color`, `inner_radius`,
-//! `outer_radius`, `pad_angle` and `label_gap`, and for radar `stroke`,
-//! `fill`, `dot`, `grid`, `grid_levels` and `max_value`. The closures run
+//! `outer_radius`, `pad_angle` and `label_gap`, for radar `stroke`,
+//! `fill`, `dot`, `grid`, `grid_levels` and `max_value`, and for Sankey
+//! `new(nodes, links)`, `value_scale`, `node_align`, `iterations`,
+//! `node_width`, `node_padding`, `node_color`, `node_label`, `value_label`,
+//! `labels`, `link_opacity`, `min_link_width` and `label_gap`. The closures run
 //! once at `build()`; the resulting [`ChartProps`] hold plain data points and
 //! stay comparable.
 
 use super::{
     BarGrowth, ChartAxis, ChartProps, ChartType, ChartsBuilder, Curve, DataPoint, DataSeries,
-    RadialOptions, SizeClass,
+    RadialOptions, SankeyAlign, SankeyLabel, SankeyLink, SankeyOptions, SankeyValueScale,
+    SizeClass,
 };
 use crate::component::Element;
 
 type Label<T> = Box<dyn Fn(&T) -> String>;
 type Value<T> = Box<dyn Fn(&T) -> f64>;
+/// A Sankey node's text from the node and its throughput.
+type ValueText<T> = Box<dyn Fn(&T, f64) -> String>;
+/// A Sankey node's label lines from the node and its throughput.
+type LabelLines<T> = Box<dyn Fn(&T, f64) -> Vec<SankeyLabel>>;
 
 /// Options every typed builder shares.
 struct Common {
@@ -843,6 +851,183 @@ impl<T> DonutChartBuilder<T> {
     }
 }
 
+/// A Sankey chart over `Vec<T>` nodes and the links between them, by node
+/// index (CHT-029, CHT-030).
+pub struct SankeyChartBuilder<T> {
+    common: Common,
+    nodes: Vec<T>,
+    name: Option<String>,
+    node_color: Option<Label<T>>,
+    node_label: Option<Label<T>>,
+    value_label: Option<ValueText<T>>,
+    labels: Option<LabelLines<T>>,
+    sankey: SankeyOptions,
+}
+
+impl<T> SankeyChartBuilder<T> {
+    /// A Sankey chart of `nodes` and `links`; a link names its source and
+    /// target by their index in `nodes`.
+    pub fn new(
+        nodes: impl IntoIterator<Item = T>,
+        links: impl IntoIterator<Item = SankeyLink>,
+    ) -> Self {
+        Self {
+            common: Common::new(ChartType::Sankey),
+            nodes: nodes.into_iter().collect(),
+            name: None,
+            node_color: None,
+            node_label: None,
+            value_label: None,
+            labels: None,
+            sankey: SankeyOptions {
+                links: links.into_iter().collect(),
+                ..SankeyOptions::default()
+            },
+        }
+    }
+
+    common_methods!();
+
+    /// How values map to node heights and link widths.
+    pub fn value_scale(mut self, scale: SankeyValueScale) -> Self {
+        self.sankey.value_scale = scale;
+        self
+    }
+
+    /// Which column each node takes.
+    pub fn node_align(mut self, align: SankeyAlign) -> Self {
+        self.sankey.node_align = align;
+        self
+    }
+
+    /// Relaxation passes that move nodes toward their flows.
+    pub fn iterations(mut self, iterations: usize) -> Self {
+        self.sankey.iterations = iterations;
+        self
+    }
+
+    /// Node width in columns.
+    pub fn node_width(mut self, columns: u16) -> Self {
+        self.sankey.node_width = columns;
+        self
+    }
+
+    /// Rows between the nodes of a column.
+    pub fn node_padding(mut self, rows: u16) -> Self {
+        self.sankey.node_padding = rows;
+        self
+    }
+
+    /// Node color token accessor; unset nodes take the palette in order.
+    pub fn node_color<S: Into<String>>(mut self, color: impl Fn(&T) -> S + 'static) -> Self {
+        self.node_color = Some(Box::new(move |d| color(d).into()));
+        self
+    }
+
+    /// Node name accessor, shown beside the node and in the tooltip.
+    pub fn node_label<S: Into<String>>(mut self, label: impl Fn(&T) -> S + 'static) -> Self {
+        self.node_label = Some(Box::new(move |d| label(d).into()));
+        self
+    }
+
+    /// Throughput text accessor, given the node and its throughput (the
+    /// larger of its incoming and outgoing totals).
+    pub fn value_label<S: Into<String>>(mut self, label: impl Fn(&T, f64) -> S + 'static) -> Self {
+        self.value_label = Some(Box::new(move |d, v| label(d, v).into()));
+        self
+    }
+
+    /// The whole label beside a node, as styled lines, given the node and
+    /// its throughput; it replaces the name and throughput lines.
+    pub fn labels(mut self, labels: impl Fn(&T, f64) -> Vec<SankeyLabel> + 'static) -> Self {
+        self.labels = Some(Box::new(labels));
+        self
+    }
+
+    /// How much of its color a ribbon keeps over the background, 0 to 1.
+    pub fn link_opacity(mut self, opacity: f32) -> Self {
+        self.sankey.link_opacity = opacity;
+        self
+    }
+
+    /// The narrowest a ribbon is drawn, in rows.
+    pub fn min_link_width(mut self, rows: f32) -> Self {
+        self.sankey.min_link_width = rows;
+        self
+    }
+
+    /// Columns between a first- or last-layer node and its label.
+    pub fn label_gap(mut self, columns: u16) -> Self {
+        self.sankey.label_gap = columns;
+        self
+    }
+
+    /// Name of the node series, in the accessibility description.
+    pub fn name(mut self, name: impl Into<String>) -> Self {
+        self.name = Some(name.into());
+        self
+    }
+
+    /// Evaluate the accessors into props. Each node's throughput is the
+    /// larger of its raw incoming and outgoing totals.
+    pub fn build(self) -> ChartProps {
+        let (mut incoming, mut outgoing) =
+            (vec![0.0; self.nodes.len()], vec![0.0; self.nodes.len()]);
+        for link in &self.sankey.links {
+            if let Some(total) = outgoing.get_mut(link.source) {
+                *total += link.value;
+            }
+            if let Some(total) = incoming.get_mut(link.target) {
+                *total += link.value;
+            }
+        }
+        let throughput: Vec<f64> = incoming
+            .iter()
+            .zip(&outgoing)
+            .map(|(i, o): (&f64, &f64)| i.max(*o))
+            .collect();
+        let data = self
+            .nodes
+            .iter()
+            .enumerate()
+            .map(|(i, d)| {
+                let mut point = DataPoint::new(throughput[i]);
+                point.label = Some(
+                    self.node_label
+                        .as_ref()
+                        .map_or_else(|| i.to_string(), |f| f(d)),
+                );
+                point.color = self.node_color.as_ref().map(|f| f(d));
+                point
+            })
+            .collect();
+        let mut sankey = self.sankey;
+        if let Some(label) = &self.value_label {
+            sankey.value_labels = self
+                .nodes
+                .iter()
+                .zip(&throughput)
+                .map(|(d, v)| label(d, *v))
+                .collect();
+        }
+        if let Some(labels) = &self.labels {
+            sankey.labels = self
+                .nodes
+                .iter()
+                .zip(&throughput)
+                .map(|(d, v)| labels(d, *v))
+                .collect();
+        }
+        let series = DataSeries::new(self.name.unwrap_or_else(|| "nodes".into()), data);
+        let mut common = self.common;
+        common.x_axis = false;
+        let mut props = common.finish(vec![series]);
+        props.legend.visible = false;
+        props.sankey = sankey;
+        props
+    }
+}
+
 /// A radar chart over `Vec<T>`: one spoke per item, one polygon per
 /// `value` accessor.
 pub struct RadarChartBuilder<T> {
@@ -1042,6 +1227,81 @@ mod tests {
         assert!(candle.is_bullish());
         assert_eq!(candle.high, 2.5);
         assert!(!candles.series[0].data[1].candle.unwrap().is_bullish());
+    }
+
+    /// CHT-029: the Sankey builder evaluates its accessors once at build,
+    /// into node points, throughput texts and label lines, and stores its
+    /// options; the props hold no closure.
+    #[test]
+    fn the_sankey_builder_evaluates_its_accessors() {
+        let links =
+            [(0, 1, 3.0), (0, 2, 1.0), (2, 1, 0.5)].map(|(s, t, v)| SankeyLink::new(s, t, v));
+        let props = SankeyChartBuilder::new(["in", "out", "via"], links)
+            .node_label(|n: &&str| n.to_uppercase())
+            .node_color(|n: &&str| if *n == "in" { "chart-2" } else { "chart-3" })
+            .value_label(|n: &&str, v| format!("{n}={v}"))
+            .labels(|n: &&str, v| {
+                if *n == "via" {
+                    vec![SankeyLabel::new(format!("via {v}")).color("chart-4")]
+                } else {
+                    Vec::new()
+                }
+            })
+            .value_scale(SankeyValueScale::Sqrt)
+            .node_align(SankeyAlign::Left)
+            .iterations(3)
+            .node_width(3)
+            .node_padding(2)
+            .link_opacity(0.5)
+            .min_link_width(0.5)
+            .label_gap(2)
+            .name("flows")
+            .build();
+        assert_eq!(props.chart_type, ChartType::Sankey);
+        assert_eq!(props.series[0].name, "flows");
+        let nodes = &props.series[0].data;
+        // Throughput: the larger of the raw incoming and outgoing totals.
+        assert_eq!(
+            nodes.iter().map(|p| p.value).collect::<Vec<_>>(),
+            vec![4.0, 3.5, 1.0]
+        );
+        assert_eq!(nodes[1].label.as_deref(), Some("OUT"));
+        assert_eq!(nodes[0].color.as_deref(), Some("chart-2"));
+        assert_eq!(nodes[2].color.as_deref(), Some("chart-3"));
+        let sankey = &props.sankey;
+        assert_eq!(sankey.value_labels, vec!["in=4", "out=3.5", "via=1"]);
+        assert!(sankey.labels[0].is_empty());
+        assert_eq!(
+            sankey.labels[2],
+            vec![SankeyLabel::new("via 1").color("chart-4")]
+        );
+        assert_eq!(sankey.links.len(), 3);
+        assert_eq!(
+            (
+                sankey.value_scale,
+                sankey.node_align,
+                sankey.iterations,
+                sankey.node_width,
+                sankey.node_padding,
+                sankey.link_opacity,
+                sankey.min_link_width,
+                sankey.label_gap,
+            ),
+            (
+                SankeyValueScale::Sqrt,
+                SankeyAlign::Left,
+                3,
+                3,
+                2,
+                0.5,
+                0.5,
+                2
+            )
+        );
+        assert!(
+            !props.legend.visible,
+            "a Sankey chart's labels name its nodes"
+        );
     }
 
     #[test]

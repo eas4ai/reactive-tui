@@ -145,6 +145,41 @@ polygons and the spokes are drawn under the shapes, `.grid(false)` hides
 them, and each spoke's label sits at its end. The pointer selects the
 category of the nearest spoke and nothing outside the outer radius.
 
+### Sankey chart
+
+`SankeyChartBuilder::new(nodes, links)` draws flows between nodes. Each link
+is `SankeyLink::new(source, target, value)`, naming its nodes by their index
+in `nodes`. Nodes sit in columns: `.node_align(SankeyAlign::Justify)`, the
+default, puts every sink in the last column, and `Left`, `Right` and
+`Center` follow d3-sankey. A node is as tall as the larger of its incoming
+and outgoing totals, and each link is a ribbon as wide as its value at both
+ends, stacked at each node without overlap. `.value_scale(SankeyValueScale::Sqrt)`
+maps values through their square root so a large flow does not dwarf the
+small ones, and `.iterations(6)` sets how many passes move the nodes toward
+their flows. `.node_width(2)` is in columns and `.node_padding(1)` in rows;
+`.min_link_width(0.25)`, in rows, keeps thin flows visible.
+
+A ribbon is shaded from its source node's color to its target's and blended
+toward the chart background by `.link_opacity(0.3)`. Where two ribbons
+cross, the later one covers the earlier, since a cell cannot layer
+translucent colors; a ribbon that skips a column is drawn under the ribbons
+that end at the nodes it passes. `.node_color(|n| ..)` gives each node a
+color token; unset nodes take the palette in order.
+
+At the medium and large size classes each node's label sits beside it: a
+first-column node's on its left, a last-column node's on its right,
+`.label_gap(1)` columns away, and any other node's centered above it. The
+label is `.node_label(|n| n.name)`, cut to fit; the large class adds the
+throughput, which `.value_label(|n, v| ..)` can format. `.labels(|n, v| ..)`
+replaces the label with lines of `SankeyLabel::new(text)`, each with an
+optional `.color(`. A link that names a missing node, or links that form a
+cycle, show an error message instead of shapes.
+
+The pointer selects the node under it, and nothing over a ribbon or empty
+space. Left, Right, Home and End step through the nodes column by column,
+top to bottom. The selected node's links keep their opacity while the rest
+fade, and the tooltip names the node and its throughput.
+
 ### Size classes
 
 Every chart picks a size class from its rectangle, and `.size_class(` forces

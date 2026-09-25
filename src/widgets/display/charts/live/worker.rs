@@ -19,6 +19,7 @@ pub(super) struct Job {
     pub height: usize,
     pub values: Arc<Vec<Vec<f64>>>,
     pub progress: f64,
+    pub selected: Option<(usize, usize)>,
 }
 
 #[derive(Default)]
@@ -149,6 +150,7 @@ fn run(shared: Arc<Shared>) {
             values: &job.values,
             progress: job.progress,
             unicode_glyphs: crate::widgets::display::charts::glyph_support(),
+            selected: job.selected,
         });
         let mut slots = shared.slots.lock().unwrap_or_else(|e| e.into_inner());
         slots.response = Some((job.id, Arc::new(picture)));

@@ -1,5 +1,5 @@
-//! charts-goldens mechanism: CHT-012, CHT-013, CHT-014, CHT-023, CHT-024,
-//! CHT-025, CHT-026, CHT-027, CHT-028 and BAR-004.
+//! charts-goldens mechanism: CHT-012, CHT-013, CHT-014, CHT-015, CHT-016,
+//! CHT-023, CHT-024, CHT-025, CHT-026, CHT-027, CHT-028, CHT-030 and BAR-004.
 //!
 //! Goldens live in `tests/snapshots/charts/<type>_<class>.ansi` and hold the
 //! text grid followed by a digest of every cell's colors, so a diff is
@@ -14,6 +14,7 @@ use reactive_tui::component::Element;
 use reactive_tui::event::types::{Event, ResizeEvent};
 use reactive_tui::widgets::display::{
     Chart, ChartAxis, ChartLegend, ChartProps, ChartType, DataPoint, DataSeries,
+    SankeyChartBuilder, SankeyLink, SizeClass,
 };
 
 struct Root(Element);
@@ -513,6 +514,7 @@ fn cht_023_goldens_at_three_size_classes() {
         (ChartType::Pie, "pie"),
         (ChartType::Donut, "donut"),
         (ChartType::Radar, "radar"),
+        (ChartType::Sankey, "sankey"),
     ] {
         for (cls, size) in [
             ("mini", (20u16, 5u16)),
@@ -524,6 +526,9 @@ fn cht_023_goldens_at_three_size_classes() {
                 p.series = vec![candles(&data)];
                 p.y_axis.min = Some(0.0);
                 p.y_axis.max = Some(11.0);
+            }
+            if kind == ChartType::Sankey {
+                p = sankey_builder(size).build();
             }
             // Goldens render on the debug backend (CHT-023, BAR-004).
             let frame =
@@ -1536,5 +1541,411 @@ fn cht_016_radar_vertices_grid_levels_and_series_order() {
     assert!(
         !cells_showing(&layered, &colors[1..]).is_empty(),
         "the later series draws"
+    );
+}
+
+/// Energy flows for the Sankey tests and goldens: three sources, a middle
+/// node and three sinks, with one link that skips the middle column.
+const SANKEY_NODES: [&str; 7] = ["coal", "gas", "solar", "power", "industry", "homes", "loss"];
+const SANKEY_LINKS: [(usize, usize, f64); 7] = [
+    (0, 3, 4.0),
+    (1, 3, 3.0),
+    (2, 3, 2.0),
+    (1, 4, 2.0),
+    (3, 4, 3.0),
+    (3, 5, 5.0),
+    (3, 6, 1.0),
+];
+
+fn sankey_links(links: &[(usize, usize, f64)]) -> Vec<SankeyLink> {
+    links
+        .iter()
+        .map(|(s, t, v)| SankeyLink::new(*s, *t, *v))
+        .collect()
+}
+
+fn sankey_builder(size: (u16, u16)) -> SankeyChartBuilder<&'static str> {
+    SankeyChartBuilder::new(SANKEY_NODES, sankey_links(&SANKEY_LINKS))
+        .node_label(|n: &&str| *n)
+        .size(size.0, size.1)
+}
+
+fn sankey_frame(p: ChartProps, size: (u16, u16)) -> Snapshot {
+    fix_blitter();
+    app_input::run_when_painted_on_debug(Root(Element::typed::<Chart>(p)), size, 2)
+        .pop()
+        .unwrap()
+}
+
+/// Whether a cell shows a filled shape: a block or sextant glyph.
+fn is_fill_glyph(c: char) -> bool {
+    "█▌▐▀▄▖▗▘▝▙▚▛▜▞▟".contains(c) || ('\u{1FB00}'..='\u{1FB3B}').contains(&c)
+}
+
+/// A node's palette color: the palette in node order.
+fn node_rgb(index: usize) -> (u8, u8, u8) {
+    theme_color(&format!("chart-{}", index % 5 + 1))
+}
+
+/// `rgb` blended toward the background: `opacity` of the color.
+fn blended(rgb: (u8, u8, u8), opacity: f32) -> (u8, u8, u8) {
+    let bg = theme_color("background");
+    let mix = |c: u8, b: u8| {
+        let (c, b) = (f32::from(c) / 255.0, f32::from(b) / 255.0);
+        ((b + (c - b) * opacity).clamp(0.0, 1.0) * 255.0).round() as u8
+    };
+    (mix(rgb.0, bg.0), mix(rgb.1, bg.1), mix(rgb.2, bg.2))
+}
+
+/// Whether the cell's shape color is within `tolerance` of `rgb`.
+fn shows_near(frame: &Snapshot, r: u16, c: u16, rgb: (u8, u8, u8), tolerance: u8) -> bool {
+    let near = |color: vt100::Color| match color {
+        vt100::Color::Rgb(red, green, blue) => {
+            red.abs_diff(rgb.0) <= tolerance
+                && green.abs_diff(rgb.1) <= tolerance
+                && blue.abs_diff(rgb.2) <= tolerance
+        }
+        _ => false,
+    };
+    frame.screen.cell(r, c).is_some_and(|cell| {
+        let glyph = cell.contents().chars().next().is_some_and(is_fill_glyph);
+        near(cell.bgcolor()) || (glyph && near(cell.fgcolor()))
+    })
+}
+
+/// CHT-030: the layout gives each node the larger of its totals and each
+/// link its value under the chosen scale, links stack at a node without
+/// overlap, and the drawn nodes and ribbon ends lie where the layout puts
+/// them, within one fill pixel, the ribbon ends in their nodes' colors
+/// blended by the link opacity.
+#[test]
+fn cht_030_nodes_and_ribbons_take_their_values_under_the_scale() {
+    use reactive_tui::widgets::display::plot::{Sankey, SankeyGraph, SankeyValueScale};
+    let links = sankey_links(&SANKEY_LINKS);
+    let layout = |scale: SankeyValueScale| -> SankeyGraph {
+        Sankey::new()
+            .value_scale(scale)
+            .node_width(4.0)
+            .node_padding(4.0)
+            .snap_x(2.0)
+            .extent(0.0, 0.0, 160.0, 96.0)
+            .layout(SANKEY_NODES.len(), &links)
+            .unwrap()
+    };
+    for scale in [SankeyValueScale::Linear, SankeyValueScale::Sqrt] {
+        let graph = layout(scale);
+        let ky = graph.links[0].width / graph.links[0].value;
+        for (ribbon, link) in graph.links.iter().zip(&links) {
+            assert!(
+                (ribbon.value - scale.apply(link.value)).abs() < 1e-12
+                    && (ribbon.width - ribbon.value * ky).abs() < 1e-9,
+                "{scale:?}: link {} must be its value under the scale wide",
+                ribbon.index
+            );
+        }
+        for node in &graph.nodes {
+            let total = |side: &[usize]| side.iter().map(|l| graph.links[*l].value).sum::<f64>();
+            let larger = total(&node.source_links).max(total(&node.target_links));
+            assert!(
+                (node.value - larger).abs() < 1e-9
+                    && (node.y1 - node.y0 - larger * ky).abs() < 1e-6,
+                "{scale:?}: node {} must be its larger total tall",
+                node.index
+            );
+            for (side, source) in [(&node.source_links, true), (&node.target_links, false)] {
+                let mut spans: Vec<(f64, f64)> = side
+                    .iter()
+                    .map(|l| {
+                        let r = &graph.links[*l];
+                        let center = if source { r.y0 } else { r.y1 };
+                        (center - r.width / 2.0, center + r.width / 2.0)
+                    })
+                    .collect();
+                spans.sort_by(|a, b| a.0.total_cmp(&b.0));
+                assert!(
+                    spans.windows(2).all(|w| w[0].1 <= w[1].0 + 1e-9)
+                        && spans
+                            .iter()
+                            .all(|s| s.0 >= node.y0 - 1e-9 && s.1 <= node.y1 + 1e-9),
+                    "{scale:?}: the links at node {} must stack inside it without overlap: {spans:?}",
+                    node.index
+                );
+            }
+        }
+    }
+    // The drawn chart, with empty labels so the plot is the whole 80 by 24
+    // area (160 by 96 dots), matches the linear layout.
+    let size = (80u16, 24u16);
+    let frame = sankey_frame(
+        sankey_builder(size).node_label(|_| String::new()).build(),
+        size,
+    );
+    let graph = layout(SankeyValueScale::Linear);
+    let pixel = 4.0 / 3.0;
+    for node in &graph.nodes {
+        let rgb = node_rgb(node.index);
+        let cols = (node.x0 / 2.0) as u16..(node.x1 / 2.0) as u16;
+        for r in 0..size.1 {
+            let (top, bottom) = (f64::from(r) * 4.0, f64::from(r) * 4.0 + 4.0);
+            for c in cols.clone() {
+                if top >= node.y0 && bottom <= node.y1 {
+                    assert!(
+                        shows(&frame, r, c, rgb),
+                        "node {} must fill ({r}, {c}) inside its height:\n{}",
+                        node.index,
+                        frame.text
+                    );
+                } else if top >= node.y1 + pixel || bottom <= node.y0 - pixel {
+                    assert!(
+                        !shows(&frame, r, c, rgb),
+                        "node {} must not reach ({r}, {c}), a pixel past its height:\n{}",
+                        node.index,
+                        frame.text
+                    );
+                }
+            }
+        }
+    }
+    let mut ends = 0;
+    for ribbon in &graph.links {
+        let (source, target) = (&graph.nodes[ribbon.source], &graph.nodes[ribbon.target]);
+        for (col, center, rgb) in [
+            ((source.x1 / 2.0) as u16, ribbon.y0, node_rgb(ribbon.source)),
+            (
+                (target.x0 / 2.0) as u16 - 1,
+                ribbon.y1,
+                node_rgb(ribbon.target),
+            ),
+        ] {
+            let (top, bottom) = (
+                center - ribbon.width / 2.0 + 1.0,
+                center + ribbon.width / 2.0 - 1.0,
+            );
+            for r in 0..size.1 {
+                if f64::from(r) * 4.0 >= top && f64::from(r) * 4.0 + 4.0 <= bottom {
+                    ends += 1;
+                    assert!(
+                        shows_near(&frame, r, col, blended(rgb, 0.3), 8),
+                        "link {} must end at ({r}, {col}) in its node's color blended by the opacity:\n{}",
+                        ribbon.index,
+                        frame.text
+                    );
+                }
+            }
+        }
+    }
+    assert!(ends >= 8, "the ribbon ends are measured ({ends} cells)");
+}
+
+/// CHT-030: the node alignment and the value scale each change the layout
+/// of a graph where they apply.
+#[test]
+fn cht_030_alignment_and_value_scale_change_the_layout() {
+    use reactive_tui::widgets::display::plot::{Sankey, SankeyAlign, SankeyValueScale};
+    // D is a sink one step from the source: Justify puts it last, Left at
+    // its depth.
+    let links = sankey_links(&[(0, 1, 2.0), (1, 2, 2.0), (0, 3, 1.0)]);
+    let layer = |align| {
+        Sankey::new()
+            .node_align(align)
+            .extent(0.0, 0.0, 100.0, 100.0)
+            .layout(4, &links)
+            .unwrap()
+            .nodes[3]
+            .layer
+    };
+    assert_eq!(
+        (layer(SankeyAlign::Justify), layer(SankeyAlign::Left)),
+        (2, 1)
+    );
+    let size = (80u16, 24u16);
+    let drawn = |align, scale| {
+        sankey_frame(
+            SankeyChartBuilder::new(["A", "B", "C", "D"], links.clone())
+                .node_label(|n: &&str| *n)
+                .node_align(align)
+                .value_scale(scale)
+                .size(size.0, size.1)
+                .build(),
+            size,
+        )
+    };
+    let justify = drawn(SankeyAlign::Justify, SankeyValueScale::Linear);
+    assert_ne!(
+        justify.text,
+        drawn(SankeyAlign::Left, SankeyValueScale::Linear).text,
+        "Left must move the sink off the last column:\n{}",
+        justify.text
+    );
+    let lopsided = sankey_links(&[(0, 1, 9.0), (0, 2, 1.0)]);
+    let scaled = |scale| {
+        sankey_frame(
+            SankeyChartBuilder::new(["A", "B", "C"], lopsided.clone())
+                .node_label(|n: &&str| *n)
+                .value_scale(scale)
+                .size(size.0, size.1)
+                .build(),
+            size,
+        )
+    };
+    let linear = scaled(SankeyValueScale::Linear);
+    assert_ne!(
+        linear.text,
+        scaled(SankeyValueScale::Sqrt).text,
+        "the square-root scale must change the node heights:\n{}",
+        linear.text
+    );
+}
+
+/// CHT-030: at the medium class each node's label sits beside it, a
+/// first-layer node's on its left, a last-layer node's on its right and the
+/// middle node's above it; the large class adds the throughput; the mini
+/// class draws no label.
+#[test]
+fn cht_030_labels_sit_beside_their_nodes() {
+    let size = (80u16, 24u16);
+    let frame = sankey_frame(sankey_builder(size).build(), size);
+    let grid: Vec<Vec<char>> = frame.text.lines().map(|l| l.chars().collect()).collect();
+    let find = |name: &str| -> (usize, usize) {
+        let target: Vec<char> = name.chars().collect();
+        grid.iter()
+            .enumerate()
+            .find_map(|(r, line)| {
+                (0..line.len().saturating_sub(target.len() - 1))
+                    .find(|c| line[*c..*c + target.len()] == target[..])
+                    .map(|c| (r, c))
+            })
+            .unwrap_or_else(|| panic!("label {name} must be placed:\n{}", frame.text))
+    };
+    let fill_at = |r: usize, c: usize| {
+        grid.get(r)
+            .and_then(|l| l.get(c))
+            .is_some_and(|g| is_fill_glyph(*g))
+    };
+    for name in ["coal", "gas", "solar"] {
+        let (r, c) = find(name);
+        let end = c + name.len();
+        assert!(
+            !(0..c).any(|x| fill_at(r, x)) && (end..end + 4).any(|x| fill_at(r, x)),
+            "{name} must sit left of its first-layer node:\n{}",
+            frame.text
+        );
+    }
+    for name in ["industry", "homes", "loss"] {
+        let (r, c) = find(name);
+        assert!(
+            !(c..grid[r].len()).any(|x| fill_at(r, x))
+                && (c.saturating_sub(4)..c).any(|x| fill_at(r, x)),
+            "{name} must sit right of its last-layer node:\n{}",
+            frame.text
+        );
+    }
+    let (r, c) = find("power");
+    let power = node_rgb(3);
+    assert!(
+        (c..c + 5).any(|x| shows(&frame, r as u16 + 1, x as u16, power)),
+        "power must sit above its node:\n{}",
+        frame.text
+    );
+    let size = (200u16, 40u16);
+    let large = sankey_frame(sankey_builder(size).build(), size);
+    for label in ["coal 4", "power 9", "industry 5", "loss 1"] {
+        assert!(
+            large.text.contains(label),
+            "a large Sankey chart labels each node with its throughput ({label}):\n{}",
+            large.text
+        );
+    }
+    let size = (20u16, 5u16);
+    let mini = sankey_frame(sankey_builder(size).build(), size);
+    assert!(
+        !mini.text.chars().any(char::is_alphabetic) && mini.text.chars().any(is_fill_glyph),
+        "a mini Sankey chart draws shapes only:\n{}",
+        mini.text
+    );
+}
+
+/// CHT-030: a link naming a missing node, or links forming a cycle, show a
+/// message instead of shapes.
+#[test]
+fn cht_030_a_missing_node_or_a_cycle_shows_an_error() {
+    let size = (60u16, 12u16);
+    for (links, message) in [
+        (vec![(0, 5, 1.0)], "missing node"),
+        (vec![(0, 1, 1.0), (1, 0, 1.0)], "cycle"),
+    ] {
+        let frame = sankey_frame(
+            SankeyChartBuilder::new(["a", "b"], sankey_links(&links))
+                .size(size.0, size.1)
+                .build(),
+            size,
+        );
+        assert!(
+            frame.text.contains(message) && !frame.text.chars().any(is_fill_glyph),
+            "a Sankey chart with {message} must say so and draw no shape:\n{}",
+            frame.text
+        );
+    }
+}
+
+/// CHT-026: a Sankey chart with a non-finite link value, or with nothing to
+/// draw, shows a message and no shapes.
+#[test]
+fn cht_026_sankey_bad_or_empty_input_shows_a_message() {
+    let size = (60u16, 12u16);
+    for (nodes, links, message) in [
+        (vec!["a", "b"], vec![(0, 1, f64::NAN)], "finite"),
+        (vec!["a", "b"], vec![(0, 1, f64::INFINITY)], "finite"),
+        (vec![], vec![], "No data"),
+        (vec!["a", "b"], vec![], "No data"),
+    ] {
+        let frame = sankey_frame(
+            SankeyChartBuilder::new(nodes, sankey_links(&links))
+                .size(size.0, size.1)
+                .build(),
+            size,
+        );
+        assert!(
+            frame.text.contains(message) && !frame.text.chars().any(is_fill_glyph),
+            "expected '{message}' and no shape:\n{}",
+            frame.text
+        );
+    }
+}
+
+/// CHT-024: a Sankey chart follows its forced size class: the large class
+/// adds throughputs to the labels and the mini class drops them.
+#[test]
+fn cht_024_sankey_follows_its_forced_size_class() {
+    let size = (80u16, 24u16);
+    let at = |class| sankey_frame(sankey_builder(size).size_class(class).build(), size);
+    let (medium, large, mini) = (
+        at(SizeClass::Medium),
+        at(SizeClass::Large),
+        at(SizeClass::Mini),
+    );
+    assert!(
+        medium.text.contains("power") && !medium.text.contains("power 9"),
+        "{}",
+        medium.text
+    );
+    assert!(large.text.contains("power 9"), "{}", large.text);
+    assert!(!mini.text.contains("power"), "{}", mini.text);
+}
+
+/// CHT-028: a Sankey chart in ASCII mode draws no block or sextant glyph and
+/// keeps its shapes.
+#[test]
+fn cht_028_sankey_resolves_with_ascii() {
+    let size = (80u16, 24u16);
+    let frame = sankey_frame(sankey_builder(size).ascii(true).build(), size);
+    assert!(
+        !frame
+            .text
+            .chars()
+            .any(|c| is_fill_glyph(c) || is_braille(c))
+            && frame.text.chars().any(|c| "#|-.".contains(c)),
+        "ASCII mode must keep the shapes without Unicode glyphs:\n{}",
+        frame.text
     );
 }

@@ -65,6 +65,8 @@ struct JobKey {
     height: usize,
     values: Arc<Vec<Vec<f64>>>,
     progress: f64,
+    /// The selection the shapes show (a Sankey chart's faded links).
+    selected: Option<(usize, usize)>,
 }
 
 impl PartialEq for JobKey {
@@ -75,6 +77,7 @@ impl PartialEq for JobKey {
             && self.width == other.width
             && self.height == other.height
             && self.progress.to_bits() == other.progress.to_bits()
+            && self.selected == other.selected
             && (Arc::ptr_eq(&self.values, &other.values)
                 || (self.values.len() == other.values.len()
                     && self.values.iter().zip(other.values.iter()).all(|(a, b)| {
@@ -198,12 +201,18 @@ impl Component for LiveChart {
         } else {
             values
         };
+        // A Sankey chart draws its selection into the shapes (CHT-032);
+        // other charts patch it over the finished picture.
+        let selected = state
+            .hovered_point
+            .filter(|_| config.show_tooltips && config.chart_type == ChartType::Sankey);
         let key = JobKey {
             version: self.version,
             width,
             height,
             values: Arc::new(values),
             progress,
+            selected,
         };
         // Before its first layout the chart has no size and nothing to draw.
         let drawable = width > 0 && height > 0;
@@ -218,6 +227,7 @@ impl Component for LiveChart {
                     height,
                     values: key.values.clone(),
                     progress,
+                    selected,
                 });
                 // A picture at a new size is worth a short wait so a small
                 // chart never paints empty; frames at the same size
@@ -380,14 +390,22 @@ impl Component for LiveChart {
                     return EventResult::Consumed;
                 }
                 // A pie or donut steps through its drawn slices in order,
-                // across series and past points that draw no slice; one that
-                // draws no slice has nothing to select.
-                if matches!(props.config.chart_type, ChartType::Pie | ChartType::Donut) {
+                // across series and past points that draw no slice, and a
+                // Sankey chart through its nodes by layer, top to bottom;
+                // one that draws none has nothing to select.
+                if matches!(
+                    props.config.chart_type,
+                    ChartType::Pie | ChartType::Donut | ChartType::Sankey
+                ) {
                     let keys: Vec<(usize, usize)> = {
                         let latest = self.latest.lock().unwrap_or_else(|e| e.into_inner());
                         at_size(latest.picture.as_ref(), self.size())
-                            .and_then(|picture| picture.radial.as_ref())
-                            .map(|radial| radial.slices.iter().map(|s| s.key).collect())
+                            .map(|picture| match &picture.sankey {
+                                Some(hit) => hit.order.iter().map(|node| (0, *node)).collect(),
+                                None => picture.radial.as_ref().map_or_else(Vec::new, |radial| {
+                                    radial.slices.iter().map(|s| s.key).collect()
+                                }),
+                            })
                             .unwrap_or_default()
                     };
                     if keys.is_empty() {
@@ -512,6 +530,35 @@ fn radial_pick(
     Some((first_series_with(props, index)?, index))
 }
 
+/// The node a pointer at cell (`x`, `y`) selects on a Sankey chart
+/// (CHT-032): the node covering most of the cell's samples, taken where the
+/// fill took them, so a cell that shows a node selects it and a cell over a
+/// ribbon or empty space selects nothing.
+fn sankey_pick(hit: &canvas::SankeyHit, x: usize, y: usize) -> Option<(usize, usize)> {
+    use super::mask::{DOTS_X, DOTS_Y};
+    let (pw, ph) = (hit.samples.0.max(1) as usize, hit.samples.1.max(1) as usize);
+    let mut counts = vec![0usize; hit.nodes.len()];
+    for sy in 0..ph {
+        for sx in 0..pw {
+            let px = (x as f64 + (sx as f64 + 0.5) / pw as f64) * DOTS_X as f64;
+            let py = (y as f64 + (sy as f64 + 0.5) / ph as f64) * DOTS_Y as f64;
+            if let Some(node) = hit
+                .nodes
+                .iter()
+                .position(|(x0, y0, x1, y1)| px >= *x0 && px < *x1 && py >= *y0 && py < *y1)
+            {
+                counts[node] += 1;
+            }
+        }
+    }
+    counts
+        .iter()
+        .enumerate()
+        .filter(|(_, n)| **n > 0)
+        .max_by_key(|(_, n)| **n)
+        .map(|(node, _)| (0, node))
+}
+
 /// The cells of the ray that marks a radial selection outside the tooltip
 /// (CHT-018, CHT-031): from the inner radius to the outer one along the
 /// selected slice's middle angle, or along the selected radar spoke.
@@ -595,6 +642,9 @@ impl LiveChart {
         if let Some(radial) = &picture.radial {
             return radial_pick(radial, props, x, y);
         }
+        if let Some(hit) = &picture.sankey {
+            return sankey_pick(hit, x, y);
+        }
         if !picture.plot.contains(x, y) && picture.anchors.is_empty() {
             return None;
         }
@@ -674,8 +724,29 @@ impl LiveChart {
             .radial
             .as_ref()
             .and_then(|radial| radial.slices.iter().find(|s| s.key == (series, index)));
-        let (tooltip, spoken) = match slice {
-            Some(slice) => {
+        // A Sankey chart's tooltip names the selected node with its
+        // throughput, in the node's color (CHT-032).
+        let node = picture
+            .sankey
+            .as_ref()
+            .filter(|hit| series == 0 && index < hit.nodes.len());
+        let (tooltip, spoken) = match (node, slice) {
+            (Some(hit), _) => {
+                let (name, value) = canvas::sankey_node_text(props, index);
+                let spoken = format!("{name} / {value}");
+                (
+                    Tooltip {
+                        title: None,
+                        rows: vec![TooltipRow {
+                            color: hit.colors.get(index).copied().flatten(),
+                            name,
+                            value,
+                        }],
+                    },
+                    spoken,
+                )
+            }
+            (None, Some(slice)) => {
                 let point = &props.series[series].data[index];
                 let value = canvas::point_text(point, index);
                 let spoken = format!("{} / {value}", props.series[series].name);
@@ -691,7 +762,7 @@ impl LiveChart {
                     spoken,
                 )
             }
-            None => self.tooltip_rows(props, index),
+            (None, None) => self.tooltip_rows(props, index),
         };
         if tooltip.rows.is_empty() {
             return (None, spoken);
@@ -845,6 +916,7 @@ mod tests {
             height: 12,
             values: Arc::new(vec![vec![f64::NAN, 5.0]]),
             progress: 1.0,
+            selected: None,
         };
         let same = JobKey {
             values: Arc::new(vec![vec![f64::NAN, 5.0]]),

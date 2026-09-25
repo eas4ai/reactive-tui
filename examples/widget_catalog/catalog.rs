@@ -23,7 +23,8 @@ use reactive_tui::{
             table::{Table, TableColumn, TableProps, TableRow},
             tree::TreeNode,
             AreaChartBuilder, BarChartBuilder, CandlestickChartBuilder, DonutChartBuilder,
-            LineChartBuilder, PieChartBuilder, RadarChartBuilder, ScatterChartBuilder, SizeClass,
+            LineChartBuilder, PieChartBuilder, RadarChartBuilder, SankeyChartBuilder, SankeyLink,
+            ScatterChartBuilder, SizeClass,
         },
         menu::DialogMenuBuilder,
         DialogMenu, TerminalProps, TerminalWidget,
@@ -609,6 +610,31 @@ impl Catalog {
                 })
                 .collect(),
         );
+        // Energy flows: three sources, a power station and three uses, with
+        // one flow that skips the station.
+        let flows = ["coal", "gas", "solar", "power", "industry", "homes", "loss"];
+        let links = [
+            (0, 3, 4.0),
+            (1, 3, 3.0),
+            (2, 3, 2.0),
+            (1, 4, 2.0),
+            (3, 4, 3.0),
+            (3, 5, 5.0),
+            (3, 6, 1.0),
+        ]
+        .map(|(source, target, value)| SankeyLink::new(source, target, value));
+        let sankey = stack(
+            classes
+                .iter()
+                .map(|(class, w, h)| {
+                    SankeyChartBuilder::new(flows, links)
+                        .node_label(|n: &&str| *n)
+                        .size(*w, *h)
+                        .size_class(*class)
+                        .render()
+                })
+                .collect(),
+        );
         div()
             .class(Self::card_grid_class(self.width))
             .child(Self::card("Line chart: mini, medium, large", line))
@@ -622,6 +648,7 @@ impl Catalog {
             .child(Self::card("Pie chart: mini, medium, large", pie))
             .child(Self::card("Donut chart: mini, medium, large", donut))
             .child(Self::card("Radar chart: mini, medium, large", radar))
+            .child(Self::card("Sankey chart: mini, medium, large", sankey))
             .build()
     }
 
