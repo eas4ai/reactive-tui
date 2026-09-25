@@ -10,6 +10,12 @@ retained together so renderer changes can be checked independently.
 
 Changes after import are maintained in the Reactive-TUI Git history.
 
+On 2026-09-25 the modules Reactive TUI never used were removed with their
+tests: audio, clipboard, layout, sys, term, term_embedded and text. They can
+still be read in the upstream repository at the import commit above. The
+renderer modules (ansi, blit, buffer, link, media, render and uni) are kept
+as imported, so renderer changes can still be checked against upstream.
+
 The image fallback blitters in src/blit.rs follow the notcurses blitters
 (https://github.com/dankamongmen/notcurses, Apache-2.0) as ideas, not code:
 the half-block, quadrant, sextant, octant and braille tiers, the exhaustive
