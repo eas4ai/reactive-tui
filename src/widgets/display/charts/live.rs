@@ -730,13 +730,15 @@ impl LiveChart {
             .and_then(|radial| radial.slices.iter().find(|s| s.key == (series, index)));
         // A Sankey chart's tooltip names the selected node with its
         // throughput, in the node's color (CHT-032).
+        // The picture can be older than the props, so an index taken from
+        // it is looked up in the props, never assumed there.
         let node = picture
             .sankey
             .as_ref()
-            .filter(|hit| series == 0 && index < hit.nodes.len());
+            .filter(|hit| series == 0 && index < hit.nodes.len())
+            .and_then(|hit| canvas::sankey_node_text(props, index).map(|text| (hit, text)));
         let (tooltip, spoken) = match (node, slice) {
-            (Some(hit), _) => {
-                let (name, value) = canvas::sankey_node_text(props, index);
+            (Some((hit, (name, value))), _) => {
                 let spoken = format!("{name} / {value}");
                 (
                     Tooltip {
@@ -751,7 +753,9 @@ impl LiveChart {
                 )
             }
             (None, Some(slice)) => {
-                let point = &props.series[series].data[index];
+                let Some(point) = props.series.get(series).and_then(|s| s.data.get(index)) else {
+                    return (None, String::new());
+                };
                 let value = canvas::point_text(point, index);
                 let spoken = format!("{} / {value}", props.series[series].name);
                 (
@@ -909,6 +913,65 @@ fn overlay_grid(picture: &Picture, overlay: &Overlay) -> CellGrid {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A picture drawn from older props, with more nodes or slices than the
+    /// props now hold, never makes the tooltip index past the new data.
+    #[test]
+    fn a_picture_from_older_props_never_indexes_past_the_new_data() {
+        let draw = |props: &ChartProps| {
+            let values: Vec<Vec<f64>> = props
+                .series
+                .iter()
+                .map(|s| s.data.iter().map(|p| p.value).collect())
+                .collect();
+            canvas::draw(&canvas::Job {
+                props,
+                width: 60,
+                height: 16,
+                values: &values,
+                progress: 1.0,
+                unicode_glyphs: true,
+                selected: None,
+            })
+        };
+        let nodes = |count: usize| {
+            DataSeries::new(
+                "nodes",
+                (0..count)
+                    .map(|i| DataPoint::with_label(0.0, format!("n{i}")))
+                    .collect(),
+            )
+        };
+        let sankey = |count: usize| {
+            ChartsBuilder::sankey()
+                .series(nodes(count))
+                .sankey_options(SankeyOptions {
+                    links: (1..count).map(|i| SankeyLink::new(i - 1, i, 1.0)).collect(),
+                    ..SankeyOptions::default()
+                })
+                .build()
+        };
+        let pie = |count: usize| {
+            ChartsBuilder::pie()
+                .series(DataSeries::new(
+                    "slices",
+                    (0..count).map(|_| DataPoint::new(1.0)).collect(),
+                ))
+                .build()
+        };
+        for (old, new, kind) in [(sankey(4), sankey(2), "Sankey"), (pie(4), pie(1), "pie")] {
+            let picture = draw(&old);
+            let chart = LiveChart::new(LiveProps {
+                config: Arc::new(new.clone()),
+                seed: ChartState::default(),
+            });
+            let (overlay, spoken) = chart.tooltip(&new, &picture, 0, 3);
+            assert!(
+                overlay.is_none() && spoken.is_empty(),
+                "{kind}: an index from the older picture selects nothing in the new props"
+            );
+        }
+    }
 
     /// A NaN value equals itself in the job key, so a chart holding invalid
     /// data does not resubmit a worker job every frame.

@@ -61,9 +61,10 @@ fn throughput(props: &ChartProps, index: usize) -> f64 {
 }
 
 /// A node's name and throughput text, as the tooltip and the large labels
-/// show them.
-pub(in super::super) fn node_text(props: &ChartProps, index: usize) -> (String, String) {
-    let point = &props.series[0].data[index];
+/// show them; `None` when the props hold no node `index`, as when the index
+/// came from a picture drawn from older props.
+pub(in super::super) fn node_text(props: &ChartProps, index: usize) -> Option<(String, String)> {
+    let point = props.series.first()?.data.get(index)?;
     let name = point.label.clone().unwrap_or_else(|| index.to_string());
     let value = props
         .sankey
@@ -71,7 +72,7 @@ pub(in super::super) fn node_text(props: &ChartProps, index: usize) -> (String, 
         .get(index)
         .cloned()
         .unwrap_or_else(|| throughput(props, index).to_string());
-    (name, value)
+    Some((name, value))
 }
 
 /// The label lines beside node `index` at `class`: the `labels` accessor's
@@ -94,7 +95,9 @@ fn label_lines(props: &ChartProps, index: usize, class: SizeClass) -> Vec<(Strin
             })
             .collect(),
         None => {
-            let (name, value) = node_text(props, index);
+            let Some((name, value)) = node_text(props, index) else {
+                return Vec::new();
+            };
             let text = if class == SizeClass::Large {
                 format!("{name} {value}")
             } else {
