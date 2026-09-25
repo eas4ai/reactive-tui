@@ -1043,3 +1043,130 @@ fn cht_017_utility_color_tokens_resolve_identically_in_charts() {
         );
     }
 }
+
+/// Frames of a radial chart after `events`, focused so keys reach it.
+fn radial_run(
+    p: ChartProps,
+    size: (u16, u16),
+    events: Vec<(usize, Option<Event>)>,
+) -> Vec<Snapshot> {
+    app_input::run(Root(Element::typed::<Chart>(p).auto_focus()), size, events)
+}
+
+/// CHT-031: a pointer inside a pie slice selects that slice, clockwise from
+/// twelve o'clock: in a 40 by 12 pie of four equal slices the circle is
+/// centered on column 20, row 6, with a radius of six rows.
+#[test]
+fn cht_031_a_pointer_inside_a_slice_selects_that_slice() {
+    let size = (40u16, 12u16);
+    let p = props(ChartType::Pie, size, &[1.0, 1.0, 1.0, 1.0]);
+    // One cell inside each quadrant, halfway out.
+    for (slice, (col, row)) in [(0, (26u16, 3u16)), (1, (26, 9)), (2, (14, 9)), (3, (14, 3))] {
+        let frame = radial_run(p.clone(), size, vec![(2, hover(col, row)), (3, None)])
+            .pop()
+            .unwrap();
+        let label = format!("p{slice}:");
+        assert!(
+            frame.text.contains(&label),
+            "a pointer at ({col}, {row}) inside slice {slice} must select it:\n{}",
+            frame.text
+        );
+        for other in (0..4).filter(|o| *o != slice) {
+            assert!(
+                !frame.text.contains(&format!("p{other}:")),
+                "a pointer inside slice {slice} must not select slice {other}:\n{}",
+                frame.text
+            );
+        }
+    }
+}
+
+/// CHT-031: a pointer outside the outer radius, or in a donut's hole,
+/// selects nothing and leaves the frame unchanged.
+#[test]
+fn cht_031_a_pointer_outside_the_radius_or_in_the_hole_selects_nothing() {
+    let size = (40u16, 12u16);
+    for (kind, col, row) in [
+        (ChartType::Pie, 0u16, 0u16),
+        (ChartType::Pie, 39, 11),
+        (ChartType::Donut, 20, 6),
+        (ChartType::Radar, 0, 0),
+    ] {
+        let p = props(kind.clone(), size, &[3.0, 1.0, 2.0, 4.0]);
+        let plain = radial_run(p.clone(), size, vec![(2, None)]).pop().unwrap();
+        let pointed = radial_run(p, size, vec![(2, hover(col, row)), (3, None)])
+            .pop()
+            .unwrap();
+        assert_eq!(
+            plain.text, pointed.text,
+            "{kind:?}: a pointer at ({col}, {row}) must select nothing:\n{}",
+            pointed.text
+        );
+    }
+}
+
+/// CHT-031: on a radar the pointer selects the category whose spoke is
+/// nearest its angle. Four spokes point up, right, down and left from the
+/// center at column 20, row 6.
+#[test]
+fn cht_031_a_radar_pointer_selects_the_nearest_spoke() {
+    let size = (40u16, 12u16);
+    let p = props(ChartType::Radar, size, &[4.0, 4.0, 4.0, 4.0]);
+    for (spoke, (col, row)) in [(0, (22u16, 2u16)), (1, (27, 5)), (2, (18, 9)), (3, (13, 7))] {
+        let frame = radial_run(p.clone(), size, vec![(2, hover(col, row)), (3, None)])
+            .pop()
+            .unwrap();
+        assert!(
+            frame.text.contains(&format!("p{spoke}:")),
+            "a pointer at ({col}, {row}) must select the nearest spoke, {spoke}:\n{}",
+            frame.text
+        );
+    }
+}
+
+/// CHT-031: Left, Right, Home and End move the selection in slice and
+/// category order, and the selection shows the tooltip.
+#[test]
+fn cht_031_keys_move_through_slices_and_categories_in_order() {
+    let size = (40u16, 12u16);
+    for kind in [ChartType::Pie, ChartType::Donut, ChartType::Radar] {
+        let p = props(kind.clone(), size, &[3.0, 1.0, 2.0, 4.0]);
+        let selected = |keys: &[KeyCode]| {
+            let mut events: Vec<(usize, Option<Event>)> = keys
+                .iter()
+                .enumerate()
+                .map(|(i, k)| (i + 2, app_input::key(k.clone())))
+                .collect();
+            events.push((keys.len() + 2, None));
+            let frame = radial_run(p.clone(), size, events).pop().unwrap();
+            (0..4)
+                .filter(|i| frame.text.contains(&format!("p{i}:")))
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(
+            selected(&[KeyCode::Right]),
+            vec![0],
+            "{kind:?}: Right selects the first slice or category"
+        );
+        assert_eq!(
+            selected(&[KeyCode::Right, KeyCode::Right]),
+            vec![1],
+            "{kind:?}: Right steps to the next"
+        );
+        assert_eq!(
+            selected(&[KeyCode::Right, KeyCode::Right, KeyCode::Left]),
+            vec![0],
+            "{kind:?}: Left steps back"
+        );
+        assert_eq!(
+            selected(&[KeyCode::End]),
+            vec![3],
+            "{kind:?}: End selects the last"
+        );
+        assert_eq!(
+            selected(&[KeyCode::End, KeyCode::Home]),
+            vec![0],
+            "{kind:?}: Home selects the first"
+        );
+    }
+}
