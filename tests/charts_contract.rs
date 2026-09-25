@@ -1125,6 +1125,51 @@ fn cht_031_keys_reach_every_drawn_slice_across_series() {
     );
 }
 
+/// CHT-031: a slice so thin that the pad angle leaves nothing of it drawn
+/// is not reachable: the keys step past it, and a pointer in the gap where
+/// it would be does not select it.
+#[test]
+fn cht_031_keys_and_pointer_skip_a_slice_the_pad_leaves_undrawn() {
+    let size = (40u16, 12u16);
+    let mut p = props(ChartType::Pie, size, &[10.0, 0.05, 10.0]);
+    p.radial.pad_angle = 0.1;
+    let selected = |events: Vec<(usize, Option<Event>)>| {
+        let frame = radial_run(p.clone(), size, events).pop().unwrap();
+        (0..3)
+            .filter(|i| frame.text.contains(&format!("p{i}:")))
+            .collect::<Vec<_>>()
+    };
+    let key = |code: KeyCode| app_input::key(code);
+    assert_eq!(
+        selected(vec![
+            (2, key(KeyCode::Right)),
+            (3, key(KeyCode::Right)),
+            (4, None)
+        ]),
+        vec![2],
+        "Right from the first slice steps past the undrawn one to the next drawn slice"
+    );
+    assert_eq!(
+        selected(vec![
+            (2, key(KeyCode::End)),
+            (3, key(KeyCode::Left)),
+            (4, None)
+        ]),
+        vec![0],
+        "Left from the last slice steps past the undrawn one"
+    );
+    // The undrawn slice would lie at six o'clock, below the center at
+    // column 20, row 6.
+    for row in 7..12u16 {
+        for col in 19..=21u16 {
+            assert!(
+                !selected(vec![(2, hover(col, row)), (3, None)]).contains(&1),
+                "a pointer at ({col}, {row}) must not select the undrawn slice"
+            );
+        }
+    }
+}
+
 /// CHT-031 and CHT-018: a pie's tooltip names the selected slice alone with
 /// a swatch in that slice's color, and the selection is marked on the chart
 /// outside the tooltip box.

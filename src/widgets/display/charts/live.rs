@@ -437,13 +437,13 @@ impl Component for LiveChart {
     }
 }
 
-/// The first visible series that has a point at `index`.
 /// The (series, index) a pointer at cell (`x`, `y`) selects on a radial
-/// chart (CHT-031): for a pie or donut, the slice covering most of the
-/// cell's samples, taken where the fill took them, so a cell that shows a
-/// slice selects it; for a radar, the category of the spoke nearest the
-/// cell's angle. A cell with no sample inside the outer radius, or only
-/// samples in a donut's hole, selects nothing.
+/// chart (CHT-031): for a pie or donut, the drawn slice covering most of the
+/// cell's samples within its drawn angles, taken where the fill took them,
+/// so a cell that shows a slice selects it and a pad's gap selects nothing;
+/// for a radar, the category of the spoke nearest the cell's angle. A cell
+/// with no sample inside the outer radius, or only samples in a donut's
+/// hole, selects nothing.
 fn radial_pick(
     radial: &RadialHit,
     props: &ChartProps,
@@ -541,6 +541,7 @@ fn radial_ray(radial: &RadialHit, selected: (usize, usize)) -> Vec<(usize, usize
     cells
 }
 
+/// The first visible series that has a point at `index`.
 fn first_series_with(props: &ChartProps, index: usize) -> Option<usize> {
     props
         .series
