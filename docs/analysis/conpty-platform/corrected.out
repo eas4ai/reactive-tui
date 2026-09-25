@@ -1,0 +1,19 @@
+PASS console handles, input, environment, resize, real exit 259, repeated stop
+failed launch 0: handles 94 (baseline 94)
+failed launch 1: handles 94 (baseline 94)
+failed launch 2: handles 94 (baseline 94)
+failed launch 3: handles 94 (baseline 94)
+failed launch 4: handles 94 (baseline 94)
+failed launch 5: handles 94 (baseline 94)
+failed launch 6: handles 94 (baseline 94)
+failed launch 7: handles 94 (baseline 94)
+failed launch 8: handles 94 (baseline 94)
+failed launch 9: handles 94 (baseline 94)
+PASS failed-launch cleanup and restart
+PASS flood backpressure and drop cleanup
+PASS idle backpressure and drop cleanup
+BEGIN attached descendant launch
+BEGIN attached descendant read
+BEGIN attached descendant close
+END attached descendant close
+PASS attached descendant cleanup
