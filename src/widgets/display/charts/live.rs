@@ -479,7 +479,7 @@ impl LiveChart {
         let (w, h) = (w.max(0.0) as usize, h.max(0.0) as usize);
         (
             if self.config.width == 0 {
-                w
+                w.min(80)
             } else {
                 w.min(self.config.width as usize)
             },
