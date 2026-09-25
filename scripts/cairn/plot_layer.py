@@ -15,7 +15,9 @@ REQUIRED_ITEMS = ["ScaleLinear", "ScaleBand", "ScalePoint", "ScaleOrdinal", "Tic
 RENDERERS = ["src/widgets/display/charts/live"]
 LOCAL_SCALE = re.compile(
     r"\)\s*/\s*\(|/\s*\(\s*\w+\.1\s*-\s*\w+\.0\s*\)|/\s*range\b|/\s*span\b|\bmapped\s*\("
-    r"|\*\s*\w*(?:per_unit|per_cell|per_dot|per_value|step_dots|inv_span|scale_factor)\b|\.mul_add\(")
+    r"|\*\s*\w*(?:per_unit|per_cell|per_dot|per_value|step_dots|inv_span|scale_factor)\b|\.mul_add\("
+    # A radial renderer dividing the circle by a category count itself.
+    r"|\bTAU\s*/")
 
 
 def main() -> int:
@@ -35,7 +37,7 @@ def main() -> int:
         text = strip_test_modules(f.read_text(errors="replace"))
         if plot and str(plot) in str(f):
             continue
-        if plot and "plot::" not in text and "plot/" not in str(f) and f.name in ("cartesian.rs", "pie.rs", "canvas.rs"):
+        if plot and "plot::" not in text and "plot/" not in str(f) and f.name in ("cartesian.rs", "pie.rs", "radar.rs", "canvas.rs"):
             problems_010.append(f"{f.relative_to(ROOT)} does not use the plot layer")
         for m in LOCAL_SCALE.finditer(text):
             line = text[: m.start()].count("\n") + 1

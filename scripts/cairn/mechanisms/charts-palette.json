@@ -1,16 +1,25 @@
 {
   "command": "python3 -B scripts/cairn/charts_palette.py",
+  "cwd": null,
+  "documents": [],
+  "identity": {
+    "env": [],
+    "image": null,
+    "tools": {}
+  },
   "inputs": [
-    "src/widgets/display/charts.rs",
-    "src/widgets/display/charts",
-    "src/builder/widgets/chart.rs",
-    "src/theme",
-    "src/layout/colors.rs",
-    "tests/common",
-    "tests/charts_contract.rs",
-    "Cargo.toml",
     "Cargo.lock",
-    "scripts/cairn"
+    "Cargo.toml",
+    "crates/reactive-tui-suprtui",
+    "scripts/cairn",
+    "src/builder/widgets/chart.rs",
+    "src/layout/colors.rs",
+    "src/theme",
+    "src/widgets/display/charts",
+    "src/widgets/display/charts.rs",
+    "src/widgets/display/image",
+    "tests/charts_contract.rs",
+    "tests/common"
   ],
   "requirements": [
     "CHT-017"
