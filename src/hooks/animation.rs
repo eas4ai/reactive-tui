@@ -636,6 +636,11 @@ impl<T: AnimatableValue> StaggerOwner<T> {
         for id in timers.into_iter().flatten() {
             self.scheduler.cancel_timer(id);
         }
+        // An update pass that checked the old generation may be storing an
+        // item now; wait for it, so none stores after this returns.
+        for item in &self.items {
+            item.settle();
+        }
     }
 
     fn start_sequence(self: &Arc<Self>, targets: Vec<T>) {
@@ -698,7 +703,14 @@ impl<T: AnimatableValue> StaggerOwner<T> {
                     .get(index)
                     .is_some_and(Option::is_some)
                 {
-                    owner.items[index].set(value);
+                    // The lock above is released before the store, so the
+                    // generation is checked again inside it; cancel_owned_work
+                    // settles every item after raising the generation, so a
+                    // pass past these checks stores before cancellation
+                    // returns or not at all.
+                    owner.items[index].set_if(value, || {
+                        owner.is_alive() && owner.generation.load(Ordering::Acquire) == generation
+                    });
                 }
             });
             let id = RUNTIME.add_animation(update, duration);
@@ -1199,9 +1211,8 @@ mod tests {
             .collect::<Vec<_>>();
         assert!(!live_ids.contains(&animation_id));
         assert!(!live_ids.contains(&spring_id));
-        // A pass another test began before `close` may still deliver the
-        // frame it took; once this pass runs, that one has ended.
-        run_pass();
+        // close() has waited for any pass that was storing a value, so
+        // nothing changes from here on.
         let animation_value = animation.value();
         let spring_value = spring.value();
         run_pass();
@@ -1298,15 +1309,105 @@ mod tests {
             .map(|task| task.id)
             .collect::<Vec<_>>();
         assert!(animation_ids.iter().all(|id| !live_ids.contains(id)));
-        // A pass another test began before `close` may still deliver the
-        // frame it took; once this pass runs, that one has ended.
-        run_pass();
+        // close() has waited for any pass that was storing an item, so
+        // nothing changes from here on.
         let values = stagger.items();
         scheduler.process_timers();
         run_pass();
         assert_eq!(stagger.items(), values);
         stagger.animate_all_to(vec![20.0, 21.0, 22.0]);
         assert!(scheduler.next_deadline().is_none());
+    }
+
+    /// A value whose comparison can hold the thread making it. When the gate
+    /// is armed, the next comparison reports that it began and waits to be
+    /// let go. ThreadSafeSignal::set compares inside its store, so an armed
+    /// Gated holds an update pass after every check it makes and before the
+    /// store happens.
+    #[derive(Clone, Debug, Default)]
+    struct Gated(f32);
+    type Gate = (std::sync::mpsc::Sender<()>, std::sync::mpsc::Receiver<()>);
+    static GATE: Mutex<Option<Gate>> = Mutex::new(None);
+    impl PartialEq for Gated {
+        fn eq(&self, other: &Self) -> bool {
+            let gate = GATE.lock().unwrap().take();
+            if let Some((began, go)) = gate {
+                began.send(()).unwrap();
+                go.recv_timeout(Duration::from_secs(30))
+                    .expect("the test never let the held comparison go");
+            }
+            self.0 == other.0
+        }
+    }
+    impl AnimatableValue for Gated {
+        fn interpolate(&self, to: &Self, _: f32) -> Self {
+            to.clone()
+        }
+        fn to_f32(&self) -> f32 {
+            self.0
+        }
+        fn from_f32(value: f32) -> Self {
+            Self(value)
+        }
+    }
+
+    /// An update pass another thread began before its owner closes sets no
+    /// value after close() returns. The pass is held inside the stagger
+    /// item's store, past the generation and animation checks, while
+    /// another thread closes the owner. If close() returns while the pass is
+    /// held, letting the pass go must leave the value as it was; close() may
+    /// instead wait for the held store to finish.
+    #[test]
+    #[serial_test::serial]
+    fn stagger_pass_in_flight_at_close_sets_no_value_after_close_returns() {
+        let scheduler = Arc::new(Scheduler::new());
+        let scope = crate::reactive::component_scope::ComponentScope::new(scheduler.clone());
+        let hooks = Hooks::new();
+        let stagger = {
+            let _scope = scope.enter(true);
+            let _frame = hooks.begin_render();
+            use_stagger(&hooks, vec![Gated(0.0)], StaggerConfig::default())
+        };
+        stagger.animate_all_to(vec![Gated(10.0)]);
+        scheduler.process_timers();
+        assert!(
+            stagger.owner.animation_ids.lock().unwrap()[0].is_some(),
+            "the item's animation did not start"
+        );
+        let (began, began_receiver) = std::sync::mpsc::channel();
+        let (go, go_receiver) = std::sync::mpsc::channel();
+        *GATE.lock().unwrap() = Some((began, go_receiver));
+        let pass = thread::spawn(run_pass);
+        began_receiver
+            .recv_timeout(Duration::from_secs(30))
+            .expect("the update pass never reached the item's store");
+        let (closed, closed_receiver) = std::sync::mpsc::channel();
+        let closer = {
+            let scope = scope.clone();
+            thread::spawn(move || {
+                scope.close();
+                closed.send(()).unwrap();
+            })
+        };
+        // A close() that does not wait for the held store reports well
+        // within this wait; one that waits lets it run out.
+        let returned_while_held = closed_receiver
+            .recv_timeout(Duration::from_millis(500))
+            .is_ok();
+        go.send(()).unwrap();
+        pass.join().unwrap();
+        closer.join().unwrap();
+        let after = stagger.item(0).unwrap();
+        assert!(
+            !returned_while_held || after == Gated(0.0),
+            "an update pass set the item to {after:?} after close() returned"
+        );
+        run_pass();
+        assert_eq!(
+            stagger.item(0).unwrap(),
+            after,
+            "the item changed after close()"
+        );
     }
 
     #[derive(Clone, Debug, Default, PartialEq)]
