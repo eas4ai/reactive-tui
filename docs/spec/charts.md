@@ -47,11 +47,11 @@ Mechanism: plot-layer
 Rationale: This is the gpui-kit plot module; the chart types are thin over it.
 Status: Agreed 2026-09-22
 
-[CHT-025] Every chart type delivered in a commitment MUST rasterize through one shared mask canvas: each shape (bar rectangle, line stroke, area polygon, pie sector, radar polygon, sankey ribbon, marker) is written as a per-dot membership mask at two by four dots per cell with a color token, axis-aligned rectangles also carry their exact edge fractions, and the canvas alone resolves each cell to a glyph and a color: a full block when every dot is covered, an eighth block when one rectangle edge crosses the cell at a multiple of one eighth, braille otherwise. Text (axis labels, legend, tooltip, value labels) is a separate text layer drawn over the canvas.
-Falsifier: A chart type writes shape glyphs or colors to cells directly instead of masks, two chart types resolve the same coverage to different glyphs, a fully covered cell renders as braille, or a rectangle edge at 3/8 renders as a quarter.
+[CHT-025] Every chart type delivered in a commitment MUST rasterize through one shared mask canvas, which alone resolves each cell to a glyph and its colors. Strokes, markers, bar rectangles and area polygons are written as per-dot membership at two by four dots per cell with a color token, and axis-aligned rectangles also carry their exact edge fractions; such a cell resolves to a full block when every dot is covered, to an eighth block when one rectangle edge crosses it at a multiple of one eighth, and to braille otherwise. Filled shapes (pie and donut sectors, radar fills, sankey ribbons) are sampled at the pixel grid of the blitter that BLT-002 chooses, the same choice image fallback makes with its application and environment overrides; a cell that holds fill and no stroke or marker MUST resolve to that blitter's glyph with the BLT-001 minimum-error two-color split of its pixels, an uncovered pixel counting as transparent; when CHT-028's ASCII mode applies, it resolves fill cells too. Text (axis labels, legend, tooltip, value labels, slice labels and leader lines) is a separate text layer drawn over the canvas.
+Falsifier: A chart type writes shape glyphs or colors to cells directly instead of through the canvas, a fully covered stroke or bar cell renders as braille, a rectangle edge at 3/8 renders as a quarter, a fill-only cell's glyph or colors differ from the BLT-001 split for the chosen blitter, or a fill cell holding exactly two slice colors and no uncovered pixel shows only one of them.
 Mechanism: charts-goldens
-Rationale: The developer prefers one rasterization idea for all charts; the pie mask generalizes to every shape, and eighths need the edge fraction the mask alone cannot carry.
-Status: Agreed 2026-09-22
+Rationale: Revised 2026-09-25: filled shapes use the renderer's blitters, which the developer ruled land before the radial charts (roadmap, 2026-09-22); lines, bars and area fills keep braille and eighths.
+Status: Agreed 2026-09-25
 
 [CHT-011] The band scale MUST support inner and outer padding, the linear scale MUST include zero when the data does not cross it, and negative values MUST draw from a zero baseline.
 Falsifier: Bars touch with padding set, a positive-only series starts its axis above zero, or a negative bar grows upward from the axis bottom.
@@ -73,21 +73,32 @@ Falsifier: A candle whose close is below its open uses the bullish color, or its
 Mechanism: charts-goldens
 Status: Agreed 2026-09-21
 
-[CHT-015] Pie and donut charts MUST draw each slice into the shared mask canvas by testing each dot's polar coordinates against the slice boundaries, MUST expose inner and outer radius, pad angle, per-slice color and side labels with leader lines, and MUST correct for the 2:1 cell aspect ratio.
-Falsifier: A dot inside a slice's angular range and radius is left unpainted or painted with a neighbor's color, a slice label overlaps another, or a full circle renders taller than it is wide in cell aspect.
+[CHT-015] Pie and donut charts MUST draw each slice as a filled shape (CHT-025) whose pixels are the samples whose polar coordinates, corrected for the 2:1 cell aspect ratio, fall inside the slice's angle range and between its inner and outer radius; MUST expose inner radius (zero for a pie), outer radius, pad angle and per-slice color; and at the medium and large size classes MUST place each slice's label beside the chart, joined to its slice by a leader line in the text layer, omitting a label that cannot be placed without overlapping another while keeping its slice in the legend.
+Falsifier: A sample inside a slice's angle range and radius is left unpainted or painted with another slice's color, a nonzero pad angle leaves no unpainted gap between adjacent slices, two slice labels overlap, a placed label has no leader line to its slice, or a full pie's painted width in columns is not within one column of twice its painted height in rows.
+Mechanism: charts-goldens
+Status: Agreed 2026-09-25
+
+[CHT-016] Radar charts MUST place one spoke per category at equal angles from the top, clockwise, and draw each series as a polygon whose vertex on each spoke lies at the category's value under a linear radial scale from the plot layer, starting at zero and ending at the maximum value or `max_value` when set; the outline is a stroke and the optional fill a filled shape (CHT-025); grid levels are drawn as concentric polygons at equal steps, their number configurable; series are drawn in series order, a later series over an earlier one.
+Falsifier: A polygon vertex lands off its spoke or at a distance not proportional to its value, the grid shows a number of levels other than the configured one, or an earlier series is drawn over a later one where they overlap.
+Mechanism: charts-goldens
+Status: Agreed 2026-09-25
+
+[CHT-030] Sankey charts MUST lay out nodes in columns and links between them with the node alignment (left, right, center, justify), iteration count and value scale options of the reference layout, draw each node as a rectangle whose height is the larger of its incoming and outgoing totals under the value scale, and draw each link as a filled ribbon (CHT-025) whose width at each end is the link's value under that scale.
+Falsifier: A link's width is not its value under the chosen scale, a node's height is not the larger of its incoming and outgoing totals, a node alignment option leaves the layout unchanged for a graph where it applies, or two links overlap at a node.
 Mechanism: charts-goldens
 Status: Draft
 
-[CHT-016] Radar and sankey charts MUST draw polygons and ribbons into the shared mask canvas, radar with configurable grid levels and multi-series polygons, sankey with the node alignment, iteration and value-scale options of the reference layout.
-Falsifier: A radar polygon vertex lands off its axis spoke, or a sankey link's width is not proportional to its value under the chosen scale.
-Mechanism: charts-goldens
-Status: Draft
+[CHT-031] Pie, donut and radar charts MUST select, on mouse movement, the slice under the pointer (pie and donut) or the category whose spoke is nearest the pointer's angle (radar), selecting nothing outside the outer radius; Left, Right, Home and End MUST move the selection in slice or category order; the selection MUST show the CHT-018 tooltip and update the aria-live announcement, and CHT-019's same-index rule applies.
+Falsifier: A pointer inside a slice selects another slice or none, a radar pointer selects a category other than the nearest spoke's, a pointer outside the outer radius selects something, Left or Right does not move to the adjacent slice or category, or a selection leaves the tooltip or the aria-live text unchanged.
+Mechanism: charts-interaction
+Rationale: CHT-019 selects by the x axis, which a radial chart does not have.
+Status: Agreed 2026-09-25
 
 [CHT-029] The pie, donut, radar and sankey builders MUST mirror the reference's method names for each delivered type over `Vec<T>` with accessor closures evaluated once at `build()` into data points, so chart props stay comparable: pie and donut `value`, `label`, `color`, `inner_radius`, `outer_radius`, `pad_angle` and `label_gap`; radar `value`, `label`, `stroke`, `fill`, `dot`, `grid`, `grid_levels`, `max_value` and `outer_radius`; sankey `value`, `value_scale`, `node_align`, `iterations`, `node_width`, `node_padding`, `node_label`, `value_label`, `labels`, `link_opacity` and `min_link_width`; arguments take the terminal equivalents of the reference types.
 Falsifier: A listed method is absent for a delivered type that supports the feature, or a builder stores a closure in the props instead of the evaluated points.
 Mechanism: charts-builders
 Rationale: CHT-020 names the cartesian methods only; the radial and flow types take the reference's own names.
-Status: Draft
+Status: Agreed 2026-09-25
 
 [CHT-017] Every chart color, whether a series stroke, fill, bar, slice, axis, grid or tooltip swatch, MUST accept the tokens the layout utility classes accept (palette names such as `blue-500`, theme variables such as `primary`, and hex) and MUST resolve them through one resolver, `Theme::resolve_color`, that the layout's utility classes also use; the App holds the active Theme and components read it through the hook scope; default series colors MUST come from theme variables `--color-chart-1` to `--color-chart-5` plus `--color-chart-bullish` and `--color-chart-bearish`, defined in every preset with a color-blind-safe default set, with no color literal in the chart code.
 Falsifier: A token that resolves in a `bg-` utility class is rejected or resolves differently in a chart, a preset lacks a chart variable, a chart renders a color not derivable from the active Theme, or a color literal appears under src/widgets/display/charts.

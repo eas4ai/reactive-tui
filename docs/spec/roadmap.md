@@ -1,6 +1,6 @@
 # Roadmap
 
-Current: suprtui-unused-modules
+Current: charts-radial
 
 Order agreed with the developer on 2026-09-21: charts first on a cell canvas,
 then a general graphics canvas over wgpu that replaces the rasterizer
@@ -172,11 +172,33 @@ stay as imported, so renderer changes can still be compared. Done when the
 crate declares only the modules the app uses, Cargo.lock lists one taffy,
 and the workspace gates pass.
 
-## charts-radial-and-flow
+## charts-radial
 
-Requirements: CHT-015, CHT-016 plus the quality bar
+Requirements: BAR-001, BAR-002, BAR-003, BAR-004, BAR-005, BAR-006, BAR-007, CHT-010, CHT-015, CHT-016, CHT-017, CHT-018, CHT-019, CHT-021, CHT-023, CHT-024, CHT-025, CHT-026, CHT-028, CHT-029, CHT-031
 
-Pie, donut, radar and sankey on the same plot layer and braille canvas.
+Deliver pie, donut and radar charts on the plot layer and the shared mask
+canvas, with filled shapes drawn through the renderer's blitters as CHT-025
+was revised on 2026-09-25: the canvas keeps a color per sample, and a
+fill-only cell takes the two-color split of the blitter BLT-002 chooses.
+The existing pie and donut (src/widgets/display/charts/live/canvas/pie.rs)
+are reworked with inner and outer radius, pad angle and side labels with
+leader lines; radar is new. Each type gets theme colors, radial mouse and
+keyboard selection with the tooltip, fill-parent sizing with the three size
+classes, goldens at three sizes on a fixed blitter tier, a catalog page and
+a manual section. Line, bar, area, scatter and candlestick goldens stay
+unchanged.
+
+Done when every named requirement passes, each extended mechanism has
+recorded a failing violating example before its passing receipt, the five
+workspace gates pass, and the review finds no chart type writing glyphs or
+colors outside the canvas.
+
+## charts-flow
+
+Requirements: CHT-030, CHT-029 plus the quality bar
+
+Sankey on the same plot layer and canvas, with links as blitter-drawn
+ribbons, after charts-radial.
 
 ## graphics-canvas
 
