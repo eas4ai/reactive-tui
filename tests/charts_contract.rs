@@ -15,6 +15,7 @@ use reactive_tui::event::types::{
 };
 use reactive_tui::widgets::display::{
     Chart, ChartAxis, ChartLegend, ChartProps, ChartType, DataPoint, DataSeries,
+    SankeyChartBuilder, SankeyLink,
 };
 
 struct Root(Element);
@@ -1401,4 +1402,289 @@ fn cht_031_keys_move_through_slices_and_categories_in_order() {
             "{kind:?}: Home selects the first"
         );
     }
+}
+
+/// Two sources feed a hub, which feeds two sinks: the Sankey chart of the
+/// selection tests, with each node's throughput.
+const SANKEY_NAMES: [&str; 5] = ["north", "south", "hub", "east", "west"];
+const SANKEY_THROUGHPUT: [&str; 5] = ["3", "2", "5", "4", "1"];
+
+fn sankey_chart(size: (u16, u16)) -> ChartProps {
+    let links = [(0, 2, 3.0), (1, 2, 2.0), (2, 3, 4.0), (2, 4, 1.0)]
+        .map(|(s, t, v)| SankeyLink::new(s, t, v));
+    SankeyChartBuilder::new(SANKEY_NAMES, links)
+        .node_label(|n: &&str| *n)
+        .size(size.0, size.1)
+        .build()
+}
+
+/// The terminal color of palette entry `index` (nodes take the palette in
+/// order).
+fn node_rgb(index: usize) -> (u8, u8, u8) {
+    let (r, g, b, _) = reactive_tui::theme::Theme::active()
+        .resolve_color(&format!("chart-{}", index % 5 + 1))
+        .expect("palette color");
+    let c = |v: f32| (v.clamp(0.0, 1.0) * 255.0).round() as u8;
+    (c(r), c(g), c(b))
+}
+
+/// The cells fully covered by node `index`: a full block in its color.
+fn node_cells(frame: &Snapshot, index: usize) -> Vec<(u16, u16)> {
+    let rgb = node_rgb(index);
+    let (rows, cols) = frame.screen.size();
+    (0..rows)
+        .flat_map(|r| (0..cols).map(move |c| (r, c)))
+        .filter(|(r, c)| {
+            frame.screen.cell(*r, *c).is_some_and(|cell| {
+                cell.contents() == "█"
+                    && matches!(cell.fgcolor(), vt100::Color::Rgb(red, green, blue)
+                        if red.abs_diff(rgb.0) <= 2 && green.abs_diff(rgb.1) <= 2 && blue.abs_diff(rgb.2) <= 2)
+            })
+        })
+        .collect()
+}
+
+/// A cell's colors, to compare frames.
+fn colors_at(frame: &Snapshot, r: u16, c: u16) -> Option<(vt100::Color, vt100::Color)> {
+    frame
+        .screen
+        .cell(r, c)
+        .map(|cell| (cell.fgcolor(), cell.bgcolor()))
+}
+
+/// The node the frame announces as selected, by its "name / throughput"
+/// live-region text.
+fn announced(frame: &Snapshot) -> Option<usize> {
+    (0..SANKEY_NAMES.len()).find(|i| {
+        frame
+            .live
+            .iter()
+            .any(|t| t.contains(&format!("{} / {}", SANKEY_NAMES[*i], SANKEY_THROUGHPUT[*i])))
+    })
+}
+
+/// CHT-032: a pointer on a node selects that node, and the tooltip and the
+/// live region name it with its throughput; a pointer on a ribbon or an
+/// empty cell selects nothing and leaves the frame unchanged.
+#[test]
+fn cht_032_a_pointer_on_a_node_selects_it_and_nothing_else_does() {
+    let size = (80u16, 24u16);
+    let plain = radial_run(sankey_chart(size), size, vec![(2, None)])
+        .pop()
+        .unwrap();
+    assert_eq!(
+        announced(&plain),
+        None,
+        "nothing is selected before a pointer moves"
+    );
+    for (index, name) in SANKEY_NAMES.iter().enumerate() {
+        let cells = node_cells(&plain, index);
+        assert!(!cells.is_empty(), "node {name} is drawn:\n{}", plain.text);
+        let (r, c) = cells[cells.len() / 2];
+        let frame = radial_run(sankey_chart(size), size, vec![(2, hover(c, r)), (3, None)])
+            .pop()
+            .unwrap();
+        assert_eq!(
+            announced(&frame),
+            Some(index),
+            "a pointer at ({c}, {r}) on {name} must select it; live region {:?}:\n{}",
+            frame.live,
+            frame.text
+        );
+        assert!(
+            frame.text.contains(SANKEY_THROUGHPUT[index])
+                && !plain.text.contains(SANKEY_THROUGHPUT[index]),
+            "the tooltip must show {name}'s throughput:\n{}",
+            frame.text
+        );
+    }
+    // Ribbon cells: filled, in no node's own color.
+    let any_node: Vec<(u16, u16)> = (0..SANKEY_NAMES.len())
+        .flat_map(|i| node_cells(&plain, i))
+        .collect();
+    let ribbons: Vec<(u16, u16)> = (0..size.1)
+        .flat_map(|r| (0..size.0).map(move |c| (r, c)))
+        .filter(|(r, c)| {
+            !any_node.contains(&(*r, *c))
+                && plain
+                    .screen
+                    .cell(*r, *c)
+                    .is_some_and(|cell| cell.contents() == "█")
+                && [
+                    (r.wrapping_sub(1), *c),
+                    (r + 1, *c),
+                    (*r, c.wrapping_sub(1)),
+                    (*r, c + 1),
+                ]
+                .iter()
+                .all(|n| !any_node.contains(n))
+        })
+        .collect();
+    assert!(
+        ribbons.len() > 20,
+        "the chart draws ribbons:\n{}",
+        plain.text
+    );
+    let empty = (0..size.1)
+        .flat_map(|r| (0..size.0).map(move |c| (r, c)))
+        .find(|(r, c)| {
+            plain
+                .screen
+                .cell(*r, *c)
+                .is_some_and(|cell| cell.contents().trim().is_empty())
+        })
+        .expect("an empty cell");
+    for (r, c) in [
+        ribbons[0],
+        ribbons[ribbons.len() / 2],
+        ribbons[ribbons.len() - 1],
+        empty,
+    ] {
+        let frame = radial_run(sankey_chart(size), size, vec![(2, hover(c, r)), (3, None)])
+            .pop()
+            .unwrap();
+        assert_eq!(
+            (announced(&frame), &frame.text),
+            (None, &plain.text),
+            "a pointer at ({c}, {r}), off every node, must select nothing"
+        );
+    }
+}
+
+/// CHT-032: Left, Right, Home and End step through the nodes column by
+/// column and, within a column, from top to bottom.
+#[test]
+fn cht_032_keys_step_through_the_nodes_by_layer_then_top_to_bottom() {
+    let size = (80u16, 24u16);
+    let plain = radial_run(sankey_chart(size), size, vec![(2, None)])
+        .pop()
+        .unwrap();
+    let top = |index: usize| {
+        node_cells(&plain, index)
+            .iter()
+            .map(|(r, _)| *r)
+            .min()
+            .expect("node drawn")
+    };
+    let mut order = Vec::new();
+    for layer in [vec![0, 1], vec![2], vec![3, 4]] {
+        let mut layer = layer;
+        layer.sort_by_key(|i| top(*i));
+        order.extend(layer);
+    }
+    let selected = |keys: &[KeyCode]| {
+        let mut events: Vec<(usize, Option<Event>)> = keys
+            .iter()
+            .enumerate()
+            .map(|(i, k)| (i + 2, app_input::key(k.clone())))
+            .collect();
+        events.push((keys.len() + 2, None));
+        announced(&radial_run(sankey_chart(size), size, events).pop().unwrap())
+    };
+    for step in 0..order.len() {
+        let keys = vec![KeyCode::Right; step + 1];
+        assert_eq!(
+            selected(&keys),
+            Some(order[step]),
+            "Right {} times must select node {} of the order {order:?}",
+            step + 1,
+            SANKEY_NAMES[order[step]]
+        );
+    }
+    assert_eq!(
+        selected(&[KeyCode::End]),
+        Some(order[4]),
+        "End selects the last node"
+    );
+    assert_eq!(
+        selected(&[KeyCode::End, KeyCode::Left]),
+        Some(order[3]),
+        "Left steps back"
+    );
+    assert_eq!(
+        selected(&[KeyCode::End, KeyCode::Home]),
+        Some(order[0]),
+        "Home selects the first node"
+    );
+}
+
+/// CHT-032: a selection keeps the selected node's links at the link
+/// opacity and fades every other link, and a second pointer move over the
+/// same node leaves the frame unchanged (CHT-019's same-index rule).
+#[test]
+fn cht_032_a_selection_fades_the_other_links_and_keeps_its_own() {
+    let size = (80u16, 24u16);
+    let plain = radial_run(sankey_chart(size), size, vec![(2, None)])
+        .pop()
+        .unwrap();
+    let hub = node_cells(&plain, 2);
+    let (hub_left, hub_right) = (
+        hub.iter().map(|(_, c)| *c).min().unwrap() - 1,
+        hub.iter().map(|(_, c)| *c).max().unwrap() + 1,
+    );
+    let hub_rows: Vec<u16> = {
+        let mut rows: Vec<u16> = hub.iter().map(|(r, _)| *r).collect();
+        rows.sort_unstable();
+        rows.dedup();
+        rows
+    };
+    let changed = |frame: &Snapshot, c: u16| -> Vec<bool> {
+        hub_rows
+            .iter()
+            .map(|r| colors_at(frame, *r, c) != colors_at(&plain, *r, c))
+            .collect()
+    };
+    // North selected: its link into the hub keeps its colors, south's link
+    // into the hub and the hub's links out fade.
+    let north = node_cells(&plain, 0);
+    let (r, c) = north[north.len() / 2];
+    let selected = radial_run(sankey_chart(size), size, vec![(2, hover(c, r)), (3, None)])
+        .pop()
+        .unwrap();
+    assert_eq!(announced(&selected), Some(0));
+    let left = changed(&selected, hub_left);
+    assert!(
+        left.iter().any(|c| *c) && left.iter().any(|c| !*c),
+        "beside the hub, north's link must keep its colors and south's must fade: {left:?}\nbefore\n{}\nafter\n{}",
+        plain.text,
+        selected.text
+    );
+    assert!(
+        changed(&selected, hub_right).iter().all(|c| *c),
+        "the hub's links out, which north does not touch, must fade:\nbefore\n{}\nafter\n{}",
+        plain.text,
+        selected.text
+    );
+    // Hub selected: every link is the hub's, so none fades beside the
+    // sources.
+    let (r, c) = hub[hub.len() / 2];
+    let hub_frame = radial_run(sankey_chart(size), size, vec![(2, hover(c, r)), (3, None)])
+        .pop()
+        .unwrap();
+    assert_eq!(announced(&hub_frame), Some(2));
+    for source in [0, 1] {
+        let cells = node_cells(&plain, source);
+        let right = cells.iter().map(|(_, c)| *c).max().unwrap() + 1;
+        for (r, _) in &cells {
+            assert_eq!(
+                colors_at(&hub_frame, *r, right),
+                colors_at(&plain, *r, right),
+                "selecting the hub must not fade its own link from {} at ({right}, {r})",
+                SANKEY_NAMES[source]
+            );
+        }
+    }
+    // A second move over the same node changes nothing.
+    let (r2, c2) = hub[0];
+    let again = radial_run(
+        sankey_chart(size),
+        size,
+        vec![(2, hover(c, r)), (3, hover(c2, r2)), (4, None)],
+    )
+    .pop()
+    .unwrap();
+    assert_eq!(
+        again.text, hub_frame.text,
+        "a move within the selected node must leave the frame unchanged"
+    );
 }

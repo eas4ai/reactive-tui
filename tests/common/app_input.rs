@@ -1,7 +1,7 @@
 use reactive_tui::{
     app::{App, AppWaker, RootComponent},
     backend::{Backend, DebugBackend, PaintedNode, SuprTuiBackend},
-    component::Element,
+    component::{Element, ElementType},
     core::surface::Attr,
     error::Result,
     event::types::{Event, KeyCode, KeyEvent, MouseButton, MouseEvent, MouseEventKind, Position},
@@ -46,6 +46,24 @@ pub struct Snapshot {
     /// that is not busy, and a step's frame count counts only such frames.
     #[allow(dead_code)]
     pub busy: bool,
+    /// The texts of this frame's live regions (elements with the
+    /// `aria-live-polite` class): what a screen reader announces.
+    #[allow(dead_code)]
+    pub live: Vec<String>,
+}
+
+/// The texts of the live regions in `element` and its descendants.
+fn live_texts(element: &Element, texts: &mut Vec<String>) {
+    let live = element
+        .class
+        .as_deref()
+        .is_some_and(|class| class.split_whitespace().any(|c| c == "aria-live-polite"));
+    if let (true, ElementType::Text(text)) = (live, &element.element_type) {
+        texts.push(text.clone());
+    }
+    for child in &element.children {
+        live_texts(child, texts);
+    }
 }
 
 /// Whether `element` or a descendant is marked busy.
@@ -149,6 +167,8 @@ struct InputBackend {
     wait_returned: std::sync::Mutex<Option<Instant>>,
     /// Whether the element tree of the frame being rendered is busy.
     busy: bool,
+    /// The live-region texts of the frame being rendered.
+    live: Vec<String>,
 }
 impl Backend for InputBackend {
     fn painted_nodes(&self) -> Option<&[reactive_tui::backend::PaintedNode]> {
@@ -162,6 +182,8 @@ impl Backend for InputBackend {
     }
     fn render_frame(&mut self, element: &Element) -> Result<bool> {
         self.busy = busy(element);
+        self.live.clear();
+        live_texts(element, &mut self.live);
         self.inner.backend_mut().render_frame(element)
     }
     fn layout_frame(
@@ -215,6 +237,7 @@ impl Backend for InputBackend {
                 .map(<[PaintedNode]>::to_vec)
                 .unwrap_or_default(),
             busy: self.busy,
+            live: self.live.clone(),
         });
         Ok(())
     }
@@ -761,6 +784,7 @@ fn run_steps_on(
         // and starts animating counts like every other (BAR-005).
         wait_returned: std::sync::Mutex::new(Some(Instant::now())),
         busy: false,
+        live: Vec::new(),
     };
     App::builder()
         .backend(backend)

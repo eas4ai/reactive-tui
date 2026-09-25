@@ -25,8 +25,9 @@ mod worker;
 use crate::layout::paint_tree::cells::CellGrid;
 use canvas::{Picture, RadialHit};
 
-/// How long a chart that has just appeared or changed size waits for its
-/// picture before the frame goes out without one. The wait is main-thread
+/// How long a chart that has just appeared or changed size, or a Sankey
+/// chart whose selection changed, waits for its picture before the frame
+/// goes out with the previous one or none. The wait is main-thread
 /// time inside the App's frame (BAR-005). Charts up to 200 by 40 cells
 /// draw in under 1 ms and appear painted; a larger one paints an empty
 /// area for one frame, and the worker's finish signal redraws it.
@@ -229,14 +230,14 @@ impl Component for LiveChart {
                     progress,
                     selected,
                 });
-                // A picture at a new size is worth a short wait so a small
-                // chart never paints empty; frames at the same size
-                // (animation, hover) copy whatever is finished.
-                let wait = if at_size(latest.picture.as_ref(), (width, height)).is_some() {
-                    Duration::ZERO
-                } else {
-                    NEW_SIZE_WAIT
-                };
+                // A picture at a new size, or a Sankey chart's new
+                // selection, is worth a short wait so a small chart never
+                // paints empty and the faded links arrive with the tooltip;
+                // other frames at the same size (animation, hover) copy
+                // whatever is finished.
+                let fresh = at_size(latest.picture.as_ref(), (width, height))
+                    .is_some_and(|picture| picture.selected == selected);
+                let wait = if fresh { Duration::ZERO } else { NEW_SIZE_WAIT };
                 if let Some((_, picture)) = worker.wait_for(id, wait) {
                     latest.picture = Some(picture);
                 }
@@ -305,9 +306,12 @@ impl Component for LiveChart {
         element.focus = Some(FocusProps::button());
         let mut node = crate::accessibility::Node::new(crate::accessibility::Role::Image);
         node.set_label(self.description(&config, &announcement));
-        // The worker is still drawing the picture for this size; its finish
-        // signal redraws the chart.
-        if picture.is_none() && drawable && self.worker.is_some() {
+        // The worker is still drawing the picture for this size, or for a
+        // Sankey chart's new selection; its finish signal redraws the chart.
+        let stale = picture
+            .as_ref()
+            .is_none_or(|picture| picture.selected != selected);
+        if stale && drawable && self.worker.is_some() {
             node.set_busy();
         }
         element.metadata.accessibility = Some(node);
