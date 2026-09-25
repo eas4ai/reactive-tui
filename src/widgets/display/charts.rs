@@ -63,6 +63,7 @@ pub struct ChartsBuilder {
     transition_duration: u64,
     value_labels: Option<bool>,
     radial: RadialOptions,
+    sankey: SankeyOptions,
 }
 
 impl ChartsBuilder {
@@ -105,6 +106,12 @@ impl ChartsBuilder {
     /// series.
     pub fn radar() -> Self {
         Self::new().chart_type(ChartType::Radar)
+    }
+
+    /// Create a Sankey chart: the first series' points are the nodes and
+    /// [`SankeyOptions::links`] the flows between them.
+    pub fn sankey() -> Self {
+        Self::new().chart_type(ChartType::Sankey)
     }
 
     /// Create a scatter plot
@@ -271,6 +278,12 @@ impl ChartsBuilder {
         self
     }
 
+    /// Sankey links and layout (CHT-030).
+    pub fn sankey_options(mut self, sankey: SankeyOptions) -> Self {
+        self.sankey = sankey;
+        self
+    }
+
     /// Turn value labels on or off; unset follows the size class.
     pub fn value_labels(mut self, on: bool) -> Self {
         self.value_labels = Some(on);
@@ -303,6 +316,7 @@ impl ChartsBuilder {
             transition_duration: self.transition_duration,
             value_labels: self.value_labels,
             radial: self.radial,
+            sankey: self.sankey,
         }
     }
 
@@ -339,6 +353,7 @@ impl Default for ChartsBuilder {
             transition_duration: props.transition_duration,
             value_labels: props.value_labels,
             radial: props.radial,
+            sankey: props.sankey,
         }
     }
 }
@@ -613,6 +628,8 @@ pub enum ChartType {
     Donut,
     /// Scatter plot
     Scatter,
+    /// Sankey diagram: nodes in columns joined by flow ribbons (CHT-030)
+    Sankey,
     /// Candlestick chart: wick from low to high, body from open to close
     Candlestick,
     /// Radar chart: one spoke per category, one polygon per series
@@ -656,6 +673,79 @@ impl Default for RadialOptions {
             grid: true,
             max_value: None,
             fills: Vec::new(),
+        }
+    }
+}
+
+/// A styled line of a Sankey node's label (CHT-029).
+#[derive(Debug, Clone, PartialEq)]
+pub struct SankeyLabel {
+    /// The line's text.
+    pub text: String,
+    /// Its color token; unset takes the default text color.
+    pub color: Option<String>,
+}
+
+impl SankeyLabel {
+    /// A line of `text` in the default text color.
+    pub fn new(text: impl Into<String>) -> Self {
+        Self {
+            text: text.into(),
+            color: None,
+        }
+    }
+
+    /// Draw the line in the color token `color`.
+    pub fn color(mut self, color: impl Into<String>) -> Self {
+        self.color = Some(color.into());
+        self
+    }
+}
+
+/// A Sankey chart's links and layout (CHT-030). The nodes are the first
+/// series' points: each point's label names its node and its color token
+/// colors it.
+#[derive(Debug, Clone, PartialEq)]
+pub struct SankeyOptions {
+    /// The flows between nodes, by node index.
+    pub links: Vec<SankeyLink>,
+    /// Which column each node takes.
+    pub node_align: SankeyAlign,
+    /// Relaxation passes that move nodes toward their flows.
+    pub iterations: usize,
+    /// How values map to node heights and link widths.
+    pub value_scale: SankeyValueScale,
+    /// Node width in columns.
+    pub node_width: u16,
+    /// Rows between the nodes of a column.
+    pub node_padding: u16,
+    /// How much of its color a ribbon keeps over the chart background, 0
+    /// to 1.
+    pub link_opacity: f32,
+    /// The narrowest a ribbon is drawn, in rows.
+    pub min_link_width: f32,
+    /// Columns between a first- or last-layer node and its label.
+    pub label_gap: u16,
+    /// Each node's throughput text; a missing entry shows the number.
+    pub value_labels: Vec<String>,
+    /// Each node's label lines; a missing or empty entry shows its name.
+    pub labels: Vec<Vec<SankeyLabel>>,
+}
+
+impl Default for SankeyOptions {
+    fn default() -> Self {
+        Self {
+            links: Vec::new(),
+            node_align: SankeyAlign::default(),
+            iterations: 6,
+            value_scale: SankeyValueScale::default(),
+            node_width: 2,
+            node_padding: 1,
+            link_opacity: 0.3,
+            min_link_width: 0.25,
+            label_gap: 1,
+            value_labels: Vec::new(),
+            labels: Vec::new(),
         }
     }
 }
@@ -709,6 +799,8 @@ pub struct ChartProps {
     pub value_labels: Option<bool>,
     /// Pie, donut and radar geometry
     pub radial: RadialOptions,
+    /// Sankey links and layout
+    pub sankey: SankeyOptions,
 }
 
 impl Props for ChartProps {
@@ -743,6 +835,7 @@ impl Default for ChartProps {
             transition_duration: 200,
             value_labels: None,
             radial: RadialOptions::default(),
+            sankey: SankeyOptions::default(),
         }
     }
 }
@@ -773,9 +866,10 @@ pub mod mask;
 pub mod plot;
 pub mod typed;
 
+pub use plot::sankey::{SankeyAlign, SankeyLink, SankeyValueScale};
 pub use typed::{
     AreaChartBuilder, BarChartBuilder, CandlestickChartBuilder, DonutChartBuilder,
-    LineChartBuilder, PieChartBuilder, RadarChartBuilder, ScatterChartBuilder,
+    LineChartBuilder, PieChartBuilder, RadarChartBuilder, SankeyChartBuilder, ScatterChartBuilder,
 };
 
 impl Component for Chart {

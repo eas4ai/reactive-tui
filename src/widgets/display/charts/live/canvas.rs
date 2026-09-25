@@ -14,6 +14,9 @@ use unicode_width::UnicodeWidthStr;
 mod cartesian;
 mod pie;
 mod radar;
+mod sankey;
+
+pub(super) use sankey::node_text as sankey_node_text;
 
 /// One drawn slice of a pie or donut: a slice whose fill set a sample.
 #[derive(Clone, Debug)]
@@ -48,6 +51,21 @@ pub(super) struct RadialHit {
     pub samples: (u32, u32),
 }
 
+/// Where a Sankey chart's nodes lie, for selection (CHT-032). Positions are
+/// in dot units.
+#[derive(Clone, Debug, Default)]
+pub(super) struct SankeyHit {
+    /// Each node's rectangle `(x0, y0, x1, y1)`, indexed like the nodes.
+    pub nodes: Vec<(f64, f64, f64, f64)>,
+    /// Node indices by layer, then top to bottom: the key order.
+    pub order: Vec<usize>,
+    /// Each node's color, for its tooltip swatch.
+    pub colors: Vec<Option<Rgba>>,
+    /// The fill blitter's pixels per cell (columns, rows), so the pointer
+    /// samples a cell where the fill did.
+    pub samples: (u32, u32),
+}
+
 /// The rasterized chart plus what the main thread needs for interaction.
 #[derive(Clone, Debug)]
 pub(super) struct Picture {
@@ -71,6 +89,8 @@ pub(super) struct Picture {
     pub kept: Vec<Vec<usize>>,
     /// Slice and spoke geometry of a pie, donut or radar chart.
     pub radial: Option<RadialHit>,
+    /// Node geometry of a Sankey chart.
+    pub sankey: Option<SankeyHit>,
 }
 
 impl Picture {
@@ -90,6 +110,7 @@ impl Picture {
             scatter: false,
             kept: Vec::new(),
             radial: None,
+            sankey: None,
         }
     }
 }
@@ -286,6 +307,39 @@ pub(super) fn validate(props: &ChartProps) -> Result<(), &'static str> {
             return Err("Invalid radar fill color");
         }
     }
+    if props.chart_type == ChartType::Sankey {
+        let sankey = &props.sankey;
+        if sankey
+            .links
+            .iter()
+            .any(|link| !link.value.is_finite() || link.value < 0.0)
+        {
+            return Err("Sankey link values must be finite and not negative");
+        }
+        if !sankey.link_opacity.is_finite() || !sankey.min_link_width.is_finite() {
+            return Err("Sankey options must be finite");
+        }
+        if sankey
+            .labels
+            .iter()
+            .flatten()
+            .any(|line| line.color.as_deref().is_some_and(|c| color(c).is_none()))
+        {
+            return Err("Invalid Sankey label color");
+        }
+        // A missing node or a cycle is an error before any shape (CHT-030).
+        let nodes = props.series.first().map_or(0, |s| s.data.len());
+        if let Err(error) = sankey::generator(sankey).topology(nodes, &sankey.links) {
+            return Err(match error {
+                crate::widgets::display::charts::plot::SankeyError::MissingNode(_) => {
+                    "Sankey link names a missing node"
+                }
+                crate::widgets::display::charts::plot::SankeyError::CircularLink => {
+                    "Sankey links form a cycle"
+                }
+            });
+        }
+    }
     Ok(())
 }
 
@@ -311,6 +365,9 @@ pub(super) struct Job<'a> {
     /// Whether the terminal draws braille and block glyphs (the capability
     /// report); false resolves cells with ASCII (CHT-028).
     pub unicode_glyphs: bool,
+    /// The selected (series, point), for charts whose shapes show the
+    /// selection: a Sankey chart fades the links of other nodes (CHT-032).
+    pub selected: Option<(usize, usize)>,
 }
 
 /// The size class for `props` in a `width` by `height` rectangle.
@@ -358,10 +415,13 @@ pub(super) fn draw(job: &Job) -> Picture {
         text.text(area.x, area.y, area.w, "No data to display", None);
         return compose(picture, &mask, &text, glyphs);
     }
-    // A pie or donut's legend names its slices; other charts name series.
+    // A pie or donut's legend names its slices; a Sankey chart's labels
+    // name its nodes; other charts name series.
     let entries: Vec<LegendEntry> = if matches!(props.chart_type, ChartType::Pie | ChartType::Donut)
     {
         pie::legend_entries(job)
+    } else if props.chart_type == ChartType::Sankey {
+        Vec::new()
     } else {
         visible
             .iter()
@@ -377,6 +437,8 @@ pub(super) fn draw(job: &Job) -> Picture {
             pie::pie(&mut mask, &mut text, &mut picture, job, area, class);
         } else if props.chart_type == ChartType::Radar {
             radar::radar(&mut mask, &mut text, &mut picture, job, area, class);
+        } else if props.chart_type == ChartType::Sankey {
+            sankey::sankey(&mut mask, &mut text, &mut picture, job, area, class);
         } else if let Err(error) =
             cartesian::cartesian(&mut mask, &mut text, &mut picture, job, area, class)
         {
@@ -567,6 +629,7 @@ mod tests {
             values: &values,
             progress: 1.0,
             unicode_glyphs: true,
+            selected: None,
         });
         let text = text_of(&picture);
         assert!(text.contains('█'), "{text}");
@@ -580,6 +643,7 @@ mod tests {
             values: &[],
             progress: 1.0,
             unicode_glyphs: true,
+            selected: None,
         });
         assert!(
             text_of(&picture).contains("No data"),
@@ -600,6 +664,7 @@ mod tests {
             values: &values,
             progress: 1.0,
             unicode_glyphs: false,
+            selected: None,
         });
         let text = text_of(&picture);
         assert!(

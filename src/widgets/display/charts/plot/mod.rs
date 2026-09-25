@@ -1,6 +1,6 @@
 //! The plot layer every chart type draws through (CHT-010): scales, ticks,
 //! axes, grid, label fitting, legend, tooltip, curve interpolation, min/max
-//! decimation and size classes. Renderers obtain every cell or dot position
+//! decimation, size classes and the Sankey layout. Renderers obtain every cell or dot position
 //! from a scale here and never map a data value to a position themselves.
 //!
 //! Positions are plain `f64` range units chosen by the caller; the chart
@@ -13,6 +13,7 @@ pub mod decimate;
 pub mod layout;
 pub mod legend;
 pub mod polar;
+pub mod sankey;
 pub mod scale;
 pub mod tick;
 pub mod tooltip;
@@ -23,6 +24,10 @@ pub use decimate::{decimate_min_max, Sample};
 pub use layout::{Rect, SizeClass};
 pub use legend::{Legend, LegendEntry, SWATCH};
 pub use polar::{spoke_angles, PolarGrid};
+pub use sankey::{
+    Sankey, SankeyAlign, SankeyError, SankeyGraph, SankeyLink, SankeyNode, SankeyRibbon,
+    SankeyValueScale,
+};
 pub use scale::{ScaleBand, ScaleLinear, ScaleOrdinal, ScalePoint};
 pub use tick::{
     band_ticks, format_tick, label_skip, labeled_ticks, linear_ticks, nice_step, point_ticks, Tick,

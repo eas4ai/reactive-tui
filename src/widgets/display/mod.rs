@@ -21,12 +21,13 @@ pub mod tree;
 pub use charts::plot;
 pub use charts::{
     AreaChartBuilder, BarChartBuilder, CandlestickChartBuilder, DonutChartBuilder,
-    LineChartBuilder, PieChartBuilder, RadarChartBuilder, ScatterChartBuilder,
+    LineChartBuilder, PieChartBuilder, RadarChartBuilder, SankeyChartBuilder, ScatterChartBuilder,
 };
 pub use charts::{
     BarGrowth, Candle, Chart, ChartAxis, ChartLegend, ChartProps, ChartState, ChartType,
     ChartsBuilder, Curve, DataPoint, DataSeries, FillStyle, GlyphSet, LegendPosition, LineStyle,
-    RadialOptions, SizeClass,
+    RadialOptions, SankeyAlign, SankeyLabel, SankeyLink, SankeyOptions, SankeyValueScale,
+    SizeClass,
 };
 pub use data_table::{
     ColumnFilter, DataTable, DataTableProps, DataTableState, FilterType, PaginationConfig,
