@@ -388,15 +388,19 @@ fn recursive_expansion_reaches_its_bound_within_a_small_stack() {
     );
 }
 
-/// The deepest tree expansion accepts also draws. The renderer's worker
-/// recurses once per element level, so it must not rely on the default
-/// thread stack, which RUST_MIN_STACK or a library's thread-local storage
-/// can shrink. The child's default stack is 1 MiB, less than the renderer
-/// needs at this depth, and its App runs on a thread with room to spare, so
-/// only the renderer's own stack decides the result.
+/// The deepest tree expansion accepts also draws through SuprTuiBackend, and
+/// so through the Crossterm and direct-TTY backends built on it. Its renderer
+/// thread lays out and paints, recursing once per element level, so it must
+/// not rely on the default thread stack, which RUST_MIN_STACK or a library's
+/// thread-local storage can shrink. (DebugBackend lays out on the thread
+/// that runs the app instead; the manual gives its stack need.) The child's
+/// default stack is 1 MiB, less than the renderer needs at this depth, and
+/// its App runs on a thread with room to spare, so only the renderer's own
+/// stack decides the result.
 #[test]
-fn the_deepest_accepted_tree_draws_whatever_the_default_thread_stack() {
-    const NAME: &str = "the_deepest_accepted_tree_draws_whatever_the_default_thread_stack";
+fn the_deepest_accepted_tree_draws_through_suprtui_whatever_the_default_thread_stack() {
+    const NAME: &str =
+        "the_deepest_accepted_tree_draws_through_suprtui_whatever_the_default_thread_stack";
     if in_child() {
         let (result, frames) = std::thread::Builder::new()
             .stack_size(8 << 20)
