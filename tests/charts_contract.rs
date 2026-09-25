@@ -1551,6 +1551,51 @@ fn cht_032_a_pointer_on_a_node_selects_it_and_nothing_else_does() {
     }
 }
 
+/// Whether a cell shows `rgb` as a shape color: its background, or the
+/// foreground of a non-blank glyph.
+fn shows_rgb(frame: &Snapshot, r: u16, c: u16, rgb: (u8, u8, u8)) -> bool {
+    let near = |color: vt100::Color| {
+        matches!(color, vt100::Color::Rgb(red, green, blue)
+            if red.abs_diff(rgb.0) <= 2 && green.abs_diff(rgb.1) <= 2 && blue.abs_diff(rgb.2) <= 2)
+    };
+    frame.screen.cell(r, c).is_some_and(|cell| {
+        near(cell.bgcolor()) || (!cell.contents().trim().is_empty() && near(cell.fgcolor()))
+    })
+}
+
+/// CHT-032: every cell that shows a node, the partly covered rows at its
+/// top and bottom included, selects that node.
+#[test]
+fn cht_032_every_drawn_node_cell_selects_its_node() {
+    let size = (80u16, 24u16);
+    let plain = radial_run(sankey_chart(size), size, vec![(2, None)])
+        .pop()
+        .unwrap();
+    let mut probed = 0;
+    for (index, name) in SANKEY_NAMES.iter().enumerate() {
+        let rgb = node_rgb(index);
+        let cells: Vec<(u16, u16)> = (0..size.1)
+            .flat_map(|r| (0..size.0).map(move |c| (r, c)))
+            .filter(|(r, c)| shows_rgb(&plain, *r, *c, rgb))
+            .collect();
+        assert!(!cells.is_empty(), "node {name} is drawn:\n{}", plain.text);
+        for (r, c) in cells {
+            probed += 1;
+            let frame = radial_run(sankey_chart(size), size, vec![(2, hover(c, r)), (3, None)])
+                .pop()
+                .unwrap();
+            assert_eq!(
+                announced(&frame),
+                Some(index),
+                "({c}, {r}) shows {name} and must select it; live region {:?}:\n{}",
+                frame.live,
+                plain.text
+            );
+        }
+    }
+    assert!(probed > 20, "every node's cells are probed ({probed})");
+}
+
 /// CHT-032: Left, Right, Home and End step through the nodes column by
 /// column and, within a column, from top to bottom.
 #[test]
