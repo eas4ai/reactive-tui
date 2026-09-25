@@ -1596,6 +1596,49 @@ fn cht_032_every_drawn_node_cell_selects_its_node() {
     assert!(probed > 20, "every node's cells are probed ({probed})");
 }
 
+/// CHT-032: a Sankey chart built through the untyped ChartsBuilder, whose
+/// node points carry no throughput, still names each selected node's
+/// throughput in the tooltip and the live region.
+#[test]
+fn cht_032_the_untyped_builder_announces_the_throughput() {
+    use reactive_tui::widgets::display::{ChartsBuilder, SankeyOptions};
+    let size = (80u16, 24u16);
+    let untyped = || {
+        let nodes = DataSeries::new(
+            "nodes",
+            SANKEY_NAMES
+                .iter()
+                .map(|name| DataPoint::with_label(0.0, *name))
+                .collect(),
+        );
+        ChartsBuilder::sankey()
+            .series(nodes)
+            .sankey_options(SankeyOptions {
+                links: [(0, 2, 3.0), (1, 2, 2.0), (2, 3, 4.0), (2, 4, 1.0)]
+                    .map(|(s, t, v)| SankeyLink::new(s, t, v))
+                    .to_vec(),
+                ..SankeyOptions::default()
+            })
+            .size(size.0, size.1)
+            .build()
+    };
+    let plain = radial_run(untyped(), size, vec![(2, None)]).pop().unwrap();
+    for (index, name) in SANKEY_NAMES.iter().enumerate() {
+        let cells = node_cells(&plain, index);
+        let (r, c) = cells[cells.len() / 2];
+        let frame = radial_run(untyped(), size, vec![(2, hover(c, r)), (3, None)])
+            .pop()
+            .unwrap();
+        assert_eq!(
+            announced(&frame),
+            Some(index),
+            "{name} must be announced with its throughput {}; live region {:?}",
+            SANKEY_THROUGHPUT[index],
+            frame.live
+        );
+    }
+}
+
 /// CHT-032: Left, Right, Home and End step through the nodes column by
 /// column and, within a column, from top to bottom.
 #[test]
