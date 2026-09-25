@@ -37,7 +37,7 @@ def main() -> int:
         text = strip_test_modules(f.read_text(errors="replace"))
         if plot and str(plot) in str(f):
             continue
-        if plot and "plot::" not in text and "plot/" not in str(f) and f.name in ("cartesian.rs", "pie.rs", "radar.rs", "canvas.rs"):
+        if plot and "plot::" not in text and "plot/" not in str(f) and f.name in ("cartesian.rs", "pie.rs", "radar.rs", "sankey.rs", "canvas.rs"):
             problems_010.append(f"{f.relative_to(ROOT)} does not use the plot layer")
         for m in LOCAL_SCALE.finditer(text):
             line = text[: m.start()].count("\n") + 1
