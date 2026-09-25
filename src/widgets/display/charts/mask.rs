@@ -744,7 +744,11 @@ impl MaskCanvas {
         // the set pattern draws the same cell as the blitter's full glyph in
         // the foreground, as a fully covered stroke or bar cell is drawn.
         if cell.pattern == 0 && cell.bg.is_some() {
-            let full = if count == 8 { u8::MAX } else { (1u8 << count) - 1 };
+            let full = if count == 8 {
+                u8::MAX
+            } else {
+                (1u8 << count) - 1
+            };
             return Resolved {
                 glyph: Some(blit_glyph(self.fill_blitter, full)),
                 color: cell.bg.map(pixel_color),
