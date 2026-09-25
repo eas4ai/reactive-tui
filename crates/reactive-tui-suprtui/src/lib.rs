@@ -7,6 +7,5 @@ pub mod ansi;
 pub mod blit;
 pub mod buffer;
 pub mod link;
-pub mod media;
 pub mod render;
 pub mod uni;
