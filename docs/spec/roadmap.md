@@ -148,6 +148,30 @@ default-feature gates run drops the last Hooks clone while timer restarts
 and fires run on other threads, hangs (stopped by a time limit) with the
 Weak upgrade, and passes with the fix.
 
+## suprtui-unused-modules
+
+Requirements: BAR-001, BAR-007
+
+Promoted from backlog item b12e1176. The renderer crate
+(crates/reactive-tui-suprtui) keeps seven modules from its import that
+nothing outside the crate uses: audio, clipboard, layout, sys, term,
+term_embedded and text, about 7,300 lines of source and 3,500 lines of
+tests. The app uses ansi, buffer, render, uni, blit, link and media. The
+layout module is the crate's only user of taffy 0.13, so every build
+compiles a second taffy beside the app's 0.9. term::Capabilities has ten
+flags nothing sets and repeats the app's own probe in
+src/core/capabilities.rs. UPSTREAM.md keeps the whole import on purpose, so
+that renderer changes can be checked against upstream.
+
+Delete the seven modules and their tests, and the crate's taffy and vte
+dependencies (vt100 still brings in vte). Tests of kept modules inside the
+deleted test files move to a kept file: sys_core.rs's LinkPool test and its
+empty-image decode check. UPSTREAM.md names the removed modules, the date,
+and the upstream commit where they can still be read; the renderer modules
+stay as imported, so renderer changes can still be compared. Done when the
+crate declares only the modules the app uses, Cargo.lock lists one taffy,
+and the workspace gates pass.
+
 ## charts-radial-and-flow
 
 Requirements: CHT-015, CHT-016 plus the quality bar
