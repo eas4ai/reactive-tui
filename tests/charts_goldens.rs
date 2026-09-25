@@ -1257,6 +1257,54 @@ fn cht_015_pie_slices_aspect_pad_and_labels() {
         "each placed label's leader must reach its slice ({touching} of {placed}):\n{}",
         frame.text
     );
+    // At a narrow gap, where a leader has no room to bend outside the
+    // circle, leaders still stay off the slices and off their own labels.
+    let values = [2.0, 8.0, 5.0, 9.0, 3.0, 7.0];
+    // Six slices take the five palette colors, the last wrapping around.
+    let six = palette(5);
+    for gap in [0u16, 1] {
+        let mut narrow = radial_props(ChartType::Pie, size, &values);
+        narrow.radial.label_gap = gap;
+        let narrow = radial_frame(narrow, size);
+        let mut bare = radial_props(ChartType::Pie, size, &values);
+        for point in &mut bare.series[0].data {
+            point.label = Some(String::new());
+        }
+        bare.radial.label_gap = gap + "p0".len() as u16;
+        let bare = radial_frame(bare, size);
+        let covered: Vec<(u16, u16)> = cells_showing(&bare, &six)
+            .into_iter()
+            .filter(|(r, c)| !six.iter().any(|rgb| shows(&narrow, *r, *c, *rgb)))
+            .collect();
+        assert!(
+            covered.is_empty(),
+            "at label gap {gap} leader lines must not draw over slice cells: {covered:?}\n{}",
+            narrow.text
+        );
+        let cut: Vec<String> = narrow
+            .text
+            .lines()
+            .filter(|line| {
+                let chars: Vec<char> = line.chars().collect();
+                (0..chars.len())
+                    .any(|i| chars[i] == 'p' && !chars.get(i + 1).is_some_and(char::is_ascii_digit))
+            })
+            .map(str::to_string)
+            .collect();
+        assert!(
+            cut.is_empty(),
+            "at label gap {gap} a leader must not overwrite its label: {cut:?}\n{}",
+            narrow.text
+        );
+        assert!(
+            (0..values.len())
+                .filter(|i| narrow.text.contains(&format!("p{i}")))
+                .count()
+                >= 3,
+            "at label gap {gap} labels are still placed:\n{}",
+            narrow.text
+        );
+    }
     // A label too long for the room beside the circle is cut, not dropped.
     let mut long = radial_props(ChartType::Pie, size, &[3.0, 1.0, 2.0]);
     long.legend.visible = true;

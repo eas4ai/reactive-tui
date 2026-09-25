@@ -224,9 +224,10 @@ pub(super) fn pie(
 }
 
 /// Place each slice's label beside the circle on the side its middle angle
-/// faces, on the row of the slice's outer edge or the nearest free row, cut
-/// to the columns left there, and join it to the slice with a leader line
-/// that starts past the slice's last painted cell on its row.
+/// faces, cut to the columns left there, on the row of the slice's outer
+/// edge or the nearest free row whose leader crosses no painted cell, and
+/// join it to the slice with a leader line that starts past the slice's
+/// last painted cell on its row.
 #[allow(clippy::too_many_arguments)]
 fn place_labels(
     text: &mut TextLayer,
@@ -267,13 +268,6 @@ fn place_labels(
             .floor()
             .clamp(area.y as f64, row_end.saturating_sub(1) as f64)
             as usize;
-        // The nearest free row to the anchor, alternating below and above.
-        let Some(row) = (0..area.h)
-            .flat_map(|d| [anchor_row + d, anchor_row.wrapping_sub(d)])
-            .find(|row| (area.y..row_end).contains(row) && !taken[side].contains(row))
-        else {
-            continue;
-        };
         // The label starts `gap` columns past the circle and takes what is
         // left of the row on its side, cut with an ellipsis when too long.
         let room = if right {
@@ -292,63 +286,86 @@ fn place_labels(
         } else {
             left_edge - gap - width
         };
+        let from = edge(anchor_row, right);
+        // The nearest free row to the anchor, alternating below and above,
+        // whose leader crosses no slice.
+        let Some((row, path)) = (0..area.h)
+            .flat_map(|d| [anchor_row + d, anchor_row.wrapping_sub(d)])
+            .filter(|row| (area.y..row_end).contains(row) && !taken[side].contains(row))
+            .find_map(|row| {
+                leader(mask, from, right, anchor_row, row, column, width).map(|path| (row, path))
+            })
+        else {
+            continue;
+        };
         taken[side].push(row);
         text.text(column, row, width, &shown, color);
-        leader(
-            text,
-            edge(anchor_row, right),
-            right,
-            anchor_row,
-            row,
-            column,
-            width,
-        );
+        for (x, y, glyph) in path {
+            text.put(x, y, glyph, None);
+        }
     }
 }
 
-/// The leader from `edge`, the first unpainted column past the slice on
-/// `anchor_row`, to the label on `row`: a horizontal run, and a bend down
-/// or up when the label moved rows.
+/// The cells of the leader from `edge`, the first unpainted column past the
+/// slice on `anchor_row`, to the label at `column` on `row`: a horizontal
+/// run, and a bend down or up when the label moved rows. The run is empty
+/// when the label touches the slice. `None` when a cell would cover a
+/// painted cell, so a leader never draws over a slice or its own label.
 fn leader(
-    text: &mut TextLayer,
+    mask: &MaskCanvas,
     edge: usize,
     right: bool,
     anchor_row: usize,
     row: usize,
     column: usize,
     width: usize,
-) {
-    let near = if right {
-        column.saturating_sub(1)
+) -> Option<Vec<(usize, usize, &'static str)>> {
+    // `near` is the column beside the label, `bend` the one past it.
+    let (near, bend) = if right {
+        let near = column.checked_sub(1)?;
+        (near, near.checked_sub(1))
     } else {
-        column + width
+        (column + width, Some(column + width + 1))
     };
-    let bend = if right {
-        near.saturating_sub(1)
-    } else {
-        near + 1
-    };
-    let horizontal = |text: &mut TextLayer, from: usize, to: usize, y: usize| {
-        for x in from.min(to)..=from.max(to) {
-            text.put(x, y, "─", None);
+    // The columns on `anchor_row` from `edge` outward to `to`.
+    let run = |to: usize| -> Vec<usize> {
+        if right {
+            (edge..=to).collect()
+        } else {
+            (to..=edge).collect()
         }
     };
+    let mut path = Vec::new();
     if row == anchor_row {
-        horizontal(text, edge, near, row);
-        return;
+        path.extend(run(near).into_iter().map(|x| (x, row, "─")));
+    } else {
+        let bend = bend?;
+        let horizontal = run(bend);
+        if horizontal.is_empty() {
+            return None;
+        }
+        let down = row > anchor_row;
+        let (turn, corner) = match (right, down) {
+            (true, true) => ("╮", "╰"),
+            (true, false) => ("╯", "╭"),
+            (false, true) => ("╭", "╯"),
+            (false, false) => ("╰", "╮"),
+        };
+        path.extend(
+            horizontal
+                .into_iter()
+                .map(|x| (x, anchor_row, if x == bend { turn } else { "─" })),
+        );
+        path.extend((anchor_row.min(row) + 1..anchor_row.max(row)).map(|y| (bend, y, "│")));
+        path.push((bend, row, corner));
+        path.push((near, row, "─"));
     }
-    horizontal(text, edge, bend, anchor_row);
-    let down = row > anchor_row;
-    for y in anchor_row.min(row) + 1..anchor_row.max(row) {
-        text.put(bend, y, "│", None);
+    let label = column..column + width;
+    if path
+        .iter()
+        .any(|(x, y, _)| mask.is_painted(*x, *y) || (*y == row && label.contains(x)))
+    {
+        return None;
     }
-    let (turn, corner) = match (right, down) {
-        (true, true) => ("╮", "╰"),
-        (true, false) => ("╯", "╭"),
-        (false, true) => ("╭", "╯"),
-        (false, false) => ("╰", "╮"),
-    };
-    text.put(bend, anchor_row, turn, None);
-    text.put(bend, row, corner, None);
-    text.put(near, row, "─", None);
+    Some(path)
 }
