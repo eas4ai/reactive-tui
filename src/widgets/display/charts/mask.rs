@@ -511,9 +511,11 @@ impl MaskCanvas {
         self.fill_palette.len() as u16
     }
 
-    /// Fill every sample inside the dot-space box (`x0`, `y0`) to (`x1`,
-    /// `y1`) for which `inside` holds at the sample's center, in dot units.
-    /// A later fill covers an earlier one where both hold. A fill needs a
+    /// Fill every sample whose center lies inside the dot-space box (`x0`,
+    /// `y0`) to (`x1`, `y1`), from the first edges up to but not including
+    /// the second, and inside the clip, for which `inside` holds at the
+    /// center, in dot units. A box edge inside a cell leaves that cell partly
+    /// covered. A later fill covers an earlier one where both hold. A fill needs a
     /// color to split on, so a fill with none draws nothing. Returns the
     /// number of samples it set.
     pub fn fill_where(
@@ -556,12 +558,13 @@ impl MaskCanvas {
             for col in c0..c1 {
                 for py in 0..ph {
                     let y = (row as f64 + (py as f64 + 0.5) / ph as f64) * DOTS_Y as f64;
-                    if y < top || y >= bottom {
+                    // The box is already cut to the clip.
+                    if y < y0 || y >= y1 {
                         continue;
                     }
                     for px in 0..pw {
                         let x = (col as f64 + (px as f64 + 0.5) / pw as f64) * DOTS_X as f64;
-                        if x >= left && x < right && inside(x, y) {
+                        if x >= x0 && x < x1 && inside(x, y) {
                             self.fills[row * self.cols + col][py * pw + px] = index;
                             set += 1;
                         }

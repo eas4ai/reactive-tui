@@ -231,11 +231,17 @@ pub(super) fn sankey(
         let (start, end) = (graph.nodes[ribbon.source].x1, graph.nodes[ribbon.target].x0);
         let mut x = start;
         while x < end {
-            let Some((top, bottom, across)) =
+            let Some((top, bottom, _)) =
                 graph.ribbon_at(index, (x + step / 2.0).min(end), min_width)
             else {
                 break;
             };
+            // One shade per cell, taken at the cell's middle, so the pixel
+            // columns of a cell share a color.
+            let middle = ((x / DOTS_X as f64).floor() + 0.5) * DOTS_X as f64;
+            let across = graph
+                .ribbon_at(index, middle.clamp(start, end), min_width)
+                .map_or(0.0, |(_, _, across)| across);
             let share = ((across * SHADES).round() / SHADES) as f32;
             let color = blend(shade(from, to, share), background, opacity);
             // The ribbon's edges curve across the strip, so every sample
@@ -305,7 +311,11 @@ pub(super) fn sankey(
                 let row = (middle_row + k).saturating_sub((lines.len() - 1) / 2);
                 (row, start, area.right().saturating_sub(start))
             } else {
-                let top_row = (node.y0 / DOTS_Y as f64).floor() as usize;
+                // The row of the node's first drawn pixel: the first fill
+                // sample whose center is at or below the node's top, so a
+                // top a rounding error short of a row keeps its label.
+                let first = (node.y0 / pixel - 0.5).ceil().max(0.0);
+                let top_row = (first / f64::from(ph.max(1))) as usize;
                 let Some(row) = (top_row + k).checked_sub(lines.len()) else {
                     continue;
                 };

@@ -1613,6 +1613,40 @@ fn shows_near(frame: &Snapshot, r: u16, c: u16, rgb: (u8, u8, u8), tolerance: u8
     })
 }
 
+/// CHT-030 and CHT-025: a filled box covers exactly the samples whose
+/// centers lie inside it, like the same rectangle filled as a polygon, so a
+/// node's edge inside a cell leaves that cell partly covered.
+#[test]
+fn cht_030_a_filled_box_covers_only_its_own_pixels() {
+    use reactive_tui::widgets::display::charts::mask::{GlyphSet, MaskCanvas};
+    use reactive_tui::widgets::display::Blitter;
+    let red = Some((0.8, 0.1, 0.1, 1.0));
+    // Dots 1 to 5 of a two-row column: two of row 0's three sextant pixel
+    // rows and one of row 1's.
+    let (x0, y0, x1, y1) = (0.0, 1.0, 2.0, 5.0);
+    let mut boxed = MaskCanvas::new(1, 2);
+    boxed.set_fill_blitter(Blitter::Sextant);
+    boxed.fill_where((x0, y0, x1, y1), red, None, |_, _| true);
+    let mut polygon = MaskCanvas::new(1, 2);
+    polygon.set_fill_blitter(Blitter::Sextant);
+    polygon.fill_polygon(&[(x0, y0), (x1, y0), (x1, y1), (x0, y1)], red, None);
+    for row in 0..2 {
+        let (got, want) = (
+            boxed.resolve(0, row, GlyphSet::Unicode),
+            polygon.resolve(0, row, GlyphSet::Unicode),
+        );
+        assert_eq!(
+            got, want,
+            "row {row}: the box must cover the polygon's pixels"
+        );
+        assert_ne!(
+            got.glyph,
+            Some("\u{2588}"),
+            "row {row} is only partly covered"
+        );
+    }
+}
+
 /// CHT-030: the layout gives each node the larger of its totals and each
 /// link its value under the chosen scale, links stack at a node without
 /// overlap, and the drawn nodes and ribbon ends lie where the layout puts
@@ -1706,6 +1740,52 @@ fn cht_030_nodes_and_ribbons_take_their_values_under_the_scale() {
             }
         }
     }
+    // Per pixel, on a graph whose column totals put node edges inside
+    // cells: a row that a node covers only in part is not a full block in
+    // the node's color.
+    let uneven_links = sankey_links(&[(0, 2, 3.0), (1, 2, 4.0), (2, 3, 5.0), (2, 4, 2.0)]);
+    let uneven = sankey_frame(
+        SankeyChartBuilder::new(["a", "b", "c", "d", "e"], uneven_links.clone())
+            .node_label(|_| String::new())
+            .size(size.0, size.1)
+            .build(),
+        size,
+    );
+    let uneven_graph = Sankey::new()
+        .node_width(4.0)
+        .node_padding(4.0)
+        .snap_x(2.0)
+        .extent(0.0, 0.0, 160.0, 96.0)
+        .layout(5, &uneven_links)
+        .unwrap();
+    let mut partial = 0;
+    for node in &uneven_graph.nodes {
+        let rgb = node_rgb(node.index);
+        let bottom = node.y1.max(node.y0 + pixel);
+        for r in 0..size.1 {
+            let covered = (0..3)
+                .map(|k| f64::from(r) * 4.0 + (f64::from(k) + 0.5) * pixel)
+                .filter(|y| *y >= node.y0 && *y < bottom)
+                .count();
+            if covered == 0 || covered == 3 {
+                continue;
+            }
+            for c in (node.x0 / 2.0) as u16..(node.x1 / 2.0) as u16 {
+                partial += 1;
+                let full = uneven
+                    .screen
+                    .cell(r, c)
+                    .is_some_and(|cell| cell.contents() == "\u{2588}" && shows(&uneven, r, c, rgb));
+                assert!(
+                    !full,
+                    "node {} covers {covered} of row {r}'s 3 pixel rows but fills ({r}, {c}) whole:\n{}",
+                    node.index,
+                    uneven.text
+                );
+            }
+        }
+    }
+    assert!(partial > 0, "the layout puts node edges inside cells");
     let mut ends = 0;
     for ribbon in &graph.links {
         let (source, target) = (&graph.nodes[ribbon.source], &graph.nodes[ribbon.target]);
