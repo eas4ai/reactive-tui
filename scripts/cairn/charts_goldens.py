@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """charts-goldens: CHT-012, CHT-013, CHT-014, CHT-015, CHT-016, CHT-023, CHT-024, CHT-025,
-CHT-026, CHT-027, CHT-028 and BAR-004 through the tests/charts_goldens.rs binary plus file
+CHT-026, CHT-027, CHT-028, CHT-030 and BAR-004 through the tests/charts_goldens.rs binary plus file
 and doc probes.
 
 Prints one `cairn: <REQ>: pass|fail` line per requirement.
@@ -18,7 +18,7 @@ from _common import (ROOT, cargo_test_filtered, enclosing_block, finish, mask, m
 from catalog_manual import chart_docs_problems
 
 SNAP = ROOT / "tests/snapshots/charts"
-TYPES = ["line", "area", "scatter", "bar", "candlestick", "pie", "donut", "radar"]
+TYPES = ["line", "area", "scatter", "bar", "candlestick", "pie", "donut", "radar", "sankey"]
 SIZES = {"mini": (20, 5), "medium": (80, 24), "large": (600, 160)}
 # The image widget, reworked to draw its block fallback through the
 # blitters: a medium golden and a wide one of at least 400 columns.
@@ -209,6 +209,10 @@ def main() -> int:
         results["CHT-016"] = (False, "no radar chart type in chart code")
     else:
         results["CHT-016"] = cargo_test_filtered("charts_goldens", "cht_016_")
+    if not re.search(r"enum ChartType\s*\{[^}]*\bSankey\b", chart_src, re.S):
+        results["CHT-030"] = (False, "no sankey chart type in chart code")
+    else:
+        results["CHT-030"] = cargo_test_filtered("charts_goldens", "cht_030_")
     # The decimation cost ratio is a property of the optimized build.
     results["CHT-027"] = cargo_test_filtered("charts_goldens", "cht_027_", release=True)
     if not re.search(r"enum ChartType\s*\{[^}]*\bCandlestick\b", chart_src, re.S):

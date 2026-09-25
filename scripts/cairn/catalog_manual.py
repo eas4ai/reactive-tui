@@ -23,7 +23,7 @@ import sys
 from _common import ROOT, mask, matching, rust_sources, strip_test_modules
 from charts_builders import builder_methods
 
-CHART_TYPES = ["line", "area", "scatter", "bar", "candlestick", "pie", "donut", "radar"]
+CHART_TYPES = ["line", "area", "scatter", "bar", "candlestick", "pie", "donut", "radar", "sankey"]
 CATALOG = ROOT / "examples/widget_catalog/catalog.rs"
 MANUAL = ROOT / "manual/display-widgets.md"
 

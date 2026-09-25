@@ -27,8 +27,9 @@ RADIAL = {
     "pie": ("Pie", PIE),
     "donut": ("Donut", PIE),
     "radar": ("Radar", ["value", "label", "stroke", "fill", "dot", "grid", "grid_levels", "max_value", "outer_radius"]),
-    "sankey": ("Sankey", ["value", "value_scale", "node_align", "iterations", "node_width", "node_padding",
-                          "node_label", "value_label", "labels", "link_opacity", "min_link_width"]),
+    "sankey": ("Sankey", ["new", "value_scale", "node_align", "iterations", "node_width", "node_padding",
+                          "node_color", "node_label", "value_label", "labels", "link_opacity", "min_link_width",
+                          "label_gap"]),
 }
 
 
@@ -78,6 +79,9 @@ def main() -> int:
             continue
         radial_missing.extend(f"{kind}: .{method}() missing on {kind.capitalize()}ChartBuilder"
                               for method in required if method not in lower[owner])
+        # A sankey's links are built with SankeyLink::new(source, target, value).
+        if kind == "sankey" and "new" not in lower.get("sankeylink", set()):
+            radial_missing.append("sankey: no SankeyLink::new(source, target, value)")
     closures = re.findall(r"Box<dyn Fn|Arc<dyn Fn|Rc<dyn Fn", "\n".join(strip_test_modules(f.read_text(errors="replace")) for f in rust_sources("src/widgets/display/charts.rs")))
     stored = [f"{len(closures)} closure fields stored in chart props (must be evaluated at build)"] if closures else []
     missing = sorted(set(missing)) + stored

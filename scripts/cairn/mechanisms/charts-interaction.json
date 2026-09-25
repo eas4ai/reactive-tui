@@ -26,7 +26,8 @@
   "requirements": [
     "CHT-018",
     "CHT-019",
-    "CHT-031"
+    "CHT-031",
+    "CHT-032"
   ],
   "results": "per-requirement"
 }
