@@ -1168,6 +1168,23 @@ fn cht_031_keys_and_pointer_skip_a_slice_the_pad_leaves_undrawn() {
             );
         }
     }
+    // A pad that hides every slice, or values that draw none, leave the
+    // keys nothing to select.
+    let mut hidden = props(ChartType::Pie, size, &[1.0, 1.0, 1.0]);
+    hidden.radial.pad_angle = 2.5;
+    let empty = props(ChartType::Donut, size, &[0.0, 0.0, 0.0]);
+    for (name, chart) in [("hidden", hidden), ("empty", empty)] {
+        for code in [KeyCode::Right, KeyCode::End] {
+            let frame = radial_run(chart.clone(), size, vec![(2, key(code.clone())), (3, None)])
+                .pop()
+                .unwrap();
+            assert!(
+                !(0..3).any(|i| frame.text.contains(&format!("p{i}:"))),
+                "{name}: {code:?} must select nothing on a chart that draws no slice:\n{}",
+                frame.text
+            );
+        }
+    }
 }
 
 /// CHT-031 and CHT-018: a pie's tooltip names the selected slice alone with
