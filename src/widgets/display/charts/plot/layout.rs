@@ -95,7 +95,7 @@ pub enum SizeClass {
 impl SizeClass {
     /// The class for a rectangle of `width` by `height` cells.
     pub fn for_size(width: usize, height: usize) -> Self {
-        if width < 30 || height < 8 {
+        if width < 40 || height < 8 {
             Self::Mini
         } else if width >= 200 && height >= 40 {
             Self::Large
