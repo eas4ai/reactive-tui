@@ -1,18 +1,27 @@
 {
   "command": "python3 -B scripts/cairn/charts_builders.py",
+  "cwd": null,
+  "documents": [],
+  "identity": {
+    "env": [],
+    "image": null,
+    "tools": {}
+  },
   "inputs": [
-    "src/widgets/display/charts.rs",
-    "src/widgets/display/charts",
-    "src/builder/widgets/chart.rs",
-    "src/theme",
-    "src/layout/colors.rs",
-    "tests/common",
-    "Cargo.toml",
     "Cargo.lock",
-    "scripts/cairn"
+    "Cargo.toml",
+    "scripts/cairn",
+    "src/builder/widgets/chart.rs",
+    "src/layout/colors.rs",
+    "src/theme",
+    "src/widgets/display/charts",
+    "src/widgets/display/charts.rs",
+    "src/widgets/display/charts/typed.rs",
+    "tests/common"
   ],
   "requirements": [
-    "CHT-020"
+    "CHT-020",
+    "CHT-029"
   ],
   "results": "per-requirement"
 }

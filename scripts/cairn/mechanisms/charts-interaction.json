@@ -1,22 +1,30 @@
 {
   "command": "python3 -B scripts/cairn/charts_contract.py interaction",
+  "cwd": null,
+  "documents": [],
+  "identity": {
+    "env": [],
+    "image": null,
+    "tools": {}
+  },
   "inputs": [
-    "src/widgets/display/charts.rs",
-    "src/widgets/display/charts",
-    "src/builder/widgets/chart.rs",
-    "src/theme",
-    "src/layout/colors.rs",
-    "tests/common",
-    "tests/charts_contract.rs",
-    "src/hooks",
-    "src/event",
-    "Cargo.toml",
     "Cargo.lock",
-    "scripts/cairn"
+    "Cargo.toml",
+    "scripts/cairn",
+    "src/builder/widgets/chart.rs",
+    "src/event",
+    "src/hooks",
+    "src/layout/colors.rs",
+    "src/theme",
+    "src/widgets/display/charts",
+    "src/widgets/display/charts.rs",
+    "tests/charts_contract.rs",
+    "tests/common"
   ],
   "requirements": [
     "CHT-018",
-    "CHT-019"
+    "CHT-019",
+    "CHT-031"
   ],
   "results": "per-requirement"
 }

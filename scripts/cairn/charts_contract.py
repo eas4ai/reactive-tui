@@ -2,7 +2,7 @@
 """Runs one requirement group of tests/charts_contract.rs and prints
 per-requirement lines. Usage: charts_contract.py <group>
 
-groups: interaction (CHT-018, CHT-019), motion (CHT-022),
+groups: interaction (CHT-018, CHT-019, CHT-031), motion (CHT-022),
         frame-budget (CHT-021, BAR-005), widget-bar (BAR-003)
 
 frame-budget runs on the performance cores only, where the kernel names
@@ -41,7 +41,7 @@ from pathlib import Path
 from _common import ROOT, cargo_test_filtered, finish, mask, matching, rust_sources, strip_test_modules
 
 GROUPS = {
-    "interaction": [("CHT-018", "cht_018_"), ("CHT-019", "cht_019_")],
+    "interaction": [("CHT-018", "cht_018_"), ("CHT-019", "cht_019_"), ("CHT-031", "cht_031_")],
     "motion": [("CHT-022", "cht_022_")],
     "frame-budget": [("CHT-021", "cht_021_"), ("BAR-005", "bar_005_")],
     "widget-bar": [("BAR-003", "bar_003_")],

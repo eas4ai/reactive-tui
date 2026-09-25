@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
-"""charts-goldens: CHT-012, CHT-013, CHT-014, CHT-023, CHT-024, CHT-025, CHT-026, CHT-027,
-CHT-028 and BAR-004 through the tests/charts_goldens.rs binary plus file and doc probes.
+"""charts-goldens: CHT-012, CHT-013, CHT-014, CHT-015, CHT-016, CHT-023, CHT-024, CHT-025,
+CHT-026, CHT-027, CHT-028 and BAR-004 through the tests/charts_goldens.rs binary plus file
+and doc probes.
 
 Prints one `cairn: <REQ>: pass|fail` line per requirement.
 """
@@ -17,7 +18,7 @@ from _common import (ROOT, cargo_test_filtered, enclosing_block, finish, mask, m
 from catalog_manual import chart_docs_problems
 
 SNAP = ROOT / "tests/snapshots/charts"
-TYPES = ["line", "area", "scatter", "bar", "candlestick"]
+TYPES = ["line", "area", "scatter", "bar", "candlestick", "pie", "donut", "radar"]
 SIZES = {"mini": (20, 5), "medium": (80, 24), "large": (600, 160)}
 # The image widget, reworked to draw its block fallback through the
 # blitters: a medium golden and a wide one of at least 400 columns.
@@ -187,12 +188,29 @@ def main() -> int:
     # them must not leave them looking unchanged to a later snapshot.
     before = checked_in()
     results = {}
-    for req, sub in (("CHT-012", "cht_012_"), ("CHT-013", "cht_013_"), ("CHT-024", "cht_024_"), ("CHT-025", "cht_025_"), ("CHT-026", "cht_026_")):
-        results[req] = cargo_test_filtered("charts_goldens", sub)
-    # The decimation cost ratio is a property of the optimized build.
-    results["CHT-027"] = cargo_test_filtered("charts_goldens", "cht_027_", release=True)
     chart_src = "\n".join(strip_test_modules(f.read_text(errors="replace")) for f in rust_sources(
         "src/widgets/display/charts.rs", "src/widgets/display/charts"))
+    for req, sub in (("CHT-012", "cht_012_"), ("CHT-013", "cht_013_"), ("CHT-024", "cht_024_"), ("CHT-026", "cht_026_")):
+        results[req] = cargo_test_filtered("charts_goldens", sub)
+    # CHT-025: fill cells resolve through the renderer's blitters, so the
+    # chart code must call the blitter's two-color split.
+    if not re.search(r"\bblit_block\b", chart_src):
+        results["CHT-025"] = (False, "the chart canvas resolves no fill cell through the renderer's blitters "
+                                     "(no blit_block call in chart code)")
+    else:
+        results["CHT-025"] = cargo_test_filtered("charts_goldens", "cht_025_")
+    # CHT-015: the pie and donut expose inner and outer radius and a pad angle.
+    absent = [name for name in ("inner_radius", "outer_radius", "pad_angle") if not re.search(rf"\b{name}\b", chart_src)]
+    if absent:
+        results["CHT-015"] = (False, "the pie and donut code exposes no " + ", ".join(absent))
+    else:
+        results["CHT-015"] = cargo_test_filtered("charts_goldens", "cht_015_")
+    if not re.search(r"enum ChartType\s*\{[^}]*\bRadar\b", chart_src, re.S):
+        results["CHT-016"] = (False, "no radar chart type in chart code")
+    else:
+        results["CHT-016"] = cargo_test_filtered("charts_goldens", "cht_016_")
+    # The decimation cost ratio is a property of the optimized build.
+    results["CHT-027"] = cargo_test_filtered("charts_goldens", "cht_027_", release=True)
     if not re.search(r"enum ChartType\s*\{[^}]*\bCandlestick\b", chart_src, re.S):
         results["CHT-014"] = (False, "no candlestick chart type in chart code")
     else:
