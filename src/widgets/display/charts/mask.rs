@@ -739,6 +739,19 @@ impl MaskCanvas {
             }
         }
         let cell = blit_block(self.fill_blitter, &pixels[..count]);
+        // A cell of one color splits with no error whichever set holds its
+        // samples. `blit_block` leaves them clear and paints the background;
+        // the set pattern draws the same cell as the blitter's full glyph in
+        // the foreground, as a fully covered stroke or bar cell is drawn.
+        if cell.pattern == 0 && cell.bg.is_some() {
+            let full = if count == 8 { u8::MAX } else { (1u8 << count) - 1 };
+            return Resolved {
+                glyph: Some(blit_glyph(self.fill_blitter, full)),
+                color: cell.bg.map(pixel_color),
+                background: None,
+                owner,
+            };
+        }
         Resolved {
             glyph: Some(blit_glyph(self.fill_blitter, cell.pattern)),
             color: cell.fg.map(pixel_color),
