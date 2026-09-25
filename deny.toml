@@ -52,7 +52,6 @@ skip = [
     { crate = "phf_shared@0.11.3", reason = "string_cache retains phf 0.11 while the accessibility adapter and comrak use phf 0.13." },
     { crate = "rustc-hash@=1.1.0", reason = "decision: retain-reviewed-wgpu-27-transitive-policy-exceptions; Naga and wgpu-core retain 1 while comrak uses the incompatible 2 API." },
     { crate = "syn@2.0.106", reason = "The proc-macro graph is transitioning independently from syn 2 to syn 3." },
-    { crate = "taffy@0.9.2", reason = "decision: retain-isolated-taffy-lines-across-layout-engines; the root and renderer own separate layout trees." },
     { crate = "thiserror@=1.0.69", reason = "decision: retain-reviewed-wgpu-27-transitive-policy-exceptions; gpu-allocator 0.27 requires the 1.x derive API while the root and wgpu use 2.x." },
     { crate = "thiserror-impl@=1.0.69", reason = "decision: retain-reviewed-wgpu-27-transitive-policy-exceptions; thiserror 1.0.69 requires its matching derive implementation." },
     { crate = "windows-sys@0.48.0", reason = "dirs retains the Windows 0.48 support crates." },
