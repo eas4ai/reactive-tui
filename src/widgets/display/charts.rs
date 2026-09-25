@@ -613,8 +613,6 @@ pub enum ChartType {
     Donut,
     /// Scatter plot
     Scatter,
-    /// Sankey diagram (violating example: no builder)
-    Sankey,
     /// Candlestick chart: wick from low to high, body from open to close
     Candlestick,
     /// Radar chart: one spoke per category, one polygon per series
