@@ -93,8 +93,12 @@ fn label_lines(props: &ChartProps, index: usize, class: SizeClass) -> Vec<(Strin
     }
 }
 
-/// `color` blended toward `background`: `opacity` of the color.
-fn blend(color: Rgba, background: Rgba, opacity: f32) -> Rgba {
+/// `color` blended toward the theme's `background`: `opacity` of the
+/// color. Without a background color the color is kept whole.
+fn blend(color: Rgba, background: Option<Rgba>, opacity: f32) -> Rgba {
+    let Some(background) = background else {
+        return color;
+    };
     let mix = |c: f32, b: f32| b + (c - b) * opacity;
     (
         mix(color.0, background.0),
@@ -189,7 +193,7 @@ pub(super) fn sankey(
     let shown = ((area.w as f64 * job.progress.clamp(0.0, 1.0)).ceil() as usize).min(area.w);
     mask.set_clip_cells(area.x, area.y, shown, area.h);
     let colors: Vec<Option<Rgba>> = (0..count).map(|index| node_color(props, index)).collect();
-    let background = super::color("background").unwrap_or((0.0, 0.0, 0.0, 1.0));
+    let background = super::color("background");
     let selected = job
         .selected
         .map(|(_, index)| index)
@@ -220,8 +224,10 @@ pub(super) fn sankey(
         } else {
             opacity
         };
-        let from = colors[ribbon.source].unwrap_or(background);
-        let to = colors[ribbon.target].unwrap_or(background);
+        // validate() rejected color tokens that do not resolve.
+        let (Some(from), Some(to)) = (colors[ribbon.source], colors[ribbon.target]) else {
+            continue;
+        };
         let (start, end) = (graph.nodes[ribbon.source].x1, graph.nodes[ribbon.target].x0);
         let mut x = start;
         while x < end {
