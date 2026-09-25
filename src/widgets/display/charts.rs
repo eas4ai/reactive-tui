@@ -108,8 +108,9 @@ impl ChartsBuilder {
         Self::new().chart_type(ChartType::Radar)
     }
 
-    /// Create a Sankey chart: the first series' points are the nodes and
-    /// [`SankeyOptions::links`] the flows between them.
+    /// Create a Sankey chart: the first series' points are the nodes (their
+    /// labels and color tokens; a node's throughput comes from the links)
+    /// and [`SankeyOptions::links`] the flows between them.
     pub fn sankey() -> Self {
         Self::new().chart_type(ChartType::Sankey)
     }
@@ -704,7 +705,9 @@ impl SankeyLabel {
 
 /// A Sankey chart's links and layout (CHT-030). The nodes are the first
 /// series' points: each point's label names its node and its color token
-/// colors it.
+/// colors it. A node's throughput, shown in its tooltip and large label,
+/// is the larger of its incoming and outgoing link totals, not its point's
+/// value.
 #[derive(Debug, Clone, PartialEq)]
 pub struct SankeyOptions {
     /// The flows between nodes, by node index.
