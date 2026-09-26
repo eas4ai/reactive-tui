@@ -1361,24 +1361,34 @@ fn cht_015_pie_slices_aspect_pad_and_labels() {
     // leader breaks another, no label sits against its slice without one,
     // and no leader ends on a neighbouring slice or on a cell it shares with
     // one. Each slice takes its own color, so the cell at a leader's end
-    // names the slices it shows.
+    // names the slices it shows. A label is left out only when its slice
+    // alone paints no outer cell on its side, the one cell a leader may
+    // start beside.
     let crowded = [1.0, 1.0, 1.0, 1.0, 1.0, 20.0, 1.0, 1.0];
     let crowded_left = [20.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0];
+    let crowded_right = [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 20.0];
     let crowded_bottom = [10.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 10.0];
     let spread = [3.0, 1.0, 2.0, 1.0, 4.0, 1.0, 2.0, 1.0];
     let own = [
         "#e6194b", "#3cb44b", "#ffe119", "#4363d8", "#f58231", "#911eb4", "#46f0f0", "#f032e6",
     ];
-    for (kind, values) in [
-        (ChartType::Pie, &crowded[..]),
-        (ChartType::Donut, &crowded[..]),
-        (ChartType::Pie, &crowded_left[..]),
-        (ChartType::Donut, &crowded_bottom[..]),
-        (ChartType::Pie, &values[..]),
-        (ChartType::Pie, &spread[..]),
-    ] {
+    for (kind, values) in [ChartType::Pie, ChartType::Donut]
+        .into_iter()
+        .flat_map(|kind| {
+            [
+                &crowded[..],
+                &crowded_left[..],
+                &crowded_right[..],
+                &crowded_bottom[..],
+                &values[..],
+                &spread[..],
+            ]
+            .map(|values| (kind.clone(), values))
+        })
+    {
         for (size, large) in [
             ((80u16, 24u16), false),
+            ((81, 25), false),
             ((120, 30), false),
             ((200, 40), true),
         ] {
@@ -1392,6 +1402,7 @@ fn cht_015_pie_slices_aspect_pad_and_labels() {
                 let grid: Vec<Vec<char>> =
                     frame.text.lines().map(|l| l.chars().collect()).collect();
                 let mut placed = 0;
+                let mut shown = vec![false; values.len()];
                 for (i, value) in values.iter().enumerate() {
                     // The large class shows the value after the name.
                     let label = if large {
@@ -1408,6 +1419,7 @@ fn cht_015_pie_slices_aspect_pad_and_labels() {
                                 continue;
                             }
                             placed += 1;
+                            shown[i] = true;
                             let Some((er, ec)) = leader_end(&grid, r, c, name.len()) else {
                                 panic!(
                                     "{kind:?} {size:?} at label gap {gap}: the leader of p{i} must run unbroken to a slice:\n{}",
@@ -1437,6 +1449,51 @@ fn cht_015_pie_slices_aspect_pad_and_labels() {
                     "{kind:?} {size:?} at label gap {gap}: labels are still placed ({placed}):\n{}",
                     frame.text
                 );
+                // A slice cell holds a block or sextant glyph; the circle's
+                // center column lies midway between its outermost cells.
+                let slice_cells: Vec<(u16, u16)> = (0..grid.len())
+                    .flat_map(|r| (0..grid[r].len()).map(move |c| (r, c)))
+                    .filter(|(r, c)| {
+                        let g = grid[*r][*c];
+                        "█▌▐▀▄▖▗▘▝▙▚▛▜▞▟".contains(g) || ('\u{1FB00}'..='\u{1FB3B}').contains(&g)
+                    })
+                    .map(|(r, c)| (r as u16, c as u16))
+                    .collect();
+                let center = (slice_cells.iter().map(|p| p.1).min().unwrap()
+                    + slice_cells.iter().map(|p| p.1).max().unwrap())
+                    / 2;
+                let total: f64 = values.iter().sum();
+                let mut before = 0.0;
+                for (i, value) in values.iter().enumerate() {
+                    let mid = (before + value / 2.0) / total * std::f64::consts::TAU;
+                    before += value;
+                    if shown[i] {
+                        continue;
+                    }
+                    // The rows where slice i alone paints the outermost
+                    // slice cell on its label's side.
+                    let right = mid < std::f64::consts::PI;
+                    let reachable: Vec<u16> = (0..size.1)
+                        .filter(|r| {
+                            let row = slice_cells
+                                .iter()
+                                .filter(|p| {
+                                    p.0 == *r && if right { p.1 >= center } else { p.1 <= center }
+                                })
+                                .map(|p| p.1);
+                            let outer = if right { row.max() } else { row.min() };
+                            outer.is_some_and(|c| {
+                                (0..values.len())
+                                    .all(|j| shows(&frame, *r, c, theme_color(own[j])) == (j == i))
+                            })
+                        })
+                        .collect();
+                    assert!(
+                        reachable.is_empty(),
+                        "{kind:?} {values:?} {size:?} at label gap {gap}: p{i} is left out although its slice alone paints the outer cell on rows {reachable:?}:\n{}",
+                        frame.text
+                    );
+                }
             }
         }
     }

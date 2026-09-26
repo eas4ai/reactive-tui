@@ -120,7 +120,9 @@ the palette in order. `.outer_radius(0.8)` shrinks the circle to a fraction
 of the largest that fits, and `.pad_angle(0.05)` leaves a gap in radians
 between slices. At the medium and large size classes each slice's label
 sits beside the circle, joined to it by a leader line, `.label_gap(3)`
-columns from the edge. A leader ends beside a cell that only its own slice
+columns from the edge. At `.label_gap(0)` a label touches the circle; one
+whose leader finds no room there, as on the circle's widest rows, sits one
+column further out. A leader ends beside a cell that only its own slice
 paints, and never crosses a slice, a label or another leader. A label with
 no row where such a leader fits is left out, and the legend still lists its
 slice. This happens, for example, to a thin slice at the top or bottom of
