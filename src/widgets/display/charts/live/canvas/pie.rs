@@ -97,6 +97,43 @@ pub(super) fn legend_entries(job: &Job) -> Vec<LegendEntry> {
         .collect()
 }
 
+/// The legend entries to draw when the legend cannot show every slice: each
+/// slice whose label was left out, then each labelled slice in slice order
+/// while `fits` holds for the whole list, so a slice left without a label
+/// stays in the legend (CHT-015). A legend with room for every slice draws
+/// them all.
+pub(super) fn legend_shown(
+    job: &Job,
+    entries: Vec<LegendEntry>,
+    labelled: &HashSet<(usize, usize)>,
+    fits: impl Fn(&[LegendEntry]) -> bool,
+) -> Vec<LegendEntry> {
+    if fits(&entries) {
+        return entries;
+    }
+    let mut keep: Vec<bool> = slices(job)
+        .iter()
+        .map(|(s, i, _)| !labelled.contains(&(*s, *i)))
+        .collect();
+    let chosen = |keep: &[bool]| -> Vec<LegendEntry> {
+        entries
+            .iter()
+            .zip(keep)
+            .filter(|(_, kept)| **kept)
+            .map(|(entry, _)| entry.clone())
+            .collect()
+    };
+    for index in 0..keep.len() {
+        if !keep[index] {
+            keep[index] = true;
+            keep[index] = fits(&chosen(&keep));
+        }
+    }
+    chosen(&keep)
+}
+
+/// Draw the slices and, at the medium and large classes, their labels.
+/// Returns the slices whose label was placed.
 pub(super) fn pie(
     mask: &mut MaskCanvas,
     text: &mut TextLayer,
@@ -104,7 +141,7 @@ pub(super) fn pie(
     job: &Job,
     area: Rect,
     class: SizeClass,
-) {
+) -> HashSet<(usize, usize)> {
     let props = job.props;
     let slices = slices(job);
     let total: f64 = slices.iter().map(|(_, _, v)| *v).sum();
@@ -116,11 +153,11 @@ pub(super) fn pie(
             "Pie values must have a finite total",
             None,
         );
-        return;
+        return HashSet::new();
     }
     if total <= 0.0 {
         text.text(area.x, area.y, area.w, "No data to display", None);
-        return;
+        return HashSet::new();
     }
     let labelled = class != SizeClass::Mini;
     // The large class shows each label in full with its value.
@@ -154,7 +191,7 @@ pub(super) fn pie(
     let fit = ((area.h * DOTS_Y) as f64 / 2.0).min((circle_w * DOTS_X) as f64 / 2.0);
     let outer = fit * props.radial.outer_radius.clamp(0.0, 1.0);
     if outer <= 0.0 {
-        return;
+        return HashSet::new();
     }
     let inner_fraction =
         props
@@ -230,7 +267,9 @@ pub(super) fn pie(
             gap,
             widest_allowed,
             labels,
-        );
+        )
+    } else {
+        HashSet::new()
     }
 }
 
@@ -242,7 +281,8 @@ pub(super) fn pie(
 /// on the row of the slice's outer edge, else the nearest row where the
 /// slice alone paints it. The label takes the nearest free row to that
 /// start whose leader crosses no painted cell and no label or leader placed
-/// before it. A label with no such rows is left out.
+/// before it. A label with no such rows is left out. Returns the slices
+/// whose label was placed.
 #[allow(clippy::too_many_arguments)]
 fn place_labels(
     text: &mut TextLayer,
@@ -253,7 +293,7 @@ fn place_labels(
     gap: usize,
     widest_allowed: usize,
     labels: Vec<SliceLabel>,
-) {
+) -> HashSet<(usize, usize)> {
     let row_end = area.y + area.h;
     let col_end = area.x + area.w;
     let center_col = ((cx / DOTS_X as f64) as usize).clamp(area.x, col_end.saturating_sub(1));
@@ -285,6 +325,7 @@ fn place_labels(
     let mut taken = [Vec::new(), Vec::new()];
     // The cells of the labels and leaders placed so far.
     let mut placed: HashSet<(usize, usize)> = HashSet::new();
+    let mut labelled = HashSet::new();
     for (mid, key, label, color) in labels {
         let right = mid < PI;
         let side = usize::from(right);
@@ -304,7 +345,7 @@ fn place_labels(
         if width < 2 {
             continue;
         }
-        let shown = fit_label(&label, width);
+        let cut = fit_label(&label, width);
         let column = if right {
             right_edge + gap
         } else {
@@ -328,13 +369,15 @@ fn place_labels(
             continue;
         };
         taken[side].push(row);
-        text.text(column, row, width, &shown, color);
+        labelled.insert(key);
+        text.text(column, row, width, &cut, color);
         placed.extend((column..column + width).map(|x| (x, row)));
         for (x, y, glyph) in path {
             text.put(x, y, glyph, None);
             placed.insert((x, y));
         }
     }
+    labelled
 }
 
 /// The rows of `area` by their distance from `row`, nearest first, below

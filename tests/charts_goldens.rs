@@ -13,7 +13,7 @@ use reactive_tui::app::RootComponent;
 use reactive_tui::component::Element;
 use reactive_tui::event::types::{Event, ResizeEvent};
 use reactive_tui::widgets::display::{
-    Chart, ChartAxis, ChartLegend, ChartProps, ChartType, DataPoint, DataSeries,
+    Chart, ChartAxis, ChartLegend, ChartProps, ChartType, DataPoint, DataSeries, LegendPosition,
     SankeyChartBuilder, SankeyLabel, SankeyLink, SizeClass,
 };
 
@@ -1467,6 +1467,71 @@ fn cht_015_pie_slices_aspect_pad_and_labels() {
     assert!(
         !cells_showing(&mini, &palette(2)).is_empty(),
         "a mini pie still draws its slices"
+    );
+}
+
+/// CHT-015: a label left out keeps its slice in the legend, also when the
+/// legend has no room for every slice: each slice is named by its label on
+/// the chart or by its legend entry. Seven long names do not fit one legend
+/// row, and the thin last slice, next to twelve o'clock, loses its label.
+#[test]
+fn cht_015_a_left_out_label_keeps_its_slice_in_the_legend() {
+    let names = [
+        "amber-region",
+        "birch-region",
+        "cedar-region",
+        "delta-region",
+        "ember-region",
+        "frost-region",
+        "grove-region",
+    ];
+    let values = [30.0, 20.0, 15.0, 12.0, 10.0, 10.0, 3.0];
+    let mut full = 0;
+    for (kind, size, position) in [
+        (ChartType::Pie, (80u16, 24u16), LegendPosition::Top),
+        (ChartType::Pie, (80, 24), LegendPosition::Bottom),
+        (ChartType::Donut, (80, 24), LegendPosition::Top),
+        (ChartType::Pie, (100, 30), LegendPosition::Bottom),
+        (ChartType::Pie, (120, 30), LegendPosition::Bottom),
+    ] {
+        let mut chart = radial_props(kind.clone(), size, &values);
+        chart.legend.visible = true;
+        chart.legend.position = position.clone();
+        for (point, name) in chart.series[0].data.iter_mut().zip(names) {
+            point.label = Some(name.to_string());
+        }
+        let frame = radial_frame(chart, size);
+        let lines: Vec<&str> = frame.text.lines().collect();
+        let legend_row = if position == LegendPosition::Top {
+            lines[0]
+        } else {
+            lines[lines.len() - 1]
+        };
+        let face: Vec<&str> = if position == LegendPosition::Top {
+            lines[1..].to_vec()
+        } else {
+            lines[..lines.len() - 1].to_vec()
+        };
+        let in_legend = |name: &str| legend_row.contains(name);
+        let on_face = |name: &str| face.iter().any(|line| line.contains(name));
+        // The case the fix is for: the legend is full and a label is out.
+        if names.iter().any(|n| !in_legend(n)) && names.iter().any(|n| !on_face(n)) {
+            full += 1;
+        }
+        let unnamed: Vec<&str> = names
+            .iter()
+            .copied()
+            .filter(|n| !in_legend(n) && !on_face(n))
+            .collect();
+        assert!(
+            unnamed.is_empty(),
+            "{kind:?} {size:?} {position:?}: every slice must be named on the chart or in the legend; named nowhere: {unnamed:?}\n{}",
+            frame.text
+        );
+    }
+    assert!(
+        full >= 2,
+        "control: at least two charts must have a full legend and a label left out ({full})"
     );
 }
 

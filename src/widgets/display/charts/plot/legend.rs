@@ -92,11 +92,28 @@ impl Legend {
         }
     }
 
-    /// Draw entries flowing along rows inside `rect`, wrapping when `wrap`.
-    pub fn draw_flowed(&self, sink: &mut dyn TextSink, rect: Rect, max_name: usize, wrap: bool) {
+    /// How many entries, from the first, `draw_stacked` draws in `rect`.
+    pub fn stacked_count(&self, rect: Rect) -> usize {
+        self.entries.len().min(rect.h)
+    }
+
+    /// How many entries, from the first, `draw_flowed` draws in `rect`.
+    pub fn flowed_count(&self, rect: Rect, max_name: usize, wrap: bool) -> usize {
+        self.flowed_places(rect, max_name, wrap).len()
+    }
+
+    /// Where `draw_flowed` puts each entry it draws: the entry's index, its
+    /// column and row inside `rect`, and its name cut to `max_name`.
+    fn flowed_places(
+        &self,
+        rect: Rect,
+        max_name: usize,
+        wrap: bool,
+    ) -> Vec<(usize, usize, usize, String)> {
+        let mut places = Vec::new();
         let mut x = 0;
         let mut row = 0;
-        for entry in &self.entries {
+        for (index, entry) in self.entries.iter().enumerate() {
             let name = fit_label(&entry.name, max_name);
             let item = 2 + text_width(&name);
             if x > 0 && x + 2 + item > rect.w {
@@ -114,7 +131,22 @@ impl Legend {
             if row >= rect.h {
                 break;
             }
-            sink.text(rect.x + x, rect.y + row, 1, SWATCH, entry.color);
+            places.push((index, x, row, name));
+            x += item;
+        }
+        places
+    }
+
+    /// Draw entries flowing along rows inside `rect`, wrapping when `wrap`.
+    pub fn draw_flowed(&self, sink: &mut dyn TextSink, rect: Rect, max_name: usize, wrap: bool) {
+        for (index, x, row, name) in self.flowed_places(rect, max_name, wrap) {
+            sink.text(
+                rect.x + x,
+                rect.y + row,
+                1,
+                SWATCH,
+                self.entries[index].color,
+            );
             sink.text(
                 rect.x + x + 2,
                 rect.y + row,
@@ -122,7 +154,6 @@ impl Legend {
                 &name,
                 None,
             );
-            x += item;
         }
     }
 }
@@ -187,5 +218,26 @@ mod tests {
             false,
         );
         assert_eq!(sink.0[2], (5, 0, SWATCH.to_string()));
+    }
+
+    #[test]
+    fn counts_match_what_drawing_draws() {
+        let legend = Legend::new(entries(&["alpha", "beta", "gamma"]));
+        let row = Rect {
+            x: 0,
+            y: 0,
+            w: 16,
+            h: 1,
+        };
+        // "■ alpha  ■ beta" is 15 columns; gamma does not fit.
+        assert_eq!(legend.flowed_count(row, 20, false), 2);
+        let mut sink = Lines(Vec::new());
+        legend.draw_flowed(&mut sink, row, 20, false);
+        assert_eq!(sink.0.len(), 2 * 2);
+        let two_rows = Rect { h: 2, ..row };
+        assert_eq!(legend.flowed_count(two_rows, 20, true), 3);
+        assert_eq!(legend.flowed_count(two_rows, 20, false), 2);
+        assert_eq!(legend.stacked_count(Rect { h: 2, ..row }), 2);
+        assert_eq!(legend.stacked_count(Rect { h: 9, ..row }), 3);
     }
 }
