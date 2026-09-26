@@ -1,11 +1,11 @@
 use reactive_tui::{
     app::{App, AppWaker, RootComponent},
-    backend::{Backend, DebugBackend, SuprTuiBackend},
+    backend::{Backend, DebugBackend, FrameLayout, PaintedNode, PresentedLayout, SuprTuiBackend},
     component::{
         registry::register_component, Component, Element, LayoutType, LifecycleEvent, Props,
     },
     error::Result,
-    event::types::Event,
+    event::types::{Event, ResizeEvent},
     render::{reconcile::PatchOp, RenderTree},
 };
 use std::{
@@ -165,9 +165,10 @@ impl RootComponent for Root {
     }
     fn render(&self) -> Element {
         let index = self.index.fetch_add(1, Ordering::SeqCst);
-        let element = self.frames[index].clone();
+        let last = self.frames.len() - 1;
+        let element = self.frames[index.min(last)].clone();
         let wake = self.wake.as_ref().unwrap();
-        if index + 1 == self.frames.len() {
+        if index >= last {
             wake.request_stop();
         } else {
             wake.request_redraw();
@@ -198,15 +199,39 @@ fn run_frames(elements: Vec<Element>) -> (Result<()>, Vec<String>) {
     let captured = frames.lock().unwrap().clone();
     (result, captured)
 }
-/// Records the text of each frame DebugBackend presents.
+/// Records the text of each frame DebugBackend presents and forwards its
+/// geometry, so the App does all of its own work on each frame. After the
+/// first frame it reports one resize, so the App lays the tree out again
+/// through `layout_frame` before painting at the new size.
 struct DebugProbe {
     inner: DebugBackend,
     frames: Arc<Mutex<Vec<String>>>,
+    layouts: Arc<AtomicUsize>,
+    resized: bool,
     deadline: Instant,
 }
 impl Backend for DebugProbe {
     fn render_frame(&mut self, element: &Element) -> Result<bool> {
         self.inner.render_frame(element)
+    }
+    fn layout_frame(&mut self, element: Arc<Element>) -> Result<Option<FrameLayout>> {
+        let frame = self.inner.layout_frame(element)?;
+        if frame.as_ref().is_some_and(|frame| !frame.nodes.is_empty()) {
+            self.layouts.fetch_add(1, Ordering::SeqCst);
+        }
+        Ok(frame)
+    }
+    fn painted_nodes(&self) -> Option<&[PaintedNode]> {
+        self.inner.painted_nodes()
+    }
+    fn component_layouts(&self) -> Option<&[PresentedLayout]> {
+        self.inner.component_layouts()
+    }
+    fn hit_cells(&self) -> Option<&[u32]> {
+        self.inner.hit_cells()
+    }
+    fn resize(&mut self, width: usize, height: usize) {
+        self.inner.resize(width, height)
     }
     fn apply_patches(&mut self, _: &[PatchOp], _: &RenderTree) -> Result<()> {
         panic!("complete frame required")
@@ -237,6 +262,10 @@ impl Backend for DebugProbe {
             Instant::now() < self.deadline,
             "App exceeded component test deadline"
         );
+        if !self.resized && !self.frames.lock().unwrap().is_empty() {
+            self.resized = true;
+            return Ok(Some(Event::Resize(ResizeEvent::new(40, 8))));
+        }
         wake.wait(Some(
             timeout
                 .unwrap_or(Duration::from_millis(10))
@@ -246,13 +275,17 @@ impl Backend for DebugProbe {
     }
 }
 
-/// Draws `elements` through DebugBackend, one frame each, and returns the
-/// run's result and the text of each presented frame.
-fn run_debug_frames(elements: Vec<Element>) -> (Result<()>, Vec<String>) {
+/// Draws `elements` through DebugBackend, one frame each, with one resize
+/// after the first, and returns the run's result, the text of each presented
+/// frame and how many layouts `layout_frame` returned.
+fn run_debug_frames(elements: Vec<Element>) -> (Result<()>, Vec<String>, usize) {
     let frames = Arc::new(Mutex::new(Vec::new()));
+    let layouts = Arc::new(AtomicUsize::new(0));
     let backend = DebugProbe {
         inner: DebugBackend::new(32, 6),
         frames: frames.clone(),
+        layouts: layouts.clone(),
+        resized: false,
         // a hang guard, not a timing check: generous so a busy machine cannot fail a correct test.
         deadline: Instant::now() + Duration::from_secs(30),
     };
@@ -267,7 +300,7 @@ fn run_debug_frames(elements: Vec<Element>) -> (Result<()>, Vec<String>) {
         .unwrap()
         .run();
     let captured = frames.lock().unwrap().clone();
-    (result, captured)
+    (result, captured, layouts.load(Ordering::SeqCst))
 }
 
 fn child(key: &str, text: &str) -> Element {
@@ -498,33 +531,37 @@ fn the_deepest_accepted_tree_draws_through_suprtui_whatever_the_default_thread_s
 }
 
 /// The deepest tree expansion accepts also draws through DebugBackend from
-/// an app thread with a 1.5 MiB stack. Laying out and painting a tree 128
-/// levels deep takes about 1.8 MiB of stack in a debug build, more than a
-/// test thread has left with the embedded-terminal feature, so DebugBackend
-/// does that work on a thread with its own stack, as SuprTuiBackend does,
-/// and the app thread's stack does not decide whether the tree draws.
+/// an app thread with a 1.5 MiB stack, before and after a resize. Laying
+/// out and painting a tree 128 levels deep takes about 1.8 MiB of stack in
+/// a debug build, more than a test thread has left with the
+/// embedded-terminal feature, so DebugBackend does that work on a thread
+/// with its own stack, as SuprTuiBackend does, and the app thread's stack
+/// does not decide whether the tree draws. The child's default stack is
+/// 1 MiB, less than that work needs, so a paint thread that took the
+/// default stack would fail here too.
 #[test]
 fn the_deepest_accepted_tree_draws_through_debug_backend_from_a_small_app_thread() {
     const NAME: &str =
         "the_deepest_accepted_tree_draws_through_debug_backend_from_a_small_app_thread";
     if in_child() {
-        let (result, frames) = std::thread::Builder::new()
+        let (result, frames, layouts) = std::thread::Builder::new()
             .stack_size(1536 * 1024)
             .spawn(|| {
-                let (result, frames) = run_debug_frames(vec![nested(128)]);
-                (result.map_err(|error| error.to_string()), frames)
+                let (result, frames, layouts) = run_debug_frames(vec![nested(128), nested(128)]);
+                (result.map_err(|error| error.to_string()), frames, layouts)
             })
             .unwrap()
             .join()
             .unwrap();
         result.unwrap();
         assert!(
-            frames[0].contains("deepest"),
-            "the innermost text was not drawn: {frames:?}"
+            frames.len() >= 2 && frames.iter().all(|frame| frame.contains("deepest")),
+            "the innermost text was not drawn before and after the resize: {frames:?}"
         );
+        assert_eq!(layouts, 1, "the resize did not lay the tree out again");
         return;
     }
-    let (passed, text) = run_in_child(NAME, &[]);
+    let (passed, text) = run_in_child(NAME, &[("RUST_MIN_STACK", "1048576")]);
     assert!(
         passed,
         "the deepest accepted tree does not draw through DebugBackend from a 1.5 MiB app thread: {text}"
