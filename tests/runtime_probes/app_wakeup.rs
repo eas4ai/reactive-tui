@@ -28,6 +28,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .build()?;
     let worker = if std::env::args().any(|arg| arg == "--probe") {
         Some(std::thread::spawn(move || {
+            // The behavior under test: a signal set from another thread
+            // after the App has gone idle wakes it.
             std::thread::sleep(Duration::from_millis(200));
             count.set(1);
         }))

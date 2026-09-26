@@ -347,14 +347,16 @@ mod tests {
                 .spawn()
                 .unwrap(),
         );
-        let deadline = Instant::now() + Duration::from_secs(10);
+        // A hang guard, not a timing check: generous so a busy machine
+        // cannot fail a correct test by running it slowly.
+        let deadline = Instant::now() + Duration::from_secs(30);
         let status = loop {
             if let Some(status) = fixture.child.as_mut().unwrap().try_wait().unwrap() {
                 break status;
             }
             assert!(
                 Instant::now() < deadline,
-                "clipboard fixture test exceeded 10 seconds"
+                "clipboard fixture test exceeded 30 seconds"
             );
             std::thread::sleep(Duration::from_millis(10));
         };

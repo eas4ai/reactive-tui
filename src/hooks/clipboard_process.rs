@@ -42,6 +42,7 @@ mod tests {
             return;
         };
         std::fs::write(path, std::process::id().to_string()).unwrap();
+        // The stalled clipboard command: it outlasts the timeout.
         std::thread::sleep(Duration::from_secs(30));
     }
 
@@ -92,6 +93,8 @@ mod tests {
             cancel && ready.is_some()
         })
         .unwrap_err();
+        // The behavior under test: the command ends at TIMEOUT (2 s, 15 s on
+        // Windows), well before the stalled child's 30 s.
         #[cfg(unix)]
         assert!(start.elapsed() < Duration::from_secs(3));
         #[cfg(windows)]

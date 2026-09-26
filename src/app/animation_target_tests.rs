@@ -187,7 +187,9 @@ fn isolated(name: &str) -> bool {
         .env(FLAG, name)
         .spawn()
         .unwrap();
-    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(20);
+    // A hang guard, not a timing check: generous so a busy machine cannot
+    // fail a correct test by running it slowly.
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
     loop {
         if let Some(status) = child.try_wait().unwrap() {
             assert!(status.success(), "{name}: {status}");
@@ -196,7 +198,7 @@ fn isolated(name: &str) -> bool {
         if std::time::Instant::now() >= deadline {
             child.kill().unwrap();
             child.wait().unwrap();
-            panic!("{name} exceeded 20 seconds");
+            panic!("{name} exceeded 30 seconds");
         }
         std::thread::sleep(std::time::Duration::from_millis(10));
     }

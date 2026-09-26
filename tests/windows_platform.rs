@@ -90,6 +90,7 @@ fn check_private_console() {
         matches!(error, reactive_tui::error::ReactiveError::Io(ref error)
         if error.kind() == std::io::ErrorKind::TimedOut)
     );
+    // The behavior under test: the read ends at its 50 ms timeout.
     assert!(started.elapsed() < Duration::from_secs(1));
 
     inject(
@@ -301,7 +302,7 @@ fn windows_console_io_and_event_conversion() {
             break status;
         }
         assert!(
-            start.elapsed() < Duration::from_secs(20),
+            start.elapsed() < Duration::from_secs(30),
             "private console test exceeded its deadline"
         );
         std::thread::sleep(Duration::from_millis(10));

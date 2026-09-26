@@ -986,7 +986,9 @@ mod tests {
     /// threads start meanwhile are skipped. `work` must not update RUNTIME
     /// itself except through `RUNTIME.deliver`.
     fn without_other_passes<R>(work: impl FnOnce() -> R) -> R {
-        let deadline = Instant::now() + Duration::from_secs(5);
+        // A hang guard, not a timing check: generous so a busy machine
+        // cannot fail a correct test by running it slowly.
+        let deadline = Instant::now() + Duration::from_secs(30);
         while RUNTIME
             .updating
             .compare_exchange(false, true, Ordering::Acquire, Ordering::Relaxed)
@@ -1601,7 +1603,7 @@ mod tests {
             send.send(()).unwrap();
         });
         receive
-            .recv_timeout(Duration::from_secs(2))
+            .recv_timeout(Duration::from_secs(30))
             .expect("keyframe interpolation deadlocked during cancellation");
         worker.join().unwrap();
     }
@@ -1784,7 +1786,7 @@ mod tests {
                 send.send(runtime.animations.read().unwrap().len()).unwrap();
             });
             let remaining = receive
-                .recv_timeout(Duration::from_secs(2))
+                .recv_timeout(Duration::from_secs(30))
                 .expect("callback capture drop could not reenter the runtime");
             assert_eq!(remaining, 0, "no animation survives with stop={stop}");
             worker.join().unwrap();
@@ -1839,7 +1841,7 @@ mod tests {
         });
         // A failing isolated test process exits rather than joining a deadlocked worker.
         let remaining = receive
-            .recv_timeout(Duration::from_secs(2))
+            .recv_timeout(Duration::from_secs(30))
             .expect("animation callback could not reenter the runtime");
         assert_eq!(
             remaining, 1,

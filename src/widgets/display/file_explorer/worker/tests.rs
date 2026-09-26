@@ -230,7 +230,9 @@ fn worker_replaces_pending_reads_and_drop_joins_its_owner() {
     let shared = Arc::downgrade(&worker.shared);
     worker.submit(fixture.path().to_path_buf(), Job::Read("missing".into()));
     let id = worker.submit(fixture.path().to_path_buf(), Job::Read("new".into()));
-    let deadline = Instant::now() + Duration::from_secs(3);
+    // A hang guard, not a timing check: generous so a busy machine cannot
+    // fail a correct test by running it slowly.
+    let deadline = Instant::now() + Duration::from_secs(30);
     loop {
         if let Some(response) = worker.take() {
             assert_eq!(response.id, id);

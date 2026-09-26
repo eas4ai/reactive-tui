@@ -615,7 +615,9 @@ mod tests {
         assert_eq!(engine.active_count(), 0);
         assert_eq!(engine.core.state.lock().unwrap().retiring.len(), 1);
         assert!(scheduler.next_deadline().is_some());
-        let end = Instant::now() + Duration::from_secs(1);
+        // A hang guard, not a timing check: generous so a busy machine
+        // cannot fail a correct test by running it slowly.
+        let end = Instant::now() + Duration::from_secs(30);
         while !engine.core.state.lock().unwrap().retiring.is_empty() && Instant::now() < end {
             scheduler.run_ready_timers();
             std::thread::sleep(Duration::from_millis(1));

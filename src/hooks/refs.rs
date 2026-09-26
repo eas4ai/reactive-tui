@@ -429,7 +429,7 @@ mod tests {
         });
         assert_eq!(
             receive
-                .recv_timeout(std::time::Duration::from_millis(500))
+                .recv_timeout(std::time::Duration::from_secs(30))
                 .unwrap(),
             (7, vec![String::from("later")])
         );
@@ -486,14 +486,14 @@ mod tests {
             });
         });
         started_receive
-            .recv_timeout(std::time::Duration::from_millis(500))
+            .recv_timeout(std::time::Duration::from_secs(30))
             .unwrap();
         let reader = reference.clone();
         let (read_send, read_receive) = std::sync::mpsc::channel();
         std::thread::spawn(move || read_send.send(reader.current()).unwrap());
         assert_eq!(
             read_receive
-                .recv_timeout(std::time::Duration::from_millis(500))
+                .recv_timeout(std::time::Duration::from_secs(30))
                 .unwrap(),
             1,
             "other readers must see the committed value while a callback edits its draft"

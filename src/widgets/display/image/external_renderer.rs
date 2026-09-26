@@ -490,6 +490,7 @@ mod tests {
             )
             .unwrap();
             match mode.as_str() {
+                // The stalled renderer: it outlasts the 5 s renderer timeout.
                 "stall" => std::thread::sleep(std::time::Duration::from_secs(30)),
                 "flood" => std::io::stdout()
                     .write_all(&vec![b'x'; 17 * 1024 * 1024])
@@ -514,6 +515,8 @@ mod tests {
             let error = ExternalRenderer::run_tool(command).unwrap_err().to_string();
             assert!(error.contains(expected), "{mode}: {error}");
             assert!(!error.contains("cleanup failed"), "{mode}: {error}");
+            // The behavior under test: every mode ends by the renderer's 5 s
+            // timeout, well before the stalled child's 30 s.
             assert!(
                 started.elapsed() < std::time::Duration::from_secs(10),
                 "{mode}"

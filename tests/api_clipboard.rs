@@ -208,6 +208,7 @@ fn copy_has_deadline() {
     let (state, copy, _) = use_clipboard(&hooks);
     let start = Instant::now();
     copy(&"x".repeat(1024 * 1024)); // Larger than the pipe buffer, never read.
+                                    // The behavior under test: the clipboard's 2 s timeout ends the copy.
     assert!(start.elapsed() < Duration::from_secs(3));
     assert!(state
         .get()
@@ -227,6 +228,7 @@ fn paste_has_deadline() {
     let (state, _, paste) = use_clipboard(&hooks);
     let start = Instant::now();
     assert_eq!(paste(), None);
+    // The behavior under test: the clipboard's 2 s timeout ends the paste.
     assert!(start.elapsed() < Duration::from_secs(3));
     assert!(state
         .get()
@@ -261,7 +263,8 @@ fn cleanup_cancels_owned_child() {
     });
     copy("payload");
     let cancelled = task.join().unwrap();
-    // Cleanup ends the pending copy promptly.
+    // The behavior under test: cleanup ends the pending copy at once, not
+    // when the clipboard's 2 s timeout runs out.
     assert!(cancelled.elapsed() < Duration::from_secs(1));
     assert!(state
         .get()
@@ -349,6 +352,8 @@ fn inherited_output_handles_do_not_block() {
     copy("retained pipe control");
     let start = Instant::now();
     assert_eq!(paste(), Some("retained pipe control".into()));
+    // The behavior under test: a retained output handle does not hold the
+    // paste until the clipboard's 2 s timeout.
     assert!(start.elapsed() < Duration::from_secs(1));
     assert!(state.get().error.is_none());
     assert_child_reaped();

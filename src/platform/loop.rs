@@ -925,6 +925,8 @@ mod tests {
             .unwrap_err()
             .to_string()
             .contains("queue is full"));
+        // The behavior under test: a post to a full queue fails at once
+        // instead of blocking.
         assert!(started.elapsed() < std::time::Duration::from_secs(1));
         assert_eq!(event_loop.try_event(), Some(TerminalEvent::FocusGained));
         event_loop.post_event(TerminalEvent::FocusLost).unwrap();
@@ -950,8 +952,11 @@ mod tests {
 
         match mode.as_str() {
             "saturation" => {
+                // Setup for the behavior under test: let the parent's input
+                // fill the queue before draining it.
                 std::thread::sleep(Duration::from_millis(250));
-                let deadline = Instant::now() + Duration::from_secs(2);
+                // A hang guard, not a timing check.
+                let deadline = Instant::now() + Duration::from_secs(30);
                 for _ in 0..600 {
                     while event_loop.try_event().is_none() {
                         assert!(Instant::now() < deadline, "consumer made no progress");
@@ -963,11 +968,14 @@ mod tests {
             "idle-stop" => {
                 let started = Instant::now();
                 event_loop.stop().unwrap();
+                // The behavior under test: stop ends an idle loop within its
+                // 50 ms input poll.
                 assert!(started.elapsed() < Duration::from_secs(2));
             }
             "drop" => {
                 drop(event_loop);
-                let deadline = Instant::now() + Duration::from_secs(2);
+                // A hang guard, not a timing check.
+                let deadline = Instant::now() + Duration::from_secs(30);
                 while thread_count() > baseline_threads && Instant::now() < deadline {
                     std::thread::sleep(Duration::from_millis(10));
                 }

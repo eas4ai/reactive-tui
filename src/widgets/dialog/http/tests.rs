@@ -12,7 +12,9 @@ fn listener() -> (TcpListener, String) {
 }
 
 fn accept(listener: TcpListener) -> TcpStream {
-    let end = Instant::now() + Duration::from_secs(2);
+    // A hang guard, not a timing check: generous so a busy machine cannot
+    // fail a correct test by running it slowly.
+    let end = Instant::now() + Duration::from_secs(30);
     loop {
         match listener.accept() {
             Ok((stream, _)) => {
@@ -97,6 +99,8 @@ fn cancellation_joins_worker_and_closes_the_actual_connection() {
     receive(&mut stream);
     let started = Instant::now();
     drop(job);
+    // The behavior under test: dropping cancels at once instead of waiting
+    // for the unanswered request.
     assert!(started.elapsed() < Duration::from_secs(1));
     let mut remaining = Vec::new();
     if let Err(error) = stream.read_to_end(&mut remaining) {

@@ -450,7 +450,7 @@ mod rac_002_tests {
             runtime.unregister_effect(later);
             send.send(nested_calls.get()).unwrap();
         });
-        assert_eq!(receive.recv_timeout(Duration::from_millis(500)).unwrap(), 1);
+        assert_eq!(receive.recv_timeout(Duration::from_secs(30)).unwrap(), 1);
     }
 }
 

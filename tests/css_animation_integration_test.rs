@@ -143,11 +143,21 @@ fn test_css_animation_cleanup() {
         println!("During creation stats: {:?}", during_stats);
     } // render_node goes out of scope here, triggering cleanup
 
-    // Give some time for cleanup to happen
-    std::thread::sleep(std::time::Duration::from_millis(10));
+    // Wait for the cleanup the drop starts. The deadline is a hang guard,
+    // generous so a busy machine cannot fail a correct test.
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
+    let mut after_cleanup_stats = get_css_animation_stats_global();
+    while (
+        after_cleanup_stats.active_components,
+        after_cleanup_stats.total_animations,
+    ) != (0, 0)
+        && std::time::Instant::now() < deadline
+    {
+        std::thread::sleep(std::time::Duration::from_millis(1));
+        after_cleanup_stats = get_css_animation_stats_global();
+    }
 
     // Check that animations were cleaned up
-    let after_cleanup_stats = get_css_animation_stats_global();
     println!("After cleanup stats: {:?}", after_cleanup_stats);
 
     // Should have no active animations after cleanup

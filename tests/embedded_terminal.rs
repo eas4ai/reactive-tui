@@ -33,7 +33,9 @@ fn wait(
     session: &EmbeddedSession,
     condition: impl Fn(&SessionSnapshot) -> bool,
 ) -> SessionSnapshot {
-    let deadline = Instant::now() + Duration::from_secs(5);
+    // A hang guard, not a timing check: generous so a busy machine cannot
+    // fail a correct test by running it slowly.
+    let deadline = Instant::now() + Duration::from_secs(30);
     loop {
         let snapshot = session.snapshot().unwrap();
         assert!(snapshot.error.is_none(), "{:?}", snapshot.error);
@@ -121,7 +123,10 @@ fn emb_005_delayed_output_exit_and_idle_shutdown_are_observable() {
     let pid = idle.child_id() as libc::pid_t;
     let start = Instant::now();
     idle.shutdown().unwrap();
-    assert!(start.elapsed() < Duration::from_secs(2));
+    // The behavior under test: shutdown kills the child that sleeps 30 s;
+    // finishing well inside that shows it did not wait, with room for a
+    // busy machine.
+    assert!(start.elapsed() < Duration::from_secs(10));
     assert!(idle.snapshot().unwrap().stopped);
     // SAFETY: query only; WNOHANG cannot block. ECHILD proves this owner reaped it.
     assert_eq!(
@@ -444,8 +449,9 @@ fn emb_005_app_observes_natural_exit_and_final_frame_without_input() {
             wake: &reactive_tui::app::AppWaker,
         ) -> Result<Option<Event>> {
             let start = Instant::now();
-            wake.wait(Some(timeout.unwrap_or(Duration::from_secs(2))));
-            if start.elapsed() >= Duration::from_secs(2) {
+            // A hang guard, not a timing check.
+            wake.wait(Some(timeout.unwrap_or(Duration::from_secs(30))));
+            if start.elapsed() >= Duration::from_secs(30) {
                 return Err(ReactiveError::terminal("native App exit watchdog"));
             }
             Ok(None)

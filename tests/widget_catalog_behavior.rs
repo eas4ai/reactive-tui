@@ -490,7 +490,9 @@ fn compact_graphics_stage_keeps_header_navigation_and_footer_visible() {
     );
     catalog.resize(60, 24).unwrap();
     catalog.attach_waker(reactive_tui::app::AppWaker::new());
-    let deadline = Instant::now() + Duration::from_secs(2);
+    // A hang guard, not a timing check: generous so a busy machine cannot
+    // fail a correct test by running it slowly.
+    let deadline = Instant::now() + Duration::from_secs(30);
     let mut backend = DebugBackend::new(60, 24);
     loop {
         catalog.update().unwrap();
@@ -528,7 +530,9 @@ fn feature_enabled_motion_fills_the_available_stage() {
     );
     catalog.resize(144, 50).unwrap();
     catalog.attach_waker(reactive_tui::app::AppWaker::new());
-    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(2);
+    // A hang guard, not a timing check: generous so a busy machine cannot
+    // fail a correct test by running it slowly.
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
     let mut backend = reactive_tui::backend::DebugBackend::new(144, 50);
     loop {
         catalog.update().unwrap();

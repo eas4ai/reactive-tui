@@ -221,10 +221,13 @@ mod tests {
         assert!(!wake.take().redraw);
         let other = wake.clone();
         let sender = std::thread::spawn(move || {
+            // The behavior under test: a wake that arrives after the wait began.
             std::thread::sleep(Duration::from_millis(20));
             other.request_stop();
         });
         let start = Instant::now();
+        // The behavior under test: a wake from another thread ends the wait
+        // well before its 2 s timeout.
         wake.wait(Some(Duration::from_secs(2)));
         assert!(start.elapsed() < Duration::from_secs(1));
         assert!(wake.take().stop);
@@ -287,7 +290,8 @@ mod tests {
         });
         for _ in 0..200 {
             send.send(()).unwrap();
-            wake.wait(Some(Duration::from_secs(1)));
+            // A hang guard: the sender's wake ends the wait.
+            wake.wait(Some(Duration::from_secs(30)));
             assert!(wake.take().redraw);
         }
         worker.join().unwrap();

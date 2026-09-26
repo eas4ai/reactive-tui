@@ -42,9 +42,9 @@ fn terminal_widget_windows_app_routes_input_and_paints_after_resize() {
                 ("READY>", key(KeyCode::Enter)),
                 (&final_result, None),
             ],
-            // Native cmd startup exceeded the generic three-second App fixture
-            // budget; keep the whole two-command workflow bounded to ten seconds.
-            std::time::Duration::from_secs(10),
+            // A hang guard, not a timing check: generous so a busy machine
+            // cannot fail a correct test by running it slowly.
+            app_input::HANG_GUARD,
         );
         // The expected answers never occur in the submitted commands. An echoed
         // command alone cannot satisfy these assertions.

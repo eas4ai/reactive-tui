@@ -445,6 +445,7 @@ fn modal_animations_change_presented_frames_without_input() {
                 .build()
         }
         fn update(&mut self) -> reactive_tui::error::Result<reactive_tui::app::RootUpdate> {
+            // The behavior under test: the modal's animation has run for 500 ms.
             if !self.done && self.started.elapsed() >= std::time::Duration::from_millis(500) {
                 self.done = true;
                 Ok(reactive_tui::app::RootUpdate::Redraw)

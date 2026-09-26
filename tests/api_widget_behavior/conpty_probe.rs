@@ -74,6 +74,7 @@ mod windows {
             return;
         }
         if mode == "idle" {
+            // The idle child: it never reads its input and never exits.
             loop {
                 std::thread::sleep(Duration::from_secs(1));
             }
@@ -108,7 +109,9 @@ mod windows {
     }
 
     fn read_until(pty: &PseudoTerminal, marker: &str) -> String {
-        let deadline = Instant::now() + Duration::from_secs(10);
+        // A hang guard, not a timing check: generous so a busy machine cannot
+        // fail a correct test by running it slowly.
+        let deadline = Instant::now() + Duration::from_secs(30);
         let mut bytes = Vec::new();
         while Instant::now() < deadline {
             if let Some(chunk) = pty.read_output(Some(Duration::from_millis(20))).unwrap() {
@@ -182,7 +185,7 @@ mod windows {
         pty.write_input(b"resized\r").unwrap();
         read_until(&pty, "INPUT:resized:SIZE:100:30");
         pty.write_input(b"quit\r").unwrap();
-        let deadline = Instant::now() + Duration::from_secs(10);
+        let deadline = Instant::now() + Duration::from_secs(30);
         while pty.try_wait().unwrap().is_none() && Instant::now() < deadline {
             pty.read_output(Some(Duration::from_millis(20))).unwrap();
         }
@@ -236,11 +239,14 @@ mod windows {
                 }
                 assert!(rejected, "input remained unbounded");
             }
+            // Setup for the behavior under test: give the flood time to fill
+            // the output pipe, so the drop below meets backpressure.
             std::thread::sleep(Duration::from_millis(100));
             let started = Instant::now();
             drop(busy);
+            // A hang guard: dropping ends the child at once.
             assert!(
-                started.elapsed() < Duration::from_secs(10),
+                started.elapsed() < Duration::from_secs(30),
                 "{mode} shutdown stalled"
             );
             assert_exited(&process);

@@ -413,7 +413,7 @@ mod tests {
             counter_clone.fetch_add(1, Ordering::Relaxed);
         });
 
-        // Timer should fire immediately
+        // Timer should fire immediately; the sleep only lets its due time pass.
         std::thread::sleep(Duration::from_millis(1));
         scheduler.process_timers();
 
@@ -434,7 +434,7 @@ mod tests {
             counter_clone.fetch_add(1, Ordering::Relaxed);
         });
 
-        // Should fire multiple times
+        // Should fire multiple times; the sleep only lets its due time pass.
         std::thread::sleep(Duration::from_millis(1));
         scheduler.process_timers();
         assert_eq!(counter.load(Ordering::Relaxed), 1);
@@ -475,7 +475,9 @@ mod tests {
     fn rac_003_background_scheduler_sleeps_until_work_and_stops() {
         let scheduler = Scheduler::new_background();
         let probe = scheduler.background_probe().unwrap();
-        let startup_deadline = Instant::now() + Duration::from_millis(500);
+        // A hang guard, not a timing check: generous so a busy machine
+        // cannot fail a correct test by running it slowly.
+        let startup_deadline = Instant::now() + Duration::from_secs(30);
         while (!probe.is_live() || probe.waits() == 0) && Instant::now() < startup_deadline {
             std::thread::yield_now();
         }
@@ -486,6 +488,7 @@ mod tests {
         );
 
         let idle_wakeups = probe.wakeups();
+        // The behavior under test: with no work the worker stays asleep.
         std::thread::sleep(Duration::from_millis(20));
         assert_eq!(
             probe.wakeups(),
@@ -496,12 +499,12 @@ mod tests {
         let (send, receive) = std::sync::mpsc::channel();
         scheduler.schedule_timeout(Duration::ZERO, move || send.send(()).unwrap());
         receive
-            .recv_timeout(Duration::from_millis(500))
+            .recv_timeout(Duration::from_secs(30))
             .expect("scheduled work did not wake the fallback worker");
 
         let weak = Arc::downgrade(&scheduler);
         drop(scheduler);
-        let stop_deadline = Instant::now() + Duration::from_millis(500);
+        let stop_deadline = Instant::now() + Duration::from_secs(30);
         while probe.is_live() && Instant::now() < stop_deadline {
             std::thread::yield_now();
         }

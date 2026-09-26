@@ -135,11 +135,11 @@ fn completed_cross_thread_mutations_reach_a_warmed_reader() {
     let worker = std::thread::spawn(move || {
         assert_eq!(resolves::<Alpha>(&reader, "old"), Ok(()));
         ready_tx.send(()).unwrap();
-        changed_rx.recv_timeout(Duration::from_secs(5)).unwrap();
+        changed_rx.recv_timeout(Duration::from_secs(30)).unwrap();
         assert_eq!(missing(&reader, "old"), Ok(()));
         assert_eq!(resolves::<Beta>(&reader, "new"), Ok(()));
     });
-    ready_rx.recv_timeout(Duration::from_secs(5)).unwrap();
+    ready_rx.recv_timeout(Duration::from_secs(30)).unwrap();
     original.clear_all().unwrap();
     original.register::<Beta>("new").unwrap();
     changed_tx.send(()).unwrap();
