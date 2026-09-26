@@ -1359,8 +1359,9 @@ fn cht_015_pie_slices_aspect_pad_and_labels() {
     // Every placed label's leader runs unbroken to its own slice, on a
     // crowded side, at the medium and large classes and at every gap: no
     // leader breaks another, no label sits against its slice without one,
-    // and no leader ends on a neighbouring slice. Each slice takes its own
-    // color, so the cell at a leader's end names the slice it reaches.
+    // and no leader ends on a neighbouring slice or on a cell it shares with
+    // one. Each slice takes its own color, so the cell at a leader's end
+    // names the slices it shows.
     let crowded = [1.0, 1.0, 1.0, 1.0, 1.0, 20.0, 1.0, 1.0];
     let crowded_left = [20.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0];
     let crowded_bottom = [10.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 10.0];
@@ -1416,6 +1417,16 @@ fn cht_015_pie_slices_aspect_pad_and_labels() {
                             assert!(
                                 shows(&frame, er, ec, theme_color(own[i])),
                                 "{kind:?} {size:?} at label gap {gap}: the leader of p{i} ends at ({er}, {ec}), which does not show p{i}'s own slice:\n{}",
+                                frame.text
+                            );
+                            // Only its own slice paints that cell, so no half
+                            // of it shows a neighbour.
+                            let other = (0..values.len())
+                                .find(|j| *j != i && shows(&frame, er, ec, theme_color(own[*j])));
+                            assert!(
+                                other.is_none(),
+                                "{kind:?} {size:?} at label gap {gap}: the leader of p{i} ends at ({er}, {ec}), which also shows p{}'s slice:\n{}",
+                                other.unwrap_or_default(),
                                 frame.text
                             );
                         }
