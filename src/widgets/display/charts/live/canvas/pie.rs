@@ -4,9 +4,9 @@
 //! wide as it is tall on screen, so the circle needs no aspect factor: it
 //! spans twice as many columns as rows. At the medium and large size classes
 //! each slice's label sits beside the circle, joined to its slice by a leader
-//! line in the text layer that ends beside a cell of its own slice and
-//! crosses no slice, label or other leader; a label with no row where that
-//! fits is left out, and its slice stays in the legend.
+//! line in the text layer that crosses no slice, label or other leader; a
+//! label with no row where that fits is left out, and its slice stays in
+//! the legend.
 
 use super::super::super::mask::{MaskCanvas, DOTS_X, DOTS_Y};
 use super::super::super::plot::{
@@ -20,10 +20,6 @@ use unicode_width::UnicodeWidthStr;
 
 /// The widest a side label may be, in columns.
 const LABEL_WIDTH: usize = 16;
-
-/// A slice's label to place: its middle angle, its (series, point), its
-/// text and its color.
-type SliceLabel = (f64, (usize, usize), String, Option<Rgba>);
 
 /// The visible slices with a positive value: (series, index, value).
 pub(super) fn slices(job: &Job) -> Vec<(usize, usize, f64)> {
@@ -215,7 +211,7 @@ pub(super) fn pie(
             ),
         );
         if labelled && drawn {
-            labels.push((mid, (*s, *i), label_text(*s, *i), tint));
+            labels.push((mid, label_text(*s, *i), tint));
         }
         start = end;
     }
@@ -235,14 +231,11 @@ pub(super) fn pie(
 }
 
 /// Place each slice's label beside the circle on the side its middle angle
-/// faces, cut to the columns left there, and join it to the slice with a
-/// leader line. The leader starts past the outermost painted cell of a row
-/// on that side only when the slice alone paints that cell, so it ends
-/// beside its own slice and never beside a neighbour's or a blend of two:
-/// on the row of the slice's outer edge, else the nearest row where the
-/// slice alone paints it. The label takes the nearest free row to that
-/// start whose leader crosses no painted cell and no label or leader placed
-/// before it. A label with no such rows is left out.
+/// faces, cut to the columns left there, on the row of the slice's outer
+/// edge or the nearest free row whose leader crosses no painted cell and no
+/// label or leader placed before it, and join it to the slice with a leader
+/// line that starts past the slice's last painted cell on its row. A label
+/// with no such row is left out.
 #[allow(clippy::too_many_arguments)]
 fn place_labels(
     text: &mut TextLayer,
@@ -252,30 +245,23 @@ fn place_labels(
     outer: f64,
     gap: usize,
     widest_allowed: usize,
-    labels: Vec<SliceLabel>,
+    labels: Vec<(f64, String, Option<Rgba>)>,
 ) {
     let row_end = area.y + area.h;
     let col_end = area.x + area.w;
     let center_col = ((cx / DOTS_X as f64) as usize).clamp(area.x, col_end.saturating_sub(1));
     // The first column past the painted cells on `row`, outward from the
-    // center on the label's side, when slice `key` alone paints the
-    // outermost of them; `None` when a neighbour paints any of that cell or
-    // the row is unpainted.
-    let reach = |row: usize, right: bool, key: (usize, usize)| -> Option<usize> {
-        let outermost = if right {
+    // center on the label's side.
+    let edge = |row: usize, right: bool| -> usize {
+        if right {
             (center_col..col_end)
                 .rev()
                 .find(|c| mask.is_painted(*c, row))
+                .map_or(center_col, |c| c + 1)
         } else {
-            (area.x..=center_col).find(|c| mask.is_painted(*c, row))
-        }?;
-        if mask.sole_fill_owner(outermost, row) != Some(key) {
-            return None;
-        }
-        if right {
-            Some(outermost + 1)
-        } else {
-            outermost.checked_sub(1)
+            (area.x..=center_col)
+                .find(|c| mask.is_painted(*c, row))
+                .map_or(center_col, |c| c.saturating_sub(1))
         }
     };
     let (left_edge, right_edge) = (
@@ -285,7 +271,7 @@ fn place_labels(
     let mut taken = [Vec::new(), Vec::new()];
     // The cells of the labels and leaders placed so far.
     let mut placed: HashSet<(usize, usize)> = HashSet::new();
-    for (mid, key, label, color) in labels {
+    for (mid, label, color) in labels {
         let right = mid < PI;
         let side = usize::from(right);
         let anchor_row = ((cy - mid.cos() * outer) / DOTS_Y as f64)
@@ -310,19 +296,16 @@ fn place_labels(
         } else {
             left_edge - gap - width
         };
-        // The rows where a leader can start beside the slice, nearest the
-        // anchor first; from each, the nearest free row to it whose label
-        // and leader cross no slice and nothing placed before.
-        let Some((row, path)) = nearest(anchor_row, area)
-            .filter_map(|start| reach(start, right, key).map(|from| (start, from)))
-            .find_map(|(start, from)| {
-                nearest(start, area)
-                    .filter(|row| !taken[side].contains(row))
-                    .filter(|row| !(column..column + width).any(|x| placed.contains(&(x, *row))))
-                    .find_map(|row| {
-                        leader(mask, &placed, from, right, start, row, column, width)
-                            .map(|path| (row, path))
-                    })
+        let from = edge(anchor_row, right);
+        // The nearest free row to the anchor, alternating below and above,
+        // whose label and leader cross no slice and nothing placed before.
+        let Some((row, path)) = (0..area.h)
+            .flat_map(|d| [anchor_row + d, anchor_row.wrapping_sub(d)])
+            .filter(|row| (area.y..row_end).contains(row) && !taken[side].contains(row))
+            .filter(|row| !(column..column + width).any(|x| placed.contains(&(x, *row))))
+            .find_map(|row| {
+                leader(mask, &placed, from, right, anchor_row, row, column, width)
+                    .map(|path| (row, path))
             })
         else {
             continue;
@@ -335,15 +318,6 @@ fn place_labels(
             placed.insert((x, y));
         }
     }
-}
-
-/// The rows of `area` by their distance from `row`, nearest first, below
-/// before above.
-fn nearest(row: usize, area: Rect) -> impl Iterator<Item = usize> {
-    (0..area.h)
-        .flat_map(move |d| [Some(row + d), (d > 0).then(|| row.wrapping_sub(d))])
-        .flatten()
-        .filter(move |r| (area.y..area.y + area.h).contains(r))
 }
 
 /// The cells of the leader from `edge`, the first unpainted column past the
