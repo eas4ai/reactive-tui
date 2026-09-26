@@ -1,0 +1,51 @@
+{
+  "name": "@reactive-tui/core",
+  "version": "0.1.0",
+  "description": "TypeScript bindings for reactive-tui - A modern terminal UI framework",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "node scripts/build.cjs",
+    "build:rust": "cd ../.. && cargo build --locked --release --features ffi",
+    "test": "python3 -B ../../scripts/check-typescript-abi.py",
+    "lint": "eslint src/**/*.ts --max-warnings 0",
+    "prepublishOnly": "npm run build",
+    "example:hello": "ts-node examples/hello-world.ts",
+    "example:component": "ts-node examples/component-demo.ts"
+  },
+  "keywords": [
+    "terminal",
+    "tui",
+    "ui",
+    "react",
+    "component",
+    "ffi",
+    "rust"
+  ],
+  "author": "Reactive TUI Contributors",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^20.10.5",
+    "@typescript-eslint/eslint-plugin": "^6.15.0",
+    "@typescript-eslint/parser": "^6.15.0",
+    "eslint": "^8.56.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.3"
+  },
+  "dependencies": {
+    "koffi": "3.2.1"
+  },
+  "files": [
+    "dist",
+    "native",
+    "MIGRATION.md"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/reactive-tui/reactive-tui.git",
+    "directory": "bindings/typescript"
+  }
+}
