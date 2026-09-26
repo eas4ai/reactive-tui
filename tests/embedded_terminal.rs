@@ -127,7 +127,12 @@ fn emb_005_delayed_output_exit_and_idle_shutdown_are_observable() {
     // finishing well inside that shows it did not wait, with room for a
     // busy machine.
     assert!(start.elapsed() < Duration::from_secs(10));
-    assert!(idle.snapshot().unwrap().stopped);
+    let stopped = idle.snapshot().unwrap();
+    assert!(stopped.stopped);
+    // A child that is waited out exits with code 0; a killed one ends by a signal.
+    let status = stopped.exit_status.expect("shutdown records the exit status");
+    assert_eq!(status.code(), None);
+    assert!(std::os::unix::process::ExitStatusExt::signal(&status).is_some());
     // SAFETY: query only; WNOHANG cannot block. ECHILD proves this owner reaped it.
     assert_eq!(
         unsafe { libc::waitpid(pid, std::ptr::null_mut(), libc::WNOHANG) },

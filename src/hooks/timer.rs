@@ -617,6 +617,10 @@ mod tests {
         let debounced = use_debounce(&hooks, Duration::from_millis(500), move |_: i32| {
             counter_clone.fetch_add(1, Ordering::Relaxed);
         });
+        let (send, receive) = std::sync::mpsc::channel();
+        let later = use_debounce(&hooks, Duration::from_millis(500), move |_: i32| {
+            send.send(()).unwrap();
+        });
 
         // Multiple rapid calls should only result in one execution
         debounced.call(1);
@@ -626,8 +630,14 @@ mod tests {
         // Cancel before it executes
         debounced.cancel();
 
-        // The behavior under test: past the delay, the cancelled call has not run.
-        std::thread::sleep(Duration::from_millis(600));
+        // The behavior under test: past the delay, the cancelled call has not
+        // run. The timer thread runs due timers in the order they were added,
+        // so once `later`, due after the cancelled call, has run, that
+        // call's time has passed however slowly the machine runs.
+        later.call(0);
+        receive
+            .recv_timeout(Duration::from_secs(30))
+            .expect("the later debounce did not run");
         assert_eq!(counter.load(Ordering::Relaxed), 0);
     }
 
