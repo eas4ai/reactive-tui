@@ -281,8 +281,7 @@ pub(super) fn pie(
 /// on the row of the slice's outer edge, else the nearest row where the
 /// slice alone paints it. The label takes the nearest free row to that
 /// start whose leader crosses no painted cell and no label or leader placed
-/// before it; at gap 0, a label with no such row tries again one column
-/// further out. A label with no such rows is left out. Returns the slices
+/// before it. A label with no such rows is left out. Returns the slices
 /// whose label was placed.
 #[allow(clippy::too_many_arguments)]
 fn place_labels(
@@ -334,52 +333,41 @@ fn place_labels(
             .floor()
             .clamp(area.y as f64, row_end.saturating_sub(1) as f64)
             as usize;
-        // A label touching the circle (gap 0) whose leader finds no room,
-        // as on the circle's widest rows, takes one more column.
-        let gaps: &[usize] = if gap == 0 {
-            &[0, 1]
+        // The label starts `gap` columns past the circle and takes what is
+        // left of the row on its side, cut with an ellipsis when too long.
+        let room = if right {
+            col_end.saturating_sub(right_edge + gap)
         } else {
-            std::slice::from_ref(&gap)
+            left_edge.saturating_sub(area.x + gap)
         };
-        let Some((column, width, row, path)) = gaps.iter().find_map(|&gap| {
-            // The label starts `gap` columns past the circle and takes what
-            // is left of the row on its side, cut with an ellipsis when too
-            // long.
-            let room = if right {
-                col_end.saturating_sub(right_edge + gap)
-            } else {
-                left_edge.saturating_sub(area.x + gap)
-            };
-            let full = UnicodeWidthStr::width(label.as_str()).min(widest_allowed);
-            let width = full.min(room);
-            if width < 2 {
-                return None;
-            }
-            let column = if right {
-                right_edge + gap
-            } else {
-                left_edge - gap - width
-            };
-            // The rows where a leader can start beside the slice, nearest
-            // the anchor first; from each, the nearest free row to it whose
-            // label and leader cross no slice and nothing placed before.
-            nearest(anchor_row, area)
-                .filter_map(|start| reach(start, right, key).map(|from| (start, from)))
-                .find_map(|(start, from)| {
-                    nearest(start, area)
-                        .filter(|row| !taken[side].contains(row))
-                        .filter(|row| {
-                            !(column..column + width).any(|x| placed.contains(&(x, *row)))
-                        })
-                        .find_map(|row| {
-                            leader(mask, &placed, from, right, start, row, column, width)
-                                .map(|path| (column, width, row, path))
-                        })
-                })
-        }) else {
+        let full = UnicodeWidthStr::width(label.as_str()).min(widest_allowed);
+        let width = full.min(room);
+        if width < 2 {
+            continue;
+        }
+        let cut = fit_label(&label, width);
+        let column = if right {
+            right_edge + gap
+        } else {
+            left_edge - gap - width
+        };
+        // The rows where a leader can start beside the slice, nearest the
+        // anchor first; from each, the nearest free row to it whose label
+        // and leader cross no slice and nothing placed before.
+        let Some((row, path)) = nearest(anchor_row, area)
+            .filter_map(|start| reach(start, right, key).map(|from| (start, from)))
+            .find_map(|(start, from)| {
+                nearest(start, area)
+                    .filter(|row| !taken[side].contains(row))
+                    .filter(|row| !(column..column + width).any(|x| placed.contains(&(x, *row))))
+                    .find_map(|row| {
+                        leader(mask, &placed, from, right, start, row, column, width)
+                            .map(|path| (row, path))
+                    })
+            })
+        else {
             continue;
         };
-        let cut = fit_label(&label, width);
         taken[side].push(row);
         labelled.insert(key);
         text.text(column, row, width, &cut, color);
