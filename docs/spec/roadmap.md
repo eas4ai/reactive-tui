@@ -357,6 +357,34 @@ upstream. Done when `cargo deny --offline check advisories` and `cargo deny
 --offline check bans` pass with no error, no tracked file refers to the
 removed example's path, and the workspace gates pass.
 
+## timing-sweep-widened-timings
+
+Requirements: BAR-001, BAR-002
+
+Promoted from backlog item a0ffa583. The developer asked for a check of
+two changes the test-timing-sweep commitment (ca57e784) made without
+asking; both go past its rule that a timing under test stays as it is.
+
+The debounce test in src/hooks/timer.rs keeps its 500 ms delay: its three
+calls and the cancel must all run inside the delay, and 10 ms can pass
+between two statements on a busy machine. Its fixed 600 ms sleep is
+replaced. After the cancel, a second debounce with the same delay is
+called on the same hooks, and the test waits for it to run, with a hang
+guard of 30 s. The timer thread runs due timers in the order they were
+added, so by then the cancelled call's time has passed, and a cancel that
+does nothing fails the test however slowly the machine runs. The throttle
+test keeps its 500 ms interval: a busy machine can fail it only by
+stalling 500 ms between two calls, and a throttle that lets a call
+through inside the interval still fails it.
+
+The shutdown test in tests/embedded_terminal.rs keeps its 10 s bound,
+which only has to tell killing a child that sleeps 30 s from waiting it
+out, and also asserts that the child ended by a signal, since a child
+that is waited out exits with code 0. Product code does not change.
+Done when the debounce test fails while cancel leaves the pending call in
+place, `cargo test --features embedded-terminal --test embedded_terminal`
+passes, and the workspace gates and the assertion audit pass.
+
 ## graphics-canvas
 
 Developer ruling 2026-09-21: stay on wgpu; take lessons from rust_pixel
