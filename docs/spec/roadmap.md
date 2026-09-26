@@ -293,6 +293,30 @@ default-feature gates run it. Done when the test fails before the change
 and passes after it, no golden changes, the manual no longer tells tests
 to supply a larger stack, and the frame budget and workspace gates pass.
 
+## test-timing-sweep
+
+Requirements: BAR-001, BAR-002
+
+Promoted from backlog item 9e36e7f3. Five tests failed the workspace gates
+on a loaded host because they assumed the machine keeps up: a fixed sleep
+used to wait for another thread, or a wall-clock bound of one to three
+seconds timed from before an App started. Each was fixed when it tripped
+(8b5a0b9c, 6862cfb8, 89c88e83, 670561b5). The tree still holds 41
+`thread::sleep` calls in tests/ and 33 in test modules under src/, and 19
+assertions that bound `elapsed()` at 3 s or less, in 12 files.
+
+Every sleep and wall-clock bound in tests/ and in test modules under src/
+is read and sorted into one of three kinds. A sleep that waits for
+something another thread or the App does becomes a wait on that condition,
+with a hang guard of at least 30 s. A wall-clock bound that only guards
+against a hang is raised to such a hang guard. A sleep or bound that is
+the behavior under test, such as a timer's delay, a debounce or a product
+timeout, stays, measured from when the product starts timing rather than
+from test setup, with a comment that says what it tests. Product code
+outside test modules does not change, and no test is removed or loses an
+assertion. Done when every site is listed in the review with its file,
+line and kind, and the workspace gates and the assertion audit pass.
+
 ## graphics-canvas
 
 Developer ruling 2026-09-21: stay on wgpu; take lessons from rust_pixel
