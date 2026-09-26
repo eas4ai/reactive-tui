@@ -216,6 +216,29 @@ workspace gates pass, the line, bar, area, scatter, candlestick, pie, donut
 and radar goldens stay unchanged, and the review finds no chart type writing
 glyphs or colors outside the canvas.
 
+## pie-leader-own-slice
+
+Requirements: BAR-001, BAR-004, CHT-015
+
+Promoted from backlog item c2d20846. On a crowded pie or donut, a thin
+slice's label leader can end on a neighbouring slice instead of its own.
+On an 80 by 24 pie of [1, 1, 1, 1, 1, 20, 1, 1] at the default label gap,
+p0's leader runs along row 0 to column 49, next to p1's cells, while p0's
+own cells on that row end at column 44, so p0 reads as p1's label. The
+charts-radial acceptance review (0fffbe6d, finding 1) found this in 192 of
+440 configurations, on the top and bottom rows. The cause is in
+place_labels (src/widgets/display/charts/live/canvas/pie.rs): a leader
+starts past the outermost painted cell on its anchor row, whichever slice
+painted it.
+
+Every placed label's leader ends next to a cell its own slice paints; a
+label whose leader cannot reach its own slice without crossing another
+slice, label or leader is left out, and its slice stays in the legend. The
+goldens test walks each leader to its end and requires that cell to show
+the label's own slice. Done when no pie or donut leader ends on another
+slice, any changed pie and donut goldens are regenerated and reviewed, and
+the goldens and workspace gates pass.
+
 ## graphics-canvas
 
 Developer ruling 2026-09-21: stay on wgpu; take lessons from rust_pixel
