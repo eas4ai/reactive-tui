@@ -711,9 +711,9 @@ fn max_work_ms(
     size: (u16, u16),
     frames: usize,
 ) -> (f64, String) {
-    // BAR-005 measures on the debug backend, which lays out and paints on
-    // the App's thread in render_frame, so that work counts in full. Every
-    // frame counts, the first included.
+    // BAR-005 measures on the debug backend. It lays out and paints on its
+    // paint thread while the App's thread waits in render_frame, so that
+    // work counts in full. Every frame counts, the first included.
     let out = app_input::run_on_debug(root, size, vec![(frames, None)]);
     assert!(
         out.len() >= frames,
