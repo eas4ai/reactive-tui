@@ -334,9 +334,10 @@ reactive-tui's Windows sha2 moves to the 0.11 line lumis already uses, so
 one version of each crate remains. sha2 0.11's digest output has no hex
 formatting, so the runtime check encodes the digest itself and compares it
 with the pinned value as before. The base64 skip is removed. Done when
-`cargo deny --offline check bans` passes with no error and no warning,
-`cargo check --target x86_64-pc-windows-gnu --lib` compiles the changed
-Windows code, and the workspace gates pass.
+`cargo deny --offline check bans` passes with no error and no warning, the
+library's pseudo-terminal tests, which check the pinned runtime's hashes
+whenever they start a pseudo-terminal, pass on the Windows development
+host at the final commit, and the workspace gates pass.
 
 ## graphics-canvas
 
