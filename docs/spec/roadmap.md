@@ -239,6 +239,32 @@ the label's own slice. Done when no pie or donut leader ends on another
 slice, any changed pie and donut goldens are regenerated and reviewed, and
 the goldens and workspace gates pass.
 
+## pie-labels-free-rows
+
+Requirements: BAR-001, BAR-004, CHT-015
+
+Promoted from backlog item bb776d2e. The charts-radial acceptance review
+(0fffbe6d, finding 2) found pie and donut labels left out while free rows
+remained: on an 80 by 24 pie of [1, 1, 1, 1, 1, 20, 1, 1], p1 and p7 were
+left out because every leader had to run along its label's anchor row,
+where an earlier leader already ran. pie-leader-own-slice (done 130af95d)
+removed that cause: a leader now starts on the nearest row where its slice
+alone paints the outer cell on its side. Measured at c8afb43e on 144
+charts (pie and donut; six data sets; 80 by 24, 81 by 25 and 120 by 30;
+label gaps 0 to 3), 176 of 1104 labels are left out. 152
+of them belong to slices that paint no outer cell alone on their side. The
+other 24 are all at label gap 0, where the label touches the circle and
+the circle's widest rows leave no column for a leader. The goldens test
+still requires only 3 placed labels per chart, so the old cause could
+return without failing it.
+
+At label gap 0, a label whose leader finds no room takes one more column,
+so it is placed with a leader instead of left out. The goldens test sweeps
+pie and donut over those data sets, sizes and gaps and requires that every
+label left out belongs to a slice that paints no outer cell alone on its
+side. Done when that holds at every gap, any changed pie and donut goldens
+are regenerated and reviewed, and the goldens and workspace gates pass.
+
 ## graphics-canvas
 
 Developer ruling 2026-09-21: stay on wgpu; take lessons from rust_pixel
