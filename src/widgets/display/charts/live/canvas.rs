@@ -437,9 +437,18 @@ pub(super) fn draw(job: &Job) -> Picture {
             .collect()
     };
     let legend = legend_area(props, &entries, class, &mut area);
+    // The slices a pie or donut labelled on the chart, when it drew them.
+    let mut labelled = None;
     if !area.is_empty() {
         if matches!(props.chart_type, ChartType::Pie | ChartType::Donut) {
-            pie::pie(&mut mask, &mut text, &mut picture, job, area, class);
+            labelled = Some(pie::pie(
+                &mut mask,
+                &mut text,
+                &mut picture,
+                job,
+                area,
+                class,
+            ));
         } else if props.chart_type == ChartType::Radar {
             radar::radar(&mut mask, &mut text, &mut picture, job, area, class);
         } else if props.chart_type == ChartType::Sankey {
@@ -451,14 +460,24 @@ pub(super) fn draw(job: &Job) -> Picture {
         }
     }
     if let Some((rect, flowed)) = legend {
+        let (max_name, wrap) = (rect.w.saturating_sub(2), class.multi_row_legend());
+        let drawn = |legend: &Legend| {
+            if flowed {
+                legend.flowed_count(rect, max_name, wrap)
+            } else {
+                legend.stacked_count(rect)
+            }
+        };
+        // A full legend keeps the slices whose labels were left out.
+        let entries = match &labelled {
+            Some(labelled) => pie::legend_shown(job, entries, labelled, |shown| {
+                drawn(&Legend::new(shown.to_vec())) == shown.len()
+            }),
+            None => entries,
+        };
         let legend = Legend::new(entries);
         if flowed {
-            legend.draw_flowed(
-                &mut text,
-                rect,
-                rect.w.saturating_sub(2),
-                class.multi_row_legend(),
-            );
+            legend.draw_flowed(&mut text, rect, max_name, wrap);
         } else {
             legend.draw_stacked(&mut text, rect);
         }

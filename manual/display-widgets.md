@@ -124,7 +124,10 @@ columns from the edge. A leader ends beside a cell that only its own slice
 paints, and never crosses a slice, a label or another leader. A label with
 no row where such a leader fits is left out, and the legend still lists its
 slice. This happens, for example, to a thin slice at the top or bottom of
-the circle whose outer cells it shares with a neighbour. The pointer selects the slice under it and
+the circle whose outer cells it shares with a neighbour. When the legend
+has no room for every slice, as a one-row legend at the medium size often
+does not, it lists the slices whose labels were left out first, then the
+labelled ones that still fit, in slice order. The pointer selects the slice under it and
 nothing outside the circle; Left, Right, Home and End step through the
 slices.
 
