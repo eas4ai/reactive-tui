@@ -815,6 +815,27 @@ impl MaskCanvas {
         })
     }
 
+    /// The (series, point) that alone paints the cell at (`col`, `row`):
+    /// its fill covers every covered sample, and no other fill, stroke,
+    /// marker or bar edge shares the cell, so the cell shows that fill's
+    /// color and no blend.
+    pub(crate) fn sole_fill_owner(&self, col: usize, row: usize) -> Option<(usize, usize)> {
+        if col >= self.cols || row >= self.rows {
+            return None;
+        }
+        let cell = &self.cells[row * self.cols + col];
+        if cell.dots != 0 || cell.marker.is_some() || cell.edge.is_some() {
+            return None;
+        }
+        let mut owners = self
+            .fill_at(col, row)?
+            .iter()
+            .filter(|index| **index != 0)
+            .map(|index| self.fill_entry(*index).1);
+        let first = owners.next()??;
+        owners.all(|owner| owner == Some(first)).then_some(first)
+    }
+
     /// Resolve the cell at (`col`, `row`) to a glyph and color.
     pub fn resolve(&self, col: usize, row: usize, glyphs: GlyphSet) -> Resolved {
         let Some(cell) =
@@ -986,6 +1007,33 @@ mod tests {
         assert_eq!(canvas.owner_at(1, 1), Some((0, 1)));
         canvas.marker(3.0, 1.0, Marker::Disc, None, None);
         assert_eq!(glyph(&canvas, 1, 0), Some("●"));
+    }
+
+    #[test]
+    fn a_cell_has_a_sole_fill_owner_only_when_one_fill_paints_it() {
+        let mut canvas = MaskCanvas::new(3, 1);
+        let (red, blue) = (Some((0.8, 0.1, 0.1, 1.0)), Some((0.1, 0.2, 0.9, 1.0)));
+        // Cell 0: red alone; cell 1: red and blue, which a majority owner
+        // still names.
+        canvas.fill_polygon(
+            &[(0.0, 0.0), (3.0, 0.0), (3.0, 4.0), (0.0, 4.0)],
+            red,
+            Some((0, 0)),
+        );
+        canvas.fill_polygon(
+            &[(3.0, 0.0), (6.0, 0.0), (6.0, 4.0), (3.0, 4.0)],
+            blue,
+            Some((0, 1)),
+        );
+        assert_eq!(canvas.sole_fill_owner(0, 0), Some((0, 0)));
+        assert_eq!(canvas.sole_fill_owner(1, 0), None);
+        assert!(canvas.owner_at(1, 0).is_some());
+        // Cell 2: blue fill under a stroke dot.
+        canvas.dot(5, 1, None, Some((0, 1)));
+        assert_eq!(canvas.sole_fill_owner(2, 0), None);
+        // Unpainted and outside cells have none.
+        assert_eq!(MaskCanvas::new(1, 1).sole_fill_owner(0, 0), None);
+        assert_eq!(canvas.sole_fill_owner(3, 0), None);
     }
 
     #[test]

@@ -961,11 +961,11 @@ fn cells_showing(frame: &Snapshot, colors: &[(u8, u8, u8)]) -> Vec<(u16, u16)> {
         .collect()
 }
 
-/// Whether the leader beside the label on row `r`, columns `c` to
-/// `c + len`, runs through box-drawing glyphs, each joined to the next, to a
-/// slice cell: a block or sextant glyph. A cell on the boundary of two
-/// slices blends their colors, so the glyph names it, not the color.
-fn leader_reaches_slice(grid: &[Vec<char>], r: usize, c: usize, len: usize) -> bool {
+/// The slice cell, as (row, column), that the leader beside the label on
+/// row `r`, columns `c` to `c + len`, reaches through box-drawing glyphs,
+/// each joined to the next: the first block or sextant glyph past its end.
+/// `None` when the leader breaks before it reaches one.
+fn leader_end(grid: &[Vec<char>], r: usize, c: usize, len: usize) -> Option<(u16, u16)> {
     let ends = |g: char| -> &'static [(isize, isize)] {
         match g {
             '─' => &[(-1, 0), (1, 0)],
@@ -989,25 +989,21 @@ fn leader_reaches_slice(grid: &[Vec<char>], r: usize, c: usize, len: usize) -> b
     // Start beside the label on either side, entering from the label.
     [(c as isize - 1, -1isize), ((c + len) as isize, 1)]
         .into_iter()
-        .any(|(x0, step)| {
+        .find_map(|(x0, step)| {
             let (mut x, mut y, mut from) = (x0, r as isize, (-step, 0));
             for _ in 0..400 {
-                let Some(g) = glyph(x, y) else {
-                    return false;
-                };
+                let g = glyph(x, y)?;
                 let ends = ends(g);
                 if !ends.contains(&from) {
-                    return false;
+                    return None;
                 }
-                let Some(&(dx, dy)) = ends.iter().find(|d| **d != from) else {
-                    return false;
-                };
+                let &(dx, dy) = ends.iter().find(|d| **d != from)?;
                 if slice(x + dx, y + dy) {
-                    return true;
+                    return Some((u16::try_from(y + dy).ok()?, u16::try_from(x + dx).ok()?));
                 }
                 (x, y, from) = (x + dx, y + dy, (-dx, -dy));
             }
-            false
+            None
         })
 }
 
@@ -1360,46 +1356,77 @@ fn cht_015_pie_slices_aspect_pad_and_labels() {
             narrow.text
         );
     }
-    // Every placed label's leader runs unbroken to a slice, on a crowded
-    // side and at every gap: no leader breaks another, and no label sits
-    // against its slice without one.
+    // Every placed label's leader runs unbroken to its own slice, on a
+    // crowded side, at the medium and large classes and at every gap: no
+    // leader breaks another, no label sits against its slice without one,
+    // and no leader ends on a neighbouring slice. Each slice takes its own
+    // color, so the cell at a leader's end names the slice it reaches.
     let crowded = [1.0, 1.0, 1.0, 1.0, 1.0, 20.0, 1.0, 1.0];
+    let crowded_left = [20.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0];
+    let crowded_bottom = [10.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 10.0];
     let spread = [3.0, 1.0, 2.0, 1.0, 4.0, 1.0, 2.0, 1.0];
+    let own = [
+        "#e6194b", "#3cb44b", "#ffe119", "#4363d8", "#f58231", "#911eb4", "#46f0f0", "#f032e6",
+    ];
     for (kind, values) in [
         (ChartType::Pie, &crowded[..]),
         (ChartType::Donut, &crowded[..]),
+        (ChartType::Pie, &crowded_left[..]),
+        (ChartType::Donut, &crowded_bottom[..]),
         (ChartType::Pie, &values[..]),
         (ChartType::Pie, &spread[..]),
     ] {
-        for gap in 0u16..=3 {
-            let mut chart = radial_props(kind.clone(), size, values);
-            chart.radial.label_gap = gap;
-            let frame = radial_frame(chart, size);
-            let grid: Vec<Vec<char>> = frame.text.lines().map(|l| l.chars().collect()).collect();
-            let mut placed = 0;
-            for i in 0..values.len() {
-                let name: Vec<char> = format!("p{i}").chars().collect();
-                for (r, line) in grid.iter().enumerate() {
-                    for c in 0..line.len().saturating_sub(name.len() - 1) {
-                        if line[c..c + name.len()] != name[..]
-                            || line.get(c + name.len()).is_some_and(char::is_ascii_digit)
-                        {
-                            continue;
+        for (size, large) in [
+            ((80u16, 24u16), false),
+            ((120, 30), false),
+            ((200, 40), true),
+        ] {
+            for gap in 0u16..=3 {
+                let mut chart = radial_props(kind.clone(), size, values);
+                chart.radial.label_gap = gap;
+                for (point, color) in chart.series[0].data.iter_mut().zip(own) {
+                    point.color = Some(color.to_string());
+                }
+                let frame = radial_frame(chart, size);
+                let grid: Vec<Vec<char>> =
+                    frame.text.lines().map(|l| l.chars().collect()).collect();
+                let mut placed = 0;
+                for (i, value) in values.iter().enumerate() {
+                    // The large class shows the value after the name.
+                    let label = if large {
+                        format!("p{i} {value}")
+                    } else {
+                        format!("p{i}")
+                    };
+                    let name: Vec<char> = label.chars().collect();
+                    for (r, line) in grid.iter().enumerate() {
+                        for c in 0..line.len().saturating_sub(name.len() - 1) {
+                            if line[c..c + name.len()] != name[..]
+                                || line.get(c + name.len()).is_some_and(char::is_ascii_digit)
+                            {
+                                continue;
+                            }
+                            placed += 1;
+                            let Some((er, ec)) = leader_end(&grid, r, c, name.len()) else {
+                                panic!(
+                                    "{kind:?} {size:?} at label gap {gap}: the leader of p{i} must run unbroken to a slice:\n{}",
+                                    frame.text
+                                );
+                            };
+                            assert!(
+                                shows(&frame, er, ec, theme_color(own[i])),
+                                "{kind:?} {size:?} at label gap {gap}: the leader of p{i} ends at ({er}, {ec}), which does not show p{i}'s own slice:\n{}",
+                                frame.text
+                            );
                         }
-                        placed += 1;
-                        assert!(
-                            leader_reaches_slice(&grid, r, c, name.len()),
-                            "{kind:?} at label gap {gap}: the leader of p{i} must run unbroken to a slice:\n{}",
-                            frame.text
-                        );
                     }
                 }
+                assert!(
+                    placed >= 3,
+                    "{kind:?} {size:?} at label gap {gap}: labels are still placed ({placed}):\n{}",
+                    frame.text
+                );
             }
-            assert!(
-                placed >= 3,
-                "{kind:?} at label gap {gap}: labels are still placed ({placed}):\n{}",
-                frame.text
-            );
         }
     }
     // A label too long for the room beside the circle is cut, not dropped.
