@@ -1,0 +1,72 @@
+[graph]
+targets = [
+    "x86_64-unknown-linux-gnu",
+    "aarch64-unknown-linux-gnu",
+    "x86_64-unknown-linux-musl",
+    "aarch64-apple-darwin",
+    "x86_64-apple-darwin",
+    "x86_64-pc-windows-msvc",
+    "x86_64-pc-windows-gnu",
+]
+all-features = true
+
+[advisories]
+unmaintained = "workspace"
+unsound = "all"
+unused-ignored-advisory = "deny"
+ignore = []
+
+[licenses]
+confidence-threshold = 0.93
+allow = [
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "BSD-2-Clause",
+    "BSL-1.0",
+    "ISC",
+    "MIT",
+    "MPL-2.0",
+    "Unicode-3.0",
+    "Unicode-DFS-2016",
+    "Zlib",
+]
+# decision: retain-reviewed-wgpu-27-transitive-policy-exceptions
+# Naga's hexadecimal float parser only; this is not a global CC0 allowance.
+exceptions = [
+    { crate = "hexf-parse@=0.2.1", allow = ["CC0-1.0"] },
+]
+
+[bans]
+multiple-versions = "deny"
+wildcards = "deny"
+deny = [
+    { crate = "atty", reason = "Unused, unmaintained, and unsound; DQC-001 requires removal." },
+]
+skip = [
+    { crate = "bitflags@1.3.2", reason = "png retains the pre-2.0 bitflags API." },
+    { crate = "foldhash@=0.1.5", reason = "decision: retain-reviewed-wgpu-27-transitive-policy-exceptions; gpu-descriptor's hashbrown 0.15 needs foldhash 0.1 while newer hashbrown lines use 0.2." },
+    { crate = "hashbrown@=0.15.5", reason = "decision: retain-reviewed-wgpu-27-transitive-policy-exceptions; gpu-descriptor retains 0.15, wgpu/Naga use 0.16, and current accesskit/indexmap/lru use 0.17." },
+    { crate = "hashbrown@=0.16.1", reason = "decision: retain-reviewed-wgpu-27-transitive-policy-exceptions; wgpu 27 and Naga require the semver-incompatible 0.16 API rather than the root graph's 0.17 line." },
+    { crate = "io-lifetimes@2.0.4", reason = "fs-set-times has not moved to the io-lifetimes line used by cap-std." },
+    { crate = "phf_shared@0.11.3", reason = "string_cache retains phf 0.11 while the accessibility adapter and comrak use phf 0.13." },
+    { crate = "rustc-hash@=1.1.0", reason = "decision: retain-reviewed-wgpu-27-transitive-policy-exceptions; Naga and wgpu-core retain 1 while comrak uses the incompatible 2 API." },
+    { crate = "syn@2.0.106", reason = "The proc-macro graph is transitioning independently from syn 2 to syn 3." },
+    { crate = "thiserror@=1.0.69", reason = "decision: retain-reviewed-wgpu-27-transitive-policy-exceptions; gpu-allocator 0.27 requires the 1.x derive API while the root and wgpu use 2.x." },
+    { crate = "thiserror-impl@=1.0.69", reason = "decision: retain-reviewed-wgpu-27-transitive-policy-exceptions; thiserror 1.0.69 requires its matching derive implementation." },
+    { crate = "windows-sys@0.48.0", reason = "dirs retains the Windows 0.48 support crates." },
+    { crate = "windows-sys@0.59.0", reason = "The public Windows API and cap-std graph retain the 0.59 support crates." },
+    { crate = "windows-sys@0.60.2", reason = "comrak and terminal helpers retain the 0.60 support crates." },
+    { crate = "windows-targets@0.48.5", reason = "windows-sys 0.48 requires its matching generated target crates." },
+    { crate = "windows-targets@0.52.6", reason = "windows-sys 0.59 requires its matching generated target crates." },
+    { crate = "windows_x86_64_gnu@0.48.5", reason = "windows-targets 0.48 requires its matching generated target crate." },
+    { crate = "windows_x86_64_gnu@0.52.6", reason = "windows-targets 0.52 requires its matching generated target crate." },
+    { crate = "windows_x86_64_msvc@0.48.5", reason = "windows-targets 0.48 requires its matching generated target crate." },
+    { crate = "windows_x86_64_msvc@0.52.6", reason = "windows-targets 0.52 requires its matching generated target crate." },
+]
+skip-tree = []
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
+allow-git = []
