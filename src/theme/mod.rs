@@ -20,6 +20,11 @@ use crate::layout::css::apply_utility_classes_with_theme;
 use crate::layout::style::StyleBuilder;
 use std::sync::{Arc, OnceLock, RwLock};
 
+/// How many times the active theme has changed. A cache that keeps colors
+/// resolved through the active theme, on any thread, compares this with the
+/// count it filled under and empties itself when they differ.
+static GENERATION: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
 fn active_slot() -> &'static RwLock<Arc<Theme>> {
     static ACTIVE: OnceLock<RwLock<Arc<Theme>>> = OnceLock::new();
     ACTIVE.get_or_init(|| RwLock::new(Arc::new(presets::dark_theme())))
@@ -93,8 +98,16 @@ impl Theme {
     pub fn set_active(theme: Theme) -> Arc<Theme> {
         let theme = Arc::new(theme);
         *active_slot().write().unwrap_or_else(|e| e.into_inner()) = theme.clone();
+        // After the new theme is in place, so a thread that sees the new
+        // count also sees the new theme.
+        GENERATION.fetch_add(1, std::sync::atomic::Ordering::Release);
         crate::layout::css::cache::clear_color_cache();
         theme
+    }
+
+    /// How many times [`Theme::set_active`] has run in this process.
+    pub(crate) fn generation() -> u64 {
+        GENERATION.load(std::sync::atomic::Ordering::Acquire)
     }
 
     /// The variable name a color token refers to: `primary` and

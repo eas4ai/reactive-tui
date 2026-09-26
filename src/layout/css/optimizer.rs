@@ -59,12 +59,37 @@ static SPACING_PREFIXES: Lazy<Vec<(&'static str, UtilityFn)>> = Lazy::new(|| {
     ]
 });
 
-// Thread-local cache for complete class strings using proper LRU
+// Thread-local cache for complete class strings using proper LRU. A class
+// such as `text-primary` resolves through the active theme, so each entry
+// holds that theme's colors and the cache keeps the theme generation it was
+// filled under.
 thread_local! {
-    static CLASS_CACHE: std::cell::RefCell<lru::LruCache<String, StyleBuilder>> =
-        std::cell::RefCell::new(lru::LruCache::new(
-            std::num::NonZeroUsize::new(128).expect("Cache size must be non-zero")
+    static CLASS_CACHE: std::cell::RefCell<(u64, lru::LruCache<String, StyleBuilder>)> =
+        std::cell::RefCell::new((
+            crate::theme::Theme::generation(),
+            lru::LruCache::new(
+                std::num::NonZeroUsize::new(128).expect("Cache size must be non-zero"),
+            ),
         ));
+}
+
+/// Runs `f` on this thread's class cache while the active theme is still the
+/// one of `generation`, and returns `None` once it has changed. The cache is
+/// emptied first whenever the theme changed since it was filled, so no entry
+/// outlives the theme it was resolved under.
+fn with_class_cache<R>(
+    generation: u64,
+    f: impl FnOnce(&mut lru::LruCache<String, StyleBuilder>) -> R,
+) -> Option<R> {
+    CLASS_CACHE.with(|cache| {
+        let mut cache = cache.borrow_mut();
+        let current = crate::theme::Theme::generation();
+        if cache.0 != current {
+            cache.1.clear();
+            cache.0 = current;
+        }
+        (current == generation).then(|| f(&mut cache.1))
+    })
 }
 
 /// CSS utility class application with performance improvements
@@ -88,10 +113,13 @@ pub fn apply_utility_classes(
     }
 
     // Check cache first
-    // A class-only key is valid only for the default base and no theme.
+    // A class-only key is valid only for the default base and no theme, and
+    // only while the active theme it resolved through is unchanged.
     let cacheable = sb == StyleBuilder::default() && theme.is_none();
+    let generation = crate::theme::Theme::generation();
     let cached = cacheable
-        .then(|| CLASS_CACHE.with(|cache| cache.borrow_mut().get(class_str).cloned()))
+        .then(|| with_class_cache(generation, |cache| cache.get(class_str).cloned()))
+        .flatten()
         .flatten();
 
     if let Some(cached_sb) = cached {
@@ -103,10 +131,10 @@ pub fn apply_utility_classes(
         sb = apply_single_utility(token, sb, theme);
     }
 
-    // Cache the result
+    // Cache the result, unless the theme changed while it was resolved.
     if cacheable {
-        CLASS_CACHE.with(|cache| {
-            cache.borrow_mut().put(class_str.to_string(), sb.clone());
+        with_class_cache(generation, |cache| {
+            cache.put(class_str.to_string(), sb.clone());
         });
     }
 
@@ -616,7 +644,7 @@ mod tests {
         // Cache should contain the entry
         CLASS_CACHE.with(|cache| {
             let mut cache_ref = cache.borrow_mut();
-            assert!(cache_ref.get(classes).is_some());
+            assert!(cache_ref.1.get(classes).is_some());
         });
     }
 
