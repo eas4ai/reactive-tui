@@ -31,13 +31,5 @@
     "min_calibration_agent_predictions": 60,
     "request_cap_bytes": 48000
   },
-  "adversary_rules": [
-    "Run every cargo command with --jobs 8 or fewer and CARGO_INCREMENTAL=0, and run one cargo command at a time.",
-    "Run no workspace-wide build, lint, doc or test: no cargo command with --workspace, and not scripts/cairn/workspace_gates.py. The builder's receipts cover them; run only targeted commands (--lib, --test <name> or -p <crate>), and delete your build output when you finish.",
-    "Before each cargo build or test run, check free memory with free -g, and wait while less than 24 GB is available.",
-    "Run no deliberate crash tests: the developer monitors core dumps for host faults.",
-    "Leave any CPU the developer has taken offline offline, and pin no work to it.",
-    "If a real toolchain crash stops a run, rerun it and report the time and program.",
-    "Keep any stand-in runner or linker to your own copies, and delete what it built when you finish."
-  ]
+  "adversary_rules": []
 }
