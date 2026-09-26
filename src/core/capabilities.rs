@@ -609,6 +609,11 @@ mod tests {
 
     #[test]
     fn test_parse_unicode_enabled() {
+        // A set reply reports glyph support to the charts, so this test
+        // holds the glyph report lock like the reset test it would race.
+        let _serial = crate::widgets::display::charts::GLYPH_REPORT_TEST_LOCK
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         let mut caps = TerminalCapabilities::default();
         let query = TerminalQuery::new();
         let buffer = b"\x1b[?2027;1$y"; // Unicode enabled
