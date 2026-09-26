@@ -113,8 +113,12 @@ fn emb_004_resize_updates_pty_and_snapshot_and_ignores_zero() {
 
 #[test]
 fn emb_005_delayed_output_exit_and_idle_shutdown_are_observable() {
-    let session = shell("sleep 0.1; printf DELAYED; exit 7", 30, 4);
+    // The child holds its output until Enter, so the revision is read before
+    // the output exists, however slowly the machine runs.
+    let session = shell("printf READY; read -r _; printf DELAYED; exit 7", 30, 4);
+    wait(&session, |s| text(s).contains("READY"));
     let before = session.snapshot().unwrap().revision;
+    session.send_key(KeyEvent::new(KeyCode::Enter)).unwrap();
     let snapshot = wait(&session, |s| s.stopped);
     assert!(snapshot.revision > before);
     assert!(text(&snapshot).contains("DELAYED"));

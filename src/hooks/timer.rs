@@ -597,7 +597,9 @@ mod tests {
         let counter = Arc::new(AtomicUsize::new(0));
 
         let counter_clone = counter.clone();
-        let handle = use_timeout(&hooks, Duration::from_millis(10), move || {
+        // The test is about the handle, not the delay: 30 s cannot pass
+        // before the checks below, however slowly the machine runs.
+        let handle = use_timeout(&hooks, Duration::from_secs(30), move || {
             counter_clone.fetch_add(1, Ordering::Relaxed);
         });
 
@@ -622,7 +624,7 @@ mod tests {
             send.send(()).unwrap();
         });
 
-        // Multiple rapid calls should only result in one execution
+        // Each call replaces the pending one
         debounced.call(1);
         debounced.call(2);
         debounced.call(3);
