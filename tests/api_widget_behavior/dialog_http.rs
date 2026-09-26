@@ -105,7 +105,8 @@ impl Server {
                         thread::sleep(Duration::from_millis(1));
                     }
                     if stopped.load(Ordering::Acquire) { return }
-                    stream.set_write_timeout(Some(Duration::from_millis(100))).unwrap();
+                    // A hang guard: a client that stops reading closes its end.
+                    stream.set_write_timeout(Some(HANG_GUARD)).unwrap();
                     let response = format!("HTTP/1.1 {} Test\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}", reply.status, reply.body.len(), reply.body);
                     // The client may have cancelled or rejected an oversized response.
                     let _ = stream.write_all(response.as_bytes());
@@ -675,6 +676,8 @@ struct ObservedInput {
     element: Element,
     requests: ThreadSafeSignal<usize>,
     visible: ThreadSafeSignal<bool>,
+    /// When F(2) removed the element: removal's timing starts there.
+    removed_at: Arc<Mutex<Option<Instant>>>,
 }
 
 fn autocomplete_remote(
@@ -712,7 +715,8 @@ fn autocomplete_http_debounces_edits_into_one_current_query() {
         let element = autocomplete_remote(
             &server.url,
             None,
-            Duration::from_millis(300),
+            // Long enough that the second key always lands inside it.
+            Duration::from_secs(2),
             results.clone(),
         );
         app_input::run_until_hidden(
@@ -739,7 +743,8 @@ fn autocomplete_http_replacement_discards_the_previous_query() {
     for size in [(32, 12), (60, 20)] {
         let server = Server::new(vec![
             Reply {
-                delay: Duration::from_millis(400),
+                // Still pending when the second key replaces the query.
+                delay: Duration::from_secs(2),
                 ..Reply::json(r#"["Old result"]"#)
             },
             Reply::json(r#"["New result"]"#),
@@ -749,6 +754,7 @@ fn autocomplete_http_replacement_discards_the_previous_query() {
             element: autocomplete_remote(&server.url, None, Duration::ZERO, results.clone()),
             requests: server.count.clone(),
             visible: ThreadSafeSignal::new(true),
+            removed_at: Default::default(),
         };
         let frames = app_input::run_until_hidden(
             root,
@@ -788,14 +794,18 @@ fn autocomplete_removal_cancels_a_live_http_request() {
             element: autocomplete_remote(&server.url, Some("a"), Duration::ZERO, results.clone()),
             requests: server.count.clone(),
             visible: ThreadSafeSignal::new(true),
+            removed_at: Default::default(),
         };
-        let started = Instant::now();
+        let removed_at = root.removed_at.clone();
         app_input::run_when(
             root,
             size,
             vec![("REQUESTS 1", super::key(KeyCode::F(2))), ("REMOVED", None)],
         );
-        assert!(started.elapsed() < Duration::from_secs(10));
+        // The behavior under test, timed from the removal: the App finished
+        // well inside the reply's 30 s.
+        let removed_at = removed_at.lock().unwrap().expect("F(2) removed the dialog");
+        assert!(removed_at.elapsed() < Duration::from_secs(10));
         assert!(results.lock().unwrap().is_empty());
         assert_eq!(server.requests.lock().unwrap().len(), 1);
     }
@@ -826,6 +836,7 @@ impl reactive_tui::app::RootComponent for ObservedInput {
     }
     fn handle_event(&self, event: &Event) -> reactive_tui::event::router::EventResult {
         if matches!(event, Event::Key(key) if key.code == KeyCode::F(2)) {
+            *self.removed_at.lock().unwrap() = Some(Instant::now());
             self.visible.set(false);
             reactive_tui::event::router::EventResult::Handled
         } else {
@@ -838,7 +849,8 @@ impl reactive_tui::app::RootComponent for ObservedInput {
 fn input_dialog_edit_cancels_pending_remote_submission() {
     let server = Server::new(vec![
         Reply {
-            delay: Duration::from_millis(200),
+            // Still pending when the edit cancels it.
+            delay: Duration::from_secs(2),
             ..Reply::json(r#"{"valid":true}"#)
         },
         Reply::json(r#"{"valid":true}"#),
@@ -848,6 +860,7 @@ fn input_dialog_edit_cancels_pending_remote_submission() {
         element: input(&server.url, result.clone()),
         requests: server.count.clone(),
         visible: ThreadSafeSignal::new(true),
+        removed_at: Default::default(),
     };
     app_input::run_until_hidden(
         root,
@@ -878,8 +891,9 @@ fn input_dialog_removal_cancels_a_live_request_without_waiting_for_the_server() 
         element: input(&server.url, result.clone()),
         requests: server.count.clone(),
         visible: ThreadSafeSignal::new(true),
+        removed_at: Default::default(),
     };
-    let started = Instant::now();
+    let removed_at = root.removed_at.clone();
     let frames = app_input::run_when(
         root,
         (60, 20),
@@ -889,7 +903,10 @@ fn input_dialog_removal_cancels_a_live_request_without_waiting_for_the_server() 
             ("REMOVED", None),
         ],
     );
-    assert!(started.elapsed() < Duration::from_secs(10));
+    // The behavior under test, timed from the removal: the App finished well
+    // inside the reply's 30 s.
+    let removed_at = removed_at.lock().unwrap().expect("F(2) removed the dialog");
+    assert!(removed_at.elapsed() < Duration::from_secs(10));
     assert!(result.lock().unwrap().is_none());
     assert!(!frames.last().unwrap().text.contains("REMOTE"));
     assert_eq!(server.requests.lock().unwrap().len(), 1);
@@ -920,6 +937,7 @@ fn input_dialog_remote_completion_preserves_the_submit_veto_and_revalidates_on_r
         element: dialog,
         requests: submitted,
         visible: ThreadSafeSignal::new(true),
+        removed_at: Default::default(),
     };
     app_input::run_until_hidden(
         root,

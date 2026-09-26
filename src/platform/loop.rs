@@ -952,9 +952,21 @@ mod tests {
 
         match mode.as_str() {
             "saturation" => {
-                // Setup for the behavior under test: let the parent's input
-                // fill the queue before draining it.
-                std::thread::sleep(Duration::from_millis(250));
+                // Setup for the behavior under test: wait until the parent's
+                // input has filled the queue before draining it.
+                let full = Instant::now() + Duration::from_secs(30);
+                loop {
+                    let state = event_loop.queue.state.lock().unwrap();
+                    if state.events.len() == state.events.capacity {
+                        break;
+                    }
+                    drop(state);
+                    assert!(
+                        Instant::now() < full,
+                        "the parent's input never filled the queue"
+                    );
+                    std::thread::sleep(Duration::from_millis(1));
+                }
                 // A hang guard, not a timing check.
                 let deadline = Instant::now() + Duration::from_secs(30);
                 for _ in 0..600 {
@@ -1048,7 +1060,7 @@ mod tests {
 
         let mut event_loop = TokioEventLoop::new();
 
-        // Test timeout with no events
+        // Test timeout with no events; the behavior under test is the timeout.
         let result = wait_for_event_timeout(&mut event_loop, Duration::from_millis(10)).await;
         assert!(result.is_ok());
         assert!(result.unwrap().is_none());
@@ -1060,7 +1072,8 @@ mod tests {
             .await
             .is_ok());
 
-        let result = wait_for_event_timeout(&mut event_loop, Duration::from_millis(100)).await;
+        // A hang guard: the posted event is already queued.
+        let result = wait_for_event_timeout(&mut event_loop, Duration::from_secs(30)).await;
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), Some(test_event));
     }
@@ -1086,8 +1099,10 @@ mod tests {
             assert!(event_loop.post_event_async(event.clone()).await.is_ok());
         }
 
-        // Collect events in batch
-        let collected = collect_events_batch(&mut event_loop, 5, Duration::from_millis(100)).await;
+        // Collect events in batch. The behavior under test: the window ends the
+        // batch at 3 of 5; it is long enough to drain the three queued events on
+        // a busy machine.
+        let collected = collect_events_batch(&mut event_loop, 5, Duration::from_millis(500)).await;
         assert_eq!(collected.len(), 3);
         assert_eq!(collected, events);
     }

@@ -321,8 +321,8 @@ mod tests {
         let (_writer, receiver, worker) = stream();
         let started = Instant::now();
         drop(receiver.into_iter());
-        // A hang guard: dropping joins the idle reader at once.
-        assert!(started.elapsed() < Duration::from_secs(30));
+        // The behavior under test: dropping joins the idle reader at once.
+        assert!(started.elapsed() < Duration::from_secs(2));
         assert!(worker.thread.lock().unwrap().is_none());
     }
 

@@ -244,9 +244,9 @@ mod windows {
             std::thread::sleep(Duration::from_millis(100));
             let started = Instant::now();
             drop(busy);
-            // A hang guard: dropping ends the child at once.
+            // The behavior under test: dropping ends the child at once.
             assert!(
-                started.elapsed() < Duration::from_secs(30),
+                started.elapsed() < Duration::from_secs(10),
                 "{mode} shutdown stalled"
             );
             assert_exited(&process);

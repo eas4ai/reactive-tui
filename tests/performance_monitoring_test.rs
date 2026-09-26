@@ -348,7 +348,8 @@ fn test_performance_metrics_accuracy() {
         num_batches * (batch_size / 2)
     );
 
-    // Verify timing metrics are reasonable
+    // Verify timing metrics are reasonable. The behavior under test: the
+    // registry's own averages, a regression bound far above a component's cost.
     assert!(final_metrics.avg_creation_time < Duration::from_millis(10)); // Should be fast
     assert!(final_metrics.avg_cleanup_time < Duration::from_millis(10)); // Should be fast
 
