@@ -50,4 +50,4 @@ Status: Agreed 2026-09-22
 Falsifier: The command exits non-zero at the commitment's final commit on a database fetched that day, or an advisory ignore, bans skip or skip-tree entry in deny.toml gives no reason.
 Mechanism: dependency-checks
 Rationale: GitHub CI is off, so nothing ran cargo deny: a duplicate sha2 and a discontinued async-std went unnoticed until someone ran it by hand.
-Status: Draft
+Status: Agreed 2026-09-26
