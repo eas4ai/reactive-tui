@@ -1,0 +1,4 @@
+
+thread 'main' (6508) panicked at tests\api_widget_behavior\conpty_probe.rs:123:9:
+missing "INPUT:resized:SIZE:100:30"; output: "\u{1b}[6;1Hresized\u{1b}[6;8H\u{1b}[6;8H\r\nINPUT:resized:SIZE:80:24\r\n"; exit: Ok(None)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
