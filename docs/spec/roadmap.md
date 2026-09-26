@@ -1,6 +1,6 @@
 # Roadmap
 
-Current: test-timing-sweep
+Current: cargo-deny-bans-duplicates
 
 Order agreed with the developer on 2026-09-21: charts first on a cell canvas,
 then a general graphics canvas over wgpu that replaces the rasterizer
