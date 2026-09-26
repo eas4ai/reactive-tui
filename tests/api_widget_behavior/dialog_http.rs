@@ -53,6 +53,10 @@ struct Server {
     worker: Option<JoinHandle<()>>,
 }
 
+/// A hang guard, not a timing check: generous so a busy machine cannot fail
+/// a correct test by running it slowly. Dropping the server ends it at once.
+const HANG_GUARD: Duration = Duration::from_secs(30);
+
 impl Server {
     fn new(replies: Vec<Reply>) -> Self {
         let listener = TcpListener::bind("127.0.0.1:0").unwrap();
@@ -65,7 +69,7 @@ impl Server {
         let count = ThreadSafeSignal::new(0);
         let request_count = count.clone();
         let worker = thread::spawn(move || {
-            let end = Instant::now() + Duration::from_secs(4);
+            let end = Instant::now() + HANG_GUARD;
             let mut connections = Vec::new();
             for reply in replies {
                 let connection = loop {
@@ -93,6 +97,7 @@ impl Server {
                         requests.len()
                     };
                     request_count.set(count);
+                    // A slow server: the reply waits its configured delay.
                     let until = Instant::now() + reply.delay;
                     while (reply.hold_until_teardown || Instant::now() < until)
                         && !stopped.load(Ordering::Acquire)
@@ -270,6 +275,8 @@ fn dialog_engine_http_close_cancels_a_live_request_and_does_not_submit() {
             ("REMOVED", None),
         ],
     );
+    // The behavior under test: closing returns at once although the reply
+    // is held until teardown.
     assert!(
         closed_in
             .lock()
@@ -291,7 +298,7 @@ fn read_request(stream: &mut TcpStream, stopped: &AtomicBool) -> Option<Request>
     stream
         .set_read_timeout(Some(Duration::from_millis(10)))
         .unwrap();
-    let end = Instant::now() + Duration::from_secs(2);
+    let end = Instant::now() + HANG_GUARD;
     let mut bytes = Vec::new();
     let mut buffer = [0; 4096];
     while !stopped.load(Ordering::Acquire) && Instant::now() < end {

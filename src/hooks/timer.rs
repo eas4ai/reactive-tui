@@ -404,7 +404,7 @@ mod tests {
         });
         assert_eq!(
             throttle_receive
-                .recv_timeout(Duration::from_millis(500))
+                .recv_timeout(Duration::from_secs(30))
                 .unwrap(),
             3
         );
@@ -439,7 +439,7 @@ mod tests {
         });
         assert_eq!(
             debounce_receive
-                .recv_timeout(Duration::from_millis(500))
+                .recv_timeout(Duration::from_secs(30))
                 .unwrap(),
             3
         );
@@ -612,7 +612,9 @@ mod tests {
         let counter = Arc::new(AtomicUsize::new(0));
 
         let counter_clone = counter.clone();
-        let debounced = use_debounce(&hooks, Duration::from_millis(10), move |_: i32| {
+        // The delay leaves room for a busy machine between the calls and
+        // the cancel below.
+        let debounced = use_debounce(&hooks, Duration::from_millis(500), move |_: i32| {
             counter_clone.fetch_add(1, Ordering::Relaxed);
         });
 
@@ -624,7 +626,8 @@ mod tests {
         // Cancel before it executes
         debounced.cancel();
 
-        std::thread::sleep(Duration::from_millis(20));
+        // The behavior under test: past the delay, the cancelled call has not run.
+        std::thread::sleep(Duration::from_millis(600));
         assert_eq!(counter.load(Ordering::Relaxed), 0);
     }
 
@@ -634,7 +637,9 @@ mod tests {
         let counter = Arc::new(AtomicUsize::new(0));
 
         let counter_clone = counter.clone();
-        let throttled = use_throttle(&hooks, Duration::from_millis(50), move |_: i32| {
+        // The interval leaves room for a busy machine between the rapid
+        // calls below.
+        let throttled = use_throttle(&hooks, Duration::from_millis(500), move |_: i32| {
             counter_clone.fetch_add(1, Ordering::Relaxed);
         });
 
@@ -648,7 +653,7 @@ mod tests {
         assert_eq!(counter.load(Ordering::Relaxed), 1);
 
         // After interval, next call should execute
-        std::thread::sleep(Duration::from_millis(60));
+        std::thread::sleep(Duration::from_millis(600));
         throttled.call(4);
         assert_eq!(counter.load(Ordering::Relaxed), 2);
     }
@@ -664,12 +669,14 @@ mod tests {
         timer.replace_callback(Box::new(move || send.send(()).unwrap()));
         timer.restart(Duration::ZERO, false, None);
         receive
-            .recv_timeout(Duration::from_millis(500))
+            .recv_timeout(Duration::from_secs(30))
             .expect("unscoped fallback timer did not fire");
 
         drop(hooks);
         drop(timer);
-        let stop_deadline = std::time::Instant::now() + Duration::from_millis(500);
+        // A hang guard, not a timing check: generous so a busy machine
+        // cannot fail a correct test by running it slowly.
+        let stop_deadline = std::time::Instant::now() + Duration::from_secs(30);
         while probe.is_live() && std::time::Instant::now() < stop_deadline {
             std::thread::yield_now();
         }

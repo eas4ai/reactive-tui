@@ -155,6 +155,7 @@ fn imperative_popover_handle_wakes_idle_app_and_callbacks_can_reenter_it() {
     };
     let handle = popover.clone();
     let worker = std::thread::spawn(move || {
+        // The behavior under test: a show from another thread while the App runs.
         std::thread::sleep(Duration::from_millis(60));
         handle.show();
     });

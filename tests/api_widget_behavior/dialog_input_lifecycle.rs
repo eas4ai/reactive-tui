@@ -92,6 +92,8 @@ impl RootComponent for PendingInput {
                 .changed_at
                 .lock()
                 .unwrap()
+                // The behavior under test: 1.2 s after the last change, past the
+                // 1 s validation delay.
                 .is_some_and(|at| at.elapsed() >= Duration::from_millis(1200))
         {
             self.quiet = true;

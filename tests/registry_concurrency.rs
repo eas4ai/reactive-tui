@@ -17,8 +17,10 @@ fn bounded(work: impl FnOnce() + Send + 'static) {
         tx.send(result).unwrap();
     });
     let result = rx
-        .recv_timeout(Duration::from_secs(5))
-        .expect("registry operation stalled for five seconds");
+        // A hang guard, not a timing check: generous so a busy machine
+        // cannot fail a correct test by running it slowly.
+        .recv_timeout(Duration::from_secs(30))
+        .expect("registry operation stalled for 30 seconds");
     worker.join().unwrap();
     if let Err(panic) = result {
         std::panic::resume_unwind(panic);

@@ -56,7 +56,7 @@ fn slow_renderer_has_one_active_and_one_replaceable_pending_frame() {
                 first = false;
                 started_send.send(()).unwrap();
                 release_receive
-                    .recv_timeout(Duration::from_secs(2))
+                    .recv_timeout(Duration::from_secs(30))
                     .unwrap();
             }
             GraphicsFrame::from_rgba(
@@ -71,7 +71,7 @@ fn slow_renderer_has_one_active_and_one_replaceable_pending_frame() {
     );
     assert!(worker.request(FrameRequest::new(2, 2, Duration::ZERO).unwrap()));
     started_receive
-        .recv_timeout(Duration::from_secs(2))
+        .recv_timeout(Duration::from_secs(30))
         .unwrap();
     for millis in 1..=1000 {
         assert!(worker.request(FrameRequest::new(2, 2, Duration::from_millis(millis)).unwrap()));
@@ -81,8 +81,12 @@ fn slow_renderer_has_one_active_and_one_replaceable_pending_frame() {
     }
     assert_eq!(worker.stats().replaced, 999);
     release_send.send(()).unwrap();
-    notify_receive.recv_timeout(Duration::from_secs(2)).unwrap();
-    notify_receive.recv_timeout(Duration::from_secs(2)).unwrap();
+    notify_receive
+        .recv_timeout(Duration::from_secs(30))
+        .unwrap();
+    notify_receive
+        .recv_timeout(Duration::from_secs(30))
+        .unwrap();
     let output = worker.take_latest().unwrap();
     assert_eq!(output.request.elapsed(), Duration::from_millis(1000));
     assert!(output.frame.is_ok());

@@ -4,8 +4,12 @@ use reactive_tui::platform::r#loop::{EventLoop, TokioEventLoop};
 use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::time::Duration;
 
+/// A hang guard, not a timing check: generous so a busy machine cannot fail
+/// a correct test by running it slowly.
+const HANG_GUARD: Duration = Duration::from_secs(30);
+
 async fn wait_until(event_loop: &TokioEventLoop, running: bool) {
-    tokio::time::timeout(Duration::from_secs(2), async {
+    tokio::time::timeout(HANG_GUARD, async {
         while event_loop.is_running() != running {
             tokio::task::yield_now().await;
         }
@@ -21,7 +25,7 @@ async fn exercise_lifecycle(runtime: &str) -> bool {
         .expect("sync start panicked inside an active Tokio runtime");
     if start.is_ok() {
         wait_until(&sync_started, true).await;
-        tokio::time::timeout(Duration::from_secs(2), sync_started.stop_async())
+        tokio::time::timeout(HANG_GUARD, sync_started.stop_async())
             .await
             .expect("async cleanup after sync start timed out")
             .expect("async cleanup after sync start failed");
@@ -37,7 +41,7 @@ async fn exercise_lifecycle(runtime: &str) -> bool {
         .expect("sync stop panicked inside an active Tokio runtime");
     if let Err(error) = stop {
         assert!(error.to_string().contains("stop_async"));
-        tokio::time::timeout(Duration::from_secs(2), sync_stopped.stop_async())
+        tokio::time::timeout(HANG_GUARD, sync_stopped.stop_async())
             .await
             .expect("async cleanup after sync stop timed out")
             .expect("async cleanup after sync stop failed");
@@ -50,7 +54,7 @@ async fn exercise_lifecycle(runtime: &str) -> bool {
         .await
         .expect("async start failed");
     wait_until(&async_lifecycle, true).await;
-    tokio::time::timeout(Duration::from_secs(2), async_lifecycle.stop_async())
+    tokio::time::timeout(HANG_GUARD, async_lifecycle.stop_async())
         .await
         .expect("async stop timed out")
         .expect("async stop failed");

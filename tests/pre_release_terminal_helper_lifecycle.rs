@@ -268,14 +268,16 @@ fn isolated(name: &str, helper: &str) -> bool {
             .spawn()
             .unwrap(),
     );
-    let deadline = Instant::now() + Duration::from_secs(5);
+    // A hang guard, not a timing check: generous so a busy machine cannot
+    // fail a correct test by running it slowly.
+    let deadline = Instant::now() + Duration::from_secs(30);
     let status = loop {
         if let Some(status) = fixture.child.as_mut().unwrap().try_wait().unwrap() {
             break status;
         }
         assert!(
             Instant::now() < deadline,
-            "{name}: terminal helper call exceeded outer five-second safety deadline"
+            "{name}: terminal helper call exceeded the outer 30-second safety deadline"
         );
         std::thread::sleep(Duration::from_millis(10));
     };
@@ -308,7 +310,9 @@ fn assert_helpers_stopped(expected_invocations: usize) {
     for entry in entries {
         let (kind, _) = entry.split_once(':').unwrap();
         let pid = parse_pid(entry).unwrap();
-        let deadline = Instant::now() + Duration::from_secs(1);
+        // A hang guard: the helper is reaped at once, a busy machine only
+        // makes that slower.
+        let deadline = Instant::now() + Duration::from_secs(30);
         while process_is_running(pid) && Instant::now() < deadline {
             std::thread::sleep(Duration::from_millis(5));
         }
@@ -340,6 +344,8 @@ fn which_discovery_has_a_deadline_and_reaps_its_process_groups() {
     }
     let started = Instant::now();
     let capabilities = Terminal::detect_image_capabilities();
+    // The behavior under test: each of the two helpers ends at the 250 ms
+    // terminal helper timeout instead of hanging.
     assert!(started.elapsed() < Duration::from_secs(2));
     assert!(!capabilities.chafa_available);
     assert!(!capabilities.viu_available);
@@ -366,6 +372,8 @@ fn stty_configuration_has_a_deadline_and_reaps_its_process_group() {
     };
     let started = Instant::now();
     assert!(window.has_mouse(Some(&event)).is_some());
+    // The behavior under test: the helper ends at the 250 ms terminal helper
+    // timeout instead of hanging.
     assert!(started.elapsed() < Duration::from_secs(1));
     assert_helpers_stopped(1);
 }

@@ -389,7 +389,9 @@ mod tests {
             ..Default::default()
         });
         terminal.start().unwrap();
-        let deadline = Instant::now() + Duration::from_secs(5);
+        // A hang guard, not a timing check: generous so a busy machine
+        // cannot fail a correct test by running it slowly.
+        let deadline = Instant::now() + Duration::from_secs(30);
         let mut backpressure = false;
         'bursts: for step in 1..=20 {
             terminal.write_string("\n").unwrap();
@@ -433,7 +435,9 @@ mod tests {
             ..Default::default()
         });
         terminal.start().unwrap();
-        let deadline = Instant::now() + Duration::from_secs(3);
+        // A hang guard, not a timing check: generous so a busy machine
+        // cannot fail a correct test by running it slowly.
+        let deadline = Instant::now() + Duration::from_secs(30);
         while terminal.pty.try_wait().unwrap().is_none() {
             assert!(Instant::now() < deadline, "output owner did not finish");
             std::thread::sleep(Duration::from_millis(2));
@@ -512,7 +516,8 @@ mod tests {
             ("42", Some("@set /a 52+1\r"), Some(resized)),
             ("53", None, None),
         ] {
-            let deadline = Instant::now() + Duration::from_secs(10);
+            // A hang guard, not a timing check.
+            let deadline = Instant::now() + Duration::from_secs(30);
             loop {
                 for event in terminal.poll_events() {
                     if let TerminalEvent::Output(bytes) = event {
@@ -670,7 +675,9 @@ mod tests {
             ..Default::default()
         });
         terminal.start().unwrap();
-        let deadline = Instant::now() + Duration::from_secs(3);
+        // A hang guard, not a timing check: generous so a busy machine
+        // cannot fail a correct test by running it slowly.
+        let deadline = Instant::now() + Duration::from_secs(30);
         let mut output = Vec::new();
         while Instant::now() < deadline {
             if let Some(bytes) = terminal

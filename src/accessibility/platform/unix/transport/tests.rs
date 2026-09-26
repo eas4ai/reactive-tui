@@ -14,6 +14,9 @@ impl Drop for Released {
     }
 }
 
+/// A hang guard, not a timing check: generous so a busy machine cannot fail
+/// a correct test by running it slowly.
+const HANG_GUARD: Duration = Duration::from_secs(30);
 fn stalled(wake: AppWaker) -> (Transport, Arc<AtomicBool>) {
     let (ready, started) = mpsc::sync_channel(1);
     let released = Arc::new(AtomicBool::new(false));
@@ -25,7 +28,7 @@ fn stalled(wake: AppWaker) -> (Transport, Arc<AtomicBool>) {
         std::future::pending::<Result<()>>().await
     })
     .unwrap();
-    started.recv_timeout(Duration::from_secs(1)).unwrap();
+    started.recv_timeout(HANG_GUARD).unwrap();
     (transport, released)
 }
 
@@ -54,6 +57,8 @@ fn queue_overload_is_bounded_wakes_app_and_cancels_the_worker() {
         .contains("4096-message bound"));
     assert!(released.load(Ordering::SeqCst));
     assert!(transport.worker.is_none());
+    // The behavior under test: close ends the worker at once instead of
+    // waiting out the 3 s operation timeout.
     assert!(start.elapsed() < Duration::from_secs(1));
 }
 
@@ -65,6 +70,8 @@ fn shutdown_cancels_a_pending_operation_and_joins_before_returning() {
     transport.close().unwrap();
     assert!(released.load(Ordering::SeqCst));
     assert!(transport.worker.is_none());
+    // The behavior under test: close ends the worker at once instead of
+    // waiting out the 3 s operation timeout.
     assert!(start.elapsed() < Duration::from_secs(1));
 }
 
@@ -76,7 +83,7 @@ fn failure_is_reported_without_poisoning_other_or_later_apps() {
         Err("screen-reader fixture bus disconnected".into())
     })
     .unwrap();
-    wake.wait(Some(Duration::from_secs(1)));
+    wake.wait(Some(HANG_GUARD));
     assert!(wake.is_pending());
     assert!(failing
         .close()
@@ -101,6 +108,7 @@ fn stalled_bus_operation_has_a_deadline() {
     ))
     .unwrap_err();
     assert!(error.contains("fixture operation exceeded its 20 ms deadline"));
+    // The behavior under test: the operation ends at its 20 ms deadline.
     assert!(start.elapsed() < Duration::from_secs(1));
 }
 
@@ -113,7 +121,7 @@ fn worker_panic_wakes_app_and_still_joins() {
         Ok(())
     })
     .unwrap();
-    wake.wait(Some(Duration::from_secs(1)));
+    wake.wait(Some(HANG_GUARD));
     assert!(wake.is_pending());
     assert!(transport.close().unwrap_err().contains("worker panicked"));
     assert!(transport.worker.is_none());
@@ -124,7 +132,7 @@ fn shutdown_during_an_operation_poll_does_not_report_queue_disconnect() {
     let (ready, started) = mpsc::sync_channel(1);
     let mut transport = Transport::spawn(AppWaker::new(), move |receiver, sender| async move {
         ready.send(()).unwrap();
-        let deadline = Instant::now() + Duration::from_secs(1);
+        let deadline = Instant::now() + HANG_GUARD;
         while !sender.cancel.is_closed() && Instant::now() < deadline {
             std::thread::yield_now();
         }
@@ -138,7 +146,7 @@ fn shutdown_during_an_operation_poll_does_not_report_queue_disconnect() {
         std::future::pending::<Result<()>>().await
     })
     .unwrap();
-    started.recv_timeout(Duration::from_secs(1)).unwrap();
+    started.recv_timeout(HANG_GUARD).unwrap();
     transport.close().unwrap();
     assert!(transport.worker.is_none());
 }

@@ -37,6 +37,7 @@ impl Write for Writer {
             state.max_in_flight = state.max_in_flight.max(state.in_flight);
             (state.flush_delay, state.fail_flush)
         };
+        // A slow terminal: each flush takes the configured delay.
         thread::sleep(delay);
         let mut state = self.0.lock().unwrap();
         state.in_flight -= 1;
@@ -67,9 +68,10 @@ impl Writer {
         self.0.lock().unwrap().fail_flush = fail;
     }
 
-    /// Block until the worker has flushed `count` times, or a second passes.
+    /// Block until the worker has flushed `count` times. The deadline is a
+    /// hang guard, generous so a busy machine cannot fail a correct test.
     fn wait_for_flushes(&self, count: usize) {
-        let deadline = Instant::now() + Duration::from_secs(1);
+        let deadline = Instant::now() + Duration::from_secs(30);
         while self.flushes() < count {
             assert!(Instant::now() < deadline, "the worker never flushed");
             thread::sleep(Duration::from_millis(1));
@@ -128,6 +130,8 @@ fn pip_001_present_returns_before_its_flush_and_one_frame_is_in_flight() {
     let started = Instant::now();
     backend.present().unwrap();
     let first = started.elapsed();
+    // The behavior under test: present hands the frame to the flush worker
+    // and returns well inside the flush's delay.
     assert!(
         first < delay / 2,
         "present waited for its own flush: {first:?} with a {delay:?} flush"

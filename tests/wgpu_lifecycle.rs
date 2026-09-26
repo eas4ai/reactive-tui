@@ -33,7 +33,9 @@ fn canvas_discards_stale_viewport_output_and_owns_shutdown() {
         "old viewport frame must not survive resize"
     );
     canvas.advance(Duration::from_millis(50), 144, 50).unwrap();
-    let deadline = std::time::Instant::now() + Duration::from_secs(2);
+    // A hang guard, not a timing check: generous so a busy machine cannot
+    // fail a correct test by running it slowly.
+    let deadline = std::time::Instant::now() + Duration::from_secs(30);
     while canvas.frame().is_none() && std::time::Instant::now() < deadline {
         std::thread::sleep(Duration::from_millis(10));
         canvas.advance(Duration::from_millis(51), 144, 50).unwrap();
@@ -118,14 +120,14 @@ fn shutdown_cancels_active_and_pending_work_without_publication() {
     );
     worker.request(FrameRequest::new(2, 2, Duration::ZERO).unwrap());
     started_receive
-        .recv_timeout(Duration::from_secs(2))
+        .recv_timeout(Duration::from_secs(30))
         .unwrap();
     worker.request(FrameRequest::new(2, 2, Duration::from_secs(1)).unwrap());
     assert_eq!(worker.stats().pending, 1);
     worker.cancel();
     assert_eq!(worker.stats().pending, 0);
     cancelled_receive
-        .recv_timeout(Duration::from_secs(2))
+        .recv_timeout(Duration::from_secs(30))
         .unwrap();
     worker.shutdown().unwrap();
     assert_eq!(worker.stats().active, 0);

@@ -157,14 +157,36 @@ impl Drop for Running {
         }
     }
 }
+/// A hang guard, not a timing check: generous so a busy machine cannot fail
+/// a correct test by running it slowly.
+const HANG_GUARD: Duration = Duration::from_secs(30);
+/// How long a render count must stay the same before the App counts as idle.
+const QUIET: Duration = Duration::from_millis(100);
+
 fn wait_for(mut ready: impl FnMut() -> bool) {
-    let deadline = Instant::now() + Duration::from_secs(2);
+    let deadline = Instant::now() + HANG_GUARD;
     while !ready() {
         assert!(
             Instant::now() < deadline,
             "performance state did not converge"
         );
         thread::sleep(Duration::from_millis(2));
+    }
+}
+/// Waits until `count` has stayed the same for `QUIET` and returns it. An App
+/// that keeps redrawing never goes quiet, so the wait fails with `redrawing`
+/// once the hang guard runs out.
+fn wait_quiet(count: impl Fn() -> usize, redrawing: &str) -> usize {
+    let deadline = Instant::now() + HANG_GUARD;
+    let mut last = count();
+    loop {
+        thread::sleep(QUIET);
+        let now = count();
+        if now == last {
+            return now;
+        }
+        assert!(Instant::now() < deadline, "{redrawing}");
+        last = now;
     }
 }
 fn assert_closed(context: &PerformanceContext, wake: &AppWaker) {
@@ -237,8 +259,11 @@ fn mode_bursts_keep_latest_request_and_metrics_do_not_redraw_idle_apps() {
         context.fps_state.get().mode == PerformanceMode::PowerSave
             && observed.renders.load(Ordering::SeqCst) > 0
     });
-    thread::sleep(Duration::from_millis(100));
-    let count = observed.renders.load(Ordering::SeqCst);
+    let count = wait_quiet(
+        || observed.renders.load(Ordering::SeqCst),
+        "publishing metrics fed back into redraws",
+    );
+    // The behavior under test: an idle App stays idle while metrics publish.
     thread::sleep(Duration::from_millis(120));
     assert_eq!(
         observed.renders.load(Ordering::SeqCst),
@@ -364,7 +389,7 @@ impl RootComponent for NestedRoot {
                 .schedule_timeout(Duration::from_millis(30), move || stop.request_stop());
             let (cancel, cancelled) = mpsc::channel();
             let watchdog = thread::spawn(move || {
-                if cancelled.recv_timeout(Duration::from_secs(2)).is_err() {
+                if cancelled.recv_timeout(HANG_GUARD).is_err() {
                     wake.request_stop();
                 }
             });
@@ -474,7 +499,7 @@ fn standalone_globals_are_not_read_or_written_by_apps() {
         .env(CHILD, "1")
         .spawn()
         .unwrap();
-    let deadline = Instant::now() + Duration::from_secs(5);
+    let deadline = Instant::now() + HANG_GUARD;
     loop {
         if let Some(status) = child.try_wait().unwrap() {
             assert!(
@@ -533,8 +558,11 @@ fn repeated_mode_effects_and_cleanup_requests_return_to_idle() {
     wait_for(|| renders.load(Ordering::SeqCst) > 0);
     running.wake.request_redraw();
     wait_for(|| renders.load(Ordering::SeqCst) >= 2);
-    thread::sleep(Duration::from_millis(80));
-    let count = renders.load(Ordering::SeqCst);
+    let count = wait_quiet(
+        || renders.load(Ordering::SeqCst),
+        "same-mode effect requests kept redrawing",
+    );
+    // The behavior under test: repeated same-mode requests leave the App idle.
     thread::sleep(Duration::from_millis(100));
     assert_eq!(
         renders.load(Ordering::SeqCst),
@@ -557,9 +585,12 @@ fn actual_fps_tracks_presentation_cadence_instead_of_render_throughput() {
             && context.frame_timing.get().last_frame_ms > 0.0
     });
     // Let mount effects settle, then leave a measured idle interval between presentations.
-    thread::sleep(Duration::from_millis(80));
-    let renders = observed.renders.load(Ordering::SeqCst);
+    let renders = wait_quiet(
+        || observed.renders.load(Ordering::SeqCst),
+        "mount effects kept redrawing",
+    );
     let previous_fps = context.fps_state.get().current_fps;
+    // The behavior under test: a 100 ms idle interval between presentations.
     thread::sleep(Duration::from_millis(100));
     assert_eq!(observed.renders.load(Ordering::SeqCst), renders);
     running.wake.request_redraw();

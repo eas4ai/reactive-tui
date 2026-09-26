@@ -89,6 +89,7 @@ impl Write for Capture {
 
     fn flush(&mut self) -> io::Result<()> {
         let delay = self.0.lock().unwrap().flush_delay;
+        // A slow terminal: each flush takes the configured delay.
         std::thread::sleep(delay);
         let mut out = self.0.lock().unwrap();
         out.flushes += 1;

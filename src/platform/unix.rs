@@ -582,7 +582,9 @@ mod tests {
     }
 
     fn wait_for(counter: &AtomicUsize, expected: usize) {
-        let deadline = std::time::Instant::now() + Duration::from_secs(2);
+        // A hang guard, not a timing check: generous so a busy machine
+        // cannot fail a correct test by running it slowly.
+        let deadline = std::time::Instant::now() + Duration::from_secs(30);
         while counter.load(Ordering::SeqCst) < expected && std::time::Instant::now() < deadline {
             std::thread::sleep(Duration::from_millis(5));
         }
@@ -665,6 +667,8 @@ mod tests {
         release_signal_handler();
         unsafe { libc::raise(libc::SIGWINCH) };
         wait_for(&PRIOR_COUNT, 2);
+        // The behavior under test: once released, the handler no longer
+        // calls the callback.
         std::thread::sleep(Duration::from_millis(20));
         assert_eq!(CALLBACK_COUNT.load(Ordering::SeqCst), 1);
 

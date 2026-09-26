@@ -150,9 +150,6 @@ fn test_css_animation_cleanup_works() {
         );
     } // Component goes out of scope here
 
-    // Allow cleanup to happen
-    std::thread::sleep(std::time::Duration::from_millis(10));
-
     let after_stats = get_css_animation_stats_global();
     println!("Stats after component cleanup: {:?}", after_stats);
 

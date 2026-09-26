@@ -14,6 +14,10 @@ use std::sync::{
 };
 use std::time::{Duration, Instant};
 
+/// A hang guard, not a timing check: generous so a busy machine cannot fail
+/// a correct test by running it slowly.
+const HANG_GUARD: Duration = Duration::from_secs(30);
+
 #[derive(Default)]
 struct Observed {
     frames: Mutex<Vec<(Instant, String)>>,
@@ -67,8 +71,8 @@ impl Backend for ProbeBackend {
             return Ok(Some(event));
         }
         let start = Instant::now();
-        wake.wait(Some(timeout.unwrap_or(Duration::from_secs(2))));
-        if timeout.is_none() && start.elapsed() >= Duration::from_secs(2) {
+        wake.wait(Some(timeout.unwrap_or(HANG_GUARD)));
+        if timeout.is_none() && start.elapsed() >= HANG_GUARD {
             return Err(ReactiveError::terminal(
                 "test watchdog: idle wait was not woken",
             ));
@@ -132,7 +136,7 @@ fn fixture(
     (app, observed, receiver, value, updates)
 }
 fn wait_for(mut predicate: impl FnMut() -> bool) {
-    let end = Instant::now() + Duration::from_secs(1);
+    let end = Instant::now() + HANG_GUARD;
     while !predicate() {
         assert!(Instant::now() < end, "condition did not become true");
         std::thread::sleep(Duration::from_millis(2));
@@ -144,7 +148,8 @@ fn signal_wakes_idle_app_without_input_and_equal_writes_do_not_redraw() {
     let (app, observed, entered, signal, updates) = fixture(false);
     let wake = app.waker();
     let runner = std::thread::spawn(move || app.run());
-    entered.recv_timeout(Duration::from_secs(1)).unwrap();
+    entered.recv_timeout(HANG_GUARD).unwrap();
+    // The behavior under test: an idle App stays in one wait with nothing to do.
     std::thread::sleep(Duration::from_millis(60));
     assert_eq!(
         observed.polls.load(Ordering::Relaxed),
@@ -153,6 +158,7 @@ fn signal_wakes_idle_app_without_input_and_equal_writes_do_not_redraw() {
     );
     assert_eq!(updates.load(Ordering::Relaxed), 1);
     signal.set(0);
+    // The behavior under test: writing the value a signal already holds draws nothing.
     std::thread::sleep(Duration::from_millis(30));
     assert_eq!(observed.frames.lock().unwrap().len(), 1);
     signal.set(42);
@@ -177,7 +183,7 @@ fn queued_work_and_new_earlier_timer_wake_app_and_callbacks_are_reentrant() {
         panic!("late timer must be cancelled")
     });
     let runner = std::thread::spawn(move || app.run());
-    entered.recv_timeout(Duration::from_secs(1)).unwrap();
+    entered.recv_timeout(HANG_GUARD).unwrap();
     let changed = signal.clone();
     scheduler.schedule_update(Box::new(move || changed.set(1)));
     wait_for(|| observed.frames.lock().unwrap().last().unwrap().1 == "1");
@@ -197,7 +203,7 @@ fn redraw_burst_retains_latest_state_and_respects_frame_pacing() {
     let wake = app.waker();
     let frame_duration = Duration::from_secs_f64(1.0 / app.get_current_fps() as f64);
     let runner = std::thread::spawn(move || app.run());
-    entered.recv_timeout(Duration::from_secs(1)).unwrap();
+    entered.recv_timeout(HANG_GUARD).unwrap();
     for value in 1..=5000 {
         signal.set(value);
     }
@@ -222,7 +228,7 @@ fn input_and_legacy_polling_roots_still_progress() {
     let (app, observed, entered, _, updates) = fixture(true);
     let wake = app.waker();
     let runner = std::thread::spawn(move || app.run());
-    entered.recv_timeout(Duration::from_secs(1)).unwrap();
+    entered.recv_timeout(HANG_GUARD).unwrap();
     wait_for(|| updates.load(Ordering::Relaxed) >= 3);
     observed
         .input
@@ -298,10 +304,11 @@ fn animations_advance_then_app_returns_to_idle_waiting() {
     app.animation_manager().add_animation(animation);
     let wake = app.waker();
     let runner = std::thread::spawn(move || app.run());
-    entered.recv_timeout(Duration::from_secs(1)).unwrap();
+    entered.recv_timeout(HANG_GUARD).unwrap();
     wait_for(|| observed.waits.lock().unwrap().iter().any(Option::is_none));
     assert!(observed.frames.lock().unwrap().len() >= 2);
     let polls = observed.polls.load(Ordering::Relaxed);
+    // The behavior under test: a finished animation leaves the App idle.
     std::thread::sleep(Duration::from_millis(40));
     assert_eq!(observed.polls.load(Ordering::Relaxed), polls);
     wake.request_stop();

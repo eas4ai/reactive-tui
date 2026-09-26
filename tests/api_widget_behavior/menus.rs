@@ -274,6 +274,7 @@ fn context_menu_long_press_cancels_after_pointer_leaves_its_owner() {
                     .started
                     .lock()
                     .unwrap()
+                    // The behavior under test: a press held past the 80 ms long press.
                     .is_some_and(|start| start.elapsed() >= Duration::from_millis(200))
             {
                 self.elapsed = true;

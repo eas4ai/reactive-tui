@@ -363,7 +363,9 @@ mod tests {
     use std::time::{Duration, Instant};
 
     fn receive(worker: &Worker) -> Response {
-        let deadline = Instant::now() + Duration::from_secs(2);
+        // A hang guard, not a timing check: generous so a busy machine
+        // cannot fail a correct test by running it slowly.
+        let deadline = Instant::now() + Duration::from_secs(30);
         loop {
             if let Some(response) = worker.take() {
                 return response;
@@ -413,6 +415,7 @@ mod tests {
             assert_eq!(first.id, id);
             assert_eq!(first.result.unwrap().as_raw(), &[255, 0, 0, 255]);
             if mode == "hidden" {
+                // The behavior under test: a hidden image sends no more frames.
                 thread::sleep(Duration::from_millis(400));
                 assert!(worker.take().is_none(), "zero-sized image kept animating");
                 drop(worker);
@@ -442,6 +445,7 @@ mod tests {
                     "replaced GIF retained its frame pixels"
                 );
             }
+            // The behavior under test: the replaced image sends no more frames.
             thread::sleep(Duration::from_millis(400));
             assert!(
                 worker.take().is_none(),
@@ -530,7 +534,9 @@ mod external_tests {
     };
 
     fn wait_for(mut ready: impl FnMut() -> bool) {
-        let end = Instant::now() + Duration::from_secs(3);
+        // A hang guard, not a timing check: generous so a busy machine
+        // cannot fail a correct test by running it slowly.
+        let end = Instant::now() + Duration::from_secs(30);
         while !ready() {
             assert!(
                 Instant::now() < end,
@@ -801,6 +807,8 @@ mod external_tests {
                 let pid: i32 = fs::read_to_string(marker).unwrap().trim().parse().unwrap();
                 let start = Instant::now();
                 drop(worker);
+                // The behavior under test: removal kills the tool at once
+                // instead of waiting out its timeout.
                 assert!(
                     start.elapsed() < Duration::from_secs(1),
                     "removal waited for the tool timeout"

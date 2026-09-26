@@ -501,7 +501,7 @@ mod tests {
         });
         assert_eq!(
             receive
-                .recv_timeout(std::time::Duration::from_millis(500))
+                .recv_timeout(std::time::Duration::from_secs(30))
                 .unwrap(),
             4
         );

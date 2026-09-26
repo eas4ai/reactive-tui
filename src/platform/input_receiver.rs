@@ -321,7 +321,8 @@ mod tests {
         let (_writer, receiver, worker) = stream();
         let started = Instant::now();
         drop(receiver.into_iter());
-        assert!(started.elapsed() < Duration::from_secs(2));
+        // A hang guard: dropping joins the idle reader at once.
+        assert!(started.elapsed() < Duration::from_secs(30));
         assert!(worker.thread.lock().unwrap().is_none());
     }
 
@@ -332,13 +333,14 @@ mod tests {
         require_debug::<InputReceiver<NotDebug>>();
         let (mut writer, receiver, worker) = stream();
         assert_eq!(receiver.try_recv(), Err(TryRecvError::Empty));
+        // The behavior under test: nothing arrives before anything is written.
         assert_eq!(
             receiver.recv_timeout(Duration::from_millis(10)),
             Err(RecvTimeoutError::Timeout)
         );
         writer.write_all(&[1, 2, 3, 4, 5]).unwrap();
         drop(writer);
-        assert_eq!(receiver.recv_timeout(Duration::from_secs(2)).unwrap(), 1);
+        assert_eq!(receiver.recv_timeout(Duration::from_secs(30)).unwrap(), 1);
         assert_eq!(receiver.iter().next(), Some(2));
         assert_eq!((&receiver).into_iter().next(), Some(3));
         assert_eq!(receiver.into_iter().collect::<Vec<_>>(), vec![4, 5]);
@@ -376,11 +378,11 @@ mod tests {
         writer.write_all(&expected).unwrap();
         drop(writer);
         let actual = (0..256)
-            .map(|_| receiver.recv_timeout(Duration::from_secs(2)).unwrap())
+            .map(|_| receiver.recv_timeout(Duration::from_secs(30)).unwrap())
             .collect::<Vec<_>>();
         assert_eq!(actual, expected);
         assert_eq!(
-            receiver.recv_timeout(Duration::from_secs(2)),
+            receiver.recv_timeout(Duration::from_secs(30)),
             Err(RecvTimeoutError::Disconnected)
         );
     }
@@ -395,12 +397,13 @@ mod tests {
         let producer = thread::spawn(move || {
             done_sender.send(task.send(&sender, 2)).unwrap();
         });
+        // The behavior under test: the send blocks until it is cancelled.
         assert_eq!(
             done_receiver.recv_timeout(Duration::from_millis(20)),
             Err(RecvTimeoutError::Timeout)
         );
         cancellation.cancel();
-        assert!(!done_receiver.recv_timeout(Duration::from_secs(2)).unwrap());
+        assert!(!done_receiver.recv_timeout(Duration::from_secs(30)).unwrap());
         producer.join().unwrap();
     }
 }

@@ -30,7 +30,9 @@ fn api_terminal_pty_is_a_real_controlling_terminal() {
         ..Default::default()
     })
     .unwrap();
-    let deadline = std::time::Instant::now() + Duration::from_secs(3);
+    // A hang guard, not a timing check: generous so a busy machine cannot
+    // fail a correct test by running it slowly.
+    let deadline = std::time::Instant::now() + Duration::from_secs(30);
     let mut output = Vec::new();
     while std::time::Instant::now() < deadline {
         match pty.read_output(Some(Duration::from_millis(30))) {
@@ -104,10 +106,13 @@ fn api_terminal_pty_backpressure_and_drop_reap_a_flooding_child() {
     .unwrap();
     assert!(pty.spawn(&TerminalConfig::default()).is_err());
     assert!(pty.write_input(&vec![b'x'; 65 * 1024]).is_err());
+    // Setup for the behavior under test: let the child start, so the drop
+    // below ends a running process.
     std::thread::sleep(Duration::from_millis(50));
     let pid = pty.child_id().unwrap();
     let started = std::time::Instant::now();
     drop(pty);
+    // The behavior under test: dropping kills the child at once.
     assert!(started.elapsed() < Duration::from_secs(1));
     // SAFETY: query only the process created by this test.
     assert_eq!(unsafe { libc::kill(pid as i32, 0) }, -1);
