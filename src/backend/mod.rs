@@ -430,6 +430,9 @@ pub struct DebugBackend {
     pending_frame: Option<debug_frame::DebugFrame>,
     graphemes: Option<debug_frame::FrameText>,
     geometry: Option<PresentedGeometry>,
+    /// Lays out and paints frames on a stack of its own, as the SuprTUI
+    /// renderer does, so a deep tree draws whatever the app thread's stack.
+    paint: debug_frame::PaintThread,
 }
 
 impl DebugBackend {
@@ -445,7 +448,32 @@ impl DebugBackend {
             pending_frame: None,
             graphemes: None,
             geometry: None,
+            paint: debug_frame::PaintThread::default(),
         }
+    }
+
+    /// Lay out and paint `element` into a cleared screen on the paint thread,
+    /// for the full-repaint paths.
+    fn paint_element(&mut self, element: Element) -> Result<()> {
+        let (width, height) = (usize::from(self.size.0), usize::from(self.size.1));
+        self.virtual_screen = self.paint.run(move || {
+            let mut screen = crate::core::surface::Surface::new(width, height);
+            screen.clear(Rgba {
+                r: 0.0,
+                g: 0.0,
+                b: 0.0,
+                a: 1.0,
+            });
+            let nodespec = crate::component::bridge::element_to_nodespec(&element);
+            crate::layout::paint_tree::layout_and_paint_with(
+                &nodespec,
+                &mut screen,
+                width,
+                &crate::layout::paint_tree::PaintOptions::default(),
+            )?;
+            Ok::<_, crate::error::ReactiveError>(screen)
+        })??;
+        Ok(())
     }
 
     /// Add an event to the event queue for testing
@@ -560,16 +588,25 @@ impl DebugBackend {
 
 impl Backend for DebugBackend {
     fn render_frame(&mut self, element: &Element) -> Result<bool> {
-        self.pending_frame = Some(debug_frame::paint(element, self.size)?);
+        // The one copy per frame, as SuprTuiBackend makes: the paint thread
+        // lays out and paints it, and drops it there.
+        let (element, size) = (element.clone(), self.size);
+        self.pending_frame = Some(
+            self.paint
+                .run(move || debug_frame::paint(&element, size))??,
+        );
         Ok(true)
     }
     fn layout_frame(&mut self, element: std::sync::Arc<Element>) -> Result<Option<FrameLayout>> {
-        crate::layout::paint_tree::suprtui::layout_frame(
-            crate::component::bridge::element_to_paintspec(&element)?,
-            (u32::from(self.size.0), u32::from(self.size.1)),
-            &mut crate::layout::paint_tree::suprtui::LayoutCache::default(),
-        )
-        .map(Some)
+        let size = (u32::from(self.size.0), u32::from(self.size.1));
+        self.paint.run(move || {
+            crate::layout::paint_tree::suprtui::layout_frame(
+                crate::component::bridge::element_to_paintspec(&element)?,
+                size,
+                &mut crate::layout::paint_tree::suprtui::LayoutCache::default(),
+            )
+            .map(Some)
+        })?
     }
     fn render_cells(&mut self, frame: std::sync::Arc<CellFrame>) -> Result<()> {
         if frame.size() != self.size {
@@ -608,16 +645,7 @@ impl Backend for DebugBackend {
         if let Some(root) = tree.root() {
             // Use proper layout system for debug backend too
             if let Some(element) = tree.root_element() {
-                // Convert Element to NodeSpec and paint with layout
-                let nodespec = crate::component::bridge::element_to_nodespec(&element);
-                let opts = crate::layout::paint_tree::PaintOptions::default();
-                let (width, _) = (self.size.0 as usize, self.size.1 as usize);
-                crate::layout::paint_tree::layout_and_paint_with(
-                    &nodespec,
-                    &mut self.virtual_screen,
-                    width,
-                    &opts,
-                )?;
+                self.paint_element(element)?;
             } else {
                 // Fallback to linear painting
                 let _end_y = paint_render_node_linear(&mut self.virtual_screen, root, 0, 0);
@@ -648,7 +676,8 @@ impl Backend for DebugBackend {
         if let Some(frame) = self.pending_frame.take() {
             let surface = std::mem::replace(&mut self.virtual_screen, frame.surface);
             let text = self.graphemes.replace(frame.text);
-            debug_frame::recycle(surface, text);
+            // The canvas that reuses them lives on the paint thread.
+            self.paint.post(move || debug_frame::recycle(surface, text));
             self.geometry = Some(frame.geometry);
         }
         self.frame_count += 1;
@@ -695,15 +724,7 @@ impl Backend for DebugBackend {
             // This should not be using paint_render_node_linear anymore
             // Use proper layout system instead
             if let Some(element) = tree.root_element() {
-                let nodespec = crate::component::bridge::element_to_nodespec(&element);
-                let opts = crate::layout::paint_tree::PaintOptions::default();
-                let (width, _) = (self.size.0 as usize, self.size.1 as usize);
-                crate::layout::paint_tree::layout_and_paint_with(
-                    &nodespec,
-                    &mut self.virtual_screen,
-                    width,
-                    &opts,
-                )?;
+                self.paint_element(element)?;
             } else {
                 let _end_y = paint_render_node_linear(&mut self.virtual_screen, root, 0, 0);
             }

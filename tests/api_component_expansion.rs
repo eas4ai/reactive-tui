@@ -1,6 +1,6 @@
 use reactive_tui::{
     app::{App, AppWaker, RootComponent},
-    backend::{Backend, SuprTuiBackend},
+    backend::{Backend, DebugBackend, SuprTuiBackend},
     component::{
         registry::register_component, Component, Element, LayoutType, LifecycleEvent, Props,
     },
@@ -198,6 +198,78 @@ fn run_frames(elements: Vec<Element>) -> (Result<()>, Vec<String>) {
     let captured = frames.lock().unwrap().clone();
     (result, captured)
 }
+/// Records the text of each frame DebugBackend presents.
+struct DebugProbe {
+    inner: DebugBackend,
+    frames: Arc<Mutex<Vec<String>>>,
+    deadline: Instant,
+}
+impl Backend for DebugProbe {
+    fn render_frame(&mut self, element: &Element) -> Result<bool> {
+        self.inner.render_frame(element)
+    }
+    fn apply_patches(&mut self, _: &[PatchOp], _: &RenderTree) -> Result<()> {
+        panic!("complete frame required")
+    }
+    fn clear(&mut self) -> Result<()> {
+        self.inner.clear()
+    }
+    fn size(&self) -> (u16, u16) {
+        self.inner.size()
+    }
+    fn present(&mut self) -> Result<()> {
+        self.inner.present()?;
+        self.frames
+            .lock()
+            .unwrap()
+            .push(self.inner.screen_content());
+        Ok(())
+    }
+    fn poll_event(&mut self, _: Option<u64>) -> Result<Option<Event>> {
+        Ok(None)
+    }
+    fn poll_event_with_wake(
+        &mut self,
+        timeout: Option<Duration>,
+        wake: &AppWaker,
+    ) -> Result<Option<Event>> {
+        assert!(
+            Instant::now() < self.deadline,
+            "App exceeded component test deadline"
+        );
+        wake.wait(Some(
+            timeout
+                .unwrap_or(Duration::from_millis(10))
+                .min(Duration::from_millis(10)),
+        ));
+        Ok(None)
+    }
+}
+
+/// Draws `elements` through DebugBackend, one frame each, and returns the
+/// run's result and the text of each presented frame.
+fn run_debug_frames(elements: Vec<Element>) -> (Result<()>, Vec<String>) {
+    let frames = Arc::new(Mutex::new(Vec::new()));
+    let backend = DebugProbe {
+        inner: DebugBackend::new(32, 6),
+        frames: frames.clone(),
+        // a hang guard, not a timing check: generous so a busy machine cannot fail a correct test.
+        deadline: Instant::now() + Duration::from_secs(30),
+    };
+    let result = App::builder()
+        .backend(backend)
+        .root(Root {
+            frames: elements,
+            index: AtomicUsize::new(0),
+            wake: None,
+        })
+        .build()
+        .unwrap()
+        .run();
+    let captured = frames.lock().unwrap().clone();
+    (result, captured)
+}
+
 fn child(key: &str, text: &str) -> Element {
     Element::component_with_props("ApiExpansionWrapper", Label { text: text.into() }).key(key)
 }
@@ -392,9 +464,8 @@ fn recursive_expansion_reaches_its_bound_within_a_small_stack() {
 /// so through the Crossterm and direct-TTY backends built on it. Its renderer
 /// thread lays out and paints, recursing once per element level, so it must
 /// not rely on the default thread stack, which RUST_MIN_STACK or a library's
-/// thread-local storage can shrink. (DebugBackend lays out on the thread
-/// that runs the app instead; the manual gives its stack need.) The child's
-/// default stack is 1 MiB, less than the renderer needs at this depth, and
+/// thread-local storage can shrink. The child's default stack is 1 MiB,
+/// less than the renderer needs at this depth, and
 /// its App runs on a thread with room to spare, so only the renderer's own
 /// stack decides the result.
 #[test]
@@ -422,6 +493,41 @@ fn the_deepest_accepted_tree_draws_through_suprtui_whatever_the_default_thread_s
     assert!(
         passed,
         "the deepest accepted tree does not draw with a 1 MiB default thread stack: {text}"
+    );
+    assert!(text.contains("1 passed"), "the child drew nothing: {text}");
+}
+
+/// The deepest tree expansion accepts also draws through DebugBackend from
+/// an app thread with a 1.5 MiB stack. Laying out and painting a tree 128
+/// levels deep takes about 1.8 MiB of stack in a debug build, more than a
+/// test thread has left with the embedded-terminal feature, so DebugBackend
+/// does that work on a thread with its own stack, as SuprTuiBackend does,
+/// and the app thread's stack does not decide whether the tree draws.
+#[test]
+fn the_deepest_accepted_tree_draws_through_debug_backend_from_a_small_app_thread() {
+    const NAME: &str =
+        "the_deepest_accepted_tree_draws_through_debug_backend_from_a_small_app_thread";
+    if in_child() {
+        let (result, frames) = std::thread::Builder::new()
+            .stack_size(1536 * 1024)
+            .spawn(|| {
+                let (result, frames) = run_debug_frames(vec![nested(128)]);
+                (result.map_err(|error| error.to_string()), frames)
+            })
+            .unwrap()
+            .join()
+            .unwrap();
+        result.unwrap();
+        assert!(
+            frames[0].contains("deepest"),
+            "the innermost text was not drawn: {frames:?}"
+        );
+        return;
+    }
+    let (passed, text) = run_in_child(NAME, &[]);
+    assert!(
+        passed,
+        "the deepest accepted tree does not draw through DebugBackend from a 1.5 MiB app thread: {text}"
     );
     assert!(text.contains("1 passed"), "the child drew nothing: {text}");
 }

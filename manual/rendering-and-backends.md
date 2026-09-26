@@ -31,13 +31,11 @@ test needs to inspect text, cells, frame count, or patches without controlling a
 terminal. Implement `Backend` only when another host owns output and input.
 
 `SuprTuiBackend`, and `CrosstermBackend` and `DirectTtyBackend`, which are
-built on it, lay out and paint on their own renderer thread. That thread's
-stack is large enough for the deepest tree the app accepts (128 levels).
-`DebugBackend` lays out and paints on the thread that runs the app. In a debug
-build, a tree 128 levels deep takes about 1.8 MiB of that thread's stack. That
-is close to the 2 MiB a test thread has, and with the `embedded-terminal`
-feature it is more than such a thread has left. Run a test that draws a tree
-that deep through `DebugBackend` on a thread with a larger stack.
+built on it, lay out and paint on their own renderer thread, and
+`DebugBackend` lays out and paints on a paint thread of its own. Each
+thread's stack is large enough for the deepest tree the app accepts (128
+levels), which takes about 1.8 MiB in a debug build, so a test that draws
+such a tree needs no larger stack for the thread that runs the app.
 
 ## Behavior
 

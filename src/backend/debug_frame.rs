@@ -12,7 +12,91 @@ use ::suprtui::{
         segments::{grapheme_id_from_char, is_continuation_char, is_grapheme_char},
     },
 };
-use std::{cell::RefCell, rc::Rc};
+use std::{
+    cell::RefCell,
+    panic::{self, AssertUnwindSafe},
+    rc::Rc,
+    sync::mpsc,
+    thread,
+};
+
+/// Work for a paint thread.
+type Job = Box<dyn FnOnce() + Send>;
+
+/// The thread a DebugBackend lays out and paints on. Converting and painting
+/// a frame recurses once per element level, so the deepest tree component
+/// expansion accepts needs about 1.8 MiB of stack in a debug build, more than
+/// a test thread has left with the embedded-terminal feature. This thread has
+/// the SuprTUI renderer's stack, so the app thread's stack does not decide
+/// whether a deep tree draws, and it keeps its canvas from frame to frame.
+/// It starts with the first frame and stops when the backend is dropped.
+#[derive(Default)]
+pub(super) struct PaintThread {
+    jobs: Option<mpsc::Sender<Job>>,
+    thread: Option<thread::JoinHandle<()>>,
+}
+
+impl PaintThread {
+    /// Run `work` on the paint thread and return its result. A panic in
+    /// `work` resumes on the caller.
+    pub(super) fn run<R: Send + 'static>(
+        &mut self,
+        work: impl FnOnce() -> R + Send + 'static,
+    ) -> Result<R> {
+        let (done, outcome) = mpsc::sync_channel(1);
+        self.send(Box::new(move || {
+            let _ = done.send(panic::catch_unwind(AssertUnwindSafe(work)));
+        }))?;
+        match outcome.recv().map_err(|_| paint_thread_stopped())? {
+            Ok(value) => Ok(value),
+            Err(payload) => panic::resume_unwind(payload),
+        }
+    }
+
+    /// Give `work` to the paint thread without waiting for it. Before the
+    /// first frame there is no thread and nothing to do, so `work` is
+    /// dropped.
+    pub(super) fn post(&mut self, work: impl FnOnce() + Send + 'static) {
+        if let Some(jobs) = &self.jobs {
+            // A stopped thread fails the next `run`, which reports it.
+            let _ = jobs.send(Box::new(work));
+        }
+    }
+
+    fn send(&mut self, job: Job) -> Result<()> {
+        let jobs = match &self.jobs {
+            Some(jobs) => jobs,
+            None => {
+                let (jobs, receiver) = mpsc::channel::<Job>();
+                let thread = thread::Builder::new()
+                    .name("debug-backend-paint".into())
+                    .stack_size(super::suprtui::RENDERER_STACK)
+                    .spawn(move || {
+                        for job in receiver {
+                            job();
+                        }
+                    })?;
+                self.thread = Some(thread);
+                self.jobs.insert(jobs)
+            }
+        };
+        jobs.send(job).map_err(|_| paint_thread_stopped())
+    }
+}
+
+impl Drop for PaintThread {
+    fn drop(&mut self) {
+        // Closing the channel ends the thread's loop.
+        self.jobs.take();
+        if let Some(thread) = self.thread.take() {
+            let _ = thread.join();
+        }
+    }
+}
+
+fn paint_thread_stopped() -> ReactiveError {
+    ReactiveError::invalid_state("the debug backend's paint thread stopped")
+}
 
 pub(super) struct DebugFrame {
     pub surface: Surface,
