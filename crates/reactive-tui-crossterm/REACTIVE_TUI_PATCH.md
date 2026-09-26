@@ -8,6 +8,10 @@ readiness before reading a retained token. Public APIs and Windows code remain
 upstream. Regression coverage includes controlled queued input bursts, mixed
 readiness, zero-timeout exhaustion and application resize workflows.
 
+The upstream event-stream-async-std example and its async-std
+dev-dependency are removed: async-std is discontinued (RUSTSEC-2025-0052).
+The event-stream-tokio example shows the same event stream on tokio.
+
 The original MIT license is in LICENSE.
 
 Reactive TUI publishes this implementation as `reactive-tui-crossterm` and
