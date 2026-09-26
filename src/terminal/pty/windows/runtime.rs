@@ -137,7 +137,13 @@ fn verify(path: &Path, manifest: &Manifest, name: &str) -> TerminalResult<File> 
         }
         digest.update(&buffer[..count]);
     }
-    if format!("{:x}", digest.finalize()) != *expected {
+    // sha2 0.11 digests have no hex formatting; spell the digest out.
+    let actual: String = digest
+        .finalize()
+        .iter()
+        .map(|byte| format!("{byte:02x}"))
+        .collect();
+    if actual != *expected {
         return Err(context(
             &"runtime file SHA-256 does not match the pinned Microsoft package",
         ));
