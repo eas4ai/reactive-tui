@@ -1,0 +1,22 @@
+--- a/atspi/atspi-stateset.c
++++ b/atspi/atspi-stateset.c
+@@ -195,0 +196,2 @@ atspi_state_set_contains (AtspiStateSet *set,
++  gboolean result;
++
+@@ -197,0 +200 @@ atspi_state_set_contains (AtspiStateSet *set,
++  g_object_ref (set);
+@@ -199 +202,3 @@ atspi_state_set_contains (AtspiStateSet *set,
+-  return (set->states & ((gint64) 1 << state)) ? TRUE : FALSE;
++  result = (set->states & ((gint64) 1 << state)) ? TRUE : FALSE;
++  g_object_unref (set);
++  return result;
+@@ -241,0 +247 @@ atspi_state_set_get_states (AtspiStateSet *set)
++  guint64 states;
+@@ -244,0 +251 @@ atspi_state_set_get_states (AtspiStateSet *set)
++  g_object_ref (set);
+@@ -245,0 +253,2 @@ atspi_state_set_get_states (AtspiStateSet *set)
++  states = set->states;
++  g_object_unref (set);
+@@ -251 +260 @@ atspi_state_set_get_states (AtspiStateSet *set)
+-      if (set->states & val)
++      if (states & val)
