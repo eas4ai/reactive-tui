@@ -317,6 +317,27 @@ outside test modules does not change, and no test is removed or loses an
 assertion. Done when every site is listed in the review with its file,
 line and kind, and the workspace gates and the assertion audit pass.
 
+## cargo-deny-bans-duplicates
+
+Requirements: BAR-001
+
+Promoted from backlog item 02949462. `cargo deny --offline check bans`
+fails: the dependency graph holds two versions each of sha2, digest,
+block-buffer, crypto-common and cpufeatures, which deny.toml neither skips
+nor explains, and it warns that the base64 skip is no longer needed. The
+second line comes from one place. reactive-tui depends on sha2 0.10 on
+Windows only, to check the SHA-256 of the pinned ConPTY runtime file in
+src/terminal/pty/windows/runtime.rs, while lumis pulls sha2 0.11 through
+lumis-wasm-runtime on every platform.
+
+reactive-tui's Windows sha2 moves to the 0.11 line lumis already uses, so
+one version of each crate remains. sha2 0.11's digest output has no hex
+formatting, so the runtime check encodes the digest itself and compares it
+with the pinned value as before. The base64 skip is removed. Done when
+`cargo deny --offline check bans` passes with no error and no warning,
+`cargo check --target x86_64-pc-windows-gnu --lib` compiles the changed
+Windows code, and the workspace gates pass.
+
 ## graphics-canvas
 
 Developer ruling 2026-09-21: stay on wgpu; take lessons from rust_pixel
