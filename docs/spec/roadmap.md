@@ -326,7 +326,7 @@ fails: the dependency graph holds two versions each of sha2, digest,
 block-buffer, crypto-common and cpufeatures, which deny.toml neither skips
 nor explains, and it warns that the base64 skip is no longer needed. The
 second line comes from one place. reactive-tui depends on sha2 0.10 on
-Windows only, to check the SHA-256 of the pinned ConPTY runtime file in
+Windows only, to check the hash of the pinned ConPTY runtime file in
 src/terminal/pty/windows/runtime.rs, while lumis pulls sha2 0.11 through
 lumis-wasm-runtime on every platform.
 
