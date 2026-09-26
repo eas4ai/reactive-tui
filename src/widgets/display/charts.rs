@@ -649,7 +649,9 @@ pub struct RadialOptions {
     pub outer_radius: f64,
     /// Gap between adjacent slices, in radians.
     pub pad_angle: f64,
-    /// Columns between the circle and its side labels.
+    /// Columns between the circle and its side labels. At 0 a label touches
+    /// the circle, and one whose leader finds no room there sits one column
+    /// further out.
     pub label_gap: u16,
     /// Radar grid levels: concentric polygons at equal steps (CHT-016).
     pub grid_levels: usize,

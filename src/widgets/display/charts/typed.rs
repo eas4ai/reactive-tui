@@ -706,7 +706,9 @@ impl<T> PieChartBuilder<T> {
         self
     }
 
-    /// Columns between the circle and its side labels.
+    /// Columns between the circle and its side labels. At 0 a label touches
+    /// the circle, and one whose leader finds no room there sits one column
+    /// further out.
     pub fn label_gap(mut self, columns: u16) -> Self {
         self.radial.label_gap = columns;
         self
@@ -833,7 +835,9 @@ impl<T> DonutChartBuilder<T> {
         }
     }
 
-    /// Columns between the circle and its side labels.
+    /// Columns between the circle and its side labels. At 0 a label touches
+    /// the circle, and one whose leader finds no room there sits one column
+    /// further out.
     pub fn label_gap(self, columns: u16) -> Self {
         Self {
             pie: self.pie.label_gap(columns),
