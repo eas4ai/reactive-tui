@@ -1,0 +1,29 @@
+{
+  "command": "python3 -B scripts/cairn/dependency_checks.py",
+  "inputs": [
+    ".cargo",
+    "Cargo.lock",
+    "Cargo.toml",
+    "benches",
+    "build.rs",
+    "crates",
+    "deny.toml",
+    "examples",
+    "scripts/cairn",
+    "src",
+    "tests"
+  ],
+  "requirements": [
+    "BAR-008"
+  ],
+  "results": "per-requirement",
+  "identity": {
+    "tools": {
+      "cargo": "cargo --version",
+      "cargo-deny": "cargo deny --version",
+      "day": "date -u +%F"
+    },
+    "env": [],
+    "image": null
+  }
+}
