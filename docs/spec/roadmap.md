@@ -1,13 +1,16 @@
 # Roadmap
 
-Current: timing-sweep-widened-timings
+Current: dependency-checks
 
 Order agreed with the developer on 2026-09-21: charts first on a cell canvas,
 then a general graphics canvas over wgpu that replaces the rasterizer
 underneath, then the remaining widget families measured against gpui-kit.
 The quality bar (BAR) applies to every commitment. On 2026-09-22 the
 developer ruled that the SuprTUI renderer plan lands before the radial
-charts, so filled shapes are drawn once on the new blitters.
+charts, so filled shapes are drawn once on the new blitters. On 2026-09-26
+the developer replaced widget parity with a study of how gpui-kit builds
+its widgets compared with ours, and ordered the dependency checks, then
+that study, before the graphics canvas.
 
 ## charts-plot-layer
 
@@ -385,6 +388,49 @@ Done when the debounce test fails while cancel leaves the pending call in
 place, `cargo test --features embedded-terminal --test embedded_terminal`
 passes, and the workspace gates and the assertion audit pass.
 
+## dependency-checks
+
+Requirements: BAR-008, BAR-001, BAR-007
+
+Delivers backlog item dd046d9d. GitHub CI is off, so nothing runs cargo
+deny, and BAR-008 puts its four checks into every commitment's checks for
+the whole workspace. At 7c57d299 the advisory and source checks pass, and
+the bans and license checks fail, all through the vendored libghostty
+crates: libghostty-vt asks for allocator-api2 0.4 and png 0.18 while the
+rest of the tree uses 0.2 and 0.17; bindgen 0.72, which builds
+libghostty-vt-sys, uses prettyplease 0.2 and shlex 1.3 while lumis and cc
+use 0.3 and 2.0; and bindgen's BSD-3-Clause license is not allowed.
+
+The commitment leaves one version of each crate where a version change in
+a vendored crate or a lockfile update can do it, and a bans skip entry with
+its reason where it cannot; bindgen's license is allowed for bindgen alone,
+as a license exception. Each new skip or exception is put to the developer
+before it is committed. deny.toml also drops the x86_64-apple-darwin
+target, since Intel Macs are not supported. Done when the dependency-checks
+mechanism passes, and the workspace gates and the paths check pass.
+
+## widget-study
+
+Requirements: BAR-007
+
+The developer asked on 2026-09-26 for a comparison, not parity: how
+gpui-kit 0.6.6 builds its widgets and what they can do, set against ours,
+and a shortlist of widgets we might add. The commitment writes the
+study as widget-study.md beside the recon under docs, and changes no code.
+
+For each widget family both libraries have (docs/recon.md section 13
+lists twenty, from accordion to virtual list), the study compares the two
+implementations: how the widget is structured, its features and options,
+its builder API, the states it tracks, and its keyboard and screen-reader
+support. It names what is worth adopting and why. For each gpui-kit
+component reactive-tui lacks, it says what the widget would be in a
+terminal and recommends building or skipping it, with one line on why.
+Claims cite a file and line on both sides. Done when every module of
+gpui-kit's component crate has an entry, compared, recommended, or marked
+as support code rather than a widget, and the paths check passes.
+The developer then chooses the widgets to build; each is its own
+commitment.
+
 ## graphics-canvas
 
 Developer ruling 2026-09-21: stay on wgpu; take lessons from rust_pixel
@@ -399,8 +445,3 @@ by host capability (half blocks everywhere, Kitty or Sixel pixels where the
 host supports them). The keystone's "not a windowing system" stands; window
 presentation of the same frame is a possible later commitment, not this
 one. Requirements to be drafted when this commitment is next.
-
-## widget-parity
-
-Remaining widget families measured against gpui-kit 0.6.6 (docs/recon.md
-section 13). Requirements to be drafted when this commitment is next.

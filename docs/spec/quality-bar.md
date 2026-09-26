@@ -46,3 +46,8 @@ Mechanism: dangling-paths
 Rationale: Whole-tree, not range-based: deleting a target strands references in files that did not change, which is how the README and a dozen scripts broke before this bar existed.
 Status: Agreed 2026-09-22
 
+[BAR-008] Every commitment MUST leave `cargo deny --workspace --locked check advisories bans licenses sources` passing at its final commit, against the RustSec advisory database as cargo deny fetches it on the day of the check, and every advisory ignore and bans skip entry in deny.toml MUST state its reason.
+Falsifier: The command exits non-zero at the commitment's final commit on a database fetched that day, or an advisory ignore, bans skip or skip-tree entry in deny.toml gives no reason.
+Mechanism: dependency-checks
+Rationale: GitHub CI is off, so nothing ran cargo deny: a duplicate sha2 and a discontinued async-std went unnoticed until someone ran it by hand.
+Status: Draft
