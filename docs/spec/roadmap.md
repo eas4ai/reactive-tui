@@ -265,6 +265,34 @@ label left out belongs to a slice that paints no outer cell alone on its
 side. Done when that holds at every gap, any changed pie and donut goldens
 are regenerated and reviewed, and the goldens and workspace gates pass.
 
+## debug-backend-deep-tree-stack
+
+Requirements: BAR-001, BAR-005
+
+Promoted from backlog item 9f8b2a5d. DebugBackend lays out and paints on
+the thread that runs the app, so drawing the deepest tree component
+expansion accepts (128 levels) takes about 1.8 MiB of that thread's stack
+in a debug build: 1856 KiB with default features and 2110 KiB with the
+embedded-terminal feature, as the expansion-depth-stack acceptance
+(25438088, finding 1) measured. A test thread has 2 MiB, less the linked
+libraries' thread-local storage (256 KiB with embedded-terminal), so a test
+that draws such a tree through DebugBackend with that feature overflows its
+stack and aborts the whole test run. SuprTuiBackend already lays out and
+paints on its own renderer thread with an 8 MiB stack (RENDERER_STACK in
+src/backend/suprtui.rs). For DebugBackend, manual/rendering-and-backends.md
+only states the limit and tells tests to use a larger stack.
+
+DebugBackend lays out and paints on a thread with its own stack, as
+SuprTuiBackend does, so the app thread's stack no longer decides whether a
+deep tree draws. The frames, cells, patches and geometry it reports stay
+the same, and the per-frame work stays inside BAR-005's budget. A
+regression test draws a 128-level tree through DebugBackend from an app
+thread with a 1.5 MiB stack. It runs in a child process with core files
+off, so an overflow fails the test instead of ending the run, and the
+default-feature gates run it. Done when the test fails before the change
+and passes after it, no golden changes, the manual no longer tells tests
+to supply a larger stack, and the frame budget and workspace gates pass.
+
 ## graphics-canvas
 
 Developer ruling 2026-09-21: stay on wgpu; take lessons from rust_pixel
