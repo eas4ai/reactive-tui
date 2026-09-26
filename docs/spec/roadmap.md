@@ -347,15 +347,15 @@ Promoted from backlog item 9389bf70. `cargo deny --offline check
 advisories` fails with RUSTSEC-2025-0052: async-std has been discontinued.
 Its only user is the vendored crate crates/reactive-tui-crossterm, whose
 dev-dependencies list async-std for one example copied from upstream,
-examples/event-stream-async-std.rs. The same crate keeps
-examples/event-stream-tokio.rs, which shows the same event stream on tokio,
+event-stream-async-std. The same crate keeps the event-stream-tokio
+example, which shows the same event stream on tokio,
 and nothing reactive-tui ships depends on async-std.
 
 The async-std example and the async-std dev-dependency are removed, and
 the crate's REACTIVE_TUI_PATCH.md records the removal as a change from
 upstream. Done when `cargo deny --offline check advisories` and `cargo deny
---offline check bans` pass with no error, no tracked file names the removed
-example, and the workspace gates pass.
+--offline check bans` pass with no error, no tracked file refers to the
+removed example's path, and the workspace gates pass.
 
 ## graphics-canvas
 
