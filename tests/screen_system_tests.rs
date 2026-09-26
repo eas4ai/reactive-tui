@@ -115,12 +115,11 @@ fn test_screen_transitions() {
     // Should be transitioning initially
     assert!(screen_manager.is_transitioning());
 
-    // Update until transition completes
-    let mut updates = 0;
-    while screen_manager.is_transitioning() && updates < 50 {
+    // Update until transition completes. A hang guard, not a timing check: generous so a busy machine cannot fail a correct test by running it slowly.
+    let deadline = std::time::Instant::now() + Duration::from_secs(30);
+    while screen_manager.is_transitioning() && std::time::Instant::now() < deadline {
         screen_manager.update().unwrap();
         std::thread::sleep(Duration::from_millis(10));
-        updates += 1;
     }
 
     // Should complete transition
@@ -158,12 +157,11 @@ fn test_screen_hotkeys() {
 
     assert!(handled);
 
-    // Complete any transition
-    let mut updates = 0;
-    while screen_manager.is_transitioning() && updates < 50 {
+    // Complete any transition. A hang guard, not a timing check: generous so a busy machine cannot fail a correct test by running it slowly.
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
+    while screen_manager.is_transitioning() && std::time::Instant::now() < deadline {
         screen_manager.update().unwrap();
         std::thread::sleep(std::time::Duration::from_millis(10));
-        updates += 1;
     }
 
     // Ensure transition completes

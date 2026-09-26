@@ -26,7 +26,8 @@ fn canvas_discards_stale_viewport_output_and_owns_shutdown() {
         },
     );
     canvas.advance(Duration::ZERO, 60, 24).unwrap();
-    wake.wait(Some(Duration::from_secs(2)));
+    // A hang guard: the worker's wake for the first frame ends the wait.
+    wake.wait(Some(Duration::from_secs(30)));
     canvas.advance(Duration::from_millis(49), 144, 50).unwrap();
     assert!(
         canvas.frame().is_none(),

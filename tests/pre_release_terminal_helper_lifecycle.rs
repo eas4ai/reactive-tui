@@ -232,7 +232,7 @@ fn parse_pid(line: &str) -> Option<i32> {
 fn write_blocking_helper(directory: &Path, helper: &str) {
     let script = "#!/bin/sh\n\
         echo \"direct:$$\" >> \"$RTUI_TERMINAL_HELPER_PID_FILE\"\n\
-        /bin/sh -c 'echo \"desc:$$\" >> \"$RTUI_TERMINAL_HELPER_PID_FILE\"; exec /bin/sleep 30' &\n\
+        /bin/sh -c 'echo \"desc:$$\" >> \"$RTUI_TERMINAL_HELPER_PID_FILE\"; exec /bin/sleep 300' &\n\
         wait\n";
     let path = directory.join(helper);
     fs::write(&path, script).unwrap();

@@ -125,8 +125,9 @@ impl Running {
         let deadline_wake = wake.clone();
         let (cancel, cancelled) = mpsc::channel();
         let watchdog = thread::spawn(move || {
-            // a hang guard, not a timing check: generous so a busy machine cannot fail a correct test.
-            if cancelled.recv_timeout(Duration::from_secs(30)).is_err() {
+            // A hang guard, not a timing check. It outlasts HANG_GUARD, so a
+            // wait inside the test fails on its own before this stops the App.
+            if cancelled.recv_timeout(4 * HANG_GUARD).is_err() {
                 deadline_wake.request_stop();
             }
         });
@@ -161,7 +162,7 @@ impl Drop for Running {
 /// a correct test by running it slowly.
 const HANG_GUARD: Duration = Duration::from_secs(30);
 /// How long a render count must stay the same before the App counts as idle.
-const QUIET: Duration = Duration::from_millis(100);
+const QUIET: Duration = Duration::from_millis(300);
 
 fn wait_for(mut ready: impl FnMut() -> bool) {
     let deadline = Instant::now() + HANG_GUARD;
@@ -173,15 +174,20 @@ fn wait_for(mut ready: impl FnMut() -> bool) {
         thread::sleep(Duration::from_millis(2));
     }
 }
-/// Waits until `count` has stayed the same for `QUIET` and returns it. An App
-/// that keeps redrawing never goes quiet, so the wait fails with `redrawing`
-/// once the hang guard runs out.
-fn wait_quiet(count: impl Fn() -> usize, redrawing: &str) -> usize {
+/// Waits until `count` has stayed the same for `QUIET` while the App still
+/// runs, and returns it. An App that keeps redrawing never goes quiet, so the
+/// wait fails with `redrawing` once the hang guard runs out; one that stopped
+/// fails it at once, since a stopped App is quiet without being idle.
+fn wait_quiet(running: &Running, count: impl Fn() -> usize, redrawing: &str) -> usize {
     let deadline = Instant::now() + HANG_GUARD;
     let mut last = count();
     loop {
         thread::sleep(QUIET);
         let now = count();
+        assert!(
+            !running.runner.as_ref().unwrap().is_finished(),
+            "the App stopped before it went idle: {redrawing}"
+        );
         if now == last {
             return now;
         }
@@ -260,6 +266,7 @@ fn mode_bursts_keep_latest_request_and_metrics_do_not_redraw_idle_apps() {
             && observed.renders.load(Ordering::SeqCst) > 0
     });
     let count = wait_quiet(
+        &running,
         || observed.renders.load(Ordering::SeqCst),
         "publishing metrics fed back into redraws",
     );
@@ -559,6 +566,7 @@ fn repeated_mode_effects_and_cleanup_requests_return_to_idle() {
     running.wake.request_redraw();
     wait_for(|| renders.load(Ordering::SeqCst) >= 2);
     let count = wait_quiet(
+        &running,
         || renders.load(Ordering::SeqCst),
         "same-mode effect requests kept redrawing",
     );
@@ -586,6 +594,7 @@ fn actual_fps_tracks_presentation_cadence_instead_of_render_throughput() {
     });
     // Let mount effects settle, then leave a measured idle interval between presentations.
     let renders = wait_quiet(
+        &running,
         || observed.renders.load(Ordering::SeqCst),
         "mount effects kept redrawing",
     );

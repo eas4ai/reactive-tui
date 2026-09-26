@@ -106,9 +106,12 @@ fn api_terminal_pty_backpressure_and_drop_reap_a_flooding_child() {
     .unwrap();
     assert!(pty.spawn(&TerminalConfig::default()).is_err());
     assert!(pty.write_input(&vec![b'x'; 65 * 1024]).is_err());
-    // Setup for the behavior under test: let the child start, so the drop
-    // below ends a running process.
-    std::thread::sleep(Duration::from_millis(50));
+    // Setup for the behavior under test: wait for the flood's output, so the
+    // drop below ends a running, flooding process. The wait is a hang guard.
+    assert!(pty
+        .read_output(Some(Duration::from_secs(30)))
+        .unwrap()
+        .is_some_and(|bytes| !bytes.is_empty()));
     let pid = pty.child_id().unwrap();
     let started = std::time::Instant::now();
     drop(pty);

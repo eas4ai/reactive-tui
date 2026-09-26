@@ -430,11 +430,16 @@ fn modal_custom_cancel_and_disabled_buttons_use_actual_focus_and_restore_opener(
 fn modal_animations_change_presented_frames_without_input() {
     struct Settled {
         config: ModalProps,
-        started: std::time::Instant,
+        /// When the modal first rendered: its animation starts there.
+        mounted: std::sync::Mutex<Option<std::time::Instant>>,
         done: bool,
     }
     impl reactive_tui::app::RootComponent for Settled {
         fn render(&self) -> Element {
+            self.mounted
+                .lock()
+                .unwrap()
+                .get_or_insert_with(std::time::Instant::now);
             let mut children = vec![Element::typed::<Modal>(self.config.clone())];
             if self.done {
                 children.push(Element::text("SETTLED"));
@@ -446,7 +451,11 @@ fn modal_animations_change_presented_frames_without_input() {
         }
         fn update(&mut self) -> reactive_tui::error::Result<reactive_tui::app::RootUpdate> {
             // The behavior under test: the modal's animation has run for 500 ms.
-            if !self.done && self.started.elapsed() >= std::time::Duration::from_millis(500) {
+            let animated =
+                self.mounted.lock().unwrap().is_some_and(|mounted| {
+                    mounted.elapsed() >= std::time::Duration::from_millis(500)
+                });
+            if !self.done && animated {
                 self.done = true;
                 Ok(reactive_tui::app::RootUpdate::Redraw)
             } else {
@@ -473,7 +482,7 @@ fn modal_animations_change_presented_frames_without_input() {
             let frames = super::app_input::run_when(
                 Settled {
                     config,
-                    started: std::time::Instant::now(),
+                    mounted: std::sync::Mutex::new(None),
                     done: false,
                 },
                 size,

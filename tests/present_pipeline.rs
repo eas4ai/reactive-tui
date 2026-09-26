@@ -121,15 +121,16 @@ fn rows_moved_to(bytes: &[u8]) -> usize {
 /// the next present waits for that flush, so one frame is in flight.
 #[test]
 fn pip_001_present_returns_before_its_flush_and_one_frame_is_in_flight() {
-    let delay = Duration::from_millis(80);
+    // Long enough that a busy machine's stalls stay well inside it.
+    let delay = Duration::from_millis(400);
     let out = Writer::with_delay(delay);
     let mut backend = SuprTuiBackend::with_writer(20, 4, out.clone()).unwrap();
     out.wait_for_flushes(out.flushes());
 
     backend.render_frame(&frame("one")).unwrap();
-    let started = Instant::now();
+    let first_started = Instant::now();
     backend.present().unwrap();
-    let first = started.elapsed();
+    let first = first_started.elapsed();
     // The behavior under test: present hands the frame to the flush worker
     // and returns well inside the flush's delay.
     assert!(
@@ -138,12 +139,14 @@ fn pip_001_present_returns_before_its_flush_and_one_frame_is_in_flight() {
     );
 
     backend.render_frame(&frame("two")).unwrap();
-    let started = Instant::now();
     backend.present().unwrap();
-    let second = started.elapsed();
+    // The behavior under test: the second present returns only once the first
+    // frame's flush, which takes `delay` from the first present, is done. A
+    // test thread that stalls past it only makes this weaker, never false.
+    let since_first = first_started.elapsed();
     assert!(
-        second >= delay / 2,
-        "the second present did not wait for the first frame's flush: {second:?}"
+        since_first >= delay,
+        "the second present did not wait for the first frame's flush: {since_first:?}"
     );
     assert_eq!(
         out.0.lock().unwrap().max_in_flight,

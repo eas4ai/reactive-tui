@@ -20,11 +20,12 @@ fn accept(listener: TcpListener) -> TcpStream {
             Ok((stream, _)) => {
                 // Windows accepted sockets inherit the listener's nonblocking mode.
                 stream.set_nonblocking(false).unwrap();
+                // Hang guards on the Job's request and on the reply.
                 stream
-                    .set_read_timeout(Some(Duration::from_secs(1)))
+                    .set_read_timeout(Some(Duration::from_secs(30)))
                     .unwrap();
                 stream
-                    .set_write_timeout(Some(Duration::from_secs(1)))
+                    .set_write_timeout(Some(Duration::from_secs(30)))
                     .unwrap();
                 return stream;
             }

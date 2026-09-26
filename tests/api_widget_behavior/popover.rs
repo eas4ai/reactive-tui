@@ -125,9 +125,12 @@ fn focus_trigger_opens_on_focus_and_escape_can_dismiss_without_reopening() {
 struct ManualRoot {
     popover: Arc<Popover>,
     config: PopoverProps,
+    /// Set once the App has rendered its first frame.
+    rendered: Arc<AtomicBool>,
 }
 impl reactive_tui::app::RootComponent for ManualRoot {
     fn render(&self) -> Element {
+        self.rendered.store(true, Ordering::SeqCst);
         reactive_tui::component::Component::render(
             self.popover.as_ref(),
             &self.config,
@@ -154,13 +157,25 @@ fn imperative_popover_handle_wakes_idle_app_and_callbacks_can_reenter_it() {
         ..props()
     };
     let handle = popover.clone();
+    let rendered = Arc::new(AtomicBool::new(false));
+    let first_frame = rendered.clone();
     let worker = std::thread::spawn(move || {
-        // The behavior under test: a show from another thread while the App runs.
+        // Wait for the App's first frame; the deadline is a hang guard.
+        let deadline = std::time::Instant::now() + Duration::from_secs(30);
+        while !first_frame.load(Ordering::SeqCst) && std::time::Instant::now() < deadline {
+            std::thread::sleep(Duration::from_millis(1));
+        }
+        // The behavior under test: a show from another thread once the App
+        // has settled into its idle wait after that frame.
         std::thread::sleep(Duration::from_millis(60));
         handle.show();
     });
     let frames = super::app_input::run_when(
-        ManualRoot { popover, config },
+        ManualRoot {
+            popover,
+            config,
+            rendered,
+        },
         (30, 10),
         vec![("DETAILS", None)],
     );
@@ -211,7 +226,15 @@ fn explicit_popover_anchors_use_cells_and_invalid_rectangles_restore_measurement
                 visible: true,
                 ..props()
             };
-            let frames = run(ManualRoot { popover, config }, size, vec![(3, None)]);
+            let frames = run(
+                ManualRoot {
+                    popover,
+                    config,
+                    rendered: Default::default(),
+                },
+                size,
+                vec![(3, None)],
+            );
             assert_eq!(
                 frames.last().unwrap().screen.cell(y, x).unwrap().contents(),
                 "D"

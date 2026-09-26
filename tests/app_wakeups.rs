@@ -179,7 +179,8 @@ fn queued_work_and_new_earlier_timer_wake_app_and_callbacks_are_reentrant() {
     let (app, observed, entered, signal, _) = fixture(false);
     let wake = app.waker();
     let scheduler = app.scheduler();
-    scheduler.schedule_timeout(Duration::from_secs(10), || {
+    // A timer that must never fire: its delay outlasts every wait in the test.
+    scheduler.schedule_timeout(Duration::from_secs(3600), || {
         panic!("late timer must be cancelled")
     });
     let runner = std::thread::spawn(move || app.run());
@@ -215,6 +216,8 @@ fn redraw_burst_retains_latest_state_and_respects_frame_pacing() {
         frames.len() < 100,
         "notifications must not each produce a frame"
     );
+    // The behavior under test: frames stay at least a frame apart; a busy
+    // machine only spreads them further.
     for pair in frames.windows(2) {
         assert!(
             pair[1].0.duration_since(pair[0].0) >= frame_duration.mul_f64(0.8),
