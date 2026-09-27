@@ -82,9 +82,11 @@ def build_on(name: str, host: dict, commit: str, bundle: Path) -> tuple[bool, st
         raise Unreachable(f"{name}: scp failed: {sent.stderr.strip()[:200]}")
     cargo = host.get("cargo", "cargo")
     if powershell:
-        command = (f"cd {host['dir']}; git fetch -q $HOME\\rtui-host-builds.bundle +{REF}:{REF}; "
-                   f"if ($LASTEXITCODE -ne 0) {{ 'PREPARE-FAILED'; exit 1 }}; "
-                   f"git checkout -q -f --detach {commit}; git clean -fdq -e target; "
+        # A failed native command sets $LASTEXITCODE and PowerShell goes on,
+        # so each step checks it before the next one runs.
+        failed = "if ($LASTEXITCODE -ne 0) { 'PREPARE-FAILED'; exit 1 }"
+        command = (f"cd {host['dir']}; git fetch -q $HOME\\rtui-host-builds.bundle +{REF}:{REF}; {failed}; "
+                   f"git checkout -q -f --detach {commit}; {failed}; git clean -fdq -e target; {failed}; "
                    f"{cargo} {BUILD} 2>&1 | ForEach-Object {{ \"$_\" }}; \"EXIT=$LASTEXITCODE\"")
     else:
         command = (f"cd {host['dir']} && git fetch -q ~/rtui-host-builds.bundle +{REF}:{REF} "
@@ -101,6 +103,10 @@ def build_on(name: str, host: dict, commit: str, bundle: Path) -> tuple[bool, st
     if code != "0":
         errors = [line.strip() for line in output.splitlines() if line.startswith("error")]
         return False, f"{name}: the build failed (exit {code}): {'; '.join(errors[:3])}"
+    # A cargo that did not start leaves the exit code of the step before it,
+    # so only cargo's own Finished line shows that the snapshot was built.
+    if not re.search(r"^\s*Finished ", output, re.M):
+        raise Unreachable(f"{name}: cargo printed no Finished line: {result.stderr.strip()[:200]}")
     if warnings:
         return False, f"{name}: {len(warnings)} warning lines, for example {'; '.join(warnings[:3])}"
     return True, f"{name}: no warnings"
