@@ -14,4 +14,10 @@ package as Cargo requires, instead of the upstream workspace path
 every build rerun the script. With `GHOSTTY_SOURCE_DIR` set it also asks
 Cargo to rerun when that checkout changes.
 
+Local change: the optional `bindgen` dependency of the `gen-bindings` tool
+(feature `bindgen-tool`) is 0.73 instead of upstream's 0.72. bindgen 0.72
+pins prettyplease 0.2 and shlex 1, which the rest of the workspace has moved
+past, so the dependency checks would find two versions of each. The
+generated bindings in `src` are unchanged.
+
 The copied source is distributed under the included MIT license.

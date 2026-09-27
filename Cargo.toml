@@ -50,7 +50,7 @@ thiserror = "2.0"
 string_cache = "0.8"
 # Image support dependencies (enabled by default)
 image = { version = "0.25.6", default-features = false, features = ["bmp", "gif", "jpeg", "png", "tiff", "webp"] }
-gif = "0.13.3"
+gif = "0.14.2"
 vt100 = "0.16"
 base64 = "0.22.1"
 reactive-tui-macros = { path = "crates/reactive-tui-macros", version = "=1.0.0" }
