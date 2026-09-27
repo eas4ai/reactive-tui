@@ -226,6 +226,22 @@ fn wheel_scene(kind: &str) -> Element {
         .render()
 }
 
+/// A scroll view that scrolls both ways, whose first row is 300 cells wide.
+fn wide_scene() -> Element {
+    let mut content = vec![div()
+        .class("w-300 h-1")
+        .text(&format!("WIDE-START{}", "-".repeat(290)))
+        .build()];
+    content.extend(rows("outer", 30));
+    ScrollViewBuilder::new(div().class("flex flex-col").children(content).build())
+        .scroll_x(true)
+        .scroll_y(true)
+        .viewport_height(12)
+        .smooth_scroll(false)
+        .show_scrollbars(false)
+        .render()
+}
+
 struct Scenario(String);
 
 impl RootComponent for Scenario {
@@ -239,6 +255,7 @@ impl RootComponent for Scenario {
                 ])
                 .build(),
             "wheel-view" | "wheel-table" | "wheel-tree" | "wheel-input" => wheel_scene(&self.0),
+            "wheel-wide" => wide_scene(),
             _ => probe("PROBE", "w-full h-full"),
         }
     }
@@ -720,18 +737,22 @@ fn inp_005_the_wheel_passes_over_a_text_field() {
     );
 }
 
+/// Shift with the wheel down moves the view sideways: the wide first row
+/// loses its start and no later row comes up to the top line.
 #[test]
 fn inp_005_shift_with_the_wheel_scrolls_sideways() {
-    let mut session = Session::start("wheel-view", "OUTER-TOP");
+    let mut session = Session::start("wheel-wide", "WIDE-START");
     for _ in 0..3 {
-        session.send(&sgr(65 | 4, 5, 8, true));
+        session.send(&sgr(65 | 4, 5, 3, true));
         session.settle(Duration::from_millis(30));
     }
     session.settle(Duration::from_millis(300));
+    let screen = session.screen();
+    let top = screen.first().map(String::as_str).unwrap_or_default();
     assert!(
-        outer_top(&session),
-        "INP-005: Shift with the wheel down scrolled the outer view vertically:\n{}",
-        session.screen().join("\n")
+        !top.contains("WIDE-START") && !top.contains("outer-"),
+        "INP-005: Shift with the wheel down did not scroll sideways, or scrolled vertically:\n{}",
+        screen.join("\n")
     );
 }
 
