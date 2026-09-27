@@ -66,7 +66,7 @@ pub(crate) struct LayoutCache {
     /// measured, counted where each happens, so a test observes what a
     /// changed spec costs (PNT-005).
     nodes_built: u64,
-    measured: u64,
+    measured: Vec<usize>,
     /// The cached spec's elements with their layout nodes, which a changed
     /// spec at the same size updates instead of building again (PNT-005).
     retained: Option<Retained>,
@@ -384,7 +384,6 @@ fn lay_out(
         .map_err(layout_error)?;
         cache.runs += 1;
         cache.nodes_built = built;
-        cache.measured = measured.len() as u64;
         let tree = &cache.tree;
         let paints = &cache.paints;
         let screen = Rect {
@@ -409,11 +408,18 @@ fn lay_out(
         )?;
         // Stable sorting preserves parent-before-child and sibling paint order.
         nodes.sort_by_key(|node| node.z);
+        let mut measured: Vec<usize> = nodes
+            .iter()
+            .filter(|node| measured.contains(&node.id))
+            .map(|node| node.element_index)
+            .collect();
+        measured.sort_unstable();
+        cache.measured = measured;
         cache.nodes = nodes;
         cache.size = size;
     } else {
         cache.nodes_built = 0;
-        cache.measured = 0;
+        cache.measured.clear();
     }
     cache.spec = Some(spec);
     Ok(reused)
@@ -561,7 +567,7 @@ pub(crate) fn paint_frame(
         layout_reused: reused,
         layout_runs: cache.runs,
         layout_nodes_built: cache.nodes_built,
-        layout_texts_measured: cache.measured,
+        layout_measured_elements: cache.measured.clone(),
         inverse_cells,
     })
 }

@@ -59,8 +59,9 @@ pub(crate) struct PresentedGeometry {
     /// Layout nodes the frame's layout built; none when it reused the
     /// previous layout (PNT-005).
     pub layout_nodes_built: u64,
-    /// Elements whose text the frame's layout measured (PNT-005).
-    pub layout_texts_measured: u64,
+    /// Elements whose text the frame's layout measured, by element index
+    /// in spec order (PNT-005).
+    pub layout_measured_elements: Vec<usize>,
     /// Cells the painter mapped through a node's inverse transform, for its
     /// background or its hit cells. Untransformed, unmasked nodes map cells
     /// by subtraction and add none (PNT-001).
