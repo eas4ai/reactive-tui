@@ -686,6 +686,16 @@ impl Session {
 impl Drop for Session {
     fn drop(&mut self) {
         if self.status.is_none() {
+            // On macOS a process cannot finish exiting while its terminal
+            // output is unread, so the copy is killed and read until it has.
+            // SAFETY: signals the copy this session spawned and has not reaped.
+            unsafe { libc::kill(self.child.id() as libc::pid_t, libc::SIGKILL) };
+            let deadline = Instant::now() + DEADLINE;
+            let mut buffer = [0; 8192];
+            while Instant::now() < deadline && matches!(self.child.try_wait(), Ok(None)) {
+                while matches!(self.child.master.read(&mut buffer), Ok(read) if read > 0) {}
+                std::thread::sleep(Duration::from_millis(5));
+            }
             let _ = self.child.stop();
         }
         let _ = std::fs::remove_file(&self.log);
