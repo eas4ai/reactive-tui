@@ -612,6 +612,20 @@ impl Session {
         }
     }
 
+    /// Waits up to 5 s until `count` logged events match, then 100 ms for
+    /// anything else the same input makes. It does not fail on its own: the
+    /// test's assertion says what arrived.
+    fn wait_for(&mut self, matches: impl Fn(&str) -> bool, count: usize) {
+        let deadline = Instant::now() + Duration::from_secs(5);
+        while Instant::now() < deadline
+            && self.events().iter().filter(|line| matches(line)).count() < count
+        {
+            self.pump();
+            std::thread::sleep(Duration::from_millis(5));
+        }
+        self.settle(Duration::from_millis(100));
+    }
+
     /// Reads for `time`, so the copy handles what it was sent and repaints.
     fn settle(&mut self, time: Duration) {
         let end = Instant::now() + time;
@@ -816,7 +830,7 @@ fn inp_002_reports_and_pastes_keep_what_they_say() {
         }
     }
     session.send(b"\x1b[200~first line\nsecond line\x1b[201~");
-    session.settle(Duration::from_millis(300));
+    session.wait_for(|line| line.starts_with("root Paste"), 1);
     let events = session.events();
     // Every report and nothing else, in order; hover changes and the clicks
     // the App makes from releases are not reports.
@@ -874,7 +888,7 @@ fn inp_003_drags_and_the_release_stay_with_the_pressed_element() {
     }
     session.settle(Duration::from_millis(40));
     session.send(&sgr(0, 60, 2, false));
-    session.settle(Duration::from_millis(300));
+    session.wait_for(|line| line.contains(" Up Left "), 1);
     let events = session.events();
     let to_right: Vec<&String> = events
         .iter()
@@ -925,7 +939,8 @@ fn inp_004_releases_make_counted_clicks() {
     session.settle(Duration::from_millis(700));
     session.send(&sgr(0, 25, 2, true));
     session.send(&sgr(0, 45, 2, false));
-    session.settle(Duration::from_millis(300));
+    // Nine releases in all: 1, 2, 3, 2 and the one over the other element.
+    session.wait_for(|line| line.contains(" Up Left "), 9);
     let events = session.events();
     let single = clicks(&events, "LEFT", 5);
     let double = clicks(&events, "LEFT", 10);
@@ -1041,7 +1056,7 @@ fn inp_006_waiting_motion_is_merged() {
     burst.extend(sgr(0, 5, 6, true));
     burst.extend(sgr(0, 5, 6, false));
     session.send(&burst);
-    session.settle(Duration::from_millis(500));
+    session.wait_for(|line| line.starts_with("PROBE Up Left 5,6"), 1);
     let events = session.events();
     let press = events
         .iter()
@@ -1140,7 +1155,7 @@ fn inp_007_keys_keep_their_kitty_meaning() {
         session.send(keys);
         session.settle(Duration::from_millis(30));
     }
-    session.settle(Duration::from_millis(200));
+    session.wait_for(|line| line.starts_with("root Key "), 5);
     let keys = root_keys(&session);
     assert!(
         keys.len() == 5
@@ -1183,7 +1198,7 @@ fn inp_008_lock_and_media_keys_keep_their_codes() {
         session.settle(Duration::from_millis(10));
     }
     session.send(b"z");
-    session.settle(Duration::from_millis(300));
+    session.wait_for(|line| line == "root Key Char('z') ----", 1);
     let mut expected: Vec<String> = named
         .iter()
         .map(|(_, name)| format!("root Key {name} ----"))
@@ -1209,7 +1224,7 @@ fn inp_009_terminal_focus_reaches_only_the_root() {
     session.send(b"\x1b[I");
     session.settle(Duration::from_millis(50));
     session.send(b"k");
-    session.settle(Duration::from_millis(300));
+    session.wait_for(|line| line.contains("Key Char('k')"), 1);
     let after = session.events()[before..].to_vec();
     let element: Vec<&String> = after
         .iter()
@@ -1358,7 +1373,7 @@ fn inp_011_replies_are_not_keys_and_typed_keys_keep_their_order() {
     );
     session.send(b"ab");
     session.until(|session| session.text().contains("PROBE"), "first frame");
-    session.settle(Duration::from_millis(300));
+    session.wait_for(|line| line.starts_with("root Key "), 2);
     let keys = root_keys(&session);
     assert!(
         keys == ["root Key Char('a') ----", "root Key Char('b') ----"],
