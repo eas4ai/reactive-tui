@@ -23,10 +23,15 @@ commitment.
 - Sizes are rough: small is a few hundred lines with tests, medium is a new
   widget of the size of our select, large is several widgets or a new
   subsystem.
-- Terminal width: the developer expects 240 to 512 columns and more (about
-  245 to 305 on a MacBook Air at 8 to 10 pt, 320 to 400 on a 2560 x 1440
-  monitor, 430 to 535 on a 3440 x 1440 one). Findings about content that
-  does not fit matter mostly for split panes and side panels at that width.
+- Terminal width: on 2026-09-26 the developer said to expect 240 to 512
+  columns and more. That is lower than the 500 to 700 that the spec
+  overview (docs/spec/overview.md:25) and the recon (docs/recon.md:398-401)
+  record; the overview's wording goes to the developer after this
+  commitment. The per-screen figures are estimates from an assumed cell
+  width of 0.6 of the font size at 8 to 10 pt, not measured: about 245 to
+  305 columns on a MacBook Air, 320 to 400 on a 2560 x 1440 monitor, 430 to
+  535 on a 3440 x 1440 one. Findings about content that does not fit matter
+  mostly for split panes and side panels at those widths.
 - The study was read by eight read-only reviewers, one per group of
   families, and assembled and spot-checked by the builder. Each citation
   was checked to name a file that exists and lines inside it.
