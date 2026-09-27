@@ -10,6 +10,11 @@ targets = [
 all-features = true
 
 [advisories]
+# Unmaintained crates are reported only when the workspace depends on them
+# directly, the developer's choice on 2026-09-26: we can replace our own
+# dependencies, while one deeper in the tree (paste, through wgpu's Metal
+# backend, RUSTSEC-2024-0436) waits for the crate that uses it. Vulnerable
+# and unsound crates are reported everywhere.
 unmaintained = "workspace"
 unsound = "all"
 unused-ignored-advisory = "deny"
