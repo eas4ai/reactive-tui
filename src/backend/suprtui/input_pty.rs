@@ -564,14 +564,17 @@ fn inp_001_modes_on_and_off_after_a_panic() {
 }
 
 /// Mouse reports that arrive while the App has stopped reading, just before
-/// it exits, are dropped at exit instead of reaching the shell as text.
+/// it exits, are dropped at exit instead of reaching the shell as text. The
+/// burst stays under 1 KiB, the input queue of a macOS pseudo-terminal: the
+/// rest of a longer write would land after the discard, which a terminal told
+/// to stop reporting would not send.
 #[test]
 fn mouse_reports_queued_at_exit_are_discarded() {
     let mut session = Session::start("leftover", "PROBE");
     session.send(b"s");
     session.settle(Duration::from_millis(50));
     let mut burst = Vec::new();
-    for index in 0..200u16 {
+    for index in 0..60u16 {
         burst.extend(sgr(35, index % 70, 3, true));
     }
     session.send(&burst);
