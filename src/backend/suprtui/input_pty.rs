@@ -52,18 +52,17 @@ fn smoke_input_pty_child() {
         eprintln!("SKIP: run by the INP pseudo-terminal tests with {SCENARIO} set");
         return;
     };
-    let scenario = scenario.to_string_lossy().into_owned();
     let app = App::builder()
         .backend(SuprTuiBackend::new().expect("the default backend on the pseudo-terminal"))
-        .root(Scenario(scenario.clone()))
+        .root(Scenario(scenario.to_string_lossy().into_owned()))
         .quit_key(KeyCode::Char('q'), KeyModifiers::empty())
         .build()
         .expect("the scenario's App");
     // An error exit is one of the scenarios; its bytes are what the parent checks.
     let _ = app.run();
-    if scenario == "leftover" {
-        log(format!("LEFTOVER {}", queued_input_bytes()));
-    }
+    // What the shell would read next; mouse_reports_queued_at_exit_are_discarded
+    // checks it after its exit.
+    log(format!("LEFTOVER {}", queued_input_bytes()));
 }
 
 /// The bytes still queued on the controlling terminal, which a shell would
