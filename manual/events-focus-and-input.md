@@ -55,7 +55,9 @@ application in order. When the terminal speaks the protocol, the backend turns
 on its flags 1, 8 and 16 (unambiguous escape codes, every key as an escape
 code, and the text a key types), and turns them off on every exit and before a
 suspend. A key then keeps its code and modifiers: Ctrl+I stays apart from Tab,
-and a text key carries the text the terminal reports. Caps Lock, Num Lock,
+and a text key carries the text the terminal reports. Text of several
+characters, such as the text an input method commits, arrives as one `Char`
+press per character. Caps Lock, Num Lock,
 Scroll Lock and the media keys arrive with their own `KeyCode`. A modifier key
 pressed alone sends no event. A terminal focus report reaches the root
 component only, and the focused element keeps its focus. On Unix, a Ctrl+Z
