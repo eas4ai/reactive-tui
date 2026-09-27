@@ -1,6 +1,6 @@
 # Roadmap
 
-Current: non-linux-build-warnings
+Current: keyboard-and-queries
 
 Order agreed with the developer on 2026-09-21: charts first on a cell canvas,
 then a general graphics canvas over wgpu that replaces the rasterizer
@@ -485,13 +485,30 @@ the Windows test host, both recorded in the review.
 
 ## keyboard-and-queries
 
-The second half of input protocols, after mouse-input: the Kitty
-keyboard protocol, so Shift+Enter and Ctrl+H are told apart from Enter
-and Backspace; lock and media keys; the terminal's own focus reports
-kept apart from element focus; Ctrl+Z suspend and resume; and terminal
-queries read without losing keys typed at startup, including the
-background color, so the theme can follow a light or dark terminal.
-Requirements to be drafted when this commitment is next.
+Requirements: INP-007, INP-008, INP-009, INP-010, INP-011, BAR-001, BAR-002, BAR-007, BAR-008, BAR-009
+
+The second half of input protocols, after mouse-input, confirmed by the
+developer on 2026-09-27 with the Mac and Windows warnings check. The
+default backend pushes the Kitty keyboard flags 1, 8 and 16 when the
+terminal reports the protocol, as textual-rs does, and pops them on every
+exit and before a suspend (INP-007); crossterm's CSI u parser in
+crates/reactive-tui-crossterm learns the associated-text field and the
+flag-16 push. Lock and media keys map to their KeyCode, and a modifier
+key alone sends nothing (INP-008). The terminal's focus reports go to the
+root component only (INP-009). Ctrl+Z that no handler consumes suspends
+the App on Unix and resumes it with a full repaint (INP-010). Before the
+first frame the backend asks for the keyboard protocol and the background
+color, ends with a device-attributes query, waits at most 200 ms, keeps
+every key typed meanwhile, and makes the light preset active on a light
+terminal when the application set no theme (INP-011). BAR-009 adds a
+check that builds every reactive-tui target on the Mac and Windows test
+hosts over SSH, with the host addresses in a file outside the repository.
+The DirectTty backend and a keyboard protocol on Windows are not part of
+this commitment.
+
+Done when input-pty passes with the new tests, host-builds passes, the
+gates, paths and dependency checks pass, and the pseudo-terminal tests pass
+on the Mac test host, recorded in the review.
 
 ## graphics-canvas
 
