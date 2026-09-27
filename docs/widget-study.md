@@ -23,10 +23,15 @@ commitment.
 - Sizes are rough: small is a few hundred lines with tests, medium is a new
   widget of the size of our select, large is several widgets or a new
   subsystem.
-- Terminal width: the developer expects 240 to 512 columns and more (about
-  245 to 305 on a MacBook Air at 8 to 10 pt, 320 to 400 on a 2560 x 1440
-  monitor, 430 to 535 on a 3440 x 1440 one). Findings about content that
-  does not fit matter mostly for split panes and side panels at that width.
+- Terminal width: on 2026-09-26 the developer said to expect 240 to 512
+  columns and more. That is lower than the 500 to 700 that the spec
+  overview (docs/spec/overview.md:25) and the recon (docs/recon.md:398-401)
+  record; the overview's wording goes to the developer after this
+  commitment. The per-screen figures are estimates from an assumed cell
+  width of 0.6 of the font size at 8 to 10 pt, not measured: about 245 to
+  305 columns on a MacBook Air, 320 to 400 on a 2560 x 1440 monitor, 430 to
+  535 on a 3440 x 1440 one. Findings about content that does not fit matter
+  mostly for split panes and side panels at those widths.
 - The study was read by eight read-only reviewers, one per group of
   families, and assembled and spot-checked by the builder. Each citation
   was checked to name a file that exists and lines inside it.
@@ -41,7 +46,10 @@ all 80 modules of gpui-kit's component crate.
 ### What to change in the widgets we have
 
 These recur across many families, so each one fixes several widgets at
-once. They are listed in the order we recommend.
+once. They are listed in the order we recommend. One defect comes before
+all of them: the default backend never turns on mouse reporting (see
+"Defects found" below), so every mouse feature in this study, ours or
+proposed, works in a real terminal only once that is fixed.
 
 1. Change callbacks on the builders. `builder::radio_button()` has no way
    to report a change (src/builder/specialized.rs:246-296), and
@@ -73,17 +81,24 @@ once. They are listed in the order we recommend.
    (src/widgets/layout/tabs.rs:698-711;
    src/widgets/display/tree/live/paint.rs:210-221;
    src/widgets/display/table/live.rs:467-471). Small to medium.
-4. The theme follows the terminal. We already ask the terminal for its
-   background color (src/platform/mod.rs:1203), but the reply parser reads
+4. The theme follows the terminal. Only the DirectTty backend asks the
+   terminal for its background color (src/platform/mod.rs:1182-1203,
+   reached from src/backend/direct_tty.rs:46), and its reply parser reads
    only the DA1, DA2, Kitty graphics and DECRQM answers
-   (src/platform/mod.rs:1277-1301), so a light terminal still gets the dark
-   theme. gpui-kit switches light and dark from the window appearance
+   (src/platform/mod.rs:1277-1301). The default backend, which the widget
+   catalog and the other examples use (examples/widget_catalog/main.rs:41),
+   sends no query at all (src/backend/suprtui.rs:157;
+   src/backend/suprtui/output.rs:171). So a light terminal always gets the
+   dark theme. gpui-kit switches light and dark from the window appearance
    (G/theme/mod.rs:227-237), loads themes from files
    (G/theme/registry.rs:151-161), and pairs each fill color with a text
    color (B/theme_tokens.rs:19-45). Several of our widgets fix their colors
    instead of using theme roles: the progress bar
    (src/widgets/display/progress_bar.rs:233-234) and the table's selected
-   row (src/widgets/display/table.rs:166-167). Small for each part.
+   row (src/widgets/display/table.rs:166-167). Theme files and the color
+   roles are small each. Following the terminal's background is medium: the
+   default backend has to send the query and read the reply first, which
+   fits the input-protocols work on the roadmap.
 5. Content that does not fit. Tabs that do not fit are clipped with no
    scrolling or overflow menu (src/widgets/layout/tabs.rs:778-784), where
    gpui-kit scrolls the tab row and lists every tab in a menu
@@ -133,6 +148,7 @@ widgets use them.
 | Number input (`input`) | `[-] 12.5 [+]` with step, min and max, as a text input mode | small |
 | Code input (`input`, OTP) | `[1][2][3] [_][_][_]` for one-time codes, pasting fills every cell | small |
 | Rating (`rating`) | `★★★☆☆`, a slider with a star painter | small |
+| Switch (`switch`) | `[ ●]` on, `[● ]` off, a checkbox variant with the Switch role | small |
 | Resizable split (`resizable`) | Panes with a draggable, focusable `│` divider | medium |
 | Sidebar (`sidebar`) | A navigation column that collapses to icons | medium |
 | List (`list`) | One shared windowed list with filter, sections and load more | medium |
@@ -151,7 +167,7 @@ Each entry below says why.
 Already covered under another name, compared in their entries: button,
 collapsible (our accordion), combobox (our select and autocomplete
 dialog), group box (our card), hover card (our popover), label, sheet (our
-modal), switch (our checkbox), tooltip (our popover and per-widget
+modal), tooltip (our popover and per-widget
 tooltips) and the input mask (our input dialog's mask).
 
 ### Where we are ahead
@@ -181,9 +197,23 @@ src/widgets/display/data_table/live.rs:391-403), and twelve popover
 placements with edge flipping (src/widgets/display/popover.rs:12-38,
 123-134).
 
-### Defects found while reading
+### Defects found
 
-The study changes no code, so these are recorded here, not fixed.
+The study changes no code, so these are recorded here, not fixed. They are
+captured for later as the next-feature items default-backend-mouse (the
+first one) and widget-study-defects (the rest).
+
+- The default backend never turns on mouse reporting, so no mouse event
+  reaches a widget in a real terminal. SuprTuiBackend's setup writes only
+  the alternate-screen, hidden-cursor and focus-event modes
+  (src/backend/suprtui/output.rs:171), CrosstermBackend wraps it
+  (src/backend/mod.rs:238-248), and only the DirectTty backend enables the
+  mouse (src/backend/direct_tty.rs:69; src/platform/mod.rs:582-587). On
+  2026-09-26 the widget catalog, run for three seconds in a pseudo-terminal
+  of 240 by 60 cells, wrote only the modes 1049, 25, 1004 and 2026: no
+  mouse mode and no background-color query. The widget tests pass because
+  they send synthetic mouse events. Found by the adversary review, confirmed
+  by that run.
 
 - A Markdown code fence written ```` ```rust ```` is not highlighted. The
   highlighter looks languages up by exact, case-sensitive display name
@@ -816,7 +846,7 @@ The twenty families docs/recon.md section 13 lists, in alphabetical order. The c
     - Auto-dismiss. gpui-kit always waits 5s (G/notification.rs:314-317, 841); ours takes any Duration or None (src/widgets/dialog/toast.rs:40-42).
     - A close button (G/notification.rs:448-465; ours src/widgets/dialog/toast.rs:45-46).
     - An on_close callback (G/notification.rs:328-335; ours src/widgets/dialog/toast.rs:47-48).
-    - Six placements (G/notification.rs:1022-1033; ours src/widgets/dialog/toast.rs:75-90).
+    - Placements: gpui-kit handles eight anchors, including left-center and right-center (G/notification.rs:1022-1033), and `placement` takes any gpui Anchor (G/notification.rs:266-268); ours has six (src/widgets/dialog/toast.rs:75-90).
   - Ours starts the timer only after the toast is fully shown (src/widgets/dialog/toast.rs:40-41; src/widgets/dialog/toast/live.rs:62-71).
   - Only gpui-kit:
     - Title, icon and custom content (G/notification.rs:240-260, 376-383).
@@ -926,7 +956,7 @@ The twenty families docs/recon.md section 13 lists, in alphabetical order. The c
     - Fill: ours fills whole cells only (src/widgets/display/progress_bar/live.rs:310), so a 20-cell bar moves in 5% steps. gpui-kit's width is continuous (G/progress/progress.rs:166).
     - Value animation: ours animates only when `animated` is set, linearly over 200 ms (src/widgets/display/progress_bar/live/motion.rs:10, src/widgets/display/progress_bar/live/motion.rs:70-77). gpui-kit always animates, using the theme's motion tokens (G/progress/progress.rs:111-118).
     - Default colors: ours uses the class tokens `bg-blue` and `bg-gray-200` (src/widgets/display/progress_bar.rs:233-234). `grep -rni progress src/theme` found no progress color.
-    - Reduced motion: gpui-kit's circle loading animation does not check it (G/progress/progress_circle.rs:197-208). The gpui-kit bar does (G/progress/progress.rs:149).
+    - Reduced motion: both gpui-kit parts stand still. The bar checks it itself (G/progress/progress.rs:149). The circle animates through gpui's `with_animation` (G/progress/progress_circle.rs:197-208), which gpui draws static under reduced motion; gpui-kit's spinner does the same with no check of its own (G/spinner.rs:60-75), and its test asserts that no frame is requested (G/spinner.rs:90-102).
     - Builder gaps: the smaller `builder::progress_bar()` has no `indeterminate` setter (src/builder/widgets/display.rs:82-200). `ProgressDialogBuilder` has no `on_cancel` or time-remaining setter (src/builder/dialog_builders.rs:12-99).
 - Builder API:
   - gpui-kit:
@@ -1322,10 +1352,10 @@ The twenty families docs/recon.md section 13 lists, in alphabetical order. The c
     - Ours has primary, secondary, accent, background, surface, foreground, text-muted, border, success, warning, error, info, five chart colors, bullish and bearish, and a spacing scale in cells (src/theme/presets.rs:5-42). There is no primary-foreground or selection role.
   - **Presets:**
     - Ours ships dark, light, high contrast, Solarized Dark and Gruvbox Dark (src/theme/presets.rs:5, 45, 85, 125, 165).
-    - gpui-kit ships "Default Light" and "Default Dark" (G/theme/default-theme.json:10-11, 215-216).
+    - gpui-kit compiles in "Default Light" and "Default Dark" (G/theme/default-theme.json:10-11, 215-216). Its repository also carries 21 theme files for its ThemeRegistry to load, in the themes directory at the gpui-kit root (ayu, catppuccin, gruvbox, solarized, tokyonight and others).
   - **Light and dark:**
     - gpui-kit keeps a light and a dark config and switches by mode or by the window appearance (G/theme/mod.rs:116-119, 227-237, 701-729).
-    - Our `Theme` has no mode (src/theme/mod.rs:46-54). We do send an OSC 11 query for the terminal background at startup (src/platform/mod.rs:1203). But the reply parser reads only the DA1, DA2, Kitty graphics and DECRQM answers (src/platform/mod.rs:1277-1301).
+    - Our `Theme` has no mode (src/theme/mod.rs:46-54). Only the DirectTty backend sends an OSC 11 query for the terminal background (src/platform/mod.rs:1182-1203), and its reply parser reads only the DA1, DA2, Kitty graphics and DECRQM answers (src/platform/mod.rs:1277-1301). The default backend sends no query (src/backend/suprtui.rs:157; src/backend/suprtui/output.rs:171).
   - **Files:**
     - gpui-kit parses a JSON `ThemeSet` of named themes with author and URL (G/theme/schema.rs:21-82). It can load a set from a string, and it can watch a folder and reload on change (G/theme/registry.rs:94-161, 185-262).
     - Ours builds themes in code only. A search of src/theme for `serde`, `Deserialize`, `from_str` and `read_to_string` found nothing.
@@ -1360,7 +1390,7 @@ The twenty families docs/recon.md section 13 lists, in alphabetical order. The c
   - Ours has a high-contrast preset described as being for accessibility (src/theme/presets.rs:84-122). A search of gpui-kit's theme files for `contrast` and `reduced_motion` found nothing.
 - **Worth adopting:**
   - **Theme files (JSON or TOML) loaded into `ThemeVariables`, with optional folder watching** (G/theme/registry.rs:151-161, 185-262; G/theme/schema.rs:21-82); users could share and switch themes without recompiling, and our string map already fits (src/theme/variables.rs:11-14); small for loading, medium with watching.
-  - **Picking light or dark from the terminal background**: read the OSC 11 reply we already ask for (src/platform/mod.rs:1203, 1277-1301) and choose a light or dark theme, as gpui-kit does from the window appearance (G/theme/mod.rs:227-237, 261-278); text stays readable on light terminals with no setup; small.
+  - **Picking light or dark from the terminal background**: send the OSC 11 query from the default backend too, read its reply (today only DirectTty sends it, src/platform/mod.rs:1182-1203, and nothing parses the reply, src/platform/mod.rs:1277-1301) and choose a light or dark theme, as gpui-kit does from the window appearance (G/theme/mod.rs:227-237, 261-278); text stays readable on light terminals with no setup; medium, with the input-protocols work.
   - **Selection and row-state roles with derived fallbacks** (G/theme/schema.rs:977, 1002-1011); our table's selected row is fixed to `bg-blue fg-white`, its header to `font-bold`, and striping has no default style (src/widgets/display/table.rs:166-167; src/widgets/display/table/live.rs:391), so a theme change does not reach them; small.
   - **A foreground color paired with each fill role** (B/theme_tokens.rs:20-44); ours has one `--color-foreground` (src/theme/presets.rs:14), so text on a primary or error fill has no theme-chosen contrast color; small.
 
@@ -1520,7 +1550,10 @@ Each entry says what the component is, what we have that comes closest, what it 
 - Worth adopting:
   - Variants that map to theme colors (Primary, Danger, Ghost, Link), because color and reverse video are the main cues in a terminal.
   - A `loading` flag that blocks activation and shows a spinner glyph.
-  - A `toggled` pressed state plus a ToggleGroup for segmented choices.
+  - A `toggled` pressed state.
+- ToggleGroup, which gpui-kit keeps inside its button module (G/button/toggle.rs:220-222, 275):
+  - In a terminal: `[ Day │ Week │ Month ]`, with the chosen segment in reverse video. Left and Right move, Space or Enter picks, a click picks. The screen reader gets a radio group.
+  - Call: skip as a separate widget. Our horizontal radio group already has the single-choice state and the arrow keys (src/widgets/input/radio_button.rs:73-77). A segmented style for it is small.
 
 ### carousel
 - gpui-kit: A carousel built from parts that share one `CarouselState` (G/carousel/mod.rs:5-9):
@@ -1643,7 +1676,7 @@ Each entry says what the component is, what we have that comes closest, what it 
 - Differences:
   - Only ours has Click, Focus and Manual triggers (src/widgets/display/popover.rs:75-86), close on Escape (on by default; src/widgets/display/popover.rs:159-160, 243), an arrow (src/widgets/display/popover.rs:90) and boundary flipping (src/widgets/display/popover.rs:125).
   - Only gpui-kit has tap-to-toggle on touch devices.
-  - Hover in a terminal needs any-motion mouse reporting, which we turn on (src/platform/ctlseqs.rs:43). Keyboard users never hover.
+  - Hover in a terminal needs any-motion mouse reporting. Only the DirectTty backend turns it on (src/backend/direct_tty.rs:69); the default backend does not (see "Defects found" in the summary). Keyboard users never hover.
 - Worth adopting: nothing. One gap of our own: `trigger` takes a single value (src/widgets/display/popover.rs:143-144), so one card cannot open on both hover and focus.
 
 ### icon
@@ -1788,7 +1821,7 @@ Each entry says what the component is, what we have that comes closest, what it 
   - The group has an axis, `on_resize` and a custom handle look (B/resizable/panel.rs:59, 73, 111).
   - The handle is a pointer drag with a resize cursor (B/resizable/resize_handle.rs:14-16, 165-182). It has no role, focus or key handling (`grep -c -i 'role\|focus\|keybinding\|on_action'` returns 0 for both resize_handle.rs and panel.rs).
 - Ours: absent. The searches are the same as for dock. We only have resizing inside single widgets: table column drag (src/widgets/display/table.rs:86; src/widgets/display/table/live.rs:52-53, 641-652) and a `resizable` modal flag (src/widgets/display/modal.rs:49).
-- In a terminal: Panes separated by a one-cell `│` or `─` divider that highlights on hover and while dragging. We already turn on button-motion and any-motion mouse reporting (src/platform/ctlseqs.rs:43). Sizes are whole cells with a minimum. Keyboard: the divider takes focus with Tab. Arrows move it one cell, a modifier moves it further, and Home/End jump to the minimum or maximum. Screen reader: the Splitter role, which our bridge maps to a separator (src/accessibility/platform/translation/node.rs:255), with the size as its value. That is more than gpui-kit offers.
+- In a terminal: Panes separated by a one-cell `│` or `─` divider that highlights on hover and while dragging. Dragging needs button-motion mouse reporting, which only the DirectTty backend turns on today (src/backend/direct_tty.rs:69; see "Defects found" in the summary). Sizes are whole cells with a minimum. Keyboard: the divider takes focus with Tab. Arrows move it one cell, a modifier moves it further, and Home/End jump to the minimum or maximum. Screen reader: the Splitter role, which our bridge maps to a separator (src/accessibility/platform/translation/node.rs:255), with the size as its value. That is more than gpui-kit offers.
 - Call: build, medium. Split panes are basic TUI layout, and the table's drag code shows the mouse part.
 
 ### separator
@@ -1808,7 +1841,7 @@ Each entry says what the component is, what we have that comes closest, what it 
   - Fields reset to a default value or through a custom reset (G/setting/fields/mod.rs:21-24, G/setting/fields/mod.rs:291-316). Pages show a reset button when something changed (G/setting/page.rs:85-91).
 - **Ours:** absent; `rg -n -i 'struct \w*(setting|preference|form)\w*|fn form\b|FormBuilder|PropertyGrid' src` finds none. The nearest composites are WizardDialog steps with per-step validation (src/widgets/dialog/wizard.rs:26-56) and Tabs placed on the left or right (src/widgets/layout/tabs.rs:47-56).
 - **In a terminal:** a left column of pages with a filter row. The right pane holds rows like `Label ........ [ on]`, each with a dim description line. Tab and the arrows move between rows, Space or Enter edits, and a Reset button restores the default. The screen reader gets a labeled group per row, with the field's own role.
-- **Call:** skip. TUIs usually keep settings in a config file. The missing parts (Switch, Sidebar) matter more, and with them an app can build this.
+- **Call:** skip. TUIs usually keep settings in a config file. The missing parts, Switch and Sidebar, are on the build list, and with them an app can build this.
 
 ### sheet
 - **gpui-kit:** a panel that slides in from one edge of the window (G/sheet.rs:40-56).
@@ -1852,7 +1885,7 @@ Each entry says what the component is, what we have that comes closest, what it 
   - Up/Down move, Right/Left open or close a group, Enter activates, and a key collapses the whole bar. Clicks work.
   - Hover tooltips on collapsed icons do not carry over; show the label on focus instead.
   - The screen reader gets a Navigation landmark holding a Tree or a List.
-- **Call:** build, medium.
+- **Call:** build, medium. Apps with several views need a navigation column, and today `sidebar()` is only a styled box with no keys, state or roles (src/builder/layout.rs:26-29).
 
 ### skeleton
 - **gpui-kit:** a full-width, one-line block in the theme's skeleton color, with an optional half-opacity secondary color (G/skeleton.rs:8-29). It pulses opacity from 1 to 0.5 over 2 s (G/skeleton.rs:37-58).
@@ -1874,7 +1907,7 @@ Each entry says what the component is, what we have that comes closest, what it 
 - **gpui-kit:** a bottom row with left, center and right regions (G/status_bar.rs:9-37). The center aligns according to which ends are filled (G/status_bar.rs:20-23, G/status_bar.rs:77-106). It has a top border, a status-bar background and small muted text (G/status_bar.rs:86-95). There is no role and no input anywhere in G/status_bar.rs:1-107.
 - **Ours:** absent. `footer()` is a plain block container (src/builder/core.rs:39-42), used as a centered footer in the builder example (src/builder/mod.rs:118-121).
 - **In a terminal:** the last screen row, vim/tmux style, with reverse video or its own background. Left items pack left, right items pack right, and the center is centered. On overflow, text is cut with `…`, center first. Items can be plain text or Tab-reachable buttons. The screen reader gets a Status region, or a toolbar if it holds buttons.
-- **Call:** build, small.
+- **Call:** build, small. Most full-screen terminal apps keep the mode, the position and key hints on the last row, and today each app has to draw that row itself from `footer()` (src/builder/core.rs:39-42).
 
 ### stepper
 - **gpui-kit:** a row or column of steps with a current step; earlier steps are marked as passed (G/stepper/stepper.rs:10-22, G/stepper/item.rs:117).
@@ -1900,6 +1933,8 @@ Each entry says what the component is, what we have that comes closest, what it 
 - **Worth adopting:**
   - A switch variant that paints `[● ]`/`[ ●]` or `(on )`/`(off)` and reports Role::Switch.
   - An accessibility label separate from the visible label.
+- **In a terminal:** `[ ●] Wi-Fi` when on and `[● ] Wi-Fi` when off, or `(on )` and `(off)` where the font lacks `●`. Space, Enter or a click toggles it. The screen reader gets Role::Switch, which is read as on or off rather than checked.
+- **Call:** build, small. It is our checkbox with another paint and role; the state and the keys stay (src/widgets/input/checkbox.rs:228-240). Settings screens and option lists read better with switches.
 
 ### tag
 - **gpui-kit:** a small status label (G/tag.rs:121-131). Variants: primary, secondary (the default), danger, success, warning, info, a named color, or custom colors (G/tag.rs:8-24, G/tag.rs:146-188). It also has an outline style (G/tag.rs:196-200) and rounded corners (G/tag.rs:202-211). Only Medium and Small sizes are supported (G/tag.rs:122-123). There is no input and no role anywhere in G/tag.rs:1-269.
