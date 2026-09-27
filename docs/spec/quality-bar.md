@@ -51,3 +51,9 @@ Falsifier: The command exits non-zero at the commitment's final commit on a data
 Mechanism: dependency-checks
 Rationale: GitHub CI is off, so nothing ran cargo deny: a duplicate sha2 and a discontinued async-std went unnoticed until someone ran it by hand.
 Status: Agreed 2026-09-26
+
+[BAR-009] Every commitment MUST leave `cargo build --locked -p reactive-tui --all-targets` passing with no warning on the macOS test host and on the Windows test host at its final commit.
+Falsifier: At the commitment's final commit, the build fails or prints a warning on either host.
+Mechanism: host-builds
+Rationale: The Linux gates compile only the Linux side of each platform gate and with Rust 1.95, so 26 warnings grew unseen on macOS and Windows, two of them future errors (non-linux-build-warnings).
+Status: Agreed 2026-09-27

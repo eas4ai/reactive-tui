@@ -48,3 +48,10 @@ Terms as the code uses them. Each names where it is defined.
   (src/widgets/display/charts/live/canvas.rs:99-142).
 - **Theme.** Named color variables with presets that utility classes resolve
   against (src/theme/mod.rs:10-80).
+- **Kitty keyboard protocol.** Progressive keyboard enhancement flags a
+  terminal accepts with `CSI > flags u` and drops with `CSI < u`; with them
+  it reports keys as `CSI code ; modifiers ; text u`, so keys that legacy
+  encoding merges (Shift+Enter and Enter, Ctrl+H and Backspace) arrive apart.
+- **Test hosts.** The developer's Apple Silicon Mac and Windows 11 machine,
+  reached over SSH for the builds and tests the Linux development host cannot
+  run; their addresses stay outside the repository.

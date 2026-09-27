@@ -35,9 +35,37 @@ Observed at 18ebd3be, by reading and by one run:
   PNT-002.
 
 Activation is not changed here: `on_click` still fires on the left press
-(src/app/event_tree.rs:334-349). The keyboard protocol, the terminal's own
-focus reports, suspend and resume, and terminal queries belong to the
-keyboard-and-queries commitment.
+(src/app/event_tree.rs:334-349).
+
+Observed for keyboard-and-queries at 059bb9a6, by reading:
+
+- The default backend pushes no keyboard protocol, so Shift+Enter arrives
+  as Enter and Ctrl+H as Backspace. `map_ct_key_code` turns crossterm's
+  lock, media, modifier, menu, pause and print-screen keys into
+  `KeyCode::Unknown`, although `KeyCode` has CapsLock, NumLock,
+  ScrollLock and six media keys (src/backend/mod.rs, map_ct_key_code;
+  src/event/types.rs, KeyCode).
+- The vendored crossterm can push the disambiguate and report-all-keys
+  flags but not report-associated-text (16), and its `CSI u` parser skips
+  the text field (crates/reactive-tui-crossterm/src/event.rs:295-309,
+  src/event/sys/unix/parse.rs, parse_csi_u_encoded_key_code). It parses
+  the keyboard-flags reply and the device-attributes reply as internal
+  events, not the background-color reply.
+- The terminal's own focus reports (`ESC[I`, `ESC[O`, turned on by mode
+  1004) become `Event::Focus`, the type element focus changes use, and the
+  router sends them to the focused element (src/app.rs process_input;
+  src/event/router.rs:476), so a widget cannot tell the window losing focus
+  from itself losing focus.
+- Nothing handles Ctrl+Z: raw mode turns signals off, so it arrives as a
+  key and the App never suspends.
+- The default backend sends no terminal query; the theme starts dark and
+  changes only when the application sets one (src/theme/mod.rs,
+  Theme::active).
+- textual-rs, the reference, pushes flags 25 (1, 8 and 16) raw, pops them
+  on exit, and reads its startup replies itself before its input reader
+  starts, turning keys typed meanwhile back into events
+  (~/workspace2/textual-rs/src/driver/platform/posix.rs:76-90,
+  src/driver/live.rs, src/driver/typeahead.rs).
 
 ## Observed
 
@@ -72,5 +100,30 @@ Status: Agreed 2026-09-27
 
 [INP-006] When several motion reports (moves and drags) are waiting, the App MUST handle only the latest of each run before the next frame, and MUST keep every press, release and wheel report in its order.
 Falsifier: One hundred motion reports followed by a press, written to the pseudo-terminal in one write, reach the App as more than two Move events before the press, or the press is lost or handled out of order.
+Mechanism: input-pty
+Status: Agreed 2026-09-27
+
+[INP-007] On a terminal that reports the Kitty keyboard protocol, the default backend MUST push the flags disambiguate (1), report all keys as escape codes (8) and report associated text (16) before its first frame and pop them on every exit and before a suspend; every key MUST then reach the App as one press event that keeps its key and its Shift, Ctrl, Alt and Super modifiers, and a key that types text MUST carry the text the terminal reports for it. On a terminal that does not report the protocol it MUST push nothing.
+Falsifier: In a pseudo-terminal that answers the keyboard-protocol query, the app writes no `ESC[>25u` before its first frame, or after a normal exit, an error exit or a panic the last keyboard-flag write is not a pop; `ESC[13;2u` (Shift+Enter), `ESC[104;5u` (Ctrl+H), `ESC[105;5u` (Ctrl+I) or `ESC[91;5u` (Ctrl+[) reaches the App as Enter, Backspace, Tab or Escape or with other modifiers; `ESC[49;2;33u` (Shift+1 typing `!`) reaches it as anything but `!`; or, in a pseudo-terminal that answers only the device-attributes query, the app writes `ESC[>`.
+Mechanism: input-pty
+Status: Agreed 2026-09-27
+
+[INP-008] The default backend MUST deliver Caps Lock, Num Lock and Scroll Lock and the play, pause, play-pause, stop, next and previous media keys as their own `KeyCode`, and MUST deliver no event for a modifier key (Shift, Ctrl, Alt, Super, Hyper or Meta) pressed alone.
+Falsifier: In a pseudo-terminal with the Kitty protocol on, the Kitty codes for those nine keys reach the App as `KeyCode::Unknown` or another key, or a Kitty code for a modifier key alone reaches the App as any event.
+Mechanism: input-pty
+Status: Agreed 2026-09-27
+
+[INP-009] The terminal's own focus reports MUST reach the root component as a focus event and no element's handlers, and the focused element MUST keep its focus while the terminal's window is unfocused and after it is focused again.
+Falsifier: In a pseudo-terminal, `ESC[O` then `ESC[I` sent while an element has focus reach that element's handlers, reach no root handler, or leave a different element focused, or none.
+Mechanism: input-pty
+Status: Agreed 2026-09-27
+
+[INP-010] On Unix, Ctrl+Z that no handler consumes MUST suspend the App: the backend leaves the terminal as it found it, as on exit, and the process stops; when the process continues, the backend enters again as at start and paints the whole frame, and keys typed after that reach the App.
+Falsifier: In a pseudo-terminal, Ctrl+Z sent to an app whose handlers ignore it leaves the process running, stops it with a mode, the keyboard flags, the alternate screen or raw mode still on, or after SIGCONT leaves one of them off, paints only part of the frame, or loses the next key.
+Mechanism: input-pty
+Status: Agreed 2026-09-27
+
+[INP-011] Before its first frame the default backend MUST ask the terminal for its keyboard protocol and its background color and end with a device-attributes query, and MUST wait for the replies at most 200 ms; no reply byte MAY reach the App as an event, every key typed meanwhile MUST reach it in order, and when the application has set no theme the backend MUST make the light preset active for a background whose relative luminance is above 0.5 and keep the dark preset otherwise.
+Falsifier: In a pseudo-terminal that answers the background query with `rgb:ffff/ffff/ffff`, the first frame is painted with the dark preset; with `rgb:0000/0000/0000`, or with an application theme set, the active theme changes; a reply byte reaches the App as a key; keys sent before the replies arrive late, out of order or not at all; or, with no reply at all, the first frame comes more than 400 ms after the queries were written.
 Mechanism: input-pty
 Status: Agreed 2026-09-27
