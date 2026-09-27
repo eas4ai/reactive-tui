@@ -268,12 +268,12 @@ while IFS= read -r value; do :; done
     }
 }
 
-#[cfg(unix)]
+#[cfg(target_os = "linux")]
 struct ChangingTerminal {
     props: TerminalProps,
     removed: bool,
 }
-#[cfg(unix)]
+#[cfg(target_os = "linux")]
 impl reactive_tui::app::RootComponent for ChangingTerminal {
     fn render(&self) -> Element {
         if self.removed {
@@ -307,7 +307,7 @@ impl reactive_tui::app::RootComponent for ChangingTerminal {
         true
     }
 }
-#[cfg(unix)]
+#[cfg(target_os = "linux")]
 fn change(name: &str) -> Option<Event> {
     Some(Event::Custom(reactive_tui::event::types::CustomEvent::new(
         name,

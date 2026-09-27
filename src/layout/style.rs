@@ -1529,13 +1529,13 @@ impl StyleBuilder {
         if let Some(cols) = self.grid_cols {
             self.style.display = Display::Grid;
             self.style.grid_template_columns = (0..cols)
-                .map(|_| GridTemplateComponent::from(TrackSizingFunction::from_fr(1.0)))
+                .map(|_| GridTemplateComponent::from(TrackSizingFunction::from_fr(1.0_f32)))
                 .collect();
         }
         if let Some(rows) = self.grid_rows {
             self.style.display = Display::Grid;
             self.style.grid_template_rows = (0..rows)
-                .map(|_| GridTemplateComponent::from(TrackSizingFunction::from_fr(1.0)))
+                .map(|_| GridTemplateComponent::from(TrackSizingFunction::from_fr(1.0_f32)))
                 .collect();
         }
         if let Some(flow) = self.grid_auto_flow {

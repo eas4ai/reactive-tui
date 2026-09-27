@@ -339,6 +339,7 @@ pub struct ThreadedEventLoop {
     cancellation: Option<Arc<super::input_receiver::Cancellation>>,
 
     /// Parser for escape sequences
+    #[cfg(unix)]
     parser: Arc<Mutex<EscapeSequenceParser>>,
 }
 
@@ -351,6 +352,7 @@ impl ThreadedEventLoop {
             should_quit: Arc::new(AtomicBool::new(false)),
             #[cfg(unix)]
             cancellation: None,
+            #[cfg(unix)]
             parser: Arc::new(Mutex::new(EscapeSequenceParser::new())),
         }
     }

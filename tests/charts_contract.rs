@@ -35,9 +35,11 @@ impl RootComponent for Root {
 /// Whether an `rtui-chart-*` thread was seen alive during any frame of the
 /// current test; the worker is joined when the App drops, so the check has
 /// to happen while the App runs.
+#[cfg(target_os = "linux")]
 static CHART_WORKER_SEEN: AtomicBool = AtomicBool::new(false);
 /// Whether the image widget's `image-loader` worker, which draws each GIF
 /// frame through the blitters, was seen alive during any frame.
+#[cfg(target_os = "linux")]
 static IMAGE_WORKER_SEEN: AtomicBool = AtomicBool::new(false);
 
 fn note_chart_workers() {
@@ -52,6 +54,7 @@ fn note_chart_workers() {
     }
 }
 
+#[cfg(target_os = "linux")]
 fn chart_worker_seen() -> bool {
     CHART_WORKER_SEEN.load(Ordering::SeqCst)
 }

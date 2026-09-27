@@ -1093,8 +1093,10 @@ mod tests {
         }
     }
 
+    #[cfg(unix)]
     struct SignalComponent;
 
+    #[cfg(unix)]
     impl RootComponent for SignalComponent {
         fn render(&self) -> Element {
             eprintln!("TRL002_SIGNAL_READY:{}", std::process::id());

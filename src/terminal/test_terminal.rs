@@ -6,10 +6,13 @@
 //! sequences into the terminal that started `cargo test`.
 
 /// The terminal the copy runs on is this many columns wide.
+#[cfg(unix)]
 pub(crate) const COLUMNS: u16 = 80;
 /// The terminal the copy runs on is this many rows high.
+#[cfg(unix)]
 pub(crate) const ROWS: u16 = 24;
 /// What the pseudo-terminal answers to a cursor position query (`CSI 6 n`).
+#[cfg(unix)]
 pub(crate) const CURSOR_REPORT: &[u8] = b"\x1b[1;1R";
 
 /// Runs `body` with a controlling terminal. `test` is the test's path as

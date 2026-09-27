@@ -114,7 +114,7 @@ enum Command {
     Shutdown(Reply, Option<String>),
     /// Reply once every earlier frame has been written and flushed.
     Sync(Reply),
-    #[cfg(test)]
+    #[cfg(all(test, unix))]
     Panic(&'static str),
 }
 
@@ -819,7 +819,7 @@ fn run_worker<W: Write>(
                 let _ = reply.send(outcome);
                 return;
             }
-            #[cfg(test)]
+            #[cfg(all(test, unix))]
             Command::Panic(marker) => panic!("{marker}"),
         }
     }
