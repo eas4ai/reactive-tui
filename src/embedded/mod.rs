@@ -53,6 +53,7 @@ struct SharedState {
 
 enum SessionCommand {
     Key(KeyEvent),
+    Paste(String),
     Resize(u16, u16, mpsc::Sender<Result<()>>),
 }
 
@@ -152,6 +153,16 @@ impl EmbeddedSession {
         }
     }
 
+    // Return the unqueued paste so TerminalView can pause input and retry on wake.
+    fn try_paste(&self, text: String) -> Result<Option<String>> {
+        self.ensure_running()?;
+        match self.commands.try_send(SessionCommand::Paste(text)) {
+            Ok(()) => Ok(None),
+            Err(mpsc::TrySendError::Full(SessionCommand::Paste(text))) => Ok(Some(text)),
+            Err(_) => Err(closed()),
+        }
+    }
+
     /// Resize both the PTY and interpreter, publishing the new frame before return.
     /// A zero dimension retains the previous valid size.
     pub fn resize(&self, width: u16, height: u16) -> Result<()> {
@@ -220,6 +231,7 @@ pub struct TerminalView {
     exit_shown: AtomicBool,
     wake: Option<AppWaker>,
     pending_key: Option<KeyEvent>,
+    pending_paste: Option<String>,
 }
 
 impl TerminalView {
@@ -231,6 +243,7 @@ impl TerminalView {
             exit_shown: AtomicBool::new(false),
             wake: None,
             pending_key: None,
+            pending_paste: None,
         }
     }
 }
@@ -247,7 +260,7 @@ impl RootComponent for TerminalView {
         self.wake = Some(wake);
     }
     fn accepts_input(&self) -> bool {
-        self.pending_key.is_none()
+        self.pending_key.is_none() && self.pending_paste.is_none()
     }
     fn wake_driven(&self) -> bool {
         true
@@ -272,8 +285,11 @@ impl RootComponent for TerminalView {
         }
         if snapshot.exit_status.is_some() {
             self.pending_key = None;
+            self.pending_paste = None;
         } else if let Some(key) = self.pending_key.take() {
             self.pending_key = self.session.try_key(key)?;
+        } else if let Some(text) = self.pending_paste.take() {
+            self.pending_paste = self.session.try_paste(text)?;
         }
         if snapshot.revision != self.revision {
             self.revision = snapshot.revision;
@@ -286,21 +302,26 @@ impl RootComponent for TerminalView {
         self.session.resize(width, height)
     }
     fn try_handle_event(&mut self, event: &Event) -> Result<EventResult> {
-        match event {
-            Event::Key(key) => {
-                if self.pending_key.is_some() {
-                    return Err(ReactiveError::resource(
-                        "embedded terminal input is paused; retry after update",
-                    ));
-                }
-                if self.session.snapshot()?.exit_status.is_some() {
-                    return Ok(EventResult::Ignored);
-                }
-                self.pending_key = self.session.try_key(key.clone())?;
-                Ok(EventResult::Handled)
-            }
-            _ => Ok(EventResult::Ignored),
+        if !matches!(event, Event::Key(_) | Event::Paste(_)) {
+            return Ok(EventResult::Ignored);
         }
+        if !self.accepts_input() {
+            return Err(ReactiveError::resource(
+                "embedded terminal input is paused; retry after update",
+            ));
+        }
+        if self.session.snapshot()?.exit_status.is_some() {
+            return Ok(EventResult::Ignored);
+        }
+        match event {
+            Event::Key(key) => self.pending_key = self.session.try_key(key.clone())?,
+            // A bracketed paste arrives whole (INP-002), not as keys.
+            Event::Paste(paste) => {
+                self.pending_paste = self.session.try_paste(paste.content.clone())?
+            }
+            _ => {}
+        }
+        Ok(EventResult::Handled)
     }
 }
 
