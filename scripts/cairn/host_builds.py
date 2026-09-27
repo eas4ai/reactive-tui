@@ -72,6 +72,8 @@ def remote(host: dict, command: str, timeout: int) -> subprocess.CompletedProces
 
 
 def build_on(name: str, host: dict, commit: str, bundle: Path) -> tuple[bool, str]:
+    # Each snapshot is a new commit on HEAD, not a descendant of the last one,
+    # so the fetch forces the ref (+).
     powershell = host.get("shell") == "powershell"
     # scp puts the bundle in the host user's home directory.
     sent = subprocess.run(["scp", "-q", *SSH, str(bundle), f"{host['ssh']}:rtui-host-builds.bundle"],
@@ -80,12 +82,12 @@ def build_on(name: str, host: dict, commit: str, bundle: Path) -> tuple[bool, st
         raise Unreachable(f"{name}: scp failed: {sent.stderr.strip()[:200]}")
     cargo = host.get("cargo", "cargo")
     if powershell:
-        command = (f"cd {host['dir']}; git fetch -q $HOME\\rtui-host-builds.bundle {REF}:{REF}; "
+        command = (f"cd {host['dir']}; git fetch -q $HOME\\rtui-host-builds.bundle +{REF}:{REF}; "
                    f"if ($LASTEXITCODE -ne 0) {{ 'PREPARE-FAILED'; exit 1 }}; "
                    f"git checkout -q -f --detach {commit}; git clean -fdq -e target; "
                    f"{cargo} {BUILD} 2>&1 | ForEach-Object {{ \"$_\" }}; \"EXIT=$LASTEXITCODE\"")
     else:
-        command = (f"cd {host['dir']} && git fetch -q ~/rtui-host-builds.bundle {REF}:{REF} "
+        command = (f"cd {host['dir']} && git fetch -q ~/rtui-host-builds.bundle +{REF}:{REF} "
                    f"&& git checkout -q -f --detach {commit} && git clean -fdq -e target "
                    f"|| {{ echo PREPARE-FAILED; exit 1; }}; {cargo} {BUILD} 2>&1; echo EXIT=$?")
     result = remote(host, command, timeout=3600)
