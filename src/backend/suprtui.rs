@@ -115,8 +115,10 @@ enum Command {
     /// Reply once every earlier frame has been written and flushed.
     Sync(Reply),
     /// Leave the terminal as at exit, for a suspend (INP-010).
+    #[cfg(unix)]
     Suspend(Reply),
     /// Enter the terminal again after a suspend and repaint the whole next frame.
+    #[cfg(unix)]
     Resume(Reply),
     #[cfg(all(test, unix))]
     Panic(&'static str),
@@ -861,11 +863,13 @@ fn run_worker<W: Write>(
                 };
                 let _ = reply.send(outcome);
             }
+            #[cfg(unix)]
             Command::Suspend(reply) => {
                 let cleanup = renderer.backend_mut().finish_graphics(graphics.cleanup());
                 graphics = graphics::Graphics::default();
                 let _ = reply.send(cleanup.and(session.restore()));
             }
+            #[cfg(unix)]
             Command::Resume(reply) => {
                 force = true;
                 let _ = reply.send(session.enter());
