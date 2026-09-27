@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
-"""painter-goldens: PNT-001, PNT-002 and PNT-004 through the tests/painter_hit.rs
-binary: fast path against general path on every golden, per-cell hit query under
-masks and z-order, layout not recomputed for an unchanged spec. PNT-002 also probes
+"""painter-goldens: PNT-001, PNT-002, PNT-004 and PNT-005 through the
+tests/painter_hit.rs binary: fast path against general path on every golden,
+per-cell hit query under masks and z-order, layout not recomputed for an
+unchanged spec, and a changed spec keeping the layout nodes of unchanged
+elements while painting what a full layout paints. PNT-002 also probes
 that hit_bounds no longer scans cells, and runs the library test that
 CrosstermBackend passes the hit grid through.
 
@@ -18,6 +20,7 @@ def main() -> int:
     results = {}
     results["PNT-001"] = cargo_test_filtered("painter_hit", "pnt_001_")
     results["PNT-004"] = cargo_test_filtered("painter_hit", "pnt_004_")
+    results["PNT-005"] = cargo_test_filtered("painter_hit", "pnt_005_")
     painter = strip_test_modules((ROOT / "src/layout/paint_tree/suprtui.rs").read_text(errors="replace"))
     hb = re.search(r"fn hit_bounds\([^)]*\)[^{]*\{(.*?)\n\}", painter, re.S)
     scans = hb is not None and re.search(r"inside_masks\(", hb.group(1)) is not None

@@ -14,7 +14,8 @@
   "requirements": [
     "PNT-001",
     "PNT-002",
-    "PNT-004"
+    "PNT-004",
+    "PNT-005"
   ],
   "results": "per-requirement",
   "identity": {

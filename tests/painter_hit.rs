@@ -1,11 +1,12 @@
-//! painter-goldens mechanism: PNT-001, PNT-002 and PNT-004
+//! painter-goldens mechanism: PNT-001, PNT-002, PNT-004 and PNT-005
 //! (docs/spec/painter.md).
 //!
 //! The fast path for untransformed, unmasked nodes must paint the cells the
 //! general path painted before it existed: those screens are recorded in
 //! tests/snapshots/renderer. The per-cell hit grid must be exact under masks
 //! and z-order, and the event layer must dispatch by it. An unchanged spec
-//! must paint from the previous layout.
+//! must paint from the previous layout, and a changed one must keep the
+//! layout nodes of the elements that did not change.
 
 mod common;
 
@@ -409,4 +410,122 @@ fn pnt_004_unchanged_spec_reuses_the_layout() {
         (false, 3),
         "a new size must lay out again"
     );
+}
+
+/// A 700 by 200 screen of 199 rows of 25 text elements; the first element
+/// shows `first`.
+fn label_grid(first: &str) -> Element {
+    Element::layout(LayoutType::Flex)
+        .with_class("flex flex-col w-full h-full")
+        .with_children(
+            (0..199)
+                .map(|row| {
+                    Element::layout(LayoutType::Flex)
+                        .with_class("flex flex-row w-full h-1")
+                        .with_children(
+                            (0..25)
+                                .map(|column| {
+                                    let text = if (row, column) == (0, 0) {
+                                        first.to_string()
+                                    } else {
+                                        format!("r{row}c{column}")
+                                    };
+                                    Element::text(text).with_class("flex-1 h-1")
+                                })
+                                .collect(),
+                        )
+                })
+                .collect(),
+        )
+}
+
+/// PNT-005: changing one element's text keeps every other element's layout
+/// node and measures only the text the change can move.
+#[test]
+fn pnt_005_one_changed_text_keeps_the_other_layout_nodes() {
+    let mut backend = SuprTuiBackend::with_writer(700, 200, Sink::default()).unwrap();
+    let mut show = |element: &Element| {
+        assert!(backend.render_frame(element).unwrap());
+        backend.present().unwrap();
+        backend.sync().unwrap();
+        (
+            backend.layout_reused(),
+            backend.layout_nodes_built(),
+            backend.layout_texts_measured(),
+        )
+    };
+    let (_, built, _) = show(&label_grid("first"));
+    assert!(
+        built > 5_000,
+        "a first frame lays out every element, but built {built} layout nodes"
+    );
+    let (reused, built, measured) = show(&label_grid("changed"));
+    assert!(!reused, "a changed text must lay out again");
+    assert!(
+        built <= 1 && measured <= 16,
+        "changing one of 4,975 texts built {built} layout nodes and measured {measured} texts"
+    );
+}
+
+/// PNT-005: frames laid out from the previous frame's layout paint the cells
+/// and hit grid that a full layout of the same spec paints, through text,
+/// class and child changes.
+#[test]
+fn pnt_005_edited_frames_paint_what_a_full_layout_paints() {
+    let size = (40, 12);
+    let plain = "flex flex-row w-full h-1";
+    let tall = "flex flex-row w-full h-3 bg-blue-500";
+    let row = |texts: &[&str], class: &str| {
+        Element::layout(LayoutType::Flex)
+            .with_class(class)
+            .with_children(
+                texts
+                    .iter()
+                    .map(|text| Element::text(*text).with_class("flex-1 h-1"))
+                    .collect(),
+            )
+    };
+    let frame = |rows: Vec<Element>| {
+        Element::layout(LayoutType::Flex)
+            .with_class("flex flex-col w-full h-full")
+            .with_children(rows)
+    };
+    let long = "a much longer text";
+    let frames = [
+        frame(vec![row(&["a", "b", "c"], plain), row(&["d", "e"], plain)]),
+        // A text changes and grows.
+        frame(vec![row(&["a", long, "c"], plain), row(&["d", "e"], plain)]),
+        // A class changes: the second row grows and gets a background.
+        frame(vec![row(&["a", long, "c"], plain), row(&["d", "e"], tall)]),
+        // A child is added in the middle of a row.
+        frame(vec![
+            row(&["a", "x", long, "c"], plain),
+            row(&["d", "e"], tall),
+        ]),
+        // A row is removed and another is added at the end.
+        frame(vec![
+            row(&["d", "e"], tall),
+            row(&["f"], "flex flex-row w-1/2 h-1 bg-green-500"),
+        ]),
+        // Back to the first frame.
+        frame(vec![row(&["a", "b", "c"], plain), row(&["d", "e"], plain)]),
+    ];
+    let sink = Sink::default();
+    let mut edited = SuprTuiBackend::with_writer(size.0, size.1, sink.clone()).unwrap();
+    for (index, element) in frames.iter().enumerate() {
+        let hits = present_hits(&mut edited, element);
+        let screen = vt100_section(&sink.0.lock().unwrap(), size);
+        let full_sink = Sink::default();
+        let mut full = SuprTuiBackend::with_writer(size.0, size.1, full_sink.clone()).unwrap();
+        let full_hits = present_hits(&mut full, element);
+        assert_eq!(
+            screen,
+            vt100_section(&full_sink.0.lock().unwrap(), size),
+            "frame {index}: the cells differ from a full layout of the same spec"
+        );
+        assert_eq!(
+            hits, full_hits,
+            "frame {index}: the hit grid differs from a full layout of the same spec"
+        );
+    }
 }
