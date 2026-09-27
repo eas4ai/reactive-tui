@@ -769,9 +769,7 @@ impl<T: Clone + PartialEq + Send + Sync + 'static> Select<T> {
         state: &mut SelectState,
     ) -> EventResult {
         match event.kind {
-            MouseEventKind::Down | MouseEventKind::Click
-                if event.button == crate::event::types::MouseButton::Left =>
-            {
+            MouseEventKind::Down if event.button == crate::event::types::MouseButton::Left => {
                 let Some(click_y) = self.content_row(event.position) else {
                     return EventResult::Ignored;
                 };

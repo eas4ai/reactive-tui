@@ -129,7 +129,7 @@ fn native_cursor_retries_failed_output_and_does_not_leak_into_cell_frames() {
 fn native_cursor_style_and_color_reset_when_host_session_is_restored() {
     let capture = Capture::default();
     let writer = Rc::new(RefCell::new(capture.clone()));
-    let mut session = TerminalOutput::new(writer, true);
+    let mut session = TerminalOutput::new(writer, Session::Screen);
     session.enter().unwrap();
     capture.take();
     session.restore().unwrap();

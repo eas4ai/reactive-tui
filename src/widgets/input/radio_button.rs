@@ -407,14 +407,11 @@ impl<T: Clone + PartialEq + Send + Sync + 'static> RadioButton<T> {
         state: &mut RadioButtonState,
     ) -> EventResult {
         match event.kind {
-            MouseEventKind::Down | MouseEventKind::Click
-                if event.button == crate::event::types::MouseButton::Left =>
-            {
-                self.option_at(event, props, state)
-                    .map_or(EventResult::Ignored, |index| {
-                        self.select(index, props, state)
-                    })
-            }
+            MouseEventKind::Down if event.button == crate::event::types::MouseButton::Left => self
+                .option_at(event, props, state)
+                .map_or(EventResult::Ignored, |index| {
+                    self.select(index, props, state)
+                }),
             MouseEventKind::Enter | MouseEventKind::Move => {
                 state.hover_index = self
                     .option_at(event, props, state)

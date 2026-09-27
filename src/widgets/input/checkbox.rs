@@ -254,9 +254,7 @@ impl Checkbox {
         state: &mut CheckboxState,
     ) -> EventResult {
         match event.kind {
-            MouseEventKind::Down | MouseEventKind::Click
-                if event.button == crate::event::types::MouseButton::Left =>
-            {
+            MouseEventKind::Down if event.button == crate::event::types::MouseButton::Left => {
                 // Toggle on click
                 state.is_focused = true;
 
@@ -375,7 +373,7 @@ mod tests {
         let mut state = CheckboxState::default();
 
         let event = Event::Mouse(MouseEvent {
-            kind: MouseEventKind::Click,
+            kind: MouseEventKind::Down,
             button: crate::event::types::MouseButton::Left,
             position: crate::event::types::Position::cell(2, 0),
             modifiers: KeyModifiers::empty(),

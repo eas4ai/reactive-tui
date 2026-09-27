@@ -900,9 +900,7 @@ impl Tabs {
                 EventResult::Consumed
             }
             Event::Mouse(mouse) => match mouse.kind {
-                MouseEventKind::Down | MouseEventKind::Click
-                    if mouse.button == crate::event::types::MouseButton::Left =>
-                {
+                MouseEventKind::Down if mouse.button == crate::event::types::MouseButton::Left => {
                     if let Some((index, close)) = self.target_at(mouse) {
                         if close {
                             self.close(index, props, state);

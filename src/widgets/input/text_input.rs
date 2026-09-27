@@ -1199,9 +1199,7 @@ impl TextInput {
     ) -> EventResult {
         use crate::event::types::MouseButton;
         match event.kind {
-            MouseEventKind::Down | MouseEventKind::Click | MouseEventKind::Drag
-                if event.button == MouseButton::Left =>
-            {
+            MouseEventKind::Down | MouseEventKind::Drag if event.button == MouseButton::Left => {
                 let (inset_x, inset_y) = self.viewport.map_or((0, 0), |layout| {
                     (layout.insets[0] as usize, layout.insets[1] as usize)
                 });

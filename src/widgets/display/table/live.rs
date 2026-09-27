@@ -631,10 +631,21 @@ impl Component for LiveTable {
                 if !x.is_finite() || !y.is_finite() {
                     return EventResult::Ignored;
                 }
-                state.scroll_state.offset_x =
-                    (state.scroll_state.offset_x as f32 + x).clamp(0.0, u16::MAX as f32) as u16;
-                self.scroll_y =
-                    (self.scroll_y as f64 + y as f64).clamp(0.0, usize::MAX as f64) as usize;
+                // The limits `clamp` applies at the next layout.
+                let scroll = &state.scroll_state;
+                let last_x = scroll.content_width.saturating_sub(scroll.viewport_width);
+                let last_y = config
+                    .rows
+                    .len()
+                    .saturating_sub(scroll.viewport_height as usize);
+                let offset_x = (scroll.offset_x as f32 + x).clamp(0.0, f32::from(last_x)) as u16;
+                let scroll_y = (self.scroll_y as f64 + y as f64).clamp(0.0, last_y as f64) as usize;
+                // At an edge the wheel passes to an enclosing view (INP-005).
+                if (offset_x, scroll_y) == (scroll.offset_x, self.scroll_y) {
+                    return EventResult::Ignored;
+                }
+                state.scroll_state.offset_x = offset_x;
+                self.scroll_y = scroll_y;
                 self.public_scroll_y = state.scroll_state.offset_y;
                 EventResult::Consumed
             }
@@ -659,8 +670,7 @@ impl Component for LiveTable {
                 EventResult::Consumed
             }
             Event::Mouse(mouse)
-                if matches!(mouse.kind, MouseEventKind::Down | MouseEventKind::Click)
-                    && mouse.button == MouseButton::Left =>
+                if mouse.kind == MouseEventKind::Down && mouse.button == MouseButton::Left =>
             {
                 let Some((target, layout)) = self.target_at(mouse) else {
                     return EventResult::Ignored;

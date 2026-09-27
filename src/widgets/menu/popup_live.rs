@@ -335,9 +335,7 @@ impl MenuRuntime for PopupRuntime {
                 let (x, y) = (mouse.position.x() as f32, mouse.position.y() as f32);
                 let target = self.view.hit(x, y);
                 match mouse.kind {
-                    MouseEventKind::Down | MouseEventKind::Click
-                        if mouse.button == MouseButton::Left =>
-                    {
+                    MouseEventKind::Down if mouse.button == MouseButton::Left => {
                         if let Some(path) = target {
                             self.menu.path = path;
                             self.activate(props);

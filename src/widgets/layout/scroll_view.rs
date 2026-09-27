@@ -420,12 +420,19 @@ impl Component for ScrollView {
                     x = y;
                     y = 0.0;
                 }
+                let before = (state.scroll_x, state.scroll_y);
                 if props.scroll_x {
                     state.scroll_x = shifted(state.scroll_x, x, props.scroll_speed);
                 }
                 if props.scroll_y {
                     state.scroll_y = shifted(state.scroll_y, y, props.scroll_speed);
                 }
+                self.clamp(props, state);
+                // At an edge the wheel passes to an enclosing view (INP-005).
+                if (state.scroll_x, state.scroll_y) == before {
+                    return EventResult::Ignored;
+                }
+                return EventResult::Consumed;
             }
             _ => return EventResult::Ignored,
         }

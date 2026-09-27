@@ -31,6 +31,19 @@ Keyboard events normally target the focused node. Mouse events use hit testing
 and z-order to choose a target. Routing walks capture handlers from the root,
 runs target handlers, then bubbles toward the root unless a result stops it.
 
+On the default backend the terminal reports every press, release, drag and
+pointer move, and a paste arrives whole as one `Paste` event. After a press,
+that button's drags and its release go to the pressed element, also when the
+pointer has left it; a component receives them at its nearest cell. A release
+over the pressed element is followed by a `Click`. A second click on the same
+element and cell within 500 ms is a `DoubleClick`, and the third and later
+ones are `TripleClick`. Controls activate on the press, not on the click. The
+wheel goes to the element under the pointer and bubbles: a scroll view, table
+or tree that cannot scroll further in the wheel's direction leaves the event
+for its parent, and Shift turns a vertical wheel into a sideways one. When
+motion reports queue up faster than the application handles them, only the
+latest of each run is delivered.
+
 The application rebuilds its event tree from the presented frame. Focus state
 is preserved when possible and moved when a focused node disappears. Positions
 preserve whether coordinates are terminal cells or pixels.

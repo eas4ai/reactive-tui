@@ -303,7 +303,7 @@ impl ElementBuilder {
                             types::{Event, MouseButton, MouseEventKind},
                         };
                         if matches!(event, Event::Mouse(mouse) if mouse.button == MouseButton::Left
-                        && matches!(mouse.kind, MouseEventKind::Down | MouseEventKind::Click))
+                        && mouse.kind == MouseEventKind::Down)
                         {
                             for callback in &callbacks {
                                 callback();

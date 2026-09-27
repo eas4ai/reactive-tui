@@ -336,7 +336,9 @@ impl App {
         }
         let state = (self.router.get_focus(), self.router.hovered_node());
         if let Event::Mouse(mouse) = event {
-            let target = self.router.determine_target(event);
+            // Mouse hooks follow the pressed component themselves and read the
+            // component under the pointer as the drop zone, so they get that one.
+            let target = self.router.target_under_pointer(event);
             let component = self.event_tree.innermost_component(target);
             self.components.process_mouse_event(component, mouse);
         }
@@ -361,7 +363,12 @@ impl App {
                 self.root.try_handle_event(&Event::Custom(notification))? != EventResult::Ignored;
         }
         drop(notifications);
-        Ok(dirty || result != EventResult::Ignored)
+        dirty |= result != EventResult::Ignored;
+        // A release over the pressed element makes a click, delivered next (INP-004).
+        if let Some(click) = self.router.take_click() {
+            dirty |= self.process_input(&Event::Mouse(click))?;
+        }
+        Ok(dirty)
     }
 
     #[cfg(target_os = "linux")]

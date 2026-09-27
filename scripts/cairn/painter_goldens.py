@@ -2,7 +2,8 @@
 """painter-goldens: PNT-001, PNT-002 and PNT-004 through the tests/painter_hit.rs
 binary: fast path against general path on every golden, per-cell hit query under
 masks and z-order, layout not recomputed for an unchanged spec. PNT-002 also probes
-that hit_bounds no longer scans cells.
+that hit_bounds no longer scans cells, and runs the library test that
+CrosstermBackend passes the hit grid through.
 
 Prints one `cairn: <REQ>: pass|fail` line per requirement.
 """
@@ -26,7 +27,11 @@ def main() -> int:
         why = "hit_bounds still scans cells through inside_masks" if scans else "Backend has no per-cell hit query hit_at"
         results["PNT-002"] = (False, why)
     else:
-        results["PNT-002"] = cargo_test_filtered("painter_hit", "pnt_002_")
+        hits = cargo_test_filtered("painter_hit", "pnt_002_")
+        # The CrosstermBackend wrapper cannot be built on a plain writer
+        # outside the crate, so its case is a library test.
+        wrapper = cargo_test_filtered(None, "backend::tests::pnt_002_", package="reactive-tui")
+        results["PNT-002"] = (hits[0] and wrapper[0], f"{hits[1]}; CrosstermBackend: {wrapper[1]}")
     return finish(results)
 
 

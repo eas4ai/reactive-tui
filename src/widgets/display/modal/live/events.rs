@@ -3,7 +3,7 @@ use crate::event::types::{FocusEventKind, KeyEventKind, MouseButton, Position};
 use crate::widgets::display::overlay::local_rect;
 
 pub(super) fn activate(event: &Event) -> bool {
-    matches!(event, Event::Mouse(mouse) if mouse.button == MouseButton::Left && matches!(mouse.kind, MouseEventKind::Down | MouseEventKind::Click))
+    matches!(event, Event::Mouse(mouse) if mouse.button == MouseButton::Left && mouse.kind == MouseEventKind::Down)
 }
 
 impl Runtime {

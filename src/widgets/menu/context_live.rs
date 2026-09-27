@@ -189,7 +189,7 @@ impl Component for LiveContext {
                         && u32::from(y) < u32::from(top) + u32::from(height)
                 });
         match mouse.kind {
-            MouseEventKind::Down | MouseEventKind::Click
+            MouseEventKind::Down
                 if mouse.button == MouseButton::Right
                     && props.config.show_on_right_click
                     && inside =>

@@ -156,6 +156,10 @@ impl ScreenRuntime {
         let notifications = crate::event::notifications::Dispatch::enter();
         let before = (self.router.get_focus(), self.router.hovered_node());
         let mut handled = self.router.process_event(event) != EventResult::Ignored;
+        // A release over the pressed element makes a click, delivered next (INP-004).
+        if let Some(click) = self.router.take_click() {
+            handled |= self.router.process_event(&Event::Mouse(click)) != EventResult::Ignored;
+        }
         handled |= before != (self.router.get_focus(), self.router.hovered_node());
         for notification in notifications.take() {
             handled |=

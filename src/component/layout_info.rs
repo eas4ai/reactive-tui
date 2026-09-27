@@ -41,16 +41,31 @@ impl LayoutInfo {
     /// Convert a screen cell center to local coordinates. Collapsed transforms
     /// and points outside the allocated box have no local cell.
     pub fn local_cell(&self, x: f32, y: f32) -> Option<(u16, u16)> {
+        let (x, y) = self.local_point(x, y)?;
+        (x >= 0.0 && y >= 0.0 && x < self.size.0 && y < self.size.1).then_some((x as u16, y as u16))
+    }
+
+    /// The local cell nearest a screen cell, also outside the allocated box,
+    /// for the drags and release that stay with a pressed component (INP-003).
+    /// Collapsed transforms and empty boxes have none.
+    pub(crate) fn nearest_local_cell(&self, x: f32, y: f32) -> Option<(u16, u16)> {
+        let (x, y) = self.local_point(x, y)?;
+        let (last_x, last_y) = (self.size.0.ceil() - 1.0, self.size.1.ceil() - 1.0);
+        (last_x >= 0.0 && last_y >= 0.0)
+            .then(|| (x.clamp(0.0, last_x) as u16, y.clamp(0.0, last_y) as u16))
+    }
+
+    /// A screen cell center in local coordinates, rounded to a cell.
+    fn local_point(&self, x: f32, y: f32) -> Option<(f32, f32)> {
         let [a, b, c, d, tx, ty] = self.transform;
         let determinant = a * d - b * c;
         if !determinant.is_finite() || determinant.abs() < f32::EPSILON {
             return None;
         }
         let (x, y) = (x - tx, y - ty);
-        let (x, y) = (
+        Some((
             ((d * x - c * y) / determinant).round(),
             ((-b * x + a * y) / determinant).round(),
-        );
-        (x >= 0.0 && y >= 0.0 && x < self.size.0 && y < self.size.1).then_some((x as u16, y as u16))
+        ))
     }
 }

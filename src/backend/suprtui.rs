@@ -19,7 +19,7 @@ use std::time::Duration;
 pub(crate) mod graphics;
 mod input;
 mod output;
-use output::{CheckedOutput, TerminalOutput};
+use output::{CheckedOutput, Session, TerminalOutput};
 
 /// The renderer worker's stack, and DebugBackend's paint thread's. Converting
 /// and painting a frame recurses once per element level, about 14 KiB a level
@@ -149,6 +149,8 @@ pub struct SuprTuiBackend {
     acknowledged: Acknowledged,
     raw_mode: Option<RawMode>,
     input: Option<crossterm::event::EventStream>,
+    /// The event read after a run of motion reports, handled next (INP-006).
+    held: Option<crossterm::event::Event>,
 }
 
 impl SuprTuiBackend {
@@ -169,7 +171,8 @@ impl SuprTuiBackend {
         let (width, height) = crossterm::terminal::size()?;
         let raw_mode = RawMode::enter()?;
         images.refresh_cell_pixels();
-        let mut backend = Self::start(width, height, io::stdout(), true, images)?;
+        let mut backend =
+            Self::start(width, height, io::stdout(), Session::ScreenAndInput, images)?;
         backend.raw_mode = Some(raw_mode);
         Ok(backend)
     }
@@ -180,7 +183,13 @@ impl SuprTuiBackend {
         height: u16,
         writer: W,
     ) -> Result<Self> {
-        Self::start(width, height, writer, false, ImageOutputOptions::default())
+        Self::start(
+            width,
+            height,
+            writer,
+            Session::Writer,
+            ImageOutputOptions::default(),
+        )
     }
 
     /// Render graphics to a writer whose host capabilities and cell pixels are known.
@@ -190,7 +199,7 @@ impl SuprTuiBackend {
         writer: W,
         images: ImageOutputOptions,
     ) -> Result<Self> {
-        Self::start(width, height, writer, false, images)
+        Self::start(width, height, writer, Session::Writer, images)
     }
 
     /// Own screen output while the native adapter owns raw mode and input.
@@ -200,7 +209,7 @@ impl SuprTuiBackend {
         writer: W,
         images: ImageOutputOptions,
     ) -> Result<Self> {
-        Self::start(width, height, writer, true, images)
+        Self::start(width, height, writer, Session::Screen, images)
     }
 
     pub(crate) fn set_full_redraw(&mut self, enabled: bool) {
@@ -211,7 +220,7 @@ impl SuprTuiBackend {
         width: u16,
         height: u16,
         writer: W,
-        terminal: bool,
+        kind: Session,
         images: ImageOutputOptions,
     ) -> Result<Self> {
         if images.cell_pixels.0 == 0
@@ -231,7 +240,7 @@ impl SuprTuiBackend {
             .name("suprtui-renderer".into())
             .stack_size(RENDERER_STACK)
             .spawn(move || {
-                run_worker_guarded(writer, terminal, dimensions, receiver, ready, images);
+                run_worker_guarded(writer, kind, dimensions, receiver, ready, images);
             })?;
         let mut backend = Self {
             commands: Some(commands),
@@ -250,6 +259,7 @@ impl SuprTuiBackend {
             acknowledged: Acknowledged::default(),
             raw_mode: None,
             input: None,
+            held: None,
         };
         match initialized.recv().map_err(|_| worker_stopped())? {
             Ok(()) => Ok(backend),
@@ -317,9 +327,35 @@ impl SuprTuiBackend {
         self.shutdown_with_panic(None)
     }
 
+    /// Of a run of waiting motion reports only the latest is kept; the first
+    /// event after the run waits in `held` (INP-006).
+    fn merge_motion(
+        &mut self,
+        mut event: crossterm::event::Event,
+    ) -> Result<crossterm::event::Event> {
+        let Some(stream) = self.input.as_mut() else {
+            return Ok(event);
+        };
+        while input::is_motion(&event) {
+            match input::ready(stream)? {
+                Some(next) if input::continues_motion(&event, &next) => event = next,
+                next => {
+                    self.held = next;
+                    break;
+                }
+            }
+        }
+        Ok(event)
+    }
+
     fn shutdown_with_panic(&mut self, message: Option<&str>) -> Result<()> {
         self.input.take();
-        let early_raw = if message.is_some() {
+        self.held.take();
+        // Unix raw mode also stops newline translation, so it ends before the
+        // panic message. Windows raw mode changes input only, and there the
+        // mouse mode's restore puts back the raw input mode it saved, so raw
+        // mode must end after it.
+        let early_raw = if message.is_some() && cfg!(unix) {
             self.raw_mode.as_mut().map_or(Ok(()), RawMode::restore)
         } else {
             Ok(())
@@ -494,6 +530,9 @@ impl Backend for SuprTuiBackend {
         if self.commands.is_none() {
             return Err(worker_stopped());
         }
+        if let Some(event) = self.held.take() {
+            return Ok(CrosstermBackend::map_ct_event(self.merge_motion(event)?));
+        }
         // A resize can arrive while the first frame is being written, before
         // the lazily created input stream has subscribed to terminal events.
         if self.raw_mode.is_some() {
@@ -507,8 +546,10 @@ impl Backend for SuprTuiBackend {
         let stream = self
             .input
             .get_or_insert_with(crossterm::event::EventStream::new);
-        input::poll(stream, timeout, wake)
-            .map(|event| event.and_then(CrosstermBackend::map_ct_event))
+        match input::poll(stream, timeout, wake)? {
+            Some(event) => Ok(CrosstermBackend::map_ct_event(self.merge_motion(event)?)),
+            None => Ok(None),
+        }
     }
 
     fn shutdown(&mut self) -> Result<()> {
@@ -546,7 +587,7 @@ fn worker_stopped() -> ReactiveError {
 
 fn run_worker_guarded<W: Write>(
     writer: W,
-    terminal: bool,
+    kind: Session,
     dimensions: (usize, usize),
     receiver: mpsc::Receiver<Command>,
     ready: Reply,
@@ -556,7 +597,7 @@ fn run_worker_guarded<W: Write>(
     let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
         run_worker(
             Rc::clone(&writer),
-            terminal,
+            kind,
             dimensions,
             receiver,
             ready,
@@ -576,13 +617,13 @@ fn run_worker_guarded<W: Write>(
 
 fn run_worker<W: Write>(
     writer: Rc<RefCell<W>>,
-    terminal: bool,
+    kind: Session,
     mut dimensions: (usize, usize),
     receiver: mpsc::Receiver<Command>,
     ready: Reply,
     mut images: ImageOutputOptions,
 ) {
-    let mut session = TerminalOutput::new(Rc::clone(&writer), terminal);
+    let mut session = TerminalOutput::new(Rc::clone(&writer), kind);
     let pool = Rc::new(RefCell::new(GraphemePool::new()));
     let make_renderer = |(width, height): (usize, usize)| {
         Renderer::new(
@@ -978,7 +1019,7 @@ mod trl_001_tests {
         let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
             super::run_worker_guarded(
                 FailsReport(Capture::default()),
-                true,
+                super::Session::Screen,
                 (20, 8),
                 receiver,
                 ready,
