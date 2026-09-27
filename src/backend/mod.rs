@@ -56,6 +56,11 @@ pub(crate) struct PresentedGeometry {
     /// Layouts the painter's cache has computed so far, counted where the
     /// layout engine runs (PNT-004).
     pub layout_runs: u64,
+    /// Layout nodes the frame's layout built; none when it reused the
+    /// previous layout (PNT-005).
+    pub layout_nodes_built: u64,
+    /// Elements whose text the frame's layout measured (PNT-005).
+    pub layout_texts_measured: u64,
     /// Cells the painter mapped through a node's inverse transform, for its
     /// background or its hit cells. Untransformed, unmasked nodes map cells
     /// by subtraction and add none (PNT-001).

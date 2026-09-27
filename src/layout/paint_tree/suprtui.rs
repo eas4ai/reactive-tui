@@ -60,6 +60,11 @@ pub(crate) struct LayoutCache {
     /// Layouts computed with this cache: counted where Taffy runs, so a
     /// test observes the layout work itself, not the reuse decision.
     runs: u64,
+    /// Layout nodes the last layout built and elements whose text it
+    /// measured, counted where each happens, so a test observes what a
+    /// changed spec costs (PNT-005).
+    nodes_built: u64,
+    measured: u64,
 }
 
 /// Whether two specs lay out the same: the same node tree with the same
@@ -158,11 +163,15 @@ fn lay_out(
             width: AvailableSpace::Definite(size.0 as f32),
             height: AvailableSpace::Definite(size.1 as f32),
         };
+        let mut measured = std::collections::HashSet::new();
         tree.compute_layout_with_measure(root, available, |known, available, id, _, _| {
+            measured.insert(id);
             super::measure_text(&paints[&id], known, available)
         })
         .map_err(|error| ReactiveError::layout(format!("SuprTUI layout: {error}")))?;
         cache.runs += 1;
+        cache.nodes_built = tree.total_node_count() as u64;
+        cache.measured = measured.len() as u64;
         let screen = Rect {
             left: 0,
             top: 0,
@@ -189,6 +198,9 @@ fn lay_out(
         cache.paints = paints;
         cache.nodes = nodes;
         cache.size = size;
+    } else {
+        cache.nodes_built = 0;
+        cache.measured = 0;
     }
     cache.spec = Some(spec);
     Ok(reused)
@@ -335,6 +347,8 @@ pub(crate) fn paint_frame(
         hits: Vec::new(),
         layout_reused: reused,
         layout_runs: cache.runs,
+        layout_nodes_built: cache.nodes_built,
+        layout_texts_measured: cache.measured,
         inverse_cells,
     })
 }
