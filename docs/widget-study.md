@@ -41,7 +41,10 @@ all 80 modules of gpui-kit's component crate.
 ### What to change in the widgets we have
 
 These recur across many families, so each one fixes several widgets at
-once. They are listed in the order we recommend.
+once. They are listed in the order we recommend. One defect comes before
+all of them: the default backend never turns on mouse reporting (see
+"Defects found" below), so every mouse feature in this study, ours or
+proposed, works in a real terminal only once that is fixed.
 
 1. Change callbacks on the builders. `builder::radio_button()` has no way
    to report a change (src/builder/specialized.rs:246-296), and
@@ -73,17 +76,24 @@ once. They are listed in the order we recommend.
    (src/widgets/layout/tabs.rs:698-711;
    src/widgets/display/tree/live/paint.rs:210-221;
    src/widgets/display/table/live.rs:467-471). Small to medium.
-4. The theme follows the terminal. We already ask the terminal for its
-   background color (src/platform/mod.rs:1203), but the reply parser reads
+4. The theme follows the terminal. Only the DirectTty backend asks the
+   terminal for its background color (src/platform/mod.rs:1182-1203,
+   reached from src/backend/direct_tty.rs:46), and its reply parser reads
    only the DA1, DA2, Kitty graphics and DECRQM answers
-   (src/platform/mod.rs:1277-1301), so a light terminal still gets the dark
-   theme. gpui-kit switches light and dark from the window appearance
+   (src/platform/mod.rs:1277-1301). The default backend, which the widget
+   catalog and the other examples use (examples/widget_catalog/main.rs:41),
+   sends no query at all (src/backend/suprtui.rs:157;
+   src/backend/suprtui/output.rs:171). So a light terminal always gets the
+   dark theme. gpui-kit switches light and dark from the window appearance
    (G/theme/mod.rs:227-237), loads themes from files
    (G/theme/registry.rs:151-161), and pairs each fill color with a text
    color (B/theme_tokens.rs:19-45). Several of our widgets fix their colors
    instead of using theme roles: the progress bar
    (src/widgets/display/progress_bar.rs:233-234) and the table's selected
-   row (src/widgets/display/table.rs:166-167). Small for each part.
+   row (src/widgets/display/table.rs:166-167). Theme files and the color
+   roles are small each. Following the terminal's background is medium: the
+   default backend has to send the query and read the reply first, which
+   fits the input-protocols work on the roadmap.
 5. Content that does not fit. Tabs that do not fit are clipped with no
    scrolling or overflow menu (src/widgets/layout/tabs.rs:778-784), where
    gpui-kit scrolls the tab row and lists every tab in a menu
@@ -181,9 +191,23 @@ src/widgets/display/data_table/live.rs:391-403), and twelve popover
 placements with edge flipping (src/widgets/display/popover.rs:12-38,
 123-134).
 
-### Defects found while reading
+### Defects found
 
-The study changes no code, so these are recorded here, not fixed.
+The study changes no code, so these are recorded here, not fixed. They are
+captured for later as the next-feature items default-backend-mouse (the
+first one) and widget-study-defects (the rest).
+
+- The default backend never turns on mouse reporting, so no mouse event
+  reaches a widget in a real terminal. SuprTuiBackend's setup writes only
+  the alternate-screen, hidden-cursor and focus-event modes
+  (src/backend/suprtui/output.rs:171), CrosstermBackend wraps it
+  (src/backend/mod.rs:238-248), and only the DirectTty backend enables the
+  mouse (src/backend/direct_tty.rs:69; src/platform/mod.rs:582-587). On
+  2026-09-26 the widget catalog, run for three seconds in a pseudo-terminal
+  of 240 by 60 cells, wrote only the modes 1049, 25, 1004 and 2026: no
+  mouse mode and no background-color query. The widget tests pass because
+  they send synthetic mouse events. Found by the adversary review, confirmed
+  by that run.
 
 - A Markdown code fence written ```` ```rust ```` is not highlighted. The
   highlighter looks languages up by exact, case-sensitive display name
@@ -1325,7 +1349,7 @@ The twenty families docs/recon.md section 13 lists, in alphabetical order. The c
     - gpui-kit ships "Default Light" and "Default Dark" (G/theme/default-theme.json:10-11, 215-216).
   - **Light and dark:**
     - gpui-kit keeps a light and a dark config and switches by mode or by the window appearance (G/theme/mod.rs:116-119, 227-237, 701-729).
-    - Our `Theme` has no mode (src/theme/mod.rs:46-54). We do send an OSC 11 query for the terminal background at startup (src/platform/mod.rs:1203). But the reply parser reads only the DA1, DA2, Kitty graphics and DECRQM answers (src/platform/mod.rs:1277-1301).
+    - Our `Theme` has no mode (src/theme/mod.rs:46-54). Only the DirectTty backend sends an OSC 11 query for the terminal background (src/platform/mod.rs:1182-1203), and its reply parser reads only the DA1, DA2, Kitty graphics and DECRQM answers (src/platform/mod.rs:1277-1301). The default backend sends no query (src/backend/suprtui.rs:157; src/backend/suprtui/output.rs:171).
   - **Files:**
     - gpui-kit parses a JSON `ThemeSet` of named themes with author and URL (G/theme/schema.rs:21-82). It can load a set from a string, and it can watch a folder and reload on change (G/theme/registry.rs:94-161, 185-262).
     - Ours builds themes in code only. A search of src/theme for `serde`, `Deserialize`, `from_str` and `read_to_string` found nothing.
@@ -1360,7 +1384,7 @@ The twenty families docs/recon.md section 13 lists, in alphabetical order. The c
   - Ours has a high-contrast preset described as being for accessibility (src/theme/presets.rs:84-122). A search of gpui-kit's theme files for `contrast` and `reduced_motion` found nothing.
 - **Worth adopting:**
   - **Theme files (JSON or TOML) loaded into `ThemeVariables`, with optional folder watching** (G/theme/registry.rs:151-161, 185-262; G/theme/schema.rs:21-82); users could share and switch themes without recompiling, and our string map already fits (src/theme/variables.rs:11-14); small for loading, medium with watching.
-  - **Picking light or dark from the terminal background**: read the OSC 11 reply we already ask for (src/platform/mod.rs:1203, 1277-1301) and choose a light or dark theme, as gpui-kit does from the window appearance (G/theme/mod.rs:227-237, 261-278); text stays readable on light terminals with no setup; small.
+  - **Picking light or dark from the terminal background**: send the OSC 11 query from the default backend too, read its reply (today only DirectTty sends it, src/platform/mod.rs:1182-1203, and nothing parses the reply, src/platform/mod.rs:1277-1301) and choose a light or dark theme, as gpui-kit does from the window appearance (G/theme/mod.rs:227-237, 261-278); text stays readable on light terminals with no setup; medium, with the input-protocols work.
   - **Selection and row-state roles with derived fallbacks** (G/theme/schema.rs:977, 1002-1011); our table's selected row is fixed to `bg-blue fg-white`, its header to `font-bold`, and striping has no default style (src/widgets/display/table.rs:166-167; src/widgets/display/table/live.rs:391), so a theme change does not reach them; small.
   - **A foreground color paired with each fill role** (B/theme_tokens.rs:20-44); ours has one `--color-foreground` (src/theme/presets.rs:14), so text on a primary or error fill has no theme-chosen contrast color; small.
 
@@ -1643,7 +1667,7 @@ Each entry says what the component is, what we have that comes closest, what it 
 - Differences:
   - Only ours has Click, Focus and Manual triggers (src/widgets/display/popover.rs:75-86), close on Escape (on by default; src/widgets/display/popover.rs:159-160, 243), an arrow (src/widgets/display/popover.rs:90) and boundary flipping (src/widgets/display/popover.rs:125).
   - Only gpui-kit has tap-to-toggle on touch devices.
-  - Hover in a terminal needs any-motion mouse reporting, which we turn on (src/platform/ctlseqs.rs:43). Keyboard users never hover.
+  - Hover in a terminal needs any-motion mouse reporting. Only the DirectTty backend turns it on (src/backend/direct_tty.rs:69); the default backend does not (see "Defects found" in the summary). Keyboard users never hover.
 - Worth adopting: nothing. One gap of our own: `trigger` takes a single value (src/widgets/display/popover.rs:143-144), so one card cannot open on both hover and focus.
 
 ### icon
@@ -1788,7 +1812,7 @@ Each entry says what the component is, what we have that comes closest, what it 
   - The group has an axis, `on_resize` and a custom handle look (B/resizable/panel.rs:59, 73, 111).
   - The handle is a pointer drag with a resize cursor (B/resizable/resize_handle.rs:14-16, 165-182). It has no role, focus or key handling (`grep -c -i 'role\|focus\|keybinding\|on_action'` returns 0 for both resize_handle.rs and panel.rs).
 - Ours: absent. The searches are the same as for dock. We only have resizing inside single widgets: table column drag (src/widgets/display/table.rs:86; src/widgets/display/table/live.rs:52-53, 641-652) and a `resizable` modal flag (src/widgets/display/modal.rs:49).
-- In a terminal: Panes separated by a one-cell `│` or `─` divider that highlights on hover and while dragging. We already turn on button-motion and any-motion mouse reporting (src/platform/ctlseqs.rs:43). Sizes are whole cells with a minimum. Keyboard: the divider takes focus with Tab. Arrows move it one cell, a modifier moves it further, and Home/End jump to the minimum or maximum. Screen reader: the Splitter role, which our bridge maps to a separator (src/accessibility/platform/translation/node.rs:255), with the size as its value. That is more than gpui-kit offers.
+- In a terminal: Panes separated by a one-cell `│` or `─` divider that highlights on hover and while dragging. Dragging needs button-motion mouse reporting, which only the DirectTty backend turns on today (src/backend/direct_tty.rs:69; see "Defects found" in the summary). Sizes are whole cells with a minimum. Keyboard: the divider takes focus with Tab. Arrows move it one cell, a modifier moves it further, and Home/End jump to the minimum or maximum. Screen reader: the Splitter role, which our bridge maps to a separator (src/accessibility/platform/translation/node.rs:255), with the size as its value. That is more than gpui-kit offers.
 - Call: build, medium. Split panes are basic TUI layout, and the table's drag code shows the mouse part.
 
 ### separator
