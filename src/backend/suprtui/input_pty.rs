@@ -882,12 +882,18 @@ fn inp_002_reports_and_pastes_keep_what_they_say() {
 #[test]
 fn inp_003_drags_and_the_release_stay_with_the_pressed_element() {
     let mut session = Session::start("pair", "RIGHT");
+    // Each report waits until an element has logged the one before: reports
+    // that queue up behind a slow App are merged (INP-006).
+    let element = |line: &str| line.starts_with("LEFT ") || line.starts_with("RIGHT ");
     session.send(&sgr(0, 5, 2, true));
-    for x in [20, 45, 60] {
-        session.settle(Duration::from_millis(40));
+    session.wait_for(|line| element(line) && line.contains(" Down Left "), 1);
+    for (sent, x) in [20, 45, 60].into_iter().enumerate() {
         session.send(&sgr(32, x, 2, true));
+        session.wait_for(
+            |line| element(line) && line.contains(" Drag Left "),
+            sent + 1,
+        );
     }
-    session.settle(Duration::from_millis(40));
     session.send(&sgr(0, 60, 2, false));
     session.wait_for(|line| line.contains(" Up Left "), 1);
     let events = session.events();
