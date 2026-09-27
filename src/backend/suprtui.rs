@@ -859,6 +859,9 @@ impl Drop for RawMode {
 #[cfg(test)]
 mod cursor_tests;
 
+#[cfg(all(test, unix))]
+mod input_pty;
+
 #[cfg(test)]
 mod raw_mode_tests {
     use super::RawModeOwners;
