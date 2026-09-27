@@ -12,9 +12,10 @@ The Unix input and terminal code also serves the Kitty keyboard protocol and
 the startup queries:
 
 - `KeyboardEnhancementFlags::REPORT_ASSOCIATED_TEXT` is defined; upstream
-  left it commented out. The `CSI u` parser reads the text a key types, and a
-  single character of it becomes the key's `KeyCode::Char`. Key number 0,
-  text that no known key produced, is dropped unless it is one character.
+  left it commented out. The `CSI u` parser reads the text a key types: a
+  single character becomes the key's `KeyCode::Char`, and longer text one
+  `Char` press per character. Key number 0, text that no known key produced,
+  is dropped when it carries no text.
 - The keyboard flags reply, `ESC [ ? flags u`, is read as a decimal number
   with all five bits. Upstream read the byte of its first digit.
 - `terminal::query_startup` and `StartupReplies` (Unix, `events` feature)

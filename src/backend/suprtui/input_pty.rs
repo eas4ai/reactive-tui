@@ -1196,6 +1196,28 @@ fn inp_007_keys_keep_their_kitty_meaning() {
     );
 }
 
+#[test]
+fn inp_007_text_of_several_characters_is_one_press_per_character() {
+    let mut session = Session::start_with("full", "PROBE", Terminal::KITTY);
+    // Text an input method commits, which no known key produced (key number
+    // 0), then a key whose text on its layout is two characters.
+    session.send(b"\x1b[0;;26085:26412u");
+    session.settle(Duration::from_millis(30));
+    session.send(b"\x1b[97;1;108:106u");
+    session.wait_for(|line| line.starts_with("root Key "), 4);
+    let keys = root_keys(&session);
+    assert_eq!(
+        keys,
+        [
+            "root Key Char('\u{65e5}') ----",
+            "root Key Char('\u{672c}') ----",
+            "root Key Char('l') ----",
+            "root Key Char('j') ----",
+        ],
+        "INP-007: text of several characters did not reach the App as one press per character"
+    );
+}
+
 // ---------------------------------------------------------------------------
 // INP-008: lock and media keys keep their codes; a modifier alone is no event.
 

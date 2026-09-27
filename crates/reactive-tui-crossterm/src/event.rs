@@ -305,7 +305,8 @@ bitflags! {
         const REPORT_ALL_KEYS_AS_ESCAPE_CODES = 0b0000_1000;
         /// Send the text a key types, on the current keyboard layout, as well as the
         /// keycode; the parser makes a single character of it the key's
-        /// [`KeyCode::Char`], so Shift+1 reads as `!`. Needs
+        /// [`KeyCode::Char`], so Shift+1 reads as `!`, and longer text one
+        /// [`KeyCode::Char`] press per character. Needs
         /// [`Self::REPORT_ALL_KEYS_AS_ESCAPE_CODES`].
         const REPORT_ASSOCIATED_TEXT = 0b0001_0000;
     }
@@ -1503,6 +1504,11 @@ pub(crate) enum InternalEvent {
     /// the reply to `OSC 11 ; ?`.
     #[cfg(unix)]
     BackgroundColor(u16, u16, u16),
+    /// The key events of one sequence: text of several characters that the
+    /// terminal reports for a key, one press per character. The parser
+    /// queues them one at a time, so no reader sees this variant.
+    #[cfg(unix)]
+    Keys(Vec<KeyEvent>),
 }
 
 #[cfg(test)]
