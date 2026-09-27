@@ -1182,44 +1182,13 @@ impl DirectTty {
 
     /// Detect terminal capabilities by sending queries
     fn detect_capabilities(&mut self) -> Result<()> {
-        use std::time::Duration;
-
-        // First, set up for reading responses
+        // Windows reads console input records, so it cannot read the answers,
+        // and the console would deliver them as typed keys: it sends no query
+        // and detects from the environment below.
         #[cfg(unix)]
-        {
-            // Temporarily set non-blocking for capability detection
-            self.inner.set_nonblocking(true)?;
-        }
-
-        // Send every startup capability query, ten milliseconds apart.
-        for query in sequences::STARTUP_QUERIES {
-            self.write(query)?;
-            std::thread::sleep(Duration::from_millis(10));
-        }
-
-        // Additional queries for more capabilities
-        self.write(b"\x1b[?1;2c")?; // Request terminal ID
-        std::thread::sleep(Duration::from_millis(10));
-        self.write(b"\x1b]10;?\x1b\\")?; // Query foreground color
-        std::thread::sleep(Duration::from_millis(10));
-        self.write(b"\x1b]11;?\x1b\\")?; // Query background color
-        std::thread::sleep(Duration::from_millis(10));
-
-        // Wait for responses to arrive
-        std::thread::sleep(Duration::from_millis(50));
-
-        // Read all available responses; Windows capability detection is
-        // limited and reads none.
-        #[cfg(unix)]
-        let (buffer, total_read) = self.read_capability_responses();
+        let (buffer, total_read) = self.query_capabilities()?;
         #[cfg(windows)]
-        let (buffer, total_read) = ([0u8; 8192], 0);
-
-        #[cfg(unix)]
-        {
-            // Restore blocking mode
-            self.inner.set_nonblocking(false)?;
-        }
+        let (buffer, total_read) = ([0u8; 0], 0);
 
         if total_read > 0 {
             let response = String::from_utf8_lossy(&buffer[..total_read]);
@@ -1240,6 +1209,38 @@ impl DirectTty {
         }
 
         Ok(())
+    }
+
+    /// Send the capability queries and read the terminal's answers.
+    #[cfg(unix)]
+    fn query_capabilities(&mut self) -> Result<([u8; 8192], usize)> {
+        use std::time::Duration;
+
+        // Temporarily set non-blocking for capability detection
+        self.inner.set_nonblocking(true)?;
+
+        // Send every startup capability query, ten milliseconds apart.
+        for query in sequences::STARTUP_QUERIES {
+            self.write(query)?;
+            std::thread::sleep(Duration::from_millis(10));
+        }
+
+        // Additional queries for more capabilities
+        self.write(b"\x1b[?1;2c")?; // Request terminal ID
+        std::thread::sleep(Duration::from_millis(10));
+        self.write(b"\x1b]10;?\x1b\\")?; // Query foreground color
+        std::thread::sleep(Duration::from_millis(10));
+        self.write(b"\x1b]11;?\x1b\\")?; // Query background color
+        std::thread::sleep(Duration::from_millis(10));
+
+        // Wait for responses to arrive
+        std::thread::sleep(Duration::from_millis(50));
+
+        let answers = self.read_capability_responses();
+
+        // Restore blocking mode
+        self.inner.set_nonblocking(false)?;
+        Ok(answers)
     }
 
     /// The answers to the capability queries, read for up to 200 ms and
