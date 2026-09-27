@@ -556,6 +556,3 @@ impl WindowsTty {
         Ok(())
     }
 }
-
-#[cfg(windows)]
-fn host_builds_violating_example() {}
