@@ -437,8 +437,7 @@ commitment.
 
 ## mouse-input
 
-Requirements: INP-001, INP-002, INP-003, INP-004, INP-005, INP-006,
-PNT-002, BAR-001, BAR-002, BAR-007, BAR-008
+Requirements: INP-001, INP-002, INP-003, INP-004, INP-005, INP-006, PNT-002, BAR-001, BAR-002, BAR-007, BAR-008
 
 The first half of input protocols (items 53eb7103 and dc0dc1c2, retired
 into this plan on 2026-09-27). The widget-study review found that the
