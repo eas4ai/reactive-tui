@@ -841,7 +841,12 @@ impl Component for LiveTree {
                             state.drop_target = self.pointer_inside.then_some(id);
                         }
                     }
-                    MouseEventKind::Down | MouseEventKind::Click | MouseEventKind::DoubleClick
+                    // The press activates; a DoubleClick only opens a label, so a
+                    // double click on the expander or the checkbox toggles twice,
+                    // once per press (INP-004).
+                    MouseEventKind::DoubleClick
+                        if mouse.button == MouseButton::Left && part != Part::Label => {}
+                    MouseEventKind::Down | MouseEventKind::DoubleClick
                         if mouse.button == MouseButton::Left =>
                     {
                         state.drag_source = if props.drag_drop

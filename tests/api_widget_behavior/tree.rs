@@ -449,6 +449,35 @@ fn tree_down_up_click_does_not_toggle_twice_and_release_keys_are_inert() {
     }
 }
 
+/// A double click on the expander toggles once per press; the DoubleClick
+/// the App makes from the second release does not toggle a third time.
+#[test]
+fn tree_double_click_on_the_expander_toggles_once_per_press() {
+    for size in [(24, 8), (48, 14)] {
+        let calls = Arc::new(Mutex::new(Vec::new()));
+        let sink = calls.clone();
+        let mut config = props();
+        config.on_expand = Some(Arc::new(move |id, value| {
+            sink.lock().unwrap().push((id, value))
+        }));
+        run(
+            Control(Tree::with_props(config).auto_focus()),
+            size,
+            vec![
+                (2, mouse(MouseEventKind::Down, 2, 1)),
+                (2, mouse(MouseEventKind::Up, 2, 1)),
+                (2, mouse(MouseEventKind::Down, 2, 1)),
+                (2, mouse(MouseEventKind::Up, 2, 1)),
+                (3, None),
+            ],
+        );
+        assert_eq!(
+            *calls.lock().unwrap(),
+            vec![("folder".to_string(), true), ("folder".to_string(), false)]
+        );
+    }
+}
+
 #[test]
 fn tree_changed_props_preserve_ids_and_replace_authored_flags() {
     use reactive_tui::{app::RootComponent, event::router::EventResult};
