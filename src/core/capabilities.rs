@@ -8,9 +8,6 @@ use std::time::{Duration, Instant};
 #[cfg(unix)]
 use std::os::unix::io::AsRawFd;
 
-#[cfg(windows)]
-use std::os::windows::io::AsRawHandle;
-
 /// Terminal capabilities we actually care about
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct TerminalCapabilities {

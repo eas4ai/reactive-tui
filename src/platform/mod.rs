@@ -502,6 +502,7 @@ pub type DefaultTty = windows::WindowsTty;
 pub struct DirectTty {
     inner: DefaultTty,
     capabilities: TerminalCapabilities,
+    #[cfg(unix)]
     parser: parser::EscapeSequenceParser,
 }
 
@@ -512,6 +513,7 @@ impl DirectTty {
         let mut tty = Self {
             inner,
             capabilities: TerminalCapabilities::default(),
+            #[cfg(unix)]
             parser: parser::EscapeSequenceParser::new(),
         };
 
@@ -1206,45 +1208,12 @@ impl DirectTty {
         // Wait for responses to arrive
         std::thread::sleep(Duration::from_millis(50));
 
-        // Read all available responses
-        let mut buffer = [0u8; 8192];
-        let mut total_read = 0;
-        let timeout = Duration::from_millis(200);
-
-        let start = std::time::Instant::now();
-        while start.elapsed() < timeout && total_read < buffer.len() - 1 {
-            #[cfg(unix)]
-            {
-                match self
-                    .inner
-                    .read(&mut buffer[total_read..], Some(Duration::from_millis(20)))
-                {
-                    Ok(n) if n > 0 => {
-                        total_read += n;
-                        // Continue reading if we got data
-                        std::thread::sleep(Duration::from_millis(5));
-                    }
-                    Ok(_) => {
-                        // No more data available
-                        if total_read > 0 {
-                            break; // We have some data, process it
-                        }
-                        std::thread::sleep(Duration::from_millis(10));
-                    }
-                    Err(_) => {
-                        if total_read > 0 {
-                            break; // We have some data, process it
-                        }
-                        std::thread::sleep(Duration::from_millis(10));
-                    }
-                }
-            }
-            #[cfg(windows)]
-            {
-                // Windows capability detection is limited
-                break;
-            }
-        }
+        // Read all available responses; Windows capability detection is
+        // limited and reads none.
+        #[cfg(unix)]
+        let (buffer, total_read) = self.read_capability_responses();
+        #[cfg(windows)]
+        let (buffer, total_read) = ([0u8; 8192], 0);
 
         #[cfg(unix)]
         {
@@ -1271,6 +1240,45 @@ impl DirectTty {
         }
 
         Ok(())
+    }
+
+    /// The answers to the capability queries, read for up to 200 ms and
+    /// until the terminal goes quiet after the first bytes.
+    #[cfg(unix)]
+    fn read_capability_responses(&self) -> ([u8; 8192], usize) {
+        use std::time::Duration;
+
+        let mut buffer = [0u8; 8192];
+        let mut total_read = 0;
+        let timeout = Duration::from_millis(200);
+
+        let start = std::time::Instant::now();
+        while start.elapsed() < timeout && total_read < buffer.len() - 1 {
+            match self
+                .inner
+                .read(&mut buffer[total_read..], Some(Duration::from_millis(20)))
+            {
+                Ok(n) if n > 0 => {
+                    total_read += n;
+                    // Continue reading if we got data
+                    std::thread::sleep(Duration::from_millis(5));
+                }
+                Ok(_) => {
+                    // No more data available
+                    if total_read > 0 {
+                        break; // We have some data, process it
+                    }
+                    std::thread::sleep(Duration::from_millis(10));
+                }
+                Err(_) => {
+                    if total_read > 0 {
+                        break; // We have some data, process it
+                    }
+                    std::thread::sleep(Duration::from_millis(10));
+                }
+            }
+        }
+        (buffer, total_read)
     }
 
     /// Parse terminal capability responses

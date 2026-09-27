@@ -1,5 +1,7 @@
 use super::*;
+#[cfg(unix)]
 use crate::terminal::TerminalConfig;
+#[cfg(unix)]
 use std::time::Duration;
 
 #[test]

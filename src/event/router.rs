@@ -81,6 +81,7 @@ impl Default for NodeId {
 }
 
 impl NodeId {
+    #[cfg(target_os = "linux")]
     pub(crate) fn serial(self) -> usize {
         self.0
     }
