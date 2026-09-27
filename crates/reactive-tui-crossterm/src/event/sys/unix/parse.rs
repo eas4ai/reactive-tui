@@ -28,10 +28,7 @@ pub(crate) fn parse_held(
         Ok(Some((event, used))) => {
             match event {
                 // Text of several characters: one key event per character.
-                InternalEvent::Keys(keys) => events.extend(
-                    keys.into_iter()
-                        .map(|key| InternalEvent::Event(Event::Key(key))),
-                ),
+                InternalEvent::Keys(_) => {}
                 event => events.push_back(event),
             }
             let rest = held.split_off(used);
