@@ -265,6 +265,62 @@ fn query_keyboard_enhancement_flags_raw() -> io::Result<Option<KeyboardEnhanceme
     }
 }
 
+/// What the terminal answered to the startup queries.
+#[cfg(feature = "events")]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct StartupReplies {
+    /// The keyboard enhancement flags, when the terminal reports the Kitty
+    /// keyboard protocol.
+    pub keyboard: Option<KeyboardEnhancementFlags>,
+    /// The background color, as 16-bit red, green and blue.
+    pub background: Option<(u16, u16, u16)>,
+}
+
+/// Asks the terminal for its keyboard enhancement flags and its background
+/// color, then its primary device attributes, whose reply ends the
+/// exchange, and waits at most `timeout` for the replies. Raw mode must be
+/// on. Other input read meanwhile, such as keys typed at startup, stays
+/// queued for the next read, and the replies never reach it as events.
+#[cfg(feature = "events")]
+pub fn query_startup(timeout: std::time::Duration) -> io::Result<StartupReplies> {
+    use crate::event::{filter::StartupReplyFilter, poll_internal, read_internal, InternalEvent};
+    use std::io::Write;
+    use std::time::Instant;
+
+    // ESC [ ? u      the Kitty keyboard flags
+    // ESC ] 11 ; ?   the background color, ended by ST
+    // ESC [ c        the primary device attributes, which every terminal answers
+    const QUERY: &[u8] = b"\x1B[?u\x1B]11;?\x1B\\\x1B[c";
+
+    crate::event::sys::unix::parse::STARTUP_REPLIES_PENDING
+        .store(true, std::sync::atomic::Ordering::Release);
+    let written = File::open("/dev/tty").and_then(|mut file| {
+        file.write_all(QUERY)?;
+        file.flush()
+    });
+    if written.is_err() {
+        let mut stdout = io::stdout();
+        stdout.write_all(QUERY)?;
+        stdout.flush()?;
+    }
+    let deadline = Instant::now() + timeout;
+    let mut replies = StartupReplies::default();
+    loop {
+        let remaining = deadline.saturating_duration_since(Instant::now());
+        if remaining.is_zero() || !poll_internal(Some(remaining), &StartupReplyFilter)? {
+            return Ok(replies);
+        }
+        match read_internal(&StartupReplyFilter)? {
+            InternalEvent::KeyboardEnhancementFlags(flags) => replies.keyboard = Some(flags),
+            InternalEvent::BackgroundColor(red, green, blue) => {
+                replies.background = Some((red, green, blue))
+            }
+            InternalEvent::PrimaryDeviceAttributes => return Ok(replies),
+            _ => {}
+        }
+    }
+}
+
 /// execute tput with the given argument and parse
 /// the output as a u16.
 ///

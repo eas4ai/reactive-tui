@@ -2,6 +2,7 @@ use crate::error::Result;
 use ::suprtui::render::{Backend as ByteBackend, WriteStatus};
 use crossterm::event::{
     DisableBracketedPaste, DisableMouseCapture, EnableBracketedPaste, EnableMouseCapture,
+    KeyboardEnhancementFlags, PopKeyboardEnhancementFlags, PushKeyboardEnhancementFlags,
 };
 use std::cell::RefCell;
 use std::io::{self, Write};
@@ -158,8 +159,19 @@ pub(super) enum Session {
     /// The terminal's screen, while another owner reads its input.
     Screen,
     /// The terminal's screen and its input: mouse reports and bracketed
-    /// paste as well (INP-001).
-    ScreenAndInput,
+    /// paste as well (INP-001), and the Kitty keyboard flags when the
+    /// terminal reported the protocol (INP-007).
+    ScreenAndInput { kitty: bool },
+}
+
+/// The Kitty keyboard flags INP-007 names: disambiguate, report all keys as
+/// escape codes, report associated text.
+fn kitty_flags() -> PushKeyboardEnhancementFlags {
+    PushKeyboardEnhancementFlags(
+        KeyboardEnhancementFlags::DISAMBIGUATE_ESCAPE_CODES
+            | KeyboardEnhancementFlags::REPORT_ALL_KEYS_AS_ESCAPE_CODES
+            | KeyboardEnhancementFlags::REPORT_ASSOCIATED_TEXT,
+    )
 }
 
 /// Session ownership stays separate from renderer buffers so resize cannot
@@ -184,9 +196,12 @@ impl<W: Write> TerminalOutput<W> {
             self.active = true; // Also restore if setup only partially writes.
             let mut writer = self.writer.borrow_mut();
             writer.write_all(b"\x1b[?1049h\x1b[?25l\x1b[?1004h")?;
-            if self.session == Session::ScreenAndInput {
+            if let Session::ScreenAndInput { kitty } = self.session {
                 // On Windows the mouse command sets the console input mode instead.
                 crossterm::queue!(&mut *writer, EnableMouseCapture, EnableBracketedPaste)?;
+                if kitty {
+                    crossterm::queue!(&mut *writer, kitty_flags())?;
+                }
             }
             writer.flush()?;
         }
@@ -198,7 +213,10 @@ impl<W: Write> TerminalOutput<W> {
             let mut writer = self.writer.borrow_mut();
             // ST instead of CAN here too: CAN paints a glyph on some terminals.
             writer.write_all(b"\x1b\\\x1b[?2026l\x1b[0m\x1b[?1004l")?;
-            if self.session == Session::ScreenAndInput {
+            if let Session::ScreenAndInput { kitty } = self.session {
+                if kitty {
+                    crossterm::queue!(&mut *writer, PopKeyboardEnhancementFlags)?;
+                }
                 crossterm::queue!(&mut *writer, DisableBracketedPaste, DisableMouseCapture)?;
             }
             writer.write_all(b"\x1b[0 q\x1b]112\x07\x1b[?25h\x1b[?1049l")?;

@@ -151,6 +151,10 @@ impl ScreenRuntime {
     }
 
     pub(super) fn process_event(&mut self, event: &Event) -> bool {
+        // The terminal's own focus reports are no element's focus change (INP-009).
+        if matches!(event, Event::Focus(_)) {
+            return false;
+        }
         let _wake = Scope::enter(&self.wake);
         let _scope = self.scope.enter(false);
         let notifications = crate::event::notifications::Dispatch::enter();

@@ -7,6 +7,13 @@ use crate::event::{
 
 use super::super::super::InternalEvent;
 
+/// Whether the startup queries' replies are still due: from the moment
+/// [`crate::terminal::query_startup`] writes them until the device attributes
+/// reply that ends them. Only then is `ESC ] 11 ;` read as the background
+/// color reply; the rest of the time `ESC ]` stays Alt+].
+pub(crate) static STARTUP_REPLIES_PENDING: std::sync::atomic::AtomicBool =
+    std::sync::atomic::AtomicBool::new(false);
+
 // Event parsing
 //
 // This code (& previous one) are kind of ugly. We have to think about this,
@@ -74,6 +81,15 @@ pub(crate) fn parse_event(
                         }
                     }
                     b'[' => parse_csi(buffer),
+                    // While the startup replies are due, a background color reply
+                    // arrives in one burst; Alt+] typed alone has nothing after it.
+                    b']' if STARTUP_REPLIES_PENDING.load(std::sync::atomic::Ordering::Acquire)
+                        && (input_available || buffer.len() > 2)
+                        && (b"11;".starts_with(&buffer[2..])
+                            || buffer[2..].starts_with(b"11;")) =>
+                    {
+                        parse_background_color(buffer)
+                    }
                     b'\x1B' => Ok(Some(InternalEvent::Event(Event::Key(KeyCode::Esc.into())))),
                     _ => parse_event(&buffer[1..], input_available).map(|event_option| {
                         event_option.map(|event| {
@@ -297,6 +313,7 @@ fn parse_csi_primary_device_attributes(buffer: &[u8]) -> io::Result<Option<Inter
     // exposed in the crossterm API so we don't need to parse the individual attributes yet.
     // See <https://vt100.net/docs/vt510-rm/DA1.html>
 
+    STARTUP_REPLIES_PENDING.store(false, std::sync::atomic::Ordering::Release);
     Ok(Some(InternalEvent::PrimaryDeviceAttributes))
 }
 
@@ -494,6 +511,42 @@ fn translate_functional_key_code(codepoint: u32) -> Option<(KeyCode, KeyEventSta
     None
 }
 
+/// The reply to `OSC 11 ; ?`: `ESC ] 11 ; rgb:R/G/B`, ended by BEL or ST,
+/// each channel one to four hex digits, scaled to 16 bits. Anything else
+/// after `ESC ] 11 ;` is dropped.
+fn parse_background_color(buffer: &[u8]) -> io::Result<Option<InternalEvent>> {
+    assert!(buffer.starts_with(b"\x1B]")); // ESC ]
+    let body = &buffer[2..];
+    let text = if let Some(text) = body.strip_suffix(b"\x07") {
+        text
+    } else if let Some(text) = body.strip_suffix(b"\x1B\\") {
+        text
+    } else if body.len() > 64 {
+        return Err(could_not_parse_event_error());
+    } else {
+        return Ok(None);
+    };
+    let channels: Vec<u16> = std::str::from_utf8(text)
+        .ok()
+        .and_then(|text| text.strip_prefix("11;rgb:"))
+        .map(|rgb| {
+            rgb.split('/')
+                .filter_map(|hex| {
+                    let digits = u32::try_from(hex.len())
+                        .ok()
+                        .filter(|n| (1..=4).contains(n))?;
+                    let value = u32::from_str_radix(hex, 16).ok()?;
+                    Some((value * 0xFFFF / ((1 << (4 * digits)) - 1)) as u16)
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+    match channels[..] {
+        [red, green, blue] => Ok(Some(InternalEvent::BackgroundColor(red, green, blue))),
+        _ => Err(could_not_parse_event_error()),
+    }
+}
+
 pub(crate) fn parse_csi_u_encoded_key_code(buffer: &[u8]) -> io::Result<Option<InternalEvent>> {
     assert!(buffer.starts_with(b"\x1B[")); // ESC [
     assert!(buffer.ends_with(b"u"));
@@ -603,6 +656,20 @@ pub(crate) fn parse_csi_u_encoded_key_code(buffer: &[u8]) -> io::Result<Option<I
         {
             keycode = KeyCode::Char(shifted_c);
             modifiers.set(KeyModifiers::SHIFT, false);
+        }
+    }
+
+    // With the "report associated text" flag, a key that types text carries it
+    // as codepoints in a third field: the text on the current layout, such as
+    // `!` for Shift+1, which the key code alone does not tell. A single
+    // character becomes the key; longer text keeps the key code.
+    if let (KeyCode::Char(_), Some(text)) = (keycode, split.next()) {
+        let mut typed = text
+            .split(':')
+            .filter_map(|codepoint| codepoint.parse::<u32>().ok())
+            .filter_map(char::from_u32);
+        if let (Some(c), None) = (typed.next(), typed.next()) {
+            keycode = KeyCode::Char(c);
         }
     }
 
@@ -1502,5 +1569,64 @@ mod tests {
                 KeyEventKind::Release,
             )))),
         );
+    }
+
+    #[test]
+    fn test_parse_csi_u_encoded_key_code_with_associated_text() {
+        // Shift+1 on a US layout types `!`.
+        assert_eq!(
+            parse_csi_u_encoded_key_code(b"\x1B[49;2;33u").unwrap(),
+            Some(InternalEvent::Event(Event::Key(KeyEvent::new(
+                KeyCode::Char('!'),
+                KeyModifiers::SHIFT,
+            )))),
+        );
+        // Text of two characters keeps the key code.
+        assert_eq!(
+            parse_csi_u_encoded_key_code(b"\x1B[97;1;97:98u").unwrap(),
+            Some(InternalEvent::Event(Event::Key(KeyEvent::new(
+                KeyCode::Char('a'),
+                KeyModifiers::empty(),
+            )))),
+        );
+    }
+
+    #[test]
+    fn test_parse_background_color_only_while_the_startup_replies_are_due() {
+        use std::sync::atomic::Ordering;
+        STARTUP_REPLIES_PENDING.store(false, Ordering::Release);
+        // Not due: ESC ] is Alt+], as before.
+        assert_eq!(
+            parse_event(b"\x1B]", true).unwrap(),
+            Some(InternalEvent::Event(Event::Key(KeyEvent::new(
+                KeyCode::Char(']'),
+                KeyModifiers::ALT,
+            )))),
+        );
+        STARTUP_REPLIES_PENDING.store(true, Ordering::Release);
+        assert_eq!(parse_event(b"\x1B]11;rgb:ff", true).unwrap(), None);
+        assert_eq!(
+            parse_event(b"\x1B]11;rgb:ffff/ffff/ffff\x1B\\", false).unwrap(),
+            Some(InternalEvent::BackgroundColor(0xFFFF, 0xFFFF, 0xFFFF)),
+        );
+        assert_eq!(
+            parse_event(b"\x1B]11;rgb:80/00/ff\x07", false).unwrap(),
+            Some(InternalEvent::BackgroundColor(0x8080, 0, 0xFFFF)),
+        );
+        assert!(parse_event(b"\x1B]11;cmy:0/0/0\x07", false).is_err());
+        // Typed alone, with nothing after it, Alt+] stays a key.
+        assert_eq!(
+            parse_event(b"\x1B]", false).unwrap(),
+            Some(InternalEvent::Event(Event::Key(KeyEvent::new(
+                KeyCode::Char(']'),
+                KeyModifiers::ALT,
+            )))),
+        );
+        // The device attributes reply ends the exchange.
+        assert_eq!(
+            parse_event(b"\x1B[?62;22c", false).unwrap(),
+            Some(InternalEvent::PrimaryDeviceAttributes),
+        );
+        assert!(!STARTUP_REPLIES_PENDING.load(Ordering::Acquire));
     }
 }

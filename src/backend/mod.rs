@@ -119,6 +119,13 @@ pub trait Backend: Send + Sync {
     fn shutdown(&mut self) -> Result<()> {
         Ok(())
     }
+    /// Suspend the process, as Ctrl+Z asks on Unix: leave the terminal as
+    /// at exit, stop, and enter it again when the process continues (INP-010).
+    /// A backend that owns no terminal does nothing (default); wrappers should
+    /// forward this method.
+    fn suspend(&mut self) -> Result<()> {
+        Ok(())
+    }
     /// Restore an owned session after a panic and report through its output channel.
     /// Built-in terminal backends replay the message after restoration. Custom
     /// backends default to shutdown and logging; wrappers should forward this method.
@@ -274,6 +281,21 @@ impl CrosstermBackend {
             C::Esc => R::Escape,
             C::Char(c) => R::Char(c),
             C::F(n) => R::F(n),
+            C::CapsLock => R::CapsLock,
+            C::NumLock => R::NumLock,
+            C::ScrollLock => R::ScrollLock,
+            C::Media(media) => {
+                use crossterm::event::MediaKeyCode as M;
+                match media {
+                    M::Play => R::MediaPlay,
+                    M::Pause => R::MediaPause,
+                    M::PlayPause => R::MediaPlayPause,
+                    M::Stop => R::MediaStop,
+                    M::TrackNext => R::MediaNext,
+                    M::TrackPrevious => R::MediaPrevious,
+                    _ => R::Unknown,
+                }
+            }
             _ => R::Unknown,
         }
     }
@@ -310,6 +332,8 @@ impl CrosstermBackend {
     fn map_ct_event(e: crossterm::event::Event) -> Option<rt_event::Event> {
         use crossterm::event::Event as CE;
         match e {
+            // A modifier key pressed alone is no key the App acts on (INP-008).
+            CE::Key(ke) if matches!(ke.code, crossterm::event::KeyCode::Modifier(_)) => None,
             CE::Key(ke) => {
                 let mut ev = rt_event::KeyEvent::new(Self::map_ct_key_code(ke.code))
                     .with_modifiers(Self::map_ct_key_mods(ke.modifiers))
@@ -424,6 +448,9 @@ impl Backend for CrosstermBackend {
     }
     fn shutdown(&mut self) -> Result<()> {
         self.inner.shutdown()
+    }
+    fn suspend(&mut self) -> Result<()> {
+        self.inner.suspend()
     }
     fn shutdown_after_panic(&mut self, message: &str) -> Result<()> {
         self.inner.shutdown_after_panic(message)

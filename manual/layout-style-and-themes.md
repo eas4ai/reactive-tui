@@ -34,6 +34,9 @@ styles, applies clipping and stacking, and writes the resulting cells and
 placement metadata.
 
 Theme extension starts from a base theme and replaces selected variables.
+When the application has set no theme and the terminal reports a light
+background (relative luminance above 0.5), the default backend on Unix makes
+the light preset active before the first frame.
 Utility classes are applied in input order, so later compatible utilities can
 replace earlier values.
 
