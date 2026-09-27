@@ -298,6 +298,50 @@ fn tree_drop_moves_owned_nodes_and_rejects_descendant_cycles() {
     }
 }
 
+/// A drag held by its press reaches the tree at the tree's nearest cell once
+/// the pointer leaves it (INP-003); a release above the tree drops nothing.
+#[test]
+fn tree_drop_released_outside_the_tree_moves_nothing() {
+    use reactive_tui::builder::core::div;
+    for size in [(24, 10), (48, 14)] {
+        let calls = Arc::new(Mutex::new(Vec::new()));
+        let sink = calls.clone();
+        let mut config = props();
+        config.drag_drop = true;
+        config.on_node_action = Some(Arc::new(move |id, action| {
+            sink.lock().unwrap().push(format!("{id}:{action}"))
+        }));
+        // Rows 0-2 hold the banner; the tree's Root, Folder and Other follow.
+        let scene = div()
+            .class("flex flex-col w-full h-full")
+            .children(vec![
+                div().class("h-3").text("ABOVE").build(),
+                Tree::with_props(config),
+            ])
+            .build();
+        let frames = run(
+            Control(scene),
+            size,
+            vec![
+                (2, mouse(MouseEventKind::Down, 5, 4)),
+                (2, mouse(MouseEventKind::Drag, 5, 1)),
+                (3, mouse(MouseEventKind::Up, 5, 1)),
+                (4, None),
+            ],
+        );
+        assert_eq!(
+            *calls.lock().unwrap(),
+            Vec::<String>::new(),
+            "a release above the tree must not drop the dragged node"
+        );
+        let last = &frames.last().unwrap().text;
+        assert!(
+            last.find("Folder").unwrap() < last.find("Other").unwrap(),
+            "{last}"
+        );
+    }
+}
+
 #[test]
 fn tree_empty_disabled_and_invalid_roots_are_observable_and_inert() {
     for size in [(24, 8), (48, 14)] {

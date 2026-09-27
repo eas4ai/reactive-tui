@@ -55,6 +55,10 @@ pub(super) struct LiveTree {
     targets: Arc<Mutex<Vec<(String, Part, LayoutInfo)>>>,
     cursor: Option<String>,
     last_press: Option<(String, Part)>,
+    /// Whether the pointer is over the tree, between Enter and Leave. A drag
+    /// or release held by a press elsewhere reaches the tree at its nearest
+    /// cell (INP-003), so only this says whether a drop is on the tree.
+    pointer_inside: bool,
     loaded: HashSet<String>,
     scroll: usize,
     error: Option<String>,
@@ -620,6 +624,7 @@ impl Component for LiveTree {
             targets: Arc::default(),
             cursor: None,
             last_press: None,
+            pointer_inside: false,
             loaded: HashSet::new(),
             scroll: 0,
         }
@@ -789,10 +794,18 @@ impl Component for LiveTree {
                     }
                     return EventResult::Ignored;
                 }
+                match mouse.kind {
+                    MouseEventKind::Enter | MouseEventKind::Move | MouseEventKind::Down => {
+                        self.pointer_inside = true
+                    }
+                    MouseEventKind::Leave => self.pointer_inside = false,
+                    _ => {}
+                }
                 if mouse.kind == MouseEventKind::Up {
                     if let Some(source) = state.drag_source.take() {
-                        if let Some((target, _)) =
-                            self.target(mouse).filter(|_| state.drop_target.is_some())
+                        if let Some((target, _)) = self
+                            .target(mouse)
+                            .filter(|_| state.drop_target.is_some() && self.pointer_inside)
                         {
                             self.move_node(props, state, &source, &target);
                         }
@@ -825,7 +838,7 @@ impl Component for LiveTree {
                         if props.drag_drop && mouse.button == MouseButton::Left =>
                     {
                         if state.drag_source.is_some() {
-                            state.drop_target = Some(id);
+                            state.drop_target = self.pointer_inside.then_some(id);
                         }
                     }
                     MouseEventKind::Down | MouseEventKind::Click | MouseEventKind::DoubleClick
