@@ -73,8 +73,10 @@ impl Runtime {
         if data.drag.is_none() {
             return EventResult::Ignored;
         }
+        // Motion with no button held means the release was lost, as the
+        // router reads it too (INP-003).
         if matches!(event, Event::Focus(focus) if focus.kind == FocusEventKind::Lost)
-            || matches!(event, Event::Mouse(mouse) if matches!(mouse.kind, MouseEventKind::Up | MouseEventKind::Leave))
+            || matches!(event, Event::Mouse(mouse) if matches!(mouse.kind, MouseEventKind::Up | MouseEventKind::Leave | MouseEventKind::Move))
         {
             data.drag = None;
             data.observed.dragging = false;
@@ -85,7 +87,7 @@ impl Runtime {
         let Event::Mouse(mouse) = event else {
             return EventResult::Ignored;
         };
-        if !matches!(mouse.kind, MouseEventKind::Move | MouseEventKind::Drag) {
+        if mouse.kind != MouseEventKind::Drag {
             return EventResult::Ignored;
         }
         let Position::Cell { x, y } = mouse.position else {

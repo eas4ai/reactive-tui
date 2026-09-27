@@ -241,7 +241,7 @@ fn modal_title_drag_follows_pointer_and_stops_on_release() {
             size,
             vec![
                 (3, click(3, 2)),
-                (4, motion(MouseEventKind::Move, 7, 4)),
+                (4, motion(MouseEventKind::Drag, 7, 4)),
                 (5, motion(MouseEventKind::Up, 7, 4)),
                 (6, motion(MouseEventKind::Move, 9, 7)),
                 (6, None),
@@ -288,7 +288,7 @@ fn modal_resize_handles_change_all_edges() {
                 size,
                 vec![
                     (3, click(start.0, start.1)),
-                    (4, motion(MouseEventKind::Move, end.0, end.1)),
+                    (4, motion(MouseEventKind::Drag, end.0, end.1)),
                     (5, motion(MouseEventKind::Up, end.0, end.1)),
                     (6, None),
                 ],
@@ -780,7 +780,7 @@ fn modal_dismissal_flags_preserve_explicit_action_buttons() {
 }
 
 #[test]
-fn modal_drag_clamps_to_viewport_and_cancels_on_focus_loss() {
+fn modal_drag_clamps_to_viewport_and_ends_when_the_release_is_lost() {
     use reactive_tui::event::types::{Event, FocusEvent, FocusEventKind, MouseEventKind};
     for size in [(24, 12), (48, 20)] {
         let config = ModalProps {
@@ -794,7 +794,10 @@ fn modal_drag_clamps_to_viewport_and_cancels_on_focus_loss() {
             size,
             vec![
                 (3, click(3, 2)),
-                (4, motion(MouseEventKind::Move, size.0 - 1, size.1 - 1)),
+                (4, motion(MouseEventKind::Drag, size.0 - 1, size.1 - 1)),
+                // The terminal loses focus and the release never arrives: its
+                // focus report reaches no element (INP-009), and the motion
+                // with no button held ends the drag.
                 (
                     5,
                     Some(Event::Focus(FocusEvent {
