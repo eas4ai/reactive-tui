@@ -185,7 +185,7 @@ impl SuprTuiBackend {
         // Windows reads console input records, which cannot carry the replies.
         #[cfg(not(unix))]
         let replies = StartupReplies::default();
-        follow_terminal_background(replies.background);
+        let _ = replies.background;
         let session = Session::ScreenAndInput {
             kitty: replies.keyboard.is_some(),
         };
