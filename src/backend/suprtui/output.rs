@@ -256,11 +256,16 @@ mod tests {
         assert!(!writer.borrow().contains(&0x18));
     }
 
-    /// INP-001 on Windows, where crossterm's mouse commands set the console
-    /// input mode instead of writing bytes. Needs a console, as over SSH.
+    /// INP-001 on Windows, where crossterm's mouse command and raw mode both
+    /// set the console input mode, and the mouse command's restore puts back
+    /// the raw mode it saved. After a normal shutdown and after a panic
+    /// shutdown the backend must leave the mode it found. Needs a console, as
+    /// over SSH. The only test in this binary that turns the mouse on: crossterm
+    /// keeps the first mode it saves for the whole process.
     #[cfg(windows)]
     #[test]
-    fn windows_input_session_sets_and_restores_the_console_mouse_mode() {
+    fn windows_backend_restores_the_console_input_mode_after_each_exit() {
+        use crate::backend::{Backend, SuprTuiBackend};
         use windows_sys::Win32::Foundation::{
             CloseHandle, GENERIC_READ, GENERIC_WRITE, INVALID_HANDLE_VALUE,
         };
@@ -268,7 +273,7 @@ mod tests {
             CreateFileW, FILE_SHARE_READ, FILE_SHARE_WRITE, OPEN_EXISTING,
         };
         use windows_sys::Win32::System::Console::{
-            GetConsoleMode, ENABLE_MOUSE_INPUT, ENABLE_QUICK_EDIT_MODE,
+            GetConsoleMode, ENABLE_LINE_INPUT, ENABLE_MOUSE_INPUT, ENABLE_QUICK_EDIT_MODE,
         };
 
         fn console_input_mode() -> u32 {
@@ -295,25 +300,29 @@ mod tests {
         }
 
         let before = console_input_mode();
-        let writer = Rc::new(RefCell::new(Vec::<u8>::new()));
-        let mut session = TerminalOutput::new(Rc::clone(&writer), Session::ScreenAndInput);
-        session.enter().unwrap();
-        let during = console_input_mode();
-        session.restore().unwrap();
-        let after = console_input_mode();
-        assert!(
-            during & ENABLE_MOUSE_INPUT != 0 && during & ENABLE_QUICK_EDIT_MODE == 0,
-            "INP-001: the session left the console input mode at {during:#x}"
-        );
-        assert_eq!(
-            after, before,
-            "INP-001: restore left the console input mode at {after:#x}, not {before:#x}"
-        );
-        let bytes = String::from_utf8_lossy(&writer.borrow()).into_owned();
-        assert!(
-            bytes.contains("\x1b[?2004h") && bytes.ends_with("\x1b[?1049l"),
-            "INP-001: the session wrote {bytes:?}"
-        );
-        assert!(bytes.rfind("\x1b[?2004l") > bytes.rfind("\x1b[?2004h"));
+        for panic in [false, true] {
+            let mut backend = SuprTuiBackend::new().expect("the default backend on this console");
+            let during = console_input_mode();
+            assert!(
+                during & ENABLE_MOUSE_INPUT != 0
+                    && during & ENABLE_QUICK_EDIT_MODE == 0
+                    && during & ENABLE_LINE_INPUT == 0,
+                "INP-001: the running backend left the console input mode at {during:#x}"
+            );
+            if panic {
+                backend
+                    .shutdown_after_panic("the panic-exit case")
+                    .expect("a panic shutdown");
+            } else {
+                backend.shutdown().expect("a normal shutdown");
+            }
+            let after = console_input_mode();
+            assert_eq!(
+                after,
+                before,
+                "INP-001: after a {} shutdown the console input mode is {after:#x}, not {before:#x}",
+                if panic { "panic" } else { "normal" }
+            );
+        }
     }
 }
