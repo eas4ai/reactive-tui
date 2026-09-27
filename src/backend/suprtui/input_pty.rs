@@ -433,6 +433,8 @@ struct Terminal {
     background: Option<&'static str>,
     silent: bool,
     hold: Duration,
+    /// Keys typed just before the replies, in the same write as the first.
+    typed_with_replies: &'static [u8],
 }
 
 impl Terminal {
@@ -442,6 +444,7 @@ impl Terminal {
         background: None,
         silent: false,
         hold: Duration::ZERO,
+        typed_with_replies: b"",
     };
     /// Also reports the Kitty keyboard protocol.
     const KITTY: Terminal = Terminal {
@@ -577,7 +580,12 @@ impl Session {
         {
             while self.replied[index] < asked[index] {
                 if let Some(reply) = &reply {
-                    self.send(reply);
+                    let typed = if self.replied == [0; 3] {
+                        self.terminal.typed_with_replies
+                    } else {
+                        b""
+                    };
+                    self.send(&[typed, reply].concat());
                 }
                 self.replied[index] += 1;
             }
@@ -1389,13 +1397,38 @@ fn inp_011_replies_are_not_keys_and_typed_keys_keep_their_order() {
         "startup query",
         Duration::from_secs(5),
     );
-    session.send(b"ab");
+    // Alt+] is how the background color reply starts; the key after it is kept.
+    session.send(b"a\x1b]xb");
     session.until(|session| session.text().contains("PROBE"), "first frame");
-    session.wait_for(|line| line.starts_with("root Key "), 2);
+    session.wait_for(|line| line.starts_with("root Key "), 4);
     let keys = root_keys(&session);
     assert!(
-        keys == ["root Key Char('a') ----", "root Key Char('b') ----"],
+        keys == [
+            "root Key Char('a') ----",
+            "root Key Char(']') --A-",
+            "root Key Char('x') ----",
+            "root Key Char('b') ----"
+        ],
         "INP-011: keys typed while the replies were pending, and the replies, reached the App as {keys:?}"
+    );
+}
+
+#[test]
+fn inp_011_an_escape_read_with_the_replies_leaves_them_replies() {
+    let terminal = Terminal {
+        background: Some(WHITE),
+        typed_with_replies: b"\x1b",
+        ..Terminal::KITTY
+    };
+    let mut session = Session::start_with("theme", "PROBE", terminal);
+    session.wait_for(|line| line.starts_with("root Key "), 1);
+    let keys = root_keys(&session);
+    let pushed = session.count(KITTY_PUSH.as_bytes()) > 0;
+    let theme = first_theme(&session);
+    assert!(
+        keys == ["root Key Escape ----"] && pushed && theme.as_deref() == Some("THEME light"),
+        "INP-011: an Escape read with the replies gave the keys {keys:?}, the keyboard flags {}, and {theme:?}",
+        if pushed { "pushed" } else { "not pushed" }
     );
 }
 

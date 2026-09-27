@@ -10,9 +10,68 @@ use super::super::super::InternalEvent;
 /// Whether the startup queries' replies are still due: from the moment
 /// [`crate::terminal::query_startup`] writes them until the device attributes
 /// reply that ends them. Only then is `ESC ] 11 ;` read as the background
-/// color reply; the rest of the time `ESC ]` stays Alt+].
+/// color reply, and is a key read together with a reply split from it (see
+/// [`parse_held`]); the rest of the time `ESC ]` stays Alt+].
 pub(crate) static STARTUP_REPLIES_PENDING: std::sync::atomic::AtomicBool =
     std::sync::atomic::AtomicBool::new(false);
+
+/// Parses the bytes held so far into `events`, as the event source's parser
+/// feeds them one at a time. An event that used only the front of the bytes
+/// leaves the rest to be parsed again (see [`parse_event_prefix`]); bytes
+/// that do not parse are dropped, as before.
+pub(crate) fn parse_held(
+    held: &mut Vec<u8>,
+    events: &mut std::collections::VecDeque<InternalEvent>,
+    more: bool,
+) {
+    match parse_event_prefix(held, more) {
+        Ok(Some((event, used))) => {
+            events.push_back(event);
+            let rest = held.split_off(used);
+            held.clear();
+            let last = rest.len();
+            for (idx, byte) in rest.into_iter().enumerate() {
+                held.push(byte);
+                parse_held(held, events, idx + 1 < last || more);
+            }
+        }
+        Ok(None) => {}
+        Err(_) => held.clear(),
+    }
+}
+
+/// [`parse_event`], with how many bytes the event used. While the startup
+/// replies are due, a key read in the same chunk as another sequence ends
+/// where that sequence starts, so neither the next key nor a reply is lost:
+/// Alt+] followed by anything but a background color reply, and Escape
+/// followed by a CSI or OSC sequence.
+fn parse_event_prefix(
+    buffer: &[u8],
+    input_available: bool,
+) -> io::Result<Option<(InternalEvent, usize)>> {
+    if STARTUP_REPLIES_PENDING.load(std::sync::atomic::Ordering::Acquire)
+        && buffer.first() == Some(&b'\x1B')
+    {
+        let key = |event: KeyEvent| InternalEvent::Event(Event::Key(event));
+        match buffer[1..] {
+            [b']', ref tail @ ..] if !tail.is_empty() && !is_background_reply_start(tail) => {
+                let alt = KeyEvent::new(KeyCode::Char(']'), KeyModifiers::ALT);
+                return Ok(Some((key(alt), 2)));
+            }
+            [b'\x1B'] if input_available => return Ok(None),
+            [b'\x1B', b'[' | b']', ..] => return Ok(Some((key(KeyCode::Esc.into()), 1))),
+            [b'\x1B', _, ..] => return Ok(Some((key(KeyCode::Esc.into()), 2))),
+            _ => {}
+        }
+    }
+    Ok(parse_event(buffer, input_available)?.map(|event| (event, buffer.len())))
+}
+
+/// Whether the bytes after `ESC ]` are, or can still become, `11;`, the start
+/// of the background color reply.
+fn is_background_reply_start(tail: &[u8]) -> bool {
+    b"11;".starts_with(tail) || tail.starts_with(b"11;")
+}
 
 // Event parsing
 //
@@ -81,12 +140,11 @@ pub(crate) fn parse_event(
                         }
                     }
                     b'[' => parse_csi(buffer),
-                    // While the startup replies are due, a background color reply
-                    // arrives in one burst; Alt+] typed alone has nothing after it.
+                    // While the startup replies are due, `ESC ] 11 ;` starts the
+                    // background color reply, also when a read ends inside it;
+                    // parse_event_prefix splits Alt+] from anything else.
                     b']' if STARTUP_REPLIES_PENDING.load(std::sync::atomic::Ordering::Acquire)
-                        && (input_available || buffer.len() > 2)
-                        && (b"11;".starts_with(&buffer[2..])
-                            || buffer[2..].starts_with(b"11;")) =>
+                        && is_background_reply_start(&buffer[2..]) =>
                     {
                         parse_background_color(buffer)
                     }
@@ -1594,6 +1652,9 @@ mod tests {
     #[test]
     fn test_parse_background_color_only_while_the_startup_replies_are_due() {
         use std::sync::atomic::Ordering;
+        let _turn = STARTUP_FLAG
+            .lock()
+            .unwrap_or_else(|error| error.into_inner());
         STARTUP_REPLIES_PENDING.store(false, Ordering::Release);
         // Not due: ESC ] is Alt+], as before.
         assert_eq!(
@@ -1614,19 +1675,73 @@ mod tests {
             Some(InternalEvent::BackgroundColor(0x8080, 0, 0xFFFF)),
         );
         assert!(parse_event(b"\x1B]11;cmy:0/0/0\x07", false).is_err());
-        // Typed alone, with nothing after it, Alt+] stays a key.
-        assert_eq!(
-            parse_event(b"\x1B]", false).unwrap(),
-            Some(InternalEvent::Event(Event::Key(KeyEvent::new(
-                KeyCode::Char(']'),
-                KeyModifiers::ALT,
-            )))),
-        );
+        // A read may end right after ESC ]: it waits for what follows.
+        assert_eq!(parse_event(b"\x1B]", false).unwrap(), None);
         // The device attributes reply ends the exchange.
         assert_eq!(
             parse_event(b"\x1B[?62;22c", false).unwrap(),
             Some(InternalEvent::PrimaryDeviceAttributes),
         );
         assert!(!STARTUP_REPLIES_PENDING.load(Ordering::Acquire));
+    }
+
+    /// The tests that set the process-wide startup flag take turns.
+    static STARTUP_FLAG: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+    /// The events `chunks` make, each chunk one read, as the parser feeds them.
+    fn held_events(chunks: &[&[u8]]) -> Vec<InternalEvent> {
+        let mut held = Vec::new();
+        let mut events = std::collections::VecDeque::new();
+        for chunk in chunks {
+            for (idx, byte) in chunk.iter().enumerate() {
+                held.push(*byte);
+                parse_held(&mut held, &mut events, idx + 1 < chunk.len());
+            }
+        }
+        events.into()
+    }
+
+    #[test]
+    fn test_keys_read_with_the_startup_replies_stay_apart_from_them() {
+        use std::sync::atomic::Ordering;
+        let _turn = STARTUP_FLAG
+            .lock()
+            .unwrap_or_else(|error| error.into_inner());
+        let key =
+            |code, modifiers| InternalEvent::Event(Event::Key(KeyEvent::new(code, modifiers)));
+        let alt_bracket = key(KeyCode::Char(']'), KeyModifiers::ALT);
+        let x = key(KeyCode::Char('x'), KeyModifiers::NONE);
+        let esc = key(KeyCode::Esc, KeyModifiers::NONE);
+        STARTUP_REPLIES_PENDING.store(true, Ordering::Release);
+        // Alt+] and the key typed after it, in one read.
+        assert_eq!(held_events(&[b"\x1B]x"]), [alt_bracket.clone(), x.clone()]);
+        // Alt+] read with the background color reply.
+        assert_eq!(
+            held_events(&[b"\x1B]\x1B]11;rgb:ffff/ffff/ffff\x07"]),
+            [
+                alt_bracket.clone(),
+                InternalEvent::BackgroundColor(0xFFFF, 0xFFFF, 0xFFFF)
+            ],
+        );
+        // Escape read with the keyboard flags reply.
+        assert_eq!(
+            held_events(&[b"\x1B\x1B[?0u"]),
+            [
+                esc.clone(),
+                InternalEvent::KeyboardEnhancementFlags(KeyboardEnhancementFlags::empty())
+            ],
+        );
+        // Escape before a key that starts no sequence: Escape and the key.
+        assert_eq!(held_events(&[b"\x1B\x1Bx"]), [esc.clone(), x.clone()]);
+        // A background color reply split right after ESC ].
+        assert_eq!(
+            held_events(&[b"\x1B]", b"11;rgb:ffff/ffff/ffff\x07"]),
+            [InternalEvent::BackgroundColor(0xFFFF, 0xFFFF, 0xFFFF)],
+        );
+        STARTUP_REPLIES_PENDING.store(false, Ordering::Release);
+        // Not due: Alt+] and the key after it, as before.
+        assert_eq!(held_events(&[b"\x1B]x"]), [alt_bracket, x]);
+        // Not due: Escape Escape is one Escape, as before.
+        assert_eq!(held_events(&[b"\x1B\x1B"]), [esc]);
     }
 }
