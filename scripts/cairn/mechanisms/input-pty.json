@@ -1,0 +1,30 @@
+{
+  "command": "python3 -B scripts/cairn/input_pty.py",
+  "inputs": [
+    "Cargo.lock",
+    "Cargo.toml",
+    "build.rs",
+    "crates",
+    "scripts/cairn",
+    "src"
+  ],
+  "requirements": [
+    "INP-001",
+    "INP-002",
+    "INP-003",
+    "INP-004",
+    "INP-005",
+    "INP-006"
+  ],
+  "results": "per-requirement",
+  "identity": {
+    "tools": {
+      "rustc": "rustc --version",
+      "cargo": "cargo --version"
+    },
+    "env": [
+      "TERM"
+    ],
+    "image": null
+  }
+}
