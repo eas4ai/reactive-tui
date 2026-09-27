@@ -1,0 +1,26 @@
+{
+  "command": "python3 -B scripts/cairn/host_builds.py",
+  "inputs": [
+    "Cargo.lock",
+    "Cargo.toml",
+    "benches",
+    "build.rs",
+    "crates",
+    "examples",
+    "scripts/cairn",
+    "src",
+    "tests"
+  ],
+  "requirements": [
+    "BAR-009"
+  ],
+  "results": "per-requirement",
+  "identity": {
+    "tools": {
+      "ssh": "ssh -V 2>&1",
+      "hosts": "sha256sum < \"$HOME/.config/reactive-tui/test-hosts.json\""
+    },
+    "env": [],
+    "image": null
+  }
+}

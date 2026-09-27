@@ -31,6 +31,8 @@ use std::time::{Duration, Instant};
 const SCENARIO: &str = "REACTIVE_TUI_INPUT_PTY_SCENARIO";
 /// The file the copy's elements append their events to.
 const LOG: &str = "REACTIVE_TUI_INPUT_PTY_LOG";
+/// Set in the job the suspend scenario's shell starts.
+const INNER: &str = "REACTIVE_TUI_INPUT_PTY_INNER";
 /// The child test's path as libtest prints it.
 const CHILD: &str = "backend::suprtui::input_pty::smoke_input_pty_child";
 const COLUMNS: u16 = 80;
@@ -39,6 +41,17 @@ const ROWS: u16 = 24;
 const DEADLINE: Duration = Duration::from_secs(30);
 const CURSOR_QUERY: &[u8] = b"\x1b[6n";
 const CURSOR_REPORT: &[u8] = b"\x1b[1;1R";
+/// The Kitty keyboard protocol query and a reply that reports it.
+const KEYBOARD_QUERY: &[u8] = b"\x1b[?u";
+const KEYBOARD_REPLY: &[u8] = b"\x1b[?0u";
+/// The background color query, terminated by BEL or ST.
+const BACKGROUND_QUERY: &[u8] = b"\x1b]11;?";
+/// The primary device attributes query and a VT220-style reply.
+const ATTRIBUTES_QUERY: &[u8] = b"\x1b[c";
+const ATTRIBUTES_REPLY: &[u8] = b"\x1b[?62;22c";
+/// The Kitty keyboard flags INP-007 names: 1, 8 and 16.
+const KITTY_PUSH: &str = "\x1b[>25u";
+const KITTY_POP: &str = "\x1b[<u";
 /// The DECSET modes INP-001 names, in the order crossterm writes them.
 const MODES: [&str; 6] = ["1000", "1002", "1003", "1015", "1006", "2004"];
 
@@ -52,9 +65,21 @@ fn smoke_input_pty_child() {
         eprintln!("SKIP: run by the INP pseudo-terminal tests with {SCENARIO} set");
         return;
     };
+    run_scenario(&scenario.to_string_lossy());
+}
+
+/// Runs one scenario: the suspend scenario as a shell around a job that runs
+/// it again, every other one as an App on this terminal.
+fn run_scenario(scenario: &str) {
+    if scenario == "suspend" && std::env::var_os(INNER).is_none() {
+        return job_shell();
+    }
+    if scenario == "theme-set" {
+        crate::theme::Theme::set_active(crate::theme::high_contrast_theme());
+    }
     let app = App::builder()
         .backend(SuprTuiBackend::new().expect("the default backend on the pseudo-terminal"))
-        .root(Scenario(scenario.to_string_lossy().into_owned()))
+        .root(Scenario(scenario.to_owned()))
         .quit_key(KeyCode::Char('q'), KeyModifiers::empty())
         .build()
         .expect("the scenario's App");
@@ -63,6 +88,65 @@ fn smoke_input_pty_child() {
     // What the shell would read next; mouse_reports_queued_at_exit_are_discarded
     // checks it after its exit.
     log(format!("LEFTOVER {}", queued_input_bytes()));
+}
+
+/// Runs the scenario again as a job in its own foreground process group, as
+/// a shell does: the copy leads its own session, and a stop signal sent to
+/// the orphaned group of a session leader is discarded. When the job stops
+/// this logs STOPPED with the terminal's line mode, takes the terminal back,
+/// and after 100 ms hands it over again, continues the job and logs
+/// CONTINUED.
+fn job_shell() {
+    use std::os::fd::AsRawFd;
+    use std::os::unix::process::CommandExt;
+    let tty = std::fs::File::open("/dev/tty").expect("the controlling terminal");
+    let fd = tty.as_raw_fd();
+    let mut command = Command::new(std::env::current_exe().expect("the test binary's path"));
+    command
+        .args([
+            CHILD,
+            "--exact",
+            "--nocapture",
+            "--test-threads=1",
+            "--color=never",
+        ])
+        .env(INNER, "1");
+    // SAFETY: only async-signal-safe calls between fork and exec; the job
+    // makes its own group the terminal's foreground before it reads.
+    unsafe {
+        command.pre_exec(|| {
+            libc::signal(libc::SIGTTOU, libc::SIG_IGN);
+            if libc::setpgid(0, 0) < 0 || libc::tcsetpgrp(0, libc::getpid()) < 0 {
+                return Err(std::io::Error::last_os_error());
+            }
+            libc::signal(libc::SIGTTOU, libc::SIG_DFL);
+            Ok(())
+        });
+    }
+    let job = command.spawn().expect("the job");
+    let pid = job.id() as libc::pid_t;
+    // SAFETY: waitpid, tcsetpgrp, tcgetattr and kill on this process's own
+    // job and terminal; SIGTTOU is ignored so the shell may take the terminal.
+    unsafe {
+        libc::signal(libc::SIGTTOU, libc::SIG_IGN);
+        loop {
+            let mut status = 0;
+            if libc::waitpid(pid, &mut status, libc::WUNTRACED) < 0 || !libc::WIFSTOPPED(status) {
+                break;
+            }
+            libc::tcsetpgrp(fd, libc::getpgrp());
+            let mut termios = std::mem::zeroed::<libc::termios>();
+            libc::tcgetattr(fd, &mut termios);
+            log(format!(
+                "STOPPED canonical={}",
+                termios.c_lflag & libc::ICANON != 0
+            ));
+            std::thread::sleep(Duration::from_millis(100));
+            libc::tcsetpgrp(fd, pid);
+            libc::kill(-pid, libc::SIGCONT);
+            log("CONTINUED".to_owned());
+        }
+    }
 }
 
 /// The bytes still queued on the controlling terminal, which a shell would
@@ -137,7 +221,18 @@ fn describe(event: &Event) -> Option<String> {
             ))
         }
         Event::Paste(paste) => Some(format!("Paste {:?}", paste.content)),
-        Event::Key(key) => Some(format!("Key {:?}", key.code)),
+        Event::Key(key) => {
+            let mods = key.modifiers;
+            Some(format!(
+                "Key {:?} {}{}{}{}",
+                key.code,
+                if mods.shift { 'S' } else { '-' },
+                if mods.ctrl { 'C' } else { '-' },
+                if mods.alt { 'A' } else { '-' },
+                if mods.meta { 'M' } else { '-' }
+            ))
+        }
+        Event::Focus(focus) => Some(format!("Focus {:?}", focus.kind)),
         _ => None,
     }
 }
@@ -154,7 +249,8 @@ impl Props for ProbeProps {
     }
 }
 
-/// An element that logs every mouse event it receives, in its own cells.
+/// An element that logs every mouse event it receives, in its own cells, and
+/// the keys and focus events that reach it, which it passes on.
 struct Probe;
 
 impl Component for Probe {
@@ -179,6 +275,10 @@ impl Component for Probe {
             (Event::Mouse(_), Some(line)) => {
                 log(format!("{} {line}", props.name));
                 EventResult::Consumed
+            }
+            (Event::Key(_) | Event::Focus(_), Some(line)) => {
+                log(format!("{} {line}", props.name));
+                EventResult::Ignored
             }
             _ => EventResult::Ignored,
         }
@@ -289,6 +389,11 @@ impl RootComponent for Scenario {
                 .build(),
             "wheel-view" | "wheel-table" | "wheel-tree" | "wheel-input" => wheel_scene(&self.0),
             "wheel-wide" => wide_scene(),
+            "focus" => probe("FOCUSED", "w-full h-full").auto_focus(),
+            "theme" | "theme-set" => {
+                log(format!("THEME {}", crate::theme::Theme::active().name));
+                probe("PROBE", "w-full h-full")
+            }
             _ => probe("PROBE", "w-full h-full"),
         }
     }
@@ -318,17 +423,64 @@ impl RootComponent for Scenario {
 // ---------------------------------------------------------------------------
 // The test side: a copy on a pseudo-terminal, its output and its event log.
 
+/// What the fake terminal answers besides cursor position queries: the
+/// device attributes unless it is silent, the keyboard protocol and the
+/// background color when set, each `hold` after it first sees a query.
+#[derive(Clone, Copy)]
+struct Terminal {
+    kitty: bool,
+    background: Option<&'static str>,
+    silent: bool,
+    hold: Duration,
+}
+
+impl Terminal {
+    /// Answers only the device attributes query, at once.
+    const PLAIN: Terminal = Terminal {
+        kitty: false,
+        background: None,
+        silent: false,
+        hold: Duration::ZERO,
+    };
+    /// Also reports the Kitty keyboard protocol.
+    const KITTY: Terminal = Terminal {
+        kitty: true,
+        ..Terminal::PLAIN
+    };
+}
+
 struct Session {
     child: PtyChild,
     output: Vec<u8>,
     answered: usize,
     log: PathBuf,
     status: Option<ExitStatus>,
+    terminal: Terminal,
+    /// Replies sent to the keyboard, background and attributes queries.
+    replied: [usize; 3],
+    /// When the copy's first startup query was seen.
+    queried_at: Option<Instant>,
 }
 
 impl Session {
-    /// Starts `scenario` and waits for `marker` in its first frame.
+    /// Starts `scenario` on a terminal that answers only the device
+    /// attributes query, and waits for `marker` in its first frame.
     fn start(scenario: &str, marker: &str) -> Self {
+        Session::start_with(scenario, marker, Terminal::PLAIN)
+    }
+
+    /// Starts `scenario` on `terminal` and waits for `marker` in its first frame.
+    fn start_with(scenario: &str, marker: &str, terminal: Terminal) -> Self {
+        let mut session = Session::spawn(scenario, terminal);
+        session.until(
+            |session| session.text().contains(marker),
+            &format!("{scenario}'s first frame"),
+        );
+        session
+    }
+
+    /// Starts `scenario` on `terminal` without waiting.
+    fn spawn(scenario: &str, terminal: Terminal) -> Self {
         static NEXT: AtomicUsize = AtomicUsize::new(0);
         let log = std::env::temp_dir().join(format!(
             "reactive-tui-input-pty-{}-{scenario}-{}.log",
@@ -349,25 +501,30 @@ impl Session {
             .env(SCENARIO, scenario)
             .env(LOG, &log);
         let child = PtyChild::spawn(command, COLUMNS, ROWS).expect("a pseudo-terminal");
-        let mut session = Session {
+        Session {
             child,
             output: Vec::new(),
             answered: 0,
             log,
             status: None,
-        };
-        session.until(
-            |session| session.text().contains(marker),
-            &format!("{scenario}'s first frame"),
-        );
-        session
+            terminal,
+            replied: [0; 3],
+            queried_at: None,
+        }
+    }
+
+    fn count(&self, pattern: &[u8]) -> usize {
+        self.output
+            .windows(pattern.len())
+            .filter(|window| *window == pattern)
+            .count()
     }
 
     fn text(&self) -> String {
         String::from_utf8_lossy(&self.output).into_owned()
     }
 
-    /// Reads what the copy wrote and answers its cursor queries.
+    /// Reads what the copy wrote and answers its queries.
     fn pump(&mut self) {
         if self.status.is_none() {
             self.status = self.child.try_wait().expect("the copy's status");
@@ -387,19 +544,51 @@ impl Session {
                 Err(error) => panic!("reading the pseudo-terminal failed: {error}"),
             }
         }
-        let queries = self
-            .output
-            .windows(CURSOR_QUERY.len())
-            .filter(|window| *window == CURSOR_QUERY)
-            .count();
+        let queries = self.count(CURSOR_QUERY);
         while self.answered < queries && self.status.is_none() {
             self.send(CURSOR_REPORT);
             self.answered += 1;
         }
+        let asked = [
+            self.count(KEYBOARD_QUERY),
+            self.count(BACKGROUND_QUERY),
+            self.count(ATTRIBUTES_QUERY),
+        ];
+        if self.queried_at.is_none() && asked.iter().any(|count| *count > 0) {
+            self.queried_at = Some(Instant::now());
+        }
+        let due = self
+            .queried_at
+            .is_some_and(|at| at.elapsed() >= self.terminal.hold);
+        if !due || self.status.is_some() {
+            return;
+        }
+        // In the order a terminal answers them: the order they were asked.
+        for (index, reply) in [
+            self.terminal.kitty.then(|| KEYBOARD_REPLY.to_vec()),
+            self.terminal
+                .background
+                .map(|color| format!("\x1b]11;{color}\x1b\\").into_bytes()),
+            (!self.terminal.silent).then(|| ATTRIBUTES_REPLY.to_vec()),
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            while self.replied[index] < asked[index] {
+                if let Some(reply) = &reply {
+                    self.send(reply);
+                }
+                self.replied[index] += 1;
+            }
+        }
     }
 
     fn until(&mut self, done: impl Fn(&Self) -> bool, what: &str) {
-        let deadline = Instant::now() + DEADLINE;
+        self.until_within(done, what, DEADLINE);
+    }
+
+    fn until_within(&mut self, done: impl Fn(&Self) -> bool, what: &str, within: Duration) {
+        let deadline = Instant::now() + within;
         loop {
             self.pump();
             if done(self) {
@@ -417,7 +606,7 @@ impl Session {
                 );
             }
             if Instant::now() > deadline {
-                panic!("no {what} within {DEADLINE:?}:\n{}", self.text());
+                panic!("no {what} within {within:?}:\n{}", self.text());
             }
             std::thread::sleep(Duration::from_millis(5));
         }
@@ -871,5 +1060,329 @@ fn inp_006_waiting_motion_is_merged() {
         press.is_some() && moves <= 2 && !late_move,
         "INP-006: 100 waiting motion reports reached the App as {moves} Move events before the press ({})",
         if press.is_some() { "the press arrived" } else { "the press was lost" }
+    );
+}
+
+// ---------------------------------------------------------------------------
+// INP-007: the Kitty keyboard flags, and keys that keep their meaning.
+
+/// Whether `text` pushes any keyboard flags (`ESC [ > digits u`).
+fn pushes_keyboard_flags(text: &str) -> bool {
+    text.match_indices("\x1b[>").any(|(at, found)| {
+        let rest = &text[at + found.len()..];
+        let digits = rest.chars().take_while(char::is_ascii_digit).count();
+        digits > 0 && rest[digits..].starts_with('u')
+    })
+}
+
+fn root_keys(session: &Session) -> Vec<String> {
+    session
+        .events()
+        .into_iter()
+        .filter(|line| line.starts_with("root Key "))
+        .collect()
+}
+
+fn check_kitty(exit_key: char, how: &str) {
+    let mut session = Session::start_with("modes", "PROBE", Terminal::KITTY);
+    let text = session.text();
+    let frame = text.find("PROBE").unwrap();
+    assert!(
+        text.find(KITTY_PUSH).is_some_and(|at| at < frame),
+        "INP-007: on a terminal that reports the Kitty protocol the backend pushed no {KITTY_PUSH:?} before its first frame"
+    );
+    session.send(exit_key.to_string().as_bytes());
+    session.exit();
+    let text = session.text();
+    assert!(
+        text.rfind(KITTY_POP) > text.rfind(KITTY_PUSH),
+        "INP-007: after {how} the last keyboard-flag write is not a pop"
+    );
+}
+
+#[test]
+fn inp_007_kitty_flags_on_and_off_after_a_normal_exit() {
+    check_kitty('q', "a normal exit");
+}
+
+#[test]
+fn inp_007_kitty_flags_on_and_off_after_an_error_exit() {
+    check_kitty('e', "an error exit");
+}
+
+#[test]
+fn inp_007_kitty_flags_on_and_off_after_a_panic() {
+    check_kitty('p', "a panic");
+}
+
+#[test]
+fn inp_007_no_flags_without_the_protocol() {
+    let mut session = Session::start("modes", "PROBE");
+    session.send(b"q");
+    session.exit();
+    assert!(
+        !pushes_keyboard_flags(&session.text()),
+        "INP-007: on a terminal that answers only the device attributes query the backend pushed keyboard flags"
+    );
+}
+
+#[test]
+fn inp_007_keys_keep_their_kitty_meaning() {
+    let mut session = Session::start_with("full", "PROBE", Terminal::KITTY);
+    // Shift+Enter, Ctrl+H, Ctrl+I, Ctrl+[ and Shift+1 typing '!'.
+    for keys in [
+        &b"\x1b[13;2u"[..],
+        b"\x1b[104;5u",
+        b"\x1b[105;5u",
+        b"\x1b[91;5u",
+        b"\x1b[49;2;33u",
+    ] {
+        session.send(keys);
+        session.settle(Duration::from_millis(30));
+    }
+    session.settle(Duration::from_millis(200));
+    let keys = root_keys(&session);
+    assert!(
+        keys.len() == 5
+            && keys[..4]
+                == [
+                    "root Key Enter S---",
+                    "root Key Char('h') -C--",
+                    "root Key Char('i') -C--",
+                    "root Key Char('[') -C--",
+                ]
+            && keys[4].starts_with("root Key Char('!')"),
+        "INP-007: Shift+Enter, Ctrl+H, Ctrl+I, Ctrl+[ and Shift+1 typing '!' reached the App as {keys:?}"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// INP-008: lock and media keys keep their codes; a modifier alone is no event.
+
+#[test]
+fn inp_008_lock_and_media_keys_keep_their_codes() {
+    let mut session = Session::start_with("full", "PROBE", Terminal::KITTY);
+    let named = [
+        (57358, "CapsLock"),
+        (57360, "NumLock"),
+        (57359, "ScrollLock"),
+        (57428, "MediaPlay"),
+        (57429, "MediaPause"),
+        (57430, "MediaPlayPause"),
+        (57432, "MediaStop"),
+        (57435, "MediaNext"),
+        (57436, "MediaPrevious"),
+    ];
+    for (code, _) in named {
+        session.send(format!("\x1b[{code}u").as_bytes());
+        session.settle(Duration::from_millis(20));
+    }
+    // Shift, Ctrl, Alt, Super, Hyper and Meta alone, left and right.
+    for code in 57441..=57452 {
+        session.send(format!("\x1b[{code}u").as_bytes());
+        session.settle(Duration::from_millis(10));
+    }
+    session.send(b"z");
+    session.settle(Duration::from_millis(300));
+    let mut expected: Vec<String> = named
+        .iter()
+        .map(|(_, name)| format!("root Key {name} ----"))
+        .collect();
+    expected.push("root Key Char('z') ----".to_owned());
+    let keys = root_keys(&session);
+    assert!(
+        keys == expected,
+        "INP-008: the lock, media and modifier keys reached the App as {keys:?}, not {expected:?}"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// INP-009: the terminal's focus reports reach the root, not the focused element.
+
+#[test]
+fn inp_009_terminal_focus_reaches_only_the_root() {
+    let mut session = Session::start("focus", "FOCUSED");
+    session.settle(Duration::from_millis(100));
+    let before = session.events().len();
+    session.send(b"\x1b[O");
+    session.settle(Duration::from_millis(50));
+    session.send(b"\x1b[I");
+    session.settle(Duration::from_millis(50));
+    session.send(b"k");
+    session.settle(Duration::from_millis(300));
+    let after = session.events()[before..].to_vec();
+    let element: Vec<&String> = after
+        .iter()
+        .filter(|line| line.starts_with("FOCUSED Focus"))
+        .collect();
+    let root: Vec<&String> = after
+        .iter()
+        .filter(|line| line.starts_with("root Focus"))
+        .collect();
+    let kept = after
+        .iter()
+        .any(|line| line == "FOCUSED Key Char('k') ----");
+    assert!(
+        element.is_empty() && root == ["root Focus Lost", "root Focus Gained"] && kept,
+        "INP-009: the focused element received {element:?}, the root {root:?}, and the element {} the next key; log {after:?}",
+        if kept { "got" } else { "did not get" }
+    );
+}
+
+// ---------------------------------------------------------------------------
+// INP-010: Ctrl+Z suspends and resumes on Unix.
+
+#[test]
+fn inp_010_ctrl_z_suspends_and_resumes() {
+    let mut session = Session::start_with("suspend", "PROBE", Terminal::KITTY);
+    session.settle(Duration::from_millis(100));
+    session.send(b"\x1a");
+    session.until_within(
+        |session| {
+            session
+                .events()
+                .iter()
+                .any(|line| line.starts_with("STOPPED"))
+        },
+        "stop after Ctrl+Z",
+        Duration::from_secs(5),
+    );
+    session.pump();
+    let stopped_at = session.output.len();
+    let text = session.text();
+    let events = session.events();
+    let left_on: Vec<&str> = MODES
+        .iter()
+        .copied()
+        .chain(["1049"])
+        .filter(|mode| text.rfind(&set(mode)) > text.rfind(&reset(mode)))
+        .collect();
+    let flags_on = text.rfind(KITTY_PUSH) > text.rfind(KITTY_POP);
+    let canonical = events.iter().any(|line| line == "STOPPED canonical=true");
+    assert!(
+        left_on.is_empty() && !flags_on && canonical,
+        "INP-010: the App stopped with the modes {left_on:?} still set, the keyboard flags {}, and raw mode {}",
+        if flags_on { "pushed" } else { "popped" },
+        if canonical { "off" } else { "on" }
+    );
+    session.until(
+        |session| {
+            let after = String::from_utf8_lossy(&session.output[stopped_at..]).into_owned();
+            MODES
+                .iter()
+                .chain(&["1049"])
+                .all(|mode| after.contains(&set(mode)))
+                && after.contains(KITTY_PUSH)
+                && after.contains("PROBE")
+        },
+        "a full frame with every mode set again after SIGCONT",
+    );
+    session.send(b"k");
+    session.until_within(
+        |session| {
+            let events = session.events();
+            let resumed = events.iter().position(|line| line == "CONTINUED");
+            resumed.is_some_and(|at| {
+                events[at..]
+                    .iter()
+                    .any(|line| line == "root Key Char('k') ----")
+            })
+        },
+        "the first key after the resume",
+        Duration::from_secs(5),
+    );
+    session.send(b"q");
+    session.exit();
+}
+
+// ---------------------------------------------------------------------------
+// INP-011: startup queries, typed keys kept, and the theme following the terminal.
+
+const WHITE: &str = "rgb:ffff/ffff/ffff";
+const BLACK: &str = "rgb:0000/0000/0000";
+
+fn first_theme(session: &Session) -> Option<String> {
+    session
+        .events()
+        .into_iter()
+        .find(|line| line.starts_with("THEME "))
+}
+
+#[test]
+fn inp_011_a_light_terminal_gets_the_light_preset() {
+    let terminal = Terminal {
+        background: Some(WHITE),
+        ..Terminal::KITTY
+    };
+    let session = Session::start_with("theme", "PROBE", terminal);
+    assert_eq!(
+        first_theme(&session).as_deref(),
+        Some("THEME light"),
+        "INP-011: a terminal with a white background did not get the light preset"
+    );
+}
+
+#[test]
+fn inp_011_a_dark_terminal_and_an_application_theme_keep_theirs() {
+    let dark = Terminal {
+        background: Some(BLACK),
+        ..Terminal::KITTY
+    };
+    let session = Session::start_with("theme", "PROBE", dark);
+    let on_dark = first_theme(&session);
+    let light = Terminal {
+        background: Some(WHITE),
+        ..Terminal::KITTY
+    };
+    let session = Session::start_with("theme-set", "PROBE", light);
+    let set_by_app = first_theme(&session);
+    assert!(
+        on_dark.as_deref() == Some("THEME dark")
+            && set_by_app.as_deref() == Some("THEME high_contrast"),
+        "INP-011: a black background gave {on_dark:?} and an application theme on a white one gave {set_by_app:?}"
+    );
+}
+
+#[test]
+fn inp_011_replies_are_not_keys_and_typed_keys_keep_their_order() {
+    let terminal = Terminal {
+        background: Some(WHITE),
+        hold: Duration::from_millis(150),
+        ..Terminal::KITTY
+    };
+    let mut session = Session::spawn("theme", terminal);
+    session.until_within(
+        |session| session.queried_at.is_some(),
+        "startup query",
+        Duration::from_secs(5),
+    );
+    session.send(b"ab");
+    session.until(|session| session.text().contains("PROBE"), "first frame");
+    session.settle(Duration::from_millis(300));
+    let keys = root_keys(&session);
+    assert!(
+        keys == ["root Key Char('a') ----", "root Key Char('b') ----"],
+        "INP-011: keys typed while the replies were pending, and the replies, reached the App as {keys:?}"
+    );
+}
+
+#[test]
+fn inp_011_a_silent_terminal_costs_at_most_the_wait() {
+    let terminal = Terminal {
+        silent: true,
+        ..Terminal::PLAIN
+    };
+    let mut session = Session::spawn("theme", terminal);
+    session.until_within(
+        |session| session.queried_at.is_some(),
+        "startup query",
+        Duration::from_secs(5),
+    );
+    let asked = session.queried_at.unwrap();
+    session.until(|session| session.text().contains("PROBE"), "first frame");
+    let waited = asked.elapsed();
+    assert!(
+        waited <= Duration::from_millis(400),
+        "INP-011: with no reply the first frame came {waited:?} after the queries"
     );
 }
