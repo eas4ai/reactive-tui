@@ -49,6 +49,7 @@ const MODES: [&str; 6] = ["1000", "1002", "1003", "1015", "1006", "2004"];
 #[test]
 fn smoke_input_pty_child() {
     let Some(scenario) = std::env::var_os(SCENARIO) else {
+        eprintln!("SKIP: run by the INP pseudo-terminal tests with {SCENARIO} set");
         return;
     };
     let app = App::builder()
