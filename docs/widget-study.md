@@ -841,7 +841,7 @@ The twenty families docs/recon.md section 13 lists, in alphabetical order. The c
     - Auto-dismiss. gpui-kit always waits 5s (G/notification.rs:314-317, 841); ours takes any Duration or None (src/widgets/dialog/toast.rs:40-42).
     - A close button (G/notification.rs:448-465; ours src/widgets/dialog/toast.rs:45-46).
     - An on_close callback (G/notification.rs:328-335; ours src/widgets/dialog/toast.rs:47-48).
-    - Six placements (G/notification.rs:1022-1033; ours src/widgets/dialog/toast.rs:75-90).
+    - Placements: gpui-kit handles eight anchors, including left-center and right-center (G/notification.rs:1022-1033), and `placement` takes any gpui Anchor (G/notification.rs:266-268); ours has six (src/widgets/dialog/toast.rs:75-90).
   - Ours starts the timer only after the toast is fully shown (src/widgets/dialog/toast.rs:40-41; src/widgets/dialog/toast/live.rs:62-71).
   - Only gpui-kit:
     - Title, icon and custom content (G/notification.rs:240-260, 376-383).
@@ -951,7 +951,7 @@ The twenty families docs/recon.md section 13 lists, in alphabetical order. The c
     - Fill: ours fills whole cells only (src/widgets/display/progress_bar/live.rs:310), so a 20-cell bar moves in 5% steps. gpui-kit's width is continuous (G/progress/progress.rs:166).
     - Value animation: ours animates only when `animated` is set, linearly over 200 ms (src/widgets/display/progress_bar/live/motion.rs:10, src/widgets/display/progress_bar/live/motion.rs:70-77). gpui-kit always animates, using the theme's motion tokens (G/progress/progress.rs:111-118).
     - Default colors: ours uses the class tokens `bg-blue` and `bg-gray-200` (src/widgets/display/progress_bar.rs:233-234). `grep -rni progress src/theme` found no progress color.
-    - Reduced motion: gpui-kit's circle loading animation does not check it (G/progress/progress_circle.rs:197-208). The gpui-kit bar does (G/progress/progress.rs:149).
+    - Reduced motion: both gpui-kit parts stand still. The bar checks it itself (G/progress/progress.rs:149). The circle animates through gpui's `with_animation` (G/progress/progress_circle.rs:197-208), which gpui draws static under reduced motion; gpui-kit's spinner does the same with no check of its own (G/spinner.rs:60-75), and its test asserts that no frame is requested (G/spinner.rs:90-102).
     - Builder gaps: the smaller `builder::progress_bar()` has no `indeterminate` setter (src/builder/widgets/display.rs:82-200). `ProgressDialogBuilder` has no `on_cancel` or time-remaining setter (src/builder/dialog_builders.rs:12-99).
 - Builder API:
   - gpui-kit:
@@ -1347,7 +1347,7 @@ The twenty families docs/recon.md section 13 lists, in alphabetical order. The c
     - Ours has primary, secondary, accent, background, surface, foreground, text-muted, border, success, warning, error, info, five chart colors, bullish and bearish, and a spacing scale in cells (src/theme/presets.rs:5-42). There is no primary-foreground or selection role.
   - **Presets:**
     - Ours ships dark, light, high contrast, Solarized Dark and Gruvbox Dark (src/theme/presets.rs:5, 45, 85, 125, 165).
-    - gpui-kit ships "Default Light" and "Default Dark" (G/theme/default-theme.json:10-11, 215-216).
+    - gpui-kit compiles in "Default Light" and "Default Dark" (G/theme/default-theme.json:10-11, 215-216). Its repository also carries 21 theme files for its ThemeRegistry to load, in the themes directory at the gpui-kit root (ayu, catppuccin, gruvbox, solarized, tokyonight and others).
   - **Light and dark:**
     - gpui-kit keeps a light and a dark config and switches by mode or by the window appearance (G/theme/mod.rs:116-119, 227-237, 701-729).
     - Our `Theme` has no mode (src/theme/mod.rs:46-54). Only the DirectTty backend sends an OSC 11 query for the terminal background (src/platform/mod.rs:1182-1203), and its reply parser reads only the DA1, DA2, Kitty graphics and DECRQM answers (src/platform/mod.rs:1277-1301). The default backend sends no query (src/backend/suprtui.rs:157; src/backend/suprtui/output.rs:171).
