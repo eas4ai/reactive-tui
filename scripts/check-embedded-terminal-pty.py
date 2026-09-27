@@ -65,14 +65,22 @@ def probe(binary, failure=False):
                 expect(b"RTUI>")
                 assert termios.tcgetattr(slave) != original, "host never entered raw mode"
                 command(b"echo $$ > \"$RTUI_PID_FILE\"; printf '\\nRTUI_%s\\n' INPUT", b"RTUI_INPUT")
+                # The host turns bracketed paste on, so a paste reaches it as one
+                # Paste event; the view must pass the text on to the shell.
+                offset = len(output)
+                os.write(master, b"\x1b[200~printf '\\nRTUI_%s\\n' PASTED\x1b[201~")
+                os.write(master, b"\n")
+                expect(b"RTUI_PASTED", offset)
                 command(b"sleep 0.2; printf '\\nRTUI_%s\\n' DELAYED", b"RTUI_DELAYED")
                 for columns, rows in [(52,12),(76,18)]:
                     offset = len(output)
                     helpers.resize(slave, columns, rows)
                     os.kill(process.pid, signal.SIGWINCH)
-                    last_cell = f"\x1b[{rows};{columns}H".encode()
+                    # The renderer paints whole rows from column 1, so the
+                    # resized frame shows as its last row and its frame end.
+                    last_row = f"\x1b[{rows};1H".encode()
                     helpers.read_until(master, process, output,
-                        lambda data: last_cell in data[offset:] and helpers.SYNC_END in data[offset:],
+                        lambda data: last_row in data[offset:] and helpers.SYNC_END in data[offset:],
                         "App did not finish the resized frame")
                     command(b'set -- $(stty size); printf "SIZE_%s_%s" "$1" "$2"', f"SIZE_{rows}_{columns}".encode())
                 offset = len(output)
@@ -92,7 +100,7 @@ def probe(binary, failure=False):
             assert_reaped(int(pidfile.read_text().strip()))
             if failure:
                 assert b"pending input exceeded 64 KiB" in output, f"expected worker error missing: {output[-1000:]!r}"
-            print("PASS EMB App PTY:", "worker error + cleanup" if failure else "input + background redraw + resize + Ctrl+C + Ctrl+Q + cleanup")
+            print("PASS EMB App PTY:", "worker error + cleanup" if failure else "input + paste + background redraw + resize + Ctrl+C + Ctrl+Q + cleanup")
         except Exception:
             print("Captured host screen:", "\n".join(line.rstrip() for line in screen_text(output).splitlines()).rstrip())
             raise

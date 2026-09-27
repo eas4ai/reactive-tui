@@ -65,7 +65,9 @@ def main():
         probe.resize(slave, 44, 10)
         os.kill(process.pid, signal.SIGWINCH)
         probe.read_until(master, process, output,
-                         lambda data: b"\x1b[10;44H" in completed(data)[offset:] and shows(data, "Wake count: 1"),
+                         # The renderer paints whole rows from column 1, so the
+                         # resized frame shows as its last row.
+                         lambda data: b"\x1b[10;1H" in completed(data)[offset:] and shows(data, "Wake count: 1"),
                          "resize did not interrupt the idle wait")
         os.write(master, b"\x1b")
         probe.read_until(master, process, output, lambda data: b"\x1b[?1049l" in data,
