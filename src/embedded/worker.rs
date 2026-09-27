@@ -150,6 +150,12 @@ fn drive<'a>(
                         .borrow_mut()
                         .append(&keyboard::encode(terminal, encoder, &key)?);
                 }
+                Ok(SessionCommand::Paste(text)) => {
+                    consumed = true;
+                    pending
+                        .borrow_mut()
+                        .append(&keyboard::encode_paste(terminal, &text)?);
+                }
                 Ok(SessionCommand::Resize(width, height, reply)) => {
                     consumed = true;
                     let result = child

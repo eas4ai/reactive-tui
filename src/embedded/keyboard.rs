@@ -6,6 +6,30 @@ use libghostty_vt::{
     Terminal,
 };
 
+/// Encode one paste for the child as libghostty prepares a paste: unsafe
+/// control bytes become spaces, and the text is bracketed when the child
+/// turned bracketed paste (mode 2004) on, or has its newlines sent as
+/// carriage returns when it did not.
+pub(super) fn encode_paste(terminal: &Terminal<'_, '_>, text: &str) -> Result<Vec<u8>> {
+    let bracketed = terminal
+        .mode(libghostty_vt::terminal::Mode::BRACKETED_PASTE)
+        .map_err(native_error)?;
+    let mut data = text.as_bytes().to_vec();
+    // The brackets add 12 bytes; replacing a newline keeps the length.
+    let mut buffer = vec![0; data.len() + 12];
+    let written = match libghostty_vt::paste::encode(&mut data, bracketed, &mut buffer) {
+        Err(libghostty_vt::Error::OutOfSpace { required }) if required > buffer.len() => {
+            buffer.resize(required, 0);
+            let mut data = text.as_bytes().to_vec();
+            libghostty_vt::paste::encode(&mut data, bracketed, &mut buffer)
+        }
+        result => result,
+    }
+    .map_err(native_error)?;
+    buffer.truncate(written);
+    Ok(buffer)
+}
+
 /// Encode one host key with the child terminal's current keyboard modes.
 pub(super) fn encode(
     terminal: &Terminal<'_, '_>,
@@ -191,5 +215,19 @@ mod tests {
             ..KeyModifiers::empty()
         });
         assert_eq!(encode(&terminal, &mut encoder, &ctrl_c).unwrap(), b"\x03");
+    }
+
+    #[test]
+    fn a_paste_is_bracketed_only_when_the_child_asked() {
+        let mut terminal = Terminal::new(10, 4).unwrap();
+        assert_eq!(
+            encode_paste(&terminal, "first\nsecond").unwrap(),
+            b"first\rsecond"
+        );
+        terminal.vt_write(b"\x1b[?2004h");
+        assert_eq!(
+            encode_paste(&terminal, "first\nsecond\x1b[201~").unwrap(),
+            b"\x1b[200~first\nsecond [201~\x1b[201~"
+        );
     }
 }
