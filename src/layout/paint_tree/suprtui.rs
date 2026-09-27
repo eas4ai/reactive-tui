@@ -4,9 +4,11 @@ mod cursor;
 pub(crate) mod images;
 
 use super::NodeSpec;
-use super::{build_nodes_inherited, transform::Affine, NodePaint};
+use super::{node_parts, transform::Affine, NodePaint};
 use crate::core::surface::{Attr, Rgba};
 use crate::error::{ReactiveError, Result};
+use crate::layout::css::apply_utility_classes;
+use crate::layout::style::StyleBuilder;
 use ::suprtui::ansi::{self, TextAttributes};
 use ::suprtui::buffer::OptimizedBuffer;
 use std::collections::HashMap;
@@ -65,6 +67,179 @@ pub(crate) struct LayoutCache {
     /// changed spec costs (PNT-005).
     nodes_built: u64,
     measured: u64,
+    /// The cached spec's elements with their layout nodes, which a changed
+    /// spec at the same size updates instead of building again (PNT-005).
+    retained: Option<Retained>,
+}
+
+/// What a parent passes its children: the text style, foreground and width
+/// rule they inherit.
+#[derive(Clone, Default, PartialEq)]
+struct Inherited {
+    typography: crate::layout::text::TextStyle,
+    foreground: Option<(f32, f32, f32, f32)>,
+    width: bool,
+}
+
+/// An element's layout node kept across frames, what its parent passed it,
+/// what it passes its children, and its children in spec order.
+struct Retained {
+    id: NodeId,
+    inherited: Inherited,
+    passes: Inherited,
+    children: Vec<Retained>,
+}
+
+/// One pass over a frame's spec in spec order, reading each element's style
+/// builder by its position: it builds nodes for new elements and updates
+/// the kept nodes of changed ones against the previous spec (PNT-005).
+struct Walk<'a> {
+    tree: &'a mut TaffyTree<()>,
+    paints: &'a mut HashMap<NodeId, NodePaint>,
+    old_styles: &'a [StyleBuilder],
+    new_styles: &'a [StyleBuilder],
+    old_index: usize,
+    new_index: usize,
+    built: u64,
+}
+
+fn layout_error(error: taffy::TaffyError) -> ReactiveError {
+    ReactiveError::layout(format!("SuprTUI layout: {error}"))
+}
+
+/// The number of elements in `spec`'s subtree, itself included.
+fn subtree_len(spec: &NodeSpec<'_>) -> usize {
+    1 + spec.children.iter().map(subtree_len).sum::<usize>()
+}
+
+impl Walk<'_> {
+    /// Build the nodes of `spec`'s subtree, as a full layout does.
+    fn build(&mut self, spec: &NodeSpec<'_>, inherited: Inherited) -> Result<Retained> {
+        let sb = self
+            .new_styles
+            .get(self.new_index)
+            .cloned()
+            .unwrap_or_else(|| apply_utility_classes(spec.class.as_ref(), StyleBuilder::new()));
+        self.new_index += 1;
+        let parts = node_parts(
+            spec,
+            sb,
+            &inherited.typography,
+            inherited.foreground,
+            inherited.width,
+        );
+        let passes = Inherited {
+            typography: parts.typography,
+            foreground: parts.foreground,
+            width: parts.unconstrained_width,
+        };
+        let id = self.tree.new_leaf(parts.style).map_err(layout_error)?;
+        self.built += 1;
+        self.paints.insert(id, parts.paint);
+        let children = spec
+            .children
+            .iter()
+            .map(|child| self.build(child, passes.clone()))
+            .collect::<Result<Vec<_>>>()?;
+        if !children.is_empty() {
+            let ids: Vec<NodeId> = children.iter().map(|child| child.id).collect();
+            self.tree.set_children(id, &ids).map_err(layout_error)?;
+        }
+        Ok(Retained {
+            id,
+            inherited,
+            passes,
+            children,
+        })
+    }
+
+    /// Update `node`, laid out for `old`, to `new` at the same position:
+    /// an element with the same class, style, text, kind and inherited
+    /// values keeps its node untouched, a changed one gets its new style and
+    /// paint on the same node, new children are built and removed ones
+    /// dropped. Returns whether anything in the subtree changed.
+    fn update(
+        &mut self,
+        old: &NodeSpec<'_>,
+        new: &NodeSpec<'_>,
+        node: &mut Retained,
+        inherited: Inherited,
+    ) -> Result<bool> {
+        let same = old.class == new.class
+            && old.text == new.text
+            && old.children.is_empty() == new.children.is_empty()
+            && self.old_styles.get(self.old_index) == self.new_styles.get(self.new_index)
+            && node.inherited == inherited;
+        let mut changed = !same;
+        if !same {
+            let sb = self
+                .new_styles
+                .get(self.new_index)
+                .cloned()
+                .unwrap_or_else(|| apply_utility_classes(new.class.as_ref(), StyleBuilder::new()));
+            let parts = node_parts(
+                new,
+                sb,
+                &inherited.typography,
+                inherited.foreground,
+                inherited.width,
+            );
+            node.passes = Inherited {
+                typography: parts.typography,
+                foreground: parts.foreground,
+                width: parts.unconstrained_width,
+            };
+            node.inherited = inherited;
+            self.tree
+                .set_style(node.id, parts.style)
+                .map_err(layout_error)?;
+            self.paints.insert(node.id, parts.paint);
+        }
+        self.old_index += 1;
+        self.new_index += 1;
+        let passes = node.passes.clone();
+        let kept = old.children.len().min(new.children.len());
+        for (index, (old_child, new_child)) in old.children.iter().zip(&new.children).enumerate() {
+            changed |= self.update(
+                old_child,
+                new_child,
+                &mut node.children[index],
+                passes.clone(),
+            )?;
+        }
+        if old.children.len() != new.children.len() {
+            let removed: Vec<Retained> = node.children.drain(kept..).collect();
+            for (old_child, removed) in old.children[kept..].iter().zip(removed) {
+                self.old_index += subtree_len(old_child);
+                self.remove(removed)?;
+            }
+            for new_child in &new.children[kept..] {
+                let built = self.build(new_child, passes.clone())?;
+                node.children.push(built);
+            }
+            let ids: Vec<NodeId> = node.children.iter().map(|child| child.id).collect();
+            self.tree
+                .set_children(node.id, &ids)
+                .map_err(layout_error)?;
+            changed = true;
+        }
+        if changed {
+            // Taffy stops marking ancestors dirty at a node whose cache is
+            // already empty, so each level on the way up marks its own node.
+            self.tree.mark_dirty(node.id).map_err(layout_error)?;
+        }
+        Ok(changed)
+    }
+
+    /// Drop `node`'s subtree from the layout tree and the paint records.
+    fn remove(&mut self, node: Retained) -> Result<()> {
+        for child in node.children {
+            self.remove(child)?;
+        }
+        self.tree.remove(node.id).map_err(layout_error)?;
+        self.paints.remove(&node.id);
+        Ok(())
+    }
 }
 
 /// Whether two specs lay out the same: the same node tree with the same
@@ -148,30 +323,70 @@ fn lay_out(
             .as_ref()
             .is_some_and(|previous| same_layout_inputs(previous, &spec));
     if !reused {
-        let mut tree = TaffyTree::new();
-        let mut paints = HashMap::new();
-        let root = build_nodes_inherited(
-            &mut tree,
-            &spec.root,
-            &mut paints,
-            &crate::layout::text::TextStyle::default(),
-            None,
-            false,
-            &mut spec.styles.iter().cloned(),
-        )?;
+        // The previous spec and its nodes leave the cache for the update, so
+        // a failure part way leaves no spec and the next frame builds anew.
+        let previous = cache.spec.take();
+        let kept = cache.retained.take();
+        let (root, built) = match (previous, kept) {
+            (Some(previous), Some(mut retained)) if cache.size == size => {
+                // Same size, changed spec: update the kept nodes (PNT-005).
+                let mut walk = Walk {
+                    tree: &mut cache.tree,
+                    paints: &mut cache.paints,
+                    old_styles: &previous.styles,
+                    new_styles: &spec.styles,
+                    old_index: 0,
+                    new_index: 0,
+                    built: 0,
+                };
+                walk.update(
+                    &previous.root,
+                    &spec.root,
+                    &mut retained,
+                    Inherited::default(),
+                )?;
+                let built = walk.built;
+                let root = retained.id;
+                cache.retained = Some(retained);
+                (root, built)
+            }
+            _ => {
+                let mut tree = TaffyTree::new();
+                let mut paints = HashMap::new();
+                let mut walk = Walk {
+                    tree: &mut tree,
+                    paints: &mut paints,
+                    old_styles: &[],
+                    new_styles: &spec.styles,
+                    old_index: 0,
+                    new_index: 0,
+                    built: 0,
+                };
+                let retained = walk.build(&spec.root, Inherited::default())?;
+                let built = walk.built;
+                let root = retained.id;
+                cache.tree = tree;
+                cache.paints = paints;
+                cache.retained = Some(retained);
+                (root, built)
+            }
+        };
         let available = Size {
             width: AvailableSpace::Definite(size.0 as f32),
             height: AvailableSpace::Definite(size.1 as f32),
         };
         let mut measured = std::collections::HashSet::new();
+        let (tree, paints) = (&mut cache.tree, &cache.paints);
         tree.compute_layout_with_measure(root, available, |known, available, id, _, _| {
             measured.insert(id);
             super::measure_text(&paints[&id], known, available)
         })
-        .map_err(|error| ReactiveError::layout(format!("SuprTUI layout: {error}")))?;
+        .map_err(layout_error)?;
         cache.runs += 1;
-        cache.nodes_built = tree.total_node_count() as u64;
+        cache.nodes_built = built;
         cache.measured = measured.len() as u64;
+        let tree = &cache.tree;
+        let paints = &cache.paints;
         let screen = Rect {
             left: 0,
             top: 0,
@@ -180,8 +395,8 @@ fn lay_out(
         };
         let mut nodes = Vec::new();
         collect(
-            &tree,
-            &paints,
+            tree,
+            paints,
             root,
             Placement {
                 mask: None,
@@ -194,8 +409,6 @@ fn lay_out(
         )?;
         // Stable sorting preserves parent-before-child and sibling paint order.
         nodes.sort_by_key(|node| node.z);
-        cache.tree = tree;
-        cache.paints = paints;
         cache.nodes = nodes;
         cache.size = size;
     } else {
