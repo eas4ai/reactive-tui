@@ -143,6 +143,7 @@ widgets use them.
 | Number input (`input`) | `[-] 12.5 [+]` with step, min and max, as a text input mode | small |
 | Code input (`input`, OTP) | `[1][2][3] [_][_][_]` for one-time codes, pasting fills every cell | small |
 | Rating (`rating`) | `★★★☆☆`, a slider with a star painter | small |
+| Switch (`switch`) | `[ ●]` on, `[● ]` off, a checkbox variant with the Switch role | small |
 | Resizable split (`resizable`) | Panes with a draggable, focusable `│` divider | medium |
 | Sidebar (`sidebar`) | A navigation column that collapses to icons | medium |
 | List (`list`) | One shared windowed list with filter, sections and load more | medium |
@@ -161,7 +162,7 @@ Each entry below says why.
 Already covered under another name, compared in their entries: button,
 collapsible (our accordion), combobox (our select and autocomplete
 dialog), group box (our card), hover card (our popover), label, sheet (our
-modal), switch (our checkbox), tooltip (our popover and per-widget
+modal), tooltip (our popover and per-widget
 tooltips) and the input mask (our input dialog's mask).
 
 ### Where we are ahead
@@ -1544,7 +1545,10 @@ Each entry says what the component is, what we have that comes closest, what it 
 - Worth adopting:
   - Variants that map to theme colors (Primary, Danger, Ghost, Link), because color and reverse video are the main cues in a terminal.
   - A `loading` flag that blocks activation and shows a spinner glyph.
-  - A `toggled` pressed state plus a ToggleGroup for segmented choices.
+  - A `toggled` pressed state.
+- ToggleGroup, which gpui-kit keeps inside its button module (G/button/toggle.rs:220-222, 275):
+  - In a terminal: `[ Day │ Week │ Month ]`, with the chosen segment in reverse video. Left and Right move, Space or Enter picks, a click picks. The screen reader gets a radio group.
+  - Call: skip as a separate widget. Our horizontal radio group already has the single-choice state and the arrow keys (src/widgets/input/radio_button.rs:73-77). A segmented style for it is small.
 
 ### carousel
 - gpui-kit: A carousel built from parts that share one `CarouselState` (G/carousel/mod.rs:5-9):
@@ -1832,7 +1836,7 @@ Each entry says what the component is, what we have that comes closest, what it 
   - Fields reset to a default value or through a custom reset (G/setting/fields/mod.rs:21-24, G/setting/fields/mod.rs:291-316). Pages show a reset button when something changed (G/setting/page.rs:85-91).
 - **Ours:** absent; `rg -n -i 'struct \w*(setting|preference|form)\w*|fn form\b|FormBuilder|PropertyGrid' src` finds none. The nearest composites are WizardDialog steps with per-step validation (src/widgets/dialog/wizard.rs:26-56) and Tabs placed on the left or right (src/widgets/layout/tabs.rs:47-56).
 - **In a terminal:** a left column of pages with a filter row. The right pane holds rows like `Label ........ [ on]`, each with a dim description line. Tab and the arrows move between rows, Space or Enter edits, and a Reset button restores the default. The screen reader gets a labeled group per row, with the field's own role.
-- **Call:** skip. TUIs usually keep settings in a config file. The missing parts (Switch, Sidebar) matter more, and with them an app can build this.
+- **Call:** skip. TUIs usually keep settings in a config file. The missing parts, Switch and Sidebar, are on the build list, and with them an app can build this.
 
 ### sheet
 - **gpui-kit:** a panel that slides in from one edge of the window (G/sheet.rs:40-56).
@@ -1924,6 +1928,8 @@ Each entry says what the component is, what we have that comes closest, what it 
 - **Worth adopting:**
   - A switch variant that paints `[● ]`/`[ ●]` or `(on )`/`(off)` and reports Role::Switch.
   - An accessibility label separate from the visible label.
+- **In a terminal:** `[ ●] Wi-Fi` when on and `[● ] Wi-Fi` when off, or `(on )` and `(off)` where the font lacks `●`. Space, Enter or a click toggles it. The screen reader gets Role::Switch, which is read as on or off rather than checked.
+- **Call:** build, small. It is our checkbox with another paint and role; the state and the keys stay (src/widgets/input/checkbox.rs:228-240). Settings screens and option lists read better with switches.
 
 ### tag
 - **gpui-kit:** a small status label (G/tag.rs:121-131). Variants: primary, secondary (the default), danger, success, warning, info, a named color, or custom colors (G/tag.rs:8-24, G/tag.rs:146-188). It also has an outline style (G/tag.rs:196-200) and rounded corners (G/tag.rs:202-211). Only Medium and Small sizes are supported (G/tag.rs:122-123). There is no input and no role anywhere in G/tag.rs:1-269.
