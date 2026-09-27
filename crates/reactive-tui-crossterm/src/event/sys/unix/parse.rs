@@ -339,7 +339,12 @@ fn parse_csi_keyboard_enhancement_flags(buffer: &[u8]) -> io::Result<Option<Inte
         return Ok(None);
     }
 
-    let bits = buffer[3];
+    // The flags are a decimal number. Upstream read the byte of its first
+    // digit, which gave the right bits only for flags 0 to 9.
+    let bits = std::str::from_utf8(&buffer[3..buffer.len() - 1])
+        .ok()
+        .and_then(|digits| digits.parse::<u32>().ok())
+        .ok_or_else(could_not_parse_event_error)?;
     let mut flags = KeyboardEnhancementFlags::empty();
 
     if bits & 1 != 0 {
@@ -354,10 +359,9 @@ fn parse_csi_keyboard_enhancement_flags(buffer: &[u8]) -> io::Result<Option<Inte
     if bits & 8 != 0 {
         flags |= KeyboardEnhancementFlags::REPORT_ALL_KEYS_AS_ESCAPE_CODES;
     }
-    // *Note*: this is not yet supported by crossterm.
-    // if bits & 16 != 0 {
-    //     flags |= KeyboardEnhancementFlags::REPORT_ASSOCIATED_TEXT;
-    // }
+    if bits & 16 != 0 {
+        flags |= KeyboardEnhancementFlags::REPORT_ASSOCIATED_TEXT;
+    }
 
     Ok(Some(InternalEvent::KeyboardEnhancementFlags(flags)))
 }
@@ -1654,6 +1658,24 @@ mod tests {
                 KeyModifiers::empty(),
             )))),
         );
+    }
+
+    #[test]
+    fn test_parse_csi_keyboard_enhancement_flags_reads_the_number() {
+        // The reply is `ESC [ ? flags u`, the flags as a decimal number.
+        let flags = |reply: &[u8]| match parse_csi_keyboard_enhancement_flags(reply).unwrap() {
+            Some(InternalEvent::KeyboardEnhancementFlags(flags)) => flags,
+            other => panic!("{reply:?} gave {other:?}"),
+        };
+        assert_eq!(flags(b"\x1B[?0u"), KeyboardEnhancementFlags::empty());
+        assert_eq!(
+            flags(b"\x1B[?25u"),
+            KeyboardEnhancementFlags::DISAMBIGUATE_ESCAPE_CODES
+                | KeyboardEnhancementFlags::REPORT_ALL_KEYS_AS_ESCAPE_CODES
+                | KeyboardEnhancementFlags::REPORT_ASSOCIATED_TEXT,
+        );
+        assert_eq!(flags(b"\x1B[?31u"), KeyboardEnhancementFlags::all());
+        assert!(parse_csi_keyboard_enhancement_flags(b"\x1B[?x1u").is_err());
     }
 
     #[test]
