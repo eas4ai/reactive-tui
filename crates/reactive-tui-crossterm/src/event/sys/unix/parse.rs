@@ -731,6 +731,13 @@ pub(crate) fn parse_csi_u_encoded_key_code(buffer: &[u8]) -> io::Result<Option<I
         }
     }
 
+    // Key number 0 is text that no known key produced. Unless that text was
+    // one character, which became the key above, there is no key to deliver,
+    // and a NUL would read as Ctrl+Space.
+    if codepoint == 0 && keycode == KeyCode::Char('\0') {
+        return Err(could_not_parse_event_error());
+    }
+
     let input_event = Event::Key(KeyEvent::new_with_kind_and_state(
         keycode,
         modifiers,
@@ -1647,6 +1654,23 @@ mod tests {
                 KeyModifiers::empty(),
             )))),
         );
+    }
+
+    #[test]
+    fn test_parse_csi_u_key_number_zero_is_never_a_nul() {
+        // Key number 0 is text that no known key produced, such as the
+        // text an input method commits.
+        assert_eq!(
+            parse_csi_u_encoded_key_code(b"\x1B[0;;233u").unwrap(),
+            Some(InternalEvent::Event(Event::Key(KeyEvent::new(
+                KeyCode::Char('\u{e9}'),
+                KeyModifiers::empty(),
+            )))),
+        );
+        // With no text, or with text of several characters, it is dropped
+        // instead of reaching the application as a NUL.
+        assert!(parse_csi_u_encoded_key_code(b"\x1B[0u").is_err());
+        assert!(parse_csi_u_encoded_key_code(b"\x1B[0;;26085:26412u").is_err());
     }
 
     #[test]
