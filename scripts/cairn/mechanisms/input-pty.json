@@ -14,7 +14,12 @@
     "INP-003",
     "INP-004",
     "INP-005",
-    "INP-006"
+    "INP-006",
+    "INP-007",
+    "INP-008",
+    "INP-009",
+    "INP-010",
+    "INP-011"
   ],
   "results": "per-requirement",
   "identity": {

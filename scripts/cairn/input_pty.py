@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
-"""INP-001 to INP-006: terminal input on the default backend, observed on a
+"""INP-001 to INP-011: terminal input on the default backend, observed on a
 pseudo-terminal.
 
 Runs the library tests in src/backend/suprtui/input_pty.rs, one requirement
 at a time. Each test starts a copy of the library test binary on a new
 pseudo-terminal, where an App runs on SuprTuiBackend::new; the test writes
-real SGR mouse reports, bracketed pastes and keys to the terminal and reads
-back what the App wrote and which events its elements received. Unix only:
+real SGR mouse reports, bracketed pastes, Kitty keys, focus reports and
+Ctrl+Z to the terminal, answers the App's startup queries, and reads back
+what the App wrote and which events its elements received. Unix only:
 the pseudo-terminal comes from openpty.
 """
 
@@ -21,6 +22,11 @@ REQUIREMENTS = [
     ("INP-004", "backend::suprtui::input_pty::inp_004_"),
     ("INP-005", "backend::suprtui::input_pty::inp_005_"),
     ("INP-006", "backend::suprtui::input_pty::inp_006_"),
+    ("INP-007", "backend::suprtui::input_pty::inp_007_"),
+    ("INP-008", "backend::suprtui::input_pty::inp_008_"),
+    ("INP-009", "backend::suprtui::input_pty::inp_009_"),
+    ("INP-010", "backend::suprtui::input_pty::inp_010_"),
+    ("INP-011", "backend::suprtui::input_pty::inp_011_"),
 ]
 
 
