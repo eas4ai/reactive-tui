@@ -114,6 +114,10 @@ enum Command {
     Shutdown(Reply, Option<String>),
     /// Reply once every earlier frame has been written and flushed.
     Sync(Reply),
+    /// Leave the terminal as at exit, for a suspend (INP-010).
+    Suspend(Reply),
+    /// Enter the terminal again after a suspend and repaint the whole next frame.
+    Resume(Reply),
     #[cfg(all(test, unix))]
     Panic(&'static str),
 }
@@ -171,8 +175,17 @@ impl SuprTuiBackend {
         let (width, height) = crossterm::terminal::size()?;
         let raw_mode = RawMode::enter()?;
         images.refresh_cell_pixels();
-        let mut backend =
-            Self::start(width, height, io::stdout(), Session::ScreenAndInput, images)?;
+        // Before the input stream exists, so the replies never reach it (INP-011).
+        #[cfg(unix)]
+        let replies = crossterm::terminal::query_startup(STARTUP_QUERY_WAIT).unwrap_or_default();
+        // Windows reads console input records, which cannot carry the replies.
+        #[cfg(not(unix))]
+        let replies = StartupReplies::default();
+        follow_terminal_background(replies.background);
+        let session = Session::ScreenAndInput {
+            kitty: replies.keyboard.is_some(),
+        };
+        let mut backend = Self::start(width, height, io::stdout(), session, images)?;
         backend.raw_mode = Some(raw_mode);
         Ok(backend)
     }
@@ -327,6 +340,41 @@ impl SuprTuiBackend {
         self.shutdown_with_panic(None)
     }
 
+    /// Leave the terminal as at exit, stop this process with SIGTSTP as a
+    /// shell expects, and when it continues enter the terminal again and
+    /// repaint the whole next frame (INP-010). When no shell stops it (the
+    /// orphaned group of a session leader discards the signal), it enters
+    /// again at once.
+    #[cfg(unix)]
+    fn suspend_process(&mut self) -> Result<()> {
+        if self.raw_mode.is_none() {
+            return Ok(());
+        }
+        let commands = self.commands.as_ref().ok_or_else(worker_stopped)?;
+        let (reply, result) = mpsc::channel();
+        commands
+            .send(Command::Suspend(reply))
+            .map_err(|_| worker_stopped())?;
+        result.recv().map_err(|_| worker_stopped())??;
+        discard_pending_input();
+        if let Some(raw_mode) = self.raw_mode.as_mut() {
+            raw_mode.restore()?;
+        }
+        // raise signals this thread, so it stops before the call returns. A
+        // signal sent to the process may reach another thread first, and this
+        // one would switch raw mode on again before the stop.
+        // SAFETY: stops this process; returns once it continues.
+        unsafe {
+            libc::raise(libc::SIGTSTP);
+        }
+        self.raw_mode = Some(RawMode::enter()?);
+        let (reply, result) = mpsc::channel();
+        commands
+            .send(Command::Resume(reply))
+            .map_err(|_| worker_stopped())?;
+        result.recv().map_err(|_| worker_stopped())?
+    }
+
     /// Of a run of waiting motion reports only the latest is kept; the first
     /// event after the run waits in `held` (INP-006).
     fn merge_motion(
@@ -388,6 +436,10 @@ impl SuprTuiBackend {
 impl Backend for SuprTuiBackend {
     fn shutdown_after_panic(&mut self, message: &str) -> Result<()> {
         self.shutdown_with_panic(Some(message))
+    }
+    #[cfg(unix)]
+    fn suspend(&mut self) -> Result<()> {
+        self.suspend_process()
     }
     fn is_interactive_terminal(&self) -> bool {
         self.raw_mode.is_some()
@@ -809,6 +861,15 @@ fn run_worker<W: Write>(
                 };
                 let _ = reply.send(outcome);
             }
+            Command::Suspend(reply) => {
+                let cleanup = renderer.backend_mut().finish_graphics(graphics.cleanup());
+                graphics = graphics::Graphics::default();
+                let _ = reply.send(cleanup.and(session.restore()));
+            }
+            Command::Resume(reply) => {
+                force = true;
+                let _ = reply.send(session.enter());
+            }
             Command::Shutdown(reply, message) => {
                 let cleanup = renderer.backend_mut().finish_graphics(graphics.cleanup());
                 let restored = session.restore_with_panic(message.as_deref());
@@ -825,6 +886,41 @@ fn run_worker<W: Write>(
     }
     if let Err(error) = renderer.backend_mut().finish_graphics(graphics.cleanup()) {
         log::warn!("Image output cleanup failed: {error}");
+    }
+}
+
+/// How long the startup queries wait for their replies (INP-011).
+#[cfg(unix)]
+const STARTUP_QUERY_WAIT: Duration = Duration::from_millis(200);
+
+/// What a terminal that cannot be asked answers: nothing.
+#[cfg(not(unix))]
+#[derive(Default)]
+struct StartupReplies {
+    keyboard: Option<()>,
+    background: Option<(u16, u16, u16)>,
+}
+
+/// Make the light preset active on a terminal whose background's relative
+/// luminance is above 0.5, when the application has set no theme (INP-011).
+fn follow_terminal_background(background: Option<(u16, u16, u16)>) {
+    let Some((red, green, blue)) = background else {
+        return;
+    };
+    if crate::theme::Theme::generation() != 0 {
+        return;
+    }
+    let linear = |channel: u16| {
+        let value = f64::from(channel) / f64::from(u16::MAX);
+        if value <= 0.04045 {
+            value / 12.92
+        } else {
+            ((value + 0.055) / 1.055).powf(2.4)
+        }
+    };
+    let luminance = 0.2126 * linear(red) + 0.7152 * linear(green) + 0.0722 * linear(blue);
+    if luminance > 0.5 {
+        crate::theme::Theme::set_active(crate::theme::light_theme());
     }
 }
 

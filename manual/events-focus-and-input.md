@@ -48,6 +48,22 @@ a sideways one. When motion reports queue up faster than the application
 handles them, only the latest of each run is delivered, and reports still
 queued when the application exits are dropped.
 
+Before the first frame the default backend on Unix asks the terminal whether
+it speaks the Kitty keyboard protocol and what its background color is. It
+waits at most 200 ms for the answers, and keys typed meanwhile reach the
+application in order. When the terminal speaks the protocol, the backend turns
+on its flags 1, 8 and 16 (unambiguous escape codes, every key as an escape
+code, and the text a key types), and turns them off on every exit and before a
+suspend. A key then keeps its code and modifiers: Ctrl+I stays apart from Tab,
+and a text key carries the text the terminal reports. Caps Lock, Num Lock,
+Scroll Lock and the media keys arrive with their own `KeyCode`. A modifier key
+pressed alone sends no event. A terminal focus report reaches the root
+component only, and the focused element keeps its focus. On Unix, a Ctrl+Z
+that no handler consumes suspends the application as a shell expects. The
+backend leaves the terminal as it found it and stops the process. When the
+process continues, the backend enters the terminal again and repaints the
+whole screen.
+
 The application rebuilds its event tree from the presented frame. Focus state
 is preserved when possible and moved when a focused node disappears. Positions
 preserve whether coordinates are terminal cells or pixels.
@@ -58,6 +74,8 @@ preserve whether coordinates are terminal cells or pixels.
   input.
 - Focus registration alone does not paint a focus style.
 - Pixel positions require terminal support and must not be treated as cells.
+- The Kitty keyboard protocol, the startup questions and the Ctrl+Z suspend
+  are Unix only; on Windows keys arrive as the console reports them.
 - Event handlers must avoid long blocking work because they run in application
   event processing.
 

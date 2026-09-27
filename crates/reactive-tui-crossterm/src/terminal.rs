@@ -100,6 +100,8 @@ pub(crate) mod sys;
 
 #[cfg(feature = "events")]
 pub use sys::supports_keyboard_enhancement;
+#[cfg(all(unix, feature = "events"))]
+pub use sys::{query_startup, StartupReplies};
 
 /// Tells whether the raw mode is enabled.
 ///

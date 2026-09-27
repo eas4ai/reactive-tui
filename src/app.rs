@@ -342,10 +342,31 @@ impl App {
             let component = self.event_tree.innermost_component(target);
             self.components.process_mouse_event(component, mouse);
         }
-        let mut result = self.router.process_event(event);
+        // The terminal's own focus reports go to the root only, never to the
+        // focused element as a change of its own focus (INP-009).
+        let mut result = if matches!(event, Event::Focus(_)) {
+            EventResult::Ignored
+        } else {
+            self.router.process_event(event)
+        };
         dirty |= state != (self.router.get_focus(), self.router.hovered_node());
         if result == EventResult::Ignored && self.running {
             result = self.root.try_handle_event(event)?;
+        }
+        // Ctrl+Z that no handler consumed suspends the App (INP-010).
+        if result == EventResult::Ignored && self.running {
+            if let Event::Key(key) = event {
+                let only_ctrl = key.modifiers.ctrl
+                    && !key.modifiers.alt
+                    && !key.modifiers.shift
+                    && !key.modifiers.meta;
+                if key.kind != KeyEventKind::Release && key.code == KeyCode::Char('z') && only_ctrl
+                {
+                    self.backend.suspend()?;
+                    dirty = true;
+                    result = EventResult::Handled;
+                }
+            }
         }
         if self.quit_key.is_none() && result == EventResult::Ignored {
             if let Event::Key(key) = event {

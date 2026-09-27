@@ -286,7 +286,7 @@ bitflags! {
     ///
     /// See <https://sw.kovidgoyal.net/kitty/keyboard-protocol/#progressive-enhancement> for more information.
     ///
-    /// Alternate keys and Unicode codepoints are not yet supported by crossterm.
+    /// Alternate keys are not yet supported by crossterm.
     #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize), serde(transparent))]
     #[derive(Debug, PartialOrd, PartialEq, Eq, Clone, Copy, Hash)]
     pub struct KeyboardEnhancementFlags: u8 {
@@ -303,10 +303,11 @@ bitflags! {
         /// Represent all keyboard events as CSI-u sequences. This is required to get repeat/release
         /// events for plain-text keys.
         const REPORT_ALL_KEYS_AS_ESCAPE_CODES = 0b0000_1000;
-        // Send the Unicode codepoint as well as the keycode.
-        //
-        // *Note*: this is not yet supported by crossterm.
-        // const REPORT_ASSOCIATED_TEXT = 0b0001_0000;
+        /// Send the text a key types, on the current keyboard layout, as well as the
+        /// keycode; the parser makes a single character of it the key's
+        /// [`KeyCode::Char`], so Shift+1 reads as `!`. Needs
+        /// [`Self::REPORT_ALL_KEYS_AS_ESCAPE_CODES`].
+        const REPORT_ASSOCIATED_TEXT = 0b0001_0000;
     }
 }
 
@@ -1498,6 +1499,10 @@ pub(crate) enum InternalEvent {
     /// Attributes and architectural class of the terminal.
     #[cfg(unix)]
     PrimaryDeviceAttributes,
+    /// The terminal's background color, as 16-bit red, green and blue, from
+    /// the reply to `OSC 11 ; ?`.
+    #[cfg(unix)]
+    BackgroundColor(u16, u16, u16),
 }
 
 #[cfg(test)]

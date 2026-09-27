@@ -51,7 +51,7 @@ const ATTRIBUTES_QUERY: &[u8] = b"\x1b[c";
 const ATTRIBUTES_REPLY: &[u8] = b"\x1b[?62;22c";
 /// The Kitty keyboard flags INP-007 names: 1, 8 and 16.
 const KITTY_PUSH: &str = "\x1b[>25u";
-const KITTY_POP: &str = "\x1b[<u";
+const KITTY_POP: &str = "\x1b[<1u";
 /// The DECSET modes INP-001 names, in the order crossterm writes them.
 const MODES: [&str; 6] = ["1000", "1002", "1003", "1015", "1006", "2004"];
 
@@ -123,6 +123,7 @@ fn job_shell() {
             Ok(())
         });
     }
+    #[allow(clippy::zombie_processes)] // waitpid below reaps it
     let job = command.spawn().expect("the job");
     let pid = job.id() as libc::pid_t;
     // SAFETY: waitpid, tcsetpgrp, tcgetattr and kill on this process's own
@@ -1274,9 +1275,10 @@ fn inp_010_ctrl_z_suspends_and_resumes() {
         .collect();
     let flags_on = text.rfind(KITTY_PUSH) > text.rfind(KITTY_POP);
     let canonical = events.iter().any(|line| line == "STOPPED canonical=true");
+    let stopped = events.iter().find(|line| line.starts_with("STOPPED"));
     assert!(
         left_on.is_empty() && !flags_on && canonical,
-        "INP-010: the App stopped with the modes {left_on:?} still set, the keyboard flags {}, and raw mode {}",
+        "INP-010: the App stopped with the modes {left_on:?} still set, the keyboard flags {}, and raw mode {} ({stopped:?})",
         if flags_on { "pushed" } else { "popped" },
         if canonical { "off" } else { "on" }
     );

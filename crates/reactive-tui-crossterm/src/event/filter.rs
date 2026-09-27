@@ -46,6 +46,24 @@ impl Filter for PrimaryDeviceAttributesFilter {
     }
 }
 
+/// The replies to the startup queries: keyboard flags, background color,
+/// and the device attributes reply that ends them.
+#[cfg(unix)]
+#[derive(Debug, Clone)]
+pub(crate) struct StartupReplyFilter;
+
+#[cfg(unix)]
+impl Filter for StartupReplyFilter {
+    fn eval(&self, event: &InternalEvent) -> bool {
+        matches!(
+            *event,
+            InternalEvent::KeyboardEnhancementFlags(_)
+                | InternalEvent::BackgroundColor(..)
+                | InternalEvent::PrimaryDeviceAttributes
+        )
+    }
+}
+
 #[derive(Debug, Clone)]
 pub(crate) struct EventFilter;
 
