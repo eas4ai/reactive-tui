@@ -108,7 +108,7 @@ Status: Agreed 2026-09-27
 [INP-007] On a terminal that reports the Kitty keyboard protocol, the default backend MUST push the flags disambiguate (1), report all keys as escape codes (8) and report associated text (16) before its first frame and pop them on every exit and before a suspend; every key MUST then reach the App as one press event that keeps its key and its Shift, Ctrl, Alt and Super modifiers, and a key that types one character MUST carry that character as the terminal reports it; text of several characters, whether a key typed it or no known key produced it, MUST reach the App as one character press per character, in order. On a terminal that does not report the protocol it MUST push nothing.
 Falsifier: In a pseudo-terminal that answers the keyboard-protocol query, the app writes no `ESC[>25u` before its first frame, or after a normal exit, an error exit or a panic the last keyboard-flag write is not a pop; `ESC[13;2u` (Shift+Enter), `ESC[104;5u` (Ctrl+H), `ESC[105;5u` (Ctrl+I) or `ESC[91;5u` (Ctrl+[) reaches the App as Enter, Backspace, Tab or Escape or with other modifiers; `ESC[49;2;33u` (Shift+1 typing `!`) reaches it as anything but `!`; `ESC[0;;26085:26412u` (text an input method commits) reaches it as anything but the presses `日` and `本`, in order; or, in a pseudo-terminal that answers only the device-attributes query, the app writes `ESC[>`.
 Mechanism: input-pty
-Status: Draft
+Status: Agreed 2026-09-27
 
 [INP-008] The default backend MUST deliver Caps Lock, Num Lock and Scroll Lock and the play, pause, play-pause, stop, next and previous media keys as their own `KeyCode`, and MUST deliver no event for a modifier key (Shift, Ctrl, Alt, Super, Hyper or Meta) pressed alone.
 Falsifier: In a pseudo-terminal with the Kitty protocol on, the Kitty codes for those nine keys reach the App as `KeyCode::Unknown` or another key, or a Kitty code for a modifier key alone reaches the App as any event.
@@ -129,4 +129,4 @@ Status: Agreed 2026-09-27
 Falsifier: In a pseudo-terminal that answers the background query with `rgb:ffff/ffff/ffff`, the first frame is painted with the dark preset; with `rgb:0000/0000/0000`, or with an application theme set, the active theme changes; a reply byte reaches the App as a key; keys sent before the replies arrive late, out of order or not at all; or, with no reply at all, the first frame comes more than 400 ms after the queries were written.
 Mechanism: input-pty
 Rationale: On Windows crossterm reads console input records, where a terminal's reply arrives as typed characters; the Windows question waits as backlog item windows-startup-queries, by the developer's ok on 2026-09-27.
-Status: Draft
+Status: Agreed 2026-09-27

@@ -40,4 +40,4 @@ Status: Agreed 2026-09-22
 Falsifier: In a grid of 199 rows of 25 text elements at 700 by 200, a frame that changes one element's text builds a layout node for any other element or measures the text of more than 16 elements; or, over frames that change text, classes and children, a frame's cells or hit grid differ from a full layout of the same spec.
 Mechanism: painter-goldens
 Rationale: Measured on 2026-09-27 at 2f6f66ef in release at 700 by 200: with 4,975 text elements and one changing per frame, layout took 7.1 ms of a 20 ms frame, and 0.9 ms when nothing changed.
-Status: Draft
+Status: Agreed 2026-09-27

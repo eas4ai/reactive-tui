@@ -1,6 +1,6 @@
 # Roadmap
 
-Current: keyboard-and-queries
+Current: incremental-layout
 
 Order agreed with the developer on 2026-09-21: charts first on a cell canvas,
 then a general graphics canvas over wgpu that replaces the rasterizer
@@ -14,7 +14,8 @@ that study, before the graphics canvas. On 2026-09-27 the developer put
 input protocols next, split into mouse-input and then
 keyboard-and-queries, and ruled that widget changes from the study wait
 until input protocols, incremental layout and the graphics canvas are
-done.
+done. After keyboard-and-queries the developer put incremental layout
+next, then the graphics canvas.
 
 ## charts-plot-layer
 
@@ -509,6 +510,29 @@ this commitment.
 Done when input-pty passes with the new tests, host-builds passes, the
 gates, paths and dependency checks pass, and the pseudo-terminal tests pass
 on the Mac test host, recorded in the review.
+
+## incremental-layout
+
+Requirements: PNT-005, PNT-001, PNT-002, PNT-004, INP-007, INP-011, BAR-001, BAR-002, BAR-007, BAR-008, BAR-009
+
+The last phase of the SuprTUI renderer plan (item suprtui-incremental-layout),
+confirmed by the developer on 2026-09-27 after a measurement at 700 by 200
+in release: with 4,975 text elements and one changing per frame, layout took
+7.1 ms of a 20 ms frame. When a frame's spec changes, the painter keeps the
+Taffy nodes of unchanged elements at the same position in the tree, builds
+nodes only for new or changed ones, and lays out again only what the change
+can move, while its cells and hit grid stay those of a full layout
+(PNT-005). PNT-001, PNT-002 and PNT-004 keep holding on the same check. The
+same planning round revised INP-007 (text of several characters arrives as
+one press per character, as keyboard-and-queries built it) and INP-011 (the
+startup questions are Unix only); their checks run unchanged. The App's own
+per-frame work, the conversion of elements to a paint spec, and the graphics
+canvas are not part of this commitment.
+
+Done when painter-goldens passes with the new PNT-005 tests, input-pty
+passes, the gates, paths, dependency checks and host builds pass, and the
+frame times at 700 by 200 before and after the change are recorded in the
+review.
 
 ## graphics-canvas
 
