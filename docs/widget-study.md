@@ -1880,7 +1880,7 @@ Each entry says what the component is, what we have that comes closest, what it 
   - Up/Down move, Right/Left open or close a group, Enter activates, and a key collapses the whole bar. Clicks work.
   - Hover tooltips on collapsed icons do not carry over; show the label on focus instead.
   - The screen reader gets a Navigation landmark holding a Tree or a List.
-- **Call:** build, medium.
+- **Call:** build, medium. Apps with several views need a navigation column, and today `sidebar()` is only a styled box with no keys, state or roles (src/builder/layout.rs:26-29).
 
 ### skeleton
 - **gpui-kit:** a full-width, one-line block in the theme's skeleton color, with an optional half-opacity secondary color (G/skeleton.rs:8-29). It pulses opacity from 1 to 0.5 over 2 s (G/skeleton.rs:37-58).
@@ -1902,7 +1902,7 @@ Each entry says what the component is, what we have that comes closest, what it 
 - **gpui-kit:** a bottom row with left, center and right regions (G/status_bar.rs:9-37). The center aligns according to which ends are filled (G/status_bar.rs:20-23, G/status_bar.rs:77-106). It has a top border, a status-bar background and small muted text (G/status_bar.rs:86-95). There is no role and no input anywhere in G/status_bar.rs:1-107.
 - **Ours:** absent. `footer()` is a plain block container (src/builder/core.rs:39-42), used as a centered footer in the builder example (src/builder/mod.rs:118-121).
 - **In a terminal:** the last screen row, vim/tmux style, with reverse video or its own background. Left items pack left, right items pack right, and the center is centered. On overflow, text is cut with `…`, center first. Items can be plain text or Tab-reachable buttons. The screen reader gets a Status region, or a toolbar if it holds buttons.
-- **Call:** build, small.
+- **Call:** build, small. Most full-screen terminal apps keep the mode, the position and key hints on the last row, and today each app has to draw that row itself from `footer()` (src/builder/core.rs:39-42).
 
 ### stepper
 - **gpui-kit:** a row or column of steps with a current step; earlier steps are marked as passed (G/stepper/stepper.rs:10-22, G/stepper/item.rs:117).
