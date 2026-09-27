@@ -413,9 +413,10 @@ fn pnt_004_unchanged_spec_reuses_the_layout() {
     );
 }
 
-/// A 700 by 200 screen of 199 rows of 25 text elements; the first element
-/// shows `first`.
-fn label_grid(first: &str) -> Element {
+/// A 700 by 200 screen of 199 rows of 25 text elements of class `label`;
+/// the first element shows `first`. In spec order the root is element 0,
+/// the first row 1 and its labels 2 to 26.
+fn label_grid(first: &str, label: &str) -> Element {
     Element::layout(LayoutType::Flex)
         .with_class("flex flex-col w-full h-full")
         .with_children(
@@ -431,7 +432,7 @@ fn label_grid(first: &str) -> Element {
                                     } else {
                                         format!("r{row}c{column}")
                                     };
-                                    Element::text(text).with_class("flex-1 h-1")
+                                    Element::text(text).with_class(label)
                                 })
                                 .collect(),
                         )
@@ -441,31 +442,43 @@ fn label_grid(first: &str) -> Element {
 }
 
 /// PNT-005: changing one element's text keeps every other element's layout
-/// node and measures only the text the change can move.
+/// node and measures only the texts the change can move: with `flex-1`
+/// labels, which share their row's width by their text, the labels of its
+/// row; with fixed-width labels, itself alone.
 #[test]
 fn pnt_005_one_changed_text_keeps_the_other_layout_nodes() {
-    let mut backend = SuprTuiBackend::with_writer(700, 200, Sink::default()).unwrap();
-    let mut show = |element: &Element| {
-        assert!(backend.render_frame(element).unwrap());
-        backend.present().unwrap();
-        backend.sync().unwrap();
-        (
-            backend.layout_reused(),
-            backend.layout_nodes_built(),
-            backend.layout_texts_measured(),
-        )
-    };
-    let (_, built, _) = show(&label_grid("first"));
-    assert!(
-        built > 5_000,
-        "a first frame lays out every element, but built {built} layout nodes"
-    );
-    let (reused, built, measured) = show(&label_grid("changed"));
-    assert!(!reused, "a changed text must lay out again");
-    assert!(
-        built <= 1 && measured <= 16,
-        "changing one of 4,975 texts built {built} layout nodes and measured {measured} texts"
-    );
+    for (label, movable) in [("flex-1 h-1", 2..=26), ("w-28 h-1", 2..=2)] {
+        let mut backend = SuprTuiBackend::with_writer(700, 200, Sink::default()).unwrap();
+        let mut show = |element: &Element| {
+            assert!(backend.render_frame(element).unwrap());
+            backend.present().unwrap();
+            backend.sync().unwrap();
+            (
+                backend.layout_reused(),
+                backend.layout_nodes_built(),
+                backend.layout_measured_elements().to_vec(),
+            )
+        };
+        let (_, built, _) = show(&label_grid("first", label));
+        assert!(
+            built > 5_000,
+            "{label}: a first frame lays out every element, but built {built} layout nodes"
+        );
+        let (reused, built, measured) = show(&label_grid("changed", label));
+        assert!(!reused, "{label}: a changed text must lay out again");
+        let outside: Vec<usize> = measured
+            .iter()
+            .copied()
+            .filter(|index| !movable.contains(index))
+            .collect();
+        assert!(
+            built <= 1 && outside.is_empty(),
+            "{label}: changing one of 4,975 texts built {built} layout nodes and measured {} texts, {} of them elements the change cannot move, such as {:?}",
+            measured.len(),
+            outside.len(),
+            &outside[..outside.len().min(5)]
+        );
+    }
 }
 
 /// PNT-005: frames laid out from the previous frame's layout paint the cells
